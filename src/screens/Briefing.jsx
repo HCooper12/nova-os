@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
-import { Eyebrow, Chip, Meta, Tag, TextAction, isAppleStyle } from '../Controls.jsx';
+import { Eyebrow, Chip, Meta, Tag, TextAction, isAppleStyle, ScreenHead } from '../Controls.jsx';
 
 // THE BRIEFING — a report Nova researched, read or performed.
 //
@@ -128,11 +128,57 @@ export function Briefing({ v }) {
   if (!b) return null;
 
   if (b.empty && !b.error) {
+    // NOT A PARAGRAPH ON A VOID (finding 20, 22 Sep). The house head at the
+    // house height (the tall-screen wrap Voice uses, so the eyebrow lands
+    // where every other screen's does), the serif news line, the stage
+    // standing dim and at rest, the real phrasings as chips that place the
+    // words in the composer, and the briefings that already exist.
     return (
-      <div style={css("padding:40px 20px;max-width:520px")}>
-        <Eyebrow tone="faint">Briefing</Eyebrow>
-        <div style={css("margin-top:10px;font:400 15px/1.6 var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>No briefing is open. Ask for one — “research X and write me a report” — or open a finished one from your Inbox.</div>
-        <div style={css("margin-top:14px")}><TextAction onClick={b.openInbox}>Open the Inbox</TextAction></div>
+      <div style={v.wrapVoice} data-screen-label="Briefing">
+        <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
+          <ScreenHead numeral="XVII." label="Knowledge · Briefing" />
+          <Meta tone="faint">Researched · written · read aloud</Meta>
+        </div>
+        <h1 style={css(`margin:18px 0 0;font:700 ${mob ? 28 : 30}px/1.1 ${UI};letter-spacing:var(--nv-display-track);text-wrap:balance`)}>
+          Nothing open. <span style={css(`font:italic 400 ${mob ? 25 : 27}px ${S};color:var(--nv-gold)`)}>Ask for one.</span>
+        </h1>
+        <p style={css(`margin:10px 0 0;max-width:520px;font:400 ${mob ? 14.5 : 15}px/1.6 ${UI};color:var(--nv-ink60);text-wrap:pretty`)}>
+          Nova works out the angles, researches them at once, writes the report and reads it to you with the glass showing what she means. Say it to her the way you would to a person:
+        </p>
+        <div style={css("margin-top:12px;display:flex;flex-wrap:wrap;gap:8px")}>
+          {b.starters.map((s) => (
+            <Chip key={s.label} tone="cyan" onClick={s.go} title={`Places the words in the composer — the blank is ${s.hint}`}>{s.label}</Chip>
+          ))}
+        </div>
+        {/* the stage, at rest — the same glass the briefing plays on, dimmed
+            and labelled as what it is, never a fake report */}
+        <div style={css("margin-top:26px;max-width:560px")}>
+          <Eyebrow tone="faint">The stage, at rest</Eyebrow>
+          <div style={css("margin-top:8px;opacity:.55")} aria-hidden="true">
+            <Glass visual={{ kind: 'title', title: 'Your next briefing', sub: 'the angles · the report · the sources' }} />
+            <div style={css("margin-top:8px;display:grid;grid-template-columns:repeat(2, minmax(0,1fr));gap:8px;opacity:.6")}>
+              <Glass mini visual={{ kind: 'heading', n: 1, of: 3, heading: 'Where it starts' }} />
+              <Glass mini visual={{ kind: 'term', term: 'In plain words', plain: '' }} />
+            </div>
+          </div>
+        </div>
+        <div style={css("margin-top:26px;max-width:560px")}>
+          <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
+            <Eyebrow tone="faint">Already made</Eyebrow>
+            <TextAction compact tone="quiet" onClick={b.openInbox}>Open the Inbox</TextAction>
+          </div>
+          {b.recent.length === 0 ? (
+            <Meta as="div" tone="faint" style={{ marginTop: '8px', textTransform: 'none', letterSpacing: 0 }}>No briefings yet — the first one you ask for lands here.</Meta>
+          ) : b.recent.map((r, i) => (
+            <Interactive key={r.id} as="div" onClick={r.open} role="button" aria-label={`Open ${r.title}`}
+              base={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 4px', borderTop: i === 0 ? 'none' : '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}
+              hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 04%, transparent)' }}>
+              <span aria-hidden="true" style={{ flex: 'none', width: 8, height: 8, borderRadius: '50%', background: r.working ? 'var(--nv-cy)' : 'var(--nv-good)', boxShadow: r.working ? '0 0 10px var(--nv-cy)' : 'none', animation: r.working ? 'novaPulse 1.6s infinite var(--nv-anim)' : 'none' }} />
+              <span style={{ flex: 1, minWidth: 0, font: r.titled ? `400 ${mob ? 16 : 17}px/1.3 ${S}` : `400 ${mob ? 13.5 : 14}px/1.4 ${UI}`, color: r.titled ? 'var(--nv-ink)' : 'var(--nv-ink60)', overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.title}</span>
+              <Meta tone="faint" style={{ flex: 'none', textTransform: 'none', letterSpacing: 0 }}>{r.state}</Meta>
+            </Interactive>
+          ))}
+        </div>
       </div>
     );
   }

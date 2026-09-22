@@ -1,3 +1,5 @@
+import { BRIEFING_STARTERS, starterLabel } from '../briefingStarters.js';
+
 // THE BRIEFING READER — the report Nova researched, read or performed.
 //
 // Two ways to consume one artefact. LISTEN: Nova speaks each beat, the glass
@@ -54,6 +56,27 @@ export function valsBriefing(app, _ctx) {
       // nothing open and nothing loading: say so, never a permanent "Opening…"
       empty: !doc && !st.briefingLoading,
       openInbox: () => app.navigate('inbox'),
+      // the empty screen is not a void (finding 20, 22 Sep): the real ways to
+      // ask, and the briefings that already exist — read off the Inbox
+      // records of kind 'briefing', never invented
+      starters: BRIEFING_STARTERS.map((s) => ({
+        label: starterLabel(s), hint: s.hint,
+        go: () => { app.spokenInput = false; app.navigate('voice', { orbInput: s.phrase }); },
+      })),
+      recent: (st.liveInbox?.items || [])
+        .filter((r) => r.kind === 'briefing' && ['pending', 'filed', 'classifying'].includes(r.status))
+        .slice(0, 4)
+        .map((r) => ({
+          id: r.id,
+          // the report's own title once it exists (decision.payload.title,
+          // server/lib/briefing.js); until then the request, which the screen
+          // clamps — a briefing still being made has no title yet, honestly
+          title: r.decision?.payload?.title || r.decision?.title || String(r.text || '').replace(/^Briefing:\s*/i, '') || 'Untitled briefing',
+          titled: !!(r.decision?.payload?.title || r.decision?.title),
+          state: r.status === 'classifying' ? 'being made' : r.status === 'filed' ? 'in the vault' : 'ready',
+          working: r.status === 'classifying',
+          open: () => app.openBriefing(r.id),
+        })),
       working: doc?.status === 'working' ? {
         stage: doc.stage, angles: doc.angles || [], done: doc.done || 0, title: doc.title,
         line: doc.stage === 'planning' ? 'Working out the angles worth researching…'
