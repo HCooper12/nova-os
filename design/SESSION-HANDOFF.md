@@ -13,6 +13,61 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 SEP (small hours) — HIS GO ON THE AGENT WORLD; REVIEW SESSIONS B AND C
+SHIPPED; A BY THE PEER; THE MOCKUP IN FLIGHT.** His decisions (22 Sep, late):
+(1) proceed with the Org Map, aesthetic review sessions first, then the
+static mockup; (2) luminous forms, but a cheaper model may draw forms vs
+faces side by side so he can see the difference; (3) try the "Viewed" verb.
+
+**DONE, VERIFIED, PUSHED**
+- Session A (`cb2ae8d`) — by the peer session "Nova improvement plan":
+  one `Button` in Controls.jsx, fifteen hand-rolled `btn()` helpers gone,
+  gold no longer the default commit fill. Verified by reading the diff and
+  `grep -rn "btn(" src` → 0.
+- Session B (`3081b60`, mine) — Home's six fold rows are instruments:
+  `foldInstrument` in `src/missionFold.js` (pure, beside `foldStatus`), a
+  `FoldGlyph`/`FoldRow` in `MissionStructured.jsx`, tests in
+  `server/test/missionFold.test.js`. Looked at: 402px cupertino, six rows,
+  368/368 each, no overflow. The command idiom has no fold rows (classic
+  fold), so nothing to verify there. A peer caught a 10.5px label against
+  `contrast.test.js`'s 11pt floor; it is the house `Eyebrow` now.
+- Session C (`a082574`, mine) — `MuscleTag` on Gym's today card, every
+  routine tile, and the Goals card; `musclesNamed` in `src/muscleHue.js`;
+  goals as an instrument (serif line, 7-cell days rail, priority chips, age
+  line); coach chips sentence case; `server/test/musclePaletteFrontend.test.js`.
+  Looked at: Gym today card, routine tiles, Coach tab at 402px cupertino.
+  Two 4px overflows on the "Routines" and "Goals" header rows are
+  PRE-EXISTING (Session D territory), not the chips; page scrollWidth 402.
+- Gates at close of C: lint warnings only (none in my files), build green,
+  `cd server && npm test` 1993/1993, pushed, origin level.
+
+**IN FLIGHT / OPEN**
+- The Org Map mockup: a Sonnet agent is writing
+  `design/mockups/48-org-map.html` (two phone frames, Forms vs Faces, Dark
+  and Calm, reduced-motion toggle). Not yet reviewed by me; not committed.
+  When it lands: look at it, publish it for him, and fold his reaction into
+  `design/AGENT-WORLD-PLAN.md` §3f.
+- Review sessions D, E, F remain. D and E live mostly in the peer's Session
+  A files (Todos, Ops, Notes, Settings); F in nova-os-c7's Fuel work. I have
+  asked the peer which they want; take the remainder.
+- The "Viewed" verb (his "sure"): a `seenAt` on a record, a light action on
+  the Inbox card, "N waiting, M new" on the counts. Not started. The counts
+  are a shared contract (Home eyebrow, Ops gate, Inbox badge) — change every
+  reader or none.
+- Three sessions share this working tree tonight (this one, "Nova
+  improvement plan", nova-os-c7 with uncommitted `server/lib/ops.js`,
+  `server/routes/ops.js` and new `claudeSessions*.js`). Commit by explicit
+  pathspec only; :5183 is the peer's vite, use :5173.
+
+**DO NOT**
+- Do not read the 22 Sep review's line numbers as current; Session A moved
+  them. Find call sites by content.
+- Do not treat `AGENTS` in `src/vals/shared.js` as live data: it is a static
+  list, all `on: true`; the Agents fold's arc draws that and nothing more.
+
+---
+
+
 **23 SEP — SESSION A OF THE REVIEW: ONE BUTTON, ONE ACCENT.** Commit
 `cb2ae8d`, pushed. Three sessions were working this checkout at once (me,
 `nova-os-c7` on Fuel, `Nova` on Session B); every commit went in with an
