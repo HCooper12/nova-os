@@ -1,6 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
+import { Eyebrow, Chip, Tag, Meta, ScreenHead, Button, Chevron } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase()).replace(/\bnova\b/g, 'Nova');
 
@@ -60,10 +60,32 @@ export function Journal({ v }) {
           )}
           {v.journalDays.map((d) => (
             <div key={d.date} className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { padding: '14px 18px' } : css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:14px 18px;background:rgba(255,255,255,.02)")}>
-              <Interactive as="div" onClick={d.toggle} base="cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px" hoverStyle={{}}>
-                <span style={css("font-size:13.5px;font-weight:500")}>{d.date}</span>
-                <Meta tone="faint" style={{ textAlign: 'right', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 10px', textTransform: 'none', letterSpacing: 0 }}>{d.open ? '' : d.preview}</Meta>
-                <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{d.count} {d.count === 1 ? 'entry' : 'entries'} {d.open ? '▲' : '▼'}</Meta>
+              {/* A DAY, WITH ITS WEIGHT. The row led with an ISO date in mono
+                  and a bare `N entries ▼`, so today looked like any other and
+                  the whole screen read as a date table (review finding 14).
+                  Now: the day in the serif face, today larger and accented,
+                  the count drawn as one dot per entry so a month's rhythm is
+                  visible down the list, and a 44pt row to tap. */}
+              <Interactive as="div" onClick={d.toggle} aria-expanded={d.open}
+                base="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:44px"
+                hoverStyle={{}}>
+                <span style={{ flex: 'none', display: 'flex', alignItems: 'baseline', gap: '7px' }}>
+                  <span style={{ font: `400 ${d.isToday ? 19 : 16}px var(--nv-font-serif)`, lineHeight: 1.1,
+                    color: d.isToday ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{d.dayLabel}</span>
+                  {d.isToday && <Meta tone="accent" style={{ textTransform: 'uppercase', letterSpacing: '.08em' }}>Today</Meta>}
+                </span>
+                <Meta tone="faint" style={{ textAlign: 'right', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: 'none', letterSpacing: 0 }}>{d.open ? '' : d.preview}</Meta>
+                <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span aria-label={`${d.count} ${d.count === 1 ? 'entry' : 'entries'}`} title={`${d.count} ${d.count === 1 ? 'entry' : 'entries'}`}
+                    style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                    {Array.from({ length: Math.min(d.count, 6) }).map((_, i) => (
+                      <i key={i} style={{ width: '4px', height: '4px', borderRadius: '50%', display: 'block',
+                        background: d.isToday ? 'var(--nv-acc)' : 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }} />
+                    ))}
+                    {d.count > 6 && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>+{d.count - 6}</Meta>}
+                  </span>
+                  <Chevron open={d.open} />
+                </span>
               </Interactive>
               {d.open && (
                 <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);padding-top:12px")}>

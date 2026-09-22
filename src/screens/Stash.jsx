@@ -74,9 +74,11 @@ export function Stash({ v }) {
                     <TextAction compact tone="faint" onClick={it.cancelRemove}>Keep</TextAction>
                   </span>
                 ) : (
+                  /* 20x24 was under the 28pt floor (measured 23 Sep). Same
+                     glyph, a target a thumb can actually land on. */
                   <Interactive as="span" onClick={it.askRemove} aria-label={`Remove ${it.name}`}
-                    base={css("cursor:pointer;flex:none;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent);padding:4px 6px")}
-                    hoverStyle={{ color: 'var(--nv-warn)' }}>×</Interactive>
+                    base={css("cursor:pointer;flex:none;font-size:15px;line-height:1;color:color-mix(in srgb, var(--nv-ink) 30%, transparent);display:flex;align-items:center;justify-content:center;min-width:32px;min-height:32px;border-radius:50%")}
+                    hoverStyle={{ color: 'var(--nv-warn)', background: 'color-mix(in srgb, var(--nv-warn) 10%, transparent)' }}>×</Interactive>
                 )}
               </div>
             ))}

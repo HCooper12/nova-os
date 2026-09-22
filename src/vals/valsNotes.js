@@ -69,8 +69,17 @@ export function valsNotes(app, ctx) {
   const journalDays = (st.liveJournalEntries || [])
     .map((d) => {
       const sections = d.sections.filter((s) => jFilter === 'all' || (s.category || 'personal') === jFilter);
+      // A DAY IS A DAY, NOT AN ISO STRING (23 Sep 2026, review finding 14).
+      // Six rows led with `2026-09-22` in mono and today was indistinguishable
+      // from one a week old. `Tue 22 Sep` is how he says it; `isToday` lets
+      // the screen give today the weight it has.
+      const dt = new Date(`${d.date}T12:00:00`);
+      const valid = !Number.isNaN(dt.getTime());
+      const todayIso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
       return {
         date: d.date,
+        dayLabel: valid ? dt.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) : d.date,
+        isToday: d.date === todayIso,
         open: st.journalOpenDate === d.date,
         toggle: () => app.toggleJournalDay(d.date),
         count: sections.length,
@@ -129,7 +138,19 @@ export function valsNotes(app, ctx) {
     notesHeaderLabel: usingLiveNotes ? `${st.liveNotes.length} notes · live from Obsidian` : `${app.notes.length} notes · demo data`,
     noteQuery: st.noteQuery,
     setNoteQuery: (e) => app.setState({ noteQuery: e.target.value }),
-    noteFilters: noteFilters.map(f => ({ label: f, go: () => app.setState({ noteType: f }), active: st.noteType === f })),
+    // EACH FILTER CARRIES ITS COUNT AND ITS TYPE'S HUE (23 Sep 2026). Eighteen
+    // identical cyan chips told him nothing about which was worth tapping;
+    // the count says how much is behind each one, and the hue is the same
+    // NOTE_TYPE_COLOR the rows below already wear, so the chip and its notes
+    // are visibly the same thing. `All` keeps the accent — it is the state,
+    // not a type.
+    noteFilters: noteFilters.map(f => ({
+      label: f,
+      count: f === 'All' ? allNotesNorm.length : allNotesNorm.filter(n => n.typeLabel === f || (f === 'NOTE' && n.typeLabel === 'IDENTITY')).length,
+      hue: f === 'All' ? null : (NOTE_TYPE_COLOR[f.toLowerCase()] || null),
+      go: () => app.setState({ noteType: f }),
+      active: st.noteType === f,
+    })),
     noteList,
     // the other end of the pair — the reader panel wears the open note's name
     openNoteVtStyle: vtStyle('note', st.openNoteId),

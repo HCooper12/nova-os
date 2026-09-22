@@ -3,6 +3,19 @@
 // Obsidian by hand — and Todoist mirrored two ways. Adds to ctx:
 // todosOpenCount (sidebar count).
 
+// A BARE URL IS A PLACE, NOT A QUERY STRING. One to-do carried a YouTube link
+// with its tracking parameters and rendered as nine lines of
+// `?si=ViCNnsot-cpYEZ8Y` down his phone (aesthetic review, finding 7). The row
+// shows where the link GOES; the whole string stays in the title attribute, so
+// nothing is lost. Anything that is not a URL is returned untouched — this
+// must never mangle his own words.
+const URL_RE = /https?:\/\/[^\s]+/i;
+function linkify(text) {
+  return String(text || '').replace(/https?:\/\/[^\s]+/gi, (u) => {
+    try { return `${new URL(u).host.replace(/^www\./, '')} \u2197`; } catch { return u; }
+  }).trim();
+}
+
 function timeAgoLabel(iso) {
   if (!iso) return '';
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);

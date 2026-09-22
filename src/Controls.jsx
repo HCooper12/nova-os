@@ -24,6 +24,8 @@ import { haptic } from './haptics.js';
 //   <TextAction>    a tappable word or phrase — text-only, 44pt hit area
 //   <Chip>          a tappable pill in a tint — chips wrap, so they stay short
 //   <Button>        the committing action — one shape, one accent, everywhere
+//   <Rail>          a scrolling row of peers — faded at the edge, never cut
+//   <Chevron>       the disclosure glyph — one stroke, and it turns
 //   <Tag>           a non-tappable badge (a route, a muscle, a kind)
 //   <Meta>          secondary information — a time, a source, a count
 //   <ScreenHead>    the screen's identity row — numeral · rule · label in
@@ -208,6 +210,85 @@ export function Button({ children, onClick, tone: t = 'accent', variant = 'solid
       }}
       hoverStyle={{ filter: 'brightness(1.1)' }}
     >{children}</Interactive>
+  );
+}
+
+// THE DISCLOSURE CHEVRON — one glyph, and it TURNS.
+//
+// The app had three conventions for the same idea: a raw unicode triangle
+// swapped between two characters, a right-pointing guillemet, and nothing at
+// all. A character swap is a cut, not a motion, and §2b rule 7 asks for the
+// change to be acted out. This is a stroked path that rotates, so opening a
+// section is one continuous movement at the house duration, and it reduces to
+// an instant flip under `prefers-reduced-motion` like everything else.
+export function Chevron({ open, tone: t = 'faint', size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" aria-hidden="true" focusable="false"
+      style={{ flex: 'none', display: 'block', color: tone(t),
+        transform: `rotate(${open ? 90 : 0}deg)`,
+        transition: 'transform var(--nv-dur-fast) var(--nv-ease)' }}>
+      <path d="M4.5 2.5 L8 6 L4.5 9.5" fill="none" stroke="currentColor" strokeWidth="1.6"
+        strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// A RAIL — one horizontally scrolling row, with the edge faded rather than cut.
+//
+// The aesthetic review, 22 Sep 2026, finding 11: Notes laid eighteen filter
+// chips out as a wrapping grid inside a fixed-height box, and the box sliced
+// the sixth row horizontally through the glyphs — `Topic`, `Plan`, `Book` cut
+// in half, with no fade, no "more", and nothing to scroll. Measured at 375px
+// it was 78px of content hidden behind a hard `overflow:hidden`.
+//
+// A row of peers is a rail, not a grid (§2b rule 7), and an edge that fades
+// says "there is more this way" where a straight cut says "this is broken"
+// (apple-design §12, scroll edge effects). The mask is the same gradient on
+// both sides, each only present when there is something in that direction, so
+// the affordance is honest: no left fade when you are at the start.
+//
+// `mask-image` rather than an overlaid gradient element, because an overlay
+// would need to know the background it sits on, and these rails sit on four
+// different theme grounds.
+export function Rail({ children, gap = '6px', style, ariaLabel }) {
+  const ref = useRef(null);
+  const [edges, setEdges] = useState({ left: false, right: false });
+  const measure = () => {
+    const el = ref.current;
+    if (!el) return;
+    const left = el.scrollLeft > 2;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setEdges((p) => (p.left === left && p.right === right ? p : { left, right }));
+  };
+  useLayoutEffect(() => {
+    measure();
+    const el = ref.current;
+    if (!el) return undefined;
+    // content can arrive after the first paint (the filters are derived from
+    // the vault), so the rail re-measures when its own size changes
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  });
+  const fade = '28px';
+  const mask = edges.left && edges.right
+    ? `linear-gradient(90deg, transparent 0, #000 ${fade}, #000 calc(100% - ${fade}), transparent 100%)`
+    : edges.right ? `linear-gradient(90deg, #000 calc(100% - ${fade}), transparent 100%)`
+      : edges.left ? `linear-gradient(90deg, transparent 0, #000 ${fade})` : undefined;
+  return (
+    <div ref={ref} role={ariaLabel ? 'group' : undefined} aria-label={ariaLabel} onScroll={measure}
+      style={{
+        display: 'flex', gap, alignItems: 'center',
+        overflowX: 'auto', overflowY: 'hidden',
+        scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+        // the rail bleeds into the page gutter and pads itself back, so the
+        // first chip starts on the text margin but can still scroll to the edge
+        scrollSnapType: 'x proximity',
+        maskImage: mask, WebkitMaskImage: mask,
+        ...(style || {}),
+      }}>
+      {children}
+    </div>
   );
 }
 

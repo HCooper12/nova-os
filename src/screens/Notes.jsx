@@ -1,6 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
-import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead, Tag, Button } from '../Controls.jsx';
+import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead, Tag, Button, Rail } from '../Controls.jsx';
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
@@ -22,11 +22,19 @@ export function Notes({ v }) {
               base="width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
             />
-            <div style={css("display:flex;flex-wrap:wrap;gap:6px;margin-top:10px")}>
+            {/* ONE RAIL, NOT A WALL OF EIGHTEEN. The wrapping grid was clipped
+                78px short at 375px, slicing the last row through the glyphs
+                (measured, aesthetic review finding 11). A row of peers scrolls
+                and fades at the edge; each chip wears its own type's hue and
+                says how many notes are behind it. */}
+            <Rail style={{ marginTop: '10px', paddingBottom: '2px' }} ariaLabel="Filter notes by type">
               {v.noteFilters.map((f) => (
-                <Chip key={f.label} tone="accent" active={f.active} onClick={f.go}>{cap(f.label)}</Chip>
+                <Chip key={f.label} tone={f.hue || 'accent'} active={f.active} onClick={f.go}
+                  style={{ flex: 'none', scrollSnapAlign: 'start' }}>
+                  {cap(f.label)}{f.count ? <span style={{ opacity: .6, fontVariantNumeric: 'tabular-nums' }}>{f.count}</span> : null}
+                </Chip>
               ))}
-            </div>
+            </Rail>
           </div>
           <div style={css("flex:1;overflow-y:auto;padding:0 8px 10px;display:flex;flex-direction:column;gap:2px")}>
             {v.noteList.map((n, i) => (

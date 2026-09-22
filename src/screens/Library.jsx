@@ -108,7 +108,9 @@ function ChipsRow({ v }) {
         {v.libraryChips.map((c) => (
           <Chip key={c.key} tone={c.active ? 'accent' : 'quiet'} active={c.active} onClick={c.pick}>{cap(c.label)}</Chip>
         ))}
-        <Interactive as="input" value={v.libraryQuery} onChange={v.setLibraryQuery} placeholder="Search the shelf…"
+        {/* `Search the shelf…` rendered as `Search the` clipped mid-word at
+            375px (aesthetic review, finding 16). One word always fits. */}
+        <Interactive as="input" value={v.libraryQuery} onChange={v.setLibraryQuery} placeholder="Search"
           base={`margin-left:auto;min-width:120px;flex:1 1 120px;max-width:230px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:8px 13px;color:var(--nv-ink);font:400 12px ${M};outline:none`}
           focusStyle="border-color:var(--nv-acc-border)" />
         {/* The shelf is where you think about books, so it is where you must
@@ -122,8 +124,10 @@ function ChipsRow({ v }) {
           {[['grid', '▦', 'Covers'], ['spines', '▥', 'Shelf']].map(([key, glyph, label]) => (
             <Interactive key={key} as="span" onClick={() => v.setLibraryView(key)}
               ariaLabel={label}
-              base={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px',
-                padding: '5px 10px', borderRadius: '7px', font: '600 11.5px var(--nv-font-ui)',
+              base={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                // 25px tall was under the 28pt floor (measured 23 Sep); this
+                // is the same control at the floor, with the row unchanged
+                minHeight: '32px', padding: '6px 11px', borderRadius: '7px', font: '600 11.5px var(--nv-font-ui)',
                 letterSpacing: '.02em',
                 color: v.libraryView === key ? 'var(--nv-acc)' : 'var(--nv-ink40)',
                 background: v.libraryView === key ? 'var(--nv-acc-bg)' : 'transparent',
@@ -278,6 +282,18 @@ function Shelf({ v, fellBack }) {
                     {!(b.isBook && b.jacket) && (
                       <div style={{ position: 'relative', marginTop: b.jacket ? '52%' : 'auto',
                         paddingTop: b.jacket ? '13px' : 0, textAlign: 'center' }}>
+                        {/* A SCRIM, NOT A SHADOW, over artwork. A jacketed
+                            volume puts serif foil straight onto a generated
+                            cover whose luminance it cannot know; a text-shadow
+                            fights a light patch and loses. The gradient gives
+                            the type its own ground the way iOS does over a
+                            photo (apple-design §12, vibrancy), and only a
+                            jacket needs it — a plated board is already cloth. */}
+                        {b.jacket && (
+                          <div aria-hidden="true" style={{ position: 'absolute', inset: '-14px -10px -10px',
+                            background: 'linear-gradient(180deg, transparent, rgba(0,0,0,.42) 38%, rgba(0,0,0,.62))',
+                            borderRadius: '10px', pointerEvents: 'none' }} />
+                        )}
                         <div aria-hidden="true" style={{ width: '46px', height: '1px', margin: '0 auto 9px',
                           background: ed.foil, opacity: .55 }} />
                         <div style={{ font: `400 ${b.jacket ? 13 : (b.isBook ? 17 : 15)}px ${S}`, lineHeight: 1.2,

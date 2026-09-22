@@ -238,8 +238,10 @@ export function TrainToday({ o, actions, resume }) {
             );
           })}
           {under.length > 0 && actions?.askVolume && (
+            /* 26px tall, and it is the one thing on the card worth tapping
+               (measured 23 Sep). A row, not a line of small print. */
             <Interactive as="div" onClick={() => actions.askVolume(under.map((u) => u.muscle).join(', '))}
-              base="margin-top:9px;font-size:11.5px;color:var(--nv-gold);cursor:pointer" hoverStyle="text-decoration:underline">
+              base="margin-top:9px;min-height:44px;display:flex;align-items:center;font-size:12.5px;line-height:1.4;color:var(--nv-gold);cursor:pointer" hoverStyle="text-decoration:underline">
               {`${under.map((u) => u.muscle).join(' & ')} under target for your goal — ask Coach how to add sets →`}
             </Interactive>
           )}

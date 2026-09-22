@@ -36,7 +36,11 @@ export function Term({ k, children }) {
         role="button" tabIndex={0} aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         onKeyDown={(e) => { if (e.key === 'Enter') setOpen(!open); }}
-        style={css('border-bottom:1px dotted color-mix(in srgb, var(--nv-cy) 55%, transparent);cursor:help')}
+        /* A word inside a sentence cannot be 44pt tall without breaking the
+           line, but it can be 28 — the floor accessibility.md sets — by
+           padding above and below and pulling the same amount back out of
+           the line box. Measured at 16px before this (23 Sep). */
+        style={css('border-bottom:1px dotted color-mix(in srgb, var(--nv-cy) 55%, transparent);cursor:help;display:inline-block;padding:6px 2px;margin:-6px -2px')}
       >{children || k}</span>
       {open && (
         <span style={css('position:absolute;left:0;bottom:calc(100% + 8px);z-index:60;width:min(240px,72vw);background:var(--nv-bg2, #111a32);border:1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent);border-radius:12px;padding:10px 12px;font:400 12px var(--nv-font-ui);color:var(--nv-ink);letter-spacing:0;text-transform:none;line-height:1.5;box-shadow:0 18px 50px -12px rgba(0,0,0,.9)')}>

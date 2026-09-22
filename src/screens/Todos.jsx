@@ -60,22 +60,45 @@ export function Todos({ v }) {
                   edge that deepens from a fortnight old to six weeks, and the
                   age itself warms with it — so a column of old items reads as
                   a gradient instead of a row of identical gold badges. */}
-              <div className={v.structured ? undefined : 'nv-pane'} style={{ display: 'flex', alignItems: 'center', gap: '13px', padding: v.structured ? '11px 16px' : '12px 15px', borderTop: v.structured && ti > 0 ? '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' : 'none', boxShadow: t.staleness > 0 ? `inset 2px 0 0 color-mix(in srgb, var(--nv-gold) ${Math.round(30 + t.staleness * 60)}%, transparent)` : undefined }}>
+              <div className={v.structured ? undefined : 'nv-pane'} style={{ display: 'flex', alignItems: 'flex-start', gap: '13px', padding: v.structured ? '11px 16px' : '12px 15px', borderTop: v.structured && ti > 0 ? '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' : 'none', boxShadow: t.staleness > 0 ? `inset 2px 0 0 color-mix(in srgb, var(--nv-gold) ${Math.round(30 + t.staleness * 60)}%, transparent)` : undefined }}>
+                {/* THE BOX STAYS 21px; THE TARGET IS 44. Measured at 375px the
+                    tappable area was the box itself — 21x21, below even the
+                    28pt floor accessibility.md sets, on the control he uses
+                    most on this screen. Padding grows the target and a
+                    matching negative margin keeps the layout identical, which
+                    is the standard way to buy a target without redrawing. */}
                 <Interactive as="span" onClick={t.toggle} aria-label={`Mark "${t.text}" done`}
-                  base={{ cursor: 'pointer', width: '21px', height: '21px', flex: 'none', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)' }}
-                ></Interactive>
-                <span style={css(`flex:1;min-width:0;font:500 14.5px ${R};overflow-wrap:anywhere`)}>{t.text}</span>
-                {t.editingCategory ? (
-                  <select autoFocus value={t.category || ''} onChange={t.pickCategory}
-                    style={{ flex: 'none', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', font: 'var(--nv-micro-s)', padding: '3px 6px', outline: 'none' }}>
-                    {!t.category && <option value="" style={{ background: '#141019' }}>—</option>}
-                    {v.todoCategories.map((c) => <option key={c.value} value={c.value} style={{ background: '#141019' }}>{c.label}</option>)}
-                  </select>
-                ) : (
-                  <TextAction compact tone="quiet" onClick={t.startEditCategory} title="Change category (syncs to Todoist as a label)" style={{ flex: 'none' }}>{t.categoryLabel}</TextAction>
-                )}
-                <Meta tone={t.staleness > 0 ? 'gold' : 'faint'} style={{ flex: 'none', opacity: t.staleness > 0 ? 0.65 + t.staleness * 0.35 : 1 }} title={t.staleness > 0 ? 'Open longer than a fortnight' : undefined}>{t.addedLabel}</Meta>
+                  base={{ cursor: 'pointer', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '11px', margin: '-11px -11px -11px -11px', borderRadius: '50%' }}
+                  hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 10%, transparent)' }}
+                >
+                  <span style={{ width: '21px', height: '21px', borderRadius: '7px', border: '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)', display: 'block' }} />
+                </Interactive>
+                {/* THE TITLE GETS THE ROW (23 Sep 2026). It used to share one
+                    flex line with a category action, a badge and an age, all
+                    `flex:none` — about 230px of a 370px row — so a three-word
+                    task broke mid-character ("swipe verificatio / n item") and
+                    a pasted URL wrapped to nine lines. The title now owns its
+                    own full-width line and the two pieces of metadata sit
+                    under it, which is how a Mail or Reminders row is built.
+                    `anywhere` is reserved for the one string that needs it: a
+                    URL has no spaces to break at, but words do. */}
+                <span style={css('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
+                  <span title={t.isLink ? t.text : undefined} style={css(`font:500 15px ${R};word-break:break-word`)}>{t.display}</span>
+                  <span style={css('display:flex;align-items:center;gap:8px;min-width:0')}>
+                    {t.editingCategory ? (
+                      <select autoFocus value={t.category || ''} onChange={t.pickCategory}
+                        style={{ flex: 'none', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-cy) 40%, transparent)', borderRadius: '6px', color: 'var(--nv-ink)', font: 'var(--nv-micro-s)', padding: '3px 6px', outline: 'none' }}>
+                        {!t.category && <option value="" style={{ background: '#141019' }}>—</option>}
+                        {v.todoCategories.map((c) => <option key={c.value} value={c.value} style={{ background: '#141019' }}>{c.label}</option>)}
+                      </select>
+                    ) : (
+                      <TextAction compact tone="quiet" onClick={t.startEditCategory} title="Change category (syncs to Todoist as a label)" style={{ flex: 'none' }}>{t.categoryLabel}</TextAction>
+                    )}
+                    <Meta tone="faint" style={{ flex: 'none' }}>·</Meta>
+                    <Meta tone={t.staleness > 0 ? 'gold' : 'faint'} style={{ flex: 'none', opacity: t.staleness > 0 ? 0.65 + t.staleness * 0.35 : 1 }} title={t.staleness > 0 ? 'Open longer than a fortnight' : undefined}>{t.addedLabel}</Meta>
+                  </span>
+                </span>
               </div>
               </SwipeRow>
             ))}
