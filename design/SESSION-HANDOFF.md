@@ -13,6 +13,136 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**22 SEP (midday) — CLOSE PASS: VERIFIED THE GATES, CLEANED THE INSTRUMENT,
+FOUND THE AESTHETIC REVIEW HALF-SHOT AND STALE IN PART.** This was a
+`/nova-close` pass, not feature work — three other sessions (this one's own
+earlier context, a peer Opus session, and a Fable session) had already landed
+commits `240f9d2`, `ff3e03c`, `20b6f87` on top of the "22 SEP (morning)"
+entry below without a handoff update, so the block had drifted stale by three
+commits before this pass started. Re-verify what you read here; don't extend
+this trust to the entries below it without spot-checking, same as always.
+
+**DONE CRITERIA — met.** All standing close gates green, re-run fresh, not
+assumed:
+- `npm run lint` exit 0 (warnings only, none new)
+- `npm run build` exit 0
+- `cd server && npm test` — **1947/1947 pass**, 0 fail (was 1777 on 17 Sep;
+  real work landed in between)
+- `git status --porcelain` — clean but for one untracked dir (below);
+  `git rev-list --left-right --count origin/main...HEAD` → `0 0`, exactly synced
+- backend: `curl .../api/health` → 200; `launchctl list | grep novaos` shows
+  a live PID
+- last GitHub Actions deploy (`20b6f87`, "Deploy to GitHub Pages") completed
+  `success` and matches HEAD — nothing in flight
+
+**DECISIONS**
+- **Killed the stray dev instrument** (`vite --port 5183`, PIDs 19128/19640/
+  19658) and ran `node scripts/dev-connect.mjs --clean`, which removed
+  `public/_devconn.js`. → The prior entry's own instruction ("Dev server on
+  :5183 and `_devconn.js` are live for the review; clean both at close") and
+  the script's own doctrine comment ("ALWAYS run `--clean` when finished...
+  a token sitting in a served directory is exactly the kind of thing that
+  outlives the session that needed it"). Forecloses: nothing was mid-capture
+  — the newest shot is from 10:12, this pass started well after — so no work
+  was interrupted.
+- **Left `design/audits/aesthetic-2026-09-22/shots/` (38 PNGs, 15MB)
+  uncommitted, not deleted.** → Checked the repo's own precedent first:
+  `design/audits/2026-08-full-audit/` is 70 tracked files, 0 images —
+  written reports only, never raw screenshots. Committing 15MB of PNGs
+  against that convention is a call for whoever writes the actual review,
+  not this pass; deleting them throws away real navigation/render time this
+  or a peer session already spent. Forecloses: the next session must decide
+  whether to commit a written report (images stay local or move to a scratch
+  dir) or re-shoot — either way, this leaves the choice open rather than
+  making it by default.
+
+**STATE**
+- `design/audits/aesthetic-2026-09-22/shots/` — 38 stills, **partial and
+  part-stale**:
+  - Coverage: 32 cupertino, only 10 command — 14 screens (`boot-waiting`,
+    `briefing`, `code`, `exercise-card`, `galaxy`, `leader`, `library`,
+    `money`, `notes`, `ops`, `settings`, `shopping`, `stash`, `train-gym`)
+    have no command-idiom counterpart at all.
+  - **10 shots predate `20b6f87`** (the top-bar opacity/timing fix, landed
+    09:40:39; these are timestamped 09:30–09:33): `boot-waiting-cupertino`,
+    `home-cupertino-{top,900,1800,2700}`, `train-coach-cupertino{,-900}`,
+    `train-gym-cupertino`, `train-today-cupertino{,-800}`. These are exactly
+    the scroll-position/top-bar shots most likely to show the text-ghosting
+    bug that commit describes fixing ("RECORDS · 09/21" legible under "Good
+    morning" at full "solid"). Reviewing them as current risks writing up a
+    bug that is already fixed — re-shoot those ten before trusting them, or
+    read `20b6f87`'s message first and discount what it names.
+  - No report file exists alongside the shots — the capture phase happened,
+    the review/analysis did not.
+- The prior entry's "Their unstaged liquid-glass work (`index.css`,
+  `MobileChrome.jsx`, `valsChrome.js`) was left alone" is **resolved, not
+  lost** — it's `20b6f87` (Fable session, Claude-Session
+  `session_01WfH7xarf3BmKeQj2mMMatX`), verified rendered via `shot.mjs` at
+  0/14/30/160px scroll, test now pins the range ceiling and the opaque
+  composite. No action needed on it.
+- `ff3e03c` added a durable doctrine block to `CLAUDE.md`: Nova's liquid
+  glass, violet/cyan accents, soft radius and calm shadows are **not** the
+  "AI-generated defaults" the global CLAUDE.md warns against reaching for —
+  they're tokenised, documented (NOVA-METHOD.md §2b), and chosen against his
+  own reports. A design review (including any HIG-style audit) that flags
+  one of them is a design argument to put to him, never an automatic
+  cleanup. Read this before the aesthetic review's findings become builds.
+
+**VERIFIED**
+- Every file the "22 SEP (morning)" entry names as shipped actually exists:
+  `src/muscleHue.js`, `server/test/muscleHue.test.js`,
+  `design/ORG-CONVERSATION-PLAN.md`, `scripts/shot.mjs`, `src/tldr.js` — all
+  present (`test -f`, this pass).
+  - One path was imprecise, not wrong: the 21 Sep entry says
+    `planFollowUp.js` with no path; it's `server/lib/planFollowUp.js`.
+- `36d081e`/`dc61273` (shot.mjs, ORG-CONVERSATION-PLAN.md) and `2208373`
+  ("fix: UPDATE actually updates…") checked against `git show --stat` —
+  attributions in the prior entry match.
+- `nova-concurrent-sessions.md` already carries today's "whole index" and
+  "peer's WIP can fail the gate" incidents in full, with the right rule
+  (`git commit -F msg -- path1 path2`, explicit pathspec) — no memory update
+  needed there.
+
+**ASSUMED**
+- The two Coach proposals and the 21 Sep report noted as unread in his
+  Inbox (see that entry below) — not re-checked live this pass; carried
+  forward as still open, not verified fresh.
+- `20b6f87`'s claim that the fix was "rendered in the app for the first
+  time" and shows no ghosting at 14/30/160px — taken from the commit
+  message, not re-rendered independently in this pass.
+
+**OPEN QUESTIONS / BLOCKERS**
+- The aesthetic review itself (§2b rules 7–8, both idioms, every screen,
+  Before/After) is still not done — screenshots exist, analysis doesn't.
+- Whether `design/audits/*` should ever hold binary screenshots going
+  forward, or stay markdown-only with images kept outside git, is an actual
+  convention decision nobody has made explicitly — it's been true by
+  accident (only one audit exists) rather than by rule.
+
+**NEXT ACTION**
+Finish the aesthetic review: re-shoot the 10 stale shots (or discount them
+against `20b6f87`'s description), shoot the 14 command-idiom screens that
+have no counterpart yet, then write the actual findings as a markdown report
+under `design/audits/aesthetic-2026-09-22/` — matching the `2026-08-full-audit`
+convention — reading `CLAUDE.md`'s new anti-AI-look section first so a
+"glass in the content layer"-style finding is raised with him rather than
+auto-applied. Expected observation if the report is right: it should name
+concrete screens and files, the way `2026-08-full-audit`'s numbered files do,
+not a general aesthetic impression.
+
+**DO NOT**
+- Do not commit `design/audits/aesthetic-2026-09-22/shots/*.png` as-is — no
+  audit in this repo has ever checked in raw images; write the findings as a
+  report first.
+- Do not treat the 10 pre-`20b6f87` shots (listed above) as current-state
+  evidence without re-shooting or reading that commit's description first.
+- Do not re-litigate the CLAUDE.md anti-AI-look exceptions (liquid glass,
+  violet/cyan, soft radius, calm shadows) as review findings — they're his
+  decisions, argued to him if you disagree, not defaults to strip.
+
+---
+
+
 **22 SEP (morning) — THE MUSCLE PALETTE, PLATFORM-WIDE; A SCREENSHOT
 INSTRUMENT; THE ORG PLAN WRITTEN.** His instructions: colour with a purpose
 (muscle focus), "apply the muscle palette across the platform so it's always
@@ -2221,6 +2351,22 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**22 Sep 2026 (midday) — Close pass, not feature work.** Re-ran every gate
+fresh rather than trusting the last-known state: lint clean, build clean,
+1947/1947 server tests (was 1777 on 17 Sep — three sessions had shipped real
+work since). Cleaned the dev instrument the morning session left running
+(`vite --port 5183`, `public/_devconn.js` — a live token file, always
+removed at close). Found the queued aesthetic review half-done: 38 screenshots
+taken (32 cupertino, 10 command — 14 screens have no command counterpart),
+no written findings, and ten of the shots predate a top-bar fix (`20b6f87`)
+that likely fixed the exact bug they would have shown — flagged rather than
+reviewed. Left the shots uncommitted rather than checking them in: the
+repo's one prior audit (`2026-08-full-audit`) is 70 files, all markdown, no
+images, and 15MB of PNGs breaks that convention silently if committed by
+default. Also traced a loose thread the morning entry left open ("their
+unstaged liquid-glass work... left alone") to its resolution in `20b6f87`
+— not lost, already shipped and tested.
 
 **17 Sep 2026 (evening) — The dock could never have buzzed.** Third report
 of "haptics still not occurring" traced to a real structural gap:
