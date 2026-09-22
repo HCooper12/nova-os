@@ -263,6 +263,14 @@ function MacroRings({ hero }) {
                     // stayed electric cyan under Daylight where --nv-cy is a
                     // deep blue
                     filter: i === 0 ? `drop-shadow(0 0 6px color-mix(in srgb, ${m.hue} 55%, transparent))` : 'none',
+                    // the SWEEP. A transition only fires on a CHANGE, and an
+                    // arc that replaces the dashed gap MOUNTS at its final
+                    // offset — rec.mjs showed frame one dashed and frame two
+                    // finished, no motion between. nvArcIn (index.css) starts
+                    // the stroke at the full circumference so the arc grows
+                    // in; the transition still carries later changes.
+                    '--nv-arc-full': circ,
+                    animation: 'nvArcIn 1s cubic-bezier(.2,.8,.2,1) both',
                     transition: 'stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)',
                   }} />
               )}

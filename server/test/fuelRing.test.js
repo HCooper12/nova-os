@@ -81,6 +81,8 @@ test('the calories are the one figure in the middle, in the serif face', () => {
   const ring = ringsFn();
   assert.match(ring, /var\(--nv-font-serif\)/, 'the news line face, per §2b r2');
   assert.match(ring, /hero\.kcal\.toLocaleString\(\)/);
+  assert.match(ring, /animation: 'nvArcIn 1s/, 'an arc that replaces the gap must grow in, not appear finished (rec.mjs caught this)');
+  assert.match(readFileSync(new URL('../../src/index.css', import.meta.url), 'utf8'), /@keyframes nvArcIn \{ from \{ stroke-dashoffset: var\(--nv-arc-full\); \} \}/);
   assert.match(ring, /\|\| hero\.kcal > 0 \? hero\.kcal\.toLocaleString\(\) : '—'/, 'nothing logged is a dash in the centre, not a zero');
   assert.match(ring, /font-variant-numeric:tabular-nums/, 'digits that do not dance as the day climbs');
   assert.match(ring, /<Meta tone="faint"[\s\S]*?of \$\{hero\.kcalTarget\.toLocaleString\(\)\}/,

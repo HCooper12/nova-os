@@ -107,6 +107,9 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 /* a decided card LEAVING the deck (finding 13, Inbox.jsx): a beat in its
    verdict's colour — filed goes green and rises out the way it came, discarded
    goes red and falls — before the status swap removes it (src/inboxLeave.js) */
+/* an arc growing in from nothing (Recipes.jsx MacroRings): the keyframe names
+   only its start, so the arc lands on whatever offset the element carries */
+@keyframes nvArcIn { from { stroke-dashoffset: var(--nv-arc-full); } }
 @keyframes nvLeaveFile { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(calc(var(--nv-rise) * -1)) scale(.985); } }
 @keyframes nvLeaveDiscard { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(var(--nv-rise)) scale(.985); } }
 .nv-leave-approve { animation: nvLeaveFile var(--nv-dur-base) var(--nv-ease) both; box-shadow: inset 3px 0 0 var(--nv-good); border-radius: 14px; pointer-events: none; }
