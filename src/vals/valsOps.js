@@ -42,6 +42,25 @@ const skillVal = (s) => ({
     : s.autonomy === 'propose' ? 'var(--nv-gold)' : 'var(--nv-cy)',
 });
 
+
+// WORKING ON THIS MAC. The server has already done the judging (which
+// session is working, which is waiting, which is a window left open) and the
+// grouping. This only dresses it: a tone per state, a quiet row for the ones
+// that are not live, and the two actions.
+//
+// His go, 23 Sep 2026: "The overall multi project view could be incorporated
+// into Nova somehow as that's my main daily driver." One place that says
+// what is running, which one is asking for him, and a tap to get to it.
+const SESSION_TONE = {
+  blocked: 'var(--nv-warn)',
+  waiting: 'var(--nv-gold)',
+  working: 'var(--nv-cy)',
+  'left-open': 'color-mix(in srgb, var(--nv-ink) 30%, transparent)',
+  gone: 'color-mix(in srgb, var(--nv-ink) 22%, transparent)',
+};
+const COUNT_WORD = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+const countWord = (n) => COUNT_WORD[n] || String(n);
+
 export function valsOps(app, ctx) {
   const st = app.state;
   const ops = st.liveOps;
@@ -85,6 +104,66 @@ export function valsOps(app, ctx) {
         proofId: j.proof ? j.id : null,
       })),
     },
+    // THE LIST OF WINDOWS ON HIS MAC — polled while Ops is open, first
+    // painted from the ops payload so it is never a blank box.
+    macSessions: (() => {
+      const live = st.liveMacSessions || ops?.sessions || null;
+      const err = demoMode
+        ? 'This list is live only, so it needs the Mac.'
+        : !live
+          ? 'Nova has not looked yet.'
+          : live.error || null;
+      const busyId = st.macSessionBusyId;
+      const confirmId = st.macSessionConfirmId;
+      return {
+        start: () => app.startMacSessionsPoll(),
+        stop: () => app.stopMacSessionsPoll(),
+        error: demoMode ? err : err,
+        summary: err || live?.summary || 'Nothing is running.',
+        note: st.macSessionNote,
+        groups: demoMode || err ? [] : (live.groups || []).map((g) => ({
+          key: g.project.key,
+          label: g.project.label,
+          summary: g.summary,
+          rows: (g.sessions || []).map((x) => ({
+            id: x.sessionId,
+            name: x.name,
+            plain: x.plain,
+            // a working session is measured from when it started; a quiet
+            // one from when anyone last spoke in it
+            when: x.state === 'working' ? `started ${x.startedAgo}` : `quiet ${x.quietAgo}`,
+            state: x.state,
+            tone: SESSION_TONE[x.state] || 'var(--nv-ink40)',
+            quiet: x.state === 'left-open' || x.state === 'gone',
+            beating: x.state === 'working',
+            canShow: !!x.canShow,
+            canClose: !!x.canClose,
+            busy: busyId === x.sessionId,
+            confirming: confirmId === x.sessionId,
+            show: () => app.showMacSession(x.sessionId),
+            askClose: () => app.setState({ macSessionConfirmId: x.sessionId, macSessionNote: null }),
+            cancelClose: () => app.setState({ macSessionConfirmId: null }),
+            confirmClose: () => app.closeMacSession(x.sessionId),
+          })),
+        })),
+      };
+    })(),
+    // ONE LINE ON HOME, and only when a hand is actually raised. Step B of
+    // the Agent World plan: "what is waiting on me and who is asking."
+    macSessionsHeadline: (() => {
+      if (demoMode) return null;
+      const live = st.liveMacSessions || ops?.sessions || null;
+      if (!live || live.error) return null;
+      const groups = (live.groups || []).map((g) => ({
+        label: g.project.label,
+        hands: (g.sessions || []).filter((x) => x.state === 'waiting' || x.state === 'blocked').length,
+      })).filter((g) => g.hands > 0);
+      const n = groups.reduce((a, g) => a + g.hands, 0);
+      if (!n) return null;
+      const thing = n === 1 ? 'thing is' : 'things are';
+      const where = groups.length === 1 ? `in ${groups[0].label}` : `across ${countWord(groups.length).toLowerCase()} projects`;
+      return { text: `${countWord(n)} ${thing} waiting on you ${where}.`, go: () => app.navigate('ops') };
+    })(),
     opsLive: !demoMode && !!ops,
     opsEmptyLine: demoMode
       ? 'Operations is a live-only surface — connect to the Mac to see the real machinery.'

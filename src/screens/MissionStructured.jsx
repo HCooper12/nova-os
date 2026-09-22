@@ -421,6 +421,21 @@ export function MissionStructured({ v }) {
           </div>
           <h1 style={{ margin: '8px 0 0', font: `700 ${mob ? '31px' : '36px'}/1.06 ${UI}`, letterSpacing: '-.02em', textWrap: 'balance' }}>{v.greeting}</h1>
           <div style={css(`margin-top:4px;font:italic 400 ${mob ? '20px' : '23px'}/1.25 ${S};background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi) 55%,var(--nv-mg));-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance`)}>{v.heroTagline}</div>
+        {/* WHO IS ASKING, on the way past. Step B of the Agent World plan
+            (design/AGENT-WORLD-PLAN.md §3d), pulled forward by his
+            instruction of 23 Sep: one line, in the serif news idiom, and
+            only when a session on the Mac genuinely has its hand up.
+            Nothing at all when nothing is waiting — an empty marker line
+            would be the dashboard drift the Method names. */}
+        {v.macSessionsHeadline && (
+          <Interactive as="div" onClick={v.macSessionsHeadline.go}
+            base={css(`cursor:pointer;margin-top:10px;display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);background:color-mix(in srgb, var(--nv-gold) 6%, transparent)`)}
+            hoverStyle="background:color-mix(in srgb, var(--nv-gold) 11%, transparent)">
+            <span style={{ flex: 'none', width: 6, height: 6, borderRadius: '50%', background: 'var(--nv-gold)', boxShadow: '0 0 9px var(--nv-gold)', animation: 'novaPulse 2.4s infinite var(--nv-anim)' }} />
+            <span style={css("flex:1;min-width:0;font:italic 400 17px/1.3 var(--nv-font-serif);color:var(--nv-ink);text-wrap:balance")}>{v.macSessionsHeadline.text}</span>
+            <span style={css("flex:none;font:600 12px var(--nv-font-ui);color:var(--nv-gold)")}>Look</span>
+          </Interactive>
+        )}
         </div>
 
         {/* C3 — THE RECORD MOMENT. Two PRs on 3 Sep rendered as two small

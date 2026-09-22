@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
@@ -70,6 +71,78 @@ function AgentDetail({ d }) {
           <span style={css(`flex:none;width:32px;text-align:right;color:${dim(35)};font-size:9px`)}>{r.when}</span>
           <span style={css(`flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${dim(78)}`)}>{r.title}</span>
           <Tag tone={r.statusColor} style={{ flex: 'none' }}>{r.status}</Tag>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+
+// WORKING ON THIS MAC — every Claude Code session across every project, in
+// one place, judged by when someone LAST SPOKE in it rather than by how old
+// its window is. His ask, 23 Sep 2026: one place that says what is running,
+// which one is waiting on him, and a tap to get to it.
+//
+// Its own component so the poll can live in a hook that is never skipped:
+// the screen above returns early when there is no ops payload at all, and a
+// conditional hook is a crash waiting for the first offline load.
+//
+// The ORDER is the server's: hands raised first, windows left open last and
+// quietly. Nothing here re-sorts, so the screen and the one-line summary can
+// never disagree about who is asking.
+function MacSessions({ v }) {
+  const s = v.macSessions;
+  useEffect(() => {
+    s.start();
+    return () => s.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div className="nv-liquid" style={css("margin-top:30px;padding:16px 18px 14px;border-radius:var(--nv-radius)")}>
+      <div style={css("display:flex;align-items:baseline;gap:10px;flex-wrap:wrap")}>
+        <Eyebrow as="span">Working on this Mac</Eyebrow>
+        <Meta tone={dim(35)} style={{ marginLeft: 'auto', textTransform: 'none', letterSpacing: 0 }}>every project, refreshed as you watch</Meta>
+      </div>
+      <div style={css("display:flex;align-items:center;gap:9px;margin-top:6px")}>
+        <span style={{ flex: 'none', width: 6, height: 6, borderRadius: '50%',
+          background: s.error ? 'var(--nv-warn)' : 'var(--nv-cy)',
+          boxShadow: s.error ? 'none' : '0 0 9px var(--nv-cy)',
+          ...(s.error ? {} : { animation: 'novaPulse 2.4s infinite var(--nv-anim)' }) }} />
+        <div style={css(`flex:1;min-width:0;font:italic 400 18px/1.25 var(--nv-font-serif);color:${s.error ? dim(58) : 'var(--nv-ink)'};text-wrap:balance`)}>{s.summary}</div>
+      </div>
+      {s.note && <Meta as="div" tone={dim(52)} style={{ marginTop: '8px', textTransform: 'none', letterSpacing: 0 }}>{s.note}</Meta>}
+
+      {s.groups.map((g) => (
+        <div key={g.key} style={css("margin-top:15px")}>
+          <div style={css("display:flex;align-items:baseline;gap:9px;flex-wrap:wrap")}>
+            <Eyebrow as="span" tone="color-mix(in srgb, var(--nv-cy) 62%, var(--nv-ink))">{g.label}</Eyebrow>
+            <Meta tone={dim(42)} style={{ textTransform: 'none', letterSpacing: 0 }}>{g.summary}</Meta>
+          </div>
+          <div className="nv-stagger" style={css("margin-top:6px;display:flex;flex-direction:column;gap:6px")}>
+            {g.rows.map((r) => (
+              <div key={r.id} style={css(`display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:calc(var(--nv-radius) - 2px);background:${dim(r.quiet ? 2 : 4)};border:1px solid ${dim(r.quiet ? 5 : 9)};border-left:2px solid ${r.tone};opacity:${r.quiet ? '.62' : '1'}`)}>
+                <span style={{ flex: 'none', marginTop: '6px', width: 7, height: 7, borderRadius: '50%', background: r.tone,
+                  boxShadow: r.beating ? `0 0 9px ${r.tone}` : 'none',
+                  ...(r.beating ? { animation: 'novaPulse 2s infinite var(--nv-anim)' } : {}) }} />
+                <div style={css("flex:1;min-width:0")}>
+                  <div style={css(`font:600 13px var(--nv-font-ui);color:${dim(r.quiet ? 62 : 92)};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)}>{r.name}</div>
+                  <div style={css(`margin-top:2px;font:450 12px/1.45 var(--nv-font-ui);color:${dim(58)}`)}>{r.plain}</div>
+                  <Meta as="div" tone={dim(34)} style={{ marginTop: '3px', textTransform: 'none', letterSpacing: 0 }}>{r.when}</Meta>
+                  {r.confirming && (
+                    <div style={css("margin-top:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
+                      <span style={css(`font:450 12px/1.45 var(--nv-font-ui);color:${dim(70)}`)}>Close it? The conversation is kept and can be reopened later.</span>
+                      <TextAction compact tone="warn" onClick={r.confirmClose}>Yes</TextAction>
+                      <TextAction compact tone="faint" onClick={r.cancelClose}>Cancel</TextAction>
+                    </div>
+                  )}
+                </div>
+                <div style={css("flex:none;display:flex;align-items:center;gap:12px;padding-top:2px")}>
+                  {r.canShow && <TextAction compact onClick={r.show} disabled={r.busy}>Show me</TextAction>}
+                  {r.canClose && !r.confirming && <TextAction compact tone="faint" onClick={r.askClose} disabled={r.busy}>Close it</TextAction>}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -239,6 +312,8 @@ export function Ops({ v }) {
           </div>
         ))}
       </div>
+
+      <MacSessions v={v} />
 
       {/* the stream — receipts, newest first */}
       <Eyebrow style={{ marginTop: '30px' }}>The stream · last {v.opsStream.length} receipts</Eyebrow>

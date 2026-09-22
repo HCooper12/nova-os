@@ -13,6 +13,75 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 SEP — WORKING ON THIS MAC: EVERY PROJECT'S CLAUDE CODE SESSIONS, ON OPS
+AND ON HOME.** His go, in his own words: "The overall multi project view
+could be incorporated into Nova somehow as that's my main daily driver." He
+had watched a session list showing seven open sessions across Nova and
+Science Atlas and wanted ONE place saying what is running on his Mac, which
+one is waiting on him, and a tap to get to it. This is **step B of the Agent
+World plan** (`design/AGENT-WORLD-PLAN.md` §6, "the marker list on Home"),
+extended to every project on the Mac and pulled ahead of the aesthetic
+review queue by his instruction. A list, not the Org Map scene; step 0's
+mockup and steps C/D are untouched and still ahead.
+
+**BUILT**
+- `server/lib/claudeSessions.js` — the judgement, copied BYTE FOR BYTE from
+  Wren (`atlas-partner/lib/sessions.mjs`) and never edited here. Its lesson:
+  a session is alive by when someone LAST SPOKE in it (the CLI's own
+  journal), never by when its window was opened. States: blocked, waiting,
+  working, left-open, gone.
+- `server/lib/claudeSessionsLive.js` — everything that touches the machine,
+  all of it injectable: read the CLI's list, group by project (most raised
+  hands first, Nova first on a tie), raise a window by matching its device
+  to a Terminal tab, or close one. A background session gets a small
+  double-clickable file that attaches to it.
+- `server/routes/ops.js` — the list plus show and close, behind the same
+  auth as every other ops route. Both writes re-read the live picture first,
+  so a session that has ended is a plain sentence and never a stray kill.
+- `server/lib/ops.js` — a `sessions` slice on the ops payload, wrapped so a
+  failure is one honest sentence rather than a broken Ops screen.
+- Ops screen: the "Working on this Mac" panel in Nova's own glass, one group
+  per project, a state colour per row, Show me and Close it with an inline
+  confirm ("Close it? The conversation is kept and can be reopened later."),
+  quiet rows for windows left open. Polls its own small endpoint every 20
+  seconds while the screen is open and stops the moment it is not.
+- Home: ONE line under the hero tagline in BOTH idioms, serif, gold, tappable
+  through to Ops, and rendered only when a hand is actually up.
+
+**VERIFIED (run, not assumed)**
+- `cd server && npm test` — 1993/1993 pass, 0 fail (was 1947 on 22 Sep).
+- `npm run lint` exit 0 (warnings only, none new); `npm run build` exit 0.
+- Service reloaded (unload + load), `/api/health` → `{"ok":true}`, and
+  `/api/ops/sessions` against his REAL machine returned "3 working, 2 waiting
+  for you, 2 left open" across Nova, Science Atlas and one other, counts
+  `{working:3, waiting:2, blocked:0, leftOpen:1, gone:1, projects:3}`.
+- Both surfaces shot headless at 390x844 (cupertino) and 1280x900 (command)
+  against live data: the panel renders with real sessions in both, and the
+  Home line reads "Two things are waiting on you across two projects."
+
+**ASSUMED (not proven this session)**
+- **Show me and Close it were never fired against a real window.** Their
+  logic is covered by fakes that assert the exact command each WOULD run
+  (the AppleScript device match, the attach file and its 755 mode, SIGTERM,
+  `claude stop` then `claude rm`), but nothing was raised or killed on his
+  Mac. First real use is the test.
+- Terminal is assumed to be the terminal he runs sessions in; iTerm or any
+  other would fall back to simply opening Terminal.
+- No reduced-motion or keyboard pass was run; the panel relies on the global
+  reduced-motion rule and the house controls rather than its own handling.
+
+**OPEN**
+- Whether "Show me" behaves on a real raised window, and whether a closed
+  session reopens cleanly with `claude --resume`.
+- Steps C and D of the Agent World plan (the scene, the Home tile, Ambient)
+  and its step 0 mockup are still unstarted, as is his call on register.
+
+**NEXT ACTION:** have him tap "Show me" on a waiting session and say whether
+the right window came forward.
+
+---
+
+
 **23 SEP (small hours) — HIS GO ON THE AGENT WORLD; REVIEW SESSIONS B AND C
 SHIPPED; A BY THE PEER; THE MOCKUP IN FLIGHT.** His decisions (22 Sep, late):
 (1) proceed with the Org Map, aesthetic review sessions first, then the
@@ -2489,6 +2558,15 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**23 Sep 2026 — Working on this Mac.** Step B of the Agent World plan,
+pulled forward by his instruction: every Claude Code session across every
+project, judged by when someone last spoke in it, as a panel on Ops and one
+line on Home. The judgement is Wren's file copied byte for byte with a test
+that proves the copy; everything touching the machine is injectable and
+tested with fakes. 1993/1993 server tests, lint and build clean, verified
+live against his real seven sessions. Show me and Close it are tested but
+have not yet been fired at a real window.
 
 **22 Sep 2026 (midday) — Close pass, not feature work.** Re-ran every gate
 fresh rather than trusting the last-known state: lint clean, build clean,

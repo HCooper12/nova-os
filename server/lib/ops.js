@@ -286,5 +286,16 @@ export async function composeOps() {
     health: true, // the drops endpoint is always open to his Shortcut
   };
 
-  return { at: new Date(now).toISOString(), pending, running, filedToday, stream, agents, conversational, channels, connections };
+  // WORKING ON THIS MAC — the Claude Code sessions across every project,
+  // wrapped so that a missing CLI or a slow list degrades to one honest
+  // sentence instead of taking the whole Ops payload down with it.
+  let sessions;
+  try {
+    const { sessionsNow } = await import('./claudeSessionsLive.js');
+    sessions = await sessionsNow({ now });
+  } catch {
+    sessions = { error: 'Nova could not read what is running on the Mac just now.' };
+  }
+
+  return { at: new Date(now).toISOString(), pending, running, filedToday, stream, agents, conversational, channels, connections, sessions };
 }

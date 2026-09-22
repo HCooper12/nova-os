@@ -500,6 +500,7 @@ export default class App extends Component {
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
     liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null, greetBanner: null,
+    liveMacSessions: null, macSessionBusyId: null, macSessionConfirmId: null, macSessionNote: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     commitmentsBusy: false, commitmentActionBusy: {},
     instrumentsBusy: false, instrumentsError: null,
@@ -6400,6 +6401,64 @@ export default class App extends Component {
   // (skills owned + last receipts); tapping again, or another agent, moves it.
   toggleOpsAgent(id) {
     this.setState({ opsOpenAgentId: this.state.opsOpenAgentId === id ? null : id });
+  }
+  // WORKING ON THIS MAC. The Ops screen polls its own small endpoint while
+  // it is open and stops the moment it is not — a list of live windows is
+  // only worth refreshing while someone is looking at it, and it is the one
+  // slice on the screen that genuinely changes minute to minute.
+  //
+  // The FIRST paint comes from the ops payload's `sessions` slice (already
+  // cached offline), so the section is never blank while the first poll is
+  // in flight; every poll after that replaces it.
+  startMacSessionsPoll() {
+    const tick = async () => {
+      const conn = getConnection();
+      if (!conn) return;
+      try {
+        this.setState({ liveMacSessions: await api.macSessions(conn) });
+      } catch (e) {
+        // an unreachable Mac is honest absence, not an empty list
+        this.setState({ liveMacSessions: { error: 'Nova could not read what is running on the Mac just now.', groups: [], summary: 'Nova could not read what is running on the Mac just now.', detail: e.message } });
+      }
+    };
+    tick();
+    if (this.macSessionsTimer) clearInterval(this.macSessionsTimer);
+    this.macSessionsTimer = setInterval(tick, 20_000);
+  }
+  stopMacSessionsPoll() {
+    if (this.macSessionsTimer) clearInterval(this.macSessionsTimer);
+    this.macSessionsTimer = null;
+  }
+  async showMacSession(sessionId) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ macSessionBusyId: sessionId, macSessionNote: null });
+    try {
+      const r = await api.showMacSession(conn, sessionId);
+      this.setState({ macSessionNote: r.how === 'attached'
+        ? 'Opening it in a new Terminal window.'
+        : r.how === 'terminal'
+          ? 'Nova could not find its window, so it opened Terminal for you.'
+          : 'It is in front of you now.' });
+    } catch (e) {
+      this.setState({ macSessionNote: e.message });
+    } finally {
+      this.setState({ macSessionBusyId: null });
+    }
+  }
+  async closeMacSession(sessionId) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ macSessionBusyId: sessionId, macSessionConfirmId: null, macSessionNote: null });
+    try {
+      const r = await api.closeMacSession(conn, sessionId);
+      this.setState({ macSessionNote: r.how === 'cleared' ? 'Cleared.' : 'Closed. The conversation is kept.' });
+      this.startMacSessionsPoll();
+    } catch (e) {
+      this.setState({ macSessionNote: e.message });
+    } finally {
+      this.setState({ macSessionBusyId: null });
+    }
   }
   // The overnight queue — work handed to Nova for the 03:30 window.
   overnightAdd(question) {

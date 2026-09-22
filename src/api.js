@@ -105,6 +105,13 @@ export async function testConnection(baseUrl, token) {
 }
 
 export const api = {
+  // WORKING ON THIS MAC — every Claude Code session across every project.
+  // Its own small endpoint rather than a slice of /api/ops, because the Ops
+  // screen polls it every 20 seconds and recomputing the whole ops payload
+  // that often would read the record ledger twenty times a minute.
+  macSessions: (conn) => call(conn, '/api/ops/sessions'),
+  showMacSession: (conn, sessionId) => post(conn, '/api/ops/sessions/show', { sessionId }),
+  closeMacSession: (conn, sessionId) => post(conn, '/api/ops/sessions/close', { sessionId }),
   notes: (conn) => call(conn, '/api/notes'),
   library: (conn) => call(conn, '/api/library'),
   libraryItem: (conn, id) => call(conn, `/api/library/item?id=${encodeURIComponent(id)}`),

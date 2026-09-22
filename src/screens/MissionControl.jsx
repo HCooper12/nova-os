@@ -297,6 +297,21 @@ export function MissionControl({ v }) {
             {v.greeting}
             <span style={css(`display:block;font:italic 400 ${mob ? '27px' : 'clamp(30px,3.2vw,41px)'}/1.12 ${S};margin-top:6px;background:linear-gradient(90deg,var(--nv-cy),var(--nv-vi) 55%,var(--nv-mg));-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance`)}>{v.heroTagline}</span>
           </h1>
+        {/* WHO IS ASKING, on the way past. Step B of the Agent World plan
+            (design/AGENT-WORLD-PLAN.md §3d), pulled forward by his
+            instruction of 23 Sep: one line, in the serif news idiom, and
+            only when a session on the Mac genuinely has its hand up.
+            Nothing at all when nothing is waiting — an empty marker line
+            would be the dashboard drift the Method names. */}
+        {v.macSessionsHeadline && (
+          <Interactive as="div" onClick={v.macSessionsHeadline.go}
+            base={css(`cursor:pointer;margin-top:10px;display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);background:color-mix(in srgb, var(--nv-gold) 6%, transparent)`)}
+            hoverStyle="background:color-mix(in srgb, var(--nv-gold) 11%, transparent)">
+            <span style={{ flex: 'none', width: 6, height: 6, borderRadius: '50%', background: 'var(--nv-gold)', boxShadow: '0 0 9px var(--nv-gold)', animation: 'novaPulse 2.4s infinite var(--nv-anim)' }} />
+            <span style={css("flex:1;min-width:0;font:italic 400 17px/1.3 var(--nv-font-serif);color:var(--nv-ink);text-wrap:balance")}>{v.macSessionsHeadline.text}</span>
+            <span style={css("flex:none;font:600 12px var(--nv-font-ui);color:var(--nv-gold)")}>Look</span>
+          </Interactive>
+        )}
           <p style={{ margin: '16px 0 0', font: `500 16px/1.6 ${R}`, color: 'var(--nv-ink60)', maxWidth: '54ch' }}>
             {v.heroStand.map((seg, i) => (
               <span key={i} style={seg.b ? { color: 'var(--nv-ink)', fontWeight: 700 } : seg.cy ? { color: 'var(--nv-cy)', fontWeight: 700 } : undefined}>{seg.t}</span>
