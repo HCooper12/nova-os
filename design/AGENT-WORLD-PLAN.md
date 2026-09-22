@@ -237,7 +237,7 @@ first**. Estimates are sessions, not promises.
 
 | Step | What | Cost |
 |---|---|---|
-| 0 | **Mockup.** A static artifact of the Ops map at phone size, in both a dark theme and Calm, with two markers and one worker lit. He reacts before any code. | ½ session |
+| 0 | **Mockup.** A static artifact of the Ops map at phone size, in both a dark theme and Calm, with two markers and one worker lit. He reacts before any code. **Done 23 Sep** (a Sonnet agent, two passes): `design/mockups/48-org-map.html`, published at https://claude.ai/artifact/NjfRaXzw5VY2yeZELJfKnD — the same map twice, agents as luminous forms and as faced characters, each with a detail inset of the Coach at 4×, Dark/Calm and reduced-motion toggles. Its own weakest point: Platform and Money touch at one seam. His call on the register is open. | ½ session |
 | A | **The view model.** `orgMap()` in `ops.js`: districts, figures, states, markers, all from existing data; a regression test that pins every `KIND_AGENT` to a district or the "unfiled" tile; the markers as a `/api/ops` slice. | ½ session |
 | B | **The marker list on Home**, both idioms, from step A's model. No 3D yet. This alone answers "what is waiting on me and who is asking" and is worth shipping on its own. | ½ session |
 | C | **The scene** in `src/orgmap/`, on Ops, with the tap card and Talk. The largest piece. | 2 sessions |

@@ -140,11 +140,17 @@ faces side by side so he can see the difference; (3) try the "Viewed" verb.
   is on origin.
 
 **IN FLIGHT / OPEN**
-- The Org Map mockup: a Sonnet agent is writing
-  `design/mockups/48-org-map.html` (two phone frames, Forms vs Faces, Dark
-  and Calm, reduced-motion toggle). Not yet reviewed by me; not committed.
-  When it lands: look at it, publish it for him, and fold his reaction into
-  `design/AGENT-WORLD-PLAN.md` §3f.
+- The Org Map mockup is DONE and published: `design/mockups/48-org-map.html`
+  (committed), https://claude.ai/artifact/NjfRaXzw5VY2yeZELJfKnD. Looked at
+  both passes; the second fills the frame and carries a 4× detail inset per
+  register. Awaiting HIS reaction (forms vs faces) — fold it into
+  `design/AGENT-WORLD-PLAN.md` §3f before any code.
+- Finding 20 (Briefing empty state) shipped as `fb2481e` (Session F, part).
+  Still in F: finding 15's four remaining rows on Recipes.jsx (nova-os-c7
+  cleared it; macro hues protein cyan / carbs gold / fat violet are pinned by
+  `foodLogSurface.test.js`; a food with no macros draws NOTHING), finding 8's
+  Coach void (Workouts.jsx — wait for the peer's finding 18 to push), 13 and
+  22 (Home files held by the unnamed fourth session).
 - Review sessions D, E, F remain. D and E live mostly in the peer's Session
   A files (Todos, Ops, Notes, Settings); F in nova-os-c7's Fuel work. I have
   asked the peer which they want; take the remainder.

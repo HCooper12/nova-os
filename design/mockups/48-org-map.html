@@ -1,0 +1,699 @@
+<!--
+  NOVA — 48 · ORG MAP · Forms vs Faces (rev 2)
+  =============================================
+  Mockup for design/AGENT-WORLD-PLAN.md §3/§4 (step 0, the required
+  "mockup comes first" gate before any code). The Org Map as it would sit
+  on the Ops screen (XIV): seven hex districts — one per AGENT_DEPARTMENTS
+  entry — laid out as a deliberate settlement (Train and Knowledge as the
+  two large anchor tiles, five smaller districts around them — not a
+  clock-face ring), agents standing on their department's tile, a trust
+  building per district, and the one thing the reel got right: the ONLY
+  floating marker on the map is "waiting on him" (Bot Crossing's own
+  rule, §8 of the plan — working is a glyph and a passing light, quiet is
+  dimness, neither floats).
+
+  REV 2 (second pass, same brief): the map now fills the frame edge to
+  edge (measured via getBBox, not guessed); a glass DETAIL INSET in the
+  lower third blows the Coach figure up to ~4x beside its working glyph
+  and the waiting marker, because that comparison is the one he actually
+  has to make and it was invisible at map scale; the tap card moved out
+  of absolute overlay positioning into normal document flow below the
+  map, so it structurally cannot cover a tile.
+
+  This is a still, not an app: one SVG per frame, built once at load by
+  the small generator below (no three.js, no canvas render loop). The
+  only continuous motion is the waiting-marker's bob and a slow shimmer
+  on the two working tiles — both cut by prefers-reduced-motion and by
+  the on-page Reduce Motion toggle.
+
+  THE COMPARISON. Two identical maps, one view model, two registers:
+  left is "Forms" (§3f — luminous capsules of light in the department's
+  hue, no face, a lean or a raised bar of light at most); right is
+  "Faces" (the reel's astronaut — a helmet, a dark visor, two glowing
+  eyes — kept OFF by default in §3f but drawn here so he can see both and
+  choose). Everything else — geography, states, the card, the chrome —
+  is byte-for-byte the same between them.
+
+  Tokens copied from src/index.css (Command default + the observatory
+  block used for data-theme="calm", per this mockup's brief). Fonts:
+  Rajdhani (UI), Instrument Serif (the TL;DR's one serif line and the
+  inset caption), IBM Plex Mono (tracked micro-labels, matching 45/47's
+  convention).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — 48 · Org Map · Forms vs Faces</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ================= TOKENS (copied from src/index.css) ================= */
+:root{
+  --nv-font-ui:'Rajdhani','Instrument Sans',system-ui,sans-serif;
+  --nv-font-serif:'Instrument Serif',serif;
+  --nv-font-mono:'IBM Plex Mono',monospace;
+  --nv-micro-s:500 8.5px var(--nv-font-mono); --nv-micro-m:500 9.5px var(--nv-font-mono); --nv-micro-l:500 11px var(--nv-font-mono);
+  --nv-micro-track:.14em; --nv-micro-track-wide:.2em;
+  --nv-ease:cubic-bezier(.32,.72,0,1); --nv-ease-exit:cubic-bezier(.4,0,1,1);
+  --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-dur-slow:.6s;
+  --nv-rise:14px;
+
+  --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
+  --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink40:rgba(232,236,246,.38); --nv-ink50:rgba(232,236,246,.52);
+  --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.82);
+  --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
+
+  --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a; --nv-good:#5fe8a8; --nv-warn:#e08383;
+  /* the two districts beyond the base six-hue set — pulled from the same
+     "each thing owns its hue" muscle family (--nv-m-chest / --nv-m-back)
+     so nothing here is an invented colour */
+  --nv-coral:#ff8a7a; --nv-teal:#4fd1c5; --nv-steel:#7ab8ff;
+  --nv-acc:#59e6ff;
+  --nv-radius:10px; --nv-anim:running;
+}
+/* CALM — the observatory block (gold accent, softer glass, larger radius),
+   the pairing this mockup's brief names for data-theme="calm". */
+:root[data-theme="calm"]{
+  --nv-void:#070b13; --nv-bg1:#0c1424; --nv-bg2:#152742;
+  --nv-ink:#ece5da; --nv-ink60:rgba(236,229,218,.62); --nv-ink40:rgba(236,229,218,.38); --nv-ink50:rgba(236,229,218,.55);
+  --nv-glass:rgba(21,28,44,.55); --nv-glass2:rgba(28,38,58,.78);
+  --nv-edge:rgba(236,229,218,.14); --nv-spec:rgba(236,229,218,.3);
+  --nv-cy:#6be5f5; --nv-vi:#a68ce2; --nv-mg:#e08f6f; --nv-gold:#d8b573; --nv-good:#5aa87c; --nv-warn:#d98f8f;
+  --nv-coral:#e2917c; --nv-teal:#5cb8ad; --nv-steel:#86a8d6;
+  --nv-acc:#d8b573;
+  --nv-radius:15px; --nv-anim:paused;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  background:
+    radial-gradient(1000px 620px at 22% -10%, color-mix(in srgb, var(--nv-bg2) 65%, transparent), transparent 60%),
+    radial-gradient(900px 680px at 82% 8%, color-mix(in srgb, var(--nv-vi) 10%, transparent), transparent 55%),
+    var(--nv-bg1);
+  color:var(--nv-ink);
+  font-family:var(--nv-font-ui);
+  min-height:100vh;
+  padding-block:34px 60px;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ================= TOP BAR ================= */
+.topbar{
+  max-width:1000px;margin:0 auto 8px;padding:0 20px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+.topbar h1{font-weight:700;font-size:15px;letter-spacing:.18em}
+.topbar h1 em{
+  display:block;margin-top:5px;font-style:normal;font-family:var(--nv-font-mono);
+  font-size:9px;letter-spacing:.26em;color:var(--nv-ink40);font-weight:500;
+}
+.toggles{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.tgroup{display:flex;gap:2px;padding:3px;border-radius:9px;background:rgba(0,0,0,.22);border:1px solid var(--nv-edge)}
+.tgroup button{
+  font-family:var(--nv-font-mono);font-size:9.5px;letter-spacing:.14em;font-weight:600;
+  padding:6px 12px;border-radius:6px;border:none;background:transparent;color:var(--nv-ink40);cursor:pointer;
+  transition:background var(--nv-dur-fast) var(--nv-ease), color var(--nv-dur-fast) var(--nv-ease);
+}
+.tgroup button.on{background:var(--nv-glass2);color:var(--nv-acc)}
+.mtoggle{display:flex;align-items:center;gap:8px;font-family:var(--nv-font-mono);font-size:9.5px;letter-spacing:.12em;color:var(--nv-ink60);cursor:pointer;user-select:none}
+.mtoggle .sw{
+  width:30px;height:17px;border-radius:20px;background:rgba(0,0,0,.3);border:1px solid var(--nv-edge);
+  position:relative;transition:background var(--nv-dur-fast) var(--nv-ease);
+}
+.mtoggle .sw::after{
+  content:'';position:absolute;top:1.5px;left:1.5px;width:12px;height:12px;border-radius:50%;
+  background:var(--nv-ink40);transition:transform var(--nv-dur-fast) var(--nv-ease), background var(--nv-dur-fast) var(--nv-ease);
+}
+.mtoggle.on .sw{background:color-mix(in srgb, var(--nv-acc) 22%, transparent)}
+.mtoggle.on .sw::after{transform:translateX(13px);background:var(--nv-acc)}
+
+/* ================= FRAMES ================= */
+.frames-row{display:flex;gap:64px;justify-content:center;align-items:flex-start;padding:44px 20px 10px;flex-wrap:wrap}
+.framecol{display:flex;flex-direction:column;align-items:center;gap:16px}
+.framecol .eyebrow{
+  font-family:var(--nv-font-mono);font-size:10px;letter-spacing:.34em;font-weight:600;color:var(--nv-ink40);text-align:center;
+}
+.framecol .eyebrow b{color:var(--nv-acc);font-weight:600}
+.framecol .eyebrow small{display:block;margin-top:5px;font-size:8.5px;letter-spacing:.16em;color:var(--nv-ink40);font-weight:500}
+
+.phone{
+  width:402px;height:874px;max-width:92vw;
+  border-radius:52px;padding:9px;
+  background:linear-gradient(165deg,#1b2338,#05060c 60%);
+  box-shadow:0 50px 100px -36px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.05);
+  opacity:0;transform:translateY(var(--nv-rise)) scale(.985);
+  transition:opacity var(--nv-dur-slow) var(--nv-ease), transform var(--nv-dur-slow) var(--nv-ease);
+}
+.framecol:nth-child(2) .phone{transition-delay:.09s}
+body.ready .phone{opacity:1;transform:none}
+body.no-motion .phone,
+@media (prefers-reduced-motion:reduce){ .phone{transition:opacity .32s linear} }
+
+.screen{
+  position:relative;width:100%;height:100%;border-radius:44px;overflow:hidden;
+  background:
+    radial-gradient(520px 340px at 50% -6%, color-mix(in srgb, var(--nv-bg2) 70%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--nv-bg1), var(--nv-void) 78%);
+  border:1px solid rgba(255,255,255,.06);
+  display:flex;flex-direction:column;
+}
+
+/* ---- Ops head ---- */
+.ops-head{padding:30px 22px 0}
+.ops-head .roman{font-family:var(--nv-font-mono);font-size:10px;letter-spacing:.32em;color:var(--nv-ink40);font-weight:500}
+.ops-head h2{font-size:19px;font-weight:700;letter-spacing:.1em;margin-top:5px}
+.ops-head .gate{
+  margin-top:9px;display:flex;align-items:center;gap:7px;
+  font-family:var(--nv-font-mono);font-size:11px;letter-spacing:.06em;font-weight:600;color:var(--nv-gold);
+}
+.ops-head .gate i{width:5px;height:5px;border-radius:50%;background:var(--nv-gold);box-shadow:0 0 8px var(--nv-gold);flex:none}
+
+/* ---- stage: map / card / inset, stacked in normal flow so the card can
+   never overlap a tile by construction, and the three sections share the
+   frame's 24px margin exactly as asked ---- */
+.stage{flex:1;display:flex;flex-direction:column;padding:0 24px 24px;gap:12px;min-height:0}
+
+/* ---- map ---- */
+.map-wrap{position:relative;flex:1.55 1 0;display:flex;align-items:center;justify-content:center;min-height:0}
+.map-inner{position:relative}
+.map-inner svg{display:block;width:100%;height:100%;overflow:visible}
+
+svg text.tile-label{
+  font-family:var(--nv-font-mono);font-size:7.6px;font-weight:600;letter-spacing:.15em;
+  text-anchor:middle;fill:var(--hue);fill-opacity:.82;
+}
+.hex{fill:var(--hue);fill-opacity:.11;stroke:var(--hue);stroke-opacity:.5;stroke-width:1.3}
+.hex-band{fill:#fff;fill-opacity:.05;pointer-events:none;transform-origin:center;animation:band 4.6s ease-in-out infinite alternate}
+@keyframes band{from{opacity:.4}to{opacity:1}}
+
+.bld-fin{fill:var(--hue);fill-opacity:.85}
+.bld-fin-roof{fill:var(--hue)}
+.bld-fin-glow{fill:var(--hue);fill-opacity:.28}
+.bld-scaf{fill:none;stroke:var(--nv-ink40);stroke-opacity:.6;stroke-width:.9;stroke-dasharray:1.6 1.6}
+.bld-scaf-brace{stroke:var(--nv-ink40);stroke-opacity:.4;stroke-width:.7}
+
+.fig-body{fill:var(--hue)}
+.fig-core{fill:#fff}
+.fig-limb{fill:var(--hue)}
+.fig.quiet .fig-body{opacity:.4}
+.fig.quiet .fig-core{opacity:.22}
+.fig.working .fig-body{opacity:1}
+.fig.working .fig-core{opacity:.9;animation:figpulse 2.8s ease-in-out infinite}
+.fig.working{filter:drop-shadow(0 0 3px var(--hue)) drop-shadow(0 0 7px var(--hue))}
+.fig.never .fig-body{fill:none;stroke:var(--hue);stroke-opacity:.55;stroke-width:1;stroke-dasharray:1.6 1.4}
+.fig.never .fig-core{display:none}
+@keyframes figpulse{0%,100%{opacity:.65}50%{opacity:1}}
+
+.face-visor{fill:var(--nv-void);opacity:.6}
+.face-eye{fill:#fff}
+.fig.quiet .face-eye{opacity:.35}
+.fig.working .face-eye{opacity:1;animation:figpulse 2.8s ease-in-out infinite}
+.fig.never .face-eye{display:none}
+.fig.never .face-visor{opacity:.3}
+
+.jobdot{fill:var(--nv-glass2);stroke:var(--hue);stroke-opacity:.55;stroke-width:.8}
+.jobglyph{stroke:var(--hue);stroke-width:1;fill:none;stroke-linecap:round}
+
+.core-glow{fill:var(--nv-acc);opacity:.16;filter:blur(1px)}
+.core-dot{fill:var(--nv-acc);filter:drop-shadow(0 0 5px var(--nv-acc))}
+
+.marker{animation:bob 2.6s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4.5px)}}
+.marker-bub{fill:var(--nv-gold)}
+.marker-tail{fill:var(--nv-gold)}
+.marker-n{font-family:var(--nv-font-mono);font-weight:700;font-size:8px;fill:#241705;text-anchor:middle;dominant-baseline:central}
+
+body.no-motion .marker,
+body.no-motion .fig.working .fig-core,
+body.no-motion .fig.working .face-eye,
+body.no-motion .hex-band{animation:none !important}
+@media (prefers-reduced-motion:reduce){
+  .marker,.fig.working .fig-core,.fig.working .face-eye,.hex-band{animation:none !important}
+}
+
+/* ---- tap card — normal flow, BELOW the cluster, never an overlay on
+   the map: it cannot cover a tile because it does not share the map's
+   stacking context. A small pointer leans toward Train (centre-left, per
+   the cluster layout below) to read as "risen from there". ---- */
+.tapcard{
+  flex:none;position:relative;
+  padding:2px;border-radius:13px;
+  background:linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0) 40%);
+  box-shadow:0 16px 34px -20px rgba(0,0,0,.6);
+}
+.tapcard::before{
+  content:'';position:absolute;top:-6px;left:38px;width:13px;height:13px;
+  background:var(--nv-glass2);border-left:1px solid var(--nv-edge);border-top:1px solid var(--nv-edge);
+  transform:rotate(45deg);border-radius:3px 0 0 0;
+}
+.tapcard .in{
+  position:relative;border-radius:11px;padding:12px 15px 11px;
+  background:var(--nv-glass2);backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+  border:1px solid var(--nv-edge);
+  box-shadow:inset 0 1px 0 var(--nv-spec);
+}
+.tapcard .eb{
+  font-family:var(--nv-font-mono);font-size:8.5px;letter-spacing:.16em;font-weight:600;color:var(--nv-gold);
+}
+.tapcard .tldr{
+  margin-top:6px;font-family:var(--nv-font-serif);font-style:italic;font-size:14px;line-height:1.32;color:var(--nv-ink);
+}
+.tapcard .row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.tapcard .pill{
+  width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:12px;
+  border:1px solid var(--nv-edge);background:rgba(0,0,0,.18);flex:none;
+}
+.tapcard .pill.tick{color:var(--nv-good);border-color:color-mix(in srgb, var(--nv-good) 45%, transparent)}
+.tapcard .pill.cross{color:var(--nv-warn);border-color:color-mix(in srgb, var(--nv-warn) 45%, transparent)}
+.tapcard .talk{
+  margin-left:auto;font-family:var(--nv-font-mono);font-size:10px;letter-spacing:.12em;font-weight:600;color:var(--nv-acc);
+  cursor:pointer;
+}
+
+/* ---- detail inset — the comparison that's invisible at map scale:
+   Coach blown up to ~4x, beside the working glyph and a static replica
+   of the waiting marker, both in that frame's own register. ---- */
+.inset{flex:1 1 0;min-height:0;padding:2px;border-radius:13px;
+  background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,0) 45%);
+  box-shadow:0 14px 30px -20px rgba(0,0,0,.55);
+}
+.inset .in{
+  height:100%;min-height:0;border-radius:11px;padding:14px 16px 12px;
+  background:var(--nv-glass2);backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);
+  border:1px solid var(--nv-edge);box-shadow:inset 0 1px 0 var(--nv-spec);
+  display:flex;flex-direction:column;gap:10px;
+}
+.inset-eb{font-family:var(--nv-font-mono);font-size:8px;letter-spacing:.2em;font-weight:600;color:var(--nv-ink40);flex:none}
+.inset-row{display:flex;align-items:flex-end;gap:18px;flex:1;min-height:0}
+.inset-figure{height:100%;display:flex;align-items:flex-end;justify-content:center;flex:none;width:76px}
+.inset-figure svg{height:92px;width:auto;display:block;overflow:visible}
+.inset-badges{display:flex;flex-direction:column;gap:12px;justify-content:center;flex:1;min-width:0}
+.ibadge{display:flex;align-items:center;gap:10px}
+.ibsvg{display:inline-flex;flex:none;align-items:center;justify-content:center;width:36px}
+.ibsvg svg{height:32px;width:auto;display:block;overflow:visible}
+.ibadge .ilabel{font-family:var(--nv-font-mono);font-size:9px;letter-spacing:.13em;font-weight:600;color:var(--nv-ink60)}
+.inset-cap{flex:none;font-family:var(--nv-font-serif);font-style:italic;font-size:13.5px;line-height:1.3;color:var(--nv-ink)}
+
+/* ---- tab bar ---- */
+.tabbar{
+  display:flex;justify-content:space-between;align-items:flex-end;padding:9px 20px 16px;
+  border-top:1px solid rgba(255,255,255,.05);
+}
+.tab{display:flex;flex-direction:column;align-items:center;gap:5px;flex:1}
+.tab span{font-family:var(--nv-font-mono);font-size:8px;letter-spacing:.08em;font-weight:600;color:var(--nv-ink40)}
+.tab i{width:4px;height:4px;border-radius:50%;background:transparent}
+.tab.on span{color:var(--nv-acc)}
+.tab.on i{background:var(--nv-acc);box-shadow:0 0 7px var(--nv-acc)}
+
+/* ---- responsive ---- */
+@media (max-width:900px){
+  .frames-row{flex-direction:column;align-items:center;gap:52px}
+}
+@media (max-width:460px){
+  .phone{width:100%;height:auto;aspect-ratio:402/874;padding:7px}
+  .screen{border-radius:36px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>NOVA · 48<em>ORG MAP — SEVEN DISTRICTS, ONE FLOATING MARKER</em></h1>
+  <div class="toggles">
+    <div class="tgroup" role="group" aria-label="Theme">
+      <button type="button" class="on" data-theme-btn="">Dark</button>
+      <button type="button" data-theme-btn="calm">Calm</button>
+    </div>
+    <div class="mtoggle" id="motionToggle" role="button" tabindex="0">
+      <span class="sw"></span> Reduce motion
+    </div>
+  </div>
+</div>
+
+<div class="frames-row">
+  <div class="framecol">
+    <div class="eyebrow"><b>FORMS</b><small>luminous, no face — §3f's register</small></div>
+    <div class="phone"><div class="screen">
+      <div class="ops-head">
+        <div class="roman">XIV. OPERATIONS</div>
+        <h2>The Org Map</h2>
+        <div class="gate"><i></i>3 waiting for your call</div>
+      </div>
+      <div class="stage">
+        <div class="map-wrap"><div class="map-inner" data-map="forms"></div></div>
+        <div class="tapcard">
+          <div class="in">
+            <div class="eb">COACH · WAITING ON YOU</div>
+            <div class="tldr">Drop the EZ&#8209;bar reverse curl from Pull; biceps are covered by the chin&#8209;ups.</div>
+            <div class="row">
+              <div class="pill tick">&#10003;</div>
+              <div class="pill cross">&#10005;</div>
+              <div class="talk">TALK</div>
+            </div>
+          </div>
+        </div>
+        <div class="inset" data-inset="forms"></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><i></i><span>HOME</span></div>
+        <div class="tab"><i></i><span>VOICE</span></div>
+        <div class="tab on"><i></i><span>TRAIN</span></div>
+        <div class="tab"><i></i><span>FUEL</span></div>
+        <div class="tab"><i></i><span>INBOX</span></div>
+        <div class="tab"><i></i><span>MORE</span></div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="framecol">
+    <div class="eyebrow"><b>FACES</b><small>the reel's astronaut, kept honest</small></div>
+    <div class="phone"><div class="screen">
+      <div class="ops-head">
+        <div class="roman">XIV. OPERATIONS</div>
+        <h2>The Org Map</h2>
+        <div class="gate"><i></i>3 waiting for your call</div>
+      </div>
+      <div class="stage">
+        <div class="map-wrap"><div class="map-inner" data-map="faces"></div></div>
+        <div class="tapcard">
+          <div class="in">
+            <div class="eb">COACH · WAITING ON YOU</div>
+            <div class="tldr">Drop the EZ&#8209;bar reverse curl from Pull; biceps are covered by the chin&#8209;ups.</div>
+            <div class="row">
+              <div class="pill tick">&#10003;</div>
+              <div class="pill cross">&#10005;</div>
+              <div class="talk">TALK</div>
+            </div>
+          </div>
+        </div>
+        <div class="inset" data-inset="faces"></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><i></i><span>HOME</span></div>
+        <div class="tab"><i></i><span>VOICE</span></div>
+        <div class="tab on"><i></i><span>TRAIN</span></div>
+        <div class="tab"><i></i><span>FUEL</span></div>
+        <div class="tab"><i></i><span>INBOX</span></div>
+        <div class="tab"><i></i><span>MORE</span></div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   THE ORG MAP GENERATOR — one static SVG per frame, built once.
+   Seven hex districts laid out as a hand-placed SETTLEMENT (Train and
+   Knowledge as the two large anchor tiles, five smaller districts
+   around them) — not a ring, which left a dead band top and bottom on
+   a portrait phone. Departments and hues are drawn from
+   AGENT_DEPARTMENTS (server/lib/ops.js) and the token families in
+   src/index.css. No render loop: this function runs once per frame at
+   load and leaves plain SVG behind.
+   ============================================================ */
+(function(){
+  var TAU = Math.PI/180;
+  var SY = 0.56;        // isometric squash, for each hex tile's own shape
+
+  function polar(angleDeg, r){
+    var a = angleDeg*TAU;
+    return [ +(r*Math.cos(a)).toFixed(2), +(r*Math.sin(a)*SY).toFixed(2) ];
+  }
+  function hexPts(cx,cy,r){
+    var pts=[];
+    for(var k=0;k<6;k++){
+      var a=(30+60*k)*TAU;
+      pts.push((cx+r*Math.cos(a)).toFixed(2)+','+(cy+r*Math.sin(a)*SY).toFixed(2));
+    }
+    return pts.join(' ');
+  }
+
+  // SETTLEMENT LAYOUT — hand-placed, not formula-ringed. Train and
+  // Knowledge are the two large anchor tiles (centre-left / centre-right);
+  // the other five are smaller and sit around them like outbuildings.
+  // Positions are tuned so gaps stay clear at every tile's own radius —
+  // verified visually via the screenshot loop, not solved algebraically.
+  var R_L = 64;   // large tile radius (Train, Knowledge)
+  var R_S = 58;   // small tile radius (the other five) — still >=96px screen
+                  // width once scaled; "smaller" reads as a size step, not
+                  // a legibility cliff
+  var DEPARTMENTS = [
+    {id:'mind',       name:'MIND',       hue:'--nv-vi',    pos:[0,-108],   r:R_S, building:'scaffold', agents:[]},
+    {id:'train',      name:'TRAIN',      hue:'--nv-mg',    pos:[-70,-34],  r:R_L, building:'scaffold', agents:[
+      {n:'Coach', s:'working', job:'barbell', waiting:true},
+      {n:'Weekly Debrief', s:'quiet'}
+    ]},
+    {id:'knowledge',  name:'KNOWLEDGE',  hue:'--nv-steel', pos:[70,-34],   r:R_L, building:'scaffold', agents:[
+      {n:'Researcher', s:'working', job:'page'},
+      {n:'Librarian',  s:'quiet'},
+      {n:'Watcher',    s:'quiet'}
+    ]},
+    {id:'logistics',  name:'LOGISTICS',  hue:'--nv-cy',    pos:[-104,54],  r:R_S, building:'finished', agents:[
+      {n:'Commander', s:'quiet'}
+    ]},
+    {id:'fuel',       name:'FUEL',       hue:'--nv-teal',  pos:[104,54],   r:R_S, building:'finished', agents:[
+      {n:'Meal Prep', s:'quiet'}
+    ]},
+    {id:'platform',   name:'PLATFORM',   hue:'--nv-coral', pos:[-50,138],  r:R_S, building:'scaffold', agents:[
+      {n:'Guardian', s:'quiet'},
+      {n:'Compost',  s:'never'}
+    ]},
+    {id:'money',      name:'MONEY',      hue:'--nv-good',  pos:[50,138],   r:R_S, building:'scaffold', agents:[
+      {n:'CFO', s:'quiet'}
+    ]}
+  ];
+
+  function offsetsFor(n, r){
+    var u = r*0.24;
+    if(n<=1) return [0];
+    if(n===2) return [-u,u];
+    return [-1.5*u,0,1.5*u];
+  }
+
+  function buildingSVG(kind, dx, dy){
+    if(kind==='finished'){
+      return ''+
+        '<g transform="translate('+dx+','+dy+')">'+
+          '<ellipse class="bld-fin-glow" cx="0" cy="10" rx="10" ry="3.8"/>'+
+          '<rect class="bld-fin" x="-4.5" y="-9" width="9" height="17" rx="1.2"/>'+
+          '<polygon class="bld-fin-roof" points="-5.5,-9 5.5,-9 0,-14.5"/>'+
+        '</g>';
+    }
+    return ''+
+      '<g transform="translate('+dx+','+dy+')">'+
+        '<rect class="bld-scaf" x="-5" y="-10" width="10" height="19" rx="1.2"/>'+
+        '<line class="bld-scaf-brace" x1="-5" y1="-10" x2="5" y2="9"/>'+
+        '<line class="bld-scaf-brace" x1="5" y1="-10" x2="-5" y2="9"/>'+
+        '<line class="bld-scaf-brace" x1="-5" y1="0" x2="5" y2="0"/>'+
+      '</g>';
+  }
+
+  function jobGlyph(kind, x, y){
+    if(kind==='page'){
+      return '<g transform="translate('+x+','+y+')">'+
+        '<circle class="jobdot" r="7.6"/>'+
+        '<rect class="jobglyph" x="-3" y="-3.9" width="6" height="7.8" rx=".7"/>'+
+        '<line class="jobglyph" x1="-1.6" y1="-1.1" x2="1.6" y2="-1.1"/>'+
+        '<line class="jobglyph" x1="-1.6" y1=".7" x2="1.6" y2=".7"/>'+
+        '<line class="jobglyph" x1="-1.6" y1="2.5" x2=".5" y2="2.5"/>'+
+      '</g>';
+    }
+    if(kind==='barbell'){
+      return '<g transform="translate('+x+','+y+')">'+
+        '<circle class="jobdot" r="7.6"/>'+
+        '<line class="jobglyph" x1="-4.1" y1="0" x2="4.1" y2="0"/>'+
+        '<line class="jobglyph" x1="-4.1" y1="-1.8" x2="-4.1" y2="1.8"/>'+
+        '<line class="jobglyph" x1="4.1" y1="-1.8" x2="4.1" y2="1.8"/>'+
+      '</g>';
+    }
+    return '';
+  }
+
+  // agent -> figure markup. Shared between the map (small, many) and the
+  // detail inset (one figure, cropped tight and blown up via CSS height).
+  function figureSVG(agent, faces){
+    var cls = 'fig '+agent.s;
+    var body = faces
+      ? ( // FACES — helmet, dark visor, two eyes, same hue, no more detail than that
+          '<rect class="fig-body" x="-4.6" y="-17.5" width="9.2" height="17.5" rx="4.6"/>'+
+          '<circle class="fig-body" cx="0" cy="-22" r="6.2"/>'+
+          '<ellipse class="face-visor" cx="0" cy="-22.2" rx="4.2" ry="3.4"/>'+
+          '<circle class="face-eye" cx="-1.7" cy="-22.2" r="1"/>'+
+          '<circle class="face-eye" cx="1.7" cy="-22.2" r="1"/>'
+        )
+      : ( // FORMS — a soft capsule of light, no face
+          '<rect class="fig-body" x="-4.8" y="-25.5" width="9.6" height="25.5" rx="4.8"/>'+
+          '<ellipse class="fig-core" cx="0" cy="-17.5" rx="2.9" ry="4.2" opacity=".7"/>'
+        );
+    var limb = agent.n==='Coach'
+      ? '<rect class="fig-limb" x="0" y="-1.1" width="10.4" height="2.8" rx="1.4" transform="rotate(-34 0 -1.1) translate(4.6 -22)"/>'
+      : '';
+    return '<g class="'+cls+'" transform="translate('+(agent.x||0)+','+(agent.y||0)+')">'+body+limb+'</g>';
+  }
+
+  function districtBlock(d, faces){
+    var cx = d.pos[0], cy = d.pos[1];
+    var offs = offsetsFor(d.agents.length, d.r);
+    var working = d.agents.some(function(a){return a.s==='working'});
+    var figs='', jobs='', waitingAbs=null;
+    d.agents.forEach(function(a,i){
+      a.x = offs[i]; a.y = (d.agents.length===3 && i===1) ? 4 : 9;
+      figs += figureSVG(a, faces);
+      if(a.job){ jobs += jobGlyph(a.job, a.x, a.y-31); }
+      if(a.waiting){ waitingAbs = [cx+a.x, cy+a.y-31]; }
+    });
+    // label and building sit OUTWARD from the settlement's own centre
+    // (0,0), computed per tile from its actual placement — not a fixed
+    // ring angle — so a tile anywhere in the hand-placed cluster still
+    // writes its label away from its neighbours, never back over them.
+    var outAngle = Math.atan2(cy, cx) * 180/Math.PI;
+    var outR = polar(outAngle, d.r*SY + 10);
+    var bldR = polar(outAngle + 132, d.r*0.46);
+    var html = ''+
+      '<g class="district" style="--hue:var('+d.hue+')" transform="translate('+cx+','+cy+')">'+
+        '<polygon class="hex" points="'+hexPts(0,0,d.r)+'"/>'+
+        (working ? '<polygon class="hex-band" points="'+hexPts(0,0,d.r)+'"/>' : '')+
+        buildingSVG(d.building, bldR[0].toFixed(1), bldR[1].toFixed(1))+
+        figs + jobs +
+        '<text class="tile-label" x="'+outR[0].toFixed(1)+'" y="'+outR[1].toFixed(1)+'">'+d.name+'</text>'+
+      '</g>';
+    return {html:html, waitingAbs:waitingAbs};
+  }
+
+  // the bubble+tail+"1" shape, with no positioning of its own — reused by
+  // both the live bobbing map marker and the static inset badge.
+  function markerBubbleInner(){
+    return ''+
+      '<path class="marker-tail" d="M -4.5 14.5 L 4.5 14.5 L 0 21 Z"/>'+
+      '<rect class="marker-bub" x="-13" y="-13" width="26" height="28" rx="10.5"/>'+
+      '<text class="marker-n" x="0" y=".5">1</text>';
+  }
+
+  function markerSVG(abs){
+    // two nested groups on purpose: a CSS `transform` on an animated
+    // element REPLACES its SVG `transform` attribute rather than
+    // composing with it, so the position (attribute, on the outer g)
+    // and the bob (CSS animation, on the inner g) must live on different
+    // elements or the bob resets the marker straight back to (0,0)
+    var x=abs[0], y=abs[1]-32;
+    return '<g transform="translate('+x+','+y+')"><g class="marker">'+markerBubbleInner()+'</g></g>';
+  }
+
+  // crop an svg's viewBox tight to its own drawn content (measured, not
+  // guessed) so a fixed CSS height on the <svg> blows it up cleanly —
+  // this is how the detail inset gets its ~4x Coach without redrawing him.
+  function cropToContent(svgEl, pad){
+    var bbox = svgEl.getBBox();
+    svgEl.setAttribute('viewBox', (bbox.x-pad).toFixed(1)+' '+(bbox.y-pad).toFixed(1)+' '+(bbox.width+pad*2).toFixed(1)+' '+(bbox.height+pad*2).toFixed(1));
+  }
+
+  function buildMap(mount, faces){
+    var parts = DEPARTMENTS.map(function(d){ return districtBlock(d, faces); });
+    var waiting = parts.filter(function(p){return p.waitingAbs}).map(function(p){return markerSVG(p.waitingAbs)}).join('');
+    // a generous placeholder viewBox so nothing clips before we measure
+    // the real content and crop to it
+    var svg = ''+
+      '<svg viewBox="-500 -500 1000 1000" role="img" aria-label="The Org Map: seven departments, Coach waiting on Train">'+
+        '<g class="core">'+
+          '<circle class="core-glow" r="13"/>'+
+          '<circle class="core-dot" r="4.2"/>'+
+        '</g>'+
+        parts.map(function(p){return p.html}).join('')+
+        waiting+
+      '</svg>';
+    mount.innerHTML = svg;
+    var svgEl = mount.querySelector('svg');
+    var bbox = svgEl.getBBox();
+    var pad = 9;
+    var vbW = bbox.width+pad*2, vbH = bbox.height+pad*2;
+    svgEl.setAttribute('viewBox', (bbox.x-pad).toFixed(1)+' '+(bbox.y-pad).toFixed(1)+' '+vbW.toFixed(1)+' '+vbH.toFixed(1));
+    mount.dataset.ratio = (vbW/vbH).toFixed(4);
+  }
+
+  // THE DETAIL INSET — the comparison map scale can't show: Coach at
+  // ~4x, his working glyph, and a static (non-bobbing) replica of the
+  // waiting marker, all in this frame's own register.
+  function buildInset(mount, faces){
+    var coach = {n:'Coach', s:'working', job:'barbell', waiting:true, x:0, y:0};
+    mount.innerHTML =
+      '<div class="in">'+
+        '<div class="inset-eb">DETAIL &middot; COACH IN '+(faces?'FACES':'FORMS')+'</div>'+
+        '<div class="inset-row">'+
+          '<div class="inset-figure" data-slot="fig"></div>'+
+          '<div class="inset-badges">'+
+            '<div class="ibadge"><span class="ibsvg" data-slot="work"></span><span class="ilabel">WORKING</span></div>'+
+            '<div class="ibadge"><span class="ibsvg" data-slot="wait"></span><span class="ilabel">WAITING &middot; 1</span></div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="inset-cap">'+(faces
+          ? 'Faces: the astronaut, visor and eyes.'
+          : 'Forms: a capsule of light in Train’s hue.')+
+        '</div>'+
+      '</div>';
+
+    var figHost = mount.querySelector('[data-slot="fig"]');
+    figHost.innerHTML = '<svg viewBox="-100 -100 200 200" style="--hue:var(--nv-mg)">'+figureSVG(coach, faces)+'</svg>';
+    cropToContent(figHost.querySelector('svg'), 3.5);
+
+    var workHost = mount.querySelector('[data-slot="work"]');
+    workHost.innerHTML = '<svg viewBox="-100 -100 200 200" style="--hue:var(--nv-mg)"><g class="fig working">'+jobGlyph('barbell',0,0)+'</g></svg>';
+    cropToContent(workHost.querySelector('svg'), 3);
+
+    var waitHost = mount.querySelector('[data-slot="wait"]');
+    waitHost.innerHTML = '<svg viewBox="-100 -100 200 200"><g class="marker-static">'+markerBubbleInner()+'</g></svg>';
+    cropToContent(waitHost.querySelector('svg'), 3);
+  }
+
+  document.querySelectorAll('[data-map]').forEach(function(el){
+    buildMap(el, el.dataset.map==='faces');
+  });
+  document.querySelectorAll('[data-inset]').forEach(function(el){
+    buildInset(el, el.dataset.inset==='faces');
+  });
+
+  // Size each map to fill whatever room the settlement's own bbox needs
+  // — measured in JS (not CSS aspect-ratio) because the cluster's shape
+  // is hand-placed, not a clean ring, so its aspect isn't known until
+  // it's actually drawn and measured.
+  function fitMaps(){
+    document.querySelectorAll('.map-inner').forEach(function(el){
+      var wrap = el.parentElement;
+      var w = wrap.clientWidth - 4, h = wrap.clientHeight - 4;
+      var ratio = +el.dataset.ratio || 1.15;
+      var size = Math.min(w, h*ratio);
+      if(size<=0) return;
+      el.style.width = size.toFixed(1)+'px';
+      el.style.height = (size/ratio).toFixed(1)+'px';
+    });
+  }
+  fitMaps();
+  window.addEventListener('resize', fitMaps);
+
+  // entrance + reduced motion
+  requestAnimationFrame(function(){
+    requestAnimationFrame(function(){ document.body.classList.add('ready'); });
+  });
+
+  document.querySelectorAll('[data-theme-btn]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('[data-theme-btn]').forEach(function(b){b.classList.remove('on')});
+      btn.classList.add('on');
+      var v = btn.getAttribute('data-theme-btn');
+      if(v){ document.documentElement.setAttribute('data-theme', v); }
+      else { document.documentElement.removeAttribute('data-theme'); }
+    });
+  });
+
+  var mt = document.getElementById('motionToggle');
+  function toggleMotion(){
+    mt.classList.toggle('on');
+    document.body.classList.toggle('no-motion');
+  }
+  mt.addEventListener('click', toggleMotion);
+  mt.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleMotion(); } });
+})();
+</script>
+</body>
+</html>
