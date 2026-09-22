@@ -147,7 +147,9 @@ function FleetRing({ v }) {
 
 function AgentDetail({ d }) {
   return (
-    <div style={css(`margin:10px 0 4px;border:1px solid ${dim(10)};border-left:2px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:11px;padding:12px 14px;background:${dim(2)};text-align:left`)}>
+    /* the panel arrives rather than appearing — recorded 23 Sep, tapping a
+       chip in the rail simply produced it on the next frame (§2b r7) */
+    <div style={css(`margin:10px 0 4px;border:1px solid ${dim(10)};border-left:2px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:11px;padding:12px 14px;background:${dim(2)};text-align:left;animation:nvRise var(--nv-dur-base) var(--nv-ease) both`)}>
       <div style={css("display:flex;align-items:baseline;gap:8px;flex-wrap:wrap")}>
         <Eyebrow as="span" tone={dim(72)}>{d.label}</Eyebrow>
         <Meta tone={dim(42)} style={{ textTransform: 'none', letterSpacing: 0 }}>— {d.role} · {d.stateLabel}</Meta>

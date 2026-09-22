@@ -88,7 +88,12 @@ export function Journal({ v }) {
                 </span>
               </Interactive>
               {d.open && (
-                <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);padding-top:12px")}>
+                /* the day OPENS rather than appearing — recorded 23 Sep, the
+                   chevron turned and the entries simply existed on the next
+                   frame. §2b r7: a change is acted out. `nvRise` is the house
+                   entrance and already reduces to nothing under
+                   prefers-reduced-motion. */
+                <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);padding-top:12px;animation:nvRise var(--nv-dur-base) var(--nv-ease) both")}>
                   {d.sections.map((s, i) => (
                     <div key={i}>
                       <Meta as="div" tone="faint" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', textTransform: 'none', letterSpacing: 0 }}>
