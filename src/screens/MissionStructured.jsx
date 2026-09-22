@@ -6,7 +6,7 @@ import { glowPanel } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { RingTile } from '../RingTile.jsx';
-import { resolveFolds, foldStatus, FOLD_LABELS, loadFolds, saveFolds } from '../missionFold.js';
+import { resolveFolds, foldStatus, foldInstrument, FOLD_LABELS, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
 import { haptic } from '../haptics.js';
 
@@ -54,16 +54,98 @@ export function assertOrdersCover(sectionKeys, orders = ORDERS) {
   return problems;
 }
 
-// C1 — a folded section: its label, one line of status derived from the same
-// view model the open section renders, and a chevron. Tap to open. The open
-// state is remembered per section (src/missionFold.js).
-function FoldRow({ label, status, onOpen }) {
+// C1 — a folded section, drawn as an INSTRUMENT (Session B of the 22 Sep
+// aesthetic review). Six identical boxes became six different objects: a
+// 44px glyph slot on the left carries the section's fact in its own form
+// and hue (src/missionFold.js foldInstrument), the label sits over a status
+// line that may take two lines instead of truncating mid-word, and the six
+// arrive in a 40ms cascade. Tap to open. The open state is remembered per
+// section (src/missionFold.js).
+const HUE = (h) => (h === 'ink40' ? 'var(--nv-ink40)' : `var(--nv-${h})`);
+const VERDICT = { good: 'var(--nv-good)', behind: 'var(--nv-gold)', missed: 'var(--nv-warn)' };
+
+function FoldGlyph({ inst }) {
+  const hue = HUE(inst.hue);
+  const lit = inst.hue !== 'ink40';
+  let body;
+  switch (inst.kind) {
+    case 'live':
+      body = <span style={{ width: 9, height: 9, borderRadius: '50%', background: hue, boxShadow: `0 0 12px ${hue}`, animation: 'novaPulse 2s infinite var(--nv-anim)' }} />;
+      break;
+    case 'dot':
+      body = <span style={{ width: 9, height: 9, borderRadius: '50%', background: hue, boxShadow: lit ? `0 0 10px -2px ${hue}` : 'none' }} />;
+      break;
+    case 'aim':
+      // two rings and a centre: a thing to aim at — his to take up
+      body = (
+        <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+          <circle cx="11" cy="11" r="9" fill="none" stroke={hue} strokeWidth="1.5" opacity={lit ? 0.9 : 0.6} />
+          <circle cx="11" cy="11" r="3" fill={hue} />
+        </svg>
+      );
+      break;
+    case 'count':
+    case 'when':
+      body = <span style={{ font: `400 ${String(inst.text).length > 2 ? 15 : 21}px ${S}`, color: hue, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{inst.text}</span>;
+      break;
+    case 'verdicts':
+      // one dot per ring, the ring's own verdict colour; a gap is hollow and dashed
+      body = (
+        <span style={{ display: 'flex', gap: 4 }}>
+          {inst.states.map((st, i) => (
+            <span key={i} style={st === 'absent'
+              ? { width: 7, height: 7, borderRadius: '50%', border: '1px dashed var(--nv-ink40)', boxSizing: 'border-box' }
+              : { width: 7, height: 7, borderRadius: '50%', background: VERDICT[st], boxShadow: `0 0 8px -2px ${VERDICT[st]}` }} />
+          ))}
+        </span>
+      );
+      break;
+    case 'icons':
+      body = (
+        <span style={{ display: 'flex', gap: 3 }}>
+          {inst.icons.map((ic) => <span key={ic.name} style={{ color: HUE(ic.hue) }}><TabIcon name={ic.name} size={15} /></span>)}
+        </span>
+      );
+      break;
+    case 'arc': {
+      // one dot per agent on an arc around the slot's centre, the live ones lit
+      const n = inst.dots.length || 1;
+      body = (
+        <svg width="36" height="24" viewBox="0 0 36 24" aria-hidden="true">
+          {inst.dots.map((on, i) => {
+            const a = Math.PI * (1 - (n === 1 ? 0.5 : i / (n - 1)));
+            const x = 18 + 15 * Math.cos(a);
+            const y = 19 - 15 * Math.sin(a);
+            return <circle key={i} cx={x} cy={y} r={on ? 2.4 : 1.8} fill={on ? hue : 'var(--nv-ink40)'} opacity={on ? 1 : 0.5} />;
+          })}
+        </svg>
+      );
+      break;
+    }
+    default:
+      body = null;
+  }
+  return (
+    <span aria-hidden="true" style={{ flex: 'none', width: 44, height: 44, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: lit ? `color-mix(in srgb, ${hue} 9%, transparent)` : 'color-mix(in srgb, var(--nv-ink) 4%, transparent)',
+      boxShadow: lit ? `inset 0 1px 0 color-mix(in srgb, ${hue} 35%, transparent), 0 0 20px -10px ${hue}` : 'inset 0 1px 0 color-mix(in srgb, var(--nv-ink) 8%, transparent)' }}>
+      {body}
+    </span>
+  );
+}
+
+function FoldRow({ label, status, inst, index, onOpen }) {
+  const lit = inst.hue !== 'ink40';
   return (
     <Interactive as="section" onClick={onOpen} role="button" aria-expanded="false" aria-label={`Open ${label}`}
-      base={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 14px', borderRadius: '13px', cursor: 'pointer', background: 'var(--nv-glass)', border: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' }}
+      className="nv-deck-rise" style={{ animationDelay: `${index * 40}ms` }}
+      base={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 12px 9px 9px', borderRadius: '15px', cursor: 'pointer', background: 'var(--nv-glass)', border: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)', boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--nv-ink) 9%, transparent)' }}
       hoverStyle={{ borderColor: 'color-mix(in srgb, var(--nv-ink) 16%, transparent)' }}>
-      <span style={{ flex: 'none', font: `600 11px ${UI}`, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--nv-ink40)' }}>{label}</span>
-      <span style={{ flex: 1, minWidth: 0, font: `450 13px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{status}</span>
+      <FoldGlyph inst={inst} />
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <Eyebrow as="span" tone="faint">{label}</Eyebrow>
+        <span style={{ font: `450 13.5px/1.35 ${UI}`, color: lit ? `color-mix(in srgb, ${HUE(inst.hue)} 72%, var(--nv-ink))` : 'var(--nv-ink60)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', overflowWrap: 'anywhere' }}>{status}</span>
+      </span>
       <span aria-hidden="true" style={{ flex: 'none', color: 'var(--nv-ink40)', font: `400 12px ${M}` }}>▸</span>
     </Interactive>
   );
@@ -518,9 +600,10 @@ export function MissionStructured({ v }) {
         {(() => {
           const present = order.filter((k) => sections[k]);
           const folds = resolveFolds(present, remembered);
+          let foldIndex = 0;
           return present.map((k) => {
             if (folds[k] === 'fold') {
-              return <FoldRow key={`fold-${k}`} label={FOLD_LABELS[k] || k} status={foldStatus(k, v)} onOpen={() => setFold(k, 'open')} />;
+              return <FoldRow key={`fold-${k}`} index={foldIndex++} label={FOLD_LABELS[k] || k} status={foldStatus(k, v)} inst={foldInstrument(k, v)} onOpen={() => setFold(k, 'open')} />;
             }
             const canFold = !['working', 'plan'].includes(k);
             return (

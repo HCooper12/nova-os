@@ -3,7 +3,7 @@
 // the section's honesty at a glance: a missing value must read as a gap.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultFolds, resolveFolds, foldStatus, NEVER_FOLD, FOLD_LABELS } from '../../src/missionFold.js';
+import { defaultFolds, resolveFolds, foldStatus, foldInstrument, NEVER_FOLD, FOLD_LABELS } from '../../src/missionFold.js';
 
 test('the first two present sections stay open, the rest fold', () => {
   const f = defaultFolds(['focus', 'lead', 'today', 'deck', 'vitals']);
@@ -58,4 +58,45 @@ test('the rest degrade honestly when the data is not there', () => {
   assert.equal(foldStatus('focus', { suggestedFocus: { title: 'Deep work on ', accent: 'Nova' } }), 'Deep work on Nova');
   assert.equal(foldStatus('review', { reviewFrom: 'Atomic Habits' }), 'from Atomic Habits');
   assert.equal(foldStatus('unknown', {}), '');
+});
+
+// Session B (22 Sep) — the instrument beside the line. Same view model, drawn:
+// gold only where something is genuinely his to decide, faint the moment
+// there is nothing; a gap is hollow, never lit.
+test('the instrument goes gold only while something is his to decide, faint otherwise', () => {
+  assert.deepEqual(foldInstrument('focus', { suggestedFocus: { title: 'Pick it back up' } }), { kind: 'aim', hue: 'gold' });
+  assert.deepEqual(foldInstrument('focus', { suggestedFocus: { title: 'x' }, focusChip: { label: 'Deep work' } }), { kind: 'live', hue: 'cy' }, 'a running block is live, not undecided');
+  assert.deepEqual(foldInstrument('focus', {}), { kind: 'aim', hue: 'ink40' });
+  assert.deepEqual(foldInstrument('deck', { commandDeck: { count: 3 } }), { kind: 'count', hue: 'gold', text: '3' });
+  assert.deepEqual(foldInstrument('deck', {}), { kind: 'count', hue: 'ink40', text: '0' });
+  assert.deepEqual(foldInstrument('lead', { leaderToday: { title: 'Ask before telling' } }).hue, 'gold');
+  assert.deepEqual(foldInstrument('lead', {}).hue, 'ink40');
+});
+
+test('noticed counts only LIVE insights; demo or missing data is a faint dash', () => {
+  assert.deepEqual(foldInstrument('noticed', { usingLiveHealthInsight: true, healthInsightItems: [{ key: 'a' }, { key: 'b' }] }), { kind: 'count', hue: 'gold', text: '2' });
+  assert.deepEqual(foldInstrument('noticed', { usingLiveHealthInsight: false, healthInsightItems: [{ key: 'a' }] }), { kind: 'count', hue: 'ink40', text: '—' });
+});
+
+test('vitals are one verdict dot per ring and a gap stays hollow', () => {
+  const inst = foldInstrument('vitals', { ringVitals: [{ state: 'good' }, { state: 'behind' }, { state: 'absent' }, { state: 'nonsense' }] });
+  assert.deepEqual(inst, { kind: 'verdicts', hue: 'ink40', states: ['good', 'behind', 'absent', 'absent'] });
+  assert.deepEqual(foldInstrument('vitals', {}).states, ['absent', 'absent', 'absent'], 'no rings at all is three gaps, not three greens');
+});
+
+test('agents are one dot on the arc each, cyan while any is on; today reads the next event time', () => {
+  assert.deepEqual(foldInstrument('agents', { agents: [{ on: true }, { on: false }, { on: true }] }), { kind: 'arc', hue: 'cy', dots: [true, false, true] });
+  assert.deepEqual(foldInstrument('agents', { agents: [] }), { kind: 'arc', hue: 'ink40', dots: [] });
+  assert.deepEqual(foldInstrument('today', { todayEvents: [{ past: true, time: '09:00' }, { time: '14:30', label: 'Dinner' }] }), { kind: 'when', hue: 'cy', text: '14:30' });
+  assert.deepEqual(foldInstrument('today', { todayEvents: [{ now: true }] }), { kind: 'live', hue: 'cy' });
+  assert.deepEqual(foldInstrument('today', {}), { kind: 'count', hue: 'ink40', text: '—' });
+  assert.deepEqual(foldInstrument('review', { reviewConcept: 'Spacing effect' }), { kind: 'count', hue: 'vi', text: '1' });
+});
+
+test('every fold label has an instrument, and an unknown key is a faint dot', () => {
+  for (const k of Object.keys(FOLD_LABELS)) {
+    const inst = foldInstrument(k, {});
+    assert.ok(inst && inst.kind && inst.hue, `${k} has an instrument`);
+  }
+  assert.deepEqual(foldInstrument('nope', {}), { kind: 'dot', hue: 'ink40' });
 });
