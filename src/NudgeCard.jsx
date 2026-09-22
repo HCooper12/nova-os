@@ -8,8 +8,23 @@ import { Button } from './Controls.jsx';
 // the user decides, dismiss means gone for this app session.
 export function NudgeCard({ v }) {
   return (
-    <div style={css("position:fixed;top:calc(54px + env(safe-area-inset-top));left:0;right:0;margin-inline:auto;z-index:66;width:min(480px, calc(100vw - 24px));animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
-      <div className="nv-pane" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 15px', borderColor: 'color-mix(in srgb, var(--nv-gold) 35%, transparent)' }}>
+    /* IT DOCKS AT THE BOTTOM NOW (review finding 18). Pinned under the top
+       bar it covered the screen's own head — on the Inbox it hid "SELF ·
+       INBOX" and half the serif headline, so the one thing that answers
+       "where am I" was the thing it sat on (apple-design §16 Wayfinding). The
+       bottom is where Nova's other floating layers already live, above the
+       dock, and a suggestion belongs with them rather than over the title. */
+    <div style={css("position:fixed;bottom:calc(150px + env(safe-area-inset-bottom));left:0;right:0;margin-inline:auto;z-index:66;width:min(480px, calc(100vw - 24px));animation:nvGlassIn var(--nv-dur-base) var(--nv-ease) both")}>
+      {/* GLASS, because it now floats over content rather than under the
+          bar. `nv-pane` is a translucent surface meant to sit ON a screen; at
+          the bottom it let the page read straight through the nudge's own
+          words. Same material as the voice layers: a blur, a wash, a lit top
+          edge and a shadow instead of a hard border. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 15px', borderRadius: '16px',
+        border: '1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent)',
+        background: 'linear-gradient(180deg,color-mix(in srgb, var(--nv-gold) 08%, transparent),color-mix(in srgb, var(--nv-void) 88%, transparent))',
+        backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
+        boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--nv-gold) 22%, transparent), 0 20px 48px -18px rgba(0,0,0,.8)' }}>
         <span style={{ flex: 'none', fontSize: '16px', color: 'var(--nv-gold)' }}>{v.icon}</span>
         <span style={{ minWidth: 0, flex: 1 }}>
           <span style={{ display: 'block', font: '600 13.5px var(--nv-font-ui)', color: 'var(--nv-ink)' }}>{v.title}</span>

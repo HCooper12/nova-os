@@ -377,11 +377,15 @@ export function Meta({ children, tone: t = 'quiet', style, as: TagName = 'span',
 // after the label (Voice puts its status badge there).
 export function ScreenHead({ numeral, label, children, style }) {
   const apple = isAppleStyle();
+  // `minWidth: 0` so a long label ellipsises inside the head rather than
+  // pushing the row's right-hand meta into the page gutter — measured at
+  // 375px it was landing within a pixel or two of the edge on Train, Notes,
+  // Stash, Inbox and Money (review finding 17).
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: apple ? '10px' : '14px', flexWrap: 'wrap', ...(style || {}) }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: apple ? '10px' : '14px', flexWrap: 'wrap', minWidth: 0, ...(style || {}) }}>
       {!apple && <span style={{ font: `500 11px ${M}`, letterSpacing: '.14em', color: 'var(--nv-acc)' }}>{numeral}</span>}
       {!apple && <span style={{ width: '50px', height: '1px', background: 'linear-gradient(90deg,var(--nv-acc-border),transparent)' }} />}
-      <Eyebrow as="span" tone="color-mix(in srgb, var(--nv-ink) 55%, transparent)" style={apple ? { fontSize: '12.5px' } : { letterSpacing: '.2em' }}>{label}</Eyebrow>
+      <Eyebrow as="span" tone="color-mix(in srgb, var(--nv-ink) 55%, transparent)" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...(apple ? { fontSize: '12.5px' } : { letterSpacing: '.2em' }) }}>{label}</Eyebrow>
       {children}
     </div>
   );

@@ -22,12 +22,27 @@ const TONE = {
   absent: 'color-mix(in srgb, var(--nv-ink) 28%, transparent)',
 };
 
+function abbreviate(value) {
+  const raw = String(value ?? '');
+  const n = Number(raw.replace(/,/g, ''));
+  if (!Number.isFinite(n) || Math.abs(n) < 10000) return raw;
+  const k = n / 1000;
+  return `${Math.abs(k) >= 100 ? Math.round(k) : Math.round(k * 10) / 10}k`;
+}
+
 export function RingTile({ label, value, small, pct, state = 'absent', hint, onOpen, size = 58 }) {
   const r = 24;
   const c = 2 * Math.PI * r;
   const shown = state === 'absent' ? 0 : Math.max(0, Math.min(100, Number(pct) || 0));
   const off = c * (1 - shown / 100);
   const tone = TONE[state] || TONE.absent;
+  // A FIVE-FIGURE COUNT DOES NOT FIT INSIDE A 58px RING. `10,071` crossed the
+  // stroke on both sides even at the smaller size (review finding 21), which
+  // reads as a rendering fault rather than a big number. Ten thousand and up
+  // becomes `10.1k` in the ring; the exact figure is one tile below and still
+  // in the title and the aria-label, so nothing is lost by rounding the
+  // glance. Anything that is not a plain number is left exactly as given.
+  const compact = abbreviate(value);
   return (
     <div onClick={onOpen} role={onOpen ? 'button' : undefined}
       style={css(`display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;cursor:${onOpen ? 'pointer' : 'default'}`)}
@@ -46,8 +61,8 @@ export function RingTile({ label, value, small, pct, state = 'absent', hint, onO
           )}
         </svg>
         <div style={css('position:absolute;inset:0;display:flex;align-items:center;justify-content:center')}>
-          <b style={css(`font:600 ${String(value).length > 4 ? '11px' : '13px'} ${M};color:${state === 'absent' ? TONE.absent : 'var(--nv-ink)'};font-variant-numeric:tabular-nums`)}>
-            {state === 'absent' ? '—' : value}
+          <b style={css(`font:600 ${compact.length > 4 ? '11px' : '13px'} ${M};color:${state === 'absent' ? TONE.absent : 'var(--nv-ink)'};font-variant-numeric:tabular-nums`)}>
+            {state === 'absent' ? '—' : compact}
           </b>
         </div>
       </div>
