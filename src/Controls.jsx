@@ -26,6 +26,7 @@ import { haptic } from './haptics.js';
 //   <Button>        the committing action — one shape, one accent, everywhere
 //   <Rail>          a scrolling row of peers — faded at the edge, never cut
 //   <Chevron>       the disclosure glyph — one stroke, and it turns
+//   <Select>        a native <select> wearing the house chrome
 //   <Tag>           a non-tappable badge (a route, a muscle, a kind)
 //   <Meta>          secondary information — a time, a source, a count
 //   <ScreenHead>    the screen's identity row — numeral · rule · label in
@@ -210,6 +211,44 @@ export function Button({ children, onClick, tone: t = 'accent', variant = 'solid
       }}
       hoverStyle={{ filter: 'brightness(1.1)' }}
     >{children}</Interactive>
+  );
+}
+
+// A NATIVE SELECT THAT LOOKS LIKE IT BELONGS HERE.
+//
+// The Inbox's brief times rendered as OS-default `<select>` boxes with a hard
+// 1px border, sitting beside hand-styled pills — the one unstyled control in
+// a designed surface (review finding 19). The interface-design rule is
+// "native → primitive → hand-roll": KEEP the native element, because it
+// brings the platform's own picker, its keyboard handling and its
+// accessibility for free, and a hand-rolled menu brings none of that. It just
+// has to look like the system it is in.
+//
+// So `appearance:none` and the house chrome, with the chevron drawn beside
+// the value rather than the browser's arrow. The select itself stays the
+// full hit area, sitting transparently over the whole control.
+export function Select({ value, onChange, options, ariaLabel, style }) {
+  const apple = isAppleStyle();
+  const current = options.find((o) => String(o.value) === String(value));
+  return (
+    <span style={{
+      position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '6px',
+      minHeight: apple ? '34px' : '26px', padding: apple ? '4px 11px' : '3px 9px',
+      borderRadius: '999px', background: 'var(--nv-well)',
+      border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)',
+      font: apple ? `600 13px ${UI}` : `600 10px ${M}`,
+      letterSpacing: apple ? '0' : '.12em',
+      color: 'var(--nv-ink)', fontVariantNumeric: 'tabular-nums',
+      ...(style || {}),
+    }}>
+      <span style={{ whiteSpace: 'nowrap' }}>{current ? current.label : value}</span>
+      <Chevron open tone="faint" size={11} />
+      <select value={value} onChange={onChange} aria-label={ariaLabel}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer',
+          appearance: 'none', WebkitAppearance: 'none', border: 'none', background: 'transparent' }}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </span>
   );
 }
 

@@ -104,6 +104,14 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @keyframes nvFadeOut { from { opacity: 1; } to { opacity: 0; } }
 /* the next card rising to the top of the Inbox deck (Inbox.jsx) — a spring-ish settle, not a cut */
 @keyframes deckRise { from { opacity: 0; transform: translateY(var(--nv-rise)) scale(.985); } to { opacity: 1; transform: none; } }
+/* a decided card LEAVING the deck (finding 13, Inbox.jsx): a beat in its
+   verdict's colour — filed goes green and rises out the way it came, discarded
+   goes red and falls — before the status swap removes it (src/inboxLeave.js) */
+@keyframes nvLeaveFile { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(calc(var(--nv-rise) * -1)) scale(.985); } }
+@keyframes nvLeaveDiscard { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(var(--nv-rise)) scale(.985); } }
+.nv-leave-approve { animation: nvLeaveFile var(--nv-dur-base) var(--nv-ease) both; box-shadow: inset 3px 0 0 var(--nv-good); border-radius: 14px; pointer-events: none; }
+.nv-leave-discard { animation: nvLeaveDiscard var(--nv-dur-base) var(--nv-ease) both; box-shadow: inset 3px 0 0 var(--nv-warn); border-radius: 14px; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .nv-leave-approve, .nv-leave-discard { animation: nvFadeOut .2s ease both; } }
 .nv-deck-rise { animation: deckRise var(--nv-dur-base) var(--nv-ease) both; }
 @media (prefers-reduced-motion: reduce) { .nv-deck-rise { animation: none; } }
 @keyframes auroraDrift { from { transform: translate3d(-2%,-1%,0); } to { transform: translate3d(2%,2%,0); } }
@@ -113,6 +121,17 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @keyframes skeletonSweep { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 /* the reference's pop-up: it arrives from the bottom edge and settles */
 @keyframes popIn { from { opacity: 0; transform: translateY(var(--nv-rise)) scale(.965); } to { opacity: 1; transform: translateY(0) scale(1); } }
+/* GLASS MATERIALISES, it does not fade in. A translucent surface that simply
+   becomes opaque reads as a picture of glass; a surface whose blur resolves
+   as it arrives reads as the material itself turning up (apple-design §12,
+   "Materialize, don't just fade"). Used by the floating voice layers. */
+@keyframes nvGlassIn {
+  from { opacity: 0; transform: translateY(var(--nv-rise)) scale(.975); filter: blur(7px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes nvGlassIn { from { opacity: 0; } to { opacity: 1; } }
+}
 
 /* THE STAGGER (11 Sep 2026). The thing the app had nowhere except the Library
    shelf: a group that ASSEMBLES rather than landing as one slab. Measured

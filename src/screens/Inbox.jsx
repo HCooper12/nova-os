@@ -6,7 +6,7 @@ import { useDictation } from '../useDictation.js';
 import { SkeletonList } from '../Skeleton.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, Button } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, Button, Select } from '../Controls.jsx';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -518,10 +518,9 @@ export function Inbox({ v }) {
               {v.dailyReview.modes.map((m) => (
                 <Chip key={m.value} tone={m.active ? 'accent' : 'quiet'} active={m.active} onClick={m.pick}>{m.label}</Chip>
               ))}
-              <select value={v.dailyReview.hour} onChange={v.dailyReview.setHour}
-                style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '4px 6px', outline: 'none' }}>
-                {v.dailyReview.hourOptions.map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
-              </select>
+              <Select value={v.dailyReview.hour} onChange={v.dailyReview.setHour} ariaLabel="Daily review time"
+                style={{ flex: 'none', marginLeft: 'auto' }}
+                options={v.dailyReview.hourOptions.map((h) => ({ value: h, label: `${String(h).padStart(2, '0')}:00` }))} />
             </div>
             <div style={css("margin-top:9px;display:flex;justify-content:space-between;align-items:center;gap:8px")}>
               <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>{v.dailyReview.status}</span>
@@ -538,15 +537,22 @@ export function Inbox({ v }) {
               </div>
               {v.dispatchSlots.map((s, i) => (
                 <div key={s.slot} style={i > 0 ? { marginTop: '12px', paddingTop: '12px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)' } : { marginTop: '10px' }}>
-                  <div style={css(`display:flex;gap:6px;flex-wrap:wrap;align-items:center`)}>
-                    <Meta tone="quiet" style={{ marginRight: '2px' }}>{cap(s.label)}</Meta>
+                  {/* THE NAME AND ITS TIME ON ONE LINE, the modes on the
+                      next. At 375px a label, three mode pills and a time
+                      cannot share a row, and `margin-left:auto` in a wrapping
+                      flex orphans the time onto a line of its own — which is
+                      what broke the rhythm of this panel (review finding 19).
+                      Two deliberate lines beat one that wraps by accident. */}
+                  <div style={css('display:flex;gap:8px;align-items:center;justify-content:space-between')}>
+                    <Meta tone="quiet" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cap(s.label)}</Meta>
+                    <Select value={s.hour} onChange={s.setHour} ariaLabel={`${s.label} time`}
+                      style={{ flex: 'none' }}
+                      options={s.hourOptions.map((h) => ({ value: h, label: `${String(h).padStart(2, '0')}:00` }))} />
+                  </div>
+                  <div style={css('margin-top:7px;display:flex;gap:6px;flex-wrap:wrap;align-items:center')}>
                     {s.modes.map((m) => (
                       <Chip key={m.value} tone={m.active ? 'accent' : 'quiet'} active={m.active} onClick={m.pick}>{m.label}</Chip>
                     ))}
-                    <select value={s.hour} onChange={s.setHour}
-                      style={{ marginLeft: 'auto', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '7px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '4px 6px', outline: 'none' }}>
-                      {s.hourOptions.map((h) => <option key={h} value={h} style={{ background: '#141019' }}>{String(h).padStart(2, '0')}:00</option>)}
-                    </select>
                   </div>
                   <div style={css(`margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px`)}>
                     <span style={css(`font:500 11.5px ${R};color:var(--nv-ink60)`)}>{s.status}</span>

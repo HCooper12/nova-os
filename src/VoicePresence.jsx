@@ -83,10 +83,23 @@ export function VoicePresence({ v }) {
       {/* he heard nothing — one tap plays it, from inside the gesture */}
       {v.speechBlocked && (
         <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
-          base={css(`pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:9px;width:min(430px,100%);padding:10px 14px;border-radius:12px;border:1px solid color-mix(in srgb, var(--nv-warn) 55%, transparent);background:color-mix(in srgb, var(--nv-void) 92%, black);animation:popIn var(--nv-dur-base) var(--nv-ease)`)}
+          /* GLASS, LIKE EVERY OTHER FLOATING LAYER. This parked over the
+             middle of whatever screen was open as a flat near-black box with
+             a hard 1px border, while the pop-up directly beneath it in this
+             same component was proper glass with a bright inset edge
+             (review finding 6). Material carries hierarchy, and a floating
+             layer that is not made of the same stuff as its neighbours reads
+             as something that got stuck there. The blur also MATERIALISES on
+             arrival rather than fading — apple-design §12. */
+          base={css(`pointer-events:auto;cursor:pointer;display:flex;align-items:center;gap:9px;width:min(430px,100%);padding:10px 14px;border-radius:14px;border:1px solid color-mix(in srgb, var(--nv-warn) 30%, transparent);background:linear-gradient(180deg,color-mix(in srgb, var(--nv-warn) 07%, transparent),color-mix(in srgb, var(--nv-void) 82%, transparent));backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 color-mix(in srgb, var(--nv-warn) 24%, transparent),0 18px 44px -18px rgba(0,0,0,.75);animation:nvGlassIn var(--nv-dur-base) var(--nv-ease) both`)}
           hoverStyle="background:color-mix(in srgb, var(--nv-warn) 14%, transparent)">
           <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-warn);flex:none`)}>▶ TAP TO HEAR</span>
           <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 65%, transparent)')}>{v.speechBlocked.message}</span>
+          {v.speechBlocked.dismiss && (
+            <Interactive as="span" onClick={(e) => { e.stopPropagation(); v.speechBlocked.dismiss(); }} aria-label="Dismiss"
+              base={css('cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;min-width:30px;min-height:30px;margin:-6px -6px -6px 0;border-radius:50%;font-size:15px;line-height:1;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)')}
+              hoverStyle={{ color: 'var(--nv-ink)', background: 'color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>×</Interactive>
+          )}
         </Interactive>
       )}
 
@@ -121,7 +134,7 @@ export function VoicePresence({ v }) {
       {/* the card Nova is referring to, arriving mid-conversation */}
       {s.evidence && (
         <Interactive onClick={s.openEvidence}
-          base={css('pointer-events:auto;display:flex;align-items:center;gap:10px;width:min(560px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);border-radius:13px;padding:11px 15px;background:color-mix(in srgb, var(--nv-void) 92%, black);box-shadow:0 0 22px -6px color-mix(in srgb, var(--nv-cy) 45%, transparent),0 16px 40px rgba(0,0,0,.55);animation:popIn var(--nv-dur-base) var(--nv-ease)')}
+          base={css('pointer-events:auto;display:flex;align-items:center;gap:10px;width:min(560px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 34%, transparent);border-radius:14px;padding:11px 15px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 06%, transparent),color-mix(in srgb, var(--nv-void) 82%, transparent));backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 22%, transparent),0 0 22px -8px color-mix(in srgb, var(--nv-cy) 40%, transparent),0 18px 44px -18px rgba(0,0,0,.75);animation:nvGlassIn var(--nv-dur-base) var(--nv-ease) both')}
           hoverStyle="border-color:var(--nv-cy)">
           <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);flex:none`)}>◆ EVIDENCE</span>
           <span style={css('flex:1;min-width:0;font-size:12.5px;color:var(--nv-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{s.evidence.label}</span>

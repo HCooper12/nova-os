@@ -246,6 +246,11 @@ export function valsMisc(app, ctx) {
         ? `Nova has ${st.speechBlocked.texts.length} lines ready but ${st.speechBlocked.reason}.`
         : `Nova answered but ${st.speechBlocked.reason}.`,
       replay: () => app.replayBlockedSpeech(),
+      // HE CAN PUT IT DOWN (review finding 6; apple-design §16 Agency). The
+      // strip used to park over the middle of whatever screen was open with
+      // no way out but playing audio he may not want — on a phone, in public,
+      // the reason it was blocked in the first place.
+      dismiss: () => app.setState({ speechBlocked: null }),
     } : null,
     // THE MODEL CHOICE GATE — mirrors server/lib/modelChoice.js's phrasing
     // client-side (the voice path's question already arrived embedded in
