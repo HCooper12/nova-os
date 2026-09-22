@@ -142,7 +142,17 @@ hand-rolling: `Button` (tone · variant · compact · disabled, 44pt under
 Apple, `--nv-on-acc` ink), `Rail` (a scrolling row of peers, faded only on
 the side that has more), `Chevron` (one stroke that turns), `Select` (a
 native `<select>` in house chrome, the element transparent over the hit
-area). There are now ZERO hand-rolled button helpers in `src/`.
+area). There are now ZERO hand-rolled button helpers in `src/`, and zero gold
+commit buttons: `grep 1a1322 src` returns only MobileChrome's two count
+badges, where dark ink on a gold badge is what a badge is.
+
+**A CORRECTION WORTH READING.** `cb2ae8d` claimed gold survived "in exactly
+one place" and this handoff repeated it. Both were wrong. That pass hunted
+the `btn()` HELPER and missed eight buttons hand-rolled inline with the same
+ink — found only by grepping the DEPLOYED chunks, and fixed in `97b0fca`.
+**After a sweep, grep what shipped, not the source you just edited:** `curl`
+the deployed index, pull every lazy chunk it names, grep those. Settings, Ops
+and Notes are all lazy chunks that a source grep and a screenshot both miss.
 
 **TWO NEW INSTRUMENTS, and they found what the written review could not.**
 - `node scripts/probe.mjs` — every screen at 375px, reporting overflow,
