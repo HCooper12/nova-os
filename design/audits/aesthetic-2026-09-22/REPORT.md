@@ -45,6 +45,52 @@ and roughly two thirds of the findings below disappear with them.
 
 ---
 
+## 1b · Status, 23 September 2026
+
+Every finding is built or claimed. Three sessions worked the same checkout in
+parallel; each commit went in by explicit pathspec.
+
+| # | Finding | State |
+| --- | --- | --- |
+| 1 | Home's fold rows | done — `3081b60` |
+| 2 | Gold as the default commit colour | done — `cb2ae8d` |
+| 3 | `btn()` hand-rolled in 14 files | done — `cb2ae8d` (15 helpers + 7 more the audit missed) |
+| 4 | Muscles painted cyan on Train | done — `a082574` |
+| 5 | The exercise card's mono dump | done — `8694418` (load rail, skeleton, grabber, serif head) |
+| 6 | Two floating voice layers flat | done — `ed42781` |
+| 7 | To-Do squeezed the title | done — `be14df3` |
+| 8 | Train · Coach's void | done — `ad726d7` |
+| 9 | Ops' dial at 402px | done — `036b2e7` |
+| 10 | Settings' 17 grey bullets | done — `8694418` (trust ladder) |
+| 11 | Notes' clipped chip wall | done — `be14df3` (the `Rail`) |
+| 12 | The PR rail's clipped third card | done — `2e41989` (muscle hues + the focus verdict) |
+| 13 | Decisions are a button per idea | in progress |
+| 14 | Journal as a date table | done — `be14df3` |
+| 15 | Fuel's ring solid at zero | done — `7b13b6d` |
+| 16 | Stash/Library repeat one pill | search input + cover scrim done (`be14df3`); whole-row tap target claimed |
+| 17 | Screen-head meta to the edge | done — `4c0a006` |
+| 18 | The banner covering the screen head | done — `4c0a006` |
+| 19 | A raw `<select>` in a designed surface | done — `ed42781` (the house `Select`) |
+| 20 | Briefing's bare empty state | done — `fb2481e` |
+| 21 | `10,071` overflowing its ring | done — `4c0a006` |
+| 22 | Home's eight equal vitals | done — `5691ff0` |
+
+**What the review could not see.** A written audit reads stills, and stills
+hide two whole classes of fault. Both were found afterwards, by instruments
+built during the work:
+
+- `scripts/probe.mjs` measures every screen at 375px. It found **two
+  page-scrolls-sideways bugs** (the Inbox 115px past the edge, the Code
+  console clipping its own terminal by 106px) and **eleven controls under the
+  28pt tap floor**, several of them the primary action on their surface. None
+  appear in the 22 findings above.
+- `scripts/rec.mjs` records an interaction as a GIF. It found **two missing
+  entrances** the stills could not distinguish from working ones, and caught
+  the Fuel arcs mounting already finished.
+
+Four new house objects came out of the work and are in `Controls.jsx`:
+`Button`, `Rail`, `Chevron`, `Select`.
+
 ## 2 · Findings, ranked by impact
 
 Ordered by visible gain on *his phone* per hour of work. Before/After in the
