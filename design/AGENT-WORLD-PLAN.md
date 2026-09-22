@@ -173,16 +173,57 @@ loss: the same view model rendered as the marker list.
 
 ### 3f · What is deliberately not taken
 
-- **Cute.** The reel's figures are Pixar; Nova's register is Jarvis. The
-  figures should be luminous forms in their department's hue with a pose
-  vocabulary (standing, working, raising a hand), not faces. He can
-  overrule this; it is a taste call and it is his.
+- **Faces — DECIDED, 23 Sep, his call: FACES, in 3D, and each agent
+  unique to its personality and function.** The forms-only register is
+  dropped. The flat mockup (`48-org-map.html`) stands only as a very simple
+  draft of the map's geography; the characters are the design, and they
+  are designed in 3D from the start. The character brief is §3g below.
+  Not cute for its own sake: the shared DNA is a small luminous being with
+  a visor face (two lit eyes are the reel's whole charm and the thing he
+  responded to); what makes each one *itself* is one silhouette element
+  drawn from its job, its posture, and its department's hue.
 - **A hex per project.** His work is not projects, it is his life. The
   departments are the true grouping; projects are one district.
 - **Archive.** Nothing on the map writes. Tick and cross ride the existing
   approve and discard endpoints, which are undoable. Everything else is a
   read.
 - **Sound.** None, unless asked.
+
+### 3g · The character brief (23 Sep)
+
+One body language, nine beings. Shared DNA: a rounded head with a dark
+visor and two lit eyes (the eyes carry state: steady = working, blinking
+slow = waiting on him, dim = quiet, unlit = never run), a capsule body in
+the department's hue with a brighter core, no mouth, no hands unless the
+job needs them. Height ≈ 1.4 tile-widths so a pose reads on a phone.
+Each then owns ONE silhouette element and ONE posture that says its job
+before its label does:
+
+| Agent | Department · hue | Silhouette element | Posture / tell |
+|---|---|---|---|
+| **Commander** | Logistics · cyan | a compass-rose crest on the head, a slim antenna | stands tallest, one arm raised pointing ahead; turns to face the newest thing |
+| **Coach** | Train · chest coral | broad shoulders, forearm bands, carries a bar of light across the shoulders | feet planted wide; working = the bar lifts; waiting = the bar rests on the ground |
+| **CFO** | Money · good-green | a squarer ledger body, a coin-slot line across the visor | arms folded; a small stack of glowing chips beside it grows with the month's receipts (real count) |
+| **Guardian** | Platform · violet | a shield-shaped torso, a steady lantern held low | never moves; the lantern brightens when a backup lands, dims to amber when a loop goes quiet |
+| **Researcher** | Knowledge · quads blue | one large lens-visor instead of two eyes, a page drifting beside it | leans forward; working = the page turns; paused at budget = the page hangs half-turned (the "waiting on you" marker above) |
+| **Watcher** | Knowledge · calves ice-blue | a wide cinematic visor (letterbox eyes) | sits; working = a thin light plays across the visor like a screen |
+| **Librarian** | Knowledge · back teal | a body made of stacked spines, one drawer open | tidies: working = the drawer slides, a spine lights |
+| **Meal Prep / Food Scout** | Fuel · shoulders amber | a rounded pot-shaped body, a warm glow at the base | steam-like light rises while a suggestion is cooking |
+| **Leader** | Mind · magenta | a mirror-finish visor that reflects the tile | still, listening; the visor brightens when he answers a follow-up |
+
+Not on the sheet: the deterministic loops (dispatch, review, compost, the
+trust ladder). They are the buildings, not the people — a lit window in the
+department's tile when one ran today, following the state table in §3b.
+
+Materials and motion follow `Shelf3D.jsx`'s conventions: one renderer
+style, tokens read off the mount so themes recolour them, render on
+demand, no idle motion (an idle being blinks once in a while and no more),
+`prefers-reduced-motion` = no blinking, no bar lifting, still poses.
+
+Build order for the characters: a **3D character sheet first**
+(`design/mockups/49-agent-characters.html`, three.js, nine figures on a
+turntable, tap to focus, each shown in its working and waiting pose) for
+his reaction, then the map (§3e) with the same figures placed.
 
 ## 4 · The fun and the purely aesthetic, kept separate and labelled
 
