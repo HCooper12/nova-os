@@ -543,6 +543,7 @@ export function valsChrome(app, ctx) {
     } : null,
     learning: !demoMode ? {
       noticed: st.liveLearning?.noticed || [],
+      lanes: st.liveLearning?.lanes || [],
       enoughData: !!st.liveLearning?.enoughData,
       loaded: st.liveLearning != null,
     } : null,

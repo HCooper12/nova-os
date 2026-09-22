@@ -2,6 +2,7 @@ import { css } from './css.js';
 import { VoicePanel } from './VoicePanels.jsx';
 import { useSheetDrag } from './useSheetDrag.js';
 import { TextAction } from './Controls.jsx';
+import { SkeletonBar } from './Skeleton.jsx';
 import { vtStyle } from './vtName.js';
 
 // THE EXERCISE SHEET — the chat's exercise card, reachable from the Train
@@ -19,6 +20,42 @@ import { vtStyle } from './vtName.js';
 // facts about a lift. Long-press an exercise in the library, or tap its name
 // on Today's card, and it slides up — and drags back down (useSheetDrag).
 
+
+// THE SHAPE OF WHAT IS COMING, at the height it will be.
+//
+// The sheet used to open on one uppercase mono line — `PULLING UP DUMBBELL
+// SHOULDER PRESS (SINGLE ARM)…` — in an otherwise empty card, then jump from
+// about a quarter of the screen to two thirds when the panel landed (review
+// finding 5). A height jump on arrival reads as broken (emil-design-eng:
+// "elements appearing or disappearing without transition feel broken"), and
+// the fix is not a faster fetch: it is opening at the final height with the
+// real layout blocked out, so the content fills a frame already there.
+//
+// The blocks are the house `SkeletonBar`, which already carries the shimmer,
+// the reduced-motion handling and the honesty rule that a skeleton means
+// LOADING and never EMPTY.
+function SheetSkeleton({ name }) {
+  return (
+    <div aria-busy="true" aria-label={`Opening ${name}`} style={css('min-height:430px;padding:2px 0 14px')}>
+      <div style={css('border:1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:14px')}>
+        <SkeletonBar w="64%" h="19px" />
+        <div style={css('display:flex;gap:14px;align-items:flex-start')}>
+          <SkeletonBar w="104px" h="118px" radius="10px" style={{ flex: 'none' }} />
+          <div style={css('flex:1;min-width:0;display:flex;flex-direction:column;gap:9px')}>
+            <SkeletonBar w="70%" />
+            <SkeletonBar w="52%" />
+            <SkeletonBar w="44%" h="34px" radius="999px" />
+          </div>
+        </div>
+        <SkeletonBar w="38%" h="22px" />
+        <SkeletonBar w="86%" />
+        <div style={css('display:flex;flex-direction:column;gap:8px')}>
+          {[0, 1, 2, 3].map((i) => <SkeletonBar key={i} h="30px" radius="10px" />)}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function ExerciseSheet({ v }) {
   const s = v.exerciseSheet;
@@ -40,13 +77,19 @@ export function ExerciseSheet({ v }) {
         }}>
         {/* the grab zone: handle + close, sticky so it stays under the thumb
             while the card below scrolls */}
-        <div {...drag.handleProps} style={{ ...drag.handleProps.style, position: 'sticky', top: 0, zIndex: 2, background: 'var(--nv-bg1)', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0 6px', marginBottom: '2px' }}>
-          <span aria-hidden="true" style={css('width:36px;height:5px;border-radius:3px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin:0 auto 0 0')} />
-          <TextAction tone="quiet" onClick={v.closeExerciseCard} ariaLabel="Close">Close</TextAction>
+        {/* THE GRABBER SITS IN THE MIDDLE. It was pinned left by `margin:0
+            auto 0 0`, which put the one part of a sheet everybody recognises
+            at x≈33 (review finding 5; apple-design §16 Craft — a misaligned
+            element reads as carelessness). It is centred in the sheet now,
+            and Close keeps its corner. */}
+        <div {...drag.handleProps} style={{ ...drag.handleProps.style, position: 'sticky', top: 0, zIndex: 2, background: 'var(--nv-bg1)', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', padding: '10px 0 6px', marginBottom: '2px' }}>
+          <span />
+          <span aria-hidden="true" style={css('width:36px;height:5px;border-radius:3px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent)')} />
+          <span style={{ justifySelf: 'end' }}>
+            <TextAction tone="quiet" onClick={v.closeExerciseCard} ariaLabel="Close">Close</TextAction>
+          </span>
         </div>
-        {s.loading && (
-          <div style={css(`padding:26px 6px;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-ink40)`)}>PULLING UP {String(s.name).toUpperCase()}…</div>
-        )}
+        {s.loading && <SheetSkeleton name={s.name} />}
         {s.error && (
           <div style={css(`padding:18px 6px;font:500 13px var(--nv-font-ui);color:var(--nv-warn)`)}>Couldn't pull that up — {s.error}</div>
         )}

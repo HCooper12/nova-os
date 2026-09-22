@@ -96,7 +96,13 @@ await attach();
 // the connection, seeded before the app's first script runs — the token stays
 // inside the file dev-connect.mjs wrote and is never printed
 const seed = await readFile(path.join(ROOT, 'public', '_devconn.js'), 'utf8').catch(() => '');
-if (seed) await send('Page.addScriptToEvaluateOnNewDocument', { source: seed });
+if (!seed) {
+  // A shot of the demo fixtures looks exactly like a shot of his app, and
+  // every conclusion drawn from it is wrong. The probe learned this first.
+  console.error('no public/_devconn.js — run `node scripts/dev-connect.mjs` first, or this photographs DEMO DATA');
+  await cleanup(); process.exit(1);
+}
+await send('Page.addScriptToEvaluateOnNewDocument', { source: seed });
 await send('Page.navigate', { url });
 await new Promise((r) => setTimeout(r, 3000));
 await attach();
@@ -115,6 +121,9 @@ for (const js of evals) {
   await new Promise((r2) => setTimeout(r2, 400));
 }
 await new Promise((r) => setTimeout(r, wait));
+// and say so loudly if it still came up disconnected
+const live = await send('Runtime.evaluate', { expression: 'Boolean(localStorage.getItem("novaos.connection")) && !/DEMO DATA/.test(document.body.textContent || "")', returnByValue: true });
+if (!live.result.value) console.error('WARNING: this shot is DEMO DATA, not his vault — the page did not connect');
 const errors = await send('Runtime.evaluate', { expression: 'JSON.stringify({title: document.title, w: innerWidth, h: innerHeight})', returnByValue: true });
 const shot = await send('Page.captureScreenshot', { format: 'png' });
 await writeFile(out, Buffer.from(shot.data, 'base64'));

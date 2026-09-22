@@ -80,9 +80,30 @@ async function buildExercise(vaultPath, name) {
   const inRoutines = routines.filter((r) => r.exercises.some((e) => e.exerciseId === ex.id)).map((r) => r.name);
 
   const sessions = await loadSessions(vaultPath, { exerciseId: ex.id, limit: 6 });
+  // THE SETS, STRUCTURED AS WELL AS WRITTEN (23 Sep 2026). `sets` stays
+  // exactly as it was — it is a contract the chat panel and the spoken turn
+  // both read, and a string is what they want. `setRows` is the same numbers
+  // unjoined, so the card can DRAW the progression instead of printing it:
+  // six weeks of 22.5kg→25kg was sitting in this payload as mono text and the
+  // card said nothing about whether the lift was moving (review finding 5).
+  // `topWeight` is what the session is remembered by; it is computed here
+  // rather than in the client so the rail and any future reader agree.
   const recent = sessions.map((s) => {
     const e = s.exercises.find((x) => x.exerciseId === ex.id);
-    return e ? { date: s.date, routine: s.routineName, sets: e.sets.map((x) => `${x.weight}×${x.reps}${x.rpe ? '@' + x.rpe : ''}`).join('  ') } : null;
+    if (!e) return null;
+    const rows = (e.sets || []).map((x) => ({
+      weight: Number(x.weight) || 0,
+      reps: Number(x.reps) || 0,
+      rpe: x.rpe == null ? null : Number(x.rpe),
+    }));
+    return {
+      date: s.date,
+      routine: s.routineName,
+      sets: rows.map((x) => `${x.weight}×${x.reps}${x.rpe ? '@' + x.rpe : ''}`).join('  '),
+      setRows: rows,
+      topWeight: rows.length ? Math.max(...rows.map((x) => x.weight)) : null,
+      totalReps: rows.reduce((n, x) => n + x.reps, 0),
+    };
   }).filter(Boolean);
 
   const e1rms = estimateE1RMs(await loadSessions(vaultPath, { limit: 12 }));

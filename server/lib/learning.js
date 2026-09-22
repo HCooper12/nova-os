@@ -42,6 +42,13 @@ function isWeekend(dateStr) {
 // Returns { noticed: string[], enoughData: bool }.
 export async function computePreferences(vaultPath) {
   const noticed = [];
+  // THE SAME SIGNAL, STRUCTURED (23 Sep 2026). `noticed` stays exactly as it
+  // is: it is prose, and the agents that read this to shape a suggestion want
+  // prose. `lanes` is the decision history as numbers, so Settings can DRAW
+  // the trust ladder instead of printing seventeen sentences — this is the
+  // data that governs what Nova may do unasked, and it was the most literal
+  // spreadsheet-as-prose in the app (review finding 10).
+  const lanes = [];
 
   // 1) accept/skip tendencies per brief kind, from the inbox record history
   try {
@@ -58,9 +65,11 @@ export async function computePreferences(vaultPath) {
       const total = c.kept + c.dropped;
       if (total < MIN_DECISIONS) continue;
       const label = KIND_LABEL[kind];
-      if (c.kept / total >= 0.7) noticed.push(`Acts on ${label} — kept ${c.kept} of ${total}.`);
-      else if (c.dropped / total >= 0.7) noticed.push(`Tends to skip ${label} — dismissed ${c.dropped} of ${total}; worth easing off or turning down.`);
+      const verdict = c.kept / total >= 0.7 ? 'acts' : c.dropped / total >= 0.7 ? 'skips' : 'mixed';
+      if (verdict === 'acts') noticed.push(`Acts on ${label} — kept ${c.kept} of ${total}.`);
+      else if (verdict === 'skips') noticed.push(`Tends to skip ${label} — dismissed ${c.dropped} of ${total}; worth easing off or turning down.`);
       else noticed.push(`Mixed on ${label} — kept ${c.kept} of ${total}.`);
+      lanes.push({ kind, label, kept: c.kept, dropped: c.dropped, total, verdict });
     }
   } catch { /* inbox unavailable — skip this signal */ }
 
@@ -79,7 +88,11 @@ export async function computePreferences(vaultPath) {
     }
   } catch { /* nutrition archive unavailable — skip */ }
 
-  return { noticed, enoughData: noticed.length > 0 };
+  // The lanes he might want to TURN DOWN come first — they are the only ones
+  // that ask anything of him — then the rest by how much evidence there is.
+  const RANK = { skips: 0, mixed: 1, acts: 2 };
+  lanes.sort((a, b) => (RANK[a.verdict] - RANK[b.verdict]) || (b.total - a.total));
+  return { noticed, lanes, enoughData: noticed.length > 0 };
 }
 
 // Compact block for the top of the model agents' context.

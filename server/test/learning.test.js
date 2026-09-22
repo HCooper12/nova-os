@@ -58,3 +58,48 @@ test('nutrition: a real weekend protein gap gets noticed', async () => {
   const { noticed } = await computePreferences(vault);
   assert.ok(noticed.some((n) => /Protein floor slips on weekends/.test(n)), noticed.join(' | '));
 });
+
+// THE LANES ARE THE SAME SIGNAL AS THE SENTENCES. Settings draws the trust
+// ladder from `lanes` and falls back to `noticed` when a server predates it,
+// so the two must never disagree about a lane — a bar saying one thing and a
+// sentence saying another is worse than either alone. Built on its own
+// records rather than on whatever the machine happens to hold, so this test
+// can actually fail.
+test('lanes carry the same decisions as the sentences, worst first', async () => {
+  // its OWN kinds, untouched by the tests above — `_resetInboxStore` clears
+  // the cache, not the records on disk, so sharing a kind with an earlier
+  // test silently adds to its counts
+  const rec = (kind, status, i) => ({ id: `${kind}-l${i}`, kind, status, createdAt: `2026-08-${String(1 + (i % 27)).padStart(2, '0')}T08:00:00Z` });
+  // acts on it (9/10), skips it (0/4), and one genuinely mixed (2/4)
+  for (let i = 0; i < 9; i++) await createRecord(rec('video', 'filed', i));
+  await createRecord(rec('video', 'discarded', 9));
+  for (let i = 0; i < 4; i++) await createRecord(rec('cfo', 'discarded', 20 + i));
+  for (let i = 0; i < 2; i++) await createRecord(rec('distill', 'filed', 40 + i));
+  for (let i = 0; i < 2; i++) await createRecord(rec('distill', 'discarded', 42 + i));
+
+  const { noticed, lanes, enoughData } = await computePreferences(vault);
+  assert.equal(enoughData, true);
+  assert.ok(lanes.length >= 3, `expected three lanes, got ${lanes.length}`);
+
+  const by = Object.fromEntries(lanes.map((l) => [l.kind, l]));
+  assert.deepEqual(
+    { kept: by.video.kept, total: by.video.total, verdict: by.video.verdict },
+    { kept: 9, total: 10, verdict: 'acts' });
+  assert.deepEqual(
+    { kept: by.cfo.kept, total: by.cfo.total, verdict: by.cfo.verdict },
+    { kept: 0, total: 4, verdict: 'skips' });
+  assert.equal(by.distill.verdict, 'mixed', 'two of four is neither acting nor skipping');
+
+  for (const l of lanes) {
+    assert.equal(l.kept + l.dropped, l.total, `${l.label}: kept + dropped must be the total`);
+    const line = noticed.find((n) => n.includes(l.label));
+    assert.ok(line, `${l.label} has no sentence`);
+    assert.ok(line.includes(String(l.total)), `${l.label}: "${line}" does not carry ${l.total}`);
+  }
+
+  // the lane he might turn down leads; the one he acts on never outranks it
+  assert.equal(lanes[0].verdict, 'skips', `first lane was ${lanes[0].verdict}`);
+  const firstActs = lanes.findIndex((l) => l.verdict === 'acts');
+  const lastNonActs = lanes.map((l) => l.verdict).lastIndexOf('skips');
+  assert.ok(firstActs > lastNonActs, 'a lane worth easing off must not sit below one he acts on');
+});

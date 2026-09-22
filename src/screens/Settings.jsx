@@ -150,8 +150,44 @@ export function Settings({ v }) {
             <Eyebrow as="span" tone="cyan">What Nova has noticed</Eyebrow>
             <Meta tone="faint">Learned from your real decisions · shapes every suggestion</Meta>
           </div>
-          <div className="nv-pane" style={{ marginTop: '12px', padding: '16px 18px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
-            {v.learning.noticed.map((n, i) => (
+          {/* THE TRUST LADDER. Seventeen grey sentences, ~900px tall, each
+              one a ratio written out — and this is the data that decides what
+              Nova is allowed to do without asking (review finding 10). One
+              row per lane now: the ratio as a serif numerator, a bar split
+              kept-against-dismissed, and the lanes worth easing off pulled to
+              the top and said so. The sentences remain underneath as the
+              fallback when the server is older than this screen. */}
+          <div className="nv-pane" style={{ marginTop: '12px', padding: '14px 16px', maxWidth: '620px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {(v.learning.lanes || []).length > 0 ? v.learning.lanes.map((l) => {
+              const pct = Math.round((l.kept / l.total) * 100);
+              const hue = l.verdict === 'acts' ? 'var(--nv-good)' : l.verdict === 'skips' ? 'var(--nv-warn)' : 'var(--nv-gold)';
+              return (
+                <div key={l.kind} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '9px 8px', borderRadius: '10px',
+                  background: l.verdict === 'skips' ? 'color-mix(in srgb, var(--nv-warn) 07%, transparent)' : 'transparent' }}>
+                  <span style={{ flex: 'none', minWidth: '58px', display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                    <span style={{ font: '400 21px var(--nv-font-serif)', lineHeight: 1, color: hue, fontVariantNumeric: 'tabular-nums' }}>{l.kept}</span>
+                    <span style={{ font: '400 12px var(--nv-font-ui)', color: 'var(--nv-ink40)', fontVariantNumeric: 'tabular-nums' }}>/{l.total}</span>
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {/* the lane's name wraps rather than ellipsising: at
+                        375px the "worth easing off" flag beside it left about
+                        160px, and "Food-to-recipe suggestions" — one of the
+                        two lanes this whole block exists to surface — came
+                        out as "Food-to-recipe sugg…" */}
+                    <span style={{ font: '500 13px/1.3 var(--nv-font-ui)', color: 'var(--nv-ink)', wordBreak: 'break-word' }}>{l.label.charAt(0).toUpperCase() + l.label.slice(1)}</span>
+                    {/* kept against dismissed, on one track — the shape of
+                        the split is the point, not either number alone */}
+                    <span aria-label={`kept ${l.kept} of ${l.total}`} style={{ display: 'flex', height: '5px', borderRadius: '3px', overflow: 'hidden', background: 'color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>
+                      <i style={{ display: 'block', width: `${pct}%`, background: 'var(--nv-good)' }} />
+                      <i style={{ display: 'block', width: `${100 - pct}%`, background: 'color-mix(in srgb, var(--nv-warn) 62%, transparent)' }} />
+                    </span>
+                  </span>
+                  {l.verdict === 'skips' && (
+                    <Meta tone="warn" style={{ flex: 'none', maxWidth: '96px', textAlign: 'right', textTransform: 'none', letterSpacing: 0, lineHeight: 1.25 }}>worth easing off</Meta>
+                  )}
+                </div>
+              );
+            }) : v.learning.noticed.map((n, i) => (
               <div key={i} style={css("font:500 12.5px/1.5 var(--nv-font-ui);color:var(--nv-ink60)")}>· {n}</div>
             ))}
           </div>

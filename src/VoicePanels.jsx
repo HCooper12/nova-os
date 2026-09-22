@@ -3,6 +3,7 @@ import { css } from './css.js';
 const Body3D = lazy(() => import('./Body3D.jsx'));
 import { BodyMap, MuscleLegend } from './BodyMap.jsx';
 import { Eyebrow, Chip, Meta } from './Controls.jsx';
+import { muscleVar } from './muscleHue.js';
 
 const M = "var(--nv-font-mono)";
 // the UI face — for prose inside a panel, where mono is a label voice
@@ -15,11 +16,94 @@ const R = "var(--nv-font-ui)";
 
 const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
 
-function Card({ label, children }) {
+// `head` replaces the eyebrow entirely for a card whose title deserves the
+// serif news line rather than a mono label (§2b rule 7).
+function Card({ label, head, children }) {
   return (
     <div style={css(`margin-top:10px;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden;border:1px solid ${dim(10)};border-radius:12px;padding:12px 14px;background:${dim(3)};animation:fadeUp var(--nv-dur-base) var(--nv-ease)`)}>
-      <Eyebrow style={{ marginBottom: '9px' }}>{label}</Eyebrow>
+      {head || (label != null && <Eyebrow style={{ marginBottom: '9px' }}>{label}</Eyebrow>)}
       {children}
+    </div>
+  );
+}
+
+// THE LOAD RAIL — six weeks of a lift, drawn rather than printed.
+//
+// The aesthetic review, 22 Sep 2026, finding 5: this card listed
+// `09-15 25×7@10 25×7@10 25×7@10` six times over. The data underneath was a
+// clean 22.5kg→25kg progression across six sessions and the card said nothing
+// about it — the one question he opens the card to answer ("is this moving?")
+// was the one thing it refused to show. The weight column did not even align,
+// because the sets arrived pre-joined into one string.
+//
+// So: one row per session, newest first. The weight is a serif numeral — the
+// number he is actually tracking, set like a figure rather than a token in a
+// log line. Each set is a bar whose HEIGHT is its reps and whose OPACITY is
+// its RPE, so a session that got heavier reads taller and a session that
+// ground out at RPE 10 reads darker, both at a glance and without a legend.
+// The bars are the muscle's own hue (src/muscleHue.js), the same colour the
+// figure above lights and the volume bars on Train wear.
+//
+// The session carrying the heaviest load is ringed: on a six-row rail the
+// top set is the thing worth finding, and finding it should not require
+// reading six numbers.
+function LoadRail({ recent, group }) {
+  const rows = (recent || []).filter((r) => (r.setRows || []).length);
+  // No structured sets (an older server, or a tracking type with no weight):
+  // fall back to exactly what was there before rather than drawing nothing.
+  if (!rows.length) {
+    return (recent || []).map((r) => (
+      <div key={r.date + r.sets} style={css(`display:flex;gap:10px;padding:3px 0;font:var(--nv-micro-l);color:${dim(78)}`)}>
+        <span style={css(`flex:none;color:${dim(45)}`)}>{r.date.slice(5)}</span>
+        <span style={css('flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.sets}</span>
+      </div>
+    ));
+  }
+  const hue = muscleVar(group);
+  const best = Math.max(...rows.map((r) => r.topWeight || 0));
+  // Only the MOST RECENT session at the best weight is ringed. Two sessions
+  // tie often (he repeats a load before adding to it) and ringing both says
+  // "these two are special", which is not the question — "when did this last
+  // go up" is.
+  const bestKey = (rows.find((r) => (r.topWeight || 0) === best) || {}).date;
+  // The bars scale across the RANGE he actually worked in, not from zero: his
+  // sets sit between 7 and 10 reps, and a zero-based scale renders that as
+  // three bars of near-identical height, which is a chart that shows nothing.
+  const allReps = rows.flatMap((r) => r.setRows.map((x) => x.reps));
+  const lo = Math.min(...allReps, 1);
+  const hi = Math.max(...allReps, lo + 1);
+  const barPct = (reps) => 34 + Math.round(((reps - lo) / (hi - lo)) * 66);
+  return (
+    <div style={css('display:flex;flex-direction:column;gap:2px')}>
+      {rows.map((r) => {
+        const isBest = best > 0 && r.date === bestKey;
+        return (
+          <div key={r.date + r.sets} title={`${r.date} · ${r.sets}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '6px 8px', borderRadius: '10px',
+              background: isBest ? `color-mix(in srgb, ${hue} 09%, transparent)` : 'transparent',
+              boxShadow: isBest ? `inset 0 0 0 1px color-mix(in srgb, ${hue} 32%, transparent)` : 'none' }}>
+            <span style={css(`flex:none;width:38px;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${dim(42)};font-variant-numeric:tabular-nums`)}>{r.date.slice(5)}</span>
+            <span style={{ flex: 'none', display: 'flex', alignItems: 'baseline', gap: '3px', minWidth: '62px' }}>
+              <span style={{ font: `400 20px var(--nv-font-serif)`, lineHeight: 1, color: isBest ? hue : 'var(--nv-ink)', fontVariantNumeric: 'tabular-nums' }}>{r.topWeight}</span>
+              <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${dim(40)}`)}>kg</span>
+            </span>
+            {/* the sets themselves: height is reps, opacity is how hard it was */}
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'flex-end', gap: '3px', height: '26px' }}>
+              {r.setRows.map((x, i) => (
+                <i key={i} aria-hidden="true"
+                  style={{ display: 'block', width: '7px', flex: 'none', borderRadius: '2px 2px 1px 1px',
+                    height: `${barPct(x.reps)}%`,
+                    background: hue,
+                    opacity: x.rpe ? Math.min(1, 0.32 + (x.rpe / 10) * 0.68) : 0.6 }} />
+              ))}
+            </span>
+            <span style={css(`flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:${dim(38)};font-variant-numeric:tabular-nums`)}>{r.totalReps} reps</span>
+          </div>
+        );
+      })}
+      <Meta as="div" tone="faint" style={{ marginTop: '5px', textTransform: 'none', letterSpacing: 0 }}>
+        Bar height is reps ({lo}–{hi}), depth is RPE{best > 0 ? ` · ringed is the latest at ${best}kg` : ''}
+      </Meta>
     </div>
   );
 }
@@ -55,7 +139,20 @@ function Exercise({ d }) {
   // model should have.
   const [layer, setLayer] = useState('skin');
   return (
-    <Card label={`${d.name} · ${d.muscleGroup || ''}`}>
+    <Card label={null} head={
+      /* A MONO LABEL IN A CORNER ENDING IN AN ORPHAN `·` (review finding 5).
+         A card's headline is the serif news line, and the group it belongs to
+         is a fact about it, not a continuation of its name — so the group
+         wears its own hue and stands apart. */
+      <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'baseline', gap: '9px', flexWrap: 'wrap' }}>
+        <span style={{ font: '400 19px var(--nv-font-serif)', lineHeight: 1.15, color: 'var(--nv-ink)', minWidth: 0 }}>{d.name}</span>
+        {d.muscleGroup && (
+          <span style={{ flex: 'none', font: '600 11px var(--nv-font-ui)', letterSpacing: '.06em', textTransform: 'uppercase',
+            color: muscleVar(d.muscleGroup), padding: '2px 8px', borderRadius: '6px',
+            background: `color-mix(in srgb, ${muscleVar(d.muscleGroup)} 13%, transparent)` }}>{d.muscleGroup}</span>
+        )}
+      </div>
+    }>
       {/* Anatomy first: the question "what does this actually train" is the
           one he opened the card to answer. Absent when the atlas has no
           entry — a blank silhouette would read as "trains nothing". */}
@@ -107,12 +204,7 @@ function Exercise({ d }) {
         <a href={d.resourceUrl} target="_blank" rel="noopener noreferrer" style={css(`display:block;margin-bottom:6px;font:var(--nv-micro-l);color:var(--nv-cy);text-decoration:underline;text-underline-offset:2px`)}>▶ form / technique resource</a>
       )}
       {!(d.recent || []).length && <div style={css(`font:var(--nv-micro-l);color:${dim(40)}`)}>No logged sessions yet for this one.</div>}
-      {(d.recent || []).map((r) => (
-        <div key={r.date + r.sets} style={css(`display:flex;gap:10px;padding:3px 0;font:var(--nv-micro-l);color:${dim(78)}`)}>
-          <span style={css(`flex:none;color:${dim(45)}`)}>{r.date.slice(5)}</span>
-          <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{r.sets}</span>
-        </div>
-      ))}
+      {(d.recent || []).length > 0 && <LoadRail recent={d.recent} group={d.muscleGroup} />}
       {(d.inRoutines || []).length > 0 && (
         <Meta as="div" tone="faint" style={{ marginTop: '7px', ...{ textTransform: 'none', letterSpacing: 0 } }}>In: {(d.inRoutines || []).join(' · ')}</Meta>
       )}
