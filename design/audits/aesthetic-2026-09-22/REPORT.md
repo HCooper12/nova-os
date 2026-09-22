@@ -363,7 +363,17 @@ files it touches; sessions A–C are the systemic ones and remove most of the
 table above as a side effect.
 
 **Session A — one button, one accent** (~2h) · removes findings 2, 3, and half
-of 14, 16, 19.
+of 14, 16, 19. — **DONE, 23 Sep 2026, commit `cb2ae8d`.** Wider than briefed:
+the survey during the work found a fifteenth helper (the Inbox's `primary()`)
+and seven more hand-rolled solid buttons the audit had not counted, in
+`CoachApplySheet.jsx`, `ModelChoicePrompt.jsx`, `PortionSheet.jsx`,
+`NudgeCard.jsx`, `RecipeOverlay.jsx:463`, `MissionControl.jsx:407` and
+`Workouts.jsx:103`; all converted, so `src/` now has zero button helpers.
+Gold survives at exactly one call site, `Recipes.jsx` "Refine estimate",
+because that panel is a question Nova cannot answer itself — the undecided
+state of a proposal, which is the job rule 8 keeps gold for. Checkboxes
+(`Todos.jsx:93`, `Workouts.jsx:589`) were deliberately left alone: they are
+not buttons.
 `src/Controls.jsx` (add `Button`), then delete the local `btn` from
 `src/TrainToday.jsx`, `src/AddRecipeModal.jsx`, `src/RecipeOverlay.jsx`,
 `src/screens/{Money,Ops,Journal,Workouts,Todos,Stash,Shopping,Settings,ClaudeCode,Notes,Recipes}.jsx`
