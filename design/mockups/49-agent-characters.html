@@ -1,0 +1,1459 @@
+<!doctype html>
+<html lang="en" data-nv-calm="0">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Agent World · character sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!--
+  49 · THE AGENT WORLD — CHARACTER SHEET
+  design/AGENT-WORLD-PLAN.md §3g, his call of 23 Sep: faces, in 3D, one
+  character per job. Nine beings on a turntable, each in its working and
+  waiting pose. This is the sheet, not the map — the geography is 48.
+
+  RENDERER — Body3D.jsx:774-830 and Shelf3D.jsx's conventions verbatim:
+  ACES tone mapping at 1.05, sRGB output, PCF soft shadows, a PMREM
+  environment generated from a scene (not downloaded), a shadow-only
+  ground so the page's own gradient shows through, and colours READ as
+  --nv-* tokens off the mount element so Calm recolours the world for
+  free rather than being a second palette.
+
+  TWO DEVIATIONS, both forced and both stated:
+    1. three.js is pinned at 0.160.0, not 0.170.0. cdnjs carries no UMD
+       build past r160 (0.170.0 ships three.module.js only, verified by
+       404), and cdnjs is the only script host allowed where this will
+       be published. r160 is the last UMD release.
+    2. RoomEnvironment and OrbitControls live in examples/jsm and so are
+       not in the UMD bundle. The room is rebuilt here in ~30 lines
+       (makeRoomEnv) and the controls are hand-rolled drag/wheel/pinch,
+       which is what the brief asked for anyway.
+
+  WHAT CALM ACTUALLY RECOLOURS: the key/fill/rim light, the deck, the rings,
+  the page chrome, and the strength of every emissive and bloom (one --nv-*
+  multiplier read off the mount). What it does NOT change is each being's
+  department hue — those are the muscle-hue tokens, which §2b holds the same
+  in every theme on purpose. They are read once at build.
+
+  RENDER ON DEMAND — no requestAnimationFrame loop when nothing moves.
+  A frame is drawn only while a waiting marker is bobbing, a working
+  tell is running, an eye is mid-blink, the camera is easing, or a
+  finger is down. window.__frames counts them; turn Reduce motion on
+  with nothing focused and the counter stops dead, which is how the
+  claim is checked rather than asserted.
+-->
+<style>
+  :root {
+    --nv-font-ui:'Rajdhani','Instrument Sans',system-ui,sans-serif;
+    --nv-font-serif:'Instrument Serif',serif;
+    --nv-font-mono:'IBM Plex Mono',monospace;
+    --nv-micro-track:.14em; --nv-micro-track-wide:.2em;
+    --nv-ease:cubic-bezier(.32,.72,0,1);
+    --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-dur-slow:.44s;
+
+    --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
+    --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink40:rgba(232,236,246,.38);
+    --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
+    --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
+    --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
+    --nv-good:#5fe8a8; --nv-warn:#e08383;
+    --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-shoulders:#ffc46b;
+    --nv-m-quads:#7ab8ff; --nv-m-calves:#8fd3ff;
+    --nv-acc:#59e6ff; --nv-acc-bg:rgba(89,230,255,.07); --nv-acc-border:rgba(89,230,255,.42);
+    --nv-radius:10px;
+    --nv-aur1:rgba(89,230,255,.12); --nv-aur2:rgba(143,123,255,.14);
+    --nv-glow-cta:0 0 30px -10px rgba(89,230,255,.95);
+    --nv-blur:18px;
+    /* 3D-side tokens: the renderer reads these off the mount, so Calm
+       is one block below instead of a second lighting rig. */
+    --nv-key:#fff2e2; --nv-fill:#bcd4ff; --nv-rim:#9fdcff;
+    --nv-shell:#c9d3e4;
+    --nv-emissive:1;       /* multiplier on every emissive core */
+    --nv-env:.62;
+    --nv-stage:#0d1426;
+  }
+  /* CALM — the observatory block's values (src/index.css ~215-260): a gold
+     accent, warmer ink, softer glass, the HUD glows off. Last, so it wins. */
+  :root[data-nv-calm="1"] {
+    --nv-void:#070b13; --nv-bg1:#0c1424; --nv-bg2:#152742;
+    --nv-ink:#ece5da; --nv-ink60:rgba(236,229,218,.62); --nv-ink40:rgba(236,229,218,.38);
+    --nv-glass:rgba(21,28,44,.55); --nv-glass2:rgba(28,38,58,.75);
+    --nv-edge:rgba(236,229,218,.12); --nv-spec:rgba(236,229,218,.3);
+    --nv-cy:#6be5f5; --nv-vi:#a68ce2; --nv-mg:#e08f6f; --nv-gold:#d8b573; --nv-good:#5aa87c;
+    --nv-acc:#d8b573; --nv-acc-bg:rgba(216,181,115,.1); --nv-acc-border:rgba(216,181,115,.38);
+    --nv-radius:14px;
+    --nv-aur1:rgba(138,106,209,.13); --nv-aur2:rgba(107,229,245,.07);
+    --nv-glow-cta:0 4px 18px -6px rgba(216,181,115,.6);
+    --nv-blur:26px;
+    --nv-key:#ffeeda; --nv-fill:#cbb9d8; --nv-rim:#d8b573;
+    --nv-shell:#d4ccc0;
+    --nv-emissive:.55;
+    --nv-env:.78;
+    --nv-stage:#121a2c;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--nv-void); color: var(--nv-ink);
+    font-family: var(--nv-font-ui); overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  #sky {
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(120% 80% at 50% 8%, var(--nv-aur1), transparent 62%),
+      radial-gradient(90% 70% at 12% 96%, var(--nv-aur2), transparent 60%),
+      linear-gradient(176deg, var(--nv-bg2) 0%, var(--nv-bg1) 46%, var(--nv-void) 100%);
+    transition: background var(--nv-dur-slow) var(--nv-ease);
+  }
+  #stage { position: fixed; inset: 0; z-index: 1; touch-action: none; cursor: grab; }
+  #stage.dragging { cursor: grabbing; }
+  #stage canvas { display: block; }
+
+  /* ---- chrome ---- */
+  header {
+    position: fixed; z-index: 3; top: 0; left: 0; right: 0;
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 18px 20px 0; pointer-events: none;
+  }
+  h1 {
+    margin: 0; font-family: var(--nv-font-serif); font-weight: 400;
+    font-size: clamp(19px, 4.4vw, 27px); letter-spacing: .01em; line-height: 1.1;
+  }
+  h1 em { font-style: italic; color: var(--nv-ink60); }
+  .kicker {
+    font: 500 9.5px var(--nv-font-mono); letter-spacing: var(--nv-micro-track-wide);
+    text-transform: uppercase; color: var(--nv-ink40);
+  }
+  #tools {
+    position: fixed; z-index: 4; top: 16px; right: 16px;
+    display: flex; gap: 8px;
+  }
+  .tool {
+    appearance: none; border: 1px solid var(--nv-edge);
+    background: var(--nv-glass); backdrop-filter: blur(var(--nv-blur)); -webkit-backdrop-filter: blur(var(--nv-blur));
+    color: var(--nv-ink60); font: 500 9.5px var(--nv-font-mono);
+    letter-spacing: var(--nv-micro-track); text-transform: uppercase;
+    padding: 8px 11px; border-radius: var(--nv-radius); cursor: pointer;
+    transition: color var(--nv-dur-fast) var(--nv-ease), border-color var(--nv-dur-fast) var(--nv-ease), background var(--nv-dur-fast) var(--nv-ease);
+  }
+  .tool[aria-pressed="true"] { color: var(--nv-acc); border-color: var(--nv-acc-border); background: var(--nv-acc-bg); }
+
+  /* ---- caption ---- */
+  #caption {
+    position: fixed; z-index: 3; left: 50%; bottom: 18px; transform: translateX(-50%);
+    width: min(620px, calc(100vw - 28px));
+    border: 1px solid var(--nv-edge); border-radius: calc(var(--nv-radius) + 4px);
+    background: var(--nv-glass); backdrop-filter: blur(var(--nv-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--nv-blur)) saturate(140%);
+    box-shadow: 0 18px 50px -28px rgba(0,0,0,.9), inset 0 1px 0 var(--nv-spec);
+    padding: 14px 16px 13px;
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 18px; align-items: end;
+  }
+  #cap-dept {
+    grid-column: 1; font: 500 9.5px var(--nv-font-mono);
+    letter-spacing: var(--nv-micro-track-wide); text-transform: uppercase;
+    color: var(--cap-hue, var(--nv-acc));
+    display: flex; align-items: center; gap: 7px;
+  }
+  #cap-dept::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--cap-hue, var(--nv-acc));
+    box-shadow: 0 0 10px -1px var(--cap-hue, var(--nv-acc));
+  }
+  #cap-name {
+    grid-column: 1; font-family: var(--nv-font-serif); font-weight: 400;
+    font-size: clamp(24px, 6vw, 32px); line-height: 1.05; letter-spacing: .01em;
+    margin: 1px 0 3px;
+  }
+  #cap-line { grid-column: 1; font-size: 14.5px; line-height: 1.38; color: var(--nv-ink60); max-width: 44ch; }
+  #cap-tell { grid-column: 1; margin-top: 7px; font: 500 9.5px var(--nv-font-mono); letter-spacing: var(--nv-micro-track); text-transform: uppercase; color: var(--nv-ink40); }
+  #poses { grid-column: 2; grid-row: 1 / span 4; display: flex; flex-direction: column; gap: 6px; align-self: center; }
+  .pose {
+    appearance: none; background: none; border: 0; padding: 5px 2px 5px 12px;
+    color: var(--nv-ink40); font: 600 12px var(--nv-font-ui);
+    letter-spacing: .06em; text-transform: uppercase; text-align: right; cursor: pointer;
+    border-right: 2px solid transparent;
+    transition: color var(--nv-dur-fast) var(--nv-ease), border-color var(--nv-dur-fast) var(--nv-ease);
+    white-space: nowrap;
+  }
+  .pose:hover { color: var(--nv-ink60); }
+  .pose[aria-pressed="true"] { color: var(--nv-ink); border-right-color: var(--cap-hue, var(--nv-acc)); }
+  #hint {
+    position: fixed; z-index: 3; left: 50%; transform: translateX(-50%);
+    bottom: calc(18px + var(--cap-h, 120px) + 10px);
+    font: 500 9.5px var(--nv-font-mono); letter-spacing: var(--nv-micro-track);
+    text-transform: uppercase; color: var(--nv-ink40); pointer-events: none;
+    transition: opacity var(--nv-dur-base) var(--nv-ease);
+  }
+  #frames {
+    position: fixed; z-index: 3; left: 16px; bottom: 6px;
+    font: 400 9px var(--nv-font-mono); letter-spacing: .1em; color: var(--nv-ink40);
+    opacity: .5; pointer-events: none;
+  }
+  #fallback {
+    position: fixed; inset: 0; z-index: 5; display: none; place-items: center;
+    padding: 24px; text-align: center; color: var(--nv-ink60); font-size: 15px;
+  }
+  @media (max-width: 560px) {
+    header { padding: 14px 16px 0; gap: 6px; }
+    h1 { font-size: 21px; }
+    .kicker { font-size: 8.5px; }
+    #tools { top: auto; bottom: calc(14px + var(--cap-h, 150px) + 8px); right: 14px; left: 14px; justify-content: flex-end; }
+    #caption {
+      left: 14px; right: 14px; bottom: 14px; width: auto; transform: none;
+      padding: 12px 14px; grid-template-columns: 1fr;
+    }
+    #cap-tell { white-space: normal; }
+    #poses { grid-column: 1; grid-row: auto; flex-direction: row; gap: 14px; margin-top: 10px; align-self: start; }
+    .pose { padding: 4px 0; border-right: 0; border-bottom: 2px solid transparent; text-align: left; }
+    .pose[aria-pressed="true"] { border-bottom-color: var(--cap-hue, var(--nv-acc)); }
+    #cap-line { font-size: 13.5px; }
+    #hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div id="stage"></div>
+
+<header>
+  <h1>The Agent World <em>· nine beings</em></h1>
+  <span class="kicker">character sheet · §3g</span>
+</header>
+
+<div id="tools">
+  <button class="tool" id="t-motion" aria-pressed="false">Reduce motion</button>
+  <button class="tool" id="t-calm" aria-pressed="false">Calm</button>
+</div>
+
+<div id="hint">Drag to turn · tap a being</div>
+
+<div id="caption">
+  <div id="cap-dept"></div>
+  <div id="cap-name"></div>
+  <div id="cap-line"></div>
+  <div id="cap-tell"></div>
+  <div id="poses">
+    <button class="pose" id="p-work" aria-pressed="false">Working</button>
+    <button class="pose" id="p-wait" aria-pressed="true">Waiting</button>
+  </div>
+</div>
+
+<div id="frames">frames 0</div>
+<div id="fallback">The stage needs WebGL. The honest fallback on the real surface is the same view model drawn as a list of markers.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  if (!window.THREE) { document.getElementById('fallback').style.display = 'grid'; return; }
+  var T = window.THREE;
+  var root = document.documentElement;
+  var mount = document.getElementById('stage');
+
+  // ---------------------------------------------------------------
+  // TOKENS — read off the mount, never literals. Calm recolours the
+  // world by flipping one attribute; nothing here knows Calm's values.
+  // ---------------------------------------------------------------
+  var TK = {};
+  function readTokens() {
+    var cs = getComputedStyle(mount);
+    function c(n) { return new T.Color(cs.getPropertyValue(n).trim() || '#888'); }
+    function f(n, d) { var v = parseFloat(cs.getPropertyValue(n)); return isNaN(v) ? d : v; }
+    TK.key = c('--nv-key'); TK.fill = c('--nv-fill'); TK.rim = c('--nv-rim');
+    TK.shell = c('--nv-shell'); TK.gold = c('--nv-gold'); TK.ink = c('--nv-ink');
+    TK.stage = c('--nv-stage'); TK.edge = c('--nv-cy'); TK.void = c('--nv-void');
+    TK.em = f('--nv-emissive', 1); TK.env = f('--nv-env', .62);
+    TK.hue = {
+      cy: c('--nv-cy'), vi: c('--nv-vi'), mg: c('--nv-mg'), good: c('--nv-good'),
+      chest: c('--nv-m-chest'), back: c('--nv-m-back'), shoulders: c('--nv-m-shoulders'),
+      quads: c('--nv-m-quads'), calves: c('--nv-m-calves')
+    };
+  }
+  readTokens();
+
+  // ---------------------------------------------------------------
+  // THE NINE (§3g, in table order)
+  // ---------------------------------------------------------------
+  var AGENTS = [
+    { id: 'commander', name: 'Commander', dept: 'Logistics', hue: 'cy',
+      line: 'Sets the order of the day and points the fleet at the next thing.',
+      work: 'Working — the arm comes up and it turns to the newest thing.',
+      wait: 'Waiting — a marker over its head, eyes blinking slow.' },
+    { id: 'coach', name: 'Coach', dept: 'Train', hue: 'chest',
+      line: 'Reads the program, calls the session, and holds you to the lift.',
+      work: 'Working — the bar of light comes off the shoulders and up.',
+      wait: 'Waiting — the bar is set down on the floor.' },
+    { id: 'cfo', name: 'CFO', dept: 'Money', hue: 'good',
+      line: 'Counts what came in and what went out, and says so plainly.',
+      work: 'Working — a chip lands on the stack, one per real receipt.',
+      wait: 'Waiting — arms folded over the ledger, the stack held.' },
+    { id: 'guardian', name: 'Guardian', dept: 'Platform', hue: 'vi',
+      line: 'Keeps the backups landing and the quiet loops from staying quiet.',
+      work: 'Working — the lantern comes up bright as a backup lands.',
+      wait: 'Waiting — the lantern is down at amber; something went quiet.' },
+    { id: 'researcher', name: 'Researcher', dept: 'Knowledge', hue: 'quads',
+      line: 'Reads the thing you asked about and comes back with the page.',
+      work: 'Working — leaning in, the page turning beside the lens.',
+      wait: 'Waiting at the budget — the page hangs half-turned.' },
+    { id: 'watcher', name: 'Watcher', dept: 'Knowledge', hue: 'calves',
+      line: 'Watches the whole video so you only see the two minutes that matter.',
+      work: 'Working — a thin light plays across the visor like a screen.',
+      wait: 'Waiting — the screen is held on one still frame.' },
+    { id: 'librarian', name: 'Librarian', dept: 'Knowledge', hue: 'back',
+      line: 'Files every note where you will find it again, and says where.',
+      work: 'Working — the drawer slides, one spine lights as it is filed.',
+      wait: 'Waiting — the drawer stands open with nothing filed.' },
+    { id: 'mealprep', name: 'Meal Prep', dept: 'Fuel', hue: 'shoulders',
+      line: 'Works out what to eat tonight from what is actually in the kitchen.',
+      work: 'Working — something is cooking; the steam rises off the top.',
+      wait: 'Waiting — the base is banked low, nothing on.' },
+    { id: 'leader', name: 'Leader', dept: 'Mind', hue: 'mg',
+      line: 'Listens back over the struggle, then asks the question you avoided.',
+      work: 'Working — light crosses the mirror as it takes your answer in.',
+      wait: 'Waiting — perfectly still, holding the question.' }
+  ];
+
+  // ---------------------------------------------------------------
+  // RENDERER — Body3D.jsx:774-830 verbatim in spirit and in numbers.
+  // ---------------------------------------------------------------
+  var renderer;
+  try {
+    renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  } catch (e) { document.getElementById('fallback').style.display = 'grid'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = T.SRGBColorSpace;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  mount.appendChild(renderer.domElement);
+
+  var scene = new T.Scene();
+  var camera = new T.PerspectiveCamera(30, 1, 0.1, 80);
+
+  // IMAGE-BASED LIGHT, generated not downloaded. RoomEnvironment is an
+  // examples/jsm module and so is absent from the UMD bundle; this is the
+  // same idea in thirty lines — an inside-out box of emissive panels, run
+  // once through PMREM. Every surface then gathers light from a room.
+  function makeRoomEnv() {
+    var s = new T.Scene();
+    var box = new T.BoxGeometry(1, 1, 1);
+    function panel(col, inten, sx, sy, sz, x, y, z) {
+      var m = new T.Mesh(box, new T.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: inten, roughness: 1, side: T.BackSide }));
+      m.scale.set(sx, sy, sz); m.position.set(x, y, z); s.add(m);
+    }
+    // the room shell, dim and cool
+    panel(0x1a2338, 0.55, 22, 13, 22, 0, 5, 0);
+    // three bright panels doing the work of a softbox rig
+    var lit = new T.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff0e0, emissiveIntensity: 4.2, roughness: 1, side: T.FrontSide });
+    var p1 = new T.Mesh(box, lit); p1.scale.set(9, 0.1, 5); p1.position.set(2, 10, 3); s.add(p1);
+    var lit2 = new T.MeshStandardMaterial({ color: 0xffffff, emissive: 0x9fd6ff, emissiveIntensity: 2.6, roughness: 1 });
+    var p2 = new T.Mesh(box, lit2); p2.scale.set(0.1, 7, 9); p2.position.set(-9, 5, 0); s.add(p2);
+    var lit3 = new T.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffd9b0, emissiveIntensity: 1.5, roughness: 1 });
+    var p3 = new T.Mesh(box, lit3); p3.scale.set(9, 5, 0.1); p3.position.set(0, 4, -9); s.add(p3);
+    return s;
+  }
+  var pmrem = new T.PMREMGenerator(renderer);
+  var envRT = pmrem.fromScene(makeRoomEnv(), 0.04);
+  scene.environment = envRT.texture;
+  scene.environmentIntensity = TK.env;
+
+  var key = new T.DirectionalLight(TK.key.getHex(), 2.1);
+  key.position.set(3.4, 6.2, 4.2);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 1; key.shadow.camera.far = 24;
+  key.shadow.camera.left = -6; key.shadow.camera.right = 6;
+  key.shadow.camera.top = 6; key.shadow.camera.bottom = -6;
+  key.shadow.bias = -0.0012; key.shadow.normalBias = 0.02;
+  scene.add(key);
+  var fill = new T.DirectionalLight(TK.fill.getHex(), 0.42); fill.position.set(-5, 3, 4); scene.add(fill);
+  var rim  = new T.DirectionalLight(TK.rim.getHex(), 1.15);  rim.position.set(-3, 4, -6); scene.add(rim);
+
+  // A being with no shadow floats. Shadow-only ground: the page gradient
+  // still shows through, exactly as the Shelf's board does.
+  var ground = new T.Mesh(new T.PlaneGeometry(40, 40), new T.ShadowMaterial({ opacity: 0.34 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+  // ---------------------------------------------------------------
+  // THE TURNTABLE. Not a plain disc: a dark deck, a lit rim, and nine
+  // faint marks — one under each being, so the ring reads as a stage
+  // with places on it rather than a plate.
+  // ---------------------------------------------------------------
+  var R = 3.2;                        // ring radius
+  var DECK_R = R + 0.85;
+  var stageGroup = new T.Group(); scene.add(stageGroup);
+
+  // the deck is a dark floor, not a tabletop: a low envMapIntensity keeps the
+  // warm room out of it, so the beings are the only lit things on the stage
+  var deckMat = new T.MeshPhysicalMaterial({ color: TK.stage, roughness: 0.78, metalness: 0.1, clearcoat: 0.22, clearcoatRoughness: 0.7 });
+  deckMat.envMapIntensity = 0.22;
+  var deck = new T.Mesh(new T.CylinderGeometry(DECK_R, DECK_R - 0.12, 0.14, 128), deckMat);
+  deck.position.y = -0.07; deck.receiveShadow = true; stageGroup.add(deck);
+
+  function ringMesh(rad, thick, col, op) {
+    var m = new T.Mesh(new T.RingGeometry(rad - thick, rad + thick, 160),
+      (function () { var m = new T.MeshBasicMaterial({ color: col, transparent: true, opacity: op, side: T.DoubleSide, depthWrite: false });
+        m.blending = T.CustomBlending; m.blendSrc = T.SrcAlphaFactor; m.blendDst = T.OneFactor;
+        m.blendSrcAlpha = T.ZeroFactor; m.blendDstAlpha = T.OneFactor; m.toneMapped = false; return m; })());
+    m.rotation.x = -Math.PI / 2; m.position.y = 0.012; return m;
+  }
+  var rimRing = ringMesh(DECK_R - 0.05, 0.022, TK.edge, 0.55); stageGroup.add(rimRing);
+  var innerRing = ringMesh(R - 1.15, 0.008, TK.edge, 0.2); stageGroup.add(innerRing);
+
+  // ---------------------------------------------------------------
+  // SHARED MAKERS
+  // ---------------------------------------------------------------
+  function hueOf(a) { return TK.hue[a.hue] || TK.hue.cy; }
+  function darker(col, k) { var c = col.clone(); c.multiplyScalar(k); return c; }
+  function lighter(col, k) { var c = col.clone(); c.lerp(new T.Color(0xffffff), k); return c; }
+
+  var EMISSIVES = [];  // every emissive material, so Calm can dim them all
+  function emissiveMat(col, inten, opts) {
+    var o = opts || {};
+    var k = inten * (o.lamp ? 1 : 0.4);
+    var m = new T.MeshStandardMaterial({
+      color: darker(col, o.lamp ? 0.3 : 0.62), emissive: col, emissiveIntensity: k * TK.em,
+      roughness: o.rough != null ? o.rough : 0.3, metalness: 0
+    });
+    m.userData.baseEm = k;
+    EMISSIVES.push(m);
+    return m;
+  }
+  // ADD LIGHT, NOT ALPHA. The canvas is alpha:true so the page's own
+  // gradient shows through; plain AdditiveBlending also accumulates alpha,
+  // which paints a grey disc over that gradient (measured — every halo came
+  // out as a dark circle). Custom blending adds colour and leaves alpha be.
+  function glowMat(col, op) {
+    var m = new T.MeshBasicMaterial({ color: lighter(col, 0.3), transparent: true, opacity: op, depthWrite: false });
+    m.blending = T.CustomBlending;
+    m.blendSrc = T.SrcAlphaFactor; m.blendDst = T.OneFactor;
+    m.blendSrcAlpha = T.ZeroFactor; m.blendDstAlpha = T.OneFactor;
+    m.toneMapped = false;
+    m.userData.baseOp = op;
+    return m;
+  }
+
+  var GEO = {
+    sph: new T.SphereGeometry(1, 28, 20),
+    sphLo: new T.SphereGeometry(1, 16, 12),
+    box: new T.BoxGeometry(1, 1, 1),
+    cyl: new T.CylinderGeometry(1, 1, 1, 24),
+    cone: new T.ConeGeometry(1, 1, 20),
+    tor: new T.TorusGeometry(1, 0.12, 10, 32),
+    plane: new T.PlaneGeometry(1, 1, 1, 1)
+  };
+
+  function mesh(geo, mat, sx, sy, sz, x, y, z) {
+    var m = new T.Mesh(geo, mat);
+    m.scale.set(sx, sy == null ? sx : sy, sz == null ? sx : sz);
+    m.position.set(x || 0, y || 0, z || 0);
+    m.castShadow = true; m.receiveShadow = true;
+    return m;
+  }
+
+  // SOFT BLOOM WITHOUT A POST PASS. The first version used a larger additive
+  // sphere, which renders as a flat grey disc with a hard edge (measured — the
+  // waiting markers each sat in a visible circle). A radial-gradient sprite has
+  // the falloff a bloom actually has, and it faces the camera for free.
+  var GLOW_TEX = null;
+  function glowTex() {
+    if (GLOW_TEX) return GLOW_TEX;
+    var n = 128, c = document.createElement('canvas'); c.width = c.height = n;
+    var x = c.getContext('2d');
+    var g = x.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.22, 'rgba(255,255,255,.55)');
+    g.addColorStop(0.5, 'rgba(255,255,255,.14)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, n, n);
+    GLOW_TEX = new T.CanvasTexture(c);
+    return GLOW_TEX;
+  }
+  function halo(col, r, op) {
+    var m = new T.SpriteMaterial({ map: glowTex(), color: lighter(col, 0.35), transparent: true, opacity: op, depthWrite: false });
+    m.blending = T.CustomBlending;
+    m.blendSrc = T.SrcAlphaFactor; m.blendDst = T.OneFactor;
+    m.blendSrcAlpha = T.ZeroFactor; m.blendDstAlpha = T.OneFactor;
+    m.toneMapped = false;
+    m.userData.baseOp = op;
+    var sp = new T.Sprite(m);
+    sp.scale.setScalar(r * 3.2);
+    sp.renderOrder = 2;
+    return sp;
+  }
+
+  // ---- the shared body: head, visor, eyes, capsule, core ----------
+  function makeBeing(a, opt) {
+    opt = opt || {};
+    var hue = hueOf(a);
+    var g = new T.Group();
+
+    var shellMat = new T.MeshPhysicalMaterial({
+      color: lighter(hue, 0.34).lerp(TK.shell, 0.5).multiplyScalar(0.78), roughness: 0.42, metalness: 0.07,
+      clearcoat: 0.7, clearcoatRoughness: 0.28
+    });
+    var bodyMat = new T.MeshPhysicalMaterial({
+      color: darker(hue, 0.52), emissive: hue, emissiveIntensity: 0.16 * TK.em,
+      roughness: 0.34, metalness: 0.18, clearcoat: 0.8, clearcoatRoughness: 0.2
+    });
+    bodyMat.userData.baseEm = 0.16; EMISSIVES.push(bodyMat);
+    var visorMat = new T.MeshPhysicalMaterial({
+      color: opt.mirror ? 0x7d8496 : 0x080c15, roughness: opt.mirror ? 0.03 : 0.2, metalness: opt.mirror ? 1 : 0.55,
+      clearcoat: 1, clearcoatRoughness: opt.mirror ? 0.02 : 0.12,
+      envMapIntensity: opt.mirror ? 3.4 : 1
+    });
+
+    // body
+    var bodyH = opt.bodyH || 0.44, bodyR = opt.bodyR || 0.27;
+    var body;
+    if (opt.bodyGeo) { body = opt.bodyGeo(bodyMat, shellMat); }
+    else {
+      body = mesh(new T.CapsuleGeometry(bodyR, bodyH, 8, 24), bodyMat, 1, 1, 1, 0, bodyR + bodyH / 2, 0);
+    }
+    g.add(body);
+
+    // the brighter core, proud of the shell so it reads from any angle
+    var coreY = opt.coreY != null ? opt.coreY : bodyR + bodyH / 2 + 0.02;
+    var coreZ = opt.coreZ != null ? opt.coreZ : bodyR * 0.86;
+    var core = mesh(GEO.sph, emissiveMat(hue, 1.5, { lamp: true }), 0.075, 0.075, 0.046, 0, coreY, coreZ);
+    core.castShadow = false; g.add(core);
+    var coreGlow = halo(hue, 0.2, 0.42); coreGlow.position.set(0, coreY, coreZ); g.add(coreGlow);
+
+    // head
+    var headY = opt.headY != null ? opt.headY : bodyR + bodyH + 0.26;
+    var head = new T.Group(); head.position.y = headY; g.add(head);
+    var headR = opt.headR || 0.235;
+    var skull = mesh(GEO.sph, shellMat, headR, headR * 0.98, headR * 0.94);
+    head.add(skull);
+
+    // the visor: a shell segment across the front of the skull, not a blob
+    var visorGeo = new T.SphereGeometry(headR * 1.012, 40, 28, Math.PI * 0.5 - 0.95, 1.9, 0.5, 1.02);
+    var visor = new T.Mesh(visorGeo, visorMat);
+    visor.castShadow = false; visor.receiveShadow = false;
+    head.add(visor);
+
+    // eyes — the charm. Two lit dots plus two halos each.
+    var eyes = new T.Group(); head.add(eyes);
+    var eyeCol = lighter(hue, 0.5);
+    var eyeMat = emissiveMat(eyeCol, 2.4, { lamp: true });
+    eyeMat.toneMapped = false;
+    var eyeList = [];
+    if (!opt.noEyes) {
+      var yaw = opt.eyeYaw || 0.36, pitch = opt.eyePitch || 0.34, er = headR * 1.07;
+      [-1, 1].forEach(function (s) {
+        var e = new T.Group();
+        e.position.set(er * Math.sin(yaw * s) * Math.cos(pitch), er * Math.sin(pitch), er * Math.cos(yaw) * Math.cos(pitch));
+        var dot = mesh(GEO.sph, eyeMat, 0.041, 0.041, 0.026); dot.castShadow = false; e.add(dot);
+        e.add(halo(eyeCol, 0.058, 0.55));
+        e.add(halo(eyeCol, 0.12, 0.2));
+        eyes.add(e); eyeList.push(e);
+      });
+    }
+
+    // the waiting marker — the reel's move exactly: a bobbing bubble in
+    // the gold accent with the count in it.
+    var marker = new T.Group();
+    var markerY = headY + (opt.markerY || 0.62);
+    var bub = mesh(GEO.sph, emissiveMat(TK.gold, 1.5), 0.155, 0.115, 0.06);
+    bub.castShadow = false; marker.add(bub);
+    var tail = mesh(GEO.cone, emissiveMat(TK.gold, 1.5), 0.05, 0.1, 0.045, -0.04, -0.12, 0);
+    tail.rotation.z = Math.PI; tail.castShadow = false; marker.add(tail);
+    marker.add(halo(TK.gold, 0.26, 0.13));
+    marker.add(numeralPlate('1'));
+    marker.position.y = markerY;
+    marker.visible = false;
+    g.add(marker);
+
+    return {
+      group: g, head: head, eyes: eyeList, marker: marker, markerY: markerY,
+      mats: [shellMat, bodyMat, visorMat], hue: hue, headY: headY,
+      body: body, core: core, visor: visor
+    };
+  }
+
+  // the "1" in the bubble, drawn on a canvas in the UI face
+  var numeralTex = null;
+  function numeralPlate(ch) {
+    if (!numeralTex) {
+      var c = document.createElement('canvas'); c.width = c.height = 128;
+      var x = c.getContext('2d');
+      x.fillStyle = '#0a2830';
+      x.font = '700 86px Rajdhani, system-ui, sans-serif';
+      x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(ch, 64, 70);
+      numeralTex = new T.CanvasTexture(c);
+      numeralTex.colorSpace = T.SRGBColorSpace;
+      numeralTex.anisotropy = 4;
+    }
+    var m = new T.Mesh(GEO.plane, new T.MeshBasicMaterial({ map: numeralTex, transparent: true, depthWrite: false }));
+    m.scale.setScalar(0.135); m.position.z = 0.063;
+    return m;
+  }
+
+  // a name plate under each being, in the serif face — this is a sheet
+  function namePlate(text, col) {
+    var W = 512, H = 128;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d');
+    x.clearRect(0, 0, W, H);
+    x.fillStyle = '#' + col.getHexString();
+    x.font = '400 64px "Instrument Serif", Georgia, serif';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(text, W / 2, H / 2 + 4);
+    var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4;
+    var sp = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.62 }));
+    sp.scale.set(1.5, 0.375, 1);
+    return sp;
+  }
+
+  // ---------------------------------------------------------------
+  // THE NINE BUILDS. One silhouette element and one posture each; the
+  // element is drawn OUTSIDE the body outline wherever possible, because
+  // that is the only part that survives at 40px.
+  // ---------------------------------------------------------------
+  function armCapsule(mat, len, r) {
+    return mesh(new T.CapsuleGeometry(r || 0.062, len, 6, 14), mat, 1, 1, 1, 0, 0, 0);
+  }
+
+  var BUILD = {};
+
+  // 1 · COMMANDER — compass-rose crest + antenna; tallest, arm raised.
+  BUILD.commander = function (a) {
+    var b = makeBeing(a, { bodyH: 0.5, bodyR: 0.255, markerY: 1.0 });
+    var hue = b.hue, g = b.group;
+    var crestMat = emissiveMat(hue, 1.4);
+    // an extruded four-point rose standing UP on the head: the points break
+    // the head's outline, which is the only part of a crest that survives at
+    // 40px. A ring laid flat (the first try) read as a collar instead.
+    var rose = new T.Shape();
+    (function () {
+      var pts = [[0, 1], [0.15, 0.22], [0.5, 0.2], [0.18, -0.06], [0.34, -0.62],
+                 [0, -0.24], [-0.34, -0.62], [-0.18, -0.06], [-0.5, 0.2], [-0.15, 0.22]];
+      rose.moveTo(pts[0][0], pts[0][1]);
+      for (var i = 1; i < pts.length; i++) rose.lineTo(pts[i][0], pts[i][1]);
+      rose.closePath();
+    })();
+    var roseGeo = new T.ExtrudeGeometry(rose, { depth: 0.05, bevelEnabled: true, bevelSize: 0.018, bevelThickness: 0.018, bevelSegments: 2 });
+    roseGeo.center();
+    var crest = new T.Mesh(roseGeo, crestMat);
+    crest.scale.setScalar(0.3); crest.position.set(0, 0.4, 0.005);
+    crest.castShadow = true;
+    b.head.add(crest);
+    var crestGlow = halo(hue, 0.26, 0.26); crestGlow.position.set(0, 0.42, 0.01); b.head.add(crestGlow);
+    // antenna
+    var ant = mesh(GEO.cyl, b.mats[0], 0.011, 0.62, 0.011, 0.11, 0.52, -0.02);
+    ant.rotation.z = -0.14; b.head.add(ant);
+    var bead = mesh(GEO.sph, emissiveMat(lighter(hue, 0.3), 3.0, { lamp: true }), 0.032, 0.032, 0.032, 0.155, 0.84, -0.03);
+    bead.castShadow = false; b.head.add(bead);
+    bead.add(halo(hue, 2.2, 0.32));
+    // arms
+    var armL = armCapsule(b.mats[0], 0.3); armL.position.set(-0.3, 0.62, 0.02); armL.rotation.z = 0.28; g.add(armL);
+    var armR = new T.Group(); armR.position.set(0.26, 0.74, 0.0); g.add(armR);
+    var armRm = armCapsule(b.mats[0], 0.34); armRm.position.y = 0.17; armR.add(armRm);
+    var fistR = mesh(GEO.sph, b.mats[0], 0.072, 0.072, 0.072, 0, 0.36, 0); armR.add(fistR);
+    g.scale.setScalar(1.1);   // stands tallest
+    b.tell = function (t, working, rm) {
+      // working: the arm points ahead and it turns to the newest thing
+      var lift = working ? 1 : 0;
+      var sway = (working && !rm) ? Math.sin(t * 1.6) * 0.12 : 0;
+      armR.rotation.z = -0.35 - lift * 1.0;
+      armR.rotation.x = -lift * (0.35 + sway * 0.3);
+      armL.rotation.z = 0.28 - lift * 0.1;
+      b.head.rotation.y = sway;
+      g.rotation.y = sway * 0.35;
+      bead.material.emissiveIntensity = (working ? 3.6 + (rm ? 0 : Math.sin(t * 5) * 1.1) : 0.9) * TK.em;
+      return working && !rm;
+    };
+    return b;
+  };
+
+  // 2 · COACH — broad shoulders, forearm bands, a bar of light.
+  BUILD.coach = function (a) {
+    var b = makeBeing(a, { bodyH: 0.4, bodyR: 0.27 });
+    var hue = b.hue, g = b.group;
+    // broad shoulders: a wide capsule laid across the top of the body
+    var sh = mesh(new T.CapsuleGeometry(0.135, 0.44, 8, 18), b.mats[1], 1, 1, 1, 0, 0.8, 0);
+    sh.rotation.z = Math.PI / 2; g.add(sh);
+    // arms + forearm bands
+    var arms = [];
+    [-1, 1].forEach(function (s) {
+      var pivot = new T.Group(); pivot.position.set(0.36 * s, 0.8, 0); g.add(pivot);
+      var up = armCapsule(b.mats[0], 0.34, 0.068); up.position.y = -0.2; pivot.add(up);
+      var band = mesh(GEO.tor, emissiveMat(hue, 2.2), 0.085, 0.085, 0.085, 0, -0.34, 0);
+      band.rotation.x = Math.PI / 2; band.castShadow = false; pivot.add(band);
+      var hand = mesh(GEO.sph, b.mats[0], 0.075, 0.075, 0.075, 0, -0.44, 0); pivot.add(hand);
+      arms.push(pivot);
+    });
+    // THE BAR — long enough to break the silhouette on both sides
+    var bar = new T.Group(); g.add(bar);
+    var barMat = emissiveMat(hue, 3.0);
+    var shaft = mesh(GEO.cyl, barMat, 0.036, 1.5, 0.036, 0, 0, 0);
+    shaft.rotation.z = Math.PI / 2; bar.add(shaft);
+    bar.add(halo(hue, 0.22, 0.12));
+    [-1, 1].forEach(function (s) {
+      var pl = mesh(GEO.cyl, b.mats[1], 0.15, 0.06, 0.15, 0.66 * s, 0, 0);
+      pl.rotation.z = Math.PI / 2; bar.add(pl);
+      var pl2 = mesh(GEO.cyl, b.mats[1], 0.115, 0.055, 0.115, 0.735 * s, 0, 0);
+      pl2.rotation.z = Math.PI / 2; bar.add(pl2);
+    });
+    b.tell = function (t, working, rm) {
+      if (working) {
+        var ph = rm ? 0.72 : (Math.sin(t * 1.35) * 0.5 + 0.5);
+        bar.position.set(0, 0.86 + ph * 0.62, 0.1);
+        bar.rotation.z = 0;
+        arms.forEach(function (p, i) {
+          p.rotation.z = (i ? -1 : 1) * (0.4 + ph * 0.75);
+          p.rotation.x = -0.15;
+        });
+        return !rm;
+      }
+      bar.position.set(0, 0.075, 0.5);   // set down on the floor in front
+      arms.forEach(function (p, i) { p.rotation.z = (i ? -1 : 1) * 0.12; p.rotation.x = 0; });
+      return false;
+    };
+    return b;
+  };
+
+  // 3 · CFO — squarer ledger body, coin-slot across the visor, folded arms,
+  //           a stack of chips beside it.
+  BUILD.cfo = function (a) {
+    var hue;
+    var b = makeBeing(a, {
+      bodyGeo: function (bodyMat, shellMat) {
+        var grp = new T.Group();
+        // a rounded slab, bevelled — a closed ledger standing on its end,
+        // never a plain box
+        var sh = new T.Shape();
+        var w = 0.27, h = 0.35, r2 = 0.07;
+        sh.moveTo(-w + r2, -h);
+        sh.lineTo(w - r2, -h); sh.quadraticCurveTo(w, -h, w, -h + r2);
+        sh.lineTo(w, h - r2); sh.quadraticCurveTo(w, h, w - r2, h);
+        sh.lineTo(-w + r2, h); sh.quadraticCurveTo(-w, h, -w, h - r2);
+        sh.lineTo(-w, -h + r2); sh.quadraticCurveTo(-w, -h, -w + r2, -h);
+        var geo = new T.ExtrudeGeometry(sh, { depth: 0.3, bevelEnabled: true, bevelSize: 0.035, bevelThickness: 0.035, bevelSegments: 3, curveSegments: 10 });
+        geo.center();
+        var m = new T.Mesh(geo, bodyMat); m.position.set(0, 0.38, 0);
+        m.castShadow = true; m.receiveShadow = true; grp.add(m);
+        // the block of pages down one edge
+        var pg = mesh(GEO.box, shellMat, 0.06, 0.58, 0.3, 0.255, 0.38, 0.01);
+        grp.add(pg);
+        return grp;
+      },
+      coreY: 0.5, coreZ: 0.185, headY: 0.94
+    });
+    hue = b.hue;
+    var g = b.group;
+    // the ledger's edge: pages, as three thin light lines down one side
+    var pages = emissiveMat(hue, 1.4);
+    for (var i = 0; i < 3; i++) {
+      var ln = mesh(GEO.box, pages, 0.016, 0.012, 0.3, 0.29, 0.5 - i * 0.13, 0.01);
+      ln.castShadow = false; g.add(ln);
+    }
+    // coin-slot line across the visor — reads at any size
+    var slot = mesh(GEO.box, emissiveMat(hue, 3.0), 0.26, 0.026, 0.03, 0, -0.088, 0.22);
+    slot.castShadow = false; b.head.add(slot);
+    // folded arms
+    [-1, 1].forEach(function (s) {
+      var arm = armCapsule(b.mats[0], 0.3, 0.06);
+      arm.position.set(0.02 * s, 0.48 + 0.045 * s, 0.24);
+      arm.rotation.z = Math.PI / 2 - 0.16 * s; arm.rotation.x = 0.1; g.add(arm);
+    });
+    // the stack of chips — real count, so it grows
+    var chipMat = emissiveMat(hue, 1.8);
+    var chips = [];
+    for (var k = 0; k < 7; k++) {
+      var ch = mesh(GEO.cyl, chipMat, 0.145, 0.05, 0.145, 0.55, 0.03 + k * 0.058, 0.26);
+      ch.visible = k < 4; chips.push(ch); g.add(ch);
+    }
+    b.tell = function (t, working, rm) {
+      var n = working ? (rm ? 7 : 4 + Math.floor((t * 0.8) % 4)) : 4;
+      chips.forEach(function (c, i) {
+        c.visible = i < n;
+        c.material = chipMat;
+        if (i === n - 1 && working && !rm) {
+          var f = (t * 0.8) % 1;
+          c.position.y = 0.03 + i * 0.058 + Math.max(0, (1 - f * 4)) * 0.36;
+        } else { c.position.y = 0.03 + i * 0.058; }
+      });
+      slot.material.emissiveIntensity = (working ? 1.8 : 0.9) * TK.em;
+      return working && !rm;
+    };
+    return b;
+  };
+
+  // 4 · GUARDIAN — shield torso, a lantern held low. Never moves.
+  BUILD.guardian = function (a) {
+    var b = makeBeing(a, {
+      bodyGeo: function (bodyMat) {
+        // a real shield outline, extruded — the one silhouette that has to
+        // be a profile rather than a primitive
+        var s = new T.Shape();
+        s.moveTo(-0.34, 0.42);
+        s.lineTo(0.34, 0.42);
+        s.lineTo(0.34, -0.02);
+        s.quadraticCurveTo(0.33, -0.34, 0, -0.5);
+        s.quadraticCurveTo(-0.33, -0.34, -0.34, -0.02);
+        s.closePath();
+        var geo = new T.ExtrudeGeometry(s, { depth: 0.2, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 4, curveSegments: 16 });
+        geo.center();
+        var m = new T.Mesh(geo, bodyMat);
+        m.position.set(0, 0.52, 0); m.castShadow = true; m.receiveShadow = true;
+        return m;
+      },
+      coreY: 0.62, coreZ: 0.16, headY: 1.07
+    });
+    var hue = b.hue, g = b.group;
+    // a chevron on the shield face so it reads as a shield head-on too
+    var chev = emissiveMat(hue, 1.7);
+    [[-0.13, 0.62, 0.42], [0.13, 0.62, -0.42]].forEach(function (p) {
+      var c = mesh(GEO.box, chev, 0.028, 0.38, 0.02, p[0], p[1], 0.17);
+      c.rotation.z = p[2]; c.castShadow = false; g.add(c);
+    });
+    // the lantern, held LOW and well clear of the body
+    var armL = armCapsule(b.mats[0], 0.36, 0.06); armL.position.set(-0.42, 0.55, 0.06); armL.rotation.z = 0.12; g.add(armL);
+    var lant = new T.Group(); lant.position.set(-0.46, 0.2, 0.08); g.add(lant);
+    var lampMat = emissiveMat(TK.gold, 1.7, { lamp: true });
+    var bulb = mesh(GEO.sph, lampMat, 0.1, 0.12, 0.1, 0, 0, 0); bulb.castShadow = false; lant.add(bulb);
+    var lampGlow = halo(TK.gold, 0.26, 0.28); lant.add(lampGlow);
+    [-1, 1].forEach(function (s) {
+      var cage = mesh(GEO.cyl, b.mats[0], 0.012, 0.28, 0.012, 0.1 * s, 0, 0); lant.add(cage);
+    });
+    var cap = mesh(GEO.cone, b.mats[0], 0.13, 0.1, 0.13, 0, 0.17, 0); lant.add(cap);
+    var basep = mesh(GEO.cyl, b.mats[0], 0.12, 0.03, 0.12, 0, -0.15, 0); lant.add(basep);
+    var hook = mesh(GEO.tor, b.mats[0], 0.05, 0.05, 0.05, 0, 0.24, 0); hook.rotation.y = Math.PI / 2; lant.add(hook);
+    var pointL = new T.PointLight(TK.gold.getHex(), 0.9, 2.4, 2);
+    pointL.position.copy(lant.position); pointL.position.y += 0.02; g.add(pointL);
+    b.tell = function (t, working, rm) {
+      var amber = new T.Color(0xe0a15a);
+      if (working) {
+        var p = rm ? 1 : (0.72 + Math.sin(t * 1.9) * 0.28);
+        lampMat.emissive.copy(TK.gold);
+        lampMat.emissiveIntensity = (2.2 + p * 2.6) * TK.em;
+        lampGlow.material.opacity = 0.2 + p * 0.22;
+        pointL.intensity = 0.7 + p * 1.5;
+        return !rm;
+      }
+      lampMat.emissive.copy(amber);
+      lampMat.emissiveIntensity = 0.85 * TK.em;
+      lampGlow.material.opacity = 0.1;
+      pointL.intensity = 0.4;
+      return false;
+    };
+    return b;
+  };
+
+  // 5 · RESEARCHER — one big lens instead of two eyes, a page drifting.
+  BUILD.researcher = function (a) {
+    var b = makeBeing(a, { noEyes: true, bodyH: 0.42, bodyR: 0.25, headR: 0.245 });
+    var hue = b.hue, g = b.group;
+    // the lens: a deep barrel on the front of the head, so the profile is
+    // unmistakable from the side as well as head-on
+    var lensGrp = new T.Group(); lensGrp.position.set(0, 0.01, 0.2); b.head.add(lensGrp);
+    var barrel = mesh(GEO.cyl, b.mats[0], 0.155, 0.13, 0.155, 0, 0, 0.06);
+    barrel.rotation.x = Math.PI / 2; lensGrp.add(barrel);
+    var ringL = mesh(GEO.tor, emissiveMat(hue, 2.4), 0.15, 0.15, 0.15, 0, 0, 0.125);
+    ringL.scale.z = 0.5; ringL.castShadow = false; lensGrp.add(ringL);
+    var glass = mesh(GEO.sph, emissiveMat(lighter(hue, 0.4), 2.2), 0.125, 0.125, 0.05, 0, 0, 0.125);
+    glass.castShadow = false; lensGrp.add(glass);
+    lensGrp.add((function () { var h = halo(hue, 0.22, 0.22); h.position.z = 0.13; return h; })());
+    // the page — big, thin, and clear of the body
+    var pageMat = new T.MeshPhysicalMaterial({ color: lighter(hue, 0.72), emissive: hue, emissiveIntensity: 0.5 * TK.em, roughness: 0.6, metalness: 0, side: T.DoubleSide, transparent: true, opacity: 0.94 });
+    pageMat.userData.baseEm = 0.5; EMISSIVES.push(pageMat);
+    var spine = new T.Group(); spine.position.set(0.42, 0.78, 0.18); spine.rotation.z = -0.18; g.add(spine);
+    var page = mesh(GEO.plane, pageMat, 0.36, 0.46, 1, 0.18, 0, 0);
+    page.castShadow = false; spine.add(page);
+    var page2 = mesh(GEO.plane, pageMat, 0.36, 0.46, 1, -0.18, 0, 0);
+    page2.castShadow = false; spine.add(page2);
+    // ruled lines so it reads as a page rather than a card
+    for (var i = 0; i < 4; i++) {
+      var r = mesh(GEO.box, emissiveMat(hue, 1.4), 0.24, 0.012, 0.004, 0.18, 0.14 - i * 0.08, 0.004);
+      r.castShadow = false; spine.add(r);
+    }
+    // leans forward
+    g.rotation.x = 0.1; g.position.y = 0;
+    var armR = armCapsule(b.mats[0], 0.28, 0.058); armR.position.set(0.3, 0.6, 0.12); armR.rotation.z = -0.5; g.add(armR);
+    b.tell = function (t, working, rm) {
+      if (working) {
+        var f = rm ? 0.45 : ((t * 0.55) % 1);
+        page.rotation.y = -f * Math.PI;
+        page.position.x = 0.18 * Math.cos(f * Math.PI);
+        page.position.z = 0.1 * Math.sin(f * Math.PI);
+        ringL.material.emissiveIntensity = (1.4 + (rm ? 0 : Math.sin(t * 3) * 0.35)) * TK.em;
+        return !rm;
+      }
+      page.rotation.y = -Math.PI * 0.42;   // hangs half-turned
+      page.position.x = 0.18 * Math.cos(Math.PI * 0.42);
+      page.position.z = 0.1 * Math.sin(Math.PI * 0.42);
+      ringL.material.emissiveIntensity = 0.55 * TK.em;
+      return false;
+    };
+    return b;
+  };
+
+  // 6 · WATCHER — wide letterbox visor. Sits.
+  BUILD.watcher = function (a) {
+    var b = makeBeing(a, { noEyes: true, bodyH: 0.24, bodyR: 0.29, headY: 0.76, headR: 0.22 });
+    var hue = b.hue, g = b.group;
+    // the visor is WIDER than the head — the whole point of the silhouette
+    var vis = new T.Group(); vis.position.set(0, 0.015, 0.06); b.head.add(vis);
+    var housing = mesh(GEO.box, b.mats[0], 0.62, 0.2, 0.2, 0, 0, 0.1);
+    housing.geometry = new T.BoxGeometry(1, 1, 1); vis.add(housing);
+    var screenMat = emissiveMat(hue, 1.5);
+    var screen = mesh(GEO.box, screenMat, 0.54, 0.105, 0.02, 0, 0, 0.205);
+    screen.castShadow = false; vis.add(screen);
+    var sweep = mesh(GEO.box, emissiveMat(lighter(hue, 0.6), 3.4, { lamp: true }), 0.07, 0.1, 0.012, 0, 0, 0.218);
+    sweep.castShadow = false; sweep.material.toneMapped = false; vis.add(sweep);
+    var vglow = halo(hue, 0.3, 0.14); vglow.scale.set(1.0, 0.34, 1); vglow.position.set(0, 0, 0.22); vis.add(vglow);
+    // seated: legs forward
+    [-1, 1].forEach(function (s) {
+      var leg = mesh(new T.CapsuleGeometry(0.085, 0.24, 6, 14), b.mats[1], 1, 1, 1, 0.14 * s, 0.09, 0.26);
+      leg.rotation.x = Math.PI / 2; g.add(leg);
+      var foot = mesh(GEO.sph, b.mats[0], 0.085, 0.07, 0.1, 0.14 * s, 0.075, 0.42); g.add(foot);
+      var arm = armCapsule(b.mats[0], 0.22, 0.055); arm.position.set(0.3 * s, 0.34, 0.06); arm.rotation.z = 0.22 * s; g.add(arm);
+    });
+    b.tell = function (t, working, rm) {
+      if (working) {
+        sweep.visible = true;
+        sweep.position.x = rm ? 0.1 : Math.sin(t * 1.25) * 0.22;
+        screenMat.emissiveIntensity = (1.0 + (rm ? 0 : Math.sin(t * 6) * 0.15)) * TK.em;
+        return !rm;
+      }
+      sweep.visible = false;
+      screenMat.emissiveIntensity = 0.42 * TK.em;
+      return false;
+    };
+    return b;
+  };
+
+  // 7 · LIBRARIAN — a body of stacked spines, one drawer open.
+  BUILD.librarian = function (a) {
+    var spineRefs = [];
+    var b = makeBeing(a, {
+      bodyGeo: function (bodyMat, shellMat) {
+        var grp = new T.Group();
+        var ys = [0.1, 0.28, 0.45, 0.61, 0.75];
+        var ws = [0.62, 0.5, 0.58, 0.44, 0.52];
+        var ds = [0.38, 0.32, 0.36, 0.3, 0.34];
+        ys.forEach(function (y, i) {
+          var shelf = mesh(GEO.box, i % 2 ? shellMat : bodyMat, ws[i], i === 3 ? 0.12 : 0.16, ds[i], (i % 2 ? 0.05 : -0.04), y, 0);
+          shelf.rotation.y = (i % 2 ? 0.13 : -0.1);
+          grp.add(shelf);
+        });
+        return grp;
+      },
+      coreY: 0.93, coreZ: 0.18, headY: 1.14
+    });
+    var hue = b.hue, g = b.group;
+    // the open drawer — out the front, past the outline
+    var drawer = new T.Group(); drawer.position.set(0, 0.3, 0.17); g.add(drawer);
+    var dm = mesh(GEO.box, b.mats[0], 0.46, 0.17, 0.4, 0, 0, 0.2); drawer.add(dm);
+    var dfront = mesh(GEO.box, b.mats[1], 0.48, 0.21, 0.04, 0, 0, 0.4); drawer.add(dfront);
+    var dpull = mesh(GEO.cyl, emissiveMat(hue, 2.0), 0.022, 0.18, 0.022, 0, 0, 0.425);
+    dpull.rotation.z = Math.PI / 2; dpull.castShadow = false; drawer.add(dpull);
+    // the lit spine
+    var litSpine = mesh(GEO.box, emissiveMat(hue, 3.0), 0.06, 0.16, 0.34, -0.17, 0.01, 0.2);
+    litSpine.castShadow = false; drawer.add(litSpine);
+    // card-index spines along the top shelf, so the body reads as shelves
+    for (var i = 0; i < 6; i++) {
+      var sp = mesh(GEO.box, i % 2 ? b.mats[0] : emissiveMat(hue, 0.7), 0.045, 0.1, 0.02, -0.19 + i * 0.077, 0.75, 0.19);
+      sp.castShadow = false; g.add(sp);
+    }
+    [-1, 1].forEach(function (s) {
+      var arm = armCapsule(b.mats[0], 0.3, 0.055); arm.position.set(0.34 * s, 0.68, 0.04); arm.rotation.z = 0.1 * s; g.add(arm);
+    });
+    b.tell = function (t, working, rm) {
+      if (working) {
+        var f = rm ? 0.5 : (Math.sin(t * 1.1) * 0.5 + 0.5);
+        drawer.position.z = 0.02 + f * 0.24;
+        litSpine.material.emissiveIntensity = (0.6 + f * 1.8) * TK.em;
+        return !rm;
+      }
+      drawer.position.z = 0.24;
+      litSpine.material.emissiveIntensity = 0.35 * TK.em;
+      return false;
+    };
+    return b;
+  };
+
+  // 8 · MEAL PREP — a pot body, handles, a warm glow at the base, steam.
+  BUILD.mealprep = function (a) {
+    var b = makeBeing(a, {
+      bodyGeo: function (bodyMat) {
+        var grp = new T.Group();
+        var pot = mesh(new T.CylinderGeometry(0.34, 0.27, 0.56, 36), bodyMat, 1, 1, 1, 0, 0.34, 0);
+        grp.add(pot);
+        var lipm = mesh(GEO.tor, bodyMat, 0.34, 0.34, 0.34, 0, 0.62, 0);
+        lipm.rotation.x = Math.PI / 2; lipm.scale.set(0.34, 0.34, 0.34); grp.add(lipm);
+        return grp;
+      },
+      coreY: 0.38, coreZ: 0.28, headY: 0.92, headR: 0.215, markerY: 0.56
+    });
+    var hue = b.hue, g = b.group;
+    var collar = mesh(GEO.cyl, b.mats[0], 0.13, 0.12, 0.13, 0, 0.68, 0); g.add(collar);
+    // handles, out past the outline both sides
+    [-1, 1].forEach(function (s) {
+      var h = mesh(GEO.tor, b.mats[0], 0.13, 0.13, 0.13, 0.4 * s, 0.44, 0);
+      h.rotation.y = Math.PI / 2; h.scale.setScalar(0.13); g.add(h);
+    });
+    // the warm base glow
+    var baseMat = emissiveMat(TK.gold, 2.2);
+    var baseDisc = mesh(GEO.cyl, baseMat, 0.3, 0.05, 0.3, 0, 0.035, 0); baseDisc.castShadow = false; g.add(baseDisc);
+    var baseGlow = halo(TK.gold, 0.5, 0.18); baseGlow.scale.set(1.5, 0.5, 1); baseGlow.position.y = 0.05; g.add(baseGlow);
+    var basePt = new T.PointLight(TK.gold.getHex(), 0.8, 1.8, 2); basePt.position.set(0, 0.12, 0); g.add(basePt);
+    // steam — three rising motes, additive, no shadow
+    var steam = [];
+    for (var i = 0; i < 3; i++) {
+      var s3 = halo(lighter(hue, 0.7), 0.13, 0.5);
+      s3.position.set((i - 1) * 0.27, 1.05, 0.2); g.add(s3); steam.push(s3);
+    }
+    b.tell = function (t, working, rm) {
+      steam.forEach(function (s, i) {
+        if (!working) { s.visible = false; return; }
+        s.visible = true;
+        var f = rm ? (0.3 + i * 0.22) : (((t * 0.42) + i * 0.33) % 1);
+        s.position.y = 0.98 + f * 0.68;
+        s.position.z = 0.2;
+        s.position.x = (i - 1) * 0.27 + Math.sin(f * 5 + i) * 0.09;
+        s.scale.setScalar((0.12 + f * 0.17) * 3.2);
+        s.material.opacity = 0.95 * Math.pow(1 - f, 0.8) * (f < 0.14 ? f / 0.14 : 1);
+      });
+      baseMat.emissiveIntensity = (working ? (1.6 + (rm ? 0 : Math.sin(t * 2.6) * 0.5)) : 0.45) * TK.em;
+      basePt.intensity = working ? 1.5 : 0.3;
+      baseGlow.material.opacity = working ? 0.22 : 0.07;
+      return working && !rm;
+    };
+    return b;
+  };
+
+  // 9 · LEADER — a mirror visor. Still, listening.
+  BUILD.leader = function (a) {
+    var b = makeBeing(a, { mirror: true, bodyH: 0.46, bodyR: 0.25, headR: 0.25, eyeYaw: 0.33 });
+    var hue = b.hue, g = b.group;
+    // the mirror is the whole face: a full-width polished faceplate, and the
+    // eyes sit BEHIND it, dimmer, so they read as lights under glass
+    b.eyes.forEach(function (e) {
+      e.position.multiplyScalar(1.12); e.position.z += 0.035;
+      e.children.forEach(function (c) { if (c.material && c.material.emissiveIntensity != null) c.material.emissiveIntensity = 1.4 * TK.em; });
+    });
+    var plate = new T.Mesh(new T.SphereGeometry(0.262, 40, 28, Math.PI * 0.5 - 1.15, 2.3, 0.42, 1.22), b.mats[2]);
+    plate.scale.set(1.34, 1.14, 1.02);
+    plate.castShadow = false; b.head.add(plate);
+    // a hairline bezel so the mirror has an edge
+    var bez = mesh(GEO.tor, emissiveMat(hue, 2.2, { lamp: true }), 1, 1, 1, 0, 0.01, 0.075);
+    bez.scale.set(0.3, 0.255, 0.1); bez.castShadow = false; b.head.add(bez);
+    // the sheen that crosses the mirror when he answers
+    var sheen = mesh(GEO.box, emissiveMat(lighter(hue, 0.5), 1.5, { lamp: true }), 0.035, 0.26, 0.008, 0, 0.03, 0.285);
+    sheen.rotation.z = 0.38; sheen.material.toneMapped = false; sheen.castShadow = false; b.head.add(sheen);
+    sheen.visible = false;
+    [-1, 1].forEach(function (s) {
+      var arm = armCapsule(b.mats[0], 0.34, 0.058); arm.position.set(0.3 * s, 0.58, 0.02); arm.rotation.z = 0.1 * s; g.add(arm);
+    });
+    b.head.rotation.x = -0.1; b.head.rotation.y = 0.1;   // listening tilt
+    b.tell = function (t, working, rm) {
+      if (working) {
+        sheen.visible = true;
+        sheen.position.x = rm ? 0.05 : (((t * 0.5) % 1) * 0.56 - 0.28);
+        bez.material.emissiveIntensity = 2.6 * TK.em;
+        return !rm;
+      }
+      sheen.visible = false;
+      bez.material.emissiveIntensity = 1.5 * TK.em;
+      return false;
+    };
+    return b;
+  };
+
+  // ---------------------------------------------------------------
+  // PLACE THEM
+  // ---------------------------------------------------------------
+  var FIG = [];
+  AGENTS.forEach(function (a, i) {
+    var ang = i * Math.PI * 2 / AGENTS.length;
+    var b = BUILD[a.id](a);
+    var slot = new T.Group();
+    slot.position.set(Math.sin(ang) * R, 0, Math.cos(ang) * R);
+    slot.rotation.y = ang;
+    slot.add(b.group);
+    stageGroup.add(slot);
+
+    // a faint mark on the deck under each place
+    var mark = ringMesh(0.52, 0.012, hueOf(a), 0.4);
+    mark.position.set(slot.position.x, 0.014, slot.position.z);
+    stageGroup.add(mark);
+
+    var plate = namePlate(a.name, TK.ink);
+    plate.position.set(slot.position.x * 1.2, 0.16, slot.position.z * 1.2);
+    stageGroup.add(plate);
+
+    // hit proxy — invisible, generous, so a finger finds it
+    var hit = new T.Mesh(new T.CylinderGeometry(0.55, 0.55, 1.9, 8), new T.MeshBasicMaterial({ visible: false }));
+    hit.position.set(slot.position.x, 0.95, slot.position.z);
+    hit.userData.index = i; stageGroup.add(hit);
+
+    FIG.push({
+      a: a, b: b, slot: slot, ang: ang, hit: hit, mark: mark, plate: plate,
+      mats: [], state: 'wait', dim: 0, blink: 0, nextBlink: performance.now() / 1000 + 2 + Math.random() * 6
+    });
+  });
+
+  FIG.forEach(collectMats);
+
+  // ---------------------------------------------------------------
+  // CAMERA + HAND-ROLLED CONTROLS
+  // ---------------------------------------------------------------
+  var view = { spin: Math.PI / 9, spinT: Math.PI / 9, dist: 14, distT: 14, elev: 0.3, elevT: 0.3,
+               ty: 0.3, tyT: 0.3, tz: 0, tzT: 0 };
+
+  // FRAMING IS COMPUTED, NOT GUESSED. A phone is a tall narrow window and a
+  // laptop a wide short one; the same distance crops one or strands the other.
+  // Solve for the distance that fits the half-extents in BOTH axes.
+  function fitDist(halfW, halfH) {
+    var w = mount.clientWidth, h = mount.clientHeight;
+    var t = Math.tan(camera.fov * Math.PI / 360);
+    return Math.max(halfW / (t * (w / h)), halfH / t);
+  }
+  function wideFit() {
+    return mount.clientWidth < 560 ? fitDist(1.95, 2.6) : fitDist(DECK_R * 1.3, 2.1);
+  }
+  function focusFit() {
+    return mount.clientWidth < 560 ? fitDist(0.95, 1.5) : fitDist(1.4, 1.65);
+  }
+  var focus = -1;
+  var dirty = true, frames = 0, lastT = performance.now() / 1000;
+  function invalidate() { if (!running) { running = true; requestAnimationFrame(tick); } dirty = true; }
+
+  function resize() {
+    var w = mount.clientWidth, h = mount.clientHeight;
+    var phone = w < 560;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = phone ? 34 : 30;
+    camera.updateProjectionMatrix();
+    view.distT = focus >= 0 ? focusFit() : wideFit();
+    if (focus < 0) {
+      view.elevT = phone ? 0.4 : 0.3;
+      view.tyT = phone ? 0.2 : 0.3;
+      if (!ptr.down) { view.elev = view.elevT; view.ty = view.tyT; }
+    }
+    invalidate();
+  }
+  window.addEventListener('resize', resize);
+
+  var ptr = { down: false, moved: 0, x: 0, y: 0, id: null };
+  var pinch = { active: false, d0: 0, dist0: 0 };
+
+  mount.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch' && activeTouches() >= 2) return;
+    ptr.down = true; ptr.moved = 0; ptr.x = e.clientX; ptr.y = e.clientY; ptr.id = e.pointerId;
+    mount.setPointerCapture(e.pointerId);
+    mount.classList.add('dragging');
+  });
+  mount.addEventListener('pointermove', function (e) {
+    if (!ptr.down || e.pointerId !== ptr.id) return;
+    var dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+    ptr.moved += Math.abs(dx) + Math.abs(dy);
+    view.spinT -= dx * 0.0062; view.spin -= dx * 0.0062;
+    view.elevT = clamp(view.elevT + dy * 0.0035, -0.06, 0.92);
+    view.elev = clamp(view.elev + dy * 0.0035, -0.06, 0.92);
+    ptr.x = e.clientX; ptr.y = e.clientY;
+    invalidate();
+  });
+  function endPtr(e) {
+    if (!ptr.down) return;
+    ptr.down = false; mount.classList.remove('dragging');
+    if (ptr.moved < 7) pick(e.clientX, e.clientY);
+  }
+  mount.addEventListener('pointerup', endPtr);
+  mount.addEventListener('pointercancel', function () { ptr.down = false; mount.classList.remove('dragging'); });
+  mount.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    view.distT = clamp(view.distT + e.deltaY * 0.006, 3.0, 16);
+    invalidate();
+  }, { passive: false });
+
+  var touches = {};
+  function activeTouches() { return Object.keys(touches).length; }
+  mount.addEventListener('touchstart', function (e) {
+    for (var i = 0; i < e.changedTouches.length; i++) touches[e.changedTouches[i].identifier] = 1;
+    if (e.touches.length === 2) {
+      ptr.down = false;
+      pinch.active = true;
+      pinch.d0 = touchDist(e); pinch.dist0 = view.distT;
+    }
+  }, { passive: true });
+  mount.addEventListener('touchmove', function (e) {
+    if (pinch.active && e.touches.length === 2) {
+      e.preventDefault();
+      var d = touchDist(e);
+      view.distT = clamp(pinch.dist0 * (pinch.d0 / Math.max(d, 1)), 3.0, 16);
+      invalidate();
+    }
+  }, { passive: false });
+  function endTouch(e) {
+    for (var i = 0; i < e.changedTouches.length; i++) delete touches[e.changedTouches[i].identifier];
+    if (e.touches.length < 2) pinch.active = false;
+  }
+  mount.addEventListener('touchend', endTouch);
+  mount.addEventListener('touchcancel', endTouch);
+  function touchDist(e) {
+    var a = e.touches[0], b = e.touches[1];
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+  var ray = new T.Raycaster(), ndc = new T.Vector2();
+  function pick(cx, cy) {
+    var r = renderer.domElement.getBoundingClientRect();
+    ndc.x = ((cx - r.left) / r.width) * 2 - 1;
+    ndc.y = -((cy - r.top) / r.height) * 2 + 1;
+    ray.setFromCamera(ndc, camera);
+    var hits = ray.intersectObjects(FIG.map(function (f) { return f.hit; }), false);
+    if (hits.length) setFocus(hits[0].object.userData.index);
+    else setFocus(-1);
+  }
+
+  function setFocus(i) {
+    focus = i;
+    if (i >= 0) {
+      // bring it to the front by the SHORT way round
+      var want = -FIG[i].ang;
+      var k = Math.round((view.spinT - want) / (Math.PI * 2));
+      view.spinT = want + k * Math.PI * 2;
+      view.distT = focusFit();
+      view.tyT = 0.5; view.tzT = R;
+      view.elevT = clamp(view.elev, 0.05, 0.42);
+      setCaption(i);
+    } else {
+      view.distT = wideFit();
+      view.tyT = 0.3; view.tzT = 0;
+      setCaption(capIndex);
+    }
+    document.getElementById('hint').style.opacity = i >= 0 ? '0' : '1';
+    invalidate();
+  }
+
+  // ---------------------------------------------------------------
+  // CAPTION
+  // ---------------------------------------------------------------
+  var capIndex = 0;
+  var elDept = document.getElementById('cap-dept'), elName = document.getElementById('cap-name'),
+      elLine = document.getElementById('cap-line'), elTell = document.getElementById('cap-tell'),
+      elCap = document.getElementById('caption'),
+      bWork = document.getElementById('p-work'), bWait = document.getElementById('p-wait');
+
+  function setCaption(i) {
+    capIndex = i;
+    var f = FIG[i], a = f.a;
+    elCap.style.setProperty('--cap-hue', '#' + hueOf(a).getHexString());
+    elDept.textContent = a.dept;
+    elName.textContent = a.name;
+    elLine.textContent = a.line;
+    elTell.textContent = f.state === 'work' ? a.work : a.wait;
+    bWork.setAttribute('aria-pressed', f.state === 'work');
+    bWait.setAttribute('aria-pressed', f.state === 'wait');
+    measureCap();
+  }
+  function measureCap() {
+    root.style.setProperty('--cap-h', elCap.offsetHeight + 'px');
+  }
+  function setPose(st) {
+    var f = FIG[capIndex];
+    f.state = st;
+    f.b.marker.visible = (st === 'wait');
+    setCaption(capIndex);
+    invalidate();
+  }
+  bWork.addEventListener('click', function () { setPose('work'); });
+  bWait.addEventListener('click', function () { setPose('wait'); });
+
+  // ---------------------------------------------------------------
+  // TOGGLES
+  // ---------------------------------------------------------------
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var bMotion = document.getElementById('t-motion'), bCalm = document.getElementById('t-calm');
+  bMotion.setAttribute('aria-pressed', String(reduce));
+  bMotion.addEventListener('click', function () {
+    reduce = !reduce; bMotion.setAttribute('aria-pressed', String(reduce));
+    FIG.forEach(function (f) { f.blink = 0; f.b.eyes.forEach(function (e) { e.scale.y = 1; }); });
+    invalidate();
+  });
+  bCalm.addEventListener('click', function () {
+    var on = root.getAttribute('data-nv-calm') !== '1';
+    root.setAttribute('data-nv-calm', on ? '1' : '0');
+    bCalm.setAttribute('aria-pressed', String(on));
+    applyTokens();
+  });
+
+  function applyTokens() {
+    readTokens();
+    scene.environmentIntensity = TK.env;
+    key.color.copy(TK.key); fill.color.copy(TK.fill); rim.color.copy(TK.rim);
+    deckMat.color.copy(TK.stage);
+    rimRing.material.color.copy(lighter(TK.edge, 0.3));
+    innerRing.material.color.copy(lighter(TK.edge, 0.3));
+    EMISSIVES.forEach(function (m) {
+      if (m.userData.baseEm != null) m.emissiveIntensity = m.userData.baseEm * TK.em;
+    });
+    FIG.forEach(function (f) { f.mark.material.color.copy(lighter(hueOf(f.a), 0.3)); });
+    setCaption(capIndex);
+    invalidate();
+  }
+
+  // ---------------------------------------------------------------
+  // DIMMING — the others recede when one is focused
+  // ---------------------------------------------------------------
+  function collectMats(f) {
+    var list = [];
+    f.b.group.traverse(function (o) {
+      if (!o.material || list.indexOf(o.material) >= 0) return;
+      var m = o.material;
+      if (m.color) m.userData.baseColor = m.color.clone();
+      if (m.envMapIntensity != null) m.userData.baseEnv = m.envMapIntensity;
+      list.push(m);
+    });
+    f.mats = list;
+  }
+  function applyDim(f, k) {
+    // k: 0 = full, 1 = fully receded
+    for (var i = 0; i < f.mats.length; i++) {
+      var m = f.mats[i];
+      if (m.userData.baseColor) m.color.copy(m.userData.baseColor).lerp(TK.void, k * 0.76);
+      if (m.userData.baseEnv != null) m.envMapIntensity = m.userData.baseEnv * (1 - k * 0.8);
+      if (m.userData.baseEm != null) m.emissiveIntensity = m.userData.baseEm * TK.em * (1 - k * 0.88);
+      if (m.userData.baseOp != null) m.opacity = m.userData.baseOp * (1 - k * 0.9);
+    }
+    f.mark.material.opacity = 0.4 * (1 - k * 0.85);
+    // the caption names the focused one, so no plate has to compete with it
+    f.plate.material.opacity = 0.62 * (1 - k) * (focus >= 0 ? 0 : 1);
+  }
+
+  // ---------------------------------------------------------------
+  // THE LOOP — only while something moves.
+  // ---------------------------------------------------------------
+  var running = false;
+  function approach(cur, tgt, dt, k) { return cur + (tgt - cur) * (1 - Math.exp(-dt * k)); }
+
+  function tick() {
+    var now = performance.now() / 1000;
+    var dt = Math.min(0.05, now - lastT); lastT = now;
+    var live = false;
+
+    // camera
+    var ns = approach(view.spin, view.spinT, dt, 7);
+    var nd = approach(view.dist, view.distT, dt, 6);
+    var ne = approach(view.elev, view.elevT, dt, 7);
+    var nty = approach(view.ty, view.tyT, dt, 6);
+    var ntz = approach(view.tz, view.tzT, dt, 6);
+    if (Math.abs(ns - view.spinT) > 1e-4 || Math.abs(nd - view.distT) > 1e-4 ||
+        Math.abs(ne - view.elevT) > 1e-4 || Math.abs(nty - view.tyT) > 1e-4 ||
+        Math.abs(ntz - view.tzT) > 1e-4) live = true;
+    view.spin = ns; view.dist = nd; view.elev = ne; view.ty = nty; view.tz = ntz;
+    stageGroup.rotation.y = view.spin;
+    camera.position.set(0, view.ty + Math.sin(view.elev) * view.dist, view.tz + Math.cos(view.elev) * view.dist);
+    camera.lookAt(0, view.ty, view.tz);
+
+    // figures
+    FIG.forEach(function (f, i) {
+      f.b.group.rotation.y = -(view.spin + f.ang);
+      var working = f.state === 'work';
+      if (f.b.tell && f.b.tell(now, working, reduce)) live = true;
+
+      // the waiting marker bobs; reduced motion holds it
+      if (f.b.marker.visible) {
+        if (reduce) { f.b.marker.position.y = f.b.markerY + 0.02; }
+        else {
+          f.b.marker.position.y = f.b.markerY + Math.sin(now * 1.9 + i) * 0.055;
+          f.b.marker.rotation.y = Math.sin(now * 0.9 + i) * 0.16;
+          live = true;
+        }
+      }
+
+      // blinking: slow, occasional, and only when waiting
+      if (!reduce && f.b.eyes.length) {
+        if (f.blink > 0) {
+          f.blink -= dt;
+          var p = Math.max(0, f.blink) / 0.26;
+          var closed = Math.sin(p * Math.PI);
+          f.b.eyes.forEach(function (e) { e.scale.y = 1 - closed * 0.92; });
+          live = true;
+          if (f.blink <= 0) { f.b.eyes.forEach(function (e) { e.scale.y = 1; }); f.nextBlink = now + (working ? 7 : 2.4) + Math.random() * 5; }
+        } else if (now > f.nextBlink) {
+          f.blink = 0.26; live = true;
+        }
+      }
+
+      // dim
+      var want = (focus >= 0 && focus !== i) ? 1 : 0;
+      var nk = approach(f.dim, want, dt, 6);
+      if (Math.abs(nk - want) > 0.004) live = true;
+      if (Math.abs(nk - f.dim) > 0.0005 || dirty) { f.dim = nk; applyDim(f, nk); }
+      else f.dim = nk;
+
+      // name plates face the camera and fade with distance behind the stage
+      f.plate.material.opacity = f.plate.material.opacity;
+    });
+
+    renderer.render(scene, camera);
+    frames++;
+    window.__frames = frames;
+    fpsEl.textContent = 'frames ' + frames;
+
+    dirty = false;
+    if (live) requestAnimationFrame(tick);
+    else running = false;
+  }
+  var fpsEl = document.getElementById('frames');
+
+  // ---------------------------------------------------------------
+  // GO
+  // ---------------------------------------------------------------
+  FIG.forEach(function (f) { f.b.marker.visible = true; applyDim(f, 0); });
+  setCaption(0);
+  resize();
+  measureCap();
+  invalidate();
+
+  // fonts land after the first paint; the name plates are canvas, so repaint
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      FIG.forEach(function (f) {
+        var np = namePlate(f.a.name, TK.ink);
+        f.plate.material.map.dispose();
+        f.plate.material.map = np.material.map;
+        f.plate.material.needsUpdate = true;
+      });
+      numeralTex = null;
+      measureCap();
+      invalidate();
+    });
+  }
+
+  (function () {
+    var h = (location.hash || '').replace('#', '');
+    if (!h) return;
+    var q = {};
+    h.split('&').forEach(function (kv) { var a = kv.split('='); q[a[0]] = a[1]; });
+    if (q.pose === 'work') FIG.forEach(function (f) { f.state = 'work'; f.b.marker.visible = false; });
+    if (q.focus != null) { var i = parseInt(q.focus, 10) || 0; setFocus(i); }
+    if (q.calm === '1') { root.setAttribute('data-nv-calm', '1'); bCalm.setAttribute('aria-pressed', 'true'); applyTokens(); }
+    view.spin = view.spinT; view.dist = view.distT; view.elev = view.elevT;
+    view.ty = view.tyT; view.tz = view.tzT;
+    FIG.forEach(function (f) { f.dim = (focus >= 0 && focus !== FIG.indexOf(f)) ? 1 : 0; applyDim(f, f.dim); });
+    setCaption(capIndex);
+  })();
+
+  window.__agentSheet = {
+    focus: function (i) { setFocus(i); },
+    pose: function (i, st) { var was = capIndex; capIndex = i; setPose(st); capIndex = was; setCaption(was); },
+    spin: function (v) { view.spinT = v; invalidate(); },
+    frames: function () { return frames; }
+  };
+})();
+</script>
+</body>
+</html>

@@ -307,7 +307,16 @@ faces side by side so he can see the difference; (3) try the "Viewed" verb.
   is on origin.
 
 **IN FLIGHT / OPEN**
-- The Org Map mockup is DONE and published: `design/mockups/48-org-map.html`
+- **HIS CALL (23 Sep): FACES, in 3D, each agent unique to its job.** The
+  flat mockup stands only as a geography draft. Character brief written as
+  AGENT-WORLD-PLAN.md §3g; a three.js character sheet
+  `design/mockups/49-agent-characters.html` (nine beings, turntable, tap
+  to focus, working/waiting poses, Calm + reduce-motion) was built by an
+  Opus agent and looked at: strongest Guardian/Coach/Meal Prep/Watcher/
+  Commander/Librarian; weakest Leader (a material, not a silhouette) and
+  CFO at 40px. three.js is r160 (cdnjs has no UMD past r160). Awaiting his
+  reaction before the map is built with these figures.
+- The flat Org Map mockup (superseded as design, kept as geography draft): `design/mockups/48-org-map.html`
   (committed), https://claude.ai/artifact/NjfRaXzw5VY2yeZELJfKnD. Looked at
   both passes; the second fills the frame and carries a 4× detail inset per
   register. Awaiting HIS reaction (forms vs faces) — fold it into
