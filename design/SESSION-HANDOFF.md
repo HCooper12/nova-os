@@ -13,6 +13,19 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 SEP (later) — THE SESSIONS FEATURE IS VERIFIED LIVE, AND ONE CLAIM IT MADE WAS FALSE.**
+Through the real routes on the running server: "Show me" on a live Nova window answered
+`focused`; closing a live session was refused with the plain sentence; closing the 70-day-old
+dead background session answered `cleared` while the session STAYED on the list, because the
+CLI's background service is gone and `claude stop` / `claude rm` both fail quietly. Fixed in
+`79c1d13`: after stop and rm the server looks at the list again and answers `ok:false` with one
+sentence ("Claude Code could not clear it, so it stays listed as finished"), and the Ops screen
+shows that instead of "Cleared." 1997 tests. Filmed on a real Chrome window on the Mac (Ops
+panel with live sessions, then Home). **STILL ASSUMED:** the phone idiom's Home line was only
+seen headless; reduced-motion and keyboard passes not run. The dead session cannot be cleared
+by the CLI at all right now; it lives in `~/.claude/jobs/617f3989/`, and deleting that by hand
+is his call, not Nova's.
+
 **23 SEP — WORKING ON THIS MAC: EVERY PROJECT'S CLAUDE CODE SESSIONS, ON OPS
 AND ON HOME.** His go, in his own words: "The overall multi project view
 could be incorporated into Nova somehow as that's my main daily driver." He
