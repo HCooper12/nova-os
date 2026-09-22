@@ -398,8 +398,9 @@ where the most valuable data in the product is presented as plain text.
 
 **Session F — Fuel, Coach and the empty states** (~3h) · findings 8, 13, 15,
 20, 22.
-`src/screens/Recipes.jsx` (dashed zero ring, macro arcs, cross-check bars,
-date rail), `src/screens/Workouts.jsx` Coach tab (goal instrument, the void),
+`src/screens/Recipes.jsx` (dashed zero ring, macro arcs, cross-check bars;
+the date rail is being delivered by the peer session's Fuel food-log
+redesign, 22 Sep — verify against its commit rather than rebuilding it), `src/screens/Workouts.jsx` Coach tab (goal instrument, the void),
 `src/screens/Briefing.jsx` (top padding + standing instrument),
 `src/vals/valsMission.js` + `src/screens/MissionStructured.jsx` (vitals hue
 system and focal metric), and the tick/cross decision pattern in
