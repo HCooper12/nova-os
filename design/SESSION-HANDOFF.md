@@ -13,6 +13,46 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 SEP — SESSION A OF THE REVIEW: ONE BUTTON, ONE ACCENT.** Commit
+`cb2ae8d`, pushed. Three sessions were working this checkout at once (me,
+`nova-os-c7` on Fuel, `Nova` on Session B); every commit went in with an
+explicit pathspec and nothing crossed.
+
+**WHAT IS TRUE NOW**
+- `Controls.Button` is the one committing action in the app: `tone`
+  (accent · good · warn · violet · ink · undecided), `variant` solid|quiet,
+  `compact`, `disabled`, 44pt under Apple, pill under Apple / 12px under
+  Command, ink always `--nv-on-acc`.
+- **Zero button helpers remain in `src/`** — the fourteen `btn()` copies, the
+  Inbox's `primary()`, and seven more hand-rolled solid buttons the audit had
+  not counted (`CoachApplySheet`, `ModelChoicePrompt`, `PortionSheet`,
+  `NudgeCard`, `RecipeOverlay:463`, `MissionControl:407`, `Workouts:103`).
+  Checkboxes were left alone; they are not buttons.
+- **Gold means "not yet decided" again.** One call site keeps it and earns
+  it: Fuel's "Refine estimate", where Nova has asked a question it cannot
+  answer and can file nothing until he replies.
+- To-Do's gold `Stale` badge is gone. Age is drawn: a leading hairline that
+  deepens from a fortnight to six weeks (`valsTodos.staleness`), the age
+  label warming with it.
+
+**TRAP THAT COST A ROUND.** `npm run build` does NOT catch an undefined JSX
+identifier — five files got `<Button>` with no import and the build stayed
+green; at runtime that is a blank screen. After any component swap, run
+`for f in $(grep -rl "<NewThing" src/**/*.jsx); do grep -q NewThing <(grep "from '.*Controls.jsx'" $f) || echo "MISSING: $f"; done`.
+
+**VERIFIED BY LOOKING** at 402×874 via `scripts/shot.mjs`: Train, Inbox,
+Settings, To-Do in cupertino; To-Do in command. Gates: lint clean, build
+green, server suite 1979/1979.
+
+**NEXT** (his approved order): C (muscle palette on Train — `Nova` is taking
+it), D (the 402px faults), E (exercise sheet + trust ladder), F (Fuel, Coach,
+empty states — coordinate with `nova-os-c7`, whose Fuel work already delivers
+finding 15's date rail). B is done (`3081b60`, not mine). Then the queued
+builds in memory `nova-open-threads`.
+
+---
+
+
 **22 SEP (afternoon) — THE AGENT WORLD PLAN, WRITTEN, NOT BUILT.** His ask:
 watch Jarren Rocks' "video game for my AI agents" reel and plan what Nova
 should take from it. Result: `design/AGENT-WORLD-PLAN.md` (commit
