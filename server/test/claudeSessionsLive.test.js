@@ -116,5 +116,15 @@ test('closing a background session stops it then clears it, tolerating either al
     execFn: async (file, args) => { ran.push([file, ...args]); if (args[0] === 'stop') throw new Error('already stopped'); return ''; },
   });
   assert.deepEqual(out, { ok: true, how: 'cleared' });
-  assert.deepEqual(ran, [['claude', 'stop', 'zz9'], ['claude', 'rm', 'zz9']]);
+  assert.deepEqual(ran, [['claude', 'stop', 'zz9'], ['claude', 'rm', 'zz9'], ['claude', 'agents', '--json']], 'and then it looks, so cleared is a fact rather than a hope');
+});
+
+test('a clear that did not happen is reported as not happening, never as cleared', async () => {
+  const gone = { sessionId: '617f3989-d69e-4d11-b001-bc11c2835ab7', shortId: '617f3989', kind: 'background', state: 'gone', canClose: true };
+  const stillThere = async (file, args) => (args[0] === 'agents' ? JSON.stringify([{ id: '617f3989', sessionId: gone.sessionId, kind: 'background' }]) : '');
+  const r1 = await closeSession({ session: gone, execFn: stillThere, killFn: () => { throw new Error('never'); } });
+  assert.equal(r1.ok, false); assert.match(r1.error, /could not clear it/);
+  const actuallyGone = async (file, args) => (args[0] === 'agents' ? '[]' : '');
+  const r2 = await closeSession({ session: gone, execFn: actuallyGone, killFn: () => {} });
+  assert.equal(r2.ok, true); assert.equal(r2.how, 'cleared');
 });

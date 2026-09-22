@@ -194,6 +194,15 @@ export async function closeSession({ session, killFn = process.kill.bind(process
       try { await execFn('claude', ['stop', short], { timeout: 10_000 }); } catch { /* already stopped */ }
       try { await execFn('claude', ['rm', short], { timeout: 10_000 }); } catch { /* already gone */ }
     }
+    // SAY WHAT ACTUALLY HAPPENED. When the CLI's background service is not there, both commands
+    // are swallowed and the session stays on the list; "cleared" would then be fiction. Look
+    // again before claiming anything (honest degradation, never fiction).
+    let still = false;
+    try {
+      const list = JSON.parse(await execFn('claude', ['agents', '--json'], { timeout: LIST_TIMEOUT_MS }) || '[]');
+      still = Array.isArray(list) && list.some((a) => (short && a.id === short) || a.sessionId === session.sessionId);
+    } catch { /* could not look: claim nothing either way */ }
+    if (still) return { ok: false, how: 'kept', error: 'Claude Code could not clear it, so it stays listed as finished. Nothing else is affected.' };
     return { ok: true, how: 'cleared' };
   }
   const pid = Number(session.pid);

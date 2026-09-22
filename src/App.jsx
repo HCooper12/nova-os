@@ -6468,7 +6468,8 @@ export default class App extends Component {
     this.setState({ macSessionBusyId: sessionId, macSessionConfirmId: null, macSessionNote: null });
     try {
       const r = await api.closeMacSession(conn, sessionId);
-      this.setState({ macSessionNote: r.how === 'cleared' ? 'Cleared.' : 'Closed. The conversation is kept.' });
+      // The server says what actually happened; a clear it could not make is reported as such.
+      this.setState({ macSessionNote: r.ok === false ? (r.error || 'Nova could not close that one.') : r.how === 'cleared' ? 'Cleared.' : 'Closed. The conversation is kept.' });
       this.startMacSessionsPoll();
     } catch (e) {
       this.setState({ macSessionNote: e.message });
