@@ -481,7 +481,17 @@ export function valsRecipes(app, ctx) {
     // multi-photo staging — add several (labels and/or the food), then analyze together
     foodScanPhotos: (st.foodScanPhotos || []).map((src, i) => ({ src, remove: () => app.removeFoodScanPhoto(i) })),
     foodScanCount: (st.foodScanPhotos || []).length,
-    addFoodScanPhotos: (e) => { app.addFoodScanPhotos(e.target.files); e.target.value = ''; },
+    // The input is cleared only AFTER the files have been read. Clearing it
+    // synchronously is the documented iOS trap: the FileList is a live view
+    // onto the input, and on a fresh camera capture iOS can release the
+    // backing file the moment the input lets go of it — mid-read. Clearing it
+    // at all is still required, or picking the SAME photo twice fires no
+    // change event at all.
+    addFoodScanPhotos: (e) => {
+      const input = e.target;
+      Promise.resolve(app.addFoodScanPhotos(input.files))
+        .finally(() => { try { input.value = ''; } catch { /* detached */ } });
+    },
     runFoodScan: () => app.runFoodScan(),
     clearFoodScanPhotos: () => app.clearFoodScanPhotos(),
     canRunFoodScan: (st.foodScanPhotos || []).length > 0 && !st.foodScanBusy,

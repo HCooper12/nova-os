@@ -283,6 +283,17 @@ function hashParams() {
 // every successful sync, hydrated back when the server can't be reached.
 // Note details and photo blob URLs are deliberately excluded (blobs don't
 // serialize; details re-fetch on demand).
+// Photos staged for a food scan, kept where an iOS eviction cannot reach them.
+// See persistFoodScanPhotos() for why this is session- and not local-storage.
+const FOOD_PHOTO_KEY = 'novaos.foodScanPhotos';
+export function restoreFoodScanPhotos() {
+  try {
+    const raw = sessionStorage.getItem(FOOD_PHOTO_KEY);
+    const list = raw ? JSON.parse(raw) : null;
+    return Array.isArray(list) ? list.filter((x) => typeof x === 'string' && x.startsWith('data:')).slice(0, 5) : [];
+  } catch { return []; }
+}
+
 const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveLibrary', 'liveLeader', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
@@ -443,7 +454,7 @@ export default class App extends Component {
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
     formCheck: null, // FORM CHECK: { exerciseId, exerciseName, protocol, rubric, stage, jobId, result, error }
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
-    foodScanNote: '', foodScanPhotos: [], foodScanBusy: false, foodScanSlow: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
+    foodScanNote: '', foodScanPhotos: restoreFoodScanPhotos(), foodScanBusy: false, foodScanSlow: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
     foodDescribeInput: '',
     // a low-confidence scan's clarifying question stays ANSWERABLE: the photos
     // + note that produced it are kept so an answer can re-run the same scan
@@ -2208,20 +2219,73 @@ export default class App extends Component {
   // Stage photos for a scan without analyzing yet — several labels, or a label
   // plus a photo of the actual portion, get sent together so the estimate can
   // reconcile them. Downscaled on the way in (upload speed, no accuracy cost).
-  addFoodScanPhotos(fileList) {
+  async addFoodScanPhotos(fileList) {
+    // Snapshot the FileList SYNCHRONOUSLY. It is a live view onto the input,
+    // and the caller clears that input as soon as we yield.
     const files = Array.from(fileList || []);
     if (!files.length) return;
     const room = 5 - (this.state.foodScanPhotos || []).length;
     if (room <= 0) { this.toastMsg('Up to 5 photos per scan'); return; }
-    Promise.all(files.slice(0, room).map((f) => this.downscaleImageFile(f)))
-      .then((urls) => this.setState((s) => ({ foodScanPhotos: [...s.foodScanPhotos, ...urls.filter(Boolean)] })));
+    const taking = files.slice(0, room);
     if (files.length > room) this.toastMsg('Up to 5 photos per scan');
+
+    this.setState({ foodScanError: null });
+    let urls = [];
+    try {
+      urls = await Promise.all(taking.map((f) => this.downscaleImageFile(f)));
+    } catch {
+      urls = [];
+    }
+    const good = urls.filter(Boolean);
+    // A PHOTO THAT DID NOT LAND MUST NOT LOOK LIKE A PHOTO HE DID NOT TAKE.
+    // This is the whole of his "isn't always working" report: every failure
+    // used to be filtered away in silence, so the screen after a failed
+    // capture was identical to the screen before he opened the camera.
+    const lost = taking.length - good.length;
+    if (lost > 0) {
+      this.setState({ foodScanError: lost === taking.length
+        ? `That photo could not be read${taking.length > 1 ? ' — none of them could' : ''}. Try taking it again, or pick it from your library instead.`
+        : `${lost} of ${taking.length} photos could not be read — the rest are staged.` });
+    }
+    if (!good.length) return;
+    this.setState((s) => {
+      const next = [...s.foodScanPhotos, ...good];
+      this.persistFoodScanPhotos(next);
+      return { foodScanPhotos: next };
+    });
   }
   removeFoodScanPhoto(idx) {
-    this.setState((s) => ({ foodScanPhotos: s.foodScanPhotos.filter((_, i) => i !== idx) }));
+    this.setState((s) => {
+      const next = s.foodScanPhotos.filter((_, i) => i !== idx);
+      this.persistFoodScanPhotos(next);
+      return { foodScanPhotos: next };
+    });
   }
   clearFoodScanPhotos() {
+    this.persistFoodScanPhotos([]);
     this.setState({ foodScanPhotos: [] });
+  }
+  // STAGED PHOTOS SURVIVE THE APP BEING THROWN AWAY.
+  //
+  // The other half of "isn't always working". Opening the camera from an
+  // installed PWA backgrounds the web app, and iOS reclaims a backgrounded
+  // web app under memory pressure — the same eviction already documented
+  // above for scan jobs, which is why those were moved out of memory. When it
+  // happens, the app reloads the instant he comes back with the photo, the
+  // staged array is empty, and from where he is sitting the camera simply did
+  // nothing. Taking a photo is the moment the device is under the MOST memory
+  // pressure, so this is not a rare path.
+  //
+  // sessionStorage, not localStorage: this is one composing session's work,
+  // and it should not still be sitting there next week. Quota is real (a few
+  // downscaled JPEGs is on the order of a megabyte) so a failure to persist is
+  // caught and left alone — the photos are still staged in memory, they just
+  // will not survive an eviction, which is strictly what happened before.
+  persistFoodScanPhotos(list) {
+    try {
+      if (!list || !list.length) sessionStorage.removeItem(FOOD_PHOTO_KEY);
+      else sessionStorage.setItem(FOOD_PHOTO_KEY, JSON.stringify(list));
+    } catch { /* over quota or blocked — in-memory staging still works */ }
   }
   // A food-scan/describe job used to live ONLY in memory: `this.pollers` and
   // the poll's closure. A slow one (a real web search can run well past a
@@ -2591,28 +2655,64 @@ export default class App extends Component {
     if (failed.length) this.toastMsg('A video could not be read into frames — Nova will say so');
     return r.id;
   }
-  downscaleImageFile(file, maxEdge = 1568) {
-    if (!file || !/^image\//.test(file.type || '')) return this.readFileAsDataUrl(file);
-    return new Promise((resolve) => {
-      const url = URL.createObjectURL(file);
+  // Shrink an image to the model's vision sweet spot before upload, and — the
+  // part that was missing (22 Sep 2026, "the camera option isn't always
+  // working either to add or take a photo") — do it in a way that a photo
+  // straight off an iPhone camera can actually survive.
+  //
+  // Three things were wrong for that file in particular:
+  //
+  //  1. `new Image()` + an object URL is the one decode path iOS will refuse
+  //     for a fresh camera capture whose backing file it has already released.
+  //     `createImageBitmap(file)` reads the Blob directly, decodes off the
+  //     main thread, and handles HEIC, which is what his camera writes by
+  //     default. It is tried first now, with the <img> path kept beneath it.
+  //  2. A photo already under the long edge took the `fallback()` branch — the
+  //     RAW read. A 12MP HEIC is then base64'd whole into memory and posted at
+  //     something like 4MB. Under-size now means re-encode without resizing,
+  //     which is the same pixels at a tenth of the bytes.
+  //  3. Every failure resolved to '' and was silently dropped by the caller's
+  //     filter, so a photo that did not land looked exactly like a photo he
+  //     had not taken. It still resolves '' — five call sites depend on that —
+  //     but the food path now counts the blanks and says so.
+  async downscaleImageFile(file, maxEdge = 1568) {
+    if (!file) return '';
+    if (!/^image\//.test(file.type || '')) return this.readFileAsDataUrl(file).catch(() => '');
+
+    const encode = (src, w, h) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(w));
+      canvas.height = Math.max(1, Math.round(h));
+      canvas.getContext('2d').drawImage(src, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    };
+    const fit = (w, h) => { const s = Math.max(w, h) > maxEdge ? maxEdge / Math.max(w, h) : 1; return [w * s, h * s]; };
+
+    // 1 — the Blob, decoded directly. No object URL to be released underneath us.
+    if (typeof createImageBitmap === 'function') {
+      let bmp = null;
+      try {
+        bmp = await createImageBitmap(file);
+        return encode(bmp, ...fit(bmp.width, bmp.height));
+      } catch { /* fall through to the <img> path */ }
+      finally { try { bmp?.close?.(); } catch { /* not every engine has close */ } }
+    }
+
+    // 2 — the classic path, for an engine without createImageBitmap
+    const viaImg = await new Promise((resolve) => {
+      let url = '';
+      try { url = URL.createObjectURL(file); } catch { resolve(''); return; }
       const img = new Image();
-      const fallback = () => { URL.revokeObjectURL(url); this.readFileAsDataUrl(file).then(resolve, () => resolve('')); };
-      img.onload = () => {
-        const longEdge = Math.max(img.width, img.height);
-        const scale = longEdge > maxEdge ? maxEdge / longEdge : 1;
-        if (scale === 1) { fallback(); return; } // already small enough — send as-is
-        try {
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.round(img.width * scale);
-          canvas.height = Math.round(img.height * scale);
-          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-          URL.revokeObjectURL(url);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
-        } catch { fallback(); }
-      };
-      img.onerror = fallback;
+      const done = (out) => { try { URL.revokeObjectURL(url); } catch { /* already gone */ } resolve(out); };
+      img.onload = () => { try { done(encode(img, ...fit(img.width, img.height))); } catch { done(''); } };
+      img.onerror = () => done('');
       img.src = url;
     });
+    if (viaImg) return viaImg;
+
+    // 3 — nothing could decode it. Send the bytes as they are rather than
+    // nothing at all: the model may still read a format this browser cannot.
+    return this.readFileAsDataUrl(file).catch(() => '');
   }
   onRecipeAddPhotoFile(fileList) {
     const file = fileList && fileList[0];
