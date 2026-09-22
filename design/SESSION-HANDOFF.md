@@ -145,12 +145,18 @@ faces side by side so he can see the difference; (3) try the "Viewed" verb.
   both passes; the second fills the frame and carries a 4× detail inset per
   register. Awaiting HIS reaction (forms vs faces) — fold it into
   `design/AGENT-WORLD-PLAN.md` §3f before any code.
-- Finding 20 (Briefing empty state) shipped as `fb2481e` (Session F, part).
-  Still in F: finding 15's four remaining rows on Recipes.jsx (nova-os-c7
-  cleared it; macro hues protein cyan / carbs gold / fat violet are pinned by
-  `foodLogSurface.test.js`; a food with no macros draws NOTHING), finding 8's
-  Coach void (Workouts.jsx — wait for the peer's finding 18 to push), 13 and
-  22 (Home files held by the unnamed fourth session).
+- **Session F, shipped:** finding 20 (Briefing empty state, `fb2481e`),
+  finding 8's Coach void (`ad726d7`, `src/coachWeek.js`), finding 15's four
+  rows (Fuel ring/arcs/cross-check/rotation header, the commit after
+  `ad726d7`; an Opus agent built it, I read the diff, ran the gates and
+  looked at its shots). NOTE for Fuel: his profile has no carb/fat target,
+  so those arcs stay absent until the Intake/collection grows
+  `carbTargetG`/`fatTargetG` — a vault change, not UI.
+- **Still open in the review:** finding 13 (decisions a button per idea)
+  and 22 (Home vitals grid, `MissionStructured.jsx` — the fourth session
+  was in it). The peer has 9 (Ops dial) and E is pushed (`8694418`).
+- Not verified: Fuel at 1280 in either idiom; the centre-dash patch on the
+  Fuel ring was pinned by test after the shots, not re-shot.
 - Review sessions D, E, F remain. D and E live mostly in the peer's Session
   A files (Todos, Ops, Notes, Settings); F in nova-os-c7's Fuel work. I have
   asked the peer which they want; take the remainder.
