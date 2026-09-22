@@ -110,6 +110,22 @@ faces side by side so he can see the difference; (3) try the "Viewed" verb.
 - Gates at close of C: lint warnings only (none in my files), build green,
   `cd server && npm test` 1993/1993, pushed, origin level.
 
+**ALSO DONE, VERIFIED, PUSHED (later the same night)**
+- The "Viewed" verb (`8bc3faf`, mine) — `setSeen` in `server/lib/inbox.js`,
+  `POST /api/inbox/:id/seen` (`{seen:false}` reverses), `seenAt` on a
+  PENDING record only; it stays pending, stays in every count. Client:
+  `app.inboxSeen`, a dashed Seen tag + light Seen tick on the Inbox card,
+  `inboxNewCount` beside `inboxPendingCount` in `valsInbox.js`, and the
+  morning Home line gains ", 3 new" / ", none new" only once some are seen.
+  Tests: `inboxSeen.test.js`, four states in `missionLine.test.js`. Live:
+  service reloaded (health ok on :4173), round-tripped on record 91a5c931
+  (seen → pending + stamp; unseen → pending + null; bad id → 400) and left
+  as it was. Suite 1996/1996.
+- A third session's commit `e2439e4` ("every project's Claude Code
+  sessions on Ops and Home") rode out on my push — it was already committed
+  on main, so nothing of theirs was staged by me, but they may not know it
+  is on origin.
+
 **IN FLIGHT / OPEN**
 - The Org Map mockup: a Sonnet agent is writing
   `design/mockups/48-org-map.html` (two phone frames, Forms vs Faces, Dark
@@ -119,10 +135,9 @@ faces side by side so he can see the difference; (3) try the "Viewed" verb.
 - Review sessions D, E, F remain. D and E live mostly in the peer's Session
   A files (Todos, Ops, Notes, Settings); F in nova-os-c7's Fuel work. I have
   asked the peer which they want; take the remainder.
-- The "Viewed" verb (his "sure"): a `seenAt` on a record, a light action on
-  the Inbox card, "N waiting, M new" on the counts. Not started. The counts
-  are a shared contract (Home eyebrow, Ops gate, Inbox badge) — change every
-  reader or none.
+- Sessions D (peer, in flight: Todos, Notes, valsNotes, Library, Controls,
+  NudgeCard, Stash) and E (unclaimed: ExerciseSheet, Settings; announce
+  before starting). F is mine next, with nova-os-c7's Fuel work.
 - Three sessions share this working tree tonight (this one, "Nova
   improvement plan", nova-os-c7 with uncommitted `server/lib/ops.js`,
   `server/routes/ops.js` and new `claudeSessions*.js`). Commit by explicit
