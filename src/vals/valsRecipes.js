@@ -7,6 +7,39 @@ import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js'
 // than null, which already means "no rename in progress".
 export const CURRENT_VERSION = '__current__';
 
+// TRAINING × FUEL, AS TWO BARS. Each finding in server/lib/fuelCross.js
+// already carries the pair its sentence is built from, so the card can draw
+// the comparison instead of narrating it. The standard comes first (`need`),
+// the measured average second; the distance between the two bar ends is the
+// gap the prose used to spell out. Kinds whose payload is a ratio of days
+// rather than two magnitudes are deliberately absent — they stay prose.
+const CROSS_PAIRS = {
+  'protein-floor': (d) => ({ unit: 'g', a: ['Protein floor', d.floor], b: ['Rotation, eaten in full', d.have] }),
+  'protein-split': (d) => ({ unit: 'g', a: ['Protein floor', d.floor], b: ['Training days', d.trained] }),
+  'kcal-split': (d) => ({ unit: 'kcal', a: ['Target', d.target], b: ['Training days', d.trained] }),
+  'kcal-days': (d) => ({ unit: 'kcal', a: ['Rest days', d.rest], b: ['Training days', d.trained] }),
+};
+function crossBars(data, metric) {
+  const make = data && CROSS_PAIRS[data.kind];
+  if (!make) return null;
+  const { unit, a, b } = make(data);
+  if (!Number.isFinite(a[1]) || !Number.isFinite(b[1])) return null;
+  // THE GAP IS THE FINDING'S OWN `metric`, NOT A SUBTRACTION OF THE TWO BARS.
+  // Both bar values arrive already rounded, so 2,668 − 2,275 gives 393 where
+  // the sentence underneath says 394 — the server rounded the difference of
+  // the raw averages, and the card must say the same number as the prose it
+  // sits above or one of them is lying.
+  const gap = Number.isFinite(metric) ? Math.round(Math.abs(metric)) : Math.round(Math.abs(a[1] - b[1]));
+  return {
+    unit,
+    max: Math.max(a[1], b[1], 1),
+    need: { label: a[0], value: Math.round(a[1]) },
+    have: { label: b[0], value: Math.round(b[1]) },
+    gap,
+    gapWord: b[1] < a[1] ? 'short' : 'over',
+  };
+}
+
 // Recipes domain: recipe list/filters, daily rotation, off-plan food log,
 // add-recipe modal, and the recipe overlay (incl. alternates + tweak chat).
 // Adds to ctx: usingLiveRecipes, rotation, profile, and the protein-gauge
@@ -278,6 +311,17 @@ export function valsRecipes(app, ctx) {
       return {
         couldntLook: false,
         line: f.line,
+        severity: f.severity || 'medium',
+        // THE PAYLOAD OF A FIVE-LINE PARAGRAPH IS TWO NUMBERS (finding 15).
+        // "training days average 2,065 kcal against the 2,668 target" is one
+        // comparison and one distance, and §2b r7 says a number gets a form.
+        // Every finding in server/lib/fuelCross.js carries its own `data`
+        // with the pair already computed, so this is a lookup, not a parse of
+        // the prose. A kind whose payload ISN'T two comparable magnitudes
+        // (post-training, floor-pattern — those are "N of M days") returns
+        // null and the card stays prose, rather than drawing a bar chart of
+        // a ratio it would be lying about.
+        bars: crossBars(f.data, f.metric),
         draft: () => { app.navigate('workouts', { trainTab: 'coach' }); app.doCoach(`Your fuel cross-check flags: ${f.line} Draft the concrete fix — a rotation swap, a target change, whatever actually closes it — as a proposal I can approve.`); },
       };
     })(),
@@ -299,15 +343,53 @@ export function valsRecipes(app, ctx) {
           ? `${gap}g to go — ${cover}${picks.length && picks[picks.length - 1].p >= need + picks[picks.length - 1].p ? '' : ''}.`
           : `${gap}g to go — ${cover}, still ${need}g short: add something from the bank.`;
       }
+      // THE THREE MACROS, AS THREE CONCENTRIC ARCS (aesthetic review 22 Sep,
+      // finding 15). The hues are fixed on this screen and pinned by
+      // foodLogSurface.test.js — protein cyan, carbs gold, fat violet, the
+      // same three these macros wear on every quick-log card — so the order
+      // here IS the drawing order, outermost first.
+      //
+      // A macro with NO TARGET draws NO ARC. His profile carries exactly
+      // four keys (parseProfile in server/lib/recipes.js: proteinFloorG,
+      // targetKcal, weightKg, heightCm) and a carb or fat target is not one
+      // of them, so today only protein has a denominator. Deriving one from
+      // the kcal remainder would be Nova claiming a split he never set. The
+      // reads below name the keys the Intake would write if it ever did, so
+      // the arcs light the day the collection grows them.
+      const carbTarget = profile?.carbTargetG ?? null;
+      const fatTarget = profile?.fatTargetG ?? null;
+      // A GAP IS A DASHED RING, NEVER A ZERO (§2b r2). RingTile has drawn it
+      // that way since 5 Sep; the Fuel hero was the one ring in the app
+      // still painting a solid dim circle at 0 of 150, which reads as a bad
+      // day rather than a day nothing has been logged on. `hero` is the
+      // outer ring, which owns a background track and therefore always draws
+      // SOMETHING — an unknown target makes it a gap; an inner arc with no
+      // target simply is not there.
+      const macroState = (eaten, target, hero) => {
+        if (!(target > 0)) return hero ? 'absent' : 'none';
+        return eaten > 0 ? 'arc' : 'absent';
+      };
+      const macro = (key, name, hue, eaten, target, hero) => ({
+        key, name, hue, eaten, target,
+        state: macroState(eaten, target, hero),
+        pct: target > 0 ? Math.min(100, Math.round((eaten / target) * 100)) : null,
+      });
+      const cEaten = Math.round(rotConsumedTot.c + foodLogTot.c);
+      const fEaten = Math.round(rotConsumedTot.f + foodLogTot.f);
       return {
         p: Math.round(proteinCurrent), target: proteinTarget,
         pct: Math.min(100, Math.round((proteinCurrent / proteinTarget) * 100)),
         kcal: Math.round(rotConsumedTot.kcal + foodLogTot.kcal),
         kcalTarget: profile?.targetKcal ?? null,
-        c: Math.round(rotConsumedTot.c + foodLogTot.c),
-        f: Math.round(rotConsumedTot.f + foodLogTot.f),
+        c: cEaten,
+        f: fEaten,
         kcalLeft: kcalLeft != null ? Math.max(0, Math.round(kcalLeft)) : null,
         gapText,
+        macros: [
+          macro('p', 'Protein', 'var(--nv-cy)', Math.round(proteinCurrent), proteinTarget, true),
+          macro('c', 'Carbs', 'var(--nv-gold)', cEaten, carbTarget, false),
+          macro('f', 'Fat', 'var(--nv-vi)', fEaten, fatTarget, false),
+        ],
       };
     })() : null,
 

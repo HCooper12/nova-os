@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
@@ -204,10 +204,156 @@ function EatenTiles({ m }) {
   );
 }
 
+// THE FUEL HERO — ONE RING, THREE MACROS, AND A GAP IS A DASHED RING.
+//
+// Finding 15 of the 22 Sep aesthetic review: this ring drew a SOLID dim
+// circle at "0 of 150" where the SLEEP ring on Home draws a dashed one for
+// the identical "nothing logged" condition — a zero looks like a bad day,
+// a hole is a hole (§2b r2, and the note at the top of RingTile.jsx). And
+// the other three numbers were spelled out beside it as a label/value table
+// ("Calories 0 / 2,200", "Carbs · Fat  0C · 0F"), which is the plain box
+// with text in it that §2b r7 forbids outright.
+//
+// So the table becomes geometry. Protein is the outer arc, carbs and fat two
+// thin concentric ones inside it — cyan, gold, violet, the hues these macros
+// wear on every quick-log card and in every rotation row. Each arc is eaten
+// against its OWN target, and a macro with no target draws no arc at all,
+// the same rule the quick-log bar keeps: a ring of zero against a number
+// nobody set is a claim about his diet Nova has not been told (see the
+// macroState note in vals/valsRecipes.js).
+//
+// The calories are the one figure in the middle, in the serif face, because
+// the kcal number is what he is actually deciding on at 8pm. The offsets
+// TRANSITION rather than keyframe — exactly what RingTile does — so the arcs
+// sweep when the day's numbers change and the global prefers-reduced-motion
+// rules still own them.
+const RING_BOX = 140;
+// The innermost radius is what the calorie figure has to live inside: 36
+// less its 5px stroke leaves a 67px well, and "1,520" set in Instrument
+// Serif at 22px measures 54 of them. The first pass drew 26px over a
+// 61px well and the comma sat on the fat arc — measured, not eyeballed.
+const RING_GEO = [{ r: 61, w: 9 }, { r: 48, w: 5 }, { r: 36, w: 5 }];
+// RingTile's own gap tone and dash pattern, so the two rings say "no data"
+// in one voice rather than two.
+const GAP_TONE = 'color-mix(in srgb, var(--nv-ink) 28%, transparent)';
+
+function MacroRings({ hero }) {
+  const drawn = hero.macros.filter((m) => m.state !== 'none');
+  return (
+    <div style={{ position: 'relative', width: RING_BOX, height: RING_BOX, flex: 'none' }}
+      aria-label={drawn.map((m) => `${m.name} ${m.state === 'absent' ? 'not logged' : `${m.eaten} of ${m.target} grams`}`).join(', ')}>
+      <svg viewBox={`0 0 ${RING_BOX} ${RING_BOX}`} width={RING_BOX} height={RING_BOX} style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
+        {hero.macros.map((m, i) => {
+          if (m.state === 'none') return null;
+          const g = RING_GEO[i];
+          const circ = 2 * Math.PI * g.r;
+          return (
+            <g key={m.key}>
+              <circle cx={RING_BOX / 2} cy={RING_BOX / 2} r={g.r} fill="none" stroke="rgba(130,175,255,.10)" strokeWidth={g.w} />
+              {m.state === 'absent' ? (
+                <circle cx={RING_BOX / 2} cy={RING_BOX / 2} r={g.r} fill="none" stroke={GAP_TONE} strokeWidth="3" strokeDasharray="3 5" />
+              ) : (
+                <circle cx={RING_BOX / 2} cy={RING_BOX / 2} r={g.r} fill="none" stroke={m.hue} strokeWidth={g.w} strokeLinecap="round"
+                  strokeDasharray={circ} strokeDashoffset={circ * (1 - m.pct / 100)}
+                  style={{
+                    // the bloom belongs to the OUTER arc only — it is what
+                    // makes protein read as the hero rather than one of three
+                    // — and it is mixed from the macro's own token, not the
+                    // hardcoded rgba(89,230,255) the old ring carried, which
+                    // stayed electric cyan under Daylight where --nv-cy is a
+                    // deep blue
+                    filter: i === 0 ? `drop-shadow(0 0 6px color-mix(in srgb, ${m.hue} 55%, transparent))` : 'none',
+                    transition: 'stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)',
+                  }} />
+              )}
+            </g>
+          );
+        })}
+      </svg>
+      <div style={css("position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px")}>
+        {/* nothing logged is a GAP, not a zero — the dash RingTile uses,
+            beside the dashed ring the arcs already draw for the same state */}
+        <b style={css(`font:400 ${hero.kcal.toLocaleString().length > 5 ? '18' : '22'}px/1 var(--nv-font-serif);color:var(--nv-ink);font-variant-numeric:tabular-nums`)}>{drawn.some((m) => m.state === 'arc') || hero.kcal > 0 ? hero.kcal.toLocaleString() : '—'}</b>
+        <Meta tone="faint" style={{ fontVariantNumeric: 'tabular-nums' }}>{hero.kcalTarget ? `of ${hero.kcalTarget.toLocaleString()}` : 'kcal, no target'}</Meta>
+      </div>
+    </div>
+  );
+}
+
+// The legend the arcs need: which hue is which macro, and the figure behind
+// each one. A macro with nothing to report reads "—", never a zero.
+function MacroLegend({ hero }) {
+  return (
+    <div style={css("flex:1 0 100%;display:flex;gap:18px;flex-wrap:wrap;padding-top:12px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent)")}>
+      {hero.macros.map((m) => (
+        <span key={m.key} style={css("display:flex;flex-direction:column;gap:2px;min-width:0")}>
+          <Eyebrow as="span" tone={m.hue}>{m.name}</Eyebrow>
+          <span style={css(`font:600 13px var(--nv-font-ui);color:${m.hue};font-variant-numeric:tabular-nums`)}>
+            {m.eaten > 0 || m.target > 0 ? (
+              <>{m.eaten > 0 ? m.eaten : '—'}<span style={css("color:color-mix(in srgb, var(--nv-ink) 38%, transparent)")}> / {m.target > 0 ? m.target : '—'} g</span></>
+            ) : '—'}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// TWO NUMBERS, DRAWN. The cross-check card's whole payload is a standard and
+// a measurement — "2,065 kcal against the 2,668 target, 603 apart" — and it
+// was arriving as five lines of prose in a violet box. Both bars run from the
+// same left baseline so their ends are directly comparable; the dashed block
+// between those two ends IS the gap, and the serif figure names it. The prose
+// keeps its place underneath, demoted, because the sentence still carries the
+// reasoning the bars can't.
+function CrossBars({ bars, severity }) {
+  const hue = severity === 'high' ? 'var(--nv-warn)' : 'var(--nv-vi)';
+  const pc = (n) => `${Math.max(0, Math.min(100, (n / bars.max) * 100))}%`;
+  const lo = Math.min(bars.need.value, bars.have.value);
+  const hi = Math.max(bars.need.value, bars.have.value);
+  const row = (r, fill) => (
+    <>
+      <div style={css("display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-width:0")}>
+        <Meta tone="faint" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</Meta>
+        <span style={css(`flex:none;font:600 12.5px var(--nv-font-ui);font-variant-numeric:tabular-nums;color:${fill === hue ? hue : 'var(--nv-ink)'}`)}>{r.value.toLocaleString()} {bars.unit}</span>
+      </div>
+      <div style={css("position:relative;height:9px;margin-top:4px;border-radius:999px;background:color-mix(in srgb, var(--nv-ink) 09%, transparent);overflow:hidden")}>
+        <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pc(r.value), background: fill, borderRadius: '999px', transition: 'width .7s cubic-bezier(.2,.8,.2,1)' }} />
+      </div>
+    </>
+  );
+  return (
+    <div style={css("margin-top:10px")}>
+      {row(bars.need, 'color-mix(in srgb, var(--nv-ink) 24%, transparent)')}
+      <div style={css("height:10px")} />
+      {row(bars.have, hue)}
+      {/* the distance between the two ends, drawn where it actually is */}
+      <div style={css("position:relative;height:22px;margin-top:2px")}>
+        <span style={{ position: 'absolute', left: pc(lo), width: `calc(${pc(hi)} - ${pc(lo)})`, top: 0, height: '7px', borderLeft: `1px dashed ${hue}`, borderRight: `1px dashed ${hue}`, borderBottom: `1px dashed ${hue}` }} />
+        <span style={{ position: 'absolute', left: 0, right: 0, top: '9px', textAlign: 'center' }}>
+          <b style={css(`font:400 19px/1 var(--nv-font-serif);color:${hue};font-variant-numeric:tabular-nums`)}>{bars.gap.toLocaleString()}</b>
+          <span style={css(`margin-left:5px;font:600 11.5px var(--nv-font-ui);color:${hue}`)}>{bars.unit} {bars.gapWord}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function Recipes({ v }) {
   // the one bar's "say it": on-device dictation straight into the log input
   const dict = useDictation(() => v.foodDescribeValue || '', (text) => v.setFoodDescribeInput(text), null);
   const [manualOpen, setManualOpen] = useState(false);
+  // THE ROTATION RAIL'S OWN ARROWS. The header used to read "‹ › to switch"
+  // as an instruction; the arrows are now real controls that move the rail
+  // one screenful, which is what the words were asking him to do by hand.
+  // A ref, not state — nothing here re-renders.
+  const rotationRail = useRef(null);
+  const nudgeRotation = (dir) => {
+    const el = rotationRail.current;
+    if (!el) return;
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollBy({ left: dir * Math.max(150, el.clientWidth * 0.75), behavior: reduced ? 'auto' : 'smooth' });
+  };
   // a photo-scan result lands its numbers in these fields — they must never
   // hide behind a collapsed disclosure while holding his data
   const manualVisible = manualOpen || !!(v.foodLogName || v.foodLogP || v.foodLogC || v.foodLogF || v.foodLogKcal);
@@ -219,33 +365,16 @@ export function Recipes({ v }) {
       </div>
       <h1 style={css("margin:18px 0 0;font:700 30px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>Fuel, <span style={css("font:italic 400 27px var(--nv-font-serif);color:var(--nv-gold)")}>macros first.</span></h1>
 
-      {/* the redesigned Fuel hero: ring + coloured macros + the gap-fill
-          coach line — one glance answers "where am I, and what do I eat
-          next?" (design/UI-REDESIGN-SPEC.md). Falls back to the old strip
-          when no protein target exists. */}
+      {/* the redesigned Fuel hero: three macro arcs + the calories in the
+          middle + the gap-fill coach line — one glance answers "where am I,
+          and what do I eat next?" (design/UI-REDESIGN-SPEC.md, and finding
+          15 of the 22 Sep review for why the numbers beside it became
+          geometry). Falls back to the old strip when no protein target
+          exists. */}
       {v.fuelHero && (
-        <div style={css("margin-top:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;border:1px solid var(--nv-edge);border-radius:18px;padding:16px;background:var(--nv-glass)")}>
-          <div style={{ position: 'relative', width: '104px', height: '104px', flex: 'none' }} aria-label={`Protein ${v.fuelHero.p} of ${v.fuelHero.target} grams`}>
-            <svg viewBox="0 0 104 104" style={{ width: 104, height: 104, transform: 'rotate(-90deg)' }}>
-              <circle cx="52" cy="52" r="45" fill="none" stroke="rgba(130,175,255,.10)" strokeWidth="8" />
-              <circle cx="52" cy="52" r="45" fill="none" stroke="var(--nv-cy)" strokeWidth="8" strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 45} strokeDashoffset={2 * Math.PI * 45 * (1 - v.fuelHero.pct / 100)}
-                style={{ filter: 'drop-shadow(0 0 6px rgba(89,230,255,.55))', transition: 'stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)' }} />
-            </svg>
-            <div style={css("position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center")}>
-              <b style={css("font:600 22px var(--nv-font-ui);color:var(--nv-cy);font-variant-numeric:tabular-nums")}>{v.fuelHero.p}<span style={css("font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>g</span></b>
-              <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>OF {v.fuelHero.target} P</span>
-            </div>
-          </div>
+        <div style={css("margin-top:16px;display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;border:1px solid var(--nv-edge);border-radius:18px;padding:16px;background:var(--nv-glass)")}>
+          <MacroRings hero={v.fuelHero} />
           <div style={css("flex:1;min-width:170px;display:flex;flex-direction:column;gap:6px")}>
-            <div style={css("display:flex;justify-content:space-between;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 62%, transparent)")}>
-              <span style={css("color:var(--nv-good)")}>Calories</span>
-              <b style={css("color:var(--nv-ink);font-variant-numeric:tabular-nums")}>{v.fuelHero.kcal.toLocaleString()}{v.fuelHero.kcalTarget ? ` / ${v.fuelHero.kcalTarget.toLocaleString()}` : ''}</b>
-            </div>
-            <div style={css("display:flex;justify-content:space-between;font-size:13px;color:color-mix(in srgb, var(--nv-ink) 62%, transparent)")}>
-              <span><span style={css("color:var(--nv-gold)")}>Carbs</span> · <span style={css("color:var(--nv-vi)")}>Fat</span></span>
-              <b style={css("font-variant-numeric:tabular-nums")}><span style={css("color:var(--nv-gold)")}>{v.fuelHero.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.fuelHero.f}F</span></b>
-            </div>
             {v.fuelHero.kcalLeft != null && (
               <Tag tone="good" style={{ alignSelf: 'flex-start' }}>Fits {v.fuelHero.kcalLeft} kcal left</Tag>
             )}
@@ -254,6 +383,7 @@ export function Recipes({ v }) {
               <Chip tone="cyan" onClick={v.askProteinVerdict} style={{ alignSelf: 'flex-start' }}>Where did my protein go?</Chip>
             )}
           </div>
+          <MacroLegend hero={v.fuelHero} />
         </div>
       )}
 
@@ -291,7 +421,10 @@ export function Recipes({ v }) {
       {v.fuelCross && (
         <div style={css("margin-top:12px;border:1px solid color-mix(in srgb, var(--nv-vi) 38%, transparent);border-radius:14px;padding:14px 17px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-vi) 06%, transparent),transparent)")}>
           <Eyebrow tone={v.fuelCross.couldntLook ? 'warn' : 'violet'}>◈ Training × fuel — {v.fuelCross.couldntLook ? "couldn't check" : 'cross-check'}</Eyebrow>
-          <div style={css("margin-top:8px;font-size:13px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.fuelCross.line}</div>
+          {v.fuelCross.bars && <CrossBars bars={v.fuelCross.bars} severity={v.fuelCross.severity} />}
+          {/* the prose still carries the reasoning, but it is no longer the
+              only thing on the card, so it reads at the size of a footnote */}
+          <div style={{ marginTop: v.fuelCross.bars ? '10px' : '8px', font: `400 12.5px/1.5 var(--nv-font-ui)`, color: 'var(--nv-ink60)' }}>{v.fuelCross.line}</div>
           {v.fuelCross.draft && (
             <Interactive as="span" onClick={v.fuelCross.draft}
               /* 149x13 — the action on the cross-check card, and the
@@ -311,13 +444,33 @@ export function Recipes({ v }) {
           beyond the standard five are his to add and name. */}
       {v.rotationVisible && (
         <div style={css("margin-top:18px")}>
-          <div style={css("display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin:0 2px 8px")}>
-            <Eyebrow as="span">Today's rotation — tap to eat · ‹ › to switch · hold for more</Eyebrow>
+          {/* THE HEADER IS NOT A MANUAL (finding 15 of the 22 Sep review,
+              which quotes the old label in full). It was one uppercase
+              micro-label wrapping to two lines to explain three controls
+              that are all already on screen: the card IS the tap target, the
+              arrows-and-dots row inside a multi-option card already switches
+              the focused dish, and the hold menu is the hold menu. What was
+              missing was a way to move the RAIL, so that is what the arrows
+              here do. apple-design §16: if you need a label to explain a
+              control, the mapping is weak. */}
+          <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:0 2px 8px")}>
+            <span style={css("display:flex;align-items:center;gap:2px;min-width:0")}>
+              <Eyebrow as="span">Today's rotation</Eyebrow>
+              <TextAction compact tone="accent" ariaLabel="Scroll the rotation back" onClick={() => nudgeRotation(-1)} style={{ fontSize: '15px', minWidth: '34px', marginLeft: '6px' }}>‹</TextAction>
+              <TextAction compact tone="accent" ariaLabel="Scroll the rotation on" onClick={() => nudgeRotation(1)} style={{ fontSize: '15px', minWidth: '34px' }}>›</TextAction>
+            </span>
             <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
               <span style={css("color:var(--nv-cy)")}>{v.rotationTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.rotationTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.rotationTotals.f}F</span> · <span style={css("color:var(--nv-good)")}>{v.rotationTotals.kcal}</span>
             </span>
           </div>
-          <div style={css("display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none;align-items:stretch")}>
+          {/* THE PEEK IS ALREADY REAL, and the trailing 12px is what keeps
+              it honest at the end of the run. Five slots at 172-196px plus
+              gaps is ~900px of content: at 375 and at 1280 the rail always
+              overflows, so the next card is cut by the edge rather than
+              sitting flush — which is the affordance the old "‹ › to switch"
+              label was trying to supply in words. Nothing measured, no state:
+              the geometry does it. */}
+          <div ref={rotationRail} style={css("display:flex;gap:10px;overflow-x:auto;padding:2px 12px 8px 2px;scrollbar-width:none;align-items:stretch")}>
             {v.rotationSlots.map((s) => <RotationCard key={s.key} s={s} />)}
             {/* a meal beyond the five — pre-workout, second breakfast, whatever he calls it */}
             {v.rotationAddMeal && (
