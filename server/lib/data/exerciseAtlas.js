@@ -100,6 +100,7 @@ export const EXERCISE_ATLAS = {
   'single-arm-cable-extensions-cross-body-optional': A('Cable', ['triceps'], []),
   'cable-overhead-tricep-extension': A('Cable', ['triceps'], []),
   'triceps-pushdown-v-bar-attachment': A('Cable', ['triceps'], []),
+  'triceps-pushdown-straight-bar-attachment': A('Cable', ['triceps'], []),
   'rope-overhead-tricep-extension': A('Cable', ['triceps'], []),
   'carter-extension': A('Cable', ['triceps'], []),
 
