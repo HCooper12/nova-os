@@ -134,7 +134,7 @@ console.log(`idiom: ${state.style || 'command'}${touchIdiom ? '' : ' (pointer-fi
 // prove from geometry, never a guess about intent.
 const MEASURE = `(() => {
   const vw = document.documentElement.clientWidth;
-  const out = { vw, docScroll: document.documentElement.scrollWidth, wide: [], clipped: [], small: [], tiny: [] };
+  const out = { vw, docScroll: document.documentElement.scrollWidth, wide: [], clipped: [], bounded: [], small: [], tiny: [] };
   const seen = new Set();
   // A RAIL IS MEANT TO RUN PAST THE EDGE, and the fixed chrome is measured
   // on its own terms — so neither counts as an overflow fault. Without this
@@ -146,6 +146,19 @@ const MEASURE = `(() => {
       if (c.overflowX === 'auto' || c.overflowX === 'scroll') return true;
     }
     return false;
+  };
+  // Decoration that never stops moving — a spinner, a scan sweep, an orbit —
+  // is routinely larger than the frame that clips it, and its geometry
+  // changes every frame. Measuring it produces a different "overflow" on
+  // every run and none of them is a layout fault. It is decoration when it
+  // carries no text of its own.
+  const spins = (el) => {
+    try {
+      return el.getAnimations().some((a) => {
+        const t = a.effect && a.effect.getComputedTiming();
+        return t && t.iterations === Infinity;
+      }) && !(el.textContent || '').trim();
+    } catch { return false; }
   };
   const inFixed = (el) => {
     for (let p = el; p && p !== document.body; p = p.parentElement) {
@@ -165,7 +178,7 @@ const MEASURE = `(() => {
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none' || cs.position === 'fixed') continue;
     // 1. anything reaching past the viewport
-    if ((r.right > vw + 1 || r.left < -1) && !inScroller(el) && !inFixed(el)) {
+    if ((r.right > vw + 1 || r.left < -1) && !inScroller(el) && !inFixed(el) && !spins(el)) {
       const k = 'w' + label(el);
       if (!seen.has(k)) { seen.add(k); out.wide.push({ el: label(el), left: Math.round(r.left), right: Math.round(r.right), over: Math.round(r.right - vw) }); }
     }
@@ -177,11 +190,36 @@ const MEASURE = `(() => {
     // two-line card title in the Library as broken. (No backticks in here:
     // MEASURE is itself a template literal, and one would end it.)
     const clamped = cs.webkitLineClamp && cs.webkitLineClamp !== 'none';
-    const cutX = hidesX && el.scrollWidth > el.clientWidth + 1 && cs.textOverflow !== 'ellipsis';
-    const cutY = hidesY && el.scrollHeight > el.clientHeight + 1 && !clamped;
+    // A box given an explicit height or max-height is BOUNDED on purpose — a
+    // fold, a peek, a card with a fixed frame. Whether the content it cannot
+    // show is reachable (it rotates, it expands, it scrolls) or lost (the
+    // console card that pushed its own terminal out of the bottom) is intent,
+    // and geometry cannot read intent. So a bounded box is REPORTED and not
+    // failed: it stays in front of a human without crying wolf on every peek.
+    // An auto-height leaf whose text is cut is unambiguous, and that fails.
+    // Computed height is always a used pixel value, so it cannot tell an
+    // explicit height from an automatic one. What it CAN tell is whether the
+    // author wired the size to change: a max-height cap, or a transition on
+    // height. Either means the box is a deliberate frame onto more content.
+    // (No backticks anywhere in here — MEASURE is a template literal.)
+    const tp = cs.transitionProperty || '';
+    const sized = tp.includes('all') || tp.includes('height');
+    const heldBack = (cs.maxHeight && cs.maxHeight !== 'none') || sized;
+    // Only a LEAF is reported as horizontally clipped. A container with
+    // overflow-x hidden is an author saying "clip this", and it is usually
+    // clipping decoration on purpose; the fault worth catching is a label cut
+    // mid-word, which is always a leaf. The page scrolling sideways is caught
+    // separately and unconditionally by docScroll.
+    const leaf = el.children.length === 0;
+    const cutX = leaf && hidesX && el.scrollWidth > el.clientWidth + 1 && cs.textOverflow !== 'ellipsis';
+    const overY = hidesY && el.scrollHeight > el.clientHeight + 1 && !clamped;
+    const cutY = overY && !heldBack;
     if ((cutX || cutY) && (el.textContent || '').trim()) {
       const k = 'c' + label(el);
       if (!seen.has(k)) { seen.add(k); out.clipped.push({ el: label(el), axis: cutX ? 'x' : 'y', by: cutX ? el.scrollWidth - el.clientWidth : el.scrollHeight - el.clientHeight }); }
+    } else if (overY && heldBack && (el.textContent || '').trim()) {
+      const k = 'b' + label(el);
+      if (!seen.has(k)) { seen.add(k); out.bounded.push({ el: label(el), by: el.scrollHeight - el.clientHeight }); }
     }
     // 3. tap targets below the floor
     const tappable = cs.cursor === 'pointer' || el.getAttribute('role') === 'button' || ['button','a','select','input'].includes(el.tagName.toLowerCase());
@@ -202,6 +240,14 @@ const MEASURE = `(() => {
   return JSON.stringify(out);
 })()`;
 
+// MEASURE is a template literal, so a stray backtick inside it ends the
+// string and turns CSS-ish prose into real JavaScript. That has now cost two
+// debugging rounds in this one file, so it is checked rather than remembered.
+if (MEASURE.split('`').length !== 1) {
+  console.error('probe.mjs: MEASURE contains a backtick — it would be parsed as JS. Remove it.');
+  await cleanup(); process.exit(1);
+}
+
 let failures = 0;
 console.log(`probe · ${width}x${height}${style ? ' · ' + style : ''}\n`);
 for (const screen of screens) {
@@ -218,7 +264,24 @@ for (const screen of screens) {
     landed = cur.value === screen;
   }
   if (!landed) { console.log(`${screen.padEnd(10)} SKIP — never became the active screen`); continue; }
-  await new Promise((r) => setTimeout(r, 1400));
+  // WAIT FOR THE MOTION TO STOP. Entrance animations translate elements, so a
+  // frame taken mid-stagger shows a card 5px past the right edge that is
+  // nowhere near it at rest — which is how this probe reported an
+  // intermittent overflow on Home that did not exist. `getAnimations()` is
+  // the only honest signal; the infinite ones (the scan sweep, the live dot)
+  // never finish, so they are excluded by name of their own state.
+  for (let i = 0; i < 20; i++) {
+    const still = await evaluate(`(() => {
+      try {
+        return document.getAnimations()
+          .filter((a) => a.playState === 'running' && a.effect && (a.effect.getComputedTiming().iterations || 1) !== Infinity)
+          .length;
+      } catch { return 0; }
+    })()`);
+    if (still.value === 0) break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  await new Promise((r) => setTimeout(r, 500));
   const res = await evaluate(MEASURE);
   if (res.error) { console.log(`${screen.padEnd(10)} ERROR — ${res.error.slice(0, 90)}`); failures++; continue; }
   const m = JSON.parse(res.value);
@@ -227,6 +290,7 @@ for (const screen of screens) {
   if (bad) parts.push(`PAGE SCROLLS SIDEWAYS by ${m.docScroll - m.vw}px`);
   if (m.wide.length) parts.push(`${m.wide.length} past the edge`);
   if (m.clipped.length) parts.push(`${m.clipped.length} clipped`);
+  if (m.bounded.length) parts.push(`${m.bounded.length} bounded (noted — a peek or a fold, judge it)`);
   // The command idiom is the pointer-first skin — its whole vocabulary is the
   // tracked mono micro-label, and an 11px target under a mouse is not the
   // fault an 11px target under a thumb is. His phone runs cupertino, so the
@@ -236,6 +300,7 @@ for (const screen of screens) {
   console.log(`${screen.padEnd(10)} ${parts.length ? parts.join(' · ') : 'clean'}`);
   for (const w of m.wide.slice(0, 6)) console.log(`   → +${w.over}px  ${w.el}`);
   for (const c of m.clipped.slice(0, 6)) console.log(`   ✂ ${c.axis} by ${c.by}px  ${c.el}`);
+  for (const b of m.bounded.slice(0, 4)) console.log(`   ▭ holds back ${b.by}px  ${b.el}`);
   for (const s of m.tiny.slice(0, 6)) console.log(`   ✖ ${s.w}x${s.h}  ${s.el}`);
   for (const s of m.small.slice(0, 4)) console.log(`   ◦ ${s.w}x${s.h}  ${s.el}`);
   if (bad || m.wide.length || m.clipped.length || (m.tiny.length && touchIdiom)) failures++;
