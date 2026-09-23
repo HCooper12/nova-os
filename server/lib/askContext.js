@@ -82,12 +82,17 @@ export async function todayLocalContext() {
   const d = new Date();
   const today = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const bits = [];
+  let todayBoard = null;
   try {
     const { loadRecentDays } = await import('./healthData.js');
     const days = await loadRecentDays(3);
     const t = days.find((x) => x.date === today);
     const latest = [...days].reverse().find((x) => x.steps != null);
-    if (t?.steps != null) bits.push(`steps today ${t.steps}`);
+    // the target rides with the number (23 Sep): "steps today 4,200" told
+    // Nova nothing about whether that was good
+    let stepTarget = null;
+    try { const { goalBoard } = await import('./goalBoard.js'); const b = await goalBoard(process.env.VAULT_PATH || ''); const s = b.metrics.find((m) => m.key === 'steps'); stepTarget = s?.target || null; todayBoard = b; } catch { /* optional */ }
+    if (t?.steps != null) bits.push(`steps today ${t.steps}${stepTarget ? ` of a ${stepTarget.toLocaleString('en-AU')} target` : ''}`);
     else if (latest) bits.push(`no steps recorded yet today (latest is ${latest.steps} on ${latest.date} — say the date, never call it today's)`);
     const withHrv = [...days].reverse().find((x) => x.hrv != null);
     if (withHrv) bits.push(`HRV ${Math.round(withHrv.hrv)}ms (${withHrv.date})`);
@@ -104,7 +109,9 @@ export async function todayLocalContext() {
     const log = await getToday();
     const p = Math.round((log.entries || []).reduce((s, e) => s + (e.macros?.p || 0), 0));
     const kcal = Math.round((log.entries || []).reduce((s, e) => s + (e.macros?.kcal || 0), 0));
-    bits.push(`logged today ${p}g protein, ${kcal} kcal across ${(log.entries || []).length} entries`);
+    const pm = todayBoard?.metrics?.find((m) => m.key === 'protein'), km = todayBoard?.metrics?.find((m) => m.key === 'kcal');
+    bits.push(`logged today ${p}g protein${pm?.target ? ` of a ${pm.target}g floor` : ''}, ${kcal} kcal${km?.target ? ` of a ${km.target} target` : ''} across ${(log.entries || []).length} entries`);
+    if (todayBoard?.headline) bits.push(`goal board: ${todayBoard.headline}`);
   } catch { /* optional */ }
   try {
     const { listRecords } = await import('./inboxStore.js');

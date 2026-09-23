@@ -267,6 +267,24 @@ export async function missedSessionNudge(vaultPath) {
   return sent ? msg : null;
 }
 
+// ---- the goal board's prompts (his ask, 23 Sep) ---------------------------
+// Steps, protein and calories against their targets, judged by
+// lib/goalBoard.js; each prompt is a plain sentence composed by code, gated
+// by the hour inside nudgesOf, and sent at most once a day per kind. The
+// same list reaches the Home nudge through /workouts/goals, so a prompt he
+// sees on the phone and the one Telegram sends are the same words.
+export async function goalNudges(vaultPath, { now = new Date() } = {}) {
+  const { goalBoard } = await import('./goalBoard.js');
+  const board = await goalBoard(vaultPath, { now }).catch(() => null);
+  const sent = [];
+  for (const n of board?.nudges || []) {
+    if (await sentToday(n.key)) continue;
+    const ok = await send(n.text, n.key);
+    if (ok) { await markSent(n.key); sent.push(n.key); }
+  }
+  return sent;
+}
+
 // ---- post-session debrief: the coach at the rack, unprompted -------------
 // Event-driven on save (like PR pings). Deterministic code computes every
 // fact; the model only reacts to them; Telegram delivers. Silent on any
@@ -413,6 +431,7 @@ export function startCoachCadenceScheduler(vaultPath) {
         } catch (e) { console.log('read-next failed:', e.message); }
       }
       if (h >= 16 && h < 19) await missedSessionNudge(vaultPath); // early enough to still train
+      await goalNudges(vaultPath); // the board's own hour gates are inside
     } catch (err) {
       console.error('coach cadence failed:', err.message);
     }

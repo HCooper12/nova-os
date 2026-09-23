@@ -702,6 +702,19 @@ export function valsChrome(app, ctx) {
           onPrimary: () => app.setState({ outboxOpen: true }),
         });
       }
+      // THE BOARD'S PROMPTS (his ask, 23 Sep): protein still to land, steps
+      // behind, calories over — composed by code on the server from his
+      // targets, hour-gated there, the same words Telegram sends. Last in
+      // line: a live session or a failed send outranks a suggestion.
+      for (const n of (st.liveGoalBoard?.nudges || [])) {
+        candidates.push({
+          key: `${n.key}:${st.liveGoalBoard.date}`,
+          icon: n.metric === 'steps' ? '👟' : n.metric === 'protein' ? '🥩' : '🔥', title: n.title,
+          detail: n.short || n.text.replace(/^Coach — /, ''),
+          primaryLabel: 'Ask Coach',
+          onPrimary: () => { app.navigate('workouts', { trainTab: 'coach' }); app.doCoach(n.ask); },
+        });
+      }
       const first = candidates.find((c) => !dismissed[c.key]);
       return first ? {
         ...first,

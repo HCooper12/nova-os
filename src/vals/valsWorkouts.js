@@ -617,6 +617,26 @@ export function valsWorkouts(app, ctx) {
       priority: musclesNamed(st.liveWorkoutGoals.focus),
       updated: st.liveWorkoutGoals.updated ? String(st.liveWorkoutGoals.updated) : null,
     } : null,
+    // THE BOARD (his ask, 23 Sep): steps, protein, calories as rings with
+    // the week under each — code's verdict (server/lib/goalBoard.js), the
+    // same record the Coach reads. Rides whether or not a goal sentence
+    // exists, because the numbers do.
+    goalBoard: st.liveGoalBoard?.metrics?.length ? {
+      headline: st.liveGoalBoard.headline,
+      rings: st.liveGoalBoard.metrics.map((m) => ({
+        key: m.key, label: m.label, state: m.state,
+        value: m.today == null ? '—' : Math.round(m.today).toLocaleString('en-AU'),
+        small: m.target ? `/${m.target.toLocaleString('en-AU')}${m.unit ? m.unit : ''}` : '',
+        pct: m.pct ?? 0,
+        hint: m.target
+          ? `${m.today == null ? 'Nothing recorded today' : `${Math.round(m.today).toLocaleString('en-AU')}${m.unit ? ` ${m.unit}` : ''} of ${m.target.toLocaleString('en-AU')}`}${m.expected != null && m.mode === 'atLeast' && m.today != null ? ` · a steady day sits at ${m.expected.toLocaleString('en-AU')} by now` : ''}${m.targetSource === 'default' ? ' · default target, tap Edit to set yours' : ''}`
+          : 'No target yet — tap Edit to set one',
+        week: m.week.map((d) => ({ date: d.date, met: d.met, today: d.today })),
+        met: m.met, tracked: m.tracked, streak: m.streak,
+        source: m.targetSource,
+      })),
+      ask: (key) => { app.setState({ trainTab: 'coach' }); app.doCoach(`Talk me through my ${key === 'kcal' ? 'calorie' : key} target — how am I tracking this week and what's the one change?`); },
+    } : null,
     goalsEditing: st.goalsEditing,
     goalsDraft: st.goalsDraft,
     startGoalsEdit: () => app.setState({
@@ -628,6 +648,9 @@ export function valsWorkouts(app, ctx) {
         equipment: st.liveWorkoutGoals?.equipment || '',
         limitations: st.liveWorkoutGoals?.limitations || '',
         notes: st.liveWorkoutGoals?.notes || '',
+        stepsTarget: st.liveWorkoutGoals?.stepsTarget || '',
+        proteinTarget: st.liveWorkoutGoals?.proteinTarget || '',
+        kcalTarget: st.liveWorkoutGoals?.kcalTarget || '',
       },
     }),
     cancelGoalsEdit: () => app.setState({ goalsEditing: false }),

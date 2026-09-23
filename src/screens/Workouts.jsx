@@ -11,6 +11,7 @@ import { SafeVisual } from '../SafeVisual.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, AttachStrip, AttachPending, Button } from '../Controls.jsx';
 import { useStickToBottom } from '../useStickToBottom.js';
+import { RingTile } from '../RingTile.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -857,6 +858,37 @@ function MockWorkouts({ v }) {
 }
 
 
+// THE BOARD — his three daily numbers at a glance (his ask, 23 Sep 2026).
+// Each is the house ring (colour is the verdict: green on track, gold behind
+// pace, red missed or over, a dashed hole when nothing arrived), with the
+// last seven days under it as a strip of the same verdicts and today as the
+// open cell, and one sentence from code beneath — the same record the Coach
+// coaches from, so what he sees and what she says can never disagree.
+function GoalBoard({ b }) {
+  const dot = (d) => d.met === true ? 'var(--nv-good)' : d.met === false ? 'var(--nv-warn)' : 'transparent';
+  return (
+    <div style={css("display:flex;flex-direction:column;gap:10px;margin:4px 0 2px")}>
+      <div style={css("display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-items:start")}>
+        {b.rings.map((r) => (
+          <div key={r.key} style={css("display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0")}>
+            <RingTile label={r.label} value={r.value} small={r.small} pct={r.pct} state={r.state} hint={r.hint} onOpen={() => b.ask(r.key)} />
+            {/* the week: one cell a day, today open — a strip, not a sentence */}
+            <span style={css("display:flex;gap:3px")} aria-label={`${r.label}: met ${r.met} of ${r.tracked} tracked days this week`} title={`Met ${r.met} of ${r.tracked} tracked days${r.streak ? ` · ${r.streak}-day streak` : ''}`}>
+              {r.week.map((d) => (
+                <span key={d.date} style={{ width: 8, height: 8, borderRadius: '50%', boxSizing: 'border-box', background: dot(d),
+                  border: d.today ? '1.5px solid color-mix(in srgb, var(--nv-ink) 55%, transparent)' : d.met == null ? '1px dashed color-mix(in srgb, var(--nv-ink) 28%, transparent)' : 'none',
+                  opacity: d.today && d.met == null ? 1 : d.met == null ? .7 : 1 }} />
+              ))}
+            </span>
+            <span style={css("font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:var(--nv-ink60);white-space:nowrap")}>{r.small ? r.small.replace('/', '') : 'no target'}{r.source === 'default' ? ' · default' : ''}</span>
+          </div>
+        ))}
+      </div>
+      {b.headline && <div style={css("font:400 13px/1.45 var(--nv-font-serif);font-style:italic;color:color-mix(in srgb, var(--nv-ink) 82%, transparent);text-wrap:pretty")}>{b.headline}</div>}
+    </div>
+  );
+}
+
 // Goals + the Coach chat, extracted so the COACH tab can render it
 // standalone (previously buried inside RoutinesView).
 function GoalsCoachPane({ v }) {
@@ -886,6 +918,17 @@ function GoalsCoachPane({ v }) {
                   {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n} style={{ background: '#141019' }}>{n}</option>)}
                 </select>
               </div>
+              {/* THE THREE NUMBERS (his ask, 23 Sep): typed here they beat the
+                  Intake's; left blank the board says which figure it used */}
+              <div style={css("display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px")}>
+                {[['stepsTarget', 'Steps a day', '10,000'], ['proteinTarget', 'Protein g', '150'], ['kcalTarget', 'Calories', '2,200']].map(([f, label, ph]) => (
+                  <label key={f} style={css("display:flex;flex-direction:column;gap:4px;min-width:0")}>
+                    <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>{label}</Meta>
+                    <input value={v.goalsDraft[f]} onChange={v.setGoalsField(f)} inputMode="numeric" placeholder={ph} aria-label={label}
+                      style={{ width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: '600 13px var(--nv-font-mono)', padding: '8px 10px', outline: 'none', fontVariantNumeric: 'tabular-nums' }} />
+                  </label>
+                ))}
+              </div>
               <input value={v.goalsDraft.equipment} onChange={v.setGoalsField('equipment')} placeholder="Equipment — e.g. full gym weekdays, dumbbells only at weekends"
                 style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
               <input value={v.goalsDraft.limitations} onChange={v.setGoalsField('limitations')} placeholder="Injuries / limitations — e.g. left shoulder impingement, no overhead pressing"
@@ -901,6 +944,7 @@ function GoalsCoachPane({ v }) {
             <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
               {/* the goal is the news line; the rest are instruments (finding 8) */}
               <div style={css("font:400 19px/1.25 var(--nv-font-serif);text-wrap:pretty")}>{v.goalsView.goal}</div>
+              {v.goalBoard && <GoalBoard b={v.goalBoard} />}
               {(v.goalsView.days || v.goalsView.updated) && (
                 <div style={css("display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
                   {v.goalsView.days && (
@@ -930,7 +974,7 @@ function GoalsCoachPane({ v }) {
               {v.goalsView.notes && <div style={css("font:500 11.5px/1.55 var(--nv-font-ui);color:var(--nv-ink60);white-space:pre-wrap")}>{v.goalsView.notes}</div>}
             </div>
           ) : (
-            <div style={css("margin-top:10px;font:500 11.5px/1.6 var(--nv-font-ui);color:var(--nv-ink60)")}>Tell Nova what you're training for — the Coach, the briefs, and meal-prep all key off this. Lives in the vault at Wiki/Health/Fitness Goals.</div>
+            <div style={css("margin-top:10px;font:500 11.5px/1.6 var(--nv-font-ui);color:var(--nv-ink60)")}>{v.goalBoard && <GoalBoard b={v.goalBoard} />}Tell Nova what you're training for — the Coach, the briefs, and meal-prep all key off this. Lives in the vault at Wiki/Health/Fitness Goals.</div>
           )}
         </div>
 

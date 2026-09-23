@@ -418,7 +418,10 @@ export function workoutsRouter(vaultPath) {
 
   router.get('/workouts/goals', async (req, res, next) => {
     try {
-      res.json({ goals: await getFitnessGoals(vaultPath) });
+      // the board rides with the goals: one call gives the card its rings
+      const { goalBoard } = await import('../lib/goalBoard.js');
+      const [goals, board] = await Promise.all([getFitnessGoals(vaultPath), goalBoard(vaultPath).catch(() => null)]);
+      res.json({ goals, board });
     } catch (err) {
       next(err);
     }
@@ -426,7 +429,9 @@ export function workoutsRouter(vaultPath) {
 
   router.put('/workouts/goals', async (req, res) => {
     try {
-      res.json({ goals: await setFitnessGoals(vaultPath, req.body || {}) });
+      const goals = await setFitnessGoals(vaultPath, req.body || {});
+      const { goalBoard } = await import('../lib/goalBoard.js');
+      res.json({ goals, board: await goalBoard(vaultPath).catch(() => null) });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
