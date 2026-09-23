@@ -220,6 +220,34 @@ style, tokens read off the mount so themes recolour them, render on
 demand, no idle motion (an idle being blinks once in a while and no more),
 `prefers-reduced-motion` = no blinking, no bar lifting, still poses.
 
+**PASS 3 — HIS FEEDBACK ON PASS 2 (23 Sep, verbatim in substance):**
+"Leader, Coach, CFO all need their eyes changed so they feel and look more
+friendly. Otherwise looking better but need to continue refining."
+
+So, in order, next session:
+1. **The eyes on Leader, Coach and CFO.** The dark visor band with pale
+   slits currently reads as a bandit mask on exactly those three — Coach's
+   narrowed "determined" set, CFO's thin precise flicks and Leader's
+   half-closed "listening" all shrink the lens to a slot, and a slot inside
+   a black band is a mask, not a face. Fix by raising the eye height and
+   rounding the lens (a wider, softer oval with a real lower curve), warming
+   the catchlight, lifting the outer corner slightly, and softening the
+   visor's own edge so the band stops being a hard stripe. Friendly does
+   NOT mean identical: keep Coach determined, CFO precise and Leader
+   listening — express those in the brow line and tilt, not by narrowing
+   the eye to a letterbox.
+2. **Refinement continues** (my own list from looking at pass 2, his
+   "continue refining"): arms are still plain rods on every being; Coach's
+   shoulders are breadth without deltoid mass and the torso reads
+   "bowling pin"; Commander's compass crest reads as a hoop rather than a
+   rose; Librarian's sliding book is a plain block and the spine grain
+   reads as corduroy at focus distance; Guardian's flame is small inside
+   its glass.
+3. **Unverified, needs a real browser:** the idle life (blink, saccade,
+   breathing, steam, the 30fps visible-tab loop) is code-verified only —
+   headless Chrome does not drive `requestAnimationFrame`. His phone is
+   the first real test.
+
 Build order for the characters: a **3D character sheet first**
 (`design/mockups/49-agent-characters.html`, three.js, nine figures on a
 turntable, tap to focus, each shown in its working and waiting pose) for
