@@ -13,6 +13,280 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**24 SEP — VOICE DIAGNOSED (DICTATION NEVER WORKED ON HIS PHONE), FIVE
+SWIPE-BACK ATTEMPTS, THE CORRELATION ENGINE, AND A GIT MISHAP WITH THE
+PEER SESSION.** A long session across many of his own asks, not one
+thread — logged here as one entry because it closes together. Nothing in
+this entry is the Agent World / character work below; that is the peer
+session's, prepended under this one, and it stands as they left it.
+
+**GOAL.** No single ask. In order: two Instagram reels he sent for
+capability ideas; his live report that voice "is not working" (turned
+into a full diagnosis); his three follow-ups on the Researcher, the job
+tray, and the Leader panel; his repeated "swipe back is buggy" reports
+(four separate corrections); the UPDATE button "doing nothing"; a
+correlation-engine build he asked for from a reel; anti-vibe-coded design
+guidelines across three repos; a make-up-day bug affecting his real
+training record; and a notification visual/gesture rebuild.
+
+**DONE CRITERIA.**
+- MET — **voice diagnosed, not guessed.** `server/data/voice/turns.json`
+  grouped by device: iPhone 0/10 turns ever heard, Mac 6/6. Dictation has
+  never worked on his phone. `src/micCheck.js` + a Settings surface ("Can
+  Nova hear you?") runs continuous vs single-shot recognition on his
+  actual device — the one thing that can say WHY. **UNMET: he has not run
+  it yet and does not know the cause.**
+- MET — Nova no longer asserts he was silent when the engine heard
+  nothing. `App.noteTurnHeard` tracks what was OBSERVED; two deaf turns
+  now say so instead of "tap the mic when you're ready."
+- MET — the silent-switch trade is his choice, not a silent default.
+  `src/audioSession.js`: Settings → "When your phone is on silent" —
+  Speak anyway (default, audible on silent) vs Duck music (mixes, but the
+  ring switch silences Nova). Verified: no `playback`+`mixWithOthers`
+  equivalent exists on the web platform; this really is the whole choice.
+- MET — Instagram reels get real poster frames on the Library shelf
+  (`server/lib/sourcePosters.js`, yt-dlp fallback behind a host allowlist
+  that is a security boundary, not tidiness — tested against a lookalike
+  host, a subdomain trick, `file://`, the cloud metadata address).
+- MET — the Researcher can answer **no**, and must leave the argument
+  open when it does (`## If you want to argue`: best case against,
+  what would change my mind, how confident). Proved on a real run —
+  "Is a creatine loading phase necessary?" → No, with a paragraph on the
+  2024 meta-analysis that disagrees. That brief is in his Inbox now.
+- MET — a panel of named researchers runs in parallel on one question,
+  then one merge (`server/lib/researchPanel.js`). Proved on the same real
+  run: 4 workers, 28 findings, ~$0.03 planner cost. **CORRECTED, not
+  claimed here originally:** I built this with per-call `--max-budget-usd`
+  caps and a `settleWatchdog` timeout, and had a test asserting the panel's
+  worst case stayed under $3. The peer session's 23 Sep "no working caps,
+  anywhere" standing instruction (his verbatim order, logged below) swept
+  `--max-budget-usd` and `settleWatchdog` out of `researcher.js` entirely,
+  deleted `lib/settle.js`, and my budget test is gone with it. Checked:
+  `researcher.js` has zero references to either now, the panel still runs
+  and passes its remaining tests, and this is CORRECT per his own later
+  instruction — not a regression to fix. Do not re-add a cap to this file.
+- MET — the job tray shows elapsed time, ticking, without re-rendering
+  the app (`src/jobClock.js` + `src/Elapsed.jsx`). Measured live: 6s of
+  ticking, `App.render` called ZERO times.
+- MET — the Leader panel promotes to the top of Home in the hour before
+  a work block, and now stays there THROUGH it (his correction) —
+  `src/workBlock.js`, work block = an event on his real Work calendar,
+  never a keyword guess. The Telegram reminder fires on the same edge and
+  stays a before-work message even though the panel now spans the block.
+- MET, after 5 iterations — **the left-edge back swipe.** v1 shipped
+  "verified" on synthetic touch events and did not work on a real thumb
+  (jitter cancelled it, a thumb's arc cancelled it, no direction lock).
+  v2 fixed the direction-lock using the app's own `decideDirection`. His
+  screen recording then showed THREE SCREENS' TEXT PAINTED OVER EACH
+  OTHER — a `transform` on `<main>` was re-anchoring every
+  `position:fixed` descendant inside it. v3 removed the page transform
+  entirely and raised the commit threshold to half the screen (his call —
+  88px was triggering by accident). His fourth report ("still clunky,
+  want to see the page underneath like Apple") → v4 built the real
+  parallax: snapshot the current screen, navigate back INSTANTLY
+  underneath it, drag the snapshot, reveal the live previous screen.
+  Verified mid-drag: snapshot at `translate3d(234px)`, scroll preserved,
+  real app underneath already showing the target screen. His fifth
+  report ("still clunky") found the actual stutter: a `getComputedStyle`
+  walk over EVERY element in the page on gesture start. v5 removed the
+  walk (a transformed clone already captures fixed descendants) and
+  deferred the navigation one `rAF` so the first drag frame paints before
+  a whole screen re-renders. **UNMET/UNVERIFIED BY HIM: v5 has not been
+  tried on his phone.** Do not claim this is smooth — only that the
+  known causes of clunkiness (page corruption, DOM-walk stutter) are
+  fixed; he has not felt it.
+- MET — UPDATE actually updates. `applyUpdate()` awaited cache/SW
+  cleanup BEFORE reloading; both can hang forever on iOS. The reload is
+  now guaranteed within 1.2s regardless, and the button reads
+  "UPDATING…" on touch. **UNVERIFIED BY HIM.**
+- MET — the correlation engine (`server/lib/correlate.js` +
+  `patterns.js`): Pearson + Benjamini-Hochberg across the whole batch (a
+  test proves a lucky p=0.04 among 20 noise pairs does NOT survive), two
+  tiers (HELD vs NOT ESTABLISHED) because his real data produced a
+  genuine signal (active energy → next-day resting HR, r=-0.43, 31 days)
+  that sat just outside the strict gate. Weekly Sunday-18:00 Telegram
+  surface confirmed by him (`server/lib/patternsWeekly.js`) — silent when
+  nothing holds. **UNMET: the run has not fired yet** (built Tue 22 Sep;
+  next Sunday is 27 Sep) **and no Ops reference page exists** to show
+  what was tested when nothing held.
+- MET — anti-vibe-coded design guidelines: the list lives once in
+  `~/.claude/CLAUDE.md`; `nova-os/CLAUDE.md` fences Nova's OWN deliberate
+  choices (liquid glass, violet/cyan, soft radius) so a future session
+  does not "fix" them; `atlas-partner/CLAUDE.md` written and PUSHED;
+  `energy-uncovered/CLAUDE.md` hangs the specific tells off a rule the
+  project already had ("does not look vibe-coded" since 2026-08-03) and
+  fences the founder's own 3D/motion/purple/shadcn decisions — **written,
+  committed, NOT PUSHED** (a peer session is live in that repo).
+- MET — make-up day is one focus control, not two stacked selects (the
+  original bug: a day could be "Push" AND a make-up at once, which is
+  why Nova briefed him two facts for one day).
+- MET — a make-up now MOVES real outstanding debt instead of
+  re-deriving a fresh list from the last logged session (his report: it
+  "added exercises that wasn't originally in my makeup session"). The
+  re-derivation is now the fallback for when there is no real debt.
+- MET — audited whether a make-up can ever read as a skip (his explicit
+  ask). Answer: no, for two separate reasons in two separate files, and
+  nothing previously asserted them together — 7 new tests
+  (`server/test/skipVsMakeup.test.js`), no production code changed.
+- MET — the in-app notification (`NudgeCard`) no longer collapses at
+  375px (was one flex row; a real title+detail wrapped into a three-word
+  column and spilled) and is opaque enough to read over whatever is
+  underneath it. It can be flicked away like iOS — `src/dismissSwipe.js`,
+  reusing the back-swipe's direction-lock lessons from the start rather
+  than re-learning them. **UNVERIFIED BY HIM.**
+- NOTED, not built — the "Clicky" reel (voice drives macOS apps,
+  spawns background agents by voice, opens Reminders to confirm). Full
+  gap analysis in `nova-roadmap.md` under "COME BACK TO THIS." His
+  explicit instruction: come back to it. **Flag before building: this is
+  a voice capability, and voice has never worked on his phone — Clicky is
+  a desktop agent, and the Mac is where his dictation actually works.**
+
+**STATE (paths).**
+- Voice: `src/micCheck.js`, `src/audioSession.js`, Settings surfaces for
+  both ("Can Nova hear you?", "When your phone is on silent"). Honesty
+  fix in `App.noteTurnHeard` / `src/screens/Voice.jsx`.
+- Research: `server/lib/researcher.js` (decision rules), `server/lib/
+  researchPanel.js` (panel orchestration), tray wiring in
+  `src/vals/valsChrome.js` / `src/screens/MissionStructured.jsx`.
+- Job clock: `src/jobClock.js`, `src/Elapsed.jsx`.
+- Lead/work-block: `src/workBlock.js`, `server/lib/leaderReminder.js`,
+  `src/vals/valsMission.js`, `src/LeaderBox.jsx`.
+- Swipe-back: `src/edgeBack.js` (380 lines, the parallax + smoothness
+  fixes), `src/EdgeBack.jsx`, mounted in `src/App.jsx`. Dev-only seam:
+  `localStorage.novaos.forceStandalone` — compiled out of the real build,
+  checked against `dist`.
+- UPDATE: `src/buildCheck.js` (`RELOAD_BY_MS`), `src/vals/valsMisc.js`.
+- Correlation engine: `server/lib/correlate.js`, `server/lib/
+  patterns.js`, `server/lib/patternsWeekly.js`. Scheduler registered in
+  `server/index.js`, on the Ops roster in `server/lib/ops.js`.
+- Make-up day: `server/lib/makeupDay.js` (`sameRoutineAs`, the
+  debt-move path), `src/vals/valsWorkouts.js`, `src/screens/
+  Workouts.jsx` (one focus control, both idioms).
+- Notifications: `src/dismissSwipe.js`, `src/NudgeCard.jsx`.
+- Design guidelines: `~/.claude/CLAUDE.md`, `nova-os/CLAUDE.md`,
+  `atlas-partner/CLAUDE.md` (pushed), `energy-uncovered/CLAUDE.md`
+  (committed `597d07d`, not pushed).
+- Memory: `nova-voice-turn.md` (the device split, corrected description),
+  `nova-concurrent-sessions.md` (the pathspec rule below), `nova-roadmap.md`
+  ("Clicky", come back to it).
+
+**DECISIONS.**
+- **Two-tier correlation reporting (HELD vs NOT ESTABLISHED)** → his real
+  data produced a signal that missed the strict FDR gate by a hair
+  (p=0.0163 vs a 0.0143 cut). Reporting nothing would be true and
+  useless; loosening the real gate would be the exact dishonesty the
+  engine exists to prevent. Forecloses ever presenting a watch-tier item
+  using the same wording as a held one.
+- **Weekly Sunday 18:00, Telegram, silent when quiet** (his confirmed
+  choice) → correlations move at the speed of n; a daily card would show
+  an identical number 365 times and teach him to stop looking
+  (`nova-produce-vs-keep`: 154 made, 9 kept). Forecloses a Home card for
+  this engine.
+- **A make-up MOVES debt, re-deriving only as a fallback** → an existing
+  carry-over is the record of what he actually didn't do; a second,
+  independent calculation can disagree with it and hand back finished
+  work. Forecloses ever calling `leftoversOf` first when a real carry-over
+  exists for that routine.
+- **The design-guideline list lives ONCE, globally; project files only
+  fence local exceptions** → a full copy per project would drift, and
+  pasting the list whole into Science Atlas would have contradicted
+  founder-directed 3D/motion/colour decisions with dates behind them.
+  Forecloses copying the list itself into any project CLAUDE.md again.
+- **Commit by explicit pathspec when a peer session may be live** → I
+  swept 7 of a peer's staged files (`muscleHue.js`, `Body3D.jsx`,
+  `BodyMap.jsx`, `Instruments.jsx`, `TrainToday.jsx`, `index.css`,
+  `muscleHue.test.js`) into commit `2208373` with a bare `git commit`
+  after `git add <my files>` — `git commit` takes the WHOLE index, not
+  just what you named. Nothing was lost (their work landed, just under
+  my message, and they committed on top before I could safely fix it —
+  rewriting shared history under a live session would have been worse
+  than the wrong message). Recorded in `nova-concurrent-sessions.md`.
+  Forecloses ever running a bare `git commit` again without checking
+  `git status --porcelain` for someone else's staged column first.
+
+**VERIFIED (with locators).**
+- Close-out gates, this entry: `npm run lint` → 0 errors; `npm run build`
+  → exit 0; `cd server && npm test` → 2064/2064; backend
+  `curl localhost:4173/api/health` → 200; deployed `version.json`
+  buildId `34ff81f29` matches local HEAD exactly; no stray vite/preview
+  processes; no `dist/pc.json`; a leftover automation Chrome profile (6
+  processes, mine from browser verification) found and killed.
+- Voice device split: `server/data/voice/turns.json` grouped by `ua` —
+  iPhone 10 turns / 0 heard, Mac 6 turns / 6 heard.
+- Researcher panel: one real run on his vault, receipts in the
+  conversation (4 workers, 28 findings, brief filed in his Inbox).
+- Swipe v4 parallax: browser-verified mid-drag
+  (`translate3d(234px,0,0)`, scroll 220 preserved, real screen underneath
+  already `recipes`) and on release/cancel/stuck-drag-watchdog paths.
+- Make-up debt-move and skip audit: `server/test/makeupDebt.test.js`
+  (7/7), `server/test/skipVsMakeup.test.js` (7/7, includes a test that
+  reads `App.jsx` directly since the property lives outside the detector).
+- Notification card: browser-verified at 375px against his real Fuel
+  nudge copy — 351×110, a 40px drag springs back, a full drag tracks and
+  dismisses with opacity 0.90→0.45.
+- Design guideline commits: `nova-os` `ff3e03c` (pushed), `atlas-partner`
+  `8829694` (pushed), `energy-uncovered` `597d07d` (local only).
+
+**ASSUMED.**
+- That swipe v5 (the stutter fix) actually feels smooth on his phone —
+  reasoned from removing the one mechanism that could cause a first-frame
+  stall, never watched on-device.
+- That UPDATE's guaranteed reload actually fixes what he saw — reasoned
+  from the await chain that could hang, never watched on his phone
+  reproducing the original failure.
+- That the notification swipe feels like iOS — built from the same
+  direction-lock rule that fixed the back swipe, never watched on-device.
+- That the mic check, once run, will actually explain why dictation
+  fails — the instrument is sound; the cause is still unknown until he
+  runs it.
+
+**OPEN QUESTIONS / BLOCKERS.**
+- Why does dictation fail on his iPhone? The instrument exists
+  (Settings → "Can Nova hear you?"); he has not run it.
+- Does swipe v5 actually feel smooth? Four prior claims of "fixed" did
+  not survive contact with his thumb — do not assume a fifth does either
+  without him saying so.
+- Does UPDATE actually reload now? Untested on his device.
+- Does the notification swipe feel like iOS? Untested on his device.
+- Push `energy-uncovered`'s CLAUDE.md commit? Waiting on him — a peer
+  session is live in that repo with its own staged, uncommitted work.
+- Sleep data is still the blocker on 3 of the correlation engine's 10
+  question pairs — his iOS Shortcut does not send it. His call whether to
+  add it.
+- No Ops reference page exists for the pattern engine's findings/coverage
+  — the weekly Telegram message is the only surface.
+
+**NEXT ACTION** — ask him, in this order: (1) did the mic check on
+Settings explain the voice fault — if `continuous` came back dead and
+`single-shot` alive, the fix is a flag change in `useDictation.js`; (2)
+does swipe v5 feel like Apple's now; (3) does UPDATE reload immediately
+on tap; (4) does the notification flick away cleanly. Each is a yes/no
+that unblocks or reopens real work — do not treat silence as a yes.
+
+**DO NOT.**
+- Do not claim the back swipe is "fixed" without his confirmation — this
+  is the fifth attempt and the first four were each declared working
+  before he tried them.
+- Do not paste the global anti-vibe-coded list wholesale into any project
+  CLAUDE.md — check for a fenced exceptions section first (Nova and
+  Science Atlas both have founder-directed choices the list would
+  contradict).
+- Do not call `leftoversOf()` first when marking a make-up day — check
+  for real outstanding debt on that routine and move it; re-deriving is
+  the fallback, not the default.
+- Do not run a bare `git commit` after `git add <files>` when a peer
+  session might be live — always pass an explicit pathspec
+  (`git commit -F msg -- path1 path2`), and check `git status
+  --porcelain` for someone else's staged column first.
+- Do not treat the Researcher's panel workers as a place to add web
+  access to the merge step — the merge gets findings only, on purpose;
+  it citing a source no worker vouched for is the one unrecoverable
+  failure mode the design exists to prevent.
+- Do not push `energy-uncovered` without asking — a peer session owns
+  live, uncommitted work there.
+
+---
+
 **23 SEP (evening) — THE AGENT WORLD: THE REEL READ, THE PLAN, HIS THREE
 CALLS, AND TWO PASSES OF THE 3D CHARACTER SHEET; PLUS REVIEW SESSIONS B, C,
 F AND 13.** My commits, all pushed: `3f0fb63` `2147698` `3081b60` `a082574`
@@ -3191,6 +3465,10 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 24 September 2026 — voice diagnosed, five swipe-back attempts, the correlation engine
+His voice report ("it's not working") was answered by grouping the existing turn receipts by device rather than guessing: iPhone 0 of 10 turns ever heard, Mac 6 of 6 — dictation has never worked on his phone, and a mic-check instrument now exists to find out why. Nova stopped asserting he was silent when it heard nothing. The silent-switch trade (his music ducking vs Nova staying audible) became his choice in Settings once no web-platform equivalent of iOS's playback+mixWithOthers was found. Instagram reels got real poster frames. The Researcher can now answer "no" and has to leave the argument open when it does — proved on a real creatine-loading question. A panel of named researchers runs in parallel on one question before one merge, also proved on that real run. The job tray gained a ticking clock that costs zero re-renders (measured: 6s, zero `App.render` calls). The Leader panel promotes to the top of Home before a work block and now stays through it, with a Telegram reminder on the same edge. A correlation engine was built and confirmed onto a weekly Sunday Telegram surface — two-tier reporting (held vs not-established) after his own data produced a real signal that missed the strict statistical gate by a hair. Anti-vibe-coded design guidelines went into the global CLAUDE.md plus fenced project files in Nova, atlas-partner and Science Atlas, each recording what the project already does on purpose that the generic list would otherwise "fix." A make-up day became one focus control instead of two, then was found to re-derive a fresh exercise list instead of moving his real outstanding debt — fixed, and audited (with tests, no code change needed) that a make-up can never read as a skipped session. The in-app notification stopped collapsing at 375px and can now be flicked away with the same direction-lock the back swipe finally got right.
+CORRECTED, not added: my own earlier claim that the researcher panel's cost was "bounded and tested" is now stale — a peer session's standing "no working caps, anywhere" instruction removed the budget caps and watchdog I had built into `researcher.js`, on his own later order, and my test for it is gone with it. Checked against the diff before writing this rather than assumed. The back swipe took five attempts: a synthetic-event "verified" build that failed on a real thumb, a direction-lock fix, a screen recording that showed three pages' text painted on top of each other (a transform on `<main>` was breaking `position:fixed` app-wide), a full parallax rebuild, and a stutter fix for a `getComputedStyle` walk over the whole DOM on every gesture start. None of the last three fixes — swipe, UPDATE, the notification gesture — have been confirmed by him; do not report any of them as working, only as built and reasoned through. And an accidental `git commit` after `git add <my files>` swept seven of a peer session's staged files into one of my commits — recoverable, nothing lost, but a reminder that a bare `git commit` takes the whole index.
 
 ### 23 September 2026 (evening) — the Agent World: the reel, the plan, his call for faces, and two passes of the nine beings
 He sent an Instagram reel of a "video game for my AI agents" and asked what Nova should take from it. It was watched frame by frame and answered as a plan (`design/AGENT-WORLD-PLAN.md`): the Org Map, seven hex districts drawn from the real department map, figures whose every state comes from heartbeats, job files, plan records and the trust ladder, and exactly one floating marker — the thing waiting on him. An Opus agent surveyed six of the same creator's YouTube videos (Instagram's listing is login-walled) and its findings are folded in: badge only where it means "you", jump-to-next, "Viewed" as a third verb, sticky layout, night as emitted colour. He then made three calls: proceed with the review sessions first, **faces in 3D with a character per job** rather than luminous forms, and yes to Viewed. Shipped alongside: review findings 1 (Home's fold rows become instruments), 4 and 8 (every muscle Train names in its own hue, the Goals card and the Coach's empty log as instruments), 15 (Fuel's ring as three arcs with a dashed gap, the cross-check as two bars), 20 (the Briefing empty state as a stage at rest), 13 (a light tick and cross, one "do all" per subject, and the decision acted out), and the Seen verb, round-tripped live on a real record. Two passes of the 3D character sheet followed; pass 2 fixed the framing that had made pass 1 impossible for him to judge, and rebuilt each being as one sculpted body with a face that blinks, glances and tracks.
