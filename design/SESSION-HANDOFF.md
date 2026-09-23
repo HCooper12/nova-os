@@ -13,6 +13,80 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 SEP (late morning) — THE GOAL BOARD, THE JARVIS REPORT, REPLY IN PLACE.
+Commits `a166dad` `ea6cd97` `d511e30` (+ docs `196c965`), all pushed, service
+reloaded.**
+
+**GOAL.** His 23 Sep ask: Coach must USE calories, protein and steps; the
+Goals section revamped into specific, measurable targets seen at a glance;
+suggestions/prompts/reminders from them. Plus the two queued builds from
+21 Sep (the spoken "Jarvis" report and reply-in-place on banners).
+
+**DECISION — one code-computed record, `server/lib/goalBoard.js`, that every
+reader shares.** Targets resolve his own (Goals card frontmatter
+`stepsTarget/proteinTarget/kcalTarget`) → the Intake's numbers on the
+recipes collection (`proteinFloorG/targetKcal`, today 150 g / 2,200) → the
+house step default (10,000, `streaks.STEP_GOAL`), each carrying `source` so
+the card can say "default". This FORECLOSES a second target store: Home's
+step ring (`valsMission`) already reads the board's target; anything that
+needs "what is his target" reads the board, never a constant.
+
+**DECISION — pace by the hour, not the whole day at breakfast.** A floor is
+judged against a steady line over 07:00–22:00 (`dayFraction`); 44 g at
+09:00 is on track, 40 g at 19:00 is behind. Calories are a TARGET: under is
+fine while the day runs, over 110% is over. A hole (no push, no log) is
+`absent`, never zero. Pinned in `server/test/goalBoard.test.js` (8 tests).
+
+**Nudges are hour-gated in `nudgesOf` and sent once a day per kind by
+`coachCadence.goalNudges`** (Telegram, receipts in the spoken log); the same
+list rides `/api/workouts/goals` so the Home nudge shows identical words
+with "Ask Coach". Titles are short on purpose — the nudge card's text
+column is narrow beside two buttons (see the 10:21 capture in this
+session's scratch: long titles wrapped four lines).
+
+**VERIFIED (locators):**
+- Live Ask Nova (`/api/ask` → `/api/claude-code/message/:jobId`): "No step
+  count has come through yet today — yesterday 6,628. 44 g against the 150
+  floor, 605 against 2,200 — both on track." Live Coach
+  (`/api/workouts/coach`, same poll): steps 1 of 6 (avg ~7,850, a 2,150
+  shortfall ≈ 25 min walking), protein streak credited, calories: today's
+  rotation sums to 1,711 vs 2,200 → swap a cooked Animal Style Potato Bowl
+  for the lasagna → 2,205 kcal / 201 g. That is the behaviour he asked for.
+- Goals card at 375px both idioms: three rings + 7-day strips + verdict;
+  probe: no geometry faults. Edit form: the three target inputs.
+- `cd server && npm test` 2040/2040 (after the fourth session landed its
+  planCard change); lint 0 errors; build green.
+- Reply in place: a typed reply through the sheet reached Nova WITH the
+  banner's context (she answered about the Researcher's source lists).
+- Jarvis report: body/program/decide panels via stub + GIFs (camera eases
+  onto the lit chest; the dropped row blinks → strikes → leaves).
+
+**NOT VERIFIED / OPEN:**
+- No nudge has fired for real yet (all hour-gated; first candidates: steps
+  at 14:00 if under 4,500, protein at 17:00 if ≥30 g short). Check
+  `server/data/coach-cadence.json` for `goal-*` keys tomorrow.
+- `replyNotNow` never exercised live (it files a real reminder); pinned by
+  `server/test/replyInPlace.test.js` instead.
+- The live Jarvis report end to end needs a real plan run — his call.
+- The Intake has still never run for real: protein/kcal targets are the
+  hand-typed collection numbers, labelled "from the Intake" in the board
+  text because that is the field they live in. If he runs the Intake they
+  update themselves.
+
+**TRAPS PAID FOR THIS SESSION:**
+- A FOURTH session (unnamed; commits `e2439e4`, `71a7fe4`, `8f57b80`) was
+  editing the same tree. Its `71a7fe4`/`8f57b80` swept my `App.jsx` and
+  `valsMission.js` hunks (liveGoalBoard state, the step target) into its
+  commits. Content is on main; attribution is mixed. Stage by hunk, always.
+- The Nova service is on :4173 (`index.js`); :4187 is a different app's
+  `server.mjs`. Model answers come back as `{jobId}` and are read from
+  `/api/claude-code/message/:jobId` (status `ready`), and a service restart
+  loses in-flight jobs.
+
+---
+
+### Previous — 23 Sep (no working caps)
+
 **23 SEP — NO WORKING CAPS, ANYWHERE. STANDING INSTRUCTION.**
 
 **HIS INSTRUCTION, verbatim, not up for debate:** "There should be no caps
@@ -2893,6 +2967,9 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 23 September 2026 (late morning) — the goal board; the Jarvis report and reply-in-place shipped
+Steps, protein and calories judged by code against targets with provenance, pace by the hour, holes kept as holes; the Coach and Ask Nova read the same record, the cadence engine sends its nudges, the Goals card draws three rings with the week under each. Verified by asking Nova and the Coach the questions he would. Two queued builds from 21 Sep committed first. A fourth session's commits swept two of this build's hunks.
 
 **23 Sep 2026 — no working caps, anywhere.** His standing instruction,
 verbatim, logged at the top of CURRENT HANDOFF: no dollar ceiling and no
