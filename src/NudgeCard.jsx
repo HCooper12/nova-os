@@ -30,6 +30,11 @@ export function NudgeCard({ v }) {
           <span style={{ display: 'block', font: '600 13.5px var(--nv-font-ui)', color: 'var(--nv-ink)' }}>{v.title}</span>
           <span style={{ display: 'block', marginTop: '1px', font: '400 11.5px var(--nv-font-ui)', color: 'var(--nv-ink60)' }}>{v.detail}</span>
         </span>
+        {v.reply && (
+          <Interactive as="span" onClick={v.reply} aria-label="Reply to this"
+            base={css('cursor:pointer;flex:none;display:inline-flex;align-items:center;min-height:32px;padding:6px 10px;border-radius:999px;font:600 12px var(--nv-font-ui);color:var(--nv-cy);background:color-mix(in srgb, var(--nv-cy) 12%, transparent)')}
+            hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 20%, transparent)' }}>Reply</Interactive>
+        )}
         <Button compact onClick={v.onPrimary} style={{ flex: 'none' }}>{v.primaryLabel}</Button>
         <Interactive as="span" onClick={v.dismiss} aria-label="Dismiss suggestion"
           base={css("cursor:pointer;flex:none;font-size:15px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent);padding:4px")}

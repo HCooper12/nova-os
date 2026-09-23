@@ -363,7 +363,18 @@ export function valsChrome(app, ctx) {
     greetBanner: st.greetBanner ? {
       text: st.greetBanner.text,
       open: () => { app.setState({ greetBanner: null }); app.navigate('voice'); },
+      // the doorman spoke, so the reply opens listening (ReplySheet.jsx)
+      reply: (e) => { e.stopPropagation(); app.openReply({ text: st.greetBanner.text, title: 'Nova', source: 'greeting', speak: true }); },
       dismiss: (e) => { e.stopPropagation(); app.setState({ greetBanner: null }); },
+    } : null,
+    // REPLY IN PLACE — the sheet's view of the banner it is answering
+    replyTo: st.replyTo ? {
+      ...st.replyTo,
+      setDraft: (t) => app.setReplyDraft(t),
+      send: (t) => app.sendReply(t),
+      notNow: () => app.replyNotNow(),
+      close: () => app.closeReply(),
+      open: () => { app.closeReply(); app.navigate('voice'); },
     } : null,
     // The floating core rides every screen — BOTH devices, same feature —
     // except Voice (which has the full reactor) and Ambient (deliberately
@@ -692,7 +703,12 @@ export function valsChrome(app, ctx) {
         });
       }
       const first = candidates.find((c) => !dismissed[c.key]);
-      return first ? { ...first, dismiss: () => app.setState((s) => ({ nudgeDismissed: { ...(s.nudgeDismissed || {}), [first.key]: true } })) } : null;
+      return first ? {
+        ...first,
+        dismiss: () => app.setState((s) => ({ nudgeDismissed: { ...(s.nudgeDismissed || {}), [first.key]: true } })),
+        // a nudge is a suggestion; the answer to a suggestion is a sentence
+        reply: () => app.openReply({ text: `${first.title} — ${first.detail}`, title: first.title, source: 'nudge' }),
+      } : null;
     })(),
 
     // toast

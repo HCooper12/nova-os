@@ -55,6 +55,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { Toast } from './Toast.jsx';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
+import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
 import { reportBargeIn, reportTurnEnd } from './useDictation.js';
@@ -502,6 +503,9 @@ export default class App extends Component {
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
     liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null, greetBanner: null,
+    // REPLY IN PLACE (21 Sep ask): the banner he is answering, held open over
+    // whatever screen he is on. { key, text, title, source, recordId, speak, draft, busy, status }
+    replyTo: null,
     liveMacSessions: null, macSessionBusyId: null, macSessionConfirmId: null, macSessionNote: null,
     dispatchBusy: false, compostBusy: false, compostActionBusy: {}, todoistBusy: false, guardianBusy: false, reviewBusy: false,
     commitmentsBusy: false, commitmentActionBusy: {},
@@ -7052,6 +7056,51 @@ export default class App extends Component {
     // path — and it is safe to call unconditionally because it only reads.
     this.resolveSpeechVoice();
   }
+  // REPLY IN PLACE — his ask, 21 Sep 2026 (src/ReplySheet.jsx carries the
+  // why). A banner, a nudge or a report can open the one composer over the
+  // current screen with its own words as the situation, so his answer lands
+  // as a follow-on rather than a fresh question Nova has to guess the
+  // subject of. `speak` opens the mic with the sheet, for a banner that was
+  // read to him aloud.
+  openReply({ text, title = null, source = 'banner', recordId = null, speak = false } = {}) {
+    if (!text) return;
+    if (!getConnection()) { this.toastMsg('Not connected to your Mac — check Settings.'); return; }
+    this.stopSpeaking();
+    this.setState({ replyTo: { key: Date.now(), text: String(text), title, source, recordId, speak: !!speak && !!this.state.voiceSpeak, draft: '', busy: false, status: null }, greetBanner: null });
+  }
+  closeReply() { this.setState({ replyTo: null }); }
+  setReplyDraft(draft) { this.setState((s) => (s.replyTo ? { replyTo: { ...s.replyTo, draft } } : null)); }
+  // The banner's full text rides in front of his words, in the same bracketed
+  // situation block Ask Nova already reads as ground truth and never repeats
+  // back. The reply shows where he is — the presence pop-up — and in the
+  // transcript, so the conversation stays one conversation.
+  sendReply(text) {
+    const r = this.state.replyTo;
+    const q = String(text || r?.draft || '').trim();
+    if (!r || !q) return;
+    const context = `[He is replying to something you showed him as a banner${r.title ? ` ("${r.title}")` : ''}. Its full text was: "${r.text}". Treat his next words as his answer to it and carry straight on — do not restate the banner or ask what he means by "this".]`;
+    this.setState({ replyTo: null, liveTalkOn: true, liveTextOpen: true, liveAsk: q, liveReply: '' });
+    this.primeSpeech();
+    this.askNova(q, context);
+  }
+  // NOT NOW IS NOT SILENCE. A reminder for nine tomorrow, filed by the verbs'
+  // deterministic path (lib/verbs.js reminder.set), and Nova's receipt read
+  // back — never a dropped banner.
+  replyNotNow() {
+    const r = this.state.replyTo;
+    const conn = getConnection();
+    if (!r || !conn) return;
+    const what = (r.title || r.text).replace(/\s+/g, ' ').trim().slice(0, 90);
+    this.setState((s) => ({ replyTo: { ...s.replyTo, busy: true, status: 'Filing a reminder…' } }));
+    api.ask(conn, `remind me about ${what} tomorrow at 9`).then((resp) => {
+      const said = resp?.text || "I'll remind you tomorrow morning.";
+      this.setState({ replyTo: null, liveTalkOn: true, liveTextOpen: true, liveAsk: 'Not now', liveReply: said });
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: `Not now — ${what}` }, { at: Date.now(), who: 'nova', text: said }] }));
+      if (this.state.voiceSpeak) this.speakTtsSentence(said, () => {});
+    }).catch((e) => {
+      this.setState((s) => ({ replyTo: s.replyTo ? { ...s.replyTo, busy: false, status: `Could not file it — ${e.message}` } : null }));
+    });
+  }
   // "STAND DOWN" — the spoken way out. A conversation he can't end by
   // talking isn't a conversation; it's a machine that has to be tapped.
   // Matched on the CLIENT and never sent to the model: this is about the
@@ -8759,6 +8808,10 @@ export default class App extends Component {
               top: v.isMobile ? 'calc(58px + env(safe-area-inset-top))' : '16px', zIndex: 85,
               maxWidth: 'min(560px, 92vw)', cursor: 'pointer',
               display: 'flex', alignItems: 'baseline', gap: '10px',
+            {/* answer it HERE — the doorman asked a question, and this is the
+                way to reply without leaving the screen (21 Sep ask) */}
+            <span onClick={v.greetBanner.reply} aria-label="Reply here"
+              style={{ flex: 'none', font: '600 11.5px var(--nv-font-ui)', color: 'var(--nv-cy)', padding: '6px 10px', margin: '-4px 0', borderRadius: '999px', background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)', minHeight: '28px', display: 'inline-flex', alignItems: 'center' }}>Reply</span>
               padding: '11px 16px', borderRadius: '12px',
               background: 'var(--nv-glass2)', backdropFilter: 'blur(18px)',
               border: '1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent)',
@@ -8777,6 +8830,7 @@ export default class App extends Component {
         {v.recipeOpen && <Suspense fallback={null}><RecipeOverlay v={v} /></Suspense>}
         {v.recipeAddOpen && <Suspense fallback={null}><AddRecipeModal v={v} /></Suspense>}
         {v.barcodeScannerOpen && (
+        {v.replyTo && <ReplySheet v={v} />}
           <Suspense fallback={null}>
             <BarcodeScanner onDetected={v.onBarcodeDetected} onClose={v.closeBarcodeScanner} />
           </Suspense>
