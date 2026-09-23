@@ -6790,7 +6790,12 @@ export default class App extends Component {
   // that turns it into a conversation, and both the chat chip and the Home
   // card send exactly it, so the two cannot drift.
   planWalkThroughQuestion() {
-    return 'Walk me through what the plan found — the two or three things that matter, then the concrete changes you would make to my program and why.';
+    // THE JARVIS WALK-THROUGH (his ask, 21 Sep; design/JARVIS-REPORT-PLAN.md).
+    // The glass contract already teaches the body and program panels; this
+    // sentence asks for them by name so the report is SHOWN as it is read —
+    // the muscle on the figure, his program with the drop, the changes he
+    // can tick — rather than left to the model's discretion on a long turn.
+    return 'Walk me through what the plan found, the way Jarvis would: the two or three things that matter, then the concrete changes you would make to my program and why. As you go, put each muscle you judge on the glass with a body panel, then the routine it comes from as a program panel with the exercise you would drop and the one the evidence protects, and finish with the numbered changes as steps I can tick.';
   }
   walkThroughPlan() {
     this.navigate('voice');

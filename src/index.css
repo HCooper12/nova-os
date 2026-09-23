@@ -484,6 +484,20 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    sitting blank or (worse) waiting off-screen until the sentence has passed. */
 @keyframes glassScan { from { transform: translateX(-100%); } to { transform: translateX(220%); } }
 @keyframes glassStep { from { opacity: 0; transform: translateY(var(--nv-rise)); } to { opacity: 1; transform: none; } }
+/* THE CHANGE, SHOWN (design/JARVIS-REPORT-PLAN.md, beat four). The exercise
+   Nova recommends dropping blinks, is struck through, and leaves the list as
+   she explains why — a change acted out, never stated (§2b r7). Three
+   movements on one row: the blink (attention), the strike (the verdict), the
+   collapse (gone). Reduced motion: struck at once, no blink, no collapse. */
+@keyframes nvRowBlink { 0%, 100% { opacity: 1; } 20%, 60% { opacity: .25; } 40%, 80% { opacity: 1; } }
+@keyframes nvRowStrike { from { width: 0; } to { width: calc(100% - 34px); } }
+@keyframes nvRowGone { from { max-height: 44px; opacity: .55; margin-bottom: 0; } to { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; margin-bottom: -5px; } }
+.nv-row-leave { max-height: 44px; }
+.nv-row-leave .nv-row-strike { width: 0; animation: nvRowStrike .38s var(--nv-ease) 1.8s 1 forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-row-leave { animation: none !important; opacity: .45; }
+  .nv-row-leave .nv-row-strike { animation: none; width: calc(100% - 34px); }
+}
 
 /* ================================================================
    THE LIT PANEL (15 Sep 2026) — his ask: the treatment the technique

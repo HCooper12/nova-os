@@ -419,7 +419,7 @@ export function valsChrome(app, ctx) {
       reportMic: (on) => { if (!!st.liveMicOpen !== !!on) app.setState({ liveMicOpen: !!on }); },
       evidence: st.liveVerdictOffer,
       openEvidence: () => app.openVerdict(st.liveVerdictOffer.kind, st.liveVerdictOffer.of),
-      glass: glassOf(st),
+      glass: glassOf(st, app),
       onError: (err) => app.toastMsg('Dictation: ' + err),
     } : null,
     liveTalk: st.liveTalkOn ? {
@@ -439,7 +439,7 @@ export function valsChrome(app, ctx) {
       openVerdict: () => app.openVerdict(st.liveVerdictOffer.kind, st.liveVerdictOffer.of),
       verdict: null, clearVerdict: () => app.setState({ verdict: null }),
     } : null,
-    glass: glassOf(st),
+    glass: glassOf(st, app),
     speakText: (t) => app.speakTtsSentence(t),
     startLiveTalk: () => app.startLiveTalk(),
     novaSpeaking: !!st.voiceSpeaking,

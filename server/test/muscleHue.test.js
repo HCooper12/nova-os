@@ -5,8 +5,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { MUSCLE_GROUPS } from '../lib/exercises.js';
-import { MUSCLE_IDS } from '../lib/muscles.js';
-import { MUSCLE_TOKEN, MUSCLE_HEX, ANATOMY_GROUP, muscleVar, muscleHex, muscleHexStatic, musclePalette } from '../../src/muscleHue.js';
+import { MUSCLE_IDS, MUSCLES } from '../lib/muscles.js';
+import { MUSCLE_TOKEN, MUSCLE_HEX, ANATOMY_GROUP, MUSCLE_SIDE, anatomyOf, sideFor, muscleVar, muscleHex, muscleHexStatic, musclePalette } from '../../src/muscleHue.js';
 
 test('every muscle group in the library owns a token and a hex', () => {
   for (const g of MUSCLE_GROUPS) {
@@ -54,4 +54,26 @@ test('helpers degrade honestly for an unknown group', () => {
   assert.equal(muscleHex('Nonsense'), null);
   assert.deepEqual(musclePalette('Chest'), { primary: '#ff8a7a', secondary: '#59e6ff' });
   assert.equal(musclePalette(undefined), null);
+});
+
+// THE SPOKEN REPORT LIGHTS A GROUP, NOT A REGION. "Chest" has to light every
+// chest region and choose a camera side without asking the server, so the
+// client's copy of the sides is pinned to the server's `views`.
+test('every group resolves to its regions, and every region to a side', () => {
+  for (const g of MUSCLE_GROUPS) {
+    const ids = anatomyOf(g);
+    if (g === 'Full Body' || g === 'Mobility') { assert.deepEqual(ids, [], `${g} is a filing, not anatomy`); continue; }
+    assert.ok(ids.length, `${g} lights nothing`);
+    for (const id of ids) assert.ok(MUSCLE_IDS.includes(id), `${g} → ${id} is not anatomy`);
+  }
+  assert.deepEqual(anatomyOf('chest'), ['chest']);
+  assert.deepEqual(anatomyOf('Back'), ['lats', 'traps', 'rhomboids', 'lower-back']);
+  for (const id of MUSCLE_IDS) {
+    const side = MUSCLE_SIDE[id];
+    assert.ok(side, `${id} has no side`);
+    assert.ok(MUSCLES[id].views.includes(side), `${id}: client says ${side}, server draws ${MUSCLES[id].views.join('/')}`);
+  }
+  assert.equal(sideFor(anatomyOf('Back')), 'back');
+  assert.equal(sideFor(anatomyOf('Shoulders')), 'front', 'a mixed group is seen from the front');
+  assert.equal(sideFor([]), 'three-quarter');
 });

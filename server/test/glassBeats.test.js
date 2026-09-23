@@ -5,7 +5,7 @@
 // may be dropped. So the frame is raised on time and the picture fills in.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activeBeat, railOf, stepsRevealed, mergeVisual, glassOf } from '../../src/glassBeats.js';
+import { activeBeat, railOf, stepsRevealed, mergeVisual, glassOf, enrichBody, enrichProgram, decideHandlers } from '../../src/glassBeats.js';
 
 const beats = [{ at: 0 }, { at: 40 }, { at: 120 }, { at: 200 }];
 
@@ -146,4 +146,66 @@ test('THE WHOLE PATH: a panel is drawable before its picture exists', () => {
   const g = glassOf({ glassBeats: beats, glassVisuals: {}, glassSpokenTo: 999, voiceChat: [{ who: 'nova', text }] });
   assert.equal(g.hero.kind, 'media');
   assert.equal(g.hero.pending, true, 'the frame is up in context while the cover is still coming');
+});
+
+
+// ---- the spoken report: the model names, code builds from the vault ----
+
+const ROUTINES = [
+  { id: 'push', name: 'Push', exercises: [
+    { name: 'Barbell Bench Press', muscleGroup: 'Chest' },
+    { name: 'Cable Overhead Tricep Extension', muscleGroup: 'Triceps' },
+    { name: 'Rope Overhead Tricep Extension', muscleGroup: 'Triceps' },
+    { name: 'Lateral Raise', muscleGroup: 'Shoulders' },
+  ] },
+  { id: 'pull', name: 'Pull', exercises: [{ name: 'Weighted Pull-Up', muscleGroup: 'Back' }] },
+];
+
+test('a body panel lights every region of the named group and picks its camera side', () => {
+  const b = enrichBody({ kind: 'body', muscle: 'Back', label: 'BACK' });
+  assert.deepEqual(b.ids, ['lats', 'traps', 'rhomboids', 'lower-back']);
+  assert.equal(b.side, 'back');
+  assert.equal(b.hue, 'var(--nv-m-back)');
+  assert.equal(enrichBody({ kind: 'body', muscle: 'Wings', label: 'X' }), null, 'a muscle he does not have lights nothing');
+});
+
+test('a program panel is his real routine, lit and marked — and only his real routine', () => {
+  const p = enrichProgram({ kind: 'program', routine: 'push', muscle: 'triceps', remove: ['Cable Overhead Tricep Extension'], keep: ['Rope Overhead Tricep Extension', 'Not An Exercise'] }, ROUTINES);
+  assert.equal(p.routineName, 'Push');
+  assert.equal(p.rows.length, 4, 'every exercise in the routine is drawn');
+  assert.deepEqual(p.rows.map((r) => r.lit), [false, true, true, false], 'the muscle it is about is lit');
+  assert.equal(p.rows[1].verdict, 'remove');
+  assert.equal(p.rows[2].verdict, 'keep');
+  assert.deepEqual(p.keep, ['Rope Overhead Tricep Extension'], 'a name not in the routine does not move');
+  assert.equal(enrichProgram({ kind: 'program', routine: 'Arms' }, ROUTINES), null, 'a routine he never wrote draws nothing');
+  assert.equal(enrichProgram({ kind: 'program', routine: 'Push' }, undefined), null, 'no routines loaded yet, no panel');
+});
+
+test('a decide panel talks back in plain sentences, and nothing else', () => {
+  const said = [];
+  const h = decideHandlers({ kind: 'steps', decide: true, items: [{ name: 'Cap RPE at 8–9' }, { name: 'Move arm work up' }] }, (t) => said.push(t));
+  h.onTick(0); h.onCross(1); h.onAll();
+  assert.deepEqual(said, ['Make change 1 — Cap RPE at 8–9.', 'Skip change 2 — Move arm work up. Leave that as it is.', 'Make all of them.']);
+  assert.deepEqual(decideHandlers({ kind: 'steps', items: [{ name: 'a' }] }, () => {}), {}, 'a plain steps panel has no handlers');
+  assert.deepEqual(decideHandlers({ kind: 'steps', decide: true, items: [] }, null), {}, 'no app, no handlers');
+});
+
+test('glassOf builds the report panels from state and wires the decisions to the app', () => {
+  const said = [];
+  const st = {
+    glassBeats: [
+      { key: 'a', at: 0, spec: { kind: 'body', muscle: 'Chest', label: 'CHEST' } },
+      { key: 'b', at: 30, spec: { kind: 'program', routine: 'Push', muscle: 'Triceps', remove: ['Cable Overhead Tricep Extension'], keep: [], label: 'PUSH' } },
+      { key: 'c', at: 60, spec: { kind: 'steps', decide: true, items: [{ name: 'Cap RPE' }], label: 'CHANGES' } },
+    ],
+    glassSpokenTo: 70, glassVisuals: {}, liveWorkoutRoutines: ROUTINES,
+    voiceChat: [{ who: 'nova', text: 'x'.repeat(80) }],
+  };
+  const g = glassOf(st, { askNova: (t) => said.push(t) });
+  assert.equal(g.hero.kind, 'steps');
+  g.hero.onTick(0);
+  assert.deepEqual(said, ['Make change 1 — Cap RPE.']);
+  const kinds = g.rail.map((r) => r.kind);
+  assert.deepEqual(kinds, ['program', 'body'], 'the spent panels sit in the rail, newest first');
+  assert.equal(g.rail[0].rows.find((r) => r.verdict === 'remove').name, 'Cable Overhead Tricep Extension');
 });

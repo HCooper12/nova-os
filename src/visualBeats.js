@@ -28,7 +28,11 @@
 // leaking `VIS {"kind":"me` into the speech queue would have Nova read JSON
 // out loud, which is the one failure that would make him turn this off.
 
-export const VISUAL_KINDS = ['key', 'steps', 'image', 'media', 'metric', 'bars', 'list'];
+// `body` and `program` (23 Sep 2026) are the spoken report's two panels —
+// design/JARVIS-REPORT-PLAN.md. The model NAMES a muscle or a routine; code
+// lights the figure and draws his program from the vault. A name the library
+// does not hold draws nothing (glassBeats.js enriches and validates).
+export const VISUAL_KINDS = ['key', 'steps', 'image', 'media', 'metric', 'bars', 'list', 'body', 'program'];
 
 // Kinds that need something fetched before they are whole. The others are
 // typographic and land instantly — which is what lets a beat ALWAYS have its
@@ -97,7 +101,22 @@ export function normaliseSpec(d) {
       .filter((i) => i && clean(i.name, 60))
       .slice(0, 6)
       .map((i) => ({ name: clean(i.name, 60), note: clean(i.note, 48) || null }));
-    return items.length ? { ...base, items } : null;
+    if (!items.length) return null;
+    // `decide`: the items are CHANGES he is being asked about, so each gets a
+    // light tick and cross and the panel one "do all" — §2b rule 8, never a
+    // button per idea. Only `steps` can ask; a `list` is read, not decided.
+    return kind === 'steps' && d.decide === true ? { ...base, items, decide: true } : { ...base, items };
+  }
+  if (kind === 'body') {
+    const muscle = clean(firstString(d, ['muscle', 'group', 'region']), 24);
+    return muscle ? { ...base, muscle } : null;
+  }
+  if (kind === 'program') {
+    const routine = clean(firstString(d, ['routine', 'day', 'session']), 40);
+    if (!routine) return null;
+    const names = (v) => (Array.isArray(v) ? v : typeof v === 'string' && v.trim() ? [v] : [])
+      .map((x) => clean(typeof x === 'string' ? x : x?.name, 60)).filter(Boolean).slice(0, 4);
+    return { ...base, routine, muscle: clean(firstString(d, ['muscle', 'group']), 24) || null, remove: names(d.remove ?? d.drop), keep: names(d.keep) };
   }
   if (kind === 'image') {
     const query = clean(d.query, 120);
@@ -126,7 +145,8 @@ export function normaliseSpec(d) {
 // A stable name for one visual, so the server can cache a fetch and the
 // client can tell "the same panel, now resolved" from "a new panel".
 export function keyOfSpec(spec, i) {
-  const bits = [spec.kind, spec.label, spec.query || '', spec.title || '', spec.url || ''];
+  const bits = [spec.kind, spec.label, spec.query || '', spec.title || '', spec.url || '',
+    spec.muscle || '', spec.routine || '', (spec.remove || []).join(','), (spec.keep || []).join(',')];
   let h = 5381;
   const s = bits.join('|');
   for (let j = 0; j < s.length; j++) h = ((h * 33) ^ s.charCodeAt(j)) >>> 0;

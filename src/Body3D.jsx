@@ -330,6 +330,42 @@ function fitDistance(box, centre, eye, camera) {
  * primitive and flattened it to 1 for the other eighteen. Computing it at load
  * costs about fifty milliseconds once and cannot be silently dropped.
  */
+// WHERE A SET OF MUSCLES IS, on the rig as loaded. Each region is a material
+// named `mus_<id>`; a mesh may carry one material or a list of them with
+// index groups. The centroid of every vertex those groups own, in world
+// space — read from the geometry rather than assumed from a table, so a
+// re-export of the model cannot silently move the camera onto the wrong
+// place. Null when none of the ids is on this rig, and the caller keeps the
+// whole-body frame.
+function muscleCentre(root, ids) {
+  const want = new Set((ids || []).map((id) => `mus_${id}`));
+  const sum = new THREE.Vector3();
+  let n = 0;
+  const v = new THREE.Vector3();
+  root.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    const pos = o.geometry.getAttribute('position');
+    if (!pos) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const index = o.geometry.getIndex();
+    o.updateWorldMatrix(true, false);
+    mats.forEach((m, mi) => {
+      if (!want.has(m?.name)) return;
+      const groups = o.geometry.groups?.length ? o.geometry.groups.filter((g) => g.materialIndex === mi) : [{ start: 0, count: index ? index.count : pos.count }];
+      for (const g of groups) {
+        // every 7th vertex is plenty for a centroid and keeps this under a
+        // millisecond on the 22k-vertex rig
+        for (let i = g.start; i < g.start + g.count; i += 7) {
+          const vi = index ? index.getX(i) : i;
+          v.fromBufferAttribute(pos, vi).applyMatrix4(o.matrixWorld);
+          sum.add(v); n++;
+        }
+      }
+    });
+  });
+  return n ? sum.multiplyScalar(1 / n) : null;
+}
+
 function featherEdges(root, rings = 4) {
   const meshes = [];
   const seen = new Map();                       // quantised position -> mesh id
@@ -755,6 +791,12 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
   // The rim comes free from the sheen this material already carries: sheen is
   // view-dependent, which is exactly what a fresnel edge is.
   glass = false,
+  // MUSCLE FOCUS — the spoken report's camera. A list of anatomy ids: the
+  // figure frames the whole body first, then EASES IN on those regions while
+  // Nova says the figure (design/JARVIS-REPORT-PLAN.md, beat two). The ease
+  // is the point: a cut to a close-up is a different picture, a move into
+  // one is the same body being looked at more closely. Reduced motion jumps.
+  muscleFocus = null,
   // PALETTE — the same anatomy answers different questions. Training asks
   // what today works; Fuel asks what is waiting to be rebuilt, and debt is
   // not the same colour as a plan.
@@ -766,6 +808,9 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
   const mount = useRef(null);
   const [state, setState] = useState('loading');
 
+  // the focus list compared by value, so a re-render with the same regions
+  // does not rebuild the scene
+  const focusKey = (muscleFocus || []).join(',');
   useEffect(() => {
     const el = mount.current;
     if (!el) return undefined;
@@ -791,7 +836,8 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 1.0, 0);
     controls.enablePan = false;
-    controls.minDistance = 1.6;
+    // a muscle close-up stands nearer than the whole-body floor allows
+    controls.minDistance = muscleFocus?.length ? 0.3 : 1.6;
     controls.maxDistance = 6;
     controls.enableDamping = true;
 
@@ -857,6 +903,11 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
 
     loadModel().then((gltf) => {
       if (disposed) return;
+      // the camera's move into a muscle, while it lasts — declared HERE,
+      // above the framing that starts it, because a `let` further down the
+      // same scope is a temporal-dead-zone ReferenceError at the assignment,
+      // which the catch below turned into a silently blank figure (23 Sep)
+      let ease = null;
       // SkeletonUtils, not Object3D.clone: a plain clone of a SkinnedMesh keeps
       // pointing at the ORIGINAL skeleton, so the copy poses nothing and draws
       // nothing — the model was in the scene, correctly scaled, and invisible.
@@ -1315,6 +1366,29 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
         camera.far = 60;
         camera.updateProjectionMatrix();
         controls.update();
+        // the muscle, if one was asked for: where the lit regions actually
+        // sit on THIS rig, read off their vertices rather than assumed
+        const fc = muscleFocus?.length ? muscleCentre(root, muscleFocus) : null;
+        // a receipt for the recorder and the probe: where the camera was asked
+        // to go, so a blank frame can be read as a number rather than guessed at
+        if (typeof window !== 'undefined') {
+          window.__NOVA_FOCUS = { asked: muscleFocus || null, centre: fc ? [fc.x, fc.y, fc.z].map((v) => Math.round(v * 1000) / 1000) : null,
+            body: [c.x, c.y, c.z].map((v) => Math.round(v * 1000) / 1000), radius: Math.round(radius * 1000) / 1000 };
+        }
+        if (fc) {
+          const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+          const toTarget = fc.clone();
+          // 0.82 m: close enough that the lit muscle is the subject, far enough
+          // that it is a highlight ON A BODY. At 0.46 the chest filled the
+          // frame and its region boundary read as jagged geometry rather than
+          // a muscle (recorded 23 Sep).
+          const toPos = fc.clone().addScaledVector(eye, 0.82);
+          if (reduced) {
+            controls.target.copy(toTarget); camera.position.copy(toPos); controls.update();
+          } else {
+            ease = { t0: null, ms: 1100, from: { target: controls.target.clone(), pos: camera.position.clone() }, to: { target: toTarget, pos: toPos } };
+          }
+        }
       }
       // The motion check needs to read the rig it is judging, not guess from
       // pixels. Costs one array entry; makes every future check measurable.
@@ -1449,6 +1523,20 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
             if (spec.wheel) spec.wheel.rotation.x = -to.y * 6;
           }
         }
+        if (ease) {
+          const now = performance.now();
+          if (ease.t0 == null) ease.t0 = now + 260;          // a beat of the whole body first
+          const k = Math.min(1, Math.max(0, (now - ease.t0) / ease.ms));
+          const e = 1 - Math.pow(1 - k, 3);                   // ease-out cubic — arrives, never overshoots
+          controls.target.copy(ease.from.target).lerp(ease.to.target, e);
+          camera.position.copy(ease.from.pos).lerp(ease.to.pos, e);
+          if (k >= 1) {
+            ease = null;
+            if (typeof window !== 'undefined' && window.__NOVA_FOCUS) {
+              window.__NOVA_FOCUS.arrived = { pos: camera.position.toArray().map((v) => Math.round(v * 1000) / 1000), target: controls.target.toArray().map((v) => Math.round(v * 1000) / 1000), triangles: renderer.info.render.triangles, near: camera.near, far: camera.far };
+            }
+          }
+        }
         controls.update();
         renderer.render(scene, camera);
       };
@@ -1493,7 +1581,8 @@ export default function Body3D({ muscles, pattern, name = '', height = 260,
       renderer.forceContextLoss();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
     };
-  }, [muscles, pat, name, height, frozen, view, focus, glass, layer, reps, rpe, palette?.primary, palette?.secondary]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [muscles, pat, name, height, frozen, view, focus, glass, layer, reps, rpe, palette?.primary, palette?.secondary, focusKey]);
 
   const p = pat ? PATTERNS[pat] : null;
   return (

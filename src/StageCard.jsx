@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { css } from './css.js';
 
 const M = 'var(--nv-font-mono)';
@@ -29,7 +29,7 @@ const toneOf = (t) => TONE[t] || TONE.cy;
 //   steps — a list that BUILDS as he is read it, his most specific request.
 //   media — a podcast or talk, with the exact timecode when one can be
 //           proven. Never an estimate: see server/lib/visualMoment.js.
-const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument']);
+const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument', 'body', 'program']);
 
 // THE INSTRUMENTS, ON THE GLASS. The morning show already speaks each of
 // these lines; the instrument is the picture that belongs to the sentence —
@@ -37,6 +37,12 @@ const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'med
 // about steps. Lazy, because two of them pull three.js and the brief must
 // not pay for that before it starts speaking.
 const Instruments = lazy(() => import('./Instruments.jsx'));
+// THE SPOKEN REPORT'S FIGURE (23 Sep 2026, design/JARVIS-REPORT-PLAN.md).
+// The same Body3D the exercise card turns, lit for the muscle Nova is
+// judging and eased in on it while she says the figure. Lazy for the same
+// reason the instruments are: three.js must not be paid for before a reply
+// starts speaking.
+const Body3D = lazy(() => import('./Body3D.jsx'));
 
 function InstrumentCard({ card }) {
   const Comp = {
@@ -46,6 +52,23 @@ function InstrumentCard({ card }) {
   return (
     <Suspense fallback={null}>
       <Instruments render={Comp} d={card.data} />
+    </Suspense>
+  );
+}
+
+// The figure's props must be STABLE. glassOf builds the panel afresh on
+// every app render — and the app renders every 150ms while a reply streams —
+// so a fresh `muscles` object each time meant Body3D's effect saw a new
+// dependency on every tick and rebuilt the whole scene, never finishing its
+// load or its camera move: a blank box where the figure should be (23 Sep,
+// the first stub run). Memoised on the ids' VALUE, the scene builds once.
+function BodyPanel({ ids, side, mini }) {
+  const key = (ids || []).join(',');
+  const muscles = useMemo(() => ({ primary: key ? key.split(',') : [], secondary: [] }), [key]);
+  const focus = useMemo(() => (mini || !key ? null : key.split(',')), [key, mini]);
+  return (
+    <Suspense fallback={<div style={{ height: mini ? 84 : 250 }} />}>
+      <Body3D muscles={muscles} view={side || 'three-quarter'} muscleFocus={focus} height={mini ? 84 : 250} chrome={false} glass frozen={0} />
     </Suspense>
   );
 }
@@ -170,8 +193,83 @@ export function StageCard({ card, size = 'full' }) {
             <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: mini ? '7px' : '11px', animation: 'glassStep var(--nv-dur-base) var(--nv-ease)' }}>
               <span style={{ flex: 'none', font: `600 ${mini ? 8 : 10}px ${M}`, letterSpacing: '.1em', color: accent, fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
               <span style={{ flex: 1, minWidth: 0, font: `500 ${mini ? 10.5 : 14}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{it.name}</span>
+              {/* A DECISION IS A LIGHT TICK OR CROSS, NOT A BUTTON PER IDEA
+                  (§2b rule 8). Each goes to Nova as a plain sentence and
+                  comes back as a proposal on the rails; he can also just
+                  talk. */}
+              {card.decide && card.onTick && !mini && (
+                <span style={{ flex: 'none', display: 'flex', gap: '4px', alignSelf: 'center' }}>
+                  <button type="button" aria-label={`Make change ${i + 1}`} onClick={() => card.onTick(i)}
+                    style={{ width: 30, height: 30, borderRadius: '50%', border: `1px solid color-mix(in srgb, var(--nv-good) 45%, transparent)`, background: 'color-mix(in srgb, var(--nv-good) 10%, transparent)', color: 'var(--nv-good)', font: '600 13px var(--nv-font-ui)', cursor: 'pointer' }}>✓</button>
+                  <button type="button" aria-label={`Skip change ${i + 1}`} onClick={() => card.onCross(i)}
+                    style={{ width: 30, height: 30, borderRadius: '50%', border: `1px solid color-mix(in srgb, var(--nv-ink) 18%, transparent)`, background: 'transparent', color: 'color-mix(in srgb, var(--nv-ink) 55%, transparent)', font: '500 13px var(--nv-font-ui)', cursor: 'pointer' }}>✕</button>
+                </span>
+              )}
             </div>
           ))}
+          {card.decide && card.onAll && !mini && (card.revealed ?? card.items.length) >= card.items.length && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', animation: 'glassStep var(--nv-dur-base) var(--nv-ease)' }}>
+              <button type="button" onClick={card.onAll}
+                style={{ font: `600 9.5px ${M}`, letterSpacing: '.18em', color: 'var(--nv-on-acc)', background: accent, border: 'none', borderRadius: '999px', padding: '8px 14px', cursor: 'pointer' }}>MAKE ALL OF THEM</button>
+              <span style={{ font: `500 11.5px var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>or just tell me</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* BEAT TWO — the muscle it means. The figure rises lit in the
+          report's own hue for that muscle and the camera eases in; the
+          other muscles fall back to glass so the lit one reads through the
+          body from any angle. */}
+      {card.kind === 'body' && (
+        <div style={{ marginTop: mini ? '6px' : '8px', borderRadius: mini ? '8px' : '12px', overflow: 'hidden',
+          background: `radial-gradient(ellipse at 50% 30%, color-mix(in srgb, ${card.hue || accent} 14%, transparent), transparent 70%)` }}>
+          <BodyPanel ids={card.ids} side={card.side} mini={mini} />
+          {card.caption && !mini && (
+            <div style={{ padding: '4px 12px 10px', display: 'flex', alignItems: 'baseline', gap: '9px' }}>
+              <span style={{ font: `400 18px var(--nv-font-serif)`, color: card.hue || accent }}>{card.group || card.muscle}</span>
+              <span style={{ font: `500 12.5px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 80%, transparent)' }}>{card.caption}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* BEATS THREE AND FOUR — his program as he wrote it, every exercise for
+          the muscle lit; the one to drop blinks, is struck through and leaves;
+          the one the evidence protects stays, lit brighter. The rows are his
+          real routine (glassBeats.enrichProgram); a name the routine does not
+          hold simply does not move. */}
+      {card.kind === 'program' && (
+        <div style={{ marginTop: mini ? '6px' : '10px', display: 'flex', flexDirection: 'column', gap: mini ? '3px' : '5px' }}>
+          {(mini ? (card.rows || []).filter((r) => r.lit || r.verdict).slice(0, 3) : (card.rows || [])).map((r, i) => {
+            const hue = card.hue || accent;
+            const lit = r.lit || !!r.verdict;
+            return (
+              <div key={r.name} className={r.verdict === 'remove' ? 'nv-row-leave' : undefined}
+                style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: mini ? '7px' : '10px',
+                  padding: mini ? '3px 6px' : '7px 10px', borderRadius: '8px', overflow: 'hidden',
+                  background: r.verdict === 'keep' ? `color-mix(in srgb, ${hue} 14%, transparent)` : lit ? `color-mix(in srgb, ${hue} 07%, transparent)` : 'transparent',
+                  boxShadow: r.verdict === 'keep' ? `inset 0 0 0 1px color-mix(in srgb, ${hue} 55%, transparent), 0 0 18px -6px color-mix(in srgb, ${hue} 60%, transparent)` : 'none',
+                  // an inline `animation` would override the leave class, so
+                  // the row that is going carries its own sequence here
+                  ...(r.verdict === 'remove'
+                    ? { animation: 'nvRowBlink 1.1s var(--nv-ease) .6s 1, nvRowGone .5s var(--nv-ease) 3.4s 1 forwards' }
+                    : { animation: 'glassStep var(--nv-dur-base) var(--nv-ease) both', animationDelay: `${i * 45}ms` }) }}>
+                <span style={{ flex: 'none', font: `600 ${mini ? 7.5 : 9}px ${M}`, letterSpacing: '.1em', color: lit ? hue : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)', fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
+                <span style={{ flex: 1, minWidth: 0, font: `500 ${mini ? 10.5 : 13.5}px/1.35 var(--nv-font-ui)`,
+                  color: lit ? 'var(--nv-ink)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                {r.muscle && !mini && <span style={{ flex: 'none', font: `600 8.5px ${M}`, letterSpacing: '.12em', color: lit ? hue : 'color-mix(in srgb, var(--nv-ink) 30%, transparent)' }}>{String(r.muscle).toUpperCase()}</span>}
+                {r.verdict === 'keep' && <span style={{ flex: 'none', font: `600 ${mini ? 8 : 9.5}px ${M}`, letterSpacing: '.12em', color: hue }}>KEEP</span>}
+                {r.verdict === 'remove' && <span aria-hidden="true" className="nv-row-strike" style={{ position: 'absolute', left: mini ? 22 : 34, top: '50%', height: '1.5px', background: 'var(--nv-warn)', transform: 'translateY(-50%)' }} />}
+              </div>
+            );
+          })}
+          {!mini && (card.remove || []).length > 0 && (
+            <div style={{ marginTop: '6px', font: `500 11.5px var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 55%, transparent)' }}>
+              Leaving {card.routineName}: <span style={{ color: 'var(--nv-warn)' }}>{card.remove.join(', ')}</span>
+            </div>
+          )}
         </div>
       )}
 

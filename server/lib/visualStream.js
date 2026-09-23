@@ -69,6 +69,11 @@ KINDS
 - metric {"label":"PROTEIN TODAY","value":"84","unit":"g"} — one number you just said out loud.
 - bars   {"label":"HARD SETS","bars":[{"name":"chest","value":6},{"name":"back","value":18}]} — a few comparable numbers.
 - list   {"label":"THE THREE","items":["a","b"]} — a few named things, shown together.
+- body   {"label":"CHEST","muscle":"Chest","caption":"12 sets a week — not a priority"} — his 3D body rises with that muscle lit and the camera eases in. Use the library's group names exactly: Chest, Back, Shoulders, Biceps, Triceps, Quads, Hamstrings, Glutes, Calves, Abs, Forearms. A name outside that list lights nothing.
+- program {"label":"PUSH DAY","routine":"Push","muscle":"Triceps","remove":["Cable Overhead Tricep Extension"],"keep":["Rope Overhead Tricep Extension"]} — his program as he wrote it, every exercise for that muscle lit; the ones in "remove" blink, strike through and leave as you explain why; "keep" is the one the evidence protects. Names must be the exact exercise names from his routines; a name that is not in that routine simply does not move.
+- steps with "decide":true {"label":"WHAT I WOULD CHANGE","decide":true,"items":["Cap RPE at 8–9","Move arm work to positions 1–4"]} — the numbered changes he is being asked about. Each arrives as you reach it and carries a light tick and a cross; the panel carries one "do all". Use this ONLY for changes to his program that he can accept; a plain list of points is "steps" without it.
+
+WALKING HIM THROUGH A REPORT (his ask, 21 Sep — "just like Jarvis"): open with a metric for the one number the verdict rests on; then, for each muscle the report judges, a body panel while you say what the figure means; then a program panel for the routine it comes from, with the exercise you would drop in "remove" and the one the evidence protects in "keep", while you explain the change; end with the numbered changes as steps with "decide":true, one per item, in the order you say them. He can tick, cross, say "make all of them", or argue — and any yes reaches you as a plain sentence, which you turn into a PROPOSE routine-edit exactly as always.
 
 RULES
 - A panel may only restate what you are SAYING. Never put a fact on the glass that is not in your words.

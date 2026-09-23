@@ -1,3 +1,5 @@
+import { anatomyOf, sideFor, muscleVar } from './muscleHue.js';
+
 // WHAT IS ON THE GLASS RIGHT NOW.
 //
 // The server named the panels and went and fetched their pictures
@@ -84,7 +86,60 @@ const FETCHED = new Set(['image', 'media']);
 // AUDIO has got, not how far the text has arrived. A `steps` panel needs the
 // prose spoken since it went up, so it can build a line at a time the way he
 // described — one alone while it is read to him, then one and two together.
-export function glassOf(st) {
+// THE SPOKEN REPORT'S PANELS ARE BUILT FROM HIS VAULT, NOT FROM THE MODEL.
+// The model NAMES a muscle or a routine (design/JARVIS-REPORT-PLAN.md); this
+// is where code turns the name into the figure's regions and the program's
+// real rows. A name the library does not hold comes back null and the beat
+// draws nothing — the doctrine is that a directive can never invent a
+// picture, and that includes a muscle he does not have or a routine he
+// never wrote.
+const fold = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+export function enrichBody(spec) {
+  const ids = anatomyOf(spec.muscle);
+  if (!ids.length) return null;
+  return { ...spec, group: groupLabel(spec.muscle), ids, side: sideFor(ids), hue: muscleVar(spec.muscle) };
+}
+
+export function enrichProgram(spec, routines) {
+  const list = Array.isArray(routines) ? routines : [];
+  const want = fold(spec.routine);
+  // exact first, then a routine whose name contains what was said ("Push"
+  // for "Push day"); never a guess beyond that
+  const r = list.find((x) => fold(x.name) === want) || list.find((x) => want && fold(x.name).includes(want));
+  if (!r) return null;
+  const exercises = Array.isArray(r.exercises) ? r.exercises : [];
+  const byName = new Map(exercises.map((e) => [fold(e.name), e]));
+  const match = (names) => (names || []).map((n) => byName.get(fold(n))).filter(Boolean).map((e) => e.name);
+  const remove = match(spec.remove);
+  const keep = match(spec.keep);
+  const group = spec.muscle ? groupLabel(spec.muscle) : null;
+  const rows = exercises.map((e) => ({
+    name: e.name,
+    muscle: e.muscleGroup || null,
+    // lit: the muscle the report is about; the two verdicts override it
+    lit: !!group && !!e.muscleGroup && fold(e.muscleGroup) === fold(group),
+    verdict: remove.includes(e.name) ? 'remove' : keep.includes(e.name) ? 'keep' : null,
+  }));
+  return { ...spec, routineName: r.name, group, hue: group ? muscleVar(group) : 'var(--nv-acc)', rows, remove, keep };
+}
+
+// A `decide` panel's items are changes he is being asked about. The
+// handlers are the conversation: a tick says "make change N", a cross says
+// "skip change N", and both go to Nova as plain sentences, which she turns
+// into a PROPOSE on the rails exactly as she would from his voice. Nothing
+// here writes.
+export function decideHandlers(spec, say) {
+  if (!spec.decide || typeof say !== 'function') return {};
+  const n = (i) => i + 1;
+  return {
+    onTick: (i) => say(`Make change ${n(i)} — ${spec.items[i].name}.`),
+    onCross: (i) => say(`Skip change ${n(i)} — ${spec.items[i].name}. Leave that as it is.`),
+    onAll: () => say('Make all of them.'),
+  };
+}
+
+export function glassOf(st, app) {
   const beats = st.glassBeats || [];
   if (!beats.length) return null;
   const spokenTo = st.glassSpokenTo || 0;
@@ -92,16 +147,27 @@ export function glassOf(st) {
   if (idx < 0) return null;
   const chat = st.voiceChat || [];
   const lastSaid = [...chat].reverse().find((m) => m.who !== 'you')?.text || '';
+  const say = app && typeof app.askNova === 'function' ? (t) => app.askNova(t) : null;
   const panel = (b) => {
     const v = mergeVisual(b.spec, (st.glassVisuals || {})[b.key]);
     if (!v) return null;
+    if (v.kind === 'body') return enrichBody(v);
+    if (v.kind === 'program') return enrichProgram(v, st.liveWorkoutRoutines);
     if (v.kind !== 'steps') return v;
     // the passage runs from this panel to the next one (or to the end)
     const next = beats[beats.indexOf(b) + 1];
     const span = (next ? next.at : lastSaid.length) - b.at;
-    return { ...v, revealed: stepsRevealed(v.items, lastSaid.slice(b.at, spokenTo), span) };
+    return { ...v, revealed: stepsRevealed(v.items, lastSaid.slice(b.at, spokenTo), span), ...decideHandlers(v, say) };
   };
   const hero = panel(beats[idx]);
   if (!hero) return null;
   return { hero, rail: railOf(beats, idx).map(panel).filter(Boolean) };
+}
+
+function groupLabel(name) {
+  const ids = anatomyOf(name);
+  if (!ids.length) return null;
+  // the library's own spelling of the group, from the first region's filing
+  const s = String(name || '').trim();
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }

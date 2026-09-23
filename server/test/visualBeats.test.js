@@ -110,6 +110,8 @@ test('every declared kind can actually produce a spec', () => {
     media: { title: 'Alex Hormozi — Leverage' },
     metric: { value: '84', unit: 'g' },
     bars: { bars: [{ name: 'a', value: 1 }, { name: 'b', value: 2 }] },
+    body: { muscle: 'Chest' },
+    program: { routine: 'Push' },
   };
   for (const kind of VISUAL_KINDS) {
     const spec = normaliseSpec({ kind, label: 'Panel', ...samples[kind] });
@@ -178,4 +180,51 @@ test('a kind left off entirely is inferred from what came with it', () => {
   assert.equal(normaliseSpec({ title: 'X', items: ['a', 'b'] }).kind, 'list');
   assert.equal(normaliseSpec({ title: 'X', value: '84', unit: 'g' }).kind, 'metric');
   assert.equal(normaliseSpec({ title: 'X', caption: 'a line' }).kind, 'key');
+});
+
+
+// ---- the spoken report's two panels (design/JARVIS-REPORT-PLAN.md) ----
+
+test('a body panel names a muscle and nothing else is required', () => {
+  assert.deepEqual(normaliseSpec({ kind: 'body', muscle: 'Chest', label: 'chest', caption: '12 sets a week' }),
+    { kind: 'body', label: 'CHEST', caption: '12 sets a week', muscle: 'Chest' });
+  assert.equal(normaliseSpec({ kind: 'body', label: 'CHEST' }), null, 'no muscle, no panel');
+  assert.equal(normaliseSpec({ kind: 'body', group: 'triceps' }).muscle, 'triceps', 'group is a synonym');
+});
+
+test('a program panel names a routine, and its removals and keeps are lists of names', () => {
+  const p = normaliseSpec({ kind: 'program', routine: 'Push', muscle: 'Triceps', remove: 'Cable Overhead Tricep Extension', keep: ['Rope Overhead Tricep Extension'] });
+  assert.equal(p.routine, 'Push');
+  assert.equal(p.muscle, 'Triceps');
+  assert.deepEqual(p.remove, ['Cable Overhead Tricep Extension'], 'a single string becomes a one-item list');
+  assert.deepEqual(p.keep, ['Rope Overhead Tricep Extension']);
+  assert.equal(normaliseSpec({ kind: 'program', muscle: 'Chest' }), null, 'no routine, no panel');
+  assert.deepEqual(normaliseSpec({ kind: 'program', routine: 'Pull', drop: ['a'] }).remove, ['a'], 'drop is a synonym');
+});
+
+test('steps can ask for a decision; a list never can', () => {
+  assert.equal(normaliseSpec({ kind: 'steps', items: ['a', 'b'], decide: true }).decide, true);
+  assert.equal(normaliseSpec({ kind: 'steps', items: ['a'] }).decide, undefined);
+  assert.equal(normaliseSpec({ kind: 'list', items: ['a'], decide: true }).decide, undefined);
+});
+
+test('the key tells a chest panel from a back panel, and one removal from another', () => {
+  const a = keyOfSpec(normaliseSpec({ kind: 'body', muscle: 'Chest', label: 'MUSCLE' }), 0);
+  const b = keyOfSpec(normaliseSpec({ kind: 'body', muscle: 'Back', label: 'MUSCLE' }), 0);
+  assert.notEqual(a, b);
+  const c = keyOfSpec(normaliseSpec({ kind: 'program', routine: 'Push', remove: ['x'], label: 'PUSH' }), 0);
+  const d = keyOfSpec(normaliseSpec({ kind: 'program', routine: 'Push', remove: ['y'], label: 'PUSH' }), 0);
+  assert.notEqual(c, d);
+});
+
+test('the new kinds stream like the old ones — withheld whole while typed', () => {
+  const full = `The chest.\nVIS {"kind":"body","muscle":"Chest","label":"CHEST"}\nTwelve sets a week.`;
+  for (let n = 1; n <= full.length; n++) {
+    const { text } = parseVisualStream(full.slice(0, n));
+    assert.ok(!/VIS|"kind"|muscle/.test(text), `leaked at ${n}: ${JSON.stringify(text)}`);
+  }
+  const r = parseVisualStream(full);
+  assert.equal(r.beats.length, 1);
+  assert.equal(r.beats[0].spec.kind, 'body');
+  assert.ok(VISUAL_KINDS.includes('program'));
 });

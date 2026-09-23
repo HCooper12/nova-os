@@ -126,3 +126,32 @@ export function musclesNamed(text) {
   }
   return found.sort((a, b) => a.at - b.at).map((f) => f.group);
 }
+
+// THE INVERSE — a group's regions, for lighting a whole group at once. The
+// spoken report says "chest" or "triceps" (the library's filing), and the
+// figure lights anatomy ids; this is the join. Order is the ANATOMY_GROUP
+// order, which puts the largest region first.
+export function anatomyOf(group) {
+  const g = groupOf(group);
+  if (!g) return [];
+  return Object.entries(ANATOMY_GROUP).filter(([, gg]) => gg === g).map(([id]) => id);
+}
+
+// WHICH SIDE THE CAMERA SHOULD STAND ON to see a region — a copy of the
+// `views` in server/lib/muscles.js, pinned to it by the test, because the
+// figure on the glass has to choose its angle before any server answers.
+export const MUSCLE_SIDE = {
+  chest: 'front', 'front-delts': 'front', biceps: 'front', abs: 'front', obliques: 'front',
+  quads: 'front', adductors: 'front',
+  'side-delts': 'front', forearms: 'front',           // visible from both; front reads better
+  'rear-delts': 'back', triceps: 'back', lats: 'back', traps: 'back', rhomboids: 'back',
+  'lower-back': 'back', glutes: 'back', hamstrings: 'back', calves: 'back',
+};
+
+/** The camera side for a set of regions — back only when every one of them
+ *  is a back-only region, so a mixed group (shoulders) is seen from the front. */
+export function sideFor(ids) {
+  const list = (ids || []).filter((id) => MUSCLE_SIDE[id]);
+  if (!list.length) return 'three-quarter';
+  return list.every((id) => MUSCLE_SIDE[id] === 'back') ? 'back' : 'front';
+}
