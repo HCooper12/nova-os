@@ -16,10 +16,18 @@
 // the last session of that routine actually logged. If Nova cannot find that
 // session it says so and carries nothing rather than inventing a list.
 
-import { listCarryovers, addCarryover, removeCarryover } from './workoutCarryover.js';
+import { listCarryovers, addCarryover, removeCarryover, rescheduleCarryover } from './workoutCarryover.js';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const PLANNED_AS_DAY = 'day';
+
+// Same rule workoutCarryover.sameRoutine uses: id when both sides have one,
+// name otherwise. A carry-over written without an id still has to be found.
+export function sameRoutineAs(carryover, routine) {
+  if (!carryover || !routine) return false;
+  if (carryover.sourceRoutineId && routine.id) return carryover.sourceRoutineId === routine.id;
+  return String(carryover.sourceRoutineName || '') === String(routine.name || '');
+}
 
 export function todayIso(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -62,11 +70,56 @@ export async function setMakeupDay({ date, routine, sessions, note = '' }, deps 
   const add = deps.addCarryover || addCarryover;
   const list = deps.listCarryovers || listCarryovers;
   const remove = deps.removeCarryover || removeCarryover;
-  const { exercises, reason, sourceDate } = leftoversOf(routine, sessions);
-  if (!exercises.length) throw new Error(reason || 'nothing to make up');
-  for (const c of await list()) {
+  const move = deps.rescheduleCarryover || rescheduleCarryover;
+  const existing = await list();
+
+  // AN OUTSTANDING CARRY-OVER IS THE ANSWER. Do not re-derive over the top of
+  // it (his report, 22 Sep 2026).
+  //
+  // He marked a day as a Push make-up and Nova "added exercises that wasn't
+  // originally in my makeup session pushed forward from yesterday". The cause
+  // was here: setMakeupDay always called leftoversOf(), which recomputes the
+  // remainder from the LAST logged session of that routine — a second,
+  // independent calculation that can disagree with the carry-over already
+  // sitting in the store. That carry-over was written when the session
+  // actually ended, from that actual session; it is the record of what he did
+  // not do. Recomputing can pick a different (older) session, or a routine
+  // whose exercise list has changed since, and hand him back work he has
+  // already done.
+  //
+  // WHY THAT MATTERS MORE THAN A WRONG LIST. His words: "I don't want nova to
+  // then log I skipped any exercises if I had left it but chose not to redo
+  // the ones I already did yesterday." A make-up carrying exercises he
+  // completed is not just noise — left in place it becomes a record that he
+  // skipped them.
+  //
+  // So: if this routine already has debt outstanding, the make-up MOVES it.
+  // One row, the real list, and the date is the only thing that changes.
+  const outstanding = existing
+    .filter((c) => c.plannedAs !== PLANNED_AS_DAY && sameRoutineAs(c, routine))
+    .sort((a, b) => String(b.sourceDate || b.forDate || '').localeCompare(String(a.sourceDate || a.forDate || '')))[0];
+
+  for (const c of existing) {
     if (c.forDate === date && c.plannedAs === PLANNED_AS_DAY) await remove(c.id);
   }
+
+  if (outstanding) {
+    await move(outstanding.id, date);
+    // promote it to the day's plan; addCarryover merges onto the row already
+    // there rather than pushing a twin (see workoutCarryover.sameRoutine)
+    return add({
+      forDate: date,
+      sourceRoutineName: outstanding.sourceRoutineName || routine.name,
+      exercises: outstanding.exercises || [],
+      plannedAs: PLANNED_AS_DAY,
+      sourceRoutineId: outstanding.sourceRoutineId || routine.id,
+      sourceDate: outstanding.sourceDate || null,
+      note: String(note || '').slice(0, 200),
+    });
+  }
+
+  const { exercises, reason, sourceDate } = leftoversOf(routine, sessions);
+  if (!exercises.length) throw new Error(reason || 'nothing to make up');
   const record = await add({
     forDate: date,
     sourceRoutineName: routine.name,
