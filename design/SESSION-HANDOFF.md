@@ -13,6 +13,157 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 SEP (evening) — THE AGENT WORLD: THE REEL READ, THE PLAN, HIS THREE
+CALLS, AND TWO PASSES OF THE 3D CHARACTER SHEET; PLUS REVIEW SESSIONS B, C,
+F AND 13.** My commits, all pushed: `3f0fb63` `2147698` `3081b60` `a082574`
+`c6ebef8` `8bc3faf` `81eed30` `fb2481e` `ad726d7` `7b13b6d` `9672fb7`
+`8c3484b` `c30146a` `73dc96b` `5a80024` `6593b9f` `2ceaa13` `b909804`.
+Live build `b909804` (Deploy to GitHub Pages, `completed success`).
+
+**GOAL.** His ask at the top of the session: watch an Instagram reel
+(Jarren Rocks, "a video game for my AI agents"), take what is worth taking,
+and plan how it fits Nova — fun and aesthetic ideas welcome. Then his three
+answers turned it into work: (1) proceed, aesthetic-review sessions first
+then the mockup; (2) **faces, in 3D, each agent unique to its personality
+and function** — a cheaper model may draw the comparison; (3) try the
+"Viewed" verb.
+
+**DONE CRITERIA.**
+- MET — the plan is written (`design/AGENT-WORLD-PLAN.md`, the reel read
+  frame by frame, the Org Map proposal, fun/aesthetic ideas labelled, a
+  survey of six of his other videos folded in).
+- MET — the Viewed verb ships and was round-tripped live on a real record.
+- MET — review findings 1, 4, 8, 13, 15, 20 and part of 12 are built and
+  looked at (Sessions B, C, F and 13 were mine; the peer did A, D, E, 6, 9,
+  12, 16, 19, 22).
+- MET — the 3D character sheet exists at two passes and is published to him.
+- **UNMET — pass 3 of the characters.** His words on pass 2: "Leader, Coach,
+  CFO all need their eyes changed so they feel and look more friendly.
+  Otherwise looking better but need to continue refining." Logged in full at
+  `design/AGENT-WORLD-PLAN.md` §3g under "PASS 3". **This is the next job.**
+- UNMET — the Org Map itself (the scene with these figures on the seven
+  districts). Deliberately waiting on the characters being right.
+- NOT DONE, and it is a gap — the Inbox leaving beat and the Train·Today
+  Coach-ask card were never captured moving (see ASSUMED).
+
+**STATE (paths).**
+- `design/AGENT-WORLD-PLAN.md` — the plan. §3f records his **decision for
+  faces** (forms are dropped); §3g is the character brief (nine beings,
+  shared DNA, one silhouette element + one posture + one artefact each,
+  department hues) and now carries the PASS 3 list at its head.
+- `design/mockups/49-agent-characters.html` — the character sheet, three.js
+  r160 UMD from cdnjs (no UMD exists past r160). Published for him:
+  **https://claude.ai/artifact/VU6LdBpB5or14DMQSygeRD** (version 2).
+- `design/mockups/48-org-map.html` — the FLAT map mockup. Superseded as a
+  character design; **kept only as a draft of the map's geography**.
+  Published at https://claude.ai/artifact/NjfRaXzw5VY2yeZELJfKnD.
+- Shipped code of mine: `src/missionFold.js` (`foldInstrument`),
+  `src/muscleHue.js` (`musclesNamed`), `src/coachWeek.js`,
+  `src/briefingStarters.js`, `src/inboxLeave.js`, and the Seen verb across
+  `server/lib/inbox.js` (`setSeen`), `server/routes/inbox.js`, `src/api.js`,
+  `src/App.jsx`, `src/vals/valsInbox.js`, `src/screens/Inbox.jsx`,
+  `src/missionLine.js`. Tests: `missionFold` `musclePaletteFrontend`
+  `coachWeek` `briefingEmpty` `fuelRing` `inboxLeave` `inboxSeen`.
+
+**DECISIONS.**
+- **Faces, not luminous forms** (his call, 23 Sep) → the reel's charm is the
+  eyes and he responded to it. Forecloses the "Jarvis register, no faces"
+  argument in §3f, which is now struck; anyone re-proposing forms is
+  overturning HIS decision, not mine.
+- **The characters are designed before the map** → a map of nine beings is
+  worthless if the beings are wrong, and he judged pass 1 "too much like
+  random 3D objects stuck together". Forecloses building the scene now; the
+  geography in 48-org-map.html is the part that survives.
+- **Seen is a third verb, not a new status** → a seen record STAYS pending
+  and keeps counting in the gate, the badge and the deck; only "new" changes.
+  Forecloses a "seen" tab or an inbox-zero mechanic built on it.
+- **`nvArcIn` instead of a transition** for the Fuel arcs → a CSS transition
+  never fires on an element that MOUNTS at its final value. Forecloses
+  "add a transition" as the fix for any mount-time sweep.
+- **Fit the camera by projecting sampled geometry, not a bounding sphere** →
+  measured: a corner-sphere over-reads a flat ring by 40% (r=6.42 on a deck
+  4.2 across), which is exactly why pass 1 framed the nine into the middle
+  third and he could not judge them. Forecloses the bounding-sphere fit.
+
+**VERIFIED (with locators).**
+- Gates, re-run fresh at close: `npm run lint` exit 0 (warnings only, none
+  in my files); `npm run build` exit 0; `cd server && npm test` →
+  **2064/2064 pass, 0 fail**; `git status --porcelain` → empty;
+  `git rev-list --left-right --count origin/main...HEAD` → `0 0`.
+- Backend: `curl .../api/health` → **200**; `launchctl list | grep novaos`
+  → live PID. Service was reloaded earlier for the Seen route.
+- Deploy: run `35858686391` on `b909804` → **completed success**.
+- The Seen route, live on a real record: `91a5c931` seen → pending + stamp;
+  unseen → pending + null; a bad id → 400. Record left as it was.
+- Looked at, at 402px in cupertino: Home's six fold instruments (368/368,
+  no overflow), Gym's muscle chips and routine tiles, the Coach tab's week
+  instrument against live data (15 of 36 sets), the Briefing empty state
+  (both idioms), Fuel's hero ring in its real dashed-gap state and its
+  filled three-arc state, the Inbox deck head ("✓ all 7") and the card row
+  ("✓ Approve & file" / "✕ Discard" / "Seen").
+- The arcs' sweep, on record: `scripts/rec.mjs` at `--slow 4`, dashed →
+  mid-sweep → full.
+- The shipped bundle, not just the source: `npm run build` then grep
+  `dist/assets/*.js` → 0 hits for every string my sweeps removed, 1 chunk
+  each for "✓ all", `nvArcIn`, `nv-leave-`.
+
+**ASSUMED (no locator — treat as unproven).**
+- **The character sheet's idle life** (blink, saccade, breathing, steam, the
+  30fps visible-tab loop) is code-verified only. Headless Chrome does not
+  drive `requestAnimationFrame` under `--virtual-time-budget` (measured: a
+  bare rAF counter reached 1 in 2s), so `window.__frames` reads 1–3 in every
+  configuration. **His phone is the first real test.**
+- The Inbox leaving beat and the Coach-ask card are pinned by test and reuse
+  proven keyframes, but were never captured moving.
+- Pass 2's fit was measured by projecting heads at three viewports
+  (1100/860/402, all inside) — but by the agent, and I did not re-run it.
+
+**OPEN QUESTIONS / BLOCKERS.**
+- **Pass 3 of the characters is the live job.** Friendlier eyes on Leader,
+  Coach and CFO first; then the refinement list (rod arms everywhere,
+  Coach's shoulder mass / "bowling pin" torso, Commander's compass reading
+  as a hoop, the Librarian's block book and corduroy spines, Guardian's
+  small flame).
+- His two standing decisions from earlier, still unanswered: whether the map
+  is built once the characters are right, and whether Seen should also drive
+  the Inbox badge as "new" rather than "pending".
+- **A CI deploy failed on another session's commit `c723967`** —
+  `server/test/brainWeek.test.js` teardown raced (`ENOTEMPTY: rmdir
+  /tmp/nova-brainweek-data-…`). **It is a flake, not a regression:** the
+  test passes locally (5/5) and the very next CI run on `b909804` was green.
+  If it recurs, the fix is a retry in that file's `test.after`.
+- Four sessions committed to this one working tree today. The tree is clean
+  now, but an orphaned headless Chrome (`nova-probe-9616`, the peer's
+  `probe.mjs`) is still resident and memory was tight enough tonight to kill
+  two of my recordings.
+
+**NEXT ACTION.** Pass 3 on `design/mockups/49-agent-characters.html`, per
+§3g's PASS 3 block: raise and round the eye lenses on Leader, Coach and CFO,
+warm the catchlight, soften the visor edge, and carry personality in the brow
+and tilt rather than by narrowing the eye to a slot. Expected observation if
+it worked: at a close-up those three read as faces with an expression, not as
+a dark band with slits — and Coach still reads determined, CFO precise,
+Leader listening. Then republish to the SAME artifact URL (version 3) and
+ask him before touching the map.
+
+**DO NOT.**
+- Do not re-propose luminous forms or "no faces" — that is his decision, made
+  against a side-by-side he asked for.
+- Do not treat `48-org-map.html` as the character design; it is geography.
+- Do not fix a mount-time sweep with a CSS `transition` (it cannot fire) and
+  do not fit a flat ring with a bounding sphere (over-reads 40%).
+- Do not claim idle motion works from a headless screenshot; it cannot drive
+  rAF. Do not claim a sweep is gone from the app after grepping SOURCE —
+  grep `dist/assets/*.js`, because lazy chunks and inline hand-rolls hide
+  from a source grep (the peer's eight gold buttons, `97b0fca`).
+- Do not run a screenshot and a recording at once, and do not leave headless
+  Chromes behind; two of my recordings were killed for memory with four
+  Chromes resident.
+- Do not take the `brainWeek` CI red as a real failure without re-running it.
+
+---
+
+
 **23 SEP (midday) — THE GOAL BOARD; THE JARVIS REPORT AND REPLY IN PLACE
 SHIPPED.** Commits `a166dad` `ea6cd97` `d511e30`, docs `196c965` `75d271a`.
 All pushed; live build `75d271a8c`; service reloaded.
@@ -3040,6 +3191,10 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 23 September 2026 (evening) — the Agent World: the reel, the plan, his call for faces, and two passes of the nine beings
+He sent an Instagram reel of a "video game for my AI agents" and asked what Nova should take from it. It was watched frame by frame and answered as a plan (`design/AGENT-WORLD-PLAN.md`): the Org Map, seven hex districts drawn from the real department map, figures whose every state comes from heartbeats, job files, plan records and the trust ladder, and exactly one floating marker — the thing waiting on him. An Opus agent surveyed six of the same creator's YouTube videos (Instagram's listing is login-walled) and its findings are folded in: badge only where it means "you", jump-to-next, "Viewed" as a third verb, sticky layout, night as emitted colour. He then made three calls: proceed with the review sessions first, **faces in 3D with a character per job** rather than luminous forms, and yes to Viewed. Shipped alongside: review findings 1 (Home's fold rows become instruments), 4 and 8 (every muscle Train names in its own hue, the Goals card and the Coach's empty log as instruments), 15 (Fuel's ring as three arcs with a dashed gap, the cross-check as two bars), 20 (the Briefing empty state as a stage at rest), 13 (a light tick and cross, one "do all" per subject, and the decision acted out), and the Seen verb, round-tripped live on a real record. Two passes of the 3D character sheet followed; pass 2 fixed the framing that had made pass 1 impossible for him to judge, and rebuilt each being as one sculpted body with a face that blinks, glances and tracks.
+CORRECTED rather than added: my own review of pass 2 called the artefacts and faces done — he saw bandit masks on Leader, Coach and CFO, and he is right; that is logged as PASS 3 and is the next job. `scripts/rec.mjs` (the peer's) also caught a fault no still could: the Fuel macro arcs mounted already finished, because a CSS transition cannot fire on an element that mounts at its final value. And a claim of mine was wrong earlier in the day: I told a peer a large uncommitted batch was theirs when it belonged to a fourth session — checked against the diff, not assumed, after they pushed back.
 
 ### 23 September 2026 (midday) — the goal board; the Jarvis report and reply-in-place shipped
 Steps, protein and calories judged by code against targets that carry their provenance, pace measured by the hour, holes kept as holes; the Coach and Ask Nova read the same record, the cadence engine sends its hour-gated prompts, and the Goals card draws three rings with the week as a strip under each. Verified by asking Nova and the Coach the questions he would ask: the Coach came back with a 2,150-step shortfall costed as twenty-five minutes of walking, and a swap of a cooked Potato Bowl for the lasagna to land 2,205 kcal / 201 g. The two builds queued on 21 Sep were committed first.
