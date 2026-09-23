@@ -36,7 +36,6 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 
@@ -51,20 +50,18 @@ const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin
 // One spawn. The decompose pass gets no tools; the compose pass gets Read on
 // the vault (his shelf is the cross-check) and never the web — every outside
 // fact it may use was already citation-gated by a Researcher upstream.
-function runClaude({ prompt, model: m, tools = '', budget = '1.0', vaultPath, minutes = 25 }) {
+function runClaude({ prompt, model: m, tools = '', vaultPath }) {
   return new Promise((resolve, reject) => {
     const args = [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
       ...boundaryArgs(tools),
       '--output-format', 'json',
-      '--max-budget-usd', String(budget),
       '--no-session-persistence',
     ];
     if (m) args.push('--model', m);
     const child = spawn(CLAUDE_BIN, args, vaultPath ? { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] } : { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = ''; let stderr = '';
-    settleWatchdog(child, { label: 'the briefing', minutes });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);
@@ -237,8 +234,8 @@ export const defaultDeps = {
   enrichVisuals: async (briefing) => (await import('./briefingMedia.js')).enrichVisuals(briefing),
 };
 
-async function model(deps, prompt, { lane, tools = '', budget = '1.0', vaultPath }) {
-  const out = await deps.runClaude({ prompt, model: modelFor(lane), tools, budget, vaultPath });
+async function model(deps, prompt, { lane, tools = '', vaultPath }) {
+  const out = await deps.runClaude({ prompt, model: modelFor(lane), tools, vaultPath });
   const match = firstBalancedObjectMatch(out);
   if (!match) throw new Error(`the ${lane} step did not return JSON: ${String(out).slice(0, 160)}`);
   return parseModelJson(match[0]);
@@ -247,13 +244,11 @@ async function model(deps, prompt, { lane, tools = '', budget = '1.0', vaultPath
 // Waits for a research record to settle. Polls rather than subscribes because
 // the Researcher owns its own lifecycle and files on its own schedule — the
 // same approach planner.js takes, and for the same reason.
-async function awaitResearch(deps, recordId, { pollMs = 5000, maxMs = 20 * 60_000 } = {}) {
-  const started = Date.now();
+async function awaitResearch(deps, recordId, { pollMs = 5000 } = {}) {
   for (;;) {
     const r = await deps.getRecord(recordId).catch(() => null);
     if (r && ['pending', 'filed', 'resolved'].includes(r.status)) return r;
     if (r && r.status === 'error') return { ...r, failed: true };
-    if (Date.now() - started > maxMs) return { failed: true, error: 'that angle took too long' };
     await new Promise((res) => setTimeout(res, pollMs));
   }
 }
@@ -288,7 +283,7 @@ async function runBriefingJob(vaultPath, recordId, topic, standing, deps) {
   try {
     // 1 — decompose
     const angles = normalizeAngles(
-      await model(deps, buildAnglesPrompt(topic, standing), { lane: 'briefing-plan', budget: '0.5', vaultPath }),
+      await model(deps, buildAnglesPrompt(topic, standing), { lane: 'briefing-plan', vaultPath }),
       topic,
     );
     setStage('researching', { angles: angles.angles.map((a) => a.q), title: angles.title });
@@ -328,7 +323,7 @@ async function runBriefingJob(vaultPath, recordId, topic, standing, deps) {
       // pass that cannot open them announced it would and then stopped (the
       // first live run). The web stays shut — every outside fact was already
       // citation-gated upstream.
-      await model(deps, buildComposePrompt({ title: angles.title, topic, standing, findings, shelf }), { lane: 'briefing-compose', budget: '2.5', vaultPath, tools: 'Read' }),
+      await model(deps, buildComposePrompt({ title: angles.title, topic, standing, findings, shelf }), { lane: 'briefing-compose', vaultPath, tools: 'Read' }),
       { title: angles.title },
     );
     if (missing.length) briefing.incomplete = missing;

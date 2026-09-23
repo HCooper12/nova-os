@@ -26,13 +26,10 @@ import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 import { parseModelJson, firstBalancedObjectMatch } from './jsonSalvage.js';
 import { validateOps } from './coachPlan.js';
 
 const CLAUDE_BIN = process.env.NOVA_CLAUDE_BIN || 'claude';
-const BUDGET_READ = process.env.NOVA_PAPER_READ_BUDGET_USD || '1.50';
-const BUDGET_JUDGE = process.env.NOVA_PAPER_JUDGE_BUDGET_USD || '1.50';
 export const PAPER_LANE = 'paper';
 export const PAPER_KIND = 'paper';
 
@@ -236,12 +233,12 @@ async function runPaperJob(vaultPath, recordId, { source, url, prose }, deps) {
   const ask = deps.ask || askModel;
   try {
     const him = await hisFacts(vaultPath, deps);
-    const claims = parseClaims(await ask(buildReadPrompt({ source, prose, him: him.line }), { lane: PAPER_LANE, tools: 'WebSearch WebFetch Read', vaultPath, minutes: 15, budget: BUDGET_READ }));
+    const claims = parseClaims(await ask(buildReadPrompt({ source, prose, him: him.line }), { lane: PAPER_LANE, tools: 'WebSearch WebFetch Read', vaultPath }));
     if (!claims) throw new Error('the Researcher could not read that source into claims — is it reachable?');
 
     const block = await hisBlock(vaultPath, claims, deps);
     const judgement = parseJudgement(
-      await ask(buildJudgePrompt({ claims, ...block, intake: him.intakeLine }), { lane: 'coach', tools: 'Read Grep Glob', vaultPath, minutes: 15, budget: BUDGET_JUDGE }),
+      await ask(buildJudgePrompt({ claims, ...block, intake: him.intakeLine }), { lane: 'coach', tools: 'Read Grep Glob', vaultPath }),
       { routines: block.routines, exercises: block.exercises },
     );
     if (!judgement) throw new Error('the Coach\'s judgement came back in a shape Nova could not read');
@@ -352,7 +349,7 @@ async function hisBlock(vaultPath, claims, deps) {
   return { routines, exercises, plan: renderPlan(routines, exercises), library, schedule, goals, recent, shelf, open };
 }
 
-function askModel(prompt, { lane, tools, vaultPath, minutes = 15, budget = '1' }) {
+function askModel(prompt, { lane, tools, vaultPath }) {
   return new Promise((resolve, reject) => {
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
@@ -360,10 +357,8 @@ function askModel(prompt, { lane, tools, vaultPath, minutes = 15, budget = '1' }
       ...boundaryArgs(tools),
       '--output-format', 'json',
       '--model', modelFor(lane),
-      '--max-budget-usd', budget,
       '--session-id', randomUUID(),
     ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
-    settleWatchdog(child, { label: lane === PAPER_LANE ? 'reading the study' : 'the Coach\'s judgement', minutes });
     let out = ''; let err = '';
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });

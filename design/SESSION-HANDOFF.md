@@ -13,6 +13,116 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**23 SEP — NO WORKING CAPS, ANYWHERE. STANDING INSTRUCTION.**
+
+**HIS INSTRUCTION, verbatim, not up for debate:** "There should be no caps
+for any jobs. If it's a large build it should take as much time as it needs.
+Working caps limit the overall outcome and output to make it worse without
+checking for additional revisions etc that should be standard. So remove all
+possible working session caps for anything in the project." Treat this as
+standing, not a one-off cleanup: no new `--max-budget-usd`, no new wall-clock
+kill on a spawned `claude` process, ever, without asking him first.
+
+**BUILT.** Every `--max-budget-usd` dollar ceiling and every `settleWatchdog`
+wall-clock kill on a spawned `claude` process, removed. `lib/settle.js` —
+the module whose only job was that wall clock — deleted outright, along with
+its test. A guard test (`server/test/noCaps.test.js`) now fails the build if
+`--max-budget-usd` or a `settleWatchdog(` call reappears in any of the 38
+guarded lane files, quoting this instruction and its date.
+
+**Files changed** (`server/lib/`, one dollar-cap and/or wall-clock site each
+unless noted): `briefing.js`, `browse.js` (also its own two local
+`setTimeout` watchdogs), `builder.js`, `calendarCommand.js`,
+`capabilities.js` (stale comment only), `claudeCode.js` (8 call sites),
+`coachPlan.js`, `coachReflection.js`, `dailyReview.js`, `distill.js`,
+`forge.js` (also its `FORGE_MAX_MINUTES` backstop timer), `formCheck.js`,
+`healthInsight.js`, `inbox.js`, `inboxStore.js` (a reaper exception that only
+existed for a pause state that no longer exists), `ingest.js` (also its
+budget-exhaustion error branch), `journalPrompt.js`, `leader.js` (3 sites),
+`librarian.js`, `noteSummaries.js`, `paperLane.js` (also `minutes:` at both
+`ask()` sites), `patternScout.js`, `planFollowUp.js`, `planToday.js`,
+`planner.js` (also `STEP_TIMEOUT_MS` — a plan step no longer gets abandoned
+as "did not finish in time"; the plan waits), `pulse.js` (also its
+budget-exhaustion message branch), `repertoireLane.js`, `researcher.js` (the
+deep one — see below), `scanFood.js` (2 sites), `scanRecipe.js`,
+`scanStatement.js`, `scout.js`, `shoppingList.js`, `studio.js`,
+`studyLane.js`, `tweakRecipe.js`, `watcher.js` (also its `overBudget`
+message logic), `weeklyDebrief.js`.
+
+**THE DEEP ONE — `researcher.js` had a whole pause-and-ask architecture
+built on top of the dollar cap:** hit `$0.45` mid-search, the CLI returned
+`subtype: "error_max_budget_usd"`, and the record parked as a pending
+"continue for $X more?" card (`BUDGET_STOP`, `continuationBudget`,
+`budgetPauseDecision`, `continueResearch`). With the cap gone that card can
+never appear again, so it was removed all the way through rather than left
+as dead code that would confuse the next session: `planner.js` (the
+`paused` step status, `pausedOn`), `inbox.js` (the `record.budgetStop`
+dispatch in `approveRecord`), `inboxStore.js`'s reaper exception, and on the
+client — `src/planCard.js` (the whole `paused` state, `pausedLineFrom`),
+`src/vals/valsMission.js`, `src/screens/MissionStructured.jsx`,
+`src/screens/MissionControl.jsx`, `src/App.jsx` (`watchPlanRun`'s paused
+branch, `attachRunningPlan`), `src/screens/Voice.jsx`. A plan now has two
+states, not three: RUNNING and READY. **This FORECLOSES re-adding a
+budget-triggered pause card without remembering it needs the whole chain
+back** (planner step status → inbox dispatch → client card), not just a
+budget constant.
+
+**Tests updated:** `server/test/pulse.test.js` (the budget-subtype message
+case, replaced with a generic CLI-failure case), `server/test/researcher.test.js`
+(the `BUDGET_STOP`/`continuationBudget`/`budgetPauseDecision` block removed),
+`server/test/researchPanel.test.js` ("the panel budget is bounded" replaced
+with a narrower "workers stay on the cheap tier" check — the one assertion
+in it that wasn't about the cap), `server/test/planCard.test.js` and
+`server/test/planFollowUp.test.js` (the `paused` fixtures and assertions
+removed), `server/test/projects.test.js` (`BUILD_BUDGET_USD` assertion
+removed).
+
+**LEFT ALONE, on purpose — not working caps under this instruction, told to
+him rather than silently touched:**
+- `dailyReview.js` `REVIEW_MAX_ATTEMPTS` (3) and `healthInsight.js`
+  `MAX_TRIES_PER_DAY` (3) — cap RETRIES of a job that already completely
+  FAILED, not the output of a job that is honestly working. Borderline; his
+  call if he wants these gone too.
+- `plan.js` `MAX_STEPS`/`MAX_PLAN_USD` — explicitly non-blocking in their own
+  code ("anything above is fine; it's shown to him, he decides").
+- Prompt/context sizing (`CONTEXT_BUDGET`, `maxChars`, `maxTurns`,
+  `pulse.js` `MAX_SEARCHES`) and read timeouts on quick informational
+  commands or non-`claude` tools (yt-dlp/ffmpeg fetches in `studyLane.js`,
+  `repertoireLane.js`, `exerciseVideos.js`; link-reachability checks in
+  `leader.js`; the widget's `SLICE_BUDGET_MS` in `routes/snapshot.js`, which
+  never aborts the underlying fetch) — none of these spawn a claude process
+  or stop one that is generating.
+
+**VERIFIED:** `cd server && npm test` — 2040/2040 green (was 2029 before the
+new `noCaps.test.js`'s 3 tests; net +11 from another session's concurrent
+`goalBoard` work landing in the same tree). `npm run lint` from root — exit
+0, 91 pre-existing warnings, none newly introduced by this pass (checked
+every warning in a touched file against `git show HEAD:<file>` line by
+line). `npm run build` — exit 0.
+
+**GIT NOTE — another session was committing to this repo at the same time**
+(a `goalBoard` feature, touching `src/App.jsx` among others). `App.jsx` had
+this session's 3 edits interleaved with their uncommitted work in the same
+working-tree file; staged this session's exact 3 hunks into the index via
+`git hash-object`/`git update-index --cacheinfo` against the `HEAD` copy
+rather than `git add`-ing the whole (mixed) file. The working tree itself
+was never touched — their in-progress edits are still there, untouched, for
+them to commit themselves.
+
+**DO NOT:**
+- Do not add a `--max-budget-usd`, a `settleWatchdog`-equivalent, an env var
+  that reintroduces either, or a "soft" version of either ("warn past $X"),
+  to any lane, without asking him first — this instruction is standing.
+- Do not recreate `lib/settle.js` or reimplement its wall-clock kill locally
+  in a lane file — `noCaps.test.js` will catch the watchdog call but a
+  hand-rolled equivalent `setTimeout(...child.kill...)` would not be caught
+  by name; use judgment, not just the guard.
+- Do not re-add a "paused at its budget" plan-step state without rebuilding
+  the whole chain (planner → inbox → client) — half of it left in is worse
+  than none.
+
+---
+
 **22 SEP (night) — THE TOP-BAR BLUR (SIXTH ATTEMPT) AND THE CAMERA, BOTH
 DEVICE-UNVERIFIED.** Four commits: `34f5b1e` `8328058` `dbb4fa3` `d95d448`.
 
@@ -2783,6 +2893,20 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**23 Sep 2026 — no working caps, anywhere.** His standing instruction,
+verbatim, logged at the top of CURRENT HANDOFF: no dollar ceiling and no
+wall-clock kill on any spawned `claude` process, ever, without asking him
+first. Removed `--max-budget-usd` and `settleWatchdog` from 38 lane files in
+`server/lib/`, deleted `lib/settle.js` outright, and pulled out
+`researcher.js`'s whole budget-triggered pause-and-ask architecture end to
+end (planner step status, inbox dispatch, four client files) rather than
+leave it as dead code with no cap left to trigger it. Added
+`server/test/noCaps.test.js` so the two patterns cannot come back silently.
+2040/2040 tests, lint and build both clean. Left the retry-count guards on
+`dailyReview.js`/`healthInsight.js` and the plan-cost preview in
+`capabilities.js`/`plan.js` alone — told to him rather than silently
+touched, since neither cuts short a job that is honestly still working.
 
 **22 Sep 2026 (night) — the sixth blur attempt, the food log revised, the
 camera's four faults.** Removed the viewport's `user-scalable=no`/

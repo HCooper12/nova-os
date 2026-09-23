@@ -163,8 +163,9 @@ export const CAPABILITIES = {
     input: 'a training or nutrition question, plus any material from earlier steps (research briefs, the program dossier) it should weigh',
     output: "the Coach's review as a filed record; each change it recommends lands as a proposal he can apply or decline",
     produces: 'coach-review',
-    // the Coach's own turn ceiling (claudeCode.js MAX_BUDGET_USD) — one
-    // strong-model pass over the full context
+    // an estimate for the plan-cost preview shown to him before he
+    // approves — a strong-model pass over the full context; not an
+    // enforced cap, since no lane runs one
     costUsd: 1.5,
     autonomy: 'propose',
     // DELEGABLE SINCE 21 SEP 2026, on his instruction. It was held out of

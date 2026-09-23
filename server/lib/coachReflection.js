@@ -19,10 +19,8 @@ import path from 'node:path';
 import os from 'node:os';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '1.0';
 // honors NOVA_DATA_DIR like every sibling store (the healthInsight precedent)
 const STATE_PATH = path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'coach-reflection.json');
 const MAX_LEARNINGS = 3;
@@ -161,12 +159,10 @@ function runModel(prompt) {
       // now comes from the model board (lib/modelPrefs.js) so it is settable
       // in Settings; the default is the 'sonnet' this lane has always run on.
       '--model', modelFor('coach-reflection'),
-    '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ]);
     let stdout = '';
     let stderr = '';
-    settleWatchdog(child, { label: "the nightly reflection", minutes: 15 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

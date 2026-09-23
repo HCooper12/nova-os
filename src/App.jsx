@@ -2,7 +2,7 @@ import { Component, createRef, lazy, Suspense } from 'react';
 import { Button } from './Controls.jsx';
 import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
-import { reportOpening, pausedLineFrom } from './planCard.js';
+import { reportOpening } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
@@ -4323,7 +4323,7 @@ export default class App extends Component {
   attachRunningPlan(inbox) {
     if (this.planRunBooted || this.state.demoMode) return;
     this.planRunBooted = true;
-    const live = (inbox?.items || []).find((r) => r.kind === 'plan' && r.status === 'classifying' && !r.pausedOn && Array.isArray(r.plan?.steps) && r.plan.steps.length);
+    const live = (inbox?.items || []).find((r) => r.kind === 'plan' && r.status === 'classifying' && Array.isArray(r.plan?.steps) && r.plan.steps.length);
     if (live) this.watchPlanRun(live.id);
   }
   // pending approvals on the app icon (Badging API — installed PWAs)
@@ -6764,16 +6764,9 @@ export default class App extends Component {
       try { rec = await api.inboxItem(conn, recordId); } catch { setTimeout(tick, 5000); return; }
       rec = rec?.record || rec;
       if (!rec || rec.id !== recordId) { stop(); return; }
-      const steps = Array.isArray(rec.plan?.steps) ? rec.plan.steps : [];
       if (rec.status === 'error') {
         stop();
         say(`The plan stopped before it finished — ${rec.error || 'no reason was recorded'}. Its card in your Inbox has what it did get.`, { recordId, status: 'error' });
-        return;
-      }
-      if (rec.pausedOn || steps.some((st) => st.status === 'paused')) {
-        stop();
-        const line = pausedLineFrom(steps, rec.pausedOn);
-        say(`${line.charAt(0).toUpperCase()}${line.slice(1)}.`, { recordId, status: 'paused' });
         return;
       }
       if (rec.finishedAt) {

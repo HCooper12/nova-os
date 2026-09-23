@@ -103,7 +103,9 @@ export function valsMission(app, ctx) {
     usingLiveWorkouts, liveRoutines, todayRoutine, todayActiveRest, usingLiveNotes, reviewPage } = ctx;
 
   // health satellites (steps, sleep) — real Apple Health data once the phone-side Shortcut is sending it
-  const STEP_GOAL = 10000;
+  // his own step target when he has set one on the Goals card (23 Sep);
+  // the house default otherwise — the same resolution the Coach reads
+  const STEP_GOAL = st.liveGoalBoard?.metrics?.find((m) => m.key === 'steps')?.target || 10000;
   const SLEEP_GOAL_MIN = 480; // 8h
   const usingLiveHealthData = !!st.liveHealthDays;
   const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
@@ -777,13 +779,10 @@ const bodyMetrics = demoMode
       // plan sent him to the Inbox, where all he could do was agree to file a
       // note — "this does not give me a succinct response from Nova itself
       // about what actions to actually take". READY now opens the
-      // conversation and asks the question for him. PAUSED goes to the one
-      // card that can answer it. RUNNING still opens the record.
-      // (PAUSED goes to the Inbox itself, not to this record: the question is
-      // on the STEP's own card, which is the pending one at the top of the deck.)
+      // conversation and asks the question for him. RUNNING still opens the
+      // record.
       const open = card.state === 'ready' ? () => app.walkThroughPlan()
-        : card.state === 'paused' ? () => app.navigate('inbox')
-          : () => app.openCapture(card.id);
+        : () => app.openCapture(card.id);
       return { ...card, open };
     })(),
     // IT LANDED — ON HOME TOO. His ask, 15 Sep: the Inbox strip was right, and

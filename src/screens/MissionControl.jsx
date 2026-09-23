@@ -134,22 +134,21 @@ export function MissionControl({ v }) {
       {/* A PLAN IN FLIGHT — the Apple twin's section in this idiom, from the
           same view model. Same states, same wording. */}
       {v.runningPlan && (() => {
-        // the same three states and the same tint rule as the Apple twin
+        // the same two states and the same tint rule as the Apple twin
         // (MissionStructured.jsx) — one view model, two idioms, no drift
-        const tint = v.runningPlan.state === 'ready' ? 'var(--nv-good)' : v.runningPlan.state === 'paused' ? 'var(--nv-warn)' : 'var(--nv-cy)';
-        const head = v.runningPlan.state === 'ready' ? 'Ready for you' : v.runningPlan.state === 'paused' ? 'Waiting on you' : 'Working on it';
-        const act = v.runningPlan.state === 'ready' ? 'Walk me through it' : v.runningPlan.state === 'paused' ? 'Answer it' : 'Open it';
+        const tint = v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)';
+        const head = v.runningPlan.state === 'ready' ? 'Ready for you' : 'Working on it';
+        const act = v.runningPlan.state === 'ready' ? 'Walk me through it' : 'Open it';
         return (
         <section style={css(`margin-top:18px;padding:16px 18px 14px;border-radius:var(--nv-radius);border:1px solid color-mix(in srgb, ${tint} 38%, transparent);background:linear-gradient(160deg, color-mix(in srgb, ${tint} 08%, transparent), var(--nv-glass2));animation:fadeUp var(--nv-dur-base) var(--nv-ease)`)}>
           <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
-            <Eyebrow as="span" tone={v.runningPlan.state === 'ready' ? 'good' : v.runningPlan.state === 'paused' ? 'warn' : 'cyan'} style={{ minWidth: 0 }}>{head}</Eyebrow>
+            <Eyebrow as="span" tone={v.runningPlan.state === 'ready' ? 'good' : 'cyan'} style={{ minWidth: 0 }}>{head}</Eyebrow>
             <Meta tone="faint">{v.runningPlan.tally} · {v.runningPlan.since}</Meta>
           </div>
           {/* clamped for the same reason as the Apple twin: an amended plan's
               goal is his request AND his correction, and unclamped it buried
               the steps and the action under fifteen lines of serif */}
           <div style={{ marginTop: '4px', minWidth: 0, font: `italic 400 19px/1.25 ${S}`, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.runningPlan.goal}</div>
-          {v.runningPlan.pausedLine && <div style={css(`margin-top:6px;min-width:0;font:500 13px/1.45 ${R};color:var(--nv-warn)`)}>{v.runningPlan.pausedLine}</div>}
           <div style={css('margin-top:10px;display:flex;flex-direction:column;gap:5px')}>
             {v.runningPlan.steps.map((st) => (
               <div key={st.id} style={css('display:flex;align-items:baseline;gap:10px;min-width:0')}>

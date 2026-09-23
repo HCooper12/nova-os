@@ -31,11 +31,11 @@ import { broadcast } from './events.js';
 //     the sidebar agent lights on every device, and the SSE broadcast already
 //     reaches the phone. No new status plumbing was invented.
 //
-// Cost: `--max-budget-usd` is DELIBERATELY generous here and MUST be
-// re-tuned from a measured run before being trusted (design/SESSION-HANDOFF
-// DO NOT: two guessed caps cost ~$10 and an evening by killing real passes
-// mid-flight). A killed job wastes the whole run, so the cap errs high and
-// the receipt records what a job actually cost.
+// No working session cap: a build runs for as long as it genuinely needs,
+// and the receipt records what a job actually cost. A killed job used to
+// waste the whole run — the cap always erred high for exactly that reason,
+// and removing it (his standing instruction, 23 Sep 2026) is the same call
+// taken to its conclusion rather than a reversal of it.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const FORGE_ROOT = process.env.NOVA_FORGE_DIR || path.join(os.homedir(), 'NovaForge');
@@ -45,10 +45,8 @@ const FORGE_ROOT = process.env.NOVA_FORGE_DIR || path.join(os.homedir(), 'NovaFo
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const JOBS_DIR = path.join(DATA_ROOT, 'forge');
-const MAX_BUDGET_USD = process.env.NOVA_FORGE_BUDGET || '4.00';
 const MAX_PROMPT_CHARS = 2000;
 const MAX_CONCURRENT_FORGE = 2;
-const FORGE_MAX_MINUTES = 25; // the wall-clock backstop — a build that runs this long is stuck, not thorough
 const FORGE_KEEP_JOBS = 20;
 const FORGE_ARTIFACT_DAYS = 30;
 const normPrompt = (p) => String(p || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -247,7 +245,6 @@ async function runForgeJob(job) {
     '--strict-mcp-config',
     '--output-format', 'stream-json',
     '--verbose',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ];
   // A job may name its own model (a Shortcut can pass one); otherwise the
@@ -263,14 +260,6 @@ async function runForgeJob(job) {
   // `stopped` on it and the close handler below reads that same object, so a
   // deliberate stop is reported as a stop rather than as a crash.
   running.set(job.recordId, { child, startedAt: Date.now(), job });
-  // the wall-clock backstop rides the same stopped path stopForge uses
-  const backstop = setTimeout(() => {
-    if (!running.has(job.recordId)) return;
-    job.stopped = true;
-    job.stoppedReason = `timed out after ${FORGE_MAX_MINUTES} minutes`;
-    try { child.kill('SIGTERM'); } catch { /* already gone */ }
-  }, FORGE_MAX_MINUTES * 60_000);
-  backstop.unref?.();
 
   let buf = '';
   let stderr = '';
@@ -314,7 +303,6 @@ async function runForgeJob(job) {
   });
   const code = await done;
   running.delete(job.recordId);
-  clearTimeout(backstop);
 
   // stdout BEFORE stderr: the real reason for a failure is in the result
   // event (is_error + total_cost_usd); stderr routinely carries harmless

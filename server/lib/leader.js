@@ -10,7 +10,6 @@ import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { modelFor, laneSkipped, laneEnabled, laneOffError } from './modelPrefs.js';
-import { settleWatchdog } from './settle.js';
 
 // THE LEADER — Hayden's leadership development agent. Its whole job is to
 // make the leadership knowledge he already collects (podcasts, books, notes,
@@ -28,8 +27,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const STATE_PATH = () => path.join(dataRoot(), 'leader.json');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const DAILY_BUDGET_USD = '0.6';
-const RESEARCH_BUDGET_USD = '3.0';
 
 // The daily composer reads the vault but must not touch the world; research
 // is the ONE lane here allowed to search the web — that is its purpose.
@@ -426,7 +423,6 @@ function runClaude(args, cwd) {
   return new Promise((resolve, reject) => {
     const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';
-    settleWatchdog(child, { label: "the leader brief", minutes: 15 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);
@@ -485,7 +481,6 @@ export async function generateDailyLead(vaultPath, { force = false } = {}) {
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('leader-daily'),
-    '--max-budget-usd', DAILY_BUDGET_USD,
     '--session-id', randomUUID(),
   ], vaultPath);
 
@@ -542,7 +537,6 @@ export async function runLeaderResearch(vaultPath, { force = false, fetchImpl } 
     '--strict-mcp-config',
     '--output-format', 'json',
     '--model', modelFor('leader-research'),
-    '--max-budget-usd', RESEARCH_BUDGET_USD,
     '--session-id', randomUUID(),
   ], vaultPath);
 
@@ -946,7 +940,6 @@ async function runAnswerSituation(vaultPath, { text, now = new Date(), runImpl }
     ...boundaryArgs(''), // it reasons over what it was handed — nothing else
     '--output-format', 'json',
     '--model', modelFor('leader-answer'),
-    '--max-budget-usd', '0.2',
     '--session-id', randomUUID(),
   ], vaultPath);
 

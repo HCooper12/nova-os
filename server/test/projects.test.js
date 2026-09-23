@@ -89,9 +89,8 @@ test('the builder is offered to the planner, priced, and on the model board', as
 // built without because an allow-list around Bash is decoration. It now has a
 // real shell and a real wall, and the contract is that neither ships alone.
 test('the builder gets a shell only where the kernel can contain it', async () => {
-  const { buildPrompt, buildInvocation, BUILD_BUDGET_USD } = await import('../lib/builder.js');
+  const { buildPrompt, buildInvocation } = await import('../lib/builder.js');
   const { sandboxAvailable, SANDBOX_BIN, TMP_SUBDIR } = await import('../lib/sandbox.js');
-  assert.equal(BUILD_BUDGET_USD, 5);
 
   const dir = mkdtempSync(path.join(tmpdir(), 'nova-build-'));
   const run = buildInvocation('build me a landing page', 'landing-page', dir, 'haiku');

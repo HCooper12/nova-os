@@ -3,7 +3,7 @@
 // per-step state and nothing ever showed it to him.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planCardFrom, elapsedLabel, goalLine, pausedLineFrom, reportOpening } from '../../src/planCard.js';
+import { planCardFrom, elapsedLabel, goalLine, reportOpening } from '../../src/planCard.js';
 
 const plan = (over = {}) => ({
   id: 'p1', kind: 'plan', status: 'classifying',
@@ -121,47 +121,10 @@ test('a dictated goal reads as a sentence, not as an address', () => {
   assert.equal(planCardFrom([plan({ goal: '', text: '' })]).goal, 'a plan');
 });
 
-// 21 Sep 2026 — A STEP THAT REACHED ITS BUDGET IS A QUESTION, NOT WORK. The
-// plan record stays `classifying` so the startup reaper leaves it alone
-// (planner.js), which without this said "Working on it" while absolutely
-// nothing was happening and no one was asking him anything.
-test('a plan paused at its budget is WAITING ON YOU, not running', () => {
-  const c = planCardFrom([plan({
-    pausedOn: 's2',
-    plan: { steps: [
-      { id: 's1', what: 'the dossier', status: 'done' },
-      { id: 's2', what: 'the research', status: 'paused' },
-      { id: 's3', what: 'write it up' },
-    ] },
-  })]);
-  assert.equal(c.state, 'paused');
-  assert.equal(c.pausedLine, 'step 2 paused at its budget — the card in your Inbox asks whether to continue');
-  assert.equal(c.steps[1].status, 'paused');
-  assert.equal(c.steps[1].glyph, '?');
-  assert.equal(c.steps[1].tint, 'var(--nv-warn)');
-  assert.equal(c.steps[1].error, 'waiting on your yes');
-  // paused is NOT settled: the work is not over, it is waiting
-  assert.equal(c.tally, '1 of 3');
-});
-
-test('a running plan with nothing paused is still RUNNING, and READY is untouched', () => {
+test('a running plan is RUNNING, and READY is untouched', () => {
   assert.equal(planCardFrom([plan()]).state, 'running');
-  assert.equal(planCardFrom([plan()]).pausedLine, null);
   const done = { ...plan(), status: 'pending', finishedAt: new Date().toISOString() };
   assert.equal(planCardFrom([done]).state, 'ready');
-  assert.equal(planCardFrom([done]).pausedLine, null);
-});
-
-test('the paused line names every step that is asking, and never renders blank', () => {
-  const steps = [{ id: 's1' }, { id: 's2' }, { id: 's3' }];
-  assert.equal(pausedLineFrom(steps, 's2, s3'),
-    'steps 2 and 3 paused at their budget — the card in your Inbox asks whether to continue');
-  // the record says it is paused but does not say where: still an honest line
-  assert.equal(pausedLineFrom(steps, ''),
-    'a step paused at its budget — the card in your Inbox asks whether to continue');
-  // the step statuses alone are enough — pausedOn is a convenience, not the truth
-  assert.equal(pausedLineFrom([{ id: 'a' }, { id: 'b', status: 'paused' }], null),
-    'step 2 paused at its budget — the card in your Inbox asks whether to continue');
 });
 
 // THE FIRST BREATH OF A REPORT, for the chat — his 21 Sep report: a finished

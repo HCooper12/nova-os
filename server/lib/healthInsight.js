@@ -17,14 +17,12 @@ import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
 import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR like every sibling store — it was the one hard-coded
 // path (tests with the env override still wrote the REAL data dir)
 const INSIGHT_FILE = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'health', 'insight.json');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '0.5';
 
 function today() {
   const d = new Date();
@@ -201,12 +199,10 @@ function runClaude(prompt) {
       // now comes from the model board (lib/modelPrefs.js) so it is settable
       // in Settings; the default is the 'sonnet' this lane has always run on.
       '--model', modelFor('health-insight'),
-    '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ]);
     let stdout = '';
     let stderr = '';
-    settleWatchdog(child, { label: "the health insight", minutes: 10 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {
@@ -226,10 +222,10 @@ function runClaude(prompt) {
   });
 }
 
-// `tries`/`triesDate` cap the day's SPEND, not the day's ambition: the
-// "already ran" guard below is the success record's date, so before this a
-// failing compose left nothing behind and the hourly tick simply tried again
-// — from 06:00 to midnight, at MAX_BUDGET_USD a go, silently. Three attempts
+// `tries`/`triesDate` cap the day's RETRIES after a genuine failure, not the
+// day's ambition: the "already ran" guard below is the success record's
+// date, so before this a failing compose left nothing behind and the hourly
+// tick simply tried again — from 06:00 to midnight, silently. Three attempts
 // is the same ceiling the daily review and the plan already keep.
 const EMPTY_SLOT = { date: null, hasInsight: false, insight: null, generatedAt: null, tries: 0, triesDate: null, lastError: null };
 export const MAX_TRIES_PER_DAY = 3;

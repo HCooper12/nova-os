@@ -10,21 +10,17 @@ import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
 import { mergeText } from './threeWayMerge.js';
 import { createRecord } from './inboxStore.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
 // .nova-backups is Nova's own pre-write copies (backup.js): staging them let
 // the model's sandbox grow backups of its own edits, which the diff then
 // reported as "new pages". Internal artefacts, never a change.
 const SKIP = new Set(['.obsidian', '.claude', '.DS_Store', '.nova-backups']);
-// NO MORE DYING NEARLY-DONE. A $3 ceiling was set for a pasted note and then
-// applied to full vault weaves, so a video with a lot of real ideas in it
-// spent $3.08, was killed, and wrote NOTHING — he paid for the work and got
-// none of it, twice. A cap that discards completed work is worse than no cap.
-//
-// These are now backstops against a runaway loop, not budgets: a normal weave
-// lands well under them (his book's was $3.53, the Scout's $2.36), and both
-// are overridable in server/.env if a job ever legitimately needs more.
-const MAX_BUDGET_USD = process.env.NOVA_INGEST_BUDGET_USD || '25';
+// NO MORE DYING NEARLY-DONE. A dollar ceiling was once set for a pasted note
+// and then applied to full vault weaves, so a video with a lot of real ideas
+// in it spent $3.08, was killed, and wrote NOTHING — he paid for the work and
+// got none of it, twice. A cap that discards completed work is worse than no
+// cap, which is why this pass now runs uncapped: no working session budget,
+// no wall clock. It takes as long as it needs to.
 // Mirrors watcher.js's own threshold — imported lazily there, so name it
 // here rather than reaching into that module at load time.
 const SINGLE_PASS_MAX_CHARS_ING = 150_000;
@@ -44,10 +40,6 @@ export function digestCacheKey(book, text) {
     ? `book-${slugKey(`${book.title}-${book.author}`)}`
     : `text-${createHash('sha1').update(text).digest('hex').slice(0, 16)}`;
 }
-// A digested long video's weave reads condensed notes PLUS targeted slices
-// of the verbatim transcript — the extra headroom is what makes "nothing
-// lost" affordable to honor.
-const DIGEST_BUDGET_USD = process.env.NOVA_INGEST_DIGEST_BUDGET_USD || '40';
 // launchd services don't inherit the interactive shell's PATH, so `claude` (installed
 // under ~/.local/bin) wouldn't resolve via a bare spawn('claude', ...) — use the
 // absolute path. Override with CLAUDE_BIN in .env if it lives somewhere else.
@@ -470,13 +462,10 @@ When done, give a concise final summary: pages created, pages updated, and any c
         '--permission-mode', 'bypassPermissions',
         ...boundaryArgs('Read,Write,Edit,Glob,Grep'),
         '--output-format', 'json',
-        '--max-budget-usd', job.digested ? DIGEST_BUDGET_USD : MAX_BUDGET_USD,
         // Digested weaves write pages FROM exhaustive notes — structured
-        // transformation, not judgment. On the ambient default (Opus at the
-        // time) the 4-hour-podcast weave burned $8.15 and died at the cap;
-        // Sonnet does this job well inside it. Short pasted ingests default
-        // to Opus — there, one pass is doing all the thinking. Both are now
-        // named lanes rather than an implicit fall-through to the account.
+        // transformation, not judgment. Short pasted ingests default to
+        // Opus — there, one pass is doing all the thinking. Both are named
+        // lanes rather than an implicit fall-through to the account.
         '--model', job.digested ? modelFor('ingest-digest') : modelFor('ingest'),
         '--no-session-persistence',
         // stdin must be closed, not an open pipe: the CLI waits 3s for stdin
@@ -486,14 +475,9 @@ When done, give a concise final summary: pages created, pages updated, and any c
 
       let stdout = '';
       let stderr = '';
-      settleWatchdog(child, { label: "the vault pass", minutes: 60 });
       child.stdout.on('data', (d) => { stdout += d; });
       child.stderr.on('data', (d) => { stderr += d; });
       child.on('close', (code) => {
-        // Parse stdout FIRST even on a non-zero exit: a budget kill reports
-        // is_error + total_cost_usd there, while stderr carries only noise.
-        // Reading stderr first is how a harmless stdin warning came to be
-        // shown as the cause of a fifteen-minute failure.
         let result = null;
         try { result = JSON.parse(stdout); } catch { /* not JSON — handled below */ }
         if (result) {
@@ -505,19 +489,9 @@ When done, give a concise final summary: pages created, pages updated, and any c
         }
         if (code !== 0 || result?.is_error) {
           const spent = Number(result?.total_cost_usd);
-          const budget = Number(job.digested ? DIGEST_BUDGET_USD : MAX_BUDGET_USD);
           job.status = 'error';
           job.error = (result?.is_error && result?.result)
-            || (Number.isFinite(spent) && spent >= budget * 0.98
-              // A dead end is not a report. Say what it cost, what it left
-              // behind, and the ONE setting that changes the outcome — he
-              // lost $3.13 to this message and had nothing to act on.
-              ? `the vault pass ran out of budget — $${spent.toFixed(2)} spent against a $${budget} cap, and nothing was written to your vault.`
-                + (job.digested ? ` The condensed notes ARE saved, so running it again skips that cost and re-tries only the weave.` : '')
-                + (job.digested && modelFor('ingest-digest') !== 'sonnet'
-                  ? ` This pass ran on ${modelFor('ingest-digest')}; Settings → Claude models → "Vault ingest · long transcripts" is designed for sonnet, which is the cheaper structured path and the reason this lane exists.`
-                  : '')
-              : stderr.trim() || `claude exited with code ${code}${Number.isFinite(spent) ? ` after $${spent.toFixed(2)}` : ''}`);
+            || stderr.trim() || `claude exited with code ${code}${Number.isFinite(spent) ? ` after $${spent.toFixed(2)}` : ''}`;
         }
         if (!result) job.summary = stdout.trim();
         if (job.status !== 'error') {

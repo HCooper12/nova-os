@@ -10,7 +10,6 @@ import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { declinedContext } from './respectTheNo.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
-import { settleWatchdog } from './settle.js';
 
 // The pattern scout — skill proposals (agents plan, build 3): once a week a
 // model reads what Hayden actually DID by hand — his captures, their routes,
@@ -22,7 +21,6 @@ import { settleWatchdog } from './settle.js';
 // for proposing is deliberately high; noticing nothing is not failure.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '1.0';
 const SCOUT_DISALLOWED = [
   'Bash', 'Agent', 'Skill', 'ToolSearch', 'ScheduleWakeup', 'ReportFindings', 'Artifact',
   'WebFetch', 'WebSearch', 'SendMessage', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync',
@@ -208,13 +206,11 @@ export async function runPatternScout(vaultPath, { force = false, model } = {}) 
     // Settings, defaulting to the 'sonnet' this lane has always run on —
     // UNLESS the model-choice gate already asked and got a per-run answer.
     '--model', model || modelFor('pattern-scout'),
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the pattern scout", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

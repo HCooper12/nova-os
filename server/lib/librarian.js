@@ -3,7 +3,6 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { modelFor } from './modelPrefs.js';
-import { settleWatchdog } from './settle.js';
 
 // THE LIBRARIAN — a book title + author into a triangulated research
 // dossier, which then rides the EXISTING ingest weave into the vault
@@ -23,7 +22,6 @@ import { settleWatchdog } from './settle.js';
 // as first-hand. Each failure mode gets an explicit counter-rule below.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-export const RESEARCH_BUDGET_USD = '4';
 // Research needs the web and NOTHING that touches this machine's state.
 // --allowedTools is not enforced under bypassPermissions (see claudeCode.js)
 // so the DISALLOWED list is the real boundary.
@@ -119,12 +117,10 @@ export function runBookResearch({ title, author, notes, model: modelOverride }, 
       '--permission-mode', 'bypassPermissions',
       '--disallowedTools', RESEARCH_DISALLOWED,
       '--output-format', 'json',
-      '--max-budget-usd', RESEARCH_BUDGET_USD,
       '--model', model, // ALWAYS pinned — the ambient default is not a choice
     ], { cwd: workDir, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
     let err = '';
-    settleWatchdog(child, { label: "the librarian research", minutes: 30 });
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });
     child.on('error', reject);

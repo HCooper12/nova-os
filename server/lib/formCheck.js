@@ -26,13 +26,11 @@ import { mkdir, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { parseModelJson, firstBalancedObjectMatch } from './jsonSalvage.js';
 
 const exec = promisify(execFile);
 const CLAUDE_BIN = process.env.NOVA_CLAUDE_BIN || 'claude';
-const MAX_BUDGET_USD = process.env.NOVA_FORM_BUDGET_USD || '1.50';
 
 // What he is told BEFORE he films — one paragraph, the same every time, so
 // the clip that comes back is one Nova can actually read.
@@ -380,11 +378,9 @@ async function askModel(prompt) {
       '--permission-mode', 'bypassPermissions',
       ...boundaryArgs('Read'),
       '--output-format', 'json',
-      '--max-budget-usd', MAX_BUDGET_USD,
       '--model', modelFor(FORM_LANE),
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
-    settleWatchdog(child, { label: 'the form check', minutes: 8 });
     let out = ''; let err = '';
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });

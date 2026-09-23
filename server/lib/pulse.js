@@ -8,7 +8,6 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { beat } from './heartbeat.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
-import { settleWatchdog } from './settle.js';
 
 // Topic Pulse — the brief that SHOWS. For each topic on Hayden's Interests
 // page (his to edit, in the vault), a small web-read-only run fetches a few
@@ -23,12 +22,10 @@ const CACHE_PATH = () => path.join(dataRoot(), 'pulse.json');
 
 export const INTERESTS_REL = 'Wiki/Library/Interests.md';
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '0.5';
 // Measured 3 Sep 2026 (one real run, haiku): the Hypertrophy topic cost
-// $1.06 over 20 web searches — twice the cap — which is why 1–2 of 3 topics
-// "exited 1" most nights with nothing to show and the $0.50 spent anyway.
-// The prompt now caps the searching; the budget itself is his call and is
-// surfaced, not raised quietly (NOVA-METHOD: model cost discipline).
+// $1.06 over 20 web searches, most of it wasted on searches with nothing new
+// to show. The prompt caps the searching itself — that shapes the prompt
+// (like any context budget), it does not stop the run once it is working.
 export const MAX_SEARCHES = 8;
 export const MAX_TOPICS = 6;
 const MAX_ITEMS = 5;
@@ -111,13 +108,12 @@ export function normalizePulseItems(parsed) {
 }
 
 // What the CLI envelope says when a run fails — "exited 1" told him nothing
-// for a fortnight. The budget error carries no result text, only a subtype.
+// for a fortnight.
 export function describeRunFailure(outer, code, stderr = '') {
   const sub = String(outer?.subtype || '');
   const cost = typeof outer?.total_cost_usd === 'number' ? ` after $${outer.total_cost_usd.toFixed(2)}` : '';
   const searches = outer?.modelUsage ? Object.values(outer.modelUsage).reduce((a, m) => a + (m.webSearchRequests || 0), 0) : null;
   const searched = searches ? ` and ${searches} searches` : '';
-  if (/budget/i.test(sub)) return `budget of $${MAX_BUDGET_USD} exhausted${cost}${searched} — the run was cut off before it answered`;
   if (/max_turns/i.test(sub)) return `turn limit hit${cost}${searched}`;
   return outer?.result || stderr.trim() || (sub ? `${sub}${cost}` : `exited ${code}${cost}`);
 }
@@ -163,12 +159,10 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
       '--strict-mcp-config',
       '--output-format', 'json',
       '--model', modelFor('pulse'),
-      '--max-budget-usd', MAX_BUDGET_USD,
       '--session-id', randomUUID(),
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
-    settleWatchdog(child, { label: "the pulse", minutes: 15 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

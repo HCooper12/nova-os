@@ -8,14 +8,12 @@ import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR (it was one of two hard-coded paths that leaked test
 // writes into the real data dir)
 const CACHE_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'summaries');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '0.15';
 const jobs = new Map();
 
 function cacheFile(noteId) {
@@ -82,12 +80,10 @@ export function startSummaryJob(noteId, title, bodyText) {
     // now comes from the model board (lib/modelPrefs.js) so it is settable
     // in Settings; the default is the 'sonnet' this lane has always run on.
     '--model', modelFor('note-summary'),
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ]);
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the note summary", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

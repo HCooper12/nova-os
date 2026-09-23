@@ -7,14 +7,12 @@ import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
 // Turn a spoken/typed request into ONE structured calendar op — add, move, or
 // delete — then file it as a confirm-first inbox proposal. The model only
 // INTERPRETS and identifies which event; the actual iCloud write happens later
 // in fileDecision, when the user approves. Nothing here touches the calendar.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '0.5';
 const RANGE_DAYS = 21; // how far ahead the interpreter can see + act
 
 function buildPrompt(text, nowLocal, tz, events) {
@@ -47,12 +45,10 @@ function interpret(prompt) {
       '--model', modelFor('calendar-command'),
       ...boundaryArgs(''),
       '--output-format', 'json',
-      '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
-    settleWatchdog(child, { label: "the calendar interpreter", minutes: 5 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

@@ -8,7 +8,6 @@ import { loadExerciseLibrary, addExerciseIn, setMuscleGroupIn, renderLibraryFile
 import { loadRoutines, loadRoutineData, replaceRoutineEntries, renderRoutinesFile, writeRoutinesRaw, ROUTINES_REL_PATH } from './workouts.js';
 import { stampPriors, applyChanges } from './stagedPass.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
-import { settleWatchdog } from './settle.js';
 
 // COACH CHANGES THE PLAN — his ask, made real.
 //
@@ -34,7 +33,6 @@ import { settleWatchdog } from './settle.js';
 // staged pass, so a failure can never leave the plan half-changed.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const AMEND_BUDGET_USD = '1';
 
 /* ------------------------------ highlights ------------------------------- */
 // "COACH" markers on plan entries — presentation metadata (who put this
@@ -370,12 +368,10 @@ export function startCoachAmend(vaultPath, { proposal, note, fix, recordId = nul
       '--disallowedTools', 'Bash,Edit,Write,NotebookEdit,Agent,Skill,ToolSearch,WebSearch,WebFetch,Artifact,SendMessage,Workflow',
       '--strict-mcp-config',
       '--output-format', 'json',
-      '--max-budget-usd', AMEND_BUDGET_USD,
       '--model', modelFor('coach'), // ALWAYS pinned
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
-    settleWatchdog(child, { label: "Coach's amend", minutes: 5 });
     child.stdout.on('data', (d) => { out += d; });
     child.on('close', async () => {
       try {

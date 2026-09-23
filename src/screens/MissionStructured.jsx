@@ -499,12 +499,11 @@ export function MissionStructured({ v }) {
             same reason the record moment is — something happening right now
             that he cannot see is worse than something he has to scroll to. */}
         {v.runningPlan && (() => {
-          // THREE STATES, ONE TINT RULE — shared with the Command twin below
+          // TWO STATES, ONE TINT RULE — shared with the Command twin below
           // (MissionControl.jsx) because both idioms draw the same card.
-          // PAUSED wears warn: nothing is happening and it is waiting on HIM.
-          const tint = v.runningPlan.state === 'ready' ? 'var(--nv-good)' : v.runningPlan.state === 'paused' ? 'var(--nv-warn)' : 'var(--nv-cy)';
-          const head = v.runningPlan.state === 'ready' ? 'Ready for you' : v.runningPlan.state === 'paused' ? 'Waiting on you' : 'Working on it';
-          const act = v.runningPlan.state === 'ready' ? 'Walk me through it' : v.runningPlan.state === 'paused' ? 'Answer it' : 'Open it';
+          const tint = v.runningPlan.state === 'ready' ? 'var(--nv-good)' : 'var(--nv-cy)';
+          const head = v.runningPlan.state === 'ready' ? 'Ready for you' : 'Working on it';
+          const act = v.runningPlan.state === 'ready' ? 'Walk me through it' : 'Open it';
           return (
           <section style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', borderRadius: '16px', border: `1px solid color-mix(in srgb, ${tint} 38%, transparent)`, background: `linear-gradient(160deg, color-mix(in srgb, ${tint} 08%, transparent), var(--nv-glass2))`, animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
@@ -517,7 +516,6 @@ export function MissionStructured({ v }) {
                 lines of serif that pushed the steps and the action off the
                 phone entirely. The full text is on the record in the Inbox. */}
             <div style={{ marginTop: '4px', minWidth: 0, font: `italic 400 ${mob ? '17px' : '19px'}/1.25 ${S}`, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.runningPlan.goal}</div>
-            {v.runningPlan.pausedLine && <div style={{ marginTop: '6px', minWidth: 0, font: `450 13px/1.45 ${UI}`, color: 'var(--nv-warn)' }}>{v.runningPlan.pausedLine}</div>}
             <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
               {v.runningPlan.steps.map((st) => (
                 <div key={st.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>

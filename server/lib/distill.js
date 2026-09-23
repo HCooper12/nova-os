@@ -12,7 +12,6 @@ import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { weeklyWindowOpen } from './cadence.js';
-import { settleWatchdog } from './settle.js';
 
 // The distiller — captures become knowledge. Filed captures land as FLAT
 // pages (Wiki/Inbox, Studio ideas) with no wikilinks, so the graph never
@@ -32,7 +31,6 @@ import { settleWatchdog } from './settle.js';
 //     removed.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '3';
 const MAX_TARGETS = 8;
 const DISTILL_WEEKDAY = 6; // Saturday, an hour after the pattern scout
 const DISTILL_HOUR = 17;
@@ -169,12 +167,10 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
       // in Settings; the default is the 'sonnet' this lane has always run on —
       // UNLESS the model-choice gate already asked and got a per-run answer.
       '--model', model || modelFor('distill'),
-    '--max-budget-usd', MAX_BUDGET_USD,
       '--no-session-persistence',
     ], { cwd: stagingVault });
     let stdout = '';
     let stderr = '';
-    settleWatchdog(child, { label: "the distillation pass", minutes: 20 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => resolve({ code, stdout, stderr }));

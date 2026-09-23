@@ -22,7 +22,6 @@ import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
 import { addRecipe, removeRecipe } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 import { routeIntent } from './intentRouter.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
@@ -32,7 +31,6 @@ import { routeIntent } from './intentRouter.js';
 // classic second-brain pipeline: capture → classify & route → file.)
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '0.5';
 const INBOX_DIR_REL = 'Wiki/Inbox';
 const TODO_REL = 'Wiki/Inbox/To-Do.md';
 
@@ -184,12 +182,10 @@ function classify(text, onDone) {
     '--permission-mode', 'bypassPermissions',
     ...boundaryArgs(''),
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ]);
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the classifier", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
@@ -1405,16 +1401,6 @@ export async function approveRecord(vaultPath, id) {
   // A plan that failed its checks cannot be approved into running. Approving
   // one files the refusal as read — the blockers are the answer he wanted
   // ("that would need a new agent"), not a job to retry.
-  // A STEP PAUSED AT ITS BUDGET. His yes continues exactly the sessions that
-  // stopped, with more room; nothing already found is paid for twice. His
-  // rule, 21 Sep: pause and ask, never just finish.
-  if (record.budgetStop) {
-    if (record.budgetStop.lane === 'research') {
-      const { continueResearch } = await import('./researcher.js');
-      return continueResearch(vaultPath, record);
-    }
-    throw new Error(`this ${record.kind} is paused at its budget but Nova has no way to continue a "${record.budgetStop.lane}" step yet`);
-  }
   if (record.kind === 'plan') {
     if (!record.planOk) {
       return updateRecord(id, { status: 'filed', filedAt: new Date().toISOString(), auto: false, error: null });

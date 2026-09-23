@@ -6,9 +6,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
-const MAX_BUDGET_USD = '1';
 // Recipe/label extraction is OCR-shaped work the human always reviews before
 // saving, so it runs on the fast model by default. Change it in Settings →
 // Claude models; NOVA_SCAN_MODEL still seeds the default.
@@ -59,13 +57,11 @@ export function startScan(imagePaths, workDir) {
     ...boundaryArgs('Read'),
     '--model', modelFor('scan-recipe'),
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ]);
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the recipe scan", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

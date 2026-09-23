@@ -16,7 +16,6 @@ import { computeStreaks } from './streaks.js';
 import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
-import { settleWatchdog } from './settle.js';
 
 // THE WEEKLY DEBRIEF — the Coach's Sunday sit-down. The Daily Review reads
 // one day; this reads the WEEK: training done vs planned, strength direction
@@ -29,7 +28,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const CONFIG_PATH = () => path.join(dataRoot(), 'weekly-debrief.json');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '1.5';
 const DEBRIEF_DISALLOWED = [
   'Bash', 'Agent', 'Skill', 'ToolSearch', 'ScheduleWakeup', 'ReportFindings', 'Artifact',
   'WebFetch', 'WebSearch', 'SendMessage', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync',
@@ -276,14 +274,12 @@ function startDebriefJob(vaultPath, context, mode, recordId, now, { weekStart = 
     '--disallowedTools', DEBRIEF_DISALLOWED,
     '--strict-mcp-config',
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('weekly-debrief'), // was unpinned until the model board
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the weekly debrief", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

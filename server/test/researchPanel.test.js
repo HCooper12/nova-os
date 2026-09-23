@@ -163,33 +163,15 @@ test('progress says how many are BACK, counting a failure as back', () => {
   assert.equal(panelProgress(null).total, 0);
 });
 
-test('the panel budget is bounded and written down', async () => {
+test('the searching workers stay on the cheaper tier', async () => {
   const { readFile } = await import('node:fs/promises');
   const path = await import('node:path');
   const { fileURLToPath } = await import('node:url');
   const src = await readFile(path.join(
     path.dirname(fileURLToPath(import.meta.url)), '..', 'lib', 'researcher.js',
   ), 'utf8');
-  const num = (n) => Number(src.match(new RegExp(`^const ${n} = '([0-9.]+)';`, 'm'))?.[1]);
-  const worker = num('WORKER_BUDGET_USD');
-  const synth = num('SYNTH_BUDGET_USD');
-  const planner = num('PLANNER_BUDGET_USD');
-  for (const [n, v] of [['worker', worker], ['synth', synth], ['planner', planner]]) {
-    assert.ok(v > 0 && v < 2, `${n} budget is ${v} — unset or unbounded`);
-  }
-  // THE WORKER CAP IS MEASURED, NOT GUESSED (21 Sep 2026): at $0.45 three of
-  // four workers on his real question stopped mid-search and each finished
-  // inside a $0.90 continuation, so a full pass is ~$0.9–1.3 and the cap is
-  // set at roughly twice the measured partial. A cap below the measured
-  // figure turns "pause and ask" into a tax on every plan.
-  assert.ok(worker >= 1.0, `worker budget $${worker} is below the measured cost of one pass`);
-  // the whole fan-out, worst case, is still bounded and written down — and it
-  // must agree with the ceiling the plan card shows him (capabilities.js)
-  const worst = worker * 4 + synth + planner;
-  assert.ok(worst < 7, `a panel could cost $${worst.toFixed(2)} — that is not a bounded change`);
-  const { CAPABILITIES } = await import('../lib/capabilities.js');
-  assert.ok(CAPABILITIES.research.costUsd >= worker * 4 + synth, 'the research ceiling on the plan card is below the panel\'s real worst case');
-  // and the workers must not be running on the expensive tier
+  // the four searching workers are well-specified extraction, not judgment —
+  // they must not quietly drift onto the expensive tier
   assert.match(src, /const WORKER_MODEL = 'sonnet';/,
     'the four searching workers are no longer pinned to the cheaper tier');
 });

@@ -16,7 +16,6 @@ const proposed = {
   cannot: 'None of the agents can read his program',
 };
 const running = { ...proposed, id: 'p2', status: 'classifying', approvedAt: new Date(T0 + min(2)).toISOString(), plan: { steps: [step('s1', 'research', 'Find the volume evidence', 'running')] } };
-const paused = { ...running, id: 'p3', pausedOn: 's1', plan: { steps: [step('s1', 'research', 'Find the volume evidence', 'paused', null, 'paused at its budget')] } };
 const finished = {
   ...proposed, id: 'p4', status: 'pending', finishedAt: new Date(T0 + min(5)).toISOString(),
   plan: { steps: [step('s1', 'research', 'Find the volume evidence', 'done', 'a brief')] },
@@ -26,7 +25,6 @@ const finished = {
 test('a plan reads as the phase it is actually in', () => {
   assert.equal(planPhase(proposed), 'proposed');
   assert.equal(planPhase(running), 'running');
-  assert.equal(planPhase(paused), 'paused');
   assert.equal(planPhase(finished), 'finished');
   assert.equal(planPhase({ ...proposed, status: 'classifying', plan: null }), 'planning');
   assert.equal(planPhase({ ...proposed, planOk: false }), 'refused');
@@ -66,9 +64,6 @@ test('the model is handed the plan as it stands — steps, the cannot, and a fin
   assert.match(text, /Not covered, per the plan: None of the agents/);
   assert.match(text, /THE REPORT/);
   assert.match(text, /Cut Pull to six exercises/);
-  const p = describePlanForModel(paused);
-  assert.match(p, /PAUSED at its budget/);
-  assert.match(p, /Paused on step s1/);
 });
 
 test('the plans block carries the newest finished report in full and older ones short', async () => {

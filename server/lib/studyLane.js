@@ -21,12 +21,10 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const YTDLP = process.env.YTDLP_BIN || '/opt/homebrew/bin/yt-dlp';
 const COOKIES = path.join(os.homedir(), '.config/watch/yt-cookies.txt');
-const MAX_BUDGET_USD = '1.5';
 const MAX_TRANSCRIPTS = 10;       // depth cap — stated in the brief, never silent
 const TRANSCRIPT_CHARS = 6_000;   // per-video excerpt budget for the synthesis prompt
 const INVENTORY_REL = 'design/NOVA-CAPABILITY-INVENTORY.md';
@@ -146,12 +144,10 @@ function runModel(prompt) {
       '--permission-mode', 'bypassPermissions',
       ...boundaryArgs(''),
       '--output-format', 'json',
-      '--max-budget-usd', MAX_BUDGET_USD,
       '--model', modelFor('study-lane'), // was unpinned until the model board
       '--no-session-persistence',
     ]);
     let stdout = '', stderr = '';
-    settleWatchdog(child, { label: "the study synthesis", minutes: 15 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('close', (code) => {

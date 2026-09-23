@@ -5,9 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
-const MAX_BUDGET_USD = '0.3';
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = new Map();
@@ -45,13 +43,11 @@ export function startPromptJob(seed) {
     // now comes from the model board (lib/modelPrefs.js) so it is settable
     // in Settings; the default is the 'sonnet' this lane has always run on.
     '--model', modelFor('journal-prompt'),
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ]);
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the journal prompt", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

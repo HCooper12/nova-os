@@ -7,7 +7,6 @@ import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
-import { settleWatchdog } from './settle.js';
 import {
   BRIEF_RULES, DECISION_RULES, FALLBACK_PANEL, buildPlannerPrompt, parsePanel,
   buildWorkerPrompt, parseFindings, buildSynthesisPrompt, panelProgress,
@@ -20,24 +19,6 @@ import {
 // lands as a pending note in the Inbox. Nothing it produces files itself.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '1.0';
-
-// THE PANEL'S BUDGET, per child, not per question. Four workers plus a merge
-// is five processes where there used to be one, so the caps are set so the
-// WHOLE panel lands near the single-agent ceiling rather than five times it:
-// 0.45 × 4 searching + 0.60 merging ≈ 2.4 worst case, against 1.0 before.
-// That is the real price of the fan-out and it is written here rather than
-// discovered on a bill. Measure a real pass before moving these.
-// MEASURED, 21 Sep 2026, on his real question: three of four workers hit
-// $0.45 mid-search ($0.50, $0.45, $0.45 spent) and each finished inside a
-// $0.90 continuation; the fourth finished under $0.45 with eight findings.
-// A full worker pass is therefore ~$0.9–1.3 on Sonnet. At $0.45 the pause
-// fired on nearly every run, which turns "ask before spending more" into a
-// tax on every plan. Set at roughly 2× the measured partial so the pause is
-// the exception. The merge survived at $0.60 both times.
-const WORKER_BUDGET_USD = '1.2';
-const SYNTH_BUDGET_USD = '0.60';
-const PLANNER_BUDGET_USD = '0.10';
 
 // TIERED BY TASK, per his cost rule. The workers search and extract — that is
 // well-specified work and Sonnet does it. The MERGE is the judgment call (what
@@ -176,21 +157,9 @@ export async function retryResearch(vaultPath, record) {
 // ONE CLAUDE, one prompt, one JSON answer. Every child in the panel goes
 // through here so the tool boundary, the MCP drop and the model pin are
 // stated once — a worker that quietly gained Write would be a hole in the
-// "web-read-only" promise the whole agent rests on.
-// A BUDGET STOP IS ITS OWN ANSWER, NOT AN ERROR. Proved on 21 Sep 2026 by
-// running the CLI against a deliberately tiny cap: it exits 1 with
-// `is_error: true`, an EMPTY result, and `subtype: "error_max_budget_usd"`
-// — and the same session id then RESUMES with a fresh budget and remembers
-// everything it had done. Before this, that empty result was reported as a
-// bare "claude exited with code 1", the worker was written off, and the
-// plan's own report on 21 Sep said "8 of the 12 sub-angles failed outright"
-// without anyone being able to say why. His rule the same day: "it should be
-// able to pause the research or task (not just finish it) and ask me if I am
-// happy for it to exceed the limit before concluding its task or proceeding
-// further." So a stop is returned as a stop, with the session to resume.
-export const BUDGET_STOP = 'error_max_budget_usd';
-
-function askClaude(vaultPath, { prompt, model, budget, tools = 'WebSearch WebFetch Read', minutes = 12, label, resume = null }) {
+// "web-read-only" promise the whole agent rests on. No working-session cap:
+// a worker runs to a real answer, however long that honestly takes.
+function askClaude(vaultPath, { prompt, model, tools = 'WebSearch WebFetch Read', resume = null }) {
   return new Promise((resolve) => {
     let child;
     const sessionId = resume || randomUUID();
@@ -203,24 +172,18 @@ function askClaude(vaultPath, { prompt, model, budget, tools = 'WebSearch WebFet
         '--strict-mcp-config',
         '--output-format', 'json',
         '--model', model,
-        '--max-budget-usd', String(budget),
         resume ? '--resume' : '--session-id', sessionId,
       ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) { resolve({ error: e.message }); return; }
 
     let stdout = '';
     let stderr = '';
-    settleWatchdog(child, { label, minutes });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', (err) => resolve({ error: err.message }));
     child.on('close', (code) => {
       let outer = null;
       try { outer = JSON.parse(stdout); } catch { /* not JSON — fall through to the error path */ }
-      if (outer?.subtype === BUDGET_STOP) {
-        resolve({ budgetStop: true, sessionId, spent: Number(outer.total_cost_usd) || Number(budget) || 0, budget: Number(budget) || 0 });
-        return;
-      }
       if (!outer || outer.is_error || code !== 0) {
         resolve({ error: outer?.result || stderr.trim() || `claude exited with code ${code}` });
         return;
@@ -228,14 +191,6 @@ function askClaude(vaultPath, { prompt, model, budget, tools = 'WebSearch WebFet
       resolve({ text: (outer.result || '').trim(), sessionId, spent: Number(outer.total_cost_usd) || 0 });
     });
   });
-}
-
-// When a step pauses, the budget it is offered to continue with. Doubling is
-// the honest shape: a worker that ran out at $0.45 mid-search needs room to
-// finish, not the same cap it just hit.
-export function continuationBudget(previous) {
-  const p = Number(previous) || 0;
-  return Math.max(0.5, Math.round(p * 2 * 100) / 100);
 }
 
 // WHO SHOULD LOOK AT THIS. A cheap pass that names the panel for the question
@@ -249,8 +204,8 @@ export async function planPanel(vaultPath, question) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const { text, error } = await askClaude(vaultPath, {
       prompt: buildPlannerPrompt(question),
-      model: PLANNER_MODEL, budget: PLANNER_BUDGET_USD,
-      tools: 'Read', minutes: 4, label: 'the research panel',
+      model: PLANNER_MODEL,
+      tools: 'Read',
     });
     if (!error && text) {
       const match = text.match(/\[[\s\S]*\]/);
@@ -265,46 +220,22 @@ export async function planPanel(vaultPath, question) {
 
 // THE PANEL RUN. Workers go out together and their progress lands on the
 // record as each returns, so the job tray can name who is still out — the
-// whole point of the fan-out being visible rather than merely parallel.
-//
-// RESUMABLE. `prior` is the state a paused run left behind: the workers that
-// already reported (kept, never re-run — that would be paying twice) and the
-// ones that stopped at their budget (resumed in their own session with more
-// room). A first run has no prior. The return is one of three honest shapes:
+// whole point of the fan-out being visible rather than merely parallel. No
+// working-session cap on any of them: each runs to a real answer. The return
+// is one of two honest shapes:
 //   { title, body }          — the brief
-//   { paused: [...], ... }   — some part hit its budget; nothing was lost
 //   throws                   — a real failure, with the first reason attached
-async function runPanel(vaultPath, recordId, question, model, context, prior = null) {
-  const first = !prior;
-  const { panel, planned } = first ? await planPanel(vaultPath, question) : { panel: prior.panel, planned: prior.planned };
-  const reportsByName = new Map((prior?.reports || []).map((r) => [r.name, r]));
-  const pausedByName = new Map((prior?.paused || []).filter((p) => p.name !== 'merge').map((p) => [p.name, p]));
-  const workers = panel.map((w) => {
-    const done = reportsByName.get(w.name);
-    return { name: w.name, status: done ? (done.error ? 'error' : 'done') : 'working', found: done?.findings?.length || 0 };
-  });
+async function runPanel(vaultPath, recordId, question, model, context) {
+  const { panel, planned } = await planPanel(vaultPath, question);
+  const workers = panel.map((w) => ({ name: w.name, status: 'working', found: 0 }));
   const publish = (extra = {}) => updateRecord(recordId, { panel: { ...panelProgress(workers), planned, ...extra } }).catch(() => {});
   await publish();
 
-  const paused = [];
   const reports = await Promise.all(panel.map(async (w, i) => {
-    const already = reportsByName.get(w.name);
-    if (already) return already;   // reported before the pause — kept as is
-    const resume = pausedByName.get(w.name);
-    const budget = resume ? continuationBudget(resume.budget) : WORKER_BUDGET_USD;
     const out = await askClaude(vaultPath, {
-      // a resumed session already holds its brief; it is told only to finish
-      prompt: resume ? 'Continue exactly where you stopped and finish your findings. Output ONLY the JSON object.' : buildWorkerPrompt(question, w, context),
-      model: WORKER_MODEL, budget,
-      minutes: 12, label: `the ${w.name} researcher`,
-      resume: resume?.sessionId || null,
+      prompt: buildWorkerPrompt(question, w, context),
+      model: WORKER_MODEL,
     });
-    if (out.budgetStop) {
-      workers[i] = { ...workers[i], status: 'paused', found: 0 };
-      await publish();
-      paused.push({ name: w.name, brief: w.brief, sessionId: out.sessionId, spent: (resume?.spent || 0) + out.spent, budget: out.budget });
-      return null;
-    }
     if (out.error) {
       workers[i] = { ...workers[i], status: 'error', found: 0 };
       await publish();
@@ -320,35 +251,19 @@ async function runPanel(vaultPath, recordId, question, model, context, prior = n
   }));
   const settledReports = reports.filter(Boolean);
 
-  // A PAUSE IS NOT A FAILURE. The workers that stopped keep their sessions;
-  // the ones that reported keep their findings; he is asked before another
-  // dollar is spent. His rule, 21 Sep.
-  if (paused.length) {
-    await publish({ paused: paused.map((p) => p.name) });
-    return { paused, reports: settledReports, panel, planned };
-  }
-
   // Every angle failed: there is nothing to merge and nothing honest to file.
   if (settledReports.every((r) => r.error)) {
     throw new Error(`all ${settledReports.length} researchers failed — ${settledReports[0].error}`);
   }
   await publish({ merging: true });
 
-  const mergeResume = (prior?.paused || []).find((p) => p.name === 'merge') || null;
   const out = await askClaude(vaultPath, {
-    prompt: mergeResume ? 'Continue exactly where you stopped and finish the brief. Output ONLY the JSON object.' : buildSynthesisPrompt(question, settledReports, context),
+    prompt: buildSynthesisPrompt(question, settledReports, context),
     // NO WEB. The sources are chosen; a merge that searches on its own is a
-    // fifth researcher nobody budgeted for, citing sources no angle vouched for.
+    // fifth researcher citing sources no angle vouched for.
     tools: 'Read',
     model: model || modelFor('researcher'),
-    budget: mergeResume ? continuationBudget(mergeResume.budget) : SYNTH_BUDGET_USD,
-    minutes: 10, label: 'the research merge',
-    resume: mergeResume?.sessionId || null,
   });
-  if (out.budgetStop) {
-    await publish({ paused: ['merge'] });
-    return { paused: [{ name: 'merge', sessionId: out.sessionId, spent: (mergeResume?.spent || 0) + out.spent, budget: out.budget }], reports: settledReports, panel, planned };
-  }
   if (out.error) throw new Error(`the merge failed — ${out.error}`);
   const json = firstBalancedObjectMatch(out.text);
   if (!json) throw new Error(out.text.slice(0, 200) || 'no JSON in the merge response');
@@ -356,24 +271,19 @@ async function runPanel(vaultPath, recordId, question, model, context, prior = n
     return normalizeResearch(parseModelJson(json[0]));
   } catch (gateErr) {
     // ONE REPAIR PASS ON A BAD CITATION. The gate is right to refuse a brief
-    // whose [19] points at nothing — but on 21 Sep that refusal threw away a
-    // whole panel's work (four researchers, a merge, a continuation he had
-    // said yes to) over one dangling number, and the Coach step behind it was
-    // skipped. The merge session is resumed once and told exactly what
-    // failed; a second failure is the real thing and is reported as such.
+    // whose [19] points at nothing — but on 21 Sep that refusal once threw
+    // away a whole panel's work over one dangling number, and the Coach step
+    // behind it was skipped. The merge session is resumed once and told
+    // exactly what failed; a second failure is the real thing and is
+    // reported as such.
     if (!/cite|citation|Sources|URL/i.test(gateErr.message)) throw gateErr;
     await publish({ merging: true, repairing: true });
     const again = await askClaude(vaultPath, {
       prompt: `Your brief was refused by the citation check: ${gateErr.message}. Fix ONLY the citations — every [n] used in the body must have a matching numbered entry in the "## Sources" list with a URL, and every Sources entry must carry a URL; renumber if needed and drop any claim you cannot source. Keep the content otherwise unchanged. Output ONLY the JSON object {"title":…,"body":…}.`,
       tools: 'Read',
       model: model || modelFor('researcher'),
-      budget: continuationBudget(SYNTH_BUDGET_USD), minutes: 8, label: 'the research merge (citation repair)',
       resume: out.sessionId,
     });
-    if (again.budgetStop) {
-      await publish({ paused: ['merge'] });
-      return { paused: [{ name: 'merge', sessionId: again.sessionId, spent: again.spent, budget: again.budget }], reports: settledReports, panel, planned };
-    }
     if (again.error) throw new Error(`the merge failed its citation check (${gateErr.message}) and the repair failed too — ${again.error}`);
     const fixed = firstBalancedObjectMatch(again.text);
     if (!fixed) throw new Error(`the merge failed its citation check (${gateErr.message}) and the repair returned no JSON`);
@@ -381,58 +291,20 @@ async function runPanel(vaultPath, recordId, question, model, context, prior = n
   }
 }
 
-// WHAT HE SEES WHEN A RESEARCH STEP PAUSES. A decision he can make in one
-// line: how much was spent, what stopped, what continuing would allow. The
-// record keeps everything the run had (findings, sessions) so a yes costs
-// only the rest, never a restart.
-export function budgetPauseDecision({ question, paused, reports }) {
-  const spent = paused.reduce((s, p) => s + (Number(p.spent) || 0), 0);
-  const next = paused.reduce((s, p) => s + continuationBudget(p.budget), 0);
-  const names = paused.map((p) => (p.name === 'merge' ? 'the merge' : `the ${p.name} researcher`));
-  const back = (reports || []).filter((r) => !r.error).length;
-  const title = `Research paused at its budget — continue?`;
-  const body = [
-    `${names.join(', ')} ${names.length === 1 ? 'reached its' : 'reached their'} spending limit mid-work (about US$${spent.toFixed(2)} spent on ${names.length === 1 ? 'it' : 'them'} so far).`,
-    back ? `${back} of the panel ${back === 1 ? 'has' : 'have'} already reported and ${back === 1 ? 'is' : 'are'} kept.` : '',
-    `Approve = let ${names.length === 1 ? 'it' : 'them'} continue from where ${names.length === 1 ? 'it' : 'they'} stopped, with up to US$${next.toFixed(2)} more. Discard = stop here; nothing is filed.`,
-    '',
-    `The question: ${String(question || '').slice(0, 300)}`,
-  ].filter((l) => l !== '').join('\n');
-  return {
-    route: 'continue',
-    confidence: 'high',
-    title,
-    reason: `Approve = continue with up to US$${next.toFixed(2)} more. Discard = stop here.`,
-    payload: { title, body, spentUsd: spent, nextBudgetUsd: next },
-  };
-}
-
-// The run, shared by first attempts, retries and continuations. A panel of
-// named researchers goes out in parallel and one merge writes the brief — see
-// researchPanel.js for why four different briefs beat four copies of the
-// same agent.
+// The run, shared by first attempts and retries. A panel of named researchers
+// goes out in parallel and one merge writes the brief — see researchPanel.js
+// for why four different briefs beat four copies of the same agent.
 //
 // FAILURE IS STILL HONEST. A single angle coming back empty is a finding the
-// merge reports; every angle failing is an error on the record, with the first
-// reason attached, so a retry has something to act on rather than a shrug.
-// A BUDGET STOP IS NEITHER: the record parks as a pending decision and waits.
-async function runResearchJob(vaultPath, recordId, q, model, context = '', prior = null) {
+// merge reports; every angle failing is an error on the record, with the
+// first reason attached, so a retry has something to act on rather than a
+// shrug.
+async function runResearchJob(vaultPath, recordId, q, model, context = '') {
   try {
-    const out = await runPanel(vaultPath, recordId, q, model, context, prior);
-    if (out.paused) {
-      await updateRecord(recordId, {
-        status: 'pending',
-        budgetStop: { lane: 'research', question: q, model: model || null, context: context || '', panel: out.panel, planned: out.planned, reports: out.reports, paused: out.paused },
-        decision: budgetPauseDecision({ question: q, paused: out.paused, reports: out.reports }),
-      });
-      await notifyParentPlan(vaultPath, recordId);
-      return;
-    }
-    const { title, body } = out;
+    const { title, body } = await runPanel(vaultPath, recordId, q, model, context);
     // ALWAYS pending — web content never files itself
     await updateRecord(recordId, {
       status: 'pending',
-      budgetStop: null,
       decision: {
         route: 'note',
         confidence: 'high',
@@ -451,8 +323,8 @@ async function runResearchJob(vaultPath, recordId, q, model, context = '', prior
   }
 }
 
-// A step of a plan tells the plan when it has settled, so a plan paused on
-// a budget decision picks up the moment he answers it.
+// A step of a plan tells the plan when it has settled, so a plan waiting on
+// this step picks up the moment it lands.
 async function notifyParentPlan(vaultPath, recordId) {
   try {
     const { getRecord } = await import('./inboxStore.js');
@@ -461,15 +333,4 @@ async function notifyParentPlan(vaultPath, recordId) {
     const { resumePlan } = await import('./planner.js');
     resumePlan(vaultPath, r.parentPlanId).catch(() => {});
   } catch { /* the plan polls as well; this only makes it prompt */ }
-}
-
-// HIS YES ON A PAUSED RESEARCH RECORD. Resumes exactly the sessions that
-// stopped, with more room, and keeps every finding already in hand.
-export async function continueResearch(vaultPath, record) {
-  const bs = record?.budgetStop;
-  if (!bs || bs.lane !== 'research') throw new Error('this research record is not paused at a budget');
-  if (!laneEnabled('researcher')) throw laneOffError('researcher');
-  const updated = await updateRecord(record.id, { status: 'classifying', error: null, decision: null });
-  runResearchJob(vaultPath, record.id, bs.question, bs.model || undefined, bs.context || '', bs);
-  return updated;
 }

@@ -10,7 +10,6 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
-import { settleWatchdog } from './settle.js';
 
 // The Watcher — Nova's eyes on video. Hayden hands it a link (a fitness
 // video, a podcast, a talk); the watch toolchain (yt-dlp + the bundled watch
@@ -24,9 +23,6 @@ import { settleWatchdog } from './settle.js';
 // storing third-party transcripts wholesale).
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-// The judgment pass over a 4-hour podcast reads ~10 parts of dense notes —
-// measured well past the old $1.5 cap.
-const MAX_BUDGET_USD = '3.0';
 const WATCH_TIMEOUT_MS = 6 * 60_000; // yt-dlp caption fetch, occasionally audio+whisper
 
 // A transcript longer than this cannot survive one model pass (his first
@@ -43,7 +39,6 @@ export const SINGLE_PASS_MAX_CHARS = 150_000;
 // job, so Sonnet is the right instrument as well as the affordable one.
 export const CHUNK_CHARS = 60_000;
 const CHUNK_MODEL = () => modelFor('watcher-chunk');
-const CHUNK_BUDGET_USD = '1.0';
 const CHUNK_CONCURRENCY = 3;
 
 // Everything except vault reads and the web-read tools. Edit/Write matter most.
@@ -414,7 +409,7 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
       // and the notes need no structure beyond themselves.
       const raw = await runClaudeText(vaultPath, buildChunkNotesPrompt({
         title: report.title, part: i + 1, total: chunks.length, chunkPath, question,
-      }), { allowedTools: 'Read', budget: CHUNK_BUDGET_USD, model: model || CHUNK_MODEL() });
+      }), { allowedTools: 'Read', model: model || CHUNK_MODEL() });
       const text = stripPreamble(raw);
       if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
       notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;
@@ -435,7 +430,6 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
 async function runWatchModel(vaultPath, promptInputs, model) {
   const parsed = await runClaudeJson(vaultPath, buildWatchPrompt(promptInputs), {
     allowedTools: 'Read Grep Glob WebSearch WebFetch',
-    budget: MAX_BUDGET_USD,
     model: model || modelFor('watcher-verdict'), // was unpinned until the model board
   });
   return normalizeWatch(parsed);
@@ -492,7 +486,7 @@ async function runClaudeJson(vaultPath, prompt, opts = {}) {
   }
 }
 
-function runClaude(vaultPath, prompt, { allowedTools, budget, model } = {}) {
+function runClaude(vaultPath, prompt, { allowedTools, model } = {}) {
   return new Promise((resolve, reject) => {
     const args = [
       '-p', prompt,
@@ -501,7 +495,6 @@ function runClaude(vaultPath, prompt, { allowedTools, budget, model } = {}) {
       '--disallowedTools', WATCH_DISALLOWED,
       '--strict-mcp-config', // MCP servers can't auth under launchd — drop them
       '--output-format', 'json',
-      '--max-budget-usd', budget || MAX_BUDGET_USD,
       '--session-id', randomUUID(),
     ];
     if (model) args.push('--model', model);
@@ -509,7 +502,6 @@ function runClaude(vaultPath, prompt, { allowedTools, budget, model } = {}) {
 
     let stdout = '';
     let stderr = '';
-    settleWatchdog(child, { label: "the video weave", minutes: 60 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
     child.on('error', reject);
@@ -522,15 +514,10 @@ function runClaude(vaultPath, prompt, { allowedTools, budget, model } = {}) {
           throw new Error(`claude returned no JSON (exit ${code}): ${(stderr || stdout).trim().slice(0, 300) || 'no output'}`);
         }
         if (outer.is_error || code !== 0) {
-          // A budget kill returns is_error with NO result text — the cost is
-          // the only evidence, so say the numbers rather than guess a cause.
           const spent = Number(outer.total_cost_usd);
-          const overBudget = Number.isFinite(spent) && spent >= Number(budget || MAX_BUDGET_USD) * 0.98;
           throw new Error(
             outer.result || stderr.trim()
-            || (overBudget
-              ? `the model pass ran out of budget — $${spent.toFixed(2)} spent against a $${budget || MAX_BUDGET_USD} cap`
-              : `claude exited with code ${code} with no error text${Number.isFinite(spent) ? ` after $${spent.toFixed(2)}` : ''}`),
+            || `claude exited with code ${code} with no error text${Number.isFinite(spent) ? ` after $${spent.toFixed(2)}` : ''}`,
           );
         }
         const text = (outer.result || '').trim();

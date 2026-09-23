@@ -6,13 +6,11 @@ import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 import { parseModelJson } from './jsonSalvage.js';
 
 const LIST_REL_PATH = 'Wiki/Health/Shopping List.md';
 const CATEGORIES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other'];
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '0.5';
 
 function bodyFor(items) {
   const lines = ['# Shopping List', '', 'Managed via Nova OS.', ''];
@@ -269,13 +267,11 @@ Output ONLY a JSON array with exactly ${newItems.length} objects, one per item i
     // now comes from the model board (lib/modelPrefs.js) so it is settable
     // in Settings; the default is the 'sonnet' this lane has always run on.
     '--model', modelFor('shopping-categorize'),
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ]);
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the list categoriser", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

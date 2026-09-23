@@ -11,7 +11,6 @@ import { Vault } from './vault.js';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { NOVA_LENS } from './lens.js';
-import { settleWatchdog } from './settle.js';
 
 // Studio — the idea pipeline. Deterministic status moves on idea pages
 // (seed → outlining → scripting → shipped) and an ON-DEMAND outline
@@ -21,7 +20,6 @@ import { settleWatchdog } from './settle.js';
 export const IDEA_STATUSES = ['seed', 'outlining', 'scripting', 'shipped'];
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '1.0';
 const OUTLINE_DISALLOWED = [
   'Bash', 'Agent', 'Skill', 'ToolSearch', 'ScheduleWakeup', 'ReportFindings', 'Artifact',
   'WebFetch', 'WebSearch', 'SendMessage', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync',
@@ -110,14 +108,12 @@ export async function startOutline(vaultPath, id) {
     '--disallowedTools', OUTLINE_DISALLOWED,
     '--strict-mcp-config',
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('studio-outline'), // was unpinned until the model board
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the studio draft", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {

@@ -6,9 +6,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
-const MAX_BUDGET_USD = '0.5';
 // Reading a label is OCR — the fast model handles it and the macros are always
 // reviewed before logging. Estimating a meal photo is visual portion/ingredient
 // judgement, where model strength actually moves the number, so it runs on a
@@ -183,7 +181,6 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
     // reads the photo and nothing else — MCP servers stay unbooted too
     ...boundaryArgs('Read'),
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--no-session-persistence',
   ];
   args.push('--model', model); // modelFor never returns empty — the flag is always named
@@ -191,7 +188,6 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the food scan", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
@@ -244,14 +240,12 @@ export function startFoodDescribe(description) {
     ...boundaryArgs('WebSearch'),
     '--strict-mcp-config',
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('food-describe'), // was unpinned until the model board
     '--no-session-persistence',
   ]);
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the food estimate", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

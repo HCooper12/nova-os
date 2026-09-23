@@ -20,7 +20,6 @@ import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 import { describeForPlanner, CAPABILITIES } from './capabilities.js';
 import { validatePlan, schedule, planProgress, describePlan, unmetNeeds, skipReason, costLine, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
 import { salvageJson } from './jsonSalvage.js';
@@ -28,9 +27,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '0.5';           // the PLANNING call only — the steps carry their own
-const STEP_TIMEOUT_MS = 25 * 60_000;    // a step that never settles must not hold the plan forever
-const POLL_MS = 5_000;
+const POLL_MS = 5_000; // how often the plan checks on a step it is waiting for — never how long it waits
 
 // The planner's brief. The capability list is GENERATED (capabilities.js), never
 // written out here — a planner told about an agent that does not exist is the
@@ -169,12 +166,10 @@ function planGoal(vaultPath, recordId, goal, model, inherited = []) {
     ...boundaryArgs(''),
     '--output-format', 'json',
     '--model', model || modelFor('planner'),
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', randomUUID(),
   ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
-  settleWatchdog(child, { label: 'the plan', minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.on('close', async () => {
     try {
@@ -315,7 +310,6 @@ async function dispatchStep(vaultPath, step, priorOutputs, record = null) {
     const jobId = await startCoachTurn(vaultPath, { question, sessionId: null });
     // the Coach answers as a job; this turns it into the record the plan waits on
     (async () => {
-      const started = Date.now();
       for (;;) {
         const job = getMessageJob(jobId);
         if (!job) { await updateRecord(created.id, { status: 'error', error: 'the Coach job vanished' }); return; }
@@ -334,7 +328,6 @@ async function dispatchStep(vaultPath, step, priorOutputs, record = null) {
           return;
         }
         if (job.status === 'error') { await updateRecord(created.id, { status: 'error', error: job.error || 'the Coach failed' }); return; }
-        if (Date.now() - started > STEP_TIMEOUT_MS) { await updateRecord(created.id, { status: 'error', error: 'the Coach did not finish in time' }); return; }
         await new Promise((r) => setTimeout(r, POLL_MS));
       }
     })().catch(() => {});
@@ -400,22 +393,18 @@ export function stripPlaceholders(s) {
   return String(s || '').replace(/\{\{\s*\w+\s*\}\}/g, '').replace(/[ \t]{2,}/g, ' ').replace(/\s+([,.;:])/g, '$1').trim();
 }
 
-// Wait for a dispatched record to settle. A step that never finishes must not
-// hold the plan open forever — it fails with a reason, and the report says so.
-async function awaitRecord(id, { timeoutMs = STEP_TIMEOUT_MS } = {}) {
-  const started = Date.now();
+// Wait for a dispatched record to settle. No working-session cap: a step
+// takes as long as it genuinely needs, and the plan waits for it — it never
+// gives up on a step that is still honestly working.
+async function awaitRecord(id) {
   for (;;) {
     const r = await getRecord(id).catch(() => null);
     if (!r) return { ok: false, why: 'the record vanished' };
     if (r.status === 'error') return { ok: false, why: r.error || 'the agent failed' };
-    // PAUSED AT ITS BUDGET, WAITING ON HIM. Not done, not failed: the plan
-    // parks on it and picks up when he answers the step's card.
-    if (r.status === 'pending' && r.budgetStop) return { paused: true, why: r.decision?.title || 'paused at its budget' };
     if (r.status === 'discarded') return { ok: false, why: r.declineReason ? `he stopped it — ${r.declineReason}` : 'he stopped it' };
     if (r.status === 'pending' || r.status === 'resolved' || r.status === 'filed') {
       return { ok: true, output: summarise(r) };
     }
-    if (Date.now() - started > timeoutMs) return { ok: false, why: 'it did not finish in time' };
     await new Promise((res) => setTimeout(res, POLL_MS));
   }
 }
@@ -663,11 +652,9 @@ function writeReport(vaultPath, recordId, goal, plan, progress) {
       ...boundaryArgs(''), // synthesis only — everything it needs is in the prompt
       '--output-format', 'json',
       '--model', modelFor('planner'),
-      '--max-budget-usd', '1.0',
       '--session-id', randomUUID(),
     ], { cwd: vaultPath, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
-    settleWatchdog(child, { label: 'the plan report', minutes: 10 });
     child.stdout.on('data', (d) => { stdout += d; });
     child.on('close', async () => {
       try {

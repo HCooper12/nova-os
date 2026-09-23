@@ -7,13 +7,11 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
-import { settleWatchdog } from './settle.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const MAX_BUDGET_USD = '1.5';
 
 // Deliberately no Bash — this tab can read and edit real files (in the Nova OS
 // repo or the vault, whichever workspace is selected) but can't run shell
@@ -197,7 +195,6 @@ export function startMessage(cwd, { text, sessionId, model }) {
     '--output-format', 'stream-json',
     '--include-partial-messages',
     '--verbose',
-    '--max-budget-usd', MAX_BUDGET_USD,
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
   // an explicit choice from the Code screen's picker always wins; absent
@@ -352,7 +349,6 @@ function askArgs(sessionId, isNewSession) {
     '--output-format', 'stream-json',
     '--include-partial-messages',
     '--verbose',
-    '--max-budget-usd', MAX_BUDGET_USD,
     // Haiku by default for the voice line: the rich deterministic context is
     // already injected, so a fast model answers conversationally in a
     // fraction of the time while staying grounded. Settable per lane.
@@ -662,7 +658,6 @@ export function startSessionDebrief(cwd, { facts }, onReady) {
     '--output-format', 'stream-json',
     '--include-partial-messages',
     '--verbose',
-    '--max-budget-usd', MAX_BUDGET_USD,
     // This call ran unpinned until the model board was built — it inherited
     // whatever the account defaulted to, which is the exact failure the
     // 21-Aug Coach fix was about. Named now, like every other lane.
@@ -705,7 +700,6 @@ export function startGreeting(cwd, { facts }) {
     '--output-format', 'stream-json',
     '--include-partial-messages',
     '--verbose',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('greeting'),
     '--session-id', effectiveSessionId,
   ];
@@ -805,7 +799,6 @@ export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
     '--output-format', 'stream-json',
     '--include-partial-messages',
     '--verbose',
-    '--max-budget-usd', MAX_BUDGET_USD,
     // His 21-Aug catch: this call had NO --model, so it silently inherited
     // the CLI's ambient default — which on his machine had become Fable 5
     // (~/.claude/settings.json) — and he hit its usage limit mid-conversation.
@@ -953,7 +946,6 @@ export function startAskLeader(cwd, { question, context, sessionId }) {
     '--output-format', 'stream-json',
     '--include-partial-messages',
     '--verbose',
-    '--max-budget-usd', MAX_BUDGET_USD,
     // pinned, like every lane — opus by default, changeable in Settings
     '--model', modelFor('leader-chat'),
   ];
@@ -1037,14 +1029,12 @@ export function startQuickSession(cwd, { minutes, note, context }) {
     '--disallowedTools', BREAKER_DISALLOWED,
     '--strict-mcp-config',
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('quick-session'), // was unpinned until the model board
     '--session-id', randomUUID(),
   ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the quick-session draft", minutes: 5 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
@@ -1114,14 +1104,12 @@ Report format: a short verdict line, then a numbered list of findings — each w
     '--disallowedTools', BREAKER_DISALLOWED,
     '--strict-mcp-config',
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('breaker'), // was unpinned until the model board
     '--session-id', randomUUID(), // fresh session every time — the Breaker judges cold
   ], { cwd, stdio: ['ignore', 'pipe', 'pipe'] }); // stdin closed — the CLI otherwise waits on the open pipe
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the breaker review", minutes: 15 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

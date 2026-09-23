@@ -24,7 +24,6 @@
 //   4. A RECEIPT WITH EVIDENCE. Every run lands a pending record: the steps
 //      it took, the pages it touched, what it stopped in front of, and
 //      numbered screenshots on disk.
-//   5. A CEILING. Budget-capped and watchdogged like every other lane.
 //
 // What it cannot do is as important as what it can, and the report says so.
 
@@ -43,8 +42,6 @@ import { parseModelJson } from './jsonSalvage.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || 'claude';
-const MAX_BUDGET_USD = process.env.NOVA_BROWSE_BUDGET || '2.0';
-const WATCHDOG_MIN = 8;
 
 // The MCP server that IS the hands. Resolved from the npx cache or an
 // explicit path; absent means the lane says so instead of pretending.
@@ -204,7 +201,6 @@ async function run(recordId, task, server) {
     // the live feed (liveFeed below), and the final result is the last event.
     '--output-format', 'stream-json', '--verbose',
     '--model', modelFor('browse'),
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--session-id', sessionId,
   ], { cwd: shotDir, stdio: ['ignore', 'pipe', 'pipe'] });
 
@@ -212,7 +208,6 @@ async function run(recordId, task, server) {
   let finalText = null;
   let isError = false;
   let buf = '';
-  const watchdog = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } }, WATCHDOG_MIN * 60_000);
   child.stdout.on('data', (d) => {
     buf += d;
     let nl;
@@ -231,7 +226,6 @@ async function run(recordId, task, server) {
 
   await new Promise((resolve) => {
     child.on('close', async () => {
-      clearTimeout(watchdog);
       try {
         let text = '';
         if (finalText == null) throw new Error(stderr.trim().split('\n').pop()?.slice(0, 200) || 'the browser session produced nothing');
@@ -422,14 +416,11 @@ export async function pressPending(payload) {
     '--disallowedTools', DISALLOWED,
     '--output-format', 'json',
     '--model', modelFor('browse'),
-    '--max-budget-usd', MAX_BUDGET_USD,
   ], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
-  const watchdog = setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* already gone */ } }, 6 * 60_000);
   child.stdout.on('data', (d) => { stdout += d; });
   child.on('close', async () => {
-    clearTimeout(watchdog);
     let line;
     try {
       const outer = JSON.parse(stdout);

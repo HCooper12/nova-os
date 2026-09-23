@@ -7,14 +7,12 @@ import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { CATEGORIES, categorize } from './money.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 
 // Photograph a statement page or receipt → the model extracts transaction
 // lines as typed JSON → they land as a pending money-import record on the
 // inbox rails, exactly like a CSV drop. The model only ever READS the image;
 // deterministic code does all filing after approval.
 
-const MAX_BUDGET_USD = '0.5';
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = new Map();
 
@@ -48,14 +46,12 @@ export function startStatementScan(imagePaths, workDir, note) {
     '--permission-mode', 'bypassPermissions',
     ...boundaryArgs('Read'),
     '--output-format', 'json',
-    '--max-budget-usd', MAX_BUDGET_USD,
     '--model', modelFor('scan-statement'), // was unpinned until the model board
     '--session-id', randomUUID(),
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: "the statement scan", minutes: 10 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {

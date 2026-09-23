@@ -7,7 +7,6 @@ import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 import { parseModelJson } from './jsonSalvage.js';
 import { readEntry, isGrounded, assembleReport, confirmLine, sourceLine } from './captureReport.js';
 import { flatten, loadRepertoire, slugFor } from './repertoire.js';
@@ -45,7 +44,6 @@ const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin
 const YTDLP = process.env.YTDLP_BIN || '/opt/homebrew/bin/yt-dlp';
 const FFMPEG = process.env.FFMPEG_BIN || '/opt/homebrew/bin/ffmpeg';
 const COOKIES = path.join(os.homedir(), '.config/watch/yt-cookies.txt');
-const MAX_BUDGET_USD = '2.5';
 export const REPERTOIRE_LANE = 'repertoire';
 
 // Enough to read a technique's setup, delivery and reaction without paying for
@@ -289,11 +287,9 @@ function askModel(prompt) {
       // Read for the frames, the web pair for the research half
       ...boundaryArgs('Read WebSearch WebFetch'),
       '--output-format', 'json',
-      '--max-budget-usd', MAX_BUDGET_USD,
       '--model', modelFor(REPERTOIRE_LANE),
       '--no-session-persistence',
     ], { stdio: ['ignore', 'pipe', 'pipe'] });
-    settleWatchdog(child, { label: 'the repertoire analysis', minutes: 20 });
     let out = '', err = '';
     child.stdout.on('data', (d) => { out += d; });
     child.stderr.on('data', (d) => { err += d; });

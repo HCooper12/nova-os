@@ -320,8 +320,8 @@ export function Voice({ v }) {
                     him nothing but an Inbox card asking to file a note. The
                     chips are the three things he might actually want next. */}
                 {m.planReport && (
-                  <div style={css(`margin-top:8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;border:1px solid color-mix(in srgb, ${m.planReport.status === 'paused' || m.planReport.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-cy)'} 32%, transparent);border-radius:9px;padding:9px 12px;background:color-mix(in srgb, ${m.planReport.status === 'paused' || m.planReport.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-cy)'} 06%, transparent);animation:popIn var(--nv-dur-base) var(--nv-ease)`)}>
-                    {m.planReport.status === 'paused' || m.planReport.status === 'error' ? (
+                  <div style={css(`margin-top:8px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;border:1px solid color-mix(in srgb, ${m.planReport.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-cy)'} 32%, transparent);border-radius:9px;padding:9px 12px;background:color-mix(in srgb, ${m.planReport.status === 'error' ? 'var(--nv-warn)' : 'var(--nv-cy)'} 06%, transparent);animation:popIn var(--nv-dur-base) var(--nv-ease)`)}>
+                    {m.planReport.status === 'error' ? (
                       <Chip tone="gold" onClick={m.planReport.openInbox}>Open Inbox</Chip>
                     ) : (
                       <>

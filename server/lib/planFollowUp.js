@@ -31,7 +31,7 @@ export function planPhase(r) {
   if (r.status === 'error') return 'failed';
   if (r.status === 'discarded') return 'discarded';
   const ran = r.finishedAt || (r.plan?.steps || []).some((s) => s.status && s.status !== 'waiting');
-  if (r.status === 'classifying') return r.pausedOn ? 'paused' : (r.plan ? 'running' : 'planning');
+  if (r.status === 'classifying') return r.plan ? 'running' : 'planning';
   if (r.status === 'pending') return ran ? 'finished' : (r.planOk === false ? 'refused' : 'proposed');
   if (r.status === 'filed' || r.status === 'approved') return 'finished';
   return 'unknown';
@@ -55,14 +55,14 @@ export async function recentPlanContext({ now = Date.now(), records = null, wind
   const touched = (r) => Math.max(...[r.createdAt, r.approvedAt, r.finishedAt, r.updatedAt].filter(Boolean).map((t) => new Date(t).getTime() || 0), 0);
   const live = plans
     .map((r) => ({ r, at: touched(r), phase: planPhase(r) }))
-    .filter((x) => x.at && now - x.at <= windowMs && ['proposed', 'running', 'paused', 'finished', 'planning'].includes(x.phase))
+    .filter((x) => x.at && now - x.at <= windowMs && ['proposed', 'running', 'finished', 'planning'].includes(x.phase))
     .sort((a, b) => b.at - a.at)[0];
   return live ? { record: live.r, phase: live.phase, ageMs: now - live.at } : null;
 }
 
 function stepLine(s) {
   const agent = CAPABILITIES[s.capability]?.agent || s.capability;
-  const status = s.status === 'done' ? 'done' : s.status === 'failed' ? `FAILED (${s.error || 'no reason'})` : s.status === 'skipped' ? `did not run (${s.error || ''})` : s.status === 'paused' ? 'PAUSED at its budget — waiting on his yes' : s.status === 'running' ? 'running' : 'waiting';
+  const status = s.status === 'done' ? 'done' : s.status === 'failed' ? `FAILED (${s.error || 'no reason'})` : s.status === 'skipped' ? `did not run (${s.error || ''})` : s.status === 'running' ? 'running' : 'waiting';
   return `  - ${agent}: ${s.what} — ${status}`;
 }
 
@@ -77,7 +77,6 @@ export function describePlanForModel(r, { reportChars = 6000 } = {}) {
   const lines = [head];
   if (steps) lines.push(steps);
   if (r.cannot) lines.push(`  Not covered, per the plan: ${String(r.cannot).slice(0, 400)}`);
-  if (r.pausedOn) lines.push(`  Paused on step ${r.pausedOn}: the research card in his Inbox needs his yes before more is spent.`);
   if (phase === 'finished') {
     const body = String(r.decision?.payload?.body || '').trim();
     if (body) lines.push(`  THE REPORT (Nova's own write-up of what the agents found — quote it, summarise it, act on it):\n${body.slice(0, reportChars)}${body.length > reportChars ? '\n  …(report continues in his Inbox)' : ''}`);

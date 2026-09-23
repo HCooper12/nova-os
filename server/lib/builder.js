@@ -34,15 +34,12 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 import { boundaryArgs } from './spawnBoundary.js';
-import { settleWatchdog } from './settle.js';
 import { modelFor } from './modelPrefs.js';
 import { createProjectDir, undoProject } from './projects.js';
 import { createRecord } from './inboxStore.js';
 import { sandboxed, sandboxAvailable, sandboxUnavailable } from './sandbox.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-// A build is one long job, like a weave. The ceiling is a cap, not an estimate.
-export const BUILD_BUDGET_USD = 5;
 
 const jobs = new Map();
 export function getBuildJob(id) { return jobs.get(id) || null; }
@@ -103,7 +100,6 @@ export function buildInvocation(brief, slug, dir, model, { shell: force } = {}) 
     ...boundaryArgs(shell ? 'Read,Write,Edit,Glob,Grep,Bash' : 'Read,Write,Edit,Glob,Grep'),
     '--output-format', 'json',
     '--model', model || modelFor('build'),
-    '--max-budget-usd', String(BUILD_BUDGET_USD),
     '--no-session-persistence',
   ];
   return shell
@@ -130,7 +126,6 @@ export function startBuild(brief, { name, model } = {}) {
 
   let stdout = '';
   let stderr = '';
-  settleWatchdog(child, { label: 'the build', minutes: 30 });
   child.stdout.on('data', (d) => { stdout += d; });
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('error', (err) => { job.status = 'error'; job.error = err.message; });
