@@ -301,7 +301,7 @@ const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveLibrary', 'liveLeader', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
-  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveCarryovers', 'liveTrainOverview',
+  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveGoalBoard', 'liveCarryovers', 'liveTrainOverview',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
   // fetched every sync anyway — excluding them just blanked flagship surfaces
   // (About You, Daily Review card, learning panel) on every phone reload
@@ -513,7 +513,7 @@ export default class App extends Component {
     todoInput: '', todoEditCategoryKey: null,
     editingSessionId: null, sessionDeleteConfirmId: null,
     liveCarryovers: null, finishMissed: null, finishMissedDate: '', finishMissedRoutine: '', carryoverRescheduleId: null,
-    liveWorkoutGoals: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', equipment: '', limitations: '', notes: '' }, coachBusy: false,
+    liveWorkoutGoals: null, liveGoalBoard: null, goalsEditing: false, goalsDraft: { goal: '', focus: '', daysPerWeek: '', equipment: '', limitations: '', notes: '', stepsTarget: '', proteinTarget: '', kcalTarget: '' }, coachBusy: false,
     mealPrepBusy: false,
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
     liveBackups: null, restoreConfirm: null, pushState: 'checking',
@@ -1541,7 +1541,7 @@ export default class App extends Component {
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
     apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
-    apply('workoutGoals', (r) => this.setState({ liveWorkoutGoals: r.goals }));
+    apply('workoutGoals', (r) => this.setState({ liveWorkoutGoals: r.goals, liveGoalBoard: r.board || null }));
     apply('graph', (r) => { this.setState({ liveGraph: r }); this.gNodes = null; });
     apply('repertoire', (r) => this.setState({ liveRepertoire: r }));
     apply('inbox', (r) => this.setState({ liveInbox: r }));
@@ -1671,7 +1671,7 @@ export default class App extends Component {
         this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups, liveWorkoutTrackingTypes: exercisesRes.trackingTypes });
         const routinesRes = await api.workoutRoutines(conn);
         this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays, liveWorkoutProgressions: routinesRes.progressions || {} });
-        api.workoutGoals(conn).then(({ goals }) => this.setState({ liveWorkoutGoals: goals })).catch(() => {});
+        api.workoutGoals(conn).then(({ goals, board }) => this.setState({ liveWorkoutGoals: goals, liveGoalBoard: board || null })).catch(() => {});
       },
       async () => {
         const graph = await api.graph(conn);
@@ -6733,8 +6733,8 @@ export default class App extends Component {
   // So: once a plan is RUNNING, watch it, and when it settles come back to
   // the room he set it from. Three ways out — walk me through it, take it to
   // the Coach, keep it — because the report is the START of a decision, not
-  // a filing job. A step that paused at its budget says so and points at the
-  // one card that can answer it.
+  // a filing job. (A step used to be able to pause at a dollar limit and point
+  // at a card; no job carries a cap since 23 Sep 2026, so it cannot.)
   //
   // The watch survives a reclaim (localStorage, the same mechanism
   // novaos.askJob proved) and the server may have started the run without
@@ -7049,6 +7049,13 @@ export default class App extends Component {
     // path — and it is safe to call unconditionally because it only reads.
     this.resolveSpeechVoice();
   }
+  // "STAND DOWN" — the spoken way out. A conversation he can't end by
+  // talking isn't a conversation; it's a machine that has to be tapped.
+  // Matched on the CLIENT and never sent to the model: this is about the
+  // microphone, and a round-trip to be told to stop listening is absurd.
+  // Deliberately narrow — it must never eat a real question that happens to
+  // contain the words.
+  static STAND_DOWN = /^\s*(?:ok(?:ay)?|alright|right|hey nova)?[,\s]*(?:nova[,\s]*)?(?:stand down|stop listening|that'?s all|that'?ll be all|nothing else|go to sleep|never ?mind|dismissed|thank you,? that'?s all)\s*[.!]?\s*$/i;
   // REPLY IN PLACE — his ask, 21 Sep 2026 (src/ReplySheet.jsx carries the
   // why). A banner, a nudge or a report can open the one composer over the
   // current screen with its own words as the situation, so his answer lands
@@ -7094,13 +7101,6 @@ export default class App extends Component {
       this.setState((s) => ({ replyTo: s.replyTo ? { ...s.replyTo, busy: false, status: `Could not file it — ${e.message}` } : null }));
     });
   }
-  // "STAND DOWN" — the spoken way out. A conversation he can't end by
-  // talking isn't a conversation; it's a machine that has to be tapped.
-  // Matched on the CLIENT and never sent to the model: this is about the
-  // microphone, and a round-trip to be told to stop listening is absurd.
-  // Deliberately narrow — it must never eat a real question that happens to
-  // contain the words.
-  static STAND_DOWN = /^\s*(?:ok(?:ay)?|alright|right|hey nova)?[,\s]*(?:nova[,\s]*)?(?:stand down|stop listening|that'?s all|that'?ll be all|nothing else|go to sleep|never ?mind|dismissed|thank you,? that'?s all)\s*[.!]?\s*$/i;
   maybeStandDown(text) {
     if (!App.STAND_DOWN.test(String(text || ''))) return false;
     this.stopSpeaking();
@@ -8576,9 +8576,9 @@ export default class App extends Component {
     const conn = getConnection();
     const d = this.state.goalsDraft;
     if (!conn || !d.goal.trim()) { this.toastMsg('A goal is required — one sentence is enough'); return; }
-    api.setWorkoutGoals(conn, { goal: d.goal, focus: d.focus, daysPerWeek: d.daysPerWeek ? Number(d.daysPerWeek) : null, equipment: d.equipment, limitations: d.limitations, notes: d.notes })
-      .then(({ goals }) => {
-        this.setState({ liveWorkoutGoals: goals, goalsEditing: false });
+    api.setWorkoutGoals(conn, { goal: d.goal, focus: d.focus, daysPerWeek: d.daysPerWeek ? Number(d.daysPerWeek) : null, equipment: d.equipment, limitations: d.limitations, notes: d.notes, stepsTarget: d.stepsTarget || null, proteinTarget: d.proteinTarget || null, kcalTarget: d.kcalTarget || null })
+      .then(({ goals, board }) => {
+        this.setState({ liveWorkoutGoals: goals, liveGoalBoard: board || null, goalsEditing: false });
         this.toastMsg('Goals saved to the vault — the Coach reads these now');
       })
       .catch((e) => this.toastMsg('Could not save goals: ' + e.message));
@@ -8801,10 +8801,6 @@ export default class App extends Component {
               top: v.isMobile ? 'calc(58px + env(safe-area-inset-top))' : '16px', zIndex: 85,
               maxWidth: 'min(560px, 92vw)', cursor: 'pointer',
               display: 'flex', alignItems: 'baseline', gap: '10px',
-            {/* answer it HERE — the doorman asked a question, and this is the
-                way to reply without leaving the screen (21 Sep ask) */}
-            <span onClick={v.greetBanner.reply} aria-label="Reply here"
-              style={{ flex: 'none', font: '600 11.5px var(--nv-font-ui)', color: 'var(--nv-cy)', padding: '6px 10px', margin: '-4px 0', borderRadius: '999px', background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)', minHeight: '28px', display: 'inline-flex', alignItems: 'center' }}>Reply</span>
               padding: '11px 16px', borderRadius: '12px',
               background: 'var(--nv-glass2)', backdropFilter: 'blur(18px)',
               border: '1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent)',
@@ -8812,6 +8808,10 @@ export default class App extends Component {
               animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)',
             }}>
             <span style={{ font: '400 13px var(--nv-font-serif)', fontStyle: 'italic', lineHeight: 1.55, color: 'var(--nv-ink)' }}>{v.greetBanner.text}</span>
+            {/* answer it HERE — the doorman asked a question, and this is the
+                way to reply without leaving the screen (21 Sep ask) */}
+            <span onClick={v.greetBanner.reply} aria-label="Reply here"
+              style={{ flex: 'none', font: '600 11.5px var(--nv-font-ui)', color: 'var(--nv-cy)', padding: '6px 10px', margin: '-4px 0', borderRadius: '999px', background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)', minHeight: '28px', display: 'inline-flex', alignItems: 'center' }}>Reply</span>
             <span onClick={v.greetBanner.dismiss} aria-label="Dismiss greeting"
               style={{ flex: 'none', font: 'var(--nv-micro-l)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', padding: '2px 4px' }}>✕</span>
           </div>
@@ -8823,7 +8823,6 @@ export default class App extends Component {
         {v.recipeOpen && <Suspense fallback={null}><RecipeOverlay v={v} /></Suspense>}
         {v.recipeAddOpen && <Suspense fallback={null}><AddRecipeModal v={v} /></Suspense>}
         {v.barcodeScannerOpen && (
-        {v.replyTo && <ReplySheet v={v} />}
           <Suspense fallback={null}>
             <BarcodeScanner onDetected={v.onBarcodeDetected} onClose={v.closeBarcodeScanner} />
           </Suspense>
@@ -8831,6 +8830,7 @@ export default class App extends Component {
         {v.ingestModalOpen && <Suspense fallback={null}><IngestModal v={v} /></Suspense>}
         {v.ingestStatus !== 'idle' && <Suspense fallback={null}><IngestReview v={v} /></Suspense>}
         {v.nudge && <NudgeCard v={v.nudge} />}
+        {v.replyTo && <ReplySheet v={v} />}
         {v.modelChoicePrompt && <ModelChoicePrompt v={v.modelChoicePrompt} />}
         {v.coachApply && <CoachApplySheet c={v.coachApply} />}
         {v.portionSheet && <PortionSheet p={v.portionSheet} />}

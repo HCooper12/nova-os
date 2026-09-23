@@ -460,11 +460,16 @@ export async function runPlan(vaultPath, recordId) {
 }
 
 // RESUMABLE, ON PURPOSE. The loop reads the record's own step states and does
-// only what is left: a step already done is carried, a step already
-// dispatched is awaited (never re-dispatched — that would pay twice), a
-// paused step parks the whole plan until he answers its card, and a plan
-// woken after that answer walks straight back to where it stopped. This is
-// what lets "pause and ask" be honest rather than "fail and restart".
+// only what is left: a step already done is carried, and a step already
+// dispatched is awaited, never re-dispatched, because that would pay twice.
+// A plan woken later walks straight back to where it stopped.
+//
+// THE PAUSE IS GONE (23 Sep 2026, his instruction that no job carries a cap).
+// A step used to stop at a dollar limit and park the whole plan behind a card
+// he had to answer. Nothing can reach that state now: the researcher no longer
+// reports a pause at all, so the branch that read one is removed rather than
+// left to describe something that cannot happen. `pausedOn` is still cleared on
+// resume, because records written before today may still carry one.
 export async function resumePlan(vaultPath, recordId) {
   if (plansRunning.has(recordId)) return { ok: false, error: 'already running' };
   plansRunning.add(recordId);
@@ -480,7 +485,6 @@ export async function resumePlan(vaultPath, recordId) {
     for (const s of plan.steps) if (s.status === 'done' && s.output) outputs[s.id] = s.output;
 
     for (const wave of waves) {
-      let paused = false;
       // a wave runs together — his video example checks claims and
       // counter-evidence side by side rather than one after the other
       await Promise.all(wave.map(async (stepId) => {
@@ -510,13 +514,6 @@ export async function resumePlan(vaultPath, recordId) {
             await updateRecord(recordId, { plan });
           }
           const settled = await awaitRecord(step.recordId);
-          if (settled.paused) {
-            step.status = 'paused';
-            step.error = `paused at its budget — approve its card in your Inbox to continue, or discard it to stop`;
-            paused = true;
-            await updateRecord(recordId, { plan });
-            return;
-          }
           step.status = settled.ok ? 'done' : 'failed';
           step.output = settled.ok ? settled.output : null;
           step.error = settled.ok ? null : settled.why;
@@ -527,13 +524,6 @@ export async function resumePlan(vaultPath, recordId) {
         }
         await updateRecord(recordId, { plan });
       }));
-      if (paused) {
-        // PARKED, NOT FAILED. The plan stays live; the startup reaper leaves
-        // it alone; the step's own card is what he answers.
-        const on = plan.steps.filter((s) => s.status === 'paused').map((s) => s.id).join(', ');
-        await updateRecord(recordId, { plan, pausedOn: on, status: 'classifying' });
-        return { ok: false, paused: on };
-      }
     }
 
     const progress = planProgress(plan);

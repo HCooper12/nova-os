@@ -337,10 +337,12 @@ export function valsInbox(app, ctx) {
     // it leads the card instead of sitting under the body in 62% ink.
     const rawReason = r.decision?.reason || '';
     const saysWhat = /^approve\s*=/i.test(rawReason.trim());
-    // A CONTINUE CARD IS NOT A FILING. Research that stopped at its budget
-    // asks one question — spend more, or stop — so it gets the numbers and
-    // the two verbs that actually apply.
-    const isContinue = r.decision?.route === 'continue';
+    // THE CONTINUE CARD IS GONE (23 Sep 2026, his instruction that no job carries
+    // a cap). Research used to stop at a dollar limit and ask him whether to spend
+    // more; nothing writes that route now, so the card cannot be made. The flag is
+    // kept as a constant false rather than threaded away, because Inbox.jsx reads
+    // it and the two must change together or not at all.
+    const isContinue = false;
     // A PLAN AND A REPORT ARE LONG. Both used to spill 220 characters of body
     // under the title before he had read a word of what the card was for.
     const longForm = r.kind === 'plan' ? (r.finishedAt ? 'Read the report' : 'Read the plan')
@@ -379,8 +381,8 @@ export function valsInbox(app, ctx) {
     tldr: tldrFor(r),
     isContinue,
     // the money, plainly, from the record's own payload — never estimated here
-    spentUsd: isContinue && Number.isFinite(Number(r.decision?.payload?.spentUsd)) ? Number(r.decision.payload.spentUsd) : null,
-    nextBudgetUsd: isContinue && Number.isFinite(Number(r.decision?.payload?.nextBudgetUsd)) ? Number(r.decision.payload.nextBudgetUsd) : null,
+    spentUsd: null,        // was the spend that tripped a cap; there are no caps
+    nextBudgetUsd: null,   // was the next cap offered; there are none
     approveLabel: isContinue ? 'Continue' : 'Approve & file',
     discardLabel: isContinue ? 'Stop here' : 'Discard',
     // the disclosure's own words: "see what gets filed" is wrong for a report
