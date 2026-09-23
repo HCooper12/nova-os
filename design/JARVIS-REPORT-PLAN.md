@@ -15,6 +15,8 @@ https://claude.ai/artifact/Eq6VioD4fLbW5X6EYhozBY — five beats built from
 the real review Nova produced for him that day. Decide on the visual there
 first.
 
+**STATUS — BUILT 23 Sep 2026** (commit `a166dad`): `body` and `program` glass kinds, `steps` with `decide:true`, Body3D `muscleFocus` camera ease, the row blink→strike→leave in `src/StageCard.jsx`; verified by stub screenshots and GIFs. What is NOT yet proven: a live plan report driving it end to end (needs a real plan run, his call).
+
 ## The five beats
 
 1. **The verdict.** Nova speaks the report's opening; the glass shows the one
