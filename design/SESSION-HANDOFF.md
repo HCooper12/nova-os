@@ -13,75 +13,148 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**23 SEP (late morning) — THE GOAL BOARD, THE JARVIS REPORT, REPLY IN PLACE.
-Commits `a166dad` `ea6cd97` `d511e30` (+ docs `196c965`), all pushed, service
-reloaded.**
+**23 SEP (midday) — THE GOAL BOARD; THE JARVIS REPORT AND REPLY IN PLACE
+SHIPPED.** Commits `a166dad` `ea6cd97` `d511e30`, docs `196c965` `75d271a`.
+All pushed; live build `75d271a8c`; service reloaded.
 
-**GOAL.** His 23 Sep ask: Coach must USE calories, protein and steps; the
-Goals section revamped into specific, measurable targets seen at a glance;
-suggestions/prompts/reminders from them. Plus the two queued builds from
-21 Sep (the spoken "Jarvis" report and reply-in-place on banners).
+**GOAL.** Three things. (1) His 23 Sep ask: "Coach also needs to be using,
+analysing and reflecting on … the calories that I am consuming as it does not
+seem to be referencing or doing anything with that information … the goals
+section itself needs to be revamped … more specific and measurable goals …
+that can be seen at a glance. This includes my step count, protein intake and
+caloric intake … using these metrics and its expert knowledge to make
+suggestions and prompts or reminders." (2)+(3) The two builds queued on
+21 Sep: the spoken "Jarvis" report, and reply-in-place on banners.
 
-**DECISION — one code-computed record, `server/lib/goalBoard.js`, that every
-reader shares.** Targets resolve his own (Goals card frontmatter
-`stepsTarget/proteinTarget/kcalTarget`) → the Intake's numbers on the
-recipes collection (`proteinFloorG/targetKcal`, today 150 g / 2,200) → the
-house step default (10,000, `streaks.STEP_GOAL`), each carrying `source` so
-the card can say "default". This FORECLOSES a second target store: Home's
-step ring (`valsMission`) already reads the board's target; anything that
-needs "what is his target" reads the board, never a constant.
+**DONE CRITERIA.**
+- MET — the Coach reasons from all three numbers with his real food (receipt
+  below); the Goals card shows them at a glance; prompts exist and are
+  deterministic; both 21 Sep builds are committed, deployed and looked at.
+- UNMET — no goal nudge has fired for real yet (all hour-gated; nothing was
+  due before this close). Not blocked, just not yet observed.
+- UNMET — the Jarvis report has never run end to end from a real plan. Needs
+  a plan run, which costs money and is his call.
+- BLOCKED — `replyNotNow` deliberately not exercised live (it writes a real
+  reminder to his vault). Pinned by test instead.
 
-**DECISION — pace by the hour, not the whole day at breakfast.** A floor is
-judged against a steady line over 07:00–22:00 (`dayFraction`); 44 g at
-09:00 is on track, 40 g at 19:00 is behind. Calories are a TARGET: under is
-fine while the day runs, over 110% is over. A hole (no push, no log) is
-`absent`, never zero. Pinned in `server/test/goalBoard.test.js` (8 tests).
+**STATE (paths).**
+- `server/lib/goalBoard.js` (NEW) — the record. `resolveTargets`, `judge`,
+  `composeBoard`, `headlineOf`, `nudgesOf`, `goalBoard`, `goalBoardText`,
+  `goalBoardContext`. `server/test/goalBoard.test.js` — 8 tests.
+- Readers: `server/lib/fitnessGoals.js` (`goalsContext` appends the board;
+  frontmatter gained `stepsTarget`/`proteinTarget`/`kcalTarget`, banded),
+  `server/lib/askContext.js` (`todayLocalContext` puts the target beside the
+  number), `server/lib/coachCadence.js` (`goalNudges`, called each tick),
+  `server/routes/workouts.js` (`/workouts/goals` returns `{goals, board}`).
+- Client: `src/vals/valsWorkouts.js` `goalBoard` VM, `src/screens/Workouts.jsx`
+  `GoalBoard` component + three target inputs in the edit form,
+  `src/vals/valsChrome.js` nudge candidates, `src/App.jsx` `liveGoalBoard`,
+  `src/vals/valsMission.js` step target from the board.
+- Jarvis report: `src/glassBeats.js`, `src/StageCard.jsx`, `src/Body3D.jsx`
+  (`muscleFocus`), `src/visualBeats.js`, `src/muscleHue.js`,
+  `server/lib/visualStream.js` (`GLASS_CONTRACT`).
+- Reply in place: `src/ReplySheet.jsx` (NEW), `App.openReply/sendReply/
+  replyNotNow`, `src/NudgeCard.jsx`, `server/test/replyInPlace.test.js`.
 
-**Nudges are hour-gated in `nudgesOf` and sent once a day per kind by
-`coachCadence.goalNudges`** (Telegram, receipts in the spoken log); the same
-list rides `/api/workouts/goals` so the Home nudge shows identical words
-with "Ask Coach". Titles are short on purpose — the nudge card's text
-column is narrow beside two buttons (see the 10:21 capture in this
-session's scratch: long titles wrapped four lines).
+**DECISIONS.**
+1. **One code-computed record, shared by every reader** (`goalBoard.js`).
+   Reason: the calorie target and protein floor lived in the recipes
+   collection, the step goal was a constant in two files, and nothing joined
+   them. FORECLOSES a second target store — Home's step ring already reads the
+   board, and anything asking "what is his target" reads the board, never a
+   constant.
+2. **Target precedence: his own (Goals card) → the Intake's → house default
+   for steps only**, each carrying `source`. Reason: honest degradation; the
+   card says "default" rather than implying he chose 10,000. FORECLOSES
+   silently inventing a protein or calorie default — there is none.
+3. **Pace judged by the hour (07:00–22:00), not the whole day at breakfast.**
+   44 g at 09:00 is on track; 40 g at 19:00 is behind. FORECLOSES a card that
+   screams red every morning, which is the fastest way to make him ignore it.
+4. **Calories are a target, not a floor.** Under is fine while the day runs;
+   over 110% is over. FORECLOSES treating kcal with the same `atLeast` rule as
+   protein and steps.
+5. **A hole is `absent`, never zero.** FORECLOSES a missing health push
+   reading as a failed day.
+6. **Nudges are composed by code and hour-gated in `nudgesOf`**, sent once a
+   day per kind by the cadence engine, and the same list feeds the Home card
+   so Telegram and the phone say identical words. FORECLOSES a model writing
+   nudges (cost, and it could invent a number).
+7. **Nudge titles are short** ("Protein · 64 g to go"). Reason: the Home card
+   gives the title a narrow column beside two buttons; the long form wrapped
+   four lines and overlapped (capture at 10:21). FORECLOSES sentence-length
+   titles on that card.
 
-**VERIFIED (locators):**
-- Live Ask Nova (`/api/ask` → `/api/claude-code/message/:jobId`): "No step
-  count has come through yet today — yesterday 6,628. 44 g against the 150
-  floor, 605 against 2,200 — both on track." Live Coach
-  (`/api/workouts/coach`, same poll): steps 1 of 6 (avg ~7,850, a 2,150
-  shortfall ≈ 25 min walking), protein streak credited, calories: today's
-  rotation sums to 1,711 vs 2,200 → swap a cooked Animal Style Potato Bowl
-  for the lasagna → 2,205 kcal / 201 g. That is the behaviour he asked for.
-- Goals card at 375px both idioms: three rings + 7-day strips + verdict;
-  probe: no geometry faults. Edit form: the three target inputs.
-- `cd server && npm test` 2040/2040 (after the fourth session landed its
-  planCard change); lint 0 errors; build green.
-- Reply in place: a typed reply through the sheet reached Nova WITH the
-  banner's context (she answered about the Researcher's source lists).
-- Jarvis report: body/program/decide panels via stub + GIFs (camera eases
-  onto the lit chest; the dropped row blinks → strikes → leaves).
+**VERIFIED (with locators).**
+- `npm run lint` exit 0, 0 errors (83 warnings, pre-existing).
+- `npm run build` green. `cd server && npm test` → 2040/2040.
+- `git status --porcelain` empty; `git log origin/main..HEAD` empty.
+- `curl localhost:4173/api/health` → 200. No `vite preview`; no `dist/pc.json`.
+- GitHub Pages run for `75d271a` = success; `version.json` = `75d271a8c`.
+  Deployed bundle greps: `liveGoalBoard` ×5, `Replying to Nova`, `Steps a day`,
+  the program panel's `Leaving ` — all in `main.js`.
+- **Live Ask Nova** (`POST /api/ask` → `GET /api/claude-code/message/:jobId`):
+  "No step count has come through yet today — yesterday you logged six
+  thousand six hundred and twenty-eight… forty-four grams of protein against
+  the one-fifty floor, and six hundred and five calories against twenty-two
+  hundred."
+- **Live Coach** (`POST /api/workouts/coach`, same poll): steps 1 of 6, avg
+  ~7,850, "a 2,150 shortfall, which is roughly twenty-five minutes of walking";
+  protein streak credited and the old Fuel finding noted as closed; "today's
+  rotation adds up to 1,711 against your 2,200 … swap one [cooked Animal Style
+  Potato Bowl] in for the lasagna at lunch and you land on 2,205 calories and
+  201 grams of protein." That is the behaviour he asked for.
+- Goals card at 375px, both idioms: `node scripts/probe.mjs --screens workouts`
+  and `--style command` → "no geometry faults".
+- Reply in place: a typed reply through the sheet returned an answer about the
+  Researcher's source lists — the banner's context survived.
+- Jarvis report: stub screenshots + GIFs (camera eases onto the lit chest,
+  receipt `__NOVA_FOCUS.arrived` at 0.82 m; row 07 blinks → strikes → leaves).
 
-**NOT VERIFIED / OPEN:**
-- No nudge has fired for real yet (all hour-gated; first candidates: steps
-  at 14:00 if under 4,500, protein at 17:00 if ≥30 g short). Check
-  `server/data/coach-cadence.json` for `goal-*` keys tomorrow.
-- `replyNotNow` never exercised live (it files a real reminder); pinned by
-  `server/test/replyInPlace.test.js` instead.
-- The live Jarvis report end to end needs a real plan run — his call.
-- The Intake has still never run for real: protein/kcal targets are the
-  hand-typed collection numbers, labelled "from the Intake" in the board
-  text because that is the field they live in. If he runs the Intake they
-  update themselves.
+**ASSUMED (not verified).**
+- That the nudges will fire correctly in production. The hour gates and the
+  once-a-day keys are unit-tested; the scheduler path has never run one.
+- That Telegram delivers them — `telegramConfigured()` is true and other kinds
+  send, but no `goal-*` message has gone out.
+- That his protein/calorie targets (150 g / 2,200) are current. They are the
+  hand-typed collection numbers; the Intake has still never run.
 
-**TRAPS PAID FOR THIS SESSION:**
-- A FOURTH session (unnamed; commits `e2439e4`, `71a7fe4`, `8f57b80`) was
-  editing the same tree. Its `71a7fe4`/`8f57b80` swept my `App.jsx` and
-  `valsMission.js` hunks (liveGoalBoard state, the step target) into its
-  commits. Content is on main; attribution is mixed. Stage by hunk, always.
-- The Nova service is on :4173 (`index.js`); :4187 is a different app's
-  `server.mjs`. Model answers come back as `{jobId}` and are read from
-  `/api/claude-code/message/:jobId` (status `ready`), and a service restart
-  loses in-flight jobs.
+**OPEN QUESTIONS / BLOCKERS.**
+- Does he want his own step/protein/calorie targets, or the defaults? The card
+  takes them; nothing forces it.
+- Apple Developer Program, USD $99 — still unanswered, still blocking the
+  native shell and the three phone-only checks (live cockpit, Telegram
+  photo/voice, dictation on his iPhone).
+- A FOURTH session is committing in this checkout (unnamed; `e2439e4`,
+  `71a7fe4`, `8f57b80`). It swept my `App.jsx` and `valsMission.js` hunks into
+  its commits — content is on main, attribution is mixed.
+
+**NEXT ACTION.** Tomorrow, read `server/data/coach-cadence.json` for keys
+starting `goal-`. Expected if it worked: a date stamp against at least one of
+`goal-steps-afternoon` / `goal-protein-evening` / `goal-week-review`, and a
+matching entry in the spoken log. If the file has no `goal-*` key by the
+evening, the scheduler is not reaching `goalNudges` — check that the cadence
+tick is running at all (`heartbeat` note for `coach-cadence` in Ops).
+
+**DO NOT.**
+- **Do not trust a green local build after staging by hunk.** `ea6cd97` (mine)
+  landed a `src/App.jsx` that did not parse — the greet-banner Reply pill's
+  JSX went in without the context that made it valid. `npm run build` was
+  green because it builds the WORKING TREE, not the index. Main was broken
+  across `ea6cd97`→`71a7fe4`; the fourth session's `8f57b80` healed it by
+  accident, and the Pages deploy for `ea6cd97` failed with "Unexpected token".
+  After any hunk-staging, parse what is STAGED (`git show :src/App.jsx |
+  npx esbuild --loader=jsx`), not what is on disk. Memory:
+  [[nova-hunk-staging-trap]].
+- Do not use `"$c:src/App.jsx"` in zsh — `:s` is read as a parameter modifier
+  and it dies with "bad substitution". Brace it: `"${c}:src/App.jsx"`.
+- Do not hit `:4187` for Nova. That is another app's `server.mjs`. Nova is
+  `:4173`. Model answers return `{jobId}` and are read from
+  `/api/claude-code/message/:jobId` when `status` is `ready`; `result.text`
+  can hold raw control characters, so parse with strict off. A
+  `launchctl kickstart` loses every in-flight job.
+- Do not add a second step-goal constant. `valsMission` and `streaks` both go
+  through the board now.
+- Do not treat "the Intake's numbers" as measured. They are typed.
 
 ---
 
@@ -2968,8 +3041,9 @@ the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
 
-### 23 September 2026 (late morning) — the goal board; the Jarvis report and reply-in-place shipped
-Steps, protein and calories judged by code against targets with provenance, pace by the hour, holes kept as holes; the Coach and Ask Nova read the same record, the cadence engine sends its nudges, the Goals card draws three rings with the week under each. Verified by asking Nova and the Coach the questions he would. Two queued builds from 21 Sep committed first. A fourth session's commits swept two of this build's hunks.
+### 23 September 2026 (midday) — the goal board; the Jarvis report and reply-in-place shipped
+Steps, protein and calories judged by code against targets that carry their provenance, pace measured by the hour, holes kept as holes; the Coach and Ask Nova read the same record, the cadence engine sends its hour-gated prompts, and the Goals card draws three rings with the week as a strip under each. Verified by asking Nova and the Coach the questions he would ask: the Coach came back with a 2,150-step shortfall costed as twenty-five minutes of walking, and a swap of a cooked Potato Bowl for the lasagna to land 2,205 kcal / 201 g. The two builds queued on 21 Sep were committed first.
+CORRECTED at close, not added: commit `ea6cd97` left `src/App.jsx` unparseable on main — hunk-staging split a JSX fragment from its context, and the local build stayed green because it builds the working tree, not the index. Main was broken for two commits until a fourth session's `8f57b80` healed it by accident; the Pages deploy for `ea6cd97` had failed with "Unexpected token". HEAD parses, deploys and carries the code. That fourth session also swept two of this build's hunks into its own commits.
 
 **23 Sep 2026 — no working caps, anywhere.** His standing instruction,
 verbatim, logged at the top of CURRENT HANDOFF: no dollar ceiling and no
