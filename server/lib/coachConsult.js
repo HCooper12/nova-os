@@ -99,7 +99,7 @@ export function consultReplyText(results, question) {
   const blocks = results.map((r) => (r.ok
     ? `FROM ${r.label.toUpperCase()} (you asked: ${r.question}):\n${r.answer}`
     : `${r.label.toUpperCase()} COULD NOT ANSWER (you asked: ${r.question}): ${r.error}. Say so plainly if it matters to the answer.`));
-  return `[The agents you consulted have answered. Now give Hayden your full answer to his question, built on what they found. Name whose input shaped it — "the Researcher's review of…", "your calendar shows…". If the Researcher answered, tell him its cited brief is in his Inbox. Do not consult again unless their answers raise a genuinely new question.]
+  return `[The agents you consulted have answered. Now give Hayden your full answer to his question, built on what they found. Name whose input shaped it — "the Researcher's review of…", "your calendar shows…". If the Researcher answered, tell him its cited brief is in his Inbox. Then PROPOSE every concrete program change you recommend — one PROPOSE line per change (reorder, schedule, remove, targets, swap…), as suggestions he approves, not instructed — so each lands as a card he can say yes to. Do not consult again unless their answers raise a genuinely new question.]
 
 His question was: ${question}
 

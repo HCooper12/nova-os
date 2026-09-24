@@ -567,11 +567,19 @@ export function valsWorkouts(app, ctx) {
     coachMsgs: st.coachChat.map(m => Object.assign({
       text: m.text, typing: m.typing, panel: m.panel || null, at: m.at,
       // a program change Coach drafted — acceptable right here, no detour
-      proposal: m.proposal ? {
+      proposal: m.proposal && !m.proposals ? {
         ...m.proposal,
         apply: () => app.resolveCoachChatProposal(m.proposal.recordId, true),
         decline: () => app.resolveCoachChatProposal(m.proposal.recordId, false),
       } : null,
+      // several changes on one answer: each its own tick or cross, and one do-all
+      proposals: m.proposals ? m.proposals.map((p) => ({
+        ...p,
+        apply: () => app.resolveCoachChatProposal(p.recordId, true),
+        decline: () => app.resolveCoachChatProposal(p.recordId, false),
+      })) : null,
+      openCount: m.proposals ? m.proposals.filter((p) => p.status === 'open').length : 0,
+      applyAll: m.proposals ? () => app.applyAllCoachProposals(m.at) : null,
       tag: m.who === 'coach' ? '» COACH' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { font: 'var(--nv-micro-m)', color: m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },
     }, bubble(m.who))),

@@ -727,6 +727,32 @@ function SessionView({ v }) {
                     </div>
                   </div>
                 )}
+                {m.proposals && (
+                  <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
+                    {m.proposals.map((p, i) => (
+                      <div key={p.recordId} className="nv-deck-rise" style={{ ...css("padding:11px 13px;border-radius:11px;border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)"), animationDelay: `calc(var(--nv-stagger) * ${Math.min(i, 6)})` }}>
+                        <div style={css("font-size:12.5px;line-height:1.45;color:var(--nv-ink)")}>{i + 1}. {p.title}</div>
+                        <div style={css("margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                          {p.status === 'open' && (
+                            <>
+                              <Button compact onClick={p.apply}>Apply it</Button>
+                              <TextAction tone="quiet" onClick={p.decline}>Not now</TextAction>
+                            </>
+                          )}
+                          {p.status === 'working' && <Meta tone="cyan">Applying…</Meta>}
+                          {p.status === 'done' && <Meta tone="good">✓ Applied — undo in Inbox</Meta>}
+                          {p.status === 'dismissed' && <Meta tone="faint">✕ Left alone</Meta>}
+                          {p.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
+                        </div>
+                      </div>
+                    ))}
+                    {m.openCount > 1 && (
+                      <div style={css("display:flex;justify-content:flex-end")}>
+                        <Button compact onClick={m.applyAll}>Apply all {m.openCount}</Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
             {v.coachBusy && <Meta as="div" tone="cyan" style={{ textTransform: 'none', letterSpacing: 0 }}>» Coach looking at your session…▍</Meta>}
@@ -1062,6 +1088,32 @@ function GoalsCoachPane({ v }) {
                     {m.proposal.status === 'dismissed' && <Meta tone="faint">✕ Left alone</Meta>}
                     {m.proposal.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
                     </div>
+                  </div>
+                )}
+                {m.proposals && (
+                  <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
+                    {m.proposals.map((p, i) => (
+                      <div key={p.recordId} className="nv-deck-rise" style={{ ...css("padding:11px 13px;border-radius:11px;border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)"), animationDelay: `calc(var(--nv-stagger) * ${Math.min(i, 6)})` }}>
+                        <div style={css("font-size:12.5px;line-height:1.45;color:var(--nv-ink)")}>{i + 1}. {p.title}</div>
+                        <div style={css("margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
+                          {p.status === 'open' && (
+                            <>
+                              <Button compact onClick={p.apply}>Apply it</Button>
+                              <TextAction tone="quiet" onClick={p.decline}>Not now</TextAction>
+                            </>
+                          )}
+                          {p.status === 'working' && <Meta tone="cyan">Applying…</Meta>}
+                          {p.status === 'done' && <Meta tone="good">✓ Applied — undo in Inbox</Meta>}
+                          {p.status === 'dismissed' && <Meta tone="faint">✕ Left alone</Meta>}
+                          {p.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
+                        </div>
+                      </div>
+                    ))}
+                    {m.openCount > 1 && (
+                      <div style={css("display:flex;justify-content:flex-end")}>
+                        <Button compact onClick={m.applyAll}>Apply all {m.openCount}</Button>
+                      </div>
+                    )}
                   </div>
                 )}
                 </div>

@@ -6657,12 +6657,45 @@ export default class App extends Component {
   // approves the record on the rails — the SAME deterministic apply the
   // Inbox performs, with the same undo — so nothing new writes to his plan;
   // the only thing that changed is where he is allowed to say yes.
+  // ONE "DO ALL" (his standing rule: decisions are a tick or a cross each,
+  // and one do-all). Applies every still-open change on that message in
+  // order, each on its own rails with its own undo, then says so once.
+  async applyAllCoachProposals(at) {
+    const conn = getConnection();
+    const msg = this.state.coachChat.find((m) => m.at === at);
+    const open = (msg?.proposals || []).filter((p) => p.status === 'open');
+    if (!conn || !open.length) return;
+    let done = 0;
+    const failed = [];
+    for (const p of open) {
+      this.setState((s) => ({ coachChat: s.coachChat.map((m) => (m.at !== at ? m : { ...m, proposals: m.proposals.map((x) => (x.recordId === p.recordId ? { ...x, status: 'working' } : x)) })) }));
+      try {
+        await api.inboxApprove(conn, p.recordId);
+        done += 1;
+        this.setState((s) => ({ coachChat: s.coachChat.map((m) => (m.at !== at ? m : { ...m, proposals: m.proposals.map((x) => (x.recordId === p.recordId ? { ...x, status: 'done' } : x)) })) }));
+      } catch (e) {
+        failed.push(`${p.title}: ${e.message}`);
+        this.setState((s) => ({ coachChat: s.coachChat.map((m) => (m.at !== at ? m : { ...m, proposals: m.proposals.map((x) => (x.recordId === p.recordId ? { ...x, status: 'error', error: e.message } : x)) })) }));
+      }
+    }
+    this.refreshLiveData();
+    this.refreshInbox();
+    const line = `Done — ${done} change${done === 1 ? '' : 's'} in your program; each one's undo is in your Inbox.${failed.length ? ` ${failed.length} didn't apply and ${failed.length === 1 ? 'is' : 'are'} still waiting there: ${failed.join('; ')}.` : ''}`;
+    this.setState((s) => ({ coachChat: [...s.coachChat, { at: Date.now(), who: 'coach', text: line }] }));
+  }
   resolveCoachChatProposal(recordId, approve) {
     const conn = getConnection();
     if (!conn || !recordId) return;
     const mark = (status, extra) => this.setState((s) => ({
-      coachChat: s.coachChat.map((m) => (m.proposal?.recordId === recordId
-        ? { ...m, proposal: { ...m.proposal, status, ...extra } } : m)),
+      coachChat: s.coachChat.map((m) => {
+        const hit = m.proposal?.recordId === recordId || m.proposals?.some((p) => p.recordId === recordId);
+        if (!hit) return m;
+        return {
+          ...m,
+          proposal: m.proposal?.recordId === recordId ? { ...m.proposal, status, ...extra } : m.proposal,
+          proposals: m.proposals?.map((p) => (p.recordId === recordId ? { ...p, status, ...extra } : p)),
+        };
+      }),
     }));
     mark('working');
     const call = approve ? api.inboxApprove(conn, recordId) : api.inboxDiscard(conn, recordId);
@@ -8585,6 +8618,8 @@ export default class App extends Component {
               panel: job.result.panel || undefined,
               // an INSTRUCTED change arrives already applied (status 'done'); a suggestion is open for his tap
               proposal: job.result.proposal ? { ...job.result.proposal, status: job.result.proposal.status || 'open' } : undefined,
+              // every change Coach proposed, each its own card (coach.js parseCoachProposals)
+              proposals: job.result.proposals?.length > 1 ? job.result.proposals.map((p) => ({ ...p, status: p.status || 'open' })) : undefined,
             }, { coachBusy: false });
             if (job.result.proposal) this.refreshInbox();
             if (job.result.proposal?.status === 'done') this.refreshLiveData(); // the program changed under him — redraw it

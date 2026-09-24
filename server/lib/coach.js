@@ -395,7 +395,7 @@ export async function coachLiveLine(vaultPath) {
   } catch { bits.push('his plans FAILED to load this turn'); }
   try {
     const { listRecords } = await import('./inboxStore.js');
-    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap']);
+    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap', 'schedule-edit']);
     const cutoff = Date.now() - 7 * 86400000;
     const recent = (await listRecords()).filter((r) => COACH_ROUTES.has(r.decision?.route) && new Date(r.createdAt || 0).getTime() > cutoff);
     if (recent.length) {
@@ -671,7 +671,31 @@ export function parseCoachProposal(text) {
   }
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap'];
+// EVERY CHANGE, NOT JUST THE FIRST (25 Sep 2026). His program review came
+// back with five concrete changes and ended "tick the ones you want" —
+// because this parser only ever read the FIRST PROPOSE line, so a reply
+// could carry one approvable change at most. He approved the research brief
+// and nothing happened: "It's pointless for me to approve something like
+// that if coach wont then act on it or propose the changes for me to agree
+// to and then make." Now every PROPOSE line is its own card.
+export function parseCoachProposals(text) {
+  const src = String(text || '');
+  const proposals = [];
+  const parseErrors = [];
+  let cleanText = src;
+  for (const m of src.matchAll(/^\s*PROPOSE\s+(\{.*\})\s*$/gm)) {
+    cleanText = cleanText.replace(m[0], '');
+    try { proposals.push(JSON.parse(m[1])); } catch { parseErrors.push('a proposal block was not valid JSON'); }
+  }
+  // a PROPOSE line in prose ("PROPOSE swap: X → Y") is caught, stripped and named
+  for (const m of cleanText.matchAll(/^\s*PROPOSE\b.*$/gm)) {
+    cleanText = cleanText.replace(m[0], '');
+    parseErrors.push('a PROPOSE line was prose, not the typed JSON form');
+  }
+  return { cleanText: cleanText.replace(/\n{3,}/g, '\n\n').trim(), proposals, parseErrors };
+}
+
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'reorder', 'schedule'];
 
 // HOW COACH'S EDITS FILE. `direct: true` — his standing grant, given more
 // than once ("just do it when I tell you") — means a change HE INSTRUCTED
@@ -822,6 +846,34 @@ export async function validateCoachEdit(vaultPath, raw) {
     };
   }
 
+  // "schedule" puts a routine (or rest) on ONE weekday. His review found
+  // Push on Monday AND Tuesday — back to back — and Coach had no way to
+  // propose moving a day, only exercises.
+  if (action === 'schedule') {
+    const { WEEKDAYS, ACTIVE_REST } = await import('./workouts.js');
+    const { schedule } = await loadRoutines(vaultPath, exercises);
+    const day = ci(raw.day);
+    if (!WEEKDAYS.includes(day)) throw new Error(`day must be one of: ${WEEKDAYS.join(', ')}`);
+    const want = ci(raw.routine);
+    let routineId = null;
+    let label = 'rest';
+    if (want === 'active rest' || want === 'active-rest') { routineId = ACTIVE_REST; label = 'active rest'; }
+    else if (want && want !== 'rest' && want !== 'none') {
+      const r = routines.find((x) => ci(x.name) === want) || routines.find((x) => ci(x.name).includes(want) || want.includes(ci(x.name)));
+      if (!r) throw new Error(`no routine called "${raw.routine}" (have: ${routines.map((x) => x.name).join(', ')})`);
+      routineId = r.id;
+      label = r.name;
+    }
+    const beforeId = schedule?.[day] || null;
+    const nameOf = (id) => (!id ? 'rest' : id === ACTIVE_REST ? 'active rest' : routines.find((x) => x.id === id)?.name || 'an old routine');
+    if (beforeId === routineId) throw new Error(`${day} is already ${label}`);
+    const Day = day.charAt(0).toUpperCase() + day.slice(1);
+    return {
+      payload: { action, day, routineId, routineName: label, beforeId, beforeName: nameOf(beforeId), reason: String(raw.reason || '').slice(0, 300) },
+      title: `Coach: ${Day} → ${label} (was ${nameOf(beforeId)})`,
+    };
+  }
+
   const routine = routines.find((r) => ci(r.name) === ci(raw.routine))
     || routines.find((r) => ci(r.name).includes(ci(raw.routine)) || ci(raw.routine).includes(ci(r.name)));
   if (!routine) throw new Error(`no routine called "${raw.routine}" (have: ${routines.map((r) => r.name).join(', ')})`);
@@ -833,6 +885,22 @@ export async function validateCoachEdit(vaultPath, raw) {
 
   const payload = { action, routineId: routine.id, routineName: routine.name, reason: String(raw.reason || '').slice(0, 300) };
   const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : d);
+
+  // "reorder" moves ONE exercise to a position ("put incline bench first" —
+  // his own note said it fatigued him done later). Undo restores the list.
+  if (action === 'reorder') {
+    const target = findInRoutine(raw.exercise || raw.remove);
+    if (!target) throw new Error(`"${raw.exercise || raw.remove}" isn't in ${routine.name} (it has: ${routine.exercises.map((e) => e.name).join(', ')})`);
+    const n = routine.exercises.length;
+    const pos = raw.position === 'first' ? 1 : raw.position === 'last' ? n : Math.round(Number(raw.position));
+    if (!Number.isInteger(pos) || pos < 1 || pos > n) throw new Error(`position must be "first", "last" or 1–${n}`);
+    const current = routine.exercises.findIndex((e) => e.exerciseId === target.exerciseId) + 1;
+    if (current === pos) throw new Error(`${target.name} is already number ${pos} in ${routine.name}`);
+    payload.removeExerciseId = target.exerciseId;
+    payload.removeName = target.name;
+    payload.position = pos;
+    return { payload, title: `Coach: move ${target.name} to ${pos === 1 ? 'first' : pos === n ? 'last' : `number ${pos}`} in ${routine.name}` };
+  }
 
   if (action === 'swap' || action === 'remove' || action === 'targets') {
     const target = findInRoutine(raw.remove || raw.exercise);
@@ -893,6 +961,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
             : payload.action === 'block' ? 'training-block'
               : payload.action === 'resource' ? 'exercise-resource'
                 : payload.action === 'learn' ? 'coach-learning'
+                  : payload.action === 'schedule' ? 'schedule-edit'
                   : 'routine-edit',
       confidence: 'high',
       title,
@@ -912,7 +981,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
 // coach that never learns whether its advice landed can't improve.
 export async function adviceContext(days = 14) {
   const { listRecords } = await import('./inboxStore.js');
-  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning']);
+  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'schedule-edit']);
   const cutoff = Date.now() - days * 86400000;
   // fuel-cross findings are kind-based (no route — approving files nothing) and
   // his reasoned "no" to one belongs in front of the Coach exactly like a

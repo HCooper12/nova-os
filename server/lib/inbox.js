@@ -490,7 +490,12 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       targetRepsHigh: payload.targetRepsHigh || base?.targetRepsHigh || 10,
     });
     let next;
-    if (payload.action === 'swap') {
+    if (payload.action === 'reorder') {
+      const moving = priorEntries.find((e) => e.exerciseId === payload.removeExerciseId);
+      if (!moving) throw new Error(`${payload.removeName} is no longer in ${routine.name}`);
+      next = priorEntries.filter((e) => e !== moving);
+      next.splice(Math.min(Math.max(0, payload.position - 1), next.length), 0, moving);
+    } else if (payload.action === 'swap') {
       next = priorEntries.map((e) => (e.exerciseId === payload.removeExerciseId ? entryFor(e) : e));
     } else if (payload.action === 'add') {
       next = [...priorEntries, entryFor(null)];
@@ -503,13 +508,30 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
         : e));
     }
     await updateRoutine(vaultPath, exercises, routine.id, { exercises: next });
-    const what = payload.action === 'swap' ? `swapped ${payload.removeName} → ${payload.addName}`
+    const what = payload.action === 'reorder' ? `moved ${payload.removeName} to number ${payload.position}`
+      : payload.action === 'swap' ? `swapped ${payload.removeName} → ${payload.addName}`
       : payload.action === 'add' ? `added ${payload.addName}`
       : payload.action === 'remove' ? `removed ${payload.removeName}`
       : `retargeted ${payload.removeName}`;
     return {
       destination: `Train — ${what} in ${routine.name}`,
       undo: { route, routineId: routine.id, routineName: routine.name, priorEntries },
+    };
+  }
+
+  if (route === 'schedule-edit') {
+    // A Coach-proposed change to which routine falls on one weekday. Undo
+    // puts back whatever the day held at the moment he approved.
+    const { loadExerciseLibrary } = await import('./exercises.js');
+    const { loadRoutines, setScheduleDay } = await import('./workouts.js');
+    const { exercises } = await loadExerciseLibrary(vaultPath);
+    const { schedule } = await loadRoutines(vaultPath, exercises);
+    const priorId = schedule?.[payload.day] || null;
+    await setScheduleDay(vaultPath, exercises, payload.day, payload.routineId || null);
+    const Day = payload.day.charAt(0).toUpperCase() + payload.day.slice(1);
+    return {
+      destination: `Train schedule — ${Day} is now ${payload.routineName}`,
+      undo: { route, day: payload.day, priorId, dayLabel: Day, priorName: payload.beforeName },
     };
   }
 
@@ -1030,6 +1052,13 @@ export async function undoFiling(vaultPath, undo) {
     const { exercises } = await loadExerciseLibrary(vaultPath);
     await updateRoutine(vaultPath, exercises, undo.routineId, { exercises: undo.priorEntries });
     return `restored ${undo.routineName} to its prior exercise list`;
+  }
+  if (undo.route === 'schedule-edit') {
+    const { loadExerciseLibrary } = await import('./exercises.js');
+    const { setScheduleDay } = await import('./workouts.js');
+    const { exercises } = await loadExerciseLibrary(vaultPath);
+    await setScheduleDay(vaultPath, exercises, undo.day, undo.priorId || null);
+    return `put ${undo.dayLabel} back to ${undo.priorName}`;
   }
   if (undo.route === 'rotation-variant') {
     const { loadRecipeData } = await import('./recipes.js');
