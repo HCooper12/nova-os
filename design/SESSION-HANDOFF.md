@@ -13,6 +13,17 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP — PASS 4 ON THE CHARACTERS; THE ZERO-TOKEN RULE PLANNED; ALL
+PUSHED.** His three answers: keep refining them all → pass 4 done, version 4
+of the same artifact (backs designed, cape, towel, fin, satchel, bigger
+bucket, visible steam, the "?" orb; `seat()` roll bug fixed). Plan the
+zero-token rule → `AGENT-WORLD-PLAN.md` §5a: four refusals and a test
+(`server/test/agentWorldNoModel.test.js`, to be written BEFORE any map
+code). Push → done; origin/main matches HEAD. **Still his:** how the
+characters feel on his phone; whether to start the map.
+
+---
+
 **24 SEP (late) — THE AGENT CHARACTERS, PASS 3: ONE SPECIES.** Commit
 `1356b56` (+ docs), local, not pushed. Published as version 3 of
 https://claude.ai/artifact/VU6LdBpB5or14DMQSygeRD.

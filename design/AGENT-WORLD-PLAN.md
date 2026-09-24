@@ -282,6 +282,21 @@ elapsed time snapped the pose) that is fixed. **Unverified until he looks:**
 how it feels on his phone at full frame rate; headless Chrome runs this at
 about 6fps.
 
+**PASS 4 — DONE (25 Sep), version 4 of the same artifact.** His words:
+"keep refining them all." What the four-side captures showed after pass 3:
+every back was a blank ball on a blank body; the Commander's pointing
+finger was a nub; the Guardian's crown ridge read as a horn from the front;
+the Coach's whistle and wristbands were too small to read at sheet
+distance; the Watcher's bucket was a thimble; the steam did not show; the
+Leader's "?" was hidden. Done: a service hatch with a lit accent bar on
+every back (`makeBot`, so it is one design), a real cape on the Commander
+that wraps the back and lifts as the arm comes up, a towel over the Coach's
+shoulder (a `ribbon` along a curve), a gold fin on the Guardian's crown
+(`crownFin`, the helmet's own profile extruded), a satchel and strap on the
+Researcher, a bigger bucket, visible steam, a "?" orb that floats above the
+Leader's cupped hands. Fixed on the way: `seat()` rolled anything placed
+exactly behind a body (an ambiguous rotation axis), now a look-at.
+
 Build order for the characters: a **3D character sheet first**
 (`design/mockups/49-agent-characters.html`, three.js, nine figures on a
 turntable, tap to focus, each shown in its working and waiting pose) for

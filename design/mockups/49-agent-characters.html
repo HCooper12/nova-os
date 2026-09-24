@@ -1001,8 +1001,8 @@
     thumb.castShadow = true; hand.add(thumb);
     var finger = null;
     if (o.point) {
-      finger = new T.Mesh(new T.CapsuleGeometry(rh * 0.24, rh * 0.62, 6, 12), handMat);
-      finger.position.set(0, rh * 1.55, rh * 0.08); finger.castShadow = true; hand.add(finger);
+      finger = new T.Mesh(new T.CapsuleGeometry(rh * 0.3, rh * 0.85, 6, 12), handMat);
+      finger.position.set(0, rh * 1.6, rh * 0.06); finger.castShadow = true; hand.add(finger);
       palm.scale.set(rh * 0.88, rh * 0.9, rh * 0.8);
     }
     var curve = new T.CatmullRomCurve3([new T.Vector3(), new T.Vector3(), new T.Vector3()], false, 'centripetal');
@@ -1048,9 +1048,13 @@
     if (!h) return { p: new T.Vector3(x, y, 0), n: new T.Vector3(0, 0, Math.sign(z)) };
     return { p: h.point.clone(), n: h.face.normal.clone() };
   }
+  var _sq = new T.Quaternion(), _sm = new T.Matrix4();
   function seat(obj, hit, off) {
     obj.position.copy(hit.p).addScaledVector(hit.n, off || 0);
-    obj.quaternion.setFromUnitVectors(ZV, hit.n);
+    // a look-at keeps the roll at zero: setFromUnitVectors picks an
+    // arbitrary axis when the normal is exactly behind, and the plate rolls
+    _sm.lookAt(hit.n, new T.Vector3(0, 0, 0), YV);
+    obj.quaternion.setFromRotationMatrix(_sm);
     return obj;
   }
 
@@ -1195,6 +1199,18 @@
     marker.position.y = markerY; marker.visible = false; g.add(marker);
 
     var cs = contactShadow(o.footR || 0.42); g.add(cs);
+
+    // THE BACK PLATE — a service hatch with a lit bar in the accent, so the
+    // back of a being is a designed surface and not a blank. Every being
+    // has one; the beings that carry something on the back add it on top.
+    var bpHit = onBody(body, 0, o.body.chestY - 0.02, -1);
+    var bp = new T.Group(); seat(bp, bpHit, 0.002); g.add(bp);
+    var plate = new T.Mesh(badgeGeo(rrect(0.19, 0.15, 0.03), 0.008, 0.005, o.body.chestR), trimMat);
+    plate.castShadow = true; bp.add(plate);
+    bp.add(mesh(GEO.box, jointMat, 0.13, 0.014, 0.004, 0, 0.03, 0.013));
+    var bpBar = mesh(GEO.box, emissiveMat(lighter(acc, 0.2), 1.6, { lamp: true }), 0.11, 0.012, 0.005, 0, -0.02, 0.013);
+    bpBar.castShadow = false; bp.add(bpBar);
+    [-1, 1].forEach(function (s) { bp.add(mesh(GEO.sph, jointMat, 0.008, 0.008, 0.006, s * 0.07, -0.05, 0.013)); });
 
     return {
       group: g, body: body, head: head, H: H, face: face, marker: marker, markerY: markerY,
@@ -1388,6 +1404,25 @@
     north.castShadow = false; card.add(north);
     var roseGlow = halo(TK.gold, 0.14, 0.16); roseGlow.position.z = -0.02; roseG.add(roseGlow);
 
+    // THE CAPE — hangs off the epaulettes, wraps the back, flares to the
+    // hem, gold-lined; it lifts and swings a little as the arm comes up
+    var capeGeo = new T.PlaneGeometry(1, 1, 16, 12), cpB = capeGeo.attributes.position.array.slice(0);
+    var capeM = new T.MeshPhysicalMaterial({ color: darker(hue, 0.5), roughness: 0.72, sheen: 1, sheenColor: lighter(hue, 0.4), side: T.BackSide });
+    var capeIn = new T.MeshPhysicalMaterial({ color: lighter(TK.gold, 0.08), roughness: 0.55, side: T.FrontSide, emissive: TK.gold.clone(), emissiveIntensity: 0.1 });
+    var cape = new T.Group(); g.add(cape);
+    var capeMesh = new T.Mesh(capeGeo, capeM); capeMesh.castShadow = true; cape.add(capeMesh);
+    cape.add(new T.Mesh(capeGeo, capeIn));
+    function drape(lift) {
+      var pp = capeGeo.attributes.position;
+      for (var k = 0; k < pp.count; k++) {
+        var u = cpB[k * 3], v = 0.5 - cpB[k * 3 + 1];            // u -0.5..0.5 across, v 0 collar .. 1 hem
+        var an = u * (1.5 - v * 0.25), r = 0.26 + v * 0.1 + lift * v * v * 0.16;
+        var sway = Math.sin(v * 3 + u * 2) * 0.008 * v;
+        pp.setXYZ(k, Math.sin(an) * r + sway, 0.55 - v * 0.44 + lift * v * v * 0.08, -Math.cos(an) * r + 0.02);
+      }
+      pp.needsUpdate = true; capeGeo.computeVertexNormals();
+    }
+    drape(0);
     var SL = V(-0.215, 0.475, 0), SR = V(0.215, 0.475, 0);
     var armL = b.arm(-1, { r0: 0.05, r1: 0.034, L1: 0.21, L2: 0.2 });
     var armR = b.arm(1, { r0: 0.05, r1: 0.034, L1: 0.21, L2: 0.2, point: true });
@@ -1408,6 +1443,8 @@
       hubMat.emissiveIntensity = (working ? 3.0 : 1.6) * TK.em;
       b.headYaw = P.s('yaw', working ? 0.18 : 0);
       b.headPitch = P.s('pitch', working ? -0.06 : 0);
+      var cl = P.s('cape', working ? 1 : 0);
+      drape(cl + (rm ? 0 : Math.sin(t * 1.7) * 0.08));
       return (working && !rm) || P.moving();
     };
     return b;
@@ -1472,7 +1509,7 @@
     for (var i = 0; i <= 16; i++) lanCurve.getPoint(i / 16, lan.pts[i]);
     lan.build(function () { return 0.0065; });
     var lanMesh = new T.Mesh(lan.geo, bandMat); lanMesh.castShadow = true; g.add(lanMesh);
-    var whistle = new T.Group(); seat(whistle, wHit, 0.03); whistle.position.y -= 0.035; g.add(whistle);
+    var whistle = new T.Group(); seat(whistle, wHit, 0.03); whistle.position.y -= 0.035; whistle.scale.setScalar(1.5); g.add(whistle);
     var chrome = metalMat(0xdfe6f2, 0.18);
     var wb = new T.Mesh(new T.CapsuleGeometry(0.022, 0.04, 6, 14), chrome); wb.rotation.z = Math.PI / 2; wb.castShadow = true; whistle.add(wb);
     var wm = mesh(GEO.cyl, chrome, 0.012, 0.03, 0.012, 0.03, 0.012, 0); wm.rotation.z = -1.2; whistle.add(wm);
@@ -1500,7 +1537,13 @@
     var SL = V(-0.235, 0.49, 0), SR = V(0.235, 0.49, 0);
     var armL = b.arm(-1, { r0: 0.056, r1: 0.038, L1: 0.2, L2: 0.19, rh: 0.052 });
     var armR = b.arm(1, { r0: 0.056, r1: 0.038, L1: 0.2, L2: 0.19, rh: 0.052 });
-    [armL, armR].forEach(function (arm) { arm.hand.children[0].material = bandMat; arm.hand.children[0].scale.set(0.05, 0.05, 0.11); });
+    [armL, armR].forEach(function (arm) { arm.hand.children[0].material = bandMat; arm.hand.children[0].scale.set(0.058, 0.058, 0.16); });
+    // a towel over the left shoulder: down the chest a little, down the back a lot
+    var towelC = new T.CatmullRomCurve3([V(-0.17, 0.36, 0.2), V(-0.19, 0.5, 0.12), V(-0.2, 0.56, 0), V(-0.19, 0.5, -0.15), V(-0.18, 0.36, -0.24), V(-0.17, 0.2, -0.25)]);
+    var towelM = new T.MeshPhysicalMaterial({ color: 0xf5f2ea, roughness: 0.9, sheen: 0.8, sheenColor: 0xffffff, side: T.DoubleSide });
+    var towel = ribbon(towelC, 24, 0.055, V(1, 0, 0), towelM); g.add(towel);
+    var towelStripe = ribbon(towelC, 24, 0.012, V(1, 0, 0), new T.MeshPhysicalMaterial({ color: lighter(acc, 0.1), roughness: 0.85, side: T.DoubleSide }));
+    towelStripe.position.y += 0.002; g.add(towelStripe);
     b.tell = function (t, working, rm) {
       var P = b.pose; P.frame(t);
       var ph = 0;
@@ -1614,6 +1657,43 @@
 
   // a shape extruded and then bent onto a body of radius R, so a badge
   // sits ON a round chest instead of cutting a chord through it
+  function rrect(w, h, r) { var s2 = new T.Shape(); s2.moveTo(-w / 2 + r, -h / 2); s2.lineTo(w / 2 - r, -h / 2); s2.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s2.lineTo(w / 2, h / 2 - r); s2.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s2.lineTo(-w / 2 + r, h / 2); s2.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s2.lineTo(-w / 2, -h / 2 + r); s2.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s2; }
+  function ribbon(curve, N, halfW, across, mat, droop) {
+    var g = new T.PlaneGeometry(1, 1, 1, N), P = g.attributes.position, pt = new T.Vector3();
+    for (var i = 0; i <= N; i++) {
+      curve.getPoint(i / N, pt);
+      for (var j = 0; j <= 1; j++) {
+        var v = i * 2 + j, sgn = j ? 1 : -1;
+        P.setXYZ(v, pt.x + across.x * halfW * sgn, pt.y + across.y * halfW * sgn - (droop || 0), pt.z + across.z * halfW * sgn);
+      }
+    }
+    g.computeVertexNormals();
+    var m = new T.Mesh(g, mat); m.castShadow = true; return m;
+  }
+  // a fin standing on the crown: the helmet's own profile (x = 0) as the
+  // base edge, pushed out along the normal by h(t) for the top edge
+  function crownFin(H, a0, a1, h, thick, mat) {
+    var base = [], top = [], P = new T.Vector3(), N = new T.Vector3();
+    for (var i = 0; i <= 30; i++) {
+      var t = i / 30, an = a0 + (a1 - a0) * t, y = Math.sin(an) * H.hy, z = Math.cos(an) * H.hz;
+      onHelmet2(H, y, z, 0.004, P, N); base.push([P.z, P.y]);
+      onHelmet2(H, y, z, 0.004 + h(t), P, N); top.push([P.z, P.y]);
+    }
+    var sh = new T.Shape(); sh.moveTo(base[0][0], base[0][1]);
+    base.forEach(function (q) { sh.lineTo(q[0], q[1]); });
+    top.reverse().forEach(function (q) { sh.lineTo(q[0], q[1]); });
+    sh.closePath();
+    var g = new T.ExtrudeGeometry(sh, { depth: thick, bevelEnabled: true, bevelThickness: thick * 0.3, bevelSize: thick * 0.3, bevelSegments: 2, curveSegments: 4 });
+    g.translate(0, 0, -thick / 2); g.rotateY(Math.PI / 2);
+    var m = new T.Mesh(g, mat); m.castShadow = true; return m;
+  }
+  // the helmet surface in the x = 0 plane, by (y, z) direction
+  function onHelmet2(H, y, z, off, P, N) {
+    var n = H.n, l = 1 / Math.pow(Math.pow(Math.abs(y / H.hy), n) + Math.pow(Math.abs(z / H.hz), n), 1 / n);
+    y *= l; z *= l;
+    N.set(0, spow(y, n - 1) / Math.pow(H.hy, n), spow(z, n - 1) / Math.pow(H.hz, n)).normalize();
+    P.set(0, y, z).addScaledVector(N, off);
+  }
   function badgeGeo(shape, depth, bevel, R) {
     var g = new T.ExtrudeGeometry(shape, { depth: depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 3, curveSegments: 16, steps: 1 });
     var p = g.attributes.position;
@@ -1672,8 +1752,8 @@
     front.position.z = 0.016; front.position.y = 0.004; sh.add(front);
     b.core.position.copy(hit.p).addScaledVector(hit.n, 0.034); b.core.scale.setScalar(1.15);
     // THE RIDGE over the crown, front to back
-    var ridge = crownRidge(b.H, 0.62, Math.PI - 0.3, 0.022, 0.012, goldM);
-    ridge.scale.x = 0.8; b.head.add(ridge);
+    var fin = crownFin(b.H, 0.95, Math.PI - 0.1, function (t) { return 0.07 * Math.sin(Math.PI * Math.pow(t, 0.9)); }, 0.024, goldM);
+    b.head.add(fin);
     // THE LANTERN — hangs from the hand by its ring
     var lant = new T.Group(); g.add(lant);
     var capM = metalMat(lighter(TK.gold, 0.05), 0.32);
@@ -1788,6 +1868,16 @@
       p.needsUpdate = true; pgGeo.computeVertexNormals();
       leaf.rotation.y = -0.36 - f * (Math.PI - 0.72);
     }
+    var satM = new T.MeshPhysicalMaterial({ color: 0x8a5a33, roughness: 0.65, clearcoat: 0.3, sheen: 0.4, sheenColor: 0xc99a6a });
+    var satHit = onBody(b.body, 0.06, 0.33, -1);
+    var sat = new T.Group(); seat(sat, satHit, 0.05); sat.rotation.z += 0.12; g.add(sat);
+    sat.add(mesh(GEO.box, satM, 0.17, 0.14, 0.09, 0, 0, 0));
+    var flap = new T.Mesh(badgeGeo(rrect(0.17, 0.09, 0.02), 0.012, 0.004, 4), satM); flap.position.set(0, 0.03, 0.05); flap.rotation.x = 0.15; sat.add(flap);
+    sat.add(mesh(GEO.sph, metalMat(lighter(TK.gold, 0.1), 0.3), 0.012, 0.012, 0.008, 0, -0.02, 0.058));
+    var strap = taperTube(20, 8), stC = new T.CatmullRomCurve3([V(0.1, 0.34, -0.2), V(0.17, 0.5, -0.05), V(0.06, 0.55, 0.16), V(-0.14, 0.4, 0.2), V(-0.23, 0.25, 0.04)]);
+    for (var i2 = 0; i2 <= 20; i2++) stC.getPoint(i2 / 20, strap.pts[i2]);
+    strap.build(function () { return 0.012; });
+    var strapM = new T.Mesh(strap.geo, satM); strapM.scale.z = 1; strapM.castShadow = true; g.add(strapM);
     var SL = V(-0.2, 0.47, 0), SR = V(0.2, 0.47, 0), _hp = new T.Vector3();
     var armL = b.arm(-1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
     var armR = b.arm(1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
@@ -1882,7 +1972,7 @@
       var boot = mesh(GEO.sph, b.handMat, 0.07, 0.1, 0.06, 0.137 * s, 0.1, 0.39); boot.rotation.x = -0.25; g.add(boot);
     });
     // THE POPCORN
-    var bucket = new T.Group(); g.add(bucket);
+    var bucket = new T.Group(); bucket.scale.setScalar(1.55); g.add(bucket);
     var cupM = new T.MeshPhysicalMaterial({ map: stripeTex('#' + lighter(acc, 0.1).getHexString(), '#f4f1ea'), roughness: 0.5, clearcoat: 0.5, side: T.DoubleSide });
     var cup = new T.Mesh(new T.LatheGeometry([new T.Vector2(0.0004, 0), new T.Vector2(0.062, 0), new T.Vector2(0.086, 0.12), new T.Vector2(0.09, 0.126)], 32), cupM);
     cup.castShadow = true; bucket.add(cup);
@@ -1969,7 +2059,7 @@
     }
     // THE CATALOGUE — six drawer fronts seated on the body
     var frontM = new T.MeshPhysicalMaterial({ color: darker(acc, 0.62).lerp(new T.Color(0x8a5a33), 0.45), roughness: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.2, sheen: 0.4, sheenColor: lighter(acc, 0.3) });
-    function rrect(w, h, r) { var s2 = new T.Shape(); s2.moveTo(-w / 2 + r, -h / 2); s2.lineTo(w / 2 - r, -h / 2); s2.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s2.lineTo(w / 2, h / 2 - r); s2.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s2.lineTo(-w / 2 + r, h / 2); s2.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s2.lineTo(-w / 2, -h / 2 + r); s2.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s2; }
+    function rrect_(w, h, r) { var s2 = new T.Shape(); s2.moveTo(-w / 2 + r, -h / 2); s2.lineTo(w / 2 - r, -h / 2); s2.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s2.lineTo(w / 2, h / 2 - r); s2.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s2.lineTo(-w / 2 + r, h / 2); s2.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s2.lineTo(-w / 2, -h / 2 + r); s2.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s2; }
     var frontGeo = badgeGeo(rrect(0.118, 0.074, 0.016), 0.01, 0.004, 0.26);
     var cardM = new T.MeshPhysicalMaterial({ color: 0xf6f2e8, roughness: 0.8 });
     function drawerFront(parent) {
@@ -2097,7 +2187,7 @@
     var heatL = new T.PointLight(TK.gold.getHex(), 0, 1.4, 2); heatL.position.set(0, -0.04, 0); pot.add(heatL);
     var steamM = [], steam = [];
     for (var i = 0; i < 7; i++) {
-      var sm = new T.SpriteMaterial({ map: glowTex(), color: 0xffffff, transparent: true, opacity: 0, depthWrite: false });
+      var sm = new T.SpriteMaterial({ map: blushTex(), color: 0xfff6ea, transparent: true, opacity: 0, depthWrite: false });
       var sp = new T.Sprite(sm); pot.add(sp); steam.push(sp); steamM.push(sm);
     }
     var SL = V(-0.2, 0.46, 0), SR = V(0.2, 0.46, 0), _t = new T.Vector3();
@@ -2123,8 +2213,8 @@
       steam.forEach(function (s, i) {
         var f = rm ? (0.2 + i * 0.1) : (((t * 0.35) + i / 7) % 1);
         s.position.set(Math.sin(f * 5 + i * 1.7) * 0.04 * (0.4 + f), 0.1 + f * 0.42, Math.cos(f * 4 + i) * 0.03);
-        s.scale.setScalar(0.06 + f * 0.14);
-        steamM[i].opacity = on * 0.42 * Math.pow(1 - f, 1.2) * Math.min(1, f / 0.15);
+        s.scale.setScalar(0.11 + f * 0.3);
+        steamM[i].opacity = on * 0.75 * Math.pow(1 - f, 1.5) * Math.min(1, f / 0.15);
       });
       b.face.add.dy = working ? -0.006 : 0;
       b.headPitch = P.s('pitch', working ? 0.14 : 0.02);
@@ -2168,11 +2258,12 @@
     var orb = new T.Group(); g.add(orb);
     var orbGlass = new T.MeshPhysicalMaterial({ color: acc.clone(), roughness: 0.05, metalness: 0, clearcoat: 1, transparent: true, opacity: 0.45, emissive: acc.clone(), emissiveIntensity: 0.35 });
     orbGlass.userData.baseOp = 0.45;
-    var shell = mesh(GEO.sph, orbGlass, 0.088, 0.088, 0.088); shell.castShadow = false; orb.add(shell);
+    orbGlass.depthWrite = false;
+    var shell = mesh(GEO.sph, orbGlass, 0.105, 0.105, 0.105); shell.castShadow = false; shell.renderOrder = 6; orb.add(shell);
     var heartMat = emissiveMat(acc.clone(), 2.0, { lamp: true });
     var heart = mesh(GEO.sph, heartMat, 0.034, 0.034, 0.034); heart.castShadow = false; orb.add(heart);
-    var q = new T.Sprite(new T.SpriteMaterial({ map: glyphTex('?', '#ffffff'), color: 0xffffff, transparent: true, depthWrite: false, depthTest: false }));
-    q.scale.setScalar(0.12); q.renderOrder = 7; orb.add(q);
+    var q = new T.Sprite(new T.SpriteMaterial({ map: glyphTex('?', '#ffffff'), color: 0xffffff, transparent: true, depthWrite: false }));
+    q.scale.setScalar(0.15); q.position.z = 0.062; q.renderOrder = 7; orb.add(q);
     var orbGlow = halo(acc, 0.1, 0.35); orb.add(orbGlow);
     var rippleM = new T.SpriteMaterial({ map: tex('ripple', function (x, w, h) {
       x.strokeStyle = '#fff'; x.lineWidth = 5; x.beginPath(); x.arc(w / 2, h / 2, w / 2 - 6, 0, 7); x.stroke();
@@ -2185,8 +2276,8 @@
     var armR = b.arm(1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
     b.tell = function (t, working, rm) {
       var P = b.pose; P.frame(t);
-      var op = P.v('orb', 0, 0.39, 0.34);
-      orb.position.copy(op);
+      var op = P.v('orb', 0, 0.4, 0.34);
+      orb.position.copy(op); orb.position.y += 0.1 + (rm ? 0 : Math.sin(t * 1.4) * 0.012);
       // cupped: the hands under the orb, palms up and in
       armL.set(SL, V(op.x - 0.078, op.y - 0.065, op.z - 0.005), V(-1, -0.6, -0.2), V(0.6, 1, 0));
       armR.set(SR, V(op.x + 0.078, op.y - 0.065, op.z - 0.005), V(1, -0.6, -0.2), V(-0.6, 1, 0));
