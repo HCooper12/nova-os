@@ -13,6 +13,48 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**24 SEP (late) — NOTIFICATIONS DROP OUT OF THE DYNAMIC ISLAND.** One ask:
+his reel of `rit3zh/expo-dynamic-notifications` (in-app notifications that
+tear off the island on a gooey neck, swell into a card, and are thrown back
+up into it). Shipped `6e3e964` + `da04e40`, pushed, live build `da04e40ff`
+confirmed (`version.json` + the new verify-shipped marker PASSES live).
+
+- **The library cannot be installed** — React Native (Skia, Reanimated,
+  Gesture Handler). Its geometry, timeline and springs are ported value for
+  value into `src/islandCore.js`; Skia's goo is the same blur + alpha
+  threshold matrix as an SVG filter in `src/DynamicIsland.jsx`. Store:
+  `src/island.js` (`notify`, `dismissIsland`). 25 tests,
+  `server/test/dynamicIsland.test.js`.
+- **What moved into it:** every `toastMsg` (no longer App state — a toast
+  used to re-render the whole app twice) and the doorman's greeting (Nova
+  blue, serif, Reply in place, tap → Voice, 30s, holds 5s when queued).
+  `Toast.jsx` and the greeting banner are deleted. **The NudgeCard stays at
+  the bottom on purpose** (review finding 18: at the top it hid titles).
+- **The card is black in every theme** (it is the island, grown). Tokens
+  `--nv-island`, `--nv-island-ink`, `--nv-island-lift` (45% in daylight).
+- **Island detection is an inference** (`detectIsland`): iPhone +
+  standalone + portrait + top inset ≥ 54. Anything else drips from the top
+  edge and draws no pill. Dev-only seams, compiled out of `dist` (checked):
+  `localStorage.novaos.forceIsland='1'`, `window.__islandSlow = N` (slows
+  the spring clock — CDP's playback rate does NOT reach rAF springs, which
+  is why `scripts/rec.mjs --slow` cannot film it).
+- VERIFIED: lint 0 errors, build green, server 2084/2084, filmed at 402×874
+  in cupertino — entrance (drip → neck → tear → capsule → card, words out
+  of a blur), a synthesized upward fling retracting into the island, the
+  queue handing over after minShow, greeting at rest in daylight + command.
+- **ASSUMED / UNVERIFIED BY HIM:** that the pill lands exactly over his
+  16 Pro's hardware island (placement is the library's formula: inset 62 −
+  37.33 − 11 = 13.67pt top); that the SVG filter holds 120Hz on WebKit (it
+  only runs while the shape moves); how the throw feels under a real thumb
+  — synthetic pointer events are not a thumb (see the back-swipe saga).
+- Not built: haptics on arrival (iOS web gives none without a finger on a
+  switch), real Live Activities OUTSIDE the app (need native ActivityKit —
+  the Capacitor shell, blocked on Xcode).
+- **NEXT:** ask him (1) does the island line up with his real island, (2)
+  does throwing it up feel right, (3) does anything stutter. Yes/no each.
+
+---
+
 **24 SEP — VOICE DIAGNOSED (DICTATION NEVER WORKED ON HIS PHONE), FIVE
 SWIPE-BACK ATTEMPTS, THE CORRELATION ENGINE, AND A GIT MISHAP WITH THE
 PEER SESSION.** A long session across many of his own asks, not one
