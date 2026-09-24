@@ -211,6 +211,11 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
   --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
   --nv-good:#5fe8a8; --nv-warn:#e08383;
+  /* THE ISLAND (24 Sep 2026). Nova's notifications grow out of the Dynamic
+     Island, so the card IS the island: hardware black in every theme, with
+     its own ink. The hues it wears are the theme's, lifted toward white by
+     --nv-island-lift where a theme darkened them for a white page. */
+  --nv-island:#000; --nv-island-ink:rgba(255,255,255,.94); --nv-island-lift:0%;
   /* EACH MUSCLE OWNS ITS HUE (22 Sep 2026, his instruction) — the one map
      the figure, the volume bars, a report's rail and every chip read. Named
      in src/muscleHue.js; pinned against the exercise library by
@@ -305,6 +310,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-cy:#0060df;    /* 5.62:1 */  --nv-vi:#8b32b8;   /* 6.47:1 */
   --nv-mg:#d11a43;    /* 5.33:1 */  --nv-gold:#8a5200; /* 6.39:1 */
   --nv-good:#1c7a3e;  /* 5.38:1 */  --nv-warn:#c9251c; /* 5.58:1 */
+  --nv-island-lift:45%;  /* the text-weight hues above are for WHITE; on the black island they sink */
   --nv-acc:#0060df; --nv-acc-bg:rgba(0,96,223,.1); --nv-acc-border:rgba(0,96,223,.35);
   --nv-well:rgba(120,120,128,.12); --nv-on-acc:#ffffff;
   --nv-bracket-op:0; --nv-grid-op:0; --nv-stars-op:0; --nv-aurora-op:0;
