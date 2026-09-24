@@ -103,6 +103,9 @@ const FEATURES = [
   // the iPhone mic records and the Mac writes it down (25 Sep)
   ["Voice · Nova's own ears, waiting on the Mac for the words (25 Sep)", 'HEARING YOU'],
   ["Settings · test Nova's ears on his own phone (25 Sep)", 'shows what your Mac heard'],
+  // the plan sees his log, names what is stuck, and is back on the phone (25 Sep)
+  ['Home · stuck promises, three answers (25 Sep)', 'the plan keeps listing these'],
+  ['Home · plan priorities seen done in the log (25 Sep)', 'Seen in your log'],
 ];
 
 const SERVER_ROUTES = [
