@@ -1483,6 +1483,21 @@ export async function approveRecord(vaultPath, id) {
         undoData: { kind: 'exercise-muscle-group', exerciseId: fix.exerciseId, muscleGroup: before },
       });
     }
+    // EVERY ONE-TAP FIX APPLIES (25 Sep 2026). Only a remap used to act on
+    // approve; a "drop this exercise" or a study's ops were filed as an
+    // acknowledgement and nothing changed — his words, the same day:
+    // "It's pointless for me to approve something like that if coach wont
+    // then act on it." The coach-apply path's own applyOps does it, undoable.
+    const { opsFromFix, applyOps } = await import('./coachPlan.js');
+    const ops = opsFromFix(fix);
+    if (ops) {
+      const why = String(record.originalText || record.text || '').replace(/^Coach:\s*/, '').slice(0, 90) || 'Coach change';
+      const { summary, undo } = await applyOps(vaultPath, ops, { why });
+      return updateRecord(id, {
+        status: 'filed', destination: 'workout plan', filedAt: new Date().toISOString(), auto: false, error: null,
+        undoData: undo, applySummary: summary,
+      });
+    }
     return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
   // A fuel-cross finding is a receipt, not a write: it carries no decision
