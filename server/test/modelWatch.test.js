@@ -166,3 +166,12 @@ test('a run where every probe fails is not a check: it tries again tomorrow', as
   assert.equal(lastCheckedAt(), before, 'the check date did not move');
   assert.equal(watchDue(lastCheckedAt()), watchDue(before));
 });
+
+// (review #9) another family's model is never recorded under this alias
+test('a probe that returns no model of its own family fails instead of guessing', async () => {
+  const { parseProbeOutput } = await import('../lib/modelWatch.js');
+  const out = JSON.stringify({ modelUsage: { 'claude-haiku-4-5-20251001': {} } });
+  assert.throws(() => parseProbeOutput(out, 'fable'), /no fable model/);
+  assert.equal(parseProbeOutput(JSON.stringify({ modelUsage: { 'claude-haiku-4-5-20251001': {}, 'claude-fable-5-1': {} } }), 'fable'), 'claude-fable-5-1');
+  assert.throws(() => parseProbeOutput(JSON.stringify({ modelUsage: { 'claude-fable-latest': {} } }), 'fable'));
+});

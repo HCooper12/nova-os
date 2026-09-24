@@ -60,6 +60,8 @@ export function modelLabel(id) {
 }
 
 // Which alias family an id (or an alias itself) belongs to, or null.
+const CLAUDE_ID = /^claude-(?:opus|sonnet|haiku|fable)-\d+(?:-\d+)*$/;
+
 export function familyOf(id) {
   if (typeof id !== 'string') return null;
   if (ALIASES.includes(id)) return id;
@@ -72,6 +74,8 @@ export function familyOf(id) {
 // one turn, no tools, no session left behind, JSON out. The resolved model
 // id is the key of `modelUsage` in the CLI's envelope — this is the CLI
 // TELLING us what 'opus' meant today, not a guess from parsing its reply.
+const PROBE_TIMEOUT_MS = 90_000;
+
 function spawnProbe(alias) {
   return new Promise((resolve, reject) => {
     const child = spawn(CLAUDE_BIN, [
@@ -88,8 +92,11 @@ function spawnProbe(alias) {
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });
-    child.on('close', () => resolve(stdout || stderr));
-    child.on('error', reject);
+    // (review #8) a CLI that hangs (network stall, logged out) must not hold
+    // the tick forever and leak a process every day after
+    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`probe for "${alias}" timed out`)); }, PROBE_TIMEOUT_MS);
+    child.on('close', () => { clearTimeout(timer); resolve(stdout || stderr); });
+    child.on('error', (e) => { clearTimeout(timer); reject(e); });
   });
 }
 
@@ -110,8 +117,10 @@ export function parseProbeOutput(stdout, alias) {
   if (!usage || typeof usage !== 'object' || !Object.keys(usage).length) {
     throw new Error(`probe for "${alias}": no modelUsage in the response`);
   }
-  const ids = Object.keys(usage);
-  const match = ids.find((id) => familyOf(id) === alias) || ids[0];
+  // (review #9) never record another family's model under this alias — a
+  // wrong label, a wrong pinned choice and a false "model moved" would follow
+  const match = Object.keys(usage).find((id) => familyOf(id) === alias && CLAUDE_ID.test(id));
+  if (!match) throw new Error(`probe for "${alias}": no ${alias} model in the response`);
   return match;
 }
 
@@ -175,7 +184,7 @@ export function resolvedModels() {
   const out = {};
   for (const alias of ALIASES) {
     const r = data.resolved?.[alias];
-    if (r?.id) out[alias] = { id: r.id, label: modelLabel(r.id), observed: true };
+    if (r?.id && CLAUDE_ID.test(r.id) && familyOf(r.id) === alias) out[alias] = { id: r.id, label: modelLabel(r.id), observed: true };
     else out[alias] = { id: NEWEST_KNOWN[alias], label: modelLabel(NEWEST_KNOWN[alias]), observed: false };
   }
   return out;
