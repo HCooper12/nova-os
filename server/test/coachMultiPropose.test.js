@@ -86,3 +86,10 @@ test('schedule: Tuesday stops being a second Push — applies, and undo puts Pus
   assert.equal((await sched()).tuesday, push.id);
   assert.equal(payload.beforeName, 'Push');
 });
+
+test('a retarget card says what it changes to, not just that it changes', async () => {
+  const { title } = await validateCoachEdit(vault, { action: 'targets', routine: 'Push', exercise: 'Carter Extension', targetSets: 3 });
+  assert.equal(title, 'Coach: retarget Carter Extension in Push to 3 sets');
+  const both = await validateCoachEdit(vault, { action: 'targets', routine: 'Push', exercise: 'Carter Extension', targetSets: 3, targetRepsLow: 10, targetRepsHigh: 12 });
+  assert.equal(both.title, 'Coach: retarget Carter Extension in Push to 3 × 10–12');
+});

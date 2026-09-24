@@ -923,10 +923,19 @@ export async function validateCoachEdit(vaultPath, raw) {
     payload.targetRepsHigh = num(raw.targetRepsHigh, null);
   }
 
+  // a decision card says WHAT changes — "retarget Carter Extension" alone
+  // asked him to approve a change he could not see (25 Sep)
+  const targetText = (p) => {
+    const reps = p.targetRepsLow && p.targetRepsHigh ? `${p.targetRepsLow}–${p.targetRepsHigh}` : p.targetRepsLow || p.targetRepsHigh || null;
+    if (p.targetSets && reps) return ` to ${p.targetSets} × ${reps}`;
+    if (p.targetSets) return ` to ${p.targetSets} sets`;
+    if (reps) return ` to ${reps} reps`;
+    return '';
+  };
   const title = action === 'swap' ? `Coach: swap ${payload.removeName} → ${payload.addName} in ${routine.name}`
     : action === 'add' ? `Coach: add ${payload.addName} to ${routine.name}`
     : action === 'remove' ? `Coach: remove ${payload.removeName} from ${routine.name}`
-    : `Coach: retarget ${payload.removeName} in ${routine.name}`;
+    : `Coach: retarget ${payload.removeName} in ${routine.name}${targetText(payload)}`;
   return { payload, title };
 }
 
