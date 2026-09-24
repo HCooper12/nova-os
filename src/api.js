@@ -451,6 +451,8 @@ export const api = {
   pushKey: (conn) => call(conn, '/api/push/key'),
   pushSubscribe: (conn, subscription) => post(conn, '/api/push/subscribe', { subscription }),
   pushTest: (conn) => post(conn, '/api/push/test', {}),
+  pocketPing: (conn, body) => post(conn, '/api/pocket', body),
+  pocketDisarm: (conn, key, ended = false) => post(conn, '/api/pocket/disarm', { key, ended }),
   guardianRestore: (conn, backup) => post(conn, '/api/guardian/restore', { backup }),
   todos: (conn) => call(conn, '/api/todos'),
   todoAdd: (conn, text, category) => post(conn, '/api/todos', { text, category }),

@@ -245,6 +245,26 @@ async function main() {
       res.status(400).json({ error: e.message });
     }
   });
+  // THE POCKET (25 Sep): a live workout checks in while Nova is on screen;
+  // silence past the grace sends ONE lock-screen notification that opens the
+  // session again. See lib/pocket.js for why it is a dead-man's switch.
+  let pocket = null;
+  const getPocket = async () => {
+    if (pocket) return pocket;
+    const [{ createPocket }, { sendPush }] = await Promise.all([import('./lib/pocket.js'), import('./lib/push.js')]);
+    pocket = createPocket({ send: sendPush });
+    return pocket;
+  };
+  app.post('/api/pocket', async (req, res) => {
+    try {
+      res.json((await getPocket()).ping(req.body || {}));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+  app.post('/api/pocket/disarm', async (req, res) => {
+    res.json((await getPocket()).disarm(req.body?.key, { ended: req.body?.ended === true }));
+  });
   app.post('/api/push/test', async (req, res) => {
     const { sendPush } = await import('./lib/push.js');
     res.json(await sendPush({ title: 'Nova', body: 'Notifications are live — this is what a waiting draft will feel like.', tag: 'test' }));
