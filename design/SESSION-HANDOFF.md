@@ -13,6 +13,51 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (morning) — CHARACTER PASS 5, AND THE ORG MAP IS LIVE ON OPS.**
+Commits `4f5ae15` (the beings become one module + the no-model test),
+`d311659` (pass 5), `58f8672` (the map's view model), `c629117` (the map on
+Ops), `076d326` (plan). The map commits are on origin (a peer pushed them
+with its own); the server serves `orgMap` on `/api/ops`.
+
+**His asks and where they stand.** (1) "Another round of refining... smaller
+details... how the arms are connected... how everything looks in motion":
+DONE, version 5 of https://claude.ai/artifact/VU6LdBpB5or14DMQSygeRD, full
+list in AGENT-WORLD-PLAN §3g "PASS 5". (2) "You can start the map": steps
+A, B, C BUILT; D (Home tile, Ambient) and the Projects/Overnight districts
+NOT started.
+
+**VERIFIED.** Server suite 2188/2188 in an isolated worktree at `c629117`;
+build green there; the live `/api/ops` returns `orgMap` (13 waiting: the
+Researcher 7, one each for Coach, Guardian, Watcher, Librarian, Leader, and
+one raw note of his). Looked at on the dev server at 402px and 1280px: the
+ring, a tap on the Coach (picked on the canvas by a synthetic pointer at its
+projected position), the card with his real pending item. The frame loop is
+live on screen and STOPS when the map scrolls away (`running()` false),
+resumes when it returns. Frame counts in headless are meaningless (bare rAF
+fired 4 times in 3 s).
+
+**NOT VERIFIED.** How the map feels on his phone (drag-to-turn with a real
+thumb, 120Hz, memory with nine physical-material beings); the Calm and
+theme rebuild (wired, not looked at); reduced motion on the map.
+
+**DECISIONS.** The beings live once, in `src/agentWorld/beings.js`; the
+sheet imports it and `scripts/agent-sheet/bundle.mjs` inlines it for a
+one-file artifact (publish the BUNDLED file, never the importing one). The
+map uses the sheet's own room light, not three's RoomEnvironment (which
+washed every being to pastel). Drag sideways turns, vertical scrolls the
+page (touch-action pan-y); a canvas that takes the scroll is refused.
+
+**DO NOT.** Reload the server with `launchctl kickstart`: use
+`node scripts/reload-server.mjs` (CLAUDE.md, 25 Sep; a raw restart killed
+his Coach answer). Guess a headless debug port (use `--remote-debugging-
+port=0`). Run the app on a dev port the server's CORS list does not allow
+(5173 and 5183 only), or it reads as "Backend unreachable".
+
+**NEXT.** His verdict on pass 5 and on the map on his phone; then step D
+(the Home tile as ONE still frame, never a live loop, per §7).
+
+---
+
 **25 SEP (morning) — THE ISLAND HOLDS WHAT IS LIVE, THE POCKET, NOVA IN THE
 REAL ISLAND, AND A MODEL FAIL-SAFE.** His asks, in order: (1) move nudges
 into the island; (2) workout progress in the island, and tap it from
