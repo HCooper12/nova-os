@@ -297,6 +297,36 @@ Researcher, a bigger bucket, visible steam, a "?" orb that floats above the
 Leader's cupped hands. Fixed on the way: `seat()` rolled anything placed
 exactly behind a body (an ambiguous rotation axis), now a look-at.
 
+**PASS 5 — DONE (25 Sep), version 5 of the same artifact.** His ask:
+"check smaller details too and the current appearance of how parts like the
+arms etc are connected and how everything looks in motion." New instrument:
+`studio.mjs --mode joints` (torso-height close-ups from six angles, both
+poses) and `film.mjs --film switch` (the Waiting→Working change at 15fps).
+Found and fixed: arms that reached full length locked straight and read as
+sticks (now always an elbow, `maxReach`); the Commander's cape was a pale
+board bent round a guessed cylinder (now every point is projected onto the
+body with `hug()`, navy, gold hem, rolled collar); the Coach's towel and the
+Researcher's strap cut through the body (now `strap()`, a thick band laid on
+the surface); the CFO's hands behind its back read as nubs (now a ledger in
+its arm); the Librarian's books read as a plank; Meal Prep's scarf knot read
+as a beak (now a bandana); the Leader's orb floated above empty hands; the
+body's panel lines ran across the helmets. In motion: the CFO's coin, the
+Researcher's page, the Librarian's drawer and Meal Prep's ladle popped into
+place on the switch; each now blends in with an eased amount.
+
+**THE ORG MAP — BUILT (25 Sep), steps A, B and C.** His go: "you can start
+the map as well." The characters moved into one shared module
+(`src/agentWorld/beings.js`, taking THREE as an argument) that both the
+sheet and the app draw from. Step A: `server/lib/orgMap.js`, the view model
+on `/api/ops` (every roster loop and every record kind placed, pinned by
+`orgMap.test.js`). Steps B and C: `src/orgmap/` on the Ops screen, the
+seven districts around Nova's core, a marker with the real count over each
+being he owes an answer, a tap card with its newest asks, and the marker
+list beneath as the keyboard's way in and the WebGL fallback. The §5a test
+guards it. Still to build: the Home tile and Ambient (step D), Projects and
+Overnight districts, day/night from the clock, and Talk from the card
+(it needs the org-conversation agent switch).
+
 Build order for the characters: a **3D character sheet first**
 (`design/mockups/49-agent-characters.html`, three.js, nine figures on a
 turntable, tap to focus, each shown in its working and waiting pose) for
