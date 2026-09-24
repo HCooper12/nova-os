@@ -116,6 +116,51 @@ test('a yes on a program-review fix ACTS, and undo puts it back', async () => {
   assert.deepEqual((await names()).sort(), ['Barbell Row', 'Plate Pinch'], 'and undo put it back');
 });
 
+// The deck's Undo. A "no" used to be final: the first time that mattered, a
+// test of this very deck declined one of his real cards and nothing on the
+// rails could ask it again.
+test('an answer can be taken back: a no is asked again, and so is an undone yes', async () => {
+  const { addCustomExercise, loadExerciseLibrary } = await import('../lib/exercises.js');
+  const { createRoutine, loadRoutines } = await import('../lib/workouts.js');
+  const { createRecord, getRecord } = await import('../lib/inboxStore.js');
+  const { approveRecord, discardRecord, undoRecord, reopenRecord } = await import('../lib/inbox.js');
+  const a = await addCustomExercise(vault, 'Calf Raise', 'Calves', 'weight_reps');
+  const b = await addCustomExercise(vault, 'Leg Press', 'Quads', 'weight_reps');
+  const { exercises } = await loadExerciseLibrary(vault);
+  const legs = await createRoutine(vault, exercises, 'Legs', [{ exerciseId: a.id, targetSets: 3 }, { exerciseId: b.id, targetSets: 3 }]);
+  const names = async () => (await loadRoutines(vault, (await loadExerciseLibrary(vault)).exercises)).routines.find((r) => r.id === legs.id).exercises.map((e) => e.name);
+  await createRecord({ id: 'back1', kind: 'coach-program', status: 'pending', source: 'coach', findingKey: 'k2', findingKind: 'routine-oversized', finding: {}, fix: { action: 'drop', routineId: legs.id, exerciseId: a.id }, text: 'Coach: Calf Raise has not been touched.', createdAt: new Date().toISOString() });
+
+  await discardRecord('back1');
+  assert.equal((await reopenRecord('back1')).status, 'pending', 'a no, taken back: the question is open again');
+  assert.equal((await getRecord('back1')).discardedAt, null);
+
+  await approveRecord(vault, 'back1');
+  assert.deepEqual(await names(), ['Leg Press']);
+  await assert.rejects(reopenRecord('back1'), /turned down or undid/, 'a filed change is undone before it is asked again');
+  await undoRecord(vault, 'back1');
+  assert.deepEqual((await names()).sort(), ['Calf Raise', 'Leg Press'], 'the plan is back');
+  const again = await reopenRecord('back1');
+  assert.equal(again.status, 'pending');
+  assert.equal(again.undoData, null, 'no stale undo rides the reopened card');
+  await approveRecord(vault, 'back1');
+  assert.deepEqual(await names(), ['Leg Press'], 'and a second yes still acts');
+});
+
+test('only his own answers on Coach cards reopen', async () => {
+  const { createRecord } = await import('../lib/inboxStore.js');
+  const { reopenRecord } = await import('../lib/inbox.js');
+  const at = new Date().toISOString();
+  await createRecord({ id: 'exp1', status: 'discarded', expired: true, source: 'coach', decision: { route: 'routine-edit', payload: {} }, createdAt: at });
+  await createRecord({ id: 'note1', status: 'discarded', kind: 'research', decision: { route: 'note' }, createdAt: at });
+  await createRecord({ id: 'plan1', status: 'discarded', source: 'coach', parentPlanId: 'p', decision: { route: 'routine-edit', payload: {} }, createdAt: at });
+  await createRecord({ id: 'wait1', status: 'pending', source: 'coach', decision: { route: 'routine-edit', payload: {} }, createdAt: at });
+  await assert.rejects(reopenRecord('exp1'), /turned down or undid/, 'an expired card was the system, not him');
+  await assert.rejects(reopenRecord('note1'), /Coach change/, 'not a Coach card');
+  await assert.rejects(reopenRecord('plan1'), /moved on/, "a plan's step: its plan has moved on");
+  await assert.rejects(reopenRecord('wait1'), /turned down or undid/, 'a waiting card is already open');
+});
+
 test.after(async () => {
   await rm(dataDir, { recursive: true, force: true });
   await rm(vault, { recursive: true, force: true });

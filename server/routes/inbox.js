@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { setSeen, startCapture, approveRecord, discardRecord, undoRecord, retryRecord, MODES } from '../lib/inbox.js';
+import { setSeen, startCapture, approveRecord, discardRecord, undoRecord, reopenRecord, retryRecord, MODES } from '../lib/inbox.js';
 import { listRecords, getRecord } from '../lib/inboxStore.js';
 
 export function inboxRouter(vaultPath) {
@@ -271,6 +271,17 @@ export function inboxRouter(vaultPath) {
   router.post('/inbox/:id/undo', async (req, res) => {
     try {
       const record = await undoRecord(vaultPath, req.params.id);
+      res.json({ record });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // a Coach change he turned down (or approved, then undid) asked again —
+  // the deck's Undo; lib/inbox.js reopenRecord says what may be reopened
+  router.post('/inbox/:id/reopen', async (req, res) => {
+    try {
+      const record = await reopenRecord(req.params.id);
       res.json({ record });
     } catch (e) {
       res.status(400).json({ error: e.message });

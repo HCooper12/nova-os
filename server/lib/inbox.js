@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { clampWords } from '../../src/textClamp.js';
+import { COACH_ROUTES } from '../../src/coachSuggestions.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1554,6 +1555,29 @@ export async function undoRecord(vaultPath, id) {
   if (record.status !== 'filed' || !record.undoData) throw new Error('only filed captures can be undone');
   const summary = await undoFiling(vaultPath, record.undoData);
   return updateRecord(id, { status: 'undone', undoneAt: new Date().toISOString(), undoSummary: summary });
+}
+
+// REOPEN (25 Sep 2026). A "no" had no way back: the deck's ✕, or a
+// mis-tap, closed a Coach question for good. The first time it mattered it
+// was a test of the deck itself declining one of his real cards. Everything
+// writeable is undoable, so a Coach change he turned down, or approved and
+// then undid, can be asked again: it returns to pending exactly as it was
+// raised. Coach cards only (a training check's dismiss feeds consumers of
+// its own), never a system discard (expired, retried), never a plan's step
+// (its plan has already moved on), and never a filed change (undo it first,
+// so the plan is put back before the question is).
+export async function reopenRecord(id) {
+  const record = await getRecord(id);
+  if (!record) throw new Error('inbox record not found');
+  const coachCard = record.kind === 'coach-program' || COACH_ROUTES.includes(record.decision?.route);
+  const hisAnswer = (record.status === 'discarded' && !record.expired && record.reason !== 'retried') || record.status === 'undone';
+  if (!coachCard || !hisAnswer) throw new Error('only a Coach change you turned down or undid can be reopened');
+  if (record.parentPlanId) throw new Error('its plan has already moved on');
+  return updateRecord(id, {
+    status: 'pending', reopenedAt: new Date().toISOString(), error: null,
+    discardedAt: null, declineReason: null, filedAt: null, destination: null,
+    undoData: null, applySummary: null, undoneAt: null, undoSummary: null,
+  });
 }
 
 // THE THIRD VERB (23 Sep 2026, his "sure, we can try it"): between approve

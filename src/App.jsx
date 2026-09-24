@@ -6688,7 +6688,11 @@ export default class App extends Component {
     // pending again after it folded ('gone') is a fresh question
     if (now && !['open', 'error', 'gone'].includes(now)) return false;
     const yes = verdict === 'yes';
-    this.setCoachSug(id, { state: yes ? 'working' : 'declining', verdict, card, index });
+    // this answer's number: an Undo that brings the card back bumps it, and
+    // the fold-away timers below stand down when it no longer matches
+    const seq = (this.sugSeq = (this.sugSeq || 0) + 1);
+    const still = () => (this.state.coachSug || {})[id]?.seq === seq;
+    this.setCoachSug(id, { state: yes ? 'working' : 'declining', verdict, card, index, seq });
     if (this.state.coachDiscuss === id) this.setState({ coachDiscuss: null });
     const started = performance.now();
     try {
@@ -6712,11 +6716,17 @@ export default class App extends Component {
       notify({
         id: `sug:${id}`, tone: 'done', title: 'Coach made the change',
         message: `${card.headline}${card.routine ? ` · ${card.routine.name}` : ''}`, duration: 6000,
-        action: { label: 'Undo', run: () => this.undoCoachSuggestion(id, card) },
+        action: { label: 'Undo', run: () => this.reopenCoachSuggestion(id, { undo: true }) },
+      });
+    } else if (!yes) {
+      notify({
+        id: `sug:${id}`, tone: 'info', title: 'Turned down', message: card.headline, duration: 5000,
+        action: { label: 'Undo', run: () => this.reopenCoachSuggestion(id) },
       });
     }
-    setTimeout(() => this.setCoachSug(id, { state: 'leaving' }), yes ? 950 : 420);
+    setTimeout(() => { if (still()) this.setCoachSug(id, { state: 'leaving' }); }, yes ? 950 : 420);
     setTimeout(() => {
+      if (!still()) return;
       this.setCoachSug(id, { state: 'gone' });
       this.refreshInbox();
       if (yes) this.refreshLiveData();
@@ -6732,14 +6742,32 @@ export default class App extends Component {
       await this.answerCoachSuggestion(c.id, 'yes');
     }
   }
-  undoCoachSuggestion(id, card) {
+  // UNDO, from the island: the card comes back waiting, where it was. A yes
+  // is undone first (his plan is put back), then asked again; a no is simply
+  // asked again. Until the refresh lands, the card shows from its snapshot.
+  async reopenCoachSuggestion(id, { undo = false } = {}) {
     const conn = getConnection();
     if (!conn) return;
-    api.inboxUndo(conn, id).then(() => {
+    const headline = (this.state.coachSug || {})[id]?.card?.headline || 'That change';
+    if (undo) {
+      try { await api.inboxUndo(conn, id); } catch (e) {
+        notify({ title: "Couldn't undo that", message: `${e.message}. Nothing changed.`, tone: 'warn' });
+        return;
+      }
+    }
+    try { await api.inboxReopen(conn, id); } catch (e) {
+      notify(undo
+        ? { title: 'Undone', message: `Your plan is back as it was, but the card could not come back: ${e.message}.`, tone: 'warn' }
+        : { title: "Couldn't bring it back", message: `${e.message}.`, tone: 'warn' });
       this.refreshInbox();
-      this.refreshLiveData();
-      notify({ title: 'Put back', message: card?.headline ? `${card.headline} is undone.` : 'That change is undone.', tone: 'info', duration: 3600 });
-    }).catch((e) => notify({ title: "Couldn't undo that", message: `${e.message}. The Inbox still has it.`, tone: 'warn' }));
+      if (undo) this.refreshLiveData();
+      return;
+    }
+    this.sugSeq = (this.sugSeq || 0) + 1;
+    this.setCoachSug(id, { state: 'open', verdict: null, seq: this.sugSeq });
+    this.refreshInbox();
+    if (undo) this.refreshLiveData();
+    notify({ id: `sug:${id}`, tone: 'info', title: undo ? 'Undone' : 'Back on the deck', message: `${headline} is waiting on you again.`, duration: 3600 });
   }
   discussCoachSuggestion(id) {
     this.setState({ coachDiscuss: id, trainTab: 'coach' }, () => requestAnimationFrame(() => {
