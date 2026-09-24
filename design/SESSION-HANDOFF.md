@@ -60,6 +60,18 @@ and closing all sessions; read this first when he is back.
   STARTED beyond this plan.
 - **His decisions this turn:** pocket notification stays ON by default;
   Coach consulting = yes, no caps; install Xcode = yes (after macOS update).
+- **Then (his report): "pointless to approve… if coach wont propose the
+  changes."** Root cause: `parseCoachProposal` read ONE PROPOSE line, and
+  Coach had no reorder or schedule action. Fixed (`6bcf200`, `b26bad4`):
+  `parseCoachProposals` files every line as its own card; new `reorder`
+  (routine-edit) and `schedule` (route `schedule-edit`) actions with exact
+  undo; chat shows each card + "Apply all N"; prompts say several changes =
+  several PROPOSE lines. **Live:** Coach (session 33bc52c1) filed his 8
+  cards — Inbox records ac801409, 3b842978, 5b4a167c (Carter → 3 sets;
+  filed before the clearer-title fix), ab9bd99c, d7cf3e67, 8e06aecc,
+  d82cc7f4 (lateral raise to #5 so the arm pairs sit together — supersets
+  are not a program field), 0443530e (Tuesday → rest). ALL PENDING his yes;
+  nothing applied. NEXT: ask whether they applied cleanly.
 
 ---
 
