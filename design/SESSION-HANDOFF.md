@@ -13,6 +13,41 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**24 SEP (late) — THE AGENT CHARACTERS, PASS 3: ONE SPECIES.** Commit
+`1356b56` (+ docs), local, not pushed. Published as version 3 of
+https://claude.ai/artifact/VU6LdBpB5or14DMQSygeRD.
+
+**GOAL.** His ask: refine each agent one at a time until it has no buggy
+animations or appearances and no "cylinders attached to cylinders", still
+fun, cute and engaging.
+
+**DONE.** All nine rebuilt on a shared species (`makeBot` in
+`design/mockups/49-agent-characters.html`), each with one artefact and one
+pose. Full table and the tried-and-dropped list: `design/AGENT-WORLD-PLAN.md`
+§3g "PASS 3 — DONE". Verified by studio captures (four sides + head
+close-ups, both poses, every being), working-cycle filmstrips, a pose-switch
+strip at 15fps, ring/phone/Calm/reduced-motion views, fit report all inside.
+
+**NOT VERIFIED.** How it feels on his phone at full frame rate (headless
+runs ~6fps). The live idle loop (blink, breathing) is unchanged from pass 2
+and still code-verified only.
+
+**INCIDENT.** One capture used a random debug port that probably attached
+to the peer session's headless Chrome and navigated its page once (console
+showed their Vite app). Fixed: the instruments now use an OS-assigned port.
+If a peer screenshot around 21:24 AEST looked wrong, that is why.
+
+**OPEN, his:** (1) his verdict on pass 3; (2) two new reels (Bot Crossing
+hex world; a city of agent buildings with a morning brief) read as input to
+the Org Map; (3) his token-cost question, answered in chat: viewing the map
+costs no Claude tokens if the render path stays code-only.
+
+**NEXT ACTION.** Wait for his reaction to v3 before touching the map. If he
+wants the map, build it from `48-org-map.html`'s geography with these
+figures placed, and keep every model call out of the render path.
+
+---
+
 **24 SEP (late) — NOTIFICATIONS DROP OUT OF THE DYNAMIC ISLAND.** One ask:
 his reel of `rit3zh/expo-dynamic-notifications` (in-app notifications that
 tear off the island on a gooey neck, swell into a card, and are thrown back
