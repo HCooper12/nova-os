@@ -106,6 +106,9 @@ const FEATURES = [
   // the plan sees his log, names what is stuck, and is back on the phone (25 Sep)
   ['Home · stuck promises, three answers (25 Sep)', 'the plan keeps listing these'],
   ['Home · plan priorities seen done in the log (25 Sep)', 'Seen in your log'],
+  // Coach's changes in Train: the banner under Today and Gym, the deck with the tick (25 Sep)
+  ['Train · the banner that leads to Coach\'s changes (25 Sep)', 'tap to review'],
+  ['Train · Coach\'s changes as cards, answered with a tick (25 Sep)', 'a yes asks Coach to draft the exact change'],
 ];
 
 const SERVER_ROUTES = [
