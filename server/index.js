@@ -338,6 +338,13 @@ async function main() {
   // actually held (server/lib/patternsWeekly.js)
   import('./lib/patternsWeekly.js').then(({ startPatternsWeeklyScheduler }) => startPatternsWeeklyScheduler())
     .catch((e) => console.error('patterns-weekly scheduler failed to start:', e.message));
+  // the model fail-safe: weekly, asks the CLI what each alias (opus/sonnet/
+  // haiku/fable) currently resolves to and keeps the Settings board's labels
+  // honest — catches up right after boot too if it's never run or is stale
+  // (server/lib/modelWatch.js). Nothing a lane RUNS depends on this; only
+  // what he SEES.
+  import('./lib/modelWatch.js').then(({ startModelWatchScheduler }) => startModelWatchScheduler())
+    .catch((e) => console.error('model-watch scheduler failed to start:', e.message));
   import('./lib/distill.js').then(({ startDistillScheduler }) => startDistillScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('distill scheduler failed to start:', e.message));
   import('./lib/brainWeek.js').then(({ startBrainWeekScheduler }) => startBrainWeekScheduler(process.env.VAULT_PATH))

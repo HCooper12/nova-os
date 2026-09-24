@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 const {
   LANES, LANE_GROUPS, MODEL_CHOICES,
   modelFor, laneEnabled, assertLaneOn, laneOffError, laneSkipped,
-  getModelPrefs, setLanePref, resetLanePref,
+  getModelPrefs, setLanePref, resetLanePref, isValidModel,
 } = await import('../lib/modelPrefs.js');
 
 const PREFS = path.join(dataDir, 'model-prefs.json');
@@ -35,6 +35,33 @@ test('every lane has a real default model, a group that exists, and an honest of
     assert.ok(groups.has(lane.group), `${lane.id} is in an unknown group: ${lane.group}`);
     assert.ok(lane.label && lane.hint && lane.off, `${lane.id} is missing its label/hint/off text`);
   }
+});
+
+// The fail-safe's other half: a lane's default can go stale only if it names
+// a PINNED id instead of a moving alias. This makes that class of bug
+// impossible to reintroduce — every non-deterministic lane must default to
+// 'opus'/'sonnet'/'haiku'/'fable', never a literal 'claude-...-N'.
+test('every lane default is an alias, never a pinned id that could go stale', () => {
+  const ALIASES = new Set(['opus', 'sonnet', 'haiku', 'fable']);
+  for (const lane of LANES) {
+    if (lane.deterministic) { assert.equal(lane.def, null); continue; }
+    assert.ok(ALIASES.has(lane.def), `${lane.id} defaults to "${lane.def}" — must be a bare alias, not a pinned id`);
+  }
+});
+
+test('isValidModel accepts every alias, every currently-offered pinned id, and legacy pins; rejects junk', () => {
+  for (const a of ['opus', 'sonnet', 'haiku', 'fable']) assert.equal(isValidModel(a), true);
+  for (const m of MODEL_CHOICES) assert.equal(isValidModel(m.value), true, `${m.value} should validate`);
+  // the legacy pins from before this file's rewrite must keep working forever
+  for (const legacy of ['claude-opus-5', 'claude-fable-5']) assert.equal(isValidModel(legacy), true);
+  assert.equal(isValidModel('gpt-9'), false);
+  assert.equal(isValidModel(''), false);
+  assert.equal(isValidModel(undefined), false);
+  // A well-formed id is accepted even if this Mac has never seen it: that is
+  // what keeps last week's newest pin valid after the next release. Whether it
+  // exists is the CLI's call at spawn time, where a bad one fails loudly.
+  assert.equal(isValidModel('claude-opus-9-9'), true);
+  assert.equal(isValidModel('claude-opus-latest'), false, 'not a Claude model id shape');
 });
 
 test('modelFor never returns empty — an unset, unknown or corrupt pref falls back to the default', async () => {
@@ -110,16 +137,26 @@ test('writes are validated: a bad model or lane is rejected, not stored', async 
   assert.equal(modelFor('coach'), LANES.find((l) => l.id === 'coach').def);
 });
 
-test('getModelPrefs returns the whole board, each lane resolved', async () => {
+test('getModelPrefs returns the whole board, each lane resolved, with a fresh model list and a watch report', async () => {
   await clean();
   const board = getModelPrefs();
   assert.equal(board.lanes.length, LANES.length);
-  assert.deepEqual(board.models, MODEL_CHOICES);
+  // models is built FRESH per call (modelWatch.js may have just moved a
+  // label) — not the import-time MODEL_CHOICES snapshot, though the two
+  // agree until a real probe changes something.
+  assert.ok(Array.isArray(board.models) && board.models.length >= MODEL_CHOICES.length);
+  assert.equal(board.models.filter((m) => m.alias).length, 4, 'exactly four moving aliases');
   for (const lane of board.lanes) {
     if (lane.deterministic) { assert.equal(lane.model, null, `${lane.id} runs no model and must say so`); continue; }
     assert.ok(lane.model, `${lane.id} came back without a model`);
     assert.equal(lane.enabled, true);
   }
+  assert.ok(board.watch, 'the board reports what modelWatch last found');
+  for (const family of ['opus', 'sonnet', 'haiku', 'fable']) {
+    assert.ok(board.watch.resolved[family]?.id, `${family} has a resolved id`);
+    assert.ok(board.watch.resolved[family]?.label, `${family} has a label`);
+  }
+  assert.deepEqual(board.watch.outdatedLanes, [], 'nothing is pinned to an old version by default');
 });
 
 test('resetLanePref with no lane clears the whole board', async () => {
@@ -143,7 +180,11 @@ test('every spawn site in server/lib names its model through the board', async (
   const offenders = [];
   const literals = [];
   for (const name of await readdir(libDir)) {
-    if (!name.endsWith('.js') || name === 'modelPrefs.js') continue;
+    // modelPrefs.js IS the board; modelWatch.js is the one deliberate
+    // exception — its whole job is probing the four RAW aliases directly to
+    // find out what they currently mean, which is a different question from
+    // "which model does lane X run" and can't go through modelFor().
+    if (!name.endsWith('.js') || name === 'modelPrefs.js' || name === 'modelWatch.js') continue;
     const src = await readFile(path.join(libDir, name), 'utf8');
     const spawns = (src.match(/spawn\(CLAUDE_BIN/g) || []).length;
     if (!spawns) continue;
@@ -167,4 +208,14 @@ test('a deterministic lane is a switch, not a model choice: it can be turned off
   await assert.rejects(() => setLanePref('cfo', { model: 'opus' }), /runs no model/);
   await setLanePref('cfo', { enabled: true });
   assert.equal(laneEnabled('meal-prep'), true, 'unset means on, as for every lane');
+});
+
+test('a pin survives the next release: it stays valid and is flagged, never silently moved', async () => {
+  const { isValidModel } = await import('../lib/modelPrefs.js');
+  // yesterday's newest, once today's newest has moved past it
+  assert.equal(isValidModel('claude-opus-5-5'), true);
+  assert.equal(isValidModel('claude-opus-4-8'), true);
+  assert.equal(isValidModel('claude-haiku-4-5-20251001'), true);
+  assert.equal(isValidModel('claude-gpt-5'), false);
+  assert.equal(isValidModel('opus; rm -rf /'), false, 'the shape check is also a boundary: --model is a spawn argument');
 });

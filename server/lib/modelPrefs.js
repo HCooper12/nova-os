@@ -2,6 +2,7 @@ import { readFileSync, statSync, existsSync } from 'node:fs';
 import { mkdir, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolvedModels, lastCheckedAt, modelLabel } from './modelWatch.js';
 
 // ---------------------------------------------------------------------------
 // THE MODEL BOARD — one place that names every lane in Nova that spawns the
@@ -32,20 +33,97 @@ const PREFS_PATH = () => path.join(dataRoot(), 'model-prefs.json');
 // for the latest model … or a model's full name"); the pinned ids below them
 // are for when he wants a version that CANNOT move under him. Both forms are
 // passed straight through to --model.
-export const MODEL_CHOICES = [
-  // `alias: true` marks the moving names the Code tab offers (the pinned
-  // versions are the Settings board's business)
-  { value: 'opus', label: 'Opus 5', family: 'opus', alias: true, hint: 'deepest reasoning — alias, follows the newest Opus' },
-  { value: 'sonnet', label: 'Sonnet 5', family: 'sonnet', alias: true, hint: 'the balanced workhorse — alias, follows the newest Sonnet' },
-  { value: 'haiku', label: 'Haiku 4.5', family: 'haiku', alias: true, hint: 'fastest and cheapest — alias, follows the newest Haiku' },
-  { value: 'fable', label: 'Fable 5', family: 'fable', alias: true, hint: 'alias, follows the newest Fable' },
-  { value: 'claude-opus-5', label: 'Opus 5 · pinned', family: 'opus', hint: 'this exact version, never moves' },
-  { value: 'claude-sonnet-5', label: 'Sonnet 5 · pinned', family: 'sonnet', hint: 'this exact version, never moves' },
-  { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5 · pinned', family: 'haiku', hint: 'this exact version, never moves' },
-  { value: 'claude-fable-5', label: 'Fable 5 · pinned', family: 'fable', hint: 'this exact version, never moves' },
+//
+// Labels and pinned ids used to be hand-written here — 'Opus 5' sat on
+// screen for weeks after Opus 5.5 shipped, and the pinned option was
+// literally the wrong CLI arg. They now come from modelWatch.js, which asks
+// the CLI itself what each alias currently means and remembers the answer.
+// This ONLY changes what Hayden sees; a lane set to the alias 'opus' always
+// ran the newest Opus regardless — the CLI resolves aliases on its own.
+
+const ALIAS_DEFS = [
+  { value: 'opus', family: 'opus', hint: 'deepest reasoning — alias, always the newest Opus' },
+  { value: 'sonnet', family: 'sonnet', hint: 'the balanced workhorse — alias, always the newest Sonnet' },
+  { value: 'haiku', family: 'haiku', hint: 'fastest and cheapest — alias, always the newest Haiku' },
+  { value: 'fable', family: 'fable', hint: 'alias, always the newest Fable' },
 ];
 
-const VALID_MODELS = new Set(MODEL_CHOICES.map((m) => m.value));
+// Pinned ids this board has ever offered, kept valid forever so a saved
+// choice never silently falls back — but excluded from what's OFFERED once
+// they stop being the newest in their family (they show as `outdated`).
+const LEGACY_PINNED = [
+  { value: 'claude-opus-5', family: 'opus' },
+  { value: 'claude-sonnet-5', family: 'sonnet' },
+  { value: 'claude-haiku-4-5-20251001', family: 'haiku' },
+  { value: 'claude-fable-5', family: 'fable' },
+];
+
+// Built fresh from modelWatch's resolved models: aliases first (label =
+// today's actual model in that family), then one pinned choice per family
+// at the current newest id, then any legacy pinned id that isn't already
+// covered — offered only while it still matches nothing above, i.e. only
+// while it's genuinely stale.
+export function buildModelChoices() {
+  const resolved = resolvedModels();
+  const choices = [];
+  for (const a of ALIAS_DEFS) {
+    const r = resolved[a.family];
+    choices.push({ value: a.value, label: r.label, family: a.family, alias: true, hint: a.hint });
+  }
+  for (const a of ALIAS_DEFS) {
+    const r = resolved[a.family];
+    choices.push({ value: r.id, label: `${r.label} · pinned`, family: a.family, hint: 'this exact version, never moves' });
+  }
+  const offered = new Set(choices.map((c) => c.value));
+  for (const legacy of LEGACY_PINNED) {
+    if (offered.has(legacy.value)) continue; // already the current newest pin
+    choices.push({
+      value: legacy.value,
+      label: `${modelLabel(legacy.value)} · pinned`,
+      family: legacy.family,
+      outdated: true,
+      hint: 'an older pinned version — a saved choice keeps working, but this is no longer offered',
+    });
+  }
+  return choices;
+}
+
+// A snapshot for readers that want a plain import rather than a function
+// call (the Code tab's fallback list, tests). getModelPrefs() below always
+// returns a FRESH set — this snapshot is taken once, at import time, from
+// whatever modelWatch already knows (the real probe, or NEWEST_KNOWN before
+// the first one has ever run).
+export const MODEL_CHOICES = buildModelChoices();
+
+// Dynamic on purpose: which ids are acceptable moves — over the app's
+// lifetime — grows as new versions are probed, so a Set frozen at import
+// time (the 21-Aug-era bug class, one step removed) can't go stale again.
+export function isValidModel(value) {
+  if (!value || typeof value !== 'string') return false;
+  if (ALIAS_DEFS.some((a) => a.value === value)) return true;
+  const resolved = resolvedModels();
+  if (Object.values(resolved).some((r) => r.id === value)) return true;
+  if (LEGACY_PINNED.some((l) => l.value === value)) return true;
+  // A pin he chose must survive the NEXT release too. When Opus 5.6 ships,
+  // yesterday's newest (claude-opus-5-5) is neither current nor on the legacy
+  // list — refusing it here would quietly move a lane labelled "never moves"
+  // onto the alias. Any well-formed Claude id stays valid; laneModelOutdated
+  // is what says it has been overtaken.
+  return PINNED_SHAPE.test(value);
+}
+
+const PINNED_SHAPE = /^claude-(?:opus|sonnet|haiku|fable)-\d+(?:-\d+)*$/;
+
+// Is a lane's SAVED model a pinned id that has fallen behind its family's
+// current newest? An alias is never outdated (it always tracks); an unset
+// lane runs the default alias and is never outdated either.
+function laneModelOutdated(saved) {
+  if (!saved) return false;
+  if (ALIAS_DEFS.some((a) => a.value === saved)) return false;
+  const resolved = resolvedModels();
+  if (Object.values(resolved).some((r) => r.id === saved)) return false; // the current newest pin
+  return PINNED_SHAPE.test(saved); // any other pin has been overtaken
+}
 
 export const LANE_GROUPS = [
   { id: 'conversation', label: 'CONVERSATION', hint: 'the surfaces you talk to' },
@@ -381,7 +459,7 @@ export function modelFor(laneId) {
   const lane = LANE_BY_ID.get(laneId);
   if (!lane) throw new Error(`unknown model lane: ${laneId}`);
   const saved = loadRaw()[laneId]?.model;
-  return saved && VALID_MODELS.has(saved) ? saved : lane.def;
+  return saved && isValidModel(saved) ? saved : lane.def;
 }
 
 /** Is this lane switched on? Unset means on — a lane you have never touched
@@ -417,11 +495,14 @@ export function laneSkipped(laneId, where) {
   return true;
 }
 
-/** The whole board, for the Settings screen. */
+/** The whole board, for the Settings screen. `models` is built FRESH each
+ *  call (never the import-time MODEL_CHOICES snapshot) so a label or a
+ *  pinned id a scheduled probe just updated shows up without a restart. */
 export function getModelPrefs() {
   const saved = loadRaw();
+  const resolved = resolvedModels();
   return {
-    models: MODEL_CHOICES,
+    models: buildModelChoices(),
     groups: LANE_GROUPS,
     lanes: LANES.map((l) => ({
       id: l.id,
@@ -435,6 +516,15 @@ export function getModelPrefs() {
       customised: !!(saved[l.id]?.model && saved[l.id].model !== l.def),
       enabled: laneEnabled(l.id),
     })),
+    watch: {
+      checkedAt: lastCheckedAt(),
+      resolved: Object.fromEntries(ALIAS_DEFS.map((a) => [a.family, {
+        id: resolved[a.family].id,
+        label: resolved[a.family].label,
+        observed: resolved[a.family].observed,
+      }])),
+      outdatedLanes: LANES.filter((l) => !l.deterministic && laneModelOutdated(modelFor(l.id))).map((l) => l.id),
+    },
   };
 }
 
@@ -445,8 +535,8 @@ export async function setLanePref(laneId, { model, enabled } = {}) {
   const lane = LANE_BY_ID.get(laneId);
   if (!lane) throw new Error(`unknown lane: ${laneId}`);
   if (model !== undefined && lane.deterministic) throw new Error(`${lane.label} runs no model — only its switch can be set`);
-  if (model !== undefined && !VALID_MODELS.has(model)) {
-    throw new Error(`model must be one of: ${[...VALID_MODELS].join(', ')}`);
+  if (model !== undefined && !isValidModel(model)) {
+    throw new Error(`model must be one of: ${buildModelChoices().map((m) => m.value).join(', ')}`);
   }
   if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('enabled must be true or false');
 

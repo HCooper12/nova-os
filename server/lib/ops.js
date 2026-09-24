@@ -34,6 +34,9 @@ const SCHEDULED = [
   // hourly tick, but it only ACTS on a Sunday evening — the cadence matches
   // the data's, not the clock's (nova-produce-vs-keep: 154 made, 9 kept)
   { id: 'patterns-weekly', label: 'Patterns', role: 'correlations in his own numbers', cadenceHours: 2 },
+  // a daily tick that only probes weekly (lib/modelWatch.js): which Claude model
+  // each alias actually runs, so the board's labels are measured, never typed
+  { id: 'model-watch', label: 'Model Watch', role: 'which Claude model each alias means today', cadenceHours: 26 },
   { id: 'guardian', label: 'Guardian', role: 'integrity, backups, alerts', cadenceHours: 26 },
   { id: 'health-drops', label: 'Health Sync', role: 'iPhone health drops', cadenceHours: 1 },
   { id: 'healthinsight', label: 'Health Insight', role: 'twice-daily noticing', cadenceHours: 2 },

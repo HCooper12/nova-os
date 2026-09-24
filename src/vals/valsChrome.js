@@ -581,6 +581,10 @@ export function valsChrome(app, ctx) {
       const prefs = st.liveModelPrefs;
       const lanes = prefs?.lanes || [];
       const collapsed = st.modelPrefsCollapsed || {};
+      const watch = prefs?.watch || null;
+      const outdatedLabels = (watch?.outdatedLanes || [])
+        .map((id) => lanes.find((l) => l.id === id)?.label)
+        .filter(Boolean);
       return {
         loaded: prefs != null,
         error: !!st.modelPrefsError,
@@ -591,6 +595,15 @@ export function valsChrome(app, ctx) {
         customisedCount: lanes.filter((l) => l.customised).length,
         busyAll: st.modelPrefsBusy === '*',
         resetAll: () => app.resetModelLane(null),
+        // the fail-safe's own one-liner (server/lib/modelWatch.js): what each
+        // alias resolves to right now, and when that was last checked — so a
+        // stale hand-written label ('Opus 5' after 5.5 shipped) can't sit on
+        // screen unnoticed again.
+        watchLine: watch?.checkedAt
+          ? `Newest, checked ${dtf('', { day: 'numeric', month: 'short' }).format(new Date(watch.checkedAt))}: ${['opus', 'sonnet', 'haiku', 'fable'].map((f) => watch.resolved[f]?.label).filter(Boolean).join(' · ')}`
+          : null,
+        watchUnconfirmed: watch?.checkedAt ? Object.entries(watch.resolved || {}).filter(([, r]) => !r.observed).map(([f]) => f) : [],
+        outdatedLaneLabels: outdatedLabels,
         groups: (prefs?.groups || []).map((g) => {
           const mine = lanes.filter((l) => l.group === g.id);
           return {

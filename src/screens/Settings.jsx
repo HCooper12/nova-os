@@ -738,6 +738,20 @@ export function Settings({ v }) {
                 {v.modelSettings.offCount > 0 && <span style={css("color:var(--nv-warn)")}> {v.modelSettings.offCount} switched off.</span>}
               </div>
 
+              {/* the fail-safe's own line (server/lib/modelWatch.js): what
+                  each alias means today, checked weekly against the CLI
+                  itself — never hand-typed again. */}
+              {v.modelSettings.watchLine && (
+                <div style={css("margin-top:8px;max-width:640px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-cy) 75%, var(--nv-ink))")}>
+                  {v.modelSettings.watchLine}
+                  {v.modelSettings.outdatedLaneLabels.length > 0 && (
+                    <span style={css("display:block;margin-top:3px;color:var(--nv-warn)")}>
+                      Pinned to an older version: {v.modelSettings.outdatedLaneLabels.join(', ')}.
+                    </span>
+                  )}
+                </div>
+              )}
+
               {v.modelSettings.groups.map((g) => (
                 <div key={g.id} style={{ marginTop: '18px', maxWidth: '640px' }}>
                   <Interactive as="div" onClick={g.toggleOpen}

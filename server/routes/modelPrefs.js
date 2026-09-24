@@ -41,5 +41,17 @@ export function modelPrefsRouter() {
     }
   });
 
+  // Manual trigger for the model fail-safe (server/lib/modelWatch.js) — the
+  // weekly scheduler runs this on its own; this is for "run it now" rather
+  // than waiting for the window. Costs about 15c (four cheap probes).
+  router.post('/model-watch/run', async (req, res) => {
+    try {
+      const { runModelWatch } = await import('../lib/modelWatch.js');
+      res.json(await runModelWatch());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   return router;
 }
