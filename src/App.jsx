@@ -4,6 +4,8 @@ import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
 import { reportOpening } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
+import { hearingChoice, setHearingChoice } from './hearingEngine.js';
+import { runEarsTest } from './earsTest.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
@@ -402,6 +404,9 @@ export default class App extends Component {
     // 18 Sep: he could only hear Nova off silent or on earphones. The mixing
     // session type the gym fix asked for is the one the ring switch silences.
     audioDucks: ducksOtherAudio(),
+    // which ears: Nova's own (record → the Mac writes it down) or the
+    // browser's speech engine. Per device; src/hearingEngine.js
+    hearing: hearingChoice(),
     // opt-in (see setWakeWord) and remembered per device
     wakeWordOn: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.wakeWord') === '1',
     // how long a pause has to be before it ends his turn — his choice, because
@@ -7726,6 +7731,18 @@ export default class App extends Component {
   setAudioDucks(duck) {
     setDuckingPreference(duck);
     this.setState({ audioDucks: duck });
+  }
+  // The hook reads the stored choice at every render, so the next turn
+  // uses it; the state is only here so Settings re-renders.
+  setHearing(value) {
+    setHearingChoice(value);
+    this.setState({ hearing: value });
+  }
+  // ten seconds that say whether the recording path hears him (src/earsTest.js)
+  runEarsTest() {
+    if (this.state.earsTest?.running) return;
+    this.primeSpeech();
+    runEarsTest((u) => this.setState({ earsTest: u }));
   }
   // HE TALKED OVER NOVA. Same landing as the wake word — stop, and give him
   // the floor — but with no phrase to say and no button to find, which is the

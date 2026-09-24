@@ -4,6 +4,8 @@ import { GALAXY_MAX_NODES, toWorld } from '../galaxyLayout.js';
 import { orbReply } from '../mockAssistants.js';
 import { NOTE_TYPE_COLOR } from './shared.js';
 import { speechRecognitionSupported } from '../useDictation.js';
+import { HEARING_CHOICES, resolveHearing } from '../hearingEngine.js';
+import { recorderSupported } from '../recorder.js';
 import { holdTiming, HOLD_PRESETS } from '../turnEnd.js';
 import { toSpokenProse } from '../spokenProse.js';
 import { dtf } from './fmt.js';
@@ -177,6 +179,19 @@ export function valsMisc(app, ctx) {
     // false = Nova speaks over silent and other audio pauses
     audioDucks: !!st.audioDucks,
     setAudioDucks: (on) => app.setAudioDucks(on),
+    // WHICH EARS — the stored choice, and what it resolves to on THIS device
+    hearing: st.hearing || 'auto',
+    hearingOptions: HEARING_CHOICES,
+    setHearing: (value) => app.setHearing(value),
+    earsTest: st.earsTest || null,
+    runEarsTest: () => app.runEarsTest(),
+    hearingNow: resolveHearing({
+      choice: st.hearing || 'auto',
+      ios: typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent),
+      speech: speechRecognitionSupported(),
+      recorder: recorderSupported(),
+      connected: !!getConnection(),
+    }),
     wakeWordSupported: speechRecognitionSupported(),
     setWakeWord: (on) => app.setWakeWord(on),
     // How long a pause is allowed to last before it counts as the end of his
@@ -361,6 +376,8 @@ export function valsMisc(app, ctx) {
     setTypedInputValue: (t) => { app.spokenInput = false; app.setState({ orbInput: t }); },
     dictationError: (err) => app.toastMsg(err === 'not-allowed'
       ? 'Microphone blocked — allow it in iOS Settings → Nova'
+      // Nova's own ears fail in sentences (the Mac's reason), the engine in codes
+      : String(err).includes(' ') ? `Nova couldn’t hear that: ${err}`
       : `Dictation stopped (${err}) — tap the mic to retry`),
     orbKey: (e) => { if (e.key === 'Enter') app.doOrb(); },
     // takes the live value from the LocalInput composer; without one it

@@ -445,6 +445,45 @@ export function Settings({ v }) {
             )}
           </div>
 
+          {/* WHICH EARS. 25 Sep: the receipts say the browser's speech engine
+              heard him on 1 iPhone turn in 21. Nova's own ears record him and
+              the Mac writes it down, so they never touch that engine.
+              src/hearingEngine.js carries the choice and its fallbacks. */}
+          <div style={css("padding:12px 0;border-top:1px solid color-mix(in srgb, var(--nv-ink) 8%, transparent)")}>
+            <div style={css("font:600 12.5px var(--nv-font-ui)")}>How Nova hears you</div>
+            <div style={css("margin-top:2px;max-width:400px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+              {v.hearingNow === 'nova'
+                ? 'On this device Nova records you and your Mac writes down what you said. Your words appear a moment after you stop, and the recording is never kept.'
+                : v.hearingNow === 'browser'
+                  ? 'On this device Nova uses the built-in speech engine: your words appear as you talk.'
+                  : 'Nothing on this device can hear you: no speech engine, and no connection to the Mac to write a recording down.'}
+            </div>
+            <div style={css("margin-top:10px;display:flex;flex-wrap:wrap;gap:8px")}>
+              {v.hearingOptions.map((o) => (
+                <Chip key={o.value} tone={v.hearing === o.value ? 'accent' : 'quiet'} active={v.hearing === o.value}
+                  onClick={() => v.setHearing(o.value)}>{o.label}</Chip>
+              ))}
+            </div>
+            <div style={css("margin-top:8px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
+              {v.hearingOptions.find((o) => o.value === v.hearing)?.hint}
+            </div>
+            <div style={css("margin-top:12px;display:flex;align-items:flex-start;gap:12px")}>
+              <Chip tone="accent" active disabled={v.earsTest?.running}
+                onClick={v.earsTest?.running ? undefined : v.runEarsTest} style={{ flex: 'none' }}>
+                {v.earsTest?.running ? 'Listening…' : 'Test Nova’s ears'}
+              </Chip>
+              <div style={css("flex:1;min-width:0;font-size:11.5px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
+                {v.earsTest?.running ? v.earsTest.stage
+                  : v.earsTest?.error ? <span style={{ color: 'var(--nv-warn)' }}>{v.earsTest.error}</span>
+                  : v.earsTest && v.earsTest.text ? <>Heard: <span style={{ color: 'var(--nv-ink)', fontFamily: 'var(--nv-font-serif)' }}>“{v.earsTest.text}”</span> <span style={{ opacity: 0.6 }}>· back in {(v.earsTest.ms / 1000).toFixed(1)}s</span></>
+                  : v.earsTest ? (v.earsTest.meter === 'heard'
+                    ? 'The mic picked up sound but no words came back. Try again a little closer.'
+                    : 'Nothing reached the microphone at all. Check that Nova is allowed the mic in iOS Settings.')
+                  : 'Records you once and shows what your Mac heard. Nothing is sent to Nova or filed.'}
+              </div>
+            </div>
+          </div>
+
           {/* 18 Sep, his report: "I can only hear nova if my phone isn't on
               silent (volume being up doesn't work) or if I have my earphones
               in." That is the mixing session type the gym fix asked for, doing
@@ -474,7 +513,7 @@ export function Settings({ v }) {
               rushing to keep speaking before it thinks I have stopped
               talking." The browser's endpointer has no knob, so Nova ends
               the turn itself and this is the length. */}
-          {v.wakeWordSupported && (
+          {(v.wakeWordSupported || v.hearingNow === 'nova') && (
             <div style={css("border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);padding-top:16px")}>
               <div style={css("font:600 12.5px var(--nv-font-ui)")}>How long a pause ends your turn</div>
               <div style={css("margin-top:2px;max-width:400px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
