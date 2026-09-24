@@ -13,6 +13,56 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (mid-morning) — HIS COACH ANSWER WAS LOST (MY RELOAD), THE FIXES,
+COACH CONSULTS OTHER AGENTS, AND XCODE PENDING.** He is updating macOS next
+and closing all sessions; read this first when he is back.
+
+- **What happened.** 07:58:02 he asked Coach a long program-review question;
+  07:58:26 THIS session reloaded the server (raw kickstart) to ship; the
+  server forgot the job. The CLI process survived, finished the answer at
+  08:00:03 and wrote it to the session file — nobody was listening. His
+  phone showed "Timed out… may still be running." The answer was RECOVERED
+  from `~/.claude/projects/…Hayden-s-Vault/a7309692-….jsonl` (his long-running
+  Coach session) and given to him in the conversation; it cites PubMed IDs
+  that were NOT verified by the Researcher.
+- **Fixes shipped** (`0fc8d64`, `060c0a4`, `f74f9c6`, `61c1b90`):
+  `lib/jobRegistry.js` (all ten in-memory job stores register; GET
+  /api/jobs/active) + `scripts/reload-server.mjs` — **THE ONLY WAY TO RELOAD**
+  (CLAUDE.md ship gate + memory updated). `src/jobPoller.js` rebuilt: slow ≠
+  failed (onSlow "still working" in Coach/Leader's own bubble, 30 min
+  ceiling), 404 = lost (onLost: honest message, question back in the box),
+  checks on return to the app, backoff on blips. His question was ALSO cut
+  mid-word ("…can often fo"): Coach's send read App state, which trails the
+  field (iOS dictation) — Enter/Ask now send the field's own value.
+- **Coach consults other agents** (`eabfa0b`, `lib/coachConsult.js`): a turn
+  may end `CONSULT {"asks":[{agent,question}]}`; code runs every ask in
+  parallel through the agent's own lane — researcher (cited brief, lands in
+  Inbox), nova (whole vault, fresh read-only session), calendar (code reads
+  14 days) — streams "Asking now: · the Researcher: working on it…" into the
+  bubble, then resumes the SAME Coach session with the answers. No budget,
+  no timeout (his "no caps"); a loop guard of 2 rounds. 7 tests. **VERIFIED
+  LIVE** on his real question (job f6d96819, 22:39→22:44 UTC): Coach asked
+  the Researcher + calendar, the bubble showed "Asking now…", the Researcher
+  answered in ~3.5 min (brief = Inbox record `9856382c`), Coach's final
+  answer named both and flagged what the brief did NOT cover (supersets) and
+  a non-peer-reviewed preprint. That answer lives in a NEW Coach session
+  (not his phone's), so it was relayed to him in the conversation; his
+  phone's Coach chat does not show it. Side effect: agentSessions now points
+  Ask Nova at that session until he next uses Coach (self-heals).
+- **Xcode**: App Store was opened on Xcode 27.0; `mas` 7 needs sudo, so HE
+  clicks Get. After his macOS update: install Xcode, then build the Live
+  Activity (plan: Swift ActivityAttributes + a `NovaLiveActivity` Capacitor
+  plugin registered from a `CAPBridgeViewController` subclass in
+  SceneDelegate, a WidgetKit extension target (xcodeproj gem or Xcode),
+  NSSupportsLiveActivities, `novaos://workouts` widgetURL; IslandFeed drives
+  start/update/end when `window.Capacitor` is native). Signing needs his
+  Apple ID + Developer Mode on the phone; free team = 7-day expiry. NOT
+  STARTED beyond this plan.
+- **His decisions this turn:** pocket notification stays ON by default;
+  Coach consulting = yes, no caps; install Xcode = yes (after macOS update).
+
+---
+
 **25 SEP (morning) — CHARACTER PASS 5, AND THE ORG MAP IS LIVE ON OPS.**
 Commits `4f5ae15` (the beings become one module + the no-model test),
 `d311659` (pass 5), `58f8672` (the map's view model), `c629117` (the map on
