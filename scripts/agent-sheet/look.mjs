@@ -16,7 +16,7 @@ ws.addEventListener('message', e => { const m = JSON.parse(e.data); if (m.id && 
 const send = (method, params = {}) => new Promise(r => { const n = ++id; w.set(n, r); ws.send(JSON.stringify({ id: n, method, params })); });
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: +W, height: +H, deviceScaleFactor: 1, mobile: +W < 700 });
-await send('Page.navigate', { url: `http://localhost:8765/design/mockups/49-agent-characters.html#${hash}` });
+await send('Page.navigate', { url: `http://localhost:8765/design/mockups/${process.env.SHEET_PAGE || '49-agent-characters.html'}#${hash}` });
 await new Promise(r => setTimeout(r, 4000));
 if (js) { const r = await send('Runtime.evaluate', { expression: js, returnByValue: true, awaitPromise: true }); if (r.result?.result?.value !== undefined) console.log('eval:', JSON.stringify(r.result.result.value)); await new Promise(r2 => setTimeout(r2, 600)); }
 const shot = await send('Page.captureScreenshot', { format: 'png' });

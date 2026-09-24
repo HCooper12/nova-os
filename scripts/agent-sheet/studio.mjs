@@ -17,7 +17,7 @@ const port = opt('port', '8765');
 const workTs = (opt('work-t', '0.6,2.1')).split(',').map(Number);
 const W = Number(opt('w', 440)), H = Number(opt('h', 560));
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const url = `http://localhost:${port}/design/mockups/49-agent-characters.html#mode=paged&page=${idx}`;
+const url = `http://localhost:${port}/design/mockups/${process.env.SHEET_PAGE || '49-agent-characters.html'}#mode=paged&page=${idx}`;
 
 await mkdir(outDir, { recursive: true });
 const profile = path.join(os.tmpdir(), `studio-prof-${process.pid}`);
