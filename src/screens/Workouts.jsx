@@ -11,6 +11,7 @@ import { SafeVisual } from '../SafeVisual.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, AttachStrip, AttachPending, Button } from '../Controls.jsx';
 import { useStickToBottom } from '../useStickToBottom.js';
+import { CoachChangesBanner, CoachSuggestionDeck } from '../CoachSuggestions.jsx';
 import { RingTile } from '../RingTile.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
@@ -886,6 +887,33 @@ function MockWorkouts({ v }) {
 }
 
 
+// The receipt a chat reply leaves for the changes it proposed: each one's
+// live status, and one way up to the deck where they are answered.
+function ChangesPointer({ list }) {
+  const items = (list || []).filter(Boolean);
+  if (!items.length) return null;
+  const waiting = items.some((p) => p.status === 'open' || p.status === 'working');
+  const mark = (st) => (st === 'done' ? ['✓', 'var(--nv-good)'] : st === 'dismissed' ? ['✕', 'var(--nv-ink40)'] : st === 'error' ? ['!', 'var(--nv-warn)'] : ['•', 'var(--nv-gold)']);
+  return (
+    <div style={css('margin-top:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb, var(--nv-ink) 4%, transparent);display:flex;flex-direction:column;gap:5px')}>
+      {items.map((p) => {
+        const [g, c] = mark(p.status);
+        return (
+          <div key={p.recordId || p.title} style={css('display:flex;gap:8px;align-items:baseline;font:500 13px/1.4 var(--nv-font-ui);color:var(--nv-ink60)')}>
+            <span aria-hidden="true" style={{ flex: 'none', width: 12, textAlign: 'center', color: c, fontWeight: 700 }}>{g}</span>
+            <span style={css('min-width:0')}>{String(p.title || '').replace(/^Coach:\s*/, '')}</span>
+          </div>
+        );
+      })}
+      {waiting && (
+        <TextAction tone="cyan" compact onClick={() => document.querySelector('[data-coach-deck]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} style={{ alignSelf: 'flex-start', marginTop: 2 }}>
+          Answer {items.length === 1 ? 'it' : 'them'} above ↑
+        </TextAction>
+      )}
+    </div>
+  );
+}
+
 // THE BOARD — his three daily numbers at a glance (his ask, 23 Sep 2026).
 // Each is the house ring (colour is the verdict: green on track, gold behind
 // pace, red missed or over, a dashed hole when nothing arrived), with the
@@ -923,6 +951,7 @@ function GoalsCoachPane({ v }) {
   const coachLogRef = useStickToBottom();
   return (
     <>
+      <CoachSuggestionDeck d={v.coachDeck} />
       {/* goals + the real coach, side by side */}
       <div style={{ display: 'flex', gap: '14px', marginTop: '14px', flexWrap: 'wrap' }}>
         <div className="nv-pane" style={{ flex: '1 1 300px', minWidth: 0, padding: '16px 18px', alignSelf: 'flex-start' }}>
@@ -1071,51 +1100,10 @@ function GoalsCoachPane({ v }) {
                     program edit — it just landed in the Inbox with a toast,
                     so from the chat it looked like Coach could not edit at
                     all. Yes applies it on the same rails, with the same undo. */}
-                {m.proposal && (
-                  <div style={css("margin-top:10px;padding:11px 13px;border-radius:11px;border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)")}>
-                    {/* the title gets its own line: inside a chat bubble a
-                        flex row squeezed it to one word per line */}
-                    <div style={css("font-size:12.5px;line-height:1.45;color:var(--nv-ink)")}>{m.proposal.title}</div>
-                    <div style={css("margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
-                    {m.proposal.status === 'open' && (
-                      <>
-                        <Button compact onClick={m.proposal.apply}>Apply it</Button>
-                        <TextAction tone="quiet" onClick={m.proposal.decline}>Not now</TextAction>
-                      </>
-                    )}
-                    {m.proposal.status === 'working' && <Meta tone="cyan">Applying…</Meta>}
-                    {m.proposal.status === 'done' && <Meta tone="good">✓ Applied — undo in Inbox</Meta>}
-                    {m.proposal.status === 'dismissed' && <Meta tone="faint">✕ Left alone</Meta>}
-                    {m.proposal.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
-                    </div>
-                  </div>
-                )}
-                {m.proposals && (
-                  <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
-                    {m.proposals.map((p, i) => (
-                      <div key={p.recordId} className="nv-deck-rise" style={{ ...css("padding:11px 13px;border-radius:11px;border:1px solid var(--nv-acc-border);background:var(--nv-acc-bg)"), animationDelay: `calc(var(--nv-stagger) * ${Math.min(i, 6)})` }}>
-                        <div style={css("font-size:12.5px;line-height:1.45;color:var(--nv-ink)")}>{i + 1}. {p.title}</div>
-                        <div style={css("margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap")}>
-                          {p.status === 'open' && (
-                            <>
-                              <Button compact onClick={p.apply}>Apply it</Button>
-                              <TextAction tone="quiet" onClick={p.decline}>Not now</TextAction>
-                            </>
-                          )}
-                          {p.status === 'working' && <Meta tone="cyan">Applying…</Meta>}
-                          {p.status === 'done' && <Meta tone="good">✓ Applied — undo in Inbox</Meta>}
-                          {p.status === 'dismissed' && <Meta tone="faint">✕ Left alone</Meta>}
-                          {p.status === 'error' && <Meta tone="warn">Still pending in Inbox</Meta>}
-                        </div>
-                      </div>
-                    ))}
-                    {m.openCount > 1 && (
-                      <div style={css("display:flex;justify-content:flex-end")}>
-                        <Button compact onClick={m.applyAll}>Apply all {m.openCount}</Button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* ONE PLACE TO ANSWER (25 Sep): the changes this reply proposed
+                    are cards on the deck above; here they are a receipt that
+                    reads each one's live status, and a way up to them. */}
+                {(m.proposal || m.proposals) && <ChangesPointer list={m.proposals || [m.proposal]} />}
                 </div>
               </div>
             ))}
@@ -1129,6 +1117,13 @@ function GoalsCoachPane({ v }) {
             </div>
           )}
           <AttachPending attach={v.attach} />
+          {v.coachDiscussing && (
+            <div className="nv-deck-rise" style={css('margin-top:10px;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 12px;border-radius:12px;background:color-mix(in srgb, var(--nv-cy) 9%, transparent);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)')}>
+              <span aria-hidden="true" style={css('flex:none;width:6px;height:6px;border-radius:50%;background:var(--nv-cy)')} />
+              <span style={css('flex:1;min-width:0;font:500 13px/1.35 var(--nv-font-ui);color:var(--nv-ink)')}><span style={css('color:var(--nv-cy);font-weight:600')}>Discussing</span> · {v.coachDiscussing.headline}</span>
+              <TextAction tone="quiet" compact onClick={v.coachDiscussing.clear} ariaLabel="Stop discussing this change">✕</TextAction>
+            </div>
+          )}
           {/* a study for the block — the sentence the router reads, then paste the link */}
           <div style={css("margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
             <Chip tone="quiet" onClick={v.bringStudy} title="Paste a paper's link after it — the Researcher reads it, the Coach says what it changes for you">Bring a study</Chip>
@@ -1189,6 +1184,9 @@ export function Workouts({ v }) {
             options={v.trainTabs.map((t) => [t.key, <>{cap(t.label)}{t.live && <span style={css("margin-left:6px;color:var(--nv-good)")}>●</span>}</>])} />
         </div>
       )}
+      {/* COACH'S CHANGES (25 Sep): one line under Today and Gym that leads to
+          the deck on the Coach tab — only while something is waiting */}
+      {v.usingLiveWorkouts && (v.trainTab === 'today' || v.trainTab === 'gym') && <CoachChangesBanner b={v.coachBanner} />}
       {(v.usingLiveWorkouts || v.sessionLive) && v.trainTab === 'today' && (
         <div style={css('margin-top:14px')}>
           {(v.trainToday?.o || v.trainToday?.resume)

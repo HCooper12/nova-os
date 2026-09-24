@@ -153,6 +153,67 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   .nv-island-wave > i { transform: scaleY(.6); }
 }
 
+/* COACH'S SUGGESTIONS (25 Sep 2026) — his ask: approve, discuss or turn down
+   each change the Coach wants, in Train, simply, and SEE it happen. The
+   pressed "Yes" becomes the answer: the pill closes to a circle while the
+   change is made, the tick draws itself, and the change acts itself out on
+   the card (a strike sweeps through a dropped lift, a new set's dot fills,
+   a day's routine is struck and replaced) before the card folds away.
+   transform / opacity / clip-path only, plus the one collapse (grid rows) a
+   list removal cannot do without. Reduced motion: every beat becomes a
+   cross-fade. */
+.nv-sug-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--nv-dur-base) var(--nv-ease), opacity var(--nv-dur-fast) var(--nv-ease-exit); }
+.nv-sug-wrap > .nv-sug-fold { min-height: 0; overflow: hidden; display: grid; }
+.nv-sug-wrap[data-state="leaving"] { grid-template-rows: 0fr; opacity: 0; }
+.nv-sug-card { position: relative; transition: transform var(--nv-dur-base) var(--nv-ease), opacity var(--nv-dur-base) var(--nv-ease), outline-color var(--nv-dur-base) var(--nv-ease); outline: 1.5px solid transparent; outline-offset: -1px; }
+.nv-sug-card[data-state="declining"], .nv-sug-card[data-state="declined"] { opacity: .5; transform: translateX(10px) scale(.985); }
+.nv-sug-card[data-state="discussing"] { outline-color: color-mix(in srgb, var(--nv-cy) 55%, transparent); }
+.nv-sug-card[data-state="done"] { outline-color: color-mix(in srgb, var(--nv-good) 40%, transparent); }
+/* the other actions step back while the answer is being made */
+.nv-sug-secondary { transition: opacity var(--nv-dur-fast) var(--nv-ease), transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-sug-card:is([data-state="working"], [data-state="done"], [data-state="declining"], [data-state="declined"]) .nv-sug-secondary { opacity: 0; transform: scale(.94); pointer-events: none; }
+
+/* the Yes that becomes a tick */
+.nv-tick { position: relative; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 104px; padding: 0 20px; border: 0; background: none; color: var(--nv-on-acc); font: 600 15px var(--nv-font-ui); letter-spacing: -.01em; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.nv-tick-bg { position: absolute; inset: 0; border-radius: 999px; background: var(--nv-good); clip-path: inset(0 0 0 0 round 999px); transition: clip-path var(--nv-dur-base) var(--nv-ease); }
+.nv-tick:is([data-state="working"], [data-state="done"]) .nv-tick-bg { clip-path: inset(0 calc(50% - 22px) 0 calc(50% - 22px) round 999px); }
+.nv-tick-label { position: relative; display: inline-flex; align-items: center; gap: 7px; transition: opacity var(--nv-dur-fast) var(--nv-ease-exit), transform var(--nv-dur-fast) var(--nv-ease-exit); }
+.nv-tick:is([data-state="working"], [data-state="done"]) .nv-tick-label { opacity: 0; transform: scale(.9); }
+.nv-tick-spin, .nv-tick-check { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; pointer-events: none; }
+.nv-tick-spin { opacity: 0; transition: opacity var(--nv-dur-fast) var(--nv-ease); }
+.nv-tick[data-state="working"] .nv-tick-spin { opacity: 1; animation: nvTickSpin .8s linear infinite; }
+.nv-tick-check path { stroke-dasharray: 24; stroke-dashoffset: 24; }
+.nv-tick[data-state="done"] .nv-tick-check path { animation: nvTickDraw var(--nv-dur-base) var(--nv-ease) forwards; }
+.nv-tick[data-state="done"] { animation: nvTickPop var(--nv-dur-slow) var(--nv-ease); }
+@keyframes nvTickSpin { to { transform: rotate(360deg); } }
+@keyframes nvTickDraw { to { stroke-dashoffset: 0; } }
+@keyframes nvTickPop { 0% { transform: scale(1); } 45% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+/* the change, acted out */
+.nv-strike-real { position: absolute; left: 10px; right: 10px; top: 50%; height: 2px; margin-top: -1px; border-radius: 1px; background: currentColor; transform: scaleX(0); transform-origin: left center; transition: transform var(--nv-dur-slow) var(--nv-ease); }
+.nv-sug-card[data-state="done"] .nv-strike-real { transform: scaleX(1); }
+.nv-sug-card[data-state="done"] .nv-gone { opacity: .42; transition: opacity var(--nv-dur-slow) var(--nv-ease); }
+.nv-sug-dot { transition: background-color var(--nv-dur-base) var(--nv-ease), border-color var(--nv-dur-base) var(--nv-ease), transform var(--nv-dur-base) var(--nv-ease), opacity var(--nv-dur-base) var(--nv-ease); }
+/* !important: these win over the pill's own inline colours on a yes */
+.nv-sug-card[data-state="done"] .nv-sug-dot[data-new] { background: var(--nv-good) !important; border-color: var(--nv-good) !important; border-style: solid !important; transform: scale(1.15); }
+.nv-sug-card[data-state="done"] .nv-sug-dot[data-drop] { opacity: .2; transform: scale(.7); }
+.nv-sug-arrive { transition: color var(--nv-dur-base) var(--nv-ease), border-color var(--nv-dur-base) var(--nv-ease), background-color var(--nv-dur-base) var(--nv-ease); }
+.nv-sug-card[data-state="done"] .nv-sug-arrive { color: var(--nv-good) !important; border-color: color-mix(in srgb, var(--nv-good) 45%, transparent) !important; border-style: solid !important; background-color: color-mix(in srgb, var(--nv-good) 12%, transparent) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-sug-wrap { transition: opacity var(--nv-dur-fast) linear; }
+  .nv-sug-wrap[data-state="leaving"] { grid-template-rows: 1fr; }
+  .nv-sug-card, .nv-sug-secondary { transition: opacity var(--nv-dur-fast) linear; }
+  .nv-sug-card[data-state="declining"], .nv-sug-card[data-state="declined"] { transform: none; }
+  .nv-sug-card:is([data-state="working"], [data-state="done"], [data-state="declining"], [data-state="declined"]) .nv-sug-secondary { transform: none; }
+  .nv-tick-bg { transition: none; }
+  .nv-tick[data-state="done"] { animation: none; }
+  .nv-tick[data-state="working"] .nv-tick-spin { animation: none; }
+  .nv-tick[data-state="done"] .nv-tick-check path { animation: none; stroke-dashoffset: 0; }
+  .nv-strike-real { transition: none; }
+  .nv-sug-card[data-state="done"] .nv-sug-dot[data-new], .nv-sug-card[data-state="done"] .nv-sug-dot[data-drop] { transform: none; }
+}
+
 /* THE STAGGER (11 Sep 2026). The thing the app had nowhere except the Library
    shelf: a group that ASSEMBLES rather than landing as one slab. Measured
    before this existed — opening Voice mounted 29 log rows all running

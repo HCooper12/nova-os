@@ -1,4 +1,5 @@
-import { musclesNamed } from '../muscleHue.js';
+import { musclesNamed, muscleVar } from '../muscleHue.js';
+import { coachSuggestions, suggestionsSummary } from '../coachSuggestions.js';
 import { coachWeekRows } from '../coachWeek.js';
 import { weekData } from '../data.js';
 import { bubble } from './shared.js';
@@ -532,7 +533,75 @@ export function valsWorkouts(app, ctx) {
   // shared with valsMission (workout card + suggested focus)
   Object.assign(ctx, { usingLiveWorkouts, liveRoutines, todayRoutine, todayActiveRest });
 
+  // COACH'S SUGGESTIONS (25 Sep 2026, his ask) — every waiting Coach change
+  // as a card at the top of the Coach tab, and one line under Today and Gym
+  // that leads there. The cards come from coachSuggestions.js (records +
+  // his real routines); an answered card stays on screen from its snapshot
+  // until its tick has drawn and it has folded away.
+  const coachDeck = (() => {
+    const live = coachSuggestions(st.liveInbox?.items || [], { routines: liveRoutines, schedule: st.liveWorkoutSchedule || {} });
+    const anim = st.coachSug || {};
+    const liveIds = new Set(live.map((c) => c.id));
+    const cards = [...live];
+    for (const [id, a] of Object.entries(anim)) {
+      if (liveIds.has(id) || !a.card || a.state === 'gone') continue;
+      cards.splice(Math.min(a.index ?? cards.length, cards.length), 0, a.card);
+    }
+    if (!cards.length) return null;
+    const view = cards.map((c) => {
+      const a = anim[c.id];
+      const state = a?.state && a.state !== 'gone' ? a.state : (st.coachDiscuss === c.id ? 'discussing' : 'open');
+      const ex = c.diff?.exercise || c.diff?.from || null;
+      return {
+        ...c,
+        state,
+        hue: ex?.muscle ? muscleVar(ex.muscle) : 'var(--nv-cy)',
+        where: c.routine ? `${c.routine.name}${c.routine.days.length ? ` · ${c.routine.days.join(', ')}` : ''}` : (c.diff?.type === 'schedule' ? 'Your week' : 'Your program'),
+        yes: () => app.answerCoachSuggestion(c.id, 'yes'),
+        no: () => app.answerCoachSuggestion(c.id, 'no'),
+        discuss: () => app.discussCoachSuggestion(c.id),
+      };
+    });
+    const waiting = view.filter((c) => c.state === 'open' || c.state === 'discussing' || c.state === 'error');
+    // answered this visit — unless its record is waiting again, when it is
+    // simply waiting (counted once, not twice)
+    const answered = Object.entries(anim).filter(([id, a]) => a.verdict && !(liveIds.has(id) && a.state === 'gone')).map(([, a]) => a);
+    const allable = waiting.filter((c) => c.via === 'approve');
+    return {
+      cards: view,
+      waiting: waiting.length,
+      where: suggestionsSummary(waiting.length ? waiting : view)?.where || '',
+      rail: [
+        ...answered.map((a) => (a.state === 'working' || a.state === 'declining' ? 'busy' : a.verdict === 'yes' ? 'yes' : 'no')),
+        ...waiting.map(() => 'wait'),
+      ],
+      canAll: allable.length > 1,
+      allLabel: `Yes to all ${allable.length}`,
+      yesAll: () => app.answerAllCoachSuggestions(),
+    };
+  })();
+  const coachBanner = coachDeck && coachDeck.waiting > 0 ? {
+    count: coachDeck.waiting,
+    title: `${coachDeck.waiting} change${coachDeck.waiting === 1 ? '' : 's'} from Coach`,
+    where: coachDeck.where,
+    go: () => app.openCoachSuggestions(),
+  } : null;
+  const discussing = st.coachDiscuss ? (coachDeck?.cards || []).find((c) => c.id === st.coachDiscuss) : null;
+  // a proposal card in the chat reads its status from the record itself, so
+  // an answer given on the deck (or in the Inbox) shows there too
+  const inboxById = new Map((st.liveInbox?.items || []).map((r) => [r.id, r]));
+  const liveProposalStatus = (p) => {
+    const r = inboxById.get(p.recordId);
+    if (!r || p.status === 'working') return p.status;
+    if (r.status === 'filed') return 'done';
+    if (r.status === 'discarded' || r.status === 'undone') return 'dismissed';
+    return p.status;
+  };
+
   return {
+    coachDeck,
+    coachBanner,
+    coachDiscussing: discussing ? { headline: discussing.headline, clear: () => app.clearCoachDiscuss() } : null,
     trainToday,
     coachApply: st.coachApplyPending ? {
       proposal: st.coachApplyPending.proposal,
@@ -569,16 +638,18 @@ export function valsWorkouts(app, ctx) {
       // a program change Coach drafted — acceptable right here, no detour
       proposal: m.proposal && !m.proposals ? {
         ...m.proposal,
+        status: liveProposalStatus(m.proposal),
         apply: () => app.resolveCoachChatProposal(m.proposal.recordId, true),
         decline: () => app.resolveCoachChatProposal(m.proposal.recordId, false),
       } : null,
       // several changes on one answer: each its own tick or cross, and one do-all
       proposals: m.proposals ? m.proposals.map((p) => ({
         ...p,
+        status: liveProposalStatus(p),
         apply: () => app.resolveCoachChatProposal(p.recordId, true),
         decline: () => app.resolveCoachChatProposal(p.recordId, false),
       })) : null,
-      openCount: m.proposals ? m.proposals.filter((p) => p.status === 'open').length : 0,
+      openCount: m.proposals ? m.proposals.filter((p) => liveProposalStatus(p) === 'open').length : 0,
       applyAll: m.proposals ? () => app.applyAllCoachProposals(m.at) : null,
       tag: m.who === 'coach' ? '» COACH' : m.who === 'system' ? '» SYSTEM' : '» YOU',
       tagStyle: { font: 'var(--nv-micro-m)', color: m.who === 'coach' ? 'var(--nv-cy)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' },

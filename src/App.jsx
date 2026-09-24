@@ -57,6 +57,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { previewLine } from './islandCore.js';
+import { coachSuggestions } from './coachSuggestions.js';
 import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
@@ -549,6 +550,9 @@ export default class App extends Component {
     settingsTestStatus: 'idle', settingsTestMessage: '',
     portionSheet: null, // { name, macros, source } — log any meal/variant, from anywhere
     coachApplyPending: null, coachApplyNote: '', coachApplyBusy: false,
+    // Coach's suggestions deck (CoachSuggestions.jsx): per-card answer state
+    // while the tick draws and the card folds, and the one being discussed
+    coachSug: {}, coachDiscuss: null,
     foodEditId: null, foodEditName: '', foodEditP: '', foodEditC: '', foodEditF: '', foodEditKcal: '',
     foodRecipePickerOpen: false, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '',
     liveNotes: null, liveNoteDetails: {},
@@ -6653,6 +6657,99 @@ export default class App extends Component {
       this.refreshLiveData();
     }).catch((e) => this.toastMsg('Could not apply that: ' + e.message));
   }
+  // ─── COACH'S SUGGESTIONS (25 Sep 2026) ───────────────────────────────────
+  // His ask: approve, discuss or turn down each change in Train, and SEE it
+  // happen. The answer rides the same rails as the Inbox (approve applies —
+  // every one-tap fix now acts — discard declines), so nothing here writes
+  // on its own. The card animates on OUR state; the record is the truth.
+  coachSuggestionCards() {
+    return coachSuggestions(this.state.liveInbox?.items || [], {
+      routines: this.state.liveWorkoutRoutines || [], schedule: this.state.liveWorkoutSchedule || {},
+    });
+  }
+  setCoachSug(id, patch) {
+    this.setState((s) => ({ coachSug: { ...(s.coachSug || {}), [id]: { ...((s.coachSug || {})[id] || {}), ...patch } } }));
+  }
+  openCoachSuggestions() {
+    this.setState({ trainTab: 'coach' }, () => requestAnimationFrame(() => {
+      document.querySelector('[data-coach-deck]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }));
+  }
+  // Resolves once the answer is ON THE RECORD (the tick never draws before
+  // the change is made); the fold-away runs on its own after.
+  async answerCoachSuggestion(id, verdict) {
+    const conn = getConnection();
+    const cards = this.coachSuggestionCards();
+    const index = cards.findIndex((c) => c.id === id);
+    const card = cards[index];
+    if (!conn || !card) return false;
+    const now = (this.state.coachSug || {})[id]?.state;
+    // one answer per card while it is in flight; a card whose record is
+    // pending again after it folded ('gone') is a fresh question
+    if (now && !['open', 'error', 'gone'].includes(now)) return false;
+    const yes = verdict === 'yes';
+    this.setCoachSug(id, { state: yes ? 'working' : 'declining', verdict, card, index });
+    if (this.state.coachDiscuss === id) this.setState({ coachDiscuss: null });
+    const started = performance.now();
+    try {
+      if (yes) await api.inboxApprove(conn, id);
+      else await api.inboxDiscard(conn, id);
+    } catch (e) {
+      this.setCoachSug(id, { state: 'error', verdict: null });
+      notify({ title: yes ? "That change didn't go through" : "Couldn't turn that down", message: `${e.message}. Nothing changed.`, tone: 'warn' });
+      return false;
+    }
+    // the closing pill reads for a beat before the tick, even on a fast Mac
+    const beat = Math.max(0, 380 - (performance.now() - started));
+    if (beat) await new Promise((r) => setTimeout(r, beat));
+    this.setCoachSug(id, { state: yes ? 'done' : 'declined' });
+    if (yes && card.via === 'draft') {
+      // an observation with no one-tap edit: the yes asks Coach to draft the
+      // concrete change, which arrives as new cards on this deck
+      this.setState({ trainTab: 'coach' });
+      this.doCoach(`Yes — make this a change: ${card.headline}.${card.why ? ` ${card.why}` : ''} Propose the exact edits.`);
+    } else if (yes) {
+      notify({
+        id: `sug:${id}`, tone: 'done', title: 'Coach made the change',
+        message: `${card.headline}${card.routine ? ` · ${card.routine.name}` : ''}`, duration: 6000,
+        action: { label: 'Undo', run: () => this.undoCoachSuggestion(id, card) },
+      });
+    }
+    setTimeout(() => this.setCoachSug(id, { state: 'leaving' }), yes ? 950 : 420);
+    setTimeout(() => {
+      this.setCoachSug(id, { state: 'gone' });
+      this.refreshInbox();
+      if (yes) this.refreshLiveData();
+    }, yes ? 1300 : 760);
+    return true;
+  }
+  // One do-all: every one-tap change, in order, each ticking as it lands.
+  // Observations stay — they are a conversation, not a tap.
+  async answerAllCoachSuggestions() {
+    const open = this.coachSuggestionCards().filter((c) => c.via === 'approve' && !['working', 'done', 'declining', 'declined', 'leaving'].includes((this.state.coachSug || {})[c.id]?.state));
+    for (const c of open) {
+      // eslint-disable-next-line no-await-in-loop -- sequential on purpose: one routine file, one change at a time
+      await this.answerCoachSuggestion(c.id, 'yes');
+    }
+  }
+  undoCoachSuggestion(id, card) {
+    const conn = getConnection();
+    if (!conn) return;
+    api.inboxUndo(conn, id).then(() => {
+      this.refreshInbox();
+      this.refreshLiveData();
+      notify({ title: 'Put back', message: card?.headline ? `${card.headline} is undone.` : 'That change is undone.', tone: 'info', duration: 3600 });
+    }).catch((e) => notify({ title: "Couldn't undo that", message: `${e.message}. The Inbox still has it.`, tone: 'warn' }));
+  }
+  discussCoachSuggestion(id) {
+    this.setState({ coachDiscuss: id, trainTab: 'coach' }, () => requestAnimationFrame(() => {
+      const el = document.querySelector('[data-coach-input]');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      try { el?.focus({ preventScroll: true }); } catch { /* old engine */ }
+    }));
+  }
+  clearCoachDiscuss() { this.setState({ coachDiscuss: null }); }
+
   // Accept (or decline) a Coach proposal from inside the conversation. YES
   // approves the record on the rails — the SAME deterministic apply the
   // Inbox performs, with the same undo — so nothing new writes to his plan;
@@ -8573,7 +8670,13 @@ export default class App extends Component {
       // a trailing PROPOSE line is a typed directive for the server, not
       // prose — keep it out of the streamed render
       const stripDirective = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH|CONSULT)\s*(\{[\s\S]*)?$/, '');
-      this.flushAttachments(conn).then((attachmentId) => api.askCoach(conn, q, this.state.coachSessionId || null, liveSession, attachmentId)).then(({ jobId }) => {
+      // DISCUSSING A SUGGESTION (the deck's Discuss, 25 Sep): his words go to
+      // Coach with the card they are about; the chat shows only what he typed
+      const about = this.state.coachDiscuss ? this.coachSuggestionCards().find((c) => c.id === this.state.coachDiscuss) : null;
+      const sendQ = about
+        ? `[He is talking about one of your suggested changes, still waiting on his answer in Train: "${about.headline}"${about.routine ? ` (${about.routine.name})` : ''}${about.why ? ` — your reason: "${about.why}"` : ''}. Answer him about it. If you would now change it, PROPOSE the revised change as a new card and tell him he can turn the old one down.]\n\n${q}`
+        : q;
+      this.flushAttachments(conn).then((attachmentId) => api.askCoach(conn, sendQ, this.state.coachSessionId || null, liveSession, attachmentId)).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
           // past this a careful answer is SLOW, not failed (jobPoller.js)
           timeoutMs: 3 * 60_000,
