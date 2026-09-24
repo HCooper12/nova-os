@@ -28,7 +28,6 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 // dock is deliberately absent: its items are flex:none, so it overflows its
 // available width rather than wrapping, and it centres correctly as a result.
 const NOTICES = [
-  'src/NudgeCard.jsx',
   'src/ModelChoicePrompt.jsx',
 ];
 

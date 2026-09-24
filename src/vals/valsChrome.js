@@ -4,6 +4,7 @@ import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS } from './shared.js';
 import { dtf } from './fmt.js';
 import { glassOf } from '../glassBeats.js';
+import { muscleVar } from '../muscleHue.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
 // command palette, settings (incl. appearance), agents (concept), and the
@@ -679,54 +680,160 @@ export function valsChrome(app, ctx) {
       })),
     } : null,
 
-    // nudges — deterministic pop-up suggestions, one at a time, dismissible
-    // for the rest of this app session. Conditions must be TRUE NOW; a nudge
-    // is an offer, never a gate.
-    nudge: (() => {
-      if (demoMode) return null;
-      const dismissed = st.nudgeDismissed || {};
-      const candidates = [];
-      if (st.workoutSession && st.screen !== 'workouts') {
-        const sets = st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0);
-        candidates.push({
-          key: `session:${st.workoutSessionSavedAt || 'live'}`,
-          icon: '🏋', title: 'Workout in progress',
-          detail: `${st.workoutSession.routineName} — ${sets} set${sets === 1 ? '' : 's'} logged, waiting to be finished`,
-          primaryLabel: 'Resume',
-          onPrimary: () => { app.navigate('workouts'); app.resumeWorkoutSession(); },
-        });
-      }
-      const failedOutbox = (st.outbox || []).filter((i) => i.status === 'failed').length;
-      if (failedOutbox > 0) {
-        candidates.push({
-          key: `outbox-failed:${failedOutbox}`,
-          icon: '⇪', title: 'Outbox needs your call',
-          detail: `${failedOutbox} item${failedOutbox === 1 ? '' : 's'} the server rejected — retry or discard`,
-          primaryLabel: 'Open Outbox',
-          onPrimary: () => app.setState({ outboxOpen: true }),
-        });
-      }
-      // THE BOARD'S PROMPTS (his ask, 23 Sep): protein still to land, steps
-      // behind, calories over — composed by code on the server from his
-      // targets, hour-gated there, the same words Telegram sends. Last in
-      // line: a live session or a failed send outranks a suggestion.
-      for (const n of (st.liveGoalBoard?.nudges || [])) {
-        candidates.push({
-          key: `${n.key}:${st.liveGoalBoard.date}`,
-          icon: n.metric === 'steps' ? '👟' : n.metric === 'protein' ? '🥩' : '🔥', title: n.title,
-          detail: n.short || n.text.replace(/^Coach — /, ''),
-          primaryLabel: 'Ask Coach',
-          onPrimary: () => { app.navigate('workouts', { trainTab: 'coach' }); app.doCoach(n.ask); },
-        });
-      }
-      const first = candidates.find((c) => !dismissed[c.key]);
-      return first ? {
-        ...first,
-        dismiss: () => app.setState((s) => ({ nudgeDismissed: { ...(s.nudgeDismissed || {}), [first.key]: true } })),
-        // a nudge is a suggestion; the answer to a suggestion is a sentence
-        reply: () => app.openReply({ text: `${first.title} — ${first.detail}`, title: first.title, source: 'nudge' }),
-      } : null;
-    })(),
+    // THE ISLAND (25 Sep 2026): what is live right now, as Dynamic Island
+    // activities — the workout, Nova talking, the current nudge — plus the
+    // pocket check-in that lets a lock-screen notice reopen a live workout.
+    // IslandFeed.jsx pushes these to the island; nothing else renders them.
+    island: islandView(app, st, demoMode),
 
   };
+}
+
+// ─── the island's activities (25 Sep 2026) ──────────────────────────────────
+
+// Nudges — deterministic suggestions, one at a time, dismissible for the rest
+// of this app session. Conditions must be TRUE NOW; a nudge is an offer,
+// never a gate. (The "workout in progress" nudge is gone: the workout now
+// lives in the island itself whenever he is off the Train screen.)
+function nudgeView(app, st, demoMode) {
+  if (demoMode) return null;
+  const dismissed = st.nudgeDismissed || {};
+  const candidates = [];
+  const failedOutbox = (st.outbox || []).filter((i) => i.status === 'failed').length;
+  if (failedOutbox > 0) {
+    candidates.push({
+      key: `outbox-failed:${failedOutbox}`,
+      icon: '⇪', title: 'Outbox needs your call',
+      detail: `${failedOutbox} item${failedOutbox === 1 ? '' : 's'} the server rejected — retry or discard`,
+      primaryLabel: 'Open Outbox',
+      onPrimary: () => app.setState({ outboxOpen: true }),
+    });
+  }
+  // THE BOARD'S PROMPTS (his ask, 23 Sep): protein still to land, steps
+  // behind, calories over — composed by code on the server from his
+  // targets, hour-gated there, the same words Telegram sends. Last in
+  // line: a live session or a failed send outranks a suggestion.
+  for (const n of (st.liveGoalBoard?.nudges || [])) {
+    candidates.push({
+      key: `${n.key}:${st.liveGoalBoard.date}`,
+      icon: n.metric === 'steps' ? '👟' : n.metric === 'protein' ? '🥩' : '🔥', title: n.title,
+      detail: n.short || n.text.replace(/^Coach — /, ''),
+      primaryLabel: 'Ask Coach',
+      onPrimary: () => { app.navigate('workouts', { trainTab: 'coach' }); app.doCoach(n.ask); },
+    });
+  }
+  const first = candidates.find((c) => !dismissed[c.key]);
+  return first ? {
+    ...first,
+    dismiss: () => app.setState((s) => ({ nudgeDismissed: { ...(s.nudgeDismissed || {}), [first.key]: true } })),
+    // a nudge is a suggestion; the answer to a suggestion is a sentence
+    reply: () => app.openReply({ text: `${first.title} — ${first.detail}`, title: first.title, source: 'nudge' }),
+  } : null;
+}
+
+// "Protein · 105 g to go" → "105 g": the part of a nudge title short enough to
+// sit beside the camera. A title with no such part gets no readout — the
+// bubble's mark alone says something is waiting.
+export function nudgeTrail(title) {
+  const t = String(title || '');
+  const at = t.indexOf(' · ');
+  if (at < 0) return '';
+  const tail = t.slice(at + 3).replace(/\s+to go$/i, '').trim();
+  return tail.length <= 9 ? tail : '';
+}
+
+// A live session's progress, counted the same way the Train screen counts it:
+// skipped exercises are not owed, so they are not in the total.
+export function workoutProgress(ws) {
+  const exercises = (ws?.exercises || []).filter((e) => !e.skipped);
+  let done = 0;
+  let total = 0;
+  let next = null;
+  for (const e of exercises) {
+    for (const set of e.sets || []) {
+      total += 1;
+      if (set.done) done += 1;
+      else if (!next) next = e;
+    }
+  }
+  return { done, total, next };
+}
+
+function islandView(app, st, demoMode) {
+  const out = { workout: null, speaking: null, nudge: null, pocket: null };
+  const ws = st.workoutSession;
+  // a past session being edited is paperwork, not a workout in progress
+  if (ws && !st.editingSessionId) {
+    const { done, total, next } = workoutProgress(ws);
+    const resume = () => { app.navigate('workouts'); app.resumeWorkoutSession(); };
+    const hue = next ? muscleVar(next.muscleGroup) : 'var(--nv-good)';
+    const summary = () => {
+      const mins = ws.startedAt ? Math.max(1, Math.round((Date.now() - ws.startedAt) / 60_000)) : null;
+      const parts = [total ? `${done} of ${total} sets` : 'No sets yet'];
+      if (next) parts.push(`next: ${next.name}`);
+      else if (total) parts.push('every set done, finish to log it');
+      if (mins) parts.push(`${mins} min in`);
+      return parts.join(' · ');
+    };
+    if (st.screen !== 'workouts') {
+      out.workout = {
+        sig: `${done}/${total}:${next?.exerciseId || next?.name || ''}:${ws.routineName}`,
+        label: `${ws.routineName}, ${done} of ${total} sets. Open the workout`,
+        lead: { type: 'ring', fraction: total ? done / total : 0, color: hue },
+        trail: total ? `${done}/${total}` : '',
+        expanded: () => ({
+          id: 'act:workout', tone: 'done', title: ws.routineName, message: summary(),
+          lead: { type: 'ring', fraction: total ? done / total : 0, color: hue },
+          onPress: resume, actions: [{ label: 'Resume', run: resume }], duration: 6000,
+        }),
+      };
+    }
+    // (review #6) only a workout he is DOING: a parked one (Save for later)
+    // or a draft restored from days ago must not tell his lock screen
+    // "in progress, tap to pick up"
+    const active = st.workoutsView === 'session' && ws.startedAt && Date.now() - ws.startedAt < 6 * 3600_000;
+    if (active) out.pocket = {
+      // the day, not a save stamp: a stamp changes every set and would make
+      // every set a new workout with its own notification
+      key: `${ws.routineId || 'session'}:${ws.startedAt}`,
+      title: `${ws.routineName} in progress`,
+      body: `${total ? `${done} of ${total} sets` : 'Started'}${next ? ` · next: ${next.name}` : ''}. Tap to pick up where you left off.`,
+      url: './#/workouts',
+    };
+  }
+  if (st.voiceSpeaking && st.screen !== 'voice') {
+    out.speaking = {
+      sig: 'speaking',
+      label: 'Nova is speaking. Show what she is saying',
+      lead: { type: 'nova' },
+      trail: { type: 'wave' },
+      expanded: () => ({
+        id: 'act:speaking', tone: 'nova', title: 'Nova', serif: true,
+        message: app.ttsNowSaying || 'Speaking…',
+        onPress: () => app.navigate('voice'),
+        actions: [{ label: 'Stop', run: () => app.stopSpeaking() }], duration: 5000,
+      }),
+    };
+  }
+  const n = nudgeView(app, st, demoMode);
+  if (n) {
+    out.nudge = {
+      // (review #5) the key stays fixed all evening while the words move as
+      // he eats — the readout and the Ask Coach question must move with them
+      sig: `${n.key}|${n.title}|${n.detail}`, key: n.key,
+      label: `${n.title}. Show the suggestion`,
+      lead: { type: 'mark', tone: 'info' },
+      trail: nudgeTrail(n.title),
+      trailColor: 'color-mix(in srgb, var(--nv-gold), #fff var(--nv-island-lift))',
+      expanded: () => ({
+        id: `nudge:${n.key}`, tone: 'info', title: n.title, message: n.detail, duration: 8000,
+        actions: [
+          { label: n.primaryLabel, run: n.onPrimary },
+          { label: 'Reply', run: n.reply },
+          { label: 'Not now', run: n.dismiss },
+        ],
+      }),
+    };
+  }
+  return out;
 }

@@ -235,3 +235,104 @@ test('the goo matrix is the library’s: alpha × gain − gain × threshold', (
   assert.deepEqual(v.slice(15), [0, 0, 0, 22, -9.46]);
   assert.ok(Math.abs(gooBlur() - 14.3) < 1e-9);
 });
+
+// ── resident activities (25 Sep 2026) ────────────────────────────────────────
+import {
+  rankActivities, shellGeometry, trailWidth, previewLine,
+  SHELL_LEAD, SHELL_TRAIL_MIN, SHELL_TRAIL_MAX, FALLBACK_SHELL_H, MINIMAL_GAP,
+} from '../../src/islandCore.js';
+import { nowPlayingLine } from '../../src/nowPlaying.js';
+import { nudgeTrail, workoutProgress } from '../../src/vals/valsChrome.js';
+
+test('activities rank: Nova talking, then the workout, then a nudge', () => {
+  const r = rankActivities({ nudge: { t: 1 }, workout: { t: 2 }, speaking: { t: 3 }, gone: null });
+  assert.deepEqual(r.map((a) => a.kind), ['speaking', 'workout', 'nudge']);
+  assert.deepEqual(rankActivities({}), []);
+});
+
+test('the widened island grows OUT of the hardware and folds back into it', () => {
+  const L = islandLayout({ ...PRO16 });
+  const closed = shellGeometry({ layout: L, trailW: 60, open: 0 });
+  assert.equal(closed.width, L.islandWidth, 'closed is exactly the pill — nothing shows');
+  assert.equal(closed.left, L.centerX - L.islandWidth / 2);
+  assert.equal(closed.top, L.islandTop);
+  const open = shellGeometry({ layout: L, trailW: 60, open: 1 });
+  assert.equal(open.width, SHELL_LEAD + L.islandWidth + 60);
+  assert.equal(open.left, L.centerX - L.islandWidth / 2 - SHELL_LEAD, 'the camera stays where the camera is');
+  assert.equal(open.minimalLeft, open.left + open.width + MINIMAL_GAP);
+  assert.ok(open.left + open.width + MINIMAL_GAP + open.height < L.width, 'the second bubble still fits on a 16 Pro');
+});
+
+test('with no island it grows from a dot at the top, and never draws a fake pill', () => {
+  const L = islandLayout({ width: 1280, insetTop: 0, island: false });
+  const closed = shellGeometry({ layout: L, trailW: 50, open: 0, insetTop: 0 });
+  assert.equal(closed.width, FALLBACK_SHELL_H);
+  assert.ok(closed.top > 0);
+  const open = shellGeometry({ layout: L, trailW: 50, open: 1, insetTop: 0 });
+  assert.ok(open.width < 120, 'no 126px gap for a camera that is not there');
+  assert.equal(open.left + open.width / 2, L.centerX);
+});
+
+test('the readout is sized by its words, within limits', () => {
+  assert.equal(trailWidth(0), SHELL_TRAIL_MIN);
+  assert.equal(trailWidth(30), 52);
+  assert.equal(trailWidth(400), SHELL_TRAIL_MAX);
+});
+
+test('a notice keeps its actions — one beside the words, up to three in a row', () => {
+  assert.equal(normalizeNotice({ title: 'x', action: { label: 'Reply', run() {} } }).actions.length, 1, 'the old single-action shape still works');
+  const many = normalizeNotice({ title: 'x', actions: [{ label: 'a' }, { label: 'b' }, { label: 'c' }, { label: 'd' }, null, {}] });
+  assert.deepEqual(many.actions.map((a) => a.label), ['a', 'b', 'c']);
+  assert.deepEqual(normalizeNotice({ title: 'x', lead: { type: 'ring', fraction: 0.5 } }).lead, { type: 'ring', fraction: 0.5 });
+});
+
+test('an answer previews as its first plain line', () => {
+  assert.equal(previewLine('## Verdict\n\n**No.** The loading phase is optional.'), 'Verdict');
+  assert.equal(previewLine('- [Read this](http://x) first\nsecond'), 'Read this first');
+  assert.equal(previewLine('```js\nconst a = 1\n```'), '', 'code alone previews as nothing');
+  assert.equal(previewLine('| a | b |\n|---|---|'), '', 'a table alone previews as nothing');
+  assert.equal(previewLine('```\nx\n```\nDone — three files changed.'), 'Done — three files changed.');
+  assert.equal(previewLine(''), '');
+  const long = previewLine('word '.repeat(60));
+  assert.ok(long.length <= 141 && long.endsWith('…'));
+});
+
+test('Now Playing names what Nova is saying, cut at a word', () => {
+  assert.equal(nowPlayingLine(''), 'Speaking');
+  assert.equal(nowPlayingLine('Evening, sir.'), 'Evening, sir.');
+  const l = nowPlayingLine('The Researcher filed two briefs while you were out, and one of them disagrees with the other');
+  assert.ok(l.endsWith('…') && l.length <= 65);
+});
+
+test('a nudge readout is the short number, or nothing', () => {
+  assert.equal(nudgeTrail('Protein · 105 g to go'), '105 g');
+  assert.equal(nudgeTrail('Steps · 4,210 to go'), '4,210');
+  assert.equal(nudgeTrail('Outbox needs your call'), '', 'no number, no readout: the mark alone');
+  assert.equal(nudgeTrail('Calories · over by a long way today'), '', 'too long to sit beside a camera');
+});
+
+test('workout progress counts what is owed, and names what is next', () => {
+  const ws = { exercises: [
+    { name: 'Bench', sets: [{ done: true }, { done: true }, { done: false }] },
+    { name: 'Dips', skipped: true, sets: [{ done: false }, { done: false }] },
+    { name: 'Fly', sets: [{ done: false }] },
+  ] };
+  const p = workoutProgress(ws);
+  assert.deepEqual([p.done, p.total, p.next.name], [2, 4, 'Bench'], 'a skipped exercise is not owed');
+  assert.equal(workoutProgress({ exercises: [{ name: 'A', sets: [{ done: true }] }] }).next, null);
+  assert.deepEqual(workoutProgress(null), { done: 0, total: 0, next: null });
+});
+
+// (review #1) a notice posted before the island mounts must not go to nobody
+test('a notice posted before the island subscribes waits for it, and a dismiss can cancel it', async () => {
+  const island = await import('../../src/island.js?early=' + Date.now());
+  island.notify({ id: 'nudge:a', title: 'Protein · 105 g to go' });
+  island.notify({ id: 'nudge:b', title: 'Outbox needs your call' });
+  island.dismissIsland('nudge:b');
+  const got = [];
+  const off = island.subscribeIsland((m) => got.push(m));
+  assert.deepEqual(got.map((m) => m.notice.id), ['nudge:a'], 'the early one arrives; the dismissed one never does');
+  island.notify('Saved to the vault');
+  assert.equal(got.length, 2, 'after that, delivery is direct');
+  off();
+});

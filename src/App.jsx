@@ -56,6 +56,8 @@ import { PersonalRecord } from './PersonalRecord.jsx';
 import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
+import { previewLine } from './islandCore.js';
+import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { ReplySheet } from './ReplySheet.jsx';
@@ -63,7 +65,7 @@ import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
 import { reportBargeIn, reportTurnEnd } from './useDictation.js';
 import { runMicCheck } from './micCheck.js';
-import { NudgeCard } from './NudgeCard.jsx';
+import { IslandFeed } from './IslandFeed.jsx';
 import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
 import { CoachApplySheet } from './CoachApplySheet.jsx';
 import { PortionSheet } from './PortionSheet.jsx';
@@ -3320,7 +3322,7 @@ export default class App extends Component {
         focusNote: e.tune?.focus || null,
         sets };
     });
-    this.withTransition(() => this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises }, sessionCancelConfirm: false }));
+    this.withTransition(() => this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises, startedAt: Date.now() }, sessionCancelConfirm: false }));
   }
   // cockpit: exercise-level fields (note / anomaly / pain) — same immutable
   // update pattern as sets; unknown fields flow through to the save intact
@@ -3561,7 +3563,7 @@ export default class App extends Component {
         last: last && last.length ? { date: null, sets: last.map((s) => ({ weight: s.weight, reps: s.reps })) } : null,
         sets };
     });
-    this.setState({ workoutsView: 'session', editingSessionId: null, workoutSession: { routineId: 'carryover', routineName: `${carryover.sourceRoutineName} — makeup`,
+    this.setState({ workoutsView: 'session', editingSessionId: null, workoutSession: { routineId: 'carryover', startedAt: Date.now(), routineName: `${carryover.sourceRoutineName} — makeup`,
       // the UNDERLYING routine, so a second push-forward names the routine and
       // not the display title — "Push — makeup — makeup" was breaking the
       // one-row-per-date-and-routine match in workoutCarryover.js
@@ -5341,7 +5343,10 @@ export default class App extends Component {
     api.sparStart(conn, this.state.codeWorkspace, focus).then(({ jobId }) => {
       this.startPoll('spar', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 10 * 60_000,
-        onReady: (job) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'breaker', text: job.result.text }] })),
+        onReady: (job) => {
+          this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'breaker', text: job.result.text }] }));
+          this.announceAway({ here: this.state.screen === 'code', title: 'The Breaker finished its pass', text: job.result.text, go: () => this.navigate('code') });
+        },
         onError: (msg) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + msg }] })),
       });
     }).catch((e) => {
@@ -5749,6 +5754,39 @@ export default class App extends Component {
   // sentence by islandCore.toneOf; a caller that knows better passes an object.
   toastMsg(text) {
     notify(typeof text === 'object' && text ? text : String(text));
+  }
+  // AN ANSWER HE IS NOT LOOKING AT. A Claude Code turn runs up to ten
+  // minutes, a Coach or Leader answer three; each used to land silently in a
+  // chat he had walked away from. When it finishes and he is elsewhere (or the
+  // app is in his pocket), the island says so and a tap takes him there. When
+  // he is already looking at it, it says nothing — the answer is on screen.
+  announceAway({ here, title, text, tone = 'done', go }) {
+    if (here && !document.hidden) return;
+    const message = previewLine(text);
+    notify({ title, message, tone, duration: 7000, onPress: go, actions: go ? [{ label: 'Open', run: go }] : [] });
+  }
+  // THE POCKET (IslandFeed.jsx, server/lib/pocket.js): a live workout checks
+  // in while Nova is on screen; if the check-ins stop, the Mac sends ONE
+  // lock-screen notification that opens the session again.
+  pocketPing(p) {
+    const conn = getConnection();
+    if (!conn || !p?.key) return;
+    api.pocketPing(conn, p).catch(() => { /* the next check-in retries */ });
+  }
+  // The workout ended: tell the Mac there is nothing to come back to, and take
+  // back the lock-screen notice if it already went — a stale "in progress" on
+  // the lock screen is a small lie.
+  pocketDone(key) {
+    const conn = getConnection();
+    // ended = no workout left at all (finished or discarded), not merely parked
+    const ended = !this.state.workoutSession;
+    if (conn) api.pocketDisarm(conn, key, ended).catch(() => { /* it expires with the session */ });
+    try {
+      navigator.serviceWorker?.ready
+        .then((reg) => reg.getNotifications({ tag: 'pocket-workout' }))
+        .then((list) => list.forEach((note) => note.close()))
+        .catch(() => { /* no worker, nothing to close */ });
+    } catch { /* unsupported */ }
   }
   // ONE OPTIMISTIC WRITE, written once. Six places had hand-rolled this shape
   // (the to-do toggle, the inbox approve, the shopping toggle, the food log,
@@ -6437,11 +6475,14 @@ export default class App extends Component {
     const patch = (fn) => this.setState((s) => ({ voiceChat: s.voiceChat.map((m) => (m.research?.recordId === recordId ? fn(m) : m)) }));
     this.startPoll(`voiceResearch:${recordId}`, () => api.inboxItem(conn, recordId), {
       intervalMs: 5000, timeoutMs: 8 * 60_000,
-      onReady: ({ record }) => patch((m) => ({
-        ...m,
-        research: { ...m.research, status: 'done', title: record.decision.title, body: record.decision.payload.body },
-        proposal: { recordId, title: `File "${record.decision.title}" into the vault`, status: 'pending' },
-      })),
+      onReady: ({ record }) => {
+        patch((m) => ({
+          ...m,
+          research: { ...m.research, status: 'done', title: record.decision.title, body: record.decision.payload.body },
+          proposal: { recordId, title: `File "${record.decision.title}" into the vault`, status: 'pending' },
+        }));
+        this.announceAway({ here: this.state.screen === 'voice', title: 'Research brief ready', text: record.decision.title, tone: 'nova', go: () => this.navigate('voice') });
+      },
       onError: (msg) => patch((m) => ({ ...m, research: { ...m.research, status: 'error', error: msg } })),
     });
   }
@@ -7834,7 +7875,7 @@ export default class App extends Component {
       // any new speech or gesture re-claims it instantly
       clearTimeout(this.audioReleaseTimer);
       this.audioReleaseTimer = setTimeout(() => {
-        if ((this.speechActive || 0) === 0 && !this.ttsPlaying && !(this.ttsQueue || []).length) releaseAudioGraph();
+        if ((this.speechActive || 0) === 0 && !this.ttsPlaying && !(this.ttsQueue || []).length) { releaseAudioGraph(); nowPlayingIdle(); }
       }, 3000);
     }
   }
@@ -7846,6 +7887,7 @@ export default class App extends Component {
     this.currentSource = null;
     this.resetTtsQueue(); // in-flight sentence fetches land against a stale generation and vanish
     this.speechActive = 0;
+    nowPlayingIdle();
     if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
     clearTimeout(this.audioReleaseTimer);
     this.audioReleaseTimer = setTimeout(() => {
@@ -8112,6 +8154,9 @@ export default class App extends Component {
     // him (the queue behind it is the other half)
     this.ttsNowSaying = head.said || null;
     this.noteSpokenAloud(head.said);
+    // her name and face in the iPhone's own Dynamic Island if he leaves while
+    // she is talking (nowPlaying.js) — the island's pause stops her
+    nowPlayingSpeaking(head.said, () => this.stopSpeaking());
     resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
     // ...but resume() only lands near a gesture, and a reply arrives from the
     // network. If the graph is still not running, the decoded buffer CANNOT
@@ -8524,6 +8569,11 @@ export default class App extends Component {
             }, { coachBusy: false });
             if (job.result.proposal) this.refreshInbox();
             if (job.result.proposal?.status === 'done') this.refreshLiveData(); // the program changed under him — redraw it
+            this.announceAway({
+              here: this.state.screen === 'workouts' && this.state.trainTab === 'coach',
+              title: job.result.proposal ? 'Coach answered, with a change to look at' : 'Coach answered',
+              text: job.result.text, go: () => this.navigate('workouts', { trainTab: 'coach' }),
+            });
           },
           onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
         });
@@ -8555,6 +8605,7 @@ export default class App extends Component {
         onReady: (job) => {
           api.quickSessionPrepare(conn, job.result.plan).then(({ session }) => {
             this.setState({ quickBusy: false, quickPlan: session });
+            this.announceAway({ here: this.state.screen === 'workouts', title: 'Your quick session is ready', text: session.name || '', go: () => this.navigate('workouts') });
           }).catch((e) => {
             this.setState({ quickBusy: false });
             this.toastMsg('Plan came back unusable: ' + e.message);
@@ -8577,7 +8628,7 @@ export default class App extends Component {
       workoutsView: 'session',
       editingSessionId: null,
       // the WHY rides the session into the record — the debrief quotes it (server persists ≤300 chars)
-      workoutSession: { routineId: 'impromptu', routineName: plan.name, exercises: plan.exercises, ...(plan.rationale ? { rationale: plan.rationale } : {}) },
+      workoutSession: { routineId: 'impromptu', startedAt: Date.now(), routineName: plan.name, exercises: plan.exercises, ...(plan.rationale ? { rationale: plan.rationale } : {}) },
       quickPlan: null, quickNote: '',
       sessionCancelConfirm: false,
     });
@@ -8631,6 +8682,7 @@ export default class App extends Component {
             this.setState({ leaderSessionId: job.result.sessionId });
           }
           this.finalizeStream('leaderChat', { who: 'leader', text: job.result.text }, { leaderBusy: false });
+          this.announceAway({ here: this.state.screen === 'leader', title: 'Leader answered', text: job.result.text, go: () => this.navigate('leader') });
           // a reflection landed — the profile the daily idea steers by changed
           if (job.result.reflected) this.refreshLeader();
         },
@@ -8668,9 +8720,13 @@ export default class App extends Component {
         onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
         onReady: (job) => {
           this.finalizeStream('codeChat', { who: 'claude', text: job.result.text }, { codeBusy: false, codeSessionId: job.result.sessionId });
+          this.announceAway({ here: this.state.screen === 'code', title: 'Claude Code finished', text: job.result.text, go: () => this.navigate('code') });
           this.refreshCodeChanges(); // the diff is the point — surface it the moment the turn lands
         },
-        onError: (msg) => this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
+        onError: (msg) => {
+          this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] }));
+          this.announceAway({ here: this.state.screen === 'code', title: 'Claude Code stopped with an error', text: msg, tone: 'warn', go: () => this.navigate('code') });
+        },
       });
     }).catch((e) => {
       this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
@@ -8871,7 +8927,7 @@ export default class App extends Component {
         )}
         {v.ingestModalOpen && <Suspense fallback={null}><IngestModal v={v} /></Suspense>}
         {v.ingestStatus !== 'idle' && <Suspense fallback={null}><IngestReview v={v} /></Suspense>}
-        {v.nudge && <NudgeCard v={v.nudge} />}
+        <IslandFeed feed={v.island} app={this} />
         {v.replyTo && <ReplySheet v={v} />}
         {v.modelChoicePrompt && <ModelChoicePrompt v={v.modelChoicePrompt} />}
         {v.coachApply && <CoachApplySheet c={v.coachApply} />}

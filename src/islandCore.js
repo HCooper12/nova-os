@@ -307,8 +307,11 @@ export function normalizeNotice(n, seq = 0) {
     duration: o.duration === undefined ? AUTO_DISMISS : o.duration,
     minShow: o.minShow ?? QUEUE_MIN_SHOW,
     onPress: o.onPress || null,
-    action: o.action || null,
+    // one action sits beside the words; two or three get a row of their own
+    actions: (o.actions || (o.action ? [o.action] : [])).filter((a) => a && a.label).slice(0, 3),
     serif: !!o.serif,
+    // an expanded activity wears its own face (the workout ring, Nova's core)
+    lead: o.lead || null,
   };
 }
 
@@ -333,4 +336,82 @@ export function remainingLife({ notice, shownAt, now, queued }) {
   const full = notice.duration === null ? Infinity : notice.duration;
   const life = queued ? Math.min(full, notice.minShow) : full;
   return Math.max(0, shownAt + life - now);
+}
+
+// ── resident activities (25 Sep 2026) ────────────────────────────────────────
+// His second ask: the workout lives in the island while he is elsewhere in
+// Nova, nudges stop being a card parked over the screen, and Nova talking
+// shows in the island. That is iOS's Live Activity grammar: a COMPACT
+// presentation (the island widens — an icon on the left of the camera, a
+// short readout on the right), a MINIMAL one (a detached bubble, for the
+// second activity when two are live), and an EXPANDED one (a card that drops
+// out when he taps it). Alerts outrank all of it: the island closes around
+// the camera while one drops, and re-opens after.
+export const ACTIVITY_PRIORITY = { speaking: 3, workout: 2, nudge: 1 };
+// Nova's speech toggles per sentence; an activity that vanished for a beat
+// between two sentences must not make the island blink.
+export const ACTIVITY_LINGER = 700;
+export const SHELL_LEAD = 40;
+export const SHELL_TRAIL_MIN = 40;
+export const SHELL_TRAIL_MAX = 96;
+export const SHELL_GAP_NO_ISLAND = 4;
+// With no island it sits in the band ABOVE the page's own first line — at 34px
+// and 8px down it covered the date line on the desktop Home (seen 25 Sep).
+export const FALLBACK_SHELL_H = 28;
+export const MINIMAL_GAP = 6;
+export const SHELL_SPRING = { duration: 520, dampingRatio: 0.78 };
+
+export function rankActivities(map) {
+  return Object.entries(map || {})
+    .filter(([, a]) => a)
+    .map(([kind, a]) => ({ ...a, kind }))
+    .sort((x, y) => (ACTIVITY_PRIORITY[y.kind] || 0) - (ACTIVITY_PRIORITY[x.kind] || 0));
+}
+
+export const trailWidth = (textW) => clamp(Math.ceil(textW) + 22, SHELL_TRAIL_MIN, SHELL_TRAIL_MAX);
+
+// Where the widened island sits, `open` of the way from closed (0) to full
+// (1). With a real island it grows OUT of the hardware — closed is exactly
+// the pill, so nothing shows until it opens. Without one there is nothing to
+// grow out of, so it grows from a dot at the top of the page.
+export function shellGeometry({ layout, trailW = SHELL_TRAIL_MIN, open = 1, insetTop = 0 }) {
+  const p = clamp(open, 0, 1.2);
+  if (layout.island) {
+    const h = layout.islandHeight;
+    const fullLeft = layout.centerX - layout.islandWidth / 2 - SHELL_LEAD;
+    const fullW = SHELL_LEAD + layout.islandWidth + trailW;
+    const closedLeft = layout.centerX - layout.islandWidth / 2;
+    const left = mix(p, closedLeft, fullLeft);
+    const width = mix(p, layout.islandWidth, fullW);
+    return { left, top: layout.islandTop, width, height: h, radius: h / 2, minimalLeft: left + width + MINIMAL_GAP };
+  }
+  const h = FALLBACK_SHELL_H;
+  const fullW = SHELL_LEAD + SHELL_GAP_NO_ISLAND + trailW;
+  const width = mix(p, h, fullW);
+  const left = layout.centerX - width / 2;
+  return { left, top: Math.max(insetTop, 0) + 4, width, height: h, radius: h / 2, minimalLeft: left + width + MINIMAL_GAP };
+}
+
+// The first thing an answer says, as one plain line for a notification: no
+// markdown, no heading marks, cut at a word. An answer that is only code or a
+// table gives nothing — the title carries the notice alone then.
+export function previewLine(text, max = 140) {
+  // fenced code and table rows are skipped whole, BEFORE any stripping —
+  // stripping first turned a ```js fence into the word "js"
+  let fenced = false;
+  const prose = String(text || '').split('\n').filter((l) => {
+    if (/^\s*```/.test(l)) { fenced = !fenced; return false; }
+    return !fenced && !/^\s*\|/.test(l);
+  });
+  const lines = prose
+    .map((l) => l.replace(/^\s*(?:#{1,6}\s+|>\s?|[-*+]\s+|\d+[.)]\s+)/, '')
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/[*_`~]+/g, '')
+      .trim())
+    .filter(Boolean);
+  const t = lines[0] || '';
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const at = cut.lastIndexOf(' ');
+  return `${(at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[,.;:—–-]+$/, '')}…`;
 }
