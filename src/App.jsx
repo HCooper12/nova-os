@@ -52,7 +52,8 @@ import { Workouts } from './screens/Workouts.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
 import { PersonalRecord } from './PersonalRecord.jsx';
 import { FloatingCore } from './FloatingCore.jsx';
-import { Toast } from './Toast.jsx';
+import { DynamicIsland } from './DynamicIsland.jsx';
+import { notify, dismissIsland } from './island.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
 import { ReplySheet } from './ReplySheet.jsx';
@@ -464,7 +465,7 @@ export default class App extends Component {
     foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
     barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
-    galaxySel: null, galaxyTypes: null, galaxyOverlay: null, galaxyZoomed: false, toast: null, reviewIdx: 0,
+    galaxySel: null, galaxyTypes: null, galaxyOverlay: null, galaxyZoomed: false, reviewIdx: 0,
     ctxMenu: null, // the long-press / right-click menu: { x, y, title?, items }
     verdict: null, verdictBusy: false, // A1 — a question answered as a card
     jobTrayOpen: false, // C3 — in-flight work, visible
@@ -502,7 +503,7 @@ export default class App extends Component {
     inboxMode: (typeof window !== 'undefined' && INBOX_MODES.includes(localStorage.getItem(INBOX_MODE_KEY))) ? localStorage.getItem(INBOX_MODE_KEY) : 'auto-high',
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
-    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null, greetBanner: null,
+    liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null,
     // REPLY IN PLACE (21 Sep ask): the banner he is answering, held open over
     // whatever screen he is on. { key, text, title, source, recordId, speak, draft, busy, status }
     replyTo: null,
@@ -5733,10 +5734,12 @@ export default class App extends Component {
   }
 
   // ---------- helpers ----------
+  // Every toast now drops out of the Dynamic Island (DynamicIsland.jsx). It
+  // no longer touches App state: a setState here re-rendered the whole app
+  // for a sentence, twice (in, and 3.6s later, out). Tone is read from the
+  // sentence by islandCore.toneOf; a caller that knows better passes an object.
   toastMsg(text) {
-    clearTimeout(this.toastT);
-    this.setState({ toast: text });
-    this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
+    notify(typeof text === 'object' && text ? text : String(text));
   }
   // ONE OPTIMISTIC WRITE, written once. Six places had hand-rolled this shape
   // (the to-do toggle, the inbox approve, the shopping toggle, the food log,
@@ -7066,7 +7069,8 @@ export default class App extends Component {
     if (!text) return;
     if (!getConnection()) { this.toastMsg('Not connected to your Mac — check Settings.'); return; }
     this.stopSpeaking();
-    this.setState({ replyTo: { key: Date.now(), text: String(text), title, source, recordId, speak: !!speak && !!this.state.voiceSpeak, draft: '', busy: false, status: null }, greetBanner: null });
+    this.setState({ replyTo: { key: Date.now(), text: String(text), title, source, recordId, speak: !!speak && !!this.state.voiceSpeak, draft: '', busy: false, status: null } });
+    dismissIsland('greet');
   }
   closeReply() { this.setState({ replyTo: null }); }
   setReplyDraft(draft) { this.setState((s) => (s.replyTo ? { replyTo: { ...s.replyTo, draft } } : null)); }
@@ -7615,9 +7619,17 @@ export default class App extends Component {
           const text = job.result.text;
           this.finalizeStream('voiceChat', { at: Date.now(), who: 'nova', text });
           if (this.state.screen !== 'voice') {
-            clearTimeout(this.greetT);
-            this.setState({ greetBanner: { text } });
-            this.greetT = setTimeout(() => this.setState({ greetBanner: null }), 30_000);
+            // The doorman speaks from the island: tap to open the Voice
+            // screen, Reply to answer in place (21 Sep ask), throw it up to
+            // let it go. It holds 30s as the banner did; if something else
+            // arrives it still gets 5s before giving way — and the words are
+            // in the Voice transcript either way.
+            notify({
+              id: 'greet', tone: 'nova', title: 'Nova', message: text, serif: true,
+              duration: 30_000, minShow: 5_000,
+              onPress: () => this.navigate('voice'),
+              action: { label: 'Reply', run: () => this.openReply({ text, title: 'Nova', source: 'greeting', speak: true }) },
+            });
           }
           // best-effort speech: browsers may block un-gestured audio; the
           // banner and transcript carry the words either way
@@ -8786,36 +8798,6 @@ export default class App extends Component {
         )}
         {v.isMobile && <MobileChrome v={v} />}
         {v.floatingCore && <FloatingCore s={v.floatingCore} />}
-        {v.greetBanner && (
-          <div onClick={v.greetBanner.open} role="status"
-            // Centred by auto margins, not by shifting it half its own width.
-            // A fixed element with a left offset gets only the space from that
-            // offset to the edge as its available width, so this banner could
-            // never grow past half the screen and long text stacked into a
-            // narrow column (measured: 188px of an intended 345px at 375px
-            // wide). Auto margins hand it the whole viewport to size against —
-            // and leave the transform free, which matters because fadeUp
-            // animates transform and would otherwise un-centre it mid-flight.
-            style={{
-              position: 'fixed', left: 0, right: 0, marginInline: 'auto', width: 'fit-content',
-              top: v.isMobile ? 'calc(58px + env(safe-area-inset-top))' : '16px', zIndex: 85,
-              maxWidth: 'min(560px, 92vw)', cursor: 'pointer',
-              display: 'flex', alignItems: 'baseline', gap: '10px',
-              padding: '11px 16px', borderRadius: '12px',
-              background: 'var(--nv-glass2)', backdropFilter: 'blur(18px)',
-              border: '1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent)',
-              boxShadow: '0 18px 50px -18px rgba(0,0,0,.8)',
-              animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)',
-            }}>
-            <span style={{ font: '400 13px var(--nv-font-serif)', fontStyle: 'italic', lineHeight: 1.55, color: 'var(--nv-ink)' }}>{v.greetBanner.text}</span>
-            {/* answer it HERE — the doorman asked a question, and this is the
-                way to reply without leaving the screen (21 Sep ask) */}
-            <span onClick={v.greetBanner.reply} aria-label="Reply here"
-              style={{ flex: 'none', font: '600 11.5px var(--nv-font-ui)', color: 'var(--nv-cy)', padding: '6px 10px', margin: '-4px 0', borderRadius: '999px', background: 'color-mix(in srgb, var(--nv-cy) 12%, transparent)', minHeight: '28px', display: 'inline-flex', alignItems: 'center' }}>Reply</span>
-            <span onClick={v.greetBanner.dismiss} aria-label="Dismiss greeting"
-              style={{ flex: 'none', font: 'var(--nv-micro-l)', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)', padding: '2px 4px' }}>✕</span>
-          </div>
-        )}
         {/* fallback={null}: an overlay appearing a frame later reads as
             normal modal timing — a placeholder card would be worse than
             nothing. Idle prefetch means they're almost always already in. */}
@@ -8835,7 +8817,7 @@ export default class App extends Component {
         {v.coachApply && <CoachApplySheet c={v.coachApply} />}
         {v.portionSheet && <PortionSheet p={v.portionSheet} />}
         {v.outboxView && <Suspense fallback={null}><OutboxView v={v.outboxView} /></Suspense>}
-        {v.toastOn && <Toast v={v} />}
+        <DynamicIsland />
         {v.showBoot && <Boot info={v.bootInfo} />}
       </div>
     );

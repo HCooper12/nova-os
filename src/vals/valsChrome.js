@@ -358,15 +358,6 @@ export function valsChrome(app, ctx) {
       });
     })(),
     sideStatus,
-    // the doorman's words when he arrives on a non-Voice screen — generated
-    // server-side, shown once, tap-through to the conversation
-    greetBanner: st.greetBanner ? {
-      text: st.greetBanner.text,
-      open: () => { app.setState({ greetBanner: null }); app.navigate('voice'); },
-      // the doorman spoke, so the reply opens listening (ReplySheet.jsx)
-      reply: (e) => { e.stopPropagation(); app.openReply({ text: st.greetBanner.text, title: 'Nova', source: 'greeting', speak: true }); },
-      dismiss: (e) => { e.stopPropagation(); app.setState({ greetBanner: null }); },
-    } : null,
     // REPLY IN PLACE — the sheet's view of the banner it is answering
     replyTo: st.replyTo ? {
       ...st.replyTo,
@@ -724,7 +715,5 @@ export function valsChrome(app, ctx) {
       } : null;
     })(),
 
-    // toast
-    toastOn: !!st.toast, toast: st.toast,
   };
 }

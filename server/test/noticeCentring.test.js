@@ -28,7 +28,6 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 // dock is deliberately absent: its items are flex:none, so it overflows its
 // available width rather than wrapping, and it centres correctly as a result.
 const NOTICES = [
-  'src/Toast.jsx',
   'src/NudgeCard.jsx',
   'src/ModelChoicePrompt.jsx',
 ];
@@ -51,9 +50,10 @@ for (const rel of NOTICES) {
   });
 }
 
-test('the two banners in App.jsx centre by auto margins too', () => {
+test('the status banner in App.jsx centres by auto margins too', () => {
   const code = codeLines('src/App.jsx');
-  // both live in the same render block; neither may shift itself
+  // the toast and the greeting moved into the Dynamic Island (24 Sep), which
+  // positions from measured geometry; the status banner still centres itself
   const shifted = (code.match(/translateX\(\s*-50%\s*\)/g) || []).length;
   assert.equal(shifted, 0, 'a fixed banner in App.jsx is centred by shifting it');
   assert.ok(/marginInline: 'auto'/.test(code), 'the banners should centre with auto margins');

@@ -59,6 +59,7 @@ const FEATURES = [
   ['Home · failed plan is not an empty morning', 'HIT AN ERROR — SEE INBOX'],
   // once-a-day marks written on delivery and shared across devices
   ['Greeting · stamped on delivery, cross-device', 'markGreeted'],
+  ['Notifications · drop out of the Dynamic Island', 'nv-island-goo'],
   ['Rituals · done on delivery, cross-device', 'markRitualDone'],
   // the CFO and meal-prep off switches: deterministic lanes on the model board
   ['Settings · deterministic lanes have a switch, no picker', 'the switch is the setting'],
