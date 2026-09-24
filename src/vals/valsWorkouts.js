@@ -585,8 +585,14 @@ export function valsWorkouts(app, ctx) {
     // THE STUDY LANE's visible door: prefills the sentence the router reads,
     // so pasting a link after it goes to the lane and not to a chat turn
     bringStudy: () => app.setState({ coachInput: 'What would this study change in my program: ' }),
-    coachKey: (e) => { if (e.key === 'Enter') app.doCoach(); },
-    sendCoach: () => app.doCoach(),
+    // THE WORDS IN THE BOX, NOT THE APP'S COPY OF THEM (25 Sep). His long
+    // question reached Coach cut off mid-word ("My workouts can often fo"):
+    // the send read App state, which trails the field by the last input event
+    // — and iOS dictation commits its final words only as the field loses
+    // focus. Both paths now send exactly what the field holds at that moment
+    // (LocalInput.jsx records the same race for the capture box).
+    coachKey: (e) => { if (e.key === 'Enter' && !e.nativeEvent?.isComposing) app.doCoach(e.currentTarget.value); },
+    sendCoach: (e) => app.doCoach(e?.currentTarget?.parentElement?.querySelector('[data-coach-input]')?.value),
     quickMinutes: st.quickMinutes,
     setQuickMinutes: (e) => app.setState({ quickMinutes: e.target.value }),
     quickNote: st.quickNote,

@@ -734,6 +734,7 @@ function SessionView({ v }) {
           <div style={css("display:flex;gap:8px;margin-top:10px")}>
             <Interactive
               as="input"
+              data-coach-input
               value={v.coachInput}
               onChange={v.setCoachInput}
               onKeyDown={v.coachKey}
@@ -842,6 +843,7 @@ function MockWorkouts({ v }) {
           <div style={css("display:flex;gap:8px;margin-top:14px")}>
             <Interactive
               as="input"
+              data-coach-input
               value={v.coachInput}
               onChange={v.setCoachInput}
               onKeyDown={v.coachKey}
@@ -1083,6 +1085,7 @@ function GoalsCoachPane({ v }) {
             <AttachStrip attach={v.attach} tone="cyan" />
             <Interactive
               as="input"
+              data-coach-input
               value={v.coachInput}
               onChange={v.setCoachInput}
               onKeyDown={v.coachKey}
