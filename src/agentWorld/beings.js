@@ -332,19 +332,26 @@ export function createBeingKit(T, TK) {
   var CATCH_GEO = new T.CircleGeometry(1, 12);
 
   // the "1" in the bubble, drawn on a canvas in the UI face
-  var numeralTex = null;
-  function numeralPlate(ch) {
-    if (!numeralTex) {
+  // one texture per label, so a marker can say its real count (the sheet
+  // shows "1"; the map shows how many are actually waiting)
+  var numeralTexs = {};
+  function numeralTexFor(ch) {
+    if (!numeralTexs[ch]) {
       var c = document.createElement('canvas'); c.width = c.height = 128;
       var x = c.getContext('2d');
       x.fillStyle = '#0a2830';
-      x.font = '700 86px Rajdhani, system-ui, sans-serif';
+      x.font = '700 ' + (ch.length > 1 ? 66 : 86) + 'px Rajdhani, system-ui, sans-serif';
       x.textAlign = 'center'; x.textBaseline = 'middle';
       x.fillText(ch, 64, 70);
-      numeralTex = new T.CanvasTexture(c);
-      numeralTex.colorSpace = T.SRGBColorSpace;
-      numeralTex.anisotropy = 4;
+      var t2 = new T.CanvasTexture(c);
+      t2.colorSpace = T.SRGBColorSpace;
+      t2.anisotropy = 4;
+      numeralTexs[ch] = t2;
     }
+    return numeralTexs[ch];
+  }
+  function numeralPlate(ch) {
+    var numeralTex = numeralTexFor(ch);
     var m = new T.Mesh(GEO.plane, new T.MeshBasicMaterial({ map: numeralTex, transparent: true, depthWrite: false }));
     m.scale.setScalar(0.135); m.position.z = 0.062;
     return m;
@@ -842,7 +849,7 @@ export function createBeingKit(T, TK) {
     var tail = mesh(GEO.cone, emissiveMat(TK.gold, 1.5), 0.048, 0.1, 0.042, -0.04, -0.115, 0);
     tail.rotation.z = Math.PI; tail.castShadow = false; marker.add(tail);
     marker.add(halo(TK.gold, 0.25, 0.13));
-    marker.add(numeralPlate('1'));
+    var markerPlate = numeralPlate('1'); marker.add(markerPlate);
     marker.position.y = markerY; marker.visible = false; g.add(marker);
 
     var cs = contactShadow(o.footR || 0.42); g.add(cs);
@@ -861,6 +868,7 @@ export function createBeingKit(T, TK) {
 
     return {
       group: g, body: body, head: head, H: H, face: face, marker: marker, markerY: markerY,
+      setCount: function (n) { markerPlate.material.map = numeralTexFor(n > 9 ? '9+' : String(Math.max(1, n))); markerPlate.material.needsUpdate = true; },
       hue: hue, acc: acc, headY: headY, headR: o.head.hy,
       skinMat: bodyMat, bodyMat: bodyMat, headMat: headMat, trimMat: trimMat, handMat: handMat,
       jointMat: jointMat, visorMat: screenMat, rimMat: rimMat, rimL: rimL, core: core, gem: gemMat,
@@ -2031,7 +2039,7 @@ export function createBeingKit(T, TK) {
     AGENTS: AGENTS, BUILD: BUILD, face3: face3, EMISSIVES: EMISSIVES,
     darker: darker, lighter: lighter, hueOf: hueOf, accOf: accOf, clamp: clamp,
     emissiveMat: emissiveMat, addBlend: addBlend, glowTex: glowTex, halo: halo,
-    contactShadow: contactShadow, GEO: GEO, mesh: mesh, numeralPlate: numeralPlate, tex: tex,
+    contactShadow: contactShadow, GEO: GEO, mesh: mesh, numeralPlate: numeralPlate, numeralTexFor: numeralTexFor, tex: tex,
     setSnap: function (v) { SNAP = !!v; }
   };
 }

@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Eyebrow, TextAction, Tag, Meta, isAppleStyle, Button, Rail } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
+
+// the Org Map is three.js: its own chunk, fetched only when Ops opens
+const OrgMap = lazy(() => import('../orgmap/OrgMap.jsx').then((m) => ({ default: m.OrgMap })));
 
 const M = "var(--nv-font-mono)";
 const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
@@ -280,6 +283,17 @@ export function Ops({ v }) {
         <Meta tone={dim(75)} style={{ flex: 1, textTransform: 'none', letterSpacing: 0, fontSize: isAppleStyle() ? '14px' : undefined }}>{v.opsGateLine}</Meta>
         <Meta tone="gold" style={{ fontWeight: 600 }}>Open Inbox →</Meta>
       </Interactive>
+
+      {/* THE ORG MAP — who is asking, drawn (AGENT-WORLD-PLAN §3). While its
+          chunk loads, a skeleton of the same size holds its place. */}
+      {v.orgMap?.live && (
+        <Suspense fallback={<div aria-hidden="true" style={css(`margin-top:24px;height:clamp(420px, 104vw, 630px);border-radius:calc(var(--nv-radius) + 6px);background:${dim(3)};border:1px solid ${dim(6)}`)} />}>
+          <OrgMap v={v.orgMap} />
+        </Suspense>
+      )}
+      {!v.orgMap?.live && v.orgMap?.line && (
+        <Meta as="div" tone={dim(45)} style={{ marginTop: '18px', textTransform: 'none', letterSpacing: 0 }}>{v.orgMap.line}</Meta>
+      )}
 
       <div style={css("display:flex;flex-wrap:wrap;gap:30px;margin-top:26px;align-items:flex-start;justify-content:center")}>
         {/* channels → core/agents → connections: the real topology, framed

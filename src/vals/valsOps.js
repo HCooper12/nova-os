@@ -2,6 +2,8 @@
 // /api/ops (records + heartbeats); this file only arranges. Missing data
 // renders as missing: no ops slice yet → the screen says so.
 
+import { valsOrgMap } from './valsOrgMap.js';
+
 const STATUS_COLOR = {
   pending: 'var(--nv-gold)',
   classifying: 'var(--nv-vi)',
@@ -77,6 +79,8 @@ export function valsOps(app, ctx) {
 
   return {
     isOps: st.screen === 'ops',
+    // the Org Map (AGENT-WORLD-PLAN §3): the same records, arranged by who asks
+    orgMap: valsOrgMap(ops, app, ctx),
     // THE FORGE, given a door. One spoken sentence becomes a real running
     // artifact in its own sandbox; it has had receipts, a stop and
     // screenshot proof since August and no way in from the app at all.
