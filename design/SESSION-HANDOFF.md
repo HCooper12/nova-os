@@ -64,47 +64,96 @@ and closing all sessions; read this first when he is back.
 ---
 
 **25 SEP (morning) — CHARACTER PASS 5, AND THE ORG MAP IS LIVE ON OPS.**
-Commits `4f5ae15` (the beings become one module + the no-model test),
-`d311659` (pass 5), `58f8672` (the map's view model), `c629117` (the map on
-Ops), `076d326` (plan). The map commits are on origin (a peer pushed them
-with its own); the server serves `orgMap` on `/api/ops`.
+Session nova-os-06. Commits (all pushed, deployed build `33f608383` and
+later): `f0f0e40` zero-token rule, `b476bf0` pass 4, `4f5ae15` one shared
+beings module + no-model test, `d311659` pass 5, `58f8672` the map's view
+model, `c629117` the map on Ops, `076d326` `33f6083` docs.
 
-**His asks and where they stand.** (1) "Another round of refining... smaller
-details... how the arms are connected... how everything looks in motion":
-DONE, version 5 of https://claude.ai/artifact/VU6LdBpB5or14DMQSygeRD, full
-list in AGENT-WORLD-PLAN §3g "PASS 5". (2) "You can start the map": steps
-A, B, C BUILT; D (Home tile, Ambient) and the Projects/Overnight districts
-NOT started.
+**GOAL.** His asks, in order: keep refining all the characters (passes 4
+and 5, the second "check smaller details, how the arms connect, how it looks
+in motion"); plan the zero-token rule; push; start the map.
 
-**VERIFIED.** Server suite 2188/2188 in an isolated worktree at `c629117`;
-build green there; the live `/api/ops` returns `orgMap` (13 waiting: the
-Researcher 7, one each for Coach, Guardian, Watcher, Librarian, Leader, and
-one raw note of his). Looked at on the dev server at 402px and 1280px: the
-ring, a tap on the Coach (picked on the canvas by a synthetic pointer at its
-projected position), the card with his real pending item. The frame loop is
-live on screen and STOPS when the map scrolls away (`running()` false),
-resumes when it returns. Frame counts in headless are meaningless (bare rAF
-fired 4 times in 3 s).
+**DONE CRITERIA.**
+- MET: pass 5 published, version 5 of
+  https://claude.ai/artifact/VU6LdBpB5or14DMQSygeRD (list in
+  AGENT-WORLD-PLAN §3g "PASS 5").
+- MET: zero-token rule planned (§5a) and enforced by
+  `server/test/agentWorldNoModel.test.js`.
+- MET: map steps A, B, C (view model, marker list, 3D map on Ops).
+- UNMET: step D (Home tile, Ambient), Projects/Overnight districts,
+  day/night from the clock, Talk from the card (needs the org-conversation
+  agent switch).
+- UNMET: his verdict on pass 5 and on the map on his phone.
 
-**NOT VERIFIED.** How the map feels on his phone (drag-to-turn with a real
-thumb, 120Hz, memory with nine physical-material beings); the Calm and
-theme rebuild (wired, not looked at); reduced motion on the map.
+**STATE (paths).** Beings: `src/agentWorld/beings.js` (the one source).
+Sheet: `design/mockups/49-agent-characters.html` (imports the module;
+publish via `node scripts/agent-sheet/bundle.mjs <out>`). Instruments:
+`scripts/agent-sheet/{studio,film,look,bundle}.mjs`. Map: `src/orgmap/
+{scene.js,OrgMap.jsx}`, `src/vals/valsOrgMap.js`, wired in
+`src/vals/valsOps.js` and `src/screens/Ops.jsx`. Server:
+`server/lib/orgMap.js` + `server/test/orgMap.test.js`, slice added in
+`server/lib/ops.js` (`orgMap` on `/api/ops`, `conversationalRoster()`).
 
-**DECISIONS.** The beings live once, in `src/agentWorld/beings.js`; the
-sheet imports it and `scripts/agent-sheet/bundle.mjs` inlines it for a
-one-file artifact (publish the BUNDLED file, never the importing one). The
-map uses the sheet's own room light, not three's RoomEnvironment (which
-washed every being to pastel). Drag sideways turns, vertical scrolls the
-page (touch-action pan-y); a canvas that takes the scroll is refused.
+**DECISIONS.**
+- One beings module taking THREE as an argument → the sheet (r160, CDN)
+  and the app (r170) must never drift. Forecloses a second copy of any
+  being, anywhere.
+- Every roster loop and every record kind is placed on a being, the core,
+  or a named unfiled list (tests pin it) → nothing silently vanishes from
+  the map. Forecloses adding a loop or kind without placing it.
+- "Working" = classifying within 30 min → a record stuck for hours is not
+  work. Forecloses drawing stuck jobs as busy.
+- The map is lit by the sheet's own room, not three's RoomEnvironment →
+  that washed every being pastel. Forecloses swapping the env back.
+- Sideways drag turns, vertical scrolls (touch-action pan-y) → Ops is a
+  scrolling page. Forecloses a canvas that captures the scroll.
+- The old fleet ring stays under the map for now → it holds per-loop
+  detail the map does not show. His call pending (below).
 
-**DO NOT.** Reload the server with `launchctl kickstart`: use
-`node scripts/reload-server.mjs` (CLAUDE.md, 25 Sep; a raw restart killed
-his Coach answer). Guess a headless debug port (use `--remote-debugging-
-port=0`). Run the app on a dev port the server's CORS list does not allow
-(5173 and 5183 only), or it reads as "Backend unreachable".
+**VERIFIED (with locators).**
+- Close-out gates, 25 Sep ~08:50 AEST: lint 0 errors (warnings only, none
+  in my files); build green; `cd server && npm test` 2191/2191; health 200;
+  `git log origin/main..HEAD` empty; deploy run 36069153646 success; no
+  vite left running, no `public/_devconn.js`, no `dist/pc.json`.
+- `c629117` in an isolated worktree: build green, server 2188/2188.
+- Live `/api/ops` returns `orgMap` (13 waiting: Researcher 7; Coach,
+  Guardian, Watcher, Librarian, Leader 1 each; 1 raw note of his).
+- On the dev server at 402px and 1280px: map drawn, a canvas tap on the
+  Coach opened its card with his real pending item; `running()` is true on
+  screen and false when scrolled away.
 
-**NEXT.** His verdict on pass 5 and on the map on his phone; then step D
-(the Home tile as ONE still frame, never a live loop, per §7).
+**ASSUMED.** How it feels on his phone (thumb drag, 120Hz, memory for nine
+physical-material beings); the Calm/theme rebuild and reduced motion on the
+map (wired, not looked at); idle cost (headless rAF fired 4 times in 3 s,
+so frame counts prove nothing).
+
+**OPEN QUESTIONS (his; remind him at the start of the next session, he
+asked).**
+1. Do the characters look right on his phone? Name the being and the part
+   for a pass 6, or call them done.
+2. Does the map feel right on his phone (turning, tapping, the counts)? If
+   yes, step D: the Home tile as ONE still frame, never a live loop (§7).
+3. Remove the old fleet ring under the map on Ops? Its labels overlap at
+   desktop width, but it holds per-loop detail the map does not show yet.
+
+**NEXT ACTION.** Ask those three first. Expected if the map is right: he
+finds "who is waiting on me" faster on the map than in the Inbox.
+
+**DO NOT.**
+- Publish the sheet file itself: it imports a module and will not run as
+  an artifact. Publish the output of `bundle.mjs`.
+- Reload the server with `launchctl kickstart` (I did once this session,
+  before the rule existed). Use `node scripts/reload-server.mjs`.
+- Use a guessed headless debug port (one attached to a peer's browser);
+  use `--remote-debugging-port=0`.
+- Run the dev app on any port but 5173/5183 (CORS), or it reads "Backend
+  unreachable".
+- Trust additive-blend glow for small details (blush, iris): invisible on
+  a dark screen. Four rounds were spent assuming depth.
+- Draw anything worn (strap, towel, cape) as a curve through guessed
+  points; project it onto the body (`hug()`/`strap()`).
+- Push without checking `git log origin/main..HEAD` for a peer's commit
+  underneath yours.
 
 ---
 
@@ -3829,6 +3878,15 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**25 Sep, nova-os-06.** Characters pass 4 (designed backs, cape, towel, fin,
+satchel) and pass 5 (close-up and motion checks: elbows, drapery projected
+onto bodies, ledger, books, bandana, eased working loops), published v4/v5.
+The beings became one module shared with the app. The zero-token rule was
+planned and made a test. The Org Map shipped on Ops (view model, marker
+list, 3D map). Corrected on the way: a CDN-import sheet cannot be published
+as-is (bundle it); three's RoomEnvironment washed the beings pastel; my one
+bare `launchctl kickstart` predates the reload guard and is now forbidden.
 
 ### 25 September 2026 (early morning) — the Arcus reel: Nova's own ears, a measured local model, the plan that sees the log
 He sent a reel of "Arcus" (a local-first assistant built around neurodivergent execution) and then asked for all three ideas to be built overnight and checked live. Voice on his iPhone now bypasses the browser speech engine entirely: the phone records, a loudness meter decides when his turn ends, and the Mac writes it down; an Action Button Shortcut lane does the same natively. A small local model (Qwen3-4B on MLX) was measured against Haiku on 40 real captures and deliberately not switched on: 65% route agreement, eight times faster. And the day plan learned to see what his log already knows: over 27 days he ticked 10 priorities, while 31 were visibly done in his own log, so the plan had been re-listing things he was doing every day. Stuck promises now get their own card with three answers and a voice session that takes the first two minutes with him.
