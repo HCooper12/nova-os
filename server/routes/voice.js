@@ -291,6 +291,20 @@ export function voiceRouter(vaultPath) {
     }
   });
 
+  // START IT WITH ME (rituals.buildStartQuestion): a stuck promise, and Nova
+  // taking the first two minutes with him. Same conversation, same session.
+  router.post('/ask/start', async (req, res) => {
+    try {
+      const { buildStartQuestion } = await import('../lib/rituals.js');
+      const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
+      const question = buildStartQuestion(req.body?.item, Number(req.body?.days) || 0);
+      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId });
+      res.json({ jobId, label: '▸ Start it with me' });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   // Synchronous ask — starts the job and holds the response open until Nova
   // has answered, returning the plain text. This is what makes a hands-free
   // "Hey Siri, Ask Nova" Shortcut trivial: one request in, the spoken answer

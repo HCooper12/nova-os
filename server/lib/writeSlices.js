@@ -52,6 +52,7 @@ export const WRITE_SLICE_MAP = [
   { test: /^\/stash(\/|$)/, slices: ['stash'] },
   { test: /^\/shopping-list(\/|$)/, slices: ['shoppingList'] },
   { test: /^\/todos(\/|$)/, slices: ['todos'] },
+  { test: /^\/plan-today\/stuck$/, slices: ['stuck'] },
 
   // — Settings-ish, self-contained —
   { test: /^\/money(\/|$)/, slices: ['money'] },

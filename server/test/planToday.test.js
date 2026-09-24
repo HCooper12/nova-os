@@ -90,8 +90,9 @@ test('the completion loop: a priority is marked on the record, and tomorrow\'s p
 
   // the next morning, the plan's context carries yesterday's outcomes
   const ctx = await buildPlanContext(vault, new Date('2026-08-04T07:00:00'));
-  assert.match(ctx, /YESTERDAY'S TOP 3 \(plan approved; 1 of 3 marked done\)/);
-  assert.match(ctx, /1\. Ship the brief — DONE\n2\. Legs at 17:30 — SKIPPED\n3\. Call the dentist — no word/);
+  // his mark first, then the log (planObserve.js); what neither can see says so
+  assert.match(ctx, /YESTERDAY'S TOP 3 \(plan approved; 1 of 3 done by his mark or his log\)/);
+  assert.match(ctx, /1\. Ship the brief — DONE \(his mark\)\n2\. Legs at 17:30 — SKIPPED \(his mark\)\n3\. Call the dentist — no word \(nothing in the vault can tell\)/);
   assert.match(buildPlanPrompt(ctx), /carry a skipped priority forward only if it still matters today/);
   // two days on, no plan the day before → honestly absent
   assert.doesNotMatch(await buildPlanContext(vault, new Date('2026-08-05T07:00:00')), /YESTERDAY'S TOP 3/);

@@ -187,8 +187,11 @@ async function main() {
     // an optimisation, never a filter that can hide a change. req.path is read
     // HERE, before the handler runs: Express rewrites it inside routers.
     const slices = slicesForPath(req.path);
+    const logged = /^\/(workouts|food-log|rotation)(\/|$)/.test(req.path);
     res.on('finish', () => {
       if (res.statusCode >= 200 && res.statusCode < 300) {
+        // a session or a meal just landed: the day plan can see it now
+        if (logged) import('./lib/planObserve.js').then(({ nudgePlanObserver }) => nudgePlanObserver()).catch(() => {});
         import('./lib/events.js').then(({ broadcast }) => broadcast('write', slices ? { slices } : null)).catch(() => {});
         // the ask context is a snapshot of the vault — a write makes it stale (lib/askContext.js)
         import('./lib/askContext.js').then(({ dropAskContextCache }) => dropAskContextCache()).catch(() => {});
@@ -314,6 +317,9 @@ async function main() {
   startDailyReviewScheduler(process.env.VAULT_PATH);
   import('./lib/planToday.js').then(({ startPlanTodayScheduler }) => startPlanTodayScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('plan-today scheduler failed to start:', e.message));
+  // seen, not ticked: the day's plan learns what the log already knows
+  import('./lib/planObserve.js').then(({ startPlanObserver }) => startPlanObserver(process.env.VAULT_PATH))
+    .catch((e) => console.error('plan observer failed to start:', e.message));
   import('./lib/weeklyDebrief.js').then(({ startWeeklyDebriefScheduler }) => startWeeklyDebriefScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('weekly-debrief scheduler failed to start:', e.message));
   import('./lib/reminders.js').then(({ startRemindersScheduler }) => startRemindersScheduler())

@@ -130,9 +130,36 @@ export async function buildPlanContext(vaultPath, now = new Date()) {
     const ps = rec.decision.payload.priorities;
     // his reason for declining a plan is the loudest steer the planner gets (the why-chips on the card)
     const fate = rec.status === 'filed' ? 'approved' : rec.status === 'discarded' ? (rec.expired ? 'expired unread' : `declined${rec.declineReason ? ` — his reason: "${rec.declineReason}" (plan accordingly; never re-issue what he declined unchanged)` : ''}`) : rec.status;
-    const done = ps.filter((p) => p.outcome === 'done').length;
-    const lines = ps.map((p, i) => `${i + 1}. ${p.do} — ${p.outcome === 'done' ? 'DONE' : p.outcome === 'skipped' ? 'SKIPPED' : 'no word'}`);
-    return `YESTERDAY'S TOP 3 (plan ${fate}; ${done} of ${ps.length} marked done) — one clause on what happened, then today; carry a skipped one forward only if it still matters today:\n${lines.join('\n')}`;
+    // SEEN, NOT TICKED (planObserve.js): he stopped ticking on 15 Sep while
+    // still training most days, so "no word" read as "not done" and the same
+    // promise was re-listed for weeks. His mark wins; the log speaks next.
+    const { observePriority, dayFacts } = await import('./planObserve.js');
+    const facts = await dayFacts(vaultPath, yIso, now).catch(() => null);
+    const word = (p) => {
+      if (p.outcome === 'done') return 'DONE (his mark)';
+      if (p.outcome === 'skipped') return 'SKIPPED (his mark)';
+      const seen = p.observed?.state === 'done' ? p.observed : (facts ? observePriority(p.do, { ...facts, dayOver: true }) : null);
+      if (seen?.state === 'done') return `DONE — seen in his log: ${seen.evidence}`;
+      if (seen) return `NOT DONE — his log: ${seen.evidence}`;
+      return 'no word (nothing in the vault can tell)';
+    };
+    const lines = ps.map((p, i) => `${i + 1}. ${p.do} — ${word(p)}`);
+    const done = lines.filter((l) => / — DONE/.test(l)).length;
+    return `YESTERDAY'S TOP 3 (plan ${fate}; ${done} of ${ps.length} done by his mark or his log) — one clause on what happened, then today. Something already done is not re-listed as today's work unless today genuinely needs it again; carry a skipped or undone one forward only if it still matters today:\n${lines.join('\n')}`;
+  });
+  // THE PLAN STOPS REPEATING ITSELF. A promise listed three days running and
+  // settled on none is stuck, and listing it a fourth time is the one move
+  // that has already failed. Answered ones follow his answer.
+  add('stuck', async () => {
+    const { stuckNow } = await import('./planObserve.js');
+    const { stuck, answered, dropped, staleTodos } = await stuckNow(vaultPath, { now });
+    const out = [];
+    if (stuck.length) out.push(`STUCK — on the plan ${stuck.map((s) => `${s.days} days`).join(' / ')} and never started:\n${stuck.map((s) => `- ${s.text}`).join('\n')}\nDo NOT list these again as written. If one still matters today, list only its first physical step, something that takes under two minutes ("open the podcast and play the first minute"), never the whole job. If it does not matter today, leave it out: Home asks him about it separately.`);
+    const later = answered.filter((a) => a.answer === 'later');
+    if (later.length) out.push(`HE SAID NOT NOW (leave out until the date): ${later.map((a) => `${a.text} (until ${a.until})`).join('; ')}`);
+    if (dropped.length) out.push(`HE LET THESE GO — never list them again: ${dropped.map((d) => d.text).filter(Boolean).join('; ')}`);
+    if (staleTodos.length) out.push(`TO-DOS OPEN 14+ DAYS: ${staleTodos.map((t) => `${t.text} (${t.days}d)`).join('; ')} — same rule: a two-minute first step or nothing.`);
+    return out.length ? out.join('\n\n') : null;
   });
   return (await gatherContext(sections)).text;
 }

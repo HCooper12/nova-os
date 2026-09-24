@@ -216,6 +216,26 @@ export function loopsRouter(vaultPath) {
     }
   });
 
+  // STUCK — what the plan keeps listing and nothing closes, and his answer
+  // to each (lib/planObserve.js). Read by Home; answered from Home.
+  router.get('/plan-today/stuck', async (req, res) => {
+    try {
+      const { stuckNow } = await import('../lib/planObserve.js');
+      res.json(await stuckNow(vaultPath));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  router.post('/plan-today/stuck', async (req, res) => {
+    try {
+      const { decideStuck } = await import('../lib/planObserve.js');
+      res.json(await decideStuck(req.body?.key, req.body?.action, { text: req.body?.text || '' }));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.post('/plan-today/run', async (req, res) => {
     try {
       res.json(await runPlanToday(vaultPath, { force: !!req.body?.force }));

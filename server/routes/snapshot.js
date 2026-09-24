@@ -60,6 +60,8 @@ export const SLICES = {
   // whichever surface asks first settles what today's technique is, and the
   // spoken brief then agrees with Home instead of picking again.
   repertoire: '/api/repertoire/today',
+  // what the day plan keeps listing and nothing closes (lib/planObserve.js)
+  stuck: '/api/plan-today/stuck',
 };
 
 // sentinel for a slice that lost its time-budget race — a unique object, so
