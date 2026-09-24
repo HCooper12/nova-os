@@ -333,6 +333,48 @@ as such so nobody later mistakes them for information design.
   1 to 6 apply to the Home tile and the cards. The scene itself is the
   entrance.
 
+### 5a · The zero-token rule (his ask, 24 Sep; planned 25 Sep)
+
+He asked whether the world would burn Claude usage, and if so how to build
+it so it does not. Answer: **looking at the world costs no tokens**, on the
+condition that the render path is code only. That condition is made a
+test, not a promise.
+
+**Where tokens are spent today, and stay the only places:**
+1. an agent actually running (a job, a plan step, a research worker), which
+   the map only *shows*;
+2. him tapping Talk, which is the same cost as opening that chat today;
+3. the build, once.
+
+**The four refusals** (each is a reel idea that would quietly bill him):
+- **No "morning meeting" between agents.** The reel's agents "meet and
+  talk" daily; that is a model conversation a day. Nova's briefing
+  already composes the morning from the vault by code.
+- **No model-written speech bubbles or narration.** A bubble shows the
+  record's own text (`tldr.js`, code-derived). Nothing on the map is
+  phrased by a model.
+- **No figure without a real record.** A being appears because a job
+  file, plan step, pending record or heartbeat exists; never to look busy,
+  and never a sub-agent invented for the scene.
+- **No "what is everyone doing?" asked of a model.** State comes from
+  files (`valsOps.js` already reads them). No timer, no poll, no summary
+  call.
+
+**The test:** `server/test/agentWorldNoModel.test.js`, written before any
+map code. It reads every source file the map is allowed to touch
+(`src/agentWorld/**`, `src/vals/valsAgentWorld.js`, the Org Map's server
+composer beside `composeOps`) and fails if any of them imports or names a
+model runner (`runClaude`, `spawnBoundary`, `claude -p`, `anthropic`,
+`lens.js`) or calls a route that does. It also asserts the composer is a
+pure function of its inputs (same files in, same view model out) with no
+network. This is the same shape as the inbox's "code writes, models
+interpret" tests, applied to a surface that must never interpret at all.
+
+**Build cost, kept low:** the sheet's instruments (`scripts/agent-sheet/`)
+mean each iteration is checked by capture rather than by his time, and the
+mechanical parts (placing figures on the geography, wiring the view model
+fields) go to a cheaper model by brief.
+
 ## 6 · Build order and cost
 
 His go is needed for the sequence, and per the Jarvis rule a **mockup comes
