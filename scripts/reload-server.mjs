@@ -14,8 +14,9 @@
 //   node scripts/reload-server.mjs --wait 20  # wait up to 20 min
 //   node scripts/reload-server.mjs --force    # only when HE says so
 //
-// A server too old to answer /api/jobs/active (404) is treated as unknown,
-// not idle: the script says so and needs --force. It never guesses "idle".
+// A server too old to answer /api/jobs/active (404) is not assumed idle:
+// the script falls back to the processes themselves — every AI job is a
+// `claude` child of the server — and only proceeds when there are none.
 
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -49,9 +50,25 @@ try {
   state = { active: 0, byLane: {} };
 }
 
+// Every AI job is a `claude` process spawned by the server; count them.
+function claudeChildren() {
+  try {
+    const line = execFileSync('launchctl', ['list'], { encoding: 'utf8' }).split('\n').find((l) => l.includes('com.novaos.server'));
+    const pid = Number(line?.trim().split(/\s+/)[0]);
+    if (!pid) return 0;
+    const out = execFileSync('pgrep', ['-P', String(pid), '-f', 'claude'], { encoding: 'utf8' }).trim();
+    return out ? out.split('\n').length : 0;
+  } catch { return 0; } // pgrep exits 1 when nothing matches
+}
+
 if (state.unknown && !force) {
-  console.error('the running server cannot report its jobs (it predates /api/jobs/active). Re-run with --force only if you know nothing is running.');
-  process.exit(1);
+  const n = claudeChildren();
+  if (n > 0) {
+    console.error(`the running server predates /api/jobs/active and has ${n} claude process(es) under it — NOT reloading. Wait for them, or --force only if he says so.`);
+    process.exit(1);
+  }
+  console.log('the running server predates /api/jobs/active; no claude processes under it — nothing in flight');
+  state = { active: 0, byLane: {} };
 }
 
 const deadline = Date.now() + waitMin * 60_000;
