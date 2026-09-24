@@ -57,6 +57,22 @@ await ev(`(function(){var s=document.createElement('style');s.textContent='heade
 
 if (opt('pre')) await ev(opt('pre'));
 const only = opt('only');
+if (opt('mode') === 'joints') {
+  // torso-height close-ups: where arms meet bodies and hands meet things
+  const J = [['wait-q3f', 'wait', 0.75], ['wait-q3b', 'wait', 2.4], ['work-q3f', 'work', 0.75], ['work-q3b', 'work', 2.4],
+    ['wait-sideL', 'wait', -1.5708], ['work-sideL', 'work', -1.5708]];
+  let jn = 0;
+  for (const [nm, pose, yw] of J) {
+    await ev(`__agentSheet.pose(${idx},'${pose}')`);
+    await ev(`__agentSheet.still({t:${workTs[0]},yaw:${yw},elev:0.1,zoom:0.5,ty:0.42})`);
+    const s2 = await send('Page.captureScreenshot', { format: 'png' });
+    await writeFile(path.join(outDir, `f_${String(jn++).padStart(2, '0')}.png`), Buffer.from(s2.data, 'base64'));
+  }
+  ws.close(); await cleanup();
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', path.join(outDir, 'f_%02d.png'), '-vf', 'tile=3x2', '-frames:v', '1', path.join(outDir, 'sheet.png')]);
+  console.log(path.join(outDir, 'sheet.png'), J.map((j) => j[0]).join(' | '));
+  process.exit(0);
+}
 const views = [['front', 0], ['q3', 0.72], ['side', 1.5708], ['back', 3.1416]];
 const shots = [];
 let n = 0;

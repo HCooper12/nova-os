@@ -128,7 +128,7 @@ export function createBeingKit(T, TK) {
     { id: 'cfo', name: 'CFO', dept: 'Money', hue: 'good', accent: 'gold', skin: 'ruled',
       line: 'Counts what came in and what went out, and says so plainly.',
       work: 'Working: it flips a coin and watches it all the way up and back.',
-      wait: 'Waiting: hands behind its back, the month’s stack beside it.' },
+      wait: 'Waiting: the ledger held in its arm, the month’s stack beside it.' },
     { id: 'guardian', name: 'Guardian', dept: 'Platform', hue: 'vi', accent: 'gold', skin: 'hex',
       line: 'Keeps the backups landing and the quiet loops from staying quiet.',
       work: 'Working: the lantern comes up bright as a backup lands.',
@@ -389,7 +389,7 @@ export function createBeingKit(T, TK) {
     }, 192, 256);
   }
   function chipTex() {
-    return tex('chip', function (x, w, h) {
+    return tex('chip', function (x, w) {
       var c = w / 2;
       x.fillStyle = '#e9eef6'; x.beginPath(); x.arc(c, c, c, 0, 7); x.fill();
       x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 5;
@@ -578,11 +578,13 @@ export function createBeingKit(T, TK) {
     var curve = new T.CatmullRomCurve3([new T.Vector3(), new T.Vector3(), new T.Vector3()], false, 'centripetal');
     var L1 = o.L1, L2 = o.L2, r0 = o.r0, r1 = o.r1;
     var arm = {
-      mesh: mesh, hand: hand, palm: palm, thumb: thumb, finger: finger, elbow: new T.Vector3(),
+      mesh: mesh, hand: hand, palm: palm, thumb: thumb, finger: finger, shoulder: shoulder, elbow: new T.Vector3(),
       set: function (S, H, pole, palmDir) {
         _ad.subVectors(H, S); var d = _ad.length() || 1e-4; _ad.divideScalar(d);
         var l1 = L1, l2 = L2;
-        if (d > (l1 + l2) * 0.995) { var k = d / ((l1 + l2) * 0.995); l1 *= k; l2 *= k; }
+        // never locked straight: a noodle arm with no elbow reads as a stick
+        var MAXR = o.maxReach || 0.9;
+        if (d > (l1 + l2) * MAXR) { var k = d / ((l1 + l2) * MAXR); l1 *= k; l2 *= k; }
         var a = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
         var hh = Math.sqrt(Math.max(0, l1 * l1 - a * a));
         _ap.copy(pole).addScaledVector(_ad, -pole.dot(_ad));
@@ -628,6 +630,81 @@ export function createBeingKit(T, TK) {
     return obj;
   }
 
+  // HUGGING. A strap, a towel or a cape has to lie ON the body; a curve
+  // through a few control points cuts straight through it in between (the
+  // Researcher's first strap came out of its own chest). So every sample is
+  // projected onto the surface: a ray from outside toward an interior
+  // centre C, the first hit, pushed back out along the surface normal.
+  var _hro = new T.Vector3(), _hrd = new T.Vector3(), _hnm = new T.Matrix3();
+  function hug(meshes, p, C, off) {
+    _hrd.subVectors(p, C);
+    if (_hrd.lengthSq() < 1e-8) _hrd.set(0, 0, 1);
+    _hrd.normalize();
+    _hro.copy(C).addScaledVector(_hrd, 3);
+    _rc.set(_hro, _hrd.clone().negate());
+    var h = _rc.intersectObjects(meshes, false)[0];
+    if (!h) return { p: p.clone(), n: _hrd.clone() };
+    var n = h.face.normal.clone();
+    _hnm.getNormalMatrix(h.object.matrixWorld); n.applyMatrix3(_hnm).normalize();
+    if (n.dot(_hrd) < 0) n.negate();
+    return { p: h.point.clone().addScaledVector(n, off || 0), n: n };
+  }
+  // A strap swept along a hugged path: a rounded-rectangle section whose
+  // width lies along the surface and whose thickness stands off it, capped
+  // at both ends. `o`: { w, t, off, n, mat }.
+  function strap(meshes, ctrl, C, o) {
+    meshes.forEach(function (m) { m.updateMatrixWorld(true); });
+    var N = o.n || 44, M = 14, curve = new T.CatmullRomCurve3(ctrl, false, 'centripetal');
+    var P = [], NN = [], s0 = new T.Vector3(), i, j;
+    for (i = 0; i <= N; i++) {
+      curve.getPoint(i / N, s0);
+      var hh = hug(meshes, s0, C, (o.off || 0.003) + o.t / 2);
+      P.push(hh.p); NN.push(hh.n);
+    }
+    // a light smoothing pass: face normals of a faceted body would twist it
+    for (var pass = 0; pass < 2; pass++) {
+      var sm = NN.map(function (n, k) { return n.clone().add(NN[Math.max(0, k - 1)]).add(NN[Math.min(N, k + 1)]).normalize(); });
+      NN = sm;
+    }
+    var pos = [], nor = [], uv = [], idx = [], Tg = new T.Vector3(), W = new T.Vector3(), Nn = new T.Vector3();
+    var ends = [];
+    for (i = 0; i <= N; i++) {
+      Tg.subVectors(P[Math.min(N, i + 1)], P[Math.max(0, i - 1)]).normalize();
+      Nn.copy(NN[i]).addScaledVector(Tg, -NN[i].dot(Tg)).normalize();
+      W.crossVectors(Tg, Nn).normalize();
+      if (i === 0 || i === N) ends.push({ c: P[i].clone(), t: Tg.clone(), ring: [] });
+      for (j = 0; j <= M; j++) {
+        var an = j / M * Math.PI * 2, c = Math.cos(an), sn = Math.sin(an);
+        var ex = spow(c, 0.35) * o.w / 2, ey = spow(sn, 0.35) * o.t / 2;
+        var q = new T.Vector3().copy(P[i]).addScaledVector(W, ex).addScaledVector(Nn, ey);
+        var nq = new T.Vector3().addScaledVector(W, spow(c, 1.65) / (o.w / 2)).addScaledVector(Nn, spow(sn, 1.65) / (o.t / 2)).normalize();
+        pos.push(q.x, q.y, q.z); nor.push(nq.x, nq.y, nq.z); uv.push(i / N, j / M);
+        if ((i === 0 || i === N) && j < M) ends[ends.length - 1].ring.push(q);
+      }
+    }
+    for (i = 0; i < N; i++) for (j = 0; j < M; j++) {
+      var A = i * (M + 1) + j, B = A + M + 1;
+      idx.push(A, B, A + 1, A + 1, B, B + 1);
+    }
+    ends.forEach(function (e, k) {
+      var base = pos.length / 3, sgn = k === 0 ? -1 : 1;
+      pos.push(e.c.x, e.c.y, e.c.z); nor.push(e.t.x * sgn, e.t.y * sgn, e.t.z * sgn); uv.push(k, 0.5);
+      e.ring.forEach(function (q) { pos.push(q.x, q.y, q.z); nor.push(e.t.x * sgn, e.t.y * sgn, e.t.z * sgn); uv.push(k, 0.5); });
+      for (var r = 0; r < M; r++) {
+        var r0 = base + 1 + r, r1 = base + 1 + (r + 1) % M;
+        if (k === 0) idx.push(base, r0, r1); else idx.push(base, r1, r0);
+      }
+    });
+    var g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new T.Float32BufferAttribute(nor, 3));
+    g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    var m = new T.Mesh(g, o.mat); m.castShadow = true; m.receiveShadow = true;
+    m.userData.path = P; m.userData.normals = NN;
+    return m;
+  }
+
   function bodyProfile(o) {
     // foot of the body rides just above the boots; one smooth pear
     return [
@@ -652,7 +729,6 @@ export function createBeingKit(T, TK) {
       v: function (name, x, y, z) {
         var c = st[name];
         if (!c) { c = st[name] = new T.Vector3(x, y, z); return c; }
-        var ox = c.x, oy = c.y, oz = c.z;
         c.x += (x - c.x) * k; c.y += (y - c.y) * k; c.z += (z - c.z) * k;
         if (Math.abs(c.x - x) + Math.abs(c.y - y) + Math.abs(c.z - z) > 1e-4) moving = true;
         return c;
@@ -667,11 +743,12 @@ export function createBeingKit(T, TK) {
   // ---- makeBot ----------------------------------------------------
   function makeBot(a, o) {
     var hue = hueOf(a), acc = accOf(a), g = new T.Group();
-    var sk = skin(a.skin, o.bands || [], false);
+    var sk = skin(a.skin, o.bands || [], false), skHead = skin(a.skin, [], false);
     function vinyl(col, x) {
       x = x || {};
+      var tx = x.sk || sk;
       var m = new T.MeshPhysicalMaterial({
-        color: col, map: x.plain ? null : sk.map, roughnessMap: x.plain ? null : sk.rough,
+        color: col, map: x.plain ? null : tx.map, roughnessMap: x.plain ? null : tx.rough,
         roughness: x.rough != null ? x.rough : 0.46, metalness: x.metal != null ? x.metal : 0.04,
         clearcoat: x.coat != null ? x.coat : 0.62, clearcoatRoughness: x.coatR != null ? x.coatR : 0.2,
         sheen: 0.5, sheenColor: lighter(acc, 0.4), sheenRoughness: 0.6
@@ -683,7 +760,7 @@ export function createBeingKit(T, TK) {
     bodyMat.emissive = hue.clone(); bodyMat.emissiveIntensity = 0.05 * TK.em; bodyMat.userData.baseEm = 0.05;
     EMISSIVES.push(bodyMat);
     if (o.irid) { bodyMat.iridescence = o.irid; bodyMat.iridescenceIOR = 1.3; }
-    var headMat = vinyl(o.headCol || darker(hue, 0.9).lerp(TK.shell, 0.1), { coat: 0.8, coatR: 0.12, rough: 0.38 });
+    var headMat = vinyl(o.headCol || darker(hue, 0.9).lerp(TK.shell, 0.1), { coat: 0.8, coatR: 0.12, rough: 0.38, sk: skHead });
     var trimMat = vinyl(o.trimCol || darker(hue, 0.74).lerp(TK.shell, 0.06), { plain: true, rough: 0.42 });
     var handMat = vinyl(o.handCol || lighter(TK.shell, 0.45), { plain: true, rough: 0.5, coat: 0.5 });
     var jointMat = new T.MeshPhysicalMaterial({ color: darker(hue, 0.3).lerp(new T.Color(0x151a26), 0.55), roughness: 0.55, metalness: 0.2, clearcoat: 0.3 });
@@ -774,7 +851,7 @@ export function createBeingKit(T, TK) {
     // back of a being is a designed surface and not a blank. Every being
     // has one; the beings that carry something on the back add it on top.
     var bpHit = onBody(body, 0, o.body.chestY - 0.02, -1);
-    var bp = new T.Group(); seat(bp, bpHit, 0.002); g.add(bp);
+    var bp = new T.Group(); seat(bp, bpHit, 0.002); if (o.backPlate !== false) g.add(bp);
     var plate = new T.Mesh(badgeGeo(rrect(0.19, 0.15, 0.03), 0.008, 0.005, o.body.chestR), trimMat);
     plate.castShadow = true; bp.add(plate);
     bp.add(mesh(GEO.box, jointMat, 0.13, 0.014, 0.004, 0, 0.03, 0.013));
@@ -791,7 +868,7 @@ export function createBeingKit(T, TK) {
       arm: function (side, x) {
         return makeArm(g, x.mat || trimMat, handMat, {
           side: side, r0: x.r0 || 0.05, r1: x.r1 || 0.034, L1: x.L1 || 0.2, L2: x.L2 || 0.2,
-          rh: x.rh, point: x.point
+          rh: x.rh, point: x.point, maxReach: x.maxReach
         });
       },
       onHelmet: function (x, y, off) { var P = new T.Vector3(), N = new T.Vector3(); onHelmet(H, x, y, off || 0, P, N); return { p: P, n: N }; }
@@ -948,9 +1025,9 @@ export function createBeingKit(T, TK) {
         wait: { w: 0.047, h: 0.062, lid: 0, slope: 0.05, smile: 0, tilt: 0.03, browY: 0.024, browA: 0.1 },
         work: { h: 0.066, browY: 0.034, browA: 0.22, dy: 0.004 }
       },
-      coreY: 0.34, markerY: 1.56, footR: 0.4
+      coreY: 0.34, markerY: 1.56, footR: 0.4, backPlate: false
     });
-    var g = b.group, hue = b.hue, acc = b.acc;
+    var g = b.group, hue = b.hue;
     var gold = metalMat(lighter(TK.gold, 0.18), 0.24);
     gold.emissive = TK.gold.clone(); gold.emissiveIntensity = 0.12;
     // epaulettes: a padded gold dome on each shoulder, with a lit edge
@@ -974,33 +1051,86 @@ export function createBeingKit(T, TK) {
     north.castShadow = false; card.add(north);
     var roseGlow = halo(TK.gold, 0.14, 0.16); roseGlow.position.z = -0.02; roseG.add(roseGlow);
 
-    // THE CAPE — hangs off the epaulettes, wraps the back, flares to the
-    // hem, gold-lined; it lifts and swings a little as the arm comes up
-    var capeGeo = new T.PlaneGeometry(1, 1, 16, 12), cpB = capeGeo.attributes.position.array.slice(0);
-    var capeM = new T.MeshPhysicalMaterial({ color: darker(hue, 0.5), roughness: 0.72, sheen: 1, sheenColor: lighter(hue, 0.4), side: T.BackSide });
-    var capeIn = new T.MeshPhysicalMaterial({ color: lighter(TK.gold, 0.08), roughness: 0.55, side: T.FrontSide, emissive: TK.gold.clone(), emissiveIntensity: 0.1 });
-    var cape = new T.Group(); g.add(cape);
-    var capeMesh = new T.Mesh(capeGeo, capeM); capeMesh.castShadow = true; cape.add(capeMesh);
-    cape.add(new T.Mesh(capeGeo, capeIn));
-    function drape(lift) {
-      var pp = capeGeo.attributes.position;
-      for (var k = 0; k < pp.count; k++) {
-        var u = cpB[k * 3], v = 0.5 - cpB[k * 3 + 1];            // u -0.5..0.5 across, v 0 collar .. 1 hem
-        var an = u * (1.5 - v * 0.25), r = 0.26 + v * 0.1 + lift * v * v * 0.16;
-        var sway = Math.sin(v * 3 + u * 2) * 0.008 * v;
-        pp.setXYZ(k, Math.sin(an) * r + sway, 0.55 - v * 0.44 + lift * v * v * 0.08, -Math.cos(an) * r + 0.02);
+    // THE CAPE — laid ON the back. Pass 4's cape was a sheet bent round a
+    // guessed cylinder: from behind it read as a stiff pale board, flaring
+    // off the body. Now every grid point is projected onto the body (and
+    // over the shoulder joints) and the cloth only stands off it by a hair
+    // at the collar and a little more at the hem, which is where a cape
+    // actually swings. The top edge tucks under the helmet; the epaulettes
+    // cover its corners.
+    var capeU = 16, capeV = 12, capeBase = [], capeNorm = [];
+    var SLc = V(-0.215, 0.475, 0), SRc = V(0.215, 0.475, 0);
+    var armLc = b.arm(-1, { r0: 0.05, r1: 0.034, L1: 0.21, L2: 0.2 });
+    var armRc = b.arm(1, { r0: 0.05, r1: 0.034, L1: 0.21, L2: 0.2, point: true });
+    var hugOn = [b.body, armLc.shoulder, armRc.shoulder];
+    armLc.set(SLc, V(-0.285, 0.29, 0.05), V(-1, 0.15, -0.25), V(1, 0, 0.2));
+    armRc.set(SRc, V(0.29, 0.17, 0.07), V(0.25, 0, -1), V(-1, 0, 0.1));
+    hugOn.forEach(function (m) { m.updateMatrixWorld(true); });
+    for (var cv = 0; cv <= capeV; cv++) {
+      for (var cu = 0; cu <= capeU; cu++) {
+        var uu = cu / capeU - 0.5, vv = cv / capeV;
+        var spread = 2.1 - vv * 0.25;
+        var an = uu * spread;
+        // rounded hem corners: the bottom edge rises toward the sides
+        var yy = 0.575 - vv * 0.4 * (1 - 0.22 * Math.pow(2 * uu, 4));
+        var Cc = V(0, yy, 0), dir = V(Math.sin(an), 0, -Math.cos(an));
+        var hc = hug(hugOn, Cc.clone().add(dir), Cc, 0);
+        capeBase.push(hc.p); capeNorm.push(hc.n);
       }
-      pp.needsUpdate = true; capeGeo.computeVertexNormals();
     }
+    var capeGeo = new T.BufferGeometry(), capePos = new Float32Array(capeBase.length * 3), capeUv = [], capeIdx = [];
+    for (cv = 0; cv <= capeV; cv++) for (cu = 0; cu <= capeU; cu++) capeUv.push(cu / capeU, 1 - cv / capeV);
+    for (cv = 0; cv < capeV; cv++) for (cu = 0; cu < capeU; cu++) {
+      var q0 = cv * (capeU + 1) + cu, q1 = q0 + 1, q2 = q0 + capeU + 1, q3 = q2 + 1;
+      capeIdx.push(q0, q2, q1, q1, q2, q3);
+    }
+    capeGeo.setAttribute('position', new T.BufferAttribute(capePos, 3));
+    capeGeo.setAttribute('uv', new T.Float32BufferAttribute(capeUv, 2));
+    capeGeo.setIndex(capeIdx);
+    // navy, not a darker cyan: in the body's own hue it read as a hump
+    var capeM = new T.MeshPhysicalMaterial({ color: darker(hue, 0.2).lerp(new T.Color(0x121a3d), 0.82), roughness: 0.58, sheen: 0.18, sheenColor: lighter(hue, 0.1), sheenRoughness: 0.6, clearcoat: 0.15 });
+    var capeIn = new T.MeshPhysicalMaterial({ color: lighter(TK.gold, 0.05), roughness: 0.5, metalness: 0.1, emissive: TK.gold.clone(), emissiveIntensity: 0.08 });
+    var cape = new T.Group(); g.add(cape);
+    var capeMesh = new T.Mesh(capeGeo, capeM); capeMesh.castShadow = true; capeMesh.receiveShadow = true; cape.add(capeMesh);
+    var capeLining = new T.Mesh(capeGeo, capeIn); cape.add(capeLining);
+    // gold piping along the hem, so the edge of the cloth is drawn
+    var hemPipe = taperTube(capeU, 8);
+    var hemM = new T.Mesh(hemPipe.geo, metalMat(lighter(TK.gold, 0.12), 0.3)); hemM.castShadow = true; cape.add(hemM);
+    // the rolled collar along the top edge
+    var collar = taperTube(capeU, 8);
+    var collarM = new T.Mesh(collar.geo, capeM); collarM.castShadow = true; cape.add(collarM);
+    var _cq = new T.Vector3();
+    function drape(lift) {
+      for (var k = 0; k < capeBase.length; k++) {
+        var vv2 = Math.floor(k / (capeU + 1)) / capeV, uu2 = (k % (capeU + 1)) / capeU - 0.5;
+        var off = 0.012 + vv2 * vv2 * (0.035 + lift * 0.06);
+        _cq.copy(capeBase[k]).addScaledVector(capeNorm[k], off);
+        _cq.y += lift * vv2 * vv2 * 0.03;
+        _cq.x += Math.sin(vv2 * 3 + uu2 * 4) * 0.006 * vv2 * (1 + lift);
+        capePos[k * 3] = _cq.x; capePos[k * 3 + 1] = _cq.y; capePos[k * 3 + 2] = _cq.z;
+      }
+      capeGeo.attributes.position.needsUpdate = true; capeGeo.computeVertexNormals();
+      for (var c2 = 0; c2 <= capeU; c2++) {
+        collar.pts[c2].set(capePos[c2 * 3], capePos[c2 * 3 + 1], capePos[c2 * 3 + 2]).addScaledVector(capeNorm[c2], 0.008);
+      }
+      collar.build(function () { return 0.016; });
+      var hb = capeV * (capeU + 1);
+      for (var c3 = 0; c3 <= capeU; c3++) hemPipe.pts[c3].set(capePos[(hb + c3) * 3], capePos[(hb + c3) * 3 + 1], capePos[(hb + c3) * 3 + 2]);
+      hemPipe.build(function () { return 0.007; });
+    }
+    // which side is out: the winding decides, so it is measured, not assumed
     drape(0);
-    var SL = V(-0.215, 0.475, 0), SR = V(0.215, 0.475, 0);
-    var armL = b.arm(-1, { r0: 0.05, r1: 0.034, L1: 0.21, L2: 0.2 });
-    var armR = b.arm(1, { r0: 0.05, r1: 0.034, L1: 0.21, L2: 0.2, point: true });
+    var mid = Math.floor(capeV / 2) * (capeU + 1) + Math.floor(capeU / 2);
+    var gn = capeGeo.attributes.normal;
+    var outward = gn.getX(mid) * capeNorm[mid].x + gn.getY(mid) * capeNorm[mid].y + gn.getZ(mid) * capeNorm[mid].z > 0;
+    capeM.side = outward ? T.FrontSide : T.BackSide;
+    capeIn.side = outward ? T.BackSide : T.FrontSide;
+    var SL = SLc, SR = SRc, armL = armLc, armR = armRc;
     b.tell = function (t, working, rm) {
       var P = b.pose; P.frame(t);
       // left hand on the hip, always: the captain's stance
       armL.set(SL, P.v('lH', -0.285, 0.29, 0.05), P.v('lP', -1, 0.15, -0.25), P.v('lPalm', 1, 0, 0.2));
-      var rH = working ? P.v('rH', 0.34, 0.9, 0.32) : P.v('rH', 0.29, 0.17, 0.07);
+      var rH = working ? P.v('rH', 0.31, 0.8, 0.25) : P.v('rH', 0.29, 0.17, 0.07);
       var rP = working ? P.v('rP', 1, -0.6, -0.2) : P.v('rP', 0.25, 0, -1);
       var rPalm = working ? P.v('rPalm', -0.4, 0, 1) : P.v('rPalm', -1, 0, 0.1);
       armR.set(SR, rH, rP, rPalm);
@@ -1066,7 +1196,7 @@ export function createBeingKit(T, TK) {
       feet: { x: 0.135, sx: 0.092, sz: 0.125, yaw: 0.32 },
       coreY: 0.29, markerY: 1.36, footR: 0.46, earR: 0.08
     });
-    var g = b.group, hue = b.hue, acc = b.acc;
+    var g = b.group, acc = b.acc;
     var bandMat = new T.MeshPhysicalMaterial({ color: lighter(acc, 0.05), roughness: 0.78, metalness: 0, sheen: 1, sheenColor: lighter(acc, 0.5), sheenRoughness: 0.4 });
     // the sweatband, around the forehead above the screen
     var sweat = new T.Mesh(helmetBand(b.H, 0.14, 0.205, 0.018), bandMat);
@@ -1108,12 +1238,21 @@ export function createBeingKit(T, TK) {
     var armL = b.arm(-1, { r0: 0.056, r1: 0.038, L1: 0.2, L2: 0.19, rh: 0.052 });
     var armR = b.arm(1, { r0: 0.056, r1: 0.038, L1: 0.2, L2: 0.19, rh: 0.052 });
     [armL, armR].forEach(function (arm) { arm.hand.children[0].material = bandMat; arm.hand.children[0].scale.set(0.058, 0.058, 0.16); });
-    // a towel over the left shoulder: down the chest a little, down the back a lot
-    var towelC = new T.CatmullRomCurve3([V(-0.17, 0.36, 0.2), V(-0.19, 0.5, 0.12), V(-0.2, 0.56, 0), V(-0.19, 0.5, -0.15), V(-0.18, 0.36, -0.24), V(-0.17, 0.2, -0.25)]);
-    var towelM = new T.MeshPhysicalMaterial({ color: 0xf5f2ea, roughness: 0.9, sheen: 0.8, sheenColor: 0xffffff, side: T.DoubleSide });
-    var towel = ribbon(towelC, 24, 0.055, V(1, 0, 0), towelM); g.add(towel);
-    var towelStripe = ribbon(towelC, 24, 0.012, V(1, 0, 0), new T.MeshPhysicalMaterial({ color: lighter(acc, 0.1), roughness: 0.85, side: T.DoubleSide }));
-    towelStripe.position.y += 0.002; g.add(towelStripe);
+    // THE TOWEL — over the left shoulder, a hand's length down the chest
+    // and most of the way down the back. Pass 4's was a paper-thin ribbon
+    // standing off the chest; this one has thickness and lies on the body.
+    armL.set(SL, V(-0.29, 0.28, 0.05), V(-1, 0.15, -0.25), V(1, 0, 0.2));
+    armR.set(SR, V(0.29, 0.28, 0.05), V(1, 0.15, -0.25), V(-1, 0, 0.2));
+    var towelTex = tex('towel', function (x, w, h) {
+      x.fillStyle = '#f7f4ec'; x.fillRect(0, 0, w, h);
+      for (var i = 0; i < 1800; i++) { x.fillStyle = 'rgba(0,0,0,' + (0.02 + Math.random() * 0.04) + ')'; x.fillRect(Math.random() * w, Math.random() * h, 1.5, 1.5); }
+      var col = '#' + lighter(acc, 0.05).getHexString();
+      [0.07, 0.11, 0.89, 0.93].forEach(function (u) { x.fillStyle = col; x.fillRect(u * w - w * 0.012, 0, w * 0.024, h); });
+    }, 256, 32);
+    var towelM = new T.MeshPhysicalMaterial({ map: towelTex, roughness: 0.95, sheen: 1, sheenColor: 0xffffff, sheenRoughness: 0.8 });
+    var towel = strap([b.body, armL.shoulder], [V(-0.15, 0.34, 0.3), V(-0.17, 0.45, 0.25), V(-0.19, 0.58, 0.05), V(-0.19, 0.55, -0.15), V(-0.17, 0.42, -0.3), V(-0.16, 0.22, -0.3)],
+      V(-0.12, 0.36, 0), { w: 0.1, t: 0.016, off: 0.004, n: 48, mat: towelM });
+    g.add(towel);
     b.tell = function (t, working, rm) {
       var P = b.pose; P.frame(t);
       var ph = 0;
@@ -1131,7 +1270,6 @@ export function createBeingKit(T, TK) {
       var gripL = V(-0.2, bp.y, bp.z), gripR = V(0.2, bp.y, bp.z);
       var lH = working ? P.v('lH', gripL.x, gripL.y, gripL.z) : P.v('lH', -0.29, 0.28, 0.05);
       var rH = working ? P.v('rH', gripR.x, gripR.y, gripR.z) : P.v('rH', 0.29, 0.28, 0.05);
-      var pole = working ? V(0, -0.5, -1) : null;
       armL.set(SL, lH, working ? P.v('lP', -0.25, -0.5, -1) : P.v('lP', -1, 0.15, -0.25), working ? P.v('lPalm', 0, 1, 0.3) : P.v('lPalm', 1, 0, 0.2));
       armR.set(SR, rH, working ? P.v('rP', 0.25, -0.5, -1) : P.v('rP', 1, 0.15, -0.25), working ? P.v('rPalm', 0, 1, 0.3) : P.v('rPalm', -1, 0, 0.2));
       // the grin comes with the top of the rep, not with the whole set
@@ -1160,7 +1298,7 @@ export function createBeingKit(T, TK) {
       },
       coreY: 0.33, markerY: 1.38, footR: 0.44
     });
-    var g = b.group, hue = b.hue, acc = b.acc;
+    var g = b.group;
     // THE COIN SLOT — the helmet is a money box: a dark slot in the crown
     // with a gold lip, readable from any angle the sheet is seen at
     var goldM = metalMat(lighter(TK.gold, 0.15), 0.26);
@@ -1191,24 +1329,47 @@ export function createBeingKit(T, TK) {
     var gleam = halo(lighter(TK.gold, 0.6), 0.12, 0.0); gleam.position.set(0.42, 0.2, 0.2); g.add(gleam);
     var flip = coin(); g.add(flip);
 
+    // THE LEDGER — held against the chest in the left arm. Hands behind the
+    // back (pass 4) read from the side as two green nubs; a book in the arm
+    // reads from everywhere, and it is the job.
+    var ledgerHit = onBody(b.body, -0.075, 0.33);
+    var ledger = new T.Group(); seat(ledger, ledgerHit, 0.034); ledger.rotateZ(0.12); ledger.rotateX(-0.08); g.add(ledger);
+    // oxblood leather: in the body's green it vanished against the chest
+    var ledCover = new T.MeshPhysicalMaterial({ color: 0x5e1f24, roughness: 0.5, clearcoat: 0.55, clearcoatRoughness: 0.25, sheen: 0.35, sheenColor: 0xb05a55 });
+    ledger.add(mesh(GEO.box, ledCover, 0.155, 0.2, 0.04));
+    var pagesM = new T.MeshPhysicalMaterial({ color: 0xf3eedd, roughness: 0.85 });
+    ledger.add(mesh(GEO.box, pagesM, 0.146, 0.19, 0.03, 0.007, 0, 0));
+    [[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(function (c) {
+      ledger.add(mesh(GEO.box, goldM, 0.026, 0.026, 0.044, c[0] * 0.068, c[1] * 0.09, 0));
+    });
+    ledger.add(mesh(GEO.box, goldM, 0.08, 0.014, 0.004, 0, 0.036, 0.021));
+    ledger.add(mesh(GEO.box, goldM, 0.05, 0.008, 0.004, 0, 0.012, 0.021));
+    var ribbonB = mesh(GEO.box, new T.MeshPhysicalMaterial({ color: lighter(TK.gold, 0.1), roughness: 0.6 }), 0.012, 0.06, 0.004, 0.04, -0.12, 0.004);
+    ledger.add(ribbonB);
+    ledger.updateMatrixWorld(true);
+    var ledgerGrip = V(-0.07, -0.088, 0.022).applyMatrix4(ledger.matrix);
     var SL = V(-0.2, 0.475, 0), SR = V(0.2, 0.475, 0);
     var armL = b.arm(-1, { r0: 0.048, r1: 0.033, L1: 0.2, L2: 0.19 });
     var armR = b.arm(1, { r0: 0.048, r1: 0.033, L1: 0.2, L2: 0.19 });
     b.tell = function (t, working, rm) {
       var P = b.pose; P.frame(t);
-      // folded: the left forearm across the belly, the right tucked over it
-      // hands clasped behind the back: composed, precise
-      armL.set(SL, P.v('lH', -0.06, 0.24, -0.25), P.v('lP', -1, 0.1, 0.25), P.v('lPalm', 1, 0, 0));
+      // the left arm cradles the ledger: the mitten under its outer corner
+      armL.set(SL, ledgerGrip, V(-1, -0.5, -0.2), V(0.3, 1, 0.3));
       var ph = 0, up = 0;
       if (working) {
         var c = (t * 0.7) % 1;
         ph = rm ? 0.5 : c;
         up = Math.sin(Math.min(1, ph / 0.8) * Math.PI);      // the flight
       }
-      var rH = working ? P.v('rH', 0.34, 0.33 - up * 0.03, 0.3) : P.v('rH', 0.06, 0.25, -0.25);
-      armR.set(SR, rH, working ? P.v('rP', 1, -0.4, -0.4) : P.v('rP', 1, 0.1, 0.25), working ? P.v('rPalm', 0, 1, 0) : P.v('rPalm', -1, 0, 0));
-      flip.visible = working;
-      if (working) {
+      var rH = working ? P.v('rH', 0.34, 0.33 - up * 0.03, 0.3) : P.v('rH', 0.27, 0.2, 0.08);
+      armR.set(SR, rH, working ? P.v('rP', 1, -0.4, -0.4) : P.v('rP', 0.3, 0, -1), working ? P.v('rPalm', 0, 1, 0) : P.v('rPalm', -1, 0, 0.1));
+      // the flight is blended in with the hand, so switching to Working never
+      // shows a coin already in the air before the hand has come up
+      var mixC = P.s('mixC', working ? 1 : 0);
+      up *= mixC;
+      flip.visible = mixC > 0.02;
+      flip.scale.setScalar(Math.max(0.001, Math.min(1, mixC * 1.5)));
+      if (working || mixC > 0.02) {
         flip.position.set(rH.x + up * 0.03, rH.y + 0.075 + up * 0.3, rH.z + 0.02);
         flip.rotation.x = rm ? 1.1 : 0.9 + Math.min(1, ph / 0.8) * Math.PI * 6;
         // the eyes follow it up and back down
@@ -1228,18 +1389,6 @@ export function createBeingKit(T, TK) {
   // a shape extruded and then bent onto a body of radius R, so a badge
   // sits ON a round chest instead of cutting a chord through it
   function rrect(w, h, r) { var s2 = new T.Shape(); s2.moveTo(-w / 2 + r, -h / 2); s2.lineTo(w / 2 - r, -h / 2); s2.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s2.lineTo(w / 2, h / 2 - r); s2.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s2.lineTo(-w / 2 + r, h / 2); s2.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s2.lineTo(-w / 2, -h / 2 + r); s2.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s2; }
-  function ribbon(curve, N, halfW, across, mat, droop) {
-    var g = new T.PlaneGeometry(1, 1, 1, N), P = g.attributes.position, pt = new T.Vector3();
-    for (var i = 0; i <= N; i++) {
-      curve.getPoint(i / N, pt);
-      for (var j = 0; j <= 1; j++) {
-        var v = i * 2 + j, sgn = j ? 1 : -1;
-        P.setXYZ(v, pt.x + across.x * halfW * sgn, pt.y + across.y * halfW * sgn - (droop || 0), pt.z + across.z * halfW * sgn);
-      }
-    }
-    g.computeVertexNormals();
-    var m = new T.Mesh(g, mat); m.castShadow = true; return m;
-  }
   // a fin standing on the crown: the helmet's own profile (x = 0) as the
   // base edge, pushed out along the normal by h(t) for the top edge
   function crownFin(H, a0, a1, h, thick, mat) {
@@ -1280,18 +1429,6 @@ export function createBeingKit(T, TK) {
     return s;
   }
 
-  // a ridge swept over the crown along the helmet's REAL profile (a circle
-  // cannot follow a superquadric and buries itself — the first try did)
-  function crownRidge(H, a0, a1, r, off, mat) {
-    var tube = taperTube(40, 10), P = new T.Vector3();
-    for (var i = 0; i <= 40; i++) {
-      var an = a0 + (a1 - a0) * i / 40, dy = Math.sin(an), dz = Math.cos(an);
-      var t = 1 / Math.pow(Math.pow(Math.abs(dy / H.hy), H.n) + Math.pow(Math.abs(dz / H.hz), H.n), 1 / H.n);
-      P.set(0, dy * t, dz * t); tube.pts[i].copy(P).multiplyScalar(1 + off / P.length());
-    }
-    tube.build(function (u) { return r * (0.55 + 0.45 * Math.sin(Math.PI * Math.min(1, u * 1.15))); });
-    var m = new T.Mesh(tube.geo, mat); m.castShadow = true; return m;
-  }
   // 4 · GUARDIAN — a shield worn on the chest with the core set in it, a
   //     knight's ridge over the helmet, calm round eyes. The lantern hangs
   //     low and amber when a loop has gone quiet; raised and bright when a
@@ -1438,16 +1575,22 @@ export function createBeingKit(T, TK) {
       p.needsUpdate = true; pgGeo.computeVertexNormals();
       leaf.rotation.y = -0.36 - f * (Math.PI - 0.72);
     }
-    var satM = new T.MeshPhysicalMaterial({ color: 0x8a5a33, roughness: 0.65, clearcoat: 0.3, sheen: 0.4, sheenColor: 0xc99a6a });
-    var satHit = onBody(b.body, 0.06, 0.33, -1);
-    var sat = new T.Group(); seat(sat, satHit, 0.05); sat.rotation.z += 0.12; g.add(sat);
-    sat.add(mesh(GEO.box, satM, 0.17, 0.14, 0.09, 0, 0, 0));
-    var flap = new T.Mesh(badgeGeo(rrect(0.17, 0.09, 0.02), 0.012, 0.004, 4), satM); flap.position.set(0, 0.03, 0.05); flap.rotation.x = 0.15; sat.add(flap);
-    sat.add(mesh(GEO.sph, metalMat(lighter(TK.gold, 0.1), 0.3), 0.012, 0.012, 0.008, 0, -0.02, 0.058));
-    var strap = taperTube(20, 8), stC = new T.CatmullRomCurve3([V(0.1, 0.34, -0.2), V(0.17, 0.5, -0.05), V(0.06, 0.55, 0.16), V(-0.14, 0.4, 0.2), V(-0.23, 0.25, 0.04)]);
-    for (var i2 = 0; i2 <= 20; i2++) stC.getPoint(i2 / 20, strap.pts[i2]);
-    strap.build(function () { return 0.012; });
-    var strapM = new T.Mesh(strap.geo, satM); strapM.scale.z = 1; strapM.castShadow = true; g.add(strapM);
+    // THE MESSENGER BAG — at the left hip, its strap across the chest and
+    // over the right shoulder. Pass 4's bag sat on the back plate and its
+    // strap came out through the chest; now the bag hangs at the side and
+    // the strap is laid on the body the whole way round.
+    var satM = new T.MeshPhysicalMaterial({ color: 0x8a5a33, roughness: 0.62, clearcoat: 0.35, sheen: 0.4, sheenColor: 0xc99a6a });
+    var bagHit = hug([b.body], V(-0.4, 0.24, 0.03), V(0, 0.24, 0), 0);
+    var bag = new T.Group(); seat(bag, bagHit, 0.034); g.add(bag);
+    bag.add(mesh(new T.CapsuleGeometry(0.03, 0.09, 6, 12).rotateZ(Math.PI / 2).scale(1.55, 1.9, 1), satM, 1, 1, 1));
+    var flap = new T.Mesh(badgeGeo(rrect(0.15, 0.08, 0.025), 0.01, 0.004, 3), satM);
+    flap.position.set(0, 0.028, 0.034); flap.rotation.x = 0.12; bag.add(flap);
+    bag.add(mesh(GEO.box, metalMat(lighter(TK.gold, 0.1), 0.3), 0.026, 0.018, 0.008, 0, -0.002, 0.05));
+    bag.updateMatrixWorld(true);
+    var bagTopF = V(0, 0.05, 0.02).applyMatrix4(bag.matrix), bagTopB = V(0, 0.05, -0.02).applyMatrix4(bag.matrix);
+    var bagStrap = strap([b.body], [bagTopF, V(-0.16, 0.36, 0.3), V(0.02, 0.46, 0.3), V(0.14, 0.58, 0.05), V(0.1, 0.5, -0.3), V(-0.1, 0.36, -0.3), bagTopB],
+      V(0, 0.34, 0), { w: 0.03, t: 0.009, off: 0.002, n: 64, mat: satM });
+    g.add(bagStrap);
     var SL = V(-0.2, 0.47, 0), SR = V(0.2, 0.47, 0), _hp = new T.Vector3();
     var armL = b.arm(-1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
     var armR = b.arm(1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
@@ -1463,14 +1606,14 @@ export function createBeingKit(T, TK) {
       armL.set(SL, _hp.clone(), V(-1, -0.4, -0.3), V(1, 0, 0.3));
       _hp.set(BW * 0.94, -0.03, -0.02).applyMatrix4(book.matrix);
       armR.set(SR, _hp.clone(), V(1, -0.4, -0.3), V(-1, 0, 0.3));
-      var f;
-      if (working) { var c = (t * 0.42) % 1; f = rm ? 0.5 : (c < 0.55 ? 0 : smooth01((c - 0.55) / 0.45)); }
-      else f = 0.5;
+      var mixR = P.s('mixR', working ? 1 : 0);
+      var c = (t * 0.42) % 1, fc = rm ? 0.5 : (c < 0.55 ? 0 : smooth01((c - 0.55) / 0.45));
+      var f = 0.5 + (fc - 0.5) * mixR;
       if (Math.abs(f - lastF) > 0.002) { turn(f); lastF = f; }
       // the eye reads along the line, then snaps back to the next
       var read = working && !rm ? ((t * 0.9) % 1) : 0.5;
-      b.face.add.dx = working ? (read - 0.5) * 0.03 : 0;
-      b.face.add.dy = working ? -0.012 : 0;
+      b.face.add.dx = (read - 0.5) * 0.03 * mixR;
+      b.face.add.dy = -0.012 * mixR;
       b.headPitch = P.s('pitch', working ? 0.2 : 0.02);
       var lit = P.s('lit', working ? 1 : 0), pulse = rm ? 0 : Math.max(0, Math.sin(t * 2.2)) * 0.6;
       filMat.emissiveIntensity = (0.5 + lit * (2.4 + pulse)) * TK.em;
@@ -1527,7 +1670,7 @@ export function createBeingKit(T, TK) {
       },
       coreY: 0.27, markerY: 1.22, footR: 0.52
     });
-    var g = b.group, hue = b.hue, acc = b.acc;
+    var g = b.group, acc = b.acc;
     // HEADPHONES: the band over the crown; the ear pods become the cups
     var bandM = new T.MeshPhysicalMaterial({ color: darker(acc, 0.5), roughness: 0.4, metalness: 0.3, clearcoat: 0.8 });
     var hb = earBand(b.H, 0.02, 0.022, bandM); hb.scale.z = 1.6; b.head.add(hb);
@@ -1567,11 +1710,12 @@ export function createBeingKit(T, TK) {
       var P = b.pose; P.frame(t);
       var bk = P.v('bk', 0, 0.16, 0.3);
       bucket.position.copy(bk);
-      armL.set(SL, V(bk.x - 0.098, bk.y + 0.07, bk.z), V(-1, -0.5, -0.4), V(1, 0, 0));
+      // the bucket is drawn at 1.55x, so its sides are where these are
+      armL.set(SL, V(bk.x - 0.13, bk.y + 0.1, bk.z), V(-1, -0.5, -0.4), V(1, 0, 0));
       // working, the right hand dips into the bucket now and then
       var dip = 0;
       if (working && !rm) { var c = (t * 0.45) % 1; dip = c > 0.7 ? Math.sin((c - 0.7) / 0.3 * Math.PI) : 0; }
-      armR.set(SR, V(bk.x + 0.098 - dip * 0.06, bk.y + 0.07 + dip * 0.08, bk.z - dip * 0.02), V(1, -0.5, -0.4), dip > 0.1 ? V(0, -1, 0) : V(-1, 0, 0));
+      armR.set(SR, V(bk.x + 0.13 - dip * 0.11, bk.y + 0.1 + dip * 0.14, bk.z - dip * 0.02), V(1, -0.5, -0.4), dip > 0.1 ? V(0, -1, 0) : V(-1, 0, 0));
       var on = P.s('on', working ? 1 : 0);
       var sx = rm ? 0.3 : Math.sin(t * 0.9);
       onHelmet(b.H, sx * 0.25, -0.02, 0.009, _p, _n);
@@ -1608,7 +1752,7 @@ export function createBeingKit(T, TK) {
       },
       coreY: 0.475, markerY: 1.4, footR: 0.44
     });
-    var g = b.group, hue = b.hue, acc = b.acc;
+    var g = b.group, acc = b.acc;
     var brass = metalMat(lighter(TK.gold, 0.1), 0.3);
     // SPECTACLES — gold rims around the eyes, a bridge, riding the screen
     var specs = [];
@@ -1629,7 +1773,6 @@ export function createBeingKit(T, TK) {
     }
     // THE CATALOGUE — six drawer fronts seated on the body
     var frontM = new T.MeshPhysicalMaterial({ color: darker(acc, 0.62).lerp(new T.Color(0x8a5a33), 0.45), roughness: 0.5, clearcoat: 0.6, clearcoatRoughness: 0.2, sheen: 0.4, sheenColor: lighter(acc, 0.3) });
-    function rrect_(w, h, r) { var s2 = new T.Shape(); s2.moveTo(-w / 2 + r, -h / 2); s2.lineTo(w / 2 - r, -h / 2); s2.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s2.lineTo(w / 2, h / 2 - r); s2.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s2.lineTo(-w / 2 + r, h / 2); s2.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s2.lineTo(-w / 2, -h / 2 + r); s2.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s2; }
     var frontGeo = badgeGeo(rrect(0.118, 0.074, 0.016), 0.01, 0.004, 0.26);
     var cardM = new T.MeshPhysicalMaterial({ color: 0xf6f2e8, roughness: 0.8 });
     function drawerFront(parent) {
@@ -1653,7 +1796,7 @@ export function createBeingKit(T, TK) {
     slots.forEach(function (o, i) { if (i !== OPEN) drawerFront(o.slot); });
     var open = slots[OPEN].slot;
     var tray = new T.Group(); open.add(tray);
-    var trayFront = drawerFront(tray);
+    drawerFront(tray);
     var box = new T.Group(); tray.add(box);
     var sideM = frontM;
     box.add(mesh(GEO.box, sideM, 0.1, 0.004, 0.12, 0, -0.03, -0.06));
@@ -1664,15 +1807,23 @@ export function createBeingKit(T, TK) {
     var card = mesh(GEO.box, cardM, 0.08, 0.06, 0.003, 0, 0, -0.05); tray.add(card);
     card.add(mesh(GEO.box, new T.MeshBasicMaterial({ color: 0xb85c4a }), 0.05, 0.004, 0.0005, 0, 0.016, 0.002));
     [0.004, -0.006, -0.014].forEach(function (y) { card.add(mesh(GEO.box, new T.MeshBasicMaterial({ color: 0x9aa6b8 }), 0.044, 0.002, 0.0005, 0, y, 0.002)); });
-    // BOOKS on the hip
+    // BOOKS under the arm — three volumes standing against the hip, spines
+    // forward, the mitten cupped under them. Pass 4's lay at an angle and
+    // the bottom one read as a plank, with the hand below it holding nothing.
     var books = new T.Group(); g.add(books);
     var bookCols = [TK.hue.shoulders, TK.hue.chest, TK.hue.quads];
-    [[0.2, 0.034, 0.15], [0.19, 0.03, 0.14], [0.18, 0.036, 0.13]].forEach(function (d, i) {
-      var bm = new T.MeshPhysicalMaterial({ color: darker(bookCols[i], 0.75), roughness: 0.55, clearcoat: 0.4, sheen: 0.5, sheenColor: lighter(bookCols[i], 0.4) });
-      var bk = mesh(GEO.box, bm, d[0], d[1], d[2], 0, i * 0.035, 0); bk.rotation.y = (i - 1) * 0.12; books.add(bk);
-      var pages = mesh(GEO.box, cardM, d[0] - 0.012, d[1] - 0.008, 0.004, 0, i * 0.035, d[2] / 2 + 0.001); pages.rotation.y = bk.rotation.y; books.add(pages);
+    var bw = [0.036, 0.03, 0.04], bh = [0.2, 0.18, 0.21], bd = [0.15, 0.14, 0.16], bx = 0;
+    var bandM = metalMat(lighter(TK.gold, 0.1), 0.35);
+    bookCols.forEach(function (col, i) {
+      var cm = new T.MeshPhysicalMaterial({ color: darker(col, 0.72), roughness: 0.55, clearcoat: 0.45, sheen: 0.5, sheenColor: lighter(col, 0.4) });
+      var bk = new T.Group(); bk.position.set(-bx - bw[i] / 2, bh[i] / 2, 0); books.add(bk);
+      bk.add(mesh(GEO.box, cm, bw[i], bh[i], bd[i]));
+      bk.add(mesh(GEO.box, cardM, bw[i] - 0.008, bh[i] - 0.012, bd[i] - 0.006, 0, 0, -0.004));
+      [0.05, -0.06].forEach(function (y) { bk.add(mesh(GEO.box, bandM, bw[i] + 0.002, 0.008, 0.004, 0, y * bh[i] / 0.2, bd[i] / 2 + 0.001)); });
+      bx += bw[i] + 0.003;
     });
-    books.position.set(-0.33, 0.22, 0.06); books.rotation.set(0, 0.3, -1.25);
+    books.position.set(-0.262, 0.14, 0.04); books.rotation.set(0, 0.06, 0.05);
+
 
     var SL = V(-0.21, 0.485, 0), SR = V(0.21, 0.485, 0), _h = new T.Vector3();
     var armL = b.arm(-1, { r0: 0.048, r1: 0.033, L1: 0.2, L2: 0.19 });
@@ -1680,15 +1831,14 @@ export function createBeingKit(T, TK) {
     b.tell = function (t, working, rm) {
       var P = b.pose; P.frame(t);
       // the left arm cradles the books against the hip
-      armL.set(SL, V(-0.3, 0.19, 0.12), V(-1, 0.3, -0.2), V(0.4, 1, 0.2));
-      var d, lift;
-      if (working) {
-        var c = (t * 0.5) % 1;
-        d = rm ? 0.08 : (c < 0.3 ? smooth01(c / 0.3) : c < 0.75 ? 1 : 1 - smooth01((c - 0.75) / 0.25)) * 0.09;
-        lift = rm ? 0.5 : (c < 0.3 ? 0 : c < 0.75 ? Math.sin((c - 0.3) / 0.45 * Math.PI) : 0);
-      } else { d = P.s('d0', 0.07); lift = 0; }
+      armL.set(SL, V(-0.33, 0.125, 0.0), V(-0.4, 0.2, -1), V(0.5, 1, 0.1));
+      var mixL = P.s('mixL', working ? 1 : 0);
+      var c = (t * 0.5) % 1;
+      var dc = rm ? 0.08 : (c < 0.3 ? smooth01(c / 0.3) : c < 0.75 ? 1 : 1 - smooth01((c - 0.75) / 0.25)) * 0.09;
+      var lift = (rm ? 0.5 : (c < 0.3 ? 0 : c < 0.75 ? Math.sin((c - 0.3) / 0.45 * Math.PI) : 0)) * mixL;
+      var d = 0.07 + (dc - 0.07) * mixL;
       tray.position.z = d;
-      card.visible = working;
+      card.visible = mixL > 0.02;
       card.position.set(0, 0.012 + lift * 0.07, -0.05 + lift * 0.02);
       // the right hand works the pull, or rests
       tray.updateMatrixWorld(true); g.updateMatrixWorld(true);
@@ -1719,9 +1869,9 @@ export function createBeingKit(T, TK) {
         wait: { w: 0.048, h: 0.052, lid: 0, smile: 0.3, tilt: 0.04, cheek: 0.4 },
         work: { h: 0.052, smile: 0.78, cheek: 0.7 }
       },
-      coreY: 0.43, markerY: 1.5, footR: 0.46, feet: { x: 0.13, sx: 0.09, sz: 0.12 }
+      coreY: 0.3, markerY: 1.5, footR: 0.46, feet: { x: 0.13, sx: 0.09, sz: 0.12 }
     });
-    var g = b.group, hue = b.hue, acc = b.acc;
+    var g = b.group, acc = b.acc;
     var clothM = new T.MeshPhysicalMaterial({ color: 0xf7f4ee, roughness: 0.82, sheen: 1, sheenColor: new T.Color(0xffffff), sheenRoughness: 0.5 });
     // THE TOQUE — a band and a puffed crown
     var toque = new T.Group(); toque.position.set(0, b.H.hy * 0.8, -0.01); toque.rotation.x = -0.1; b.head.add(toque);
@@ -1730,14 +1880,16 @@ export function createBeingKit(T, TK) {
     puffs.forEach(function (p) { var m = mesh(GEO.sph, clothM, p[3], p[3] * 0.85, p[3], p[0], p[1], p[2]); toque.add(m); });
     // THE NECKERCHIEF — a coral scarf round the collar, knotted in front
     var scarfM = new T.MeshPhysicalMaterial({ color: lighter(TK.hue.chest, 0.02), roughness: 0.75, sheen: 1, sheenColor: lighter(TK.hue.chest, 0.45), sheenRoughness: 0.4 });
-    var scarf = mesh(GEO.tor, scarfM, 0.118, 0.118, 0.26, 0, 0.555, 0); scarf.rotation.x = Math.PI / 2 + 0.12; g.add(scarf);
-    var kHit = onBody(b.body, 0, 0.52);
-    var knot = new T.Group(); seat(knot, kHit, 0.02); g.add(knot);
-    knot.add(mesh(GEO.sph, scarfM, 0.03, 0.028, 0.024, 0, 0, 0));
-    [-1, 1].forEach(function (s2) {
-      var tail = mesh(GEO.cone, scarfM, 0.03, 0.08, 0.014, s2 * 0.022, -0.05, -0.004);
-      tail.rotation.z = Math.PI + s2 * 0.35; knot.add(tail);
-    });
+    // pass 4's ring sat inside the collar and only its knot showed, like a
+    // beak; this one rests on the shoulders, rolled, and ties in front
+    var scarf = new T.Mesh(new T.TorusGeometry(0.132, 0.03, 12, 56), scarfM); scarf.position.y = 0.548; scarf.rotation.x = Math.PI / 2 + 0.14;
+    scarf.scale.set(1, 1, 0.8); scarf.castShadow = true; g.add(scarf);
+    var kHit = onBody(b.body, 0, 0.5);
+    var knot = new T.Group(); seat(knot, kHit, 0.028); g.add(knot);
+    // a bandana: the point hangs down the chest, lying on it
+    var tri = new T.Shape(); tri.moveTo(-0.075, 0.012); tri.quadraticCurveTo(0, 0.03, 0.075, 0.012); tri.quadraticCurveTo(0.03, -0.05, 0, -0.1); tri.quadraticCurveTo(-0.03, -0.05, -0.075, 0.012);
+    var flapB = new T.Mesh(badgeGeo(tri, 0.008, 0.005, 0.22), scarfM); flapB.position.set(0, -0.008, -0.012); flapB.rotation.x = -0.18; flapB.castShadow = true; knot.add(flapB);
+    knot.add(mesh(GEO.sph, scarfM, 0.03, 0.026, 0.024, 0, 0.004, 0.006));
     // THE POT
     var pot = new T.Group(); g.add(pot);
     var enamel = new T.MeshPhysicalMaterial({ color: lighter(TK.hue.chest, 0.05), roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.08, side: T.DoubleSide });
@@ -1769,14 +1921,18 @@ export function createBeingKit(T, TK) {
       pot.position.copy(pp);
       armL.set(SL, V(pp.x - 0.13, pp.y + 0.075, pp.z), V(-1, -0.4, -0.3), V(1, 0, 0));
       // the ladle circles the pot when it stirs; rests against the rim when not
-      var th = working ? (rm ? 0.8 : t * 2.3) : 0.9, rr = working ? 0.045 : 0.06;
-      var bx = Math.cos(th) * rr, bz = Math.sin(th) * rr;
+      // one blend drives the ladle AND the hand, so the hand never lets go
+      var mixM = P.s('mixM', working ? 1 : 0);
+      var th = rm ? 0.8 : t * 2.3;
+      var bx = Math.cos(0.9) * 0.06 + (Math.cos(th) * 0.045 - Math.cos(0.9) * 0.06) * mixM;
+      var bz = Math.sin(0.9) * 0.06 + (Math.sin(th) * 0.045 - Math.sin(0.9) * 0.06) * mixM;
       ladle.position.set(bx, 0.03, bz);
-      var lean = working ? 0.35 : 0.5;
+      var lean = 0.5 - 0.15 * mixM;
       ladle.rotation.set(0, 0, -lean);
       _t.set(bx + Math.sin(lean) * 0.19, 0.03 + Math.cos(lean) * 0.19, bz).add(pp);
-      var rH = working ? P.v('rH', _t.x, _t.y, _t.z) : P.v('rH', pp.x + 0.13, pp.y + 0.075, pp.z);
-      armR.set(SR, rH, V(1, -0.5, -0.3), working ? V(-0.5, 0, 0.5) : V(-1, 0, 0));
+      var rest = V(pp.x + 0.13, pp.y + 0.075, pp.z);
+      var rH = rest.clone().lerp(_t, mixM);
+      armR.set(SR, rH, V(1, -0.5, -0.3), V(-1, 0, 0).lerp(V(-0.5, 0, 0.5), mixM));
       var on = P.s('on', working ? 1 : 0);
       heatL.intensity = on * (0.8 + (rm ? 0 : Math.sin(t * 3.1) * 0.2));
       soupM.emissiveIntensity = 0.2 + on * 0.35;
@@ -1820,7 +1976,7 @@ export function createBeingKit(T, TK) {
       },
       coreY: 0.47, markerY: 1.44, footR: 0.44
     });
-    var g = b.group, hue = b.hue, acc = b.acc;
+    var g = b.group, acc = b.acc;
     // the listening ear: brighter, a little larger, the side it tilts to
     var ear = b.ears[1]; ear.scale.setScalar(1.18);
     var earRing = ear.children[1].material;
@@ -1847,10 +2003,12 @@ export function createBeingKit(T, TK) {
     b.tell = function (t, working, rm) {
       var P = b.pose; P.frame(t);
       var op = P.v('orb', 0, 0.4, 0.34);
-      orb.position.copy(op); orb.position.y += 0.1 + (rm ? 0 : Math.sin(t * 1.4) * 0.012);
-      // cupped: the hands under the orb, palms up and in
-      armL.set(SL, V(op.x - 0.078, op.y - 0.065, op.z - 0.005), V(-1, -0.6, -0.2), V(0.6, 1, 0));
-      armR.set(SR, V(op.x + 0.078, op.y - 0.065, op.z - 0.005), V(1, -0.6, -0.2), V(-0.6, 1, 0));
+      // it rests in the hands, lifting a breath above them; pass 4 floated
+      // it a hand's height up, and the hands held nothing
+      orb.position.copy(op); orb.position.y += 0.03 + (rm ? 0 : Math.sin(t * 1.4) * 0.006);
+      var oy = op.y + 0.03;
+      armL.set(SL, V(op.x - 0.075, oy - 0.11, op.z - 0.03), V(-1, -0.6, -0.3), V(0.35, 1, 0.1));
+      armR.set(SR, V(op.x + 0.075, oy - 0.11, op.z - 0.03), V(1, -0.6, -0.3), V(-0.35, 1, 0.1));
       var on = P.s('on', working ? 1 : 0);
       var pulse = rm ? 0 : Math.sin(t * 1.6) * 0.5 + 0.5;
       heartMat.emissiveIntensity = (1.2 + on * (1.6 + pulse)) * TK.em;
