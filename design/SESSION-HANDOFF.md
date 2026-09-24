@@ -13,6 +13,61 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (morning) — THE ISLAND HOLDS WHAT IS LIVE, THE POCKET, NOVA IN THE
+REAL ISLAND, AND A MODEL FAIL-SAFE.** His asks, in order: (1) move nudges
+into the island; (2) workout progress in the island, and tap it from
+OUTSIDE Nova to resume; (3) Nova's icon in the island while she talks after
+he leaves; (4) black card stays; (5) a bug pass + missing notifications;
+(6, mid-turn) "Opus 5 instead of 5.5, Fable 5 instead of 5.1 — a fail safe
+so the newest model is always available and used." All shipped, pushed,
+live build `b2bb1db65` = HEAD, server reloaded, verify-shipped 0 FAIL.
+
+- **Island activities** (`src/DynamicIsland.jsx`, `islandCore.js`,
+  `island.js` `setActivity`, `src/IslandFeed.jsx`, `valsChrome islandView`):
+  compact (widened island), minimal (second bubble), expanded (tap → card).
+  Workout ring (muscle hue) + "4/6" off the Train screen; Nova talking
+  (core + waveform) off Voice; the nudge drops once, then waits as a bubble
+  (Ask Coach / Reply / Not now). `NudgeCard.jsx` deleted. Browser-verified
+  in demo mode (isolated devtools context, no connection).
+- **The pocket** (`server/lib/pocket.js`, `/api/pocket`): the honest
+  substitute for a Live Activity — dead-man's switch, ONE lock-screen push
+  per active workout (started <6h, view 'session'), tombstone on Finish,
+  url/tag validated. Route verified live (refuses a foreign url).
+  **UNVERIFIED: no real push has fired yet** — needs a real workout + leaving.
+- **Now Playing** (`src/nowPlaying.js`): Media Session metadata so iOS's
+  own island shows "Nova" + her icon while her `<audio>` path plays; pause
+  stops her. **UNVERIFIED: whether iOS keeps a home-screen app's audio
+  alive after he leaves** — speechResume.js measures it; unknown on device.
+- **Answer-ready notices** (`App.announceAway`): Claude Code, Breaker,
+  Coach, Leader, Quick Session, voice research — only when he is elsewhere.
+- **Model fail-safe** (`server/lib/modelWatch.js`, `modelPrefs.js`): lanes
+  were ALREADY on the newest models (aliases; measured opus→claude-opus-5-5,
+  fable→claude-fable-5-1); the labels and pinned list were hand-typed and
+  stale. Now a weekly CLI probe (~$0.12/wk) records what each alias runs,
+  labels/pins derive from it, push+Telegram when a family moves, any
+  well-formed pin stays valid (flagged when overtaken), 90s probe timeout,
+  on the ops roster with a heartbeat. Live board: Opus 5.5 · Sonnet 5 ·
+  Haiku 4.5 · Fable 5.1, all observed.
+- **Adversarial review (opus) found 10 real bugs, all fixed + re-verified in
+  the browser**: mount-order lost the first nudge; hidden-page clock ran;
+  stale finger wedged gestures + rAF; dismiss-before-start bricked the
+  island; frozen nudge numbers; pocket fired for parked drafts; disarm race;
+  probe hang; wrong-family probe; filter left on at rest.
+- **MY MISTAKE, REVERTED:** a rec.mjs setup set a fake `workoutSession`
+  against his LIVE server and it was mirrored as his workout draft for ~12
+  min (07:29–07:41). Server log proved his phone never fetched it and the
+  prior state was "no draft"; deleted, `GET → {draft:null}`. Rule now in
+  `nova-ui-instruments.md`: guard writes before setting fake state.
+- **ASSUMED:** the compact island's wings and the minimal bubble sit under
+  iOS's status-bar icons (signal/battery) — readable white-on-black, maybe
+  cluttered. Only his phone can say.
+- **NEXT:** ask him (1) does the widened island line up with the real one
+  and look right beside the status icons; (2) during a real workout, does
+  the lock-screen "tap to pick up" arrive once, and reopen the session;
+  (3) when he leaves mid-sentence, does Nova appear in the real island.
+
+---
+
 **25 SEP (early morning) — THE ARCUS REEL, THREE BUILDS: NOVA'S OWN EARS, A
 MEASURED LOCAL MODEL, AND THE PLAN THAT SEES THE LOG (+ THE PHONE'S MISSING
 PLAN CARD).** His ask: take ideas from an Instagram reel (Alex's "Arcus", a
