@@ -91,5 +91,7 @@ tell the truth about what you did and didn't verify.
 
 ## Gates before ship
 `npm run lint` clean · `npm run build` green · `cd server && npm test` green ·
-then commit with a why, push, and reload the service
-(`launchctl kickstart -k gui/501/com.novaos.server`).
+then commit with a why, push, and reload the service with
+`node scripts/reload-server.mjs` — **never a bare `launchctl kickstart`**: the
+server holds every AI job in memory, and a raw restart killed his Coach
+answer mid-flight on 25 Sep. The script waits until nothing is running.

@@ -28,6 +28,7 @@ import path from 'node:path';
 import { boundaryArgs } from './spawnBoundary.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { parseModelJson, firstBalancedObjectMatch } from './jsonSalvage.js';
+import { registerJobMap } from './jobRegistry.js';
 
 const exec = promisify(execFile);
 const CLAUDE_BIN = process.env.NOVA_CLAUDE_BIN || 'claude';
@@ -303,7 +304,7 @@ export function formTitle(exerciseName, review) {
 
 /* ------------------------------- the run --------------------------------- */
 
-const jobs = new Map();
+const jobs = registerJobMap('formCheck', new Map());
 export const FORM_LANE = 'form-check';
 
 export function getFormJob(id) {

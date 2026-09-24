@@ -10,6 +10,7 @@ import { stampPriors, applyChanges, undoChanges } from './stagedPass.js';
 import { mergeText } from './threeWayMerge.js';
 import { createRecord } from './inboxStore.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { registerJobMap } from './jobRegistry.js';
 
 // .nova-backups is Nova's own pre-write copies (backup.js): staging them let
 // the model's sandbox grow backups of its own edits, which the diff then
@@ -44,7 +45,7 @@ export function digestCacheKey(book, text) {
 // under ~/.local/bin) wouldn't resolve via a bare spawn('claude', ...) — use the
 // absolute path. Override with CLAUDE_BIN in .env if it lives somewhere else.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const jobs = new Map();
+const jobs = registerJobMap('ingest', new Map());
 
 // Jobs persist to disk (the Distiller's pattern) so a ready weave survives a
 // server restart — a $6 diff died in this Map twice before this existed, and

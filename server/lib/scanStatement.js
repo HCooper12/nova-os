@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { CATEGORIES, categorize } from './money.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { registerJobMap } from './jobRegistry.js';
 
 // Photograph a statement page or receipt → the model extracts transaction
 // lines as typed JSON → they land as a pending money-import record on the
@@ -14,7 +15,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 // deterministic code does all filing after approval.
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const jobs = new Map();
+const jobs = registerJobMap('scanStatement', new Map());
 
 function buildPrompt(imagePaths, note) {
   return `Read the bank/card statement page or receipt in the photo(s) below and extract the individual transactions.

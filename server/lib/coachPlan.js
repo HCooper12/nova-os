@@ -8,6 +8,7 @@ import { loadExerciseLibrary, addExerciseIn, setMuscleGroupIn, renderLibraryFile
 import { loadRoutines, loadRoutineData, replaceRoutineEntries, renderRoutinesFile, writeRoutinesRaw, ROUTINES_REL_PATH } from './workouts.js';
 import { stampPriors, applyChanges } from './stagedPass.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { registerJobMap } from './jobRegistry.js';
 
 // COACH CHANGES THE PLAN — his ask, made real.
 //
@@ -324,7 +325,7 @@ export function opsFromFix(fix) {
 // He typed something. The model reads the proposal + his words + the real
 // plan, and answers ONLY in ops. Runs as a job (the UI polls).
 
-const amendJobs = new Map();
+const amendJobs = registerJobMap('coachPlan', new Map());
 
 export function buildAmendPrompt({ proposal, note, routines, exercises }) {
   const lib = exercises.map((e) => `${e.id} — ${e.name} (${e.muscleGroup})`).join('\n');

@@ -9,6 +9,7 @@ import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
+import { registerJobMap } from './jobRegistry.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -45,7 +46,7 @@ const DISALLOWED_TOOLS = [
 // WRITES. Everything else stays blocked.
 const COACH_DISALLOWED = DISALLOWED_TOOLS.split(',').filter((t) => t !== 'WebFetch' && t !== 'WebSearch').join(',') + ',Edit,Write';
 
-const jobs = new Map();
+const jobs = registerJobMap('claudeCode', new Map());
 
 // ---------------------------- warm conversations ----------------------------
 // A follow-up turn used to pay the full CLI boot (~1.5–2.5s) before the

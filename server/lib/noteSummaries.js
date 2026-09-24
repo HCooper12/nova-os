@@ -8,13 +8,14 @@ import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { registerJobMap } from './jobRegistry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR (it was one of two hard-coded paths that leaked test
 // writes into the real data dir)
 const CACHE_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'summaries');
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const jobs = new Map();
+const jobs = registerJobMap('noteSummaries', new Map());
 
 function cacheFile(noteId) {
   const hash = createHash('sha1').update(noteId).digest('hex').slice(0, 16);

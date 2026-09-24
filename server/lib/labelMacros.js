@@ -16,8 +16,9 @@
 
 import { randomUUID } from 'node:crypto';
 import { startFoodScan, getFoodScanJob } from './scanFood.js';
+import { registerJobMap } from './jobRegistry.js';
 
-const jobs = new Map();
+const jobs = registerJobMap('labelMacros', new Map());
 let scanner = { start: startFoodScan, get: getFoodScanJob };
 export function _setScannerForTests(s) { scanner = s || { start: startFoodScan, get: getFoodScanJob }; }
 

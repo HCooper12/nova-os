@@ -5,10 +5,11 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { registerJobMap } from './jobRegistry.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
-const jobs = new Map();
+const jobs = registerJobMap('journalPrompt', new Map());
 
 function buildPrompt({ seedTitle, seedExcerpt, sample }) {
   if (seedTitle) {

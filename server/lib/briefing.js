@@ -38,6 +38,7 @@ import os from 'node:os';
 import { boundaryArgs } from './spawnBoundary.js';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
+import { registerJobMap } from './jobRegistry.js';
 
 const MAX_ANGLES = 5;
 const MIN_ANGLES = 2;
@@ -220,7 +221,7 @@ export function briefingMarkdown(b, topic) {
 
 /* -------------------------------- the job -------------------------------- */
 
-const jobs = new Map();
+const jobs = registerJobMap('briefing', new Map());
 export function getBriefingJob(id) { return jobs.get(id) || null; }
 export function _briefingJobs() { return jobs; } // test hook
 

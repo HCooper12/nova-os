@@ -233,6 +233,12 @@ async function main() {
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
   app.use('/api', leaderRouter(process.env.VAULT_PATH));
   app.get('/api/events', (req, res) => subscribe(res));
+  // what is running right now — scripts/reload-server.mjs waits for zero
+  // before any restart (lib/jobRegistry.js; the 25 Sep lost Coach answer)
+  app.get('/api/jobs/active', async (req, res) => {
+    const { activeJobs } = await import('./lib/jobRegistry.js');
+    res.json(activeJobs());
+  });
   app.get('/api/push/key', async (req, res) => {
     const { getPublicKey } = await import('./lib/push.js');
     res.json({ key: await getPublicKey() });

@@ -38,10 +38,11 @@ import { modelFor } from './modelPrefs.js';
 import { createProjectDir, undoProject } from './projects.js';
 import { createRecord } from './inboxStore.js';
 import { sandboxed, sandboxAvailable, sandboxUnavailable } from './sandbox.js';
+import { registerJobMap } from './jobRegistry.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 
-const jobs = new Map();
+const jobs = registerJobMap('builder', new Map());
 export function getBuildJob(id) { return jobs.get(id) || null; }
 
 // What the builder is told. Deliberately short: the brief is his, the rules are
