@@ -13,6 +13,132 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (early morning) — THE ARCUS REEL, THREE BUILDS: NOVA'S OWN EARS, A
+MEASURED LOCAL MODEL, AND THE PLAN THAT SEES THE LOG (+ THE PHONE'S MISSING
+PLAN CARD).** His ask: take ideas from an Instagram reel (Alex's "Arcus", a
+local-first assistant for neurodivergent execution), then "proceed with all
+those builds … overnight … until all are done and checked live." Session
+nova-os-84. Commits 994718b 064ed90 afac7f3 cea8325 6dd7a0e 86cbc64 e3f3654
+fce5496, all pushed; live build fce5496 confirmed by `npm run
+verify:shipped` (all four new markers PASS in the LIVE bundle).
+
+GOAL. (1) Make voice work on his iPhone without the browser speech engine.
+(2) Measure a local model against Haiku before switching anything.
+(3) Help with *starting*, grounded in his own data first.
+
+DONE CRITERIA.
+- MET, BUILT — **Nova's own ears.** On iPhone (hearing = 'auto') every mic
+  records with getUserMedia + MediaRecorder, a loudness meter (src/vad.js)
+  feeds the same turnEnd.js clock, and the Mac transcribes via Groq Whisper
+  (POST /api/voice/transcribe). Settings → "How Nova hears you" + "Test
+  Nova's ears". Action Button lane: POST /api/ask/audio, recipe in
+  docs/iphone-shortcuts.md §1c. **UNMET: never run on his iPhone.**
+- MET — **local model measured, NOT switched** (as promised to him).
+  Qwen3-4B on this M1 Pro 16 GB: 38/40 valid, 64.9% route agreement with
+  Haiku, 2.5s vs 18.4s, 2.5 GB RSS; Llama-3.2-3B 0/40. Audit:
+  design/audits/2026-09-25-local-model-eval.md. Client: server/lib/localModel.js
+  (nothing in production calls it).
+- MET — **seen, not ticked + stuck.** server/lib/planObserve.js stamps
+  `observed` on plan records (sessions, protein) every 10 min and seconds
+  after any workout/food write; the planner reads yesterday as DONE (his
+  mark) / DONE — seen in his log / NOT DONE — his log / no word, and a
+  STUCK section tells it never to re-list a stuck promise as written.
+  Home: cyan ✓ "Seen in your log", the stuck card (days ring, Start it with
+  me / Not now / Let it go, Undo), "Start it with me" on a plan row that is
+  already a stuck promise's first step.
+- MET — **the plan is back on his phone.** a728bf3 (15 Sep, a Leader-box
+  commit) deleted plan, command deck and Today from MissionStructured; his
+  ticks stop that same day. Restored.
+
+STATE (paths). Ears: src/recorder.js, src/vad.js, src/hearingEngine.js,
+src/earsTest.js, src/useDictation.js (novaEars branch: startNova /
+tickNova / finishNova), src/audioLevel.js (openMicLevel), server/lib/hearing.js,
+server/lib/transcribe.js (transcribeBuffer, cleanTranscript, X-Vad),
+server/routes/voice.js (/voice/transcribe, /ask/audio, /ask/start).
+Local: server/lib/localModel.js, server/scripts/evalLocalClassifier.mjs.
+Plan: server/lib/planObserve.js, server/lib/planToday.js ('yesterday-plan',
+'stuck'), server/lib/rituals.js (buildStartQuestion), routes/loops.js
+(/plan-today/stuck), snapshot slice `stuck`, src/StuckCard.jsx,
+src/vals/valsMission.js, both Mission screens, server/data/stuck.json.
+
+DECISIONS.
+- iPhone defaults to Nova's ears (auto) → the receipts: browser engine
+  heard 1 iPhone turn in 21 → forecloses live partial words on the phone
+  (words land when he stops; no interim transcription built).
+- Every recording is sent even when the meter heard nothing → a wrong
+  meter must not cost his words → costs ~200ms and a Groq call per silent turn.
+- A meter reading exact zero for 1.5s is BLIND → tap-to-send, never
+  silence → a blind auto-listen turn waits for a tap (or 90s).
+- Whisper's silence lines ("Thank you.", repeated too) are dropped only when
+  the client meter did NOT hear speech (X-Vad) → keeps a real thank-you.
+- Transcription is Groq, not local → mlx_audio's whisper failed ("Processor
+  not found"); local STT not built.
+- Local model not wired into any lane → he was promised numbers first.
+- The observer checks only a priority's OPENING CLAUSE, only sessions and
+  protein, and never checks WHEN (his log times are logging times) →
+  conservative: a wrong "done" is worse than a missing one.
+
+VERIFIED.
+- Transcribe route live: spoken m4a raw + Form → text 0.3-1.2s; silence →
+  ''; fragmented MP4 (Safari-style) → text; JSON body and bad token answer
+  in words. /ask/audio end to end 342ms (reflex).
+- In-app ears in headless Chrome (clip injected as getUserMedia), Voice
+  screen, conversation mode: turns end on `hold` 2s after speech, words back
+  254-436ms, receipts show `via nova (meter heard …)`, mic reopens and the
+  next turn is heard. Under pink noise too. Settings test: "Heard: …" 0.3s.
+- Observer replay over all his real plans: 81 priorities, 42 checkable, 31
+  seen done (he ticked 10), log agrees with 8 of his 9 marks (the ninth he
+  marked skipped on a day the session is logged; his mark wins).
+- Today's real plan (25 Sep) was written with the new context: "just open
+  the podcast … play the first minute", "Same move that worked yesterday
+  (40g logged at 11:16)".
+- Stuck card live: Not now wrote to the server, Undo restored it,
+  server/data/stuck.json empty after. A real /ask/start turn: "Open the link
+  right now — youtu.be/MGxcosNuC8k — and let it load. That's the step."
+- Gates: lint 0 errors, build green, server 2163/2163 (full tree incl.
+  peers' WIP); my Home commit alone in a worktree 2129 pass / 0 fail.
+
+ASSUMED / UNVERIFIED.
+- That getUserMedia + MediaRecorder work in his installed iOS PWA, and that
+  the shared audio graph is running when conversation mode reopens the mic
+  (if not: the turn goes BLIND → tap to send, by design).
+- That iOS does not re-prompt mic permission every turn.
+- That the meter thresholds (vad.js minSpeech 0.018, ratio 2.4) suit his
+  real phone mic; tuned only on synthetic clips.
+
+OPEN QUESTIONS / BLOCKERS.
+- Two to-dos in his vault, "swipe verification item" (23 Aug) and
+  "optimistic probe 69959" (24 Aug), are test residue from earlier Claude
+  sessions (the first is literally a test fixture string in
+  server/test/planToday.test.js). Not deleted: his vault, his call. They
+  show on the stuck card; "Let it go" hides them, ticking them removes them.
+- The local model: switch nothing / try a 7B / use Qwen3-4B as a
+  pre-filter. His call; audit has the numbers.
+- Not built: interim words while recording, local (MLX) transcription,
+  barge-in under Nova's ears (it rides the browser engine).
+
+NEXT ACTION. Ask him to open Settings → "Test Nova's ears" on his iPhone and
+say one sentence. Expected: "Heard: <his words> · back in ~0.5s". Then
+read `server/data/voice/turns.json` by device AND engine: iPhone rows with
+`engine: 'nova'` and `heard: true` settle it.
+
+DO NOT.
+- Do not trust Chrome's `--use-file-for-fake-audio-capture` — it delivered
+  pure silence here; inject getUserMedia from a decoded buffer instead.
+- Do not kill a headless capture with an external alarm/timeout: the Chrome
+  child survives, orphaned (load hit 57). The capture script needs its own
+  deadline that runs cleanup.
+- Do not commit shared files with `git commit -- <paths>`: that takes the
+  WORKING TREE copy, peers' hunks included. A private GIT_INDEX_FILE +
+  commit-tree + guarded update-ref is how e3f3654 went in clean.
+- Do not reload the service during a scheduler window without expecting
+  debris: the 07:07 reload interrupted the plan job (record discarded,
+  reason written).
+- Do not re-list a stuck promise, and do not claim the observer covers more
+  than sessions and protein.
+
+---
+
 **25 SEP — PASS 4 ON THE CHARACTERS; THE ZERO-TOKEN RULE PLANNED; ALL
 PUSHED.** His three answers: keep refining them all → pass 4 done, version 4
 of the same artifact (backs designed, cape, towel, fin, satchel, bigger
@@ -3553,6 +3679,10 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 25 September 2026 (early morning) — the Arcus reel: Nova's own ears, a measured local model, the plan that sees the log
+He sent a reel of "Arcus" (a local-first assistant built around neurodivergent execution) and then asked for all three ideas to be built overnight and checked live. Voice on his iPhone now bypasses the browser speech engine entirely: the phone records, a loudness meter decides when his turn ends, and the Mac writes it down; an Action Button Shortcut lane does the same natively. A small local model (Qwen3-4B on MLX) was measured against Haiku on 40 real captures and deliberately not switched on: 65% route agreement, eight times faster. And the day plan learned to see what his log already knows: over 27 days he ticked 10 priorities, while 31 were visibly done in his own log, so the plan had been re-listing things he was doing every day. Stuck promises now get their own card with three answers and a voice session that takes the first two minutes with him.
+CORRECTED, not added: the tick buttons did not die from disuse. The plan card was deleted from his phone's Home on 15 Sep inside an unrelated Leader commit, the day his ticks stop; it is restored. Also caught in live checks rather than assumed: the one-thing card showed only the why (a field that never existed), a restart-interrupted plan hid the real one, a shadowed variable blanked the whole app (found only by running it), Whisper's "Thank you. Thank you." for silence, and 10.5px type under Home's 11pt floor. My own 07:07 service reload was what interrupted this morning's plan run.
 
 ### 24 September 2026 — voice diagnosed, five swipe-back attempts, the correlation engine
 His voice report ("it's not working") was answered by grouping the existing turn receipts by device rather than guessing: iPhone 0 of 10 turns ever heard, Mac 6 of 6 — dictation has never worked on his phone, and a mic-check instrument now exists to find out why. Nova stopped asserting he was silent when it heard nothing. The silent-switch trade (his music ducking vs Nova staying audible) became his choice in Settings once no web-platform equivalent of iOS's playback+mixWithOthers was found. Instagram reels got real poster frames. The Researcher can now answer "no" and has to leave the argument open when it does — proved on a real creatine-loading question. A panel of named researchers runs in parallel on one question before one merge, also proved on that real run. The job tray gained a ticking clock that costs zero re-renders (measured: 6s, zero `App.render` calls). The Leader panel promotes to the top of Home before a work block and now stays through it, with a Telegram reminder on the same edge. A correlation engine was built and confirmed onto a weekly Sunday Telegram surface — two-tier reporting (held vs not-established) after his own data produced a real signal that missed the strict statistical gate by a hair. Anti-vibe-coded design guidelines went into the global CLAUDE.md plus fenced project files in Nova, atlas-partner and Science Atlas, each recording what the project already does on purpose that the generic list would otherwise "fix." A make-up day became one focus control instead of two, then was found to re-derive a fresh exercise list instead of moving his real outstanding debt — fixed, and audited (with tests, no code change needed) that a make-up can never read as a skipped session. The in-app notification stopped collapsing at 375px and can now be flicked away with the same direction-lock the back swipe finally got right.
