@@ -1,5 +1,6 @@
 import { listRecords } from './inboxStore.js';
 import { readHeartbeats, readNotes } from './heartbeat.js';
+import { composeOrgMap } from './orgMap.js';
 
 // Nova Operations — the machinery made visible. Everything here is REAL
 // state the platform already keeps: the inbox record ledger (every agent's
@@ -112,6 +113,12 @@ const CONVERSATIONAL = [
   { id: 'scout', label: 'Scout', role: 'people & accounts researched', match: (r) => r.kind === 'ingest' && !!r.decision?.payload?.person },
   { id: 'read-next', label: 'Librarian · Read Next', role: 'the gap, and the book for it', match: (r) => r.kind === 'read-next' },
 ];
+
+// The conversational roster, for anything that must place every agent (the
+// Org Map's test pins each one to a being, as scheduledFleet does for loops).
+export function conversationalRoster() {
+  return CONVERSATIONAL.map(({ id, label, role }) => ({ id, label, role }));
+}
 
 // The map drawn (AGENT-SKILL-MAP build 2) — which life department(s) each
 // agent draws its skills from. The registry page (Wiki/Library/Nova
@@ -300,5 +307,10 @@ export async function composeOps() {
     sessions = { error: 'Nova could not read what is running on the Mac just now.' };
   }
 
-  return { at: new Date(now).toISOString(), pending, running, filedToday, stream, agents, conversational, channels, connections, sessions };
+  // THE ORG MAP — the same records and roster, arranged by who is asking
+  // (AGENT-WORLD-PLAN §3). Code only; it rides this payload so it is in the
+  // client's cached offline slice like everything else here.
+  const orgMap = composeOrgMap({ agents, conversational, records, now });
+
+  return { at: new Date(now).toISOString(), pending, running, filedToday, stream, agents, conversational, channels, connections, sessions, orgMap };
 }
