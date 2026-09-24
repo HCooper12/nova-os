@@ -295,7 +295,7 @@ export function voiceRouter(vaultPath) {
   // has answered, returning the plain text. This is what makes a hands-free
   // "Hey Siri, Ask Nova" Shortcut trivial: one request in, the spoken answer
   // out, no client-side polling.
-  router.post('/ask/sync', async (req, res) => {
+  const askSync = async (req, res) => {
     try {
       // THE EXACT BYTES THE PHONE SENT. The health thread learned this the
       // expensive way — "key names alone could not explain a Shortcut whose
@@ -399,7 +399,7 @@ export function voiceRouter(vaultPath) {
       const finish = (payload) => {
         clearTimeout(keepaliveStart);
         if (keepalive) clearInterval(keepalive);
-        res.end(JSON.stringify(payload));
+        res.end(JSON.stringify(req.novaHeard ? { ...payload, heard: req.novaHeard } : payload));
       };
 
       // The spoken lane keeps ONE conversation alive rather than minting a
@@ -455,6 +455,55 @@ export function voiceRouter(vaultPath) {
       if (res.headersSent) { try { res.end(JSON.stringify({ text: `Nova hit an error: ${e.message}`, error: e.message })); } catch { /* gone */ } return; }
       res.status(500).json({ error: e.message });
     }
+  };
+  router.post('/ask/sync', askSync);
+
+  // HIS VOICE AS AUDIO → HIS WORDS (lib/hearing.js for why). The app's own
+  // recorder posts here at the end of a turn; nothing is asked, only heard.
+  router.post('/voice/transcribe', async (req, res) => {
+    const { audioFromRequest } = await import('../lib/hearing.js');
+    const audio = audioFromRequest(req.body, req.get('content-type'), req.get('x-audio-type') || '');
+    if (audio.error) return res.status(400).json({ error: audio.error });
+    try {
+      const { transcribeBuffer } = await import('../lib/transcribe.js');
+      const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name, spoke: req.get('x-vad') === 'heard' });
+      console.log(`voice/transcribe ${audio.buf.length}B ${audio.mime} → ${out.backend} ${out.ms}ms ${out.text ? `${out.text.length}ch` : `silence${out.raw ? ` (dropped ${JSON.stringify(out.raw.slice(0, 40))})` : ''}`}`);
+      res.json({ text: out.text, backend: out.backend, ms: out.ms, bytes: audio.buf.length });
+    } catch (e) {
+      console.log(`voice/transcribe FAILED ${audio.buf.length}B ${audio.mime}: ${e.message}`);
+      res.status(502).json({ error: e.message });
+    }
+  });
+
+  // THE ACTION BUTTON LANE. A Shortcut records him natively (no browser
+  // speech engine anywhere in the path), posts the recording, and speaks
+  // what comes back. Same answer machinery as /ask/sync, with what was heard
+  // on the reply so a mishearing is visible rather than silently answered.
+  // Every failure answers 200 with spoken `text`, as /ask/sync does: a 400
+  // makes Siri say "I can't help with that", which describes nothing.
+  router.post('/ask/audio', async (req, res) => {
+    const { audioFromRequest } = await import('../lib/hearing.js');
+    const audio = audioFromRequest(req.body, req.get('content-type'), req.get('x-audio-type') || '');
+    if (audio.error) {
+      console.log(`ask/audio REJECTED: ${audio.error} (content-type ${req.get('content-type') || 'none'})`);
+      return res.json({ text: `I got the request but not the recording: ${audio.error}.`, error: audio.error });
+    }
+    let heard = '';
+    try {
+      const { transcribeBuffer } = await import('../lib/transcribe.js');
+      const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name });
+      heard = out.text;
+      console.log(`ask/audio heard ${audio.buf.length}B via ${out.backend} in ${out.ms}ms: ${JSON.stringify(heard.slice(0, 80))}`);
+    } catch (e) {
+      console.log(`ask/audio transcription FAILED: ${e.message}`);
+      return res.json({ text: `I couldn't turn that recording into words: ${e.message}`, error: e.message });
+    }
+    if (!heard) return res.json({ text: "I didn't catch any words in that one. Try again a little closer to the phone.", heard: '', error: 'silence' });
+    req.body = { question: heard };
+    req.novaHeard = heard;
+    const json = res.json.bind(res);
+    res.json = (payload) => json({ ...payload, heard });
+    return askSync(req, res);
   });
 
   // The Morning Show / Evening Debrief — deterministic receipts composed

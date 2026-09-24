@@ -66,6 +66,42 @@ response open until the answer is ready, so there's no polling to build.
 > This is a fresh question each time (no follow-up memory). The in-app Voice
 > screen is the place for a continuing back-and-forth conversation.
 
+## 1c · "Nova, Listen" — the Action Button, heard by your Mac
+
+The same question-and-spoken-answer as 1b, but the phone records you and
+your Mac writes down what you said. No dictation engine on the phone is
+involved at all, which is the point: inside the app, the browser's speech
+engine has heard you on 1 iPhone turn in 21 (`server/data/voice/turns.json`),
+and this route does not depend on it.
+
+Create a Shortcut named **Nova, Listen**:
+
+1. **Record Audio**
+   - Audio Quality: `Normal`
+   - Start Recording: `Immediately`
+   - Finish Recording: `On Tap`
+2. **Get contents of URL**
+   - URL: `BASE/api/ask/audio`
+   - Method: `POST`
+   - Headers: `Authorization` = `Bearer TOKEN`
+   - Request Body: **File** → the *Recorded Audio* variable. (Not JSON, and
+     not Form: File sends the recording itself. Form works too if a
+     Shortcut drifts that way; JSON is refused with a spoken explanation.)
+3. **Get dictionary value** — key `text` from *Contents of URL*.
+4. **Speak Text** — the *Dictionary Value*.
+
+Optional, to see what Nova heard: after step 2, **Get dictionary value**
+key `heard` and **Show notification** with it.
+
+Then iPhone **Settings → Action Button → Shortcut → Nova, Listen**. Press
+the button, talk, tap the red stop, and the answer is spoken back. The same
+reflexes and verbs as the app answer first ("how many steps yesterday",
+"add eggs to the shopping list"); anything else goes to Ask Nova.
+
+Every failure answers in words you will hear: no recording in the body, a
+recording with no words in it, a bad token, the Mac unreachable. The
+server log line `ask/audio heard …` shows exactly what arrived.
+
 ## 2 · "Send to Nova" — share-sheet capture
 
 Share any text, link, or article from any app straight into the Inbox.
