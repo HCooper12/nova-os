@@ -125,3 +125,13 @@ test('nothing at all is not a crash', () => {
   assert.equal(pickFocalVital([]), null);
   assert.equal(pickFocalVital([null, undefined]), null);
 });
+
+test('a priority his log already shows done is not the one thing (planObserve.js)', () => {
+  const r = pickOneThing([
+    { do: 'Run the Pull session', observed: { state: 'done', evidence: 'Pull logged 14:12' } },
+    { do: 'Eat 40g protein at breakfast', observed: { state: 'not-yet', evidence: 'no single 40g entry yet' } },
+    { do: 'Open the podcast' },
+  ]);
+  assert.equal(r.index, 1, 'seen done is settled; seen not-yet is still open');
+  assert.equal(pickOneThing([{ do: 'a', observed: { state: 'done' } }, { do: 'b', outcome: 'skipped' }]), null);
+});

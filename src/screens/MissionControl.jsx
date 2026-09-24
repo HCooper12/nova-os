@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { StuckCard } from '../StuckCard.jsx';
 import { glowPanel, glowSoft } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
@@ -475,7 +476,7 @@ export function MissionControl({ v }) {
         </section>
       )}
 
-      {(v.planToday || v.commandDeck.count > 0) && (
+      {(v.planToday || v.commandDeck.count > 0 || v.stuckCard) && (
         <section style={{ marginTop: mob ? '12px' : '18px', display: mob ? 'flex' : 'grid', flexDirection: 'column', gridTemplateColumns: v.planToday && v.commandDeck.count > 0 ? '1.15fr .85fr' : '1fr', gap: mob ? '12px' : '18px' }}>
           {v.oneThing && (
             /* C2 — THE ONE THING. Border, glow and fill spent on exactly one
@@ -508,12 +509,20 @@ export function MissionControl({ v }) {
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {v.planToday.priorities.map((p, i) => v.oneThing && i === v.oneThing.index ? null : (
                     <div key={i} style={css(`display:flex;gap:12px;align-items:baseline;padding:8px 0${i < v.planToday.priorities.length - 1 ? ';border-bottom:1px solid rgba(130,175,255,.09)' : ''}`)}>
-                      <span style={{ font: `600 13px ${M}`, color: 'var(--nv-gold)', flex: 'none' }}>{i + 1}</span>
-                      <span style={{ minWidth: 0, flex: '1 1 auto', opacity: p.outcome ? 0.55 : 1 }}>
-                        <span style={{ display: 'block', font: `500 14px/1.45 ${R}`, textDecoration: p.outcome === 'done' ? 'line-through' : 'none' }}>{p.do}</span>
-                        {p.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{p.why}</span>}
+                      {/* SEEN, NOT TICKED: done in his log, so the check is
+                          Nova's cyan, not his gold number (planObserve.js) */}
+                      <span style={{ font: `600 13px ${M}`, color: p.seen ? 'var(--nv-cy)' : 'var(--nv-gold)', flex: 'none' }}>{p.seen ? '✓' : i + 1}</span>
+                      <span style={{ minWidth: 0, flex: '1 1 auto', opacity: p.outcome || p.seen ? 0.6 : 1 }}>
+                        <span style={{ display: 'block', font: `500 14px/1.45 ${R}`, textDecoration: p.outcome === 'done' || p.seen ? 'line-through' : 'none' }}>{p.do}</span>
+                        {p.seen
+                          ? <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-cy)' }}>Seen in your log · {p.seen}</span>
+                          : p.why && <span style={{ display: 'block', font: `500 12px/1.5 ${R}`, color: 'var(--nv-ink60)' }}>{p.why}</span>}
+                        {p.notYet && <span style={{ display: 'block', marginTop: '2px', font: 'var(--nv-micro-s)', letterSpacing: 'var(--nv-micro-track)', color: 'var(--nv-ink40)' }}>SO FAR · {p.notYet.toUpperCase()}</span>}
+                        {p.start && (
+                          <Interactive as="span" onClick={p.start.go} base={css(`display:inline-block;margin-top:6px;cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:4px 9px;border-radius:6px;border:1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent);color:var(--nv-cy)`)} hoverStyle={{ filter: 'brightness(1.15)' }}>START IT WITH ME · {p.start.days} DAYS STUCK</Interactive>
+                        )}
                       </span>
-                      {p.mark && (
+                      {p.mark && !p.seen && (
                         <span style={{ flex: 'none', display: 'flex', gap: '6px' }}>
                           <Interactive as="span" onClick={() => p.mark('done')} base={css(`cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'done' ? 'var(--nv-good)' : 'rgba(232,236,246,.18)'};color:${p.outcome === 'done' ? 'var(--nv-good)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>DONE</Interactive>
                           <Interactive as="span" onClick={() => p.mark('skipped')} base={css(`cursor:pointer;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);padding:3px 7px;border-radius:6px;border:1px solid ${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'rgba(232,236,246,.18)'};color:${p.outcome === 'skipped' ? 'var(--nv-warn)' : 'var(--nv-ink60)'}`)} hoverStyle={{ filter: 'brightness(1.15)' }}>SKIP</Interactive>
@@ -537,6 +546,7 @@ export function MissionControl({ v }) {
               )}
             </div>
           )}
+          {v.stuckCard && <StuckCard card={v.stuckCard} variant="command" />}
           {v.commandDeck.count > 0 && (
             <div className="nv-pane" style={{ padding: '20px 24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>

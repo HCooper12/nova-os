@@ -17,7 +17,7 @@ test('WORKING and PLAN are never folded and never use up an open slot', () => {
   assert.equal(f.focus, 'open');
   assert.equal(f.lead, 'open', 'plan did not consume the second slot');
   assert.equal(f.today, 'fold');
-  assert.deepEqual(NEVER_FOLD, ['working', 'plan']);
+  assert.deepEqual(NEVER_FOLD, ['working', 'plan', 'stuck'], 'a stuck promise is a question: folded, it asked nothing');
 });
 
 test('what he remembered beats the default in both directions', () => {

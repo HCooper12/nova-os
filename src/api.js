@@ -406,6 +406,9 @@ export const api = {
   show: (conn, variant) => post(conn, '/api/show', { variant }, { timeoutMs: 60_000 }),
   greet: (conn, gap) => post(conn, '/api/greet', { gap }),
   askRitual: (conn, kind, sessionId) => post(conn, '/api/ask/ritual', { kind, sessionId }),
+  // stuck promises (server/lib/planObserve.js): his answer, and starting one with Nova
+  answerStuck: (conn, key, action, text) => post(conn, '/api/plan-today/stuck', { key, action, text }),
+  askStart: (conn, item, days, sessionId) => post(conn, '/api/ask/start', { item, days, sessionId }),
   overnight: (conn) => call(conn, '/api/overnight'),
   overnightAdd: (conn, question) => post(conn, '/api/overnight', { question }),
   overnightAddOutline: (conn, ideaId) => post(conn, '/api/overnight', { kind: 'outline', ideaId }),

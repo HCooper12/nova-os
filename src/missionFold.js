@@ -20,7 +20,9 @@ export const FOLD_KEY = 'novaos.mcFold';
 // Sections that are never folded: WORKING is the "is anything happening?"
 // answer and its presence is the news; PLAN holds the one thing (C2) — the
 // day's most important open act must not be a tap away from itself.
-export const NEVER_FOLD = ['working', 'plan'];
+// 'stuck' is a question waiting for his answer (StuckCard.jsx); folded, it
+// read as the bare word "stuck" and asked nothing
+export const NEVER_FOLD = ['working', 'plan', 'stuck'];
 
 // The first `keep` present sections (not counting the never-folded) stay open
 // by default; the rest fold. Returns { key: 'open' | 'fold' } for every key.
@@ -50,6 +52,7 @@ export const FOLD_LABELS = {
   focus: 'Suggested focus',
   lead: 'Lead · try today',
   today: 'Today',
+  stuck: 'Stuck',
   deck: 'Command deck',
   review: 'Daily review',
   noticed: 'Nova noticed',

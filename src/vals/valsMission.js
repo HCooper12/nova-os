@@ -699,7 +699,14 @@ const bodyMetrics = demoMode
   };
   // 'error' is in the filter on purpose: a failed plan used to render as no
   // plan at all, so a broken morning read as an empty one on the home screen
-  const planRec = inboxItems.find((r) => r.kind === 'plan-today' && isTodayISO(r.createdAt) && ['classifying', 'pending', 'filed', 'error'].includes(r.status));
+  // ...but an error only when it is ALL there is: a run interrupted by a
+  // server restart (25 Sep, 07:07) leaves an error record beside the plan
+  // the retry filed a minute later, and taking the first match showed the
+  // failure over the real plan.
+  const PLAN_RANK = { filed: 0, pending: 1, classifying: 2, error: 3 };
+  const planRec = inboxItems
+    .filter((r) => r.kind === 'plan-today' && isTodayISO(r.createdAt) && r.status in PLAN_RANK)
+    .sort((a, b) => PLAN_RANK[a.status] - PLAN_RANK[b.status] || String(b.createdAt).localeCompare(String(a.createdAt)))[0];
   const planToday = planRec
     ? {
         state: planRec.status,
@@ -708,6 +715,17 @@ const bodyMetrics = demoMode
         priorities: planRec.status === 'error' ? [] : (planRec.decision?.payload?.priorities || []).slice(0, 3).map((p, i) => ({
           ...p,
           mark: ['pending', 'filed'].includes(planRec.status) ? (outcome) => app.setPlanOutcome(planRec.id, i, p.outcome === outcome ? null : outcome) : null,
+          // SEEN, NOT TICKED (server/lib/planObserve.js): done in his log with
+          // no mark from him. His own mark always outranks it.
+          seen: !p.outcome && p.observed?.state === 'done' ? p.observed.evidence : null,
+          // what the log says so far about one that is still open
+          notYet: !p.outcome && p.observed && p.observed.state !== 'done' ? p.observed.evidence : null,
+          // a stuck promise that today's plan has shrunk to its first step:
+          // the "start it with me" lives on this row, not in a second card
+          start: (() => {
+            const hit = !p.outcome && planRec.status !== 'error' ? (st.liveStuck?.stuck || []).find((x) => x.today === i) : null;
+            return hit ? { days: hit.days, go: () => app.startStuck({ ...hit, text: p.do }) } : null;
+          })(),
         })),
         meta: planRec.status === 'filed' ? 'IN THE VAULT' : planRec.status === 'pending' ? 'DRAFT — NEEDS YOUR YES' : planRec.status === 'error' ? 'HIT AN ERROR — SEE INBOX' : 'BEING DRAWN UP',
         errorText: planRec.status === 'error' ? (planRec.error || 'the plan could not be drawn up') : null,
@@ -716,6 +734,30 @@ const bodyMetrics = demoMode
         onOpenInbox: go('inbox'),
       }
     : null;
+  // STUCK — what the plan keeps listing and nothing closes, and the stale
+  // to-dos (server/lib/planObserve.js). Three answers each: start it with
+  // Nova, not now (3 days), let it go. Absent when there is nothing stuck.
+  const stuckLive = st.liveStuck;
+  const stuckItems = demoMode || !stuckLive ? [] : [
+    ...(stuckLive.stuck || []).filter((x) => x.today == null).map((x) => ({ ...x, kind: 'plan', meta: `On the plan ${x.days} days, never started` })),
+    ...(stuckLive.staleTodos || []).map((x) => ({ ...x, kind: 'todo', meta: `A to-do for ${x.days} days` })),
+  ].slice(0, 3).map((x) => ({
+    ...x,
+    // the ring fills over the plan's week: 3 days reads as a third, 7+ is full
+    pct: Math.min(100, Math.round((x.days / 7) * 100)),
+    tone: x.days >= 7 ? 'missed' : 'behind',
+    start: () => app.startStuck(x),
+    later: () => app.answerStuck(x, 'later'),
+    drop: () => app.answerStuck(x, 'drop'),
+  }));
+  const undo = st.stuckUndo;
+  const stuckCard = stuckItems.length || undo ? {
+    items: stuckItems,
+    receipt: undo ? {
+      said: undo.action === 'drop' ? `Let go. It stays off the plan: “${undo.item.text}”` : `Not now. Back on Home in three days: “${undo.item.text}”`,
+      undo: () => app.undoStuck(),
+    } : null,
+  } : null;
   const pendingRecs = inboxItems.filter((r) => r.status === 'pending');
   const commandDeck = {
     count: pendingRecs.length,
@@ -742,12 +784,15 @@ const bodyMetrics = demoMode
     statusBanner,
     suggestedFocus,
     planToday,
+    stuckCard,
     // C2 — THE one thing. The first priority he has not settled becomes the
     // only card on the screen allowed to be loud; the rest drop to rows.
     oneThing: (() => {
       if (!planToday || !['pending', 'filed'].includes(planToday.state)) return null;
       const pick = pickOneThing(planToday.priorities);
-      return pick ? { ...pick.priority, index: pick.index } : null;
+      // `text` is what both Home idioms render. The record's field is `do`, and
+      // nothing ever mapped it: the card showed only the why, in the title's place.
+      return pick ? { ...pick.priority, text: pick.priority.do, index: pick.index } : null;
     })(),
     // C3 — the record moment: the morning after a PR, shown once. The date
     // shown is remembered per device; a moment is not a badge.

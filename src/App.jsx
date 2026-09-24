@@ -314,6 +314,7 @@ const CACHED_LIVE_KEYS = [
   'liveOps', 'liveOvernight', 'liveSkills', 'livePulse',
   // the daily technique — cached so the card survives the Mac sleeping
   'liveRepertoire',
+  'liveStuck',
   // the Stream self-labels with timestamps, so a cached copy degrades honestly
   'liveOpsStream',
 ];
@@ -486,6 +487,8 @@ export default class App extends Component {
     intake: null, // THE INTAKE interview in progress: { facts, idx, questions, known }
     liveWrap: null, wrapDismissedOn: null, // WRAP THE DAY — the evening card on Home
     liveRepertoire: null, // THE REPERTOIRE — today's technique on Home
+    liveStuck: null, // what the day plan keeps listing and nothing closes (planObserve.js)
+    stuckUndo: null, // his last answer on a stuck item, undoable until the next one
     repertoireBookOpen: false, repertoireTab: 'techniques', repertoireOpenReport: null, liveRepertoireAll: null,
     // set when a reply was composed but the device refused to play it —
     // silence must never also be invisible
@@ -1550,6 +1553,7 @@ export default class App extends Component {
     apply('workoutGoals', (r) => this.setState({ liveWorkoutGoals: r.goals, liveGoalBoard: r.board || null }));
     apply('graph', (r) => { this.setState({ liveGraph: r }); this.gNodes = null; });
     apply('repertoire', (r) => this.setState({ liveRepertoire: r }));
+    apply('stuck', (r) => this.setState({ liveStuck: r }));
     apply('inbox', (r) => this.setState({ liveInbox: r }));
     apply('dispatch', (r) => this.setState({ liveDispatch: r }));
     apply('compost', (r) => this.setState({ liveCompost: r }));
@@ -7664,6 +7668,45 @@ export default class App extends Component {
     }).catch((e) => {
       this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });
+  }
+  // START IT WITH ME. A stuck promise, and Nova taking the first two minutes
+  // with him on the Voice screen, in the conversation he already has.
+  startStuck(item) {
+    const conn = getConnection();
+    if (!conn || this.state.voiceBusy || this.state.connectionStatus === 'offline') return;
+    this.primeSpeech();
+    this.navigate('voice');
+    api.askStart(conn, item.todo ? `${item.text} (the to-do: ${item.todo})` : item.text, item.days || 0, this.state.voiceSessionId || null).then(({ jobId, label }) => {
+      try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now() })); } catch { /* best-effort */ }
+      this.setState((s) => ({ voiceBusy: true, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: `${label}: ${item.text}` }] }));
+      this.stopSpeaking();
+      this.attachAskPoll(conn, jobId);
+    }).catch((e) => {
+      this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
+    });
+  }
+  // NOT NOW / LET IT GO. Server-side state, so every device agrees; the row
+  // leaves at once and one Undo brings back exactly what was there.
+  answerStuck(item, action) {
+    const conn = getConnection();
+    if (!conn) return;
+    const before = this.state.liveStuck;
+    const drop = (list) => (list || []).filter((x) => x.key !== item.key);
+    this.setState({
+      liveStuck: before ? { ...before, stuck: drop(before.stuck), staleTodos: drop(before.staleTodos) } : before,
+      stuckUndo: { item, action, before },
+    });
+    api.answerStuck(conn, item.key, action, item.text).catch((e) => {
+      this.setState({ liveStuck: before, stuckUndo: null });
+      this.toastMsg('Could not save that: ' + e.message);
+    });
+  }
+  undoStuck() {
+    const conn = getConnection();
+    const u = this.state.stuckUndo;
+    if (!conn || !u) return;
+    this.setState({ liveStuck: u.before, stuckUndo: null });
+    api.answerStuck(conn, u.item.key, 'restore', u.item.text).catch((e) => this.toastMsg('Could not undo: ' + e.message));
   }
   // A ritual counts as done when its reply landed — and for every device, not
   // this one: per-device localStorage was the brief's documented lesson

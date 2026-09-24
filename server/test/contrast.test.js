@@ -91,7 +91,9 @@ test('the faint tier is readable text, and stays a distinct tier', () => {
 
 test('no type on Home is below the iOS minimum of 11pt', () => {
   // typography.md › Specifications — "iOS, iPadOS | 17 pt | 11 pt"
-  const home = readFileSync(new URL('../../src/screens/MissionStructured.jsx', import.meta.url), 'utf8');
+  // the Home screen, and the cards it renders from their own files
+  const home = ['../../src/screens/MissionStructured.jsx', '../../src/StuckCard.jsx']
+    .map((f) => readFileSync(new URL(f, import.meta.url), 'utf8')).join('\n');
   const tooSmall = [...home.matchAll(/font: `[^`]*?\b(\d+(?:\.\d+)?)px/g)]
     .map((m) => Number(m[1]))
     .filter((n) => n < 11);

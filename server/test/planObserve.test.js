@@ -35,6 +35,8 @@ test('eating protein is protein; planning meals around it is not', () => {
 test('the promise is the opening clause', () => {
   assert.equal(openingClause('Run the 07:00 Leg Day session in full — fold in the overdue Pull carryovers'), 'Run the 07:00 Leg Day session in full');
   assert.equal(priorityKind("Run the 07:00 Leg Day session in full — instead of letting them slip to Sunday's rest day"), 'train');
+  assert.equal(priorityKind('During the 07:15 workout block, finish the 4 leftover Pull lifts from Wednesday'), 'train', 'the session word can live in the preamble');
+  assert.equal(priorityKind('During the 15:30 work block, just open the podcast and play the first minute'), null);
 });
 
 test('the routine named is the earliest one, and adjectives are not routines', () => {

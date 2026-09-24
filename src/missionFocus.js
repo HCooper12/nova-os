@@ -15,7 +15,9 @@
 // finished item to look like an unfinished one.
 export function pickOneThing(priorities = []) {
   const list = Array.isArray(priorities) ? priorities : [];
-  const index = list.findIndex((p) => p && !p.outcome);
+  // settled by his mark OR seen done in his log (server/lib/planObserve.js):
+  // the loud card is for what is genuinely still open
+  const index = list.findIndex((p) => p && !p.outcome && p.observed?.state !== 'done');
   if (index === -1) return null;
   return { index, priority: list[index] };
 }

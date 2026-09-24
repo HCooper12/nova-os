@@ -49,7 +49,9 @@ const ROUTINE_WORDS = ['push', 'pull', 'leg', 'upper', 'lower'];
 const WHEN_ONLY = /^(?:at|in|during|by|before|after|from)\b[^,—;]{0,32}$/i;
 export function openingClause(text) {
   const parts = String(text || '').split(/\s[—–-]\s|;|,\s|\sand use it\b|\sthen\b|\s\(/);
-  return WHEN_ONLY.test(parts[0].trim()) && parts[1] ? parts[1] : parts[0];
+  // the WHEN rides along: "During the 07:15 workout block, finish the 4
+  // leftover lifts" says it is a session only in its preamble
+  return WHEN_ONLY.test(parts[0].trim()) && parts[1] ? `${parts[0]}, ${parts[1]}` : parts[0];
 }
 
 // What kind of promise a priority is, from its opening clause. Pure.
@@ -319,6 +321,13 @@ export async function stuckNow(vaultPath, { now = new Date() } = {}) {
   }
   const decisions = await readStuckDecisions();
   const stuck = stuckPriorities(seen);
+  // ALREADY ON TODAY'S PLAN, as its first small step: Home offers "start it"
+  // on that row instead of asking the same thing twice
+  const todays = plans[0]?.date === today ? plans[0].priorities : [];
+  for (const s of stuck) {
+    const i = todays.findIndex((p) => samePromise(promiseKey(p.do), s.key) || (linkKey(p.do) && linkKey(p.do) === linkKey(s.text)));
+    if (i >= 0) s.today = i;
+  }
   let todos = [];
   try { todos = staleTodos((await (await import('./todos.js')).listTodos(vaultPath)).items, today); } catch { /* no page, no stale to-dos */ }
   const open = [];
