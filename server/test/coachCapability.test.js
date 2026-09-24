@@ -15,7 +15,8 @@ test('the Coach prompt states plainly that it CAN change the program', () => {
 
 test('the prompt no longer sends him to the Inbox to say yes', () => {
   const p = buildCoachPrompt({ question: 'swap spider curl', context: '' });
-  assert.match(p, /APPLY IT/, 'he accepts it on the reply itself');
+  assert.match(p, /card he answers with a yes/i, 'he says yes on the card, in Train');
+  assert.doesNotMatch(p, /tap APPLY IT/i, 'no button of that name renders on the Coach tab any more (25 Sep)');
   assert.doesNotMatch(p, /approve it in your Inbox/i, 'the detour is what made Coach look incapable');
 });
 
