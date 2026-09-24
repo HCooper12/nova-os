@@ -34,7 +34,13 @@ async function call(conn, path, { timeoutMs } = {}) {
     headers: { Authorization: `Bearer ${conn.token}` },
     signal: reqSignal(timeoutMs),
   });
-  if (!res.ok) throw new Error(`${path} failed: ${res.status}`);
+  if (!res.ok) {
+    // the status travels with the error: a 404 on a job means the server
+    // FORGOT it (a restart), which the poller must not mistake for a blip
+    const err = new Error(`${path} failed: ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   return res.json();
 }
 

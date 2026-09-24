@@ -8542,8 +8542,27 @@ export default class App extends Component {
       const stripDirective = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH)\s*(\{[\s\S]*)?$/, '');
       this.flushAttachments(conn).then((attachmentId) => api.askCoach(conn, q, this.state.coachSessionId || null, liveSession, attachmentId)).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
+          // past this a careful answer is SLOW, not failed (jobPoller.js)
           timeoutMs: 3 * 60_000,
           intervalMs: 700,
+          onSlow: () => {
+            // say it in Coach's own bubble, which the real words replace the
+            // moment they start streaming — never a red SYSTEM line for a job
+            // that is simply thinking hard
+            if (!this.state.coachChat.some((m) => m.streaming)) {
+              this.applyStreamPartial('coachChat', 'coach', 'Still working on this. A detailed answer can take a few minutes; it will land right here, and the island will tell you if you are elsewhere.');
+            }
+          },
+          onLost: (msg) => {
+            // the server forgot the job (a restart): say so, and hand him his
+            // question back so asking again is one tap
+            this.setState((s) => ({
+              coachBusy: false,
+              coachInput: s.coachInput || q,
+              coachChat: [...s.coachChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: `${msg} Your question is back in the box: tap Ask.` }],
+            }));
+            this.announceAway({ here: this.state.screen === 'workouts' && this.state.trainTab === 'coach', title: 'Coach lost that answer', text: 'Your Mac restarted mid-answer. Your question is back in the box.', tone: 'warn', go: () => this.navigate('workouts', { trainTab: 'coach' }) });
+          },
           onProgress: (job) => {
             if (!job.partial) return;
             const shown = stripDirective(job.partial);
@@ -8671,6 +8690,9 @@ export default class App extends Component {
       this.startPoll('leader', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 3 * 60_000,
         intervalMs: 700,
+        onSlow: () => {
+          if (!this.state.leaderChat.some((m) => m.streaming)) this.applyStreamPartial('leaderChat', 'leader', 'Still working on this. It will land right here, and the island will tell you if you are elsewhere.');
+        },
         onProgress: (job) => {
           if (!job.partial) return;
           const shown = stripDirective(job.partial);
