@@ -3,6 +3,8 @@ import { micStarted, micStopped } from './audioSession.js';
 import { attachMicStream } from './audioLevel.js';
 import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason } from './turnEnd.js';
 import { getConnection } from './api.js';
+import { recorderSupported, openRecording, transcribeRecording } from './recorder.js';
+import { hearingChoice, resolveHearing } from './hearingEngine.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
 // owns the microphone, and a parallel getUserMedia capture risks silently
@@ -92,9 +94,20 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const retryRef = useRef(0);      // a pending second go at a thrown restart
   const reasonRef = useRef('engine'); // why this turn is ending, for the receipt
   const meterRef = useRef({ stream: null, detach: null });
+  const recordingRef = useRef(null);  // Nova's own ears: the open recording, if any
+  const mountedRef = useRef(true);
   const [on, setOn] = useState(false);
+  const [hearing, setHearing] = useState(false);  // recorded, waiting on the Mac for the words
+  const [blind, setBlind] = useState(false);      // the level meter hears nothing at all: tap to send
   const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
   const held = holdMs > 0;
+  // WHICH EARS (src/hearingEngine.js). Read per render: a Settings change
+  // applies to the next turn without a reload, and it is one localStorage read.
+  const engine = resolveHearing({
+    choice: hearingChoice(), ios: IOS, speech: !!SR,
+    recorder: recorderSupported(), connected: !!getConnection(),
+  });
+  const novaEars = engine === 'nova';
 
   const stopMeter = () => {
     try { meterRef.current.detach?.(); } catch { /* already gone */ }
@@ -231,6 +244,118 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     try { rec.stop(); } catch { closeOut(); }
   };
 
+  // ---- NOVA'S OWN EARS -------------------------------------------------
+  // The same turn, the same clock, the same receipt — only the source of
+  // "he is still talking" (vad.js loudness instead of engine results) and of
+  // the words (the Mac, once, at the end) differ.
+  const BLIND_CAP_MS = 90_000;     // a deaf meter cannot end his turn, so a tap does — or this
+  const TAP_CAP_MS = 300_000;      // tap-to-end surfaces (the Inbox composer) still stop eventually
+
+  const finishNova = async () => {
+    if (!liveRef.current) return;
+    const turn = turnRef.current;
+    const handle = recordingRef.current;
+    recordingRef.current = null;
+    liveRef.current = false;
+    wantRef.current = false;
+    if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = 0; }
+    turnRef.current = null;
+    micStopped();
+    setOn(false);
+    setBlind(false);
+    setHearing(true);
+    const blob = handle ? await handle.stop() : null;
+    const vad = handle?.vad();
+    const wasBlind = !!handle?.blind();
+    let text = '';
+    let tx = null;
+    let failure = null;
+    // Sent even when the meter heard nothing: a meter that is wrong about
+    // silence must not cost him his words. A silent clip costs the Mac 200ms.
+    if (blob && blob.size > 0) {
+      const meter = wasBlind ? 'blind' : vad?.heardAny ? 'heard' : 'silent';
+      try { tx = await transcribeRecording(blob, { vad: meter }); text = tx.text; } catch (e) { failure = e; }
+    }
+    if (!mountedRef.current) return;
+    setHearing(false);
+    if (text) {
+      saidRef.current = text;
+      finalsRef.current = '';
+      interimRef.current = '';
+      emit();
+    }
+    if (failure) onError?.(failure.message || 'Nova could not hear that');
+    if (held || onTurnEnd) {
+      try {
+        onTurnEnd?.({
+          reason: reasonRef.current,
+          ms: turn ? Date.now() - turn.startedAt : 0,
+          restarts: 0,
+          heard: !!text,
+          engine: 'nova',
+          vad: wasBlind ? 'blind' : vad?.heardAny ? 'heard' : 'silent',
+          bytes: blob?.size || 0,
+          txMs: tx?.ms ?? null,
+          ...(failure ? { why: String(failure.message || '').slice(0, 120) } : {}),
+        });
+      } catch { /* never at the cost of the turn */ }
+    }
+    onDone?.();
+  };
+
+  const tickNova = () => {
+    if (!liveRef.current || !wantRef.current || !turnRef.current) return;
+    const now = Date.now();
+    const age = now - turnRef.current.startedAt;
+    const handle = recordingRef.current;
+    // a meter that wakes up mid-turn (the graph resumed) takes over again
+    const deaf = !!handle?.blind();
+    setBlind(deaf);
+    if (deaf) {
+      if (age >= BLIND_CAP_MS) { reasonRef.current = 'cap-idle'; finishNova(); }
+      return;
+    }
+    if (!held) {
+      if (age >= TAP_CAP_MS) { reasonRef.current = 'cap-absolute'; finishNova(); }
+      return;
+    }
+    const why = endReason(turnRef.current, now, { holdMs, leadMs });
+    if (!why) return;
+    reasonRef.current = why;
+    finishNova();
+  };
+
+  const startNova = () => {
+    baseRef.current = getBase();
+    saidRef.current = '';
+    finalsRef.current = '';
+    interimRef.current = '';
+    const now = Date.now();
+    turnRef.current = baseRef.current ? sawSpeech(openTurn(now), now) : openTurn(now);
+    if (baseRef.current) emit();
+    reasonRef.current = 'engine';
+    liveRef.current = true;
+    wantRef.current = true;
+    micStarted();
+    setOn(true);
+    setBlind(false);
+    clockRef.current = setInterval(tickNova, TICK_MS);
+    openRecording({
+      onLevel: (vad) => {
+        if (vad.speaking && turnRef.current) turnRef.current = sawSpeech(turnRef.current, Date.now());
+      },
+    }).then((handle) => {
+      if (!liveRef.current) { handle.cancel(); return; }   // he stopped before the mic opened
+      recordingRef.current = handle;
+    }).catch((e) => {
+      // the mic itself refused — permission, or no device. Nothing was
+      // recorded, so there is nothing to send: say why and stop.
+      const kind = e?.name === 'NotAllowedError' ? 'not-allowed' : e?.name === 'NotFoundError' ? 'audio-capture' : (e?.message || 'microphone failed');
+      onError?.(kind);
+      if (liveRef.current) closeOut();
+    });
+  };
+
   const startTurn = () => {
     baseRef.current = getBase();
     saidRef.current = '';
@@ -263,6 +388,12 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   };
 
   const toggle = () => {
+    if (hearing) return;                   // the words are on their way; a tap now would lose them
+    if (novaEars) {
+      if (on) finishNova();
+      else startNova();
+      return;
+    }
     if (on) {
       wantRef.current = false;             // a deliberate stop never restarts
       const rec = recRef.current;
@@ -275,7 +406,11 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
 
   // Leaving the screen mid-turn used to leave the recogniser running; with a
   // clock behind it that would also leave an interval ticking forever.
+  useEffect(() => { mountedRef.current = true; }, []);
   useEffect(() => () => {
+    mountedRef.current = false;
+    try { recordingRef.current?.cancel(); } catch { /* already gone */ }
+    recordingRef.current = null;
     if (clockRef.current) { clearInterval(clockRef.current); clockRef.current = 0; }
     if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = 0; }
     wantRef.current = false;
@@ -285,5 +420,5 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { supported: !!SR, on, toggle };
+  return { supported: !!engine, on, toggle, hearing, blind, engine };
 }

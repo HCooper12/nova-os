@@ -172,6 +172,42 @@ export function playSpeechBuffer(buffer, onEnded) {
   return src; // caller may .stop() to interrupt
 }
 
+// HIS LOUDNESS, READ ON DEMAND — for Nova's own ears (src/recorder.js),
+// where "is he still talking" comes from level alone. It rides THIS context
+// on purpose: a context created fresh outside a tap starts suspended on iOS
+// (and in headless Chrome) and reads flat zero forever, while this one is
+// resumed at every gesture and before every sentence Nova speaks — so it is
+// running at exactly the moment conversation mode reopens the mic.
+// Returns { rms(), running(), detach() }; rms() is 0 while the graph sleeps.
+export function openMicLevel(stream) {
+  if (!stream || !ensureCtx()) return null;
+  ctx.resume().catch(() => {});
+  try {
+    const src = ctx.createMediaStreamSource(stream);
+    const an = ctx.createAnalyser();
+    an.fftSize = 1024;
+    src.connect(an);   // an analyser only: never to the speakers
+    const frame = new Float32Array(an.fftSize);
+    active++;
+    return {
+      rms() {
+        if (ctx.state !== 'running') return 0;
+        an.getFloatTimeDomainData(frame);
+        let sum = 0;
+        for (let i = 0; i < frame.length; i++) sum += frame[i] * frame[i];
+        return Math.sqrt(sum / frame.length);
+      },
+      running: () => ctx.state === 'running',
+      detach() {
+        try { src.disconnect(); } catch { /* already gone */ }
+        active = Math.max(0, active - 1);
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 // His voice: a mic tap while dictation runs. Mic audio connects to the
 // analyser ONLY — never to the speakers (feedback). The caller owns the
 // stream's lifetime and stops its tracks when dictation ends.

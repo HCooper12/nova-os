@@ -39,6 +39,8 @@ const TURNS_PATH = () => path.join(TURNS_DIR(), 'turns.json');
 // its own echo, and there was no one there).
 export const END_REASONS = new Set(['hold', 'lead', 'cap-idle', 'cap-absolute', 'restart-limit', 'engine', 'barge-in', 'unknown']);
 const SURFACES = new Set(['voice', 'presence', 'barge']);
+// what the level meter thought, for a turn heard by Nova's own ears (vad.js)
+const VAD_STATES = new Set(['heard', 'silent', 'blind']);
 
 export const MAX_TURNS = 500;
 
@@ -76,6 +78,16 @@ export function turnRecord(body = {}, ua = '') {
     // trade for being able to fix this rather than guess at it.
     ...(typeof body.why === 'string' && body.why ? { why: body.why.slice(0, 120) } : {}),
     ...(typeof body.text === 'string' && body.text ? { text: body.text.slice(0, 80) } : {}),
+    // WHICH EARS. 'nova' = recorded and transcribed on the Mac (src/recorder.js);
+    // absent = the browser's own engine, as every turn before 25 Sep was. Read
+    // by device AND engine: the whole point is to see whether the recording
+    // path hears him on the phone where the engine never did.
+    ...(body.engine === 'nova' ? {
+      engine: 'nova',
+      vad: VAD_STATES.has(body.vad) ? body.vad : 'unknown',
+      bytes: Number.isFinite(body.bytes) ? Math.max(0, Math.round(body.bytes)) : 0,
+      ...(Number.isFinite(body.txMs) ? { txMs: Math.max(0, Math.round(body.txMs)) } : {}),
+    } : {}),
     ua: String(body.ua || ua || '').slice(0, 200),
   };
 }

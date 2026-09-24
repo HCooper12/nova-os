@@ -73,7 +73,7 @@ export function VoicePresence({ v }) {
   // stop the mic when the conversation ends, so the OS gets its session back
   useEffect(() => () => { try { if (dictRef.current.on) dictRef.current.toggle(); } catch { /* already closed */ } }, []);
 
-  const state = dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
+  const state = dict.hearing ? 'HEARING' : dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
   const tone = dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)';
   if (!s.textOpen && !s.evidence && !s.card && !s.glass && !v.speechBlocked) return null;
 

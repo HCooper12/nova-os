@@ -11,7 +11,7 @@ export function voiceTurnsRouter() {
   router.post('/voice/turn', async (req, res) => {
     try {
       const record = await appendTurn(req.body || {}, req.get('user-agent') || '');
-      console.log(`voice turn ${record.surface} ${record.reason} after ${record.ms}ms, ${record.restarts} restart(s), heard=${record.heard}`);
+      console.log(`voice turn ${record.surface} ${record.reason} after ${record.ms}ms, ${record.restarts} restart(s), heard=${record.heard}${record.engine ? ` via nova (meter ${record.vad}, ${record.bytes}B, words in ${record.txMs ?? '?'}ms)` : ''}`);
       res.json({ ok: true });
     } catch (e) {
       // a lost receipt is a lost line, never an error in his face mid-sentence

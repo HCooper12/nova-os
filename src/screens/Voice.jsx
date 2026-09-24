@@ -187,7 +187,8 @@ export function Voice({ v }) {
   const coreSize = onGlass ? Math.round(base * 0.62) : base;
   const reticle = coreSize + 56;
 
-  const caption = dict.on ? (v.convMode ? 'LISTENING — PAUSE SENDS' : 'LISTENING…')
+  const caption = dict.hearing ? 'HEARING YOU…'
+    : dict.on ? (dict.blind ? 'LISTENING — TAP THE CORE TO SEND' : v.convMode ? 'LISTENING — PAUSE SENDS' : 'LISTENING…')
     : v.voiceBusy ? 'READING THE VAULT…'
     : v.voiceSpeaking ? 'SPEAKING'
     : v.convPaused ? 'PAUSED — TAP THE CORE'
@@ -513,8 +514,8 @@ export function Voice({ v }) {
               TTS tap on both devices; him dictating on desktop) — motion here
               means sound is genuinely happening. iOS dictation keeps the
               state bars: an indicator, honestly labeled by its uniformity. */}
-          {(v.voiceSpeaking || (dict.on && !IOS)) && <VoiceWaveform />}
-          {dict.on && IOS && !v.voiceSpeaking && (
+          {(v.voiceSpeaking || (dict.on && (!IOS || dict.engine === 'nova'))) && <VoiceWaveform />}
+          {dict.on && IOS && dict.engine !== 'nova' && !v.voiceSpeaking && (
             <div style={css("display:flex;gap:3px;align-items:center;height:26px")}>
               <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 80%, transparent);animation:wave 1.1s ease-in-out infinite")}></span>
               <span style={css("width:3px;height:22px;background:color-mix(in srgb, var(--nv-cy) 60%, transparent);animation:wave 1.1s ease-in-out .12s infinite")}></span>
