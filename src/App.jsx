@@ -8539,7 +8539,7 @@ export default class App extends Component {
         : null;
       // a trailing PROPOSE line is a typed directive for the server, not
       // prose — keep it out of the streamed render
-      const stripDirective = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH)\s*(\{[\s\S]*)?$/, '');
+      const stripDirective = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH|CONSULT)\s*(\{[\s\S]*)?$/, '');
       this.flushAttachments(conn).then((attachmentId) => api.askCoach(conn, q, this.state.coachSessionId || null, liveSession, attachmentId)).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
           // past this a careful answer is SLOW, not failed (jobPoller.js)

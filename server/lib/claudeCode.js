@@ -10,6 +10,7 @@ import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { registerJobMap } from './jobRegistry.js';
+import { consultCapability, parseConsult, consultProgress, consultReplyText, runConsults, MAX_CONSULT_ROUNDS } from './coachConsult.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -754,6 +755,7 @@ Ground rules:
 - PROGRESSION IS MORE THAN KILOGRAMS: the default +2.5kg is wrong for many lifts — lateral raises, curls, cable work, anything where dumbbells jump 2kg at a time. When more load isn't the right next step, prescribe the alternative a good coach would: more reps first (repStep), a smaller step if the gym's equipment allows it (ask what increments he actually has access to if you don't know), or a QUALITY focus — slower 3-4s eccentric, a pause, strict tempo, fuller range — via PROPOSE {"action":"tune","exercise":"Lateral Raise","focus":"3s eccentric, same load","reason":"2.5kg is a 20% jump on this lift"}. A focus shows as a chip on that exercise in his session view until changed, and the weekly debrief holds the week against it.
 - For anything else you cannot change (logging food, calendar), point him at the right surface. Never claim you wrote anything.
 - SKIPPED WORK: if the context lists repeatedly-skipped exercises, raise the single most significant one once, naturally, after answering what he actually asked — name the count ("Spider Curls have missed 3 of your last 4 Pulls"), ASK WHY (no time? equipment busy? a niggle? you just hate it?), and STOP there. Do not propose a fix in the same breath — the reason decides whether it's a swap, a removal, moving it earlier in the session, or nothing at all. Once he tells you why, then offer the fix (and PROPOSE it if he wants it). Never raise the same one twice in a conversation, and never moralise about it.
+${consultCapability()}
 - RESOURCES: you have WebSearch and WebFetch — USE them whenever seeing beats describing: form checks, technique cues, a stretch or mobility routine, "how do I do X", or any claim worth a citation. Curate, never dump: 1-3 links maximum, each as a markdown link with a specific title and ONE line on why it's worth his time ("[Squat University — fixing butt wink](url) — the hip-anatomy explanation at 2:10 is the fix for your depth question"). Prefer reputable channels/sources (Squat University, Renaissance Periodization, Jeff Nippard, Stronger by Science, E3 Rehab, published studies). When you cite evidence, link it. Never invent a URL — only link what you actually found this turn.
 - Format: conversational and tight, but markdown WORKS here — links render clickable, **bold** for the one number that matters, short lists when prescribing (sets × reps × rest). No headings, no tables. Lead with the answer.
 
@@ -776,7 +778,7 @@ Hayden asks: ${question}`;
 // ("PROPOSE swap: X → Y"), which the parser cannot see — Coach said "tap
 // APPLY IT below" over a button that never rendered, three turns in a row,
 // on his phone.
-const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why","instructed":true} — "instructed":true when HE told you to make the change (then say it is DONE, never "tap apply"); omit it for your own suggestion (then offer it). A retag is "remap" (fields exercise, muscleGroup), never "tune". Actions: swap/add/remove/targets/remap/tune/injury/goal/learn/resource. Prose after PROPOSE does not work; only the JSON object is machine-readable. It renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix.]';
+const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why","instructed":true} — "instructed":true when HE told you to make the change (then say it is DONE, never "tap apply"); omit it for your own suggestion (then offer it). A retag is "remap" (fields exercise, muscleGroup), never "tune". Actions: swap/add/remove/targets/remap/tune/injury/goal/learn/resource. Prose after PROPOSE does not work; only the JSON object is machine-readable. It renders as APPLY IT / NOT NOW on your own message and applies deterministically with undo when he taps it. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix. You can also CONSULT the other agents before answering a question that deserves it: one sentence saying who you are asking, then ONE final line EXACTLY like CONSULT {"asks":[{"agent":"researcher","question":"…"},{"agent":"calendar","question":"…"}]} (agents: researcher = cited evidence, nova = his whole vault, calendar = his next 14 days). Their answers come back to you; then you give the full answer and say whose input shaped it.]';
 
 export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
   assertLaneOn('coach');
@@ -810,7 +812,33 @@ export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
 
-  const finishTurn = async (replyText, turnJob) => {
+  // CONSULT (coachConsult.js): a turn that asks the other agents is not the
+  // answer. Code runs the asks in parallel, streams who is working into his
+  // bubble, then hands the answers back to THIS conversation for the real
+  // reply. Turn two resumes the session, whichever process serves it.
+  let consultRounds = 0;
+  const resumeArgs = [...args.slice(0, -2), '--resume', effectiveSessionId];
+  const finishTurn = async (incomingText, turnJob) => {
+    let replyText = incomingText;
+    const consult = parseConsult(replyText);
+    if (consult && consultRounds < MAX_CONSULT_ROUNDS) {
+      consultRounds += 1;
+      turnJob.partial = consultProgress(consult.cleanText, consult.asks);
+      try {
+        const results = await runConsults(cwd, consult.asks, {
+          question,
+          onUpdate: (asks) => { turnJob.partial = consultProgress(consult.cleanText, asks); },
+        });
+        turnJob.consulted = [...(turnJob.consulted || []), ...results.map((r) => ({ agent: r.agent, label: r.label, ok: r.ok, recordId: r.recordId || null }))];
+        warmTurn({ kind: 'coach', sessionId: effectiveSessionId, cwd, args: resumeArgs, text: consultReplyText(results, question), job: turnJob, finishTurn });
+      } catch (e) {
+        turnJob.status = 'error';
+        turnJob.error = `the Coach could not consult the other agents: ${e.message}`;
+      }
+      return;
+    }
+    // the loop guard: a Coach that has consulted twice answers with what it has
+    if (consult) replyText = `${consult.cleanText}\n\n(I had more I wanted to check, but I've asked twice already, so this is my answer from what the agents gave me.)`;
     try {
       // The Coach may PROPOSE a program change — the model decides, this
       // code validates against the real routines and files a PENDING record
@@ -859,7 +887,7 @@ export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
         });
         if (guess) coachPanel = await buildPanel(cwd, guess);
       } catch { /* no panel rather than a wrong one */ }
-      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, panel: coachPanel };
+      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, panel: coachPanel, consulted: turnJob.consulted || null };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a
       // delivered answer — a failed job used to consume the window silently
