@@ -248,6 +248,40 @@ So, in order, next session:
    headless Chrome does not drive `requestAnimationFrame`. His phone is
    the first real test.
 
+**PASS 3 — DONE (24 Sep), published as version 3 of the same artifact.**
+His ask: go through each one until it is perfected, with no buggy
+animations or appearances, and no more "cylinders attached to cylinders".
+Still fun, cute and engaging. Looking at all nine from four sides showed
+the faults were SHARED, so the species was rebuilt once (`makeBot`): a big
+superquadric helmet on a compact body; a face screen set into the helmet
+with a moulded rim (the band is gone, and with it the bandit mask); eyes
+built from lid, smile, brow, blush and tilt (never a slot); noodle arms
+through a solved elbow ending in mittens; boots, ear pods, a gem seated in
+the chest. Then each being in turn, each with one artefact and one pose:
+
+| Being | Artefact / tell | Working |
+|---|---|---|
+| Commander | compass-rose crest, gold epaulettes, hand on hip | points ahead, the rose swings to a heading |
+| Coach | sweatband, wristbands, whistle, bar on the floor | curls the bar, grins at the top of each rep |
+| CFO | bow tie, coin slot in the crown, hands behind back | flips a coin, eyes follow it |
+| Guardian | shield emblem with the core in its boss, crown ridge, lantern | lantern raised bright (amber and low when waiting) |
+| Researcher | one lens eye with iris, open book, idea bulb | reads along the lines, page turns, bulb glows |
+| Watcher | headphones, popcorn, seated | scanline, eyes follow the action, film light flickers |
+| Librarian | card-catalogue body, round spectacles, books on the hip | a drawer slides out, an index card rises |
+| Meal Prep | chef's toque, coral neckerchief, little pot and ladle | stirs, steam curls up, eyes go ^ ^ |
+| Leader | mirror screen, listening tilt, glowing ear, "?" orb | nods while listening, a ripple leaves the orb |
+
+Tried and dropped (and why): an eyeshade brim on the CFO (face-on it read
+as a wire across the eyes); folded arms on the CFO (read as two pointing
+sticks); an apron on Meal Prep (a flat panel standing off the belly in
+profile); book-spine grain on the Librarian (his "corduroy" again).
+Verified by a studio capture (four sides and two head close-ups per being,
+both poses), 12-frame filmstrips of the working cycles, and a 15fps strip
+of the Waiting-to-Working switch, which exposed a real easing bug (zero
+elapsed time snapped the pose) that is fixed. **Unverified until he looks:**
+how it feels on his phone at full frame rate; headless Chrome runs this at
+about 6fps.
+
 Build order for the characters: a **3D character sheet first**
 (`design/mockups/49-agent-characters.html`, three.js, nine figures on a
 turntable, tap to focus, each shown in its working and waiting pose) for
