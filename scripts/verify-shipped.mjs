@@ -100,6 +100,9 @@ const FEATURES = [
   ['Train · the cockpit says the gym can be spoken (6 Sep)', 'Log it by talking'],
   ['Chat · the browser hand has its own lane + chip (7 Sep)', 'Nova opens its own Chrome'],
   ['Settings · the page answers to speech (7 Sep)', 'You can just say it'],
+  // the iPhone mic records and the Mac writes it down (25 Sep)
+  ["Voice · Nova's own ears, waiting on the Mac for the words (25 Sep)", 'HEARING YOU'],
+  ["Settings · test Nova's ears on his own phone (25 Sep)", 'shows what your Mac heard'],
 ];
 
 const SERVER_ROUTES = [
