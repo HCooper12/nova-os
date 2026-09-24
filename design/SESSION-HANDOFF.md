@@ -13,6 +13,52 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (late morning) — COACH'S CHANGES LIVE IN TRAIN: A BANNER, A DECK, A
+TICK. AND MY TEST DECLINED ONE OF HIS CARDS (PUT BACK, 15 MIN LATER).**
+
+- **His ask.** Every change the Coach suggests (over time, research, chat)
+  in Train: a pop-up under Today and Gym that leads to the Coach tab, where
+  each can be approved, discussed or turned down, the pressed button turning
+  into a tick. *"Simplicity and ease of use MUST be the goal here and not
+  over complicated like the inbox system has become."* **His future note:
+  re-evaluate the Inbox (too clunky); "Not to do here yet though."**
+  Recorded in memory (roadmap COME BACK TO + open threads), not started.
+- **Shipped, all pushed, deployed build `36a63d2`, verify-shipped all PASS.**
+  `56550d7` approve of a program-review fix now ACTS (opsFromFix → applyOps,
+  undo kept; it used to file and change nothing). `968fe7e` the deck:
+  `src/coachSuggestions.js` (pure view model), `src/CoachSuggestions.jsx`
+  (banner, deck, card, TickButton), the "COACH'S SUGGESTIONS" CSS block in
+  `src/index.css`, `coachDeck`/`coachBanner` in valsWorkouts, the
+  `*CoachSuggestion*` methods in App.jsx, and Workouts.jsx wiring. The
+  Coach-tab chat's Apply buttons became a pointer to the deck; the
+  in-session chat keeps its own. `8e3ffcc` both Coach prompts: reason in
+  the second person, "a card he answers with a yes, a discuss or a no",
+  never "tap APPLY IT"; the stale "at most one PROPOSE per reply" is gone.
+  `3233cbd` reopen: `POST /api/inbox/:id/reopen` (lib/inbox.js
+  `reopenRecord`, Coach cards only) and an island Undo on both answers (a
+  no reopens; a yes undoes, then reopens). `36a63d2` verify-shipped markers.
+- **Verified:** browser at 375 (Command), 402 (cupertino) and 1280 (two
+  columns, rows share a height) against his real cards, writes blocked;
+  yes, no, Undo on each, Discuss and Yes to all, with their timings
+  sampled. Tests 2203/2203. **NOT verified:** on his iPhone; a real approve
+  on his vault (his call, not a test's); Coach actually using the new
+  wording (his next Coach turn will show it).
+- **THE INCIDENT.** The devtools `initScript` guard lasts ONE navigation;
+  an `emulate` reload dropped it, and my test's ✕ declined his real card
+  ac801409 "remove Weighted Pull-Up from Push" at 23:33:37 UTC. Found in
+  the server log; reopened at 23:48:29 UTC via the new route (pending,
+  `discardedAt` cleared). The unguarded page also sent 5
+  `POST /api/notes/summary` (derived cache, harmless). Rule saved in memory
+  (nova-ui-instruments). **"Tuesday → rest" (0443530e) was approved by HIM**
+  from his phone (100.77.255.37) at 23:05:59 UTC.
+- **His 7 cards, waiting on the deck:** ac801409, 3b842978, 5b4a167c,
+  ab9bd99c, d7cf3e67, 8e06aecc, d82cc7f4.
+- **NEXT:** his verdict on the deck on his phone; after he answers, read
+  the routine files to confirm each yes really landed. Then, still queued
+  from before: Xcode after his macOS update → the Live Activity.
+
+---
+
 **25 SEP (mid-morning) — HIS COACH ANSWER WAS LOST (MY RELOAD), THE FIXES,
 COACH CONSULTS OTHER AGENTS, AND XCODE PENDING.** He is updating macOS next
 and closing all sessions; read this first when he is back.
