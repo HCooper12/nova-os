@@ -100,6 +100,45 @@ test('the cut is never an exercise he actually trains', () => {
   assert.ok(!logged.has(f.fix.exerciseId), 'must never propose cutting something he does');
 });
 
+// 25 Sep 2026, his real Upper Body: a card offered to drop Barbell Bench
+// Press as "the one you reach least (1 of 6)". He did it in the 5 and 13 Sep
+// make-ups and on the 18th; the count read only the main sessions.
+test('REACHED INCLUDES THE MAKE-UP: a lift finished in the week\'s make-up was reached', () => {
+  const main = (date, ids) => ({ date, routineId: 'push', routineName: 'Push', exercises: ids.map((i) => ({ exerciseId: `e${i}`, name: `Ex ${i}`, sets: sets(20, 10) })) });
+  const makeup = (date, ids) => ({ date, routineId: 'carryover', routineName: 'Push — makeup', exercises: ids.map((i) => ({ exerciseId: `e${i}`, name: `Ex ${i}`, sets: sets(20, 10) })) });
+  // e0-e4 in the main session; e5-e8 in the make-up two days later; e9 never
+  const sessions = [
+    main('2026-08-20', [0, 1, 2, 3, 4]), makeup('2026-08-22', [5, 6, 7, 8]),
+    main('2026-08-13', [0, 1, 2, 3]), makeup('2026-08-15', [5, 6, 7]),
+    main('2026-08-06', [0, 1, 2, 3, 4]), makeup('2026-08-08', [5, 6, 7, 8]),
+  ];
+  const [f] = findOversizedRoutines(sessions, [bigRoutine(10)], { now: NOW });
+  assert.equal(f.fix.exerciseId, 'e9', 'e5-e8 were done every week, in the make-up — only e9 never was');
+});
+
+test('ONE MOVEMENT, ANY NAME: "Pull-Ups" logged is the "Weighted Pull-Up" planned', () => {
+  const routine = { id: 'pull', name: 'Pull', exercises: [
+    { exerciseId: 'weighted-pull-up', name: 'Weighted Pull-Up' },
+    ...Array.from({ length: 6 }, (_, i) => ({ exerciseId: `p${i}`, name: `Pull Ex ${i}` })),
+  ] };
+  const s = (date, first) => ({ date, routineId: 'pull', routineName: 'Pull', exercises: [
+    { exerciseId: first, name: first === 'pull-ups' ? 'Pull-Ups' : 'Pull-Up', sets: sets(0, 10) },
+    { exerciseId: 'p0', name: 'Pull Ex 0', sets: sets(20, 10) },
+    { exerciseId: 'p1', name: 'Pull Ex 1', sets: sets(20, 10) },
+  ] });
+  const sessions = [s('2026-08-20', 'pull-ups'), s('2026-08-13', 'pull-up'), s('2026-08-06', 'pull-up')];
+  const [f] = findOversizedRoutines(sessions, [routine], { now: NOW });
+  assert.notEqual(f.fix.exerciseId, 'weighted-pull-up', 'he does his pull-ups every week, under whichever name he picked');
+});
+
+test('AN ARRIVAL IS NOT A NEVER: an exercise just moved here from another routine is not the cut', () => {
+  // e9 has no sets in Push, but he trains it on Upper Body: it arrived
+  const sessions = [sess('2026-08-20', 'push', 'Push', 5), sess('2026-08-13', 'push', 'Push', 4), sess('2026-08-06', 'push', 'Push', 5),
+    { date: '2026-08-18', routineId: 'upper', routineName: 'Upper Body', exercises: [{ exerciseId: 'e5', name: 'Ex 5', sets: sets(20, 10) }] }];
+  const [f] = findOversizedRoutines(sessions, [bigRoutine(10)], { now: NOW });
+  assert.equal(f.fix.exerciseId, 'e6', 'e5 is trained elsewhere, so the first entry truly never done is e6');
+});
+
 test('STAYS QUIET when he actually finishes the routine', () => {
   const sessions = [sess('2026-08-20', 'push', 'Push', 9), sess('2026-08-13', 'push', 'Push', 8), sess('2026-08-06', 'push', 'Push', 9)];
   assert.deepEqual(findOversizedRoutines(sessions, [bigRoutine(10)], { now: NOW }), []);

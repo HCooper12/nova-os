@@ -1,5 +1,6 @@
 import { recurringSignal } from './sessionNotes.js';
 import { latestDeclines, respectNo } from './respectTheNo.js';
+import { mondayIso } from './cadence.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -280,6 +281,22 @@ export function findJunkVolume(weeklyVolume = [], { ceiling = JUNK_VOLUME_CEILIN
 // weeks. A plan you can never finish isn't an ambitious plan, it's a plan
 // that hands you a backlog, and that is exactly the "too many exercises than
 // what is needed" he asked Coach to notice.
+// ONE MOVEMENT, HOWEVER IT WAS LOGGED. His library holds "Pull-Up", "Pull-Ups"
+// and "Weighted Pull-Up" as three ids, and he logs whichever he picks that
+// day; counted by id, the pull he does most weeks read as "reached 1 of 6"
+// and a card offered to cut Weighted Pull-Up from Pull. The load modifier,
+// a bracketed note and a plural are not a different movement.
+export function movementKey(name) {
+  return String(name || '').toLowerCase()
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\b(weighted|assisted|bodyweight|bw)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(' ')
+    .map((w) => (w.length >= 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
+    .join(' ');
+}
+
 export function findOversizedRoutines(sessions = [], routines = [], { minSessions = 3, ratio = 0.7, minDefined = 6, now = new Date(), justAdded = new Set() } = {}) {
   const out = [];
   const cut = new Date(now.getTime() - 42 * 86_400_000).toISOString().slice(0, 10);
@@ -297,20 +314,41 @@ export function findOversizedRoutines(sessions = [], routines = [], { minSession
 
     // WHICH exercise to cut is answered by his own behaviour: the one he
     // reaches least often. Named as evidence, and offered as the one tap.
-    const seen = new Map();
-    for (const s of mine) {
-      for (const ex of s.exercises || []) {
-        const worked = (ex.sets || []).some((x) => x.setType !== 'warmup' && ((Number(x.weight) || 0) > 0 || (Number(x.reps) || 0) > 0));
-        if (worked) seen.set(ex.exerciseId, (seen.get(ex.exerciseId) || 0) + 1);
-      }
+    // REACHED MEANS REACHED THAT WEEK, make-up included (25 Sep 2026). A
+    // make-up logs as routineId "carryover" named "<routine> — makeup", and
+    // this count read only the main session, so Barbell Bench Press, which he
+    // did in the 5 and 13 Sep make-ups and on the 18th, was "the one you reach
+    // least (1 of 6)" and a card offered to drop it from Upper Body.
+    const weekOf = (d) => mondayIso(d);
+    const makeupName = `${routine.name} — makeup`.toLowerCase();
+    const weeks = new Map(mine.map((s) => [weekOf(s.date), new Set()]));
+    const doneIn = (s) => (s.exercises || []).filter((ex) => (ex.sets || []).some((x) => x.setType !== 'warmup' && ((Number(x.weight) || 0) > 0 || (Number(x.reps) || 0) > 0)));
+    // an exercise counts as reached under its id AND its movement (see movementKey)
+    const mark = (set, ex) => { set.add(ex.exerciseId); if (ex.name) set.add(`~${movementKey(ex.name)}`); };
+    for (const s of mine) for (const ex of doneIn(s)) mark(weeks.get(weekOf(s.date)), ex);
+    for (const s of sessions) {
+      if (s.routineId !== 'carryover' || String(s.routineName || '').trim().toLowerCase() !== makeupName) continue;
+      const wk = weeks.get(weekOf(s.date));
+      if (wk) for (const ex of doneIn(s)) mark(wk, ex);
     }
+    const reachedIn = (e) => [...weeks.values()].filter((w) => w.has(e.exerciseId) || (e.name && w.has(`~${movementKey(e.name)}`))).length;
     // An exercise Coach itself added days ago has not had a CHANCE to be
     // reached — proposing he cut it is the "change for the sake of it" he
     // called out, and it happened for real: the review offered to drop
     // Weighted Pull-Up half an hour after Coach put it there.
+    // So is an exercise that ARRIVED here: no sets in this routine all window,
+    // but sets in another one. His rope extension, moved from Upper Body onto
+    // Push on 25 Sep, was "never touched" on Push that same afternoon.
+    const loggedAnywhere = new Set();
+    for (const s of sessions) {
+      if (s.date < cut) continue;
+      for (const ex of doneIn(s)) { loggedAnywhere.add(ex.exerciseId); if (ex.name) loggedAnywhere.add(`~${movementKey(ex.name)}`); }
+    }
+    const arrived = (e) => loggedAnywhere.has(e.exerciseId) || (e.name && loggedAnywhere.has(`~${movementKey(e.name)}`));
     const leastDone = (routine.exercises || [])
       .filter((e) => !justAdded.has(`${routine.id}:${e.exerciseId}`))
-      .map((e) => ({ e, n: seen.get(e.exerciseId) || 0 }))
+      .map((e) => ({ e, n: reachedIn(e) }))
+      .filter((x) => x.n > 0 || !arrived(x.e))
       .sort((a, b) => a.n - b.n)[0];
 
     out.push({
@@ -321,7 +359,7 @@ export function findOversizedRoutines(sessions = [], routines = [], { minSession
       defined,
       avg: Math.round(avg * 10) / 10,
       sessions: counts.length,
-      line: `${routine.name} lists ${defined} exercises but you finish about ${Math.round(avg * 10) / 10} of them across your last ${counts.length} — the rest keeps rolling into makeup sessions. That's a plan bigger than the session you actually train, and the tail end is the part that never gets your best work.${leastDone && leastDone.n === 0 ? ` ${leastDone.e.name} hasn't been touched once.` : leastDone ? ` ${leastDone.e.name} is the one you reach least (${leastDone.n} of ${counts.length}).` : ''} Trimming it to what you genuinely do would make every session count.`,
+      line: `${routine.name} lists ${defined} exercises but you finish about ${Math.round(avg * 10) / 10} of them across your last ${counts.length} — the rest keeps rolling into makeup sessions. That's a plan bigger than the session you actually train, and the tail end is the part that never gets your best work.${leastDone && leastDone.n === 0 ? ` ${leastDone.e.name} hasn't been touched once, make-ups included.` : leastDone ? ` ${leastDone.e.name} is the one you reach least (done in ${leastDone.n} of those ${weeks.size} weeks, make-ups included).` : ''} Trimming it to what you genuinely do would make every session count.`,
       // one tap cuts the movement his own history says he never reaches;
       // anything more surgical is a conversation, which DISCUSS IT opens
       fix: leastDone ? { action: 'drop', routineId: routine.id, exerciseId: leastDone.e.exerciseId } : null,
@@ -574,12 +612,31 @@ export async function reviewProgram(vaultPath, deps = {}) {
   const routines = await loadRoutinesFor(exercises).catch(() => []);
   // anything Coach placed in the plan recently is off the chopping block
   const justAdded = await (async () => {
+    const cut = now.getTime() - 21 * 86_400_000;
+    const out = new Set();
     try {
       const { readMarkers } = await import('./coachPlan.js');
       const markers = await readMarkers();
-      const cut = now.getTime() - 21 * 86_400_000;
-      return new Set(Object.entries(markers).filter(([, m]) => new Date(m.at || 0).getTime() > cut).map(([k]) => k));
-    } catch { return new Set(); }
+      for (const [k, m] of Object.entries(markers)) if (new Date(m.at || 0).getTime() > cut) out.add(k);
+    } catch { /* no markers: the records below still count */ }
+    // …and so is anything a Coach CARD put there: chat cards never wrote a
+    // marker before 25 Sep, so the straight-bar pushdown Coach swapped into
+    // Push on the 22nd read as "hasn't been touched once" three days later
+    try {
+      const listRecords = deps.listRecords || (await import('./inboxStore.js')).listRecords;
+      for (const r of await listRecords()) {
+        const p = r.decision?.payload;
+        if (r.status !== 'filed' || r.decision?.route !== 'routine-edit' || !p) continue;
+        if (new Date(r.filedAt || r.createdAt || 0).getTime() <= cut) continue;
+        const routine = routines.find((x) => x.id === p.routineId);
+        const byName = p.addName ? routine?.exercises.find((e) => String(e.name).toLowerCase() === String(p.addName).toLowerCase())?.exerciseId : null;
+        // a reorder counts too: Incline Barbell Bench Press was reached late in
+        // Push because it came late, and a card moved it first that morning
+        const id = p.action === 'move' || p.action === 'reorder' ? p.removeExerciseId : (p.action === 'add' || p.action === 'swap') ? (p.addExerciseId || byName) : null;
+        if (id) out.add(`${p.routineId}:${id}`);
+      }
+    } catch { /* the markers alone */ }
+    return out;
   })();
 
   const findings = [
