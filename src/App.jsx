@@ -6722,7 +6722,8 @@ export default class App extends Component {
       if (yes) await api.inboxApprove(conn, id);
       else await api.inboxDiscard(conn, id);
     } catch (e) {
-      this.setCoachSug(id, { state: 'error', verdict: null });
+      // the server's reason stays on the card ("X is no longer in Push"), not only in a toast
+      this.setCoachSug(id, { state: 'error', verdict: null, error: String(e.message || '').replace(/[.\s]+$/, '') });
       notify({ title: yes ? "That change didn't go through" : "Couldn't turn that down", message: `${e.message}. Nothing changed.`, tone: 'warn' });
       return false;
     }

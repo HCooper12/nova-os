@@ -105,22 +105,24 @@ function SuggestionCard({ c, i }) {
           {/* WHY */}
           {c.why && <p style={css('margin:11px 0 0;font:500 14px/1.5 var(--nv-font-ui);color:var(--nv-ink60);text-wrap:pretty')}>{c.why}</p>}
           <div style={css('margin-top:7px;font:500 12px/1.3 var(--nv-font-ui);color:var(--nv-ink40)')}>{c.source}{c.when ? ` · ${c.when}` : ''}{c.via === 'draft' ? ' · a yes asks Coach to draft the exact change' : ''}</div>
+          {/* his own edits have overtaken this card: say what changed, offer no yes */}
+          {c.stale && <Meta as="div" tone="gold" style={{ marginTop: 8, textTransform: 'none', letterSpacing: 0 }}>Already changed: {c.stale}. Clear it with ✕, or discuss.</Meta>}
           {/* THE ANSWER — at the foot of the card, so a row of cards answers on one line */}
           <div style={css('margin-top:auto;padding-top:13px;display:flex;align-items:center;gap:8px')}>
-            <TickButton state={c.state} onClick={c.yes} label={c.via === 'draft' ? 'Yes, plan it' : 'Yes'} ariaLabel={`Yes: ${c.headline}`} />
+            {!c.stale && <TickButton state={c.state} onClick={c.yes} label={c.via === 'draft' ? 'Yes, plan it' : 'Yes'} ariaLabel={`Yes: ${c.headline}`} />}
             <span className="nv-sug-secondary" style={css('display:flex;align-items:center;gap:8px;flex:1;min-width:0')}>
               <Button tone="cyan" variant="quiet" compact onClick={c.discuss} ariaLabel={`Discuss: ${c.headline}`}>
                 {c.state === 'discussing' ? 'Discussing' : 'Discuss'}
               </Button>
               <span style={css('flex:1')} />
-              <Interactive as="button" onClick={c.no} haptic="tick" aria-label={`Not now: ${c.headline}`} title="Not now"
+              <Interactive as="button" onClick={c.no} haptic="tick" aria-label={`${c.stale ? 'Clear' : 'Not now'}: ${c.headline}`} title={c.stale ? 'Clear' : 'Not now'}
                 base={{ flex: 'none', width: 40, height: 40, borderRadius: '50%', display: 'grid', placeItems: 'center', cursor: 'pointer',
                   border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', background: 'color-mix(in srgb, var(--nv-ink) 5%, transparent)',
                   color: 'var(--nv-ink60)', font: '500 17px/1 var(--nv-font-ui)', padding: 0 }}
                 activeStyle={{ transform: 'scale(.94)' }}>✕</Interactive>
             </span>
           </div>
-          {c.state === 'error' && <Meta as="div" tone="warn" style={{ marginTop: 8, textTransform: 'none', letterSpacing: 0 }}>That didn't go through — nothing changed. Try again.</Meta>}
+          {c.state === 'error' && <Meta as="div" tone="warn" style={{ marginTop: 8, textTransform: 'none', letterSpacing: 0 }}>{c.error ? `${c.error}. Nothing changed.` : "That didn't go through — nothing changed. Try again."}</Meta>}
         </article>
       </div>
     </div>

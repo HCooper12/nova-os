@@ -44,6 +44,7 @@ const STATUS_META = {
   filed: { label: 'Filed', color: 'var(--nv-good)' },
   discarded: { label: 'Discarded', color: 'var(--nv-ink40)' },
   undone: { label: 'Undone', color: 'var(--nv-gold)' },
+  withdrawn: { label: 'Taken back', color: 'var(--nv-ink40)' }, // Coach withdrew its own card (coachProposals.js)
   error: { label: 'Error', color: 'var(--nv-warn)' },
 };
 
@@ -737,6 +738,7 @@ export function Inbox({ v }) {
                       {item.status === 'error' ? (item.error || 'classification failed') : ''}
                       {item.status === 'classifying' ? 'Nova is routing this…' : ''}
                       {item.status === 'discarded' ? 'discarded without writing' : ''}
+                      {item.status === 'withdrawn' ? 'Coach took this back before you answered' : ''}
                     </span>
                   </span>
                   <Meta tone={meta.color} style={{ flex: 'none' }}>{meta.label}</Meta>

@@ -190,3 +190,18 @@ test('a move card says Move, belongs to where it lands, and shows where it comes
   const [a] = coachSuggestions([rec('r-add', 'routine-edit', { action: 'add', routineId: 'push', routineName: 'Push', addName: 'Face Pull', position: 1, targetSets: 3 })], { routines, schedule, now: NOW });
   assert.equal(a.diff.place, 'first');
 });
+
+// 25 Sep 2026: he moved the rope extension by hand while Coach's card for
+// the same move still waited. A card his own edits have overtaken says so
+// and offers no yes, instead of failing when tapped.
+test('a card overtaken by his own edits is marked stale, with what changed', () => {
+  const opts = { routines, schedule, now: NOW };
+  const gone = coachSuggestions([rec('r-gone', 'routine-edit', { action: 'remove', routineId: 'push', routineName: 'Push', removeExerciseId: 'nope', removeName: 'Cable Fly Low' })], opts)[0];
+  assert.equal(gone.stale, 'Cable Fly Low is no longer in Push');
+  const dup = coachSuggestions([rec('r-dup', 'routine-edit', { action: 'add', routineId: 'push', routineName: 'Push', addExerciseId: 'carter', addName: 'Carter Extension', targetSets: 3 })], opts)[0];
+  assert.equal(dup.stale, 'Carter Extension is already in Push');
+  const moved = coachSuggestions([rec('r-mv', 'routine-edit', { action: 'move', routineId: 'push', routineName: 'Push', fromRoutineId: 'pull', fromRoutineName: 'Pull', removeExerciseId: 'pinch', removeName: 'Plate Pinch' })], opts)[0];
+  assert.equal(moved.stale, null, 'Plate Pinch is still on Pull and not yet on Push: the card stands');
+  const live = coachSuggestions(items, opts);
+  assert.ok(live.every((c) => !c.stale), 'nothing on the real deck is stale');
+});

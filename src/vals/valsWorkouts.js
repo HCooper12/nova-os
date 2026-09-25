@@ -559,6 +559,7 @@ export function valsWorkouts(app, ctx) {
       return {
         ...c,
         state,
+        error: a?.error || null,
         hue: ex?.muscle ? muscleVar(ex.muscle) : 'var(--nv-cy)',
         where: c.routine ? `${c.routine.name}${c.routine.days.length ? ` · ${c.routine.days.join(', ')}` : ''}` : (c.diff?.type === 'schedule' ? 'Your week' : 'Your program'),
         yes: () => app.answerCoachSuggestion(c.id, 'yes'),

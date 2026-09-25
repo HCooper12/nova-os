@@ -221,6 +221,29 @@ export function toHim(text) {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
 }
 
+// A CARD HIS OWN EDITS HAVE OVERTAKEN (25 Sep 2026). He moved the rope
+// extension by hand while Coach's card for the same move still waited; a
+// yes on such a card fails at apply time with a bare "didn't go through".
+// Read against his program as it is now, the card says what changed under
+// it, offers no yes, and a ✕ clears it (his answer to a stale card is not a
+// decline of the idea, so the reason is on the card, not in the record).
+export function staleReason(p, routines) {
+  const find = (id, name) => routines.find((r) => r.id === id) || routines.find((r) => ci(r.name) === ci(name));
+  const has = (routine, exerciseId, name) => !!exerciseOf(routine, exerciseId, name);
+  const routine = find(p.routineId, p.routineName);
+  if (!routine) return `${p.routineName || 'That routine'} is no longer in your program`;
+  if (p.action === 'move') {
+    const from = find(p.fromRoutineId, p.fromRoutineName);
+    if (!from) return `${p.fromRoutineName || 'That routine'} is no longer in your program`;
+    if (!has(from, p.removeExerciseId, p.removeName)) return `${p.removeName} is no longer in ${from.name}`;
+    if (has(routine, p.removeExerciseId, p.removeName)) return `${p.removeName} is already in ${routine.name}`;
+    return null;
+  }
+  if (p.action === 'add') return has(routine, p.addExerciseId, p.addName) ? `${p.addName} is already in ${routine.name}` : null;
+  if (['remove', 'targets', 'reorder', 'swap'].includes(p.action) && !has(routine, p.removeExerciseId, p.removeName)) return `${p.removeName} is no longer in ${routine.name}`;
+  return null;
+}
+
 export function buildSuggestion(r, { routines = [], schedule = {}, now = Date.now() } = {}) {
   const base = { id: r.id, createdAt: r.createdAt, when: whenLabel(r.createdAt, now), source: sourceLabel(r) };
   let c;
@@ -235,11 +258,13 @@ export function buildSuggestion(r, { routines = [], schedule = {}, now = Date.no
         : otherChange(route, p);
     c.why = p.reason || r.decision?.reason || '';
     base.via = 'approve';
+    if (route === 'routine-edit') base.stale = staleReason(p, routines);
   }
   const routine = c.routine || null;
   return {
     ...base,
     headline: c.headline,
+    stale: base.stale || null,
     diff: c.diff,
     why: toHim(c.why),
     routine: routine ? { id: routine.id, name: routine.name, days: daysOf(routine.id, schedule) } : null,
