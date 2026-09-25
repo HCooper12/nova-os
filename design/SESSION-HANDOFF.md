@@ -4528,6 +4528,41 @@ the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
 
+### 25 September 2026 — nova-os-d3: the reel, from the Hormozi spin-wheel reel he sent
+He sent an Instagram reel of someone cycling a spin-wheel through Alex
+Hormozi's books to a tactic of the day, with sound, and asked whether
+something like it belonged in Nova. The finding that justified building it:
+by 25 Sep Nova had served a Repertoire technique on eleven straight days and
+he had marked not one of them tried or skipped — the loop had a "do it" but
+no "report back". Shipped, on his yes to all four proposals: a new technique
+now arrives sealed on Home and is revealed on a picker-drum reel (the
+waiting techniques pass in curriculum order and it lands on the day's real
+pick — theatre over a decision already made, never a roll); the daily
+review's shuffle, which really is a random draw, spins the same reel in its
+own violet, and its ⟳ control grew from a 13px glyph to a real 44px target
+with a haptic; Wrap the day now asks "did it land?" against the technique's
+own Tell, with a line for what happened, logged in one write and correctable
+in place; and, on his second yes, a technique that didn't land last time
+comes back a step sooner in the spacing schedule rather than waiting out its
+full interval. Sound is synthesised Web Audio (a detent tick, a glass chime)
+scheduled off the same timeline the picture animates from, and claims iOS's
+'ambient' session so it never pauses or ducks his music — a real fork the
+last audio-session build already knew was one-or-the-other, resolved here by
+using the third category neither speech setting is allowed to touch. Two
+timing traps paid for building it: an animated `filter: blur()` on the reel
+strip isn't a compositor property and hung the recording instrument for
+minutes per frame (removed, transform-only now); and the landing/hand-back
+run on the WAAPI animation clock rather than `setTimeout`, so a slowed
+recording slows the whole beat instead of opening the card mid-spin. Verified
+in a guarded headless Chrome against his real data at 375/1280, both design
+styles, and reduced motion, with every write blocked; not yet heard or felt
+on his phone. Two of that guard's own gaps surfaced and were fixed along the
+way: `shot.mjs` was only registering its write-guard on the first CDP
+session, which let two harmless requests reach his live server before the
+fix landed (one cache read, one summary job that wrote nothing) — now fixed
+and pushed. All work gated (server suite green throughout, ending 2426/2426
+before nova-os-44's own additions) and pushed at his explicit "Push".
+
 **25–26 Sep (nova-os-jarvis → nova-os-clicky).** From two reels: the working
 glass (a research job narrates each stage with a code-written panel) and
 depth on the glass; then Clicky — Nova opens apps and sites, drives Music and
