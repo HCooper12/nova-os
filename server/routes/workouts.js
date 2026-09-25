@@ -133,6 +133,16 @@ export function workoutsRouter(vaultPath) {
     }
   });
 
+  // re-file an exercise under another muscle, on his word, with undo in the
+  // Inbox (lib/exerciseRefile.js); every past set moves with it
+  router.post('/workouts/exercises/:id/muscle-group', async (req, res) => {
+    try {
+      const { refileExercise } = await import('../lib/exerciseRefile.js');
+      const out = await refileExercise(vaultPath, req.params.id, req.body?.muscleGroup);
+      res.json(out);
+    } catch (err) { res.status(/no such exercise/.test(err.message) ? 404 : 400).json({ error: err.message }); }
+  });
+
   // knowledge base: cues + one curated resource per exercise
   router.patch('/workouts/exercises/:id', async (req, res) => {
     try {
