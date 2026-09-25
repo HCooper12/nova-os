@@ -211,6 +211,53 @@ last part is prompt- and rail-enforced, not code-enforced, and the plan says
 so. Build order: read+navigate+fill first; the resume-on-yes second;
 "order from that spot last week" only once both have earned trust.
 
+**Hand 3 — the Mac itself (BUILT 25 Sep 2026, his "Clicky" note of 22 Sep).**
+`lib/macHand.js`: open an app (strict name match over /Applications, with
+aliases so "Apple Music" is Music), open a site or an https address in HIS
+default browser, the Music app (play/pause/next/previous, and play by name:
+his playlists → his library → Apple's public catalogue, where a catalogue
+song is OPENED in Music and never claimed as playing), and the volume (the
+Mac's, or Music's). Verbs `mac.open`, `mac.music`, `mac.volume`, all act-tier.
+The AppleScript is fixed source and his words ride after `--` as argv —
+measured first: without `--` a dash-led argument is read as an osascript
+option, and with it a `do shell script` injection string is inert text.
+No free-form script and no clicking on the screen: that would make the model
+the actor on his real desktop, a separate decision that is his.
+
+*Where he is decides whether the grammar claims it.* The app sends
+`device:'mac'` (src/macTargets.js `isMacDevice`; an older build falls back to
+the user agent in routes/voice.js `fromMacOf`). At the Mac, "pause", "open
+Reminders", "volume 30" are the Mac's; from the phone they most likely mean
+the phone, so a Mac-shaped sentence away from the Mac goes to the model, and
+no other verb may grab it (the shopping list used to read "set the volume to
+30" as an item called "the volume"). "…on my Mac" claims it from anywhere.
+
+*"…then open it so I can confirm."* `tryCommand` splits a trailing "then
+open/show me X" (`splitThenOpen`): the head runs as if said alone, and only a
+head that ACTED earns the open — "show me" with no name opens where the thing
+landed (a reminder → Reminders). Clicky's exact sentence works end to end.
+
+*macOS permission.* Opening and the Mac's own volume need none. Driving Music
+sends Apple events, so the first time his Mac asks "node wants access to
+control Music"; nothing works until he clicks OK, and a refusal is
+remembered. Both are said with their fix, and the last outcome is kept in
+`data/mac-hand.json` for the roster. If node is upgraded, macOS may ask again.
+
+*The roster (`lib/roster.js`).* "Do you have X connected?", "what are you
+connected to?", "can you control my music?" are answered in code
+(reflex.js) from what each connection leaves behind — never from a list.
+Three states: working (recent proof), set up but unproven, off with what is
+missing; anything else is a plain no. The model's own context now lists the
+hands from the roster's configured set (ops.js) — the old hard-written line
+named an ElevenLabs voice that has no key.
+
+*Not built:* control of any app but Music (Spotify is not installed; others
+have no AppleScript worth trusting), reading what is ON the screen, and
+opening on the PHONE (from the phone, "then open Reminders" opens it on the
+Mac and says so). The fifth reel move — "start an agent and go work on it in
+the background" — is the existing planner, now triggered by those words
+(chatLanes.js `planWorthy`); it proposes and waits for his yes.
+
 **The permission wall.** The auto-mode classifier refused (a) printing
 server/.env and (b) a command that both created the Shortcut runner and
 executed `shortcuts`. (a) is solved for good by `scripts/nova-api.mjs`,
@@ -232,6 +279,9 @@ grammar is not sure about (one model turn, then the same code path).
 ## Do not
 - Do not let a verb guess a name. A tie asks; a miss says so.
 - Do not add a verb without its undo, or a `confirm` verb without a pending
-  record — the receipt is the feature.
+  record — the receipt is the feature. The one exception is a verb that
+  writes NOTHING (opening a window on the Mac): its receipt says there is no
+  undo Nova can do, and closing it is his click. Anything that stores state
+  still needs its undo.
 - Do not write the catalogue into the prompt by hand; `describeForModel()`
   is the only source.
