@@ -718,6 +718,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
 
   // ---- the loop -----------------------------------------------------
   let running = false, dirty = true, lastT = performance.now() / 1000, lastDraw = 0, frames = 0, lastLive = false;
+  // why the last frame asked for another (a count per reason; liveReport)
+  let liveWhy = {}, noRender = false;
+  const mark = (tag) => { liveWhy[tag] = (liveWhy[tag] || 0) + 1; return true; };
   let visible = true, wakeTimer = null, disposed = false;
   function invalidate() { dirty = true; if (!running && visible && !disposed) { running = true; requestAnimationFrame(tick); } }
   const approach = (cur, tgt, dt, k) => cur + (tgt - cur) * (1 - Math.exp(-dt * k));
@@ -729,17 +732,18 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     if (x.asleep) { face.blink = 0; face.nextBlink = now + 4 + Math.random() * 4; }
     else if (!reduceMotion) {
       if (face.blink > 0) {
-        face.blink -= dt; live = true;
+        face.blink -= dt; live = mark('blink');
         if (face.blink <= 0) { face.blink = 0; face.nextBlink = now + (working ? 5.5 : 2.5) + Math.random() * 5; }
-      } else if (now > face.nextBlink) { face.blink = 0.3; live = true; }
+      } else if (now > face.nextBlink) { face.blink = 0.3; live = mark('blink'); }
       if (now > face.nextSacc) {
         face.saccT.set((Math.random() - 0.5) * 0.026, (Math.random() - 0.5) * 0.014);
         face.nextSacc = now + (working ? 0.7 : 1.5) + Math.random() * 2.4;
       }
       face.sacc.lerp(face.saccT, Math.min(1, dt * 9));
-      if (face.sacc.distanceTo(face.saccT) > 1e-4) live = true;
+      // a saccade finishes on whatever frame comes next; on its own it is
+      // not a reason to draw (nine beings' saccades kept the loop awake for good)
     } else { face.blink = 0; face.sacc.set(0, 0); }
-    if (kit.face3(face, working, reduceMotion ? 0 : dt)) live = true;
+    if (kit.face3(face, working, reduceMotion ? 0 : dt)) live = mark('face');
     return live;
   }
 
@@ -767,11 +771,11 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
 
     // 1 · WHERE: the walk along its polyline (turning in place first), the
     // facing, the seat
-    if (x.walk) { advanceWalk(x, dt); live = true; }
+    if (x.walk) { advanceWalk(x, dt); live = mark('walk'); }
     const want = facingYaw(x), err = wrapA(want - x.yaw);
     if (reduceMotion) x.yaw = want;
     else if (dt > 0) x.yaw += err * (1 - Math.exp(-dt * (x.walk ? 8 : 6)));
-    if (!reduceMotion && Math.abs(wrapA(want - x.yaw)) > 0.004) live = true;
+    if (!reduceMotion && Math.abs(wrapA(want - x.yaw)) > 0.004) live = mark('turn');
     x.holder.rotation.y = x.yaw;
     // on a seat anchor the foot of the body rests on the seat and the boots
     // come forward; asleep on a spot with no seat, or a gag that sits, it
@@ -784,7 +788,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     x.groundK = ease(x.groundK || 0, groundWant, 5);
     const ov = x.ov, sitK = Math.max(x.seatK, x.groundK, ov.v.sit);
     x.holder.position.y = (x.seatY || 0) * x.seatK - 0.03 * Math.max(x.groundK, ov.v.sit);
-    if (Math.abs(x.seatK - seatWant) > 1e-3 || Math.abs(x.groundK - groundWant) > 1e-3) live = true;
+    if (Math.abs(x.seatK - seatWant) > 1e-3 || Math.abs(x.groundK - groundWant) > 1e-3) live = mark('seat');
 
     // 2 · THE GAIT'S WHOLE-BODY PART: bob, waddle, the act's body handles
     // (last frame's eased values), set before the act so a docked thing is
@@ -818,7 +822,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       b.tell = (t, w, rm) => { tl = tl0(t, w, rm); return tl; };
       ACT_FRAMES[act](b, t01, ctx);
       b.tell = tl0;
-      if (working && tl) live = true;
+      if (working && tl) live = mark('work');
     }
     // what it carries home from a visit (popcorn, a bowl), in its right hand;
     // during the gag the act says when it has been handed over
@@ -832,7 +836,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       id, docked, beingDim: x.dim, held: (kind) => heldProp(x, kind),
       dockLocal: dp ? localOf(x, dp) : null, dockYaw: wrapA(-x.yaw),
     });
-    if (x.perf || (actMoves(act, st) && st && ln < st.actUntil)) live = true;
+    if (x.perf || (actMoves(act, st) && st && ln < st.actUntil)) live = mark('act');
     fxPuff(x, ov.v.puff);
 
     // 4 · THE GAIT'S FEET AND HANDS: boots alternating +-0.06 with a +-0.35
@@ -841,7 +845,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     // settles the boots instead of freezing them mid-stride.
     const P = b.pose;
     x.amp = reduceMotion ? 0 : P.s('walk:amp', x.walk && x.striding ? 1 : 0);
-    if (x.amp > 1e-3) live = true;
+    if (x.amp > 1e-3) live = mark('gait');
     if (b.feet && b.feet.length === 2) {
       if (!x.footBase) x.footBase = b.feet.map((f) => ({ y: f.position.y, z: f.position.z, rx: f.rotation.x }));
       [[1, Math.max(0, c)], [-1, Math.max(0, -c)]].forEach(([sg, lift], i) => {
@@ -863,7 +867,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     const lookWant = st && st.partner && st.facing !== 'partner' && !x.walk && beings[st.partner] ? Math.max(-0.9, Math.min(0.9, aimAt(x, beings[st.partner].holder.position).yaw)) : 0;
     x.look = P.s('look', lookWant);
     if (x.perf && now - x.perf.t0 >= x.perf.dur) endPerf(x);
-    if (P.moving()) live = true;
+    if (P.moving()) live = mark('pose');
     return { live, working };
   }
   // the hands a walk may swing: the ones not holding the being's own thing
@@ -927,6 +931,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     // engine then advance by the same time the clock did
     const dt = Math.max(0, Math.min(clock.manual ? 0.5 : 0.08, now - lastT)); lastT = now;
     let live = false;
+    liveWhy = {};
     stepLifeNow(false);
     // a tapped being that walks off is followed, not lost
     const follow = devLook ? devLook.id : selected;
@@ -937,7 +942,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     }
     ['spin', 'dist', 'tx', 'ty', 'tz', 'lift'].forEach((k) => {
       const n = approach(view[k], view[k + 'T'], dt, k === 'spin' ? 8 : 6);
-      if (Math.abs(n - view[k + 'T']) > 1e-4) live = true;
+      if (Math.abs(n - view[k + 'T']) > 1e-4) live = mark('camera');
       view[k] = n;
     });
     world.rotation.y = view.spin;
@@ -961,20 +966,20 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       if (b.marker.visible) {
         b.marker.scale.setScalar(mk);
         if (reduceMotion) b.marker.position.y = b.markerY + 0.2;
-        else { b.marker.position.y = b.markerY + 0.2 + Math.sin(now * 1.9 + x.index) * 0.06; b.marker.rotation.y = -view.spin + Math.sin(now * 0.9 + x.index) * 0.15; live = true; }
+        else { b.marker.position.y = b.markerY + 0.2 + Math.sin(now * 1.9 + x.index) * 0.06; b.marker.rotation.y = -view.spin + Math.sin(now * 0.9 + x.index) * 0.15; live = mark('marker'); }
       }
       const want = selected === x.a.id ? 0.85 : 0;
       x.sel.material.opacity = approach(x.sel.material.opacity, want, dt, 8);
-      if (Math.abs(x.sel.material.opacity - want) > 0.01) live = true;
+      if (Math.abs(x.sel.material.opacity - want) > 0.01) live = mark('select');
     });
     if (coreMarker.visible) {
       coreMarker.position.y = 1.2 + (reduceMotion ? 0 : Math.sin(now * 1.9) * 0.05);
       coreMarker.rotation.y = -view.spin;
-      if (!reduceMotion) live = true;
+      if (!reduceMotion) live = mark('marker');
     }
     if (!reduceMotion) { coreRing.rotation.z = now * 0.3; }
     // the sets' lamps fade and the plaza pulses; each says when it is done
-    if (habitat.tick(now, dt)) live = true;
+    if (habitat.tick(now, dt)) live = mark('lamps');
     // a change of daypart is acted out, not cut; zero elapsed time moves nothing
     if (lightFade.p < 1) {
       if (dt > 0) {
@@ -983,11 +988,11 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
         mixLight(lightFade.from, lightFade.to, e);
         Object.values(beings).forEach(rimOf);
       }
-      if (lightFade.p < 1) live = true;
+      if (lightFade.p < 1) live = mark('daylight');
     }
 
-    renderer.render(scene, camera);
-    frames++; lastDraw = now; dirty = false;
+    if (!noRender) { renderer.render(scene, camera); frames++; }
+    lastDraw = now; dirty = false;
     lastLive = live;
     if (clock.manual) { running = false; return; }
     if (live && visible && !document.hidden) requestAnimationFrame(tick);
@@ -1124,14 +1129,17 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     },
     // dev hook: take the clock by hand, advance it dt seconds and draw one
     // frame now (headless Chrome barely runs requestAnimationFrame)
-    step(dtSec = 1 / 15) {
+    // (draw = false skips only the GPU render, for counting live frames fast)
+    step(dtSec = 1 / 15, draw = true) {
       if (!clock.manual) {
         clearTimeout(wakeTimer);
         clock.manual = true; clock.t0 = clock.t = performance.now() / 1000; clock.date = Date.now(); lastT = clock.t;
       }
       clock.t += Math.max(0, Number(dtSec) || 0);
+      noRender = !draw;
       drawFrame(clock.t);
-      return { frames, live: lastLive };
+      noRender = false;
+      return { frames, live: lastLive, why: Object.keys(liveWhy) };
     },
     // dev hook: give the clock back to real time, where it left off
     realtime() {
@@ -1151,6 +1159,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       }])),
     }),
     lastVm: () => lastVm,
+    // dev read: what kept the last frame live, per reason (for the
+    // running() measurement)
+    liveReport: () => ({ ...liveWhy }),
     // dev hook: turn the map to an angle at once (a walk seen from the side)
     spin(rad) { view.spinT = view.spin = Number(rad) || 0; frame(true); return view.spin; },
     // dev hook: a close camera on one being (distance in world units), for
