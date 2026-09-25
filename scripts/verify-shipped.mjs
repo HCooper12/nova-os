@@ -112,6 +112,10 @@ const FEATURES = [
   // the planned week behind the hard-set bars, and the card's one rule for "short" (25 Sep)
   ['Train · hard sets open the planned week, exercise by exercise (25 Sep)', 'Every exercise, day by day'],
   ['Train · a goal muscle is short only if the plan leaves it short (25 Sep)', 'by Sunday on the plan as written'],
+  // Coach's changes checked before he sees them (his 11:01–11:26 chat, 25 Sep)
+  ['Coach · a move is one card, and a phone card is its own height (25 Sep)', 'nv-deck / inline-size'],
+  ['Coach · a revised change takes its old card back (25 Sep)', 'to take this card back yourself'],
+  ['Coach · the usage limit hands his question back (25 Sep)', "Claude's usage limit"],
 ];
 
 const SERVER_ROUTES = [
