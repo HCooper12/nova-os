@@ -32,6 +32,13 @@ rl.on('line', async (line) => {
 `);
 chmodSync(stubBin, 0o755);
 process.env.CLAUDE_BIN = stubBin;
+// ITS OWN DATA DIR. Without this every run of the suite wrote into his REAL
+// server/data: the stub's "Hello turn 1." into spoken-log.json as a greeting
+// Nova had said to him (30 of its 60 lines on 25 Sep), the stub's temp folder
+// into agent-sessions.json as the live Coach conversation (so Nova's "what
+// did Coach say" read nothing), and, once the spend ledger landed, stub
+// turns into model-spend.json.
+process.env.NOVA_DATA_DIR = mkdtempSync(path.join(tmpdir(), 'nova-claude-stream-data-'));
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
