@@ -62,11 +62,11 @@ const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', '
 
 async function todaysRoutine(vaultPath) {
   const { loadExerciseLibrary } = await import('./exercises.js');
-  const { loadRoutines } = await import('./workouts.js');
+  const { loadRoutines, ACTIVE_REST } = await import('./workouts.js');
   const { exercises } = await loadExerciseLibrary(vaultPath);
   const { routines, schedule } = await loadRoutines(vaultPath, exercises);
   const id = schedule?.[WEEKDAY()];
-  if (!id || id === 'ACTIVE_REST') return null;
+  if (!id || id === ACTIVE_REST) return null;
   return routines.find((r) => r.id === id) || null;
 }
 

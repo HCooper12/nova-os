@@ -6,7 +6,7 @@
 
 import { loadSessions } from './workoutSessions.js';
 import { loadExerciseLibrary } from './exercises.js';
-import { loadRoutines } from './workouts.js';
+import { loadRoutines, ACTIVE_REST } from './workouts.js';
 import { loadRecentDays } from './healthData.js';
 import { computeDeloadSignal } from './coach.js';
 import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf, isWorkingSet } from './trainingAnalytics.js';
@@ -145,7 +145,7 @@ export async function buildTrainOverview(vaultPath) {
   ]);
 
   const todayId = schedule?.[WEEKDAY()];
-  const routine = todayId && todayId !== 'ACTIVE_REST' ? routines.find((r) => r.id === todayId) || null : null;
+  const routine = todayId && todayId !== ACTIVE_REST ? routines.find((r) => r.id === todayId) || null : null;
   const deload = computeDeloadSignal(days);
   const readiness = computeReadiness(days);
   const plateaus = detectPlateaus(sessions);

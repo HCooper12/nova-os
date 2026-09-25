@@ -143,3 +143,21 @@ test('program audit: catches his program\'s real, previously invisible errors', 
     schedule: { monday: 'a' }, goals: { daysPerWeek: 1 }, exercises,
   }).length, 0);
 });
+
+test("auditProgram: active-rest days are rest, never training days or a repeated session", () => {
+  // his real week, 25 Sep: rest stored as 'active-rest' on Thursday, Saturday
+  // and Sunday. The audit compared against 'ACTIVE_REST', so it counted six
+  // training days against his four and fed Coach a false "one of them is
+  // wrong", and Saturday+Sunday read as the same session back to back.
+  const findings = auditProgram({
+    routines: [
+      { id: 'push', name: 'Push', exercises: [{ exerciseId: 'bench', targetSets: 3 }] },
+      { id: 'pull', name: 'Pull', exercises: [{ exerciseId: 'bench', targetSets: 3 }] },
+    ],
+    schedule: { monday: 'push', tuesday: 'pull', wednesday: 'push', thursday: 'active-rest', friday: 'pull', saturday: 'active-rest', sunday: 'active-rest' },
+    goals: { daysPerWeek: 4 },
+    exercises: [{ id: 'bench', muscleGroup: 'Chest' }],
+  });
+  assert.equal(findings.some((f) => f.kind === 'days-mismatch'), false, 'four training days is four');
+  assert.equal(findings.some((f) => f.kind === 'consecutive-repeat'), false, 'two rest days in a row are not a repeated session');
+});

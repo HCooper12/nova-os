@@ -11,7 +11,7 @@
 import { loadSessions } from './workoutSessions.js';
 import { mondayIso } from './cadence.js';
 import { loadExerciseLibrary } from './exercises.js';
-import { loadRoutines } from './workouts.js';
+import { loadRoutines, ACTIVE_REST } from './workouts.js';
 
 const e1rm = (w, reps) => (reps > 0 && reps <= 12 ? w * (1 + reps / 30) : null);
 // An e1RM is COMPARED at the resolution it is SHOWN at.
@@ -226,14 +226,16 @@ export function auditProgram({ routines, schedule, goals, exercises }) {
   for (let i = 0; i < days.length; i++) {
     const a = schedule?.[days[i]];
     const b = schedule?.[days[(i + 1) % 7]];
-    if (a && a === b && a !== 'ACTIVE_REST') {
+    // his schedule stores rest as ACTIVE_REST's value, 'active-rest'; the
+    // uppercase literal matched nothing, so two rest days read as training
+    if (a && a === b && a !== ACTIVE_REST) {
       const r = (routines || []).find((x) => x.id === a);
       findings.push({ kind: 'consecutive-repeat', detail: `${r?.name || a} is scheduled ${days[i]} AND ${days[(i + 1) % 7]} — the same session back-to-back gives the muscles it hits no recovery window` });
     }
   }
 
   // stated days/week vs actual scheduled days
-  const scheduledDays = days.filter((d) => schedule?.[d] && schedule[d] !== 'ACTIVE_REST').length;
+  const scheduledDays = days.filter((d) => schedule?.[d] && schedule[d] !== ACTIVE_REST).length;
   if (goals?.daysPerWeek && scheduledDays !== goals.daysPerWeek) {
     findings.push({ kind: 'days-mismatch', detail: `his goal says ${goals.daysPerWeek} days/week but the schedule has ${scheduledDays} training days — one of them is wrong` });
   }
