@@ -340,3 +340,19 @@ test('AN UNCLAIMED EDGE TOUCH IS iOS’S — so every edge touch is claimed', as
   // and the receipt says which mode it was in
   assert.match(hook, /mode: s\.mode/);
 });
+
+test('THE REST OF THE TOUCH IS HEARD WHERE IT STARTED — a tab swipe froze on frame one', async () => {
+  // A tab swipe goes back at lock and React replaces the screen, so the
+  // element under his thumb leaves the document. Its later touchmove and
+  // touchend still reach IT, but a detached element bubbles to nothing, so
+  // window-level listeners heard nothing and the drag froze until the
+  // watchdog put it back. Found driving real touch input through CDP.
+  const { hook } = await sources();
+  assert.match(hook, /follow\(e\.target\)/, 'the touch is not followed on its own element');
+  assert.match(hook, /el\.addEventListener\('touchmove', onMove, \{ passive: false \}\)/);
+  assert.match(hook, /el\.addEventListener\('touchend', onEnd/);
+  assert.doesNotMatch(hook, /window\.addEventListener\('touch(move|end)'/,
+    'moves are heard on window again: a tab swipe will freeze after the screen swaps');
+  // and the listeners are released with the gesture
+  assert.match(hook, /const reset = \(\) => \{[^\n]*unfollow\(\); \};/);
+});

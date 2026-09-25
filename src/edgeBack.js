@@ -204,7 +204,7 @@ export function dragProgress(dx, width) {
 // sub-second transition is a trade worth making against the alternative of
 // re-rendering two React trees on every frame of a drag.
 export function useEdgeBack({ onBack, enabled = true }) {
-  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0, live: null, mode: null, page: null }).current;
+  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0, live: null, mode: null, page: null, target: null }).current;
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return undefined;
@@ -310,7 +310,30 @@ export function useEdgeBack({ onBack, enabled = true }) {
       l.scrim.remove();
     };
 
-    const reset = () => { s.armed = false; s.id = null; s.dir = null; s.mode = null; s.page = null; };
+    // THE REST OF THE TOUCH IS HEARD ON THE ELEMENT IT STARTED ON. A tab swipe
+    // goes back at lock, React replaces the screen, and the element under his
+    // thumb leaves the document. Every later touchmove and touchend is still
+    // dispatched to that element, but a detached element bubbles to nothing,
+    // so window never heard them: the drag froze on its first frame until the
+    // watchdog put it back. Found 25 Sep driving real touch input through CDP.
+    const follow = (el) => {
+      unfollow();
+      if (!el?.addEventListener) return;
+      s.target = el;
+      el.addEventListener('touchmove', onMove, { passive: false });
+      el.addEventListener('touchend', onEnd, { passive: true });
+      el.addEventListener('touchcancel', onCancel, { passive: true });
+    };
+    const unfollow = () => {
+      const el = s.target;
+      s.target = null;
+      if (!el) return;
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onCancel);
+    };
+
+    const reset = () => { s.armed = false; s.id = null; s.dir = null; s.mode = null; s.page = null; unfollow(); };
 
     // the watchdog: any live drag that has gone quiet is put back
     let stuck = 0;
@@ -334,6 +357,7 @@ export function useEdgeBack({ onBack, enabled = true }) {
       s.page = s.mode === 'page' ? page : null;
       s.armed = true; s.id = t.identifier; s.dir = null;
       s.startX = t.clientX; s.startY = t.clientY; s.startT = performance.now();
+      follow(e.target);
     };
 
     const onMove = (e) => {
@@ -443,20 +467,15 @@ export function useEdgeBack({ onBack, enabled = true }) {
       settle(0);
     };
 
+    function onCancel() { if (s.live) settle(0); else reset(); }
     window.addEventListener('touchstart', onStart, { passive: true });
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onEnd, { passive: true });
-    const onCancel = () => { if (s.live) settle(0); else reset(); };
-    window.addEventListener('touchcancel', onCancel, { passive: true });
     // backgrounded mid-drag: iOS will not send a touchend, and he would come
     // back to a screen he cannot touch
     const onHide = () => { if (document.visibilityState === 'hidden' && s.live) settle(0); };
     document.addEventListener('visibilitychange', onHide);
     return () => {
       window.removeEventListener('touchstart', onStart);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onEnd);
-      window.removeEventListener('touchcancel', onCancel);
+      unfollow();
       document.removeEventListener('visibilitychange', onHide);
       unkick();
       teardown();
