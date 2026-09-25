@@ -16,8 +16,8 @@ the session log at the foot is append-only.
 **25 SEP (late evening, nova-os-d3) — THE REEL: A NEW TECHNIQUE IS REVEALED
 ON A SPIN, THE CONCEPT SHUFFLE SPINS, WRAP THE DAY ASKS "DID IT LAND?".
 From the Hormozi spin-wheel reel he sent; he said yes to all four proposals.
-Server half LIVE (reloaded 11:30Z). Client: 3 commits already on origin via
-nova-os-44's pushes; 4 more LOCAL, interleaved with 44's own unpushed work.**
+ALL PUSHED (his "Push", 13:05Z, 5df39bb..707715e, which also carried 44's
+committed Org Map/Habitat work); server reloaded with 707715e.**
 
 - **Why:** Nova served a technique on 11 days (15-25 Sep) and he marked NONE
   (every `outcome: null` in repertoire.json, the vault log empty). The loop
@@ -57,8 +57,11 @@ nova-os-44's pushes; 4 more LOCAL, interleaved with 44's own unpushed work.**
   narrated every past brief on a fresh device load (his Mac at 22:03 wrote
   six "The brief is ready" lines); the record re-posted same-millisecond
   lines (they repaired the file, 167 → 42 rows, backup in their scratchpad).
-- **NEXT (his):** the push (it also carries 44's nine; coordinate with 44).
-  Then on his phone tonight: Home → the sealed pink card → tap → ticks and
+- **A miss comes back sooner (`707715e`, his "Yes"):** if his most recent
+  answer for a technique is "didn't land", its gap steps back one level
+  (practiceStep / lastResultFor, read from the day records). SCHEDULE itself
+  is unchanged. Checked read-only on his real state: Sunday still resolves.
+- **NEXT (his):** on his phone tonight, after the Pages deploy: Home → the sealed pink card → tap → ticks and
   chime, with music playing to confirm it keeps playing; answer "did it
   land?" in the wrap. Monday is the next new-technique day.
 - **DO NOT:** claim 'playback' for an effect; animate `filter` on the reel
