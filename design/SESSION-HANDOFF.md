@@ -13,6 +13,60 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (late evening, nova-os-d3) — THE REEL: A NEW TECHNIQUE IS REVEALED
+ON A SPIN, THE CONCEPT SHUFFLE SPINS, WRAP THE DAY ASKS "DID IT LAND?".
+From the Hormozi spin-wheel reel he sent; he said yes to all four proposals.
+Server half LIVE (reloaded 11:30Z). Client: 3 commits already on origin via
+nova-os-44's pushes; 4 more LOCAL, interleaved with 44's own unpushed work.**
+
+- **Why:** Nova served a technique on 11 days (15-25 Sep) and he marked NONE
+  (every `outcome: null` in repertoire.json, the vault log empty). The loop
+  had no "do it" and no "report back". Memory: nova-spin-reveal.
+- **Shipped:** `0f1b108` server: `logPractice(..., { result })` (landed /
+  missed; only a tried technique can land; a pass clears it), log line
+  "tried · landed · note", review phrase "practised 2 times, landed once",
+  `/repertoire/today` carries `reel` (waiting techniques, curriculum order,
+  starting AT the pick) + result/note/landed. `96ac3e5` sound: src/sfx.js
+  (synthesised ticks + chime on the audio clock), `claimForEffects` =
+  iOS 'ambient' so a tick never pauses or ducks his music; Settings → Sound
+  effects (on by default). `381673f` the reveal: src/reel.js (the clock,
+  tested), src/SpinReveal.jsx, src/TechniqueReveal.jsx, sealed card on a NEW
+  day once per device (`novaos.reveal.technique`), morphs into the card.
+  `53ae4bb` the concept shuffle spins (random, so literally true), 44px
+  ShuffleButton with haptic. `058407e` TickButton is its own module.
+  `5b53b2f` Wrap the day's question (src/TechniqueCheck.jsx,
+  src/techniqueCheck.js tested), evening-only card when nothing is logged
+  (from 18:00, twin of wrapDay CARD_FROM_HOUR), "Practised · it landed".
+  `898287a` shot.mjs re-seeds on every CDP session (see below).
+- **VERIFIED:** server suite 2424/2424, lint 0 errors, build green,
+  verify-shipped markers in the bundle. Guarded headless Chrome against the
+  live server: sealed card, spin, landing, morph at 375 cupertino, 375
+  command, 1280 cupertino, reduced motion; shuffle spin both styles (landed
+  on "The Ten-Minute Follow-Up", card followed); wrap question, tick, receipt
+  and the evening-only card, both styles; no sideways overflow of mine (the
+  command HUD's rotating ring overflows 29px, pre-existing).
+- **NOT VERIFIED:** anything on his phone. The SOUND has never been heard
+  (headless is muted) and the ambient session is spec-read, not observed;
+  the haptic on the reveal tap exists only on a device.
+- **Leaks, told plainly:** two POST /api/notes/summary from my test pages
+  reached the server (12:12:18Z a cache read; 12:27:48Z started one
+  note-summary model job, nothing written, no job left running). Cause: the
+  seed is per CDP session and shot.mjs re-attached (fixed, `898287a`); the
+  second was my own slip using shot.mjs after the shared seed lost its guard.
+- **Flagged to nova-os-44, fixed and pushed by them:** the working glass
+  narrated every past brief on a fresh device load (his Mac at 22:03 wrote
+  six "The brief is ready" lines); the record re-posted same-millisecond
+  lines (they repaired the file, 167 → 42 rows, backup in their scratchpad).
+- **NEXT (his):** the push (it also carries 44's nine; coordinate with 44).
+  Then on his phone tonight: Home → the sealed pink card → tap → ticks and
+  chime, with music playing to confirm it keeps playing; answer "did it
+  land?" in the wrap. Monday is the next new-technique day.
+- **DO NOT:** claim 'playback' for an effect; animate `filter` on the reel
+  strip; trust public/_devconn.js to hold a guard (peers regenerate and clean
+  it) — carry the guard in the script.
+
+---
+
 **25 SEP (late evening, nova-os-clicky) — CLICKY BUILT: NOVA DRIVES THE MAC.
 7 commits LOCAL, NOT PUSHED (his push — on top of the working-glass ones
 below). Server RELOADED (reload-server.mjs) and running the server half.**
