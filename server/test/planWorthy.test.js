@@ -59,3 +59,22 @@ test('the same verb asked twice is one job, not two', () => {
   assert.equal(planWorthy('research creatine timing and research beta alanine timing'), false,
     'distinct verbs, not verb mentions — a plan needs different work, not repetition');
 });
+
+// The Clicky reel (22 Sep 2026): asking for an agent IS the delegation — the
+// plan card still waits for his yes before anything runs.
+test('"start an agent and go work on it in the background" is a plan', () => {
+  for (const s of [
+    'Double this revenue by end of day — start a Google Ads campaign by starting an agent and go work on it in the background',
+    'start an agent to research the best creatine timing and work on it in the background',
+    'put an agent on finding me three gyms near work and report back',
+    'Can you spin up an agent to compare the two mortgage offers?',
+  ]) assert.equal(planWorthy(s), true, s);
+});
+
+test('...but a question about the background is still a question', () => {
+  for (const s of [
+    'what are you working on in the background right now',
+    'is the researcher agent still running in the background',
+    'how many agents do you have running',
+  ]) assert.equal(planWorthy(s), false, s);
+});

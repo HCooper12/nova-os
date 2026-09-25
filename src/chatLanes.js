@@ -92,9 +92,21 @@ const DO_VERB = /\b(build|make|create|design|write|draft|compose|research|watch|
 const SEQUENCER = /\b(?:then|after that|afterwards|and also|next,|finally|once (?:that|you|it)|when you'?re done)\b/i;
 const QUESTION_OPENER = /^(?:what|how|when|why|who|where|which|is|are|was|were|do|did|does|can|could|should|would|will|am)\b/i;
 
+// HE ASKED FOR AN AGENT. The Clicky reel (his note, 22 Sep 2026): "start an
+// agent and go work on it in the background". Naming the worker is the
+// plainest delegation there is, whatever the sentence's shape — and a plan
+// still only PROPOSES: the agents, the steps and what no agent can do go on
+// a card, and nothing runs until his yes (the reel's "reasonable defaults,
+// and pause before acting", which Nova's planner already was).
+const AGENT_ASK = /\b(?:start|spin up|launch|put|set|get|send|have)\s+(?:up\s+)?(?:an?\s+|some\s+|your\s+|the\s+)?(?:agents?|workers?)\b|\b(?:work|working|go)\s+on\s+(?:it|this|that)\s+in\s+the\s+background\b|\bin\s+the\s+background\s+(?:and|then)\b/i;
+// "can you / could you / will you …" is a request; "what / is / are …" about
+// the background is a question about work already running
+const REQUEST_OPENER = /^(?:can|could|will|would)\s+you\b/i;
+
 export function planWorthy(text) {
   const t = String(text || '').trim();
   if (t.length < 25) return false; // too short to be a compound brief
+  if (AGENT_ASK.test(t) && (!QUESTION_OPENER.test(t) || REQUEST_OPENER.test(t))) return true;
 
   // the original route, unchanged: two families and one of them real work
   const fams = familiesIn(t);
