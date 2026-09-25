@@ -23,7 +23,7 @@ export const COACH_ROUTES = [
   'goal-target', 'training-block', 'exercise-resource', 'coach-learning',
 ];
 
-const ONE_TAP_FIX = new Set(['ops', 'remap', 'swap', 'weighted-variant', 'drop']);
+const ONE_TAP_FIX = new Set(['ops', 'remap', 'swap', 'weighted-variant', 'drop', 'tune']);
 export const WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const SHORT_DAY = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -198,6 +198,14 @@ function findingChange(r, routines) {
       headline: target ? `Drop ${target.name}` : (r.finding?.title || firstSentence),
       diff: { type: 'remove', exercise: { name: target?.name || 'an exercise', muscle: target?.muscleGroup || null }, sets: target?.targetSets || null },
       routine, setsBefore: before, setsAfter: target ? before - (Number(target.targetSets) || 0) : null,
+      why: line, actionable,
+    };
+  }
+  // a stalled lift's first card: the same lift, a new tempo or pause
+  if (fix?.action === 'tune') {
+    return {
+      headline: `${fix.exerciseName || 'This lift'}: ${String(fix.focus || '').split(/[:,—]/)[0].trim().toLowerCase() || 'a new tempo'}`,
+      diff: { type: 'note', glyph: '↗' },
       why: line, actionable,
     };
   }

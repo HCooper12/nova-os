@@ -1,6 +1,8 @@
 import { recurringSignal } from './sessionNotes.js';
 import { latestDeclines, respectNo } from './respectTheNo.js';
 import { mondayIso } from './cadence.js';
+import { atlasFor } from './data/exerciseAtlas.js';
+import { patternFor } from '../../src/exerciseMotion.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -136,7 +138,51 @@ export function demoteAverted(alternatives, avoidText) {
 }
 const skipNote = (skipped) => (skipped.length ? ` (skipping ${skipped.map((s) => s.name).join(', ')} — your file says: "${skipped[0].reason}")` : '');
 
-export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4, minDays = 21, now = new Date(), avoidText = '' } = {}) {
+// WHAT A LIFT TRAINS AND WITH WHAT (25 Sep 2026): the curated atlas, or
+// Coach's research for a lift the atlas does not know (exerciseResearch.js).
+export const anatomyOf = (ex) => (ex ? atlasFor(ex.id)?.primary || ex.research?.primary || null : null);
+export const equipmentOf = (ex) => (ex ? atlasFor(ex.id)?.equipment || ex.research?.equipment || null : null);
+
+// AN HONEST REPLACEMENT (25 Sep 2026). The alternative used to be "the first
+// lift filed under the same group that he has not done lately", which on his
+// real data offered Deadlift for a Lying T-Bar Row and a Pull-Up (a row
+// trains the lats and mid-back; a deadlift, the lower back and hips) and
+// Barbell Curl for every biceps lift; he declined six of ten such cards. A
+// replacement now has to train what the lift trains (a shared prime mover),
+// must move the same way (a row for a row, a fly for a fly: exerciseMotion's
+// pattern, the one the 3D figure animates), must not already be in his
+// program (that is not a new stimulus), must not be one he has turned down
+// as a replacement, and a different resistance profile (other equipment)
+// ranks first. None honest, no suggestion.
+export function rankAlternatives(current, exercises = [], { recent = new Set(), inProgram = null, declined = new Set(), avoidText = '' } = {}) {
+  const group = current?.muscleGroup || 'Other';
+  if (!current || group === 'Other' || group === 'Mobility') return { ordered: [], skipped: [] };
+  const mine = anatomyOf(current) || [];
+  const eq = equipmentOf(current);
+  const shape = patternFor(current.name, mine);
+  const pool = exercises.filter((e) => e.id !== current.id && (e.muscleGroup || 'Other') === group
+    && !(inProgram && inProgram.has(e.id)) && !declined.has(e.id)
+    && (!mine.length || (anatomyOf(e) || []).some((m) => mine.includes(m)))
+    && (!shape || patternFor(e.name, anatomyOf(e) || []) === shape));
+  const overlap = (e) => (anatomyOf(e) || []).filter((m) => mine.includes(m)).length;
+  const ranked = pool.sort((a, b) => Number(equipmentOf(a) === eq) - Number(equipmentOf(b) === eq)
+    || Number(recent.has(a.id)) - Number(recent.has(b.id))
+    || overlap(b) - overlap(a)
+    || String(a.name).localeCompare(String(b.name)));
+  return demoteAverted(ranked.slice(0, 4), avoidText);
+}
+
+// THE SAME LIFT, A NEW STIMULUS: the variation offered before a swap. His
+// research's tempo or pause variation when there is one, else the plainest
+// honest change there is.
+export function variationFor(ex) {
+  const vs = ex?.research?.variations || [];
+  const v = vs.find((x) => /tempo|lower|eccentric|pause|second|\bsec\b/i.test(`${x.name} ${x.how}`)) || vs[0] || null;
+  if (v) return { name: v.name, how: v.how, focus: `${v.name}: ${v.how}`.slice(0, 120) };
+  return { name: '3-second lowering', how: 'lower every rep for a slow count of three, same weight', focus: '3s lowering, same weight — own the rep before the load' };
+}
+
+export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4, minDays = 28, minHistoryDays = 42, now = new Date(), avoidText = '', inProgram = null, declined = new Set(), tunes = new Map(), declinedVariation = new Set(), inSessionFocus = new Set() } = {}) {
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const history = new Map();
   for (const s of sessions) {
@@ -158,33 +204,69 @@ export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4,
   }
 
   const out = [];
+  const days = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86_400_000);
   for (const [exerciseId, arr] of history) {
     const dated = arr.sort((a, b) => a.date.localeCompare(b.date));
     if (dated.length < minSessions) continue;
-    const window = dated.slice(-minSessions);
-    const spanDays = Math.round((new Date(`${window[window.length - 1].date}T12:00:00`) - new Date(`${window[0].date}T12:00:00`)) / 86_400_000);
-    if (spanDays < minDays) continue;
-    const first = window[0].best;
-    const peak = Math.max(...window.map((x) => x.best));
-    if (peak > first * 1.02) continue; // still climbing — leave it alone
+    // RESTRAINT (his words, 25 Sep: "I don't want it to over indulge or over
+    // decide if unnecessary"): three flat weeks is ordinary noise, and a lift
+    // he only started last month has not been done "too long". Four weeks
+    // flat, on a lift with six weeks behind it, still in his program.
+    if (inProgram && !inProgram.has(exerciseId)) continue;
+    if (days(dated[0].date, dated[dated.length - 1].date) < minHistoryDays) continue;
+    // THE FLAT RUN: back from the latest outing for as long as nothing since
+    // has beaten that session by more than 2%. How long that run lasts is how
+    // long the lift has been flat, whether he trains it weekly or monthly
+    // (four outings of a weekly lift only span three weeks).
+    let start = dated.length - 1;
+    let peakSince = dated[start].best;
+    while (start > 0 && Math.max(peakSince, dated[start - 1].best) <= dated[start - 1].best * 1.02) {
+      peakSince = Math.max(peakSince, dated[start - 1].best);
+      start -= 1;
+    }
+    const window = dated.slice(start);
+    const spanDays = days(window[0].date, window[window.length - 1].date);
+    if (spanDays < minDays || window.length < minSessions) continue; // still climbing, or not flat long enough
 
-    const group = byId.get(exerciseId)?.muscleGroup || 'Other';
-    const ranked = demoteAverted(exercises
-      .filter((e) => e.id !== exerciseId && (e.muscleGroup || 'Other') === group && group !== 'Other' && group !== 'Mobility')
-      .sort((a, b) => Number(recent.has(a.id)) - Number(recent.has(b.id))) // unused first
-      .slice(0, 4), avoidText);
+    const current = byId.get(exerciseId) || { id: exerciseId, name: window[0].name, muscleGroup: 'Other' };
+    const group = current.muscleGroup || 'Other';
+    const weeks = Math.round(spanDays / 7);
+    // THE SAME LIFT FIRST: a tempo or a pause before a swap, unless one has
+    // been his standing focus for four weeks already, or he said no to it
+    const tune = tunes.get(exerciseId);
+    // a new stimulus counts as tried when it has been his standing focus for
+    // four weeks, or when the session engine has been prescribing one (a
+    // 'quality' step: tempo, control) and the lift is still flat at 8 weeks
+    const tried = !!(tune?.focus && tune.updated && days(tune.updated, now.toISOString().slice(0, 10)) >= 28)
+      || (inSessionFocus.has(exerciseId) && weeks >= 8);
+    // already being given a new stimulus in-session: let it work, say nothing
+    if (!tried && inSessionFocus.has(exerciseId)) continue;
+    if (!tried && !declinedVariation.has(exerciseId) && group !== 'Mobility') {
+      const v = variationFor(current);
+      out.push({
+        kind: 'stale',
+        key: `stale:${exerciseId}:${window[window.length - 1].date}`,
+        exerciseId, name: window[0].name, group, weeks, variation: v,
+        line: `${window[0].name} has been flat for ${weeks} weeks across ${window.length} sessions. Before swapping it out, change the stimulus on the same lift: ${v.name.toLowerCase()} (${v.how}). A new tempo or a pause is how a stalled lift usually starts moving again.`,
+        fix: { action: 'tune', exerciseId, exerciseName: window[0].name, focus: v.focus },
+      });
+      continue;
+    }
+    const ranked = rankAlternatives(current, exercises, { recent, inProgram, declined, avoidText });
     const alternatives = ranked.ordered.slice(0, 3);
     if (!alternatives.length || ranked.skipped.includes(alternatives[0])) continue; // nothing honest to offer instead
-
+    const because = !tried ? ' You passed on changing the tempo,'
+      : tune?.focus ? ` ${tune.focus.split(/[:,—]/)[0].trim()} has been your focus on it since ${tune.updated} and it has not moved,`
+        : ' Tempo and control work in your sessions has not moved it either,';
     out.push({
       kind: 'stale',
       key: `stale:${exerciseId}:${window[window.length - 1].date}`,
       exerciseId,
       name: window[0].name,
       group,
-      weeks: Math.round(spanDays / 7),
+      weeks,
       alternatives: alternatives.map((a) => ({ id: a.id, name: a.name, fresh: !recent.has(a.id) })),
-      line: `${window[0].name} hasn't moved in ${Math.round(spanDays / 7)} weeks across ${window.length} sessions. Same stimulus, same result — swap it for ${alternatives[0].name} for a block and let ${group.toLowerCase()} see a different angle.${skipNote(ranked.skipped)}`,
+      line: `${window[0].name} hasn't moved in ${weeks} weeks across ${window.length} sessions.${because} so it is time for a different stimulus: ${alternatives[0].name} trains the same ${(anatomyOf(current) || [group.toLowerCase()])[0].replace(/-/g, ' ')} with a different resistance profile, for a block.${skipNote(ranked.skipped)}`,
       fix: { action: 'swap', exerciseId, replaceWith: alternatives[0].id, group },
     });
   }
@@ -439,16 +521,19 @@ export function findLowValueExercises(sessions = [], exercises = [], routines = 
 // that stopped progressing. This is the variation argument — he has been
 // doing it for months, and a block on something else is worth taking even
 // while it still creeps.
-export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_WEEKS, minSessions = 10, now = new Date(), avoidText = '' } = {}) {
+export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_WEEKS, minSessions = 10, now = new Date(), avoidText = '', inProgram = null, declined = new Set(), slowing = 0.03 } = {}) {
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const hist = new Map();
   for (const s of sessions) {
     for (const ex of s.exercises || []) {
       const arr = hist.get(ex.exerciseId) || [];
-      arr.push({ date: s.date, name: ex.name });
+      arr.push({ date: s.date, name: ex.name, best: ex.anomaly ? null : bestSet(ex.sets) });
       hist.set(ex.exerciseId, arr);
     }
   }
+  const recentIds = new Set();
+  const recentCutT = new Date(now.getTime() - 42 * 86_400_000).toISOString().slice(0, 10);
+  for (const s of sessions) if (s.date >= recentCutT) for (const ex of s.exercises || []) recentIds.add(ex.exerciseId);
   const recentCut = new Date(now.getTime() - 21 * 86_400_000).toISOString().slice(0, 10);
   const out = [];
   for (const [id, arr] of hist) {
@@ -460,8 +545,22 @@ export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_W
     if (spanWeeks < weeks) continue;
     const group = byId.get(id)?.muscleGroup || 'Other';
     if (group === 'Other' || group === 'Mobility') continue;
-    const rankedT = demoteAverted(exercises.filter((e) => e.id !== id && (e.muscleGroup || 'Other') === group).slice(0, 3), avoidText);
+    if (inProgram && !inProgram.has(id)) continue;
+    // ONLY WHEN IT WOULD HELP (his words: "if it thinks I've been completing
+    // a specific exercise for too long and it would benefit to change up the
+    // exercise ... so I don't stall"). Months on one lift is no reason by
+    // itself: a lift still climbing is left alone. Slowing means the best of
+    // the last four outings is under 3% above the best of the four before.
+    const bests = d.map((x) => x.best).filter((b) => b > 0);
+    if (bests.length < 8) continue;
+    const recentBest = Math.max(...bests.slice(-4));
+    const priorBest = Math.max(...bests.slice(-8, -4));
+    const gain = priorBest > 0 ? recentBest / priorBest - 1 : 0;
+    if (gain >= slowing) continue;
+    const rankedT = rankAlternatives(byId.get(id), exercises, { recent: recentIds, inProgram, declined, avoidText });
     const alternatives = rankedT.ordered.filter((a) => !rankedT.skipped.includes(a)).slice(0, 2);
+    if (!alternatives.length) continue; // nothing honest to rotate to: say nothing
+    const pct = Math.round(gain * 1000) / 10;
     out.push({
       kind: 'tenure',
       key: `tenure:${id}:${Math.floor(spanWeeks / 4)}`, // re-raisable at most monthly
@@ -470,8 +569,9 @@ export function findLongTenure(sessions = [], exercises = [], { weeks = TENURE_W
       group,
       weeks: spanWeeks,
       sessions: d.length,
-      line: `You've been doing ${d[0].name} for ${spanWeeks} weeks straight — ${d.length} sessions. Even when a lift is still creeping, a block on something else for the same muscle tends to come back stronger${alternatives.length ? `; ${alternatives[0].name} would do it` : ''}.${skipNote(rankedT.skipped)}`,
-      fix: alternatives.length ? { action: 'swap', exerciseId: id, replaceWith: alternatives[0].id, group } : null,
+      gainPct: pct,
+      line: `You've been doing ${d[0].name} for ${spanWeeks} weeks straight (${d.length} sessions), and it has slowed: ${pct >= 0 ? '+' : ''}${pct}% across your last eight. A block on ${alternatives[0].name}, the same muscle from a different angle, is how you keep it from stalling.${skipNote(rankedT.skipped)}`,
+      fix: { action: 'swap', exerciseId: id, replaceWith: alternatives[0].id, group },
     });
   }
   return out;
@@ -639,6 +739,28 @@ export async function reviewProgram(vaultPath, deps = {}) {
     return out;
   })();
 
+  // what he has already said about exercise changes: a replacement he turned
+  // down, a tempo change he turned down (60 days), and the standing tunes
+  const inProgram = new Set(routines.flatMap((r) => (r.exercises || []).map((e) => e.exerciseId)));
+  const declined = new Set();
+  const declinedVariation = new Set();
+  try {
+    const listRecords = deps.listRecords || (await import('./inboxStore.js')).listRecords;
+    const cut = now.getTime() - 60 * 86_400_000;
+    for (const r of await listRecords()) {
+      if (r.kind !== 'coach-program' || r.status !== 'discarded' || new Date(r.discardedAt || r.createdAt || 0).getTime() < cut) continue;
+      if (r.fix?.action === 'swap' && r.fix.replaceWith) declined.add(r.fix.replaceWith);
+      if (r.fix?.action === 'tune' && r.fix.exerciseId) declinedVariation.add(r.fix.exerciseId);
+    }
+  } catch { /* no history: nothing declined */ }
+  const tunes = await (deps.loadTunes || (async () => (await import('./progressionTunes.js')).getTunes(vaultPath)))()
+    .then((list) => new Map((list || []).map((t) => [t.exerciseId, t]))).catch(() => new Map());
+  // lifts the session engine is already giving a new stimulus (a 'quality'
+  // step: "3s lowering, no bounce, same weight")
+  const inSessionFocus = await (deps.loadProgressions || (async () => (await import('./coach.js')).computeProgressions(vaultPath, routines)))()
+    .then((p) => new Set(Object.entries(p || {}).filter(([, v]) => v?.kind === 'quality').map(([k]) => k.split(':')[1])))
+    .catch(() => new Set());
+
   const findings = [
     ...findMappingSuspects(exercises),
     ...findChronicUnderVolume(weekly, { goalMuscles }),
@@ -646,8 +768,8 @@ export async function reviewProgram(vaultPath, deps = {}) {
     ...findJunkVolume(weekly),
     ...findOversizedRoutines(sessions, routines, { now, justAdded }),
     ...findLowValueExercises(sessions, exercises, routines),
-    ...findStaleLifts(sessions, exercises, { now, avoidText }),
-    ...findLongTenure(sessions, exercises, { now, avoidText }),
+    ...findStaleLifts(sessions, exercises, { now, avoidText, inProgram, declined, tunes, declinedVariation, inSessionFocus }),
+    ...findLongTenure(sessions, exercises, { now, avoidText, inProgram, declined }),
     // what he told Nova himself — the highest-quality signal there is
     ...findNoteSignals(sessions, exercises),
   ];
@@ -752,11 +874,18 @@ export async function raiseProgramFindings(vaultPath, deps = {}) {
       metricOf: (r) => findingMetric(r.finding),
     });
     const { randomUUID } = await import('node:crypto');
+    // ONE EXERCISE CHANGE A WEEK, at most: a stalled or long-running lift is
+    // a conversation worth having, not a stream (his restraint, 25 Sep)
+    const CHANGE = new Set(['stale', 'tenure']);
+    let changeRoom = records.some((r) => r.kind === 'coach-program' && CHANGE.has(r.findingKind)
+      && now - new Date(r.createdAt || 0).getTime() < 7 * 86_400_000) ? 0 : 1;
     for (const f of findings) {
       if (seen.has(f.key)) continue;
+      if (CHANGE.has(f.kind) && changeRoom <= 0) continue;
       const no = respectNo({ declined: declines.get(subjectOfKey(f.key)), now, cooldownDays: DECLINE_COOLDOWN_DAYS, metric: findingMetric(f), materialChange: 0.2 });
       if (!no.raise) continue;
       if (raisedOut.length >= room) break;
+      if (CHANGE.has(f.kind)) changeRoom -= 1;
       const line = no.history ? `${f.line} (You ${no.history.replace(/^you /, '')}.)` : f.line;
       raisedOut.push(await createRecord({
         id: randomUUID().slice(0, 8),

@@ -62,23 +62,12 @@ test('a compound filed under either of its prime movers is a CHOICE, not an erro
   assert.deepEqual(out, [], 'Coach does not pick fights it cannot win');
 });
 
-test('a lift flat across four sessions and three weeks earns a swap — to the same muscle', () => {
-  const sessions = [
-    { date: '2026-08-01', exercises: [{ exerciseId: 'fly', name: 'Cable Fly', sets: [{ weight: 20, reps: 10 }] }] },
-    { date: '2026-08-08', exercises: [{ exerciseId: 'fly', name: 'Cable Fly', sets: [{ weight: 20, reps: 10 }] }] },
-    { date: '2026-08-15', exercises: [{ exerciseId: 'fly', name: 'Cable Fly', sets: [{ weight: 20, reps: 10 }] }] },
-    { date: '2026-08-22', exercises: [{ exerciseId: 'fly', name: 'Cable Fly', sets: [{ weight: 20, reps: 10 }] }] },
-  ];
-  const exercises = [
-    { id: 'fly', name: 'Cable Fly', muscleGroup: 'Chest' },
-    { id: 'incline', name: 'Incline Bench Press', muscleGroup: 'Chest' },
-    { id: 'curl', name: 'Curl', muscleGroup: 'Biceps' },
-  ];
-  const out = findStaleLifts(sessions, exercises, { now: new Date('2026-08-23T12:00:00') });
-  assert.equal(out.length, 1);
-  assert.equal(out[0].fix.action, 'swap');
-  assert.equal(out[0].fix.replaceWith, 'incline', 'the alternative trains the SAME muscle');
-  assert.ok(!out[0].alternatives.some((a) => a.id === 'curl'), 'never offers a different muscle as a substitute');
+test('three flat weeks is noise, not a reason to change anything (his restraint, 25 Sep)', () => {
+  const sessions = ['2026-08-01', '2026-08-08', '2026-08-15', '2026-08-22'].map((date) => ({
+    date, exercises: [{ exerciseId: 'fly', name: 'Cable Fly', sets: [{ weight: 20, reps: 10 }] }],
+  }));
+  const exercises = [{ id: 'fly', name: 'Cable Fly', muscleGroup: 'Chest' }, { id: 'deck', name: 'Pec Deck', muscleGroup: 'Chest' }];
+  assert.deepEqual(findStaleLifts(sessions, exercises, { now: new Date('2026-08-23T12:00:00') }), []);
 });
 
 test('a lift still climbing is left alone, and an off day is not evidence', () => {
@@ -152,7 +141,7 @@ test('raising: one at a time, never a duplicate, never more than two open', asyn
   const findings = [
     { kind: 'mapping', key: 'k1', line: 'one', fix: { action: 'remap' } },
     { kind: 'stale', key: 'k2', line: 'two', fix: { action: 'swap' } },
-    { kind: 'stale', key: 'k3', line: 'three', fix: null },
+    { kind: 'reported-form', key: 'k3', line: 'three', fix: null }, // not an exercise change: the weekly cap has its own test
   ];
   const review = async () => ({ findings });
 

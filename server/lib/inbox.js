@@ -1566,6 +1566,16 @@ export async function approveRecord(vaultPath, id) {
         undoData: { kind: 'exercise-muscle-group', exerciseId: fix.exerciseId, muscleGroup: before },
       });
     }
+    // THE SAME LIFT, A NEW STIMULUS (25 Sep 2026): a stalled lift's first
+    // card is a tempo or pause focus, not a swap; yes makes it his standing
+    // focus through the tune rails, and the tune's own undo takes it back
+    if (fix?.action === 'tune' && fix.exerciseId && fix.focus) {
+      const { destination, undo } = await fileDecision(vaultPath, { route: 'progression-tune', payload: {
+        exerciseId: fix.exerciseId, exerciseName: fix.exerciseName || fix.exerciseId, focus: fix.focus,
+        stepKg: null, repStep: null, hold: false, model: null, reason: 'a stalled lift, the same lift with a new stimulus',
+      } });
+      return updateRecord(id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null });
+    }
     // EVERY ONE-TAP FIX APPLIES (25 Sep 2026). Only a remap used to act on
     // approve; a "drop this exercise" or a study's ops were filed as an
     // acknowledgement and nothing changed — his words, the same day:
