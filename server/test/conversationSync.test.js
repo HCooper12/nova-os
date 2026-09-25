@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { deviceName, deviceId, cidOf, textKey, pendingTurns, mergeRecord, whereLabel } = await import('../../src/conversationSync.js');
+const { deviceName, deviceId, cidOf, chatIds, textKey, pendingTurns, mergeRecord, whereLabel } = await import('../../src/conversationSync.js');
 
 const DEV = 'abc12345';
 
@@ -80,4 +80,32 @@ test('whereLabel names another door or device, and stays quiet for his own scree
   assert.equal(whereLabel({ fromRecord: true, device: 'Mac' }, { device: 'iPhone' }), 'on your Mac');
   assert.equal(whereLabel({ fromRecord: true, device: 'iPhone' }, { device: 'iPhone' }), null);
   assert.equal(whereLabel({ via: 'presence' }, { device: 'iPhone' }), null);
+});
+
+// 25 Sep, found in the record: a brief pushes many lines at one Date.now(),
+// so device+time+who collided and the same twelve lines went up four times.
+test('lines that share a millisecond get distinct ids, and go up once', () => {
+  const at = 1790205055484;
+  const chat = [
+    { at, who: 'nova', text: 'HRV is 68.' },
+    { at, who: 'nova', text: '10,181 steps yesterday.' },
+    { at, who: 'nova', text: 'Today: 7 timed things.' },
+    { at: at + 5, who: 'nova', text: 'Anything else?' },
+  ];
+  assert.deepEqual(chatIds(chat, DEV), [`${DEV}-${at}-nova`, `${DEV}-${at}-nova-1`, `${DEV}-${at}-nova-2`, `${DEV}-${at + 5}-nova`]);
+  const up = pendingTurns(chat, {}, { dev: DEV });
+  assert.deepEqual(up.map((r) => r.id), chatIds(chat, DEV));
+  // delivered under those ids: nothing pending
+  const synced = Object.fromEntries(up.map((r) => [r.id, textKey(r.text)]));
+  assert.deepEqual(pendingTurns(chat, synced, { dev: DEV }), []);
+  // the old map remembered only ONE of the twins under the base id; a twin
+  // whose wording went up under any ordinal is still delivered
+  const old = { [`${DEV}-${at}-nova`]: textKey('Today: 7 timed things.') };
+  assert.deepEqual(pendingTurns(chat, old, { dev: DEV }).map((r) => r.text), ['HRV is 68.', '10,181 steps yesterday.', 'Anything else?']);
+  // the chat's front trimmed: the survivors keep counting as delivered
+  const trimmed = chat.slice(1);
+  assert.deepEqual(pendingTurns(trimmed, synced, { dev: DEV }), []);
+  // the record's copies of the twins are recognised as already held
+  const turns = up.map((r) => ({ ...r }));
+  assert.equal(mergeRecord(chat, turns, { dev: DEV }), chat);
 });

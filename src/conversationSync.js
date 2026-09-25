@@ -10,6 +10,15 @@
 //         so a retry or an edit never duplicates;
 //   down: the Voice screen merges in the record's lines it does not have
 //         (another device, Siri, the Action Button), in time order.
+//
+// LINES THAT SHARE A MILLISECOND (25 Sep, found in the record itself). A
+// brief pushes a dozen lines into the chat in one setState, all stamped the
+// same `Date.now()`, so device+time+who collided: the delivered map could
+// remember one of them, the others were "pending" forever and went up again
+// on every sync (twelve lines, four times over, in the file). An id now also
+// carries the line's ordinal among its same-time twins, and a line counts as
+// delivered when its wording went up under ANY ordinal, so a trim of the
+// chat's front never re-posts a group.
 
 const WHO = new Set(['you', 'nova', 'system']);
 
@@ -36,6 +45,20 @@ export function deviceId(storage) {
   }
 }
 
+// The ids of every line in the chat, in order: a line's own `cid` (a line
+// that came down from the record) or device-time-who, with `-<n>` for the
+// second and later lines that share a time and a speaker.
+export function chatIds(chat, dev) {
+  const seen = new Map();
+  return (chat || []).map((m) => {
+    if (m?.cid) return m.cid;
+    const base = `${dev}-${m?.at}-${m?.who}`;
+    const n = seen.get(base) || 0;
+    seen.set(base, n + 1);
+    return n ? `${base}-${n}` : base;
+  });
+}
+
 export const cidOf = (m, dev) => m.cid || `${dev}-${m.at}-${m.who}`;
 
 // Small, stable fingerprint of a line's text, so "already sent this version"
@@ -47,22 +70,34 @@ export function textKey(text) {
   return `${s.length}:${h.toString(36)}`;
 }
 
+// Was this wording delivered under this id, or under any twin of it?
+function delivered(synced, id, key) {
+  if (!synced) return false;
+  if (synced[id] === key) return true;
+  const base = id.replace(/-\d+$/, '');
+  if (synced[base] === key) return true;
+  const prefix = `${base}-`;
+  for (const k in synced) if (k.startsWith(prefix) && /^\d+$/.test(k.slice(prefix.length)) && synced[k] === key) return true;
+  return false;
+}
+
 // The lines the record does not yet have in their current wording. A line
 // still streaming or typing is not settled; a line with no clock or no words
 // is not a line anyone said.
 export function pendingTurns(chat, synced, { dev, device = '' } = {}) {
   const out = [];
-  for (const m of chat || []) {
-    if (!m || m.streaming || m.typing || !WHO.has(m.who)) continue;
-    if (typeof m.text !== 'string' || !m.text.trim() || !Number.isFinite(m.at)) continue;
-    const id = cidOf(m, dev);
-    if (synced?.[id] === textKey(m.text)) continue;
+  const ids = chatIds(chat, dev);
+  (chat || []).forEach((m, i) => {
+    if (!m || m.streaming || m.typing || !WHO.has(m.who)) return;
+    if (typeof m.text !== 'string' || !m.text.trim() || !Number.isFinite(m.at)) return;
+    const id = ids[i];
+    if (delivered(synced, id, textKey(m.text))) return;
     out.push({
       id, at: new Date(m.at).toISOString(), who: m.who, text: m.text,
       via: m.via || 'voice',
       ...((m.device || device) ? { device: m.device || device } : {}),
     });
-  }
+  });
   return out;
 }
 
@@ -71,7 +106,7 @@ export function pendingTurns(chat, synced, { dev, device = '' } = {}) {
 // buttons is never replaced by the plain record copy.
 export function mergeRecord(chat, turns, { dev } = {}) {
   const local = chat || [];
-  const have = new Set(local.map((m) => cidOf(m, dev)));
+  const have = new Set(chatIds(local, dev));
   const incoming = [];
   for (const t of turns || []) {
     if (!t?.id || have.has(t.id) || !WHO.has(t.who)) continue;
