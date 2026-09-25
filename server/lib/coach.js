@@ -375,7 +375,23 @@ export async function programContext(vaultPath) {
   const off = WEEKDAYS.filter((d) => !schedule?.[d] || schedule[d] === ACTIVE_REST)
     .map((d) => `${SHORT[d]} ${schedule?.[d] === ACTIVE_REST ? 'active rest' : 'rest'}`);
   const split = splitRulesLine(routines);
-  return `HIS PROGRAM NOW (read from his Workout Routines page this turn; it supersedes anything earlier in this conversation, including what you proposed — check here before you say a change landed):\n${lines.join('\n')}${off.length ? `\n${off.join(' · ')}` : ''}${split ? `\n${split}` : ''}`;
+  // THE SAME NUMBERS HIS TRAIN CARD SHOWS. Asked on 25 Sep why his goal
+  // muscles were "under target", Coach said it could not see the target the
+  // app used and counted for itself, and disagreed with the card. The planned
+  // week (lib/plannedWeek.js, src/weekSets.js) is what the card and its sheet
+  // read: done so far, still scheduled, the target, and short-by-Sunday.
+  let week = '';
+  try {
+    const { buildTrainOverview } = await import('./trainOverview.js');
+    const { weekSetsView } = await import('../../src/weekSets.js');
+    const v = weekSetsView((await buildTrainOverview(vaultPath)).week);
+    if (v) {
+      const rows = v.muscles.filter((m) => m.planned || m.goal)
+        .map((m) => `${m.muscle} ${m.done} done + ${m.due} still scheduled = ${m.projected} of ${m.target}${m.short ? ' SHORT' : ''}`);
+      week = `\nHIS WEEK IN HARD SETS (the numbers his Train card shows him; quote these, never a count of your own): ${v.headline} ${rows.join('; ')}.`;
+    }
+  } catch { week = '\nHIS WEEK IN HARD SETS failed to compute this turn: say so rather than counting from memory.'; }
+  return `HIS PROGRAM NOW (read from his Workout Routines page this turn; it supersedes anything earlier in this conversation, including what you proposed — check here before you say a change landed):\n${lines.join('\n')}${off.length ? `\n${off.join(' · ')}` : ''}${split ? `\n${split}` : ''}${week}`;
 }
 
 // YOUR CARDS, AS THE RECORD HAS THEM (25 Sep 2026). Coach told him to
@@ -395,8 +411,9 @@ export async function coachCardsContext({ now = Date.now(), records = null } = {
   const waiting = mine.filter((r) => r.status === 'pending');
   const dayAgo = now - 86_400_000;
   const answeredAt = (r) => r.filedAt || r.discardedAt || r.undoneAt || r.withdrawnAt || null;
+  // the newest ten: enough to see what happened to this conversation's cards
   const answered = mine.filter((r) => r.status !== 'pending' && answeredAt(r) && Date.parse(answeredAt(r)) >= dayAgo)
-    .sort((a, b) => Date.parse(answeredAt(a)) - Date.parse(answeredAt(b)));
+    .sort((a, b) => Date.parse(answeredAt(a)) - Date.parse(answeredAt(b))).slice(-10);
   const verb = (r) => (r.status === 'filed' ? (r.instructed ? 'applied on his word' : 'he approved')
     : r.status === 'undone' ? 'he approved, then undid'
       : r.status === 'withdrawn' ? 'you took it back'

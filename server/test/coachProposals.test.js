@@ -139,11 +139,16 @@ test('Coach sees its cards and his program every turn, from the record', async (
   assert.match(ctx, /waiting on him: .*\[[0-9a-f]{8}\] move Rope Overhead Tricep Extension from Upper Body to Push/);
   assert.match(ctx, /you took it back: add Face Pull to Pull/);
   assert.match(ctx, /WITHDRAW \{"ids":\["<id>"\]\}/);
+  const { setScheduleDay } = await import('../lib/workouts.js');
+  await setScheduleDay(vault, await lib(), 'monday', push.id);
+  await setScheduleDay(vault, await lib(), 'friday', upper.id);
   const prog = await programContext(vault);
   assert.match(prog, /HIS PROGRAM NOW/);
   assert.match(prog, /Push \[\d+ sets\]: 1 Incline Barbell Bench Press 3×6–10 \(Chest\) · 2 Rope Overhead Tricep Extension/);
   assert.match(prog, /HIS SPLIT \(code refuses a suggestion that breaks it\): Push holds Chest, Shoulders, Triceps/);
   assert.ok(!/\n\n/.test(prog), 'one paragraph, so the transcript reader knows it is plumbing');
+  // the same planned-week figures his Train card shows, never a count of Coach's own
+  assert.match(prog, /HIS WEEK IN HARD SETS \(the numbers his Train card shows him; quote these, never a count of your own\): .*Triceps \d+ done \+ \d+ still scheduled = \d+ of 1[02]/);
 });
 
 test('the repair request names every refusal and what to send back', () => {
