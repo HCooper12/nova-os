@@ -216,7 +216,7 @@ export async function runPatternScout(vaultPath, { force = false, model } = {}) 
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {
     try {
-      const outer = parseEnvelope(stdout, { lane: 'pattern-scout' });
+      const outer = parseEnvelope(stdout, { lane: 'pattern-scout', code, stderr });
       if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);

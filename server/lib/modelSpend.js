@@ -184,12 +184,21 @@ export function fromEnvelope(obj) {
  *  reason it can't: the account's usage limit (plain notice, `err.limited =
  *  true`), the model's own reported failure, or unreadable output (recorded
  *  as nothing, since there's no envelope to record). */
-export function parseEnvelope(stdout, { lane } = {}) {
+//
+// `code` and `stderr` are optional. A site that passes `code` keeps the rule
+// it had before this module: a non-zero exit is a failure even when the
+// envelope does not say so. `stderr` is what a dead or logged-out CLI left
+// behind, and is the reason given when there is no envelope to read; without
+// it a crash read as "malformed output" with nothing to act on (25 Sep
+// review of the ledger wiring).
+export function parseEnvelope(stdout, { lane, code = null, stderr = '' } = {}) {
+  const said = String(stderr || '').trim().slice(0, 300);
+  const exited = code != null && code !== 0;
   let outer;
   try {
     outer = JSON.parse(stdout);
   } catch {
-    throw new Error('malformed output from the model');
+    throw new Error(said || (exited ? `claude exited with code ${code}` : 'malformed output from the model'));
   }
   recordRun(lane, fromEnvelope(outer));
   const limit = usageLimitNotice(outer?.result);
@@ -198,7 +207,11 @@ export function parseEnvelope(stdout, { lane } = {}) {
     err.limited = true;
     throw err;
   }
-  if (outer?.is_error) throw new Error(outer.result || 'the model run failed');
+  // the model's own failure speaks for itself; a process that exited badly
+  // after a clean-looking envelope is explained by its stderr or its code,
+  // never by the reply text it happened to print
+  if (outer?.is_error) throw new Error(outer.result || said || (exited ? `claude exited with code ${code}` : 'the model run failed'));
+  if (exited) throw new Error(said || `claude exited with code ${code}`);
   return outer;
 }
 

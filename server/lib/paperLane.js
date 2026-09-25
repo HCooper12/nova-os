@@ -365,7 +365,7 @@ function askModel(prompt, { lane, tools, vaultPath }) {
     child.stderr.on('data', (d) => { err += d; });
     child.on('close', (code) => {
       try {
-        const outer = parseEnvelope(out, { lane });
+        const outer = parseEnvelope(out, { lane, code, stderr: err });
         if (code !== 0) return reject(new Error(outer.result || err.trim().split('\n').pop() || `claude exited with code ${code}`));
         resolve(String(outer.result || ''));
       } catch (e) {

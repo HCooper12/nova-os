@@ -1152,7 +1152,7 @@ export function startQuickSession(cwd, { minutes, note, context }) {
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
     try {
-      const outer = parseEnvelope(stdout, { lane: 'quick-session' });
+      const outer = parseEnvelope(stdout, { lane: 'quick-session', code, stderr });
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in plan response');
@@ -1228,7 +1228,7 @@ Report format: a short verdict line, then a numbered list of findings — each w
     try {
       // Prefer the CLI's own structured message even on a nonzero exit —
       // budget stops land there, with only noise on stderr.
-      const outer = parseEnvelope(stdout, { lane: 'breaker' });
+      const outer = parseEnvelope(stdout, { lane: 'breaker', code, stderr });
       const replyText = (outer.result || '').trim();
       if (!replyText) throw new Error('Empty response');
       job.result = { text: replyText };

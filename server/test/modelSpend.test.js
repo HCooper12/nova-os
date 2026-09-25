@@ -286,3 +286,17 @@ test('every spawn site in server/lib is wired to the model spend ledger', async 
   }
   assert.deepEqual(offenders, [], `these files spawn the CLI without recording to the model spend ledger: ${offenders.join(', ')}`);
 });
+
+// Review follow-up (25 Sep): ten sites used to throw on `is_error || code !== 0`
+// with stderr as the reason. They pass `code` and `stderr` now, and keep that.
+test('parseEnvelope: a non-zero exit fails even on a clean envelope, and stderr is the reason when there is no envelope', () => {
+  const ok = JSON.stringify({ type: 'result', is_error: false, result: 'fine', total_cost_usd: 0.01 });
+  assert.throws(() => parseEnvelope(ok, { lane: 'test-lane', code: 1, stderr: '' }), /claude exited with code 1/);
+  assert.throws(() => parseEnvelope(ok, { lane: 'test-lane', code: 1, stderr: 'Error: not logged in\n' }), /not logged in/);
+  assert.equal(parseEnvelope(ok, { lane: 'test-lane', code: 0 }).result, 'fine');
+  assert.equal(parseEnvelope(ok, { lane: 'test-lane' }).result, 'fine', 'a site that passes no code keeps its old rule');
+  // no envelope at all: the CLI's own last words, not "malformed output"
+  assert.throws(() => parseEnvelope('', { lane: 'test-lane', code: 1, stderr: 'Invalid API key · Please run /login' }), /Invalid API key/);
+  assert.throws(() => parseEnvelope('', { lane: 'test-lane', code: null, stderr: '' }), /malformed output from the model/);
+  assert.throws(() => parseEnvelope('', { lane: 'test-lane', code: 137 }), /claude exited with code 137/);
+});

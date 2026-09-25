@@ -429,7 +429,7 @@ function runClaude(args, cwd, lane) {
     child.on('error', reject);
     child.on('close', (code) => {
       try {
-        const outer = parseEnvelope(stdout, { lane });
+        const outer = parseEnvelope(stdout, { lane, code, stderr });
         if (code !== 0) return reject(new Error(outer.result || stderr.trim() || `claude exited ${code}`));
         const m = firstBalancedObjectMatch((outer.result || ''));
         if (!m) return reject(new Error((outer.result || '').slice(0, 200) || 'no JSON in response'));

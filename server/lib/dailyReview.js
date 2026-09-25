@@ -316,7 +316,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {
     try {
-      const outer = parseEnvelope(stdout, { lane: 'daily-review' });
+      const outer = parseEnvelope(stdout, { lane: 'daily-review', code, stderr });
       if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
