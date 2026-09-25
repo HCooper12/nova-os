@@ -23,6 +23,7 @@ import { createBeingKit } from '../agentWorld/beings.js';
 import { LAYOUT, HOMES, createHabitat } from '../agentWorld/habitat.js';
 import { daypartOf, initLife, stepLife } from '../agentWorld/life.js';
 import { makeWalk, walkPoint, walkHeading, obstacleCloud, stepPoints } from './walk.js';
+import { ACT_FRAMES, ACT_SPOTS, PERFORM_S, DOCKS, actMoves, newOverlay, resetOverlay, overlayWriters, applyOverlay, buildProps } from '../agentWorld/acts.js';
 
 // The ring's geometry lives in one place, habitat.js's LAYOUT, because the
 // sets, the lanes and the beings' homes are all measured against it:
@@ -260,6 +261,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   // each stands at its home node on the lanes (the tile's front, or its
   // slot on Knowledge), which is where every walk starts and ends
   const beings = {};
+  // the small things a gag hands over (a kernel, a bowl, a card)
+  const PROPS = buildProps(THREE, TK, kit);
   kit.AGENTS.forEach((a, i) => {
     const b = kit.BUILD[a.id](a);
     const home = habitat.lanes.nodes['home:' + a.id];
@@ -288,6 +291,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       // puts it: goal = { pos, yaw, seatY, sit } in the world group's frame
       intent: null, intentKey: null, goal: null, yaw: 0, placed: false,
     };
+    // the act's handles (acts.js): targets written each frame, eased values kept
+    beings[a.id].ov = newOverlay();
+    beings[a.id].writers = overlayWriters(beings[a.id].ov);
     b.face.nextBlink = performance.now() / 1000 + 1 + Math.random() * 5;
     b.face.nextSacc = performance.now() / 1000 + 1 + Math.random() * 3;
   });
@@ -398,19 +404,60 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     }
     if (typeof st.place === 'string' && st.place.startsWith('visit:')) return visitSpot(x, st.place.slice(6));
     if (st.place === 'lane') return { pos: x.holder.position.clone().setY(0), yaw: null, sit: false, seatY: 0 };
+    // an act that happens elsewhere on the tile (acts.js ACT_SPOTS)
+    const sp = ACT_SPOTS[st.act] && ACT_SPOTS[st.act][x.a.id];
+    if (sp && sp.anchor) {
+      const a = anchorOf(x, sp.anchor);
+      if (a) { if (sp.yaw != null) a.yaw = sp.yaw; a.perform = st.act; return a; }
+    }
+    if (sp && sp.near) {
+      const d = habitat.districts[x.district].anchors[sp.near];
+      if (d) {
+        const pos = new THREE.Vector3(d.pos.x + sp.off[0], 0, d.pos.z + sp.off[1]);
+        return { pos, yaw: Math.atan2(d.pos.x - pos.x, d.pos.z - pos.z), sit: false, seatY: 0, perform: st.act };
+      }
+    }
     return anchorOf(x, st.spot || 'rest') || anchorOf(x, 'rest');
   }
-  // a visitor stands a little way in front of its host, on the side it
-  // came from, facing it
-  const VISIT_GAP = 0.44;
+  // a relocating act is performed from its arrival, for PERFORM_S; the walk
+  // back waits for it unless something that matters comes first
+  function startPerf(x, act) { x.perf = { act, t0: sceneNow(), dur: PERFORM_S[act] || 2.5 }; }
+  function endPerf(x) {
+    if (x.intent) x.performedSince = x.intent.actSince;
+    x.perf = null;
+    if (x.replan) { x.replan = false; planBeing(x, false); }
+  }
+  // A visitor stands beside its host, a body's width clear of it, on the
+  // side it came from, so the two face each other side-on to the camera
+  // (face to face along the view, one would only show its back). The spot
+  // must be on the host's tile and clear of the set pieces; failing both
+  // sides, it stands off toward where it came from.
+  const VISIT_GAP = 0.6;
+  const inTile = (p, id, margin) => {
+    const c = districtAt[id].pos, R = districtAt[id].r - margin;
+    const ax = Math.abs(p.x - c.x), az = Math.abs(p.z - c.z);
+    return ax <= R * Math.sqrt(3) / 2 && az + ax / Math.sqrt(3) <= R;
+  };
+  const pointClear = (p, r) => !(CLOUD || []).some((q) => Math.hypot(q.x - p.x, q.z - p.z) < r);
   function visitSpot(x, hostId) {
     const host = beings[hostId];
     if (!host) return { pos: x.holder.position.clone().setY(0), yaw: null, sit: false, seatY: 0 };
     const hp = (host.goal ? host.goal.pos : host.holder.position).clone().setY(0);
-    const dir = x.holder.position.clone().setY(0).sub(hp);
-    if (dir.lengthSq() < 1e-4) dir.copy(habitat.lanes.nodes['ring:' + host.district]).setY(0).sub(hp);
-    dir.normalize();
-    const pos = hp.clone().addScaledVector(dir, VISIT_GAP);
+    const from = x.holder.position.clone().setY(0);
+    // the Watcher sits with its legs out: give it room
+    const gap = VISIT_GAP + (hostId === 'watcher' ? 0.12 : 0);
+    const side = Math.sign(from.x - hp.x) || 1;
+    const dirs = [[side, 0.35], [-side, 0.35], [side, -0.25], [-side, -0.25]].map(([dx, dz]) => new THREE.Vector3(dx, 0, dz).normalize());
+    let pos = null;
+    for (const d of dirs) {
+      const p = hp.clone().addScaledVector(d, gap);
+      if (inTile(p, host.district, 0.2) && pointClear(p, 0.17)) { pos = p; break; }
+    }
+    if (!pos) {
+      const d = from.clone().sub(hp);
+      if (d.lengthSq() < 1e-4) d.copy(habitat.lanes.nodes['ring:' + host.district]).setY(0).sub(hp);
+      pos = hp.clone().addScaledVector(d.normalize(), gap);
+    }
     return { pos, yaw: Math.atan2(hp.x - pos.x, hp.z - pos.z), sit: false, seatY: 0 };
   }
   // ---- WALKING (§9e) --------------------------------------------------
@@ -459,7 +506,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     const g = resolveTarget(x, st);
     if (!g) return;
     if (snap) {
-      x.walk = null;
+      x.walk = null; x.perf = null; x.replan = false;
       // a snap is a cut: the seat's eased value jumps with it
       const seat = (v) => { x.seatK = v; x.b.pose.v('seat', v, 0, 0).x = v; };
       if (x.snapStart && st.path) {
@@ -478,10 +525,17 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       return;
     }
     if (x.walk) { x.replan = true; return; }            // finish this walk first
+    // a performance in hand is finished before a mere rest walks it home;
+    // anything else (work, a marker, an event, a visit) cuts it short
+    if (x.perf) {
+      if (st.act === 'rest') { x.replan = true; return; }
+      x.perf = null;
+    }
     x.goal = g;
     if (st.path && st.path.length > 1 && pathKey(st) !== x.pathDone) { startLaneWalk(x, st); return; }
     const from = x.holder.position.clone().setY(0);
     if (flatDist(from, g.pos) > 0.03) startWalk(x, stepTo(from, g.pos), STEP_SPEED, null);
+    else if (g.perform) startPerf(x, g.perform);
   }
   const _wp = new THREE.Vector3();
   // one frame of a walk: turn in place toward the way ahead first (at the
@@ -499,6 +553,10 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     if (w.s >= w.len - 1e-5) {
       if (w.key) x.pathDone = w.key;
       x.walk = null; x.striding = false;
+      // arrived where an act happens: do it (the walk back waits for it),
+      // unless what the engine wants now matters more than a rest
+      const perform = x.goal && x.goal.perform;
+      if (perform && (!x.replan || !x.intent || x.intent.act === 'rest' || x.intent.act === perform)) { startPerf(x, perform); return; }
       if (x.replan) { x.replan = false; planBeing(x, false); }
     }
   }
@@ -667,7 +725,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   function updateFace(x, now, dt, working) {
     const face = x.face;
     let live = false;
-    if (!reduceMotion) {
+    // asleep, a being does not blink (and its blink does not wake the loop)
+    if (x.asleep) { face.blink = 0; face.nextBlink = now + 4 + Math.random() * 4; }
+    else if (!reduceMotion) {
       if (face.blink > 0) {
         face.blink -= dt; live = true;
         if (face.blink <= 0) { face.blink = 0; face.nextBlink = now + (working ? 5.5 : 2.5) + Math.random() * 5; }
@@ -686,71 +746,175 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   // one being, one frame: the life engine's intent acted out. Returns
   // whether it still moves (so the loop may not sleep).
   function frameBeing(x, now, dt) {
-    const b = x.b, st = x.intent;
-    const working = st ? st.act === 'work' : x.pose === 'work';
+    const b = x.b, st = x.intent, id = x.a.id;
+    const ln = lifeNow();
+    // which act plays: a relocating act plays once the being has arrived
+    // (until then it is walking there at rest); off the engine, the pose
+    let act = x.perf ? x.perf.act : st ? st.act : x.pose === 'work' ? 'work' : 'rest';
+    if (!x.perf && st && ACT_SPOTS[st.act] && ACT_SPOTS[st.act][id] && (x.walk || x.performedSince === st.actSince)) act = 'rest';
+    if (reduceMotion && act !== 'work') act = 'rest';
+    if (!ACT_FRAMES[act]) act = 'rest';
+    const working = act === 'work';
+    x.asleep = act === 'sleep';
     let live = false;
     if (!reduceMotion) {
-      const br = Math.sin(now * 0.85 + x.index * 1.7);
+      // breathing; slower and deeper asleep
+      const br = x.asleep ? 1.5 * Math.sin(now * 0.5 + x.index * 1.7) : Math.sin(now * 0.85 + x.index * 1.7);
       b.body.scale.set(1 + br * 0.012, 1 + br * 0.006, 1 + br * 0.012);
       b.head.position.y = b.headY * (1 + br * 0.006);
     }
-    // the working tell only when the record says working (§9a rule 2).
-    // Two tells (the Guardian's flame, the Leader's orb) report ambient
-    // flicker as motion; off duty that is not a reason to keep drawing
-    if (b.tell) {
-      const tl = b.tell(now, working, reduceMotion);
-      if (working && tl) live = true;
-    }
-    const P = b.pose;
-    // the walk: along the polyline, turning in place first
+    const ease = (cur, tgt, rate) => (reduceMotion ? tgt : dt > 0 ? cur + (tgt - cur) * (1 - Math.exp(-dt * rate)) : cur);
+
+    // 1 · WHERE: the walk along its polyline (turning in place first), the
+    // facing, the seat
     if (x.walk) { advanceWalk(x, dt); live = true; }
-    // facing: yaw eased toward where the intent says to look (quicker
-    // while walking, so a corner is turned, not drifted round)
     const want = facingYaw(x), err = wrapA(want - x.yaw);
     if (reduceMotion) x.yaw = want;
     else if (dt > 0) x.yaw += err * (1 - Math.exp(-dt * (x.walk ? 8 : 6)));
     if (!reduceMotion && Math.abs(wrapA(want - x.yaw)) > 0.004) live = true;
     x.holder.rotation.y = x.yaw;
-
-    // THE GAIT: boots alternating +-0.06 with a +-0.35 toe pitch, the body
-    // bobbing +0.02 each step, a small waddle, the free hand swinging, the
-    // head kept level. Only the amplitude is eased (through the pose), so
-    // stopping settles the boots instead of freezing them mid-stride.
-    const amp = reduceMotion ? 0 : P.s('walk:amp', x.walk && x.striding ? 1 : 0);
-    if (x.walk && x.striding && dt > 0) x.gait = (x.gait || 0) + dt * x.walk.cadence * Math.PI;
-    const s = Math.sin(x.gait || 0), c = Math.cos(x.gait || 0);
-    // THE SEAT: on a seat anchor the foot of the body rests on the seat and
-    // the boots come forward
-    const seatWant = !x.walk && x.goal && x.goal.sit && flatDist(x.holder.position, x.goal.pos) < 0.05 ? 1 : 0;
+    // on a seat anchor the foot of the body rests on the seat and the boots
+    // come forward; asleep on a spot with no seat, or a gag that sits, it
+    // sits where it is
+    const atGoal = !x.walk && x.goal && flatDist(x.holder.position, x.goal.pos) < 0.05;
+    const seatWant = atGoal && x.goal.sit ? 1 : 0;
     if (seatWant) x.seatY = seatLift(x, x.goal);
-    x.seatK = reduceMotion ? seatWant : P.s('seat', seatWant);
-    x.holder.position.y = (x.seatY || 0) * x.seatK;
+    x.seatK = ease(x.seatK || 0, seatWant, 7);
+    const groundWant = atGoal && !x.goal.sit && x.asleep ? 1 : 0;
+    x.groundK = ease(x.groundK || 0, groundWant, 5);
+    const ov = x.ov, sitK = Math.max(x.seatK, x.groundK, ov.v.sit);
+    x.holder.position.y = (x.seatY || 0) * x.seatK - 0.03 * Math.max(x.groundK, ov.v.sit);
+    if (Math.abs(x.seatK - seatWant) > 1e-3 || Math.abs(x.groundK - groundWant) > 1e-3) live = true;
+
+    // 2 · THE GAIT'S WHOLE-BODY PART: bob, waddle, the act's body handles
+    // (last frame's eased values), set before the act so a docked thing is
+    // placed against this frame's body
+    const pacing = ov.v.gait > 0.02;
+    if (dt > 0 && ((x.walk && x.striding) || pacing)) x.gait = (x.gait || 0) + dt * (x.walk ? x.walk.cadence : 2.4) * Math.PI;
+    const amp = Math.max(x.amp || 0, ov.v.gait);
+    const s = Math.sin(x.gait || 0), c = Math.cos(x.gait || 0);
+    b.group.position.set(ov.v.bx, 0.02 * Math.abs(s) * amp + ov.v.by, 0);
+    b.group.rotation.set(ov.v.bp - 0.06 * sitK, 0.035 * s * amp + ov.v.byaw, 0.045 * s * amp + ov.v.br);
+    x.headLevel = -0.045 * s * amp;
+    x.holder.updateMatrixWorld(true);
+
+    // 3 · THE ACT (acts.js): the tell, then the act's handles through the
+    // rig's pose. The working tell plays only when the record says working
+    // (§9a rule 2); two tells report ambient flicker as motion, which off
+    // duty is not a reason to keep drawing.
+    const t01 = x.perf ? Math.min(1, (now - x.perf.t0) / x.perf.dur)
+      : st && st.actUntil > st.actSince ? Math.max(0, Math.min(1, (ln - st.actSince) / (st.actUntil - st.actSince))) : 0;
+    resetOverlay(ov);
+    const role = st && st.partner && act.startsWith('gag:') ? (act === 'gag:' + id ? 'host' : 'visitor') : null;
+    const dock = DOCKS[id], docked = !!(dock && dock.when(act));
+    const ctx = {
+      ...x.writers, now, dt, rm: reduceMotion, id, role, place: st ? st.place : 'home',
+      dock: dock && act === 'tap-racked-bar' ? localOf(x, dockPoint(x, dock)) : null,
+      aim: (name) => aimAt(x, name),
+    };
+    if (b.tell) {
+      const tl0 = b.tell;
+      let tl = false;
+      b.tell = (t, w, rm) => { tl = tl0(t, w, rm); return tl; };
+      ACT_FRAMES[act](b, t01, ctx);
+      b.tell = tl0;
+      if (working && tl) live = true;
+    }
+    // what it carries home from a visit (popcorn, a bowl), in its right hand;
+    // during the gag the act says when it has been handed over
+    const carry = st && st.carry;
+    if (carry && !ov.t.props[carry]) {
+      const handed = act.startsWith('gag:') ? ov.t.props.carry || 0 : 1;
+      if (handed) ov.t.props[carry] = { k: 1, at: 'handR' };
+    }
+    const dp = dock ? dockPoint(x, dock) : null;
+    applyOverlay(b, ov, {
+      id, docked, beingDim: x.dim, held: (kind) => heldProp(x, kind),
+      dockLocal: dp ? localOf(x, dp) : null, dockYaw: wrapA(-x.yaw),
+    });
+    if (x.perf || (actMoves(act, st) && st && ln < st.actUntil)) live = true;
+    fxPuff(x, ov.v.puff);
+
+    // 4 · THE GAIT'S FEET AND HANDS: boots alternating +-0.06 with a +-0.35
+    // toe pitch, a hand that holds nothing swinging, the head kept level.
+    // Only the amplitude is eased (through the rig's pose), so stopping
+    // settles the boots instead of freezing them mid-stride.
+    const P = b.pose;
+    x.amp = reduceMotion ? 0 : P.s('walk:amp', x.walk && x.striding ? 1 : 0);
+    if (x.amp > 1e-3) live = true;
     if (b.feet && b.feet.length === 2) {
       if (!x.footBase) x.footBase = b.feet.map((f) => ({ y: f.position.y, z: f.position.z, rx: f.rotation.x }));
-      const k = x.seatK;
       [[1, Math.max(0, c)], [-1, Math.max(0, -c)]].forEach(([sg, lift], i) => {
         const f = b.feet[i], fb = x.footBase[i];
-        f.position.z = fb.z + 0.06 * sg * s * amp + 0.1 * k;
-        f.position.y = fb.y + 0.022 * lift * amp + 0.015 * k;
-        f.rotation.x = fb.rx - 0.35 * sg * s * amp - 0.45 * k;
+        f.position.z = fb.z + 0.06 * sg * s * amp + 0.1 * sitK;
+        f.position.y = fb.y + 0.022 * lift * amp + 0.015 * sitK;
+        f.rotation.x = fb.rx - 0.35 * sg * s * amp - 0.45 * sitK;
       });
     }
-    b.group.position.y = 0.02 * Math.abs(s) * amp;
-    b.group.rotation.set(0, 0.035 * s * amp, 0.045 * s * amp);
-    x.headLevel = -0.045 * s * amp;
     if (amp > 0.01 && b.arms) {
-      (FREE_HAND[x.a.id] || []).forEach((side) => {
+      (FREE_HAND[id] || []).forEach((side) => {
+        if (ov.t.arms[side]) return;
         const arm = b.arms[side], sg = side === 'L' ? 1 : -1;
         _wp.copy(arm.last.H); _wp.z += 0.055 * sg * s * amp; _wp.y += 0.012 * Math.abs(s) * amp;
         arm.set(side === 'L' ? b.arms.SL : b.arms.SR, _wp, arm.last.pole, arm.last.palm);
       });
     }
+    // a being with company looks at it (the host, while its visitor walks up)
+    const lookWant = st && st.partner && st.facing !== 'partner' && !x.walk && beings[st.partner] ? Math.max(-0.9, Math.min(0.9, aimAt(x, beings[st.partner].holder.position).yaw)) : 0;
+    x.look = P.s('look', lookWant);
+    if (x.perf && now - x.perf.t0 >= x.perf.dur) endPerf(x);
     if (P.moving()) live = true;
     return { live, working };
   }
   // the hands a walk may swing: the ones not holding the being's own thing
   // (the book, the bucket, the pot, the orb and the lantern stay held)
   const FREE_HAND = { commander: ['R'], coach: ['L', 'R'], cfo: ['R'], guardian: ['R'], librarian: ['R'] };
+
+  // a point in the world group's frame, in this being's rig frame (b.group)
+  const _lp = new THREE.Vector3();
+  function localOf(x, p) {
+    _lp.copy(p); world.localToWorld(_lp); x.b.group.worldToLocal(_lp);
+    return [_lp.x, _lp.y, _lp.z];
+  }
+  function dockPoint(x, dock) {
+    const a = habitat.districts[x.district] && habitat.districts[x.district].anchors[dock.anchor];
+    return a ? a.pos : null;
+  }
+  // head angles (rig frame) that look at a named thing on the tile, or a point
+  const AIM = {
+    safe: () => habitat.districts.money.props.safe, crate: () => habitat.districts.fuel.props.produce,
+    pool: () => habitat.districts.mind.props.pool,
+  };
+  const _ap = new THREE.Vector3();
+  function aimAt(x, what) {
+    if (typeof what === 'string') {
+      const o = AIM[what] && AIM[what]();
+      if (!o) return { yaw: 0, pitch: 0 };
+      o.getWorldPosition(_ap); world.worldToLocal(_ap);
+    } else _ap.copy(what);
+    const l = localOf(x, _ap);
+    const yaw = Math.atan2(l[0], l[2]), flat = Math.hypot(l[0], l[2]) || 1e-3;
+    // a head turns so far and no further (a being turns its body for more)
+    return { yaw: Math.max(-0.85, Math.min(0.85, yaw)), pitch: Math.max(-0.5, Math.min(0.5, Math.atan2(x.b.headY - l[1], flat))) };
+  }
+  // a gag's thing in the hand, made the first time it is asked for
+  function heldProp(x, kind) {
+    x.heldProps = x.heldProps || {};
+    if (!x.heldProps[kind]) {
+      const o = PROPS.make(kind);
+      if (!o) return null;
+      o.scale.setScalar(1); x.b.group.add(o); x.heldProps[kind] = o;
+    }
+    return x.heldProps[kind];
+  }
+  // the chalk puff off the Coach's clap
+  function fxPuff(x, v) {
+    if (!x.puff && v < 0.01) return;
+    if (!x.puff) { x.puff = kit.halo(lighter(TK.ink, 0.2), 0.16, 0.5); x.puff.position.set(0, 0.46, 0.36); x.b.group.add(x.puff); }
+    x.puff.visible = v > 0.01;
+    x.puff.material.opacity = 0.55 * v;
+    x.puff.scale.setScalar(0.16 + 0.22 * (1 - v));
+  }
 
   function tick() {
     if (disposed) return;
@@ -789,9 +953,10 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       const b = x.b;
       const fb = frameBeing(x, now, dt), working = fb.working;
       if (fb.live) live = true;
-      b.head.rotation.y = (b.headYaw || 0) + b.face.sacc.x * 3;
-      b.head.rotation.x = (b.headPitch || 0) - view.elev * 0.12;
-      b.head.rotation.z = (b.headRoll || 0) + (x.headLevel || 0);
+      const hv = x.ov.v;
+      b.head.rotation.y = (b.headYaw || 0) + b.face.sacc.x * 3 + hv.hy + (x.look || 0);
+      b.head.rotation.x = (b.headPitch || 0) - view.elev * 0.12 + hv.hp;
+      b.head.rotation.z = (b.headRoll || 0) + (x.headLevel || 0) + hv.hr;
       if (updateFace(x, now, dt, working)) live = true;
       if (b.marker.visible) {
         b.marker.scale.setScalar(mk);
@@ -1011,6 +1176,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       el.removeEventListener('pointerup', onUp);
       el.removeEventListener('pointercancel', onCancel);
       habitat.dispose();
+      PROPS.dispose();
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
         if (o.material) [].concat(o.material).forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); });
