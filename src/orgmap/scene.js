@@ -21,6 +21,7 @@
 import * as THREE from 'three';
 import { createBeingKit } from '../agentWorld/beings.js';
 import { LAYOUT, createHabitat } from '../agentWorld/habitat.js';
+import { daypartOf } from '../agentWorld/life.js';
 
 // The ring's geometry lives in one place, habitat.js's LAYOUT, because the
 // sets, the lanes and the beings' homes are all measured against it:
@@ -156,6 +157,44 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.3 }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.2; ground.receiveShadow = true; scene.add(ground);
 
+  // ---- time of day (AGENT-WORLD-PLAN §9c): the device's own hour ------
+  // Dawn warm and low from the east (+x, the right of the default view),
+  // day white and high, evening gold and low from the west, night a low
+  // blue key with the world at about half of day so the lamps carry the
+  // picture. Every colour is a token mix; the page's sky stays CSS.
+  const hourOverride = { h: null };
+  function hourNow() {
+    if (hourOverride.h != null) return hourOverride.h;
+    const d = new Date();
+    return d.getHours() + d.getMinutes() / 60;
+  }
+  const LIGHT = {
+    dawn: { key: TK.key.clone().lerp(TK.gold, 0.3).lerp(TK.hue.chest, 0.2), keyI: 1.75, keyPos: [7, 2.4, 2.6],
+      fill: TK.fill.clone().lerp(TK.gold, 0.15), fillI: 0.4, rim: TK.rim.clone().lerp(TK.hue.chest, 0.25), rimI: 0.9, env: 0.85, bRim: 0.85 },
+    day: { key: TK.key.clone(), keyI: 2.2, keyPos: [3.4, 8, 5],
+      fill: TK.fill.clone(), fillI: 0.44, rim: TK.rim.clone(), rimI: 1.1, env: 1, bRim: 1 },
+    evening: { key: TK.key.clone().lerp(TK.gold, 0.55), keyI: 1.8, keyPos: [-7, 2.4, 2.6],
+      fill: TK.fill.clone().lerp(TK.gold, 0.3), fillI: 0.38, rim: TK.rim.clone().lerp(TK.gold, 0.45), rimI: 0.9, env: 0.8, bRim: 0.85 },
+    night: { key: TK.fill.clone().lerp(TK.hue.vi, 0.35), keyI: 0.62, keyPos: [-2.6, 5, 3.6],
+      fill: TK.fill.clone().lerp(TK.hue.vi, 0.3).lerp(TK.void, 0.35), fillI: 0.16, rim: TK.rim.clone().lerp(TK.hue.vi, 0.5), rimI: 0.55, env: 0.34, bRim: 0.3 },
+  };
+  const lightNow = { key: new THREE.Color(), keyI: 0, keyPos: new THREE.Vector3(), fill: new THREE.Color(), fillI: 0, rim: new THREE.Color(), rimI: 0, env: 1, bRim: 1 };
+  const lightFade = { from: null, to: LIGHT.day, p: 1, part: null };
+  function mixLight(a, b, t) {
+    lightNow.key.copy(a.key).lerp(b.key, t); lightNow.keyI = a.keyI + (b.keyI - a.keyI) * t;
+    lightNow.keyPos.set(a.keyPos[0] + (b.keyPos[0] - a.keyPos[0]) * t, a.keyPos[1] + (b.keyPos[1] - a.keyPos[1]) * t, a.keyPos[2] + (b.keyPos[2] - a.keyPos[2]) * t);
+    lightNow.fill.copy(a.fill).lerp(b.fill, t); lightNow.fillI = a.fillI + (b.fillI - a.fillI) * t;
+    lightNow.rim.copy(a.rim).lerp(b.rim, t); lightNow.rimI = a.rimI + (b.rimI - a.rimI) * t;
+    lightNow.env = a.env + (b.env - a.env) * t; lightNow.bRim = a.bRim + (b.bRim - a.bRim) * t;
+    key.color.copy(lightNow.key); key.intensity = lightNow.keyI; key.position.copy(lightNow.keyPos);
+    fill.color.copy(lightNow.fill); fill.intensity = lightNow.fillI;
+    rim.color.copy(lightNow.rim); rim.intensity = lightNow.rimI;
+    scene.environmentIntensity = TK.env * lightNow.env;
+  }
+  // a snapshot of what is lit now, so a change of daypart fades from it
+  const snapLight = () => ({ key: lightNow.key.clone(), keyI: lightNow.keyI, keyPos: lightNow.keyPos.toArray(), fill: lightNow.fill.clone(), fillI: lightNow.fillI, rim: lightNow.rim.clone(), rimI: lightNow.rimI, env: lightNow.env, bRim: lightNow.bRim });
+  const LIGHT_FADE_S = 1.6;
+
   const world = new THREE.Group(); scene.add(world);
 
   // ---- the core: Nova, at the centre ------------------------------
@@ -248,7 +287,29 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       if (o.op != null && m.transparent) m.opacity = o.op * (1 - k * 0.5);
       if (o.env != null) m.envMapIntensity = o.env * (1 - k * 0.7);
     });
-    x.b.rimL.intensity = 1.4 * (1 - k * 0.8);
+    rimOf(x);
+  }
+  // each being carries its own rim light, and it lights the tile round it:
+  // it dims with the being (a quiet loop) and with the night, or the ground
+  // round every being keeps looking like day
+  function rimOf(x) { x.b.rimL.intensity = 1.4 * (1 - x.dim * 0.8) * lightNow.bRim; }
+
+  // the daypart: the lights fade to it over LIGHT_FADE_S (snapped on the
+  // first frame and for a capture's setHour), the sets' lamps follow it
+  function setDaypart(part, snap) {
+    if (part === lightFade.part && !snap) return false;
+    lightFade.part = part;
+    habitat.setDaypart(part);
+    if (snap || lightFade.from == null) {
+      lightFade.from = LIGHT[part]; lightFade.to = LIGHT[part]; lightFade.p = 1;
+      mixLight(LIGHT[part], LIGHT[part], 1);
+      habitat.settle();
+    } else {
+      lightFade.from = snapLight(); lightFade.to = LIGHT[part]; lightFade.p = 0;
+    }
+    Object.values(beings).forEach(rimOf);
+    invalidate();
+    return true;
   }
 
   // ---- camera: a turntable, fitted by projection -------------------
@@ -441,6 +502,16 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     if (!reduceMotion) { coreRing.rotation.z = now * 0.3; }
     // the sets' lamps fade and the plaza pulses; each says when it is done
     if (habitat.tick(now, dt)) live = true;
+    // a change of daypart is acted out, not cut; zero elapsed time moves nothing
+    if (lightFade.p < 1) {
+      if (dt > 0) {
+        lightFade.p = Math.min(1, lightFade.p + dt / LIGHT_FADE_S);
+        const e = lightFade.p * lightFade.p * (3 - 2 * lightFade.p);
+        mixLight(lightFade.from, lightFade.to, e);
+        Object.values(beings).forEach(rimOf);
+      }
+      if (lightFade.p < 1) live = true;
+    }
 
     renderer.render(scene, camera);
     frames++; lastDraw = now; dirty = false;
@@ -475,6 +546,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   io.observe(mount);
   const onVis = () => { if (!document.hidden) invalidate(); };
   document.addEventListener('visibilitychange', onVis);
+  // the daypart is looked at once a minute and draws only when it changes
+  setDaypart(daypartOf(hourNow()), true);
+  const dayTimer = setInterval(() => { if (!disposed) setDaypart(daypartOf(hourNow()), false); }, 60e3);
   resize();
 
   return {
@@ -509,9 +583,18 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     // whether a frame loop is live right now: it must be false when the map
     // is off screen or nothing moves (headless rAF is too slow to count on)
     running: () => running,
+    // dev hook (window.__novaOrgMap is only set in dev): show any daypart,
+    // a float hour, or null to go back to the device's own clock
+    setHour(h) {
+      hourOverride.h = h == null ? null : ((Number(h) % 24) + 24) % 24;
+      setDaypart(daypartOf(hourNow()), true);
+      return lightFade.part;
+    },
+    daypart: () => lightFade.part,
     dispose() {
       disposed = true;
       clearTimeout(wakeTimer);
+      clearInterval(dayTimer);
       ro.disconnect(); io.disconnect();
       document.removeEventListener('visibilitychange', onVis);
       el.removeEventListener('pointerdown', onDown);
