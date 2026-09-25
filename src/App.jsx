@@ -56,6 +56,7 @@ import { PersonalRecord } from './PersonalRecord.jsx';
 import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
+import { newStages, jobSettled } from './jobBeats.js';
 import { previewLine } from './islandCore.js';
 import { coachSuggestions } from './coachSuggestions.js';
 import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
@@ -1580,7 +1581,7 @@ export default class App extends Component {
     apply('graph', (r) => { this.setState({ liveGraph: r }); this.gNodes = null; });
     apply('repertoire', (r) => this.setState({ liveRepertoire: r }));
     apply('stuck', (r) => this.setState({ liveStuck: r }));
-    apply('inbox', (r) => this.setState({ liveInbox: r }));
+    apply('inbox', (r) => { this.setState({ liveInbox: r }); this.narrateJobs(r); });
     apply('dispatch', (r) => this.setState({ liveDispatch: r }));
     apply('compost', (r) => this.setState({ liveCompost: r }));
     apply('commitments', (r) => this.setState({ liveCommitments: r }));
@@ -1714,7 +1715,7 @@ export default class App extends Component {
         this.setState({ liveGraph: graph });
         this.gNodes = null; // rebuilt from the fresh graph next time the galaxy renders
       },
-      async () => this.setState({ liveInbox: await api.inbox(conn) }),
+      async () => { const r = await api.inbox(conn); this.setState({ liveInbox: r }); this.narrateJobs(r); },
       async () => this.setState({ liveDispatch: await api.dispatchStatus(conn) }),
       async () => this.setState({ liveCompost: await api.compost(conn) }),
       async () => this.setState({ liveCommitments: await api.commitments(conn) }),
@@ -4389,6 +4390,7 @@ export default class App extends Component {
       this.setState({ liveInbox: data });
       this.updateAppBadge(data);
       this.attachRunningPlan(data);
+      this.narrateJobs(data);
     }).catch(() => {});
   }
   // THE SERVER MAY HAVE BEEN THE ONE THAT STARTED IT — a plan approved from
@@ -4400,6 +4402,44 @@ export default class App extends Component {
     this.planRunBooted = true;
     const live = (inbox?.items || []).find((r) => r.kind === 'plan' && r.status === 'classifying' && Array.isArray(r.plan?.steps) && r.plan.steps.length);
     if (live) this.watchPlanRun(live.id);
+  }
+  // THE WORKING GLASS (25 Sep 2026, from the "make me five ads" reel he
+  // sent): a job Nova is running narrates its own stages — one spoken line
+  // and one panel per stage, the way Jarvis reports "YETI's winners" then
+  // "brand DNA, locked in" then "all five are ready". The stages are derived
+  // by code from the record's REAL progress fields (src/jobBeats.js), never
+  // written by a model, and each is said exactly once as the record advances
+  // on the live wire. The first inbox after boot is seeded silently: a job
+  // that finished while the app was closed is not re-narrated as news.
+  narrateJobs(inbox) {
+    if (this.state.demoMode) return;
+    const items = (inbox?.items || []).filter((r) => r.kind === 'research' && !r.parentPlanId);
+    const seen = (this.jobSeen = this.jobSeen || new Map());
+    const booting = !this.jobsBooted;
+    this.jobsBooted = true;
+    for (const r of items) {
+      if (!seen.has(r.id) && jobSettled(r)) { seen.set(r.id, null); continue; } // settled before we ever saw it
+      const { fresh, seen: next } = newStages(r, seen.get(r.id) || undefined);
+      seen.set(r.id, next);
+      if (booting || !fresh.length) continue;
+      const speak = !!this.state.voiceSpeak && this.ttsUsable?.();
+      const onVoice = this.state.screen === 'voice';
+      fresh.forEach((stage) => {
+        const put = () => this.putCard(stage.card, { focus: false, replaceSame: true });
+        // voice leads, glass follows — the panel rises as its line begins;
+        // reading rather than listening, it rises now
+        if (speak) this.speakTtsSentence(stage.say, put); else put();
+        // the island carries the line on every other screen (the stage card
+        // is drawn on the Voice screen and in the presence surface only)
+        if (!onVoice) notify(stage.say);
+      });
+      // the outcome joins the conversation like the browser hand's does;
+      // the stages in between live on the glass, not in the log
+      const last = fresh[fresh.length - 1];
+      if (last.key === 'ready' || last.key === 'error') {
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: last.say }] }));
+      }
+    }
   }
   // pending approvals on the app icon (Badging API — installed PWAs)
   updateAppBadge(inbox) {
@@ -7420,15 +7460,20 @@ export default class App extends Component {
   // Put a card on the glass as its line begins. The one it replaces slides
   // into the rail — the reference's history stack, so the numbers he has
   // already heard stay readable while the brief runs on.
-  putCard(card) {
+  putCard(card, { focus = true, replaceSame = false } = {}) {
     if (!card) return;
     this.setState((s) => ({
       stageCard: card,
       // his 21-Aug note: the chat beside it is distracting — when Nova puts
       // something on the glass, everything else blurs back, exactly like the
-      // reel, so one thing at a time has his attention
-      stageFocus: true,
-      stageHistory: s.stageCard ? [s.stageCard, ...s.stageHistory].slice(0, 6) : s.stageHistory,
+      // reel, so one thing at a time has his attention. A job narrating its
+      // own progress (narrateJobs) passes focus:false — a two-minute research
+      // run must not blur the app five times while he is doing something else.
+      stageFocus: focus ? true : s.stageFocus,
+      // replaceSame: a panel with the hero's own label is that panel updated
+      // (the research panel as each worker returns), not a new one — it
+      // takes the hero's place instead of pushing five copies into the rail
+      stageHistory: s.stageCard && !(replaceSame && s.stageCard.label === card.label) ? [s.stageCard, ...s.stageHistory].slice(0, 6) : s.stageHistory,
     }));
   }
   clearStage() { this.setState({ stageCard: null, stageHistory: [], stageFocus: false }); }
