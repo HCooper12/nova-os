@@ -2,9 +2,11 @@
 // Serve the repo first, from its root:  python3 -m http.server 8765 --bind 127.0.0.1
 // Uses its own headless Chrome on an OS-assigned debug port, never a guessed
 // one: a guessed port once attached to a peer session's browser.
-// node look.mjs <hash> <w> <h> <out> [js-after-load]
+// node look.mjs <hash> <w> <h> <out> [js-after-load] [--port 8765]
 import { spawn } from 'node:child_process'; import { rm, readFile, writeFile } from 'node:fs/promises'; import path from 'node:path'; import os from 'node:os';
-const [hash, W, H, out, js] = process.argv.slice(2);
+const argv = process.argv.slice(2), pi = argv.indexOf('--port');
+const port = pi >= 0 ? argv[pi + 1] : '8765';
+const [hash, W, H, out, js] = pi >= 0 ? argv.filter((_, i) => i !== pi && i !== pi + 1) : argv;
 const profile = path.join(os.tmpdir(), `look-prof-${process.pid}`); await rm(profile, { recursive: true, force: true });
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [`--user-data-dir=${profile}`, '--headless=new', '--hide-scrollbars', '--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader', '--no-first-run', '--remote-debugging-port=0', `--window-size=${W},${H}`, 'about:blank'], { stdio: 'ignore' });
 let dbg; for (let i = 0; i < 100 && !dbg; i++) { try { dbg = Number((await readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]); } catch { await new Promise(r => setTimeout(r, 150)); } }
@@ -16,7 +18,7 @@ ws.addEventListener('message', e => { const m = JSON.parse(e.data); if (m.id && 
 const send = (method, params = {}) => new Promise(r => { const n = ++id; w.set(n, r); ws.send(JSON.stringify({ id: n, method, params })); });
 await send('Runtime.enable'); await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: +W, height: +H, deviceScaleFactor: 1, mobile: +W < 700 });
-await send('Page.navigate', { url: `http://localhost:8765/design/mockups/${process.env.SHEET_PAGE || '49-agent-characters.html'}#${hash}` });
+await send('Page.navigate', { url: `http://localhost:${port}/design/mockups/${process.env.SHEET_PAGE || '49-agent-characters.html'}#${hash}` });
 await new Promise(r => setTimeout(r, 4000));
 if (js) { const r = await send('Runtime.evaluate', { expression: js, returnByValue: true, awaitPromise: true }); if (r.result?.result?.value !== undefined) console.log('eval:', JSON.stringify(r.result.result.value)); await new Promise(r2 => setTimeout(r2, 600)); }
 const shot = await send('Page.captureScreenshot', { format: 'png' });
