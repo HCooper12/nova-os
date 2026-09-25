@@ -946,6 +946,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       view[k] = n;
     });
     world.rotation.y = view.spin;
+    // this frame's turn, before any being places a docked thing against it
+    // (the world hangs off the scene root, so its own matrix is its world one)
+    world.updateMatrix(); world.matrixWorld.copy(world.matrix);
     const W = renderer.domElement.width, H = renderer.domElement.height;
     if (Math.abs(view.lift) > 1e-3) camera.setViewOffset(W, H, 0, view.lift * H, W, H); else camera.clearViewOffset();
     // a marker keeps its size on screen as the camera comes in, so a close-up
