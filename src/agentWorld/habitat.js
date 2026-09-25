@@ -423,6 +423,9 @@ export function createHabitat(T, TK, kit) {
     cat.add(M(slab(0.66, 0.23, 0.045, 0.03), N.woodDark));
     cat.add(M(sq(0.31, 0.29, 0.1, 9, 9), N.wood, 0, 0.335, 0));
     cat.add(M(slab(0.68, 0.25, 0.035, 0.04), d.S, 0, 0.62, 0));
+    // a framed back, so from behind it is a cabinet and not a blank slab
+    const backP = M(panel(0.5, 0.44, 0.014, 0.03, 0.005), N.woodDark, 0, 0.335, -0.104); backP.rotation.y = Math.PI; cat.add(backP);
+    const backT = M(new T.TorusGeometry(0.19, 0.008, 6, 4), d.S, 0, 0.335, -0.112); backT.rotation.z = Math.PI / 4; backT.scale.set(1.3, 1.15, 1); cat.add(backT);
     const fronts = [], pulls = [], labels = [];
     const cols = [-0.21, -0.07, 0.07, 0.21], rows = [0.13, 0.26, 0.39, 0.52], OPEN = [3, 1];
     cols.forEach((x, ci) => rows.forEach((y, ri) => {
