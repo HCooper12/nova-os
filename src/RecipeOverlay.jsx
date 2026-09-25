@@ -23,7 +23,8 @@ export function RecipeOverlay({ v }) {
     { holdMs: v.voiceHoldMs, leadMs: v.voiceLeadMs, onError: (err) => v.recipeDictationError?.(err) },
   );
   return (
-    <div role="dialog" aria-modal="true" aria-label="Recipe detail" onClick={v.closeRecipe} style={v.recipeOvWrap}>
+    // data-edge-page: the back swipe pops this like an iOS detail page (src/edgeBack.js)
+    <div role="dialog" aria-modal="true" aria-label="Recipe detail" data-edge-page="" onClick={v.closeRecipe} style={v.recipeOvWrap}>
       {/* the panel carries the SAME view-transition-name the card had, so the
           card morphs into this rather than one vanishing and the other
           appearing. The fadeUp fallback only runs where the API is absent. */}

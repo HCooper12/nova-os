@@ -103,6 +103,28 @@ export function canGoBack(state) {
   return depthOf(state) > 0;
 }
 
+// WHAT THIS SWIPE IS ABOUT, decided once at touch-down from what is on screen.
+//
+// 25 Sep, his fifth recording: three swipes on an open recipe. Each dragged
+// the Fuel/Train/Home page OUT FROM UNDER the recipe and went back a tab,
+// while the recipe stayed put. The recipe is an overlay outside <main>, so
+// the snapshot never held it and history.back() walked the tabs beneath it.
+// The third swipe, at depth 0, was not this hook at all: iOS now runs its OWN
+// back swipe in the installed app whenever nothing claims the touch, and it
+// went back into history from before Nova booted.
+//
+//   'page'  a full-screen overlay marked data-edge-page (the recipe): drag
+//           the overlay itself, and a commit goes back, which closes it.
+//   'tab'   nothing open: the tab swipe as before.
+//   'block' a modal with no history level of its own, or nothing behind
+//           this entry: claim the touch so neither this hook nor iOS walks
+//           the app backwards underneath, and do nothing.
+export function edgeMode({ modalOpen = false, pageOpen = false, depth = 0 } = {}) {
+  if (modalOpen) return 'block';
+  if (!(depth > 0)) return 'block';
+  return pageOpen ? 'page' : 'tab';
+}
+
 // The gesture, as arithmetic.
 //
 // 22 SEP — HIS REPORT: "Swipe back is not working." The first cut passed a
@@ -182,7 +204,7 @@ export function dragProgress(dx, width) {
 // sub-second transition is a trade worth making against the alternative of
 // re-rendering two React trees on every frame of a drag.
 export function useEdgeBack({ onBack, enabled = true }) {
-  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0, live: null }).current;
+  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0, live: null, mode: null, page: null }).current;
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return undefined;
@@ -232,6 +254,31 @@ export function useEdgeBack({ onBack, enabled = true }) {
       return { snap, scrim };
     };
 
+    // ---- 'page': the overlay IS the page being left, and the live app is
+    // already rendered beneath it, so nothing is cloned and nothing navigates
+    // until the release. Moving the overlay's own root is safe where moving
+    // <main> was not: it is the topmost fixed layer and full-screen, so the
+    // fixed children it re-anchors land exactly where they already were. ----
+    const buildPage = (el) => {
+      if (!el?.isConnected) return null;
+      // inline z only: a computed-style read here would be a forced style
+      // resolution on the frame his finger starts moving
+      const z = Number(el.style.zIndex) || 82;
+      const scrim = document.createElement('div');
+      scrim.setAttribute('aria-hidden', 'true');
+      scrim.style.cssText = `position:fixed;inset:0;z-index:${z - 1};pointer-events:none;background:#000;opacity:.18;will-change:opacity`;
+      document.body.appendChild(scrim);
+      el.style.willChange = 'transform';
+      el.style.boxShadow = '-14px 0 34px -6px rgba(0,0,0,.75)';
+      return { snap: el, scrim, page: true };
+    };
+    const clearPage = (el) => {
+      el.style.transition = '';
+      el.style.transform = '';
+      el.style.boxShadow = '';
+      el.style.willChange = '';
+    };
+
     // Only transform and opacity, and the transition property is written ONLY
     // when it changes — setting it on every move costs a style recalc per
     // frame for a value that is almost always the same one.
@@ -257,11 +304,13 @@ export function useEdgeBack({ onBack, enabled = true }) {
       eased = null;
       dragging = false;
       if (!l) return;
-      l.snap.remove();
+      // a page is React's element, not ours: removing it would break the
+      // unmount React is about to do. Only the snapshot is ours to drop.
+      if (!l.page) l.snap.remove();
       l.scrim.remove();
     };
 
-    const reset = () => { s.armed = false; s.id = null; s.dir = null; };
+    const reset = () => { s.armed = false; s.id = null; s.dir = null; s.mode = null; s.page = null; };
 
     // the watchdog: any live drag that has gone quiet is put back
     let stuck = 0;
@@ -275,9 +324,14 @@ export function useEdgeBack({ onBack, enabled = true }) {
       const t = e.touches?.[0];
       if (!t || e.touches.length > 1) return;
       if (t.clientX >= EDGE_GUARD_PX) return;
-      if (!canGoBack(window.history.state)) return;
       if (s.live) return;                                   // a drag is already live
       if (Date.now() - s.lastCommit < COMMIT_COOLDOWN_MS) return;
+      // Every edge touch is armed now, even ones that will do nothing: an
+      // unclaimed edge touch is handed to iOS's own back swipe.
+      const page = document.querySelector('[data-edge-page]');
+      const modalOpen = !!document.querySelector('[aria-modal="true"]:not([data-edge-page])');
+      s.mode = edgeMode({ modalOpen, pageOpen: !!page, depth: depthOf(window.history.state) });
+      s.page = s.mode === 'page' ? page : null;
       s.armed = true; s.id = t.identifier; s.dir = null;
       s.startX = t.clientX; s.startY = t.clientY; s.startT = performance.now();
     };
@@ -297,11 +351,22 @@ export function useEdgeBack({ onBack, enabled = true }) {
         startX: s.startX, dx, dy, dt: performance.now() - s.startT,
         width: W(), locked: s.dir === 'h',
       });
-      last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, at: Date.now() };
+      last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, mode: s.mode, at: Date.now() };
       if (call === 'cancel' || call === 'none') { if (s.live) settle(0); else reset(); return; }
       if (call === 'waiting') return;
+      // claimed above by preventDefault; nothing moves and nothing navigates
+      if (s.mode === 'block') { s.dir = 'h'; last.call = 'blocked'; return; }
 
       kick();
+      if (!s.dir && s.mode === 'page') {
+        s.dir = 'h';
+        s.live = buildPage(s.page);
+        if (!s.live) { reset(); return; }
+        dragging = true;
+        eased = null;
+        paint(dx, false);
+        return;
+      }
       if (!s.dir) {
         // THE MOMENT THE GESTURE BECOMES REAL: snapshot, then go back for
         // real so what he uncovers is the actual previous screen.
@@ -331,10 +396,31 @@ export function useEdgeBack({ onBack, enabled = true }) {
       const cancelled = to === 0;
       paint(to, true);
       window.setTimeout(() => {
+        if (l.page) { if (cancelled) { clearPage(l.snap); teardown(); } else popPage(l); return; }
         // forward FIRST, then drop the layer, or the previous screen flashes
         if (cancelled) { dragging = true; window.history.forward(); }
         window.setTimeout(teardown, cancelled ? 40 : 0);
       }, 300);
+    };
+
+    // The page has slid off; now close it for real. Back pops its history
+    // entry and App's popstate closes it, skipping the view transition
+    // because `dragging` is still true (App's listener was added first, so it
+    // has run by the time ours does). The overlay stays parked off-screen
+    // until React unmounts it: clearing its transform now would flash it back.
+    const popPage = (l) => {
+      if (!l.snap.isConnected) { teardown(); return; }   // closed some other way mid-drag
+      let fallback = 0;
+      const done = () => {
+        window.removeEventListener('popstate', done);
+        window.clearTimeout(fallback);
+        teardown();
+        // a back that did not close it must not leave an invisible page parked
+        window.setTimeout(() => { if (l.snap.isConnected) clearPage(l.snap); }, 250);
+      };
+      window.addEventListener('popstate', done);
+      fallback = window.setTimeout(done, 700);
+      onBack?.();
     };
 
     const onEnd = (e) => {
@@ -346,7 +432,7 @@ export function useEdgeBack({ onBack, enabled = true }) {
         startX: s.startX, dx, dy, dt: performance.now() - s.startT,
         width: W(), locked: s.dir === 'h',
       });
-      last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call, at: Date.now(), end: true };
+      last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call: s.mode === 'block' && call !== 'none' && call !== 'cancel' ? 'blocked' : call, mode: s.mode, at: Date.now(), end: true };
       if (!s.live) { reset(); return; }
       if (call === 'commit') {
         s.lastCommit = Date.now();

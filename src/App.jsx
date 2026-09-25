@@ -183,6 +183,8 @@ function warmScreen(screen) {
 // theme + calm mode at runtime; tokens are CSS custom properties in index.css).
 const USER_NAME = 'Hayden';
 const WAKE_WORD = true;
+// one definition of "the recipe is closed", for the ✕ and for a back
+const RECIPE_CLOSED = { openRecipeId: null, recipeRemovals: [], recipeRemovalPrompt: false, recipeEdit: null, recipeEditError: null };
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
@@ -845,7 +847,7 @@ export default class App extends Component {
       // A SWIPE IS ITS OWN TRANSITION. The edge gesture animates two layers by
       // hand and navigates underneath them; running a view transition at the
       // same moment would cross-fade the thing it is already sliding.
-      const apply = () => this.setState({ screen: screenFromHash() });
+      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory() });
       if (edgeDragInProgress()) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
@@ -859,7 +861,7 @@ export default class App extends Component {
       // was a parallel door only it could reach.
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.navigate('voice'); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); this.toggleSidebar(); }
-      else if (e.key === 'Escape') { this.stopPoll('recipeTweak'); this.setState({ paletteOpen: false, openRecipeId: null, galaxySel: null }); }
+      else if (e.key === 'Escape') { this.stopPoll('recipeTweak'); if (this.state.openRecipeId) this.closeRecipe(); this.setState({ paletteOpen: false, galaxySel: null }); }
     };
     window.addEventListener('keydown', this.keyH);
     this.resizeH = () => {
@@ -1141,6 +1143,7 @@ export default class App extends Component {
         liveRecipes: (this.noteLocalWrite('recipes'), s.liveRecipes.filter((r) => r.id !== recipeId)),
         recipeOverlay: null, recipeAltSelected: null, recipeDeleteArmed: null,
       }));
+      if (this.state.openRecipeId === recipeId) this.closeRecipe();
       this.refreshLiveData();
       this.toastMsg(`${name} removed from the bank`);
     }).catch((e) => { this.setState({ recipeDeleteArmed: null }); this.toastMsg('Could not delete: ' + e.message); });
@@ -2851,7 +2854,15 @@ export default class App extends Component {
         this.setState({ recipeScanBusy: false, recipeScanError: e.message });
       });
   }
+  // A RECIPE IS A PAGE, so it gets a history entry of its own. Without one
+  // the back swipe went back a TAB underneath it and left it open (his
+  // recording, 25 Sep). Same URL: only the entry's state says "recipe".
   openRecipe(id, servings = 1) {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'recipe') window.history.replaceState({ ...st, recipeId: id }, '');
+      else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'recipe', recipeId: id }, '');
+    }
     this.withTransition(() => this.setState({
       openRecipeId: id, servings, recipeChat: [], recipeInput: '',
       recipeAltSelected: null, recipeTweakInput: '', recipeTweakBusy: false,
@@ -2860,9 +2871,21 @@ export default class App extends Component {
       recipeRenameAltId: null, recipeRenameValue: '', recipeRenameError: null,
     }));
   }
+  // On its own entry, closing IS going back: popH closes it, and no dead
+  // entry is left behind for the next swipe to spend itself on.
   closeRecipe() {
     this.stopPoll('recipeTweak');
-    this.withTransition(() => this.setState({ openRecipeId: null, recipeRemovals: [], recipeRemovalPrompt: false, recipeEdit: null, recipeEditError: null }));
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'recipe') { window.history.back(); return; }
+    this.withTransition(() => this.setState(RECIPE_CLOSED));
+  }
+  // popstate's half: leaving the recipe's entry closes it; returning to one
+  // (a browser's Forward) reopens it
+  recipeFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'recipe';
+    if (!onEntry && this.state.openRecipeId) { this.stopPoll('recipeTweak'); return RECIPE_CLOSED; }
+    if (onEntry && !this.state.openRecipeId && st.recipeId) return { openRecipeId: st.recipeId };
+    return {};
   }
   // The ✕-an-ingredient flow: marks collect, one save, a popup asks whether
   // it's today-only or a keepable alternative — then the existing tweak

@@ -15,7 +15,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  edgeDecision, canGoBack, depthOf, dragProgress, lastEdgeGesture,
+  edgeDecision, edgeMode, canGoBack, depthOf, dragProgress, lastEdgeGesture,
   commitDistance, COMMIT_FRACTION, FLICK_PX_PER_MS, FLICK_MIN_FRACTION,
   COMMIT_COOLDOWN_MS,
 } from '../../src/edgeBack.js';
@@ -270,4 +270,73 @@ test('NOTHING EXPENSIVE HAPPENS ON THE FRAME HIS FINGER MOVES', async () => {
     'the per-frame paint path forces layout');
   // and the transition string is written only when it changes
   assert.match(paint, /if \(want !== eased\)/);
+});
+
+// ---- 25 Sep: his fifth recording. Three swipes on an open recipe ----
+// Each swipe dragged the tab page OUT FROM UNDER the recipe and went back a
+// tab (Fuel, then Train, then Home) while the recipe stayed open. The third,
+// at depth 0, was iOS's own back swipe: it now runs in the installed app on
+// any edge touch nothing claims.
+
+test('WHAT A SWIPE IS ABOUT is decided by what is on screen', () => {
+  // an open recipe is a page: the swipe pops IT, not the tab beneath
+  assert.equal(edgeMode({ pageOpen: true, depth: 3 }), 'page');
+  // nothing open: the tab swipe as before
+  assert.equal(edgeMode({ depth: 2 }), 'tab');
+  // a modal with no history level must not let the tabs walk underneath it,
+  // even over a recipe
+  assert.equal(edgeMode({ modalOpen: true, depth: 2 }), 'block');
+  assert.equal(edgeMode({ modalOpen: true, pageOpen: true, depth: 2 }), 'block');
+  // nothing behind this entry: claimed, so iOS cannot go back to before boot
+  assert.equal(edgeMode({ depth: 0 }), 'block');
+  assert.equal(edgeMode({ pageOpen: true, depth: 0 }), 'block', 'a page with no entry of its own would pop a tab');
+  assert.equal(edgeMode({}), 'block');
+  assert.equal(edgeMode(), 'block');
+});
+
+async function sources() {
+  const { readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const read = (...p) => readFile(path.join(root, ...p), 'utf8');
+  return { app: await read('src', 'App.jsx'), hook: await read('src', 'edgeBack.js'), recipe: await read('src', 'RecipeOverlay.jsx') };
+}
+
+test('A RECIPE IS A HISTORY LEVEL, so back closes it instead of walking the tabs', async () => {
+  const { app, recipe } = await sources();
+  // opening pushes an entry of its own (same URL, marked in its state)
+  assert.match(app, /pushState\(\{ novaDepth: depthOf\(st\) \+ 1, novaOverlay: 'recipe', recipeId: id \}/,
+    'opening a recipe no longer gives it a history entry; the swipe will go back a tab under it');
+  // the ✕ goes back when it is on that entry, or the entry is left as a dead
+  // step the next swipe spends itself on
+  assert.match(app, /closeRecipe\(\) \{[\s\S]{0,200}novaOverlay === 'recipe'\) \{ window\.history\.back\(\); return; \}/);
+  // and popstate is what actually closes it
+  assert.match(app, /screen: screenFromHash\(\), \.\.\.this\.recipeFromHistory\(\)/);
+  // every other way out goes through closeRecipe, never a bare setState
+  assert.doesNotMatch(app, /setState\([^;]{0,80}openRecipeId: null/,
+    'something closes the recipe behind history’s back');
+  // the overlay says it is a page the swipe can pop
+  assert.match(recipe, /data-edge-page=""/);
+});
+
+test('THE SWIPE MOVES THE RECIPE ITSELF, and never removes an element React owns', async () => {
+  const { hook } = await sources();
+  assert.match(hook, /document\.querySelector\('\[data-edge-page\]'\)/);
+  assert.match(hook, /\[aria-modal="true"\]:not\(\[data-edge-page\]\)/, 'a modal over the page is not detected');
+  // only the snapshot is the hook's to drop; the page is unmounted by React
+  assert.match(hook, /if \(!l\.page\) l\.snap\.remove\(\);/, 'the hook removes the overlay from under React');
+  // a page commit goes back only AFTER the slide, and only if it is still there
+  assert.match(hook, /if \(!l\.snap\.isConnected\) \{ teardown\(\); return; \}/);
+});
+
+test('AN UNCLAIMED EDGE TOUCH IS iOS’S — so every edge touch is claimed', async () => {
+  const { hook } = await sources();
+  // the depth check used to return before arming, which handed the touch to
+  // iOS's own back swipe: that was his third swipe
+  const onStart = hook.match(/const onStart = \(e\) => \{[\s\S]*?\n    \};/)[0];
+  assert.doesNotMatch(onStart, /canGoBack\(/, 'a depth-0 touch is handed to iOS again');
+  assert.match(hook, /if \(s\.mode === 'block'\) \{ s\.dir = 'h'; last\.call = 'blocked'; return; \}/);
+  // and the receipt says which mode it was in
+  assert.match(hook, /mode: s\.mode/);
 });
