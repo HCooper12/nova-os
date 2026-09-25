@@ -141,7 +141,22 @@ export function weekSetsView(week) {
       : `${m.muscle} can reach ${m.projected} of ${m.target} this week on the plan as written`)).join('. ') + '.'
     : null;
 
+  // THE CARD'S OWN VERDICT, from the same projection. On a Friday morning
+  // the bars called every goal muscle "under target" while Upper Body and
+  // Leg Day were still to come, and Coach, asked about it, said it could not
+  // see the app's target and counted for itself (his chat, 25 Sep 10:13).
+  // Short means short by Sunday on the plan as written, and the question
+  // carries the numbers, so the card, the sheet and Coach argue from one set.
+  const cta = short.length ? {
+    muscles: short.map((m) => m.muscle),
+    text: short.length === 1
+      ? `${short[0].muscle} can reach ${short[0].projected} of ${short[0].target} by Sunday on the plan as written. Ask Coach how to add sets →`
+      : `${listOf(short.map((m) => `${m.muscle} (${m.projected} of ${m.target})`))} fall short by Sunday on the plan as written. Ask Coach how to add sets →`,
+    question: `On my plan as written, ${listOf(short.map((m) => lower(m.muscle)))} ${short.length === 1 ? 'finishes' : 'finish'} this week short of target for my goal: ${short.map((m) => `${m.muscle} ${m.done} done + ${m.due} still scheduled = ${m.projected} of ${m.target}`).join('; ')}. How should I add volume?`,
+  } : null;
+
   return {
+    cta,
     days: days.map((d) => ({
       key: d.day, short: SHORT[d.day],
       routine: d.rest ? 'Rest' : String(d.routineName || '').split(/\s+/)[0],

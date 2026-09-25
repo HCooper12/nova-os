@@ -68,7 +68,11 @@ export function TrainToday({ o, actions, resume }) {
   // instantly on reopen, before the overview has even been fetched
   if (!o && !resume) return null;
   const sleepH = o?.recovery?.sleepMin != null ? (o.recovery.sleepMin / 60).toFixed(1) : null;
-  const under = (o?.volume || []).filter((v) => v.goalMuscle && v.sets < v.target);
+  // a goal muscle is "under" when the plan as written cannot carry it to
+  // target by Sunday (src/weekSets.js), not merely because today's session
+  // has not happened yet; without the planned week, the old count stands
+  const shortOnPlan = week ? new Set(week.cta?.muscles || []) : null;
+  const under = (o?.volume || []).filter((v) => v.goalMuscle && v.sets < v.target && (!shortOnPlan || shortOnPlan.has(v.muscle)));
   // sets ticked in the session he is in right now, already folded into the totals
   const liveNow = (o?.volume || []).reduce((n, v) => n + (v.live || 0), 0);
   return (
@@ -282,13 +286,13 @@ export function TrainToday({ o, actions, resume }) {
             <span style={css('display:inline-flex;align-items:baseline;gap:8px;min-width:0')}>
               {liveNow > 0
                 ? <Meta tone="gold">◆ {liveNow} live this session</Meta>
-                : under.length > 0 && <Meta tone="warn">Goal muscles under ▲</Meta>}
+                : under.length > 0 && <Meta tone="warn">{week ? 'Short by Sunday ▲' : 'Goal muscles under ▲'}</Meta>}
               {week && <span aria-hidden="true" style={css('align-self:center;font:400 22px/0.6 var(--nv-font-ui);color:var(--nv-ink40)')}>›</span>}
             </span>
           </div>
           {o.volume.slice(0, 6).map((v) => {
             const pct = Math.min(100, Math.round((v.sets / v.target) * 100));
-            const low = v.goalMuscle && v.sets < v.target;
+            const low = v.goalMuscle && v.sets < v.target && (!shortOnPlan || shortOnPlan.has(v.muscle));
             // the bar wears the muscle's own hue (the figure's, the legend's);
             // a goal muscle carries its name in that hue too, and a short one
             // says so in the number, not by repainting the bar red
@@ -314,12 +318,14 @@ export function TrainToday({ o, actions, resume }) {
             <Meta as="div" tone="cyan" style={{ marginTop: '9px' }}>Every exercise, day by day</Meta>
           )}
           </Interactive>
-          {under.length > 0 && actions?.askVolume && (
+          {under.length > 0 && (week?.cta ? actions?.askCoach : actions?.askVolume) && (
             /* 26px tall, and it is the one thing on the card worth tapping
-               (measured 23 Sep). A row, not a line of small print. */
-            <Interactive as="div" onClick={() => actions.askVolume(under.map((u) => u.muscle).join(', '))}
+               (measured 23 Sep). A row, not a line of small print. With the
+               planned week it names the projection and hands Coach the
+               figures; without it, the old count and question stand. */
+            <Interactive as="div" onClick={() => (week?.cta ? actions.askCoach(week.cta.question) : actions.askVolume(under.map((u) => u.muscle).join(', ')))}
               base="margin-top:9px;min-height:44px;display:flex;align-items:center;font-size:12.5px;line-height:1.4;color:var(--nv-gold);cursor:pointer" hoverStyle="text-decoration:underline">
-              {`${under.map((u) => u.muscle).join(' & ')} under target for your goal — ask Coach how to add sets →`}
+              {week?.cta ? week.cta.text : `${under.map((u) => u.muscle).join(' & ')} under target for your goal — ask Coach how to add sets →`}
             </Interactive>
           )}
         </div>

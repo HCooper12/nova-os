@@ -96,3 +96,21 @@ test('an empty or missing week renders nothing rather than a hollow sheet', () =
   assert.equal(weekSetsView(null), null);
   assert.equal(weekSetsView({ days: [], muscles: [] }), null);
 });
+
+test('the card\'s warning is the projection, and Coach gets the figures behind it', () => {
+  const v = view();
+  assert.deepEqual(v.cta.muscles, ['Shoulders', 'Biceps']);
+  assert.equal(v.cta.text, 'Shoulders (6 of 12) and Biceps (6 of 12) fall short by Sunday on the plan as written. Ask Coach how to add sets →');
+  assert.equal(v.cta.question, 'On my plan as written, shoulders and biceps finish this week short of target for my goal: Shoulders 3 done + 3 still scheduled = 6 of 12; Biceps 3 done + 3 still scheduled = 6 of 12. How should I add volume?');
+});
+
+test('a goal muscle behind today but carried to target by what is still scheduled is not called short', () => {
+  // three more biceps sessions' worth on the plan: 3 done Wednesday, 9 to come
+  const routines = ROUTINES.map((r) => (r.id === 'upper' ? { ...r, exercises: [slot('lateral'), slot('curl', { targetSets: 9 })] } : r));
+  const v = weekSetsView(plannedWeek({ routines, schedule: SCHEDULE, sessions: SESSIONS, exercises: EXERCISES, targetOf, now: FRIDAY }));
+  assert.equal(muscle(v, 'Biceps').done, 3, 'well under 12 right now');
+  assert.equal(muscle(v, 'Biceps').short, false, 'but 3 + 9 reach it by Sunday');
+  assert.deepEqual(v.cta.muscles, ['Shoulders']);
+  assert.equal(v.cta.text, 'Shoulders can reach 6 of 12 by Sunday on the plan as written. Ask Coach how to add sets →');
+});
+
