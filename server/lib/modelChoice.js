@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { modelFor } from './modelPrefs.js';
+import { familyOf, resolvedModels, modelLabel } from './modelWatch.js';
 
 // THE MODEL CHOICE GATE — his ask: before a reasoning-heavy job runs on its
 // default model, offer the stronger one for THIS run specifically. Distinct
@@ -26,14 +28,71 @@ export const GATE_LANES = {
 };
 
 export const STRONG_MODEL = 'opus';
-export const DEFAULT_MODEL_CHOICE = 'sonnet'; // the "no, keep it normal" answer
+export const DEFAULT_MODEL_CHOICE = 'sonnet'; // the "no, keep it normal" answer an older client still sends
+// "Keep it" — run on whatever the model board says for that lane. Since
+// 25 Sep this is what "no" means: the old literal 'sonnet' ran a lane he had
+// set to Opus on Sonnet the moment he said "that's fine".
+export const KEEP = 'keep';
+
+// THE GATE ASKS ONLY WHEN THE ANSWER CAN CHANGE SOMETHING (25 Sep 2026).
+// The board (lib/modelPrefs.js) is his standing choice per lane; the gate
+// used to ignore it and always offer "Opus, or is Sonnet fine?". With the
+// Researcher, the Watcher, Scout and the Librarian already set to Opus on
+// his board, that question had no real choice in it, and "Sonnet is fine"
+// quietly ran them BELOW his setting. Each gated surface maps to the board
+// lane that actually runs it.
+export const BOARD_LANE = {
+  research: 'researcher', researcher: 'researcher',
+  watch: 'watcher-verdict', watcher: 'watcher-verdict',
+  book: 'librarian', librarian: 'librarian',
+  scout: 'scout',
+  study: 'paper',
+  'pattern-scout': 'pattern-scout',
+  distill: 'distill',
+};
+// Surfaces whose run cannot carry a per-run model at all: asking there is
+// a question whose answer is thrown away, so they never ask.
+const NO_PER_RUN_MODEL = new Set(['study']);
+const STRONG_FAMILIES = new Set(['opus', 'fable']);
+
+const CLIENT_NOUN = {
+  research: 'this research', watch: 'this video', book: 'this book',
+  scout: 'researching this person', study: 'this study',
+};
+
+// What the board runs for this surface, its name as he reads it, and
+// whether offering Opus is a real choice.
+export function gateFor(lane) {
+  const boardLane = BOARD_LANE[lane];
+  if (!boardLane) throw new Error(`unknown gate lane: ${lane}`);
+  const model = modelFor(boardLane);
+  const family = familyOf(model);
+  const label = family && model === family ? resolvedModels()[family].label : modelLabel(model);
+  const ask = !NO_PER_RUN_MODEL.has(lane) && !STRONG_FAMILIES.has(family);
+  return { lane, boardLane, model, label, ask };
+}
+
+export function needsGate(lane) {
+  try { return gateFor(lane).ask; } catch { return true; }
+}
 
 // The question, phrased the same way everywhere it appears (voice, popup,
-// Inbox card) — one honest sentence, not a bespoke line per surface.
+// Inbox card) — one honest sentence, naming what "keep it" actually runs.
 export function gateQuestion(lane) {
   const meta = GATE_LANES[lane];
-  if (!meta) throw new Error(`unknown gate lane: ${lane}`);
-  return `Want Opus for ${meta.questionNoun === 'this video' ? 'this video' : meta.label}, or is Sonnet fine?`;
+  const noun = meta ? (meta.questionNoun === 'this video' ? 'this video' : meta.label) : CLIENT_NOUN[lane];
+  if (!noun) throw new Error(`unknown gate lane: ${lane}`);
+  return `Want Opus for ${noun}, or is ${gateFor(lane).label} fine?`;
+}
+
+// Everything a client needs to gate honestly, per surface it gates.
+export function modelGates() {
+  const out = {};
+  for (const lane of Object.keys(CLIENT_NOUN)) {
+    const g = gateFor(lane);
+    out[lane] = { ask: g.ask, keepLabel: g.label, question: gateQuestion(lane) };
+  }
+  return out;
 }
 
 export function isGateModel(model) {
@@ -51,7 +110,7 @@ export function parseSpokenGateReply(text) {
   const t = String(text || '').toLowerCase().trim();
   if (!t) return null;
   if (/\b(opus|deeper|stronger|the strong one|go big|more thorough|go deep|really dig in)\b/.test(t)) return 'opus';
-  if (/\b(sonnet|no|nah|nope|fine|default|quick|as.is|go ahead|that'?s fine|keep it|normal|standard)\b/.test(t)) return 'sonnet';
+  if (/\b(sonnet|haiku|no|nah|nope|fine|default|quick|as.is|go ahead|that'?s fine|keep it|normal|standard)\b/.test(t)) return KEEP;
   return null;
 }
 
@@ -85,7 +144,8 @@ export async function raiseWeeklyModelChoice(lane) {
       confidence: 'n/a',
       title: `Pick a model — ${meta.label}`,
       reason: gateQuestion(lane),
-      payload: { lane },
+      // what "keep it" runs, so the card's second button can say so
+      payload: { lane, keepLabel: gateFor(lane).label },
     },
   });
   return { record };
@@ -99,8 +159,9 @@ export async function raiseWeeklyModelChoice(lane) {
 // waiting for it to finish) — so this resolves quickly, files the CHOICE
 // card as answered, and the real job's progress lives on its own separate
 // record from here, same as it always has.
-export async function resolveWeeklyModelChoice(vaultPath, recordId, model) {
-  if (!isGateModel(model)) throw new Error("model must be 'opus' or 'sonnet'");
+export async function resolveWeeklyModelChoice(vaultPath, recordId, choice) {
+  if (!isGateModel(choice) && choice !== KEEP) throw new Error("model must be 'opus', 'sonnet' or 'keep'");
+  const model = choice === KEEP ? undefined : choice; // keep = the board's own model for the lane
   const { getRecord, updateRecord } = await import('./inboxStore.js');
   const record = await getRecord(recordId);
   if (!record || record.kind !== 'model-choice') throw new Error('model-choice record not found');

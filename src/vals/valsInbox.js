@@ -489,7 +489,9 @@ export function valsInbox(app, ctx) {
     isModelChoice: r.kind === 'model-choice',
     modelChoiceLabel: r.kind === 'model-choice' ? (MODEL_CHOICE_LANE_LABEL[r.decision?.payload?.lane] || r.decision?.payload?.lane) : null,
     pickOpus: r.kind === 'model-choice' ? () => app.pickModelChoice(r.id, 'opus') : null,
-    pickSonnet: r.kind === 'model-choice' ? () => app.pickModelChoice(r.id, 'sonnet') : null,
+    // keep = the board's model for the lane, named on the button (25 Sep)
+    pickSonnet: r.kind === 'model-choice' ? () => app.pickModelChoice(r.id, 'keep') : null,
+    keepLabel: r.kind === 'model-choice' ? (r.decision?.payload?.keepLabel || 'Usual model') : null,
     };
   };
 

@@ -234,7 +234,7 @@ export async function runPatternScout(vaultPath, { force = false, model } = {}) 
 // vaultPath: unused now that the gate raises a card instead of running
 // directly — kept in the signature so every scheduler in index.js still
 // takes the same shape.
-export function startPatternScoutScheduler(_vaultPath) {
+export function startPatternScoutScheduler(vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('pattern-scout');
@@ -246,8 +246,11 @@ export function startPatternScoutScheduler(_vaultPath) {
       // directly — this is exactly the connect-the-dots-across-the-vault
       // work he asked to be offered Opus for, and nobody is at the keyboard
       // when a weekly cron fires to answer a spoken question.
-      const { raiseWeeklyModelChoice } = await import('./modelChoice.js');
-      await raiseWeeklyModelChoice('pattern-scout');
+      // Unless his board already runs it on Opus: then there is nothing to
+      // choose, and the week's run goes ahead (its own guard stops a rerun).
+      const { raiseWeeklyModelChoice, needsGate } = await import('./modelChoice.js');
+      if (needsGate('pattern-scout')) await raiseWeeklyModelChoice('pattern-scout');
+      else await runPatternScout(vaultPath);
     } catch (err) {
       console.error('pattern scout failed:', err.message);
     }

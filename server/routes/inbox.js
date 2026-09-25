@@ -241,6 +241,17 @@ export function inboxRouter(vaultPath) {
     }
   });
 
+  // Which surfaces should still ask "Opus, or is X fine?" given his board,
+  // and what "keep it" runs — read by the client's gate (App.gateModelChoice)
+  router.get('/model-gates', async (req, res) => {
+    try {
+      const { modelGates } = await import('../lib/modelChoice.js');
+      res.json({ gates: modelGates() });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.post('/inbox/:id/retry', async (req, res) => {
     try {
       const record = await retryRecord(vaultPath, req.params.id);

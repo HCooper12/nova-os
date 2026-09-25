@@ -276,14 +276,18 @@ export function valsMisc(app, ctx) {
     // the spoken reply; this is what the popup shows for every path,
     // including that one, so looking at the screen tells the same story as
     // listening to it).
+    // Since 25 Sep the question comes from the server (GET /api/model-gates)
+    // and names what "keep it" runs on his board; the fixed lines are only
+    // for an older server.
     modelChoicePrompt: st.modelChoicePending ? {
-      question: {
-        research: 'Want Opus for this research, or is Sonnet fine?',
-        watch: 'Want Opus for this video, or is Sonnet fine?',
-        book: 'Want Opus on this book? Deeper research finds more of its ideas and connections — or Sonnet is fine.',
-      }[st.modelChoicePending.lane] || 'Want Opus for this, or is Sonnet fine?',
+      question: st.modelGates?.[st.modelChoicePending.lane]?.question || {
+        research: 'Want Opus for this research, or keep the usual model?',
+        watch: 'Want Opus for this video, or keep the usual model?',
+        book: 'Want Opus on this book? Deeper research finds more of its ideas and connections — or keep the usual model.',
+      }[st.modelChoicePending.lane] || 'Want Opus for this, or keep the usual model?',
+      keepLabel: st.modelGates?.[st.modelChoicePending.lane]?.keepLabel || 'Usual model',
       pickOpus: () => app.resolveModelChoice('opus'),
-      pickSonnet: () => app.resolveModelChoice('sonnet'),
+      pickKeep: () => app.resolveModelChoice('keep'),
       cancel: () => app.cancelModelChoice(),
     } : null,
     // the glass has his attention: the rest of the station blurs behind it

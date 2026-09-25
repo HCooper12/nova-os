@@ -290,7 +290,7 @@ export async function undoDistillJob(vaultPath, jobId) {
 // vaultPath: unused now that the gate raises a card instead of running
 // directly — kept in the signature so every scheduler in index.js still
 // takes the same shape.
-export function startDistillScheduler(_vaultPath) {
+export function startDistillScheduler(vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('distill');
@@ -301,8 +301,11 @@ export function startDistillScheduler(_vaultPath) {
       // The model-choice gate raises an Inbox card instead of running
       // directly — nobody is at the keyboard when a weekly cron fires to
       // answer a spoken question, so the run waits for a tap instead.
-      const { raiseWeeklyModelChoice } = await import('./modelChoice.js');
-      await raiseWeeklyModelChoice('distill');
+      // …unless his board already runs it on Opus: nothing to choose, so the
+      // week's run goes ahead (runDistillation's own guard stops a rerun)
+      const { raiseWeeklyModelChoice, needsGate } = await import('./modelChoice.js');
+      if (needsGate('distill')) await raiseWeeklyModelChoice('distill');
+      else await runDistillation(vaultPath);
     } catch (err) {
       console.error('distillation failed:', err.message);
     }

@@ -508,6 +508,7 @@ export default class App extends Component {
     // a reasoning-heavy job is waiting on "Opus or Sonnet?"; null the rest
     // of the time. One at a time, same as a pending proposal.
     modelChoicePending: null,
+    modelGates: null, // per surface: { ask, keepLabel, question } from the server — see gateModelChoice
     // THE GLASS — the card for the line Nova is speaking RIGHT NOW, and the
     // ones it has already spoken past (newest first). Set as each beat's
     // audio starts, never before: the visual must track the voice.
@@ -647,6 +648,7 @@ export default class App extends Component {
       // and Siri added, and send up anything this device never delivered
       this.loadConversationRecord();
       this.syncConversationSoon();
+      this.loadModelGates();
       if (!cached) {
         const fetchTimeout = new Promise((resolve) => setTimeout(resolve, 5000));
         dataReady = Promise.race([fetchDone, fetchTimeout]);
@@ -4950,7 +4952,7 @@ export default class App extends Component {
     if (!conn) return;
     this.setState({ modelPrefsBusy: lane });
     api.setModelLane(conn, lane, patch)
-      .then((prefs) => this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }))
+      .then((prefs) => { this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }); this.loadModelGates(); })
       .catch((e) => {
         this.setState({ modelPrefsBusy: null });
         this.toastMsg('Could not change that lane: ' + e.message);
@@ -4962,7 +4964,7 @@ export default class App extends Component {
     if (!conn) return;
     this.setState({ modelPrefsBusy: lane || '*' });
     api.resetModelLane(conn, lane)
-      .then((prefs) => this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }))
+      .then((prefs) => { this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }); this.loadModelGates(); })
       .catch((e) => {
         this.setState({ modelPrefsBusy: null });
         this.toastMsg('Could not reset: ' + e.message);
@@ -8683,14 +8685,31 @@ export default class App extends Component {
   // ONE run should use Opus instead (his ask, 24 Aug). `run` is held until
   // answered — a tap on the popup, a spoken reply while on the Voice screen,
   // or a cancel — and never fires on its own; that IS the "hard gate".
+  //
+  // THE BOARD DECIDES WHETHER THERE IS A QUESTION (25 Sep 2026). His model
+  // board already runs the Researcher, the Watcher, Scout and the Librarian
+  // on Opus; asking "Opus, or is Sonnet fine?" there offered no real choice,
+  // and "fine" ran them on Sonnet, below his own setting. The server says per
+  // surface whether asking means anything (GET /api/model-gates); when it
+  // does not, the job simply runs on the board's model. Unknown (an older
+  // server, not loaded yet) keeps asking, which is the safe side.
+  loadModelGates() {
+    const conn = getConnection();
+    if (!conn || this.state.connectionStatus === 'demo') return;
+    api.modelGates(conn).then(({ gates }) => this.setState({ modelGates: gates || null })).catch(() => { /* keep asking */ });
+  }
   gateModelChoice(lane, run) {
+    const g = this.state.modelGates?.[lane];
+    if (g && g.ask === false) { run(undefined); return; }
     this.setState({ modelChoicePending: { lane, run } });
   }
+  // 'keep' = the lane's board model (the run gets no override); 'opus' = this
+  // one run on Opus. A literal 'sonnet' is no longer sent from here.
   resolveModelChoice(model) {
     const p = this.state.modelChoicePending;
     if (!p) return;
     this.setState({ modelChoicePending: null });
-    p.run(model);
+    p.run(model === 'keep' ? undefined : model);
   }
   // An explicit "no" — the request itself is abandoned, not defaulted. A
   // silent auto-run on dismiss would make the gate decorative.
@@ -8708,16 +8727,17 @@ export default class App extends Component {
     const pending = this.state.modelChoicePending;
     const t = String(question || '').toLowerCase();
     const choice = /\b(opus|deeper|stronger|the strong one|go big|more thorough|go deep|really dig in)\b/.test(t) ? 'opus'
-      : /\b(sonnet|no|nah|nope|fine|default|quick|as.is|go ahead|that'?s fine|keep it|normal|standard)\b/.test(t) ? 'sonnet'
+      : /\b(sonnet|haiku|no|nah|nope|fine|default|quick|as.is|go ahead|that'?s fine|keep it|normal|standard)\b/.test(t) ? 'keep'
       : null;
-    const model = choice || 'sonnet';
-    const said = choice ? `${model === 'opus' ? 'Opus' : 'Sonnet'} it is.` : "Not sure I caught that, sir — I'll go with Sonnet.";
+    // "keep" runs what his board says for this lane, and is named as such
+    const keepLabel = this.state.modelGates?.[pending?.lane]?.keepLabel || 'the usual model';
+    const said = choice === 'opus' ? 'Opus it is.' : choice ? `${keepLabel} it is.` : `Not sure I caught that, sir — I'll go with ${keepLabel}.`;
     this.setState((s) => ({
       voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question }, { at: Date.now(), who: 'nova', text: said }],
       modelChoicePending: null,
     }));
     if (this.state.voiceSpeak) this.speak(said);
-    pending.run(model);
+    pending.run(choice === 'opus' ? 'opus' : undefined);
   }
   // ONE PLAYER, ALWAYS. This used to fetch and play its own audio element,
   // completely outside the sentence FIFO that every other spoken thing goes

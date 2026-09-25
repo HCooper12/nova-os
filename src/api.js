@@ -281,6 +281,8 @@ export const api = {
   setInboxConfigMode: (conn, mode) => put(conn, '/api/inbox-config', { mode }),
   // the model board — one lane per write, so a toggle never rewrites a model
   modelPrefs: (conn) => call(conn, '/api/model-prefs'),
+  // which surfaces should still ask "Opus, or is X fine?" given his board
+  modelGates: (conn) => call(conn, '/api/model-gates'),
   setModelLane: (conn, lane, patch) => put(conn, '/api/model-prefs', { lane, ...patch }),
   resetModelLane: (conn, lane) => post(conn, '/api/model-prefs/reset', lane ? { lane } : {}),
   saveSessionDraft: (conn, body) => put(conn, '/api/workouts/session-draft', body),

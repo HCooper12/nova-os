@@ -507,13 +507,15 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       // asking it a question it can never hear the answer to would just
       // silently drop the request.
       const { parseResearchDirective, startResearch } = await import('./researcher.js');
-      const { gateQuestion } = await import('./modelChoice.js');
+      const { gateQuestion, needsGate } = await import('./modelChoice.js');
       const res = parseResearchDirective(text);
       let research = null;
       let modelChoicePending = null;
       if (res.research) {
         text = res.cleanText;
-        if (res.research.when === 'tonight' || direct) {
+        // his board already runs this lane on Opus (or stronger): there is
+        // nothing to ask, so it goes now, on the board's model (25 Sep)
+        if (res.research.when === 'tonight' || direct || !needsGate('researcher')) {
           if (res.research.when === 'tonight') {
             try {
               const { enqueueOvernight } = await import('./overnight.js');
@@ -545,7 +547,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       let watch = null;
       if (wd.watch) {
         text = wd.cleanText;
-        if (direct) {
+        if (direct || !needsGate('watcher')) {
           try {
             const record = await startVideoWatch(cwd, wd.watch.url, wd.watch.question);
             watch = { recordId: record.id, url: wd.watch.url };

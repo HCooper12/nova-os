@@ -20,7 +20,7 @@ export function ModelChoicePrompt({ v }) {
         </div>
         <div style={css("margin-top:11px;display:flex;gap:8px")}>
           <Button compact onClick={v.pickOpus} style={{ flex: 1 }}>Opus — deeper</Button>
-          <Button compact onClick={v.pickSonnet} variant="quiet" tone="ink" style={{ flex: 1 }}>Sonnet — default</Button>
+          <Button compact onClick={v.pickKeep} variant="quiet" tone="ink" style={{ flex: 1 }}>{v.keepLabel} — default</Button>
         </div>
       </div>
     </div>

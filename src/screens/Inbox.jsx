@@ -411,7 +411,7 @@ export function Inbox({ v }) {
                       <Button onClick={item.pickOpus} disabled={item.busy}
                       >{item.busy ? 'Working…' : 'Opus — deeper'}</Button>
                       <Button onClick={item.pickSonnet} disabled={item.busy} variant="quiet" tone="ink"
-                      >Sonnet — default</Button>
+                      >{item.keepLabel} — default</Button>
                     </>
                   ) : (
                     /* A LIGHT TICK, NOT A BUTTON PER IDEA (finding 13, §2b r8):
