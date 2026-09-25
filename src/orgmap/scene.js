@@ -20,8 +20,8 @@
 
 import * as THREE from 'three';
 import { createBeingKit } from '../agentWorld/beings.js';
-import { LAYOUT, createHabitat } from '../agentWorld/habitat.js';
-import { daypartOf } from '../agentWorld/life.js';
+import { LAYOUT, HOMES, createHabitat } from '../agentWorld/habitat.js';
+import { daypartOf, initLife, stepLife } from '../agentWorld/life.js';
 
 // The ring's geometry lives in one place, habitat.js's LAYOUT, because the
 // sets, the lanes and the beings' homes are all measured against it:
@@ -39,6 +39,7 @@ const { RD, RX, RZ, BEING_SCALE, ORDER, TILE_R, HUE_OF } = LAYOUT;
 // even though the being it hangs over is small
 const MARKER_SCALE = 2.1;
 const MIN_DT = 1 / 30;
+const DISTRICT_OF = HOMES.DISTRICT_OF;
 const LABEL = { train: 'Train', knowledge: 'Knowledge', logistics: 'Logistics', fuel: 'Fuel', platform: 'Platform', money: 'Money', mind: 'Mind' };
 
 function readTokens(el) {
@@ -162,11 +163,16 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   // day white and high, evening gold and low from the west, night a low
   // blue key with the world at about half of day so the lamps carry the
   // picture. Every colour is a token mix; the page's sky stays CSS.
-  const hourOverride = { h: null };
+  // THE CLOCK. One source for the frames (seconds) and the life engine (ms
+  // since the epoch). Normally both are the real clock; a capture can shift
+  // the hour (setHour) or take the clock by hand (step), and then the
+  // lights, the frames and the life engine all move together.
+  const clock = { manual: false, t: 0, t0: 0, date: 0, shiftMs: 0 };
+  const sceneNow = () => (clock.manual ? clock.t : performance.now() / 1000);
+  const lifeNow = () => (clock.manual ? clock.date + (clock.t - clock.t0) * 1000 : Date.now()) + clock.shiftMs;
   function hourNow() {
-    if (hourOverride.h != null) return hourOverride.h;
-    const d = new Date();
-    return d.getHours() + d.getMinutes() / 60;
+    const d = new Date(lifeNow());
+    return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
   }
   const LIGHT = {
     dawn: { key: TK.key.clone().lerp(TK.gold, 0.3).lerp(TK.hue.chest, 0.2), keyI: 1.75, keyPos: [7, 2.4, 2.6],
@@ -274,7 +280,13 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       });
     });
     b.marker.scale.setScalar(MARKER_SCALE);
-    beings[a.id] = { a, b, holder, hit, sel, mats, index: i, pose: 'wait', waiting: 0, dim: 0, face: b.face };
+    beings[a.id] = {
+      a, b, holder, hit, sel, mats, index: i, pose: 'wait', waiting: 0, dim: 0, face: b.face,
+      district: DISTRICT_OF[a.id],
+      // what the life engine last said this being is doing, and where that
+      // puts it: goal = { pos, yaw, seatY, sit } in the world group's frame
+      intent: null, intentKey: null, goal: null, yaw: 0, placed: false,
+    };
     b.face.nextBlink = performance.now() / 1000 + 1 + Math.random() * 5;
     b.face.nextSacc = performance.now() / 1000 + 1 + Math.random() * 3;
   });
@@ -312,6 +324,123 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     const n = Number.isFinite(vm.receipts) ? vm.receipts : null;
     if (n !== stackShown) { stackShown = n; habitat.districts.money.setStack(n); }
   }
+
+  // ---- THE LIFE ENGINE (AGENT-WORLD-PLAN §9d) ---------------------
+  // life.js decides what each being is doing, purely, from the record and
+  // the clock; this scene only acts it out. It is stepped on every update
+  // and at most every 250 ms from the frame loop, never from a timer of its
+  // own, so a map nobody is looking at costs nothing and catches up on
+  // nothing (the engine freezes while the map is off screen).
+  let life = null, lastVm = null, lastStepAt = -Infinity, lastPulse = null;
+  const lifeHold = { on: false };
+  const LIFE_STEP_MS = 250;
+  // the plaza pulse lands as the delivery is set down, not as the walker
+  // arrives (the set-down is 1.4 s into the 4 s beat at the post)
+  const PULSE_DELAY_S = 1.4;
+  function lifeInput() {
+    const vm = lastVm || {};
+    return {
+      now: lifeNow(),
+      seed: vm.seed || new Date(lifeNow()).toISOString().slice(0, 10),
+      beings: (vm.beings || []).map((v) => ({
+        id: v.id, district: v.district, working: !!v.working, waiting: v.waiting || 0,
+        fresh: v.fresh || 'never', members: v.members || [],
+      })),
+      events: vm.events || [],
+      overnightQueued: vm.overnightQueued || 0,
+      visible: visible && !document.hidden,
+      reduceMotion,
+    };
+  }
+  function stepLifeNow(force) {
+    if (!lastVm || lifeHold.on || disposed) return false;
+    const now = lifeNow();
+    if (!force && now - lastStepAt < LIFE_STEP_MS) return false;
+    lastStepAt = now;
+    const input = lifeInput();
+    if (!life) life = initLife({ seed: input.seed, beings: input.beings });
+    life = stepLife(life, input);
+    applyLife(false);
+    return true;
+  }
+  const intentKey = (st) => [st.act, st.actSince, st.place, st.spot, (st.path || []).join('>'), st.partner, st.carry, st.facing].join('|');
+  function applyLife(snap) {
+    Object.values(beings).forEach((x) => {
+      const st = life.beings[x.a.id];
+      if (!st) return;
+      const k = intentKey(st);
+      if (k === x.intentKey && !snap) return;
+      x.intentKey = k; x.intent = st;
+      planBeing(x, snap || !x.placed || reduceMotion);
+    });
+    const w = life.world || {};
+    if (habitat.districts.platform.setPad) habitat.districts.platform.setPad(!!w.padLit);
+    if (w.pulse != null && w.pulse !== lastPulse) { lastPulse = w.pulse; habitat.plaza.pulse(sceneNow() + (reduceMotion ? 0 : PULSE_DELAY_S)); }
+    invalidate();
+  }
+
+  const flatDist = (p, q) => Math.hypot(p.x - q.x, p.z - q.z);
+  // where an intent puts a being: { pos (y 0), yaw (null = keep), seatY, sit }
+  function anchorOf(x, spot) {
+    const d = habitat.districts[x.district];
+    const a = d.anchors[x.district === 'knowledge' ? `${spot}:${x.a.id}` : spot] || d.anchors[spot];
+    return a ? { pos: new THREE.Vector3(a.pos.x, 0, a.pos.z), yaw: a.yaw, sit: !!a.sit, seatY: a.sit ? a.pos.y : 0 } : null;
+  }
+  function resolveTarget(x, st) {
+    if (st.path && st.path.length) {
+      const n = habitat.lanes.nodes[st.path[st.path.length - 1]];
+      return n ? { pos: new THREE.Vector3(n.x, 0, n.z), yaw: null, sit: false, seatY: 0 } : null;
+    }
+    if (st.place === 'plaza') {
+      const a = habitat.plaza.anchors[st.spot === 'bench' ? 'bench0' : 'post'];
+      return { pos: new THREE.Vector3(a.pos.x, 0, a.pos.z), yaw: a.yaw, sit: !!a.sit, seatY: a.sit ? a.pos.y : 0 };
+    }
+    if (typeof st.place === 'string' && st.place.startsWith('visit:')) return visitSpot(x, st.place.slice(6));
+    if (st.place === 'lane') return { pos: x.holder.position.clone().setY(0), yaw: null, sit: false, seatY: 0 };
+    return anchorOf(x, st.spot || 'rest') || anchorOf(x, 'rest');
+  }
+  // a visitor stands a little way in front of its host, on the side it
+  // came from, facing it
+  const VISIT_GAP = 0.44;
+  function visitSpot(x, hostId) {
+    const host = beings[hostId];
+    if (!host) return { pos: x.holder.position.clone().setY(0), yaw: null, sit: false, seatY: 0 };
+    const hp = (host.goal ? host.goal.pos : host.holder.position).clone().setY(0);
+    const dir = x.holder.position.clone().setY(0).sub(hp);
+    if (dir.lengthSq() < 1e-4) dir.copy(habitat.lanes.nodes['ring:' + host.district]).setY(0).sub(hp);
+    dir.normalize();
+    const pos = hp.clone().addScaledVector(dir, VISIT_GAP);
+    return { pos, yaw: Math.atan2(hp.x - pos.x, hp.z - pos.z), sit: false, seatY: 0 };
+  }
+  // step d: an intent moves the being straight to its goal (the walks are
+  // the next step); the goal's yaw is where it turns to
+  function planBeing(x, snap) {
+    const st = x.intent;
+    const g = resolveTarget(x, st);
+    if (!g) return;
+    x.goal = g;
+    x.holder.position.set(g.pos.x, g.sit ? seatLift(x, g) : 0, g.pos.z);
+    if (snap && g.yaw != null) x.yaw = g.yaw;
+    x.placed = true;
+  }
+  // which way a being should face this frame, in the world group's frame
+  // (the world turns with view.spin; -spin faces the camera)
+  function facingYaw(x) {
+    const st = x.intent;
+    if (selected === x.a.id) return -view.spin;
+    if (st && st.facing === 'camera') return -view.spin;
+    if (st && st.facing === 'partner' && st.partner && beings[st.partner]) {
+      const p = beings[st.partner].holder.position, q = x.holder.position;
+      if (flatDist(p, q) > 1e-3) return Math.atan2(p.x - q.x, p.z - q.z);
+    }
+    return x.goal && x.goal.yaw != null ? x.goal.yaw : x.yaw;
+  }
+  // sat on a seat: the foot of the body rests on the seat's height
+  function seatLift(x, g) {
+    if (x.bodyMin == null) { x.b.body.geometry.computeBoundingBox(); x.bodyMin = x.b.body.geometry.boundingBox.min.y; }
+    return Math.max(0, g.seatY - x.bodyMin * BEING_SCALE);
+  }
+  const wrapA = (a) => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
 
   // the daypart: the lights fade to it over LIGHT_FADE_S (snapped on the
   // first frame and for a capture's setHour), the sets' lamps follow it
@@ -448,7 +577,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   el.addEventListener('pointercancel', onCancel);
 
   // ---- the loop -----------------------------------------------------
-  let running = false, dirty = true, lastT = performance.now() / 1000, lastDraw = 0, frames = 0;
+  let running = false, dirty = true, lastT = performance.now() / 1000, lastDraw = 0, frames = 0, lastLive = false;
   let visible = true, wakeTimer = null, disposed = false;
   function invalidate() { dirty = true; if (!running && visible && !disposed) { running = true; requestAnimationFrame(tick); } }
   const approach = (cur, tgt, dt, k) => cur + (tgt - cur) * (1 - Math.exp(-dt * k));
@@ -472,12 +601,42 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     return live;
   }
 
+  // one being, one frame: the life engine's intent acted out. Returns
+  // whether it still moves (so the loop may not sleep).
+  function frameBeing(x, now, dt) {
+    const b = x.b, st = x.intent;
+    const working = st ? st.act === 'work' : x.pose === 'work';
+    let live = false;
+    if (!reduceMotion) {
+      const br = Math.sin(now * 0.85 + x.index * 1.7);
+      b.body.scale.set(1 + br * 0.012, 1 + br * 0.006, 1 + br * 0.012);
+      b.head.position.y = b.headY * (1 + br * 0.006);
+    }
+    // the working tell only when the record says working (§9a rule 2).
+    // Two tells (the Guardian's flame, the Leader's orb) report ambient
+    // flicker as motion; off duty that is not a reason to keep drawing
+    if (b.tell) {
+      const tl = b.tell(now, working, reduceMotion);
+      if (working ? tl : b.pose.moving()) live = true;
+    }
+    // facing: yaw eased toward where the intent says to look
+    const want = facingYaw(x), err = wrapA(want - x.yaw);
+    if (reduceMotion || dt <= 0) { if (reduceMotion) x.yaw = want; } else x.yaw += err * (1 - Math.exp(-dt * 6));
+    if (!reduceMotion && Math.abs(wrapA(want - x.yaw)) > 0.004) live = true;
+    x.holder.rotation.y = x.yaw;
+    return { live, working };
+  }
+
   function tick() {
     if (disposed) return;
-    const now = performance.now() / 1000;
-    if (!dirty && now - lastDraw < MIN_DT - 0.002) { requestAnimationFrame(tick); return; }
-    const dt = Math.min(0.08, now - lastT); lastT = now;
+    const now = sceneNow();
+    if (!dirty && now - lastDraw < MIN_DT - 0.002 && !clock.manual) { requestAnimationFrame(tick); return; }
+    drawFrame(now);
+  }
+  function drawFrame(now) {
+    const dt = Math.max(0, Math.min(0.08, now - lastT)); lastT = now;
     let live = false;
+    stepLifeNow(false);
     ['spin', 'dist', 'tx', 'ty', 'tz', 'lift'].forEach((k) => {
       const n = approach(view[k], view[k + 'T'], dt, k === 'spin' ? 8 : 6);
       if (Math.abs(n - view[k + 'T']) > 1e-4) live = true;
@@ -493,13 +652,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     camera.lookAt(view.tx, view.ty, view.tz);
 
     Object.values(beings).forEach((x) => {
-      const b = x.b, working = x.pose === 'work';
-      if (!reduceMotion) {
-        const br = Math.sin(now * 0.85 + x.index * 1.7);
-        b.body.scale.set(1 + br * 0.012, 1 + br * 0.006, 1 + br * 0.012);
-        b.head.position.y = b.headY * (1 + br * 0.006);
-      }
-      if (b.tell && b.tell(now, working, reduceMotion)) live = true;
+      const b = x.b;
+      const fb = frameBeing(x, now, dt), working = fb.working;
+      if (fb.live) live = true;
       b.head.rotation.y = (b.headYaw || 0) + b.face.sacc.x * 3;
       b.head.rotation.x = (b.headPitch || 0) - view.elev * 0.12;
       b.head.rotation.z = b.headRoll || 0;
@@ -534,16 +689,27 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
 
     renderer.render(scene, camera);
     frames++; lastDraw = now; dirty = false;
+    lastLive = live;
+    if (clock.manual) { running = false; return; }
     if (live && visible && !document.hidden) requestAnimationFrame(tick);
-    else { running = false; scheduleBlink(); }
+    else { running = false; scheduleWake(); }
   }
-  // when nothing moves, the next blink is the only reason to draw
-  function scheduleBlink() {
+  // When nothing moves, the loop sleeps until the next thing that is due:
+  // a blink, the end of any being's current act (the life engine's next
+  // decision), the next visit check. The daypart has its own minute timer.
+  function scheduleWake() {
     clearTimeout(wakeTimer);
-    if (reduceMotion || disposed) return;
-    const now = performance.now() / 1000;
-    const next = Math.min(...Object.values(beings).map((x) => x.face.nextBlink));
-    wakeTimer = setTimeout(() => invalidate(), Math.max(50, (next - now) * 1000));
+    if (disposed || clock.manual) return;
+    const now = sceneNow(), ln = lifeNow();
+    let next = Infinity;
+    if (!reduceMotion) Object.values(beings).forEach((x) => { if (!x.asleep) next = Math.min(next, x.face.nextBlink); });
+    if (life && !lifeHold.on) {
+      Object.values(life.beings).forEach((st) => { if (st.actUntil > ln) next = Math.min(next, now + (st.actUntil - ln) / 1000); });
+      const nv = life.meta && life.meta.nextVisitCheckAt;
+      if (nv) next = Math.min(next, now + Math.max(0, nv - ln) / 1000);
+    }
+    if (!Number.isFinite(next)) return;
+    wakeTimer = setTimeout(() => invalidate(), Math.max(50, (next - now) * 1000 + 30));
   }
 
   // ---- size and visibility ------------------------------------------
@@ -585,6 +751,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       coreMarker.visible = (vm.core?.waiting || 0) > 0;
       if (coreMarker.visible) { corePlate.material.map = kit.numeralTexFor(vm.core.waiting > 9 ? '9+' : String(vm.core.waiting)); corePlate.material.needsUpdate = true; }
       lampsFromRecord(vm);
+      lastVm = vm;
+      stepLifeNow(true);
       invalidate();
     },
     select(id) {
@@ -606,11 +774,84 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     // dev hook (window.__novaOrgMap is only set in dev): show any daypart,
     // a float hour, or null to go back to the device's own clock
     setHour(h) {
-      hourOverride.h = h == null ? null : ((Number(h) % 24) + 24) % 24;
+      if (h == null) clock.shiftMs = 0;
+      else {
+        clock.shiftMs = 0;
+        let d = ((Number(h) % 24) + 24) % 24 - hourNow();
+        if (d > 12) d -= 24; else if (d < -12) d += 24;
+        clock.shiftMs = d * 3600e3;
+      }
       setDaypart(daypartOf(hourNow()), true);
+      // the engine's timers were set on the old clock; start it afresh on
+      // the new one (a forced, held capture state is left alone)
+      if (!lifeHold.on) { life = null; stepLifeNow(true); }
       return lightFade.part;
     },
     daypart: () => lightFade.part,
+    // dev hook: force a being's act, place or path for a capture, e.g.
+    //   setLife({ coach: { act: 'deliver', place: 'lane', path: ['home:coach', 'ring:train', 'spoke:train', 'post'] } }, { snap: true })
+    // `world: { pulse: true }` fires the plaza. The engine is held (not
+    // stepped) until setLife(null) hands the map back to it; `snap` puts
+    // the forced beings at the start of their path (or on their spot).
+    setLife(partial, opts = {}) {
+      if (partial == null) {
+        lifeHold.on = false; life = null;
+        Object.values(beings).forEach((x) => { x.intentKey = null; });
+        stepLifeNow(true);
+        return 'released';
+      }
+      if (!life) {
+        if (!lastVm) return 'no view model yet';
+        const input = lifeInput();
+        life = stepLife(initLife({ seed: input.seed, beings: input.beings }), input);
+      }
+      const now = lifeNow();
+      const next = { ...life, beings: { ...life.beings }, world: { ...life.world } };
+      Object.entries(partial).forEach(([id, p]) => {
+        if (id === 'world') { Object.assign(next.world, p, { pulse: p.pulse === true ? now : (p.pulse ?? null) }); return; }
+        if (!next.beings[id] || !beings[id]) return;
+        const { durationMs, ...rest } = p;
+        const dur = durationMs || (rest.path ? 20000 : 4000);
+        next.beings[id] = {
+          place: 'home', spot: 'rest', facing: null, partner: null, path: null, carry: null,
+          ...next.beings[id], actSince: now, actUntil: now + dur, _seq: [], ...rest,
+        };
+        if (opts.snap) { beings[id].placed = false; beings[id].snapStart = !!rest.path; }
+      });
+      life = next;
+      lifeHold.on = opts.hold !== false;
+      applyLife(false);
+      return Object.fromEntries(Object.keys(partial).filter((id) => next.beings[id]).map((id) => [id, next.beings[id].act]));
+    },
+    // dev hook: take the clock by hand, advance it dt seconds and draw one
+    // frame now (headless Chrome barely runs requestAnimationFrame)
+    step(dtSec = 1 / 15) {
+      if (!clock.manual) {
+        clearTimeout(wakeTimer);
+        clock.manual = true; clock.t0 = clock.t = performance.now() / 1000; clock.date = Date.now(); lastT = clock.t;
+      }
+      clock.t += Math.max(0, Number(dtSec) || 0);
+      drawFrame(clock.t);
+      return { frames, live: lastLive };
+    },
+    // dev hook: give the clock back to real time, where it left off
+    realtime() {
+      if (!clock.manual) return 'already real';
+      clock.shiftMs = lifeNow() - Date.now();
+      clock.manual = false; lastT = performance.now() / 1000;
+      invalidate();
+      return 'real';
+    },
+    // dev read: where every being is and what the engine has it doing
+    lifeState: () => ({
+      held: lifeHold.on, manual: clock.manual, daypart: lightFade.part,
+      beings: Object.fromEntries(Object.values(beings).map((x) => [x.a.id, {
+        act: x.intent?.act || null, place: x.intent?.place || null, spot: x.intent?.spot || null, path: x.intent?.path || null,
+        carry: x.intent?.carry || null, pos: [+x.holder.position.x.toFixed(3), +x.holder.position.y.toFixed(3), +x.holder.position.z.toFixed(3)],
+        yaw: +x.yaw.toFixed(3), walking: !!x.walk, until: x.intent ? Math.round((x.intent.actUntil - lifeNow()) / 100) / 10 : null,
+      }])),
+    }),
+    lastVm: () => lastVm,
     // which record lamps are on, per district (for the capture scripts)
     lampsLit: () => Object.fromEntries(Object.entries(habitat.districts).map(([id, d]) => [id, d.lamps.filter((L) => L.lit).map((L) => `${L.who || id}:${L.litOn ? 'on' : 'off'}`)])),
     dispose() {
