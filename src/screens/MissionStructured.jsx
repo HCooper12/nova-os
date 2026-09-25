@@ -6,6 +6,7 @@ import { glowPanel } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
 import { StuckCard } from '../StuckCard.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
+import { TechniqueReveal } from '../TechniqueReveal.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, foldInstrument, FOLD_LABELS, NEVER_FOLD, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
@@ -676,7 +677,12 @@ export function MissionStructured({ v }) {
             a CARD, not a badge — it stays until he answers it, because the
             answer is the whole point: what he practises is what decides when
             the technique comes back. The drill is the loudest line on it. */}
-        {v.todayTechnique && !v.todayTechnique.empty && (
+        {/* A NEW technique arrives sealed and is revealed on a reel (25 Sep,
+            the Hormozi reel); it becomes the card below when it lands. */}
+        {v.todayTechnique && !v.todayTechnique.empty && v.todayTechnique.reel && (
+          <TechniqueReveal t={v.todayTechnique} variant="apple" mob={mob} />
+        )}
+        {v.todayTechnique && !v.todayTechnique.empty && !v.todayTechnique.reel && (
           <section className="nv-glow" style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', ...glowPanel('--nv-mg', { radius: '16px' }).style, ...(v.todayTechnique.vtName ? { viewTransitionName: v.todayTechnique.vtName } : {}) }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
               <div style={{ font: `600 11px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>

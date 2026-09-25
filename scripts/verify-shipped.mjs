@@ -68,6 +68,9 @@ const FEATURES = [
   // the gym fix: a tap no longer claims the phone's audio session; Nova asks to mix
   // a property key, not a function name — the minifier renames functions
   ['Audio · mixing session, generic taps do not claim it', 'novaAudio'],
+  // 25 Sep, the Hormozi reel: a new technique is revealed on a reel, with sound
+  ['Home · a new technique is revealed on a reel', 'New today, and next in line in your curriculum.'],
+  ['Settings · sound effects ride the ambient session', 'Reveals and shuffles still spin, silently.'],
   ['Galaxy · legend plurals (same commit as the first-visit paint fix)', 'analyses'],
   ['Galaxy · pinch-zoom + pan, legend filters, recency/compost overlays', 'pinch to zoom'],
   ['Inbox · training-check dismiss asks what happened (four chips)', 'ONE TAP KEEPS THE RECORD STRAIGHT'],

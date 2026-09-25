@@ -4,7 +4,7 @@ import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
 import { reportOpening } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
-import { sfxEnabled, setSfxEnabled, previewSfx } from './sfx.js';
+import { sfxEnabled, setSfxEnabled, previewSfx, primeSfx } from './sfx.js';
 import { hearingChoice, setHearingChoice } from './hearingEngine.js';
 import { runEarsTest } from './earsTest.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
@@ -506,6 +506,10 @@ export default class App extends Component {
     liveStuck: null, // what the day plan keeps listing and nothing closes (planObserve.js)
     stuckUndo: null, // his last answer on a stuck item, undoable until the next one
     repertoireBookOpen: false, repertoireTab: 'techniques', repertoireOpenReport: null, liveRepertoireAll: null,
+    // THE REVEAL (25 Sep): the day a new technique was opened on this device,
+    // and the day whose reel is spinning right now
+    techniqueRevealedOn: (() => { try { return localStorage.getItem('novaos.reveal.technique'); } catch { return null; } })(),
+    techniqueSpin: null,
     // set when a reply was composed but the device refused to play it —
     // silence must never also be invisible
     speechBlocked: null,
@@ -2072,6 +2076,22 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.repertoire(conn).then((r) => this.setState({ liveRepertoireAll: r })).catch(() => {});
+  }
+  // THE REVEAL (25 Sep, from the Hormozi reel). His tap is the gesture iOS
+  // needs before it will play the ticks, so the sound is armed HERE, before
+  // the reel mounts a render later (sfx.js). Nova mid-sentence keeps it quiet.
+  revealTechnique() {
+    const r = this.state.liveRepertoire;
+    if (!r?.technique || !r.date || this.state.techniqueSpin) return;
+    primeSfx({ busy: !!(this.ttsPlaying || this.state.voiceSpeaking) });
+    this.setState({ techniqueSpin: r.date });
+  }
+  // The reel has landed and held: remember the day on this device, and open
+  // the card around the name (same view-transition name, so it morphs).
+  finishTechniqueReveal() {
+    const on = this.state.techniqueSpin || this.state.liveRepertoire?.date || null;
+    try { if (on) localStorage.setItem('novaos.reveal.technique', on); } catch { /* private mode */ }
+    this.withTransition(() => this.setState({ techniqueSpin: null, techniqueRevealedOn: on }));
   }
   markPractice(outcome, note = '') {
     const conn = getConnection();

@@ -3,6 +3,7 @@ import { StuckCard } from '../StuckCard.jsx';
 import { glowPanel, glowSoft } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
+import { TechniqueReveal } from '../TechniqueReveal.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
@@ -200,7 +201,10 @@ export function MissionControl({ v }) {
       {/* TODAY'S TECHNIQUE — the Apple twin's card in this idiom, from the
           same view model. Same technique, same drill, same two taps: the
           server picked it once and both screens read that pick. */}
-      {v.todayTechnique && !v.todayTechnique.empty && (
+      {v.todayTechnique && !v.todayTechnique.empty && v.todayTechnique.reel && (
+        <TechniqueReveal t={v.todayTechnique} variant="command" mob={mob} />
+      )}
+      {v.todayTechnique && !v.todayTechnique.empty && !v.todayTechnique.reel && (
         <section className="nv-glow" style={{ marginTop: '18px', padding: '16px 18px 14px', ...glowPanel('--nv-mg').style, ...(v.todayTechnique.vtName ? { viewTransitionName: v.todayTechnique.vtName } : {}) }}>
           <div style={css('display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
             <Eyebrow as="span">{v.todayTechnique.modeLabel}</Eyebrow>

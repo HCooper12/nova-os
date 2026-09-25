@@ -7,6 +7,7 @@ import { localDateISO } from '../localDate.js';
 import { clampWords } from '../textClamp.js';
 import { dtf } from './fmt.js';
 import { groupFamilies, shapeReports } from '../repertoireBook.js';
+import { buildReelRows } from '../reel.js';
 import { planCardFrom } from '../planCard.js';
 
 // Mission Control domain (Command Core layout): connection status chips and
@@ -978,6 +979,18 @@ const bodyMetrics = demoMode
       if (!r) return null; // still loading — never renders as "nothing yet"
       if (!r.technique) return r.reason ? { empty: true, reason: r.reason, openInbox: go('inbox') } : null;
       const t = r.technique;
+      // THE REVEAL (25 Sep, the Hormozi reel): a NEW technique he has not
+      // answered arrives sealed on a reel, once a day per device. The reel
+      // always lands on today's pick — the target is the technique itself,
+      // not whatever the list happens to lead with — and passes the others
+      // still waiting, in the order the server sent them (curriculum order).
+      const waiting = Array.isArray(r.reel) ? r.reel.filter((x) => x && x.id !== t.id) : [];
+      // a name on the reel drops its trailing gloss — "Presupposition (Milton
+      // Model)" → "Presupposition" — because the band is one line and the
+      // landing must never be an ellipsis (seen at 375px: "Ironic Process
+      // Rebound (the "w…"). The card it opens into carries the full name.
+      const reelName = (n) => String(n || '').replace(/\s*\([^()]*\)\s*$/, '').trim() || String(n || '');
+      const sealed = r.mode === 'new' && !r.outcome && !!r.date && waiting.length >= 1 && st.techniqueRevealedOn !== r.date;
       return {
         name: t.name,
         family: t.family,
@@ -1007,6 +1020,17 @@ const bodyMetrics = demoMode
         vtName: st.repertoireBookOpen ? undefined : `technique-${r.technique.id}`,
         markTried: () => app.markPractice('tried'),
         markSkipped: () => app.markPractice('skipped'),
+        reel: sealed ? {
+          rows: buildReelRows({
+            start: { key: 'cta', cta: true },
+            others: waiting.map((x) => ({ key: x.id, text: reelName(x.name) })),
+            target: { key: t.id, text: reelName(t.name) },
+          }),
+          spinning: st.techniqueSpin === r.date,
+          caption: 'New today, and next in line in your curriculum.',
+        } : null,
+        reveal: () => app.revealTechnique(),
+        landed: () => app.finishTechniqueReveal(),
       };
     })(),
     // B1 — the ring cluster. Colour is the verdict (missionFocus.ringState);
