@@ -177,10 +177,23 @@ try {
   // the deployed site — which is why three shipped features looked absent on
   // the first run of this script. The entry bundle names every chunk it can
   // import; that list is the truth about what his device can load.
-  const entryText = await Promise.all(entries.map((n) => fetch(`${SITE}/assets/${n}`).then((r) => (r.ok ? r.text() : '')).catch(() => '')));
-  const lazy = [...new Set(entryText.join('\n').match(/[A-Za-z0-9._-]+-[A-Za-z0-9_-]{6,}\.js/g) || [])];
-  const all = [...new Set([...entries, ...lazy])];
-  const bodies = await Promise.all(all.map((n) => fetch(`${SITE}/assets/${n}`).then((r) => (r.ok ? r.text() : '')).catch(() => '')));
+  // …and a lazy chunk names the chunks IT imports (the Ops screen is lazy,
+  // and the Org Map is lazy inside it), so the crawl follows names until no
+  // new one appears. One level from the entry missed the habitat and the
+  // life engine on 26 Sep, live and working, and said "do NOT tell him".
+  const chunkMap = new Map();
+  const grab = async (names) => Promise.all(names.filter((n) => !chunkMap.has(n)).map(async (n) => {
+    chunkMap.set(n, await fetch(`${SITE}/assets/${n}`).then((r) => (r.ok ? r.text() : '')).catch(() => ''));
+  }));
+  await grab(entries);
+  for (let round = 0; round < 6; round++) {
+    const named = [...new Set([...chunkMap.values()].join('\n').match(/[A-Za-z0-9._-]+-[A-Za-z0-9_-]{6,}\.js/g) || [])];
+    const fresh = named.filter((n) => !chunkMap.has(n));
+    if (!fresh.length) break;
+    await grab(fresh);
+  }
+  const all = [...chunkMap.keys()];
+  const bodies = [...chunkMap.values()];
   liveJs = bodies.join('\n');
   const fetched = bodies.filter(Boolean).length;
   fetched ? ok(`fetched ${fetched} live chunk(s) from ${SITE}`) : bad('could not fetch any live JS');
