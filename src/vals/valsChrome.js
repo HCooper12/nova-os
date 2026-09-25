@@ -1,4 +1,5 @@
 import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES } from '../theme.js';
+import { spendView } from '../modelSpendView.js';
 import { sinceFor, startedFrom } from '../jobClock.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS } from './shared.js';
@@ -587,6 +588,9 @@ export function valsChrome(app, ctx) {
       const outdatedLabels = (watch?.outdatedLanes || [])
         .map((id) => lanes.find((l) => l.id === id)?.label)
         .filter(Boolean);
+      // what each lane really cost this week, measured from the CLI's own
+      // numbers (server/lib/modelSpend.js) — the board used to be chosen blind
+      const spend = spendView(lanes);
       return {
         loaded: prefs != null,
         error: !!st.modelPrefsError,
@@ -606,6 +610,7 @@ export function valsChrome(app, ctx) {
           : null,
         watchUnconfirmed: watch?.checkedAt ? Object.entries(watch.resolved || {}).filter(([, r]) => !r.observed).map(([f]) => f) : [],
         outdatedLaneLabels: outdatedLabels,
+        spendTotal: spend.measured ? spend.total : null,
         groups: (prefs?.groups || []).map((g) => {
           const mine = lanes.filter((l) => l.group === g.id);
           return {
@@ -628,6 +633,7 @@ export function valsChrome(app, ctx) {
               deterministic: !!l.deterministic,
               customised: l.customised,
               enabled: l.enabled,
+              spend: spend.byLane[l.id] || null,
               busy: st.modelPrefsBusy === l.id,
               setModel: (e) => app.setModelLane(l.id, { model: e.target.value }),
               toggle: () => app.setModelLane(l.id, { enabled: !l.enabled }),

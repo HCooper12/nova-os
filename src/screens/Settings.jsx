@@ -752,6 +752,21 @@ export function Settings({ v }) {
                 </div>
               )}
 
+              {/* THE WEEK'S SPEND, measured (server/lib/modelSpend.js). One
+                  figure for the whole board; each lane below carries its own
+                  share. Absent until the first measured run, never a zero
+                  that pretends to be a reading. */}
+              <div style={css("margin-top:12px;max-width:640px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap")}>
+                {v.modelSettings.spendTotal ? (
+                  <>
+                    <span style={{ font: '400 24px var(--nv-font-serif)', lineHeight: 1, color: 'var(--nv-gold)', fontVariantNumeric: 'tabular-nums' }}>{v.modelSettings.spendTotal}</span>
+                    <Meta tone="faint">spent across every lane in the last 7 days, as the CLI reported it</Meta>
+                  </>
+                ) : (
+                  <Meta tone="faint">Spend is measured from each run's own numbers, starting 25 Sep. Nothing has run since.</Meta>
+                )}
+              </div>
+
               {v.modelSettings.groups.map((g) => (
                 <div key={g.id} style={{ marginTop: '18px', maxWidth: '640px' }}>
                   <Interactive as="div" onClick={g.toggleOpen}
@@ -794,6 +809,26 @@ export function Settings({ v }) {
                           </select>
                           {l.reset && (
                             <TextAction compact tone="faint" disabled={l.busy} onClick={l.busy ? undefined : l.reset} style={{ flex: 'none' }}>Reset</TextAction>
+                          )}
+                          {/* what this lane cost this week: the figure, its share
+                              of the dearest lane on one gold track, and the run
+                              facts in the quiet line under it */}
+                          {l.spend ? (
+                            <span style={{ flex: '1 1 100%', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '2px' }}>
+                              <span style={{ flex: 'none', minWidth: '52px', font: '400 17px var(--nv-font-serif)', lineHeight: 1, color: 'var(--nv-gold)', fontVariantNumeric: 'tabular-nums' }}>{l.spend.usd}</span>
+                              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <span aria-label={`${l.spend.usd} this week`} style={{ display: 'block', height: '4px', borderRadius: '2px', overflow: 'hidden', background: 'color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>
+                                  <i style={{ display: 'block', height: '100%', width: `${Math.round(l.spend.share * 100)}%`, background: 'color-mix(in srgb, var(--nv-gold) 78%, transparent)' }} />
+                                </span>
+                                <span style={{ fontSize: '10.5px', lineHeight: 1.4, color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', fontVariantNumeric: 'tabular-nums' }}>
+                                  {l.spend.detail}
+                                  {l.spend.limitHits > 0 && <span style={{ color: 'var(--nv-warn)' }}> · {l.spend.limitHits} stopped by the usage limit</span>}
+                                  {l.spend.errors > l.spend.limitHits && <span style={{ color: 'var(--nv-warn)' }}> · {l.spend.errors - l.spend.limitHits} failed</span>}
+                                </span>
+                              </span>
+                            </span>
+                          ) : (
+                            <Meta tone="faint" style={{ flex: '1 1 100%' }}>No measured runs in the last 7 days</Meta>
                           )}
                         </div>
                       ) : (
