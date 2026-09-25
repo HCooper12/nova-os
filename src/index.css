@@ -1169,3 +1169,41 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
     .nv-wordmark, .nv-compact-title { animation: none; }
   }
 }
+
+/* THE PLANNED WEEK (25 Sep 2026) — src/WeekSets.jsx, behind Train's "Hard
+   sets this week". A set is a pip, and its state is its drawing: filled in
+   the muscle's hue when done, gold while ticked in the session he is in, an
+   outline while still to come, a dashed hole once its day has passed
+   undone, and a DIAMOND when it was done but the plan never asked for it (a
+   different kind of fact, so a different shape, not a different shade).
+   Entrance: the sheet grows out of the card; then the week fills in day by
+   day, left to right, as the pips pop into place, and each muscle's ring
+   draws its arc. transform / opacity only (and the rings' dash offset, as
+   every house ring does). Fill mode is BACKWARDS, never both: a held final
+   transform keeps ninety-odd pips and ten sections on their own compositor
+   layers, and those painted past the sheet's sticky header (seen at 375px).
+   Reduced motion: all of it is simply there. */
+.nv-wk-pip { display: block; flex: none; box-sizing: border-box; width: var(--wk-pip, 8px); height: var(--wk-pip, 8px); border-radius: 50%; }
+.nv-wk-pip[data-s="done"] { background: var(--wk-hue); }
+.nv-wk-pip[data-s="live"] { background: var(--nv-gold); box-shadow: 0 0 6px color-mix(in srgb, var(--nv-gold) 70%, transparent); }
+.nv-wk-pip[data-s="due"] { border: 1.5px solid color-mix(in srgb, var(--wk-hue) 70%, transparent); }
+.nv-wk-pip[data-s="missed"] { border: 1px dashed color-mix(in srgb, var(--nv-ink) 32%, transparent); }
+.nv-wk-pip[data-s="extra"] { background: var(--wk-hue); border-radius: 1.5px; transform: rotate(45deg) scale(.8); }
+.nv-wk-grid .nv-wk-pip { animation: nvWkPip var(--nv-dur-base) var(--nv-ease) backwards; animation-delay: calc(var(--d, 0) * 45ms + 200ms); }
+.nv-wk-grid .nv-wk-pip[data-s="extra"] { animation-name: nvWkPipX; }
+@keyframes nvWkPip { from { opacity: 0; transform: scale(.5); } }
+@keyframes nvWkPipX { from { opacity: 0; transform: rotate(45deg) scale(.4); } }
+.nv-wk-fill { transition: transform var(--nv-dur-slow) var(--nv-ease); animation: nvWkFill var(--nv-dur-slow) var(--nv-ease) backwards; animation-delay: calc(var(--i, 0) * 30ms + 160ms); }
+@keyframes nvWkFill { from { transform: scaleX(0); } }
+.nv-wk-arc { animation: nvWkArc .9s cubic-bezier(.2,.8,.2,1) backwards; animation-delay: calc(var(--i, 0) * 50ms + 300ms); }
+@keyframes nvWkArc { from { stroke-dashoffset: var(--wk-c); } }
+.nv-wk-sec { animation: fadeUp var(--nv-dur-base) var(--nv-ease) backwards; animation-delay: calc(var(--i, 0) * 50ms + 260ms); }
+/* a light passes over the muscle he picked in the grid */
+.nv-wk-sec::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--wk-hue) 14%, transparent), transparent); }
+.nv-wk-sec[data-flash]::after { animation: nvWkSweep .9s var(--nv-ease) .25s backwards; }
+@keyframes nvWkSweep { 0% { opacity: 0; transform: translateX(-100%); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .nv-wk-grid .nv-wk-pip, .nv-wk-fill, .nv-wk-arc, .nv-wk-sec { animation: none; }
+  .nv-wk-sec[data-flash]::after { animation: nvWkGlow .9s linear backwards; transform: none; }
+  @keyframes nvWkGlow { 0%, 100% { opacity: 0; } 30% { opacity: 1; } }
+}

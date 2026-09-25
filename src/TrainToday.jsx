@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 // The redesigned Train TODAY pane — mockup v2 made real. One component,
 // both layouts: the hero row wraps on phones and widens on the MacBook
 // (spec: uniform across platforms, never a stretched phone view).
@@ -11,6 +11,8 @@ import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, Button, Rail } from './Controls.jsx';
 import { todayPanels } from './trainPanels.js';
+import { weekSetsView } from './weekSets.js';
+import { WeekSetsSheet } from './WeekSets.jsx';
 
 // the material pass (5 Sep 2026): labels through Controls.jsx; a filled
 // button is sentence case in the UI face under the Apple styles
@@ -49,6 +51,10 @@ export function TrainToday({ o, actions, resume }) {
   // the Coach's ask leaves in its verdict colour for one beat, then the
   // action runs (finding 13); nothing while it is leaving can be tapped twice
   const [askLeaving, setAskLeaving] = useState(null);
+  // the planned week behind the bars: tap the card and it grows into it
+  const [weekOpen, setWeekOpen] = useState(false);
+  const volumeCard = useRef(null);
+  const week = useMemo(() => weekSetsView(o?.week), [o?.week]);
   const leaveThen = (verdict, run) => {
     if (askLeaving) return;
     const wait = leaveMs(prefersReducedMotion());
@@ -263,12 +269,22 @@ export function TrainToday({ o, actions, resume }) {
       {/* weekly volume vs goal-aware targets — Monday to Sunday, and the
           session in progress counts toward it as he ticks */}
       {o?.volume?.length > 0 && (
-        <div style={css('background:var(--nv-glass);border:1px solid var(--nv-edge);border-radius:16px;padding:14px')}>
-          <div style={css('display:flex;justify-content:space-between;align-items:baseline')}>
+        <div ref={volumeCard} style={css('background:var(--nv-glass);border:1px solid var(--nv-edge);border-radius:16px;padding:14px')}>
+          {/* THE BARS OPEN THE WEEK (25 Sep 2026, his ask): the header and
+              bars are one tap target that grows into every planned exercise,
+              per muscle, per day (src/WeekSets.jsx). The Coach row below
+              stays its own target: nothing tappable nests in another. */}
+          <Interactive as="div" onClick={week ? () => setWeekOpen(true) : undefined}
+            aria-label={week ? 'Hard sets this week. Open the planned week, exercise by exercise' : undefined}
+            base={week ? 'cursor:pointer;border-radius:10px' : ''}>
+          <div style={css('display:flex;justify-content:space-between;align-items:baseline;gap:8px')}>
             <Eyebrow as="span"><Term k="hard sets">Hard sets this week</Term></Eyebrow>
-            {liveNow > 0
-              ? <Meta tone="gold">◆ {liveNow} live this session</Meta>
-              : under.length > 0 && <Meta tone="warn">Goal muscles under ▲</Meta>}
+            <span style={css('display:inline-flex;align-items:baseline;gap:8px;min-width:0')}>
+              {liveNow > 0
+                ? <Meta tone="gold">◆ {liveNow} live this session</Meta>
+                : under.length > 0 && <Meta tone="warn">Goal muscles under ▲</Meta>}
+              {week && <span aria-hidden="true" style={css('align-self:center;font:400 22px/0.6 var(--nv-font-ui);color:var(--nv-ink40)')}>›</span>}
+            </span>
           </div>
           {o.volume.slice(0, 6).map((v) => {
             const pct = Math.min(100, Math.round((v.sets / v.target) * 100));
@@ -294,6 +310,10 @@ export function TrainToday({ o, actions, resume }) {
               </div>
             );
           })}
+          {week && (
+            <Meta as="div" tone="cyan" style={{ marginTop: '9px' }}>Every exercise, day by day</Meta>
+          )}
+          </Interactive>
           {under.length > 0 && actions?.askVolume && (
             /* 26px tall, and it is the one thing on the card worth tapping
                (measured 23 Sep). A row, not a line of small print. */
@@ -303,6 +323,10 @@ export function TrainToday({ o, actions, resume }) {
             </Interactive>
           )}
         </div>
+      )}
+      {weekOpen && week && (
+        <WeekSetsSheet view={week} originEl={volumeCard.current} onClose={() => setWeekOpen(false)}
+          onAskCoach={actions?.askCoach} />
       )}
     </div>
   );

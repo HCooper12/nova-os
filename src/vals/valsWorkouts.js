@@ -60,6 +60,9 @@ export function valsWorkouts(app, ctx) {
       askTired: () => app.openVerdict('tired'),
       askPeak: () => app.openVerdict('peak'),
       askVolume: (muscles) => { app.setState({ trainTab: 'coach' }); app.doCoach(`My weekly sets for ${muscles} are under target for my goal — how should I add volume?`); },
+      // a question in his words, straight to the Coach tab (the planned week's
+      // "talk this week through" carries its own figures)
+      askCoach: (question) => { app.setState({ trainTab: 'coach' }); app.doCoach(question); },
       // the Coach's open program ask: take it, or say no. Either way it
       // stops asking — an answered question is answered.
       applyCoachAsk: (recordId, fix, proposal) => app.openCoachApply({ recordId, fix, proposal }),

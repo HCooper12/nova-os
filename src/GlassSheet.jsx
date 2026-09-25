@@ -22,7 +22,11 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 // the established answer to "swipe a sheet down"; a deliberate dismiss
 // (scrim tap, Close, Escape) instead reverses the FLIP back into the card it
 // grew from, or fades if that card is no longer on screen.
-export function GlassSheet({ card, originEl, onClose }) {
+//
+// `children` in place of `card` (25 Sep 2026): the same morph, drag and
+// dismissal for any surface that grows out of a card, such as the planned
+// week behind Train's "Hard sets this week". `label` names the dialog then.
+export function GlassSheet({ card, originEl, onClose, label, children, scrollRef }) {
   const drag = useSheetDrag(onClose, { threshold: 80 });
   const closing = useRef(false);
 
@@ -86,20 +90,29 @@ export function GlassSheet({ card, originEl, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!card) return null;
+  if (!card && !children) return null;
   return (
-    <div role="dialog" aria-modal="true" aria-label={card.label || 'Expanded panel'} onClick={close}
+    <div role="dialog" aria-modal="true" aria-label={label || card?.label || 'Expanded panel'} onClick={close}
       style={css('position:fixed;inset:0;z-index:145;display:flex;align-items:flex-end;justify-content:center;background:color-mix(in srgb, var(--nv-void) 70%, transparent);backdrop-filter:blur(10px);animation:fadeIn var(--nv-dur-base) var(--nv-ease)')}>
-      <div ref={drag.sheetRef} onClick={(e) => e.stopPropagation()}
+      <div ref={(el) => { drag.sheetRef.current = el; if (scrollRef) scrollRef.current = el; }} onClick={(e) => e.stopPropagation()}
         style={css('width:100%;max-width:560px;max-height:86vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:var(--nv-radius) var(--nv-radius) 0 0;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-bottom:none;background:var(--nv-bg1);box-shadow:0 -30px 80px -30px rgba(0,0,0,.9);padding:0 16px calc(18px + env(safe-area-inset-bottom))')}>
         {/* the grab zone: handle + close, sticky so it stays under the thumb
             while a tall card scrolls beneath it */}
-        <div {...drag.handleProps} style={{ ...drag.handleProps.style, position: 'sticky', top: 0, zIndex: 2, background: 'var(--nv-bg1)', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0 8px' }}>
-          <span aria-hidden="true" style={css('width:36px;height:5px;border-radius:3px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin-right:auto')} />
-          <TextAction tone="quiet" onClick={close} ariaLabel="Close">Close</TextAction>
+        {/* the grabber in the middle, Close in its corner (ExerciseSheet's
+            review finding 5: a grabber pinned left reads as carelessness).
+            Pinned 6px ABOVE the scroll edge (top/margin -6, padding +6):
+            at top:0 Chrome left a ~3px seam under the rounded top where
+            scrolled content showed through (seen at 375px, 25 Sep). The
+            handle sits exactly where it did. */}
+        <div {...drag.handleProps} style={{ ...drag.handleProps.style, position: 'sticky', top: '-6px', marginTop: '-6px', zIndex: 2, background: 'var(--nv-bg1)', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', padding: '16px 0 8px' }}>
+          <span />
+          <span aria-hidden="true" style={css('width:36px;height:5px;border-radius:3px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent)')} />
+          <span style={{ justifySelf: 'end' }}>
+            <TextAction tone="quiet" onClick={close} ariaLabel="Close">Close</TextAction>
+          </span>
         </div>
         <div style={css('padding-bottom:10px')}>
-          <StageCard card={card} size="full" />
+          {children || <StageCard card={card} size="full" />}
         </div>
       </div>
     </div>
