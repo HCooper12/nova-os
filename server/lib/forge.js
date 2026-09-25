@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, isValidModel } from './modelPrefs.js';
 import { mkdir, writeFile, readFile, readdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -364,6 +364,9 @@ async function runForgeJob(job) {
 export async function startForge(prompt, { model } = {}) {
   const p = String(prompt || '').trim();
   if (!p) throw new Error('a prompt is required — say what you want built');
+  // a caller-named model is checked here, not handed to --model to fail in
+  // the CLI's words (or run a model nobody chose): the board's rule (25 Sep)
+  if (model != null && !isValidModel(model)) throw new Error('model is not a recognised alias or pinned id');
   // Refused before the record and its working directory exist. Jobs already
   // running are deliberately left alone — stopping one is a separate act.
   if (!laneEnabled('forge')) throw laneOffError('forge');

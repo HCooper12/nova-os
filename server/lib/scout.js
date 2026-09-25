@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { modelFor, assertLaneOn } from './modelPrefs.js';
+import { modelFor, assertLaneOn, isValidModel } from './modelPrefs.js';
 
 // THE SCOUT — research a PERSON the way the Librarian researches a book.
 //
@@ -175,6 +175,7 @@ export function seedUrls(subject, notes = '') {
 
 export async function runPersonResearch(vaultPath, subject, { notes = '', model, workDir } = {}) {
   assertLaneOn('scout');
+  if (model != null && !isValidModel(model)) throw new Error('model is not a recognised alias or pinned id');
 
   // READ IT PROPERLY FIRST. The first live run got the Instagram bio and one
   // Reel; the YouTube video and LinkedIn both refused an anonymous fetch.

@@ -18,7 +18,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled, laneOffError, isValidModel } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { describeForPlanner, CAPABILITIES } from './capabilities.js';
 import { validatePlan, schedule, planProgress, describePlan, unmetNeeds, skipReason, costLine, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
@@ -109,6 +109,7 @@ export async function startPlan(vaultPath, goal, { model, buildsOn = null, inher
   const g = String(goal || '').trim();
   if (!g) throw new Error('a goal is required');
   if (!laneEnabled('planner')) throw laneOffError('planner');
+  if (model != null && !isValidModel(model)) throw new Error('model is not a recognised alias or pinned id');
 
   // a follow-on plan inherits the finished work it names
   let held = Array.isArray(inherited) ? inherited : [];
