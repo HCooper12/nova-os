@@ -13,6 +13,31 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (14:00s) — AN EXTRA LIFT PREFILLS; COACH RESEARCHES THE LIBRARY;
+STALL CARDS WITH RESTRAINT. All pushed, deployed, server reloaded,
+verify-shipped PASS.**
+
+- `6fbc8ae` an exercise added mid-session starts from last time's sets
+  (exercise state), Coach's earned step, its routine prescription and focus
+  (lib/sessionPrefill.js, GET /api/workouts/exercises/:id/next). Verified in
+  a guarded page (Face Pull 29.5 × 11/10/10). Seen: the kg box clips "29.5"
+  as "29.!" at 402 px on every decimal weight (older layout issue, not fixed).
+- `c537aeb` lib/exerciseResearch.js: new lifts (not in the curated atlas,
+  never researched) are researched 30 s after he adds one, or by the 30-min
+  sweep; weekly pass Sun 06:00 to Wed (5 program lifts improved, up to 2
+  added). Sonnet, web-read-only, $2 cap per call of <=3 lifts (measured
+  $0.61 / 247 s for 1+1). Writes the record's `research` field, one Inbox
+  record (kind exercise-research) with undo. NOT YET SEEN RUNNING LIVE: no
+  lift is pending and the weekly window opens Sunday; the first real pass
+  is his next new exercise or Sunday 06:00. Check `server/data/
+  exercise-research.json` and the server log ("exercise research").
+- `9d34554` stall/tenure cards: 4 flat weeks (a run), tempo/pause first as a
+  `tune` fix, swaps only same prime mover + same movement pattern, one a
+  week. On his data nothing raises now (all three stalled lifts are under
+  a recent no until mid-October).
+
+---
+
 **25 SEP (afternoon) — THE PLANNED WEEK READS THE PLAN AS IT STOOD; DISCUSS
 TALKS; THE REVERSE CURL IS A FOREARM LIFT. All pushed, deployed `dc6d11d`,
 server reloaded (scripts/reload-server.mjs), verify-shipped PASS.**
