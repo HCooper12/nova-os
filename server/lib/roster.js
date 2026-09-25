@@ -292,11 +292,14 @@ export async function rosterAnswer(asked, deps = defaultRosterDeps, { onlyKnown 
     }
     // not one of Nova's — the honest no, what the Mac can do with it, and
     // the nearest thing Nova does have
-    const name = String(asked).trim().replace(/[?.!]+$/, '');
+    const name = String(asked).trim().replace(/[?.!]+$/, '').replace(/\s+(?:integration|integrations|connection|account|api|app)$/i, '');
     const apps = await deps.apps().catch(() => []);
     const { matchName } = await import('./verbs.js');
     const app = matchName(apps, name);
-    const parts = [`No, sir — Nova has no ${name} connection.`];
+    // the reflex hears lowercase; say the name the way it is written — the
+    // app's own spelling when the Mac has it, capitalised words otherwise
+    const shown = app.hit && app.score >= 2.5 ? app.hit.name : name.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+    const parts = [`No, sir — Nova has no ${shown} connection.`];
     if (app.hit && app.score >= 2.5) parts.push(`${app.hit.name} is on your Mac, so I can open it, but I can't see inside it.`);
     const rel = relatedEntry(asked);
     if (rel) {

@@ -58,12 +58,12 @@ test('the voice is the local engine — ElevenLabs is a no (the sentence that wa
 
 test('anything not on the roster is a plain no, with what the Mac can do and what IS working', async () => {
   const ads = await rosterAnswer('google ads integration', deps());
-  assert.match(ads, /^No, sir — Nova has no google ads integration connection\./);
+  assert.match(ads, /^No, sir — Nova has no Google Ads connection\./);
   assert.match(ads, /What's connected and working right now: your Obsidian vault, Apple Calendar, Apple Health, Todoist/);
   // an app on the Mac is something Nova can open, and no more
-  assert.match(await rosterAnswer('whatsapp', deps()), /WhatsApp is on your Mac, so I can open it, but I can't see inside it\./);
+  assert.match(await rosterAnswer('whatsapp', deps()), /^No, sir — Nova has no WhatsApp connection\. WhatsApp is on your Mac, so I can open it, but I can't see inside it\./);
   // a near name points at the real one
-  assert.match(await rosterAnswer('google calendar', deps()), /No, sir — Nova has no google calendar connection\. What I do have is Apple Calendar: through iCloud/);
+  assert.match(await rosterAnswer('google calendar', deps()), /No, sir — Nova has no Google Calendar connection\. What I do have is Apple Calendar: through iCloud/);
   assert.match(await rosterAnswer('spotify', deps()), /No, sir — Spotify isn't connected: it isn't installed on your Mac — Nova plays through the Music app/);
 });
 
