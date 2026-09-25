@@ -71,105 +71,67 @@ After the macOS update, first check: `curl localhost:4173/api/health` is 200
 
 ---
 
-**25 SEP (late evening, nova-os-d3) — THE REEL: A NEW TECHNIQUE IS REVEALED
-ON A SPIN, THE CONCEPT SHUFFLE SPINS, WRAP THE DAY ASKS "DID IT LAND?".
-From the Hormozi spin-wheel reel he sent; he said yes to all four proposals.
-ALL PUSHED (his "Push", 13:05Z, 5df39bb..707715e, which also carried 44's
-committed Org Map/Habitat work); server reloaded with 707715e.**
 
-- **Why:** Nova served a technique on 11 days (15-25 Sep) and he marked NONE
-  (every `outcome: null` in repertoire.json, the vault log empty). The loop
-  had no "do it" and no "report back". Memory: nova-spin-reveal.
-- **Shipped:** `0f1b108` server: `logPractice(..., { result })` (landed /
-  missed; only a tried technique can land; a pass clears it), log line
-  "tried · landed · note", review phrase "practised 2 times, landed once",
-  `/repertoire/today` carries `reel` (waiting techniques, curriculum order,
-  starting AT the pick) + result/note/landed. `96ac3e5` sound: src/sfx.js
-  (synthesised ticks + chime on the audio clock), `claimForEffects` =
-  iOS 'ambient' so a tick never pauses or ducks his music; Settings → Sound
-  effects (on by default). `381673f` the reveal: src/reel.js (the clock,
-  tested), src/SpinReveal.jsx, src/TechniqueReveal.jsx, sealed card on a NEW
-  day once per device (`novaos.reveal.technique`), morphs into the card.
-  `53ae4bb` the concept shuffle spins (random, so literally true), 44px
-  ShuffleButton with haptic. `058407e` TickButton is its own module.
-  `5b53b2f` Wrap the day's question (src/TechniqueCheck.jsx,
-  src/techniqueCheck.js tested), evening-only card when nothing is logged
-  (from 18:00, twin of wrapDay CARD_FROM_HOUR), "Practised · it landed".
-  `898287a` shot.mjs re-seeds on every CDP session (see below).
-- **VERIFIED:** server suite 2424/2424, lint 0 errors, build green,
-  verify-shipped markers in the bundle. Guarded headless Chrome against the
-  live server: sealed card, spin, landing, morph at 375 cupertino, 375
-  command, 1280 cupertino, reduced motion; shuffle spin both styles (landed
-  on "The Ten-Minute Follow-Up", card followed); wrap question, tick, receipt
-  and the evening-only card, both styles; no sideways overflow of mine (the
-  command HUD's rotating ring overflows 29px, pre-existing).
-- **NOT VERIFIED:** anything on his phone. The SOUND has never been heard
-  (headless is muted) and the ambient session is spec-read, not observed;
-  the haptic on the reveal tap exists only on a device.
-- **Leaks, told plainly:** two POST /api/notes/summary from my test pages
-  reached the server (12:12:18Z a cache read; 12:27:48Z started one
-  note-summary model job, nothing written, no job left running). Cause: the
-  seed is per CDP session and shot.mjs re-attached (fixed, `898287a`); the
-  second was my own slip using shot.mjs after the shared seed lost its guard.
-- **Flagged to nova-os-44, fixed and pushed by them:** the working glass
-  narrated every past brief on a fresh device load (his Mac at 22:03 wrote
-  six "The brief is ready" lines); the record re-posted same-millisecond
-  lines (they repaired the file, 167 → 42 rows, backup in their scratchpad).
-- **A miss comes back sooner (`707715e`, his "Yes"):** if his most recent
-  answer for a technique is "didn't land", its gap steps back one level
-  (practiceStep / lastResultFor, read from the day records). SCHEDULE itself
-  is unchanged. Checked read-only on his real state: Sunday still resolves.
-- **NEXT (his):** on his phone tonight, after the Pages deploy: Home → the sealed pink card → tap → ticks and
-  chime, with music playing to confirm it keeps playing; answer "did it
-  land?" in the wrap. Monday is the next new-technique day.
-- **DO NOT:** claim 'playback' for an effect; animate `filter` on the reel
-  strip; trust public/_devconn.js to hold a guard (peers regenerate and clean
-  it) — carry the guard in the script.
+**25–26 SEP (close, nova-os-clicky) — CLICKY BUILT: NOVA DRIVES THE MAC.
+Pushed and deployed (Pages run for 5058e86: success). Server running it.
+He asked to be REMINDED OF ALL OF THIS LATER — at the next session start,
+surface the "at the MacBook" list and the two decisions below.**
 
----
-
-**25 SEP (late evening, nova-os-clicky) — CLICKY BUILT: NOVA DRIVES THE MAC.
-7 commits LOCAL, NOT PUSHED (his push — on top of the working-glass ones
-below). Server RELOADED (reload-server.mjs) and running the server half.**
-
-- **What shipped** (design/VERBS-PLAN.md "Hand 3" is the full account):
-  `server/lib/macHand.js` (open apps/sites/addresses; Music play/pause/next/
-  previous/play-by-name — playlist → library → catalogue, a catalogue song is
-  OPENED in Music, never claimed as playing; Mac or Music volume) + verbs
-  `mac.open`/`mac.music`/`mac.volume` in verbs.js; `server/lib/roster.js` +
-  two reflexes ("do you have X connected", "what's playing"); "…then open my
-  Reminders so I can confirm" (splitThenOpen); "start an agent … in the
-  background" → the planner (chatLanes.js planWorthy); ops.js's model context
-  lists hands from the roster (the old line claimed an ElevenLabs voice with
-  no key). Shared reading of "open X": `src/macTargets.js`.
-- **The device rule:** Mac sentences are claimed only when he is AT the Mac
-  (app sends `device:'mac'`; `fromMacOf` in routes/voice.js falls back to the
-  UA until his push) or says "on my Mac". Away from the Mac they go to the
-  model, and no other verb may grab them.
-- **VERIFIED:** full server suite 2364/2364 (before the planWorthy commit;
-  planWorthy's own 9/9 after), lint 0 errors, build green; the roster run
-  against his REAL data (module call, no writes); ONE live call through
-  /api/ask: "Do you have my Google Ads integration connected?" → the honest
-  no, via the reflex (it wrote one true line to spoken-log.json).
-- **NOT VERIFIED — nothing has been opened, played or turned down on his
-  Mac.** Deliberate: he was away, and the first Music command raises a macOS
-  box ("node wants access to control Music") that must be OK'd on the Mac.
-  Opening apps and the Mac's own volume need no permission. The at-the-Mac
-  client half (device flag, "open youtube" not going to the browser hand,
-  "start an agent" → plan) reaches the app only after his push.
-- **NEXT (his, at the MacBook):** the three steps below from the working-
-  glass block, then try: "open Reminders", "play my <playlist> playlist"
-  (click OK on the macOS box), "turn it down", "what's playing", "do you
-  have Todoist connected", and Clicky's own "Set a reminder Saturday 9pm
-  for dinner with Sharif, then open my Reminders to confirm".
+- **GOAL (his, 25 Sep):** from the hugovar.ai "Jarvis, make me five ads" reel:
+  (1) the working glass, (2) depth on the glass; then "proceed with the
+  clicky build" (his 22 Sep Clicky note: Nova drives the Mac by voice).
+- **DONE CRITERIA:** working glass + depth MET, pushed (then corrected by a
+  peer, see DO NOT). Clicky MET for build, pushed; UNMET: seen on his Mac.
+- **STATE (paths):** `src/jobBeats.js` + App.narrateJobs (working glass),
+  `src/glassDepth.js` (depth); `server/lib/macHand.js`, `src/macTargets.js`,
+  verbs `mac.open`/`mac.music`/`mac.volume` + `parseMac`/`splitThenOpen` in
+  `server/lib/verbs.js`, `fromMacOf` in `server/routes/voice.js`,
+  `server/lib/roster.js` + reflexes in `reflex.js`, `planWorthy` AGENT_ASK in
+  `src/chatLanes.js`. Full account: design/VERBS-PLAN.md "Hand 3".
+- **DECISIONS:** fixed AppleScript, his words after `--` only → forecloses
+  free-form scripts and screen clicking (his call, raised as a decision);
+  Mac sentences claimed only at the Mac or with "on my Mac" → forecloses
+  phone-side "pause" meaning the Mac; opening is act-tier with NO undo
+  (writes nothing) → VERBS-PLAN's undo rule now carries that one exception;
+  a catalogue song is opened, not claimed playing → forecloses faking
+  playback; the model's hands list is generated from the roster →
+  forecloses a hard-written claim (the old one named ElevenLabs, no key).
+- **VERIFIED (locators):** at close: lint 0 errors, build green, server
+  2439/2439, health 200, tree clean and level with origin 5058e86, Pages
+  success. Roster on his real data (module call, no writes); live /api/ask
+  "Do you have my Google Ads integration connected?" → the honest no via
+  the reflex (one true line in spoken-log.json). My fake "brief is ready"
+  test line is gone from conversation/2026-09.jsonl (grep: 0).
+- **ASSUMED:** everything on his Mac: nothing has been opened, played or
+  turned down there. The first Music command raises macOS "node wants access
+  to control Music" (must be OK'd); `music://` opening a catalogue song in
+  Music is from the app's Info.plist, not observed; the working glass on his
+  phone after the peer's fix.
+- **OPEN QUESTIONS (his, remind him):** (1) control apps beyond Music, or
+  screen clicking — yes = bigger riskier build, no = fixed actions stay;
+  (2) Apple Developer Program $99/yr (standing reminder). Reel parts 3–4
+  (fanned reveal, 3D callouts) parked in nova-roadmap. Not built: other
+  apps, reading the screen, opening on the phone.
+- **NEXT ACTION (his, at the MacBook):** try "open Reminders", "play my
+  <name> playlist" (OK the box), "turn it down", "what's playing", "do you
+  have Todoist connected", "Set a reminder Saturday 9pm for dinner with
+  Sharif, then open my Reminders to confirm"; and a research question by
+  voice on the phone. Expected: each acts in ~1s with a one-line receipt;
+  the research narrates its stages once, no replay of old briefs.
 - **DO NOT:** drive the real Music app from a session (TCC box on his
-  screen); use `set it to N` for volume (it stays the shopping list's).
+  screen); mark a settled-at-first-sight record with a null seen-set — my
+  narrateJobs did, and every fresh load read out 19 past briefs into his
+  conversation record (fixed by a peer, c455cf2); stub the chat mirror from
+  a setup expression — seed it before load (my first headless run wrote a
+  fake line into his record); use "set it to N" for volume (the shopping
+  list's).
 
 ---
 
 **25 SEP (evening, nova-os-jarvis) — THE WORKING GLASS AND DEPTH, from the
-hugovar.ai "Jarvis, make me five ads" reel he sent. 2 commits LOCAL, NOT
-PUSHED (his push). Client + test only; the server is untouched, no reload
+hugovar.ai "Jarvis, make me five ads" reel he sent. SUPERSEDED by the
+clicky close above: now pushed, the test row is gone, and a peer fixed the
+replay bug (c455cf2). Kept for its detail. Client + test only; the server is untouched, no reload
 needed. ONE TEST ROW IS SITTING IN HIS CONVERSATION RECORD — see below.**
 
 - **The working glass (`src/jobBeats.js`, `App.narrateJobs`):** a research
@@ -4565,6 +4527,16 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**25–26 Sep (nova-os-jarvis → nova-os-clicky).** From two reels: the working
+glass (a research job narrates each stage with a code-written panel) and
+depth on the glass; then Clicky — Nova opens apps and sites, drives Music and
+the volume on the Mac, answers "do you have X connected?" from evidence, does
+"…then open it so I can confirm", and turns "start an agent…" into a plan.
+Corrected, not added: the model context's claim of an ElevenLabs voice
+(false); reminders losing his capitals; "set the volume to 30" reaching the
+shopping list. My narrateJobs replayed every past brief on a fresh load and
+wrote them into his record — found and fixed by a peer (c455cf2).
 
 ### 25–26 September 2026 — nova-os-44: the agent models audited and fixed, the voice turn that was never sent, and the Habitat
 Audited the model board and fixed his picks: the Opus-or-Sonnet gate now follows the board, forge/planner/scout validate models, the last $2 cap and kill timer went (the no-caps guard now finds every lane itself), Ask Nova moved to Sonnet 5, and a per-lane spend ledger (built by an agent, corrected for a dropped exit-code check) shows on the Settings board. His spoken turn at 14:22 had been heard and transcribed but never sent (a render-stale ref); fixed and proven before/after, and every spoken exchange from every door now lands in one server record Nova reads back. Corrected along the way: two tests had been writing into his live data (30 fake greetings in the spoken log, the Coach pointer), the working glass read every past brief aloud on a fresh load, and the record duplicated same-millisecond lines (repaired). Then the Habitat: a set per district, lanes, a plaza, daypart light, and a pure life engine so the nine live off duty at zero tokens, integrated on Ops and pushed. He will review later.
