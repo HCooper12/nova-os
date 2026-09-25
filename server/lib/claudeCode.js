@@ -83,6 +83,18 @@ warmSweep.unref?.();
 // throws must never take the reply down with it.
 const onPartial = (job, text) => { try { job.onPartial?.(text); } catch { /* the words matter more */ } };
 
+// The CLI's own words at the account's limit — the whole reply, and short.
+// Seen for real on 25 Sep 2026: "You've hit your session limit · resets 11am
+// (Australia/Melbourne)". Only a short reply that is nothing BUT the notice
+// counts, so an answer that mentions a limit is never mistaken for one.
+export function usageLimitNotice(text) {
+  const t = String(text || '').trim();
+  if (!t || t.length > 240) return null;
+  if (!/\b(?:hit your|reached your|usage limit|rate limit|session limit|weekly limit)\b/i.test(t) || !/\blimit\b/i.test(t)) return null;
+  const resets = t.match(/\bresets?\s+(?:at\s+)?([^·\n]+?)\s*$/i)?.[1]?.replace(/\s*\(([^)]+)\)\s*$/, '').trim();
+  return `Claude's usage limit is reached for now${resets ? `; it resets at ${resets}` : ''}. Nothing was answered and nothing was lost: ask again after that.`;
+}
+
 function spawnWarm(key, { cwd, args, env }) {
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : undefined });
   const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now() };
@@ -107,8 +119,15 @@ function spawnWarm(key, { cwd, args, env }) {
       } else if (ev.type === 'result') {
         const job = w.currentJob;
         const finish = w.finishTurn;
-        const replyText = ev.is_error ? null : ((ev.result || '').trim() || w.streamed.trim());
-        const errMsg = ev.is_error ? (ev.result || 'request failed') : (replyText ? null : 'Empty response');
+        // THE CLAUDE LIMIT IS NOT AN ANSWER. On 25 Sep at 10:12 his Coach
+        // question came back as "You've hit your session limit · resets 11am
+        // (Australia/Melbourne)", shown in Coach's own bubble, twice, and he
+        // retyped the question at 11:01. It is a state of the account, said
+        // plainly, and his question is handed back (the client's onError).
+        const limit = usageLimitNotice(ev.result || w.streamed);
+        const replyText = ev.is_error || limit ? null : ((ev.result || '').trim() || w.streamed.trim());
+        const errMsg = limit || (ev.is_error ? (ev.result || 'request failed') : (replyText ? null : 'Empty response'));
+        if (limit) job.limited = true;
         w.currentJob = null;
         w.finishTurn = null;
         w.streamed = '';

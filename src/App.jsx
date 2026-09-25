@@ -8765,10 +8765,17 @@ export default class App extends Component {
               text: job.result.text, go: () => this.navigate('workouts', { trainTab: 'coach' }),
             });
           },
-          onError: (msg) => this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
+          // NO ANSWER MEANS HIS QUESTION COMES BACK. At Claude's usage limit
+          // (25 Sep, 10:12) his question vanished and he retyped it at 11:01;
+          // any failed turn now leaves it in the box, one tap from asking again.
+          onError: (msg) => this.setState((s) => ({
+            coachBusy: false,
+            coachInput: s.coachInput || q,
+            coachChat: [...s.coachChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: `${/^Claude's usage limit/.test(msg) ? msg : `Error: ${String(msg).replace(/[.\s]*$/, '.')}`} Your question is back in the box.` }],
+          })),
         });
       }).catch((e) => {
-        this.setState((s) => ({ coachBusy: false, coachChat: [...s.coachChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
+        this.setState((s) => ({ coachBusy: false, coachInput: s.coachInput || q, coachChat: [...s.coachChat, { at: Date.now(), who: 'system', text: `Error: ${String(e.message).replace(/[.\s]*$/, '.')} Your question is back in the box.` }] }));
       });
       return;
     }
