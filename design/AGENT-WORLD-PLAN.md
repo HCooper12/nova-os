@@ -716,6 +716,14 @@ in the same table. Nothing in the table plays a working tell.
 
 ### 9f · Build and cost
 
+**Built, 25 Sep (evening).** H: `src/agentWorld/habitat.js` + the sheet
+`design/mockups/50-habitat.html` (Opus agent; captures of every district by
+day, night and from behind, looked at and fixed), published for his
+judgment as https://claude.ai/artifact/52W7BD7VxYAgStjH28pAw9 (the hash
+API does not reach an artifact; the buttons do). L: `src/agentWorld/life.js`
++ 13 tests (Sonnet agent). I: in progress. The old fleet ring on Ops is gone
+(his call), each loop's state on the being's tap card.
+
 Three briefs, checked by capture, one build pass and one fix pass each:
 (H) `habitat.js` + a sheet page (`design/mockups/50-habitat.html`, captured by
 the agent-sheet instruments); (L) `life.js` + its tests, no THREE; (I) the
