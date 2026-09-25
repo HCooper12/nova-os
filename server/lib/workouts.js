@@ -156,6 +156,22 @@ export async function updateRoutine(vaultPath, exercises, routineId, { name, exe
   });
 }
 
+// Several routines' entries in ONE write. A move takes an exercise off one
+// routine and puts it on another; two separate writes could land half of it,
+// which is the state a move exists to make impossible (25 Sep 2026: his rope
+// extension was taken off Upper Body and never reached Push). All or nothing:
+// every change is validated on a copy before the file is touched.
+export async function updateRoutines(vaultPath, exercises, changes) {
+  const exercisesById = new Map(exercises.map((e) => [e.id, e]));
+  return withWriteLock(async () => {
+    let data = await getData(vaultPath);
+    for (const c of changes || []) data = replaceRoutineEntries(data, c.routineId, c.exercises, exercisesById);
+    await persist(vaultPath, data, exercisesById);
+    const ids = new Set((changes || []).map((c) => c.routineId));
+    return data.routines.filter((r) => ids.has(r.id)).map((r) => ({ id: r.id, name: r.name, exercises: r.exercises.map((e) => resolveExercise(e, exercisesById)) }));
+  });
+}
+
 export async function deleteRoutine(vaultPath, exercises, routineId) {
   const exercisesById = new Map(exercises.map((e) => [e.id, e]));
   return withWriteLock(async () => {

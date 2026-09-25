@@ -467,14 +467,74 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     // A Coach-proposed program change, applied deterministically on approve.
     // Undo restores the routine's EXACT prior exercise list.
     const { loadExerciseLibrary, addCustomExercise } = await import('./exercises.js');
-    const { loadRoutines, updateRoutine } = await import('./workouts.js');
+    const { loadRoutines, updateRoutine, updateRoutines } = await import('./workouts.js');
     let { exercises } = await loadExerciseLibrary(vaultPath);
     const { routines } = await loadRoutines(vaultPath, exercises);
     const routine = routines.find((r) => r.id === payload.routineId);
     if (!routine) throw new Error(`routine "${payload.routineName}" no longer exists`);
-    const priorEntries = routine.exercises.map((e) => ({
+    const entriesOf = (r) => r.exercises.map((e) => ({
       exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
     }));
+    const priorEntries = entriesOf(routine);
+    // WHERE SOMETHING LANDS, from the list as it is NOW: his own edits since
+    // the card was raised can shift numbers, so a card that says "after the
+    // incline bench" follows the incline bench, not the old number.
+    const landing = (list) => {
+      if (payload.afterName) {
+        const i = list.findIndex((e) => (exercises.find((x) => x.id === e.exerciseId)?.name || '').toLowerCase() === String(payload.afterName).toLowerCase());
+        if (i >= 0) return i + 1;
+      }
+      if (payload.position === 1) return 0;
+      return Number.isInteger(payload.position) ? Math.min(Math.max(0, payload.position - 1), list.length) : list.length;
+    };
+    // Coach PUT this exercise here — the plan says so until he undoes it (his
+    // ask: a change Coach made is visible in his plan), and the program review
+    // will not offer to cut it the same afternoon
+    const mark = async (routineId, exerciseId) => {
+      try {
+        const { addMarker } = await import('./coachPlan.js');
+        await addMarker(routineId, exerciseId, { why: String(payload.reason || '').slice(0, 200) || null });
+        return [`${routineId}:${exerciseId}`];
+      } catch { return []; }
+    };
+
+    // ONE CARD, TWO ROUTINES, ONE WRITE (see updateRoutines). Undo carries
+    // both prior lists.
+    if (payload.action === 'move') {
+      const from = routines.find((r) => r.id === payload.fromRoutineId);
+      if (!from) throw new Error(`routine "${payload.fromRoutineName}" no longer exists`);
+      const fromPrior = entriesOf(from);
+      const moving = fromPrior.find((e) => e.exerciseId === payload.removeExerciseId);
+      if (!moving) throw new Error(`${payload.removeName} is no longer in ${from.name}`);
+      if (priorEntries.some((e) => e.exerciseId === payload.removeExerciseId)) throw new Error(`${payload.removeName} is already in ${routine.name}`);
+      const nextFrom = fromPrior.filter((e) => e !== moving);
+      if (!nextFrom.length) throw new Error(`that would leave ${from.name} empty`);
+      const arriving = {
+        exerciseId: moving.exerciseId,
+        targetSets: payload.targetSets || moving.targetSets,
+        targetRepsLow: payload.targetRepsLow || moving.targetRepsLow,
+        targetRepsHigh: payload.targetRepsHigh || moving.targetRepsHigh,
+      };
+      const nextTo = [...priorEntries];
+      const at = landing(nextTo);
+      nextTo.splice(at, 0, arriving);
+      await updateRoutines(vaultPath, exercises, [
+        { routineId: from.id, exercises: nextFrom },
+        { routineId: routine.id, exercises: nextTo },
+      ]);
+      const markerKeys = await mark(routine.id, moving.exerciseId);
+      return {
+        destination: `Train — moved ${payload.removeName} from ${from.name} to ${routine.name}, number ${at + 1}`,
+        undo: {
+          route, routineId: routine.id, routineName: routine.name, priorEntries,
+          routines: [
+            { routineId: from.id, routineName: from.name, priorEntries: fromPrior },
+            { routineId: routine.id, routineName: routine.name, priorEntries },
+          ],
+          markerKeys,
+        },
+      };
+    }
     let addId = payload.addExerciseId;
     if ((payload.action === 'swap' || payload.action === 'add') && !addId) {
       const removed = routine.exercises.find((e) => e.exerciseId === payload.removeExerciseId);
@@ -499,7 +559,9 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     } else if (payload.action === 'swap') {
       next = priorEntries.map((e) => (e.exerciseId === payload.removeExerciseId ? entryFor(e) : e));
     } else if (payload.action === 'add') {
-      next = [...priorEntries, entryFor(null)];
+      if (priorEntries.some((e) => e.exerciseId === addId)) throw new Error(`${payload.addName} is already in ${routine.name}`);
+      next = [...priorEntries];
+      next.splice(landing(next), 0, entryFor(null));
     } else if (payload.action === 'remove') {
       next = priorEntries.filter((e) => e.exerciseId !== payload.removeExerciseId);
       if (!next.length) throw new Error('that would leave the routine empty — remove the routine itself from Train instead');
@@ -509,14 +571,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
         : e));
     }
     await updateRoutine(vaultPath, exercises, routine.id, { exercises: next });
+    const markerKeys = payload.action === 'add' || payload.action === 'swap' ? await mark(routine.id, addId) : [];
+    const addedAt = payload.action === 'add' ? next.findIndex((e) => e.exerciseId === addId) + 1 : null;
     const what = payload.action === 'reorder' ? `moved ${payload.removeName} to number ${payload.position}`
       : payload.action === 'swap' ? `swapped ${payload.removeName} → ${payload.addName}`
-      : payload.action === 'add' ? `added ${payload.addName}`
+      : payload.action === 'add' ? `added ${payload.addName}${addedAt ? `, number ${addedAt},` : ''}`
       : payload.action === 'remove' ? `removed ${payload.removeName}`
       : `retargeted ${payload.removeName}`;
     return {
       destination: `Train — ${what} in ${routine.name}`,
-      undo: { route, routineId: routine.id, routineName: routine.name, priorEntries },
+      undo: { route, routineId: routine.id, routineName: routine.name, priorEntries, ...(markerKeys.length ? { markerKeys } : {}) },
     };
   }
 
@@ -1049,9 +1113,21 @@ export async function undoFiling(vaultPath, undo) {
   }
   if (undo.route === 'routine-edit') {
     const { loadExerciseLibrary } = await import('./exercises.js');
-    const { updateRoutine } = await import('./workouts.js');
+    const { updateRoutine, updateRoutines } = await import('./workouts.js');
     const { exercises } = await loadExerciseLibrary(vaultPath);
+    const clear = async () => {
+      if (!undo.markerKeys?.length) return;
+      const { clearMarkers } = await import('./coachPlan.js');
+      await clearMarkers(undo.markerKeys).catch(() => {});
+    };
+    // a move changed two routines; both go back in the one write they came in
+    if (Array.isArray(undo.routines) && undo.routines.length) {
+      await updateRoutines(vaultPath, exercises, undo.routines.map((r) => ({ routineId: r.routineId, exercises: r.priorEntries })));
+      await clear();
+      return `restored ${undo.routines.map((r) => r.routineName).join(' and ')} to their prior exercise lists`;
+    }
     await updateRoutine(vaultPath, exercises, undo.routineId, { exercises: undo.priorEntries });
+    await clear();
     return `restored ${undo.routineName} to its prior exercise list`;
   }
   if (undo.route === 'schedule-edit') {

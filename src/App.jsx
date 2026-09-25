@@ -8697,12 +8697,15 @@ export default class App extends Component {
         : null;
       // a trailing PROPOSE line is a typed directive for the server, not
       // prose — keep it out of the streamed render
-      const stripDirective = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH|CONSULT)\s*(\{[\s\S]*)?$/, '');
+      const stripDirective = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH|CONSULT|WITHDRAW)\s*(\{[\s\S]*)?$/, '');
       // DISCUSSING A SUGGESTION (the deck's Discuss, 25 Sep): his words go to
       // Coach with the card they are about; the chat shows only what he typed
       const about = this.state.coachDiscuss ? this.coachSuggestionCards().find((c) => c.id === this.state.coachDiscuss) : null;
+      // A revised change REPLACES the card: Coach takes its own card back
+      // (WITHDRAW, lib/coachProposals.js) instead of leaving him to turn it
+      // down — "Turn down both pending curl cards" was his chore on 25 Sep.
       const sendQ = about
-        ? `[He is talking about one of your suggested changes, still waiting on his answer in Train: "${about.headline}"${about.routine ? ` (${about.routine.name})` : ''}${about.why ? ` — your reason: "${about.why}"` : ''}. Answer him about it. If you would now change it, PROPOSE the revised change as a new card and tell him he can turn the old one down.]\n\n${q}`
+        ? `[He is talking about one of your suggested changes, still waiting on his answer in Train: card ${about.id}, "${about.headline}"${about.routine ? ` (${about.routine.name})` : ''}${about.why ? ` — your reason: "${about.why}"` : ''}. Answer him about it. If you would now change it, PROPOSE the revised change and end with WITHDRAW {"ids":["${about.id}"]} to take this card back yourself; never ask him to turn it down.]\n\n${q}`
         : q;
       this.flushAttachments(conn).then((attachmentId) => api.askCoach(conn, sendQ, this.state.coachSessionId || null, liveSession, attachmentId)).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {
@@ -8752,8 +8755,10 @@ export default class App extends Component {
               // every change Coach proposed, each its own card (coach.js parseCoachProposals)
               proposals: job.result.proposals?.length > 1 ? job.result.proposals.map((p) => ({ ...p, status: p.status || 'open' })) : undefined,
             }, { coachBusy: false });
-            if (job.result.proposal) this.refreshInbox();
-            if (job.result.proposal?.status === 'done') this.refreshLiveData(); // the program changed under him — redraw it
+            // new cards, or Coach taking one back: the deck redraws either way
+            if (job.result.proposal || job.result.withdrawn?.length) this.refreshInbox();
+            // the program changed under him (an instructed change applied) — redraw it
+            if ((job.result.proposals || [job.result.proposal]).some((p) => p?.status === 'done')) this.refreshLiveData();
             this.announceAway({
               here: this.state.screen === 'workouts' && this.state.trainTab === 'coach',
               title: job.result.proposal ? 'Coach answered, with a change to look at' : 'Coach answered',

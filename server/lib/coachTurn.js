@@ -30,7 +30,8 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
     const fresh = await coachLiveLine(vaultPath).catch(() => '');
     const preamble = [fresh, live ? `[${live}]` : ''].filter(Boolean).join('\n');
     const q = preamble ? `${preamble}\n\n${question}` : question;
-    return startAskCoach(vaultPath, { question: q, sessionId });
+    // `asked` is his question alone — the text his cards carry, never the preamble
+    return startAskCoach(vaultPath, { question: q, asked: question, sessionId });
   }
       const parts = [];
       const failures = []; // a vanished section must be NAMED, never silent
@@ -88,7 +89,15 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         const { routines, schedule } = await loadRoutines(vaultPath, exercises);
         const progressions = await computeProgressions(vaultPath, routines).catch(() => ({}));
         const keys = Object.keys(progressions);
-        parts.push(`Routines: ${routines.map((r) => r.name).join(', ') || 'none'}. Schedule: ${JSON.stringify(schedule)}.`);
+        // the full listing (every exercise, in order, with its muscle), and
+        // Coach's cards — the same two blocks every resumed turn carries
+        try {
+          const { programContext, coachCardsContext } = await import('./coach.js');
+          parts.push(await programContext(vaultPath));
+          parts.push(await coachCardsContext());
+        } catch {
+          parts.push(`Routines: ${routines.map((r) => r.name).join(', ') || 'none'}. Schedule: ${JSON.stringify(schedule)}.`);
+        }
         const stepKeys = keys.filter((k) => progressions[k].kind !== 'outgrown');
         const outgrownKeys = keys.filter((k) => progressions[k].kind === 'outgrown');
         // A QUALITY HOLD IS NOT A "+0 REP PROGRESSION". Entries come back as

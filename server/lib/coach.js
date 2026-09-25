@@ -345,6 +345,70 @@ export function computeDeloadSignal(healthDays) {
   return { advise: false, reason: 'recovery trend looks steady' };
 }
 
+// HIS PROGRAM AS CODE READS IT, EVERY TURN (25 Sep 2026). His Coach
+// conversation runs for days; a resumed turn carried the date and his
+// recovery but not the program, so between his edits Coach reasoned from
+// memory: it grepped for exercise ids, missed that its own add had never
+// landed, and counted his sets in its head. This is the one listing both a
+// new and a resumed turn get: every routine in the order of his week, every
+// exercise in session order with its prescription and the muscle his library
+// files it under, and the split the proposal check holds suggestions to.
+export async function programContext(vaultPath) {
+  const { loadExerciseLibrary } = await import('./exercises.js');
+  const { loadRoutines, WEEKDAYS, ACTIVE_REST } = await import('./workouts.js');
+  const { exercises } = await loadExerciseLibrary(vaultPath);
+  const { routines, schedule } = await loadRoutines(vaultPath, exercises);
+  if (!routines.length) return 'HIS PROGRAM NOW: no routines are set up in Train yet.';
+  const SHORT = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+  const reps = (e) => (e.targetRepsLow && e.targetRepsHigh && e.targetRepsLow !== e.targetRepsHigh ? `${e.targetRepsLow}–${e.targetRepsHigh}` : `${e.targetRepsLow || e.targetRepsHigh || '?'}`);
+  const daysOf = (id) => WEEKDAYS.filter((d) => schedule?.[d] === id).map((d) => SHORT[d]);
+  const ordered = [...routines].sort((a, b) => {
+    const rank = (r) => { const i = WEEKDAYS.findIndex((d) => schedule?.[d] === r.id); return i < 0 ? 99 : i; };
+    return rank(a) - rank(b);
+  });
+  const lines = ordered.map((r) => {
+    const days = daysOf(r.id);
+    const sets = r.exercises.reduce((n, e) => n + (Number(e.targetSets) || 0), 0);
+    const list = r.exercises.map((e, i) => `${i + 1} ${e.name} ${e.targetSets}×${reps(e)} (${e.muscleGroup || 'unfiled'})`).join(' · ');
+    return `${days.length ? days.join('+') : 'not scheduled'} ${r.name} [${sets} sets]: ${list}`;
+  });
+  const off = WEEKDAYS.filter((d) => !schedule?.[d] || schedule[d] === ACTIVE_REST)
+    .map((d) => `${SHORT[d]} ${schedule?.[d] === ACTIVE_REST ? 'active rest' : 'rest'}`);
+  const split = splitRulesLine(routines);
+  return `HIS PROGRAM NOW (read from his Workout Routines page this turn; it supersedes anything earlier in this conversation, including what you proposed — check here before you say a change landed):\n${lines.join('\n')}${off.length ? `\n${off.join(' · ')}` : ''}${split ? `\n${split}` : ''}`;
+}
+
+// YOUR CARDS, AS THE RECORD HAS THEM (25 Sep 2026). Coach told him to
+// "approve the first four cards" when two existed, and to turn down cards it
+// could have taken back itself. It now sees, every turn, what is waiting on
+// him (with the id WITHDRAW needs) and what he did with the rest.
+export async function coachCardsContext({ now = Date.now(), records = null } = {}) {
+  const { COACH_ROUTES } = await import('../../src/coachSuggestions.js');
+  const all = records || (await (await import('./inboxStore.js')).listRecords());
+  const mine = all.filter((r) => r.kind === 'coach-program' || COACH_ROUTES.includes(r.decision?.route));
+  const title = (r) => {
+    if (r.decision?.title) return r.decision.title.replace(/^Coach:\s*/, '');
+    const line = String(r.originalText || r.text || '').replace(/^Coach:\s*/, '');
+    return `program review: ${line.split(/(?<=[.!?])\s/)[0].slice(0, 140)}`;
+  };
+  const at = (iso) => new Date(iso).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const waiting = mine.filter((r) => r.status === 'pending');
+  const dayAgo = now - 86_400_000;
+  const answeredAt = (r) => r.filedAt || r.discardedAt || r.undoneAt || r.withdrawnAt || null;
+  const answered = mine.filter((r) => r.status !== 'pending' && answeredAt(r) && Date.parse(answeredAt(r)) >= dayAgo)
+    .sort((a, b) => Date.parse(answeredAt(a)) - Date.parse(answeredAt(b)));
+  const verb = (r) => (r.status === 'filed' ? (r.instructed ? 'applied on his word' : 'he approved')
+    : r.status === 'undone' ? 'he approved, then undid'
+      : r.status === 'withdrawn' ? 'you took it back'
+        : r.expired ? 'expired unanswered' : `he turned it down${r.declineReason ? ` ("${r.declineReason}")` : ''}`);
+  const bits = [];
+  bits.push(waiting.length
+    ? `waiting on him: ${waiting.map((r) => `[${r.id}] ${title(r)}`).join(' · ')}`
+    : 'nothing of yours is waiting on him');
+  if (answered.length) bits.push(`answered in the last day: ${answered.map((r) => `${at(answeredAt(r))} ${verb(r)}: ${title(r)}`).join(' · ')}`);
+  return `YOUR CARDS (the record, not your memory):\n${bits.join('\n')}${waiting.length ? '\nTo take back a waiting card, end with WITHDRAW {"ids":["<id>"]} on its own line.' : ''}`;
+}
+
 // The live line for RESUMED coach turns — the same fix the spoken lane got.
 // A conversation persisted in localStorage indefinitely kept reasoning off
 // the context computed on turn ONE (possibly weeks old) under a prompt that
@@ -416,7 +480,14 @@ export async function coachLiveLine(vaultPath) {
       ? `progression now: ${count('weight') + count('reps') + count('outgrown')} step${count('weight') + count('reps') + count('outgrown') === 1 ? '' : 's'} earned, ${count('quality')} held for quality`
       : 'progression now: nothing earned or held');
   } catch { bits.push('progression state FAILED to compute this turn'); }
-  return `LIVE UPDATE (recomputed this turn — supersedes earlier numbers in this conversation): ${bits.join('; ')}.`;
+  // His program and Coach's own cards, as the record has them. Joined with
+  // single newlines on purpose: the whole preamble stays ONE paragraph, which
+  // is how agentSessions.cleanTurnText knows it is plumbing, not his words.
+  const blocks = [];
+  try { blocks.push(await programContext(vaultPath)); } catch { blocks.push('HIS PROGRAM FAILED to load this turn — read Wiki/Health/Workout Routines.md before proposing anything'); }
+  try { blocks.push(await coachCardsContext()); } catch { blocks.push('YOUR CARDS FAILED to load this turn'); }
+  return [`LIVE UPDATE (recomputed this turn — supersedes earlier numbers in this conversation): ${bits.join('; ')}.`, ...blocks]
+    .join('\n').replace(/\n{2,}/g, '\n');
 }
 
 /* --------------------------- quick sessions ------------------------------ */
@@ -682,20 +753,186 @@ export function parseCoachProposals(text) {
   const src = String(text || '');
   const proposals = [];
   const parseErrors = [];
+  // the unreadable lines themselves, so a refusal can be shown to the Coach
+  // that wrote them (coachProposals.js), not just counted
+  const badLines = [];
   let cleanText = src;
   for (const m of src.matchAll(/^\s*PROPOSE\s+(\{.*\})\s*$/gm)) {
     cleanText = cleanText.replace(m[0], '');
-    try { proposals.push(JSON.parse(m[1])); } catch { parseErrors.push('a proposal block was not valid JSON'); }
+    try { proposals.push(JSON.parse(m[1])); } catch {
+      parseErrors.push('a proposal block was not valid JSON');
+      badLines.push({ line: m[0].trim(), why: 'not valid JSON' });
+    }
   }
   // a PROPOSE line in prose ("PROPOSE swap: X → Y") is caught, stripped and named
   for (const m of cleanText.matchAll(/^\s*PROPOSE\b.*$/gm)) {
     cleanText = cleanText.replace(m[0], '');
     parseErrors.push('a PROPOSE line was prose, not the typed JSON form');
+    badLines.push({ line: m[0].trim(), why: 'prose, not the typed JSON form' });
   }
-  return { cleanText: cleanText.replace(/\n{3,}/g, '\n\n').trim(), proposals, parseErrors };
+  return { cleanText: cleanText.replace(/\n{3,}/g, '\n\n').trim(), proposals, parseErrors, badLines };
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'reorder', 'schedule'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'reorder', 'schedule', 'move'];
+
+// THE FIELDS COACH ACTUALLY WRITES (25 Sep 2026). Between 11:01 and 11:26 that
+// morning six of his twelve PROPOSE lines were refused and never became cards:
+// every "add" named its exercise in `exercise` (the field remove, targets and
+// reorder all use) while this validator read only `add`. The refusal was
+// tacked on after the reply, Coach never saw it, and it went on telling him to
+// approve cards that did not exist. The model's intent was never in doubt, so
+// the field it reached for is accepted, the same stance the glass takes
+// (src/visualBeats.js normaliseSpec). Nothing is guessed: a name still has to
+// match his library or routine exactly, or loosely and uniquely.
+const ACTION_ALIASES = { drop: 'remove', delete: 'remove', retarget: 'targets', relocate: 'move', insert: 'add', replace: 'swap' };
+export function normaliseProposal(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
+  const p = { ...raw };
+  const a = String(p.action || '').trim().toLowerCase();
+  p.action = ACTION_ALIASES[a] || a;
+  const str = (v) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  const first = (...keys) => keys.map((k) => str(p[k])).find(Boolean) || '';
+  if (p.action === 'add') p.add = first('add', 'exercise', 'name', 'exerciseName');
+  if (p.action === 'swap') {
+    p.remove = first('remove', 'exercise', 'replace', 'out');
+    p.add = first('add', 'with', 'replacement', 'in');
+  }
+  if (['remove', 'targets', 'reorder', 'tune', 'resource', 'remap'].includes(p.action) && !str(p.exercise)) p.exercise = first('remove', 'name', 'exerciseName');
+  if (p.action === 'move') {
+    p.exercise = first('exercise', 'name', 'exerciseName', 'remove', 'add');
+    const from = first('from', 'fromRoutine', 'source');
+    const to = first('to', 'toRoutine', 'destination');
+    // "routine" is whichever end the model did not name
+    p.from = from || (to ? str(p.routine) : '');
+    p.to = to || (from ? str(p.routine) : '');
+  }
+  return p;
+}
+
+// WHAT A ROUTINE'S NAME PROMISES (25 Sep 2026). In one conversation Coach put a
+// curl on his Push day twice, and he had to tell it: "The bicep curls are a
+// pull exercise so it wouldn't make sense on a push day. You are failing with
+// your expertise you are meant to have." A split is his structure, and the
+// muscle an exercise trains is in his library, so whether a placement fits is
+// a fact code can check before a card is drawn. Only Coach's own SUGGESTIONS
+// are held to it: if he tells Coach to put curls on Push, that is his call.
+// Shoulders sit on both push and pull days, because the library files rear
+// and side delts under one group and face pulls belong on either.
+export const SPLIT_DAYS = [
+  { match: /\bpush\b/i, day: 'a push day', muscles: ['Chest', 'Shoulders', 'Triceps'] },
+  { match: /\bpull\b/i, day: 'a pull day', muscles: ['Back', 'Biceps', 'Forearms', 'Shoulders'] },
+  { match: /\b(legs?|lower)\b/i, day: 'a leg day', muscles: ['Quads', 'Hamstrings', 'Glutes', 'Calves'] },
+  { match: /\bupper\b/i, day: 'an upper-body day', muscles: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms'] },
+];
+const ANY_DAY = new Set(['Abs', 'Mobility', 'Full Body', 'Other']); // work that belongs to no one day
+export function splitOf(routineName) {
+  return SPLIT_DAYS.find((s) => s.match.test(String(routineName || ''))) || null;
+}
+export function splitMisfit(routineName, muscleGroup) {
+  const split = splitOf(routineName);
+  if (!split || !muscleGroup || ANY_DAY.has(muscleGroup)) return null;
+  return split.muscles.includes(muscleGroup) ? null : split;
+}
+// His split in one sentence, for the prompt and the per-turn picture — built
+// from the same table the check uses, so the two can never disagree.
+export function splitRulesLine(routines = []) {
+  const rows = routines.map((r) => ({ name: r.name, split: splitOf(r.name) })).filter((x) => x.split);
+  if (!rows.length) return '';
+  return `HIS SPLIT (code refuses a suggestion that breaks it): ${rows.map((x) => `${x.name} holds ${x.split.muscles.join(', ')}`).join('; ')}; abs and mobility fit any day.`;
+}
+
+// A refusal Coach can act on. `substance` means the change itself was wrong
+// for him (it breaks his split, duplicates, empties a routine, changes
+// nothing), so the reply built on it has to change too; anything else is a
+// wording fault the card can be fixed from.
+function refuse(message, kind = 'format') {
+  const e = new Error(message);
+  e.kind = kind;
+  return e;
+}
+
+// Compare names the way he reads them: case, hyphens and brackets aside.
+const nameKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+// ONE NAME, ONE THING, or say which. An empty name used to match everything
+// ("".includes is always true), so a remove that named no exercise quietly
+// took the routine's FIRST one; and a loose name became whichever match came
+// first. Exact wins; a single loose match is that match; several is a
+// question sent back to Coach, never a guess.
+function pickNamed(list, name, nameOf, where) {
+  const want = nameKey(name);
+  if (!want) return null;
+  const exact = list.find((x) => nameKey(nameOf(x)) === want);
+  if (exact) return exact;
+  const loose = list.filter((x) => {
+    const k = nameKey(nameOf(x));
+    return k && (k.includes(want) || want.includes(k));
+  });
+  if (loose.length > 1) throw refuse(`"${name}" fits ${loose.length} in ${where} (${loose.slice(0, 5).map(nameOf).join(', ')}) — use the exact name`);
+  return loose[0] || null;
+}
+
+// WHERE IT GOES (25 Sep 2026). Coach told him to do the rope extension
+// "straight after the incline bench", but an add could only append, so it
+// landed last and he moved it by hand ("You didn't place it in the spot you
+// suggested it go on the push day, which is another failure. I have fixed
+// it"). A place is a number, "first", "last", or after/before an exercise
+// already there. `list` is what it will sit among; the answer is its 1-based
+// position in the finished list.
+function placementOf(raw, list, where, { required = false } = {}) {
+  const max = list.length + 1;
+  let after = typeof raw.after === 'string' ? raw.after : '';
+  let before = typeof raw.before === 'string' ? raw.before : '';
+  let pos = raw.position;
+  if (pos && typeof pos === 'object') { after = after || String(pos.after || ''); before = before || String(pos.before || ''); pos = null; }
+  if (typeof pos === 'string') {
+    const s = pos.trim();
+    const rel = s.match(/^(after|before)\s+(.+)$/i);
+    if (rel) { if (/^after/i.test(rel[1])) after = rel[2]; else before = rel[2]; pos = null; }
+    else if (/^(first|top|start)$/i.test(s)) pos = 1;
+    else if (/^(last|end|bottom)$/i.test(s)) pos = max;
+    else if (/^\d+$/.test(s)) pos = Number(s);
+    else if (s) throw refuse(`position "${s}" isn't a place in ${where} — use "first", "last", a number, or "after": an exercise in ${where}`);
+    else pos = null;
+  }
+  if (after.trim() || before.trim()) {
+    const anchor = pickNamed(list, after || before, (e) => e.name, where);
+    if (!anchor) throw refuse(`"${after || before}" isn't in ${where} (it has: ${list.map((e) => e.name).join(', ')})`);
+    const i = list.indexOf(anchor);
+    return after.trim() ? i + 2 : i + 1;
+  }
+  if (pos == null || pos === '') {
+    if (required) throw refuse(`say where it goes: "position" "first", "last", 1–${max}, or "after": an exercise in ${where}`);
+    return max;
+  }
+  const k = Math.round(Number(pos));
+  if (!Number.isInteger(k) || k < 1 || k > max) throw refuse(`position must be "first", "last", 1–${max}, or "after": an exercise in ${where}`);
+  return k;
+}
+
+// The same place, said the way the card says it, and stored the way the
+// apply reads it: `afterName` follows that exercise even if his own edits
+// have shifted the numbers since; the end of the list is no number at all
+// (position null), so it stays the end.
+function placeLabel(pos, list) {
+  if (pos > list.length) return { text: '', afterName: null, position: null };
+  if (pos <= 1) return { text: ', first', afterName: null, position: 1 };
+  return { text: `, after ${list[pos - 2].name}`, afterName: list[pos - 2].name, position: pos };
+}
+
+const targetsPhrase = (p) => {
+  const reps = p.targetRepsLow && p.targetRepsHigh ? (p.targetRepsLow === p.targetRepsHigh ? `${p.targetRepsLow}` : `${p.targetRepsLow}–${p.targetRepsHigh}`) : p.targetRepsLow || p.targetRepsHigh || null;
+  if (p.targetSets && reps) return `${p.targetSets} × ${reps}`;
+  if (p.targetSets) return `${p.targetSets} sets`;
+  return reps ? `${reps} reps` : '';
+};
+
+// Two cards that ask the same thing are one card. Coach re-sends a change it
+// thinks was lost; he should not be pushed twice for it.
+export function proposalKey(route, p = {}) {
+  return [route, p.action, p.routineId, p.fromRoutineId, p.removeExerciseId, p.addExerciseId || nameKey(p.addName), p.position,
+    p.day, p.exerciseId, p.muscleGroup, p.targetSets, p.targetRepsLow, p.targetRepsHigh, p.area, p.metric, p.insight, p.url].map((x) => (x == null ? '' : String(x))).join('|');
+}
 
 // HOW COACH'S EDITS FILE. `direct: true` — his standing grant, given more
 // than once ("just do it when I tell you") — means a change HE INSTRUCTED
@@ -727,11 +964,13 @@ export async function setCoachEditConfig(patch) {
   return next;
 }
 
-export async function validateCoachEdit(vaultPath, raw) {
+export async function validateCoachEdit(vaultPath, rawIn) {
   const { loadExerciseLibrary } = await import('./exercises.js');
   const { loadRoutines } = await import('./workouts.js');
-  const action = String(raw?.action || '').toLowerCase();
-  if (!EDIT_ACTIONS.includes(action)) throw new Error(`unknown action "${raw?.action}"`);
+  const raw = normaliseProposal(rawIn) || {};
+  const action = String(raw.action || '').toLowerCase();
+  if (!EDIT_ACTIONS.includes(action)) throw refuse(`unknown action "${rawIn?.action}" (actions: ${EDIT_ACTIONS.join(', ')})`);
+  const instructed = raw.instructed === true;
 
   const { exercises } = await loadExerciseLibrary(vaultPath);
   const { routines } = await loadRoutines(vaultPath, exercises);
@@ -761,9 +1000,8 @@ export async function validateCoachEdit(vaultPath, raw) {
   // too big") becomes standing behaviour instead of a remark.
   if (action === 'tune') {
     const name = String(raw.exercise || '').trim();
-    const lib = exercises.find((e) => ci(e.name) === ci(name))
-      || exercises.find((e) => ci(e.name).includes(ci(name)) || ci(name).includes(ci(e.name)));
-    if (!lib) throw new Error(`no exercise called "${name}" in his library`);
+    const lib = pickNamed(exercises, name, (e) => e.name, 'his exercise library');
+    if (!lib) throw refuse(name ? `no exercise called "${name}" in his library` : 'a tune names the exercise it tunes');
     const stepKg = Number.isFinite(Number(raw.stepKg)) && Number(raw.stepKg) > 0 && Number(raw.stepKg) <= 20 ? Number(raw.stepKg) : null;
     const repStep = Number.isInteger(Number(raw.repStep)) && Number(raw.repStep) >= 1 && Number(raw.repStep) <= 5 ? Number(raw.repStep) : null;
     const hold = raw.hold === true;
@@ -796,9 +1034,8 @@ export async function validateCoachEdit(vaultPath, raw) {
   // still his call, like every write.
   if (action === 'resource') {
     const name = String(raw.exercise || '').trim();
-    const lib = exercises.find((e) => ci(e.name) === ci(name))
-      || exercises.find((e) => ci(e.name).includes(ci(name)) || ci(name).includes(ci(e.name)));
-    if (!lib) throw new Error(`no exercise called "${name}" in his library`);
+    const lib = pickNamed(exercises, name, (e) => e.name, 'his exercise library');
+    if (!lib) throw refuse(name ? `no exercise called "${name}" in his library` : 'a resource names the exercise it is for');
     const url = String(raw.url || '').trim();
     if (!/^https?:\/\//.test(url)) throw new Error('a resource needs an http(s) url');
     const cues = String(raw.cues || '').trim().slice(0, 300);
@@ -874,28 +1111,71 @@ export async function validateCoachEdit(vaultPath, raw) {
     };
   }
 
-  const routine = routines.find((r) => ci(r.name) === ci(raw.routine))
-    || routines.find((r) => ci(r.name).includes(ci(raw.routine)) || ci(raw.routine).includes(ci(r.name)));
-  if (!routine) throw new Error(`no routine called "${raw.routine}" (have: ${routines.map((r) => r.name).join(', ')})`);
-
-  const findInRoutine = (name) => routine.exercises.find((e) => ci(e.name) === ci(name))
-    || routine.exercises.find((e) => ci(e.name).includes(ci(name)) || ci(name).includes(ci(e.name)));
-  const findInLibrary = (name) => exercises.find((e) => ci(e.name) === ci(name))
-    || exercises.find((e) => ci(e.name).includes(ci(name)) || ci(name).includes(ci(e.name)));
-
-  const payload = { action, routineId: routine.id, routineName: routine.name, reason: String(raw.reason || '').slice(0, 300) };
+  // ROUTINE-LEVEL CHANGES: add, remove, swap, targets, reorder, move.
+  const { MUSCLE_GROUPS } = await import('./exercises.js');
+  const MUSCLE_GROUP_SET = new Set(MUSCLE_GROUPS);
+  const haveRoutines = routines.map((r) => r.name).join(', ');
+  const findRoutine = (name, role = 'routine') => {
+    if (!nameKey(name)) throw refuse(`name the ${role} (have: ${haveRoutines})`);
+    const r = pickNamed(routines, name, (x) => x.name, 'his routines');
+    if (!r) throw refuse(`no routine called "${name}" (have: ${haveRoutines})`);
+    return r;
+  };
+  // an exercise that should be in this routine — and, when it is not, where it is
+  const inRoutine = (r, name) => {
+    if (!nameKey(name)) throw refuse(`the proposal names no exercise in ${r.name} (it has: ${r.exercises.map((e) => e.name).join(', ')})`);
+    const e = pickNamed(r.exercises, name, (x) => x.name, r.name);
+    if (e) return e;
+    const elsewhere = routines.filter((x) => x.id !== r.id && x.exercises.some((y) => nameKey(y.name) === nameKey(name))).map((x) => x.name);
+    throw refuse(`"${name}" isn't in ${r.name} (it has: ${r.exercises.map((x) => x.name).join(', ')})${elsewhere.length ? `; it is in ${elsewhere.join(' and ')}` : ''}`);
+  };
+  const fromLibrary = (name) => pickNamed(exercises, name, (e) => e.name, 'his exercise library');
+  const splitRefusal = (exName, muscle, routineName, split) => {
+    const homes = routines.filter((r) => !splitMisfit(r.name, muscle)).map((r) => r.name);
+    return refuse(`${exName} trains ${muscle}, and ${routineName} is ${split.day} (${split.muscles.join(', ')}), so suggesting it there breaks his split${homes.length ? `; ${muscle} work belongs on ${homes.join(' or ')}` : ''}. Only if HE asked for exactly this placement, send it with "instructed":true`, 'substance');
+  };
   const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : d);
+  const reason = String(raw.reason || '').slice(0, 300);
+
+  // "move" takes ONE exercise off one routine and puts it on another, as ONE
+  // card (25 Sep 2026). A move used to be a remove card plus an add card: he
+  // said yes to the remove, the add had been refused, and his rope extension
+  // was simply gone, three tricep sets short. The card read "Drop Cable
+  // Lateral Raise" for a move, too, and he pushed back on losing an exercise
+  // Coach was only relocating. One yes moves it; one undo puts both back.
+  if (action === 'move') {
+    const from = findRoutine(raw.from, 'routine it moves from');
+    const to = findRoutine(raw.to, 'routine it moves to');
+    if (from.id === to.id) throw refuse(`${from.name} to ${to.name} is the same routine; use "reorder" to change its place in the order`, 'substance');
+    const target = inRoutine(from, raw.exercise);
+    if (to.exercises.some((e) => e.exerciseId === target.exerciseId)) throw refuse(`${target.name} is already in ${to.name}, so a move would list it twice there; to take it off ${from.name} only, use "remove"`, 'substance');
+    if (from.exercises.length === 1) throw refuse(`${target.name} is the only exercise in ${from.name}; moving it would leave that routine empty`, 'substance');
+    const misfit = !instructed && splitMisfit(to.name, target.muscleGroup);
+    if (misfit) throw splitRefusal(target.name, target.muscleGroup, to.name, misfit);
+    const place = placeLabel(placementOf(raw, to.exercises, to.name), to.exercises);
+    const payload = {
+      action, routineId: to.id, routineName: to.name, fromRoutineId: from.id, fromRoutineName: from.name,
+      removeExerciseId: target.exerciseId, removeName: target.name, muscleGroup: target.muscleGroup || null,
+      position: place.position, afterName: place.afterName,
+      targetSets: num(raw.targetSets, target.targetSets), targetRepsLow: num(raw.targetRepsLow, target.targetRepsLow), targetRepsHigh: num(raw.targetRepsHigh, target.targetRepsHigh),
+      reason,
+    };
+    const retargeted = payload.targetSets !== target.targetSets || payload.targetRepsLow !== target.targetRepsLow || payload.targetRepsHigh !== target.targetRepsHigh;
+    return { payload, title: `Coach: move ${target.name} from ${from.name} to ${to.name}${place.text}${retargeted ? `, at ${targetsPhrase(payload)}` : ''}` };
+  }
+
+  const routine = findRoutine(raw.routine);
+  const payload = { action, routineId: routine.id, routineName: routine.name, reason };
 
   // "reorder" moves ONE exercise to a position ("put incline bench first" —
   // his own note said it fatigued him done later). Undo restores the list.
   if (action === 'reorder') {
-    const target = findInRoutine(raw.exercise || raw.remove);
-    if (!target) throw new Error(`"${raw.exercise || raw.remove}" isn't in ${routine.name} (it has: ${routine.exercises.map((e) => e.name).join(', ')})`);
+    const target = inRoutine(routine, raw.exercise || raw.remove);
     const n = routine.exercises.length;
-    const pos = raw.position === 'first' ? 1 : raw.position === 'last' ? n : Math.round(Number(raw.position));
-    if (!Number.isInteger(pos) || pos < 1 || pos > n) throw new Error(`position must be "first", "last" or 1–${n}`);
+    const others = routine.exercises.filter((e) => e.exerciseId !== target.exerciseId);
+    const pos = placementOf(raw, others, routine.name, { required: true });
     const current = routine.exercises.findIndex((e) => e.exerciseId === target.exerciseId) + 1;
-    if (current === pos) throw new Error(`${target.name} is already number ${pos} in ${routine.name}`);
+    if (current === pos) throw refuse(`${target.name} is already number ${pos} in ${routine.name}`, 'substance');
     payload.removeExerciseId = target.exerciseId;
     payload.removeName = target.name;
     payload.position = pos;
@@ -903,24 +1183,46 @@ export async function validateCoachEdit(vaultPath, raw) {
   }
 
   if (action === 'swap' || action === 'remove' || action === 'targets') {
-    const target = findInRoutine(raw.remove || raw.exercise);
-    if (!target) throw new Error(`"${raw.remove || raw.exercise}" isn't in ${routine.name} (it has: ${routine.exercises.map((e) => e.name).join(', ')})`);
+    const target = inRoutine(routine, raw.remove || raw.exercise);
     payload.removeExerciseId = target.exerciseId;
     payload.removeName = target.name;
+    if (action === 'remove' && routine.exercises.length === 1) throw refuse(`${target.name} is the only exercise in ${routine.name}; removing it would leave the routine empty`, 'substance');
+    payload.removeMuscle = target.muscleGroup || null;
   }
   if (action === 'swap' || action === 'add') {
     const addName = String(raw.add || '').trim();
-    if (!addName) throw new Error('the proposal names no exercise to add');
-    const lib = findInLibrary(addName);
+    if (!addName) throw refuse(`the proposal names no exercise to ${action === 'add' ? 'add' : 'swap in'}; put its exact name in "add"`);
+    const lib = fromLibrary(addName);
+    const group = lib ? lib.muscleGroup : (MUSCLE_GROUP_SET.has(raw.muscleGroup) ? raw.muscleGroup : null);
+    if (action === 'add' && !lib && !group) throw refuse(`"${addName}" isn't in his exercise library; to add a new exercise, give its "muscleGroup" (one of: ${[...MUSCLE_GROUP_SET].join(', ')})`);
+    if (lib && lib.id === payload.removeExerciseId) throw refuse(`that swaps ${lib.name} for itself`, 'substance');
+    const already = lib ? routine.exercises.findIndex((e) => e.exerciseId === lib.id) : -1;
+    if (already >= 0) throw refuse(`${lib.name} is already in ${routine.name} (number ${already + 1})`, 'substance');
+    const incoming = group || (action === 'swap' ? payload.removeMuscle : null);
+    const misfit = !instructed && incoming !== payload.removeMuscle && splitMisfit(routine.name, incoming);
+    if (misfit) throw splitRefusal(lib ? lib.name : addName, incoming, routine.name, misfit);
     payload.addExerciseId = lib ? lib.id : null; // null → created at approve time
     payload.addName = lib ? lib.name : addName.slice(0, 80);
-    payload.muscleGroup = lib ? lib.muscleGroup : (raw.muscleGroup || null);
+    payload.muscleGroup = incoming || null;
     payload.trackingType = lib ? lib.trackingType : (raw.trackingType || null);
+  }
+  delete payload.removeMuscle;
+  let place = null;
+  if (action === 'add') {
+    place = placeLabel(placementOf(raw, routine.exercises, routine.name), routine.exercises);
+    payload.position = place.position;
+    payload.afterName = place.afterName;
   }
   if (action !== 'remove') {
     payload.targetSets = num(raw.targetSets, null);
     payload.targetRepsLow = num(raw.targetRepsLow, null);
     payload.targetRepsHigh = num(raw.targetRepsHigh, null);
+  }
+  if (action === 'targets') {
+    if (!payload.targetSets && !payload.targetRepsLow && !payload.targetRepsHigh) throw refuse('a retarget needs targetSets, targetRepsLow or targetRepsHigh');
+    const now = routine.exercises.find((e) => e.exerciseId === payload.removeExerciseId);
+    const same = (k) => !payload[k] || payload[k] === now[k];
+    if (same('targetSets') && same('targetRepsLow') && same('targetRepsHigh')) throw refuse(`${now.name} in ${routine.name} is already ${targetsPhrase(now)}`, 'substance');
   }
 
   // a decision card says WHAT changes — "retarget Carter Extension" alone
@@ -933,24 +1235,43 @@ export async function validateCoachEdit(vaultPath, raw) {
     return '';
   };
   const title = action === 'swap' ? `Coach: swap ${payload.removeName} → ${payload.addName} in ${routine.name}`
-    : action === 'add' ? `Coach: add ${payload.addName} to ${routine.name}`
+    : action === 'add' ? `Coach: add ${payload.addName} to ${routine.name}${place.text}`
     : action === 'remove' ? `Coach: remove ${payload.removeName} from ${routine.name}`
     : `Coach: retarget ${payload.removeName} in ${routine.name}${targetText(payload)}`;
   return { payload, title };
 }
 
+// Which rails an action's card rides. A move, like an add or a swap, is a
+// routine edit.
+export function routeForAction(action) {
+  return action === 'remap' ? 'exercise-remap'
+    : action === 'tune' ? 'progression-tune'
+      : action === 'injury' ? 'injury-log'
+        : action === 'goal' ? 'goal-target'
+          : action === 'block' ? 'training-block'
+            : action === 'resource' ? 'exercise-resource'
+              : action === 'learn' ? 'coach-learning'
+                : action === 'schedule' ? 'schedule-edit'
+                  : 'routine-edit';
+}
+
 // A pending record the Inbox renders with Approve/Discard — the Coach's
 // proposal, on the same rails as every other write. ALWAYS review-gated:
 // program changes are confirm-first regardless of autonomy mode.
-export async function createCoachEditRecord(vaultPath, { question, proposal, source = 'coach' }) {
-  const { payload, title } = await validateCoachEdit(vaultPath, proposal);
+export async function createCoachEditRecord(vaultPath, { question, proposal, source = 'coach', validated = null }) {
+  // `validated` is the { payload, title } a caller already checked (the
+  // Coach's reply is checked whole before any card is filed); otherwise check
+  const { payload, title } = validated || await validateCoachEdit(vaultPath, proposal);
   // THE CARD'S OWN LINE IS HIS QUESTION, NOT THE MACHINE'S PREAMBLE. A
   // question that reaches the Coach from a plan step or the front door
   // opens with bracketed context for the model ("[You are answering as one
   // step of a plan…]", "[The plan he is most likely referring to…]"), and on
   // 21 Sep two proposal cards showed exactly that as their text. Strip every
   // leading bracket block; what is left is what he actually asked.
-  const asked = String(question || '').replace(/^\s*(?:\[[\s\S]*?\]\s*)+/, '').trim() || title;
+  // A resumed turn also opens with the recomputed "LIVE UPDATE (…)" line —
+  // every card filed on 25 Sep read that preamble as his question.
+  const asked = String(question || '')
+    .replace(/^\s*(?:(?:\[[\s\S]*?\]|LIVE UPDATE \(recomputed[^\n]*)\s*)+/, '').trim() || title;
   const record = {
     id: randomUUID().slice(0, 8),
     text: asked.slice(0, 300),
@@ -963,15 +1284,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
     instructed: proposal?.instructed === true,
     createdAt: new Date().toISOString(),
     decision: {
-      route: payload.action === 'remap' ? 'exercise-remap'
-        : payload.action === 'tune' ? 'progression-tune'
-        : payload.action === 'injury' ? 'injury-log'
-          : payload.action === 'goal' ? 'goal-target'
-            : payload.action === 'block' ? 'training-block'
-              : payload.action === 'resource' ? 'exercise-resource'
-                : payload.action === 'learn' ? 'coach-learning'
-                  : payload.action === 'schedule' ? 'schedule-edit'
-                  : 'routine-edit',
+      route: routeForAction(payload.action),
       confidence: 'high',
       title,
       reason: payload.reason || 'proposed in the Coach chat',

@@ -76,7 +76,7 @@ export function cleanTurnText(text) {
   while (i < paras.length && isPlumbing(paras[i])) i++;
   let t = paras.slice(i).join('\n\n');
   // trailing typed directives
-  t = t.replace(/(^|\n)\s*(PROPOSE|REFLECT|SHOW|RESEARCH|CONSULT)\s+\{[\s\S]*$/, '').trim();
+  t = t.replace(/(^|\n)\s*(PROPOSE|REFLECT|SHOW|RESEARCH|CONSULT|WITHDRAW)\s+\{[\s\S]*$/, '').trim();
   return t;
 }
 

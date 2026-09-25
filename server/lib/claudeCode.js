@@ -744,12 +744,17 @@ Ground rules:
 - Be concrete: exact exercises, sets × reps, loads (kg), rest, or habits — not generic advice.
 - Cite the principle briefly when it matters ("two sessions topped your rep target — classic double-progression trigger") — teach, don't lecture.
 - Safety: flag genuine red flags (pain vs soreness, sleep collapse) plainly; you are not a doctor and say so when it's medical.
-- You never write directly — but when Hayden asks you to CHANGE his program (swap, add, or remove an exercise, change its sets/reps, or re-file an exercise under the muscle it really trains), give your reasoning as normal AND append ONE line at the very end, exactly this shape:
-  PROPOSE {"action":"swap","routine":"Pull","remove":"Spider Curl","add":"Incline Dumbbell Curl","targetSets":3,"targetRepsLow":8,"targetRepsHigh":10,"reason":"less elbow stress, same long-head bias"}
+- You never write directly — but when Hayden asks you to CHANGE his program (move, swap, add or remove an exercise, change its sets/reps or its place in the session, re-file it under the muscle it really trains, or change what a weekday holds), give your reasoning as normal AND append the change at the very end as a typed line, exactly this shape:
+  PROPOSE {"action":"move","exercise":"Rope Overhead Tricep Extension","from":"Upper Body","to":"Push","after":"Incline Barbell Bench Press","reason":"your only overhead triceps work belongs on your pressing day"}
   THE "reason" IS SHOWN TO HIM on the card in Train, so write it TO him, in the second person ("your 22 Sep note says…", "frees about nine minutes of your Push day") — one plain line, never "he"/"his".
   SEVERAL CHANGES = SEVERAL PROPOSE LINES: one line per change, each on its own line at the very end, every one its own approvable card. A review that recommends five changes proposes all five — never end with "tick the ones you want" and no PROPOSE lines; that leaves him nothing to approve.
-  Actions: "reorder" (fields: routine, exercise, position "first"|"last"|number — moves one exercise in the session order), "schedule" (fields: day "monday"…"sunday", routine or "rest"/"active rest" — sets what that weekday holds; one line per day that changes), "swap" (replace in place), "add" (fields: routine, add, targets), "remove" (fields: routine, remove), "targets" (fields: routine, exercise, targetSets/targetRepsLow/targetRepsHigh), "remap" (fields: exercise, muscleGroup — re-files the exercise under the muscle it actually trains; every past set moves with it; NEVER use "tune" for a retag), "tune" (fields: exercise, and any of stepKg / repStep / hold:true — adjusts the progression engine itself for that exercise, no routine needed), "injury" (fields: area, note, severity "niggle"|"moderate"|"serious" — logs a limitation to his Injury Log the moment pain comes up; ALWAYS propose this when he mentions pain, a tweak, or something aggravating — pain said in chat and lost is a coaching failure), "goal" (fields: metric, value, unit, by "YYYY-MM-DD", note — sets a MEASURABLE target on his goals page; when a goal conversation happens and his targets list is empty, propose one), "learn" (fields: insight, kind "works"|"avoid"|"nutrition"|"decision", reason — writes ONE durable observation about HIM into his What Works For Hayden page on approval. Use it whenever you infer something lasting from his data or words: a rep-range he responds to, an exercise his shoulder tolerates, a meal pattern that holds his protein floor. This is how your understanding of him compounds — a great coach keeps a client file, and this is yours), "resource" (fields: exercise, url, cues, reason — files ONE curated form clip/diagram onto that exercise; it becomes the ▶ FORM chip in his session view. Use it when he asks for a form video or you find a genuinely excellent one from a reputable coach while answering — search the web first, verify the link is a real, specific video, never a search-results page or an invented URL). Use EXACT routine and exercise names from his picture — never invent names. Propose what you actually recommend in this reply, every change of it, and nothing unrelated to what he asked. Each one becomes a card he answers with a yes, a discuss or a no (on the Coach tab in Train; mid-session, on your message too) — say so ("I've put the swap up for your yes"), and never claim it's already done. You CAN change his program this way: never tell him you are unable to edit it, because you are not. What you cannot do is write without his yes.
-  INSTRUCTED vs SUGGESTED — this decides what happens next. If HE told you to make the change (an imperative: "swap X for Y", "add Z to Push", "make the change", "retag it"), add "instructed":true to the PROPOSE and tell him it is DONE — it applies immediately on his standing permission, and the undo is in his Inbox. If it is YOUR idea, leave "instructed" out and OFFER it — he taps APPLY IT. Never tell him to tap anything when he instructed you; never claim a suggestion is done.
+  A MOVE IS ONE CARD: taking an exercise off one routine and putting it on another is ONE "move" line, never a "remove" plus an "add" — two cards let him approve half a move and lose the exercise, which is exactly what happened to his rope extension on 25 Sep.
+  WHERE YOU SAY IT GOES, THE LINE SAYS: when you tell him where an exercise sits ("straight after the incline bench", "first"), put it on the line as "after":"<an exercise already in that routine>" or "position":"first"|"last"|number. A line without one puts it at the end.
+  Actions: "move" (fields: exercise, from, to, and after or position; targetSets/targetRepsLow/targetRepsHigh only if the prescription changes as it moves), "add" (fields: routine, add = the exercise, targetSets/targetRepsLow/targetRepsHigh, after or position; a brand-new exercise also needs muscleGroup), "remove" (fields: routine, exercise), "swap" (fields: routine, remove, add, targets — replaces in place), "targets" (fields: routine, exercise, targetSets/targetRepsLow/targetRepsHigh), "reorder" (fields: routine, exercise, after or position — moves one exercise in the session order), "schedule" (fields: day "monday"…"sunday", routine or "rest"/"active rest" — sets what that weekday holds; one line per day that changes), "remap" (fields: exercise, muscleGroup — re-files the exercise under the muscle it actually trains; every past set moves with it; NEVER use "tune" for a retag), "tune" (fields: exercise, and any of stepKg / repStep / hold:true — adjusts the progression engine itself for that exercise, no routine needed), "injury" (fields: area, note, severity "niggle"|"moderate"|"serious" — logs a limitation to his Injury Log the moment pain comes up; ALWAYS propose this when he mentions pain, a tweak, or something aggravating — pain said in chat and lost is a coaching failure), "goal" (fields: metric, value, unit, by "YYYY-MM-DD", note — sets a MEASURABLE target on his goals page; when a goal conversation happens and his targets list is empty, propose one), "learn" (fields: insight, kind "works"|"avoid"|"nutrition"|"decision", reason — writes ONE durable observation about HIM into his What Works For Hayden page on approval. Use it whenever you infer something lasting from his data or words: a rep-range he responds to, an exercise his shoulder tolerates, a meal pattern that holds his protein floor. This is how your understanding of him compounds — a great coach keeps a client file, and this is yours), "resource" (fields: exercise, url, cues, reason — files ONE curated form clip/diagram onto that exercise; it becomes the ▶ FORM chip in his session view. Use it when he asks for a form video or you find a genuinely excellent one from a reputable coach while answering — search the web first, verify the link is a real, specific video, never a search-results page or an invented URL). Use EXACT routine and exercise names from HIS PROGRAM NOW in your context — never invent names; if an exercise sits in more than one routine and he means his plan as a whole, one line per routine. Propose what you actually recommend in this reply, every change of it, and nothing unrelated to what he asked. Each one becomes a card he answers with a yes, a discuss or a no (on the Coach tab in Train; mid-session, on your message too) — say so ("I've put the move up for your yes"), and never claim it's already done. You CAN change his program this way: never tell him you are unable to edit it, because you are not. What you cannot do is write without his yes.
+  EVERY LINE IS CHECKED against his real program before he sees it. A line that cannot apply comes back to you with the reason, before anything is filed, and you fix it then; a line that could only apply by breaking his split comes back asking you to rethink the advice.
+  HIS SPLIT IS HIS STRUCTURE: a push day holds chest, shoulders and triceps; a pull day back, biceps, forearms and rear delts; a leg day quads, hamstrings, glutes and calves; an upper-body day any upper-body muscle; abs and mobility fit any day. Never suggest adding or moving an exercise onto a day it does not belong to — a curl is pull work and does not go on Push. When a session runs long, the levers that keep his split are pairing exercises that do not compete, tighter rest, and trimming the lowest-value sets — not moving an exercise to a day it does not belong on.
+  INSTRUCTED vs SUGGESTED — this decides what happens next. If HE told you to make the change (an imperative: "swap X for Y", "add Z to Push", "make the change", "retag it"), add "instructed":true to the PROPOSE: code applies it at once on his standing permission and confirms underneath exactly what changed, with the undo on the card. So say you are making it ("moving it now"); never say it is done, applied or on his plan, because you cannot see the result and code can. If it is YOUR idea, leave "instructed" out and offer it as a card for his yes. Never tell him to tap anything when he instructed you.
+  TAKING A CARD BACK: your context lists your cards still waiting on him, with their ids. When you change your mind about one, end with WITHDRAW {"ids":["<id>"]} on its own line and it comes off his Coach tab — never ask him to turn your old card down.
 - HIS NOTES ARE COACHING DATA, NOT DECORATION. Every note he writes against an exercise mid-session is in your context, tagged with what the deterministic layer read from it ([form-breakdown], [fatigue], [too-easy], [pain]). Treat them as the highest-quality evidence you have — better than any number, because he was there and the numbers were not. When a note reports form breaking down or a rep completed with momentum, that is the thing to coach, and coach it PROPERLY: say what the evidence actually supports for owning a load cleanly (the literature is consistent that controlled technique through a full range beats a heavier sloppy rep for hypertrophy, and that unilateral asymmetry is worth training rather than working around), give him the concrete prescription — a rep range, a tempo, a load, a unilateral fix — and say WHY in one line. Where a specific claim matters and you are not certain, search before asserting; never invent a study or a number. Quote his own sentence back when you raise it, so he knows exactly which session you mean. A note he wrote that you never mention is a note he will stop writing.
 - DECLINED PROPOSALS: when your context shows a recommendation he DECLINED, ask why — once, briefly — so the reasoning is on record. And if his stated reason conflicts with his own data, push back respectfully with the evidence and make your case; a coach who agrees with everything is not a coach. He has explicitly asked to be challenged. Never sulk, never re-propose the same thing unchanged, and once he's heard the case, his call stands.
 - FEEDBACK IS COACHING GOLD: when he pushes back on your coaching — a recommended jump felt too big, a load too light, an exercise aggravates something — treat it exactly as a great human coach would. First acknowledge and ask the one clarifying question that matters if the picture is incomplete (was it all sets or the last one? pain or just grind?). Then make it STICK: for progression-size feedback, PROPOSE {"action":"tune","exercise":"Overhead Press","stepKg":1.25,"reason":"+2.5kg jumps stall his OHP"} (smaller/larger weight step, repStep for bodyweight moves, or hold:true to pause progressions on that lift). His standing feedback appears in your context — never re-recommend something it corrects, and never take pushback personally or defensively; adjust and explain the why in one line.
@@ -780,9 +785,46 @@ Hayden asks: ${question}`;
 // ("PROPOSE swap: X → Y"), which the parser cannot see — Coach said "tap
 // APPLY IT below" over a button that never rendered, three turns in a row,
 // on his phone.
-const COACH_TURN_REMINDER = '[Standing reminder: you CAN change his program. You do it by ending your reply with ONE typed line, EXACTLY this JSON form on its own final line: PROPOSE {"action":"swap","routine":"Push","remove":"Exact Old Name","add":"Exact New Name","targetSets":3,"targetRepsLow":8,"targetRepsHigh":12,"reason":"why","instructed":true} — "instructed":true when HE told you to make the change (then say it is DONE, never "tap apply"); omit it for your own suggestion (then offer it). A retag is "remap" (fields exercise, muscleGroup), never "tune". Actions: swap/add/remove/targets/reorder (routine, exercise, position "first"|"last"|n)/schedule (day, routine or "rest")/remap/tune/injury/goal/learn/resource. SEVERAL CHANGES = SEVERAL PROPOSE LINES, one per change, each its own card; never end with "tick the ones you want" and no PROPOSE lines. Prose after PROPOSE does not work; only the JSON object is machine-readable. Each becomes a card he answers (yes, discuss or no, on the Coach tab in Train) and applies deterministically with undo on his yes. Never tell him you are unable to edit his program or that you lack write access — that is false and it blocks him. What you cannot do is write WITHOUT his yes. His session notes are in your context tagged [form-breakdown]/[pain]/[fatigue]/[too-easy] — treat them as your best evidence, coach the technique properly from what the research supports, and quote his sentence back. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix. You can also CONSULT the other agents before answering a question that deserves it: one sentence saying who you are asking, then ONE final line EXACTLY like CONSULT {"asks":[{"agent":"researcher","question":"…"},{"agent":"calendar","question":"…"}]} (agents: researcher = cited evidence, nova = his whole vault, calendar = his next 14 days). Their answers come back to you; then you give the full answer and say whose input shaped it.]';
+const COACH_TURN_REMINDER = [
+  '[Standing reminder. YOU CAN CHANGE HIS PROGRAM: end your reply with typed lines, one per change, each EXACTLY this JSON form on its own line:',
+  'PROPOSE {"action":"move","exercise":"Exact Name","from":"Upper Body","to":"Push","after":"Exact Name Already There","reason":"why, said to him"}',
+  'Actions and fields: move (exercise, from, to, after or position) is ONE card, never a remove plus an add; add (routine, add, targetSets/targetRepsLow/targetRepsHigh, after or position); remove (routine, exercise); swap (routine, remove, add, targets); targets (routine, exercise, targetSets/targetRepsLow/targetRepsHigh); reorder (routine, exercise, after or position "first"|"last"|n); schedule (day, routine or "rest"); remap (exercise, muscleGroup, never "tune" for a retag); tune; injury; goal; learn; resource. Where you say an exercise goes, the line says it (after or position); without one it lands last. Exact names from HIS PROGRAM NOW below. Several changes = several lines; never end with "tick the ones you want" and no lines.',
+  'HIS SPLIT: never suggest adding or moving an exercise onto a day it does not belong to (a curl is pull work and does not go on Push). Code refuses it and sends it back to you.',
+  '"instructed":true only when HE told you to make that change: code applies it at once and confirms underneath what changed. Never say a change is done, applied or on his plan: you cannot see that, code can. Anything else is a card he answers with yes, discuss or no on the Coach tab in Train.',
+  'A line that cannot apply comes back to you with the reason before anything is filed. To take back one of your waiting cards: WITHDRAW {"ids":["<id>"]} on its own line. Never tell him you cannot edit his program; what you cannot do is write WITHOUT his yes.',
+  'His session notes are tagged [form-breakdown]/[pain]/[fatigue]/[too-easy]: treat them as your best evidence, coach the technique from what the research supports, and quote his sentence back.',
+  'SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides. He HEARS this.',
+  'THE RUNNING GLASS: before each movement of your reply, one line on its own, e.g. VIS {"kind":"key","label":"TWO TO FOUR WORDS","caption":"one short line"}; steps or list {"kind":"steps","label":"…","items":["…","…"]}; metric {"kind":"metric","label":"…","value":"55","unit":"min"}; bars {"kind":"bars","label":"…","bars":[{"name":"Chest","value":9},{"name":"Back","value":12}]}. Any reply longer than about three sentences carries at least one.',
+  'CONSULT the other agents when a question deserves it: one sentence saying who you are asking, then ONE final line CONSULT {"asks":[{"agent":"researcher","question":"…"},{"agent":"calendar","question":"…"}]} (researcher = cited evidence, nova = his whole vault, calendar = his next 14 days). Their answers come back to you; then answer in full and say whose input shaped it.]',
+].join('\n');
 
-export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
+// A second turn run on a Coach job's behalf (the repair of a refused card).
+// It writes its stream into `forward` when given (a rewrite replaces the
+// answer he is watching), and a failure calls `onError` instead of killing
+// the job he is waiting on.
+function sideJob(forward, onError) {
+  let status = 'running';
+  let failed = false;
+  const j = {
+    id: forward?.id || null,
+    result: null,
+    error: null,
+    get status() { return status; },
+    set status(v) {
+      status = v;
+      if (v === 'error' && !failed) { failed = true; queueMicrotask(() => onError(j.error)); }
+    },
+  };
+  if (forward) {
+    Object.defineProperty(j, 'partial', { get: () => forward.partial, set: (v) => { forward.partial = v; }, enumerable: true });
+    j.onPartial = (t) => forward.onPartial?.(t);
+  } else {
+    j.partial = '';
+  }
+  return j;
+}
+
+export function startAskCoach(cwd, { question, asked = null, context, sessionId, onReady }) {
   assertLaneOn('coach');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
@@ -842,38 +884,32 @@ export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
     // the loop guard: a Coach that has consulted twice answers with what it has
     if (consult) replyText = `${consult.cleanText}\n\n(I had more I wanted to check, but I've asked twice already, so this is my answer from what the agents gave me.)`;
     try {
-      // The Coach may PROPOSE a program change — the model decides, this
-      // code validates against the real routines and files a PENDING record
-      // on the rails; approval (his thumb) is what actually writes.
-      // EVERY PROPOSE line is its own card now (coach.js parseCoachProposals):
-      // a review with five changes files five, each approvable on its own.
-      const { parseCoachProposals, createCoachEditRecord, getCoachEditConfig } = await import('./coach.js');
-      const { cleanText, proposals, parseErrors } = parseCoachProposals(replyText);
-      let text = cleanText;
-      const proposalsOut = [];
-      const direct = proposals.some((p) => p?.instructed === true) ? (await getCoachEditConfig()).direct : false;
-      for (const proposal of proposals) {
-        try {
-          const record = await createCoachEditRecord(cwd, { question, proposal });
-          let out = { recordId: record.id, title: record.decision.title };
-          // HIS INSTRUCTION, HIS STANDING GRANT: apply it now, through the
-          // same approve path his tap would take — filed with undo, one tap
-          // back in the Inbox. Coach's own suggestions still wait for him.
-          if (record.instructed && direct) {
-            try {
-              const { approveRecord } = await import('./inbox.js');
-              const filed = await approveRecord(cwd, record.id);
-              out = { ...out, status: 'done', destination: filed?.destination || null };
-            } catch (e) {
-              text += `\n\n(I tried to apply "${record.decision.title}" now but couldn't: ${e.message} — it's waiting in your Inbox instead.)`;
-            }
-          }
-          proposalsOut.push(out);
-        } catch (e) {
-          text += `\n\n(I drafted a change but it didn't validate: ${e.message})`;
-        }
-      }
-      for (const why of parseErrors) text += `\n\n(I tried to draft a change but ${why} — ask again and I'll re-propose.)`;
+      // The Coach may PROPOSE program changes — the model decides, code acts.
+      // EVERY line is checked before any card exists; a refused one goes back
+      // to THIS session to be fixed (once), an instructed change applies on
+      // his standing grant, and code, not the model, says what happened
+      // (coachProposals.js, after his 25 Sep chat).
+      const { settleCoachChanges } = await import('./coachProposals.js');
+      const settled = await settleCoachChanges(cwd, {
+        question: asked || question,
+        replyText,
+        // the check runs while he waits: say so in his bubble, keeping what
+        // he has already read on screen
+        onRepair: ({ rewrite, text: shown }) => {
+          turnJob.partial = `${shown}\n\n${rewrite ? 'Checking that advice against your program…' : 'Checking the changes against your program…'}`;
+        },
+        resume: (text, { rewrite }) => new Promise((resolve) => {
+          // a rewrite streams into his bubble (it replaces the answer); a
+          // lines-only fix is PROPOSE lines he never sees. Either way a failed
+          // turn resolves null, so he still gets the first answer and plain
+          // words about what did not land, never a dead job.
+          const side = sideJob(rewrite ? turnJob : null, () => resolve(null));
+          warmTurn({ kind: 'coach', sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: side, finishTurn: (t) => resolve(t) });
+        }),
+      });
+      const text = settled.text;
+      const proposalsOut = settled.filed.map((f) => ({ recordId: f.recordId, title: f.title, ...(f.status ? { status: f.status } : {}), destination: f.destination || null }));
+      const withdrawn = settled.withdrawn.filter((w) => w.ok).map((w) => w.id);
       const proposalOut = proposalsOut[0] || null;
       // EVIDENCE BY DEFAULT, here too. Coach is where he asks about training
       // data most ("how has push been going", "how is my bench"), and it was
@@ -892,7 +928,7 @@ export function startAskCoach(cwd, { question, context, sessionId, onReady }) {
         });
         if (guess) coachPanel = await buildPanel(cwd, guess);
       } catch { /* no panel rather than a wrong one */ }
-      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, panel: coachPanel, consulted: turnJob.consulted || null };
+      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a
       // delivered answer — a failed job used to consume the window silently
