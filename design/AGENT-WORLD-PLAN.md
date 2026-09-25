@@ -548,3 +548,177 @@ not whether the steps ran (his pipeline: brain dump, tickets, assign,
 review, then *assess the outcome*). The second argues for a
 plan-completion question ("did this solve it?") that `planProgress` does
 not ask today.
+
+## 9 · The Habitat (25 Sep, his ask) — where the nine live, and their life
+
+His words: *"create the environment that they will be living in. This
+environment should appear interactive and engaging and amusing as though the
+agents have their own life to interact with each other. Just remember that
+this build should not take up and use excess tokens just to run animations.
+Ideally once this is built it would not require any Claude token usage apart
+from any engagement I have with the agents and the work they are doing."*
+
+What the map is today (25 Sep, looked at on the dev server at 402 and 1280):
+seven flat labelled hexes, a blob for Nova, the beings standing still at
+0.72 scale where their artefacts nearly vanish, and the old fleet ring under
+it whose desktop labels now pile on top of one another. The beings are in
+good shape; the environment is the gap.
+
+### 9a · The two rules, and how his ask sits with §5a and §7
+
+1. **Zero tokens, held by the test.** Everything in this section is code:
+   set pieces, walks, idle acts, interactions, time of day. The life engine is
+   a pure, seeded state machine (`src/agentWorld/life.js`) fed only by what
+   the map already has (the org view model, the ops stream's receipts, the
+   clock) and it stays inside `agentWorldNoModel.test.js`'s scope. Nothing on
+   the map asks a model anything, ever. The cost of looking is GPU time on
+   the device, capped at 30 fps and zero when the map is off screen.
+2. **Honest life.** §7 said "any motion not backed by a state change is
+   fiction". His ask on 25 Sep adds an *off-duty* life, and that is his
+   decision. The line that keeps it honest is drawn here: **a being's WORKING
+   tell (the curl, the page turn, the coin flip, the stir, the drawer, the
+   nod, the lantern raised, the scanline, the compass heading) plays only
+   when the record says it is working.** Off duty it does other things,
+   drawn from its own catalogue, none of which could be mistaken for work.
+   A being with a marker stays under its marker. And every interaction that
+   HAS a real trigger uses it: a filed record is walked to the plaza, a
+   heartbeat lights a window, a Guardian beat is a patrol. Visits between
+   idle beings are scenery, labelled as such below, and they are what he
+   asked for.
+
+### 9b · The geography, built out
+
+The ring stays (seven districts around the core, the fit-on-load rule from
+pass 1). Each district gains a small SET on the back half of its tile (the
+being keeps the front), in the beings' own language: sculpted forms, the
+kit's vinyl materials, tokens for every colour, the district's hue at low
+saturation for structure and the being's accent for anything lit. At most
+three pieces per district; the being must never be hidden by its set from
+the default camera at 375 or 1280. A path system joins them: a RING LANE
+through the tile fronts, a SPOKE from each tile to the PLAZA around the
+core. Beings walk on lanes only.
+
+| District | Set (≤3 pieces) | Anchors it exposes | Lit when |
+|---|---|---|---|
+| Train | a squat rack with the bar resting at shoulder height; a bench; a chalk bowl on a stand | `work` (in front of the rack), `rest` (the bench), `barDock` (the rack's hooks) | rack lamp: a Train loop ran today |
+| Knowledge | a card-catalogue wall (Librarian), a desk with a reading lamp and open book (Researcher), a small screen on a stand facing a low seat (Watcher); a rug | `work`/`rest` per being, `screen` (the Watcher's light source), `lamp` | desk lamp and screen: their loops ran today |
+| Logistics | a signal mast topped with a compass rose; a dispatch lectern with a slate; two crates | `work` (the lectern), `rest` (by the crates), `mast` | the slate: a dispatch composed today |
+| Fuel | a counter with a stove ring; a rack of two hanging pans; a produce crate | `work` (the stove), `rest` (the crate), `stove` | the stove ring: a Fuel loop ran today |
+| Platform | a short round watchtower with a lantern housing on top; a round vault door set into the tile; the OVERNIGHT PAD, a small disc | `work` (the vault door), `rest` (the tower foot), `lanternDock` (the housing), `pad` | the tower: always at night; the pad: 03:30–06:00 when overnight items exist |
+| Money | a counting desk with a tall ledger stand; a coin stack; a small safe | `work` (the desk), `rest` (the safe), `stack` (grows with the month's receipt count when the view model carries one; otherwise a fixed short stack, never a fake number) | the desk lamp: a Money loop ran today |
+| Mind | a bench; a round still pool (mirror material, the Leader's own visor); a paper lantern on a post | `work` (the bench), `rest` (the pool's edge), `lantern` | the lantern: always at night |
+| Core / plaza | a stone ring path, two benches, the plinth as it is; the orb pulses once when a delivery lands | `post` (where a delivery is set down), four `bench` spots | the plaza lamps: night |
+
+The old fleet ring under the map on Ops: its per-loop detail belongs in the
+being's tap card (`loops`), which already has it. Removing the ring is his
+call (open question 3 from 25 Sep); the desktop shot of 25 Sep shows its
+labels are now unreadable, so the recommendation is to remove it once the
+card carries every loop's own state line.
+
+### 9c · Time of day (real clock, no model)
+
+The key light and the sky follow the device's local hour (the same hours
+`MissionStructured`'s ORDERS use): dawn 05:30–07:00 warm and low from the
+east; day white and high; evening 18:00–20:30 gold and low from the west;
+night 20:30–05:30 a low blue key, the tower and the paper lantern and the
+plaza lamps lit, the district lamps lit only where a loop ran today (the
+§3g "lit window" rule). Every colour is a token mix; nothing is a hex.
+Calm and the four themes recolour the whole world through the same reads.
+
+### 9d · The life engine — `src/agentWorld/life.js`, pure
+
+A reducer, not a random walk: `stepLife(prev, input) → next`, where
+
+```
+input = {
+  now,                // ms, the device clock
+  seed,               // a string, the local day 'YYYY-MM-DD' (same on every device)
+  beings: [{ id, district, working, waiting, fresh, members }],   // from the org view model
+  events: [{ at, source:'record', being, kind, status, id }],      // the ops stream, newest first
+  overnightQueued,    // count, optional
+  visible,            // the map is on screen
+  reduceMotion,
+}
+next = {
+  beings: { [id]: { place: 'home'|'plaza'|'lane'|'visit:<id>', spot: 'work'|'rest'|'post'|'bench',
+                    act: <name>, actSince, actUntil, facing: 'camera'|'partner'|'set'|null,
+                    partner: <id>|null, path: [nodeName...]|null, carry: <propName>|null } },
+  world: { daypart: 'dawn'|'day'|'evening'|'night', lampsOn: bool, padLit: bool, pulse: <ms>|null },
+  handled: [eventId...],   // events already acted out, so nothing is played twice
+  rng: <state>,            // the seeded PRNG's state, carried
+}
+```
+
+Deterministic: the PRNG is seeded from `seed` + the minute of day, so two
+devices open at the same minute show the same scene, and a test can replay
+a day. Precedence, per being, highest first:
+
+1. `working` (real): `act:'work'` at `spot:'work'`, marker off, cannot leave.
+2. `waiting > 0` (real): `act:'wait'` at home, facing the camera; fidgets
+   allowed (`glance-marker`, `sigh`), never leaves the tile.
+3. `reduceMotion`: `act:'rest'`, no walks, no acts.
+4. A real event, at most one in flight per being, only if it is under two
+   minutes old and the map is visible (no catching up on a pile):
+   - a record of this being's kind changes to `filed` → `deliver`: walk the
+     spoke to the plaza `post`, set it down (the core pulses), walk home. ~60 s.
+   - the Guardian's own heartbeat (`guardian` member moves to `today`) →
+     `patrol`: one lap of the ring lane with the lantern, ~2 min.
+   - he answers a pending record (status leaves `pending`) → `thanks`: the
+     owner turns to the camera and nods once. 2 s.
+   - a member of the being's loops moves to `today` → the district lamp lights
+     (`world`, no walk).
+5. Night: beings whose `fresh` is `today` or `recent` `sleep` at `rest` (sat,
+   eyes dim, slow breath); the others stand at `rest`. Dawn: one `stretch`.
+6. Otherwise the idle catalogue: hold one act 1–4 s, then `rest` 20–90 s
+   (breathing and blinking only; the frame loop sleeps), then pick again by
+   weight. About every 6–12 visible minutes, one `visit` between two idle
+   beings that are ring neighbours (Knowledge's three visit on their own tile):
+   walk the lane to the neighbour, face each other, two nods, walk back; the
+   visit gag for that pair plays if one exists. Never during work or waiting.
+
+The idle catalogue (off duty; the working tell is banned here):
+
+| Being | Idle acts (weights) | Visit gag (as host) |
+|---|---|---|
+| Commander | scan-horizon (head sweep) 3 · check-compass (crest swings once, no heading) 2 · pace (two steps along the tile front) 2 · at-ease 3 | salutes the visitor |
+| Coach | chalk-hands (clap, a puff) 3 · stretch (arms up) 2 · sit-bench 2 · tap-racked-bar (never lifts) 1 | flexes at the visitor, who flexes back smaller |
+| CFO | stack-chip (one chip onto the pile) 3 · fix-bowtie 2 · close-ledger 1 · look-at-safe 2 | counts the visitor's chips: points, then shrugs |
+| Guardian | stand-watch (still, lantern low and steady) 4 · turn-to-district (slow, one at a time) 2 · polish-shield 1 | raises the lantern to light the visitor's face |
+| Researcher | close-book 2 · look-up (at the sky) 3 · scribble (a note into the satchel) 2 · adjust-lens 1 | shows the visitor the book, taps a line |
+| Watcher | toss-popcorn (one, eaten) 3 · lean-back 2 · headphones-off-on 1 · tap-foot 2 | offers popcorn; the visitor takes one and CARRIES it home (`carry:'popcorn'`) |
+| Librarian | shut-drawer 2 · align-books (on the hip) 2 · dust-shelf 2 · adjust-spectacles 1 | hands the visitor a card; the visitor reads it and nods |
+| Meal Prep | taste-ladle (no stir) 3 · wipe-counter 2 · check-crate 2 · sway (humming) 1 | hands the visitor a small bowl, carried home (`carry:'bowl'`) |
+| Leader | look-at-water 3 · sit-bench 2 · walk-to-lantern 1 · stand-still 3 | sits with the visitor on the bench for a moment, no nodding |
+
+Acts are DATA in `life.js` (name, duration, which handles move), so the scene
+animates by name and a test can list them. A `wait` fidget and a `sleep` are
+in the same table. Nothing in the table plays a working tell.
+
+### 9e · The scene (`src/orgmap/scene.js`), what changes
+
+- The habitat is built by `createHabitat(T, TK, kit)` in
+  `src/agentWorld/habitat.js` and placed per district; the anchors above are
+  world positions the life engine's spots map onto.
+- Locomotion: a walk cycle on the rig `makeBot` already exposes (`feet`,
+  `arm`, `body`, `head`): body bob, boots alternating, arms swinging small,
+  head level; turn-in-place before a walk; speed ~0.9 tile-widths/s. Paths
+  are node lists on the lanes; a being never crosses a tile or the plaza's
+  plinth.
+- Poses blend with an eased amount, as pass 5 fixed for the tells; zero
+  elapsed time is no movement.
+- The frame loop stays render-on-demand: it runs while any being is mid-act,
+  mid-walk or blinking, or a marker bobs, and sleeps otherwise; the next act's
+  timer wakes it, the same way the next blink does today.
+- The tap card gains nothing new; a tapped being still turns to the camera
+  and its card says what it is doing from the record (never from the act).
+- Home tile: unchanged, one still frame. Ambient: the habitat with a slow
+  camera drift is step D and waits for his go.
+
+### 9f · Build and cost
+
+Three briefs, checked by capture, one build pass and one fix pass each:
+(H) `habitat.js` + a sheet page (`design/mockups/50-habitat.html`, captured by
+the agent-sheet instruments); (L) `life.js` + its tests, no THREE; (I) the
+scene integration, walks, time of day, events. H and L run in parallel in
+their own worktrees; I follows. His judgment comes from the published sheet
+and his phone, as for every character pass.
