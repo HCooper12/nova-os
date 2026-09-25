@@ -4,6 +4,7 @@ import { glowPanel, glowSoft } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
+import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
@@ -434,9 +435,14 @@ export function MissionControl({ v }) {
             <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>CONCEPT REVISIT</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={phMeta}>{v.reviewMeta}</span>
-              <Interactive as="span" onClick={v.shuffleReview} aria-label="Shuffle concept revisit" base={{ cursor: 'pointer', font: `400 13px ${M}`, color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-ink)' }}>⟳</Interactive>
+              <ShuffleButton onClick={v.shuffleReview} spinning={!!v.reviewSpin} label="Shuffle concept revisit" />
             </span>
           </div>
+          {v.reviewSpin ? (
+            <SpinReveal rows={v.reviewSpin.rows} spinning={v.reviewSpin.spinning} rowH={38} accent="--nv-vi"
+              face={`italic 400 16px/1.2 ${S}`} onLanded={v.reviewSpin.landed} chime="review"
+              label="Shuffle concept revisit" landedLabel="A new concept to review" />
+          ) : (<>
           <div style={{ font: `400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'rgba(232,236,246,.92)', maxHeight: '132px', overflowY: 'auto' }}>{v.reviewConcept}</div>
           <div style={{ marginTop: 'auto', paddingTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
             <span style={{ font: `500 12.5px ${R}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -447,6 +453,7 @@ export function MissionControl({ v }) {
               hoverStyle={{ background: 'rgba(143,123,255,.22)' }}
             >Review</Interactive>
           </div>
+          </>)}
         </div>
       </section>
 

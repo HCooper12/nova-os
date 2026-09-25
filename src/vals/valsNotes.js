@@ -113,6 +113,10 @@ export function valsNotes(app, ctx) {
     reviewFrom: usingLiveReview
       ? (reviewPage ? reviewPage.title : '')
       : demoMode ? app.reviews[st.reviewIdx].f : '',
+    // mid-spin, the card shows the reel instead of the concept (SpinReveal)
+    reviewSpin: usingLiveReview && st.reviewSpin
+      ? { rows: st.reviewSpin.rows, spinning: true, landed: () => app.finishReviewSpin() }
+      : null,
     shuffleReview: usingLiveReview
       ? () => app.shuffleDailyReview()
       : demoMode

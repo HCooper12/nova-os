@@ -240,3 +240,24 @@ export function SpinReveal({
     </Interactive>
   );
 }
+
+// THE SHUFFLE CONTROL — the ⟳ on the daily review, which was a 13px glyph
+// with no haptic: under half the 44pt target, on the one control that now
+// starts a spin. The glyph stays small; the hit area is the full 44 (negative
+// margins keep the header row the height it was). While its reel runs it
+// turns in the card's own hue and stops taking taps (the reel takes them).
+export function ShuffleButton({ onClick, spinning = false, label = 'Shuffle', accent = '--nv-vi' }) {
+  return (
+    <Interactive as="span" onClick={spinning ? undefined : onClick} haptic={spinning ? undefined : 'tick'}
+      aria-label={label} aria-busy={spinning || undefined}
+      base={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '44px', minHeight: '44px',
+        margin: '-12px -12px -12px -8px', cursor: spinning ? 'default' : 'pointer',
+        font: '400 16px var(--nv-font-mono)', color: spinning ? `var(${accent})` : 'var(--nv-ink40)',
+        transition: 'color var(--nv-dur-fast) var(--nv-ease)',
+      }}
+      hoverStyle={spinning ? undefined : { color: 'var(--nv-ink)' }}>
+      <span aria-hidden="true" style={{ display: 'inline-block', ...(spinning ? { animation: 'nvSpin .9s linear infinite' } : {}) }}>⟳</span>
+    </Interactive>
+  );
+}

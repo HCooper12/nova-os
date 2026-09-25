@@ -5,6 +5,7 @@ import { chatStartsAJob, planWorthy } from './chatLanes.js';
 import { reportOpening } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
 import { sfxEnabled, setSfxEnabled, previewSfx, primeSfx } from './sfx.js';
+import { buildReelRows } from './reel.js';
 import { hearingChoice, setHearingChoice } from './hearingEngine.js';
 import { runEarsTest } from './earsTest.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
@@ -617,6 +618,8 @@ export default class App extends Component {
 
     // daily review + journal
     reviewShuffleIdx: null,
+    // the concept shuffle, mid-spin: its rows frozen at the tap (shuffleDailyReview)
+    reviewSpin: null,
     reviewReflectOpen: false, reviewReflectText: '', reviewReflectBusy: false, reviewReflectError: null,
     reviewReflectPromptBusy: false, reviewReflectPromptText: null,
     liveJournalEntries: null,
@@ -3809,15 +3812,39 @@ export default class App extends Component {
     const page = pool[idx];
     if (page) { this.ensureNoteDetail(page.id); this.ensureReviewSummary(page.id); }
   }
+  // THE SHUFFLE, SPUN (25 Sep, from the Hormozi reel). This one IS a random
+  // draw, so it is the one place the reel's theatre is literally what
+  // happens: it passes a random handful of his concepts and lands on the page
+  // drawn. The summary is asked for at the tap, so the spin covers the wait.
+  // A tap mid-spin hurries the reel (SpinReveal), never draws twice.
   shuffleDailyReview() {
     const pool = this.dailyReviewPool(this.state.liveNotes);
-    if (pool.length < 2) return;
+    if (pool.length < 2 || this.state.reviewSpin) return;
     const current = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
     let next = current;
     while (next === current) next = Math.floor(Math.random() * pool.length);
-    this.setState({ reviewShuffleIdx: next, reviewReflectOpen: false, reviewReflectText: '', reviewReflectPromptText: null });
     this.ensureNoteDetail(pool[next].id);
     this.ensureReviewSummary(pool[next].id);
+    const row = (p) => ({ key: p.id, text: p.title });
+    const rest = pool.filter((_, i) => i !== current && i !== next);
+    for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+    primeSfx({ busy: !!(this.ttsPlaying || this.state.voiceSpeaking) });
+    this.setState({
+      reviewSpin: {
+        // the page, not its index: the notes can re-sync under a spin
+        nextId: pool[next].id,
+        rows: buildReelRows({ start: row(pool[current] || pool[0]), others: rest.slice(0, 11).map(row), target: row(pool[next]) }),
+      },
+    });
+  }
+  finishReviewSpin() {
+    const spin = this.state.reviewSpin;
+    if (!spin) return;
+    const idx = this.dailyReviewPool(this.state.liveNotes).findIndex((p) => p.id === spin.nextId);
+    this.withTransition(() => this.setState({
+      reviewSpin: null,
+      ...(idx >= 0 ? { reviewShuffleIdx: idx, reviewReflectOpen: false, reviewReflectText: '', reviewReflectPromptText: null } : {}),
+    }));
   }
   openDailyReview() {
     const pool = this.dailyReviewPool(this.state.liveNotes);

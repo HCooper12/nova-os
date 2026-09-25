@@ -7,6 +7,7 @@ import { LeaderBox } from '../LeaderBox.jsx';
 import { StuckCard } from '../StuckCard.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
+import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, foldInstrument, FOLD_LABELS, NEVER_FOLD, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
@@ -436,17 +437,27 @@ export function MissionStructured({ v }) {
       <Group key="review" label="Daily review" accent="--nv-vi" trailing={
         <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Meta tone="faint">{v.reviewMeta}</Meta>
-          <Interactive as="span" onClick={v.shuffleReview} aria-label="Shuffle daily review" base={{ cursor: 'pointer', font: `400 13px ${M}`, color: 'var(--nv-ink40)' }} hoverStyle={{ color: 'var(--nv-ink)' }}>⟳</Interactive>
+          <ShuffleButton onClick={v.shuffleReview} spinning={!!v.reviewSpin} label="Shuffle daily review" />
         </span>
       }>
         <div style={{ padding: '13px 16px' }}>
-          <div style={{ font: `400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)' }}>{v.reviewConcept}</div>
-          <div style={{ marginTop: '11px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-            <span style={{ font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              from <em style={{ font: `italic 400 14px ${S}`, color: 'var(--nv-vi)' }}>{v.reviewFrom}</em>
-            </span>
-            <Pill label="Review" onClick={v.openReview} tone="quiet" />
-          </div>
+          {/* the shuffle, spun (25 Sep): his concepts pass through the band
+              and it lands on the one drawn; the card returns around it */}
+          {v.reviewSpin ? (
+            <SpinReveal rows={v.reviewSpin.rows} spinning={v.reviewSpin.spinning} rowH={38} accent="--nv-vi"
+              face={`italic 400 16px/1.2 ${S}`} onLanded={v.reviewSpin.landed} chime="review"
+              label="Shuffle daily review" landedLabel="A new concept to review" />
+          ) : (
+            <>
+              <div style={{ font: `400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)' }}>{v.reviewConcept}</div>
+              <div style={{ marginTop: '11px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                <span style={{ font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  from <em style={{ font: `italic 400 14px ${S}`, color: 'var(--nv-vi)' }}>{v.reviewFrom}</em>
+                </span>
+                <Pill label="Review" onClick={v.openReview} tone="quiet" />
+              </div>
+            </>
+          )}
         </div>
       </Group>
     ),
