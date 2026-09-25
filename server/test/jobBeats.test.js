@@ -78,3 +78,21 @@ test('not a research record: nothing', () => {
   assert.deepEqual(researchStages({ kind: 'plan', status: 'classifying' }), []);
   assert.deepEqual(researchStages(null), []);
 });
+
+// 25 Sep: on a fresh device load every past brief was read out (19 lines,
+// three times over) because a record settled before it was ever seen came
+// back as "never seen" on the next poll.
+test('a record already settled the first time it is seen is history, not news', () => {
+  const filed = { ...base, status: 'filed', panel: panelOf([W('A', 'done', 6)], { merging: true }), decision: { title: 'Creatine Loading: Necessary or Not?' } };
+  const first = newStages(filed);
+  assert.equal(first.fresh.length, 0, 'nothing is narrated');
+  assert.ok(first.seen.has('ready'), 'but every stage is remembered as seen');
+  const again = newStages(filed, first.seen);
+  assert.equal(again.fresh.length, 0);
+  // a record seen mid-flight still narrates its finish
+  const running = { ...base, panel: panelOf([W('A', 'done', 6)]) };
+  const live = newStages(running);
+  assert.ok(live.fresh.length > 0);
+  const done = newStages({ ...running, status: 'pending', decision: { title: 'X' } }, live.seen);
+  assert.deepEqual(done.fresh.map((x) => x.key), ['ready']);
+});

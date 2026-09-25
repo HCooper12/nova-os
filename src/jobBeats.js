@@ -127,6 +127,13 @@ export function jobSettled(record) {
 // keys already narrated for this record (undefined for a record never seen).
 export function newStages(record, seen) {
   const stages = researchStages(record);
+  // A record that is already settled the first time it is seen finished
+  // while nobody was watching: it is history, not news, and seeds silently.
+  // The app's own first-sight mark (`seen.set(id, null)`) came back here as
+  // `undefined` on the next poll, so on 25 Sep every past brief was read out
+  // aloud on each fresh device load (19 lines, three times over, and each
+  // one mirrored into his conversation record).
+  if (!seen && jobSettled(record)) return { fresh: [], seen: new Set(stages.map((s) => s.key)) };
   const had = seen || new Set();
   const fresh = stages.filter((s) => !had.has(s.key));
   const next = new Set(had);
