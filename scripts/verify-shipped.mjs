@@ -126,6 +126,8 @@ const FEATURES = [
   ['Coach · a move is one card, and a phone card is its own height (25 Sep)', 'nv-deck / inline-size'],
   ['Coach · a revised change takes its old card back (25 Sep)', 'to take this card back yourself'],
   ['Coach · the usage limit hands his question back (25 Sep)', "Claude's usage limit"],
+  ['Org Map · the Habitat, a set on every tile (25 Sep)', 'habitat-lines'],
+  ['Org Map · the life engine, off-duty acts (25 Sep)', 'toss-popcorn'],
 ];
 
 const SERVER_ROUTES = [
