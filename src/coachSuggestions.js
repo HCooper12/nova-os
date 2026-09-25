@@ -85,11 +85,35 @@ function routineChange(p, routines) {
       routine, setsBefore: before, setsAfter: target ? before - (Number(target.targetSets) || 0) : null,
     };
   }
+  // WHERE IT LANDS, as the card says it: the apply follows the same field
+  // (after this exercise; first; else the end), so the card cannot promise a
+  // place the change does not go to — the 25 Sep "straight after the
+  // incline bench" that landed last.
+  const place = p.afterName ? `after ${p.afterName}` : p.position === 1 ? 'first' : null;
   if (p.action === 'add') {
     const n = Number(p.targetSets) || 3;
     return {
       headline: `Add ${p.addName}`,
-      diff: { type: 'add', exercise: pill(null, p.addName, p.muscleGroup), sets: n, reps: repsText(p.targetRepsLow, p.targetRepsHigh) },
+      diff: { type: 'add', exercise: pill(null, p.addName, p.muscleGroup), sets: n, reps: repsText(p.targetRepsLow, p.targetRepsHigh), place },
+      routine, setsBefore: before, setsAfter: routine ? before + n : null,
+    };
+  }
+  // A MOVE (25 Sep 2026) is one card: off one routine, onto another. It was a
+  // "Drop" card plus an "Add" card, and "Drop Cable Lateral Raise" read to
+  // him as losing an exercise Coach was only relocating. The card belongs to
+  // where it lands; the strip shows where it comes from.
+  if (p.action === 'move') {
+    const from = routines.find((r) => r.id === p.fromRoutineId) || routines.find((r) => ci(r.name) === ci(p.fromRoutineName));
+    const moving = exerciseOf(from, p.removeExerciseId, p.removeName);
+    const n = Number(p.targetSets) || Number(moving?.targetSets) || 3;
+    const fromBefore = setsOf(from);
+    return {
+      headline: `Move ${p.removeName} to ${p.routineName}`,
+      diff: {
+        type: 'move', exercise: pill(moving, p.removeName, p.muscleGroup), from: p.fromRoutineName, to: p.routineName, place,
+        sets: n, reps: repsText(p.targetRepsLow || moving?.targetRepsLow, p.targetRepsHigh || moving?.targetRepsHigh),
+        fromSets: from && moving ? { before: fromBefore, after: fromBefore - (Number(moving.targetSets) || 0) } : null,
+      },
       routine, setsBefore: before, setsAfter: routine ? before + n : null,
     };
   }

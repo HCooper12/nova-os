@@ -70,6 +70,34 @@ export async function checkProposals(vaultPath, text, { validate = validateCoach
   return { cleanText, ok, refused };
 }
 
+// A REMOVE AND AN ADD OF ONE EXERCISE ARE A MOVE, whatever the model wrote.
+// The prompt asks for "move"; this makes sure a move can never again be two
+// cards he can half-approve (his rope extension, 25 Sep). The pair becomes
+// one move card, placed and prescribed as the add said. It applies on his
+// word only if BOTH halves were his instruction.
+export async function pairMoves(vaultPath, ok, { validate = validateCoachEdit } = {}) {
+  const out = [...ok];
+  for (const rem of ok.filter((c) => c.payload?.action === 'remove')) {
+    const add = out.find((c) => c.payload?.action === 'add' && c.payload.routineId !== rem.payload.routineId && c.payload.addExerciseId && c.payload.addExerciseId === rem.payload.removeExerciseId);
+    if (!add || !out.includes(rem)) continue;
+    const raw = {
+      action: 'move', exercise: rem.payload.removeName, from: rem.payload.routineName, to: add.payload.routineName,
+      ...(add.payload.afterName ? { after: add.payload.afterName } : add.payload.position === 1 ? { position: 'first' } : {}),
+      ...(add.payload.targetSets ? { targetSets: add.payload.targetSets } : {}),
+      ...(add.payload.targetRepsLow ? { targetRepsLow: add.payload.targetRepsLow } : {}),
+      ...(add.payload.targetRepsHigh ? { targetRepsHigh: add.payload.targetRepsHigh } : {}),
+      reason: add.payload.reason || rem.payload.reason || '',
+      ...(rem.proposal?.instructed === true && add.proposal?.instructed === true ? { instructed: true } : {}),
+    };
+    try {
+      const v = await validate(vaultPath, raw);
+      out.splice(out.indexOf(rem), 1, { proposal: raw, payload: v.payload, title: v.title, route: routeForAction('move') });
+      out.splice(out.indexOf(add), 1);
+    } catch { /* a move that cannot stand leaves both halves as they were checked */ }
+  }
+  return out;
+}
+
 // What the Coach is sent when a line is refused. A wording fault is fixed
 // line by line and its answer stands; a refusal of substance means the advice
 // was wrong for him, so the whole reply is written again.
@@ -226,6 +254,7 @@ export async function settleCoachChanges(vaultPath, { question, replyText, resum
     }
     refused = again.refused;
   }
+  ok = await pairMoves(vaultPath, ok, { validate });
   // withdraw BEFORE filing, so a card taken back and re-proposed in the same
   // reply becomes a fresh card, not the withdrawn one
   const withdrawn = ids.length ? await withdrawCards(ids, { store: deps.store }) : [];

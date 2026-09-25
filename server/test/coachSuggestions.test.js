@@ -165,3 +165,28 @@ test.after(async () => {
   await rm(dataDir, { recursive: true, force: true });
   await rm(vault, { recursive: true, force: true });
 });
+
+// 25 Sep 2026: a move was a "Drop" card and an "Add" card; he read "Drop
+// Cable Lateral Raise" as losing it. A move is one card, drawn as a move.
+test('a move card says Move, belongs to where it lands, and shows where it comes from and where it sits', () => {
+  const upper = { id: 'upper', name: 'Upper Body', exercises: [
+    { exerciseId: 'rope', name: 'Rope Overhead Tricep Extension', muscleGroup: 'Triceps', targetSets: 3, targetRepsLow: 6, targetRepsHigh: 7 },
+    { exerciseId: 'bench', name: 'Barbell Bench Press', muscleGroup: 'Chest', targetSets: 3, targetRepsLow: 6, targetRepsHigh: 8 },
+  ] };
+  const [c] = coachSuggestions([rec('r-move', 'routine-edit', {
+    action: 'move', routineId: 'push', routineName: 'Push', fromRoutineId: 'upper', fromRoutineName: 'Upper Body',
+    removeExerciseId: 'rope', removeName: 'Rope Overhead Tricep Extension', muscleGroup: 'Triceps',
+    position: 2, afterName: 'Weighted Pull-Up', targetSets: 3, targetRepsLow: 8, targetRepsHigh: 12, reason: 'your only overhead triceps work',
+  })], { routines: [...routines, upper], schedule, now: NOW });
+  assert.equal(c.headline, 'Move Rope Overhead Tricep Extension to Push');
+  assert.equal(c.routine.name, 'Push');
+  assert.equal(c.diff.type, 'move');
+  assert.equal(c.diff.from, 'Upper Body');
+  assert.equal(c.diff.place, 'after Weighted Pull-Up');
+  assert.deepEqual(c.diff.fromSets, { before: 6, after: 3 });
+  assert.equal(c.diff.reps, '8–12');
+  assert.deepEqual(c.sets, { before: 11, after: 14 }, 'the session it joins, before and after');
+  // and an add says where it lands, too
+  const [a] = coachSuggestions([rec('r-add', 'routine-edit', { action: 'add', routineId: 'push', routineName: 'Push', addName: 'Face Pull', position: 1, targetSets: 3 })], { routines, schedule, now: NOW });
+  assert.equal(a.diff.place, 'first');
+});

@@ -167,6 +167,9 @@ function Pill({ ex, gone, arriving, children }) {
 
 const Arrow = () => <span aria-hidden="true" style={css('flex:none;color:var(--nv-ink40);font:500 14px var(--nv-font-ui)')}>→</span>;
 
+// where in the session it lands, in words ("after Incline Barbell Bench Press")
+const Place = ({ text }) => <span style={css('min-width:0;font:500 12.5px/1.3 var(--nv-font-ui);color:var(--nv-ink60)')}>{text}</span>;
+
 function Dots({ before, after, hue }) {
   const n = Math.max(before || 0, after || 0);
   return (
@@ -189,7 +192,35 @@ function ChangeStrip({ c }) {
   const row = (children) => <div style={css('margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0')}>{children}</div>;
   // the count never wraps — a long exercise name gives way first
   if (x.type === 'remove') return row(<Pill ex={x.exercise} gone>{x.sets ? <span style={css('flex:none;white-space:nowrap;color:var(--nv-ink60);font-weight:500')}>−{x.sets} sets</span> : null}</Pill>);
-  if (x.type === 'add') return row(<Pill ex={x.exercise} arriving><span style={css('flex:none;white-space:nowrap;color:var(--nv-ink60);font-weight:500')}>+{x.sets}{x.reps ? ` × ${x.reps}` : ' sets'}</span></Pill>);
+  if (x.type === 'add') {
+    return row(
+      <>
+        <Pill ex={x.exercise} arriving><span style={css('flex:none;white-space:nowrap;color:var(--nv-ink60);font-weight:500')}>+{x.sets}{x.reps ? ` × ${x.reps}` : ' sets'}</span></Pill>
+        {x.place && <Place text={x.place} />}
+      </>,
+    );
+  }
+  // a move: the lift, then the routine it leaves (struck on a yes) → the one
+  // it joins, and where in the order it lands
+  if (x.type === 'move') {
+    return (
+      <div style={css('margin-top:10px;display:flex;flex-direction:column;gap:8px;min-width:0')}>
+        <div style={css('display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0')}>
+          <Pill ex={x.exercise}><span style={css('flex:none;white-space:nowrap;color:var(--nv-ink60);font-weight:500')}>{x.sets}{x.reps ? ` × ${x.reps}` : ' sets'}</span></Pill>
+        </div>
+        <div role="img" aria-label={`From ${x.from}${x.fromSets ? ` (${x.fromSets.before} sets becomes ${x.fromSets.after})` : ''} to ${x.to}${x.place ? `, ${x.place}` : ''}`}
+          style={css('display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0')}>
+          <span className="nv-gone" style={{ ...chip('var(--nv-ink60)'), position: 'relative' }}>
+            {x.from}{x.fromSets && <span style={css('margin-left:6px;font-weight:500;color:var(--nv-ink40);font-variant-numeric:tabular-nums')}>{x.fromSets.before}→{x.fromSets.after}</span>}
+            <span aria-hidden="true" className="nv-strike-real" />
+          </span>
+          <Arrow />
+          <span className="nv-sug-arrive" style={chip('var(--nv-gold)')}>{x.to}</span>
+          {x.place && <Place text={x.place} />}
+        </div>
+      </div>
+    );
+  }
   if (x.type === 'swap') return row(<><Pill ex={x.from} gone /><Arrow /><Pill ex={x.to} arriving /></>);
   if (x.type === 'targets') {
     const hue = hueOf(x.exercise?.muscle);

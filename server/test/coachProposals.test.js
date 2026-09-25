@@ -152,3 +152,20 @@ test('the repair request names every refusal and what to send back', () => {
   assert.match(r, /Reply with ONLY the corrected PROPOSE lines/);
   assert.match(r, /Never say a change is done/);
 });
+
+test('a remove and an add of one exercise are ONE move card, whatever Coach wrote', async () => {
+  // the exact shape of his 11:14 reply: the move written as two lines
+  const settled = await settleCoachChanges(vault, {
+    question: 'q',
+    replyText: [
+      'The lateral raise goes to Push, after the Carter.',
+      P({ action: 'remove', routine: 'Upper Body', exercise: 'Cable Lateral Raise (behind back, wrist height)', reason: 'moving to Push' }),
+      P({ action: 'add', routine: 'Push', exercise: 'Cable Lateral Raise (behind back, wrist height)', after: 'Carter Extension', targetSets: 3, reason: 'side delts on your pressing day' }),
+    ].join('\n'),
+  });
+  assert.equal(settled.filed.length, 1, 'never two cards he can half-approve');
+  assert.equal(settled.filed[0].payload.action, 'move');
+  assert.equal(settled.filed[0].title, 'Coach: move Cable Lateral Raise (behind back, wrist height) from Upper Body to Push, after Carter Extension', 'the same prescription says nothing more');
+  assert.equal(settled.filed[0].payload.reason, 'side delts on your pressing day');
+  assert.equal(settled.filed[0].status, undefined, 'a suggestion waits for his yes');
+});
