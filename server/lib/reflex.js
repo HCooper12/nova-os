@@ -59,6 +59,10 @@ const defaultDeps = {
   },
   // the ledger — for "what's going on with the X?" (lib/verbs.js's world)
   records: async () => (await import('./inboxStore.js')).listRecords(),
+  // what Nova is connected to, checked from evidence each time (roster.js)
+  roster: async (asked, opts) => (await import('./roster.js')).rosterAnswer(asked, undefined, opts),
+  // the Music app on his Mac (macHand.js)
+  nowPlaying: async () => (await import('./macHand.js')).musicNow(),
   // "what's on my to-do list" cost 9.5s of model for a file read; "what did I
   // train yesterday" cost 21s. Both are the live record, plainly asked.
   todos: async () => (await import('./todos.js')).listTodos(process.env.VAULT_PATH),
@@ -307,6 +311,16 @@ function daysApart(fromISO, toISO) {
 }
 
 // ---- the four that still cost twenty seconds (measured live, 16 Sep) ----
+// connections (roster.js) and the Music app (macHand.js)
+const ROSTER_ONE_RE = [
+  /^(?:do|have) you (?:have|got) (?:my |the |a |an )?(.+?) (?:connected|integrated|hooked up|linked|set up|integration|connection)$/,
+  /^(?:is|are) (?:my |the )?(.+?) (?:connected|integrated|hooked up|linked|set up)(?: (?:to|with) (?:you|nova))?$/,
+  /^are you (?:connected|hooked up|linked|integrated) (?:to|with) (?:my |the )?(.+)$/,
+  /^(?:do you have|have you got) (?:an? )?(.+?) integration$/,
+];
+const ROSTER_CAN_RE = /^can you (?:control|see|access|reach|read|use) (?:my |the )?(.+)$/;
+const ROSTER_ALL_RE = /^(?:what (?:are you|is nova) (?:connected|hooked up|linked|integrated) (?:to|with)|what (?:integrations|connections|services) (?:do you have|have you got|are (?:connected|set up))|what(?:'?s| is) connected|list (?:your|the) (?:integrations|connections)|what can you (?:control|access|reach))$/;
+const NOW_PLAYING_RE = /^(?:what(?:'?s| is) (?:playing|this song|this track)(?: (?:right )?now)?|what song is (?:this|playing)|what am i listening to|who(?:'?s| is) (?:this|singing))$/;
 const TOMORROW_RE = /^(?:what(?:'?s| is)\s+)?(?:on|happening|planned)?\s*(?:for\s+)?tomorrow(?:\s+(?:look like|looking like))?$|^what(?:'?s| is)\s+(?:on\s+)?(?:my\s+)?(?:calendar|schedule|diary)\s+tomorrow$|^tomorrow(?:'?s)?\s+(?:calendar|schedule|plan|day)$/;
 const WEEK_COUNT_RE = /^how many (?:workouts|sessions|times)(?:\s+have i\s+(?:trained|worked out|lifted))?\s+(?:this week|so far this week)$|^how many times have i (?:trained|worked out|lifted) this week$|^(?:my\s+)?workouts? this week$/;
 const SINCE_TRAINED_RE = /^how long (?:has it been |is it )?since i (?:last )?(?:trained|worked out|lifted|went to the gym)$|^when did i last (?:train|work out|lift|go to the gym)$/;
@@ -351,6 +365,41 @@ export async function tryReflex(question, deps = defaultDeps) {
   const now = deps.now ? new Date(deps.now) : new Date();
   const today = localDate(now);
   const yesterday = localDate(new Date(now.getTime() - 86_400_000));
+
+  // ---- connections: what Nova is, and is not, hooked up to ----
+  // The Clicky reel's question — "do you have my Google Ads integration
+  // connected?" — answered by roster.js from evidence (a sync time, a push,
+  // a key's presence), never from the model's memory of a list.
+  if (ROSTER_ALL_RE.test(q)) return { matched: 'roster', text: await deps.roster(null) };
+  for (const re of ROSTER_ONE_RE) {
+    const hit = q.match(re);
+    if (!hit) continue;
+    const asked = hit[1].trim();
+    if (/^(?:it|that|this|them|you)$/.test(asked)) break;
+    const text = await deps.roster(/^(?:everything|all of it|it all)$/.test(asked) ? null : asked);
+    if (text) return { matched: 'roster', text };
+    break;
+  }
+  const can = q.match(ROSTER_CAN_RE);
+  if (can) {
+    // "can you control my music" is about a connection; "can you see my
+    // bench trend" is not — only a name on the roster is answered here
+    const text = await deps.roster(can[1].trim(), { onlyKnown: true });
+    if (text) return { matched: 'roster', text };
+  }
+
+  // ---- what's playing — the Music app on his Mac ----
+  if (NOW_PLAYING_RE.test(q)) {
+    try {
+      const n = await deps.nowPlaying();
+      if (!n.running) return { matched: 'now-playing', text: "Nothing, sir — Music isn't open on your Mac." };
+      if (n.state === 'stopped' || !n.name) return { matched: 'now-playing', text: 'Nothing is playing in Music, sir.' };
+      return { matched: 'now-playing', text: `${n.name}${n.artist ? `, by ${n.artist}` : ''}${n.state === 'paused' ? ' — paused' : ''}, sir.` };
+    } catch (e) {
+      const msg = String(e?.message || 'Music did not answer');
+      return { matched: 'now-playing', text: `${msg.charAt(0).toUpperCase()}${msg.slice(1)}${/[.?!]$/.test(msg) ? '' : '.'}` };
+    }
+  }
 
   // ---- steps (today / yesterday) ----
   const steps = q.match(STEPS_RE);

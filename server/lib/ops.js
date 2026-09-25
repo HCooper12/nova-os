@@ -1,3 +1,4 @@
+import { configuredLabels } from './roster.js';
 import { listRecords } from './inboxStore.js';
 import { readHeartbeats, readNotes } from './heartbeat.js';
 import { composeOrgMap } from './orgMap.js';
@@ -99,7 +100,7 @@ export function fleetRosterContext() {
   // silently omitted an agent (Watcher) the Ops screen was already showing
   const scheduled = SCHEDULED.map((a) => `${a.label} (${a.role})`).join(', ');
   const conversational = CONVERSATIONAL.map((a) => `${a.label} (${a.role})`).join(', ');
-  return `HOW NOVA WORKS (your real architecture — answer from this when he asks how you work, what agents you run, or what you're connected to): a Claude reasoning core interprets; ONLY tested deterministic code writes, every change riding the review-gated Inbox rails with undo. Scheduled fleet: ${scheduled}. Conversational: ${conversational}. Channels in: the app (Mac + iPhone), voice, Siri Shortcuts, Telegram. Hands: his Obsidian vault, Apple Calendar, Apple Reminders, Apple Health drops, Todoist, ElevenLabs voice. Autonomy is earned from real history and always proposed to him, never self-granted.`;
+  return `HOW NOVA WORKS (your real architecture — answer from this when he asks how you work, what agents you run, or what you're connected to): a Claude reasoning core interprets; ONLY tested deterministic code writes, every change riding the review-gated Inbox rails with undo. Scheduled fleet: ${scheduled}. Conversational: ${conversational}. Channels in: the app (Mac + iPhone), voice, Siri Shortcuts, Telegram. Hands (the ones configured on this server — whether each is WORKING is checked live by roster.js, and a direct question about a connection is answered by that check, not by this line): ${configuredLabels().join(', ')}. Autonomy is earned from real history and always proposed to him, never self-granted.`;
 }
 
 // Conversational agents surface through the records they leave, not beats.
