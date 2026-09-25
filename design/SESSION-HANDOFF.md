@@ -13,6 +13,45 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**26 SEP (00:40 AEST, nova-os-44) — THE NINE LIVE IN THE HABITAT ON OPS.
+Pushed `d12cfbc`, server reloaded (reload-server.mjs), gate green on the
+combined tree (lint 0, build, 2439/2439). The habitat sheet for his
+judgment: https://claude.ai/artifact/52W7BD7VxYAgStjH28pAw9.**
+
+- **His ask (25 Sep):** the agents' environment, "interactive and engaging
+  and amusing as though the agents have their own life", at zero Claude
+  cost. Design: AGENT-WORLD-PLAN.md §9 (the two rules: zero tokens held by
+  agentWorldNoModel.test.js; working tells only for real work, an off-duty
+  catalogue for everything else, a marker holds its being in place).
+- **Built and on main:** `src/agentWorld/habitat.js` (a set per district,
+  lanes, plaza, lamps), `life.js` (the pure seeded engine), `acts.js` (every
+  act drawn on the rigs), `src/orgmap/walk.js`, the scene integration in
+  `scene.js`, `composeOrgMap` now emits `events` (10-min window) and
+  `receipts`. Mockup 50 + `bundle.mjs --page`, `look.mjs --port`. Ops's old
+  fleet ring removed (his call); every loop's state on the tap card. Also
+  fixed on the way: the working glass reading every past brief aloud on a
+  fresh load (`c455cf2`), the record's same-millisecond ids (`5df39bb`) and a
+  repair of `server/data/conversation/2026-09.jsonl` (167 → 42 rows).
+- **Verified by capture (guarded, no writes reached him):** Ops at 402 and
+  1280 by day and night; the Coach's walk (12-frame strips), a delivery to
+  the post with the plaza pulse, a Librarian → Watcher visit with the popcorn
+  carried home, the bar racked, every idle act of all nine, reduced motion
+  still. Loop at rest: only blinks wake it.
+- **NOT verified:** his phone (frame rate, GPU, memory with the sets), Calm
+  and the four themes, a tap on a walking being, the 6–12 min visit cycle
+  and a real filing acting out on their own, the sleep pose on the bench
+  (the "asleep" capture shows him standing, hands on hips).
+- **Decisions he still owns:** none pending. Mine, reversible: stroll speed,
+  the Money stack = today's filed count, the Leader rests facing the pool.
+- **NEXT:** his verdict on the sheet and on Ops on his phone (name the
+  district and the part); then Ambient (his yes, 25 Sep): the habitat filling
+  the wall with a slow camera drift, about a session. Then the unstarted
+  audit items (effort per lane, --fallback-model, pref provenance).
+- **DO NOT:** post test rows to /api/conversation; run a stub-CLI test
+  without NOVA_DATA_DIR; pass a list to git unquoted in zsh (`${=VAR}`).
+
+---
+
 **25 SEP (late evening, nova-os-d3) — THE REEL: A NEW TECHNIQUE IS REVEALED
 ON A SPIN, THE CONCEPT SHUFFLE SPINS, WRAP THE DAY ASKS "DID IT LAND?".
 From the Hormozi spin-wheel reel he sent; he said yes to all four proposals.

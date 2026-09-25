@@ -721,8 +721,27 @@ in the same table. Nothing in the table plays a working tell.
 day, night and from behind, looked at and fixed), published for his
 judgment as https://claude.ai/artifact/52W7BD7VxYAgStjH28pAw9 (the hash
 API does not reach an artifact; the buttons do). L: `src/agentWorld/life.js`
-+ 13 tests (Sonnet agent). I: in progress. The old fleet ring on Ops is gone
-(his call), each loop's state on the being's tap card.
++ 13 tests (Sonnet agent). I: built (Opus agent, ten commits `100589c`..
+`a01f864`, cherry-picked and gated on main, pushed `d12cfbc`): the sets and
+lanes on the Ops map, the daypart light from the device clock (night about
+half of day by median brightness), lamps from the record, the engine
+stepping every 250 ms, walks on `lanes.route` (`src/orgmap/walk.js`), every
+act by name (`src/agentWorld/acts.js`, 199 tests hold the catalogue), the
+Coach's bar racked off duty, the Guardian's lantern in the tower at night,
+popcorn/bowl/card props carried home. The old fleet ring on Ops is gone (his
+call), each loop's state on the being's tap card.
+
+Decisions taken in the build, mine unless he says otherwise: walks stroll to
+fill the engine's phase (0.12–0.28 units/s) rather than the plan's brisk
+0.9 tile-widths/s; the Money stack is today's filed count (no month count
+exists yet); the Leader at rest faces its pool; Platform's vault ring and
+Mind's lantern light by day when their loops ran; the overnight pad stays
+dark until the view model carries an overnight-queued count. Found on the
+way: the beings' saccades kept the frame loop awake (nine eye movements a
+second); now only blinks wake it, and a rested map sleeps between them.
+Not verified: a real phone and real frame rates, the Calm theme, a tap on
+a walking being, the visit cycle firing on its own, the engine acting on a
+real filing.
 
 Three briefs, checked by capture, one build pass and one fix pass each:
 (H) `habitat.js` + a sheet page (`design/mockups/50-habitat.html`, captured by
