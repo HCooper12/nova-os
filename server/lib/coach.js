@@ -1350,9 +1350,13 @@ export async function adviceContext(days = 14) {
   const records = (await listRecords()).filter((r) =>
     (COACH_ROUTES.has(r.decision?.route) || r.kind === 'fuel-cross') && new Date(r.createdAt || 0).getTime() > cutoff);
   if (!records.length) return null;
+  // a card Coach took back (WITHDRAW) was never his answer: not "pending", and
+  // never a decline to ask him about
   const line = (r) => `${(r.createdAt || '').slice(5, 10)} ${r.decision?.title || r.text} → ${r.status === 'filed' ? 'APPROVED'
-    : r.status === 'discarded' ? (r.declineReason ? `declined — his reason: "${r.declineReason}" (reason is ON RECORD: never re-ask why; if the data genuinely contradicts it, you may make the counter-case ONCE)` : 'declined (no reason recorded — ask why once, briefly, next time it naturally fits)')
-      : 'still pending his word'}`;
+    : r.status === 'withdrawn' ? 'you took it back before he answered'
+      : r.status === 'undone' ? 'approved, then undone by him'
+        : r.status === 'discarded' ? (r.declineReason ? `declined — his reason: "${r.declineReason}" (reason is ON RECORD: never re-ask why; if the data genuinely contradicts it, you may make the counter-case ONCE)` : 'declined (no reason recorded — ask why once, briefly, next time it naturally fits)')
+          : 'still pending his word'}`;
   return `YOUR RECENT RECOMMENDATIONS AND THEIR OUTCOMES (last ${days}d — hold yourself to these: don't re-propose declined ones, follow up on approved ones, nudge once on stale pending ones):\n${records.map(line).join('\n')}`;
 }
 

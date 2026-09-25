@@ -86,7 +86,9 @@ export const AUTONOMY_TARGETS = {
 // Pure: one target's history → its ledger row. Exported for tests.
 export function ledgerRow(records, target, now = Date.now()) {
   const cutoff = now - WINDOW_DAYS * 86400e3;
-  const mine = records.filter((r) => target.match(r) && new Date(r.createdAt).getTime() >= cutoff);
+  // a card an agent took back itself (status 'withdrawn', coachProposals.js)
+  // was never put to him, so it is no evidence either way on the trust ladder
+  const mine = records.filter((r) => target.match(r) && r.status !== 'withdrawn' && new Date(r.createdAt).getTime() >= cutoff);
   const row = { made: mine.length, approved: 0, auto: 0, rejected: 0, agedOut: 0, undone: 0, pending: 0 };
   for (const r of mine) {
     if (r.status === 'pending' || r.status === 'classifying') row.pending++;

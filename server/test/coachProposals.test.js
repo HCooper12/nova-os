@@ -185,3 +185,9 @@ test('the deck\'s own framing is not his word: a curl onto Push stays refused wh
   assert.match(settled.text, /Not on a card, so nothing changed: move Cable Bicep Curl from Upper Body to Push\. Cable Bicep Curl trains Biceps/);
   assert.ok((await order(upper.id)).includes('Cable Bicep Curl'), 'and his plan is untouched');
 });
+
+test('Coach\'s own outcome ledger calls a withdrawn card what it is, never "pending his word"', async () => {
+  const { adviceContext } = await import('../lib/coach.js');
+  const ctx = await adviceContext();
+  assert.match(ctx, /add Face Pull to Pull → you took it back before he answered/);
+});

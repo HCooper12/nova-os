@@ -44,6 +44,13 @@ test('ledgerRow separates approved / auto / rejected / aged-out / undone', () =>
   assert.deepEqual(row, { made: 6, approved: 1, auto: 1, rejected: 1, agedOut: 1, undone: 1, pending: 1 });
 });
 
+// 25 Sep 2026: Coach can take back its own card (WITHDRAW). That card was
+// never put to him, so it is not evidence for or against the lane's trust.
+test('a card the agent took back itself is not counted, either way', () => {
+  const recs = [mkRec('review', 'filed'), mkRec('review', 'withdrawn'), mkRec('review', 'discarded')];
+  assert.deepEqual(ledgerRow(recs, AUTONOMY_TARGETS.review), { made: 2, approved: 1, auto: 0, rejected: 1, agedOut: 0, undone: 0, pending: 0 });
+});
+
 test('verdict: dead gate proposes auto; engaged gate stays; premature auto proposes draft', () => {
   // 20 made, none approved, 18 dead → auto
   const dead = verdict({ made: 20, approved: 0, auto: 0, rejected: 4, agedOut: 14, undone: 0, pending: 2 }, 'draft');
