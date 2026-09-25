@@ -84,6 +84,25 @@ export function claimForSpeech() {
   if (micHolds === 0) apply(preferred);
 }
 
+// SOUND EFFECTS (25 Sep 2026: the reveal's ticks and chime) are neither of
+// the two speech choices above. They are UI sounds, and iOS has a category
+// made for exactly those: 'ambient' plays ALONGSIDE his music — never pausing
+// it, never ducking it — and the ring switch silences it, like the iPhone's
+// own keyboard clicks. 'playback' would stop his podcast for a tick;
+// 'transient' would dip it. Nothing is restored afterwards on purpose: the
+// next time Nova speaks, claimForSpeech() puts his chosen type back, and
+// apply() only writes when the type actually differs.
+export const EFFECTS = 'ambient';
+
+// Returns false when the microphone holds the session (dictation, the wake
+// word) — an effect is never worth disturbing a recording, so the caller
+// stays silent rather than fight for it.
+export function claimForEffects() {
+  if (micHolds > 0) return false;
+  apply(EFFECTS);
+  return true;
+}
+
 // Around microphone use: let the browser pick the recording session.
 export function micStarted() {
   micHolds++;

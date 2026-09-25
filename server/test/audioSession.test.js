@@ -128,3 +128,28 @@ test('a setting changed mid-turn waits for the microphone', async () => {
   m.micStopped();
   assert.equal(session.type, 'transient', 'the new choice was not honoured once the mic let go');
 });
+
+// 25 Sep 2026 — sound effects (the reveal's ticks and chime) are UI sounds.
+// iOS's 'ambient' type plays them alongside his music and lets the ring
+// switch silence them; neither speech type does both.
+test('effects ask for AMBIENT, and his speech choice comes back when Nova next speaks', async () => {
+  const { session } = stubDom({ 'novaos.audioDucks': '1' });
+  const m = await freshModule();
+  assert.equal(m.EFFECTS, 'ambient');
+  m.claimForSpeech();
+  assert.equal(session.type, 'transient');
+  assert.equal(m.claimForEffects(), true);
+  assert.equal(session.type, 'ambient', 'a tick under his speech type would dip or stop his music');
+  m.claimForSpeech();
+  assert.equal(session.type, 'transient', 'his chosen type was not restored for speech');
+});
+
+test('effects never take the session from the microphone', async () => {
+  const { session } = stubDom();
+  const m = await freshModule();
+  m.micStarted();
+  assert.equal(m.claimForEffects(), false, 'the caller must learn to stay silent');
+  assert.equal(session.type, 'auto');
+  m.micStopped();
+  assert.equal(m.claimForEffects(), true);
+});

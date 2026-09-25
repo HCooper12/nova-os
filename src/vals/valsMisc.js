@@ -183,6 +183,9 @@ export function valsMisc(app, ctx) {
     // false = Nova speaks over silent and other audio pauses
     audioDucks: !!st.audioDucks,
     setAudioDucks: (on) => app.setAudioDucks(on),
+    // the reveal's ticks and chime — ambient, so never over his music (sfx.js)
+    sfxOn: st.sfxOn !== false,
+    setSfxOn: (on) => app.setSfx(on),
     // WHICH EARS — the stored choice, and what it resolves to on THIS device
     hearing: st.hearing || 'auto',
     hearingOptions: HEARING_CHOICES,

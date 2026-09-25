@@ -4,6 +4,7 @@ import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
 import { reportOpening } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
+import { sfxEnabled, setSfxEnabled, previewSfx } from './sfx.js';
 import { hearingChoice, setHearingChoice } from './hearingEngine.js';
 import { runEarsTest } from './earsTest.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
@@ -418,6 +419,8 @@ export default class App extends Component {
     // 18 Sep: he could only hear Nova off silent or on earphones. The mixing
     // session type the gym fix asked for is the one the ring switch silences.
     audioDucks: ducksOtherAudio(),
+    // the reveal's ticks and chime (src/sfx.js) — on unless he turned them off
+    sfxOn: sfxEnabled(),
     // which ears: Nova's own (record → the Mac writes it down) or the
     // browser's speech engine. Per device; src/hearingEngine.js
     hearing: hearingChoice(),
@@ -8196,6 +8199,13 @@ export default class App extends Component {
   setAudioDucks(duck) {
     setDuckingPreference(duck);
     this.setState({ audioDucks: duck });
+  }
+  // Sound effects on or off. Switching them ON plays the reveal's sound once,
+  // under his finger — a setting he cannot hear is a setting he has to trust.
+  setSfx(on) {
+    setSfxEnabled(on);
+    this.setState({ sfxOn: on });
+    if (on) previewSfx();
   }
   // The hook reads the stored choice at every render, so the next turn
   // uses it; the state is only here so Settings re-renders.

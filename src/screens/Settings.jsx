@@ -509,6 +509,25 @@ export function Settings({ v }) {
             </Chip>
           </div>
 
+          {/* 25 Sep: the reveal's ticks and chime. They are UI sounds, not
+              Nova's voice, so neither choice above fits them — they ride
+              iOS's ambient type instead (audioSession.js, sfx.js). Switching
+              them on plays them once, so he hears what he chose. */}
+          <div style={css("display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:12px 0;border-top:1px solid color-mix(in srgb, var(--nv-ink) 8%, transparent)")}>
+            <div style={{ minWidth: 0 }}>
+              <div style={css("font:600 12.5px var(--nv-font-ui)")}>Sound effects</div>
+              <div style={css("margin-top:2px;max-width:340px;font-size:11px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
+                {v.sfxOn
+                  ? 'The ticks and chime when a technique is revealed or a concept shuffled. They play alongside your music rather than pausing it, and the ring switch silences them, like the iPhone’s own keyboard clicks.'
+                  : 'Off. Reveals and shuffles still spin, silently.'}
+              </div>
+            </div>
+            <Chip tone={v.sfxOn ? 'accent' : 'quiet'} active={v.sfxOn}
+              onClick={() => v.setSfxOn(!v.sfxOn)} style={{ flex: 'none' }}>
+              {v.sfxOn ? 'On' : 'Off'}
+            </Chip>
+          </div>
+
           {/* His 9-Sep report: "my speech is cut off and I feel like I am
               rushing to keep speaking before it thinks I have stopped
               talking." The browser's endpointer has no knob, so Nova ends
