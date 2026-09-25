@@ -442,3 +442,38 @@ test('today carries the reel on a NEW day only, and the answer once given', asyn
   assert.equal(tue.mode, 'second');
   assert.equal(tue.reel, null);
 });
+
+/* ------------- a miss brings it back sooner (his call, 25 Sep) ------------ */
+
+test('a technique that did not land last time comes back a step sooner', async () => {
+  const { practiceStep, lastResultFor } = await import('../lib/repertoire.js');
+  const [a, b] = ALL;
+  // both taught on the 5th and tried twice; only A's last answer was a miss
+  const state = {
+    techniques: {
+      [a.id]: { tried: 2, landed: 1, missed: 1, lastSurfacedOn: '2026-09-05' },
+      [b.id]: { tried: 2, landed: 1, lastSurfacedOn: '2026-09-05' },
+    },
+    days: {
+      '2026-09-03': { id: a.id, outcome: 'tried', result: 'landed' },
+      '2026-09-05': { id: a.id, outcome: 'tried', result: 'missed' },
+      '2026-09-04': { id: b.id, outcome: 'tried', result: 'landed' },
+    },
+  };
+  assert.equal(lastResultFor(state, a.id), 'missed', 'the most recent answer counts, not the first');
+  assert.equal(practiceStep(state, a.id), 1, 'one step back: the 5-day gap, not the 12');
+  assert.equal(practiceStep(state, b.id), 2);
+  const p = pickForDay([a, b], state, SUN);
+  assert.equal(p.technique.id, a.id, 'the miss is the more overdue on Sunday');
+  assert.match(p.why, /landed once, not last time$/);
+});
+
+test('landing again restores the gap, a pass takes the miss with it, and it never goes below zero', async () => {
+  const { practiceStep } = await import('../lib/repertoire.js');
+  const id = ALL[0].id;
+  const base = { techniques: { [id]: { tried: 2 } } };
+  assert.equal(practiceStep({ ...base, days: { '2026-09-01': { id, result: 'missed' }, '2026-09-08': { id, result: 'landed' } } }, id), 2);
+  // a pass clears the day's result (logPractice), so there is no miss to count
+  assert.equal(practiceStep({ ...base, days: { '2026-09-08': { id, outcome: 'skipped', result: null } } }, id), 2);
+  assert.equal(practiceStep({ techniques: { [id]: { tried: 0 } }, days: { '2026-09-08': { id, result: 'missed' } } }, id), 0);
+});

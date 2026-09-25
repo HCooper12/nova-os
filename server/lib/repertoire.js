@@ -189,6 +189,22 @@ export const REVIEW_INTERVALS = [2, 5, 12, 30];
 export const SCHEDULE = tableSchedule(REVIEW_INTERVALS); // pinned beside the Library's and the Leader's in twins.test.js
 export const intervalFor = (tried) => SCHEDULE(tried);
 
+// A MISS BRINGS IT BACK SOONER — his call, 25 Sep: when his most recent
+// answer for a technique is "didn't land", its gap steps back one level
+// (12 days becomes 5, 5 becomes 2) until it lands again. Read from the DAYS,
+// not a stored flag, so a corrected answer is the one that counts and a pass
+// (which clears a day's result) takes the miss with it. One step, not a
+// reset: five good attempts and one miss is still a practised technique.
+export function lastResultFor(state = {}, id) {
+  const days = state.days || {};
+  const dates = Object.keys(days).filter((d) => days[d]?.id === id && days[d]?.result).sort();
+  return dates.length ? days[dates[dates.length - 1]].result : null;
+}
+export function practiceStep(state = {}, id) {
+  const tried = Number(state.techniques?.[id]?.tried) || 0;
+  return Math.max(0, tried - (lastResultFor(state, id) === 'missed' ? 1 : 0));
+}
+
 // THE ROTA — his instruction, 15 Sep: "a new technique every second day and
 // then a review on the final day of the week, so there are 3 new techniques per
 // week and a day of review".
@@ -279,7 +295,7 @@ export function pickForDay(techniques = [], state = {}, dateISO, { rota = ROTA }
   const taught = techniques.filter((t) => lastOn(t));
 
   // whole days late: elapsed days minus the gap his practice count has earned
-  const overdueBy = (t) => daysBetween(lastOn(t), dateISO) - SCHEDULE(Number(st[t.id]?.tried) || 0);
+  const overdueBy = (t) => daysBetween(lastOn(t), dateISO) - SCHEDULE(practiceStep(state, t.id));
   const reviews = taught
     .map((t) => ({ t, over: overdueBy(t) }))
     .sort((a, b) => b.over - a.over || String(a.t.id).localeCompare(String(b.t.id)));
@@ -299,28 +315,28 @@ export function pickForDay(techniques = [], state = {}, dateISO, { rota = ROTA }
   // there is nothing to review, so it falls through to new work.
   if (slot === 'review' && reviews.length) {
     const top = reviews[0];
-    return { technique: top.t, mode: 'review', why: `the week's review — ${practisedPhrase(st[top.t.id])}` };
+    return { technique: top.t, mode: 'review', why: `the week's review — ${practisedPhrase(st[top.t.id], lastResultFor(state, top.t.id))}` };
   }
 
   if (untaught.length) return { technique: untaught[0], mode: 'new', why: null };
   // the catalogue is exhausted: keep reviewing rather than saying "nothing today"
   if (reviews.length) {
     const top = reviews[0];
-    return { technique: top.t, mode: 'review', why: `the whole catalogue is taught — ${practisedPhrase(st[top.t.id])}` };
+    return { technique: top.t, mode: 'review', why: `the whole catalogue is taught — ${practisedPhrase(st[top.t.id], lastResultFor(state, top.t.id))}` };
   }
   return null;
 }
 
 const MODES = new Set(['new', 'second', 'review']);
 
-function practisedPhrase(s = {}) {
+function practisedPhrase(s = {}, last = null) {
   const tried = Number(s.tried) || 0;
   if (!tried) return 'shown before, never tried';
   const base = `practised ${tried} time${tried === 1 ? '' : 's'}`;
   // once he has said what happened, the review says it back: a technique that
   // never landed is a different Sunday from one that works every time
   const landed = Number(s.landed) || 0;
-  if (landed) return `${base}, landed ${timesWord(landed)}`;
+  if (landed) return `${base}, landed ${timesWord(landed)}${last === 'missed' ? ', not last time' : ''}`;
   if (Number(s.missed) > 0) return `${base}, not landed yet`;
   return base;
 }
