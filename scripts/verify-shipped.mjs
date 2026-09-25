@@ -109,6 +109,9 @@ const FEATURES = [
   // Coach's changes in Train: the banner under Today and Gym, the deck with the tick (25 Sep)
   ['Train · the banner that leads to Coach\'s changes (25 Sep)', 'tap to review'],
   ['Train · Coach\'s changes as cards, answered with a tick (25 Sep)', 'a yes asks Coach to draft the exact change'],
+  // the planned week behind the hard-set bars, and the card's one rule for "short" (25 Sep)
+  ['Train · hard sets open the planned week, exercise by exercise (25 Sep)', 'Every exercise, day by day'],
+  ['Train · a goal muscle is short only if the plan leaves it short (25 Sep)', 'by Sunday on the plan as written'],
 ];
 
 const SERVER_ROUTES = [
