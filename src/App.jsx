@@ -57,6 +57,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { newStages, jobSettled } from './jobBeats.js';
+import { bareOpen, webTarget, isMacDevice } from './macTargets.js';
 import { previewLine } from './islandCore.js';
 import { coachSuggestions } from './coachSuggestions.js';
 import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
@@ -6045,6 +6046,15 @@ export default class App extends Component {
     const urls = raw.match(/https?:\/\/[^\s<>"']+/gi) || [];
     const study = /\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor)\b|\bevery video\b/i.test(raw);
     const L = (lane, label, why) => ({ lane, label, why });
+    // THE MAC'S OWN HAND (25 Sep 2026, "Clicky") — mirrors server/lib/verbs.js
+    // parseMac: at the Mac, a bare "open X" whose X is a site or an address
+    // opens in HIS browser on this screen (the verbs fast path), instead of
+    // sending Nova's headless browser off to read it. Every other "open"
+    // routes exactly as before. One reading of X, shared: src/macTargets.js.
+    if (isMacDevice()) {
+      const open = bareOpen(raw);
+      if (open && webTarget(open.target)) return L('ask', 'ON YOUR MAC', 'opens on this Mac, in your browser');
+    }
     // mirror of the server's PAPER_RE — a study aimed at HIS program, before research
     if (/\b(?:(?:this|that|the|a) (?:study|paper|article|trial|meta[- ]analysis|research)\b[\s\S]{0,80}?\b(?:my|his) (?:program|programme|training|block|plan|routine|split)\b|\b(?:apply|bring|take|use) (?:this|that|the) (?:study|paper|article|findings?)\b[\s\S]{0,40}?\b(?:program|programme|training|block|plan|routine)\b|\bwhat (?:would|does|should) (?:this|that|it) (?:change|mean)\b[\s\S]{0,40}?\b(?:my )?(?:program|programme|training|block|plan|routine)\b)/i.test(L) && !/\b(analyse|analyze|study|research) (this |their |the )?(creator|channel|account|profile|competitor|person|guy|team)\b/i.test(L)) return { lane: 'paper', label: 'STUDY → PROGRAM' };
     // mirrors server/lib/intentRouter.js BROWSE_MEDIA_RE (7 Sep 2026): a thing

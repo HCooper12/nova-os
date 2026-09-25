@@ -30,6 +30,7 @@
 // yes that approves a proposal.
 
 import { randomUUID } from 'node:crypto';
+import { bareOpen, webTarget } from '../../src/macTargets.js';
 
 const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack', 'extra'];
 const TODO_CATS = ['personal', 'work', 'fitness', 'errands', 'later'];
@@ -493,7 +494,8 @@ verb({
     const { createReminder } = await import('./reminders.js');
     const read = parseWhen(String(args.when));
     if (!read) throw new Error(`I couldn't read "${say(args.when)}" as a time — try "in 20 minutes", "at 6", or "tomorrow at 7"`);
-    const text = String(args.text).trim().replace(/^to\s+/i, '');
+    // "set a reminder saturday 9pm FOR dinner" leaves the connector behind
+    const text = String(args.text).trim().replace(/^(?:to|for|about|that)\s+/i, '');
     if (!text) throw new Error('a reminder needs something to remind you of');
     const entry = await createReminder({ text, whenISO: read.when.toISOString() });
     const when = read.when.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
@@ -535,6 +537,183 @@ verb({
     return { destination: `Shortcut — ran "${r.name}"${r.output ? ` → ${r.output.slice(0, 80)}` : ''}`, said, undo: null };
   },
 });
+
+
+// THE THIRD HAND — the Mac itself (lib/macHand.js; "Clicky", his 22 Sep
+// note, built 25 Sep 2026). Opening, playing and turning it down change the
+// screen and the room, not his data, so all three are act-tier. Each carries
+// its natural inverse as its undo where one exists; opening has none Nova can
+// do (closing the window is his click), and the receipt says so.
+const macLib = () => import('./macHand.js');
+// he is at the Mac → "Paused."; anywhere else → "Paused on your Mac."
+const onMac = (ctx) => (ctx?.fromMac ? '' : ' on your Mac');
+
+verb({
+  id: 'mac.open', tier: 'act',
+  describe: 'open an app, a website or a web address on his Mac, where he can see it — "open Reminders", "open my Stripe dashboard", "open github.com". Name it as he did; never guess an address',
+  args: { target: 'the app or site as he named it, or a full https:// address he gave', where: 'optional — "browser" when he said "in my browser"' },
+  async run(vaultPath, args, ctx) {
+    const { resolveTarget, openTarget } = await macLib();
+    const t = await resolveTarget(args.target, { where: args.where === 'browser' ? 'browser' : null });
+    await openTarget(t);
+    return { destination: `Mac — opened ${t.label}`, said: `Opened ${t.label}${onMac(ctx)}.`, undo: null };
+  },
+});
+
+verb({
+  id: 'mac.music', tier: 'act',
+  describe: 'the Music app on his Mac (Apple Music; Spotify is not installed): play or resume, pause, next, previous — or play a song, album, artist or playlist by name',
+  args: { action: 'play | pause | next | previous', query: 'optional — what to play, in his words', kind: 'optional — playlist | song | album | artist, when he said which' },
+  async run(vaultPath, args, ctx) {
+    const action = String(args.action || 'play').toLowerCase().trim();
+    const m = await macLib();
+    const here = onMac(ctx);
+    // "open Spotify and play…" — there is no Spotify on this Mac; say where it went
+    const via = args.via === 'spotify' ? 'Spotify isn’t on your Mac, so it’s in Music: ' : '';
+    if (action === 'play' && String(args.query || '').trim()) {
+      const r = await m.musicPlay(args.query, { kind: args.kind || null });
+      const who = r.artist ? ` by ${r.artist}` : '';
+      if (r.how === 'catalog') {
+        // opened, not playing — Nova does not claim a press it did not make
+        return { destination: `Mac — opened "${r.name}"${who} in Music`, said: `${via}${r.name}${who} isn’t in your library, so it’s open in Music${here} — press play.`, undo: null };
+      }
+      const what = r.how === 'playlist' ? `your ${r.name} playlist` : `${r.name}${who}`;
+      return { destination: `Mac — playing ${r.how === 'playlist' ? `the playlist "${r.name}"` : `"${r.name}"${who}`}`, said: `${via}Playing ${what}${here}.`, undo: { action: 'pause' } };
+    }
+    if (!['play', 'pause', 'next', 'previous'].includes(action)) throw new Error(`I can play, pause, skip or go back — not "${say(action)}"`);
+    const now = await m.musicControl(action);
+    const track = now?.name ? `${now.name}${now.artist ? `, by ${now.artist}` : ''}` : '';
+    const said = action === 'pause' ? `Paused${here}.`
+      : action === 'play' ? (track ? `Playing ${track}${here}.` : `Playing${here}.`)
+        : (track ? `${track}.` : `${action === 'next' ? 'Skipped' : 'Back one'}${here}.`);
+    return {
+      destination: `Mac — ${action === 'pause' ? 'paused the music' : action === 'play' ? 'playing' : action === 'next' ? 'next track' : 'previous track'}${track ? ` (${track})` : ''}`,
+      said,
+      undo: action === 'pause' ? { action: 'play' } : action === 'play' ? { action: 'pause' } : null,
+    };
+  },
+  async undo(vaultPath, u) {
+    const { musicControl } = await macLib();
+    await musicControl(u.action);
+    return u.action === 'play' ? 'the music is playing again' : 'paused the music';
+  },
+});
+
+verb({
+  id: 'mac.volume', tier: 'act',
+  describe: "his Mac's volume — the whole Mac, or just the Music app: a level, up or down, or mute and unmute",
+  args: { level: 'optional — 0 to 100', change: 'optional — up | down | mute | unmute', by: 'optional — how far to move it, 1 to 100', target: 'optional — mac (default) or music' },
+  async run(vaultPath, args, ctx) {
+    const { setVolume } = await macLib();
+    const target = args.target === 'music' ? 'music' : 'mac';
+    const r = await setVolume({ target, level: args.level ?? null, change: args.change || null, by: args.by ?? null });
+    const here = onMac(ctx);
+    const said = args.change === 'mute' ? `Muted${here}.`
+      : args.change === 'unmute' ? `Unmuted${here}.`
+        : `${target === 'music' ? 'Music' : 'Volume'} at ${r.after}%${here}.`;
+    return {
+      destination: `Mac — ${target === 'music' ? 'Music volume' : 'volume'} ${args.change === 'mute' ? 'muted' : args.change === 'unmute' ? 'unmuted' : `${r.before}% → ${r.after}%`}`,
+      said,
+      undo: { target, level: r.before, muted: r.wasMuted },
+    };
+  },
+  async undo(vaultPath, u) {
+    const { restoreVolume } = await macLib();
+    await restoreVolume({ target: u.target, level: u.level, muted: !!u.muted });
+    return `${u.target === 'music' ? 'Music' : 'volume'} back to ${u.level}%${u.muted ? ', muted' : ''}`;
+  },
+});
+
+// The Mac grammar. Only claimed when he is AT the Mac (the client says so —
+// ctx.fromMac) or names it ("…on my Mac"). From his phone, "pause the music"
+// or "open my calendar" most likely means the phone in his hand, which Nova
+// cannot touch — so those words go on to the model, which can still ACT on
+// the Mac when that is plainly what he means, and says "on your Mac" when it
+// does.
+const ON_MAC_RE = /\s+(?:on|in)\s+(?:my|the)\s+(?:mac|macbook|computer|laptop)\b/;
+const MEDIA_WORDS = /\b(?:video|videos|episode|episodes|podcast|podcasts|clip|clips|documentary|youtube|channel|stream|movie|film|show|trailer)\b/;
+const PCT = '(\\d{1,3})\\s*(?:%|percent)?';
+const MUSIC_APP = '(?:apple\\s+music|music|itunes|spotify)';
+
+// Away from the Mac, a sentence that IS Mac-shaped ("set the volume to 30")
+// returns NOT_HERE: no other verb may grab it either — the shopping list once
+// read that as an item called "the volume" — and the model decides.
+const NOT_HERE = Symbol('not at the Mac');
+function parseMac(qIn, ctx) {
+  const named = ON_MAC_RE.test(qIn);
+  const q = qIn.replace(ON_MAC_RE, '').trim();
+  const hit = parseMacWords(q);
+  if (!hit) return null;
+  return ctx?.fromMac || named ? hit : NOT_HERE;
+}
+
+function parseMacWords(q) {
+  let m;
+
+  // OPEN — an app, a site, an address. A bare "open X" whose X is not a site
+  // and sounds like media ("open the Diary of a CEO channel") stays the
+  // browser hand's, exactly as it was.
+  const open = bareOpen(q);
+  if (open && (webTarget(open.target) || !MEDIA_WORDS.test(open.target))) {
+    return { any: [{ verb: 'mac.open', args: { target: open.target, ...(open.where === 'browser' ? { where: 'browser' } : {}) } }], fallthrough: true };
+  }
+
+  // MUSIC
+  if (/^(?:(?:play|resume|start)\s+(?:the\s+)?music|play|resume|unpause|un-pause)$/.test(q)) return { verb: 'mac.music', args: { action: 'play' } };
+  if (/^(?:pause|stop)\s+(?:the\s+)?(?:music|song|track|tunes)$|^pause$/.test(q)) return { verb: 'mac.music', args: { action: 'pause' } };
+  if (/^(?:next|skip)\s+(?:this\s+)?(?:song|track)$|^skip\s+(?:this|it)$|^(?:play\s+)?(?:the\s+)?next\s+(?:song|track)$/.test(q)) return { verb: 'mac.music', args: { action: 'next' } };
+  if (/^(?:(?:play\s+)?(?:the\s+)?previous|go\s+back\s+a|back\s+a|last)\s+(?:song|track)$/.test(q)) return { verb: 'mac.music', args: { action: 'previous' } };
+  if ((m = q.match(new RegExp(`^(?:open\\s+(?:up\\s+)?(${MUSIC_APP})\\s+and\\s+)?play\\s+(?:me\\s+)?(.+?)(\\s+(?:on|in|from)\\s+${MUSIC_APP})?$`)))) {
+    const via = m[1] || '';
+    let body = m[2].replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+    if (MEDIA_WORDS.test(body)) return null; // "play the latest episode" is the play lane's
+    // "play devil's advocate" is conversation — without a music word the
+    // model decides, with the whole sentence in front of it
+    const cue = !!via || !!m[3] || /\b(?:song|track|album|playlist|artist|music|tunes)\b/.test(body) || /\s+by\s+/.test(body) || /^some\s+/.test(body);
+    if (!cue) return null;
+    const kind = /\bplaylist\b/.test(body) ? 'playlist' : /\balbum\b/.test(body) ? 'album' : /\b(?:song|track)\b/.test(body) ? 'song' : /\bartist\b/.test(body) ? 'artist' : null;
+    body = body.replace(/^some\s+/, '').replace(/^(?:the|my)\s+/, '').replace(/\b(?:playlist|album|song|track|artist)\b/g, ' ')
+      .replace(/^\s*(?:the|my|called|named)\s+/, '').replace(/\s+/g, ' ').trim();
+    if (!body || /^(?:music|tunes)$/.test(body)) return { verb: 'mac.music', args: { action: 'play' } };
+    return { verb: 'mac.music', args: { action: 'play', query: body, ...(kind ? { kind } : {}), ...(/spotify/.test(via + (m[3] || '')) ? { via: 'spotify' } : {}) } };
+  }
+
+  // VOLUME
+  const music = (w) => (w === 'music' ? { target: 'music' } : {});
+  if ((m = q.match(new RegExp(`^(?:set\\s+|put\\s+|turn\\s+)?(?:the\\s+)?(?:(music|sound|system|mac(?:'s)?)\\s+)?volume\\s+(?:to\\s+|at\\s+)?${PCT}$`)))) return { verb: 'mac.volume', args: { level: Number(m[2]), ...music(m[1]) } };
+  if ((m = q.match(new RegExp(`^(?:set|put|turn)\\s+(?:the\\s+)?(music|sound)\\s+(?:volume\\s+)?(?:to|at)\\s+${PCT}$`)))) return { verb: 'mac.volume', args: { level: Number(m[2]), ...music(m[1]) } };
+  if ((m = q.match(new RegExp(`^turn\\s+(?:the\\s+)?(music|volume|sound|it)\\s+(up|down)(?:\\s+(?:a\\s+)?(?:bit|little|touch|lot))?(\\s+in\\s+(?:the\\s+)?${MUSIC_APP})?(?:\\s+(to|by))?(?:\\s+${PCT})?$`)))) {
+    const target = m[1] === 'music' || m[3] ? 'music' : 'mac';
+    const n = m[5] != null ? Number(m[5]) : null;
+    const t = target === 'music' ? { target } : {};
+    if (n == null) return { verb: 'mac.volume', args: { change: m[2], ...t, ...(/\blot\b/.test(q) ? { by: 30 } : /\b(?:bit|little|touch)\b/.test(q) ? { by: 8 } : {}) } };
+    if (m[4] === 'by') return { verb: 'mac.volume', args: { change: m[2], by: n, ...t } };
+    return { verb: 'mac.volume', args: { level: n, ...t } };
+  }
+  if ((m = q.match(/^turn\s+(up|down)\s+(?:the\s+)?(music|volume|sound)$/))) return { verb: 'mac.volume', args: { change: m[1], ...music(m[2]) } };
+  if ((m = q.match(/^(?:a\s+(?:bit|little|touch)\s+)?(louder|quieter|softer)(?:\s+please)?$/))) return { verb: 'mac.volume', args: { change: m[1] === 'louder' ? 'up' : 'down' } };
+  if ((m = q.match(/^(mute|unmute|un-mute)(?:\s+(?:the\s+)?(?:mac|sound|volume|audio|speakers?))?$/))) return { verb: 'mac.volume', args: { change: m[1] === 'mute' ? 'mute' : 'unmute' } };
+  return null;
+}
+
+// "…then open my Reminders when you're done to confirm" — Clicky's last
+// move, and the receipts doctrine as a gesture: do the thing, then put it in
+// front of him. The head runs as any command would; only a head that
+// actually ACTED earns the open (a pending proposal has nothing to show yet).
+const THEN_OPEN_RE = /^(.+?)(?:,\s*|\s+)(?:and\s+)?then\s+(?:open|show(?:\s+me)?|pull\s+up|bring\s+up)(?:\s+up)?(?:\s+(.*?))?$/i;
+export function splitThenOpen(text) {
+  const t = String(text || '').trim().replace(/[.!?]+$/, '');
+  const m = t.match(THEN_OPEN_RE);
+  if (!m) return null;
+  let tail = String(m[2] || '')
+    .replace(/\b(?:when you'?re (?:done|finished)|once (?:you'?re |it'?s )?done|so (?:that )?i can (?:confirm|check|see)(?: (?:it|that))?|to (?:confirm|check)(?: (?:it|that))?|for me|please)\b/gi, ' ')
+    .replace(/\s+/g, ' ').trim()
+    .replace(/^(?:up\s+)?(?:my|the)\s+/i, '').trim();
+  if (/^(?:it|that|them|this)$/i.test(tail)) tail = '';
+  return { head: m[1].trim(), tail };
+}
+// where "show me" goes when he did not say — the app the thing landed in
+const SHOW_FOR = { 'reminder.set': 'Reminders', 'todo.add': 'Obsidian', 'journal.add': 'Obsidian', 'stash.add': 'Obsidian' };
 
 
 // ---------------------------------------------------------------------------
@@ -847,7 +1026,7 @@ export function describeForModel() {
 // Runs a verb and lands its receipt: an 'act' verb executes now and files
 // a DONE record with undoData; a 'confirm' verb files a PENDING record the
 // existing approve rail runs (fileDecision route 'act' → execute()).
-export async function runVerb(vaultPath, question, raw, { source = 'voice' } = {}) {
+export async function runVerb(vaultPath, question, raw, { source = 'voice', fromMac = false } = {}) {
   const id = String(raw?.verb || '').trim();
   const v = VERBS[id];
   if (!v) throw new Error(`I don't have a verb called "${raw?.verb}"`);
@@ -881,7 +1060,7 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice' } = {
     await createRecord(record);
     return { proposal: { recordId: record.id, title: record.decision.title, route: 'act' } };
   }
-  const out = await execute(vaultPath, { verb: id, args });
+  const out = await execute(vaultPath, { verb: id, args }, { fromMac });
   const record = {
     ...base,
     mode: 'auto',
@@ -898,10 +1077,13 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice' } = {
 }
 
 // The filer's half: run the verb, hand back the rails' { destination, undo }.
-export async function execute(vaultPath, payload) {
+// `ctx.fromMac`: he is sitting at the Mac this server drives, so a Mac verb
+// can say "Paused." rather than "Paused on your Mac." Absent (the approve
+// rail, Siri, the model) means he may be anywhere, and the words say where.
+export async function execute(vaultPath, payload, ctx = {}) {
   const v = VERBS[payload?.verb];
   if (!v) throw new Error(`unknown verb "${payload?.verb}"`);
-  const out = await v.run(vaultPath, payload.args || {});
+  const out = await v.run(vaultPath, payload.args || {}, ctx);
   await broadcastFor(payload.verb);
   return { destination: out.destination, said: out.said, undo: out.undo ? { verb: payload.verb, ...out.undo } : null };
 }
@@ -935,8 +1117,12 @@ export function parseActDirective(text) {
 // ------------------------------------------------------ the fast grammar
 
 function norm(q) {
+  return normCased(q).toLowerCase();
+}
+// the same cleaning with his capitals kept — for words that are stored, not
+// matched (a reminder's text lands in his Reminders exactly as he said it)
+function normCased(q) {
   return String(q || '')
-    .toLowerCase()
     .replace(/^(hey|hi|ok|okay)?[,\s]*(nova|jarvis)[,\s]*/i, '')
     .replace(/[?!.]+$/g, '')
     .replace(/\s+/g, ' ')
@@ -950,12 +1136,18 @@ const MEAL = `(${SLOTS.join('|')})`;
 // model, which may still ACT with the same verbs. A hit is
 // { verb, args } or, where the same words fit two domains, { any: [...] }
 // which resolveAny() settles against his real data.
-export function parseCommand(text) {
+export function parseCommand(text, ctx = {}) {
   const q = norm(text);
   if (!q || q.length > 140) return null;
   let m;
 
   if ((m = q.match(/^(?:run|approve|go ahead with|start|launch)\s+(?:the\s+|that\s+)?plan$/))) return { verb: 'plan.run', args: {} };
+
+  // the Mac — before the lists, because "set the volume to 30" is otherwise
+  // shopping.qty for an item called "volume"
+  const mac = parseMac(q, ctx);
+  if (mac === NOT_HERE) return null;
+  if (mac) return mac;
 
   if ((m = q.match(/^(?:run|trigger|fire|launch)\s+(?:the\s+|my\s+)?(?:shortcut\s+)?(.+?)(?:\s+shortcut)?$/))) {
     return { any: [{ verb: 'shortcut.run', args: { name: m[1] } }], fallthrough: true };
@@ -970,8 +1162,11 @@ export function parseCommand(text) {
 
   // "remind me to X at 6" — the deterministic path in front of the capture
   // classifier: it only claims the sentence when the TIME is certain.
-  if ((m = q.match(/^remind me (?:to |about |that )?(.+)$/))) {
-    const rest = m[1];
+  if ((m = q.match(/^remind me (?:to |about |that )?(.+)$/)) || (m = q.match(/^(?:set|make|create|add|put in)\s+(?:a|me a|an)\s+reminder\s+(?:to\s+|for\s+|about\s+|that\s+)?(.+)$/))) {
+    // the tail of what he said, with its capitals (lowercasing ASCII keeps
+    // the length, so the tail lines up; anything else keeps the lower form)
+    const cased = normCased(text);
+    const rest = cased.length === q.length ? cased.slice(cased.length - m[1].length) : m[1];
     return { any: [{ verb: 'reminder.set', args: { text: rest, when: rest } }], fallthrough: true };
   }
 
@@ -1114,6 +1309,11 @@ async function probe(vaultPath, cand) {
       const m = matchName((await listShortcuts()).map((n) => ({ name: n })), cand.args.name);
       return m.hit ? { ok: true, label: `the Shortcut "${m.hit.name}"` } : { ok: false, why: m.why };
     }
+    if (cand.verb === 'mac.open') {
+      const { resolveTarget } = await import('./macHand.js');
+      const t = await resolveTarget(cand.args.target, { where: cand.args.where || null });
+      return { ok: true, label: t.label };
+    }
     if (cand.verb === 'plan.priority') {
       const plan = await todaysPlan(); if (!plan) return { ok: false, why: 'no plan today' };
       const m = matchName(plan.decision.payload.priorities.map((p, i) => ({ i, name: p.text || p.title || p.label || String(p) })), cand.args.priority);
@@ -1140,13 +1340,28 @@ export async function resolveAny(vaultPath, parsed) {
 // here, no model. Returns null when the words are not a command; a
 // { text, acted?, proposal? } when they are — including the honest "which
 // one?" when his words fit two things.
-export async function tryCommand(vaultPath, question) {
-  const parsed = parseCommand(question);
+export async function tryCommand(vaultPath, question, ctx = {}) {
+  // "do X, then open Y (so I can confirm)" — X first, exactly as if it had
+  // been said alone; only an X that actually happened earns the open
+  const split = splitThenOpen(question);
+  if (split && split.head) {
+    const head = await tryCommand(vaultPath, split.head, ctx);
+    if (!head || head.miss || !head.acted) return head;
+    const target = split.tail || SHOW_FOR[head.matched] || null;
+    if (!target) return { ...head, text: `${head.text} There's nothing I can open for that.` };
+    try {
+      const shown = await runVerb(vaultPath, question, { verb: 'mac.open', args: { target } }, { source: 'voice', fromMac: !!ctx.fromMac });
+      return { ...head, text: `${head.text} ${shown.acted.said}`, shown: shown.acted };
+    } catch (e) {
+      return { ...head, text: `${head.text} But ${e.message}${/[.?!]$/.test(e.message) ? '' : '.'}` };
+    }
+  }
+  const parsed = parseCommand(question, ctx);
   if (!parsed) return null;
   try {
     const cmd = await resolveAny(vaultPath, parsed);
     if (!cmd) return null; // the words fit no real thing — not a command after all
-    const out = await runVerb(vaultPath, question, cmd, { source: 'voice' });
+    const out = await runVerb(vaultPath, question, cmd, { source: 'voice', fromMac: !!ctx.fromMac });
     if (out.acted) return { matched: cmd.verb, text: out.acted.said, acted: out.acted };
     return { matched: cmd.verb, text: `${out.proposal.title} — say yes and it's done.`, proposal: out.proposal };
   } catch (e) {

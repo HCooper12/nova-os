@@ -1,3 +1,4 @@
+import { isMacDevice } from './macTargets.js';
 const STORAGE_KEY = 'novaos.connection';
 
 export function getConnection() {
@@ -389,7 +390,9 @@ export const api = {
   // live context on the server with a 25s ceiling (askContext.js), so the
   // default aborted the request before the server had given up — a cold first
   // turn in the car failed on the client while the Mac was still working.
-  ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, ...agents }, { timeoutMs: 45_000 }),
+  // `device`: whether he is at the Mac Nova runs on — the Mac verbs (server
+  // verbs.js parseMac) only claim "open X" / "pause" when he is (src/macTargets.js)
+  ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, device: isMacDevice() ? 'mac' : 'other', ...agents }, { timeoutMs: 45_000 }),
   // THE CONVERSATION RECORD (server/lib/conversationLog.js): every settled
   // voice-chat line goes up; the Voice screen reads the whole record back
   conversation: (conn, { limit = 150, since = null } = {}) => call(conn, `/api/conversation?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`),

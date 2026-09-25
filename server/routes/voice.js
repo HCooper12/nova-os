@@ -19,6 +19,19 @@ const PLACEHOLDER_QUESTIONS = new Set([
   'spoken text', 'input', 'question', 'variable',
 ]);
 
+// WHERE HE IS SPEAKING FROM. The Mac verbs (lib/macHand.js) act on the Mac
+// this server runs on, so "open my calendar" means "on this screen" only when
+// he is sitting at it. The app says so (src/macTargets.js isMacDevice); an
+// older build falls back to its browser's user agent. Siri, Shortcuts and
+// Telegram say nothing, and count as "not at the Mac".
+export function fromMacOf(req) {
+  const d = req?.body?.device;
+  if (d === 'mac') return true;
+  if (d) return false;
+  const ua = String(req?.headers?.['user-agent'] || '');
+  return /Mozilla/.test(ua) && /Macintosh/.test(ua) && !/iPhone|iPad|Mobile/.test(ua);
+}
+
 export function voiceRouter(vaultPath) {
   const router = Router();
 
@@ -83,7 +96,7 @@ export function voiceRouter(vaultPath) {
       // his real lists — no model, a receipt with undo, honest "which one?"
       // when his words fit two things. (lib/verbs.js)
       const { tryCommand } = await import('../lib/verbs.js');
-      const command = attachmentPreamble ? null : await tryCommand(vaultPath, raw).catch(() => null);
+      const command = attachmentPreamble ? null : await tryCommand(vaultPath, raw, { fromMac: fromMacOf(req) }).catch(() => null);
       if (command) {
         console.log(`verb ${command.miss ? 'miss' : 'hit'} [${command.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
@@ -387,7 +400,7 @@ export function voiceRouter(vaultPath) {
         return res.json({ text: reflex.text, sessionId: null });
       }
       const { tryCommand: trySyncCommand } = await import('../lib/verbs.js');
-      const command = await trySyncCommand(vaultPath, question).catch(() => null);
+      const command = await trySyncCommand(vaultPath, question, { fromMac: fromMacOf(req) }).catch(() => null);
       if (command) {
         console.log(`ask/sync verb ${command.miss ? 'miss' : 'hit'} [${command.matched}]`);
         answered(command.text);
