@@ -51,11 +51,22 @@ TICK. AND MY TEST DECLINED ONE OF HIS CARDS (PUT BACK, 15 MIN LATER).**
   `POST /api/notes/summary` (derived cache, harmless). Rule saved in memory
   (nova-ui-instruments). **"Tuesday → rest" (0443530e) was approved by HIM**
   from his phone (100.77.255.37) at 23:05:59 UTC.
-- **His 7 cards, waiting on the deck:** ac801409, 3b842978, 5b4a167c,
-  ab9bd99c, d7cf3e67, 8e06aecc, d82cc7f4.
-- **NEXT:** his verdict on the deck on his phone; after he answers, read
-  the routine files to confirm each yes really landed. Then, still queued
-  from before: Xcode after his macOS update → the Live Activity.
+- **HE IS USING IT LIVE, FROM HIS PHONE, ALREADY.** At 00:05:18–00:05:31 UTC
+  (100.77.255.37) he approved ac801409 (Drop Weighted Pull-Up — the card my
+  test had declined and I reopened) and 3b842978 (Drop Cable Flys High
+  Position). **Verified they really applied, not just filed**: both
+  records' `destination` reads "Train — removed <exercise> in Push", the
+  same field a no-op acknowledgement would have left null. First real
+  confirmation the deck's yes ACTS on his own device.
+- **His 5 remaining cards, waiting on the deck (00:05 UTC count):**
+  5b4a167c (Carter Extension: 3 sets), ab9bd99c (Incline Bench first),
+  d7cf3e67 (Drop Wide-Grip Lat Pulldown), 8e06aecc (Drop Plate Pinch),
+  d82cc7f4 (Cable Lateral Raise last).
+- **NEXT:** the rest of the 7 are his to answer at his pace — nothing to
+  chase. If a later session sees complaints about the deck (wrong sets
+  math, a card that won't animate, Undo not appearing), start there before
+  building anything new on top of it. Then, still queued from before:
+  Xcode after his macOS update → the Live Activity.
 
 ---
 
@@ -3936,6 +3947,26 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**25 Sep (late morning).** Built Coach's suggested changes into Train: a
+banner under Today and Gym, a deck on the Coach tab, each change drawn as a
+sentence with its real before/after numbers, a yes that closes to a tick and
+plays the change out, a discuss that hands the card to chat, a no, and an
+island Undo on either answer that reopens the card (new — nothing could be
+taken back before today). Fixed on the way: approving a program-review fix
+used to file an acknowledgement and change nothing (his complaint that
+started this); both Coach prompts still told him to "tap APPLY IT" for a
+button that no longer exists on the Coach tab. Verified in the browser at
+375/402/1280 against his real cards with writes blocked, 2203/2203 tests,
+lint and build clean, deployed and confirmed live in the bundle.
+CORRECTED, not added: a devtools `initScript` write-guard does not survive
+a viewport `emulate`/reload, and this session's own test declined one of
+his real cards (ac801409) before that was noticed in the server log and
+undone 15 minutes later — the reopen route exists because of it. While
+writing this handoff, he approved two of the deck's cards from his own
+phone in real time; both were confirmed to have actually applied (the
+`destination` field, not just a filed receipt), the first live proof the
+deck's yes really acts on his device.
 
 **25 Sep, nova-os-06.** Characters pass 4 (designed backs, cape, towel, fin,
 satchel) and pass 5 (close-up and motion checks: elbows, drapery projected
