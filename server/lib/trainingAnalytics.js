@@ -168,6 +168,12 @@ export function rpeTrend(sessions, { recentN = 4 } = {}) {
 // week-boundary test all key weeks by it
 export const mondayOf = (date = new Date()) => mondayIso(date);
 
+// THE ONE RULE FOR A HARD SET: logged with load or reps, and not a warm-up.
+// Shared by the weekly bars, the live draft fold and the planned-week
+// breakdown (plannedWeek.js), because the breakdown's done counts must add up
+// to the bar above it, and two copies of a rule are two rules.
+export const isWorkingSet = (x) => !!x && x.setType !== 'warmup' && (Number(x.weight) > 0 || Number(x.reps) > 0);
+
 export function weeklyMuscleVolume(sessions, exercises, { weeks = 4 } = {}) {
   const groupOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
   const weekOf = (dateStr) => mondayOf(dateStr);
@@ -177,7 +183,7 @@ export function weeklyMuscleVolume(sessions, exercises, { weeks = 4 } = {}) {
     for (const ex of s.exercises || []) {
       const g = groupOf.get(ex.exerciseId) || 'Other';
       if (g === 'Mobility') continue; // tracked for adherence, never as hypertrophy volume
-      const working = (ex.sets || []).filter((x) => x.setType !== 'warmup' && (x.weight > 0 || x.reps > 0));
+      const working = (ex.sets || []).filter(isWorkingSet);
       if (!working.length) continue;
       const w = acc.get(wk) || new Map();
       w.set(g, (w.get(g) || 0) + working.length);

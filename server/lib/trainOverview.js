@@ -9,7 +9,8 @@ import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines } from './workouts.js';
 import { loadRecentDays } from './healthData.js';
 import { computeDeloadSignal } from './coach.js';
-import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf } from './trainingAnalytics.js';
+import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf, isWorkingSet } from './trainingAnalytics.js';
+import { plannedWeek } from './plannedWeek.js';
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
 
@@ -182,15 +183,16 @@ export async function buildTrainOverview(vaultPath) {
   // the ticked, non-warm-up sets. `live` is kept separate as well as folded
   // into the total, so the bar can show which part is happening now.
   const muscleOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
+  let liveSession = null; // read once: the bars and the planned week fold in the same draft
   try {
     const { getSessionDraft } = await import('./sessionDraft.js');
     const draft = await getSessionDraft();
     const ws = draft?.workoutSession;
+    liveSession = ws || null;
     for (const ex of ws?.exercises || []) {
       const g = muscleOf.get(ex.exerciseId) || 'Other';
       if (g === 'Mobility') continue;
-      const ticked = (ex.sets || []).filter((x) => x.done && x.setType !== 'warmup'
-        && (Number(x.weight) > 0 || Number(x.reps) > 0));
+      const ticked = (ex.sets || []).filter((x) => x.done && isWorkingSet(x));
       if (!ticked.length) continue;
       const row = volume.find((v) => v.muscle === g);
       if (row) { row.sets += ticked.length; row.live = (row.live || 0) + ticked.length; }
@@ -202,6 +204,18 @@ export async function buildTrainOverview(vaultPath) {
   } catch { /* no draft, or it failed to read — the filed totals stand alone */ }
 
   volume.sort((a, b) => b.sets - a.sets);
+
+  // THE PLANNED WEEK behind the bars — every exercise the schedule puts in
+  // this week, per muscle, per day, with what is done (lib/plannedWeek.js).
+  // Same sessions, same draft, same targets as the bars, so they agree.
+  // Null on failure: the card keeps its bars and simply opens nothing.
+  let week = null;
+  try {
+    week = plannedWeek({
+      routines, schedule, sessions, live: liveSession, exercises,
+      targetOf: (m) => ({ target: focused.has(m) ? GOAL_TARGET : BASE_TARGET, goalMuscle: focused.has(m) }),
+    });
+  } catch { /* honest absence */ }
 
   // the Coach's open program ask — shown on Train, because that is where a
   // change to his program is actually decided
@@ -280,5 +294,6 @@ export async function buildTrainOverview(vaultPath) {
       streak: streaks?.workoutStreak ?? null,
     },
     volume,
+    week,
   };
 }
