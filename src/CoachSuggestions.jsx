@@ -46,7 +46,7 @@ export function CoachChangesBanner({ b }) {
 export function CoachSuggestionDeck({ d }) {
   if (!d || !d.cards.length) return null;
   return (
-    <section data-coach-deck aria-label="Coach's suggested changes" style={css('margin-top:14px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:90px')}>
+    <section data-coach-deck aria-label="Coach's suggested changes" style={css('margin-top:14px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:90px;container:nv-deck / inline-size')}>
       <div style={css('display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap')}>
         <div style={css('min-width:0')}>
           <div style={css('display:flex;align-items:baseline;gap:8px')}>

@@ -166,6 +166,15 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 .nv-sug-wrap > .nv-sug-fold { min-height: 0; overflow: hidden; display: grid; }
 .nv-sug-wrap[data-state="leaving"] { grid-template-rows: 0fr; opacity: 0; }
 .nv-sug-card { position: relative; transition: transform var(--nv-dur-base) var(--nv-ease), opacity var(--nv-dur-base) var(--nv-ease), outline-color var(--nv-dur-base) var(--nv-ease); outline: 1.5px solid transparent; outline-offset: -1px; }
+/* ONE COLUMN, A CARD IS AS TALL AS WHAT IT SAYS (his phone, 25 Sep 10:06).
+   The reorder card on his deck stretched to about a screen and a half, the
+   answer row pushed to its foot by margin-top:auto, and he scrolled past
+   empty glass to say yes. Not reproduced in Chrome or WebKit at 402px, so
+   the fix is structural: in a single column the card never takes its slot's
+   height, only its own, and the answer sits under the words. Two columns
+   (the deck's container at 690px and up) keep the shared row height, so a
+   row of cards still answers on one line. */
+@container nv-deck (max-width: 689px) { .nv-sug-card { align-self: start; } }
 .nv-sug-card[data-state="declining"], .nv-sug-card[data-state="declined"] { opacity: .5; transform: translateX(10px) scale(.985); }
 .nv-sug-card[data-state="discussing"] { outline-color: color-mix(in srgb, var(--nv-cy) 55%, transparent); }
 .nv-sug-card[data-state="done"] { outline-color: color-mix(in srgb, var(--nv-good) 40%, transparent); }
