@@ -6792,12 +6792,28 @@ export default class App extends Component {
     if (undo) this.refreshLiveData();
     notify({ id: `sug:${id}`, tone: 'info', title: undo ? 'Undone' : 'Back on the deck', message: `${headline} is waiting on you again.`, duration: 3600 });
   }
+  // DISCUSS STARTS THE CONVERSATION (his report, 25 Sep: tapping Discuss
+  // "didn't actually seem to let me discuss apart from me typing into the
+  // chat manually"). It only focused the box and waited, so a tap that
+  // promised a conversation opened a blank page. Now Coach speaks first: what
+  // the change does, why, what it costs, and one question back to him. What
+  // he says next goes with the card (doCoach's `about`). If Coach is already
+  // mid-answer, the box is focused as before and he is told why.
   discussCoachSuggestion(id) {
-    this.setState({ coachDiscuss: id, trainTab: 'coach' }, () => requestAnimationFrame(() => {
-      const el = document.querySelector('[data-coach-input]');
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      try { el?.focus({ preventScroll: true }); } catch { /* old engine */ }
-    }));
+    const card = this.coachSuggestionCards().find((c) => c.id === id);
+    const live = getConnection() && this.state.connectionStatus !== 'demo';
+    this.setState({ coachDiscuss: id, trainTab: 'coach' }, () => {
+      if (card && live && !this.state.coachBusy) {
+        this.doCoach(`Talk me through this one: ${card.headline}`, { opening: true });
+        return;
+      }
+      if (this.state.coachBusy) notify({ tone: 'info', title: 'Coach is still answering', message: 'Say what you think about this change once that answer lands; it will go to Coach with the card.', duration: 3600 });
+      requestAnimationFrame(() => {
+        const el = document.querySelector('[data-coach-input]');
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try { el?.focus({ preventScroll: true }); } catch { /* old engine */ }
+      });
+    });
   }
   clearCoachDiscuss() { this.setState({ coachDiscuss: null }); }
 
@@ -8694,7 +8710,7 @@ export default class App extends Component {
       }, 300);
     });
   }
-  doCoach(preset) {
+  doCoach(preset, { opening = false } = {}) {
     const q = (preset || this.state.coachInput).trim(); if (!q) return;
     const conn = getConnection();
     // THE STUDY LANE: a paper handed to the Coach with a link goes through the
@@ -8727,8 +8743,11 @@ export default class App extends Component {
       // A revised change REPLACES the card: Coach takes its own card back
       // (WITHDRAW, lib/coachProposals.js) instead of leaving him to turn it
       // down — "Turn down both pending curl cards" was his chore on 25 Sep.
+      const opener = opening
+        ? ' He has just tapped Discuss on this card and said nothing else yet, so open the conversation: in plain words, what the change does to his week (which session, which sets), why you suggested it and what you based it on, what he would give up, and a real alternative if there is one. Then ask him one direct question about it. Short enough to read on his phone.'
+        : '';
       const sendQ = about
-        ? `[He is talking about one of your suggested changes, still waiting on his answer in Train: card ${about.id}, "${about.headline}"${about.routine ? ` (${about.routine.name})` : ''}${about.why ? ` — your reason: "${about.why}"` : ''}. Answer him about it. If you would now change it, PROPOSE the revised change and end with WITHDRAW {"ids":["${about.id}"]} to take this card back yourself; never ask him to turn it down.]\n\n${q}`
+        ? `[He is talking about one of your suggested changes, still waiting on his answer in Train: card ${about.id}, "${about.headline}"${about.routine ? ` (${about.routine.name})` : ''}${about.why ? ` — your reason: "${about.why}"` : ''}. Answer him about it.${opener} If you would now change it, PROPOSE the revised change and end with WITHDRAW {"ids":["${about.id}"]} to take this card back yourself; never ask him to turn it down.]\n\n${q}`
         : q;
       this.flushAttachments(conn).then((attachmentId) => api.askCoach(conn, sendQ, this.state.coachSessionId || null, liveSession, attachmentId)).then(({ jobId }) => {
         this.startPoll('coach', () => api.claudeCodeJob(conn, jobId), {

@@ -68,6 +68,7 @@ export function valsWorkouts(app, ctx) {
       applyCoachAsk: (recordId, fix, proposal) => app.openCoachApply({ recordId, fix, proposal }),
       applyFocusFix: (fix, proposal) => app.openCoachApply({ fix, proposal }),
       dismissCoachAsk: (recordId) => app.resolveCoachAsk(recordId, false),
+      discussCoachAsk: (recordId) => app.discussCoachSuggestion(recordId),
     },
   };
   // the three-surface structure from the mockup. A live workout DEFAULTS

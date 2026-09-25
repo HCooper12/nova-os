@@ -259,8 +259,12 @@ export function TrainToday({ o, actions, resume }) {
               <TextAction compact tone="good" haptic="commit" disabled={!!askLeaving} ariaLabel="Do it"
                 onClick={() => leaveThen('approve', () => actions.applyCoachAsk(o.coachAsk.recordId, o.coachAsk.fix, o.coachAsk.text))}>✓ Do it</TextAction>
             )}
-            {actions?.askVolume && (
-              <TextAction compact tone="cyan" onClick={() => actions.askVolume(`About your suggestion: ${o.coachAsk.text} — talk me through it.`)}>Discuss it</TextAction>
+            {/* the same Discuss as the deck: Coach opens the conversation
+                about THIS card (App.discussCoachSuggestion). It used to send
+                the under-target template, so Coach read "My weekly sets for
+                About your suggestion: … are under target". */}
+            {actions?.discussCoachAsk && (
+              <TextAction compact tone="cyan" onClick={() => actions.discussCoachAsk(o.coachAsk.recordId)}>Discuss it</TextAction>
             )}
             {actions?.dismissCoachAsk && (
               <TextAction compact tone="warn" disabled={!!askLeaving} ariaLabel="Not this"
