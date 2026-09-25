@@ -13,6 +13,47 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (morning, nova-os-84 close before his MacBook update) — THREE
+ITEMS HE HANDED TO THE NEXT SESSION, plus the Action Button recipe.**
+He is restarting the Mac for an OS update: after it, check the launchd
+service came back (`curl localhost:4173/api/health`) and Tailscale is up
+(`100.65.137.114` answers) before anything else.
+
+GOAL for the next session (his words, 25 Sep):
+1. **"The swipe back feature is still buggy."** v5 (the DOM-walk removal and
+   the one-rAF deferred navigation, see the 24 Sep entry below) did NOT fix it
+   on his phone. Ask him WHAT he sees now (a screen recording ideally): the
+   five previous attempts each fixed a real cause and missed his experience,
+   so do not start from a theory. src/edgeBack.js, src/EdgeBack.jsx.
+2. **Local model, his direction:** "I do not want to lose effectiveness or
+   functionality … If a local model would benefit certain aspects of Nova or
+   allow me to use it more often without Claude, such as if I use up my
+   Claude limit, then let's explore that." So: explore a FALLBACK, not a
+   replacement. Starting points, all unbuilt: (a) detect the CLI's
+   usage-limit error and route only lanes the eval says a 4B can hold
+   (short closed-set classification) to server/lib/localModel.js, labelled
+   "answered on the Mac" (honest degradation); (b) keep every judgment lane
+   (Coach, Ask Nova, Researcher) on Claude and say plainly when the limit
+   blocks one; (c) measure before claiming, the same way as
+   design/audits/2026-09-25-local-model-eval.md (Qwen3-4B 38/40 valid,
+   64.9% agreement with Haiku). First find the exact error text the claude
+   CLI returns at the limit; nothing in the repo detects it yet (unverified).
+3. **The Action Button Shortcut:** answered in chat with a paste-in prompt
+   for iOS 27's Shortcuts builder and a manual checklist (same content as
+   docs/iphone-shortcuts.md §1c). VERIFIED: POST
+   http://100.65.137.114:4173/api/ask/audio with a spoken m4a answered
+   "16,464 steps yesterday, sir." with heard = "How many steps did I do
+   yesterday?". Not yet built by him.
+
+STATE: clean tree, in sync with origin (2998fd3 at close), lint 0, build
+green, server 2203/2203. Nothing of this session is uncommitted.
+
+DO NOT: restart the service with a bare `launchctl kickstart` (CLAUDE.md now
+says `node scripts/reload-server.mjs`, which waits for running AI jobs; a
+raw restart killed a Coach answer and this session's 07:07 plan run).
+
+---
+
 **25 SEP (late morning) — COACH'S CHANGES LIVE IN TRAIN: A BANNER, A DECK, A
 TICK. AND MY TEST DECLINED ONE OF HIS CARDS (PUT BACK, 15 MIN LATER).**
 
