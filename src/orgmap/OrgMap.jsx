@@ -115,8 +115,12 @@ export function OrgMap({ v }) {
     return () => mo.disconnect();
   }, []);
 
-  // the app re-renders often; the scene only hears about a real change
-  const signature = useMemo(() => JSON.stringify([v.beings.map((b) => [b.id, b.pose, b.waiting, b.dim]), v.core.waiting]), [v.beings, v.core]);
+  // the app re-renders often; the scene only hears about a real change:
+  // a pose, a count, a loop that ran, a record that moved, the day, the stack
+  const signature = useMemo(() => JSON.stringify([
+    v.beings.map((b) => [b.id, b.pose, b.waiting, b.dim, b.fresh, (b.members || []).map((m) => m.state).join('')]),
+    v.core.waiting, (v.events || []).map((e) => e.id).join(','), v.seed, v.receipts,
+  ]), [v.beings, v.core, v.events, v.seed, v.receipts]);
   useEffect(() => { sceneRef.current?.update(v); }, [signature, rebuild]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { sceneRef.current?.select(v.selectedId); }, [v.selectedId, rebuild]);
 

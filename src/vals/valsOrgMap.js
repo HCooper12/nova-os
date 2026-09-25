@@ -15,6 +15,11 @@ function ago(iso, now) {
   return `${Math.round(h / 24)}d`;
 }
 
+function localDay(ms) {
+  const d = new Date(ms), p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 const COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
 
 // One line that says what a being is doing, from its state alone.
@@ -77,6 +82,11 @@ export function valsOrgMap(ops, app, ctx) {
     // how far a being recedes: a loop gone quiet dims, one never run is
     // nearly a silhouette. Honest degradation, drawn.
     dim: b.working || b.waiting ? 0 : b.fresh === 'stale' ? 0.35 : b.fresh === 'never' ? 0.62 : 0,
+    // what the life engine reads (§9d input.beings): the record's facts,
+    // never anything the scene made up
+    working: !!b.working,
+    fresh: b.fresh,
+    members: (b.members || []).map((x) => ({ id: x.id, state: x.state })),
   }));
 
   const card = (() => {
@@ -113,6 +123,13 @@ export function valsOrgMap(ops, app, ctx) {
       : null,
     selectedId,
     card,
+    // the life engine's other inputs: the ops stream's record events, the
+    // day it is seeded from (this device's local date, so two devices open
+    // on the same day show the same scene), and the receipt count for the
+    // Money stack, or null when the payload has none (never a made-up one)
+    events: m.events || [],
+    seed: localDay(now),
+    receipts: Number.isFinite(m.receipts) ? m.receipts : null,
     select: (id) => app.setState({ orgMapSelected: id === selectedId ? null : id }),
     close: () => app.setState({ orgMapSelected: null }),
     openInbox: () => app.navigate('inbox'),
