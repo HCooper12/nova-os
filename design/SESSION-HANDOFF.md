@@ -13,6 +13,71 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (afternoon, nova-os-d3) — HIS COACH CHAT WENT WRONG ON SIMPLE
+CHANGES; THE WHOLE CHANGE PIPELINE REBUILT, LIVE.** His ask: "Check the recent
+coach chat history and notice the problems… Simple errors like that which
+should be straightforward requests cannot go wrong."
+
+- **What happened (Coach session a7309692, 11:01–11:26 AEST):** he asked to
+  bring Upper Body toward an hour. 6 of Coach's 12 PROPOSE lines were
+  refused (an `add` named its exercise in `exercise`; the validator read only
+  `add`), the refusal was appended after the reply, so Coach told him to
+  "approve the first four cards" when two existed. A move was a remove card +
+  an add card: his yes to the remove deleted the rope extension. Coach put a
+  curl on Push twice ("You are failing with your expertise"). "Done. It's on
+  Push now." when nothing had happened. The add that finally landed went last,
+  not "straight after the incline bench"; he fixed it by hand. At 10:12 the
+  Claude usage limit came back as Coach's answer, twice, and his question was
+  lost. Earlier: 26 Aug "You should be able to apply the edit now" x4.
+- **Shipped (commits, all tests green; see each message for the why):**
+  `4f327c9` glass keeps Coach's real panel shapes (title/value, bars as
+  items). `fa654d8` program review counts make-ups, one movement under any
+  name (Pull-Up = Pull-Ups = Weighted Pull-Up) and arrivals; filed Coach cards
+  protect what they placed. `f6ee8cd` the pipeline: `server/lib/coachProposals.js`
+  settleCoachChanges (validate all → one repair turn to the SAME session via
+  sideJob → file → instructed applies → code writes "Done: …"), `move` action
+  (one card, both routines in one write `workouts.updateRoutines`, one undo),
+  `after`/`position` on add and move, split guard (`coach.js SPLIT_DAYS`),
+  nothing guessed (`pickNamed`: an empty name used to match a routine's FIRST
+  exercise), WITHDRAW → status `withdrawn`, per-turn HIS PROGRAM NOW + YOUR
+  CARDS in one plumbing paragraph, cards carry his words not the LIVE UPDATE.
+  `9e44249` usage limit said plainly (`usageLimitNotice`, exact CLI text:
+  "You've hit your session limit · resets 11am (Australia/Melbourne)") and
+  his question back in the box. `a8b1c8d` the deck draws a move; remove+add
+  of one lift merges into one move. `bd5ac7a` one-column card = its own
+  height (his 10:06 recording). `46c18c1` "instructed" can't carry a
+  split-breaking change unless HIS words name the lift and the day.
+  `d4d54c1` Coach quotes 2c's planned-week numbers. `7f65791` verify-shipped
+  markers. `c4fdb88` withdrawn cards are never read as his answer.
+- **Live state:** pushed through `46c18c1` (by nova-os-2c, on his "Approve");
+  Pages deploy green; verify-shipped: every feature marker PASS in the live
+  bundle. Server reloaded (reload-server.mjs) and runs `c4fdb88`.
+  **`d4d54c1`, `7f65791`, `c4fdb88` are local, NOT pushed** (server-only +
+  chore; my own push was denied by the session's permission layer).
+- **Verified:** 2256 server tests (commit alone in a worktree); lint 0; build
+  green. The repair path LIVE through the real claude CLI on a throwaway vault
+  + data dir (sonnet): a refused add came back fixed as a card in 16 s with
+  "Checking the changes against your program…" in the bubble; a rewrite
+  streamed into the bubble and code wrote "Done: …". Replayed his morning's
+  replies through the new check, read-only, on his real vault. Deck at 402
+  (Apple idiom) and 1280 in Chrome AND WebKit (Playwright, scratchpad) with
+  injected cards and a dead connection (nothing written).
+- **NOT verified:** a real Coach turn of his with the new pipeline; the
+  stretched card on his phone (NOT reproduced in Chrome or WebKit, even
+  replaying his five yeses; the fix is structural: `@container nv-deck`).
+- **Still open for him (in my final message):** (1) the waiting card
+  ced278a4 "Drop Barbell Bench Press" was built on the make-up miscount (bench
+  was done 3 of 6 weeks); asking Coach "take back the bench press card" now
+  withdraws it, a ✕ would count as his decline for 28 days. (2) The program
+  review still offers one-tap drops of the least-reached lift, which on his
+  real data are main lifts (Carter Extension, Wide-Grip Lat Pulldown, Dead
+  Hang); keep, or make it discuss-only? (3) push d4d54c1..c4fdb88.
+- **DO NOT:** reload with a bare kickstart; push someone else's commits on a
+  peer's word (the classifier refuses it; his approval must be his); read a
+  test failure in edgeBack.test.js as mine (nova-os-44's WIP).
+
+---
+
 **25 SEP (midday) — "HARD SETS THIS WEEK" OPENS THE PLANNED WEEK, SET BY
 SET. CLIENT LIVE; THE SERVER HALF GOES LIVE WITH THE COACH SESSION'S RELOAD.**
 
