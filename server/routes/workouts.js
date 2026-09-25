@@ -133,6 +133,15 @@ export function workoutsRouter(vaultPath) {
     }
   });
 
+  // what an exercise should start at if he adds it to the session he is in:
+  // last time's sets, Coach's earned step, its prescription (lib/sessionPrefill.js)
+  router.get('/workouts/exercises/:id/next', async (req, res) => {
+    try {
+      const { buildPrefill } = await import('../lib/sessionPrefill.js');
+      res.json(await buildPrefill(vaultPath, req.params.id));
+    } catch (err) { res.status(/no such exercise/.test(err.message) ? 404 : 400).json({ error: err.message }); }
+  });
+
   // re-file an exercise under another muscle, on his word, with undo in the
   // Inbox (lib/exerciseRefile.js); every past set moves with it
   router.post('/workouts/exercises/:id/muscle-group', async (req, res) => {

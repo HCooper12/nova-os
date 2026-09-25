@@ -252,6 +252,8 @@ export const api = {
   calendarRange: (conn, days = 14) => call(conn, `/api/calendar/range?days=${days}`),
   workoutExercises: (conn) => call(conn, '/api/workouts/exercises'),
   addWorkoutExercise: (conn, name, muscleGroup, trackingType) => post(conn, '/api/workouts/exercises', { name, muscleGroup, trackingType }),
+  // where an exercise should start if added to the session in progress
+  exerciseNext: (conn, id) => call(conn, `/api/workouts/exercises/${encodeURIComponent(id)}/next`),
   workoutRoutines: (conn) => call(conn, '/api/workouts/routines'),
   createWorkoutRoutine: (conn, name, exercises) => post(conn, '/api/workouts/routines', { name, exercises }),
   updateWorkoutRoutine: (conn, id, patch) => put(conn, `/api/workouts/routines/${encodeURIComponent(id)}`, patch),

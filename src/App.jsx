@@ -3261,20 +3261,38 @@ export default class App extends Component {
       this.setState({ exercisePickerOpen: false, exercisePickerQuery: '' });
       return;
     }
-    // no routine, no last-session prefill — an honest fresh start, same
-    // hypertrophy-default rep range the rest of the app assumes
+    // It appears at once with the house default, so the tap never waits on
+    // the network; then it is filled with what the server knows (his report,
+    // 25 Sep: Face Pull arrived as 0 kg × 8 when he had done 29.5 kg × 11 on
+    // the 16th). The fill lands only on an entry he has not touched yet.
     const targetRepsLow = 8, targetRepsHigh = 12, targetSets = 3;
+    const fresh = Array.from({ length: targetSets }, () => ({ weight: 0, reps: targetRepsLow, done: false }));
     const entry = {
       exerciseId: lib.id, name: lib.name, muscleGroup: lib.muscleGroup, trackingType: lib.trackingType,
       targetSets, targetRepsLow, targetRepsHigh, coach: null, last: null, focusNote: null,
       adhoc: true, // this session only — never written to the routine
-      sets: Array.from({ length: targetSets }, () => ({ weight: 0, reps: targetRepsLow, done: false })),
+      sets: fresh,
     };
     this.setState((s) => ({
       workoutSession: { ...s.workoutSession, exercises: [...s.workoutSession.exercises, entry] },
       exercisePickerOpen: false, exercisePickerQuery: '',
     }));
-    this.toastMsg(`${lib.name} added — this session only.`);
+    const conn = getConnection();
+    if (!conn || this.state.connectionStatus === 'demo') { this.toastMsg(`${lib.name} added — this session only.`); return; }
+    api.exerciseNext(conn, lib.id).then((p) => {
+      let filled = false;
+      this.setState((s) => {
+        const ws = s.workoutSession;
+        const i = ws?.exercises?.findIndex((e) => e.exerciseId === lib.id && e.adhoc) ?? -1;
+        if (i === -1 || ws.exercises[i].sets !== fresh || !p?.sets?.length) return null; // gone, or already his
+        filled = true;
+        const next = { ...ws.exercises[i], targetSets: p.targetSets, targetRepsLow: p.targetRepsLow, targetRepsHigh: p.targetRepsHigh,
+          coach: p.coach || null, last: p.last || null, focusNote: p.focusNote || null, sets: p.sets };
+        return { workoutSession: { ...ws, exercises: ws.exercises.map((e, j) => (j === i ? next : e)) } };
+      }, () => this.toastMsg(filled && p.from?.length
+        ? `${lib.name} added — this session only, from ${p.from.join(' + ')}.`
+        : `${lib.name} added — this session only.`));
+    }).catch(() => this.toastMsg(`${lib.name} added — this session only.`));
   }
   // Only an adhoc entry can be pulled out whole — a PROGRAMMED exercise is
   // skipped (spec'd, undoable, stays visible), never deleted outright.
