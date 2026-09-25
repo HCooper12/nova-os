@@ -2921,10 +2921,11 @@ export default class App extends Component {
     // an open edit belongs to the variant it was started from — drop it
     this.setState({ recipeAltSelected: altId, recipeTweakPreview: null, recipeTweakError: null, recipeEdit: null, recipeEditError: null });
   }
-  submitRecipeTweak(byVoice = false) {
+  submitRecipeTweak(byVoice = false, said = null) {
     const conn = getConnection();
     const st = this.state;
-    const request = st.recipeTweakInput.trim();
+    // a spoken request arrives with its words; state may be a render behind
+    const request = (typeof said === 'string' && said.trim() ? said : st.recipeTweakInput).trim();
     if (!conn || !st.openRecipeId || !request) return;
     // If a preview is already on screen this is a REFINEMENT — send it along
     // so "keep the two whole eggs and suggest something else" builds on what
@@ -5929,27 +5930,44 @@ export default class App extends Component {
     this.navigate('voice');
     this.setState({ liveInput: `Talk me through this insight: "${text}" — what does it mean for today, and what's the one thing to do about it?` }, () => this.sendLiveTalk());
   }
-  sendLiveTalk() {
-    const q = (this.state.liveInput || '').trim();
+  // `said` is the turn's own words, handed over by the dictation hook. State
+  // is only the fallback (a typed send, a programmatic one): on the Nova-ears
+  // path it is a render behind, and reading it dropped his 25 Sep question.
+  sendLiveTalk(said) {
+    const q = (typeof said === 'string' ? said : this.state.liveInput || '').trim();
     const conn = getConnection();
     if (!q || !conn) return;
     if (this.maybeStandDown(q)) return;
-    this.setState({ liveAsk: q, liveInput: '', liveReply: '', voiceBusy: true, liveVerdictOffer: null });
+    // HIS WORDS ARE HISTORY THE MOMENT HE SAYS THEM. They used to enter the
+    // voice chat only alongside a successful answer, so a failed turn left
+    // no trace that he had spoken at all (his 25 Sep report: "no history of
+    // what I said when I open up the Nova voice chat").
+    this.setState((s) => ({ liveAsk: q, liveInput: '', liveReply: '', voiceBusy: true, liveVerdictOffer: null, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q, via: 'presence' }] }));
     api.ask(conn, q, this.state.voiceSessionId || null).then((resp) => {
       const land = (text, sessionId) => {
         this.setState({ voiceBusy: false, liveReply: text, liveVerdictOffer: this.offerVerdictFor(`${q} ${text}`), ...(sessionId ? { voiceSessionId: sessionId } : {}) });
         // keep the full transcript honest — the sheet is a window on the
         // same conversation, not a separate one
-        this.setState((s2) => ({ voiceChat: [...s2.voiceChat, { at: Date.now(), who: 'you', text: q }, { at: Date.now(), who: 'nova', text }] }));
+        this.setState((s2) => ({ voiceChat: [...s2.voiceChat, { at: Date.now(), who: 'nova', text, via: 'presence' }] }));
         if (this.state.voiceSpeak) this.speakTtsSentence(text, () => {}); else this.maybeAutoListen();
       };
       if (resp.text) { if (resp.card) this.putCard(resp.card); land(resp.text); return; } // a reflex: code spoke, code drew
       this.startPoll('ask', () => api.claudeCodeJob(conn, resp.jobId), {
         timeoutMs: 3 * 60_000, intervalMs: 400,
         onReady: (job) => land(job.result.text, job.result.sessionId),
-        onError: (msg) => this.setState({ voiceBusy: false, liveReply: 'Error: ' + msg }),
+        onError: (msg) => this.liveTalkFailed(msg),
       });
-    }).catch((e) => this.setState({ voiceBusy: false, liveReply: 'Error: ' + e.message }));
+    }).catch((e) => this.liveTalkFailed(e.message));
+  }
+  // A turn from the icon that got no answer. The pop-up that used to carry
+  // "Error: …" is hidden unless he long-presses, so on its own this failure
+  // was silent: he heard nothing and saw nothing. It is said aloud and kept
+  // in the voice chat, where the record picks it up.
+  liveTalkFailed(msg) {
+    const reason = String(msg || 'the request failed');
+    const spoken = /usage limit/i.test(reason) ? reason : "That one didn't get an answer. The reason is in the voice chat.";
+    this.setState((s) => ({ voiceBusy: false, liveReply: `Error: ${reason}`, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `That didn't get an answer: ${reason}`, via: 'presence' }] }));
+    if (this.state.voiceSpeak) this.speak(spoken); else this.toastMsg(spoken);
   }
   // ---------- verdict cards (A1) ----------
   openVerdict(kind, of) {

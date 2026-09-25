@@ -32,8 +32,12 @@ export function VoicePresence({ v }) {
 
   const dict = useDictation(
     () => v.takeVoiceSeed(),
-    (text) => s.setInput(text),
-    () => { if (inputRef.current.trim()) sendRef.current(); },
+    // the ref is written here too, not only on render, so nothing that runs
+    // before the next render can read it empty
+    (text) => { inputRef.current = text; s.setInput(text); },
+    // the hook hands over the turn's words; they are sent as given (the
+    // 25 Sep race: a transcribed turn was read back as empty and dropped)
+    (said) => { const t = String(said ?? inputRef.current ?? '').trim(); if (t) sendRef.current(t); },
     // the same app-owned turn as the Voice screen — this is the mic he
     // actually talks into from anywhere in Nova, so it must not cut him off
     {

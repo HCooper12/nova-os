@@ -399,7 +399,8 @@ export function valsChrome(app, ctx) {
     presence: st.liveTalkOn && st.screen !== 'voice' && st.screen !== 'ambient' ? {
       input: st.liveInput || '',
       setInput: (t) => app.setState({ liveInput: t }),
-      send: () => app.sendLiveTalk(),
+      // the dictation hook hands over the turn's words (the 25 Sep race)
+      send: (text) => app.sendLiveTalk(text),
       end: () => app.endLiveTalk(),
       busy: !!st.voiceBusy,
       speaking: !!st.voiceSpeaking,

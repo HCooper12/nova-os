@@ -36,7 +36,7 @@ export function ReplySheet({ v }) {
   const dict = useDictation(
     () => '',
     (text) => { inputRef.current = text; r.setDraft(text); },
-    () => { if (inputRef.current.trim()) sendRef.current(); },
+    (said) => sendRef.current(said),
     {
       holdMs: v.voiceHoldMs,
       leadMs: v.voiceLeadMs,

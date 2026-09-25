@@ -18,8 +18,9 @@ export function RecipeOverlay({ v }) {
   askVoice.current = v.submitRecipeTweakVoice;
   const dict = useDictation(
     () => '',
-    (text) => v.setRecipeTweakValue?.(text),
-    () => { if (askRef.current?.trim()) askVoice.current?.(); },
+    (text) => { askRef.current = text; v.setRecipeTweakValue?.(text); },
+    // the turn's words travel with its end (the 25 Sep race in useDictation)
+    (said) => { const t = String(said ?? askRef.current ?? '').trim(); if (t) askVoice.current?.(t); },
     { holdMs: v.voiceHoldMs, leadMs: v.voiceLeadMs, onError: (err) => v.recipeDictationError?.(err) },
   );
   return (

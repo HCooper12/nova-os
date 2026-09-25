@@ -93,8 +93,12 @@ export function Voice({ v }) {
   sendRef.current = v.sendOrb;
   const dict = useDictation(
     () => v.takeVoiceSeed(), // clean, unless the wake word or a barge-in already caught his first words
-    (text) => v.setOrbInputValue(text),
-    () => { if (inputRef.current.trim()) sendRef.current(); else v.notifyEmptyListen(); }, // recognition end = ask; silence feeds the loop
+    (text) => { inputRef.current = text; v.setOrbInputValue(text); },
+    // recognition end = ask; silence feeds the loop. The words come WITH the
+    // end of the turn: read back from the ref they were one render stale on
+    // the Nova-ears path, so a transcribed turn was dropped and he was told
+    // Nova heard nothing (the 25 Sep race, src/useDictation.js finishNova).
+    (said) => { const t = String(said ?? inputRef.current ?? '').trim(); if (t) sendRef.current(t); else v.notifyEmptyListen(); },
     {
       // NOVA, NOT THE BROWSER, ENDS HIS TURN. `continuous: false` handed that
       // to the engine's own endpointer, which cut him off mid-sentence and

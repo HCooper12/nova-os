@@ -115,10 +115,11 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     meterRef.current = { stream: null, detach: null };
   };
 
-  const emit = () => {
-    const tail = finalsRef.current + interimRef.current;
-    onText([baseRef.current, saidRef.current, tail].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim());
-  };
+  // Everything heard this turn, as one string: the seed, the earlier
+  // engines' words, and the running engine's finals plus its tail.
+  const composed = () => [baseRef.current, saidRef.current, finalsRef.current + interimRef.current]
+    .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  const emit = () => onText(composed());
 
   // The dying engine's words belong to the turn, not to the engine.
   const carryOver = () => {
@@ -155,7 +156,10 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
         });
       } catch { /* never at the cost of the turn */ }
     }
-    if (fireDone) onDone?.();
+    // THE WORDS TRAVEL WITH THE END OF THE TURN. Surfaces used to read them
+    // back from their own render-refreshed ref, which is one render behind
+    // an onText that has only just been called (see finishNova).
+    if (fireDone) onDone?.(composed());
   };
 
   const restart = () => {
@@ -300,7 +304,13 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
         });
       } catch { /* never at the cost of the turn */ }
     }
-    onDone?.();
+    // HIS WORDS, HANDED OVER, NOT LOOKED UP. On 25 Sep at 14:22 his iPhone
+    // recorded 39.5s, the Mac transcribed 384 characters, and nothing was
+    // sent: emit() above had only just called onText, React had not rendered
+    // it, and the bottom-bar surface's onDone read its ref (refreshed on
+    // render) as empty. Every Nova-ears turn raced this; the browser engine
+    // never did because its words arrived over many renders.
+    onDone?.(composed());
   };
 
   const tickNova = () => {
