@@ -1,8 +1,8 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
-import { Eyebrow, TextAction, Tag, Meta, isAppleStyle, Button, Rail } from '../Controls.jsx';
+import { Eyebrow, TextAction, Tag, Meta, isAppleStyle, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 // the Org Map is three.js: its own chunk, fetched only when Ops opens
@@ -11,38 +11,17 @@ const OrgMap = lazy(() => import('../orgmap/OrgMap.jsx').then((m) => ({ default:
 const M = "var(--nv-font-mono)";
 const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
 
-// Nova Operations — the machinery made visible, honestly. A ring of the real
-// scheduled fleet around the core (glow = ran today, amber = gone quiet,
-// hollow = never run), the human gate front and centre, and the receipts
-// stream underneath. Nothing here is invented; it is the record ledger and
-// the heartbeat file, drawn.
-
-const RING = 150; // ring radius (px) on desktop; the map scales down on mobile
-// THE RING AT 375px. Each node is a dot with an 86px label under it, so at the
-// desktop radius the outermost labels reach 193px from centre — 386px of
-// content in a 343px column. Measured 23 Sep: ten elements past the right
-// edge, every label overlapping a neighbour, and the whole page scrolling
-// sideways (review finding 9). Below this width the ring keeps the dots and
-// gives the names to a rail underneath, which is the same trade every compact
-// dashboard makes: the shape stays, the words move.
-const NARROW_AT = 520;
-const RING_NARROW = 108;
-
-function useNarrow(px = NARROW_AT) {
-  const [narrow, setNarrow] = useState(
-    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-      ? window.matchMedia(`(max-width:${px}px)`).matches : false,
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
-    const mq = window.matchMedia(`(max-width:${px}px)`);
-    const on = (e) => setNarrow(e.matches);
-    setNarrow(mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  }, [px]);
-  return narrow;
-}
+// Nova Operations — the machinery made visible, honestly. The Org Map above
+// carries the scheduled fleet now (every being's tap card lists its own
+// loops), the human gate sits front and centre, and the receipts stream
+// underneath. Nothing here is invented; it is the record ledger and the
+// heartbeat file, drawn.
+//
+// The fleet ring that used to sit between the two topology columns is gone
+// (his call, 25 Sep 2026): at 1280px its labels piled on top of each other,
+// and every loop's state now lives on the Org Map's tap card instead — see
+// server/lib/orgMap.js and src/vals/valsOrgMap.js's loopList. Only the core
+// glyph remains between the columns.
 
 // The topology's outer columns — channels flow IN (left), connections are
 // the hands (right). A dot pulses only while a request is genuinely in
@@ -67,83 +46,18 @@ function TopoCol({ title, items }) {
 
 // The map drawn — the tapped agent unfolded: who it is, the skills it owns
 // (from the vault registry, by department), and its last receipts. Rendered
-// under the tapped conversational row, or under the ring for fleet agents.
+// under the tapped conversational row (the fleet ring this used to also
+// serve is gone; a fleet agent's own state now lives on the Org Map's card).
 // Every absence says so: "no skills mapped yet", "registry unavailable",
 // "no receipts yet", "leaves heartbeats, not inbox records".
-// THE FLEET RING — the same dial, read two ways.
-//
-// Wide, it is what it always was: a dashed orbit with every agent's name and
-// state under its dot. Narrow, the names come off the ring and go into a rail
-// beneath it, and the dial shrinks to a radius that fits a phone. Tapping a
-// dot still opens that agent, and it scrolls its chip into view in the rail —
-// so the two halves stay one control rather than becoming two lists.
-//
-// The dot itself carries everything the label used to: hue is health, and the
-// one that ran today pulses. Nothing is lost by moving the words; what is
-// lost by keeping them is the ability to read any of them.
-function FleetRing({ v }) {
-  const narrow = useNarrow();
-  const r = narrow ? RING_NARROW : RING;
-  const railRef = useRef(null);
-  const chipRefs = useRef({});
-  const openId = v.opsOpenAgent?.id;
-  useEffect(() => {
-    if (!narrow || !openId) return;
-    const el = chipRefs.current[openId];
-    if (el && railRef.current) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  }, [narrow, openId]);
+
+// THE CORE GLYPH — all that stands between the two topology columns now that
+// the fleet ring is gone (his call, 25 Sep 2026). Same size and the same
+// centred spacing it always had; just no ring, dots or rail around it.
+function OpsCore({ v }) {
   return (
-    <div style={css(`flex:0 0 auto;width:${r * 2 + (narrow ? 24 : 120)}px;max-width:100%;margin:0 auto`)}>
-      <div style={css(`position:relative;height:${r * 2 + (narrow ? 30 : 110)}px`)}>
-        <div style={css("position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)")}>
-          <NovaCore size={narrow ? 64 : 86} engine={v.coreStyle} />
-        </div>
-        <div style={css(`position:absolute;left:50%;top:50%;width:${r * 2}px;height:${r * 2}px;transform:translate(-50%,-50%);border:1px dashed ${dim(8)};border-radius:50%`)} />
-        {/* NARROW: THE RING BECOMES A BAND, NOT FORTY BUTTONS. At a 96px
-            radius forty nodes sit about 15px apart — too close to aim at, and
-            forty pulsing dots with their glows merge into one halo that says
-            nothing. So on a phone each node is a small quiet mark whose only
-            job is the shape of the fleet's health at a glance, the pulse is
-            kept for the ones that need attention, and every tap goes to the
-            rail below, where the names are. Wide, nothing changes. */}
-        {v.opsAgents.map((a) => (
-          // activeStyle restates the centring translate on purpose: the
-          // default press spring would replace transform and jump the node
-          <Interactive as="div" key={a.id} title={`${a.label} — ${a.role} · ${a.stateLabel}`}
-            onClick={narrow ? undefined : a.toggle}
-            aria-hidden={narrow ? 'true' : undefined}
-            ariaLabel={narrow ? undefined : `${a.label} — ${a.stateLabel}`}
-            base={`position:absolute;left:calc(50% + ${Math.round(a.x * r)}px);top:calc(50% + ${Math.round(a.y * r)}px);transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;${narrow ? 'width:12px;height:12px;justify-content:center' : 'cursor:pointer;width:86px;padding:3px 0'};text-align:center;border-radius:${narrow ? '50%' : '8px'}`}
-            activeStyle="transform:translate(-50%,-50%) scale(.94)"
-            hoverStyle={narrow ? {} : { background: dim(4) }}>
-            <span style={{ width: narrow ? 7 : 9, height: narrow ? 7 : 9, borderRadius: '50%', flex: 'none',
-              ...a.dotStyle,
-              ...(narrow ? { boxShadow: 'none', opacity: a.state === 'never' ? 0.35 : a.state === 'stale' ? 1 : 0.8 } : {}),
-              ...(a.open ? { boxShadow: '0 0 0 3px color-mix(in srgb, var(--nv-cy) 45%, transparent)' } : {}),
-              ...((a.state === 'today' && !narrow) || a.state === 'stale' ? { animation: 'novaPulse 2.6s infinite var(--nv-anim)' } : {}) }} />
-            {!narrow && <Eyebrow as="span" tone={a.open ? 'var(--nv-cy)' : a.state === 'never' ? dim(35) : dim(72)} style={{ fontSize: isAppleStyle() ? '11px' : undefined }}>{a.label}</Eyebrow>}
-            {!narrow && <Meta tone={a.state === 'stale' ? 'warn' : dim(38)} style={{ textTransform: 'none', letterSpacing: 0, fontSize: isAppleStyle() ? '11px' : undefined }}>{a.stateLabel}</Meta>}
-          </Interactive>
-        ))}
-      </div>
-      {narrow && (
-        <Rail style={{ marginTop: '6px', gap: '7px' }} ariaLabel="The scheduled fleet">
-          {v.opsAgents.map((a) => (
-            <Interactive as="span" key={a.id} onClick={a.toggle}
-              ref={(el) => { chipRefs.current[a.id] = el; }}
-              base={{ cursor: 'pointer', flex: 'none', display: 'inline-flex', alignItems: 'center', gap: '7px',
-                minHeight: '32px', padding: '6px 12px', borderRadius: '999px', scrollSnapAlign: 'center',
-                border: `1px solid ${a.open ? 'var(--nv-acc-border)' : dim(12)}`,
-                background: a.open ? 'var(--nv-acc-bg)' : 'transparent' }}
-              hoverStyle={{ background: dim(5) }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', ...a.dotStyle }} />
-              <span style={{ font: '600 12.5px var(--nv-font-ui)', color: a.open ? 'var(--nv-acc)' : dim(80), whiteSpace: 'nowrap' }}>{a.label}</span>
-              <span style={{ font: '500 11px var(--nv-font-ui)', color: a.state === 'stale' ? 'var(--nv-warn)' : dim(38), whiteSpace: 'nowrap' }}>{a.stateLabel}</span>
-            </Interactive>
-          ))}
-        </Rail>
-      )}
-      {v.opsOpenAgent?.scheduled && <AgentDetail d={v.opsOpenAgent} />}
+    <div style={css("flex:0 0 auto;width:160px;min-height:160px;display:flex;align-items:center;justify-content:center;margin:0 auto")}>
+      <NovaCore size={86} engine={v.coreStyle} />
     </div>
   );
 }
@@ -296,11 +210,12 @@ export function Ops({ v }) {
       )}
 
       <div style={css("display:flex;flex-wrap:wrap;gap:30px;margin-top:26px;align-items:flex-start;justify-content:center")}>
-        {/* channels → core/agents → connections: the real topology, framed
-            the way the map reads — ways in on the left, hands on the right */}
+        {/* channels → core → connections: the real topology, framed the way
+            the map reads — ways in on the left, hands on the right. The fleet
+            ring that used to sit here is gone; a loop's own state now lives
+            on the Org Map's tap card above. */}
         <TopoCol title="Channels · ways in" items={v.opsChannels} />
-        {/* the fleet ring — tap an agent to unfold its skills + receipts */}
-        <FleetRing v={v} />
+        <OpsCore v={v} />
 
         <TopoCol title="Connections · hands" items={v.opsConnections} />
 

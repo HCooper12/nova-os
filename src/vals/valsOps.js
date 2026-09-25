@@ -181,19 +181,6 @@ export function valsOps(app, ctx) {
         : 'The human gate is clear — nothing awaits your review')
       : null,
     goInboxFromOps: () => app.navigate('inbox'),
-    // the fleet, arranged on a ring around the core (map layout is pure CSS)
-    opsAgents: (ops?.agents || []).map((a, i, arr) => {
-      const angle = (i / arr.length) * 2 * Math.PI - Math.PI / 2;
-      return {
-        id: a.id, label: a.label, role: a.role, state: a.state,
-        stateLabel: a.stateLabel,
-        last: a.lastBeat ? `${ago(a.lastBeat)} ago` : 'never run',
-        dotStyle: freshDot(a.state),
-        x: Math.cos(angle), y: Math.sin(angle),
-        open: a.id === openId,
-        toggle: () => app.toggleOpsAgent(a.id),
-      };
-    }),
     // The topology's outer columns — how he reaches Nova (channels) and what
     // Nova's hands actually touch (connections). Configured states are the
     // server's own env truth; the PWA channel is THIS client, so its
