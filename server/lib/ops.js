@@ -313,7 +313,7 @@ export async function composeOps() {
   // THE ORG MAP — the same records and roster, arranged by who is asking
   // (AGENT-WORLD-PLAN §3). Code only; it rides this payload so it is in the
   // client's cached offline slice like everything else here.
-  const orgMap = composeOrgMap({ agents, conversational, records, now });
+  const orgMap = composeOrgMap({ agents, conversational, records, now, filedToday });
 
   return { at: new Date(now).toISOString(), pending, running, filedToday, stream, agents, conversational, channels, connections, sessions, orgMap };
 }

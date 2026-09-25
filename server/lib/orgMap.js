@@ -110,7 +110,41 @@ export function orgHeadline(beings, core) {
   return `${things} waiting on you: ${named.join(', ')}${tail}.`;
 }
 
-export function composeOrgMap({ agents = [], conversational = [], records = [], now = Date.now() } = {}) {
+// THE EVENTS the life engine acts out (AGENT-WORLD-PLAN §9d step 4): every
+// record that was filed, discarded or approved in the last ten minutes, one
+// event per status change, newest first. `answered` is his hand in it: a
+// record with auto:false was filed or discarded because he said so (an
+// autonomous filing carries auto:true); an approval is his hand by
+// definition but is followed by its own filing, so it is not counted twice.
+// The engine itself only plays an event under two minutes old; the wider
+// window here is so a slow sync does not drop one on the floor.
+export const EVENT_WINDOW_MS = 10 * 60e3;
+export const EVENT_CAP = 40;
+const EVENT_STAMPS = [['filed', 'filedAt'], ['discarded', 'discardedAt'], ['approved', 'approvedAt']];
+
+export function orgEvents(records, now) {
+  const out = [];
+  for (const r of records) {
+    if (!r?.id) continue;
+    for (const [status, field] of EVENT_STAMPS) {
+      const at = r[field];
+      if (!at) continue;
+      const age = now - new Date(at).getTime();
+      if (!(age >= 0 && age <= EVENT_WINDOW_MS)) continue;
+      out.push({
+        id: `${r.id}:${status}`, at, source: 'record', being: beingForRecord(r),
+        kind: r.kind || 'capture', status, answered: r.auto === false && status !== 'approved',
+      });
+    }
+  }
+  return out.sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, EVENT_CAP);
+}
+
+// `filedToday` is the count composeOps already makes for the wake debrief
+// (records filed on the server's local day). It is the only receipt count
+// the payload carries, so it is the one the Money stack may grow with;
+// without it the stack stays a fixed short one and says no number at all.
+export function composeOrgMap({ agents = [], conversational = [], records = [], now = Date.now(), filedToday = null } = {}) {
   const roster = new Map([...agents, ...conversational].map((a) => [a.id, a]));
   const byBeing = new Map([...BEINGS.map((b) => [b.id, []]), ['core', []], ['unfiled', []]]);
   for (const r of records) byBeing.get(beingForRecord(r))?.push(r);
@@ -166,5 +200,7 @@ export function composeOrgMap({ agents = [], conversational = [], records = [], 
     headline: orgHeadline(beings, core),
     waitingTotal: beings.reduce((n, b) => n + b.waiting, 0) + core.waiting + unfiled.waiting,
     districts, beings, core, unfiled,
+    events: orgEvents(records, now),
+    receipts: Number.isFinite(filedToday) ? filedToday : null,
   };
 }

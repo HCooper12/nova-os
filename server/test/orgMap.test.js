@@ -115,6 +115,42 @@ test('the headline is counted, names the two who ask most, and is quiet when not
   assert.equal(orgHeadline([], { waiting: 2 }), '2 things are waiting on you, all of it yours to sort.');
 });
 
+// §9d step 4: what the life engine acts out comes from here, so these pin
+// the shape the engine's own tests feed it.
+test('events: an autonomous filing is a delivery, his own filing is answered, nothing older than ten minutes', () => {
+  const records = [
+    { id: 'auto', kind: 'research', status: 'filed', createdAt: ago(30), filedAt: ago(1), auto: true },
+    { id: 'his', kind: 'coach-program', status: 'filed', createdAt: ago(60), filedAt: ago(3), auto: false },
+    { id: 'old', kind: 'dispatch', status: 'filed', createdAt: ago(90), filedAt: ago(11), auto: true },
+    { id: 'no', kind: 'review', status: 'discarded', createdAt: ago(40), discardedAt: ago(2), auto: false },
+    { id: 'yes', kind: 'money', status: 'classifying', createdAt: ago(40), approvedAt: ago(4) },
+    { id: 'waiting', kind: 'research', status: 'pending', createdAt: ago(1) },
+  ];
+  const { events } = composeOrgMap({ records, now: NOW });
+  assert.deepEqual(events.map((e) => e.id), ['auto:filed', 'no:discarded', 'his:filed', 'yes:approved'], 'newest first, and the 11-minute-old filing is gone');
+  assert.deepEqual(events[0], { id: 'auto:filed', at: ago(1), source: 'record', being: 'researcher', kind: 'research', status: 'filed', answered: false });
+  assert.equal(events.find((e) => e.id === 'his:filed').answered, true, 'auto:false is his hand');
+  assert.equal(events.find((e) => e.id === 'his:filed').being, 'coach');
+  assert.equal(events.find((e) => e.id === 'no:discarded').answered, true);
+  assert.equal(events.find((e) => e.id === 'yes:approved').answered, false, 'an approval is followed by its own filing');
+  assert.ok(events.every((e) => NOW - new Date(e.at).getTime() <= 10 * 60e3));
+});
+
+test('events are capped at forty, and a stamp in the future is not an event', () => {
+  const records = Array.from({ length: 60 }, (_, i) => ({ id: `r${i}`, kind: 'video', status: 'filed', filedAt: ago(i / 10), auto: true }));
+  records.push({ id: 'soon', kind: 'video', status: 'filed', filedAt: new Date(NOW + 60e3).toISOString(), auto: true });
+  const { events } = composeOrgMap({ records, now: NOW });
+  assert.equal(events.length, 40);
+  assert.equal(events[0].id, 'r0:filed');
+  assert.ok(!events.some((e) => e.id === 'soon:filed'));
+});
+
+test('receipts is the filed-today count when composeOps hands one over, and null otherwise', () => {
+  assert.equal(composeOrgMap({ records: [], now: NOW, filedToday: 7 }).receipts, 7);
+  assert.equal(composeOrgMap({ records: [], now: NOW, filedToday: 0 }).receipts, 0);
+  assert.equal(composeOrgMap({ records: [], now: NOW }).receipts, null, 'no count, no number');
+});
+
 test('the same records in give the same map out', () => {
   const records = [{ id: 'x', kind: 'dispatch', status: 'pending', createdAt: ago(1) }];
   assert.deepEqual(composeOrgMap({ records, now: NOW }), composeOrgMap({ records, now: NOW }));
