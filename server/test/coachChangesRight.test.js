@@ -148,3 +148,17 @@ test('changes that change nothing, or duplicate, are refused as substance', asyn
   // unrelated to the split: Legs keeps its two exercises
   void legs; void pull;
 });
+
+// Seen live on a throwaway vault, 25 Sep: refused a curl onto Push, the Coach
+// re-sent it as "instructed" and it applied. A placement that breaks his split
+// is his call only when HIS words name the lift and the day.
+test('"instructed" cannot carry a split-breaking change past his own words', async () => {
+  const move = { action: 'move', exercise: 'Cable Bicep Curl', from: 'Upper Body', to: 'Push', instructed: true };
+  const asked = 'What change could be made to my upper body workout so the session is closer to an hour?';
+  await assert.rejects(() => validateCoachEdit(vault, move, { asked }), /breaks his split/);
+  await validateCoachEdit(vault, move, { asked: 'Put the cable bicep curls on my push day' });
+  const { namedIn } = await import('../lib/coach.js');
+  assert.equal(namedIn('move my curls to push', 'Cable Bicep Curl'), true, 'a plural is the same word');
+  assert.equal(namedIn('make the session shorter', 'Cable Bicep Curl'), false);
+  assert.equal(namedIn('the cable one', 'Cable Bicep Curl'), false, '"cable" names a machine, not a lift');
+});

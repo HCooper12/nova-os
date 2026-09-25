@@ -169,3 +169,14 @@ test('a remove and an add of one exercise are ONE move card, whatever Coach wrot
   assert.equal(settled.filed[0].payload.reason, 'side delts on your pressing day');
   assert.equal(settled.filed[0].status, undefined, 'a suggestion waits for his yes');
 });
+
+test('the deck\'s own framing is not his word: a curl onto Push stays refused when he only said "do it"', async () => {
+  const settled = await settleCoachChanges(vault, {
+    question: '[He is talking about one of your suggested changes, still waiting on his answer in Train: card abc12345, "Move Cable Bicep Curl to Push" (Push). Answer him about it.]\n\nOk sounds good, do it',
+    replyText: `Moving it now.\n${P({ action: 'move', exercise: 'Cable Bicep Curl', from: 'Upper Body', to: 'Push', instructed: true })}`,
+    resume: async () => null,
+  });
+  assert.equal(settled.filed.length, 0, 'the model cannot authorise its own split-breaking write');
+  assert.match(settled.text, /Not on a card, so nothing changed: move Cable Bicep Curl from Upper Body to Push\. Cable Bicep Curl trains Biceps/);
+  assert.ok((await order(upper.id)).includes('Cable Bicep Curl'), 'and his plan is untouched');
+});

@@ -833,6 +833,19 @@ export function splitMisfit(routineName, muscleGroup) {
   if (!split || !muscleGroup || ANY_DAY.has(muscleGroup)) return null;
   return split.muscles.includes(muscleGroup) ? null : split;
 }
+// HIS CALL, IN HIS WORDS. "instructed" is the model's claim that he asked for
+// a change, and it lets a change apply without his tap. On a live test the
+// Coach, refused a curl onto Push, simply re-sent it as instructed. A
+// placement that breaks his split therefore needs his own words behind it:
+// the lift and the day it goes to, named in what he actually said.
+const GENERIC_WORDS = new Set(['cable', 'dumbbell', 'barbell', 'machine', 'single', 'with', 'from', 'high', 'position', 'weight', 'attachment', 'behind', 'back', 'wrist', 'height', 'palms', 'facing', 'bench']);
+export function namedIn(text, name) {
+  const said = ` ${String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `;
+  const words = String(name || '').toLowerCase().replace(/\([^)]*\)/g, ' ').split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !GENERIC_WORDS.has(w));
+  const stem = (w) => w.replace(/s$/, '');
+  return words.some((w) => said.includes(` ${stem(w)}`));
+}
+
 // His split in one sentence, for the prompt and the per-turn picture — built
 // from the same table the check uses, so the two can never disagree.
 export function splitRulesLine(routines = []) {
@@ -964,13 +977,16 @@ export async function setCoachEditConfig(patch) {
   return next;
 }
 
-export async function validateCoachEdit(vaultPath, rawIn) {
+export async function validateCoachEdit(vaultPath, rawIn, { asked = null } = {}) {
   const { loadExerciseLibrary } = await import('./exercises.js');
   const { loadRoutines } = await import('./workouts.js');
   const raw = normaliseProposal(rawIn) || {};
   const action = String(raw.action || '').toLowerCase();
   if (!EDIT_ACTIONS.includes(action)) throw refuse(`unknown action "${rawIn?.action}" (actions: ${EDIT_ACTIONS.join(', ')})`);
   const instructed = raw.instructed === true;
+  // a split-breaking placement is his call only when his words name it
+  // (namedIn); with no words to check (an older caller), the claim stands
+  const hisCall = (exName, dayName) => instructed && (asked == null || (namedIn(asked, exName) && namedIn(asked, dayName)));
 
   const { exercises } = await loadExerciseLibrary(vaultPath);
   const { routines } = await loadRoutines(vaultPath, exercises);
@@ -1132,7 +1148,7 @@ export async function validateCoachEdit(vaultPath, rawIn) {
   const fromLibrary = (name) => pickNamed(exercises, name, (e) => e.name, 'his exercise library');
   const splitRefusal = (exName, muscle, routineName, split) => {
     const homes = routines.filter((r) => !splitMisfit(r.name, muscle)).map((r) => r.name);
-    return refuse(`${exName} trains ${muscle}, and ${routineName} is ${split.day} (${split.muscles.join(', ')}), so suggesting it there breaks his split${homes.length ? `; ${muscle} work belongs on ${homes.join(' or ')}` : ''}. Only if HE asked for exactly this placement, send it with "instructed":true`, 'substance');
+    return refuse(`${exName} trains ${muscle}, and ${routineName} is ${split.day} (${split.muscles.join(', ')}), so suggesting it there breaks his split${homes.length ? `; ${muscle} work belongs on ${homes.join(' or ')}` : ''}. Only if HE asked for exactly this placement, naming the exercise and the day, send it with "instructed":true`, 'substance');
   };
   const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : d);
   const reason = String(raw.reason || '').slice(0, 300);
@@ -1150,7 +1166,7 @@ export async function validateCoachEdit(vaultPath, rawIn) {
     const target = inRoutine(from, raw.exercise);
     if (to.exercises.some((e) => e.exerciseId === target.exerciseId)) throw refuse(`${target.name} is already in ${to.name}, so a move would list it twice there; to take it off ${from.name} only, use "remove"`, 'substance');
     if (from.exercises.length === 1) throw refuse(`${target.name} is the only exercise in ${from.name}; moving it would leave that routine empty`, 'substance');
-    const misfit = !instructed && splitMisfit(to.name, target.muscleGroup);
+    const misfit = !hisCall(target.name, to.name) && splitMisfit(to.name, target.muscleGroup);
     if (misfit) throw splitRefusal(target.name, target.muscleGroup, to.name, misfit);
     const place = placeLabel(placementOf(raw, to.exercises, to.name), to.exercises);
     const payload = {
@@ -1199,7 +1215,7 @@ export async function validateCoachEdit(vaultPath, rawIn) {
     const already = lib ? routine.exercises.findIndex((e) => e.exerciseId === lib.id) : -1;
     if (already >= 0) throw refuse(`${lib.name} is already in ${routine.name} (number ${already + 1})`, 'substance');
     const incoming = group || (action === 'swap' ? payload.removeMuscle : null);
-    const misfit = !instructed && incoming !== payload.removeMuscle && splitMisfit(routine.name, incoming);
+    const misfit = !hisCall(lib ? lib.name : addName, routine.name) && incoming !== payload.removeMuscle && splitMisfit(routine.name, incoming);
     if (misfit) throw splitRefusal(lib ? lib.name : addName, incoming, routine.name, misfit);
     payload.addExerciseId = lib ? lib.id : null; // null → created at approve time
     payload.addName = lib ? lib.name : addName.slice(0, 80);
@@ -1241,6 +1257,13 @@ export async function validateCoachEdit(vaultPath, rawIn) {
   return { payload, title };
 }
 
+// His words alone: every leading bracketed block (a plan step's framing, the
+// deck's "[He is talking about one of your suggested changes…]") and the
+// recomputed "LIVE UPDATE (…)" preamble are the machine's, not his.
+export function hisWordsOf(question) {
+  return String(question || '').replace(/^\s*(?:(?:\[[\s\S]*?\]|LIVE UPDATE \(recomputed[^\n]*)\s*)+/, '').trim();
+}
+
 // Which rails an action's card rides. A move, like an add or a swap, is a
 // routine edit.
 export function routeForAction(action) {
@@ -1261,7 +1284,7 @@ export function routeForAction(action) {
 export async function createCoachEditRecord(vaultPath, { question, proposal, source = 'coach', validated = null }) {
   // `validated` is the { payload, title } a caller already checked (the
   // Coach's reply is checked whole before any card is filed); otherwise check
-  const { payload, title } = validated || await validateCoachEdit(vaultPath, proposal);
+  const { payload, title } = validated || await validateCoachEdit(vaultPath, proposal, { asked: question });
   // THE CARD'S OWN LINE IS HIS QUESTION, NOT THE MACHINE'S PREAMBLE. A
   // question that reaches the Coach from a plan step or the front door
   // opens with bracketed context for the model ("[You are answering as one
@@ -1270,8 +1293,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
   // leading bracket block; what is left is what he actually asked.
   // A resumed turn also opens with the recomputed "LIVE UPDATE (…)" line —
   // every card filed on 25 Sep read that preamble as his question.
-  const asked = String(question || '')
-    .replace(/^\s*(?:(?:\[[\s\S]*?\]|LIVE UPDATE \(recomputed[^\n]*)\s*)+/, '').trim() || title;
+  const asked = hisWordsOf(question) || title;
   const record = {
     id: randomUUID().slice(0, 8),
     text: asked.slice(0, 300),

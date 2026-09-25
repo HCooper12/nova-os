@@ -26,7 +26,7 @@
 // instructed change on his standing grant (getCoachEditConfig), through the
 // same approve path his tap takes, with its undo.
 
-import { parseCoachProposals, validateCoachEdit, createCoachEditRecord, getCoachEditConfig, routeForAction, proposalKey } from './coach.js';
+import { parseCoachProposals, validateCoachEdit, createCoachEditRecord, getCoachEditConfig, routeForAction, proposalKey, hisWordsOf } from './coach.js';
 import { COACH_ROUTES } from '../../src/coachSuggestions.js';
 
 // One repair round. A Coach that cannot fix a card with the reason in front
@@ -54,13 +54,13 @@ export function parseWithdraw(text) {
 }
 
 // Every PROPOSE line in a reply, checked and nothing filed.
-export async function checkProposals(vaultPath, text, { validate = validateCoachEdit } = {}) {
+export async function checkProposals(vaultPath, text, { validate = validateCoachEdit, asked = null } = {}) {
   const { cleanText, proposals, badLines } = parseCoachProposals(text);
   const ok = [];
   const refused = [];
   for (const proposal of proposals) {
     try {
-      const v = await validate(vaultPath, proposal);
+      const v = await validate(vaultPath, proposal, { asked });
       ok.push({ proposal, payload: v.payload, title: v.title, route: routeForAction(v.payload.action) });
     } catch (e) {
       refused.push({ proposal, line: `PROPOSE ${JSON.stringify(proposal)}`, reason: e.message, kind: e.kind || 'format' });
@@ -75,7 +75,7 @@ export async function checkProposals(vaultPath, text, { validate = validateCoach
 // cards he can half-approve (his rope extension, 25 Sep). The pair becomes
 // one move card, placed and prescribed as the add said. It applies on his
 // word only if BOTH halves were his instruction.
-export async function pairMoves(vaultPath, ok, { validate = validateCoachEdit } = {}) {
+export async function pairMoves(vaultPath, ok, { validate = validateCoachEdit, asked = null } = {}) {
   const out = [...ok];
   for (const rem of ok.filter((c) => c.payload?.action === 'remove')) {
     const add = out.find((c) => c.payload?.action === 'add' && c.payload.routineId !== rem.payload.routineId && c.payload.addExerciseId && c.payload.addExerciseId === rem.payload.removeExerciseId);
@@ -90,7 +90,7 @@ export async function pairMoves(vaultPath, ok, { validate = validateCoachEdit } 
       ...(rem.proposal?.instructed === true && add.proposal?.instructed === true ? { instructed: true } : {}),
     };
     try {
-      const v = await validate(vaultPath, raw);
+      const v = await validate(vaultPath, raw, { asked });
       out.splice(out.indexOf(rem), 1, { proposal: raw, payload: v.payload, title: v.title, route: routeForAction('move') });
       out.splice(out.indexOf(add), 1);
     } catch { /* a move that cannot stand leaves both halves as they were checked */ }
@@ -229,9 +229,12 @@ export async function fileChanges(vaultPath, { question, ok = [], deps = {} }) {
 // first reply, what passed, and plain words about what did not).
 export async function settleCoachChanges(vaultPath, { question, replyText, resume = null, onRepair = null, deps = {} }) {
   const validate = deps.validate || validateCoachEdit;
+  // what HE said, for the one check that needs it (a split-breaking change is
+  // his call only when his own words name it); never the deck's framing
+  const hisWords = hisWordsOf(question);
   const w0 = parseWithdraw(replyText);
   let ids = w0.ids;
-  const first = await checkProposals(vaultPath, w0.cleanText, { validate });
+  const first = await checkProposals(vaultPath, w0.cleanText, { validate, asked: hisWords });
   let text = first.cleanText;
   let ok = first.ok;
   let refused = first.refused;
@@ -244,7 +247,7 @@ export async function settleCoachChanges(vaultPath, { question, replyText, resum
     if (reply == null) break;
     const w = parseWithdraw(reply);
     ids = [...new Set([...ids, ...w.ids])];
-    const again = await checkProposals(vaultPath, w.cleanText, { validate });
+    const again = await checkProposals(vaultPath, w.cleanText, { validate, asked: hisWords });
     if (rewrite) {
       // the rewrite is the whole answer and carries every change it wants
       if (again.cleanText) text = again.cleanText;
@@ -254,7 +257,7 @@ export async function settleCoachChanges(vaultPath, { question, replyText, resum
     }
     refused = again.refused;
   }
-  ok = await pairMoves(vaultPath, ok, { validate });
+  ok = await pairMoves(vaultPath, ok, { validate, asked: hisWords });
   // withdraw BEFORE filing, so a card taken back and re-proposed in the same
   // reply becomes a fresh card, not the withdrawn one
   const withdrawn = ids.length ? await withdrawCards(ids, { store: deps.store }) : [];
