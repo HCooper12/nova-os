@@ -69,14 +69,15 @@ export function repertoireRouter(vaultPath) {
     } catch (err) { next(err); }
   });
 
-  // "I tried it" / "not today". His own write, so it does not ride the
-  // proposal rails (same as logging a meal) — it is reversible in place by
-  // marking the day again, which corrects the tally rather than doubling it.
+  // "I tried it" / "not today" — and, from Wrap the day, whether it LANDED.
+  // His own write, so it does not ride the proposal rails (same as logging a
+  // meal) — it is reversible in place by answering again, which corrects the
+  // tally rather than doubling it. `result` absent = keep what he said.
   router.post('/repertoire/practice', async (req, res) => {
     try {
-      const { outcome, note } = req.body || {};
+      const { outcome, note, result } = req.body || {};
       const date = String(req.body?.date || '').slice(0, 10) || localDateISO();
-      res.json(await logPractice(vaultPath, date, outcome, note || ''));
+      res.json(await logPractice(vaultPath, date, outcome, note || '', { result }));
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

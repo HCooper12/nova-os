@@ -337,3 +337,108 @@ test('marking a day that was never served is refused rather than invented', asyn
   const { logPractice } = await import('../lib/repertoire.js');
   await assert.rejects(() => logPractice(vault, '2026-09-15', 'tried'), /no technique has been served/);
 });
+
+/* ---------------------- did it land? (25 Sep, the loop) ------------------- */
+// The Hormozi reel he sent is pick → do it → report back. Nova picked and
+// served for eleven days and never once heard back, so Wrap the day now asks
+// whether it landed. These pin what that answer may and may not do.
+
+test('the log line says whether it landed, and a pass never carries a result', () => {
+  assert.equal(formatLogLine('2026-09-15', 'X', 'tried', 'worked on Sam', 'landed'), '- 2026-09-15 · **X** — tried · landed · worked on Sam');
+  assert.equal(formatLogLine('2026-09-15', 'X', 'tried', '', 'missed'), '- 2026-09-15 · **X** — tried · didn’t land');
+  assert.equal(formatLogLine('2026-09-15', 'X', 'skipped', '', 'landed'), '- 2026-09-15 · **X** — passed', 'nothing lands that was not tried');
+  assert.equal(formatLogLine('2026-09-15', 'X', 'tried'), '- 2026-09-15 · **X** — tried', 'no result given: the old line exactly');
+});
+
+test('the review says back what landed, once he has said it', () => {
+  const state = (s) => ({ techniques: { 'the-planted-sensation': { seen: 3, lastSurfacedOn: '2026-09-05', ...s } }, days: {} });
+  const why = (s) => pickForDay(ALL.slice(0, 1), state(s), SUN).why;
+  assert.match(why({ tried: 2, landed: 1 }), /practised 2 times, landed once$/);
+  assert.match(why({ tried: 3, landed: 2 }), /landed twice$/);
+  assert.match(why({ tried: 1, missed: 1 }), /practised 1 time, not landed yet$/);
+  assert.match(why({ tried: 2 }), /practised 2 times$/, 'no answers yet: the phrase is unchanged');
+});
+
+test('the reel starts AT the pick, in curriculum order, and passes only what is waiting', async () => {
+  const { reelFor, REEL_MAX } = await import('../lib/repertoire.js');
+  const six = ['A', 'B', 'C', 'D', 'E', 'F'].map((n) => tech(n));
+  const taughtB = { techniques: { b: { lastSurfacedOn: '2026-09-10' } } };
+  assert.deepEqual(reelFor(six, taughtB, 'c').map((t) => t.id), ['c', 'd', 'e', 'f', 'a'], 'B was taught, so it is not waiting; the pick leads and the list wraps');
+  // too few waiting to make a reel: the whole catalogue passes instead
+  const mostTaught = { techniques: Object.fromEntries(['a', 'b', 'c', 'd'].map((id) => [id, { lastSurfacedOn: '2026-09-10' }])) };
+  assert.deepEqual(reelFor(six, mostTaught, 'e').map((t) => t.id), ['e', 'f', 'a', 'b', 'c', 'd']);
+  // a big catalogue is capped, still starting at the pick
+  const many = Array.from({ length: 30 }, (_, i) => tech(`T${i}`));
+  const r = reelFor(many, {}, 't7');
+  assert.equal(r.length, REEL_MAX);
+  assert.equal(r[0].id, 't7');
+  assert.deepEqual(reelFor(six, {}, 'nope'), [], 'a pick that is not in the catalogue gives no reel, never a wrong one');
+});
+
+test('a result marks it tried, tallies it, logs it, and a pass takes it back', async () => {
+  const vault = await tempVault();
+  const { addTechniques, techniqueForDay, logPractice, readState } = await import('../lib/repertoire.js');
+  await addTechniques(vault, [{ family: 'Suggestion', name: 'The planted sensation', summary: 's', move: 'm', drill: 'd', tell: 't', source: 'src' }]);
+  await techniqueForDay(vault, '2026-09-15');
+
+  const r = await logPractice(vault, '2026-09-15', 'tried', 'worked on Sam', { result: 'landed' });
+  assert.equal(r.result, 'landed');
+  assert.equal(r.tried, 1);
+  assert.equal(r.landed, 1);
+  let log = await readFile(path.join(vault, LOG_REL), 'utf8');
+  assert.match(log, /- 2026-09-15 · \*\*The planted sensation\*\* — tried · landed · worked on Sam/);
+
+  // the card's own "I tried it" (no result sent) keeps what he said
+  const kept = await logPractice(vault, '2026-09-15', 'tried');
+  assert.equal(kept.unchanged, true);
+  assert.equal(kept.result, 'landed');
+  assert.equal(kept.tried, 1, 'a no-op still returns the tally, so the card never shows a blank streak');
+  assert.equal(kept.streak, 1);
+
+  // he changes his mind: it did not land — corrected, not double-counted
+  await logPractice(vault, '2026-09-15', 'tried', '', { result: 'missed' });
+  let s = (await readState()).techniques['the-planted-sensation'];
+  assert.equal(s.landed, 0);
+  assert.equal(s.missed, 1);
+  assert.equal(s.tried, 1);
+
+  // then says he never actually tried it: the result goes with the attempt
+  await logPractice(vault, '2026-09-15', 'skipped');
+  const st = await readState();
+  s = st.techniques['the-planted-sensation'];
+  assert.equal(st.days['2026-09-15'].result, null);
+  assert.equal(s.missed, 0);
+  assert.equal(s.tried, 0);
+  log = await readFile(path.join(vault, LOG_REL), 'utf8');
+  assert.equal(log.match(/2026-09-15/g).length, 1, 'still one line for the day');
+  assert.match(log, /— passed$/m);
+});
+
+test('a result that is not a word it knows, or on a day he passed, is refused', async () => {
+  const vault = await tempVault();
+  const { addTechniques, techniqueForDay, logPractice } = await import('../lib/repertoire.js');
+  await addTechniques(vault, [{ family: 'A', name: 'One', summary: 's' }]);
+  await techniqueForDay(vault, '2026-09-15');
+  await assert.rejects(() => logPractice(vault, '2026-09-15', 'tried', '', { result: 'kinda' }), /result must be/);
+  await assert.rejects(() => logPractice(vault, '2026-09-15', 'skipped', '', { result: 'landed' }), /only a technique he tried/);
+});
+
+test('today carries the reel on a NEW day only, and the answer once given', async () => {
+  const vault = await tempVault();
+  const { addTechniques, techniqueForDay, logPractice } = await import('../lib/repertoire.js');
+  await addTechniques(vault, ['One', 'Two', 'Three', 'Four', 'Five'].map((name) => ({ family: 'A', name, summary: 's' })));
+  // 2026-09-14 is a Monday: a new technique
+  const mon = await techniqueForDay(vault, '2026-09-14');
+  assert.equal(mon.mode, 'new');
+  assert.equal(mon.reel[0].id, mon.technique.id, 'the reel lands on the pick');
+  assert.equal(mon.result, null);
+  await logPractice(vault, '2026-09-14', 'tried', 'on the barista', { result: 'landed' });
+  const again = await techniqueForDay(vault, '2026-09-14');
+  assert.equal(again.result, 'landed');
+  assert.equal(again.note, 'on the barista');
+  assert.equal(again.landed, 1);
+  // Tuesday carries Monday's technique: nothing to reveal
+  const tue = await techniqueForDay(vault, '2026-09-15');
+  assert.equal(tue.mode, 'second');
+  assert.equal(tue.reel, null);
+});

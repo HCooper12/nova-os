@@ -316,7 +316,40 @@ const MODES = new Set(['new', 'second', 'review']);
 function practisedPhrase(s = {}) {
   const tried = Number(s.tried) || 0;
   if (!tried) return 'shown before, never tried';
-  return `practised ${tried} time${tried === 1 ? '' : 's'}`;
+  const base = `practised ${tried} time${tried === 1 ? '' : 's'}`;
+  // once he has said what happened, the review says it back: a technique that
+  // never landed is a different Sunday from one that works every time
+  const landed = Number(s.landed) || 0;
+  if (landed) return `${base}, landed ${timesWord(landed)}`;
+  if (Number(s.missed) > 0) return `${base}, not landed yet`;
+  return base;
+}
+
+const timesWord = (n) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`);
+
+// THE REEL — 25 Sep, from the Hormozi reel he sent (a card cycling through
+// his books and landing on the day's tactic). On a NEW day Home reveals the
+// pick on a reel of the techniques still waiting their turn.
+//
+// Theatre over a decision already made, never a roll: the list is served in
+// curriculum order STARTING AT the pick, and the pick is what the reel lands
+// on — the same pickForDay answer the brief speaks. With too few waiting to
+// make a reel (the curriculum nearly taught) it passes the whole catalogue,
+// so there is always something to pass. Pure, so the order is testable.
+export const REEL_MAX = 12;
+export function reelFor(techniques = [], state = {}, pickId) {
+  const st = state.techniques || {};
+  const lastOn = (t) => st[t.id]?.lastSurfacedOn || String(st[t.id]?.lastSurfacedAt || '').slice(0, 10) || null;
+  const waiting = techniques.filter((t) => t.id === pickId || !lastOn(t));
+  const pool = waiting.length >= 4 ? waiting : techniques;
+  const at = pool.findIndex((t) => t.id === pickId);
+  if (at === -1) return [];
+  const out = [];
+  for (let i = 0; i < Math.min(pool.length, REEL_MAX); i++) {
+    const t = pool[(at + i) % pool.length];
+    out.push({ id: t.id, name: t.name });
+  }
+  return out;
 }
 
 // THE SPOKEN LINE. Said in the morning brief, so it is two sentences and it
@@ -365,13 +398,20 @@ export async function techniqueForDay(vaultPath, dateISO, { record = true } = {}
     await writeState(state).catch(() => {});
   }
   const s = state.techniques[pick.technique.id] || {};
+  const day = state.days[dateISO] || {};
   return {
     ...pick,
-    outcome: state.days[dateISO]?.outcome || null,
+    outcome: day.outcome || null,
+    // whether it LANDED, once he has said — Wrap the day asks (see logPractice)
+    result: day.result || null,
+    note: day.note || null,
     tried: Number(s.tried) || 0,
+    landed: Number(s.landed) || 0,
     streak: computeStreak(state, dateISO),
     position: techniques.findIndex((t) => t.id === pick.technique.id) + 1,
     total: techniques.length,
+    // only a NEW technique is revealed; a second day or a review is one he met
+    reel: pick.mode === 'new' ? reelFor(techniques, state, pick.technique.id) : null,
   };
 }
 
@@ -390,46 +430,76 @@ export function computeStreak(state = {}, dateISO) {
   return streak;
 }
 
+// Whether it LANDED — 25 Sep, the half of the Hormozi reel's loop Nova was
+// missing: pick it, do it, report back. By then Nova had served a technique
+// on eleven days and not one had been marked, so the answer is asked where
+// he already looks in the evening (Wrap the day), against the technique's
+// own Tell. Only a technique he TRIED can have landed, so a result travels
+// with 'tried', and a pass takes it away.
+export const RESULTS = ['landed', 'missed'];
+
 // He marks it. 'tried' advances the interval for that technique; 'skipped'
 // deliberately does NOT — exposure is not practice, so a technique he passed
 // on comes back at the same short gap rather than graduating on a shrug.
-export async function logPractice(vaultPath, dateISO, outcome, note = '') {
+// A result does not move the interval either: whether it landed is his
+// record of what works, and the schedule stays about practice.
+//
+// `result`: undefined = not asked (the card's own two taps), so a result he
+// already gave survives a re-mark of 'tried'; null = cleared on purpose.
+export async function logPractice(vaultPath, dateISO, outcome, note = '', { result } = {}) {
   if (!['tried', 'skipped'].includes(outcome)) throw new Error("outcome must be 'tried' or 'skipped'");
+  if (result != null && !RESULTS.includes(result)) throw new Error("result must be 'landed' or 'missed'");
+  if (result && outcome !== 'tried') throw new Error('only a technique he tried can have landed');
   const state = await readState();
   const day = state.days[dateISO];
   if (!day?.id) throw new Error('no technique has been served for that day yet');
   const prev = state.techniques[day.id] || {};
   const was = day.outcome;
-  if (was === outcome && !note) return { unchanged: true, outcome };
+  const wasResult = day.result || null;
+  const nextResult = outcome !== 'tried' ? null : result === undefined ? wasResult : result;
+  if (was === outcome && nextResult === wasResult && !note) {
+    // the same receipt as a real write, so the card never renders a blank
+    // streak off a no-op (it used to return only { unchanged, outcome })
+    return { unchanged: true, outcome, result: wasResult, tried: Number(prev.tried) || 0, landed: Number(prev.landed) || 0, streak: computeStreak(state, dateISO), logged: false };
+  }
 
-  // re-marking the same day corrects the tally rather than double-counting it
-  const tried = (Number(prev.tried) || 0) - (was === 'tried' ? 1 : 0) + (outcome === 'tried' ? 1 : 0);
-  const skipped = (Number(prev.skipped) || 0) - (was === 'skipped' ? 1 : 0) + (outcome === 'skipped' ? 1 : 0);
-  state.techniques[day.id] = { ...prev, tried: Math.max(0, tried), skipped: Math.max(0, skipped), lastOutcome: outcome, lastOutcomeAt: new Date().toISOString() };
-  state.days[dateISO] = { ...day, outcome, note: String(note || '').slice(0, 300) || null };
+  // re-marking the same day corrects each tally rather than double-counting it
+  const recount = (n, from, to, v) => Math.max(0, (Number(n) || 0) - (from === v ? 1 : 0) + (to === v ? 1 : 0));
+  state.techniques[day.id] = {
+    ...prev,
+    tried: recount(prev.tried, was, outcome, 'tried'),
+    skipped: recount(prev.skipped, was, outcome, 'skipped'),
+    landed: recount(prev.landed, wasResult, nextResult, 'landed'),
+    missed: recount(prev.missed, wasResult, nextResult, 'missed'),
+    lastOutcome: outcome,
+    lastOutcomeAt: new Date().toISOString(),
+  };
+  state.days[dateISO] = { ...day, outcome, result: nextResult, note: String(note || '').slice(0, 300) || null };
   await writeState(state);
 
   let logged = false;
   try {
     const techniques = flatten(await loadRepertoire(vaultPath));
     const t = techniques.find((x) => x.id === day.id);
-    if (t) { await appendLog(vaultPath, dateISO, t.name, outcome, note); logged = true; }
+    if (t) { await appendLog(vaultPath, dateISO, t.name, outcome, note, nextResult); logged = true; }
   } catch { /* the vault log is a nicety; the tally is the record */ }
-  return { outcome, tried: state.techniques[day.id].tried, streak: computeStreak(state, dateISO), logged };
+  const s = state.techniques[day.id];
+  return { outcome, result: nextResult, tried: s.tried, landed: s.landed, streak: computeStreak(state, dateISO), logged };
 }
 
-export function formatLogLine(dateISO, name, outcome, note = '') {
+export function formatLogLine(dateISO, name, outcome, note = '', result = null) {
   const verb = outcome === 'tried' ? 'tried' : 'passed';
+  const how = outcome === 'tried' && result ? ` · ${result === 'landed' ? 'landed' : 'didn’t land'}` : '';
   const n = String(note || '').replace(/\s+/g, ' ').trim();
-  return `- ${dateISO} · **${name}** — ${verb}${n ? ` · ${n}` : ''}`;
+  return `- ${dateISO} · **${name}** — ${verb}${how}${n ? ` · ${n}` : ''}`;
 }
 
-async function appendLog(vaultPath, dateISO, name, outcome, note) {
+async function appendLog(vaultPath, dateISO, name, outcome, note, result = null) {
   const full = path.join(vaultPath, LOG_REL);
   await mkdir(path.dirname(full), { recursive: true });
   const raw = existsSync(full) ? await readFile(full, 'utf8') : LOG_HEADER;
   if (existsSync(full)) await backupFile(full);
-  const line = formatLogLine(dateISO, name, outcome, note);
+  const line = formatLogLine(dateISO, name, outcome, note, result);
   // newest first, and a re-mark of the same day REPLACES its line instead of
   // stacking a contradicting second one
   const kept = raw.split('\n').filter((l) => !l.startsWith(`- ${dateISO} · **${name}**`));
