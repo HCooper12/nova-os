@@ -261,6 +261,11 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     // land here so Nova answers from what was actually said.
     { label: "Coach's recent conversation", load: async () => (await import('./agentSessions.js')).agentConversationContext('coach', 'Coach') },
     { label: "the Leader's recent conversation", load: async () => (await import('./agentSessions.js')).agentConversationContext('leader', 'the Leader') },
+    // HIS OWN CONVERSATION WITH NOVA, from the record every door writes to
+    // (lib/conversationLog.js). A fresh session used to start with no memory
+    // of yesterday, or of what he said to Siri an hour ago; his ask (25 Sep)
+    // was that Nova "can keep referring back to what we have discussed".
+    { label: 'his conversation with Nova', load: async () => (await import('./conversationLog.js')).recentConversationBlock() },
   ];
 
   // together, on a deadline; a section that throws or times out is NAMED in

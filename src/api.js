@@ -388,6 +388,10 @@ export const api = {
   // default aborted the request before the server had given up — a cold first
   // turn in the car failed on the client while the Mac was still working.
   ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, ...agents }, { timeoutMs: 45_000 }),
+  // THE CONVERSATION RECORD (server/lib/conversationLog.js): every settled
+  // voice-chat line goes up; the Voice screen reads the whole record back
+  conversation: (conn, { limit = 150, since = null } = {}) => call(conn, `/api/conversation?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`),
+  saveConversation: (conn, turns) => post(conn, '/api/conversation', { turns }),
   // photos/videos with a question — stored first, named by id on the ask
   attach: (conn, files) => post(conn, '/api/attachments', { files }, { timeoutMs: 180_000 }),
   // fired the moment the mic opens, before a question exists — boots the

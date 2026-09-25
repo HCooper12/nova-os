@@ -271,7 +271,7 @@ export function Voice({ v }) {
                 {m.daySep && (
                   <div style={css(`margin:10px 0 8px;text-align:center;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>— {m.daySep.toUpperCase()} —</div>
                 )}
-                <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}</span>} <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
+                <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}{m.where && <span style={css('color:color-mix(in srgb, var(--nv-cy) 62%, transparent)')}> · {m.where}</span>}</span>} <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
                 {m.attached && (
                   <div style={css("margin-top:6px;display:flex;gap:6px;flex-wrap:wrap")}>
                     {m.attached.map((a, k) => a.thumb

@@ -9,6 +9,10 @@ import { recorderSupported } from '../recorder.js';
 import { holdTiming, HOLD_PRESETS } from '../turnEnd.js';
 import { toSpokenProse } from '../spokenProse.js';
 import { dtf } from './fmt.js';
+import { whereLabel, deviceName } from '../conversationSync.js';
+
+// this device, named once: a record line from another one says where it was said
+const THIS_DEVICE = deviceName(typeof navigator === 'undefined' ? '' : navigator.userAgent);
 import { RUNNING_BUILD, applyUpdate } from '../buildCheck.js';
 
 // The smaller screens: Voice (concept preview), Memory Galaxy, Shopping List,
@@ -302,6 +306,9 @@ export function valsMisc(app, ctx) {
       // when this was said — only for messages that carry a real stamp
       // (restored pre-stamp history shows nothing rather than a guess)
       time: m.at ? dtf('', { hour: '2-digit', minute: '2-digit' }).format(new Date(m.at)) : null,
+      // said through Siri, the Action Button or another device: the record
+      // brought it here, and the label says where it was actually said
+      where: m.at ? whereLabel(m, { device: THIS_DEVICE }) : null,
       daySep: m.at && (!arr[i - 1]?.at || new Date(arr[i - 1].at).toDateString() !== new Date(m.at).toDateString())
         ? dtf('', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(m.at)) : null,
       // Something Nova DID on his word — a verb from the registry, already

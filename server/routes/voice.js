@@ -368,6 +368,14 @@ export function voiceRouter(vaultPath) {
       // talking, and it exists only so a runaway client cannot post a
       // megabyte into a prompt. Nothing he could say reaches it.
       if (question.length > 200_000) return res.status(400).json({ error: 'that payload is far larger than anything spoken — it looks like a client fault' });
+      // THE RECORD (lib/conversationLog.js): what he said through Siri or the
+      // Action Button, and what came back, land in the same history as the
+      // app's voice chat. No app is involved on this lane, so the server is
+      // the only writer that can keep it.
+      const { logTurn } = await import('../lib/conversationLog.js');
+      const via = req.novaHeard ? 'action-button' : 'siri';
+      logTurn({ who: 'you', text: question, via });
+      const answered = (text, failed = false) => { if (text) logTurn({ who: failed ? 'system' : 'nova', text, via }); };
       // The Reflex Layer, same as /ask: the Siri lane is where <1s matters
       // most — a reflex hit means Siri speaks the number before the CLI
       // would have finished booting. Miss → the session machinery below.
@@ -375,12 +383,14 @@ export function voiceRouter(vaultPath) {
       if (reflex) {
         console.log(`ask/sync reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
+        answered(reflex.text);
         return res.json({ text: reflex.text, sessionId: null });
       }
       const { tryCommand: trySyncCommand } = await import('../lib/verbs.js');
       const command = await trySyncCommand(vaultPath, question).catch(() => null);
       if (command) {
         console.log(`ask/sync verb ${command.miss ? 'miss' : 'hit'} [${command.matched}]`);
+        answered(command.text);
         return res.json({ text: command.text, reflex: true, acted: command.acted || null });
       }
       // iOS Shortcuts kills a request that sits SILENT for too long ("The
@@ -413,6 +423,7 @@ export function voiceRouter(vaultPath) {
       const finish = (payload) => {
         clearTimeout(keepaliveStart);
         if (keepalive) clearInterval(keepalive);
+        answered(payload.text, !!payload.error);
         res.end(JSON.stringify(req.novaHeard ? { ...payload, heard: req.novaHeard } : payload));
       };
 
@@ -466,6 +477,7 @@ export function voiceRouter(vaultPath) {
       dropSpokenSession();
       finish({ text: 'Nova took too long to answer that one.', error: 'timeout' });
     } catch (e) {
+      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: `Nova hit an error: ${e.message}`, via: req.novaHeard ? 'action-button' : 'siri' })).catch(() => {});
       if (res.headersSent) { try { res.end(JSON.stringify({ text: `Nova hit an error: ${e.message}`, error: e.message })); } catch { /* gone */ } return; }
       res.status(500).json({ error: e.message });
     }
@@ -510,9 +522,15 @@ export function voiceRouter(vaultPath) {
       console.log(`ask/audio heard ${audio.buf.length}B via ${out.backend} in ${out.ms}ms: ${JSON.stringify(heard.slice(0, 80))}`);
     } catch (e) {
       console.log(`ask/audio transcription FAILED: ${e.message}`);
+      // he spoke and nothing was heard: that still belongs in the record, so
+      // "did you hear me earlier?" has an honest answer
+      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: `An Action Button recording could not be turned into words: ${e.message}`, via: 'action-button' })).catch(() => {});
       return res.json({ text: `I couldn't turn that recording into words: ${e.message}`, error: e.message });
     }
-    if (!heard) return res.json({ text: "I didn't catch any words in that one. Try again a little closer to the phone.", heard: '', error: 'silence' });
+    if (!heard) {
+      import('../lib/conversationLog.js').then(({ logTurn }) => logTurn({ who: 'system', text: 'An Action Button recording arrived with no words in it.', via: 'action-button' })).catch(() => {});
+      return res.json({ text: "I didn't catch any words in that one. Try again a little closer to the phone.", heard: '', error: 'silence' });
+    }
     req.body = { question: heard };
     req.novaHeard = heard;
     const json = res.json.bind(res);

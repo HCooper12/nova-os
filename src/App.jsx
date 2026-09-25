@@ -61,6 +61,7 @@ import { coachSuggestions } from './coachSuggestions.js';
 import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
+import { deviceName, deviceId, textKey, pendingTurns, mergeRecord } from './conversationSync.js';
 import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
@@ -247,6 +248,11 @@ function restoreActiveSession() {
 // the app could eat the thread AND any in-flight answer's context.
 const CHATS_KEY = 'novaos.chats';
 const CHAT_KEEP = 40; // messages per chat — enough thread, bounded storage
+// The conversation record (src/conversationSync.js): which versions of which
+// lines this device has delivered, and where "New chat" last started a page.
+const CONV_SYNCED_KEY = 'novaos.convSynced';
+const CONV_SYNCED_KEEP = 400;
+const CONV_FROM_KEY = 'novaos.voiceChatFrom';
 function restoreChats() {
   try {
     const d = JSON.parse(localStorage.getItem(CHATS_KEY) || 'null');
@@ -637,6 +643,10 @@ export default class App extends Component {
       }
       this.setState(hydrate);
       const fetchDone = this.refreshLiveData();
+      // the voice chat is the record's window: bring in what other devices
+      // and Siri added, and send up anything this device never delivered
+      this.loadConversationRecord();
+      this.syncConversationSoon();
       if (!cached) {
         const fetchTimeout = new Promise((resolve) => setTimeout(resolve, 5000));
         dataReady = Promise.race([fetchDone, fetchTimeout]);
@@ -876,6 +886,7 @@ export default class App extends Component {
   }
   componentWillUnmount() {
     clearTimeout(this.bootT); clearInterval(this.refreshIv); clearInterval(this.streamWatchIv);
+    clearTimeout(this.convSyncT); clearTimeout(this.convRetryT);
     Object.values(this.pollers || {}).forEach((p) => p.cancel());
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
@@ -995,6 +1006,7 @@ export default class App extends Component {
     });
     if (changed) { if (instant) apply(); else this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
     if (changed && screen === 'voice') this.maybeGreet('voice');
+    if (changed && screen === 'voice') this.loadConversationRecord();
     if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see
     if (changed && screen === 'ops') this.refreshForge(); // arriving at Ops is when the fleet's jobs matter
     // The quick-log rail sits at the TOP of Fuel and is the fastest path to
@@ -1458,6 +1470,9 @@ export default class App extends Component {
         }
       } catch { /* storage full — chats just won't persist */ }
     }
+    // …and every settled voice-chat line goes to the conversation record,
+    // whichever of the many paths above wrote it (conversationSync.js)
+    if (prevState.voiceChat !== this.state.voiceChat) this.syncConversationSoon();
     // mirror composer drafts — typed-but-unsubmitted text survives a refresh
     if (prevState.inboxInput !== this.state.inboxInput || prevState.journalComposerText !== this.state.journalComposerText) {
       try {
@@ -8002,6 +8017,9 @@ export default class App extends Component {
     const stash = stashOf(this.state.voiceChat, this.state.voiceSessionId || localStorage.getItem('novaos.voiceSession'));
     if (stash) { try { localStorage.setItem(UNDO_KEY, JSON.stringify(stash)); } catch { /* best-effort */ } }
     localStorage.removeItem('novaos.voiceSession');
+    // A fresh page, not a deleted past: the record keeps every line and Nova
+    // still reads it; this device just stops merging lines from before now.
+    try { localStorage.setItem(CONV_FROM_KEY, new Date().toISOString()); } catch { /* best-effort */ }
     this.stopSpeaking();
     this.setState({ voiceSessionId: null, voiceChat: [], voiceChatUndo: stash });
   }
@@ -8011,9 +8029,81 @@ export default class App extends Component {
     const ok = usableUndo(stash);
     if (!ok) { this.toastMsg('That conversation is no longer recoverable here'); return; }
     if (ok.sessionId) localStorage.setItem('novaos.voiceSession', ok.sessionId);
-    try { localStorage.removeItem(UNDO_KEY); } catch { /* fine */ }
+    try { localStorage.removeItem(UNDO_KEY); localStorage.removeItem(CONV_FROM_KEY); } catch { /* fine */ }
     this.setState({ voiceChat: ok.chat, voiceSessionId: ok.sessionId || null, voiceChatUndo: null });
     this.toastMsg(ok.sessionId ? 'Conversation restored — Nova picks up where you left off' : 'Transcript restored');
+  }
+  // ——— THE CONVERSATION RECORD ———
+  // His 25 Sep ask: everything he says to Nova "should always appear in this
+  // voice chat as a historical record". Up: every settled line, from any of
+  // the paths that write the voice chat, is delivered once per wording. Down:
+  // the record's lines this device lacks (another device, Siri, the Action
+  // Button) are merged in. The rules live in conversationSync.js.
+  convDevice() {
+    if (!this.convDev) {
+      this.convDev = deviceId(typeof localStorage === 'undefined' ? null : localStorage);
+      this.convDeviceName = deviceName(typeof navigator === 'undefined' ? '' : navigator.userAgent);
+    }
+    return this.convDev;
+  }
+  convSynced() {
+    if (!this.convSyncedMap) {
+      try { this.convSyncedMap = JSON.parse(localStorage.getItem(CONV_SYNCED_KEY) || '{}') || {}; } catch { this.convSyncedMap = {}; }
+    }
+    return this.convSyncedMap;
+  }
+  markConvSynced(rows) {
+    const map = this.convSynced();
+    for (const r of rows) { delete map[r.id]; map[r.id] = textKey(r.text); } // re-insert = newest last
+    const keys = Object.keys(map);
+    for (const k of keys.slice(0, Math.max(0, keys.length - CONV_SYNCED_KEEP))) delete map[k];
+    try { localStorage.setItem(CONV_SYNCED_KEY, JSON.stringify(map)); } catch { /* the record dedupes anyway */ }
+  }
+  // Streaming replies rewrite the chat many times a second; wait for it to
+  // settle rather than post every frame.
+  syncConversationSoon() {
+    clearTimeout(this.convSyncT);
+    this.convSyncT = setTimeout(() => this.syncConversation(), 1200);
+  }
+  async syncConversation() {
+    const conn = getConnection();
+    if (!conn || this.state.connectionStatus === 'demo') return;
+    if (this.convSyncing) { this.convSyncAgain = true; return; }
+    const dev = this.convDevice();
+    const rows = pendingTurns(this.state.voiceChat, this.convSynced(), { dev, device: this.convDeviceName });
+    if (!rows.length) return;
+    this.convSyncing = true;
+    try {
+      for (let i = 0; i < rows.length; i += 200) {
+        const batch = rows.slice(i, i + 200);
+        await api.saveConversation(conn, batch);
+        this.markConvSynced(batch);
+      }
+    } catch {
+      // offline or the Mac asleep: nothing is lost, the lines stay pending
+      // and the next change (or this retry) delivers them
+      clearTimeout(this.convRetryT);
+      this.convRetryT = setTimeout(() => this.syncConversation(), 30_000);
+    } finally {
+      this.convSyncing = false;
+      if (this.convSyncAgain) { this.convSyncAgain = false; this.syncConversationSoon(); }
+    }
+  }
+  async loadConversationRecord() {
+    const conn = getConnection();
+    if (!conn || this.state.connectionStatus === 'demo') return;
+    let since = null;
+    try { since = localStorage.getItem(CONV_FROM_KEY); } catch { /* none */ }
+    try {
+      const { turns } = await api.conversation(conn, { limit: 150, since });
+      const dev = this.convDevice();
+      // what came down is already in the record: never send it back up
+      this.markConvSynced((turns || []).map((t) => ({ id: t.id, text: t.text })));
+      this.setState((s) => {
+        const merged = mergeRecord(s.voiceChat, turns, { dev });
+        return merged === s.voiceChat ? null : { voiceChat: merged };
+      });
+    } catch { /* the local chat stands; the next open tries again */ }
   }
   rememberFromChat(text) {
     const conn = getConnection();
