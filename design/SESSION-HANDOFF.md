@@ -13,6 +13,48 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (midday) — "HARD SETS THIS WEEK" OPENS THE PLANNED WEEK, SET BY
+SET. CLIENT LIVE; THE SERVER HALF GOES LIVE WITH THE COACH SESSION'S RELOAD.**
+
+- **His ask:** through the hard sets card, "an aesthetically appealing
+  breakdown of each exercise for each muscle group currently planned in my
+  program across the week."
+- **Shipped (pushed, deployed `51803a5`, verify-shipped markers PASS):**
+  `a9990d3` server/lib/plannedWeek.js (every scheduled exercise per muscle
+  per day; each logged working set credited to the slot it fulfils or to
+  "not in the plan"; `isWorkingSet` shared with the bars) as
+  `buildTrainOverview().week`. `1e776b5` src/weekSets.js (pure view model)
+  + src/WeekSets.jsx (the sheet: serif count, muscle spectrum, a muscle x
+  day pip grid one line per exercise, per-muscle ring and exercise rows);
+  GlassSheet now takes children, centres its grabber, pins its sticky
+  header at -6px (Chrome seam). `1c45125` auditProgram compared rest days
+  to 'ACTIVE_REST' but the schedule stores 'active-rest' (6 training days
+  instead of 4 in Coach's context). `f69926d` the card calls a goal muscle
+  short only if done + still scheduled misses target by Sunday; the Coach
+  question carries the figures.
+- **NOT LIVE YET:** the running server predates `week`, so until the
+  service reloads his card looks exactly as before (weekSetsView(null) is
+  null: no chevron, old under-target line). The concurrent Coach session
+  (nova-os-d3) asked me NOT to reload over its unverified work; it will run
+  scripts/reload-server.mjs after committing. **Next session: confirm
+  `node scripts/nova-api.mjs GET /api/train/overview` has `week`, then look
+  at it on his phone.**
+- **Verified:** his real week reconciles (Back 12, Biceps 9, Triceps 9,
+  Shoulders 6, Chest 3 on bars and sheet alike); the sheet at 375
+  (cupertino, command) and 1280 with his real week merged into the page,
+  writes blocked; server 2226/2226, HEAD alone builds and tests clean.
+- **My test's side effect, undone:** the first headless run loaded Home
+  unguarded (an ASI bug in my guard) and composed the Morning Show at
+  11:51 AEST: 12 "brief" lines in server/data/spoken-log.json, removed by
+  timestamp. The brief flag was already today's (08:24), so unchanged.
+- **Data finding worth his eye:** Push plans Rope Overhead Tricep
+  Extension and a straight-bar pushdown, but he logs Cable Overhead Tricep
+  Extension and the V-bar pushdown, so the sheet shows the planned ones
+  "not done" and his real ones "not in the plan". Same for Pull ups vs
+  Weighted Pull-Up. Either the plan or his logging should change; his call.
+
+---
+
 **25 SEP (morning, nova-os-84 close before his MacBook update) — THREE
 ITEMS HE HANDED TO THE NEXT SESSION, plus the Action Button recipe.**
 He is restarting the Mac for an OS update: after it, check the launchd
