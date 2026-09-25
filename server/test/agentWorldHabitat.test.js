@@ -248,6 +248,17 @@ test('night lights the tower, the paper lantern and the plaza lamps; setLit(fals
   H.plaza.props.lamps.forEach((m) => assert.equal(m.emissiveIntensity, 0));
 });
 
+test('the Money stack is the count it is given: none known is a fixed short stack, a known zero is an empty dish', () => {
+  const money = H.districts.money;
+  const coins = () => { let n = 0; money.props.stack.traverse((o) => { if (o.isMesh && o.geometry.attributes.position.count > 400) n++; }); return n; };
+  assert.equal(money.setStack(null), 5, 'no count: the fixed stack');
+  assert.equal(money.setStack(0), 0, 'a known zero');
+  assert.equal(coins(), 1, 'only the dish is left');
+  assert.equal(money.setStack(12), 12);
+  assert.equal(money.setStack(400), 24, 'capped so it stays a stack');
+  money.setStack(null);
+});
+
 test('the plaza pulse flashes once and ends', () => {
   H.settle();
   H.plaza.pulse(10);

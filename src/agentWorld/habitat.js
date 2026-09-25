@@ -658,11 +658,12 @@ export function createHabitat(T, TK, kit) {
     const coins = new T.Group(); st.add(coins);
     let coinGeoMerged = null;
     function setStack(n) {
-      const count = n == null ? 5 : Math.max(1, Math.min(24, Math.round(n)));
-      if (coinGeoMerged) { coins.remove(coinGeoMerged); coinGeoMerged.geometry.dispose(); }
+      // a known zero is an empty dish, not one coin standing in for it
+      const count = n == null ? 5 : Math.max(0, Math.min(24, Math.round(n)));
+      if (coinGeoMerged) { coins.remove(coinGeoMerged); coinGeoMerged.geometry.dispose(); coinGeoMerged = null; }
       const list = [];
       for (let k = 0; k < count; k++) list.push(at(coinGeo.clone(), Math.sin(k * 2.1) * 0.004, 0.016 + k * 0.017, Math.cos(k * 1.7) * 0.004, 0, k * 0.7));
-      coinGeoMerged = M(merge(list), coinM); coins.add(coinGeoMerged);
+      if (list.length) { coinGeoMerged = M(merge(list), coinM); coins.add(coinGeoMerged); }
       if (d.anchors.stack) d.anchors.stack.pos.y = 0.02 + count * 0.017;
       return count;
     }

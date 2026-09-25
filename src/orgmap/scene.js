@@ -294,6 +294,25 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   // round every being keeps looking like day
   function rimOf(x) { x.b.rimL.intensity = 1.4 * (1 - x.dim * 0.8) * lightNow.bRim; }
 
+  // THE LIT WINDOW (§3g, §9b): a district's lamp is lit when a loop its
+  // being stands for ran today, read off the record, never guessed; on
+  // Knowledge each of the three has its own. The Money stack is the receipt
+  // count when the payload carries one, else the set's fixed short stack.
+  let stackShown = null;
+  function lampsFromRecord(vm) {
+    const lit = {};
+    (vm.beings || []).forEach((v) => {
+      const on = (v.members || []).some((m) => m.state === 'today');
+      const d = habitat.districts[v.district];
+      if (!d) return;
+      if (v.district === 'knowledge') d.setLit(on, v.id);
+      else lit[v.district] = lit[v.district] || on;
+    });
+    Object.entries(lit).forEach(([id, on]) => habitat.districts[id].setLit(on));
+    const n = Number.isFinite(vm.receipts) ? vm.receipts : null;
+    if (n !== stackShown) { stackShown = n; habitat.districts.money.setStack(n); }
+  }
+
   // the daypart: the lights fade to it over LIGHT_FADE_S (snapped on the
   // first frame and for a capture's setHour), the sets' lamps follow it
   function setDaypart(part, snap) {
@@ -565,6 +584,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       });
       coreMarker.visible = (vm.core?.waiting || 0) > 0;
       if (coreMarker.visible) { corePlate.material.map = kit.numeralTexFor(vm.core.waiting > 9 ? '9+' : String(vm.core.waiting)); corePlate.material.needsUpdate = true; }
+      lampsFromRecord(vm);
       invalidate();
     },
     select(id) {
@@ -591,6 +611,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       return lightFade.part;
     },
     daypart: () => lightFade.part,
+    // which record lamps are on, per district (for the capture scripts)
+    lampsLit: () => Object.fromEntries(Object.entries(habitat.districts).map(([id, d]) => [id, d.lamps.filter((L) => L.lit).map((L) => `${L.who || id}:${L.litOn ? 'on' : 'off'}`)])),
     dispose() {
       disposed = true;
       clearTimeout(wakeTimer);
