@@ -55,7 +55,7 @@ export function BarcodeScanner({ onDetected, onClose }) {
       {/* an always-reachable close, pinned top-right — never let a black camera trap the app */}
       <div style={css("flex:none;display:flex;align-items:center;justify-content:space-between;padding:calc(10px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left))")}>
         <span style={css("font:500 11px var(--nv-font-mono2);letter-spacing:.16em;color:rgba(236,229,218,.6)")}>SCAN A BARCODE</span>
-        <Interactive as="span" onClick={onClose} base="cursor:pointer;font:500 12px var(--nv-font-mono2);padding:10px 16px;border-radius:9px;border:1px solid rgba(236,229,218,.28);color:#ece5da">✕ Close</Interactive>
+        <Interactive as="span" data-edge-close="" onClick={onClose} base="cursor:pointer;font:500 12px var(--nv-font-mono2);padding:10px 16px;border-radius:9px;border:1px solid rgba(236,229,218,.28);color:#ece5da">✕ Close</Interactive>
       </div>
 
       <div style={css("flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:12px 16px 24px")}>

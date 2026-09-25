@@ -15,7 +15,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  edgeDecision, edgeMode, canGoBack, depthOf, dragProgress, lastEdgeGesture,
+  edgeDecision, edgeMode, underlayOffset, settleMs, PARALLAX, SETTLE_MIN_MS, SETTLE_MAX_MS, canGoBack, depthOf, dragProgress, lastEdgeGesture,
   commitDistance, COMMIT_FRACTION, FLICK_PX_PER_MS, FLICK_MIN_FRACTION,
   COMMIT_COOLDOWN_MS,
 } from '../../src/edgeBack.js';
@@ -213,8 +213,12 @@ test('THE APP\u2019S OWN LAYOUT IS NEVER TRANSFORMED — the fault he filmed', a
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const hook = await readFile(path.join(root, 'src', 'edgeBack.js'), 'utf8');
   const cmp = await readFile(path.join(root, 'src', 'EdgeBack.jsx'), 'utf8');
-  // it may transform ITS OWN snapshot; it may never transform <main>
-  assert.doesNotMatch(hook, /main\.style\.transform/, 'the gesture is transforming app layout again');
+  // it may transform ITS OWN snapshot. <main> moves only as the parallax
+  // underlay (25 Sep, his Claude recording), and only when nothing inside it
+  // is position:fixed, which is the case that broke on 22 Sep
+  assert.doesNotMatch(hook, /main\.style\.transform\s*=[^=]/, 'the gesture is transforming app layout again');
+  assert.match(hook, /if \(!main \|\| main\.querySelector\(FIXED_INSIDE\)\) return null;/,
+    'the underlay moves even when a fixed child would be dislodged');
   assert.doesNotMatch(cmp, /getEl/, 'the component is reaching into the app\u2019s own elements again');
   // every layer it paints is its own, fixed, and appended outside the layout
   assert.match(hook, /document\.body\.appendChild\(snap\)/);
@@ -263,7 +267,7 @@ test('NOTHING EXPENSIVE HAPPENS ON THE FRAME HIS FINGER MOVES', async () => {
   assert.match(hook, /requestAnimationFrame\(\(\) => \{ if \(s\.live\) onBack\?\.\(\); \}\)/,
     'the navigation runs in the same task as the first drag frame');
   // the per-move path may only touch transform and opacity
-  const paint = hook.match(/const paint = \(dx, animate\) => \{[\s\S]*?\n    \};/)[0];
+  const paint = hook.match(/const paint = \(dx, ms = 0\) => \{[\s\S]*?\n    \};/)[0];
   assert.match(paint, /style\.transform/);
   assert.match(paint, /style\.opacity/);
   assert.doesNotMatch(paint, /getBoundingClientRect|getComputedStyle|querySelector/,
@@ -280,18 +284,36 @@ test('NOTHING EXPENSIVE HAPPENS ON THE FRAME HIS FINGER MOVES', async () => {
 
 test('WHAT A SWIPE IS ABOUT is decided by what is on screen', () => {
   // an open recipe is a page: the swipe pops IT, not the tab beneath
-  assert.equal(edgeMode({ pageOpen: true, depth: 3 }), 'page');
+  assert.equal(edgeMode({ top: 'page', depth: 3 }), 'page');
+  // his call, 25 Sep: EVERY overlay can be swiped back, at any depth
+  assert.equal(edgeMode({ top: 'sheet', depth: 2 }), 'sheet');
+  assert.equal(edgeMode({ top: 'sheet', depth: 0 }), 'sheet');
   // nothing open: the tab swipe as before
   assert.equal(edgeMode({ depth: 2 }), 'tab');
-  // a modal with no history level must not let the tabs walk underneath it,
-  // even over a recipe
-  assert.equal(edgeMode({ modalOpen: true, depth: 2 }), 'block');
-  assert.equal(edgeMode({ modalOpen: true, pageOpen: true, depth: 2 }), 'block');
-  // nothing behind this entry: claimed, so iOS cannot go back to before boot
+  // nothing open and nothing behind this entry: claimed, so iOS cannot go
+  // back to before boot
   assert.equal(edgeMode({ depth: 0 }), 'block');
-  assert.equal(edgeMode({ pageOpen: true, depth: 0 }), 'block', 'a page with no entry of its own would pop a tab');
   assert.equal(edgeMode({}), 'block');
   assert.equal(edgeMode(), 'block');
+});
+
+test('IT FEELS LIKE iOS: the page underneath follows, and the release keeps his speed', () => {
+  // his Claude-app recording: the uncovered page starts a third off to the
+  // left and arrives exactly as the top page leaves
+  assert.equal(underlayOffset(0, 400), -Math.round(PARALLAX * 400));
+  assert.equal(underlayOffset(200, 400), -Math.round(PARALLAX * 200));
+  assert.equal(underlayOffset(400, 400), -0);
+  assert.equal(underlayOffset(900, 400), -0, 'it never overshoots');
+  // a flick finishes fast, a slow let-go settles, and neither snaps nor drags
+  assert.ok(settleMs(200, 2.5) < settleMs(200, 0.2));
+  assert.equal(settleMs(10, 5), SETTLE_MIN_MS);
+  assert.equal(settleMs(400, 0), SETTLE_MAX_MS);
+  // release velocity decides: a flick back toward the edge cancels even past
+  // halfway, and a quick flick a third of the way commits
+  const locked = { startX: 4, dy: 0, dt: 900, width: 375, locked: true };
+  assert.equal(edgeDecision({ ...locked, dx: 250, vx: -1.5 }), 'tracking');
+  assert.equal(edgeDecision({ ...locked, dx: 70, vx: 1.5 }), 'commit');
+  assert.equal(edgeDecision({ ...locked, dx: 70, vx: 0.1 }), 'tracking');
 });
 
 async function sources() {
@@ -322,11 +344,13 @@ test('A RECIPE IS A HISTORY LEVEL, so back closes it instead of walking the tabs
 
 test('THE SWIPE MOVES THE RECIPE ITSELF, and never removes an element React owns', async () => {
   const { hook } = await sources();
-  assert.match(hook, /document\.querySelector\('\[data-edge-page\]'\)/);
-  assert.match(hook, /\[aria-modal="true"\]:not\(\[data-edge-page\]\)/, 'a modal over the page is not detected');
+  // the overlay on top is found from every open modal, and closed by its own
+  // close (a marked control, else its backdrop), never by a history guess
+  assert.match(hook, /document\.querySelectorAll\('\[aria-modal="true"\]'\)/);
+  assert.match(hook, /\(l\.snap\.querySelector\('\[data-edge-close\]'\) \|\| l\.snap\)\.click\(\)/);
   // only the snapshot is the hook's to drop; the page is unmounted by React
   assert.match(hook, /if \(!l\.page\) l\.snap\.remove\(\);/, 'the hook removes the overlay from under React');
-  // a page commit goes back only AFTER the slide, and only if it is still there
+  // a page commit closes it only AFTER the slide, and only if it is still there
   assert.match(hook, /if \(!l\.snap\.isConnected\) \{ teardown\(\); return; \}/);
 });
 
@@ -355,4 +379,25 @@ test('THE REST OF THE TOUCH IS HEARD WHERE IT STARTED — a tab swipe froze on f
     'moves are heard on window again: a tab swipe will freeze after the screen swaps');
   // and the listeners are released with the gesture
   assert.match(hook, /const reset = \(\) => \{[^\n]*unfollow\(\); \};/);
+});
+
+test('EVERY OVERLAY CAN BE SWIPED AWAY — each closes on its backdrop or names its close', async () => {
+  // His call, 25 Sep: "everything should be capable of being swiped back".
+  // The swipe closes an overlay by its own close, so an overlay whose backdrop
+  // does not close it must mark the control that does, or the swipe would
+  // slide it off, find it refused, and bring it back every time.
+  const { readdir, readFile } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const src = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src');
+  const files = (await readdir(src)).filter((f) => f.endsWith('.jsx'));
+  const unclosable = [];
+  for (const f of files) {
+    const code = await readFile(path.join(src, f), 'utf8');
+    for (const m of code.matchAll(/<div role="dialog" aria-modal="true"[^>]*>/g)) {
+      const root = m[0];
+      if (!/onClick=\{/.test(root) && !/data-edge-close/.test(code)) unclosable.push(f);
+    }
+  }
+  assert.deepEqual(unclosable, [], 'these overlays cannot be swiped away');
 });

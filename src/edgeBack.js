@@ -113,16 +113,38 @@ export function canGoBack(state) {
 // back swipe in the installed app whenever nothing claims the touch, and it
 // went back into history from before Nova booted.
 //
-//   'page'  a full-screen overlay marked data-edge-page (the recipe): drag
-//           the overlay itself, and a commit goes back, which closes it.
+//   'page'  the topmost overlay is an opaque full page (data-edge-page, the
+//           recipe): it slides off over the app, which follows underneath.
+//   'sheet' the topmost overlay is any other modal: it slides off on its own.
+//           Both close through the overlay's OWN close (its backdrop tap, or
+//           a [data-edge-close] control), so exit animations, history and
+//           "busy, can't close" rules all still apply. His call, 25 Sep:
+//           "everything should be capable of being swiped back".
 //   'tab'   nothing open: the tab swipe as before.
-//   'block' a modal with no history level of its own, or nothing behind
-//           this entry: claim the touch so neither this hook nor iOS walks
-//           the app backwards underneath, and do nothing.
-export function edgeMode({ modalOpen = false, pageOpen = false, depth = 0 } = {}) {
-  if (modalOpen) return 'block';
-  if (!(depth > 0)) return 'block';
-  return pageOpen ? 'page' : 'tab';
+//   'block' nothing open and nothing behind this entry: claim the touch so
+//           iOS cannot walk back into history from before Nova booted.
+export function edgeMode({ top = null, depth = 0 } = {}) {
+  if (top === 'page' || top === 'sheet') return top;
+  return depth > 0 ? 'tab' : 'block';
+}
+
+// HOW IT FEELS, from his Claude-app recording (25 Sep): the page underneath
+// starts a third of the way off to the left and slides home as the top page
+// leaves; the leaving page has the screen's rounded corners; and the release
+// carries the finger's speed instead of a fixed timing.
+export const PARALLAX = 0.3;
+export const SCREEN_RADIUS_PX = 48;
+export function underlayOffset(dx, width) {
+  const p = Math.max(0, Math.min(1, dx / (width || 375)));
+  return -Math.round(PARALLAX * (width || 375) * (1 - p));
+}
+// the finish moves at least as fast as his finger was, inside a range that
+// never snaps (too short) or drags (too long)
+export const SETTLE_MIN_MS = 170;
+export const SETTLE_MAX_MS = 360;
+export function settleMs(remaining, vx = 0) {
+  const speed = Math.max(Math.abs(vx || 0), 0.5);
+  return Math.round(Math.min(SETTLE_MAX_MS, Math.max(SETTLE_MIN_MS, Math.abs(remaining) / speed)));
 }
 
 // The gesture, as arithmetic.
@@ -145,7 +167,7 @@ export function edgeMode({ modalOpen = false, pageOpen = false, depth = 0 } = {}
 //
 // So: before the lock, the app's own rule decides. After it, only distance
 // and speed matter, and nothing can take the gesture away.
-export function edgeDecision({ startX, dx, dy, dt, width = 375, locked = false }) {
+export function edgeDecision({ startX, dx, dy, dt, width = 375, locked = false, vx = null }) {
   if (startX >= EDGE_GUARD_PX) return 'none';          // not from the gutter
 
   if (!locked) {
@@ -158,8 +180,12 @@ export function edgeDecision({ startX, dx, dy, dt, width = 375, locked = false }
 
   // LOCKED. A finger that wanders back toward the edge is undoing the drag,
   // not cancelling it — only a release decides.
+  // With a release velocity, that is the speed that counts, as on iOS: a
+  // flick back toward the edge cancels even past halfway.
   const need = commitDistance(width);
-  const flick = dt > 0 && dx / dt >= FLICK_PX_PER_MS;
+  const speed = vx ?? (dt > 0 ? dx / dt : 0);
+  if (vx != null && vx <= -FLICK_PX_PER_MS) return 'tracking';
+  const flick = speed >= FLICK_PX_PER_MS;
   if (dx >= need || (flick && dx >= need * FLICK_MIN_FRACTION)) return 'commit';
   return 'tracking';
 }
@@ -204,7 +230,7 @@ export function dragProgress(dx, width) {
 // sub-second transition is a trade worth making against the alternative of
 // re-rendering two React trees on every frame of a drag.
 export function useEdgeBack({ onBack, enabled = true }) {
-  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0, live: null, mode: null, page: null, target: null }).current;
+  const s = useRef({ armed: false, id: null, startX: 0, startY: 0, startT: 0, dir: null, lastCommit: 0, live: null, mode: null, page: null, target: null, vx: 0, lastDx: 0, lastT: 0 }).current;
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return undefined;
@@ -235,6 +261,7 @@ export function useEdgeBack({ onBack, enabled = true }) {
         width: `${box.width}px`, height: `${box.height}px`,
         margin: '0', zIndex: '201', overflow: 'hidden', pointerEvents: 'none',
         background: 'var(--nv-void)', willChange: 'transform',
+        borderRadius: `${SCREEN_RADIUS_PX}px`,
         // present from the first paint: this is what captures fixed children
         transform: 'translate3d(0,0,0)',
         // the edge shadow Apple draws down the leading edge of the moving page
@@ -251,51 +278,79 @@ export function useEdgeBack({ onBack, enabled = true }) {
       scrim.setAttribute('aria-hidden', 'true');
       scrim.style.cssText = 'position:fixed;inset:0;z-index:200;pointer-events:none;background:#000;opacity:.18;will-change:opacity';
       document.body.appendChild(scrim);
-      return { snap, scrim };
+      // the new screen renders into <main> a frame from now; it follows
+      // underneath once it is there (see the lock in onMove)
+      return { snap, scrim, par: underlay(main), x: 0 };
     };
 
-    // ---- 'page': the overlay IS the page being left, and the live app is
-    // already rendered beneath it, so nothing is cloned and nothing navigates
-    // until the release. Moving the overlay's own root is safe where moving
-    // <main> was not: it is the topmost fixed layer and full-screen, so the
-    // fixed children it re-anchors land exactly where they already were. ----
-    const buildPage = (el) => {
+    // THE PAGE UNDERNEATH FOLLOWS, the way iOS draws it. Only <main>, and
+    // only when nothing inside it is position:fixed: a transformed ancestor
+    // re-anchors fixed children (the fault he filmed on 22 Sep), and three
+    // screens have them (Voice's sheet, Briefing's bar, Ambient). Inline
+    // styles are how Nova sets `fixed`, so an attribute match finds them
+    // without a computed-style read.
+    const FIXED_INSIDE = '[style*="position: fixed"],[style*="position:fixed"]';
+    const underlay = (main) => {
+      if (!main || main.querySelector(FIXED_INSIDE)) return null;
+      return { el: main, saved: { transform: main.style.transform, transition: main.style.transition, willChange: main.style.willChange } };
+    };
+    const releaseUnderlay = (l) => {
+      if (!l?.par) return;
+      Object.assign(l.par.el.style, l.par.saved);
+      l.par = null;
+    };
+
+    // ---- 'page' and 'sheet': the overlay IS the page being left, and the
+    // live app is already rendered beneath it, so nothing is cloned and
+    // nothing navigates until the release. Moving the overlay's own root is
+    // safe where moving <main> with a fixed child was not: it is the topmost
+    // fixed layer and full-screen, so the fixed children it re-anchors land
+    // exactly where they already were. ----
+    const PAGE_STYLE = ['transition', 'transform', 'boxShadow', 'willChange', 'borderRadius', 'overflow'];
+    const buildPage = (el, full) => {
       if (!el?.isConnected) return null;
-      // inline z only: a computed-style read here would be a forced style
-      // resolution on the frame his finger starts moving
-      const z = Number(el.style.zIndex) || 82;
-      const scrim = document.createElement('div');
-      scrim.setAttribute('aria-hidden', 'true');
-      scrim.style.cssText = `position:fixed;inset:0;z-index:${z - 1};pointer-events:none;background:#000;opacity:.18;will-change:opacity`;
-      document.body.appendChild(scrim);
-      el.style.willChange = 'transform';
-      el.style.boxShadow = '-14px 0 34px -6px rgba(0,0,0,.75)';
-      return { snap: el, scrim, page: true };
+      const saved = Object.fromEntries(PAGE_STYLE.map((k) => [k, el.style[k]]));
+      let scrim = null;
+      // an opaque page dims and moves what it uncovers; a see-through sheet
+      // must not, or the app visible through its backdrop jumps at touch-down
+      if (full) {
+        // inline z only: a computed-style read here would be a forced style
+        // resolution on the frame his finger starts moving
+        const z = Number(el.style.zIndex) || 82;
+        scrim = document.createElement('div');
+        scrim.setAttribute('aria-hidden', 'true');
+        scrim.style.cssText = `position:fixed;inset:0;z-index:${z - 1};pointer-events:none;background:#000;opacity:.18;will-change:opacity`;
+        document.body.appendChild(scrim);
+      }
+      Object.assign(el.style, {
+        willChange: 'transform', overflow: 'hidden', borderRadius: `${SCREEN_RADIUS_PX}px`,
+        boxShadow: '-14px 0 34px -6px rgba(0,0,0,.75)',
+      });
+      return { snap: el, scrim, page: true, saved, par: full ? underlay(document.querySelector('main')) : null, x: 0 };
     };
-    const clearPage = (el) => {
-      el.style.transition = '';
-      el.style.transform = '';
-      el.style.boxShadow = '';
-      el.style.willChange = '';
-    };
+    const restorePage = (l) => { Object.assign(l.snap.style, l.saved); };
 
     // Only transform and opacity, and the transition property is written ONLY
     // when it changes — setting it on every move costs a style recalc per
     // frame for a value that is almost always the same one.
-    const EASE = 'transform .3s cubic-bezier(.32,.72,0,1), opacity .3s cubic-bezier(.32,.72,0,1)';
+    const CURVE = 'cubic-bezier(.32,.72,0,1)';
     let eased = null;
-    const paint = (dx, animate) => {
+    const paint = (dx, ms = 0) => {
       const l = s.live;
       if (!l) return;
-      const want = animate ? EASE : '';
+      const want = ms ? `transform ${ms}ms ${CURVE}, opacity ${ms}ms ${CURVE}` : '';
       if (want !== eased) {
         eased = want;
         l.snap.style.transition = want;
-        l.scrim.style.transition = want;
+        if (l.scrim) l.scrim.style.transition = want;
+        if (l.par) l.par.el.style.transition = want;
       }
-      const p = Math.max(0, Math.min(1, dx / W()));
-      l.snap.style.transform = `translate3d(${Math.max(0, dx)}px,0,0)`;
-      l.scrim.style.opacity = String(0.18 * (1 - p));
+      const w = W();
+      const x = Math.max(0, dx);
+      l.x = x;
+      l.snap.style.transform = `translate3d(${x}px,0,0)`;
+      if (l.scrim) l.scrim.style.opacity = String(0.18 * (1 - Math.min(1, x / w)));
+      if (l.par) l.par.el.style.transform = `translate3d(${underlayOffset(x, w)}px,0,0)`;
     };
 
     const teardown = () => {
@@ -304,10 +359,11 @@ export function useEdgeBack({ onBack, enabled = true }) {
       eased = null;
       dragging = false;
       if (!l) return;
+      releaseUnderlay(l);
       // a page is React's element, not ours: removing it would break the
       // unmount React is about to do. Only the snapshot is ours to drop.
       if (!l.page) l.snap.remove();
-      l.scrim.remove();
+      l.scrim?.remove();
     };
 
     // THE REST OF THE TOUCH IS HEARD ON THE ELEMENT IT STARTED ON. A tab swipe
@@ -343,6 +399,17 @@ export function useEdgeBack({ onBack, enabled = true }) {
     };
     const unkick = () => { if (stuck) { clearTimeout(stuck); stuck = 0; } };
 
+    // the overlay he is looking at: every open modal is an aria-modal root
+    // with its z inline; the highest wins, and a later one wins a tie
+    const topOverlay = () => {
+      let best = null; let bz = -Infinity;
+      for (const el of document.querySelectorAll('[aria-modal="true"]')) {
+        const z = Number(el.style.zIndex) || 0;
+        if (z >= bz) { best = el; bz = z; }
+      }
+      return best;
+    };
+
     const onStart = (e) => {
       const t = e.touches?.[0];
       if (!t || e.touches.length > 1) return;
@@ -351,12 +418,12 @@ export function useEdgeBack({ onBack, enabled = true }) {
       if (Date.now() - s.lastCommit < COMMIT_COOLDOWN_MS) return;
       // Every edge touch is armed now, even ones that will do nothing: an
       // unclaimed edge touch is handed to iOS's own back swipe.
-      const page = document.querySelector('[data-edge-page]');
-      const modalOpen = !!document.querySelector('[aria-modal="true"]:not([data-edge-page])');
-      s.mode = edgeMode({ modalOpen, pageOpen: !!page, depth: depthOf(window.history.state) });
-      s.page = s.mode === 'page' ? page : null;
+      const top = topOverlay();
+      s.mode = edgeMode({ top: top ? (top.hasAttribute('data-edge-page') ? 'page' : 'sheet') : null, depth: depthOf(window.history.state) });
+      s.page = s.mode === 'page' || s.mode === 'sheet' ? top : null;
       s.armed = true; s.id = t.identifier; s.dir = null;
       s.startX = t.clientX; s.startY = t.clientY; s.startT = performance.now();
+      s.vx = 0; s.lastDx = 0; s.lastT = s.startT;
       follow(e.target);
     };
 
@@ -366,6 +433,12 @@ export function useEdgeBack({ onBack, enabled = true }) {
       if (!t) return;
       const dx = t.clientX - s.startX;
       const dy = t.clientY - s.startY;
+      // the finger's speed right now, smoothed over the last couple of moves;
+      // the release is judged and finished at THIS speed, not the average
+      const now = performance.now();
+      const inst = (dx - s.lastDx) / Math.max(1, now - s.lastT);
+      s.vx = s.vx * 0.3 + inst * 0.7;
+      s.lastDx = dx; s.lastT = now;
 
       // CLAIM IT EARLY, or a horizontal carousel under the thumb starts
       // scrolling before the direction lock and keeps the touch.
@@ -382,13 +455,13 @@ export function useEdgeBack({ onBack, enabled = true }) {
       if (s.mode === 'block') { s.dir = 'h'; last.call = 'blocked'; return; }
 
       kick();
-      if (!s.dir && s.mode === 'page') {
+      if (!s.dir && s.page) {
         s.dir = 'h';
-        s.live = buildPage(s.page);
+        s.live = buildPage(s.page, s.mode === 'page');
         if (!s.live) { reset(); return; }
         dragging = true;
         eased = null;
-        paint(dx, false);
+        paint(dx);
         return;
       }
       if (!s.dir) {
@@ -399,52 +472,68 @@ export function useEdgeBack({ onBack, enabled = true }) {
         if (!s.live) { reset(); return; }
         dragging = true;
         eased = null;
-        paint(dx, false);
+        paint(dx);
         // AFTER THE FIRST FRAME. Navigating renders a whole screen, and this
         // app re-renders everything on any setState — doing it inside the
         // same task as the first drag frame means the finger moves and
         // nothing follows until that render finishes. One rAF buys the
         // snapshot its first paint, which is the frame he actually feels.
         requestAnimationFrame(() => { if (s.live) onBack?.(); });
+        // the screen he is going back to may be one with a fixed child; once
+        // it has rendered, stop moving it rather than dislodge that child
+        const l = s.live;
+        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (s.live === l && l.par && l.par.el.querySelector(FIXED_INSIDE)) releaseUnderlay(l);
+        })));
         return;
       }
-      paint(dx, false);
+      paint(dx);
     };
 
-    // Land the gesture: `to` is 0 (cancel, page comes back) or W (commit).
-    const settle = (to) => {
+    // Land the gesture: `to` is 0 (cancel, page comes back) or W (commit),
+    // finished at the speed his finger let go at.
+    const settle = (to, vx = 0) => {
       const l = s.live;
       unkick();
       reset();
       if (!l) return;
       const cancelled = to === 0;
-      paint(to, true);
+      const ms = settleMs(to - (l.x || 0), vx);
+      paint(to, ms);
       window.setTimeout(() => {
-        if (l.page) { if (cancelled) { clearPage(l.snap); teardown(); } else popPage(l); return; }
+        if (l.page) { if (cancelled) { restorePage(l); teardown(); } else dismiss(l); return; }
         // forward FIRST, then drop the layer, or the previous screen flashes
         if (cancelled) { dragging = true; window.history.forward(); }
         window.setTimeout(teardown, cancelled ? 40 : 0);
-      }, 300);
+      }, ms);
     };
 
-    // The page has slid off; now close it for real. Back pops its history
-    // entry and App's popstate closes it, skipping the view transition
-    // because `dragging` is still true (App's listener was added first, so it
-    // has run by the time ours does). The overlay stays parked off-screen
-    // until React unmounts it: clearing its transform now would flash it back.
-    const popPage = (l) => {
+    // The overlay has slid off; now close it for real, through ITS OWN close:
+    // a [data-edge-close] control if it names one, else its backdrop (every
+    // modal here closes on a backdrop tap). The recipe's close goes back, and
+    // App's popstate closes it without a view transition because `dragging`
+    // is still true (App's listener was added first, so it runs before ours).
+    // The overlay stays parked off-screen until React unmounts it: clearing
+    // its transform now would flash it back. A close it refused (busy) brings
+    // it back rather than leaving an invisible page over the app.
+    const dismiss = (l) => {
       if (!l.snap.isConnected) { teardown(); return; }   // closed some other way mid-drag
-      let fallback = 0;
+      let over = false;
       const done = () => {
+        if (over) return;
+        over = true;
         window.removeEventListener('popstate', done);
-        window.clearTimeout(fallback);
         teardown();
-        // a back that did not close it must not leave an invisible page parked
-        window.setTimeout(() => { if (l.snap.isConnected) clearPage(l.snap); }, 250);
+        window.setTimeout(() => {
+          if (!l.snap.isConnected) return;
+          l.snap.style.transition = `transform ${SETTLE_MAX_MS}ms ${CURVE}`;
+          l.snap.style.transform = 'translate3d(0,0,0)';
+          window.setTimeout(() => restorePage(l), SETTLE_MAX_MS);
+        }, 700);
       };
       window.addEventListener('popstate', done);
-      fallback = window.setTimeout(done, 700);
-      onBack?.();
+      window.setTimeout(done, 450);
+      (l.snap.querySelector('[data-edge-close]') || l.snap).click();
     };
 
     const onEnd = (e) => {
@@ -452,19 +541,21 @@ export function useEdgeBack({ onBack, enabled = true }) {
       const t = [...(e.changedTouches || [])].find((x) => x.identifier === s.id);
       const dx = t ? t.clientX - s.startX : 0;
       const dy = t ? t.clientY - s.startY : 0;
+      // a finger that stopped before it lifted is not moving
+      const vx = performance.now() - s.lastT > 80 ? 0 : s.vx;
       const call = edgeDecision({
         startX: s.startX, dx, dy, dt: performance.now() - s.startT,
-        width: W(), locked: s.dir === 'h',
+        width: W(), locked: s.dir === 'h', vx,
       });
-      last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), call: s.mode === 'block' && call !== 'none' && call !== 'cancel' ? 'blocked' : call, mode: s.mode, at: Date.now(), end: true };
+      last = { startX: Math.round(s.startX), dx: Math.round(dx), dy: Math.round(dy), vx: Math.round(vx * 100) / 100, call: s.mode === 'block' && call !== 'none' && call !== 'cancel' ? 'blocked' : call, mode: s.mode, at: Date.now(), end: true };
       if (!s.live) { reset(); return; }
       if (call === 'commit') {
         s.lastCommit = Date.now();
         haptic('tick');
-        settle(W());
+        settle(W(), vx);
         return;
       }
-      settle(0);
+      settle(0, vx);
     };
 
     function onCancel() { if (s.live) settle(0); else reset(); }
