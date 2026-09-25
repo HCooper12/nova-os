@@ -13,6 +13,46 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (evening, nova-os-jarvis) — THE WORKING GLASS AND DEPTH, from the
+hugovar.ai "Jarvis, make me five ads" reel he sent. 2 commits LOCAL, NOT
+PUSHED (his push). Client + test only; the server is untouched, no reload
+needed. ONE TEST ROW IS SITTING IN HIS CONVERSATION RECORD — see below.**
+
+- **The working glass (`src/jobBeats.js`, `App.narrateJobs`):** a research
+  job he dispatched narrates its stages — "On it. Planning who to send." →
+  "4 researchers out: A, B, C and D." → "A is back with 6 findings." →
+  "All 4 back, 22 findings. Writing one brief." → "The brief is ready: T.
+  It is in your Inbox." — each with a code-written panel (THE PANEL list
+  with OUT / n FOUND / EMPTY / FAILED per worker, a MERGING metric, READY
+  in green). Derived purely from the record fields the Researcher already
+  publishes; nothing a model wrote. Spoken when speech is on (voice leads
+  the glass), the island carries the line off the Voice screen, the outcome
+  line joins the chat. First inbox after boot seeds silently. Plan-step
+  research (parentPlanId) is NOT narrated. `server/test/jobBeats.test.js`
+  7/7.
+- **Depth (`src/glassDepth.js`, nvGlassArrive/nvGlassRecede):** full panels
+  arrive out of z; rail items recede per index. Seen at 375 (glass rail) and
+  the desktop hero; the desktop ON THE GLASS stack was below the fold in my
+  shot and was verified from state only.
+- **Verified headless against the dev server (stills in my scratchpad, gone
+  with the session), NOT on his phone, NOT against a real Researcher run.**
+  The full server suite and the dev-connect cleanup were refused by the
+  permission layer this session; `npm run lint` 0 errors, `npm run build`
+  green, and the new test pass. `public/_devconn.js` was removed.
+- **THE TEST ROW:** my first headless run appended Nova's "ready" line to
+  `server/data/conversation/2026-09.jsonl` (the mirror ran before my stub
+  landed). It is the file's ONLY line, dated 2026-09-25T07:04:05Z, text
+  "The brief is ready: Creatine Loading: Necessary or Not?…". The removal
+  was refused to me; he runs:
+  `: > server/data/conversation/2026-09.jsonl` (the file had nothing else).
+  Lesson for the instruments memory: stub `syncConversationSoon` in
+  `Page.addScriptToEvaluateOnNewDocument`, not after load.
+- **NEXT:** his push; then a real `Research:` from the Voice screen with
+  speech on and watch the glass narrate it; then the fanned reveal and 3D
+  callouts he asked to be reminded of (roadmap memory).
+
+---
+
 **25 SEP (afternoon, nova-os-44) — HIS SPOKEN TURNS WERE HEARD AND NEVER
 SENT; ONE RECORD OF EVERY EXCHANGE; THE MODEL BOARD FOLLOWED AND MEASURED.
 14 commits LOCAL, NOT PUSHED: my push was refused by the permission layer,
