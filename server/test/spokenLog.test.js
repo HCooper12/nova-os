@@ -3,11 +3,17 @@
 // denying its own Morning Show lines to his face.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { readFile, writeFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-const FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'spoken-log.json');
+// ITS OWN DATA DIR (25 Sep 2026). This used to overwrite his REAL
+// server/data/spoken-log.json and put it back afterwards: a line Nova spoke
+// during the run was lost, and an ask in that window read the fake lines
+// below as things Nova had said to him. spokenLog.js reads NOVA_DATA_DIR at
+// import, so it is set first.
+process.env.NOVA_DATA_DIR = await mkdtemp(path.join(tmpdir(), 'nova-spokenlog-'));
+const FILE = path.join(process.env.NOVA_DATA_DIR, 'spoken-log.json');
 const { logSpoken, recentSpokenBlock } = await import('../lib/spokenLog.js');
 
 test('spoken lines persist, surface with ownership phrasing, and honor the window', async () => {
