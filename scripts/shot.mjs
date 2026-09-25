@@ -72,7 +72,7 @@ for (let i = 0; i < 40 && !wsUrl; i++) {
 }
 if (!wsUrl) throw new Error('no page target');
 
-let ws = null; let send = null;
+let ws = null; let send = null; let seedSource = null;
 // The app reloads itself once after the connection lands ("Inspected target
 // navigated or closed" mid-eval), so the session is re-attached to whatever
 // page target is current before any script is run against it.
@@ -91,6 +91,14 @@ async function attach() {
   await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile });
   if (mobile) await send('Emulation.setTouchEmulationEnabled', { enabled: true });
+  // THE SEED IS PER SESSION (25 Sep 2026, paid for). A script registered with
+  // addScriptToEvaluateOnNewDocument belongs to the CDP session that added it
+  // and goes when that session closes. This script re-attaches after the
+  // navigation, and the app reloads itself once after the connection lands:
+  // when that reload came after the re-attach, the page booted with the
+  // connection (it is in localStorage) but WITHOUT the seed's write guard,
+  // and a POST reached his server. So every session registers it again.
+  if (seedSource) await send('Page.addScriptToEvaluateOnNewDocument', { source: seedSource });
 }
 await attach();
 // the connection, seeded before the app's first script runs — the token stays
@@ -102,6 +110,7 @@ if (!seed) {
   console.error('no public/_devconn.js — run `node scripts/dev-connect.mjs` first, or this photographs DEMO DATA');
   await cleanup(); process.exit(1);
 }
+seedSource = seed;
 await send('Page.addScriptToEvaluateOnNewDocument', { source: seed });
 await send('Page.navigate', { url });
 await new Promise((r) => setTimeout(r, 3000));
