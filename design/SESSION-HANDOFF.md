@@ -13,6 +13,45 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (late evening, nova-os-clicky) — CLICKY BUILT: NOVA DRIVES THE MAC.
+7 commits LOCAL, NOT PUSHED (his push — on top of the working-glass ones
+below). Server RELOADED (reload-server.mjs) and running the server half.**
+
+- **What shipped** (design/VERBS-PLAN.md "Hand 3" is the full account):
+  `server/lib/macHand.js` (open apps/sites/addresses; Music play/pause/next/
+  previous/play-by-name — playlist → library → catalogue, a catalogue song is
+  OPENED in Music, never claimed as playing; Mac or Music volume) + verbs
+  `mac.open`/`mac.music`/`mac.volume` in verbs.js; `server/lib/roster.js` +
+  two reflexes ("do you have X connected", "what's playing"); "…then open my
+  Reminders so I can confirm" (splitThenOpen); "start an agent … in the
+  background" → the planner (chatLanes.js planWorthy); ops.js's model context
+  lists hands from the roster (the old line claimed an ElevenLabs voice with
+  no key). Shared reading of "open X": `src/macTargets.js`.
+- **The device rule:** Mac sentences are claimed only when he is AT the Mac
+  (app sends `device:'mac'`; `fromMacOf` in routes/voice.js falls back to the
+  UA until his push) or says "on my Mac". Away from the Mac they go to the
+  model, and no other verb may grab them.
+- **VERIFIED:** full server suite 2364/2364 (before the planWorthy commit;
+  planWorthy's own 9/9 after), lint 0 errors, build green; the roster run
+  against his REAL data (module call, no writes); ONE live call through
+  /api/ask: "Do you have my Google Ads integration connected?" → the honest
+  no, via the reflex (it wrote one true line to spoken-log.json).
+- **NOT VERIFIED — nothing has been opened, played or turned down on his
+  Mac.** Deliberate: he was away, and the first Music command raises a macOS
+  box ("node wants access to control Music") that must be OK'd on the Mac.
+  Opening apps and the Mac's own volume need no permission. The at-the-Mac
+  client half (device flag, "open youtube" not going to the browser hand,
+  "start an agent" → plan) reaches the app only after his push.
+- **NEXT (his, at the MacBook):** the three steps below from the working-
+  glass block, then try: "open Reminders", "play my <playlist> playlist"
+  (click OK on the macOS box), "turn it down", "what's playing", "do you
+  have Todoist connected", and Clicky's own "Set a reminder Saturday 9pm
+  for dinner with Sharif, then open my Reminders to confirm".
+- **DO NOT:** drive the real Music app from a session (TCC box on his
+  screen); use `set it to N` for volume (it stays the shopping list's).
+
+---
+
 **25 SEP (evening, nova-os-jarvis) — THE WORKING GLASS AND DEPTH, from the
 hugovar.ai "Jarvis, make me five ads" reel he sent. 2 commits LOCAL, NOT
 PUSHED (his push). Client + test only; the server is untouched, no reload
