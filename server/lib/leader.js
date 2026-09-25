@@ -10,6 +10,7 @@ import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { modelFor, laneSkipped, laneEnabled, laneOffError } from './modelPrefs.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // THE LEADER — Hayden's leadership development agent. Its whole job is to
 // make the leadership knowledge he already collects (podcasts, books, notes,
@@ -419,7 +420,7 @@ Output ONLY a JSON object: {"insights":[{"insight":"the usable idea in 1-2 sente
 
 /* ------------------------------ daily generation --------------------------- */
 
-function runClaude(args, cwd) {
+function runClaude(args, cwd, lane) {
   return new Promise((resolve, reject) => {
     const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';
@@ -428,12 +429,15 @@ function runClaude(args, cwd) {
     child.on('error', reject);
     child.on('close', (code) => {
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error || code !== 0) return reject(new Error(outer.result || stderr.trim() || `claude exited ${code}`));
+        const outer = parseEnvelope(stdout, { lane });
+        if (code !== 0) return reject(new Error(outer.result || stderr.trim() || `claude exited ${code}`));
         const m = firstBalancedObjectMatch((outer.result || ''));
         if (!m) return reject(new Error((outer.result || '').slice(0, 200) || 'no JSON in response'));
         resolve(parseModelJson(m[0]));
-      } catch (e) { reject(new Error(`${e.message}${stderr ? ` — ${stderr.slice(0, 200)}` : ''}`)); }
+      } catch (e) {
+        if (e.limited) return reject(e);
+        reject(new Error(`${e.message}${stderr ? ` — ${stderr.slice(0, 200)}` : ''}`));
+      }
     });
   });
 }
@@ -482,7 +486,7 @@ export async function generateDailyLead(vaultPath, { force = false } = {}) {
     '--output-format', 'json',
     '--model', modelFor('leader-daily'),
     '--session-id', randomUUID(),
-  ], vaultPath);
+  ], vaultPath, 'leader-daily');
 
   // TWO CHANNELS. The older single-object shape is still accepted, so a model
   // that answers the old way degrades to a lead with no situation rather than
@@ -538,7 +542,7 @@ export async function runLeaderResearch(vaultPath, { force = false, fetchImpl } 
     '--output-format', 'json',
     '--model', modelFor('leader-research'),
     '--session-id', randomUUID(),
-  ], vaultPath);
+  ], vaultPath, 'leader-research');
 
   const insights = (Array.isArray(parsed.insights) ? parsed.insights : [])
     .map((i) => ({
@@ -941,7 +945,7 @@ async function runAnswerSituation(vaultPath, { text, now = new Date(), runImpl }
     '--output-format', 'json',
     '--model', modelFor('leader-answer'),
     '--session-id', randomUUID(),
-  ], vaultPath);
+  ], vaultPath, 'leader-answer');
 
   const list = (v) => (Array.isArray(v) ? v.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 6) : []);
   const update = { struggles: list(parsed.struggles), working: list(parsed.working), resolved: list(parsed.resolved) };

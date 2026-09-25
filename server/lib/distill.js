@@ -12,6 +12,7 @@ import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { weeklyWindowOpen } from './cadence.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // The distiller — captures become knowledge. Filed captures land as FLAT
 // pages (Wiki/Inbox, Studio ideas) with no wikilinks, so the graph never
@@ -183,6 +184,7 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
     let parsed = null;
     try { parsed = JSON.parse(result.stdout); } catch { /* raw stdout stays the summary */ }
     if (parsed) {
+      recordRun('distill', fromEnvelope(parsed));
       if (parsed.is_error) throw new Error(parsed.result || 'distillation failed');
       summary = (parsed.result || '').trim();
     }

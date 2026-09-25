@@ -24,6 +24,7 @@ import { addRecipe, removeRecipe } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { routeIntent } from './intentRouter.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -192,8 +193,7 @@ function classify(text, onDone) {
   child.on('close', (code) => {
     if (code !== 0) return onDone(new Error(stderr.trim() || `claude exited with code ${code}`));
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error) throw new Error(outer.result || 'classification failed');
+      const outer = parseEnvelope(stdout, { lane: 'inbox-classify' });
       const body = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(body);
       if (!jsonMatch) throw new Error(body.slice(0, 200) || 'no JSON in classifier response');

@@ -14,6 +14,7 @@ import { listTodos } from './todos.js';
 import { createRecord, updateRecord, listRecords, getRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // PLAN TODAY — each morning, one model pass turns the day's real picture
 // (calendar, recovery, fuel, carry-overs, open to-dos, standing instructions)
@@ -254,8 +255,8 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const outer = parseEnvelope(stdout, { lane: 'plan-today' });
+      if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
       // Seven identical failures between 22 and 31 August — "Expected ',' or
       // ']' after array element" — and no morning plan on any of those days.

@@ -28,6 +28,7 @@ import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseModelJson, firstBalancedObjectMatch } from './jsonSalvage.js';
 import { validateOps } from './coachPlan.js';
+import { parseEnvelope } from './modelSpend.js';
 
 const CLAUDE_BIN = process.env.NOVA_CLAUDE_BIN || 'claude';
 export const PAPER_LANE = 'paper';
@@ -364,10 +365,13 @@ function askModel(prompt, { lane, tools, vaultPath }) {
     child.stderr.on('data', (d) => { err += d; });
     child.on('close', (code) => {
       try {
-        const outer = JSON.parse(out);
-        if (outer.is_error || code !== 0) return reject(new Error(outer.result || err.trim().split('\n').pop() || `claude exited with code ${code}`));
+        const outer = parseEnvelope(out, { lane });
+        if (code !== 0) return reject(new Error(outer.result || err.trim().split('\n').pop() || `claude exited with code ${code}`));
         resolve(String(outer.result || ''));
-      } catch (e) { reject(new Error(err.trim().split('\n').pop() || e.message)); }
+      } catch (e) {
+        if (e.limited) return reject(e);
+        reject(new Error(err.trim().split('\n').pop() || e.message));
+      }
     });
   });
 }

@@ -38,6 +38,7 @@ import { PROFILE_DIR, browserAvailable, profileExists, CHROME } from './browserR
 import { modelFor } from './modelPrefs.js';
 import { laneEnabled, laneOffError } from './modelPrefs.js';
 import { parseModelJson } from './jsonSalvage.js';
+import { recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -217,7 +218,14 @@ async function run(recordId, task, server) {
       if (!line) continue;
       let ev;
       try { ev = JSON.parse(line); } catch { continue; }
-      if (ev.type === 'result') { finalText = String(ev.result || ''); isError = !!ev.is_error; continue; }
+      if (ev.type === 'result') {
+        finalText = String(ev.result || '');
+        isError = !!ev.is_error;
+        // one turn per process here (no --input-format stream-json), so
+        // total_cost_usd is this run's own cost, not a running total.
+        recordRun('browse', fromEnvelope(ev));
+        continue;
+      }
       const step = stepFromEvent(ev);
       if (step) noteStep(recordId, step);
     }
@@ -423,8 +431,7 @@ export async function pressPending(payload) {
   child.on('close', async () => {
     let line;
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error) throw new Error(outer.result || 'the session failed');
+      const outer = parseEnvelope(stdout, { lane: 'browse' });
       const done = parseBrowseResult(String(outer.result || ''));
       line = done
         ? `\n\n— Pressed "${press}": ${done.summary}${done.cannot ? ` (could not: ${done.cannot})` : ''}`

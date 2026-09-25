@@ -10,6 +10,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 import { parseModelJson } from './jsonSalvage.js';
 import { readEntry, isGrounded, assembleReport, confirmLine, sourceLine } from './captureReport.js';
 import { flatten, loadRepertoire, slugFor } from './repertoire.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // THE REPERTOIRE LANE — "analyse this, find me the others like it, and teach
 // me one a day."
@@ -296,10 +297,9 @@ function askModel(prompt) {
     child.on('close', (code) => {
       if (code !== 0) return reject(new Error(err.trim().split('\n').pop()?.slice(0, 300) || `claude exited ${code}`));
       try {
-        const outer = JSON.parse(out);
-        if (outer.is_error) return reject(new Error(String(outer.result || 'the analysis failed').slice(0, 300)));
+        const outer = parseEnvelope(out, { lane: REPERTOIRE_LANE });
         resolve(String(outer.result || ''));
-      } catch (e) { reject(new Error(e.message)); }
+      } catch (e) { reject(e); }
     });
     child.on('error', reject);
   });

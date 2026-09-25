@@ -3,6 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { modelFor } from './modelPrefs.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // THE LIBRARIAN — a book title + author into a triangulated research
 // dossier, which then rides the EXISTING ingest weave into the vault
@@ -127,6 +128,7 @@ export function runBookResearch({ title, author, notes, model: modelOverride }, 
     child.on('close', (code) => {
       try {
         const parsed = JSON.parse(out);
+        recordRun('librarian', fromEnvelope(parsed));
         const dossier = parsed.result || '';
         if (code !== 0 || parsed.is_error) return reject(new Error(parsed.result || `librarian exited ${code}`));
         // A dossier that lost its skeleton is a failed research run, not a

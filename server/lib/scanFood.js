@@ -6,6 +6,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // Reading a label is OCR — the fast model handles it and the macros are always
 // reviewed before logging. Estimating a meal photo is visual portion/ingredient
@@ -196,8 +197,7 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
       job.error = stderr.trim() || `claude exited with code ${code}`;
     } else {
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error) throw new Error(outer.result || 'analysis failed');
+        const outer = parseEnvelope(stdout, { lane });
         const text = (outer.result || '').trim();
         const jsonMatch = firstBalancedObjectMatch(text);
         // The prompt asks for JSON no matter what the image shows, but if the model
@@ -255,8 +255,7 @@ export function startFoodDescribe(description) {
       return;
     }
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error) throw new Error(outer.result || 'estimate failed');
+      const outer = parseEnvelope(stdout, { lane: 'food-describe' });
       const out = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(out);
       if (!jsonMatch) throw new Error(out.slice(0, 200) || 'No response received');

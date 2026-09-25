@@ -7,7 +7,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
-import { usageLimitNotice, recordRun, fromEnvelope } from './modelSpend.js';
+import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { registerJobMap } from './jobRegistry.js';
@@ -90,9 +90,30 @@ const onPartial = (job, text) => { try { job.onPartial?.(text); } catch { /* the
 // importers (and usageLimit.test.js) keep working.
 export { usageLimitNotice };
 
+// The warm pool's `result` event carries a RUNNING TOTAL for the whole
+// process, not that turn's own cost — measured live (two-turn haiku session,
+// stream-json): turn 1's total_cost_usd was 0.0215669, turn 2's was
+// 0.0242687 for a turn that plainly cost about two and a half cents on its
+// own. modelUsage's token counts are cumulative the same way (turn 2's
+// inputTokens/outputTokens/cache* are the SUM of both turns), which is how
+// the two totals were cross-checked. duration_ms and the top-level `usage`
+// object, by contrast, ARE per-turn already. So: keep the last seen total on
+// the warm entry and record only the delta as this turn's usd.
+function laneForKind(kind) {
+  switch (kind) {
+    case 'coach': return 'coach';
+    case 'voice': return 'ask-nova';
+    case 'leader': return 'leader-chat';
+    case 'code': return 'code';
+    case 'debrief': return 'session-debrief';
+    case 'greet': return 'greeting';
+    default: return kind;
+  }
+}
+
 function spawnWarm(key, { cwd, args, env }) {
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : undefined });
-  const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now() };
+  const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now(), lastCostUsd: 0 };
   let buf = '';
   child.stdout.on('data', (d) => {
     buf += d;
@@ -123,6 +144,12 @@ function spawnWarm(key, { cwd, args, env }) {
         const replyText = ev.is_error || limit ? null : ((ev.result || '').trim() || w.streamed.trim());
         const errMsg = limit || (ev.is_error ? (ev.result || 'request failed') : (replyText ? null : 'Empty response'));
         if (limit) job.limited = true;
+        // total_cost_usd is a running total for the whole process (see the
+        // comment on spawnWarm above) — record only this turn's slice.
+        const totalCost = typeof ev.total_cost_usd === 'number' ? ev.total_cost_usd : null;
+        const turnCost = totalCost != null ? Math.max(0, totalCost - (w.lastCostUsd || 0)) : null;
+        if (totalCost != null) w.lastCostUsd = totalCost;
+        recordRun(laneForKind(key.split(':')[0]), fromEnvelope({ ...ev, total_cost_usd: turnCost }));
         w.currentJob = null;
         w.finishTurn = null;
         w.streamed = '';
@@ -1125,8 +1152,7 @@ export function startQuickSession(cwd, { minutes, note, context }) {
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const outer = parseEnvelope(stdout, { lane: 'quick-session' });
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in plan response');
@@ -1202,8 +1228,7 @@ Report format: a short verdict line, then a numbered list of findings — each w
     try {
       // Prefer the CLI's own structured message even on a nonzero exit —
       // budget stops land there, with only noise on stderr.
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const outer = parseEnvelope(stdout, { lane: 'breaker' });
       const replyText = (outer.result || '').trim();
       if (!replyText) throw new Error('Empty response');
       job.result = { text: replyText };

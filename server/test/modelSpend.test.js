@@ -260,3 +260,29 @@ test('spendSummary omits a lane with no rows in the window, and errors count row
   assert.equal(summary['probe-errors'].errors, 1);
   assert.equal(summary['no-such-lane'], undefined);
 });
+
+/* --------------------------- spawn-site coverage --------------------------- */
+
+// The regression that motivated wiring every lane: a spawn site that never
+// records a run is invisible to the spend ledger forever, the same class of
+// bug modelPrefs.test.js guards for --model. This walks the real source and
+// fails if any CLAUDE_BIN spawn site never references parseEnvelope( or
+// recordRun( — the two ways a site is wired to the ledger.
+test('every spawn site in server/lib is wired to the model spend ledger', async () => {
+  const { readdir, readFile: read } = await import('node:fs/promises');
+  const { fileURLToPath } = await import('node:url');
+  const libDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'lib');
+  const offenders = [];
+  for (const name of await readdir(libDir)) {
+    // modelWatch.js is the one deliberate exception: it probes the four raw
+    // model ALIASES directly ('opus'/'sonnet'/'haiku'/'fable') to find out
+    // what they currently resolve to — a weekly, practically-free CLI
+    // version check, not a lane with a cost worth tracking on the board.
+    if (!name.endsWith('.js') || name === 'modelWatch.js') continue;
+    const src = await read(path.join(libDir, name), 'utf8');
+    const spawns = (src.match(/spawn\(CLAUDE_BIN/g) || []).length;
+    if (!spawns) continue;
+    if (!src.includes('parseEnvelope(') && !src.includes('recordRun(')) offenders.push(name);
+  }
+  assert.deepEqual(offenders, [], `these files spawn the CLI without recording to the model spend ledger: ${offenders.join(', ')}`);
+});

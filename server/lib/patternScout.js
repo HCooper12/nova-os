@@ -10,6 +10,7 @@ import { createRecord, updateRecord, listRecords } from './inboxStore.js';
 import { declinedContext } from './respectTheNo.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { isGateModel } from './modelChoice.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // The pattern scout — skill proposals (agents plan, build 3): once a week a
 // model reads what Hayden actually DID by hand — his captures, their routes,
@@ -215,8 +216,8 @@ export async function runPatternScout(vaultPath, { force = false, model } = {}) 
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const outer = parseEnvelope(stdout, { lane: 'pattern-scout' });
+      if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in scout response');

@@ -29,6 +29,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { parseModelJson, firstBalancedObjectMatch } from './jsonSalvage.js';
 import { registerJobMap } from './jobRegistry.js';
+import { parseEnvelope } from './modelSpend.js';
 
 const exec = promisify(execFile);
 const CLAUDE_BIN = process.env.NOVA_CLAUDE_BIN || 'claude';
@@ -388,10 +389,9 @@ async function askModel(prompt) {
     child.on('close', (code) => {
       if (code !== 0) return reject(new Error(err.trim().split('\n').pop() || `claude exited with code ${code}`));
       try {
-        const outer = JSON.parse(out);
-        if (outer.is_error) return reject(new Error(outer.result || 'the form check failed'));
+        const outer = parseEnvelope(out, { lane: FORM_LANE });
         resolve(String(outer.result || ''));
-      } catch (e) { reject(new Error(e.message)); }
+      } catch (e) { reject(e); }
     });
   });
 }

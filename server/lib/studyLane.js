@@ -21,6 +21,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { boundaryArgs } from './spawnBoundary.js';
+import { parseEnvelope } from './modelSpend.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const YTDLP = process.env.YTDLP_BIN || '/opt/homebrew/bin/yt-dlp';
@@ -153,8 +154,7 @@ function runModel(prompt) {
     child.on('close', (code) => {
       if (code !== 0) return reject(new Error(stderr.trim().slice(0, 300) || `claude exited ${code}`));
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error) throw new Error(outer.result || 'synthesis failed');
+        const outer = parseEnvelope(stdout, { lane: 'study-lane' });
         resolve((outer.result || '').trim());
       } catch (e) { reject(e); }
     });

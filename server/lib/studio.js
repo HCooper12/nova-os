@@ -11,6 +11,7 @@ import { Vault } from './vault.js';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { NOVA_LENS } from './lens.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // Studio — the idea pipeline. Deterministic status moves on idea pages
 // (seed → outlining → scripting → shipped) and an ON-DEMAND outline
@@ -118,8 +119,8 @@ export async function startOutline(vaultPath, id) {
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const outer = parseEnvelope(stdout, { lane: 'studio-outline' });
+      if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in outline response');

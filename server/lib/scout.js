@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, assertLaneOn, isValidModel } from './modelPrefs.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // THE SCOUT — research a PERSON the way the Librarian researches a book.
 //
@@ -208,6 +209,7 @@ export async function runPersonResearch(vaultPath, subject, { notes = '', model,
     child.on('close', (code) => {
       let outer = null;
       try { outer = JSON.parse(stdout); } catch { /* fall through to the honest error */ }
+      if (outer) recordRun('scout', fromEnvelope(outer));
       if (!outer || outer.is_error || code !== 0) {
         return reject(new Error(outer?.result || stderr.trim().slice(0, 300) || `scout exited with code ${code}`));
       }

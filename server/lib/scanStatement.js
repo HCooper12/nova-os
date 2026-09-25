@@ -8,6 +8,7 @@ import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { CATEGORIES, categorize } from './money.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { registerJobMap } from './jobRegistry.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // Photograph a statement page or receipt → the model extracts transaction
 // lines as typed JSON → they land as a pending money-import record on the
@@ -57,8 +58,8 @@ export function startStatementScan(imagePaths, workDir, note) {
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const outer = parseEnvelope(stdout, { lane: 'scan-statement' });
+      if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in scan response');

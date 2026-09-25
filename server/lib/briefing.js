@@ -39,6 +39,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { registerJobMap } from './jobRegistry.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 const MAX_ANGLES = 5;
 const MIN_ANGLES = 2;
@@ -51,7 +52,7 @@ const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin
 // One spawn. The decompose pass gets no tools; the compose pass gets Read on
 // the vault (his shelf is the cross-check) and never the web — every outside
 // fact it may use was already citation-gated by a Researcher upstream.
-function runClaude({ prompt, model: m, tools = '', vaultPath }) {
+function runClaude({ prompt, model: m, tools = '', vaultPath, lane }) {
   return new Promise((resolve, reject) => {
     const args = [
       '-p', prompt,
@@ -71,6 +72,7 @@ function runClaude({ prompt, model: m, tools = '', vaultPath }) {
       try { outer = JSON.parse(stdout); } catch {
         return reject(new Error(`the briefing model returned no JSON (exit ${code}): ${(stderr || stdout).trim().slice(0, 240) || 'no output'}`));
       }
+      if (lane) recordRun(lane, fromEnvelope(outer));
       if (outer.is_error || code !== 0) {
         const spent = Number(outer.total_cost_usd);
         return reject(new Error(outer.result || stderr.trim() || `the briefing model exited ${code}${Number.isFinite(spent) ? ` after ${spent.toFixed(2)}` : ''}`));
@@ -236,7 +238,7 @@ export const defaultDeps = {
 };
 
 async function model(deps, prompt, { lane, tools = '', vaultPath }) {
-  const out = await deps.runClaude({ prompt, model: modelFor(lane), tools, vaultPath });
+  const out = await deps.runClaude({ prompt, model: modelFor(lane), tools, vaultPath, lane });
   const match = firstBalancedObjectMatch(out);
   if (!match) throw new Error(`the ${lane} step did not return JSON: ${String(out).slice(0, 160)}`);
   return parseModelJson(match[0]);

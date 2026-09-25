@@ -7,6 +7,7 @@ import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // Turn a spoken/typed request into ONE structured calendar op — add, move, or
 // delete — then file it as a confirm-first inbox proposal. The model only
@@ -54,8 +55,7 @@ function interpret(prompt) {
     child.on('close', (code) => {
       if (code !== 0) return reject(new Error(stderr.trim() || `claude exited ${code}`));
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error) throw new Error(outer.result || 'interpretation failed');
+        const outer = parseEnvelope(stdout, { lane: 'calendar-command' });
         const raw = outer.result || '';
         const m = raw.match(/\[[\s\S]*\]/) || firstBalancedObjectMatch(raw);
         if (!m) throw new Error('no JSON found in the response');

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { NOVA_LENS } from './lens.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // The Watcher — Nova's eyes on video. Hayden hands it a link (a fitness
 // video, a podcast, a talk); the watch toolchain (yt-dlp + the bundled watch
@@ -409,7 +410,7 @@ export async function digestTranscript(vaultPath, report, digestDir, question = 
       // and the notes need no structure beyond themselves.
       const raw = await runClaudeText(vaultPath, buildChunkNotesPrompt({
         title: report.title, part: i + 1, total: chunks.length, chunkPath, question,
-      }), { allowedTools: 'Read', model: model || CHUNK_MODEL() });
+      }), { allowedTools: 'Read', model: model || CHUNK_MODEL(), lane: 'watcher-chunk' });
       const text = stripPreamble(raw);
       if (!text) throw new Error(`extraction pass ${i + 1}/${chunks.length} returned no notes`);
       notes[i] = `## Part ${i + 1} of ${chunks.length}\n\n${text}`;
@@ -431,6 +432,7 @@ async function runWatchModel(vaultPath, promptInputs, model) {
   const parsed = await runClaudeJson(vaultPath, buildWatchPrompt(promptInputs), {
     allowedTools: 'Read Grep Glob WebSearch WebFetch',
     model: model || modelFor('watcher-verdict'), // was unpinned until the model board
+    lane: 'watcher-verdict',
   });
   return normalizeWatch(parsed);
 }
@@ -486,7 +488,7 @@ async function runClaudeJson(vaultPath, prompt, opts = {}) {
   }
 }
 
-function runClaude(vaultPath, prompt, { allowedTools, model } = {}) {
+function runClaude(vaultPath, prompt, { allowedTools, model, lane } = {}) {
   return new Promise((resolve, reject) => {
     const args = [
       '-p', prompt,
@@ -513,6 +515,7 @@ function runClaude(vaultPath, prompt, { allowedTools, model } = {}) {
         } catch {
           throw new Error(`claude returned no JSON (exit ${code}): ${(stderr || stdout).trim().slice(0, 300) || 'no output'}`);
         }
+        if (lane) recordRun(lane, fromEnvelope(outer));
         if (outer.is_error || code !== 0) {
           const spent = Number(outer.total_cost_usd);
           throw new Error(

@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { beat } from './heartbeat.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // Topic Pulse — the brief that SHOWS. For each topic on Hayden's Interests
 // page (his to edit, in the vault), a small web-read-only run fetches a few
@@ -168,6 +169,7 @@ export async function refreshPulseTopic(topic, { runner } = {}) {
     child.on('close', (code) => {
       try {
         const outer = JSON.parse(stdout);
+        recordRun('pulse', fromEnvelope(outer));
         if (outer.is_error || code !== 0) throw new Error(describeRunFailure(outer, code, stderr));
         const m = firstBalancedObjectMatch((outer.result || ''));
         if (!m) throw new Error('no JSON in pulse response');

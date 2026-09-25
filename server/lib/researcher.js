@@ -11,6 +11,7 @@ import {
   BRIEF_RULES, DECISION_RULES, FALLBACK_PANEL, buildPlannerPrompt, parsePanel,
   buildWorkerPrompt, parseFindings, buildSynthesisPrompt, panelProgress,
 } from './researchPanel.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // The Researcher — Nova's first agent that reaches OUTSIDE the vault. The
 // boundaries are structural: it runs only on an explicit "research …" ask
@@ -184,6 +185,7 @@ function askClaude(vaultPath, { prompt, model, tools = 'WebSearch WebFetch Read'
     child.on('close', (code) => {
       let outer = null;
       try { outer = JSON.parse(stdout); } catch { /* not JSON — fall through to the error path */ }
+      if (outer) recordRun('researcher', fromEnvelope(outer));
       if (!outer || outer.is_error || code !== 0) {
         resolve({ error: outer?.result || stderr.trim() || `claude exited with code ${code}` });
         return;

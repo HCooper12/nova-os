@@ -40,6 +40,7 @@ import { randomUUID } from 'node:crypto';
 import { MUSCLES, EQUIPMENT } from './muscles.js';
 import { MUSCLE_GROUPS, TRACKING_TYPES, loadExerciseLibrary, applyExerciseResearch, restoreExerciseRecords } from './exercises.js';
 import { atlasFor } from './data/exerciseAtlas.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -192,6 +193,7 @@ export function runResearchModel(prompt, { model } = {}) {
       child.on('close', async (code) => {
         let outer = null;
         try { outer = JSON.parse(stdout); } catch { /* not JSON */ }
+        if (outer) recordRun('exercise-research', fromEnvelope(outer));
         const cost = outer?.total_cost_usd ?? null;
         if (!outer || outer.is_error || code !== 0) {
           const why = outer?.result || stderr.trim() || `claude exited ${code}`;

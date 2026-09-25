@@ -9,6 +9,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { modelFor, laneOffError, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { registerJobMap } from './jobRegistry.js';
+import { parseEnvelope } from './modelSpend.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR (it was one of two hard-coded paths that leaked test
@@ -94,8 +95,7 @@ export function startSummaryJob(noteId, title, bodyText) {
       return;
     }
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error) throw new Error(outer.result || 'summary generation failed');
+      const outer = parseEnvelope(stdout, { lane: 'note-summary' });
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error('No JSON object found in the response');

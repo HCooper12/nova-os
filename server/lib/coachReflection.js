@@ -19,6 +19,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { modelFor, laneSkipped } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { parseEnvelope } from './modelSpend.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 // honors NOVA_DATA_DIR like every sibling store (the healthInsight precedent)
@@ -168,8 +169,7 @@ function runModel(prompt) {
     child.on('close', (code) => {
       if (code !== 0) return reject(new Error(stderr.trim() || `claude exited ${code}`));
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error) throw new Error(outer.result || 'reflection failed');
+        const outer = parseEnvelope(stdout, { lane: 'coach-reflection' });
         const m = firstBalancedObjectMatch((outer.result || ''));
         if (!m) throw new Error('no JSON in reflection output');
         resolve(parseModelJson(m[0]));

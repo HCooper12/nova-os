@@ -17,6 +17,7 @@ import { NOVA_LENS } from './lens.js';
 import { profileContext } from './profile.js';
 import { modelFor, laneSkipped, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { parseEnvelope } from './modelSpend.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR like every sibling store — it was the one hard-coded
@@ -208,8 +209,7 @@ function runClaude(prompt) {
     child.on('close', (code) => {
       if (code !== 0) return reject(new Error(stderr.trim() || `claude exited with code ${code}`));
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error) throw new Error(outer.result || 'insight generation failed');
+        const outer = parseEnvelope(stdout, { lane: 'health-insight' });
         const text = (outer.result || '').trim();
         const jsonMatch = firstBalancedObjectMatch(text);
         if (!jsonMatch) throw new Error('No JSON object found in the response');

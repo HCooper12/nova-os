@@ -11,6 +11,7 @@ import { mergeText } from './threeWayMerge.js';
 import { createRecord } from './inboxStore.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { registerJobMap } from './jobRegistry.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // .nova-backups is Nova's own pre-write copies (backup.js): staging them let
 // the model's sandbox grow backups of its own edits, which the diff then
@@ -482,6 +483,7 @@ When done, give a concise final summary: pages created, pages updated, and any c
         let result = null;
         try { result = JSON.parse(stdout); } catch { /* not JSON — handled below */ }
         if (result) {
+          recordRun(job.digested ? 'ingest-digest' : 'ingest', fromEnvelope(result));
           // ADD, don't assign: a book job already spent its research cost
           // before the weave started (measured: the ready total showed $1.75
           // after $3.91 of research — the overwrite was hiding real money).

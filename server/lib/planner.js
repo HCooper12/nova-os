@@ -23,6 +23,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 import { describeForPlanner, CAPABILITIES } from './capabilities.js';
 import { validatePlan, schedule, planProgress, describePlan, unmetNeeds, skipReason, costLine, MAX_STEPS, MAX_PLAN_USD } from './plan.js';
 import { salvageJson } from './jsonSalvage.js';
+import { parseEnvelope } from './modelSpend.js';
 import path from 'node:path';
 import os from 'node:os';
 
@@ -174,8 +175,7 @@ function planGoal(vaultPath, recordId, goal, model, inherited = []) {
   child.stdout.on('data', (d) => { stdout += d; });
   child.on('close', async () => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error) throw new Error(outer.result || 'planning failed');
+      const outer = parseEnvelope(stdout, { lane: 'planner' });
       const proposed = parsePlan(outer.result);
       if (!proposed) throw new Error('the plan came back unreadable');
 
@@ -649,8 +649,7 @@ function writeReport(vaultPath, recordId, goal, plan, progress) {
     child.stdout.on('data', (d) => { stdout += d; });
     child.on('close', async () => {
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error) throw new Error(outer.result || 'the report failed');
+        const outer = parseEnvelope(stdout, { lane: 'planner' });
         await updateRecord(recordId, {
           status: 'pending',
           decision: reportDecision(goal, String(outer.result || '').trim()),

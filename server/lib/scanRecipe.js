@@ -6,6 +6,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // Recipe/label extraction is OCR-shaped work the human always reviews before
 // saving, so it runs on the fast model by default. Change it in Settings →
@@ -70,8 +71,7 @@ export function startScan(imagePaths, workDir) {
       job.error = stderr.trim() || `claude exited with code ${code}`;
     } else {
       try {
-        const outer = JSON.parse(stdout);
-        if (outer.is_error) throw new Error(outer.result || 'analysis failed');
+        const outer = parseEnvelope(stdout, { lane: 'scan-recipe' });
         const text = (outer.result || '').trim();
         const jsonMatch = firstBalancedObjectMatch(text);
         if (!jsonMatch) throw new Error('No JSON object found in the response');

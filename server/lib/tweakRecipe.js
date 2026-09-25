@@ -6,6 +6,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -98,8 +99,7 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
       return;
     }
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error) throw new Error(outer.result || 'tweak generation failed');
+      const outer = parseEnvelope(stdout, { lane: 'tweak-recipe' });
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error('No JSON object found in the response');

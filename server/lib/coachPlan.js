@@ -9,6 +9,7 @@ import { loadRoutines, loadRoutineData, replaceRoutineEntries, renderRoutinesFil
 import { stampPriors, applyChanges } from './stagedPass.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
 import { registerJobMap } from './jobRegistry.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // COACH CHANGES THE PLAN — his ask, made real.
 //
@@ -376,8 +377,7 @@ export function startCoachAmend(vaultPath, { proposal, note, fix, recordId = nul
     child.stdout.on('data', (d) => { out += d; });
     child.on('close', async () => {
       try {
-        const parsed = JSON.parse(out);
-        if (parsed.is_error) throw new Error(parsed.result || 'coach amend failed');
+        const parsed = parseEnvelope(out, { lane: 'coach' });
         const text = String(parsed.result || '').trim().replace(/^```json?\s*|\s*```$/g, '');
         const ops = JSON.parse(text);
         if (Array.isArray(ops) && ops.length === 0) {

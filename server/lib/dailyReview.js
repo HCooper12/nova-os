@@ -21,6 +21,7 @@ import { preferencesContext } from './learning.js';
 import { createRecord, updateRecord, listRecords, getRecord } from './inboxStore.js';
 import { fileDecision } from './inbox.js';
 import { modelFor, laneSkipped } from './modelPrefs.js';
+import { parseEnvelope } from './modelSpend.js';
 
 // THE DAILY REVIEW — Nova's flagship intelligent surface. Once a day, a model
 // reasons across everything (profile, health, training, nutrition, calendar,
@@ -315,8 +316,8 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', async (code) => {
     try {
-      const outer = JSON.parse(stdout);
-      if (outer.is_error || code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
+      const outer = parseEnvelope(stdout, { lane: 'daily-review' });
+      if (code !== 0) throw new Error(outer.result || stderr.trim() || `claude exited with code ${code}`);
       const text = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no JSON in review response');

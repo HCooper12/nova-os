@@ -8,6 +8,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createRecord, updateRecord, getRecord } from './inboxStore.js';
 import { broadcast } from './events.js';
+import { recordRun, fromEnvelope } from './modelSpend.js';
 
 // The Forge — Nova's build department.
 //
@@ -282,6 +283,8 @@ async function runForgeJob(job) {
         sawError = update.isError;
         finalText = update.text;
         cost = update.costUsd;
+        // one turn per process here — total_cost_usd is this job's own cost.
+        recordRun('forge', fromEnvelope(ev));
         continue;
       }
       // Live status on the rails: the record's own text carries what the job
