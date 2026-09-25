@@ -13,6 +13,55 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (afternoon, nova-os-44) — HIS SPOKEN TURNS WERE HEARD AND NEVER
+SENT; ONE RECORD OF EVERY EXCHANGE; THE MODEL BOARD FOLLOWED AND MEASURED.
+14 commits LOCAL, NOT PUSHED: my push was refused by the permission layer,
+so HE runs `git push origin main` (it also carries d3's and 2c's handoff
+commits, which they asked to ride along). Server reloaded (reload-server.mjs)
+and runs everything below; the client half reaches his phone only after the
+push + Pages deploy.**
+
+- **The bug he hit (14:22 AEST):** his iPhone recorded 39.5s, Groq
+  transcribed 384 chars, nothing was asked. `useDictation.finishNova` called
+  onText then onDone in one tick; the presence surface read a render-stale
+  ref. Same race on the Voice screen (which then said Nova heard nothing) and
+  the recipe tweak. `e7d89c4`: onDone(composed words); sendLiveTalk puts his
+  question in the chat at send; a failed turn is spoken and kept. VERIFIED
+  headless (real clip, fake mic, every write guarded): HEAD in a worktree
+  transcribed and never asked; the fix asked the exact sentence. NOT seen on
+  his phone.
+- **The record (`d1d631d`):** server/lib/conversationLog.js, append-only
+  JSONL per month in server/data/conversation/; the app mirrors every settled
+  voice-chat line (id = device + line time + who), Siri and the Action Button
+  write server-side, the Voice screen merges it (boot + opening Voice), Nova's
+  fresh-session context reads the last week. `GET/POST /api/conversation`
+  live (400 on empty, 401 without token). EMPTY until the new bundle syncs.
+  Gap: a resumed session does not see turns added elsewhere since it began.
+- **Model board:** gate follows the board (`33c14aa`; on his board every
+  interactive gate is ask:false, weekly scout/distill still ask), forge/
+  planner/scout validate (`2d13b50`), no caps on exercise research + guard
+  now globs every spawn file (`018fa94`), the spend ledger (Sonnet agent in a
+  worktree, reviewed and cherry-picked: `f416841` `6b98f7a` `0bc6d28`, my fix
+  `879453e` for the dropped exit-code check) and the per-lane spend line on
+  the Settings board (`9c3649d`, seen at 375px with page-only sample data;
+  the board TOTAL not seen on screen). Ask Nova set to `sonnet` on the board
+  (his "let's try"); code default still Haiku.
+- **Test leaks into his live data, found and repaired:** claudeStream.test.js
+  wrote the stub's "Hello turn 1." into spoken-log.json (30 of 60 lines) and
+  pointed agent-sessions.json's Coach at a temp folder; spokenLog.test.js
+  overwrote the live log mid-run. Both isolated (`82eda0e`, `7718a17`); data
+  repaired with backups in my scratchpad; Coach pointer back on a7309692
+  (Nova's Coach section reads his real exchange, checked). A full-suite mtime
+  diff of server/data now shows only the live heartbeat.
+- **Gates:** server 2334/2334, lint 0 errors, build green.
+- **NEXT:** after his push, his phone: speak through the icon, see the line
+  land in the voice chat, then `GET /api/conversation` shows it. Then the
+  unstarted audit items (effort per lane, --fallback-model, pref provenance).
+- **DO NOT:** post test rows to /api/conversation (it is his history);
+  run a stub-CLI test without its own NOVA_DATA_DIR.
+
+---
+
 **25 SEP (close, nova-os-d3) — A STALE COACH CARD SAYS SO, A FAILED YES SAYS
 WHY, A TAKEN-BACK CARD SHOWS IN HISTORY. Committed, gates green, NOT YET
 PUSHED — blocked behind nova-os-44's own unpushed `018fa94` sitting under it

@@ -1,5 +1,23 @@
 # Agent models — audit, 25 Sep 2026
 
+## Status, same day (his calls: yes to F1 and I1, no caps at all, try Sonnet 5 for Ask Nova)
+
+| Item | Outcome | Commit |
+|---|---|---|
+| F1 gate overrides the board | Fixed: asks only below Opus, "keep" = the board's model, named | 33c14aa |
+| F2 unvalidated overrides | Fixed in forge, planner, scout | 2d13b50 |
+| F3 limit on one path | Fixed: every one-shot lane reads it through `parseEnvelope` | f416841, 6b98f7a |
+| I1 spend ledger | Built (server/lib/modelSpend.js, every spawn site, `GET /api/model-spend`), and shown per lane on the board | f416841, 6b98f7a, 0bc6d28, 9c3649d |
+| Caps | The exercise-research $2 cap and 12-minute kill removed; the guard now finds every lane | 018fa94 |
+| Ask Nova | Board set to `sonnet` (Sonnet 5), his trial; the code default stays Haiku | data only |
+| I2 effort, I3 fallback-model, I5 provenance, I6 conditional pushes | Not started |  |
+
+Found while landing the ledger: the warm-pool stream reports a RUNNING total
+per process (turn 1 $0.0216, turn 2 $0.0243 cumulative), so each turn records
+the difference. The agent's first wiring dropped the old `code !== 0` check at
+ten sites (879453e restores it). Two tests wrote into his live `server/data`
+(the spoken log, the Coach pointer, the ledger): 82eda0e, 7718a17.
+
 Scope: the model board (`server/lib/modelPrefs.js`), the weekly fail-safe
 (`modelWatch.js`), the Opus-or-Sonnet gate (`modelChoice.js`), every CLI
 spawn site under `server/lib`, the saved prefs (`server/data/model-prefs.json`),
