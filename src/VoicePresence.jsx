@@ -3,6 +3,7 @@ import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { useDictation, reportTurnEnd } from './useDictation.js';
 import { StageCard } from './StageCard.jsx';
+import { railDepth } from './glassDepth.js';
 import { SafeVisual } from './SafeVisual.jsx';
 
 const M = 'var(--nv-font-mono)';
@@ -126,7 +127,7 @@ export function VoicePresence({ v }) {
           {s.glass.rail.length > 0 && (
             <div style={css('display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
               {s.glass.rail.map((panel, i) => (
-                <div key={i} style={{ flex: '0 0 auto', width: '146px', opacity: 0.92 - i * 0.14 }}>
+                <div key={`${panel.label}:${i}`} style={railDepth(i)}>
                   <StageCard card={panel} size="mini" />
                 </div>
               ))}

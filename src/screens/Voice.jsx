@@ -11,6 +11,7 @@ import { TypeText } from '../TypeText.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { VoiceWaveform } from '../VoiceWaveform.jsx';
 import { StageCard } from '../StageCard.jsx';
+import { railDepth } from '../glassDepth.js';
 import { GlassSheet } from '../GlassSheet.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
@@ -391,14 +392,18 @@ export function Voice({ v }) {
               </SafeVisual>
               {v.glass.rail.length > 0 && (
                 <div style={css('display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
+                  {/* each step back in the rail is a step back in depth:
+                      smaller, dimmer, and it settles there from the front
+                      (railDepth) — the reel's spent panels hanging behind
+                      the live one */}
                   {v.glass.rail.map((panel, i) => (
                     v.isMobile ? (
-                      <Interactive key={i} as="div" base={{ flex: '0 0 auto', width: '146px', opacity: 0.92 - i * 0.14, cursor: 'pointer' }}
+                      <Interactive key={`${panel.label}:${i}`} as="div" base={{ ...railDepth(i), cursor: 'pointer' }}
                         onClick={openGlassSheet(panel)} aria-label={`Enlarge ${panel.label || 'this panel'}`}>
                         <StageCard card={panel} size="mini" />
                       </Interactive>
                     ) : (
-                      <div key={i} style={{ flex: '0 0 auto', width: '146px', opacity: 0.92 - i * 0.14 }}>
+                      <div key={`${panel.label}:${i}`} style={railDepth(i)}>
                         <StageCard card={panel} size="mini" />
                       </div>
                     )
@@ -577,8 +582,8 @@ export function Voice({ v }) {
             <Panel label="ON THE GLASS">
               <div style={css('display:flex;flex-direction:column;gap:8px')}>
                 {v.stageHistory.map((c, i) => (
-                  <Interactive key={i} onClick={() => v.focusCard(c)} aria-label={`Bring “${c.label}” back to the middle`}
-                    base={css('cursor:pointer;border-radius:10px;display:block')}
+                  <Interactive key={`${c.label}:${i}`} onClick={() => v.focusCard(c)} aria-label={`Bring “${c.label}” back to the middle`}
+                    base={{ cursor: 'pointer', borderRadius: '10px', display: 'block', ...railDepth(i, 'column') }}
                     hoverStyle="filter:brightness(1.35)">
                     <SafeVisual what="stage-card-mini" resetKey={c?.label}><StageCard card={c} size="mini" /></SafeVisual>
                   </Interactive>

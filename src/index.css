@@ -124,6 +124,17 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @keyframes skeletonSweep { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 /* the reference's pop-up: it arrives from the bottom edge and settles */
 @keyframes popIn { from { opacity: 0; transform: translateY(var(--nv-rise)) scale(.965); } to { opacity: 1; transform: translateY(0) scale(1); } }
+/* THE GLASS HAS DEPTH (25 Sep 2026, from the "make me five ads" reel): a
+   panel ARRIVES toward him out of the dark — from behind the plane, blurred,
+   resolving as it comes — and a spent one RECEDES a step into the rail as
+   the next takes the front. Same material as nvGlassIn; the difference is
+   the axis: z, not the bottom edge. Reduced motion keeps only the fade. */
+@keyframes nvGlassArrive { from { opacity: 0; transform: translateY(6px) scale(.92); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes nvGlassRecede { from { opacity: 1; transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes nvGlassArrive { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes nvGlassRecede { from { opacity: 1; } }
+}
 /* GLASS MATERIALISES, it does not fade in. A translucent surface that simply
    becomes opaque reads as a picture of glass; a surface whose blur resolves
    as it arrives reads as the material itself turning up (apple-design §12,

@@ -108,7 +108,9 @@ export function StageCard({ card, size = 'full' }) {
       // nothing. Same look on the Voice screen; readable on every other.
       background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 09%, var(--nv-void)), color-mix(in srgb, var(--nv-void) 92%, black))`,
       boxShadow: mini ? 'none' : `0 0 30px -8px color-mix(in srgb, ${accent} 55%, transparent), 0 20px 50px -24px rgba(0,0,0,.85)`,
-      animation: mini ? 'none' : 'popIn var(--nv-dur-base) var(--nv-ease)',
+      // full panels arrive out of depth; a mini one is placed by its rail,
+      // which animates the recession itself
+      animation: mini ? 'none' : 'nvGlassArrive var(--nv-dur-slow) var(--nv-ease) both',
     }}>
       {card.label ? (
         <div style={{ font: `600 ${mini ? 7.5 : 8.5}px ${M}`, letterSpacing: '.2em', color: `color-mix(in srgb, ${accent} 85%, transparent)` }}>{card.label}</div>
