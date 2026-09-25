@@ -13,42 +13,61 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**26 SEP (00:40 AEST, nova-os-44) — THE NINE LIVE IN THE HABITAT ON OPS.
-Pushed `d12cfbc`, server reloaded (reload-server.mjs), gate green on the
-combined tree (lint 0, build, 2439/2439). The habitat sheet for his
-judgment: https://claude.ai/artifact/52W7BD7VxYAgStjH28pAw9.**
+**26 SEP (close, nova-os-44, before his MacBook update) — HE WANTS TO REVIEW
+THE AGENT WORLD LATER: REMIND HIM AT THE START OF THE NEXT SESSION.**
+After the macOS update, first check: `curl localhost:4173/api/health` is 200
+(launchd came back) and Tailscale answers.
 
-- **His ask (25 Sep):** the agents' environment, "interactive and engaging
-  and amusing as though the agents have their own life", at zero Claude
-  cost. Design: AGENT-WORLD-PLAN.md §9 (the two rules: zero tokens held by
-  agentWorldNoModel.test.js; working tells only for real work, an off-duty
-  catalogue for everything else, a marker holds its being in place).
-- **Built and on main:** `src/agentWorld/habitat.js` (a set per district,
-  lanes, plaza, lamps), `life.js` (the pure seeded engine), `acts.js` (every
-  act drawn on the rigs), `src/orgmap/walk.js`, the scene integration in
-  `scene.js`, `composeOrgMap` now emits `events` (10-min window) and
-  `receipts`. Mockup 50 + `bundle.mjs --page`, `look.mjs --port`. Ops's old
-  fleet ring removed (his call); every loop's state on the tap card. Also
-  fixed on the way: the working glass reading every past brief aloud on a
-  fresh load (`c455cf2`), the record's same-millisecond ids (`5df39bb`) and a
-  repair of `server/data/conversation/2026-09.jsonl` (167 → 42 rows).
-- **Verified by capture (guarded, no writes reached him):** Ops at 402 and
-  1280 by day and night; the Coach's walk (12-frame strips), a delivery to
-  the post with the plaza pulse, a Librarian → Watcher visit with the popcorn
-  carried home, the bar racked, every idle act of all nine, reduced motion
-  still. Loop at rest: only blinks wake it.
-- **NOT verified:** his phone (frame rate, GPU, memory with the sets), Calm
-  and the four themes, a tap on a walking being, the 6–12 min visit cycle
-  and a real filing acting out on their own, the sleep pose on the bench
-  (the "asleep" capture shows him standing, hands on hips).
-- **Decisions he still owns:** none pending. Mine, reversible: stroll speed,
-  the Money stack = today's filed count, the Leader rests facing the pool.
-- **NEXT:** his verdict on the sheet and on Ops on his phone (name the
-  district and the part); then Ambient (his yes, 25 Sep): the habitat filling
-  the wall with a slow camera drift, about a session. Then the unstarted
-  audit items (effort per lane, --fallback-model, pref provenance).
-- **DO NOT:** post test rows to /api/conversation; run a stub-CLI test
-  without NOVA_DATA_DIR; pass a list to git unquoted in zsh (`${=VAR}`).
+- **GOAL (his, 25 Sep):** (1) audit the agent models and fix what he picked
+  (the gate, the spend ledger, no caps, Ask Nova on Sonnet 5); (2) spoken
+  turns from the icon must be sent and kept as a history Nova can refer back
+  to; (3) the agents' environment, "engaging and amusing as though the
+  agents have their own life", at zero Claude cost.
+- **DONE CRITERIA:** (1) MET, pushed. (2) MET, pushed; seen working only in
+  guarded headless runs. (3) MET for build, pushed `d12cfbc`/`07713c5`;
+  UNMET: his review (he asked to be reminded).
+- **STATE (paths):** models: `server/lib/modelChoice.js` (gateFor/needsGate,
+  `GET /api/model-gates`), `server/lib/modelSpend.js` (ledger,
+  `GET /api/model-spend`, parseEnvelope), `src/modelSpendView.js` + Settings
+  board. Voice: `src/useDictation.js` (onDone(words)), `server/lib/
+  conversationLog.js` + `routes/conversation.js`, `src/conversationSync.js`
+  (chatIds). Agent World: `src/agentWorld/{habitat,life,acts,beings}.js`,
+  `src/orgmap/{scene,walk,OrgMap}.jsx`, `server/lib/orgMap.js` (events,
+  receipts), mockup 50 + sheet https://claude.ai/artifact/52W7BD7VxYAgStjH28pAw9,
+  plan AGENT-WORLD-PLAN.md §9. Audit: design/audits/2026-09-25-agent-models.md.
+- **DECISIONS:** the gate asks only below Opus, "keep" = the board's model
+  (forecloses a literal Sonnet downgrade); no caps anywhere, guard globs every
+  spawn file (forecloses any --max-budget-usd or kill timer on a model run);
+  one append-only conversation record every door writes to (forecloses
+  per-device history as the truth); working tells only for real work, an
+  off-duty catalogue otherwise, a marker pins its being (forecloses motion
+  that could be mistaken for work); walks stroll to fill the engine's phase,
+  Money stack = today's filed count, Leader rests facing its pool (mine,
+  reversible on his word).
+- **VERIFIED (locators):** gates at close: lint exit 0, build green, server
+  2439/2439, health 200, tree clean and level with origin `07713c5`, Pages
+  run 36188312397 success, `node scripts/verify-shipped.mjs` PASS on both
+  Org Map markers (35 live chunks). Captures in the session scratchpad
+  `integ/` (Ops 402/1280 day+night, walk strips, delivery pulse, visit with
+  popcorn, bar racked, all idle acts), `habitat/`. The 14:22 voice race
+  reproduced before/after headless (scratchpad `ears.mjs`). Record file
+  repaired 167 → 42 rows (backup in scratchpad `data-backup/`).
+- **ASSUMED:** everything on his phone: the voice fix end to end, the record
+  filling, the map's frame rate/memory with the sets, Calm and themes, the
+  visit cycle and a real filing acting out on their own, the Coach's sleep
+  pose (the capture shows him standing).
+- **OPEN QUESTIONS:** his verdict on the sheet and on Ops (by district and
+  part) — REMIND HIM. Ambient (his yes in principle, 25 Sep) is next after
+  that. Unstarted audit items: effort per lane, --fallback-model, pref
+  provenance. The resumed Ask session does not see turns added on another
+  device since it began.
+- **NEXT ACTION:** remind him to review; on his notes, a fix pass. Expected
+  if all is well: he names parts, not "it's broken".
+- **DO NOT:** post test rows to /api/conversation (his history); run a
+  stub-CLI test without NOVA_DATA_DIR; pass a list to git unquoted in zsh
+  (`${=VAR}`, and check `git log -1` after — a "fatal" slipped past a grep);
+  judge the map's idle cost on headless real time (~1 fps; use `step(dt)`);
+  reload with a bare kickstart.
 
 ---
 
@@ -4546,6 +4565,10 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 25–26 September 2026 — nova-os-44: the agent models audited and fixed, the voice turn that was never sent, and the Habitat
+Audited the model board and fixed his picks: the Opus-or-Sonnet gate now follows the board, forge/planner/scout validate models, the last $2 cap and kill timer went (the no-caps guard now finds every lane itself), Ask Nova moved to Sonnet 5, and a per-lane spend ledger (built by an agent, corrected for a dropped exit-code check) shows on the Settings board. His spoken turn at 14:22 had been heard and transcribed but never sent (a render-stale ref); fixed and proven before/after, and every spoken exchange from every door now lands in one server record Nova reads back. Corrected along the way: two tests had been writing into his live data (30 fake greetings in the spoken log, the Coach pointer), the working glass read every past brief aloud on a fresh load, and the record duplicated same-millisecond lines (repaired). Then the Habitat: a set per district, lanes, a plaza, daypart light, and a pure life engine so the nine live off duty at zero tokens, integrated on Ops and pushed. He will review later.
+
 
 **25 Sep (close, nova-os-d3).** He asked me to check his Coach chat history
 for why simple changes were going wrong, and to fix it. Found seven distinct
