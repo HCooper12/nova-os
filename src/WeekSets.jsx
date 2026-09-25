@@ -202,6 +202,9 @@ export function WeekSetsSheet({ view, originEl, onClose, onAskCoach }) {
             </span>
           ))}
         </div>
+        {view.historyNote && (
+          <p style={css('margin:4px 0 0;font:500 12px/1.45 var(--nv-font-ui);color:var(--nv-ink50);text-wrap:pretty')}>{view.historyNote}</p>
+        )}
         <div style={css('margin-top:14px')}>
           {view.muscles.map((m, i) => (
             <MuscleSection key={m.muscle} m={m} i={i} sectionRef={(el) => { sections.current[m.muscle] = el; }} />

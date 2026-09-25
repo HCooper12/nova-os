@@ -114,3 +114,21 @@ test('a goal muscle behind today but carried to target by what is still schedule
   assert.equal(v.cta.text, 'Shoulders can reach 6 of 12 by Sunday on the plan as written. Ask Coach how to add sets →');
 });
 
+
+test('a carried set is still to come: an outline, "carried to Sat", and counted by Sunday', () => {
+  const routines = ROUTINES;
+  const w = plannedWeek({ routines, schedule: SCHEDULE, sessions: SESSIONS, exercises: EXERCISES, targetOf, now: FRIDAY,
+    carryovers: [{ forDate: '2026-09-26', exercises: [{ exerciseId: 'facepull' }] }] });
+  const v = weekSetsView(w);
+  const face = muscle(v, 'Shoulders').rows.find((r) => r.name === 'Face Pull');
+  assert.deepEqual(face.pips, ['due', 'due', 'due']);
+  assert.equal(face.status.text, 'carried to Sat');
+  assert.equal(muscle(v, 'Shoulders').projected, 9, '3 done + 3 carried + 3 today');
+});
+
+test('a past day read from history says so, once', () => {
+  const v = weekSetsView({ ...plannedWeek({ routines: ROUTINES, schedule: SCHEDULE, sessions: SESSIONS, exercises: EXERCISES, targetOf, now: FRIDAY }),
+    days: plannedWeek({ routines: ROUTINES, schedule: SCHEDULE, sessions: SESSIONS, exercises: EXERCISES, targetOf, now: FRIDAY }).days.map((d) => (d.day === 'monday' ? { ...d, planAsOf: '2026-09-21T03:36:27.624Z' } : d)) });
+  assert.equal(v.historyNote, 'Monday shows your plan as it stood that day.');
+  assert.equal(weekSetsView(plannedWeek({ routines: ROUTINES, schedule: SCHEDULE, sessions: SESSIONS, exercises: EXERCISES, targetOf, now: FRIDAY })).historyNote, null);
+});

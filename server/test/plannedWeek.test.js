@@ -119,3 +119,55 @@ test("every muscle's done count equals its bar on the card", () => {
   const counted = w.muscles.reduce((n, m) => n + m.done, 0);
   assert.equal(counted, Object.values(bars).reduce((a, b) => a + b, 0), 'nothing counted twice, nothing dropped');
 });
+
+// HIS WEEK OF 21 SEP: Push changed on Friday, after he trained Monday's. The
+// plan as it stood (routinesAt) decides what a past day asked of him.
+const TRICEPS = [
+  { id: 'cableoh', name: 'Cable Overhead Tricep Extension', muscleGroup: 'Triceps' },
+  { id: 'vbar', name: 'Triceps Pushdown - V-Bar Attachment', muscleGroup: 'Triceps' },
+  { id: 'rope', name: 'Rope Overhead Tricep Extension', muscleGroup: 'Triceps' },
+  { id: 'straight', name: 'Triceps Pushdown - Straight Bar Attachment', muscleGroup: 'Triceps' },
+];
+const entry = (id) => ({ exerciseId: id, targetSets: 3, targetRepsLow: 8, targetRepsHigh: 12 });
+const tlib = new Map(TRICEPS.map((e) => [e.id, e]));
+const resolved = (id) => ({ ...entry(id), name: tlib.get(id).name, muscleGroup: 'Triceps', trackingType: 'weight_reps' });
+const PUSH_NOW = { id: 'push', name: 'Push', exercises: [resolved('rope'), resolved('straight')] };
+const PUSH_MONDAY = { id: 'push', name: 'Push', exercises: [entry('cableoh'), entry('vbar')] };
+const pushWeek = (extra = {}) => plannedWeek({
+  routines: [PUSH_NOW], schedule: { monday: 'push' }, exercises: TRICEPS, targetOf, now: FRIDAY,
+  sessions: [
+    { date: '2026-09-21', routineId: 'push', finishedAt: '2026-09-21T03:36:27.624Z', exercises: [{ exerciseId: 'cableoh', sets: working(3) }] },
+    { date: '2026-09-22', routineId: 'carryover', finishedAt: '2026-09-22T03:38:56.715Z', exercises: [{ exerciseId: 'vbar', sets: working(3) }] },
+  ],
+  routinesAt: (iso) => (iso < '2026-09-25T00:00:00.000Z' ? [PUSH_MONDAY] : [PUSH_NOW]),
+  ...extra,
+});
+
+test("a past day is judged by the plan he trained against, not one written after it", () => {
+  const w = pushWeek();
+  const tri = w.muscles.find((m) => m.muscle === 'Triceps');
+  assert.deepEqual(tri.exercises.map((e) => [e.day, e.name, e.done, e.planned]), [
+    ['monday', 'Cable Overhead Tricep Extension', 3, 3],
+    ['monday', 'Triceps Pushdown - V-Bar Attachment', 3, 3],
+  ], "Monday's lifts, done; the rope and straight bar are not Monday's");
+  assert.equal(tri.extras.length, 0, 'nothing he did was outside the plan he had');
+  assert.equal(w.days[0].planAsOf, '2026-09-21T03:36:27.624Z', 'read as of the moment he finished');
+});
+
+test('without a history, the week falls back to today\'s plan (what shipped first)', () => {
+  const w = pushWeek({ routinesAt: null });
+  const tri = w.muscles.find((m) => m.muscle === 'Triceps');
+  assert.deepEqual(tri.exercises.map((e) => e.name), ['Rope Overhead Tricep Extension', 'Triceps Pushdown - Straight Bar Attachment']);
+  assert.equal(tri.extras.length, 2);
+  assert.equal(w.days[0].planAsOf, null);
+});
+
+test('a lift carried to a make-up still ahead this week is marked carried, not left behind', () => {
+  const w = plannedWeek({
+    routines: [PUSH_NOW], schedule: { monday: 'push' }, exercises: TRICEPS, targetOf, now: FRIDAY,
+    sessions: [], carryovers: [{ forDate: '2026-09-26', exercises: [{ exerciseId: 'rope' }] }, { forDate: '2026-09-29', exercises: [{ exerciseId: 'straight' }] }],
+  });
+  const [rope, straight] = w.muscles.find((m) => m.muscle === 'Triceps').exercises;
+  assert.equal(rope.carriedTo, 'saturday');
+  assert.equal(straight.carriedTo, undefined, 'a make-up next week does not save this week\'s set');
+});

@@ -209,10 +209,18 @@ export async function buildTrainOverview(vaultPath) {
   // this week, per muscle, per day, with what is done (lib/plannedWeek.js).
   // Same sessions, same draft, same targets as the bars, so they agree.
   // Null on failure: the card keeps its bars and simply opens nothing.
+  // Past days are judged by the plan as it stood (lib/planHistory.js), and a
+  // lift carried to a make-up still ahead is still to come. Either source
+  // failing leaves today's plan and no carry-overs: the week still renders.
   let week = null;
   try {
+    const { refreshPlanHistory, planAt } = await import('./planHistory.js');
+    const history = await refreshPlanHistory(vaultPath).catch(() => null);
+    const { listCarryovers } = await import('./workoutCarryover.js');
+    const carryovers = await listCarryovers().catch(() => []);
     week = plannedWeek({
-      routines, schedule, sessions, live: liveSession, exercises,
+      routines, schedule, sessions, live: liveSession, exercises, carryovers,
+      routinesAt: history?.versions?.length ? (iso) => planAt(history.versions, iso)?.routines || null : null,
       targetOf: (m) => ({ target: focused.has(m) ? GOAL_TARGET : BASE_TARGET, goalMuscle: focused.has(m) }),
     });
   } catch { /* honest absence */ }

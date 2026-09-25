@@ -25,7 +25,8 @@ export function slotPips(slot, day) {
   const liveFrom = (slot.done || 0) - (slot.live || 0);
   return Array.from({ length: n }, (_, i) => {
     if (i < (slot.done || 0)) return i >= liveFrom ? 'live' : 'done';
-    return day?.isPast ? 'missed' : 'due';
+    // carried to a make-up still ahead: still to come, never missed
+    return day?.isPast && !slot.carriedTo ? 'missed' : 'due';
   });
 }
 
@@ -47,6 +48,7 @@ function slotStatus(slot, day) {
       ? { text: `done ${elsewhere.map((d) => SHORT[d]).join(', ')}`, tone: 'quiet' }
       : null;
   }
+  if (day?.isPast && slot.carriedTo) return { text: `carried to ${SHORT[slot.carriedTo]}`, tone: 'cyan' };
   if (day?.isPast) return { text: slot.done ? `${short} not done` : 'not done', tone: 'faint' };
   if (day?.isToday) return { text: 'today', tone: 'cyan' };
   return null;
@@ -75,7 +77,7 @@ export function weekSetsView(week) {
 
   const muscles = week.muscles.map((m) => {
     // still to come: planned sets not yet done on today or a later day
-    const due = m.exercises.reduce((n, s) => n + (dayOf[s.day]?.isPast ? 0 : Math.max(0, s.planned - s.done)), 0);
+    const due = m.exercises.reduce((n, s) => n + (dayOf[s.day]?.isPast && !s.carriedTo ? 0 : Math.max(0, s.planned - s.done)), 0);
     const projected = m.done + due;
     const rows = [
       ...m.exercises.map((s) => ({
@@ -163,6 +165,11 @@ export function weekSetsView(week) {
       routineFull: d.routineName, rest: d.rest, isToday: d.isToday, isPast: d.isPast,
     })),
     muscles, headline, aheadLine, warn, done, planned, due,
+    // said once, under the grid, whenever a past day was read from history:
+    // the rows on that day are what he was asked to do then, not now
+    historyNote: days.some((d) => d.planAsOf)
+      ? `${listOf(days.filter((d) => d.planAsOf).map((d) => FULL[d.day]))} ${days.filter((d) => d.planAsOf).length === 1 ? 'shows' : 'show'} your plan as it stood that day.`
+      : null,
     // talking back is the action (§2b r8): the question arrives with the
     // sheet's own figures, so Coach argues from what he is looking at
     coachQuestion: `Look at my planned week, muscle by muscle. ${headline}${warn ? ` ${warn}` : ''} ${muscles.filter((m) => m.planned || m.goal).map((m) => `${m.muscle}: ${m.done} done, ${m.due} still scheduled, target ${m.target}`).join('; ')}. Is the split right for my goal, and what would you change?`,
