@@ -7,6 +7,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
+import { usageLimitNotice, recordRun, fromEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { registerJobMap } from './jobRegistry.js';
@@ -83,17 +84,11 @@ warmSweep.unref?.();
 // throws must never take the reply down with it.
 const onPartial = (job, text) => { try { job.onPartial?.(text); } catch { /* the words matter more */ } };
 
-// The CLI's own words at the account's limit — the whole reply, and short.
-// Seen for real on 25 Sep 2026: "You've hit your session limit · resets 11am
-// (Australia/Melbourne)". Only a short reply that is nothing BUT the notice
-// counts, so an answer that mentions a limit is never mistaken for one.
-export function usageLimitNotice(text) {
-  const t = String(text || '').trim();
-  if (!t || t.length > 240) return null;
-  if (!/\b(?:hit your|reached your|usage limit|rate limit|session limit|weekly limit)\b/i.test(t) || !/\blimit\b/i.test(t)) return null;
-  const resets = t.match(/\bresets?\s+(?:at\s+)?([^·\n]+?)\s*$/i)?.[1]?.replace(/\s*\(([^)]+)\)\s*$/, '').trim();
-  return `Claude's usage limit is reached for now${resets ? `; it resets at ${resets}` : ''}. Nothing was answered and nothing was lost: ask again after that.`;
-}
+// The CLI's own words at the account's limit — moved to modelSpend.js (with
+// its full comment) so every lane, not just this warm pool, reads the
+// account's limit state the same way. Re-exported here unchanged so existing
+// importers (and usageLimit.test.js) keep working.
+export { usageLimitNotice };
 
 function spawnWarm(key, { cwd, args, env }) {
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : undefined });
