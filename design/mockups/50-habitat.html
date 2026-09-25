@@ -284,7 +284,8 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
   function keyFor(part) {
     if (part === 'dawn') return { col: TK.key.clone().lerp(TK.hue.chest, 0.35), i: 1.7, pos: [7, 2.3, 2.6], fill: 0.4, env: 0.85, rim: 0.9 };
     if (part === 'evening') return { col: TK.key.clone().lerp(TK.gold, 0.55), i: 1.8, pos: [-7, 2.3, 2.6], fill: 0.38, env: 0.8, rim: 0.9 };
-    if (part === 'night') return { col: TK.fill.clone().lerp(TK.hue.vi, 0.35), i: 0.7, pos: [-2.6, 5, 3.6], fill: 0.2, env: 0.42, rim: 0.75 };
+    // night: the world goes dark so the lamps are what you see (§8)
+    if (part === 'night') return { col: TK.fill.clone().lerp(TK.hue.vi, 0.35), i: 0.42, pos: [-2.6, 5, 3.6], fill: 0.1, env: 0.22, rim: 0.5 };
     return { col: TK.key.clone(), i: 2.2, pos: [3.4, 8, 5], fill: 0.44, env: 1, rim: 1.1 };
   }
   function lightFor(part) {
@@ -293,6 +294,9 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
     fill.color.copy(TK.fill); fill.intensity = k.fill;
     rim.color.copy(TK.rim); rim.intensity = k.rim;
     scene.environmentIntensity = TK.env * k.env;
+    // each being carries its own rim light, and it lights the tile round it;
+    // at night that alone kept the ground looking like day
+    BEINGS.forEach(function (x) { x.b.rimL.intensity = 1.4 * (part === 'night' ? 0.3 : 1); });
   }
 
   // ---------------------------------------------------------------
