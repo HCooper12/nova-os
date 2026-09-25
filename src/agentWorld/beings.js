@@ -586,7 +586,11 @@ export function createBeingKit(T, TK) {
     var L1 = o.L1, L2 = o.L2, r0 = o.r0, r1 = o.r1;
     var arm = {
       mesh: mesh, hand: hand, palm: palm, thumb: thumb, finger: finger, shoulder: shoulder, elbow: new T.Vector3(),
+      // what the last set() was asked for, so an overlaid act (the Org
+      // Map's life engine) can blend from the tell's pose instead of cutting
+      last: { H: new T.Vector3(), pole: new T.Vector3(0, 0, -1), palm: new T.Vector3(0, 0, 1) },
       set: function (S, H, pole, palmDir) {
+        arm.last.H.copy(H); arm.last.pole.copy(pole); if (palmDir) arm.last.palm.copy(palmDir); else arm.last.palm.copy(pole);
         _ad.subVectors(H, S); var d = _ad.length() || 1e-4; _ad.divideScalar(d);
         var l1 = L1, l2 = L2;
         // never locked straight: a noodle arm with no elbow reads as a stick
@@ -1155,6 +1159,9 @@ export function createBeingKit(T, TK) {
       drape(cl + (rm ? 0 : Math.sin(t * 1.7) * 0.08));
       return (working && !rm) || P.moving();
     };
+    // the handles an off-duty act may move (src/agentWorld/acts.js)
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { rose: card };
     return b;
   };
 
@@ -1286,6 +1293,8 @@ export function createBeingKit(T, TK) {
       b.headPitch = P.s('pitch', working ? -0.05 - ph * 0.05 : 0.03);
       return (working && !rm) || P.moving();
     };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { bar: bar };
     return b;
   };
 
@@ -1391,6 +1400,8 @@ export function createBeingKit(T, TK) {
       gleam.material.opacity = working && !rm ? 0.5 * Math.max(0, 1 - Math.abs(ph - 0.84) * 8) : 0;
       return (working && !rm) || P.moving();
     };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { chip: flip, stack: stack, ledger: ledger };
     return b;
   };
 
@@ -1516,6 +1527,10 @@ export function createBeingKit(T, TK) {
       b.headYaw = P.s('yaw', working ? -0.12 : -0.05);
       return !rm || P.moving();
     };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    // the lantern hangs from the left hand by its ring (lant.position is
+    // the ring); `hangY` is where the ring sits above the mitten
+    b.props = { lantern: lant, hangY: 0.02 };
     return b;
   };
 
@@ -1561,9 +1576,9 @@ export function createBeingKit(T, TK) {
     var book = new T.Group(); g.add(book);
     var coverM = new T.MeshPhysicalMaterial({ color: darker(acc, 0.55).lerp(hue, 0.3), roughness: 0.55, metalness: 0.05, clearcoat: 0.4, sheen: 0.6, sheenColor: lighter(acc, 0.4) });
     var paperM = new T.MeshPhysicalMaterial({ map: pageTex(), color: 0xf4f6fb, roughness: 0.85, emissive: new T.Color(0xdfe9ff), emissiveIntensity: 0.12 });
-    var BW = 0.15, BH = 0.2;
+    var BW = 0.15, BH = 0.2, halves = [];
     [-1, 1].forEach(function (s) {
-      var half = new T.Group(); half.rotation.y = 0.36 * s * -1; book.add(half);
+      var half = new T.Group(); half.rotation.y = 0.36 * s * -1; book.add(half); halves.push(half);
       var cov = mesh(GEO.box, coverM, BW + 0.008, BH + 0.012, 0.01, s * (BW / 2 + 0.002), 0, -0.012); half.add(cov);
       var blk = mesh(GEO.box, paperM, BW - 0.004, BH - 0.006, 0.016, s * BW / 2, 0, 0.001); half.add(blk);
     });
@@ -1603,17 +1618,20 @@ export function createBeingKit(T, TK) {
     var armL = b.arm(-1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
     var armR = b.arm(1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
     var lastF = -1;
+    // the hands hold the outer edges of the covers, wherever the book is
+    function holdBook() {
+      book.updateMatrix();
+      _hp.set(-BW * 0.94, -0.03, -0.02).applyMatrix4(book.matrix);
+      armL.set(SL, _hp.clone(), V(-1, -0.4, -0.3), V(1, 0, 0.3));
+      _hp.set(BW * 0.94, -0.03, -0.02).applyMatrix4(book.matrix);
+      armR.set(SR, _hp.clone(), V(1, -0.4, -0.3), V(-1, 0, 0.3));
+    }
     b.tell = function (t, working, rm) {
       var P = b.pose; P.frame(t);
       var bp = P.v('book', 0, 0.37, 0.33);
       book.position.copy(bp);
       book.rotation.set(P.s('bookX', working ? -0.95 : -0.55), 0, 0);
-      book.updateMatrix();
-      // the hands hold the outer edges of the covers, wherever the book is
-      _hp.set(-BW * 0.94, -0.03, -0.02).applyMatrix4(book.matrix);
-      armL.set(SL, _hp.clone(), V(-1, -0.4, -0.3), V(1, 0, 0.3));
-      _hp.set(BW * 0.94, -0.03, -0.02).applyMatrix4(book.matrix);
-      armR.set(SR, _hp.clone(), V(1, -0.4, -0.3), V(-1, 0, 0.3));
+      holdBook();
       var mixR = P.s('mixR', working ? 1 : 0);
       var c = (t * 0.42) % 1, fc = rm ? 0.5 : (c < 0.55 ? 0 : smooth01((c - 0.55) / 0.45));
       var f = 0.5 + (fc - 0.5) * mixR;
@@ -1629,6 +1647,10 @@ export function createBeingKit(T, TK) {
       bulbGlow.material.opacity = lit * (0.3 + pulse * 0.2);
       return (working && !rm) || P.moving();
     };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    // halves open at -/+0.36 (a V toward the lens); hold() re-seats both
+    // hands on the covers after the book has been moved
+    b.props = { book: book, halves: halves, open: 0.36, hold: holdBook, lens: fr };
     return b;
   };
 
@@ -1739,6 +1761,8 @@ export function createBeingKit(T, TK) {
       b.headRoll = P.s('roll', working ? 0 : 0.06);
       return (working && !rm) || P.moving();
     };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { bucket: bucket, headphones: hb };
     return b;
   };
 
@@ -1860,6 +1884,9 @@ export function createBeingKit(T, TK) {
       seatSpecs();
       return (working && !rm) || P.moving();
     };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    // tray.position.z: 0.07 stands open (waiting), 0 is shut
+    b.props = { drawer: tray, books: books };
     return b;
   };
 
@@ -1955,6 +1982,8 @@ export function createBeingKit(T, TK) {
       b.headRoll = P.s('roll', working ? Math.sin(t * 1.2) * 0.05 : 0);
       return (working && !rm) || P.moving();
     };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { pot: pot, ladle: ladle };
     return b;
   };
 
@@ -2031,6 +2060,8 @@ export function createBeingKit(T, TK) {
       b.headPitch = P.s('pitch', working ? 0.04 + (rm ? 0 : Math.max(0, Math.sin(t * 1.9)) * 0.1) : 0.03);
       return !rm || P.moving();
     };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { orb: orb };
     return b;
   };
 

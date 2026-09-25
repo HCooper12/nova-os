@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import { createBeingKit } from '../agentWorld/beings.js';
 import { LAYOUT, HOMES, createHabitat } from '../agentWorld/habitat.js';
 import { daypartOf, initLife, stepLife } from '../agentWorld/life.js';
+import { makeWalk, walkPoint, walkHeading, obstacleCloud, stepPoints } from './walk.js';
 
 // The ring's geometry lives in one place, habitat.js's LAYOUT, because the
 // sets, the lanes and the beings' homes are all measured against it:
@@ -412,21 +413,100 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     const pos = hp.clone().addScaledVector(dir, VISIT_GAP);
     return { pos, yaw: Math.atan2(hp.x - pos.x, hp.z - pos.z), sit: false, seatY: 0 };
   }
-  // step d: an intent moves the being straight to its goal (the walks are
-  // the next step); the goal's yaw is where it turns to
+  // ---- WALKING (§9e) --------------------------------------------------
+  // A lane walk follows lanes.route between the intent's path nodes and
+  // fills the life engine's phase for it (a stroll: 20 s for a delivery,
+  // 12 s to a neighbour, 120 s for the Guardian's lap), never faster than
+  // 0.9 tile-widths a second; a step on a tile goes at an amble and round
+  // the set pieces. A walk once started is finished before the next one is
+  // planned, so a being never doubles back mid-stride.
+  const TILE_W = 2.0;                                   // a tile, flat edge to flat edge ~1.7, corner to corner 2
+  const MAX_SPEED = 0.9 * TILE_W, MIN_LANE_SPEED = 0.12, STEP_SPEED = 0.28;
+  const STRIDE = 0.12 * BEING_SCALE;                    // one step: a boot's 0.06 swing each way
+  const cadenceOf = (speed) => Math.max(1.4, Math.min(3.4, speed / STRIDE));
+  const pathKey = (st) => `${st.actSince}:${(st.path || []).join('>')}`;
+  const VIAS = Object.keys(habitat.lanes.nodes).filter((k) => k.startsWith('home:')).map((k) => habitat.lanes.nodes[k]);
+  const BODY_R = 0.11, SEAT_SKIP = 0.2;
+  let CLOUD = null;                                      // built with the fit points, once the world is placed
+  function stepTo(from, to) {
+    const r = stepPoints(from, to, CLOUD || [], VIAS, BODY_R, SEAT_SKIP);
+    return r.pts;
+  }
+  function startWalk(x, pts, speed, key) {
+    const w = makeWalk(THREE, [x.holder.position.clone().setY(0), ...pts], speed);
+    if (w.len < 0.02) { x.walk = null; return false; }
+    w.key = key || null; w.cadence = cadenceOf(speed);
+    x.walk = w;
+    return true;
+  }
+  function startLaneWalk(x, st) {
+    const nodes = habitat.lanes.nodes, from = x.holder.position.clone().setY(0);
+    const n0 = nodes[st.path[0]];
+    const pts = n0 && flatDist(from, n0) > 0.03 ? stepTo(from, n0) : [];
+    for (let i = 0; i + 1 < st.path.length; i++) {
+      const r = habitat.lanes.route(st.path[i], st.path[i + 1]);
+      if (!r) break;
+      pts.push(...r);
+    }
+    const len = makeWalk(THREE, [from, ...pts], 1).len;
+    const secs = Math.max(1, (st.actUntil - lifeNow()) / 1000);
+    const speed = Math.max(MIN_LANE_SPEED, Math.min(MAX_SPEED, len / secs));
+    if (!startWalk(x, pts, speed, pathKey(st))) x.pathDone = pathKey(st);
+  }
+  // an intent becomes a goal, and a walk to it
   function planBeing(x, snap) {
     const st = x.intent;
     const g = resolveTarget(x, st);
     if (!g) return;
+    if (snap) {
+      x.walk = null;
+      // a snap is a cut: the seat's eased value jumps with it
+      const seat = (v) => { x.seatK = v; x.b.pose.v('seat', v, 0, 0).x = v; };
+      if (x.snapStart && st.path) {
+        const n0 = habitat.lanes.nodes[st.path[0]];
+        x.holder.position.set(n0.x, 0, n0.z);
+        x.snapStart = false; x.goal = g; x.placed = true; seat(0);
+        startLaneWalk(x, st);
+        if (x.walk) x.yaw = walkHeading(x.walk, 0, 0.08) ?? x.yaw;
+        return;
+      }
+      x.goal = g; x.placed = true;
+      x.holder.position.set(g.pos.x, 0, g.pos.z);
+      if (g.yaw != null) x.yaw = g.yaw;
+      if (st.path) x.pathDone = pathKey(st);
+      x.seatY = g.sit ? seatLift(x, g) : 0; seat(g.sit ? 1 : 0);
+      return;
+    }
+    if (x.walk) { x.replan = true; return; }            // finish this walk first
     x.goal = g;
-    x.holder.position.set(g.pos.x, g.sit ? seatLift(x, g) : 0, g.pos.z);
-    if (snap && g.yaw != null) x.yaw = g.yaw;
-    x.placed = true;
+    if (st.path && st.path.length > 1 && pathKey(st) !== x.pathDone) { startLaneWalk(x, st); return; }
+    const from = x.holder.position.clone().setY(0);
+    if (flatDist(from, g.pos) > 0.03) startWalk(x, stepTo(from, g.pos), STEP_SPEED, null);
+  }
+  const _wp = new THREE.Vector3();
+  // one frame of a walk: turn in place toward the way ahead first (at the
+  // start and at any corner sharper than ~60 degrees), then go
+  function advanceWalk(x, dt) {
+    const w = x.walk;
+    const head = walkHeading(w, w.s, 0.08);
+    const err = head == null ? 0 : wrapA(head - x.yaw);
+    const turning = Math.abs(err) > (w.s === 0 ? 0.3 : 1.05);
+    if (!turning && dt > 0) w.s = Math.min(w.len, w.s + w.speed * dt);
+    walkPoint(w, w.s, _wp);
+    x.holder.position.x = _wp.x; x.holder.position.z = _wp.z;
+    x.walkYaw = head == null ? x.yaw : head;
+    x.striding = !turning;
+    if (w.s >= w.len - 1e-5) {
+      if (w.key) x.pathDone = w.key;
+      x.walk = null; x.striding = false;
+      if (x.replan) { x.replan = false; planBeing(x, false); }
+    }
   }
   // which way a being should face this frame, in the world group's frame
   // (the world turns with view.spin; -spin faces the camera)
   function facingYaw(x) {
     const st = x.intent;
+    if (x.walk) return x.walkYaw;
     if (selected === x.a.id) return -view.spin;
     if (st && st.facing === 'camera') return -view.spin;
     if (st && st.facing === 'partner' && st.partner && beings[st.partner]) {
@@ -486,6 +566,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   }
   ORDER.forEach((id) => samplePoints(habitat.districts[id].group, 160, FIT_PTS));
   samplePoints(habitat.plaza.group, 80, FIT_PTS);
+  // and what a being walks round: every set piece, the plaza's benches and lamps
+  CLOUD = obstacleCloud(THREE, [...ORDER.flatMap((id) => habitat.districts[id].pieces), habitat.plaza.group], world, 140);
   ORDER.forEach((id) => {
     const lb = districtAt[id].label, p = new THREE.Vector3();
     lb.getWorldPosition(p);
@@ -504,7 +586,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     for (let i = 0; i < 26; i++) { const m = (lo + hi) / 2; if (fits(m)) hi = m; else lo = m; }
     return hi;
   }
-  let selected = null, ringDist = 14;
+  let selected = null, ringDist = 14, devLook = null;
   const FOCUS_BAND = 0.34, FOCUS_LIFT = 0.3;
   function frame(snap) {
     if (selected && (beings[selected] || selected === 'core')) {
@@ -617,15 +699,58 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     // flicker as motion; off duty that is not a reason to keep drawing
     if (b.tell) {
       const tl = b.tell(now, working, reduceMotion);
-      if (working ? tl : b.pose.moving()) live = true;
+      if (working && tl) live = true;
     }
-    // facing: yaw eased toward where the intent says to look
+    const P = b.pose;
+    // the walk: along the polyline, turning in place first
+    if (x.walk) { advanceWalk(x, dt); live = true; }
+    // facing: yaw eased toward where the intent says to look (quicker
+    // while walking, so a corner is turned, not drifted round)
     const want = facingYaw(x), err = wrapA(want - x.yaw);
-    if (reduceMotion || dt <= 0) { if (reduceMotion) x.yaw = want; } else x.yaw += err * (1 - Math.exp(-dt * 6));
+    if (reduceMotion) x.yaw = want;
+    else if (dt > 0) x.yaw += err * (1 - Math.exp(-dt * (x.walk ? 8 : 6)));
     if (!reduceMotion && Math.abs(wrapA(want - x.yaw)) > 0.004) live = true;
     x.holder.rotation.y = x.yaw;
+
+    // THE GAIT: boots alternating +-0.06 with a +-0.35 toe pitch, the body
+    // bobbing +0.02 each step, a small waddle, the free hand swinging, the
+    // head kept level. Only the amplitude is eased (through the pose), so
+    // stopping settles the boots instead of freezing them mid-stride.
+    const amp = reduceMotion ? 0 : P.s('walk:amp', x.walk && x.striding ? 1 : 0);
+    if (x.walk && x.striding && dt > 0) x.gait = (x.gait || 0) + dt * x.walk.cadence * Math.PI;
+    const s = Math.sin(x.gait || 0), c = Math.cos(x.gait || 0);
+    // THE SEAT: on a seat anchor the foot of the body rests on the seat and
+    // the boots come forward
+    const seatWant = !x.walk && x.goal && x.goal.sit && flatDist(x.holder.position, x.goal.pos) < 0.05 ? 1 : 0;
+    if (seatWant) x.seatY = seatLift(x, x.goal);
+    x.seatK = reduceMotion ? seatWant : P.s('seat', seatWant);
+    x.holder.position.y = (x.seatY || 0) * x.seatK;
+    if (b.feet && b.feet.length === 2) {
+      if (!x.footBase) x.footBase = b.feet.map((f) => ({ y: f.position.y, z: f.position.z, rx: f.rotation.x }));
+      const k = x.seatK;
+      [[1, Math.max(0, c)], [-1, Math.max(0, -c)]].forEach(([sg, lift], i) => {
+        const f = b.feet[i], fb = x.footBase[i];
+        f.position.z = fb.z + 0.06 * sg * s * amp + 0.1 * k;
+        f.position.y = fb.y + 0.022 * lift * amp + 0.015 * k;
+        f.rotation.x = fb.rx - 0.35 * sg * s * amp - 0.45 * k;
+      });
+    }
+    b.group.position.y = 0.02 * Math.abs(s) * amp;
+    b.group.rotation.set(0, 0.035 * s * amp, 0.045 * s * amp);
+    x.headLevel = -0.045 * s * amp;
+    if (amp > 0.01 && b.arms) {
+      (FREE_HAND[x.a.id] || []).forEach((side) => {
+        const arm = b.arms[side], sg = side === 'L' ? 1 : -1;
+        _wp.copy(arm.last.H); _wp.z += 0.055 * sg * s * amp; _wp.y += 0.012 * Math.abs(s) * amp;
+        arm.set(side === 'L' ? b.arms.SL : b.arms.SR, _wp, arm.last.pole, arm.last.palm);
+      });
+    }
+    if (P.moving()) live = true;
     return { live, working };
   }
+  // the hands a walk may swing: the ones not holding the being's own thing
+  // (the book, the bucket, the pot, the orb and the lantern stay held)
+  const FREE_HAND = { commander: ['R'], coach: ['L', 'R'], cfo: ['R'], guardian: ['R'], librarian: ['R'] };
 
   function tick() {
     if (disposed) return;
@@ -634,9 +759,18 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     drawFrame(now);
   }
   function drawFrame(now) {
-    const dt = Math.max(0, Math.min(0.08, now - lastT)); lastT = now;
+    // a hand-driven step may be longer than a real frame; the walks and the
+    // engine then advance by the same time the clock did
+    const dt = Math.max(0, Math.min(clock.manual ? 0.5 : 0.08, now - lastT)); lastT = now;
     let live = false;
     stepLifeNow(false);
+    // a tapped being that walks off is followed, not lost
+    const follow = devLook ? devLook.id : selected;
+    if (follow && beings[follow] && (beings[follow].walk || devLook)) {
+      const p = beings[follow].holder.position.clone().setY(0).applyAxisAngle(YAX, view.spinT);
+      view.txT = p.x; view.tzT = p.z;
+      if (devLook) { view.tx = p.x; view.tz = p.z; }
+    }
     ['spin', 'dist', 'tx', 'ty', 'tz', 'lift'].forEach((k) => {
       const n = approach(view[k], view[k + 'T'], dt, k === 'spin' ? 8 : 6);
       if (Math.abs(n - view[k + 'T']) > 1e-4) live = true;
@@ -657,7 +791,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       if (fb.live) live = true;
       b.head.rotation.y = (b.headYaw || 0) + b.face.sacc.x * 3;
       b.head.rotation.x = (b.headPitch || 0) - view.elev * 0.12;
-      b.head.rotation.z = b.headRoll || 0;
+      b.head.rotation.z = (b.headRoll || 0) + (x.headLevel || 0);
       if (updateFace(x, now, dt, working)) live = true;
       if (b.marker.visible) {
         b.marker.scale.setScalar(mk);
@@ -813,8 +947,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
         const { durationMs, ...rest } = p;
         const dur = durationMs || (rest.path ? 20000 : 4000);
         next.beings[id] = {
-          place: 'home', spot: 'rest', facing: null, partner: null, path: null, carry: null,
-          ...next.beings[id], actSince: now, actUntil: now + dur, _seq: [], ...rest,
+          ...next.beings[id], place: 'home', spot: 'rest', facing: null, partner: null, path: null, carry: null,
+          actSince: now, actUntil: now + dur, _seq: [], ...rest,
         };
         if (opts.snap) { beings[id].placed = false; beings[id].snapStart = !!rest.path; }
       });
@@ -852,6 +986,18 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       }])),
     }),
     lastVm: () => lastVm,
+    // dev hook: turn the map to an angle at once (a walk seen from the side)
+    spin(rad) { view.spinT = view.spin = Number(rad) || 0; frame(true); return view.spin; },
+    // dev hook: a close camera on one being (distance in world units), for
+    // looking at a gait or a gesture; follows it while it walks. null ends it
+    look(id, dist = 3.2) {
+      devLook = id && beings[id] ? { id, dist } : null;
+      if (!devLook) { frame(true); return 'ring'; }
+      const p = beings[id].holder.position.clone().setY(0).applyAxisAngle(YAX, view.spin);
+      Object.assign(view, { tx: p.x, txT: p.x, tz: p.z, tzT: p.z, ty: 0.3, tyT: 0.3, dist, distT: dist, lift: 0, liftT: 0 });
+      invalidate();
+      return id;
+    },
     // which record lamps are on, per district (for the capture scripts)
     lampsLit: () => Object.fromEntries(Object.entries(habitat.districts).map(([id, d]) => [id, d.lamps.filter((L) => L.lit).map((L) => `${L.who || id}:${L.litOn ? 'on' : 'off'}`)])),
     dispose() {
