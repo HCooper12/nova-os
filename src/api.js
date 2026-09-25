@@ -340,7 +340,9 @@ export const api = {
   leaderAnswer: (conn, text) => post(conn, '/api/leader/situation/answer', { text }, { timeoutMs: 120_000 }),
   repertoireToday: (conn) => call(conn, '/api/repertoire/today'),
   repertoire: (conn) => call(conn, '/api/repertoire'),
-  repertoirePractice: (conn, outcome, note) => post(conn, '/api/repertoire/practice', { outcome, note }),
+  // `result` ('landed' | 'missed' | null) only when Wrap the day asks; absent
+  // keeps whatever he already said (server/lib/repertoire.js logPractice)
+  repertoirePractice: (conn, outcome, note, result) => post(conn, '/api/repertoire/practice', result === undefined ? { outcome, note } : { outcome, note, result }),
   repertoireAnalyse: (conn, url, prose) => post(conn, '/api/repertoire/analyse', { url, prose }),
   // THE INTAKE — the interview runs on the glass; the server knows, parses, proposes
   intakePrefill: (conn) => call(conn, '/api/intake/prefill'),

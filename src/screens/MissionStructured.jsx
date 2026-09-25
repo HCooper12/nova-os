@@ -8,6 +8,7 @@ import { StuckCard } from '../StuckCard.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
 import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
+import { TechniqueCheck } from '../TechniqueCheck.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, foldInstrument, FOLD_LABELS, NEVER_FOLD, loadFolds, saveFolds } from '../missionFold.js';
 import { Eyebrow, TextAction, Tag, Meta } from '../Controls.jsx';
@@ -299,7 +300,17 @@ export function MissionStructured({ v }) {
 
     // WRAP THE DAY — the evening's news, in the house objects: two rings,
     // the serif line, and the fix he can still act on tonight.
-    wrap: v.wrapCard ? (
+    wrap: v.wrapCard ? (v.wrapCard.onlyTechnique ? (
+      // the evening with nothing logged: the wrap is today's technique alone
+      <Group key="wrap" label="Wrap the day" accent="--nv-mg" trailing={<Meta tone="faint">{v.wrapCard.note}</Meta>}>
+        <div style={{ padding: '14px 16px', animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
+          <TechniqueCheck q={v.wrapCard.technique} label={false} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+            <TextAction tone="faint" onClick={v.wrapCard.dismiss}>Dismiss</TextAction>
+          </div>
+        </div>
+      </Group>
+    ) : (
       <Group key="wrap" label="Wrap the day" accent={v.wrapCard.floorMet === false ? '--nv-gold' : '--nv-good'} trailing={<Meta tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>{v.wrapCard.note}</Meta>}>
         <div style={{ padding: '14px 16px', animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
           {/* on a phone the rings sit ABOVE the line — beside it the serif
@@ -320,9 +331,11 @@ export function MissionStructured({ v }) {
             {v.wrapCard.fix && <Pill label="Open Fuel" onClick={v.wrapCard.openFuel} tone="quiet" />}
             <TextAction tone="faint" onClick={v.wrapCard.dismiss}>Dismiss</TextAction>
           </div>
+          {/* did today's technique land? (25 Sep) — its own sub-section */}
+          <TechniqueCheck q={v.wrapCard.technique} divided />
         </div>
       </Group>
-    ) : null,
+    )) : null,
 
     // TWO FACES, HIS SWIPE (15 Sep). Was `v.leaderToday` alone; the box now
     // carries the day's idea AND the live situation, and he swipes between
@@ -731,7 +744,7 @@ export function MissionStructured({ v }) {
             <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               {v.todayTechnique.outcome === 'tried' ? (
                 <>
-                  <span style={{ font: `600 12px ${UI}`, color: 'var(--nv-good)' }}>✓ Practised</span>
+                  <span style={{ font: `600 12px ${UI}`, color: 'var(--nv-good)' }}>✓ {v.todayTechnique.practisedLabel}</span>
                   <Pill label="Actually, not today" onClick={() => { haptic('tick'); v.todayTechnique.markSkipped(); }} tone="quiet" />
                 </>
               ) : v.todayTechnique.outcome === 'skipped' ? (

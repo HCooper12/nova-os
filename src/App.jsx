@@ -511,6 +511,9 @@ export default class App extends Component {
     // and the day whose reel is spinning right now
     techniqueRevealedOn: (() => { try { return localStorage.getItem('novaos.reveal.technique'); } catch { return null; } })(),
     techniqueSpin: null,
+    // DID IT LAND? (Wrap the day, 25 Sep): the house tick's state, his line
+    // about what happened, a reopened answer, and the day he answered here
+    techniqueTick: 'idle', techniqueNoteDraft: '', techniqueReopen: null, techniqueAnsweredOn: null,
     // set when a reply was composed but the device refused to play it —
     // silence must never also be invisible
     speechBlocked: null,
@@ -2100,18 +2103,56 @@ export default class App extends Component {
     const conn = getConnection();
     const cur = this.state.liveRepertoire;
     if (!conn || !cur?.technique) return;
-    this.setState({ liveRepertoire: { ...cur, outcome } });
+    // a pass takes a result with it (only what he tried can have landed)
+    this.setState({ liveRepertoire: { ...cur, outcome, ...(outcome === 'skipped' ? { result: null } : {}) } });
     api.repertoirePractice(conn, outcome, note)
-      .then((r) => this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: r.outcome, tried: r.tried, streak: r.streak } })))
+      .then((r) => this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: r.outcome, result: r.result ?? null, tried: r.tried, streak: r.streak } })))
       .catch((e) => {
         // it flipped under his thumb and is flipping back — say so, and buzz.
         // A silent revert is the worst version of an optimistic write.
-        this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: cur.outcome } }));
+        this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: cur.outcome, result: cur.result ?? null } }));
         this.toastFail('Could not mark that: ' + e.message);
       });
   }
-  dismissWrap() {
-    const on = this.state.liveWrap?.facts?.date || new Date().toISOString().slice(0, 10);
+  // DID IT LAND? — Wrap the day's answer for today's technique (25 Sep, the
+  // report-back half of the Hormozi reel's loop). A result means he tried it,
+  // so it goes as 'tried' + result in ONE write, with his line about what
+  // happened. "It landed" plays the house tick (pill → spinner → the tick
+  // draws) before the row becomes its receipt; "didn't land" is immediate;
+  // null is "didn't try it", a pass. Reversible in place: Change reopens it
+  // and answering again corrects the tally (server/lib/repertoire.js).
+  answerTechnique(result) {
+    const conn = getConnection();
+    const cur = this.state.liveRepertoire;
+    if (!conn || !cur?.technique || this.state.techniqueTick !== 'idle') return;
+    const note = (this.state.techniqueNoteDraft || '').trim();
+    if (!result) {
+      this.setState({ techniqueReopen: null, techniqueNoteDraft: '', techniqueAnsweredOn: cur.date || null });
+      this.markPractice('skipped', note);
+      return;
+    }
+    const landed = result === 'landed';
+    this.setState(landed
+      ? { techniqueTick: 'working' }
+      : { liveRepertoire: { ...cur, outcome: 'tried', result, note: note || null }, techniqueReopen: null, techniqueNoteDraft: '', techniqueAnsweredOn: cur.date || null });
+    api.repertoirePractice(conn, 'tried', note, result)
+      .then((r) => {
+        this.setState((st) => ({
+          liveRepertoire: { ...st.liveRepertoire, outcome: r.outcome, result: r.result ?? result, note: note || null, tried: r.tried, landed: r.landed, streak: r.streak },
+          ...(landed ? { techniqueTick: 'done', techniqueAnsweredOn: cur.date || null } : {}),
+        }));
+        // the tick has drawn; the row becomes its receipt
+        if (landed) setTimeout(() => this.setState({ techniqueTick: 'idle', techniqueReopen: null, techniqueNoteDraft: '' }), 950);
+      })
+      .catch((e) => {
+        this.setState((st) => ({ techniqueTick: 'idle', liveRepertoire: { ...st.liveRepertoire, outcome: cur.outcome, result: cur.result ?? null, note: cur.note ?? null } }));
+        this.toastFail('Could not log that: ' + e.message);
+      });
+  }
+  dismissWrap(date) {
+    // the day is passed in when the card is the technique-only one (there may
+    // be no wrap facts at all that evening)
+    const on = date || this.state.liveWrap?.facts?.date || this.state.liveRepertoire?.date || new Date().toISOString().slice(0, 10);
     try { localStorage.setItem('novaos.wrap.dismissed', on); } catch { /* private mode */ }
     this.setState({ wrapDismissedOn: on });
   }

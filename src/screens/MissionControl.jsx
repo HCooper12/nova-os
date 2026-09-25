@@ -5,6 +5,7 @@ import { LeaderBox } from '../LeaderBox.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
 import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
+import { TechniqueCheck } from '../TechniqueCheck.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
 import { absentHintStyle, absentValueStyle } from '../vitalsAbsence.js';
@@ -240,7 +241,7 @@ export function MissionControl({ v }) {
           <div style={css('margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap')}>
             {v.todayTechnique.outcome === 'tried' ? (
               <>
-                <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-good)')}>✓ PRACTISED</span>
+                <span style={css('font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);text-transform:uppercase;color:var(--nv-good)')}>✓ {v.todayTechnique.practisedLabel}</span>
                 <Interactive as="span" onClick={v.todayTechnique.markSkipped} base={css('cursor:pointer;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);padding:8px 13px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);color:var(--nv-ink60)')} hoverStyle={{ color: 'var(--nv-ink)' }}>ACTUALLY, NOT TODAY</Interactive>
               </>
             ) : v.todayTechnique.outcome === 'skipped' ? (
@@ -261,7 +262,20 @@ export function MissionControl({ v }) {
           in the same objects as the Apple twin (MissionStructured) from the
           same view model: the rings carry the verdict, the serif carries the
           news, and the fix he can still act on sits under it. */}
-      {v.wrapCard && (
+      {/* the evening with nothing logged: the wrap is today's technique alone */}
+      {v.wrapCard?.onlyTechnique && (
+        <section className="nv-pane nv-glow" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', ...glowSoft('--nv-mg').style, animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
+            <Eyebrow as="span" tone="var(--nv-mg)">Wrap the day</Eyebrow>
+            <Meta tone="faint">{v.wrapCard.note}</Meta>
+          </div>
+          <TechniqueCheck q={v.wrapCard.technique} label={false} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+            <TextAction tone="faint" onClick={v.wrapCard.dismiss}>Dismiss</TextAction>
+          </div>
+        </section>
+      )}
+      {v.wrapCard && !v.wrapCard.onlyTechnique && (
         <section className="nv-pane nv-glow" style={{ marginBottom: mob ? '12px' : '18px', padding: mob ? '16px 18px 14px' : '18px 22px 16px', ...glowSoft(v.wrapCard.floorMet === false ? '--nv-gold' : '--nv-good').style, animation: 'popIn var(--nv-dur-base) var(--nv-ease) both' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', marginBottom: '12px' }}>
             <Eyebrow as="span" tone={v.wrapCard.floorMet === false ? 'gold' : 'good'}>Wrap the day</Eyebrow>
@@ -282,6 +296,7 @@ export function MissionControl({ v }) {
             {v.wrapCard.fix && <TextAction tone="quiet" onClick={v.wrapCard.openFuel}>Open Fuel</TextAction>}
             <TextAction tone="faint" onClick={v.wrapCard.dismiss}>Dismiss</TextAction>
           </div>
+          <TechniqueCheck q={v.wrapCard.technique} divided />
         </section>
       )}
       <section style={heroGrid}>

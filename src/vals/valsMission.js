@@ -8,6 +8,7 @@ import { clampWords } from '../textClamp.js';
 import { dtf } from './fmt.js';
 import { groupFamilies, shapeReports } from '../repertoireBook.js';
 import { buildReelRows } from '../reel.js';
+import { shortTechniqueName, techniqueQuestionState, questionOnlyWrap } from '../techniqueCheck.js';
 import { planCardFrom } from '../planCard.js';
 
 // Mission Control domain (Command Core layout): connection status chips and
@@ -95,6 +96,25 @@ function groupByDay(events) {
     label: dtf('en-GB', { weekday: 'long', day: '2-digit', month: 'short' }).format(new Date(`${date}T12:00:00`)),
     events: evs.map((e) => ({ time: e.time, end: e.end, label: e.label, calendar: e.calendar, recurring: e.recurring, hue: categoryHue(e.calendar) })),
   }));
+}
+
+// DID IT LAND? — Wrap the day's question about today's technique (25 Sep).
+// The rules about when to ask are pure and tested (src/techniqueCheck.js);
+// this attaches the actions.
+function techniqueQuestion(app, st, demoMode) {
+  if (demoMode) return null;
+  const r = st.liveRepertoire;
+  const q = techniqueQuestionState(r, { tick: st.techniqueTick || 'idle', reopenedOn: st.techniqueReopen });
+  if (!q) return null;
+  return {
+    ...q,
+    draft: st.techniqueNoteDraft || '',
+    setDraft: (e) => app.setState({ techniqueNoteDraft: e.target.value }),
+    landed: () => app.answerTechnique('landed'),
+    missed: () => app.answerTechnique('missed'),
+    notTried: () => app.answerTechnique(null),
+    change: () => app.setState({ techniqueReopen: r.date, techniqueNoteDraft: r.note || '' }),
+  };
 }
 
 export function valsMission(app, ctx) {
@@ -985,11 +1005,6 @@ const bodyMetrics = demoMode
       // not whatever the list happens to lead with — and passes the others
       // still waiting, in the order the server sent them (curriculum order).
       const waiting = Array.isArray(r.reel) ? r.reel.filter((x) => x && x.id !== t.id) : [];
-      // a name on the reel drops its trailing gloss — "Presupposition (Milton
-      // Model)" → "Presupposition" — because the band is one line and the
-      // landing must never be an ellipsis (seen at 375px: "Ironic Process
-      // Rebound (the "w…"). The card it opens into carries the full name.
-      const reelName = (n) => String(n || '').replace(/\s*\([^()]*\)\s*$/, '').trim() || String(n || '');
       const sealed = r.mode === 'new' && !r.outcome && !!r.date && waiting.length >= 1 && st.techniqueRevealedOn !== r.date;
       return {
         name: t.name,
@@ -1010,6 +1025,9 @@ const bodyMetrics = demoMode
         position: r.position, total: r.total,
         outcome: r.outcome || null,          // 'tried' | 'skipped' | null
         tried: r.tried || 0,
+        result: r.result || null,
+        // the practised mark says whether it landed, once Wrap the day has asked
+        practisedLabel: r.result === 'landed' ? 'Practised · it landed' : r.result === 'missed' ? 'Practised · didn’t land yet' : 'Practised',
         streak: r.streak || 0,
         openAll: () => app.openRepertoireBook(),
         // THE MORPH. The card carries a shared view-transition-name and the
@@ -1023,8 +1041,8 @@ const bodyMetrics = demoMode
         reel: sealed ? {
           rows: buildReelRows({
             start: { key: 'cta', cta: true },
-            others: waiting.map((x) => ({ key: x.id, text: reelName(x.name) })),
-            target: { key: t.id, text: reelName(t.name) },
+            others: waiting.map((x) => ({ key: x.id, text: shortTechniqueName(x.name) })),
+            target: { key: t.id, text: shortTechniqueName(t.name) },
           }),
           spinning: st.techniqueSpin === r.date,
           caption: 'New today, and next in line in your curriculum.',
@@ -1051,8 +1069,19 @@ const bodyMetrics = demoMode
     // the Apple twin, so they can never drift apart.
     wrapCard: (() => {
       const w = st.liveWrap;
-      if (demoMode || !w?.show || !w.line) return null;
-      if (st.wrapDismissedOn && w.facts?.date && st.wrapDismissedOn === w.facts.date) return null;
+      const q = techniqueQuestion(app, st, demoMode);
+      const dismissed = (d) => !!(st.wrapDismissedOn && d && st.wrapDismissedOn === d);
+      if (demoMode || !w?.show || !w.line || dismissed(w.facts?.date)) {
+        // THE EVENING WITHOUT A PLATE: nothing logged to wrap (so no food
+        // card), but today's technique is still waiting on its answer. From
+        // 18:00, the wrap is just the question — and it stays to show its
+        // receipt if he answered it here tonight.
+        const day = st.liveRepertoire?.date;
+        if (questionOnlyWrap(q, { hour: new Date().getHours(), day, dismissedOn: st.wrapDismissedOn, answeredOn: st.techniqueAnsweredOn })) {
+          return { onlyTechnique: true, technique: q, note: 'Today’s technique', dismiss: () => app.dismissWrap(day) };
+        }
+        return null;
+      }
       const f = w.facts || {};
       const eatenKcal = Math.round(f.eaten?.kcal || 0);
       const eatenP = Math.round(f.eaten?.p || 0);
@@ -1082,6 +1111,7 @@ const bodyMetrics = demoMode
         speak: () => app.speakWrap(),
         openFuel: () => app.navigate('recipes'),
         dismiss: () => app.dismissWrap(),
+        technique: q,
       };
     })(),
     bootInfo: {

@@ -71,6 +71,7 @@ const FEATURES = [
   // 25 Sep, the Hormozi reel: a new technique is revealed on a reel, with sound
   ['Home · a new technique is revealed on a reel', 'New today, and next in line in your curriculum.'],
   ['Settings · sound effects ride the ambient session', 'Reveals and shuffles still spin, silently.'],
+  ['Wrap · did today’s technique land, logged in place', 'Logged to your Repertoire'],
   ['Galaxy · legend plurals (same commit as the first-visit paint fix)', 'analyses'],
   ['Galaxy · pinch-zoom + pan, legend filters, recency/compost overlays', 'pinch to zoom'],
   ['Inbox · training-check dismiss asks what happened (four chips)', 'ONE TAP KEEPS THE RECORD STRAIGHT'],
