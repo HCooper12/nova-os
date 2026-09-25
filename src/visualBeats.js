@@ -74,31 +74,53 @@ export function balancedFrom(s, start) {
 //   items on a "key"       → it is a list; draw it as one
 // Every field is still clamped, an unknown shape still draws nothing, and a
 // malformed directive still costs its panel rather than the reply.
+//
+// 25 Sep 2026, the Coach's real turns, the same lesson a third time: its
+// panels said {"kind":"key","title":…,"value":"<a sentence>"}, a
+// {"key":"Headline","value":…} with no kind at all, bars as
+// "items":[{"label":"Back","value":12}], and a metric carrying a list of
+// figures. Every key panel was dropped (no caption), the kindless one became
+// a "metric" whose number was the first 28 characters of a sentence, and the
+// bars and the figures vanished. So: a sentence in `value` is a caption, a
+// bare `key` is the heading, items with label/value are bars or notes.
 const firstString = (d, keys) => {
   for (const k of keys) if (typeof d[k] === 'string' && d[k].trim()) return d[k];
   return '';
+};
+// "84", "36% shorter", "1h 55m" are figures; "Keep the split. Keep 3 sets." is not
+const isSentence = (v) => typeof v === 'string' && (v.trim().split(/\s+/).length > 3 || v.trim().length > 24);
+const itemName = (i) => (typeof i === 'string' ? i : firstString(i || {}, ['name', 'label', 'title', 'text']));
+const itemNote = (i) => {
+  if (!i || typeof i !== 'object') return '';
+  const n = firstString(i, ['note', 'detail', 'caption']);
+  if (n) return n;
+  return i.value != null && i.value !== '' ? `${i.value}${typeof i.unit === 'string' ? ` ${i.unit}` : ''}` : '';
 };
 
 export function normaliseSpec(d) {
   if (!d || typeof d !== 'object') return null;
   let kind = String(d.kind ?? '').toLowerCase();
   const hasItems = Array.isArray(d.items) && d.items.length;
-  if (!VISUAL_KINDS.includes(kind)) kind = hasItems ? 'list' : (d.value != null ? 'metric' : 'key');
+  const known = VISUAL_KINDS.includes(kind);
+  if (!known) kind = hasItems ? 'list' : (d.value != null && !isSentence(d.value) ? 'metric' : 'key');
   // a panel of points is a list however it was announced
   if (kind === 'key' && hasItems) kind = 'list';
+  // a metric with no figure of its own but a row of them is a list of figures
+  if (kind === 'metric' && hasItems && (d.value == null || d.value === '')) kind = 'list';
   // A missing label used to drop the panel entirely. Caught on the first real
   // run: the model copied the per-kind examples, which omitted `label`, and
   // all three of its panels vanished — the directive cost its text and put
   // nothing on the glass, which is the worst of both. The heading is
   // decoration; the content is the substance. So the panel stands without one
   // rather than being lost, and StageCard simply omits the line.
-  const label = clean(firstString(d, ['label', 'title', 'heading', 'name']), 42).toUpperCase();
-  const base = { kind, label, caption: clean(firstString(d, ['caption', 'text', 'summary', 'body']), 140) || null };
+  const label = clean(firstString(d, ['label', 'title', 'heading', 'name', ...(known ? [] : ['key'])]), 42).toUpperCase();
+  const caption = firstString(d, ['caption', 'text', 'summary', 'body']) || (kind !== 'metric' && isSentence(d.value) ? d.value : '');
+  const base = { kind, label, caption: clean(caption, 140) || null };
   if (kind === 'key') return base.caption ? base : null;
   if (kind === 'steps' || kind === 'list') {
     const items = (Array.isArray(d.items) ? d.items : [])
-      .map((i) => (typeof i === 'string' ? { name: i } : i))
-      .filter((i) => i && clean(i.name, 60))
+      .map((i) => ({ name: itemName(i), note: itemNote(i) }))
+      .filter((i) => clean(i.name, 60))
       .slice(0, 6)
       .map((i) => ({ name: clean(i.name, 60), note: clean(i.note, 48) || null }));
     if (!items.length) return null;
@@ -133,10 +155,10 @@ export function normaliseSpec(d) {
     return value ? { ...base, value, unit: clean(d.unit, 8) || null } : null;
   }
   if (kind === 'bars') {
-    const bars = (Array.isArray(d.bars) ? d.bars : [])
+    const bars = (Array.isArray(d.bars) ? d.bars : Array.isArray(d.items) ? d.items : [])
       .filter((b) => b && b.value != null && Number.isFinite(Number(b.value)))
       .slice(0, 6)
-      .map((b) => ({ name: clean(b.name, 18), value: Number(b.value) }));
+      .map((b) => ({ name: clean(itemName(b), 18), value: Number(b.value) }));
     return bars.length >= 2 ? { ...base, bars } : null;   // one bar is a number, not a chart
   }
   return null;

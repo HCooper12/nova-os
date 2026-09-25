@@ -228,3 +228,26 @@ test('the new kinds stream like the old ones — withheld whole while typed', ()
   assert.equal(r.beats[0].spec.kind, 'body');
   assert.ok(VISUAL_KINDS.includes('program'));
 });
+
+// ---- what the Coach ACTUALLY sent, 25 Sep 2026 ----
+//
+// Verbatim from his Coach conversation that morning. Every key panel said its
+// sentence in `value`, so all of them were dropped; a kindless {"key":…}
+// became a "metric" whose number was 28 characters of a sentence; the bars
+// and the meta-analysis figures vanished. Only the plain lists survived.
+test('the Coach\'s real panels all reach the glass, as what they meant', () => {
+  const headline = normaliseSpec({ key: 'Headline', value: 'Keep the split. Keep 3 sets. Pair your exercises and rest on a clock, and all 27 sets fit in about 55 minutes.' });
+  assert.equal(headline.kind, 'key', 'a sentence is not a number');
+  assert.equal(headline.label, 'HEADLINE');
+  assert.match(headline.caption, /^Keep the split/);
+  const fair = normaliseSpec({ kind: 'key', title: 'Fair point', value: 'Turn down both curl cards. Move the rope overhead tricep extension to Push instead.' });
+  assert.equal(fair.caption, 'Turn down both curl cards. Move the rope overhead tricep extension to Push instead.');
+  const bars = normaliseSpec({ kind: 'bars', title: 'Weekly direct sets, current program', unit: 'sets', items: [{ label: 'Back', value: 12 }, { label: 'Biceps', value: 12 }, { label: 'Side delts', value: 6 }] });
+  assert.deepEqual(bars.bars.map((b) => [b.name, b.value]), [['Back', 12], ['Biceps', 12], ['Side delts', 6]]);
+  const figures = normaliseSpec({ kind: 'metric', title: 'Supersets vs traditional sets, 2025 meta-analysis', items: [{ label: 'Session time', value: '36% shorter' }, { label: 'Volume lost', value: 'None' }] });
+  assert.equal(figures.kind, 'list', 'a row of figures with no figure of its own is a list of them');
+  assert.deepEqual(figures.items[0], { name: 'Session time', note: '36% shorter' });
+  // a real figure is still a metric
+  assert.equal(normaliseSpec({ value: '84', unit: 'g', label: 'Protein' }).kind, 'metric');
+  assert.equal(normaliseSpec({ kind: 'metric', label: 'Session', value: '55', unit: 'min' }).value, '55');
+});
