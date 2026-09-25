@@ -46,7 +46,7 @@ function bodyFor(routines, schedule, exercisesById) {
   return lines.join('\n');
 }
 
-function parseRoutines(raw) {
+export function parseRoutines(raw) {
   const data = matter(raw).data;
   return { routines: Array.isArray(data.routines) ? data.routines : [], schedule: data.schedule || {} };
 }
