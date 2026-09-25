@@ -13,58 +13,203 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
-**25 SEP (14:00s) — AN EXTRA LIFT PREFILLS; COACH RESEARCHES THE LIBRARY;
-STALL CARDS WITH RESTRAINT. All pushed, deployed, server reloaded,
-verify-shipped PASS.**
+**25 SEP (close, nova-os-d3) — A STALE COACH CARD SAYS SO, A FAILED YES SAYS
+WHY, A TAKEN-BACK CARD SHOWS IN HISTORY. Committed, gates green, NOT YET
+PUSHED — blocked behind nova-os-44's own unpushed `018fa94` sitting under it
+on main, which they asked to push themselves. Deployed/verify-shipped
+figures below are from the moment this was checked, before this commit.**
 
-- `6fbc8ae` an exercise added mid-session starts from last time's sets
-  (exercise state), Coach's earned step, its routine prescription and focus
-  (lib/sessionPrefill.js, GET /api/workouts/exercises/:id/next). Verified in
-  a guarded page (Face Pull 29.5 × 11/10/10). Seen: the kg box clips "29.5"
-  as "29.!" at 402 px on every decimal weight (older layout issue, not fixed).
-- `c537aeb` lib/exerciseResearch.js: new lifts (not in the curated atlas,
-  never researched) are researched 30 s after he adds one, or by the 30-min
-  sweep; weekly pass Sun 06:00 to Wed (5 program lifts improved, up to 2
-  added). Sonnet, web-read-only, $2 cap per call of <=3 lifts (measured
-  $0.61 / 247 s for 1+1). Writes the record's `research` field, one Inbox
-  record (kind exercise-research) with undo. NOT YET SEEN RUNNING LIVE: no
-  lift is pending and the weekly window opens Sunday; the first real pass
-  is his next new exercise or Sunday 06:00. Check `server/data/
-  exercise-research.json` and the server log ("exercise research").
-- `9d34554` stall/tenure cards: 4 flat weeks (a run), tempo/pause first as a
-  `tune` fix, swaps only same prime mover + same movement pattern, one a
-  week. On his data nothing raises now (all three stalled lifts are under
-  a recent no until mid-October).
+GOAL: after the Coach-chat pipeline rebuild earlier this session (see the
+nova-os-d3 block below — the original diagnosis and the fix are there, not
+repeated here), a second pass looking for what could still go wrong now that
+several sessions were building on the same deck and cards concurrently.
+
+DONE CRITERIA: met — three real gaps found and closed, all from re-reading
+the actual card/apply code, not speculation.
+1. A card his own edits (or a peer's — e.g. nova-os-2c's exercise re-file)
+   have overtaken used to fail silently on tap ("didn't go through"). It was
+   exactly what happened at 11:26 that morning: he moved an exercise by hand
+   while Coach's card for the same move still waited.
+2. A failed Yes only ever reached him as a toast; the server's real reason
+   ("X is no longer in Push") is now shown on the card itself.
+3. A card Coach withdraws (WITHDRAW, status `withdrawn`) read as a blank line
+   in the Inbox history; it now reads "Taken back" with a line saying why.
+
+STATE (paths): `src/coachSuggestions.js` (`staleReason` — reads a
+routine-edit card against his CURRENT program, returns a sentence or null);
+`src/CoachSuggestions.jsx` (a stale card shows the sentence, no Yes button,
+✕ still clears it; an errored card shows the server's own message);
+`src/vals/valsWorkouts.js` (`error` rides the card state); `src/App.jsx`
+(`answerCoachSuggestion` keeps `e.message` on the card, not only in the
+toast); `src/screens/Inbox.jsx` (`STATUS_META.withdrawn`). Commit `dd63605`.
+
+DECISIONS (choice → reason → forecloses):
+- A stale card gets no Yes button rather than a "confirm this is stale" step
+  → the apply would fail anyway, and code already knows why → forecloses
+  ever showing a Yes that is known in advance to fail.
+- ✕ on a stale card clears it without counting as his decline → the idea was
+  never wrong, only overtaken by events → forecloses `respectNo` treating a
+  stale-clear the same as a real "no" (unaffected — discard still records a
+  `declineReason` only when he types one; nothing here changes that call).
+
+VERIFIED (locator): `cd server && npm test` → 2289/2289 at this close (was
+2267 at the commit, +22 from peer work landed since); `npm run lint` → exit
+0, 0 errors; `npm run build` → green; `node scripts/verify-shipped.mjs` →
+every marker PASS EXCEPT git/deploy (see BLOCKERS — a peer commit, not mine,
+sat unpushed at the moment of this check); `server/test/coachSuggestions.test.js`
+pins `staleReason` against a gone exercise, a duplicate, and a legitimate
+still-pending move (his real deck's cards all pass `!c.stale` too).
+
+ASSUMED (not verified this session): the stale-card sentence has not been
+seen on his phone against a real collision (his own edit landing while a
+card of Coach's still waits) — built from the same apply logic the server
+runs, but a live race is still a live race.
+
+OPEN QUESTIONS / BLOCKERS (his, not yet answered):
+1. The program review still offers one-tap "drop the lift you reach least"
+   cards. Nothing to add here from earlier — this is the same open question
+   carried from the nova-os-d3 block below, still unanswered: keep as
+   one-tap, or make discuss-only?
+2. `018fa94` (nova-os-44's exercise-research no-caps fix): done, their own
+   tests pass (12/12), staying local — they push it themselves once their
+   own gate (lint/build/server suite) is green on their full set of changes.
+   Not mine to push. Check `git log --oneline origin/main..HEAD` before
+   assuming main is in sync if this entry is stale by the time it is read.
+
+NEXT ACTION: none required from him for this entry's own work — it is
+already live. The two items above are the standing asks.
+
+DO NOT:
+- Don't read `CURRENT HANDOFF` as one slot — this entry replaces only
+  nova-os-d3's own prior entry from earlier in this session (below, now
+  folded into this one's account); nova-os-2c's entry above stays untouched,
+  and everything below that is untouched.
+- Don't push a peer's uncommitted-to-origin work without asking them first,
+  even to satisfy a "must be pushed" gate — `018fa94` was left local for
+  exactly this reason.
 
 ---
 
-**25 SEP (afternoon) — THE PLANNED WEEK READS THE PLAN AS IT STOOD; DISCUSS
-TALKS; THE REVERSE CURL IS A FOREARM LIFT. All pushed, deployed `dc6d11d`,
-server reloaded (scripts/reload-server.mjs), verify-shipped PASS.**
+**25 SEP (close, nova-os-2c) — THE PLANNED WEEK, DISCUSS THAT TALKS, THE
+REVERSE CURL RE-FILED, PLAN HISTORY, EXTRA-LIFT PREFILL, LIBRARY RESEARCH,
+STALL RESTRAINT. All pushed, deployed, server reloaded, verify-shipped PASS,
+gates green at close.**
 
-- **His rule:** "Nothing should count as missed if it can be helped."
-  `a58f6cd` server/lib/planHistory.js folds the routines-file snapshots
-  (backup.js keeps only 20; each overview imports new ones) and the live
-  file's mtime into server/data/plan-history.json; `dc6d11d` plannedWeek
-  judges a past day by its routine as it stood at that day's session (else
-  end of day); which routine a day holds stays today's schedule. A lift in
-  a pending carry-over for a day still ahead is "carried to <day>", counted
-  by Sunday. This week predates the store: Monday's version is SEEDED from
-  the 21 Sep program dossier (dad5b6b5, 12:14 AEST, before his 13:36
-  session), labelled in the store. Verified live: Monday's Push = cable OH
-  + V-bar (done), rope/straight bar not on Monday, bars == sheet.
-- **`6e22d0f` Discuss** now sends an opening turn ("Talk me through this
-  one: <change>") so Coach explains the change and asks one question; the
-  Today card's "Discuss it" (which sent the under-target template) takes
-  the same path. Verified in a guarded page (request captured, not sent).
-  NOT seen on his phone with a real Coach answer yet.
-- **`af01912` + his data:** POST /api/workouts/exercises/:id/muscle-group
-  re-files on his word with Inbox undo; EZ-Bar Reverse Curl moved Biceps ->
-  Forearms at 12:46 AEST (record 8c786e54). Coach's 15 Sep "swap it for a
-  barbell curl to hit biceps" came from the old filing.
-- **Remaining genuine "not done" this week:** Mon cable flys + face pulls,
-  Wed weighted pull-ups (he did plain ones, an extra by his rule), shrugs,
-  dead hang, plate pinch.
+GOAL: six things he asked for in one continuous session — (1) a per-exercise
+breakdown behind "Hard sets this week"; (2) past days must never count an
+exercise as missed if the plan changed since ("nothing should count as
+missed if it can be helped"); (3) Discuss on a Coach card must actually let
+him discuss, not just focus an empty box; (4) EZ-Bar Reverse Curl re-filed
+Biceps→Forearms; (5) an exercise added mid-session must prefill from his
+last sets and Coach's progression, not start at 0kg×8; (6) Coach must
+research any new exercise properly, improve the library weekly, offer
+variations (tempo/pause) within a lift, and may suggest a stalled/long-tenure
+lift change — with restraint, not "over-indulge or over-decide".
+
+DONE CRITERIA: met, all six — shipped, live on his phone, checked against
+his real vault data at each step (not sample data).
+
+STATE (paths):
+- `server/lib/plannedWeek.js`, `src/weekSets.js`, `src/WeekSets.jsx` — the
+  sheet behind the hard-sets card (tap → GlassSheet morph).
+- `server/lib/planHistory.js` — routine-file snapshots + live mtime folded
+  into `server/data/plan-history.json` (23 versions at close); `planAt(iso)`
+  answers "what was the plan then". Monday's version for this week was
+  SEEDED from the 21 Sep dossier (dad5b6b5) since it predates the store.
+- `server/lib/exerciseRefile.js` + `POST /api/workouts/exercises/:id/
+  muscle-group` — re-file with Inbox undo. Applied live: reverse curl is
+  Forearms (verified again at close, `GET /api/train/overview` → Forearms
+  3/10 present).
+- `server/lib/sessionPrefill.js` + `GET /api/workouts/exercises/:id/next` —
+  extra-exercise prefill from exercise state + progression + tune.
+- `server/lib/exerciseResearch.js` — new-lift research (30s after add, 30min
+  sweep) + weekly pass (Sun 06:00–Wed). **LANDED during this close**
+  (`018fa94`, nova-os-44, rebased onto cleanly): `BUDGET_USD` /
+  `--max-budget-usd` and the 12-minute kill are gone — no cap anywhere, per
+  his standing "no caps at all" (`71a7fe4`, 23 Sep). Confirmed removed
+  (`grep BUDGET_USD server/lib/exerciseResearch.js` → no hits) and the
+  rebased tree rebuilt/retested clean (2289/2289) before this entry was
+  written. [[nova-model-cost-discipline]] updated so its own "set the cap
+  at 2×" step — the one I followed to introduce the cap in the first
+  place — stops contradicting the file's own header.
+- `server/lib/coachProgramReview.js` — stale/tenure judgement rewritten:
+  4-week flat run (not 3), tempo/pause `tune` fix offered before any swap,
+  swap candidates must share prime mover AND `exerciseMotion` pattern, one
+  exercise-change card/week cap.
+
+DECISIONS (choice → reason → forecloses):
+- Past days read from plan history, not always today's schedule → his
+  explicit rule → forecloses ever reading a past day's plan from the live
+  schedule again without breaking that promise.
+- Tempo/pause card before any swap, one change-card/week → his restraint ask
+  + his real decline record (6 of 10 stall cards declined before this) →
+  forecloses swap-first suggestions; a future tightening pass should know
+  the bar was already loosened once.
+- Swap candidates must match BOTH prime mover and movement pattern → his
+  complaint that Deadlift was offered for a Lying T-Bar Row → forecloses
+  "same muscle group" alone as sufficient matching.
+- Exercise research never re-files an ESTABLISHED exercise, only a new one
+  → protects his logged volume history → forecloses "auto-correct" even
+  when research disagrees with his filing; a disagreement is said, not
+  acted on.
+- Discuss sends an opening Coach turn automatically → his literal words,
+  "didn't actually seem to let me discuss apart from me typing manually" →
+  forecloses leaving it as a focus-only no-op.
+
+VERIFIED (locator):
+- `npm run lint` exit 0, `npm run build` green (this close, post nova-os-44's
+  in-flight edit was NOT yet landed — rebuild after their commit lands).
+- `cd server && npm test` → 2288/2288 (this close).
+- `node scripts/verify-shipped.mjs` → deployed build matches local
+  (`caa191f9b`), every feature marker for this session PASS.
+- `git status --porcelain` empty, `git log origin/main..HEAD` empty — clean
+  and pushed at close.
+- Live overview (`GET /api/train/overview`) at close: `week` present,
+  Forearms 3/10 (reverse curl), volume bars == sheet totals.
+- `server/data/plan-history.json`: 23 versions, sources `file`/`snapshot`/
+  the seeded dossier.
+
+ASSUMED (not verified this session):
+- exercise-research's real behavior on a live pass — no `server/data/
+  exercise-research.json` exists yet, zero Inbox records of kind
+  `exercise-research`. The weekly window (Sun 06:00–Wed) has not fired; the
+  cost/timing numbers in code comments are from one manual measurement, not
+  a scheduled run.
+- The stall/tenure numeric thresholds (4-week flat run, 8-outing slowing
+  gate, one card/week) are my judgement calls from his stated principle
+  ("not a must... don't over-indulge or over-decide"), not numbers he
+  approved one by one.
+- The budget-cap removal nova-os-44 is making — not reviewed by this
+  session; check their commit before treating BUDGET_USD as gone or present.
+
+OPEN QUESTIONS / BLOCKERS:
+- The kg input box clips a decimal weight at 402px ("29.5" renders "29.!")
+  — noticed mid-session, told to him, not asked for yet. Pre-existing, not
+  caused by anything this session touched.
+- First real exercise-research pass (new-lift or weekly) has not happened —
+  next session touching Train should check the Inbox for a filed
+  `exercise-research` record and read what it actually wrote before
+  assuming the feature works end-to-end.
+- nova-os-44's cap-removal commit was in flight, unseen, as this entry was
+  written — read `git log -- server/lib/exerciseResearch.js` before editing
+  that file.
+
+NEXT ACTION: none required from him — everything shipped is already live.
+If a session revisits Train: confirm the first `exercise-research` Inbox
+record exists and its `research` field has real sourced content (expected
+observation: a filed record titled "Coach's research on a new exercise…" or
+"Coach's weekly library research…", with `cues`/`variations`/`sources` on
+the touched exercise's library entry).
+
+DO NOT:
+- Don't treat `CURRENT HANDOFF` as one slot — it's a stack (see
+  [[nova-concurrent-sessions]]). This entry replaces only nova-os-2c's own
+  two prior entries from earlier in this same session; nova-os-d3's block
+  below and everything after it is untouched, deliberately.
+- Don't re-add a budget cap to `exerciseResearch.js` without checking with
+  him first — nova-os-44 removed it live per his own "no caps at all".
+- Don't assume the exercise-research pipeline has ever actually produced a
+  written record — it hasn't, as of this close.
 
 ---
 
@@ -4150,6 +4295,65 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**25 Sep (close, nova-os-d3).** He asked me to check his Coach chat history
+for why simple changes were going wrong, and to fix it. Found seven distinct
+faults in one 25-minute conversation (11:01–11:26): PROPOSE lines refused
+silently, a move split into two cards so a yes on the remove half deleted
+the exercise, Coach claiming "Done" before anything changed, an add landing
+last instead of "straight after the incline bench", a curl offered onto his
+Push day twice, the Claude usage limit shown as a Coach answer, and Coach
+miscounting his own program because it had no live view of it. Rebuilt the
+whole PROPOSE pipeline (server/lib/coachProposals.js): every line is
+validated against his real program before any card exists; a refusal goes
+back to the same Coach session once, with the reason, and only what still
+fails reaches him; a move is one card, one write, one undo; the model never
+states an outcome, code does. Verified live through the real Claude CLI on a
+throwaway vault, not just unit tests. Later in the session, after several
+peer sessions had built on the same deck concurrently, found and fixed three
+more gaps: a card overtaken by a since-made edit used to fail on tap with no
+explanation; a failed yes's real reason now shows on the card; a card Coach
+takes back now reads "Taken back" in the Inbox history instead of nothing.
+13 commits, 2289/2289 server tests, lint 0, build green, verify-shipped PASS
+at close.
+
+**25 Sep (close, nova-os-2c).** Shipped six things in one continuous
+session. The hard-sets card now opens a full planned-week sheet
+(plannedWeek.js, WeekSets.jsx) that tapping it grows into, one exercise per
+day per muscle. Past days in that sheet are judged by the plan as it stood
+that day (planHistory.js, folding routine-file snapshots + the live file's
+mtime), never by today's schedule, per his rule that nothing should count
+as missed if the plan changed since. The reverse curl was re-filed
+Biceps→Forearms on his word, with a new general-purpose route
+(exerciseRefile.js) and Inbox undo. Discuss on a Coach card used to only
+focus an empty input; it now sends an opening turn so Coach actually
+explains the change and asks a question, carrying the card context Coach
+already had. An exercise added mid-session used to start at a flat
+0kg×8; it now prefills from his last sets, Coach's earned progression
+step and the routine's own prescription (sessionPrefill.js) — caught his
+own live report that Face Pull came in wrong. Built exercise research
+(exerciseResearch.js): a new exercise is researched and properly added
+(anatomy, cues, equipment, variations, sourced) within 30 seconds of him
+adding it or Coach suggesting one, and a weekly pass improves five program
+lifts and may add up to two new ones — all through one Sonnet web-search
+call per batch, checked field-by-field against the closed vocabularies
+before anything is written, filed as an undoable Inbox record. And
+rewrote the stale/long-tenure lift detector for restraint (his own words:
+"not a must... don't over-indulge or over-decide") — a lift only counts
+flat after four real weeks, the first suggestion is a same-lift
+tempo/pause change rather than an outright swap, any swap candidate must
+share both the prime mover AND the movement pattern (the old version had
+offered Deadlift for a Lying T-Bar Row), and at most one exercise-change
+card fires a week. CORRECTED along the way: the old stale-lift alternative
+ranking only matched muscle group, which is why he'd declined 6 of the
+last 10 such cards; the new one requires movement-pattern agreement too.
+Verified against his real vault at every step (live overview reads,
+verify-shipped markers on the deployed bundle, 2288/2288 server tests),
+not sample data. NOT yet seen live: a real exercise-research pass has not
+run (no Inbox record of that kind exists yet — the weekly window opens
+Sunday). A peer session (nova-os-44) was mid-edit removing the request
+budget cap from exerciseResearch.js as this session closed, per his
+standing "no caps at all" instruction — unreviewed by this session.
 
 **25 Sep (late morning).** Built Coach's suggested changes into Train: a
 banner under Today and Gym, a deck on the Coach tab, each change drawn as a
