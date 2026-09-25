@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en" data-nv-calm="0" data-daypart="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Agent World · habitat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!--
+  50 · THE AGENT WORLD: THE HABITAT (25 Sep)
+  design/AGENT-WORLD-PLAN.md §9b and §9c. The seven tiles exactly as the Org
+  Map draws them (src/orgmap/scene.js), the nine beings on their home spots,
+  and what this pass adds: a small set on the back half of every tile, the
+  lanes (a ring through the tiles' inner edges, spokes, the plaza ring), the
+  plaza (two benches, the post, lamps at the four nearest spoke ends) and the
+  time of day.
+
+  The set, the lanes and the lamps live in src/agentWorld/habitat.js, the
+  beings in src/agentWorld/beings.js; this page imports both, and so will the
+  map. Publish the output of scripts/agent-sheet/bundle.mjs --page
+  50-habitat.html, never this importing file.
+
+  Same renderer and conventions as 49 (ACES at 1.05, sRGB, PCF soft shadows,
+  a room environment built from panels, a shadow-only ground, colours read
+  as --nv-* tokens off the mount). Nothing moves on its own: the frame loop
+  runs while the camera eases or a lamp fades, then sleeps. The beings hold
+  their waiting pose; their life is the life engine's, not this page's.
+
+  Hash: daypart=dawn|day|evening|night, district=<id> (a close-up of one
+  tile from the front-right at eye level), lit=1 (every district lamp on),
+  spin, elev, t, calm=1, motion=reduce. __agentSheet.still() draws a
+  deterministic frame now (headless Chrome barely drives rAF).
+-->
+<style>
+  :root {
+    --nv-font-ui:'Rajdhani','Instrument Sans',system-ui,sans-serif;
+    --nv-font-serif:'Instrument Serif',serif;
+    --nv-font-mono:'IBM Plex Mono',monospace;
+    --nv-micro-track:.14em; --nv-micro-track-wide:.2em;
+    --nv-ease:cubic-bezier(.32,.72,0,1);
+    --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-dur-slow:.44s;
+
+    --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
+    --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink40:rgba(232,236,246,.38);
+    --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
+    --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
+    --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
+    --nv-good:#5fe8a8; --nv-warn:#e08383;
+    --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-shoulders:#ffc46b;
+    --nv-m-quads:#7ab8ff; --nv-m-calves:#8fd3ff; --nv-m-abs:#ffd66b;
+    --nv-m-triceps:#b48cff; --nv-m-biceps:#5fe8a8; --nv-m-glutes:#c98bff;
+    --nv-acc:#59e6ff; --nv-acc-bg:rgba(89,230,255,.07); --nv-acc-border:rgba(89,230,255,.42);
+    --nv-radius:10px;
+    --nv-aur1:rgba(89,230,255,.12); --nv-aur2:rgba(143,123,255,.14);
+    --nv-blur:18px;
+    --nv-key:#fff2e2; --nv-fill:#bcd4ff; --nv-rim:#9fdcff;
+    --nv-shell:#c9d3e4;
+    --nv-emissive:1;
+    --nv-env:.72;
+    --nv-stage:#0d1426;
+  }
+  :root[data-nv-calm="1"] {
+    --nv-void:#070b13; --nv-bg1:#0c1424; --nv-bg2:#152742;
+    --nv-ink:#ece5da; --nv-ink60:rgba(236,229,218,.62); --nv-ink40:rgba(236,229,218,.38);
+    --nv-glass:rgba(21,28,44,.55); --nv-glass2:rgba(28,38,58,.75);
+    --nv-edge:rgba(236,229,218,.12); --nv-spec:rgba(236,229,218,.3);
+    --nv-cy:#6be5f5; --nv-vi:#a68ce2; --nv-mg:#e08f6f; --nv-gold:#d8b573; --nv-good:#5aa87c;
+    --nv-acc:#d8b573; --nv-acc-bg:rgba(216,181,115,.1); --nv-acc-border:rgba(216,181,115,.38);
+    --nv-radius:14px;
+    --nv-aur1:rgba(138,106,209,.13); --nv-aur2:rgba(107,229,245,.07);
+    --nv-blur:26px;
+    --nv-key:#ffeeda; --nv-fill:#cbb9d8; --nv-rim:#d8b573;
+    --nv-shell:#d4ccc0;
+    --nv-emissive:.55;
+    --nv-env:.86;
+    --nv-stage:#121a2c;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--nv-void); color: var(--nv-ink);
+    font-family: var(--nv-font-ui); overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* the sky follows the part of the day, from the same tokens */
+  #sky {
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(120% 80% at 50% 8%, var(--nv-aur1), transparent 62%),
+      radial-gradient(90% 70% at 12% 96%, var(--nv-aur2), transparent 60%),
+      linear-gradient(176deg, var(--nv-bg2) 0%, var(--nv-bg1) 46%, var(--nv-void) 100%);
+  }
+  :root[data-daypart="dawn"] #sky {
+    background:
+      radial-gradient(90% 60% at 92% 36%, color-mix(in srgb, var(--nv-m-chest) 20%, transparent), transparent 64%),
+      radial-gradient(120% 80% at 50% 8%, var(--nv-aur1), transparent 62%),
+      linear-gradient(176deg, var(--nv-bg2) 0%, var(--nv-bg1) 46%, var(--nv-void) 100%);
+  }
+  :root[data-daypart="evening"] #sky {
+    background:
+      radial-gradient(90% 60% at 8% 36%, color-mix(in srgb, var(--nv-gold) 22%, transparent), transparent 64%),
+      radial-gradient(90% 70% at 88% 96%, var(--nv-aur2), transparent 60%),
+      linear-gradient(176deg, var(--nv-bg2) 0%, var(--nv-bg1) 46%, var(--nv-void) 100%);
+  }
+  :root[data-daypart="night"] #sky {
+    background:
+      radial-gradient(80% 50% at 50% 0%, color-mix(in srgb, var(--nv-vi) 10%, transparent), transparent 70%),
+      linear-gradient(176deg, var(--nv-bg1) 0%, var(--nv-void) 70%);
+  }
+  #stage { position: fixed; inset: 0; z-index: 1; touch-action: none; cursor: grab; }
+  #stage.dragging { cursor: grabbing; }
+  #stage canvas { display: block; }
+
+  header {
+    position: fixed; z-index: 3; top: 0; left: 0;
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 16px 18px 0; pointer-events: none; max-width: 56vw;
+  }
+  h1 { margin: 0; font-family: var(--nv-font-serif); font-weight: 400; font-size: clamp(18px, 3.4vw, 25px); letter-spacing: .01em; line-height: 1.1; }
+  h1 em { font-style: italic; color: var(--nv-ink60); }
+  .kicker { font: 500 9px var(--nv-font-mono); letter-spacing: var(--nv-micro-track-wide); text-transform: uppercase; color: var(--nv-ink40); }
+  #tools {
+    position: fixed; z-index: 5; top: 14px; right: 14px;
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; max-width: min(460px, calc(100vw - 28px));
+  }
+  .tool {
+    appearance: none; border: 1px solid var(--nv-edge);
+    background: var(--nv-glass); backdrop-filter: blur(var(--nv-blur)); -webkit-backdrop-filter: blur(var(--nv-blur));
+    color: var(--nv-ink60); font: 500 9px var(--nv-font-mono);
+    letter-spacing: var(--nv-micro-track); text-transform: uppercase;
+    padding: 7px 10px; border-radius: var(--nv-radius); cursor: pointer;
+    transition: color var(--nv-dur-fast) var(--nv-ease), border-color var(--nv-dur-fast) var(--nv-ease), background var(--nv-dur-fast) var(--nv-ease);
+  }
+  .tool[aria-pressed="true"] { color: var(--nv-acc); border-color: var(--nv-acc-border); background: var(--nv-acc-bg); }
+  .seg { display: flex; gap: 0; }
+  .seg .tool { border-radius: 0; margin-left: -1px; }
+  .seg .tool:first-child { border-radius: var(--nv-radius) 0 0 var(--nv-radius); margin-left: 0; }
+  .seg .tool:last-child { border-radius: 0 var(--nv-radius) var(--nv-radius) 0; }
+
+  /* the caption: a side panel over 900px, a bottom card under it; the
+     camera fits into whatever it leaves free */
+  #caption {
+    position: fixed; z-index: 4;
+    border: 1px solid var(--nv-edge); border-radius: calc(var(--nv-radius) + 4px);
+    background: var(--nv-glass); backdrop-filter: blur(var(--nv-blur)) saturate(140%); -webkit-backdrop-filter: blur(var(--nv-blur)) saturate(140%);
+    box-shadow: 0 18px 50px -28px rgba(0,0,0,.9), inset 0 1px 0 var(--nv-spec);
+    padding: 13px 16px 12px; left: 12px; right: 12px; bottom: 12px; max-height: 30vh; overflow: auto;
+  }
+  @media (min-width: 901px) {
+    #caption { left: auto; right: 16px; bottom: auto; top: 50%; transform: translateY(-50%); width: 310px; max-height: min(70vh, 520px); }
+  }
+  #cap-kicker { font: 500 9px var(--nv-font-mono); letter-spacing: var(--nv-micro-track-wide); text-transform: uppercase; color: var(--cap-hue, var(--nv-acc)); display: flex; align-items: center; gap: 7px; }
+  #cap-kicker::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--cap-hue, var(--nv-acc)); box-shadow: 0 0 10px -1px var(--cap-hue, var(--nv-acc)); }
+  #cap-name { font-family: var(--nv-font-serif); font-weight: 400; font-size: clamp(21px, 5vw, 28px); line-height: 1.05; margin: 2px 0 4px; }
+  #cap-line { font-size: 14px; line-height: 1.38; color: var(--nv-ink60); }
+  #cap-lit { margin-top: 7px; font: 500 9px var(--nv-font-mono); letter-spacing: var(--nv-micro-track); text-transform: uppercase; color: var(--nv-ink40); line-height: 1.6; }
+  #frames { position: fixed; z-index: 3; left: 14px; top: 64px; font: 400 9px var(--nv-font-mono); letter-spacing: .1em; color: var(--nv-ink40); opacity: .5; pointer-events: none; }
+  #fallback { position: fixed; inset: 0; z-index: 6; display: none; place-items: center; padding: 24px; text-align: center; color: var(--nv-ink60); font-size: 15px; }
+  @media (max-width: 700px) {
+    header { padding: 12px 14px 0; }
+    h1 { font-size: 19px; }
+    #cap-line { font-size: 13px; }
+    #tools { top: 12px; right: 12px; max-width: calc(100vw - 150px); }
+  }
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div id="stage"></div>
+
+<header>
+  <h1>The Agent World <em>· habitat</em></h1>
+  <span class="kicker">where the nine live · §9b</span>
+</header>
+
+<div id="tools">
+  <div class="seg" role="group" aria-label="Time of day">
+    <button class="tool dp" data-part="dawn" aria-pressed="false">Dawn</button>
+    <button class="tool dp" data-part="day" aria-pressed="true">Day</button>
+    <button class="tool dp" data-part="evening" aria-pressed="false">Eve</button>
+    <button class="tool dp" data-part="night" aria-pressed="false">Night</button>
+  </div>
+  <button class="tool" id="t-lit" aria-pressed="false">Loops ran</button>
+  <button class="tool" id="t-fit">Whole ring</button>
+  <button class="tool" id="t-motion" aria-pressed="false">Reduce motion</button>
+  <button class="tool" id="t-calm" aria-pressed="false">Calm</button>
+</div>
+
+<div id="caption">
+  <div id="cap-kicker"></div>
+  <div id="cap-name"></div>
+  <div id="cap-line"></div>
+  <div id="cap-lit"></div>
+</div>
+
+<div id="frames">frames 0</div>
+<div id="fallback">The habitat needs WebGL. On the real surface the fallback is the same view model drawn as a list.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script type="module">
+import { createBeingKit } from '../../src/agentWorld/beings.js';
+import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
+(function () {
+  'use strict';
+  if (!window.THREE) { document.getElementById('fallback').style.display = 'grid'; return; }
+  var T = window.THREE;
+  var root = document.documentElement;
+  var mount = document.getElementById('stage');
+  var PHONE_W = 700;
+
+  // ---------------------------------------------------------------
+  // TOKENS, read off the mount (49's reader, field for field)
+  // ---------------------------------------------------------------
+  var TK = {};
+  function readTokens() {
+    var cs = getComputedStyle(mount);
+    function c(n) { return new T.Color(cs.getPropertyValue(n).trim() || '#888'); }
+    function f(n, d) { var v = parseFloat(cs.getPropertyValue(n)); return isNaN(v) ? d : v; }
+    TK.key = c('--nv-key'); TK.fill = c('--nv-fill'); TK.rim = c('--nv-rim');
+    TK.shell = c('--nv-shell'); TK.gold = c('--nv-gold'); TK.ink = c('--nv-ink');
+    TK.stage = c('--nv-stage'); TK.edge = c('--nv-cy'); TK.void = c('--nv-void');
+    TK.em = f('--nv-emissive', 1); TK.env = f('--nv-env', .72);
+    TK.hue = {
+      cy: c('--nv-cy'), vi: c('--nv-vi'), mg: c('--nv-mg'), good: c('--nv-good'), gold: c('--nv-gold'),
+      chest: c('--nv-m-chest'), back: c('--nv-m-back'), shoulders: c('--nv-m-shoulders'),
+      quads: c('--nv-m-quads'), calves: c('--nv-m-calves'), abs: c('--nv-m-abs'),
+      triceps: c('--nv-m-triceps'), biceps: c('--nv-m-biceps'), glutes: c('--nv-m-glutes')
+    };
+  }
+  readTokens();
+
+  // ---------------------------------------------------------------
+  // RENDERER, ROOM, LIGHTS (49's, with the map's ground at -0.2)
+  // ---------------------------------------------------------------
+  var renderer;
+  try { renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' }); }
+  catch (e) { document.getElementById('fallback').style.display = 'grid'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = T.SRGBColorSpace;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  mount.appendChild(renderer.domElement);
+
+  var scene = new T.Scene();
+  var camera = new T.PerspectiveCamera(32, 1, 0.1, 120);
+  function makeRoomEnv() {
+    var s = new T.Scene(), box = new T.BoxGeometry(1, 1, 1);
+    function panel(col, inten, sx, sy, sz, x, y, z, back) {
+      var m = new T.Mesh(box, new T.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: inten, roughness: 1, side: back ? T.BackSide : T.FrontSide }));
+      m.scale.set(sx, sy, sz); m.position.set(x, y, z); s.add(m);
+    }
+    panel(0x18202f, 0.5, 26, 15, 26, 0, 5, 0, true);
+    panel(0xfff1dd, 5.2, 11, 0.1, 4.5, 1.5, 10.5, 2.5);
+    panel(0x9ecdff, 3.0, 0.1, 9, 12, -10, 5, 0);
+    panel(0xffd3a6, 1.7, 12, 6, 0.1, 0, 4.5, -10);
+    panel(0xbfd8ff, 1.1, 0.1, 8, 10, 10, 4.5, 0);
+    panel(0x7fb4ff, 0.9, 5, 0.1, 5, -4, 9.6, -3);
+    [[-5.4, 3.4], [5.4, 3.4], [-2.6, -6.4], [2.6, -6.4]].forEach(function (p, i) { panel(i % 2 ? 0xffffff : 0xdfeaff, 2.4, 0.08, 6.5, 0.6, p[0], 4.6, p[1]); });
+    return s;
+  }
+  var pmrem = new T.PMREMGenerator(renderer);
+  var envRT = pmrem.fromScene(makeRoomEnv(), 0.03);
+  scene.environment = envRT.texture;
+  scene.environmentIntensity = TK.env;
+
+  var key = new T.DirectionalLight(TK.key.getHex(), 2.2);
+  key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 1; key.shadow.camera.far = 30;
+  key.shadow.camera.left = -6.5; key.shadow.camera.right = 6.5; key.shadow.camera.top = 6.5; key.shadow.camera.bottom = -6.5;
+  key.shadow.bias = -0.0012; key.shadow.normalBias = 0.02;
+  scene.add(key);
+  var fill = new T.DirectionalLight(TK.fill.getHex(), 0.44); fill.position.set(-5, 3, 4); scene.add(fill);
+  var rim = new T.DirectionalLight(TK.rim.getHex(), 1.1); rim.position.set(-3, 4.4, -6); scene.add(rim);
+  var ground = new T.Mesh(new T.PlaneGeometry(40, 40), new T.ShadowMaterial({ opacity: 0.3 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = -0.2; ground.receiveShadow = true; scene.add(ground);
+
+  // §9c: the key follows the part of the day. East is +x (the right of the
+  // default view); every colour a token mix.
+  var DAYPART = 'day';
+  function keyFor(part) {
+    if (part === 'dawn') return { col: TK.key.clone().lerp(TK.hue.chest, 0.35), i: 1.7, pos: [7, 2.3, 2.6], fill: 0.4, env: 0.85, rim: 0.9 };
+    if (part === 'evening') return { col: TK.key.clone().lerp(TK.gold, 0.55), i: 1.8, pos: [-7, 2.3, 2.6], fill: 0.38, env: 0.8, rim: 0.9 };
+    if (part === 'night') return { col: TK.fill.clone().lerp(TK.hue.vi, 0.35), i: 0.7, pos: [-2.6, 5, 3.6], fill: 0.2, env: 0.42, rim: 0.75 };
+    return { col: TK.key.clone(), i: 2.2, pos: [3.4, 8, 5], fill: 0.44, env: 1, rim: 1.1 };
+  }
+  function lightFor(part) {
+    var k = keyFor(part);
+    key.color.copy(k.col); key.intensity = k.i; key.position.set(k.pos[0], k.pos[1], k.pos[2]);
+    fill.color.copy(TK.fill); fill.intensity = k.fill;
+    rim.color.copy(TK.rim); rim.intensity = k.rim;
+    scene.environmentIntensity = TK.env * k.env;
+  }
+
+  // ---------------------------------------------------------------
+  // THE WORLD: the core and the tiles exactly as scene.js draws them, the
+  // habitat, the nine at home. Rebuilt whole when the tokens change.
+  // ---------------------------------------------------------------
+  var LABEL = { train: 'Train', knowledge: 'Knowledge', logistics: 'Logistics', fuel: 'Fuel', platform: 'Platform', money: 'Money', mind: 'Mind' };
+  function textSprite(text, col, height) {
+    var W = 512, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d'), label = text.toUpperCase();
+    x.font = '600 58px Rajdhani, "Instrument Sans", system-ui, sans-serif';
+    if ('letterSpacing' in x) x.letterSpacing = '8px';
+    var tw = Math.min(W - 16, x.measureText(label).width + 56);
+    x.fillStyle = 'rgba(6,9,18,0.55)';
+    x.beginPath(); if (x.roundRect) x.roundRect((W - tw) / 2, 22, tw, H - 44, 36); else x.rect((W - tw) / 2, 22, tw, H - 44); x.fill();
+    x.fillStyle = '#' + col.getHexString(); x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(label, W / 2, H / 2 + 3);
+    var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4;
+    var sp = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.72 }));
+    sp.scale.set(height * 4, height, 1);
+    return sp;
+  }
+  function hexShape(r) {
+    var s = new T.Shape();
+    for (var k = 0; k < 6; k++) { var a = Math.PI / 6 + k * Math.PI / 3, px = Math.cos(a) * r, py = Math.sin(a) * r; if (k) s.lineTo(px, py); else s.moveTo(px, py); }
+    s.closePath(); return s;
+  }
+
+  var world = null, kit = null, habitat = null, tiles = {}, core = null, BEINGS = [];
+  var W = { lit: false };
+  function buildWorld() {
+    if (world) {
+      habitat.dispose();
+      world.traverse(function (o) {
+        if (o.geometry && !o.isSprite) o.geometry.dispose();
+        // the old kit goes with the old world, so its textures can go too
+        if (o.material) [].concat(o.material).forEach(function (m) { if (m.map) m.map.dispose(); if (m.roughnessMap) m.roughnessMap.dispose(); m.dispose(); });
+      });
+      scene.remove(world);
+    }
+    world = new T.Group(); scene.add(world);
+    kit = createBeingKit(T, TK);
+    var lighter = kit.lighter;
+
+    // the core (scene.js: plinth, orb, ring, name)
+    core = new T.Group(); world.add(core);
+    var plinth = new T.Mesh(new T.CylinderGeometry(0.72, 0.78, 0.16, 48), new T.MeshPhysicalMaterial({ color: TK.stage.clone().lerp(TK.hue.cy, 0.08), roughness: 0.5, metalness: 0.2, clearcoat: 0.6 }));
+    plinth.position.y = -0.08; plinth.receiveShadow = true; plinth.castShadow = true; core.add(plinth);
+    var orb = new T.Mesh(new T.SphereGeometry(0.26, 40, 28), kit.emissiveMat(lighter(TK.hue.cy, 0.25), 2.2, { lamp: true }));
+    orb.position.y = 0.55; core.add(orb);
+    var og = kit.halo(TK.hue.cy, 0.4, 0.35); og.position.y = 0.55; core.add(og);
+    var ring = new T.Mesh(new T.TorusGeometry(0.42, 0.012, 8, 64), kit.emissiveMat(lighter(TK.hue.vi, 0.2), 1.4, { lamp: true }));
+    ring.position.y = 0.55; ring.rotation.x = Math.PI / 2 - 0.35; core.add(ring);
+    var cl = textSprite('Nova', TK.ink, 0.34); cl.material.opacity = 0.95; cl.position.set(0, 0.18, 0.92); cl.userData.ownMap = true; core.add(cl);
+
+    // the tiles (scene.js lines 181-204, verbatim in substance)
+    tiles = {};
+    LAYOUT.ORDER.forEach(function (id, i) {
+      var th = Math.PI + i * (2 * Math.PI / LAYOUT.ORDER.length);
+      var pos = new T.Vector3(Math.sin(th) * LAYOUT.RD * LAYOUT.RX, 0, Math.cos(th) * LAYOUT.RD * LAYOUT.RZ);
+      var r = LAYOUT.TILE_R[id] || 1.0, hue = TK.hue[LAYOUT.HUE_OF[id]];
+      var g = new T.Group(); g.position.copy(pos); world.add(g);
+      var geo = new T.ExtrudeGeometry(hexShape(r - 0.05), { depth: 0.16, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.05, bevelSegments: 3, curveSegments: 6 });
+      geo.rotateX(-Math.PI / 2); geo.translate(0, -0.2, 0);
+      var tile = new T.Mesh(geo, new T.MeshPhysicalMaterial({ color: TK.stage.clone().lerp(hue, 0.24), roughness: 0.6, metalness: 0.1, clearcoat: 0.45, clearcoatRoughness: 0.35 }));
+      tile.receiveShadow = true; tile.castShadow = true; g.add(tile);
+      var edgePts = [];
+      for (var k = 0; k <= 6; k++) { var a = Math.PI / 6 + k * Math.PI / 3; edgePts.push(new T.Vector3(Math.cos(a) * (r - 0.02), 0.012, -Math.sin(a) * (r - 0.02))); }
+      g.add(new T.Line(new T.BufferGeometry().setFromPoints(edgePts), new T.LineBasicMaterial({ color: lighter(hue, 0.3), transparent: true, opacity: 0.8 })));
+      var label = textSprite(LABEL[id], lighter(hue, 0.55), 0.36); label.material.opacity = 0.95; label.userData.ownMap = true;
+      label.position.set(0, 0.24, r * 0.95); g.add(label);
+      tiles[id] = { group: g, pos: pos, r: r, label: label, hue: hue };
+    });
+
+    // THE HABITAT
+    habitat = createHabitat(T, TK, kit);
+    world.add(habitat.group);
+
+    // the nine, at home, waiting, markers hidden, holding still
+    BEINGS = [];
+    kit.AGENTS.forEach(function (a) {
+      var b = kit.BUILD[a.id](a);
+      var home = habitat.lanes.nodes['home:' + a.id];
+      var holder = new T.Group(); holder.position.copy(home); holder.scale.setScalar(LAYOUT.BEING_SCALE);
+      holder.add(b.group); world.add(holder);
+      b.marker.visible = false;
+      kit.setSnap(true);
+      if (b.tell) b.tell(1, false, true);
+      kit.setSnap(false);
+      b.face.blink = 0; b.face.sacc.set(0, 0);
+      kit.face3(b.face, false, 0);
+      b.head.rotation.set((b.headPitch || 0) - 0.74 * 0.12, b.headYaw || 0, b.headRoll || 0);
+      BEINGS.push({ a: a, b: b, holder: holder, district: { commander: 'logistics', coach: 'train', cfo: 'money', guardian: 'platform', researcher: 'knowledge', watcher: 'knowledge', librarian: 'knowledge', mealprep: 'fuel', leader: 'mind' }[a.id] });
+    });
+
+    habitat.setDaypart(DAYPART);
+    LAYOUT.ORDER.forEach(function (id) { habitat.districts[id].setLit(W.lit); });
+    habitat.settle();
+    lightFor(DAYPART);
+    measure();
+  }
+
+  // ---------------------------------------------------------------
+  // FRAMING: sampled geometry projected against the free rectangle, never
+  // a bounding sphere (a sphere round a flat ring over-reads by ~40%).
+  // ---------------------------------------------------------------
+  var RING_PTS = [], FOCUS_PTS = {}, FOCUS_AZ = {}, RING_CY = 0.3, YAX = new T.Vector3(0, 1, 0);
+  // Which side of the front a close-up looks from. At eye level a being
+  // hides whatever stands straight behind it, and the lanes put some sets
+  // exactly there (Train's rack, from the front-right). So each district is
+  // looked at from the front angle, in [-0.9, 0.9] rad, at which no being
+  // stands in front of a piece; ties go to the front-right.
+  function bestAzimuth(id) {
+    var d = habitat.districts[id], who = BEINGS.filter(function (x) { return x.district === id; });
+    var pcs = d.pieces.map(function (p) {
+      var b = new T.Box3();
+      p.traverse(function (o) { if (o.isMesh && !o.userData.contact) b.expandByObject(o); });
+      return { x: (b.min.x + b.max.x) / 2, z: (b.min.z + b.max.z) / 2, r: Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2 };
+    });
+    var best = 0.5, bestScore = Infinity;
+    for (var a = -0.9; a <= 0.901; a += 0.05) {
+      var vx = -Math.sin(a), vz = -Math.cos(a), score = Math.abs(a - 0.5) * 0.01;
+      who.forEach(function (x) {
+        var bx = x.holder.position.x, bz = x.holder.position.z;
+        pcs.forEach(function (p) {
+          var dx = p.x - bx, dz = p.z - bz, along = dx * vx + dz * vz;
+          if (along <= 0) return;
+          var lat = Math.abs(dx * vz - dz * vx), clear = 0.2 + p.r;
+          if (lat < clear) score += (clear - lat) / clear;
+        });
+      });
+      if (score < bestScore) { bestScore = score; best = a; }
+    }
+    return best;
+  }
+  function samplePoints(obj, want, out) {
+    obj.updateWorldMatrix(true, true);
+    var meshes = [], total = 0;
+    obj.traverse(function (o) { if (o.isMesh && o.geometry && o.geometry.attributes.position && !o.userData.contact) meshes.push(o); });
+    meshes.forEach(function (o) { total += o.geometry.attributes.position.count; });
+    meshes.forEach(function (o) {
+      var pa = o.geometry.attributes.position, share = Math.max(4, Math.round(want * pa.count / Math.max(1, total))), st = Math.max(1, Math.floor(pa.count / share));
+      for (var i = 0; i < pa.count; i += st) out.push(new T.Vector3().fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld));
+    });
+    // a sprite (a district's name) is a plate that faces the camera: its corners
+    obj.traverse(function (o) {
+      if (!o.isSprite || o.material.opacity < 0.5) return;
+      var p = new T.Vector3(); o.getWorldPosition(p);
+      [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (c) { out.push(new T.Vector3(p.x + c[0] * o.scale.x / 2, p.y + c[1] * o.scale.y / 2, p.z)); });
+    });
+  }
+  function measure() {
+    var saved = world.rotation.y; world.rotation.y = 0; world.updateMatrixWorld(true);
+    RING_PTS = []; samplePoints(world, 5000, RING_PTS);
+    var lo = 1e9, hi = -1e9; RING_PTS.forEach(function (p) { lo = Math.min(lo, p.y); hi = Math.max(hi, p.y); }); RING_CY = (lo + hi) / 2;
+    FOCUS_PTS = {}; FOCUS_AZ = {};
+    LAYOUT.ORDER.forEach(function (id) { FOCUS_AZ[id] = bestAzimuth(id); });
+    LAYOUT.ORDER.forEach(function (id) {
+      var pts = [], t = tiles[id];
+      for (var k = 0; k < 6; k++) { var a = Math.PI / 6 + k * Math.PI / 3; [-0.2, 0].forEach(function (y) { pts.push(new T.Vector3(t.pos.x + Math.cos(a) * t.r, y, t.pos.z + Math.sin(a) * t.r)); }); }
+      samplePoints(habitat.districts[id].group, 1500, pts);
+      BEINGS.forEach(function (x) { if (x.district === id) samplePoints(x.holder, 500, pts); });
+      FOCUS_PTS[id] = pts;
+    });
+    world.rotation.y = saved; world.updateMatrixWorld(true);
+  }
+  var elCap = document.getElementById('caption');
+  function freeRect() {
+    var Wd = mount.clientWidth, Hd = mount.clientHeight, capR = elCap.getBoundingClientRect();
+    var left = 0, right = Wd, top = Wd < PHONE_W ? 92 : 64, bottom = Hd;
+    if (capR.width > 0) { if (Wd > 900) right = Math.max(Wd * 0.45, capR.left - 10); else bottom = Math.min(Hd, capR.top - 8); }
+    var fcx = (left + right) / 2, fcy = (top + bottom) / 2;
+    return { W: Wd, H: Hd, fcx: fcx, fcy: fcy, effW: Math.max(120, 2 * Math.min(fcx - left, right - fcx)), effH: Math.max(120, 2 * Math.min(fcy - top, bottom - fcy)) };
+  }
+  // the projected extent is centred in the free rectangle, not the target:
+  // a ring seen from above is bigger at the front, so centring on the
+  // target leaves a dead band at the top (the first capture showed it)
+  var shift = { x: 0, y: 0 };
+  function applyViewOffset() {
+    var fr = freeRect();
+    camera.setViewOffset(fr.W, fr.H, fr.W / 2 - fr.fcx + shift.x * fr.W / 2, fr.H / 2 - fr.fcy - shift.y * fr.H / 2, fr.W, fr.H);
+  }
+  var probe = new T.PerspectiveCamera(32, 1, 0.1, 120), pv = new T.Vector3();
+  function solveDistance(pts, elev, target, spin) {
+    var fr = freeRect(), mx = 0.92 * fr.effW / fr.W, my = 0.92 * fr.effH / fr.H, box = null;
+    probe.fov = camera.fov; probe.aspect = fr.W / fr.H; probe.near = camera.near; probe.far = camera.far;
+    function fits(d) {
+      probe.position.set(target.x, target.y + Math.sin(elev) * d, target.z + Math.cos(elev) * d);
+      probe.lookAt(target.x, target.y, target.z); probe.updateMatrixWorld(true); probe.updateProjectionMatrix();
+      var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+      for (var i = 0; i < pts.length; i++) {
+        pv.copy(pts[i]).applyAxisAngle(YAX, spin).project(probe);
+        if (pv.z > 1) return false;
+        if (pv.x < x0) x0 = pv.x; if (pv.x > x1) x1 = pv.x; if (pv.y < y0) y0 = pv.y; if (pv.y > y1) y1 = pv.y;
+      }
+      box = [x0, x1, y0, y1];
+      return x1 - x0 <= 2 * mx && y1 - y0 <= 2 * my;
+    }
+    var lo = 0.6, hi = 80;
+    if (fits(hi)) {
+      for (var it = 0; it < 26; it++) { var m = (lo + hi) / 2; if (fits(m)) hi = m; else lo = m; }
+    }
+    fits(hi);
+    return { d: hi, sx: (box[0] + box[1]) / 2, sy: (box[2] + box[3]) / 2 };
+  }
+
+  // the view: a turntable round a target; a district close-up looks at its
+  // tile from the front-right at about the beings' eye level
+  var RING_ELEV = 0.66, FOCUS_ELEV = 0.12;
+  var view = { spin: 0, spinT: 0, elev: RING_ELEV, elevT: RING_ELEV, dist: 14, distT: 14, tx: 0, ty: 0.3, tz: 0, txT: 0, tyT: 0.3, tzT: 0 };
+  var focus = null, userSpin = 0;
+  function targetFor() {
+    if (!focus) return new T.Vector3(0, RING_CY, 0);
+    return tiles[focus].pos.clone().applyAxisAngle(YAX, view.spinT).setY(0.3);
+  }
+  function reframe(snap) {
+    view.spinT = (focus ? -FOCUS_AZ[focus] : 0) + userSpin;
+    var tg = targetFor();
+    view.txT = tg.x; view.tyT = tg.y; view.tzT = tg.z;
+    var s = solveDistance(focus ? FOCUS_PTS[focus] : RING_PTS, view.elevT, tg, view.spinT);
+    view.distT = s.d; shift.x = s.sx; shift.y = s.sy;
+    applyViewOffset();
+    if (snap || reduce) { view.spin = view.spinT; view.elev = view.elevT; view.dist = view.distT; view.tx = view.txT; view.ty = view.tyT; view.tz = view.tzT; }
+    invalidate();
+  }
+  function setFocus(id) {
+    focus = id && tiles[id] ? id : null;
+    view.elevT = focus ? FOCUS_ELEV : RING_ELEV;
+    // a close-up shows its own tile, its own set and its own beings
+    // (its name plate too: at eye level it stands in front of the being, and
+    // the caption already says which district this is)
+    LAYOUT.ORDER.forEach(function (k) { var on = !focus || k === focus; tiles[k].group.visible = on; tiles[k].label.visible = !focus; habitat.districts[k].group.visible = on; });
+    BEINGS.forEach(function (x) { x.holder.visible = !focus || x.district === focus; });
+    core.visible = !focus; habitat.plaza.group.visible = !focus;
+    caption();
+    reframe(false);
+  }
+
+  // ---------------------------------------------------------------
+  // CAPTION: what the set is, and what lights it (the honest version)
+  // ---------------------------------------------------------------
+  var SET = {
+    train: ['A squat rack with the bar\'s hooks, a bench, a chalk bowl on a stand.', 'The rack lamp lights when a Train loop ran today.'],
+    knowledge: ['A card catalogue for the Librarian, a desk with a reading lamp and an open book for the Researcher, a small screen facing a floor cushion for the Watcher, and a rug.', 'The desk lamp, the screen and the index lamp each light when their own loop ran today.'],
+    logistics: ['A signal mast with the compass rose, a dispatch lectern with its slate, two crates.', 'The slate lights when a dispatch was composed today.'],
+    fuel: ['A counter with a stove ring, two pans on a hook, a crate of produce.', 'The stove ring lights when a Fuel loop ran today.'],
+    money: ['A counting desk with a banker\'s lamp and a ledger stand, a coin stack, a safe.', 'The desk lamp lights when a Money loop ran today. The stack is a fixed five until the month\'s receipt count is known.'],
+    platform: ['A watchtower with a lantern housing, a vault door, the overnight pad.', 'The tower burns every night. The vault ring lights when a Guardian loop ran today; the pad, 03:30 to 06:00, when overnight work is queued.'],
+    mind: ['A bench, a still pool with a mirror surface, a paper lantern on a crook.', 'The lantern burns every night, and by day when a Mind loop ran today.']
+  };
+  function caption() {
+    var k = document.getElementById('cap-kicker'), n = document.getElementById('cap-name'), l = document.getElementById('cap-line'), lt = document.getElementById('cap-lit');
+    var part = { dawn: 'dawn', day: 'day', evening: 'evening', night: 'night' }[DAYPART];
+    if (focus) {
+      elCap.style.setProperty('--cap-hue', '#' + tiles[focus].hue.getHexString());
+      k.textContent = 'district · ' + part; n.textContent = LABEL[focus]; l.textContent = SET[focus][0]; lt.textContent = SET[focus][1];
+    } else {
+      elCap.style.removeProperty('--cap-hue');
+      k.textContent = 'habitat · ' + part; n.textContent = 'Seven sets, one to a tile';
+      l.textContent = 'Each set stands on the back half of its tile, so every being stays in front of it. The ring lane, the spokes and the plaza are the only ground the beings walk on.';
+      lt.textContent = W.lit ? 'Showing every loop lamp lit, as if every loop ran today.' : 'Loop lamps are dark: none is shown as having run.';
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // THE LOOP: draws while the camera eases or a lamp fades, then sleeps
+  // ---------------------------------------------------------------
+  var running = false, dirty = true, frames = 0, lastT = performance.now() / 1000, lastDraw = 0, MIN_DT = 1 / 30;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function invalidate() { dirty = true; if (!running) { running = true; requestAnimationFrame(tick); } }
+  function approach(cur, tgt, dt, k) { return cur + (tgt - cur) * (1 - Math.exp(-dt * k)); }
+  var fpsEl = document.getElementById('frames');
+  function tick() {
+    var now = performance.now() / 1000;
+    if (!dirty && now - lastDraw < MIN_DT - 0.002) { requestAnimationFrame(tick); return; }
+    var dt = Math.min(0.08, now - lastT); lastT = now;
+    var live = false;
+    ['spin', 'elev', 'dist', 'tx', 'ty', 'tz'].forEach(function (k) {
+      var n = approach(view[k], view[k + 'T'], dt, 7);
+      if (Math.abs(n - view[k + 'T']) > 1e-4) live = true; else n = view[k + 'T'];
+      view[k] = n;
+    });
+    if (habitat.tick(now, dt)) live = true;
+    draw();
+    if (live && !document.hidden) requestAnimationFrame(tick); else running = false;
+  }
+  function draw() {
+    world.rotation.y = view.spin;
+    camera.position.set(view.tx, view.ty + Math.sin(view.elev) * view.dist, view.tz + Math.cos(view.elev) * view.dist);
+    camera.lookAt(view.tx, view.ty, view.tz);
+    renderer.render(scene, camera);
+    frames++; lastDraw = performance.now() / 1000; dirty = false;
+    window.__frames = frames; fpsEl.textContent = 'frames ' + frames;
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) invalidate(); });
+
+  function resize() {
+    var w = mount.clientWidth, h = mount.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.fov = w < PHONE_W ? 38 : 32; camera.updateProjectionMatrix();
+    reframe(false);
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------------------------------------------------------------
+  // CONTROLS: drag turns (and tilts), a tap on a tile frames it, a double
+  // tap goes back to the whole ring
+  // ---------------------------------------------------------------
+  var ptr = { down: false, moved: 0, x: 0, y: 0, id: null }, lastTap = 0;
+  var ray = new T.Raycaster(), ndc = new T.Vector2();
+  mount.addEventListener('pointerdown', function (e) { ptr.down = true; ptr.moved = 0; ptr.x = e.clientX; ptr.y = e.clientY; ptr.id = e.pointerId; mount.setPointerCapture(e.pointerId); mount.classList.add('dragging'); });
+  mount.addEventListener('pointermove', function (e) {
+    if (!ptr.down || e.pointerId !== ptr.id) return;
+    var dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+    ptr.moved += Math.abs(dx) + Math.abs(dy);
+    userSpin -= dx * 0.0062; view.spinT -= dx * 0.0062; view.spin -= dx * 0.0062;
+    view.elevT = Math.max(0.04, Math.min(1.1, view.elevT + dy * 0.0035)); view.elev = view.elevT;
+    ptr.x = e.clientX; ptr.y = e.clientY;
+    if (focus) { var tg = targetFor(); view.tx = view.txT = tg.x; view.tz = view.tzT = tg.z; }
+    invalidate();
+  });
+  mount.addEventListener('pointerup', function (e) {
+    if (!ptr.down) return;
+    ptr.down = false; mount.classList.remove('dragging');
+    if (ptr.moved >= 8) { reframe(false); return; }
+    var now = performance.now();
+    if (now - lastTap < 320) { lastTap = 0; userSpin = 0; setFocus(null); return; }
+    lastTap = now;
+    var r = renderer.domElement.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    var hit = ray.intersectObjects(LAYOUT.ORDER.map(function (id) { return tiles[id].group; }), true)[0];
+    if (hit) { var o = hit.object; while (o && !LAYOUT.ORDER.some(function (id) { return tiles[id].group === o; })) o = o.parent; }
+    var id = o ? LAYOUT.ORDER.find(function (k) { return tiles[k].group === o; }) : null;
+    if (id && id !== focus) { userSpin = 0; setFocus(id); }
+  });
+  mount.addEventListener('pointercancel', function () { ptr.down = false; mount.classList.remove('dragging'); });
+
+  // ---------------------------------------------------------------
+  // TOGGLES
+  // ---------------------------------------------------------------
+  var bLit = document.getElementById('t-lit'), bMotion = document.getElementById('t-motion'), bCalm = document.getElementById('t-calm');
+  function setDaypart(part) {
+    DAYPART = part; root.setAttribute('data-daypart', part);
+    document.querySelectorAll('.dp').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-part') === part)); });
+    lightFor(part); habitat.setDaypart(part);
+    if (reduce) habitat.settle();
+    caption(); invalidate();
+  }
+  function setLit(on) {
+    W.lit = !!on; bLit.setAttribute('aria-pressed', String(W.lit));
+    LAYOUT.ORDER.forEach(function (id) { habitat.districts[id].setLit(W.lit); });
+    if (reduce) habitat.settle();
+    caption(); invalidate();
+  }
+  document.querySelectorAll('.dp').forEach(function (b) { b.addEventListener('click', function () { setDaypart(b.getAttribute('data-part')); }); });
+  bLit.addEventListener('click', function () { setLit(!W.lit); });
+  document.getElementById('t-fit').addEventListener('click', function () { userSpin = 0; setFocus(null); });
+  bMotion.setAttribute('aria-pressed', String(reduce));
+  bMotion.addEventListener('click', function () { reduce = !reduce; bMotion.setAttribute('aria-pressed', String(reduce)); if (reduce) { habitat.settle(); reframe(true); } });
+  function applyTokens() {
+    readTokens();
+    var f = focus; buildWorld(); setFocus(f); reframe(true);
+  }
+  bCalm.addEventListener('click', function () {
+    var on = root.getAttribute('data-nv-calm') !== '1';
+    root.setAttribute('data-nv-calm', on ? '1' : '0'); bCalm.setAttribute('aria-pressed', String(on));
+    applyTokens();
+  });
+
+  // ---------------------------------------------------------------
+  // THE MEASUREMENT: where the fitted points actually land on screen
+  // ---------------------------------------------------------------
+  function report(log) {
+    draw(); camera.updateMatrixWorld(true);
+    var pts = focus ? FOCUS_PTS[focus] : RING_PTS, Wd = mount.clientWidth, Hd = mount.clientHeight, v = new T.Vector3();
+    var x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    pts.forEach(function (p) {
+      v.copy(p).applyAxisAngle(YAX, view.spin).project(camera);
+      var x = (v.x * 0.5 + 0.5) * Wd, y = (-v.y * 0.5 + 0.5) * Hd;
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    });
+    var fr = freeRect();
+    var out = { viewport: Wd + 'x' + Hd, focus: focus, box: [Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1)], inside: x0 >= 0 && y0 >= 0 && x1 <= Wd && y1 <= Hd, free: [Math.round(fr.fcx - fr.effW / 2), Math.round(fr.fcy - fr.effH / 2), Math.round(fr.fcx + fr.effW / 2), Math.round(fr.fcy + fr.effH / 2)] };
+    if (log !== false) console.log('[fit] ' + JSON.stringify(out));
+    return out;
+  }
+
+  // ---------------------------------------------------------------
+  // GO, then the hash
+  // ---------------------------------------------------------------
+  buildWorld();
+  caption();
+  resize();
+  reframe(true);
+  (function () {
+    var h = (location.hash || '').replace('#', ''); if (!h) return;
+    var q = {}; h.split('&').forEach(function (kv) { var a = kv.split('='); q[a[0]] = a[1]; });
+    if (q.calm === '1') { root.setAttribute('data-nv-calm', '1'); bCalm.setAttribute('aria-pressed', 'true'); readTokens(); buildWorld(); }
+    if (q.motion === 'reduce') { reduce = true; bMotion.setAttribute('aria-pressed', 'true'); }
+    if (q.daypart) setDaypart(q.daypart);
+    if (q.lit === '1') setLit(true);
+    if (q.spin != null) userSpin = parseFloat(q.spin) || 0;
+    if (q.district) setFocus(q.district);
+    if (q.elev != null) view.elevT = parseFloat(q.elev);
+    habitat.settle();
+    reframe(true);
+    if (q.t != null) habitat.tick(parseFloat(q.t), 0);
+  })();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {
+    // the names are canvas: repaint them in the house face once it lands
+    LAYOUT.ORDER.forEach(function (id) {
+      var t = tiles[id], np = textSprite(LABEL[id], kit.lighter(t.hue, 0.55), 0.36);
+      t.label.material.map.dispose(); t.label.material.map = np.material.map; t.label.material.needsUpdate = true;
+    });
+    reframe(false); setTimeout(function () { report(true); }, 200);
+  });
+
+  window.__agentSheet = {
+    // a deterministic frame, drawn now: lamps settled, camera snapped
+    still: function (o) {
+      o = o || {};
+      if (o.spin != null) userSpin = o.spin;
+      if (o.elev != null) view.elevT = o.elev;
+      habitat.settle();
+      reframe(true);
+      if (o.zoom) { view.distT *= o.zoom; view.dist = view.distT; }
+      draw();
+      return frames;
+    },
+    fit: function () { reframe(true); },
+    spin: function (v) { userSpin = v; reframe(false); },
+    elev: function (v) { view.elevT = v; reframe(false); },
+    daypart: setDaypart,
+    lit: setLit,
+    district: function (id) { setFocus(id || null); },
+    pulse: function () { habitat.plaza.pulse(performance.now() / 1000); invalidate(); },
+    report: report,
+    habitat: function () { return habitat; },
+    frames: function () { return frames; },
+    count: LAYOUT.ORDER.length
+  };
+})();
+</script>
+</body>
+</html>
