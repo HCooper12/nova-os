@@ -92,8 +92,11 @@ DO NOT:
 
 **25 SEP (close, nova-os-2c) — THE PLANNED WEEK, DISCUSS THAT TALKS, THE
 REVERSE CURL RE-FILED, PLAN HISTORY, EXTRA-LIFT PREFILL, LIBRARY RESEARCH,
-STALL RESTRAINT. All pushed, deployed, server reloaded, verify-shipped PASS,
-gates green at close.**
+STALL RESTRAINT. Deployed and live on his phone (pushed through `caa191f`
+mid-session); local main has since moved 2 commits ahead of origin
+(nova-os-44's + nova-os-d3's, both explicitly left unpushed on request —
+see BLOCKERS) but nothing of THIS entry's own work is unpushed. Gates green
+at close.**
 
 GOAL: six things he asked for in one continuous session — (1) a per-exercise
 breakdown behind "Hard sets this week"; (2) past days must never count an
@@ -157,13 +160,19 @@ DECISIONS (choice → reason → forecloses):
   forecloses leaving it as a focus-only no-op.
 
 VERIFIED (locator):
-- `npm run lint` exit 0, `npm run build` green (this close, post nova-os-44's
-  in-flight edit was NOT yet landed — rebuild after their commit lands).
-- `cd server && npm test` → 2288/2288 (this close).
+- `npm run lint` exit 0. `npm run build` green — checked AFTER rebasing onto
+  nova-os-44's landed `018fa94` (their edit finished; earlier drafts of this
+  entry said "in flight" — state moved, this is the re-checked truth).
+- `cd server && npm test` → 2289/2289, rebuilt on top of `018fa94` (was
+  2288/2288 before their commit added one test to `noCaps.test.js`).
 - `node scripts/verify-shipped.mjs` → deployed build matches local
-  (`caa191f9b`), every feature marker for this session PASS.
-- `git status --porcelain` empty, `git log origin/main..HEAD` empty — clean
-  and pushed at close.
+  (`caa191f9b`, the commit that WAS live at the time of that check), every
+  feature marker for this session PASS. Re-run this after whichever commit
+  eventually gets pushed next — it was not re-checked against `018fa94` or
+  `a804e90` since neither is deployed yet.
+- `grep BUDGET_USD server/lib/exerciseResearch.js` → no hits. Confirmed
+  gone, not just claimed — this WAS reviewed by this session, correcting an
+  earlier draft of this entry that said otherwise.
 - Live overview (`GET /api/train/overview`) at close: `week` present,
   Forearms 3/10 (reverse curl), volume bars == sheet totals.
 - `server/data/plan-history.json`: 23 versions, sources `file`/`snapshot`/
@@ -179,8 +188,10 @@ ASSUMED (not verified this session):
   gate, one card/week) are my judgement calls from his stated principle
   ("not a must... don't over-indulge or over-decide"), not numbers he
   approved one by one.
-- The budget-cap removal nova-os-44 is making — not reviewed by this
-  session; check their commit before treating BUDGET_USD as gone or present.
+- Everything nova-os-44 has uncommitted in the shared tree right now (voice
+  send fix, a new `server/lib/conversationLog.js` + `server/routes/
+  conversation.js`, edits across `App.jsx`/`Voice.jsx`/`useDictation.js`
+  and more) — not reviewed, not tested, not mine. Untouched by this entry.
 
 OPEN QUESTIONS / BLOCKERS:
 - The kg input box clips a decimal weight at 402px ("29.5" renders "29.!")
@@ -190,16 +201,22 @@ OPEN QUESTIONS / BLOCKERS:
   next session touching Train should check the Inbox for a filed
   `exercise-research` record and read what it actually wrote before
   assuming the feature works end-to-end.
-- nova-os-44's cap-removal commit was in flight, unseen, as this entry was
-  written — read `git log -- server/lib/exerciseResearch.js` before editing
-  that file.
+- **Not pushed, on purpose:** local main sits 2 commits ahead of origin
+  (`018fa94` nova-os-44, `a804e90` nova-os-d3 on top of it). Both explicitly
+  asked NOT to be pushed yet — nova-os-44 has more commits coming (voice
+  send, conversation record, a model gate) and will push their whole stack
+  themselves once their own gate is green. Confirmed directly with them
+  before this entry was closed out. **Do not push on their behalf** even to
+  satisfy a "must be pushed" checklist item — asked, and told not to.
 
-NEXT ACTION: none required from him — everything shipped is already live.
-If a session revisits Train: confirm the first `exercise-research` Inbox
-record exists and its `research` field has real sourced content (expected
-observation: a filed record titled "Coach's research on a new exercise…" or
-"Coach's weekly library research…", with `cues`/`variations`/`sources` on
-the touched exercise's library entry).
+NEXT ACTION: none required from him from this entry's own work — the
+planned week, Discuss, the reverse curl, the prefill and the stall
+restraint are already live and pushed (they rode `caa191f`, well before
+this unpushed pair). If a session revisits Train: confirm the first
+`exercise-research` Inbox record exists and its `research` field has real
+sourced content (expected observation: a filed record titled "Coach's
+research on a new exercise…" or "Coach's weekly library research…", with
+`cues`/`variations`/`sources` on the touched exercise's library entry).
 
 DO NOT:
 - Don't treat `CURRENT HANDOFF` as one slot — it's a stack (see
@@ -207,9 +224,19 @@ DO NOT:
   two prior entries from earlier in this same session; nova-os-d3's block
   below and everything after it is untouched, deliberately.
 - Don't re-add a budget cap to `exerciseResearch.js` without checking with
-  him first — nova-os-44 removed it live per his own "no caps at all".
+  him first — nova-os-44 removed it live per his own "no caps at all",
+  confirmed gone by this session.
 - Don't assume the exercise-research pipeline has ever actually produced a
   written record — it hasn't, as of this close.
+- Don't push `018fa94`/`a804e90` — nova-os-44 asked directly not to; they
+  will push their own stack.
+- Don't touch the uncommitted files currently sitting in the shared tree
+  outside this session's own paths (`server/index.js`, `askContext.js`,
+  `routes/voice.js`, `src/App.jsx`, `RecipeOverlay.jsx`, `ReplySheet.jsx`,
+  `VoicePresence.jsx`, `screens/Voice.jsx`, `useDictation.js`,
+  `vals/valsChrome.js`, `vals/valsRecipes.js`, plus new
+  `conversationLog.js`/`conversation.js`/`conversationLog.test.js`) — that
+  is nova-os-44's in-progress work, mid-edit as this session closed.
 
 ---
 
