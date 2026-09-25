@@ -13,6 +13,36 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**25 SEP (afternoon) — THE PLANNED WEEK READS THE PLAN AS IT STOOD; DISCUSS
+TALKS; THE REVERSE CURL IS A FOREARM LIFT. All pushed, deployed `dc6d11d`,
+server reloaded (scripts/reload-server.mjs), verify-shipped PASS.**
+
+- **His rule:** "Nothing should count as missed if it can be helped."
+  `a58f6cd` server/lib/planHistory.js folds the routines-file snapshots
+  (backup.js keeps only 20; each overview imports new ones) and the live
+  file's mtime into server/data/plan-history.json; `dc6d11d` plannedWeek
+  judges a past day by its routine as it stood at that day's session (else
+  end of day); which routine a day holds stays today's schedule. A lift in
+  a pending carry-over for a day still ahead is "carried to <day>", counted
+  by Sunday. This week predates the store: Monday's version is SEEDED from
+  the 21 Sep program dossier (dad5b6b5, 12:14 AEST, before his 13:36
+  session), labelled in the store. Verified live: Monday's Push = cable OH
+  + V-bar (done), rope/straight bar not on Monday, bars == sheet.
+- **`6e22d0f` Discuss** now sends an opening turn ("Talk me through this
+  one: <change>") so Coach explains the change and asks one question; the
+  Today card's "Discuss it" (which sent the under-target template) takes
+  the same path. Verified in a guarded page (request captured, not sent).
+  NOT seen on his phone with a real Coach answer yet.
+- **`af01912` + his data:** POST /api/workouts/exercises/:id/muscle-group
+  re-files on his word with Inbox undo; EZ-Bar Reverse Curl moved Biceps ->
+  Forearms at 12:46 AEST (record 8c786e54). Coach's 15 Sep "swap it for a
+  barbell curl to hit biceps" came from the old filing.
+- **Remaining genuine "not done" this week:** Mon cable flys + face pulls,
+  Wed weighted pull-ups (he did plain ones, an extra by his rule), shrugs,
+  dead hang, plate pinch.
+
+---
+
 **25 SEP (afternoon, nova-os-d3) — HIS COACH CHAT WENT WRONG ON SIMPLE
 CHANGES; THE WHOLE CHANGE PIPELINE REBUILT, LIVE.** His ask: "Check the recent
 coach chat history and notice the problems… Simple errors like that which
