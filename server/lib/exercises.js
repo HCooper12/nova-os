@@ -278,3 +278,51 @@ export async function addCustomExercise(vaultPath, name, muscleGroup, trackingTy
     return exercise;
   });
 }
+
+// COACH'S RESEARCH, WRITTEN IN ONE GO (25 Sep 2026; lib/exerciseResearch.js
+// decides what, this only writes). `updates` put a validated `research`
+// object on an existing record, and may re-file a NEW exercise's muscle and
+// tracking type (never an established one: his volume history hangs off
+// those); `additions` are exercises research found worth adding. One lock,
+// one write, and the exact prior of every touched record comes back so the
+// Inbox's undo can put each one back as it was.
+export async function applyExerciseResearch(vaultPath, { updates = [], additions = [] } = {}) {
+  return withWriteLock(async () => {
+    let exercises = [...(await getExercises(vaultPath))];
+    const priors = {};
+    const created = [];
+    for (const u of updates) {
+      const idx = exercises.findIndex((e) => e.id === u.id);
+      if (idx === -1) continue;
+      priors[u.id] ??= exercises[idx];
+      const next = { ...exercises[idx], research: u.research };
+      if (u.muscleGroup && MUSCLE_GROUPS.includes(u.muscleGroup)) next.muscleGroup = u.muscleGroup;
+      if (u.trackingType && TRACKING_TYPES.includes(u.trackingType)) next.trackingType = u.trackingType;
+      exercises[idx] = next;
+    }
+    for (const a of additions) {
+      const r = addExerciseIn(exercises, a.name, a.muscleGroup, a.trackingType);
+      if (!r.created) continue; // already there under that name: research never duplicates
+      exercises = r.exercises.map((e) => (e.id === r.exercise.id ? { ...e, research: a.research } : e));
+      created.push(r.exercise.id);
+    }
+    if (Object.keys(priors).length || created.length) await persist(vaultPath, exercises);
+    return { priors, created, exercises };
+  });
+}
+
+// The undo of the above: every prior record back exactly, and each exercise
+// research added taken out again, unless `keep` names it (the caller keeps
+// any a routine or a logged session already points at: history's foreign
+// keys are never worth a tidier library).
+export async function restoreExerciseRecords(vaultPath, { priors = {}, created = [], keep = [] } = {}) {
+  return withWriteLock(async () => {
+    const kept = new Set(keep);
+    const removed = new Set(created.filter((id) => !kept.has(id)));
+    const exercises = (await getExercises(vaultPath))
+      .filter((e) => !removed.has(e.id))
+      .map((e) => (Object.hasOwn(priors, e.id) ? priors[e.id] : e));
+    await persist(vaultPath, exercises);
+    return { restored: Object.keys(priors).length, removed: [...removed], kept: [...kept].filter((id) => created.includes(id)) };
+  });
+}

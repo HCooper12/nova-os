@@ -127,6 +127,9 @@ export function workoutsRouter(vaultPath) {
       if (!MUSCLE_GROUPS.includes(muscleGroup)) return res.status(400).json({ error: 'muscleGroup must be one of ' + MUSCLE_GROUPS.join(', ') });
       if (trackingType && !TRACKING_TYPES.includes(trackingType)) return res.status(400).json({ error: 'trackingType must be one of ' + TRACKING_TYPES.join(', ') });
       const exercise = await addCustomExercise(vaultPath, name, muscleGroup, trackingType);
+      // a lift he adds is researched and filled in properly, soon (Coach's
+      // research lane; the sweep in exerciseResearch.js catches any it misses)
+      import('../lib/exerciseResearch.js').then(({ researchSoon }) => researchSoon(vaultPath)).catch(() => {});
       res.json({ exercise });
     } catch (err) {
       res.status(400).json({ error: err.message });

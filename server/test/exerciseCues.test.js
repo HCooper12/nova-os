@@ -44,5 +44,7 @@ test('the panel prefers HIS cue over the seed', async () => {
   // it lives in one expression in panels.js
   const { readFileSync } = await import('node:fs');
   const src = readFileSync(new URL('../lib/panels.js', import.meta.url), 'utf8');
-  assert.match(src, /cues:\s*ex\.cues\s*\|\|\s*cuesFor\(ex\.id\)/, 'his vault cue must come first in the fallback chain');
+  // his cue, then Coach's sourced research (lib/exerciseResearch.js, 25 Sep),
+  // then the seed: his own words are never shadowed by either
+  assert.match(src, /cues:\s*ex\.cues\s*\|\|\s*r\?\.cues\s*\|\|\s*cuesFor\(ex\.id\)/, 'his vault cue must come first in the fallback chain');
 });

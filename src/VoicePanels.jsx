@@ -129,6 +129,39 @@ function TrainingWeek({ d }) {
   );
 }
 
+// WAYS TO CHANGE IT (25 Sep 2026): the variations Coach's research found for
+// this lift, led by tempo and pauses (his ask: "slower eccentric movements,
+// pausing"). Each row wears the muscle's hue on its edge; what to do is the
+// line he reads, why it helps sits under it. The sources say where it came
+// from, by site, so a claim is never unowned.
+function Variations({ list, hue, researched }) {
+  const host = (u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return null; } };
+  const sources = (researched?.sources || []).map((u) => ({ u, h: host(u) })).filter((x) => x.h);
+  return (
+    <div style={css('margin:10px 0 4px')}>
+      <Eyebrow>Ways to change it</Eyebrow>
+      <div style={css('margin-top:6px;display:flex;flex-direction:column;gap:6px')}>
+        {list.map((v, i) => (
+          <div key={v.name} style={{ ...css(`padding:7px 10px;border-radius:10px;background:color-mix(in srgb, ${hue} 6%, transparent);border-left:2px solid color-mix(in srgb, ${hue} 70%, transparent)`),
+            animation: `fadeUp var(--nv-dur-base) var(--nv-ease) ${i * 50}ms backwards` }}>
+            <div style={css('font:600 13px/1.3 var(--nv-font-ui);color:var(--nv-ink)')}>{v.name}</div>
+            <div style={css('margin-top:2px;font:500 12.5px/1.4 var(--nv-font-ui);color:var(--nv-ink60)')}>{v.how}</div>
+            {v.why && <div style={css('margin-top:2px;font:400 11.5px/1.4 var(--nv-font-ui);color:var(--nv-ink50)')}>{v.why}</div>}
+          </div>
+        ))}
+      </div>
+      {sources.length > 0 && (
+        <div style={css('margin-top:6px;font:500 11px/1.4 var(--nv-font-ui);color:var(--nv-ink50)')}>
+          From Coach's research{researched?.at ? ` (${researched.at.slice(0, 10)})` : ''}:{' '}
+          {sources.map((x, i) => (
+            <span key={x.u}>{i ? ' · ' : ''}<a href={x.u} target="_blank" rel="noopener noreferrer" style={css('color:var(--nv-ink60);text-decoration:underline;text-underline-offset:2px')}>{x.h}</a></span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Exercise({ d }) {
   // 2D by default — instant, no bundle cost. 3D on request: a body he can
   // turn, performing the lift, muscles lit. His ask, 5 Sep.
@@ -203,6 +236,7 @@ function Exercise({ d }) {
       {d.resourceUrl && (
         <a href={d.resourceUrl} target="_blank" rel="noopener noreferrer" style={css(`display:block;margin-bottom:6px;font:var(--nv-micro-l);color:var(--nv-cy);text-decoration:underline;text-underline-offset:2px`)}>▶ form / technique resource</a>
       )}
+      {(d.variations || []).length > 0 && <Variations list={d.variations} hue={muscleVar(d.muscleGroup)} researched={d.researched} />}
       {!(d.recent || []).length && <div style={css(`font:var(--nv-micro-l);color:${dim(40)}`)}>No logged sessions yet for this one.</div>}
       {(d.recent || []).length > 0 && <LoadRail recent={d.recent} group={d.muscleGroup} />}
       {(d.inRoutines || []).length > 0 && (

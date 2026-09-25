@@ -29,6 +29,7 @@ export const KIND_AGENT = {
   autonomy: 'Trust Ladder', distill: 'Distiller', followup: 'Commander',
   video: 'Watcher', study: 'Study Lane', 'forge-job': 'Forge',
   'coach-program': 'Program Review', 'coach-audit': 'Program Audit',
+  'exercise-research': 'Exercise Research',
   'fuel-cross': 'Fuel × Training', 'read-next': 'Librarian',
   'brain-week': 'Brain Week', 'money-import': 'Money Import',
   scout: 'Scout', 'leader-reflect': 'Leader',

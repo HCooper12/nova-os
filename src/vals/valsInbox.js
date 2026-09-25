@@ -18,7 +18,7 @@ const SOURCE_LABEL = {
   cfo: 'CFO', 'money-import': 'CFO', 'meal-prep': 'MEAL PREP', 'food-suggestion': 'NUTRITION',
   calendar: 'SCHEDULE', 'training-check': 'TRAINING', 'week-plan': 'COMMANDER',
   'plan-today': 'PLANNER', pattern: 'SCOUT', autonomy: 'TRUST LADDER', distill: 'DISTILLER', ingest: 'VAULT INGEST',
-  coach: 'COACH', 'weekly-debrief': 'COACH', research: 'RESEARCHER', video: 'WATCHER',
+  coach: 'COACH', 'weekly-debrief': 'COACH', 'exercise-research': 'COACH · LIBRARY', research: 'RESEARCHER', video: 'WATCHER',
   'model-choice': 'MODEL CHOICE', 'brain-week': 'BRAIN WEEK', followup: 'CALENDAR',
   studio: 'STUDIO', 'fuel-cross': 'FUEL × TRAINING', study: 'STUDY', briefing: 'BRIEFING',
   // the four that fell through to TYPED

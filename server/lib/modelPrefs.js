@@ -179,6 +179,11 @@ export const LANES = [
     off: 'The nightly reflection is skipped. The deterministic program-review detectors keep running.',
   },
   {
+    id: 'exercise-research', label: 'Exercise research', group: 'coach', def: 'sonnet',
+    hint: 'a new exercise researched and added properly; the library improved weekly',
+    off: 'New exercises keep only the name and filing you gave them, and the weekly library pass is skipped.',
+  },
+  {
     id: 'weekly-debrief', label: 'Weekly training debrief', group: 'coach', def: 'sonnet',
     hint: 'the week held against what you said you were training for',
     off: 'No weekly debrief is drafted into your Inbox.',

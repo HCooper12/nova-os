@@ -73,6 +73,9 @@ export async function buildPrefill(vaultPath, exerciseId) {
   return {
     exerciseId,
     routine: routine ? { id: routine.id, name: routine.name } : null,
-    ...prefillFor({ last: state[exerciseId] || null, prescription: entry, progression: routine ? progressions[`${routine.id}:${exerciseId}`] || null : null, tune, marker }),
+    // no routine holds it: the rep range Coach's research found for the lift
+    ...prefillFor({ last: state[exerciseId] || null,
+      prescription: entry || (exercise.research?.repRange ? { targetSets: 3, targetRepsLow: exercise.research.repRange.low, targetRepsHigh: exercise.research.repRange.high } : null),
+      progression: routine ? progressions[`${routine.id}:${exerciseId}`] || null : null, tune, marker }),
   };
 }

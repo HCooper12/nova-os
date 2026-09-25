@@ -989,6 +989,12 @@ export async function undoFiling(vaultPath, undo) {
     await clearMarkers(undo.markerKeys || []);
     return `restored ${n} routine${n === 1 ? '' : 's'} to how they were before Coach's change`;
   }
+  // Coach's library research taken back: every touched record as it was, and
+  // an exercise it added gone again unless his plan or log already uses it
+  if (undo.kind === 'exercise-research') {
+    const { undoResearch } = await import('./exerciseResearch.js');
+    return undoResearch(vaultPath, undo);
+  }
   // put an exercise back where it was — the volume bars follow it back, since
   // they read the library at query time
   if (undo.kind === 'exercise-muscle-group') {

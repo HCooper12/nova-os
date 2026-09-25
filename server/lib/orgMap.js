@@ -48,7 +48,7 @@ export const DISTRICTS = [
 // of the map); orgMap.test.js fails the day a new loop arrives unplaced.
 export const BEING_MEMBERS = {
   commander: ['dispatch', 'plan-today', 'reminders', 'followups', 'todoist', 'calendar-watch', 'brief-warm', 'commitments'],
-  coach: ['coach', 'weekly-debrief', 'training-check', 'week-plan', 'healthinsight', 'coach-cadence', 'coach-reflection', 'exercise-videos', 'patterns-weekly'],
+  coach: ['coach', 'weekly-debrief', 'training-check', 'week-plan', 'healthinsight', 'coach-cadence', 'coach-reflection', 'exercise-videos', 'exercise-research', 'patterns-weekly'],
   cfo: ['money', 'cfo'],
   guardian: ['guardian', 'health-drops', 'compost', 'telegram', 'health-mirror', 'pattern-scout', 'autonomy', 'model-watch', 'forge', 'overnight'],
   researcher: ['researcher', 'pulse', 'study', 'scout', 'repertoire-topup'],
@@ -65,7 +65,7 @@ export const BEING_MEMBERS = {
 // UNFILED_KINDS, so a new kind cannot silently vanish from the map.
 export const KIND_BEING = {
   dispatch: 'commander', 'plan-today': 'commander', followup: 'commander',
-  coach: 'coach', 'coach-program': 'coach', 'coach-audit': 'coach', 'coach-review': 'coach',
+  coach: 'coach', 'coach-program': 'coach', 'coach-audit': 'coach', 'coach-review': 'coach', 'exercise-research': 'coach',
   program: 'coach', 'weekly-debrief': 'coach', 'week-plan': 'coach', 'training-check': 'coach',
   'food-suggestion': 'mealprep', 'meal-prep': 'mealprep', 'fuel-cross': 'mealprep',
   cfo: 'cfo', money: 'cfo', 'money-import': 'cfo',

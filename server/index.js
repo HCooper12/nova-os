@@ -323,6 +323,10 @@ async function main() {
   // form videos: any exercise without one gets one found and written — his
   // explicit grant of autonomy for this lane, 5 Sep (see exerciseVideos.js)
   import('./lib/exerciseVideos.js').then(({ startVideoScheduler }) => startVideoScheduler(process.env.VAULT_PATH));
+  // exercise research: a new lift researched and added properly, the library
+  // improved weekly (his ask, 25 Sep; see exerciseResearch.js)
+  import('./lib/exerciseResearch.js').then(({ startExerciseResearchScheduler }) => startExerciseResearchScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('exercise research scheduler failed to start:', e.message));
   startTodoistScheduler(process.env.VAULT_PATH);
   startGuardianScheduler(process.env.VAULT_PATH);
   startOvernightScheduler(process.env.VAULT_PATH);

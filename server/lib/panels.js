@@ -112,8 +112,12 @@ async function buildExercise(vaultPath, name) {
   // Anatomy: what the lift actually trains, for the body diagram. Absent
   // rather than guessed when the atlas has no entry — a diagram with nothing
   // lit reads as "this trains nothing", so the client shows none at all.
+  // A lift the curated atlas does not know (added at runtime, by him or by
+  // Coach) takes its anatomy from Coach's research on the library record
+  // (lib/exerciseResearch.js); the curated table wins where both exist.
   const a = atlasFor(ex.id);
-  const anatomy = a ? resolveMuscles(a.primary, a.secondary) : null;
+  const r = ex.research || null;
+  const anatomy = a ? resolveMuscles(a.primary, a.secondary) : (r?.primary ? resolveMuscles(r.primary, r.secondary || []) : null);
 
   return {
     name: ex.name,
@@ -126,15 +130,19 @@ async function buildExercise(vaultPath, name) {
     // because the field rendered empty on all 135 exercises; a cue he has
     // written for himself is worth more than any default and must never be
     // shadowed by one.
-    cues: ex.cues || cuesFor(ex.id) || null,
+    // his own first, then Coach's research (sourced, newer), then the seed
+    cues: ex.cues || r?.cues || cuesFor(ex.id) || null,
     cuesAreHis: !!ex.cues,
     resourceUrl: ex.resourceUrl || null,
-    equipment: a?.equipment || null,
+    equipment: a?.equipment || r?.equipment || null,
+    variations: r?.variations || [],
+    repRange: r?.repRange || null,
+    researched: r ? { at: r.at || null, sources: r.sources || [] } : null,
     muscles: anatomy && { primary: anatomy.primary, secondary: anatomy.secondary,
       primaryLabels: anatomy.primaryLabels, secondaryLabels: anatomy.secondaryLabels, views: anatomy.views },
     // how the lift MOVES — null for an isometric hold or a shape we cannot
     // classify, which the client renders as a still diagram
-    motion: patternFor(ex.name, a?.primary || []),
+    motion: patternFor(ex.name, a?.primary || r?.primary || []),
   };
 }
 

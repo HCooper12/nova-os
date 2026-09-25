@@ -59,6 +59,8 @@ const SCHEDULED = [
   { id: 'health-mirror', label: 'Health Mirror', role: 'the numbers, into the vault', cadenceHours: 2 },
   // daily, first pass an hour after boot — so 26h is the honest "it has gone quiet" line
   { id: 'exercise-videos', label: 'Form Videos', role: 'every lift keeps a demo link', cadenceHours: 26 },
+  // ticks every 30 min (a model only runs for a new lift or the weekly pass)
+  { id: 'exercise-research', label: 'Exercise Research', role: 'new lifts researched, the library improved weekly', cadenceHours: 2 },
   { id: 'pattern-scout', label: 'Pattern Scout', role: 'repeated acts → skill proposals', cadenceHours: 2 },
   { id: 'autonomy', label: 'Trust Ladder', role: 'autonomy earned, proposed', cadenceHours: 2 },
   { id: 'distill', label: 'Distiller', role: 'captures woven into the graph', cadenceHours: 2 },
