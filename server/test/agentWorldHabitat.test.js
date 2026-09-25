@@ -50,17 +50,17 @@ const ANCHORS = {
 const IDS = Object.keys(ANCHORS);
 const flat = (p, c) => Math.hypot(p.x - c.x, p.z - c.z);
 
-test('LAYOUT is scene.js\'s layout, number for number', async () => {
+test('scene.js takes its layout from LAYOUT, so the two cannot drift', async () => {
   const src = await readFile(path.join(ROOT, 'src/orgmap/scene.js'), 'utf8');
-  const num = (re) => Number(src.match(re)[1]);
-  const obj = (re) => JSON.parse(src.match(re)[1].replace(/'/g, '"').replace(/(\w+):/g, '"$1":'));
-  assert.equal(LAYOUT.RD, num(/const RD = ([\d.]+)/));
-  assert.equal(LAYOUT.RX, num(/const RX = ([\d.]+)/));
-  assert.equal(LAYOUT.RZ, num(/RZ = ([\d.]+);/));
-  assert.equal(LAYOUT.BEING_SCALE, num(/const BEING_SCALE = ([\d.]+)/));
-  assert.deepEqual(LAYOUT.ORDER, obj(/const ORDER = (\[[^\]]*\])/));
-  assert.deepEqual(LAYOUT.TILE_R, obj(/const TILE_R = (\{[^}]*\})/));
-  assert.deepEqual(LAYOUT.HUE_OF, obj(/const HUE_OF = (\{[^}]*\})/));
+  // since the integration (§9e) the ring's numbers live only here
+  assert.match(src, /import\s*\{[^}]*\bLAYOUT\b[^}]*\}\s*from\s*'\.\.\/agentWorld\/habitat\.js'/, 'scene.js imports LAYOUT');
+  assert.match(src, /const\s*\{[^}]*\bRD\b[^}]*\bORDER\b[^}]*\}\s*=\s*LAYOUT/, 'scene.js reads its constants off LAYOUT');
+  for (const name of ['RD', 'RX', 'RZ', 'BEING_SCALE', 'ORDER', 'TILE_R', 'HUE_OF']) {
+    assert.ok(!new RegExp(`(const|let|var)\\s+${name}\\s*=`).test(src), `scene.js defines its own ${name}`);
+  }
+  // the numbers the ring was tuned at, pinned (a change here is a re-layout)
+  assert.deepEqual([LAYOUT.RD, LAYOUT.RX, LAYOUT.RZ, LAYOUT.BEING_SCALE], [3.2, 0.86, 1.1, 0.72]);
+  assert.deepEqual(LAYOUT.ORDER, ['knowledge', 'mind', 'logistics', 'train', 'fuel', 'money', 'platform']);
   // and the placement formula scene.js uses
   LAYOUT.ORDER.forEach((id, i) => {
     const th = Math.PI + i * (2 * Math.PI / LAYOUT.ORDER.length);

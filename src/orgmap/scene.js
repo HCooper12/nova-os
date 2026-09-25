@@ -20,23 +20,24 @@
 
 import * as THREE from 'three';
 import { createBeingKit } from '../agentWorld/beings.js';
+import { LAYOUT, createHabitat } from '../agentWorld/habitat.js';
 
-const RD = 3.2;             // district ring radius
-// the ring is a little taller than it is wide, which is the shape of a
-// phone held upright; on a wide screen it still reads as a ring
-const RX = 0.86, RZ = 1.1;
-const BEING_SCALE = 0.72;
+// The ring's geometry lives in one place, habitat.js's LAYOUT, because the
+// sets, the lanes and the beings' homes are all measured against it:
+//   RD            the district ring radius
+//   RX, RZ        the ring is a little taller than it is wide, which is the
+//                 shape of a phone held upright; on a wide screen it still
+//                 reads as a ring
+//   ORDER         round the ring from the back, clockwise seen from above:
+//                 the body's two (Train, Fuel) meet at the front, Knowledge
+//                 (three beings) sits at the back where nothing stands in
+//                 front of it
+//   TILE_R, HUE_OF, BEING_SCALE
+const { RD, RX, RZ, BEING_SCALE, ORDER, TILE_R, HUE_OF } = LAYOUT;
 // the waiting marker is the map's whole point, so it reads at phone size
 // even though the being it hangs over is small
 const MARKER_SCALE = 2.1;
 const MIN_DT = 1 / 30;
-
-// Around the ring from the back, clockwise seen from above: the body's two
-// (Train, Fuel) meet at the front, Knowledge (three beings) sits at the back
-// where nothing stands in front of it.
-const ORDER = ['knowledge', 'mind', 'logistics', 'train', 'fuel', 'money', 'platform'];
-const TILE_R = { knowledge: 1.32 };
-const HUE_OF = { train: 'chest', knowledge: 'quads', logistics: 'cy', fuel: 'shoulders', platform: 'vi', money: 'good', mind: 'mg' };
 const LABEL = { train: 'Train', knowledge: 'Knowledge', logistics: 'Logistics', fuel: 'Fuel', platform: 'Platform', money: 'Money', mind: 'Mind' };
 
 function readTokens(el) {
@@ -200,20 +201,24 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     const label = textSprite(LABEL[id], lighter(hue, 0.55), 0.36);
     label.material.opacity = 0.95;
     label.position.set(0, 0.24, r * 0.95); g.add(label);
-    districtAt[id] = { pos, r, group: g };
+    districtAt[id] = { pos, r, group: g, label };
   });
 
+  // ---- the habitat: a set on every tile, the lanes, the plaza -------
+  // (AGENT-WORLD-PLAN §9b). The plaza is built round the plinth above, not
+  // with one of its own; the orb and its ring stay the scene's.
+  const habitat = createHabitat(THREE, TK, kit);
+  world.add(habitat.group);
+
   // ---- the beings ---------------------------------------------------
-  const SLOTS = { knowledge: [[-0.62, 0.22], [0.62, 0.22], [0, -0.42]] };
+  // each stands at its home node on the lanes (the tile's front, or its
+  // slot on Knowledge), which is where every walk starts and ends
   const beings = {};
-  const knowledgeOrder = ['researcher', 'watcher', 'librarian'];
   kit.AGENTS.forEach((a, i) => {
     const b = kit.BUILD[a.id](a);
-    const districtId = { commander: 'logistics', coach: 'train', cfo: 'money', guardian: 'platform', researcher: 'knowledge', watcher: 'knowledge', librarian: 'knowledge', mealprep: 'fuel', leader: 'mind' }[a.id];
-    const d = districtAt[districtId];
-    const slot = districtId === 'knowledge' ? SLOTS.knowledge[knowledgeOrder.indexOf(a.id)] : [0, 0];
+    const home = habitat.lanes.nodes['home:' + a.id];
     const holder = new THREE.Group();
-    holder.position.set(d.pos.x + slot[0], 0, d.pos.z + slot[1]);
+    holder.position.set(home.x, 0, home.z);
     holder.scale.setScalar(BEING_SCALE);
     holder.add(b.group); world.add(holder);
     const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.5, 10), new THREE.MeshBasicMaterial({ visible: false }));
@@ -250,6 +255,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   // Fit by projecting sampled geometry into the view, never a bounding
   // sphere: a sphere around a flat ring over-reads by ~40% (the character
   // sheet's first pass), which is how a map ends up small in the middle.
+  // The sets are sampled too (vertices, not boxes): the mast's rose and the
+  // tower's lantern stand taller than any being, at the back of their tiles,
+  // and a district's name plate is a sprite as wide as the tile.
   const FIT_PTS = [];
   ORDER.forEach((id) => {
     const d = districtAt[id];
@@ -257,6 +265,23 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     FIT_PTS.push(new THREE.Vector3(d.pos.x, 1.55, d.pos.z));
   });
   FIT_PTS.push(new THREE.Vector3(0, 1.2, 0));
+  world.updateMatrixWorld(true);
+  function samplePoints(obj, want, out) {
+    const meshes = [];
+    let total = 0;
+    obj.traverse((o) => { if (o.isMesh && o.geometry?.attributes.position && !o.userData.contact) { meshes.push(o); total += o.geometry.attributes.position.count; } });
+    meshes.forEach((o) => {
+      const pa = o.geometry.attributes.position, share = Math.max(2, Math.round(want * pa.count / Math.max(1, total))), st = Math.max(1, Math.floor(pa.count / share));
+      for (let i = 0; i < pa.count; i += st) out.push(new THREE.Vector3().fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld));
+    });
+  }
+  ORDER.forEach((id) => samplePoints(habitat.districts[id].group, 160, FIT_PTS));
+  samplePoints(habitat.plaza.group, 80, FIT_PTS);
+  ORDER.forEach((id) => {
+    const lb = districtAt[id].label, p = new THREE.Vector3();
+    lb.getWorldPosition(p);
+    [-1, 1].forEach((sx) => [-1, 1].forEach((sy) => FIT_PTS.push(new THREE.Vector3(p.x + sx * lb.scale.x / 2, p.y + sy * lb.scale.y / 2, p.z))));
+  });
   const view = { spin: 0, spinT: 0, elev: 0.74, dist: 14, distT: 14, tx: 0, ty: 0.3, tz: 0, txT: 0, tyT: 0.3, tzT: 0, lift: 0, liftT: 0 };
   const probe = new THREE.PerspectiveCamera(), pv = new THREE.Vector3(), YAX = new THREE.Vector3(0, 1, 0);
   function fitDistance(pts, target, spin, bandY = 0.88) {
@@ -414,6 +439,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       if (!reduceMotion) live = true;
     }
     if (!reduceMotion) { coreRing.rotation.z = now * 0.3; }
+    // the sets' lamps fade and the plaza pulses; each says when it is done
+    if (habitat.tick(now, dt)) live = true;
 
     renderer.render(scene, camera);
     frames++; lastDraw = now; dirty = false;
@@ -491,6 +518,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       el.removeEventListener('pointermove', onMove);
       el.removeEventListener('pointerup', onUp);
       el.removeEventListener('pointercancel', onCancel);
+      habitat.dispose();
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
         if (o.material) [].concat(o.material).forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); });
