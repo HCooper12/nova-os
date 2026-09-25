@@ -47,11 +47,10 @@ const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', '
 const STATE = () => path.join(dataRoot(), 'exercise-research.json');
 
 // Measured on his library before shipping: one call researching Face Pull
-// and finding one new exercise cost $0.61 and took 247 s on Sonnet. A call
-// holds at most PER_CALL exercises, and the cap is about twice that pass.
-export const BUDGET_USD = Number(process.env.NOVA_EXERCISE_RESEARCH_BUDGET || 2);
-const TIMEOUT_MS = 12 * 60_000;
-export const PER_CALL = 3;         // exercises researched in one model call (measured: 2 took 4 minutes)
+// and finding one new exercise cost $0.61 and took 247 s on Sonnet. No dollar
+// ceiling and no wall-clock kill on the call — his standing rule (23 Sep, and
+// again 25 Sep for this lane: "No caps at all"); see test/noCaps.test.js.
+export const PER_CALL = 3;        // exercises researched in one model call (measured: 2 took 4 minutes)
 export const PER_RUN = 4;          // new exercises researched in one pass
 export const WEEKLY_IMPROVE = 5;   // program lifts improved per week
 export const WEEKLY_DISCOVER = 2;  // exercises added per week, at most
@@ -184,22 +183,19 @@ export function runResearchModel(prompt, { model } = {}) {
         ...boundaryArgs('WebSearch WebFetch'),
         '--output-format', 'json',
         '--model', model,
-        '--max-budget-usd', String(BUDGET_USD),
         '--no-session-persistence',
       ], { stdio: ['ignore', 'pipe', 'pipe'] });
       let stdout = '';
       let stderr = '';
-      const timer = setTimeout(() => { try { child.kill(); } catch { /* gone */ } }, TIMEOUT_MS);
       child.stdout.on('data', (d) => { stdout += d; });
       child.stderr.on('data', (d) => { stderr += d; });
       child.on('close', async (code) => {
-        clearTimeout(timer);
         let outer = null;
         try { outer = JSON.parse(stdout); } catch { /* not JSON */ }
         const cost = outer?.total_cost_usd ?? null;
         if (!outer || outer.is_error || code !== 0) {
           const why = outer?.result || stderr.trim() || `claude exited ${code}`;
-          return reject(Object.assign(new Error(`${why}${cost != null ? ` ($${cost.toFixed(2)} spent against a $${BUDGET_USD} cap)` : ''}`), { cost }));
+          return reject(Object.assign(new Error(`${why}${cost != null ? ` ($${cost.toFixed(2)} spent)` : ''}`), { cost }));
         }
         try {
           const { firstBalancedObjectMatch, parseModelJson } = await import('./jsonSalvage.js');

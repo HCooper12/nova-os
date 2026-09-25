@@ -27,7 +27,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -54,9 +54,33 @@ const GUARDED_FILES = [
 const BUDGET_FLAG = '--' + 'max-budget-usd';
 const WATCHDOG_CALL = 'settleWatchdog' + '(';
 
-test('the dollar-budget flag does not come back into any guarded lane file', async () => {
+// THE LIST WAS THE HOLE (25 Sep 2026). exerciseResearch.js arrived two days
+// after the pass, spawned the model with a $2 dollar cap and a 12-minute kill,
+// and passed this file untouched because it was not on the list above. So the
+// guard now also covers every lib file that spawns the claude CLI, found by
+// reading the source, the same way modelPrefs.test.js finds spawn sites.
+async function spawnFiles() {
+  const out = [];
+  for (const name of await readdir(libDir)) {
+    if (!name.endsWith('.js')) continue;
+    const text = await readFile(path.join(libDir, name), 'utf8');
+    if (text.includes('spawn(CLAUDE_BIN')) out.push(name);
+  }
+  return out;
+}
+async function guardedFiles() {
+  return [...new Set([...GUARDED_FILES, ...(await spawnFiles())])];
+}
+
+// Kill timers these files may keep, and why. Each kills something that is not
+// a working claude job: the weekly alias probe is a one-word informational
+// call (a hung CLI must not hold the daily tick), and the other three time out
+// their yt-dlp / ffmpeg / whisper helpers (the header's "external tools").
+const KILL_TIMER_ALLOWED = new Set(['modelWatch.js', 'studyLane.js', 'repertoireLane.js', 'watcher.js']);
+
+test('the dollar-budget flag does not come back into any lane that spawns the model', async () => {
   const offenders = [];
-  for (const name of GUARDED_FILES) {
+  for (const name of await guardedFiles()) {
     const text = await readFile(path.join(libDir, name), 'utf8');
     if (text.includes(BUDGET_FLAG)) offenders.push(name);
   }
@@ -67,9 +91,9 @@ test('the dollar-budget flag does not come back into any guarded lane file', asy
     + 'removed — it does not come back, not even a small one.');
 });
 
-test('the wall-clock watchdog does not come back into any guarded lane file', async () => {
+test('the wall-clock watchdog does not come back into any lane that spawns the model', async () => {
   const offenders = [];
-  for (const name of GUARDED_FILES) {
+  for (const name of await guardedFiles()) {
     const text = await readFile(path.join(libDir, name), 'utf8');
     if (text.includes(WATCHDOG_CALL)) offenders.push(name);
   }
@@ -78,6 +102,22 @@ test('the wall-clock watchdog does not come back into any guarded lane file', as
     + '2026) covers "any wall-clock that kills a running job" along with the dollar cap — lib/settle.js, the '
     + 'module that implemented it, was deleted in the same pass and must not be reintroduced or reimplemented '
     + 'locally.');
+});
+
+// settle.js is gone, so a new wall clock would be a hand-rolled one: a
+// setTimeout that kills the spawned child. exerciseResearch.js had exactly
+// that (12 minutes) and neither text check above could see it.
+test('no lane that spawns the model hand-rolls a kill timer on it', async () => {
+  const offenders = [];
+  for (const name of await spawnFiles()) {
+    if (KILL_TIMER_ALLOWED.has(name)) continue;
+    const text = await readFile(path.join(libDir, name), 'utf8');
+    if (/setTimeout\([^;]*?\.kill\(/s.test(text.replace(/\/\/.*$/gm, ''))) offenders.push(name);
+  }
+  assert.deepEqual(offenders, [],
+    `a setTimeout that kills a spawned process reappeared in: ${offenders.join(', ')}. His standing `
+    + 'instruction (23 Sep 2026) removed every wall-clock kill on a working job. If the timer kills an '
+    + 'external tool rather than the claude CLI, add the file to KILL_TIMER_ALLOWED with the reason.');
 });
 
 // The module itself is gone, not just unused — a lane cannot import a
