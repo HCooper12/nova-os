@@ -309,6 +309,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
   --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
   --nv-good:#5fe8a8; --nv-warn:#e08383;
+  --nv-or:#ffa257;   /* PRACTICE — the rehearsal hue (27 Sep 2026): stage warmth, one muscle, one colour */
   /* THE ISLAND (24 Sep 2026). Nova's notifications grow out of the Dynamic
      Island, so the card IS the island: hardware black in every theme, with
      its own ink. The hues it wears are the theme's, lifted toward white by
@@ -347,6 +348,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   /* vi lifted #8a6ad1 -> #a68ce2: the old one was 3.67:1 as text on this
      ground, the only accent in any theme still under the 4.5:1 bar */
   --nv-cy:#6be5f5; --nv-vi:#a68ce2; --nv-mg:#e08f6f; --nv-gold:#d8b573; --nv-good:#5aa87c;
+  --nv-or:#f2a04e;
   --nv-acc:#d8b573; --nv-acc-bg:rgba(216,181,115,.1); --nv-acc-border:rgba(216,181,115,.38);
   --nv-radius:14px; --nv-bracket-op:0;
   --nv-grid-op:0; --nv-stars-op:1; --nv-aur1:rgba(138,106,209,.13); --nv-aur2:rgba(107,229,245,.07);
@@ -369,6 +371,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-glass:rgba(34,24,20,.6); --nv-glass2:rgba(46,32,26,.78);
   --nv-edge:rgba(216,162,74,.24); --nv-spec:rgba(255,220,180,.35);
   --nv-cy:#ffb35c; --nv-vi:#ff8a4a; --nv-mg:#ff6a88; --nv-gold:#e8b464; --nv-good:#8fd88a;
+  --nv-or:#ffc98a;
   --nv-acc:#ffb35c; --nv-acc-bg:rgba(255,179,92,.08); --nv-acc-border:rgba(255,179,92,.45);
   --nv-bracket:rgba(255,179,92,.55);
   --nv-gridline:rgba(216,162,74,.05); --nv-aur1:rgba(255,138,74,.11); --nv-aur2:rgba(255,106,136,.1);
@@ -408,6 +411,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-cy:#0060df;    /* 5.62:1 */  --nv-vi:#8b32b8;   /* 6.47:1 */
   --nv-mg:#d11a43;    /* 5.33:1 */  --nv-gold:#8a5200; /* 6.39:1 */
   --nv-good:#1c7a3e;  /* 5.38:1 */  --nv-warn:#c9251c; /* 5.58:1 */
+  --nv-or:#b34f00;    /* 5.20:1 — the practice hue */
   --nv-island-lift:45%;  /* the text-weight hues above are for WHITE; on the black island they sink */
   --nv-acc:#0060df; --nv-acc-bg:rgba(0,96,223,.1); --nv-acc-border:rgba(0,96,223,.35);
   --nv-well:rgba(120,120,128,.12); --nv-on-acc:#ffffff;
