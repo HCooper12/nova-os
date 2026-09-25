@@ -3,6 +3,7 @@ import { mkdir, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolvedModels, lastCheckedAt, modelLabel } from './modelWatch.js';
+import { spendSummary } from './modelSpend.js';
 
 // ---------------------------------------------------------------------------
 // THE MODEL BOARD — one place that names every lane in Nova that spawns the
@@ -506,6 +507,10 @@ export function laneSkipped(laneId, where) {
 export function getModelPrefs() {
   const saved = loadRaw();
   const resolved = resolvedModels();
+  // One pass over the spend ledger for every lane at once — spendSummary
+  // reads its file synchronously, cached by mtime, exactly like loadRaw()
+  // above, so this stays a cheap call on a path about to spawn a process.
+  const spend = spendSummary({ days: 7 });
   return {
     models: buildModelChoices(),
     groups: LANE_GROUPS,
@@ -520,6 +525,7 @@ export function getModelPrefs() {
       deterministic: !!l.deterministic,
       customised: !!(saved[l.id]?.model && saved[l.id].model !== l.def),
       enabled: laneEnabled(l.id),
+      spend: spend[l.id] || null,
     })),
     watch: {
       checkedAt: lastCheckedAt(),

@@ -17,9 +17,11 @@ const {
   modelFor, laneEnabled, assertLaneOn, laneOffError, laneSkipped,
   getModelPrefs, setLanePref, resetLanePref, isValidModel,
 } = await import('../lib/modelPrefs.js');
+const { recordRun } = await import('../lib/modelSpend.js');
 
 const PREFS = path.join(dataDir, 'model-prefs.json');
-const clean = () => rm(PREFS, { force: true });
+const SPEND = path.join(dataDir, 'model-spend.json');
+const clean = () => Promise.all([rm(PREFS, { force: true }), rm(SPEND, { force: true })]);
 
 test.afterEach(clean);
 
@@ -157,6 +159,23 @@ test('getModelPrefs returns the whole board, each lane resolved, with a fresh mo
     assert.ok(board.watch.resolved[family]?.label, `${family} has a label`);
   }
   assert.deepEqual(board.watch.outdatedLanes, [], 'nothing is pinned to an old version by default');
+});
+
+test('getModelPrefs folds each lane\'s spend over the last 7 days — null when the lane has no rows', async () => {
+  await clean();
+  await recordRun('coach', { usd: 0.5, ms: 1000, model: 'claude-sonnet-5' });
+  await recordRun('coach', { usd: 0.25, ms: 3000, model: 'claude-sonnet-5', limited: true });
+  const board = getModelPrefs();
+  const coach = board.lanes.find((l) => l.id === 'coach');
+  assert.ok(coach.spend, 'a lane with recorded runs carries a spend summary');
+  assert.equal(coach.spend.runs, 2);
+  assert.equal(coach.spend.usd, 0.75);
+  assert.equal(coach.spend.medianMs, 2000);
+  assert.equal(coach.spend.lastModel, 'claude-sonnet-5');
+  assert.equal(coach.spend.limitHits, 1);
+
+  const untouched = board.lanes.find((l) => l.id === 'pulse');
+  assert.equal(untouched.spend, null, 'a lane with no rows in the window reports null, not an empty object');
 });
 
 test('resetLanePref with no lane clears the whole board', async () => {

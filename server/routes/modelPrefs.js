@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getModelPrefs, setLanePref, resetLanePref } from '../lib/modelPrefs.js';
+import { spendSummary } from '../lib/modelSpend.js';
 
 // The model board — which Claude model every lane in Nova runs on, and
 // whether it runs. Server-side (not per-device localStorage) for the same
@@ -11,6 +12,19 @@ export function modelPrefsRouter() {
   router.get('/model-prefs', (req, res) => {
     try {
       res.json(getModelPrefs());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // What every lane actually costs, over a trailing window — the numbers
+  // getModelPrefs() already folds into each lane's `spend` field, exposed
+  // here directly for a caller that wants a different window than the
+  // board's own 7 days.
+  router.get('/model-spend', (req, res) => {
+    try {
+      const days = Number(req.query?.days);
+      res.json(spendSummary(Number.isFinite(days) && days > 0 ? { days } : {}));
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
