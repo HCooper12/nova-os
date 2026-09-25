@@ -84,12 +84,26 @@ test('working means in flight now; a record stuck classifying for hours is not w
 
 test('a being is as fresh as the freshest loop it stands for, and never-run says so', () => {
   const agents = [
-    { id: 'money', label: 'Money', state: 'stale', stateLabel: '9d ago' },
-    { id: 'cfo', label: 'CFO', state: 'recent', stateLabel: '2d ago' },
+    { id: 'money', label: 'Money', role: 'ledger import', state: 'stale', stateLabel: '9d ago', lastBeat: ago(9 * 24 * 60), lastNote: null },
+    { id: 'cfo', label: 'CFO', role: 'monthly money report', state: 'recent', stateLabel: '2d ago', lastBeat: ago(2 * 24 * 60), lastNote: { at: ago(60), note: 'ledger unreadable' } },
   ];
   const m = composeOrgMap({ agents, records: [], now: NOW });
   assert.equal(m.beings.find((b) => b.id === 'cfo').fresh, 'recent');
   assert.equal(m.beings.find((b) => b.id === 'watcher').fresh, 'never');
+
+  // each member carries its own role and last-run word, not just the being's
+  // aggregate freshness — the tap card draws every loop's own state from this
+  const cfoBeing = m.beings.find((b) => b.id === 'cfo');
+  const cfoMember = cfoBeing.members.find((x) => x.id === 'cfo');
+  assert.equal(cfoMember.role, 'monthly money report');
+  assert.deepEqual(cfoMember.last, { note: 'ledger unreadable', at: ago(60) }, 'a note beats a bare beat, and keeps its own time');
+  const moneyMember = cfoBeing.members.find((x) => x.id === 'money');
+  assert.equal(moneyMember.role, 'ledger import');
+  assert.deepEqual(moneyMember.last, { note: null, at: ago(9 * 24 * 60) }, 'no note: the beat time stands in for it');
+
+  const watcherMember = m.beings.find((b) => b.id === 'watcher').members.find((x) => x.id === 'watcher');
+  assert.equal(watcherMember.role, null, 'no roster entry at all: role is honestly absent');
+  assert.equal(watcherMember.last, null, 'no note and no beat: last is null, not a guess');
 });
 
 test('the headline is counted, names the two who ask most, and is quiet when nothing waits', () => {

@@ -123,7 +123,19 @@ export function composeOrgMap({ agents = [], conversational = [], records = [], 
       && now - new Date(r.createdAt).getTime() < WORKING_MS);
     const members = (BEING_MEMBERS[b.id] || []).map((id) => {
       const a = roster.get(id);
-      return { id, label: a?.label || id, state: a?.state || 'never', stateLabel: a?.stateLabel || 'never run' };
+      // the loop's own last word beats a bare timestamp; a scheduled agent's
+      // note carries its own `at` (when it was said), which may differ from
+      // the beat itself — a stalled note about an old run still ages by then
+      const last = a?.lastNote?.note
+        ? { note: a.lastNote.note, at: a.lastNote.at || null }
+        : (a?.lastBeat || a?.last?.at)
+          ? { note: null, at: a.lastBeat || a.last.at }
+          : null;
+      return {
+        id, label: a?.label || id, role: a?.role || null,
+        state: a?.state || 'never', stateLabel: a?.stateLabel || 'never run',
+        last,
+      };
     });
     const fresh = members.reduce((best, m) => (FRESH_RANK[m.state] > FRESH_RANK[best] ? m.state : best), 'never');
     const last = mine.filter((r) => r.status !== 'pending')

@@ -19,6 +19,12 @@ const HUE = {
   train: 'var(--nv-m-chest)', knowledge: 'var(--nv-m-quads)', logistics: 'var(--nv-cy)', fuel: 'var(--nv-m-shoulders)',
   platform: 'var(--nv-vi)', money: 'var(--nv-good)', mind: 'var(--nv-mg)', core: 'var(--nv-cy)',
 };
+// the loop list's own dots — a state read at a glance, same four states the
+// old fleet ring drew, now living on the being that stands for each loop
+const LOOP_DOT = {
+  today: 'var(--nv-good)', recent: 'var(--nv-cy)', stale: 'var(--nv-warn)',
+  never: 'color-mix(in srgb, var(--nv-ink) 30%, transparent)',
+};
 
 const reducedMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
   && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -51,6 +57,23 @@ function Card({ c, onClose, onInbox, hue }) {
         </Meta>
       )}
       {c.loops && <Meta as="div" tone={dim(40)} style={{ marginTop: '3px', textTransform: 'none', letterSpacing: 0 }}>{c.loops}</Meta>}
+      {/* every loop's own state, stale/never first — the picture the old
+          fleet ring drew, now carried on the being that stands for it */}
+      {c.loopList?.length > 0 && (
+        <div style={css('margin-top:8px;display:flex;flex-direction:column;gap:4px')}>
+          {c.loopList.map((m) => (
+            <div key={m.id} style={css(`padding:5px 9px;border-radius:9px;background:${dim(3)}`)}>
+              <div style={css('display:flex;align-items:baseline;gap:8px')}>
+                <span style={{ flex: 'none', width: 6, height: 6, borderRadius: '50%', alignSelf: 'center', background: LOOP_DOT[m.state] }} />
+                <span style={css(`font:500 12.5px var(--nv-font-ui);color:${dim(86)}`)}>{m.label}</span>
+                <span style={css(`font:450 11.5px var(--nv-font-ui);color:${dim(42)}`)}>{m.role}</span>
+                <Meta tone={dim(40)} style={{ marginLeft: 'auto', flex: 'none', textTransform: 'none', letterSpacing: 0 }}>{m.stateLabel}</Meta>
+              </div>
+              {m.last && <Meta as="div" tone={dim(36)} style={{ marginTop: '2px', paddingLeft: '14px', textTransform: 'none', letterSpacing: 0 }}>{m.last}</Meta>}
+            </div>
+          ))}
+        </div>
+      )}
       {c.asks.length > 0 && (
         <div style={css('margin-top:10px')}><TextAction compact onClick={onInbox}>Open Inbox →</TextAction></div>
       )}

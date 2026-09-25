@@ -45,6 +45,21 @@ export function loopsLine(members) {
   return `${head}: ${parts.join(', ')}.`;
 }
 
+// The being's loops as their own rows: the ones that need him — stale, then
+// never run — surface first, today's quiet successes last. Each row carries
+// its own last word: the loop's own note if it left one, else how long ago
+// it last beat, else nothing said.
+const LOOP_RANK = { stale: 0, never: 0, today: 1, recent: 2 };
+export function loopList(members, now) {
+  if (!members?.length) return [];
+  return [...members]
+    .sort((a, b) => (LOOP_RANK[a.state] ?? 1) - (LOOP_RANK[b.state] ?? 1))
+    .map((m) => ({
+      id: m.id, label: m.label, role: m.role, state: m.state, stateLabel: m.stateLabel,
+      last: m.last?.note || (m.last?.at ? `${ago(m.last.at, now)} ago` : null),
+    }));
+}
+
 export function valsOrgMap(ops, app, ctx) {
   const m = ops?.orgMap;
   if (ctx.demoMode) return { live: false, line: 'The Org Map is drawn from the real records, so it needs the Mac.' };
@@ -71,7 +86,7 @@ export function valsOrgMap(ops, app, ctx) {
         id: 'core', name: 'Nova', district: 'The core',
         line: m.core.waiting ? `${COUNT[m.core.waiting] || m.core.waiting} of your own notes waiting to be sorted.` : 'Nothing of yours waiting to be sorted.',
         asks: m.core.asks.map((a) => ({ id: a.id, title: a.title, when: ago(a.at, now) })),
-        last: null, loops: null,
+        last: null, loops: null, loopList: [],
       };
     }
     const b = m.beings.find((x) => x.id === selectedId);
@@ -83,6 +98,7 @@ export function valsOrgMap(ops, app, ctx) {
       more: b.waiting > b.asks.length ? b.waiting - b.asks.length : 0,
       last: b.last ? { title: b.last.title, status: b.last.status, when: ago(b.last.at, now) } : null,
       loops: loopsLine(b.members),
+      loopList: loopList(b.members, now),
     };
   })();
 
