@@ -76,7 +76,9 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   remove the worktree and branch. Use the same recipe for P3. P2-B SHIPPED =
   08c73ca (MissionSummary.jsx + PinnedEditSheet.jsx; Summary offered in
   Settings; looked at in demo via `node scripts/shot.mjs --demo --style summary
-  --theme command --material glass --hour dusk` — shot.mjs gained --demo and
+  --theme command --material glass --hour dusk`; the ten frames of every material
+  are published for his morning at https://claude.ai/artifact/X2zxDCQBCCAXcbE9AaKf1H
+  ("Home, Built"; republish with `url`) — shot.mjs gained --demo and
   --readonly in d419271; §2b amended in 787cf5e). P3 (Opus) IN FLIGHT in
   `.claude/worktrees/p3` (branch `p3-index-tabbar`, brief
   design/audits/redesign-2026-09/p3-brief.md). WAS IN FLIGHT: P2-B (Opus) —
