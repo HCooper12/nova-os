@@ -424,6 +424,57 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-glow-sat1:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat2:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat3:0 0 0 0 rgba(0,0,0,0);
   --nv-tsh-head-cy:none; --nv-tsh-head-vi:none;
 }
+/* Sky — Apple glass over a sky that follows the hour (26 Sep 2026,
+   design/HOME-REDESIGN-PLAN.md §2). A THEME (palette), like Daylight above,
+   appleOnly for kin reasons: colours built for a bright, saturated ground
+   don't want Command's HUD. Sets every token Daylight sets, same as asked;
+   values are his stated ones where given, and re-derived (not copied) where
+   Daylight's own number was tuned for a problem Sky doesn't have — each
+   noted inline. The gradient that actually cycles with the hour is
+   .nv-sky, summary-only, further down; this block is what every OTHER
+   surface (ink, wells, non-card chrome) reads under any Apple-family style. */
+:root[data-nv-theme="sky"] {
+  /* not given; no clean mapping (Train doesn't render under summary/sky
+     yet) — carried from Daylight unchanged, per the fallback rule */
+  --nv-m-chest:#e0574a; --nv-m-back:#1f9d90; --nv-m-shoulders:#d99424; --nv-m-biceps:#1fa96c;
+  --nv-m-triceps:#7c58d8; --nv-m-quads:#2f7fd6; --nv-m-hamstrings:#2d6fd0; --nv-m-glutes:#9a5fd8;
+  --nv-m-calves:#3d95cf; --nv-m-abs:#c9a024; --nv-m-forearms:#a67c2e; --nv-m-full:#0f8fa8; --nv-m-mobility:#3f9a86;
+  --nv-void:#0b2a55;
+  /* not given; taken from the day sky's own gradient stops (mockup 56's
+     apple-glass .sky, the 66%/86% stops) so the status-bar ground and a
+     flattened (material=solid) frame agree with the sky's own hues */
+  --nv-bg1:#1c4f8f; --nv-bg2:#5a7fb8;
+  --nv-ink:#ffffff;
+  /* the same alpha steps Daylight uses, recoloured white, per instruction */
+  --nv-ink60:rgba(255,255,255,.74); --nv-ink40:rgba(255,255,255,.42); --nv-ink50:rgba(255,255,255,.62);
+  --nv-glass:rgba(255,255,255,.15);
+  --nv-glass2:rgba(255,255,255,.22); /* not given; one step more opaque than glass, the same step every other theme takes */
+  --nv-edge:rgba(255,255,255,.3);
+  --nv-spec:rgba(255,255,255,.5); /* not given; a bright specular for a glass-over-sky material */
+  --nv-cy:#9AE6FF;
+  --nv-vi:#C9B8FF; /* the violet-type token */
+  --nv-mg:#d11a43; /* not given; no clean mapping — kept from Daylight */
+  --nv-gold:#FFD27A;
+  --nv-good:#6BF2B8;
+  --nv-warn:#c9251c; /* not given; kept from Daylight */
+  --nv-or:#FF8F76;
+  /* re-derived, not copied: Daylight's hues are dark, tuned for text on
+     white, so the black island lifts them toward white; Sky's hues above
+     are already light pastels — the command/observatory/ember brightness
+     family — so, like them, no lift is wanted */
+  --nv-island-lift:0%;
+  --nv-acc:#ffffff;
+  --nv-acc-bg:rgba(255,255,255,.18); --nv-acc-border:rgba(255,255,255,.35); /* not given; derived at the same weight as edge/track above */
+  --nv-well:rgba(255,255,255,.12); --nv-on-acc:#0b2a55;
+  --nv-bracket-op:0; --nv-grid-op:0; --nv-stars-op:0; --nv-aurora-op:0;
+  --nv-anim:running;
+  --nv-glow-tab:none; --nv-tsh-tab:none; --nv-glow-cta:none; --nv-tsh-cta:none;
+  --nv-cta-border:transparent; --nv-cta-bg:var(--nv-acc); --nv-cta-ink:#0b2a55;
+  --nv-glow-core:0 0 60px -26px rgba(154,230,255,.4); /* Daylight's own blue glow, re-hued to Sky's cyan */
+  --nv-glow-noticed:0 0 0 0 rgba(0,0,0,0); --nv-glow-focus:0 0 0 0 rgba(0,0,0,0);
+  --nv-glow-sat1:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat2:0 0 0 0 rgba(0,0,0,0); --nv-glow-sat3:0 0 0 0 rgba(0,0,0,0);
+  --nv-tsh-head-cy:none; --nv-tsh-head-vi:none;
+}
 
 :root[data-nv-calm="1"] {
   --nv-aurora-op:.35; --nv-grid-op:.5; --nv-anim:paused;
@@ -445,7 +496,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    theme AND calm. The silhouette tab/nav icons are gated on the same
    attribute in React (valsChrome → appleStyle).
    ================================================================ */
-:root[data-nv-style="apple"], :root[data-nv-style="cupertino"] {
+:root[data-nv-style="apple"], :root[data-nv-style="cupertino"], :root[data-nv-style="summary"] {
   --nv-display-track:-.02em;
   --nv-font-ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',system-ui,sans-serif;
   --nv-font-serif:ui-serif,'New York',Georgia,serif;
@@ -470,7 +521,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 /* cupertino extras on top of the shared apple skin: grouped-inset material —
    slightly more solid surfaces, larger radius, hairline separators. The
    restructured layouts themselves are React (v.structured gates them). */
-:root[data-nv-style="cupertino"] {
+:root[data-nv-style="cupertino"], :root[data-nv-style="summary"] {
   --nv-radius:22px;
   --nv-glass:rgba(255,255,255,.055); --nv-glass2:rgba(17,19,28,.86);
   --nv-edge:rgba(255,255,255,.08);
@@ -483,7 +534,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    against the ground, and the inset specular line goes; the edge token stays
    for inputs and separators, which still want their hairline. Daylight keeps
    its white cards (declared later, wins). */
-:root[data-nv-style="cupertino"] .nv-pane {
+:root[data-nv-style="cupertino"] .nv-pane, :root[data-nv-style="summary"] .nv-pane {
   border-color: transparent;
   background: rgba(255,255,255,.075);
   --nv-pane-shadow: 0 18px 44px -30px #000;
@@ -493,17 +544,245 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    light palette the cards are WHITE with soft shadow (the mockup-A look).
    Two-attribute selectors, declared last, win both fights. */
 :root[data-nv-style="apple"][data-nv-theme="daylight"],
-:root[data-nv-style="cupertino"][data-nv-theme="daylight"] {
+:root[data-nv-style="cupertino"][data-nv-theme="daylight"],
+:root[data-nv-style="summary"][data-nv-theme="daylight"] {
   --nv-glass:#ffffff; --nv-glass2:rgba(249,249,251,.9);
   --nv-edge:rgba(0,0,0,.06); --nv-spec:rgba(255,255,255,.9);
   --nv-well:rgba(120,120,128,.12);
   --nv-cta-bg:var(--nv-acc); --nv-cta-ink:#ffffff;
 }
+/* NOT extended to summary (deliberately — see the SUMMARY section below):
+   this hardcodes backdrop-filter:none at a specificity summary's own
+   material-aware .nv-pane rule cannot out-order, which would silently kill
+   the daylight "glass twin"'s blur. Summary's .nv-pane is fully self-
+   contained via --nv-sum-* instead. */
 :root[data-nv-style="apple"][data-nv-theme="daylight"] .nv-pane,
 :root[data-nv-style="cupertino"][data-nv-theme="daylight"] .nv-pane {
   --nv-pane-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 22px -12px rgba(0,0,0,.14);
   box-shadow: var(--nv-pane-shadow);
   backdrop-filter: none;
+}
+
+/* ================================================================
+   STYLE · SUMMARY (26 Sep 2026, design/HOME-REDESIGN-PLAN.md §2, §4 P1) —
+   his fifth appearance, the one five mockup rounds converged on
+   (design/mockups/56-redesign-home-nova.html): Health's shape, Fitness's
+   ring hero, Weather's strip and glass, in Nova's own colour where it
+   earns its place. `summary` already borrows the WHOLE apple/cupertino
+   skin above (the three selector-list extensions before this block) and
+   `structured` (valsChrome.js) so every existing screen renders exactly
+   as it does under `cupertino` until its own redesign round. What's new
+   here is only what the mockup added: a second card system (`--nv-sum-*`,
+   named straight off the mockup's --card/--c1../--tab*) that switches
+   whole per THEME × MATERIAL rather than per theme alone, and the sky
+   that stands in for Command's starfield/grid/aurora.
+   DECLARED LAST so its `summary` selectors win the one real fight they
+   have with the blocks above: `.nv-pane`.
+   ================================================================ */
+
+/* base = Nova glass (command theme × glass material): his stated main.
+   Command's HUD ambience is switched off — .nv-sky (below) replaces it. */
+:root[data-nv-style="summary"] {
+  --nv-radius:20px;   /* already true via the apple-family block; restated so this block reads standalone */
+  --nv-font-round: ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,sans-serif;
+  --nv-aurora-op:0; --nv-stars-op:0; --nv-grid-op:0;
+  /* the app frame's own gradient (App.jsx render()) flattens to the
+     theme's void — .nv-sky supplies the colour now, painted above it */
+  --nv-bg1:var(--nv-void); --nv-bg2:var(--nv-void);
+  --nv-sum-card:rgba(255,255,255,.09); --nv-sum-card-ring:rgba(255,255,255,.16);
+  --nv-sum-card-hi:rgba(255,255,255,.22); --nv-sum-blur:22px;
+  --nv-sum-card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --nv-sum-c1:#5fe8a8; --nv-sum-c2:#8f7bff; --nv-sum-c3:#59e6ff; --nv-sum-c4:#d9b56f; --nv-sum-c5:#8f7bff;
+  --nv-sum-up:#5fe8a8; --nv-sum-dn:#e0616b;
+  --nv-sum-btn:#59e6ff; --nv-sum-btn-ink:#062028; --nv-sum-track:rgba(255,255,255,.14);
+  --nv-sum-tab:rgba(16,20,36,.58); --nv-sum-tab-ring:rgba(255,255,255,.14); --nv-sum-tab-ink:rgba(232,236,246,.5);
+  --nv-sum-tab-on:#59e6ff; --nv-sum-tab-on-bg:rgba(89,230,255,.1);
+  --nv-sum-badge:#d9b56f; --nv-sum-badge-ink:#241a06;
+  --nv-sum-stand-a:#59e6ff; --nv-sum-stand-b:#8f7bff;
+  --nv-sum-hl-font:var(--nv-font-serif); --nv-sum-hl-size:20px;
+  --nv-sum-ink2:rgba(232,236,246,.76); --nv-sum-ink3:rgba(232,236,246,.52); --nv-sum-sep:rgba(232,236,246,.14);
+}
+
+/* material=solid, command theme = Nova night: the nearest to today's Command
+   look, in the new card shape. A full palette (not a diff of nova-glass —
+   the mockup gives it one), so this wins on EVERY --nv-sum-* token whenever
+   material is solid, whatever the theme; the theme-specific blocks below
+   narrow it further for observatory/sky/daylight. */
+:root[data-nv-style="summary"][data-nv-material="solid"] {
+  --nv-sum-card:rgba(255,255,255,.055); --nv-sum-card-ring:transparent;
+  --nv-sum-card-hi:rgba(255,255,255,.05); --nv-sum-blur:0px;
+  --nv-sum-card-shadow:0 10px 30px -18px rgba(0,0,0,.9);
+  --nv-sum-c1:#5fe8a8; --nv-sum-c2:#8f7bff; --nv-sum-c3:#59e6ff; --nv-sum-c4:#d9b56f; --nv-sum-c5:#8f7bff;
+  --nv-sum-up:#5fe8a8; --nv-sum-dn:#e0616b;
+  --nv-sum-btn:#59e6ff; --nv-sum-btn-ink:#062028; --nv-sum-track:rgba(255,255,255,.1);
+  --nv-sum-tab:rgba(16,20,36,.72); --nv-sum-tab-ring:rgba(255,255,255,.1); --nv-sum-tab-ink:rgba(232,236,246,.46);
+  --nv-sum-tab-on:#59e6ff; --nv-sum-tab-on-bg:rgba(89,230,255,.08);
+  --nv-sum-badge:#d9b56f; --nv-sum-badge-ink:#241a06;
+  --nv-sum-stand-a:#59e6ff; --nv-sum-stand-b:#8f7bff;
+  --nv-sum-hl-font:var(--nv-font-serif); --nv-sum-hl-size:20px;
+  --nv-sum-ink2:rgba(232,236,246,.72); --nv-sum-ink3:rgba(232,236,246,.48); --nv-sum-sep:rgba(232,236,246,.1);
+}
+
+/* theme=observatory, glass: bone ink, gold accent, the classic Nova palette
+   in the new card shape */
+:root[data-nv-style="summary"][data-nv-theme="observatory"] {
+  --nv-sum-card:rgba(21,28,44,.62); --nv-sum-card-ring:rgba(236,229,218,.1);
+  --nv-sum-card-hi:rgba(236,229,218,.08); --nv-sum-blur:18px;
+  --nv-sum-card-shadow:0 12px 30px -18px rgba(0,0,0,.8);
+  --nv-sum-c1:#5aa87c; --nv-sum-c2:#8a6ad1; --nv-sum-c3:#6be5f5; --nv-sum-c4:#d8b573; --nv-sum-c5:#8a6ad1;
+  --nv-sum-up:#5aa87c; --nv-sum-dn:#d97b6c;
+  --nv-sum-btn:#d8b573; --nv-sum-btn-ink:#1a1322; --nv-sum-track:rgba(236,229,218,.12);
+  --nv-sum-tab:rgba(21,28,44,.74); --nv-sum-tab-ring:rgba(236,229,218,.12); --nv-sum-tab-ink:rgba(236,229,218,.48);
+  --nv-sum-tab-on:#d8b573; --nv-sum-tab-on-bg:rgba(216,181,115,.1);
+  --nv-sum-badge:#d8b573; --nv-sum-badge-ink:#1a1322;
+  --nv-sum-stand-a:#d8b573; --nv-sum-stand-b:#6be5f5;
+  --nv-sum-hl-font:var(--nv-font-serif); --nv-sum-hl-size:20px;
+  --nv-sum-ink2:rgba(236,229,218,.74); --nv-sum-ink3:rgba(236,229,218,.5); --nv-sum-sep:rgba(236,229,218,.12);
+}
+/* …solid twin: same palette, no blur — the card fill is already the one
+   translucent-over-void value the mockup gives both observatory materials */
+:root[data-nv-style="summary"][data-nv-theme="observatory"][data-nv-material="solid"] {
+  --nv-sum-card:rgba(21,28,44,.62); --nv-sum-blur:0px;
+}
+
+/* theme=sky, glass: Apple system hues — constant through the day; only the
+   .nv-sky background below cycles with the hour */
+:root[data-nv-style="summary"][data-nv-theme="sky"] {
+  --nv-sum-card:rgba(255,255,255,.15); --nv-sum-card-ring:rgba(255,255,255,.32);
+  --nv-sum-card-hi:rgba(255,255,255,.4); --nv-sum-blur:22px;
+  --nv-sum-card-shadow:0 14px 34px -18px rgba(0,0,0,.45);
+  --nv-sum-c1:#FF8F76; --nv-sum-c2:#6BF2B8; --nv-sum-c3:#9AE6FF; --nv-sum-c4:#FFD27A; --nv-sum-c5:#C9B8FF;
+  --nv-sum-up:#6BF2B8; --nv-sum-dn:#FF8F76;
+  --nv-sum-btn:rgba(255,255,255,.92); --nv-sum-btn-ink:#0b2a55; --nv-sum-track:rgba(255,255,255,.22);
+  --nv-sum-tab:rgba(255,255,255,.16); --nv-sum-tab-ring:rgba(255,255,255,.3); --nv-sum-tab-ink:rgba(255,255,255,.72);
+  --nv-sum-tab-on:#fff; --nv-sum-tab-on-bg:rgba(255,255,255,.18);
+  --nv-sum-badge:#FF3B30; --nv-sum-badge-ink:#fff;
+  --nv-sum-stand-a:#fff; --nv-sum-stand-b:rgba(255,255,255,.75);
+  --nv-sum-hl-font:var(--nv-font-ui); --nv-sum-hl-size:18px;
+  --nv-sum-ink2:rgba(255,255,255,.8); --nv-sum-ink3:rgba(255,255,255,.62); --nv-sum-sep:rgba(255,255,255,.18);
+}
+/* …solid twin */
+:root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-material="solid"] {
+  --nv-sum-card:rgba(255,255,255,.22); --nv-sum-blur:0px;
+}
+
+/* theme=daylight = "Summary light": the solid/default values are the ones he
+   named; the glass twin only lifts the card and brings the blur back */
+:root[data-nv-style="summary"][data-nv-theme="daylight"] {
+  --nv-sum-card:#fff; --nv-sum-card-ring:transparent; --nv-sum-card-hi:transparent; --nv-sum-blur:0px;
+  --nv-sum-card-shadow:0 1px 2px rgba(0,0,0,.04);
+  --nv-sum-c1:#34C759; --nv-sum-c2:#FF9500; --nv-sum-c3:#FF3B30; --nv-sum-c4:#FF9F0A; --nv-sum-c5:#AF52DE;
+  --nv-sum-up:#34C759; --nv-sum-dn:#FF3B30;
+  --nv-sum-btn:#007AFF; --nv-sum-btn-ink:#fff; --nv-sum-track:#E5E5EA;
+  --nv-sum-tab:rgba(255,255,255,.66); --nv-sum-tab-ring:rgba(0,0,0,.08); --nv-sum-tab-ink:#8E8E93;
+  --nv-sum-tab-on:#007AFF; --nv-sum-tab-on-bg:rgba(0,122,255,.1);
+  --nv-sum-badge:#FF3B30; --nv-sum-badge-ink:#fff;
+  --nv-sum-stand-a:#007AFF; --nv-sum-stand-b:#5856D6;
+  --nv-sum-hl-font:var(--nv-font-ui); --nv-sum-hl-size:18px;
+  --nv-sum-ink2:#3C3C43; --nv-sum-ink3:#8E8E93; --nv-sum-sep:rgba(60,60,67,.12);
+}
+/* …glass twin */
+:root[data-nv-style="summary"][data-nv-theme="daylight"][data-nv-material="glass"] {
+  --nv-sum-card:rgba(255,255,255,.72); --nv-sum-blur:22px;
+}
+
+/* THE SKY — replaces starfield/grid/aurora under summary. Position + motion
+   only; background is themed/houred below. It paints where the starfield
+   does: a positioned element earlier in the tree than the content wrapper,
+   so it sits above the app frame's own (flattened, above) background and
+   below everything that follows it — no z-index on the wrapper, which would
+   have made it a stacking context over the chrome rendered after it. */
+.nv-sky {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  transition: background 1.6s ease;
+}
+@media (prefers-reduced-motion: reduce) { .nv-sky { transition: none; } }
+:root[data-nv-calm="1"] .nv-sky { transition: none; }
+
+/* command × glass (Nova glass): the mockup's aurora, shifted per hour band.
+   Un-themed (no [data-nv-theme] in the selector) so it is command's — the
+   theme is simply absent from the root in that case. Exactly 4 attribute
+   selectors deep, same as the theme-only rules below it (observatory,
+   daylight): declared FIRST so those later, equally-specific rules win the
+   tie for their own theme at every hour. */
+:root[data-nv-style="summary"][data-nv-hour="dawn"] .nv-sky {
+  background:
+    radial-gradient(70% 45% at 12% 8%, rgba(255,170,130,.18), rgba(255,170,130,0) 60%),
+    radial-gradient(70% 50% at 88% 30%, rgba(143,123,255,.26), rgba(143,123,255,0) 60%),
+    radial-gradient(90% 40% at 50% 112%, rgba(217,181,111,.16), rgba(217,181,111,0) 60%),
+    linear-gradient(180deg, #05060c 0%, #080b1c 35%, #0c1230 70%, #12183a 100%);
+}
+:root[data-nv-style="summary"][data-nv-hour="day"] .nv-sky {
+  background:
+    radial-gradient(70% 45% at 12% 8%, rgba(89,230,255,.22), rgba(89,230,255,0) 60%),
+    radial-gradient(70% 50% at 88% 30%, rgba(143,123,255,.26), rgba(143,123,255,0) 60%),
+    radial-gradient(90% 40% at 50% 112%, rgba(217,181,111,.16), rgba(217,181,111,0) 60%),
+    linear-gradient(180deg, #05060c 0%, #080b1c 35%, #0c1230 70%, #12183a 100%);
+}
+:root[data-nv-style="summary"][data-nv-hour="dusk"] .nv-sky {
+  background:
+    radial-gradient(70% 45% at 12% 8%, rgba(89,230,255,.22), rgba(89,230,255,0) 60%),
+    radial-gradient(70% 50% at 88% 30%, rgba(143,123,255,.38), rgba(143,123,255,0) 60%),
+    radial-gradient(90% 40% at 50% 112%, rgba(217,181,111,.26), rgba(217,181,111,0) 60%),
+    linear-gradient(180deg, #05060c 0%, #080b1c 35%, #0c1230 70%, #12183a 100%);
+}
+:root[data-nv-style="summary"][data-nv-hour="night"] .nv-sky {
+  background:
+    radial-gradient(70% 45% at 12% 8%, rgba(89,230,255,.13), rgba(89,230,255,0) 60%),
+    radial-gradient(70% 50% at 88% 30%, rgba(143,123,255,.16), rgba(143,123,255,0) 60%),
+    radial-gradient(90% 40% at 50% 112%, rgba(217,181,111,.1), rgba(217,181,111,0) 60%),
+    linear-gradient(180deg, #03040a 0%, #080b1c 35%, #0c1230 70%, #12183a 100%);
+}
+
+/* observatory: the midnight radial, constant — no hour variants exist for
+   it, so this declares after the command/hour rules above to win their
+   specificity tie (both :root + one attribute + .nv-sky) at every hour. */
+:root[data-nv-style="summary"][data-nv-theme="observatory"] .nv-sky {
+  background: radial-gradient(120% 90% at 50% 0%, #152742 0%, #0c1424 50%, #070b13 100%);
+}
+
+/* sky theme: the hour cycle it exists for. Naming data-nv-theme makes these
+   5 attribute selectors deep — more specific than the 4-deep rules above —
+   so they win regardless of source order. */
+:root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-hour="dawn"] .nv-sky {
+  background:
+    radial-gradient(55% 25% at 50% 100%, rgba(255,190,140,.35), transparent 70%),
+    linear-gradient(180deg, #1b2a4a 0%, #3d5a8a 45%, #c98a72 80%, #f0b48a 100%);
+}
+:root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-hour="day"] .nv-sky {
+  background:
+    radial-gradient(120% 70% at 50% 112%, rgba(255,160,90,.55), rgba(255,160,90,0) 60%),
+    radial-gradient(80% 50% at 18% 18%, rgba(120,180,255,.38), rgba(120,180,255,0) 60%),
+    linear-gradient(180deg, #071a3d 0%, #0b2a55 38%, #1c4f8f 66%, #5a7fb8 86%, #d9946a 100%);
+}
+:root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-hour="dusk"] .nv-sky {
+  background: linear-gradient(180deg, #0e1f45 0%, #2a3f7a 40%, #7a4f7a 70%, #e08a5a 100%);
+}
+:root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-hour="night"] .nv-sky {
+  background:
+    radial-gradient(45% 25% at 50% 100%, rgba(120,90,200,.22), transparent 70%),
+    linear-gradient(180deg, #020512 0%, #050914 40%, #0b1636 75%, #1b2650 100%);
+}
+
+/* daylight ("Summary light"): a plain page, like the rest of Nova's light UI */
+:root[data-nv-style="summary"][data-nv-theme="daylight"] .nv-sky { display: none; }
+
+/* solid never shows a sky, in any theme or hour. !important: the sky theme's
+   hour rules above are 5 attribute selectors deep, one more specific than a
+   plain style+material selector can be without it. */
+:root[data-nv-style="summary"][data-nv-material="solid"] .nv-sky { display: none !important; }
+
+/* the summary card itself. A single unconditional rule — every value it
+   reads is a --nv-sum-* token, and the blocks above already carry the
+   right one per theme × material, exactly like the generic .nv-pane below
+   reads --nv-glass per theme without knowing themes exist. */
+:root[data-nv-style="summary"] .nv-pane {
+  background: var(--nv-sum-card);
+  --nv-pane-shadow: 0 0 0 .5px var(--nv-sum-card-ring), 0 1px 0 var(--nv-sum-card-hi) inset, var(--nv-sum-card-shadow);
+  box-shadow: var(--nv-pane-shadow);
+  backdrop-filter: blur(var(--nv-sum-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(var(--nv-sum-blur)) saturate(1.4);
+  border-color: transparent;
 }
 
 /* shared panes for the new components */

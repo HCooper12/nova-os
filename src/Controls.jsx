@@ -45,7 +45,7 @@ const UI = 'var(--nv-font-ui)';
 export function isAppleStyle() {
   if (typeof document === 'undefined') return false;
   const s = document.documentElement.getAttribute('data-nv-style');
-  return s === 'apple' || s === 'cupertino';
+  return s === 'apple' || s === 'cupertino' || s === 'summary';
 }
 
 const TONES = {

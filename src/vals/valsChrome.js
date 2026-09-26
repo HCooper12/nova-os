@@ -1,4 +1,4 @@
-import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES } from '../theme.js';
+import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES, NOVA_MATERIALS } from '../theme.js';
 import { spendView } from '../modelSpendView.js';
 import { sinceFor, startedFrom } from '../jobClock.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
@@ -520,17 +520,29 @@ export function valsChrome(app, ctx) {
     // appearance (Settings)
     // style is the design language (Command Core HUD vs Apple calm); it
     // composes with theme (palette) — the silhouette icons key off it too.
-    // appleStyle = the Apple family (skin or layout); structured = the
-    // restructured-layout tier only (grouped screens like MissionStructured).
-    appleStyle: st.novaStyle === 'apple' || st.novaStyle === 'cupertino',
-    structured: st.novaStyle === 'cupertino',
-    novaStyleOptions: NOVA_STYLES.map((s) => ({ ...s, active: st.novaStyle === s.value, pick: () => app.setNovaStyle(s.value) })),
+    // appleStyle = the Apple family (skin, layout or summary); structured =
+    // the restructured-layout tier (grouped screens like MissionStructured) —
+    // summary borrows it wholesale so every existing screen renders under it
+    // unchanged until its own redesign round (design/HOME-REDESIGN-PLAN.md §2).
+    appleStyle: st.novaStyle === 'apple' || st.novaStyle === 'cupertino' || st.novaStyle === 'summary',
+    structured: st.novaStyle === 'cupertino' || st.novaStyle === 'summary',
+    summary: st.novaStyle === 'summary',
+    // `summary` is wired (theme.js, index.css) but not OFFERED until the Home
+    // it names exists (design/HOME-REDESIGN-PLAN.md P2): switching to it today
+    // would show the cupertino layout on glass and read as finished.
+    novaStyleOptions: NOVA_STYLES.filter((s) => s.value !== 'summary').map((s) => ({ ...s, active: st.novaStyle === s.value, pick: () => app.setNovaStyle(s.value) })),
     novaTheme: st.novaTheme,
-    novaThemeOptions: NOVA_THEMES.filter((t) => !t.appleOnly || st.novaStyle === 'apple' || st.novaStyle === 'cupertino').map((t) => ({ ...t, active: st.novaTheme === t.value, pick: () => app.setNovaTheme(t.value) })),
+    novaThemeOptions: NOVA_THEMES.filter((t) => !t.appleOnly || st.novaStyle === 'apple' || st.novaStyle === 'cupertino' || st.novaStyle === 'summary').map((t) => ({ ...t, active: st.novaTheme === t.value, pick: () => app.setNovaTheme(t.value) })),
     calmMode: st.calmMode,
     toggleCalm: () => app.setCalmMode(!st.calmMode),
     coreStyle: st.coreStyle,
     novaCoreOptions: NOVA_CORES.map((c) => ({ ...c, active: st.coreStyle === c.value, pick: () => app.setCoreStyle(c.value) })),
+    // Material (glass | solid) is a modifier meaningful only under `summary` —
+    // null elsewhere so Settings knows not to draw the row at all.
+    material: st.material,
+    novaMaterialOptions: st.novaStyle === 'summary'
+      ? NOVA_MATERIALS.map((m) => ({ ...m, active: st.material === m.value, pick: () => app.setMaterial(m.value) }))
+      : null,
 
     // settings
     isSettings: st.screen === 'settings',

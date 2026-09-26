@@ -6,6 +6,7 @@ const THEME_KEY = 'novaos.theme';
 const CALM_KEY = 'novaos.calm';
 const CORE_KEY = 'novaos.core';
 const STYLE_KEY = 'novaos.style';
+const MATERIAL_KEY = 'novaos.material';
 
 export const NOVA_THEMES = [
   { value: 'command', label: 'Command', hint: 'the flagship — cyan HUD over the void' },
@@ -13,6 +14,7 @@ export const NOVA_THEMES = [
   { value: 'ember', label: 'Ember', hint: 'molten copper — the forge at night' },
   // designed for the Apple-family styles; Settings only offers it there
   { value: 'daylight', label: 'Daylight', hint: 'the white study — light grouped ground, Apple system hues', appleOnly: true },
+  { value: 'sky', label: 'Sky', hint: 'Apple glass over a sky that follows the hour', appleOnly: true },
 ];
 
 // Style is orthogonal to theme: the theme picks the palette, the style picks
@@ -23,6 +25,7 @@ export const NOVA_STYLES = [
   { value: 'command', label: 'Command Core', hint: 'the HUD — glow, brackets, mono telemetry' },
   { value: 'apple', label: 'Apple skin', hint: 'calm glass, SF type, silhouette icons — the classic layout' },
   { value: 'cupertino', label: 'Apple layout', hint: 'the full restructure — grouped lists, native rhythm; every feature intact' },
+  { value: 'summary', label: 'Summary', hint: 'the calm Home — one highlight, pinned cards, the Index; glass or solid' },
 ];
 
 export function getNovaStyle() {
@@ -75,7 +78,60 @@ export function getCalm() {
   }
 }
 
-export function applyAppearance(theme, calm, style = getNovaStyle()) {
+// The material is a modifier meaningful only under the `summary` style: glass
+// = translucent cards over the theme's sky; solid = the theme's pane fill, no
+// sky. Same shape as every other appearance getter — try/catch around
+// localStorage, default when absent or foreign.
+export const NOVA_MATERIALS = [
+  { value: 'glass', label: 'Glass', hint: 'translucent cards over the sky' },
+  { value: 'solid', label: 'Solid', hint: 'the pane fill, no sky' },
+];
+
+export function getMaterial() {
+  try {
+    const m = localStorage.getItem(MATERIAL_KEY);
+    return NOVA_MATERIALS.some((x) => x.value === m) ? m : 'glass';
+  } catch {
+    return 'glass';
+  }
+}
+
+// The hour band drives the `sky` theme's gradient and Nova glass's aurora
+// shift. Pure arithmetic on a Date — no document access — so it is safe to
+// import and test in plain node (src/theme.test.js), the same reason
+// src/shelf3d/edition.js keeps its geometry pure.
+export function hourBand(d = new Date()) {
+  const h = d.getHours();
+  if (h >= 5 && h < 8) return 'dawn';
+  if (h >= 8 && h < 17) return 'day';
+  if (h >= 17 && h < 20) return 'dusk';
+  return 'night';
+}
+
+// Stamps data-nv-hour now, refreshes it every 15 minutes, and again whenever
+// the tab comes back into view (a backgrounded tab's timers get throttled or
+// paused, so the boundary can otherwise be missed by minutes or hours).
+// Idempotent: called once from main.jsx; a second call is a silent no-op so a
+// hot-reloaded module or a defensive extra call never stacks a second timer.
+let hourClockStarted = false;
+export function startHourClock() {
+  if (hourClockStarted) return;
+  hourClockStarted = true;
+  const stamp = () => {
+    try {
+      document.documentElement.setAttribute('data-nv-hour', hourBand());
+    } catch {
+      /* best-effort */
+    }
+  };
+  stamp();
+  setInterval(stamp, 15 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') stamp();
+  });
+}
+
+export function applyAppearance(theme, calm, style = getNovaStyle(), material = getMaterial()) {
   const root = document.documentElement;
   if (theme === 'command') root.removeAttribute('data-nv-theme');
   else root.setAttribute('data-nv-theme', theme);
@@ -83,6 +139,10 @@ export function applyAppearance(theme, calm, style = getNovaStyle()) {
   else root.removeAttribute('data-nv-calm');
   if (style === 'command') root.removeAttribute('data-nv-style');
   else root.setAttribute('data-nv-style', style);
+  // Unlike theme/style, the material is always stamped — 'glass' is a real,
+  // explicit value for index.css to key off, not the absence of an attribute.
+  root.setAttribute('data-nv-material', material);
+  root.setAttribute('data-nv-hour', hourBand());
   // THE STATUS BAR IS PART OF THE APP (16 Sep 2026). index.html pins
   // theme-color to a single dark #06070d, and Nova ships `daylight` — a LIGHT
   // palette — so choosing it left a black strip above a near-white app on his
@@ -100,6 +160,7 @@ export function applyAppearance(theme, calm, style = getNovaStyle()) {
     localStorage.setItem(THEME_KEY, theme);
     localStorage.setItem(CALM_KEY, calm ? '1' : '0');
     localStorage.setItem(STYLE_KEY, style);
+    localStorage.setItem(MATERIAL_KEY, material);
   } catch {
     /* best-effort */
   }

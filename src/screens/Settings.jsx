@@ -32,6 +32,7 @@ const THEME_SWATCHES = {
   observatory: ['var(--nv-gold)', 'var(--nv-cy)', '#0c1424'],
   ember: ['#ffb35c', '#ff6a88', '#170e0b'],
   daylight: ['#007aff', '#ffffff', '#f2f2f7'],
+  sky: ['#0b2a55', '#5a7fb8', '#d9946a'],
 };
 
 export function Settings({ v }) {
@@ -209,12 +210,15 @@ export function Settings({ v }) {
             }}
             hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
           >
-            {/* material swatch: HUD bracket square · calm rounded glass · grouped rows */}
+            {/* material swatch: HUD bracket square · calm rounded glass · grouped rows · Summary's own soft glass */}
             <span style={{ flex: 'none', width: '16px', height: '16px',
               borderRadius: s.value === 'command' ? '2px' : '6px',
-              border: s.value === 'command' ? '1px solid var(--nv-acc-border)' : '1px solid rgba(255,255,255,.35)',
+              border: s.value === 'command' ? '1px solid var(--nv-acc-border)'
+                : s.value === 'summary' ? '1px solid rgba(255,255,255,.4)'
+                : '1px solid rgba(255,255,255,.35)',
               background: s.value === 'command' ? 'var(--nv-acc-bg)'
                 : s.value === 'cupertino' ? 'repeating-linear-gradient(180deg, rgba(255,255,255,.22) 0 4px, rgba(255,255,255,.06) 4px 8px)'
+                : s.value === 'summary' ? 'rgba(255,255,255,.14)'
                 : 'rgba(255,255,255,.12)',
               boxShadow: s.value === 'command' ? '0 0 8px -2px var(--nv-acc)' : 'none' }}></span>
             <span style={{ minWidth: 0 }}>
@@ -250,6 +254,35 @@ export function Settings({ v }) {
             {t.active && <Tag tone="accent" style={{ marginLeft: 'auto' }}>Active</Tag>}
           </Interactive>
         ))}
+
+        {v.novaMaterialOptions && (
+          <>
+            <Eyebrow style={{ marginTop: '14px' }}>Material · glass over the sky, or solid</Eyebrow>
+            {v.novaMaterialOptions.map((m) => (
+              <Interactive
+                key={m.value}
+                onClick={m.pick}
+                base={{
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '12px',
+                  border: m.active ? '1px solid var(--nv-acc-border)' : '1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent)',
+                  background: m.active ? 'var(--nv-acc-bg)' : 'rgba(0,0,0,.2)',
+                  boxShadow: m.active ? 'var(--nv-glow-tab)' : 'none',
+                }}
+                hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
+              >
+                {/* material swatch: translucent glass square · the flat solid fill */}
+                <span style={{ flex: 'none', width: '16px', height: '16px', borderRadius: '6px',
+                  border: m.value === 'glass' ? '1px solid rgba(255,255,255,.35)' : 'none',
+                  background: m.value === 'glass' ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)' }}></span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{m.label}</span>
+                  <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{m.hint}</span>
+                </span>
+                {m.active && <Tag tone="accent" style={{ marginLeft: 'auto' }}>Active</Tag>}
+              </Interactive>
+            ))}
+          </>
+        )}
 
         <Eyebrow style={{ marginTop: '14px' }}>Nova core</Eyebrow>
         {v.novaCoreOptions.map((c) => (

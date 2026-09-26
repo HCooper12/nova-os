@@ -23,7 +23,7 @@ import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox.js';
-import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle } from './theme.js';
+import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { depthOf, edgeDragInProgress } from './edgeBack.js';
 import { EdgeBack } from './EdgeBack.jsx';
@@ -576,7 +576,7 @@ export default class App extends Component {
     stageCard: null, stageHistory: [], stageFocus: false,
     exerciseSheet: null, // { name, loading, panel, error } — the Train screen's exercise card
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
-    novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(),
+    novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(), material: getMaterial(),
 
     // nova inbox (capture → classify → file) + the loops riding its rails
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
@@ -1441,17 +1441,21 @@ export default class App extends Component {
   // arguments + this.state directly goes stale when both setters run in the
   // same tick (theme switch immediately followed by a calm toggle).
   setNovaTheme(theme) {
-    this.setState({ novaTheme: theme }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
+    this.setState({ novaTheme: theme }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
   }
   setCalmMode(calm) {
-    this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
+    this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
   }
   setNovaStyle(style) {
-    // Daylight is an Apple-family palette — returning to Command Core falls
-    // the theme back too, so the HUD never renders on a white ground.
+    // Daylight and Sky are Apple-family palettes — returning to Command Core
+    // falls the theme back too, so the HUD never renders on a white or system-
+    // colour ground built for the Apple styles.
     const next = { novaStyle: style };
-    if (style === 'command' && this.state.novaTheme === 'daylight') next.novaTheme = 'command';
-    this.setState(next, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle));
+    if (style === 'command' && (this.state.novaTheme === 'daylight' || this.state.novaTheme === 'sky')) next.novaTheme = 'command';
+    this.setState(next, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+  }
+  setMaterial(material) {
+    this.setState({ material }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
   }
   setCoreStyle(core) {
     saveCoreStyle(core);
@@ -9874,6 +9878,10 @@ export default class App extends Component {
         <div style={css("position:fixed;inset:0;pointer-events:none;opacity:var(--nv-grid-op);background-image:linear-gradient(var(--nv-gridline) 1px,transparent 1px),linear-gradient(90deg,var(--nv-gridline) 1px,transparent 1px);background-size:52px 52px;-webkit-mask-image:radial-gradient(72% 62% at 50% 40%,#000 30%,transparent 100%);mask-image:radial-gradient(72% 62% at 50% 40%,#000 30%,transparent 100%)")}></div>
         {/* aurora — hue pair per theme, paused in calm mode */}
         <div style={css("position:fixed;inset:-14%;pointer-events:none;filter:blur(34px);opacity:var(--nv-aurora-op);background:radial-gradient(640px 400px at 16% 12%, var(--nv-aur1), transparent 62%),radial-gradient(600px 440px at 84% 26%, var(--nv-aur2), transparent 60%);animation:auroraDrift 26s ease-in-out infinite alternate;animation-play-state:var(--nv-anim)")}></div>
+        {/* the summary sky (design/HOME-REDESIGN-PLAN.md §2): the aurora/void
+            ambience above is themed for Command's HUD; under `summary` it
+            hands off to a per-theme, per-hour sky instead (index.css) */}
+        {v.summary && <div className="nv-sky" aria-hidden="true"></div>}
 
         <div style={css("position:relative;display:flex;height:100dvh;max-width:1560px;margin:0 auto")}>
           {v.showSidebar && <Sidebar v={v} />}
