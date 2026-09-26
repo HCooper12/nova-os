@@ -126,7 +126,13 @@ on the tree; two CSS-contract tests were extended (see the ledger).
 
 **P2 · MissionSummary.** The Home shape with the seven default cards, the
 highlight, moments, the serif standfirst, the foot; `pinned` order from
-localStorage; the Edit sheet. DONE means: at 402×874 in Nova glass the
+localStorage; the Edit sheet. Split in two: P2-A (the view model + tests,
+SHIPPED 26 Sep, c199b31: `src/summaryFacts.js`, `src/pinned.js`,
+`src/vals/valsSummary.js`) and P2-B (the screen `MissionSummary.jsx`, the
+`PinnedEditSheet.jsx`, the MissionControl branch, App wiring, the
+`.nv-sum-*` CSS; brief: `design/audits/redesign-2026-09/p2b-brief.md`). The
+Trends val and the aurora hour shift, planned for P4, landed early (P2-A and
+P1). DONE means: at 402×874 in Nova glass the
 first screen holds title, standfirst, highlight and the Body hero; one
 filled button on the page; the highlight sentence, the rings and the plan
 card never disagree (a unit test feeds the same facts and asserts the

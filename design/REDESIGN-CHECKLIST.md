@@ -556,6 +556,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — P2-A SHIPPED (c199b31): the summary Home's view model, no UI
+  yet. `src/summaryFacts.js` (the highlight sentence from the SAME ring fields
+  the Body card shows, with the agreement test; the six-slot strip; the
+  next-event line; Trends as the run ending today with honest "no data"; the
+  standfirst rule against repeating the highlight), `src/pinned.js`
+  (`novaos.pinned`), `src/vals/valsSummary.js` (seven cards, moments, the Edit
+  list; null unless the style is summary), `heroTaglineTopic` on valsMission,
+  `prLift`/`prBasis` moved to missionFocus.js. 42 tests. Gates: lint 0 errors ·
+  build · server 2612/2612 · guard unchanged. P2-B (the screen + the Edit
+  sheet, Opus, worktree) launched from this commit.
 - 26 Sep 2026 — P1 SHIPPED (27e8bd1 + e64e3d4): the `summary` STYLE (borrows
   the whole cupertino skin + `structured` tier, so every screen renders
   unchanged under it), the `sky` THEME (Apple-only), the material modifier

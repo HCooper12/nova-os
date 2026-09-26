@@ -65,13 +65,14 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   .nv-sky, Settings rows; `summary` is FILTERED OUT of novaStyleOptions until
   P2 lands; the sky theme's warn/mg/or hues re-picked to clear 4.5:1 on its
   card; displayTracking.test re-anchored, contrast.test gained sky + --nv-or).
-  IN FLIGHT: P2-A (src/summaryFacts.js, src/pinned.js, src/vals/valsSummary.js,
+  P2-A = c199b31 (src/summaryFacts.js, src/pinned.js, src/vals/valsSummary.js,
   server/test/summaryFacts.test.js, prLift/prBasis moved to missionFocus.js,
-  heroTaglineTopic exposed) in a worktree. BRIEFED, NOT LAUNCHED: P2-B (the
-  screen MissionSummary.jsx + PinnedEditSheet.jsx + MissionControl branch +
-  App wiring + the .nv-sum-* CSS), brief at
-  design/audits/redesign-2026-09/p2b-brief.md — launch it (Opus, worktree)
-  only AFTER P2-A is merged, because it renders valsSummary's shapes. Then
+  heroTaglineTopic exposed; gates green). IN FLIGHT: P2-B (Opus, worktree) —
+  the screen MissionSummary.jsx + PinnedEditSheet.jsx + MissionControl branch
+  + App wiring (valsSummary spread AFTER valsChrome with the merged v) + the
+  .nv-sum-* CSS + un-hiding Summary in Settings; brief at
+  design/audits/redesign-2026-09/p2b-brief.md plus the addenda in the launch
+  prompt (also recorded in the P3 brief's preamble). Then
   P3 (iOS 26 tab bar + the Index as the More tab, #/index), P4 (Trends val is
   already in P2-A; the aurora hour shift is in P1), P5 his phone. Worktree
   lesson: a worktree has no server/node_modules or server/data, so run the
