@@ -48,6 +48,8 @@ const SCHEDULED = [
   { id: 'embeddings', label: 'Meaning Index', role: 'the vault, searchable by meaning', cadenceHours: 2 },
   { id: 'food-suggest', label: 'Food Scout', role: 'food → recipe ideas', cadenceHours: 2 },
   { id: 'mealprep', label: 'Meal Prep', role: 'weekly prep proposals', cadenceHours: 3 },
+  // ticks every 30 min; opens Chrome and reads the menus only once a fortnight, 3–5am
+  { id: 'eat-out', label: 'Takeaway Catalogue', role: 'chain and supermarket menus refreshed every two weeks', cadenceHours: 2 },
   { id: 'training-check', label: 'Training Check', role: 'program drift watch', cadenceHours: 2 },
   { id: 'followups', label: 'Calendar Follow-ups', role: 'did-it-happen questions', cadenceHours: 2 },
   { id: 'week-plan', label: 'Week Plan', role: 'training week annotations', cadenceHours: 2 },
@@ -141,6 +143,7 @@ export const AGENT_DEPARTMENTS = {
   compost: ['Platform'],
   'food-suggest': ['Fuel'],
   mealprep: ['Fuel'],
+  'eat-out': ['Fuel'],
   'training-check': ['Train'],
   followups: ['Logistics'], // calendar follow-ups are the day's logistics, like the plan
   'week-plan': ['Train'],

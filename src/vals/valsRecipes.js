@@ -385,7 +385,7 @@ export function valsRecipes(app, ctx) {
     // the catalogue's own receipt: how many, how many chains, when, from where
     const fmtDay = (iso) => { const d = iso ? new Date(iso) : null; return d && !Number.isNaN(d.getTime()) ? dtf('en-AU', { day: 'numeric', month: 'short' }).format(d) : null; };
     const sourceWords = [...new Set((summary?.brands || []).map((b) => b.source?.kind))]
-      .map((k) => (k === 'off' ? 'Open Food Facts' : k === 'pdf' ? 'the chains’ own sheets' : null)).filter(Boolean);
+      .map((k) => (k === 'off' ? 'Open Food Facts' : k === 'pdf' ? 'the chains’ own sheets' : k === 'site' ? 'the chains’ own menu data' : null)).filter(Boolean);
     const summaryLine = summary && summary.total > 0
       ? `${summary.total.toLocaleString()} items · ${summary.brands.length} brand${summary.brands.length === 1 ? '' : 's'}${fmtDay(summary.updatedAt) ? ` · fetched ${fmtDay(summary.updatedAt)}` : ''}${sourceWords.length ? `, from ${sourceWords.join(' and ')}` : ''}`
       : '';

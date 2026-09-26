@@ -334,6 +334,9 @@ async function main() {
   // improved weekly (his ask, 25 Sep; see exerciseResearch.js)
   import('./lib/exerciseResearch.js').then(({ startExerciseResearchScheduler }) => startExerciseResearchScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('exercise research scheduler failed to start:', e.message));
+  // Pick it up: the takeaway catalogue refreshed every 14 days, 3–5am (his call, 26 Sep)
+  import('./lib/eatOutSources.js').then(({ startEatOutScheduler }) => startEatOutScheduler())
+    .catch((e) => console.error('eat-out scheduler failed to start:', e.message));
   startTodoistScheduler(process.env.VAULT_PATH);
   startGuardianScheduler(process.env.VAULT_PATH);
   startOvernightScheduler(process.env.VAULT_PATH);

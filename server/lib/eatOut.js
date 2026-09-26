@@ -22,8 +22,7 @@ const CATALOGUE_PATH = () => path.join(CATALOGUE_DIR(), 'catalogue.json');
 // rather than silently absent, so a missing brand reads as a decision, not
 // a bug.
 export const KNOWN_MISSING = [
-  { name: "McDonald's", why: 'refuses anonymous fetches of its nutrition data; needs Nova’s browser hand' },
-  { name: 'KFC', why: 'same — the site does not answer a plain fetch' },
+  // McDonald's and KFC joined 26 Sep (eatOutChains.js), on his yes.
   { name: "Grill'd", why: 'publishes its nutrition only in a script-rendered page, no PDF' },
   { name: "Hungry Jack's", why: 'only a “what’s new” sheet is published as a PDF, not the full menu' },
 ];

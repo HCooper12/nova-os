@@ -54,7 +54,7 @@ export const BEING_MEMBERS = {
   researcher: ['researcher', 'pulse', 'study', 'scout', 'repertoire-topup'],
   watcher: ['watcher'],
   librarian: ['embeddings', 'distill', 'brain-week', 'read-next'],
-  mealprep: ['food-suggest', 'mealprep'],
+  mealprep: ['food-suggest', 'mealprep', 'eat-out'],
   leader: ['review', 'leader', 'leader-reminder'],
   core: ['voice'],
 };

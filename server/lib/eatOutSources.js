@@ -17,6 +17,7 @@ import { parseEnvelope } from './modelSpend.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { registerJobMap } from './jobRegistry.js';
 import { buildBrandRecord, saveBrand, loadCatalogue } from './eatOut.js';
+import { kfcRawRows, mcdRawRows, KFC_PAGE, MCD_MENU } from './eatOutChains.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -44,6 +45,13 @@ export const OFF_BRANDS = [
 export const PDF_BRANDS = [
   { key: 'guzman-y-gomez', name: 'Guzman y Gomez', kind: 'fast-food', url: 'https://www.guzmanygomez.com.au/wp-content/uploads/2025/12/251204_NUTRITION_ALLERGEN_GUIDE_420X297MM.pdf' },
   { key: 'subway', name: 'Subway', kind: 'fast-food', url: 'https://www.subway.com/v1v2/assets/en-au/nutrition/documents/aus-nutritional-summary.pdf' },
+];
+
+// Chains whose own structured data sits behind their site (eatOutChains.js):
+// code reads it, no model, every row through validateRow. His yes, 26 Sep.
+export const SITE_BRANDS = [
+  { key: 'mcdonalds', name: "McDonald's", kind: 'fast-food', url: MCD_MENU, read: mcdRawRows },
+  { key: 'kfc', name: 'KFC', kind: 'fast-food', url: KFC_PAGE, read: kfcRawRows },
 ];
 
 function offSearchUrl(brand, page) {
@@ -258,6 +266,26 @@ async function refreshOffBrand(brand, deps) {
   return finishBrand(brand, record, error);
 }
 
+async function refreshSiteBrand(brand, deps) {
+  let rawRows = [];
+  let error = null;
+  try {
+    rawRows = await brand.read(deps);
+  } catch (e) {
+    error = e.message;
+  }
+  const record = buildBrandRecord({
+    key: brand.key,
+    name: brand.name,
+    kind: brand.kind,
+    source: { kind: 'site', url: brand.url },
+    fetchedAt: new Date().toISOString(),
+    rawRows,
+  });
+  if (error && !(await loadCatalogue()).brands?.[brand.key]) return { key: brand.key, name: brand.name, added: 0, rejected: 0, error };
+  return finishBrand(brand, record, error);
+}
+
 // A FAILED RUN NEVER REPLACES A GOOD RECORD (26 Sep 2026). The first live
 // refresh met a run of 503s and wrote six brands as empty — and the summary
 // could not even say they had failed. Now: when a run errors and the record
@@ -297,6 +325,7 @@ export function startEatOutRefresh({ brands } = {}, deps = {}) {
   const wanted = Array.isArray(brands) && brands.length ? new Set(brands) : null;
   const offList = OFF_BRANDS.filter((b) => !wanted || wanted.has(b.key));
   const pdfList = PDF_BRANDS.filter((b) => !wanted || wanted.has(b.key));
+  const siteList = SITE_BRANDS.filter((b) => !wanted || wanted.has(b.key));
 
   (async () => {
     const perBrand = [];
@@ -314,6 +343,13 @@ export function startEatOutRefresh({ brands } = {}, deps = {}) {
         perBrand.push({ key: brand.key, name: brand.name, added: 0, rejected: 0, error: e.message });
       }
     }
+    for (const brand of siteList) {
+      try {
+        perBrand.push(await refreshSiteBrand(brand, deps));
+      } catch (e) {
+        perBrand.push({ key: brand.key, name: brand.name, added: 0, rejected: 0, error: e.message });
+      }
+    }
     job.status = 'ready';
     job.result = { perBrand, updatedAt: new Date().toISOString() };
   })().catch((e) => {
@@ -322,4 +358,51 @@ export function startEatOutRefresh({ brands } = {}, deps = {}) {
   });
 
   return jobId;
+}
+
+/* ------------------------- the fortnightly refresh ------------------------- */
+
+// His answer, 26 Sep 2026: "Maybe a refresh every two weeks? I can't see
+// myself using this feature too often but it's more good to have just in
+// case." So: the whole catalogue, every 14 days, in the small hours.
+//
+// No new state file: the catalogue already stamps when it was last updated.
+// It is due when that stamp is 14+ days old; a catalogue never filled is NOT
+// filled by the schedule (the first fetch is a deliberate act, and it costs a
+// model read per PDF chain). The window is 3–5am local so Chrome and the PDF
+// reads never compete with him, and a refresh already running is left alone.
+export const REFRESH_EVERY_DAYS = 14;
+
+export function refreshDue(catalogue, now = new Date()) {
+  const at = catalogue?.updatedAt ? Date.parse(catalogue.updatedAt) : NaN;
+  if (!Number.isFinite(at)) return false;
+  return now.getTime() - at >= REFRESH_EVERY_DAYS * 86_400_000;
+}
+
+export function inRefreshWindow(now = new Date()) {
+  const h = now.getHours();
+  return h >= 3 && h < 5;
+}
+
+const anyRunning = () => [...jobs.values()].some((j) => j.status === 'running');
+
+export async function eatOutTick({ now = new Date(), start = startEatOutRefresh } = {}) {
+  if (!inRefreshWindow(now)) return { skipped: 'outside the 3–5am window' };
+  if (anyRunning()) return { skipped: 'a refresh is already running' };
+  if (!refreshDue(await loadCatalogue(), now)) return { skipped: `refreshed within ${REFRESH_EVERY_DAYS} days` };
+  return { started: start({}) };
+}
+
+export function startEatOutScheduler() {
+  const tick = async () => {
+    const { beat } = await import('./heartbeat.js');
+    beat('eat-out');
+    try {
+      const r = await eatOutTick();
+      if (r.started) console.log(`eat-out: fortnightly catalogue refresh started (${r.started})`);
+    } catch (e) { console.error('eat-out refresh tick failed:', e.message); }
+  };
+  // not at boot: a restart at 3:10am must not open Chrome in the same breath
+  setTimeout(tick, 10 * 60_000).unref?.();
+  setInterval(tick, 30 * 60_000).unref?.();
 }
