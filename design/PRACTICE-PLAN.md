@@ -209,6 +209,7 @@ empty.
 ## Not in this build (say so)
 
 The scene partner in the Agent World (a tenth being needs his hue and
-artefact call); the Wrap-the-day question "did you use it for real today?";
+artefact call); a Wrap-the-day question — declined by him on 26 Sep, since
+practice is case by case when he has time, so nothing should nag him;
 a scheduled top-up that re-prepares when new sources land; per-chapter
 addressing of a book (the extractor joins chapters). Each is one rail away.

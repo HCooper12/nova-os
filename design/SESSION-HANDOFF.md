@@ -65,12 +65,11 @@ and runs the reload — check `git status -sb` says level with origin and
   by the peer's App.jsx saves and never showed it; the mic path and TTS in
   the room; the lamp bloom in motion; the offline banner overlapping the
   control bar when offline mid-scene (the agent saw it).
-- **OPEN QUESTIONS (his):** (1) upload The Next Conversation as an EPUB in
-  Library — the page's first gap; Prepare again ("practise … again") and
-  the moves get grounded in the text; (2) does he want the two records
-  review-gated instead of auto+undo; (3) a Practice being for the Agent
-  World (hue --nv-or is taken; artefact undecided); (4) should Wrap the
-  day ask "did you use it for real today?" like the Repertoire.
+- **HIS ANSWERS (26 Sep):** the book — "remind me later to try and find
+  this" (on nova-open-threads); records stay auto+undo; the Practice being —
+  "show me what you mean" (a prototype sheet, mockup 51, not in the live
+  map); Wrap-the-day question — NO: practice is case by case when he has
+  time, so nothing nags him about it.
 - **NEXT ACTION:** on his phone, open Practice → Rehearse, speak three
   lines, End scene; expected: the partner answers aloud within ~10s, a lamp
   blooms when he says a line from the page, the debrief quotes him and
