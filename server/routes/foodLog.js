@@ -109,6 +109,22 @@ export function foodLogRouter(vaultPath) {
     }
   });
 
+  // the whole-entry undo: Fuel's × on a meal removes it at once and offers
+  // 30 seconds to put it back — same id, same time, same place in the day
+  router.post('/food-log/:id/restore', async (req, res) => {
+    try {
+      const { restoreEntryOn, sanitizeRestoredEntry } = await import('../lib/foodLog.js');
+      const b = req.body || {};
+      const date = resolveLogDate(b.date);
+      const entry = sanitizeRestoredEntry(b.entry, req.params.id);
+      const day = await restoreEntryOn(date, entry, Number.isInteger(b.index) ? b.index : -1);
+      recordDaySnapshot(vaultPath, date).catch(() => {}); // the archive follows the day back
+      res.json(day);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   router.delete('/food-log/:id', async (req, res) => {
     try {
       if (req.query.date) {

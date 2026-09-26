@@ -8,6 +8,7 @@ import { useOptionPager } from '../swipeAction.js';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
 import { PickItUp } from './PickItUp.jsx';
+import { SkeletonGrid } from '../Skeleton.jsx';
 
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx;
 // filled buttons sentence-case in the UI face under the Apple styles
@@ -647,17 +648,19 @@ export function Recipes({ v }) {
               line used to read "off-plan: 113P · 1255 kcal" in 11px grey — a
               number he is steering by, set smaller than the labels around it.
               Same three hues as the rail cards, so the bar means the same
-              thing in both places. */}
+              thing in both places. The figure is the OFF-PLAN sum only: a
+              ticked rotation meal writes into the log too, and summing it
+              here put the plan under a word that says it excludes it. */}
           {v.foodLogEntries.length > 0 && (
             <div style={css("margin-top:10px;display:flex;align-items:center;gap:11px")}>
               <span style={css("display:flex;align-items:baseline;gap:4px;flex:none")}>
-                <span style={css("font:700 17px var(--nv-font-ui);letter-spacing:var(--nv-display-track);color:var(--nv-ink);font-variant-numeric:tabular-nums")}>{v.foodLogTotals.kcal}</span>
+                <span style={css("font:700 17px var(--nv-font-ui);letter-spacing:var(--nv-display-track);color:var(--nv-ink);font-variant-numeric:tabular-nums")}>{v.foodLogOffPlanTotals.kcal}</span>
                 <span style={css("font:600 9.5px var(--nv-font-ui);letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent)")}>KCAL OFF-PLAN</span>
               </span>
               <span style={css("flex:1;min-width:0;display:flex;flex-direction:column;gap:4px")}>
                 <span aria-hidden="true" style={css("display:flex;height:4px;border-radius:2px;overflow:hidden;background:color-mix(in srgb, var(--nv-ink) 10%, transparent)")}>
                   {(() => {
-                    const t = v.foodLogTotals, g = (Number(t.p) || 0) + (Number(t.c) || 0) + (Number(t.f) || 0);
+                    const t = v.foodLogOffPlanTotals, g = (Number(t.p) || 0) + (Number(t.c) || 0) + (Number(t.f) || 0);
                     const w = (n) => (g > 0 ? `${((Number(n) || 0) / g) * 100}%` : '0%');
                     return (<>
                       <span style={{ width: w(t.p), background: 'var(--nv-cy)' }} />
@@ -667,7 +670,7 @@ export function Recipes({ v }) {
                   })()}
                 </span>
                 <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                  <span style={css("color:var(--nv-cy)")}>{v.foodLogTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.foodLogTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.foodLogTotals.f}F</span>
+                  <span style={css("color:var(--nv-cy)")}>{v.foodLogOffPlanTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.foodLogOffPlanTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.foodLogOffPlanTotals.f}F</span>
                 </span>
               </span>
             </div>
@@ -845,11 +848,11 @@ export function Recipes({ v }) {
               <Meta tone="faint" style={{ display: 'block', marginTop: '7px' }}>Keep correcting as often as you like. Nothing is logged until you tap Add.</Meta>
             </div>
           )}
-          {v.foodItemUndo && (
-            <div style={css("margin-top:10px")}>
-              <TextAction onClick={v.foodItemUndo.run}>{v.foodItemUndo.label}</TextAction>
+          {v.foodLogUndos.map((u) => (
+            <div key={u.key} style={css("margin-top:10px")}>
+              <TextAction onClick={u.run}>{u.label}</TextAction>
             </div>
-          )}
+          ))}
           {/* THE DAY, AS ONE GROUPED LIST (22 Sep 2026). Every row used to
               carry its own top border, so eight entries drew eight hairlines
               across the full width and the list read as eight objects rather
@@ -985,12 +988,18 @@ export function Recipes({ v }) {
           <Chip tone="gold" onClick={v.openAddRecipe}>{cap('+ Add recipe')}</Chip>
         )}
       </div>
-      {/* NO SKELETON HERE, deliberately. The recipe grid falls back to the
-          demo bank whenever `liveRecipes` is null, so it is never actually
-          empty — a skeleton would stack ON TOP of visible cards rather than
-          fill a void (caught in verification, 23 Aug). A skeleton must only
-          ever occupy space that is genuinely blank; the Inbox qualifies,
-          this grid does not. */}
+      {/* THE BANK'S OWN STATES (the Fuel audit, finding 13). This grid used
+          to fall back to the demo bank whenever `liveRecipes` was null, which
+          put showcase recipes in front of him on a slow or failed sync. Demo
+          cards are demoMode's alone now: in a live session the space is a
+          skeleton while the first sync is in flight, and one plain line when
+          the Mac is not answering, the vault has none, or the recipes did
+          not arrive. A skeleton still only fills space that is genuinely
+          blank: `recipeList` is empty in every one of these states. */}
+      {v.recipeBankState === 'loading' && <SkeletonGrid cells={4} />}
+      {v.recipeBankNote && (
+        <div role="status" style={css("padding:14px 2px;font-size:13px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>{v.recipeBankNote}</div>
+      )}
       <div style={v.gridRecipes}>
         {v.recipeList.map((r) => (
           <Interactive

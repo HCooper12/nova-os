@@ -287,17 +287,61 @@ async function removeEntryUnlocked(entryId) {
 
 // Undo for a removal: the entry goes back VERBATIM — same id, same time, same
 // macros — so an undone delete leaves the day byte-identical to before it,
-// rather than a new entry that merely looks similar. Appended at the end if
-// its original position is gone; entries carry their own time.
-export async function restoreEntryOn(date, entry) {
+// rather than a new entry that merely looks similar. It returns to the
+// position it held when `index` is given and still fits; otherwise it is
+// appended (entries carry their own time).
+export async function restoreEntryOn(date, entry, index = -1) {
   return withWriteLock(async () => {
     const target = resolveLogDate(date);
     const day = await loadDay(target);
     if (day.entries.some((e) => e.id === entry.id)) return day; // already back
-    day.entries.push(entry);
+    const at = Number.isInteger(index) && index >= 0 && index <= day.entries.length ? index : day.entries.length;
+    day.entries.splice(at, 0, entry);
     await saveDay(day);
     return day;
   });
+}
+
+// A whole entry coming back from the CLIENT (the 30-second Undo on Fuel's ×).
+// The verb's undo restores what the server itself held; this one is handed a
+// copy the phone kept, so it is rebuilt field by field rather than trusted:
+// only the fields an entry can carry, the same bounds addEntry applies, and
+// the itemised-plate contract re-established — when the lines come back, the
+// total is their sum again, never the number the client sent.
+const HHMM = /^\d{2}:\d{2}$/;
+export function sanitizeRestoredEntry(raw, entryId) {
+  if (!raw || typeof raw !== 'object') throw new Error('nothing to put back');
+  const id = String(raw.id || '');
+  if (!id || id !== String(entryId)) throw new Error('that is not the entry this undo names');
+  if (id.startsWith('pending-')) throw new Error('that entry never reached the log');
+  const name = typeof raw.name === 'string' ? raw.name.trim().slice(0, 120) : '';
+  if (!name) throw new Error('an entry needs a name');
+  const m = raw.macros || {};
+  if ([m.p, m.c, m.f, m.kcal].some((n) => typeof n !== 'number' || !Number.isFinite(n) || n < 0)) {
+    throw new Error('macros.p/c/f/kcal must be non-negative numbers');
+  }
+  const entry = {
+    id: id.slice(0, 40),
+    ...(typeof raw.time === 'string' && HHMM.test(raw.time) ? { time: raw.time } : {}),
+    name,
+    macros: { p: m.p, c: m.c, f: m.f, kcal: m.kcal },
+  };
+  if (raw.source) entry.source = String(raw.source).slice(0, 20);
+  if (raw.slot) entry.slot = String(raw.slot).slice(0, 40);
+  if (raw.recipeId) entry.recipeId = String(raw.recipeId).slice(0, 80);
+  if (raw.edited) entry.edited = true;
+  if (Array.isArray(raw.items) && raw.items.length) {
+    const lines = raw.items.slice(0, ITEM_CAP).map((it) => {
+      const line = normalizeItems([it])[0];
+      if (line && it?.id) line.id = String(it.id).slice(0, 8);
+      return line;
+    }).filter(Boolean);
+    if (lines.length) {
+      entry.items = lines;
+      entry.macros = macrosOfItems(lines);
+    }
+  }
+  return entry;
 }
 
 // Date-addressed removal for inbox undo, which may run after midnight has

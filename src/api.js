@@ -243,6 +243,8 @@ export const api = {
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
   editFoodLogEntry: (conn, id, body) => patch(conn, `/api/food-log/${encodeURIComponent(id)}`, body),
   deleteFoodLogEntry: (conn, id, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+  // the whole-entry undo: the entry verbatim, back where it sat in the day
+  restoreFoodLogEntry: (conn, id, body) => post(conn, `/api/food-log/${encodeURIComponent(id)}/restore`, body),
   // MAKE-UP DAY — this date is finishing a prior session, not a standard one
   setMakeupDay: (conn, date, routineId) => post(conn, '/api/workouts/makeup', { date, routineId }),
   clearMakeupDay: (conn, date) => del(conn, `/api/workouts/makeup/${encodeURIComponent(date)}`),

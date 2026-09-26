@@ -1,6 +1,7 @@
 import { mono } from './shared.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
+import { offPlanTotals, recipeBankState, RECIPE_BANK_COPY } from '../fuelFacts.js';
 
 // The rename UI keys off a variant id. The version IN USE has none — it is
 // the recipe's main block, not an alternate — so it needs a sentinel rather
@@ -83,10 +84,14 @@ export function valsRecipes(app, ctx) {
   const st = app.state;
 
   const usingLiveRecipes = !!st.liveRecipes;
+  // The demo bank is demoMode's alone (the Fuel audit, finding 13). A live
+  // session whose recipes are loading, unreachable, missing or genuinely
+  // empty says which, and never borrows the showcase fixtures to fill the gap.
+  const recipeBank = recipeBankState({ demoMode: ctx.demoMode, liveRecipes: st.liveRecipes, connectionStatus: st.connectionStatus, recipesEmpty: st.liveRecipesEmpty });
   const RECIPE_CATEGORY_LABEL = { 'CORE DAILY MEALS': 'Core', 'ROTATION / SWAP MEALS': 'Rotation', TREATS: 'Treats' };
   const RECIPE_HUES = ['216,181,115', '138,106,209', '107,229,245', '201,111,111', '90,168,124'];
 
-  const filters = usingLiveRecipes ? ['All', 'Core', 'Rotation', 'Treats'] : ['All', 'High protein', 'Quick', 'Batch'];
+  const filters = usingLiveRecipes ? ['All', 'Core', 'Rotation', 'Treats'] : recipeBank === 'demo' ? ['All', 'High protein', 'Quick', 'Batch'] : [];
 
   // daily rotation — which real recipe fills each meal slot, and the day's macro total
   const rotation = st.liveRotation;
@@ -267,6 +272,7 @@ export function valsRecipes(app, ctx) {
             // tapping adds or removes it — it never replaces what is there
             slotToggles: rotationOrder.map(slotDefFor).map((s) => ({ key: s.key, label: s.custom ? s.name.slice(0, 1).toUpperCase() : s.label, title: s.name, hue: s.hue, active: (rotation?.options?.[s.key] || []).some((d) => d.id === r.id), onClick: () => app.toggleRotationSlot(s.key, r.id) })) };
         })
+    : recipeBank !== 'demo' ? []
     : app.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
         const tot = r.p + r.c + r.f;
         const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
@@ -284,7 +290,7 @@ export function valsRecipes(app, ctx) {
     ? (Object.entries(rotation.options).find(([, dishes]) => dishes.some((d) => d.id === liveOr.id))?.[0] || null)
     : null;
   const openRecipeSlotVariantId = openRecipeSlotKey ? (rotation.options[openRecipeSlotKey].find((d) => d.id === liveOr.id)?.variantId || null) : null;
-  const or = usingLiveRecipes ? null : app.recipes.find(r => r.id === st.openRecipeId);
+  const or = recipeBank === 'demo' ? app.recipes.find(r => r.id === st.openRecipeId) : null;
   const sv = usingLiveRecipes ? 1 : st.servings; // no serving-scaling for live recipes — ingredients are free text, not [qty,unit] tuples
 
   // when viewing a live recipe, an alternate (a Nova-suggested tweak the user
@@ -437,7 +443,14 @@ export function valsRecipes(app, ctx) {
   return {
     pickItUp,
     // recipes
-    recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} recipes · live from Obsidian` : `${app.recipes.length} recipes · demo data`,
+    recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} recipes · live from Obsidian`
+      : recipeBank === 'demo' ? `${app.recipes.length} recipes · demo data`
+      : recipeBank === 'empty' ? '0 recipes · live from Obsidian'
+      : recipeBank === 'loading' ? 'Recipes · loading' : 'Recipes · not loaded',
+    // what the grid is showing: 'live' | 'demo' draw cards; 'loading' draws
+    // the grid's skeleton; the rest draw one honest line in its place
+    recipeBankState: recipeBank,
+    recipeBankNote: RECIPE_BANK_COPY[recipeBank] || null,
     recipeFilters: filters.map(f => ({ label: f, go: () => app.setState({ recipeFilter: f }), active: st.recipeFilter === f })),
     recipeSearch: st.recipeSearch || '',
     setRecipeSearch: (e) => app.setState({ recipeSearch: typeof e === 'string' ? e : e.target.value }),
@@ -619,11 +632,20 @@ export function valsRecipes(app, ctx) {
       edit: () => app.startFoodEntryEdit({ id: e.id, name: e.name, p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal) }),
       editing: st.foodEditId === e.id,
     })),
-    // one tap back from a line he dropped — visible, not just a toast
-    foodItemUndo: st.foodItemUndo ? {
-      label: `Undo — put ${st.foodItemUndo.item?.name || 'that line'} back`,
-      run: () => app.undoFoodLogItem(),
-    } : null,
+    // one tap back from a line he dropped, or a whole meal — visible, not
+    // just a toast. Both ride the same 30-second window; the newest first.
+    foodLogUndos: [
+      st.foodItemUndo ? {
+        key: 'item', at: st.foodItemUndo.at || 0,
+        label: `Undo — put ${st.foodItemUndo.item?.name || 'that line'} back`,
+        run: () => app.undoFoodLogItem(),
+      } : null,
+      st.foodEntryUndo ? {
+        key: 'entry', at: st.foodEntryUndo.at || 0,
+        label: `Undo — put ${st.foodEntryUndo.entry?.name || 'that meal'} back`,
+        run: () => app.undoFoodLogEntry(),
+      } : null,
+    ].filter(Boolean).sort((a, b) => b.at - a.at),
     // the breakdown a scan produced, before he logs it
     foodLogPending: st.foodLogItems?.length ? {
       count: st.foodLogItems.length,
@@ -653,6 +675,10 @@ export function valsRecipes(app, ctx) {
       cancel: () => app.cancelFoodEntryEdit(),
     } : null,
     foodLogTotals: { p: Math.round(viewTot.p), c: Math.round(viewTot.c), f: Math.round(viewTot.f), kcal: Math.round(viewTot.kcal) },
+    // the strip under the composer is labelled OFF-PLAN, so it sums only what
+    // was not a ticked rotation meal (the Fuel audit, finding 3: the whole-day
+    // figure sat under that word and included the plan)
+    foodLogOffPlanTotals: offPlanTotals(viewEntries),
     // retro day strip: today + the last 6 days, tappable on both devices
     foodLogDays: (() => {
       const days = [];

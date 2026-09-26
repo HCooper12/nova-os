@@ -529,6 +529,7 @@ export default class App extends Component {
     foodLogDate: null, liveFoodLogView: null,
     liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
+    foodEntryUndo: null, // the last whole meal removed with its ×, held 30s for Undo
     formCheck: null, // FORM CHECK: { exerciseId, exerciseName, protocol, rubric, stage, jobId, result, error }
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: restoreFoodScanPhotos(), foodScanBusy: false, foodScanSlow: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
@@ -638,7 +639,7 @@ export default class App extends Component {
     // groups render OPEN by default — the whole point is seeing every lane's
     // state at a glance; this map holds only the ones he has collapsed
     liveModelPrefs: null, modelPrefsError: false, modelPrefsBusy: null, modelPrefsCollapsed: {},
-    calendarViewOpen: false, liveCalendarRange: null, calendarRangeError: false, calendarListError: false, liveRecipes: null,
+    calendarViewOpen: false, liveCalendarRange: null, calendarRangeError: false, calendarListError: false, liveRecipes: null, liveRecipesEmpty: false,
     liveRotation: null, liveRecipeProfile: null, rotationShowExtra: false,
 
     // add recipe (writes back to the real vault file)
@@ -1648,7 +1649,9 @@ export default class App extends Component {
     apply('streaks', (r) => this.setState({ liveStreaks: r }));
     apply('calendar', (r) => this.setState({ liveCalendar: r.events }));
     apply('recipes', (r) => {
-      this.setState({ liveRecipes: r.recipes.length ? r.recipes : null, liveRecipeProfile: r.profile || null });
+      // an empty bank stays null (usingLiveRecipes keys off it) but is FLAGGED,
+      // so the grid can say "none yet" instead of reading as not-loaded
+      this.setState({ liveRecipes: r.recipes.length ? r.recipes : null, liveRecipesEmpty: !r.recipes.length, liveRecipeProfile: r.profile || null });
       this.refreshRecipePhotos(r.recipes);
     });
     apply('rotation', (r) => this.setState({ liveRotation: r }));
@@ -1773,7 +1776,7 @@ export default class App extends Component {
       async () => this.setState({ liveCalendar: (await api.calendarToday(conn)).events }),
       async () => {
         const recipesRes = await api.recipes(conn);
-        this.setState({ liveRecipes: recipesRes.recipes.length ? recipesRes.recipes : null, liveRecipeProfile: recipesRes.profile || null });
+        this.setState({ liveRecipes: recipesRes.recipes.length ? recipesRes.recipes : null, liveRecipesEmpty: !recipesRes.recipes.length, liveRecipeProfile: recipesRes.profile || null });
         this.refreshRecipePhotos(recipesRes.recipes);
       },
       async () => this.setState({ liveRotation: await api.rotation(conn) }),
@@ -2289,17 +2292,58 @@ export default class App extends Component {
     const date = this.state.foodLogDate || undefined;
     // optimistic removal — the row goes now, and comes back if the server says no
     const previousDay = this.state.foodLogDate ? this.state.liveFoodLogView : this.state.liveFoodLog;
+    // EVERYTHING WRITEABLE IS UNDOABLE (the Fuel audit, finding 7): the ×
+    // on one line of a plate had a 30-second Undo and the × on the whole
+    // meal had none. What goes back is the entry verbatim (its id, clock
+    // time, lines and provenance) and the place it held in the day.
+    const index = previousDay?.entries ? previousDay.entries.findIndex((en) => en.id === id) : -1;
+    const removed = index >= 0 ? previousDay.entries[index] : null;
     if (previousDay?.entries) {
       haptic('tick');
       this.noteLocalWrite('foodLog');
       this.applyFoodLogDay({ ...previousDay, entries: previousDay.entries.filter((en) => en.id !== id) });
     }
     api.deleteFoodLogEntry(conn, id, date)
-      .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); })
+      .then((day) => {
+        this.noteLocalWrite('foodLog');
+        this.applyFoodLogDay(day);
+        // a pending row never reached the server, so there is nothing to put back
+        if (!removed || String(removed.id).startsWith('pending-')) return;
+        const undo = { date: day.date || date, entry: removed, index, at: Date.now() };
+        this.setState({ foodEntryUndo: undo });
+        clearTimeout(this.foodEntryUndoT);
+        this.foodEntryUndoT = setTimeout(() => this.setState({ foodEntryUndo: null }), 30000);
+        // the toast's Undo is bound to THIS meal, even if another goes after it
+        this.toastMsg({ id: `food-entry:${removed.id}`, tone: 'info', title: `Removed ${removed.name}`, duration: 6000,
+          action: { label: 'Undo', run: () => this.undoFoodLogEntry(undo) } });
+      })
       .catch((e) => {
         if (previousDay) this.applyFoodLogDay(previousDay);
         this.toastFail('Could not remove entry: ' + e.message);
       });
+  }
+  // The whole-entry undo, beside the line undo below and on the same rails:
+  // the server puts the entry back (POST /food-log/:id/restore) and the whole
+  // day comes back with it, so the totals on screen stay the server's sum.
+  undoFoodLogEntry(u = this.state.foodEntryUndo) {
+    const conn = getConnection();
+    if (!conn || !u) return;
+    api.restoreFoodLogEntry(conn, u.entry.id, { date: u.date, entry: u.entry, index: u.index })
+      .then((day) => {
+        this.noteLocalWrite('foodLog');
+        this.applyFoodLogDayIfShown(day);
+        if (this.state.foodEntryUndo === u) { clearTimeout(this.foodEntryUndoT); this.setState({ foodEntryUndo: null }); }
+        this.toastMsg(`${u.entry.name || 'That meal'} is back`);
+      })
+      .catch((e) => this.toastFail('Could not put it back: ' + e.message));
+  }
+  // An undo can land after he has moved the log to another day. With today
+  // in view, applyFoodLogDay would put ANY day it is handed into today's
+  // slot, so a past day restored late is left for its own view to reload.
+  applyFoodLogDayIfShown(day) {
+    const today = this.state.liveFoodLog?.date;
+    if (!this.state.foodLogDate && day?.date && today && day.date !== today) return;
+    this.applyFoodLogDay(day);
   }
   // THE ITEMISED PLATE — drop one line of a meal. The whole day comes back
   // from the server, so the total on screen is always the server's sum.
@@ -2873,8 +2917,34 @@ export default class App extends Component {
     if (!conn) return;
     const date = this.state.foodLogDate || undefined;
     api.addFoodLogEntry(conn, { name: item.name, macros: item.macros, source: 'history', date })
-      .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); this.toastMsg(`Logged ${item.name}${date ? ` to ${date}` : ''} ✓`); this.loadFoodHistory(); })
+      .then((day) => {
+        this.noteLocalWrite('foodLog');
+        this.applyFoodLogDay(day);
+        this.loadFoodHistory();
+        // One tap on the rail writes at once, so the receipt carries its own
+        // way back (the Fuel audit, finding 7). addEntry appends under the
+        // write lock, so the day's last entry is the one this tap made.
+        const added = day?.entries?.at(-1);
+        const mine = added && added.name === item.name ? added : null;
+        this.toastMsg({
+          id: mine ? `food-relog:${mine.id}` : undefined, tone: 'done', duration: 6000,
+          title: `Logged ${item.name}${date ? ` to ${date}` : ''} ✓`,
+          ...(mine ? { action: { label: 'Undo', run: () => this.undoRelogFoodItem(mine, day.date) } } : {}),
+        });
+      })
       .catch((e) => this.toastMsg('Could not log: ' + e.message));
+  }
+  undoRelogFoodItem(entry, date) {
+    const conn = getConnection();
+    if (!conn || !entry?.id) return;
+    api.deleteFoodLogEntry(conn, entry.id, date)
+      .then((day) => {
+        this.noteLocalWrite('foodLog');
+        this.applyFoodLogDayIfShown(day);
+        this.loadFoodHistory();
+        this.toastMsg(`Took ${entry.name} back off the log`);
+      })
+      .catch((e) => this.toastFail('Could not undo that: ' + e.message));
   }
   // Pre-fill the Add Recipe modal from a scanned/logged food so it can be saved
   // to the recipe bank without re-entering anything (macro-only is allowed).
@@ -4310,7 +4380,7 @@ export default class App extends Component {
       ...cleared,
       connectionStatus: 'demo', lastSyncAt: null,
       settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '',
-      liveNoteDetails: {}, liveReviewSummaries: {}, liveRecipePhotoUrls: {},
+      liveNoteDetails: {}, liveReviewSummaries: {}, liveRecipePhotoUrls: {}, liveRecipesEmpty: false,
       rotationShowExtra: false, recipeAddOpen: false, openNoteId: 'n1',
       // workoutSession deliberately NOT cleared: nulling it here made the
       // mirror delete the draft — a reconnect cycle (the PWA's occasional
