@@ -556,6 +556,18 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (morning) — FUEL HONESTY FIXES SHIPPED (e7cc32d): off-plan kcal leaves
+  ticked rotation meals out; a removed meal has a 30-second Undo (POST
+  /food-log/:id/restore, entry rebuilt field by field, itemised total
+  re-summed) and so does Log it again; the demo recipe bank never shows in a
+  live session (loading · offline · empty · missing states). Server reloaded
+  via scripts/reload-server.mjs. Gates green except two exerciseAtlas tests
+  that read his REAL library: JM Press and Reverse Pec Deck were added to the
+  vault since last night and have no atlas entry (environmental, not the
+  fix; for the anatomy pipeline). FUEL ROUND 1 PUBLISHED (mockup 59): A the
+  plate · B the deck · C two pages. His calls: protein cyan (Fuel) vs c1
+  (Home); carbs no longer gold; cyan links vs cyan protein; the shape; C's
+  week strip needs a per-day rotation order in code first.
 - 27 Sep 2026 (morning) — TRAIN ROUND 1 PUBLISHED (ab55f3b, mockup 58,
   https://claude.ai/artifact/FUuAVaKD8tWhjtoL3XtkRw): A two places not three
   tabs (Coach a door on the Gym page; ✕ asks why) · B one set at a time (64px
