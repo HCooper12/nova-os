@@ -564,7 +564,7 @@ abstract without page content to put in it.
   via scripts/reload-server.mjs. Gates green except two exerciseAtlas tests
   that read his REAL library: JM Press and Reverse Pec Deck were added to the
   vault since last night and have no atlas entry (environmental, not the
-  fix; for the anatomy pipeline). FUEL ROUND 1 PUBLISHED (mockup 59): A the
+  fix; for the anatomy pipeline). FUEL ROUND 1 PUBLISHED (mockup 59, https://claude.ai/artifact/KG6eTXq6pLwULzJVdRiDEu): A the
   plate · B the deck · C two pages. His calls: protein cyan (Fuel) vs c1
   (Home); carbs no longer gold; cyan links vs cyan protein; the shape; C's
   week strip needs a per-day rotation order in code first.
