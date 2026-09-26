@@ -977,6 +977,162 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   .nv-sum-row, .nv-sum-row.drag, .nv-sum-switch, .nv-sum-switch::after { transition: none; }
 }
 
+/* ================================================================
+   THE SUMMARY DOCK AND INDEX (P3, 26 Sep 2026) — the iOS 26 tab bar
+   (src/SummaryDock.jsx, which MobileChrome draws under `summary` only)
+   and the Index, the More tab's page (src/screens/Index.jsx). The same
+   rule as the block above: every selector names a .nv-sum-* class that
+   nothing else wears, and every colour is a --nv-sum-* or --nv-* token,
+   so a theme × material switch recolours all of it and nothing here can
+   reach a command or cupertino screen.
+   ================================================================ */
+
+/* THE BAR: a row pinned above the home indicator — the glass pill of five
+   tabs, and Nova beside it. The inset is capped at 34px for the reason the
+   floating dock's is (chromeGeometry.test.js): in a Safari tab
+   env(safe-area-inset-bottom) reports the browser's own bar, 60-85px, and
+   an uncapped sum floated the dock 108px up his screen. The row itself
+   takes no taps; only the pill and the button do. */
+.nv-sum-dock {
+  position: fixed; z-index: 72;
+  left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
+  bottom: calc(8px + min(env(safe-area-inset-bottom), 34px));
+  max-width: 480px; margin: 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  pointer-events: none;
+}
+.nv-sum-tabbar, .nv-sum-nova {
+  pointer-events: auto;
+  background: var(--nv-sum-tab);
+  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 10px 30px -14px rgba(0, 0, 0, .7);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  backdrop-filter: blur(22px) saturate(1.4);
+}
+.nv-sum-tabbar {
+  flex: 1; min-width: 0; box-sizing: border-box; height: 60px; padding: 2px; border-radius: 30px;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center;
+}
+/* a tab: the mark over its name. The lit one is the accent on a tint of
+   itself, with no transition — it is simply where he is */
+.nv-sum-tab {
+  position: relative; box-sizing: border-box; height: 56px; min-width: 0; border-radius: 28px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  color: var(--nv-sum-tab-ink);
+  -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
+.nv-sum-tab.on { color: var(--nv-sum-tab-on); background: var(--nv-sum-tab-on-bg); }
+.nv-sum-tab-ico { position: relative; display: block; }
+/* 11px — the HIG's floor for the smallest text, and the only size in the
+   summary UI under 12: the tab names, the badge and the "Talk" caption,
+   which summaryHome.test.js names and allows, and nothing else */
+.nv-sum-tab-lbl { white-space: nowrap; font: 500 11px/1.15 var(--nv-font-ui); letter-spacing: .01em; }
+.nv-sum-tbadge {
+  position: absolute; top: -5px; left: calc(50% + 4px);
+  box-sizing: border-box; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--nv-sum-badge); color: var(--nv-sum-badge-ink);
+  font: 700 11px/18px var(--nv-font-ui); text-align: center; font-variant-numeric: tabular-nums;
+}
+
+/* NOVA, detached: a round button of the same glass. While the mic is open
+   the orb steps up to 34px and "Talk" appears beneath it, 180ms, in the
+   accent — the one state change on this bar that is acted out */
+.nv-sum-nova {
+  position: relative; flex: none; box-sizing: border-box; width: 60px; height: 60px; border-radius: 50%;
+  display: grid; place-items: center;
+  -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
+.nv-sum-nova-orb { display: block; width: 46px; height: 46px; transition: transform 180ms var(--nv-ease); }
+.nv-sum-nova[data-listening="true"] .nv-sum-nova-orb { transform: translateY(-7px) scale(.74); }
+.nv-sum-nova-cap {
+  position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; pointer-events: none;
+  font: 500 11px/13px var(--nv-font-ui); color: var(--nv-sum-tab-on);
+  opacity: 0; transform: translateY(3px);
+  transition: opacity 180ms var(--nv-ease), transform 180ms var(--nv-ease);
+}
+.nv-sum-nova[data-listening="true"] .nv-sum-nova-cap { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-sum-nova-orb { transition: none; }
+  .nv-sum-nova-cap { transform: none; transition: opacity 180ms linear; }
+}
+
+/* THE INDEX. The "you" card, then each group: its small-caps name over one
+   card of rows. */
+.nv-sum-you {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 12px 16px; margin: 12px 0 22px;
+}
+.nv-sum-you-name { display: block; font: 600 17px/1.25 var(--nv-font-ui); letter-spacing: -.01em; color: var(--nv-ink); }
+.nv-sum-you-line { display: block; margin-top: 2px; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); text-wrap: pretty; }
+.nv-sum-igroup { margin: 0 0 22px; }
+.nv-sum-glist { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+/* a row, 52px at rest: tile, name and value, chevron. It presses the way an
+   iOS list row does, a tint under the finger (Index.jsx), not a shrink that
+   would pull it away from the card's edges. The hairline starts at the name,
+   so the tiles read as one column down the card. */
+.nv-sum-irow {
+  position: relative; box-sizing: border-box; min-height: 52px; padding: 0 14px;
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.nv-sum-glist > li + li > .nv-sum-irow::before {
+  content: ''; position: absolute; top: 0; left: 60px; right: 0; height: 1px;
+  background: var(--nv-sum-sep); pointer-events: none;
+}
+/* the tile: the row's hue (indexGroups.js) as a 16% wash with the mark in
+   the hue itself; --nv-sum-hue is set on the element */
+.nv-sum-itile {
+  width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--nv-sum-hue, var(--nv-ink40)) 16%, transparent);
+  color: var(--nv-sum-hue, var(--nv-ink40));
+}
+/* name left, value right; when the two will not share a line the value
+   drops under the name (a lone flex item sits at the start), the way iOS
+   lists stack at large type — a value is never cut to fit */
+.nv-sum-itext {
+  min-width: 0; padding: 12px 0;
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px;
+}
+.nv-sum-ilbl { font: 400 17px/1.3 var(--nv-font-ui); letter-spacing: -.01em; color: var(--nv-ink); }
+.nv-sum-ival { min-width: 0; font: 400 15px/1.3 var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; }
+/* waiting on him: the badge's gold, the colour of an undecided thing */
+.nv-sum-ival.hot { color: var(--nv-sum-badge); }
+
+/* SEARCH, at the foot and floating: sticky just above the tab bar while the
+   list scrolls beneath it, so it wears the bar's own glass — a card's fill
+   (nearly clear with no blur under `solid`) would let the rows show through
+   the words. It opens the conversation, which is the front door. */
+.nv-sum-search {
+  position: sticky; z-index: 3;
+  bottom: calc(76px + min(env(safe-area-inset-bottom), 34px));
+  box-sizing: border-box; height: 52px; margin-top: 4px; padding: 0 18px; border-radius: 26px;
+  display: flex; align-items: center; gap: 10px;
+  color: var(--nv-ink60);
+  background: var(--nv-sum-tab);
+  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 10px 30px -14px rgba(0, 0, 0, .7);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  backdrop-filter: blur(22px) saturate(1.4);
+}
+.nv-sum-search-lbl { flex: 1; min-width: 0; font: 400 17px var(--nv-font-ui); letter-spacing: -.01em; }
+.nv-sum-search-ico {
+  flex: none; width: 18px; height: 18px;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* the keyboard's focus ring, and only the keyboard's (the components pass
+   Interactive an empty focusStyle, so a tap leaves no ring behind) */
+.nv-sum-tab:focus-visible, .nv-sum-nova:focus-visible, .nv-sum-irow:focus-visible,
+.nv-sum-you:focus-visible, .nv-sum-search:focus-visible {
+  outline: 2px solid var(--nv-acc-border); outline-offset: -2px;
+}
+
+/* less transparency asked for: the bar, Nova and the search go solid */
+@media (prefers-reduced-transparency: reduce) {
+  .nv-sum-tabbar, .nv-sum-nova, .nv-sum-search {
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    background: color-mix(in srgb, var(--nv-void) 90%, white);
+  }
+}
+
 /* shared panes for the new components */
 .nv-pane {
   position: relative;

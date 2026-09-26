@@ -47,6 +47,8 @@ import { valsMission } from './vals/valsMission.js';
 import { valsOps } from './vals/valsOps.js';
 import { valsChrome } from './vals/valsChrome.js';
 import { valsSummary } from './vals/valsSummary.js';
+import { valsIndex } from './vals/valsIndex.js';
+import { SCREEN_KEYS } from './screenKeys.js';
 import { Sidebar } from './Sidebar.jsx';
 // THE DAILY FIVE — statically imported, never lazy. These are what a session
 // actually opens on: Mission (the default screen), Voice (where the morning
@@ -122,6 +124,7 @@ const SCREEN_LOADERS = {
   practice: () => import('./screens/Practice.jsx'),
   briefing: () => import('./screens/Briefing.jsx'),
   console: () => import('./screens/ConsoleScreen.jsx'),
+  index: () => import('./screens/Index.jsx'),
 };
 const Galaxy = lazyScreen(SCREEN_LOADERS.galaxy, 'Galaxy');
 const Money = lazyScreen(SCREEN_LOADERS.money, 'Money');
@@ -139,6 +142,7 @@ const Leader = lazyScreen(SCREEN_LOADERS.leader, 'Leader');
 const Practice = lazyScreen(SCREEN_LOADERS.practice, 'Practice');
 const Briefing = lazyScreen(SCREEN_LOADERS.briefing, 'Briefing');
 const ConsoleScreen = lazyScreen(SCREEN_LOADERS.console, 'ConsoleScreen');
+const Index = lazyScreen(SCREEN_LOADERS.index, 'Index');
 
 // The OVERLAYS — every one is conditionally rendered (a modal, a sheet, an
 // overlay), so none of them is ever part of a first paint. RecipeOverlay
@@ -199,22 +203,17 @@ const RECIPE_CLOSED = { openRecipeId: null, recipeRemovals: [], recipeRemovalPro
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
 // on GitHub Pages without a server-side router.
-// EVERY screen the render block below can actually draw. This list and that
-// block are one contract: a key here with no renderer, or a renderer whose key
-// is missing here, is a blank page — the chrome and the dock draw, nothing sits
-// between them, and NOTHING is logged. Found on 4 Sep by navigating to 'fuel'
-// (the Fuel tab's real key is 'recipes'): an empty main and a silent console.
-//
-// It previously omitted 'ops', 'stash' and 'ambient', all of which DO render —
-// so their hashes did not survive a reload even though the screens worked.
-const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'stash',
-  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'practice', 'journal', 'money', 'settings', 'briefing', 'console'];
+// EVERY screen the render block below can actually draw lives in SCREEN_KEYS
+// (src/screenKeys.js, moved there in P3 so the Index's test can read it). That
+// list and the render block are one contract: a key there with no renderer, or
+// a renderer whose key is missing there, is a blank page — and NOTHING is
+// logged. server/test/indexRows.test.js holds the two to each other.
 
 // An unknown key is a bug in the caller, not something to render around. Send
 // him somewhere real, and say so in the console so the bad call is findable —
 // silence is what made the original take a screenshot to notice.
 export function resolveScreen(key) {
-  if (SCREENS.includes(key)) return key;
+  if (SCREEN_KEYS.includes(key)) return key;
   console.warn(`navigate: no screen called "${key}" — falling back to mission`);
   return 'mission';
 }
@@ -291,7 +290,7 @@ function restoreDrafts() {
 
 function screenFromHash() {
   const h = (typeof window !== 'undefined' ? window.location.hash : '').replace(/^#\/?/, '').split('?')[0];
-  return SCREENS.includes(h) ? h : 'mission';
+  return SCREEN_KEYS.includes(h) ? h : 'mission';
 }
 
 // A notification carries a deep link — "#/inbox?open=<recordId>" — so tapping
@@ -6999,7 +6998,11 @@ export default class App extends Component {
     // the summary Home reads fields from four of the builders above
     // (practiceCard, macSessionsHeadline, goWorkouts, and valsMission's), so
     // it takes the merged view model and goes last; null off `summary`
-    return { ...all, ...valsSummary(this, ctx, all) };
+    const withSummary = { ...all, ...valsSummary(this, ctx, all) };
+    // the Index (P3) reads eight builders' fields — the sidebar's counts, the
+    // protein ring, the Home cards' labels — so it takes everything, last of
+    // all; null off the Index screen
+    return { ...withSummary, ...valsIndex(this, ctx, withSummary) };
   }
 
   // A research job dispatched from the conversation: poll the SAME pending
@@ -9962,6 +9965,7 @@ export default class App extends Component {
               {v.isPractice && <Practice v={v} />}
               {v.isBriefing && <Briefing v={v} />}
               {v.isConsole && <ConsoleScreen v={v} />}
+              {v.isIndex && <Index v={v} />}
               {v.isJournal && <Journal v={v} />}
               {v.isMoney && <Money v={v} />}
               {v.isSettings && <Settings v={v} />}

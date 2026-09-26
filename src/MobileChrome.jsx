@@ -6,6 +6,7 @@ import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
 import { NovaCore } from './NovaCore.jsx';
 import { Eyebrow, isAppleStyle } from './Controls.jsx';
+import { SummaryDock } from './SummaryDock.jsx';
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
@@ -146,6 +147,10 @@ export function MobileChrome({ v }) {
           raised centre button opens
           VOICE: talking is the fastest way in, and the command palette is
           still a tap away on the top bar (✦ ASK) and ⌘K on desktop. */}
+      {/* …except under `summary`, which has the iOS 26 tab bar instead
+          (SummaryDock.jsx): four tabs, More as the Index, Nova detached.
+          The dock below is untouched and still draws for every other style. */}
+      {v.summary ? <SummaryDock v={v} /> : (
       <div className="nv-liquid nv-liquid-dock" style={css("position:fixed;left:50%;transform:translateX(-50%);bottom:calc(6px + min(env(safe-area-inset-bottom), 34px));z-index:72;display:flex;align-items:center;gap:2px;padding:7px 10px;border-radius:999px")}>
         {dockTabs.slice(0, 3).map((t) => <DockTab key={t.screen} t={t} />)}
         {/* THE mini Nova icon — his ask: tapping it starts talking right
@@ -179,6 +184,7 @@ export function MobileChrome({ v }) {
           <span style={css(`font:600 9px ${R};white-space:nowrap`)}>More</span>
         </Interactive>
       </div>
+      )}
     </>
   );
 }

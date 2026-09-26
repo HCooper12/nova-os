@@ -13,7 +13,7 @@ import { muscleVar } from '../muscleHue.js';
 // liveRoutines, usingLiveNotes, journalDays, shoppingItems) plus the
 // connection truth valsMission shares (statusChip, missionStatusItems).
 
-const OFF_DOCK_TITLE = { leader: 'Leader', practice: 'Practice', briefing: 'Briefing', console: 'Console' };
+const OFF_DOCK_TITLE = { leader: 'Leader', practice: 'Practice', briefing: 'Briefing', console: 'Console', index: 'Index' };
 
 export function valsChrome(app, ctx) {
   const st = app.state;
@@ -174,6 +174,8 @@ export function valsChrome(app, ctx) {
     supportsViewTransitions: typeof document !== 'undefined' && !!document.startViewTransition,
     isMission: st.screen === 'mission', isVoice: st.screen === 'voice', isGalaxy: st.screen === 'galaxy',
     isRecipes: st.screen === 'recipes', isShopping: st.screen === 'shopping', isStash: st.screen === 'stash', isWorkouts: st.screen === 'workouts', isCode: st.screen === 'code', isNotes: st.screen === 'notes', isJournal: st.screen === 'journal',
+    // THE INDEX (P3): the More tab under `summary` — every screen, grouped
+    isIndex: st.screen === 'index',
     dateLabel: dtf('en-GB', { weekday: 'short', day: '2-digit', month: 'short' }).format(new Date()).toUpperCase().replace(/,/g, ''),
     greeting: (new Date().getHours() < 12 ? 'Good morning, ' : new Date().getHours() < 18 ? 'Good afternoon, ' : 'Good evening, ') + userName + '.',
     // ONE saved order drives both the phone's dock and the Mac's sidebar
@@ -512,6 +514,7 @@ export function valsChrome(app, ctx) {
     novaTalkOn: !!st.liveTalkOn,
     holdNovaText: () => app.toggleLiveText(),
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
+    goIndex: go('index'),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
     orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',
     openPalette: () => app.navigate('voice'), // ✦ ASK opens the conversation — it IS the front door now

@@ -18,9 +18,9 @@ test('the summary branch is taken before the structured one', () => {
   assert.ok(summary < structured, 'the summary branch must come first');
 });
 
-test('no type on the summary Home is below 12px', () => {
+test('no type on the summary Home, the Index or the tab bar is below 12px — but the tab bar\'s 11px', () => {
   const sizes = [];
-  for (const f of ['src/screens/MissionSummary.jsx', 'src/PinnedEditSheet.jsx']) {
+  for (const f of ['src/screens/MissionSummary.jsx', 'src/PinnedEditSheet.jsx', 'src/screens/Index.jsx', 'src/SummaryDock.jsx']) {
     const src = read(f);
     for (const m of src.matchAll(/font: [`'"]([^`'"]*)[`'"]/g)) {
       const px = /(\d+(?:\.\d+)?)px/.exec(m[1]);
@@ -31,13 +31,27 @@ test('no type on the summary Home is below 12px', () => {
   const start = css.indexOf('THE SUMMARY HOME ITSELF');
   const end = css.indexOf('/* shared panes for the new components */');
   assert.ok(start > 0 && end > start, 'the .nv-sum-* section was not found');
-  for (const m of css.slice(start, end).matchAll(/font(?:-size)?:\s*([^;]+);/g)) {
-    const px = /(\d+(?:\.\d+)?)px/.exec(m[1]);
-    if (px) sizes.push({ where: 'index.css .nv-sum-*', px: Number(px[1]) });
+  // P3's tab bar and Index live in their own block INSIDE the section read here
+  const dock = css.indexOf('THE SUMMARY DOCK AND INDEX');
+  assert.ok(dock > start && dock < end, 'the dock and Index block must sit inside the section this floor reads');
+  // rule by rule, so every size knows its selector — from the end of the
+  // header comment `start` lands inside, with every other comment taken out
+  const section = css.slice(css.indexOf('*/', start) + 2, end).replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const rule of section.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = rule[1].trim();
+    for (const m of rule[2].matchAll(/font(?:-size)?:\s*([^;]+);/g)) {
+      const px = /(\d+(?:\.\d+)?)px/.exec(m[1]);
+      if (px) sizes.push({ where: `index.css ${selector}`, px: Number(px[1]), selector });
+    }
   }
   assert.ok(sizes.length > 30, `expected to read the whole screen's type, found ${sizes.length}`);
-  const small = sizes.filter((s) => s.px < 12).map((s) => `${s.where}: ${s.px}px`);
-  assert.deepEqual(small, [], `below 12px:\n  ${small.join('\n  ')}`);
+  // 11px is the HIG's floor for the smallest text an iOS tab bar sets: the tab
+  // names, the badge and the "Talk" caption may use it, and nothing else may
+  const HIG_11 = /^\.nv-sum-(?:tab-lbl|tbadge|nova-cap)$/;
+  const floorOf = (s) => (s.selector && HIG_11.test(s.selector) ? 11 : 12);
+  const small = sizes.filter((s) => s.px < floorOf(s)).map((s) => `${s.where}: ${s.px}px`);
+  assert.deepEqual(small, [], `below the floor:\n  ${small.join('\n  ')}`);
+  assert.ok(sizes.some((s) => s.selector === '.nv-sum-tab-lbl' && s.px === 11), 'the tab names are the 11px the HIG floor allows');
 });
 
 test('the Edit sheet is a modal the back swipe can find and close', () => {
