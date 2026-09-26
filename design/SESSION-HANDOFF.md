@@ -20,7 +20,8 @@ use, all function kept, more fluid; audit → mockups → his tweaks → repeat 
 next page. `design/REDESIGN-CHECKLIST.md` is the work list (226 rows over
 21 pages + the chrome, every row with a source locator); the four source
 inventories behind it are `design/audits/redesign-2026-09/00-inventory-*.md`.
-Nothing photographed yet, no product code changed.**
+THE BUILD IS UNDER WAY (P0 + P1 shipped, see STATE); `cupertino` × `command`
+is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
 
 - **STATE:** checklist committed; HIS CALL 26 Sep: Home first. Home AUDITED
   from two recordings of his phone (`design/audits/redesign-2026-09/01-home.md`:
@@ -54,8 +55,28 @@ Nothing photographed yet, no product code changed.**
   glass his main; Practice, Trends and the Index kept; the CURRENT appearance
   must stay available and stable. BUILD CONTRACT: design/HOME-REDESIGN-PLAN.md
   (style `summary`, theme `sky`, material glass|solid, hour band, P0–P5; cupertino
-  × command untouched and default). NEXT: his go on the plan's open items, then
-  P0/P1. Open decisions: the two test to-dos in his vault; the dock centre.
+  × command untouched and default). HIS GO (21:xx): proceed; Health-style Edit
+  sheet with toggles + drag handles, "smooth to drag around and edit with no
+  lag"; the sky cycle tints Nova glass's aurora too; order P1 → P2 (Nova glass
+  + Nova night first) → P3 → P4 → P5. BUILT SO FAR: P0 = 8475533 (the guard:
+  headless demo-mode DOM snapshot, clock frozen, Math.random seeded, refuses
+  when public/_devconn*.js exists; ~36 s). P1 = 27e8bd1 + e64e3d4 (summary
+  style, sky theme, material glass|solid, hour band, --nv-sum-* tokens,
+  .nv-sky, Settings rows; `summary` is FILTERED OUT of novaStyleOptions until
+  P2 lands; the sky theme's warn/mg/or hues re-picked to clear 4.5:1 on its
+  card; displayTracking.test re-anchored, contrast.test gained sky + --nv-or).
+  IN FLIGHT: P2-A (src/summaryFacts.js, src/pinned.js, src/vals/valsSummary.js,
+  server/test/summaryFacts.test.js, prLift/prBasis moved to missionFocus.js,
+  heroTaglineTopic exposed) in a worktree. BRIEFED, NOT LAUNCHED: P2-B (the
+  screen MissionSummary.jsx + PinnedEditSheet.jsx + MissionControl branch +
+  App wiring + the .nv-sum-* CSS), brief at
+  design/audits/redesign-2026-09/p2b-brief.md — launch it (Opus, worktree)
+  only AFTER P2-A is merged, because it renders valsSummary's shapes. Then
+  P3 (iOS 26 tab bar + the Index as the More tab, #/index), P4 (Trends val is
+  already in P2-A; the aurora hour shift is in P1), P5 his phone. Worktree
+  lesson: a worktree has no server/node_modules or server/data, so run the
+  server suite on main (the server files are identical). Open decisions:
+  the two test to-dos in his vault; the push (14 local commits, none pushed).
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
   (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards
