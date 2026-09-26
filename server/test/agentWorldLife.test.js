@@ -2,6 +2,13 @@
 // and self-contained (no imports of its own), so this suite builds its own
 // small fixtures rather than reaching for orgMap.js/streamFeed.js — it is
 // proving the reducer's contract, not the view models that feed it.
+// The life engine is seeded by ABSOLUTE minutes but reads the LOCAL hour, so
+// the same test clock is a different instant in every timezone and its
+// seeded hour of visits differs. Pinned to his timezone (the only one the
+// app runs in) so CI (UTC) and his Mac agree; found 26 Sep when a tenth
+// being shifted the pairings and CI alone went red.
+process.env.TZ = 'Australia/Sydney';
+
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -275,22 +282,34 @@ test('visits happen between ring neighbours, the host’s gag plays, a gift is c
   // Carry clears: walk forward from a moment a carry was seen until it is
   // gone, within a bounded number of steps (the 30s post-visit rest).
   {
+    // Several seeds, not one: the engine's minute stream is absolute time, so
+    // DAY_NOON is a different instant in every timezone, and a single seed's
+    // hour can simply contain no gift. One seed passed in AEST and failed in
+    // CI's UTC the day the tenth being (Practice) changed the pairings
+    // (26 Sep). The property is "a carry, once seen, clears", not "this seed
+    // happens to carry".
     const beings2 = makeBeings();
-    let s = initLife({ seed: 'carry-clear', beings: beings2 });
-    let t = DAY_NOON;
-    let carrier = null;
-    let stepsSinceCarry = 0;
-    for (let i = 0; i < 3600 && !carryClearedAfter; i++) {
-      t += 1000;
-      s = stepLife(s, { now: t, seed: 'carry-clear', beings: beings2, events: [], visible: true, reduceMotion: false });
-      for (const id of BEING_IDS) {
-        if (s.beings[id].carry) { carrier = id; stepsSinceCarry = 0; }
-        else if (carrier === id) {
-          stepsSinceCarry += 1;
-          if (stepsSinceCarry === 1) { carryClearedAfter = true; }
+    let carrySeen = false;
+    for (const seed of ['carry-clear', 'carry-clear-2', 'carry-clear-3', 'carry-clear-4', 'carry-clear-5', 'carry-clear-6']) {
+      let s = initLife({ seed, beings: beings2 });
+      let t = DAY_NOON;
+      let carrier = null;
+      let stepsSinceCarry = 0;
+      for (let i = 0; i < 3600 && !carryClearedAfter; i++) {
+        t += 1000;
+        s = stepLife(s, { now: t, seed, beings: beings2, events: [], visible: true, reduceMotion: false });
+        for (const id of BEING_IDS) {
+          if (s.beings[id].carry) { carrier = id; stepsSinceCarry = 0; carrySeen = true; }
+          else if (carrier === id) {
+            stepsSinceCarry += 1;
+            if (stepsSinceCarry === 1) { carryClearedAfter = true; }
+          }
         }
       }
+      if (carryClearedAfter) break;
+      assert.ok(!carrier, `seed ${seed}: a carried item never cleared within its hour`);
     }
+    assert.ok(carrySeen, 'no carried item appeared across six simulated hours');
     assert.ok(carryClearedAfter, 'a carried item never cleared within an hour');
   }
 
