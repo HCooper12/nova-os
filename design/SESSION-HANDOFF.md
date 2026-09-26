@@ -67,7 +67,13 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   card; displayTracking.test re-anchored, contrast.test gained sky + --nv-or).
   P2-A = c199b31 (src/summaryFacts.js, src/pinned.js, src/vals/valsSummary.js,
   server/test/summaryFacts.test.js, prLift/prBasis moved to missionFocus.js,
-  heroTaglineTopic exposed; gates green). IN FLIGHT: P2-B (Opus, worktree) —
+  heroTaglineTopic exposed; gates green). WORKTREE TRAP: an Agent's
+  `isolation: worktree` is cut from origin/main, and main is 17 commits ahead
+  and unpushed, so the first P2-B agent saw none of this work and was blocked
+  from pulling it in; P2-B now runs in MY worktree `.claude/worktrees/p2b`
+  (branch `p2b-summary-home` from local main, node_modules symlinked) — merge
+  it with `git merge --ff-only p2b-summary-home` from main after review, then
+  remove the worktree and branch. Use the same recipe for P3. IN FLIGHT: P2-B (Opus) —
   the screen MissionSummary.jsx + PinnedEditSheet.jsx + MissionControl branch
   + App wiring (valsSummary spread AFTER valsChrome with the merged v) + the
   .nv-sum-* CSS + un-hiding Summary in Settings; brief at
