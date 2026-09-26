@@ -13,6 +13,34 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**26 SEP (afternoon, redesign session) — THE PAGE-BY-PAGE REDESIGN IS OPEN.
+His brief: Nova has become cluttered and complicated; redesign every page
+under the Apple guidelines and the design skills, less to look at and to
+use, all function kept, more fluid; audit → mockups → his tweaks → repeat →
+next page. `design/REDESIGN-CHECKLIST.md` is the work list (226 rows over
+21 pages + the chrome, every row with a source locator); the four source
+inventories behind it are `design/audits/redesign-2026-09/00-inventory-*.md`.
+Nothing photographed yet, no product code changed.**
+
+- **STATE:** checklist committed; order proposed (Home → Inbox → Train →
+  Fuel → Voice → sheets → the rest), AWAITING HIS CALL. Next: his order, then
+  the first page's audit under the skills with real captures (guard writes
+  first; a headless load of Home is a write).
+- **VERIFIED in source while surveying (not yet fixed, on the checklist):**
+  Settings copy says three tabs fill the dock, the dock takes five
+  (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards
+  with no reason asked (`App.jsx:7187`; UI-REDESIGN-SPEC item 6 unbuilt);
+  a dead day-chip picker inside `display:none` (`Recipes.jsx:540`);
+  `repertoire` retry-eligible but absent from `SOURCE_LABEL`
+  (`valsInbox.js:443` vs `:16-35`); Voice's own speech-blocked banner never
+  got the glass that `VoicePresence` got (`Voice.jsx:500-507`); Stash rows
+  still carry two tap targets to one URL (`Stash.jsx:61,67`).
+- **DO NOT:** start a page's redesign before he picks the order; put his real
+  data in a mockup (the repo is public); strip the house materials on
+  "AI-default" grounds (CLAUDE.md).
+
+---
+
 **26 SEP (afternoon, nova-os-df) — TWO THINGS SHIPPED AND LIVE (verified in
 the deployed chunks): the fix for his lost make-up workout, and Practice as
 the tenth Agent World being.**
