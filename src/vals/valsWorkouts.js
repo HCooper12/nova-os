@@ -143,7 +143,15 @@ export function valsWorkouts(app, ctx) {
     // MAKE-UP DAY — declared while planning the week: this DATE finishes a
     // prior session instead of running the scheduled one.
     const dayDate = dateForWeekday(day);
-    const dayMakeup = dayCarryovers.find((c) => c.plannedAs === 'day') || null;
+    const plannedMakeup = dayCarryovers.find((c) => c.plannedAs === 'day') || null;
+    // A MAKE-UP FINISHED TODAY STAYS TODAY'S FOCUS (his report, 26 Sep). The
+    // carry-over row is removed when the session is filed, and the date fell
+    // straight back to the weekday template ("the calendar has defaulted back
+    // to leg day"). The filed session is the record, so the day reads from it.
+    const finished = isToday && !plannedMakeup ? (overview?.doneToday?.madeUp || [])[0] || null : null;
+    const dayMakeup = plannedMakeup || (finished
+      ? { sourceRoutineId: finished.routineId, sourceRoutineName: finished.routineName, exercises: new Array(finished.exerciseCount).fill(null), done: true }
+      : null);
     // A carry-over written without an id identifies by NAME (see the merge
     // rule in workoutCarryover.js), so the select falls back to the name or it
     // would show a make-up day as blank and silently re-write the template on
@@ -156,7 +164,7 @@ export function valsWorkouts(app, ctx) {
     return {
       day, dayLabel: WEEKDAY_SHORT[day], isToday, carryoverNote,
       date: dayDate,
-      makeup: dayMakeup ? { sourceRoutineName: dayMakeup.sourceRoutineName, count: dayMakeup.exercises.length, sourceDate: dayMakeup.sourceDate || null } : null,
+      makeup: dayMakeup ? { sourceRoutineName: dayMakeup.sourceRoutineName, count: dayMakeup.exercises.length, sourceDate: dayMakeup.sourceDate || null, done: !!dayMakeup.done } : null,
       style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
         border: isToday ? '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)',
         background: isToday ? 'color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'rgba(0,0,0,.18)',
@@ -178,7 +186,7 @@ export function valsWorkouts(app, ctx) {
         if (val.startsWith('makeup:')) { app.markMakeupDay(dayDate, val.slice(7)); return; }
         // leaving a make-up: drop the override BEFORE the template is written,
         // or the date keeps finishing a session he has just stopped planning
-        if (dayMakeup) app.clearMakeupDay(dayDate);
+        if (plannedMakeup) app.clearMakeupDay(dayDate);
         app.assignScheduleDay(day, val || null);
       },
       options: [
@@ -242,12 +250,28 @@ export function valsWorkouts(app, ctx) {
   // important action must never hide behind a routine tile. Rest days say
   // so honestly (with the recovery focus when one exists) instead of
   // pretending there's a session to start.
+  // DONE TODAY LEADS (his report, 26 Sep): a finished make-up used to leave
+  // this card offering the weekday template as if the day were untouched.
+  // What was filed today comes first; the scheduled session stays reachable
+  // beneath it, because a make-up sits beside the schedule (his 9 Sep rule).
+  const doneToday = (() => {
+    const d = overview?.doneToday;
+    if (!d || !d.sessions?.length) return null;
+    const m = d.madeUp?.[0] || null;
+    const s = d.sessions[d.sessions.length - 1];
+    return {
+      title: m ? `Made up ${m.routineName}` : s.name,
+      meta: m ? `${m.exerciseCount} exercise${m.exerciseCount === 1 ? '' : 's'} · ${m.setCount} sets, filed today` : `${s.exerciseCount} exercise${s.exerciseCount === 1 ? '' : 's'} · ${s.setCount} sets, filed today`,
+      more: d.sessions.length > 1 ? `+ ${d.sessions.length - 1} more today` : null,
+      scheduledDone: !!d.scheduledDone,
+    };
+  })();
   const gymHero = (() => {
     if (!usingLiveWorkouts || st.workoutSession) return null;
     const o = overview;
     if (!o) return null;
     if (o.restDay) {
-      return { rest: true, focusText: (o.focus && o.focus.kind === 'rest') ? o.focus.text : 'Active rest — move, don’t load. The week’s work lands while you recover.' };
+      return { rest: true, done: doneToday, focusText: (o.focus && o.focus.kind === 'rest') ? o.focus.text : 'Active rest — move, don’t load. The week’s work lands while you recover.' };
     }
     if (!o.today) return null;
     const r = liveRoutines.find((x) => x.id === o.today.routineId);
@@ -255,6 +279,7 @@ export function valsWorkouts(app, ctx) {
     const summary = targetSummary(r?.exercises || []);
     return {
       rest: false,
+      done: doneToday,
       name: o.today.name,
       meta: `${o.today.exerciseCount} exercises · ~${estMin} min${o.today.lastVolume ? ` · last time ${o.today.lastVolume.toLocaleString()} kg` : ''}`,
       begin: r ? () => app.startWorkoutSession(r) : null,

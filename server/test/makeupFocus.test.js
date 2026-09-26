@@ -39,7 +39,9 @@ test('choosing a make-up NEVER also writes the weekday template', async () => {
   const body = m[0];
   // the make-up branch returns before assignScheduleDay is reached — this is
   // the whole fault: one day, two answers
-  const makeupBranch = body.slice(body.indexOf("startsWith('makeup:')"), body.indexOf('if (dayMakeup)'));
+  // (26 Sep: the planned row is `plannedMakeup` now — a finished make-up has
+  // no row to clear, and only a planned one is cleared on the way out)
+  const makeupBranch = body.slice(body.indexOf("startsWith('makeup:')"), body.indexOf('if (plannedMakeup)'));
   assert.match(makeupBranch, /markMakeupDay/);
   assert.match(makeupBranch, /return;/, 'the make-up branch falls through into the template write');
   assert.doesNotMatch(makeupBranch, /assignScheduleDay/);

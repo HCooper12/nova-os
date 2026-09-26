@@ -219,3 +219,21 @@ test('a rationale on the save is persisted (clamped) and absent when not given',
   });
   assert.equal(without.rationale, undefined, 'no rationale, no field');
 });
+
+// 26 Sep: a finished make-up names the routine it finished, so the day stays
+// made up after its carry-over row is removed (makeupDay.isMakeupOf).
+test('a make-up session keeps sourceRoutineId and sourceRoutineName; blanks are dropped', async () => {
+  const s1 = await completeSession(vault, {
+    routineId: 'carryover', routineName: 'Upper Body — makeup', sourceRoutineId: ' ub ', sourceRoutineName: 'Upper Body',
+    exercises: [{ exerciseId: 'bench', name: 'Bench', sets: [{ weight: 60, reps: 8 }] }],
+  });
+  assert.equal(s1.sourceRoutineId, 'ub');
+  assert.equal(s1.sourceRoutineName, 'Upper Body');
+  const back = (await loadSessions(vault)).find((x) => x.id === s1.id);
+  assert.equal(back.sourceRoutineId, 'ub', 'it survives the round trip through the vault file');
+  const s2 = await completeSession(vault, {
+    routineId: 'r', routineName: 'Normal', sourceRoutineId: '   ',
+    exercises: [{ exerciseId: 'bench', name: 'Bench', sets: [{ weight: 60, reps: 8 }] }],
+  });
+  assert.equal('sourceRoutineId' in s2, false);
+});

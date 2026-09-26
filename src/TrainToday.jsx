@@ -147,6 +147,15 @@ export function TrainToday({ o, actions, resume }) {
             )}
           </div>
         )}
+        {panels.madeUp && (
+          <div className="nv-deck-rise" style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-good) 40%, transparent);background:color-mix(in srgb, var(--nv-good) 06%, transparent)')}>
+            <Eyebrow tone="good">✓ Make-up done</Eyebrow>
+            <div style={css('font-size:22px;font-weight:600;letter-spacing:.03em;margin-top:2px')}>Made up {o.doneToday.madeUp[0].routineName}</div>
+            <div style={css('color:var(--nv-ink60);font-size:12.5px;margin-top:3px;line-height:1.5;font-variant-numeric:tabular-nums')}>
+              {o.doneToday.madeUp[0].exerciseCount} exercises · {o.doneToday.madeUp[0].setCount} sets, filed today
+            </div>
+          </div>
+        )}
         {(panels.scheduled || panels.rest) && (
           <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-cy) 10%, transparent),color-mix(in srgb, var(--nv-vi) 06%, transparent))')}>
             {/* 9 Sep: when a make-up is also up, this one names itself as

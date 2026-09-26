@@ -3802,7 +3802,10 @@ export default class App extends Component {
       // Coach can notice the pattern and open the restructure conversation
       ...(this.state.sessionCutShort ? { cutShort: this.state.sessionCutShort } : {}),
       // a quick session's WHY (Coach's one-line rationale) is part of its record
-      ...(session.rationale ? { rationale: session.rationale } : {}) };
+      ...(session.rationale ? { rationale: session.rationale } : {}),
+      // a make-up names the routine it finished, so the day stays made up
+      // after the carry-over row is gone (his report, 26 Sep)
+      ...(session.routineId === 'carryover' && session.sourceRoutineName ? { sourceRoutineName: session.sourceRoutineName, ...(session.sourceRoutineId ? { sourceRoutineId: session.sourceRoutineId } : {}) } : {}) };
     api.completeWorkoutSession(conn, payload).then(({ prs } = {}) => {
       if (prs?.length) {
         this.setState({ prCelebration: prs });
@@ -3881,7 +3884,7 @@ export default class App extends Component {
       // the UNDERLYING routine, so a second push-forward names the routine and
       // not the display title — "Push — makeup — makeup" was breaking the
       // one-row-per-date-and-routine match in workoutCarryover.js
-      sourceRoutineName: carryover.sourceRoutineName, carryoverId: carryover.id, exercises }, sessionCancelConfirm: false });
+      sourceRoutineName: carryover.sourceRoutineName, sourceRoutineId: carryover.sourceRoutineId || null, carryoverId: carryover.id, exercises }, sessionCancelConfirm: false });
   }
   rescheduleCarryoverTo(id, forDate) {
     const conn = getConnection();

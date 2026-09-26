@@ -27,7 +27,7 @@ test('a make-up on a day the template calls rest shows only the make-up', () => 
 
 test('an ordinary day is unchanged', () => {
   const p = todayPanels({ makeup: null, today: POOL, restDay: false });
-  assert.deepEqual(p, { resume: false, makeup: false, scheduled: true, rest: false, alsoScheduled: false });
+  assert.deepEqual(p, { resume: false, makeup: false, madeUp: false, scheduled: true, rest: false, alsoScheduled: false });
 });
 
 test('a real rest day still says so', () => {
@@ -44,5 +44,30 @@ test('a session already underway is the only thing that matters', () => {
 });
 
 test('no overview at all draws nothing', () => {
-  assert.deepEqual(todayPanels(null), { resume: false, makeup: false, scheduled: false, rest: false, alsoScheduled: false });
+  assert.deepEqual(todayPanels(null), { resume: false, makeup: false, madeUp: false, scheduled: false, rest: false, alsoScheduled: false });
+});
+
+// 26 Sep: "I completed the upper body makeup session but now the calendar has
+// defaulted back to leg day." The make-up row is gone once the session is
+// filed; the filed session is what says the day was made up.
+const DONE = { madeUp: [{ routineId: 'ub', routineName: 'Upper Body', exerciseCount: 4, setCount: 12 }], sessions: [{ name: 'Upper Body — makeup' }], scheduledDone: false };
+const LEGS = { routineId: 'legs', name: 'Leg Day', exerciseCount: 6 };
+
+test('THE 26 SEP REPORT: a finished make-up keeps its own panel, the schedule stays as the extra', () => {
+  const p = todayPanels({ makeup: null, doneToday: DONE, today: LEGS, restDay: false });
+  assert.equal(p.madeUp, true, 'the day does not fall back to the template as if nothing happened');
+  assert.equal(p.scheduled, true);
+  assert.equal(p.alsoScheduled, true, 'Leg Day names itself as the extra, not as today');
+});
+
+test('a finished make-up on a rest day hides "Rest day"', () => {
+  const p = todayPanels({ makeup: null, doneToday: DONE, today: null, restDay: true });
+  assert.equal(p.madeUp, true);
+  assert.equal(p.rest, false);
+});
+
+test('a make-up still planned wins over one finished (a second make-up the same day)', () => {
+  const p = todayPanels({ makeup: MAKEUP, doneToday: DONE, today: LEGS, restDay: false });
+  assert.equal(p.makeup, true);
+  assert.equal(p.madeUp, false);
 });

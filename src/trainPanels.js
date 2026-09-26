@@ -20,16 +20,23 @@
 // template having nothing to say, and printing it would be noise on exactly
 // the day he is doing something.
 
+// 26 Sep 2026 — A FINISHED make-up. The carry-over row is removed when the
+// session is filed, so the pane dropped straight back to the weekday template
+// as if nothing had happened today. The filed session says what was made up,
+// so it gets its own "done" panel, and the scheduled card stays beside it as
+// the extra (the 9 Sep rule still holds: a make-up never hides the schedule).
 export function todayPanels(o, resume = null) {
   const busy = !!resume;
   const makeup = !busy && !!o?.makeup;
+  const madeUp = !busy && !makeup && !!o?.doneToday?.madeUp?.length;
   return {
     resume: busy,
     makeup,
+    madeUp,
     scheduled: !busy && !!o?.today,
-    rest: !busy && !!o?.restDay && !makeup,
+    rest: !busy && !!o?.restDay && !makeup && !madeUp,
     // when both are up, the scheduled one says so — otherwise two gold-ish
     // cards side by side read as one thing said twice
-    alsoScheduled: makeup && !!o?.today,
+    alsoScheduled: (makeup || madeUp) && !!o?.today,
   };
 }

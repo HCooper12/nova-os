@@ -3,7 +3,7 @@
 // was actually there to finish three exercises from Monday's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { leftoversOf, setMakeupDay, clearMakeupDay, makeupFor, makeupLine, makeupContext, todayIso } from '../lib/makeupDay.js';
+import { leftoversOf, setMakeupDay, clearMakeupDay, makeupFor, makeupLine, makeupContext, todayIso, isMakeupOf, madeUpOn } from '../lib/makeupDay.js';
 
 const routine = {
   id: 'pull', name: 'Pull',
@@ -98,4 +98,61 @@ test('one sentence, and it says what today is NOT for — the whole point of his
   assert.match(ctx, /TODAY IS A MAKE-UP DAY, by his own plan\./);
   assert.match(ctx, /Do NOT program or recommend a full session today/);
   assert.equal(await makeupContext(new Date(), store()), null, 'no make-up, no section — never an empty heading');
+});
+
+// 26 SEP — HIS REPORT: "Every time I choose upper body makeup it creates the
+// makeup session again." Friday's Upper Body left four exercises; Saturday's
+// make-up did them and was filed as "Upper Body — makeup" (routineId
+// 'carryover', no link back). Re-choosing the make-up derived from Friday
+// again and handed back those same four.
+const upper = {
+  id: 'ub', name: 'Upper Body',
+  exercises: ['incline', 'pulldown', 'lateral', 'carter', 'curl', 'bench', 'cable-curl', 'row', 'face-pull']
+    .map((id) => ({ exerciseId: id, name: id, targetSets: 3 })),
+};
+const friday = { id: 'f', date: '2026-09-25', routineId: 'ub', routineName: 'Upper Body',
+  exercises: ['incline', 'pulldown', 'lateral', 'carter', 'curl'].map((id) => ({ exerciseId: id, name: id, sets: [{ done: true }, { done: true }, { done: true }] })) };
+const legacyMakeup = { id: 'm', date: '2026-09-26', routineId: 'carryover', routineName: 'Upper Body — makeup',
+  exercises: ['bench', 'cable-curl', 'row', 'face-pull'].map((id) => ({ exerciseId: id, name: id, sets: [{ done: true }, { done: true }, { done: true }] })) };
+
+test('THE 26 SEP REPORT: a finished make-up counts, so re-choosing it creates nothing', () => {
+  const before = leftoversOf(upper, [friday]);
+  assert.deepEqual(before.exercises.map((e) => e.exerciseId), ['bench', 'cable-curl', 'row', 'face-pull'], 'Friday alone leaves four');
+  const after = leftoversOf(upper, [legacyMakeup, friday]);
+  assert.deepEqual(after.exercises, [], 'the make-up did them — nothing is left');
+  assert.match(after.reason, /your make-up on 2026-09-26 finished Upper Body/);
+});
+
+test('a make-up that did only some of the leftovers leaves the rest', () => {
+  const partial = { ...legacyMakeup, exercises: legacyMakeup.exercises.slice(0, 2) };
+  assert.deepEqual(leftoversOf(upper, [partial, friday]).exercises.map((e) => e.exerciseId), ['row', 'face-pull']);
+});
+
+test('a make-up OLDER than the last session of the routine does not count against it', () => {
+  const old = { ...legacyMakeup, date: '2026-09-20' };
+  assert.equal(leftoversOf(upper, [friday, old]).exercises.length, 4);
+});
+
+test('isMakeupOf: the stored link first, the old display name as a fallback, never a normal session', () => {
+  assert.equal(isMakeupOf({ sourceRoutineId: 'ub', routineId: 'carryover', routineName: 'x' }, upper), true);
+  assert.equal(isMakeupOf({ sourceRoutineId: 'legs', routineId: 'carryover', routineName: 'Upper Body — makeup' }, upper), false, 'the id wins over the name');
+  assert.equal(isMakeupOf({ sourceRoutineName: 'Upper Body', routineId: 'carryover' }, upper), true);
+  assert.equal(isMakeupOf(legacyMakeup, upper), true, 'sessions filed before 26 Sep carry only the display name');
+  assert.equal(isMakeupOf(friday, upper), false);
+});
+
+test('madeUpOn names what a date finished, from the filed sessions alone', () => {
+  const legs = { id: 'legs', name: 'Leg Day', exercises: [] };
+  assert.deepEqual(madeUpOn('2026-09-26', [legacyMakeup, friday], [legs, upper]),
+    [{ routineId: 'ub', routineName: 'Upper Body', sessionId: 'm', exerciseCount: 4, setCount: 12 }]);
+  assert.deepEqual(madeUpOn('2026-09-25', [legacyMakeup, friday], [legs, upper]), [], 'Friday was a normal session');
+});
+
+test('setMakeupDay refuses, with the reason, once the make-up is already done', async () => {
+  const added = [];
+  await assert.rejects(
+    () => setMakeupDay({ date: '2026-09-26', routine: upper, sessions: [legacyMakeup, friday] },
+      { listCarryovers: async () => [], addCarryover: async (r) => { added.push(r); return r; }, removeCarryover: async () => {}, rescheduleCarryover: async () => {} }),
+    /your make-up on 2026-09-26 finished Upper Body/);
+  assert.equal(added.length, 0, 'no second make-up row is written');
 });

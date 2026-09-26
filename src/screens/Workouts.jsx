@@ -114,7 +114,25 @@ function RoutinesView({ v }) {
 
       {/* the mockup's hero: ON TODAY'S CARD, front and centre — a session
           in progress replaces it with the resume card below */}
-      {v.gymHero && !v.resumeSession && (v.gymHero.rest ? (
+      {/* DONE TODAY — what was filed today leads the card (26 Sep). A tick
+          ring in the good hue: the day's verdict, not decoration. */}
+      {v.gymHero?.done && !v.resumeSession && (
+        <div className="nv-deck-rise" style={css("margin-top:18px;display:flex;gap:14px;align-items:center;border:1px solid color-mix(in srgb, var(--nv-good) 34%, transparent);border-radius:16px;padding:18px 20px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-good) 09%, transparent),transparent);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)")}>
+          <span aria-hidden="true" style={css("flex:none;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid var(--nv-good);color:var(--nv-good);font:700 20px var(--nv-font-ui);box-shadow:0 0 18px -4px color-mix(in srgb, var(--nv-good) 60%, transparent)")}>✓</span>
+          <div style={css("min-width:0;flex:1")}>
+            <Eyebrow tone="good">Done today</Eyebrow>
+            <div style={css("margin-top:5px;font:700 22px/1.1 var(--nv-font-ui);overflow-wrap:anywhere")}>{v.gymHero.done.title}</div>
+            <Meta as="div" tone="quiet" style={{ marginTop: '5px' }}>{v.gymHero.done.meta}{v.gymHero.done.more ? ` · ${v.gymHero.done.more}` : ''}</Meta>
+          </div>
+        </div>
+      )}
+      {v.gymHero?.done && !v.resumeSession && !v.gymHero.rest && !v.gymHero.done.scheduledDone && (
+        <div style={css("margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:0 4px")}>
+          <Meta tone="faint">Also scheduled today · {v.gymHero.name}</Meta>
+          {v.gymHero.begin && <TextAction tone="accent" onClick={v.gymHero.begin}>▶ Begin it anyway</TextAction>}
+        </div>
+      )}
+      {v.gymHero && !v.gymHero.done && !v.resumeSession && (v.gymHero.rest ? (
         <div style={css("margin-top:18px;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:16px;padding:18px 22px;background:linear-gradient(180deg,rgba(255,255,255,.03),transparent)")}>
           <Eyebrow>On today's card</Eyebrow>
           <div style={css("margin-top:7px;font:700 24px/1.1 var(--nv-font-ui)")}>Active rest</div>
@@ -173,7 +191,9 @@ function RoutinesView({ v }) {
                   {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
                 </select>
                 {d.makeup
-                  ? <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>Make-up · finish {d.makeup.sourceRoutineName} · {d.makeup.count} left</span>
+                  ? (d.makeup.done
+                    ? <span style={css("font:var(--nv-micro-m);color:var(--nv-good)")}>✓ Made up {d.makeup.sourceRoutineName} · {d.makeup.count} done</span>
+                    : <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>Make-up · finish {d.makeup.sourceRoutineName} · {d.makeup.count} left</span>)
                   : d.carryoverNote && <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>{d.carryoverNote}</span>}
                 {/* MAKE-UP DAY is now a FOCUS, in the select above — it was
                     a second control stacked here, which let a day be Push and
@@ -198,7 +218,9 @@ function RoutinesView({ v }) {
                 {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
               </select>
               {d.makeup
-                ? <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={`Make-up: finish ${d.makeup.sourceRoutineName}`}>Make-up · {d.makeup.count}</div>
+                ? (d.makeup.done
+                  ? <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-good);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={`Made up ${d.makeup.sourceRoutineName} today`}>✓ Made up</div>
+                  : <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={`Make-up: finish ${d.makeup.sourceRoutineName}`}>Make-up · {d.makeup.count}</div>)
                 : d.carryoverNote && <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={d.carryoverNote}>{d.carryoverNote}</div>}
               {/* MAKE-UP DAY is a FOCUS now, in the select above — same view
                   model as the Apple strip, and the same reason: two controls

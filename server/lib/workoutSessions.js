@@ -185,6 +185,12 @@ function validateSessionInput(body) {
   // the Coach reads these across sessions and opens the restructure talk
   if (typeof body.cutShort === 'string' && body.cutShort.trim()) body.cutShort = body.cutShort.trim().slice(0, 60);
   else delete body.cutShort;
+  // a MAKE-UP says which routine it finished (26 Sep): its display name
+  // "Upper Body — makeup" was the only link, and nothing read it
+  for (const k of ['sourceRoutineId', 'sourceRoutineName']) {
+    if (typeof body[k] === 'string' && body[k].trim()) body[k] = body[k].trim().slice(0, 120);
+    else delete body[k];
+  }
   if (!Array.isArray(body.exercises) || !body.exercises.length) throw new Error('at least one exercise is required');
   return body.exercises.map((e) => {
     if (!e || typeof e.exerciseId !== 'string' || typeof e.name !== 'string' || !Array.isArray(e.sets)) {
@@ -269,6 +275,8 @@ export async function completeSession(vaultPath, input) {
       routineName: input.routineName.trim(),
       exercises,
       ...(input.cutShort ? { cutShort: input.cutShort } : {}),
+      ...(input.sourceRoutineId ? { sourceRoutineId: input.sourceRoutineId } : {}),
+      ...(input.sourceRoutineName ? { sourceRoutineName: input.sourceRoutineName } : {}),
       // a quick session's WHY is part of its record (Coach's rationale, ≤300 chars)
       ...(typeof input.rationale === 'string' && input.rationale.trim() ? { rationale: input.rationale.trim().slice(0, 300) } : {}),
       ...(clientKey ? { clientKey } : {}),

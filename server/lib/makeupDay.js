@@ -29,6 +29,41 @@ export function sameRoutineAs(carryover, routine) {
   return String(carryover.sourceRoutineName || '') === String(routine.name || '');
 }
 
+// A LOGGED SESSION THAT FINISHED PART OF `routine` AS A MAKE-UP (26 Sep 2026).
+//
+// His report: "I completed the upper body makeup session but now the
+// calendar has defaulted back to leg day. Every time I choose upper body
+// makeup it creates the makeup session again." The make-up row is removed
+// when the session is filed, and the filed session was named "Upper Body —
+// makeup" under routineId 'carryover' with no link back to Upper Body. So
+// nothing remembered the day was made up, and re-choosing the make-up
+// derived leftovers from Friday's Upper Body again — the four exercises he
+// had just done. A finished make-up now carries sourceRoutineId/Name; before
+// that, its display name is the only link, so that is matched too.
+export function isMakeupOf(session, routine) {
+  if (!session || !routine) return false;
+  if (session.sourceRoutineId && routine.id) return session.sourceRoutineId === routine.id;
+  if (session.sourceRoutineName) return session.sourceRoutineName === routine.name;
+  return session.routineId === 'carryover' && session.routineName === `${routine.name} — makeup`;
+}
+
+// The make-ups FINISHED on a date: [{ routineId, routineName, sessionId,
+// exerciseCount, setCount }]. The session is the record; nothing else needed.
+export function madeUpOn(date, sessions = [], routines = []) {
+  const out = [];
+  for (const s of sessions) {
+    if (s.date !== date) continue;
+    const r = routines.find((x) => isMakeupOf(s, x));
+    if (!r) continue;
+    out.push({
+      routineId: r.id, routineName: r.name, sessionId: s.id || null,
+      exerciseCount: (s.exercises || []).length,
+      setCount: (s.exercises || []).reduce((n, e) => n + (Array.isArray(e.sets) ? e.sets.length : 0), 0),
+    });
+  }
+  return out;
+}
+
 export function todayIso(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
@@ -43,10 +78,19 @@ export function leftoversOf(routine, sessions = []) {
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
   if (!done) return { exercises: [], reason: `no logged ${routine.name} session to finish — nothing to carry` };
   const logged = new Set();
-  for (const e of done.exercises || []) {
-    const count = Array.isArray(e.sets) ? e.sets.filter((s) => s.done !== false).length : Number(e.sets) || 0;
-    if (count > 0 && !e.skipped) logged.add(e.exerciseId || e.name);
-  }
+  const note = (session) => {
+    for (const e of session.exercises || []) {
+      const count = Array.isArray(e.sets) ? e.sets.filter((s) => s.done !== false).length : Number(e.sets) || 0;
+      if (count > 0 && !e.skipped) logged.add(e.exerciseId || e.name);
+    }
+  };
+  note(done);
+  // what a make-up SINCE that session finished is finished too — otherwise
+  // re-choosing the make-up hands back exactly the work he just did
+  const madeUp = sessions
+    .filter((s) => s !== done && isMakeupOf(s, routine) && String(s.date || '') >= String(done.date || ''))
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  madeUp.forEach(note);
   const exercises = (routine.exercises || [])
     .filter((e) => !logged.has(e.exerciseId))
     .map((e) => ({
@@ -59,7 +103,9 @@ export function leftoversOf(routine, sessions = []) {
   return {
     exercises,
     sourceDate: done.date || null,
-    reason: exercises.length ? null : `you finished every exercise in that ${routine.name} session — there is nothing left to make up`,
+    reason: exercises.length ? null : madeUp.length
+      ? `your make-up on ${madeUp[0].date} finished ${routine.name} — there is nothing left to make up`
+      : `you finished every exercise in that ${routine.name} session — there is nothing left to make up`,
   };
 }
 

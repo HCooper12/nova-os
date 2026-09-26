@@ -268,6 +268,26 @@ export async function buildTrainOverview(vaultPath) {
         return m ? { id: m.id, sourceRoutineName: m.sourceRoutineName, sourceRoutineId: m.sourceRoutineId || null, sourceDate: m.sourceDate || null, exercises: m.exercises, line: makeupLine(m, { scheduledName: routine?.name || null }) } : null;
       } catch { return null; }
     })(),
+    // WHAT IS ALREADY DONE TODAY (26 Sep): the sessions filed today, and for a
+    // make-up, which routine it finished. The make-up row is gone once the
+    // session is filed, so without this the surfaces fell back to the weekday
+    // template as if nothing had happened.
+    doneToday: await (async () => {
+      try {
+        const { madeUpOn, todayIso } = await import('./makeupDay.js');
+        const date = todayIso();
+        const madeUp = madeUpOn(date, sessions, routines);
+        const filed = sessions.filter((s) => s.date === date);
+        if (!filed.length) return null;
+        return {
+          sessions: filed.map((s) => ({ id: s.id || null, name: s.routineName, exerciseCount: (s.exercises || []).length,
+            setCount: (s.exercises || []).reduce((n, e) => n + (Array.isArray(e.sets) ? e.sets.length : 0), 0) })),
+          madeUp,
+          // is the scheduled routine itself among them?
+          scheduledDone: !!routine && filed.some((s) => s.routineId === routine.id),
+        };
+      } catch { return null; }
+    })(),
     today: routine ? {
       routineId: routine.id, name: routine.name, exerciseCount: routine.exercises.length,
       lastVolume: (() => {
