@@ -105,8 +105,13 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   https://claude.ai/artifact/FUuAVaKD8tWhjtoL3XtkRw. FUEL AUDITED (1dd96b4,
   04-fuel.md: NEEDS WORK; three honesty faults to fix regardless — "Kcal
   off-plan" sums rotation meals, entry delete has no Undo, a slow fetch can
-  show the demo bank live). NEXT: his answers on Inbox/Train rounds; Fuel
-  round 1; the Fuel honesty fixes; then Voice. Agents that BUILD run on Opus
+  show the demo bank live). FUEL HONESTY FIXES SHIPPED (e7cc32d;
+  server reloaded); FUEL ROUND 1 PUBLISHED (7b62415, mockup 59; artifact in
+  the ledger). Two exerciseAtlas tests fail against his REAL library since
+  this morning (JM Press, Reverse Pec Deck have no atlas entry): vault
+  drift, for the anatomy pipeline, not the redesign. NEXT: his answers on
+  the Inbox / Train / Fuel rounds (round 2 per page from his tweaks), then
+  Voice's audit; P5 = the summary Home on his phone after the push. Agents that BUILD run on Opus
   (his instruction, 27 Sep morning). Weekly usage reset 06:00 Melbourne. The morning review
   page (Home, Built) links everything: https://claude.ai/artifact/X2zxDCQBCCAXcbE9AaKf1H.
   READ-ONLY SHOTS: seed with `node scripts/dev-connect.mjs`, vite on 5183
