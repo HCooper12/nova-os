@@ -132,19 +132,32 @@ dynamic, unique, like the other aspects we have edited the last few weeks."
 A surface that works but looks bolted on is not finished. The standard, and
 it is not optional:
 
-1. **Ship it in BOTH Home idioms from ONE view model.** His phone runs the
-   `cupertino` style, and `MissionControl.jsx` returns `<MissionStructured/>`
-   when `v.structured` — so a card added only to the classic fold **does not
-   exist for him**. Build the view model in `vals/*`, render it twice. Never
-   a parallel data path. A new section in `MissionStructured` must join all
-   three `ORDERS` (morning/day/evening) or the dev assert names it.
+1. **Ship it in EVERY live Home idiom from ONE view model.** There are three
+   (26 Sep 2026): the classic fold (`MissionControl`), the grouped Apple
+   layout (`MissionStructured`, his phone until he switches) and the summary
+   Home (`MissionSummary`, the redesign he chose — style `summary`, Nova
+   glass his main; design/HOME-REDESIGN-PLAN.md). `MissionControl.jsx` picks
+   the idiom from `v.summary` then `v.structured`, so a card added to one
+   idiom **does not exist for him** in the others. Build the view model in
+   `vals/*`, render it in all three; never a parallel data path. A new
+   section in `MissionStructured` must join all three `ORDERS`
+   (morning/day/evening) or the dev assert names it; a new card on the
+   summary Home is a row in `PINNED_CARDS` (`src/pinned.js`) and a builder
+   in `src/vals/valsSummary.js`, or a MOMENT there only while it is news.
 2. **Use the house objects, not new ones.** `RingTile` for any number against
    a target (colour is the verdict: good / behind / missed, and a gap is a
    *dashed* ring, never a zero). The serif face for the line that carries the
    news. `Group`/`GRow`/`Pill` from `AppleLayout.jsx` under the Apple styles.
    Every label and action through `Controls.jsx` (`Eyebrow`, `TextAction`,
    `Chip`, `Tag`, `Meta`, `ScreenHead`) — never a hand-rolled
-   `font: 600 8.5px mono; letter-spacing: .14em` chip again.
+   `font: 600 8.5px mono; letter-spacing: .14em` chip again. Under
+   `summary` the house objects are the summary card (`.nv-sum-card`, the
+   theme × material token set `--nv-sum-*`), the ring hero (three nested
+   rings, SF Rounded numerals beside), the hourly strip, the trend row
+   (`--nv-sum-up`/`--nv-sum-dn` arrows) and, from P3, the Index tile. The
+   highlight sentence is CODE'S (`src/summaryFacts.js`), written from the
+   same fields the rings show so the two cannot disagree; a model never
+   writes it.
 3. **Sentence case in the vals.** Command's CSS uppercases; an ALL-CAPS
    literal handed to `Meta` renders literally and is a smell. (Ring labels
    are the one exception — they match their neighbours in the vitals row.)
@@ -152,7 +165,10 @@ it is not optional:
    size. `--nv-blue` and `--nv-ink70` do **not exist** — an invalid token
    fails silently and renders a borderless, colourless control. The house
    accents are `--nv-cy`, `--nv-gold`, `--nv-good`, `--nv-warn`, with
-   `--nv-ink`/`ink60`/`ink40` for text.
+   `--nv-ink`/`ink60`/`ink50` for text (`ink40` is hairlines and glyphs).
+   The summary tokens are `--nv-sum-*` and `--nv-font-round`; the mockup's
+   `--ink2/--ink3` became `--nv-sum-ink2/ink3` for glyphs and hairlines
+   only, never type.
 5. **Motion is part of the object.** A card that appears earns an entrance
    (`popIn`, `.nv-deck-rise`, `shelfIn`); rings animate their arc. Use the
    `animation` shorthand only — a separate `animationPlayState` throws in
@@ -192,8 +208,12 @@ it is not optional:
    explains what confused him with the figures, and starts more work from
    his sentence. No "research further" button; he says it. A back-and-forth
    that takes half an hour is the feature, not a failure.
-9. **Verify in both styles before shipping** — set `novaos.style` to
-   `cupertino` and to `command`, look at both, at 375 and at 1280.
+9. **Verify in every style before shipping** — `cupertino`, `command` and
+   `summary` (glass and solid), at 402 and at 1280. `node
+   scripts/guard-cupertino.mjs` must print `unchanged` before every commit
+   (his current appearance is a promise kept by an exit code), and
+   `node scripts/shot.mjs --demo --style summary …` photographs the new
+   Home without a connection.
 
 The failure this standard is written against: the first Wrap-the-Day card
 (8 Sep) shipped with hand-rolled chips, two non-existent tokens, and only in
