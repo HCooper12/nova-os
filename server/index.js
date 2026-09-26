@@ -1,3 +1,4 @@
+import './lib/tosGuard.js'; // FIRST: Node's fetch must not be able to kill the server over a TOS byte (26 Sep, macOS 27)
 import 'dotenv/config';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 import { appendFile, readFile } from 'node:fs/promises';
