@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inbox, round 1</title>
+<!--
+  57 · INBOX, ROUND 1 (27 Sep 2026)
+  Answers design/audits/redesign-2026-09/02-inbox.md: verdict Critical
+  issues, findings 1 to 11, directions A to D. His words, 25 Sep: "far too
+  clunky and confusing now"; "Simplicity and ease of use MUST be the goal
+  here and not over complicated like the inbox system has become." His bar
+  for simple is the Coach deck in Train (src/CoachSuggestions.jsx): one
+  card, one sentence, the change drawn, a tick or a cross, one do-all, talk
+  back, Undo. Every card below is drawn in that card's shape.
+
+  Three variations, switched at the top. Each has its own screens, and the
+  address says which (#a/1 to #c/3):
+    A · The deck alone  the route is only the pile: one card at a time, with
+                        Filed as its second segment. Capture moves to the
+                        Nova button; the seven loops and the filing ladder
+                        move to Agents & Operations.
+    B · Mail            nothing leaves the page and everything becomes one
+                        row: Waiting grouped by subject, Filed below it, the
+                        loops as one-line rows at the foot. A row opens its
+                        card in a sheet; a loop opens its controls in one.
+    C · Two doors       the route becomes a small hub in the summary Home's
+                        card grammar: a Waiting hero, Subjects, Filed today,
+                        Loops, Filing. Each card opens its own page.
+
+  Every function the audit inventoried is kept, moved and never deleted:
+  capture, the digest's do-all, the verbs (ask-why and the kind doors
+  included), the filing ladder, the seven loops with Run now, history with
+  Undo and Retry, the proposed-rule card. Each screen's note says where
+  things went.
+
+  Material: mockup 56's nova-glass, copied as it is (variables, card, tab
+  bar, rise, reduced motion). Type is pulled onto four sizes per view,
+  34 · 20 · 15 · 13, where the audit measured eleven; numerals are SF
+  Rounded, tab labels 11. Colour: gold is waiting on his call, green a
+  filed receipt, red discard and errors only, cyan new and Nova's own. A
+  kind's tile wears its domain's hue (Train cyan, journal violet, practice
+  #ffa893) or the neutral vault ink; the routes ROUTE_META paints gold
+  (note, stash, source) are drawn neutral here, because gold now means
+  "waiting on you" and nothing else. Every control is 44 or more. The
+  review switcher at the top is furniture: it sits outside every count, and
+  its one-line tally opens in full on a tap.
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data. The
+  counts are the audit's real scale: 18 waiting (11 on 3 subjects, 7 to
+  decide), 409 filed (25 shown, 384 older), 7 loops.
+-->
+<style>
+/* ================= copied from mockup 56 (nova-glass), unchanged ================= */
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);--switch-h:130px;--dock-h:96px;
+  --r:20px;
+}
+:root{--serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif}
+body[data-m="nova-glass"]{--bg:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.52);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);--blur:22px;--card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --c1:#5fe8a8;--c2:#8f7bff;--c3:#59e6ff;--c4:#d9b56f;--c5:#8f7bff;--up:#5fe8a8;--dn:#e0616b;--acc:#59e6ff;--link:#59e6ff;--btn:#59e6ff;--btn-ink:#062028;--track:rgba(255,255,255,.14);--title-tint:currentColor;
+  --stand-a:#59e6ff;--stand-b:#8f7bff;--hl-font:var(--serif);--hl-size:20px;
+  --tab:rgba(16,20,36,.58);--tab-ring:rgba(255,255,255,.14);--tab-ink:rgba(232,236,246,.5);--tab-on:#59e6ff;--tab-on-bg:rgba(89,230,255,.1);--badge:#d9b56f;--badge-ink:#241a06;color-scheme:dark}
+.sky{position:fixed;inset:0;z-index:-1}
+body[data-m="nova-glass"] .sky{background:radial-gradient(70% 45% at 12% 8%,rgba(89,230,255,.22),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 88% 30%,rgba(143,123,255,.26),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 112%,rgba(217,181,111,.16),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%)}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background .35s var(--ease),color .35s var(--ease)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.978);transition:transform .16s var(--ease)}
+.phone{position:relative;max-width:402px;margin:0 auto;min-height:100%}
+
+.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--sep)}
+.switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2)}
+.seg button{padding:7px 4px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.65;transition:background .28s var(--ease),opacity .28s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.12)}
+.tally{margin:2px 2px 0;font:500 11px/1.4 var(--mono);color:var(--ink3);min-height:15px}
+.tally b{color:var(--ink2);font-weight:600}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;height:56px;justify-content:center;border-radius:28px;font:500 10px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--tab-on);background:var(--tab-on-bg)}
+.tab .badge{position:absolute;top:6px;left:50%;margin-left:4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--badge);color:var(--badge-ink);font:700 11px/18px var(--ui);text-align:center}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+.view{padding:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 10px) 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 20px)}
+.view[hidden]{display:none}
+.rise{animation:rise .3s var(--ease) both;animation-delay:calc(var(--i,0) * 40ms)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rise{animation:fade .3s ease both}@keyframes fade{from{opacity:0}to{opacity:1}}}
+h1{margin:2px 4px 4px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.stand{margin:0 4px 14px;font:italic 400 21px/1.2 var(--serif);background:linear-gradient(90deg,var(--stand-a),var(--stand-b));-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.card{background:var(--card);border-radius:var(--r);padding:14px 16px;box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.ch{display:flex;align-items:center;gap:8px;font:600 15px var(--ui);color:var(--title-tint)}
+.ch svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ch .time{margin-left:auto;font:400 14px var(--ui);color:var(--ink3)}
+.ch.c1{color:var(--c1)}.ch.c2{color:var(--c2)}.ch.c3{color:var(--c3)}.ch.c4{color:var(--c4)}.ch.c5{color:var(--c5)}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin:22px 4px 8px}
+.sechead h2{margin:0;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.sechead a{font:400 17px var(--ui);color:var(--link)}
+.chev{color:var(--ink3);font-size:18px}
+.btn{height:36px;padding:0 16px;border-radius:18px;background:var(--btn);color:var(--btn-ink);font:600 15px var(--ui)}
+.btn.quiet{background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card.wide{grid-column:span 2}
+.grid .card{padding:12px 14px 14px;min-height:150px;display:flex;flex-direction:column}
+.sub{margin-top:4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.group{margin:0 0 16px}
+.group .k{display:block;margin:0 0 6px 14px;font:600 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.glist{list-style:none;margin:0;padding:0;overflow:hidden}
+.tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff}
+.tile svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ================= round 1 of the Inbox: overrides, then the page's own objects ================= */
+/* the review furniture: any number of buttons per row; the tally on the page's own scale, one line until tapped */
+.seg{grid-auto-flow:column;grid-auto-columns:1fr}
+.seg button{font-size:13px;min-height:32px}
+.tally{font:400 13px/1.4 var(--ui);white-space:nowrap;overflow:hidden;cursor:pointer;min-height:18px}
+.tally.open{white-space:normal}
+.tally .tm{color:var(--link)}
+
+/* what each colour means on this page (NOVA-METHOD §2b rule 8) */
+body[data-m="nova-glass"]{--wait:var(--c4);--filed:var(--c1);--discard:var(--dn);--new:var(--c3);
+  --k-train:#59e6ff;--k-journal:#8f7bff;--k-practice:#ffa893;--k-vault:rgba(232,236,246,.34);
+  --m-back:#4fd1c5;--m-quads:#7ab8ff;--solid-row:#1c2137}
+
+/* the type scale: four sizes per view, 34 · 20 · 15 · 13 (the audit measured eleven); numerals apart */
+.view{font-size:15px;overflow-x:clip}
+.stand{font-size:20px}
+.ch .time{font-size:13px}
+.sechead h2{font-size:20px}
+.sechead a{font-size:15px}
+.group{margin:18px 0 0}
+.group .k{font-size:13px}
+.tab{font-size:11px}
+.btn{height:44px;padding:0 22px;border-radius:22px}
+
+.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font:700 44px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.num.s{font-size:30px}.num.xl{font-size:52px}
+.num.wait{color:var(--wait);text-shadow:0 0 24px color-mix(in srgb,var(--wait) 32%,transparent)}
+.titlerow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:2px}
+.titlerow h1{margin:0 4px}
+.back{display:inline-flex;align-items:center;gap:1px;height:44px;margin:0 0 0 -8px;padding:0 12px 0 0;font:400 15px var(--ui);color:var(--link)}
+.back .ic{width:24px;height:24px;stroke-width:2.4}
+
+/* the in-page segmented control: 44 tall, the lit pill drawn inside its own hit area */
+.segc{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;height:44px;border-radius:22px;background:rgba(120,120,128,.2)}
+.segc button{height:44px;padding:0 12px;border:3px solid transparent;border-radius:22px;background-clip:padding-box;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.segc button[aria-pressed="true"]{background-color:var(--card-hi);color:var(--ink)}
+.segc .next{outline:1.5px dashed var(--wait);outline-offset:-5px;color:var(--ink)}
+.titlerow .segc{width:190px;flex:none}
+
+/* the count, given a form: the rounded numeral and the batch as a rail that ticks (the Coach deck's) */
+.count{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;margin:14px 4px 0}
+.cx{min-width:0}
+.cx b{display:block;font:600 15px/1.3 var(--ui)}
+.cx > span{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.rail{display:flex;gap:3px;margin-top:8px}
+.rail i{flex:1;height:4px;border-radius:2px;background:color-mix(in srgb,var(--wait) 36%,transparent)}
+.rail i.on{background:var(--wait);box-shadow:0 0 8px -1px var(--wait)}
+.rail i.done{background:var(--filed);box-shadow:0 0 8px -1px var(--filed)}
+
+/* one repeating subject: the name opens it, the gold tick answers all of it */
+.subjects{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.subj{display:inline-flex;height:44px;border-radius:22px;background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset}
+.subj button{display:inline-flex;align-items:center;gap:7px;font:600 15px var(--ui);white-space:nowrap}
+.subj .nm{padding:0 12px 0 14px}
+.subj .n{font-weight:400;color:var(--ink3);font-variant-numeric:tabular-nums}
+.subj .all{gap:5px;padding:0 15px 0 12px;color:var(--wait);border-left:1px solid var(--sep)}
+.subj .all .ic,.allb .ic{width:15px;height:15px;stroke-width:2.6}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--h);flex:none}
+
+/* the deck: two ghost edges behind the one live card */
+.deck{position:relative;padding-top:12px;margin-top:14px}
+.ghost{position:absolute;height:44px;border-radius:var(--r);background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset}
+.ghost.g2{left:16px;right:16px;top:0;opacity:.4}
+.ghost.g1{left:8px;right:8px;top:6px;opacity:.7}
+.dcard{position:relative;padding:16px}
+.khead{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center}
+.kl{display:block;font:600 13px/1.25 var(--ui)}
+.kt{display:block;font:600 15px/1.3 var(--ui)}
+.when{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.say{margin:12px 0 0;font:400 20px/1.3 var(--serif);text-wrap:balance}
+.change{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:16px;font:600 13px var(--ui);white-space:nowrap;background:color-mix(in srgb,var(--h) 12%,transparent);border:1px solid color-mix(in srgb,var(--h) 34%,transparent)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--h);flex:none}
+.pill.arrive{background:transparent;border:1.5px dashed color-mix(in srgb,var(--h) 62%,transparent)}
+.pill.gone{position:relative;color:var(--ink2)}
+.pill.gone::after{content:"";position:absolute;left:10px;right:10px;top:50%;height:1.5px;border-radius:1px;background:var(--ink2)}
+.arrow{color:var(--ink3)}
+.sets{display:inline-flex;align-items:center;gap:5px}
+.sets i{width:11px;height:11px;border-radius:50%;background:var(--h);border:1.5px solid var(--h)}
+.sets i.new{background:transparent;border:1.5px dashed var(--wait)}
+.sets + span{font:400 13px var(--ui);color:var(--ink3)}
+.why{margin:10px 0 0;font:400 15px/1.45 var(--ui);color:var(--ink2);text-wrap:pretty}
+.src{margin:4px 0 0;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.answer{display:flex;align-items:center;gap:4px;margin-top:12px}
+.yes{display:inline-flex;align-items:center;gap:7px;height:44px;min-width:44px;padding:0 18px 0 15px;border-radius:22px;font:600 15px var(--ui);color:var(--filed);background:color-mix(in srgb,var(--filed) 15%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--filed) 36%,transparent);white-space:nowrap}
+.yes .ic{stroke-width:2.8}
+.yes.done{width:44px;padding:0;justify-content:center;background:var(--filed);color:#05261a;box-shadow:0 0 24px -4px var(--filed)}
+.yes.done .ic{width:20px;height:20px;stroke-width:3}
+.talk{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.talk.on{background:color-mix(in srgb,var(--link) 13%,transparent)}
+.no{flex:none;margin-left:auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 15%,transparent)}
+.dfoot{margin:10px 0 0;text-align:center;font:400 13px var(--ui);color:var(--ink3)}
+/* a yes, acted out: lifting away with a green edge (inboxLeave.js, 420ms) */
+.leaving{transform:translateY(-10px) scale(.985);opacity:.82;pointer-events:none;box-shadow:inset 3px 0 0 var(--filed),0 0 0 .5px var(--card-ring),0 0 44px -10px var(--filed),var(--card-shadow)}
+
+/* the receipt a decision leaves: green, holding Undo */
+.receipt{position:sticky;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 8px);z-index:6;display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;margin-top:14px;padding:4px 4px 4px 12px;border-radius:26px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 14px 30px -14px rgba(0,0,0,.6)}
+.receipt .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--filed);color:#05261a}
+.receipt .ok .ic{width:15px;height:15px;stroke-width:3}
+.rx{min-width:0}
+.rx b{display:block;font:600 15px/1.25 var(--ui)}
+.rx span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.undo{height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+
+.hint{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;margin:18px 0 0;font:400 13px var(--ui);color:var(--ink3)}
+.orb.mini{width:18px;height:18px;box-shadow:0 0 10px -2px rgba(89,180,255,.8)}
+.oprow{display:grid;grid-template-columns:auto minmax(0,1fr) 16px;gap:12px;align-items:center;width:100%;min-height:58px;margin-top:12px;padding:8px 14px;text-align:left}
+.dots7{display:flex;gap:4px}
+.dots7 i{width:7px;height:7px;border-radius:50%}
+.lx{display:block;min-width:0}
+.nm{display:block;font:600 15px/1.3 var(--ui)}
+.sv{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.sv em,.em{font-style:normal;color:var(--wait)}
+.cv{width:14px;height:14px;color:var(--ink3);stroke-width:2.4}
+.d-ok{background:var(--filed);box-shadow:0 0 7px -1px var(--filed)}
+.d-wait{background:var(--wait);box-shadow:0 0 7px -1px var(--wait)}
+.d-alert{background:var(--discard);box-shadow:0 0 7px -1px var(--discard)}
+.d-idle{background:color-mix(in srgb,var(--ink) 30%,transparent)}
+
+/* review notes: what the reader is looking at, set apart from the page by a dashed edge */
+.note{margin:18px 0 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--ink) 26%,transparent);font:400 13px/1.5 var(--ui);color:var(--ink2)}
+.note b{color:var(--ink);font-weight:600}
+.note ul{margin:6px 0 0;padding-left:16px}
+.note li + li{margin-top:4px}
+
+/* tiles: the Index's own tile; a hue only where the domain owns one, the vault ink otherwise */
+.tile.hue{background:var(--h);color:var(--g,#061a26)}
+.tile.vault{background:color-mix(in srgb,var(--ink) 20%,transparent);color:var(--ink)}
+.tile.none{background:transparent;border:1.5px dashed color-mix(in srgb,var(--ink) 48%,transparent);color:var(--ink2)}
+.tile.err{background:color-mix(in srgb,var(--discard) 14%,transparent);box-shadow:inset 0 0 0 1.5px var(--discard);color:var(--discard)}
+.tile .ic{width:17px;height:17px;stroke-width:2}
+
+/* rows: one grammar for waiting, filed and loops */
+.rows{padding:0;overflow:hidden}
+.rows > * + *{border-top:1px solid var(--sep)}
+.frow{display:grid;grid-template-columns:40px 30px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;padding:0 4px 0 14px}
+.frow .t,.prow .t{font:400 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ti{display:block;min-width:0;font:400 15px var(--ui);white-space:nowrap;overflow:hidden}
+.frow .st{padding:0 14px 0 6px;font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.frow.dim .ti{color:var(--ink3)}
+.honest{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;margin:14px 4px 0;font:400 13px/1.45 var(--ui);color:var(--ink2)}
+.honest .ic{margin-top:1px;color:var(--filed)}
+.more{display:flex;align-items:center;justify-content:center;width:100%;height:44px;margin-top:14px;border-radius:22px;font:600 15px var(--ui);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+
+.prow{display:grid;grid-template-columns:8px 30px minmax(0,1fr) auto 14px;gap:10px;align-items:center;width:100%;min-height:52px;padding:0 12px 0 10px;text-align:left}
+.prow .nd{width:8px;height:8px;border-radius:50%;background:var(--new);box-shadow:0 0 6px -1px var(--new)}
+.prow .nd.off{background:none;box-shadow:none}
+.swipe{position:relative}
+.swipe .under{position:absolute;inset:0;display:flex;align-items:center;gap:7px;padding-left:18px;font:600 15px var(--ui);color:var(--filed);background:linear-gradient(90deg,color-mix(in srgb,var(--filed) 30%,transparent),color-mix(in srgb,var(--filed) 8%,transparent) 60%,transparent)}
+.swipe .under .ic{stroke-width:2.8}
+.swipe .prow{position:relative;transform:translateX(118px);background:var(--solid-row);box-shadow:-12px 0 20px -12px rgba(0,0,0,.9)}
+.bgroup{margin-top:14px}
+.ghead{display:flex;align-items:center;gap:8px;min-height:44px;margin:0 2px 6px 8px}
+.gn{font:600 15px var(--ui)}
+.gc{font:400 15px var(--ui);color:var(--ink3)}
+.gk{font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.allb{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;height:44px;padding:0 15px;border-radius:22px;font:600 15px var(--ui);color:var(--wait);background:color-mix(in srgb,var(--wait) 12%,transparent);white-space:nowrap}
+.gsub{margin:-2px 8px 8px;font:400 13px var(--ui);color:var(--ink3)}
+.swipecap{margin:8px 8px 0;font:400 13px/1.45 var(--ui);color:var(--ink3)}
+.capfield{display:flex;align-items:center;height:44px;margin-top:12px;border-radius:22px;background:rgba(0,0,0,.26);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.capfield .cf{flex:1;height:44px;padding:0 0 0 16px;text-align:left;font:400 15px var(--ui);color:var(--ink3)}
+.mic{flex:none;width:44px;height:44px;display:grid;place-items:center;color:var(--ink2);border-radius:22px}
+.mic .ic{width:18px;height:18px}
+
+.lrow{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:58px;padding:4px 4px 4px 16px}
+.lrow .d,.lrow1 .d{width:10px;height:10px;border-radius:50%}
+.run{height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.lrow1{display:grid;grid-template-columns:10px auto minmax(0,1fr) 14px;gap:10px;align-items:center;width:100%;min-height:52px;padding:0 12px 0 16px;text-align:left}
+.lrow1 .nm{white-space:nowrap}
+.lrow1 .sv{text-align:right}
+.skel{display:block;justify-self:end;width:72%;height:10px;border-radius:5px;background:linear-gradient(90deg,rgba(255,255,255,.07),rgba(255,255,255,.17),rgba(255,255,255,.07))}
+.sechead .sx{font:400 13px var(--ui);color:var(--ink3)}
+.gate{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:64px;margin-top:12px;text-align:left}
+.go{display:inline-flex;align-items:center;gap:2px;font:600 15px var(--ui);color:var(--wait);white-space:nowrap}
+.lhint{margin:8px 8px 0;font:400 13px/1.45 var(--ui);color:var(--ink3)}
+.prop{margin-top:12px;padding:14px 14px 10px;border-radius:18px;background:color-mix(in srgb,var(--wait) 8%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 34%,transparent)}
+.pk{display:flex;align-items:center;gap:6px;font:600 13px var(--ui);color:var(--wait)}
+.prop .say{margin-top:6px}
+.prop .why{margin-top:4px}
+.prop .answer{margin-top:8px}
+
+/* overlays: a dimmed page behind, a scrim, and glass rising over it */
+.behind{pointer-events:none}
+.behind.blur{filter:blur(3px)}
+.scrim{position:fixed;inset:0;z-index:15;background:rgba(3,5,12,.6)}
+.note.pinned{position:fixed;left:16px;right:16px;top:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 12px);z-index:26;max-width:370px;margin:0 auto;background:rgba(6,8,16,.66)}
+.cap{position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:25;max-width:378px;margin:0 auto;padding:14px 16px 8px;border-radius:28px;background:rgba(20,24,44,.82);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 24px 50px -18px rgba(0,0,0,.85);transform-origin:calc(100% - 29px) 100%}
+.cap .stand{margin:0 2px 10px}
+.ta{min-height:88px;padding:12px 14px;border-radius:16px;background:rgba(0,0,0,.32);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--new) 50%,transparent);font:400 15px/1.45 var(--ui)}
+.caret{display:inline-block;width:2px;height:18px;margin-left:1px;vertical-align:-3px;background:var(--new)}
+.caprow{display:flex;align-items:center;gap:8px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--new);background:color-mix(in srgb,var(--new) 12%,transparent)}
+.grow{flex:1}
+.caphint{margin:8px 2px 0;font:400 13px var(--ui);color:var(--ink3)}
+.landed{margin-top:8px;padding-top:8px;border-top:1px solid var(--sep)}
+.lhead{display:flex;justify-content:space-between;align-items:baseline;margin:0 2px;font:600 13px var(--ui);color:var(--filed)}
+.lhead span + span{font-weight:400;color:var(--ink3)}
+.lr{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;min-height:44px;padding:0 2px;text-align:left}
+.lr .ok{color:var(--filed);stroke-width:2.8}
+.lr .dest{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.novabtn.held{box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 0 0 5px rgba(89,230,255,.16),0 0 30px 4px rgba(89,230,255,.42);transform:scale(.96)}
+.sheet{position:fixed;left:8px;right:8px;top:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 14px);bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:25;max-width:386px;margin:0 auto;padding:8px 16px 20px;overflow-y:auto;overscroll-behavior:contain;border-radius:30px;background:rgba(17,21,38,.88);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 30px 60px -20px rgba(0,0,0,.9)}
+.grab{width:38px;height:5px;margin:0 auto 12px;border-radius:3px;background:color-mix(in srgb,var(--ink) 32%,transparent)}
+.disc{margin-top:12px;padding-top:12px;border-top:1px solid var(--sep)}
+.dk{display:block;font:600 13px var(--ui);color:var(--ink3)}
+.dk.wait{color:var(--wait)}
+.dq{margin:4px 0 10px;font:400 15px/1.45 var(--ui);color:var(--ink2)}
+.dv{margin:4px 0 0;font:400 15px/1.45 var(--ui)}
+.askwhy{margin-top:10px;padding:12px 12px 8px;border-radius:18px;background:color-mix(in srgb,var(--link) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--link) 26%,transparent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chips button{height:44px;padding:0 14px;border-radius:22px;font:400 15px var(--ui);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 22%,transparent)}
+.own{display:flex;align-items:center;height:44px;margin-top:8px;border-radius:22px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.own .cf{flex:1;height:44px;padding:0 0 0 14px;text-align:left;font:400 15px var(--ui);color:var(--ink3)}
+.askrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.discard{height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--discard);background:color-mix(in srgb,var(--discard) 13%,transparent)}
+.keep{height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2)}
+.shead{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center}
+.shead b{display:block;font:700 20px/1.2 var(--ui)}
+.shead .sx span{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.done{height:44px;padding:0 4px 0 14px;font:600 15px var(--ui);color:var(--link)}
+.slot{margin-top:12px;padding-top:12px;border-top:1px solid var(--sep)}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.srow + .srow{margin-top:8px}
+.sn{font:600 15px var(--ui)}
+.sel{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px 0 16px;border-radius:22px;font:600 15px var(--ui);font-variant-numeric:tabular-nums;background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.sel .ic{width:14px;height:14px;color:var(--ink3)}
+.segc.mini{width:208px;flex:none}
+.sst{margin:6px 0 0;font:400 13px var(--ui);color:var(--ink3)}
+
+/* C: the hub, in the summary Home's card grammar */
+.hero .hrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;margin-top:10px}
+.hero .first{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start;margin-top:12px;padding-top:12px;border-top:1px solid var(--sep)}
+.hero .first .say{margin-top:2px}
+.hero .no{margin-left:0}
+.seeall{margin-left:auto;display:inline-flex;align-items:center;gap:1px;height:44px;padding:0 2px 0 12px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.seeall .ic{width:15px;height:15px;stroke-width:2.6}
+.hk{display:block;margin:20px 4px 8px 14px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.scard{display:flex;flex-direction:column;gap:8px;padding:10px 8px}
+.scard .open{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:44px;padding:2px 2px 0;text-align:left}
+.scard .nm2{display:flex;align-items:center;gap:5px;font:600 13px var(--ui);color:var(--ink2);white-space:nowrap}
+.scard .allb{margin:0;padding:0 8px}
+.cardbtn{width:100%;text-align:left;color:inherit}
+.fstrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px}
+.fs{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px}
+.fs b{font:600 15px var(--ui);white-space:nowrap}
+.fs > span:last-child{font:400 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.fs .tick{position:absolute;top:-5px;left:calc(50% + 8px);width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:var(--filed);color:#05261a;box-shadow:0 0 0 2px var(--solid-row)}
+.fs .tick .ic{width:10px;height:10px;stroke-width:3.6}
+.lamps7{display:flex;gap:6px;margin-top:12px}
+.lamps7 i{width:13px;height:13px;border-radius:50%}
+.ladder3{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.ladder3 span{display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 10px;border-radius:15px;font:600 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.ladder3 .on{color:var(--new);background:color-mix(in srgb,var(--new) 13%,transparent)}
+.ladder3 .next{color:var(--ink);border:1.5px dashed var(--wait)}
+.ladder3 .next em{font-style:normal;font-weight:400;color:var(--wait)}
+.cardfoot{margin-top:auto;padding-top:8px;display:flex;align-items:center;gap:2px;font:600 15px var(--ui);color:var(--link)}
+.cardfoot .ic{width:15px;height:15px;stroke-width:2.6}
+</style>
+</head>
+<body data-m="nova-glass">
+<div class="sky" aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18M12 8h5M12 12h5"/></symbol>
+  <symbol id="i-review" viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 0 2 2h13"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-practice" viewBox="0 0 24 24"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/><circle cx="16" cy="16" r="2"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/></symbol>
+  <symbol id="i-todo" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 5-5.5"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 7h14l-1.5 10h-11z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></symbol>
+  <symbol id="i-books" viewBox="0 0 24 24"><path d="M4 4h5v16H4zM10 4h5v16h-5zM16 5l4 1-3 14-4-1z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="i-q" viewBox="0 0 24 24"><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.5V14"/><path d="M12 17.5v.01"/></symbol>
+  <symbol id="i-bang" viewBox="0 0 24 24"><path d="M12 6v8M12 18v.01"/></symbol>
+  <symbol id="i-tray" viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 5-5.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-talk" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></symbol>
+  <symbol id="i-steps" viewBox="0 0 24 24"><path d="M3 19h6v-5h6V9h6"/></symbol>
+</svg>
+
+<nav class="switch" aria-label="Variation and screen">
+  <div class="inner">
+    <div class="seg" role="tablist" aria-label="Variation">
+      <button data-var="a" aria-pressed="true">A · The deck</button>
+      <button data-var="b" aria-pressed="false">B · Mail</button>
+      <button data-var="c" aria-pressed="false">C · Two doors</button>
+    </div>
+    <div class="seg" id="screens" role="tablist" aria-label="Screen"></div>
+    <p class="tally" id="tally" title="Tap for the full tally"></p>
+  </div>
+</nav>
+
+<div class="phone">
+
+<!-- ================= A · 1 · THE DECK ALONE: WAITING ================= -->
+<main id="a1" class="view" data-tally="<b>A · The deck alone, 1 Waiting.</b> Above the fold: <b>7 objects, 12 taps</b> with the receipt (today 15 taps) · verbs on the card: <b>3</b> (✓ · Talk about it · ✕) · 18 decisions in <b>1 screen</b>, one card at a time, 11 of them in 3 taps · type <b>34 20 15 13</b> + the numeral · tap floor <b>44</b> · resolves <b>1 2 3 4 5 6 7 10 11</b> · leaves <b>8</b> (skeleton by rule; drawn in B) and <b>9</b> (observations, no fault)">
+  <div class="a-top">
+    <div class="titlerow rise" style="--i:0">
+      <h1>Inbox</h1>
+      <div class="segc" role="tablist" aria-label="Inbox" data-obj><button role="tab" aria-pressed="true">Waiting</button><button role="tab" aria-pressed="false" data-go="a2">Filed</button></div>
+    </div>
+    <div class="count rise" style="--i:1" data-obj>
+      <span class="num wait">18</span>
+      <div class="cx"><b>waiting on your call</b><span>11 on 3 subjects · 7 to decide</span><div class="rail" data-n="18" data-on="1"></div></div>
+    </div>
+    <div class="subjects rise" style="--i:2">
+      <span class="subj" data-obj><button class="nm"><i class="dot" style="--h:var(--k-train)"></i>Coach</button><button class="all" aria-label="Yes to all 5 from Coach"><svg class="ic"><use href="#i-check"/></svg>all 5</button></span>
+      <span class="subj" data-obj><button class="nm"><i class="dot" style="--h:var(--k-vault)"></i>Research</button><button class="all" aria-label="Keep all 4 research briefs"><svg class="ic"><use href="#i-check"/></svg>all 4</button></span>
+      <span class="subj" data-obj><button class="nm"><i class="dot" style="--h:var(--k-vault)"></i>Model choice</button><button class="all" aria-label="Keep the usual model for both"><svg class="ic"><use href="#i-check"/></svg>all 2</button></span>
+    </div>
+    <div class="deck rise" style="--i:3">
+      <div class="ghost g2"></div><div class="ghost g1"></div>
+      <article class="card dcard" data-obj aria-label="1 of 18">
+        <div class="khead">
+          <span class="tile hue" style="--h:var(--k-train);--g:#052a3a"><svg class="ic"><use href="#i-dumbbell"/></svg></span>
+          <span class="lx"><span class="kl" style="color:var(--k-train)">Train edit</span><span class="kt">Pull Day, Thursday</span></span>
+          <span class="when">09:40</span>
+        </div>
+        <p class="say">Swap Barbell Row for Chest-Supported Row on Pull Day.</p>
+        <div class="change" role="img" aria-label="Barbell Row out, Chest-Supported Row in">
+          <span class="pill" style="--h:var(--m-back)"><i></i>Barbell Row</span>
+          <svg class="ic arrow"><use href="#i-arrow"/></svg>
+          <span class="pill arrive" style="--h:var(--m-back)"><i></i>Chest-Supported Row</span>
+        </div>
+        <p class="why">The chest pad spares your lower back. The sets stay at 4.</p>
+        <p class="src">From what you said to Nova · today</p>
+        <div class="answer">
+          <button class="yes"><svg class="ic"><use href="#i-check"/></svg>Yes, swap it</button>
+          <button class="talk"><svg class="ic"><use href="#i-talk"/></svg>Talk about it</button>
+          <button class="no" aria-label="Discard"><svg class="ic"><use href="#i-x"/></svg></button>
+        </div>
+      </article>
+    </div>
+  </div>
+  <p class="dfoot rise" style="--i:4">1 of 18 · swipe right to file, left to discard</p>
+  <div class="receipt rise" style="--i:5" data-obj>
+    <span class="ok"><svg class="ic"><use href="#i-check"/></svg></span>
+    <span class="rx"><b>Filed to Journal</b><span class="fit">Bad sleep, still trained · just now</span></span>
+    <button class="undo">Undo</button>
+  </div>
+  <p class="hint rise" style="--i:6">Drop a thought: hold <span class="orb mini"></span> Nova, or say it in Voice</p>
+  <button class="card oprow rise" style="--i:7" data-go="a4" data-obj>
+    <span class="dots7" aria-label="Seven loops: four quiet, two have something for you, one alert"><i class="d-ok"></i><i class="d-wait"></i><i class="d-wait"></i><i class="d-ok"></i><i class="d-ok"></i><i class="d-ok"></i><i class="d-alert"></i></span>
+    <span class="lx"><span class="nm">Loops · Agents &amp; Operations</span><span class="sv fit">7 on schedule · <em>2 proposals</em> wait there</span></span>
+    <svg class="ic cv"><use href="#i-right"/></svg>
+  </button>
+  <aside class="note rise" style="--i:8"><b>What moved where</b>
+    <ul>
+      <li>Capture: to the Nova button. Hold it and the composer rises from it, with Landed under it (A · 3). Voice takes the same thought said aloud.</li>
+      <li>History: the Filed segment, 409 on the record (A · 2).</li>
+      <li>The seven loops and the filing ladder: Agents &amp; Operations, one row down (A · 4). Nova's proposal to change the ladder waits beside it.</li>
+      <li>Ask-why and the kind doors: the card's one quiet verb. Talk about it asks why on Coach advice, a review, a plan or a training check; on the kinds with a door it becomes Open in Practice, Open the briefing, Deep weave or Research the books.</li>
+      <li>Seen: automatic. A card you have looked at stops counting as new, so the verb goes.</li>
+      <li>✓ all on Model choice keeps the usual model for both. Today that chip does nothing (finding 5).</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= A · 2 · FILED ================= -->
+<main id="a2" class="view" hidden data-tally="<b>A · 2 Filed.</b> 409 on the record, the 25 newest by day, one action a row · above the fold: <b>11 objects, 18 taps</b> (segmented, count, 9 rows) · type <b>34 15 13</b> + the numeral · tap floor <b>44</b> · resolves <b>3</b> (an unknown route says so), <b>6</b> (Undo promised only where it exists; rows grouped by day), <b>11</b> (one row grammar)">
+  <div class="titlerow rise" style="--i:0">
+    <h1>Inbox</h1>
+    <div class="segc" role="tablist" aria-label="Inbox" data-obj><button role="tab" aria-pressed="false" data-go="a1">Waiting</button><button role="tab" aria-pressed="true">Filed</button></div>
+  </div>
+  <div class="count rise" style="--i:1" data-obj>
+    <span class="num">409</span>
+    <div class="cx"><b>on the record</b><span>the 25 newest shown · 384 older</span></div>
+  </div>
+  <p class="honest rise" style="--i:2"><svg class="ic"><use href="#i-checkc"/></svg><span>Undo shows where Nova kept what it changed. Guardian counts 53 older filings without that; their rows say no undo.</span></p>
+  <div id="a2-days"></div>
+  <button class="more rise" style="--i:7" data-obj>Show 100 more · 384 older</button>
+  <aside class="note rise" style="--i:8"><b>Filed, the second segment.</b> The 409 grouped by day, one row each: time, route, the title, one action. Undo only where Nova kept what it changed, and a row without it says no undo (finding 6). A route the app does not know shows a dashed ? instead of passing as a Note (finding 3). Retry on errors; Dismiss and Deep weave open from the row itself.</aside>
+</main>
+
+<!-- ================= A · 3 · CAPTURE, FROM THE NOVA BUTTON ================= -->
+<main id="a3" class="view" hidden data-nova="held" data-tally="<b>A · 3 Capture.</b> Hold Nova: the composer rises from the button over a dimmed Inbox · 3 controls (Dictate · Capture · mic-free typing) + 4 Landed rows · type <b>34 20 15 13</b> · tap floor <b>44</b> · resolves <b>1</b> (capture leaves the pile's page, and still lands where it was dropped)">
+  <div class="behind blur" aria-hidden="true" inert data-clone="a1 .a-top"></div>
+  <div class="scrim" aria-hidden="true"></div>
+  <aside class="note pinned rise" style="--i:0"><b>Capture, moved to the Nova button.</b> Hold it and the composer rises from the button over a dimmed Inbox: type or Dictate, then Capture. Landed comes with it, so a thought is seen to land where it was dropped. Links, research and videos go to Nova in the conversation, as today.</aside>
+  <section class="cap rise" style="--i:1" aria-label="Capture">
+    <p class="stand">Drop the thought, Nova files it.</p>
+    <div class="ta" role="textbox" aria-label="The thought">Ask the physio about my lower back<span class="caret"></span></div>
+    <div class="caprow">
+      <button class="chip"><svg class="ic"><use href="#i-mic"/></svg>Dictate</button>
+      <span class="grow"></span>
+      <button class="btn">Capture</button>
+    </div>
+    <p class="caphint">Links, research and videos: say them to Nova.</p>
+    <div class="landed">
+      <div class="lhead"><span>Landed</span><span>9 today · 8 filed</span></div>
+      <button class="lr"><svg class="ic ok"><use href="#i-check"/></svg><span class="ti fit">Bad sleep, still trained</span><span class="dest">Journal</span></button>
+      <button class="lr"><svg class="ic ok"><use href="#i-check"/></svg><span class="ti fit">Bananas and rice cakes</span><span class="dest">Shopping</span></button>
+      <button class="lr"><svg class="ic ok"><use href="#i-check"/></svg><span class="ti fit">Rear Delt Fly to Push Day</span><span class="dest">Train</span></button>
+      <button class="lr"><svg class="ic ok"><use href="#i-check"/></svg><span class="ti fit">Brief: magnesium, sleep</span><span class="dest">Notes</span></button>
+    </div>
+  </section>
+</main>
+
+<!-- ================= A · 4 · AGENTS & OPERATIONS: LOOPS ================= -->
+<main id="a4" class="view" hidden data-tab="more" data-tally="<b>A · 4 Agents &amp; Operations.</b> The seven loop cards become seven rows: a dot each, Run now on the row, the rest one tap in · the ladder as a segmented row with Nova's proposal beside it · type <b>34 20 15 13</b> + the numeral · tap floor <b>44</b> · resolves <b>4</b> (loops leave the Inbox), <b>7</b> (the ladder no longer outranks the count), <b>11</b>">
+  <button class="back rise" style="--i:0" data-go="a1"><svg class="ic"><use href="#i-left"/></svg>Inbox</button>
+  <h1 class="rise" style="--i:0">Agents &amp; Operations</h1>
+  <button class="card gate rise" style="--i:1" data-go="a1" data-obj><span class="num s wait">18</span><span class="lx"><span class="nm">waiting on your call</span><span class="sv">the one human gate</span></span><span class="go">Open Inbox<svg class="ic cv" style="color:var(--wait)"><use href="#i-right"/></svg></span></button>
+  <div class="group rise" style="--i:2"><span class="k">Loops · 7</span><div class="card glist rows" data-loops="run"></div></div>
+  <div class="group rise" style="--i:3"><span class="k">Filing</span>
+    <div class="segc" role="tablist" aria-label="Filing mode" data-obj><button role="tab" aria-pressed="false">Review all</button><button role="tab" aria-pressed="true">Auto high</button><button role="tab" class="next" aria-pressed="false">Auto all</button></div>
+    <p class="lhint">Auto high: sure things file themselves; doubts wait for you. Review all asks about every one; Auto all files everything, with history and Undo as the receipts.</p>
+    <div class="prop" data-obj>
+      <span class="pk"><svg class="ic"><use href="#i-steps"/></svg>Nova proposes</span>
+      <p class="say">Let Nova file everything on its own.</p>
+      <p class="why">You approved its last 8 review calls without changing a thing.</p>
+      <div class="answer"><button class="yes"><svg class="ic"><use href="#i-check"/></svg>Accept</button><button class="talk"><svg class="ic"><use href="#i-talk"/></svg>Talk about it</button><button class="no" aria-label="Skip"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    </div>
+  </div>
+  <aside class="note rise" style="--i:4"><b>Loops and Filing, moved to Agents &amp; Operations.</b> Seven rows with a dot each: green on schedule, gold has something for you, red an alert. Run now sits on the row; the row opens the rest (modes and hour, Briefs' proposal, Compost's 8, Guardian's report and export). The ladder sits below, and the proposed-rule card lands beside the step it would change, drawn dashed in gold. Ops lives under More, so More is lit; back returns to the Inbox. Ops' own sections (the Org Map, the Forge, the stream) continue below, unchanged.</aside>
+</main>
+
+<!-- ================= B · 1 · MAIL: THE LIST ================= -->
+<main id="b1" class="view" hidden data-tally="<b>B · Mail, 1 List.</b> Above the fold: <b>11 objects, 11 taps</b> (today 15 taps) · a row: tap opens the card, swipe right files, left discards; the card has <b>3</b> verbs · 18 decisions over <b>1.5 screens</b> of rows, 11 of them in 3 taps · the whole page 4,200px, about 4.8 screens (today 6,591px in Deck) · type <b>34 20 15 13</b> + the numeral · tap floor <b>44</b> · resolves <b>2 3 4 5 6 7 8 10 11</b> · leaves <b>1</b> (the four jobs still share one scroll, now as one row shape) and <b>9</b>">
+  <div class="b-top">
+    <h1 class="rise" style="--i:0">Inbox</h1>
+    <div class="capfield rise" style="--i:1" data-obj><button class="cf">Drop the thought…</button><button class="mic" aria-label="Dictate"><svg class="ic"><use href="#i-mic"/></svg></button></div>
+    <div class="count rise" style="--i:2" data-obj>
+      <span class="num wait">18</span>
+      <div class="cx"><b>waiting on your call</b><span>11 on 3 subjects · 7 to decide</span></div>
+    </div>
+    <div id="b1-waiting"></div>
+  </div>
+  <div class="sechead rise" style="--i:9"><h2>Filed</h2><span class="sx">409 on the record</span></div>
+  <p class="honest rise" style="--i:9"><svg class="ic"><use href="#i-checkc"/></svg><span>Undo shows where Nova kept what it changed. Guardian counts 53 older filings without that; their rows say no undo.</span></p>
+  <div id="b1-filed"></div>
+  <button class="more rise" style="--i:11" data-obj>Show 100 more · 384 older</button>
+  <div class="b-end">
+    <div class="group rise" style="--i:12"><span class="k">Loops · 7</span><div class="card glist rows" data-loops="one"></div></div>
+    <div class="group rise" style="--i:12"><span class="k">Filing</span><div class="card glist rows"><button class="lrow1" data-go="b3" data-obj><span class="d d-wait"></span><span class="nm">Auto-file high confidence</span><span class="sv"><em>1 proposal</em></span><svg class="ic cv"><use href="#i-right"/></svg></button></div></div>
+  </div>
+  <aside class="note rise" style="--i:12"><b>What moved where</b>
+    <ul>
+      <li>Nothing leaves the page. Waiting, Filed and the loops become three lists of one row shape (finding 11).</li>
+      <li>A row opens its full card in a sheet (B · 2): the three verbs, You captured and Will be filed, ask-why, the kind's door.</li>
+      <li>Swipe right files, left discards; the ✓ and ✕ in the sheet do the same.</li>
+      <li>Seen becomes the cyan dot, the way Mail marks unread: opening a row clears it.</li>
+      <li>The loops sit at the very bottom, one line each; a row opens its controls in a sheet (B · 3). The filing ladder is the last row, and Nova's proposals ride the sheet of the loop they would change.</li>
+      <li>Capture is the field at the top. Tapped, it grows into the composer with Dictate and Landed.</li>
+      <li>A loop still loading shows the house skeleton (Todoist, above), never the word checking (finding 8).</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= B · 2 · THE CARD, IN A SHEET ================= -->
+<main id="b2" class="view" hidden data-tally="<b>B · 2 Card sheet.</b> The row's full card: <b>3</b> verbs, You captured, Will be filed, the reason; Talk about it open on ask-why · type <b>34 20 15 13</b> + the numeral · tap floor <b>44</b> · resolves <b>2</b> (7 verbs become 3, the rest one tap into Talk about it)">
+  <div class="behind" aria-hidden="true" inert data-clone="b1 .b-top"></div>
+  <div class="scrim" aria-hidden="true" data-go="b1"></div>
+  <section class="sheet rise" style="--i:0" aria-label="Swap Barbell Row for Chest-Supported Row on Pull Day">
+    <div class="grab"></div>
+    <div class="khead">
+      <span class="tile hue" style="--h:var(--k-train);--g:#052a3a"><svg class="ic"><use href="#i-dumbbell"/></svg></span>
+      <span class="lx"><span class="kl" style="color:var(--k-train)">Train edit</span><span class="kt">Pull Day, Thursday</span></span>
+      <span class="when">09:40</span>
+    </div>
+    <p class="say">Swap Barbell Row for Chest-Supported Row on Pull Day.</p>
+    <div class="change" role="img" aria-label="Barbell Row out, Chest-Supported Row in">
+      <span class="pill" style="--h:var(--m-back)"><i></i>Barbell Row</span>
+      <svg class="ic arrow"><use href="#i-arrow"/></svg>
+      <span class="pill arrive" style="--h:var(--m-back)"><i></i>Chest-Supported Row</span>
+    </div>
+    <div class="disc">
+      <span class="dk">You captured</span>
+      <p class="dq">“Rows were rough on my lower back on Tuesday. Swap them for something kinder on Pull Day.”</p>
+      <span class="dk wait">Will be filed</span>
+      <p class="dv">Pull Day: Barbell Row out, Chest-Supported Row in at 4 × 10. The session stays at 16 sets.</p>
+    </div>
+    <p class="why">The chest pad takes your lower back out of the lift; the pull stays the same.</p>
+    <p class="src">From what you said to Nova · today 09:40</p>
+    <div class="answer">
+      <button class="yes"><svg class="ic"><use href="#i-check"/></svg>Yes, swap it</button>
+      <button class="talk on" aria-expanded="true"><svg class="ic"><use href="#i-talk"/></svg>Talk about it</button>
+      <button class="no" aria-label="Discard"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="askwhy">
+      <span class="dk">Why pass? Coach learns from this</span>
+      <div class="chips"><button>Not now</button><button>Too aggressive</button><button>No equipment for it</button><button>I disagree, my call</button></div>
+      <div class="own"><button class="cf">Or say it in your own words…</button><button class="mic" aria-label="Dictate"><svg class="ic"><use href="#i-mic"/></svg></button></div>
+      <div class="askrow"><button class="discard">Discard with reason</button><button class="keep">Keep it</button></div>
+    </div>
+    <aside class="note"><b>The full card, in a sheet.</b> Talk about it is open. On Coach advice, a daily review, a plan or a training check it asks why, and the reason rides the record for the agent to learn from. On a kind with its own door, the door takes this slot: Open in Practice, Open the briefing, Deep weave, Research the books. A daily review's adjustments keep their Done and Not today on its card. Swipe the sheet down, or tap above it, to go back.</aside>
+  </section>
+</main>
+
+<!-- ================= B · 3 · A LOOP'S CONTROLS, IN A SHEET ================= -->
+<main id="b3" class="view" hidden data-tally="<b>B · 3 Loop sheet.</b> Briefs: three slots, each with its hour, Off · Draft · Auto and Run now; Nova's proposal for the loop on top · type <b>20 15 13</b> (34 behind) · tap floor <b>44</b> · resolves <b>4</b> and <b>7</b> (controls a tap away, never in the pile's scroll)">
+  <div class="behind" aria-hidden="true" inert data-clone="b1 .b-end"></div>
+  <div class="scrim" aria-hidden="true" data-go="b1"></div>
+  <section class="sheet rise" style="--i:0" aria-label="Briefs">
+    <div class="grab"></div>
+    <div class="shead">
+      <span class="tile vault"><svg class="ic"><use href="#i-loop"/></svg></span>
+      <span class="sx"><b>Briefs</b><span>Real data only · three slots</span></span>
+      <button class="done" data-go="b1">Done</button>
+    </div>
+    <div class="prop" data-obj>
+      <span class="pk"><svg class="ic"><use href="#i-steps"/></svg>Nova proposes</span>
+      <p class="say">Let morning dispatches file straight into the journal.</p>
+      <p class="why">You approved the last 3 as drafted.</p>
+      <div class="answer"><button class="yes"><svg class="ic"><use href="#i-check"/></svg>Accept</button><button class="talk"><svg class="ic"><use href="#i-talk"/></svg>Talk about it</button><button class="no" aria-label="Skip"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    </div>
+    <div class="slot">
+      <div class="srow"><span class="sn">Morning dispatch</span><button class="sel">07:00<svg class="ic"><use href="#i-down"/></svg></button></div>
+      <div class="srow"><div class="segc mini" role="tablist" aria-label="Morning mode"><button aria-pressed="false">Off</button><button aria-pressed="true">Draft</button><button class="next" aria-pressed="false">Auto</button></div><button class="run">Run now</button></div>
+      <p class="sst">Today's dispatch is filed.</p>
+    </div>
+    <div class="slot">
+      <div class="srow"><span class="sn">Evening debrief</span><button class="sel">21:00<svg class="ic"><use href="#i-down"/></svg></button></div>
+      <div class="srow"><div class="segc mini" role="tablist" aria-label="Evening mode"><button aria-pressed="false">Off</button><button aria-pressed="true">Draft</button><button aria-pressed="false">Auto</button></div><button class="run">Run now</button></div>
+      <p class="sst">No debrief yet today; it composes at 21:00.</p>
+    </div>
+    <div class="slot">
+      <div class="srow"><span class="sn">Weekly review</span><button class="sel">17:00<svg class="ic"><use href="#i-down"/></svg></button></div>
+      <div class="srow"><div class="segc mini" role="tablist" aria-label="Weekly mode"><button aria-pressed="false">Off</button><button aria-pressed="false">Draft</button><button aria-pressed="true">Auto</button></div><button class="run">Run now</button></div>
+      <p class="sst">No review yet this week; it composes on Sunday.</p>
+    </div>
+    <aside class="note"><b>A loop's controls, in a sheet.</b> Tapping a loop row opens this; Briefs is shown. Nova's proposal for this loop lands here, with the step it would change drawn dashed in gold. The other six carry their own: the Daily review's modes and hour, Compost's 8 proposals (Accept, Open, Dismiss), Open promises', Todoist's Sync now, Meal prep, and Guardian's Run checks, Report and Export.</aside>
+  </section>
+</main>
+
+<!-- ================= C · 1 · TWO DOORS: THE HUB ================= -->
+<main id="c1" class="view" hidden data-tally="<b>C · Two doors, 1 Hub.</b> Above the fold: <b>5 objects, 10 taps</b> (today 15) · the hero answers the top card with <b>2</b> verbs and opens the rest; the full card has <b>3</b> · 18 decisions through See all in <b>1 screen</b>, 11 of them in 3 taps from here · type <b>34 20 15 13</b> + the numeral · tap floor <b>44</b> · resolves <b>1 2 3 4 5 6 7 10 11</b> · leaves <b>8</b> (skeleton by rule; drawn in B) and <b>9</b>">
+  <h1 class="rise" style="--i:0">Inbox</h1>
+  <div class="grid" style="margin-top:12px">
+    <section class="card wide hero rise" style="--i:1" aria-label="Waiting" data-obj>
+      <div class="ch c4"><svg class="ic"><use href="#i-tray"/></svg>Waiting<span class="time">oldest from 2 Aug</span></div>
+      <div class="hrow"><span class="num xl wait">18</span><div class="cx"><b>waiting on your call</b><span>11 on 3 subjects · 7 to decide</span></div></div>
+      <div class="first">
+        <span class="tile hue" style="--h:var(--k-train);--g:#052a3a"><svg class="ic"><use href="#i-dumbbell"/></svg></span>
+        <div><span class="kl" style="color:var(--k-train)">Train edit · Pull Day</span><p class="say">Swap Barbell Row for Chest-Supported Row.</p></div>
+      </div>
+      <div class="answer">
+        <button class="yes"><svg class="ic"><use href="#i-check"/></svg>Yes, swap it</button>
+        <button class="no" aria-label="Discard"><svg class="ic"><use href="#i-x"/></svg></button>
+        <button class="seeall" data-go="c2">See all 18<svg class="ic"><use href="#i-right"/></svg></button>
+      </div>
+    </section>
+  </div>
+  <span class="hk rise" style="--i:2">Subjects · 11 waiting</span>
+  <div class="trio rise" style="--i:2">
+    <div class="card scard" data-obj><button class="open"><span class="nm2"><i class="dot" style="--h:var(--k-train)"></i>Coach</span><span class="num s wait">5</span></button><button class="allb"><svg class="ic"><use href="#i-check"/></svg>all 5</button></div>
+    <div class="card scard" data-obj><button class="open"><span class="nm2"><i class="dot" style="--h:var(--k-vault)"></i>Research</span><span class="num s wait">4</span></button><button class="allb"><svg class="ic"><use href="#i-check"/></svg>all 4</button></div>
+    <div class="card scard" data-obj><button class="open"><span class="nm2"><i class="dot" style="--h:var(--k-vault)"></i>Model choice</span><span class="num s wait">2</span></button><button class="allb" aria-label="Keep the usual model for both"><svg class="ic"><use href="#i-check"/></svg>all 2</button></div>
+  </div>
+  <div class="grid" style="margin-top:12px">
+    <button class="card wide cardbtn rise" style="--i:3" aria-label="Filed today" data-obj>
+      <span class="ch c1"><svg class="ic"><use href="#i-checkc"/></svg>Filed today<span class="time">409 on the record</span></span>
+      <span class="sub">9 today · 8 filed, 1 left alone</span>
+      <span class="fstrip">
+        <span class="fs"><span class="tile hue" style="--h:var(--k-journal);--g:#fff"><svg class="ic"><use href="#i-book"/></svg></span><span class="tick"><svg class="ic"><use href="#i-check"/></svg></span><b>Journal</b><span>10:05</span></span>
+        <span class="fs"><span class="tile vault"><svg class="ic"><use href="#i-bag"/></svg></span><span class="tick"><svg class="ic"><use href="#i-check"/></svg></span><b>Shopping</b><span>09:52</span></span>
+        <span class="fs"><span class="tile hue" style="--h:var(--k-train);--g:#052a3a"><svg class="ic"><use href="#i-dumbbell"/></svg></span><span class="tick"><svg class="ic"><use href="#i-check"/></svg></span><b>Train</b><span>09:30</span></span>
+        <span class="fs"><span class="tile vault"><svg class="ic"><use href="#i-doc"/></svg></span><span class="tick"><svg class="ic"><use href="#i-check"/></svg></span><b>Notes</b><span>08:10</span></span>
+      </span>
+    </button>
+    <button class="card cardbtn rise" style="--i:4" data-go="c3" aria-label="Loops" data-obj>
+      <span class="ch c3"><svg class="ic"><use href="#i-loop"/></svg>Loops</span>
+      <span class="lamps7" aria-label="Seven loops: four quiet, two have something for you, one alert"><i class="d-ok"></i><i class="d-wait"></i><i class="d-wait"></i><i class="d-ok"></i><i class="d-ok"></i><i class="d-ok"></i><i class="d-alert"></i></span>
+      <span class="sub">All 7 on schedule · <span class="em">Compost has 8 for you, Briefs a proposal</span> · Guardian flagged 1</span>
+      <span class="cardfoot">Open<svg class="ic"><use href="#i-right"/></svg></span>
+    </button>
+    <button class="card cardbtn rise" style="--i:5" aria-label="Filing" data-obj>
+      <span class="ch"><svg class="ic"><use href="#i-steps"/></svg>Filing</span>
+      <span class="ladder3"><span>Review all</span><span class="on">Auto high</span><span class="next">Auto all <em>proposed</em></span></span>
+      <span class="cardfoot">Open<svg class="ic"><use href="#i-right"/></svg></span>
+    </button>
+  </div>
+  <p class="hint rise" style="--i:6">Drop a thought: hold <span class="orb mini"></span> Nova, or say it in Voice</p>
+  <aside class="note rise" style="--i:7"><b>What moved where</b>
+    <ul>
+      <li>The route becomes a hub in the summary Home's card grammar; each card opens its own page.</li>
+      <li>Waiting: the top card answers here with ✓ or ✕; See all 18 opens the deck (C · 2, the deck from A), where Talk about it lives.</li>
+      <li>Subjects: a card each, with ✓ all. On Model choice ✓ all keeps the usual model for both (finding 5).</li>
+      <li>History: Filed today, the old Landed strip; it opens the 409 (the Filed page drawn in A · 2).</li>
+      <li>Loops: one card of seven dots; it opens the Loops page (C · 3).</li>
+      <li>Filing: the ladder as three words, the lit one current and Nova's proposed step dashed in gold. The card opens the ladder with the proposal, the same pair drawn in A · 4.</li>
+      <li>Capture: hold the Nova button, the same door as A (drawn in A · 3), or say it in Voice.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= C · 2 · SEE ALL 18: THE DECK ================= -->
+<main id="c2" class="view" hidden data-badge="17" data-tally="<b>C · 2 See all 18.</b> The deck from A, caught on a yes: the pill becomes a tick, the card lifts away, the count ticks to 17 · verbs on the card: <b>3</b> · type <b>34 20 15 13</b> + the numeral · tap floor <b>44</b> · resolves <b>2</b> and <b>5</b>">
+  <button class="back rise" style="--i:0" data-go="c1"><svg class="ic"><use href="#i-left"/></svg>Inbox</button>
+  <h1 class="rise" style="--i:0">Waiting</h1>
+  <div class="count rise" style="--i:1" data-obj>
+    <span class="num wait">17</span>
+    <div class="cx"><b>waiting on your call</b><span>10 on 3 subjects · 7 to decide</span><div class="rail" data-n="18" data-done="1" data-on="2"></div></div>
+  </div>
+  <div class="subjects rise" style="--i:2">
+    <span class="subj" data-obj><button class="nm"><i class="dot" style="--h:var(--k-train)"></i>Coach</button><button class="all"><svg class="ic"><use href="#i-check"/></svg>all 4</button></span>
+    <span class="subj" data-obj><button class="nm"><i class="dot" style="--h:var(--k-vault)"></i>Research</button><button class="all"><svg class="ic"><use href="#i-check"/></svg>all 4</button></span>
+    <span class="subj" data-obj><button class="nm"><i class="dot" style="--h:var(--k-vault)"></i>Model choice</button><button class="all"><svg class="ic"><use href="#i-check"/></svg>all 2</button></span>
+  </div>
+  <div class="deck rise" style="--i:3">
+    <div class="ghost g2"></div><div class="ghost g1"></div>
+    <article class="card dcard leaving" data-obj aria-label="Swapped, lifting away" inert>
+      <div class="khead">
+        <span class="tile hue" style="--h:var(--k-train);--g:#052a3a"><svg class="ic"><use href="#i-dumbbell"/></svg></span>
+        <span class="lx"><span class="kl" style="color:var(--k-train)">Train edit</span><span class="kt">Pull Day, Thursday</span></span>
+        <span class="when">09:40</span>
+      </div>
+      <p class="say">Swap Barbell Row for Chest-Supported Row on Pull Day.</p>
+      <div class="change" role="img" aria-label="Barbell Row struck, Chest-Supported Row in">
+        <span class="pill gone" style="--h:var(--m-back)"><i></i>Barbell Row</span>
+        <svg class="ic arrow"><use href="#i-arrow"/></svg>
+        <span class="pill" style="--h:var(--m-back)"><i></i>Chest-Supported Row</span>
+      </div>
+      <p class="why">The chest pad spares your lower back. The sets stay at 4.</p>
+      <p class="src">From what you said to Nova · today</p>
+      <div class="answer">
+        <button class="yes done" aria-label="Done: swapped"><svg class="ic"><use href="#i-check"/></svg></button>
+        <button class="talk"><svg class="ic"><use href="#i-talk"/></svg>Talk about it</button>
+        <button class="no" aria-label="Discard"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+    </article>
+  </div>
+  <div class="receipt rise" style="--i:5" data-obj>
+    <span class="ok"><svg class="ic"><use href="#i-check"/></svg></span>
+    <span class="rx"><b>Swapped on Pull Day</b><span class="fit">Chest-Supported Row is in · just now</span></span>
+    <button class="undo">Undo</button>
+  </div>
+  <aside class="note rise" style="--i:6"><b>See all 18: the deck from A.</b> A still of a yes: the pill becomes a tick, Barbell Row is struck, the card lifts away with a green edge (420ms, a cross-fade under reduced motion), the count ticks to 17 and the rail's first segment turns green. The next card rises from behind. The receipt keeps Undo.</aside>
+</main>
+
+<!-- ================= C · 3 · LOOPS ================= -->
+<main id="c3" class="view" hidden data-tally="<b>C · 3 Loops.</b> The Loops card's own page: A's seven rows kept under the Inbox · type <b>34 15 13</b> · tap floor <b>44</b> · resolves <b>4</b> (the loops stop sitting between the pile and the history)">
+  <button class="back rise" style="--i:0" data-go="c1"><svg class="ic"><use href="#i-left"/></svg>Inbox</button>
+  <h1 class="rise" style="--i:0">Loops</h1>
+  <div class="group rise" style="--i:1"><span class="k">Seven, on their own schedules</span><div class="card glist rows" data-loops="run"></div></div>
+  <aside class="note rise" style="--i:2"><b>The Loops card's page.</b> The same seven rows as A · 4, kept under the Inbox instead of Agents &amp; Operations. Run now sits on the row; the row opens the rest: modes and hour, Briefs' proposal, Compost's 8, Guardian's report and export.</aside>
+</main>
+
+</div>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row">
+    <div class="tabbar">
+      <span class="tab" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab on" data-tab="inbox"><span class="badge">18</span><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg>Inbox</span>
+      <span class="tab" data-tab="train"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab" data-tab="fuel"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab" data-tab="more"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn" aria-label="Talk to Nova; hold to capture" data-go="a3"><span class="orb"></span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const ico=(g,c)=>'<svg class="ic'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+g+'"/></svg>';
+
+  // THE KINDS, as their route badges name them (src/vals/valsInbox.js ROUTE_META / SOURCE_LABEL).
+  // A hue only where the domain owns one; the rest wear the vault ink.
+  const K={
+    train:{l:'Train edit',h:'var(--k-train)',c:'#052a3a',g:'dumbbell'},
+    tune:{l:'Coach tune',h:'var(--k-train)',c:'#052a3a',g:'dumbbell'},
+    remap:{l:'Re-filed',h:'var(--k-train)',c:'#052a3a',g:'dumbbell'},
+    journal:{l:'Journal',h:'var(--k-journal)',c:'#fff',g:'book'},
+    review:{l:'Journal · daily review',h:'var(--k-journal)',c:'#fff',g:'review'},
+    cal:{l:'Journal · calendar follow-up',h:'var(--k-journal)',c:'#fff',g:'cal'},
+    practice:{l:'Practice page',h:'var(--k-practice)',c:'#3a1409',g:'practice'},
+    note:{l:'Note',g:'doc'},read:{l:'Note · read next',g:'books'},video:{l:'Source + transcript',g:'play'},
+    model:{l:'Model choice',g:'chip'},todo:{l:'To-do',g:'todo'},shop:{l:'Shopping',g:'bag'},stash:{l:'Stash',g:'link'},
+    none:{l:'No route recorded',g:'q',none:1},err:{l:'Error',g:'bang',err:1}
+  };
+  function tile(k){const m=K[k];const cls=m.err?'err':m.none?'none':m.h?'hue':'vault';
+    return '<span class="tile '+cls+'"'+(m.h?' style="--h:'+m.h+';--g:'+m.c+'"':'')+' title="'+m.l+'">'+ico(m.g)+'</span>';}
+
+  // WAITING: 18 = 11 on 3 repeating subjects + 7 to decide (the audit's real scale; demo titles)
+  const PENDING=[
+    {g:'Coach',h:'var(--k-train)',items:[
+      ['train','Swap Barbell Row on Pull Day','09:40',1],['train','Leg Extension: a fourth set','09:40',1],
+      ['train','Face Pull first on Pull Day','09:40',1],['tune','Hold Incline Press at 30 kg','09:40',1],
+      ['train','Sunday becomes active rest','09:40',1]]},
+    {g:'Research',h:'var(--k-vault)',items:[
+      ['note','Does creatine timing matter?','07:15',1],['note','Protein across the day','Fri',0],
+      ['note','Sauna after lifting','Fri',0],['note','Zone 2 minutes for your goal','2 Aug',0]]},
+    {g:'Model choice',h:'var(--k-vault)',sub:'✓ all keeps the usual model for both.',items:[
+      ['model','Opus for Pattern Scout this week?','Mon',1],['model','Opus for Distill this week?','Mon',1]]}
+  ];
+  const SINGLES=[
+    ['video','A talk on sleep and recovery','08:30',1],['review','Two adjustments for today','08:00',1],
+    ['todo','Book the car service','07:50',1,'swipe'],['shop','Oats, eggs, Greek yoghurt','07:40',1],
+    ['practice','Saying no to your manager','Fri',0],['cal','Did meal prep happen?','Fri',0],
+    ['read','A book on hard conversations','Thu',0]
+  ];
+  function prow(r){return '<button class="prow" data-go="b2" data-obj><span class="nd'+(r[3]?'':' off')+'"></span>'+tile(r[0])+'<span class="ti fit">'+r[1]+'</span><span class="t">'+r[2]+'</span>'+ico('right','cv')+'</button>';}
+  function group(G,i){return '<div class="bgroup rise" style="--i:'+(3+i)+'"><div class="ghead" data-obj><i class="dot" style="--h:'+G.h+'"></i><span class="gn">'+G.g+'</span><span class="gc">'+G.items.length+'</span><button class="allb" aria-label="Yes to all '+G.items.length+'">'+ico('check')+'all '+G.items.length+'</button></div>'+(G.sub?'<p class="gsub">'+G.sub+'</p>':'')+'<div class="card glist rows">'+G.items.map(prow).join('')+'</div></div>';}
+  function singles(){return '<div class="bgroup rise" style="--i:6"><div class="ghead"><span class="gk">To decide · '+SINGLES.length+'</span></div><div class="card glist rows">'+
+    SINGLES.map(r=>r[4]?'<div class="swipe"><div class="under">'+ico('check')+'File</div>'+prow(r)+'</div>':prow(r)).join('')+
+    '</div><p class="swipecap">A still of a right swipe on Book the car service: the row files itself. Left discards, in red. A tap opens the full card.</p></div>';}
+
+  // FILED: the 25 newest of 409, by day (demo titles; one unknown route, one error)
+  const DAYS=[
+    ['Today',[['10:05','journal','Bad sleep, still trained','undo'],['09:52','shop','Bananas and rice cakes','undo'],['09:30','train','Rear Delt Fly to Push Day','undo'],
+      ['08:10','note','Brief: magnesium, sleep','undo'],['07:45','todo','Renew the gym membership','undo'],['07:20','journal','Morning dispatch','noundo'],
+      ['07:02','none','Call about the lease','undo'],['06:55','train','Lateral Raise 3 × 15','undo'],['06:40','todo','Buy a new foam roller','disc']]],
+    ['Yesterday',[['21:10','journal','Evening debrief','undo'],['20:30','shop','Chicken thighs, 1.2 kg','undo'],['19:05','err','A video link that failed','retry'],
+      ['18:40','train','Hip Thrust goes first','undo'],['17:00','cal','Meal prep happened','undo'],['15:22','practice','Asking to move a deadline','undo'],
+      ['12:10','note','Idea: the drone-shot open','undone'],['11:45','todo','Email the physio','undo'],['09:30','journal','Morning dispatch','noundo'],
+      ['08:15','remap','Face Pull as Shoulders','undo'],['07:50','note','Brief: cold plunges','disc']]],
+    ['Thursday',[['21:05','journal','Evening debrief','noundo'],['18:30','shop','Oats and frozen berries','undo'],['13:00','tune','Hold Incline at 27.5 kg','back'],
+      ['10:20','stash','A guide to deload weeks','undo'],['08:05','todo','Pick up the parcel','undo']]]
+  ];
+  const ST={noundo:'no undo',disc:'Discarded',undone:'Undone',back:'Taken back'};
+  function frow(r){const s=r[3];
+    const act=s==='undo'?'<button class="undo">Undo</button>':s==='retry'?'<button class="undo">Retry</button>':'<span class="st">'+ST[s]+'</span>';
+    return '<div class="frow'+(['disc','undone','back'].includes(s)?' dim':'')+'" data-tap data-obj><span class="t">'+r[0]+'</span>'+tile(r[1])+'<span class="ti fit">'+r[2]+'</span>'+act+'</div>';}
+  const days=(i0)=>DAYS.map((d,i)=>'<div class="group rise" style="--i:'+(i0+i)+'"><span class="k">'+d[0]+' · '+d[1].length+'</span><div class="card glist rows">'+d[1].map(frow).join('')+'</div></div>').join('');
+
+  // THE SEVEN LOOPS (Inbox.jsx:521-711): a dot each; the order matches the dots on A · 1 and C · 1
+  const LOOPS=[
+    ['ok','Daily review','Filed to your journal at 08:00','Run now'],
+    ['wait','Briefs','1 proposal|morning filed','Run now'],
+    ['wait','Compost','8 for you|weekly','Run now'],
+    ['ok','Open promises','None left hanging · fortnightly','Run now'],
+    ['ok','Todoist','In step · synced 10 min ago','Sync now','skel'],
+    ['ok','Meal prep','Thursdays · next in 5 days','Run now'],
+    ['alert','Guardian','1 alert: filings without undo','Run checks']
+  ];
+  const st=(t)=>t.includes('|')?'<em>'+t.split('|')[0]+'</em> · '+t.split('|')[1]:t;
+  const lrow=(l)=>'<div class="lrow" data-tap data-obj><span class="d d-'+l[0]+'"></span><span class="lx"><span class="nm">'+l[1]+'</span><span class="sv fit">'+st(l[2])+'</span></span><button class="run">'+l[3]+'</button></div>';
+  const lrow1=(l)=>'<button class="lrow1" data-go="b3" data-obj><span class="d '+(l[4]?'d-idle':'d-'+l[0])+'"></span><span class="nm">'+l[1]+'</span>'+(l[4]?'<span class="skel" role="img" aria-label="Loading"></span>':'<span class="sv fit">'+st(l[2])+'</span>')+ico('right','cv')+'</button>';
+
+  $('#a2-days').innerHTML=days(3);
+  $('#b1-waiting').innerHTML=PENDING.map(group).join('')+singles();
+  $('#b1-filed').innerHTML=days(10);
+  $$('[data-loops]').forEach((el)=>{el.innerHTML=LOOPS.map(el.dataset.loops==='run'?lrow:lrow1).join('');});
+  $$('.rail').forEach((el)=>{const n=+el.dataset.n,on=+(el.dataset.on||0),done=+(el.dataset.done||0);
+    el.innerHTML=Array.from({length:n},(_,k)=>'<i class="'+(k<done?'done':k+1===on?'on':'')+'"></i>').join('');});
+  $$('[data-clone]').forEach((el)=>{const p=el.dataset.clone.split(' ');const src=$(p.slice(1).join(' '),$('#'+p[0]));if(src)el.innerHTML=src.innerHTML;});
+
+  // A title that does not fit gives way a word at a time, never mid-word (the house clampWords rule).
+  function fit(el){if(!el.dataset.full)el.dataset.full=el.innerHTML;el.innerHTML=el.dataset.full;
+    if(!el.clientWidth||el.scrollWidth<=el.clientWidth+1)return;
+    const words=el.textContent.split(' ');const emEl=el.querySelector('em');const emT=emEl?emEl.textContent:'';
+    const mark=(t)=>!emT?t:t.startsWith(emT)?'<em>'+emT+'</em>'+t.slice(emT.length):'<em>'+t+'</em>';
+    while(words.length>1){words.pop();const t=words.join(' ').replace(/[\s,.;:·]+$/,'')+'…';el.innerHTML=mark(t);if(el.scrollWidth<=el.clientWidth+1)return;}}
+  const fitAll=(root)=>$$('.fit',root).forEach(fit);
+
+  // the switcher
+  const VARS={a:['Waiting','Filed','Capture','Ops loops'],b:['List','Card sheet','Loop sheet'],c:['Hub','See all 18','Loops']};
+  const sw=$('.switch'),scr=$('#screens'),tally=$('#tally');
+  const setH=()=>document.documentElement.style.setProperty('--switch-h',(sw.offsetHeight-(parseFloat(getComputedStyle(sw).paddingTop)||0)+8)+'px');
+  function renderTally(){const full=tally.dataset.full||'';
+    if(tally.classList.contains('open')){tally.innerHTML=full+' <span class="tm">less</span>';return;}
+    tally.innerHTML=full;if(tally.scrollWidth<=tally.clientWidth+1)return;
+    const tmp=document.createElement('div');tmp.innerHTML=full;const words=tmp.textContent.split(' ');
+    while(words.length>1){words.pop();tally.innerHTML=words.join(' ').replace(/[\s,.;:·]+$/,'')+'… <span class="tm">more</span>';if(tally.scrollWidth<=tally.clientWidth+1)break;}}
+  tally.addEventListener('click',()=>{tally.classList.toggle('open');renderTally();setH();});
+  let v='a',s=1;
+  function apply(){
+    const id=v+s,main=document.getElementById(id);
+    $$('main.view').forEach((m)=>{m.hidden=m!==main;});
+    $$('[data-var]').forEach((b)=>b.setAttribute('aria-pressed',String(b.dataset.var===v)));
+    scr.innerHTML=VARS[v].map((n,i)=>'<button data-s="'+(i+1)+'" aria-pressed="'+(i+1===s)+'">'+n+'</button>').join('');
+    tally.dataset.full=main.dataset.tally;tally.classList.remove('open');
+    const lit=main.dataset.tab||'inbox';
+    $$('.dock .tab').forEach((t)=>t.classList.toggle('on',t.dataset.tab===lit));
+    $('.novabtn').classList.toggle('held',main.dataset.nova==='held');
+    $('.dock .badge').textContent=main.dataset.badge||'18';
+    history.replaceState(null,'','#'+v+'/'+s);
+    try{localStorage.setItem('nova-inbox-57',v+'/'+s);}catch(e){}
+    renderTally();setH();
+    $$('.rise',main).forEach((el)=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+    requestAnimationFrame(()=>fitAll(main));
+  }
+  scr.addEventListener('click',(e)=>{const b=e.target.closest('[data-s]');if(!b)return;s=+b.dataset.s;window.scrollTo(0,0);apply();});
+  $$('[data-var]').forEach((b)=>b.addEventListener('click',()=>{v=b.dataset.var;s=1;window.scrollTo(0,0);apply();}));
+  document.addEventListener('click',(e)=>{const g=e.target.closest('[data-go]');if(!g||g.closest('.switch'))return;const t=g.dataset.go;v=t[0];s=+t.slice(1);window.scrollTo(0,0);apply();});
+  function fromHash(){const h=(location.hash||'').replace('#','').toLowerCase();const p=h.split('/');if(!VARS[p[0]])return false;v=p[0];const n=+p[1];s=n>=1&&n<=VARS[v].length?n:1;return true;}
+  window.addEventListener('hashchange',()=>{if(fromHash()){window.scrollTo(0,0);apply();}});
+  window.addEventListener('resize',()=>{renderTally();setH();fitAll(document.getElementById(v+s));});
+  if(!fromHash()){try{const p=(localStorage.getItem('nova-inbox-57')||'').split('/');if(VARS[p[0]]){v=p[0];const n=+p[1];s=n>=1&&n<=VARS[v].length?n:1;}}catch(e){}}
+  apply();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{renderTally();setH();fitAll(document.getElementById(v+s));});
+})();
+</script>
+</body>
+</html>
