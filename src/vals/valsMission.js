@@ -869,7 +869,9 @@ const bodyMetrics = demoMode
       if (demoMode) return null;
       const settled = inboxItems
         .map((r) => ({ r, at: r.filedAt || r.updatedAt || r.createdAt }))
-        .filter(({ r, at }) => ['filed', 'discarded', 'error'].includes(r.status) && isTodayISO(at))
+        // the planner's own daily record is filed FOR him and is not a capture
+        // that landed (the redesign's Inbox audit, 27 Sep)
+        .filter(({ r, at }) => ['filed', 'discarded', 'error'].includes(r.status) && r.kind !== 'plan-today' && isTodayISO(at))
         .sort((a, b) => String(b.at).localeCompare(String(a.at)));
       if (!settled.length) return null;
       const newest = String(settled[0].at);

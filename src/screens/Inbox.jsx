@@ -260,7 +260,11 @@ export function Inbox({ v }) {
                     </Chip>
                     {/* one "do all" at the group head (finding 13) — every
                         member goes through the same approve path as a swipe */}
-                    <TextAction compact tone="good" disabled={p.busy} onClick={p.busy ? undefined : p.fileAll} ariaLabel={`File all ${p.members.length} ${p.subject}`} haptic="commit">{p.busy ? 'Filing…' : `✓ all ${p.members.length}`}</TextAction>
+                    {p.fileable > 0 && (
+                      <TextAction compact tone="good" disabled={p.busy} onClick={p.busy ? undefined : p.fileAll} ariaLabel={`File ${p.fileable} ${p.subject}`} haptic="commit">
+                        {p.busy ? 'Filing…' : p.fileable < p.members.length ? `✓ file ${p.fileable}` : `✓ all ${p.fileable}`}
+                      </TextAction>
+                    )}
                   </span>
                 ))}
                 {v.inboxDigest.decide.length > 0 && (
@@ -714,7 +718,7 @@ export function Inbox({ v }) {
       <div style={{ marginTop: '26px' }}>
         <div style={css(`display:flex;justify-content:space-between;align-items:baseline`)}>
           <Eyebrow as="span">History</Eyebrow>
-          <Meta tone="faint">Every filing is on the record — and undoable</Meta>
+          <Meta tone="faint">{v.inboxHistoryNote}</Meta>
         </div>
         {v.inboxHistory.length === 0 ? (
           <div style={css(`margin-top:20px;text-align:center;font:500 13px ${R};color:color-mix(in srgb, var(--nv-ink) 40%, transparent)`)}>

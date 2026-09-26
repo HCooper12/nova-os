@@ -6,7 +6,7 @@ import { tldrFor } from '../tldr.js';
 // Adds to ctx: inboxPendingCount (sidebar badge).
 import { dtf } from './fmt.js';
 import { clampWords } from '../textClamp.js';
-import { digestPending } from '../inboxDigest.js';
+import { digestPending, fileableMembers, undoLine } from '../inboxDigest.js';
 
 // WHO MADE THIS. Was a 24-branch ternary ending in 'TYPED', so any kind it
 // didn't name was silently attributed to HIM — the program review, the
@@ -733,14 +733,22 @@ export function valsInbox(app, ctx) {
         routineBusy: d.routine.some((i) => i.busy),
         // one "do all" per repeating subject (§2b r8): every member goes
         // through the same approve path as a swipe — same rails, same undo
-        patterns: d.patterns.map((p) => ({
-          ...p,
-          fileAll: () => p.members.forEach((i) => i.approve && !i.isModelChoice && i.approve()),
-          busy: p.members.some((i) => i.busy),
-        })),
+        patterns: d.patterns.map((p) => {
+          // only what approve() can answer counts; a model-choice member is his
+          // to choose, and the chip says the real number (inboxDigest.js)
+          const fileable = fileableMembers(p.members);
+          return {
+            ...p,
+            fileable: fileable.length,
+            fileAll: () => fileable.forEach((i) => i.approve()),
+            busy: p.members.some((i) => i.busy),
+          };
+        }),
       };
     })(),
     inboxHistory: historyItems,
+    // the line under the History head, counted from the rows (inboxDigest.js)
+    inboxHistoryNote: undoLine(historyItems),
     // DID MY CAPTURE LAND? His report, 15 Sep: "I'm still not seeing it
     // clearly on Nova whether my captures are landing… I need some sort of
     // confirmation notification within nova itself so I can see it's been

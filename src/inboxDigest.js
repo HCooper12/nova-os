@@ -77,3 +77,24 @@ function describe(total, routine, patterns, decide) {
   if (decide) parts.push(`${decide} to decide`);
   return `${total} waiting — ${parts.join(', ')}.`;
 }
+
+// THE DO-ALL FILES WHAT CAN BE FILED. A model-choice card asks for HIS choice
+// (Opus, or keep the model), so approve() is not its answer — and a pattern
+// made only of those showed a "✓ all 2" that did nothing when tapped (his
+// vault, 27 Sep 2026, the redesign's Inbox audit finding 5). The chip's count
+// is this list's length, never the pattern's, and the chip goes when it is 0.
+export function fileableMembers(members = []) {
+  return (Array.isArray(members) ? members : []).filter((i) => i && typeof i.approve === 'function' && !i.isModelChoice);
+}
+
+// HISTORY'S PROMISE, COUNTED. "Every filing is on the record — and undoable"
+// was true of the rails and false of 53 of his records (Guardian, 27 Sep
+// 2026): an undo needs the data the filing kept, and older filings kept none.
+// The line now says how many of the filings he can see can be undone.
+export function undoLine(rows = []) {
+  const filed = (Array.isArray(rows) ? rows : []).filter((r) => r && r.status === 'filed');
+  if (!filed.length) return 'Every filing is on the record';
+  const undoable = filed.filter((r) => r.canUndo).length;
+  if (undoable === filed.length) return 'Every filing is on the record, and undoable';
+  return `On the record · ${undoable} of ${filed.length} shown can be undone`;
+}

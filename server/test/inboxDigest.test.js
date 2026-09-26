@@ -4,7 +4,7 @@
 // model-choice card promoted to "routine" would be filed with no model picked.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { subjectOf, digestPending, isCapture } from '../../src/inboxDigest.js';
+import { subjectOf, digestPending, isCapture, fileableMembers, undoLine } from '../../src/inboxDigest.js';
 
 // a capture: no kind — the classifier routed something he put in
 const item = (over) => ({ id: Math.random().toString(36).slice(2), title: 'x', confidence: 'low', kind: undefined, route: { label: 'NOTE' }, ...over });
@@ -93,4 +93,18 @@ test('the summary says what the pile actually is', () => {
     item({ title: 'Decide me' }),
   ]);
   assert.equal(d.summary, '4 waiting — 1 routine, 2 on one repeating subject, 1 to decide.');
+});
+
+test('the do-all counts only what approve() can answer: a model-choice member is his to choose', () => {
+  const approve = () => {};
+  const members = [{ approve, isModelChoice: true }, { approve, isModelChoice: true }];
+  assert.deepEqual(fileableMembers(members), [], 'a pattern of two model choices has nothing to file — the chip goes');
+  const mixed = [{ approve, isModelChoice: false }, { approve, isModelChoice: true }, { isModelChoice: false }];
+  assert.equal(fileableMembers(mixed).length, 1, 'no approve() means nothing to file either');
+});
+
+test('the History line counts the undo it can actually offer', () => {
+  assert.equal(undoLine([]), 'Every filing is on the record');
+  assert.equal(undoLine([{ status: 'filed', canUndo: true }, { status: 'discarded', canUndo: false }]), 'Every filing is on the record, and undoable');
+  assert.equal(undoLine([{ status: 'filed', canUndo: true }, { status: 'filed', canUndo: false }, { status: 'filed', canUndo: false }]), 'On the record · 1 of 3 shown can be undone');
 });
