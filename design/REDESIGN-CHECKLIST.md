@@ -556,6 +556,20 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (02:xx) — TRAIN AUDITED (`03-train.md`, 1058311): NEEDS WORK. Coach is
+  the tail of Gym's own scroll (the same `<GoalsCoachPane>` at Workouts.jsx:407
+  and :1219); "On today's card" drawn twice; the live session tick is 40px,
+  remove 26×36, skip 26×26; the routine detail has 24 of 49 controls under
+  44pt; weekly volume drawn three ways, readiness twice (Train + the new
+  Home); the one real Coach card drew nothing and repeated its sentence
+  (coachSuggestions.js:216 — FIXED in the commit after 1058311); ✕ still
+  discards with no reason. Directions: A two tabs not three · B one set at a
+  time with the pad as the object · C one fact, one instrument. INBOX ROUND 1
+  PUBLISHED: design/mockups/57-redesign-inbox.html — A the deck alone · B Mail
+  · C two doors, Nova-glass material, 402 wide, tap floor 44, ≤4 type sizes.
+  Decisions the mockup raises for him: gold means only "waiting on your
+  call" (ROUTE_META paints five neutral routes gold today); Seen stops being a
+  button; the filing ladder leaves the Inbox (A) or stays (B/C).
 - 27 Sep 2026 (01:xx) — three Inbox honesty fixes shipped ahead of its redesign
   (see the commit after 6c5bd62): the do-all chip counts only what it can file
   and goes at 0; History counts the undo it can offer; the landed strip no
