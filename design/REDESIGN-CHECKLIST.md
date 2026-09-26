@@ -556,6 +556,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — P0 SHIPPED (8475533): `scripts/guard-cupertino.mjs` +
+  `scripts/guard/cupertino-baseline.json`. A headless DEMO-mode DOM snapshot
+  of the cupertino × command Home (text, panes, scroll geometry) with the
+  clock frozen at 14:00 and Math.random seeded (App picks the demo review
+  concept at random on boot); refuses to run when `public/_devconn*.js`
+  exists. Compare runs in ~36 s and is the acceptance gate of every later
+  phase. P1 (tokens + switch) and P2-A (the summary view model + tests) are
+  in flight in worktrees.
 - 26 Sep 2026 — HOME DECIDED. He loves all of round 5; wants Nova glass
   (main), Nova night, Observatory, Apple glass with a day→night cycle, and
   Summary light as switchable options; keeps Practice and Trends; the Index;

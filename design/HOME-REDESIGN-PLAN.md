@@ -103,10 +103,15 @@ the JSX-import grep · both idioms still render (`cupertino` untouched is an
 acceptance criterion of EVERY phase) · commit with a why · push · reload
 via `scripts/reload-server.mjs` · then his phone.
 
-**P0 · Guard the current look.** A test that renders `MissionStructured`
-and `MissionControl` with the demo view model and snapshots their section
-keys; the design-style rows in Settings gain "Summary" only when P2 lands.
-DONE means: the test exists and passes; nothing visible changes.
+**P0 · Guard the current look.** SHIPPED 26 Sep (8475533) as
+`scripts/guard-cupertino.mjs`: the client has no JSX test renderer, so the
+guard is a headless DEMO-mode DOM snapshot of the cupertino × command Home
+(rendered text, pane count, scroll geometry) against a committed baseline,
+clock frozen at 14:00 local and Math.random seeded. It refuses to run when
+`public/_devconn*.js` exists (a connected load of Home writes). Run
+`node scripts/guard-cupertino.mjs` before every commit of every phase; the
+design-style rows in Settings gain "Summary" only when P2 lands.
+DONE: the guard exists and passes; nothing visible changed.
 
 **P1 · Tokens and the switch.** `summary` style, `sky` theme, `material`
 modifier, hour band; token blocks from mockup 56 in `src/index.css`;
