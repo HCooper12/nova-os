@@ -555,6 +555,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — his call on round 2: try alternatives with the Apple
+  aesthetic and DISREGARD the Nova-specific guidelines for the exploration
+  ("the nova-specific design architecture is holding back your design
+  options"). Round 3 published: https://claude.ai/artifact/Q92jjUHaPwTbzBkQxjuPev
+  (A · Summary / Health, B · Rings / Fitness, C · Glass / iOS 26 Weather,
+  D · Paper / News; source `design/mockups/54-redesign-home-apple.html`).
+  His words in `01-home.md` §7. If one is chosen, §3 of this file and
+  NOVA-METHOD §2b change on his word. Home stays [m].
 - 26 Sep 2026 — his verdict on round 1: none of the three, still too
   cluttered; move features off Home; Home as widgets he arranges (iOS Home
   Screen editing); an Index like iOS Settings for the other pages (his

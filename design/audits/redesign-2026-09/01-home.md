@@ -362,3 +362,26 @@ five states (mockup 53, `design/mockups/53-redesign-home-widgets.html`):
 | Nova is working | The Island already carries it; not on Home |
 | Who is asking · Leader box | A moment while a question is open |
 | More sheet (grid) | **The Index**: a Settings-shape page of every screen in four groups (Today · Mind · Life · Nova) with an icon tile and a live value, search at the foot; drill pages open with a header card |
+
+## 7 · His answers, round 2 (26 Sep, 17:0x)
+
+Shown mockup 53 (widgets · edit · add · index · drill). His words: "Try a
+few alternative designs sticking with the beautiful apple-like appealing
+aesthetic and functional, but disregard the nova-specific guidelines to see
+what you can come up with. Try a few versions. It feels like the
+nova-specific design architecture is holding back your design options."
+
+**What this changes.** Round 3 (mockup 54,
+`design/mockups/54-redesign-home-apple.html`) leaves Nova's tokens,
+materials and house objects aside on his instruction and draws the same
+demo day in four Apple idioms: A · Summary (Apple Health: light, white
+cards with a coloured title row, a highlight sentence, a Pinned section he
+edits), B · Rings (Apple Fitness: black, one hero of nested rings with the
+numbers beside it, Trends, Awards), C · Glass (iOS 26 Liquid Glass in the
+Weather manner: a sky for the hour, one giant number, an hourly strip,
+glass tiles), D · Paper (Apple News / Journal: white, New York serif, one
+read as the lede, three inline stats, a timeline, a pull quote). All four
+use the iOS 26 tab bar shape (a glass pill of five tabs with a detached
+round button, here Nova, the way iOS detaches Search). Whichever he picks
+is a token-system change (NOVA-METHOD §2b and the design memory would be
+revised on his word), not a page tweak.

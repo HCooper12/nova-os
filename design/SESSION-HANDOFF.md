@@ -34,7 +34,13 @@ Nothing photographed yet, no product code changed.**
   for the other pages. ROUND 2 PUBLISHED:
   https://claude.ai/artifact/RARXgdhv4No7T5gSpcWPKC (mockup 53: Home · Edit ·
   Add · Index · Drill; the section → widget / page / moment map is 01-home.md
-  §6). Home rows [m]. NEXT: his tweaks on round 2 → round 3 or build. Open decisions: the two test to-dos in his vault; the dock centre.
+  §6). Home rows [m]. HIS CALL ON ROUND 2: explore OUTSIDE the Nova guidelines
+  with the Apple aesthetic. ROUND 3 PUBLISHED:
+  https://claude.ai/artifact/Q92jjUHaPwTbzBkQxjuPev (mockup 54: A Summary/Health,
+  B Rings/Fitness, C Glass/iOS 26 Weather, D Paper/News; system fonts and
+  system colours, no --nv-* tokens). If he picks one, the token system and
+  NOVA-METHOD §2b change on his word; do NOT start that unprompted. NEXT: his
+  pick or tweaks → round 4 or build. Open decisions: the two test to-dos in his vault; the dock centre.
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
   (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards

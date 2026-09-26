@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Home, four Apple ways</title>
+<!--
+  54 · HOME, FOUR APPLE WAYS (round 3, 26 Sep 2026)
+  His instruction: "Try a few alternative designs sticking with the
+  beautiful apple-like appealing aesthetic and functional, but disregard the
+  nova-specific guidelines … It feels like the nova-specific design
+  architecture is holding back your design options."
+
+  So this page leaves Nova's tokens, materials and house objects aside on
+  purpose and asks only what Apple would draw. Four idioms, one demo day:
+
+    A · Summary   Apple Health. Light grey ground, white cards with a
+                  coloured title row, big SF numerals, one highlight
+                  sentence, a Pinned section you Edit (Apple's own answer
+                  to "customisable Home").
+    B · Rings     Apple Fitness. Black, one hero of nested rings with the
+                  numbers beside it in SF Rounded, then Trends arrows,
+                  a record card, Awards, Today.
+    C · Glass     iOS 26 Liquid Glass in the Weather manner. A time-of-day
+                  sky, one giant number as the hero, an hourly strip, glass
+                  tiles floating over the scene.
+    D · Paper     Apple News / Journal. White, New York serif, one read as
+                  the lede, three inline stats, a timeline, a pull quote.
+
+  The tab bar in all four is the iOS 26 pattern: a floating glass pill of
+  five tabs with a detached round button beside it; here that button is
+  Nova, the way iOS detaches Search. System colours (green 34C759, orange
+  FF9500, teal 30B0C7, red FF3B30, purple AF52DE, blue 007AFF, pink FF2D55).
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data.
+  If he picks one, adopting it is a token-system change, not a page tweak.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --ny:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --green:#34C759;--orange:#FF9500;--teal:#30B0C7;--red:#FF3B30;--purple:#AF52DE;--blue:#007AFF;--pink:#FF2D55;--yellow:#FFCC00;--indigo:#5856D6;
+  --ease:cubic-bezier(.32,.72,0,1);--switch-h:92px;--dock-h:96px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:17px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background .3s var(--ease)}
+body[data-v="a"]{background:#F2F2F7;color:#1C1C1E;color-scheme:light}
+body[data-v="b"]{background:#000;color:#fff;color-scheme:dark}
+body[data-v="c"]{background:#0b2a55;color:#fff;color-scheme:dark}
+body[data-v="d"]{background:#FFFFFF;color:#1C1C1E;color-scheme:light}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.978);transition:transform .16s var(--ease)}
+.phone{position:relative;max-width:402px;margin:0 auto;min-height:100%}
+
+/* ---- review furniture ---- */
+.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3)}
+body[data-v="a"] .switch,body[data-v="d"] .switch{background:rgba(242,242,247,.78);border-bottom:1px solid rgba(60,60,67,.12)}
+body[data-v="b"] .switch{background:rgba(0,0,0,.7);border-bottom:1px solid rgba(255,255,255,.1)}
+body[data-v="c"] .switch{background:rgba(10,30,70,.5);border-bottom:1px solid rgba(255,255,255,.14)}
+.switch .inner{max-width:402px;margin:0 auto}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.18)}
+.seg button{padding:8px 4px;border-radius:9px;font-size:12.5px;font-weight:600;opacity:.7;transition:background .28s var(--ease),opacity .28s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:rgba(255,255,255,.9);color:#1C1C1E;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+body[data-v="b"] .seg button[aria-pressed="true"],body[data-v="c"] .seg button[aria-pressed="true"]{background:rgba(255,255,255,.18);color:#fff}
+.tally{margin:7px 2px 0;font:500 11px/1.4 var(--mono);opacity:.6;min-height:15px}
+.tally b{font-weight:600}
+
+/* ---- the iOS 26 tab bar: a glass pill + a detached Nova button ---- */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5)}
+body[data-v="a"] .tabbar,body[data-v="a"] .novabtn,body[data-v="d"] .tabbar,body[data-v="d"] .novabtn{background:rgba(255,255,255,.62);box-shadow:0 0 0 .5px rgba(0,0,0,.1),0 8px 24px -12px rgba(0,0,0,.25),0 1px 0 rgba(255,255,255,.8) inset}
+body[data-v="b"] .tabbar,body[data-v="b"] .novabtn{background:rgba(28,28,30,.72);box-shadow:0 0 0 .5px rgba(255,255,255,.12),0 1px 0 rgba(255,255,255,.1) inset}
+body[data-v="c"] .tabbar,body[data-v="c"] .novabtn{background:rgba(255,255,255,.16);box-shadow:0 0 0 .5px rgba(255,255,255,.28),0 1px 0 rgba(255,255,255,.35) inset,0 12px 30px -14px rgba(0,0,0,.5)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;height:56px;justify-content:center;border-radius:28px;font:500 10px var(--ui);color:#8E8E93}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--blue)}
+body[data-v="b"] .tab.on{color:#fff;background:rgba(255,255,255,.12)}
+body[data-v="c"] .tab{color:rgba(255,255,255,.7)}body[data-v="c"] .tab.on{color:#fff;background:rgba(255,255,255,.18)}
+.tab .badge{position:absolute;margin:-30px 0 0 22px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font:700 11px/18px var(--ui);text-align:center}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+/* ---- shared ---- */
+.view{padding:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 10px) 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 20px)}
+.view[hidden]{display:none}
+.rise{animation:rise .3s var(--ease) both;animation-delay:calc(var(--i,0) * 40ms)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rise{animation:fade .3s ease both}@keyframes fade{from{opacity:0}to{opacity:1}}}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin:22px 4px 8px}
+.sechead h2{margin:0;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.sechead a{font:400 17px var(--ui);color:var(--blue)}
+.chev{color:#C7C7CC;font-size:18px}
+
+/* ============ A · SUMMARY (Apple Health) ============ */
+.va{--card:#fff;--label:#8E8E93;--sep:rgba(60,60,67,.12)}
+.va .nav{display:flex;align-items:flex-end;justify-content:space-between;padding:4px 4px 0}
+.va .date{font:600 13px var(--ui);letter-spacing:.02em;color:var(--label);text-transform:uppercase}
+.va h1{margin:2px 4px 14px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.va .card{background:var(--card);border-radius:18px;padding:14px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.va .ch{display:flex;align-items:center;gap:8px;font:600 16px var(--ui)}
+.va .ch .time{margin-left:auto;font:400 14px var(--ui);color:var(--label)}
+.va .ch svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.va .c-green{color:var(--green)}.va .c-orange{color:var(--orange)}.va .c-teal{color:var(--teal)}.va .c-red{color:var(--red)}.va .c-purple{color:var(--purple)}.va .c-blue{color:var(--blue)}
+.va .hl p{margin:8px 0 10px;font:400 17px/1.35 var(--ui)}
+.va .hl b{font-weight:700}
+.va .bar{height:8px;border-radius:4px;background:#E5E5EA;overflow:hidden}
+.va .bar i{display:block;height:100%;border-radius:4px;background:var(--green)}
+.va .axis{display:flex;justify-content:space-between;margin-top:6px;font:400 13px var(--ui);color:var(--label)}
+.va .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.va .cards .card{padding:12px 14px 14px;min-height:150px;display:flex;flex-direction:column}
+.va .cards .ch{font-size:15px}
+.va .big{margin-top:auto;font:700 30px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.va .big small{font:500 14px var(--ui);color:var(--label);margin-left:3px;letter-spacing:0}
+.va .sub{margin-top:4px;font:400 13px/1.3 var(--ui);color:var(--label)}
+.va .spark{display:flex;align-items:flex-end;gap:3px;height:28px;margin-top:8px}
+.va .spark i{flex:1;border-radius:2px;background:#E5E5EA}
+.va .spark i.on{background:var(--orange)}
+.va .pbar{height:6px;border-radius:3px;background:#E5E5EA;margin-top:10px;overflow:hidden}.va .pbar i{display:block;height:100%;width:27%;background:var(--green);border-radius:3px}
+.va .list{padding:0}
+.va .list li{display:grid;grid-template-columns:56px 1fr auto 14px;gap:10px;align-items:center;padding:12px 16px;font-size:17px}
+.va .list li + li{border-top:1px solid var(--sep);margin-left:16px;padding-left:0}
+.va .list time{font:400 15px var(--ui);color:var(--label);font-variant-numeric:tabular-nums}
+.va .list .v{font:400 15px var(--ui);color:var(--label)}
+.va .list li.live,.va .list li.live time,.va .list li.live .v{color:var(--blue)}
+.va .list li.done{color:var(--label)}
+.va .plan{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+.va .plan b{display:block;font:600 17px/1.25 var(--ui)}
+.va .plan span{display:block;font:400 14px var(--ui);color:var(--label);margin-top:2px}
+.va .btn{height:36px;padding:0 16px;border-radius:18px;background:var(--blue);color:#fff;font:600 15px var(--ui)}
+.va .btn.grey{background:#E5E5EA;color:#1C1C1E}
+.va .inbox{display:grid;grid-template-columns:auto 1fr 14px;gap:12px;align-items:center;margin-top:12px}
+.va .inbox .n{font:700 28px/1 var(--round);color:var(--orange)}
+.va .inbox b{display:block;font:600 17px var(--ui)}.va .inbox span{display:block;font:400 14px var(--ui);color:var(--label)}
+.va .foot{margin:16px 4px 0;font:400 13px/1.4 var(--ui);color:var(--label);text-align:center}
+.va .avatar{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%)}
+
+/* ============ B · RINGS (Apple Fitness) ============ */
+.vb{--card:#1C1C1E;--label:#8E8E93;--sep:rgba(255,255,255,.1);--move:#FA114F;--ex:#A6FF00;--stand:#00D8FF}
+.vb .nav{display:flex;align-items:flex-end;justify-content:space-between;padding:4px 4px 0}
+.vb .date{font:600 13px var(--ui);letter-spacing:.02em;color:var(--label);text-transform:uppercase}
+.vb h1{margin:2px 4px 14px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.vb .card{background:var(--card);border-radius:18px;padding:14px 16px}
+.vb .hero{display:grid;grid-template-columns:168px 1fr;gap:14px;align-items:center;padding:16px 14px}
+.vb .ringset{position:relative;width:168px;height:168px}
+.vb .ringset svg{width:168px;height:168px;transform:rotate(-90deg)}
+.vb .ringset circle{fill:none;stroke-width:16;stroke-linecap:round}
+.vb .ringset .t1{stroke:rgba(250,17,79,.22)}.vb .ringset .t2{stroke:rgba(166,255,0,.2)}.vb .ringset .t3{stroke:rgba(0,216,255,.2)}
+.vb .ringset .a1{stroke:var(--move);stroke-dasharray:452;stroke-dashoffset:330}
+.vb .ringset .a2{stroke:var(--ex);stroke-dasharray:352;stroke-dashoffset:0}
+.vb .ringset .a3{stroke:rgba(0,216,255,.55);stroke-dasharray:4 8;stroke-width:6}
+.vb .stats{display:flex;flex-direction:column;gap:10px}
+.vb .stat .k{font:600 12px var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--label)}
+.vb .stat .n{font:700 24px/1.05 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.vb .stat .n small{font:600 15px var(--round);opacity:.7}
+.vb .stat.move .n{color:var(--move)}.vb .stat.ex .n{color:var(--ex)}.vb .stat.stand .n{color:var(--stand)}
+.vb .record{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:12px}
+.vb .record .k{font:600 13px var(--ui);color:var(--label);text-transform:uppercase;letter-spacing:.03em}
+.vb .record b{display:block;font:600 18px/1.25 var(--ui);margin-top:2px}
+.vb .record .fig{font:700 17px var(--round);color:var(--move)}
+.vb .medal{width:44px;height:44px;border-radius:50%;background:conic-gradient(from 200deg,#ffd76a,#e0a12b,#ffe89a,#c98a1d,#ffd76a);box-shadow:0 0 0 3px #1C1C1E,0 0 0 4px rgba(255,215,106,.5);display:grid;place-items:center;font:800 15px var(--round);color:#3a2a05}
+.vb .trend{list-style:none;margin:0;padding:0}
+.vb .trend li{display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--sep);font-size:17px}
+.vb .trend li:first-child{border-top:0;padding-top:2px}
+.vb .trend .arr{font:700 20px var(--round);text-align:center}
+.vb .trend .up{color:var(--ex)}.vb .trend .dn{color:var(--move)}.vb .trend .flat{color:var(--label)}
+.vb .trend .v{font:600 16px var(--round);color:var(--label);font-variant-numeric:tabular-nums}
+.vb .list{padding:0}
+.vb .list li{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:12px 16px;font-size:17px}
+.vb .list li + li{border-top:1px solid var(--sep)}
+.vb .list time{font:400 15px var(--ui);color:var(--label);font-variant-numeric:tabular-nums}
+.vb .list .v{font:400 15px var(--ui);color:var(--label)}
+.vb .list li.live,.vb .list li.live time,.vb .list li.live .v{color:var(--stand)}
+.vb .list li.done{color:var(--label)}
+.vb .awards{display:flex;gap:14px;padding:16px}
+.vb .award{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;font:500 13px/1.3 var(--ui);color:var(--label);text-align:center}
+.vb .award .medal{width:64px;height:64px;font-size:22px}
+.vb .award .medal.g2{background:conic-gradient(from 200deg,#a6ff00,#3fb53d,#d6ffa0,#2f8f2e,#a6ff00);box-shadow:0 0 0 3px #1C1C1E,0 0 0 4px rgba(166,255,0,.4);color:#0f2a05}
+.vb .plan{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;margin-top:12px}
+.vb .plan b{display:block;font:600 17px/1.25 var(--ui)}.vb .plan span{display:block;font:400 14px var(--ui);color:var(--label);margin-top:2px}
+.vb .btn{height:36px;padding:0 16px;border-radius:18px;background:var(--ex);color:#0b1a00;font:600 15px var(--ui)}
+
+/* ============ C · GLASS (iOS 26 · Weather) ============ */
+.vc{position:relative}
+.vc::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  radial-gradient(120% 70% at 50% 110%,rgba(255,160,90,.55),rgba(255,160,90,0) 60%),
+  radial-gradient(80% 50% at 20% 20%,rgba(120,180,255,.35),rgba(120,180,255,0) 60%),
+  linear-gradient(180deg,#071a3d 0%,#0b2a55 38%,#1c4f8f 66%,#5a7fb8 86%,#d9946a 100%)}
+.vc .wx{text-align:center;padding:6px 0 18px;text-shadow:0 1px 12px rgba(0,0,0,.25)}
+.vc .city{font:400 30px/1.1 var(--ui);letter-spacing:-.01em}
+.vc .temp{display:block;font:200 96px/1 var(--ui);letter-spacing:-.04em;margin:2px 0 0}
+.vc .temp small{font:300 34px var(--ui);letter-spacing:0;vertical-align:top;position:relative;top:14px}
+.vc .cond{display:block;font:500 19px var(--ui);margin-top:2px}
+.vc .hilo{display:block;font:500 19px var(--ui);opacity:.85;margin-top:2px}
+.vc .glass{border-radius:22px;background:rgba(255,255,255,.14);backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);box-shadow:0 0 0 .5px rgba(255,255,255,.3),0 1px 0 rgba(255,255,255,.35) inset,0 14px 34px -18px rgba(0,0,0,.45);padding:12px 14px}
+.vc .gh{display:flex;align-items:center;gap:6px;font:600 12px var(--ui);letter-spacing:.04em;text-transform:uppercase;opacity:.7;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.18);margin-bottom:10px}
+.vc .hours{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.vc .hr{display:flex;flex-direction:column;align-items:center;gap:6px;font:500 13px var(--ui)}
+.vc .hr .t{opacity:.85}
+.vc .hr .ic{width:24px;height:24px;display:grid;place-items:center;font-size:18px}
+.vc .hr .l{font:600 14px var(--ui)}
+.vc .hr.now .t{font-weight:700;opacity:1}
+.vc .hr .dot{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 10px #fff}
+.vc .tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.vc .tile{min-height:160px;display:flex;flex-direction:column}
+.vc .tile .big{font:300 42px/1 var(--ui);letter-spacing:-.03em;margin:4px 0 2px}
+.vc .tile .big small{font:400 18px var(--ui);letter-spacing:0;opacity:.8}
+.vc .tile p{margin:auto 0 0;font:400 14px/1.35 var(--ui);opacity:.85}
+.vc .rings4{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:2px}
+.vc .r{display:flex;flex-direction:column;align-items:center;gap:4px;font:600 10.5px var(--ui);letter-spacing:.04em;text-transform:uppercase;opacity:.9}
+.vc .r svg{width:44px;height:44px;transform:rotate(-90deg)}
+.vc .r circle{fill:none;stroke-width:5;stroke-linecap:round}
+.vc .r .tr{stroke:rgba(255,255,255,.22)}.vc .r .ar{stroke:#fff;stroke-dasharray:119.4}
+.vc .r .ab{stroke:rgba(255,255,255,.55);stroke-dasharray:3 5}
+.vc .pillw{align-self:flex-start;margin-top:10px;height:34px;padding:0 14px;border-radius:17px;background:rgba(255,255,255,.9);color:#0b2a55;font:600 14px var(--ui)}
+.vc .lamps{display:grid;grid-template-columns:repeat(3,14px);gap:8px;margin-top:6px}
+.vc .lamps i{width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.25)}
+.vc .lamps i.lit{background:#ffd27a;box-shadow:0 0 10px #ffd27a}
+
+/* ============ D · PAPER (Apple News · Journal) ============ */
+.vd{--label:#6E6E73;--sep:rgba(60,60,67,.14)}
+.vd .kicker{font:600 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--label);margin:4px 2px 10px}
+.vd h1{margin:0 0 12px;font:400 36px/1.08 var(--ny);letter-spacing:-.015em;text-wrap:balance}
+.vd .lede{margin:0 0 18px;font:400 20px/1.42 var(--ny);color:#2c2c2e;text-wrap:pretty}
+.vd .lede b{font-weight:700;color:#1C1C1E}
+.vd .stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--sep);border-bottom:1px solid var(--sep);padding:12px 0}
+.vd .stat{padding:0 10px;border-left:1px solid var(--sep)}
+.vd .stat:first-child{border-left:0;padding-left:2px}
+.vd .stat .k{font:600 11.5px var(--ui);letter-spacing:.05em;text-transform:uppercase;color:var(--label)}
+.vd .stat .n{font:600 26px/1.1 var(--ui);letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.vd .stat .n small{font:500 13px var(--ui);color:var(--label);letter-spacing:0;margin-left:2px}
+.vd .stat .s{margin-top:6px;height:18px;display:flex;align-items:flex-end;gap:2px}
+.vd .stat .s i{flex:1;background:#E5E5EA;border-radius:1px}
+.vd .stat .s i.on{background:#1C1C1E}
+.vd .stat .s.bar{height:6px;background:#E5E5EA;border-radius:3px;display:block;overflow:hidden}.vd .stat .s.bar i{display:block;height:100%;width:27%;background:#1C1C1E;border-radius:3px}
+.vd h3{margin:26px 0 10px;font:700 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--label)}
+.vd .tl{list-style:none;margin:0;padding:0}
+.vd .tl li{display:grid;grid-template-columns:52px 14px 1fr;gap:10px;align-items:baseline;padding:8px 0;font:400 17px var(--ui)}
+.vd .tl time{font:500 14px var(--mono);color:var(--label)}
+.vd .tl .d{width:10px;height:10px;border-radius:50%;border:2px solid #C7C7CC;justify-self:center;position:relative;top:2px}
+.vd .tl li.done .d{background:#1C1C1E;border-color:#1C1C1E}
+.vd .tl li.live .d{background:var(--blue);border-color:var(--blue);box-shadow:0 0 0 4px rgba(0,122,255,.15)}
+.vd .tl li.live{color:var(--blue)}.vd .tl li.live time{color:var(--blue)}
+.vd .tl li.done{color:var(--label)}
+.vd .tl .v{color:var(--label);font-size:15px;margin-left:8px}
+.vd .next{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--sep);border-bottom:1px solid var(--sep)}
+.vd .next b{display:block;font:600 18px/1.25 var(--ui)}
+.vd .next span{display:block;font:400 15px var(--ui);color:var(--label);margin-top:2px}
+.vd .btn{height:36px;padding:0 16px;border-radius:18px;background:#1C1C1E;color:#fff;font:600 15px var(--ui)}
+.vd blockquote{margin:22px 0 6px;padding:0 0 0 16px;border-left:3px solid #1C1C1E;font:italic 400 22px/1.35 var(--ny);color:#2c2c2e;text-wrap:pretty}
+.vd .cite{margin:8px 0 0 19px;font:400 14px var(--ui);color:var(--label)}
+.vd .waiting{display:grid;grid-template-columns:auto 1fr 14px;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--sep);margin-top:22px}
+.vd .waiting .n{font:600 34px/1 var(--ui);letter-spacing:-.02em}
+.vd .waiting b{display:block;font:600 17px var(--ui)}.vd .waiting span{display:block;font:400 14px var(--ui);color:var(--label)}
+</style>
+</head>
+<body data-v="a">
+
+<nav class="switch" aria-label="Idiom">
+  <div class="inner">
+    <div class="seg" role="tablist">
+      <button role="tab" data-v="a" aria-pressed="true">A · Summary</button>
+      <button role="tab" data-v="b" aria-pressed="false">B · Rings</button>
+      <button role="tab" data-v="c" aria-pressed="false">C · Glass</button>
+      <button role="tab" data-v="d" aria-pressed="false">D · Paper</button>
+    </div>
+    <p class="tally" id="tally"></p>
+  </div>
+</nav>
+
+<div class="phone">
+
+<!-- ================= A · SUMMARY ================= -->
+<main id="a" class="view va" data-tally="<b>A · Summary</b> (Apple Health) · one highlight, five pinned cards you Edit, Today, Up next · light, white cards, system colours">
+  <div class="nav rise" style="--i:0"><span class="date">Saturday 26 September</span><span class="avatar" aria-label="Nova"></span></div>
+  <h1 class="rise" style="--i:1">Good afternoon</h1>
+
+  <section class="card hl rise" style="--i:2">
+    <div class="ch c-green"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Protein<span class="time">15:40</span></div>
+    <p>You're <b>110 g</b> under today's floor, with one meal left before Cook at 21:45.</p>
+    <div class="bar"><i style="width:27%"></i></div>
+    <div class="axis"><span>40 g</span><span>150 g</span></div>
+  </section>
+
+  <div class="sechead rise" style="--i:3"><h2>Pinned</h2><a>Edit</a></div>
+  <div class="cards">
+    <section class="card rise" style="--i:4"><div class="ch c-green"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Protein</div><div class="big">40<small>g of 150</small></div><div class="pbar"><i></i></div></section>
+    <section class="card rise" style="--i:5"><div class="ch c-orange"><svg viewBox="0 0 24 24"><path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3 1-6 1-8z"/></svg>Steps</div><div class="big">10,030</div><div class="spark"><i style="height:40%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:90%"></i><i style="height:60%"></i><i style="height:80%"></i><i class="on" style="height:100%"></i></div></section>
+    <section class="card rise" style="--i:6"><div class="ch c-teal"><svg viewBox="0 0 24 24"><path d="M3 12h18M5 12V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v4M3 12v6M21 12v6"/></svg>Sleep</div><div class="big" style="color:#8E8E93">—</div><div class="sub">No data reached Nova overnight</div></section>
+    <section class="card rise" style="--i:7"><div class="ch c-red"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>Recovery</div><div class="big">71<small>ms HRV</small></div><div class="sub">Resting 52 bpm · yesterday</div></section>
+    <section class="card rise" style="--i:8"><div class="ch c-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Weight</div><div class="big">80.4<small>kg</small></div><div class="sub">−0.1 kg over 14 days</div></section>
+    <section class="card rise" style="--i:9"><div class="ch c-blue"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Training</div><div class="big">Push</div><div class="sub">Done this morning · a record on the incline press</div></section>
+  </div>
+
+  <div class="sechead rise" style="--i:10"><h2>Today</h2><a>Calendar</a></div>
+  <section class="card list rise" style="--i:11"><ul style="list-style:none;margin:0;padding:0">
+    <li class="done"><time>10:00</time><span>Cook</span><span class="v">40 g logged</span><span class="chev">›</span></li>
+    <li class="live"><time>12:30</time><span>Birthday lunch</span><span class="v">until 19:30</span><span class="chev">›</span></li>
+    <li><time>21:30</time><span>Night routine</span><span class="v">in 5h 50m</span><span class="chev">›</span></li>
+    <li><time>21:45</time><span>Cook</span><span class="v">110 g to find</span><span class="chev">›</span></li>
+  </ul></section>
+
+  <div class="sechead rise" style="--i:12"><h2>Up next</h2></div>
+  <section class="card plan rise" style="--i:13"><div><b>The podcast write-up</b><span>On the plan four days · in the 15:30 block</span></div><button class="btn">Start</button></section>
+  <section class="card inbox rise" style="--i:14"><span class="n">15</span><div><b>Waiting for your call</b><span>Cold water and recovery, an evidence review</span></div><span class="chev">›</span></section>
+  <p class="foot rise" style="--i:15">Edit Pinned to choose what appears here.</p>
+</main>
+
+<!-- ================= B · RINGS ================= -->
+<main id="b" class="view vb" hidden data-tally="<b>B · Rings</b> (Apple Fitness) · one hero of rings with the numbers beside it, a record, Trends, Today, Awards · black, SF Rounded">
+  <div class="nav rise" style="--i:0"><span class="date">Saturday 26 September</span><span class="orb" style="width:32px;height:32px"></span></div>
+  <h1 class="rise" style="--i:1">Good afternoon</h1>
+
+  <section class="card hero rise" style="--i:2">
+    <div class="ringset" aria-label="Protein 27 percent, steps complete, recovery unknown">
+      <svg viewBox="0 0 168 168"><circle class="t1" cx="84" cy="84" r="72"/><circle class="a1" cx="84" cy="84" r="72"/><circle class="t2" cx="84" cy="84" r="56"/><circle class="a2" cx="84" cy="84" r="56"/><circle class="t3" cx="84" cy="84" r="40"/><circle class="a3" cx="84" cy="84" r="40"/></svg>
+    </div>
+    <div class="stats">
+      <div class="stat move"><div class="k">Protein</div><div class="n">40<small>/150G</small></div></div>
+      <div class="stat ex"><div class="k">Steps</div><div class="n">10,030<small>/10K</small></div></div>
+      <div class="stat stand"><div class="k">Recovery</div><div class="n">—<small> NO HRV YET</small></div></div>
+    </div>
+  </section>
+
+  <section class="card record rise" style="--i:3"><div><div class="k">Push · done · this morning</div><b>Incline Dumbbell Press, heaviest yet</b><div class="fig">30 kg × 10 · ▲2.5</div></div><span class="medal">1</span></section>
+
+  <div class="sechead rise" style="--i:4"><h2>Trends</h2><a>Show more</a></div>
+  <section class="card rise" style="--i:5"><ul class="trend">
+    <li><span class="arr up">↑</span><span>Steps</span><span class="v">10,030</span></li>
+    <li><span class="arr dn">↓</span><span>Protein</span><span class="v">27%</span></li>
+    <li><span class="arr flat">→</span><span>Sleep</span><span class="v">no data</span></li>
+    <li><span class="arr dn">↓</span><span>HRV</span><span class="v">71 ms</span></li>
+  </ul></section>
+
+  <div class="sechead rise" style="--i:6"><h2>Today</h2><a>Calendar</a></div>
+  <section class="card list rise" style="--i:7"><ul style="list-style:none;margin:0;padding:0">
+    <li class="done"><time>10:00</time><span>Cook</span><span class="v">40 g logged</span></li>
+    <li class="live"><time>12:30</time><span>Birthday lunch</span><span class="v">until 19:30</span></li>
+    <li><time>21:30</time><span>Night routine</span><span class="v">in 5h 50m</span></li>
+    <li><time>21:45</time><span>Cook</span><span class="v">110 g to find</span></li>
+  </ul></section>
+
+  <section class="card plan rise" style="--i:8"><div><b>The podcast write-up</b><span>On the plan four days · in the 15:30 block</span></div><button class="btn">Start</button></section>
+
+  <div class="sechead rise" style="--i:9"><h2>Awards</h2><a>Show all</a></div>
+  <section class="card awards rise" style="--i:10">
+    <div class="award"><span class="medal">4</span>4-session workout streak</div>
+    <div class="award"><span class="medal g2">3</span>3-day step goal streak</div>
+    <div class="award"><span class="medal" style="background:#2C2C2E;box-shadow:0 0 0 3px #1C1C1E,0 0 0 4px #3A3A3C;color:#8E8E93">15</span>Waiting in the Inbox</div>
+  </section>
+</main>
+
+<!-- ================= C · GLASS ================= -->
+<main id="c" class="view vc" hidden data-tally="<b>C · Glass</b> (iOS 26 Liquid Glass, Weather manner) · a sky for the hour, one giant number, an hourly strip, glass tiles · the tab bar is clear glass">
+  <div class="wx rise" style="--i:0">
+    <div class="city">Good afternoon</div>
+    <span class="temp">110<small>g</small></span>
+    <span class="cond">to close before Cook at 21:45</span>
+    <span class="hilo">Protein 40 · Steps 10k · No sleep data yet</span>
+  </div>
+
+  <section class="glass rise" style="--i:1">
+    <div class="gh">◔ Today</div>
+    <div class="hours">
+      <div class="hr"><span class="t">10:00</span><span class="ic">🍳</span><span class="l">40 g</span></div>
+      <div class="hr now"><span class="t">Now</span><span class="ic"><span class="dot"></span></span><span class="l">Lunch</span></div>
+      <div class="hr"><span class="t">15:30</span><span class="ic">✎</span><span class="l">Work</span></div>
+      <div class="hr"><span class="t">19:30</span><span class="ic">◌</span><span class="l">Free</span></div>
+      <div class="hr"><span class="t">21:30</span><span class="ic">☾</span><span class="l">Night</span></div>
+      <div class="hr"><span class="t">21:45</span><span class="ic">🍳</span><span class="l">110 g</span></div>
+    </div>
+  </section>
+
+  <div class="tiles">
+    <section class="glass tile rise" style="--i:2"><div class="gh">○ Body</div>
+      <div class="rings4">
+        <div class="r"><svg viewBox="0 0 44 44"><circle class="tr" cx="22" cy="22" r="19"/><circle class="ar" cx="22" cy="22" r="19" style="stroke-dashoffset:87"/></svg>Protein</div>
+        <div class="r"><svg viewBox="0 0 44 44"><circle class="tr" cx="22" cy="22" r="19"/><circle class="ar" cx="22" cy="22" r="19" style="stroke-dashoffset:0"/></svg>Steps</div>
+        <div class="r"><svg viewBox="0 0 44 44"><circle class="ab" cx="22" cy="22" r="19"/></svg>Sleep</div>
+        <div class="r"><svg viewBox="0 0 44 44"><circle class="ab" cx="22" cy="22" r="19"/></svg>Ready</div>
+      </div></section>
+    <section class="glass tile rise" style="--i:3"><div class="gh">◷ The plan</div><div class="big">4<small>d</small></div><p>The podcast write-up, stuck since Tuesday. It sits in the 15:30 block.</p><button class="pillw">Start it</button></section>
+    <section class="glass tile rise" style="--i:4"><div class="gh">▤ Waiting</div><div class="big">15</div><p>For your call. Cold water and recovery is first.</p></section>
+    <section class="glass tile rise" style="--i:5"><div class="gh">★ A record</div><div class="big">1</div><p>Incline Dumbbell Press · 30 kg × 10 · heaviest yet ▲2.5</p></section>
+    <section class="glass tile rise" style="--i:6"><div class="gh">◍ Practice</div><div class="lamps"><i class="lit"></i><i class="lit"></i><i></i><i></i><i></i><i></i></div><p>Next: a colleague dismisses your feedback.</p></section>
+    <section class="glass tile rise" style="--i:7"><div class="gh">◉ Agents</div><div class="big">7</div><p>Live. Researcher and Watcher are working now.</p></section>
+  </div>
+</main>
+
+<!-- ================= D · PAPER ================= -->
+<main id="d" class="view vd" hidden data-tally="<b>D · Paper</b> (Apple News · Journal) · one read as the lede in New York, three inline stats, a timeline, a pull quote · white, almost no colour">
+  <div class="kicker rise" style="--i:0">Nova · Saturday 26 September · 15:40</div>
+  <h1 class="rise" style="--i:1">Good afternoon, Hayden.</h1>
+  <p class="lede rise" style="--i:2">Recovery reads down and no sleep data has arrived. Protein sits at <b>40 of 150 grams</b>, 110 to close before Cook at 21:45. You did Push in place of Leg Day this morning and set a record on the incline press.</p>
+
+  <div class="stats rise" style="--i:3">
+    <div class="stat"><div class="k">Protein</div><div class="n">40<small>/150 g</small></div><div class="s bar"><i></i></div></div>
+    <div class="stat"><div class="k">Steps</div><div class="n">10,030</div><div class="s"><i style="height:40%"></i><i style="height:70%"></i><i style="height:55%"></i><i style="height:90%"></i><i style="height:60%"></i><i style="height:80%"></i><i class="on" style="height:100%"></i></div></div>
+    <div class="stat"><div class="k">HRV</div><div class="n">71<small>ms</small></div><div class="s"><i style="height:70%"></i><i style="height:60%"></i><i style="height:90%"></i><i style="height:50%"></i><i style="height:40%"></i><i style="height:35%"></i><i class="on" style="height:55%"></i></div></div>
+  </div>
+
+  <h3 class="rise" style="--i:4">Today</h3>
+  <ul class="tl rise" style="--i:5">
+    <li class="done"><time>10:00</time><span class="d"></span><span>Cook <span class="v">40 g logged</span></span></li>
+    <li class="live"><time>12:30</time><span class="d"></span><span>Birthday lunch <span class="v">until 19:30</span></span></li>
+    <li><time>21:30</time><span class="d"></span><span>Night routine <span class="v">in 5h 50m</span></span></li>
+    <li><time>21:45</time><span class="d"></span><span>Cook <span class="v">110 g to find</span></span></li>
+  </ul>
+
+  <h3 class="rise" style="--i:6">Up next</h3>
+  <div class="next rise" style="--i:7"><div><b>The podcast write-up</b><span>On the plan four days · in the 15:30 block</span></div><button class="btn">Start</button></div>
+
+  <blockquote class="rise" style="--i:8">When someone else has set the rules of an unwanted exchange, you can decline to play by stepping outside its logic.</blockquote>
+  <div class="cite rise" style="--i:9">Today's concept · from Thinking, Fast and Slow</div>
+
+  <div class="waiting rise" style="--i:10"><span class="n">15</span><div><b>Waiting for your call</b><span>Cold water and recovery, an evidence review</span></div><span class="chev">›</span></div>
+</main>
+
+</div>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row">
+    <div class="tabbar">
+      <span class="tab on"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab"><span class="badge">15</span><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg>Inbox</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn" aria-label="Talk to Nova"><span class="orb"></span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const sw=document.querySelector('.switch');const setH=()=>document.documentElement.style.setProperty('--switch-h',(sw.offsetHeight-(parseFloat(getComputedStyle(sw).paddingTop)||0)+8)+'px');
+  const tabs=[...document.querySelectorAll('.seg button')];const views={a:document.getElementById('a'),b:document.getElementById('b'),c:document.getElementById('c'),d:document.getElementById('d')};const tally=document.getElementById('tally');
+  function show(v){for(const k in views){views[k].hidden=k!==v;}document.body.dataset.v=v;tabs.forEach((t)=>t.setAttribute('aria-pressed',String(t.dataset.v===v)));tally.innerHTML=views[v].dataset.tally;setH();
+    try{localStorage.setItem('nova-home-apple',v);}catch(e){}window.scrollTo(0,0);
+    views[v].querySelectorAll('.rise').forEach((el)=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});}
+  tabs.forEach((t)=>t.addEventListener('click',()=>{show(t.dataset.v);history.replaceState(null,'','#'+t.dataset.v);}));
+  window.addEventListener('hashchange',()=>{const h=(location.hash||'').replace('#','');if(views[h])show(h);});
+  setH();window.addEventListener('resize',setH);
+  let v=(location.hash||'').replace('#','');if(!views[v]){try{v=localStorage.getItem('nova-home-apple')||'a';}catch(e){v='a';}}if(!views[v])v='a';show(v);
+})();
+</script>
+</body>
+</html>
