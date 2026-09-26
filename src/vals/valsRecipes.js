@@ -342,7 +342,13 @@ export function valsRecipes(app, ctx) {
     const selected = new Set(st.eatOutBrands || []);
     const brands = (summary?.brands || [])
       .filter((b) => (st.eatOutKind || 'all') === 'all' || b.kind === st.eatOutKind)
-      .map((b) => ({ key: b.key, name: b.name, kind: b.kind, count: b.count, active: selected.has(b.key), toggle: () => app.toggleEatOutBrand(b.key, prefill) }));
+      // a brand with nothing in it has nothing to offer a chip; a brand whose
+      // last refresh failed still searches (its old items are real) but says
+      // so on the chip — never quietly fresh
+      .filter((b) => b.count > 0)
+      .map((b) => ({ key: b.key, name: b.name, kind: b.kind, count: b.count, active: selected.has(b.key), stale: !!b.lastError,
+        title: b.lastError ? `${b.count} items · last refresh failed: ${b.lastError}` : `${b.count} items`,
+        toggle: () => app.toggleEatOutBrand(b.key, prefill) }));
     const macroBar = (m) => {
       const tot = (m.p + m.c + m.f) || 1;
       const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });

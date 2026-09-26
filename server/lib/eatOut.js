@@ -167,6 +167,10 @@ export function catalogueSummary(cat) {
     count: Array.isArray(b.items) ? b.items.length : 0,
     fetchedAt: b.fetchedAt || null,
     source: b.source || null,
+    // a run that failed says so here — the surface shows the brand as stale
+    // with the reason rather than quietly showing last time's items
+    lastError: b.lastError || null,
+    lastTriedAt: b.lastTriedAt || null,
   }));
   const total = brands.reduce((sum, b) => sum + b.count, 0);
   return { updatedAt: c.updatedAt || null, total, brands, missing: KNOWN_MISSING };

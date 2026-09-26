@@ -293,8 +293,8 @@ export function PickItUp({ v }) {
             {(k.brands.length > 0 || k.missing.length > 0) && (
               <Rail ariaLabel="Brands" style={{ margin: '0 -14px', padding: '2px 14px' }}>
                 {k.brands.map((b) => (
-                  <Chip key={b.key} tone={b.kind === 'supermarket' ? 'violet' : 'cyan'} active={b.active} onClick={b.toggle}
-                    title={`${b.count} items`} style={{ flex: 'none', whiteSpace: 'nowrap' }}>{b.name}</Chip>
+                  <Chip key={b.key} tone={b.stale ? 'gold' : b.kind === 'supermarket' ? 'violet' : 'cyan'} active={b.active} onClick={b.toggle}
+                    title={b.title} style={{ flex: 'none', whiteSpace: 'nowrap' }}>{b.name}{b.stale ? ' · stale' : ''}</Chip>
                 ))}
                 {k.missing.map((m) => (
                   <Tag key={m.name} tone="gold" title={m.why}

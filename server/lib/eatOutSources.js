@@ -16,7 +16,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { registerJobMap } from './jobRegistry.js';
-import { buildBrandRecord, saveBrand } from './eatOut.js';
+import { buildBrandRecord, saveBrand, loadCatalogue } from './eatOut.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -112,11 +112,17 @@ async function fetchOffPage(brand, page, deps) {
     if (!res.ok) throw new Error(`OFF search failed: ${res.status}`);
     return res.json();
   };
-  try {
-    return await attempt();
-  } catch {
-    await sleep(10_000);
-    return attempt();
+  // A 503 is what OFF says when it is being asked too often (two refreshes
+  // at once did it on 26 Sep). Three tries, backing off 10 s, 30 s, 60 s,
+  // before the brand is given up for this run.
+  const waits = [10_000, 30_000, 60_000];
+  for (let i = 0; ; i += 1) {
+    try {
+      return await attempt();
+    } catch (e) {
+      if (i >= waits.length) throw e;
+      await sleep(waits[i]);
+    }
   }
 }
 
@@ -197,6 +203,14 @@ function runPdfParse(brand, pdfPath, deps) {
         if (!jsonMatch) throw new Error(text.slice(0, 200) || 'no response received');
         const parsed = parseModelJson(jsonMatch[0]);
         const items = Array.isArray(parsed?.items) ? parsed.items : [];
+        // the raw answer stays beside the PDF: a receipt that says "0 added"
+        // is worthless unless what the model actually said can be read back
+        writeFile(`${pdfPath}.parse.json`, stdout).catch(() => {});
+        // NO ROWS IS AN ERROR, NOT A RESULT (26 Sep): the first live run
+        // reported Guzman y Gomez as 0 added / 0 rejected / no error, and
+        // nothing could say why. An empty sheet does not exist; an empty
+        // answer is the model failing, and the receipt has to name it.
+        if (!items.length) throw new Error(`the model returned no items: ${(parsed?.problem || text).slice(0, 160)}`);
         resolve({ rawRows: items, error: null });
       } catch (e) {
         resolve({ rawRows: [], error: e.message });
@@ -219,7 +233,6 @@ async function refreshPdfBrand(brand, deps) {
     return { key: brand.key, name: brand.name, added: 0, rejected: 0, error: laneOffError('eat-out-menu').message };
   }
   const { rawRows, error } = await runPdfParse(brand, pdfPath, deps);
-  if (error) return { key: brand.key, name: brand.name, added: 0, rejected: 0, error };
   const record = buildBrandRecord({
     key: brand.key,
     name: brand.name,
@@ -228,8 +241,8 @@ async function refreshPdfBrand(brand, deps) {
     fetchedAt: new Date().toISOString(),
     rawRows,
   });
-  await saveBrand(brand.key, record);
-  return { key: brand.key, name: brand.name, added: record.items.length, rejected: record.rejected, error: null };
+  if (error && !(await loadCatalogue()).brands?.[brand.key]) return { key: brand.key, name: brand.name, added: 0, rejected: 0, error };
+  return finishBrand(brand, record, error);
 }
 
 async function refreshOffBrand(brand, deps) {
@@ -242,7 +255,22 @@ async function refreshOffBrand(brand, deps) {
     fetchedAt: new Date().toISOString(),
     rawRows,
   });
-  await saveBrand(brand.key, record);
+  return finishBrand(brand, record, error);
+}
+
+// A FAILED RUN NEVER REPLACES A GOOD RECORD (26 Sep 2026). The first live
+// refresh met a run of 503s and wrote six brands as empty — and the summary
+// could not even say they had failed. Now: when a run errors and the record
+// it produced is no better than what is on disk, the old items stay and the
+// error is written beside them; either way the error rides the record so the
+// surface can show it.
+async function finishBrand(brand, record, error) {
+  const prev = (await loadCatalogue()).brands?.[brand.key] || null;
+  if (error && prev && (prev.items || []).length >= record.items.length) {
+    await saveBrand(brand.key, { ...prev, lastError: error, lastTriedAt: record.fetchedAt });
+    return { key: brand.key, name: brand.name, added: 0, kept: prev.items.length, rejected: 0, error };
+  }
+  await saveBrand(brand.key, { ...record, lastError: error || null });
   return { key: brand.key, name: brand.name, added: record.items.length, rejected: record.rejected, error: error || null };
 }
 

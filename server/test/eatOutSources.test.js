@@ -209,3 +209,31 @@ test('PDF refresh: a bad PDF download (no %PDF header) records error, no throw',
   const entry = job.result.perBrand.find((b) => b.key === brand.key);
   assert.ok(entry.error);
 });
+
+/* ------------------------ a failed run keeps the good record ------------------------ */
+
+test('OFF refresh: a brand that fails on a later run keeps its previous items and records the error', async () => {
+  const { loadCatalogue } = await import('../lib/eatOut.js');
+  const brand = OFF_BRANDS[0];
+  const good = { count: 1, products: [{ product_name: 'Katsu Chicken', serving_size: '1 portion (365 g)', nutriments: { proteins_serving: 40, carbohydrates_serving: 71.5, fat_serving: 5.7, 'energy-kcal_serving': 504 } }] };
+  const okFetch = async () => ({ ok: true, json: async () => good });
+  const sleep = async () => {};
+  const first = startEatOutRefresh({ brands: [brand.key] }, { fetch: okFetch, sleep });
+  await waitFor(() => { const j = getEatOutRefreshJob(first); return j.status !== 'running' ? j : null; });
+  assert.equal((await loadCatalogue()).brands[brand.key].items.length, 1);
+
+  // the next run meets nothing but 503s: three retries, then give up
+  let calls = 0;
+  const badFetch = async () => { calls += 1; return { ok: false, status: 503 }; };
+  const second = startEatOutRefresh({ brands: [brand.key] }, { fetch: badFetch, sleep });
+  const job = await waitFor(() => { const j = getEatOutRefreshJob(second); return j.status !== 'running' ? j : null; });
+  const entry = job.result.perBrand.find((b) => b.key === brand.key);
+  assert.match(entry.error, /503/);
+  assert.equal(entry.kept, 1);
+  assert.equal(calls, 4, 'one attempt plus three retries');
+  const rec = (await loadCatalogue()).brands[brand.key];
+  assert.equal(rec.items.length, 1, 'the good record survived');
+  assert.match(rec.lastError, /503/);
+  const { catalogueSummary } = await import('../lib/eatOut.js');
+  assert.match(catalogueSummary(await loadCatalogue()).brands.find((b) => b.key === brand.key).lastError, /503/);
+});
