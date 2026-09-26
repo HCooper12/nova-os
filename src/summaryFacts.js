@@ -17,6 +17,9 @@ export function shortLabel(label, max = 11) {
   if (!words.length) return cleaned;
   let out = words[0]; // at least one word, even if it alone runs over max
   for (let i = 1; i < words.length; i++) {
+    // a standalone dash or bullet is a boundary: what follows it is the
+    // detail, and "Gym — push" is a worse pill than "Gym"
+    if (/^[—–\-·]$/.test(words[i])) break;
     const next = `${out} ${words[i]}`;
     if (next.length > max) break;
     out = next;

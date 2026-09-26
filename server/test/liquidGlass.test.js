@@ -92,7 +92,12 @@ test('glass degrades to an OPAQUE surface, never to a see-through one', () => {
     '@media (prefers-contrast: more)',
   ]) assert.ok(CSS.includes(guard), `${guard} is not handled`);
 
-  const reduced = CSS.slice(CSS.indexOf('@media (prefers-reduced-transparency: reduce)'));
+  // anchored on the MATERIAL's own guard, not the first block of that media
+  // query in the file: other surfaces (the summary Home's .nv-sum-card, 26
+  // Sep) answer the same query with blocks of their own
+  const at = CSS.search(/@media \(prefers-reduced-transparency: reduce\) \{\s*\.nv-liquid \{/);
+  assert.ok(at > 0, 'the .nv-liquid reduced-transparency guard was not found');
+  const reduced = CSS.slice(at);
   const body = reduced.slice(0, reduced.indexOf('/* 3.'));
   assert.match(body, /backdrop-filter:\s*none/, 'reduced transparency must actually drop the blur');
   assert.match(body, /background:\s*var\(--nv-liquid-solid\)/, 'and land on a solid surface');

@@ -26,7 +26,9 @@ const UI = 'var(--nv-font-ui)';
 const S = 'var(--nv-font-serif)';
 const TONE = { behind: 'var(--nv-gold)', missed: 'var(--nv-warn)' };
 
-function DaysRing({ days, pct, tone, size = 46 }) {
+// Exported for the summary Home's plan card (MissionSummary.jsx), which draws
+// the same stuck promise with the same ring rather than a second copy of it.
+export function DaysRing({ days, pct, tone, size = 46 }) {
   const r = 19;
   const c = 2 * Math.PI * r;
   const stroke = TONE[tone] || TONE.behind;

@@ -193,7 +193,9 @@ function trainingCard(m, ctx) {
     : null;
   const prs = m.prMoment?.prs || [];
   const record = m.prMoment && prs.length
-    ? { count: prs.length, line: `${prs[0].name}, heaviest yet`, fig: `${prLift(prs[0])} · ${prBasis(prs[0])}` }
+    // the line names the lift; the fig carries the set and the basis (prBasis
+    // already says 'heaviest yet' or 'est. 1RM'), so the record is said once
+    ? { count: prs.length, line: prs[0].name, fig: `${prLift(prs[0])} · ${prBasis(prs[0])}` }
     : null;
   return { meta, title: m.workoutCardLabel, sub: m.workoutCardMeta, readiness, record, open: m.goWorkouts || ctx.go('workouts') };
 }

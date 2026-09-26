@@ -25,6 +25,7 @@ import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
+import { savePinned } from './pinned.js';
 import { depthOf, edgeDragInProgress } from './edgeBack.js';
 import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
@@ -45,6 +46,7 @@ import { valsMoney } from './vals/valsMoney.js';
 import { valsMission } from './vals/valsMission.js';
 import { valsOps } from './vals/valsOps.js';
 import { valsChrome } from './vals/valsChrome.js';
+import { valsSummary } from './vals/valsSummary.js';
 import { Sidebar } from './Sidebar.jsx';
 // THE DAILY FIVE — statically imported, never lazy. These are what a session
 // actually opens on: Mission (the default screen), Voice (where the morning
@@ -506,6 +508,10 @@ export default class App extends Component {
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
     stepsOverlayOpen: false, stepsOverlayMode: 'steps', stepEditDate: null, stepEditValue: '', stepEditWeight: '', moneyRemoveConfirm: null,
     tabOrder: getTabOrder(),
+    // the summary Home's Edit Pinned sheet (its own history entry, like the
+    // recipe), and a tick that re-renders Home when the pinned order changes
+    // (the order itself lives in localStorage, src/pinned.js)
+    pinnedEditOpen: false, pinnedTick: 0,
     focusSession: (() => {
       try {
         const f = JSON.parse(localStorage.getItem('novaos.focus') || 'null');
@@ -929,7 +935,7 @@ export default class App extends Component {
       // A SWIPE IS ITS OWN TRANSITION. The edge gesture animates two layers by
       // hand and navigates underneath them; running a view transition at the
       // same moment would cross-fade the thing it is already sliding.
-      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory() });
+      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pinnedFromHistory() });
       if (edgeDragInProgress()) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
@@ -3205,6 +3211,36 @@ export default class App extends Component {
     if (!onEntry && this.state.openRecipeId) { this.stopPoll('recipeTweak'); return RECIPE_CLOSED; }
     if (onEntry && !this.state.openRecipeId && st.recipeId) return { openRecipeId: st.recipeId };
     return {};
+  }
+  // EDIT PINNED (the summary Home, P2-B) gets a history entry of its own for
+  // the recipe's reason: the back swipe must close the sheet, not go back a
+  // tab underneath it. Same URL; only the entry's state says "pinned".
+  openPinnedEdit() {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'pinned') window.history.replaceState({ ...st }, '');
+      else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'pinned' }, '');
+    }
+    this.setState({ pinnedEditOpen: true });
+  }
+  // On its own entry, closing IS going back; popH does the closing.
+  closePinnedEdit() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'pinned') { window.history.back(); return; }
+    this.setState({ pinnedEditOpen: false });
+  }
+  // popstate's half: leaving the sheet's entry closes it, returning reopens it
+  pinnedFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'pinned';
+    if (!onEntry && this.state.pinnedEditOpen) return { pinnedEditOpen: false };
+    if (onEntry && !this.state.pinnedEditOpen) return { pinnedEditOpen: true };
+    return {};
+  }
+  // The Pinned order and switches persist straight away (src/pinned.js); the
+  // tick re-renders Home behind the sheet, so each change shows as he makes it.
+  setPinned(list) {
+    savePinned(list);
+    this.setState((s) => ({ pinnedTick: (s.pinnedTick || 0) + 1 }));
   }
   // The ✕-an-ingredient flow: marks collect, one save, a popup asks whether
   // it's today-only or a keepable alternative — then the existing tweak
@@ -6944,7 +6980,7 @@ export default class App extends Component {
       // used to stall on a chunk parse.
       warm: (screen) => () => warmScreen(screen),
     };
-    return {
+    const all = {
       ...valsRecipes(this, ctx),
       ...valsWorkouts(this, ctx),
       ...valsNotes(this, ctx),
@@ -6960,6 +6996,10 @@ export default class App extends Component {
       ...valsOps(this, ctx),
       ...valsChrome(this, ctx),
     };
+    // the summary Home reads fields from four of the builders above
+    // (practiceCard, macSessionsHeadline, goWorkouts, and valsMission's), so
+    // it takes the merged view model and goes last; null off `summary`
+    return { ...all, ...valsSummary(this, ctx, all) };
   }
 
   // A research job dispatched from the conversation: poll the SAME pending

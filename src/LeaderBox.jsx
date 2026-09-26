@@ -56,7 +56,7 @@ function Dots({ box }) {
   );
 }
 
-export function LeaderBox({ box, variant = 'apple', mob = false }) {
+export function LeaderBox({ box, variant = 'apple', mob = false, bare = false }) {
   // Hooks run unconditionally — useOptionPager itself returns an inert shape
   // when there is nothing to page between.
   const pager = useOptionPager({ onNext: box?.next || undefined, onPrev: box?.prev || undefined, enabled: !!(box && box.count > 1) });
@@ -159,6 +159,11 @@ export function LeaderBox({ box, variant = 'apple', mob = false }) {
       >{apple ? 'Open the Leader' : 'OPEN THE LEADER'}</Interactive>
     </div>
   );
+
+  // BARE: the same head, faces and door without this lit panel, for a
+  // surface that supplies its own card material (the summary Home's
+  // .nv-sum-card). Every other caller leaves it off and keeps the panel.
+  if (bare) return <div style={{ minWidth: 0 }}>{head}{body}{actions}</div>;
 
   return (
     <section

@@ -19,6 +19,12 @@ test('shortLabel keeps whole words under the limit and drops emoji', () => {
   assert.equal(shortLabel('Gym'), 'Gym');
 });
 
+test('shortLabel stops at a standalone dash or bullet: the detail after it never rides along', () => {
+  assert.equal(shortLabel('Gym — push day · wk 6'), 'Gym');
+  assert.equal(shortLabel('Deep work — video script'), 'Deep work');
+  assert.equal(shortLabel('Lunch · burrito bowl'), 'Lunch');
+});
+
 test('shortLabel never cuts a word in half, even one word over the limit', () => {
   // "Birthday" alone is 8 chars, "Birthday lunch" is 14 > 11 — stays at one word
   assert.equal(shortLabel('Birthday lunch', 11), 'Birthday');

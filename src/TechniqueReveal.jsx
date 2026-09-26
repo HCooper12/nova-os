@@ -22,7 +22,7 @@ const S = 'var(--nv-font-serif)';
 // becomes (both idioms render that card from the same view model), so when
 // the reel lands the card opens AROUND the name rather than cutting to it.
 // Only on a new day, once per day per device.
-export function TechniqueReveal({ t, variant = 'apple', mob = false }) {
+export function TechniqueReveal({ t, variant = 'apple', mob = false, bare = false }) {
   const apple = variant === 'apple';
   const panel = glowPanel('--nv-mg', apple ? { radius: '16px' } : {});
   const cta = (
@@ -32,11 +32,8 @@ export function TechniqueReveal({ t, variant = 'apple', mob = false }) {
       Reveal today’s technique
     </span>
   );
-  return (
-    <section className={panel.className} style={{
-      marginTop: '18px', padding: mob ? '15px 16px 14px' : '18px 20px 16px', ...panel.style,
-      ...(t.vtName ? { viewTransitionName: t.vtName } : {}),
-    }}>
+  const inner = (
+    <>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
         {apple
           ? <div style={{ font: `600 11px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>{t.modeLabel}</div>
@@ -62,6 +59,18 @@ export function TechniqueReveal({ t, variant = 'apple', mob = false }) {
         />
       </div>
       <div style={{ marginTop: '10px', font: `450 12px/1.45 ${UI}`, color: 'var(--nv-ink60)', textWrap: 'pretty' }}>{t.reel.caption}</div>
+    </>
+  );
+  // BARE: the reel without its lit panel, for a surface that supplies its own
+  // card material (the summary Home's .nv-sum-card, which also carries the
+  // view-transition name). Every other caller leaves it off.
+  if (bare) return <div style={{ minWidth: 0 }}>{inner}</div>;
+  return (
+    <section className={panel.className} style={{
+      marginTop: '18px', padding: mob ? '15px 16px 14px' : '18px 20px 16px', ...panel.style,
+      ...(t.vtName ? { viewTransitionName: t.vtName } : {}),
+    }}>
+      {inner}
     </section>
   );
 }

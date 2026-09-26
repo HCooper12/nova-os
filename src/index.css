@@ -785,6 +785,198 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   border-color: transparent;
 }
 
+/* ================================================================
+   THE SUMMARY HOME ITSELF (P2-B, 26 Sep 2026) — the classes that
+   src/screens/MissionSummary.jsx and src/PinnedEditSheet.jsx wear.
+   Every selector here names a .nv-sum-* class and nothing else in the
+   app uses one, so no rule below can reach a command or cupertino
+   screen. Values come from the --nv-sum-* tokens above, so a theme ×
+   material switch recolours all of it with no rule knowing themes exist.
+   ================================================================ */
+
+/* THE ENTRANCE. deckRise, one 40ms beat per --i. BACKWARDS, not both: a
+   `both` fill holds `transform:none` for as long as the card lives, and an
+   animation outranks inline styles, so every pressable card here would lose
+   Interactive's press scale the moment its entrance ended. The cards mount
+   once under stable keys, so nothing ever restarts it (AppleLayout.jsx has
+   the record of rows that did, and stayed invisible). */
+.nv-sum-rise {
+  animation: deckRise var(--nv-dur-base) var(--nv-ease) backwards;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+@media (prefers-reduced-motion: reduce) { .nv-sum-rise { animation: none; } }
+:root[data-nv-calm="1"] .nv-sum-rise { animation: none; }
+
+/* the card: the mockup's material, token for token */
+.nv-sum-card {
+  position: relative; min-width: 0; box-sizing: border-box;
+  border-radius: var(--nv-radius);
+  background: var(--nv-sum-card);
+  box-shadow: 0 0 0 .5px var(--nv-sum-card-ring), 0 1px 0 var(--nv-sum-card-hi) inset, var(--nv-sum-card-shadow);
+  -webkit-backdrop-filter: blur(var(--nv-sum-blur)) saturate(1.4);
+  backdrop-filter: blur(var(--nv-sum-blur)) saturate(1.4);
+}
+/* he asked the OS for less transparency: no blur, and a fill that stays
+   opaque rather than a see-through card over the sky */
+@media (prefers-reduced-transparency: reduce) {
+  .nv-sum-card {
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    background: color-mix(in srgb, var(--nv-void) 88%, white);
+  }
+}
+
+/* the Pinned grid: two columns; wide cards (and a half card left without a
+   partner, worked out in MissionSummary's layoutCards) take the whole row */
+.nv-sum-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.nv-sum-grid > .nv-sum-wide { grid-column: span 2; }
+.nv-sum-tile { display: flex; flex-direction: column; padding: 12px 14px 14px; }
+/* the 150px floor keeps a row of two half cards level; a card with the row
+   to itself hugs its content rather than carrying an empty band */
+.nv-sum-grid > .nv-sum-tile:not(.nv-sum-wide) { min-height: 150px; }
+
+/* a card's header row: the icon and the name in the card's hue, a quiet meta
+   on the right that wraps under it rather than off the card */
+.nv-sum-ch {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; min-width: 0;
+  font: 600 15px var(--nv-font-ui); letter-spacing: -.01em; color: var(--nv-ink);
+}
+.nv-sum-ico {
+  flex: none; width: 17px; height: 17px;
+  fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+}
+.nv-sum-ch-meta {
+  margin-left: auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  font: 400 14px var(--nv-font-ui); letter-spacing: 0; color: var(--nv-ink60); text-align: right;
+}
+
+/* the standfirst: the serif line, in the theme's two accents */
+.nv-sum-stand {
+  margin: 0 4px 14px; font: italic 400 21px/1.2 var(--nv-font-serif); text-wrap: balance;
+  background: linear-gradient(90deg, var(--nv-sum-stand-a), var(--nv-sum-stand-b));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* the highlight's bar. The fill sweeps in once (a clip, so the rounded end
+   never squashes the way a scaleX would) and eases between values after */
+@keyframes nvSumBarIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.nv-sum-bar { margin-top: 10px; height: 8px; border-radius: 4px; background: var(--nv-sum-track); overflow: hidden; }
+.nv-sum-bar > i {
+  display: block; height: 100%; border-radius: 4px;
+  transition: width .9s cubic-bezier(.2,.8,.2,1);
+  animation: nvSumBarIn .9s cubic-bezier(.2,.8,.2,1) .15s backwards;
+}
+
+/* a number with room to be one */
+.nv-sum-big {
+  margin-top: auto; padding-top: 10px;
+  font: 700 30px/1 var(--nv-font-round); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--nv-ink);
+}
+.nv-sum-sub {
+  margin-top: 4px; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink60);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* TODAY — the hourly strip. Columns never narrower than their longest word
+   (a label is whole words and is never cut); if six still do not fit,
+   MissionSummary's TodayStrip steps the type down, then lets the oldest slot go */
+.nv-sum-strip { display: grid; gap: 4px; margin-top: 10px; }
+.nv-sum-slot { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
+.nv-sum-slot > .t { font: 500 13px var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sum-slot.now > .t { font-weight: 700; color: var(--nv-ink); }
+.nv-sum-slot > .ic { width: 24px; height: 24px; display: grid; place-items: center; }
+.nv-sum-slot > .ic > i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--nv-ink40); }
+.nv-sum-slot.now > .ic > i { width: 8px; height: 8px; background: var(--nv-sum-c3); box-shadow: 0 0 10px var(--nv-sum-c3); }
+.nv-sum-slot > .l {
+  font: 600 14px/1.2 var(--nv-font-ui); color: var(--nv-ink);
+  overflow-wrap: normal; word-break: keep-all; hyphens: manual;
+}
+.nv-sum-slot.past { opacity: .55; }
+.nv-sum-strip[data-fit="1"] .l { font-size: 13px; }
+.nv-sum-strip[data-fit="2"] .l { font-size: 12px; }
+.nv-sum-next {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px;
+  margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--nv-sum-sep);
+  font: 400 15px/1.35 var(--nv-font-ui); color: var(--nv-ink60);
+}
+.nv-sum-next b { font-weight: 600; color: var(--nv-ink); }
+.nv-sum-next > .then { margin-left: auto; text-align: right; }
+
+/* TRENDS — arrow, name, the run */
+.nv-sum-trend { list-style: none; margin: 6px 0 0; padding: 0; }
+.nv-sum-trend > li + li { border-top: 1px solid var(--nv-sum-sep); }
+.nv-sum-trow {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 7px 0; font: 400 15.5px var(--nv-font-ui); color: var(--nv-ink);
+}
+.nv-sum-trow > .arr { font: 700 18px var(--nv-font-round); text-align: center; }
+.nv-sum-trow > .v { font: 600 15px var(--nv-font-round); color: var(--nv-ink60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* the record's medal (mockup 56): struck gold, the same in every theme,
+   the way a medal would be */
+.nv-sum-medal {
+  flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(from 200deg, #ffd76a, #e0a12b, #ffe89a, #c98a1d, #ffd76a);
+  box-shadow: 0 0 0 3px var(--nv-sum-card), 0 0 0 4px rgba(255, 215, 106, .5);
+  font: 800 15px var(--nv-font-round); color: #3a2a05;
+}
+
+/* THE EDIT SHEET — the iOS switch. A real <input type=checkbox switch> lies
+   invisible over the drawn track, so it is a control to the keyboard, to
+   VoiceOver and to the finger iOS fires its Taptic tick for (haptics.js). */
+.nv-sum-switch {
+  position: relative; flex: none; display: inline-block; width: 51px; height: 31px; border-radius: 999px;
+  background: color-mix(in srgb, var(--nv-ink) 16%, transparent);
+  transition: background-color 180ms cubic-bezier(.32,.72,0,1);
+}
+.nv-sum-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+  background: #fff; box-shadow: 0 3px 8px rgba(0, 0, 0, .15), 0 3px 1px rgba(0, 0, 0, .06);
+  transition: transform 180ms cubic-bezier(.32,.72,0,1); pointer-events: none;
+}
+.nv-sum-switch[data-on="true"] { background: var(--nv-sum-btn); }
+.nv-sum-switch[data-on="true"]::after { transform: translateX(20px); }
+/* Sky's button fill is near-white, which would swallow the white knob; its
+   green is the colour an iOS switch is on in anyway */
+:root[data-nv-theme="sky"] .nv-sum-switch[data-on="true"] { background: var(--nv-sum-c2); }
+.nv-sum-switch > input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.nv-sum-switch:has(> input:focus-visible) { outline: 2px solid var(--nv-acc-border); outline-offset: 2px; }
+
+/* a row: switch, name, grip. 52px tall; the hairline starts at the name, the
+   way an iOS list insets it. Other rows SLIDE aside on their own transition
+   while one is carried; the carried row has no transform transition at all,
+   so it stays under the finger 1:1 — only its lift (scale, shadow) eases.
+   The side padding is the lifted cell's own margin around its switch and
+   grip; the list gives the 2% lift room to grow (PinnedEditSheet.jsx). */
+.nv-sum-row {
+  position: relative; display: flex; align-items: center; gap: 14px;
+  box-sizing: border-box; height: 52px; padding: 0 6px 0 8px; border-radius: 12px;
+  transition: transform 180ms cubic-bezier(.32,.72,0,1);
+}
+.nv-sum-row + .nv-sum-row::before {
+  content: ''; position: absolute; top: 0; left: 73px; right: 6px; height: 1px;
+  background: var(--nv-sum-sep); pointer-events: none;
+}
+/* lifted: an OPAQUE cell (a translucent one let the row it passes over read
+   through it), a step lighter than the sheet so it sits above it */
+.nv-sum-row.drag {
+  z-index: 3; scale: 1.02;
+  background-color: color-mix(in srgb, var(--nv-ink) 9%, var(--nv-void));
+  box-shadow: 0 14px 32px -12px rgba(0, 0, 0, .7), 0 0 0 .5px var(--nv-sum-card-ring);
+  transition: scale 140ms cubic-bezier(.32,.72,0,1), box-shadow 140ms ease, background-color 140ms ease;
+}
+:root[data-nv-theme="daylight"] .nv-sum-row.drag { background-color: var(--nv-glass); }
+.nv-sum-row.drag::before { opacity: 0; }
+.nv-sum-grip {
+  flex: none; margin-left: auto; width: 44px; height: 52px; display: grid; place-items: center;
+  color: var(--nv-ink50); border-radius: 10px; cursor: grab;
+  touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
+.nv-sum-grip:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: -4px; }
+.nv-sum-row.drag .nv-sum-grip { cursor: grabbing; color: var(--nv-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .nv-sum-row, .nv-sum-row.drag, .nv-sum-switch, .nv-sum-switch::after { transition: none; }
+}
+
 /* shared panes for the new components */
 .nv-pane {
   position: relative;

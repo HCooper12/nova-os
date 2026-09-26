@@ -527,10 +527,7 @@ export function valsChrome(app, ctx) {
     appleStyle: st.novaStyle === 'apple' || st.novaStyle === 'cupertino' || st.novaStyle === 'summary',
     structured: st.novaStyle === 'cupertino' || st.novaStyle === 'summary',
     summary: st.novaStyle === 'summary',
-    // `summary` is wired (theme.js, index.css) but not OFFERED until the Home
-    // it names exists (design/HOME-REDESIGN-PLAN.md P2): switching to it today
-    // would show the cupertino layout on glass and read as finished.
-    novaStyleOptions: NOVA_STYLES.filter((s) => s.value !== 'summary').map((s) => ({ ...s, active: st.novaStyle === s.value, pick: () => app.setNovaStyle(s.value) })),
+    novaStyleOptions: NOVA_STYLES.map((s) => ({ ...s, active: st.novaStyle === s.value, pick: () => app.setNovaStyle(s.value) })),
     novaTheme: st.novaTheme,
     novaThemeOptions: NOVA_THEMES.filter((t) => !t.appleOnly || st.novaStyle === 'apple' || st.novaStyle === 'cupertino' || st.novaStyle === 'summary').map((t) => ({ ...t, active: st.novaTheme === t.value, pick: () => app.setNovaTheme(t.value) })),
     calmMode: st.calmMode,
