@@ -80,11 +80,27 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   are published for his morning at https://claude.ai/artifact/X2zxDCQBCCAXcbE9AaKf1H
   ("Home, Built"; republish with `url`) — shot.mjs gained --demo and
   --readonly in d419271; §2b amended in 787cf5e). P3 SHIPPED = b6107cc (SummaryDock + Index +
-  valsIndex + screenKeys; worktree removed). IN FLIGHT: the Inbox audit
-  (Sonnet, writes design/audits/redesign-2026-09/02-inbox.md; it seeds
-  public/_devconn.js for read-only real frames and MUST clean it — check
-  `ls public/_devconn*.js` is empty before trusting any shot or guard run).
-  Home rows → [b] once the guard is re-run green after that seed is gone. WAS IN FLIGHT: P2-B (Opus) —
+  valsIndex + screenKeys; worktree removed). INBOX AUDITED (6c5bd62,
+  design/audits/redesign-2026-09/02-inbox.md: CRITICAL ISSUES — 6,591px/8
+  screens Deck, 12,476px/15 List on his real vault, 109 taps, 11 type sizes,
+  7 verbs per card vs the Coach deck's 3; two real bugs: the digest do-all
+  no-ops on model-choice patterns (valsInbox.js:738), History promises
+  universal Undo while Guardian finds 53 records without undo data). Home
+  rows H1–H23 → [b]; the summary guard baseline recorded (24f118a; re-record
+  on purpose after a deliberate Home change). REAL-DATA LOOK (read-only,
+  00:26): the Home rendered his vault honestly (protein 0/150, steps 10,030,
+  sleep no data, 18 waiting, a stuck 4-day promise, the record, the
+  technique) and showed one wrong sentence — "150 g under today's floor"
+  during his Recharge block — fixed in e0bf6f1 (the highlight stands daily
+  totals down while the sleep block is live). Every load of the app on ANY
+  screen POSTs /api/notes/summary and /api/greet (pre-existing; the
+  read-only mode blocks them; noted for the Inbox/Home follow-ups). IN FLIGHT:
+  Inbox mockup round 1 (Opus → design/mockups/57-redesign-inbox.html, three
+  variations A deck-only · B Mail · C two doors, all in the Nova-glass
+  material) — publish it as an artifact for his morning when it lands.
+  READ-ONLY SHOTS: seed with `node scripts/dev-connect.mjs`, vite on 5183
+  (CORS allows only 5183/5173), `shot.mjs --readonly --style summary …`,
+  then `--clean` and check the seed is gone. WAS IN FLIGHT: P2-B (Opus) —
   the screen MissionSummary.jsx + PinnedEditSheet.jsx + MissionControl branch
   + App wiring (valsSummary spread AFTER valsChrome with the merged v) + the
   .nv-sum-* CSS + un-hiding Summary in Settings; brief at
