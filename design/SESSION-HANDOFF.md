@@ -70,6 +70,15 @@ a FIX FOR THE SERVER CRASHING ITSELF. All pushed (9a204d9), Pages success
   raw answer is at `server/data/eat-out/pdf/subway.pdf.parse.json`; compare
   before re-running (~$0.50 a read). No new setTypeOfService crash since the
   guard loaded (the count is still 5).
+- **LATER THE SAME MORNING (his answers):** McDONALD'S AND KFC ADDED
+  (e2bceea, `server/lib/eatOutChains.js`, no model: KFC's Yum ordering
+  catalogue by plain fetch; McDonald's `/dnaapp/itemList` from inside a
+  throwaway headless Chrome, since Akamai refuses anything else). Live
+  refresh 11:15 AEST: McDonald's 93, KFC 180; catalogue 869 items, 14
+  brands; only Grill'd and Hungry Jack's still missing. FORTNIGHTLY REFRESH
+  on: a 30-min tick starts a full refresh at 3–5am once the catalogue is 14+
+  days old (first due ~10 Oct). If it never fires, check the `eat-out` beat
+  in heartbeat.json and the server log for "eat-out: fortnightly".
 - **DO NOT:** run two catalogue refreshes at once (OFF answers 503 and six
   brands came back empty before the keep-on-error fix); leave
   `public/_devconn*.js` behind (seven token copies piled up from two
