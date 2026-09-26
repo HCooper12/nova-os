@@ -5,7 +5,7 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { addEntry, removeEntry, removeEntryOn, getToday, getDay, resolveLogDate } from '../lib/foodLog.js';
 import { computeFoodHistory } from '../lib/foodHistory.js';
-import { startFoodScan, startFoodDescribe, getFoodScanJob } from '../lib/scanFood.js';
+import { startFoodScan, startFoodDescribe, startFoodRefine, getFoodScanJob } from '../lib/scanFood.js';
 import { recordDaySnapshot } from '../lib/nutritionSnapshot.js';
 import { lookupBarcode } from '../lib/barcodeLookup.js';
 
@@ -155,6 +155,17 @@ export function foodLogRouter(vaultPath) {
   router.post('/food-log/describe', async (req, res) => {
     try {
       res.json({ jobId: startFoodDescribe(req.body?.text) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // correct an estimate in words, any number of times, before it is logged —
+  // the plate and his sentence, never the photo again (lib/foodRefine.js)
+  router.post('/food-log/refine', (req, res) => {
+    try {
+      const { name, lines, macros, correction, history } = req.body || {};
+      res.json({ jobId: startFoodRefine({ name, lines, macros, correction, history }) });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

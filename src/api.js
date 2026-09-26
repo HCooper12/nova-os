@@ -171,6 +171,8 @@ export const api = {
   renameCurrentVersion: (conn, recipeId, label) => post(conn, `/api/recipes/${encodeURIComponent(recipeId)}/rename-current`, { label }),
   renameAlternate: (conn, recipeId, altId, label) => post(conn, `/api/recipes/${encodeURIComponent(recipeId)}/alternates/rename`, { altId, label }),
   describeFood: (conn, text) => post(conn, '/api/food-log/describe', { text }),
+  // correct an estimate in words — the plate and his sentence, never the photo again
+  refineFood: (conn, body) => post(conn, '/api/food-log/refine', body),
   addShoppingItems: (conn, items) => post(conn, '/api/shopping-list/items', { items }),
   addShoppingItemsJob: (conn, jobId) => call(conn, `/api/shopping-list/add-items/${encodeURIComponent(jobId)}`),
   toggleShoppingItem: (conn, id, checked) => post(conn, '/api/shopping-list/toggle', { id, checked }),

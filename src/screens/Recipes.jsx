@@ -774,7 +774,7 @@ export function Recipes({ v }) {
               ) : (
                 <div style={css("margin-top:5px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>Adjust the numbers below if needed — saving works either way.</div>
               )}
-              <div style={css("margin-top:7px;font-size:10.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Answering re-reads your photos with the extra detail. Or skip it — the numbers below save exactly as they are.</div>
+              <div style={css("margin-top:7px;font-size:10.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Answering refines the estimate from your words. Or skip it — the numbers below save exactly as they are.</div>
             </div>
           )}
           {/* manual macros are the fallback, not the feature — folded away
@@ -798,8 +798,8 @@ export function Recipes({ v }) {
               <Eyebrow tone="good">Broken down into {v.foodLogPending.count} lines</Eyebrow>
               <div style={css("margin-top:7px;display:flex;flex-direction:column;gap:3px")}>
                 {v.foodLogPending.lines.map((l) => (
-                  <div key={l.key} style={css("display:flex;align-items:baseline;gap:8px;min-width:0")}>
-                    <span style={css("min-width:0;flex:1;font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 80%, transparent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap")} title={l.source || undefined}>
+                  <div key={l.key} className={l.fresh ? 'nv-deck-rise' : undefined} style={css(`display:flex;align-items:baseline;gap:8px;min-width:0${l.fresh ? ';border-radius:6px;margin:0 -6px;padding:1px 6px;background:color-mix(in srgb, var(--nv-good) 12%, transparent)' : ''}`)}>
+                    <span style={css(`min-width:0;flex:1;font-size:12.5px;color:${l.fresh ? 'var(--nv-good)' : 'color-mix(in srgb, var(--nv-ink) 80%, transparent)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap`)} title={l.source || undefined}>
                       {l.name}{l.grams ? ` · ${l.grams} g` : ''}
                     </span>
                     <span style={css("flex:none;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{l.macros}</span>
@@ -807,6 +807,42 @@ export function Recipes({ v }) {
                 ))}
               </div>
               <Meta tone="faint" style={{ display: 'block', marginTop: '7px' }}>They ride with the entry — you can drop any single line after logging.</Meta>
+            </div>
+          )}
+          {/* SAY WHAT'S DIFFERENT (26 Sep). His plate was read as a beef
+              rissole; it was vegetarian, and there was no way to tell Nova
+              after the first answer. Now every estimate can be corrected in
+              words, as many times as he likes, before anything is logged. Each
+              turn is acted out: what left the plate is struck, what arrived is
+              lit, and the calorie shift is a figure. */}
+          {v.foodRefine && (
+            <div style={css("margin-top:10px;border:1px solid color-mix(in srgb, var(--nv-cy) 26%, transparent);border-radius:12px;padding:11px 13px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
+              {v.foodRefine.thread.length > 0 && (
+                <div style={css("display:flex;flex-direction:column;gap:9px;margin-bottom:10px")}>
+                  {v.foodRefine.thread.map((t) => (
+                    <div key={t.key} className="nv-deck-rise" style={css("display:flex;flex-direction:column;gap:4px;min-width:0")}>
+                      <span style={css("align-self:flex-end;max-width:85%;font-size:12.5px;line-height:1.4;padding:6px 10px;border-radius:12px 12px 3px 12px;background:color-mix(in srgb, var(--nv-ink) 08%, transparent);color:var(--nv-ink);overflow-wrap:anywhere")}>{t.said}</span>
+                      <div style={css("display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0")}>
+                        {t.removed.map((n) => <span key={`r-${n}`} style={css("font-size:12px;color:var(--nv-ink60);text-decoration:line-through;text-decoration-color:var(--nv-warn)")}>{n}</span>)}
+                        {t.removed.length > 0 && t.added.length > 0 && <span aria-hidden="true" style={css("font-size:12px;color:var(--nv-ink60)")}>to</span>}
+                        {t.added.map((n) => <span key={`a-${n}`} style={css("font-size:12px;font-weight:600;color:var(--nv-good)")}>{n}</span>)}
+                        {t.delta && <Tag tone={t.up ? 'gold' : 'good'} style={{ flex: 'none' }}>{t.delta}</Tag>}
+                      </div>
+                      {t.changes && <span style={css("font-size:11.5px;line-height:1.45;color:var(--nv-ink60)")}>{t.changes}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
+                <Interactive as="input" value={v.foodRefine.value} onChange={v.foodRefine.set}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !v.foodRefine.busy) v.foodRefine.send(); }}
+                  placeholder={v.foodRefine.thread.length ? 'Anything else different?' : 'Anything different? e.g. “the rissole was vegetarian”'}
+                  aria-label="Correct the estimate"
+                  base="flex:1;min-width:170px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:16px;font-family:var(--nv-font-ui);outline:none"
+                  focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+                <Button onClick={v.foodRefine.send} disabled={v.foodRefine.busy || !v.foodRefine.value.trim()} tone="cyan" style={{ flex: 'none' }}>{v.foodRefine.busy ? 'Refining…' : 'Refine'}</Button>
+              </div>
+              <Meta tone="faint" style={{ display: 'block', marginTop: '7px' }}>Keep correcting as often as you like. Nothing is logged until you tap Add.</Meta>
             </div>
           )}
           {v.foodItemUndo && (

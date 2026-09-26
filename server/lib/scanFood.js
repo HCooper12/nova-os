@@ -308,6 +308,61 @@ export function startFoodDescribe(description) {
   return jobId;
 }
 
+// A CORRECTION IN WORDS (26 Sep): the plate as it stands plus his sentence,
+// no photo re-upload, no vision pass. Same job map and result shape as a
+// scan, so the client polls the same endpoint. lib/foodRefine.js holds the
+// prompt and every piece of arithmetic; this only runs the model.
+export function startFoodRefine({ name, lines, macros, correction, history } = {}, deps = {}) {
+  if (!laneEnabled('food-refine')) throw laneOffError('food-refine');
+  const said = String(correction || '').replace(/\s+/g, ' ').trim();
+  if (said.length < 2) throw new Error('say what is different about it');
+  if (said.length > 400) throw new Error('keep the correction under 400 characters');
+  const jobId = randomUUID().slice(0, 8);
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+  (async () => {
+    const { buildRefinePrompt, applyRefine, previousPlate } = await import('./foodRefine.js');
+    const previous = previousPlate({ name, lines, macros });
+    if (!previous.lines.length) throw new Error('there is no estimate to refine yet');
+    const past = (Array.isArray(history) ? history : []).map((h) => String(h || '').trim().slice(0, 400)).filter(Boolean).slice(-8);
+    const prompt = buildRefinePrompt({ name: previous.name, lines: previous.lines, correction: said, history: past });
+    const run = deps.run || ((args) => new Promise((resolve, reject) => {
+      const child = spawn(CLAUDE_BIN, args);
+      let out = '';
+      let err = '';
+      child.stdout.on('data', (d) => { out += d; });
+      child.stderr.on('data', (d) => { err += d; });
+      child.on('close', (code) => (code === 0 ? resolve(out) : reject(new Error(err.trim() || `claude exited with code ${code}`))));
+      child.on('error', reject);
+    }));
+    const stdout = await run([
+      '-p', prompt,
+      '--permission-mode', 'bypassPermissions',
+      ...boundaryArgs(''), // words in, words out: no tools at all
+      '--output-format', 'json',
+      '--model', modelFor('food-refine'),
+      '--no-session-persistence',
+    ]);
+    const outer = parseEnvelope(stdout, { lane: 'food-refine' });
+    const text = (outer.result || '').trim();
+    const m = firstBalancedObjectMatch(text);
+    if (!m) throw new Error(text.slice(0, 200) || 'No response received');
+    const r = applyRefine(previous, parseModelJson(m[0]));
+    job.result = {
+      name: r.name,
+      macros: r.macros,
+      // every line rides, even one: a refined plate is always shown whole
+      components: r.lines,
+      confidence: r.question ? 'low' : 'high',
+      question: r.question,
+      changes: r.changes,
+      diff: r.diff,
+    };
+    job.status = 'ready';
+  })().catch((e) => { job.status = 'error'; job.error = e.message; });
+  return jobId;
+}
+
 export function getFoodScanJob(jobId) {
   return jobs.get(jobId) || null;
 }

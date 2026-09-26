@@ -531,6 +531,9 @@ export default class App extends Component {
     // a low-confidence scan's clarifying question stays ANSWERABLE: the photos
     // + note that produced it are kept so an answer can re-run the same scan
     foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
+    // THE ESTIMATE AS A PLATE, and the conversation that corrects it (26 Sep):
+    // every line (even one), his corrections so far, and what he is typing
+    foodEstimateLines: null, foodRefineThread: [], foodRefineInput: '',
     barcodeScannerOpen: false,
     noteQuery: '', noteType: 'All', openNoteId: 'n1',
     galaxySel: null, galaxyTypes: null, galaxyOverlay: null, galaxyZoomed: false, reviewIdx: 0,
@@ -2035,7 +2038,7 @@ export default class App extends Component {
     // Typing over a macro makes the scan's lines a lie — they no longer add
     // up to what he is about to log. Same rule the server applies on edit.
     const drops = field !== 'foodLogName' && this.state.foodLogItems;
-    this.setState({ [field]: e.target.value, ...(drops ? { foodLogItems: null } : {}) });
+    this.setState({ [field]: e.target.value, ...(drops ? { foodLogItems: null } : {}), ...(field !== 'foodLogName' ? { foodEstimateLines: null } : {}) });
     if (drops) this.toastMsg('Your number now — the itemised lines were dropped');
   }
   // Retro tracking: flip the food log to a past day. The list, adds, and
@@ -2242,6 +2245,7 @@ export default class App extends Component {
     const clearForm = {
       foodLogBusy: false, foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogFillSource: null, foodLogItems: null,
       foodScanQuestion: null, foodScanQAPhotos: [], foodScanQANote: '', foodScanAnswer: '',
+      foodEstimateLines: null, foodRefineThread: [], foodRefineInput: '',
     };
     if (previousDay?.entries) {
       haptic('commit');
@@ -2493,8 +2497,28 @@ export default class App extends Component {
         this.clearFoodScanJob();
         const r = job.result;
         const asks = r.confidence === 'low' && r.question;
+        const plate = r.components?.length ? r.components : (r.name ? [{ name: r.name, macros: r.macros }] : null);
+        if (meta.kind === 'refine') {
+          // a correction landed: the plate, the fields and the thread move
+          // together, and nothing is logged until he taps Add
+          this.setState((st) => ({
+            foodScanBusy: false, foodScanError: null,
+            foodEstimateLines: plate,
+            foodLogItems: r.components?.length > 1 ? r.components : null,
+            foodScanQuestion: r.question || null,
+            foodRefineThread: [...(st.foodRefineThread || []), { said: meta.said, changes: r.changes || '', removed: r.diff?.removed || [], added: r.diff?.added || [], kcalDelta: r.diff?.kcalDelta ?? 0 }],
+            foodLogName: r.name || st.foodLogName,
+            foodLogP: r.macros?.p != null ? String(r.macros.p) : st.foodLogP,
+            foodLogC: r.macros?.c != null ? String(r.macros.c) : st.foodLogC,
+            foodLogF: r.macros?.f != null ? String(r.macros.f) : st.foodLogF,
+            foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : st.foodLogKcal,
+          }));
+          haptic('tick');
+          return;
+        }
         if (meta.kind === 'describe') {
           this.setState({
+            foodEstimateLines: plate, foodRefineThread: [], foodRefineInput: '',
             foodScanBusy: false, foodScanError: null, foodDescribeInput: '',
             foodLogFillSource: 'described',
             foodLogItems: r.components?.length > 1 ? r.components : null,
@@ -2509,6 +2533,7 @@ export default class App extends Component {
           this.toastMsg(asks ? 'Estimated — rough, check the fields below' : 'Estimated — check the fields below before adding');
         } else {
           this.setState({
+            foodEstimateLines: plate, foodRefineThread: [], foodRefineInput: '',
             foodScanBusy: false, foodScanError: null,
             foodScanPhotos: [], foodScanNote: '',
             foodLogFillSource: 'scan', // provenance survives to the log entry
@@ -2537,12 +2562,45 @@ export default class App extends Component {
     if (!conn || !photos.length) return;
     this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null, foodScanAnswer: '' });
     // 'auto' fuses however many photos there are (labels and/or the food) with the note
-    api.startFoodScan(conn, 'auto', photos, note)
+    // THE UPLOAD IS THE FRAGILE PART (26 Sep, "Load failed"): a photo over
+    // mobile data can drop before it reaches the Mac. Try once more after a
+    // breath, and if it still fails say what happened — the photos stay staged.
+    const start = () => api.startFoodScan(conn, 'auto', photos, note);
+    start()
+      .catch((e) => (isOfflineError(e) ? new Promise((r) => setTimeout(r, 2500)).then(start) : Promise.reject(e)))
       .then(({ jobId }) => {
         this.persistFoodScanJob(jobId, { kind: 'scan', note });
         this.attachFoodScanPoll(conn, jobId, { kind: 'scan', photos, note });
       })
-      .catch((e) => this.setState({ foodScanBusy: false, foodScanError: e.message }));
+      .catch((e) => this.setState({ foodScanBusy: false, foodScanError: isOfflineError(e)
+        ? 'Couldn’t reach your Mac to send the photo (twice). It’s still here — tap Analyze to try again.'
+        : e.message }));
+  }
+  // CORRECT THE ESTIMATE IN WORDS, AS OFTEN AS HE LIKES (26 Sep). His report:
+  // a vegetarian rissole read as beef, and no way to say so after the first
+  // answer. This sends the plate as it stands and his sentence — never the
+  // photo — so it is quick, works on a weak signal, and can go round again.
+  refineFoodEstimate(textArg) {
+    const conn = getConnection();
+    const said = String(textArg != null ? textArg : this.state.foodRefineInput || '').trim();
+    if (!conn || !said || this.state.foodScanBusy) return;
+    const fields = {
+      p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0,
+      f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || 0,
+    };
+    const lines = this.state.foodEstimateLines?.length ? this.state.foodEstimateLines : null;
+    if (!lines && !this.state.foodLogName.trim()) return;
+    const history = (this.state.foodRefineThread || []).map((t) => t.said);
+    this.setState({ foodScanBusy: true, foodScanError: null, foodRefineInput: '' });
+    const send = () => api.refineFood(conn, { name: this.state.foodLogName.trim(), lines: lines || [], macros: fields, correction: said, history });
+    send()
+      .catch((e) => (isOfflineError(e) ? new Promise((r) => setTimeout(r, 1500)).then(send) : Promise.reject(e)))
+      .then(({ jobId }) => {
+        this.persistFoodScanJob(jobId, { kind: 'refine', said });
+        this.attachFoodScanPoll(conn, jobId, { kind: 'refine', said });
+      })
+      // his words go back in the box — a failure never costs him the sentence
+      .catch((e) => this.setState({ foodScanBusy: false, foodRefineInput: said, foodScanError: isOfflineError(e) ? 'Couldn’t reach your Mac — your correction is still in the box. Try again in a moment.' : e.message }));
   }
   // Describe it in words — "1 large movie popcorn from Village Cinemas". Same
   // job/preview path as a photo scan; it just fills the fields from words
@@ -2565,8 +2623,15 @@ export default class App extends Component {
   answerFoodScan() {
     const answer = this.state.foodScanAnswer.trim();
     const q = this.state.foodScanQuestion;
+    if (!answer || !q) return;
+    // with a plate on screen, an answer is just a correction in words (26 Sep)
+    if (this.state.foodEstimateLines?.length || this.state.foodLogName.trim()) {
+      this.setState({ foodScanQuestion: null, foodScanAnswer: '' });
+      this.refineFoodEstimate(`You asked: "${q}" — ${answer}`);
+      return;
+    }
     const photos = this.state.foodScanQAPhotos || [];
-    if (!answer || !q || !photos.length) return;
+    if (!photos.length) return;
     const base = this.state.foodScanQANote ? `${this.state.foodScanQANote}. ` : '';
     this.runFoodScan(photos, `${base}You previously asked: "${q}" — the user's answer: "${answer}". Fold this into the estimate.`);
   }

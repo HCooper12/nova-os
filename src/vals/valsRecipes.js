@@ -633,6 +633,8 @@ export function valsRecipes(app, ctx) {
         grams: it.grams || null,
         macros: `${Math.round(it.macros?.p ?? it.p ?? 0)}P · ${Math.round(it.macros?.kcal ?? it.kcal ?? 0)} kcal`,
         source: it.source || null,
+        // a line his last correction changed or added — the card lights it
+        fresh: !!it.fresh && (st.foodRefineThread || []).length > 0,
       })),
     } : null,
     foodEdit: st.foodEditId ? {
@@ -746,7 +748,25 @@ export function valsRecipes(app, ctx) {
     // the note; the filled fields stay saveable as-is either way
     foodScanAnswer: st.foodScanAnswer,
     setFoodScanAnswer: (e) => app.setState({ foodScanAnswer: e.target.value }),
-    foodScanCanAnswer: (st.foodScanQAPhotos || []).length > 0,
+    // an answer refines in words once there is a plate on screen (26 Sep)
+    foodScanCanAnswer: (st.foodScanQAPhotos || []).length > 0 || !!st.foodEstimateLines?.length || !!(st.foodLogName || '').trim(),
+    // CORRECT IT IN WORDS, AS OFTEN AS HE LIKES, BEFORE IT IS LOGGED (26 Sep).
+    // Offered the moment an estimate exists; each turn shows what changed.
+    foodRefine: st.foodEstimateLines?.length ? {
+      value: st.foodRefineInput || '',
+      set: (e) => app.setState({ foodRefineInput: typeof e === 'string' ? e : e.target.value }),
+      send: () => app.refineFoodEstimate(),
+      busy: !!st.foodScanBusy,
+      thread: (st.foodRefineThread || []).map((t, i) => ({
+        key: `${i}-${t.said}`,
+        said: t.said,
+        changes: t.changes || (t.removed.length || t.added.length ? '' : 'Nothing needed changing.'),
+        removed: t.removed,
+        added: t.added,
+        delta: t.kcalDelta ? `${t.kcalDelta > 0 ? '+' : '−'}${Math.abs(t.kcalDelta)} kcal` : null,
+        up: t.kcalDelta > 0,
+      })),
+    } : null,
     answerFoodScan: () => app.answerFoodScan(),
     dismissFoodScanQuestion: () => app.dismissFoodScanQuestion(),
     // multi-photo staging — add several (labels and/or the food), then analyze together
