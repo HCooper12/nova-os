@@ -22,10 +22,13 @@ next page. `design/REDESIGN-CHECKLIST.md` is the work list (226 rows over
 inventories behind it are `design/audits/redesign-2026-09/00-inventory-*.md`.
 Nothing photographed yet, no product code changed.**
 
-- **STATE:** checklist committed; order proposed (Home → Inbox → Train →
-  Fuel → Voice → sheets → the rest), AWAITING HIS CALL. Next: his order, then
-  the first page's audit under the skills with real captures (guard writes
-  first; a headless load of Home is a write).
+- **STATE:** checklist committed; HIS CALL 26 Sep: Home first. Home AUDITED
+  from two recordings of his phone (`design/audits/redesign-2026-09/01-home.md`:
+  19 sections all open, ~20 screens deep, 22 buttons, facts restated up to
+  six times; two Stuck items are August test to-dos in his vault). The
+  checklist renders as a page for his phone via `scripts/redesign-page.mjs`
+  (republish after every tick). NEXT: mockups A (The Read) / B (The Day
+  Spine) / C (Two Panes) at 390×844, demo content, then his tweaks.
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
   (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards

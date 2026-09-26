@@ -183,31 +183,31 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **How it is built.** One view model, two render trees. Cupertino renders grouped cards in one of three hour-dependent ORDERS (morning: body report leads; day: what-to-do-next leads; evening: Wrap the day leads) — `MissionStructured.jsx:42-47`; everything past the first two present sections folds to a header + status line + instrument glyph — `missionFold.js:29-119`; `working`, `plan`, `stuck` never fold. Command renders a fixed HUD order, unfolded, with a hero cluster and orbit rings. Sections absent from the data are absent from the screen (no placeholders).
 
 **The moments (shown when earned, at the top)**
-- [ ] H1 · A record moment — the morning after a PR: count badge + up to 3 lift lines; See the block / Noted — `MissionStructured.jsx:617-647`, rule `missionFocus.js:34-43`
-- [ ] H2 · A plan in flight — live step glyphs or "ready for you"; Open it / Walk me through it — `MissionStructured.jsx:648-685`, `src/planCard.js:105-152`
-- [ ] H3 · It landed — today's settled captures, up to 3, with destination; Open the Inbox / Noted — `MissionStructured.jsx:692-720`
-- [ ] H4 · Focus chip — running focus-block countdown; Journal it / abandon — `src/FocusChip.jsx:9-36`, at `:576`
+- [a] H1 · A record moment — the morning after a PR: count badge + up to 3 lift lines; See the block / Noted — `MissionStructured.jsx:617-647`, rule `missionFocus.js:34-43`
+- [a] H2 · A plan in flight — live step glyphs or "ready for you"; Open it / Walk me through it — `MissionStructured.jsx:648-685`, `src/planCard.js:105-152`
+- [a] H3 · It landed — today's settled captures, up to 3, with destination; Open the Inbox / Noted — `MissionStructured.jsx:692-720`
+- [a] H4 · Focus chip — running focus-block countdown; Journal it / abandon — `src/FocusChip.jsx:9-36`, at `:576`
 
 **The sections (in the hour's order)**
-- [ ] H5 · Nova is working — every in-flight job as a live list; tap opens, CLEAR on a failure; never folds — `MissionStructured.jsx:279-312`, model `valsChrome.js:230-315`
-- [ ] H6 · Hero / greeting — morning: living core + standfirst + Engage/Summon; otherwise a 44px core + one line + Engage — `MissionStructured.jsx:194-226`
-- [ ] H7 · Who is asking — serif line for a Mac session with its hand up — `MissionStructured.jsx:600-608`
-- [ ] H8 · Vitals — 4 rings (sleep · steps · protein · readiness) + 4 metric tiles, one promoted focal tile when something is behind; tap steps/weight/protein → history overlay — `MissionStructured.jsx:228-256`, `missionFocus.js:75-88`, `RingTile.jsx:33`
-- [ ] H9 · Wrap the day — evening: protein + kcal rings, counted sentence, one fix; Read it to me / Open Fuel / Dismiss; embeds "did it land?" — `MissionStructured.jsx:316-351`
-- [ ] H10 · Suggested focus — the context ladder's top true rung (10 rungs) with primary/secondary pills — `MissionStructured.jsx:258-273`, ladder `valsMission.js:456-585`
-- [ ] H11 · The Leader box — two swipeable faces (LEAD idea / SITUATION thread), dot pager, reply box with dictation, "Open the Leader" — `src/LeaderBox.jsx:59-177`, at `:356`
-- [ ] H12 · Practice card — lamp row of moves landed, "Next: scene", or preparing state; Rehearse / Open the room — `src/PracticeCard.jsx:26-86`, at `:361-365`
-- [ ] H13 · Today's technique — technique-of-the-day card or the sealed reel; I tried it / Not today; "1 of 7 ›" opens the Repertoire book — `MissionStructured.jsx:721-785`, model `valsMission.js:996-1053`
-- [ ] H14 · The One Thing — the single unsettled priority as a loud gold card; Done / Skip — `MissionStructured.jsx:374-389`, `missionFocus.js:16-23`
-- [ ] H15 · Today's Top 3 — remaining plan rows, "seen in your log" vs Done/Skip, stuck row's "Start it with me"; approve / Open Inbox when pending — `MissionStructured.jsx:390-426`
-- [ ] H16 · Stuck — up to 3 unclosed items, each a days-ring; Start it with me / Not now / Let it go; undo receipt — `src/StuckCard.jsx:81-119`, at `:430`
-- [ ] H17 · Command deck — up to 3 oldest pending proposals; tap → Inbox; "N waiting ›" — `MissionStructured.jsx:432-445`
-- [ ] H18 · Today — calendar with live-block marker + countdown; inline "Ask Nova" calendar command box; "Next 14 days" → CalendarView — `MissionStructured.jsx:447-469`
-- [ ] H19 · Concept revisit / Daily review — spaced-repetition concept, shuffle drum on re-roll; Review — `MissionStructured.jsx:471-498`
-- [ ] H20 · Nova noticed — up to 2 overnight insights with age chip + "talk it through"; streak badges — `MissionStructured.jsx:500-529`, model `valsMission.js:1142-1176`
-- [ ] H21 · Shortcuts — Train today + latest note as one-tap doors — `MissionStructured.jsx:531-544`
-- [ ] H22 · Agents — every named agent, on/off + working pulse (phone only) — `MissionStructured.jsx:546-554`, model `valsChrome.js:323-372`
-- [ ] H23 · The fold itself — header + one status line + instrument glyph per section, 40ms cascade, "▴ Fold"; open state remembered per section — `MissionStructured.jsx:154-169, 791-811`, `missionFold.js`
+- [a] H5 · Nova is working — every in-flight job as a live list; tap opens, CLEAR on a failure; never folds — `MissionStructured.jsx:279-312`, model `valsChrome.js:230-315`
+- [a] H6 · Hero / greeting — morning: living core + standfirst + Engage/Summon; otherwise a 44px core + one line + Engage — `MissionStructured.jsx:194-226`
+- [a] H7 · Who is asking — serif line for a Mac session with its hand up — `MissionStructured.jsx:600-608`
+- [a] H8 · Vitals — 4 rings (sleep · steps · protein · readiness) + 4 metric tiles, one promoted focal tile when something is behind; tap steps/weight/protein → history overlay — `MissionStructured.jsx:228-256`, `missionFocus.js:75-88`, `RingTile.jsx:33`
+- [a] H9 · Wrap the day — evening: protein + kcal rings, counted sentence, one fix; Read it to me / Open Fuel / Dismiss; embeds "did it land?" — `MissionStructured.jsx:316-351`
+- [a] H10 · Suggested focus — the context ladder's top true rung (10 rungs) with primary/secondary pills — `MissionStructured.jsx:258-273`, ladder `valsMission.js:456-585`
+- [a] H11 · The Leader box — two swipeable faces (LEAD idea / SITUATION thread), dot pager, reply box with dictation, "Open the Leader" — `src/LeaderBox.jsx:59-177`, at `:356`
+- [a] H12 · Practice card — lamp row of moves landed, "Next: scene", or preparing state; Rehearse / Open the room — `src/PracticeCard.jsx:26-86`, at `:361-365`
+- [a] H13 · Today's technique — technique-of-the-day card or the sealed reel; I tried it / Not today; "1 of 7 ›" opens the Repertoire book — `MissionStructured.jsx:721-785`, model `valsMission.js:996-1053`
+- [a] H14 · The One Thing — the single unsettled priority as a loud gold card; Done / Skip — `MissionStructured.jsx:374-389`, `missionFocus.js:16-23`
+- [a] H15 · Today's Top 3 — remaining plan rows, "seen in your log" vs Done/Skip, stuck row's "Start it with me"; approve / Open Inbox when pending — `MissionStructured.jsx:390-426`
+- [a] H16 · Stuck — up to 3 unclosed items, each a days-ring; Start it with me / Not now / Let it go; undo receipt — `src/StuckCard.jsx:81-119`, at `:430`
+- [a] H17 · Command deck — up to 3 oldest pending proposals; tap → Inbox; "N waiting ›" — `MissionStructured.jsx:432-445`
+- [a] H18 · Today — calendar with live-block marker + countdown; inline "Ask Nova" calendar command box; "Next 14 days" → CalendarView — `MissionStructured.jsx:447-469`
+- [a] H19 · Concept revisit / Daily review — spaced-repetition concept, shuffle drum on re-roll; Review — `MissionStructured.jsx:471-498`
+- [a] H20 · Nova noticed — up to 2 overnight insights with age chip + "talk it through"; streak badges — `MissionStructured.jsx:500-529`, model `valsMission.js:1142-1176`
+- [a] H21 · Shortcuts — Train today + latest note as one-tap doors — `MissionStructured.jsx:531-544`
+- [a] H22 · Agents — every named agent, on/off + working pulse (phone only) — `MissionStructured.jsx:546-554`, model `valsChrome.js:323-372`
+- [a] H23 · The fold itself — header + one status line + instrument glyph per section, 40ms cascade, "▴ Fold"; open state remembered per section — `MissionStructured.jsx:154-169, 791-811`, `missionFold.js`
 
 **Overlays Home opens:** StepsHistory (`valsMission.js:1244-1295`), RepertoireBook (`valsMission.js:902-918`), CalendarView (`valsMission.js:1223-1230`), TechniqueReveal, SpinReveal.
 **States:** technique renders nothing until loaded (`valsMission.js:999`); three "nothing noticed" copies by cause (`valsMission.js:1160-1167`); calendar not-connected and FROM <date> · OFFLINE labels (`valsMission.js:1191-1206`); plan error line in both idioms; demo suppresses all three moments.
@@ -523,8 +523,10 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 
 ## 6 · Proposed order
 
-My recommendation, with the reason for each placing. His call; the two
-obvious alternatives are noted after the list.
+My recommendation, with the reason for each placing. **His call, 26 Sep:
+Home first** ("Start with home"); the rest of the order stands as proposed
+until he says otherwise. The two obvious alternatives are noted after the
+list.
 
 | # | Page | Why here |
 | --- | --- | --- |
@@ -553,6 +555,11 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — his call: Home first. Home audited from two recordings of
+  his phone (42 frames, cupertino, 15:40): `design/audits/redesign-2026-09/01-home.md`.
+  Verdict: needs work; 19 sections all open, ~20 screens deep, 22 buttons,
+  facts restated up to six times, two Stuck items are August test to-dos in
+  his vault. Home rows → [a]. Mockups A/B/C next.
 - 26 Sep 2026 — checklist opened. Four read-only source surveys (Sonnet,
   parallel) produced the rows; 38 random locators re-checked by hand: 35
   exact, 3 off by a neighbouring line (corrected here). Four load-bearing
