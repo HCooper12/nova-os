@@ -13,6 +13,60 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**26 SEP (close, nova-os-83) — PICK IT UP (the takeaway finder, from the
+wolfecampbell reel he sent), CALORIE + PROTEIN RINGS on the Fuel hero, and
+a FIX FOR THE SERVER CRASHING ITSELF. All pushed (9a204d9), Pages success
+(run 36205775259), server reloaded with the guard, health 200.**
+
+- **GOAL (his, 26 Sep):** "I want this kind of feature and capability built
+  into nova" (500 kcal and 50 g protein left, type it in, see every chain and
+  supermarket item that fits, go pick it up); then "make the section at top
+  of fuel have a ring for both calories and protein".
+- **DONE CRITERIA:** finder MET for build, live on his server and in the
+  deployed bundle; UNMET: seen on his phone. Rings MET, deployed; seen at 375
+  headless only. Crash guard MET as code; UNPROVEN in the field (see below).
+- **STATE (paths):** `server/lib/eatOut.js` (catalogue store, `validateRow`,
+  pure `whatFits`), `server/lib/eatOutSources.js` (Open Food Facts by code,
+  chain PDFs via lane `eat-out-menu`), `server/routes/eatOut.js`,
+  `scripts/eat-out-refresh.mjs`; client `src/screens/PickItUp.jsx`, the
+  `pickItUp` vals in `src/vals/valsRecipes.js`, eatOut* actions in App.jsx.
+  Rings: `KcalRing` + `MacroRings` in `src/screens/Recipes.jsx`,
+  `fuelHero.kcalRing` in the vals. Guard: `server/lib/tosGuard.js`, first
+  import in `server/index.js`. Memory: nova-pick-it-up.
+- **DECISIONS:** models only PARSE a chain PDF, code validates every row
+  (Atwater 20 %, kJ/kcal 6 %, grams, ≤3000 kcal) → forecloses any model
+  number reaching the catalogue unchecked; McDonald's/KFC/Grill'd/Hungry
+  Jack's shown as MISSING with why, never scraped from third-party reposts
+  → forecloses unofficial numbers (the Chrome hand could read Maccas/KFC:
+  his call); protein is a target to get close to (≥80 % qualifies); a failed
+  brand refresh keeps its last good record with the error on it; calories
+  own a ring, the macro ring's middle is protein; over target = full warn arc.
+- **VERIFIED:** server 2527/2527, lint clean, build green; live catalogue
+  (see the refresh receipt in this entry's foot); `GET /api/eat-out/fits`
+  answers on the live server; verify-shipped PASS on all three new markers
+  and `/api/eat-out`; Pick it up and the rings screenshotted at 375
+  (Cupertino) against the live server, scrollWidth 375.
+- **ASSUMED:** everything on his phone; tapping a result opens the portion
+  sheet (written, never tapped: it would log); the Command style of the new
+  rings (that shot came up offline during the crash); the guard stopping the
+  crash — it never reproduced on demand, the evidence is 5 stack traces.
+- **THE CRASH (read this):** Node 24.16's own fetch calls
+  `socket.setTypeOfService()` on every request; since macOS 27 that throws
+  EINVAL intermittently inside an event listener and kills the process
+  (06:51, 10:19, 10:32 AEST and two more on 26 Sep; it killed a refresh and
+  every job beside it). If `grep "setTypeOfService EINVAL"
+  ~/Library/Logs/nova-os-server.log` gains a NEW stack after 10:5x AEST,
+  the guard is not catching it; `grep tos-guard` shows when it did.
+- **OPEN QUESTIONS (his):** see the decisions at the end of this session's
+  message: McDonald's/KFC via the Chrome hand, and whether the catalogue
+  refreshes on a schedule.
+- **DO NOT:** run two catalogue refreshes at once (OFF answers 503 and six
+  brands came back empty before the keep-on-error fix); leave
+  `public/_devconn*.js` behind (seven token copies piled up from two
+  sessions; now all gitignored, still delete them).
+
+---
+
 **26 SEP (close, nova-os-df) — PRACTICE BUILT: a skill prepared from his
 sources, rehearsed with Nova as the other person, debriefed by code.
 Plan: `design/PRACTICE-PLAN.md`. Commits 3ca0138 · 5fcfd87 · e78e99b ·
