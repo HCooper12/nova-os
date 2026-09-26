@@ -1,0 +1,994 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Train, round 1</title>
+<!--
+  58 · TRAIN, ROUND 1 (27 Sep 2026)
+  Answers design/audits/redesign-2026-09/03-train.md: verdict Needs work,
+  findings 1 to 13, directions A to D. His bar for simple is the Coach deck
+  on this very page (src/CoachSuggestions.jsx): WHERE, the change drawn, WHY,
+  a light Yes, Discuss, a quiet ✕, one do-all, Undo. Every Coach card below
+  is drawn in that card's shape, and the ✕ now asks why (UI-REDESIGN-SPEC 6).
+
+  Three variations, switched at the top. Each has its own screens, and the
+  address says which (#a/1 to #c/3):
+    A · Two places      Train becomes the Gym page. Today folds into the new
+                        Home (its Training card and Body ring already say it)
+                        and Coach becomes a door on the page, a sheet.
+    B · One set         the live session rebuilt around the one object he
+                        touches sixty times a session: one lift on a rail,
+                        one set card, a 64px tick, a number pad of its own.
+    C · One fact        Today as it is, with every duplicate demoted: Home's
+                        Training card reused, weekly volume drawn once as
+                        rings, history in the Apple Fitness shape.
+
+  Every function the audit inventoried (R1 to R33) is kept, moved and never
+  deleted. Each first screen ends in a note saying what moved where.
+
+  Material: mockup 57's nova-glass, copied as it is (variables, card, tab
+  bar, rise, reduced motion, the switcher). Type is four sizes per view,
+  34 · 20 · 15 · 13, where the audit measured 10 to 19; numerals are SF
+  Rounded, tab labels 11. Colour: gold is waiting on his call and nothing
+  else (the Coach dot, the pending count, a set Coach has not been given
+  yet); green a done or a yes; red discard only; cyan Train's own and
+  Nova's. A muscle wears its hue from src/muscleHue.js MUSCLE_HEX, the map
+  the 3D figure and the bars read. Every control is 44 or more; the set tick
+  is 64. The review switcher is furniture: outside every count.
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data. The
+  program (Push day, Pull day, Legs, Full body), every weight, every count
+  and every Coach sentence is invented, in round numbers.
+-->
+<style>
+/* ================= copied from mockup 57 (nova-glass), unchanged ================= */
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);--switch-h:130px;--dock-h:96px;
+  --r:20px;
+}
+:root{--serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif}
+body[data-m="nova-glass"]{--bg:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.52);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);--blur:22px;--card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --c1:#5fe8a8;--c2:#8f7bff;--c3:#59e6ff;--c4:#d9b56f;--c5:#8f7bff;--up:#5fe8a8;--dn:#e0616b;--acc:#59e6ff;--link:#59e6ff;--btn:#59e6ff;--btn-ink:#062028;--track:rgba(255,255,255,.14);--title-tint:currentColor;
+  --stand-a:#59e6ff;--stand-b:#8f7bff;--hl-font:var(--serif);--hl-size:20px;
+  --tab:rgba(16,20,36,.58);--tab-ring:rgba(255,255,255,.14);--tab-ink:rgba(232,236,246,.5);--tab-on:#59e6ff;--tab-on-bg:rgba(89,230,255,.1);--badge:#d9b56f;--badge-ink:#241a06;color-scheme:dark}
+.sky{position:fixed;inset:0;z-index:-1}
+body[data-m="nova-glass"] .sky{background:radial-gradient(70% 45% at 12% 8%,rgba(89,230,255,.22),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 88% 30%,rgba(143,123,255,.26),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 112%,rgba(217,181,111,.16),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%)}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background .35s var(--ease),color .35s var(--ease)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.978);transition:transform .16s var(--ease)}
+.phone{position:relative;max-width:402px;margin:0 auto;min-height:100%}
+
+.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--sep)}
+.switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2)}
+.seg button{padding:7px 4px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.65;transition:background .28s var(--ease),opacity .28s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.12)}
+.tally{margin:2px 2px 0;font:500 11px/1.4 var(--mono);color:var(--ink3);min-height:15px}
+.tally b{color:var(--ink2);font-weight:600}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;height:56px;justify-content:center;border-radius:28px;font:500 10px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--tab-on);background:var(--tab-on-bg)}
+.tab .badge{position:absolute;top:6px;left:50%;margin-left:4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--badge);color:var(--badge-ink);font:700 11px/18px var(--ui);text-align:center}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+.view{padding:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 10px) 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 20px)}
+.view[hidden]{display:none}
+.rise{animation:rise .3s var(--ease) both;animation-delay:calc(var(--i,0) * 40ms)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rise{animation:fade .3s ease both}@keyframes fade{from{opacity:0}to{opacity:1}}}
+h1{margin:2px 4px 4px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.card{background:var(--card);border-radius:var(--r);padding:14px 16px;box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.ch{display:flex;align-items:center;gap:8px;font:600 15px var(--ui);color:var(--title-tint)}
+.ch svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ch .time{margin-left:auto;font:400 14px var(--ui);color:var(--ink3)}
+.ch.c1{color:var(--c1)}.ch.c2{color:var(--c2)}.ch.c3{color:var(--c3)}.ch.c4{color:var(--c4)}.ch.c5{color:var(--c5)}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin:22px 4px 8px}
+.sechead h2{margin:0;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.btn{height:36px;padding:0 16px;border-radius:18px;background:var(--btn);color:var(--btn-ink);font:600 15px var(--ui)}
+.btn.quiet{background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card.wide{grid-column:span 2}
+.grid .card{padding:12px 14px 14px;min-height:150px;display:flex;flex-direction:column}
+.sub{margin-top:4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff}
+
+/* ================= copied from mockup 57: the round's furniture and the deck card ================= */
+.seg{grid-auto-flow:column;grid-auto-columns:1fr}
+.seg button{font-size:13px;min-height:32px}
+.tally{font:400 13px/1.4 var(--ui);white-space:nowrap;overflow:hidden;cursor:pointer;min-height:18px}
+.tally.open{white-space:normal}
+.tally .tm{color:var(--link)}
+.view{font-size:15px;overflow-x:clip}
+.ch .time{font-size:13px}
+.sechead h2{font-size:20px}
+.tab{font-size:11px}
+.btn{height:44px;padding:0 22px;border-radius:22px}
+.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font:700 44px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.num.s{font-size:30px}
+.num.wait{color:var(--wait);text-shadow:0 0 24px color-mix(in srgb,var(--wait) 32%,transparent)}
+.titlerow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:2px}
+.titlerow h1{margin:0 4px}
+.back{display:inline-flex;align-items:center;gap:1px;height:44px;margin:0 0 0 -8px;padding:0 12px 0 0;font:400 15px var(--ui);color:var(--link)}
+.back .ic{width:24px;height:24px;stroke-width:2.4}
+.segc{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;height:44px;border-radius:22px;background:rgba(120,120,128,.2)}
+.segc button{height:44px;padding:0 10px;border:3px solid transparent;border-radius:22px;background-clip:padding-box;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.segc button[aria-pressed="true"]{background-color:var(--card-hi);color:var(--ink)}
+.count{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;margin:14px 4px 0}
+.cx{min-width:0}
+.cx b{display:block;font:600 15px/1.3 var(--ui)}
+.cx > span{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.dcard{position:relative;padding:16px}
+.say{margin:10px 0 0;font:400 20px/1.3 var(--serif);text-wrap:balance}
+.change{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.sets{display:inline-flex;align-items:center;gap:5px}
+.sets i{width:11px;height:11px;border-radius:50%;background:var(--h);border:1.5px solid var(--h)}
+.sets i.new{background:transparent;border:1.5px dashed var(--wait)}
+.sets + span{font:400 13px var(--ui);color:var(--ink3)}
+.why{margin:10px 0 0;font:400 15px/1.45 var(--ui);color:var(--ink2);text-wrap:pretty}
+.src{margin:4px 0 0;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.answer{display:flex;align-items:center;gap:4px;margin-top:12px}
+.yes{display:inline-flex;align-items:center;gap:7px;height:44px;min-width:44px;padding:0 18px 0 15px;border-radius:22px;font:600 15px var(--ui);color:var(--filed);background:color-mix(in srgb,var(--filed) 15%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--filed) 36%,transparent);white-space:nowrap}
+.yes .ic{stroke-width:2.8}
+.talk{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.no{flex:none;margin-left:auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 15%,transparent)}
+.no.lit{color:var(--ink);background:color-mix(in srgb,var(--ink) 18%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ink) 40%,transparent)}
+.receipt{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;margin-top:10px;padding:4px 4px 4px 12px;border-radius:26px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 14px 30px -14px rgba(0,0,0,.6)}
+.receipt .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--filed);color:#05261a}
+.receipt .ok.pass{background:color-mix(in srgb,var(--ink) 16%,transparent);color:var(--ink)}
+.receipt .ok.gone{background:color-mix(in srgb,var(--discard) 22%,transparent);color:var(--discard)}
+.receipt .ok .ic{width:15px;height:15px;stroke-width:3}
+.rx{min-width:0}
+.rx b{display:block;font:600 15px/1.25 var(--ui)}
+.rx span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.undo{height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.note{margin:18px 0 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--ink) 26%,transparent);font:400 13px/1.5 var(--ui);color:var(--ink2)}
+.note b{color:var(--ink);font-weight:600}
+.note ul{margin:6px 0 0;padding-left:16px}
+.note li + li{margin-top:4px}
+.behind{pointer-events:none}
+.scrim{position:fixed;inset:0;z-index:15;background:rgba(3,5,12,.6)}
+.sheet{position:fixed;left:8px;right:8px;top:calc(var(--switch-h) + env(safe-area-inset-top,0px) + var(--sheet-top,14px));bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:25;max-width:386px;margin:0 auto;padding:8px 16px 20px;overflow-y:auto;overscroll-behavior:contain;border-radius:30px;background:rgba(17,21,38,.9);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 30px 60px -20px rgba(0,0,0,.9)}
+.grab{width:38px;height:5px;margin:0 auto 12px;border-radius:3px;background:color-mix(in srgb,var(--ink) 32%,transparent)}
+.dk{display:block;font:600 13px var(--ui);color:var(--ink3)}
+.askwhy{margin-top:10px;padding:12px 12px 8px;border-radius:18px;background:color-mix(in srgb,var(--link) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--link) 26%,transparent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chips button{height:44px;padding:0 14px;border-radius:22px;font:400 15px var(--ui);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 22%,transparent);white-space:nowrap}
+.chips button[aria-pressed="true"]{font-weight:600;color:var(--new);background:color-mix(in srgb,var(--new) 13%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--new) 60%,transparent)}
+.own{display:flex;align-items:center;height:44px;margin-top:8px;border-radius:22px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.own .cf{flex:1;height:44px;padding:0 0 0 14px;text-align:left;font:400 15px var(--ui);color:var(--ink3)}
+.mic{flex:none;width:44px;height:44px;display:grid;place-items:center;color:var(--ink2);border-radius:22px}
+.askrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.discard{height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--discard);background:color-mix(in srgb,var(--discard) 13%,transparent);white-space:nowrap}
+.keep{height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.shead{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center}
+.shead b{display:block;font:700 20px/1.2 var(--ui)}
+.shead .sx span{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.done{height:44px;padding:0 4px 0 14px;font:600 15px var(--ui);color:var(--link)}
+.more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:44px;margin-top:12px;border-radius:22px;font:600 15px var(--ui);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.lx{display:block;min-width:0}
+.nm{display:block;font:600 15px/1.3 var(--ui)}
+.sv{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.cv{width:14px;height:14px;color:var(--ink3);stroke-width:2.4}
+.hk{display:block;margin:20px 4px 8px 14px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+
+/* ================= round 1 of Train: what each colour means here, then the page's own objects ================= */
+/* gold = waiting on his call · green = done or yes · red = discard · cyan = Train's own and Nova's.
+   A muscle wears its own hue: src/muscleHue.js MUSCLE_HEX, the dark-ground values. */
+body[data-m="nova-glass"]{--wait:var(--c4);--filed:var(--c1);--discard:var(--dn);--new:var(--c3);--solid-row:#1c2137;
+  --m-chest:#ff8a7a;--m-back:#4fd1c5;--m-shoulders:#ffc46b;--m-biceps:#5fe8a8;--m-triceps:#b48cff;--m-quads:#7ab8ff;
+  --m-hams:#5aa0ff;--m-glutes:#c98bff;--m-calves:#8fd3ff;--m-abs:#ffd66b;--m-full:#59e6ff}
+
+/* muscle chips: a label, never a control, so they sit under the tap floor by design */
+.mchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.mchip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;font:600 13px var(--ui);white-space:nowrap;color:var(--ink);background:color-mix(in srgb,var(--h) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 34%,transparent)}
+.mchip i{width:7px;height:7px;border-radius:50%;background:var(--h);flex:none}
+
+/* the 3D chip: the figure in the lift's hue; a tap opens the lift (ExerciseSheet) */
+.f3d{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--h);background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--h) 26%,transparent),color-mix(in srgb,var(--h) 6%,transparent) 70%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 42%,transparent)}
+.f3d .ic{width:22px;height:22px;stroke-width:2}
+.f3d.l{width:56px;height:56px}.f3d.l .ic{width:28px;height:28px}
+
+/* A · the page */
+.hero{padding:16px}
+.hname{margin-top:10px;font:700 20px/1.2 var(--ui);letter-spacing:-.015em}
+.focus{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--sep);font:400 20px/1.3 var(--serif);text-wrap:balance}
+.focus em{font-style:normal;color:var(--m-back)}
+.hact{display:flex;align-items:center;gap:6px;margin-top:14px}
+.btn.begin{display:inline-flex;align-items:center;gap:8px;box-shadow:0 0 26px -8px color-mix(in srgb,var(--btn) 80%,transparent)}
+.btn.begin .ic{width:14px;height:14px;fill:currentColor;stroke:none}
+.week{padding:10px 8px 12px}
+.wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.wd{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;min-height:56px;border-radius:16px;font:400 13px var(--ui);color:var(--ink3)}
+.wd i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;box-sizing:border-box}
+.wd.done i{background:var(--filed);color:#05261a;box-shadow:0 0 10px -2px var(--filed)}
+.wd.done i .ic{width:11px;height:11px;stroke-width:3.4}
+.wd.today{color:var(--new);font-weight:600;background:color-mix(in srgb,var(--new) 8%,transparent)}
+.wd.today i{border:2.5px solid var(--new);box-shadow:0 0 12px -2px var(--new)}
+.wd.today i::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--new)}
+.wd.plan i{border:1.5px solid color-mix(in srgb,var(--ink) 55%,transparent)}
+.wd.rest i{width:10px;height:3px;border-radius:2px;margin:7px 0;background:color-mix(in srgb,var(--ink) 24%,transparent)}
+.wline{margin:6px 8px 0;font:400 15px var(--ui);color:var(--ink2);text-align:center}
+.crow{display:grid;grid-template-columns:12px minmax(0,1fr) 16px;gap:12px;align-items:center;width:100%;min-height:60px;margin-top:12px;padding:8px 14px 8px 16px;text-align:left}
+.gdot{width:10px;height:10px;border-radius:50%;background:var(--wait);box-shadow:0 0 10px 0 color-mix(in srgb,var(--wait) 70%,transparent)}
+.crow .nm em{font-style:normal;color:var(--wait)}
+.sechead .lnk{display:inline-flex;align-items:center;gap:4px;height:44px;margin:-12px -4px -12px 0;padding:0 4px 0 12px;font:600 15px var(--ui);color:var(--link)}
+.sechead .lnk .ic{width:14px;height:14px;stroke-width:2.6}
+.rtg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rt{display:flex;flex-direction:column;align-items:flex-start;min-height:118px;padding:12px 14px;text-align:left}
+.rt .nm{font-size:15px}
+.rt .sv{margin-top:2px}
+.rt .mchips{margin-top:auto;padding-top:10px}
+.cap1{margin:8px 8px 0;font:400 13px/1.45 var(--ui);color:var(--ink3)}
+.half{margin-top:12px}
+.step{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;margin-top:10px}
+.step button{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.step button .ic{width:16px;height:16px;stroke-width:2.6}
+.stepv{text-align:center;line-height:1}
+.stepv small{display:block;margin-top:2px;font:400 13px var(--ui);color:var(--ink3)}
+.half .btn.quiet{width:100%;margin-top:auto;padding:0}
+.hs{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;align-items:center;margin-top:12px}
+.rg{position:relative;display:grid;place-items:center}
+.rg svg{display:block;transform:rotate(-90deg)}
+.rg > b{position:absolute;inset:0;display:grid;place-items:center;font:700 20px/1 var(--round);font-variant-numeric:tabular-nums}
+.hs .sv{white-space:normal}
+.cardfoot{margin-top:auto;padding-top:8px;display:flex;align-items:center;gap:2px;font:600 15px var(--ui);color:var(--link)}
+.cardfoot .ic{width:15px;height:15px;stroke-width:2.6}
+.cardbtn{width:100%;text-align:left;color:inherit}
+
+/* A · 2 · the Coach door */
+.dhead{display:flex;align-items:center;gap:14px;margin:4px 4px 0}
+.dwhere{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dwhere .w{display:flex;align-items:center;gap:7px;min-width:0;font:600 13px var(--ui);color:var(--ink2)}
+.dwhere .w i{width:8px;height:8px;border-radius:50%;background:var(--h);box-shadow:0 0 8px -1px var(--h);flex:none}
+.dwhere .ss{flex:none;font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.dwhere .ss b{font:700 15px var(--round);color:var(--ink2)}
+.dwhere .ss b + b{color:var(--ink)}
+.then{margin:14px 4px 0;font:400 13px var(--ui);color:var(--ink3)}
+.gline{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;gap:10px;align-items:center;width:100%;min-height:60px;text-align:left}
+.gr3{display:flex;gap:6px}
+.rows2 > * + *{border-top:1px solid var(--sep)}
+.rows2{padding:0 14px}
+
+/* A · 3 · routine detail */
+.acts{display:flex;align-items:center;gap:8px;margin-top:14px}
+.dots3{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);flex:none}
+.dots3.bg{background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.dots3.on{color:var(--ink);background:color-mix(in srgb,var(--ink) 16%,transparent)}
+.dots3 .ic{width:20px;height:20px;stroke-width:0;fill:currentColor}
+.xlist{padding:0;overflow:hidden;margin-top:16px}
+.xlist > * + *{border-top:1px solid var(--sep)}
+.xrow{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:10px;align-items:center;min-height:52px;padding:4px 6px 4px 8px;background:transparent}
+.xrow .nm{white-space:nowrap;overflow:hidden}
+.xrow .sv .cw{color:var(--new)}
+.xopen{margin:0 8px 8px 62px;padding:10px 12px 8px;border-radius:16px;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.xk{display:flex;align-items:baseline;gap:6px;font:400 15px/1.4 var(--ui)}
+.xk .cw{font-weight:600;color:var(--new)}
+.srow2{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;margin-top:6px}
+.srow2 .dk{color:var(--ink2);font-weight:400;font-size:15px}
+.mini{display:inline-grid;grid-template-columns:44px 40px 44px;align-items:center;text-align:center}
+.mini button{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.mini button .ic{width:14px;height:14px;stroke-width:2.8}
+.mini b{font:700 20px var(--round);font-variant-numeric:tabular-nums}
+.xbtns{display:flex;gap:4px;margin-top:4px;margin-left:-8px}
+.xbtns .talk.ink{color:var(--ink2)}
+.xbtns .talk.red{color:var(--discard)}
+.sw{position:relative;overflow:hidden}
+.sw .under{position:absolute;top:0;bottom:0;right:0;display:flex}
+.sw .under button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:78px;height:100%;font:600 13px var(--ui)}
+.sw .under .ic{width:18px;height:18px}
+.sw .under .mv{background:color-mix(in srgb,var(--new) 26%,var(--solid-row));color:var(--ink)}
+.sw .under .rm{background:color-mix(in srgb,var(--discard) 72%,var(--solid-row));color:#fff}
+.sw .xrow,.sw .hrow{-webkit-mask-image:linear-gradient(90deg,transparent 156px,#000 216px);mask-image:linear-gradient(90deg,transparent 156px,#000 216px)}
+.sw .xrow{position:relative;transform:translateX(-156px);background:var(--solid-row);box-shadow:12px 0 20px -12px rgba(0,0,0,.9)}
+.more .ic{width:15px;height:15px;stroke-width:2.6}
+
+/* B · the live session */
+.titlerow .fin{height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--link);background:color-mix(in srgb,var(--link) 12%,transparent);white-space:nowrap}
+.xrail{position:relative;margin-top:12px}
+.peek{position:absolute;top:14px;bottom:14px;width:14px;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring);opacity:.55}
+.peek.l{left:-16px;border-radius:0 16px 16px 0}
+.peek.r{right:-16px;border-radius:16px 0 0 16px}
+.xcard{padding:14px 16px 16px}
+.xtop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.xdots{display:flex;align-items:center;gap:6px}
+.xdots i{width:8px;height:8px;border-radius:50%;background:color-mix(in srgb,var(--ink) 26%,transparent)}
+.xdots i.d{background:var(--filed)}
+.xdots i.on{width:22px;border-radius:4px;background:var(--new);box-shadow:0 0 8px -1px var(--new)}
+.xof{font:400 13px var(--ui);color:var(--ink3)}
+.xhead{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:center;margin-top:12px}
+.xname{display:block;font:700 20px/1.2 var(--ui);letter-spacing:-.015em}
+.xhead .mchips{margin-top:6px}
+.last{margin:12px 0 0;font:400 15px var(--ui);color:var(--ink2)}
+.last b{font:700 15px var(--round);color:var(--ink)}
+.last .cw{color:var(--new)}
+.setcard{margin-top:12px;padding:14px 16px 12px}
+.sethead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sethead b{font:600 15px var(--ui)}
+.sethead span{font:400 13px var(--ui);color:var(--ink3)}
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 64px;gap:10px;align-items:center;margin-top:10px}
+.numbox{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;height:78px;border-radius:18px;background:rgba(0,0,0,.24);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.numbox .bn{font:700 44px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.numbox .u{margin-top:3px;font:400 13px var(--ui);color:var(--ink3)}
+.numbox.on{background:color-mix(in srgb,var(--new) 9%,rgba(0,0,0,.24));box-shadow:inset 0 0 0 2px var(--new),0 0 24px -8px var(--new)}
+.numbox.on .bn{color:var(--new)}
+.numbox .caret{display:inline-block;width:3px;height:36px;margin-left:3px;vertical-align:-4px;border-radius:2px;background:var(--new)}
+.numbox.dim{opacity:.55}
+.tick64{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--new);color:#062028;box-shadow:0 0 30px -6px var(--new)}
+.tick64 .ic{width:30px;height:30px;stroke-width:3.2}
+.moreline{display:flex;align-items:center;justify-content:space-between;width:100%;height:44px;margin-top:6px;font:400 15px var(--ui);color:var(--ink3)}
+.moreline span:last-child{display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--link)}
+.moreline .ic{width:14px;height:14px;stroke-width:2.6}
+.spills{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:4px}
+.sp{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:44px;border-radius:22px;font:600 13px var(--ui);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink3);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 16%,transparent)}
+.sp .ic{width:13px;height:13px;stroke-width:3}
+.sp.d{color:var(--filed);background:color-mix(in srgb,var(--filed) 11%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--filed) 34%,transparent)}
+.sp.now{color:var(--new);box-shadow:inset 0 0 0 1.5px var(--new)}
+.sp.now i{width:8px;height:8px;border-radius:50%;background:var(--new)}
+.voice{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:44px;margin-top:10px;font:400 15px var(--ui);color:var(--link)}
+.voice .ic{width:17px;height:17px}
+.lchips{display:flex;flex-wrap:wrap;gap:8px}
+.lchips button{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 14px;border-radius:22px;font:400 15px var(--ui);white-space:nowrap;background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.lchips .ic{width:15px;height:15px}
+.xmini{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;margin-top:12px;padding:8px 14px 8px 8px}
+.xmini .sv b{font:700 13px var(--round);color:var(--ink2)}
+.setcard.tight{padding:12px 14px}
+.pad{margin-top:10px;padding:12px}
+.padk{display:flex;justify-content:space-between;align-items:baseline;margin:0 4px 10px;font:400 13px var(--ui);color:var(--ink3)}
+.padk b{font:700 13px var(--round);color:var(--ink2)}
+.keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.key{height:52px;border-radius:14px;font:500 20px var(--round);background:color-mix(in srgb,var(--ink) 9%,transparent);box-shadow:inset 0 1px 0 var(--card-hi)}
+.key.op{font:600 15px var(--round);color:var(--new);background:color-mix(in srgb,var(--new) 10%,transparent)}
+.key.dn{grid-column:span 2;font:600 15px var(--ui);color:var(--new);background:color-mix(in srgb,var(--new) 16%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--new) 45%,transparent)}
+.key .ic{width:20px;height:20px;margin:0 auto}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px;text-align:center}
+.trio small{display:block;margin-top:4px;font:400 13px var(--ui);color:var(--ink3)}
+.prg{position:relative;margin:14px auto 0;width:188px}
+.prg svg{display:block;width:188px;height:188px}
+.prg .pv{position:absolute;left:0;right:0;top:64px;text-align:center}
+.prg .pv b{display:block;font:700 44px/1 var(--round);letter-spacing:-.02em;color:var(--m-back);text-shadow:0 0 22px color-mix(in srgb,var(--m-back) 40%,transparent)}
+.prg .pv small{font:400 13px var(--ui);color:var(--ink3)}
+.prl{margin:6px 0 0;text-align:center;font:400 15px var(--ui)}
+.prl span{display:block;font-size:13px;color:var(--ink3)}
+.fsep{margin-top:16px;padding-top:12px;border-top:1px solid var(--sep)}
+.frow{display:flex;align-items:center;gap:8px;margin-top:14px}
+.frow .btn{flex:1;padding:0 12px}
+.gone{display:flex;justify-content:center;margin-top:6px}
+.gone button{height:44px;padding:0 14px;font:600 15px var(--ui);color:var(--discard)}
+
+/* C · one fact */
+.titlerow .segc{width:236px;flex:none}
+.ready{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px 16px;align-items:center;margin-top:14px}
+.ready .rg > b{flex-direction:column;align-content:center;gap:4px;font-size:34px;color:var(--new);text-shadow:0 0 14px rgba(89,230,255,.5)}
+.ready .rg > b small{font:600 13px var(--ui);color:var(--ink3);text-shadow:none}
+.facts{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fact{display:flex;align-items:center;justify-content:space-between;gap:8px;font:400 13px var(--ui);color:var(--ink3)}
+.fact b{display:inline-flex;align-items:center;gap:6px;font:700 20px/1 var(--round);color:var(--ink);font-variant-numeric:tabular-nums}
+.fact b small{font:600 13px var(--round);color:var(--ink3)}
+.blk{align-self:flex-start;display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:13px;font:600 13px var(--ui);color:var(--c2);background:color-mix(in srgb,var(--c2) 14%,transparent)}
+.ready .chips{grid-column:1 / -1;margin-top:4px}
+.ready .chips button{color:var(--link);font-weight:600;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--link) 34%,transparent)}
+.tcard{margin-top:12px}
+.tc{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;margin-top:10px}
+.tc .t{font:700 20px/1.2 var(--ui)}
+.wkr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 8px;margin-top:12px}
+.wkr .m{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.wkr .m .nm{font:600 13px var(--ui);color:var(--h)}
+.wkr .m .sv{margin-top:-4px}
+.wkr .rg > b{font-size:20px}
+.mom{display:flex;gap:10px;margin:12px -16px 0;padding:2px 16px 6px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-left:16px;scrollbar-width:none}
+.mom::-webkit-scrollbar{display:none}
+.mc{flex:0 0 164px;min-height:128px;display:flex;flex-direction:column;scroll-snap-align:start;padding:12px 14px;border-radius:18px;background:linear-gradient(160deg,color-mix(in srgb,var(--h) 12%,transparent),var(--card));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 42%,transparent)}
+.mc .k{font:600 13px var(--ui);color:var(--h)}
+.mc .nm{margin-top:6px}
+.mc .sv{margin-top:auto;white-space:normal}
+
+/* C · 2 · the week sheet */
+.wbig{display:flex;align-items:baseline;gap:10px;margin:6px 2px 0}
+.spec{display:flex;gap:2px;height:6px;margin-top:12px}
+.spec span{min-width:6px;border-radius:3px;overflow:hidden;background:color-mix(in srgb,var(--h) 20%,transparent)}
+.spec span i{display:block;height:100%;background:var(--h)}
+.ahead{margin:12px 2px 0;font:italic 400 20px/1.3 var(--serif);text-wrap:balance}
+.wg{margin-top:16px}
+.wg .r{display:grid;grid-template-columns:78px repeat(7,minmax(0,1fr));align-items:stretch}
+.wg .r + .r{border-top:1px solid color-mix(in srgb,var(--ink) 8%,transparent)}
+.wg .hd span{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 0;font:600 13px var(--ui);color:var(--ink3);min-width:0}
+.wg .hd span small{font:400 13px var(--ui);color:var(--ink3)}
+.wg .today{background:color-mix(in srgb,var(--new) 8%,transparent)}
+.wg .hd span.today,.wg .hd span.today small{color:var(--new)}
+.wg .ml{display:flex;flex-direction:column;justify-content:center;min-height:48px;padding:4px 4px 4px 0}
+.wg .ml b{font:600 13px var(--ui);color:var(--h);white-space:nowrap}
+.wg .ml span{font:400 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.wg .c{display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:2px;padding:4px 3px}
+.pip{width:6px;height:6px;border-radius:50%;box-sizing:border-box}
+.pip.d{background:var(--h)}
+.pip.due{border:1.2px solid color-mix(in srgb,var(--h) 80%,transparent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 2px 0;font:400 13px var(--ui);color:var(--ink3)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .pip{width:9px;height:9px;--h:var(--ink2)}
+.msec{margin-top:14px;padding-top:14px;border-top:1px solid var(--sep)}
+.mhd{display:grid;grid-template-columns:54px minmax(0,1fr);gap:12px;align-items:center}
+.mhd .nm{color:var(--h)}
+.ex{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;border-top:1px solid color-mix(in srgb,var(--ink) 7%,transparent)}
+.ex:first-of-type{margin-top:8px}
+.ex .dd{font:600 13px var(--ui);color:var(--ink3)}
+.ex .dd.t{color:var(--new)}
+.ex .ps{display:flex;gap:3px;justify-content:flex-end}
+.ex .ps .pip{width:9px;height:9px}
+.ex .nm{font-weight:400}
+
+/* C · 3 · history, the Apple Fitness shape */
+.hlist{padding:0;overflow:hidden}
+.hlist > * + *{border-top:1px solid var(--sep)}
+.hrow{display:grid;grid-template-columns:48px minmax(0,1fr) 14px;gap:12px;align-items:center;min-height:72px;padding:8px 14px 8px 12px;background:transparent;width:100%;text-align:left}
+.hrow .nm{display:flex;justify-content:space-between;gap:8px}
+.hrow .nm span{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.hrow .sv b{font:700 13px var(--round);color:var(--ink2)}
+.hrow .cs{display:block;margin-top:2px;font:400 13px/1.35 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.hrow .cs i{font-style:normal;color:var(--ink2)}
+.sw .hrow{position:relative;transform:translateX(-156px);background:var(--solid-row);box-shadow:12px 0 20px -12px rgba(0,0,0,.9)}
+.sw .under .ed{background:color-mix(in srgb,var(--new) 26%,var(--solid-row));color:var(--ink)}
+</style>
+</head>
+<body data-m="nova-glass">
+<div class="sky" aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-talk" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-fig" viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="2.2"/><path d="M12 7.6v7M6.2 9.4 12 11l5.8-1.6M12 14.6l-3.2 6.4M12 14.6l3.2 6.4"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 8 8"/></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24"><path d="M8 4v16M8 4 4.5 7.5M8 4l3.5 3.5M16 20V4M16 20l-3.5-3.5M16 20l3.5-3.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+  <symbol id="i-del" viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7z"/><path d="m12 9.5 5 5M17 9.5l-5 5"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h4"/></symbol>
+  <symbol id="i-bang" viewBox="0 0 24 24"><path d="M12 6v8M12 18v.01"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zM18 5v14"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="11" rx="2"/><path d="m16 11 5-3v9l-5-3"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-coach" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M9 10.5h6"/></symbol>
+</svg>
+
+<nav class="switch" aria-label="Variation and screen">
+  <div class="inner">
+    <div class="seg" role="tablist" aria-label="Variation">
+      <button data-var="a" aria-pressed="true">A · Two places</button>
+      <button data-var="b" aria-pressed="false">B · One set</button>
+      <button data-var="c" aria-pressed="false">C · One fact</button>
+    </div>
+    <div class="seg" id="screens" role="tablist" aria-label="Screen"></div>
+    <p class="tally" id="tally" title="Tap for the full tally"></p>
+  </div>
+</nav>
+
+<div class="phone">
+
+<!-- ================= A · 1 · TWO PLACES: THE GYM PAGE ================= -->
+<main id="a1" class="view" data-tally="<b>A · Two places, 1 The page.</b> Above the fold: <b>6 objects</b> (hero, week, Coach row, Routines head, 2 tiles) where Today had ~7 and Gym ~6 in two tabs · filled buttons <b>1</b> (Begin) · verbs: hero <b>1</b> + open, Coach row <b>1</b>, a tile <b>1</b> + hold · type <b>34 20 15 13</b> + numerals · tap floor <b>44</b> · resolves <b>1 2 4 7 9</b> (7 on A · 2) · leaves <b>5 8</b> (the live session, see B) and <b>12</b> (demo mode, a build fix)">
+  <div class="a-top">
+    <h1 class="rise" style="--i:0">Train</h1>
+    <section class="card hero rise" style="--i:1" aria-label="On today's card" data-obj>
+      <div class="ch c3"><svg class="ic"><use href="#i-dumbbell"/></svg>On today's card<span class="time">Wednesday</span></div>
+      <div class="hname">Pull day</div>
+      <div class="sub">6 lifts · about 55 min · last time 7,200 kg</div>
+      <div class="mchips"><span class="mchip" style="--h:var(--m-back)"><i></i>Back</span><span class="mchip" style="--h:var(--m-biceps)"><i></i>Biceps</span><span class="mchip" style="--h:var(--m-shoulders)"><i></i>Shoulders</span></div>
+      <p class="focus"><em>Lat Pulldown</em> has earned a rep since last week.</p>
+      <div class="hact">
+        <button class="btn begin"><svg class="ic"><use href="#i-play"/></svg>Begin</button>
+        <button class="talk" data-go="a3">See the 6 lifts</button>
+      </div>
+    </section>
+    <section class="card week rise" style="--i:2" aria-label="This week" data-obj>
+      <div class="wk">
+        <button class="wd done" aria-label="Monday, Push day, done">M<i><svg class="ic"><use href="#i-check"/></svg></i></button>
+        <button class="wd done" aria-label="Tuesday, Full body, done">T<i><svg class="ic"><use href="#i-check"/></svg></i></button>
+        <button class="wd today" aria-label="Wednesday, Pull day, today">W<i></i></button>
+        <button class="wd plan" aria-label="Thursday, Legs, planned">T<i></i></button>
+        <button class="wd rest" aria-label="Friday, rest">F<i></i></button>
+        <button class="wd plan" aria-label="Saturday, Push day, planned">S<i></i></button>
+        <button class="wd rest" aria-label="Sunday, rest">S<i></i></button>
+      </div>
+      <p class="wline">Legs Thursday, then rest</p>
+    </section>
+    <button class="card crow rise" style="--i:3" data-go="a2" data-obj>
+      <span class="gdot" aria-hidden="true"></span>
+      <span class="lx"><span class="nm">Coach · <em>1 change waiting</em></span><span class="sv fit">A fourth set of Barbell Curl · Goals · Ask Coach</span></span>
+      <svg class="ic cv"><use href="#i-right"/></svg>
+    </button>
+  </div>
+  <div class="sechead rise" style="--i:4"><h2>Routines</h2><button class="lnk"><svg class="ic"><use href="#i-plus"/></svg>New</button></div>
+  <div class="rtg rise" style="--i:4">
+    <button class="card rt" data-obj><span class="nm">Push day</span><span class="sv">◆ 6 lifts</span><span class="mchips"><span class="mchip" style="--h:var(--m-chest)"><i></i>Chest</span><span class="mchip" style="--h:var(--m-triceps)"><i></i>Triceps</span></span></button>
+    <button class="card rt" data-go="a3" data-obj><span class="nm">Pull day</span><span class="sv">◆ 6 lifts · today</span><span class="mchips"><span class="mchip" style="--h:var(--m-back)"><i></i>Back</span><span class="mchip" style="--h:var(--m-biceps)"><i></i>Biceps</span></span></button>
+    <button class="card rt"><span class="nm">Legs</span><span class="sv">◆ 7 lifts</span><span class="mchips"><span class="mchip" style="--h:var(--m-quads)"><i></i>Quads</span><span class="mchip" style="--h:var(--m-hams)"><i></i>Hamstrings</span></span></button>
+    <button class="card rt"><span class="nm">Full body</span><span class="sv">◆ 5 lifts</span><span class="mchips"><span class="mchip" style="--h:var(--m-back)"><i></i>Back</span><span class="mchip" style="--h:var(--m-quads)"><i></i>Quads</span></span></button>
+  </div>
+  <p class="cap1 rise" style="--i:5">Hold a routine for ⋯: rename, schedule, duplicate, delete.</p>
+  <div class="grid half rise" style="--i:6">
+    <section class="card" aria-label="Quick session">
+      <div class="ch"><svg class="ic"><use href="#i-bolt"/></svg>Quick session</div>
+      <div class="step"><button aria-label="Five minutes less"><svg class="ic"><use href="#i-minus"/></svg></button><span class="stepv"><span class="num s">30</span><small>minutes</small></span><button aria-label="Five minutes more"><svg class="ic"><use href="#i-plus"/></svg></button></div>
+      <button class="btn quiet" style="margin-top:12px">Build it</button>
+    </section>
+    <button class="card cardbtn" data-go="c2" aria-label="Hard sets this week. Open the week">
+      <span class="ch"><svg class="ic"><use href="#i-bars"/></svg>Hard sets</span>
+      <span class="hs"><span class="rg" data-seg="72"><b>25</b></span><span class="sv">of 67 planned this week · Biceps short</span></span>
+      <span class="cardfoot">The week<svg class="ic"><use href="#i-right"/></svg></span>
+    </button>
+  </div>
+  <aside class="note rise" style="--i:7"><b>What moved where</b>
+    <ul>
+      <li>Today folds into Home. The readiness ring and Sleep are Home's Training and Body cards; the PR medal is the Training card's. "Why am I tired?" and "When am I at my best?" become starters in the Coach door.</li>
+      <li>Coach stops being a tab. The deck, Goals and the conversation open as a sheet from the Coach row (A · 2). That row's dot is the only gold on the page.</li>
+      <li>Focus for today is the hero's serif line. When it has a change to make, the change arrives as a Coach card.</li>
+      <li>The week strip becomes seven dots. Tap a day to change its routine or mark a make-up; the line under it says what comes next. Carry-overs and recovery cards (discarded, parked, finish the missed lifts) appear above the hero only when they exist, one row each.</li>
+      <li>Hard sets: the half card's ring opens the week sheet (drawn in C · 2). Quick session: minutes on a stepper, Build it shows the preview, then Start.</li>
+      <li>A routine opens its detail, with Start, History and every lift (A · 3). + New starts one inline.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= A · 2 · THE COACH DOOR, AS A SHEET ================= -->
+<main id="a2" class="view" hidden data-tally="<b>A · 2 The Coach door.</b> A sheet over the page. The deck card in its own shape, caught after a ✕: two reasons, a line of his own, Not now confirms, then a receipt with Undo · verbs on the card <b>3</b> (Yes · Discuss · ✕), then <b>2</b> (Not now · Keep it) · filled buttons <b>0</b> · type <b>20 15 13</b> + numerals · tap floor <b>44</b> · resolves <b>6</b> (✕ asks why), <b>7</b> (one posture for a no: ask, confirm, Undo), <b>1</b> (Coach is a door, not a tab)">
+  <div class="behind" aria-hidden="true" inert data-clone="a1 .a-top"></div>
+  <div class="scrim" aria-hidden="true" data-go="a1"></div>
+  <section class="sheet rise" style="--i:0;--sheet-top:64px" aria-label="Coach">
+    <div class="grab"></div>
+    <div class="shead">
+      <span class="tile" style="background:color-mix(in srgb,var(--new) 20%,transparent);color:var(--new)"><svg class="ic" style="width:17px;height:17px"><use href="#i-coach"/></svg></span>
+      <span class="sx"><b>Coach</b><span>Pull day · waiting on you</span></span>
+      <button class="done" data-go="a1">Done</button>
+    </div>
+    <div class="count" style="margin-top:10px">
+      <span class="num wait">1</span>
+      <div class="cx"><b>change from Coach</b><span>A yes edits Pull day; Undo takes it back</span></div>
+    </div>
+    <article class="card dcard" style="margin-top:14px" aria-label="Add a fourth set of Barbell Curl">
+      <div class="dwhere">
+        <span class="w" style="--h:var(--m-biceps)"><i></i>Pull day · Wednesday</span>
+        <span class="ss" aria-label="20 sets becomes 21"><b>20</b> → <b>21</b> sets</span>
+      </div>
+      <p class="say">Add a fourth set of Barbell Curl.</p>
+      <div class="change" role="img" aria-label="Barbell Curl, 3 sets becomes 4">
+        <span class="sets" style="--h:var(--m-biceps)"><i></i><i></i><i></i><i class="new"></i></span><span>Barbell Curl · 3 → 4 sets</span>
+      </div>
+      <p class="why">Biceps finish the week at 8 of 10 on the plan as written. One more set of curls closes most of that gap.</p>
+      <p class="src">From Coach's weekly read · today</p>
+      <div class="answer">
+        <button class="yes"><svg class="ic"><use href="#i-check"/></svg>Yes</button>
+        <button class="talk"><svg class="ic"><use href="#i-talk"/></svg>Discuss</button>
+        <button class="no lit" aria-label="Not now" aria-expanded="true"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="askwhy">
+        <span class="dk">Why not? Coach reads this before it asks again</span>
+        <div class="chips"><button aria-pressed="true">Not this week</button><button aria-pressed="false">Wrong lift for me</button></div>
+        <div class="own"><button class="cf">Or say why in a line…</button><button class="mic" aria-label="Dictate"><svg class="ic"><use href="#i-mic"/></svg></button></div>
+        <div class="askrow"><button class="discard">Not now</button><button class="keep">Keep it</button></div>
+      </div>
+    </article>
+    <p class="then">A tap on Not now folds the card away and leaves this:</p>
+    <div class="receipt">
+      <span class="ok pass"><svg class="ic"><use href="#i-x"/></svg></span>
+      <span class="rx"><b>Passed on the curl set</b><span class="fit">Not this week · Coach has your reason</span></span>
+      <button class="undo">Undo</button>
+    </div>
+    <span class="hk">The rest of the door</span>
+    <div class="card rows2">
+      <button class="gline"><span class="lx"><span class="nm">Goals</span><span class="sv fit">Build muscle, 4 days a week</span></span><span class="gr3" data-goals></span><svg class="ic cv"><use href="#i-right"/></svg></button>
+      <div class="own" style="margin:10px 0 12px"><button class="cf">Ask Coach…</button><button class="mic" aria-label="Dictate"><svg class="ic"><use href="#i-mic"/></svg></button></div>
+    </div>
+    <aside class="note"><b>The Coach door.</b> The Coach row opens this sheet; the old Coach tab goes, because it only repeated the end of Gym (finding 1). The card keeps its shape: WHERE with the session's set count, one sentence, the change drawn (three filled sets in the biceps hue, a fourth dashed in gold because it waits on you), WHY, the source. A ✕ no longer discards at once (finding 6): it asks why with two reasons and a line of his own, and Not now confirms. Coach may answer the reason in the conversation below. The receipt keeps Undo, the same posture every no on Train now takes (finding 7). With two or more cards, "Yes to all N" sits by the count. Goals opens its read view and edit (rings, days, muscles, as steppers and chips, finding 9); the conversation keeps its starters, attach, Bring a study and the composer.</aside>
+  </section>
+</main>
+
+<!-- ================= A · 3 · ROUTINE DETAIL ================= -->
+<main id="a3" class="view" hidden data-tally="<b>A · 3 Routine.</b> Above the fold: <b>10 objects</b> (title, Start · History, 6 rows, one open) · rows <b>52</b> tall, 3 verbs a row (tap for the lift, ⋯, swipe) where today a row carried up to 8 · filled buttons <b>1</b> · type <b>34 20 15 13</b> + numerals · tap floor <b>44</b> (today 24 of 49 under 44, 12 under 28) · resolves <b>7 8 10 11</b> on this screen">
+  <button class="back rise" style="--i:0" data-go="a1"><svg class="ic"><use href="#i-left"/></svg>Train</button>
+  <div class="titlerow rise" style="--i:0"><h1>Pull day</h1><button class="dots3 bg" aria-label="Routine options: rename, schedule, delete"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+  <div class="sub rise" style="--i:1;margin-left:4px">6 lifts · about 55 min · Wednesdays</div>
+  <div class="acts rise" style="--i:1">
+    <button class="btn begin"><svg class="ic"><use href="#i-play"/></svg>Start workout</button>
+    <button class="btn quiet" data-go="c3">History</button>
+  </div>
+  <div class="card xlist rise" style="--i:2">
+    <div class="xrow" data-obj><button class="f3d" style="--h:var(--m-shoulders)" aria-label="Face Pull in 3D"><svg class="ic"><use href="#i-fig"/></svg></button><span class="lx"><span class="nm">Face Pull</span><span class="sv fit">3 × 15 · last 25 kg</span></span><button class="dots3" aria-label="More for Face Pull"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+    <div class="xrow" data-obj><button class="f3d" style="--h:var(--m-back)" aria-label="Seated Cable Row in 3D"><svg class="ic"><use href="#i-fig"/></svg></button><span class="lx"><span class="nm">Seated Cable Row</span><span class="sv fit">4 × 10 · last 55 kg</span></span><button class="dots3" aria-label="More for Seated Cable Row"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+    <div data-obj>
+      <div class="xrow"><button class="f3d" style="--h:var(--m-back)" aria-label="Lat Pulldown in 3D"><svg class="ic"><use href="#i-fig"/></svg></button><span class="lx"><span class="nm">Lat Pulldown</span><span class="sv fit">4 × 8 · last 60 kg · <span class="cw">Coach +1 rep</span></span></span><button class="dots3 on" aria-expanded="true" aria-label="Less for Lat Pulldown"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+      <div class="xopen">
+        <div class="xk"><span class="cw">Coach</span><span>8 reps earned; 62.5 kg is prefilled next time.</span></div>
+        <div class="srow2"><span class="dk">Sets</span><span class="mini"><button aria-label="One set fewer"><svg class="ic"><use href="#i-minus"/></svg></button><b>4</b><button aria-label="One set more"><svg class="ic"><use href="#i-plus"/></svg></button></span></div>
+        <div class="srow2" style="margin-top:0"><span class="dk">Reps</span><span class="mini"><button aria-label="One rep fewer"><svg class="ic"><use href="#i-minus"/></svg></button><b>8</b><button aria-label="One rep more"><svg class="ic"><use href="#i-plus"/></svg></button></span></div>
+        <div class="xbtns"><button class="talk">Why Coach set it</button><button class="talk ink"><svg class="ic"><use href="#i-cam"/></svg>Form check</button></div>
+      </div>
+    </div>
+    <div class="sw" data-obj>
+      <div class="under"><button class="mv"><svg class="ic"><use href="#i-move"/></svg>Move</button><button class="rm"><svg class="ic"><use href="#i-trash"/></svg>Remove</button></div>
+      <div class="xrow"><span class="f3d" style="--h:var(--m-back)"><svg class="ic"><use href="#i-fig"/></svg></span><span class="lx"><span class="nm">Chest-Supported Row</span><span class="sv fit">3 × 10 · last 20 kg</span></span><span class="dots3"><svg class="ic"><use href="#i-dots"/></svg></span></div>
+    </div>
+    <div class="xrow" data-obj><button class="f3d" style="--h:var(--m-biceps)" aria-label="Barbell Curl in 3D"><svg class="ic"><use href="#i-fig"/></svg></button><span class="lx"><span class="nm">Barbell Curl</span><span class="sv fit">3 × 10 · last 30 kg</span></span><button class="dots3" aria-label="More for Barbell Curl"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+    <div class="xrow" data-obj><button class="f3d" style="--h:var(--m-biceps)" aria-label="Hammer Curl in 3D"><svg class="ic"><use href="#i-fig"/></svg></button><span class="lx"><span class="nm">Hammer Curl</span><span class="sv fit">3 × 12 · last 14 kg</span></span><button class="dots3" aria-label="More for Hammer Curl"><svg class="ic"><use href="#i-dots"/></svg></button></div>
+  </div>
+  <button class="more rise" style="--i:3"><svg class="ic"><use href="#i-plus"/></svg>Add exercise</button>
+  <aside class="note rise" style="--i:4"><b>Routine detail.</b> Each lift is one 52px row: the 3D chip in the muscle's hue opens the lift (the figure, the muscles, cues, history), and so does the name. The ⋯ unfolds what used to sit in every row at once (drawn open on Lat Pulldown): Coach's prescription in one line with its reason a tap further (finding 10), sets and reps as steppers where three bare number boxes were (finding 8), and Form check. Swipe left for Move and Remove (a still on Chest-Supported Row, finding 11); Move lifts the row so a drag reorders it. The title's ⋯ holds Rename, Schedule and Delete routine; delete asks once and leaves Undo, the same posture as a ✕ on Coach (finding 7). Add exercise opens the picker: search, muscle filter, hold to preview, create if missing. History opens the sessions (drawn in C · 3).</aside>
+</main>
+
+<!-- ================= B · 1 · ONE SET AT A TIME ================= -->
+<main id="b1" class="view" hidden data-tally="<b>B · One set, 1 The set.</b> Above the fold: <b>5 objects</b> (title, the lift, the set card, the set pills, talk) where one lift's grid carried 8 columns · filled buttons <b>1</b> (the tick) · verbs on the set card <b>3</b> (a number, More, the tick) · type <b>34 20 15 13</b> + numerals · tap floor <b>44</b>, the tick <b>64</b> (today 40; remove 26 × 36; skip 26) · resolves <b>5 8 11</b> · leaves <b>1 2 3 4</b> (B redraws the session only; pair it with A or C)">
+  <div class="b-top">
+    <div class="titlerow rise" style="--i:0"><h1>Pull day</h1><button class="fin" data-go="b3">Finish</button></div>
+    <div class="sub rise" style="--i:0;margin-left:4px">24 min in · 9 of 20 sets</div>
+    <div class="xrail rise" style="--i:1">
+      <span class="peek l" aria-hidden="true"></span><span class="peek r" aria-hidden="true"></span>
+      <article class="card xcard" aria-label="Lift 3 of 6: Lat Pulldown. Swipe for the next lift" data-obj>
+        <div class="xtop"><span class="xdots" aria-hidden="true"><i class="d"></i><i class="d"></i><i class="on"></i><i></i><i></i><i></i></span><span class="xof">3 of 6 · swipe for the next</span></div>
+        <div class="xhead">
+          <button class="f3d l" style="--h:var(--m-back)" aria-label="Lat Pulldown in 3D"><svg class="ic"><use href="#i-fig"/></svg></button>
+          <div><b class="xname">Lat Pulldown</b><div class="mchips"><span class="mchip" style="--h:var(--m-back)"><i></i>Back</span></div></div>
+        </div>
+        <p class="last">Last time <b>60 kg × 8</b> · <span class="cw">Coach: try 62.5</span></p>
+      </article>
+    </div>
+    <section class="card setcard rise" style="--i:2" aria-label="Set 3 of 4" data-obj>
+      <div class="sethead"><b>Set 3 of 4</b><span>Working set</span></div>
+      <div class="setrow">
+        <button class="numbox" data-go="b2" aria-label="Weight 60 kilograms. Tap to change"><span class="bn">60</span><span class="u">kg</span></button>
+        <button class="numbox" aria-label="8 reps. Tap to change"><span class="bn">8</span><span class="u">reps</span></button>
+        <button class="tick64" aria-label="Done: set 3"><svg class="ic"><use href="#i-check"/></svg></button>
+      </div>
+      <button class="moreline" aria-expanded="false"><span>RPE · RIR · type</span><span>More<svg class="ic"><use href="#i-down"/></svg></span></button>
+      <div class="spills" aria-label="Sets">
+        <button class="sp d"><svg class="ic"><use href="#i-check"/></svg>60 × 8</button>
+        <button class="sp d"><svg class="ic"><use href="#i-check"/></svg>60 × 8</button>
+        <button class="sp now"><i></i>Set 3</button>
+        <button class="sp">Set 4</button>
+      </div>
+    </section>
+  </div>
+  <button class="voice rise" style="--i:3" data-obj><svg class="ic"><use href="#i-mic"/></svg>Log it by talking</button>
+  <span class="hk rise" style="--i:4">Also on this lift</span>
+  <div class="lchips rise" style="--i:4">
+    <button><svg class="ic"><use href="#i-plus"/></svg>Extra set</button>
+    <button><svg class="ic"><use href="#i-note"/></svg>Note</button>
+    <button><svg class="ic"><use href="#i-bang"/></svg>Pain?</button>
+    <button><svg class="ic"><use href="#i-moon"/></svg>Off day</button>
+    <button><svg class="ic"><use href="#i-play"/></svg>Form</button>
+    <button><svg class="ic"><use href="#i-cam"/></svg>Form check</button>
+    <button><svg class="ic"><use href="#i-skip"/></svg>Skip today</button>
+  </div>
+  <button class="more rise" style="--i:5"><svg class="ic"><use href="#i-plus"/></svg>Add a lift, this session only</button>
+  <button class="card crow rise" style="--i:5">
+    <span class="gdot" style="background:var(--new);box-shadow:0 0 10px 0 color-mix(in srgb,var(--new) 70%,transparent)" aria-hidden="true"></span>
+    <span class="lx"><span class="nm">Ask Coach, mid-session</span><span class="sv fit">Sees this session live · "only 20 minutes left"</span></span>
+    <svg class="ic cv"><use href="#i-right"/></svg>
+  </button>
+  <aside class="note rise" style="--i:6"><b>What moved where</b>
+    <ul>
+      <li>The seven-column grid becomes one set card. Weight and reps are two numerals; a tap opens the pad (B · 2). RPE, RIR and type (working, back-off, warm-up) sit behind More. The tick is 64 and the only filled control (finding 5).</li>
+      <li>The lift is a rail: swipe for the next or last lift; the dots say where you are, green for finished. The 3D chip opens the lift, as today; its Coach chip is the cyan line.</li>
+      <li>Logged sets are pills. Tap one to edit it; swipe it down to remove it (finding 11). + Extra set, Note, Pain?, Off day, Form, Form check and Skip today are one row of chips under the set. Pain opens the triage sheet as today.</li>
+      <li>Log it by talking opens the gym voice grammar: "80 for 8", "same again", "next", "skip it", "what's next", "finish".</li>
+      <li>Ask Coach mid-session is the last row and still sees the session live. Finish sits at the top right (B · 3).</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= B · 2 · THE NUMBER PAD ================= -->
+<main id="b2" class="view" hidden data-tally="<b>B · 2 Number pad.</b> Weight open: the lift folds to one line, the set card keeps its three controls, the pad sits under it · keys <b>52</b> tall · filled buttons <b>1</b> (the tick) · type <b>34 20 15 13</b> + numerals · tap floor <b>44</b> · resolves <b>8</b> (the pad is the input; no hand-rolled field) and <b>5</b> (the weight target is 127 × 78 where its column was 46 wide)">
+  <div class="titlerow rise" style="--i:0"><h1>Pull day</h1><button class="fin" data-go="b3">Finish</button></div>
+  <div class="card xmini rise" style="--i:1" data-obj>
+    <span class="f3d" style="--h:var(--m-back)"><svg class="ic"><use href="#i-fig"/></svg></span>
+    <span class="lx"><span class="nm">Lat Pulldown</span><span class="sv fit">3 of 6 · last time <b>60 × 8</b></span></span>
+    <span class="xof" style="font-size:13px;color:var(--ink3)">Set 3 of 4</span>
+  </div>
+  <section class="card setcard tight rise" style="--i:2" data-obj>
+    <div class="setrow" style="margin-top:0">
+      <button class="numbox on" aria-label="Weight, editing: 62.5"><span class="bn">62.5<span class="caret"></span></span><span class="u">kg</span></button>
+      <button class="numbox dim" aria-label="8 reps"><span class="bn">8</span><span class="u">reps</span></button>
+      <button class="tick64" aria-label="Done: set 3"><svg class="ic"><use href="#i-check"/></svg></button>
+    </div>
+  </section>
+  <section class="card pad rise" style="--i:3" aria-label="Number pad" data-obj>
+    <div class="padk"><span>Weight</span><span>Coach suggests <b>62.5</b></span></div>
+    <div class="keys">
+      <button class="key">1</button><button class="key">2</button><button class="key">3</button><button class="key op">−2.5</button>
+      <button class="key">4</button><button class="key">5</button><button class="key">6</button><button class="key op">+2.5</button>
+      <button class="key">7</button><button class="key">8</button><button class="key">9</button><button class="key" aria-label="Delete"><svg class="ic"><use href="#i-del"/></svg></button>
+      <button class="key">.</button><button class="key">0</button><button class="key dn">Done, to reps</button>
+    </div>
+  </section>
+  <aside class="note rise" style="--i:4"><b>The pad is the page's own.</b> Tapping 60 rises this pad under the numeral: the lift folds to one line, the set card keeps its three controls, and nothing else moves. ±2.5 steps a plate at a time; Done hands the pad to reps. The system keyboard never opens, so iOS never zooms and the tab bar stays put. Every key is 52 tall. The one number field Train keeps is this, shared by the set card, the routine's steppers and Goals (finding 8).</aside>
+</main>
+
+<!-- ================= B · 3 · FINISH, AS A SHEET ================= -->
+<main id="b3" class="view" hidden data-tally="<b>B · 3 Finish.</b> A sheet: the session in three numerals, the PR gauge counting 60 → 62.5, four cut-short reasons because four sets are open, Save for later · Finish · filled buttons <b>1</b> (Finish) · type <b>20 15 13</b> + numerals · tap floor <b>44</b> · resolves <b>7</b> (discard asks once, the house posture) and <b>5</b>">
+  <div class="behind" aria-hidden="true" inert data-clone="b1 .b-top"></div>
+  <div class="scrim" aria-hidden="true" data-go="b1"></div>
+  <section class="sheet rise" style="--i:0;--sheet-top:40px" aria-label="Finish Pull day">
+    <div class="grab"></div>
+    <div class="shead">
+      <span class="tile" style="background:color-mix(in srgb,var(--new) 20%,transparent);color:var(--new)"><svg class="ic" style="width:17px;height:17px"><use href="#i-dumbbell"/></svg></span>
+      <span class="sx"><b>Finish Pull day</b><span>16 of 20 sets ticked</span></span>
+      <button class="done" data-go="b1">Keep going</button>
+    </div>
+    <div class="trio">
+      <div><span class="num s">16</span><small>sets</small></div>
+      <div><span class="num s">5,760</span><small>kg moved</small></div>
+      <div><span class="num s">48</span><small>minutes</small></div>
+    </div>
+    <div class="prg" role="img" aria-label="Lat Pulldown, heaviest yet: 62.5 kilograms, was 60">
+      <svg viewBox="0 0 100 100" data-gauge aria-hidden="true"></svg>
+      <div class="pv"><b>62.5</b><small>kg × 8</small></div>
+    </div>
+    <p class="prl">Lat Pulldown, heaviest yet<span>The notch is where 60 sat</span></p>
+    <div class="fsep">
+      <span class="dk">4 sets open. Stopping early? One tap tells Coach why</span>
+      <div class="chips"><button aria-pressed="true">Out of time</button><button aria-pressed="false">Low energy</button><button aria-pressed="false">Gym busy</button><button aria-pressed="false">Pain</button></div>
+    </div>
+    <div class="frow">
+      <button class="btn quiet">Save for later</button>
+      <button class="btn">Finish</button>
+    </div>
+    <div class="gone"><button>Discard this session</button></div>
+    <aside class="note"><b>Finish, as a sheet.</b> Finish at the top of the session raises this. The PR gauge is the house one (src/PersonalRecord.jsx): an open ring that always completes, a notch fixed where the old best sat, the part past it lit, and the figure counting 60 → 62.5 in one damped pass (under reduced motion the final number fades in). It wears the lift's muscle hue: a record is decided, so it is never gold. The cut-short reasons show only while sets are open. Save for later parks the session for Resume; Discard asks once, in this sheet, and leaves Undo. Editing a past session uses the same sheet with Save changes.</aside>
+  </section>
+</main>
+
+<!-- ================= C · 1 · ONE FACT, ONE INSTRUMENT: TODAY ================= -->
+<main id="c1" class="view" hidden data-tally="<b>C · One fact, 1 Today.</b> Above the fold: <b>5 objects</b> (segmented, readiness, Training card, week rings, momentum edge) where today had ~7 · filled buttons <b>1</b> (Begin) · verbs: Training card <b>1</b>, readiness <b>2</b> talk chips · type <b>34 20 15 13</b> + numerals · tap floor <b>44</b> · resolves <b>2 3 4</b> · leaves <b>1</b> (three tabs stay) and <b>5 8 11</b> (the session is untouched; see B)">
+  <div class="c-top">
+    <div class="titlerow rise" style="--i:0"><h1>Train</h1><div class="segc" role="tablist" aria-label="Train"><button aria-pressed="true">Today</button><button aria-pressed="false">Gym</button><button aria-pressed="false">Coach</button></div></div>
+    <section class="card ready rise" style="--i:1" aria-label="Readiness" data-obj>
+      <span class="rg" data-ring="118,10,78,var(--new)"><b>78<small>Ready</small></b></span>
+      <div class="facts">
+        <div class="fact"><span>HRV</span><b>62<small>ms</small></b></div>
+        <div class="fact"><span>Sleep</span><b><span class="rg" data-ring="22,4,96,var(--c3)"></span>7.4<small>h</small></b></div>
+        <div class="fact"><span>Resting HR</span><b>54</b></div>
+        <span class="blk">Build · week 3 of 6</span>
+      </div>
+      <div class="chips"><button>Why am I tired?</button><button>When am I at my best?</button></div>
+    </section>
+    <section class="card tcard rise" style="--i:2" aria-label="Training" data-obj>
+      <div class="ch c3"><svg class="ic"><use href="#i-dumbbell"/></svg>Training<span class="time">Wednesday</span></div>
+      <div class="tc">
+        <div class="lx"><div class="t">Pull day</div><div class="sub">6 lifts · last time 7,200 kg</div></div>
+        <button class="btn begin"><svg class="ic"><use href="#i-play"/></svg>Begin</button>
+      </div>
+    </section>
+  </div>
+  <button class="card cardbtn rise" style="--i:3;margin-top:12px;display:block" data-go="c2" aria-label="Hard sets this week. Open the week" data-obj>
+    <span class="ch"><svg class="ic"><use href="#i-bars"/></svg>Hard sets this week<span class="time">25 of 67</span></span>
+    <span class="wkr" data-wkr></span>
+  </button>
+  <span class="hk rise" style="--i:4">Momentum</span>
+  <div class="mom rise" style="--i:4" aria-label="Recent momentum">
+    <div class="mc" style="--h:var(--m-back)"><span class="k">◆ PR · Monday</span><span class="nm">Lat Pulldown</span><span class="sv">62.5 kg × 8 · was 60</span></div>
+    <div class="mc" style="--h:var(--m-chest)"><span class="k">▲ Flat · 3 weeks</span><span class="nm">Incline Press</span><span class="sv">No strength gain · tap for Coach's fix</span></div>
+    <div class="mc" style="--h:var(--c1)"><span class="k">● Streak</span><span class="nm">5 sessions</span><span class="sv">in a row</span></div>
+  </div>
+  <span class="hk rise" style="--i:5">Coach's open ask</span>
+  <article class="card dcard rise" style="--i:5" aria-label="Add a fourth set of Barbell Curl">
+    <div class="dwhere">
+      <span class="w" style="--h:var(--m-biceps)"><i></i>Pull day · Wednesday</span>
+      <span class="ss" aria-label="20 sets becomes 21"><b>20</b> → <b>21</b> sets</span>
+    </div>
+    <p class="say">Add a fourth set of Barbell Curl.</p>
+    <div class="change" role="img" aria-label="Barbell Curl, 3 sets becomes 4">
+      <span class="sets" style="--h:var(--m-biceps)"><i></i><i></i><i></i><i class="new"></i></span><span>Barbell Curl · 3 → 4 sets</span>
+    </div>
+    <p class="why">Biceps finish the week at 8 of 10 on the plan as written.</p>
+    <p class="src">From Coach's weekly read · today</p>
+    <div class="answer">
+      <button class="yes"><svg class="ic"><use href="#i-check"/></svg>Yes</button>
+      <button class="talk"><svg class="ic"><use href="#i-talk"/></svg>Discuss</button>
+      <button class="no" aria-label="Not now"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+  </article>
+  <aside class="note rise" style="--i:6"><b>What changed</b>
+    <ul>
+      <li>The readiness ring stays: it is Train's. Sleep takes the Body card's ring shape, so one fact has one shape across the app (finding 4).</li>
+      <li>On today's card is Home's Training card, the same markup. On Train its ring slot holds Begin, because the full ring sits above it; on Home that small ring is the reference that opens Train (finding 2). Gym's hero goes.</li>
+      <li>Hard sets are drawn once, as the week rings (finding 3). The bars on Today and the Coach tab's empty-log bars go; the rings open the week sheet (C · 2), which is the only full drawing.</li>
+      <li>The "N changes from Coach" banner goes: the open ask is the deck card, drawn once, at the foot, with the ✕ asking why as in A · 2.</li>
+      <li>Focus for today and Make the change ride the Coach card when there is a change; momentum stays as it is. Gym and Coach keep their tabs, so finding 1 stays open in C.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= C · 2 · THE WEEK SHEET ================= -->
+<main id="c2" class="view" hidden data-tally="<b>C · 2 Week sheet.</b> The one full drawing of the week's volume: the count, the spectrum, the week grid of pips, then each muscle's lifts · rows <b>48</b> and <b>52</b> tall · filled buttons <b>0</b> · type <b>20 15 13</b> + numerals · tap floor <b>44</b> · resolves <b>3</b>">
+  <div class="behind" aria-hidden="true" inert data-clone="c1 .c-top"></div>
+  <div class="scrim" aria-hidden="true" data-go="c1"></div>
+  <section class="sheet rise" style="--i:0;--sheet-top:14px" aria-label="Hard sets: the planned week">
+    <div class="grab"></div>
+    <div class="shead">
+      <span class="tile" style="background:color-mix(in srgb,var(--new) 20%,transparent);color:var(--new)"><svg class="ic" style="width:17px;height:17px"><use href="#i-bars"/></svg></span>
+      <span class="sx"><b>Hard sets</b><span>The planned week, Monday to Sunday</span></span>
+      <button class="done" data-go="c1">Done</button>
+    </div>
+    <div class="wbig"><span class="num">25</span><span class="cx"><b>of 67 planned sets done</b></span></div>
+    <div class="spec" data-spec aria-hidden="true"></div>
+    <p class="ahead">On the plan as written, Biceps finish at 8 of 10.</p>
+    <div class="wg" data-wg role="group" aria-label="Planned sets by muscle and day"></div>
+    <div class="legend" aria-hidden="true"><span><i class="pip d"></i>Done</span><span><i class="pip due"></i>To come</span><span style="color:var(--new)">Today is lit</span></div>
+    <section class="msec" style="--h:var(--m-biceps)" aria-label="Biceps">
+      <div class="mhd"><span class="rg" data-ring="54,5,20,var(--m-biceps),80"><b style="font-size:20px">2</b></span><span class="lx"><span class="nm">Biceps · goal</span><span class="sv">2 done · 8 planned · target 10</span></span></div>
+      <div class="ex"><span class="dd">Tue</span><span class="lx"><span class="nm">Incline Curl</span><span class="sv">2 × 12 · 12 kg</span></span><span class="ps"><i class="pip d"></i><i class="pip d"></i></span></div>
+      <div class="ex"><span class="dd t">Wed</span><span class="lx"><span class="nm">Barbell Curl</span><span class="sv">3 × 10 · 30 kg</span></span><span class="ps"><i class="pip due"></i><i class="pip due"></i><i class="pip due"></i></span></div>
+      <div class="ex"><span class="dd t">Wed</span><span class="lx"><span class="nm">Hammer Curl</span><span class="sv">3 × 12 · 14 kg</span></span><span class="ps"><i class="pip due"></i><i class="pip due"></i><i class="pip due"></i></span></div>
+    </section>
+    <button class="talk" style="margin:10px 0 0 -12px"><svg class="ic"><use href="#i-talk"/></svg>Talk this week through with Coach</button>
+    <aside class="note"><b>The week sheet, the one full drawing.</b> Both the ring on A's half card and C's week rings open it. A muscle's row in the grid scrolls to its lifts (Biceps shown), with its ring: the solid arc is done, the faint arc what the plan will add by Sunday, and the gap short of the target stays open. Live sets from a session in progress fill as he ticks them. Talk it through hands Coach the figures.</aside>
+  </section>
+</main>
+
+<!-- ================= C · 3 · HISTORY ================= -->
+<main id="c3" class="view" hidden data-tally="<b>C · 3 History.</b> The Apple Fitness shape: one 72px row a session, a volume ring, sets · kg · min, Coach said as a quiet line · swipe for Edit · Delete, a receipt with Undo · filled buttons <b>0</b> · type <b>34 15 13</b> + numerals · tap floor <b>44</b> · resolves <b>7</b> (delete: one posture, Undo) and <b>11</b> (swipe rows)">
+  <button class="back rise" style="--i:0" data-go="a3"><svg class="ic"><use href="#i-left"/></svg>Pull day</button>
+  <h1 class="rise" style="--i:0">History</h1>
+  <div class="count rise" style="--i:1" data-obj>
+    <span class="num">24</span>
+    <div class="cx"><b>sessions of Pull day</b><span>since June · best 7,200 kg</span></div>
+  </div>
+  <span class="hk rise" style="--i:2">September</span>
+  <div class="card hlist rise" style="--i:2" data-hist></div>
+  <p class="then rise" style="--i:3">A tap on Delete takes the row out at once and leaves this:</p>
+  <div class="receipt rise" style="--i:3" data-obj>
+    <span class="ok gone"><svg class="ic"><use href="#i-trash"/></svg></span>
+    <span class="rx"><b>Session removed</b><span class="fit">Wednesday 9 · 16 sets, cut short</span></span>
+    <button class="undo">Undo</button>
+  </div>
+  <aside class="note rise" style="--i:4"><b>History, the Apple Fitness shape.</b> One row a session. The ring is that session's volume against the routine's best, in the routine's lead muscle hue (back teal for Pull day); a short session shows a short arc and says why in the line under it. What Coach said is one quiet line, never a gold box. A tap opens the session to read or edit, in B's set card. Swipe left for Edit and Delete (a still on 9 September); Delete removes at once and leaves Undo, the posture every no on Train takes.</aside>
+</main>
+
+</div>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row">
+    <div class="tabbar">
+      <span class="tab" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab" data-tab="inbox"><span class="badge">5</span><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg>Inbox</span>
+      <span class="tab on" data-tab="train"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab" data-tab="fuel"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab" data-tab="more"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn" aria-label="Talk to Nova"><span class="orb"></span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const ico=(g,c)=>'<svg class="ic'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+g+'"/></svg>';
+
+  // THE WEEK (demo): six muscles, done / target / planned by Sunday, and the
+  // pips per day. Mon Push ✓ · Tue Full body ✓ · Wed Pull (today) · Thu Legs · Fri rest · Sat Push · Sun rest.
+  const H={back:'var(--m-back)',chest:'var(--m-chest)',shoulders:'var(--m-shoulders)',biceps:'var(--m-biceps)',quads:'var(--m-quads)',hams:'var(--m-hams)'};
+  const WEEK=[
+    {k:'back',n:'Back',done:3,target:14,plan:17,days:[[0,0],[3,0],[0,11],[0,0],[0,0],[0,3],[0,0]]},
+    {k:'chest',n:'Chest',done:8,target:10,plan:12,days:[[8,0],[0,0],[0,0],[0,0],[0,0],[0,4],[0,0]]},
+    {k:'shoulders',n:'Shoulders',done:5,target:10,plan:11,days:[[3,0],[2,0],[0,3],[0,0],[0,0],[0,3],[0,0]]},
+    {k:'biceps',n:'Biceps',done:2,target:10,plan:8,days:[[0,0],[2,0],[0,6],[0,0],[0,0],[0,0],[0,0]]},
+    {k:'quads',n:'Quads',done:4,target:10,plan:11,days:[[0,0],[4,0],[0,0],[0,7],[0,0],[0,0],[0,0]]},
+    {k:'hams',n:'Hamstrings',done:3,target:8,plan:8,days:[[0,0],[3,0],[0,0],[0,5],[0,0],[0,0],[0,0]]}
+  ];
+  const DAYS=[['M','Push'],['T','Full'],['W','Pull',1],['T','Legs'],['F','Rest'],['S','Push'],['S','Rest']];
+
+  // one ring: size, stroke, pct, hue, and an optional faint projected pct
+  function ring(size,sw,pct,hue,proj){const r=(size-sw)/2,c=2*Math.PI*r,cx=size/2;
+    const arc=(p,op,extra)=>'<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+hue+'" stroke-opacity="'+op+'" stroke-width="'+sw+'" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+(c*(1-Math.min(1,p/100)))+'"'+(extra||'')+'/>';
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" aria-hidden="true"><circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="var(--track)" stroke-width="'+sw+'"/>'+
+      (proj?arc(proj,.3):'')+(pct>0?arc(pct,1,' style="filter:drop-shadow(0 0 4px color-mix(in srgb,'+hue+' 55%,transparent))"'):'')+'</svg>';}
+  // the week as one ring of muscle segments: each owns its share of the target, filled to what is done
+  function segRing(size){const sw=8,r=(size-sw)/2,c=2*Math.PI*r,cx=size/2,T=WEEK.reduce((a,m)=>a+m.target,0),gap=3;let off=0,s='';
+    WEEK.forEach((m)=>{const len=c*m.target/T-gap,fill=len*Math.min(1,m.done/m.target);
+      s+='<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+H[m.k]+'" stroke-opacity=".22" stroke-width="'+sw+'" stroke-dasharray="'+len+' '+(c-len)+'" stroke-dashoffset="'+(-off)+'"/>';
+      if(fill>0)s+='<circle cx="'+cx+'" cy="'+cx+'" r="'+r+'" fill="none" stroke="'+H[m.k]+'" stroke-width="'+sw+'" stroke-dasharray="'+fill+' '+(c-fill)+'" stroke-dashoffset="'+(-off)+'"/>';
+      off+=len+gap;});
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" aria-hidden="true">'+s+'</svg>';}
+
+  $$('[data-ring]').forEach((el)=>{const p=el.dataset.ring.split(',');el.insertAdjacentHTML('afterbegin',ring(+p[0],+p[1],+p[2],p[3],p[4]?+p[4]:0));});
+  $$('[data-seg]').forEach((el)=>el.insertAdjacentHTML('afterbegin',segRing(+el.dataset.seg)));
+
+  // C · 1 week rings: done inside, the faint arc is what the plan adds by Sunday
+  $('[data-wkr]').innerHTML=WEEK.map((m)=>'<span class="m" style="--h:'+H[m.k]+'"><span class="rg">'+ring(52,5,m.done/m.target*100,H[m.k],m.plan/m.target*100)+'<b>'+m.done+'</b></span><span class="nm">'+m.n+'</span><span class="sv">of '+m.target+(m.plan<m.target?' · short':'')+'</span></span>').join('');
+
+  // A · 2 goal rings: days this week, protein (no data yet: a dashed ring), sleep
+  $('[data-goals]').innerHTML=ring(28,4,50,'var(--c3)')+'<svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12" fill="none" stroke="var(--c1)" stroke-opacity=".6" stroke-width="2" stroke-dasharray="3 4"/></svg>'+ring(28,4,96,'var(--c2)');
+
+  // C · 2 spectrum and grid
+  $('[data-spec]').innerHTML=WEEK.map((m)=>'<span style="--h:'+H[m.k]+';flex:'+m.plan+' 1 0"><i style="width:'+Math.round(m.done/m.plan*100)+'%"></i></span>').join('');
+  $('[data-wg]').innerHTML='<div class="r hd"><span></span>'+DAYS.map((d)=>'<span class="'+(d[2]?'today':'')+'">'+d[0]+'<small>'+d[1]+'</small></span>').join('')+'</div>'+
+    WEEK.map((m)=>'<button class="r" style="--h:'+H[m.k]+';width:100%;text-align:left" aria-label="'+m.n+': '+m.done+' done of '+m.plan+' planned. Show its lifts"><span class="ml"><b>'+m.n+'</b><span>'+m.done+'/'+m.plan+'</span></span>'+
+      m.days.map((d,i)=>'<span class="c'+(DAYS[i][2]?' today':'')+'">'+'<i class="pip d"></i>'.repeat(d[0])+'<i class="pip due"></i>'.repeat(d[1])+'</span>').join('')+'</button>').join('');
+
+  // C · 3 history (demo): date, sets, kg, min, pct of best, Coach said / cut short
+  const HIST=[
+    ['Wednesday 23','20','7,200','55',100,'<i>Coach:</i> Lat Pulldown earned a rep. Try 62.5 kg.'],
+    ['Wednesday 16','20','6,950','53',96,'<i>Coach:</i> hold the curls at 30 kg one more week.'],
+    ['Wednesday 9','16','5,400','40',75,'Cut short · out of time','swipe'],
+    ['Wednesday 2','20','6,900','56',96,'<i>Coach:</i> rows look steady. Keep the pause.']
+  ];
+  const hrow=(h)=>{const row='<button class="hrow"><span class="rg">'+ring(44,5,h[4],'var(--m-back)')+'</span><span class="lx"><span class="nm">Pull day<span>'+h[0]+'</span></span><span class="sv"><b>'+h[1]+'</b> sets · <b>'+h[2]+'</b> kg · <b>'+h[3]+'</b> min</span><span class="cs fit">'+h[5]+'</span></span>'+ico('right','cv')+'</button>';
+    return h[6]?'<div class="sw" data-obj><div class="under"><button class="ed">'+ico('pen')+'Edit</button><button class="rm">'+ico('trash')+'Delete</button></div>'+row+'</div>':row;};
+  $('[data-hist]').innerHTML=HIST.map(hrow).join('');
+
+  // B · 3 the PR gauge, in src/PersonalRecord.jsx's shape: a 270deg open ring
+  // that always completes, the old best as a notch at a FIXED .72 of the sweep
+  // (a proportional ring would move 4px for 60 to 62.5), the part past it lit.
+  (function(){const g=$('[data-gauge]');if(!g)return;const R=38,C=2*Math.PI*R,SW=.75,A=C*SW,MARK=.72,hue='var(--m-back)';
+    const arc=(from,to,stroke,op,extra)=>'<circle cx="50" cy="50" r="'+R+'" fill="none" stroke="'+stroke+'" stroke-opacity="'+op+'" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+(A*(to-from))+' '+C+'" stroke-dashoffset="'+(-A*from)+'" transform="rotate(135 50 50)"'+(extra||'')+'/>';
+    const t=(135+270*MARK)*Math.PI/180,X=(r)=>(50+r*Math.cos(t)).toFixed(2),Y=(r)=>(50+r*Math.sin(t)).toFixed(2);
+    g.innerHTML=arc(0,1,'var(--track)',1)+arc(0,MARK,hue,.45)+arc(MARK,1,hue,1,' style="filter:drop-shadow(0 0 4px color-mix(in srgb,'+hue+' 60%,transparent))"')+
+      '<line x1="'+X(31)+'" y1="'+Y(31)+'" x2="'+X(45)+'" y2="'+Y(45)+'" stroke="var(--ink)" stroke-width="2.2" stroke-linecap="round"/>';})();
+
+  $$('[data-clone]').forEach((el)=>{const p=el.dataset.clone.split(' ');const src=$(p.slice(1).join(' '),$('#'+p[0]));if(src)el.innerHTML=src.innerHTML;});
+
+  // A line that does not fit gives way a word at a time, never mid-word (the house clampWords rule).
+  function fit(el){if(!el.dataset.full)el.dataset.full=el.innerHTML;el.innerHTML=el.dataset.full;
+    if(!el.clientWidth||el.scrollWidth<=el.clientWidth+1)return;
+    const words=el.textContent.split(' ');
+    while(words.length>1){words.pop();el.textContent=words.join(' ').replace(/[\s,.;:·]+$/,'')+'…';if(el.scrollWidth<=el.clientWidth+1)return;}}
+  const fitAll=(root)=>$$('.fit',root).forEach(fit);
+
+  // the switcher
+  const VARS={a:['Page','Coach door','Routine'],b:['The set','Number pad','Finish'],c:['Today','Week sheet','History']};
+  const sw=$('.switch'),scr=$('#screens'),tally=$('#tally');
+  const setH=()=>document.documentElement.style.setProperty('--switch-h',(sw.offsetHeight-(parseFloat(getComputedStyle(sw).paddingTop)||0)+8)+'px');
+  function renderTally(){const full=tally.dataset.full||'';
+    if(tally.classList.contains('open')){tally.innerHTML=full+' <span class="tm">less</span>';return;}
+    tally.innerHTML=full;if(tally.scrollWidth<=tally.clientWidth+1)return;
+    const tmp=document.createElement('div');tmp.innerHTML=full;const words=tmp.textContent.split(' ');
+    while(words.length>1){words.pop();tally.innerHTML=words.join(' ').replace(/[\s,.;:·]+$/,'')+'… <span class="tm">more</span>';if(tally.scrollWidth<=tally.clientWidth+1)break;}}
+  tally.addEventListener('click',()=>{tally.classList.toggle('open');renderTally();setH();});
+  let v='a',s=1;
+  function apply(){
+    const id=v+s,main=document.getElementById(id);
+    $$('main.view').forEach((m)=>{m.hidden=m!==main;});
+    $$('[data-var]').forEach((b)=>b.setAttribute('aria-pressed',String(b.dataset.var===v)));
+    scr.innerHTML=VARS[v].map((n,i)=>'<button data-s="'+(i+1)+'" aria-pressed="'+(i+1===s)+'">'+n+'</button>').join('');
+    tally.dataset.full=main.dataset.tally;tally.classList.remove('open');
+    history.replaceState(null,'','#'+v+'/'+s);
+    try{localStorage.setItem('nova-train-58',v+'/'+s);}catch(e){}
+    renderTally();setH();
+    $$('.rise',main).forEach((el)=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+    requestAnimationFrame(()=>fitAll(main));
+  }
+  scr.addEventListener('click',(e)=>{const b=e.target.closest('[data-s]');if(!b)return;s=+b.dataset.s;window.scrollTo(0,0);apply();});
+  $$('[data-var]').forEach((b)=>b.addEventListener('click',()=>{v=b.dataset.var;s=1;window.scrollTo(0,0);apply();}));
+  document.addEventListener('click',(e)=>{const g=e.target.closest('[data-go]');if(!g||g.closest('.switch'))return;const t=g.dataset.go;v=t[0];s=+t.slice(1);window.scrollTo(0,0);apply();});
+  function fromHash(){const h=(location.hash||'').replace('#','').toLowerCase();const p=h.split('/');if(!VARS[p[0]])return false;v=p[0];const n=+p[1];s=n>=1&&n<=VARS[v].length?n:1;return true;}
+  window.addEventListener('hashchange',()=>{if(fromHash()){window.scrollTo(0,0);apply();}});
+  window.addEventListener('resize',()=>{renderTally();setH();fitAll(document.getElementById(v+s));});
+  if(!fromHash()){try{const p=(localStorage.getItem('nova-train-58')||'').split('/');if(VARS[p[0]]){v=p[0];const n=+p[1];s=n>=1&&n<=VARS[v].length?n:1;}}catch(e){}}
+  apply();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{renderTally();setH();fitAll(document.getElementById(v+s));});
+})();
+</script>
+</body>
+</html>
