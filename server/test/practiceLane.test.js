@@ -312,7 +312,7 @@ test('prepare: a stubbed dossier is validated, written and filed auto with its u
   assert.deepEqual(Object.keys(done.undoData).sort(), ['created', 'hash', 'relPath', 'route']);
   assert.equal(done.undoData.route, 'practice-skill');
   assert.equal(done.decision.payload.slug, 'questions-of-intent');
-  assert.match(done.text, /^Practice: Questions of intent\. 1 move, 1 scenario, from 1 of your source\. Gaps: the book is unread\. 1 note: dropped "No line"/);
+  assert.match(done.text, /^Practice: Questions of intent\. 1 move, 1 scenario, from 1 of your source\. Gap: the book is unread\. 1 note: dropped "No line"/);
   const skill = await readSkill(vault, 'questions-of-intent');
   assert.equal(skill.why, `"${said}"`);
 

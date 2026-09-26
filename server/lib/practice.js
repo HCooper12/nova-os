@@ -690,7 +690,9 @@ export function skillView(skill) {
     sources: skill.sources,
     relPath: skill.relPath || null,
     moves: skill.moves.map((m) => ({ ...m, ...(tallies[m.name] || { tried: 0, landed: 0, lastAt: null }) })),
-    scenarios: skill.scenarios,
+    // The pressure is the surprise: the screen never sees it before the scene
+    // (the partner's prompt does). Only the scene partner reads the page raw.
+    scenarios: skill.scenarios.map(({ pressure: _p, ...rest }) => rest),
     gaps: skill.gaps,
     sessions: skill.sessions.map((s) => ({ at: s.date, scenario: s.scenario, landed: s.landed, missed: s.missed, work: s.work })),
     next: skill.status === 'active' ? nextScene(skill) : null,

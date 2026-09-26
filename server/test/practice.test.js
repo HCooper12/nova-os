@@ -385,3 +385,18 @@ test('practiceLine is one sentence for the other agents, and null when nothing i
   const line = await practiceLine(vault);
   assert.match(line, /^He is practising Questions of intent \(2 moves, 1 landed; last scene 26 Sep, working on: let the pause run/);
 });
+
+// The pressure is the surprise (PRACTICE-PLAN): the page carries it for the
+// scene partner, the API never hands it to the screen. Caught live on the
+// first real page: GET /api/practice leaked every scene's pressure.
+test('skillView never exposes a scenario\'s pressure', async () => {
+  const { skillView } = await import('../lib/practice.js');
+  const view = skillView({
+    title: 'T', summary: '', status: 'active', why: '', sources: [], gaps: [], sessions: [],
+    moves: [{ name: 'Question of intent', line: 'x', summary: '', when: '', tell: '', source: 'his words' }],
+    scenarios: [{ name: 'The dig', setting: 's', other: 'Mark', pressure: 'he doubles down', moves: ['Question of intent'] }],
+  });
+  assert.equal(view.scenarios.length, 1);
+  assert.equal('pressure' in view.scenarios[0], false);
+  assert.deepEqual(view.scenarios[0].moves, ['Question of intent']);
+});

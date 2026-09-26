@@ -104,7 +104,11 @@ export function prepareReceipt({ skill, notes = [], created = true }) {
   const bits = [
     `Practice: ${skill.title}${created ? '' : ' (extended)'}. ${plural(skill.moves.length, 'move')}, ${plural(skill.scenarios.length, 'scenario')}, ${from}.`,
   ];
-  if (skill.gaps.length) bits.push(`Gaps: ${skill.gaps.join('; ')}.`);
+  // A receipt is a card, not the page: the first gap in full, the rest counted.
+  if (skill.gaps.length) {
+    const first = String(skill.gaps[0]).replace(/[.\s]+$/, '');
+    bits.push(skill.gaps.length === 1 ? `Gap: ${first}.` : `Gaps: ${first}; and ${skill.gaps.length - 1} more on the page.`);
+  }
   if (notes.length) bits.push(`${plural(notes.length, 'note')}: ${notes.join('; ')}.`);
   return bits.join(' ');
 }
