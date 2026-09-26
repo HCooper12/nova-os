@@ -1231,3 +1231,64 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   .nv-wk-sec[data-flash]::after { animation: nvWkGlow .9s linear backwards; transform: none; }
   @keyframes nvWkGlow { 0%, 100% { opacity: 0; } 30% { opacity: 1; } }
 }
+
+/* PRACTICE — THE LAMP (27 Sep 2026, design/PRACTICE-PLAN.md). One small stage
+   light per move he is rehearsing: dim until he lands the move, then it
+   blooms in the practice hue. The same object at three sizes — the stage,
+   the shelf and history, the Home card — so a skill's progress is always the
+   same picture. Lighting is a TRANSITION on the lamp that already exists
+   (data-lit flips), so a move landing mid-scene is acted out on the lamp he
+   is looking at: the bulb warms, the bloom opens. Opacity, transform and
+   shadow only; nothing reflows. A missed move (the debrief) wears a dashed
+   rim, the same "not yet" the dashed ring means everywhere else. */
+.nv-lamp {
+  --lamp: 30px;
+  position: relative; flex: none; display: inline-block;
+  width: var(--lamp); height: var(--lamp); border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--nv-or) 26%, transparent);
+  background: radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--nv-or) 10%, transparent), color-mix(in srgb, var(--nv-ink) 5%, transparent) 72%);
+  transition: border-color var(--nv-dur-slow) var(--nv-ease), transform var(--nv-dur-slow) var(--nv-ease);
+}
+.nv-lamp::before {
+  content: ''; position: absolute; inset: -55%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--nv-or) 42%, transparent), transparent 62%);
+  opacity: 0; transform: scale(.55);
+  transition: opacity var(--nv-dur-slow) var(--nv-ease), transform var(--nv-dur-slow) var(--nv-ease);
+}
+.nv-lamp::after {
+  content: ''; position: absolute; inset: 30%; border-radius: 50%;
+  background: color-mix(in srgb, var(--nv-ink) 20%, transparent);
+  box-shadow: 0 0 0 0 transparent;
+  transition: background-color var(--nv-dur-slow) var(--nv-ease), box-shadow var(--nv-dur-slow) var(--nv-ease);
+}
+.nv-lamp[data-lit="true"] { border-color: color-mix(in srgb, var(--nv-or) 72%, transparent); }
+.nv-lamp[data-lit="true"]::before { opacity: 1; transform: scale(1); }
+.nv-lamp[data-lit="true"]::after { background: var(--nv-or); box-shadow: 0 0 calc(var(--lamp) * .35) 1px color-mix(in srgb, var(--nv-or) 70%, transparent); }
+.nv-lamp[data-missed="true"] { border-style: dashed; border-color: color-mix(in srgb, var(--nv-ink) 34%, transparent); }
+/* the moment of landing: one soft swell, then settle */
+.nv-lamp[data-bloom="true"] { animation: nvLampSwell var(--nv-dur-slow) var(--nv-ease); }
+@keyframes nvLampSwell { 40% { transform: scale(1.14); } }
+
+/* the mic on the stage: ringed in the practice hue, a ring that breathes out
+   while he has the floor, and a press that answers the thumb */
+.nv-practice-mic {
+  position: relative; flex: none; width: 56px; height: 56px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  border: 2px solid var(--nv-or); color: var(--nv-or);
+  background: color-mix(in srgb, var(--nv-or) 12%, transparent);
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  transition: transform 140ms var(--nv-ease), background-color var(--nv-dur-base) var(--nv-ease), color var(--nv-dur-base) var(--nv-ease);
+}
+.nv-practice-mic:active { transform: scale(.97); }
+.nv-practice-mic[data-on="true"] { background: var(--nv-or); color: var(--nv-on-acc); }
+.nv-practice-mic[data-on="true"]::after {
+  content: ''; position: absolute; inset: -7px; border-radius: 50%; pointer-events: none;
+  border: 2px solid var(--nv-or);
+  animation: nvMicRing 1.5s var(--nv-ease) infinite var(--nv-anim);
+}
+.nv-practice-mic[aria-disabled="true"] { opacity: .5; cursor: default; }
+@keyframes nvMicRing { from { opacity: .75; transform: scale(.92); } to { opacity: 0; transform: scale(1.28); } }
+@media (prefers-reduced-motion: reduce) {
+  .nv-lamp[data-bloom="true"] { animation: none; }
+  .nv-practice-mic[data-on="true"]::after { animation: none; opacity: .6; transform: none; }
+}

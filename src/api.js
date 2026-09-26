@@ -374,6 +374,14 @@ export const api = {
   leaderRun: (conn, kind, force) => post(conn, '/api/leader/run', { kind, force }),
   askLeader: (conn, question, sessionId) => post(conn, '/api/leader/chat', { question, sessionId }),
   leaderReflect: (conn, body) => post(conn, '/api/leader/reflect', body),
+  // PRACTICE — a skill he is rehearsing (server/lib/practice.js). Prepare and
+  // rehearse both return at once: the model work runs on the server as a job
+  // (prepare: poll `practice()` until `preparing` empties; rehearse: poll
+  // claudeCodeJob with the jobId), so the default timeout is room enough.
+  practice: (conn) => call(conn, '/api/practice'),
+  practicePrepare: (conn, body) => post(conn, '/api/practice/prepare', body),
+  practiceRehearse: (conn, body) => post(conn, '/api/practice/rehearse', body),
+  practiceStatus: (conn, slug, status) => post(conn, `/api/practice/skills/${encodeURIComponent(slug)}/status`, { status }),
   healthInsight: (conn) => call(conn, '/api/health-insight'),
   streaks: (conn) => call(conn, '/api/streaks'),
   healthData: (conn, days) => call(conn, `/api/health-data${days ? '?days=' + days : ''}`),

@@ -51,6 +51,7 @@ export const FOLD_LABELS = {
   vitals: 'Vitals',
   focus: 'Suggested focus',
   lead: 'Lead · try today',
+  practice: 'Practice',
   today: 'Today',
   stuck: 'Stuck',
   deck: 'Command deck',
@@ -79,6 +80,12 @@ export function foldStatus(key, v = {}) {
     }
     case 'lead':
       return text(v.leaderToday?.title) || 'nothing to try today';
+    case 'practice': {
+      const c = v.practiceCard;
+      if (c?.next?.scenario) return `next · ${text(c.next.scenario)}`;
+      if (c?.preparing?.length) return `putting together ${text(c.preparing[0].text)}`;
+      return text(c?.title) || 'nothing to rehearse';
+    }
     case 'today': {
       const evs = Array.isArray(v.todayEvents) ? v.todayEvents : [];
       if (!evs.length) return v.todayStaleLabel ? `calendar ${text(v.todayStaleLabel).toLowerCase()}` : 'nothing on the calendar';
@@ -146,6 +153,15 @@ export function foldInstrument(key, v = {}) {
       return text(v.suggestedFocus?.title) ? { kind: 'aim', hue: 'gold' } : { kind: 'aim', hue: faint };
     case 'lead':
       return { kind: 'dot', hue: text(v.leaderToday?.title) ? 'gold' : faint };
+    case 'practice': {
+      // the lamps themselves, one per move (at most six fit the slot); a page
+      // still being prepared is a live thing in the practice hue
+      const c = v.practiceCard;
+      const lamps = Array.isArray(c?.lamps) ? c.lamps : [];
+      if (lamps.length) return { kind: 'lamps', hue: 'or', lamps: lamps.slice(0, 6).map((l) => !!l.lit) };
+      if (c?.preparing?.length) return { kind: 'live', hue: 'or' };
+      return { kind: 'dot', hue: faint };
+    }
     case 'today': {
       const evs = Array.isArray(v.todayEvents) ? v.todayEvents : [];
       if (evs.some((e) => e.now)) return { kind: 'live', hue: 'cy' };

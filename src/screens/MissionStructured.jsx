@@ -4,6 +4,7 @@ import { Elapsed } from '../Elapsed.jsx';
 import { css } from '../css.js';
 import { glowPanel } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
+import { PracticeCard } from '../PracticeCard.jsx';
 import { StuckCard } from '../StuckCard.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
@@ -39,10 +40,10 @@ const S = 'var(--nv-font-serif)';
 // One place for the three orders, so a new section is added to all three or
 // the dev assert below names the one it was left out of (audit [63]).
 const ORDERS = {
-  morning: ['working', 'hero', 'vitals', 'wrap', 'plan', 'stuck', 'lead', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents'],
-  day: ['working', 'wrap', 'focus', 'lead', 'plan', 'stuck', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
+  morning: ['working', 'hero', 'vitals', 'wrap', 'plan', 'stuck', 'lead', 'practice', 'focus', 'today', 'deck', 'review', 'noticed', 'shortcuts', 'agents'],
+  day: ['working', 'wrap', 'focus', 'lead', 'practice', 'plan', 'stuck', 'today', 'deck', 'hero', 'vitals', 'noticed', 'review', 'shortcuts', 'agents'],
   // by evening the wrap IS the news — it leads, under anything still running
-  evening: ['working', 'wrap', 'focus', 'plan', 'stuck', 'lead', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
+  evening: ['working', 'wrap', 'focus', 'plan', 'stuck', 'lead', 'practice', 'today', 'deck', 'vitals', 'review', 'hero', 'noticed', 'shortcuts', 'agents'],
 };
 let ordersChecked = false;
 export function assertOrdersCover(sectionKeys, orders = ORDERS) {
@@ -126,6 +127,18 @@ function FoldGlyph({ inst }) {
       );
       break;
     }
+    case 'lamps':
+      // Practice's own object, smallest size: a dot per move, lit once landed
+      body = (
+        <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 34 }}>
+          {inst.lamps.map((on, i) => (
+            <span key={i} style={on
+              ? { width: 7, height: 7, borderRadius: '50%', background: hue, boxShadow: `0 0 8px -1px ${hue}` }
+              : { width: 7, height: 7, borderRadius: '50%', border: `1px solid color-mix(in srgb, ${hue} 45%, transparent)`, boxSizing: 'border-box' }} />
+          ))}
+        </span>
+      );
+      break;
     default:
       body = null;
   }
@@ -341,6 +354,15 @@ export function MissionStructured({ v }) {
     // carries the day's idea AND the live situation, and he swipes between
     // them. Both come from one view model so the two idioms cannot disagree.
     lead: v.leaderBox ? <LeaderBox key="lead" box={v.leaderBox} variant="apple" mob={mob} /> : null,
+
+    // PRACTICE (27 Sep) — the next scene of the skill he is rehearsing, in
+    // the practice hue; the lamps are the skill's progress. Absent when there
+    // is nothing to practise and nothing being prepared.
+    practice: v.practiceCard ? (
+      <Group key="practice" label="Practice" accent="--nv-or" trailing={<Meta tone="faint">{v.practiceCard.meta}</Meta>}>
+        <PracticeCard card={v.practiceCard} variant="apple" />
+      </Group>
+    ) : null,
 
     // RESTORED 25 Sep. The plan, the command deck and Today were deleted from
     // this idiom on 15 Sep inside a Leader-box commit (a728bf3) that never

@@ -30,7 +30,23 @@ const SOURCE_LABEL = {
   // new step-records are the code-built dossier and the Coach's review —
   // named for who did it, matching server/lib/fleetContext.js KIND_AGENT.
   plan: 'NOVA', program: 'PROGRAM DOSSIER', 'coach-review': 'COACH',
+  // Practice (27 Sep): the page Prepare wrote, the debrief's receipt, a pause
+  'practice-skill': 'PRACTICE', 'practice-session': 'PRACTICE', 'practice-status': 'PRACTICE',
 };
+
+// PRACTICE RECORDS (27 Sep). The badge is the kind's own, whatever route the
+// decision carries, and the record opens the rehearsal room on its skill. The
+// slug is read from wherever the server put it; failing that, the page path
+// is matched against the shelf. `undefined` = not a practice record; `null` =
+// one whose skill could not be named (the room opens on the shelf).
+const PRACTICE_KINDS = new Set(['practice-skill', 'practice-session', 'practice-status']);
+function practiceSlugOf(r, shelf = []) {
+  if (!PRACTICE_KINDS.has(r.kind)) return undefined;
+  const direct = r.slug || r.meta?.slug || r.decision?.payload?.slug || r.decision?.slug || r.undoData?.slug;
+  if (direct) return direct;
+  const rel = r.undoData?.relPath || r.decision?.payload?.relPath || r.decision?.relPath || r.meta?.relPath;
+  return (rel && shelf.find((s) => s.relPath === rel)?.slug) || null;
+}
 
 const ROUTE_META = {
   shopping: { label: 'SHOPPING', hue: '95,232,168' },
@@ -62,6 +78,12 @@ const ROUTE_META = {
   // NOT A FILING AT ALL. Approving this spends more money and resumes work
   // that stopped mid-sentence; the badge must not wear a NOTE's clothes.
   continue: { label: 'PAUSED — YOUR CALL', hue: '224,178,106' },
+  // the practice hue (--nv-or, 255,162,87 in the dark themes). A triplet, not
+  // the token, because Tag draws `rgb(hue)` — the same contract as every row
+  // above.
+  'practice-skill': { label: 'PRACTICE PAGE', hue: '255,162,87' },
+  'practice-session': { label: 'REHEARSAL', hue: '255,162,87' },
+  'practice-status': { label: 'PRACTICE', hue: '255,162,87' },
 };
 
 // THE MODEL CHOICE GATE, scheduled-lane half — Pattern Scout/Distill's own
@@ -325,6 +347,7 @@ export function valsInbox(app, ctx) {
   const newCount = inbox ? items.filter((r) => r.status === 'pending' && !r.seenAt).length : 0;
 
   Object.assign(ctx, { inboxPendingCount: pendingCount, inboxNewCount: newCount });
+  const practiceShelf = st.livePractice?.skills || [];
 
   const mkItem = (r) => {
     const full = fullPayload(r.decision);
@@ -351,7 +374,9 @@ export function valsInbox(app, ctx) {
     return {
     id: r.id,
     kind: r.kind || null,
-    open: () => app.openCapture(r.id),
+    // a practice record opens where it lives: the room, with its skill open
+    open: practiceSlugOf(r, practiceShelf) !== undefined ? () => app.openPracticeRoom(practiceSlugOf(r, practiceShelf)) : () => app.openCapture(r.id),
+    openPractice: practiceSlugOf(r, practiceShelf) !== undefined && ['filed', 'pending'].includes(r.status) ? () => app.openPracticeRoom(practiceSlugOf(r, practiceShelf)) : null,
     text: r.text,
     time: timeLabel(r.createdAt),
     // the raw stamp too: `time` is a label ("2h ago"), and counting what
@@ -367,7 +392,7 @@ export function valsInbox(app, ctx) {
     toggleExpand: () => app.toggleInboxExpand(r.id),
     source: SOURCE_LABEL[r.kind] || (r.source === 'voice' ? 'VOICE' : 'TYPED'),
     status: r.status,
-    route: r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
+    route: PRACTICE_KINDS.has(r.kind) ? ROUTE_META[r.kind] : r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,
     // the two halves of what used to be one `reason` line: the promise about
     // approving leads the card, anything else stays where it was

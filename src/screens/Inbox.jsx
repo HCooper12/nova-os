@@ -455,6 +455,13 @@ export function Inbox({ v }) {
                       </div>
                     </div>
                   )}
+                  {item.openPractice && (
+                    <Interactive as="span" onClick={item.openPractice}
+                      title="Open the rehearsal room on this skill"
+                      base={secondary('var(--nv-or)')}
+                      hoverStyle={{ filter: 'brightness(1.1)' }}
+                    >Open in Practice</Interactive>
+                  )}
                   {item.openBriefing && (
                     <Interactive as="span" onClick={item.openBriefing}
                       title="Read it, or have Nova read it to you with the visuals"

@@ -13,6 +13,8 @@ import { muscleVar } from '../muscleHue.js';
 // liveRoutines, usingLiveNotes, journalDays, shoppingItems) plus the
 // connection truth valsMission shares (statusChip, missionStatusItems).
 
+const OFF_DOCK_TITLE = { leader: 'Leader', practice: 'Practice', briefing: 'Briefing', console: 'Console' };
+
 export function valsChrome(app, ctx) {
   const st = app.state;
   const { demoMode, isOffline, go, warm, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsLiveCount, inboxPendingCount } = ctx;
@@ -119,7 +121,9 @@ export function valsChrome(app, ctx) {
     // the same clock rule MissionStructured uses, so the two can never
     // disagree about what time of day it is.
     compactTitle: (() => {
-      if (st.screen !== 'mission') return tabLabel(st.screen);
+      // screens outside the dock's list have no tab label, and fell through
+      // to their raw key ("leader", "practice") in lowercase
+      if (st.screen !== 'mission') return OFF_DOCK_TITLE[st.screen] || tabLabel(st.screen);
       const h = new Date().getHours();
       return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
     })(),
@@ -204,6 +208,13 @@ export function valsChrome(app, ctx) {
         st.liveLeader?.situation?.openCount
           ? { count: String(st.liveLeader.situation.openCount), countHot: !!st.liveLeader.situation.stale }
           : {}),
+      // PRACTICE (27 Sep) sits beside the Leader: the other half of the same
+      // work — the Leader thinks it through with him, Practice rehearses it.
+      // Its count is the skills he is actively rehearsing.
+      Object.assign(mkNav('Practice', 'XIX.', 'practice'),
+        st.livePractice?.skills?.length
+          ? { count: String(st.livePractice.skills.filter((s) => s.status === 'active').length) }
+          : {}),
       Object.assign(mkNav('Journal', 'XI.', 'journal'), { count: st.liveJournalEntries ? String(journalDays.length) : demoMode ? '0' : '—' }),
       mkNav('Money', 'XII.', 'money'),
       Object.assign(mkNav('Stash', 'XIII.', 'stash'), { count: st.liveStash ? String(st.liveStash.reduce((n, c) => n + c.items.length, 0)) : demoMode ? '0' : '—' }),
@@ -219,7 +230,7 @@ export function valsChrome(app, ctx) {
     jobTray: (() => {
       // a cut label says it was cut — "a cached digest makes t" is not a sentence
       const clip = (s, n) => { s = String(s); return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; };
-      const KIND_NAME = { research: 'Research', video: 'Watching', study: 'Study', distill: 'Distilling', 'brain-week': 'Brain week', briefing: 'Briefing', browse: 'Browser', form: 'Form check', intake: 'Your numbers', paper: 'Study' };
+      const KIND_NAME = { research: 'Research', video: 'Watching', study: 'Study', distill: 'Distilling', 'brain-week': 'Brain week', briefing: 'Briefing', browse: 'Browser', form: 'Form check', intake: 'Your numbers', paper: 'Study', 'practice-skill': 'Practice page', 'practice-session': 'Debrief' };
       const jobs = (st.liveInbox?.items || [])
         .filter((r) => r.status === 'classifying')
         .map((r) => ({ id: r.id, label: `${KIND_NAME[r.kind] || 'Filing'} — ${clip(r.text || '', 60)}`, kind: r.kind || 'capture',

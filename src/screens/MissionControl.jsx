@@ -2,6 +2,7 @@ import { css } from '../css.js';
 import { StuckCard } from '../StuckCard.jsx';
 import { glowPanel, glowSoft } from '../glowPanel.js';
 import { LeaderBox } from '../LeaderBox.jsx';
+import { PracticeCard } from '../PracticeCard.jsx';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
 import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
@@ -200,6 +201,9 @@ export function MissionControl({ v }) {
           and the live situation existed for him only in the cupertino twin.
           Same component, same view model, Command's furniture. */}
       {v.leaderBox && <LeaderBox box={v.leaderBox} variant="command" mob={mob} />}
+      {/* PRACTICE — the cupertino Group's twin: same view model, the practice
+          hue's lit panel, the same lamps and the same next scene. */}
+      {v.practiceCard && <PracticeCard card={v.practiceCard} variant="command" />}
       {/* TODAY'S TECHNIQUE — the Apple twin's card in this idiom, from the
           same view model. Same technique, same drill, same two taps: the
           server picked it once and both screens read that pick. */}

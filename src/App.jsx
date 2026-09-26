@@ -33,6 +33,7 @@ import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
 import { valsLeader } from './vals/valsLeader.js';
+import { valsPractice, PRACTICE_SCENE_KEY, stripPracticeDirective, RESEARCH_RE, stillPreparing, shorten as shortenPractice } from './vals/valsPractice.js';
 import { valsBriefing } from './vals/valsBriefing.js';
 import { parseBriefingVoice, explainQuestion } from './briefingVoice.js';
 import { scaleMacros, portionName, validPortion } from './portion.js';
@@ -115,6 +116,7 @@ const SCREEN_LOADERS = {
   notes: () => import('./screens/Notes.jsx'),
   library: () => import('./screens/Library.jsx'),
   leader: () => import('./screens/Leader.jsx'),
+  practice: () => import('./screens/Practice.jsx'),
   briefing: () => import('./screens/Briefing.jsx'),
   console: () => import('./screens/ConsoleScreen.jsx'),
 };
@@ -131,6 +133,7 @@ const Todos = lazyScreen(SCREEN_LOADERS.todos, 'Todos');
 const Notes = lazyScreen(SCREEN_LOADERS.notes, 'Notes');
 const Library = lazyScreen(SCREEN_LOADERS.library, 'Library');
 const Leader = lazyScreen(SCREEN_LOADERS.leader, 'Leader');
+const Practice = lazyScreen(SCREEN_LOADERS.practice, 'Practice');
 const Briefing = lazyScreen(SCREEN_LOADERS.briefing, 'Briefing');
 const ConsoleScreen = lazyScreen(SCREEN_LOADERS.console, 'ConsoleScreen');
 
@@ -202,7 +205,7 @@ const RECIPE_CLOSED = { openRecipeId: null, recipeRemovals: [], recipeRemovalPro
 // It previously omitted 'ops', 'stash' and 'ambient', all of which DO render —
 // so their hashes did not survive a reload even though the screens worked.
 const SCREENS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'stash',
-  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'journal', 'money', 'settings', 'briefing', 'console'];
+  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'practice', 'journal', 'money', 'settings', 'briefing', 'console'];
 
 // An unknown key is a bug in the caller, not something to render around. Send
 // him somewhere real, and say so in the console so the bad call is findable —
@@ -307,6 +310,35 @@ function hashParams() {
 // Photos staged for a food scan, kept where an iOS eviction cannot reach them.
 // See persistFoodScanPhotos() for why this is session- and not local-storage.
 const FOOD_PHOTO_KEY = 'novaos.foodScanPhotos';
+// THE LIVE SCENE, BACK AFTER A RELOAD. iOS reclaims a backgrounded PWA often,
+// and a rehearsal is exactly the thing he puts the phone down in the middle
+// of. What was said and which lamps lit come back with the session id, so
+// the next line continues the same scene on the server. A reply that was
+// still on its way when the page died is not recoverable from here; the
+// script says so rather than waiting on it forever.
+const PRACTICE_WHO = new Set(['you', 'partner', 'system', 'nova']);
+function restorePracticeScene() {
+  const empty = { practiceScene: null, practiceScript: [], practiceLit: {} };
+  try {
+    const raw = typeof localStorage === 'undefined' ? null : localStorage.getItem(PRACTICE_SCENE_KEY);
+    const s = raw ? JSON.parse(raw) : null;
+    if (!s || !s.sessionId || !s.slug) return empty;
+    const script = (Array.isArray(s.script) ? s.script : [])
+      .filter((l) => l && typeof l.text === 'string' && PRACTICE_WHO.has(l.who))
+      .map(({ who, text, at }) => ({ who, text, at }))
+      .slice(-80);
+    if (script.length && script[script.length - 1].who === 'you') {
+      script.push({ who: 'system', text: 'Nova reloaded while that line was on its way. If no answer arrives, say it again.', at: Date.now() });
+    }
+    return {
+      practiceScene: { slug: s.slug, scenario: s.scenario || null, sessionId: s.sessionId, setting: s.setting || '', other: s.other || '', moves: Array.isArray(s.moves) ? s.moves : [] },
+      practiceScript: script,
+      practiceLit: s.lit && typeof s.lit === 'object' ? s.lit : {},
+      practiceOpen: s.slug,
+    };
+  } catch { return empty; }
+}
+
 export function restoreFoodScanPhotos() {
   try {
     const raw = sessionStorage.getItem(FOOD_PHOTO_KEY);
@@ -316,7 +348,7 @@ export function restoreFoodScanPhotos() {
 }
 
 const CACHED_LIVE_KEYS = [
-  'liveNotes', 'liveLibrary', 'liveLeader', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
+  'liveNotes', 'liveLibrary', 'liveLeader', 'livePractice', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
   'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveGoalBoard', 'liveCarryovers', 'liveTrainOverview',
@@ -405,6 +437,13 @@ export default class App extends Component {
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
     leaderFace: 0, // which face of the Home Leader box he swiped to
+    // PRACTICE — the rehearsal room (design/PRACTICE-PLAN.md): the server's
+    // skills, the one opened on the shelf, and the live scene. The scene
+    // survives a reload (novaos.practiceScene) until its debrief lands.
+    livePractice: null, practiceOpen: null,
+    ...restorePracticeScene(),
+    practiceDebrief: null, practiceBusy: false, practiceEnding: false, practiceInput: '',
+    practiceAddDraft: '', practiceAdding: false, practiceListening: false,
     situationAnswer: '', situationAnswerBusy: false, situationAnswerSaid: null,
     hapticTick: 0, // his haptic reading changed — re-render the row that states it
     // the briefing reader: the loaded document, its playback, listen|read
@@ -913,6 +952,7 @@ export default class App extends Component {
     clearTimeout(this.bootT); clearInterval(this.refreshIv); clearInterval(this.streamWatchIv);
     clearTimeout(this.convSyncT); clearTimeout(this.convRetryT);
     clearTimeout(this.eatOutDebounce); clearTimeout(this.eatOutPoll);
+    clearTimeout(this.practicePollT);
     Object.values(this.pollers || {}).forEach((p) => p.cancel());
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
@@ -1035,6 +1075,7 @@ export default class App extends Component {
     if (changed && screen === 'voice') this.loadConversationRecord();
     if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see
     if (changed && screen === 'ops') this.refreshForge(); // arriving at Ops is when the fleet's jobs matter
+    if (changed && screen === 'practice') this.refreshPractice(); // the shelf is read on arrival
     // The quick-log rail sits at the TOP of Fuel and is the fastest path to
     // logging anything he has eaten before, so its data cannot wait for him to
     // open a disclosure at the bottom of the screen — it loads on arrival.
@@ -1583,6 +1624,7 @@ export default class App extends Component {
     });
     apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
     apply('leader', (r) => this.setState({ liveLeader: r }));
+    apply('practice', (r) => this.setPracticeLive(r));
     apply('journal', (r) => this.setState({ liveJournalEntries: r.entries }));
     apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
     apply('healthData', (r) => this.setState({ liveHealthDays: r.days.length ? r.days : null }));
@@ -1700,6 +1742,7 @@ export default class App extends Component {
       },
       async () => { const r = await api.library(conn); this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); },
       async () => this.setState({ liveLeader: await api.leader(conn) }),
+      async () => this.setPracticeLive(await api.practice(conn)),
       async () => {
         const { entries } = await api.journalEntries(conn, 30);
         this.setState({ liveJournalEntries: entries });
@@ -1783,6 +1826,8 @@ export default class App extends Component {
         // slice that realistically misses; fetch the straggler directly,
         // unbudgeted, so today's events land seconds behind the fast sync
         // instead of a whole sync-cycle later. Cached data covers the gap.
+        // Practice is not a snapshot slice (yet): read it beside the sync
+        if (slices.practice === undefined) this.refreshPractice();
         if (slices.calendar === undefined) {
           api.calendarToday(conn, { timeoutMs: 30_000 })
             .then((r) => this.setState({ liveCalendar: r.events }))
@@ -6290,6 +6335,16 @@ export default class App extends Component {
       }
       return L('research', 'RESEARCH', 'a link to read — the Researcher cites what it finds');
     }
+    // mirrors server/lib/intentRouter.js PRACTICE_RE (27 Sep 2026) — a skill
+    // he wants to rehearse, in the server's order: after the link lanes,
+    // before the book rule ("practise the ideas in the book X by Y" is a
+    // skill) and before research ("…research it" is a page that may search
+    // the web). A reminder to practise stays a reminder; "my bench" is the
+    // Coach's.
+    if (/\b(?:(?:i (?:want|would like|'d like|need|wanna) to|let'?s|help me|can we|could we|we should|i(?:'m| am) going to)\s+(?:practi[cs]e|rehearse|role[- ]?play)\b|\b(?:practi[cs]e|rehearse|role[- ]?play)\s+(?:this|that|these|those|it|them|with (?:you|nova|me)|the |my )|\brun (?:a|the|that) scene\b|\bspar with me\b)/i.test(raw)
+      && !/^\s*(?:remind me|todo:|note:)/i.test(raw) && !/\bmy (?:bench|squat|deadlift|press|pull-?ups?|lifts?|form)\b/i.test(raw)) {
+      return L('practice', 'PRACTICE', 'a skill to rehearse — Nova prepares the page, then plays the other person');
+    }
     // mirrors server/lib/intentRouter.js parseBookIntent — before research
     // and capture, or "add book X by Y" would land in the Inbox as a todo
     const bookM = /\b(?:add|ingest|research|get|read|pull in|bring in)\b[^.?!]{0,30}?\bbook\b\s+(.+?)\s+by\s+(.+?)\s*[.?!]?\s*$/i.exec(raw);
@@ -6461,6 +6516,14 @@ export default class App extends Component {
       if (r.record?.kind === 'browse') this.watchBrowse(r.record.id, r.record.task || text);
       if (r.forward?.screen === 'workouts') { this.navigate('workouts', { trainTab: 'coach' }); this.doCoach(r.forward.question); return; }
       if (r.forward?.screen === 'voice') { this.navigate('voice'); this.askNova(r.forward.question); return; }
+      // a sentence naming a skill he already has: the room, and the scene
+      if (r.forward?.screen === 'practice') {
+        this.navigate('practice');
+        if (r.forward.slug) this.startRehearsal(r.forward.slug, r.forward.scenario || null);
+        else this.refreshPractice();
+        return;
+      }
+      if (r.lane === 'practice') this.refreshPractice(); // a page being prepared shows on Home at once
       if (r.lane === 'code') { this.navigate('code'); }
       this.toastMsg(r.said || `${r.label} — on it`);
       this.refreshInbox?.();
@@ -6789,6 +6852,7 @@ export default class App extends Component {
       ...valsNotes(this, ctx),
       ...valsLibrary(this, ctx),
       ...valsLeader(this, ctx),
+      ...valsPractice(this, ctx),
       ...valsBriefing(this, ctx),
       ...valsMisc(this, ctx),
       ...valsInbox(this, ctx),
@@ -9351,6 +9415,248 @@ export default class App extends Component {
     localStorage.removeItem('novaos.leaderSession');
     this.setState({ leaderSessionId: null, leaderChat: [] });
   }
+  // ---------- Practice (design/PRACTICE-PLAN.md) ----------
+  // The server's receipt, and the one poll it needs: while a page is being
+  // prepared the shelf and Home read again every 8s. The poll stops itself
+  // the moment nothing is preparing — a job that stopped with an error is
+  // not preparing, so it cannot keep the poll alive forever.
+  setPracticeLive(r) {
+    if (!r || typeof r !== 'object') return;
+    const prev = this.state.livePractice;
+    const before = (prev?.preparing || []).filter(stillPreparing);
+    const now = (r.preparing || []).filter(stillPreparing);
+    this.setState({ livePractice: r });
+    const gone = before.filter((b) => !now.some((n) => n.id === b.id));
+    const failed = gone.filter((g) => (r.preparing || []).some((p) => p.id === g.id && p.status === 'error'));
+    if (gone.length > failed.length) {
+      // a page landed: say so once, and a tap opens it on the shelf
+      const known = new Set((prev?.skills || []).map((s) => s.slug));
+      const fresh = (r.skills || []).find((s) => !known.has(s.slug));
+      const go = () => this.openPracticeRoom(fresh?.slug || null);
+      notify({ tone: 'done', title: 'Practice page ready', message: fresh?.title || 'Your practice page is on the shelf', duration: 7000, onPress: go, actions: [{ label: 'Open', run: go }] });
+    }
+    clearTimeout(this.practicePollT);
+    if (now.length) this.practicePollT = setTimeout(() => this.refreshPractice(), 8000);
+  }
+  refreshPractice() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.practice(conn).then((r) => this.setPracticeLive(r)).catch(() => { /* the next sync reads it again; the cached shelf stands */ });
+  }
+  openPracticeRoom(slug) {
+    if (this.state.screen !== 'practice') this.navigate('practice');
+    if (slug) this.setState({ practiceOpen: slug });
+  }
+  // tap a skill on the shelf: it opens below the rail; tap again, it closes
+  openPracticeSkill(slug) {
+    if (this.state.screen !== 'practice') this.navigate('practice');
+    this.setState((st) => ({ practiceOpen: st.practiceOpen === slug ? null : slug }));
+  }
+  // the page is his to read and edit — Notes, with it selected
+  openPracticePage(relPath) {
+    if (!relPath) return;
+    this.selectNote(relPath.replace(/\.md$/, ''));
+    this.navigate('notes');
+  }
+  // What a reload needs to resume the scene: written at the end of each turn
+  // (never mid-stream), cleared when the debrief lands or he leaves.
+  savePracticeScene() {
+    const sc = this.state.practiceScene;
+    if (!sc?.sessionId) return;
+    try {
+      const script = this.state.practiceScript.filter((l) => !l.streaming).slice(-80).map(({ who, text, at }) => ({ who, text, at }));
+      localStorage.setItem(PRACTICE_SCENE_KEY, JSON.stringify({ ...sc, script, lit: this.state.practiceLit }));
+    } catch { /* storage full or blocked — the scene just won't survive a reload */ }
+  }
+  practiceSay(text, extra = {}) {
+    this.setState((st) => ({ practiceScript: [...st.practiceScript.filter((l) => !l.streaming), { who: 'system', text, at: Date.now() }], ...extra }));
+  }
+  startRehearsal(slug, scenario) {
+    if (!slug) return;
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    if (this.state.practiceScene && this.state.practiceBusy) { this.toastMsg('A line is still on its way. Let it land, then start the next scene.'); return; }
+    this.stopPoll('practice');
+    try { localStorage.removeItem(PRACTICE_SCENE_KEY); } catch { /* nothing to clear */ }
+    const skill = (this.state.livePractice?.skills || []).find((s) => s.slug === slug);
+    const sc = scenario ? (skill?.scenarios || []).find((x) => x.name === scenario) : null;
+    if (this.state.screen !== 'practice') this.navigate('practice');
+    this.setState({
+      practiceOpen: slug,
+      practiceScene: { slug, scenario: scenario || null, sessionId: null, setting: sc?.setting || '', other: sc?.other || '', moves: [] },
+      practiceScript: [], practiceLit: {}, practiceDebrief: null, practiceBusy: true, practiceEnding: false, practiceInput: '',
+    });
+    api.practiceRehearse(conn, scenario ? { slug, scenario } : { slug }).then(({ jobId, sessionId, scene }) => {
+      if (this.state.practiceScene?.slug !== slug) return; // he left before the stage was set
+      this.setState((st) => ({ practiceScene: { ...st.practiceScene, ...(scene || {}), slug, sessionId: sessionId || st.practiceScene?.sessionId || null } }), () => this.savePracticeScene());
+      this.pollPracticeTurn(conn, jobId, false);
+    }).catch((e) => this.practiceSay(`The scene could not start: ${e.message}`, { practiceBusy: false }));
+  }
+  // One turn's job, polled exactly like the Leader's: the partial streams
+  // into the script with the NOTE/DEBRIEF directive stripped, the result
+  // lands whole. A slow or lost answer is said as what it is — the turn may
+  // still be landing — never as a failure it might not be.
+  pollPracticeTurn(conn, jobId, ending) {
+    const who = ending ? 'nova' : 'partner';
+    this.startPoll('practice', () => api.claudeCodeJob(conn, jobId), {
+      timeoutMs: 3 * 60_000,
+      intervalMs: 700,
+      onProgress: (job) => {
+        if (!job.partial) return;
+        const shown = stripPracticeDirective(job.partial);
+        if (shown) this.applyStreamPartial('practiceScript', who, shown);
+      },
+      onReady: (job) => (ending ? this.landPracticeDebrief(job.result || {}) : this.landPracticeTurn(job.result || {})),
+      onError: (msg, info) => {
+        const text = info?.lost
+          ? 'Your Mac restarted while that turn was running, so it was lost. Say it again.'
+          : /lost contact|very long time/i.test(msg || '')
+            ? 'That turn may still be landing. The Mac did not answer in time; give it a moment and say it again only if nothing arrives.'
+            : `Nova could not play that turn: ${msg}`;
+        this.practiceSay(text, { practiceBusy: false, practiceEnding: false });
+      },
+    });
+  }
+  landPracticeTurn(r) {
+    const text = stripPracticeDirective(r.text || '');
+    const hits = (r.notes?.moves || []).filter((m) => m && m.hit && m.name);
+    this.setState((st) => {
+      const script = [...st.practiceScript];
+      const idx = script.map((l) => !!l.streaming).lastIndexOf(true);
+      const line = { who: 'partner', text, at: Date.now() };
+      if (idx === -1) { if (text) script.push(line); } else if (text) script[idx] = line; else script.splice(idx, 1);
+      // a lamp lit earlier stays lit, with the words that first lit it
+      const lit = { ...st.practiceLit };
+      for (const h of hits) if (!lit[h.name]) lit[h.name] = String(h.quote || '').trim();
+      return {
+        practiceScript: script, practiceLit: lit, practiceBusy: false,
+        practiceScene: r.sessionId && st.practiceScene ? { ...st.practiceScene, sessionId: r.sessionId } : st.practiceScene,
+      };
+    }, () => this.savePracticeScene());
+    if (text && this.state.voiceSpeak) this.speakTtsSentence(text);
+    if (text) this.announceAway({ here: this.state.screen === 'practice', title: 'Your scene partner answered', text, go: () => this.navigate('practice') });
+    if (r.sceneOver || r.notes?.sceneOver) {
+      this.practiceSay('The scene has run its course.');
+      this.endRehearsal(true);
+    }
+  }
+  practiceTurn(text) {
+    const t = String(text || '').trim();
+    const sc = this.state.practiceScene;
+    if (!t || !sc?.sessionId || this.state.practiceBusy || this.state.practiceEnding || this.state.practiceDebrief) return;
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    this.setState((st) => ({ practiceScript: [...st.practiceScript, { who: 'you', text: t, at: Date.now() }], practiceInput: '', practiceBusy: true }), () => this.savePracticeScene());
+    api.practiceRehearse(conn, { slug: sc.slug, scenario: sc.scenario, sessionId: sc.sessionId, text: t }).then(({ jobId, sessionId }) => {
+      if (sessionId && sessionId !== sc.sessionId) this.setState((st) => ({ practiceScene: st.practiceScene ? { ...st.practiceScene, sessionId } : st.practiceScene }));
+      this.pollPracticeTurn(conn, jobId, false);
+    }).catch((e) => this.practiceSay(/abort|time/i.test(e.message || '')
+      ? 'That line may still be landing — the Mac was slow to take it. Wait a moment before saying it again.'
+      : `That line did not reach Nova: ${e.message}. Say it again.`, { practiceBusy: false }));
+  }
+  // "pause" is his turn: the partner steps out for one exchange, then back in
+  pauseRehearsal() { this.practiceTurn('pause'); }
+  endRehearsal(auto = false) {
+    const sc = this.state.practiceScene;
+    if (!sc?.sessionId || this.state.practiceEnding || this.state.practiceDebrief) return;
+    if (this.state.practiceBusy && !auto) { this.toastMsg('Let their line land first, then end the scene.'); return; }
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    this.setState((st) => ({ practiceBusy: true, practiceEnding: true, practiceScript: [...st.practiceScript, { who: 'system', text: 'Scene. Nova is writing the debrief.', at: Date.now() }] }));
+    api.practiceRehearse(conn, { slug: sc.slug, scenario: sc.scenario, sessionId: sc.sessionId, end: true }).then(({ jobId }) => {
+      this.pollPracticeTurn(conn, jobId, true);
+    }).catch((e) => this.practiceSay(`The debrief could not start: ${e.message}`, { practiceBusy: false, practiceEnding: false }));
+  }
+  landPracticeDebrief(r) {
+    const text = stripPracticeDirective(r.text || '');
+    const d = r.debrief && typeof r.debrief === 'object' ? r.debrief : null;
+    const recordId = r.record?.id || null;
+    if (!d) {
+      // NOTHING WAS FILED (the server could not read its own DEBRIEF line, and
+      // says so in the text). The scene stays open so "End scene" can ask
+      // again — clearing it here would throw away the only way to retry.
+      this.setState((st) => {
+        const script = [...st.practiceScript];
+        const idx = script.map((l) => !!l.streaming).lastIndexOf(true);
+        const line = { who: 'nova', text: text || 'The debrief did not come back as a receipt, so nothing was filed. End the scene again to retry.', at: Date.now() };
+        if (idx === -1) script.push(line); else script[idx] = line;
+        return { practiceScript: script, practiceBusy: false, practiceEnding: false };
+      }, () => this.savePracticeScene());
+      if (text && this.state.voiceSpeak) this.speakTtsSentence(text);
+      return;
+    }
+    this.setState((st) => {
+      const script = [...st.practiceScript];
+      const idx = script.map((l) => !!l.streaming).lastIndexOf(true);
+      const line = { who: 'nova', text, at: Date.now() };
+      if (idx === -1) { if (text) script.push(line); } else if (text) script[idx] = line; else script.splice(idx, 1);
+      const lit = { ...st.practiceLit };
+      for (const l of d?.landed || []) if (l?.move && !lit[l.move]) lit[l.move] = String(l.quote || '').trim();
+      return {
+        practiceScript: script, practiceLit: lit, practiceBusy: false, practiceEnding: false,
+        practiceDebrief: {
+          parsed: !!d,
+          landed: Array.isArray(d?.landed) ? d.landed : [],
+          missed: Array.isArray(d?.missed) ? d.missed.filter((m) => m && m.move) : [],
+          best: d?.best ? String(d.best) : '',
+          work: d?.work ? String(d.work) : '',
+          next: d?.next ? String(d.next) : null,
+          notes: Array.isArray(d?.notes) ? d.notes.map(String) : [],
+          recordId,
+        },
+      };
+    });
+    try { localStorage.removeItem(PRACTICE_SCENE_KEY); } catch { /* nothing to clear */ }
+    if (text && this.state.voiceSpeak) this.speakTtsSentence(text);
+    if (text) this.announceAway({ here: this.state.screen === 'practice', title: 'Your debrief is ready', text, go: () => this.navigate('practice') });
+    if (recordId) {
+      notify({ id: `practice:${recordId}`, tone: 'done', title: 'Filed', message: 'The rehearsal is on the practice page', duration: 8000,
+        action: { label: 'Undo', run: () => this.undoPracticeRecord(recordId) } });
+    }
+    this.refreshPractice();
+  }
+  undoPracticeRecord(id) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    api.inboxUndo(conn, id).then(() => {
+      this.toastMsg('Undone — the rehearsal is off the page');
+      this.setState((st) => (st.practiceDebrief?.recordId === id ? { practiceDebrief: { ...st.practiceDebrief, recordId: null } } : null));
+      this.refreshPractice();
+      this.refreshInbox?.();
+    }).catch((e) => this.toastMsg(`Couldn't undo that: ${e.message}`));
+  }
+  leaveRehearsal() {
+    this.stopPoll('practice');
+    try { localStorage.removeItem(PRACTICE_SCENE_KEY); } catch { /* nothing to clear */ }
+    this.setState({ practiceScene: null, practiceScript: [], practiceLit: {}, practiceDebrief: null, practiceBusy: false, practiceEnding: false, practiceInput: '' });
+    this.refreshPractice();
+  }
+  practicePrepare(text) {
+    const t = String(typeof text === 'string' ? text : this.state.practiceAddDraft || '').trim();
+    if (!t || this.state.practiceAdding) return;
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
+    const research = RESEARCH_RE.test(t);
+    this.setState({ practiceAdding: true });
+    api.practicePrepare(conn, research ? { text: t, research: true } : { text: t }).then(({ record } = {}) => {
+      const id = record?.id || `local-${Date.now()}`;
+      this.setState((st) => ({
+        practiceAdding: false, practiceAddDraft: '',
+        livePractice: { skills: [], today: null, ...(st.livePractice || {}), preparing: [...(st.livePractice?.preparing || []).filter((p) => p.id !== id), { id, text: t, status: record?.status || 'classifying' }] },
+      }));
+      this.toastMsg(`Preparing “${shortenPractice(t, 40)}” — the page lands on the shelf${research ? ', with what Nova finds on the web' : ''}.`);
+      clearTimeout(this.practicePollT);
+      this.practicePollT = setTimeout(() => this.refreshPractice(), 4000);
+    }).catch((e) => { this.setState({ practiceAdding: false }); this.toastMsg(`Couldn't start that: ${e.message}`); });
+  }
+  setPracticeStatus(slug, status) {
+    const conn = getConnection();
+    if (!conn || !slug) return;
+    api.practiceStatus(conn, slug, status).then(() => {
+      this.toastMsg(status === 'paused' ? 'Paused — Home stops offering it. Undo is in the Inbox.' : 'Back on — it is rehearsable again.');
+      this.refreshPractice();
+    }).catch((e) => this.toastMsg(`Couldn't change that: ${e.message}`));
+  }
   saveFitnessGoals() {
     const conn = getConnection();
     const d = this.state.goalsDraft;
@@ -9509,6 +9815,7 @@ export default class App extends Component {
               {v.isNotes && <Notes v={v} />}
               {v.isLibrary && <Library v={v} />}
               {v.isLeader && <Leader v={v} />}
+              {v.isPractice && <Practice v={v} />}
               {v.isBriefing && <Briefing v={v} />}
               {v.isConsole && <ConsoleScreen v={v} />}
               {v.isJournal && <Journal v={v} />}
