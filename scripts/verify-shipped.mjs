@@ -128,10 +128,14 @@ const FEATURES = [
   ['Coach · the usage limit hands his question back (25 Sep)', "Claude's usage limit"],
   ['Org Map · the Habitat, a set on every tile (25 Sep)', 'habitat-lines'],
   ['Org Map · the life engine, off-duty acts (25 Sep)', 'toss-popcorn'],
+  ['Fuel · Pick it up, the takeaway finder (26 Sep)', 'What can I pick up?'],
+  ['Fuel · Pick it up names why nothing fits (26 Sep)', 'Nothing on its own gets near'],
+  ['Fuel · a calorie ring beside the protein ring (26 Sep)', 'calories: nothing logged'],
 ];
 
 const SERVER_ROUTES = [
   ['GET', '/api/health'],
+  ['GET', '/api/eat-out'],
   ['GET', '/api/library'],
   ['GET', '/api/recipes'],
   ['GET', '/api/shopping-list'],
