@@ -186,6 +186,18 @@ export function intentRouter(vaultPath) {
       } else if (lane === 'leader') {
         out.forward = { screen: 'leader', question: text };
         out.said = 'That one is the Leader’s — opening it with your question.';
+      } else if (lane === 'practice') {
+        // A skill he already has a page for opens the room; anything else is
+        // prepared from his sources first. The web only when he said research.
+        const { resolvePracticeAsk, startPrepare, RESEARCH_WORDS } = await import('../lib/practiceLane.js');
+        const hit = await resolvePracticeAsk(vaultPath, text);
+        if (hit) {
+          out.forward = { screen: 'practice', slug: hit.slug, scenario: hit.scenario || null, question: text };
+          out.said = `Opening Practice: ${hit.title}.`;
+        } else {
+          out.record = await startPrepare(vaultPath, { text, research: RESEARCH_WORDS.test(text) });
+          out.said = 'Putting together a practice page for that from what you have. It lands in Practice and your Inbox.';
+        }
       } else if (lane === 'coach') {
         out.forward = { screen: 'workouts', tab: 'coach', question: text };
         out.said = 'That one is the Coach’s — opening it with your question.';

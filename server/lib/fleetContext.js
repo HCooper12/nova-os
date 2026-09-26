@@ -47,6 +47,9 @@ export const KIND_AGENT = {
   repertoire: 'Repertoire',
   // the Leader noticing it has fallen behind, and asking
   'leader-followup': 'Leader',
+  // Practice (27 Sep): a skill prepared into a page, a rehearsed scene's
+  // debrief, and a skill paused or landed
+  'practice-skill': 'Practice', 'practice-session': 'Practice', 'practice-status': 'Practice',
 };
 
 const HOURS = 48;

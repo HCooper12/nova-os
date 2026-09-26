@@ -57,7 +57,7 @@ async function fleetSection() {
 // The siblings' live state, one line each. Not their transcripts — those are
 // Ask Nova's business as the front door — but enough that any agent can say
 // "the Leader has you working on X" instead of being blind to it.
-async function siblingsSection(self, now) {
+async function siblingsSection(self, now, vaultPath) {
   const lines = [];
 
   if (self !== 'coach') {
@@ -87,6 +87,16 @@ async function siblingsSection(self, now) {
       if (open.length) lines.push(`- He has told the Leader he is working against: ${open.map((s) => `"${s.text}"`).join('; ')}`);
       const working = (state.profile?.working || []).slice(-2);
       if (working.length) lines.push(`- And that these are working for him: ${working.map((w) => `"${w.text}"`).join('; ')}`);
+    } catch { /* honest absence */ }
+  }
+
+  // What he is rehearsing, so the Leader (or Nova) can say "that is exactly
+  // the move you have been practising" instead of being blind to it.
+  if (self !== 'practice' && vaultPath) {
+    try {
+      const { practiceLine } = await import('./practice.js');
+      const line = await practiceLine(vaultPath);
+      if (line) lines.push(`- Practice: ${line}`);
     } catch { /* honest absence */ }
   }
 
@@ -133,7 +143,7 @@ export async function orgContext(vaultPath, self = '', { only } = {}) {
   const [standing, fleet, siblings] = await Promise.all([
     want('standing') ? withTimeout(standingSection(vaultPath)) : null,
     want('fleet') ? withTimeout(fleetSection()) : null,
-    want('siblings') ? withTimeout(siblingsSection(self, now)) : null,
+    want('siblings') ? withTimeout(siblingsSection(self, now, vaultPath)) : null,
   ]);
   const parts = [standing, siblings, fleet].filter((p) => p && String(p).trim());
   if (!parts.length) return '';

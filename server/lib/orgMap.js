@@ -75,6 +75,9 @@ export const KIND_BEING = {
   video: 'watcher',
   'read-next': 'librarian', 'index-repair': 'librarian', 'brain-week': 'librarian', distill: 'librarian', ingest: 'librarian',
   review: 'leader', 'leader-reflect': 'leader', 'leader-followup': 'leader',
+  // Practice stands in the Mind district with the Leader until it has a being
+  // of its own (a tenth being needs his hue and artefact call — PRACTICE-PLAN)
+  'practice-skill': 'leader', 'practice-session': 'leader', 'practice-status': 'leader',
   // Nova's own work and his own words: the core, not a department
   plan: 'core', act: 'core', browse: 'core', capture: 'core', intake: 'core', briefing: 'core',
 };

@@ -104,6 +104,7 @@ function laneForKind(kind) {
     case 'coach': return 'coach';
     case 'voice': return 'ask-nova';
     case 'leader': return 'leader-chat';
+    case 'practice': return 'practice-chat';
     case 'code': return 'code';
     case 'debrief': return 'session-debrief';
     case 'greet': return 'greeting';
@@ -1102,6 +1103,48 @@ export function startAskLeader(cwd, { question, context, sessionId }) {
     finishTurn,
   });
 
+  return jobId;
+}
+
+/* ------------------------------- Practice ---------------------------------- */
+
+// THE SCENE PARTNER. Same warm-session shape as the Leader, with three
+// deliberate differences: it reads the vault but never the web (a scene is a
+// rehearsal, not research), it never touches the glass (nothing may appear on
+// screen mid-scene but the scene), and every word of parsing and writing lives
+// in practiceLane.js — this function only carries the turn.
+export function startAskPractice(cwd, { text, sessionId, resume = false, mode = 'scene' }) {
+  assertLaneOn('practice-chat');
+  const jobId = randomUUID().slice(0, 8);
+  const effectiveSessionId = sessionId || randomUUID();
+  const job = { id: jobId, status: 'running', result: null, error: null };
+  jobs.set(jobId, job);
+
+  const args = [
+    '-p', '--input-format', 'stream-json',
+    '--permission-mode', 'bypassPermissions',
+    '--allowedTools', 'Read Grep Glob',
+    '--disallowedTools', `${COACH_DISALLOWED},WebFetch,WebSearch`,
+    '--strict-mcp-config',
+    '--output-format', 'stream-json',
+    '--include-partial-messages',
+    '--verbose',
+    '--model', modelFor('practice-chat'),
+    resume ? '--resume' : '--session-id', effectiveSessionId,
+  ];
+
+  const finishTurn = async (replyText, turnJob) => {
+    try {
+      const { finishPracticeTurn } = await import('./practiceLane.js');
+      turnJob.result = await finishPracticeTurn(replyText, { vaultPath: cwd, sessionId: effectiveSessionId, mode });
+      turnJob.status = 'ready';
+    } catch (e) {
+      turnJob.status = 'error';
+      turnJob.error = e.message;
+    }
+  };
+
+  warmTurn({ kind: 'practice', sessionId: effectiveSessionId, cwd, args, text, job, finishTurn });
   return jobId;
 }
 

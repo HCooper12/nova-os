@@ -43,6 +43,7 @@ keep it truthful; Nova would rather say "not yet" than pretend.
 - Guide morning-brief and evening-reflection rituals \`(propose)\`
 - File reflections as journal entries \`(act-on-approval)\`
 - Surface a daily concept from the vault \`(observe)\`
+- Rehearse a skill as the other person and debrief what landed \`(propose)\`
 
 ## Money
 - Import and categorise the ledger \`(act-on-approval)\`

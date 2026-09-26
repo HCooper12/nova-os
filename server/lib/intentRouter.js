@@ -14,7 +14,7 @@
 
 // `program` is a lane a PLAN reaches for (his program as a dossier, by code);
 // no sentence routes to it on its own, because it is a step, not a request.
-export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book', 'program'];
+export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'practice', 'capture', 'play', 'ask', 'book', 'program'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -88,6 +88,21 @@ const COACH_RE = /\b(my (bench|squat|deadlift|press|pull-?ups?|lift|program|rout
 // The Leader — leadership as a daily practice. Tight on purpose: "delegate"
 // alone is a word he uses about Nova; the lane wants the org in the sentence.
 const LEADER_RE = /\b(my (team|staff|people|reports?)|direct reports?|one[- ]on[- ]ones?|1:1s?|as a (leader|manager)|leadership|team meeting|performance review|difficult conversation|the leader\b)/i;
+// PRACTICE — a skill he wants to rehearse out loud (27 Sep). It needs him to
+// say he wants to DO it: a wanting/let's verb aimed at practise/rehearse/
+// role-play, the verb aimed at a thing ("rehearse that", "practise the …"),
+// or a scene asked for by name. "band practice at 6", "log my practice" and
+// "practice makes perfect" say none of that and stay where they were. Tested
+// before the Leader and the Coach, because "role-play the difficult
+// conversation with my team" is a rehearsal, not a question about his team;
+// and before the book and play rules, because "practise the ideas in the book
+// X by Y" is a skill to rehearse, not a book to research. A reminder to
+// practise something is still a reminder.
+export const PRACTICE_RE = /\b(?:(?:i (?:want|would like|'d like|need|wanna) to|let'?s|help me|can we|could we|we should|i(?:'m| am) going to)\s+(?:practi[cs]e|rehearse|role[- ]?play)\b|\b(?:practi[cs]e|rehearse|role[- ]?play)\s+(?:this|that|these|those|it|them|with (?:you|nova|me)|the |my )|\brun (?:a|the|that) scene\b|\bspar with me\b)/i;
+const REMINDER_RE = /^\s*(?:remind me|todo:|note:)/i;
+// "I need to practise my bench" is the Coach's, not a scene.
+const PRACTICE_LIFT_RE = /\bmy (?:bench|squat|deadlift|press|pull-?ups?|lifts?|form)\b/i;
+
 // THE BROWSER HAND. Deliberately narrow: it must never steal the Researcher's
 // work. Only an explicit instruction to USE a browser — go to a site, log in
 // somewhere, fill something in, check an order/booking — reaches it.
@@ -143,6 +158,7 @@ export function routeIntent(text) {
     return { lane: 'research', urls, prose, why: 'a link to read — the Researcher reads it and cites what it finds' };
   }
 
+  if (PRACTICE_RE.test(raw) && !REMINDER_RE.test(raw) && !PRACTICE_LIFT_RE.test(raw)) return { lane: 'practice', urls: [], prose: raw, why: 'something to rehearse — Practice prepares it from your sources and plays the other side' };
   const bookMeta = parseBookIntent(raw);
   if (bookMeta) return { lane: 'book', urls: [], prose: raw, book: bookMeta, why: `a book — the Librarian researches "${bookMeta.title}" and weaves it into your vault` };
   if (hasStudyWords) return { lane: 'study', urls: [], prose: raw, why: 'you asked for a creator/catalogue analysis' };
@@ -198,6 +214,6 @@ export const LANE_LABEL = {
   play: 'PLAY', paper: 'STUDY → PROGRAM',
   watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', repertoire: 'REPERTOIRE', research: 'RESEARCH',
   brief: 'BRIEFING',
-  code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
+  code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', practice: 'PRACTICE', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
   browse: 'BROWSER', program: 'PROGRAM DOSSIER',
 };

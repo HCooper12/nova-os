@@ -30,7 +30,9 @@ export const CHAT_NAVIGATING_LANES = ['code'];
 // Lanes that are deliberately NOT dispatched from the chat. Kept explicit
 // rather than implied by absence: a lane added to the router later shows up
 // in neither list, and this is where someone will look to find out why.
-export const CHAT_CONVERSATION_LANES = ['ask', 'coach', 'leader'];
+// 'practice' (27 Sep 2026): a skill to rehearse is a conversation with Nova in
+// character, held in the rehearsal room — never a job the chat starts by itself.
+export const CHAT_CONVERSATION_LANES = ['ask', 'coach', 'leader', 'practice'];
 export const CHAT_DEFERRED_LANES = ['play', 'capture'];
 // Lanes only a PLAN reaches for: the program dossier is a free deterministic
 // step that hands his real program to the agents after it, not something a

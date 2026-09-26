@@ -307,6 +307,16 @@ export const LANES = [
     off: 'The Leader chat is refused with a plain message; the daily idea keeps arriving.',
   },
   {
+    id: 'practice-prepare', label: 'Practice — preparing a skill', group: 'daily', def: 'opus',
+    hint: 'reads your sources into a practice page: moves, lines, scenes',
+    off: 'New practice pages are refused with a plain message; the pages you have, and rehearsing them, are untouched.',
+  },
+  {
+    id: 'practice-chat', label: 'Practice — the scene', group: 'conversation', def: 'opus',
+    hint: 'the scene partner and the debrief',
+    off: 'Scenes are refused with a plain message; your practice pages and their session history stay readable.',
+  },
+  {
     id: 'distill', label: 'Distill', group: 'daily', def: 'sonnet',
     hint: 'compresses a long thing into the part that matters',
     off: 'Distillation is refused; the source stays whole and readable.',

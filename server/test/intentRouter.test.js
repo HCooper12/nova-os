@@ -55,6 +55,32 @@ test('every decision carries a human-readable why, and empty routes nowhere', ()
 });
 
 
+// ---- Practice (27 Sep): wanting to rehearse something routes to the room ----
+test('a skill he wants to rehearse routes to Practice', () => {
+  for (const t of [
+    'I want to practise questions of intent',
+    "let's rehearse that",
+    'can we role-play the meeting',
+    'help me practice the silence thing with you',
+    'I really love the ideas in chapter 8 and I want to practise them',
+    'can we role-play the difficult conversation with my team',
+    'I want to practise the ideas in the book The Next Conversation by Jefferson Fisher',
+    'run a scene',
+  ]) {
+    assert.equal(lane(t), 'practice', t);
+  }
+  assert.match(routeIntent('rehearse that').why, /Practice prepares it from your sources/);
+});
+
+test('practice as a noun, a reminder, or a lift does not route to Practice', () => {
+  assert.notEqual(lane('band practice at 6'), 'practice');
+  assert.notEqual(lane('practice makes perfect'), 'practice');
+  assert.notEqual(lane('log my practice'), 'practice');
+  assert.equal(lane('remind me to practise the speech'), 'capture');
+  assert.equal(lane('I need to practice my bench'), 'coach');
+  assert.equal(lane('difficult conversation with my team'), 'leader', 'the Leader keeps its questions');
+});
+
 // ---- a follow-up stays with whoever just spoke (his 14 Sep screenshots) ----
 import { followUpLane, FOLLOW_UP_WINDOW_MS } from '../lib/intentRouter.js';
 

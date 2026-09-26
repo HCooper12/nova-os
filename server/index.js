@@ -13,6 +13,7 @@ import { notesRouter } from './routes/notes.js';
 import { intentRouter } from './routes/intent.js';
 import { briefingRouter } from './routes/briefing.js';
 import { leaderRouter } from './routes/leader.js';
+import { practiceRouter } from './routes/practice.js';
 import { startLeaderScheduler } from './lib/leader.js';
 import { calendarRouter } from './routes/calendar.js';
 import { ingestRouter } from './routes/ingest.js';
@@ -236,6 +237,7 @@ async function main() {
   app.use('/api', conversationRouter()); // every spoken exchange with Nova, from every door, as one record
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
   app.use('/api', leaderRouter(process.env.VAULT_PATH));
+  app.use('/api', practiceRouter(process.env.VAULT_PATH)); // PRACTICE — a skill prepared from his sources, rehearsed in a scene, debriefed with undo
   app.get('/api/events', (req, res) => subscribe(res));
   // what is running right now — scripts/reload-server.mjs waits for zero
   // before any restart (lib/jobRegistry.js; the 25 Sep lost Coach answer)

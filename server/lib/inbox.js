@@ -1088,6 +1088,21 @@ export async function undoFiling(vaultPath, undo) {
     const { undoLeaderReflection } = await import('./leader.js');
     return undoLeaderReflection(undo.added);
   }
+  // PRACTICE: a prepared page comes back out only if untouched since (or goes
+  // back to the version it extended); a session line comes out exactly; a
+  // status change goes back to what it was.
+  if (undo.route === 'practice-skill') {
+    const { undoPracticeSkill } = await import('./practice.js');
+    return undoPracticeSkill(vaultPath, undo);
+  }
+  if (undo.route === 'practice-session') {
+    const { undoPracticeSession } = await import('./practice.js');
+    return undoPracticeSession(vaultPath, undo);
+  }
+  if (undo.route === 'practice-status') {
+    const { undoPracticeStatus } = await import('./practice.js');
+    return undoPracticeStatus(vaultPath, undo);
+  }
   if (undo.route === 'coach-learning') {
     const { removeLearning } = await import('./coachKnowledge.js');
     const r = await removeLearning(vaultPath, undo.line);

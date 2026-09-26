@@ -59,7 +59,9 @@ test('every lane the router can return is accounted for in exactly one list', ()
   // 'build' joined 16 Sep 2026 — a job lane: the Builder, making something new
   // in his projects directory. ('brief' and 'paper' are router lanes the chat
   // deliberately does not start, and were never in this local list.)
-  const { LANES } = { LANES: ['watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'capture', 'play', 'ask', 'book'] };
+  // 'practice' joined 27 Sep 2026 — a conversation lane: the rehearsal room,
+  // never a job the chat starts by itself
+  const { LANES } = { LANES: ['watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'practice', 'capture', 'play', 'ask', 'book'] };
   const all = [...CHAT_JOB_LANES, ...CHAT_CONVERSATION_LANES, ...CHAT_DEFERRED_LANES];
   assert.deepEqual([...all].sort(), [...LANES].sort(), 'a router lane is in no list, or a list names a lane that does not exist');
 });

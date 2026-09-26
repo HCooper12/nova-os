@@ -200,6 +200,19 @@ export const CAPABILITIES = {
     autonomy: 'propose',
     delegable: false,
   },
+  // PRACTICE (27 Sep): a skill he wants to be able to DO, prepared from his
+  // own sources into a page, then rehearsed with Nova playing the other side.
+  // His to ask for by name — a scene needs him in it, so a plan cannot run one.
+  practice: {
+    agent: 'Practice',
+    summary: 'Prepare a skill he wants to rehearse from his own sources into a practice page, play the other person in a scene, and debrief what landed.',
+    input: 'a skill he wants to rehearse, or a scene to run',
+    output: 'a practice page in the vault, scenes in conversation, a debrief filed with undo',
+    produces: 'practice-session',
+    costUsd: 1.5,
+    autonomy: 'propose',
+    delegable: false,
+  },
   code: {
     agent: 'Claude Code',
     summary: 'Read and change Nova\'s own codebase, with a diff to review before anything commits.',
