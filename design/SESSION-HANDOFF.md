@@ -60,6 +60,16 @@ a FIX FOR THE SERVER CRASHING ITSELF. All pushed (9a204d9), Pages success
 - **OPEN QUESTIONS (his):** see the decisions at the end of this session's
   message: McDonald's/KFC via the Chrome hand, and whether the catalogue
   refreshes on a schedule.
+- **REFRESH RECEIPT (live, 10:53 AEST):** 596 items across 12 brands.
+  Guzman y Gomez 210, Youfoodz 94, My Muscle Chef 88, Woolworths Macro 54
+  (its last run hit a 503; the kept record says so), Subway 45, Chobani 42,
+  Musashi 23, Woolworths meals 21, Coles meals 8, Lean Cuisine 6, YoPRO 4,
+  Lite n' Easy 1. A live search for 500 kcal / 50 g protein returns 33
+  items, led by My Muscle Chef meals at 50 g. KNOWN SHORTFALL: the lane read
+  46 Subway rows where a direct trial read of the same sheet got 115. The
+  raw answer is at `server/data/eat-out/pdf/subway.pdf.parse.json`; compare
+  before re-running (~$0.50 a read). No new setTypeOfService crash since the
+  guard loaded (the count is still 5).
 - **DO NOT:** run two catalogue refreshes at once (OFF answers 503 and six
   brands came back empty before the keep-on-error fix); leave
   `public/_devconn*.js` behind (seven token copies piled up from two
