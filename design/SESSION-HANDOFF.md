@@ -28,11 +28,13 @@ Nothing photographed yet, no product code changed.**
   six times; two Stuck items are August test to-dos in his vault). The
   checklist renders as a page for his phone via `scripts/redesign-page.mjs`
   (republish after every tick to the SAME artifact:
-  https://claude.ai/artifact/GRnJeoNMHDLmxSfWbTSJGJ, pass it as `url`). MOCKUPS ROUND 1 PUBLISHED: https://claude.ai/artifact/TsC7tZ37qSo9Skw463AFi6
-  (A · The Read, B · The Day Spine, C · Two Panes; source
-  design/mockups/52-redesign-home-abc.html, demo content, one page with an
-  A/B/C switch; republish via `url`). Home rows [m]. NEXT: his tweaks → round 2
-  or build. Open decisions: the two test to-dos in his vault; the dock centre.
+  https://claude.ai/artifact/GRnJeoNMHDLmxSfWbTSJGJ, pass it as `url`). ROUND 1 (https://claude.ai/artifact/TsC7tZ37qSo9Skw463AFi6, mockup 52)
+  REJECTED by him: still too cluttered; move features off Home; Home as
+  WIDGETS he arranges (iOS Home Screen editing); an INDEX like iOS Settings
+  for the other pages. ROUND 2 PUBLISHED:
+  https://claude.ai/artifact/RARXgdhv4No7T5gSpcWPKC (mockup 53: Home · Edit ·
+  Add · Index · Drill; the section → widget / page / moment map is 01-home.md
+  §6). Home rows [m]. NEXT: his tweaks on round 2 → round 3 or build. Open decisions: the two test to-dos in his vault; the dock centre.
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
   (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards

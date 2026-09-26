@@ -555,6 +555,13 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — his verdict on round 1: none of the three, still too
+  cluttered; move features off Home; Home as widgets he arranges (iOS Home
+  Screen editing); an Index like iOS Settings for the other pages (his
+  recording). Round 2 published: https://claude.ai/artifact/RARXgdhv4No7T5gSpcWPKC
+  (Home · Edit · Add · Index · Drill; source
+  `design/mockups/53-redesign-home-widgets.html`). The section → widget /
+  page / moment map is in `01-home.md` §6. Home stays [m].
 - 26 Sep 2026 — Home mockups round 1 published for his phone:
   https://claude.ai/artifact/TsC7tZ37qSo9Skw463AFi6 (A · The Read, B · The Day
   Spine, C · Two Panes; source `design/mockups/52-redesign-home-abc.html`, demo

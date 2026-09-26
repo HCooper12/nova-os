@@ -313,3 +313,52 @@ stuck item, protein at 27%, no sleep data) so they compare honestly.
   orders, offline, demo, the folded state of any section.
 - Decisions this audit raises for him: (1) remove the two test to-dos from
   his vault; (2) the dock's centre: navigate to Voice, or keep the act.
+
+---
+
+## 6 · His answers, round 1 (26 Sep, 16:3x)
+
+Shown mockup 52 (A · The Read, B · The Day Spine, C · Two Panes). His
+words: "I don't like any of the current mockups. Still feels too
+cluttered. Perhaps we need to move some features off the home section so
+home stays primarily as what is most relevant and useful. It would also be
+good to perhaps add a sidebar for the other pages like how Apple settings
+is organised in the attached video. The read option is probably the nicer
+one but I still like more being immediately visible rather than all
+straight labels. Consider a rework of what is most useful and used from
+the home page (but still being customisable, perhaps in the same way Apple
+iOS home screens can be edited by holding the screen and adding widgets
+that can be rearranged in the space, etc). Then some features from home
+could be moved to be on their own page with maybe a shortcut or widget or
+the current box appearing when relevant across the day."
+
+The recording he attached (16:28, 18 frames, silent) is iOS Settings on his
+phone: a large-titled page of grouped rows with icon tiles, a value on the
+right and a chevron; a search field floating at the foot; drill-down pages
+opening with a header card (icon, title, a sentence on what the page is
+for); the interactive swipe-back showing the parent list alongside; and,
+at the end, Control Centre's arrangeable tile grid.
+
+**What this changes.** The audit's finding 1 stands (no shape) but the
+answer moves from "fold the sections" to "Home carries only what is most
+used, as widgets he arranges; everything else has its own page and
+surfaces on Home only when it has news". Round 2 is one direction with
+five states (mockup 53, `design/mockups/53-redesign-home-widgets.html`):
+
+| Home section today | Round 2 |
+| --- | --- |
+| Hero read + Engage | **The read** widget (medium), default |
+| Vitals rings + 7 tiles | **Body** widget (rings, names only), default; tiles become the Body page |
+| The One Thing · Top 3 · Stuck | **The plan** widget (small), default; Stuck items are a once-a-day moment |
+| Command deck | **Waiting** widget (small: the count, the first title), default |
+| Today calendar | **Today** widget (medium), default |
+| Record · Landed · Plan in flight · Wrap · Focus chip | **Moments**: a slim card above the widgets only while it is news; gone once seen. Not widgets |
+| Nova noticed | Its own page (Mind); a moment when a new insight lands; optional widget |
+| Daily review | Its own page; optional widget |
+| Lead · Practice · Technique | Their own pages (exist); optional small widgets |
+| Agents | Ops; optional small widget |
+| Shortcuts | Retired: the dock and the Index are the shortcuts |
+| Suggested focus | Folded into the read's act |
+| Nova is working | The Island already carries it; not on Home |
+| Who is asking · Leader box | A moment while a question is open |
+| More sheet (grid) | **The Index**: a Settings-shape page of every screen in four groups (Today · Mind · Life · Nova) with an icon tile and a live value, search at the foot; drill pages open with a header card |
