@@ -1,0 +1,1496 @@
+<!doctype html>
+<html lang="en" data-nv-calm="0">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Practice — three candidates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!--
+  51 · PRACTICE — THREE CANDIDATES (prototype, 26 Sep 2026)
+  A tenth being for him to choose from. Practice is the rehearsal partner:
+  he names a communication skill he is learning, Nova prepares a page of
+  moves and scenes, plays the other person, then debriefs what landed. Its
+  screen's signature object is the lamp (one per move, dim until landed,
+  then it blooms in --nv-or). Department: Mind, with the Leader.
+
+  NOT LIVE. src/agentWorld/ and src/orgmap/ are untouched: the three are
+  built on this page from the kit's own species (BUILD.leader with the
+  Leader's element taken back off, since makeBot is not exported), and
+  --nv-or is added to the palette HERE, not in beings.js. Whichever he
+  picks moves into beings.js as BUILD.practice in its own change.
+
+  Same renderer, room, lighting, controls and capture API as sheet 49
+  (window.__agentSheet), so scripts/agent-sheet/{studio,look,film}.mjs run
+  against it with SHEET_PAGE=51-practice-being.html. "Show all" stands the
+  three in a row with a caption under each; paged is one at a time.
+-->
+<style>
+  :root {
+    --nv-font-ui:'Rajdhani','Instrument Sans',system-ui,sans-serif;
+    --nv-font-serif:'Instrument Serif',serif;
+    --nv-font-mono:'IBM Plex Mono',monospace;
+    --nv-micro-track:.14em; --nv-micro-track-wide:.2em;
+    --nv-ease:cubic-bezier(.32,.72,0,1);
+    --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-dur-slow:.44s;
+
+    --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
+    --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink40:rgba(232,236,246,.38);
+    --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
+    --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
+    --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
+    --nv-or:#ffa257;   /* PRACTICE, src/index.css command theme */
+    --nv-good:#5fe8a8; --nv-warn:#e08383;
+    --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-shoulders:#ffc46b;
+    --nv-m-quads:#7ab8ff; --nv-m-calves:#8fd3ff; --nv-m-abs:#ffd66b;
+    --nv-m-triceps:#b48cff; --nv-m-biceps:#5fe8a8; --nv-m-glutes:#c98bff;
+    --nv-acc:#59e6ff; --nv-acc-bg:rgba(89,230,255,.07); --nv-acc-border:rgba(89,230,255,.42);
+    --nv-radius:10px;
+    --nv-aur1:rgba(89,230,255,.12); --nv-aur2:rgba(143,123,255,.14);
+    --nv-glow-cta:0 0 30px -10px rgba(89,230,255,.95);
+    --nv-blur:18px;
+    /* 3D-side tokens: the renderer reads these off the mount, so Calm
+       is one block below instead of a second lighting rig. */
+    --nv-key:#fff2e2; --nv-fill:#bcd4ff; --nv-rim:#9fdcff;
+    --nv-shell:#c9d3e4;
+    --nv-emissive:1;       /* multiplier on every emissive core */
+    --nv-env:.72;
+    --nv-stage:#0d1426;
+  }
+  /* CALM — the observatory block's values (src/index.css ~215-260). Last, so it wins. */
+  :root[data-nv-calm="1"] {
+    --nv-void:#070b13; --nv-bg1:#0c1424; --nv-bg2:#152742;
+    --nv-ink:#ece5da; --nv-ink60:rgba(236,229,218,.62); --nv-ink40:rgba(236,229,218,.38);
+    --nv-glass:rgba(21,28,44,.55); --nv-glass2:rgba(28,38,58,.75);
+    --nv-edge:rgba(236,229,218,.12); --nv-spec:rgba(236,229,218,.3);
+    --nv-cy:#6be5f5; --nv-vi:#a68ce2; --nv-mg:#e08f6f; --nv-gold:#d8b573; --nv-good:#5aa87c;
+    --nv-or:#f2a04e;
+    --nv-acc:#d8b573; --nv-acc-bg:rgba(216,181,115,.1); --nv-acc-border:rgba(216,181,115,.38);
+    --nv-radius:14px;
+    --nv-aur1:rgba(138,106,209,.13); --nv-aur2:rgba(107,229,245,.07);
+    --nv-glow-cta:0 4px 18px -6px rgba(216,181,115,.6);
+    --nv-blur:26px;
+    --nv-key:#ffeeda; --nv-fill:#cbb9d8; --nv-rim:#d8b573;
+    --nv-shell:#d4ccc0;
+    --nv-emissive:.55;
+    --nv-env:.86;
+    --nv-stage:#121a2c;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--nv-void); color: var(--nv-ink);
+    font-family: var(--nv-font-ui); overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  #sky {
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(120% 80% at 50% 8%, var(--nv-aur1), transparent 62%),
+      radial-gradient(90% 70% at 12% 96%, var(--nv-aur2), transparent 60%),
+      linear-gradient(176deg, var(--nv-bg2) 0%, var(--nv-bg1) 46%, var(--nv-void) 100%);
+    transition: background var(--nv-dur-slow) var(--nv-ease);
+  }
+  /* touch-action:none is load-bearing — without it Safari takes the
+     one-finger drag for a page pan and the turntable never turns. */
+  #stage { position: fixed; inset: 0; z-index: 1; touch-action: none; cursor: grab; }
+  #stage.dragging { cursor: grabbing; }
+  #stage canvas { display: block; }
+
+  /* ---- chrome ---- */
+  header {
+    position: fixed; z-index: 3; top: 0; left: 0;
+    display: flex; flex-direction: column; gap: 3px;
+    padding: 16px 18px 0; pointer-events: none;
+    max-width: 62vw;
+  }
+  h1 {
+    margin: 0; font-family: var(--nv-font-serif); font-weight: 400;
+    font-size: clamp(18px, 3.4vw, 25px); letter-spacing: .01em; line-height: 1.1;
+  }
+  h1 em { font-style: italic; color: var(--nv-ink60); }
+  .kicker {
+    font: 500 9px var(--nv-font-mono); letter-spacing: var(--nv-micro-track-wide);
+    text-transform: uppercase; color: var(--nv-ink40);
+  }
+  #tools {
+    position: fixed; z-index: 5; top: 14px; right: 14px;
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+    max-width: calc(100vw - 28px);
+  }
+  .tool {
+    appearance: none; border: 1px solid var(--nv-edge);
+    background: var(--nv-glass); backdrop-filter: blur(var(--nv-blur)); -webkit-backdrop-filter: blur(var(--nv-blur));
+    color: var(--nv-ink60); font: 500 9px var(--nv-font-mono);
+    letter-spacing: var(--nv-micro-track); text-transform: uppercase;
+    padding: 7px 10px; border-radius: var(--nv-radius); cursor: pointer;
+    transition: color var(--nv-dur-fast) var(--nv-ease), border-color var(--nv-dur-fast) var(--nv-ease), background var(--nv-dur-fast) var(--nv-ease);
+  }
+  .tool[aria-pressed="true"] { color: var(--nv-acc); border-color: var(--nv-acc-border); background: var(--nv-acc-bg); }
+
+  /* ---- caption ----------------------------------------------------
+     Over 900px it is a SIDE panel and the camera aims into the space
+     that is left; under that it is a bottom sheet capped at 34% of the
+     height. Either way it never covers the being it is describing —
+     __fitReport() checks that and says so. */
+  #caption {
+    position: fixed; z-index: 4;
+    border: 1px solid var(--nv-edge); border-radius: calc(var(--nv-radius) + 4px);
+    background: var(--nv-glass); backdrop-filter: blur(var(--nv-blur)) saturate(140%);
+    -webkit-backdrop-filter: blur(var(--nv-blur)) saturate(140%);
+    box-shadow: 0 18px 50px -28px rgba(0,0,0,.9), inset 0 1px 0 var(--nv-spec);
+    padding: 14px 16px 13px;
+    left: 50%; bottom: 16px; transform: translateX(-50%);
+    width: min(640px, calc(100vw - 28px));
+    max-height: 34vh; overflow: auto;
+    display: grid; grid-template-columns: 1fr; gap: 3px 18px; align-items: start;
+  }
+  @media (min-width: 901px) {
+    #caption {
+      left: auto; right: 16px; bottom: auto; top: 50%; transform: translateY(-50%);
+      width: 330px; max-height: min(74vh, 560px);
+      grid-template-columns: 1fr; align-items: start;
+    }
+  }
+  #cap-dept {
+    font: 500 9px var(--nv-font-mono);
+    letter-spacing: var(--nv-micro-track-wide); text-transform: uppercase;
+    color: var(--cap-hue, var(--nv-acc));
+    display: flex; align-items: center; gap: 7px;
+  }
+  #cap-dept::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--cap-hue, var(--nv-acc));
+    box-shadow: 0 0 10px -1px var(--cap-hue, var(--nv-acc));
+  }
+  #cap-name {
+    font-family: var(--nv-font-serif); font-weight: 400;
+    font-size: clamp(23px, 5.4vw, 31px); line-height: 1.05; letter-spacing: .01em;
+    margin: 1px 0 3px;
+  }
+  #cap-line { font-size: 14px; line-height: 1.38; color: var(--nv-ink60); max-width: 42ch; }
+  #cap-meta { margin-top: 6px; font: 500 10px var(--nv-font-mono); letter-spacing: .06em; color: var(--cap-hue, var(--nv-acc)); }
+  /* the row's captions sit where 49's hint did, so the hint goes up top */
+  #hint { bottom: auto !important; top: 70px; }
+  #labels { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  body.paged #labels { display: none; }
+  .lab { position: absolute; transform: translateX(-50%); width: 190px; text-align: center; }
+  .lab b { display: block; font: 400 19px var(--nv-font-serif); color: var(--nv-ink); }
+  .lab span { display: block; margin-top: 3px; font: 500 9.5px/1.45 var(--nv-font-mono); letter-spacing: .05em; color: var(--nv-ink60); }
+  .lab span i { font-style: normal; color: var(--nv-or); }
+  #cap-tell { margin-top: 7px; font: 500 9px var(--nv-font-mono); letter-spacing: var(--nv-micro-track); text-transform: uppercase; color: var(--nv-ink40); }
+  /* the two poses read as one pair under the line, at every width — the
+     side-by-side variant put them on top of the sentence between 700 and
+     900px, which is exactly the band a laptop window lands in */
+  #poses { grid-column: 1; display: flex; flex-direction: row; gap: 16px; margin-top: 10px; align-self: start; }
+  .pose {
+    appearance: none; background: none; border: 0; padding: 4px 0;
+    color: var(--nv-ink40); font: 600 12px var(--nv-font-ui);
+    letter-spacing: .06em; text-transform: uppercase; text-align: left; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color var(--nv-dur-fast) var(--nv-ease), border-color var(--nv-dur-fast) var(--nv-ease);
+    white-space: nowrap;
+  }
+  .pose:hover { color: var(--nv-ink60); }
+  .pose[aria-pressed="true"] { color: var(--nv-ink); border-bottom-color: var(--cap-hue, var(--nv-acc)); }
+
+  /* ---- the pager (phone default) ---- */
+  .arrow {
+    position: fixed; z-index: 5; top: 44%; transform: translateY(-50%);
+    width: 44px; height: 60px; display: none; place-items: center;
+    appearance: none; border: 1px solid var(--nv-edge); border-radius: var(--nv-radius);
+    background: var(--nv-glass); backdrop-filter: blur(var(--nv-blur)); -webkit-backdrop-filter: blur(var(--nv-blur));
+    color: var(--nv-ink60); font-size: 22px; line-height: 1; cursor: pointer;
+    font-family: var(--nv-font-ui);
+  }
+  body.paged .arrow { display: grid; }
+  #prev { left: 10px; }
+  #next { right: 10px; }
+  #dots {
+    position: fixed; z-index: 4; left: 0; right: 0; display: none;
+    justify-content: center; gap: 6px; pointer-events: none;
+    bottom: calc(16px + var(--cap-h, 150px) + 10px);
+  }
+  body.paged #dots { display: flex; }
+  #dots i {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--nv-ink40);
+    opacity: .45; transition: opacity var(--nv-dur-fast) var(--nv-ease), background var(--nv-dur-fast) var(--nv-ease);
+  }
+  #dots i.on { opacity: 1; background: var(--cap-hue, var(--nv-acc)); }
+
+  #hint {
+    position: fixed; z-index: 3; left: 50%; transform: translateX(-50%);
+    bottom: calc(16px + var(--cap-h, 120px) + 10px);
+    font: 500 9px var(--nv-font-mono); letter-spacing: var(--nv-micro-track);
+    text-transform: uppercase; color: var(--nv-ink40); pointer-events: none;
+    transition: opacity var(--nv-dur-base) var(--nv-ease);
+  }
+  body.paged #hint { display: none; }
+  @media (min-width: 901px) { #hint { left: calc(50% - 180px); } }
+  #frames {
+    position: fixed; z-index: 3; left: 14px; bottom: 5px;
+    font: 400 9px var(--nv-font-mono); letter-spacing: .1em; color: var(--nv-ink40);
+    opacity: .5; pointer-events: none;
+  }
+  #fallback {
+    position: fixed; inset: 0; z-index: 6; display: none; place-items: center;
+    padding: 24px; text-align: center; color: var(--nv-ink60); font-size: 15px;
+  }
+  @media (max-width: 700px) {
+    header { padding: 12px 14px 0; max-width: 58vw; }
+    h1 { font-size: 19px; }
+    #caption { left: 12px; right: 12px; bottom: 12px; width: auto; transform: none; padding: 12px 14px; }
+    #cap-line { font-size: 13px; }
+    #tools { top: auto; bottom: calc(12px + var(--cap-h, 150px) + 34px); right: 12px; }
+  }
+</style>
+</head>
+<body>
+<div id="sky"></div>
+<div id="stage"></div>
+<div id="labels"></div>
+
+<header>
+  <h1>Practice <em>— three candidates</em></h1>
+  <span class="kicker">a tenth being · prototype, not on the map</span>
+</header>
+
+<div id="tools">
+  <button class="tool" id="t-mode" aria-pressed="false">Show all</button>
+  <button class="tool" id="t-motion" aria-pressed="false">Reduce motion</button>
+  <button class="tool" id="t-calm" aria-pressed="false">Calm</button>
+</div>
+
+<button class="arrow" id="prev" aria-label="Previous being">&lsaquo;</button>
+<button class="arrow" id="next" aria-label="Next being">&rsaquo;</button>
+<div id="dots"></div>
+
+<div id="hint">Drag to turn · tap a being · double-tap to reset</div>
+
+<div id="caption">
+  <div id="cap-dept"></div>
+  <div id="cap-name"></div>
+  <div id="cap-line"></div>
+  <div id="cap-tell"></div>
+  <div id="cap-meta"></div>
+  <div id="poses">
+    <button class="pose" id="p-work" aria-pressed="false">Working</button>
+    <button class="pose" id="p-wait" aria-pressed="true">Waiting</button>
+  </div>
+</div>
+
+<div id="frames">frames 0</div>
+<div id="fallback">The stage needs WebGL. The honest fallback on the real surface is the same view model drawn as a list of markers.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script type="module">
+import { createBeingKit } from '../../src/agentWorld/beings.js';
+(function () {
+  'use strict';
+  if (!window.THREE) { document.getElementById('fallback').style.display = 'grid'; return; }
+  var T = window.THREE;
+  var root = document.documentElement;
+  var mount = document.getElementById('stage');
+  var PHONE_W = 700;
+
+  // ---------------------------------------------------------------
+  // TOKENS — read off the mount, never literals.
+  // ---------------------------------------------------------------
+  var TK = {};
+  function readTokens() {
+    var cs = getComputedStyle(mount);
+    function c(n) { return new T.Color(cs.getPropertyValue(n).trim() || '#888'); }
+    function f(n, d) { var v = parseFloat(cs.getPropertyValue(n)); return isNaN(v) ? d : v; }
+    TK.key = c('--nv-key'); TK.fill = c('--nv-fill'); TK.rim = c('--nv-rim');
+    TK.shell = c('--nv-shell'); TK.gold = c('--nv-gold'); TK.ink = c('--nv-ink');
+    TK.stage = c('--nv-stage'); TK.edge = c('--nv-cy'); TK.void = c('--nv-void');
+    TK.em = f('--nv-emissive', 1); TK.env = f('--nv-env', .72);
+    TK.hue = {
+      cy: c('--nv-cy'), vi: c('--nv-vi'), mg: c('--nv-mg'), good: c('--nv-good'),
+      gold: c('--nv-gold'), or: c('--nv-or'),
+      chest: c('--nv-m-chest'), back: c('--nv-m-back'), shoulders: c('--nv-m-shoulders'),
+      quads: c('--nv-m-quads'), calves: c('--nv-m-calves'), abs: c('--nv-m-abs'),
+      triceps: c('--nv-m-triceps'), biceps: c('--nv-m-biceps'), glutes: c('--nv-m-glutes')
+    };
+  }
+  readTokens();
+
+  // ---------------------------------------------------------------
+  // RENDERER
+  // ---------------------------------------------------------------
+  var renderer;
+  try {
+    renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  } catch (e) { document.getElementById('fallback').style.display = 'grid'; return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = T.SRGBColorSpace;
+  renderer.toneMapping = T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  mount.appendChild(renderer.domElement);
+
+  var scene = new T.Scene();
+  var camera = new T.PerspectiveCamera(30, 1, 0.1, 90);
+
+  // IMAGE-BASED LIGHT, generated not downloaded. RoomEnvironment is an
+  // examples/jsm module and so absent from the UMD bundle; this is the same
+  // idea, and this pass makes it a real room: a bright key strip overhead,
+  // a large cool fill down one wall, a warm bounce behind, and four dim
+  // upright panels that give the clearcoat and the visors long vertical
+  // highlights to catch. Without those the shells read as flat plastic.
+  function makeRoomEnv() {
+    var s = new T.Scene();
+    var box = new T.BoxGeometry(1, 1, 1);
+    function panel(col, inten, sx, sy, sz, x, y, z, back) {
+      var m = new T.Mesh(box, new T.MeshStandardMaterial({
+        color: col, emissive: col, emissiveIntensity: inten, roughness: 1,
+        side: back ? T.BackSide : T.FrontSide
+      }));
+      m.scale.set(sx, sy, sz); m.position.set(x, y, z); s.add(m);
+    }
+    panel(0x18202f, 0.5, 26, 15, 26, 0, 5, 0, true);        // the shell
+    panel(0xfff1dd, 5.2, 11, 0.1, 4.5, 1.5, 10.5, 2.5);      // key strip, overhead
+    panel(0x9ecdff, 3.0, 0.1, 9, 12, -10, 5, 0);             // cool fill wall
+    panel(0xffd3a6, 1.7, 12, 6, 0.1, 0, 4.5, -10);           // warm bounce behind
+    panel(0xbfd8ff, 1.1, 0.1, 8, 10, 10, 4.5, 0);            // cool kick, other side
+    panel(0x7fb4ff, 0.9, 5, 0.1, 5, -4, 9.6, -3);            // second overhead, cooler
+    // four upright slivers: these are what a clearcoat actually reflects
+    [[-5.4, 3.4], [5.4, 3.4], [-2.6, -6.4], [2.6, -6.4]].forEach(function (p, i) {
+      panel(i % 2 ? 0xffffff : 0xdfeaff, 2.4, 0.08, 6.5, 0.6, p[0], 4.6, p[1]);
+    });
+    return s;
+  }
+  var pmrem = new T.PMREMGenerator(renderer);
+  var envRT = pmrem.fromScene(makeRoomEnv(), 0.03);
+  scene.environment = envRT.texture;
+  scene.environmentIntensity = TK.env;
+
+  var key = new T.DirectionalLight(TK.key.getHex(), 2.2);
+  key.position.set(3.4, 6.6, 4.6);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 1; key.shadow.camera.far = 26;
+  key.shadow.camera.left = -6.5; key.shadow.camera.right = 6.5;
+  key.shadow.camera.top = 6.5; key.shadow.camera.bottom = -6.5;
+  key.shadow.bias = -0.0012; key.shadow.normalBias = 0.02;
+  scene.add(key);
+  var fill = new T.DirectionalLight(TK.fill.getHex(), 0.44); fill.position.set(-5, 3, 4); scene.add(fill);
+  var rim  = new T.DirectionalLight(TK.rim.getHex(), 1.25);  rim.position.set(-3, 4.4, -6); scene.add(rim);
+
+  // A being with no shadow floats. Shadow-only ground: the page gradient
+  // still shows through, exactly as the Shelf's board does.
+  var ground = new T.Mesh(new T.PlaneGeometry(44, 44), new T.ShadowMaterial({ opacity: 0.32 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+  // THE KIT — the species and the nine, shared with the Org Map.
+  var kit = createBeingKit(T, TK);
+  var darker = kit.darker, lighter = kit.lighter, hueOf = kit.hueOf, accOf = kit.accOf, clamp = kit.clamp,
+      addBlend = kit.addBlend, halo = kit.halo, glowTex = kit.glowTex, GEO = kit.GEO, mesh = kit.mesh,
+      emissiveMat = kit.emissiveMat, EMISSIVES = kit.EMISSIVES, face3 = kit.face3;
+
+  // ---------------------------------------------------------------
+  // PRACTICE — THREE CANDIDATES. A prototype for him to choose from; the
+  // live Org Map does not know this being yet. Every candidate is the SAME
+  // species (the kit's own makeBot, reached through BUILD.leader because
+  // makeBot is not exported and beings.js is not ours to change here), with
+  // the Leader's own element taken back off: no mirror screen, no
+  // iridescence, no listening ear, no question orb. What is left is the
+  // plain species in --nv-or, and each candidate adds ONE artefact and ONE
+  // posture. Accents are palette tokens no being owns as its dominant hue.
+  // ---------------------------------------------------------------
+  var V = function (x, y, z) { return new T.Vector3(x, y, z); };
+  function smooth01(x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); }
+  var tex = kit.tex;
+  function rrect(w, h, r) { var s2 = new T.Shape(); s2.moveTo(-w / 2 + r, -h / 2); s2.lineTo(w / 2 - r, -h / 2); s2.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s2.lineTo(w / 2, h / 2 - r); s2.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s2.lineTo(-w / 2 + r, h / 2); s2.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s2.lineTo(-w / 2, -h / 2 + r); s2.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s2; }
+  function slab(w, h, d, r) {
+    var g2 = new T.ExtrudeGeometry(rrect(w, h, r), { depth: d, bevelEnabled: true, bevelThickness: d * 0.35, bevelSize: d * 0.35, bevelSegments: 2, curveSegments: 6 });
+    g2.translate(0, 0, -d / 2); g2.computeVertexNormals(); return g2;
+  }
+  function metal(col, rough) { return new T.MeshPhysicalMaterial({ color: col, roughness: rough != null ? rough : 0.3, metalness: 0.85, clearcoat: 0.6, clearcoatRoughness: 0.12 }); }
+  var _yUp = new T.Vector3(0, 1, 0), _rd2 = new T.Vector3();
+  function rodTo(m, p0, p1, r) {
+    _rd2.subVectors(p1, p0); var L = _rd2.length() || 1e-4;
+    m.position.copy(p0).addScaledVector(_rd2, 0.5);
+    m.scale.set(r, L, r);
+    m.quaternion.setFromUnitVectors(_yUp, _rd2.normalize());
+  }
+  // the centre of a mitten's palm, in the being's own space
+  function gripOf(arm) {
+    return V(0, arm.palm.position.y, 0).applyQuaternion(arm.hand.quaternion).add(arm.hand.position);
+  }
+
+  var AGENTS = [
+    { id: 'lamp', name: 'The stage lamp', short: 'Stage lamp', dept: 'Mind · candidate 1', hue: 'or', accent: 'abs', accName: '--nv-m-abs (warm yellow)', skin: 'glaze',
+      line: 'A small theatre spotlight in its yoke, barn doors and all, aimed at the spot where you will stand.',
+      work: 'Working: it lifts the lamp, the doors open, and the lens blooms tangerine onto the floor.',
+      wait: 'Waiting: the lamp stands at its feet, dim, the doors half shut; one hand rests on it.',
+      meta: 'theatre spotlight · lifts it and the lens blooms · accent abs' },
+    { id: 'script', name: 'The script', short: 'Script', dept: 'Mind · candidate 2', hue: 'or', accent: 'triceps', accName: '--nv-m-triceps (lavender)', skin: 'glaze',
+      line: 'A cue card: the page of moves on one side, the line it is about to say on the other.',
+      work: 'Working: it reads the card, turns it over to you, and says the line with its free hand open.',
+      wait: 'Waiting: the card held at its side, the other hand on its hip.',
+      meta: 'cue card · turns it over and says the line · accent triceps' },
+    { id: 'masks', name: 'The two masks', short: 'Two masks', dept: 'Mind · candidate 3', hue: 'or', accent: 'gold', accName: '--nv-gold', skin: 'glaze',
+      line: 'Two small masks on sticks: a smiling one for itself, and a worried one for the other person in the scene.',
+      work: 'Working: it lifts the worried mask to its face and plays the other person.',
+      wait: 'Waiting (the debrief): both masks lowered, its own face back, smiling.',
+      meta: 'two masks on sticks · lifts one to play the role · accent gold' }
+  ];
+
+  // The species, with the Leader's own element taken off again.
+  function baseBeing(a, face) {
+    var b = kit.BUILD.leader(a);
+    b.group.remove(b.props.orb);
+    b.visorMat.metalness = 0.1; b.visorMat.roughness = 0.14; b.visorMat.iridescence = 0;
+    b.visorMat.envMapIntensity = 0.85;
+    b.visorMat.color.copy(new T.Color(0x060a14).lerp(darker(b.hue, 0.3), 0.22));
+    b.bodyMat.iridescence = 0;
+    b.ears[1].scale.setScalar(1);
+    b.face.cheeks.forEach(function (c) { c.sp.material.color.copy(lighter(b.hue, 0.1).lerp(TK.hue.mg, 0.3)); });
+    var base = { w: 0.049, h: 0.06, lid: 0, slope: 0, smile: 0.3, tilt: 0, browY: 0.03, browA: 0.06, cheek: 0.42, dx: 0, dy: 0 };
+    Object.keys(base).forEach(function (k) {
+      b.face.wait[k] = face.wait[k] != null ? face.wait[k] : base[k];
+      b.face.work[k] = face.work[k] != null ? face.work[k] : b.face.wait[k];
+      b.face.cur[k] = b.face.wait[k];
+    });
+    // the ear rings are the accent, steady; the Leader's pulse is gone
+    b.ears.forEach(function (e) { var m = e.children[1].material; m.emissiveIntensity = m.userData.baseEm * TK.em; });
+    b.headRoll = 0; b.headYaw = 0; b.headPitch = 0;
+    return b;
+  }
+
+  var BUILD = {};
+
+  // 1 · THE STAGE LAMP — a Fresnel-style theatre lantern in a yoke, on a
+  //     small foot: a can, a lens, four barn doors. Waiting, it stands at the
+  //     being's feet, doors half shut, the lens dim; working, it is lifted
+  //     to the shoulder, the doors open, and the lens blooms in the practice
+  //     hue with a soft beam and a pool on the floor. Its silhouette is an
+  //     aimed can with flaps, never the Guardian's hanging lantern.
+  BUILD.lamp = function (a) {
+    var b = baseBeing(a, {
+      wait: { smile: 0.34, browA: 0.05, cheek: 0.42 },
+      work: { h: 0.064, smile: 0.62, browY: 0.038, browA: -0.04, cheek: 0.6 }
+    });
+    var g = b.group, hue = b.hue, acc = b.acc;
+    var canM = new T.MeshPhysicalMaterial({ color: 0x353b4a, roughness: 0.4, metalness: 0.5, clearcoat: 0.8, clearcoatRoughness: 0.18 });
+    var brass = metal(lighter(acc, 0.05).lerp(TK.gold, 0.45), 0.3);
+    var LS = 1.55;   // at 1.0 it vanished at sheet size
+    var lamp = new T.Group(); lamp.scale.setScalar(LS); g.add(lamp);          // origin: the underside of the foot
+    // foot, stem, yoke
+    lamp.add(mesh(GEO.cyl, canM, 0.05, 0.014, 0.05, 0, 0.007, 0));
+    lamp.add(mesh(GEO.cyl, brass, 0.012, 0.1, 0.012, 0, 0.06, 0));
+    var yokeCurve = new T.CatmullRomCurve3([V(-0.1, 0.205, 0), V(-0.1, 0.14, 0), V(-0.075, 0.112, 0), V(0, 0.104, 0), V(0.075, 0.112, 0), V(0.1, 0.14, 0), V(0.1, 0.205, 0)], false, 'centripetal');
+    var yoke = new T.Mesh(new T.TubeGeometry(yokeCurve, 40, 0.0105, 10, false), brass); yoke.castShadow = true; lamp.add(yoke);
+    [-1, 1].forEach(function (s) { var k = mesh(GEO.cyl, brass, 0.02, 0.022, 0.02, s * 0.1, 0.205, 0); k.rotation.z = Math.PI / 2; lamp.add(k); });
+    var aim = new T.Group(); aim.position.y = 0.205; lamp.add(aim);
+    // the can, turned on a lathe, its axis along +z
+    var prof = [[0.001, -0.1], [0.03, -0.099], [0.055, -0.09], [0.07, -0.07], [0.074, -0.03], [0.074, 0.05], [0.08, 0.058], [0.084, 0.07], [0.084, 0.084], [0.072, 0.088]];
+    var canGeo = new T.LatheGeometry(prof.map(function (p) { return new T.Vector2(p[0], p[1]); }), 40);
+    canGeo.rotateX(Math.PI / 2);
+    var can = new T.Mesh(canGeo, canM); can.castShadow = true; aim.add(can);
+    [-0.045, -0.015].forEach(function (z) { var r = mesh(GEO.tor, brass, 0.075, 0.075, 0.09, 0, 0, z); aim.add(r); });
+    var bez = mesh(GEO.tor, brass, 0.079, 0.079, 0.1, 0, 0, 0.086); aim.add(bez);
+    // the lens: a shallow dome
+    var lensGeo = new T.SphereGeometry(0.07, 32, 10, 0, Math.PI * 2, 0, 0.6); lensGeo.rotateX(Math.PI / 2);
+    var lensM = new T.MeshStandardMaterial({ color: darker(hue, 0.35), emissive: hue.clone(), emissiveIntensity: 0.2, roughness: 0.15 });
+    var lens = new T.Mesh(lensGeo, lensM); lens.scale.set(1, 1, 0.45); lens.position.z = 0.05; lens.castShadow = false; aim.add(lens);
+    // two barn doors, top and bottom, hinged on the rim (four read as a
+    // pinwheel from the front at this size; two read as a hood)
+    var doors = [];
+    for (var k = 0; k < 4; k += 2) {
+      var ring = new T.Group(); ring.rotation.z = k * Math.PI / 2; ring.position.z = 0.088; aim.add(ring);
+      var hinge = new T.Group(); hinge.position.y = 0.084; ring.add(hinge);
+      // top and bottom run past the sides so the four close into a hood, not a pinwheel
+      var dm = new T.Mesh(slab(0.17, 0.046, 0.004, 0.012), canM);
+      dm.rotation.x = Math.PI / 2; dm.position.z = 0.02; dm.castShadow = true; hinge.add(dm);
+      var pin = mesh(GEO.cyl, brass, 0.006, 0.15, 0.006, 0, 0, 0); pin.rotation.z = Math.PI / 2; hinge.add(pin);   // add() returns the parent: rotating its result rolled the whole door
+      doors.push(hinge);
+    }
+    // the beam and the pool: normal blending with real colour (additive
+    // glow vanishes at this size on a dark ground; paid for already)
+    var beamTex = tex('beam-grad', function (x, w, h) {
+      var gr = x.createLinearGradient(0, 0, 0, h);
+      // an alphaMap reads the GREEN channel, so the fade is drawn in grey, not alpha
+      gr.addColorStop(0, '#fff'); gr.addColorStop(0.5, '#666'); gr.addColorStop(1, '#000');
+      x.fillStyle = gr; x.fillRect(0, 0, w, h);
+    }, 8, 128);
+    var beamM = new T.MeshBasicMaterial({ color: lighter(hue, 0.25), alphaMap: beamTex, transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide });
+    var BL = 1.0;
+    var beamGeo = new T.CylinderGeometry(0.066, 0.3, BL, 32, 1, true); beamGeo.translate(0, -BL / 2, 0); beamGeo.rotateX(-Math.PI / 2);
+    var beam = new T.Mesh(beamGeo, beamM); beam.position.z = 0.09; beam.renderOrder = 3; beam.castShadow = false; beam.receiveShadow = false; aim.add(beam);
+    beam.visible = false;   // off until lit, so the framing never fits an invisible cone
+    var poolTex = tex('pool-rad', function (x, w, h) {
+      var gr = x.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(0.5, '#8a8a8a'); gr.addColorStop(1, '#000');
+      x.fillStyle = gr; x.fillRect(0, 0, w, h);
+    }, 128, 128);
+    var poolM = new T.MeshBasicMaterial({ color: hue.clone(), alphaMap: poolTex, transparent: true, opacity: 0, depthWrite: false });
+    var pool = new T.Mesh(GEO.plane, poolM); pool.rotation.x = -Math.PI / 2; pool.renderOrder = 2; pool.castShadow = false; pool.receiveShadow = false; pool.visible = false; g.add(pool);
+    var lampL = new T.PointLight(lighter(hue, 0.2).getHex(), 0, 1.6, 2); lampL.position.z = 0.14; aim.add(lampL);
+
+    var SL = V(-0.2, 0.48, 0), SR = V(0.2, 0.48, 0);
+    var armL = b.arm(-1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
+    var armR = b.arm(1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
+    var _lp = new T.Vector3(), _ld = new T.Vector3(), _q2 = new T.Quaternion();
+    b.tell = function (t, working, rm) {
+      var P = b.pose; P.frame(t);
+      var up = P.s('up', working ? 1 : 0);
+      // the right hand: resting on the can's back at its feet, or lifting it
+      var rH = working ? P.v('rH', 0.38, 0.44, 0.24) : P.v('rH', 0.42, 0.44, 0.06);
+      armR.set(SR, rH, working ? P.v('rP', 0.6, -0.8, -0.4) : P.v('rP', 0.5, 0.2, -1), working ? P.v('rPalm', -1, 0, 0) : P.v('rPalm', 0, -1, 0.1));
+      if (working || up > 0.02) {
+        var gp = gripOf(armR);
+        var standPos = V(0.43, 0, 0.18), heldPos = V(gp.x, gp.y - 0.07 * LS, gp.z);
+        lamp.position.copy(standPos).lerp(heldPos, up);
+      } else lamp.position.set(0.43, 0, 0.18);
+      // aimed nearly level, so the lens faces whoever is looking: aimed at
+      // the floor, a camera above only ever saw the back of the can
+      lamp.rotation.y = P.s('lyaw', working ? -0.5 : -0.25);
+      aim.rotation.x = P.s('pitch', working ? 0.26 : 0.35);
+      var lit = P.s('lit', working ? 1 : 0);
+      var fl = rm ? 0 : Math.sin(t * 2.3) * 0.04;
+      doors.forEach(function (d) { d.rotation.x = -(0.08 + lit * 0.3); });
+      // the bloom stays tangerine: pushed past ~1.5 it tone-maps to white
+      lensM.emissive.copy(darker(hue, 0.55)).lerp(hue, lit);
+      lensM.emissiveIntensity = (0.35 + lit * (0.55 + fl)) * TK.em;
+      lensM.color.copy(darker(hue, 0.35)).lerp(darker(hue, 0.6), lit);
+      beamM.opacity = lit * 0.3; beam.visible = pool.visible = lit > 0.01;
+      lampL.intensity = lit * 1.6;
+      // the pool lands where the beam's axis meets the floor
+      aim.updateWorldMatrix(true, false);
+      _lp.set(0, 0, 0.09).applyMatrix4(aim.matrixWorld); g.worldToLocal(_lp);
+      aim.getWorldQuaternion(_q2); _ld.set(0, 0, 1).applyQuaternion(_q2);
+      g.getWorldQuaternion(_q2); _ld.applyQuaternion(_q2.invert());
+      if (_ld.y < -0.1 && (_lp.y - 0.02) / -_ld.y < 1.6) {
+        var s = (_lp.y - 0.02) / -_ld.y;
+        pool.position.set(_lp.x + _ld.x * s, 0.024, _lp.z + _ld.z * s);
+        pool.scale.setScalar(0.34 + s * 0.2);
+        poolM.opacity = lit * 0.55;
+      } else poolM.opacity = 0;
+      // the left hand: on the hip, or open toward the lit spot
+      armL.set(SL, working ? P.v('lH', -0.27, 0.36, 0.24) : P.v('lH', -0.29, 0.28, 0.05),
+        working ? P.v('lP', -1, -0.3, -0.5) : P.v('lP', -1, 0.15, -0.25),
+        working ? P.v('lPalm', 0.3, 1, 0.4) : P.v('lPalm', 1, 0, 0.2));
+      b.headPitch = P.s('hp', working ? 0.1 : 0.02);
+      b.headYaw = P.s('hy', working ? 0.1 : -0.04);
+      b.headRoll = P.s('hr', working ? 0 : 0.07);
+      return (working && !rm) || P.moving();
+    };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { lamp: lamp };
+    return b;
+  };
+
+  // 2 · THE SCRIPT — a cue card: the page of moves on the side it reads,
+  //     the one line it is about to say on the other, marked in the accent.
+  //     Working: it reads (card tipped up to its face), then turns the card
+  //     over to you and delivers the line with the free hand open. Waiting:
+  //     the card held at its side, the other hand on its hip. (A clipboard
+  //     page flipping over the clip was tried first: rigid, it stood up in
+  //     front of the face instead of falling behind the board.)
+  BUILD.script = function (a) {
+    var b = baseBeing(a, {
+      wait: { smile: 0.3, browA: 0.04, cheek: 0.4 },
+      work: { h: 0.063, smile: 0.52, browY: 0.04, browA: -0.08, cheek: 0.55 }
+    });
+    var g = b.group, hue = b.hue, acc = b.acc;
+    var hueHex = '#' + hue.getHexString(), accHex = '#' + acc.getHexString();
+    var BW = 0.19, BH = 0.24;
+    var card = new T.Group(); g.add(card);   // origin: the card's centre
+    var stockM = new T.MeshPhysicalMaterial({ color: lighter(hue, 0.35), roughness: 0.7, clearcoat: 0.2, sheen: 0.4, sheenColor: 0xffffff });
+    var cm = new T.Mesh(slab(BW, BH, 0.007, 0.014), stockM); cm.castShadow = true; card.add(cm);
+    var movesTex = tex('script-moves' + hueHex + accHex, function (x, w, h) {
+      x.fillStyle = '#f6f1e6'; x.fillRect(0, 0, w, h);
+      x.fillStyle = hueHex; x.fillRect(w * 0.1, h * 0.08, w * 0.5, h * 0.05);
+      var rows = [0.22, 0.29, 0.36, 0.5, 0.57, 0.71, 0.78, 0.85];
+      rows.forEach(function (y, i) {
+        // a lamp dot per move: the first landed (lit), the rest dim
+        x.fillStyle = i === 0 || i === 3 ? hueHex : 'rgba(40,36,48,.22)';
+        if (i === 0 || i === 3 || i === 5) { x.beginPath(); x.arc(w * 0.13, h * y + h * 0.012, w * 0.03, 0, 7); x.fill(); }
+        x.fillStyle = 'rgba(40,36,48,.5)'; x.fillRect(w * 0.2, h * y, w * (i % 3 === 2 ? 0.45 : 0.68), h * 0.024);
+      });
+      x.fillStyle = accHex; x.globalAlpha = 0.8; x.fillRect(w * 0.17, h * 0.5 - h * 0.012, w * 0.75, h * 0.05); x.globalAlpha = 1;
+    }, 256, 324);
+    var lineTex = tex('script-line' + hueHex + accHex, function (x, w, h) {
+      x.fillStyle = '#f6f1e6'; x.fillRect(0, 0, w, h);
+      x.fillStyle = hueHex; x.font = 'italic 400 150px "Instrument Serif", Georgia, serif'; x.textBaseline = 'top';
+      x.fillText('“', w * 0.08, h * 0.02);
+      x.fillStyle = 'rgba(30,24,40,.8)';
+      [0.36, 0.48, 0.6].forEach(function (y, i) { x.fillRect(w * 0.12, h * y, w * (i === 2 ? 0.48 : 0.76), h * 0.045); });
+      x.fillStyle = accHex; x.fillRect(w * 0.12, h * 0.72, w * 0.76, h * 0.03);
+    }, 256, 324);
+    var front = new T.Mesh(GEO.plane, new T.MeshStandardMaterial({ map: movesTex, roughness: 0.85 }));
+    front.scale.set(BW - 0.018, BH - 0.018, 1); front.position.z = 0.0065; card.add(front);
+    var back = new T.Mesh(GEO.plane, new T.MeshStandardMaterial({ map: lineTex, roughness: 0.85 }));
+    back.scale.copy(front.scale); back.position.z = -0.0065; back.rotation.y = Math.PI; card.add(back);
+
+    var SL = V(-0.2, 0.48, 0), SR = V(0.2, 0.48, 0);
+    var armL = b.arm(-1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
+    var armR = b.arm(1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
+    b.tell = function (t, working, rm) {
+      var P = b.pose; P.frame(t);
+      // a 4s beat: read (0-1.8), turn the card and say it (1.8-4)
+      var c = rm ? 3 : (t % 4), speak = working && c >= 1.8;
+      var cp, ct;
+      if (!working) { cp = P.v('cp', -0.31, 0.3, 0.13); ct = P.v('ct', -0.05, 0.75, 0.1); }
+      else if (!speak) { cp = P.v('cp', -0.07, 0.45, 0.33); ct = P.v('ct', -1.15, 0.2, 0); }
+      else { cp = P.v('cp', -0.25, 0.47, 0.3); ct = P.v('ct', 0.05, Math.PI + 0.35, 0.04); }
+      card.position.copy(cp); card.rotation.set(ct.x, ct.y, ct.z);
+      // the left hand holds it by the bottom edge, whichever side is out
+      card.updateMatrix();
+      var lh = V(0, -BH / 2 + 0.03, 0).applyMatrix4(card.matrix);
+      armL.set(SL, lh, P.v('lP', -1, -0.4, -0.4), working ? P.v('lPalm', 0.6, 0.3, 0.7) : P.v('lPalm', 0.9, 0, -0.3));
+      // the right hand: on the hip, steadying the card, or open as it speaks
+      var rH, rP, rPalm;
+      if (!working) { rH = P.v('rH', 0.29, 0.28, 0.05); rP = P.v('rP', 1, 0.15, -0.25); rPalm = P.v('rPalm', -1, 0, 0.2); }
+      else if (!speak) { rH = P.v('rH', 0.03, 0.4, 0.34); rP = P.v('rP', 0.7, -0.6, -0.2); rPalm = P.v('rPalm', -0.8, 0.2, -0.3); }
+      else { rH = P.v('rH', 0.34, 0.54, 0.22); rP = P.v('rP', 0.6, -0.8, -0.3); rPalm = P.v('rPalm', 0.1, 0.8, 0.6); }
+      armR.set(SR, rH, rP, rPalm);
+      b.headPitch = P.s('hp', !working ? 0.02 : (speak ? -0.04 : 0.26));
+      b.headYaw = P.s('hy', !working ? 0.05 : (speak ? 0.1 : -0.05));
+      b.headRoll = P.s('hr', !working ? -0.06 : (speak ? 0.05 : 0));
+      b.face.add.smile = speak ? 0.1 : (working ? -0.18 : 0);
+      return (working && !rm) || P.moving();
+    };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { card: card };
+    return b;
+  };
+
+  // 3 · THE TWO MASKS — a smiling mask for itself and a worried one for the
+  //     other person, each on a stick. Solid, painted features (no eye
+  //     holes: holes are what make a mask creepy). Working: the worried one
+  //     comes up over its face screen and it plays the other person.
+  //     Waiting is the debrief: both lowered, its own face back.
+  BUILD.masks = function (a) {
+    var b = baseBeing(a, {
+      wait: { smile: 0.55, browA: 0.02, browY: 0.034, cheek: 0.55 },
+      work: { smile: 0.2 }
+    });
+    var g = b.group, hue = b.hue, acc = b.acc;
+    function maskFace(kind) {
+      return tex('mask-' + kind, function (x, w, h) {
+        x.clearRect(0, 0, w, h);
+        x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h);
+        x.strokeStyle = '#2b2233'; x.fillStyle = '#2b2233'; x.lineCap = 'round'; x.lineWidth = w * 0.045;
+        var ey = h * 0.44, ex = w * 0.2;
+        if (kind === 'happy') {
+          [-1, 1].forEach(function (s) { x.beginPath(); x.arc(w / 2 + s * ex, ey + h * 0.03, w * 0.075, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); });
+          x.beginPath(); x.arc(w / 2, h * 0.6, w * 0.16, Math.PI * 0.15, Math.PI * 0.85); x.stroke();
+          x.fillStyle = 'rgba(255,120,120,.35)';
+          [-1, 1].forEach(function (s) { x.beginPath(); x.ellipse(w / 2 + s * w * 0.29, h * 0.58, w * 0.07, h * 0.04, 0, 0, 7); x.fill(); });
+        } else {
+          // worried, not tragic: round eyes, inner brows raised, a small wobble
+          [-1, 1].forEach(function (s) {
+            x.beginPath(); x.ellipse(w / 2 + s * ex, ey + h * 0.02, w * 0.05, h * 0.06, 0, 0, 7); x.fill();
+            x.beginPath(); x.moveTo(w / 2 + s * (ex + w * 0.08), ey - h * 0.1); x.lineTo(w / 2 + s * (ex - w * 0.06), ey - h * 0.14); x.stroke();
+          });
+          x.beginPath(); x.moveTo(w / 2 - w * 0.1, h * 0.72); x.quadraticCurveTo(w / 2 - w * 0.05, h * 0.68, w / 2, h * 0.7); x.quadraticCurveTo(w / 2 + w * 0.05, h * 0.72, w / 2 + w * 0.1, h * 0.69); x.stroke();
+        }
+      }, 256, 256);
+    }
+    function makeMask(kind, col) {
+      var m = new T.Group();
+      var PL = 1.5, TL = 1.7;
+      var geo = new T.SphereGeometry(1, 36, 28, Math.PI / 2 - PL / 2, PL, Math.PI / 2 - TL / 2, TL);
+      var front = new T.Mesh(geo, new T.MeshPhysicalMaterial({ color: col, map: maskFace(kind), roughness: 0.35, clearcoat: 0.9, clearcoatRoughness: 0.15 }));
+      front.scale.set(0.185, 0.168, 0.085); front.position.z = -0.055; front.castShadow = true; m.add(front);   // big enough to cover the face screen
+      var back = new T.Mesh(geo, new T.MeshPhysicalMaterial({ color: darker(col, 0.55), roughness: 0.5, side: T.BackSide }));
+      back.scale.copy(front.scale); back.position.copy(front.position); m.add(back);
+      return m;
+    }
+    var stickM = metal(lighter(acc, 0.05), 0.3);
+    var happy = makeMask('happy', lighter(TK.shell, 0.55)), worried = makeMask('worried', lighter(acc, 0.25));
+    g.add(happy); g.add(worried);
+    var stickL = mesh(GEO.cyl, stickM, 1, 1, 1); g.add(stickL);
+    var stickR = mesh(GEO.cyl, stickM, 1, 1, 1); g.add(stickR);
+    // a ribbon knot where each stick meets its mask, in the practice hue
+    var knotM = new T.MeshPhysicalMaterial({ color: hue.clone(), roughness: 0.6, sheen: 1, sheenColor: lighter(hue, 0.4) });
+    var knotL = mesh(GEO.sph, knotM, 0.016, 0.014, 0.014); g.add(knotL);
+    var knotR = mesh(GEO.sph, knotM, 0.016, 0.014, 0.014); g.add(knotR);
+
+    var SL = V(-0.2, 0.48, 0), SR = V(0.2, 0.48, 0);
+    var armL = b.arm(-1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
+    var armR = b.arm(1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
+    function place(mask, stick, knot, arm, maskPos, tilt) {
+      var gp = gripOf(arm);
+      mask.position.copy(maskPos);
+      mask.rotation.set(tilt.x, tilt.y, tilt.z);
+      mask.updateMatrix();
+      var chin = V(0, -0.13, -0.02).applyMatrix4(mask.matrix);
+      var end = gp.clone().addScaledVector(chin.clone().sub(gp).normalize(), -0.03);
+      rodTo(stick, end, chin, 0.0065);
+      knot.position.copy(chin);
+    }
+    b.tell = function (t, working, rm) {
+      var P = b.pose; P.frame(t);
+      // the worried mask (right hand): low at the side, or up over the face
+      var rH = working ? P.v('rH', 0.1, 0.52, 0.36) : P.v('rH', 0.28, 0.3, 0.22);
+      armR.set(SR, rH, working ? P.v('rP', 0.8, -0.7, -0.2) : P.v('rP', 1, -0.2, -0.6), P.v('rPalm', -1, 0.1, 0.2));
+      var wPos = working ? P.v('wPos', 0.0, 0.79, 0.37) : P.v('wPos', 0.34, 0.55, 0.26);
+      var wTilt = working ? P.v('wT', -0.04, 0, 0) : P.v('wT', -0.15, -0.35, -0.12);
+      place(worried, stickR, knotR, armR, wPos, wTilt);
+      // the smiling mask (left hand): always its own, held low
+      var lH = working ? P.v('lH', -0.27, 0.33, 0.2) : P.v('lH', -0.27, 0.3, 0.22);
+      armL.set(SL, lH, P.v('lP', -1, -0.2, -0.6), P.v('lPalm', 1, 0.1, 0.2));
+      place(happy, stickL, knotL, armL, working ? P.v('hPos', -0.34, 0.55, 0.24) : P.v('hPos', -0.34, 0.55, 0.26), P.v('hT', -0.15, 0.35, 0.12));
+      b.headPitch = P.s('hp', working ? 0 : 0.02);
+      b.headYaw = P.s('hy', 0);
+      b.headRoll = P.s('hr', working ? 0 : 0.08);
+      return (working && !rm) || P.moving();
+    };
+    b.arms = { L: armL, R: armR, SL: SL, SR: SR };
+    b.props = { happy: happy, worried: worried };
+    return b;
+  };
+
+  // ---------------------------------------------------------------
+  // THE DECK
+  // ---------------------------------------------------------------
+  // three in a row, 1.3 apart; paged, the one shown steps to the centre
+  var R = 0, GAP = 1.3;
+  var DECK_R = 2.3;
+  var stageGroup = new T.Group(); scene.add(stageGroup);
+
+  var deckMat = new T.MeshPhysicalMaterial({ color: TK.stage, roughness: 0.66, metalness: 0.12, clearcoat: 0.35, clearcoatRoughness: 0.55 });
+  deckMat.envMapIntensity = 0.3;
+  var deck = new T.Mesh(new T.CylinderGeometry(DECK_R, DECK_R - 0.14, 0.15, 128), deckMat);
+  deck.position.y = -0.075; deck.receiveShadow = true; stageGroup.add(deck);
+
+  function ringMesh(rad, thick, col, op) {
+    var m = new T.Mesh(new T.RingGeometry(rad - thick, rad + thick, 168),
+      addBlend(new T.MeshBasicMaterial({ color: col, transparent: true, opacity: op, side: T.DoubleSide, depthWrite: false })));
+    m.rotation.x = -Math.PI / 2; m.position.y = 0.012; return m;
+  }
+  var rimRing = ringMesh(DECK_R - 0.06, 0.022, TK.edge, 0.55); stageGroup.add(rimRing);
+  var innerRing = ringMesh(R - 1.2, 0.008, TK.edge, 0.2); stageGroup.add(innerRing);
+
+
+  // a name plate under each being, in the serif face — this is a sheet
+  function namePlate(text, col) {
+    var W = 512, H = 128;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d');
+    x.clearRect(0, 0, W, H);
+    x.fillStyle = '#' + col.getHexString();
+    x.font = '400 62px "Instrument Serif", Georgia, serif';
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(text, W / 2, H / 2 + 4);
+    var tex = new T.CanvasTexture(c); tex.colorSpace = T.SRGBColorSpace; tex.anisotropy = 4;
+    var sp = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.62 }));
+    sp.scale.set(1.45, 0.362, 1);
+    return sp;
+  }
+
+  // ---------------------------------------------------------------
+  // PLACE THEM
+  // ---------------------------------------------------------------
+  var FIG = [];
+  AGENTS.forEach(function (a, i) {
+    var ang = 0;
+    var b = BUILD[a.id](a);
+    var slot = new T.Group();
+    slot.position.set((i - (AGENTS.length - 1) / 2) * GAP, 0, 0);
+    slot.userData.rowX = slot.position.x;
+    slot.add(b.group);
+    stageGroup.add(slot);
+
+    var mark = ringMesh(0.54, 0.012, hueOf(a), 0.4);
+    mark.position.set(slot.position.x, 0.015, slot.position.z);
+    stageGroup.add(mark);
+
+    var plate = namePlate(a.short, TK.ink);
+    plate.position.set(slot.position.x * 1.22, 0.17, slot.position.z * 1.22);
+    stageGroup.add(plate);
+
+    var hit = new T.Mesh(new T.CylinderGeometry(0.6, 0.6, 2.0, 8), new T.MeshBasicMaterial({ visible: false }));
+    hit.position.set(slot.position.x, 0.95, slot.position.z);
+    hit.userData.index = i; stageGroup.add(hit);
+
+    FIG.push({
+      a: a, b: b, slot: slot, ang: ang, hit: hit, mark: mark, plate: plate,
+      mats: [], state: 'wait', dim: 0, phase: i * 1.7,
+      // a lean of its own, so nine beings do not stand in nine identical ways
+      lean: (i % 3 - 1) * 0.022 + (i % 2 ? 0.01 : -0.012),
+      yawOff: ((i * 37) % 11 - 5) * 0.012,
+      baseHeadY: b.head.rotation.y, baseHeadX: b.head.rotation.x,
+      radius: 1
+    });
+  });
+
+  var _box = new T.Box3(), _sph = new T.Sphere(), _v3 = new T.Vector3();
+  var YAXIS = new T.Vector3(0, 1, 0);
+
+  // ---------------------------------------------------------------
+  // FRAMING — measured, not guessed. THIS IS THE FIX FOR "I CANNOT SEE
+  // THEM". A bounding sphere around a flat ring over-reads by 40% (the
+  // first attempt measured r=6.42 for a deck 4.2 across, which is exactly
+  // why the nine sat in the middle third of the screen). So the real
+  // extremes are sampled — the deck rim plus every being's eight box
+  // corners — and the camera distance is SOLVED for: the smallest
+  // distance at which every one of those points projects inside the FREE
+  // rectangle (the viewport minus whatever the caption and header cover)
+  // in BOTH axes, with an 8% margin. Same solver for the ring, for a
+  // focused being and for a page, so the three can never disagree.
+  // ---------------------------------------------------------------
+  var RING_PTS = [], FOCUS_PTS = [];
+  function samplePoints(obj, want, out, xf) {
+    obj.updateWorldMatrix(true, true);
+    var meshes = [];
+    obj.traverse(function (o) { if (o.isMesh && o.visible && o.geometry && o.geometry.attributes.position) meshes.push(o); });
+    var total = 0;
+    meshes.forEach(function (o) { total += o.geometry.attributes.position.count; });
+    meshes.forEach(function (o) {
+      var pa = o.geometry.attributes.position;
+      var share = Math.max(4, Math.round(want * pa.count / Math.max(1, total)));
+      var st = Math.max(1, Math.floor(pa.count / share));
+      for (var i = 0; i < pa.count; i += st) {
+        var v = new T.Vector3().fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld);
+        if (xf) xf(v);
+        out.push(v);
+      }
+    });
+  }
+  (function measureExtents() {
+    var savedSpin = stageGroup.rotation.y;
+    stageGroup.rotation.y = 0;
+    FIG.forEach(function (f) { f.b.group.rotation.y = -f.ang; f.b.marker.visible = true; });
+    stageGroup.updateMatrixWorld(true);
+    FIG.forEach(function (f, i) {
+      // the real surface, sampled — not a box, which for a being holding a
+      // bar out in front is mostly empty air and frames it three times too far
+      FOCUS_PTS[i] = [];
+      samplePoints(f.b.group, 260, FOCUS_PTS[i], function (v) {
+        v.x -= f.slot.position.x; v.z += R - f.slot.position.z;
+      });
+      samplePoints(f.b.group, 70, RING_PTS, null);
+      var lo = 1e9, hi = -1e9;
+      FOCUS_PTS[i].forEach(function (v) { if (v.y < lo) lo = v.y; if (v.y > hi) hi = v.y; });
+      _box.setFromObject(f.b.group);
+      f.half = { h: (hi - lo) / 2, cy: (lo + hi) / 2 };
+      f.centreY = f.half.cy; f.topY = _box.max.y; f.radius = f.half.h;
+    });
+    for (var k = 0; k < 72; k++) {
+      var an = k / 72 * Math.PI * 2;
+      RING_PTS.push(new T.Vector3(Math.sin(an) * DECK_R, -0.16, Math.cos(an) * DECK_R));
+      RING_PTS.push(new T.Vector3(Math.sin(an) * DECK_R, 0.17, Math.cos(an) * DECK_R));
+    }
+    FIG.forEach(function (f) { f.b.marker.visible = false; });
+    stageGroup.rotation.y = savedSpin;
+    stageGroup.updateMatrixWorld(true);
+  })();
+  FIG.forEach(collectMats);
+
+  var RING_CY = (function () {
+    var lo = 1e9, hi = -1e9;
+    RING_PTS.forEach(function (p) { if (p.y < lo) lo = p.y; if (p.y > hi) hi = p.y; });
+    return (lo + hi) / 2;
+  })();
+
+  function freeRect() {
+    var W = mount.clientWidth, H = mount.clientHeight;
+    var capR = elCap.getBoundingClientRect();
+    var side = W > 900;
+    var left = 0, right = W, top = W < PHONE_W ? 52 : 64, bottom = H;
+    if (capR.width > 0) {
+      if (side) right = Math.max(W * 0.45, capR.left - 10);
+      else bottom = Math.min(H, capR.top - 8);
+    }
+    var fcx = (left + right) / 2, fcy = (top + bottom) / 2;
+    return {
+      W: W, H: H, fcx: fcx, fcy: fcy,
+      effW: Math.max(120, 2 * Math.min(fcx, W - fcx)),
+      effH: Math.max(120, 2 * Math.min(fcy, H - fcy))
+    };
+  }
+  function applyViewOffset() {
+    var fr = freeRect();
+    camera.setViewOffset(fr.W, fr.H, fr.W / 2 - fr.fcx, fr.H / 2 - fr.fcy, fr.W, fr.H);
+  }
+
+  var _probe = new T.PerspectiveCamera(30, 1, 0.1, 90), _pv = new T.Vector3();
+  function solveDistance(pts, elev, ty, tz, spin) {
+    var fr = freeRect();
+    // the symmetric free window, in NDC, with the 8% margin
+    var mx = 0.92 * fr.effW / fr.W, my = 0.92 * fr.effH / fr.H;
+    _probe.fov = camera.fov; _probe.aspect = fr.W / fr.H;
+    _probe.near = camera.near; _probe.far = camera.far;
+    function fits(d) {
+      _probe.position.set(0, ty + Math.sin(elev) * d, tz + Math.cos(elev) * d);
+      _probe.up.set(0, 1, 0);
+      _probe.lookAt(0, ty, tz);
+      _probe.updateMatrixWorld(true);
+      _probe.updateProjectionMatrix();
+      for (var i = 0; i < pts.length; i++) {
+        _pv.copy(pts[i]);
+        if (spin) _pv.applyAxisAngle(YAXIS, spin);
+        _pv.project(_probe);
+        if (_pv.z > 1 || Math.abs(_pv.x) > mx || Math.abs(_pv.y) > my) return false;
+      }
+      return true;
+    }
+    var lo = 0.6, hi = 60;
+    if (!fits(hi)) return hi;
+    for (var it = 0; it < 24; it++) {
+      var d = (lo + hi) / 2;
+      if (fits(d)) hi = d; else lo = d;
+    }
+    return hi;
+  }
+
+  var mode = 'ring', focus = -1, page = 0;
+  function wantDist() {
+    if (mode === 'paged' || focus >= 0) {
+      var i = mode === 'paged' ? page : focus, f = FIG[i];
+      return solveDistance(FOCUS_PTS[i], view.elevT, f.half.cy, R, 0);
+    }
+    return solveDistance(RING_PTS, view.elevT, RING_CY, 0, view.spinT);
+  }
+  function wantTarget() {
+    if (mode === 'paged' || focus >= 0) {
+      var f = FIG[mode === 'paged' ? page : focus];
+      return { y: f.half.cy, z: R };
+    }
+    return { y: RING_CY, z: 0 };
+  }
+  function reframe(snap) {
+    applyViewOffset();
+    view.distT = wantDist();
+    var tg = wantTarget();
+    view.tyT = tg.y; view.tzT = tg.z;
+    if (snap) { view.dist = view.distT; view.ty = view.tyT; view.tz = view.tzT; view.spin = view.spinT; view.elev = view.elevT; }
+    invalidate();
+  }
+
+  var view = { spin: 0, spinT: 0, dist: 14, distT: 14, elev: 0.52, elevT: 0.52,
+               ty: 0.8, tyT: 0.8, tz: 0, tzT: 0 };
+  var dirty = true, frames = 0, lastT = performance.now() / 1000;
+  function invalidate() { if (!running) { running = true; requestAnimationFrame(tick); } dirty = true; }
+
+  function resize() {
+    var w = mount.clientWidth, h = mount.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w < PHONE_W ? 36 : 30;
+    camera.updateProjectionMatrix();
+    measureCap();
+    reframe(false);
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function () { setTimeout(resize, 120); });
+
+  // ---------------------------------------------------------------
+  // CONTROLS — one finger turns, two fingers pinch, the wheel zooms,
+  // a double tap resets, and in the paged view a horizontal swipe pages.
+  // ---------------------------------------------------------------
+  var ptr = { down: false, moved: 0, dx: 0, x: 0, y: 0, id: null, t0: 0 };
+  var pinch = { active: false, d0: 0, dist0: 0 };
+  var lastTap = 0;
+
+  mount.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch' && activeTouches() >= 2) return;
+    ptr.down = true; ptr.moved = 0; ptr.dx = 0; ptr.x = e.clientX; ptr.y = e.clientY;
+    ptr.id = e.pointerId; ptr.t0 = performance.now();
+    mount.setPointerCapture(e.pointerId);
+    mount.classList.add('dragging');
+  });
+  mount.addEventListener('pointermove', function (e) {
+    if (!ptr.down || e.pointerId !== ptr.id) return;
+    var dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+    ptr.moved += Math.abs(dx) + Math.abs(dy); ptr.dx += dx;
+    view.spinT -= dx * 0.0062; view.spin -= dx * 0.0062;
+    view.elevT = clamp(view.elevT + dy * 0.0035, -0.06, 0.92);
+    view.elev = clamp(view.elev + dy * 0.0035, -0.06, 0.92);
+    ptr.x = e.clientX; ptr.y = e.clientY;
+    invalidate();
+  });
+  function endPtr(e) {
+    if (!ptr.down) return;
+    ptr.down = false; mount.classList.remove('dragging');
+    var dtms = performance.now() - ptr.t0;
+    if (mode === 'paged' && Math.abs(ptr.dx) > 55 && dtms < 700) {
+      goPage(page + (ptr.dx < 0 ? 1 : -1));
+      return;
+    }
+    if (ptr.moved < 8) {
+      var now2 = performance.now();
+      if (now2 - lastTap < 320) { resetView(); lastTap = 0; return; }
+      lastTap = now2;
+      if (mode === 'ring') pick(e.clientX, e.clientY);
+    }
+  }
+  mount.addEventListener('pointerup', endPtr);
+  mount.addEventListener('pointercancel', function () { ptr.down = false; mount.classList.remove('dragging'); });
+  mount.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var base = wantDist();
+    view.distT = clamp(view.distT + e.deltaY * 0.006, base * 0.4, base * 1.9);
+    invalidate();
+  }, { passive: false });
+
+  var touches = {};
+  function activeTouches() { return Object.keys(touches).length; }
+  mount.addEventListener('touchstart', function (e) {
+    for (var i = 0; i < e.changedTouches.length; i++) touches[e.changedTouches[i].identifier] = 1;
+    if (e.touches.length === 2) {
+      ptr.down = false; pinch.active = true;
+      pinch.d0 = touchDist(e); pinch.dist0 = view.distT;
+    }
+  }, { passive: true });
+  mount.addEventListener('touchmove', function (e) {
+    if (pinch.active && e.touches.length === 2) {
+      e.preventDefault();
+      var d = touchDist(e), base = wantDist();
+      view.distT = clamp(pinch.dist0 * (pinch.d0 / Math.max(d, 1)), base * 0.4, base * 1.9);
+      invalidate();
+    }
+  }, { passive: false });
+  function endTouch(e) {
+    for (var i = 0; i < e.changedTouches.length; i++) delete touches[e.changedTouches[i].identifier];
+    if (e.touches.length < 2) pinch.active = false;
+  }
+  mount.addEventListener('touchend', endTouch);
+  mount.addEventListener('touchcancel', endTouch);
+  function touchDist(e) {
+    var a = e.touches[0], b = e.touches[1];
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  }
+
+  var ray = new T.Raycaster(), ndc = new T.Vector2();
+  function pick(cx, cy) {
+    var r = renderer.domElement.getBoundingClientRect();
+    ndc.x = ((cx - r.left) / r.width) * 2 - 1;
+    ndc.y = -((cy - r.top) / r.height) * 2 + 1;
+    ray.setFromCamera(ndc, camera);
+    var hits = ray.intersectObjects(FIG.map(function (f) { return f.hit; }), false);
+    if (hits.length) { page = hits[0].object.userData.index; setMode('paged', false); goPage(page); }
+  }
+  function spinTo(i) {
+    var want = -FIG[i].ang;
+    var k = Math.round((view.spinT - want) / (Math.PI * 2));
+    view.spinT = want + k * Math.PI * 2;
+  }
+  function setFocus(i) {
+    focus = i;
+    if (i >= 0) { spinTo(i); view.elevT = clamp(view.elev, 0.05, 0.4); setCaption(i); }
+    else setCaption(capIndex);
+    document.getElementById('hint').style.opacity = i >= 0 ? '0' : '1';
+    reframe(false);
+  }
+  function resetView() {
+    view.elevT = mode === 'paged' ? 0.14 : 0.2;
+    if (mode === 'ring') setFocus(-1); else { spinTo(page); reframe(false); }
+    invalidate();
+  }
+
+  // ---- the paged view (the phone default) ------------------------
+  var dotsEl = document.getElementById('dots');
+  AGENTS.forEach(function () { dotsEl.appendChild(document.createElement('i')); });
+  function layout() {
+    FIG.forEach(function (f, k) {
+      var x = mode === 'paged' ? (k === page ? 0 : 99) : f.slot.userData.rowX;
+      f.slot.position.x = x; f.mark.position.x = x; f.hit.position.x = x;
+    });
+  }
+  function setMode(m, snap) {
+    mode = m;
+    layout();
+    document.body.classList.toggle('paged', m === 'paged');
+    bMode.textContent = m === 'paged' ? 'Show all' : 'One at a time';
+    bMode.setAttribute('aria-pressed', String(m === 'paged'));
+    FIG.forEach(function (f, i) {
+      var on = (m !== 'paged') || i === page;
+      f.slot.visible = on;
+      f.plate.visible = on && m !== 'paged';
+      f.mark.visible = on;
+    });
+    if (m === 'paged') { focus = -1; spinTo(page); view.elevT = 0.14; setCaption(page); }
+    else { view.elevT = 0.2; view.spinT = 0; }
+    document.getElementById('hint').style.opacity = m === 'paged' ? '0' : '1';
+    reframe(snap);
+  }
+  function goPage(i) {
+    page = (i + AGENTS.length) % AGENTS.length;
+    FIG.forEach(function (f, k) { f.slot.visible = (k === page); f.mark.visible = (k === page); });
+    layout();
+    spinTo(page); setCaption(page); reframe(false);
+    for (var k2 = 0; k2 < dotsEl.children.length; k2++) dotsEl.children[k2].className = (k2 === page ? 'on' : '');
+  }
+  document.getElementById('prev').addEventListener('click', function () { goPage(page - 1); });
+  document.getElementById('next').addEventListener('click', function () { goPage(page + 1); });
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' && mode === 'paged') goPage(page + 1);
+    if (e.key === 'ArrowLeft' && mode === 'paged') goPage(page - 1);
+    if (e.key === 'Escape' && mode === 'paged') setMode('ring', false);
+  });
+
+  // ---------------------------------------------------------------
+  // CAPTION
+  // ---------------------------------------------------------------
+  var capIndex = 0;
+  var elDept = document.getElementById('cap-dept'), elName = document.getElementById('cap-name'),
+      elLine = document.getElementById('cap-line'), elTell = document.getElementById('cap-tell'),
+      elCap = document.getElementById('caption'), elMeta = document.getElementById('cap-meta'),
+      bWork = document.getElementById('p-work'), bWait = document.getElementById('p-wait');
+
+  function setCaption(i) {
+    capIndex = i;
+    var f = FIG[i], a = f.a;
+    elCap.style.setProperty('--cap-hue', '#' + hueOf(a).getHexString());
+    document.body.style.setProperty('--cap-hue', '#' + hueOf(a).getHexString());
+    elDept.textContent = a.dept;
+    elName.textContent = a.name;
+    elLine.textContent = a.line;
+    elTell.textContent = f.state === 'work' ? a.work : a.wait;
+    elMeta.textContent = a.meta;
+    bWork.setAttribute('aria-pressed', f.state === 'work');
+    bWait.setAttribute('aria-pressed', f.state === 'wait');
+    measureCap();
+  }
+  function measureCap() {
+    root.style.setProperty('--cap-h', elCap.offsetHeight + 'px');
+  }
+  function setPose(st) {
+    FIG.forEach(function (f, k) {
+      if (mode === 'paged' && k !== capIndex) return;
+      f.state = st; f.b.marker.visible = (st === 'wait');
+    });
+    setCaption(capIndex);
+    invalidate();
+  }
+  bWork.addEventListener('click', function () { setPose('work'); });
+  bWait.addEventListener('click', function () { setPose('wait'); });
+
+  // ---------------------------------------------------------------
+  // TOGGLES
+  // ---------------------------------------------------------------
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var bMotion = document.getElementById('t-motion'), bCalm = document.getElementById('t-calm'),
+      bFit = document.createElement('button'), bMode = document.getElementById('t-mode');
+  bMotion.setAttribute('aria-pressed', String(reduce));
+  bMotion.addEventListener('click', function () {
+    reduce = !reduce; bMotion.setAttribute('aria-pressed', String(reduce));
+    FIG.forEach(function (f) {
+      f.b.face.blink = 0; f.b.face.sacc.set(0, 0); f.b.face.saccT.set(0, 0);
+      f.b.body.scale.set(1, 1, 1);
+      f.b.head.position.y = f.b.headY;
+      f.b.group.rotation.z = 0; f.b.group.position.x = 0;
+    });
+    invalidate();
+  });
+  bCalm.addEventListener('click', function () {
+    var on = root.getAttribute('data-nv-calm') !== '1';
+    root.setAttribute('data-nv-calm', on ? '1' : '0');
+    bCalm.setAttribute('aria-pressed', String(on));
+    applyTokens();
+  });
+  bFit.addEventListener('click', function () {
+    if (mode === 'paged') setMode('ring', false);
+    else { view.spinT = 0; view.elevT = 0.2; reframe(false); }
+  });
+  bMode.addEventListener('click', function () {
+    setMode(mode === 'paged' ? 'ring' : 'paged', false);
+  });
+
+  function applyTokens() {
+    readTokens();
+    scene.environmentIntensity = TK.env;
+    key.color.copy(TK.key); fill.color.copy(TK.fill); rim.color.copy(TK.rim);
+    deckMat.color.copy(TK.stage);
+    rimRing.material.color.copy(lighter(TK.edge, 0.3));
+    innerRing.material.color.copy(lighter(TK.edge, 0.3));
+    EMISSIVES.forEach(function (m) {
+      if (m.userData.baseEm != null) m.emissiveIntensity = m.userData.baseEm * TK.em;
+    });
+    FIG.forEach(function (f) {
+      f.mark.material.color.copy(lighter(hueOf(f.a), 0.3));
+      f.b.rimL.intensity = 1.5 * (TK.em > 0.8 ? 1 : 0.7);
+    });
+    setCaption(capIndex);
+    invalidate();
+  }
+
+  // ---------------------------------------------------------------
+  // DIMMING — the others recede when one is focused
+  // ---------------------------------------------------------------
+  function collectMats(f) {
+    var list = [];
+    f.b.group.traverse(function (o) {
+      if (!o.material) return;
+      [].concat(o.material).forEach(function (m) {
+        if (list.indexOf(m) >= 0) return;
+        if (m.color) m.userData.baseColor = m.color.clone();
+        if (m.envMapIntensity != null) m.userData.baseEnv = m.envMapIntensity;
+        list.push(m);
+      });
+    });
+    f.mats = list;
+  }
+  function applyDim(f, k) {
+    for (var i = 0; i < f.mats.length; i++) {
+      var m = f.mats[i];
+      if (m.userData.baseColor) m.color.copy(m.userData.baseColor).lerp(TK.void, k * 0.72);
+      if (m.userData.baseEnv != null) m.envMapIntensity = m.userData.baseEnv * (1 - k * 0.8);
+      if (m.userData.baseEm != null) m.emissiveIntensity = m.userData.baseEm * TK.em * (1 - k * 0.88);
+      if (m.userData.baseOp != null) m.opacity = m.userData.baseOp * (1 - k * 0.9);
+    }
+    f.b.rimL.intensity = 1.5 * (1 - k * 0.9);
+    f.mark.material.opacity = 0.4 * (1 - k * 0.85);
+    f.plate.material.opacity = 0.62 * (1 - k) * (focus >= 0 ? 0 : 1);
+    f.b.contact.material.opacity = 0.8 * (1 - k * 0.8);
+  }
+
+  // ---------------------------------------------------------------
+  // THE LOOP — capped at 30fps, only while the tab is visible, and only
+  // while something is actually moving. window.__frames counts real draws.
+  // ---------------------------------------------------------------
+  var running = false, MIN_DT = 1 / 30, lastDraw = 0;
+  function approach(cur, tgt, dt, k) { return cur + (tgt - cur) * (1 - Math.exp(-dt * k)); }
+
+  function updateFace(f, now, dt, working) {
+    var face = f.b.face, live = false;
+    if (!reduce) {
+      if (face.blink > 0) {
+        face.blink -= dt; live = true;
+        if (face.blink <= 0) { face.blink = 0; face.nextBlink = now + (working ? 5.5 : 2.2) + Math.random() * 5; }
+      } else if (now > face.nextBlink) { face.blink = 0.3; live = true; }
+      if (now > face.nextSacc) {
+        face.saccT.set((Math.random() - 0.5) * 0.026, (Math.random() - 0.5) * 0.014);
+        face.nextSacc = now + (working ? 0.7 : 1.5) + Math.random() * 2.4;
+      }
+      face.sacc.lerp(face.saccT, Math.min(1, dt * 9));
+      live = true;
+    } else { face.blink = 0; face.sacc.set(0, 0); }
+    if (face3(face, working, (reduce || FREEZE != null) ? 0 : dt)) live = true;
+    return live;
+  }
+
+  function tick() {
+    var now = performance.now() / 1000;
+    if (!dirty && now - lastDraw < MIN_DT - 0.002) { requestAnimationFrame(tick); return; }
+    var dt = Math.min(0.08, now - lastT); lastT = now;
+    var live = false;
+
+    var ns = approach(view.spin, view.spinT, dt, 7);
+    var nd = approach(view.dist, view.distT, dt, 6);
+    var ne = approach(view.elev, view.elevT, dt, 7);
+    var nty = approach(view.ty, view.tyT, dt, 6);
+    var ntz = approach(view.tz, view.tzT, dt, 6);
+    if (Math.abs(ns - view.spinT) > 1e-4 || Math.abs(nd - view.distT) > 1e-4 ||
+        Math.abs(ne - view.elevT) > 1e-4 || Math.abs(nty - view.tyT) > 1e-4 ||
+        Math.abs(ntz - view.tzT) > 1e-4) live = true;
+    view.spin = ns; view.dist = nd; view.elev = ne; view.ty = nty; view.tz = ntz;
+    stageGroup.rotation.y = view.spin;
+    camera.position.set(0, view.ty + Math.sin(view.elev) * view.dist, view.tz + Math.cos(view.elev) * view.dist);
+    camera.lookAt(0, view.ty, view.tz);
+
+    FIG.forEach(function (f, i) {
+      if (!f.slot.visible) return;
+      var b = f.b, working = f.state === 'work';
+      b.group.rotation.y = -(view.spin + f.ang) + f.yawOff + (f.studioYaw || 0);
+      // the name sits at its being's feet on the camera's side, so it is
+      // never behind its own body (a fixed outer ring hid the far row's names)
+      _v3.set(0, 0, 0.66); f.slot.localToWorld(_v3.applyAxisAngle(YAXIS, -(view.spin + f.ang))); 
+      stageGroup.worldToLocal(_v3); f.plate.position.set(_v3.x, 0.05, _v3.z);
+
+      // BREATHING and a weight shift — 2% on the body, slow, and the head
+      // rides it so the face stays on the neck.
+      if (!reduce) {
+        var br = Math.sin(now * 0.85 + f.phase);
+        b.body.scale.set(1 + br * 0.012, 1 + br * 0.006, 1 + br * 0.012);
+        b.head.position.y = b.headY * (1 + br * 0.006);
+        b.group.rotation.z = f.lean + Math.sin(now * 0.21 + f.phase) * 0.013;
+        b.group.position.x = Math.sin(now * 0.17 + f.phase * 1.3) * 0.012;
+        live = true;
+      } else {
+        b.group.rotation.z = f.lean;
+      }
+      // look-at: the head carries the saccade, and pitches to meet the camera
+      var tt = FREEZE == null ? now : FREEZE;
+      if (b.tell && b.tell(tt, working, reduce)) live = true;
+      // after the tell, so a head the tell turns turns THIS frame
+      b.head.rotation.y = f.baseHeadY + (b.headYaw || 0) + b.face.sacc.x * 3 + f.yawOff * 0.4;
+      b.head.rotation.x = f.baseHeadX + (b.headPitch || 0) - view.elev * 0.2;
+      b.head.rotation.z = b.headRoll || 0;
+      if (updateFace(f, now, dt, working)) live = true;
+
+      if (b.marker.visible) {
+        if (reduce) { b.marker.position.y = b.markerY + 0.02; }
+        else {
+          b.marker.position.y = b.markerY + Math.sin(now * 1.9 + i) * 0.05;
+          b.marker.rotation.y = Math.sin(now * 0.9 + i) * 0.15;
+          live = true;
+        }
+      }
+
+      var want = (focus >= 0 && focus !== i) ? 1 : 0;
+      var nk = approach(f.dim, want, dt, 6);
+      if (Math.abs(nk - want) > 0.004) live = true;
+      if (Math.abs(nk - f.dim) > 0.0005 || dirty) { f.dim = nk; applyDim(f, nk); }
+      else f.dim = nk;
+    });
+
+    placeLabels();
+    renderer.render(scene, camera);
+    frames++; lastDraw = now;
+    window.__frames = frames;
+    fpsEl.textContent = 'frames ' + frames;
+
+    dirty = false;
+    if (live && !document.hidden) requestAnimationFrame(tick);
+    else running = false;
+  }
+  var fpsEl = document.getElementById('frames');
+  var labEl = document.getElementById('labels'), LABS = AGENTS.map(function (a) {
+    var d = document.createElement('div'); d.className = 'lab';
+    var parts = a.meta.split(' · ');
+    d.innerHTML = '<b></b><span></span>';
+    d.firstChild.textContent = a.name;
+    d.lastChild.textContent = parts[0] + ' · ' + parts[1] + ' · ';
+    var ac = document.createElement('i'); ac.textContent = parts[2]; d.lastChild.appendChild(ac);
+    labEl.appendChild(d); return d;
+  });
+  function placeLabels() {
+    if (mode === 'paged') return;
+    var W = mount.clientWidth, H = mount.clientHeight;
+    FIG.forEach(function (f, i) {
+      f.slot.getWorldPosition(_v3); _v3.y = -0.04; _v3.project(camera);
+      LABS[i].style.left = Math.round((_v3.x * 0.5 + 0.5) * W) + 'px';
+      LABS[i].style.top = Math.round((-_v3.y * 0.5 + 0.5) * H + 6) + 'px';
+      f.plate.visible = false;
+    });
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) invalidate(); });
+
+  // ---------------------------------------------------------------
+  // THE MEASUREMENT. The framing claim is checked in the page, not
+  // asserted: every head is projected to screen space and reported.
+  // ---------------------------------------------------------------
+  function fitReport(log) {
+    camera.updateMatrixWorld(true);
+    var W = mount.clientWidth, H = mount.clientHeight;
+    var capR = elCap.getBoundingClientRect();
+    var rows = [], allIn = true;
+    FIG.forEach(function (f) {
+      if (!f.slot.visible) return;
+      f.b.head.getWorldPosition(_v3);
+      _v3.project(camera);
+      var x = (_v3.x * 0.5 + 0.5) * W, y = (-_v3.y * 0.5 + 0.5) * H;
+      var inside = x >= 0 && x <= W && y >= 0 && y <= H;
+      var underCaption = x >= capR.left && x <= capR.right && y >= capR.top && y <= capR.bottom;
+      if (!inside) allIn = false;
+      rows.push({ name: f.a.name, x: Math.round(x), y: Math.round(y), inside: inside, underCaption: underCaption });
+    });
+    var out = { viewport: W + 'x' + H, mode: mode, allHeadsInside: allIn, heads: rows };
+    if (log !== false) {
+      console.log('[fit] ' + W + 'x' + H + ' mode=' + mode + ' allHeadsInside=' + allIn +
+        ' dist=' + (Math.round(view.dist * 100) / 100) +
+        ' distT=' + (Math.round(view.distT * 100) / 100) + ' fov=' + camera.fov +
+        ' eff=' + Math.round(freeRect().effW) + 'x' + Math.round(freeRect().effH));
+      rows.forEach(function (r) {
+        console.log('[fit] ' + r.name + ' @ ' + r.x + ',' + r.y + ' inside=' + r.inside + (r.underCaption ? ' UNDER-CAPTION' : ''));
+      });
+    }
+    return out;
+  }
+  window.__fitReport = fitReport;
+
+  // ---------------------------------------------------------------
+  // GO
+  // ---------------------------------------------------------------
+  var FREEZE = null;
+  var t0 = performance.now() / 1000;
+  FIG.forEach(function (f) {
+    f.b.marker.visible = true;
+    f.b.face.nextBlink += t0; f.b.face.nextSacc += t0;
+    applyDim(f, 0);
+  });
+  setCaption(0);
+  resize();
+  setMode(mount.clientWidth < PHONE_W ? 'paged' : 'ring', true);
+  if (mode === 'paged') goPage(0);
+  measureCap();
+  reframe(true);
+  invalidate();
+
+  // fonts land after the first paint; the name plates are canvas, so repaint
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () {
+      FIG.forEach(function (f) {
+        var np = namePlate(f.a.short, TK.ink);
+        f.plate.material.map.dispose();
+        f.plate.material.map = np.material.map;
+        f.plate.material.needsUpdate = true;
+      });
+      measureCap(); reframe(false); invalidate();
+      setTimeout(function () { fitReport(true); }, 260);
+    });
+  } else {
+    setTimeout(function () { fitReport(true); }, 400);
+  }
+
+  (function () {
+    var h = (location.hash || '').replace('#', '');
+    if (!h) return;
+    var q = {};
+    h.split('&').forEach(function (kv) { var a = kv.split('='); q[a[0]] = a[1]; });
+    if (q.calm === '1') { root.setAttribute('data-nv-calm', '1'); bCalm.setAttribute('aria-pressed', 'true'); applyTokens(); }
+    if (q.motion === 'reduce') { reduce = true; bMotion.setAttribute('aria-pressed', 'true'); }
+    if (q.mode) setMode(q.mode === 'paged' ? 'paged' : 'ring', true);
+    if (q.pose === 'work') FIG.forEach(function (f) { f.state = 'work'; f.b.marker.visible = false; });
+    if (q.page != null) goPage(parseInt(q.page, 10) || 0);
+    if (q.elev != null) { view.elevT = parseFloat(q.elev); }
+    if (q.t != null) { FREEZE = parseFloat(q.t); }
+    if (q.spin != null) { view.spinT += parseFloat(q.spin); }
+    reframe(true);
+    FIG.forEach(function (f, i) { f.dim = (focus >= 0 && focus !== i) ? 1 : 0; applyDim(f, f.dim); });
+    setCaption(capIndex);
+  })();
+
+  window.__FIG = FIG;
+  window.__agentSheet = {
+    focus: function (i) { setFocus(i); },
+    page: function (i) { if (mode !== 'paged') setMode('paged', true); goPage(i); },
+    mode: function (m) { setMode(m, true); },
+    poseAll: function (st) { FIG.forEach(function (f) { f.state = st; f.b.marker.visible = (st === 'wait'); }); setCaption(capIndex); invalidate(); },
+    pose: function (i, st) { FIG[i].state = st; FIG[i].b.marker.visible = (st === 'wait'); if (i === capIndex) setCaption(i); invalidate(); },
+    spin: function (v) { view.spinT = v; invalidate(); },
+    elev: function (v) { view.elevT = v; invalidate(); },
+    zoom: function (k) { view.distT = wantDist() * k; invalidate(); },
+    snap: function () { view.spin = view.spinT; view.dist = view.distT; view.elev = view.elevT; view.ty = view.tyT; view.tz = view.tzT; invalidate(); },
+    fit: function () { reframe(true); },
+    report: fitReport,
+    // A deterministic still for the studio capture: no blink, no saccade,
+    // time frozen, camera snapped — and drawn NOW, because headless Chrome
+    // does not drive requestAnimationFrame.
+    still: function (o) {
+      o = o || {};
+      FIG.forEach(function (f) {
+        f.b.face.blink = 0; f.b.face.nextBlink = 1e12;
+        f.b.face.sacc.set(0, 0); f.b.face.saccT.set(0, 0); f.b.face.nextSacc = 1e12;
+      });
+      if (o.t != null) FREEZE = o.t;
+      kit.setSnap(o.snap !== false);
+      var i = mode === 'paged' ? page : Math.max(focus, 0);
+      view.spinT = -FIG[i].ang;
+      FIG[i].studioYaw = o.yaw || 0;
+      if (o.elev != null) view.elevT = o.elev;
+      reframe(true);
+      if (o.zoom) { view.distT *= o.zoom; view.dist = view.distT; }
+      if (o.ty != null) { view.tyT = view.ty = o.ty; }
+      dirty = true; tick();
+      return frames;
+    },
+    headY: function (i) { stageGroup.updateMatrixWorld(true); FIG[i].b.head.getWorldPosition(_v3); return _v3.y; },
+    frames: function () { return frames; },
+    count: AGENTS.length
+  };
+})();
+</script>
+</body>
+</html>
