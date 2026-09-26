@@ -27,7 +27,8 @@ Nothing photographed yet, no product code changed.**
   19 sections all open, ~20 screens deep, 22 buttons, facts restated up to
   six times; two Stuck items are August test to-dos in his vault). The
   checklist renders as a page for his phone via `scripts/redesign-page.mjs`
-  (republish after every tick). NEXT: mockups A (The Read) / B (The Day
+  (republish after every tick to the SAME artifact:
+  https://claude.ai/artifact/GRnJeoNMHDLmxSfWbTSJGJ, pass it as `url`). NEXT: mockups A (The Read) / B (The Day
   Spine) / C (Two Panes) at 390×844, demo content, then his tweaks.
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
