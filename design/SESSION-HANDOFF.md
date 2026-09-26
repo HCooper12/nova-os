@@ -94,10 +94,17 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   during his Recharge block — fixed in e0bf6f1 (the highlight stands daily
   totals down while the sleep block is live). Every load of the app on ANY
   screen POSTs /api/notes/summary and /api/greet (pre-existing; the
-  read-only mode blocks them; noted for the Inbox/Home follow-ups). IN FLIGHT:
-  Inbox mockup round 1 (Opus → design/mockups/57-redesign-inbox.html, three
-  variations A deck-only · B Mail · C two doors, all in the Nova-glass
-  material) — publish it as an artifact for his morning when it lands.
+  read-only mode blocks them; noted for the Inbox/Home follow-ups). INBOX ROUND 1
+  PUBLISHED: https://claude.ai/artifact/4x6LUC3BRS6QnRJfw7knTa (mockup 57:
+  A the deck alone · B Mail · C two doors; his calls: which shape; gold only
+  for "waiting on your call"; Seen automatic; the filing ladder leaves the
+  Inbox). TRAIN AUDITED (1058311, 03-train.md: NEEDS WORK — Coach is Gym's
+  tail; the session tick 40px; 24/49 controls under 44pt on routine detail;
+  facts drawn 3–4 ways; the Coach card's repeated sentence FIXED in ef2c17b).
+  IN FLIGHT: Train mockup round 1 (Opus → design/mockups/58-redesign-train.html:
+  A two places not three tabs · B one set at a time · C one fact one
+  instrument) — publish as an artifact when it lands. The morning review
+  page (Home, Built) links everything: https://claude.ai/artifact/X2zxDCQBCCAXcbE9AaKf1H.
   READ-ONLY SHOTS: seed with `node scripts/dev-connect.mjs`, vite on 5183
   (CORS allows only 5183/5173), `shot.mjs --readonly --style summary …`,
   then `--clean` and check the seed is gone. WAS IN FLIGHT: P2-B (Opus) —
