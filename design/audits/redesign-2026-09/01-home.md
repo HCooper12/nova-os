@@ -406,3 +406,24 @@ as the token system. The Index (the More tab in the Settings shape) is
 drawn in the same material to show the idiom carries past Home. What is
 left to decide is the material, and whether Nova follows the system's
 light/dark setting or keeps one look.
+
+## 9 · His answers, round 4 (26 Sep, 18:3x)
+
+Shown mockup 55 (the blend under four materials). His words: "Then create
+versions combined with the current nova aesthetic but don't feel restricted
+to use all aspects of the nova design language."
+
+**What this changes.** Round 5 (mockup 56,
+`design/mockups/56-redesign-home-nova.html`) keeps round 4's shape and hero
+and draws them in Nova's own colour and material, three ways, with round
+4's Apple glass alongside as the reference: **Nova glass** (the blend over
+Nova's own sky, a cyan and violet aurora on the void, cyan as the accent),
+**Nova night** (Command's void and the cupertino pane fill, no sky, the
+nearest to today in the new shape), **Observatory** (bone ink, gold accent,
+the midnight radial ground). Brought back on purpose: the serif standfirst
+under the greeting, the serif for the highlight sentence, the domain hues
+on the rings (protein green, steps violet, recovery cyan), the gold badge,
+the hologram core. Left out on purpose: corner brackets, mono micro-labels,
+the seconds clock, coloured card borders, the fold. Same markup as round 4;
+the material is still a variable set, so the eventual token change is the
+same size whichever he picks.

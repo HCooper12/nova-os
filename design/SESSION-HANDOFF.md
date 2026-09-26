@@ -44,8 +44,13 @@ Nothing photographed yet, no product code changed.**
   (mockup 55: A shape + B ring hero + C glass/strip; ONE markup under FOUR
   materials as CSS variables: glass day, glass night, dark, light; the Index in
   the same material). The direction is converging on Apple-native outside the
-  current --nv-* tokens. NEXT: his material pick + light/dark rule → then the
-  token-system change and the Home build, on his word. Open decisions: the two test to-dos in his vault; the dock centre.
+  current --nv-* tokens. HIS ANSWER ON ROUND 4: combine with the
+  current Nova aesthetic, not all of it. ROUND 5 PUBLISHED:
+  https://claude.ai/artifact/85jQqTxKucJg6XddXPFZsc (mockup 56: the blend in Nova
+  glass / Nova night / Observatory + Apple glass reference; serif standfirst and
+  highlight, domain ring hues, gold badge, hologram core kept; brackets, mono
+  micro-labels, clock, coloured borders, fold dropped). NEXT: his material pick
+  → the token-system change and the Home build, on his word. Open decisions: the two test to-dos in his vault; the dock centre.
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
   (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards

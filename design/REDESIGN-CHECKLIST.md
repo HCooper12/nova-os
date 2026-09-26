@@ -555,6 +555,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — his answer on round 4: combine with the current Nova
+  aesthetic, without using all of it. Round 5 published:
+  https://claude.ai/artifact/85jQqTxKucJg6XddXPFZsc (the blend in Nova glass /
+  Nova night / Observatory, with Apple glass alongside; the serif standfirst
+  and highlight, the domain hues, the gold badge and the core brought back;
+  brackets, mono micro-labels, the clock, coloured borders and the fold left
+  out; source `design/mockups/56-redesign-home-nova.html`). His words in
+  `01-home.md` §9. Home stays [m].
 - 26 Sep 2026 — his answer on round 3: loves aspects of A, B and C
   ("the simple design, use and beautiful aesthetic"). Round 4, the blend,
   published: https://claude.ai/artifact/EY1SBc13N2RXMZsbpQu2EJ (one Home
