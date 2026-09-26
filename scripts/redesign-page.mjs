@@ -24,7 +24,7 @@ const STATES = {
   a: { key: 'audited', label: 'audited' },
   m: { key: 'mockups', label: 'mockups in review' },
   b: { key: 'built', label: 'built' },
-  x: { key: 'verified', label: 'verified on his phone' },
+  x: { key: 'verified', label: 'verified on your phone' },
 };
 
 // ---- §5: tiers → pages → rows -------------------------------------------
@@ -101,7 +101,7 @@ const pageHtml = (p, t) => {
   const stateSummary = p.rows.length ? (c.verified === p.rows.length ? 'verified' : c.built ? 'building' : c.mockups ? 'mockups' : c.audited ? 'audited' : 'untouched') : '';
   return `<details class="page${isNow ? ' now' : ''}" id="${esc(p.key)}"${isNow ? ' open' : ''}>
   <summary>
-    <span class="ord">${esc(orderOf(p) || (t.n === 0 ? '·' : ''))}</span>
+    <span class="ord">${esc(orderOf(p))}</span>
     <span class="pname">${esc(p.name)}${isNow ? ' <em class="nowtag">now</em>' : ''}</span>
     <span class="pmeta">${p.rows.length} ${p.rows.length === 1 ? 'feature' : 'features'}${stateSummary && stateSummary !== 'untouched' ? ` · ${stateSummary}` : ''}</span>
     ${pips(p.rows)}
@@ -121,12 +121,13 @@ const pageHtml = (p, t) => {
 
 const tierHtml = (t) => `<section class="tier" id="tier-${t.n}">
   <h2><span class="tn">Tier ${t.n}</span> ${esc(t.name.replace(/\s*\(.*\)$/, ''))}</h2>
-  ${t.pages.map((p) => pageHtml(p, t)).join('\n')}
+  ${t.pages.filter((p) => p.rows.length).map((p) => pageHtml(p, t)).join('\n')}
 </section>`;
 
 const legend = Object.values(STATES).map((s) => `<span class="lg ${s.key}"><i class="p ${s.key}"></i>${esc(s.label)}</span>`).join('');
 
 const html = `<title>Nova Redesign Ledger</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
@@ -181,7 +182,7 @@ summary:focus-visible{outline:2px solid var(--now);outline-offset:2px;border-rad
 .order{margin:0 0 30px}
 .order h2{font:400 22px/1.2 var(--serif);margin:0 0 8px}
 .order ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
-.order li{display:grid;grid-template-columns:34px 1fr;gap:8px;padding:6px 0;border-top:1px solid var(--edge)}
+.order li{display:grid;grid-template-columns:max-content 1fr;gap:8px;padding:6px 0;border-top:1px solid var(--edge)}
 .order li:first-child{border-top:0}
 .order .on{font:400 20px/1.1 var(--serif);color:var(--ink3);font-variant-numeric:tabular-nums}
 .order .oname a{color:var(--ink);text-decoration:none;font:400 17px/1.2 var(--serif)}
