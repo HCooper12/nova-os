@@ -453,11 +453,11 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-spec:rgba(255,255,255,.5); /* not given; a bright specular for a glass-over-sky material */
   --nv-cy:#9AE6FF;
   --nv-vi:#C9B8FF; /* the violet-type token */
-  --nv-mg:#d11a43; /* not given; no clean mapping — kept from Daylight */
+  --nv-mg:#FF9CC0; /* Daylight's #d11a43 is tuned for white and reads 1.7:1 here; the lightest pink in the family that clears 4.5:1 on the .15 card (4.62:1) */
   --nv-gold:#FFD27A;
   --nv-good:#6BF2B8;
-  --nv-warn:#c9251c; /* not given; kept from Daylight */
-  --nv-or:#FF8F76;
+  --nv-warn:#FFA29A; /* same reason as --nv-mg: Daylight's red is 1.6:1 on this ground; 4.67:1 on the card */
+  --nv-or:#FFA893; /* his #FF8F76 was 4.05:1 on the .15 card; one step lighter clears the floor (4.84:1) */
   /* re-derived, not copied: Daylight's hues are dark, tuned for text on
      white, so the black island lifts them toward white; Sky's hues above
      are already light pastels — the command/observatory/ember brightness

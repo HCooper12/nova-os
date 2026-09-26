@@ -35,10 +35,13 @@ const THEMES = [
   { name: 'observatory', anchor: 'data-nv-theme="observatory"', ground: '0c1424' },
   { name: 'ember', anchor: 'data-nv-theme="ember"', ground: '170e0b' },
   { name: 'daylight', anchor: 'data-nv-theme="daylight"', white: true },
+  // sky (26 Sep): its card is .15 white over a deep blue, lighter than the
+  // cupertino pane, so its own alpha is what its text has to clear
+  { name: 'sky', anchor: 'data-nv-theme="sky"', ground: '0b2a55', paneAlpha: 0.15 },
 ];
 // every token Nova paints TEXT with. --nv-ink40 is absent on purpose: it is
 // the hairline-and-glyph tier now, never type (see Controls.TONES.faint).
-const TEXT_TOKENS = ['ink', 'ink50', 'ink60', 'cy', 'vi', 'mg', 'gold', 'good', 'warn', 'acc'];
+const TEXT_TOKENS = ['ink', 'ink50', 'ink60', 'cy', 'vi', 'mg', 'gold', 'good', 'warn', 'acc', 'or'];
 
 const blockFor = (anchor) => {
   const i = css.indexOf(anchor);
@@ -51,7 +54,7 @@ test('every token Nova paints text with clears 4.5:1, in every theme', () => {
   let checked = 0;
   for (const t of THEMES) {
     const block = blockFor(t.anchor);
-    const pane = t.white ? [255, 255, 255] : over([255, 255, 255], 0.075, hex(t.ground));
+    const pane = t.white ? [255, 255, 255] : over([255, 255, 255], t.paneAlpha ?? 0.075, hex(t.ground));
     for (const tok of TEXT_TOKENS) {
       const solid = new RegExp(`--nv-${tok}:\\s*(#[0-9a-f]{6})`, 'i').exec(block);
       const alpha = new RegExp(`--nv-${tok}:\\s*rgba\\((\\d+),\\s*(\\d+),\\s*(\\d+),\\s*([\\d.]+)\\)`).exec(block);
@@ -75,7 +78,7 @@ test('the faint tier is readable text, and stays a distinct tier', () => {
 
   for (const t of THEMES) {
     const block = blockFor(t.anchor);
-    const pane = t.white ? [255, 255, 255] : over([255, 255, 255], 0.075, hex(t.ground));
+    const pane = t.white ? [255, 255, 255] : over([255, 255, 255], t.paneAlpha ?? 0.075, hex(t.ground));
     const read = (tok) => {
       const m = new RegExp(`--nv-${tok}:\\s*rgba\\((\\d+),\\s*(\\d+),\\s*(\\d+),\\s*([\\d.]+)\\)`).exec(block);
       return m ? contrast(over([+m[1], +m[2], +m[3]], +m[4], pane), pane) : null;

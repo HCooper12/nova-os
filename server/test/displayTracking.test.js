@@ -21,7 +21,11 @@ const SCREENS = root('src/screens');
 
 test('the token exists and points opposite ways in the two design languages', () => {
   assert.match(CSS, /--nv-display-track:\.02em/, 'Command keeps its wide HUD tracking');
-  const apple = CSS.slice(CSS.indexOf(':root[data-nv-style="apple"], :root[data-nv-style="cupertino"] {'));
+  // the Apple-family selector list grows as styles join it (summary, 26 Sep);
+  // anchor on its head, not on the whole line
+  const start = CSS.indexOf(':root[data-nv-style="apple"], :root[data-nv-style="cupertino"]');
+  assert.ok(start >= 0, 'the Apple-family token block was not found');
+  const apple = CSS.slice(start);
   const block = apple.slice(0, apple.indexOf('}'));
   assert.match(block, /--nv-display-track:-\.02em/, 'the Apple styles must TIGHTEN large type, not loosen it');
 });
