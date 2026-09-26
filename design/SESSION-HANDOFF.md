@@ -13,6 +13,35 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**26 SEP (afternoon, nova-os-df) — TWO THINGS SHIPPED AND LIVE (verified in
+the deployed chunks): the fix for his lost make-up workout, and Practice as
+the tenth Agent World being.**
+
+- **The lost workout (his report, 11:0x AEST):** sets ticked 10:45–10:55 are
+  UNRECOVERABLE (server draft overwritten unarchived at 11:03:58; the log
+  shows the reload at 11:03:41 recovered it first). Cause: a Begin tap on the
+  make-up card replaced a recovered session. Fixed 7870657: every start path
+  through `guardSessionStart` (src/sessionGuard.js), a server-recovered draft
+  opens the logger, and the server archives a draft with ticked sets as
+  `replaced` (Train: "Replaced workout — still recoverable"). Full account in
+  memory nova-draft-protection #7. NOT seen on his phone.
+- **Practice's being (his pick: the masks; the lamp and card kept):**
+  d15bedd + 10f4f0b. Masks = a live scene (read from practice.json via
+  `liveScene`), cue card = a page being prepared, stage lamp on its set in
+  Mind lit only for a live scene. Mind is now a four-piece tile and the
+  Leader's set moved left (the agent's call — surface it if he dislikes the
+  new Mind layout). Live /api/ops shows ten beings. NOT seen on his phone.
+- **CI lesson:** the life-engine test was timezone-dependent (absolute-minute
+  seed, local-hour daypart); d15bedd's Pages run failed in UTC while the Mac
+  was green. Pinned to Australia/Sydney. Before pushing Agent World changes,
+  run `TZ=UTC npm test` too.
+- **His answers today:** try Practice later (reminder set), find the EPUB
+  later (reminder set), no Wrap-the-day nag, records stay auto+undo.
+- **Peer nova-os-83** shipped the takeaway finder, a make-up day fix
+  (7089152) and meal-estimate corrections (6840a59), each with its own reload.
+
+---
+
 **26 SEP (afternoon, nova-os-83) — TWO OF HIS BUG REPORTS FIXED, pushed,
 deployed (Pages success on 10f4f0b), server reloaded, health 200.**
 
