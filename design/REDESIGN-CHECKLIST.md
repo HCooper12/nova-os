@@ -556,6 +556,12 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (01:xx) — three Inbox honesty fixes shipped ahead of its redesign
+  (see the commit after 6c5bd62): the do-all chip counts only what it can file
+  and goes at 0; History counts the undo it can offer; the landed strip no
+  longer counts the plan-today record. The real-data look at the new Home
+  (read-only) found and fixed the midnight highlight (e0bf6f1). The summary
+  guard baseline is recorded (24f118a).
 - 27 Sep 2026 (01:xx) — INBOX AUDITED (`design/audits/redesign-2026-09/02-inbox.md`,
   459 lines): verdict CRITICAL ISSUES. Connected to his vault at 402×874 the
   page is 6,591px in Deck mode (8 screens) and 12,476px in List (15); 109
