@@ -178,6 +178,21 @@ test('buildHighlight rung 1 (sleep and readiness)', () => {
   assert.deepEqual(readiness.act, { label: 'Open Train', kind: 'train' });
 });
 
+test('buildHighlight stands a daily total down while the sleep block is live (the day is closed)', () => {
+  // 00:26 on his vault: protein 0/150 with Recharge live read as "150 g under today's floor"
+  const events = [
+    { time: '21:30', end: '22:00', label: 'Night routine', past: true },
+    { time: '22:00', end: '06:00', label: 'Recharge 😴', now: true },
+  ];
+  const rings = [{ key: 'protein', label: 'PROTEIN', value: '0', small: '/150G', pct: 0, state: 'missed', hint: '0% · GAP 150G' }];
+  const h = buildHighlight({ ringVitals: rings, focalVital: 'protein', todayEvents: events, hour: 0 });
+  assert.notEqual(h.key, 'protein');
+  assert.equal(h.key, 'next'); // the live block speaks instead: Recharge until 06:00
+  // and by day the same ring leads again
+  const day = buildHighlight({ ringVitals: rings, focalVital: 'protein', todayEvents: [{ time: '12:30', end: '13:30', label: 'Lunch', now: true }], hour: 13 });
+  assert.equal(day.key, 'protein');
+});
+
 test('buildHighlight skips an absent focal ring rather than reporting a hole as a fact', () => {
   const hi = buildHighlight({
     ringVitals: [{ key: 'protein', value: '—', small: '', pct: 0, state: 'absent' }],

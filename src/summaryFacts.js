@@ -5,7 +5,7 @@
 // No Date.now() anywhere in this file — every function takes `now` / `hour` /
 // `today` as an argument, so the whole ladder is testable at any clock
 // reading without a fake timer.
-import { plainLabel } from './missionLine.js';
+import { plainLabel, blockKind } from './missionLine.js';
 
 // Emoji belong on the calendar strip, not in a headline (missionLine.js's own
 // rule) — but a shortened label also has to survive a ~90px pill, so this
@@ -171,8 +171,16 @@ function highlightForVital(ring) {
 // keeps it honest.
 export function buildHighlight({ ringVitals = [], focalVital = null, oneThing = null, planToday = null, todayEvents = [], hour } = {}) {
   void hour; // reserved for a future time-of-day rung; every caller passes it
+  // THE DAY IS CLOSED while his sleep block is live (missionLine.js's own
+  // rule for the headline): at 00:26 on his real vault the card read "You're
+  // 150 g under today's floor" over a day that had not started, which is true
+  // and useless. A daily total stands down for the night; sleep and readiness
+  // are about the night itself and still speak.
+  const live = findTodayPositions(todayEvents).current;
+  const dayClosed = !!(live && blockKind(live.label) === 'sleep');
   const ring = focalVital ? (ringVitals || []).find((r) => r && r.key === focalVital) : null;
-  if (ring && ring.state !== 'absent') return highlightForVital(ring);
+  const daily = ring && (ring.key === 'protein' || ring.key === 'steps');
+  if (ring && ring.state !== 'absent' && !(daily && dayClosed)) return highlightForVital(ring);
 
   if (oneThing) {
     const priorities = Array.isArray(planToday?.priorities) ? planToday.priorities : [];
