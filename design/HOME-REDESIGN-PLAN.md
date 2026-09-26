@@ -139,7 +139,8 @@ filled button on the page; the highlight sentence, the rings and the plan
 card never disagree (a unit test feeds the same facts and asserts the
 sentence); reduced motion cross-fades.
 
-**P3 · The tab bar and the Index.** Under `summary`: the iOS 26 pill with
+**P3 · The tab bar and the Index.** SHIPPED 27 Sep (b6107cc) — see the
+ledger. Under `summary`: the iOS 26 pill with
 five tabs and the detached Nova button (tap → live talk as today; label
 "Talk" appears while listening); the Index page (four groups, icon tiles,
 live values, the floating search) as the More tab, hash `#/index`; the

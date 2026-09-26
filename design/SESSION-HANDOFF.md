@@ -79,9 +79,12 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   --theme command --material glass --hour dusk`; the ten frames of every material
   are published for his morning at https://claude.ai/artifact/X2zxDCQBCCAXcbE9AaKf1H
   ("Home, Built"; republish with `url`) — shot.mjs gained --demo and
-  --readonly in d419271; §2b amended in 787cf5e). P3 (Opus) IN FLIGHT in
-  `.claude/worktrees/p3` (branch `p3-index-tabbar`, brief
-  design/audits/redesign-2026-09/p3-brief.md). WAS IN FLIGHT: P2-B (Opus) —
+  --readonly in d419271; §2b amended in 787cf5e). P3 SHIPPED = b6107cc (SummaryDock + Index +
+  valsIndex + screenKeys; worktree removed). IN FLIGHT: the Inbox audit
+  (Sonnet, writes design/audits/redesign-2026-09/02-inbox.md; it seeds
+  public/_devconn.js for read-only real frames and MUST clean it — check
+  `ls public/_devconn*.js` is empty before trusting any shot or guard run).
+  Home rows → [b] once the guard is re-run green after that seed is gone. WAS IN FLIGHT: P2-B (Opus) —
   the screen MissionSummary.jsx + PinnedEditSheet.jsx + MissionControl branch
   + App wiring (valsSummary spread AFTER valsChrome with the merged v) + the
   .nv-sum-* CSS + un-hiding Summary in Settings; brief at

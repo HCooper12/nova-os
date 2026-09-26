@@ -556,6 +556,19 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (00:xx) — P3 SHIPPED (b6107cc): `src/SummaryDock.jsx` (the iOS 26
+  tab bar under summary: a glass pill of the first four tabs in his order +
+  More, Nova detached with the dock's exact semantics, "Talk" under the orb
+  while listening; the old dock byte-identical for every other style),
+  `src/screens/Index.jsx` + `src/vals/valsIndex.js` + `src/indexGroups.js`
+  (the More tab: you card, Today/Mind/Life/Nova, 23 rows, a live value only
+  where an honest field exists, floating search → the conversation),
+  `src/screenKeys.js` (SCREEN_KEYS out of App.jsx so `indexRows.test.js` can
+  prove every screen has a row). Two calls made on his behalf: More stays lit
+  on any screen outside the four tabs (iOS behaviour, the old dock's too); a
+  stale Leader shows "n open" in gold. Gates: lint 0 errors · build · server
+  2639/2639 · guard: re-run pending (the Inbox audit's read-only seed was
+  present at the moment of the run; the P3 agent's own run printed unchanged).
 - 26 Sep 2026 (late) — P2-B SHIPPED (08c73ca): `src/screens/MissionSummary.jsx`
   (the summary Home: date + Nova, greeting, serif standfirst, moments while
   news, ONE highlight with its bar and one quiet act, Pinned — Body ring hero,
