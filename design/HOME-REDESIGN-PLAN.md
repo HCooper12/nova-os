@@ -179,6 +179,27 @@ design memory records the decision. Not before P2 lands.
 
 ## 6 · Open with him
 
+**P5 candidates, from looking at the built frames (27 Sep, 00:xx; demo
+data, headless).** None blocks; each is a tweak for his eye:
+- The app's status banner ("Demo data — connect your backend", offline,
+  slow sync) floats 76px above the bar and sits over the bottom of whatever
+  card is there under `summary` too. It predates the redesign; under summary
+  it could ride inside the top bar's chip instead.
+- Over Summary light the hologram core reads washed on white; the filament
+  engine or a darker well behind it would hold.
+- `#/index` typed under cupertino or command renders the Index without the
+  summary material (nothing links to it there). Harmless; say so or gate it.
+- The Index runs three NovaCore canvases (36, 48, 46px). Worth watching for
+  heat on his phone; the you card's could be a still.
+- Technique in demo opens the Repertoire book, which loads forever with no
+  connection (the book's own behaviour). Real data is unaffected.
+- The Body hero's three rings take protein · steps · sleep; readiness moved
+  to the Training card. If he wants four rings, that is one line in
+  `bodyCard` and a fourth radius.
+- The greeting drops his name ("Good evening"), as the mockup did; the
+  cupertino Home keeps it. His call.
+
+
 - The Edit mechanism: a Health-style sheet (recommended) or hold-to-jiggle.
 - Whether the sky cycle also tints Nova glass's aurora (recommended: yes,
   subtly), or only the `sky` theme.
