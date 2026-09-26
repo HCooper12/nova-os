@@ -592,41 +592,45 @@ const bodyMetrics = demoMode
   // Journal 🧘📓 until 22:30." directly above a card saying the same thing.
   // The card keeps the block — it is where the action lives — and the
   // headline drops to the next rung that is still true. [[nova-method]]
-  const heroTagline = demoMode
-    ? 'Cleared for deep work at 15:30.'
-    : pickTagline({
-      hour,
-      nowMin,
-      dayIndex: Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000),
-      session: st.workoutSession ? {
-        routineName: st.workoutSession.routineName,
-        setsDone: st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((x) => x.done).length, 0),
-      } : null,
-      workoutNow: inWorkoutWindow && todayRoutine && !workoutDoneToday ? todayRoutine.name : null,
-      block: currentEvent,
-      next: nextEvent,
-      carryover: overdueCarryover
-        ? { count: overdueCarryover.exercises.length, source: overdueCarryover.sourceRoutineName }
-        : null,
-      inboxPending: ctx.inboxPendingCount || 0,
-      inboxNew: ctx.inboxNewCount ?? null,
-      tomorrow: tomorrowOwed.length ? {
-        count: tomorrowOwed.reduce((n, c) => n + c.exercises.length, 0),
-        sources: tomorrowOwed.map((c) => c.sourceRoutineName),
-      } : null,
-      workoutDone: workoutDoneToday,
-      routineName: todayRoutine ? todayRoutine.name : null,
-      proteinGap: usingLiveRecipes && proteinTarget != null ? proteinGap : 0,
-      stepsShort: stepsFreshShort || 0,
-      routine: todayRoutine && !workoutDoneToday
-        ? { name: todayRoutine.name, when: workoutWhen, time: workoutEvent ? workoutEvent.time : null }
-        : null,
-      activeRest: todayActiveRest,
-      offline: isOffline,
-      streak: st.liveStreaks?.workoutStreak
-        ? { n: st.liveStreaks.workoutStreak, unit: st.liveStreaks.workoutStreakUnit }
-        : null,
-    }, suggestedFocus.topic).line;
+  // the topic travels alongside the line now too — the summary Home's
+  // standfirst (src/summaryFacts.js summaryStandfirst) needs to know WHICH
+  // rung fired, to tell whether it just said the same thing the highlight
+  // card below it is about to say
+  const heroTaglineRung = demoMode ? null : pickTagline({
+    hour,
+    nowMin,
+    dayIndex: Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000),
+    session: st.workoutSession ? {
+      routineName: st.workoutSession.routineName,
+      setsDone: st.workoutSession.exercises.reduce((n, e) => n + e.sets.filter((x) => x.done).length, 0),
+    } : null,
+    workoutNow: inWorkoutWindow && todayRoutine && !workoutDoneToday ? todayRoutine.name : null,
+    block: currentEvent,
+    next: nextEvent,
+    carryover: overdueCarryover
+      ? { count: overdueCarryover.exercises.length, source: overdueCarryover.sourceRoutineName }
+      : null,
+    inboxPending: ctx.inboxPendingCount || 0,
+    inboxNew: ctx.inboxNewCount ?? null,
+    tomorrow: tomorrowOwed.length ? {
+      count: tomorrowOwed.reduce((n, c) => n + c.exercises.length, 0),
+      sources: tomorrowOwed.map((c) => c.sourceRoutineName),
+    } : null,
+    workoutDone: workoutDoneToday,
+    routineName: todayRoutine ? todayRoutine.name : null,
+    proteinGap: usingLiveRecipes && proteinTarget != null ? proteinGap : 0,
+    stepsShort: stepsFreshShort || 0,
+    routine: todayRoutine && !workoutDoneToday
+      ? { name: todayRoutine.name, when: workoutWhen, time: workoutEvent ? workoutEvent.time : null }
+      : null,
+    activeRest: todayActiveRest,
+    offline: isOffline,
+    streak: st.liveStreaks?.workoutStreak
+      ? { n: st.liveStreaks.workoutStreak, unit: st.liveStreaks.workoutStreakUnit }
+      : null,
+  }, suggestedFocus.topic);
+  const heroTagline = demoMode ? 'Cleared for deep work at 15:30.' : heroTaglineRung.line;
+  const heroTaglineTopic = demoMode ? 'demo' : heroTaglineRung.topic;
 
   // The hero CTA acts on the suggested focus. When the card has nothing to
   // act on, "Engage" means "start on the runway you have" — a timer to the
@@ -1125,6 +1129,7 @@ const bodyMetrics = demoMode
     agentsLiveLabel: `${agentsLiveCount} AGENTS LIVE`,
     systemsLabel,
     heroTagline,
+    heroTaglineTopic,
     heroStand,
     onEngage,
     satSleep,

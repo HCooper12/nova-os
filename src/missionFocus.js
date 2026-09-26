@@ -86,3 +86,19 @@ export function pickFocalVital(ringVitals = []) {
   }
   return worst.key || null;
 }
+
+// A RECORD, said in his units. The lift line is always a weight he actually
+// loaded and the reps he actually got; the basis line underneath says what
+// kind of record it is and by how much — an estimated 1RM is labelled as an
+// estimate, never printed as if he had lifted it. Moved here from the bottom
+// of MissionStructured.jsx (and MissionControl.jsx's own copy) so the
+// summary Home's Training card can say the same thing without a third copy.
+export function prLift(p) {
+  if (p.weight != null && p.reps != null) return `${p.weight}kg × ${p.reps}`;
+  if (p.kind === 'weight' && p.reps != null) return `${p.value}kg × ${p.reps}`;
+  return p.kind === 'e1rm' ? `est. 1RM ${p.value}kg` : `${p.value}kg`;
+}
+export function prBasis(p) {
+  const up = p.previous != null && p.value > p.previous ? ` ▲${(p.value - p.previous).toFixed(1)}` : '';
+  return p.kind === 'e1rm' ? `est. 1RM ${p.value}kg${up}` : `heaviest yet${up}`;
+}
