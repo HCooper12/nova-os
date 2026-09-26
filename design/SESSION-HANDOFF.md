@@ -13,6 +13,81 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**26 SEP (close, nova-os-df) — PRACTICE BUILT: a skill prepared from his
+sources, rehearsed with Nova as the other person, debriefed by code.
+Plan: `design/PRACTICE-PLAN.md`. Commits 3ca0138 · 5fcfd87 · e78e99b ·
+296c81b; the peer session nova-os-83 pushes them with its own (agreed)
+and runs the reload — check `git status -sb` says level with origin and
+`curl localhost:4173/api/health` is 200 before trusting either.**
+
+- **GOAL (his, 26 Sep):** a feature that accumulates what Nova knows about a
+  skill he is learning (The Next Conversation, Jefferson Fisher), lets him
+  rehearse it back and forth "like a real human conversation", and gives
+  feedback grounded in the sources; noted from the Inbox or by voice.
+- **DONE CRITERIA:** page + prepare + scene + debrief + undo MET and seen
+  live; Home card in both idioms MET (seen at 375, cupertino and command);
+  UNMET: his phone (voice in the room, TTS of the partner, the lamp bloom
+  in motion), and the fixed stage layout was verified only by the client
+  agent's captures, not by my own eyes (see ASSUMED).
+- **STATE (paths):** `server/lib/practice.js` (page contract, tallies,
+  `nextScene`, undo), `server/lib/practiceLane.js` (Prepare, the scene
+  partner prompt, NOTE/DEBRIEF parsers, `finishPracticeTurn`),
+  `server/routes/practice.js`, `startAskPractice` in claudeCode.js; client
+  `src/vals/valsPractice.js`, `src/screens/Practice.jsx`,
+  `src/PracticeLamps.jsx`, `src/PracticeCard.jsx`; hue `--nv-or` in every
+  theme. Lanes `practice-prepare` / `practice-chat` (both Opus on the
+  board). His first real page: `Wiki/Practice/Disarming Disrespect and
+  Intent Questions.md` (6 moves, 3 scenes, 7 sources; record 3c654762,
+  filed, undoable in the Inbox).
+- **DECISIONS:** prepare and the debrief file AUTO with a real undo (the
+  Leader's reflection rule; reversible to pending on his word); the web
+  only when his sentence says research (explicit-trigger law); a scene
+  never touches the web; the pressure is hidden from the screen until the
+  debrief (the API strips it, pinned by test); the record kinds ride the
+  Leader's being on the Org Map until Practice has a being of its own (his
+  call: hue, artefact); rehearsal lines are NOT mirrored into the voice
+  conversation record (a scene is role-play, not his history); the receipt
+  names the first gap and counts the rest.
+- **VERIFIED (locators):** server 2520/2520 before the two fixes, practice
+  suites 41/41 after; lint 0 errors; build green (Practice is its own lazy
+  chunk). LIVE on his vault: the intent front door routed his sentence to
+  `practice` and Prepare wrote the page in 54s, grounded in his Leader
+  struggles (the duty-manager restructure); the parse→format round-trip
+  over that real page is byte-identical; a real scene (three turns) had
+  the partner deliver the pressure and credit two moves with his exact
+  words; the debrief filed one session line + record fbe7f1da; undoing it
+  left the page byte-identical (that test session is gone, on purpose).
+  Captures (scratchpad only, per the audit convention): Home card open in
+  both idioms, the shelf, an open skill, the pre-fix stage at 375.
+- **ASSUMED:** the post-fix stage (compact head, bar clearance, castLine,
+  "Claire" label) — the client agent measured it (last line y=598 above
+  the bar at y=614) but my own captures were reloaded out from under me
+  by the peer's App.jsx saves and never showed it; the mic path and TTS in
+  the room; the lamp bloom in motion; the offline banner overlapping the
+  control bar when offline mid-scene (the agent saw it).
+- **OPEN QUESTIONS (his):** (1) upload The Next Conversation as an EPUB in
+  Library — the page's first gap; Prepare again ("practise … again") and
+  the moves get grounded in the text; (2) does he want the two records
+  review-gated instead of auto+undo; (3) a Practice being for the Agent
+  World (hue --nv-or is taken; artefact undecided); (4) should Wrap the
+  day ask "did you use it for real today?" like the Repertoire.
+- **NEXT ACTION:** on his phone, open Practice → Rehearse, speak three
+  lines, End scene; expected: the partner answers aloud within ~10s, a lamp
+  blooms when he says a line from the page, the debrief quotes him and
+  files one Inbox record with Undo. Then his notes → a fix pass.
+- **DO NOT:** photograph the app while a peer is saving src/ (Vite's page
+  reload wipes any state an eval set — every "Home instead of the stage"
+  capture today was that, not a bug); leave `public/_devconn.js` behind (a
+  peer's --clean also deletes yours mid-run: re-seed right before each
+  shot); trust `document.title` set synchronously in an eval (the app
+  resets it on render — set it in a setTimeout); post a rehearsal to
+  /api/conversation.
+- **PEER NOTE:** nova-os-83 found the live server crashing on Node 24.16's
+  `setTypeOfService EINVAL` (5 times on 26 Sep); a scene mid-turn dies
+  with it; their `server/lib/tosGuard.js` is the fix, reloaded by them.
+
+---
+
 **26 SEP (close, nova-os-44, before his MacBook update) — HE WANTS TO REVIEW
 THE AGENT WORLD LATER: REMIND HIM AT THE START OF THE NEXT SESSION.**
 After the macOS update, first check: `curl localhost:4173/api/health` is 200
