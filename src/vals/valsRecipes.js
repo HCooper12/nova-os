@@ -40,6 +40,41 @@ function crossBars(data, metric) {
   };
 }
 
+// PICK IT UP — THE EFFECTIVE BUDGET, IN ONE PLACE.
+//
+// Until he edits a field the finder searches with what is really left of
+// today (the prefill the view model derives from kcalLeft and proteinGap);
+// once he edits, his own figures stand. App's search and the screen both call
+// this, so the numbers drawn in the rings are the numbers sent to the server —
+// never two readings of the same budget. `prefill` is { kcal, p } with null
+// for "no target, so no figure" (never an invented one).
+export const EAT_OUT_FIELDS = ['kcal', 'p', 'c', 'f'];
+export function eatOutBudget(st, prefill) {
+  const pre = { kcal: prefill?.kcal ?? null, p: prefill?.p ?? null, c: null, f: null };
+  const raw = st.eatOutTouched ? (st.eatOutBudget || {}) : {};
+  const out = { prefilled: {} };
+  for (const k of EAT_OUT_FIELDS) {
+    const val = st.eatOutTouched ? String(raw[k] ?? '').trim() : (pre[k] != null ? String(pre[k]) : '');
+    out[k] = val;
+    // "from today" is a statement about provenance: the figure on screen IS
+    // today's figure. An edit back to the same number is still today's.
+    out.prefilled[k] = val !== '' && pre[k] != null && val === String(pre[k]);
+  }
+  return out;
+}
+export function eatOutParams(st, prefill) {
+  const b = eatOutBudget(st, prefill);
+  const num = (s) => (s !== '' && Number.isFinite(Number(s)) && Number(s) >= 0 ? String(Math.round(Number(s))) : '');
+  return {
+    kcal: num(b.kcal), p: num(b.p), c: num(b.c), f: num(b.f),
+    brands: (st.eatOutBrands || []).join(','),
+    kind: st.eatOutKind && st.eatOutKind !== 'all' ? st.eatOutKind : '',
+    mode: st.eatOutMode || 'single',
+    limit: '40',
+  };
+}
+export const eatOutHasBudget = (params) => ['kcal', 'p', 'c', 'f'].some((k) => params[k] !== '');
+
 // Recipes domain: recipe list/filters, daily rotation, off-plan food log,
 // add-recipe modal, and the recipe overlay (incl. alternates + tweak chat).
 // Adds to ctx: usingLiveRecipes, rotation, profile, and the protein-gauge
@@ -264,7 +299,129 @@ export function valsRecipes(app, ctx) {
   Object.assign(ctx, { usingLiveRecipes, rotation, profile, proteinTarget, proteinCurrent, proteinRatio, proteinGap, proteinNextSlot, proteinNextSlotFilled,
     kcalCurrent: rotConsumedTot.kcal + foodLogTot.kcal, targetKcal: profile ? profile.targetKcal : null });
 
+  // PICK IT UP (his reel, 26 Sep): "500 kcal and 50 g protein left, I'm out,
+  // what do I get?" — every chain and supermarket item that fits. Nova already
+  // knows both numbers, so the finder opens PREFILLED from the same kcalLeft
+  // and proteinGap the hero draws; nothing here is a second reading of the day.
+  const pickItUp = (() => {
+    const available = usingLiveRecipes;
+    const prefill = {
+      kcal: kcalLeft != null ? Math.max(0, Math.round(kcalLeft)) : null,
+      p: proteinTarget != null && proteinGap != null ? Math.max(0, proteinGap) : null,
+    };
+    const budget = eatOutBudget(st, prefill);
+    const params = eatOutParams(st, prefill);
+    const summary = st.liveEatOut;
+    const res = st.eatOutResults;
+    const kcalTarget = profile?.targetKcal ?? null;
+    const carbTarget = profile?.carbTargetG ?? null;
+    const fatTarget = profile?.fatTargetG ?? null;
+    const numOf = (s) => (s !== '' && Number.isFinite(Number(s)) ? Number(s) : null);
+    // each ring's arc is the figure against today's own denominator; carbs
+    // and fat have none today (his profile carries no split), so a typed cap
+    // draws a full ring in its hue — "a limit is set" — and a blank one is
+    // the dashed gap, never a zero
+    const ring = (key, label, hue, target) => {
+      const n = numOf(budget[key]);
+      const state = n == null ? 'gap' : 'arc';
+      const pct = n == null ? 0 : target > 0 ? Math.max(0, Math.min(100, Math.round((n / target) * 100))) : 100;
+      return {
+        key, label, hue, value: budget[key], pct, state,
+        prefilled: budget.prefilled[key],
+        source: n == null ? 'blank' : budget.prefilled[key] ? 'from today' : 'yours',
+        of: target > 0 ? target : null,
+        set: (val) => app.setEatOutBudget(key, val, prefill),
+      };
+    };
+    const rings = [
+      ring('kcal', 'kcal', 'var(--nv-good)', kcalTarget),
+      ring('p', 'protein', 'var(--nv-cy)', proteinTarget),
+      ring('c', 'carbs', 'var(--nv-gold)', carbTarget),
+      ring('f', 'fat', 'var(--nv-vi)', fatTarget),
+    ];
+    const selected = new Set(st.eatOutBrands || []);
+    const brands = (summary?.brands || [])
+      .filter((b) => (st.eatOutKind || 'all') === 'all' || b.kind === st.eatOutKind)
+      .map((b) => ({ key: b.key, name: b.name, kind: b.kind, count: b.count, active: selected.has(b.key), toggle: () => app.toggleEatOutBrand(b.key, prefill) }));
+    const macroBar = (m) => {
+      const tot = (m.p + m.c + m.f) || 1;
+      const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
+      return { pBar: bar(m.p, 'var(--nv-cy)'), cBar: bar(m.c, 'var(--nv-gold)'), fBar: bar(m.f, 'var(--nv-vi)') };
+    };
+    const fitOf = (fit) => ({
+      kcalUse: fit?.kcalUse ?? null,
+      proteinHit: fit?.proteinHit ?? null,
+      proteinGap: fit?.proteinGap != null ? Math.round(fit.proteinGap) : null,
+    });
+    const macrosOf = (m) => ({ p: Math.round(m?.p || 0), c: Math.round(m?.c || 0), f: Math.round(m?.f || 0), kcal: Math.round(m?.kcal || 0) });
+    const mapItem = (it) => {
+      const macros = macrosOf(it.macros);
+      return {
+        id: it.id, name: it.name, brand: it.brand, brandKey: it.brandKey,
+        kind: it.kind === 'supermarket' ? 'Supermarket' : 'Takeaway',
+        serve: it.serve || (it.grams ? `${it.grams} g` : ''),
+        macros, ...fitOf(it.fit), ...macroBar(macros),
+        log: () => app.logEatOut(it),
+      };
+    };
+    const results = (res?.items || []).map(mapItem);
+    const pairs = (res?.pairs || []).map((pr, i) => {
+      const macros = macrosOf(pr.macros);
+      return {
+        id: `pair-${i}-${(pr.items || []).map((x) => x.id).join('+')}`,
+        items: (pr.items || []).map(mapItem),
+        macros, ...fitOf(pr.fit), ...macroBar(macros),
+        log: () => app.logEatOut(pr),
+      };
+    });
+    const count = res?.count ?? (results.length + pairs.length);
+    const catalogueEmpty = res ? !!res.catalogueEmpty : summary ? !(summary.total > 0) : false;
+    // the catalogue's own receipt: how many, how many chains, when, from where
+    const fmtDay = (iso) => { const d = iso ? new Date(iso) : null; return d && !Number.isNaN(d.getTime()) ? dtf('en-AU', { day: 'numeric', month: 'short' }).format(d) : null; };
+    const sourceWords = [...new Set((summary?.brands || []).map((b) => b.source?.kind))]
+      .map((k) => (k === 'off' ? 'Open Food Facts' : k === 'pdf' ? 'the chains’ own sheets' : null)).filter(Boolean);
+    const summaryLine = summary && summary.total > 0
+      ? `${summary.total.toLocaleString()} items · ${summary.brands.length} brand${summary.brands.length === 1 ? '' : 's'}${fmtDay(summary.updatedAt) ? ` · fetched ${fmtDay(summary.updatedAt)}` : ''}${sourceWords.length ? `, from ${sourceWords.join(' and ')}` : ''}`
+      : '';
+    const countLine = summary && summary.total > 0 ? `${summary.total.toLocaleString()} items · ${summary.brands.length} brand${summary.brands.length === 1 ? '' : 's'}` : '';
+    let emptyLine = '';
+    if (catalogueEmpty) emptyLine = 'No catalogue yet, so there is nothing to search.';
+    else if (!eatOutHasBudget(params)) emptyLine = prefill.kcal == null && prefill.p == null
+      ? 'No calorie or protein target is set, so there is nothing to prefill. Type a budget.'
+      : 'The budget is blank. Type at least one figure.';
+    else if (res && !results.length && !pairs.length) emptyLine = params.kcal === '0'
+      ? 'Today’s calories are spent. Type a budget to look anyway.'
+      : 'Nothing in the catalogue fits that budget.';
+    return {
+      available,
+      open: !!st.eatOutOpen,
+      toggle: () => (st.eatOutOpen ? app.setState({ eatOutOpen: false }) : app.openEatOut(prefill)),
+      // the collapsed row's two rings: what is left of today, drawn
+      glance: {
+        kcal: prefill.kcal, kcalPct: prefill.kcal != null && kcalTarget > 0 ? Math.min(100, Math.round((prefill.kcal / kcalTarget) * 100)) : null,
+        p: prefill.p, pPct: prefill.p != null && proteinTarget > 0 ? Math.min(100, Math.round((prefill.p / proteinTarget) * 100)) : null,
+      },
+      noTargets: prefill.kcal == null && prefill.p == null,
+      budget, rings,
+      brands,
+      missing: (summary?.missing || []).map((m) => ({ name: m.name, why: m.why })),
+      kind: st.eatOutKind || 'all',
+      setKind: (k) => app.setEatOutKind(k, prefill),
+      mode: st.eatOutMode || 'single',
+      setMode: (m) => app.setEatOutMode(m, prefill),
+      busy: !!st.eatOutBusy,
+      searched: !!res,
+      results, pairs, count, catalogueEmpty,
+      summaryLoaded: !!summary,
+      summaryLine, countLine,
+      refresh: () => app.refreshEatOut(),
+      refreshing: !!st.eatOutRefreshJob,
+      emptyLine,
+    };
+  })();
+
   return {
+    pickItUp,
     // recipes
     recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} recipes · live from Obsidian` : `${app.recipes.length} recipes · demo data`,
     recipeFilters: filters.map(f => ({ label: f, go: () => app.setState({ recipeFilter: f }), active: st.recipeFilter === f })),

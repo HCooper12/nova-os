@@ -28,7 +28,7 @@ import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { depthOf, edgeDragInProgress } from './edgeBack.js';
 import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
-import { valsRecipes, CURRENT_VERSION } from './vals/valsRecipes.js';
+import { valsRecipes, CURRENT_VERSION, eatOutParams, eatOutHasBudget } from './vals/valsRecipes.js';
 import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
@@ -474,6 +474,11 @@ export default class App extends Component {
     })(),
     liveReviewSummaries: {},
     liveFoodLog: null, liveFoodHistory: null, liveNutritionMonth: null, foodHistoryOpen: false,
+    // PICK IT UP — the chain + supermarket finder on Fuel. Budget fields are
+    // strings ('' = blank = ignored); until he edits one, the vals prefill
+    // them from what is really left of today (eatOutTouched false).
+    liveEatOut: null, eatOutOpen: false, eatOutBudget: { kcal: '', p: '', c: '', f: '' }, eatOutTouched: false,
+    eatOutBrands: [], eatOutKind: 'all', eatOutMode: 'single', eatOutResults: null, eatOutBusy: false, eatOutRefreshJob: null,
     // retro tracking: null = today; a past YYYY-MM-DD flips the log view and
     // its adds/removes to that day, while today's gauges keep liveFoodLog
     foodLogDate: null, liveFoodLogView: null,
@@ -638,6 +643,9 @@ export default class App extends Component {
   componentDidMount() {
     try { const d = localStorage.getItem('novaos.wrap.dismissed'); if (d) this.setState({ wrapDismissedOn: d }); } catch { /* private mode */ }
     if (import.meta.env.DEV) window.__novaApp = this; // dev-only introspection hook
+    // a cold open straight onto #/recipes never passes through navigate(),
+    // so the Pick-it-up summary is read here for that one case
+    if (this.state.screen === 'recipes') this.loadEatOut();
     // Boot policy — stale-while-revalidate: a returning session with cached
     // real data boots straight onto it after a launch-screen blink, and the
     // refresh swaps live truth in behind the status chip (CONNECTING… → LIVE
@@ -904,6 +912,7 @@ export default class App extends Component {
   componentWillUnmount() {
     clearTimeout(this.bootT); clearInterval(this.refreshIv); clearInterval(this.streamWatchIv);
     clearTimeout(this.convSyncT); clearTimeout(this.convRetryT);
+    clearTimeout(this.eatOutDebounce); clearTimeout(this.eatOutPoll);
     Object.values(this.pollers || {}).forEach((p) => p.cancel());
     window.removeEventListener('keydown', this.keyH);
     window.removeEventListener('resize', this.resizeH);
@@ -1030,6 +1039,9 @@ export default class App extends Component {
     // logging anything he has eaten before, so its data cannot wait for him to
     // open a disclosure at the bottom of the screen — it loads on arrival.
     if (changed && screen === 'recipes' && this.state.liveFoodHistory == null) this.loadFoodHistory();
+    // the Pick-it-up catalogue summary is read on arrival too, never at boot:
+    // it is only ever looked at here
+    if (changed && screen === 'recipes' && this.state.liveEatOut == null) this.loadEatOut();
     const want = '#/' + screen;
     // pushState (not location.hash=) so this doesn't also fire hashchange and
     // double-set state; popstate covers the back button.
@@ -2515,6 +2527,107 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.foodHistory(conn).then(({ items }) => this.setState({ liveFoodHistory: items })).catch(() => {});
+  }
+  // PICK IT UP — the finder's actions. `prefill` is handed in by the vals
+  // with every action (the real day's { kcal, p }), and the params are built
+  // by the SAME helper the screen reads, so what the rings show is what is
+  // searched. Kept on the instance for the debounced search.
+  loadEatOut() {
+    const conn = getConnection();
+    if (!conn) return Promise.resolve();
+    return api.eatOut(conn).then((r) => this.setState({ liveEatOut: r })).catch(() => {});
+  }
+  openEatOut(prefill) {
+    if (prefill) this.eatOutPrefill = prefill;
+    this.setState({ eatOutOpen: true }, () => this.findEatOut());
+    if (this.state.liveEatOut == null) this.loadEatOut();
+  }
+  setEatOutBudget(field, value, prefill) {
+    if (prefill) this.eatOutPrefill = prefill;
+    const clean = String(value ?? '').replace(/[^0-9.]/g, '').slice(0, 5);
+    this.setState((st) => {
+      // the first edit freezes today's figures into the other fields, so
+      // changing the carbs does not blank the calories he never touched
+      const pre = this.eatOutPrefill || {};
+      const base = st.eatOutTouched ? st.eatOutBudget : { kcal: pre.kcal != null ? String(pre.kcal) : '', p: pre.p != null ? String(pre.p) : '', c: '', f: '' };
+      return { eatOutTouched: true, eatOutBudget: { ...base, [field]: clean } };
+    });
+    clearTimeout(this.eatOutDebounce);
+    this.eatOutDebounce = setTimeout(() => this.findEatOut(), 350);
+  }
+  toggleEatOutBrand(key, prefill) {
+    if (prefill) this.eatOutPrefill = prefill;
+    const cur = this.state.eatOutBrands || [];
+    this.setState({ eatOutBrands: cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key] }, () => this.findEatOut());
+  }
+  setEatOutKind(kind, prefill) {
+    if (prefill) this.eatOutPrefill = prefill;
+    if (kind === this.state.eatOutKind) return;
+    // a brand of the other kind stays selected out of sight otherwise, and
+    // silently narrows a search he can no longer see the reason for
+    const brands = this.state.liveEatOut?.brands || [];
+    const keep = (this.state.eatOutBrands || []).filter((k) => kind === 'all' || brands.find((b) => b.key === k)?.kind === kind);
+    this.setState({ eatOutKind: kind, eatOutBrands: keep }, () => this.findEatOut());
+  }
+  setEatOutMode(mode, prefill) {
+    if (prefill) this.eatOutPrefill = prefill;
+    if (mode === this.state.eatOutMode) return;
+    this.setState({ eatOutMode: mode }, () => this.findEatOut());
+  }
+  findEatOut() {
+    const conn = getConnection();
+    if (!conn) return;
+    clearTimeout(this.eatOutDebounce);
+    const params = eatOutParams(this.state, this.eatOutPrefill);
+    // a blank budget is not a search — the screen says so, and results from
+    // an older budget must not sit under a blank one pretending to answer it
+    if (!eatOutHasBudget(params)) { this.setState({ eatOutResults: null, eatOutBusy: false }); return; }
+    const seq = (this.eatOutSeq = (this.eatOutSeq || 0) + 1);
+    this.setState({ eatOutBusy: true });
+    api.eatOutFits(conn, params)
+      .then((r) => { if (seq === this.eatOutSeq) this.setState({ eatOutResults: r, eatOutBusy: false }); })
+      .catch((e) => { if (seq === this.eatOutSeq) { this.setState({ eatOutBusy: false }); this.toastMsg('Could not search the catalogue: ' + e.message); } });
+  }
+  refreshEatOut() {
+    const conn = getConnection();
+    if (!conn || this.state.eatOutRefreshJob) return;
+    api.eatOutRefresh(conn).then(({ jobId }) => {
+      this.setState({ eatOutRefreshJob: jobId });
+      const poll = () => {
+        this.eatOutPoll = setTimeout(() => {
+          api.eatOutRefreshJob(conn, jobId).then((j) => {
+            if (j.status === 'running') { poll(); return; }
+            this.setState({ eatOutRefreshJob: null });
+            if (j.status === 'error') { this.toastMsg('Catalogue refresh failed: ' + (j.error || 'unknown error')); return; }
+            this.loadEatOut().then(() => {
+              const s = this.state.liveEatOut;
+              this.toastMsg(s && s.total > 0
+                ? `Catalogue refreshed: ${s.total.toLocaleString()} items across ${s.brands.length} brand${s.brands.length === 1 ? '' : 's'}`
+                : 'Catalogue refresh finished, but nothing was added.');
+              if (this.state.eatOutOpen) this.findEatOut();
+            });
+          }).catch((e) => {
+            // a 404 means the server forgot the job (a restart) — stop, say so
+            if (e.status === 404) { this.setState({ eatOutRefreshJob: null }); this.toastMsg('The catalogue refresh was lost (the server restarted). Try again.'); return; }
+            poll();
+          });
+        }, 4000);
+      };
+      poll();
+    }).catch((e) => this.toastMsg('Could not start the catalogue refresh: ' + e.message));
+  }
+  // A result goes on the plate through the SAME portion sheet a recipe does
+  // (undoable, on the food log rails). A pair is one sheet with the summed
+  // macros and the joined name.
+  logEatOut(entry) {
+    if (!entry) return;
+    if (Array.isArray(entry.items)) {
+      const name = entry.items.map((it) => `${it.brand} · ${it.name}`).join(' + ');
+      const macros = entry.macros || entry.items.reduce((a, it) => ({ p: a.p + (it.macros?.p || 0), c: a.c + (it.macros?.c || 0), f: a.f + (it.macros?.f || 0), kcal: a.kcal + (it.macros?.kcal || 0) }), { p: 0, c: 0, f: 0, kcal: 0 });
+      this.openPortionSheet({ name, macros, source: 'eat-out' });
+      return;
+    }
+    this.openPortionSheet({ name: `${entry.brand} · ${entry.name}`, macros: entry.macros, source: 'eat-out' });
   }
   toggleFoodHistory() {
     const open = !this.state.foodHistoryOpen;

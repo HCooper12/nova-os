@@ -23,6 +23,7 @@ import { journalRouter } from './routes/journal.js';
 import { claudeCodeRouter } from './routes/claudeCode.js';
 import { healthDataRouter } from './routes/healthData.js';
 import { foodLogRouter } from './routes/foodLog.js';
+import { eatOutRouter } from './routes/eatOut.js';
 import { inboxRouter } from './routes/inbox.js';
 import { loopsRouter } from './routes/loops.js';
 import { todosRouter } from './routes/todos.js';
@@ -226,6 +227,7 @@ async function main() {
   app.use('/api', claudeCodeRouter({ repoPath: path.resolve(__dirname, '..'), vaultPath: process.env.VAULT_PATH }));
   app.use('/api', healthDataRouter(process.env.VAULT_PATH));
   app.use('/api', foodLogRouter(process.env.VAULT_PATH));
+  app.use('/api', eatOutRouter(process.env.VAULT_PATH)); // PICK IT UP — the takeaway/ready-meal catalogue and search
   app.use('/api', inboxRouter(process.env.VAULT_PATH));
   app.use('/api', loopsRouter(process.env.VAULT_PATH));
   app.use('/api', todosRouter(process.env.VAULT_PATH));

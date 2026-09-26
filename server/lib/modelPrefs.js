@@ -209,6 +209,11 @@ export const LANES = [
     off: 'Meal photo scanning is refused; log the meal by hand or from a recipe.',
   },
   {
+    id: 'eat-out-menu', label: 'Takeaway menu read', group: 'capture', def: 'sonnet',
+    hint: 'a chain’s published nutrition PDF into catalogue rows — code rejects any row whose numbers don’t add up',
+    off: 'Chains that only publish a PDF stay out of the takeaway catalogue; Open Food Facts brands still refresh.',
+  },
+  {
     id: 'paper', label: 'Study → program', group: 'coach', def: 'opus',
     hint: 'a paper read into claims, then judged against his real block — a change lands as a Coach proposal',
     off: 'Studies are refused; the Researcher can still read a link into a note.',

@@ -7,6 +7,7 @@ import { useDictation } from '../useDictation.js';
 import { useOptionPager } from '../swipeAction.js';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
+import { PickItUp } from './PickItUp.jsx';
 
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx;
 // filled buttons sentence-case in the UI face under the Apple styles
@@ -394,6 +395,10 @@ export function Recipes({ v }) {
           <MacroLegend hero={v.fuelHero} />
         </div>
       )}
+
+      {/* PICK IT UP — the answer to the hero's "Fits N kcal left": every
+          chain and supermarket item that fits, prefilled from the real day */}
+      <PickItUp v={v} />
 
       {/* today so far — everything actually eaten, at a glance */}
       {!v.fuelHero && v.dayMacros && v.structured && <EatenTiles m={v.dayMacros} />}

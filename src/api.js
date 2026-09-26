@@ -225,6 +225,19 @@ export const api = {
   nutritionWeek: (conn) => call(conn, '/api/nutrition-week'),
   deleteRecipe: (conn, id) => del(conn, `/api/recipes/${encodeURIComponent(id)}`),
   foodHistory: (conn, days = 45) => call(conn, `/api/food-log/history?days=${days}`),
+  // PICK IT UP — the chain + supermarket catalogue, searched against what is
+  // left of today. Blank budget fields are OMITTED, never sent as 0: a 0 kcal
+  // budget is a claim, a missing one means "ignore this macro".
+  eatOut: (conn) => call(conn, '/api/eat-out'),
+  eatOutFits: (conn, params = {}) => {
+    const qs = Object.entries(params)
+      .filter(([, v]) => v != null && String(v).trim() !== '' && !(Array.isArray(v) && !v.length))
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(Array.isArray(v) ? v.join(',') : String(v).trim())}`)
+      .join('&');
+    return call(conn, `/api/eat-out/fits${qs ? `?${qs}` : ''}`);
+  },
+  eatOutRefresh: (conn) => post(conn, '/api/eat-out/refresh', {}),
+  eatOutRefreshJob: (conn, id) => call(conn, `/api/eat-out/refresh/${encodeURIComponent(id)}`),
   addFoodLogEntry: (conn, entry) => post(conn, '/api/food-log', entry),
   editFoodLogEntry: (conn, id, body) => patch(conn, `/api/food-log/${encodeURIComponent(id)}`, body),
   deleteFoodLogEntry: (conn, id, date) => del(conn, `/api/food-log/${encodeURIComponent(id)}${date ? `?date=${encodeURIComponent(date)}` : ''}`),
