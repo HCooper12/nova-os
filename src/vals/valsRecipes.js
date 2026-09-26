@@ -395,9 +395,17 @@ export function valsRecipes(app, ctx) {
     else if (!eatOutHasBudget(params)) emptyLine = prefill.kcal == null && prefill.p == null
       ? 'No calorie or protein target is set, so there is nothing to prefill. Type a budget.'
       : 'The budget is blank. Type at least one figure.';
-    else if (res && !results.length && !pairs.length) emptyLine = params.kcal === '0'
-      ? 'Today’s calories are spent. Type a budget to look anyway.'
-      : 'Nothing in the catalogue fits that budget.';
+    else if (res && !results.length && !pairs.length) {
+      const pNum = Number(params.p);
+      // at 8am the whole day's protein is still to go, and no single thing
+      // on a shelf carries 120 g of it — say that, rather than leave a
+      // silence that reads as "the catalogue is useless"
+      emptyLine = params.kcal === '0'
+        ? 'Today’s calories are spent. Type a budget to look anyway.'
+        : pNum >= 60 && st.eatOutMode !== 'pairs'
+          ? `Nothing on its own gets near ${Math.round(pNum)} g protein. Try Pairings, or type the protein for this one meal.`
+          : 'Nothing in the catalogue fits that budget.';
+    }
     return {
       available,
       open: !!st.eatOutOpen,
