@@ -427,3 +427,24 @@ the hologram core. Left out on purpose: corner brackets, mono micro-labels,
 the seconds clock, coloured card borders, the fold. Same markup as round 4;
 the material is still a variable set, so the eventual token change is the
 same size whichever he picks.
+
+## 10 · His decision (26 Sep, 20:5x)
+
+Shown mockup 56 (round 5) with round 4 and round 3 still open. His words:
+"Loving this! I love all of the round 5 options. Feels much calmer and
+more organised yet beautiful aesthetically. I'd like all of the round 5
+options to be variations I can change between. The glass effect is
+excellent too. I also quite liked round 4's glass day and night (possibly
+even with a natural cycle to change with the time of day), and the summary
+version from earlier. Practice and trends boxes I really like. Especially
+trends as something different but easily glanceable. The index is awesome
+too. Nova glass will likely be the main version I'll use. I still want the
+current appearance, layout etc to be an option for me to change it to if
+I want in future so ensure that's stable."
+
+**Decided.** The shape is the blend (mockup 55/56); the materials he can
+switch between are Nova glass (main), Nova night, Observatory, Apple glass
+with a day-to-night cycle, and Summary light; the Index replaces the More
+grid; the tab bar is the iOS 26 pill with Nova detached; the current
+appearance (cupertino × command) stays available, stable and default until
+he switches. The build contract is `design/HOME-REDESIGN-PLAN.md`.

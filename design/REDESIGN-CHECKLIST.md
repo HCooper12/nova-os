@@ -178,6 +178,7 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 ### TIER 1 · THE DAILY FIVE
 
 #### Home — `mission`
+**DECIDED 26 Sep:** rebuilt as the `summary` style per `design/HOME-REDESIGN-PLAN.md` (the blend: highlight · Pinned cards · Today strip · Trends · moments; five switchable materials; the Index as the More tab). The rows below are what the current idiom shows and stay the reference for parity; `cupertino` stays untouched.
 `src/screens/MissionStructured.jsx` (829 lines, cupertino: his phone) · `src/screens/MissionControl.jsx` (686, command) · one view model `src/vals/valsMission.js` · fold rules `src/missionFold.js` · focus rules `src/missionFocus.js`. Inventory: `00-inventory-a-home-chrome.md`.
 
 **How it is built.** One view model, two render trees. Cupertino renders grouped cards in one of three hour-dependent ORDERS (morning: body report leads; day: what-to-do-next leads; evening: Wrap the day leads) — `MissionStructured.jsx:42-47`; everything past the first two present sections folds to a header + status line + instrument glyph — `missionFold.js:29-119`; `working`, `plan`, `stuck` never fold. Command renders a fixed HUD order, unfolded, with a hero cluster and orbit rings. Sections absent from the data are absent from the screen (no placeholders).
@@ -555,6 +556,12 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — HOME DECIDED. He loves all of round 5; wants Nova glass
+  (main), Nova night, Observatory, Apple glass with a day→night cycle, and
+  Summary light as switchable options; keeps Practice and Trends; the Index;
+  the current appearance must stay available and stable. Build contract:
+  `design/HOME-REDESIGN-PLAN.md` (style `summary`, theme `sky`, material
+  glass|solid, hour band; phases P0–P5). Home rows stay [m] until P2 lands.
 - 26 Sep 2026 — his answer on round 4: combine with the current Nova
   aesthetic, without using all of it. Round 5 published:
   https://claude.ai/artifact/85jQqTxKucJg6XddXPFZsc (the blend in Nova glass /

@@ -49,8 +49,13 @@ Nothing photographed yet, no product code changed.**
   https://claude.ai/artifact/85jQqTxKucJg6XddXPFZsc (mockup 56: the blend in Nova
   glass / Nova night / Observatory + Apple glass reference; serif standfirst and
   highlight, domain ring hues, gold badge, hologram core kept; brackets, mono
-  micro-labels, clock, coloured borders, fold dropped). NEXT: his material pick
-  → the token-system change and the Home build, on his word. Open decisions: the two test to-dos in his vault; the dock centre.
+  micro-labels, clock, coloured borders, fold dropped). HOME DECIDED (20:5x): all of round 5 as switchable
+  options + round 4 glass day/night with an hour cycle + Summary light; Nova
+  glass his main; Practice, Trends and the Index kept; the CURRENT appearance
+  must stay available and stable. BUILD CONTRACT: design/HOME-REDESIGN-PLAN.md
+  (style `summary`, theme `sky`, material glass|solid, hour band, P0–P5; cupertino
+  × command untouched and default). NEXT: his go on the plan's open items, then
+  P0/P1. Open decisions: the two test to-dos in his vault; the dock centre.
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
   (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards
