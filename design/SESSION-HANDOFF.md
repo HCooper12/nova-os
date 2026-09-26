@@ -13,6 +13,33 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**26 SEP (afternoon, nova-os-83) — TWO OF HIS BUG REPORTS FIXED, pushed,
+deployed (Pages success on 10f4f0b), server reloaded, health 200.**
+
+- **Make-up day reverted after finishing (7089152).** Cause, from the server
+  log: filing the session deleted the make-up row, and the session was saved
+  as "Upper Body — makeup" under routineId `carryover` with no link back, so
+  (1) every surface fell back to Saturday's template and (2) re-choosing the
+  make-up re-derived Friday's leftovers. Now a finished make-up stores
+  `sourceRoutineId/Name`; `makeupDay.isMakeupOf` also reads the old name;
+  `leftoversOf` counts make-ups; `trainOverview.doneToday`; the week strip
+  says "✓ Made up", the gym hero leads with "Done today" and offers
+  "Also scheduled · Begin it anyway". VERIFIED on his real data: today's
+  session reads as made up, and re-choosing the make-up is refused with the
+  reason (checked read-only through the pure function, no write).
+- **Meal estimate could not be corrected (6840a59).** A correction was only
+  possible when the scan asked a question, and it re-uploaded the photo (his
+  "Load failed" was that upload never reaching the Mac). Now a "Refine" box
+  under every estimate, unlimited turns, text only (lane `food-refine`,
+  `server/lib/foodRefine.js`: code keeps untouched lines verbatim, derives
+  kcal, sums, diffs). VERIFIED: two real model corrections of his plate,
+  ~10 s each. ASSUMED: all of it on his phone.
+- **DO NOT:** treat a make-up session as an ordinary one of its routine: a
+  make-up only ever carries the leftovers, so counting it as "the last
+  session" would call everything else skipped.
+
+---
+
 **26 SEP (close, nova-os-83) — PICK IT UP (the takeaway finder, from the
 wolfecampbell reel he sent), CALORIE + PROTEIN RINGS on the Fuel hero, and
 a FIX FOR THE SERVER CRASHING ITSELF. All pushed (9a204d9), Pages success

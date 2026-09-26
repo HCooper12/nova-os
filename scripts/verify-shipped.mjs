@@ -131,6 +131,8 @@ const FEATURES = [
   ['Fuel · Pick it up, the takeaway finder (26 Sep)', 'What can I pick up?'],
   ['Fuel · Pick it up names why nothing fits (26 Sep)', 'Nothing on its own gets near'],
   ['Fuel · a calorie ring beside the protein ring (26 Sep)', 'calories: nothing logged'],
+  ['Train · a finished make-up keeps the day made up (26 Sep)', 'Also scheduled today ·'],
+  ['Fuel · correct a meal estimate in words, again and again (26 Sep)', 'Keep correcting as often as you like'],
 ];
 
 const SERVER_ROUTES = [
