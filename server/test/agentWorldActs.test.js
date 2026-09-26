@@ -16,7 +16,7 @@ import {
 const NAMES = Object.keys(ACTS);
 const TS = [0, 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9, 1];
 const ROLES = [null, 'host', 'visitor'];
-const BEINGS = ['commander', 'coach', 'cfo', 'guardian', 'researcher', 'watcher', 'librarian', 'mealprep', 'leader'];
+const BEINGS = ['commander', 'coach', 'cfo', 'guardian', 'researcher', 'watcher', 'librarian', 'mealprep', 'leader', 'practice'];
 
 // a rig that records, and a ctx whose writers record which handle each
 // write touched
@@ -144,7 +144,7 @@ const TK = {
   key: C('#fff2e2'), fill: C('#bcd4ff'), rim: C('#9fdcff'), shell: C('#c9d3e4'), em: 1, env: 0.72,
   stage: C('#0d1426'), gold: C('#e0b26a'), ink: C('#e8ecf6'), void: C('#06070d'),
   hue: {
-    cy: C('#59e6ff'), vi: C('#8f7bff'), mg: C('#ff7ad9'), good: C('#5fe8a8'), gold: C('#e0b26a'),
+    cy: C('#59e6ff'), vi: C('#8f7bff'), mg: C('#ff7ad9'), good: C('#5fe8a8'), gold: C('#e0b26a'), or: C('#ffa257'),
     chest: C('#ff8a7a'), back: C('#4fd1c5'), shoulders: C('#ffc46b'), quads: C('#7ab8ff'), calves: C('#8fd3ff'),
     abs: C('#ffd66b'), triceps: C('#b48cff'), biceps: C('#5fe8a8'), glutes: C('#c98bff'),
   },
@@ -159,7 +159,7 @@ function frameOn(rig, ov, name, t01, now, id) {
 }
 
 test('every rig exposes the arms and the props its acts reach for', () => {
-  const need = { commander: ['rose'], coach: ['bar'], cfo: ['chip'], guardian: ['lantern'], researcher: ['book', 'halves', 'hold', 'lens'], watcher: ['headphones'], librarian: ['drawer'], mealprep: ['pot', 'ladle'], leader: [] };
+  const need = { commander: ['rose'], coach: ['bar'], cfo: ['chip'], guardian: ['lantern'], researcher: ['book', 'halves', 'hold', 'lens'], watcher: ['headphones'], librarian: ['drawer'], mealprep: ['pot', 'ladle'], leader: [], practice: ['masks', 'card', 'racks'] };
   for (const a of kit.AGENTS) {
     const b = kit.BUILD[a.id](a);
     assert.ok(b.arms && b.arms.L && b.arms.R && b.arms.SL && b.arms.SR, `${a.id} has no arms to move`);
@@ -196,4 +196,53 @@ test('zero elapsed time moves nothing (a frozen clock never snaps an act)', () =
   const before = rig.arms.R.hand.position.clone();
   frameOn(rig, ov, 'fix-bowtie', 0.5, now, 'cfo');   // same `now`: no time has passed
   assert.ok(rig.arms.R.hand.position.distanceTo(before) < 1e-6, 'the hand moved in no time');
+});
+
+// PRACTICE'S RACK (AGENT-WORLD-PLAN §9a, and the memory's paid-for lesson: a
+// racked prop docks for EVERY non-working act, or it flies between the rack
+// and the hands on every idle beat). Both its props are in the sash for every
+// act but work; work draws the masks for a scene and the card for a page,
+// never both; and ending a scene lowers the mask before the sash takes it.
+test('Practice racks both masks and the card for every act but work, and each tell draws only its own prop', () => {
+  const a = kit.AGENTS.find((x) => x.id === 'practice');
+  const settle = (rig, ov, name, mode, now) => {
+    rig.workMode = mode;
+    for (let i = 0; i < 60; i++) { now += 1 / 30; frameOn(rig, ov, name, 0.5, now, 'practice'); }
+    return now;
+  };
+  const racked = (rig) => ['happy', 'worried', 'card'].map((k) => rig.props[k].position.distanceTo(rig.props.racks[k].pos) < 1e-6);
+  for (const name of NAMES.filter((n) => n !== 'work')) {
+    const rig = kit.BUILD.practice(a), ov = newOverlay();
+    settle(rig, ov, name, 'scene', 1);
+    assert.deepEqual(racked(rig), [true, true, true], `a prop is out of the sash during ${name}`);
+  }
+  const rig = kit.BUILD.practice(a), ov = newOverlay();
+  let now = settle(rig, ov, 'work', 'scene', 1);
+  assert.deepEqual(racked(rig), [false, false, true], 'a scene draws the two masks and leaves the card');
+  // the scene ends mid-beat with the mask up: it is lowered first, then racked
+  for (let i = 0; i < 40; i++) { now += 1 / 30; frameOn(rig, ov, 'work', 0.5, now, 'practice'); if (now % 5.2 > 1.5 && now % 5.2 < 2.5) break; }
+  let lowered = false;
+  for (let i = 0; i < 120; i++) {
+    now += 1 / 30; frameOn(rig, ov, 'rest', 0, now, 'practice');
+    const [h, w] = racked(rig);
+    if (!lowered && (h || w)) assert.fail('a mask went back to the sash before the scene\'s mask was down');
+    if (!h && !w && rig.props.worried.position.y < 0.6) lowered = true;
+    if (h && w) break;
+  }
+  assert.deepEqual(racked(rig), [true, true, true], 'the scene over, everything is back in the sash');
+  now = settle(rig, ov, 'work', 'prepare', now);
+  assert.deepEqual(racked(rig), [true, true, false], 'preparing draws the card and leaves the masks');
+  now = settle(rig, ov, 'work', 'scene', now);
+  assert.deepEqual(racked(rig), [false, false, true], 'from preparing to a scene: the card goes back, then the masks come out');
+});
+
+test('zero elapsed time moves none of Practice\'s props (a frozen clock never snaps a draw)', () => {
+  const a = kit.AGENTS.find((x) => x.id === 'practice');
+  const rig = kit.BUILD.practice(a), ov = newOverlay();
+  let now = 1;
+  for (let i = 0; i < 10; i++) { now += 1 / 30; frameOn(rig, ov, 'rest', 0, now, 'practice'); }
+  const before = rig.props.worried.position.clone();
+  rig.workMode = 'scene';
+  frameOn(rig, ov, 'work', 0.5, now, 'practice');   // same `now`: no time has passed
+  assert.ok(rig.props.worried.position.distanceTo(before) < 1e-9, 'the mask moved in no time');
 });

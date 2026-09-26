@@ -1,4 +1,4 @@
-// THE HABITAT: where the nine live (design/AGENT-WORLD-PLAN.md §9b).
+// THE HABITAT: where the ten live (design/AGENT-WORLD-PLAN.md §9b).
 //
 // A small SET on the back half of every district tile, in the beings' own
 // language (lathes, superquadrics, bevelled extrusions, swept tubes; never a
@@ -12,8 +12,9 @@
 // here exists in both.
 //
 // NO IDLE MOTION OF ITS OWN. The only things that move are the lamp fades
-// (~0.6 s), the plaza pulse (~0.8 s) and nothing else: tick() says when they
-// are done, so the frame loop can sleep. Walks, acts and the working tells
+// (~0.6 s, and with the stage lamp's fade its doors open), the plaza pulse
+// (~0.8 s) and nothing else: tick() says when they are done, so the frame
+// loop can sleep. Walks, acts and the working tells
 // belong to the life engine and the beings, never to the set.
 //
 // Pure scene-building: geometry, materials, anchors, lanes. No network, no
@@ -34,9 +35,14 @@ export const LAYOUT = {
 
 // Where each being stands today (scene.js's district map and SLOTS), which is
 // its `home` node on the lanes.
+// Mind has two since 26 Sep: the Leader on the left with its bench and
+// lantern, Practice on the right by its stage.
 export const HOMES = {
-  DISTRICT_OF: { commander: 'logistics', coach: 'train', cfo: 'money', guardian: 'platform', researcher: 'knowledge', watcher: 'knowledge', librarian: 'knowledge', mealprep: 'fuel', leader: 'mind' },
-  SLOTS: { knowledge: { researcher: [-0.62, 0.22], watcher: [0.62, 0.22], librarian: [0, -0.42] } },
+  DISTRICT_OF: { commander: 'logistics', coach: 'train', cfo: 'money', guardian: 'platform', researcher: 'knowledge', watcher: 'knowledge', librarian: 'knowledge', mealprep: 'fuel', leader: 'mind', practice: 'mind' },
+  SLOTS: {
+    knowledge: { researcher: [-0.62, 0.22], watcher: [0.62, 0.22], librarian: [0, -0.42] },
+    mind: { leader: [-0.46, 0.28], practice: [0.36, 0.6] },
+  },
 };
 
 export function tileRadius(id) { return LAYOUT.TILE_R[id] || 1.0; }
@@ -76,7 +82,7 @@ export const ANCHOR_NAMES = {
   fuel: ['work', 'rest', 'stove'],
   platform: ['work', 'rest', 'lanternDock', 'pad'],
   money: ['work', 'rest', 'stack'],
-  mind: ['work', 'rest', 'lantern'],
+  mind: ['work', 'rest', 'lantern', 'work:practice', 'rest:practice'],
 };
 
 const FADE_S = 0.6, PULSE_S = 0.8;
@@ -220,6 +226,8 @@ export function createHabitat(T, TK, kit) {
     if (L.night && L.part === 'night') t = 1;
     if (L.lit && L.litOn) t = Math.max(t, L.gain);
     if (L.pad && L.padOn) t = Math.max(t, 1);
+    // the stage lamp answers to one thing only: a scene is live
+    if (L.stage && L.stageOn) t = Math.max(t, 1);
     return t;
   }
   function paint(L) {
@@ -227,6 +235,7 @@ export function createHabitat(T, TK, kit) {
     L.m.emissiveIntensity = L.base * TK.em * k;
     L.halos.forEach((h) => { h.material.opacity = h.material.userData.baseOp * k; h.visible = k > 0.002; });
     L.soft.forEach((s) => { s.material.opacity = s.userData.op * k; s.visible = k > 0.002; });
+    if (L.onPaint) L.onPaint(k);
   }
   function retarget(L, snap) {
     const t = lampTarget(L);
@@ -753,16 +762,25 @@ export function createHabitat(T, TK, kit) {
     anchor(d, 'pad', -0.56, 0.035, 0.0, 0);
   }
 
-  // ---- MIND · a bench, a still pool, a paper lantern on a post ---------
+  // ---- MIND · the Leader's bench, still pool and paper lantern; Practice's
+  // stage mark and spotlight (26 Sep) --------------------------------------
+  // Two beings share the tile now, so it holds FOUR pieces, one more than
+  // §9b's three: the Leader's three are its work, its rest and its night
+  // lamp (acts walk to each), and Practice needs one thing of its own that
+  // says what it is from across the map, the lamp. Its mark is floor
+  // dressing (tape on the floor, like Knowledge's rug), not a piece. The
+  // Leader keeps the left (its bench, the pool's near edge where it rests,
+  // its lantern, its home), so none of its walks has a reason to cross the
+  // stage; Practice has the front and the right, the lamp at the right edge.
   function buildMind(d) {
     const acc = accOf('leader');
     // 1 · THE BENCH: where it sits and listens
-    const bench = piece(d, 'bench', -0.42, -0.34, 0, [0.28, 0.14]);
+    const bench = piece(d, 'bench', -0.58, -0.36, 0, [0.28, 0.14]);
     bench.add(parkBench(N.wood, d.S, 0.46));
 
     // 2 · THE STILL POOL: a stone rim, and water that is a mirror, the
     // Leader's own visor laid flat
-    const pool = piece(d, 'pool', 0.18, -0.46, 0, [0.32, 0.3]);
+    const pool = piece(d, 'pool', 0.22, -0.48, 0, [0.32, 0.3]);
     pool.add(M(lathe([[0.22, 0.0], [0.28, 0.0], [0.286, 0.03], [0.278, 0.058], [0.258, 0.066], [0.24, 0.058], [0.234, 0.034], [0.22, 0.03], [0.22, 0.0]], 64, false), N.stone));
     const water = new T.MeshPhysicalMaterial({ color: TK.stage.clone().lerp(d.hue, 0.18), roughness: 0.04, metalness: 0.9, clearcoat: 1, clearcoatRoughness: 0.02, iridescence: 0.3, iridescenceIOR: 1.5 });
     water.envMapIntensity = 1.5;
@@ -771,7 +789,7 @@ export function createHabitat(T, TK, kit) {
     pool.add(M(sq(0.034, 0.02, 0.03, 2.4), N.stone, 0.3, 0.02, 0.05));
 
     // 3 · THE PAPER LANTERN on a crook, lit every night
-    const lp = piece(d, 'lantern', -0.7, -0.08, 0, [0.12]);
+    const lp = piece(d, 'lantern', -0.72, -0.06, 0, [0.12]);
     lp.add(M(lathe([[1e-4, 0], [0.07, 0], [0.072, 0.012], [0.04, 0.024], [0.016, 0.04], [0.013, 0.6], [0.016, 0.66], [1e-4, 0.67]], 24), N.woodDark));
     lp.add(M(tube([[0, 0.64, 0], [0.012, 0.71, 0], [0.07, 0.735, 0], [0.12, 0.7, 0]], 0.009, { seg: 30 }), N.woodDark));
     const lant = new T.Group(); lant.position.set(0.12, 0.56, 0); lp.add(lant);
@@ -787,9 +805,127 @@ export function createHabitat(T, TK, kit) {
     glow(paper, lant, acc, 0.2, 0.5, 0, 0, 0.02);
     d.props.lantern = paper.m;
 
-    anchor(d, 'work', -0.42, 0.164, -0.36, 0, { sit: true });
-    anchor(d, 'rest', 0.62, 0, -0.28, -1.96);
+    anchor(d, 'work', -0.58, 0.164, -0.38, 0, { sit: true });
+    anchor(d, 'rest', -0.2, 0, -0.34, 1.89);
     anchorAt(d, 'lantern', lant, 0, 0, 0, 0);
+    buildStage(d);
+  }
+
+  // PRACTICE'S STAGE. The mark: two strips of tape crossed on the floor
+  // where it stands to perform, facing him. The lamp: a theatre spotlight
+  // (mockup 51's candidate 1: a dark can, a brass yoke and foot, a domed
+  // lens, two barn doors) on a floor stand, aimed at the mark. Dim when
+  // nothing is happening; while a scene is live, and only then, the doors
+  // open and the lens blooms in the practice hue, with a soft beam and a
+  // pool of light at the mark. Real colour, normal blending: additive light
+  // at this size is invisible on a dark ground (paid for, 24 Sep). The beam
+  // and the pool are light, not things: flagged `contact` so nothing walks
+  // round them and nothing fits the camera to them.
+  // the lamp stands back and to the right, aimed forward at the mark, so its
+  // lens turns toward the viewer and never stands in front of a being
+  const MARK = [0.26, 0.3], LAMP_AT = [0.62, -0.3];
+  function buildStage(d) {
+    const pa = agentOf('practice'), hue = kit.hueOf(pa);
+    // the mark (floor dressing)
+    const tapeM = vinyl(lighter(hue, 0.15), { rough: 0.8, coat: 0.1, sheen: 0.2 });
+    const tape = [-1, 1].map((s) => at(slab(0.2, 0.034, 0.004, 0.006, 0.0015), 0, 0, 0, 0, s * Math.PI / 4));
+    const mark = M(merge(tape), tapeM, MARK[0], 0.004, MARK[1]); mark.castShadow = false; d.floor.add(mark);
+    const ringG = new T.RingGeometry(0.165, 0.176, 56); ringG.rotateX(-Math.PI / 2);
+    const ring = M(ringG, vinyl(lighter(hue, 0.1).lerp(TK.stage, 0.45), { rough: 0.9, coat: 0, sheen: 0 }), MARK[0], 0.005, MARK[1]);
+    ring.castShadow = false; d.floor.add(ring);
+    d.props.mark = mark;
+
+    // the lamp (the piece), turned to face the mark
+    const aimYaw = Math.atan2(MARK[0] - LAMP_AT[0], MARK[1] - LAMP_AT[1]);
+    const lamp = piece(d, 'stageLamp', LAMP_AT[0], LAMP_AT[1], aimYaw, [0.1]);
+    const canM = vinyl(TK.void.clone().lerp(TK.stage, 0.5).lerp(TK.shell, 0.12), { rough: 0.4, metal: 0.5, coat: 0.8, coatR: 0.18, sheen: 0 });
+    const brass = N.brass;
+    // the stand: a weighted round foot, a turned stem
+    lamp.add(M(lathe([[1e-4, 0], [0.078, 0], [0.082, 0.012], [0.07, 0.024], [0.03, 0.034], [0.016, 0.05], [1e-4, 0.052]], 36), canM));
+    const STEM = 0.34, S = 1.22;
+    lamp.add(M(lathe([[1e-4, 0.04], [0.013, 0.04], [0.011, STEM * 0.5], [0.012, STEM - 0.01], [0.018, STEM], [1e-4, STEM + 0.004]], 18), brass));
+    // the head, at candidate 1's proportions: the yoke and the can on its pivot
+    const headG = new T.Group(); headG.position.y = STEM - 0.104 * S; headG.scale.setScalar(S); lamp.add(headG);
+    headG.add(M(tube([[-0.1, 0.205, 0], [-0.1, 0.14, 0], [-0.075, 0.112, 0], [0, 0.104, 0], [0.075, 0.112, 0], [0.1, 0.14, 0], [0.1, 0.205, 0]], 0.0105, { seg: 40 }), brass));
+    [-1, 1].forEach((s) => { const k = M(new T.CylinderGeometry(0.02, 0.02, 0.022, 20), brass, s * 0.1, 0.205, 0); k.rotation.z = Math.PI / 2; headG.add(k); });
+    const aim = new T.Group(); aim.position.y = 0.205; headG.add(aim);
+    const prof = [[0.001, -0.1], [0.03, -0.099], [0.055, -0.09], [0.07, -0.07], [0.074, -0.03], [0.074, 0.05], [0.08, 0.058], [0.084, 0.07], [0.084, 0.084], [0.072, 0.088]];
+    const canGeo = new T.LatheGeometry(prof.map((p) => new T.Vector2(p[0], p[1])), 40); canGeo.rotateX(Math.PI / 2);
+    aim.add(M(canGeo, canM));
+    [-0.045, -0.015].forEach((z) => { const r = M(new T.TorusGeometry(0.075, 0.009, 8, 40), brass, 0, 0, z); aim.add(r); });
+    aim.add(M(new T.TorusGeometry(0.079, 0.0095, 8, 40), brass, 0, 0, 0.086));
+    // the lens: a shallow dome, a lamp that is dark until a scene is live
+    // (kept under ~1: brighter, ACES tone-maps the tangerine to peach)
+    const lensL = dLamp(d, hue, 0.9, { stage: true, part: 'day' });
+    // off, it is dark glass (the base colour is not light; the emissive is)
+    lensL.m.color.copy(darker(hue, 0.14)); lensL.m.roughness = 0.2;
+    const lensGeo = new T.SphereGeometry(0.07, 32, 10, 0, Math.PI * 2, 0, 0.6); lensGeo.rotateX(Math.PI / 2);
+    const lens = M(lensGeo, lensL.m, 0, 0, 0.05); lens.scale.set(1, 1, 0.45); lens.castShadow = false; aim.add(lens);
+    // two barn doors, top and bottom, hinged on the rim (four read as a
+    // pinwheel at this size; two read as a hood). The pin is its own mesh
+    // turned on its own: rotating what add() returns rolled the whole door
+    // in the prototype.
+    const doors = [];
+    [0, Math.PI].forEach((rz) => {
+      const ringG2 = new T.Group(); ringG2.rotation.z = rz; ringG2.position.z = 0.088; aim.add(ringG2);
+      const hinge = new T.Group(); hinge.position.y = 0.084; ringG2.add(hinge);
+      const door = M(panel(0.17, 0.046, 0.004, 0.012, 0.0015), canM, 0, 0, 0.02); door.rotation.x = Math.PI / 2; hinge.add(door);
+      const pin = M(new T.CylinderGeometry(0.006, 0.006, 0.15, 10), brass); pin.rotation.z = Math.PI / 2; hinge.add(pin);
+      doors.push(hinge);
+    });
+    // aimed at the performer's chest on the mark
+    lamp.updateMatrixWorld(true);
+    const piv = new T.Vector3(); aim.getWorldPosition(piv); group.worldToLocal(piv);
+    const target = V(d.pos.x + MARK[0], 0.24, d.pos.z + MARK[1]);
+    const run = Math.hypot(target.x - piv.x, target.z - piv.z);
+    aim.rotation.x = Math.atan2(piv.y - target.y, run);
+    // the beam and the pool: light, not things
+    const beamTex = kit.tex('habitat-beam', (x, w, h) => {
+      const gr = x.createLinearGradient(0, 0, 0, h);
+      // an alphaMap reads the GREEN channel: the fade is drawn in grey
+      gr.addColorStop(0, '#fff'); gr.addColorStop(0.55, '#6a6a6a'); gr.addColorStop(1, '#000');
+      x.fillStyle = gr; x.fillRect(0, 0, w, h);
+    }, 8, 128);
+    const BL = Math.hypot(run, piv.y - target.y) / S;
+    const beamGeo = new T.CylinderGeometry(0.066, 0.24, BL, 32, 1, true); beamGeo.translate(0, -BL / 2, 0); beamGeo.rotateX(-Math.PI / 2);
+    const beamM = new T.MeshBasicMaterial({ color: hue.clone(), alphaMap: beamTex, transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide });
+    const beam = new T.Mesh(beamGeo, beamM); beam.position.z = 0.09; beam.renderOrder = 3; beam.visible = false;
+    beam.userData.contact = true; aim.add(beam);
+    const poolTex = kit.tex('habitat-stage-pool', (x, w, h) => {
+      // grey on black, for the same reason as the beam
+      const gr = x.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(0.55, '#8a8a8a'); gr.addColorStop(1, '#000');
+      x.fillStyle = gr; x.fillRect(0, 0, w, h);
+    }, 64, 64);
+    const poolM = new T.MeshBasicMaterial({ color: hue.clone(), alphaMap: poolTex, transparent: true, opacity: 0, depthWrite: false });
+    const glowPool = new T.Mesh(new T.PlaneGeometry(0.72, 0.72), poolM); glowPool.rotation.x = -Math.PI / 2;
+    glowPool.position.set(MARK[0], 0.008, MARK[1]); glowPool.renderOrder = 2; glowPool.visible = false; glowPool.userData.contact = true;
+    d.floor.add(glowPool);
+    // the bloom: a soft disc of the lens's own colour that faces whoever
+    // looks, so the lit lamp reads from above and behind too (normal
+    // blending, alpha from a grey ramp: the additive kind vanishes here)
+    const bloomM = new T.SpriteMaterial({ color: hue.clone(), alphaMap: poolTex, transparent: true, opacity: 0, depthWrite: false });
+    const bloom = new T.Sprite(bloomM); bloom.scale.setScalar(0.26 / S); bloom.position.z = 0.1; bloom.renderOrder = 4; bloom.visible = false;
+    aim.add(bloom);
+    // and a real light on whoever stands there (0 until lit)
+    const spot = new T.SpotLight(lighter(hue, 0.2).getHex(), 0, 1.6, 0.42, 0.6, 2);
+    spot.castShadow = false; spot.position.set(0, 0, 0.09); aim.add(spot);
+    const spotTarget = new T.Object3D(); spotTarget.position.set(MARK[0], 0.2, MARK[1]); d.group.add(spotTarget); spot.target = spotTarget;
+    lensL.onPaint = (k) => {
+      // idle, the doors droop shut over the lens; lit, they flare open
+      doors.forEach((h) => { h.rotation.x = 0.8 - k * 1.15; });
+      beamM.opacity = k * 0.45; beam.visible = k > 0.01;
+      bloomM.opacity = k * 0.75; bloom.visible = k > 0.01;
+      poolM.opacity = k * 0.8; glowPool.visible = k > 0.01;
+      spot.intensity = k * 2.4;
+    };
+    lensL.onPaint(0);
+    d.setStage = (on) => { lensL.stageOn = !!on; retarget(lensL); };
+    d.stageLit = () => lensL.level;
+    d.props.stageLamp = lensL.m;
+    anchor(d, 'work:practice', MARK[0], 0, MARK[1], 0);
+    anchor(d, 'rest:practice', 0.5, 0, 0.44, -0.2);
   }
 
   const BUILDERS = { train: buildTrain, knowledge: buildKnowledge, logistics: buildLogistics, fuel: buildFuel, money: buildMoney, platform: buildPlatform, mind: buildMind };

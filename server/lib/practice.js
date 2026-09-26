@@ -613,6 +613,38 @@ export function updatePracticeState(fn) {
   return run;
 }
 
+// THE LIVE SCENE, for the Org Map (AGENT-WORLD-PLAN §9, the tenth being): a
+// scene that has not been debriefed (or undone) and whose newest turn, or its
+// start when nobody has spoken yet, is under fifteen minutes old. Read-only.
+// A minute of clock skew either way is tolerated, so a turn stamped a moment
+// after `now` was taken does not make a live scene look dead. Pure: the state
+// and the clock are handed in.
+export const LIVE_SCENE_MS = 15 * 60e3;
+const SKEW_MS = 60e3;
+export function liveSceneOf(state, now) {
+  let best = null;
+  for (const sc of Object.values(state?.scenes || {})) {
+    if (!sc || typeof sc !== 'object' || sc.ended || sc.undone) continue;
+    const started = Date.parse(sc.startedAt);
+    if (!Number.isFinite(started)) continue;
+    let turned = null;
+    for (const t of Array.isArray(sc.turns) ? sc.turns : []) {
+      const at = Date.parse(t?.at);
+      if (Number.isFinite(at) && (turned == null || at > turned)) turned = at;
+    }
+    const last = turned != null && turned > started ? turned : started;
+    const age = now - last;
+    if (age < -SKEW_MS || age > LIVE_SCENE_MS) continue;
+    if (!best || last > best.last) best = { last, startedAt: new Date(started).toISOString(), lastTurnAt: turned != null ? new Date(turned).toISOString() : null };
+  }
+  return best ? { startedAt: best.startedAt, lastTurnAt: best.lastTurnAt } : null;
+}
+// The same, off the state file. An absent or unreadable file is no scene:
+// honest absence, never a guess.
+export async function liveScene(now = Date.now()) {
+  try { return liveSceneOf(await readPracticeState(), now); } catch { return null; }
+}
+
 /* ------------------------------ the tallies ------------------------------- */
 
 // DERIVED, never stored as truth: every debriefed session line counts each

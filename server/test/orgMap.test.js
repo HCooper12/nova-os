@@ -1,14 +1,26 @@
 // The Org Map's view model (AGENT-WORLD-PLAN §3). Its whole promise is that
 // the picture is the records: every loop stands somewhere, every record kind
 // is someone's, and nothing is drawn working that is not.
+// ops.js and practice.js are stores: a temp data dir BEFORE they are imported.
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+const dataDir = await mkdtemp(path.join(tmpdir(), 'nova-orgmap-data-'));
+process.env.NOVA_DATA_DIR = dataDir;
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
+
+const {
   BEINGS, DISTRICTS, BEING_MEMBERS, KIND_BEING, UNFILED_KINDS, WORKING_MS,
   beingForRecord, composeOrgMap, orgHeadline,
-} from '../lib/orgMap.js';
-import { scheduledFleet, conversationalRoster, AGENT_DEPARTMENTS } from '../lib/ops.js';
-import { KIND_AGENT } from '../lib/fleetContext.js';
+} = await import('../lib/orgMap.js');
+const { scheduledFleet, conversationalRoster, AGENT_DEPARTMENTS } = await import('../lib/ops.js');
+const { KIND_AGENT } = await import('../lib/fleetContext.js');
+const { liveSceneOf, liveScene, LIVE_SCENE_MS } = await import('../lib/practice.js');
+
+test.after(async () => { await rm(dataDir, { recursive: true, force: true }); });
 
 const NOW = new Date('2026-09-25T02:00:00Z').getTime();
 const ago = (min) => new Date(NOW - min * 60e3).toISOString();
@@ -154,4 +166,71 @@ test('receipts is the filed-today count when composeOps hands one over, and null
 test('the same records in give the same map out', () => {
   const records = [{ id: 'x', kind: 'dispatch', status: 'pending', createdAt: ago(1) }];
   assert.deepEqual(composeOrgMap({ records, now: NOW }), composeOrgMap({ records, now: NOW }));
+});
+
+// ---- Practice, the tenth being (his pick, 26 Sep: the two masks) ---------
+
+test('practice records stand on Practice, in Mind with the Leader', () => {
+  for (const k of ['practice-skill', 'practice-session', 'practice-status']) assert.equal(beingForRecord({ kind: k }), 'practice', k);
+  assert.equal(BEINGS.find((b) => b.id === 'practice').district, 'mind');
+  const m = composeOrgMap({ records: [{ id: 'p', kind: 'practice-status', status: 'pending', createdAt: ago(2) }], now: NOW });
+  assert.equal(m.beings.find((b) => b.id === 'practice').waiting, 1);
+  assert.equal(m.beings.find((b) => b.id === 'leader').waiting, 0, 'not on the Leader any more');
+  assert.deepEqual(m.districts.find((d) => d.id === 'mind').beings, ['leader', 'practice']);
+  assert.ok(conversationalRoster().some((a) => a.id === 'practice'), 'Practice is on the conversational roster');
+  assert.deepEqual(AGENT_DEPARTMENTS.practice, ['Mind']);
+});
+
+test('workingMode: prepare while a page is being prepared, scene while a scene is live, null otherwise', () => {
+  const preparing = [{ id: 'pg', kind: 'practice-skill', status: 'classifying', createdAt: ago(2) }];
+  const p = (m) => m.beings.find((b) => b.id === 'practice');
+  let m = composeOrgMap({ records: preparing, now: NOW });
+  assert.equal(p(m).working, true);
+  assert.equal(p(m).workingMode, 'prepare');
+  const scene = { startedAt: ago(6), lastTurnAt: ago(1) };
+  m = composeOrgMap({ records: [], now: NOW, live: { practiceScene: scene } });
+  assert.equal(p(m).working, true, 'a live scene is work, though it is not a record');
+  assert.equal(p(m).workingMode, 'scene');
+  m = composeOrgMap({ records: preparing, now: NOW, live: { practiceScene: scene } });
+  assert.equal(p(m).workingMode, 'scene', 'a live scene wins: it is what he is doing');
+  m = composeOrgMap({ records: [], now: NOW });
+  assert.equal(p(m).working, false);
+  assert.equal(p(m).workingMode, null);
+  // stuck is not working, and nobody else has a mode
+  const stuck = [{ id: 'old', kind: 'practice-skill', status: 'classifying', createdAt: ago(WORKING_MS / 60e3 + 5) }];
+  assert.equal(p(composeOrgMap({ records: stuck, now: NOW })).workingMode, null);
+  m = composeOrgMap({ records: [{ id: 'v', kind: 'video', status: 'classifying', createdAt: ago(1) }], now: NOW, live: { practiceScene: scene } });
+  assert.equal(m.beings.find((b) => b.id === 'watcher').workingMode, null);
+  assert.equal(m.beings.find((b) => b.id === 'leader').working, false, 'the scene is Practice\'s, not the Leader\'s');
+});
+
+test('a filed practice session is a delivery the map acts out', () => {
+  const { events } = composeOrgMap({ records: [{ id: 's', kind: 'practice-session', status: 'filed', createdAt: ago(1), filedAt: ago(1), auto: true }], now: NOW });
+  assert.deepEqual(events[0], { id: 's:filed', at: ago(1), source: 'record', being: 'practice', kind: 'practice-session', status: 'filed', answered: false });
+});
+
+test('liveScene: not ended, spoken in the last fifteen minutes; ended, undone or older is not live', async () => {
+  const scenes = {
+    fresh: { slug: 'a', scenario: 'x', startedAt: ago(40), turns: [{ who: 'you', at: ago(30) }, { who: 'partner', at: ago(3) }], ended: false },
+    quiet: { slug: 'a', scenario: 'x', startedAt: ago(60), turns: [{ who: 'you', at: ago(16) }], ended: false },
+    done: { slug: 'a', scenario: 'x', startedAt: ago(5), turns: [{ who: 'you', at: ago(1) }], ended: true },
+    undone: { slug: 'a', scenario: 'x', startedAt: ago(5), turns: [], ended: false, undone: true },
+  };
+  assert.deepEqual(liveSceneOf({ scenes }, NOW), { startedAt: ago(40), lastTurnAt: ago(3) });
+  assert.equal(liveSceneOf({ scenes: { quiet: scenes.quiet } }, NOW), null, 'sixteen minutes of silence is over');
+  assert.equal(liveSceneOf({ scenes: { done: scenes.done, undone: scenes.undone } }, NOW), null);
+  // a scene nobody has spoken in yet is live from its start, for fifteen minutes
+  const just = { slug: 'a', scenario: 'x', startedAt: ago(2), turns: [], ended: false };
+  assert.deepEqual(liveSceneOf({ scenes: { just } }, NOW), { startedAt: ago(2), lastTurnAt: null });
+  assert.equal(liveSceneOf({ scenes: { just: { ...just, startedAt: new Date(NOW - LIVE_SCENE_MS - 1000).toISOString() } } }, NOW), null);
+  // a turn stamped a moment after `now` was taken is still live
+  assert.ok(liveSceneOf({ scenes: { just: { ...just, turns: [{ at: new Date(NOW + 2000).toISOString() }] } } }, NOW));
+  assert.equal(liveSceneOf({ scenes: { bad: { startedAt: 'not a date', turns: [] } } }, NOW), null);
+  assert.equal(liveSceneOf(null, NOW), null);
+  // off the file: none, then a corrupt one, then a real one
+  assert.equal(await liveScene(NOW), null, 'no file is no scene');
+  await writeFile(path.join(dataDir, 'practice.json'), '{not json', 'utf8');
+  assert.equal(await liveScene(NOW), null, 'an unreadable file is no scene');
+  await writeFile(path.join(dataDir, 'practice.json'), JSON.stringify({ scenes: { fresh: scenes.fresh }, tallies: {} }), 'utf8');
+  assert.deepEqual(await liveScene(NOW), { startedAt: ago(40), lastTurnAt: ago(3) });
 });

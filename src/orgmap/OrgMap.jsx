@@ -1,4 +1,4 @@
-// THE ORG MAP on the Ops screen (AGENT-WORLD-PLAN §3, step C): the nine
+// THE ORG MAP on the Ops screen (AGENT-WORLD-PLAN §3, step C): the ten
 // beings on their districts, a marker over each one that is waiting on him
 // with the real count, and a tap that says what it is asking.
 //
@@ -118,7 +118,7 @@ export function OrgMap({ v }) {
   // the app re-renders often; the scene only hears about a real change:
   // a pose, a count, a loop that ran, a record that moved, the day, the stack
   const signature = useMemo(() => JSON.stringify([
-    v.beings.map((b) => [b.id, b.pose, b.waiting, b.dim, b.fresh, (b.members || []).map((m) => m.state).join('')]),
+    v.beings.map((b) => [b.id, b.pose, b.workingMode, b.waiting, b.dim, b.fresh, (b.members || []).map((m) => m.state).join('')]),
     v.core.waiting, (v.events || []).map((e) => e.id).join(','), v.seed, v.receipts,
   ]), [v.beings, v.core, v.events, v.seed, v.receipts]);
   useEffect(() => { sceneRef.current?.update(v); }, [signature, rebuild]); // eslint-disable-line react-hooks/exhaustive-deps

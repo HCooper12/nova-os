@@ -10,7 +10,7 @@
 <!--
   50 · THE AGENT WORLD: THE HABITAT (25 Sep)
   design/AGENT-WORLD-PLAN.md §9b and §9c. The seven tiles exactly as the Org
-  Map draws them (src/orgmap/scene.js), the nine beings on their home spots,
+  Map draws them (src/orgmap/scene.js), the ten beings on their home spots,
   and what this pass adds: a small set on the back half of every tile, the
   lanes (a ring through the tiles' inner edges, spokes, the plaza ring), the
   plaza (two benches, the post, lamps at the four nearest spoke ends) and the
@@ -29,6 +29,7 @@
 
   Hash: daypart=dawn|day|evening|night, district=<id> (a close-up of one
   tile from the front-right at eye level), lit=1 (every district lamp on),
+  scene=1 (a live scene forced: Practice on its mark, the spotlight open),
   spin, elev, t, calm=1, motion=reduce. __agentSheet.still() draws a
   deterministic frame now (headless Chrome barely drives rAF).
 -->
@@ -46,6 +47,7 @@
     --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
     --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
     --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
+    --nv-or:#ffa257;   /* PRACTICE, src/index.css command theme */
     --nv-good:#5fe8a8; --nv-warn:#e08383;
     --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-shoulders:#ffc46b;
     --nv-m-quads:#7ab8ff; --nv-m-calves:#8fd3ff; --nv-m-abs:#ffd66b;
@@ -172,7 +174,7 @@
 
 <header>
   <h1>The Agent World <em>· habitat</em></h1>
-  <span class="kicker">where the nine live · §9b</span>
+  <span class="kicker">where the ten live · §9b</span>
 </header>
 
 <div id="tools">
@@ -201,7 +203,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 <script type="module">
 import { createBeingKit } from '../../src/agentWorld/beings.js';
-import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
+import { createHabitat, LAYOUT, HOMES } from '../../src/agentWorld/habitat.js';
 (function () {
   'use strict';
   if (!window.THREE) { document.getElementById('fallback').style.display = 'grid'; return; }
@@ -223,7 +225,7 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
     TK.stage = c('--nv-stage'); TK.edge = c('--nv-cy'); TK.void = c('--nv-void');
     TK.em = f('--nv-emissive', 1); TK.env = f('--nv-env', .72);
     TK.hue = {
-      cy: c('--nv-cy'), vi: c('--nv-vi'), mg: c('--nv-mg'), good: c('--nv-good'), gold: c('--nv-gold'),
+      cy: c('--nv-cy'), vi: c('--nv-vi'), mg: c('--nv-mg'), good: c('--nv-good'), gold: c('--nv-gold'), or: c('--nv-or'),
       chest: c('--nv-m-chest'), back: c('--nv-m-back'), shoulders: c('--nv-m-shoulders'),
       quads: c('--nv-m-quads'), calves: c('--nv-m-calves'), abs: c('--nv-m-abs'),
       triceps: c('--nv-m-triceps'), biceps: c('--nv-m-biceps'), glutes: c('--nv-m-glutes')
@@ -301,7 +303,7 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
 
   // ---------------------------------------------------------------
   // THE WORLD: the core and the tiles exactly as scene.js draws them, the
-  // habitat, the nine at home. Rebuilt whole when the tokens change.
+  // habitat, the ten at home. Rebuilt whole when the tokens change.
   // ---------------------------------------------------------------
   var LABEL = { train: 'Train', knowledge: 'Knowledge', logistics: 'Logistics', fuel: 'Fuel', platform: 'Platform', money: 'Money', mind: 'Mind' };
   function textSprite(text, col, height) {
@@ -326,7 +328,7 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
   }
 
   var world = null, kit = null, habitat = null, tiles = {}, core = null, BEINGS = [];
-  var W = { lit: false };
+  var W = { lit: false, scene: false };
   function buildWorld() {
     if (world) {
       habitat.dispose();
@@ -375,25 +377,32 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
     habitat = createHabitat(T, TK, kit);
     world.add(habitat.group);
 
-    // the nine, at home, waiting, markers hidden, holding still
+    // the ten, at home, waiting, markers hidden, holding still (Practice, in
+    // a forced scene, on its mark with the worried mask up)
     BEINGS = [];
     kit.AGENTS.forEach(function (a) {
       var b = kit.BUILD[a.id](a);
-      var home = habitat.lanes.nodes['home:' + a.id];
-      var holder = new T.Group(); holder.position.copy(home); holder.scale.setScalar(LAYOUT.BEING_SCALE);
+      var district = HOMES.DISTRICT_OF[a.id];
+      var inScene = W.scene && a.id === 'practice';
+      var spot = inScene ? habitat.districts[district].anchors['work:practice'] : null;
+      var home = spot ? spot.pos : habitat.lanes.nodes['home:' + a.id];
+      var holder = new T.Group(); holder.position.set(home.x, 0, home.z); holder.scale.setScalar(LAYOUT.BEING_SCALE);
       holder.add(b.group); world.add(holder);
       b.marker.visible = false;
       kit.setSnap(true);
-      if (b.tell) b.tell(1, false, true);
+      if (inScene) b.workMode = 'scene';
+      if (b.tell) b.tell(inScene ? 2 : 1, inScene, true);
       kit.setSnap(false);
       b.face.blink = 0; b.face.sacc.set(0, 0);
-      kit.face3(b.face, false, 0);
+      kit.face3(b.face, inScene, 0);
       b.head.rotation.set((b.headPitch || 0) - 0.74 * 0.12, b.headYaw || 0, b.headRoll || 0);
-      BEINGS.push({ a: a, b: b, holder: holder, district: { commander: 'logistics', coach: 'train', cfo: 'money', guardian: 'platform', researcher: 'knowledge', watcher: 'knowledge', librarian: 'knowledge', mealprep: 'fuel', leader: 'mind' }[a.id] });
+      if (b.afterHead) { holder.updateMatrixWorld(true); b.afterHead(); }
+      BEINGS.push({ a: a, b: b, holder: holder, district: district });
     });
 
     habitat.setDaypart(DAYPART);
     LAYOUT.ORDER.forEach(function (id) { habitat.districts[id].setLit(W.lit); });
+    habitat.districts.mind.setStage(!!W.scene);
     habitat.settle();
     lightFor(DAYPART);
     measure();
@@ -545,7 +554,7 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
     fuel: ['A counter with a stove ring, two pans on a hook, a crate of produce.', 'The stove ring lights when a Fuel loop ran today.'],
     money: ['A counting desk with a banker\'s lamp and a ledger stand, a coin stack, a safe.', 'The desk lamp lights when a Money loop ran today. The stack is a fixed five until the month\'s receipt count is known.'],
     platform: ['A watchtower with a lantern housing, a vault door, the overnight pad.', 'The tower burns every night. The vault ring lights when a Guardian loop ran today; the pad, 03:30 to 06:00, when overnight work is queued.'],
-    mind: ['A bench, a still pool with a mirror surface, a paper lantern on a crook.', 'The lantern burns every night, and by day when a Mind loop ran today.']
+    mind: ['The Leader\'s bench, still pool and paper lantern; Practice\'s mark taped on the floor and a theatre spotlight aimed at it.', 'The lantern burns every night, and by day when a Mind loop ran today. The spotlight opens only while a scene is live.']
   };
   function caption() {
     var k = document.getElementById('cap-kicker'), n = document.getElementById('cap-name'), l = document.getElementById('cap-line'), lt = document.getElementById('cap-lit');
@@ -699,6 +708,7 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
     if (q.motion === 'reduce') { reduce = true; bMotion.setAttribute('aria-pressed', 'true'); }
     if (q.daypart) setDaypart(q.daypart);
     if (q.lit === '1') setLit(true);
+    if (q.scene === '1') { W.scene = true; buildWorld(); if (q.daypart) setDaypart(q.daypart); }
     if (q.spin != null) userSpin = parseFloat(q.spin) || 0;
     if (q.district) setFocus(q.district);
     if (q.elev != null) view.elevT = parseFloat(q.elev);
@@ -732,6 +742,8 @@ import { createHabitat, LAYOUT } from '../../src/agentWorld/habitat.js';
     elev: function (v) { view.elevT = v; reframe(false); },
     daypart: setDaypart,
     lit: setLit,
+    // a live scene, forced: Practice on its mark with the mask up, the lamp open
+    scene: function (on) { W.scene = !!on; var f = focus; buildWorld(); setFocus(f); reframe(true); draw(); return W.scene; },
     district: function (id) { setFocus(id || null); },
     pulse: function () { habitat.plaza.pulse(performance.now() / 1000); invalidate(); },
     report: report,

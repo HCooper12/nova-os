@@ -1,4 +1,4 @@
-// THE NINE — one species, nine beings.
+// THE TEN — one species, ten beings (nine from §3g, and Practice, 26 Sep).
 //
 // The single source for Nova's agent characters. Two things draw them: the
 // character sheet (design/mockups/49-agent-characters.html, where he judges
@@ -110,7 +110,7 @@ export function createBeingKit(T, TK) {
 
 
   // ---------------------------------------------------------------
-  // THE NINE (§3g, in table order).
+  // THE TEN (§3g, in table order, then Practice, his pick of 26 Sep).
   // `hue` is the department's, and is dominant. `accent` is this pass's
   // addition: a SECOND hue per being, so no two read alike even with the
   // silhouette taken away. Both are --nv-* tokens; neither is invented.
@@ -152,7 +152,11 @@ export function createBeingKit(T, TK) {
     { id: 'leader', name: 'Leader', dept: 'Mind', hue: 'mg', accent: 'vi', skin: 'glaze',
       line: 'Listens back over the struggle, then asks the question you avoided.',
       work: 'Working: it nods as it listens, and a ripple goes out from the question.',
-      wait: 'Waiting: head tilted to its listening ear, holding the question.' }
+      wait: 'Waiting: head tilted to its listening ear, holding the question.' },
+    { id: 'practice', name: 'Practice', dept: 'Mind', hue: 'or', accent: 'gold', skin: 'glaze',
+      line: 'Plays the other person so you can try the sentence before it counts.',
+      work: 'Working: in a scene it lifts the worried mask and plays the other person; preparing a page, it reads the cue card and turns it over.',
+      wait: 'Waiting: both masks tucked in its sash, the card at its hip, hands folded, its own face smiling.' }
   ];
 
 
@@ -1408,6 +1412,11 @@ export function createBeingKit(T, TK) {
   // a shape extruded and then bent onto a body of radius R, so a badge
   // sits ON a round chest instead of cutting a chord through it
   function rrect(w, h, r) { var s2 = new T.Shape(); s2.moveTo(-w / 2 + r, -h / 2); s2.lineTo(w / 2 - r, -h / 2); s2.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r); s2.lineTo(w / 2, h / 2 - r); s2.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2); s2.lineTo(-w / 2 + r, h / 2); s2.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r); s2.lineTo(-w / 2, -h / 2 + r); s2.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2); return s2; }
+  // a rounded-rectangle card or band, `d` thick, centred on its own plane
+  function rrSlab(w, h, d, r) {
+    var g2 = new T.ExtrudeGeometry(rrect(w, h, r), { depth: d, bevelEnabled: true, bevelThickness: d * 0.35, bevelSize: d * 0.35, bevelSegments: 2, curveSegments: 6 });
+    g2.translate(0, 0, -d / 2); g2.computeVertexNormals(); return g2;
+  }
   // a fin standing on the crown: the helmet's own profile (x = 0) as the
   // base edge, pushed out along the normal by h(t) for the top edge
   function crownFin(H, a0, a1, h, thick, mat) {
@@ -2065,6 +2074,338 @@ export function createBeingKit(T, TK) {
     return b;
   };
 
+  // 10 · PRACTICE — the rehearsal partner (his pick, 26 Sep, from mockup 51:
+  //      "the two masks is hilarious"). Two small masks on sticks, a smiling
+  //      one for itself and a worried one for the other person, with painted
+  //      features and no eye holes (holes are what make a mask creepy); a
+  //      two-sided cue card, the page of moves on one side and the line on
+  //      the other; a velvet sash they ride in. Two working tells, each tied
+  //      to its own real state, which the Org Map hands in as b.workMode:
+  //        'scene'   (a scene is live) the worried mask comes up over the
+  //                  face screen and it plays the other person, a small tilt
+  //                  and bob as it speaks, lowered between beats so its own
+  //                  face shows while he answers;
+  //        'prepare' (a page is being prepared) it reads the card, turns it
+  //                  over, and thinks about the line.
+  //      Off duty BOTH are racked, for every act: the masks tucked into the
+  //      sash at the back, fanned either side of the knot; the card slipped
+  //      under the sash at the left hip. A prop leaves its rack only in two
+  //      beats: the hand goes to it first, then it travels in the hand, so
+  //      nothing ever flies between the rack and a hand.
+  BUILD.practice = function (a) {
+    var hue0 = hueOf(a);
+    var b = makeBot(a, {
+      body: { y0: 0.07, baseR: 0.205, bellyR: 0.24, bellyY: 0.22, chestR: 0.24, chestY: 0.39, shR: 0.2, shY: 0.51, topR: 0.1, topY: 0.59 },
+      head: { hx: 0.32, hy: 0.28, hz: 0.295, n: 2.4, y: 0.815 },
+      screen: { w: 0.24, h: 0.16, y: -0.025, m: 3.0, rim: 0.09 },
+      // the back is where the masks ride; the knot and the two faces are
+      // its designed surface, so the service hatch would only be hidden
+      backPlate: false,
+      face: {
+        n: 2, gap: 0.09, ey: 0.0, round: 2.2, brow: { w: 0.046, t: 0.014, x: 0.002 },
+        cheekCol: lighter(hue0, 0.1).lerp(TK.hue.mg, 0.3),
+        // friendly: round eyes, the warmth in the lift of the brow and the
+        // tilt, never a narrowed eye
+        wait: { w: 0.05, h: 0.062, lid: 0, smile: 0.34, tilt: 0, browY: 0.036, browA: 0.04, cheek: 0.5 },
+        work: { h: 0.064, smile: 0.26, browY: 0.042, browA: -0.05, cheek: 0.55 }
+      },
+      coreY: 0.43, markerY: 1.44, footR: 0.44
+    });
+    var g = b.group, hue = b.hue, acc = b.acc, H = b.H, head = b.head;
+    var SC_Y = -0.025;
+
+    // THE SASH — velvet in the practice hue, worn at the waist and a little
+    // lower on the left, laid ON the body the whole way round (strap), the
+    // two ends meeting under the knot at the back
+    var sashM = new T.MeshPhysicalMaterial({ color: darker(hue, 0.26), roughness: 0.62, sheen: 0.55, sheenColor: hue.clone(), sheenRoughness: 0.35, clearcoat: 0.1 });
+    var SASH_Y = 0.235;
+    function sashY(th) { return SASH_Y + 0.022 * Math.sin(th); }
+    var sashCtrl = [];
+    for (var k = 0; k <= 12; k++) { var th = -Math.PI + k / 12 * Math.PI * 2; sashCtrl.push(V(Math.sin(th) * 0.32, sashY(th), Math.cos(th) * 0.32)); }
+    var sash = strap([b.body], sashCtrl, V(0, SASH_Y, 0), { w: 0.052, t: 0.014, off: 0.004, n: 84, mat: sashM });
+    g.add(sash);
+    // the knot at the back: a bow of two petals over the join, two tails
+    var knotHit = hug([b.body], V(0, SASH_Y, -0.4), V(0, SASH_Y, 0), 0.016);
+    var knot = new T.Group(); seat(knot, knotHit, 0); g.add(knot);
+    knot.add(mesh(GEO.sph, sashM, 0.03, 0.026, 0.02, 0, 0, 0.006));
+    [-1, 1].forEach(function (s) {
+      var petal = mesh(GEO.sph, sashM, 0.05, 0.03, 0.016, s * 0.048, 0.006, 0); petal.rotation.z = s * 0.28; knot.add(petal);
+      var tail = mesh(new T.CapsuleGeometry(0.016, 0.07, 4, 10), sashM, 1, 1, 0.45, s * 0.02, -0.062, -0.002); tail.rotation.z = s * 0.22; knot.add(tail);
+    });
+
+    // THE MASKS — each a rigid thing: a stick with its grip at the origin,
+    // up +y, a ribbon knot where it meets the chin, the mask facing +z
+    var SL = 0.13, MASK_UP = SL + 0.13;
+    function maskFace(kind) {
+      return tex('practice-mask-' + kind, function (x, w, h) {
+        x.fillStyle = '#ffffff'; x.fillRect(0, 0, w, h);
+        x.strokeStyle = '#2b2233'; x.fillStyle = '#2b2233'; x.lineCap = 'round'; x.lineWidth = w * 0.045;
+        var ey = h * 0.44, ex = w * 0.2;
+        if (kind === 'happy') {
+          [-1, 1].forEach(function (s) { x.beginPath(); x.arc(w / 2 + s * ex, ey + h * 0.03, w * 0.075, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); });
+          x.beginPath(); x.arc(w / 2, h * 0.6, w * 0.16, Math.PI * 0.15, Math.PI * 0.85); x.stroke();
+          x.fillStyle = 'rgba(255,120,120,.35)';
+          [-1, 1].forEach(function (s) { x.beginPath(); x.ellipse(w / 2 + s * w * 0.29, h * 0.58, w * 0.07, h * 0.04, 0, 0, 7); x.fill(); });
+        } else {
+          // worried, not tragic: round eyes, inner brows raised, a small wobble
+          [-1, 1].forEach(function (s) {
+            x.beginPath(); x.ellipse(w / 2 + s * ex, ey + h * 0.02, w * 0.05, h * 0.06, 0, 0, 7); x.fill();
+            x.beginPath(); x.moveTo(w / 2 + s * (ex + w * 0.08), ey - h * 0.1); x.lineTo(w / 2 + s * (ex - w * 0.06), ey - h * 0.14); x.stroke();
+          });
+          x.beginPath(); x.moveTo(w / 2 - w * 0.1, h * 0.72); x.quadraticCurveTo(w / 2 - w * 0.05, h * 0.68, w / 2, h * 0.7); x.quadraticCurveTo(w / 2 + w * 0.05, h * 0.72, w / 2 + w * 0.1, h * 0.69); x.stroke();
+        }
+      }, 256, 256);
+    }
+    var maskGeo = new T.SphereGeometry(1, 36, 28, Math.PI / 2 - 0.75, 1.5, Math.PI / 2 - 0.85, 1.7);
+    var stickM = metalMat(lighter(acc, 0.05), 0.3);
+    var ribbonM = new T.MeshPhysicalMaterial({ color: hue.clone(), roughness: 0.6, sheen: 1, sheenColor: lighter(hue, 0.4) });
+    function makeMask(kind, col) {
+      var rig = new T.Group();
+      var m = new T.Group(); m.position.set(0, MASK_UP, 0.02); rig.add(m);
+      var front = new T.Mesh(maskGeo, new T.MeshPhysicalMaterial({ color: col, map: maskFace(kind), roughness: 0.35, clearcoat: 0.9, clearcoatRoughness: 0.15 }));
+      front.scale.set(0.185, 0.168, 0.085); front.position.z = -0.055; front.castShadow = true; m.add(front);
+      var back = new T.Mesh(maskGeo, new T.MeshPhysicalMaterial({ color: darker(col, 0.55), roughness: 0.5, side: T.BackSide }));
+      back.scale.copy(front.scale); back.position.copy(front.position); m.add(back);
+      rig.add(mesh(GEO.cyl, stickM, 0.0068, SL, 0.0068, 0, SL / 2, 0));
+      rig.add(mesh(GEO.sph, stickM, 0.011, 0.011, 0.011, 0, 0, 0));
+      rig.add(mesh(GEO.sph, ribbonM, 0.017, 0.014, 0.014, 0, SL, 0));
+      rig.userData.mask = m;
+      g.add(rig);
+      return rig;
+    }
+    var happy = makeMask('happy', lighter(TK.shell, 0.55)), worried = makeMask('worried', lighter(acc, 0.25));
+
+    // THE CUE CARD — the page of moves on the side it reads, the line it is
+    // about to try on the other, marked in the accent. Its origin is the
+    // grip, the middle of its bottom edge, where the left hand holds it.
+    var BW = 0.13, BH = 0.175, GRIP_UP = BH / 2 - 0.02;
+    var hueHex = '#' + hue.getHexString(), accHex = '#' + acc.getHexString();
+    var card = new T.Group(); g.add(card);
+    var stockM = new T.MeshPhysicalMaterial({ color: lighter(hue, 0.55), roughness: 0.7, clearcoat: 0.2, sheen: 0.4, sheenColor: 0xffffff });
+    var cm = new T.Mesh(rrSlab(BW, BH, 0.005, 0.012), stockM); cm.position.y = GRIP_UP; cm.castShadow = true; card.add(cm);
+    var movesTex = tex('practice-moves' + hueHex + accHex, function (x, w, h) {
+      x.fillStyle = '#f6f1e6'; x.fillRect(0, 0, w, h);
+      x.fillStyle = hueHex; x.fillRect(w * 0.1, h * 0.08, w * 0.5, h * 0.05);
+      var rows = [0.22, 0.29, 0.36, 0.5, 0.57, 0.71, 0.78, 0.85];
+      rows.forEach(function (y, i) {
+        x.fillStyle = i === 0 || i === 3 ? hueHex : 'rgba(40,36,48,.22)';
+        if (i === 0 || i === 3 || i === 5) { x.beginPath(); x.arc(w * 0.13, h * y + h * 0.012, w * 0.03, 0, 7); x.fill(); }
+        x.fillStyle = 'rgba(40,36,48,.5)'; x.fillRect(w * 0.2, h * y, w * (i % 3 === 2 ? 0.45 : 0.68), h * 0.024);
+      });
+      x.fillStyle = accHex; x.globalAlpha = 0.8; x.fillRect(w * 0.17, h * 0.5 - h * 0.012, w * 0.75, h * 0.05); x.globalAlpha = 1;
+    }, 256, 340);
+    var lineTex = tex('practice-line' + hueHex + accHex, function (x, w, h) {
+      x.fillStyle = '#f6f1e6'; x.fillRect(0, 0, w, h);
+      x.fillStyle = hueHex; x.font = 'italic 400 150px "Instrument Serif", Georgia, serif'; x.textBaseline = 'top';
+      x.fillText('“', w * 0.08, h * 0.02);
+      x.fillStyle = 'rgba(30,24,40,.8)';
+      [0.36, 0.48, 0.6].forEach(function (y, i) { x.fillRect(w * 0.12, h * y, w * (i === 2 ? 0.48 : 0.76), h * 0.045); });
+      x.fillStyle = accHex; x.fillRect(w * 0.12, h * 0.72, w * 0.76, h * 0.03);
+    }, 256, 340);
+    var cardFront = new T.Mesh(GEO.plane, new T.MeshStandardMaterial({ map: movesTex, roughness: 0.85 }));
+    cardFront.scale.set(BW - 0.016, BH - 0.016, 1); cardFront.position.set(0, GRIP_UP, 0.0056); card.add(cardFront);
+    var cardBack = new T.Mesh(GEO.plane, new T.MeshStandardMaterial({ map: lineTex, roughness: 0.85 }));
+    cardBack.scale.copy(cardFront.scale); cardBack.position.set(0, GRIP_UP, -0.0056); cardBack.rotation.y = Math.PI; card.add(cardBack);
+
+    // ---- the racks, measured on the body --------------------------------
+    var _bx = new T.Vector3(), _by = new T.Vector3(), _bz = new T.Vector3(), _bm = new T.Matrix4();
+    function basisQ(yDir, zHint, out) {
+      _by.copy(yDir).normalize();
+      _bz.copy(zHint).addScaledVector(_by, -zHint.dot(_by)).normalize();
+      _bx.crossVectors(_by, _bz);
+      _bm.makeBasis(_bx, _by, _bz);
+      return (out || new T.Quaternion()).setFromRotationMatrix(_bm);
+    }
+    // the masks: sticks tucked into the sash either side of the knot and
+    // leaning in, so the two faces meet over the bow (a smile and a worry,
+    // from behind) and stay inside the body's outline from the front; the
+    // smiling one rides a little proud of the worried one where they overlap
+    var RACK = {};
+    [['worried', 1, 0.024], ['happy', -1, 0.05]].forEach(function (p) {
+      var s = p[1], hit = hug([b.body], V(s * 0.15, SASH_Y - 0.035, -0.4), V(0, SASH_Y - 0.035, 0), p[2]);
+      RACK[p[0]] = { pos: hit.p, q: basisQ(V(-s * 0.06, 1, -0.12), V(s * 0.06, 0, -1)) };
+    });
+    // the card: slipped under the sash at the left hip, a keeper band over it
+    var cardHit = hug([b.body], V(-0.5, SASH_Y + 0.004, 0.14), V(0, SASH_Y + 0.004, 0), 0.02);
+    var cardUp = V(0, 1, 0).addScaledVector(cardHit.n, -cardHit.n.y).normalize();
+    RACK.card = { pos: cardHit.p.clone().addScaledVector(cardUp, -GRIP_UP), q: basisQ(cardUp, cardHit.n) };
+    var keeper = new T.Mesh(rrSlab(BW + 0.028, 0.05, 0.01, 0.012), sashM);
+    keeper.position.copy(cardHit.p).addScaledVector(cardHit.n, 0.012);
+    keeper.quaternion.copy(RACK.card.q); keeper.castShadow = true; g.add(keeper);
+
+    var SLs = V(-0.2, 0.48, 0), SRs = V(0.2, 0.48, 0);
+    var armL = b.arm(-1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
+    var armR = b.arm(1, { r0: 0.047, r1: 0.032, L1: 0.19, L2: 0.19 });
+    // the centre of a mitten's palm, where a stick or a card edge is held
+    function palmOf(arm, out) {
+      return out.set(0, arm.palm.position.y, 0).applyQuaternion(arm.hand.quaternion).add(arm.hand.position);
+    }
+    // put the PALM (not the wrist) on a point: solve once, measure how far
+    // the palm sits from the wrist, solve again with that taken off
+    var _po = new T.Vector3(), _pt = new T.Vector3();
+    function holdAt(arm, S, grip, pole, palm) {
+      arm.set(S, grip, pole, palm);
+      palmOf(arm, _po).sub(arm.last.H);
+      arm.set(S, _pt.copy(grip).sub(_po), pole, palm);
+    }
+
+    // ---- the ramps: 0 racked, 1 in hand, at a steady pace -----------------
+    // (a steady ramp, not an ease, so the two beats of a draw each get their
+    // share of the time; zero elapsed time moves nothing; a studio still
+    // snaps, as the pose store does)
+    var RAMP = 1.5;
+    var ramp = { masks: null, card: null, last: null, dt: 0, snap: true };
+    function stepRamps(t, wantM, wantC) {
+      if (ramp.masks == null || SNAP) { ramp.masks = wantM; ramp.card = wantC; ramp.last = t; ramp.dt = 0; ramp.snap = true; return; }
+      var dt = clamp(t - ramp.last, 0, 0.1); ramp.last = t; ramp.dt = dt; ramp.snap = false;
+      if (!(dt > 0)) return;
+      var st = RAMP * dt;
+      // one prop at a time: the card goes back before the masks come out,
+      // and the other way round
+      var tM = ramp.card > 0.001 ? 0 : wantM, tC = ramp.masks > 0.001 ? 0 : wantC;
+      ramp.masks += clamp(tM - ramp.masks, -st, st);
+      ramp.card += clamp(tC - ramp.card, -st, st);
+    }
+    var REACH = 0.4;                                   // the first beat of a draw
+    var _q1 = new T.Quaternion(), _q2 = new T.Quaternion(), _q3 = new T.Quaternion(), _e = new T.Euler();
+    var _g1 = new T.Vector3(), _g2 = new T.Vector3(), _g3 = new T.Vector3(), _hm = new T.Matrix4(), _rm = new T.Matrix4(), _one = new T.Vector3(1, 1, 1);
+    // a prop along its two beats: u in [0, REACH] the hand goes to the rack
+    // (the prop stays), u in [REACH, 1] the prop travels in the hand. Writes
+    // the prop's pose and returns where the palm goes.
+    // a path round the body, never through it: the angle about the body's
+    // axis and the distance from it are what change, with a little swing out
+    function arcLerp(p0, p1, v, bulge, out) {
+      var a0 = Math.atan2(p0.x, p0.z), a1 = Math.atan2(p1.x, p1.z), da = a1 - a0;
+      while (da > Math.PI) da -= 2 * Math.PI;
+      while (da < -Math.PI) da += 2 * Math.PI;
+      var r0 = Math.hypot(p0.x, p0.z), r1 = Math.hypot(p1.x, p1.z);
+      var an = a0 + da * v, r = r0 + (r1 - r0) * v + bulge * Math.sin(v * Math.PI);
+      return out.set(Math.sin(an) * r, p0.y + (p1.y - p0.y) * v, Math.cos(an) * r);
+    }
+    function draw(prop, rackPos, rackQ, heldPos, heldQ, restHand, u, out) {
+      if (u <= REACH) {
+        prop.position.copy(rackPos); prop.quaternion.copy(rackQ);
+        return arcLerp(restHand, rackPos, smooth01(u / REACH), 0.08, out);
+      }
+      var v = smooth01((u - REACH) / (1 - REACH));
+      arcLerp(rackPos, heldPos, v, 0.1, out);
+      prop.position.copy(out);
+      prop.quaternion.slerpQuaternions(rackQ, heldQ, v);
+      return out;
+    }
+
+    // the worn pose: the worried mask over the face screen, in the head's
+    // own frame, so a tilt of the head carries the mask with it
+    // a hair above the screen's centre: the map looks down on it, and there
+    // the parallax of the mask's standoff would show the eyes over its brow
+    var WORN = V(0, SC_Y + 0.008, H.hz + 0.05);
+    function wornGrip(m, outPos, outQ) {
+      outQ.setFromRotationMatrix(_rm.extractRotation(m));
+      outPos.set(WORN.x, WORN.y - MASK_UP, WORN.z - 0.02).applyMatrix4(m);
+    }
+    var st = { up: 0, uM: 0, rest: { L: V(-0.035, 0.3, 0.3), R: V(0.035, 0.3, 0.3) }, lowR: V(), lowQR: new T.Quaternion() };
+    var _hand = new T.Vector3(), _held = new T.Vector3(), _heldQ = new T.Quaternion();
+    // the right hand and the worried mask, from a head matrix (the tell's
+    // own estimate; afterHead() redoes it once the head has really turned)
+    function placeRight(m) {
+      _held.copy(st.lowR); _heldQ.copy(st.lowQR);
+      if (st.up > 1e-4) {
+        wornGrip(m, _g3, _q3);
+        _held.lerp(_g3, st.up); _held.z += 0.05 * Math.sin(st.up * Math.PI);
+        _heldQ.slerp(_q3, st.up);
+      }
+      draw(worried, RACK.worried.pos, RACK.worried.q, _held, _heldQ, st.rest.R, st.uM, _hand);
+      var up = st.up * clamp((st.uM - REACH) / (1 - REACH), 0, 1);
+      holdAt(armR, SRs, _hand, _g1.set(0.9, -0.5 - 0.3 * up, -0.4 + 0.3 * up), _g2.set(-1, 0.1, 0.2 - 0.3 * up));
+    }
+    function headEstimate() {
+      _e.set(b.headPitch || 0, b.headYaw || 0, b.headRoll || 0, 'XYZ');
+      return _hm.compose(head.position, _q1.setFromEuler(_e), _one);
+    }
+
+    // the two working tells, first the default; the map sets workMode from
+    // the record (orgMap.js workingMode), the sheet from its buttons
+    b.workModes = ['scene', 'prepare'];
+    b.workMode = 'scene';
+    b.tell = function (t, working, rm) {
+      var P = b.pose; P.frame(t);
+      var mode = working ? (b.workMode === 'prepare' ? 'prepare' : 'scene') : null;
+      // when a scene ends the worried mask comes down first and its own
+      // face comes back; only then do the masks go back to the sash
+      stepRamps(t, mode === 'scene' || st.up > 0.002 ? 1 : 0, mode === 'prepare' ? 1 : 0);
+      var uM = ramp.masks, uC = ramp.card;
+      st.uM = uM;
+      var scene = mode === 'scene', prep = mode === 'prepare';
+
+      // hands at rest, folded in front: a performer waiting in the wings
+      st.rest.L.copy(P.v('restL', -0.035, 0.3, 0.3)); st.rest.R.copy(P.v('restR', 0.035, 0.3, 0.3));
+
+      // THE SCENE: a beat of 5.2 s. Up over the face (0.2-0.9), playing the
+      // other person (to 3.2), down again (to 3.9), its own face listening.
+      var c = rm ? 2 : (t % 5.2);
+      var beat = c < 0.2 ? 0 : c < 0.9 ? smooth01((c - 0.2) / 0.7) : c < 3.2 ? 1 : c < 3.9 ? 1 - smooth01((c - 3.2) / 0.7) : 0;
+      // the beat is followed closely while the scene runs; when it ends the
+      // mask is lowered at the beat's own pace (0.7 s), never dropped
+      var upT = scene && uM > 0.999 ? beat : 0;
+      if (ramp.snap) st.up = upT;
+      else if (ramp.dt > 0) st.up = scene ? st.up + (upT - st.up) * (1 - Math.exp(-ramp.dt * 9)) : Math.max(upT, st.up - ramp.dt / 0.7);
+      var speak = rm ? 0 : st.up;
+      // low at its right side, and the smiling one low at its left
+      st.lowR.copy(P.v('lowR', 0.27, 0.27, 0.24)); basisQ(_g1.set(0.12, 1, 0.06), _g2.set(0.42, 0, 1), st.lowQR);
+
+      placeRight(headEstimate());
+      // the smiling mask, in the left hand while the scene runs
+      var lowL = P.v('lowL', -0.27, 0.27, 0.24);
+      if (uC <= 0.001) {
+        draw(happy, RACK.happy.pos, RACK.happy.q, lowL, basisQ(_g1.set(-0.12, 1, 0.06), _g2.set(-0.42, 0, 1), _q2), st.rest.L, uM, _hand);
+        holdAt(armL, SLs, _hand, _g1.set(-0.9, -0.5, -0.4), _g2.set(1, 0.1, 0.2));
+      }
+
+      // THE CARD: read (0-1.8), turned over and thought about (1.8-4)
+      var cc = rm ? 1 : (t % 4), turned = prep && cc >= 1.8;
+      var cp = !prep ? P.v('cp', -0.2, 0.4, 0.3) : !turned ? P.v('cp', -0.05, 0.5, 0.34) : P.v('cp', -0.24, 0.47, 0.3);
+      var ct = !prep ? P.v('ct', -0.6, 0.1, 0) : !turned ? P.v('ct', -0.78, 0.16, 0) : P.v('ct', 0.05, Math.PI + 0.35, 0.04);
+      _q2.setFromEuler(_e.set(ct.x, ct.y, ct.z, 'XYZ'));
+      // the grip, from the centre the card is held at
+      _g3.set(0, -GRIP_UP, 0).applyQuaternion(_q2).add(cp);
+      if (uM <= 0.001) {
+        draw(card, RACK.card.pos, RACK.card.q, _g3, _q2, st.rest.L, uC, _hand);
+        holdAt(armL, SLs, _hand, _g1.set(-1, -0.4, -0.4), uC > REACH ? _g2.set(0.6, 0.3, 0.7) : _g2.set(1, 0, 0.2));
+      } else { card.position.copy(RACK.card.pos); card.quaternion.copy(RACK.card.q); }
+      if (uC > 0.001 && uM <= 0.001) {
+        // the right hand steadies the card as it reads, then goes to the chin
+        var rH = !turned ? P.v('rHc', 0.02, 0.45, 0.37) : P.v('rHc', 0.1, 0.56, 0.31);
+        var k = smooth01(uC);
+        _g1.copy(st.rest.R).lerp(rH, k);
+        holdAt(armR, SRs, _g1, _g2.set(0.9, -0.6, -0.3), turned ? _g3.set(-0.3, 0.4, -1) : _g3.set(-0.8, 0.2, -0.3));
+      }
+
+      // the head: the scene's speaking tilt and bob while the mask is up; a
+      // listening tilt when it is down; reading bends to the card
+      var wob = rm ? 0 : Math.sin(t * 2 * Math.PI * 1.4), nod = rm ? 0 : Math.sin(t * 2 * Math.PI * 2.8);
+      b.headRoll = P.s('hr', scene ? 0.1 * (1 - st.up) : prep ? (turned ? 0.07 : 0) : 0.06) + 0.07 * wob * speak;
+      b.headPitch = P.s('hp', scene ? 0.02 : prep ? (turned ? -0.03 : 0.24) : 0.02) + 0.035 * nod * speak;
+      b.headYaw = P.s('hy', scene ? -0.08 * st.up : prep ? (turned ? 0.08 : -0.04) : 0) + 0.04 * wob * speak;
+      // the eyes go down to the card as it reads
+      b.face.add.dy = prep && !turned ? -0.022 * smooth01(uC) : 0;
+      b.face.add.dx = prep && !turned ? -0.008 * smooth01(uC) : 0;
+      b.face.add.smile = prep && turned ? 0.12 : 0;
+      var moving = Math.abs(ramp.masks - (mode === 'scene' ? 1 : 0)) > 1e-4 || Math.abs(ramp.card - (mode === 'prepare' ? 1 : 0)) > 1e-4 || (!scene && st.up > 1e-4);
+      return (working && !rm) || P.moving() || moving;
+    };
+    // once the head has really turned (the map and the sheet add their own
+    // look-at to it after the tell), the worn mask is put back on the face
+    b.afterHead = function () {
+      if (st.up < 1e-4 || st.uM <= REACH) return;
+      head.updateMatrix();
+      placeRight(head.matrix);
+    };
+    // a hand with a mask or the card in it is busy: a walk must not swing it
+    b.handsBusy = function () { return ramp.masks > 0.001 || ramp.card > 0.001; };
+    b.arms = { L: armL, R: armR, SL: SLs, SR: SRs };
+    b.props = { masks: { happy: happy, worried: worried }, happy: happy, worried: worried, card: card, racks: RACK };
+    return b;
+  };
 
   return {
     AGENTS: AGENTS, BUILD: BUILD, face3: face3, EMISSIVES: EMISSIVES,

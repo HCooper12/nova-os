@@ -24,6 +24,8 @@ const COUNT = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eig
 
 // One line that says what a being is doing, from its state alone.
 export function beingLine(b) {
+  if (b.working && b.workingMode === 'scene') return 'In a scene with you now, playing the other person.';
+  if (b.working && b.workingMode === 'prepare') return 'Preparing a practice page.';
   if (b.working) return 'Working now.';
   if (b.waiting > 0) {
     const n = b.waiting === 1 ? 'One thing' : `${COUNT[b.waiting] || b.waiting} things`;
@@ -85,6 +87,8 @@ export function valsOrgMap(ops, app, ctx) {
     // what the life engine reads (§9d input.beings): the record's facts,
     // never anything the scene made up
     working: !!b.working,
+    // which working tell is true (Practice: 'scene' or 'prepare'), or null
+    workingMode: b.workingMode || null,
     fresh: b.fresh,
     members: (b.members || []).map((x) => ({ id: x.id, state: x.state })),
   }));

@@ -9,12 +9,12 @@ import {
   isForbiddenIdle, daypartOf, initLife, stepLife,
 } from '../../src/agentWorld/life.js';
 
-// The nine beings' districts, mirrored from server/lib/orgMap.js (life.js
+// The ten beings' districts, mirrored from server/lib/orgMap.js (life.js
 // may import nothing, so this is a deliberate, small duplication).
 const DISTRICT_OF = {
   commander: 'logistics', coach: 'train', cfo: 'money', guardian: 'platform',
   researcher: 'knowledge', watcher: 'knowledge', librarian: 'knowledge',
-  mealprep: 'fuel', leader: 'mind',
+  mealprep: 'fuel', leader: 'mind', practice: 'mind',
 };
 
 function makeBeing(id, overrides = {}) {
@@ -184,6 +184,8 @@ test('idle acts come only from the catalogue, respect each being’s own list, h
   const IDLE_NAMES = {
     commander: ['scan-horizon', 'check-compass', 'pace', 'at-ease'],
     leader: ['look-at-water', 'sit-bench', 'walk-to-lantern', 'stand-still'],
+    // an actor between scenes: nothing that lifts a mask or reads a card
+    practice: ['pace', 'sway', 'look-at-water', 'stand-still'],
   };
   for (const id of Object.keys(IDLE_NAMES)) {
     const beings = makeBeings();
@@ -231,8 +233,11 @@ test('visits happen between ring neighbours, the host’s gag plays, a gift is c
     const b = districtBeings(RING_ORDER[(i + 1) % n]);
     for (const x of a) for (const y of b) { NEIGHBOR.add(`${x}|${y}`); NEIGHBOR.add(`${y}|${x}`); }
   }
-  const knowledge = districtBeings('knowledge');
-  for (const x of knowledge) for (const y of knowledge) if (x !== y) NEIGHBOR.add(`${x}|${y}`);
+  // beings that share a tile visit on it (Knowledge's three; the Leader and Practice)
+  for (const d of RING_ORDER) {
+    const here = districtBeings(d);
+    for (const x of here) for (const y of here) if (x !== y) NEIGHBOR.add(`${x}|${y}`);
+  }
 
   const beings = makeBeings();
   let state = initLife({ seed: 'w9', beings });

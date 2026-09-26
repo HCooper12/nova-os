@@ -1,4 +1,4 @@
-// THE ORG MAP'S SCENE — seven districts around Nova's core, the nine beings
+// THE ORG MAP'S SCENE — seven districts around Nova's core, the ten beings
 // standing on them, and over each one only what the records say: working,
 // waiting on him (a marker with the real count), or quiet.
 //
@@ -62,7 +62,7 @@ function readTokens(el) {
     gold: c('--nv-gold', '#e0b26a'), ink: c('--nv-ink', '#e8ecf6'), void: c('--nv-void', '#06070d'),
     hue: {
       cy: c('--nv-cy', '#59e6ff'), vi: c('--nv-vi', '#8f7bff'), mg: c('--nv-mg', '#ff7ad9'), good: c('--nv-good', '#5fe8a8'),
-      gold: c('--nv-gold', '#e0b26a'),
+      gold: c('--nv-gold', '#e0b26a'), or: c('--nv-or', '#ffa257'),
       chest: c('--nv-m-chest', '#ff8a7a'), back: c('--nv-m-back', '#4fd1c5'), shoulders: c('--nv-m-shoulders', '#ffc46b'),
       quads: c('--nv-m-quads', '#7ab8ff'), calves: c('--nv-m-calves', '#8fd3ff'), abs: c('--nv-m-abs', '#ffd66b'),
       triceps: c('--nv-m-triceps', '#b48cff'), biceps: c('--nv-m-biceps', '#5fe8a8'), glutes: c('--nv-m-glutes', '#c98bff'),
@@ -330,6 +330,12 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
     Object.entries(lit).forEach(([id, on]) => habitat.districts[id].setLit(on));
     const n = Number.isFinite(vm.receipts) ? vm.receipts : null;
     if (n !== stackShown) { stackShown = n; habitat.districts.money.setStack(n); }
+    // Practice's spotlight: open while a scene is live, and only then (the
+    // record's workingMode, never the life engine's idea of it)
+    (vm.beings || []).forEach((v) => {
+      const d = habitat.districts[v.district];
+      if (d && d.setStage && v.id === 'practice') d.setStage(!!v.working && v.workingMode === 'scene');
+    });
   }
 
   // ---- THE LIFE ENGINE (AGENT-WORLD-PLAN §9d) ---------------------
@@ -389,8 +395,10 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   const flatDist = (p, q) => Math.hypot(p.x - q.x, p.z - q.z);
   // where an intent puts a being: { pos (y 0), yaw (null = keep), seatY, sit }
   function anchorOf(x, spot) {
+    // a being that shares its tile has its own spots (Knowledge's three,
+    // Practice beside the Leader); the tile's plain names are the others'
     const d = habitat.districts[x.district];
-    const a = d.anchors[x.district === 'knowledge' ? `${spot}:${x.a.id}` : spot] || d.anchors[spot];
+    const a = d.anchors[`${spot}:${x.a.id}`] || d.anchors[spot];
     return a ? { pos: new THREE.Vector3(a.pos.x, 0, a.pos.z), yaw: a.yaw, sit: !!a.sit, seatY: a.sit ? a.pos.y : 0 } : null;
   }
   function resolveTarget(x, st) {
@@ -855,7 +863,7 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
         f.rotation.x = fb.rx - 0.35 * sg * s * amp - 0.45 * sitK;
       });
     }
-    if (amp > 0.01 && b.arms) {
+    if (amp > 0.01 && b.arms && !(b.handsBusy && b.handsBusy())) {
       (FREE_HAND[id] || []).forEach((side) => {
         if (ov.t.arms[side]) return;
         const arm = b.arms[side], sg = side === 'L' ? 1 : -1;
@@ -872,7 +880,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
   }
   // the hands a walk may swing: the ones not holding the being's own thing
   // (the book, the bucket, the pot, the orb and the lantern stay held)
-  const FREE_HAND = { commander: ['R'], coach: ['L', 'R'], cfo: ['R'], guardian: ['R'], librarian: ['R'] };
+  // (Practice walks with both racked in its sash, so both hands are free)
+  const FREE_HAND = { commander: ['R'], coach: ['L', 'R'], cfo: ['R'], guardian: ['R'], librarian: ['R'], practice: ['L', 'R'] };
 
   // a point in the world group's frame, in this being's rig frame (b.group)
   const _lp = new THREE.Vector3();
@@ -965,6 +974,9 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       b.head.rotation.y = (b.headYaw || 0) + b.face.sacc.x * 3 + hv.hy + (x.look || 0);
       b.head.rotation.x = (b.headPitch || 0) - view.elev * 0.12 + hv.hp;
       b.head.rotation.z = (b.headRoll || 0) + (x.headLevel || 0) + hv.hr;
+      // a thing worn over the face (Practice's mask) follows the head as it
+      // was really turned, look-at and all
+      if (b.afterHead) b.afterHead();
       if (updateFace(x, now, dt, working)) live = true;
       if (b.marker.visible) {
         b.marker.scale.setScalar(mk);
@@ -1050,6 +1062,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
         const x = beings[v.id];
         if (!x) return;
         x.pose = v.pose;
+        // which of its tells the record says (Practice: scene or prepare)
+        if (v.workingMode && x.b.workModes) x.b.workMode = v.workingMode;
         x.b.marker.visible = v.waiting > 0;
         if (v.waiting > 0 && v.waiting !== x.waiting) x.b.setCount(v.waiting);
         x.waiting = v.waiting;
@@ -1178,6 +1192,8 @@ export function createOrgScene(mount, { onSelect, reduceMotion = false } = {}) {
       return id;
     },
     // which record lamps are on, per district (for the capture scripts)
+    // how open Practice's spotlight is, 0..1 (for the capture scripts)
+    stageLit: () => (habitat.districts.mind.stageLit ? habitat.districts.mind.stageLit() : null),
     lampsLit: () => Object.fromEntries(Object.entries(habitat.districts).map(([id, d]) => [id, d.lamps.filter((L) => L.lit).map((L) => `${L.who || id}:${L.litOn ? 'on' : 'off'}`)])),
     dispose() {
       disposed = true;

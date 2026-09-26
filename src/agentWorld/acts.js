@@ -250,6 +250,27 @@ export const ACT_FRAMES = {
   // host: sits a moment with the visitor at the water's edge, no nodding
   // (the bench is across the tile, further than a 4 s beat can walk)
   'gag:leader': (rig, t, ctx) => { still(rig, t, ctx); ctx.body({ sit: env(t, 0.2, 0.85) }); },
+
+  // ---- Practice -------------------------------------------------------------
+  // host: a curtain-call bow, one hand across the belly and the other out to
+  // the side; the visitor applauds (a being holding its thing in both hands
+  // keeps holding it). Nothing here touches a mask or the card.
+  'gag:practice': (rig, t, ctx) => {
+    still(rig, t, ctx);
+    if (ctx.role === 'host') {
+      const k = env(t, 0.2, 0.6);
+      ctx.body({ pitch: 0.34 * k });
+      ctx.arm('R', [-0.03, 0.31, 0.3], [1, -0.5, -0.5], [0, 0, -1], k);
+      ctx.arm('L', [-0.44, 0.4, 0.08], [-1, -0.6, -0.3], [0, -0.3, 1], k);
+      return;
+    }
+    if (ONE_HAND.has(ctx.id)) return;
+    const k = env((t - 0.4) / 0.6, 0.2, 0.8);
+    const clap = Math.max(bump(t, 0.58, 0.08), bump(t, 0.72, 0.08), bump(t, 0.86, 0.08));
+    const g = 0.03 + 0.08 * (1 - clap);
+    ctx.arm('L', [-g, 0.46, 0.32], [-1, -0.3, -0.4], [1, 0, 0], k);
+    ctx.arm('R', [g, 0.46, 0.32], [1, -0.3, -0.4], [-1, 0, 0], k);
+  },
 };
 
 // a gag where the host holds something out and the visitor takes it: the

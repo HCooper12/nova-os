@@ -1,12 +1,16 @@
 // THE ORG MAP'S VIEW MODEL — AGENT-WORLD-PLAN.md §3a-3d, step A.
 //
-// Seven districts (the departments in AGENT_DEPARTMENTS), nine beings (the
+// Seven districts (the departments in AGENT_DEPARTMENTS), ten beings (the
 // department heads drawn in src/agentWorld/beings.js), and on each being
 // only what the records and heartbeats already say:
 //
 //   working   a record of its kinds is mid-flight (status 'classifying'),
 //             started within WORKING_MS. Older than that it is stuck, not
 //             working, and the Guardian's watch is where stuck belongs.
+//             Practice is also working while a scene is live, which is not
+//             a record: it arrives as `live.practiceScene`, read by ops.js
+//             off practice.json, and `workingMode` says which of its two
+//             tells is true ('scene' or 'prepare').
 //   waiting   its pending records: the thing waiting on him, and who asks.
 //   fresh     the freshest heartbeat or record among the loops it stands
 //             for: ran today, recent, gone quiet, or never run.
@@ -18,7 +22,7 @@
 
 export const WORKING_MS = 30 * 60e3;
 
-// The nine, in the character sheet's order, each with its district.
+// The ten, in the character sheet's order, each with its district.
 export const BEINGS = [
   { id: 'commander', name: 'Commander', district: 'logistics' },
   { id: 'coach', name: 'Coach', district: 'train' },
@@ -29,6 +33,7 @@ export const BEINGS = [
   { id: 'librarian', name: 'Librarian', district: 'knowledge' },
   { id: 'mealprep', name: 'Meal Prep', district: 'fuel' },
   { id: 'leader', name: 'Leader', district: 'mind' },
+  { id: 'practice', name: 'Practice', district: 'mind' },
 ];
 
 // The districts ARE the departments: `dept` is the name AGENT_DEPARTMENTS
@@ -56,6 +61,7 @@ export const BEING_MEMBERS = {
   librarian: ['embeddings', 'distill', 'brain-week', 'read-next'],
   mealprep: ['food-suggest', 'mealprep', 'eat-out'],
   leader: ['review', 'leader', 'leader-reminder'],
+  practice: ['practice'],
   core: ['voice'],
 };
 
@@ -75,9 +81,8 @@ export const KIND_BEING = {
   video: 'watcher',
   'read-next': 'librarian', 'index-repair': 'librarian', 'brain-week': 'librarian', distill: 'librarian', ingest: 'librarian',
   review: 'leader', 'leader-reflect': 'leader', 'leader-followup': 'leader',
-  // Practice stands in the Mind district with the Leader until it has a being
-  // of its own (a tenth being needs his hue and artefact call — PRACTICE-PLAN)
-  'practice-skill': 'leader', 'practice-session': 'leader', 'practice-status': 'leader',
+  // the tenth being, his pick of 26 Sep (the two masks), in Mind with the Leader
+  'practice-skill': 'practice', 'practice-session': 'practice', 'practice-status': 'practice',
   // Nova's own work and his own words: the core, not a department
   plan: 'core', act: 'core', browse: 'core', capture: 'core', intake: 'core', briefing: 'core',
 };
@@ -147,7 +152,22 @@ export function orgEvents(records, now) {
 // (records filed on the server's local day). It is the only receipt count
 // the payload carries, so it is the one the Money stack may grow with;
 // without it the stack stays a fixed short one and says no number at all.
-export function composeOrgMap({ agents = [], conversational = [], records = [], now = Date.now(), filedToday = null } = {}) {
+//
+// `live` is what is true now and is not a record: `practiceScene` is the
+// rehearsal in progress ({ startedAt, lastTurnAt } from practice.js's
+// liveScene) or null. Absent means no scene, never a guessed one.
+//
+// Practice's two tells, each tied to a real state: 'scene' while a scene is
+// live (the masks), 'prepare' while one of its records is in flight (the cue
+// card; practice-skill is the kind that passes through classifying, a page
+// being prepared). A live scene wins: it is the thing he is doing.
+export function workingModeOf(id, working, live = {}) {
+  if (id !== 'practice') return null;
+  if (live?.practiceScene) return 'scene';
+  return working ? 'prepare' : null;
+}
+
+export function composeOrgMap({ agents = [], conversational = [], records = [], now = Date.now(), filedToday = null, live = {} } = {}) {
   const roster = new Map([...agents, ...conversational].map((a) => [a.id, a]));
   const byBeing = new Map([...BEINGS.map((b) => [b.id, []]), ['core', []], ['unfiled', []]]);
   for (const r of records) byBeing.get(beingForRecord(r))?.push(r);
@@ -156,8 +176,10 @@ export function composeOrgMap({ agents = [], conversational = [], records = [], 
     const mine = byBeing.get(b.id);
     const pending = mine.filter((r) => r.status === 'pending')
       .sort((x, y) => String(whenOf(y)).localeCompare(String(whenOf(x))));
-    const working = mine.some((r) => r.status === 'classifying' && r.createdAt
+    const inFlight = mine.some((r) => r.status === 'classifying' && r.createdAt
       && now - new Date(r.createdAt).getTime() < WORKING_MS);
+    const workingMode = workingModeOf(b.id, inFlight, live);
+    const working = inFlight || workingMode === 'scene';
     const members = (BEING_MEMBERS[b.id] || []).map((id) => {
       const a = roster.get(id);
       // the loop's own last word beats a bare timestamp; a scheduled agent's
@@ -179,7 +201,7 @@ export function composeOrgMap({ agents = [], conversational = [], records = [], 
       .sort((x, y) => String(whenOf(y)).localeCompare(String(whenOf(x))))[0];
     return {
       id: b.id, name: b.name, district: b.district,
-      working, fresh,
+      working, workingMode, fresh,
       waiting: pending.length,
       unseen: pending.filter((r) => !r.seenAt).length,
       asks: pending.slice(0, 3).map((r) => ({ id: r.id, title: titleOf(r), kind: r.kind || 'capture', at: whenOf(r) })),

@@ -1,5 +1,5 @@
 // THE LIFE ENGINE — AGENT-WORLD-PLAN.md §9d. A pure, seeded state machine
-// that decides what each of the nine beings is doing on the Org Map: no
+// that decides what each of the ten beings is doing on the Org Map: no
 // model, no network, no clock of its own (only `input.now`, handed in).
 // Self-contained on purpose (no imports at all, not even from orgMap.js or
 // streamFeed.js) so `agentWorldNoModel.test.js` can prove, by reading this
@@ -78,18 +78,18 @@ function makeRng(prevRng, nowMs, seed) {
 
 // ---------------------------------------------------------------------------
 // Static geography (kept in sync with server/lib/orgMap.js by hand — this
-// file may import nothing, per the zero-token test, so the nine ids and
+// file may import nothing, per the zero-token test, so the ten ids and
 // seven districts are inlined here).
 
 export const BEING_IDS = [
   'commander', 'coach', 'cfo', 'guardian', 'researcher',
-  'watcher', 'librarian', 'mealprep', 'leader',
+  'watcher', 'librarian', 'mealprep', 'leader', 'practice',
 ];
 
 const DISTRICT_OF = {
   commander: 'logistics', coach: 'train', cfo: 'money', guardian: 'platform',
   researcher: 'knowledge', watcher: 'knowledge', librarian: 'knowledge',
-  mealprep: 'fuel', leader: 'mind',
+  mealprep: 'fuel', leader: 'mind', practice: 'mind',
 };
 
 // The ring order the visit/patrol geometry walks, per §9b/§9d.
@@ -103,8 +103,12 @@ const DISTRICT_BEINGS = RING_ORDER.reduce((m, d) => {
 // ---------------------------------------------------------------------------
 // The working tells (§9a rule 2). These never appear in the idle catalogue
 // as playable idle acts — `isForbiddenIdle` is the guard the test holds.
+// Practice has two, each tied to its own real state: the worried mask lifted
+// to play the other person while a scene is live, and the cue card read and
+// turned over while a page is being prepared.
 export const WORKING_TELLS = [
   'curl', 'page-turn', 'coin-flip', 'stir', 'drawer', 'nod', 'lantern-raise', 'scanline', 'compass-heading',
+  'mask-up', 'card-turn',
 ];
 
 export function isForbiddenIdle(name) {
@@ -152,7 +156,7 @@ export const ACTS = {
   // --- Commander (logistics · cyan) -----------------------------------
   'scan-horizon': act('scan-horizon', { beings: ['commander'], weight: 3, moves: ['head'] }),
   'check-compass': act('check-compass', { beings: ['commander'], weight: 2, moves: ['prop:compass'] }),
-  pace: act('pace', { beings: ['commander'], weight: 2, moves: ['body'] }),
+  pace: act('pace', { beings: ['commander', 'practice'], weight: 2, moves: ['body'] }),
   'at-ease': act('at-ease', { beings: ['commander'], weight: 3, moves: ['arms'] }),
   'gag:commander': act('gag:commander', { beings: ['commander'], kind: 'visit', durationMs: [4000, 4000], weight: 1, moves: ['arms'] }),
 
@@ -200,14 +204,21 @@ export const ACTS = {
   'taste-ladle': act('taste-ladle', { beings: ['mealprep'], weight: 3, moves: ['arms', 'prop:ladle'] }),
   'wipe-counter': act('wipe-counter', { beings: ['mealprep'], weight: 2, moves: ['arms'] }),
   'check-crate': act('check-crate', { beings: ['mealprep'], weight: 2, moves: ['body'] }),
-  sway: act('sway', { beings: ['mealprep'], weight: 1, moves: ['body'] }),
+  sway: act('sway', { beings: ['mealprep', 'practice'], weight: 1, moves: ['body'] }),
   'gag:mealprep': act('gag:mealprep', { beings: ['mealprep'], kind: 'visit', durationMs: [4000, 4000], weight: 1, moves: ['arms', 'prop:bowl'], carry: 'bowl' }),
 
   // --- Leader (mind · magenta) ---------------------------------------------
-  'look-at-water': act('look-at-water', { beings: ['leader'], weight: 3, moves: ['head'] }),
+  'look-at-water': act('look-at-water', { beings: ['leader', 'practice'], weight: 3, moves: ['head'] }),
   'walk-to-lantern': act('walk-to-lantern', { beings: ['leader'], weight: 1, moves: ['body'] }),
-  'stand-still': act('stand-still', { beings: ['leader'], weight: 3, moves: [] }),
+  'stand-still': act('stand-still', { beings: ['leader', 'practice'], weight: 3, moves: [] }),
   'gag:leader': act('gag:leader', { beings: ['leader'], kind: 'visit', durationMs: [4000, 4000], weight: 1, moves: ['body'] }),
+
+  // --- Practice (mind · tangerine) -----------------------------------------
+  // Off duty it is an actor between scenes: pacing in the wings, humming
+  // (sway), a look at the water, standing still. Nothing here lifts a mask
+  // or reads a card; those two are its working tells and play only on the
+  // record. Host of a visit: it takes a bow and the visitor applauds.
+  'gag:practice': act('gag:practice', { beings: ['practice'], kind: 'visit', durationMs: [4000, 4000], weight: 1, moves: ['body', 'arms'] }),
 };
 
 // Per-being weighted idle tables, built from the ACTS catalogue above so
@@ -251,6 +262,10 @@ const BEING_IDLE_TABLE = {
     { name: 'look-at-water', weight: 3 }, { name: 'sit-bench', weight: 2 },
     { name: 'walk-to-lantern', weight: 1 }, { name: 'stand-still', weight: 3 },
   ],
+  practice: [
+    { name: 'pace', weight: 2 }, { name: 'sway', weight: 2 },
+    { name: 'look-at-water', weight: 2 }, { name: 'stand-still', weight: 3 },
+  ],
 };
 
 function gagOf(hostId) {
@@ -258,9 +273,9 @@ function gagOf(hostId) {
 }
 
 // Every ring-neighbour pair a visit may happen between (§9d step 6,
-// §9b/§9d "ring neighbours"). Knowledge's three beings share one tile and
-// visit on it (`sameTile: true`, no lane path); everyone else visits their
-// district's ring neighbour, one hop around RING_ORDER.
+// §9b/§9d "ring neighbours"). Beings that share a tile (Knowledge's three,
+// Mind's Leader and Practice) visit on it (`sameTile: true`, no lane path);
+// everyone visits their district's ring neighbour, one hop around RING_ORDER.
 const NEIGHBOR_PAIRS = (() => {
   const pairs = [];
   const n = RING_ORDER.length;
@@ -273,10 +288,12 @@ const NEIGHBOR_PAIRS = (() => {
       }
     }
   }
-  const knowledge = DISTRICT_BEINGS.knowledge;
-  for (let i = 0; i < knowledge.length; i++) {
-    for (let j = i + 1; j < knowledge.length; j++) {
-      pairs.push({ a: knowledge[i], b: knowledge[j], sameTile: true });
+  for (const d of RING_ORDER) {
+    const here = DISTRICT_BEINGS[d];
+    for (let i = 0; i < here.length; i++) {
+      for (let j = i + 1; j < here.length; j++) {
+        pairs.push({ a: here[i], b: here[j], sameTile: true });
+      }
     }
   }
   return pairs;

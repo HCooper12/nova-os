@@ -9,8 +9,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!--
   49 · THE AGENT WORLD — CHARACTER SHEET (third pass, 24 Sep)
-  design/AGENT-WORLD-PLAN.md §3g. Nine beings, each in its working and
+  design/AGENT-WORLD-PLAN.md §3g. Ten beings, each in its working and
   waiting pose. This is the sheet, not the map — the geography is 48.
+  The tenth, Practice (26 Sep, his pick from mockup 51: the two masks),
+  has two working tells tied to two real states, so its caption carries a
+  third button: Working is the scene (the worried mask up), Preparing is
+  the cue card. Hash wmode=prepare, or __agentSheet.workMode(i, 'prepare').
 
   WHAT THE THIRD PASS CHANGED, and why. His note on pass 2 was three
   faces ("Leader, Coach, CFO need their eyes changed so they feel and look
@@ -77,6 +81,7 @@
     --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
     --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
     --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
+    --nv-or:#ffa257;   /* PRACTICE, src/index.css command theme */
     --nv-good:#5fe8a8; --nv-warn:#e08383;
     --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-shoulders:#ffc46b;
     --nv-m-quads:#7ab8ff; --nv-m-calves:#8fd3ff; --nv-m-abs:#ffd66b;
@@ -278,7 +283,7 @@
 <div id="stage"></div>
 
 <header>
-  <h1>The Agent World <em>· nine beings</em></h1>
+  <h1>The Agent World <em>· ten beings</em></h1>
   <span class="kicker">character sheet · §3g</span>
 </header>
 
@@ -302,6 +307,7 @@
   <div id="cap-tell"></div>
   <div id="poses">
     <button class="pose" id="p-work" aria-pressed="false">Working</button>
+    <button class="pose" id="p-prep" aria-pressed="false" hidden>Preparing</button>
     <button class="pose" id="p-wait" aria-pressed="true">Waiting</button>
   </div>
 </div>
@@ -334,7 +340,7 @@ import { createBeingKit } from '../../src/agentWorld/beings.js';
     TK.em = f('--nv-emissive', 1); TK.env = f('--nv-env', .72);
     TK.hue = {
       cy: c('--nv-cy'), vi: c('--nv-vi'), mg: c('--nv-mg'), good: c('--nv-good'),
-      gold: c('--nv-gold'),
+      gold: c('--nv-gold'), or: c('--nv-or'),
       chest: c('--nv-m-chest'), back: c('--nv-m-back'), shoulders: c('--nv-m-shoulders'),
       quads: c('--nv-m-quads'), calves: c('--nv-m-calves'), abs: c('--nv-m-abs'),
       triceps: c('--nv-m-triceps'), biceps: c('--nv-m-biceps'), glutes: c('--nv-m-glutes')
@@ -410,7 +416,7 @@ import { createBeingKit } from '../../src/agentWorld/beings.js';
   var ground = new T.Mesh(new T.PlaneGeometry(44, 44), new T.ShadowMaterial({ opacity: 0.32 }));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
-  // THE KIT — the species and the nine, shared with the Org Map.
+  // THE KIT — the species and the ten, shared with the Org Map.
   var kit = createBeingKit(T, TK);
   var darker = kit.darker, lighter = kit.lighter, hueOf = kit.hueOf, accOf = kit.accOf, clamp = kit.clamp,
       addBlend = kit.addBlend, halo = kit.halo, glowTex = kit.glowTex, GEO = kit.GEO, mesh = kit.mesh,
@@ -795,7 +801,8 @@ import { createBeingKit } from '../../src/agentWorld/beings.js';
   var elDept = document.getElementById('cap-dept'), elName = document.getElementById('cap-name'),
       elLine = document.getElementById('cap-line'), elTell = document.getElementById('cap-tell'),
       elCap = document.getElementById('caption'),
-      bWork = document.getElementById('p-work'), bWait = document.getElementById('p-wait');
+      bWork = document.getElementById('p-work'), bWait = document.getElementById('p-wait'),
+      bPrep = document.getElementById('p-prep');
 
   function setCaption(i) {
     capIndex = i;
@@ -806,21 +813,28 @@ import { createBeingKit } from '../../src/agentWorld/beings.js';
     elName.textContent = a.name;
     elLine.textContent = a.line;
     elTell.textContent = f.state === 'work' ? a.work : a.wait;
-    bWork.setAttribute('aria-pressed', f.state === 'work');
+    // a being with two working tells (Practice) shows the second as its own
+    // button; Working is its first
+    var modes = f.b.workModes || null, second = modes && f.state === 'work' && f.b.workMode === modes[1];
+    bPrep.hidden = !modes;
+    bPrep.setAttribute('aria-pressed', !!second);
+    bWork.setAttribute('aria-pressed', f.state === 'work' && !second);
     bWait.setAttribute('aria-pressed', f.state === 'wait');
     measureCap();
   }
   function measureCap() {
     root.style.setProperty('--cap-h', elCap.offsetHeight + 'px');
   }
-  function setPose(st) {
+  function setPose(st, wm) {
     var f = FIG[capIndex];
     f.state = st;
+    if (f.b.workModes) f.b.workMode = wm || f.b.workModes[0];
     f.b.marker.visible = (st === 'wait');
     setCaption(capIndex);
     invalidate();
   }
   bWork.addEventListener('click', function () { setPose('work'); });
+  bPrep.addEventListener('click', function () { var m = FIG[capIndex].b.workModes; setPose('work', m && m[1]); });
   bWait.addEventListener('click', function () { setPose('wait'); });
 
   // ---------------------------------------------------------------
@@ -974,6 +988,8 @@ import { createBeingKit } from '../../src/agentWorld/beings.js';
       b.head.rotation.y = f.baseHeadY + (b.headYaw || 0) + b.face.sacc.x * 3 + f.yawOff * 0.4;
       b.head.rotation.x = f.baseHeadX + (b.headPitch || 0) - view.elev * 0.2;
       b.head.rotation.z = b.headRoll || 0;
+      // a thing worn on the face follows the head as it was really turned
+      if (b.afterHead) b.afterHead();
       if (updateFace(f, now, dt, working)) live = true;
 
       if (b.marker.visible) {
@@ -1080,6 +1096,7 @@ import { createBeingKit } from '../../src/agentWorld/beings.js';
     if (q.motion === 'reduce') { reduce = true; bMotion.setAttribute('aria-pressed', 'true'); }
     if (q.mode) setMode(q.mode === 'paged' ? 'paged' : 'ring', true);
     if (q.pose === 'work') FIG.forEach(function (f) { f.state = 'work'; f.b.marker.visible = false; });
+    if (q.wmode) FIG.forEach(function (f) { if (f.b.workModes && f.b.workModes.indexOf(q.wmode) >= 0) f.b.workMode = q.wmode; });
     if (q.page != null) goPage(parseInt(q.page, 10) || 0);
     if (q.focus != null) setFocus(parseInt(q.focus, 10) || 0);
     if (q.elev != null) { view.elevT = parseFloat(q.elev); }
@@ -1097,6 +1114,8 @@ import { createBeingKit } from '../../src/agentWorld/beings.js';
     mode: function (m) { setMode(m, true); },
     poseAll: function (st) { FIG.forEach(function (f) { f.state = st; f.b.marker.visible = (st === 'wait'); }); setCaption(capIndex); invalidate(); },
     pose: function (i, st) { FIG[i].state = st; FIG[i].b.marker.visible = (st === 'wait'); if (i === capIndex) setCaption(i); invalidate(); },
+    // which working tell a being with two plays (Practice: 'scene' | 'prepare')
+    workMode: function (i, m) { if (FIG[i].b.workModes) FIG[i].b.workMode = m; if (i === capIndex) setCaption(i); invalidate(); return FIG[i].b.workMode; },
     spin: function (v) { view.spinT = v; invalidate(); },
     elev: function (v) { view.elevT = v; invalidate(); },
     zoom: function (k) { view.distT = wantDist() * k; invalidate(); },

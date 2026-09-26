@@ -2,6 +2,7 @@ import { configuredLabels } from './roster.js';
 import { listRecords } from './inboxStore.js';
 import { readHeartbeats, readNotes } from './heartbeat.js';
 import { composeOrgMap } from './orgMap.js';
+import { liveScene } from './practice.js';
 
 // Nova Operations — the machinery made visible. Everything here is REAL
 // state the platform already keeps: the inbox record ledger (every agent's
@@ -117,6 +118,9 @@ const CONVERSATIONAL = [
   { id: 'study', label: 'Study Lane', role: 'sources studied into notes', match: (r) => r.kind === 'study' },
   { id: 'scout', label: 'Scout', role: 'people & accounts researched', match: (r) => r.kind === 'ingest' && !!r.decision?.payload?.person },
   { id: 'read-next', label: 'Librarian · Read Next', role: 'the gap, and the book for it', match: (r) => r.kind === 'read-next' },
+  // The rehearsal partner (design/PRACTICE-PLAN.md): its receipts are a page
+  // prepared and a scene debriefed. A status change is his, not its work.
+  { id: 'practice', label: 'Practice', role: 'plays the other person so he can rehearse', match: (r) => r.kind === 'practice-skill' || r.kind === 'practice-session' },
 ];
 
 // The conversational roster, for anything that must place every agent (the
@@ -173,6 +177,7 @@ export const AGENT_DEPARTMENTS = {
   distill: ['Knowledge'],
   'brain-week': ['Knowledge'],
   'repertoire-topup': ['Knowledge'],
+  practice: ['Mind'],
 };
 
 // Which inbox-record kinds each SCHEDULED agent files — verified against the
@@ -316,7 +321,11 @@ export async function composeOps() {
   // THE ORG MAP — the same records and roster, arranged by who is asking
   // (AGENT-WORLD-PLAN §3). Code only; it rides this payload so it is in the
   // client's cached offline slice like everything else here.
-  const orgMap = composeOrgMap({ agents, conversational, records, now, filedToday });
+  // A live rehearsal is not a record: it is read off practice.json (read-only,
+  // and no file or a bad one is no scene), so the map can show Practice
+  // playing the other person while it is actually happening.
+  const practiceScene = await liveScene(now);
+  const orgMap = composeOrgMap({ agents, conversational, records, now, filedToday, live: { practiceScene } });
 
   return { at: new Date(now).toISOString(), pending, running, filedToday, stream, agents, conversational, channels, connections, sessions, orgMap };
 }

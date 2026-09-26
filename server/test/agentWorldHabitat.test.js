@@ -28,7 +28,7 @@ const TK = {
   key: C('#fff2e2'), fill: C('#bcd4ff'), rim: C('#9fdcff'), shell: C('#c9d3e4'), em: 1, env: 0.72,
   stage: C('#0d1426'), gold: C('#e0b26a'), ink: C('#e8ecf6'), void: C('#06070d'),
   hue: {
-    cy: C('#59e6ff'), vi: C('#8f7bff'), mg: C('#ff7ad9'), good: C('#5fe8a8'), gold: C('#e0b26a'),
+    cy: C('#59e6ff'), vi: C('#8f7bff'), mg: C('#ff7ad9'), good: C('#5fe8a8'), gold: C('#e0b26a'), or: C('#ffa257'),
     chest: C('#ff8a7a'), back: C('#4fd1c5'), shoulders: C('#ffc46b'), quads: C('#7ab8ff'), calves: C('#8fd3ff'),
     abs: C('#ffd66b'), triceps: C('#b48cff'), biceps: C('#5fe8a8'), glutes: C('#c98bff'),
   },
@@ -45,7 +45,8 @@ const ANCHORS = {
   fuel: ['work', 'rest', 'stove'],
   platform: ['work', 'rest', 'lanternDock', 'pad'],
   money: ['work', 'rest', 'stack'],
-  mind: ['work', 'rest', 'lantern'],
+  // Practice beside the Leader since 26 Sep: its own work (the mark) and rest
+  mind: ['work', 'rest', 'lantern', 'work:practice', 'rest:practice'],
 };
 const IDS = Object.keys(ANCHORS);
 const flat = (p, c) => Math.hypot(p.x - c.x, p.z - c.z);
@@ -96,10 +97,16 @@ function pieceVerts(d, p) {
   return out;
 }
 
-test('at most three pieces a district, each on the back half, none taller than 1.1, none off its tile', () => {
+// §9b's three a district, with ONE stated exception: Mind holds two beings
+// since 26 Sep, and the Leader's three (bench, pool, lantern) are each an
+// act's place, so Practice's lamp is a fourth. Its mark is floor dressing.
+const MAX_PIECES = { mind: 4 };
+test('at most three pieces a district (Mind four, for its two beings), each on the back half, none taller than 1.1, none off its tile', () => {
+  assert.deepEqual(H.districts.mind.pieces.map((p) => p.name), ['bench', 'pool', 'lantern', 'stageLamp']);
   for (const id of IDS) {
     const d = H.districts[id];
-    assert.ok(d.pieces.length >= 1 && d.pieces.length <= 3, `${id} has ${d.pieces.length} pieces`);
+    const max = MAX_PIECES[id] || 3;
+    assert.ok(d.pieces.length >= 1 && d.pieces.length <= max, `${id} has ${d.pieces.length} pieces`);
     const R = tileRadius(id) - 0.05 + 0.01;     // the tile's flat top, plus a hair
     for (const p of d.pieces) {
       const vs = pieceVerts(d, p), box = new THREE.Box3().setFromPoints(vs);
@@ -276,4 +283,78 @@ test('dispose takes the habitat out of the scene and its lamps out of the kit', 
   H2.dispose();
   assert.equal(H2.group.parent, null);
   assert.equal(kit2.EMISSIVES.length, 0, 'the kit keeps no habitat lamps');
+});
+
+test('the stage lamp opens only for a live scene: not by night, not for a loop that ran, and it fades then stops', () => {
+  const mind = H.districts.mind;
+  H.setDaypart('day'); H.settle();
+  assert.equal(mind.stageLit(), 0);
+  assert.equal(mind.props.stageLamp.emissiveIntensity, 0, 'dim when nothing is happening');
+  // the night and the loop lamps leave it dark
+  H.setDaypart('night'); IDS.forEach((id) => H.districts[id].setLit(true)); settleAll();
+  assert.equal(mind.stageLit(), 0, 'night does not light the stage');
+  IDS.forEach((id) => H.districts[id].setLit(false)); H.setDaypart('day'); settleAll();
+  // a scene: it fades up over ~0.6 s, then asks for no more frames
+  mind.setStage(true);
+  assert.equal(H.tick(0, 0), true); assert.equal(mind.stageLit(), 0, 'no time, no movement');
+  const n = settleAll();
+  assert.ok(n >= 10 && n <= 14, `the stage came up in ${n} steps of 50 ms`);
+  assert.equal(mind.stageLit(), 1);
+  assert.ok(mind.props.stageLamp.emissiveIntensity > 0, 'the lens blooms');
+  let beam = null, pool = null, spot = null;
+  mind.group.traverse((o) => {
+    if (o.isMesh && o.userData.contact && o.material.alphaMap && o.geometry.type === 'CylinderGeometry') beam = o;
+    if (o.isMesh && o.userData.contact && o.material.alphaMap && o.geometry.type === 'PlaneGeometry') pool = o;
+    if (o.isSpotLight) spot = o;
+  });
+  assert.ok(beam && beam.visible && beam.material.opacity > 0.2, 'the beam shows');
+  assert.ok(pool && pool.visible && pool.material.opacity > 0.3, 'the pool of light shows at the mark');
+  assert.ok(spot && spot.intensity > 0, 'and it really lights whoever stands there');
+  // light, not a thing: normal blending, real colour (never the additive glow)
+  assert.equal(beam.material.blending, THREE.NormalBlending);
+  assert.equal(pool.material.blending, THREE.NormalBlending);
+  assert.equal(H.tick(100, 0.05), false, 'lit and settled, the habitat sleeps');
+  mind.setStage(false); settleAll();
+  assert.equal(mind.stageLit(), 0);
+  assert.ok(!beam.visible && !pool.visible && spot.intensity === 0, 'dark again when the scene ends');
+  // the mark is where Practice performs, and the lamp is aimed at it
+  const mark = mind.anchors['work:practice'].pos;
+  assert.ok(flat(mind.props.mark.getWorldPosition(new THREE.Vector3()), mark) < 1e-6, 'the tape is on the performer\'s spot');
+});
+
+// Mind's two beings walk the same small tile. Every step the Leader takes on
+// it (the scene's own stepPoints, round the same obstacles, by the same home
+// nodes) keeps a body's width and more off the mark where Practice performs,
+// and none detours by Practice's home; Practice's own steps clear every
+// piece. (The Leader stepping off its bench and under its lantern was already
+// tight before Practice came; that is left as it was, and not held here.)
+test('on the Mind tile the Leader never walks across the stage, and Practice walks clear of the set', async () => {
+  const { obstacleCloud, stepPoints, clearance } = await import('../../src/orgmap/walk.js');
+  const { ACT_SPOTS } = await import('../../src/agentWorld/acts.js');
+  const root = new THREE.Group(); root.add(H.group); root.updateMatrixWorld(true);
+  const cloud = obstacleCloud(THREE, [...IDS.flatMap((id) => H.districts[id].pieces), H.plaza.group], root, 140);
+  const vias = Object.keys(H.lanes.nodes).filter((k) => k.startsWith('home:')).map((k) => H.lanes.nodes[k]);
+  const mind = H.districts.mind, A = mind.anchors, P = (a) => new THREE.Vector3(a.pos.x, 0, a.pos.z);
+  const lan = A.lantern.pos, off = ACT_SPOTS['walk-to-lantern'].leader.off;
+  const spots = {
+    leaderHome: H.lanes.nodes['home:leader'], bench: P(A.work), pool: P(A.rest), lantern: new THREE.Vector3(lan.x + off[0], 0, lan.z + off[1]),
+    practiceHome: H.lanes.nodes['home:practice'], mark: P(A['work:practice']), wings: P(A['rest:practice']),
+  };
+  const leader = ['leaderHome', 'bench', 'pool', 'lantern'], practice = ['practiceHome', 'mark', 'wings'];
+  const path = (a, b) => [spots[a], ...stepPoints(spots[a], spots[b], cloud, vias, 0.11, 0.2).pts];
+  const offMark = (pts) => { let best = Infinity; for (let i = 1; i < pts.length; i++) for (let k = 0; k <= 20; k++) best = Math.min(best, flat(pts[i - 1].clone().lerp(pts[i], k / 20), spots.mark)); return best; };
+  for (const a of leader) for (const b of leader) {
+    if (a === b) continue;
+    const pts = path(a, b);
+    assert.ok(offMark(pts) >= 0.3, `the Leader's walk ${a} -> ${b} passes ${offMark(pts).toFixed(2)} from the mark`);
+    assert.ok(!pts.includes(spots.practiceHome), `the Leader's walk ${a} -> ${b} detours by Practice's home`);
+  }
+  for (const a of practice) for (const b of practice) {
+    if (a === b) continue;
+    const pts = path(a, b);
+    for (let i = 1; i < pts.length; i++) assert.ok(clearance(pts[i - 1], pts[i], cloud, 0.2) >= 0.11, `Practice's walk ${a} -> ${b} goes through a piece`);
+  }
+  // and the two stand apart: a body's width and more between every pair of
+  // their spots, so two beings never share one place
+  for (const a of leader) for (const b of practice) assert.ok(flat(spots[a], spots[b]) >= 0.45, `${a} and ${b} are ${flat(spots[a], spots[b]).toFixed(2)} apart`);
 });
