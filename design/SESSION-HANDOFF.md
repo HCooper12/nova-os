@@ -73,7 +73,13 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   from pulling it in; P2-B now runs in MY worktree `.claude/worktrees/p2b`
   (branch `p2b-summary-home` from local main, node_modules symlinked) — merge
   it with `git merge --ff-only p2b-summary-home` from main after review, then
-  remove the worktree and branch. Use the same recipe for P3. IN FLIGHT: P2-B (Opus) —
+  remove the worktree and branch. Use the same recipe for P3. P2-B SHIPPED =
+  08c73ca (MissionSummary.jsx + PinnedEditSheet.jsx; Summary offered in
+  Settings; looked at in demo via `node scripts/shot.mjs --demo --style summary
+  --theme command --material glass --hour dusk` — shot.mjs gained --demo and
+  --readonly in d419271; §2b amended in 787cf5e). P3 (Opus) IN FLIGHT in
+  `.claude/worktrees/p3` (branch `p3-index-tabbar`, brief
+  design/audits/redesign-2026-09/p3-brief.md). WAS IN FLIGHT: P2-B (Opus) —
   the screen MissionSummary.jsx + PinnedEditSheet.jsx + MissionControl branch
   + App wiring (valsSummary spread AFTER valsChrome with the merged v) + the
   .nv-sum-* CSS + un-hiding Summary in Settings; brief at

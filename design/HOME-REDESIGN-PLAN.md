@@ -128,9 +128,10 @@ on the tree; two CSS-contract tests were extended (see the ledger).
 highlight, moments, the serif standfirst, the foot; `pinned` order from
 localStorage; the Edit sheet. Split in two: P2-A (the view model + tests,
 SHIPPED 26 Sep, c199b31: `src/summaryFacts.js`, `src/pinned.js`,
-`src/vals/valsSummary.js`) and P2-B (the screen `MissionSummary.jsx`, the
-`PinnedEditSheet.jsx`, the MissionControl branch, App wiring, the
-`.nv-sum-*` CSS; brief: `design/audits/redesign-2026-09/p2b-brief.md`). The
+`src/vals/valsSummary.js`) and P2-B (SHIPPED 26 Sep, 08c73ca: the screen
+`MissionSummary.jsx`, the `PinnedEditSheet.jsx`, the MissionControl branch,
+App wiring, the `.nv-sum-*` CSS; brief: `design/audits/redesign-2026-09/p2b-brief.md`;
+the Summary row is offered in Settings from this commit). The
 Trends val and the aurora hour shift, planned for P4, landed early (P2-A and
 P1). DONE means: at 402×874 in Nova glass the
 first screen holds title, standfirst, highlight and the Body hero; one

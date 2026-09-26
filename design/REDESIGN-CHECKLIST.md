@@ -556,6 +556,21 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 (late) — P2-B SHIPPED (08c73ca): `src/screens/MissionSummary.jsx`
+  (the summary Home: date + Nova, greeting, serif standfirst, moments while
+  news, ONE highlight with its bar and one quiet act, Pinned — Body ring hero,
+  Today strip, The plan, Waiting, Training + medal, Practice, Trends — and the
+  foot; 0 filled buttons outside moments), `src/PinnedEditSheet.jsx` (real
+  switches, imperative carry with FLIP settle and rubber-band, keyboard
+  reorder, its own history entry), `bare` prop on LeaderBox/TechniqueReveal,
+  DaysRing exported; Summary now offered in Settings. Gates: lint 0 errors ·
+  build · server 2624/2624 · guard unchanged. Looked at myself in demo
+  (Nova glass at dusk ×3 screenfuls, Nova night): matches mockup 56. §2b of
+  NOVA-METHOD amended (787cf5e). `scripts/shot.mjs` gained `--demo` (style/
+  theme/material/hour pinned) and `--readonly` (every write failed at the CDP
+  layer; proven against a stand-in server) — d419271. P3 (tab bar + Index)
+  in flight in `.claude/worktrees/p3`. Findings carried to the Inbox page:
+  `landedMoment` counts the day's plan-today record as "a capture".
 - 26 Sep 2026 — P2-A SHIPPED (c199b31): the summary Home's view model, no UI
   yet. `src/summaryFacts.js` (the highlight sentence from the SAME ring fields
   the Body card shows, with the agreement test; the six-slot strip; the
