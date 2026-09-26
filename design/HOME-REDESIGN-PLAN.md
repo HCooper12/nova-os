@@ -113,13 +113,16 @@ clock frozen at 14:00 local and Math.random seeded. It refuses to run when
 design-style rows in Settings gain "Summary" only when P2 lands.
 DONE: the guard exists and passes; nothing visible changed.
 
-**P1 · Tokens and the switch.** `summary` style, `sky` theme, `material`
-modifier, hour band; token blocks from mockup 56 in `src/index.css`;
-`theme.js` persistence; Settings rows (Design style: Summary; Theme: Sky
-under Apple-family; Material: Glass / Solid under Summary). DONE means:
-switching in Settings changes the root attributes; under `summary` every
-existing screen still renders (it borrows `cupertino`'s branches);
-`cupertino` × `command` pixel-identical to today (probe shot compare).
+**P1 · Tokens and the switch.** SHIPPED 26 Sep (27e8bd1, e64e3d4):
+`summary` style, `sky` theme, `material` modifier (`novaos.material`,
+`data-nv-material`), hour band (`data-nv-hour`, 15-min refresh); the
+`--nv-sum-*` token blocks per theme × material from mockup 56; the
+`.nv-sky` element; Settings rows for Sky and Material. The Summary
+design-style row is filtered out of `novaStyleOptions` until P2 lands
+(valsChrome.js), so he cannot switch into the old layout on glass and read
+it as finished. Under `summary` every screen renders through the
+`cupertino` branches (`structured` is true for both). The guard passed
+on the tree; two CSS-contract tests were extended (see the ledger).
 
 **P2 · MissionSummary.** The Home shape with the seven default cards, the
 highlight, moments, the serif standfirst, the foot; `pinned` order from

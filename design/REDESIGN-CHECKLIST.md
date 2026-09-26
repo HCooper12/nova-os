@@ -556,6 +556,19 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — P1 SHIPPED (27e8bd1 + e64e3d4): the `summary` STYLE (borrows
+  the whole cupertino skin + `structured` tier, so every screen renders
+  unchanged under it), the `sky` THEME (Apple-only), the material modifier
+  `novaos.material` glass|solid (`data-nv-material`), the hour band
+  `data-nv-hour` (15-min refresh + visibilitychange), the `--nv-sum-*` card
+  tokens per theme × material from mockup 56, the `.nv-sky` element and its
+  per-theme/per-hour gradients, Settings rows for Sky and Material.
+  `summary` is wired but NOT offered in Settings until P2 lands. Gates: lint
+  0 errors · build · server 2570/2570 · guard unchanged. Two things the
+  gates caught: displayTracking.test anchored on the exact two-style selector
+  (re-anchored on its head); contrast.test gained sky + `--nv-or`, which
+  showed three Daylight hues carried into sky at 1.6–1.7:1 (now 4.6–4.8:1).
+  P2-A (view model + tests) in flight; P2-B (the screen + Edit sheet) briefed.
 - 26 Sep 2026 — P0 SHIPPED (8475533): `scripts/guard-cupertino.mjs` +
   `scripts/guard/cupertino-baseline.json`. A headless DEMO-mode DOM snapshot
   of the cupertino × command Home (text, panes, scroll geometry) with the
