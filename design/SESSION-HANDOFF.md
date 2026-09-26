@@ -101,9 +101,13 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   Inbox). TRAIN AUDITED (1058311, 03-train.md: NEEDS WORK — Coach is Gym's
   tail; the session tick 40px; 24/49 controls under 44pt on routine detail;
   facts drawn 3–4 ways; the Coach card's repeated sentence FIXED in ef2c17b).
-  IN FLIGHT: Train mockup round 1 (Opus → design/mockups/58-redesign-train.html:
-  A two places not three tabs · B one set at a time · C one fact one
-  instrument) — publish as an artifact when it lands. The morning review
+  TRAIN ROUND 1 PUBLISHED (ab55f3b, mockup 58):
+  https://claude.ai/artifact/FUuAVaKD8tWhjtoL3XtkRw. FUEL AUDITED (1dd96b4,
+  04-fuel.md: NEEDS WORK; three honesty faults to fix regardless — "Kcal
+  off-plan" sums rotation meals, entry delete has no Undo, a slow fetch can
+  show the demo bank live). NEXT: his answers on Inbox/Train rounds; Fuel
+  round 1; the Fuel honesty fixes; then Voice. Agents that BUILD run on Opus
+  (his instruction, 27 Sep morning). Weekly usage reset 06:00 Melbourne. The morning review
   page (Home, Built) links everything: https://claude.ai/artifact/X2zxDCQBCCAXcbE9AaKf1H.
   READ-ONLY SHOTS: seed with `node scripts/dev-connect.mjs`, vite on 5183
   (CORS allows only 5183/5173), `shot.mjs --readonly --style summary …`,

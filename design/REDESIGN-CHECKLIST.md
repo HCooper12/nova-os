@@ -556,6 +556,18 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (morning) — TRAIN ROUND 1 PUBLISHED (ab55f3b, mockup 58,
+  https://claude.ai/artifact/FUuAVaKD8tWhjtoL3XtkRw): A two places not three
+  tabs (Coach a door on the Gym page; ✕ asks why) · B one set at a time (64px
+  tick, its own number pad) · C one fact, one instrument. His calls: biceps/
+  shoulders/abs hues collide with the meaning colours; A takes the readiness
+  ring off Train; Coach as a sheet or a tab; B needs A or C; the ✕-asks-why
+  extra tap. FUEL AUDITED (1dd96b4, 04-fuel.md): NEEDS WORK — five jobs in
+  11.4 screens, the recipe bank 80% of the page, the log bar 1.55 screens
+  down, protein drawn 5–6 times on Fuel and twice on Home, 161 of 312 targets
+  under 28pt; honesty faults: "Kcal off-plan" sums rotation meals, an entry
+  delete has no Undo, a slow fetch can show the demo bank live. Next: Fuel
+  round 1, and the three Fuel honesty fixes whatever the redesign becomes.
 - 27 Sep 2026 (02:xx) — TRAIN AUDITED (`03-train.md`, 1058311): NEEDS WORK. Coach is
   the tail of Gym's own scroll (the same `<GoalsCoachPane>` at Workouts.jsx:407
   and :1219); "On today's card" drawn twice; the live session tick is 40px,
