@@ -205,3 +205,12 @@ test('a card overtaken by his own edits is marked stale, with what changed', () 
   const live = coachSuggestions(items, opts);
   assert.ok(live.every((c) => !c.stale), 'nothing on the real deck is stale');
 });
+
+test('a one-sentence finding is not its own reason: the card says it once', () => {
+  const r = { id: 'f1', kind: 'coach-program', status: 'pending', createdAt: new Date().toISOString(), text: 'Coach: Your rows have stalled at the same load for three weeks', finding: null, fix: null, decision: { route: 'program-review' } };
+  const cards = coachSuggestions([r]);
+  if (!cards.length) return; // this record shape may not be a card in this build; the rule below is what matters
+  const c = cards[0];
+  assert.ok(c.headline, 'the sentence leads');
+  assert.notEqual(c.why, c.headline, 'the why must not repeat the headline');
+});

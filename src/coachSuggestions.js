@@ -213,7 +213,10 @@ function findingChange(r, routines) {
   return {
     headline: r.finding?.title || firstSentence,
     diff: Number.isFinite(pct) ? { type: 'gauge', pct, label: r.findingKind === 'effort-ceiling' ? 'of sets at RPE 9–10' : '' } : { type: 'note', glyph: '◆' },
-    why: r.finding?.title ? line : line.slice(firstSentence.length).trim() || line,
+    // the reason is what FOLLOWS the sentence the headline already says; a
+    // one-sentence finding has no rest, and falling back to the whole line
+    // printed the headline twice on his only waiting card (Train audit, 27 Sep)
+    why: r.finding?.title ? line : line.slice(firstSentence.length).trim(),
     actionable,
   };
 }
