@@ -385,3 +385,24 @@ use the iOS 26 tab bar shape (a glass pill of five tabs with a detached
 round button, here Nova, the way iOS detaches Search). Whichever he picks
 is a token-system change (NOVA-METHOD §2b and the design memory would be
 revised on his word), not a page tweak.
+
+## 8 · His answers, round 3 (26 Sep, 18:1x)
+
+Shown mockup 54 (A Summary, B Rings, C Glass, D Paper). His words: "I love
+aspects of a, b and c. Especially the simple design, use and beautiful
+aesthetic."
+
+**What this changes.** The direction converges: Apple-native, outside
+Nova's current tokens. Round 4 (mockup 55,
+`design/mockups/55-redesign-home-blend.html`) blends the three into one
+Home: A's shape (date, large title, one highlight sentence with its bar,
+PINNED cards he edits, a quiet foot), B's ring hero (nested rings with the
+numbers beside them in SF Rounded; Trends arrows; a medal for a record),
+C's material and strip (glass cards over a sky that follows the hour;
+Today as a six-slot hourly strip). ONE markup under FOUR materials switched
+at the top (glass · day, glass · night, dark, light): the material is a set
+of CSS variables and nothing else, which is how it would land in the app,
+as the token system. The Index (the More tab in the Settings shape) is
+drawn in the same material to show the idiom carries past Home. What is
+left to decide is the material, and whether Nova follows the system's
+light/dark setting or keeps one look.

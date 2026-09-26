@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Home, the blend</title>
+<!--
+  55 · HOME, THE BLEND (round 4, 26 Sep 2026)
+  His answer to round 3 (mockup 54): "I love aspects of a, b and c.
+  Especially the simple design, use and beautiful aesthetic."
+
+  So one Home, built from the three:
+    from A (Health)  the shape: date + large title, one highlight sentence
+                     with its bar, then PINNED cards he edits, Today, a
+                     quiet foot.
+    from B (Fitness) the hero: nested rings with the numbers beside them in
+                     SF Rounded; Trends arrows as the honest form of
+                     "Nova noticed"; a medal for a record.
+    from C (Weather) the material and the strip: glass cards over a sky
+                     that follows the hour; Today as a six-slot hourly
+                     strip rather than a list.
+
+  ONE markup, FOUR materials, switched at the top. The material is a set
+  of CSS variables and nothing else, which is the point: whichever he picks
+  becomes the token system, and the other three are one line away.
+    glass-day    the afternoon sky, glass cards, white ink
+    glass-night  the same at 22:00
+    dark         Fitness black, graphite cards, Fitness colours
+    light        Health grey, white cards, Health colours
+
+  Two views: Home, and the Index (the More tab in the Settings shape) in
+  the same material, to show the idiom carries past Home.
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);--switch-h:130px;--dock-h:96px;
+  --r:20px;
+}
+/* ---- the four materials: variables only ---- */
+body[data-m="glass-day"]{--bg:#0b2a55;--ink:#fff;--ink2:rgba(255,255,255,.8);--ink3:rgba(255,255,255,.62);--sep:rgba(255,255,255,.18);
+  --card:rgba(255,255,255,.15);--card-ring:rgba(255,255,255,.32);--card-hi:rgba(255,255,255,.4);--blur:22px;--card-shadow:0 14px 34px -18px rgba(0,0,0,.45);
+  --c1:#FF8F76;--c2:#6BF2B8;--c3:#9AE6FF;--c4:#FFD27A;--c5:#C9B8FF;--up:#6BF2B8;--dn:#FF8F76;--acc:#fff;--link:#fff;--btn:rgba(255,255,255,.92);--btn-ink:#0b2a55;--track:rgba(255,255,255,.22);--title-tint:var(--ink2);
+  --tab:rgba(255,255,255,.16);--tab-ring:rgba(255,255,255,.3);--tab-ink:rgba(255,255,255,.72);--tab-on:#fff;--tab-on-bg:rgba(255,255,255,.18);--badge:#FF3B30;color-scheme:dark}
+body[data-m="glass-night"]{--bg:#050914;--ink:#fff;--ink2:rgba(255,255,255,.8);--ink3:rgba(255,255,255,.6);--sep:rgba(255,255,255,.16);
+  --card:rgba(255,255,255,.11);--card-ring:rgba(255,255,255,.26);--card-hi:rgba(255,255,255,.3);--blur:24px;--card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --c1:#FF8F76;--c2:#6BF2B8;--c3:#9AE6FF;--c4:#FFD27A;--c5:#C9B8FF;--up:#6BF2B8;--dn:#FF8F76;--acc:#fff;--link:#9AE6FF;--btn:rgba(255,255,255,.9);--btn-ink:#0b1a3a;--track:rgba(255,255,255,.18);--title-tint:var(--ink2);
+  --tab:rgba(255,255,255,.12);--tab-ring:rgba(255,255,255,.26);--tab-ink:rgba(255,255,255,.7);--tab-on:#fff;--tab-on-bg:rgba(255,255,255,.16);--badge:#FF453A;color-scheme:dark}
+body[data-m="dark"]{--bg:#000;--ink:#fff;--ink2:rgba(235,235,245,.7);--ink3:#8E8E93;--sep:rgba(255,255,255,.1);
+  --card:#1C1C1E;--card-ring:transparent;--card-hi:transparent;--blur:0px;--card-shadow:none;
+  --c1:#FA114F;--c2:#A6FF00;--c3:#00D8FF;--c4:#FFD60A;--c5:#BF5AF2;--up:#A6FF00;--dn:#FA114F;--acc:#0A84FF;--link:#0A84FF;--btn:#fff;--btn-ink:#000;--track:rgba(255,255,255,.12);--title-tint:currentColor;
+  --tab:rgba(28,28,30,.76);--tab-ring:rgba(255,255,255,.12);--tab-ink:#8E8E93;--tab-on:#fff;--tab-on-bg:rgba(255,255,255,.12);--badge:#FF453A;color-scheme:dark}
+body[data-m="light"]{--bg:#F2F2F7;--ink:#1C1C1E;--ink2:#3C3C43;--ink3:#8E8E93;--sep:rgba(60,60,67,.12);
+  --card:#fff;--card-ring:transparent;--card-hi:transparent;--blur:0px;--card-shadow:0 1px 2px rgba(0,0,0,.04);
+  --c1:#34C759;--c2:#FF9500;--c3:#FF3B30;--c4:#FF9F0A;--c5:#AF52DE;--up:#34C759;--dn:#FF3B30;--acc:#007AFF;--link:#007AFF;--btn:#007AFF;--btn-ink:#fff;--track:#E5E5EA;--title-tint:currentColor;
+  --tab:rgba(255,255,255,.66);--tab-ring:rgba(0,0,0,.08);--tab-ink:#8E8E93;--tab-on:#007AFF;--tab-on-bg:rgba(0,122,255,.1);--badge:#FF3B30;color-scheme:light}
+/* skies */
+body[data-m^="glass"] .sky{position:fixed;inset:0;z-index:-1}
+body[data-m="glass-day"] .sky{background:radial-gradient(120% 70% at 50% 112%,rgba(255,160,90,.55),rgba(255,160,90,0) 60%),radial-gradient(80% 50% at 18% 18%,rgba(120,180,255,.38),rgba(120,180,255,0) 60%),linear-gradient(180deg,#071a3d 0%,#0b2a55 38%,#1c4f8f 66%,#5a7fb8 86%,#d9946a 100%)}
+body[data-m="glass-night"] .sky{background:radial-gradient(90% 50% at 50% 118%,rgba(120,90,200,.35),rgba(120,90,200,0) 60%),radial-gradient(60% 40% at 80% 10%,rgba(150,180,255,.16),rgba(150,180,255,0) 60%),linear-gradient(180deg,#020512 0%,#050914 40%,#0b1636 75%,#1b2650 100%)}
+body:not([data-m^="glass"]) .sky{display:none}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background .35s var(--ease),color .35s var(--ease)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.978);transition:transform .16s var(--ease)}
+.phone{position:relative;max-width:402px;margin:0 auto;min-height:100%}
+
+/* ---- review furniture ---- */
+.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--sep)}
+.switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2)}
+.seg.two{grid-template-columns:1fr 1fr}.seg.four{grid-template-columns:repeat(4,1fr)}
+.seg button{padding:7px 4px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.65;transition:background .28s var(--ease),opacity .28s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.12)}
+.tally{margin:2px 2px 0;font:500 11px/1.4 var(--mono);color:var(--ink3);min-height:15px}
+.tally b{color:var(--ink2);font-weight:600}
+
+/* ---- the iOS 26 tab bar ---- */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;height:56px;justify-content:center;border-radius:28px;font:500 10px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--tab-on);background:var(--tab-on-bg)}
+.tab .badge{position:absolute;top:6px;left:50%;margin-left:4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--badge);color:#fff;font:700 11px/18px var(--ui);text-align:center}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+/* ---- shared ---- */
+.view{padding:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 10px) 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 20px)}
+.view[hidden]{display:none}
+.rise{animation:rise .3s var(--ease) both;animation-delay:calc(var(--i,0) * 40ms)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rise{animation:fade .3s ease both}@keyframes fade{from{opacity:0}to{opacity:1}}}
+.nav{display:flex;align-items:flex-end;justify-content:space-between;padding:4px 4px 0}
+.date{font:600 13px var(--ui);letter-spacing:.02em;color:var(--ink3);text-transform:uppercase}
+h1{margin:2px 4px 14px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.card{background:var(--card);border-radius:var(--r);padding:14px 16px;box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.ch{display:flex;align-items:center;gap:8px;font:600 15px var(--ui);color:var(--title-tint)}
+.ch svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ch .time{margin-left:auto;font:400 14px var(--ui);color:var(--ink3)}
+.ch.c1{color:var(--c1)}.ch.c2{color:var(--c2)}.ch.c3{color:var(--c3)}.ch.c4{color:var(--c4)}.ch.c5{color:var(--c5)}
+body[data-m^="glass"] .ch{color:var(--ink2)}
+body[data-m^="glass"] .ch svg{color:var(--ink)}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin:22px 4px 8px}
+.sechead h2{margin:0;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.sechead a{font:400 17px var(--ui);color:var(--link)}
+.chev{color:var(--ink3);font-size:18px}
+.btn{height:36px;padding:0 16px;border-radius:18px;background:var(--btn);color:var(--btn-ink);font:600 15px var(--ui)}
+.btn.quiet{background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)}
+
+/* highlight (A) */
+.hl p{margin:8px 0 10px;font:400 18px/1.35 var(--ui)}
+.hl b{font-weight:700}
+.hl .bar{height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.hl .bar i{display:block;height:100%;border-radius:4px;background:var(--c1)}
+.hl .axis{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font:400 13px var(--ui);color:var(--ink3)}
+
+/* pinned grid */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card.wide{grid-column:span 2}
+.grid .card{padding:12px 14px 14px;min-height:150px;display:flex;flex-direction:column}
+.big{margin-top:auto;font:700 30px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.big small{font:500 14px var(--ui);color:var(--ink3);margin-left:3px;letter-spacing:0}
+.sub{margin-top:4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+
+/* the ring hero (B) */
+.grid .card.hero{display:grid;grid-template-columns:150px 1fr;gap:10px 14px;align-items:center;min-height:0}
+.hero .ch{grid-column:1 / -1}
+.ringset{position:relative;width:150px;height:150px}
+.ringset svg{width:150px;height:150px;transform:rotate(-90deg)}
+.ringset circle{fill:none;stroke-width:14;stroke-linecap:round}
+.ringset .t{stroke:var(--track)}
+.ringset .a1{stroke:var(--c1);stroke-dasharray:402;stroke-dashoffset:293}
+.ringset .a2{stroke:var(--c2);stroke-dasharray:314;stroke-dashoffset:0}
+.ringset .a3{stroke:var(--c3);stroke-dasharray:4 8;stroke-width:6;opacity:.75}
+.stats{display:flex;flex-direction:column;gap:9px}
+.stat .k{font:600 12px var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.stat .n{font:700 23px/1.05 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat .n small{font:600 14px var(--round);opacity:.7}
+.stat.s1 .n{color:var(--c1)}.stat.s2 .n{color:var(--c2)}.stat.s3 .n{color:var(--c3)}
+
+/* today strip (C) */
+.strip{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px}
+.hr{display:flex;flex-direction:column;align-items:center;gap:6px;font:500 13px var(--ui);color:var(--ink2)}
+.hr .ic{width:24px;height:24px;display:grid;place-items:center;font-size:17px}
+.hr .l{font:600 14px var(--ui);color:var(--ink)}
+.hr.now .t{font-weight:700;color:var(--ink)}
+.hr .dot{width:8px;height:8px;border-radius:50%;background:var(--c3);box-shadow:0 0 10px var(--c3)}
+.hr.past{opacity:.55}
+.next{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:10px;border-top:1px solid var(--sep);font:400 15px var(--ui);color:var(--ink2)}
+.next b{color:var(--ink);font-weight:600}
+
+/* medal, trends, lamps */
+.medal{width:44px;height:44px;border-radius:50%;background:conic-gradient(from 200deg,#ffd76a,#e0a12b,#ffe89a,#c98a1d,#ffd76a);box-shadow:0 0 0 3px var(--card),0 0 0 4px rgba(255,215,106,.5);display:grid;place-items:center;font:800 15px var(--round);color:#3a2a05;flex:none}
+.rec{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:auto}
+.rec b{display:block;font:600 16px/1.25 var(--ui)}
+.rec .fig{font:700 15px var(--round);color:var(--c1);margin-top:2px}
+.trend{list-style:none;margin:6px 0 0;padding:0}
+.trend li{display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--sep);font-size:15.5px}
+.trend li:first-child{border-top:0}
+.trend .arr{font:700 18px var(--round);text-align:center}
+.trend .up{color:var(--up)}.trend .dn{color:var(--dn)}.trend .flat{color:var(--ink3)}
+.trend .v{font:600 15px var(--round);color:var(--ink3);font-variant-numeric:tabular-nums}
+.lamps{display:grid;grid-template-columns:repeat(3,14px);gap:7px;margin-top:auto}
+.lamps i{width:14px;height:14px;border-radius:50%;background:var(--track)}
+.lamps i.lit{background:var(--c4);box-shadow:0 0 10px var(--c4)}
+.plan{display:flex;flex-direction:column}
+.plan .dr{position:relative;width:44px;height:44px;margin-top:6px}
+.plan .dr svg{width:44px;height:44px;transform:rotate(-90deg)}
+.plan .dr circle{fill:none;stroke-width:4;stroke-linecap:round}
+.plan .dr span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px var(--round)}
+.plan .dr span small{font-size:9px;color:var(--ink3);margin-left:1px}
+.plan b{margin-top:auto;font:600 15.5px/1.25 var(--ui);display:block}
+.foot{margin:16px 4px 0;font:400 13px/1.4 var(--ui);color:var(--ink3);text-align:center}
+
+/* ---- the Index in the same material ---- */
+.you{display:grid;grid-template-columns:48px 1fr 16px;gap:12px;align-items:center;margin-bottom:16px}
+.you b{display:block;font:600 17px/1.2 var(--ui)}
+.you span{display:block;font:400 13.5px var(--ui);color:var(--ink3)}
+.group{margin:0 0 16px}
+.group .k{display:block;margin:0 0 6px 14px;font:600 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.glist{list-style:none;margin:0;padding:0;overflow:hidden}
+.glist li{display:grid;grid-template-columns:30px 1fr auto 12px;gap:12px;align-items:center;padding:11px 14px;min-height:50px}
+.glist li + li{border-top:1px solid var(--sep)}
+.tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff}
+.tile svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tile.t1{background:var(--c1)}.tile.t2{background:var(--c2);color:#0b1a00}.tile.t3{background:var(--c3);color:#052a3a}.tile.t4{background:var(--c4);color:#3a2a05}.tile.t5{background:var(--c5)}.tile.tg{background:color-mix(in srgb,var(--ink) 30%,transparent);color:var(--ink)}
+body[data-m^="glass"] .tile{background:rgba(255,255,255,.22);color:#fff}
+.lbl{font:400 16px var(--ui)}
+.val{font:400 14.5px var(--ui);color:var(--ink3);text-align:right;white-space:nowrap}
+.val.hot{color:var(--c4)}
+.fsearch{position:sticky;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 8px);display:flex;align-items:center;gap:8px;height:44px;padding:0 14px;border-radius:22px;background:var(--tab);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset;color:var(--ink3);font-size:16px;margin-top:8px}
+.fsearch svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2}
+.fsearch .mic{margin-left:auto}
+</style>
+</head>
+<body data-m="glass-day">
+<div class="sky" aria-hidden="true"></div>
+
+<nav class="switch" aria-label="View and material">
+  <div class="inner">
+    <div class="seg two" role="tablist" aria-label="View">
+      <button data-view="home" aria-pressed="true">Home</button>
+      <button data-view="index" aria-pressed="false">Index</button>
+    </div>
+    <div class="seg four" role="tablist" aria-label="Material">
+      <button data-m="glass-day" aria-pressed="true">Glass · day</button>
+      <button data-m="glass-night" aria-pressed="false">Glass · night</button>
+      <button data-m="dark" aria-pressed="false">Dark</button>
+      <button data-m="light" aria-pressed="false">Light</button>
+    </div>
+    <p class="tally" id="tally"></p>
+  </div>
+</nav>
+
+<div class="phone">
+
+<!-- ================= HOME ================= -->
+<main id="home" class="view" data-tally="<b>Home</b> · A's shape, B's ring hero, C's strip and glass · title, one highlight, 6 pinned cards you Edit, Today · 1 filled button, ~2 screens">
+  <div class="nav rise" style="--i:0"><span class="date">Saturday 26 September</span><span class="orb" aria-label="Nova"></span></div>
+  <h1 class="rise" style="--i:1">Good afternoon</h1>
+
+  <section class="card hl rise" style="--i:2">
+    <div class="ch c1"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Protein<span class="time">15:40</span></div>
+    <p>You're <b>110 g</b> under today's floor, with one meal left before Cook at 21:45.</p>
+    <div class="bar"><i style="width:27%"></i></div>
+    <div class="axis"><span>40 g of 150</span><button class="btn quiet" style="height:32px;padding:0 13px;font-size:14px">Find 110 g</button></div>
+  </section>
+
+  <div class="sechead rise" style="--i:3"><h2>Pinned</h2><a>Edit</a></div>
+  <div class="grid">
+    <section class="card wide hero rise" style="--i:4" aria-label="Body">
+      <div class="ch"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>Body<span class="time">Apple Health · food log</span></div>
+      <div class="ringset"><svg viewBox="0 0 150 150"><circle class="t" cx="75" cy="75" r="64"/><circle class="a1" cx="75" cy="75" r="64"/><circle class="t" cx="75" cy="75" r="50"/><circle class="a2" cx="75" cy="75" r="50"/><circle class="a3" cx="75" cy="75" r="36"/></svg></div>
+      <div class="stats">
+        <div class="stat s1"><div class="k">Protein</div><div class="n">40<small>/150 g</small></div></div>
+        <div class="stat s2"><div class="k">Steps</div><div class="n">10,030<small>/10k</small></div></div>
+        <div class="stat s3"><div class="k">Recovery</div><div class="n">—<small> no HRV yet</small></div></div>
+      </div>
+    </section>
+
+    <section class="card wide rise" style="--i:5" aria-label="Today">
+      <div class="ch"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Today<span class="time">Calendar ›</span></div>
+      <div class="strip">
+        <div class="hr past"><span class="t">10:00</span><span class="ic">🍳</span><span class="l">40 g</span></div>
+        <div class="hr now"><span class="t">Now</span><span class="ic"><span class="dot"></span></span><span class="l">Lunch</span></div>
+        <div class="hr"><span class="t">15:30</span><span class="ic">✎</span><span class="l">Work</span></div>
+        <div class="hr"><span class="t">19:30</span><span class="ic">◌</span><span class="l">Free</span></div>
+        <div class="hr"><span class="t">21:30</span><span class="ic">☾</span><span class="l">Night</span></div>
+        <div class="hr"><span class="t">21:45</span><span class="ic">🍳</span><span class="l">110 g</span></div>
+      </div>
+      <div class="next"><span><b>Birthday lunch</b> until 19:30</span><span>then Night routine</span></div>
+    </section>
+
+    <section class="card plan rise" style="--i:6" aria-label="The plan">
+      <div class="ch c5"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h6"/></svg>The plan</div>
+      <span class="dr"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" style="stroke:var(--track)"/><circle cx="22" cy="22" r="18" style="stroke:var(--c4);stroke-dasharray:34 113"/></svg><span>4<small>d</small></span></span>
+      <b>The podcast write-up</b><div class="sub">In the 15:30 block</div>
+    </section>
+
+    <section class="card rise" style="--i:7" aria-label="Waiting">
+      <div class="ch c4"><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg>Waiting</div>
+      <div class="big">15</div><div class="sub">for your call · Cold water and recovery first</div>
+    </section>
+
+    <section class="card wide rise" style="--i:8" aria-label="Training">
+      <div class="ch c3"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Training<span class="time">this morning</span></div>
+      <div class="rec"><div><b>Push done · Incline Dumbbell Press, heaviest yet</b><div class="fig">30 kg × 10 · ▲2.5 · in place of Leg Day</div></div><span class="medal">1</span></div>
+    </section>
+
+    <section class="card rise" style="--i:9" aria-label="Practice">
+      <div class="ch c4"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/><circle cx="16" cy="16" r="2"/></svg>Practice</div>
+      <div class="lamps"><i class="lit"></i><i class="lit"></i><i></i><i></i><i></i><i></i></div><div class="sub">Next: a colleague dismisses your feedback</div>
+    </section>
+
+    <section class="card rise" style="--i:10" aria-label="Trends">
+      <div class="ch c2"><svg viewBox="0 0 24 24"><path d="M4 17l6-6 4 4 6-8"/></svg>Trends</div>
+      <ul class="trend"><li><span class="arr up">↑</span><span>Steps</span><span class="v">7 days</span></li><li><span class="arr dn">↓</span><span>Protein</span><span class="v">2 days</span></li><li><span class="arr flat">→</span><span>Sleep</span><span class="v">no data</span></li></ul>
+    </section>
+  </div>
+  <p class="foot rise" style="--i:11">Edit Pinned to choose what appears here. Everything else lives in the Index and appears above when it has news.</p>
+</main>
+
+<!-- ================= INDEX ================= -->
+<main id="index" class="view" hidden data-tally="<b>Index</b> · the More tab in the Settings shape, drawn in the same material: four groups, a tile and a live value per row, search at the foot">
+  <div class="nav rise" style="--i:0"><span class="date">Saturday 26 September</span><span class="orb" aria-label="Nova"></span></div>
+  <h1 class="rise" style="--i:1">Nova</h1>
+  <div class="card you rise" style="--i:2"><span class="orb" style="width:48px;height:48px"></span><span><b>Hayden</b><span>7 agents live · all systems live · 15 waiting</span></span><span class="chev">›</span></div>
+
+  <div class="group rise" style="--i:3"><span class="k">Today</span><ul class="card glist" style="padding:0">
+    <li><span class="tile t3"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg></span><span class="lbl">Train</span><span class="val">Push done · Leg Day moved</span><span class="chev">›</span></li>
+    <li><span class="tile t1"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg></span><span class="lbl">Fuel</span><span class="val">40 of 150 g</span><span class="chev">›</span></li>
+    <li><span class="tile t4"><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg></span><span class="lbl">Inbox</span><span class="val hot">15 waiting</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 5-5.5"/></svg></span><span class="lbl">To-Do</span><span class="val">3 open</span><span class="chev">›</span></li>
+    <li><span class="tile t3"><svg viewBox="0 0 24 24"><path d="M4 12v2M8 8v8M12 5v14M16 8v8M20 11v2"/></svg></span><span class="lbl">Voice</span><span class="val">Talk to Nova</span><span class="chev">›</span></li>
+  </ul></div>
+
+  <div class="group rise" style="--i:4"><span class="k">Mind</span><ul class="card glist" style="padding:0">
+    <li><span class="tile t4"><svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/><circle cx="16" cy="16" r="2"/></svg></span><span class="lbl">Practice</span><span class="val">next scene ready</span><span class="chev">›</span></li>
+    <li><span class="tile t4"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.6 1 1.3 1 2.5h6c0-1.2.3-1.9 1-2.5A6 6 0 0 0 12 3z"/></svg></span><span class="lbl">Lead</span><span class="val">today's idea unread</span><span class="chev">›</span></li>
+    <li><span class="tile t5"><svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 0 2 2h13"/></svg></span><span class="lbl">Daily review</span><span class="val">1 concept</span><span class="chev">›</span></li>
+    <li><span class="tile t1"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v4M12 16v4M4 12h4M16 12h4"/></svg></span><span class="lbl">Technique</span><span class="val">6 of 12</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><path d="M4 4h5v16H4zM10 4h5v16h-5zM16 5l4 1-3 14-4-1z"/></svg></span><span class="lbl">Library</span><span class="val">21 volumes</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h6"/></svg></span><span class="lbl">Notes</span><span class="val">312</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18M12 8h5M12 12h5"/></svg></span><span class="lbl">Journal</span><span class="val">today written</span><span class="chev">›</span></li>
+  </ul></div>
+
+  <div class="group rise" style="--i:5"><span class="k">Life</span><ul class="card glist" style="padding:0">
+    <li><span class="tile t2"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></span><span class="lbl">Money</span><span class="val">$1,240 this month</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><path d="M5 7h14l-1.5 10h-11z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></svg></span><span class="lbl">Shopping</span><span class="val">6 items</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg></span><span class="lbl">Stash</span><span class="val">14 links</span><span class="chev">›</span></li>
+    <li><span class="tile t5"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><circle cx="5" cy="7" r="1.2"/><circle cx="19" cy="9" r="1.2"/><circle cx="8" cy="18" r="1.2"/><circle cx="17" cy="17" r="1.2"/><path d="M12 12 5 7M12 12l7-3M12 12l-4 6M12 12l5 5"/></svg></span><span class="lbl">Galaxy</span><span class="val">the vault as stars</span><span class="chev">›</span></li>
+  </ul></div>
+
+  <div class="group rise" style="--i:6"><span class="k">Nova</span><ul class="card glist" style="padding:0">
+    <li><span class="tile t3"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg></span><span class="lbl">Agents</span><span class="val">7 live · 2 working</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg></span><span class="lbl">Briefing</span><span class="val">nothing open</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 4l-4 16"/></svg></span><span class="lbl">Code</span><span class="val">clean</span><span class="chev">›</span></li>
+    <li><span class="tile tg"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span><span class="lbl">Settings</span><span class="val"></span><span class="chev">›</span></li>
+  </ul></div>
+
+  <div class="fsearch rise" style="--i:7"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search Nova<svg class="mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+</main>
+
+</div>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row">
+    <div class="tabbar">
+      <span class="tab on" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab"><span class="badge">15</span><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg>Inbox</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab" data-tab="index"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn" aria-label="Talk to Nova"><span class="orb"></span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const sw=document.querySelector('.switch');const setH=()=>document.documentElement.style.setProperty('--switch-h',(sw.offsetHeight-(parseFloat(getComputedStyle(sw).paddingTop)||0)+8)+'px');
+  const vbtn=[...document.querySelectorAll('[data-view]')],mbtn=[...document.querySelectorAll('.seg [data-m]')];
+  const views={home:document.getElementById('home'),index:document.getElementById('index')};const tally=document.getElementById('tally');
+  const dockTabs=[...document.querySelectorAll('.dock .tab[data-tab]')];
+  const MATS=['glass-day','glass-night','dark','light'];
+  let view='home',mat='glass-day';
+  function apply(){for(const k in views)views[k].hidden=k!==view;document.body.dataset.m=mat;
+    vbtn.forEach((b)=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));mbtn.forEach((b)=>b.setAttribute('aria-pressed',String(b.dataset.m===mat)));
+    tally.innerHTML=views[view].dataset.tally+' · <b>'+mat.replace('-',' · ')+'</b>';setH();
+    dockTabs.forEach((t)=>t.classList.toggle('on',t.dataset.tab===view));
+    try{localStorage.setItem('nova-home-blend',view+'/'+mat);}catch(e){}
+    history.replaceState(null,'','#'+view+'/'+mat);
+    views[view].querySelectorAll('.rise').forEach((el)=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});}
+  vbtn.forEach((b)=>b.addEventListener('click',()=>{view=b.dataset.view;window.scrollTo(0,0);apply();}));
+  mbtn.forEach((b)=>b.addEventListener('click',()=>{mat=b.dataset.m;apply();}));
+  function fromHash(){const h=(location.hash||'').replace('#','');const [v,m]=h.split('/');let changed=false;if(views[v]){view=v;changed=true;}if(MATS.includes(m)){mat=m;changed=true;}return changed;}
+  window.addEventListener('hashchange',()=>{if(fromHash())apply();});
+  setH();window.addEventListener('resize',setH);
+  if(!fromHash()){try{const s=(localStorage.getItem('nova-home-blend')||'').split('/');if(views[s[0]])view=s[0];if(MATS.includes(s[1]))mat=s[1];}catch(e){}}
+  apply();
+})();
+</script>
+</body>
+</html>

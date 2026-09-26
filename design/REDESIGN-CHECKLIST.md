@@ -555,6 +555,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 26 Sep 2026 — his answer on round 3: loves aspects of A, B and C
+  ("the simple design, use and beautiful aesthetic"). Round 4, the blend,
+  published: https://claude.ai/artifact/EY1SBc13N2RXMZsbpQu2EJ (one Home
+  from A's shape + B's ring hero + C's glass and strip, under four
+  materials: glass day, glass night, dark, light; plus the Index in the same
+  idiom; source `design/mockups/55-redesign-home-blend.html`). Direction
+  converging on Apple-native; the remaining call is the material. His words
+  in `01-home.md` §8. Home stays [m].
 - 26 Sep 2026 — his call on round 2: try alternatives with the Apple
   aesthetic and DISREGARD the Nova-specific guidelines for the exploration
   ("the nova-specific design architecture is holding back your design

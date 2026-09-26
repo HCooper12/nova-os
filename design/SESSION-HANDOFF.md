@@ -39,8 +39,13 @@ Nothing photographed yet, no product code changed.**
   https://claude.ai/artifact/Q92jjUHaPwTbzBkQxjuPev (mockup 54: A Summary/Health,
   B Rings/Fitness, C Glass/iOS 26 Weather, D Paper/News; system fonts and
   system colours, no --nv-* tokens). If he picks one, the token system and
-  NOVA-METHOD §2b change on his word; do NOT start that unprompted. NEXT: his
-  pick or tweaks → round 4 or build. Open decisions: the two test to-dos in his vault; the dock centre.
+  NOVA-METHOD §2b change on his word; do NOT start that unprompted. HIS ANSWER ON ROUND 3: loves aspects of A, B and C.
+  ROUND 4 (THE BLEND) PUBLISHED: https://claude.ai/artifact/EY1SBc13N2RXMZsbpQu2EJ
+  (mockup 55: A shape + B ring hero + C glass/strip; ONE markup under FOUR
+  materials as CSS variables: glass day, glass night, dark, light; the Index in
+  the same material). The direction is converging on Apple-native outside the
+  current --nv-* tokens. NEXT: his material pick + light/dark rule → then the
+  token-system change and the Home build, on his word. Open decisions: the two test to-dos in his vault; the dock centre.
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
   (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards
