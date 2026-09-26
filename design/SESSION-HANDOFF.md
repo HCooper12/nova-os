@@ -28,8 +28,11 @@ Nothing photographed yet, no product code changed.**
   six times; two Stuck items are August test to-dos in his vault). The
   checklist renders as a page for his phone via `scripts/redesign-page.mjs`
   (republish after every tick to the SAME artifact:
-  https://claude.ai/artifact/GRnJeoNMHDLmxSfWbTSJGJ, pass it as `url`). NEXT: mockups A (The Read) / B (The Day
-  Spine) / C (Two Panes) at 390×844, demo content, then his tweaks.
+  https://claude.ai/artifact/GRnJeoNMHDLmxSfWbTSJGJ, pass it as `url`). MOCKUPS ROUND 1 PUBLISHED: https://claude.ai/artifact/TsC7tZ37qSo9Skw463AFi6
+  (A · The Read, B · The Day Spine, C · Two Panes; source
+  design/mockups/52-redesign-home-abc.html, demo content, one page with an
+  A/B/C switch; republish via `url`). Home rows [m]. NEXT: his tweaks → round 2
+  or build. Open decisions: the two test to-dos in his vault; the dock centre.
 - **VERIFIED in source while surveying (not yet fixed, on the checklist):**
   Settings copy says three tabs fill the dock, the dock takes five
   (`Settings.jsx:692` vs `MobileChrome.jsx:50`); the Coach deck's ✕ discards
