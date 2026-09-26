@@ -30,6 +30,8 @@ const ARCHIVE_PATH = () => path.join(dataRoot(), 'session-draft.discarded.json')
 const KEEP_MS = 7 * 24 * 3600_000; // same 7-day draft window as the client
 const ARCHIVE_KEEP_MS = 7 * 24 * 3600_000;
 
+const tickedIn = (ws) => (ws?.exercises || []).reduce((n, e) => n + (e.sets || []).filter((s) => s.done).length, 0);
+
 async function readArchive() {
   try { return JSON.parse(await readFile(ARCHIVE_PATH(), 'utf8')); } catch { return null; }
 }
@@ -44,10 +46,18 @@ export async function saveSessionDraft({ workoutSession, editingSessionId, captu
   const archive = await readArchive();
   // strictly BEFORE: an echo's state predates the discard tap by design;
   // a same-instant capture is a genuinely new session and must save
-  if (archive?.clearedAt && captured < archive.clearedAt) {
+  if (archive?.clearedAt && archive.reason !== 'replaced' && captured < archive.clearedAt) {
     return { saved: false, dropped: 'a deliberate clear is newer than this state — stale echo ignored' };
   }
   await mkdir(dataRoot(), { recursive: true });
+  // A DIFFERENT SESSION NEVER WRITES OVER LOGGED WORK UNARCHIVED (26 Sep 2026).
+  // A Begin tap after a reload built a fresh session over a recovered one; the
+  // next upload replaced the server copy and ten minutes of ticked sets had no
+  // copy anywhere. Now the old one is archived first and Train offers it back.
+  const prior = await getSessionDraft();
+  if (prior?.workoutSession && prior.workoutSession.startedAt !== workoutSession.startedAt && tickedIn(prior.workoutSession) > 0) {
+    await writeFile(ARCHIVE_PATH(), JSON.stringify({ ...prior, clearedAt: Date.now(), reason: 'replaced' }, null, 2), 'utf8');
+  }
   const tmp = DRAFT_PATH() + '.tmp';
   const draft = { workoutSession, editingSessionId: editingSessionId || null, savedAt: Date.now(), capturedAt: captured };
   await writeFile(tmp, JSON.stringify(draft, null, 2), 'utf8');
@@ -112,10 +122,16 @@ export async function restoreDiscardedDraft() {
   const a = await getDiscardedDraft();
   if (!a) throw new Error('no discarded workout is available to restore');
   await mkdir(dataRoot(), { recursive: true });
+  const current = await getSessionDraft();
   const draft = { workoutSession: a.workoutSession, editingSessionId: a.editingSessionId || null, savedAt: Date.now(), capturedAt: Date.now() };
   const tmp = DRAFT_PATH() + '.tmp';
   await writeFile(tmp, JSON.stringify(draft, null, 2), 'utf8');
   await rename(tmp, DRAFT_PATH());
-  await unlink(ARCHIVE_PATH()).catch(() => {}); // restored — no longer discarded
+  // a restore is a swap when the current draft holds logged sets of its own
+  if (current?.workoutSession && tickedIn(current.workoutSession) > 0) {
+    await writeFile(ARCHIVE_PATH(), JSON.stringify({ ...current, clearedAt: Date.now(), reason: 'replaced' }, null, 2), 'utf8');
+  } else {
+    await unlink(ARCHIVE_PATH()).catch(() => {}); // restored — no longer discarded
+  }
   return draft;
 }

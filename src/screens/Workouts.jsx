@@ -212,9 +212,9 @@ function RoutinesView({ v }) {
       {v.discardedDraft && (
         <div style={css("margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-warn) 42%, transparent);border-radius:14px;padding:15px 18px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-warn) 09%, transparent),transparent)")}>
           <div>
-            <Eyebrow tone="warn">Discarded workout — still recoverable</Eyebrow>
+            <Eyebrow tone="warn">{v.discardedDraft.replaced ? 'Replaced workout — still recoverable' : 'Discarded workout — still recoverable'}</Eyebrow>
             <div style={css("margin-top:5px;font:600 16px var(--nv-font-ui)")}>{v.discardedDraft.name}</div>
-            <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.discardedDraft.sets} set{v.discardedDraft.sets === 1 ? '' : 's'} logged · discarded {v.discardedDraft.when}</div>
+            <div style={css("margin-top:2px;font-size:11.5px;color:var(--nv-ink60)")}>{v.discardedDraft.sets} set{v.discardedDraft.sets === 1 ? '' : 's'} logged · {v.discardedDraft.replaced ? 'replaced' : 'discarded'} {v.discardedDraft.when}</div>
           </div>
           <div style={css("display:flex;gap:10px;align-items:center")}>
             <Button onClick={v.discardedDraft.restore} tone="warn">Restore it</Button>

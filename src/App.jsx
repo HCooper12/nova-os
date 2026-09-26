@@ -33,6 +33,7 @@ import { valsWorkouts } from './vals/valsWorkouts.js';
 import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
 import { valsLeader } from './vals/valsLeader.js';
+import { startDecision, tickedSets } from './sessionGuard.js';
 import { valsPractice, PRACTICE_SCENE_KEY, stripPracticeDirective, RESEARCH_RE, stillPreparing, shorten as shortenPractice } from './vals/valsPractice.js';
 import { valsBriefing } from './vals/valsBriefing.js';
 import { parseBriefingVoice, explainQuestion } from './briefingVoice.js';
@@ -755,6 +756,10 @@ export default class App extends Component {
           workoutSession: draft.workoutSession,
           editingSessionId: draft.editingSessionId || null,
           workoutSessionSavedAt: draft.savedAt || null,
+          // a recent one opens straight into the logger, exactly like a device
+          // restore: leaving him on Train beside a Begin card is how the
+          // recovered session was written over on 26 Sep
+          ...(Date.now() - (draft.savedAt || 0) < SESSION_REOPEN_MS ? { workoutsView: 'session' } : {}),
         });
         this.toastMsg('Recovered your workout draft from the server — nothing was lost');
       }).catch(() => {
@@ -1883,6 +1888,7 @@ export default class App extends Component {
                 workoutSession: draft.workoutSession,
                 editingSessionId: draft.editingSessionId || null,
                 workoutSessionSavedAt: draft.savedAt || null,
+                ...(Date.now() - (draft.savedAt || 0) < SESSION_REOPEN_MS ? { workoutsView: 'session' } : {}),
               });
               this.toastMsg('Found your unfinished workout on the server — resume from Train or the nudge');
             }).catch(() => { this.serverDraftChecked = false; /* retry next sync */ });
@@ -3589,7 +3595,21 @@ export default class App extends Component {
       this.setState({ liveWorkoutSchedule: schedule });
     }).catch((e) => this.toastMsg('Could not update schedule: ' + e.message));
   }
+  // Every start path asks first (src/sessionGuard.js): the 26 Sep loss was a
+  // Begin button writing a fresh session over a recovered one.
+  guardSessionStart(want) {
+    const cur = this.state.workoutSession;
+    const d = startDecision(cur, want);
+    if (d === 'start') return false;
+    this.setState({ trainTab: 'gym', workoutsView: 'session', sessionCancelConfirm: false });
+    if (d === 'keep') {
+      const n = tickedSets(cur);
+      this.toastMsg(`${cur.routineName} is still open with ${n} set${n === 1 ? '' : 's'} logged — finish or discard it before starting another`);
+    }
+    return true;
+  }
   startWorkoutSession(routine) {
+    if (this.guardSessionStart({ routineId: routine.id })) return;
     const progressions = this.state.liveWorkoutProgressions || {};
     const exercises = routine.exercises.map((e) => {
       let sets = e.lastSets && e.lastSets.length
@@ -3711,6 +3731,9 @@ export default class App extends Component {
         trainTab: 'gym',
       });
       this.toastMsg('Workout restored — nothing was lost');
+      // a restore over a session with logged sets is a swap: the server kept
+      // that one as 'replaced', so offer it back the same way
+      api.getDiscardedDraft(conn).then(({ draft: d }) => { if (d) this.setState({ discardedDraft: d }); }).catch(() => {});
     }).catch((e) => this.toastMsg('Could not restore: ' + e.message));
   }
   discardWorkoutSession() {
@@ -3839,6 +3862,7 @@ export default class App extends Component {
   dismissFinishMissed() { this.setState({ finishMissed: null }); }
   setFinishMissedDate(date) { this.setState({ finishMissedDate: date }); }
   startCarryoverSession(carryover) {
+    if (this.guardSessionStart({ carryoverId: carryover.id })) return;
     const routines = this.state.liveWorkoutRoutines || [];
     const lastSetsFor = (exId) => {
       for (const r of routines) { const e = r.exercises.find((x) => x.exerciseId === exId); if (e?.lastSets?.length) return e.lastSets; }
@@ -3873,6 +3897,8 @@ export default class App extends Component {
       .catch((e) => this.toastMsg('Could not clear: ' + e.message));
   }
   editHistorySession(session) {
+    // opening a past session in the editor must not write over live logged sets either
+    if (this.state.editingSessionId !== session.id && this.guardSessionStart({ routineId: `edit:${session.id}` })) return;
     // Load a past session into the editor: every recorded set arrives
     // ticked (it happened); untick to remove it from the record on save.
     const exercises = session.exercises.map((e) => ({
@@ -9340,6 +9366,8 @@ export default class App extends Component {
   startQuickPlanSession() {
     const plan = this.state.quickPlan;
     if (!plan) return;
+    // a quick session is never "the same" as what is open, so only the keep rule applies
+    if (this.guardSessionStart({ routineId: 'impromptu:new' })) return;
     this.setState({
       workoutsView: 'session',
       editingSessionId: null,

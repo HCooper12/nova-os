@@ -757,9 +757,12 @@ export function valsWorkouts(app, ctx) {
     sessionLive: !!st.workoutSession,
     // an accidental discard is recoverable for 7 days — the offer only
     // appears when the archived session actually holds ticked work
-    discardedDraft: (!st.workoutSession && st.discardedDraft) ? {
+    // a REPLACED one shows even beside the session that replaced it — that is
+    // exactly when he needs it (26 Sep)
+    discardedDraft: (st.discardedDraft && (!st.workoutSession || st.discardedDraft.reason === 'replaced')) ? {
       name: st.discardedDraft.workoutSession?.routineName || 'workout',
       sets: st.discardedDraft.tickedSets,
+      replaced: st.discardedDraft.reason === 'replaced',
       when: st.discardedDraft.clearedAt ? new Date(st.discardedDraft.clearedAt).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : '',
       restore: () => app.restoreDiscardedSession(),
       dismiss: () => app.setState({ discardedDraft: null }),
