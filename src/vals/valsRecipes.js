@@ -552,6 +552,24 @@ export function valsRecipes(app, ctx) {
         pct: Math.min(100, Math.round((proteinCurrent / proteinTarget) * 100)),
         kcal: Math.round(rotConsumedTot.kcal + foodLogTot.kcal),
         kcalTarget: profile?.targetKcal ?? null,
+        // THE CALORIE RING (his ask, 26 Sep: "a ring for both calories and
+        // protein"). Calories used to be only the figure inside the macro
+        // ring, so the one number he budgets against had no form. It is its
+        // own ring now, in the calorie green; past the target the arc stays
+        // full and turns warn, because over is a verdict, not more progress.
+        // No target, or nothing logged, is the dashed gap, never a zero arc.
+        kcalRing: (() => {
+          const eaten = Math.round(rotConsumedTot.kcal + foodLogTot.kcal);
+          const target = profile?.targetKcal ?? null;
+          const over = target > 0 && eaten > target;
+          return {
+            eaten, target,
+            state: target > 0 && eaten > 0 ? 'arc' : 'absent',
+            pct: target > 0 ? Math.min(100, Math.round((eaten / target) * 100)) : 0,
+            hue: over ? 'var(--nv-warn)' : 'var(--nv-good)',
+            over,
+          };
+        })(),
         c: cEaten,
         f: fEaten,
         kcalLeft: kcalLeft != null ? Math.max(0, Math.round(kcalLeft)) : null,

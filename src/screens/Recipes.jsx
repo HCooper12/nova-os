@@ -238,6 +238,39 @@ const RING_GEO = [{ r: 61, w: 9 }, { r: 48, w: 5 }, { r: 36, w: 5 }];
 // in one voice rather than two.
 const GAP_TONE = 'color-mix(in srgb, var(--nv-ink) 28%, transparent)';
 
+// THE CALORIE RING — one arc, same box and stroke as the macro ring's
+// outer arc, so the two read as a pair. Its own component because calories
+// are not a macro in grams: one figure, one target, one verdict colour.
+function KcalRing({ ring }) {
+  const g = RING_GEO[0];
+  const circ = 2 * Math.PI * g.r;
+  const c = RING_BOX / 2;
+  return (
+    <div style={{ position: 'relative', width: RING_BOX, height: RING_BOX, flex: 'none' }}
+      aria-label={ring.state === 'absent' ? 'calories: nothing logged' : `calories ${ring.eaten} of ${ring.target}${ring.over ? ', over the target' : ''}`}>
+      <svg viewBox={`0 0 ${RING_BOX} ${RING_BOX}`} width={RING_BOX} height={RING_BOX} style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
+        <circle cx={c} cy={c} r={g.r} fill="none" stroke="rgba(130,175,255,.10)" strokeWidth={g.w} />
+        {ring.state === 'absent' ? (
+          <circle cx={c} cy={c} r={g.r} fill="none" stroke={GAP_TONE} strokeWidth="3" strokeDasharray="3 5" />
+        ) : (
+          <circle cx={c} cy={c} r={g.r} fill="none" stroke={ring.hue} strokeWidth={g.w} strokeLinecap="round"
+            strokeDasharray={circ} strokeDashoffset={circ * (1 - ring.pct / 100)}
+            style={{
+              filter: `drop-shadow(0 0 6px color-mix(in srgb, ${ring.hue} 55%, transparent))`,
+              '--nv-arc-full': circ,
+              animation: 'nvArcIn 1s cubic-bezier(.2,.8,.2,1) both',
+              transition: 'stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1), stroke .4s ease',
+            }} />
+        )}
+      </svg>
+      <div style={css("position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px")}>
+        <b style={css(`font:400 ${ring.eaten.toLocaleString().length > 5 ? '18' : '22'}px/1 var(--nv-font-serif);color:${ring.over ? 'var(--nv-warn)' : 'var(--nv-ink)'};font-variant-numeric:tabular-nums`)}>{ring.state === 'arc' || ring.eaten > 0 ? ring.eaten.toLocaleString() : '—'}</b>
+        <Meta tone="faint" style={{ fontVariantNumeric: 'tabular-nums' }}>{ring.target ? `of ${ring.target.toLocaleString()} kcal` : 'kcal, no target'}</Meta>
+      </div>
+    </div>
+  );
+}
+
 function MacroRings({ hero }) {
   const drawn = hero.macros.filter((m) => m.state !== 'none');
   return (
@@ -282,8 +315,10 @@ function MacroRings({ hero }) {
       <div style={css("position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px")}>
         {/* nothing logged is a GAP, not a zero — the dash RingTile uses,
             beside the dashed ring the arcs already draw for the same state */}
-        <b style={css(`font:400 ${hero.kcal.toLocaleString().length > 5 ? '18' : '22'}px/1 var(--nv-font-serif);color:var(--nv-ink);font-variant-numeric:tabular-nums`)}>{drawn.some((m) => m.state === 'arc') || hero.kcal > 0 ? hero.kcal.toLocaleString() : '—'}</b>
-        <Meta tone="faint" style={{ fontVariantNumeric: 'tabular-nums' }}>{hero.kcalTarget ? `of ${hero.kcalTarget.toLocaleString()}` : 'kcal, no target'}</Meta>
+        {/* protein owns this ring's middle now; calories have their own
+            ring beside it (26 Sep) */}
+        <b style={css("font:400 22px/1 var(--nv-font-serif);color:var(--nv-cy);font-variant-numeric:tabular-nums")}>{hero.p > 0 ? `${hero.p}` : '—'}<span style={css("font-size:13px")}>{hero.p > 0 ? 'g' : ''}</span></b>
+        <Meta tone="faint" style={{ fontVariantNumeric: 'tabular-nums' }}>{hero.target ? `of ${hero.target} g protein` : 'protein, no floor'}</Meta>
       </div>
     </div>
   );
@@ -382,7 +417,10 @@ export function Recipes({ v }) {
           exists. */}
       {v.fuelHero && (
         <div style={css("margin-top:16px;display:flex;gap:16px;align-items:center;justify-content:center;flex-wrap:wrap;border:1px solid var(--nv-edge);border-radius:18px;padding:16px;background:var(--nv-glass)")}>
-          <MacroRings hero={v.fuelHero} />
+          <div style={css("display:flex;gap:12px;flex:none;justify-content:center")}>
+            <KcalRing ring={v.fuelHero.kcalRing} />
+            <MacroRings hero={v.fuelHero} />
+          </div>
           <div style={css("flex:1;min-width:170px;display:flex;flex-direction:column;gap:6px")}>
             {v.fuelHero.kcalLeft != null && (
               <Tag tone="good" style={{ alignSelf: 'flex-start' }}>Fits {v.fuelHero.kcalLeft} kcal left</Tag>

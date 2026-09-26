@@ -77,16 +77,40 @@ test('a macro with no target draws no arc at all — not a zero arc', () => {
     'and the label must not announce an arc that was never drawn');
 });
 
-test('the calories are the one figure in the middle, in the serif face', () => {
-  const ring = ringsFn();
-  assert.match(ring, /var\(--nv-font-serif\)/, 'the news line face, per §2b r2');
-  assert.match(ring, /hero\.kcal\.toLocaleString\(\)/);
-  assert.match(ring, /animation: 'nvArcIn 1s/, 'an arc that replaces the gap must grow in, not appear finished (rec.mjs caught this)');
+// His ask, 26 Sep: "a ring for both calories and protein". Calories were
+// only the figure in the macro ring's middle; now they are their own ring
+// beside it, and the macro ring's middle is protein.
+const kcalRingFn = () => {
+  const at = SCREEN.indexOf('function KcalRing');
+  assert.ok(at > 0, 'the calorie ring component is gone');
+  return SCREEN.slice(at, SCREEN.indexOf('\n}', at));
+};
+
+test('calories have their own ring, drawn like the macro ring and beside it', () => {
+  const ring = kcalRingFn();
+  assert.match(ring, /var\(--nv-font-serif\)/, 'the figure in the news line face, per §2b r2');
+  assert.match(ring, /ring\.eaten\.toLocaleString\(\)/);
+  assert.match(ring, /\|\| ring\.eaten > 0 \? ring\.eaten\.toLocaleString\(\) : '—'/, 'nothing logged is a dash in the centre, not a zero');
+  assert.match(ring, /strokeDasharray="3 5"/, 'a gap is the dashed ring here too');
+  assert.match(ring, /stroke=\{GAP_TONE\}/);
+  assert.match(ring, /animation: 'nvArcIn 1s/, 'the arc grows in, not appears finished');
+  assert.match(ring, /font-variant-numeric:tabular-nums/);
+  assert.match(ring, /<Meta tone="faint"[\s\S]*?of \$\{ring\.target\.toLocaleString\(\)\} kcal/, 'the target is a Meta beneath it');
   assert.match(readFileSync(new URL('../../src/index.css', import.meta.url), 'utf8'), /@keyframes nvArcIn \{ from \{ stroke-dashoffset: var\(--nv-arc-full\); \} \}/);
-  assert.match(ring, /\|\| hero\.kcal > 0 \? hero\.kcal\.toLocaleString\(\) : '—'/, 'nothing logged is a dash in the centre, not a zero');
-  assert.match(ring, /font-variant-numeric:tabular-nums/, 'digits that do not dance as the day climbs');
-  assert.match(ring, /<Meta tone="faint"[\s\S]*?of \$\{hero\.kcalTarget\.toLocaleString\(\)\}/,
-    'the target is a Meta beneath it, through Controls.jsx');
+  // colour means something: green under, warn over, and over never draws past full
+  assert.match(VALS, /hue: over \? 'var\(--nv-warn\)' : 'var\(--nv-good\)'/);
+  assert.match(VALS, /pct: target > 0 \? Math\.min\(100, Math\.round\(\(eaten \/ target\) \* 100\)\) : 0/);
+  assert.match(VALS, /state: target > 0 && eaten > 0 \? 'arc' : 'absent'/, 'no target or nothing eaten is a gap');
+  // the pair, side by side
+  assert.match(SCREEN, /<KcalRing ring=\{v\.fuelHero\.kcalRing\} \/>\s*<MacroRings hero=\{v\.fuelHero\} \/>/);
+});
+
+test('the macro ring\'s middle is protein now, in the protein hue', () => {
+  const ring = ringsFn();
+  assert.match(ring, /color:var\(--nv-cy\)/, 'the protein figure wears the protein hue');
+  assert.match(ring, /hero\.p > 0 \? `\$\{hero\.p\}` : '—'/, 'nothing logged is a dash, not a zero');
+  assert.match(ring, /of \$\{hero\.target\} g protein/);
+  assert.ok(!/hero\.kcal\.toLocaleString\(\)/.test(ring), 'calories left this ring for their own');
 });
 
 test('the label/value table beside the ring is gone', () => {
