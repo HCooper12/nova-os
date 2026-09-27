@@ -155,7 +155,11 @@ the same arrows the Body page's charts imply; the sky changes at the band
 boundaries without a reload.
 
 **P5 · His phone.** Nova glass as his main; each of the five options
-switched and photographed; his tweaks. Then Home's checklist rows go to
+switched and photographed; his tweaks. SHIPPED SO FAR: the glass polish
+(5507930) and a sixth option, material `lit` (6b140a2, d1a6847): Nova
+glass with each card lit in its header's hue, the treatment his cupertino
+panes wear (glowPanel: 1px edge at 30%, tinted fill, bloom). Frames on the
+review page v9. Still his: the look on the phone itself, and the tweaks. Then Home's checklist rows go to
 `[b]` and, on his word, `[x]`.
 
 **Then** the standard changes: NOVA-METHOD §2b rule 1 becomes "ship in
