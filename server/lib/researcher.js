@@ -115,7 +115,12 @@ export function normalizeResearch(parsed) {
 // caller already asked "Opus or Sonnet?" before reaching here) — 'opus' or
 // 'sonnet' only, never the full model board. Omitted, this run just uses
 // the lane's standing default (modelFor('researcher')), same as always.
-export async function startResearch(vaultPath, question, { model, context, parentPlanId } = {}) {
+//
+// `parentId`: the Inbox card this research was asked FROM (Look deeper, the
+// summary Inbox, 27 Sep 2026). Written onto the record so the card can find
+// its report by it; nothing on the server reads it. Omitted, the record
+// carries no such key at all, exactly as before.
+export async function startResearch(vaultPath, question, { model, context, parentPlanId, parentId } = {}) {
   const q = (question || '').trim();
   if (!q) throw new Error('a research question is required');
   if (q.length > 500) throw new Error('keep the research question under 500 characters');
@@ -139,6 +144,8 @@ export async function startResearch(vaultPath, question, { model, context, paren
     context: context ? String(context).slice(0, 8000) : null,
     // the plan this is a step of, so a pause can wake it when he answers
     parentPlanId: parentPlanId || null,
+    // the card this was asked from (Look deeper), so the report grows on it
+    ...(parentId ? { parentId: String(parentId) } : {}),
   });
   runResearchJob(vaultPath, record.id, q, model, context);
   return record;

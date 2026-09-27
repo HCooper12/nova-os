@@ -299,9 +299,9 @@ test('the new files add no network path: every write is an existing app method',
 test('App renders the sheet only under summary, and the Fuel vals go last', () => {
   const app = read('src/App.jsx');
   assert.match(app, /\{v\.recipeOpen && <Suspense fallback=\{null\}>\{v\.fuelSummary\?\.recipeSheet \? <RecipeSheet v=\{v\} \/> : <RecipeOverlay v=\{v\} \/>\}<\/Suspense>\}/);
-  assert.match(app, /return \{ \.\.\.withTrain, \.\.\.valsFuelSummary\(this, ctx, withTrain\) \};/);
+  assert.match(app, /const withFuel = \{ \.\.\.withTrain, \.\.\.valsFuelSummary\(this, ctx, withTrain\) \};/);
   // the Recipes list is its own history entry, and popstate closes it
   assert.match(app, /novaView: 'fuelRecipes'/);
   assert.match(app, /\.\.\.this\.pagesFromHistory\(\)/);
-  assert.match(app, /pagesFromHistory\(\) \{\n    return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\) \};/);
+  assert.match(app, /pagesFromHistory\(\) \{\n    return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\) \};/);
 });

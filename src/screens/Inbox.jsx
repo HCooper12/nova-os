@@ -7,6 +7,7 @@ import { SkeletonList } from '../Skeleton.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, Button, Select } from '../Controls.jsx';
+import { InboxSummary } from './InboxSummary.jsx';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -49,6 +50,15 @@ const STATUS_META = {
 };
 
 export function Inbox({ v }) {
+  // "Summary" renders the redesigned Inbox (InboxSummary.jsx, mockup 60); it
+  // comes first, because `structured` is true under summary as well, and
+  // v.inboxSummary is null under every other style. The page below is a
+  // component of its own so its hooks never run behind a condition.
+  if (v.summary && v.inboxSummary) return <InboxSummary v={v} />;
+  return <InboxClassic v={v} />;
+}
+
+function InboxClassic({ v }) {
   const dict = useDictation(
     () => v.inboxInput,
     (text) => v.setInboxInput(text),

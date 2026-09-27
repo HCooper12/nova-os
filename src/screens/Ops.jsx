@@ -3,6 +3,7 @@ import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Eyebrow, TextAction, Tag, Meta, isAppleStyle, Button } from '../Controls.jsx';
+import { OpsInboxHead } from '../OpsInboxHead.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 // the Org Map is three.js: its own chunk, fetched only when Ops opens
@@ -172,6 +173,19 @@ function MacSessions({ v }) {
 }
 
 export function Ops({ v }) {
+  // Under `summary` the page opens with what the Inbox handed over (mockup
+  // 60 #6): waiting on your call, Nova proposes, the loops, the ladder. It
+  // replaces the gate line and the numeral header below; everything else on
+  // the page follows unchanged. Null under every other style.
+  const sumHead = v.summary && v.inboxSummary?.ops?.live ? <OpsInboxHead o={v.inboxSummary.ops} /> : null;
+  if (!v.opsLive && sumHead) {
+    return (
+      <div style={v.wrapMission}>
+        {sumHead}
+        <div style={css(`max-width:760px;margin:24px auto 0;font:400 13px/1.5 var(--nv-font-ui);color:${dim(55)}`)}>{v.opsEmptyLine}</div>
+      </div>
+    );
+  }
   if (!v.opsLive) {
     return (
       <div style={css("padding:34px 28px")}>
@@ -184,19 +198,20 @@ export function Ops({ v }) {
     /* the top inset every other screen has and this one never did — its
        title sat behind the fixed chrome (review finding 9) */
     <div style={css("padding:calc(48px + env(safe-area-inset-top)) 18px 40px;max-width:1080px;margin:0 auto")}>
-      <div style={css("display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
+      {sumHead}
+      {!sumHead && <div style={css("display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px")}>
         <div style={css(`font:var(--nv-micro-l);letter-spacing:.3em;color:${dim(45)}`)}>XIV. OPERATIONS</div>
         <Meta tone={dim(38)} style={{ textTransform: 'none', letterSpacing: 0 }}>records + heartbeats · nothing invented</Meta>
-      </div>
+      </div>}
 
       {/* the human gate — the only checkpoint, shown proudly */}
-      <Interactive as="div" onClick={v.goInboxFromOps}
+      {!sumHead && <Interactive as="div" onClick={v.goInboxFromOps}
         base={`cursor:pointer;margin-top:18px;display:flex;align-items:center;gap:12px;border:1px solid color-mix(in srgb, var(--nv-gold) ${v.opsPending > 0 ? 45 : 18}%, transparent);border-radius:12px;padding:13px 16px;background:color-mix(in srgb, var(--nv-gold) ${v.opsPending > 0 ? 7 : 3}%, transparent)`}
         hoverStyle="background:color-mix(in srgb, var(--nv-gold) 12%, transparent)">
         <span style={css(`font:600 20px ${M};color:var(--nv-gold);min-width:28px;text-align:center`)}>{v.opsPending}</span>
         <Meta tone={dim(75)} style={{ flex: 1, textTransform: 'none', letterSpacing: 0, fontSize: isAppleStyle() ? '14px' : undefined }}>{v.opsGateLine}</Meta>
         <Meta tone="gold" style={{ fontWeight: 600 }}>Open Inbox →</Meta>
-      </Interactive>
+      </Interactive>}
 
       {/* THE ORG MAP — who is asking, drawn (AGENT-WORLD-PLAN §3). While its
           chunk loads, a skeleton of the same size holds its place. */}

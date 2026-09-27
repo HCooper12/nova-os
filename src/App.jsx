@@ -50,6 +50,8 @@ import { valsSummary } from './vals/valsSummary.js';
 import { valsTrainSummary } from './vals/valsTrainSummary.js';
 import { valsIndex } from './vals/valsIndex.js';
 import { valsFuelSummary } from './vals/valsFuelSummary.js';
+import { valsInboxSummary } from './vals/valsInboxSummary.js';
+import { upsertInboxRecord, omitKey } from './inboxSummaryFacts.js';
 import { SCREEN_KEYS } from './screenKeys.js';
 import { Sidebar } from './Sidebar.jsx';
 // THE DAILY FIVE — statically imported, never lazy. These are what a session
@@ -3371,11 +3373,12 @@ export default class App extends Component {
     return (this.state.fuelView || null) === want ? {} : { fuelView: want };
   }
   // popstate's half for everything that is a history entry of its own over a
-  // screen: Edit Pinned, the Coach sheet on the summary Train page, and the
-  // Recipes list over the summary Fuel page. One helper, because
-  // server/test/edgeBack.test.js reads popH through a short window.
+  // screen: Edit Pinned, the Coach sheet on the summary Train page, the
+  // Recipes list over the summary Fuel page, and the summary Inbox's report
+  // and capture sheets. One helper, because server/test/edgeBack.test.js
+  // reads popH through a short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory() };
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory() };
   }
   // The Pinned order and switches persist straight away (src/pinned.js); the
   // tick re-renders Home behind the sheet, so each change shows as he makes it.
@@ -5061,6 +5064,11 @@ export default class App extends Component {
   openCapture(id) {
     if (!id) return;
     this.setState((st) => ({ inboxExpanded: { ...(st.inboxExpanded || {}), [id]: true } }));
+    // the summary Inbox splits Waiting from Filed: open the half it lives in
+    if (this.state.novaStyle === 'summary') {
+      const rec = (this.state.liveInbox?.items || []).find((r) => r.id === id);
+      this.setState({ inboxSumTab: rec?.status === 'pending' ? 'waiting' : 'filed' });
+    }
     if (this.state.screen !== 'inbox') this.navigate('inbox');
     // after the screen has painted; a record can be far down the history
     clearTimeout(this.openCaptureTimer);
@@ -5081,6 +5089,110 @@ export default class App extends Component {
     this.withTransition(() => this.setState((s) => ({
       inboxExpanded: { ...s.inboxExpanded, [id]: !(s.inboxExpanded || {})[id] },
     })));
+  }
+  // ---------- the summary Inbox (27 Sep 2026, design/mockups/60) ----------
+  // LOOK DEEPER. The card's own question goes to the Researcher through the
+  // same model gate every research ask passes (gateModelChoice), and the
+  // research record carries this card's id (parentId, server/lib/
+  // inboxDeeper.js), so its report grows on the card. The watch is the Voice
+  // research message's (watchVoiceResearch): one record, every 5s, slow after
+  // 8 minutes. Nothing here files anything; the decision is still his.
+  startInboxDeeper(id) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    this.gateModelChoice('research', (model) => {
+      this.setState((s) => ({
+        inboxDeeperBusy: { ...(s.inboxDeeperBusy || {}), [id]: true },
+        inboxDeeperStopped: omitKey(s.inboxDeeperStopped, id),
+      }));
+      api.inboxDeeper(conn, id, model).then(({ record }) => {
+        this.setState((s) => ({ inboxDeeperBusy: omitKey(s.inboxDeeperBusy, id), liveInbox: upsertInboxRecord(s.liveInbox, record) }));
+        this.watchInboxDeeper(conn, id, record.id);
+      }).catch((e) => {
+        this.setState((s) => ({ inboxDeeperBusy: omitKey(s.inboxDeeperBusy, id) }));
+        this.toastFail('Could not look deeper: ' + e.message);
+      });
+    });
+  }
+  watchInboxDeeper(conn, parentId, recordId) {
+    const land = (record) => { if (record) this.setState((s) => ({ liveInbox: upsertInboxRecord(s.liveInbox, record) })); };
+    this.startPoll(`inboxDeeper:${parentId}`, () => api.inboxItem(conn, recordId), {
+      intervalMs: 5000, timeoutMs: 8 * 60_000,
+      onProgress: (job) => land(job.record),
+      onReady: ({ record }) => land(record),
+      // the record says what went wrong; the list brings it in
+      onError: () => this.refreshInbox(),
+    });
+  }
+  // STOP WATCHING. A Researcher run cannot be called back once it is sent
+  // (researcher.js keeps no handle on its children, and there is no stop
+  // route), so this stops the watch and says so on the card. If the run
+  // finishes anyway, its report still lands on the card: it is his record.
+  stopInboxDeeper(parentId) {
+    this.stopPoll(`inboxDeeper:${parentId}`);
+    this.setState((s) => ({ inboxDeeperStopped: { ...(s.inboxDeeperStopped || {}), [parentId]: Date.now() } }));
+  }
+  // A popstate that lands a sheet's close, then whatever was waiting on it.
+  // App's own popstate listener was added first, so the state has settled.
+  afterPop(then) {
+    if (typeof then !== 'function' || typeof window === 'undefined') return;
+    let done = false;
+    const run = () => { if (done) return; done = true; window.removeEventListener('popstate', run); setTimeout(then, 0); };
+    window.addEventListener('popstate', run);
+    setTimeout(run, 700);
+  }
+  // THE REPORT SHEET is its own history entry, for the Edit sheet's reason
+  // (openPinnedEdit): the back swipe closes the sheet, not the tab under it.
+  openDeeperReport(parentId) {
+    if (!parentId) return;
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'deeper') window.history.replaceState({ ...st, parentId }, '');
+      else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'deeper', parentId }, '');
+    }
+    this.setState({ inboxDeeperReport: parentId });
+  }
+  closeDeeperReport(then) {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'deeper') { this.afterPop(then); window.history.back(); return; }
+    this.setState({ inboxDeeperReport: null }, typeof then === 'function' ? then : undefined);
+  }
+  deeperReportFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'deeper';
+    if (!onEntry && this.state.inboxDeeperReport) return { inboxDeeperReport: null };
+    if (onEntry && !this.state.inboxDeeperReport && st.parentId) return { inboxDeeperReport: st.parentId };
+    return {};
+  }
+  // CAPTURE, from the Nova button's hold under `summary` (mockup 60 #5): the
+  // composer rises over whatever is on screen. Its own history entry too.
+  openCaptureSheet() {
+    if (this.state.captureSheetOpen) return;
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay !== 'capture') window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'capture' }, '');
+    }
+    this.setState({ captureSheetOpen: true });
+  }
+  closeCaptureSheet(then) {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'capture') { this.afterPop(then); window.history.back(); return; }
+    this.setState({ captureSheetOpen: false }, typeof then === 'function' ? then : undefined);
+  }
+  captureSheetFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'capture';
+    if (!onEntry && this.state.captureSheetOpen) return { captureSheetOpen: false };
+    if (onEntry && !this.state.captureSheetOpen) return { captureSheetOpen: true };
+    return {};
+  }
+  // TALK ABOUT IT, for a card with no conversation of its own: the card
+  // opens a real conversation and Nova speaks first, the way "Talk it
+  // through" does for a health insight (askAboutInsight). His words, the
+  // record and the reply all ride the conversation's existing rails.
+  talkAboutInbox(subject) {
+    const q = String(subject || '').trim();
+    if (!q) return;
+    this.navigate('voice');
+    this.setState({ liveInput: q }, () => this.sendLiveTalk());
   }
   startVideoWatch(text) {
     const conn = getConnection();
@@ -7149,9 +7261,12 @@ export default class App extends Component {
     // Home's Training card (valsSummary's trainingCard) from the merged view
     // model; the summary Fuel page (mockup 59 A) reshapes valsRecipes'
     // composer, log, rotation and recipe overlay with Home's own plate
-    // fields. Each takes the whole merged model; both null off `summary`.
+    // fields; the summary Inbox (mockup 60) reads the Inbox's own rows, the
+    // loops, the ladder and the proposals. Each takes the whole merged model
+    // and spreads nothing another builder set; all three null off `summary`.
     const withTrain = { ...withIndex, ...valsTrainSummary(this, ctx, withIndex) };
-    return { ...withTrain, ...valsFuelSummary(this, ctx, withTrain) };
+    const withFuel = { ...withTrain, ...valsFuelSummary(this, ctx, withTrain) };
+    return { ...withFuel, ...valsInboxSummary(this, ctx, withFuel) };
   }
 
   // A research job dispatched from the conversation: poll the SAME pending

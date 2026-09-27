@@ -2037,6 +2037,419 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   outline: 2px solid var(--nv-acc-border); outline-offset: -2px;
 }
 
+/* ================================================================
+   THE SUMMARY INBOX (27 Sep 2026, design/mockups/60-redesign-inbox-r2)
+   — src/screens/InboxSummary.jsx, its two sheets (DeeperReportSheet,
+   CaptureSheet) and the Ops head (OpsInboxHead). The same rule as the
+   blocks above: every selector names a .nv-sum-ib-* class nothing else
+   wears, so nothing here reaches a command or cupertino screen.
+   Four sizes per view, 34 · 20 · 15 · 13, the numerals apart. Colour
+   means one thing each (NOVA-METHOD §2b rule 8, the HIG's "never one hue
+   for two meanings"): gold is waiting on his call and nothing else, green
+   a filed receipt, red a discard or an error, cyan new and Nova's own.
+   ================================================================ */
+.nv-sum-ib, .nv-sum-ib-sheet, .nv-sum-ib-cap {
+  --ib-wait: var(--nv-gold); --ib-filed: var(--nv-good); --ib-no: var(--nv-warn); --ib-new: var(--nv-cy);
+  --ib-link: var(--nv-acc); --ib-ink2: var(--nv-sum-ink2, var(--nv-ink60)); --ib-ink3: var(--nv-sum-ink3, var(--nv-ink50));
+  --ib-sep: var(--nv-sum-sep, color-mix(in srgb, var(--nv-ink) 14%, transparent));
+  --ib-glyph: #07121c;
+}
+.nv-sum-ib { font-size: 15px; overflow-x: clip; }
+:where(.nv-sum-ib, .nv-sum-ib-sheet, .nv-sum-ib-cap) button {
+  font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.nv-sum-ib-ico {
+  width: 16px; height: 16px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* the title row: the large title and Waiting · Filed */
+.nv-sum-ib-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 2px; }
+.nv-sum-ib-h1 { margin: 0 4px; font: 700 34px/1.1 var(--nv-font-ui); letter-spacing: -.025em; color: var(--nv-ink); }
+.nv-sum-ib-seg { flex: none; width: 190px; display: flex; }
+.nv-sum-ib-seg > span { flex: 1; }
+
+/* the count, given a form: the rounded numeral, the pile in words, the rail */
+.nv-sum-ib-count { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; margin: 14px 4px 0; }
+.nv-sum-ib-num { font: 700 44px/1 var(--nv-font-round); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--nv-ink); }
+.nv-sum-ib-num.s { font-size: 30px; }
+.nv-sum-ib-num.xl { font-size: 52px; }
+.nv-sum-ib-num.wait { color: var(--ib-wait); text-shadow: 0 0 24px color-mix(in srgb, var(--ib-wait) 32%, transparent); }
+.nv-sum-ib-cx { min-width: 0; }
+.nv-sum-ib-cx > b { display: block; font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-sum-ib-cx > span { display: block; font: 400 13px/1.35 var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-railrow { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.nv-sum-ib-rail { position: relative; flex: 1; min-width: 0; display: flex; gap: 3px; }
+.nv-sum-ib-rail > i { flex: 1; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--ib-wait) 36%, transparent); transition: background-color var(--nv-dur-base) var(--nv-ease), box-shadow var(--nv-dur-base) var(--nv-ease); }
+.nv-sum-ib-rail > i.on { background: var(--ib-wait); box-shadow: 0 0 8px -1px var(--ib-wait); }
+.nv-sum-ib-rail > i.done { background: var(--ib-filed); box-shadow: 0 0 8px -1px var(--ib-filed); }
+.nv-sum-ib-rail.bar { height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--ib-wait) 36%, transparent); }
+.nv-sum-ib-rail.bar > i { position: absolute; top: 0; left: 0; height: 4px; flex: none; }
+.nv-sum-ib-pos { font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* the subjects, as small cards: the card opens the subject, the gold tick answers all of it */
+.nv-sum-ib-trio { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; margin-top: 12px; }
+.nv-sum-ib-scard { position: relative; min-width: 0; padding: 0; }
+.nv-sum-ib-scard > .open { display: flex; flex-direction: column; gap: 4px; min-height: 80px; padding: 8px 8px 8px 10px; border-radius: inherit; }
+.nv-sum-ib-scard .nm { display: flex; align-items: center; gap: 6px; min-height: 16px; font: 600 13px var(--nv-font-ui); color: var(--ib-ink2); white-space: nowrap; overflow: hidden; }
+.nv-sum-ib-scard .nv-sum-ib-num { margin-top: auto; }
+.nv-sum-ib-scard > .nv-sum-ib-allb { position: absolute; right: 8px; bottom: 8px; }
+.nv-sum-ib-dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--h); }
+.nv-sum-ib-allb {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 44px; padding: 0 10px 0 9px; border-radius: 22px;
+  font: 600 15px var(--nv-font-ui); color: var(--ib-wait); white-space: nowrap;
+  background: color-mix(in srgb, var(--ib-wait) 12%, transparent);
+}
+.nv-sum-ib-allb .nv-sum-ib-ico { width: 15px; height: 15px; stroke-width: 2.6; }
+.nv-sum-ib-focus { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 4px 0; font: 600 13px var(--nv-font-ui); color: var(--ib-wait); }
+
+/* the deck: two ghost edges behind the one live card, showing only where they peek above it */
+.nv-sum-ib-deck { position: relative; padding-top: 12px; margin-top: 14px; }
+.nv-sum-ib-ghost {
+  position: absolute; height: 44px; border-radius: var(--nv-radius);
+  background: var(--nv-sum-card); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring), 0 1px 0 var(--nv-sum-card-hi) inset;
+}
+.nv-sum-ib-ghost.g2 { left: 16px; right: 16px; top: 0; opacity: .4; clip-path: inset(0 0 32px 0); }
+.nv-sum-ib-ghost.g1 { left: 8px; right: 8px; top: 6px; opacity: .7; clip-path: inset(0 0 38px 0); }
+.nv-sum-ib-card { padding: 16px; }
+.nv-sum-ib-khead { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.nv-sum-ib-khead > .lx { min-width: 0; }
+.nv-sum-ib-kl { display: block; font: 600 13px/1.25 var(--nv-font-ui); }
+.nv-sum-ib-kt { display: block; font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-when { font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nv-sum-ib-say {
+  margin: 12px 0 0; font: 400 20px/1.3 var(--nv-font-serif); color: var(--nv-ink); text-wrap: balance; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+}
+.nv-sum-ib-tldr { margin: 8px 0 0; padding-left: 20px; font: 400 13px/1.45 var(--nv-font-ui); color: var(--ib-ink2); }
+.nv-sum-ib-tldr > li.more { list-style: none; margin-left: -20px; color: var(--ib-ink3); }
+
+/* tiles: the route's domain hue where it owns one, the vault ink otherwise */
+.nv-sum-ib-tile { width: 30px; height: 30px; flex: none; box-sizing: border-box; border-radius: 8px; display: grid; place-items: center; }
+.nv-sum-ib-tico { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nv-sum-ib-tile.train { background: var(--nv-cy); color: var(--ib-glyph); }
+.nv-sum-ib-tile.journal { background: var(--nv-vi); color: var(--ib-glyph); }
+.nv-sum-ib-tile.practice { background: var(--nv-or); color: var(--ib-glyph); }
+.nv-sum-ib-tile.new { background: var(--ib-new); color: var(--ib-glyph); }
+.nv-sum-ib-tile.vault { background: color-mix(in srgb, var(--nv-ink) 20%, transparent); color: var(--nv-ink); }
+.nv-sum-ib-tile.none { border: 1.5px dashed color-mix(in srgb, var(--nv-ink) 48%, transparent); color: var(--ib-ink2); }
+.nv-sum-ib-tile.err { background: color-mix(in srgb, var(--ib-no) 14%, transparent); box-shadow: inset 0 0 0 1.5px var(--ib-no); color: var(--ib-no); }
+.nv-sum-ib-tile.gold { background: color-mix(in srgb, var(--ib-wait) 16%, transparent); color: var(--ib-wait); }
+.nv-sum-ib-tt { position: relative; width: 30px; height: 30px; flex: none; }
+.nv-sum-ib-tick {
+  position: absolute; right: -5px; bottom: -4px; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--ib-filed); color: #05261a; box-shadow: 0 0 0 2px color-mix(in srgb, var(--nv-void) 80%, var(--nv-sum-card));
+}
+.nv-sum-ib-tick .nv-sum-ib-tico { width: 10px; height: 10px; stroke-width: 3.6; }
+
+/* the change, drawn: what goes solid, what arrives dashed */
+.nv-sum-ib-change { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; min-width: 0; }
+.nv-sum-ib-change.tight { margin-top: 8px; }
+.nv-sum-ib-pill {
+  position: relative; display: inline-flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; box-sizing: border-box;
+  min-height: 32px; padding: 0 12px; border-radius: 16px; font: 600 13px var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap;
+  background: color-mix(in srgb, var(--h) 12%, transparent); border: 1px solid color-mix(in srgb, var(--h) 34%, transparent);
+}
+.nv-sum-ib-pill > i { width: 7px; height: 7px; border-radius: 50%; background: var(--h); flex: none; }
+.nv-sum-ib-pill > .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-pill > .x { flex: none; font-weight: 500; color: var(--ib-ink2); font-variant-numeric: tabular-nums; }
+.nv-sum-ib-pill.arrive { background: transparent; border: 1.5px dashed color-mix(in srgb, var(--h) 62%, transparent); }
+.nv-sum-ib-arrow { color: var(--ib-ink3); }
+.nv-sum-ib-cnote { font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-dots { display: inline-flex; gap: 5px; }
+.nv-sum-ib-dots > i { width: 11px; height: 11px; box-sizing: border-box; border-radius: 50%; background: var(--h); border: 1.5px solid var(--h); }
+.nv-sum-ib-dots > i.new { background: transparent; border: 1.5px dashed var(--ib-wait); }
+.nv-sum-ib-dots > i.drop { opacity: .35; }
+.nv-sum-ib-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 12px; }
+.nv-sum-ib-week > div { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 2px; border-radius: 10px; background: color-mix(in srgb, var(--nv-ink) 4%, transparent); }
+.nv-sum-ib-week > div.chg { background: color-mix(in srgb, var(--ib-wait) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-wait) 40%, transparent); }
+.nv-sum-ib-week span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px/1.2 var(--nv-font-ui); }
+.nv-sum-ib-week .d { color: var(--ib-ink3); }
+.nv-sum-ib-week .b { font-weight: 500; color: var(--ib-ink3); text-decoration: line-through; }
+.nv-sum-ib-week .chg .a { color: var(--ib-wait); }
+.nv-sum-ib-gauge { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.nv-sum-ib-gauge .bar { flex: 1; height: 8px; border-radius: 4px; background: var(--nv-sum-track); overflow: hidden; }
+.nv-sum-ib-gauge .bar > i { display: block; height: 100%; border-radius: 4px; background: var(--ib-wait); }
+
+/* the card's two quiet blocks: You captured, Will be filed */
+.nv-sum-ib-qb { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.nv-sum-ib-qb.one { grid-template-columns: minmax(0, 1fr); }
+.nv-sum-ib-blk {
+  display: block; width: 100%; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 9px 12px 10px; border-radius: 14px;
+  background: color-mix(in srgb, var(--nv-ink) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 11%, transparent), 0 1px 0 color-mix(in srgb, var(--nv-sum-card-hi) 60%, transparent) inset;
+}
+.nv-sum-ib-bh { display: flex; align-items: center; gap: 6px; font: 600 13px/16px var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; }
+.nv-sum-ib-bh .nv-sum-ib-ico { width: 14px; height: 14px; }
+.nv-sum-ib-bh .x { margin-left: auto; transition: transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-sum-ib-blk.open .nv-sum-ib-bh .x { transform: rotate(180deg); }
+.nv-sum-ib-bt {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+  margin-top: 4px; font: 400 13px/1.4 var(--nv-font-ui); color: var(--ib-ink2);
+}
+.nv-sum-ib-bt1 { display: block; min-width: 0; margin-top: 4px; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-bt1 + .nv-sum-ib-bt1 { margin-top: 0; color: var(--ib-ink2); }
+.nv-sum-ib-full { display: block; margin-top: 6px; font: 400 13px/1.5 var(--nv-font-ui); color: var(--nv-ink); white-space: pre-wrap; overflow-wrap: anywhere; animation: fadeUp var(--nv-dur-base) var(--nv-ease) both; }
+
+/* a daily review's adjustments, each marked done or not today */
+.nv-sum-ib-adj { list-style: none; margin: 12px 0 0; padding: 0; }
+.nv-sum-ib-adj > li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 4px 10px; padding: 8px 0; }
+.nv-sum-ib-adj > li + li { border-top: 1px solid var(--ib-sep); }
+.nv-sum-ib-adj .n { font: 600 13px var(--nv-font-round); color: var(--ib-ink3); padding-top: 2px; }
+.nv-sum-ib-adj .lx { min-width: 0; }
+.nv-sum-ib-adj .t { display: block; font: 400 15px/1.35 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-sum-ib-adj .t.done { text-decoration: line-through; color: var(--ib-ink3); }
+.nv-sum-ib-adj .w { display: block; margin-top: 2px; font: 400 13px/1.4 var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-adj .marks { grid-column: 2; display: flex; gap: 8px; }
+.nv-sum-ib-mark { display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 22px; font: 600 15px var(--nv-font-ui); color: var(--ib-ink2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 16%, transparent); }
+.nv-sum-ib-mark.on { color: var(--ib-filed); background: color-mix(in srgb, var(--ib-filed) 14%, transparent); box-shadow: none; }
+.nv-sum-ib-mark.off { color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 12%, transparent); box-shadow: none; }
+
+/* the reason, with Look deeper on its right: the quiet fourth verb */
+.nv-sum-ib-srcrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; margin-top: 4px; }
+.nv-sum-ib-src {
+  margin: 0; min-width: 0; font: 400 13px/1.3 var(--nv-font-ui); color: var(--ib-ink3); text-wrap: balance;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.nv-sum-ib-deeper { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 4px 0 10px; font: 600 15px var(--nv-font-ui); color: var(--ib-ink2); white-space: nowrap; }
+.nv-sum-ib-deeper .nv-sum-ib-ico { width: 15px; height: 15px; }
+.nv-sum-ib-deeper[aria-disabled="true"] { opacity: .42; }
+
+/* ✓ · Talk about it · ✕ */
+.nv-sum-ib-answer { display: flex; align-items: center; gap: 4px; margin-top: 12px; min-width: 0; }
+.nv-sum-ib-answer.tight { margin-top: 4px; }
+.nv-sum-ib-yes {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; min-width: 44px; max-width: 62%; height: 44px; box-sizing: border-box; padding: 0 16px 0 14px; border-radius: 22px;
+  font: 600 15px var(--nv-font-ui); color: var(--ib-filed); white-space: nowrap;
+  background: color-mix(in srgb, var(--ib-filed) 15%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-filed) 36%, transparent);
+}
+.nv-sum-ib-yes .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-yes .nv-sum-ib-ico { stroke-width: 2.8; }
+.nv-sum-ib-talk { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; height: 44px; padding: 0 12px; border-radius: 22px; font: 600 15px var(--nv-font-ui); color: var(--ib-link); white-space: nowrap; }
+.nv-sum-ib-talk.on { background: color-mix(in srgb, var(--ib-link) 13%, transparent); }
+.nv-sum-ib-no {
+  flex: none; margin-left: auto; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--ib-ink2);
+  background: color-mix(in srgb, var(--nv-ink) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 15%, transparent);
+}
+.nv-sum-ib-card.waiting .nv-sum-ib-answer { opacity: .42; }
+
+/* Look deeper in flight: the gold working line rides the card */
+.nv-sum-ib-working {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  min-height: 52px; margin-top: 10px; padding: 8px 6px 8px 12px; border-radius: 14px;
+  background: color-mix(in srgb, var(--ib-wait) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-wait) 38%, transparent);
+}
+.nv-sum-ib-working .pd { width: 10px; height: 10px; border-radius: 50%; justify-self: center; background: var(--ib-wait); box-shadow: 0 0 10px 0 var(--ib-wait); animation: novaPulse 1.6s ease-in-out infinite; }
+.nv-sum-ib-working .lx { min-width: 0; }
+.nv-sum-ib-working b { display: block; font: 600 15px/1.25 var(--nv-font-ui); color: var(--ib-wait); }
+.nv-sum-ib-working .wx { display: block; font: 400 13px/1.3 var(--nv-font-ui); color: var(--ib-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.nv-sum-ib-working .stop { position: relative; z-index: 1; height: 44px; padding: 0 10px; font: 600 15px var(--nv-font-ui); color: var(--ib-ink2); }
+.nv-sum-ib-working::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ib-wait) 16%, transparent), transparent);
+  animation: glassScan 2.4s var(--nv-ease) infinite;
+}
+.nv-sum-ib-working.failed { background: color-mix(in srgb, var(--ib-no) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-no) 38%, transparent); }
+.nv-sum-ib-working.failed .pd { background: var(--ib-no); box-shadow: none; animation: none; }
+.nv-sum-ib-working.failed b { color: var(--ib-no); }
+.nv-sum-ib-working.failed .wx { white-space: normal; }
+.nv-sum-ib-working.failed::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-sum-ib-working .pd { animation: none; }
+  .nv-sum-ib-working::after { display: none; }
+}
+
+/* the report, grown on the same card: Nova's own work, so cyan */
+.nv-sum-ib-report {
+  margin-top: 10px; padding: 10px 12px 0; border-radius: 14px; animation: fadeUp var(--nv-dur-base) var(--nv-ease) both;
+  background: color-mix(in srgb, var(--ib-new) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-new) 36%, transparent);
+}
+.nv-sum-ib-report .nv-sum-ib-bh { color: var(--ib-new); }
+.nv-sum-ib-report .nd { width: 7px; height: 7px; border-radius: 50%; background: var(--ib-new); box-shadow: 0 0 6px -1px var(--ib-new); }
+.nv-sum-ib-report .rt { margin-left: auto; font-weight: 400; color: var(--ib-ink3); }
+.nv-sum-ib-rsay { margin: 6px 0 0; font: 400 15px/1.45 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
+.nv-sum-ib-readr { display: flex; align-items: center; gap: 2px; width: 100%; height: 44px; font: 600 15px var(--nv-font-ui); color: var(--ib-new); }
+.nv-sum-ib-readr .nv-sum-ib-ico { width: 15px; height: 15px; stroke-width: 2.6; }
+
+/* the ask-why panel: reasons as chips, his own words, discard or keep */
+.nv-sum-ib-ask {
+  margin-top: 10px; padding: 12px 12px 8px; border-radius: 18px; animation: fadeUp var(--nv-dur-base) var(--nv-ease) both;
+  background: color-mix(in srgb, var(--ib-link) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-link) 26%, transparent);
+}
+.nv-sum-ib-ask .q { font: 600 15px var(--nv-font-ui); color: var(--nv-ink); }
+.nv-sum-ib-ask .rest { font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.nv-sum-ib-chip { display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 22px; font: 400 15px var(--nv-font-ui); color: var(--nv-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 22%, transparent); }
+.nv-sum-ib-own {
+  display: block; width: 100%; box-sizing: border-box; height: 44px; margin-top: 8px; padding: 0 14px; border: 0; border-radius: 22px; outline: none;
+  background: color-mix(in srgb, var(--nv-void) 40%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 14%, transparent);
+  font: 400 16px var(--nv-font-ui); color: var(--nv-ink);
+}
+.nv-sum-ib-own:focus-visible { box-shadow: inset 0 0 0 1.5px var(--ib-link); }
+.nv-sum-ib-askrow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.nv-sum-ib-discard { display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 22px; font: 600 15px var(--nv-font-ui); color: var(--ib-no); background: color-mix(in srgb, var(--ib-no) 13%, transparent); }
+.nv-sum-ib-keep { display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 22px; font: 600 15px var(--nv-font-ui); color: var(--ib-ink2); }
+
+/* quiet lines: a stopped look, an offline page, a stale Coach card, an error */
+.nv-sum-ib-quiet { margin: 10px 4px 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--ib-ink3); text-wrap: pretty; }
+.nv-sum-ib-quiet.gold { color: var(--ib-wait); }
+.nv-sum-ib-quiet.center { text-align: center; margin-top: 24px; }
+.nv-sum-ib-err { margin: 8px 0 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--ib-no); }
+.nv-sum-ib-empty { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: center; margin-top: 14px; padding: 16px; }
+.nv-sum-ib-empty > p { margin: 0; font: 400 15px/1.45 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
+
+/* the receipt a decision leaves: green, holding Undo, riding above the tab bar */
+.nv-sum-ib-receipt {
+  position: sticky; bottom: calc(80px + min(env(safe-area-inset-bottom), 34px)); z-index: 6;
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  min-height: 52px; margin-top: 14px; padding: 4px 8px 4px 12px; box-sizing: border-box; border-radius: 26px;
+  background: var(--nv-sum-sheen), var(--nv-sum-tab);
+  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 .5px var(--nv-sum-tab-ring), var(--nv-sum-float-drop);
+  -webkit-backdrop-filter: blur(22px) saturate(var(--nv-sum-sat)); backdrop-filter: blur(22px) saturate(var(--nv-sum-sat));
+  animation: deckRise var(--nv-dur-base) var(--nv-ease) both;
+}
+.nv-sum-ib-receipt .ok { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--ib-filed); color: #05261a; }
+.nv-sum-ib-receipt.discard .ok { background: var(--ib-no); color: #2a0707; }
+.nv-sum-ib-receipt.busy .ok, .nv-sum-ib-receipt.undone .ok { background: color-mix(in srgb, var(--nv-ink) 22%, transparent); color: var(--nv-ink); }
+.nv-sum-ib-receipt .ok .nv-sum-ib-ico { width: 15px; height: 15px; stroke-width: 3; }
+.nv-sum-ib-receipt .rx { min-width: 0; }
+.nv-sum-ib-receipt .rx > b { display: block; font: 600 15px/1.25 var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-receipt .rx > span { display: block; font: 400 13px/1.3 var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-transparency: reduce) {
+  .nv-sum-ib-receipt { -webkit-backdrop-filter: none; backdrop-filter: none; background: color-mix(in srgb, var(--nv-void) 90%, white); }
+}
+
+/* the hint under the deck, and the one row that leads to the loops */
+.nv-sum-ib-hint { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; width: 100%; min-height: 44px; margin-top: 14px; font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); text-align: center; }
+.nv-sum-ib-hint .orb { display: inline-grid; width: 18px; height: 18px; place-items: center; }
+.nv-sum-ib-oprow { display: grid; grid-template-columns: auto minmax(0, 1fr) 16px; gap: 12px; align-items: center; width: 100%; box-sizing: border-box; min-height: 58px; margin-top: 8px; padding: 8px 14px; }
+.nv-sum-ib-dots7 { display: flex; gap: 4px; }
+.nv-sum-ib-dots7 > i { width: 7px; height: 7px; border-radius: 50%; }
+.nv-sum-ib .d-ok { background: var(--nv-good); box-shadow: 0 0 7px -1px var(--nv-good); }
+.nv-sum-ib .d-wait { background: var(--nv-gold); box-shadow: 0 0 7px -1px var(--nv-gold); }
+.nv-sum-ib .d-alert { background: var(--nv-warn); box-shadow: 0 0 7px -1px var(--nv-warn); }
+.nv-sum-ib .d-idle { background: color-mix(in srgb, var(--nv-ink) 30%, transparent); }
+.nv-sum-ib-lx { display: block; min-width: 0; }
+.nv-sum-ib-lx > .nm { display: block; font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-lx > .sv { display: block; font: 400 13px/1.35 var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-lx > .sv.em { color: var(--ib-wait); }
+.nv-sum-ib-ico.cv { width: 14px; height: 14px; color: var(--ib-ink3); stroke-width: 2.4; }
+
+/* FILED: a day at a time, one row grammar, the tile and its tick */
+.nv-sum-ib-honest { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; margin: 14px 4px 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--ib-ink2); }
+.nv-sum-ib-honest > .nv-sum-ib-ico { margin-top: 1px; color: var(--ib-filed); }
+.nv-sum-ib-group { margin: 18px 0 0; }
+.nv-sum-ib-rows { padding: 0; overflow: hidden; }
+.nv-sum-ib-rows > * + * { border-top: 1px solid var(--ib-sep); }
+.nv-sum-ib-frow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-height: 52px; padding: 0 8px 0 0; }
+.nv-sum-ib-frow > .main { display: grid; grid-template-columns: 40px 30px minmax(0, 1fr); gap: 10px; align-items: center; min-height: 52px; padding: 0 6px 0 14px; min-width: 0; }
+.nv-sum-ib-frow .t { font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sum-ib-frow .ti { display: block; min-width: 0; font: 400 15px var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-frow .st { padding: 0 6px; font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; }
+.nv-sum-ib-fitem.dim .ti { color: var(--ib-ink3); }
+.nv-sum-ib-fitem.dim .nv-sum-ib-tile { opacity: .55; }
+.nv-sum-ib-fdetail { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 12px 64px; animation: fadeUp var(--nv-dur-base) var(--nv-ease) both; }
+.nv-sum-ib-fdetail .dl { font: 400 13px/1.4 var(--nv-font-ui); color: var(--ib-ink2); }
+.nv-sum-ib-fdetail .k { display: block; font: 600 13px var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-fdetail .v { display: block; margin-top: 2px; font: 400 13px/1.5 var(--nv-font-ui); color: var(--nv-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.nv-sum-ib-fdetail .acts { display: flex; gap: 12px; }
+.nv-sum-ib-more { display: flex; align-items: center; justify-content: center; width: 100%; height: 44px; margin-top: 14px; border-radius: 22px; font: 600 15px var(--nv-font-ui); background: color-mix(in srgb, var(--nv-ink) 8%, transparent); text-align: center; }
+
+/* THE SHEETS: the house glass (.nv-liquid.nv-sum-sheet), the grab zone at the top */
+.nv-sum-ib-grabzone { position: relative; flex: none; padding: 20px 16px 8px; }
+.nv-sum-ib-grabzone > .grab { position: absolute; top: 7px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: color-mix(in srgb, var(--nv-ink) 22%, transparent); }
+.nv-sum-ib-shead { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.nv-sum-ib-shead .sx { min-width: 0; }
+.nv-sum-ib-shead .sx > b { display: block; font: 700 20px/1.2 var(--nv-font-ui); letter-spacing: -.015em; color: var(--nv-ink); text-wrap: balance; }
+.nv-sum-ib-shead .sx > span { display: block; margin-top: 2px; font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-rbody { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 0 16px 16px; }
+.nv-sum-ib-rfor { margin: 6px 0 0; font: 400 13px/1.35 var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-rfor > b { font-weight: 600; color: var(--ib-ink2); }
+.nv-sum-ib-rp { margin: 12px 0 0; font: 400 15px/1.5 var(--nv-font-ui); color: var(--nv-ink); text-wrap: pretty; overflow-wrap: anywhere; }
+.nv-sum-ib-rp.lead { font: 400 20px/1.3 var(--nv-font-serif); text-wrap: balance; }
+.nv-sum-ib-rh { margin: 18px 0 0; font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-sum-ib-rl { margin: 8px 0 0; padding-left: 20px; font: 400 15px/1.5 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-sum-ib-rl > li + li { margin-top: 4px; }
+.nv-sum-ib-srow { display: grid; grid-template-columns: 30px minmax(0, 1fr) 14px; gap: 10px; align-items: center; min-height: 56px; box-sizing: border-box; padding: 6px 12px; }
+.nv-sum-ib-foot { flex: none; padding: 6px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--ib-sep); }
+.nv-sum-ib-foot .nv-sum-ib-answer { margin-top: 4px; }
+
+/* CAPTURE: the composer rising from the Nova button */
+@keyframes nvSumCapIn { from { opacity: 0; transform: translateY(14px) scale(.94); } to { opacity: 1; transform: none; } }
+/* .nv-liquid (declared later) sets position:relative and its own radius; the
+   doubled class is what lets the composer float where the mockup puts it */
+.nv-liquid.nv-sum-ib-cap {
+  position: fixed; left: 12px; right: 12px; bottom: calc(80px + min(env(safe-area-inset-bottom), 34px));
+  max-width: 480px; margin: 0 auto; box-sizing: border-box; padding: 14px 16px 8px; border-radius: 28px;
+  transform-origin: calc(100% - 30px) 100%; animation: nvSumCapIn 240ms var(--nv-ease) both;
+  transition: bottom 180ms var(--nv-ease);
+}
+@media (prefers-reduced-motion: reduce) { .nv-sum-ib-cap { animation: fadeIn 160ms ease both; transition: none; } }
+.nv-sum-ib-capstand { margin: 0 2px 10px; font-size: 20px; }
+.nv-sum-ib-ta {
+  display: block; width: 100%; box-sizing: border-box; min-height: 88px; max-height: 38vh; padding: 12px 14px; border: 0; border-radius: 16px; outline: none; resize: none;
+  background: color-mix(in srgb, var(--nv-void) 45%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-new) 50%, transparent);
+  font: 400 16px/1.45 var(--nv-font-ui); color: var(--nv-ink);
+}
+.nv-sum-ib-caprow { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.nv-sum-ib-chipbtn { display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 16px; border-radius: 22px; font: 600 15px var(--nv-font-ui); color: var(--ib-new); background: color-mix(in srgb, var(--ib-new) 12%, transparent); }
+.nv-sum-ib-chipbtn.on { background: color-mix(in srgb, var(--ib-new) 24%, transparent); }
+.nv-sum-ib-btn { display: inline-flex; align-items: center; height: 44px; padding: 0 22px; border-radius: 22px; font: 600 15px var(--nv-font-ui); background: var(--nv-sum-btn); color: var(--nv-sum-btn-ink); }
+.nv-sum-ib-btn[aria-disabled="true"] { opacity: .5; }
+.nv-sum-ib-caphint { margin: 8px 2px 0; font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-landed { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--ib-sep); }
+.nv-sum-ib-landed .lhead { display: flex; justify-content: space-between; align-items: baseline; margin: 0 2px; font: 600 13px var(--nv-font-ui); color: var(--ib-filed); }
+.nv-sum-ib-landed .lhead > span + span { font-weight: 400; color: var(--ib-ink3); }
+.nv-sum-ib-lr { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 44px; padding: 0 2px; }
+.nv-sum-ib-lr .mk { display: grid; place-items: center; color: var(--ib-ink3); }
+.nv-sum-ib-lr .mk.filed { color: var(--ib-filed); }
+.nv-sum-ib-lr .mk.error { color: var(--ib-no); }
+.nv-sum-ib-lr .mk .nv-sum-ib-ico { stroke-width: 2.8; }
+.nv-sum-ib-lr .ti { min-width: 0; font: 400 15px var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-lr .dest { max-width: 44vw; font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-ib-lr .dest > em { font-style: normal; color: var(--ib-new); }
+
+/* AGENTS & OPERATIONS, the summary head: waiting first, then Nova's proposals */
+.nv-sum-ib-waitcard { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; box-sizing: border-box; min-height: 76px; padding: 12px 10px 12px 16px; }
+.nv-sum-ib-go { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; font: 600 15px var(--nv-font-ui); color: var(--ib-wait); white-space: nowrap; }
+.nv-sum-ib-go .nv-sum-ib-ico.cv { color: var(--ib-wait); }
+.nv-sum-ib-prop { margin-top: 0; padding: 14px 14px 10px; border-radius: 18px; background: color-mix(in srgb, var(--ib-wait) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-wait) 34%, transparent); }
+.nv-sum-ib-prop .pk { display: flex; align-items: center; gap: 6px; font: 600 13px var(--nv-font-ui); color: var(--ib-wait); }
+.nv-sum-ib-prop .nv-sum-ib-say { margin-top: 6px; }
+.nv-sum-ib-prop .nv-sum-ib-answer { margin-top: 8px; }
+.nv-sum-ib-prop2 {
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) 14px; gap: 10px; align-items: center; width: 100%; box-sizing: border-box; min-height: 58px; margin-top: 8px; padding: 6px 12px; border-radius: 18px;
+  background: color-mix(in srgb, var(--ib-wait) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ib-wait) 24%, transparent);
+}
+.nv-sum-ib-lrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-height: 58px; padding-right: 4px; }
+.nv-sum-ib-lrow > .main { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 58px; padding: 4px 6px 4px 16px; min-width: 0; }
+.nv-sum-ib-lrow .d { width: 10px; height: 10px; border-radius: 50%; }
+.nv-sum-ib-run { display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 22px; font: 600 15px var(--nv-font-ui); color: var(--ib-link); white-space: nowrap; }
+.nv-sum-ib-run[aria-disabled="true"] { color: var(--ib-ink3); }
+.nv-sum-ib-skel { display: block; width: 62%; height: 10px; margin-top: 6px; border-radius: 5px; background: linear-gradient(90deg, color-mix(in srgb, var(--nv-ink) 7%, transparent), color-mix(in srgb, var(--nv-ink) 17%, transparent), color-mix(in srgb, var(--nv-ink) 7%, transparent)); background-size: 200% 100%; animation: skeletonSweep 1.5s ease-in-out infinite; }
+.nv-sum-ib-ladder { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); height: 44px; border-radius: 22px; background: color-mix(in srgb, var(--nv-ink) 12%, transparent); }
+.nv-sum-ib-ladder > button { height: 44px; box-sizing: border-box; padding: 0 8px; border: 3px solid transparent; border-radius: 22px; background-clip: padding-box; font: 600 15px var(--nv-font-ui); color: var(--ib-ink2); text-align: center; white-space: nowrap; }
+.nv-sum-ib-ladder > button.on { background-color: var(--nv-sum-card-hi); color: var(--nv-ink); }
+.nv-sum-ib-ladder > button.next { outline: 1.5px dashed var(--ib-wait); outline-offset: -5px; color: var(--nv-ink); }
+.nv-sum-ib-lhint { margin: 8px 8px 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--ib-ink3); }
+.nv-sum-ib-lsheet { padding-bottom: 8px; }
+.nv-sum-ib-sh2 { margin: 0 0 8px; font: 700 20px/1.2 var(--nv-font-ui); letter-spacing: -.015em; color: var(--nv-ink); }
+.nv-sum-ib-lctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.nv-sum-ib-lstat { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; font: 400 13px/1.45 var(--nv-font-ui); color: var(--ib-ink2); }
+.nv-sum-ib-lstat > b { font: 600 15px var(--nv-font-ui); color: var(--nv-ink); }
+.nv-sum-ib-slot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--ib-sep); }
+.nv-sum-ib-lprop { margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--nv-ink) 5%, transparent); }
+.nv-sum-ib-lprop > b { display: block; margin-bottom: 4px; font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-sum-ib-check { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; align-items: baseline; margin-top: 8px; }
+.nv-sum-ib-check > .d { width: 8px; height: 8px; border-radius: 50%; }
+
+/* the keyboard's focus ring, and only the keyboard's */
+.nv-sum-ib button:focus-visible, .nv-sum-ib [role="button"]:focus-visible, .nv-sum-ib-sheet button:focus-visible,
+.nv-sum-ib-sheet a:focus-visible, .nv-sum-ib-cap button:focus-visible {
+  outline: 2px solid var(--nv-acc-border); outline-offset: -2px;
+}
+
 /* shared panes for the new components */
 .nv-pane {
   position: relative;

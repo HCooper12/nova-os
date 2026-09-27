@@ -213,9 +213,12 @@ test('the tab bar is summary-only, and the floating dock is still there for ever
   assert.match(chrome, /onClick=\{\(\) => setMoreOpen\(true\)\}/, 'the More sheet still opens under the other styles');
 });
 
-test('the tab bar\'s Nova is the dock\'s Nova: tap to talk, hold for the words', () => {
+test('the tab bar\'s Nova is the dock\'s Nova: tap to talk; hold captures (the summary Inbox, 27 Sep)', () => {
   const dock = read('src/SummaryDock.jsx');
-  assert.match(dock, /onClick=\{v\.startLiveTalk\} onLongPress=\{v\.holdNovaText\} aria-label="Talk to Nova"/);
+  // the hold was the live transcript; since the summary Inbox (mockup 60 #5)
+  // it raises the capture composer, and falls back to the transcript only
+  // when no composer is offered
+  assert.match(dock, /onClick=\{v\.startLiveTalk\} onLongPress=\{v\.openCaptureSheet \|\| v\.holdNovaText\} aria-label="Talk to Nova\. Hold to capture a thought"/);
   assert.match(dock, /<VoiceHalo speaking=\{v\.novaSpeaking\} listening=\{v\.novaListening\} inset="-6px" \/>/);
   assert.match(dock, /<NovaCore size=\{46\} variant="mini" engine=\{v\.coreStyle\} speaking=\{v\.novaSpeaking\} listening=\{v\.novaListening\}/);
   assert.match(dock, /v\.tabs\.slice\(0, 4\)/, 'four of his tabs, in his order');

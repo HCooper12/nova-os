@@ -525,4 +525,7 @@ export const api = {
   inboxModelChoice: (conn, id, model) => post(conn, `/api/inbox/${encodeURIComponent(id)}/model-choice`, { model }),
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
   inboxReopen: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/reopen`),
+  // LOOK DEEPER (the summary Inbox): the Researcher after this card's own
+  // question; the answer's jobId is the research record, polled via inboxItem
+  inboxDeeper: (conn, id, model) => post(conn, `/api/inbox/${encodeURIComponent(id)}/deeper`, model ? { model } : undefined),
 };

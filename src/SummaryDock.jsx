@@ -2,6 +2,7 @@ import { TabIcon } from './TabIcon.jsx';
 import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
 import { NovaCore } from './NovaCore.jsx';
+import { CaptureSheet } from './CaptureSheet.jsx';
 
 // THE iOS 26 TAB BAR (P3, 26 Sep 2026 — design/HOME-REDESIGN-PLAN.md §1.4,
 // drawn in every round of mockups he liked). Under the `summary` style only:
@@ -47,7 +48,9 @@ export function SummaryDock({ v }) {
   // iOS More tab stays selected while you are inside it — so the bar always
   // says which branch he is in (the floating dock lit its More the same way)
   const moreOn = !!v.isIndex || !tabs.some((t) => t.active);
+  const capture = v.inboxSummary?.capture;
   return (
+    <>
     <div className="nv-sum-dock">
       <nav className="nv-sum-tabbar" aria-label="Tabs">
         {tabs.map((t) => (
@@ -56,9 +59,14 @@ export function SummaryDock({ v }) {
         <Tab screen="more" label="More" count={null} active={moreOn} go={v.goIndex} />
       </nav>
       {/* NOVA, detached. The same Interactive the dock's centre orb is: tap
-          starts talking right here, hold opens the words. While the mic is
-          open the orb steps up and says so — "Talk" — under itself. */}
-      <Interactive onClick={v.startLiveTalk} onLongPress={v.holdNovaText} aria-label="Talk to Nova"
+          starts talking right here. While the mic is open the orb steps up
+          and says so — "Talk" — under itself.
+          HOLD CAPTURES (27 Sep 2026, the summary Inbox, mockup 60 #5): the
+          Inbox's composer moved here, so holding Nova raises it over any
+          screen (CaptureSheet.jsx). The hold used to open the live
+          transcript (toggleLiveText); that transcript is the Voice screen
+          itself, one tap away, so it stays reachable there. */}
+      <Interactive onClick={v.startLiveTalk} onLongPress={v.openCaptureSheet || v.holdNovaText} aria-label="Talk to Nova. Hold to capture a thought"
         className="nv-sum-nova" data-listening={v.novaListening ? 'true' : undefined}
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
         <VoiceHalo speaking={v.novaSpeaking} listening={v.novaListening} inset="-6px" />
@@ -68,5 +76,7 @@ export function SummaryDock({ v }) {
         <span className="nv-sum-nova-cap" aria-hidden="true">Talk</span>
       </Interactive>
     </div>
+    {capture?.open && <CaptureSheet c={capture} />}
+    </>
   );
 }

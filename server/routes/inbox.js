@@ -279,6 +279,22 @@ export function inboxRouter(vaultPath) {
     }
   });
 
+  // LOOK DEEPER (the summary Inbox, 27 Sep): the Researcher, sent after this
+  // card's own question, its record carrying parentId = this card. The job id
+  // IS the research record's id: poll /inbox/item/:jobId as for any research.
+  // There is no stop route: a Researcher run cannot be called back once sent
+  // (researcher.js keeps no handle on its children), so Stop in the app only
+  // stops watching, and says so.
+  router.post('/inbox/:id/deeper', async (req, res) => {
+    try {
+      const { startDeeper } = await import('../lib/inboxDeeper.js');
+      const out = await startDeeper(vaultPath, req.params.id, { model: req.body?.model });
+      res.json(out);
+    } catch (e) {
+      res.status(e.status || 400).json({ error: e.message });
+    }
+  });
+
   router.post('/inbox/:id/undo', async (req, res) => {
     try {
       const record = await undoRecord(vaultPath, req.params.id);

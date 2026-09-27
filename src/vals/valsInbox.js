@@ -54,7 +54,9 @@ function practiceSlugOf(r, shelf = []) {
   return (rel && shelf.find((s) => s.relPath === rel)?.slug) || null;
 }
 
-const ROUTE_META = {
+// exported for the summary Inbox (valsInboxSummary.js), which must tell a
+// route this table names from one it does not (the audit's finding 3)
+export const ROUTE_META = {
   shopping: { label: 'SHOPPING', hue: '95,232,168' },
   journal: { label: 'JOURNAL', hue: '143,123,255' },
   todo: { label: 'TO-DO', hue: '89,230,255' },
@@ -470,6 +472,9 @@ export function valsInbox(app, ctx) {
       const isPlan = r.kind === 'plan-today';
       const asking = st.inboxAskWhy === r.id;
       return {
+        // whether ✕ asks for a reason before it discards (the summary Inbox
+        // leaves its receipt for the answer, not for the question)
+        asksWhy: isAdvice || isTrainingCheck || isReview || isPlan,
         discard: () => (isAdvice || isTrainingCheck || isReview || isPlan ? app.setState({ inboxAskWhy: r.id, inboxWhyText: '' }) : app.inboxAction(r.id, 'discard')),
         askingWhy: asking,
         whyTitle: isTrainingCheck ? 'WHAT HAPPENED? — ONE TAP KEEPS THE RECORD STRAIGHT'
