@@ -328,6 +328,39 @@ export function Settings({ v }) {
         </Interactive>
       </div>
 
+      {/* SETTINGS › TRAIN (28 Sep 2026, mockup 61 #3): the live session's rest
+          ring, which starts on the tick's own spot after every set. Summary
+          only, because only the summary session has one; off, the tick stays
+          put and nothing counts. One key on this device (novaos.restTimer). */}
+      {v.restTimerSetting && (
+        <div style={{ marginTop: '34px' }}>
+          <div style={css("display:flex;align-items:baseline;gap:12px;flex-wrap:wrap")}>
+            <Eyebrow as="span">Train</Eyebrow>
+            <Meta tone="faint">The live session</Meta>
+          </div>
+          <div className="nv-pane" style={{ marginTop: '12px', padding: '14px 18px', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span style={{ display: 'block', fontSize: '15px', fontWeight: 600 }}>Rest timer</span>
+                <span style={{ display: 'block', marginTop: '2px', fontSize: '13px', color: 'var(--nv-ink60)' }}>
+                  {v.restTimerSetting.on ? `After each tick, ${v.restTimerSetting.label} on the tick's spot · tap the ring to skip it` : 'Off · the tick stays on its spot after every set'}
+                </span>
+              </span>
+              <label className="nv-sum-switch" data-on={v.restTimerSetting.on ? 'true' : 'false'}>
+                <input type="checkbox" role="switch" checked={v.restTimerSetting.on} onChange={v.restTimerSetting.toggle} aria-label="Rest timer" />
+              </label>
+            </div>
+            {v.restTimerSetting.on && (
+              <div role="group" aria-label="Rest length" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {v.restTimerSetting.choices.map((c) => (
+                  <Chip key={c.value} tone={c.picked ? 'accent' : 'quiet'} active={c.picked} onClick={c.pick}>{c.label}</Chip>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {v.pushSettings && (
         <div style={{ marginTop: '34px' }}>
           <Eyebrow>Notifications</Eyebrow>

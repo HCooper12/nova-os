@@ -51,6 +51,7 @@ import { valsTrainSummary } from './vals/valsTrainSummary.js';
 import { valsIndex } from './vals/valsIndex.js';
 import { valsFuelSummary } from './vals/valsFuelSummary.js';
 import { valsInboxSummary } from './vals/valsInboxSummary.js';
+import { valsSessionSummary } from './vals/valsSessionSummary.js';
 import { upsertInboxRecord, omitKey } from './inboxSummaryFacts.js';
 import { SCREEN_KEYS } from './screenKeys.js';
 import { Sidebar } from './Sidebar.jsx';
@@ -7266,7 +7267,11 @@ export default class App extends Component {
     // and spreads nothing another builder set; all three null off `summary`.
     const withTrain = { ...withIndex, ...valsTrainSummary(this, ctx, withIndex) };
     const withFuel = { ...withTrain, ...valsFuelSummary(this, ctx, withTrain) };
-    return { ...withFuel, ...valsInboxSummary(this, ctx, withFuel) };
+    const withInbox = { ...withFuel, ...valsInboxSummary(this, ctx, withFuel) };
+    // the summary live session (Train round B, mockup 61) reshapes the
+    // classic session's rows and the mid-session Coach fields; last of all,
+    // and null off `summary` or whenever the session is not on screen
+    return { ...withInbox, ...valsSessionSummary(this, ctx, withInbox) };
   }
 
   // A research job dispatched from the conversation: poll the SAME pending

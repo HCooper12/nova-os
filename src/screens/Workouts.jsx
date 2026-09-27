@@ -14,6 +14,7 @@ import { useStickToBottom } from '../useStickToBottom.js';
 import { CoachChangesBanner, CoachSuggestionDeck } from '../CoachSuggestions.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { TrainSummary } from './TrainSummary.jsx';
+import { SessionSummary } from './SessionSummary.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -1188,6 +1189,9 @@ function MuscleTag({ muscle, count }) {
 // The parts of this screen the summary Train page reuses as they are — handed
 // over rather than imported, so TrainSummary.jsx never imports this file back.
 const TRAIN_PARTS = { HistoryView, ExercisePicker, GoalsCoachPane };
+// …and the one part the summary live session reuses: the exercise picker,
+// drawn in its Add exercise sheet
+const SESSION_PARTS = { ExercisePicker };
 
 export function Workouts({ v }) {
   // THE SUMMARY TRAIN PAGE (redesign variation A, 27 Sep): under `summary`
@@ -1195,6 +1199,10 @@ export function Workouts({ v }) {
   // First, so nothing below renders under it; everything below is the
   // classic three tabs, untouched, and the live session under every style.
   if (v.summary && v.trainSummary) return <TrainSummary v={v} parts={TRAIN_PARTS} />;
+  // THE SUMMARY LIVE SESSION (Train round B, mockup 61, 28 Sep): under
+  // `summary` the open session is src/screens/SessionSummary.jsx; its view
+  // model is null under every other style, so they keep SessionView below.
+  if (v.summary && v.sessionSummary) return <SessionSummary v={v} parts={SESSION_PARTS} />;
   return (
     <div style={v.wrapWorkouts} data-screen-label="Workouts">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
