@@ -556,6 +556,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (morning) — GLASS POLISHED (5507930): every summary card, the tab
+  bar, the Nova button, the Index search and the Edit sheet on the house liquid
+  recipe as `--nv-sum-*` tokens (sheen, conic rim, inset glow, blur+saturate,
+  height-scaled shadows); Nova night a quiet glass over a dim still aurora;
+  skies in one shape, drifting 40 s (Calm pauses, reduced motion stops), 2 s
+  cross-fade between bands; Sky night = mockup 55's glass-night; Light × glass
+  card .72 → .94. Both guards unchanged. Review page re-photographed. His
+  calls: bar 60px (built) or 64/58 (mockups); keep the serif standfirst on
+  Light (55 has none); keep the sky drift or hold it still if his phone runs
+  warm.
 - 27 Sep 2026 (morning) — HIS FIRST ANSWERS. Home: Light does not feel like the
   mockup; Nova night lacks the glass; polish the glass on every glass version
   (Nova glass with the hour cycle will be his main); the bottom bar wants the

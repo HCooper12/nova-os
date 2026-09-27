@@ -109,7 +109,10 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   server reloaded); FUEL ROUND 1 PUBLISHED (7b62415, mockup 59; artifact in
   the ledger). Two exerciseAtlas tests fail against his REAL library since
   this morning (JM Press, Reverse Pec Deck have no atlas entry): vault
-  drift, for the anatomy pipeline, not the redesign. NEXT: his answers on
+  drift, for the anatomy pipeline, not the redesign. HIS FIRST ANSWERS (27 Sep
+  morning): Inbox A chosen → ROUND 2 published (f8e3431, mockup 60); the glass
+  polished on his note (5507930); Train and Fuel explained, picks pending.
+  NEXT: his answers on
   the Inbox / Train / Fuel rounds (round 2 per page from his tweaks), then
   Voice's audit; P5 = the summary Home on his phone after the push. Agents that BUILD run on Opus
   (his instruction, 27 Sep morning). Weekly usage reset 06:00 Melbourne. The morning review
