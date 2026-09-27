@@ -592,6 +592,21 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-sum-card:rgba(255,255,255,.09); --nv-sum-card-ring:rgba(255,255,255,.16);
   --nv-sum-card-hi:rgba(255,255,255,.22); --nv-sum-blur:22px;
   --nv-sum-card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  /* THE GLASS (27 Sep, his "I want the glass effect polished"): the house
+     liquid recipe (.nv-liquid, below) in the summary card's own tokens, so
+     every theme × material block can dial it. The sheen is light from
+     above on the body; the rim is the conic specular hairline, brightest
+     top-left and bottom-right; the glow is light gathering inside the
+     edge; the drop deepens with the card's size (-lg for the tall ones);
+     the float drop is for the bar and sheet, which sit above the page. */
+  --nv-sum-sat:1.6;
+  --nv-sum-sheen:linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.015) 45%, rgba(255,255,255,0) 72%, rgba(255,255,255,.03));
+  --nv-sum-glow:inset 0 0 16px -6px rgba(255,255,255,.3);
+  --nv-sum-rim:conic-gradient(from 212deg,
+    rgba(255,255,255,.62), rgba(255,255,255,.10) 18%, rgba(255,255,255,.04) 44%,
+    rgba(255,255,255,.40) 64%, rgba(255,255,255,.07) 82%, rgba(255,255,255,.62));
+  --nv-sum-card-shadow-lg:0 22px 48px -22px rgba(0,0,0,.78);
+  --nv-sum-float-drop:0 18px 44px -18px rgba(0,0,0,.75);
   --nv-sum-c1:#5fe8a8; --nv-sum-c2:#8f7bff; --nv-sum-c3:#59e6ff; --nv-sum-c4:#d9b56f; --nv-sum-c5:#8f7bff;
   --nv-sum-up:#5fe8a8; --nv-sum-dn:#e0616b;
   --nv-sum-btn:#59e6ff; --nv-sum-btn-ink:#062028; --nv-sum-track:rgba(255,255,255,.14);
@@ -610,8 +625,21 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    narrow it further for observatory/sky/daylight. */
 :root[data-nv-style="summary"][data-nv-material="solid"] {
   --nv-sum-card:rgba(255,255,255,.055); --nv-sum-card-ring:transparent;
-  --nv-sum-card-hi:rgba(255,255,255,.05); --nv-sum-blur:0px;
+  --nv-sum-card-hi:rgba(255,255,255,.06); --nv-sum-blur:10px;
   --nv-sum-card-shadow:0 10px 30px -18px rgba(0,0,0,.9);
+  /* a QUIET glass (27 Sep): mockup 56's flat pane read to him as no glass
+     at all. The same recipe, turned down: a rim at ~.08, a breath of
+     sheen, a soft inner glow, and 10px of blur over the barely-lit ground
+     (the dim static aurora under .nv-sky below) so the blur has something
+     to catch. Still the darker, calmer sibling: no ring, no bright edge. */
+  --nv-sum-sat:1.3;
+  --nv-sum-sheen:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 55%);
+  --nv-sum-glow:inset 0 0 12px -6px rgba(255,255,255,.12);
+  --nv-sum-rim:conic-gradient(from 212deg,
+    rgba(255,255,255,.13), rgba(255,255,255,.05) 18%, rgba(255,255,255,.03) 44%,
+    rgba(255,255,255,.10) 64%, rgba(255,255,255,.04) 82%, rgba(255,255,255,.13));
+  --nv-sum-card-shadow-lg:0 16px 40px -20px rgba(0,0,0,.92);
+  --nv-sum-float-drop:0 18px 44px -18px rgba(0,0,0,.8);
   --nv-sum-c1:#5fe8a8; --nv-sum-c2:#8f7bff; --nv-sum-c3:#59e6ff; --nv-sum-c4:#d9b56f; --nv-sum-c5:#8f7bff;
   --nv-sum-up:#5fe8a8; --nv-sum-dn:#e0616b;
   --nv-sum-btn:#59e6ff; --nv-sum-btn-ink:#062028; --nv-sum-track:rgba(255,255,255,.1);
@@ -629,6 +657,16 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-sum-card:rgba(21,28,44,.62); --nv-sum-card-ring:rgba(236,229,218,.1);
   --nv-sum-card-hi:rgba(236,229,218,.08); --nv-sum-blur:18px;
   --nv-sum-card-shadow:0 12px 30px -18px rgba(0,0,0,.8);
+  /* the glass in bone, not white: a white specular on a gold-and-bone
+     palette reads as a different material */
+  --nv-sum-sat:1.6;
+  --nv-sum-sheen:linear-gradient(180deg, rgba(236,229,218,.06), rgba(236,229,218,0) 55%);
+  --nv-sum-glow:inset 0 0 16px -7px rgba(236,229,218,.2);
+  --nv-sum-rim:conic-gradient(from 212deg,
+    rgba(236,229,218,.42), rgba(236,229,218,.08) 18%, rgba(236,229,218,.03) 44%,
+    rgba(236,229,218,.28) 64%, rgba(236,229,218,.05) 82%, rgba(236,229,218,.42));
+  --nv-sum-card-shadow-lg:0 20px 44px -22px rgba(0,0,0,.85);
+  --nv-sum-float-drop:0 18px 44px -18px rgba(0,0,0,.75);
   --nv-sum-c1:#5aa87c; --nv-sum-c2:#8a6ad1; --nv-sum-c3:#6be5f5; --nv-sum-c4:#d8b573; --nv-sum-c5:#8a6ad1;
   --nv-sum-up:#5aa87c; --nv-sum-dn:#d97b6c;
   --nv-sum-btn:#d8b573; --nv-sum-btn-ink:#1a1322; --nv-sum-track:rgba(236,229,218,.12);
@@ -643,6 +681,12 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    translucent-over-void value the mockup gives both observatory materials */
 :root[data-nv-style="summary"][data-nv-theme="observatory"][data-nv-material="solid"] {
   --nv-sum-card:rgba(21,28,44,.62); --nv-sum-blur:0px;
+  /* the quiet version of the bone glass, as Nova night is of Nova glass */
+  --nv-sum-sheen:linear-gradient(180deg, rgba(236,229,218,.03), rgba(236,229,218,0) 55%);
+  --nv-sum-glow:inset 0 0 12px -6px rgba(236,229,218,.1);
+  --nv-sum-rim:conic-gradient(from 212deg,
+    rgba(236,229,218,.14), rgba(236,229,218,.05) 18%, rgba(236,229,218,.03) 44%,
+    rgba(236,229,218,.1) 64%, rgba(236,229,218,.04) 82%, rgba(236,229,218,.14));
 }
 
 /* theme=sky, glass: Apple system hues — constant through the day; only the
@@ -651,6 +695,16 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-sum-card:rgba(255,255,255,.15); --nv-sum-card-ring:rgba(255,255,255,.32);
   --nv-sum-card-hi:rgba(255,255,255,.4); --nv-sum-blur:22px;
   --nv-sum-card-shadow:0 14px 34px -18px rgba(0,0,0,.45);
+  /* over a lit sky the rim can run brightest of all the materials; the
+     drops stay soft (black under a blue sky reads as mud) */
+  --nv-sum-sat:1.6;
+  --nv-sum-sheen:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.03) 50%, rgba(255,255,255,0) 72%, rgba(255,255,255,.05));
+  --nv-sum-glow:inset 0 0 18px -6px rgba(255,255,255,.42);
+  --nv-sum-rim:conic-gradient(from 212deg,
+    rgba(255,255,255,.85), rgba(255,255,255,.16) 18%, rgba(255,255,255,.07) 44%,
+    rgba(255,255,255,.6) 64%, rgba(255,255,255,.12) 82%, rgba(255,255,255,.85));
+  --nv-sum-card-shadow-lg:0 20px 44px -20px rgba(0,0,0,.5);
+  --nv-sum-float-drop:0 18px 44px -18px rgba(0,0,0,.55);
   --nv-sum-c1:#FF8F76; --nv-sum-c2:#6BF2B8; --nv-sum-c3:#9AE6FF; --nv-sum-c4:#FFD27A; --nv-sum-c5:#C9B8FF;
   --nv-sum-up:#6BF2B8; --nv-sum-dn:#FF8F76;
   --nv-sum-btn:rgba(255,255,255,.92); --nv-sum-btn-ink:#0b2a55; --nv-sum-track:rgba(255,255,255,.22);
@@ -664,13 +718,27 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 /* …solid twin */
 :root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-material="solid"] {
   --nv-sum-card:rgba(255,255,255,.22); --nv-sum-blur:0px;
+  --nv-sum-sheen:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0) 55%);
+  --nv-sum-glow:inset 0 0 12px -6px rgba(255,255,255,.2);
+  --nv-sum-rim:conic-gradient(from 212deg,
+    rgba(255,255,255,.3), rgba(255,255,255,.1) 18%, rgba(255,255,255,.05) 44%,
+    rgba(255,255,255,.22) 64%, rgba(255,255,255,.08) 82%, rgba(255,255,255,.3));
 }
 
 /* theme=daylight = "Summary light": the solid/default values are the ones he
    named; the glass twin only lifts the card and brings the blur back */
 :root[data-nv-style="summary"][data-nv-theme="daylight"] {
   --nv-sum-card:#fff; --nv-sum-card-ring:transparent; --nv-sum-card-hi:transparent; --nv-sum-blur:0px;
-  --nv-sum-card-shadow:0 1px 2px rgba(0,0,0,.04);
+  --nv-sum-card-shadow:0 1px 2px rgba(0,0,0,.04); --nv-sum-card-shadow-lg:0 1px 2px rgba(0,0,0,.04);
+  /* mockup 55's light, token for token. No sheen and no glow: a white
+     specular on a white card is invisible, so the rim inverts to a faint
+     hairline of ink (as .nv-liquid's daylight block does), and the bar's
+     drop is 55's own .dock shadow */
+  --nv-sum-sat:1.6; --nv-sum-sheen:none; --nv-sum-glow:inset 0 0 0 0 rgba(0,0,0,0);
+  --nv-sum-rim:conic-gradient(from 212deg,
+    rgba(0,0,0,.08), rgba(0,0,0,.035) 18%, rgba(0,0,0,.025) 44%,
+    rgba(0,0,0,.07) 64%, rgba(0,0,0,.03) 82%, rgba(0,0,0,.08));
+  --nv-sum-float-drop:0 12px 30px -14px rgba(0,0,0,.4);
   --nv-sum-c1:#34C759; --nv-sum-c2:#FF9500; --nv-sum-c3:#FF3B30; --nv-sum-c4:#FF9F0A; --nv-sum-c5:#AF52DE;
   --nv-sum-up:#34C759; --nv-sum-dn:#FF3B30;
   --nv-sum-btn:#007AFF; --nv-sum-btn-ink:#fff; --nv-sum-track:#E5E5EA;
@@ -681,96 +749,199 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-sum-hl-font:var(--nv-font-ui); --nv-sum-hl-size:18px;
   --nv-sum-ink2:#3C3C43; --nv-sum-ink3:#8E8E93; --nv-sum-sep:rgba(60,60,67,.12);
 }
-/* …glass twin */
+/* …glass twin. There is no sky under Light to blur, so a 72% card only
+   showed the grey page through itself: the cards went dull, the first thing
+   his eye caught against mockup 55 ("light doesn't have the same feel").
+   Near-opaque white keeps 55's crisp card; the blur stays for whatever
+   scrolls beneath the bar. */
 :root[data-nv-style="summary"][data-nv-theme="daylight"][data-nv-material="glass"] {
-  --nv-sum-card:rgba(255,255,255,.72); --nv-sum-blur:22px;
+  --nv-sum-card:rgba(255,255,255,.94); --nv-sum-blur:22px;
 }
 
-/* THE SKY — replaces starfield/grid/aurora under summary. Position + motion
-   only; background is themed/houred below. It paints where the starfield
-   does: a positioned element earlier in the tree than the content wrapper,
-   so it sits above the app frame's own (flattened, above) background and
-   below everything that follows it — no z-index on the wrapper, which would
-   have made it a stacking context over the chrome rendered after it. */
+/* THE SKY — replaces starfield/grid/aurora under summary, and it is the show:
+   glass is only as convincing as what it is seen over. (Rebuilt 27 Sep, after
+   he said Nova glass did not read as the mockup's glass: the aurora sat too
+   faint under the cards for the blur to have anything to catch.)
+
+   One shape for every sky: a five-stop vertical ground on the element, and
+   three radial blobs on two pseudo layers above it (a + c on ::before, b on
+   ::after) that drift apart and back over 40s. Every colour, stop and blob
+   geometry is a REGISTERED custom property, so when the hour band flips (the
+   app restamps data-nv-hour every 15 minutes) the sky CROSS-FADES over 2s
+   instead of cutting: a gradient cannot transition, but a typed colour or
+   length inside one can. Calm pauses the drift (--nv-anim) and drops the
+   fade; reduced motion has neither.
+
+   It paints where the starfield does: a positioned element earlier in the
+   tree than the content wrapper, so it sits above the app frame's own
+   (flattened, above) background and below everything that follows it — no
+   z-index on the wrapper, which would have made it a stacking context over
+   the chrome rendered after it. */
+@property --nv-sky-g0 { syntax: '<color>'; inherits: true; initial-value: #05060c; }
+@property --nv-sky-g1 { syntax: '<color>'; inherits: true; initial-value: #080b1c; }
+@property --nv-sky-g2 { syntax: '<color>'; inherits: true; initial-value: #0c1230; }
+@property --nv-sky-g3 { syntax: '<color>'; inherits: true; initial-value: #0f1535; }
+@property --nv-sky-g4 { syntax: '<color>'; inherits: true; initial-value: #12183a; }
+@property --nv-sky-q1 { syntax: '<percentage>'; inherits: true; initial-value: 35%; }
+@property --nv-sky-q2 { syntax: '<percentage>'; inherits: true; initial-value: 70%; }
+@property --nv-sky-q3 { syntax: '<percentage>'; inherits: true; initial-value: 85%; }
+@property --nv-sky-a-c { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --nv-sky-a-w { syntax: '<length-percentage>'; inherits: true; initial-value: 70%; }
+@property --nv-sky-a-h { syntax: '<length-percentage>'; inherits: true; initial-value: 45%; }
+@property --nv-sky-a-x { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --nv-sky-a-y { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --nv-sky-a-f { syntax: '<percentage>'; inherits: true; initial-value: 60%; }
+@property --nv-sky-b-c { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --nv-sky-b-w { syntax: '<length-percentage>'; inherits: true; initial-value: 70%; }
+@property --nv-sky-b-h { syntax: '<length-percentage>'; inherits: true; initial-value: 45%; }
+@property --nv-sky-b-x { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --nv-sky-b-y { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --nv-sky-b-f { syntax: '<percentage>'; inherits: true; initial-value: 60%; }
+@property --nv-sky-c-c { syntax: '<color>'; inherits: true; initial-value: transparent; }
+@property --nv-sky-c-w { syntax: '<length-percentage>'; inherits: true; initial-value: 70%; }
+@property --nv-sky-c-h { syntax: '<length-percentage>'; inherits: true; initial-value: 45%; }
+@property --nv-sky-c-x { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --nv-sky-c-y { syntax: '<length-percentage>'; inherits: true; initial-value: 50%; }
+@property --nv-sky-c-f { syntax: '<percentage>'; inherits: true; initial-value: 60%; }
+
 .nv-sky {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  transition: background 1.6s ease;
+  position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+  background: linear-gradient(180deg, var(--nv-sky-g0) 0%, var(--nv-sky-g1) var(--nv-sky-q1),
+    var(--nv-sky-g2) var(--nv-sky-q2), var(--nv-sky-g3) var(--nv-sky-q3), var(--nv-sky-g4) 100%);
+  transition:
+    --nv-sky-g0 2s ease,
+    --nv-sky-g1 2s ease,
+    --nv-sky-g2 2s ease,
+    --nv-sky-g3 2s ease,
+    --nv-sky-g4 2s ease,
+    --nv-sky-q1 2s ease,
+    --nv-sky-q2 2s ease,
+    --nv-sky-q3 2s ease,
+    --nv-sky-a-c 2s ease,
+    --nv-sky-a-w 2s ease,
+    --nv-sky-a-h 2s ease,
+    --nv-sky-a-x 2s ease,
+    --nv-sky-a-y 2s ease,
+    --nv-sky-a-f 2s ease,
+    --nv-sky-b-c 2s ease,
+    --nv-sky-b-w 2s ease,
+    --nv-sky-b-h 2s ease,
+    --nv-sky-b-x 2s ease,
+    --nv-sky-b-y 2s ease,
+    --nv-sky-b-f 2s ease,
+    --nv-sky-c-c 2s ease,
+    --nv-sky-c-w 2s ease,
+    --nv-sky-c-h 2s ease,
+    --nv-sky-c-x 2s ease,
+    --nv-sky-c-y 2s ease,
+    --nv-sky-c-f 2s ease;
 }
-@media (prefers-reduced-motion: reduce) { .nv-sky { transition: none; } }
+/* the blobs. inset -8% so a 2-3% drift never shows a layer's edge */
+.nv-sky::before, .nv-sky::after {
+  content: ''; position: absolute; inset: -8%; pointer-events: none;
+  animation: nvSkyDriftA 40s ease-in-out infinite alternate;
+  animation-play-state: var(--nv-anim, running);
+}
+.nv-sky::before {
+  background:
+    radial-gradient(var(--nv-sky-a-w) var(--nv-sky-a-h) at var(--nv-sky-a-x) var(--nv-sky-a-y), var(--nv-sky-a-c), transparent var(--nv-sky-a-f)),
+    radial-gradient(var(--nv-sky-c-w) var(--nv-sky-c-h) at var(--nv-sky-c-x) var(--nv-sky-c-y), var(--nv-sky-c-c), transparent var(--nv-sky-c-f));
+}
+.nv-sky::after {
+  background: radial-gradient(var(--nv-sky-b-w) var(--nv-sky-b-h) at var(--nv-sky-b-x) var(--nv-sky-b-y), var(--nv-sky-b-c), transparent var(--nv-sky-b-f));
+  animation-name: nvSkyDriftB;
+}
+@keyframes nvSkyDriftA { from { transform: translate3d(-2.5%, -1.5%, 0); } to { transform: translate3d(2.5%, 2%, 0) scale(1.04); } }
+@keyframes nvSkyDriftB { from { transform: translate3d(2%, 1.5%, 0); } to { transform: translate3d(-2.5%, -2%, 0) scale(1.05); } }
+@media (prefers-reduced-motion: reduce) {
+  .nv-sky { transition: none; }
+  .nv-sky::before, .nv-sky::after { animation: none; }
+}
 :root[data-nv-calm="1"] .nv-sky { transition: none; }
 
-/* command × glass (Nova glass): the mockup's aurora, shifted per hour band.
-   Un-themed (no [data-nv-theme] in the selector) so it is command's — the
-   theme is simply absent from the root in that case. Exactly 4 attribute
-   selectors deep, same as the theme-only rules below it (observatory,
-   daylight): declared FIRST so those later, equally-specific rules win the
-   tie for their own theme at every hour. */
+/* command (Nova glass): the mockup's aurora, turned up so the cards have
+   colour to be glass over, and shifted per hour band. The base geometry and
+   ground are the day's; each band changes only what it names. Un-themed (no
+   [data-nv-theme]) because command is the theme that is simply absent from
+   the root. */
+:root[data-nv-style="summary"] .nv-sky {
+  --nv-sky-g0:#05060c; --nv-sky-g1:#080b1c; --nv-sky-g2:#0c1230; --nv-sky-g3:#0f1535; --nv-sky-g4:#12183a;
+  --nv-sky-q1:35%; --nv-sky-q2:70%; --nv-sky-q3:85%;
+  --nv-sky-a-w:70%; --nv-sky-a-h:45%; --nv-sky-a-x:12%; --nv-sky-a-y:8%;   --nv-sky-a-f:60%; --nv-sky-a-c:rgba(89,230,255,.3);
+  --nv-sky-b-w:70%; --nv-sky-b-h:50%; --nv-sky-b-x:88%; --nv-sky-b-y:30%;  --nv-sky-b-f:60%; --nv-sky-b-c:rgba(143,123,255,.34);
+  --nv-sky-c-w:90%; --nv-sky-c-h:40%; --nv-sky-c-x:50%; --nv-sky-c-y:112%; --nv-sky-c-f:60%; --nv-sky-c-c:rgba(217,181,111,.22);
+}
+/* dawn: warm light in the top corner where the cyan sits by day */
 :root[data-nv-style="summary"][data-nv-hour="dawn"] .nv-sky {
-  background:
-    radial-gradient(70% 45% at 12% 8%, rgba(255,170,130,.18), rgba(255,170,130,0) 60%),
-    radial-gradient(70% 50% at 88% 30%, rgba(143,123,255,.26), rgba(143,123,255,0) 60%),
-    radial-gradient(90% 40% at 50% 112%, rgba(217,181,111,.16), rgba(217,181,111,0) 60%),
-    linear-gradient(180deg, #05060c 0%, #080b1c 35%, #0c1230 70%, #12183a 100%);
+  --nv-sky-a-c:rgba(255,170,130,.28); --nv-sky-b-c:rgba(143,123,255,.32); --nv-sky-c-c:rgba(217,181,111,.22);
 }
-:root[data-nv-style="summary"][data-nv-hour="day"] .nv-sky {
-  background:
-    radial-gradient(70% 45% at 12% 8%, rgba(89,230,255,.22), rgba(89,230,255,0) 60%),
-    radial-gradient(70% 50% at 88% 30%, rgba(143,123,255,.26), rgba(143,123,255,0) 60%),
-    radial-gradient(90% 40% at 50% 112%, rgba(217,181,111,.16), rgba(217,181,111,0) 60%),
-    linear-gradient(180deg, #05060c 0%, #080b1c 35%, #0c1230 70%, #12183a 100%);
-}
+/* day is the base */
+/* dusk: the violet and the gold come up, the evening's colours */
 :root[data-nv-style="summary"][data-nv-hour="dusk"] .nv-sky {
-  background:
-    radial-gradient(70% 45% at 12% 8%, rgba(89,230,255,.22), rgba(89,230,255,0) 60%),
-    radial-gradient(70% 50% at 88% 30%, rgba(143,123,255,.38), rgba(143,123,255,0) 60%),
-    radial-gradient(90% 40% at 50% 112%, rgba(217,181,111,.26), rgba(217,181,111,0) 60%),
-    linear-gradient(180deg, #05060c 0%, #080b1c 35%, #0c1230 70%, #12183a 100%);
+  --nv-sky-a-c:rgba(89,230,255,.28); --nv-sky-b-c:rgba(143,123,255,.46); --nv-sky-c-c:rgba(217,181,111,.32);
 }
+/* night: all three low, the ground a shade deeper */
 :root[data-nv-style="summary"][data-nv-hour="night"] .nv-sky {
-  background:
-    radial-gradient(70% 45% at 12% 8%, rgba(89,230,255,.13), rgba(89,230,255,0) 60%),
-    radial-gradient(70% 50% at 88% 30%, rgba(143,123,255,.16), rgba(143,123,255,0) 60%),
-    radial-gradient(90% 40% at 50% 112%, rgba(217,181,111,.1), rgba(217,181,111,0) 60%),
-    linear-gradient(180deg, #03040a 0%, #080b1c 35%, #0c1230 70%, #12183a 100%);
+  --nv-sky-g0:#03040a;
+  --nv-sky-a-c:rgba(89,230,255,.18); --nv-sky-b-c:rgba(143,123,255,.22); --nv-sky-c-c:rgba(217,181,111,.14);
 }
 
-/* observatory: the midnight radial, constant — no hour variants exist for
-   it, so this declares after the command/hour rules above to win their
-   specificity tie (both :root + one attribute + .nv-sky) at every hour. */
+/* observatory: the midnight radial, constant — no hour variants, no blobs.
+   Equally specific as the hour rules above and declared after them, so it
+   wins at every hour. */
 :root[data-nv-style="summary"][data-nv-theme="observatory"] .nv-sky {
   background: radial-gradient(120% 90% at 50% 0%, #152742 0%, #0c1424 50%, #070b13 100%);
 }
+:root[data-nv-style="summary"][data-nv-theme="observatory"] .nv-sky::before,
+:root[data-nv-style="summary"][data-nv-theme="observatory"] .nv-sky::after { display: none; }
 
-/* sky theme: the hour cycle it exists for. Naming data-nv-theme makes these
-   5 attribute selectors deep — more specific than the 4-deep rules above —
-   so they win regardless of source order. */
+/* sky theme (Apple glass): the hour cycle it exists for, each band the
+   mockup's own gradient in the shared shape (a four-stop ground gets its
+   exact midpoint as the fifth stop, so it renders as it was drawn). Day is
+   mockup 55's glass-day; night is 55's glass-night. Five attribute selectors
+   deep, so these win over the command rules whatever the order. */
 :root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-hour="dawn"] .nv-sky {
-  background:
-    radial-gradient(55% 25% at 50% 100%, rgba(255,190,140,.35), transparent 70%),
-    linear-gradient(180deg, #1b2a4a 0%, #3d5a8a 45%, #c98a72 80%, #f0b48a 100%);
+  --nv-sky-g0:#1b2a4a; --nv-sky-g1:#3d5a8a; --nv-sky-g2:#c98a72; --nv-sky-g3:#dd9f7e; --nv-sky-g4:#f0b48a;
+  --nv-sky-q1:45%; --nv-sky-q2:80%; --nv-sky-q3:90%;
+  --nv-sky-a-w:55%; --nv-sky-a-h:25%; --nv-sky-a-x:50%; --nv-sky-a-y:100%; --nv-sky-a-f:70%; --nv-sky-a-c:rgba(255,190,140,.35);
+  --nv-sky-b-w:80%; --nv-sky-b-h:50%; --nv-sky-b-x:18%; --nv-sky-b-y:18%;  --nv-sky-b-c:rgba(120,180,255,0);
+  --nv-sky-c-c:rgba(255,160,90,0);
 }
 :root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-hour="day"] .nv-sky {
-  background:
-    radial-gradient(120% 70% at 50% 112%, rgba(255,160,90,.55), rgba(255,160,90,0) 60%),
-    radial-gradient(80% 50% at 18% 18%, rgba(120,180,255,.38), rgba(120,180,255,0) 60%),
-    linear-gradient(180deg, #071a3d 0%, #0b2a55 38%, #1c4f8f 66%, #5a7fb8 86%, #d9946a 100%);
+  --nv-sky-g0:#071a3d; --nv-sky-g1:#0b2a55; --nv-sky-g2:#1c4f8f; --nv-sky-g3:#5a7fb8; --nv-sky-g4:#d9946a;
+  --nv-sky-q1:38%; --nv-sky-q2:66%; --nv-sky-q3:86%;
+  --nv-sky-a-w:120%; --nv-sky-a-h:70%; --nv-sky-a-x:50%; --nv-sky-a-y:112%; --nv-sky-a-c:rgba(255,160,90,.55);
+  --nv-sky-b-w:80%; --nv-sky-b-h:50%; --nv-sky-b-x:18%; --nv-sky-b-y:18%;  --nv-sky-b-c:rgba(120,180,255,.38);
+  --nv-sky-c-c:rgba(255,160,90,0);
 }
 :root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-hour="dusk"] .nv-sky {
-  background: linear-gradient(180deg, #0e1f45 0%, #2a3f7a 40%, #7a4f7a 70%, #e08a5a 100%);
+  --nv-sky-g0:#0e1f45; --nv-sky-g1:#2a3f7a; --nv-sky-g2:#7a4f7a; --nv-sky-g3:#ad6c6a; --nv-sky-g4:#e08a5a;
+  --nv-sky-q1:40%; --nv-sky-q2:70%; --nv-sky-q3:85%;
+  --nv-sky-a-w:120%; --nv-sky-a-h:70%; --nv-sky-a-x:50%; --nv-sky-a-y:112%; --nv-sky-a-c:rgba(255,160,90,0);
+  --nv-sky-b-w:80%; --nv-sky-b-h:50%; --nv-sky-b-x:18%; --nv-sky-b-y:18%;  --nv-sky-b-c:rgba(120,180,255,0);
+  --nv-sky-c-c:rgba(255,160,90,0);
 }
 :root[data-nv-style="summary"][data-nv-theme="sky"][data-nv-hour="night"] .nv-sky {
-  background:
-    radial-gradient(45% 25% at 50% 100%, rgba(120,90,200,.22), transparent 70%),
-    linear-gradient(180deg, #020512 0%, #050914 40%, #0b1636 75%, #1b2650 100%);
+  --nv-sky-g0:#020512; --nv-sky-g1:#050914; --nv-sky-g2:#0b1636; --nv-sky-g3:#131e43; --nv-sky-g4:#1b2650;
+  --nv-sky-q1:40%; --nv-sky-q2:75%; --nv-sky-q3:87.5%;
+  --nv-sky-a-w:90%; --nv-sky-a-h:50%; --nv-sky-a-x:50%; --nv-sky-a-y:118%; --nv-sky-a-c:rgba(120,90,200,.35);
+  --nv-sky-b-w:60%; --nv-sky-b-h:40%; --nv-sky-b-x:80%; --nv-sky-b-y:10%;  --nv-sky-b-c:rgba(150,180,255,.16);
+  --nv-sky-c-c:rgba(120,90,200,0);
 }
 
-/* daylight ("Summary light"): a plain page, like the rest of Nova's light UI */
+/* daylight ("Summary light"): a plain page, like mockup 55's light */
 :root[data-nv-style="summary"][data-nv-theme="daylight"] .nv-sky { display: none; }
 
-/* solid never shows a sky, in any theme or hour. !important: the sky theme's
-   hour rules above are 5 attribute selectors deep, one more specific than a
-   plain style+material selector can be without it. */
+/* solid shows no sky in any theme or hour — except Nova night (command ×
+   solid), which gets the aurora at a quarter strength and standing still:
+   a barely-lit ground its quiet glass can catch. !important: the sky
+   theme's hour rules above are 5 attribute selectors deep, one more
+   specific than a plain style+material selector can be without it; the
+   :not() exception out-specifies the rule it excepts. */
 :root[data-nv-style="summary"][data-nv-material="solid"] .nv-sky { display: none !important; }
+:root[data-nv-style="summary"][data-nv-material="solid"]:not([data-nv-theme]) .nv-sky { display: block !important; opacity: .25; }
+:root[data-nv-style="summary"][data-nv-material="solid"] .nv-sky::before,
+:root[data-nv-style="summary"][data-nv-material="solid"] .nv-sky::after { animation: none; }
 
 /* the summary card itself. A single unconditional rule — every value it
    reads is a --nv-sum-* token, and the blocks above already carry the
@@ -807,21 +978,53 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @media (prefers-reduced-motion: reduce) { .nv-sum-rise { animation: none; } }
 :root[data-nv-calm="1"] .nv-sum-rise { animation: none; }
 
-/* the card: the mockup's material, token for token */
+/* THE CARD IS GLASS (27 Sep). The mockup's fill, ring and top highlight,
+   now built on the house liquid recipe (.nv-liquid): the sheen over the
+   fill, the gathered inner glow, the blur with saturation, and the conic
+   specular rim on ::after below. Every value is a --nv-sum-* token, so a
+   theme × material switch changes the glass without this rule knowing
+   themes exist. Bigger surfaces read as thicker glass (the design rule):
+   full-width cards take the deeper -lg drop, a half tile the lighter one. */
 .nv-sum-card {
   position: relative; min-width: 0; box-sizing: border-box;
   border-radius: var(--nv-radius);
-  background: var(--nv-sum-card);
-  box-shadow: 0 0 0 .5px var(--nv-sum-card-ring), 0 1px 0 var(--nv-sum-card-hi) inset, var(--nv-sum-card-shadow);
-  -webkit-backdrop-filter: blur(var(--nv-sum-blur)) saturate(1.4);
-  backdrop-filter: blur(var(--nv-sum-blur)) saturate(1.4);
+  --nv-sum-card-drop: var(--nv-sum-card-shadow-lg);
+  background: var(--nv-sum-sheen), var(--nv-sum-card);
+  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 .5px var(--nv-sum-card-ring), var(--nv-sum-card-drop);
+  -webkit-backdrop-filter: blur(var(--nv-sum-blur)) saturate(var(--nv-sum-sat));
+  backdrop-filter: blur(var(--nv-sum-blur)) saturate(var(--nv-sum-sat));
 }
-/* he asked the OS for less transparency: no blur, and a fill that stays
-   opaque rather than a see-through card over the sky */
+.nv-sum-grid > .nv-sum-tile:not(.nv-sum-wide), .nv-sum-card.nv-sum-you { --nv-sum-card-drop: var(--nv-sum-card-shadow); }
+/* the specular hairline: .nv-liquid's masked-frame technique. The gradient
+   fills the box, a two-layer mask subtracts the content box, and 1px of
+   frame is left. It paints above the children (a 1px edge content never
+   reaches) and takes no taps, so an Interactive card presses as before;
+   every surface that wears it is positioned (relative, or sticky). The bar,
+   Nova and the search share it (the dock block below). */
+.nv-sum-card::after, .nv-sum-tabbar::after, .nv-sum-nova::after, .nv-sum-search::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit; padding: 1px;
+  background: var(--nv-sum-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+/* Calm: less bloom, never less depth (the house rule) — the inner glow goes,
+   the drop that places the surface stays */
+:root[data-nv-calm="1"] .nv-sum-card, :root[data-nv-calm="1"] .nv-sum-tabbar,
+:root[data-nv-calm="1"] .nv-sum-nova, :root[data-nv-calm="1"] .nv-sum-search {
+  --nv-sum-glow: inset 0 0 0 0 rgba(0,0,0,0);
+}
+/* he asked the OS for less transparency: no blur, a fill that stays opaque
+   rather than a see-through card over the sky, and the rim a plain edge */
 @media (prefers-reduced-transparency: reduce) {
   .nv-sum-card {
     -webkit-backdrop-filter: none; backdrop-filter: none;
     background: color-mix(in srgb, var(--nv-void) 88%, white);
+  }
+  .nv-sum-card::after, .nv-sum-tabbar::after, .nv-sum-nova::after, .nv-sum-search::after {
+    background: none; border: 1px solid var(--nv-sum-sep); padding: 0; -webkit-mask: none; mask: none;
   }
 }
 
@@ -1001,15 +1204,21 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   display: flex; align-items: center; gap: 10px;
   pointer-events: none;
 }
-.nv-sum-tabbar, .nv-sum-nova {
+/* THE BAR IS THE CARDS' GLASS (27 Sep, his "can I see a similar glass
+   effect for the bottom bar"): the same sheen, rim (::after, in the card
+   block above), glow and saturation, over the bar's own deeper fill
+   (--nv-sum-tab, which must hold six labels over whatever scrolls behind),
+   thicker — 22px of blur and the float drop, because it hovers over the
+   page rather than sitting in it. The search and the Edit sheet wear it too. */
+.nv-sum-tabbar, .nv-sum-nova, .nv-sum-search {
   pointer-events: auto;
-  background: var(--nv-sum-tab);
-  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 10px 30px -14px rgba(0, 0, 0, .7);
-  -webkit-backdrop-filter: blur(22px) saturate(1.4);
-  backdrop-filter: blur(22px) saturate(1.4);
+  background: var(--nv-sum-sheen), var(--nv-sum-tab);
+  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 .5px var(--nv-sum-tab-ring), var(--nv-sum-float-drop);
+  -webkit-backdrop-filter: blur(22px) saturate(var(--nv-sum-sat));
+  backdrop-filter: blur(22px) saturate(var(--nv-sum-sat));
 }
 .nv-sum-tabbar {
-  flex: 1; min-width: 0; box-sizing: border-box; height: 60px; padding: 2px; border-radius: 30px;
+  position: relative; flex: 1; min-width: 0; box-sizing: border-box; height: 60px; padding: 2px; border-radius: 30px;
   display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center;
 }
 /* a tab: the mark over its name. The lit one is the accent on a tint of
@@ -1107,10 +1316,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   box-sizing: border-box; height: 52px; margin-top: 4px; padding: 0 18px; border-radius: 26px;
   display: flex; align-items: center; gap: 10px;
   color: var(--nv-ink60);
-  background: var(--nv-sum-tab);
-  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 10px 30px -14px rgba(0, 0, 0, .7);
-  -webkit-backdrop-filter: blur(22px) saturate(1.4);
-  backdrop-filter: blur(22px) saturate(1.4);
+  /* its glass: the bar's, in the shared rule above */
 }
 .nv-sum-search-lbl { flex: 1; min-width: 0; font: 400 17px var(--nv-font-ui); letter-spacing: -.01em; }
 .nv-sum-search-ico {
@@ -1125,13 +1331,35 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   outline: 2px solid var(--nv-acc-border); outline-offset: -2px;
 }
 
-/* less transparency asked for: the bar, Nova and the search go solid */
+/* less transparency asked for: the bar, Nova and the search go solid (their
+   rim goes to a plain edge in the card block's guard). And with no
+   backdrop-filter at all, the bar's tint alone would let the rows behind it
+   read through its labels — the same solid, as .nv-liquid's first guard. */
 @media (prefers-reduced-transparency: reduce) {
   .nv-sum-tabbar, .nv-sum-nova, .nv-sum-search {
     -webkit-backdrop-filter: none; backdrop-filter: none;
     background: color-mix(in srgb, var(--nv-void) 90%, white);
   }
 }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .nv-sum-tabbar, .nv-sum-nova, .nv-sum-search { background: color-mix(in srgb, var(--nv-void) 90%, white); }
+}
+
+/* THE EDIT SHEET: already .nv-liquid .nv-liquid-thick (PinnedEditSheet.jsx);
+   under summary it takes the bar's glass by pointing the liquid tokens at
+   the summary ones, so the sheet, the bar and the cards are one material.
+   The liquid rule keeps doing the drawing, and its guards (no
+   backdrop-filter, reduced transparency, more contrast) still apply. */
+:root[data-nv-style="summary"] .nv-liquid.nv-sum-sheet {
+  --nv-liquid-blur: 22px; --nv-liquid-sat: 160%;
+  --nv-liquid-tint: var(--nv-sum-tab);
+  --nv-liquid-sheen: var(--nv-sum-sheen);
+  --nv-liquid-rim: var(--nv-sum-rim);
+  --nv-liquid-glow: var(--nv-sum-glow);
+  --nv-liquid-spec: inset 0 1px 0 var(--nv-sum-card-hi);
+  --nv-liquid-drop: var(--nv-sum-float-drop);
+}
+:root[data-nv-style="summary"][data-nv-calm="1"] .nv-liquid.nv-sum-sheet { --nv-liquid-glow: inset 0 0 0 0 rgba(0,0,0,0); }
 
 /* shared panes for the new components */
 .nv-pane {
