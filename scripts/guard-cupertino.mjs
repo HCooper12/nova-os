@@ -15,6 +15,12 @@
 //
 //   node scripts/guard-cupertino.mjs --record   # once, writes the baseline
 //   node scripts/guard-cupertino.mjs            # compare; exit 1 on drift
+//   node scripts/guard-cupertino.mjs --screen inbox [--record]   # any other screen
+//
+// --screen guards a page other than Home (27 Sep 2026: the Inbox, Train and
+// Fuel redesigns each land beside a cupertino page that must not move).
+// Demo mode shows less of those pages than his vault does, so the snapshot
+// is a floor, not the whole page; the baseline file carries the screen key.
 import { spawn } from 'node:child_process';
 import { mkdir, rm, readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -33,16 +39,17 @@ const opt = (k, d) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i
 const record = argv.includes('--record');
 const style = opt('style', 'cupertino');
 const theme = opt('theme', 'command');
+const screen = opt('screen', 'mission');
 const PORT = 5191;
-const APP_URL = `http://localhost:${PORT}/nova-os/#/mission`;
+const APP_URL = `http://localhost:${PORT}/nova-os/#/${screen}`;
 
-const baselineName = (style === 'cupertino' && theme === 'command')
+const baselineName = (style === 'cupertino' && theme === 'command' && screen === 'mission')
   ? 'cupertino-baseline.json'
-  : `${style}-${theme}-baseline.json`;
+  : `${style}-${theme}${screen === 'mission' ? '' : `-${screen}`}-baseline.json`;
 const baselinePath = path.join(GUARD_DIR, baselineName);
 const recordHint = (style === 'cupertino' && theme === 'command')
   ? 'node scripts/guard-cupertino.mjs --record'
-  : `node scripts/guard-cupertino.mjs --record --style ${style} --theme ${theme}`;
+  : `node scripts/guard-cupertino.mjs --record --style ${style} --theme ${theme}${screen === 'mission' ? '' : ` --screen ${screen}`}`;
 
 // exit-code convention: 0 = unchanged, 1 = a real drift was measured,
 // 2 = the guard could not run at all (bad precondition, not a verdict)
@@ -376,9 +383,9 @@ try {
       const heightDelta = snapshot.scrollHeight - baseline.scrollHeight;
       const heightMatch = Math.abs(heightDelta) <= 24;
       if (textMatch && panesMatch && widthMatch && heightMatch) {
-        console.log(`guard: ${style} Home unchanged (${snapshot.panes} panes, ${snapshot.scrollHeight} px)`);
+        console.log(`guard: ${style} ${screen === 'mission' ? 'Home' : screen} unchanged (${snapshot.panes} panes, ${snapshot.scrollHeight} px)`);
       } else {
-        console.error(`guard: ${style} Home CHANGED`);
+        console.error(`guard: ${style} ${screen === 'mission' ? 'Home' : screen} CHANGED`);
         if (!textMatch) {
           console.error(renderDiff(diffLines(baseline.text.split('\n'), snapshot.text.split('\n'))));
         }
