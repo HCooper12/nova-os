@@ -556,6 +556,19 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 28 Sep 2026 (morning) — HIS THIRD ANSWERS. The "background colour hue" he
+  meant for lit is his cupertino panes' glowPanel (a screenshot of Home:
+  Landed green, Technique magenta, the Look box gold: a 1px edge at 30% of
+  the accent over a tinted fill) → the lit card's ring went from .5px/34% to
+  1px/30% (d1a6847). Train B: "I'm sceptical of the new train due to possibly
+  being too much effort to scroll and click on other aspects of the screen,
+  but I am willing to try it so let's go with it" → BUILD IN FLIGHT
+  (worktree trainb, Opus) with his scepticism as the constraint: the set
+  card, numerals, steppers and tick on screen with no scroll at every moment
+  of a set; everything else one tap. "Proceed with the next re designs" →
+  VOICE AUDIT + ROUND 1 IN FLIGHT (05-voice.md, mockup 62: A conversation ·
+  B stage · C simplest). Fuel's swipe row now reads data-swiping (same
+  commit).
 - 27 Sep 2026 (afternoon) — LIT SHIPPED (6b140a2): material `lit` = Nova
   glass with each card lit in its own hue (tinted fill, bloom, and the
   hairline in the hue, which the first cut lacked and without which the light
