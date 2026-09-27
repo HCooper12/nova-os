@@ -13,6 +13,7 @@ import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHe
 import { useStickToBottom } from '../useStickToBottom.js';
 import { CoachChangesBanner, CoachSuggestionDeck } from '../CoachSuggestions.jsx';
 import { RingTile } from '../RingTile.jsx';
+import { TrainSummary } from './TrainSummary.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -1184,7 +1185,16 @@ function MuscleTag({ muscle, count }) {
   );
 }
 
+// The parts of this screen the summary Train page reuses as they are — handed
+// over rather than imported, so TrainSummary.jsx never imports this file back.
+const TRAIN_PARTS = { HistoryView, ExercisePicker, GoalsCoachPane };
+
 export function Workouts({ v }) {
+  // THE SUMMARY TRAIN PAGE (redesign variation A, 27 Sep): under `summary`
+  // Train is one page with Coach as a door (src/screens/TrainSummary.jsx).
+  // First, so nothing below renders under it; everything below is the
+  // classic three tabs, untouched, and the live session under every style.
+  if (v.summary && v.trainSummary) return <TrainSummary v={v} parts={TRAIN_PARTS} />;
   return (
     <div style={v.wrapWorkouts} data-screen-label="Workouts">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>

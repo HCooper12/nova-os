@@ -47,6 +47,7 @@ import { valsMission } from './vals/valsMission.js';
 import { valsOps } from './vals/valsOps.js';
 import { valsChrome } from './vals/valsChrome.js';
 import { valsSummary } from './vals/valsSummary.js';
+import { valsTrainSummary } from './vals/valsTrainSummary.js';
 import { valsIndex } from './vals/valsIndex.js';
 import { SCREEN_KEYS } from './screenKeys.js';
 import { Sidebar } from './Sidebar.jsx';
@@ -199,6 +200,8 @@ function warmScreen(screen) {
 const USER_NAME = 'Hayden';
 const WAKE_WORD = true;
 // one definition of "the recipe is closed", for the ✕ and for a back
+// the Coach sheet's own asking state (summary Train), let go when it closes
+const TRAIN_COACH_CLOSED = { trainSumAskWhy: null, trainSumWhyPick: null, trainSumWhyText: '', trainSumPassed: null };
 const RECIPE_CLOSED = { openRecipeId: null, recipeRemovals: [], recipeRemovalPrompt: false, recipeEdit: null, recipeEditError: null };
 
 // Hash-routed screens (#/recipes etc.) so deep links and the back button work
@@ -935,7 +938,7 @@ export default class App extends Component {
       // A SWIPE IS ITS OWN TRANSITION. The edge gesture animates two layers by
       // hand and navigates underneath them; running a view transition at the
       // same moment would cross-fade the thing it is already sliding.
-      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pinnedFromHistory() });
+      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.sheetsFromHistory() });
       if (edgeDragInProgress()) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
@@ -3303,6 +3306,43 @@ export default class App extends Component {
     const onEntry = st?.novaOverlay === 'pinned';
     if (!onEntry && this.state.pinnedEditOpen) return { pinnedEditOpen: false };
     if (onEntry && !this.state.pinnedEditOpen) return { pinnedEditOpen: true };
+    return {};
+  }
+  // THE COACH DOOR (summary Train, redesign variation A, 27 Sep): under the
+  // `summary` style Coach is a sheet over the Train page, not a tab, and the
+  // sheet is open exactly when trainTab is 'coach' — so every flow that
+  // already "opens the Coach" (Discuss, a volume question, a plateau card, a
+  // chat forward from another screen) opens the sheet with no change of its
+  // own. It gets a history entry for the recipe's reason: the back swipe
+  // closes it rather than going back a tab underneath it. The sheet asks for
+  // its entry when it mounts, so the flows that open it by state alone get
+  // one too. UI state only; nothing here writes.
+  trainCoachEntry() {
+    if (typeof window === 'undefined' || this.state.novaStyle !== 'summary') return;
+    const st = window.history.state;
+    if (st?.novaOverlay !== 'traincoach') window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'traincoach' }, '');
+  }
+  openTrainCoach() {
+    this.trainCoachEntry();
+    this.setState({ trainTab: 'coach' });
+  }
+  // On its own entry, closing IS going back; popH does the closing.
+  closeTrainCoach() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'traincoach') { window.history.back(); return; }
+    this.setState({ trainTab: 'gym', ...TRAIN_COACH_CLOSED });
+  }
+  // the two sheets that are history entries of their own, for popH
+  sheetsFromHistory() {
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory() };
+  }
+  // popstate's half: leaving the sheet's entry closes it, returning reopens
+  // it. Summary only — under the other styles trainTab is a real tab.
+  trainCoachFromHistory() {
+    if (this.state.novaStyle !== 'summary') return {};
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'traincoach';
+    if (!onEntry && this.state.trainTab === 'coach') return { trainTab: 'gym', ...TRAIN_COACH_CLOSED };
+    if (onEntry && this.state.trainTab !== 'coach') return { trainTab: 'coach' };
     return {};
   }
   // The Pinned order and switches persist straight away (src/pinned.js); the
@@ -7072,7 +7112,11 @@ export default class App extends Component {
     // the Index (P3) reads eight builders' fields — the sidebar's counts, the
     // protein ring, the Home cards' labels — so it takes everything, last of
     // all; null off the Index screen
-    return { ...withSummary, ...valsIndex(this, ctx, withSummary) };
+    const withIndex = { ...withSummary, ...valsIndex(this, ctx, withSummary) };
+    // the summary Train page (redesign variation A) reads valsWorkouts and the
+    // Home's Training card (valsSummary's trainingCard) from the merged view
+    // model, so it goes last of all; null off `summary`
+    return { ...withIndex, ...valsTrainSummary(this, ctx, withIndex) };
   }
 
   // A research job dispatched from the conversation: poll the SAME pending

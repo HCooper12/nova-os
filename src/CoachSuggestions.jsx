@@ -44,7 +44,11 @@ export function CoachChangesBanner({ b }) {
 }
 
 // ── the deck, at the top of the Coach tab ────────────────────────────────────
-export function CoachSuggestionDeck({ d }) {
+// `after` and `roomy` are the summary Train page's (TrainSummary.jsx): a
+// panel drawn inside a card under its answer row (the ✕'s ask-why), and
+// 44pt answers for the page's tap floor. The classic deck passes neither
+// and draws exactly as it did.
+export function CoachSuggestionDeck({ d, after, roomy }) {
   if (!d || !d.cards.length) return null;
   return (
     <section data-coach-deck aria-label="Coach's suggested changes" style={css('margin-top:14px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:90px;container:nv-deck / inline-size')}>
@@ -72,13 +76,13 @@ export function CoachSuggestionDeck({ d }) {
         </div>
       )}
       <div style={css('display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:10px')}>
-        {d.cards.map((c, i) => <SuggestionCard key={c.id} c={c} i={i} />)}
+        {d.cards.map((c, i) => <SuggestionCard key={c.id} c={c} i={i} after={after} roomy={roomy} />)}
       </div>
     </section>
   );
 }
 
-function SuggestionCard({ c, i }) {
+function SuggestionCard({ c, i, after, roomy }) {
   const hue = c.hue;
   return (
     <div className="nv-sug-wrap" data-state={c.state === 'leaving' ? 'leaving' : 'open'}>
@@ -112,18 +116,20 @@ function SuggestionCard({ c, i }) {
           <div style={css('margin-top:auto;padding-top:13px;display:flex;align-items:center;gap:8px')}>
             {!c.stale && <TickButton state={c.state} onClick={c.yes} label={c.via === 'draft' ? 'Yes, plan it' : 'Yes'} ariaLabel={`Yes: ${c.headline}`} />}
             <span className="nv-sug-secondary" style={css('display:flex;align-items:center;gap:8px;flex:1;min-width:0')}>
-              <Button tone="cyan" variant="quiet" compact onClick={c.discuss} ariaLabel={`Discuss: ${c.headline}`}>
+              <Button tone="cyan" variant="quiet" compact={!roomy} onClick={c.discuss} ariaLabel={`Discuss: ${c.headline}`}>
                 {c.state === 'discussing' ? 'Discussing' : 'Discuss'}
               </Button>
               <span style={css('flex:1')} />
               <Interactive as="button" onClick={c.no} haptic="tick" aria-label={`${c.stale ? 'Clear' : 'Not now'}: ${c.headline}`} title={c.stale ? 'Clear' : 'Not now'}
-                base={{ flex: 'none', width: 40, height: 40, borderRadius: '50%', display: 'grid', placeItems: 'center', cursor: 'pointer',
+                aria-expanded={roomy && !c.stale ? !!c.asking : undefined}
+                base={{ flex: 'none', width: roomy ? 44 : 40, height: roomy ? 44 : 40, borderRadius: '50%', display: 'grid', placeItems: 'center', cursor: 'pointer',
                   border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', background: 'color-mix(in srgb, var(--nv-ink) 5%, transparent)',
                   color: 'var(--nv-ink60)', font: '500 17px/1 var(--nv-font-ui)', padding: 0 }}
                 activeStyle={{ transform: 'scale(.94)' }}>✕</Interactive>
             </span>
           </div>
           {c.state === 'error' && <Meta as="div" tone="warn" style={{ marginTop: 8, textTransform: 'none', letterSpacing: 0 }}>{c.error ? `${c.error}. Nothing changed.` : "That didn't go through — nothing changed. Try again."}</Meta>}
+          {after ? after(c) : null}
         </article>
       </div>
     </div>

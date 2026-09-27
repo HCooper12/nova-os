@@ -38,7 +38,13 @@ export function useSwipeAction({ onRight, onLeft } = {}) {
   if (!onRight && !onLeft) return { ref: rowRef, underlayRef, handlers: {}, enabled: false };
 
   const paint = (dx) => {
-    if (rowRef.current) rowRef.current.style.transform = `translate3d(${dx}px,0,0)`;
+    if (rowRef.current) {
+      rowRef.current.style.transform = `translate3d(${dx}px,0,0)`;
+      // a row that is off its rest position says so, for a row whose own
+      // surface is see-through (a grouped list's): its CSS can give it a
+      // body while it slides, so the underlay's words never read through it
+      if (dx) rowRef.current.dataset.swiping = 'true'; else delete rowRef.current.dataset.swiping;
+    }
     if (underlayRef.current) {
       const w = rowRef.current?.offsetWidth || 1;
       underlayRef.current.style.opacity = String(Math.min(1, Math.abs(dx) / (w * COMMIT_FRACTION)));
@@ -48,6 +54,7 @@ export function useSwipeAction({ onRight, onLeft } = {}) {
 
   const settle = (animate = true) => {
     if (rowRef.current) {
+      delete rowRef.current.dataset.swiping;
       rowRef.current.style.transition = animate ? 'transform .22s cubic-bezier(.32,.72,0,1)' : '';
       rowRef.current.style.transform = 'translate3d(0,0,0)';
       if (animate) setTimeout(() => { if (rowRef.current) rowRef.current.style.transition = ''; }, 240);

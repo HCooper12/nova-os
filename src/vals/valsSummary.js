@@ -185,7 +185,9 @@ function waitingCard(m) {
   return { count: m.commandDeck.count, sub: `for your call · ${m.commandDeck.items[0]?.title || ''}`, open: m.commandDeck.onOpen };
 }
 
-function trainingCard(m, ctx) {
+// exported for the summary Train page's hero (valsTrainSummary.js), so the
+// page and Home's Training card name today's session in the same words
+export function trainingCard(m, ctx) {
   const meta = String(m.workoutCardK || '').replace(/^TRAIN\s*·\s*/, '').toLowerCase();
   const readinessRing = (m.ringVitals || []).find((r) => r.key === 'readiness');
   const readiness = readinessRing && readinessRing.state !== 'absent'

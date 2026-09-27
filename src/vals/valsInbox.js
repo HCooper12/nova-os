@@ -8,6 +8,12 @@ import { dtf } from './fmt.js';
 import { clampWords } from '../textClamp.js';
 import { digestPending, fileableMembers, undoLine } from '../inboxDigest.js';
 
+// The reasons a declined piece of Coach advice offers, one tap each. Shared
+// with the summary Train page's Coach sheet (valsTrainSummary.js), so a no
+// given there and a no given here read the same to Pattern Scout, which
+// counts them by their words.
+export const COACH_DECLINE_REASONS = ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'];
+
 // WHO MADE THIS. Was a 24-branch ternary ending in 'TYPED', so any kind it
 // didn't name was silently attributed to HIM — the program review, the
 // program audit, read-next and every Forge job all showed as "TYPED", as
@@ -477,7 +483,7 @@ export function valsInbox(app, ctx) {
               ? ['Off-base', 'Already knew', 'Not actionable', 'Too busy today']
               : isPlan
                 ? ['Too ambitious', 'Wrong focus', 'Already planned', 'Not today']
-                : ['Not now', 'Too aggressive', 'No equipment for it', 'I disagree — my call'])
+                : COACH_DECLINE_REASONS)
           : null,
         whyText: asking ? (st.inboxWhyText || '') : '',
         onWhyText: (e) => app.setState({ inboxWhyText: typeof e === 'string' ? e : e.target.value }),

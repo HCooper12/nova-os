@@ -56,8 +56,10 @@ const ICONS = {
   practice: <><circle cx="8" cy="8" r="2" /><circle cx="16" cy="8" r="2" /><circle cx="8" cy="16" r="2" /><circle cx="16" cy="16" r="2" /></>,
   trends: <path d="M4 17l6-6 4 4 6-8" />,
 };
-function SumIcon({ name }) {
-  return <svg className="nv-sum-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{ICONS[name] || ICONS.clear}</svg>;
+// exported with CardHead for the summary Train page (TrainSummary.jsx), which
+// hands its own marks in as `paths`, drawn in this same stroke family
+export function SumIcon({ name, paths }) {
+  return <svg className="nv-sum-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{paths || ICONS[name] || ICONS.clear}</svg>;
 }
 // the highlight's rungs (summaryFacts.buildHighlight) → the mark each wears
 const HL_ICON = { protein: 'protein', steps: 'steps', sleep: 'sleep', readiness: 'training', one: 'plan', next: 'today', clear: 'clear' };
@@ -70,10 +72,10 @@ const HL_ICON = { protein: 'protein', steps: 'steps', sleep: 'sleep', readiness:
 const lit = (hue) => ({ '--nv-sum-tint': hue });
 
 // A card's header: the mark and the name in the card's hue, a quiet meta right.
-function CardHead({ icon, label, tint, meta }) {
+export function CardHead({ icon, label, tint, meta, paths }) {
   return (
     <div className="nv-sum-ch" style={tint ? { color: tint } : undefined}>
-      <SumIcon name={icon} />
+      <SumIcon name={icon} paths={paths} />
       <span>{label}</span>
       {meta ? <span className="nv-sum-ch-meta">{meta}</span> : null}
     </div>
