@@ -4,7 +4,7 @@ import { COACH_DECLINE_REASONS } from './valsInbox.js';
 import { muscleVar } from '../muscleHue.js';
 import { todayPanels } from '../trainPanels.js';
 import { weekSetsView } from '../weekSets.js';
-import { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason } from '../trainSummaryFacts.js';
+import { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason, verdictRest } from '../trainSummaryFacts.js';
 
 // THE SUMMARY TRAIN PAGE'S VIEW MODEL — redesign round 1, variation A, his
 // pick (27 Sep 2026, design/mockups/58-redesign-train.html; the audit it
@@ -79,11 +79,8 @@ export function valsTrainSummary(app, ctx, v) {
     const fix = f.fix && acts.applyFocusFix ? { label: 'Make the change', run: () => acts.applyFocusFix(f.fix, f.text) } : null;
     if (f.verdict) {
       const vd = f.verdict;
-      const earned = vd.delta != null
-        ? ` has earned ${vd.unit === 'kg' ? `${vd.delta} kg` : vd.delta === 1 ? 'a rep' : `${vd.delta} reps`}.`
-        : ' has outgrown its prescription.';
       const muscle = muscleOfName.get(String(vd.lift || '').toLowerCase());
-      return { lift: vd.lift, hue: muscle ? muscleVar(muscle) : 'var(--nv-cy)', rest: earned, why: vd.why || null, fix };
+      return { lift: vd.lift, hue: muscle ? muscleVar(muscle) : 'var(--nv-cy)', rest: verdictRest(vd), why: vd.why || null, fix };
     }
     return { text: f.text, fix };
   })();

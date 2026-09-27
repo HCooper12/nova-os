@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason, weekdayOf } = await import('../../src/trainSummaryFacts.js');
+const { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason, weekdayOf, verdictRest } = await import('../../src/trainSummaryFacts.js');
 const { valsTrainSummary } = await import('../../src/vals/valsTrainSummary.js');
 const { COACH_DECLINE_REASONS } = await import('../../src/vals/valsInbox.js');
 
@@ -261,4 +261,14 @@ test('the Coach sheet is its own history entry, and the back swipe closes it', (
   assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\) \};/);
   assert.match(app, /novaOverlay: 'traincoach'/);
   assert.match(app, /const withTrain = \{ \.\.\.withIndex, \.\.\.valsTrainSummary\(this, ctx, withIndex\) \};/, 'spread after the Index in renderVals');
+});
+
+test('the hero verdict never says "earned 0 reps": zero or less is a hold (his Push day, 28 Sep)', () => {
+  assert.equal(verdictRest({ lift: 'Incline Barbell Bench Press', delta: 0, unit: 'rep' }), ' has earned a hold: same weight, cleaner reps.');
+  assert.equal(verdictRest({ delta: -1, unit: 'rep' }), ' has earned a hold: same weight, cleaner reps.');
+  assert.equal(verdictRest({ delta: 1, unit: 'rep' }), ' has earned a rep.');
+  assert.equal(verdictRest({ delta: 2, unit: 'rep' }), ' has earned 2 reps.');
+  assert.equal(verdictRest({ delta: 2.5, unit: 'kg' }), ' has earned 2.5 kg.');
+  assert.equal(verdictRest({ label: 'outgrown' }), ' has outgrown its prescription.');
+  assert.equal(verdictRest(null), '');
 });

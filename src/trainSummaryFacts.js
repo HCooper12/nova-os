@@ -159,3 +159,17 @@ export function declineReason(picked, text) {
   if (p && t) return `${p}: ${t}`;
   return p || t || undefined;
 }
+
+// THE HERO'S VERDICT, as the rest of a sentence after the lift's name. A
+// finding the server calls "earned" can carry no number at all: a quality
+// verdict (hold the weight, clean the reps) arrives with delta 0, and on his
+// real Push day (28 Sep) it read "has earned 0 reps". Zero and less are a
+// hold, never an earning.
+export function verdictRest(vd) {
+  if (!vd) return '';
+  if (vd.delta == null) return ' has outgrown its prescription.';
+  const n = Number(vd.delta);
+  if (!(n > 0)) return ' has earned a hold: same weight, cleaner reps.';
+  if (vd.unit === 'kg') return ` has earned ${n} kg.`;
+  return n === 1 ? ' has earned a rep.' : ` has earned ${n} reps.`;
+}
