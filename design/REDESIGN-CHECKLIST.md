@@ -556,6 +556,35 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (afternoon) — LIT SHIPPED (6b140a2): material `lit` = Nova
+  glass with each card lit in its own hue (tinted fill, bloom, and the
+  hairline in the hue, which the first cut lacked and without which the light
+  read as a shadow); the hue is the header's own (one table, CARD_HUE /
+  leaderAccent), so light and name never disagree; chrome and Index stay
+  plain glass; Calm drops the bloom; reduced transparency goes opaque. On the
+  sky it reads quieter than on his black cupertino ground; the one dial is the
+  bloom's reach. Review page v9 carries four lit frames. Ops has a guard
+  baseline now (ee7e571; geometry only, Ops is live-only in demo). TRAIN B
+  ROUND 2 DRAWN (mockup 61): the set, the pad, rest, the sheets, finish;
+  four NEW behaviours for his word before it is built (rest ring, voice
+  preview before commit, the ⋯ sheet, a record named on the Finish sheet
+  before it files). THEN ALL THREE PAGE BUILDS MERGED, each rebased onto
+  main by hand: Train A = f5e889d (TrainSummary: one page, Coach as a sheet
+  on its own history entry, ✕ asks why with the Inbox's own reasons, routine
+  page with swipe rows and a ⋯ sheet; null in demo and in the live session),
+  Fuel A = 18e685b (FuelSummary: the plate, the log as swipe rows with Undo,
+  Recipes as a pushed page, a recipe as a glass sheet), Inbox r2 = 16fc29d
+  (InboxSummary: Waiting · Filed, Look deeper via POST /api/inbox/:id/deeper
+  → Researcher with parentId, the report sheet, capture on the Nova hold,
+  the Ops top section; Stop only stops watching — no cancel exists). The
+  three popstate helpers were folded into ONE `pagesFromHistory()` and the
+  view model tail is Train → Fuel → Inbox (the source-contract tests pin
+  both). Gates on main: lint 0, build green, server 2721/2723 (the two
+  atlas-drift failures only), all six guards unchanged. Server RELOADED
+  (reload-server.mjs). NOT YET: his look at the three pages (the agents'
+  fixture frames were not saved; shoot read-only real-data frames next),
+  the Fuel swipe row's fragile `[style*="opacity: 0;"]` selector → Train's
+  `[data-swiping]`, and the push (his call).
 - 27 Sep 2026 (midday) — HIS SECOND ANSWERS: Train A; Fuel A; a "lit" Nova-glass
   option with the glow effects his cupertino screen has; the Inbox built with
   everything round 2 shows (Look deeper included); design against the HIG

@@ -13,6 +13,29 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**28 SEP (00:xx, nova-os-fc, the redesign session, cut off by the usage
+limit) — THE FOUR BUILDS ARE ON MAIN.** Lit material 6b140a2 (the light
+plus a tinted hairline, review page v9 at
+https://claude.ai/artifact/X2zxDCQBCCAXcbE9AaKf1H), Train A f5e889d, Fuel A
+18e685b, Inbox round 2 16fc29d; Train B round 2 drawn as mockup 61
+(50c5041, https://claude.ai/artifact/TGYN26c1gPM2NBpUs4KryF — four NEW
+behaviours for his word before it is built: rest ring, voice preview before
+commit, the ⋯ sheet, the record named on the Finish sheet). Each build was
+rebased by hand: App.jsx now has ONE `pagesFromHistory()` (pinned · Train
+Coach · Fuel recipes · Inbox report · capture) and the renderVals tail runs
+Train → Fuel → Inbox; three source-contract tests pin that text, so change
+them together. TRAP PAID FOR: a three-way CSS append at one anchor loses a
+shared opener/closer line to one side on rebase — check the build after
+every resolution. Gates green on main (server: only the two atlas-drift
+failures). Server reloaded. Ops has a guard baseline (its real text).
+NEXT: read-only real-data frames of #/workouts, #/recipes, #/inbox, #/ops
+under summary for his review (dev-connect → shot --readonly → --clean);
+swap Fuel's `[style*="opacity: 0;"]` swipe selector for `[data-swiping]`;
+the three agents' open decisions are in the ledger (§7) and the reports in
+this session's transcript. Push: his call (~64 unpushed commits).
+
+---
+
 **27 SEP (nova-os-83) — COACH COULD NOT CREATE A ROUTINE; NOW IT CAN
 (0c42e48, committed, server reloaded, NOT PUSHED: it sits on 51 unpushed
 commits of nova-os-fc's redesign work, and pushing would deploy that; fc
