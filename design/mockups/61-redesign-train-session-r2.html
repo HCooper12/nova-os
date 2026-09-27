@@ -1,0 +1,880 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Train session, round 2</title>
+<!--
+  61 · TRAIN, THE LIVE SESSION, ROUND 2 (27 Sep 2026)
+  His words, 27 Sep: he chose Train A for the page, then "Yes, add B for
+  train too but refine it." B is the live session rebuilt around the set,
+  the object he touches sixty times a session. Round 1 is variation B of
+  58-redesign-train.html (the set, the pad, Finish). The audit is
+  design/audits/redesign-2026-09/03-train.md: finding 5 (the tick 40px,
+  remove 26 × 36, the skip toggle 26 × 26, seven columns in 334px),
+  finding 8 (hand-rolled inputs) and finding 11 (no gesture anywhere).
+  Today's session is src/screens/Workouts.jsx SessionView; the gym by voice
+  is src/gymVoice.js; the record moment is src/PersonalRecord.jsx.
+
+  The ten refinements, each drawn:
+    1  One hand. The lift and its meta in the upper half; every control he
+       touches mid-set below the middle of the screen (the dashed line on
+       screens 1 to 3 is that middle; it is review furniture).
+    2  The set card: Set 3 of 4 with the type as a toggle of words, weight
+       and reps as 78px numerals, a stepper of the lift's own increment
+       under each (hold to repeat), the 64px tick as the only filled
+       control, Same as last, the gold Coach chip that fills 62.5, RPE and
+       RIR behind More.
+    3  The pad is the page's own: 52px keys, ±2.5, delete, Done → reps.
+    4  After the tick the pill fills, set 4 slides in from the right and a
+       rest ring counts down on the tick's spot. NEW, and optional.
+    5  The rail: dots, 3 of 6, swipe; the 3D chip; Last time; the muscle
+       chip; Skip this lift as a quiet word.
+    6  Note and Pain? stay on the lift; the rest goes into a ⋯ sheet. NEW.
+    7  Log it by talking is one line; with the mic open it becomes the
+       transcript and the parsed set, which commits on yes or a tap. NEW.
+    8  Finish is a sheet: three numerals, the house record gauge, the
+       cut-short reasons, Save for later · Finish, Discard asks once.
+    9  Coach mid-session stays: a quiet act on the rail, a sheet, the
+       session live above it, Apply · Not now · Apply all.
+   10  Colour per the HIG Color page he gave (below).
+
+  Five screens, #1 to #5: 1 Set · 2 Pad · 3 Rest · 4 Sheets · 5 Finish.
+  Screen 4 draws three sheets in a column (⋯, Pain?, Coach): each rises
+  from the foot of the screen in use; stacked here so one look holds all.
+
+  Colour, per the HIG Color page: one accent, filled, on the primary action
+  (the tick, cyan; on a sheet, that sheet's one action). A muscle's hue
+  from src/muscleHue.js MUSCLE_HEX (Back is #4fd1c5) on the muscle chip,
+  the 3D chip and the rest ring, and on the record gauge (a deviation,
+  argued in the Finish caption). Gold only for what waits on him: the
+  Coach chip, a Coach proposal's number, Apply all. Green only beside a ✓
+  for a logged set or a yes. Red only for discard. Everything else is ink.
+  Nothing rests on colour alone: the set type is a word, the dots differ in
+  shape, the rest ring carries its number and the word "rest".
+
+  Material: mockup 58's nova-glass, copied wholesale (variables, card, tab
+  bar, the switcher, .rise, the reduced-motion fade). Type is four sizes,
+  34 · 20 · 15 · 13, numerals in SF Rounded (44 on the set card, 34 on the
+  Finish sheet), the tab label 11. Every control is 44 or more; keys 52;
+  the tick 64. The switcher at the top sits outside every count.
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data. Pull
+  day, its six lifts, every weight, time and Coach sentence are invented,
+  in round numbers.
+-->
+<style>
+/* ================= copied from mockup 57 (nova-glass), unchanged ================= */
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);--switch-h:130px;--dock-h:96px;
+  --r:20px;
+}
+:root{--serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif}
+body[data-m="nova-glass"]{--bg:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.52);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);--blur:22px;--card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --c1:#5fe8a8;--c2:#8f7bff;--c3:#59e6ff;--c4:#d9b56f;--c5:#8f7bff;--up:#5fe8a8;--dn:#e0616b;--acc:#59e6ff;--link:#59e6ff;--btn:#59e6ff;--btn-ink:#062028;--track:rgba(255,255,255,.14);--title-tint:currentColor;
+  --stand-a:#59e6ff;--stand-b:#8f7bff;--hl-font:var(--serif);--hl-size:20px;
+  --tab:rgba(16,20,36,.58);--tab-ring:rgba(255,255,255,.14);--tab-ink:rgba(232,236,246,.5);--tab-on:#59e6ff;--tab-on-bg:rgba(89,230,255,.1);--badge:#d9b56f;--badge-ink:#241a06;color-scheme:dark}
+.sky{position:fixed;inset:0;z-index:-1}
+body[data-m="nova-glass"] .sky{background:radial-gradient(70% 45% at 12% 8%,rgba(89,230,255,.22),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 88% 30%,rgba(143,123,255,.26),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 112%,rgba(217,181,111,.16),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%)}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background .35s var(--ease),color .35s var(--ease)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.978);transition:transform .16s var(--ease)}
+.phone{position:relative;max-width:402px;margin:0 auto;min-height:100%}
+
+.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--sep)}
+.switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2)}
+.seg button{padding:7px 4px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.65;transition:background .28s var(--ease),opacity .28s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.12)}
+.tally{margin:2px 2px 0;font:500 11px/1.4 var(--mono);color:var(--ink3);min-height:15px}
+.tally b{color:var(--ink2);font-weight:600}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;height:56px;justify-content:center;border-radius:28px;font:500 10px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--tab-on);background:var(--tab-on-bg)}
+.tab .badge{position:absolute;top:6px;left:50%;margin-left:4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--badge);color:var(--badge-ink);font:700 11px/18px var(--ui);text-align:center}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+.view{padding:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 10px) 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 20px)}
+.view[hidden]{display:none}
+.rise{animation:rise .3s var(--ease) both;animation-delay:calc(var(--i,0) * 40ms)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rise{animation:fade .3s ease both}@keyframes fade{from{opacity:0}to{opacity:1}}}
+h1{margin:2px 4px 4px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.card{background:var(--card);border-radius:var(--r);padding:14px 16px;box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.ch{display:flex;align-items:center;gap:8px;font:600 15px var(--ui);color:var(--title-tint)}
+.ch svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ch .time{margin-left:auto;font:400 14px var(--ui);color:var(--ink3)}
+.ch.c1{color:var(--c1)}.ch.c2{color:var(--c2)}.ch.c3{color:var(--c3)}.ch.c4{color:var(--c4)}.ch.c5{color:var(--c5)}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin:22px 4px 8px}
+.sechead h2{margin:0;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.btn{height:36px;padding:0 16px;border-radius:18px;background:var(--btn);color:var(--btn-ink);font:600 15px var(--ui)}
+.btn.quiet{background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card.wide{grid-column:span 2}
+.grid .card{padding:12px 14px 14px;min-height:150px;display:flex;flex-direction:column}
+.sub{margin-top:4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff}
+
+/* ================= copied from mockup 57: the round's furniture and the deck card ================= */
+.seg{grid-auto-flow:column;grid-auto-columns:1fr}
+.seg button{font-size:13px;min-height:32px}
+.tally{font:400 13px/1.4 var(--ui);white-space:nowrap;overflow:hidden;cursor:pointer;min-height:18px}
+.tally.open{white-space:normal}
+.tally .tm{color:var(--link)}
+.view{font-size:15px;overflow-x:clip}
+.ch .time{font-size:13px}
+.sechead h2{font-size:20px}
+.tab{font-size:11px}
+.btn{height:44px;padding:0 22px;border-radius:22px}
+.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font:700 44px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.num.s{font-size:30px}
+.num.wait{color:var(--wait);text-shadow:0 0 24px color-mix(in srgb,var(--wait) 32%,transparent)}
+.titlerow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:2px}
+.titlerow h1{margin:0 4px}
+.back{display:inline-flex;align-items:center;gap:1px;height:44px;margin:0 0 0 -8px;padding:0 12px 0 0;font:400 15px var(--ui);color:var(--link)}
+.back .ic{width:24px;height:24px;stroke-width:2.4}
+.segc{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;height:44px;border-radius:22px;background:rgba(120,120,128,.2)}
+.segc button{height:44px;padding:0 10px;border:3px solid transparent;border-radius:22px;background-clip:padding-box;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.segc button[aria-pressed="true"]{background-color:var(--card-hi);color:var(--ink)}
+.count{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;margin:14px 4px 0}
+.cx{min-width:0}
+.cx b{display:block;font:600 15px/1.3 var(--ui)}
+.cx > span{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.dcard{position:relative;padding:16px}
+.say{margin:10px 0 0;font:400 20px/1.3 var(--serif);text-wrap:balance}
+.change{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.sets{display:inline-flex;align-items:center;gap:5px}
+.sets i{width:11px;height:11px;border-radius:50%;background:var(--h);border:1.5px solid var(--h)}
+.sets i.new{background:transparent;border:1.5px dashed var(--wait)}
+.sets + span{font:400 13px var(--ui);color:var(--ink3)}
+.why{margin:10px 0 0;font:400 15px/1.45 var(--ui);color:var(--ink2);text-wrap:pretty}
+.src{margin:4px 0 0;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.answer{display:flex;align-items:center;gap:4px;margin-top:12px}
+.yes{display:inline-flex;align-items:center;gap:7px;height:44px;min-width:44px;padding:0 18px 0 15px;border-radius:22px;font:600 15px var(--ui);color:var(--filed);background:color-mix(in srgb,var(--filed) 15%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--filed) 36%,transparent);white-space:nowrap}
+.yes .ic{stroke-width:2.8}
+.talk{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.no{flex:none;margin-left:auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 15%,transparent)}
+.no.lit{color:var(--ink);background:color-mix(in srgb,var(--ink) 18%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ink) 40%,transparent)}
+.receipt{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;margin-top:10px;padding:4px 4px 4px 12px;border-radius:26px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 14px 30px -14px rgba(0,0,0,.6)}
+.receipt .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--filed);color:#05261a}
+.receipt .ok.pass{background:color-mix(in srgb,var(--ink) 16%,transparent);color:var(--ink)}
+.receipt .ok.gone{background:color-mix(in srgb,var(--discard) 22%,transparent);color:var(--discard)}
+.receipt .ok .ic{width:15px;height:15px;stroke-width:3}
+.rx{min-width:0}
+.rx b{display:block;font:600 15px/1.25 var(--ui)}
+.rx span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.undo{height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.note{margin:18px 0 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--ink) 26%,transparent);font:400 13px/1.5 var(--ui);color:var(--ink2)}
+.note b{color:var(--ink);font-weight:600}
+.note ul{margin:6px 0 0;padding-left:16px}
+.note li + li{margin-top:4px}
+.behind{pointer-events:none}
+.scrim{position:fixed;inset:0;z-index:15;background:rgba(3,5,12,.6)}
+.sheet{position:fixed;left:8px;right:8px;top:calc(var(--switch-h) + env(safe-area-inset-top,0px) + var(--sheet-top,14px));bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:25;max-width:386px;margin:0 auto;padding:8px 16px 20px;overflow-y:auto;overscroll-behavior:contain;border-radius:30px;background:rgba(17,21,38,.9);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 30px 60px -20px rgba(0,0,0,.9)}
+.grab{width:38px;height:5px;margin:0 auto 12px;border-radius:3px;background:color-mix(in srgb,var(--ink) 32%,transparent)}
+.dk{display:block;font:600 13px var(--ui);color:var(--ink3)}
+.askwhy{margin-top:10px;padding:12px 12px 8px;border-radius:18px;background:color-mix(in srgb,var(--link) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--link) 26%,transparent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chips button{height:44px;padding:0 14px;border-radius:22px;font:400 15px var(--ui);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 22%,transparent);white-space:nowrap}
+.chips button[aria-pressed="true"]{font-weight:600;color:var(--new);background:color-mix(in srgb,var(--new) 13%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--new) 60%,transparent)}
+.own{display:flex;align-items:center;height:44px;margin-top:8px;border-radius:22px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.own .cf{flex:1;height:44px;padding:0 0 0 14px;text-align:left;font:400 15px var(--ui);color:var(--ink3)}
+.mic{flex:none;width:44px;height:44px;display:grid;place-items:center;color:var(--ink2);border-radius:22px}
+.askrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.discard{height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--discard);background:color-mix(in srgb,var(--discard) 13%,transparent);white-space:nowrap}
+.keep{height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.shead{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center}
+.shead b{display:block;font:700 20px/1.2 var(--ui)}
+.shead .sx span{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.done{height:44px;padding:0 4px 0 14px;font:600 15px var(--ui);color:var(--link)}
+.more{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;height:44px;margin-top:12px;border-radius:22px;font:600 15px var(--ui);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.lx{display:block;min-width:0}
+.nm{display:block;font:600 15px/1.3 var(--ui)}
+.sv{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.cv{width:14px;height:14px;color:var(--ink3);stroke-width:2.4}
+.hk{display:block;margin:20px 4px 8px 14px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+
+/* ================= round 1 of Train: what each colour means here, then the page's own objects ================= */
+/* gold = waiting on his call · green = done or yes · red = discard · cyan = Train's own and Nova's.
+   A muscle wears its own hue: src/muscleHue.js MUSCLE_HEX, the dark-ground values. */
+body[data-m="nova-glass"]{--wait:var(--c4);--filed:var(--c1);--discard:var(--dn);--new:var(--c3);--solid-row:#1c2137;
+  --m-chest:#ff8a7a;--m-back:#4fd1c5;--m-shoulders:#ffc46b;--m-biceps:#5fe8a8;--m-triceps:#b48cff;--m-quads:#7ab8ff;
+  --m-hams:#5aa0ff;--m-glutes:#c98bff;--m-calves:#8fd3ff;--m-abs:#ffd66b;--m-full:#59e6ff}
+
+/* muscle chips: a label, never a control, so they sit under the tap floor by design */
+.mchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.mchip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;font:600 13px var(--ui);white-space:nowrap;color:var(--ink);background:color-mix(in srgb,var(--h) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 34%,transparent)}
+.mchip i{width:7px;height:7px;border-radius:50%;background:var(--h);flex:none}
+
+/* the 3D chip: the figure in the lift's hue; a tap opens the lift (ExerciseSheet) */
+.f3d{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--h);background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--h) 26%,transparent),color-mix(in srgb,var(--h) 6%,transparent) 70%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 42%,transparent)}
+.f3d .ic{width:22px;height:22px;stroke-width:2}
+.f3d.l{width:56px;height:56px}.f3d.l .ic{width:28px;height:28px}
+
+/* ================= round 2 of the live session: colour first, then the page's own objects ================= */
+/* One filled accent a state (the tick; on a sheet, its one action). Muscle hue on the muscle chip, the 3D
+   chip and the rest ring. Gold waits on him. Green sits beside a ✓. Red is discard. The rest is ink. */
+body[data-m="nova-glass"]{--acc-ink:#062028;--quiet:color-mix(in srgb,var(--ink) 9%,transparent);--edge:color-mix(in srgb,var(--ink) 16%,transparent)}
+body[data-dock="off"] .dock{display:none}
+.midline{position:fixed;left:0;right:0;top:50%;z-index:30;height:0;border-top:1px dashed color-mix(in srgb,var(--ink) 30%,transparent);pointer-events:none}
+.midline[hidden]{display:none}
+
+/* the session's title: compact, because every pixel below it belongs to the set */
+.stop{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;margin:0 2px}
+.stop .st{min-width:0}
+.stop .st b{display:block;font:700 20px/1.2 var(--ui);letter-spacing:-.015em}
+.stop .st span{display:block;margin-top:2px;font:400 13px/1.35 var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.fin{flex:none;height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:var(--quiet);box-shadow:inset 0 0 0 1px var(--edge)}
+
+/* the lift rail: one lift, its neighbours peeking, swiped between */
+.xrail{position:relative;margin-top:10px}
+.peek{position:absolute;top:20px;bottom:20px;width:12px;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring);opacity:.5}
+.peek.l{left:-16px;border-radius:0 14px 14px 0}
+.peek.r{right:-16px;border-radius:14px 0 0 14px}
+.xcard{padding:2px 16px 16px}
+.xtop{display:flex;align-items:center;gap:10px;min-height:44px}
+.xdots{display:flex;align-items:center;gap:6px}
+.xdots i{width:8px;height:8px;border-radius:50%;box-sizing:border-box;border:1.5px solid color-mix(in srgb,var(--ink) 45%,transparent)}
+.xdots i.d{background:var(--ink2);border-color:transparent}
+.xdots i.on{width:22px;border-radius:4px;background:var(--ink);border-color:transparent}
+.xof{font:600 13px var(--ui);color:var(--ink2);font-variant-numeric:tabular-nums}
+.skipl{margin-left:auto;display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 2px 0 10px;font:400 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.skipl .ic{width:14px;height:14px}
+.xhead{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:center;margin-top:2px}
+.xname{display:block;font:700 20px/1.2 var(--ui);letter-spacing:-.015em}
+.xmeta{display:flex;align-items:center;gap:8px;margin-top:6px;min-width:0}
+.xmeta .mchips{margin:0}
+.xmeta .tgt{font:600 13px var(--round);color:var(--ink2);font-variant-numeric:tabular-nums}
+.last{margin:12px 0 0;font:400 15px var(--ui);color:var(--ink2)}
+.last b{font:700 15px var(--round);color:var(--ink);font-variant-numeric:tabular-nums}
+.lacts{display:flex;align-items:center;gap:8px;margin-top:12px}
+.qc{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:400 15px var(--ui);color:var(--ink);background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 0 0 1px var(--edge);white-space:nowrap}
+.qc .ic{width:16px;height:16px}
+.qc.qd{width:44px;padding:0}
+.qc.qd .ic{width:20px;height:20px;stroke:none;fill:currentColor}
+.qc.coach{margin-left:auto}
+
+/* the set card */
+.setcard{margin-top:16px;padding:14px 16px 12px;overflow:hidden}
+.pills{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.sp{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:44px;min-width:0;border-radius:22px;font:600 13px var(--round);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink3);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.sp .ic{width:13px;height:13px;stroke-width:3}
+.sp.d{color:var(--filed);background:color-mix(in srgb,var(--filed) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--filed) 34%,transparent)}
+.sp.now{color:var(--ink);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ink) 70%,transparent)}
+.sp.now i{width:7px;height:7px;border-radius:50%;background:var(--ink)}
+.sethead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+.sethead b{font:600 15px var(--ui);white-space:nowrap}
+.sethead .sw{font:400 15px var(--ui);color:var(--ink2)}
+.stype{display:grid;grid-auto-flow:column;grid-auto-columns:auto;border-radius:22px;background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.stype button{height:44px;padding:0 11px;border:4px solid transparent;border-radius:22px;background-clip:padding-box;font:400 13px var(--ui);color:var(--ink2);white-space:nowrap}
+.stype button[aria-pressed="true"]{font-weight:600;color:var(--ink);background-color:var(--card-hi)}
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 64px;gap:10px;align-items:center;margin-top:10px}
+.numbox{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;height:78px;border-radius:20px;background:rgba(0,0,0,.26);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 14%,transparent)}
+.numbox .bn{font:700 44px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.numbox .u{margin-top:4px;font:400 13px/1 var(--ui);color:var(--ink3)}
+.numbox.on{background:rgba(0,0,0,.34);box-shadow:inset 0 0 0 2px var(--ink),0 0 0 4px color-mix(in srgb,var(--ink) 10%,transparent)}
+.numbox .caret{display:inline-block;width:3px;height:36px;margin-left:3px;vertical-align:-4px;border-radius:2px;background:var(--ink);animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.numbox.dim{opacity:.5}
+.tick64{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:var(--acc-ink);box-shadow:0 0 28px -8px var(--acc),inset 0 1px 0 rgba(255,255,255,.45)}
+.tick64 .ic{width:30px;height:30px;stroke-width:3.2}
+.steps{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 64px;gap:10px;margin-top:8px}
+.stp{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.stp button{height:44px;border-radius:22px;font:600 15px var(--round);font-variant-numeric:tabular-nums;color:var(--ink);background:var(--quiet)}
+.mo{display:inline-flex;align-items:center;justify-content:center;gap:3px;height:44px;font:400 15px var(--ui);color:var(--ink2)}
+.mo .ic{width:14px;height:14px;stroke-width:2.6}
+.qrow{display:flex;align-items:center;gap:8px;margin-top:8px;min-width:0}
+.cchip{flex:none;display:inline-flex;align-items:center;height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--wait);background:color-mix(in srgb,var(--wait) 13%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 42%,transparent);white-space:nowrap}
+.same{display:inline-flex;align-items:center;gap:6px;height:44px;min-width:0;padding:0 4px;font:400 15px var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden}
+.same .ic{width:16px;height:16px}
+.same small{font:600 13px var(--round);color:var(--ink3);font-variant-numeric:tabular-nums}
+.voice{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:44px;margin-top:6px;font:400 15px var(--ui);color:var(--ink2)}
+.voice .ic{width:17px;height:17px}
+.voice q{font:400 13px var(--ui);color:var(--ink3)}
+
+/* 2 · the page's own pad: docked where a keyboard would be, over the tab bar */
+.padp{position:fixed;left:0;right:0;bottom:0;z-index:22;max-width:402px;margin:0 auto;padding:10px 12px max(34px,env(safe-area-inset-bottom,0px));border-radius:26px 26px 0 0;background:rgba(17,21,38,.92);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),inset 0 1px 0 var(--card-hi),0 -18px 40px -20px rgba(0,0,0,.8)}
+.keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.key{height:52px;border-radius:14px;font:500 20px var(--round);color:var(--ink);background:color-mix(in srgb,var(--ink) 10%,transparent);box-shadow:inset 0 1px 0 var(--card-hi)}
+.key.op{font:600 15px var(--round);color:var(--ink2)}
+.key.dn{grid-column:span 2;display:flex;align-items:center;justify-content:center;gap:6px;font:600 15px var(--ui);background:color-mix(in srgb,var(--ink) 18%,transparent)}
+.key .ic{width:20px;height:20px;margin:0 auto}
+.key.dn .ic{width:16px;height:16px;margin:0;stroke-width:2.4}
+#s2{padding-bottom:300px}
+#s2 > .note{margin-top:64px}
+.padrise{animation:padrise .32s var(--ease) both}
+@keyframes padrise{from{transform:translateY(100%)}to{transform:none}}
+
+/* 3 · after the tick: the pill fills, set 4 slides in, the rest ring counts */
+.slidein{animation:slidein .34s var(--ease) both .08s}
+@keyframes slidein{from{transform:translateX(60%);opacity:0}to{transform:none;opacity:1}}
+.fillin{animation:fillin .45s var(--ease) both .05s}
+@keyframes fillin{from{color:var(--ink);background:transparent;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ink) 70%,transparent)}}
+.rest{position:relative;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,color-mix(in srgb,var(--h) 10%,transparent),transparent 70%)}
+.rest svg{position:absolute;inset:0;width:64px;height:64px;transform:rotate(-90deg)}
+.rest .rtk{fill:none;stroke:color-mix(in srgb,var(--h) 20%,transparent);stroke-width:5}
+.rest .rar{fill:none;stroke:var(--h);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 1s linear;filter:drop-shadow(0 0 4px color-mix(in srgb,var(--h) 55%,transparent))}
+.rest .rt{position:relative;display:flex;flex-direction:column;align-items:center;line-height:1}
+.rest .rt b{font:700 20px/1 var(--round);font-variant-numeric:tabular-nums}
+.rest .rt small{margin-top:3px;font:400 13px/1 var(--ui);color:var(--ink3)}
+.setg{padding:0 14px}
+.setg > * + *{border-top:1px solid var(--sep)}
+.srow{display:grid;grid-template-columns:32px minmax(0,1fr) auto auto;gap:10px;align-items:center;min-height:60px}
+.sval{display:inline-flex;align-items:center;gap:2px;height:44px;font:400 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.sval .ic{width:13px;height:13px;stroke-width:2.6}
+.tog{position:relative;flex:none;width:51px;height:31px;border-radius:16px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+.tog::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .2s var(--ease)}
+.tog.on{background:var(--filed)}
+.tog.on::after{transform:translateX(20px)}
+.mt{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:var(--ink);background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.mt .ic{width:17px;height:17px}
+
+/* 1 · below the fold: More open, the mic open */
+.mini{display:inline-grid;grid-template-columns:44px 52px 44px;align-items:center;text-align:center}
+.mini button{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink);background:var(--quiet)}
+.mini button .ic{width:14px;height:14px;stroke-width:2.8}
+.mini b{font:700 20px var(--round);font-variant-numeric:tabular-nums}
+.cap1{margin:8px 8px 0;font:400 13px/1.45 var(--ui);color:var(--ink3);text-wrap:pretty}
+.done{color:var(--ink)}
+.morep{padding:6px 16px 12px}
+.mline{display:flex;align-items:center;justify-content:space-between;min-height:52px}
+.mline + .mline{border-top:1px solid var(--sep)}
+.mline .dk2{font:400 15px var(--ui);color:var(--ink2)}
+.mline .dk2 small{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.vlive{padding:12px 14px 14px}
+.vtop{display:grid;grid-template-columns:28px minmax(0,1fr) 44px;gap:10px;align-items:center}
+.lvl{display:flex;align-items:center;gap:3px;height:28px}
+.lvl i{width:3px;border-radius:2px;background:var(--ink2)}
+.vtop q{font:400 15px/1.35 var(--ui);color:var(--ink)}
+.vx{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);background:var(--quiet)}
+.vx .ic{width:16px;height:16px;stroke-width:2.4}
+.vset{display:grid;grid-template-columns:auto auto auto minmax(0,1fr);gap:10px;align-items:center;width:100%;min-height:64px;margin-top:10px;padding:8px 14px;border-radius:18px;text-align:left;background:rgba(0,0,0,.24);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ink) 40%,transparent)}
+.vset .vn{display:flex;align-items:baseline;gap:4px}
+.vset .vn b{font:700 34px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.vset .vn small,.vset .vby{font:400 13px var(--ui);color:var(--ink3)}
+.vset .vt{justify-self:end;text-align:right;font:600 15px var(--ui)}
+.vset .vt small{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.vhint{margin:8px 2px 0;font:400 13px var(--ui);color:var(--ink3);text-align:center}
+.vhint b{color:var(--ink);font-weight:600}
+
+/* 4 · the sheets, drawn in a column */
+.dimmed{opacity:.38;filter:saturate(.7);pointer-events:none}
+.panel{margin-top:12px;padding:8px 16px 16px;border-radius:30px;background:rgba(17,21,38,.9);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 30px 60px -20px rgba(0,0,0,.9)}
+.plabel{display:flex;align-items:center;gap:8px;margin:24px 6px 0;font:600 13px var(--ui);color:var(--ink3)}
+.mrows{margin-top:6px}
+.mrows > * + *{border-top:1px solid var(--sep)}
+.mrow{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:52px;text-align:left}
+.mrow .nm{font:600 15px/1.3 var(--ui)}
+.mrow .sv{white-space:nowrap;overflow:hidden}
+.pick button{display:inline-flex;align-items:center;gap:6px}
+.pick button .ic{width:14px;height:14px;stroke-width:3}
+.pick button[aria-pressed="true"]{font-weight:600;color:var(--ink);background:color-mix(in srgb,var(--ink) 16%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ink) 55%,transparent)}
+.pgrp{margin-top:14px}
+.btn.wide{width:100%;margin-top:14px}
+.live{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:center;margin-top:10px;padding:8px 14px 8px 8px}
+.live .sv b{font:700 13px var(--round);color:var(--ink2)}
+.msg{margin-top:12px;font:400 15px/1.45 var(--ui);text-wrap:pretty}
+.msg.me{margin-left:56px;padding:10px 14px;border-radius:18px 18px 6px 18px;background:color-mix(in srgb,var(--ink) 11%,transparent)}
+.msg.co{color:var(--ink2)}
+.msg .who{display:block;margin-bottom:2px;font:600 13px var(--ui);color:var(--ink3)}
+.prop{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;margin-top:10px;padding:12px 12px 4px;border-radius:18px;background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 0 0 1px var(--edge)}
+.prop .pn{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--round);color:var(--wait);box-shadow:inset 0 0 0 1.5px var(--wait)}
+.prop b{display:block;font:600 15px/1.35 var(--ui)}
+.prop .answer{margin-top:4px;margin-left:-4px}
+.talk.q{color:var(--ink2)}
+.allrow{display:flex;justify-content:flex-end;margin-top:10px}
+.all{height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--wait);background:color-mix(in srgb,var(--wait) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 42%,transparent)}
+
+/* 5 · Finish */
+.bstop{opacity:.4}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px;text-align:center}
+.trio b{display:block;font:700 34px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.trio small{display:block;margin-top:4px;font:400 13px var(--ui);color:var(--ink3)}
+.prg{position:relative;width:176px;height:176px;margin:10px auto 0}
+.prg svg{display:block;width:176px;height:176px}
+.prg .pv{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.prg .pv b{font:700 34px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.prg .pv small{margin-top:3px;font:400 13px var(--ui);color:var(--ink3)}
+.prl{margin:2px 0 0;text-align:center;font:600 15px var(--ui)}
+.prl span{display:block;margin-top:2px;font:400 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.fsep{margin-top:14px;padding-top:12px;border-top:1px solid var(--sep)}
+.frow{display:flex;align-items:center;gap:8px;margin-top:14px}
+.frow .btn{flex:1;padding:0 12px}
+.foot{display:flex;justify-content:center;margin-top:4px}
+.foot button{height:44px;padding:0 14px;font:600 15px var(--ui);color:var(--discard)}
+.confirm{margin-top:6px;padding:10px 12px;border-radius:18px;border:1px dashed color-mix(in srgb,var(--ink) 26%,transparent)}
+.confirm .dk{margin-bottom:6px}
+.crow2{display:flex;align-items:center;gap:6px}
+.crow2 span{flex:1;min-width:0;font:400 15px var(--ui)}
+
+/* captions: New marks new behaviour, in a word */
+.nb{display:inline-block;margin-right:6px;padding:0 7px;height:20px;line-height:20px;border-radius:10px;font:600 13px var(--ui);font-style:normal;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink2);vertical-align:1px}
+.hk .nb{text-transform:none;letter-spacing:0}
+@media (prefers-reduced-motion:reduce){.slidein,.padrise{animation:fade .3s ease both}.fillin,.numbox .caret{animation:none}.rest .rar{transition:none}}
+</style>
+</head>
+<body data-m="nova-glass">
+<div class="sky" aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-talk" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-fig" viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="2.2"/><path d="M12 7.6v7M6.2 9.4 12 11l5.8-1.6M12 14.6l-3.2 6.4M12 14.6l3.2 6.4"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18.5" cy="12" r="1.9"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6z"/></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 8 8"/></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24"><path d="M8 4v16M8 4 4.5 7.5M8 4l3.5 3.5M16 20V4M16 20l-3.5-3.5M16 20l3.5-3.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+  <symbol id="i-del" viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7z"/><path d="m12 9.5 5 5M17 9.5l-5 5"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h4"/></symbol>
+  <symbol id="i-bang" viewBox="0 0 24 24"><path d="M12 6v8M12 18v.01"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5l9 7-9 7zM18 5v14"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="11" rx="2"/><path d="m16 11 5-3v9l-5-3"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-coach" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/><path d="M9 10.5h6"/></symbol>
+  <symbol id="i-again" viewBox="0 0 24 24"><path d="M4.5 11a7.5 7.5 0 0 1 13-4.6L19.5 8.5M19.5 3.5v5h-5M19.5 13a7.5 7.5 0 0 1-13 4.6L4.5 15.5M4.5 20.5v-5h5"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 2M9.5 2.5h5M12 2.5V6"/></symbol>
+  <symbol id="i-addx" viewBox="0 0 24 24"><path d="M4 6h10M4 12h10M4 18h6M18 13v8M14 17h8"/></symbol>
+</svg>
+
+<nav class="switch" aria-label="Screen">
+  <div class="inner">
+    <div class="seg" id="screens" role="tablist" aria-label="Screen"></div>
+    <p class="tally" id="tally" title="Tap for the full tally"></p>
+  </div>
+</nav>
+<div class="midline" aria-hidden="true"></div>
+
+<div class="phone">
+
+<!-- ================= 1 · THE SET ================= -->
+<main id="s1" class="view" data-mid-guide data-tally="<b>1 · The set.</b> Above the fold: <b>4 objects</b> (title, the lift rail, the set card, talk) where one lift's grid carried 8 columns · filled buttons <b>1</b> (the tick, 64) · smallest control <b>44</b> (a stepper, a chip; today remove 26 × 36, skip 26 × 26) · type <b>20 15 13</b> + numerals 44 · every mid-set tap below the dashed middle (the highest, the type toggle, at <b>MIDTOP</b> of 874; the tick at <b>TICKY</b>) · resolves <b>5 8 11</b> · new controls: steppers, Same as last, the Coach chip fills · new behaviour below the fold: <b>the transcript preview</b>">
+  <div class="b-top">
+    <header class="stop rise" style="--i:0">
+      <div class="st"><b>Pull day</b><span>24 min · 9 of 20 sets</span></div>
+      <button class="fin" data-go="5">Finish</button>
+    </header>
+    <div class="xrail rise" style="--i:1">
+      <span class="peek l" aria-hidden="true"></span><span class="peek r" aria-hidden="true"></span>
+      <article class="card xcard" aria-label="Lift 3 of 6, Lat Pulldown. Swipe for the next lift" data-obj>
+        <div class="xtop">
+          <span class="xdots" aria-hidden="true"><i class="d"></i><i class="d"></i><i class="on"></i><i></i><i></i><i></i></span>
+          <span class="xof">3 of 6</span>
+          <button class="skipl"><svg class="ic"><use href="#i-skip"/></svg>Skip this lift</button>
+        </div>
+        <div class="xhead">
+          <button class="f3d l" style="--h:var(--m-back)" aria-label="Lat Pulldown in 3D: the form figure, the muscles, cues, history"><svg class="ic"><use href="#i-fig"/></svg></button>
+          <div class="xn"><b class="xname">Lat Pulldown</b><div class="xmeta"><span class="mchip" style="--h:var(--m-back)"><i></i>Back</span><span class="tgt">4 × 8</span></div></div>
+        </div>
+        <p class="last">Last time <b>60 kg × 8</b></p>
+        <div class="lacts">
+          <button class="qc"><svg class="ic"><use href="#i-note"/></svg>Note</button>
+          <button class="qc"><svg class="ic"><use href="#i-bang"/></svg>Pain?</button>
+          <button class="qc qd" aria-label="More for Lat Pulldown" data-go="4"><svg class="ic"><use href="#i-dots"/></svg></button>
+          <button class="qc coach" data-go="4"><svg class="ic"><use href="#i-coach"/></svg>Coach</button>
+        </div>
+      </article>
+    </div>
+    <section class="card setcard rise" style="--i:2" aria-label="Set 3 of 4" data-obj>
+      <div class="pills" aria-label="Sets of Lat Pulldown">
+        <button class="sp d" aria-label="Set 1, 60 kilograms for 8, logged. Tap to reopen it"><svg class="ic"><use href="#i-check"/></svg>60 × 8</button>
+        <button class="sp d" aria-label="Set 2, 60 kilograms for 8, logged. Tap to reopen it"><svg class="ic"><use href="#i-check"/></svg>60 × 8</button>
+        <button class="sp now" aria-current="step"><i></i>Set 3</button>
+        <button class="sp">Set 4</button>
+      </div>
+      <div class="sethead"><b>Set 3 of 4</b>
+        <div class="stype" aria-label="Set type"><button aria-pressed="false" data-mid>Warm-up</button><button aria-pressed="true" data-mid>Working</button><button aria-pressed="false" data-mid>Back-off</button></div>
+      </div>
+      <div class="setrow">
+        <button class="numbox" data-go="2" data-mid aria-label="Weight, 60 kilograms. Tap for the pad"><span class="bn">60</span><span class="u">kg</span></button>
+        <button class="numbox" data-mid aria-label="7 reps. Tap for the pad"><span class="bn">7</span><span class="u">reps</span></button>
+        <button class="tick64" data-go="3" data-mid data-tick aria-label="Done: log set 3, 60 kilograms for 7"><svg class="ic"><use href="#i-check"/></svg></button>
+      </div>
+      <div class="steps">
+        <span class="stp"><button data-mid aria-label="Weight down 2.5 kilograms. Hold to repeat">−2.5</button><button data-mid aria-label="Weight up 2.5 kilograms. Hold to repeat">+2.5</button></span>
+        <span class="stp"><button data-mid aria-label="One rep fewer. Hold to repeat">−1</button><button data-mid aria-label="One rep more. Hold to repeat">+1</button></span>
+        <button class="mo" data-mid aria-expanded="false" aria-label="More: RPE and RIR">More<svg class="ic"><use href="#i-down"/></svg></button>
+      </div>
+      <div class="qrow">
+        <button class="cchip" data-mid aria-label="Coach suggests 62.5 kilograms. Tap to fill the weight, hold for why">Coach: try 62.5</button>
+        <button class="same" data-mid aria-label="Same as last: 60 kilograms for 8, the set just logged"><svg class="ic"><use href="#i-again"/></svg>Same as last<small>60 × 8</small></button>
+      </div>
+    </section>
+  </div>
+  <button class="voice rise" style="--i:3" data-mid data-obj><svg class="ic"><use href="#i-mic"/></svg>Log it by talking<q>62.5 for 8</q></button>
+
+  <span class="hk rise" style="--i:4">More, open</span>
+  <div class="card morep rise" style="--i:4">
+    <div class="mline"><span class="dk2">RPE<small>how hard, 1 to 10</small></span><span class="mini"><button aria-label="RPE down half a point"><svg class="ic"><use href="#i-minus"/></svg></button><b>8.5</b><button aria-label="RPE up half a point"><svg class="ic"><use href="#i-plus"/></svg></button></span></div>
+    <div class="mline"><span class="dk2">RIR<small>reps left in the tank</small></span><span class="mini"><button aria-label="RIR down half a rep"><svg class="ic"><use href="#i-minus"/></svg></button><b>1.5</b><button aria-label="RIR up half a rep"><svg class="ic"><use href="#i-plus"/></svg></button></span></div>
+  </div>
+  <p class="cap1">More unfolds inside the set card, under the quiet row. Both start blank, as today: effort is optional, and the best signal Coach gets when he gives it. Steps of 0.5; a tap on the number opens the pad.</p>
+
+  <span class="hk rise" style="--i:5">Log it by talking, mic open <em class="nb">New</em></span>
+  <div class="card vlive rise" style="--i:5" aria-label="Listening">
+    <div class="vtop">
+      <span class="lvl" aria-hidden="true"><i style="height:10px"></i><i style="height:22px"></i><i style="height:15px"></i><i style="height:26px"></i><i style="height:12px"></i></span>
+      <q>sixty two and a half for eight</q>
+      <button class="vx" aria-label="Stop listening"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <button class="vset" aria-label="Heard 62.5 kilograms for 8, working, set 3 of 4. Tap to log it">
+      <span class="vn"><b>62.5</b><small>kg</small></span><span class="vby">×</span><span class="vn"><b>8</b><small>reps</small></span>
+      <span class="vt">Working<small>set 3 of 4</small></span>
+    </button>
+    <p class="vhint">62.5 × 8 · working · <b>tap to confirm or say “yes”</b></p>
+  </div>
+  <p class="cap1">The talk line becomes this while the mic is open, in its own place under the card. What he said, then the set it parsed to, drawn as a set. Nothing is ticked until he taps it or says yes; today gymVoice commits the set the moment it parses. A miss says so here and never guesses: “Didn't catch a set. Try 62.5 for 8.”</p>
+
+  <aside class="note rise" style="--i:6"><b>Where today's session went</b>
+    <ul>
+      <li><b>The seven-column grid</b> (SET · weight · reps · RPE · RIR · TYPE · tick · remove) is one set card. SET is the pills and "Set 3 of 4". Weight and reps are the two numerals: a tap raises the pad (2); a stepper moves by the lift's own increment (2.5 kg here, 2 on dumbbells; 1 rep) and repeats while held. RPE and RIR sit behind More (drawn open above). TYPE is Warm-up · Working · Back-off in words, where it cycled WK, BO, WU; warm-ups still stay out of volume and records. The tick is 64, and the only filled control on the page (finding 5).</li>
+      <li><b>Remove</b> (the 26 × 36 ×) is a swipe down on a logged pill, or a tap on the pill to reopen that set, where Remove set waits. Either leaves Undo. Tapping a logged pill is also how a set is unticked (findings 5, 11).</li>
+      <li><b>The raw number fields</b> (LocalInput with numInputStyle and setInputStyle) go. The pad is the one number input; the system keyboard never opens (finding 8).</li>
+      <li><b>The lift is the rail.</b> Swipe for the next or last lift (finding 11); the dots say where, filled for done, the bar for now, hollow to come, so shape carries it and colour never has to. The 3D chip opens the form figure, as today. Holding the lift's name keeps today's menu: Form video, or Coach curates one. Under the name: the muscle chip (Mobility says "not volume" in words), the 4 × 8 target, Last time, and when there is one, Coach's focus line and "Extra · today only" for a lift added mid-session.</li>
+      <li><b>The skip toggle</b> (26 × 26) is "Skip this lift" on the rail, a word, 44 tall. A skipped lift's card reads "Skipped today · Put it back", and its dot is struck through.</li>
+      <li><b>Note and Pain?</b> are the two chips left on the lift. Note opens a line at the foot of the screen that grows as he writes, with the mic. <b>⋯</b> holds Extra set, Off day, Form, Form check, Add exercise and Skip (4). <b>Coach</b> opens the mid-session conversation (4). <b>Finish</b> opens the sheet (5).</li>
+      <li><b>Coach's prescription</b> is the gold chip on the set card, because it waits on him: a tap fills 62.5, a hold opens why Coach set it (today's Coach sheet). A lift Coach added reads "Coach: start ~40".</li>
+      <li><b>Same as last</b> is the voice grammar's "same again" by tap: it copies the set just logged (set 2, 60 × 8). Last session's numbers still prefill each set, as today, so set 3 arrived at 60 × 7.</li>
+      <li><b>Hands free</b>, the banner, is one quiet line under the card.</li>
+      <li><b>Editing a past session</b> uses this card; the talk line hides and Finish reads Save changes. A <b>bodyweight lift</b> drops the weight numeral and its stepper, and reps takes the width.</li>
+      <li><b>The gym by voice</b>, every verb: a set ("62.5 for 8") and "same again" preview, then commit on yes <em class="nb">New</em>; "drop to 55" fills the weight numeral; "add a set" is Extra set; "next" swipes the rail; "skip it" is Skip this lift; "finish" raises the Finish sheet and asks yes, as today; "later" is Save for later; "where am I" or "what's next" is said aloud and the current pill pulses once; "undo" empties the last spoken set's pill.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= 2 · THE PAD ================= -->
+<main id="s2" class="view" hidden data-dock="off" data-mid-guide data-tally="<b>2 · Pad.</b> Weight open: nothing above the numerals moves; the steppers and the quiet row fold and the pad takes the tab bar's place, as the keyboard would · keys <b>52</b> (0 to 9, ., ±2.5, delete, Done → reps) · filled buttons <b>1</b> (the tick) · smallest control <b>44</b> · type <b>20 15 13</b> + numerals · the tick at <b>TICKY</b> and the pad from <b>PADTOP</b> to <b>PADBOT</b> of 874, both below the middle · resolves <b>8</b> (one number input, no system keyboard) and <b>5</b> (the weight target is 127 × 78 where its column was 46 wide)">
+  <div class="b-top">
+    <div data-clone="s1|.stop"></div>
+    <div data-clone="s1|.xrail"></div>
+    <section class="card setcard" aria-label="Set 3 of 4, editing the weight" data-obj>
+      <div data-clone="s1|.pills"></div>
+      <div class="sethead"><b>Set 3 of 4</b>
+        <div class="stype" aria-label="Set type"><button aria-pressed="false" data-mid>Warm-up</button><button aria-pressed="true" data-mid>Working</button><button aria-pressed="false" data-mid>Back-off</button></div>
+      </div>
+      <div class="setrow">
+        <button class="numbox on" data-mid aria-label="Weight, editing: 62.5 kilograms"><span class="bn">62.5<span class="caret"></span></span><span class="u">kg</span></button>
+        <button class="numbox dim" data-mid aria-label="8 reps. Tap to edit"><span class="bn">8</span><span class="u">reps</span></button>
+        <button class="tick64" data-go="3" data-mid data-tick aria-label="Done: log set 3, 62.5 kilograms for 8"><svg class="ic"><use href="#i-check"/></svg></button>
+      </div>
+    </section>
+  </div>
+  <aside class="note rise" style="--i:3"><b>The pad is the page's own.</b> A tap on 60 raises it from the foot, where the keyboard would come from, and it covers the tab bar while it is up, as the keyboard does. Nothing above the numerals moves: the title, the rail, the pills and the type toggle keep their place, so his thumb finds the tick where it was. The steppers and the quiet row fold under the pad; Done → reps hands it to the reps numeral, and Done there, or a tap anywhere above, puts the pad away. ±2.5 is the lift's own increment. Every key is 52 tall. This is the one number input on Train: the set card, the routine's steppers and Goals share it, and the system keyboard never opens, so iOS never zooms (finding 8).</aside>
+  <div class="padp padrise" role="group" aria-label="Number pad for the weight" data-pad>
+    <div class="keys">
+      <button class="key">1</button><button class="key">2</button><button class="key">3</button><button class="key op" aria-label="Down 2.5">−2.5</button>
+      <button class="key">4</button><button class="key">5</button><button class="key">6</button><button class="key op" aria-label="Up 2.5">+2.5</button>
+      <button class="key">7</button><button class="key">8</button><button class="key">9</button><button class="key" aria-label="Delete"><svg class="ic"><use href="#i-del"/></svg></button>
+      <button class="key">.</button><button class="key">0</button><button class="key dn">Done → reps</button>
+    </div>
+  </div>
+</main>
+
+<!-- ================= 3 · AFTER THE TICK: REST ================= -->
+<main id="s3" class="view" hidden data-mid-guide data-tally="<b>3 · Rest.</b> After the tick: set 3's pill fills (62.5 × 8), set 4 slides in from the right, a rest ring counts 90 s on the tick's spot in Back's teal, with its number and the word · filled buttons <b>0</b> while resting (the tick returns at zero or on a tap) · smallest control <b>44</b> · type <b>20 15 13</b> + numerals · the ring at <b>TICKY</b> of 874 · new behaviour: <b>the rest timer</b>, optional (its Settings row is below the fold)">
+  <div class="b-top">
+    <header class="stop">
+      <div class="st"><b>Pull day</b><span>26 min · 10 of 20 sets</span></div>
+      <button class="fin" data-go="5">Finish</button>
+    </header>
+    <div data-clone="s1|.xrail"></div>
+    <section class="card setcard" aria-label="Set 4 of 4" data-obj>
+      <div class="pills" aria-label="Sets of Lat Pulldown">
+        <button class="sp d"><svg class="ic"><use href="#i-check"/></svg>60 × 8</button>
+        <button class="sp d"><svg class="ic"><use href="#i-check"/></svg>60 × 8</button>
+        <button class="sp d fillin" aria-label="Set 3, 62.5 kilograms for 8, just logged. Tap to reopen it"><svg class="ic"><use href="#i-check"/></svg>62.5 × 8</button>
+        <button class="sp now" aria-current="step"><i></i>Set 4</button>
+      </div>
+      <div class="slidein" data-slide>
+        <div class="sethead"><b>Set 4 of 4</b>
+          <div class="stype" aria-label="Set type"><button aria-pressed="false" data-mid>Warm-up</button><button aria-pressed="true" data-mid>Working</button><button aria-pressed="false" data-mid>Back-off</button></div>
+        </div>
+        <div class="setrow">
+          <button class="numbox" data-mid aria-label="Weight, 60 kilograms. Tap for the pad"><span class="bn">60</span><span class="u">kg</span></button>
+          <button class="numbox" data-mid aria-label="6 reps. Tap for the pad"><span class="bn">6</span><span class="u">reps</span></button>
+          <span data-restslot><button class="rest" style="--h:var(--m-back)" data-mid data-tick data-rest aria-label="Resting. Tap to skip the rest">
+            <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="rtk" cx="32" cy="32" r="29.5"/><circle class="rar" cx="32" cy="32" r="29.5" data-rar/></svg>
+            <span class="rt"><b data-restn>1:30</b><small>rest</small></span>
+          </button></span>
+        </div>
+        <div class="steps">
+          <span class="stp"><button data-mid aria-label="Weight down 2.5 kilograms">−2.5</button><button data-mid aria-label="Weight up 2.5 kilograms">+2.5</button></span>
+          <span class="stp"><button data-mid aria-label="One rep fewer">−1</button><button data-mid aria-label="One rep more">+1</button></span>
+          <button class="mo" data-mid aria-expanded="false">More<svg class="ic"><use href="#i-down"/></svg></button>
+        </div>
+        <div class="qrow">
+          <button class="cchip" data-mid>Coach: try 62.5</button>
+          <button class="same" data-mid aria-label="Same as last: 62.5 kilograms for 8"><svg class="ic"><use href="#i-again"/></svg>Same as last<small>62.5 × 8</small></button>
+        </div>
+      </div>
+    </section>
+  </div>
+  <button class="voice" data-mid data-obj><svg class="ic"><use href="#i-mic"/></svg>Log it by talking<q>same again</q></button>
+
+  <span class="hk">Where it turns off · Settings › Train <em class="nb">New</em></span>
+  <div class="card setg">
+    <div class="srow"><span class="mt"><svg class="ic"><use href="#i-timer"/></svg></span><span class="lx"><span class="nm">Rest timer</span><span class="sv fit">After each tick</span></span><button class="sval" aria-label="Rest length, 90 seconds. Choose 60 s, 90 s, 2 min or 3 min">90 s<svg class="ic"><use href="#i-down"/></svg></button><span class="tog on" role="switch" aria-checked="true" aria-label="Rest timer on"></span></div>
+  </div>
+
+  <aside class="note"><b>After the tick</b>
+    <ul>
+      <li>The tick logs set 3 with a tap haptic, as today. Its pill fills in the same beat, 62.5 × 8 beside a ✓, and set 4's card slides in from the right, the way the pills read. A tap on a filled pill reopens that set to fix or untick it.</li>
+      <li><em class="nb">New</em><b>The rest ring.</b> Nothing like it exists today. It starts on the tick's own spot, so his thumb goes where it always goes: a ring in the lift's muscle hue (Back's teal) that empties over 90 s, the time left as a number and the word "rest" inside, so neither colour nor the ring alone carries it. A tap skips the rest and the tick is back; at zero the tick returns with one haptic. A lift's own rest, set on the lift in its routine, wins over the 90 s. While it counts, everything else stays live: the steppers, the pad, Same as last, the rail.</li>
+      <li><b>It is optional.</b> Settings › Train holds one row, drawn above: Rest timer, its length (60 s, 90 s, 2 min, 3 min), and a switch. Off, the tick stays on its spot after every set and nothing counts.</li>
+      <li>Set 4 arrives with last session's set 4 (60 × 6), because that is how sets prefill today; editing set 3 never carries forward. Same as last is the one tap that makes it 62.5 × 8. Carrying the logged set forward by itself would be new behaviour, and it is not drawn.</li>
+      <li>The slide and the fill honour reduced motion: a fade, and the ring steps once a second instead of gliding.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= 4 · THE SHEETS: ⋯, PAIN?, COACH ================= -->
+<main id="s4" class="view" hidden data-dock="off" data-tally="<b>4 · Sheets.</b> Three, drawn in a column: <b>⋯</b> (six acts, rows 52), <b>Pain?</b> (where, side, when, his words, Ask Coach), <b>Coach</b> (the conversation, the session live above it, Apply · Not now · Apply all 2) · filled buttons <b>0 · 1 · 0</b>, one sheet at a time · smallest control <b>44</b> (rows 52) · type <b>20 15 13</b> · resolves <b>5 11</b> (skip and remove are words at 44 and more, and each leaves Undo) · new behaviour: <b>the ⋯ sheet</b>">
+  <div class="dimmed" aria-hidden="true" inert>
+    <div data-clone="s1|.stop"></div>
+    <div data-clone="s1|.xrail"></div>
+  </div>
+
+  <section class="panel rise" style="--i:1" aria-label="More for Lat Pulldown" data-obj>
+    <div class="grab"></div>
+    <div class="shead">
+      <span class="tile" style="background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)"><svg class="ic" style="width:18px;height:18px;stroke:none;fill:currentColor"><use href="#i-dots"/></svg></span>
+      <span class="sx"><b>Lat Pulldown</b><span>Set 3 of 4 · for this session</span></span>
+      <button class="done" data-go="1">Done</button>
+    </div>
+    <div class="mrows">
+      <button class="mrow"><span class="mt"><svg class="ic"><use href="#i-plus"/></svg></span><span class="lx"><span class="nm">Extra set</span><span class="sv fit">A fifth set, today only · or say “add a set”</span></span></button>
+      <div class="mrow" role="group"><span class="mt"><svg class="ic"><use href="#i-moon"/></svg></span><span class="lx"><span class="nm">Off day</span><span class="sv fit">Leave today out of progression</span></span><span class="tog" role="switch" aria-checked="false" aria-label="Off day"></span></div>
+      <button class="mrow"><span class="mt"><svg class="ic"><use href="#i-play"/></svg></span><span class="lx"><span class="nm">Form</span><span class="sv fit">The curated clip, Coach-approved</span></span><svg class="ic cv"><use href="#i-right"/></svg></button>
+      <button class="mrow"><span class="mt"><svg class="ic"><use href="#i-cam"/></svg></span><span class="lx"><span class="nm">Form check</span><span class="sv fit">Film a set; Coach checks the angle first</span></span><svg class="ic cv"><use href="#i-right"/></svg></button>
+      <button class="mrow"><span class="mt"><svg class="ic"><use href="#i-addx"/></svg></span><span class="lx"><span class="nm">Add exercise</span><span class="sv fit">This session only · Pull day stays as it is</span></span><svg class="ic cv"><use href="#i-right"/></svg></button>
+      <button class="mrow"><span class="mt"><svg class="ic"><use href="#i-skip"/></svg></span><span class="lx"><span class="nm">Skip this lift</span><span class="sv fit">Today only · the program stays as it is</span></span></button>
+    </div>
+  </section>
+
+  <span class="plabel">Pain? on the rail opens its own sheet</span>
+  <section class="panel" aria-label="Pain on Lat Pulldown" data-obj>
+    <div class="grab"></div>
+    <div class="shead">
+      <span class="tile" style="background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)"><svg class="ic" style="width:18px;height:18px"><use href="#i-bang"/></svg></span>
+      <span class="sx"><b>Pain on Lat Pulldown</b><span>Coach triages it in this session</span></span>
+      <button class="done" data-go="1">Cancel</button>
+    </div>
+    <div class="pgrp"><span class="dk">Where?</span>
+      <div class="chips pick"><button aria-pressed="false">Lower back</button><button aria-pressed="true"><svg class="ic"><use href="#i-check"/></svg>Shoulder</button><button aria-pressed="false">Elbow</button><button aria-pressed="false">Other…</button></div></div>
+    <div class="pgrp"><span class="dk">Side</span>
+      <div class="chips pick"><button aria-pressed="false">Left</button><button aria-pressed="true"><svg class="ic"><use href="#i-check"/></svg>Right</button><button aria-pressed="false">Both / centre</button></div></div>
+    <div class="pgrp"><span class="dk">When</span>
+      <div class="chips pick"><button aria-pressed="true"><svg class="ic"><use href="#i-check"/></svg>During the rep</button><button aria-pressed="false">After sets</button><button aria-pressed="false">Constant</button></div></div>
+    <div class="own" style="margin-top:14px"><button class="cf">Exact spot, anything else (optional)</button><button class="mic" aria-label="Dictate"><svg class="ic"><use href="#i-mic"/></svg></button></div>
+    <button class="btn wide">Ask Coach to triage this</button>
+  </section>
+
+  <span class="plabel">Coach on the rail: the session stays live above the sheet</span>
+  <div class="card live dimmed" aria-hidden="true">
+    <span class="f3d" style="--h:var(--m-back)"><svg class="ic"><use href="#i-fig"/></svg></span>
+    <span class="lx"><span class="nm">Lat Pulldown · set 3 of 4</span><span class="sv fit"><b>62.5 × 8</b> on the card · 9 of 20 sets · 24 min</span></span>
+  </div>
+  <section class="panel" aria-label="Coach, mid-session" data-obj>
+    <div class="grab"></div>
+    <div class="shead">
+      <span class="tile" style="background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)"><svg class="ic" style="width:18px;height:18px"><use href="#i-coach"/></svg></span>
+      <span class="sx"><b>Coach</b><span>Sees this session live</span></span>
+      <button class="done" data-go="1">Done</button>
+    </div>
+    <p class="msg me">Only 20 minutes left. What do I cut?</p>
+    <p class="msg co"><span class="who">Coach</span>Keep the pulldown and the row; they carry today's back work. Skip Hammer Curl now (⋯ › Skip). For Pull day itself, two changes so it fits 45 minutes:</p>
+    <div class="prop"><span class="pn">1</span><div><b>Pull day: Hammer Curl moves to Push day</b><div class="answer"><button class="yes"><svg class="ic"><use href="#i-check"/></svg>Apply</button><button class="talk q">Not now</button></div></div></div>
+    <div class="prop"><span class="pn">2</span><div><b>Chest-Supported Row: 3 × 10 → 2 × 12</b><div class="answer"><button class="yes"><svg class="ic"><use href="#i-check"/></svg>Apply</button><button class="talk q">Not now</button></div></div></div>
+    <div class="allrow"><button class="all">Apply all 2</button></div>
+    <div class="own" style="margin-top:12px"><button class="cf">Ask mid-workout…</button><button class="mic" aria-label="Dictate"><svg class="ic"><use href="#i-mic"/></svg></button></div>
+  </section>
+
+  <aside class="note"><b>The sheets</b>
+    <ul>
+      <li><em class="nb">New</em><b>The ⋯ sheet.</b> Today every act sits on the lift at once: Extra set, the note box, Off day, Pain?, Form check, ▶ Form, the skip toggle, and "+ Add exercise" under the list. Now the lift shows Note and Pain?, and ⋯ opens this small sheet over the lower half: Extra set (voice: "add a set"), Off day as a switch (the rail then reads "Off day" in words), Form (the curated clip; with none curated it offers technique videos, and holding the lift's name asks Coach to curate one), Form check (today's FormCheckPanel, its refusal kept: "a guess from a bad angle is worse than no review"), Add exercise (the picker, this session only; the lift joins the rail as "Extra · today only"), and Skip, the same act as the rail's word. Skip and Remove set leave Undo.</li>
+      <li><b>Pain?</b> keeps today's flow in its own sheet: the areas for the lift's muscle (Back: lower back, shoulder, elbow) and Other… for the rest of the list, then side and when, his own words with the mic, and Ask Coach. Today it writes the pain onto the lift and asks Coach to triage (stop, mobilise, swap, or see someone); the answer lands in the Coach sheet below, and Coach may propose an Injury Log entry he approves. Afterwards the chip on the rail reads "Pain logged". Picked chips carry a ✓ and a heavier word, never a colour: on this page red means discard.</li>
+      <li><b>Coach, mid-session</b> is a sheet at the middle height, so the lift and its set stay live above it (drawn dimmed here). Same Coach, same conversation, sees this session; the starters, the panels beside an answer, and "Coach looking at your session…" all stay. A proposal is a card with its number in gold because it waits on him: Apply (a light yes), Not now, and Apply all 2 when two or more are open. Applied reads "Applied · undo in Inbox", as today.</li>
+      <li>Each sheet has one filled control at most: the Pain sheet's Ask Coach. The tab bar hides while a sheet is up.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= 5 · FINISH ================= -->
+<main id="s5" class="view" hidden data-tally="<b>5 · Finish.</b> A sheet: three numerals (16 sets · 5,760 kg · 48 min), the house record gauge counting 60 → 62.5, four cut-short reasons while sets are open, Save for later · Finish, Discard asks once · filled buttons <b>1</b> (Finish, at <b>FINY</b> of 874) · smallest control <b>44</b> · type <b>20 15 13</b> + numerals 34 · new behaviour: <b>a record named before filing</b> (a preview; the server still decides)">
+  <header class="stop bstop" aria-hidden="true"><div class="st"><b>Pull day</b><span>48 min · 16 of 20 sets</span></div><span class="fin">Finish</span></header>
+  <div class="scrim" aria-hidden="true" data-go="1"></div>
+  <section class="sheet rise" style="--i:0;--sheet-top:50px" aria-label="Finish Pull day">
+    <div class="grab"></div>
+    <div class="shead">
+      <span class="tile" style="background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)"><svg class="ic" style="width:17px;height:17px"><use href="#i-dumbbell"/></svg></span>
+      <span class="sx"><b>Finish Pull day</b><span>16 of 20 sets ticked</span></span>
+      <button class="done" data-go="1">Keep going</button>
+    </div>
+    <div class="trio">
+      <div><b>16</b><small>sets</small></div>
+      <div><b>5,760</b><small>kg moved</small></div>
+      <div><b>48</b><small>minutes</small></div>
+    </div>
+    <div class="prg" role="img" aria-label="Lat Pulldown, heaviest yet: 62.5 kilograms for 8, past 60">
+      <svg viewBox="-9 -9 118 118" data-gauge aria-hidden="true"></svg>
+      <div class="pv"><b data-count>62.5</b><small>kg</small></div>
+    </div>
+    <p class="prl">Lat Pulldown, heaviest yet<span>62.5 kg × 8 · past 60 · +2.5 kg · confirmed when it files</span></p>
+    <div class="fsep">
+      <span class="dk">4 sets open. Stopping early? One tap tells Coach why</span>
+      <div class="chips pick"><button aria-pressed="true"><svg class="ic"><use href="#i-check"/></svg>Out of time</button><button aria-pressed="false">Low energy</button><button aria-pressed="false">Gym busy</button><button aria-pressed="false">Pain</button></div>
+    </div>
+    <div class="frow">
+      <button class="btn quiet">Save for later</button>
+      <button class="btn" data-fin>Finish</button>
+    </div>
+    <div class="foot"><button>Discard session</button></div>
+    <div class="confirm">
+      <span class="dk">One tap on Discard turns the foot into one line</span>
+      <div class="crow2"><span>Discard 16 sets?</span><button class="discard">Discard</button><button class="keep">Keep</button></div>
+    </div>
+    <aside class="note"><b>Finish, as a sheet.</b>
+      <ul>
+        <li>Finish at the top of the session, or "finish" said aloud, raises it. The session in three numerals, 34 and rounded. Only ticked sets are saved, as today; the head says how many.</li>
+        <li><b>The record gauge</b> is the house one (src/PersonalRecord.jsx): an open 270° ring that always completes, the notch fixed where the old best sat with "60" beside it, the arc past it lit, and the number counting 60 → 62.5 in one damped pass. Under reduced motion the final number simply appears. <em class="nb">New</em>Today the server names records after the session files, and the overlay plays then; here the sheet names it first, from the best the page already holds, and says "confirmed when it files". The overlay still plays after Finish if the server agrees.</li>
+        <li><b>Its colour is a deviation, argued.</b> This page keeps a muscle's hue to its chip, the 3D chip and the rest ring. Today's gauge is gold, which on this page means waiting on him; a record waits on nothing. Round 1 dressed it in the lift's hue, because the record belongs to Lat Pulldown. The alternative is plain ink. His call.</li>
+        <li>The cut-short reasons show only while sets are open: out of time, low energy, gym busy, pain. They ride the record so Coach can notice a pattern, as today. Picked is a ✓ and a heavier word.</li>
+        <li>Save for later parks the session for Resume on Train (voice: "later"). Discard asks once, in this sheet, then drops the draft; nothing was filed, and like today there is no Undo after it. Editing a past session uses the same sheet with Save changes.</li>
+      </ul>
+    </aside>
+  </section>
+</main>
+
+</div>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row">
+    <div class="tabbar">
+      <span class="tab" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab" data-tab="inbox"><span class="badge">5</span><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg>Inbox</span>
+      <span class="tab on" data-tab="train"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab" data-tab="fuel"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab" data-tab="more"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn" aria-label="Talk to Nova"><span class="orb"></span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const reduced=()=>typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // copies of screen 1's objects, so the title, the rail and the pills are the same object on every screen
+  $$('[data-clone]').forEach((el)=>{const [id,sel]=el.dataset.clone.split('|');const src=$(sel,$('#'+id));if(src)el.outerHTML=src.outerHTML.replace(/\srise\b/g,'').replace(/\sdata-go="\d"/g,'');});
+
+  // 3 · the rest ring: 90 s by default, counting down on the tick's spot; a tap skips it and the tick is back
+  const REST=90;let restT=null,left=REST;
+  const fmt=(n)=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
+  function drawRest(){const a=$('#s3 [data-rar]'),n=$('#s3 [data-restn]');if(!a||!n)return;const c=2*Math.PI*29.5;
+    a.style.strokeDasharray=c;a.style.strokeDashoffset=String(c*(1-left/REST));n.textContent=fmt(left);
+    const b=$('#s3 [data-rest]');if(b)b.setAttribute('aria-label','Resting, '+fmt(left)+' left. Tap to skip the rest');}
+  const tickHTML='<button class="tick64" data-mid data-tick aria-label="Done: log set 4"><svg class="ic"><use href="#i-check"/></svg></button>';
+  const ringHTML=()=>$('#s3 [data-restslot]').dataset.ring;
+  function startRest(){const slot=$('#s3 [data-restslot]');if(!slot)return;if(!slot.dataset.ring)slot.dataset.ring=slot.innerHTML;slot.innerHTML=ringHTML();
+    clearInterval(restT);left=REST;const a=$('#s3 [data-rar]');if(a){a.style.transition='none';drawRest();void a.getBoundingClientRect();a.style.transition='';}
+    restT=setInterval(()=>{left=Math.max(0,left-1);drawRest();if(!left){clearInterval(restT);slot.innerHTML=tickHTML;}},1000);}
+  document.addEventListener('click',(e)=>{if(e.target.closest('#s3 [data-rest]')){clearInterval(restT);$('#s3 [data-restslot]').innerHTML=tickHTML;}});
+
+  // 5 · the record gauge, in src/PersonalRecord.jsx's shape: a 270deg open ring that always completes,
+  // the old best as a notch at a FIXED .72 of the sweep, the part past it lit, the number counting old → new
+  function gauge(){const g=$('#s5 [data-gauge]');if(!g)return;const R=38,C=2*Math.PI*R,A=C*.75,MARK=.72,hue='var(--m-back)';
+    const arc=(from,to,stroke,op,extra)=>'<circle cx="50" cy="50" r="'+R+'" fill="none" stroke="'+stroke+'" stroke-opacity="'+op+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+(A*(to-from))+' '+C+'" stroke-dashoffset="'+(-A*from)+'" transform="rotate(135 50 50)"'+(extra||'')+'/>';
+    const at=(f,r)=>{const t=(135+270*f)*Math.PI/180;return [(50+r*Math.cos(t)).toFixed(2),(50+r*Math.sin(t)).toFixed(2)];};
+    const [x1,y1]=at(MARK,R-4),[x2,y2]=at(MARK,R+7),[lx,ly]=at(MARK,R+14);
+    g.innerHTML=arc(0,1,'var(--track)',1)+arc(0,MARK,hue,.45)+arc(MARK,1,hue,1,' data-past style="filter:drop-shadow(0 0 4px color-mix(in srgb,'+hue+' 60%,transparent))"')+
+      '<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" stroke="var(--ink)" stroke-width="2.4" stroke-linecap="round"/>'+
+      '<text x="'+lx+'" y="'+ly+'" text-anchor="middle" dominant-baseline="middle" fill="var(--ink3)" style="font:600 9.6px var(--ui)">60</text>';
+    const n=$('#s5 [data-count]');if(!n)return;if(reduced()){n.textContent='62.5';return;}
+    const t0=performance.now(),D=1100,ease=(t)=>1-Math.pow(1-t,3);
+    (function step(t){const p=Math.min(1,(t-t0)/D);n.textContent=(60+2.5*ease(p)).toFixed(1);if(p<1)requestAnimationFrame(step);})(t0);}
+
+  // A line that does not fit gives way a word at a time, never mid-word (the house clampWords rule).
+  function fit(el){if(!el.dataset.full)el.dataset.full=el.innerHTML;el.innerHTML=el.dataset.full;
+    if(!el.clientWidth||el.scrollWidth<=el.clientWidth+1)return;
+    const words=el.textContent.split(' ');
+    while(words.length>1){words.pop();el.textContent=words.join(' ').replace(/[\s,.;:·]+$/,'')+'…';if(el.scrollWidth<=el.clientWidth+1)return;}}
+  const fitAll=(root)=>$$('.fit',root).forEach(fit);
+
+  // the switcher: five screens, one variation
+  const NAMES=['Set','Pad','Rest','Sheets','Finish'];
+  const sw=$('.switch'),scr=$('#screens'),tally=$('#tally'),mid=$('.midline');
+  const setH=()=>document.documentElement.style.setProperty('--switch-h',(sw.offsetHeight-(parseFloat(getComputedStyle(sw).paddingTop)||0)+8)+'px');
+  function renderTally(){const full=tally.dataset.full||'';
+    if(tally.classList.contains('open')){tally.innerHTML=full+' <span class="tm">less</span>';return;}
+    tally.innerHTML=full;if(tally.scrollWidth<=tally.clientWidth+1)return;
+    const tmp=document.createElement('div');tmp.innerHTML=full;const words=tmp.textContent.split(' ');
+    while(words.length>1){words.pop();tally.innerHTML=words.join(' ').replace(/[\s,.;:·]+$/,'')+'… <span class="tm">more</span>';if(tally.scrollWidth<=tally.clientWidth+1)break;}}
+  tally.addEventListener('click',()=>{tally.classList.toggle('open');renderTally();setH();});
+  // the tally's positions are measured, never typed: MIDTOP, TICKY, PADTOP, PADBOT, FINY
+  function measured(main){const r=(el)=>el&&el.getClientRects().length?el.getBoundingClientRect():null;const px=(v)=>v==null?'?':Math.round(v)+'px';
+    const mids=$$('[data-mid]',main).map(r).filter(Boolean).map((b)=>b.top);const tk=r($('[data-tick]',main)),pd=r($('[data-pad]',main)),fn=r($('[data-fin]',main));
+    return (main.dataset.tally||'').replace('MIDTOP',px(mids.length?Math.min(...mids):null)).replace('TICKY',tk?px(tk.top)+' to '+px(tk.bottom):'?').replace('PADTOP',px(pd&&pd.top)).replace('PADBOT',px(pd&&pd.bottom)).replace('FINY',fn?px(fn.top)+' to '+px(fn.bottom):'?');}
+  let s=1;
+  function apply(){
+    const main=document.getElementById('s'+s);
+    $$('main.view').forEach((m)=>{m.hidden=m!==main;});
+    scr.innerHTML=NAMES.map((n,i)=>'<button data-s="'+(i+1)+'" aria-pressed="'+(i+1===s)+'">'+n+'</button>').join('');
+    document.body.dataset.dock=main.dataset.dock||'on';
+    mid.hidden=!('midGuide' in main.dataset)||scrollY>40;
+    history.replaceState(null,'','#'+s);
+    try{localStorage.setItem('nova-train-61',String(s));}catch(e){}
+    $$('.rise,.slidein,.fillin,.padrise',main).forEach((el)=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+    clearInterval(restT);if(s===3)startRest();if(s===5)gauge();
+    setH();
+    requestAnimationFrame(()=>{fitAll(main);tally.dataset.full=measured(main);tally.classList.remove('open');renderTally();setH();});
+    // measured again once the entrance has settled: a rising card is 10px low and the pad starts off-screen
+    clearTimeout(apply.t);apply.t=setTimeout(()=>{if(document.getElementById('s'+s)!==main)return;tally.dataset.full=measured(main);renderTally();setH();},800);
+  }
+  // and again whenever an entrance ends, since first paint can come late
+  let remT=null;document.addEventListener('animationend',(e)=>{const m=document.getElementById('s'+s);if(!m.contains(e.target))return;clearTimeout(remT);remT=setTimeout(()=>{tally.dataset.full=measured(m);renderTally();setH();},60);});
+  const go=(n)=>{n=+n;if(!(n>=1&&n<=5))return;s=n;window.scrollTo(0,0);apply();};
+  scr.addEventListener('click',(e)=>{const b=e.target.closest('[data-s]');if(b)go(b.dataset.s);});
+  document.addEventListener('click',(e)=>{const g=e.target.closest('[data-go]');if(!g||g.closest('.switch'))return;go(g.dataset.go);});
+  function fromHash(){const n=+(location.hash||'').replace('#','');if(n>=1&&n<=5){s=n;return true;}return false;}
+  // the middle guide belongs to the first screenful only; scrolled, it would cut through the captions
+  window.addEventListener('scroll',()=>{mid.hidden=!('midGuide' in document.getElementById('s'+s).dataset)||scrollY>40;},{passive:true});
+  window.addEventListener('hashchange',()=>{if(fromHash()){window.scrollTo(0,0);apply();}});
+  window.addEventListener('resize',()=>{renderTally();setH();fitAll(document.getElementById('s'+s));});
+  if(!fromHash()){try{const n=+localStorage.getItem('nova-train-61');if(n>=1&&n<=5)s=n;}catch(e){}}
+  apply();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{setH();fitAll(document.getElementById('s'+s));tally.dataset.full=measured(document.getElementById('s'+s));renderTally();});
+
+  // for the reviewer: where the one-hand claims land on this screen
+  window.__fold=()=>{const m=document.getElementById('s'+s),r=(el)=>el&&el.getClientRects().length?el.getBoundingClientRect():null;
+    const mids=$$('[data-mid]',m).map(r).filter(Boolean).map((b)=>Math.round(b.top));const tk=r($('[data-tick]',m)),pd=r($('[data-pad]',m)),fn=r($('[data-fin]',m)),tb=r($('.tabbar'));
+    const over=$$('*',m).filter((el)=>{const b=el.getBoundingClientRect();return b.width&&(b.right>innerWidth+0.5||b.left<-0.5)&&getComputedStyle(el).position!=='fixed'&&!el.closest('.peek');}).map((el)=>el.className||el.tagName).slice(0,6);
+    return {screen:s,scrollWidth:document.documentElement.scrollWidth,middle:innerHeight/2,highestMidSetTap:mids.length?Math.min(...mids):null,
+      tick:tk&&[Math.round(tk.top),Math.round(tk.bottom)],pad:pd&&[Math.round(pd.top),Math.round(pd.bottom)],finish:fn&&[Math.round(fn.top),Math.round(fn.bottom)],tabbarTop:tb&&Math.round(tb.top),overflow:over};};
+})();
+</script>
+</body>
+</html>
