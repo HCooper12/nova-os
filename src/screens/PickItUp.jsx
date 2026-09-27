@@ -264,82 +264,89 @@ export function PickItUp({ v }) {
         <Chevron open={k.open} />
       </Interactive>
 
-      {k.open && (
-        <div className="nv-deck-rise" style={css('padding:4px 14px 16px;display:flex;flex-direction:column;gap:14px;min-width:0')}>
-          {/* 1 · THE BUDGET, AS RINGS */}
-          <div>
-            <div style={{
-              display: 'grid', gap: '12px', justifyItems: 'center',
-              // four across when there is room, two by two when there is
-              // not: the track floor jumps from a quarter to a half of the
-              // row at ~400px of panel, so it never lands on 3 + 1
-              gridTemplateColumns: 'repeat(auto-fit, minmax(clamp(calc(25% - 10px), calc((400px - 100%) * 999), calc(50% - 8px)), 1fr))',
-            }}>
-              {k.rings.map((r) => <BudgetRing key={r.key} ring={r} />)}
-            </div>
-            <Meta as="div" tone="faint" style={{ marginTop: '10px', textAlign: 'center' }}>
-              {k.noTargets ? 'No calorie or protein target is set, so nothing is prefilled.' : 'A blank ring is ignored. Protein is a target to get close to.'}
-            </Meta>
-          </div>
+      {k.open && <PickItUpPanel k={k} />}
+    </div>
+  );
+}
 
-          {/* 2 · FILTERS */}
-          <div style={css('display:flex;flex-direction:column;gap:10px;min-width:0')}>
-            <div style={css('display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between')}>
-              <Segmented ariaLabel="Kind of place" value={k.kind} onChange={k.setKind}
-                options={[['all', 'All'], ['fast-food', 'Takeaway'], ['supermarket', 'Supermarket']]} />
-              <Segmented ariaLabel="Single items or pairings" value={k.mode} onChange={k.setMode}
-                options={[['single', 'Single item'], ['pairs', 'Pairings']]} />
-            </div>
-            {(k.brands.length > 0 || k.missing.length > 0) && (
-              <Rail ariaLabel="Brands" style={{ margin: '0 -14px', padding: '2px 14px' }}>
-                {k.brands.map((b) => (
-                  <Chip key={b.key} tone={b.stale ? 'gold' : b.kind === 'supermarket' ? 'violet' : 'cyan'} active={b.active} onClick={b.toggle}
-                    title={b.title} style={{ flex: 'none', whiteSpace: 'nowrap' }}>{b.name}{b.stale ? ' · stale' : ''}</Chip>
-                ))}
-                {k.missing.map((m) => (
-                  <Tag key={m.name} tone="gold" title={m.why}
-                    style={{ flex: 'none', border: '1px dashed color-mix(in srgb, var(--nv-gold) 55%, transparent)', background: 'transparent' }}>{m.name} · not in</Tag>
-                ))}
-              </Rail>
-            )}
-          </div>
-
-          {/* 3 · RESULTS */}
-          <div style={css('display:flex;flex-direction:column;gap:10px;min-width:0')}>
-            {k.refreshing || (k.busy && !k.results.length && !k.pairs.length) ? (
-              <>
-                {k.refreshing && <Meta as="div" tone="gold">Fetching the catalogue. This takes a few minutes.</Meta>}
-                <SkeletonRail />
-              </>
-            ) : k.emptyLine ? (
-              <div style={{ ...arrive(0, 260), padding: '8px 2px' }}>
-                <span style={css('font:italic 400 18px/1.35 var(--nv-font-serif);color:color-mix(in srgb, var(--nv-ink) 72%, transparent)')}>{k.emptyLine}</span>
-              </div>
-            ) : (
-              <>
-                {k.searched && <Eyebrow as="div" tone="good">{k.count} {k.mode === 'pairs' ? `pairing${k.count === 1 ? '' : 's'}` : `item${k.count === 1 ? '' : 's'}`} fit</Eyebrow>}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, opacity: k.busy ? 0.55 : 1, transition: 'opacity .2s ease' }}>
-                  {k.mode === 'pairs'
-                    ? k.pairs.map((pr, i) => <PairCard key={pr.id} pr={pr} i={i} />)
-                    : k.results.map((r, i) => <ItemCard key={r.id} r={r} i={i} />)}
-                </div>
-              </>
-            )}
-
-            {/* 4 · HONESTY — which chains, when, from where */}
-            {k.catalogueEmpty && !k.refreshing && (
-              <div style={css('display:flex;flex-direction:column;gap:8px;align-items:flex-start')}>
-                <Button onClick={k.refresh}>Fetch the catalogue</Button>
-                <Meta tone="faint">Reads Open Food Facts and the chains’ own nutrition PDFs. Takes a few minutes.</Meta>
-              </div>
-            )}
-            {k.summaryLine && <Meta as="div" tone="faint">{k.summaryLine}</Meta>}
-            {k.missing.length > 0 && (
-              <Meta as="div" tone="faint">Not in yet: {k.missing.map((m) => m.name).join(', ')}.</Meta>
-            )}
-          </div>
+// THE OPEN FINDER — the budget rings, the filters, the results and their
+// receipt. Its own component so the summary Fuel page (mockup 59 A) can hold
+// exactly this inside a sheet; the row above renders it, unchanged, when open.
+export function PickItUpPanel({ k }) {
+  return (
+    <div className="nv-deck-rise" style={css('padding:4px 14px 16px;display:flex;flex-direction:column;gap:14px;min-width:0')}>
+      {/* 1 · THE BUDGET, AS RINGS */}
+      <div>
+        <div style={{
+          display: 'grid', gap: '12px', justifyItems: 'center',
+          // four across when there is room, two by two when there is
+          // not: the track floor jumps from a quarter to a half of the
+          // row at ~400px of panel, so it never lands on 3 + 1
+          gridTemplateColumns: 'repeat(auto-fit, minmax(clamp(calc(25% - 10px), calc((400px - 100%) * 999), calc(50% - 8px)), 1fr))',
+        }}>
+          {k.rings.map((r) => <BudgetRing key={r.key} ring={r} />)}
         </div>
-      )}
+        <Meta as="div" tone="faint" style={{ marginTop: '10px', textAlign: 'center' }}>
+          {k.noTargets ? 'No calorie or protein target is set, so nothing is prefilled.' : 'A blank ring is ignored. Protein is a target to get close to.'}
+        </Meta>
+      </div>
+
+      {/* 2 · FILTERS */}
+      <div style={css('display:flex;flex-direction:column;gap:10px;min-width:0')}>
+        <div style={css('display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between')}>
+          <Segmented ariaLabel="Kind of place" value={k.kind} onChange={k.setKind}
+            options={[['all', 'All'], ['fast-food', 'Takeaway'], ['supermarket', 'Supermarket']]} />
+          <Segmented ariaLabel="Single items or pairings" value={k.mode} onChange={k.setMode}
+            options={[['single', 'Single item'], ['pairs', 'Pairings']]} />
+        </div>
+        {(k.brands.length > 0 || k.missing.length > 0) && (
+          <Rail ariaLabel="Brands" style={{ margin: '0 -14px', padding: '2px 14px' }}>
+            {k.brands.map((b) => (
+              <Chip key={b.key} tone={b.stale ? 'gold' : b.kind === 'supermarket' ? 'violet' : 'cyan'} active={b.active} onClick={b.toggle}
+                title={b.title} style={{ flex: 'none', whiteSpace: 'nowrap' }}>{b.name}{b.stale ? ' · stale' : ''}</Chip>
+            ))}
+            {k.missing.map((m) => (
+              <Tag key={m.name} tone="gold" title={m.why}
+                style={{ flex: 'none', border: '1px dashed color-mix(in srgb, var(--nv-gold) 55%, transparent)', background: 'transparent' }}>{m.name} · not in</Tag>
+            ))}
+          </Rail>
+        )}
+      </div>
+
+      {/* 3 · RESULTS */}
+      <div style={css('display:flex;flex-direction:column;gap:10px;min-width:0')}>
+        {k.refreshing || (k.busy && !k.results.length && !k.pairs.length) ? (
+          <>
+            {k.refreshing && <Meta as="div" tone="gold">Fetching the catalogue. This takes a few minutes.</Meta>}
+            <SkeletonRail />
+          </>
+        ) : k.emptyLine ? (
+          <div style={{ ...arrive(0, 260), padding: '8px 2px' }}>
+            <span style={css('font:italic 400 18px/1.35 var(--nv-font-serif);color:color-mix(in srgb, var(--nv-ink) 72%, transparent)')}>{k.emptyLine}</span>
+          </div>
+        ) : (
+          <>
+            {k.searched && <Eyebrow as="div" tone="good">{k.count} {k.mode === 'pairs' ? `pairing${k.count === 1 ? '' : 's'}` : `item${k.count === 1 ? '' : 's'}`} fit</Eyebrow>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0, opacity: k.busy ? 0.55 : 1, transition: 'opacity .2s ease' }}>
+              {k.mode === 'pairs'
+                ? k.pairs.map((pr, i) => <PairCard key={pr.id} pr={pr} i={i} />)
+                : k.results.map((r, i) => <ItemCard key={r.id} r={r} i={i} />)}
+            </div>
+          </>
+        )}
+
+        {/* 4 · HONESTY — which chains, when, from where */}
+        {k.catalogueEmpty && !k.refreshing && (
+          <div style={css('display:flex;flex-direction:column;gap:8px;align-items:flex-start')}>
+            <Button onClick={k.refresh}>Fetch the catalogue</Button>
+            <Meta tone="faint">Reads Open Food Facts and the chains’ own nutrition PDFs. Takes a few minutes.</Meta>
+          </div>
+        )}
+        {k.summaryLine && <Meta as="div" tone="faint">{k.summaryLine}</Meta>}
+        {k.missing.length > 0 && (
+          <Meta as="div" tone="faint">Not in yet: {k.missing.map((m) => m.name).join(', ')}.</Meta>
+        )}
+      </div>
     </div>
   );
 }

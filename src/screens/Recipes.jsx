@@ -9,6 +9,7 @@ import { SafeVisual } from '../SafeVisual.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
 import { PickItUp } from './PickItUp.jsx';
 import { SkeletonGrid } from '../Skeleton.jsx';
+import { FuelSummary } from './FuelSummary.jsx';
 
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx;
 // filled buttons sentence-case in the UI face under the Apple styles
@@ -351,7 +352,7 @@ function MacroLegend({ hero }) {
 // between those two ends IS the gap, and the serif figure names it. The prose
 // keeps its place underneath, demoted, because the sentence still carries the
 // reasoning the bars can't.
-function CrossBars({ bars, severity }) {
+export function CrossBars({ bars, severity }) {
   const hue = severity === 'high' ? 'var(--nv-warn)' : 'var(--nv-vi)';
   const pc = (n) => `${Math.max(0, Math.min(100, (n / bars.max) * 100))}%`;
   const lo = Math.min(bars.need.value, bars.have.value);
@@ -385,6 +386,16 @@ function CrossBars({ bars, severity }) {
 }
 
 export function Recipes({ v }) {
+  // THE SUMMARY FUEL (mockup 59, variation A: "Fuel is the plate"). First,
+  // because `structured` is true under summary too; v.fuelSummary is null
+  // under every other style. A separate component rather than an early
+  // return below, because the page underneath calls hooks and a style switch
+  // must never change how many ran.
+  if (v.summary && v.fuelSummary) return <FuelSummary v={v} />;
+  return <RecipesPage v={v} />;
+}
+
+function RecipesPage({ v }) {
   // the one bar's "say it": on-device dictation straight into the log input
   const dict = useDictation(() => v.foodDescribeValue || '', (text) => v.setFoodDescribeInput(text), null);
   const [manualOpen, setManualOpen] = useState(false);

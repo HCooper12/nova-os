@@ -49,6 +49,7 @@ import { valsChrome } from './vals/valsChrome.js';
 import { valsSummary } from './vals/valsSummary.js';
 import { valsTrainSummary } from './vals/valsTrainSummary.js';
 import { valsIndex } from './vals/valsIndex.js';
+import { valsFuelSummary } from './vals/valsFuelSummary.js';
 import { SCREEN_KEYS } from './screenKeys.js';
 import { Sidebar } from './Sidebar.jsx';
 // THE DAILY FIVE — statically imported, never lazy. These are what a session
@@ -151,6 +152,7 @@ const Index = lazyScreen(SCREEN_LOADERS.index, 'Index');
 // recipe is tapped. Same lazy treatment, same idle prefetch below.
 const OVERLAY_LOADERS = {
   recipeOverlay: () => import('./RecipeOverlay.jsx'),
+  recipeSheet: () => import('./RecipeSheet.jsx'),
   addRecipeModal: () => import('./AddRecipeModal.jsx'),
   ingestModal: () => import('./IngestModal.jsx'),
   ingestReview: () => import('./IngestReview.jsx'),
@@ -158,6 +160,7 @@ const OVERLAY_LOADERS = {
   verdictCard: () => import('./VerdictCard.jsx'),
 };
 const RecipeOverlay = lazyScreen(OVERLAY_LOADERS.recipeOverlay, 'RecipeOverlay');
+const RecipeSheet = lazyScreen(OVERLAY_LOADERS.recipeSheet, 'RecipeSheet');
 const AddRecipeModal = lazyScreen(OVERLAY_LOADERS.addRecipeModal, 'AddRecipeModal');
 const IngestModal = lazyScreen(OVERLAY_LOADERS.ingestModal, 'IngestModal');
 const IngestReview = lazyScreen(OVERLAY_LOADERS.ingestReview, 'IngestReview');
@@ -514,6 +517,9 @@ export default class App extends Component {
     // recipe), and a tick that re-renders Home when the pinned order changes
     // (the order itself lives in localStorage, src/pinned.js)
     pinnedEditOpen: false, pinnedTick: 0,
+    // the summary Fuel page's Recipes list (mockup 59 A · 2): its own history
+    // entry on the same #/recipes URL, so the back swipe returns to Fuel
+    fuelView: null,
     focusSession: (() => {
       try {
         const f = JSON.parse(localStorage.getItem('novaos.focus') || 'null');
@@ -938,7 +944,7 @@ export default class App extends Component {
       // A SWIPE IS ITS OWN TRANSITION. The edge gesture animates two layers by
       // hand and navigates underneath them; running a view transition at the
       // same moment would cross-fade the thing it is already sliding.
-      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.sheetsFromHistory() });
+      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() });
       if (edgeDragInProgress()) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
@@ -1058,7 +1064,9 @@ export default class App extends Component {
     }
     // screens cross-fade rather than cut; anything carrying a shared
     // view-transition-name across the two screens morphs instead
-    const apply = () => this.setState({ screen, ...extraState }, () => {
+    // the summary Fuel page's Recipes list belongs to Fuel: leaving the
+    // screen leaves it, so a tab hop back lands on Fuel itself
+    const apply = () => this.setState({ screen, ...(changed && this.state.fuelView ? { fuelView: null } : {}), ...extraState }, () => {
       if (!changed || !this.mainRef?.current) return;
       const saved = NO_RESTORE.has(screen) ? 0 : (this.scrollPositions?.[screen] || 0);
       this.mainRef.current.scrollTop = saved;
@@ -3331,10 +3339,6 @@ export default class App extends Component {
     if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'traincoach') { window.history.back(); return; }
     this.setState({ trainTab: 'gym', ...TRAIN_COACH_CLOSED });
   }
-  // the two sheets that are history entries of their own, for popH
-  sheetsFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory() };
-  }
   // popstate's half: leaving the sheet's entry closes it, returning reopens
   // it. Summary only — under the other styles trainTab is a real tab.
   trainCoachFromHistory() {
@@ -3344,6 +3348,34 @@ export default class App extends Component {
     if (!onEntry && this.state.trainTab === 'coach') return { trainTab: 'gym', ...TRAIN_COACH_CLOSED };
     if (onEntry && this.state.trainTab !== 'coach') return { trainTab: 'coach' };
     return {};
+  }
+  // THE RECIPES LIST (summary Fuel, mockup 59 A · 2) is a page pushed over
+  // Fuel on the same URL: its own history entry, so the edge swipe and the
+  // browser's Back return to Fuel rather than leaving the tab.
+  openFuelRecipes() {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaView !== 'fuelRecipes') window.history.pushState({ novaDepth: depthOf(st) + 1, novaView: 'fuelRecipes' }, '');
+    }
+    this.setState({ fuelView: 'recipes' });
+    if (this.mainRef?.current) this.mainRef.current.scrollTop = 0;
+  }
+  // On its own entry, closing IS going back; popH does the closing.
+  closeFuelRecipes() {
+    if (typeof window !== 'undefined' && window.history.state?.novaView === 'fuelRecipes' && window.history.state?.novaOverlay == null) { window.history.back(); return; }
+    this.setState({ fuelView: null });
+  }
+  viewFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
+    return (this.state.fuelView || null) === want ? {} : { fuelView: want };
+  }
+  // popstate's half for everything that is a history entry of its own over a
+  // screen: Edit Pinned, the Coach sheet on the summary Train page, and the
+  // Recipes list over the summary Fuel page. One helper, because
+  // server/test/edgeBack.test.js reads popH through a short window.
+  pagesFromHistory() {
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory() };
   }
   // The Pinned order and switches persist straight away (src/pinned.js); the
   // tick re-renders Home behind the sheet, so each change shows as he makes it.
@@ -7115,8 +7147,11 @@ export default class App extends Component {
     const withIndex = { ...withSummary, ...valsIndex(this, ctx, withSummary) };
     // the summary Train page (redesign variation A) reads valsWorkouts and the
     // Home's Training card (valsSummary's trainingCard) from the merged view
-    // model, so it goes last of all; null off `summary`
-    return { ...withIndex, ...valsTrainSummary(this, ctx, withIndex) };
+    // model; the summary Fuel page (mockup 59 A) reshapes valsRecipes'
+    // composer, log, rotation and recipe overlay with Home's own plate
+    // fields. Each takes the whole merged model; both null off `summary`.
+    const withTrain = { ...withIndex, ...valsTrainSummary(this, ctx, withIndex) };
+    return { ...withTrain, ...valsFuelSummary(this, ctx, withTrain) };
   }
 
   // A research job dispatched from the conversation: poll the SAME pending
@@ -10142,7 +10177,9 @@ export default class App extends Component {
             normal modal timing — a placeholder card would be worse than
             nothing. Idle prefetch means they're almost always already in. */}
         {v.exerciseSheet && <ExerciseSheet v={v} />}
-        {v.recipeOpen && <Suspense fallback={null}><RecipeOverlay v={v} /></Suspense>}
+        {/* under `summary` a recipe is a sheet (mockup 59 A · 3); the overlay
+            stays exactly as it was for cupertino and command */}
+        {v.recipeOpen && <Suspense fallback={null}>{v.fuelSummary?.recipeSheet ? <RecipeSheet v={v} /> : <RecipeOverlay v={v} />}</Suspense>}
         {v.recipeAddOpen && <Suspense fallback={null}><AddRecipeModal v={v} /></Suspense>}
         {v.barcodeScannerOpen && (
           <Suspense fallback={null}>

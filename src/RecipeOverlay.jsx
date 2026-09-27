@@ -361,7 +361,7 @@ const EDIT_FIELD = "width:100%;box-sizing:border-box;background:var(--nv-well);b
 // what he types is what lands in the vault. Macros sit alongside because
 // changing what's in a meal without correcting them would leave the numbers
 // lying, and Nova doesn't do that.
-function MealEditor({ v }) {
+export function MealEditor({ v }) {
   return (
     <div style={css("margin-top:16px;border:1px solid color-mix(in srgb, var(--nv-cy) 24%, transparent);border-radius:12px;padding:16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
       <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:10px")}>
