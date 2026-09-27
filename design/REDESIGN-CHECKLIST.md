@@ -556,6 +556,19 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (morning) — HIS FIRST ANSWERS. Home: Light does not feel like the
+  mockup; Nova night lacks the glass; polish the glass on every glass version
+  (Nova glass with the hour cycle will be his main); the bottom bar wants the
+  same glass as the panels → glass polish in flight (worktree home-glass).
+  Inbox: A chosen; wants the deck card expanded (like B's card body), a way
+  to ask for further reasoning/research whose report returns to the same
+  card, Nova proposes at the top of Agents & Operations under the decisions
+  waiting on his call, C's card simplicity carried where it fits → ROUND 2
+  PUBLISHED (f8e3431, mockup 60). Train: asked for a plain explanation (A/C
+  are the page alternatives, B is the live-session screen that pairs with
+  either). Fuel: overwhelmed; asked for the differences and simpler options
+  (explained: A one page, C two pages, B one card at a time on top; simplest
+  = A without the deck).
 - 27 Sep 2026 (morning) — FUEL HONESTY FIXES SHIPPED (e7cc32d): off-plan kcal leaves
   ticked rotation meals out; a removed meal has a 30-second Undo (POST
   /food-log/:id/restore, entry rebuilt field by field, itemised total
