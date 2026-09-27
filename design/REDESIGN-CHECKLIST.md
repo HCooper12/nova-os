@@ -556,6 +556,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 28 Sep 2026 (midday) — VOICE AUDITED (582ad25, 05-voice.md: NEEDS WORK,
+  three bugs) and ROUND 1 PUBLISHED (mockup 62: A the conversation as the
+  page · B the stage · C the simplest; six states each). His calls: the
+  shape; whether the Nova button becomes the only talk control (the 244px
+  core in its reticle was his 20 Aug ask); C's tab bar dropping the detached
+  Nova; keeping the recording after a failed transcription for a Try again;
+  Remember as a hold menu; and whether the three bugs (attachment layout,
+  Tap-to-hear with no ×, the cut-off spoken question) are fixed now.
 - 28 Sep 2026 (morning) — HIS THIRD ANSWERS. The "background colour hue" he
   meant for lit is his cupertino panes' glowPanel (a screenshot of Home:
   Landed green, Technique magenta, the Look box gold: a 1px edge at 30% of
