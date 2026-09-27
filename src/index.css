@@ -1051,9 +1051,9 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-sum-bloom: 0 0 60px -22px color-mix(in srgb, var(--nv-sum-tint) 70%, transparent);
   background: var(--nv-sum-sheen), linear-gradient(160deg, color-mix(in srgb, var(--nv-sum-tint) 9%, transparent), var(--nv-sum-card));
   /* the hairline in the hue too: his cupertino panes wear a 1px edge at 30%
-     of their accent (glowPanel's `edge`), and without it the light reads as
-     a shadow rather than a lit pane. .5px, since the card's own ring is */
-  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 .5px color-mix(in srgb, var(--nv-sum-tint) 34%, var(--nv-sum-card-ring)), var(--nv-sum-card-drop), var(--nv-sum-bloom);
+     of their accent (glowPanel's `edge`, the hue he pointed at on 28 Sep),
+     and without it the light reads as a shadow rather than a lit pane */
+  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 1px color-mix(in srgb, var(--nv-sum-tint) 30%, var(--nv-sum-card-ring)), var(--nv-sum-card-drop), var(--nv-sum-bloom);
 }
 /* Calm drops the bloom and keeps the tint and the depth, as .nv-glow does.
    Zero-size, not `none`: it sits in a comma-separated list. */
@@ -1874,7 +1874,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    house SwipeRow's underlay sits at opacity 0 at rest, and the moment it is
    not, the row it carries is opaque so the action beneath never reads
    through the words */
-.nv-fs-swipe > div > div[aria-hidden="true"]:not([style*="opacity: 0;"]) + div { background: var(--nv-fs-row); box-shadow: 0 0 22px -8px rgba(0,0,0,.6); }
+.nv-fs-swipe [data-swiping="true"] { background: var(--nv-fs-row); box-shadow: 0 0 22px -8px rgba(0,0,0,.6); }
 .nv-fs-open { padding: 0 14px 12px 66px; animation: deckRise var(--nv-dur-base) var(--nv-ease) backwards; }
 .nv-fs-ln { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 4px; align-items: center; min-height: 48px; }
 .nv-fs-ln + .nv-fs-ln { border-top: 1px solid var(--nv-sum-sep); }
