@@ -13,6 +13,28 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**27 SEP (nova-os-83) — COACH COULD NOT CREATE A ROUTINE; NOW IT CAN
+(0c42e48, committed, server reloaded, NOT PUSHED: it sits on 51 unpushed
+commits of nova-os-fc's redesign work, and pushing would deploy that; fc
+was asked to push).**
+
+- **What happened (Coach session a7309692, 26 Sep 21:28–21:40 AEST):** he
+  asked for a 5-day split, then "I want you to just add the extra workout
+  and create it all". 7 of 16 lines aimed at "Arms and Delts" were refused
+  (no such routine), 9 applied. HIS PROGRAM NOW (half-built): Upper Body has
+  9 exercises (Rear Delt Fly added; Carter, both curls still there); Push
+  done as planned; week Mon Upper, Tue Legs, Wed Push, Thu Pull, Fri–Sun rest.
+- **Fixed:** `create` action, plan-then-validate in checkProposals, `new:`
+  ids resolved at apply, waiting-card state, undo guard. VERIFIED: Coach's
+  real 8 lines (7 refused + create) check clean against his live program
+  (read-only); 3 pipeline tests. NOT DONE: his build itself — no server route
+  files Coach cards outside a Coach turn, and the stores cache in-process, so
+  it waits on his one message to Coach (his decision, raised to him).
+- **Unrelated red:** anatomy atlas tests fail on JM Press and Reverse Pec
+  Deck, new in his real library (fail without this change too).
+
+---
+
 **26 SEP (afternoon, redesign session) — THE PAGE-BY-PAGE REDESIGN IS OPEN.
 His brief: Nova has become cluttered and complicated; redesign every page
 under the Apple guidelines and the design skills, less to look at and to
