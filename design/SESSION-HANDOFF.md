@@ -134,7 +134,13 @@ is provably unchanged: `node scripts/guard-cupertino.mjs` before EVERY commit.**
   drift, for the anatomy pipeline, not the redesign. HIS FIRST ANSWERS (27 Sep
   morning): Inbox A chosen → ROUND 2 published (f8e3431, mockup 60); the glass
   polished on his note (5507930); Train and Fuel explained, picks pending.
-  NEXT: his answers on
+  HIS SECOND ANSWERS (midday): Train A, Fuel A, a lit
+  Nova-glass option, the Inbox built from round 2 with Look deeper. FOUR OPUS
+  BUILDS IN FLIGHT in .claude/worktrees/{lit,inboxb,traina,fuela} (branches
+  build-*); merge order: lit → inboxb → traina → fuela, rebasing each onto
+  main (App.jsx renderVals spreads and index.css blocks are additive). The
+  guard takes --screen (cupertino-command-{inbox,workouts,recipes}-baseline).
+  NEXT (older): his answers on
   the Inbox / Train / Fuel rounds (round 2 per page from his tweaks), then
   Voice's audit; P5 = the summary Home on his phone after the push. Agents that BUILD run on Opus
   (his instruction, 27 Sep morning). Weekly usage reset 06:00 Melbourne. The morning review

@@ -556,6 +556,17 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 27 Sep 2026 (midday) — HIS SECOND ANSWERS: Train A; Fuel A; a "lit" Nova-glass
+  option with the glow effects his cupertino screen has; the Inbox built with
+  everything round 2 shows (Look deeper included); design against the HIG
+  (developer.apple.com/design; his color.md upload: colour sparingly on glass,
+  one accent on the primary action, never one hue for two meanings). BUILDS
+  IN FLIGHT (Opus, worktrees from local main): build-lit (the lit material),
+  build-inboxb (InboxSummary + Look deeper parentId route + Ops top section +
+  the capture sheet on the Nova long-press), build-traina (TrainSummary: Gym
+  page + Coach sheet with ✕-asks-why + routine detail), build-fuela (FuelSummary
+  A). The guard takes --screen now (89490a7) with cupertino baselines for
+  inbox, workouts, recipes; each build must keep them unchanged.
 - 27 Sep 2026 (morning) — GLASS POLISHED (5507930): every summary card, the tab
   bar, the Nova button, the Index search and the Edit sheet on the house liquid
   recipe as `--nv-sum-*` tokens (sheen, conic rim, inset glow, blur+saturate,
