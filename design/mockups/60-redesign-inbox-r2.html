@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inbox, round 2</title>
+<!--
+  60 · INBOX, ROUND 2 (27 Sep 2026)
+  Built from round 1's variation A (57-redesign-inbox.html), from his
+  feedback of 27 Sep: "Option A seems best and most clean/organised without
+  being too cluttered." The cards "could have expanded information ... like
+  in the option B mail version ... just enough to make informed decisions",
+  with "the ability to ask for further reasoning and research for a card's
+  decision" that comes back to "that same card". "Nova proposes options could
+  appear at the top of the agents and operations ... but under the decisions
+  waiting on my call." And from C: "how nice and simple, clean and appealing
+  the cards are organised."
+
+  One variation, six screens (#1 to #6):
+    1 Waiting      A's deck with the card opened up: route tile and WHERE, the
+                   sentence, the change drawn, You captured and Will be filed
+                   as two small blocks, the reason with Look deeper, three
+                   verbs; the subjects as C's small cards; the receipt, Undo.
+    2 Look deeper  the same card in flight (a gold working line, the verbs
+                   dimmed) and a minute later, with a Report block grown on it.
+    3 Report       the report as a sheet over the deck: the body, the sources,
+                   and the same three verbs at its foot.
+    4 Filed        A's Filed, its rows in C's tile-and-tick.
+    5 Capture      A's capture from the Nova button, unchanged.
+    6 Ops          Agents & Operations reordered: Waiting on your call, then
+                   Nova proposes, then the seven loops, then the filing ladder.
+
+  Look deeper rides rails that exist. startResearch (App.jsx) already
+  dispatches the Researcher with a question, and watchVoiceResearch already
+  polls one pending record every 5 s (8 min out) and grows the message a
+  sources panel when the brief lands. The card's question is built from its
+  own fields (the sentence, You captured, Will be filed). What does NOT exist
+  yet: the brief lands today as its own pending record. For it to grow on
+  this card, the research record needs the card's id (a parent link) and the
+  card has to read it. That link is the one new piece; screen 2 says so.
+
+  Material, type, colour and the review furniture are round 1's, unchanged:
+  nova-glass; four sizes per view, 34 · 20 · 15 · 13, numerals in SF
+  Rounded, the tab label 11; gold is waiting on his call (the count, the
+  do-all, the working line) and nothing else; green a filed receipt; red
+  discard and errors; cyan new and Nova's own (the report). Every control is
+  44 or more. The switcher at the top sits outside every count.
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data. The
+  counts are the audit's real scale: 18 waiting (11 on 3 subjects, 7 to
+  decide), 409 filed (25 shown, 384 older), 7 loops. Titles are invented.
+-->
+<style>
+/* ================= copied from mockup 56 (nova-glass), unchanged ================= */
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);--switch-h:130px;--dock-h:96px;
+  --r:20px;
+}
+:root{--serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif}
+body[data-m="nova-glass"]{--bg:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.52);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);--blur:22px;--card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --c1:#5fe8a8;--c2:#8f7bff;--c3:#59e6ff;--c4:#d9b56f;--c5:#8f7bff;--up:#5fe8a8;--dn:#e0616b;--acc:#59e6ff;--link:#59e6ff;--btn:#59e6ff;--btn-ink:#062028;--track:rgba(255,255,255,.14);--title-tint:currentColor;
+  --stand-a:#59e6ff;--stand-b:#8f7bff;--hl-font:var(--serif);--hl-size:20px;
+  --tab:rgba(16,20,36,.58);--tab-ring:rgba(255,255,255,.14);--tab-ink:rgba(232,236,246,.5);--tab-on:#59e6ff;--tab-on-bg:rgba(89,230,255,.1);--badge:#d9b56f;--badge-ink:#241a06;color-scheme:dark}
+.sky{position:fixed;inset:0;z-index:-1}
+body[data-m="nova-glass"] .sky{background:radial-gradient(70% 45% at 12% 8%,rgba(89,230,255,.22),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 88% 30%,rgba(143,123,255,.26),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 112%,rgba(217,181,111,.16),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%)}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background .35s var(--ease),color .35s var(--ease)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.978);transition:transform .16s var(--ease)}
+.phone{position:relative;max-width:402px;margin:0 auto;min-height:100%}
+
+.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--sep)}
+.switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2)}
+.seg button{padding:7px 4px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.65;transition:background .28s var(--ease),opacity .28s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.12)}
+.tally{margin:2px 2px 0;font:500 11px/1.4 var(--mono);color:var(--ink3);min-height:15px}
+.tally b{color:var(--ink2);font-weight:600}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;height:56px;justify-content:center;border-radius:28px;font:500 10px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--tab-on);background:var(--tab-on-bg)}
+.tab .badge{position:absolute;top:6px;left:50%;margin-left:4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--badge);color:var(--badge-ink);font:700 11px/18px var(--ui);text-align:center}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+.view{padding:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 10px) 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 20px)}
+.view[hidden]{display:none}
+.rise{animation:rise .3s var(--ease) both;animation-delay:calc(var(--i,0) * 40ms)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rise{animation:fade .3s ease both}@keyframes fade{from{opacity:0}to{opacity:1}}}
+h1{margin:2px 4px 4px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.stand{margin:0 4px 14px;font:italic 400 21px/1.2 var(--serif);background:linear-gradient(90deg,var(--stand-a),var(--stand-b));-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.card{background:var(--card);border-radius:var(--r);padding:14px 16px;box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.ch{display:flex;align-items:center;gap:8px;font:600 15px var(--ui);color:var(--title-tint)}
+.ch svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ch .time{margin-left:auto;font:400 14px var(--ui);color:var(--ink3)}
+.ch.c1{color:var(--c1)}.ch.c2{color:var(--c2)}.ch.c3{color:var(--c3)}.ch.c4{color:var(--c4)}.ch.c5{color:var(--c5)}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin:22px 4px 8px}
+.sechead h2{margin:0;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.sechead a{font:400 17px var(--ui);color:var(--link)}
+.chev{color:var(--ink3);font-size:18px}
+.btn{height:36px;padding:0 16px;border-radius:18px;background:var(--btn);color:var(--btn-ink);font:600 15px var(--ui)}
+.btn.quiet{background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card.wide{grid-column:span 2}
+.grid .card{padding:12px 14px 14px;min-height:150px;display:flex;flex-direction:column}
+.sub{margin-top:4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.group{margin:0 0 16px}
+.group .k{display:block;margin:0 0 6px 14px;font:600 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.glist{list-style:none;margin:0;padding:0;overflow:hidden}
+.tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff}
+.tile svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ================= round 1 of the Inbox: overrides, then the page's own objects ================= */
+/* the review furniture: any number of buttons per row; the tally on the page's own scale, one line until tapped */
+.seg{grid-auto-flow:column;grid-auto-columns:1fr}
+.seg button{font-size:13px;min-height:32px}
+.tally{font:400 13px/1.4 var(--ui);white-space:nowrap;overflow:hidden;cursor:pointer;min-height:18px}
+.tally.open{white-space:normal}
+.tally .tm{color:var(--link)}
+
+/* what each colour means on this page (NOVA-METHOD §2b rule 8) */
+body[data-m="nova-glass"]{--wait:var(--c4);--filed:var(--c1);--discard:var(--dn);--new:var(--c3);
+  --k-train:#59e6ff;--k-journal:#8f7bff;--k-practice:#ffa893;--k-vault:rgba(232,236,246,.34);
+  --m-back:#4fd1c5;--m-quads:#7ab8ff;--solid-row:#1c2137}
+
+/* the type scale: four sizes per view, 34 · 20 · 15 · 13 (the audit measured eleven); numerals apart */
+.view{font-size:15px;overflow-x:clip}
+.stand{font-size:20px}
+.ch .time{font-size:13px}
+.sechead h2{font-size:20px}
+.sechead a{font-size:15px}
+.group{margin:18px 0 0}
+.group .k{font-size:13px}
+.tab{font-size:11px}
+.btn{height:44px;padding:0 22px;border-radius:22px}
+
+.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font:700 44px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.num.s{font-size:30px}.num.xl{font-size:52px}
+.num.wait{color:var(--wait);text-shadow:0 0 24px color-mix(in srgb,var(--wait) 32%,transparent)}
+.titlerow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:2px}
+.titlerow h1{margin:0 4px}
+.back{display:inline-flex;align-items:center;gap:1px;height:44px;margin:0 0 0 -8px;padding:0 12px 0 0;font:400 15px var(--ui);color:var(--link)}
+.back .ic{width:24px;height:24px;stroke-width:2.4}
+
+/* the in-page segmented control: 44 tall, the lit pill drawn inside its own hit area */
+.segc{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;height:44px;border-radius:22px;background:rgba(120,120,128,.2)}
+.segc button{height:44px;padding:0 12px;border:3px solid transparent;border-radius:22px;background-clip:padding-box;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.segc button[aria-pressed="true"]{background-color:var(--card-hi);color:var(--ink)}
+.segc .next{outline:1.5px dashed var(--wait);outline-offset:-5px;color:var(--ink)}
+.titlerow .segc{width:190px;flex:none}
+
+/* the count, given a form: the rounded numeral and the batch as a rail that ticks (the Coach deck's) */
+.count{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;margin:14px 4px 0}
+.cx{min-width:0}
+.cx b{display:block;font:600 15px/1.3 var(--ui)}
+.cx > span{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.rail{display:flex;gap:3px;margin-top:8px}
+.rail i{flex:1;height:4px;border-radius:2px;background:color-mix(in srgb,var(--wait) 36%,transparent)}
+.rail i.on{background:var(--wait);box-shadow:0 0 8px -1px var(--wait)}
+.rail i.done{background:var(--filed);box-shadow:0 0 8px -1px var(--filed)}
+
+/* one repeating subject: the name opens it, the gold tick answers all of it */
+.subjects{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.subj{display:inline-flex;height:44px;border-radius:22px;background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset}
+.subj button{display:inline-flex;align-items:center;gap:7px;font:600 15px var(--ui);white-space:nowrap}
+.subj .nm{padding:0 12px 0 14px}
+.subj .n{font-weight:400;color:var(--ink3);font-variant-numeric:tabular-nums}
+.subj .all{gap:5px;padding:0 15px 0 12px;color:var(--wait);border-left:1px solid var(--sep)}
+.subj .all .ic,.allb .ic{width:15px;height:15px;stroke-width:2.6}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--h);flex:none}
+
+/* the deck: two ghost edges behind the one live card */
+.deck{position:relative;padding-top:12px;margin-top:14px}
+.ghost{position:absolute;height:44px;border-radius:var(--r);background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset}
+.ghost.g2{left:16px;right:16px;top:0;opacity:.4}
+.ghost.g1{left:8px;right:8px;top:6px;opacity:.7}
+.dcard{position:relative;padding:16px}
+.khead{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center}
+.kl{display:block;font:600 13px/1.25 var(--ui)}
+.kt{display:block;font:600 15px/1.3 var(--ui)}
+.when{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.say{margin:12px 0 0;font:400 20px/1.3 var(--serif);text-wrap:balance}
+.change{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+.pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:16px;font:600 13px var(--ui);white-space:nowrap;background:color-mix(in srgb,var(--h) 12%,transparent);border:1px solid color-mix(in srgb,var(--h) 34%,transparent)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--h);flex:none}
+.pill.arrive{background:transparent;border:1.5px dashed color-mix(in srgb,var(--h) 62%,transparent)}
+.pill.gone{position:relative;color:var(--ink2)}
+.pill.gone::after{content:"";position:absolute;left:10px;right:10px;top:50%;height:1.5px;border-radius:1px;background:var(--ink2)}
+.arrow{color:var(--ink3)}
+.sets{display:inline-flex;align-items:center;gap:5px}
+.sets i{width:11px;height:11px;border-radius:50%;background:var(--h);border:1.5px solid var(--h)}
+.sets i.new{background:transparent;border:1.5px dashed var(--wait)}
+.sets + span{font:400 13px var(--ui);color:var(--ink3)}
+.why{margin:10px 0 0;font:400 15px/1.45 var(--ui);color:var(--ink2);text-wrap:pretty}
+.src{margin:4px 0 0;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.answer{display:flex;align-items:center;gap:4px;margin-top:12px}
+.yes{display:inline-flex;align-items:center;gap:7px;height:44px;min-width:44px;padding:0 18px 0 15px;border-radius:22px;font:600 15px var(--ui);color:var(--filed);background:color-mix(in srgb,var(--filed) 15%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--filed) 36%,transparent);white-space:nowrap}
+.yes .ic{stroke-width:2.8}
+.yes.done{width:44px;padding:0;justify-content:center;background:var(--filed);color:#05261a;box-shadow:0 0 24px -4px var(--filed)}
+.yes.done .ic{width:20px;height:20px;stroke-width:3}
+.talk{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.talk.on{background:color-mix(in srgb,var(--link) 13%,transparent)}
+.no{flex:none;margin-left:auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 15%,transparent)}
+.dfoot{margin:10px 0 0;text-align:center;font:400 13px var(--ui);color:var(--ink3)}
+/* a yes, acted out: lifting away with a green edge (inboxLeave.js, 420ms) */
+.leaving{transform:translateY(-10px) scale(.985);opacity:.82;pointer-events:none;box-shadow:inset 3px 0 0 var(--filed),0 0 0 .5px var(--card-ring),0 0 44px -10px var(--filed),var(--card-shadow)}
+
+/* the receipt a decision leaves: green, holding Undo */
+.receipt{position:sticky;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 8px);z-index:6;display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;margin-top:14px;padding:4px 4px 4px 12px;border-radius:26px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 14px 30px -14px rgba(0,0,0,.6)}
+.receipt .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--filed);color:#05261a}
+.receipt .ok .ic{width:15px;height:15px;stroke-width:3}
+.rx{min-width:0}
+.rx b{display:block;font:600 15px/1.25 var(--ui)}
+.rx span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.undo{height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+
+.hint{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;margin:18px 0 0;font:400 13px var(--ui);color:var(--ink3)}
+.orb.mini{width:18px;height:18px;box-shadow:0 0 10px -2px rgba(89,180,255,.8)}
+.oprow{display:grid;grid-template-columns:auto minmax(0,1fr) 16px;gap:12px;align-items:center;width:100%;min-height:58px;margin-top:12px;padding:8px 14px;text-align:left}
+.dots7{display:flex;gap:4px}
+.dots7 i{width:7px;height:7px;border-radius:50%}
+.lx{display:block;min-width:0}
+.nm{display:block;font:600 15px/1.3 var(--ui)}
+.sv{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.sv em,.em{font-style:normal;color:var(--wait)}
+.cv{width:14px;height:14px;color:var(--ink3);stroke-width:2.4}
+.d-ok{background:var(--filed);box-shadow:0 0 7px -1px var(--filed)}
+.d-wait{background:var(--wait);box-shadow:0 0 7px -1px var(--wait)}
+.d-alert{background:var(--discard);box-shadow:0 0 7px -1px var(--discard)}
+.d-idle{background:color-mix(in srgb,var(--ink) 30%,transparent)}
+
+/* review notes: what the reader is looking at, set apart from the page by a dashed edge */
+.note{margin:18px 0 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--ink) 26%,transparent);font:400 13px/1.5 var(--ui);color:var(--ink2)}
+.note b{color:var(--ink);font-weight:600}
+.note ul{margin:6px 0 0;padding-left:16px}
+.note li + li{margin-top:4px}
+
+/* tiles: the Index's own tile; a hue only where the domain owns one, the vault ink otherwise */
+.tile.hue{background:var(--h);color:var(--g,#061a26)}
+.tile.vault{background:color-mix(in srgb,var(--ink) 20%,transparent);color:var(--ink)}
+.tile.none{background:transparent;border:1.5px dashed color-mix(in srgb,var(--ink) 48%,transparent);color:var(--ink2)}
+.tile.err{background:color-mix(in srgb,var(--discard) 14%,transparent);box-shadow:inset 0 0 0 1.5px var(--discard);color:var(--discard)}
+.tile .ic{width:17px;height:17px;stroke-width:2}
+
+/* rows: one grammar for waiting, filed and loops */
+.rows{padding:0;overflow:hidden}
+.rows > * + *{border-top:1px solid var(--sep)}
+.frow{display:grid;grid-template-columns:40px 30px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;padding:0 4px 0 14px}
+.frow .t,.prow .t{font:400 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ti{display:block;min-width:0;font:400 15px var(--ui);white-space:nowrap;overflow:hidden}
+.frow .st{padding:0 14px 0 6px;font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.frow.dim .ti{color:var(--ink3)}
+.honest{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;margin:14px 4px 0;font:400 13px/1.45 var(--ui);color:var(--ink2)}
+.honest .ic{margin-top:1px;color:var(--filed)}
+.more{display:flex;align-items:center;justify-content:center;width:100%;height:44px;margin-top:14px;border-radius:22px;font:600 15px var(--ui);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+
+.prow{display:grid;grid-template-columns:8px 30px minmax(0,1fr) auto 14px;gap:10px;align-items:center;width:100%;min-height:52px;padding:0 12px 0 10px;text-align:left}
+.prow .nd{width:8px;height:8px;border-radius:50%;background:var(--new);box-shadow:0 0 6px -1px var(--new)}
+.prow .nd.off{background:none;box-shadow:none}
+.swipe{position:relative}
+.swipe .under{position:absolute;inset:0;display:flex;align-items:center;gap:7px;padding-left:18px;font:600 15px var(--ui);color:var(--filed);background:linear-gradient(90deg,color-mix(in srgb,var(--filed) 30%,transparent),color-mix(in srgb,var(--filed) 8%,transparent) 60%,transparent)}
+.swipe .under .ic{stroke-width:2.8}
+.swipe .prow{position:relative;transform:translateX(118px);background:var(--solid-row);box-shadow:-12px 0 20px -12px rgba(0,0,0,.9)}
+.bgroup{margin-top:14px}
+.ghead{display:flex;align-items:center;gap:8px;min-height:44px;margin:0 2px 6px 8px}
+.gn{font:600 15px var(--ui)}
+.gc{font:400 15px var(--ui);color:var(--ink3)}
+.gk{font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.allb{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;height:44px;padding:0 15px;border-radius:22px;font:600 15px var(--ui);color:var(--wait);background:color-mix(in srgb,var(--wait) 12%,transparent);white-space:nowrap}
+.gsub{margin:-2px 8px 8px;font:400 13px var(--ui);color:var(--ink3)}
+.swipecap{margin:8px 8px 0;font:400 13px/1.45 var(--ui);color:var(--ink3)}
+.capfield{display:flex;align-items:center;height:44px;margin-top:12px;border-radius:22px;background:rgba(0,0,0,.26);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.capfield .cf{flex:1;height:44px;padding:0 0 0 16px;text-align:left;font:400 15px var(--ui);color:var(--ink3)}
+.mic{flex:none;width:44px;height:44px;display:grid;place-items:center;color:var(--ink2);border-radius:22px}
+.mic .ic{width:18px;height:18px}
+
+.lrow{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:58px;padding:4px 4px 4px 16px}
+.lrow .d,.lrow1 .d{width:10px;height:10px;border-radius:50%}
+.run{height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.lrow1{display:grid;grid-template-columns:10px auto minmax(0,1fr) 14px;gap:10px;align-items:center;width:100%;min-height:52px;padding:0 12px 0 16px;text-align:left}
+.lrow1 .nm{white-space:nowrap}
+.lrow1 .sv{text-align:right}
+.skel{display:block;justify-self:end;width:72%;height:10px;border-radius:5px;background:linear-gradient(90deg,rgba(255,255,255,.07),rgba(255,255,255,.17),rgba(255,255,255,.07))}
+.sechead .sx{font:400 13px var(--ui);color:var(--ink3)}
+.gate{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:64px;margin-top:12px;text-align:left}
+.go{display:inline-flex;align-items:center;gap:2px;font:600 15px var(--ui);color:var(--wait);white-space:nowrap}
+.lhint{margin:8px 8px 0;font:400 13px/1.45 var(--ui);color:var(--ink3)}
+.prop{margin-top:12px;padding:14px 14px 10px;border-radius:18px;background:color-mix(in srgb,var(--wait) 8%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 34%,transparent)}
+.pk{display:flex;align-items:center;gap:6px;font:600 13px var(--ui);color:var(--wait)}
+.prop .say{margin-top:6px}
+.prop .why{margin-top:4px}
+.prop .answer{margin-top:8px}
+
+/* overlays: a dimmed page behind, a scrim, and glass rising over it */
+.behind{pointer-events:none}
+.behind.blur{filter:blur(3px)}
+.scrim{position:fixed;inset:0;z-index:15;background:rgba(3,5,12,.6)}
+.note.pinned{position:fixed;left:16px;right:16px;top:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 12px);z-index:26;max-width:370px;margin:0 auto;background:rgba(6,8,16,.66)}
+.cap{position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:25;max-width:378px;margin:0 auto;padding:14px 16px 8px;border-radius:28px;background:rgba(20,24,44,.82);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 24px 50px -18px rgba(0,0,0,.85);transform-origin:calc(100% - 29px) 100%}
+.cap .stand{margin:0 2px 10px}
+.ta{min-height:88px;padding:12px 14px;border-radius:16px;background:rgba(0,0,0,.32);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--new) 50%,transparent);font:400 15px/1.45 var(--ui)}
+.caret{display:inline-block;width:2px;height:18px;margin-left:1px;vertical-align:-3px;background:var(--new)}
+.caprow{display:flex;align-items:center;gap:8px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--new);background:color-mix(in srgb,var(--new) 12%,transparent)}
+.grow{flex:1}
+.caphint{margin:8px 2px 0;font:400 13px var(--ui);color:var(--ink3)}
+.landed{margin-top:8px;padding-top:8px;border-top:1px solid var(--sep)}
+.lhead{display:flex;justify-content:space-between;align-items:baseline;margin:0 2px;font:600 13px var(--ui);color:var(--filed)}
+.lhead span + span{font-weight:400;color:var(--ink3)}
+.lr{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;min-height:44px;padding:0 2px;text-align:left}
+.lr .ok{color:var(--filed);stroke-width:2.8}
+.lr .dest{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.novabtn.held{box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 0 0 5px rgba(89,230,255,.16),0 0 30px 4px rgba(89,230,255,.42);transform:scale(.96)}
+.sheet{position:fixed;left:8px;right:8px;top:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 14px);bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:25;max-width:386px;margin:0 auto;padding:8px 16px 20px;overflow-y:auto;overscroll-behavior:contain;border-radius:30px;background:rgba(17,21,38,.88);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 30px 60px -20px rgba(0,0,0,.9)}
+.grab{width:38px;height:5px;margin:0 auto 12px;border-radius:3px;background:color-mix(in srgb,var(--ink) 32%,transparent)}
+.disc{margin-top:12px;padding-top:12px;border-top:1px solid var(--sep)}
+.dk{display:block;font:600 13px var(--ui);color:var(--ink3)}
+.dk.wait{color:var(--wait)}
+.dq{margin:4px 0 10px;font:400 15px/1.45 var(--ui);color:var(--ink2)}
+.dv{margin:4px 0 0;font:400 15px/1.45 var(--ui)}
+.askwhy{margin-top:10px;padding:12px 12px 8px;border-radius:18px;background:color-mix(in srgb,var(--link) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--link) 26%,transparent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chips button{height:44px;padding:0 14px;border-radius:22px;font:400 15px var(--ui);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 22%,transparent)}
+.own{display:flex;align-items:center;height:44px;margin-top:8px;border-radius:22px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.own .cf{flex:1;height:44px;padding:0 0 0 14px;text-align:left;font:400 15px var(--ui);color:var(--ink3)}
+.askrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+.discard{height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--discard);background:color-mix(in srgb,var(--discard) 13%,transparent)}
+.keep{height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2)}
+.shead{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center}
+.shead b{display:block;font:700 20px/1.2 var(--ui)}
+.shead .sx span{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.done{height:44px;padding:0 4px 0 14px;font:600 15px var(--ui);color:var(--link)}
+.slot{margin-top:12px;padding-top:12px;border-top:1px solid var(--sep)}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.srow + .srow{margin-top:8px}
+.sn{font:600 15px var(--ui)}
+.sel{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px 0 16px;border-radius:22px;font:600 15px var(--ui);font-variant-numeric:tabular-nums;background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.sel .ic{width:14px;height:14px;color:var(--ink3)}
+.segc.mini{width:208px;flex:none}
+.sst{margin:6px 0 0;font:400 13px var(--ui);color:var(--ink3)}
+
+/* C: the hub, in the summary Home's card grammar */
+.hero .hrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;margin-top:10px}
+.hero .first{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start;margin-top:12px;padding-top:12px;border-top:1px solid var(--sep)}
+.hero .first .say{margin-top:2px}
+.hero .no{margin-left:0}
+.seeall{margin-left:auto;display:inline-flex;align-items:center;gap:1px;height:44px;padding:0 2px 0 12px;font:600 15px var(--ui);color:var(--link);white-space:nowrap}
+.seeall .ic{width:15px;height:15px;stroke-width:2.6}
+.hk{display:block;margin:20px 4px 8px 14px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.scard{display:flex;flex-direction:column;gap:8px;padding:10px 8px}
+.scard .open{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:44px;padding:2px 2px 0;text-align:left}
+.scard .nm2{display:flex;align-items:center;gap:5px;font:600 13px var(--ui);color:var(--ink2);white-space:nowrap}
+.scard .allb{margin:0;padding:0 8px}
+.cardbtn{width:100%;text-align:left;color:inherit}
+.fstrip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:12px}
+.fs{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px}
+.fs b{font:600 15px var(--ui);white-space:nowrap}
+.fs > span:last-child{font:400 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.fs .tick{position:absolute;top:-5px;left:calc(50% + 8px);width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:var(--filed);color:#05261a;box-shadow:0 0 0 2px var(--solid-row)}
+.fs .tick .ic{width:10px;height:10px;stroke-width:3.6}
+.lamps7{display:flex;gap:6px;margin-top:12px}
+.lamps7 i{width:13px;height:13px;border-radius:50%}
+.ladder3{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.ladder3 span{display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 10px;border-radius:15px;font:600 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.ladder3 .on{color:var(--new);background:color-mix(in srgb,var(--new) 13%,transparent)}
+.ladder3 .next{color:var(--ink);border:1.5px dashed var(--wait)}
+.ladder3 .next em{font-style:normal;font-weight:400;color:var(--wait)}
+.cardfoot{margin-top:auto;padding-top:8px;display:flex;align-items:center;gap:2px;font:600 15px var(--ui);color:var(--link)}
+.cardfoot .ic{width:15px;height:15px;stroke-width:2.6}
+
+/* ================= round 2: the objects this round adds ================= */
+/* the deck's position rides the rail's line instead of a footer under the card */
+.railrow{display:flex;align-items:center;gap:10px;margin-top:8px}
+.railrow .rail{flex:1;margin:0}
+.railrow .pos{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* the subjects, as C's small cards: the card opens the subject, the gold tick answers all of it */
+.trio{margin-top:12px}
+.scard2{display:flex;flex-direction:column;gap:4px;padding:8px 8px 8px 10px;cursor:pointer;min-width:0}
+.scard2 .nm2{display:flex;align-items:center;gap:6px;height:16px;font:600 13px var(--ui);color:var(--ink2);white-space:nowrap}
+.scard2 .srow2{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.scard2 .num.s{font-size:30px}
+.scard2 .allb{margin:0;padding:0 10px 0 9px;gap:4px}
+
+/* the card's two quiet blocks, in C's card grammar: a header line, then the content */
+.qb{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.qb.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.blk{display:block;width:100%;min-height:44px;padding:9px 12px 10px;border-radius:14px;text-align:left;background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 11%,transparent),0 1px 0 color-mix(in srgb,var(--card-hi) 60%,transparent) inset;min-width:0}
+.bh{display:flex;align-items:center;gap:6px;font:600 13px/16px var(--ui);color:var(--ink3);white-space:nowrap}
+.bh .ic{width:14px;height:14px;stroke-width:2.2}
+.bh .x{margin-left:auto;width:14px;height:14px;color:var(--ink3);stroke-width:2.4}
+.bt{margin-top:4px;font:400 13px/1.4 var(--ui);color:var(--ink2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bl{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;align-items:center;margin-top:4px;font:400 15px/1.3 var(--ui)}
+.bl + .bl{margin-top:2px}
+.bl .ic{width:15px;height:15px;color:var(--ink3)}
+.bl .mt{width:14px;height:14px;border-radius:4px;background:var(--h);justify-self:center}
+.bv{display:block;min-width:0;margin-top:3px;font:400 15px/1.3 var(--ui);white-space:nowrap;overflow:hidden}
+
+/* the reason, with Look deeper on its right: the quiet fourth verb */
+.srcrow{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;margin-top:4px}
+.srcrow .src{margin:0;min-width:0;white-space:nowrap;overflow:hidden}
+.deeper{flex:none;display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 4px 0 10px;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap}
+.deeper .ic{width:15px;height:15px}
+.answer.tight{margin-top:4px}
+
+/* Look deeper, in flight: the gold working line rides the card, the verbs wait dimmed */
+.working{position:relative;overflow:hidden;display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;margin-top:10px;padding:8px 6px 8px 12px;border-radius:14px;background:color-mix(in srgb,var(--wait) 9%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 38%,transparent)}
+.working .pd{width:10px;height:10px;border-radius:50%;justify-self:center;background:var(--wait);box-shadow:0 0 10px 0 var(--wait);animation:novaPulse 1.6s ease-in-out infinite}
+.working b{display:block;font:600 15px/1.25 var(--ui);color:var(--wait)}
+.working span.wx{display:block;font:400 13px/1.3 var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden}
+.working .stop{height:44px;padding:0 10px;font:600 15px var(--ui);color:var(--ink2)}
+.working::after{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--wait) 16%,transparent),transparent);animation:glassScan 2.4s var(--ease) infinite;pointer-events:none}
+@keyframes novaPulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.28)}}
+@keyframes glassScan{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+@media (prefers-reduced-motion:reduce){.working .pd{animation:none}.working::after{display:none}}
+.waiting .answer,.waiting .deeper{opacity:.42}
+
+/* the report, grown on the same card: Nova's own work, so cyan */
+.report{margin-top:10px;padding:10px 12px 0;border-radius:14px;background:color-mix(in srgb,var(--new) 8%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--new) 36%,transparent)}
+.report .bh{color:var(--new)}
+.report .bh .rt{margin-left:auto;font-weight:400;color:var(--ink3)}
+.report .nd{width:7px;height:7px;border-radius:50%;background:var(--new);box-shadow:0 0 6px -1px var(--new)}
+.rsay{margin:6px 0 0;font:400 15px/1.45 var(--serif);color:var(--ink);text-wrap:pretty}
+.readr{display:flex;align-items:center;gap:2px;width:100%;height:44px;font:600 15px var(--ui);color:var(--new)}
+.readr .ic{width:15px;height:15px;stroke-width:2.6}
+.readr .ct{margin-left:auto;font:400 13px var(--ui);color:var(--ink3)}
+.moment{display:flex;align-items:center;gap:8px;margin:18px 4px 0 6px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.moment::after{content:"";flex:1;height:1px;background:var(--sep)}
+.moment + .deck{margin-top:4px}
+
+/* the report sheet: rises from the foot, the verbs held at its bottom */
+.rsheet{position:fixed;left:8px;right:8px;top:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 104px);bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:25;max-width:386px;margin:0 auto;display:flex;flex-direction:column;border-radius:30px;background:rgba(17,21,38,.9);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 30px 60px -20px rgba(0,0,0,.9);overflow:hidden}
+.rsheet .body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:8px 16px 16px}
+.rsheet .foot{flex:none;padding:6px 16px 10px;border-top:1px solid var(--sep);background:rgba(17,21,38,.6)}
+.rsheet .foot .answer{margin-top:4px}
+.rfor{margin:10px 0 0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.rfor b{font-weight:600;color:var(--ink2)}
+.rp{margin:12px 0 0;font:400 15px/1.5 var(--ui);color:var(--ink);text-wrap:pretty}
+.rp.lead{font:400 20px/1.3 var(--serif);text-wrap:balance}
+.srows{margin-top:8px}
+.srow3{display:grid;grid-template-columns:30px minmax(0,1fr) 14px;gap:10px;align-items:center;width:100%;min-height:56px;padding:6px 12px 6px 12px;text-align:left}
+.srow3 .lx .nm{white-space:nowrap;overflow:hidden}
+
+/* Filed rows in C's tile-and-tick: a green tick on the tile of what is on the record */
+.tt{position:relative;width:30px;height:30px}
+.tt .tick{position:absolute;right:-5px;bottom:-4px;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:var(--filed);color:#05261a;box-shadow:0 0 0 2px var(--solid-row)}
+.tt .tick .ic{width:10px;height:10px;stroke-width:3.6}
+.frow.dim .tile{opacity:.55}
+
+/* Ops: the waiting card first, Nova's proposals under it */
+.waitcard{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:76px;padding:12px 10px 12px 16px;text-align:left}
+.waitcard .cx span{white-space:normal}
+.waitcard .go{height:44px}
+.prop .change{margin-top:10px}
+.pill.on{color:var(--new)}
+.pill.arrive.gold{border-color:var(--wait);color:var(--ink)}
+.prop2{display:grid;grid-template-columns:30px minmax(0,1fr) 14px;gap:10px;align-items:center;width:100%;min-height:58px;margin-top:8px;padding:6px 12px 6px 12px;text-align:left;border-radius:18px;background:color-mix(in srgb,var(--wait) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 24%,transparent)}
+.tile.gold{background:color-mix(in srgb,var(--wait) 16%,transparent);color:var(--wait)}
+.lrow .lx .skel{justify-self:start;display:block;width:62%;margin-top:6px}
+.caption{margin-top:18px}
+.caption q{font-style:italic;color:var(--ink)}
+.bl .fit{display:block;min-width:0;white-space:nowrap;overflow:hidden}
+/* the deck's ghost edges show only where they peek above the live card, never through its glass */
+.ghost.g2{clip-path:inset(0 0 32px 0)}
+.ghost.g1{clip-path:inset(0 0 38px 0)}
+.bt1{display:block;min-width:0;margin-top:4px;font:400 13px/1.4 var(--ui);color:var(--ink);white-space:nowrap;overflow:hidden}
+.bt1 + .bt1{margin-top:0}
+.qb.two .bt{margin-top:4px}
+.srcrow .src{white-space:normal;line-height:1.3;text-wrap:balance}
+.rsheet .shead b{text-wrap:balance}
+</style>
+</head>
+<body data-m="nova-glass">
+<div class="sky" aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18M12 8h5M12 12h5"/></symbol>
+  <symbol id="i-review" viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 0 2 2h13"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-practice" viewBox="0 0 24 24"><circle cx="8" cy="8" r="2"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/><circle cx="16" cy="16" r="2"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/></symbol>
+  <symbol id="i-todo" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12 2.5 2.5 5-5.5"/></symbol>
+  <symbol id="i-bag" viewBox="0 0 24 24"><path d="M5 7h14l-1.5 10h-11z"/><path d="M9 7V5a3 3 0 0 1 6 0v2"/></symbol>
+  <symbol id="i-books" viewBox="0 0 24 24"><path d="M4 4h5v16H4zM10 4h5v16h-5zM16 5l4 1-3 14-4-1z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="i-q" viewBox="0 0 24 24"><path d="M9.5 9a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.5V14"/><path d="M12 17.5v.01"/></symbol>
+  <symbol id="i-bang" viewBox="0 0 24 24"><path d="M12 6v8M12 18v.01"/></symbol>
+  <symbol id="i-tray" viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 5-5.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-talk" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></symbol>
+  <symbol id="i-steps" viewBox="0 0 24 24"><path d="M3 19h6v-5h6V9h6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M5 18v-4a6 6 0 0 1 4-5.6M5 14h4v4H5zM14 18v-4a6 6 0 0 1 4-5.6M14 14h4v4h-4z"/></symbol>
+  <symbol id="i-into" viewBox="0 0 24 24"><path d="M4 12h11M11 7l5 5-5 5"/><path d="M20 4v16"/></symbol>
+  <symbol id="i-web" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+</svg>
+
+<nav class="switch" aria-label="Screen">
+  <div class="inner">
+    <div class="seg" id="screens" role="tablist" aria-label="Screen"></div>
+    <p class="tally" id="tally" title="Tap for the full tally"></p>
+  </div>
+</nav>
+
+<div class="phone">
+
+<!-- ================= 1 · WAITING: THE DECK, THE CARD OPENED UP ================= -->
+<main id="s1" class="view" data-tally="<b>1 Waiting.</b> Above the fold: <b>8 objects, 14 taps</b> (header, count, 3 subject cards, the card, the receipt; today 15 taps on a card alone) · verbs on the card: <b>3 + 1 quiet</b> (✓ · Talk about it · ✕, and Look deeper) plus the two blocks, each one tap to open · 18 decisions in <b>1 screen</b>, one card at a time, 11 of them in 3 taps · the fold, measured at 402×874: the blocks stacked in full ended the card at 814, under the tab bar (800), with the receipt over the verbs; side by side, two lines each, the card ends at 689 and the receipt at 755, 45 clear of the tab bar, so nothing collapses · type <b>34 20 15 13</b> + the numerals · tap floor <b>44</b> · resolves <b>1 2 3 4 5 6 7 10 11</b> · leaves <b>8</b> (drawn on 6) and <b>9</b> (observations, no fault)">
+  <div class="a-top">
+    <div class="titlerow rise" style="--i:0">
+      <h1>Inbox</h1>
+      <div class="segc" role="tablist" aria-label="Inbox" data-obj><button role="tab" aria-pressed="true">Waiting</button><button role="tab" aria-pressed="false" data-go="4">Filed</button></div>
+    </div>
+    <div class="count rise" style="--i:1" data-obj>
+      <span class="num wait">18</span>
+      <div class="cx"><b>waiting on your call</b><span>11 on 3 subjects · 7 to decide</span><div class="railrow"><div class="rail" data-n="18" data-on="1"></div><span class="pos">1 of 18</span></div></div>
+    </div>
+    <div class="trio rise" style="--i:2" data-subjects></div>
+    <div class="deck rise" style="--i:3">
+      <div class="ghost g2"></div><div class="ghost g1"></div>
+      <div data-card="plain"></div>
+    </div>
+  </div>
+  <div class="receipt rise" style="--i:5" data-obj>
+    <span class="ok"><svg class="ic"><use href="#i-check"/></svg></span>
+    <span class="rx"><b>Filed to Journal</b><span class="fit">Bad sleep, still trained · just now</span></span>
+    <button class="undo">Undo</button>
+  </div>
+  <p class="hint rise" style="--i:6">Drop a thought: hold <span class="orb mini"></span> Nova, or say it in Voice</p>
+  <button class="card oprow rise" style="--i:7" data-go="6" data-obj>
+    <span class="dots7" aria-label="Seven loops: four quiet, two have something for you, one alert"><i class="d-ok"></i><i class="d-wait"></i><i class="d-wait"></i><i class="d-ok"></i><i class="d-ok"></i><i class="d-ok"></i><i class="d-alert"></i></span>
+    <span class="lx"><span class="nm">Loops · Agents &amp; Operations</span><span class="sv fit">7 on schedule · <em>2 proposals</em> wait there</span></span>
+    <svg class="ic cv"><use href="#i-right"/></svg>
+  </button>
+  <aside class="note caption rise" style="--i:8"><b>What changed from round 1, and why</b>
+    <ul>
+      <li><b>The card opens up.</b> You captured and Will be filed now sit on the card, the two things round 1 only showed inside B's mail sheet: <q>just enough to make informed decisions</q>. A tap on either block opens it in full, in place.</li>
+      <li><b>Look deeper</b>, a quiet fourth verb beside the reason: <q>ask for further reasoning and research for a card's decision</q>. The report grows on this same card (2) and opens as a sheet (3).</li>
+      <li><b>The subjects are C's small cards:</b> the numeral, the name, ✓ all. <q>Nice and simple, clean and appealing.</q> The card opens the subject; the gold tick answers all of it. On Model choice ✓ all keeps the usual model for both (finding 5).</li>
+      <li><b>Still A</b>, which he chose as <q>most clean/organised without being too cluttered</q>: one card at a time, Filed as the second segment, capture on the Nova button, the loops in Agents &amp; Operations.</li>
+      <li><b>The fold, measured.</b> The two blocks stacked at full width pushed the verbs under the tab bar (the card ended 14 px below it, the receipt over the verbs). Side by side, each keeps its two lines, You captured and Will be filed's destination and change, and the whole card, the receipt with it, fits one screen with 45 px to spare. No block had to collapse.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= 2 · LOOK DEEPER: IN FLIGHT, THEN RETURNED ================= -->
+<main id="s2" class="view" hidden data-tally="<b>2 Look deeper.</b> The same card twice: in flight, a gold working line in the slot the report will fill, the verbs dimmed and still live; a minute later, a Report block on the card (a serif line, 3 sources, Read the report) · verbs on the card: <b>3</b>, plus Stop while it works and Read the report after · type <b>34 20 15 13</b> + the numerals · tap floor <b>44</b> · the working line is gold because it is a call in progress on his behalf; the report is cyan, Nova's own work">
+  <div class="titlerow rise" style="--i:0">
+    <h1>Inbox</h1>
+    <div class="segc" role="tablist" aria-label="Inbox" data-obj><button role="tab" aria-pressed="true">Waiting</button><button role="tab" aria-pressed="false" data-go="4">Filed</button></div>
+  </div>
+  <div class="count rise" style="--i:1" data-obj>
+    <span class="num wait">18</span>
+    <div class="cx"><b>waiting on your call</b><span>11 on 3 subjects · 7 to decide</span><div class="railrow"><div class="rail" data-n="18" data-on="1"></div><span class="pos">1 of 18</span></div></div>
+  </div>
+  <p class="moment rise" style="--i:2">Now · after Look deeper</p>
+  <div class="deck rise" style="--i:2">
+    <div class="ghost g2"></div><div class="ghost g1"></div>
+    <div data-card="working"></div>
+  </div>
+  <p class="moment rise" style="--i:3">A minute later</p>
+  <div class="deck rise" style="--i:3">
+    <div class="ghost g2"></div><div class="ghost g1"></div>
+    <div data-card="report"></div>
+  </div>
+  <aside class="note rise" style="--i:4"><b>Look deeper, on the rails research already uses.</b> The tap sends the Researcher the card's own question, built from its sentence, You captured and Will be filed (startResearch). The card then polls for the brief the way the Voice research message does today (watchVoiceResearch: every 5 s, 8 minutes out), and the working line counts real seconds from the job's start. When the brief lands the line becomes the Report block in the same slot, and the verbs wake. Stop cancels the job; the card stays as it was.
+    <ul>
+      <li><b>Not built yet:</b> today the brief lands as its own pending record. For it to grow on this card, the research record needs this card's id and the card has to read it. That link is the one new piece.</li>
+      <li>On a video, Look deeper is the Deep weave; on a read-next it is Research the books. Both are research jobs already, so they move from their own doors to this one.</li>
+      <li>If the job fails, the line turns red and says why, with Try again. Nothing is filed by Look deeper; the decision is still his.</li>
+    </ul>
+  </aside>
+</main>
+
+<!-- ================= 3 · THE REPORT, AS A SHEET OVER THE DECK ================= -->
+<main id="s3" class="view" hidden data-tally="<b>3 Report sheet.</b> Rises over the deck from Read the report: a title, the report in four short paragraphs, 3 sources as rows, and at its foot the card's <b>3</b> verbs, so the decision is made from here · type <b>20 15 13</b> (34 behind) · tap floor <b>44</b> · Done or a swipe down returns to the card with the report still on it">
+  <div class="behind blur" aria-hidden="true" inert data-clone="s2 .deck:last-of-type"></div>
+  <div class="scrim" aria-hidden="true" data-go="2"></div>
+  <section class="rsheet rise" style="--i:0" aria-label="Report: why the chest-supported row">
+    <div class="body">
+      <div class="grab"></div>
+      <div class="shead">
+        <span class="tile hue" style="--h:var(--new);--g:#062028"><svg class="ic"><use href="#i-doc"/></svg></span>
+        <span class="sx"><b>Why the chest-supported row</b><span>Report · 3 sources · 1 min ago</span></span>
+        <button class="done" data-go="2">Done</button>
+      </div>
+      <p class="rfor">On the card <b>Swap Barbell Row for Chest-Supported Row on Pull Day</b></p>
+      <p class="rp lead">Your own notes put the strain on the row. The chest pad takes your lower back out of it.</p>
+      <p class="rp">On Tuesday you told Nova rows were rough on your lower back. A barbell row asks your lower back to hold the hinge for every rep; with your chest on a pad, it holds nothing.</p>
+      <p class="rp">The pull stays the same: the same back muscles, 4 sets of 10, so Pull Day keeps its 16 sets.</p>
+      <p class="rp">One thing to watch: start a step lighter in the first week. The pad changes the angle, so your barbell weight may not carry straight across.</p>
+      <div class="group"><span class="k">Sources · 3</span>
+        <div class="card glist rows srows">
+          <button class="srow3" data-obj><span class="tile hue" style="--h:var(--k-journal);--g:#fff"><svg class="ic"><use href="#i-quote"/></svg></span><span class="lx"><span class="nm">What you said to Nova, Tuesday</span><span class="sv fit">“Rows were rough on my lower back…”</span></span><svg class="ic cv"><use href="#i-right"/></svg></button>
+          <button class="srow3" data-obj><span class="tile hue" style="--h:var(--k-train);--g:#052a3a"><svg class="ic"><use href="#i-dumbbell"/></svg></span><span class="lx"><span class="nm">Pull Day, your last 6 sessions</span><span class="sv fit">Your training log</span></span><svg class="ic cv"><use href="#i-right"/></svg></button>
+          <button class="srow3" data-obj><span class="tile vault"><svg class="ic"><use href="#i-web"/></svg></span><span class="lx"><span class="nm">A coach's guide to supported rows</span><span class="sv fit">Web page · read by the Researcher</span></span><svg class="ic cv"><use href="#i-right"/></svg></button>
+        </div>
+      </div>
+      <aside class="note"><b>The report, as a sheet.</b> The body is the Researcher's brief as it lands today (the decision's payload body); the sources are its citations, each opening where it lives: the note in the vault, the log in Train, the page in the browser. The same three verbs sit at the foot, so he decides from here; a tick files the swap and closes the sheet onto the next card.</aside>
+    </div>
+    <div class="foot">
+      <div class="answer">
+        <button class="yes"><svg class="ic"><use href="#i-check"/></svg>Yes, swap it</button>
+        <button class="talk"><svg class="ic"><use href="#i-talk"/></svg>Talk about it</button>
+        <button class="no" aria-label="Discard"><svg class="ic"><use href="#i-x"/></svg></button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ================= 4 · FILED ================= -->
+<main id="s4" class="view" hidden data-tally="<b>4 Filed.</b> 409 on the record, the 25 newest by day, one action a row · above the fold: <b>11 objects, 18 taps</b> (segmented, count, 9 rows) · rows in C's tile-and-tick: a green tick on the tile of what is on the record, none on what was discarded or taken back · type <b>34 15 13</b> + the numeral · tap floor <b>44</b> · resolves <b>3</b> (an unknown route says so), <b>6</b> (Undo only where it exists; rows by day), <b>11</b> (one row grammar)">
+  <div class="titlerow rise" style="--i:0">
+    <h1>Inbox</h1>
+    <div class="segc" role="tablist" aria-label="Inbox" data-obj><button role="tab" aria-pressed="false" data-go="1">Waiting</button><button role="tab" aria-pressed="true">Filed</button></div>
+  </div>
+  <div class="count rise" style="--i:1" data-obj>
+    <span class="num">409</span>
+    <div class="cx"><b>on the record</b><span>the 25 newest shown · 384 older</span></div>
+  </div>
+  <p class="honest rise" style="--i:2"><svg class="ic"><use href="#i-checkc"/></svg><span>Undo shows where Nova kept what it changed. Guardian counts 53 older filings without that; their rows say no undo.</span></p>
+  <div id="days"></div>
+  <button class="more rise" style="--i:7" data-obj>Show 100 more · 384 older</button>
+  <aside class="note rise" style="--i:8"><b>Filed, as round 1 drew it,</b> with one change: the row borrows C's tile-and-tick. The tile names the route; a green tick on its corner says it is on the record. Discarded, undone and taken-back rows keep a bare, dimmed tile. An unknown route shows a dashed ? instead of passing as a Note (finding 3); an error wears red and offers Retry.</aside>
+</main>
+
+<!-- ================= 5 · CAPTURE, FROM THE NOVA BUTTON ================= -->
+<main id="s5" class="view" hidden data-nova="held" data-tally="<b>5 Capture.</b> Round 1, unchanged. Hold Nova: the composer rises from the button over a dimmed Inbox · 3 controls (Dictate · Capture · typing) + 4 Landed rows · type <b>20 15 13</b> (34 behind) · tap floor <b>44</b> · resolves <b>1</b> (capture leaves the pile's page, and still lands where it was dropped)">
+  <div class="behind blur" aria-hidden="true" inert data-clone="s1 .a-top"></div>
+  <div class="scrim" aria-hidden="true"></div>
+  <aside class="note pinned rise" style="--i:0"><b>Capture, from the Nova button, as round 1.</b> Hold it and the composer rises from the button over a dimmed Inbox: type or Dictate, then Capture. Landed comes with it, so a thought is seen to land where it was dropped. Links, research and videos go to Nova in the conversation, as today.</aside>
+  <section class="cap rise" style="--i:1" aria-label="Capture">
+    <p class="stand">Drop the thought, Nova files it.</p>
+    <div class="ta" role="textbox" aria-label="The thought">Ask the physio about my lower back<span class="caret"></span></div>
+    <div class="caprow">
+      <button class="chip"><svg class="ic"><use href="#i-mic"/></svg>Dictate</button>
+      <span class="grow"></span>
+      <button class="btn">Capture</button>
+    </div>
+    <p class="caphint">Links, research and videos: say them to Nova.</p>
+    <div class="landed">
+      <div class="lhead"><span>Landed</span><span>9 today · 8 filed</span></div>
+      <button class="lr"><svg class="ic ok"><use href="#i-check"/></svg><span class="ti fit">Bad sleep, still trained</span><span class="dest">Journal</span></button>
+      <button class="lr"><svg class="ic ok"><use href="#i-check"/></svg><span class="ti fit">Bananas and rice cakes</span><span class="dest">Shopping</span></button>
+      <button class="lr"><svg class="ic ok"><use href="#i-check"/></svg><span class="ti fit">Rear Delt Fly to Push Day</span><span class="dest">Train</span></button>
+      <button class="lr"><svg class="ic ok"><use href="#i-check"/></svg><span class="ti fit">Brief: magnesium, sleep</span><span class="dest">Notes</span></button>
+    </div>
+  </section>
+</main>
+
+<!-- ================= 6 · AGENTS & OPERATIONS, REORDERED ================= -->
+<main id="s6" class="view" hidden data-tab="more" data-tally="<b>6 Agents &amp; Operations.</b> In his order: <b>Waiting on your call</b> (the 18, one card, Open the Inbox), then <b>Nova proposes</b> (the ladder step drawn before → after, Accept · Talk about it · Skip; Briefs' proposal one row under it), then the <b>7 loops</b> with Run now, then the ladder as a segmented row · above the fold: <b>5 objects</b> · verbs on the proposal: <b>3</b> · type <b>34 20 15 13</b> + the numerals · tap floor <b>44</b> · resolves <b>4</b> (loops leave the Inbox), <b>7</b> (the ladder sits under the count and the proposals), <b>8</b> (Todoist loading is the house skeleton), <b>11</b>">
+  <button class="back rise" style="--i:0" data-go="1"><svg class="ic"><use href="#i-left"/></svg>Inbox</button>
+  <h1 class="rise" style="--i:0">Agents &amp; Operations</h1>
+  <div class="group rise" style="--i:1"><span class="k">Waiting on your call</span>
+    <button class="card waitcard" data-go="1" data-obj>
+      <span class="num xl wait">18</span>
+      <span class="cx"><b>decisions</b><span>11 on 3 subjects<br>7 to decide</span></span>
+      <span class="go">Open the Inbox<svg class="ic cv" style="color:var(--wait)"><use href="#i-right"/></svg></span>
+    </button>
+  </div>
+  <div class="group rise" style="--i:2"><span class="k">Nova proposes · 2</span>
+    <div class="prop" data-obj>
+      <span class="pk"><svg class="ic"><use href="#i-steps"/></svg>Filing ladder</span>
+      <p class="say">Let Nova file everything on its own.</p>
+      <div class="change" role="img" aria-label="Auto high now, Auto all proposed">
+        <span class="pill on" style="--h:var(--new)"><i></i>Auto high</span>
+        <svg class="ic arrow"><use href="#i-arrow"/></svg>
+        <span class="pill arrive gold" style="--h:var(--wait)"><i></i>Auto all</span>
+      </div>
+      <p class="why">You approved its last 8 review calls without changing a thing.</p>
+      <div class="answer"><button class="yes"><svg class="ic"><use href="#i-check"/></svg>Accept</button><button class="talk"><svg class="ic"><use href="#i-talk"/></svg>Talk about it</button><button class="no" aria-label="Skip"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    </div>
+    <button class="prop2" data-obj><span class="tile gold"><svg class="ic"><use href="#i-loop"/></svg></span><span class="lx"><span class="nm">Briefs: morning dispatch to the journal</span><span class="sv fit">You approved the last 3 as drafted</span></span><svg class="ic cv"><use href="#i-right"/></svg></button>
+  </div>
+  <div class="group rise" style="--i:3"><span class="k">Loops · 7</span><div class="card glist rows" data-loops="run"></div></div>
+  <div class="group rise" style="--i:4"><span class="k">Filing</span>
+    <div class="segc" role="tablist" aria-label="Filing mode" data-obj><button role="tab" aria-pressed="false">Review all</button><button role="tab" aria-pressed="true">Auto high</button><button role="tab" class="next" aria-pressed="false">Auto all</button></div>
+    <p class="lhint">Auto high: sure things file themselves; doubts wait for you. Review all asks about every one; Auto all files everything, with history and Undo as the receipts. The dashed step is the one Nova proposes above.</p>
+  </div>
+  <aside class="note caption rise" style="--i:5"><b>What changed from round 1, and why</b>
+    <ul>
+      <li><b>The order is his:</b> <q>Nova proposes options could appear at the top of the agents and operations ... but under the decisions waiting on my call.</q> So the 18 comes first, Nova's proposals second, the loops third, the ladder last.</li>
+      <li><b>Both proposals sit together.</b> Round 1 put the ladder's proposal at the foot beside the ladder and Briefs' inside its loop sheet. Now the ladder's is drawn in full (the step before and after) and Briefs' is one row under it that opens its loop.</li>
+      <li><b>The 18 wears C's big-numeral card,</b> one line and one door back to the Inbox.</li>
+      <li><b>Todoist, still loading,</b> shows the house skeleton on its row instead of the word checking (finding 8).</li>
+      <li>Ops' own sections (the Org Map, the Forge, the stream) continue below, unchanged.</li>
+    </ul>
+  </aside>
+</main>
+
+</div>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row">
+    <div class="tabbar">
+      <span class="tab" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab on" data-tab="inbox"><span class="badge">18</span><svg viewBox="0 0 24 24"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 6h14l2 7v6H3v-6z"/></svg>Inbox</span>
+      <span class="tab" data-tab="train"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab" data-tab="fuel"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab" data-tab="more"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn" aria-label="Talk to Nova; hold to capture" data-go="5"><span class="orb"></span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const ico=(g,c)=>'<svg class="ic'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+g+'"/></svg>';
+
+  // THE KINDS, as their route badges name them (src/vals/valsInbox.js ROUTE_META / SOURCE_LABEL).
+  // A hue only where the domain owns one; the rest wear the vault ink.
+  const K={
+    train:{l:'Train edit',h:'var(--k-train)',c:'#052a3a',g:'dumbbell'},
+    tune:{l:'Coach tune',h:'var(--k-train)',c:'#052a3a',g:'dumbbell'},
+    remap:{l:'Re-filed',h:'var(--k-train)',c:'#052a3a',g:'dumbbell'},
+    journal:{l:'Journal',h:'var(--k-journal)',c:'#fff',g:'book'},
+    cal:{l:'Journal · calendar follow-up',h:'var(--k-journal)',c:'#fff',g:'cal'},
+    practice:{l:'Practice page',h:'var(--k-practice)',c:'#3a1409',g:'practice'},
+    note:{l:'Note',g:'doc'},todo:{l:'To-do',g:'todo'},shop:{l:'Shopping',g:'bag'},stash:{l:'Stash',g:'link'},
+    none:{l:'No route recorded',g:'q',none:1},err:{l:'Error',g:'bang',err:1}
+  };
+  function tile(k){const m=K[k];const cls=m.err?'err':m.none?'none':m.h?'hue':'vault';
+    return '<span class="tile '+cls+'"'+(m.h?' style="--h:'+m.h+';--g:'+m.c+'"':'')+' title="'+m.l+'">'+ico(m.g)+'</span>';}
+
+  // THE SUBJECTS: 11 of the 18 on 3 repeating subjects (the digest's real breakdown; demo names)
+  const SUBJ=[['Coach','var(--k-train)',5,'Yes to all 5 from Coach'],['Research','var(--k-vault)',4,'Keep all 4 research briefs'],['Model choice','var(--k-vault)',2,'Keep the usual model for both']];
+  $$('[data-subjects]').forEach((el)=>{el.innerHTML=SUBJ.map((s)=>'<div class="card scard2" role="button" tabindex="0" aria-label="Open '+s[0]+', '+s[2]+' waiting" data-obj><span class="nm2"><i class="dot" style="--h:'+s[1]+'"></i>'+s[0]+'</span><span class="srow2"><span class="num s wait">'+s[2]+'</span><button class="allb" aria-label="'+s[3]+'">'+ico('check')+'all '+s[2]+'</button></span></div>').join('');});
+
+  // THE CARD: every field is one the card already has (valsInbox.js mkItem): the route badge
+  // (ROUTE_META['routine-edit'] = TRAIN EDIT), the title, the change (payloadPreview),
+  // captured (r.text), full (what approving files), the reason; the verbs Coach's deck uses.
+  // BLOCKS is set by the fold tally on screen 1: 'full' (stacked, two lines each), 'side' (side by side,
+  // two lines each) or 'line' (one line each). Measured: 'full' ends the card 14px under the tab bar with
+  // the receipt over the verbs; 'side' fits with the receipt clear of the tab bar.
+  const BLOCKS='side';
+  const blocksFull='<div class="qb">'+
+    '<button class="blk" aria-expanded="false"><span class="bh">'+ico('quote')+'You captured'+ico('down','x')+'</span><span class="bt">“Rows were rough on my lower back on Tuesday. Swap them for something kinder on Pull Day, and keep the sets.”</span></button>'+
+    '<button class="blk" aria-expanded="false"><span class="bh">'+ico('into')+'Will be filed'+ico('down','x')+'</span>'+
+      '<span class="bl"><i class="mt" style="--h:var(--k-train)"></i><span class="fit">Pull Day, in your program</span></span>'+
+      '<span class="bl">'+ico('arrow')+'<span class="fit">Chest-Supported Row in at 4 × 10; 16 sets stay</span></span></button></div>';
+  const blocksLine='<div class="qb two">'+
+    '<button class="blk" aria-expanded="false"><span class="bh">'+ico('quote')+'You captured'+ico('down','x')+'</span><span class="bv fit">“Rows were rough on my lower back on Tuesday”</span></button>'+
+    '<button class="blk" aria-expanded="false"><span class="bh">'+ico('into')+'Will be filed'+ico('down','x')+'</span><span class="bv fit">Pull Day · 4 × 10</span></button></div>';
+  const blocksSide='<div class="qb two">'+
+    '<button class="blk" aria-expanded="false"><span class="bh">'+ico('quote')+'You captured'+ico('down','x')+'</span><span class="bt">“Rows were rough on my lower back on Tuesday. Swap them for something kinder on Pull Day, and keep the sets.”</span></button>'+
+    '<button class="blk" aria-expanded="false"><span class="bh">'+ico('into')+'Will be filed'+ico('down','x')+'</span><span class="bt1 fit">Pull Day, your program</span><span class="bt1 fit">4 × 10 · 16 sets stay</span></button></div>';
+  const verbs='<div class="answer tight"><button class="yes">'+ico('check')+'Yes, swap it</button><button class="talk">'+ico('talk')+'Talk about it</button><button class="no" aria-label="Discard">'+ico('x')+'</button></div>';
+  function card(state){
+    const mid=state==='working'
+      ?'<div class="working" role="status"><span class="pd"></span><span class="lx"><b>Nova is looking deeper</b><span class="wx fit">reading your sources · 40 s</span></span><button class="stop">Stop</button></div>'
+      :state==='report'
+      ?'<div class="report"><span class="bh"><span class="nd"></span>Report<span class="rt">3 sources · just now</span></span><p class="rsay">Your own notes put the strain on the row, and the chest pad takes your lower back out of it. Nova would still swap it.</p><button class="readr" data-go="3">Read the report'+ico('right')+'</button></div>'
+      :'';
+    return '<article class="card dcard'+(state==='working'?' waiting':'')+'" data-obj aria-label="1 of 18" aria-busy="'+(state==='working')+'">'+
+      '<div class="khead">'+tile('train')+'<span class="lx"><span class="kl" style="color:var(--k-train)">Train edit</span><span class="kt">Pull Day, Thursday</span></span><span class="when">09:40</span></div>'+
+      '<p class="say">Swap Barbell Row for Chest-Supported Row on Pull Day.</p>'+
+      '<div class="change" role="img" aria-label="Barbell Row out, Chest-Supported Row in"><span class="pill" style="--h:var(--m-back)"><i></i>Barbell Row</span>'+ico('arrow','arrow')+'<span class="pill arrive" style="--h:var(--m-back)"><i></i>Chest-Supported Row</span></div>'+
+      (BLOCKS==='full'?blocksFull:BLOCKS==='side'?blocksSide:blocksLine)+mid+
+      '<div class="srcrow"><p class="src">From what you said to Nova · today</p><button class="deeper"'+(state==='working'?' aria-disabled="true"':'')+'>'+ico('search')+'Look deeper</button></div>'+
+      verbs+'</article>';
+  }
+  $$('[data-card]').forEach((el)=>{el.outerHTML=card(el.dataset.card);});
+
+  // FILED: the 25 newest of 409, by day (demo titles; one unknown route, one error)
+  const DAYS=[
+    ['Today',[['10:05','journal','Bad sleep, still trained','undo'],['09:52','shop','Bananas and rice cakes','undo'],['09:30','train','Rear Delt Fly to Push Day','undo'],
+      ['08:10','note','Brief: magnesium, sleep','undo'],['07:45','todo','Renew the gym membership','undo'],['07:20','journal','Morning dispatch','noundo'],
+      ['07:02','none','Call about the lease','undo'],['06:55','train','Lateral Raise 3 × 15','undo'],['06:40','todo','Buy a new foam roller','disc']]],
+    ['Yesterday',[['21:10','journal','Evening debrief','undo'],['20:30','shop','Chicken thighs, 1.2 kg','undo'],['19:05','err','A video link that failed','retry'],
+      ['18:40','train','Hip Thrust goes first','undo'],['17:00','cal','Meal prep happened','undo'],['15:22','practice','Asking to move a deadline','undo'],
+      ['12:10','note','Idea: the drone-shot open','undone'],['11:45','todo','Email the physio','undo'],['09:30','journal','Morning dispatch','noundo'],
+      ['08:15','remap','Face Pull as Shoulders','undo'],['07:50','note','Brief: cold plunges','disc']]],
+    ['Thursday',[['21:05','journal','Evening debrief','noundo'],['18:30','shop','Oats and frozen berries','undo'],['13:00','tune','Hold Incline at 27.5 kg','back'],
+      ['10:20','stash','A guide to deload weeks','undo'],['08:05','todo','Pick up the parcel','undo']]]
+  ];
+  const ST={noundo:'no undo',disc:'Discarded',undone:'Undone',back:'Taken back'};
+  function frow(r){const s=r[3];const onRecord=(s==='undo'||s==='noundo');
+    const act=s==='undo'?'<button class="undo">Undo</button>':s==='retry'?'<button class="undo">Retry</button>':'<span class="st">'+ST[s]+'</span>';
+    const tt='<span class="tt">'+tile(r[1])+(onRecord&&r[1]!=='none'?'<span class="tick">'+ico('check')+'</span>':'')+'</span>';
+    return '<div class="frow'+(['disc','undone','back'].includes(s)?' dim':'')+'" data-obj><span class="t">'+r[0]+'</span>'+tt+'<span class="ti fit">'+r[2]+'</span>'+act+'</div>';}
+  $('#days').innerHTML=DAYS.map((d,i)=>'<div class="group rise" style="--i:'+(3+i)+'"><span class="k">'+d[0]+' · '+d[1].length+'</span><div class="card glist rows">'+d[1].map(frow).join('')+'</div></div>').join('');
+
+  // THE SEVEN LOOPS (Inbox.jsx:521-711): a dot each; the order matches the dots on screen 1.
+  // Todoist is drawn mid-load: the house skeleton, never the word "checking" (finding 8).
+  const LOOPS=[
+    ['ok','Daily review','Filed to your journal at 08:00','Run now'],
+    ['wait','Briefs','1 proposal|morning filed','Run now'],
+    ['wait','Compost','8 for you|weekly','Run now'],
+    ['ok','Open promises','None left hanging · fortnightly','Run now'],
+    ['idle','Todoist','','Sync now','skel'],
+    ['ok','Meal prep','Thursdays · next in 5 days','Run now'],
+    ['alert','Guardian','1 alert: filings without undo','Run checks']
+  ];
+  const st=(t)=>t.includes('|')?'<em>'+t.split('|')[0]+'</em> · '+t.split('|')[1]:t;
+  const lrow=(l)=>'<div class="lrow" data-obj><span class="d d-'+l[0]+'"></span><span class="lx"><span class="nm">'+l[1]+'</span>'+(l[4]?'<span class="skel" role="img" aria-label="Loading"></span>':'<span class="sv fit">'+st(l[2])+'</span>')+'</span><button class="run">'+l[3]+'</button></div>';
+  $$('[data-loops]').forEach((el)=>{el.innerHTML=LOOPS.map(lrow).join('');});
+  $$('.rail').forEach((el)=>{const n=+el.dataset.n,on=+(el.dataset.on||0),done=+(el.dataset.done||0);
+    el.innerHTML=Array.from({length:n},(_,k)=>'<i class="'+(k<done?'done':k+1===on?'on':'')+'"></i>').join('');});
+  $$('[data-clone]').forEach((el)=>{const p=el.dataset.clone.split(' ');const root=$('#'+p[0]);const sel=p.slice(1).join(' ');
+    const src=sel.endsWith(':last-of-type')?[...root.querySelectorAll(sel.replace(':last-of-type',''))].pop():$(sel,root);if(src)el.innerHTML=src.outerHTML;});
+
+  // A title that does not fit gives way a word at a time, never mid-word (the house clampWords rule).
+  function fit(el){if(!el.dataset.full)el.dataset.full=el.innerHTML;el.innerHTML=el.dataset.full;
+    if(!el.clientWidth||el.scrollWidth<=el.clientWidth+1)return;
+    const words=el.textContent.split(' ');const emEl=el.querySelector('em');const emT=emEl?emEl.textContent:'';
+    const mark=(t)=>!emT?t:t.startsWith(emT)?'<em>'+emT+'</em>'+t.slice(emT.length):'<em>'+t+'</em>';
+    while(words.length>1){words.pop();const t=words.join(' ').replace(/[\s,.;:·“]+$/,'')+'…';el.innerHTML=mark(t);if(el.scrollWidth<=el.clientWidth+1)return;}}
+  const fitAll=(root)=>$$('.fit',root).forEach(fit);
+
+  // the switcher: six screens, one variation
+  const NAMES=['Waiting','Deeper','Report','Filed','Capture','Ops'];
+  const sw=$('.switch'),scr=$('#screens'),tally=$('#tally');
+  const setH=()=>document.documentElement.style.setProperty('--switch-h',(sw.offsetHeight-(parseFloat(getComputedStyle(sw).paddingTop)||0)+8)+'px');
+  function renderTally(){const full=tally.dataset.full||'';
+    if(tally.classList.contains('open')){tally.innerHTML=full+' <span class="tm">less</span>';return;}
+    tally.innerHTML=full;if(tally.scrollWidth<=tally.clientWidth+1)return;
+    const tmp=document.createElement('div');tmp.innerHTML=full;const words=tmp.textContent.split(' ');
+    while(words.length>1){words.pop();tally.innerHTML=words.join(' ').replace(/[\s,.;:·]+$/,'')+'… <span class="tm">more</span>';if(tally.scrollWidth<=tally.clientWidth+1)break;}}
+  tally.addEventListener('click',()=>{tally.classList.toggle('open');renderTally();setH();});
+  let s=1;
+  function apply(){
+    const main=document.getElementById('s'+s);
+    $$('main.view').forEach((m)=>{m.hidden=m!==main;});
+    scr.innerHTML=NAMES.map((n,i)=>'<button data-s="'+(i+1)+'" aria-pressed="'+(i+1===s)+'">'+n+'</button>').join('');
+    tally.dataset.full=main.dataset.tally;tally.classList.remove('open');
+    const lit=main.dataset.tab||'inbox';
+    $$('.dock .tab').forEach((t)=>t.classList.toggle('on',t.dataset.tab===lit));
+    $('.novabtn').classList.toggle('held',main.dataset.nova==='held');
+    history.replaceState(null,'','#'+s);
+    try{localStorage.setItem('nova-inbox-60',String(s));}catch(e){}
+    renderTally();setH();
+    $$('.rise',main).forEach((el)=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});
+    requestAnimationFrame(()=>fitAll(main));
+  }
+  const go=(n)=>{n=+n;if(!(n>=1&&n<=6))return;s=n;window.scrollTo(0,0);apply();};
+  scr.addEventListener('click',(e)=>{const b=e.target.closest('[data-s]');if(b)go(b.dataset.s);});
+  document.addEventListener('click',(e)=>{const g=e.target.closest('[data-go]');if(!g||g.closest('.switch'))return;go(g.dataset.go);});
+  function fromHash(){const n=+(location.hash||'').replace('#','');if(n>=1&&n<=6){s=n;return true;}return false;}
+  window.addEventListener('hashchange',()=>{if(fromHash()){window.scrollTo(0,0);apply();}});
+  window.addEventListener('resize',()=>{renderTally();setH();fitAll(document.getElementById('s'+s));});
+  if(!fromHash()){try{const n=+localStorage.getItem('nova-inbox-60');if(n>=1&&n<=6)s=n;}catch(e){}}
+  apply();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{renderTally();setH();fitAll(document.getElementById('s'+s));});
+  // the fold tally, for the reviewer: where the card ends against the receipt and the tab bar
+  window.__fold=()=>{const c=$('#s1 .dcard'),r=$('#s1 .receipt'),t=$('.tabbar');if(!c)return null;
+    return {cardBottom:Math.round(c.getBoundingClientRect().bottom),receiptTop:Math.round(r.getBoundingClientRect().top),receiptBottom:Math.round(r.getBoundingClientRect().bottom),dockTop:Math.round(t.getBoundingClientRect().top),verbsBottom:Math.round($('#s1 .dcard .answer').getBoundingClientRect().bottom)};};
+})();
+</script>
+</body>
+</html>
