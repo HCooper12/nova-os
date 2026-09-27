@@ -556,6 +556,21 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 28 Sep 2026 (afternoon) — TRAIN B MERGED (7aebf77): the summary live
+  session (SessionSummary.jsx, valsSessionSummary.js, sessionSummaryFacts.js,
+  21 tests). One hand, no scroll mid-set (tick at y 549–613 of 874; numerals
+  above the pad at 375 and 778 too); the rest ring (Settings › Train,
+  novaos.restTimer, default 90 s); the voice preview commits on "yes" or a
+  tap; the ⋯ sheet; the Finish sheet's record is "past last time" (the
+  client only holds last session), "confirmed when it files". Departures
+  from 61: the card anchors above the tab bar (an empty band under the
+  rail); the mic panel docks over the bar; ‹ › buttons on the rail beside
+  the swipe; RPE/RIR replace the Coach row in place. Not verified: his
+  phone, real voice. Gates green (2743/2745, the atlas pair). Review page
+  https://claude.ai/artifact/AsrajCuhjnDKNqd9zz6UXE v2 carries six frames.
+  Also: the Train hero's "has earned 0 reps" (seen read-only on his real
+  Push day) → verdictRest with a floor (a327bd3). His one call: the record
+  gauge in the muscle's hue (built) or plain ink.
 - 28 Sep 2026 (midday) — VOICE AUDITED (582ad25, 05-voice.md: NEEDS WORK,
   three bugs) and ROUND 1 PUBLISHED (mockup 62: A the conversation as the
   page · B the stage · C the simplest; six states each). His calls: the

@@ -13,6 +13,21 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**28 SEP (afternoon, nova-os-fc) — TRAIN B ON MAIN (7aebf77), VOICE ROUND 1
+OUT.** After the morning block below: his third answers (the lit hue = his
+panes' glowPanel edge → 1px/30%, d1a6847; Train B go despite scepticism;
+"proceed with the next re designs"). Train B built and merged (the summary
+live session; frames in the review page
+https://claude.ai/artifact/AsrajCuhjnDKNqd9zz6UXE, which also holds
+READ-ONLY REAL frames of Train A, Fuel A, Inbox r2 and Ops). Voice audited
+(05-voice.md: needs work, three bugs) and round 1 published
+(https://claude.ai/artifact/26reomqkoq8RNnQs5CY6jP, mockup 62, A/B/C); his
+calls are in the ledger. The Train hero's "has earned 0 reps" fixed
+(a327bd3). NEXT: his Voice answers → round 2 or build; then Sheets and
+overlays (§6 #6). The read-only recipe for a screen that needs a navigate:
+`--eval "window.__novaApp.navigate('workouts')" --wait 3500` (a bare hash
+landed on Voice). Push: his call.
+
 **28 SEP (00:xx, nova-os-fc, the redesign session, cut off by the usage
 limit) — THE FOUR BUILDS ARE ON MAIN.** Lit material 6b140a2 (the light
 plus a tinted hairline, review page v9 at
