@@ -537,7 +537,7 @@ export function valsChrome(app, ctx) {
     toggleCalm: () => app.setCalmMode(!st.calmMode),
     coreStyle: st.coreStyle,
     novaCoreOptions: NOVA_CORES.map((c) => ({ ...c, active: st.coreStyle === c.value, pick: () => app.setCoreStyle(c.value) })),
-    // Material (glass | solid) is a modifier meaningful only under `summary` —
+    // Material (glass | solid | lit) is a modifier meaningful only under `summary` —
     // null elsewhere so Settings knows not to draw the row at all.
     material: st.material,
     novaMaterialOptions: st.novaStyle === 'summary'

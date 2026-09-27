@@ -6,6 +6,7 @@ import { RepertoireBook } from '../RepertoireBook.jsx';
 import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
 import { LeaderBox } from '../LeaderBox.jsx';
+import { leaderAccent } from '../leaderAccent.js';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
 import { TechniqueCheck } from '../TechniqueCheck.jsx';
 import { RingTile } from '../RingTile.jsx';
@@ -61,6 +62,13 @@ function SumIcon({ name }) {
 // the highlight's rungs (summaryFacts.buildHighlight) → the mark each wears
 const HL_ICON = { protein: 'protein', steps: 'steps', sleep: 'sleep', readiness: 'training', one: 'plan', next: 'today', clear: 'clear' };
 
+// THE LIGHT (27 Sep, his ask: the glow his cupertino Home's panes wear, on
+// Nova glass). Every card sets --nv-sum-tint to the hue its header already
+// wears; index.css draws a bloom and a tinted fill from it ONLY under the
+// `lit` material, so under glass and solid the value is inert. One hue per
+// card, never a second one: the light says the same thing the name does.
+const lit = (hue) => ({ '--nv-sum-tint': hue });
+
 // A card's header: the mark and the name in the card's hue, a quiet meta right.
 function CardHead({ icon, label, tint, meta }) {
   return (
@@ -114,7 +122,7 @@ function Moment({ k, v }) {
       // only while a session on the Mac genuinely has its hand up
       const a = v.macSessionsHeadline;
       return (
-        <Interactive as="section" className="nv-sum-card nv-sum-rise" style={{ '--i': 2 }} onClick={a.go}
+        <Interactive as="section" className="nv-sum-card nv-sum-rise" style={{ '--i': 2, ...lit('var(--nv-gold)') }} onClick={a.go}
           aria-label={`${a.text} Look in Operations`}
           base={{ cursor: 'pointer', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span aria-hidden="true" style={{ flex: 'none', width: 7, height: 7, borderRadius: '50%', background: 'var(--nv-gold)', boxShadow: '0 0 9px var(--nv-gold)', animation: 'novaPulse 2.4s infinite var(--nv-anim)' }} />
@@ -128,7 +136,7 @@ function Moment({ k, v }) {
       const p = v.prMoment;
       const n = p.prs.length;
       return (
-        <section className="nv-sum-card nv-sum-rise" style={MOMENT_PAD} aria-label={n === 1 ? 'A record' : 'Records'}>
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)') }} aria-label={n === 1 ? 'A record' : 'Records'}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div aria-hidden="true" style={{ flex: 'none', width: 58, height: 58, borderRadius: '50%', border: '1.5px dashed color-mix(in srgb, var(--nv-mg) 70%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: `700 22px ${ROUND}`, color: 'var(--nv-ink)', boxShadow: '0 0 30px -8px var(--nv-mg)' }}>{n}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -160,9 +168,10 @@ function Moment({ k, v }) {
       // A PLAN IN FLIGHT: running, or finished while he was away
       const rp = v.runningPlan;
       const ready = rp.state === 'ready';
+      const hue = ready ? 'var(--nv-good)' : 'var(--nv-cy)';
       return (
-        <section className="nv-sum-card nv-sum-rise" style={MOMENT_PAD} aria-label={ready ? 'Ready for you' : 'Working on it'}>
-          <MomentHead label={ready ? 'Ready for you' : 'Working on it'} tint={ready ? 'var(--nv-good)' : 'var(--nv-cy)'}
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit(hue) }} aria-label={ready ? 'Ready for you' : 'Working on it'}>
+          <MomentHead label={ready ? 'Ready for you' : 'Working on it'} tint={hue}
             meta={<Meta tone="faint">{rp.tally} · {rp.since}</Meta>} />
           {/* three lines, then an ellipsis: an amended goal runs to 880 characters */}
           <div style={{ marginTop: '6px', minWidth: 0, font: `italic 400 17px/1.25 ${SERIF}`, color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{rp.goal}</div>
@@ -185,7 +194,7 @@ function Moment({ k, v }) {
       // IT LANDED: today's settled captures, until he has seen them
       const L = v.landedMoment;
       return (
-        <section className="nv-sum-card nv-sum-rise" style={MOMENT_PAD} aria-label="Landed">
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-good)') }} aria-label="Landed">
           <MomentHead label="Landed" tint="var(--nv-good)" meta={<Meta tone="faint">{L.count} today · {L.filed} filed</Meta>} />
           <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {L.items.map((it) => (
@@ -210,7 +219,7 @@ function Moment({ k, v }) {
     case 'lead':
       // the Leader's two faces, his swipe — the box on this card's material
       return (
-        <section className="nv-sum-card nv-sum-rise" style={MOMENT_PAD} aria-label="Lead">
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit(`var(${leaderAccent(v.leaderBox)})`) }} aria-label="Lead">
           <LeaderBox box={v.leaderBox} variant="apple" mob bare />
         </section>
       );
@@ -222,13 +231,13 @@ function Moment({ k, v }) {
       const vt = t.vtName ? { viewTransitionName: t.vtName } : null;
       if (t.reel) {
         return (
-          <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...vt }} aria-label={t.modeLabel}>
+          <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)'), ...vt }} aria-label={t.modeLabel}>
             <TechniqueReveal t={t} variant="apple" mob bare />
           </section>
         );
       }
       return (
-        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...vt }} aria-label={t.modeLabel}>
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)'), ...vt }} aria-label={t.modeLabel}>
           <MomentHead label={t.modeLabel} tint="var(--nv-mg)" meta={(
             <>
               {t.streak > 0 && <Meta tone="faint">{t.streak}-day streak</Meta>}
@@ -250,7 +259,7 @@ function Moment({ k, v }) {
       const w = v.wrapCard;
       if (w.onlyTechnique) {
         return (
-          <section className="nv-sum-card nv-sum-rise" style={MOMENT_PAD} aria-label="Wrap the day">
+          <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)') }} aria-label="Wrap the day">
             <MomentHead label="Wrap the day" tint="var(--nv-mg)" meta={<Meta tone="faint">{w.note}</Meta>} />
             <div style={{ marginTop: '10px' }}><TechniqueCheck q={w.technique} label={false} /></div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
@@ -260,9 +269,10 @@ function Moment({ k, v }) {
         );
       }
       const short = w.floorMet === false;
+      const hue = short ? 'var(--nv-gold)' : 'var(--nv-good)';
       return (
-        <section className="nv-sum-card nv-sum-rise" style={MOMENT_PAD} aria-label="Wrap the day">
-          <MomentHead label="Wrap the day" tint={short ? 'var(--nv-gold)' : 'var(--nv-good)'} meta={<Meta tone={short ? 'gold' : 'good'}>{w.note}</Meta>} />
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit(hue) }} aria-label="Wrap the day">
+          <MomentHead label="Wrap the day" tint={hue} meta={<Meta tone={short ? 'gold' : 'good'}>{w.note}</Meta>} />
           <div style={{ marginTop: '12px', display: 'flex', flexDirection: v.isMobile ? 'column' : 'row', alignItems: v.isMobile ? 'stretch' : 'center', gap: v.isMobile ? '14px' : '20px', minWidth: 0 }}>
             <div style={{ display: 'flex', gap: '18px', flex: 'none' }}>
               {w.rings.map(({ key, ...r }) => <RingTile key={key} {...r} size={58} />)}
@@ -292,7 +302,7 @@ function Highlight({ h }) {
   const tone = `var(--nv-sum-${h.tone || 'c1'})`;
   const pct = h.pct == null ? null : clampPct(h.pct);
   return (
-    <section className="nv-sum-card nv-sum-rise" style={{ '--i': 2, padding: '14px 16px' }} aria-label={h.eyebrow}>
+    <section className="nv-sum-card nv-sum-rise" style={{ '--i': 2, padding: '14px 16px', ...lit(tone) }} aria-label={h.eyebrow}>
       <div className="nv-sum-ch" style={{ color: tone }}>
         <SumIcon name={HL_ICON[h.key] || 'clear'} />
         <span>{h.eyebrow}</span>
@@ -332,6 +342,13 @@ function layoutCards(cards) {
   flush();
   return out;
 }
+
+// Each Pinned card's hue, in one table: its header wears it and its light
+// (lit, above) is it, so the two can never disagree. Body and Today keep ink
+// headers — their rings and strip carry the colour — and are lit in Nova's
+// own cyan.
+const CARD_HUE = { plan: 'var(--nv-sum-c5)', waiting: 'var(--nv-sum-c4)', training: 'var(--nv-sum-c3)', practice: 'var(--nv-or)', trends: 'var(--nv-sum-c2)' };
+const CARD_LIGHT = { ...CARD_HUE, body: 'var(--nv-cy)', today: 'var(--nv-cy)' };
 
 // BODY — the ring hero. Protein, steps and sleep nested, each in its own hue
 // by position (c1 · c2 · c3); a ring with no reading is dashed, never a zero.
@@ -515,7 +532,7 @@ function PlanCard({ card, cls, style }) {
   );
   return (
     <section className={`${cls} nv-sum-tile`} style={style} aria-label="The plan">
-      <CardHead icon="plan" label="The plan" tint="var(--nv-sum-c5)" />
+      <CardHead icon="plan" label="The plan" tint={CARD_HUE.plan} />
       {card.kind === 'state'
         ? <Interactive as="div" onClick={card.openInbox} aria-label={`Open the Inbox: ${card.text}`} base={{ cursor: 'pointer', minWidth: 0, borderRadius: '10px' }}>{body}</Interactive>
         : body}
@@ -552,7 +569,7 @@ function WaitingCard({ card, cls, style }) {
   return (
     <Interactive as="section" className={`${cls} nv-sum-tile`} style={style} onClick={card.open}
       aria-label={`Waiting: ${card.count} for your call. Open the Inbox`} base={{ cursor: 'pointer' }}>
-      <CardHead icon="waiting" label="Waiting" tint="var(--nv-sum-c4)" />
+      <CardHead icon="waiting" label="Waiting" tint={CARD_HUE.waiting} />
       <div className="nv-sum-big">{card.count}</div>
       <div className="nv-sum-sub">{card.sub}</div>
     </Interactive>
@@ -565,7 +582,7 @@ function TrainingCard({ card, cls, style }) {
   return (
     <Interactive as="section" className={`${cls} nv-sum-tile`} style={style} onClick={card.open}
       aria-label={rec ? `Training: ${rec.line}, ${rec.fig}. Open Train` : `Training: ${card.title}. Open Train`} base={{ cursor: 'pointer' }}>
-      <CardHead icon="training" label="Training" tint="var(--nv-sum-c3)" meta={card.meta || null} />
+      <CardHead icon="training" label="Training" tint={CARD_HUE.training} meta={card.meta || null} />
       <div style={{ marginTop: 'auto', paddingTop: '10px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '12px', alignItems: 'center' }}>
         {rec ? (
           <>
@@ -597,7 +614,7 @@ function PracticeTile({ card, cls, style }) {
     <section className={`${cls} nv-sum-tile`} style={style} aria-label="Practice">
       <Interactive as="div" onClick={card.open} aria-label={`Open ${card.title || 'Practice'}`}
         base={{ cursor: 'pointer', flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRadius: '12px' }}>
-        <CardHead icon="practice" label="Practice" tint="var(--nv-or)" meta={card.meta ? <Meta tone="faint">{card.meta}</Meta> : null} />
+        <CardHead icon="practice" label="Practice" tint={CARD_HUE.practice} meta={card.meta ? <Meta tone="faint">{card.meta}</Meta> : null} />
         {card.title ? (
           <>
             {card.lamps.length > 0 && <LampRow lamps={card.lamps} size={14} gap={7} style={{ marginTop: 'auto', paddingTop: '12px' }} />}
@@ -633,7 +650,7 @@ const ARROW_WORD = { up: 'rising', dn: 'falling', flat: 'level', none: 'no readi
 function TrendsCard({ card, cls, style }) {
   return (
     <section className={`${cls} nv-sum-tile`} style={style} aria-label="Trends">
-      <CardHead icon="trends" label="Trends" tint="var(--nv-sum-c2)" meta={card.demo ? <Meta tone="gold">demo</Meta> : null} />
+      <CardHead icon="trends" label="Trends" tint={CARD_HUE.trends} meta={card.demo ? <Meta tone="gold">demo</Meta> : null} />
       <ul className="nv-sum-trend">
         {card.rows.map((r) => {
           const said = `${r.label}: ${ARROW_WORD[r.dir] || ''}, ${r.value}`;
@@ -659,7 +676,7 @@ function TrendsCard({ card, cls, style }) {
 
 function PinnedCard({ card, i }) {
   const cls = `nv-sum-card nv-sum-rise${card.span ? ' nv-sum-wide' : ''}`;
-  const style = { '--i': i + 3 };
+  const style = { '--i': i + 3, ...lit(CARD_LIGHT[card.key]) };
   switch (card.key) {
     case 'body': return <BodyCard card={card} cls={cls} style={style} />;
     case 'today': return <TodayCard card={card} cls={cls} style={style} />;

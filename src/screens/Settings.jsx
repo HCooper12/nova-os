@@ -257,7 +257,7 @@ export function Settings({ v }) {
 
         {v.novaMaterialOptions && (
           <>
-            <Eyebrow style={{ marginTop: '14px' }}>Material · glass over the sky, or solid</Eyebrow>
+            <Eyebrow style={{ marginTop: '14px' }}>Material · glass over the sky, lit, or solid</Eyebrow>
             {v.novaMaterialOptions.map((m) => (
               <Interactive
                 key={m.value}
@@ -270,10 +270,14 @@ export function Settings({ v }) {
                 }}
                 hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
               >
-                {/* material swatch: translucent glass square · the flat solid fill */}
+                {/* material swatch: translucent glass square · the same glass with a
+                    soft bloom of light in the house cyan · the flat solid fill */}
                 <span style={{ flex: 'none', width: '16px', height: '16px', borderRadius: '6px',
-                  border: m.value === 'glass' ? '1px solid rgba(255,255,255,.35)' : 'none',
-                  background: m.value === 'glass' ? 'rgba(255,255,255,.18)' : 'rgba(255,255,255,.08)' }}></span>
+                  border: m.value === 'solid' ? 'none' : '1px solid rgba(255,255,255,.35)',
+                  background: m.value === 'solid' ? 'rgba(255,255,255,.08)'
+                    : m.value === 'lit' ? 'linear-gradient(160deg, color-mix(in srgb, var(--nv-cy) 22%, transparent), rgba(255,255,255,.18))'
+                    : 'rgba(255,255,255,.18)',
+                  boxShadow: m.value === 'lit' ? '0 0 12px -2px color-mix(in srgb, var(--nv-cy) 70%, transparent)' : 'none' }}></span>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: m.active ? 'var(--nv-acc)' : 'var(--nv-ink)' }}>{m.label}</span>
                   <span style={{ display: 'block', marginTop: '2px', fontSize: '11.5px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{m.hint}</span>

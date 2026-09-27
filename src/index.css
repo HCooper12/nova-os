@@ -753,8 +753,10 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    showed the grey page through itself: the cards went dull, the first thing
    his eye caught against mockup 55 ("light doesn't have the same feel").
    Near-opaque white keeps 55's crisp card; the blur stays for whatever
-   scrolls beneath the bar. */
-:root[data-nv-style="summary"][data-nv-theme="daylight"][data-nv-material="glass"] {
+   scrolls beneath the bar. `lit` is glass with light on it (the lit card,
+   below), so it takes the glass twin too. */
+:root[data-nv-style="summary"][data-nv-theme="daylight"][data-nv-material="glass"],
+:root[data-nv-style="summary"][data-nv-theme="daylight"][data-nv-material="lit"] {
   --nv-sum-card:rgba(255,255,255,.94); --nv-sum-blur:22px;
 }
 
@@ -1025,6 +1027,43 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   }
   .nv-sum-card::after, .nv-sum-tabbar::after, .nv-sum-nova::after, .nv-sum-search::after {
     background: none; border: 1px solid var(--nv-sum-sep); padding: 0; -webkit-mask: none; mask: none;
+  }
+}
+
+/* THE LIT CARD (27 Sep, his ask: "an option with the glow effects with the
+   nova glass that my current screen has"). Material `lit` IS Nova glass:
+   no token block names it except the daylight twin above, so every
+   --nv-sum-* value is glass's and the two cannot drift. On top of it, each
+   card wears the house lit panel (src/glowPanel.js, .nv-glow): a fill that
+   fades the card's hue into its glass, and a soft bloom behind it in the
+   same hue. The hue arrives inline as --nv-sum-tint, set by
+   MissionSummary.jsx from the colour each header already wears; the
+   default here is only a fallback.
+   HIG, "Liquid Glass color": colour sparingly on glass, only where it
+   earns emphasis. So the chrome (the bar, Nova, the search, the Edit
+   sheet) and the Index's you card and group lists stay plain glass.
+   The bloom is a custom property declared ON the card, not a :root token:
+   a token holding var(--nv-sum-tint) would resolve at :root, where no
+   card's hue exists. The shadow list is the card's own, restated whole
+   with the bloom last. */
+.nv-sum-card { --nv-sum-tint: var(--nv-sum-c3); }
+:root[data-nv-style="summary"][data-nv-material="lit"] .nv-sum-card:not(.nv-sum-you, .nv-sum-glist) {
+  --nv-sum-bloom: 0 0 60px -22px color-mix(in srgb, var(--nv-sum-tint) 70%, transparent);
+  background: var(--nv-sum-sheen), linear-gradient(160deg, color-mix(in srgb, var(--nv-sum-tint) 9%, transparent), var(--nv-sum-card));
+  /* the hairline in the hue too: his cupertino panes wear a 1px edge at 30%
+     of their accent (glowPanel's `edge`), and without it the light reads as
+     a shadow rather than a lit pane. .5px, since the card's own ring is */
+  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 .5px color-mix(in srgb, var(--nv-sum-tint) 34%, var(--nv-sum-card-ring)), var(--nv-sum-card-drop), var(--nv-sum-bloom);
+}
+/* Calm drops the bloom and keeps the tint and the depth, as .nv-glow does.
+   Zero-size, not `none`: it sits in a comma-separated list. */
+:root[data-nv-style="summary"][data-nv-material="lit"][data-nv-calm="1"] .nv-sum-card { --nv-sum-bloom: 0 0 0 0 rgba(0,0,0,0); }
+/* less transparency asked for: the lit card goes to the same opaque card
+   as the glass one (the guard above), with no light on it */
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-nv-style="summary"][data-nv-material="lit"] .nv-sum-card:not(.nv-sum-you, .nv-sum-glist) {
+    --nv-sum-bloom: 0 0 0 0 rgba(0,0,0,0);
+    background: color-mix(in srgb, var(--nv-void) 88%, white);
   }
 }
 

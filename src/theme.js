@@ -80,11 +80,14 @@ export function getCalm() {
 
 // The material is a modifier meaningful only under the `summary` style: glass
 // = translucent cards over the theme's sky; solid = the theme's pane fill, no
-// sky. Same shape as every other appearance getter — try/catch around
-// localStorage, default when absent or foreign.
+// sky; lit = the same glass, each card lit in its own hue (his ask, 27 Sep:
+// the glow his cupertino Home's panes wear, on Nova glass). Same shape as
+// every other appearance getter — try/catch around localStorage, default
+// when absent or foreign.
 export const NOVA_MATERIALS = [
   { value: 'glass', label: 'Glass', hint: 'translucent cards over the sky' },
   { value: 'solid', label: 'Solid', hint: 'the pane fill, no sky' },
+  { value: 'lit', label: 'Lit', hint: 'glass, each card lit in its own hue' },
 ];
 
 export function getMaterial() {

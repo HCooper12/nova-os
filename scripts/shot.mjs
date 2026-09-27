@@ -32,7 +32,7 @@
 // --port (dev server, when --url is omitted) --nomobile
 // --demo --readonly
 // --style <command|apple|cupertino|summary> --theme <command|observatory|
-// ember|daylight|sky> --material <glass|solid> --hour <dawn|day|dusk|night|
+// ember|daylight|sky> --material <glass|solid|lit> --hour <dawn|day|dusk|night|
 // HH:MM> — stamp the app's look/clock before its own scripts run, the same
 // addScriptToEvaluateOnNewDocument mechanism the seed already uses.
 //
@@ -70,7 +70,7 @@ const hourArg = opt('hour', null);
 
 const STYLE_VALUES = ['command', 'apple', 'cupertino', 'summary'];
 const THEME_VALUES = ['command', 'observatory', 'ember', 'daylight', 'sky'];
-const MATERIAL_VALUES = ['glass', 'solid'];
+const MATERIAL_VALUES = ['glass', 'solid', 'lit'];
 const HOUR_BANDS = { dawn: [6, 30], day: [12, 0], dusk: [18, 30], night: [22, 30] };
 
 function fail(msg) { console.error(`shot: ${msg}`); process.exit(1); }

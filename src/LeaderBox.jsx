@@ -2,6 +2,7 @@ import { useOptionPager } from './swipeAction.js';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { glowPanel } from './glowPanel.js';
+import { leaderAccent } from './leaderAccent.js';
 import { useDictation } from './useDictation.js';
 import { Chip } from './Controls.jsx';
 
@@ -30,9 +31,8 @@ const M = 'var(--nv-font-mono)';
 const UI = 'var(--nv-font-ui)';
 const S = 'var(--nv-font-serif)';
 
-// The situation face earns a colour of its own: it is not the day's idea, and
-// a stale one is a question outstanding rather than a warning.
-const ACCENT = { lead: '--nv-gold', situation: '--nv-vi' };
+// The face's hue (gold for the lead, violet for the situation) lives in
+// src/leaderAccent.js, which the summary Home's lit card reads too.
 
 function Dots({ box }) {
   if (box.count < 2) return null;
@@ -46,7 +46,7 @@ function Dots({ box }) {
           aria-label={`Show ${f.label}`}
           base={{
             cursor: 'pointer', width: i === box.index ? '18px' : '6px', height: '6px', borderRadius: '999px',
-            background: i === box.index ? `var(${ACCENT[box.face.key] || '--nv-cy'})` : 'color-mix(in srgb, var(--nv-ink) 22%, transparent)',
+            background: i === box.index ? `var(${leaderAccent(box)})` : 'color-mix(in srgb, var(--nv-ink) 22%, transparent)',
             transition: 'width var(--nv-dur-fast) var(--nv-ease), background var(--nv-dur-fast) var(--nv-ease)',
           }}
           hoverStyle={{ background: 'var(--nv-ink60)' }}
@@ -65,7 +65,7 @@ export function LeaderBox({ box, variant = 'apple', mob = false, bare = false })
   if (!box) return null;
 
   const face = box.face;
-  const accent = ACCENT[face.key] || '--nv-cy';
+  const accent = leaderAccent(box);
   const apple = variant === 'apple';
 
   const head = (
