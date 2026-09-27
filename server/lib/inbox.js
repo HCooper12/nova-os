@@ -470,8 +470,29 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     const { loadRoutines, updateRoutine, updateRoutines } = await import('./workouts.js');
     let { exercises } = await loadExerciseLibrary(vaultPath);
     const { routines } = await loadRoutines(vaultPath, exercises);
-    const routine = routines.find((r) => r.id === payload.routineId);
-    if (!routine) throw new Error(`routine "${payload.routineName}" no longer exists`);
+    const { NEW_ROUTINE_PREFIX } = await import('./coach.js');
+    const sameName = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    // A NEW ROUTINE (27 Sep): Coach's `create`. Empty; the cards after it fill
+    // it. Undo deletes it only while it is still empty.
+    if (payload.action === 'create') {
+      if (routines.some((r) => sameName(r.name, payload.routineName))) throw new Error(`a routine called "${payload.routineName}" already exists`);
+      const { createRoutine } = await import('./workouts.js');
+      const made = await createRoutine(vaultPath, exercises, String(payload.routineName).trim(), []);
+      return {
+        destination: `Train — created a new routine, ${made.name}`,
+        undo: { route, action: 'create', routineId: made.id, routineName: made.name },
+      };
+    }
+    // a card aimed at a routine created in the same reply carries a
+    // placeholder id; the routine is found by its name once it exists
+    const resolve = (id, name) => routines.find((r) => r.id === id)
+      || (String(id || '').startsWith(NEW_ROUTINE_PREFIX) ? routines.find((r) => sameName(r.name, name)) : null);
+    const routine = resolve(payload.routineId, payload.routineName);
+    if (!routine) {
+      throw new Error(String(payload.routineId || '').startsWith(NEW_ROUTINE_PREFIX)
+        ? `${payload.routineName} hasn't been created yet — say yes to the card that creates it first`
+        : `routine "${payload.routineName}" no longer exists`);
+    }
     const entriesOf = (r) => r.exercises.map((e) => ({
       exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
     }));
@@ -501,7 +522,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     // ONE CARD, TWO ROUTINES, ONE WRITE (see updateRoutines). Undo carries
     // both prior lists.
     if (payload.action === 'move') {
-      const from = routines.find((r) => r.id === payload.fromRoutineId);
+      const from = resolve(payload.fromRoutineId, payload.fromRoutineName);
       if (!from) throw new Error(`routine "${payload.fromRoutineName}" no longer exists`);
       const fromPrior = entriesOf(from);
       const moving = fromPrior.find((e) => e.exerciseId === payload.removeExerciseId);
@@ -592,7 +613,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     const { exercises } = await loadExerciseLibrary(vaultPath);
     const { schedule } = await loadRoutines(vaultPath, exercises);
     const priorId = schedule?.[payload.day] || null;
-    await setScheduleDay(vaultPath, exercises, payload.day, payload.routineId || null);
+    // a day given to a routine created in the same reply: find it by name
+    let dayRoutineId = payload.routineId || null;
+    const { NEW_ROUTINE_PREFIX: NEW_PREFIX } = await import('./coach.js');
+    if (String(dayRoutineId || '').startsWith(NEW_PREFIX)) {
+      const { routines: now } = await loadRoutines(vaultPath, exercises);
+      const r = now.find((x) => x.name.trim().toLowerCase() === String(payload.routineName || '').trim().toLowerCase());
+      if (!r) throw new Error(`${payload.routineName} hasn't been created yet — say yes to the card that creates it first`);
+      dayRoutineId = r.id;
+    }
+    await setScheduleDay(vaultPath, exercises, payload.day, dayRoutineId);
     const Day = payload.day.charAt(0).toUpperCase() + payload.day.slice(1);
     return {
       destination: `Train schedule — ${Day} is now ${payload.routineName}`,
@@ -1136,6 +1166,16 @@ export async function undoFiling(vaultPath, undo) {
     const { loadExerciseLibrary } = await import('./exercises.js');
     const { updateRoutine, updateRoutines } = await import('./workouts.js');
     const { exercises } = await loadExerciseLibrary(vaultPath);
+    if (undo.action === 'create') {
+      const { loadRoutines, deleteRoutine } = await import('./workouts.js');
+      const { routines } = await loadRoutines(vaultPath, exercises);
+      const r = routines.find((x) => x.id === undo.routineId);
+      if (!r) return `${undo.routineName} was already gone`;
+      // never take his exercises with it: undo what filled it first
+      if (r.exercises.length) throw new Error(`${undo.routineName} has ${r.exercises.length} exercise${r.exercises.length === 1 ? '' : 's'} in it now — undo the changes that filled it first`);
+      await deleteRoutine(vaultPath, exercises, undo.routineId);
+      return `removed the new routine ${undo.routineName}`;
+    }
     const clear = async () => {
       if (!undo.markerKeys?.length) return;
       const { clearMarkers } = await import('./coachPlan.js');

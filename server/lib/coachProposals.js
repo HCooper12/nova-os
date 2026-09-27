@@ -26,7 +26,7 @@
 // instructed change on his standing grant (getCoachEditConfig), through the
 // same approve path his tap takes, with its undo.
 
-import { parseCoachProposals, validateCoachEdit, createCoachEditRecord, getCoachEditConfig, routeForAction, proposalKey, hisWordsOf } from './coach.js';
+import { parseCoachProposals, validateCoachEdit, createCoachEditRecord, getCoachEditConfig, routeForAction, proposalKey, hisWordsOf, normaliseProposal } from './coach.js';
 import { COACH_ROUTES } from '../../src/coachSuggestions.js';
 
 // One repair round. A Coach that cannot fix a card with the reason in front
@@ -54,20 +54,45 @@ export function parseWithdraw(text) {
 }
 
 // Every PROPOSE line in a reply, checked and nothing filed.
-export async function checkProposals(vaultPath, text, { validate = validateCoachEdit, asked = null } = {}) {
+// A NEW ROUTINE COMES FIRST (27 Sep 2026). `create` lines are checked before
+// anything else, and every other line is then checked against the program as
+// it will be — the new routines included, empty, under their placeholder ids.
+// `planned` carries routines created in an EARLIER round of the same reply, so
+// a corrected line can still aim at them. Creates are filed first, so an
+// instructed build applies them before the moves that fill them.
+const isCreate = (p) => String(normaliseProposal(p)?.action || '') === 'create';
+export async function checkProposals(vaultPath, text, { validate = validateCoachEdit, asked = null, planned = [] } = {}) {
   const { cleanText, proposals, badLines } = parseCoachProposals(text);
   const ok = [];
   const refused = [];
-  for (const proposal of proposals) {
+  const plan = [...planned];
+  const ordered = [...proposals.filter(isCreate), ...proposals.filter((p) => !isCreate(p))];
+  for (const proposal of ordered) {
     try {
-      const v = await validate(vaultPath, proposal, { asked });
+      const v = await validate(vaultPath, proposal, { asked, planned: plan });
       ok.push({ proposal, payload: v.payload, title: v.title, route: routeForAction(v.payload.action) });
+      if (v.payload.action === 'create') plan.push({ id: v.payload.routineId, name: v.payload.routineName, exercises: [] });
+      // what earlier lines put INTO a new routine is in it for the lines after
+      // — Coach writes "after the incline curl" about a curl it just moved there
+      const into = plan.find((r) => r.id === v.payload.routineId);
+      if (into && (v.payload.action === 'move' || v.payload.action === 'add')) {
+        const entry = {
+          exerciseId: v.payload.addExerciseId || v.payload.removeExerciseId || null,
+          name: v.payload.addName || v.payload.removeName,
+          muscleGroup: v.payload.muscleGroup || null,
+          targetSets: v.payload.targetSets || 3,
+          targetRepsLow: v.payload.targetRepsLow || null,
+          targetRepsHigh: v.payload.targetRepsHigh || null,
+        };
+        const at = Number.isInteger(v.payload.position) ? Math.min(Math.max(0, v.payload.position - 1), into.exercises.length) : into.exercises.length;
+        into.exercises.splice(at, 0, entry);
+      }
     } catch (e) {
       refused.push({ proposal, line: `PROPOSE ${JSON.stringify(proposal)}`, reason: e.message, kind: e.kind || 'format' });
     }
   }
   for (const b of badLines || []) refused.push({ proposal: null, line: b.line, reason: `the line is ${b.why}`, kind: 'format' });
-  return { cleanText, ok, refused };
+  return { cleanText, ok, refused, planned: plan };
 }
 
 // A REMOVE AND AN ADD OF ONE EXERCISE ARE A MOVE, whatever the model wrote.
@@ -75,7 +100,7 @@ export async function checkProposals(vaultPath, text, { validate = validateCoach
 // cards he can half-approve (his rope extension, 25 Sep). The pair becomes
 // one move card, placed and prescribed as the add said. It applies on his
 // word only if BOTH halves were his instruction.
-export async function pairMoves(vaultPath, ok, { validate = validateCoachEdit, asked = null } = {}) {
+export async function pairMoves(vaultPath, ok, { validate = validateCoachEdit, asked = null, planned = [] } = {}) {
   const out = [...ok];
   for (const rem of ok.filter((c) => c.payload?.action === 'remove')) {
     const add = out.find((c) => c.payload?.action === 'add' && c.payload.routineId !== rem.payload.routineId && c.payload.addExerciseId && c.payload.addExerciseId === rem.payload.removeExerciseId);
@@ -90,7 +115,7 @@ export async function pairMoves(vaultPath, ok, { validate = validateCoachEdit, a
       ...(rem.proposal?.instructed === true && add.proposal?.instructed === true ? { instructed: true } : {}),
     };
     try {
-      const v = await validate(vaultPath, raw, { asked });
+      const v = await validate(vaultPath, raw, { asked, planned });
       out.splice(out.indexOf(rem), 1, { proposal: raw, payload: v.payload, title: v.title, route: routeForAction('move') });
       out.splice(out.indexOf(add), 1);
     } catch { /* a move that cannot stand leaves both halves as they were checked */ }
@@ -123,6 +148,7 @@ function doneSentence(f) {
   const sets = p.targetSets && reps ? `, ${p.targetSets} sets of ${reps}` : p.targetSets ? `, ${p.targetSets} sets` : '';
   const where = p.afterName ? `, straight after ${p.afterName}` : p.position === 1 ? ', first in the order' : '';
   if (f.route === 'routine-edit') {
+    if (p.action === 'create') return `${p.routineName} is a new routine in your program`;
     if (p.action === 'move') return `${p.removeName} is on ${p.routineName} now${where}${sets}, and off ${p.fromRoutineName}`;
     if (p.action === 'add') return `${p.addName} is on ${p.routineName} now${where}${sets}`;
     if (p.action === 'remove') return `${p.removeName} is off ${p.routineName}`;
@@ -160,6 +186,7 @@ export function receiptLines({ filed = [], refused = [], withdrawn = [] } = {}) 
 function describe(p) {
   const a = String(p.action || '').toLowerCase();
   const name = p.exercise || p.add || p.remove || p.name || '';
+  if (a === 'create') return `create the routine ${p.routine || p.name || '?'}`;
   if (a === 'move') return `move ${name} from ${p.from || p.routine || '?'} to ${p.to || '?'}`;
   if (a === 'add') return `add ${name}${p.routine ? ` to ${p.routine}` : ''}`;
   if (a === 'remove') return `remove ${name}${p.routine ? ` from ${p.routine}` : ''}`;
@@ -238,6 +265,7 @@ export async function settleCoachChanges(vaultPath, { question, replyText, resum
   let text = first.cleanText;
   let ok = first.ok;
   let refused = first.refused;
+  let planned = first.planned || [];
   let rounds = 0;
   while (refused.length && rounds < MAX_REPAIR_ROUNDS && resume) {
     rounds += 1;
@@ -247,17 +275,21 @@ export async function settleCoachChanges(vaultPath, { question, replyText, resum
     if (reply == null) break;
     const w = parseWithdraw(reply);
     ids = [...new Set([...ids, ...w.ids])];
-    const again = await checkProposals(vaultPath, w.cleanText, { validate, asked: hisWords });
+    const again = await checkProposals(vaultPath, w.cleanText, { validate, asked: hisWords, planned: rewrite ? [] : planned });
     if (rewrite) {
       // the rewrite is the whole answer and carries every change it wants
       if (again.cleanText) text = again.cleanText;
       ok = again.ok;
+      planned = again.planned || [];
     } else {
-      ok = [...ok, ...again.ok];
+      // a correction round's creates still go ahead of everything that needs them
+      const creates = again.ok.filter((c) => c.payload?.action === 'create');
+      ok = [...creates, ...ok, ...again.ok.filter((c) => c.payload?.action !== 'create')];
+      planned = again.planned || planned;
     }
     refused = again.refused;
   }
-  ok = await pairMoves(vaultPath, ok, { validate, asked: hisWords });
+  ok = await pairMoves(vaultPath, ok, { validate, asked: hisWords, planned });
   // withdraw BEFORE filing, so a card taken back and re-proposed in the same
   // reply becomes a fresh card, not the withdrawn one
   const withdrawn = ids.length ? await withdrawCards(ids, { store: deps.store }) : [];

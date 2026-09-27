@@ -75,6 +75,10 @@ function exerciseOf(routine, exerciseId, name) {
 // "diff" the card draws, and the session's set total before and after.
 function routineChange(p, routines) {
   const routine = routines.find((r) => r.id === p.routineId) || routines.find((r) => ci(r.name) === ci(p.routineName));
+  // A NEW ROUTINE (27 Sep): nothing in it yet — the cards after it fill it
+  if (p.action === 'create') {
+    return { headline: `New routine: ${p.routineName}`, diff: { type: 'create', name: p.routineName }, routine: routine || null, setsBefore: 0, setsAfter: 0 };
+  }
   const target = exerciseOf(routine, p.removeExerciseId, p.removeName);
   const before = setsOf(routine);
   const pill = (e, fallbackName, group) => ({ name: e?.name || fallbackName, muscle: e?.muscleGroup || group || null });
@@ -241,7 +245,11 @@ export function toHim(text) {
 export function staleReason(p, routines) {
   const find = (id, name) => routines.find((r) => r.id === id) || routines.find((r) => ci(r.name) === ci(name));
   const has = (routine, exerciseId, name) => !!exerciseOf(routine, exerciseId, name);
+  // a new routine (27 Sep): its card is stale once one of that name exists
+  if (p.action === 'create') return routines.some((r) => ci(r.name) === ci(p.routineName)) ? `You already have ${p.routineName}` : null;
   const routine = find(p.routineId, p.routineName);
+  // aimed at a routine another card creates: wait for that yes, don't call it gone
+  if (!routine && String(p.routineId || '').startsWith('new:')) return `Needs ${p.routineName} created first — say yes to that card`;
   if (!routine) return `${p.routineName || 'That routine'} is no longer in your program`;
   if (p.action === 'move') {
     const from = find(p.fromRoutineId, p.fromRoutineName);

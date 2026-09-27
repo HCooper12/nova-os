@@ -191,3 +191,72 @@ test('Coach\'s own outcome ledger calls a withdrawn card what it is, never "pend
   const ctx = await adviceContext();
   assert.match(ctx, /add Face Pull to Pull → you took it back before he answered/);
 });
+
+// 27 SEP — HIS 5-DAY REBUILD. "I want you to just add the extra workout and
+// create it all." Coach sent sixteen lines; seven aimed at an "Arms and
+// Delts" day that did not exist, every one was refused, the valid nine
+// applied, and he was left with a longer Upper Body and a four-day week.
+// A `create` line now plans the routine and the rest of the reply can build
+// on it — in whatever order Coach wrote the lines.
+test('THE 27 SEP REPORT: create a routine, fill it and schedule it, all in one instructed reply', async () => {
+  assert.ok((await order(upper.id)).includes('Cable Lateral Raise (behind back, wrist height)'), 'fixture: the raise starts on Upper Body');
+  const settled = await settleCoachChanges(vault, {
+    question: 'I want you to just add the extra workout and create it all',
+    replyText: [
+      'Building it now.',
+      // the create is written LAST on purpose: code must put it first
+      P({ action: 'move', exercise: 'Cable Lateral Raise (behind back, wrist height)', from: 'Upper Body', to: 'Arms and Delts', position: 'first', instructed: true, reason: 'arms day opens with delts' }),
+      P({ action: 'add', routine: 'Arms and Delts', add: 'Rear Delt Fly', targetSets: 3, targetRepsLow: 12, targetRepsHigh: 15, after: 'Cable Lateral Raise (behind back, wrist height)', instructed: true, reason: 'rear delts' }),
+      P({ action: 'schedule', day: 'saturday', routine: 'Arms and Delts', instructed: true, reason: 'the fifth day' }),
+      P({ action: 'create', routine: 'Arms and Delts', instructed: true, reason: 'his new arms day' }),
+    ].join('\n'),
+  });
+  assert.deepEqual(settled.refused, [], 'nothing refused for a routine that does not exist yet');
+  assert.deepEqual(settled.filed.map((f) => f.status), ['done', 'done', 'done', 'done'], settled.filed.map((f) => f.error).join(' | '));
+  assert.equal(settled.filed[0].payload.action, 'create', 'the routine is made before anything needs it');
+  const { routines, schedule } = await loadRoutines(vault, await lib());
+  const arms = routines.find((r) => r.name === 'Arms and Delts');
+  assert.ok(arms, 'the routine exists');
+  assert.deepEqual(arms.exercises.map((x) => x.name), ['Cable Lateral Raise (behind back, wrist height)', 'Rear Delt Fly']);
+  assert.equal(schedule.saturday, arms.id, 'Saturday is the new day, by its real id');
+  assert.ok(!(await order(upper.id)).includes('Cable Lateral Raise (behind back, wrist height)'), 'and it left Upper Body');
+  assert.match(settled.text, /Done: Arms and Delts is a new routine in your program/);
+  assert.doesNotMatch(settled.text, /new:/, 'the placeholder id never reaches him');
+
+  // undo never takes his exercises with it
+  const { undoRecord } = await import('../lib/inbox.js');
+  await assert.rejects(() => undoRecord(vault, settled.filed[0].recordId), /has 2 exercises in it now — undo the changes that filled it first/);
+});
+
+test('a create that clashes with a routine he already has is refused, and nothing aims at a twin', async () => {
+  const settled = await settleCoachChanges(vault, {
+    question: 'q',
+    replyText: `Making it.\n${P({ action: 'create', routine: 'push', reason: 'x' })}`,
+  });
+  assert.equal(settled.filed.length, 0);
+  assert.match(settled.refused[0].reason, /already has a routine called "Push"/);
+});
+
+test('waiting cards: one aimed at a routine not yet created waits for that yes instead of reading as gone', async () => {
+  const { staleReason } = await import('../../src/coachSuggestions.js');
+  const settled = await settleCoachChanges(vault, {
+    question: 'what would a core day look like?',
+    replyText: [
+      'Here is a core day for your yes.',
+      P({ action: 'create', routine: 'Core Day', reason: 'a short core session' }),
+      P({ action: 'add', routine: 'Core Day', add: 'Face Pull', targetSets: 2, reason: 'posture' }),
+    ].join('\n'),
+  });
+  assert.equal(settled.filed.length, 2);
+  assert.ok(settled.filed.every((f) => !f.status), 'his own suggestion waits for his yes');
+  const add = settled.filed.find((f) => f.payload.action === 'add');
+  const { routines } = await loadRoutines(vault, await lib());
+  assert.match(staleReason(add.payload, routines), /Needs Core Day created first/);
+  assert.equal(staleReason(settled.filed[0].payload, routines), null, 'the create card itself is live');
+  const { approveRecord } = await import('../lib/inbox.js');
+  await assert.rejects(() => approveRecord(vault, add.recordId), /Core Day hasn't been created yet — say yes to the card that creates it first/);
+  await approveRecord(vault, settled.filed[0].recordId);
+  await approveRecord(vault, add.recordId);
+  const core = (await loadRoutines(vault, await lib())).routines.find((r) => r.name === 'Core Day');
+  assert.deepEqual(core.exercises.map((x) => x.name), ['Face Pull']);
+});

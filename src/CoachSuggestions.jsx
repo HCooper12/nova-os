@@ -174,6 +174,14 @@ function Dots({ before, after, hue }) {
 function ChangeStrip({ c }) {
   const x = c.diff || {};
   const row = (children) => <div style={css('margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0')}>{children}</div>;
+  // A NEW ROUTINE (27 Sep): a dashed chip, the house mark for something new;
+  // it is empty until the cards after it fill it
+  if (x.type === 'create') {
+    return row(<>
+      <span className="nv-sug-arrive" style={css('display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1.5px dashed var(--nv-gold);color:var(--nv-ink);font-weight:600;font-size:13px;white-space:nowrap')}>＋ {x.name}</span>
+      <span style={css('color:var(--nv-ink60);font-size:12px')}>empty until the changes below fill it</span>
+    </>);
+  }
   // the count never wraps — a long exercise name gives way first
   if (x.type === 'remove') return row(<Pill ex={x.exercise} gone>{x.sets ? <span style={css('flex:none;white-space:nowrap;color:var(--nv-ink60);font-weight:500')}>−{x.sets} sets</span> : null}</Pill>);
   if (x.type === 'add') {

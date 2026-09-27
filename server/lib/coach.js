@@ -790,7 +790,7 @@ export function parseCoachProposals(text) {
   return { cleanText: cleanText.replace(/\n{3,}/g, '\n\n').trim(), proposals, parseErrors, badLines };
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'reorder', 'schedule', 'move'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'reorder', 'schedule', 'move', 'create'];
 
 // THE FIELDS COACH ACTUALLY WRITES (25 Sep 2026). Between 11:01 and 11:26 that
 // morning six of his twelve PROPOSE lines were refused and never became cards:
@@ -801,7 +801,7 @@ const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goa
 // the field it reached for is accepted, the same stance the glass takes
 // (src/visualBeats.js normaliseSpec). Nothing is guessed: a name still has to
 // match his library or routine exactly, or loosely and uniquely.
-const ACTION_ALIASES = { drop: 'remove', delete: 'remove', retarget: 'targets', relocate: 'move', insert: 'add', replace: 'swap' };
+const ACTION_ALIASES = { drop: 'remove', delete: 'remove', retarget: 'targets', relocate: 'move', insert: 'add', replace: 'swap', 'new-routine': 'create', 'create-routine': 'create', 'add-routine': 'create', 'new routine': 'create' };
 export function normaliseProposal(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
   const p = { ...raw };
@@ -815,6 +815,7 @@ export function normaliseProposal(raw) {
     p.add = first('add', 'with', 'replacement', 'in');
   }
   if (['remove', 'targets', 'reorder', 'tune', 'resource', 'remap'].includes(p.action) && !str(p.exercise)) p.exercise = first('remove', 'name', 'exerciseName');
+  if (p.action === 'create') p.routine = first('routine', 'name', 'routineName', 'to');
   if (p.action === 'move') {
     p.exercise = first('exercise', 'name', 'exerciseName', 'remove', 'add');
     const from = first('from', 'fromRoutine', 'source');
@@ -883,6 +884,14 @@ function refuse(message, kind = 'format') {
 
 // Compare names the way he reads them: case, hyphens and brackets aside.
 const nameKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+// A ROUTINE THIS SAME REPLY CREATES (27 Sep 2026). His 5-day rebuild needed
+// an "Arms and Delts" day, Coach had no way to make one, and every line aimed
+// at it was refused — the valid half applied and left his program worse than
+// before. A `create` line now plans the routine, and later lines in the same
+// reply are checked against it under this placeholder id; the apply step
+// resolves the placeholder to the real routine by name once it exists.
+export const NEW_ROUTINE_PREFIX = 'new:';
+export const newRoutineKey = (name) => `${NEW_ROUTINE_PREFIX}${nameKey(name)}`;
 
 // ONE NAME, ONE THING, or say which. An empty name used to match everything
 // ("".includes is always true), so a remove that named no exercise quietly
@@ -994,7 +1003,7 @@ export async function setCoachEditConfig(patch) {
   return next;
 }
 
-export async function validateCoachEdit(vaultPath, rawIn, { asked = null } = {}) {
+export async function validateCoachEdit(vaultPath, rawIn, { asked = null, planned = [] } = {}) {
   const { loadExerciseLibrary } = await import('./exercises.js');
   const { loadRoutines } = await import('./workouts.js');
   const raw = normaliseProposal(rawIn) || {};
@@ -1006,8 +1015,24 @@ export async function validateCoachEdit(vaultPath, rawIn, { asked = null } = {})
   const hisCall = (exName, dayName) => instructed && (asked == null || (namedIn(asked, exName) && namedIn(asked, dayName)));
 
   const { exercises } = await loadExerciseLibrary(vaultPath);
-  const { routines } = await loadRoutines(vaultPath, exercises);
+  const { routines: onDisk } = await loadRoutines(vaultPath, exercises);
+  // routines an earlier `create` line in this same reply will make — empty,
+  // under their placeholder id, so the rest of the build can aim at them
+  const routines = [...onDisk, ...(planned || []).filter((r) => !onDisk.some((x) => nameKey(x.name) === nameKey(r.name)))];
   const ci = (s) => String(s || '').trim().toLowerCase();
+
+  // "create" makes ONE new, empty routine. What goes in it are the move/add
+  // lines after it; which day it falls on is a schedule line.
+  if (action === 'create') {
+    const name = String(raw.routine || '').replace(/\s+/g, ' ').trim();
+    if (name.length < 2 || name.length > 40) throw refuse('a create names the new routine in "routine" (2 to 40 characters)');
+    const clash = routines.find((r) => nameKey(r.name) === nameKey(name));
+    if (clash) throw refuse(`he already has a routine called "${clash.name}" — aim the changes at it instead of creating another`, 'substance');
+    return {
+      payload: { action, routineId: newRoutineKey(name), routineName: name, reason: String(raw.reason || '').slice(0, 300) },
+      title: `Coach: create a new routine, ${name}`,
+    };
+  }
 
   // "remap" re-files ONE exercise under the muscle it actually trains —
   // every past set moves with it, because volume is computed from the
