@@ -13,6 +13,14 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**28 SEP (late afternoon) — DO NOT RELOAD THE SERVER CASUALLY.** nova-os-83's
+Documents work (6c83dea, 6e819bc, 1ed9f0b) is on main but NOT reloaded: once
+the server restarts, Coach/Nova/Leader start filing documents and his phone
+shows raw [[artifact:id]] tokens until the client is pushed. So the next
+`scripts/reload-server.mjs` waits on his push decision, which also deploys
+the whole redesign. Verified on main after its commits: build green, lint 0,
+the five summary/index test files 93/93, both Home guards unchanged.
+
 **28 SEP (afternoon, nova-os-fc) — TRAIN B ON MAIN (7aebf77), VOICE ROUND 1
 OUT.** After the morning block below: his third answers (the lit hue = his
 panes' glowPanel edge → 1px/30%, d1a6847; Train B go despite scepticism;
