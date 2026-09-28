@@ -772,14 +772,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       name: payload.name,
       category: payload.category || 'ROTATION / SWAP MEALS',
       makes: payload.makes || null,
-      macros: payload.macros,
+      // null = filed with its macros NOT SET (a reel that gave none; never a
+      // guess) — recipes.js writes the pending line for him to fill in
+      macros: payload.macros ?? null,
       ingredients: payload.ingredients || [],
       method: payload.method || [],
       description: payload.description || null,
     });
     if (!recipe) throw new Error('recipe could not be added');
     return {
-      destination: `Recipe bank — ${recipe.name}`,
+      destination: `Recipe bank — ${recipe.name}${recipe.macros ? '' : ' (macros not set yet)'}`,
       undo: { route, recipeId: recipe.id },
     };
   }

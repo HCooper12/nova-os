@@ -18,8 +18,12 @@
 //   model  reads them into structured recipes (a language judgement);
 //   code   decides the macros: the creator's stated per-serving figures when
 //          they add up (Atwater within 20 %), otherwise computed from the
-//          ingredient weights (nutritionFacts), otherwise the recipe is not
-//          filed — Nova never guesses macros into his collection;
+//          ingredient weights (nutritionFacts), otherwise NONE — Nova never
+//          guesses macros into his collection. Since 29 Sep a recipe with no
+//          macros is still filed, as a recipe with its macros NOT SET (his
+//          words: "added as a recipe only so I can fill in macros when I
+//          decide to cook/bake it"); recipes.js writes the pending line and
+//          every reader shows "not set" until he enters them;
 //   rails  each recipe is a `recipe` card (the voice path's exact shape, whose
 //          apply is addRecipe and whose undo removes it). When his words ASK
 //          for it to be added, it is applied at once; otherwise it waits.
@@ -151,21 +155,26 @@ export async function macrosFor(recipe, { compute } = {}) {
   return null;
 }
 
-/** A model recipe into the `recipe` card payload, or { skip: reason }. */
+/**
+ * A model recipe into the `recipe` card payload, or { skip: reason }. With no
+ * trustworthy macros the payload carries `macros: null` — filed with its
+ * macros not set, never a guess. Only a recipe with no ingredients is skipped.
+ */
 export async function toRecipePayload(recipe, { url, uploader, compute } = {}) {
   const name = String(recipe?.name || '').trim().slice(0, 80);
   if (!name) return { skip: 'a recipe with no name' };
   const ingredients = (recipe.ingredients || []).map((i) => String(i?.text || [i?.grams ? `${i.grams} g` : '', i?.name].filter(Boolean).join(' ')).trim()).filter(Boolean).slice(0, 40);
   if (!ingredients.length) return { skip: `${name}: no ingredients in the video` };
   const got = await macrosFor(recipe, { compute });
-  if (!got) return { skip: `${name}: the video gives no macros and too few weights to compute them — Nova never guesses macros into your collection` };
   const method = (recipe.method || []).map((s) => String(s).trim()).filter(Boolean).slice(0, 30);
   const category = categoryFor(recipe.category);
   return {
     payload: {
-      name, category, macros: got.macros, ingredients, method,
+      name, category, macros: got ? got.macros : null, ingredients, method,
       makes: recipe.makes ? String(recipe.makes).slice(0, 60) : (recipe.servings ? `${recipe.servings} servings` : null),
-      description: `From ${uploader || 'a reel'} — ${url}. Macros: ${got.source}.`.slice(0, 300),
+      description: (got
+        ? `From ${uploader || 'a reel'} — ${url}. Macros: ${got.source}.`
+        : `From ${uploader || 'a reel'} — ${url}. Macros not set: the reel gives none and too few weights to work them out. Add them when you make it (Edit this meal, or read them off the labels).`).slice(0, 300),
     },
   };
 }
@@ -225,8 +234,10 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
         decision: {
           route: 'recipe',
           confidence: 'high',
-          title: `Recipe: ${p.name} — ${p.macros.p}P ${p.macros.c}C ${p.macros.f}F · ${p.macros.kcal} kcal`,
-          reason: `read from the reel's ${transcript ? 'caption and transcript' : 'caption'}; your yes writes it into your recipe collection, and undo removes it`,
+          title: p.macros
+            ? `Recipe: ${p.name} — ${p.macros.p}P ${p.macros.c}C ${p.macros.f}F · ${p.macros.kcal} kcal`
+            : `Recipe: ${p.name} — macros not set`,
+          reason: `read from the reel's ${transcript ? 'caption and transcript' : 'caption'}; ${p.macros ? '' : 'the reel gives no macros, so it files with them not set (never a guess) for you to fill in when you make it; '}your yes writes it into your recipe collection, and undo removes it`,
           payload: p,
         },
       };
@@ -240,8 +251,9 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
       }
       filed.push({ id: card.id, name: p.name, applied, macros: p.macros });
     }
+    const label = (f) => (f.macros ? f.name : `${f.name} (macros not set)`);
     await update(recordId, filed.length
-      ? { status: 'filed', destination: `${filed.some((f) => f.applied) ? 'Recipe bank' : 'Waiting for your yes'} — ${filed.map((f) => f.name).join(', ')}${skipped.length ? ` · not added: ${skipped.join('; ')}` : ''}`.slice(0, 400), recipeCards: filed.map((f) => f.id) }
+      ? { status: 'filed', destination: `${filed.some((f) => f.applied) ? 'Recipe bank' : 'Waiting for your yes'} — ${filed.map(label).join(', ')}${skipped.length ? ` · not added: ${skipped.join('; ')}` : ''}`.slice(0, 400), recipeCards: filed.map((f) => f.id) }
       : { status: 'failed', error: skipped.join('; ').slice(0, 400) || 'nothing could be filed' });
   } catch (e) {
     await update(recordId, { status: 'failed', error: e.message.slice(0, 300) });

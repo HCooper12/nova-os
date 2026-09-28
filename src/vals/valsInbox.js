@@ -155,7 +155,9 @@ function payloadPreview(decision) {
     return `${p.title} — ${when(p.start)}${p.calendarName ? ` · ${p.calendarName}` : ''}`;
   }
   if (decision.route === 'recipe') {
-    const m = p.macros || {};
+    // null = filed with its macros not set (a reel that gave none) — said, never "undefinedP"
+    if (!p.macros) return `${p.name} — macros not set yet → ${p.category || 'recipe bank'}`;
+    const m = p.macros;
     return `${p.name} — ${m.p}P · ${m.c}C · ${m.f}F · ${m.kcal} kcal → ${p.category || 'recipe bank'}`;
   }
   return `${p.title || ''} — ${p.body || ''}`;

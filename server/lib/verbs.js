@@ -981,6 +981,8 @@ verb({
     if (args.added.length) bits.push(`+ ${args.added.join(', ')}`);
     if (args.removed.length) bits.push(`− ${args.removed.join(', ')}`);
     // the macro warning belongs in the title, where he decides — not after
+    // a recipe whose macros are not set yet has no numbers to go stale
+    if (!args.macros) return `${args.recipeName}: ${bits.join(' · ')} — its macros are not set yet`;
     return `${args.recipeName}: ${bits.join(' · ')} — macros still say ${macroLine(args.macros)}, check them`;
   },
   async run(vaultPath, args) {
@@ -993,7 +995,9 @@ verb({
     return {
       destination: `Recipe — ${args.recipeName}: ${[args.added.length ? `+${args.added.length}` : '', args.removed.length ? `−${args.removed.length}` : ''].filter(Boolean).join(' ')} ingredient${args.added.length + args.removed.length === 1 ? '' : 's'}`,
       // NEVER let an ingredient edit imply the numbers followed it
-      said: `Done. ${args.recipeName} now lists ${args.next.length} ingredients — the macros still say ${macroLine(args.macros)}, so correct them from the labels if that changed.`,
+      said: args.macros
+        ? `Done. ${args.recipeName} now lists ${args.next.length} ingredients — the macros still say ${macroLine(args.macros)}, so correct them from the labels if that changed.`
+        : `Done. ${args.recipeName} now lists ${args.next.length} ingredients — its macros are still not set, so add them when you make it.`,
       undo: { verb: 'recipe.ingredient', recipeId: args.recipeId, recipeName: args.recipeName, was: args.was },
     };
   },

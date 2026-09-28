@@ -4,7 +4,7 @@ import { Interactive } from './Interactive.jsx';
 import { LocalInput } from './LocalInput.jsx';
 import { useDictation } from './useDictation.js';
 import { TypeText } from './TypeText.jsx';
-import { Eyebrow, TextAction, Chip, Meta, isAppleStyle, Button } from './Controls.jsx';
+import { Eyebrow, TextAction, Chip, Meta, isAppleStyle, Button, Tag } from './Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
@@ -58,13 +58,23 @@ export function RecipeOverlay({ v }) {
               <input type="file" accept="image/*" onChange={v.onRecipePhotoFile} disabled={v.orPhotoUploadBusy} style={css("display:none")} />
             </label>
             <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-well)")}>
-              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><Eyebrow as="span">Macros</Eyebrow><Meta tone="faint">× {v.servings}</Meta></div>
+              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><Eyebrow as="span">Macros</Eyebrow>{v.orMacrosPending ? <Tag tone="gold">Not set</Tag> : <Meta tone="faint">× {v.servings}</Meta>}</div>
+              {/* MACROS NOT SET: filed without numbers (a reel that gave none),
+                  never a guess. Gold is Nova's "not yet decided"; the four
+                  rows would only draw zeros, so they wait for his numbers. */}
+              {v.orMacrosPending ? (
+                <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px;align-items:flex-start")}>
+                  <span style={css("font-size:13px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>Nova won't guess them. Add them when you make it, typed in or read off the labels.</span>
+                  {v.orAddMacros && !v.orEditing && <Button tone="undecided" compact onClick={v.orAddMacros}>Add macros</Button>}
+                </div>
+              ) : (
               <div style={css(`margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 ${isAppleStyle() ? '13px var(--nv-font-ui)' : '12px var(--nv-font-mono)'}`)}>
                 <div style={css("display:flex;justify-content:space-between")}><Meta tone="cyan">Protein</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
                 <div style={css("display:flex;justify-content:space-between")}><Meta tone="gold">Carbs</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orC}g</span></div>
                 <div style={css("display:flex;justify-content:space-between")}><Meta tone="violet">Fat</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orF}g</span></div>
                 <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}><Meta tone="good">Energy</Meta><span style={css("font-variant-numeric:tabular-nums;color:var(--nv-good)")}>{v.orKcal} kcal</span></div>
               </div>
+              )}
             </div>
             {/* THE FRIDGE — how many cooked portions of this are left. Ticking
                 the meal eaten in the rotation takes one off; here he corrects
@@ -118,6 +128,12 @@ export function RecipeOverlay({ v }) {
               <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
                 <Button onClick={v.orLogActive} tone="good">＋ Log this version</Button>
                 <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>adds it to your food log — pick a portion, recipe unchanged</Meta>
+              </div>
+            )}
+            {v.orMacrosPending && (
+              <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+                <Button tone="good" disabled ariaLabel="Log this version. Add its macros first">＋ Log this version</Button>
+                <Meta tone="gold" style={{ textTransform: 'none', letterSpacing: 0 }}>Add its macros first — Nova won't log a meal as zero</Meta>
               </div>
             )}
             {v.renameAltId && (
@@ -384,12 +400,14 @@ export function MealEditor({ v }) {
 
       <div style={css("margin-top:14px")}>
         <Eyebrow>Macros</Eyebrow>
+        {v.orEditPending && <Meta as="div" tone="gold" style={{ marginTop: '6px', textTransform: 'none', letterSpacing: 0 }}>Not set yet. Fill in all four, or leave all four blank for now.</Meta>}
         <div style={css("margin-top:8px;display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:8px")}>
           {[['p', 'P', 'var(--nv-cy)'], ['c', 'C', 'var(--nv-gold)'], ['f', 'F', 'var(--nv-vi)'], ['kcal', 'kcal', 'var(--nv-good)']].map(([key, label, colour]) => (
             <label key={key} style={css("display:flex;flex-direction:column;gap:5px")}>
               <Meta tone={colour} style={{ textTransform: 'none', letterSpacing: 0 }}>{label}</Meta>
               <Interactive as="input" type="number" inputMode="decimal" min="0"
                 value={key === 'p' ? v.orEditP : key === 'c' ? v.orEditC : key === 'f' ? v.orEditF : v.orEditKcal}
+                placeholder={v.orEditPending ? '—' : undefined}
                 onChange={v.setEditField(key)}
                 base="width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 11px;color:var(--nv-ink);font:400 13px var(--nv-font-mono);font-variant-numeric:tabular-nums;outline:none"
                 focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />

@@ -127,10 +127,17 @@ export async function createVoiceProposal(vaultPath, question, raw) {
       : 'ROTATION / SWAP MEALS';
     const m = raw.macros || {};
     const num = (v) => (v == null || v === '' ? null : Number(v));
-    const macros = { p: num(m.p), c: num(m.c), f: num(m.f), kcal: num(m.kcal) };
-    for (const [k, v] of Object.entries(macros)) {
-      if (v == null || !Number.isFinite(v) || v < 0 || v > 10_000) {
-        throw new Error(`the recipe needs a sensible ${k === 'kcal' ? 'calorie' : k.toUpperCase()} number — Nova never guesses macros into your collection`);
+    let macros = { p: num(m.p), c: num(m.c), f: num(m.f), kcal: num(m.kcal) };
+    // ALL FOUR ABSENT = he asked for it added and nobody can justify the
+    // numbers: it files with its macros NOT SET (29 Sep, his ask), for him to
+    // fill in when he makes it. Partial or nonsense numbers are still refused
+    // — a half-guess is worse than an honest blank.
+    if (Object.values(macros).every((v) => v == null)) macros = null;
+    else {
+      for (const [k, v] of Object.entries(macros)) {
+        if (v == null || !Number.isFinite(v) || v < 0 || v > 10_000) {
+          throw new Error(`the recipe needs a sensible ${k === 'kcal' ? 'calorie' : k.toUpperCase()} number — Nova never guesses macros into your collection`);
+        }
       }
     }
     const list = (x, cap) => (Array.isArray(x) ? x : String(x || '').split('\n'))
@@ -153,8 +160,10 @@ export async function createVoiceProposal(vaultPath, question, raw) {
       decision: {
         route: 'recipe',
         confidence: 'high',
-        title: `Recipe: ${name} — ${macros.p}P ${macros.c}C ${macros.f}F · ${macros.kcal} kcal`,
-        reason: 'drafted in conversation — your yes writes it into your recipe collection, and undo removes it',
+        title: macros
+          ? `Recipe: ${name} — ${macros.p}P ${macros.c}C ${macros.f}F · ${macros.kcal} kcal`
+          : `Recipe: ${name} — macros not set`,
+        reason: `drafted in conversation — ${macros ? '' : 'no macros yet, so it files with them not set for you to fill in when you make it; '}your yes writes it into your recipe collection, and undo removes it`,
         payload: {
           name, category, macros, ingredients, method,
           makes: raw.makes ? String(raw.makes).trim().slice(0, 60) : null,

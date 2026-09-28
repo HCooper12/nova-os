@@ -1034,12 +1034,25 @@ function RecipesPage({ v }) {
                 <div style={css("font-size:15.5px;font-weight:500")}>{r.name}</div>
                 <Tag tone="gold">{r.tag}</Tag>
               </div>
-              <div style={css("margin-top:7px;display:flex;gap:12px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                <span style={css("color:var(--nv-cy)")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}><span style={css("color:var(--nv-good)")}>{r.kcal} kcal</span>{r.time ? ` · ${r.time}` : ''}</span>
-              </div>
-              <div style={css("margin-top:10px;display:flex;gap:3px;height:4px")}>
-                <span style={r.pBar}></span><span style={r.cBar}></span><span style={r.fBar}></span>
-              </div>
+              {r.macrosPending ? (
+                /* macros NOT SET (filed from a reel with none): gold "not yet
+                   decided", and a dashed empty track where the bars would lie */
+                <>
+                  <div style={css("margin-top:7px;display:flex;gap:10px;align-items:center;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
+                    <Tag tone="gold" dashed>Macros not set</Tag><span style={css("margin-left:auto")}>{r.time || 'add them when you make it'}</span>
+                  </div>
+                  <div aria-hidden="true" style={css("margin-top:10px;height:4px;border-radius:2px;border:1px dashed color-mix(in srgb, var(--nv-gold) 45%, transparent);box-sizing:border-box")}></div>
+                </>
+              ) : (
+                <>
+                  <div style={css("margin-top:7px;display:flex;gap:12px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
+                    <span style={css("color:var(--nv-cy)")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}><span style={css("color:var(--nv-good)")}>{r.kcal} kcal</span>{r.time ? ` · ${r.time}` : ''}</span>
+                  </div>
+                  <div style={css("margin-top:10px;display:flex;gap:3px;height:4px")}>
+                    <span style={r.pBar}></span><span style={r.cBar}></span><span style={r.fBar}></span>
+                  </div>
+                </>
+              )}
               {r.slotToggles && r.slotToggles.length > 0 && (
                 <div style={css("margin-top:10px;display:flex;gap:5px")} onClick={(e) => e.stopPropagation()}>
                   {r.slotToggles.map((s) => (
@@ -1068,6 +1081,13 @@ function RecipesPage({ v }) {
               {r.logIt && (
                 <div style={css("margin-top:8px")} onClick={(e) => e.stopPropagation()}>
                   <Chip tone="good" onClick={r.logIt} style={{ display: 'flex', justifyContent: 'center', width: '100%', boxSizing: 'border-box' }}>＋ Log this</Chip>
+                </div>
+              )}
+              {/* no stopPropagation: a tap here falls through to the card and
+                  opens the recipe, where "Add macros" lives */}
+              {r.macrosPending && (
+                <div style={css("margin-top:8px")}>
+                  <Chip tone="good" disabled ariaLabel="Log this. Add its macros first" style={{ display: 'flex', justifyContent: 'center', width: '100%', boxSizing: 'border-box' }}>Add its macros first</Chip>
                 </div>
               )}
             </div>

@@ -18,7 +18,8 @@ import { getPortions } from './portions.js';
 import { getToday, totalsOf } from './foodLog.js';
 
 const g = (n) => Math.round(Number(n) || 0);
-const macroLine = (m = {}) => `${g(m.p)}P · ${g(m.c)}C · ${g(m.f)}F · ${g(m.kcal)} kcal`;
+// null = a recipe whose macros are not set yet (recipes.js): say so, never 0
+const macroLine = (m) => (m ? `${g(m.p)}P · ${g(m.c)}C · ${g(m.f)}F · ${g(m.kcal)} kcal` : 'macros not set');
 
 export async function fuelContext(vaultPath) {
   const { recipes, profile } = await loadRecipeData(vaultPath);
@@ -71,12 +72,16 @@ export async function fuelContext(vaultPath) {
   for (const r of recipes) {
     const cat = r.category || 'Other';
     if (!byCat.has(cat)) byCat.set(cat, []);
-    byCat.get(cat).push(`${r.name} (${g(r.macros?.p)}P/${g(r.macros?.kcal)})`);
+    byCat.get(cat).push(r.macros ? `${r.name} (${g(r.macros.p)}P/${g(r.macros.kcal)})` : `${r.name} (macros not set)`);
   }
+  const pendingCount = recipes.filter((r) => !r.macros).length;
   const cats = [...byCat.entries()].map(([cat, names]) => `  · ${cat}: ${names.slice(0, 14).join(', ')}${names.length > 14 ? `, +${names.length - 14} more` : ''}`);
   if (cats.length) {
     lines.push(`- His recipe collection (${recipes.length} dishes he actually cooks — name these, never invent one):`);
     lines.push(...cats);
+    if (pendingCount) {
+      lines.push(`- ${pendingCount} of those ${pendingCount === 1 ? 'has its' : 'have their'} macros NOT SET yet (filed from a reel or a chat with no numbers). Never quote, estimate or add up macros for ${pendingCount === 1 ? 'it' : 'them'}, and never count ${pendingCount === 1 ? 'it' : 'them'} toward a target; if he wants to eat one, the first step is adding its macros.`);
+    }
   }
 
   lines.push('You are as much his nutrition coach as his training coach: the two are one system. When training advice has a fuel consequence (or the reverse), say it, and name a real dish from the collection above rather than a generic food.');

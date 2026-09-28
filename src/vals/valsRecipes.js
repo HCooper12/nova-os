@@ -124,10 +124,12 @@ export function valsRecipes(app, ctx) {
       hue: s.hue,
       custom: !!s.custom,
       recipeName: filled ? filled.name : null,
-      p: filled ? Math.round(filled.macros.p) : null,
-      c: filled ? Math.round(filled.macros.c) : null,
-      f: filled ? Math.round(filled.macros.f) : null,
-      kcal: filled ? Math.round(filled.macros.kcal) : null,
+      // filled.macros is null only for a recipe whose macros are not set yet
+      // (rotation.js refuses to add one; a hand-edited file could still hold it)
+      p: filled?.macros ? Math.round(filled.macros.p) : null,
+      c: filled?.macros ? Math.round(filled.macros.c) : null,
+      f: filled?.macros ? Math.round(filled.macros.f) : null,
+      kcal: filled?.macros ? Math.round(filled.macros.kcal) : null,
       consumed: !!filled?.consumed,
       variant: filled?.variant || null,
       // the fridge: how many cooked portions of the FOCUSED dish are left
@@ -161,7 +163,7 @@ export function valsRecipes(app, ctx) {
           onLongPress: ({ x, y }) => app.openContextMenu({
             x, y, title: `${s.name.toUpperCase()} · ${d.name.toUpperCase()}`,
             items: [
-              d.focus ? null : { label: 'Make this the one that counts', hint: `${Math.round(d.macros?.p || 0)}P · ${Math.round(d.macros?.kcal || 0)} kcal`, onSelect: () => app.setRotationFocus(s.key, d.id) },
+              d.focus ? null : { label: 'Make this the one that counts', hint: d.macros ? `${Math.round(d.macros.p || 0)}P · ${Math.round(d.macros.kcal || 0)} kcal` : 'macros not set', onSelect: () => app.setRotationFocus(s.key, d.id) },
               { label: d.eaten ? 'Mark not eaten' : 'Mark eaten', hint: d.portionsLeft != null ? `${d.portionsLeft} in the fridge` : undefined, onSelect: () => app.toggleOptionEaten(s.key, d.id, !d.eaten) },
               ...alts.slice(0, 3).map((a) => ({ label: `Swap → ${a.label}`, hint: a.macros ? `${Math.round(a.macros.p)}P` : undefined, onSelect: () => app.setRotationVariant(s.key, a.id, d.id) })),
               d.variantId ? { label: `Back to ${d.name}`, onSelect: () => app.setRotationVariant(s.key, null, d.id) } : null,
@@ -189,7 +191,7 @@ export function valsRecipes(app, ctx) {
         app.openContextMenu({
           x, y, title: `${s.name.toUpperCase()} · ${filled.name.toUpperCase()}`,
           items: [
-            { label: filled.consumed ? 'Mark not eaten' : 'Mark eaten', hint: `${Math.round(filled.macros.p)}P · ${Math.round(filled.macros.kcal)} kcal`, onSelect: () => app.toggleSlotConsumed(s.key, !filled.consumed) },
+            { label: filled.consumed ? 'Mark not eaten' : 'Mark eaten', hint: filled.macros ? `${Math.round(filled.macros.p)}P · ${Math.round(filled.macros.kcal)} kcal` : 'macros not set', onSelect: () => app.toggleSlotConsumed(s.key, !filled.consumed) },
             ...alts.slice(0, 3).map((a) => ({ label: `Swap → ${a.label}`, hint: a.macros ? `${Math.round(a.macros.p)}P` : undefined, onSelect: () => app.setRotationVariant(s.key, a.id, filled.id) })),
             filled.variant ? { label: `Back to ${filled.name}`, onSelect: () => app.setRotationVariant(s.key, null, filled.id) } : null,
             { label: 'Open recipe', onSelect: () => app.openRecipe(filled.id) },
@@ -253,21 +255,29 @@ export function valsRecipes(app, ctx) {
         .filter(r => st.recipeFilter === 'All' || RECIPE_CATEGORY_LABEL[r.category] === st.recipeFilter)
         .filter(r => !q || r.name.toLowerCase().includes(q)
           || (r.ingredients || []).some(i => String(i.name || i).toLowerCase().includes(q)))
-        .filter(r => !fitsOnly || (r.macros?.kcal ?? 0) <= kcalLeft)
+        // a recipe whose macros are not set yet can't be said to fit anything
+        .filter(r => !fitsOnly || (r.macros && r.macros.kcal <= kcalLeft))
         .map((r, i) => {
-          const tot = (r.macros.p + r.macros.c + r.macros.f) || 1;
+          // MACROS NOT SET (recipes.js PENDING_MACROS_LINE): no numbers, no
+          // bars and no Log — the card says so in gold ("not yet decided")
+          // rather than drawing a 0 where the truth is "unknown"
+          const pending = !r.macros;
+          const m = r.macros || {};
+          const tot = (m.p + m.c + m.f) || 1;
           const hue = RECIPE_HUES[i % RECIPE_HUES.length];
           const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
-          return { name: r.name, tag: RECIPE_CATEGORY_LABEL[r.category] || r.category, p: r.macros.p, c: r.macros.c, f: r.macros.f, kcal: r.macros.kcal, time: r.makes || '',
+          return { name: r.name, tag: RECIPE_CATEGORY_LABEL[r.category] || r.category,
+            p: pending ? null : m.p, c: pending ? null : m.c, f: pending ? null : m.f, kcal: pending ? null : m.kcal, time: r.makes || '',
+            macrosPending: pending,
             // the card carries the shared name ONLY while its overlay is shut —
             // two elements may never hold the same view-transition-name at once
             vtName: st.openRecipeId === r.id ? undefined : `recipe-${r.id}`,
             open: () => app.openRecipe(r.id),
-            logIt: () => app.openPortionSheet({ name: r.name, macros: r.macros, source: 'recipe' }),
+            logIt: pending ? null : () => app.openPortionSheet({ name: r.name, macros: r.macros, source: 'recipe' }),
             photoUrl: st.liveRecipePhotoUrls[r.id] || null,
             phLabel: 'dish photo — ' + r.name.toLowerCase(),
             phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + hue + ',.13) 0 8px, rgba(' + hue + ',.04) 8px 16px)' },
-            pBar: bar(r.macros.p, 'var(--nv-cy)'), cBar: bar(r.macros.c, 'var(--nv-gold)'), fBar: bar(r.macros.f, 'var(--nv-vi)'),
+            pBar: pending ? null : bar(m.p, 'var(--nv-cy)'), cBar: pending ? null : bar(m.c, 'var(--nv-gold)'), fBar: pending ? null : bar(m.f, 'var(--nv-vi)'),
             // v2: a chip is lit when the recipe is one of the slot's OPTIONS;
             // tapping adds or removes it — it never replaces what is there
             slotToggles: rotationOrder.map(slotDefFor).map((s) => ({ key: s.key, label: s.custom ? s.name.slice(0, 1).toUpperCase() : s.label, title: s.name, hue: s.hue, active: (rotation?.options?.[s.key] || []).some((d) => d.id === r.id), onClick: () => app.toggleRotationSlot(s.key, r.id) })) };
@@ -297,6 +307,18 @@ export function valsRecipes(app, ctx) {
   // chose to keep) can stand in for the original's macros/ingredients/method
   const activeAlt = liveOr ? (liveOr.alternates || []).find((a) => a.id === st.recipeAltSelected) || null : null;
   const effMacros = activeAlt ? activeAlt.macros : (liveOr ? liveOr.macros : null);
+  // the version on screen has no macros yet — shown as "not set", never as 0
+  const orMacrosPending = !!liveOr && !effMacros;
+  const startMealEdit = () => app.startRecipeEdit({
+    ingredients: effIngredients.map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name)),
+    method: effMethod,
+    macros: effMacros,
+    // live recipes carry no servings field — the description often says "4 servings"; otherwise he types it
+    servings: Number((String(liveOr?.description || liveOr?.desc || liveOr?.summary || '').match(/(\d+)\s*serv/i) || [])[1])
+      || (orMacrosPending ? Number((String(liveOr?.makes || '').match(/(\d+)/) || [])[1]) : 0) || 1,
+    // blank macro fields mean "still not set", never zero (commitRecipeEdit)
+    pending: orMacrosPending,
+  });
   const effIngredients = activeAlt ? activeAlt.ingredients.map((name) => ({ qty: '', name })) : (liveOr ? liveOr.ingredients : []);
   const effMethod = activeAlt ? activeAlt.method : (liveOr ? liveOr.method : []);
 
@@ -934,6 +956,7 @@ export function valsRecipes(app, ctx) {
     orC: usingLiveRecipes ? (effMacros ? Math.round(effMacros.c) : 0) : (or ? Math.round(or.c * sv) : 0),
     orF: usingLiveRecipes ? (effMacros ? Math.round(effMacros.f) : 0) : (or ? Math.round(or.f * sv) : 0),
     orKcal: usingLiveRecipes ? (effMacros ? Math.round(effMacros.kcal) : 0) : (or ? Math.round(or.kcal * sv) : 0),
+    orMacrosPending,
     servings: sv,
     orShowServings: !usingLiveRecipes,
     incServ: () => app.setState(s => ({ servings: Math.min(6, s.servings + 1) })),
@@ -967,7 +990,7 @@ export function valsRecipes(app, ctx) {
     ] : [],
     // LOG THIS VERSION — his ask: a saved variant he eats sometimes should be
     // loggable without being promoted to the recipe.
-    orLogActive: usingLiveRecipes && liveOr ? () => app.openPortionSheet({
+    orLogActive: usingLiveRecipes && liveOr && !orMacrosPending ? () => app.openPortionSheet({
       name: activeAlt ? `${liveOr.name} (${activeAlt.label})` : liveOr.name,
       macros: activeAlt?.macros || liveOr.macros,
       source: 'recipe',
@@ -1000,7 +1023,8 @@ export function valsRecipes(app, ctx) {
       if (!liveOr) return;
       app.addToShoppingList([liveOr.name], liveOr.name);
     },
-    orShowTweak: usingLiveRecipes && !!liveOr,
+    // a tweak reworks the recipe's own numbers — none to work from yet
+    orShowTweak: usingLiveRecipes && !!liveOr && !orMacrosPending,
 
     // ---- editing the meal itself -----------------------------------------
     // Available on every live recipe and every variant, including the
@@ -1012,6 +1036,7 @@ export function valsRecipes(app, ctx) {
     orEditMethod: st.recipeEdit?.method ?? '',
     orEditP: st.recipeEdit?.p ?? '', orEditC: st.recipeEdit?.c ?? '',
     orEditF: st.recipeEdit?.f ?? '', orEditKcal: st.recipeEdit?.kcal ?? '',
+    orEditPending: !!st.recipeEdit?.pending,
     orEditBusy: !!st.recipeEditBusy,
     orEditError: st.recipeEditError,
     setEditField: (field) => (e) => app.setRecipeEditField(field, e.target.value),
@@ -1034,13 +1059,10 @@ export function valsRecipes(app, ctx) {
     } : null,
     addEditLabels: (files) => app.addRecipeEditLabels(files),
     computeFromLabels: () => app.computeRecipeEditFromLabels(),
-    startEdit: () => app.startRecipeEdit({
-      ingredients: effIngredients.map((i) => (i.qty ? `${i.qty} ${i.name}` : i.name)),
-      method: effMethod,
-      macros: effMacros,
-      // live recipes carry no servings field — the description often says "4 servings"; otherwise he types it
-      servings: Number((String(liveOr?.description || liveOr?.desc || liveOr?.summary || '').match(/(\d+)\s*serv/i) || [])[1]) || 1,
-    }),
+    startEdit: startMealEdit,
+    // "Add macros" on a recipe whose macros are not set: the same editor,
+    // opened on the same version (the label helper lives inside it)
+    orAddMacros: orMacrosPending ? startMealEdit : null,
     cancelEdit: () => app.cancelRecipeEdit(),
     saveEdit: () => app.commitRecipeEdit(liveOr ? liveOr.id : null, activeAlt ? activeAlt.id : null),
     // tap ✕ on an ingredient → it's marked (strikethrough, reversible); one

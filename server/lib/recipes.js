@@ -10,6 +10,21 @@ const CATEGORY_TABLE_HEADING = {
   TREATS: 'Treats',
 };
 
+// A RECIPE WITH NO MACROS YET (29 Sep 2026). His ask: "Ones without macros
+// should still be added if that's what I ask, but added as a recipe only so I
+// can fill in macros when I decide to cook/bake it." Nova still never guesses
+// a macro, so such a recipe is written with this exact line in place of the
+// numbers, and a dash row in its quick-ref table. The parser reads it back as
+// `macros: null, macrosPending: true`; every reader shows "not set" and no sum
+// ever counts it. Entering the numbers (editRecipe) replaces the line.
+export const PENDING_MACROS_LINE = '**Macros:** not set yet — add them when you make it';
+const PENDING_MACROS_RE = /\*\*Macros[^*]*\*\*:?\s*not set\b/i;
+
+/** Does this recipe carry real macros? (false for a pending one) */
+export function hasMacros(r) {
+  return !!(r && r.macros && Number.isFinite(Number(r.macros.kcal)));
+}
+
 function slugify(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
@@ -75,6 +90,8 @@ function finalizeRecipe(name, bodyLines, category) {
   const body = mainLines.join('\n');
 
   const macroMatch = body.match(/\*\*Macros[^*]*\*\*:?\s*([\d.]+)g P \/ ([\d.]+)g C \/ ([\d.]+)g F \/ ([\d.]+)\s*kcal/i);
+  // a recipe filed without macros (never a guess) — see PENDING_MACROS_LINE
+  const pending = !macroMatch && PENDING_MACROS_RE.test(body);
   const makesMatch = body.match(/\*\*Makes:\*\*\s*(.+)/i);
   // The CURRENT version's own name. The main recipe used to have nowhere to
   // store one, which is why promoting a variant silently renamed it to
@@ -128,6 +145,9 @@ function finalizeRecipe(name, bodyLines, category) {
     macros: macroMatch
       ? { p: parseFloat(macroMatch[1]), c: parseFloat(macroMatch[2]), f: parseFloat(macroMatch[3]), kcal: parseFloat(macroMatch[4]) }
       : null,
+    // only present when true, so every recipe that has numbers parses
+    // exactly as it did before this format existed
+    ...(pending ? { macrosPending: true } : {}),
     ingredients,
     method,
     description,
@@ -166,7 +186,9 @@ export function parseRecipeCollection(raw) {
   }
   flush();
 
-  return recipes.filter((r) => r.macros); // drop any stray non-recipe ## heading that slipped through
+  // drop any stray non-recipe ## heading that slipped through — a real recipe
+  // has macros, or says in so many words that they are not set yet
+  return recipes.filter((r) => r.macros || r.macrosPending);
 }
 
 // The protein floor, the kcal target, floorMet, the Fuel scorecard and the
@@ -269,8 +291,25 @@ function escapeRe(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// null → the pending line; otherwise four non-negative numbers or it throws.
+// A half-filled macro object must never reach the file as "undefinedg P".
+function validMacrosOrNull(macros) {
+  if (macros == null) return null;
+  const { p, c, f, kcal } = macros;
+  if ([p, c, f, kcal].some((n) => typeof n !== 'number' || !Number.isFinite(n) || n < 0)) {
+    throw new Error('macros must be four non-negative numbers, or left out entirely (filed as not set yet)');
+  }
+  return { p, c, f, kcal };
+}
+
+function macroLineFor(macros) {
+  return macros
+    ? `**Macros:** ${macros.p}g P / ${macros.c}g C / ${macros.f}g F / ${macros.kcal} kcal`
+    : PENDING_MACROS_LINE;
+}
+
 function formatRecipeBlock(num, input) {
-  const macroLine = `**Macros:** ${input.macros.p}g P / ${input.macros.c}g C / ${input.macros.f}g F / ${input.macros.kcal} kcal`;
+  const macroLine = macroLineFor(input.macros);
   const makesLine = input.makes ? `**Makes:** ${input.makes}\n` : '';
   const ingredients = input.ingredients || [];
   const method = input.method || [];
@@ -301,7 +340,9 @@ function insertQuickRefRow(raw, input) {
   );
   const m = raw.match(re);
   if (!m) return raw; // best-effort — recipe body insert is the source of truth
-  const row = `| ${input.name} | ${input.macros.p}g | ${input.macros.c}g | ${input.macros.f}g | ${input.macros.kcal} |\n`;
+  const row = input.macros
+    ? `| ${input.name} | ${input.macros.p}g | ${input.macros.c}g | ${input.macros.f}g | ${input.macros.kcal} |\n`
+    : `| ${input.name} | — | — | — | — |\n`;
   const block = m[1] + row;
   return raw.slice(0, m.index) + block + raw.slice(m.index + m[1].length);
 }
@@ -311,7 +352,8 @@ function insertQuickRefRow(raw, input) {
 // again — an edit or a promote changed the recipe body while the table kept
 // the old numbers (live example: Works Burger's table row read 54/66/27.5/725
 // against a body of 52/42/17.5/540). Best-effort like insertQuickRefRow: the
-// recipe body is the source of truth, a missing row is not an error.
+// recipe body is the source of truth, a missing row is not an error. The row
+// is matched by name alone, so a pending recipe's dash row gets its numbers.
 export function updateQuickRefRow(raw, name, macros) {
   if (!name || !macros) return raw;
   const rowRe = new RegExp(`^(\\|\\s*${escapeRe(name)}\\s*\\|)[^\\n]*$`, 'm');
@@ -322,7 +364,8 @@ export function updateQuickRefRow(raw, name, macros) {
 // Pure function: given the raw file text and a new-recipe input, returns the
 // new file text. Kept separate from disk I/O so it can be unit-tested against
 // the real file's content without ever writing to it.
-export function insertRecipeIntoRaw(raw, input) {
+export function insertRecipeIntoRaw(raw, rawInput) {
+  const input = { ...rawInput, macros: validMacrosOrNull(rawInput.macros) };
   const existingCount = parseRecipeCollection(raw).length;
   const nextNum = existingCount + 1;
 
@@ -422,7 +465,7 @@ async function removeRecipeUnlocked(vaultPath, id) {
 // the current version's own name. Placed immediately above the Macros line so
 // it reads as part of the header rather than stray prose, and so the
 // prose-only entries (which have no Ingredients/Method) still parse.
-const MAIN_MACRO_LINE_RE = /\*\*Macros[^*]*\*\*:?\s*[\d.]+g P \/ [\d.]+g C \/ [\d.]+g F \/ [\d.]+\s*kcal/i;
+const MAIN_MACRO_LINE_RE = /\*\*Macros[^*]*\*\*:?\s*(?:[\d.]+g P \/ [\d.]+g C \/ [\d.]+g F \/ [\d.]+\s*kcal|not set\b[^\n]*)/i;
 export function upsertVersionLine(block, label) {
   const clean = String(label || '').trim();
   if (!clean) return block;
@@ -513,6 +556,7 @@ export function promoteAlternateInRaw(raw, recipeName, altId) {
   const alt = (parsed.alternates || []).find((a) => a.id === altId);
   if (!alt) throw new Error(`"${recipeName}" has no alternate "${altId}"`);
   if (!alt.macros) throw new Error(`alternate "${alt.label}" has no macros to promote`);
+  if (!parsed.macros) throw new Error(`"${recipeName}" has no macros of its own yet — add them first, so the version you swap out keeps its numbers`);
 
   // 1. main macro line ← alternate's macros
   const macroLineRe = /\*\*Macros[^*]*\*\*:?\s*[\d.]+g P \/ [\d.]+g C \/ [\d.]+g F \/ [\d.]+\s*kcal/i;

@@ -114,7 +114,8 @@ function candidateDishes(rotation, recipes) {
   const seen = new Set();
   for (const key of rotation?.order || []) {
     for (const d of rotation.options?.[key] || []) {
-      if (d.eaten || seen.has(d.id)) continue;
+      // a dish with no macros (not set yet) can't be offered as closing a gap
+      if (d.eaten || seen.has(d.id) || !d.macros) continue;
       seen.add(d.id);
       out.push({ id: d.id, name: d.name, macros: d.macros || {}, inFridge: (d.portionsLeft || 0) > 0, slot: rotation.labels?.[key] || key });
     }
@@ -123,7 +124,7 @@ function candidateDishes(rotation, recipes) {
   for (const [id, n] of Object.entries(counts)) {
     if (typeof n !== 'number' || n <= 0 || seen.has(id)) continue;
     const r = (recipes || []).find((x) => x.id === id);
-    if (!r) continue;
+    if (!r || !r.macros) continue;
     seen.add(id);
     out.push({ id, name: r.name, macros: r.macros || {}, inFridge: true, slot: null });
   }

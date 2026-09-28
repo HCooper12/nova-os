@@ -1328,6 +1328,8 @@ export default class App extends Component {
         // macros from the labels: the photos he adds, grams each, servings the
         // recipe makes, and the last result (kept so he can see the breakdown)
         servings: String(seed.servings || 1), labels: [], labelBusy: false, labelResult: null, labelError: null,
+        // the recipe's macros are not set yet: four blank fields keep them unset
+        pending: !!seed.pending,
       },
       recipeEditError: null, recipeEditBusy: false,
     });
@@ -1387,8 +1389,17 @@ export default class App extends Component {
     const ingredients = lines(e.ingredients);
     const method = lines(e.method);
     if (!ingredients.length) return this.setState({ recipeEditError: 'A meal needs at least one ingredient.' });
+    // A BLANK FIELD IS NOT A ZERO. Number('') is 0, so a recipe whose macros
+    // are not set yet (filed from a reel with none) would have saved 0/0/0/0
+    // the first time he fixed a typo in its ingredients. Four blanks on such a
+    // recipe keep them unset; a partial set is refused.
+    const blank = [e.p, e.c, e.f, e.kcal].map((n) => String(n ?? '').trim() === '');
+    const leaveUnset = e.pending && blank.every(Boolean);
+    if (!leaveUnset && blank.some(Boolean)) {
+      return this.setState({ recipeEditError: e.pending ? 'Fill in all four macros, or leave all four blank for now.' : 'Fill in all four macros.' });
+    }
     const nums = [e.p, e.c, e.f, e.kcal].map((n) => Number(n));
-    if (nums.some((n) => !Number.isFinite(n) || n < 0)) {
+    if (!leaveUnset && nums.some((n) => !Number.isFinite(n) || n < 0)) {
       return this.setState({ recipeEditError: 'Macros must be numbers.' });
     }
     this.setState({ recipeEditBusy: true, recipeEditError: null });
@@ -1396,7 +1407,7 @@ export default class App extends Component {
       ingredients,
       // no steps is legitimate — a variant is cooked like its parent
       method: method.length ? method : undefined,
-      macros: { p: nums[0], c: nums[1], f: nums[2], kcal: nums[3] },
+      macros: leaveUnset ? undefined : { p: nums[0], c: nums[1], f: nums[2], kcal: nums[3] },
       alt: altId || undefined,
     }).then(({ recipe, warning }) => {
       this.setState((s) => ({
@@ -1977,6 +1988,10 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     const on = !(this.state.liveRotation?.options?.[slot] || []).some((d) => d.id === recipeId);
+    // a recipe whose macros are not set yet can't join the plan (the server
+    // refuses too — rotation.js requireCountable); say it before the round trip
+    const recipe = on ? (this.state.liveRecipes || []).find((r) => r.id === recipeId) : null;
+    if (recipe && !recipe.macros) { haptic('warn'); this.toastMsg('Add its macros first — the plan can’t count it without them'); return; }
     haptic('tick');
     this.applyRotation(api.setRotationOption(conn, slot, recipeId, on), 'Rotation update failed');
   }
@@ -10338,7 +10353,8 @@ export default class App extends Component {
       setTimeout(() => this.typeIn('recipeChat', 'nova', recipeReply(q, r)), 480);
       return;
     }
-    const macros = r.macros ? ` (per serve: ${[r.macros.kcal && `${r.macros.kcal} kcal`, r.macros.p && `${r.macros.p}g protein`].filter(Boolean).join(', ')})` : '';
+    const macros = r.macros ? ` (per serve: ${[r.macros.kcal && `${r.macros.kcal} kcal`, r.macros.p && `${r.macros.p}g protein`].filter(Boolean).join(', ')})`
+      : live ? ' (its macros are NOT SET yet: never quote or estimate them as if they were known)' : '';
     const context = `[He is looking at the recipe "${r.name || r.title}"${macros} in his Fuel screen and is asking about THAT dish. Answer for this recipe specifically; its full page is in his vault.]`;
     api.ask(conn, `${context}\n\n${q}`, this.state.voiceSessionId || null).then((resp) => {
       if (resp.text) { this.typeIn('recipeChat', 'nova', resp.text); return; }

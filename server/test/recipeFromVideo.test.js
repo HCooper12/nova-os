@@ -48,9 +48,51 @@ test('macros: the creator\'s numbers when they add up, computed from weights oth
   assert.equal(await macrosFor({ name: 'x', servings: 2, ingredients: [{ name: 'a pinch of salt', grams: null }] }, { compute }), null);
 });
 
-test('a recipe with no computable macros is skipped with the reason, never filed with a guess', async () => {
-  const out = await toRecipePayload({ name: 'Mystery Bowl', ingredients: [{ text: 'some rice', name: 'rice' }] }, { url: 'u', uploader: 'x', compute: async () => null });
-  assert.match(out.skip, /never guesses macros/);
+// His ask, 29 Sep: "Ones without macros should still be added if that's what
+// I ask, but added as a recipe only so I can fill in macros when I decide to
+// cook/bake it." It used to be skipped; now it files with macros NOT SET —
+// still nothing guessed.
+test('a recipe with no computable macros is filed with its macros not set — nothing guessed', async () => {
+  const out = await toRecipePayload({ name: 'Mystery Bowl', ingredients: [{ text: 'some rice', name: 'rice' }], method: ['Cook.'] }, { url: 'u', uploader: 'x', compute: async () => null });
+  assert.equal(out.skip, undefined);
+  assert.equal(out.payload.macros, null, 'no number was invented');
+  assert.deepEqual(out.payload.ingredients, ['some rice']);
+  assert.match(out.payload.description, /Macros not set/);
+  // a recipe with no ingredients is still not a recipe
+  const none = await toRecipePayload({ name: 'Vibes', ingredients: [] }, { url: 'u', compute: async () => null });
+  assert.match(none.skip, /no ingredients/);
+});
+
+test('the lane: a reel with no macros, and he said "add" → a "macros not set" card, applied at once', async () => {
+  const created = [];
+  const updates = [];
+  const approved = [];
+  const NO_MACROS = { recipes: [{ name: 'Kinder Bueno Oats', servings: 6, ingredients: [{ text: 'some oats', name: 'oats', grams: null }, { text: 'Kinder Bueno', name: 'Kinder Bueno', grams: null }], method: ['Mix.'], statedPerServing: null, category: 'DESSERT' }] };
+  const base = {
+    await: true,
+    createRecord: async (r) => { created.push(r); return r; },
+    updateRecord: async (id, patch) => { updates.push(patch); },
+    fetchCaption: async () => ({ title: 't', uploader: 'Sean Graham', caption: 'Ingredients: oats, Kinder Bueno' }),
+    fetchTranscript: async () => '',
+    ask: async () => NO_MACROS,
+    compute: async () => { throw new Error('too few weights: must not be asked'); },
+    loadRecipes: async () => [],
+    approve: async (id) => { approved.push(id); },
+  };
+  await startRecipeFromVideo('/vault', 'https://www.instagram.com/reel/x/', 'Add to my recipes', base);
+  const card = created.find((r) => r.decision?.route === 'recipe');
+  assert.equal(card.decision.title, 'Recipe: Kinder Bueno Oats — macros not set');
+  assert.equal(card.decision.payload.macros, null);
+  assert.equal(card.decision.payload.category, 'TREATS');
+  assert.deepEqual(approved, [card.id], 'he said add, so it is added — with its macros not set');
+  assert.equal(updates.at(-1).status, 'filed');
+  assert.match(updates.at(-1).destination, /^Recipe bank — Kinder Bueno Oats \(macros not set\)/);
+  // without "add" it still files the card, waiting for his yes
+  created.length = 0; approved.length = 0;
+  await startRecipeFromVideo('/vault', 'https://www.instagram.com/reel/x/', 'turn this into a recipe', base);
+  assert.equal(created.find((r) => r.decision?.route === 'recipe').decision.payload.macros, null);
+  assert.deepEqual(approved, []);
+  assert.match(updates.at(-1).destination, /^Waiting for your yes — Kinder Bueno Oats \(macros not set\)/);
 });
 
 test('the lane: caption → recipe card → applied at once because he said "add"', async () => {

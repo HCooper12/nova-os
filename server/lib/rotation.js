@@ -105,7 +105,10 @@ function dishFor(state, recipesById, key, id, portions) {
   const eaten = (effectiveEaten(state)[key] || []).includes(id);
   const left = portions && Object.prototype.hasOwnProperty.call(portions, id) ? portions[id] : null;
   return {
-    id, name: r0.name, macros, eaten, consumed: eaten,
+    // macros null only for a recipe whose numbers are not set yet (it can no
+    // longer be added, but a hand-edited file could still hold one): totals
+    // skip it, and `macrosPending` lets a reader say so instead of a 0
+    id, name: r0.name, macros: macros || null, ...(macros ? {} : { macrosPending: true }), eaten, consumed: eaten,
     focus: state.focus[key] === id,
     variant: alt ? alt.label : null, variantId: alt ? alt.id : null,
     // cooked portions left — null when he has never counted this dish
@@ -161,12 +164,22 @@ function requireSlot(state, slot) {
 function requireRecipe(recipesById, recipeId) {
   if (!recipesById.has(recipeId)) throw new Error('unknown recipe id');
 }
+// A recipe filed with its macros NOT SET (29 Sep 2026, recipes.js
+// PENDING_MACROS_LINE) cannot join the plan: `totals` would count it as
+// nothing, and a tick would log a meal with no numbers. Refused plainly, at
+// every door that puts a dish in a slot or on the plate.
+export const PENDING_REFUSAL = 'Add its macros first — the plan can\'t count it without them';
+function requireCountable(recipesById, recipeId) {
+  const r = recipesById.get(recipeId);
+  if (r && !r.macros) throw new Error(`${r.name}: ${PENDING_REFUSAL}`);
+}
 
 // ---- options -----------------------------------------------------------
 
 export async function addSlotOption(vaultPath, recipes, slot, recipeId) {
   const recipesById = new Map(recipes.map((r) => [r.id, r]));
   requireRecipe(recipesById, recipeId);
+  requireCountable(recipesById, recipeId);
   return withWriteLock(async () => {
     const state = await getState(vaultPath);
     requireSlot(state, slot);
@@ -210,7 +223,7 @@ export async function setSlotFocus(vaultPath, recipes, slot, recipeId) {
 // the verb "make lunch works burger" should never wipe his other options.
 export async function setRotationSlot(vaultPath, recipes, slot, recipeId) {
   const recipesById = new Map(recipes.map((r) => [r.id, r]));
-  if (recipeId) requireRecipe(recipesById, recipeId);
+  if (recipeId) { requireRecipe(recipesById, recipeId); requireCountable(recipesById, recipeId); }
   return withWriteLock(async () => {
     const state = await getState(vaultPath);
     requireSlot(state, slot);
@@ -238,6 +251,7 @@ export async function setOptionEaten(vaultPath, recipes, slot, recipeId, flag) {
     const state = await getState(vaultPath);
     requireSlot(state, slot);
     if (!(state.slots[slot] || []).includes(recipeId)) throw new Error('that recipe is not one of the options in this slot');
+    if (flag) requireCountable(recipesById, recipeId);
     const eaten = { ...effectiveEaten(state) };
     const was = (eaten[slot] || []).includes(recipeId);
     const list = (eaten[slot] || []).filter((id) => id !== recipeId);

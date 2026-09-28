@@ -178,6 +178,11 @@ export function recipesRouter(vaultPath) {
       const { recipes } = await loadRecipeData(vaultPath);
       const recipe = recipes.find((r) => r.id === req.params.id);
       if (!recipe) return res.status(404).json({ error: 'recipe not found' });
+      // a tweak reworks the recipe's own numbers — a recipe whose macros are
+      // not set yet has none to start from (recipes.js PENDING_MACROS_LINE)
+      if (!recipe.macros) {
+        return res.status(400).json({ error: 'Add its macros first — a tweak works from the recipe\'s own numbers' });
+      }
       // a follow-up refines the version already on screen rather than
       // restarting from the stored recipe
       const prior = req.body?.prior && Array.isArray(req.body.prior.ingredients) ? req.body.prior : null;

@@ -3,7 +3,7 @@ import { Interactive } from './Interactive.jsx';
 import { useDictation } from './useDictation.js';
 import { useExit } from './useExit.js';
 import { useSheetDrag } from './useSheetDrag.js';
-import { Button, Meta } from './Controls.jsx';
+import { Button, Meta, Tag } from './Controls.jsx';
 import { MealEditor } from './RecipeOverlay.jsx';
 import { FIcon } from './FuelIcon.jsx';
 import { PORTIONS, portionLabel, scaleMacros, validPortion } from './portion.js';
@@ -112,6 +112,20 @@ export function RecipeSheet({ v }) {
               <div className="k"><b>{kc(m.kcal)}</b>kcal</div>
               <div className="plain"><b>{m.c}</b>g carbs</div>
               <div className="plain"><b>{m.f}</b>g fat</div>
+            </div>
+          )}
+
+          {/* MACROS NOT SET — filed without numbers (a reel that gave none),
+              never a guess. Gold is "not yet decided"; Add macros opens the
+              same editor, right here, with the label helper inside it. */}
+          {R.pending && (
+            <div className="nv-fs-srow" style={{ alignItems: 'flex-start', flexDirection: 'column', gap: '10px' }}>
+              <span className="nv-fs-lx">
+                <span><Tag tone="gold" dashed>Macros not set</Tag></span>
+                <span className="nv-fs-sv" style={{ marginTop: '6px' }}>Nova won’t guess them. Add them when you make it, typed in or read off the labels.</span>
+              </span>
+              {R.pending.add && !R.edit?.editing && <Button tone="undecided" compact onClick={R.pending.add}>Add macros</Button>}
+              {R.edit?.editing && <MealEditor v={v} />}
             </div>
           )}
 
@@ -244,7 +258,7 @@ export function RecipeSheet({ v }) {
             )}
           </div>
           {R.logsTo && <Meta as="div" tone="faint" style={{ marginTop: '6px', textAlign: 'center' }}>{R.logsTo}</Meta>}
-          {!R.log && <Meta as="div" tone="faint" style={{ marginTop: '6px', textAlign: 'center' }}>{R.live ? 'This recipe has no macros to log.' : 'Demo recipe: logging needs Nova connected to your Mac.'}</Meta>}
+          {!R.log && <Meta as="div" tone={R.pending ? 'gold' : 'faint'} style={{ marginTop: '6px', textAlign: 'center' }}>{R.pending ? 'Add its macros first.' : R.live ? 'This recipe has no macros to log.' : 'Demo recipe: logging needs Nova connected to your Mac.'}</Meta>}
           {open === 'rotation' && R.rotation && (
             <div className="nv-fs-planfor" style={{ margin: '10px 0 0' }}>
               <span>Plan it for a meal. Tap it again to take it out.</span>
@@ -338,7 +352,7 @@ export function RecipeSheet({ v }) {
                         </label>
                       )}
                     </div>
-                    {R.edit?.editing && <MealEditor v={v} />}
+                    {R.edit?.editing && !R.pending && <MealEditor v={v} />}
                   </div>
                 )}
               </>

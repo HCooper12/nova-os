@@ -212,8 +212,10 @@ export function valsFuelSummary(app, ctx, v) {
       const on = toggles.filter((s) => s.active);
       return {
         key: r.name, name: r.name,
-        sub: `${round(r.p)} g protein · ${kc(r.kcal)} kcal${r.time ? ` · ${r.time}` : ''}`,
-        p: round(r.p), kcal: round(r.kcal), makes: r.time || '',
+        // macros not set yet: said in words, never a 0 g / 0 kcal
+        sub: r.macrosPending ? `Macros not set${r.time ? ` · ${r.time}` : ''}` : `${round(r.p)} g protein · ${kc(r.kcal)} kcal${r.time ? ` · ${r.time}` : ''}`,
+        p: r.macrosPending ? null : round(r.p), kcal: r.macrosPending ? null : round(r.kcal), makes: r.time || '',
+        pending: !!r.macrosPending,
         photoUrl: r.photoUrl || null,
         open: r.open,
         slot: toggles.length ? {
@@ -288,6 +290,9 @@ function buildRecipeSheet(app, st, v, { live }) {
     live: !!liveOr,
     photo: liveOr ? { url: v.orPhotoUrl, busy: v.orPhotoUploadBusy, onFile: v.onRecipePhotoFile } : null,
     macros: baseMacros ? { p: round(baseMacros.p), c: round(baseMacros.c), f: round(baseMacros.f), kcal: round(baseMacros.kcal), raw: baseMacros } : null,
+    // a live recipe with no macros yet: the sheet says so in gold, offers the
+    // editor to add them, and Log it waits (never a zero on his plate)
+    pending: liveOr && !baseMacros ? { add: v.orAddMacros || null } : null,
     // ONE portion picker, and Log it: the existing recipe-portion write
     // (logRecipePortion), handed the version he is looking at
     log: liveOr && baseMacros ? (factor, custom = '') => {
