@@ -784,6 +784,12 @@ export async function buildLeaderChatContext(vaultPath, now = new Date()) {
   // source actually said, and a title alone cannot answer that
   if (sources.length) parts.push('HIS SHELF (Read the page when he asks what one says; attribute, and weigh a claim against what you know):\n' + sources.slice(0, 10).map((s) => `- "${s.title}"${s.author ? ` (${s.author})` : ''}${s.id ? ` · \`${s.id}.md\`` : ''}${s.raw ? ` · transcript \`${s.raw}.md\`` : ''}`).join('\n'));
   if (state.research.length) parts.push('RESEARCH LIBRARY (newest):\n' + state.research.slice(-8).reverse().map((r) => `- ${r.insight} [${r.source}]`).join('\n'));
+  // documents already filed to Outputs/Nova (lib/artifacts.js) — his own
+  try {
+    const { recentArtifactsContext } = await import('./artifacts.js');
+    const docs = await recentArtifactsContext(vaultPath);
+    if (docs) parts.push(docs);
+  } catch { /* honest absence */ }
   return parts.join('\n\n');
 }
 

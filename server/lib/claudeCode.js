@@ -9,7 +9,9 @@ import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
 import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
+import { speakableText } from '../../src/artifactBlocks.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
+import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
 import { registerJobMap } from './jobRegistry.js';
 import { consultCapability, parseConsult, consultProgress, consultReplyText, runConsults, MAX_CONSULT_ROUNDS } from './coachConsult.js';
 
@@ -342,6 +344,8 @@ ${SPOKEN_REGISTER}
 
 ${GLASS_CONTRACT}
 
+${ARTIFACT_CONTRACT}
+
 Hayden asks: ${question}`;
 }
 
@@ -445,14 +449,18 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
 
   const finishTurn = async (replyText, turnJob) => {
     try {
+      // THE DOCUMENTS, FIRST — before anything else parses this reply, so a
+      // PROPOSE/CARD/SHOW line living inside a document's body can never be
+      // mistaken for a directive of this turn's own.
+      const filed = await fileArtifacts(cwd, replyText, { agent: 'nova', question });
       // Canvas: the model may end with one SHOW {"panel":...} line. Parse it
       // out and build the panel DETERMINISTICALLY from the vault — the model
       // names a view, our code draws it. A bad directive degrades honestly.
       const { parseShowDirective, buildPanel } = await import('./panels.js');
-      // cleanText === replyText when no directive matched, so never fall back
-      // to replyText here — that would put a raw directive line back into the
-      // reply when the model sent ONLY a directive and no prose.
-      const { cleanText, directive } = parseShowDirective(replyText);
+      // cleanText === filed.text when no directive matched, so never fall
+      // back to replyText here — that would put a raw directive line back
+      // into the reply when the model sent ONLY a directive and no prose.
+      const { cleanText, directive } = parseShowDirective(filed.text);
       let text = cleanText;
       let panel = null;
       if (directive) {
@@ -617,6 +625,11 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       const cd = parseCardDirective(text);
       const card = cd.card;
       if (cd.card || cd.parseError) text = cd.cleanText;
+      // A directive-only reply that left no prose still has the token — a
+      // filed document with nothing to say about it gets one honest line.
+      if (filed.artifacts.length && !text.replace(/\[\[artifact:[a-z0-9-]+\]\]/gi, '').trim()) {
+        text = `Here it is.\n\n${text.trim()}`;
+      }
       // A directive-only reply leaves no prose — give the voice something
       // honest to say rather than reading a directive line aloud.
       if (!text.trim()) {
@@ -626,7 +639,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
           : research ? 'Research dispatched — give it a couple of minutes.'
           : watch ? 'The Watcher has it — the video\'s read lands in your Inbox in a few minutes.'
           : card ? card.label
-          : replyText;
+          : filed.text;
       }
       // a played video takes the glass unless the model named its own card
       const playedCard = played ? (await import('./spokenCards.js')).metricCard({
@@ -634,7 +647,13 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
         foot: `${played.durationMin ? `${played.durationMin} min · ` : ''}${played.exact ? 'newest upload' : 'closest match — not certain it is the newest'}${played.opened === false ? ` · ${played.url}` : ''}`,
         tone: played.opened === false ? 'warn' : 'gold',
       }) : null;
-      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, acted, research, watch, modelChoicePending, card: card || playedCard, played };
+      // THE HANDS-FREE LANE HAS NO CLIENT TO STRIP FOR IT: /ask/sync hands
+      // this text straight to Siri to be spoken, so a document token or a
+      // stray fence would be read aloud verbatim. Every other lane renders
+      // through the client's own artifactBlocks parsing, which already
+      // keeps a document's body and token out of speech.
+      if (direct) text = speakableText(text, { final: true });
+      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, acted, research, watch, modelChoicePending, card: card || playedCard, played, artifacts: filed.artifacts };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';
@@ -817,6 +836,8 @@ ${SPOKEN_REGISTER}
 
 ${GLASS_CONTRACT}
 
+${ARTIFACT_CONTRACT}
+
 Hayden asks: ${question}`;
 }
 
@@ -928,6 +949,11 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
     // the loop guard: a Coach that has consulted twice answers with what it has
     if (consult) replyText = `${consult.cleanText}\n\n(I had more I wanted to check, but I've asked twice already, so this is my answer from what the agents gave me.)`;
     try {
+      // THE DOCUMENTS, FIRST — before settleCoachChanges ever sees this text,
+      // so a PROPOSE line sitting inside a document's body (a plan he asked
+      // for, say) can never be mistaken for a card of its own.
+      const filed = await fileArtifacts(cwd, replyText, { agent: 'coach', question: asked || question });
+      replyText = filed.text;
       // The Coach may PROPOSE program changes — the model decides, code acts.
       // EVERY line is checked before any card exists; a refused one goes back
       // to THIS session to be fixed (once), an instructed change applies on
@@ -972,7 +998,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
         });
         if (guess) coachPanel = await buildPanel(cwd, guess);
       } catch { /* no panel rather than a wrong one */ }
-      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null };
+      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, artifacts: filed.artifacts };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a
       // delivered answer — a failed job used to consume the window silently
@@ -1030,6 +1056,8 @@ ${SPOKEN_REGISTER}
 
 ${GLASS_CONTRACT}
 
+${ARTIFACT_CONTRACT}
+
 His current picture:
 ${context || '(unavailable)'}
 
@@ -1067,8 +1095,10 @@ export function startAskLeader(cwd, { question, context, sessionId }) {
 
   const finishTurn = async (replyText, turnJob) => {
     try {
+      // THE DOCUMENTS, FIRST — before REFLECT ever sees this text.
+      const filed = await fileArtifacts(cwd, replyText, { agent: 'leader', question });
       const { parseLeaderReflect, applyLeaderReflection } = await import('./leader.js');
-      const { cleanText, reflect, parseError } = parseLeaderReflect(replyText);
+      const { cleanText, reflect, parseError } = parseLeaderReflect(filed.text);
       let text = cleanText;
       let reflected = null;
       if (reflect) {
@@ -1085,7 +1115,7 @@ export function startAskLeader(cwd, { question, context, sessionId }) {
       } else if (parseError) {
         text += `\n\n(I tried to note that in your profile but ${parseError} — tell me again and I'll get it down.)`;
       }
-      turnJob.result = { text, sessionId: effectiveSessionId, reflected };
+      turnJob.result = { text, sessionId: effectiveSessionId, reflected, artifacts: filed.artifacts };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';

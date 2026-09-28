@@ -325,6 +325,13 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         const plans = await plansContext();
         if (plans) parts.push(plans);
       } catch { failures.push('his plans'); }
+      // documents already filed to Outputs/Nova (lib/artifacts.js) — so a
+      // revision he asks for lands on the real id, never an invented one
+      try {
+        const { recentArtifactsContext } = await import('./artifacts.js');
+        const docs = await recentArtifactsContext(vaultPath);
+        if (docs) parts.push(docs);
+      } catch { failures.push('his documents'); }
 
       if (failures.length) {
         // Silent context loss made the Coach blame his logging for a code

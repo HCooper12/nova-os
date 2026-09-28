@@ -25,6 +25,7 @@ import { journalRouter } from './routes/journal.js';
 import { claudeCodeRouter } from './routes/claudeCode.js';
 import { healthDataRouter } from './routes/healthData.js';
 import { foodLogRouter } from './routes/foodLog.js';
+import { artifactsRouter } from './routes/artifacts.js';
 import { eatOutRouter } from './routes/eatOut.js';
 import { inboxRouter } from './routes/inbox.js';
 import { loopsRouter } from './routes/loops.js';
@@ -229,6 +230,7 @@ async function main() {
   app.use('/api', claudeCodeRouter({ repoPath: path.resolve(__dirname, '..'), vaultPath: process.env.VAULT_PATH }));
   app.use('/api', healthDataRouter(process.env.VAULT_PATH));
   app.use('/api', foodLogRouter(process.env.VAULT_PATH));
+  app.use('/api', artifactsRouter(process.env.VAULT_PATH)); // THE DOCUMENTS — what Nova, Coach and the Leader file to Outputs/Nova
   app.use('/api', eatOutRouter(process.env.VAULT_PATH)); // PICK IT UP — the takeaway/ready-meal catalogue and search
   app.use('/api', inboxRouter(process.env.VAULT_PATH));
   app.use('/api', loopsRouter(process.env.VAULT_PATH));

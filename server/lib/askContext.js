@@ -153,6 +153,9 @@ export async function resumedRefreshContext(vaultPath = null) {
     ...(vaultPath ? [
       { label: 'standing rules (current)', load: () => standingContext(vaultPath) },
       { label: 'learned preferences (current)', load: () => preferencesContext(vaultPath) },
+      // a document filed earlier in THIS conversation must be referable by
+      // the very next turn, not just the next new conversation
+      { label: 'his documents', load: async () => (await import('./artifacts.js')).recentArtifactsContext(vaultPath) },
     ] : []),
   ], { parallel: true, ms: 3000 });
   return text;
@@ -190,6 +193,10 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     // sleep" must not need a special lane. Newest-first here rather than
     // question-ranked, because this context is cached across questions.
     { label: 'his shelf', load: async () => (await import('./sourceShelf.js')).shelfContext(vaultPath, { limit: 5 }) },
+    // his filed documents — plans, reports, comparisons already written to
+    // Outputs/Nova (lib/artifacts.js). Lets "show me that plan again" and
+    // "revise the one from Tuesday" resolve to a real id, never an invented one.
+    { label: 'his documents', load: async () => (await import('./artifacts.js')).recentArtifactsContext(vaultPath) },
     { label: 'today (local)', load: todayLocalContext },
     {
       label: 'the brief',
