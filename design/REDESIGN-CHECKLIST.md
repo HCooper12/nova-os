@@ -556,6 +556,21 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 29 Sep 2026 (morning) — HIS VOICE + TRAIN ANSWERS. Voice: the living core
+  of C, but A's and B's organisation; wants A+B blends shown WITH A and B in
+  one switcher → ROUND 2 IN FLIGHT (mockup 63: A, B, and blends D "thread
+  with a stage that rises" · E "stage header, thread beneath"); the tab is
+  now "Nova" (2439168); a separate mockup for WHO IS ANSWERING (64: Coach
+  alone / Coach + Librarian + Researcher synthesis / Nova alone; A bylines ·
+  B bench · C stage); the Nova button = direct voice, everything persists to
+  the Nova screen; YES keep the recording after a failed transcription (Try
+  again); YES Remember into a hold menu; YES fix the three bugs now → worktree
+  voicefix in flight (attachment layout + route label, Tap-to-hear ×, the
+  cut-off spoken question). Train: a clearer PB phrase and a celebratory,
+  dynamic record moment (trophy, lift/muscle-specific) → IDEAS IN FLIGHT
+  (mockup 65: trophy rises · plate loads · muscle lights · medal struck);
+  the muscle hue on the gauge stays ("a nice touch"). Pushed 29 Sep by
+  nova-os-83 (his yes), server reloaded; Documents live.
 - 28 Sep 2026 (afternoon) — TRAIN B MERGED (7aebf77): the summary live
   session (SessionSummary.jsx, valsSessionSummary.js, sessionSummaryFacts.js,
   21 tests). One hand, no scroll mid-set (tick at y 549–613 of 874; numerals
