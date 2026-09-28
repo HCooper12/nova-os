@@ -9,7 +9,7 @@
 
 export const INDEX_GROUPS = [
   { key: 'today', label: 'Today', rows: ['mission', 'workouts', 'recipes', 'inbox', 'todos', 'voice'] },
-  { key: 'mind', label: 'Mind', rows: ['practice', 'leader', 'review', 'technique', 'library', 'notes', 'journal'] },
+  { key: 'mind', label: 'Mind', rows: ['practice', 'leader', 'review', 'technique', 'library', 'documents', 'notes', 'journal'] },
   { key: 'life', label: 'Life', rows: ['money', 'shopping', 'stash', 'galaxy'] },
   { key: 'nova', label: 'Nova', rows: ['ops', 'briefing', 'code', 'console', 'ambient', 'settings'] },
 ];
@@ -39,6 +39,8 @@ export const ROW_META = {
   review: { label: 'Daily review', hue: '--nv-vi' },
   technique: { label: 'Technique', hue: '--nv-mg' },
   library: { label: 'Library', hue: '--nv-ink40' },
+  // what the agents wrote — every agent's, so no one agent's hue
+  documents: { label: 'Documents', hue: '--nv-ink40' },
   notes: { label: 'Notes', hue: '--nv-ink40' },
   journal: { label: 'Journal', hue: '--nv-ink40' },
   money: { label: 'Money', hue: '--nv-vi' },

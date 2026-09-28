@@ -200,6 +200,10 @@ export function valsChrome(app, ctx) {
       Object.assign(mkNav('Train', 'IX.', 'workouts'), { count: usingLiveWorkouts ? String(liveRoutines.length) : '—' }),
       Object.assign(mkNav('Notes', 'X.', 'notes'), { count: usingLiveNotes ? String(st.liveNotes.length) : demoMode ? String(app.notes.length) : '—' }),
       Object.assign(mkNav('Library', 'XVI.', 'library'), { count: ctx.libraryCount != null && st.liveLibrary !== null ? String(ctx.libraryCount) : '—' }),
+      // DOCUMENTS (28 Sep 2026): what the agents wrote. The count is shown only
+      // once the list has been read (it loads when the screen opens, never at
+      // boot) — before that, nothing, rather than a number it does not know
+      Object.assign(mkNav('Documents', 'XX.', 'documents'), st.documents && !st.documents.offline ? { count: String(st.documents.total ?? st.documents.items.length) } : {}),
       // THE LEADER CARRIES ITS OPEN COUNT, like every other row that has one.
       // His report, 21 Sep: no quick way to reach the Leader except the Home
       // card. It was in this list all along — but alone among the rows with

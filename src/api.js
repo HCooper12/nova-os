@@ -121,6 +121,19 @@ export const api = {
   closeMacSession: (conn, sessionId) => post(conn, '/api/ops/sessions/close', { sessionId }),
   notes: (conn) => call(conn, '/api/notes'),
   library: (conn) => call(conn, '/api/library'),
+  // DOCUMENTS (28 Sep 2026): what Coach, Nova and the Leader wrote as a thing
+  // he can open, filed in the vault (server/lib/artifacts.js). Delete moves a
+  // document to the trash; restore brings it back — the Undo rides that.
+  artifacts: (conn, params = {}) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v != null && v !== '') q.set(k, String(v));
+    const qs = q.toString();
+    return call(conn, `/api/artifacts${qs ? `?${qs}` : ''}`);
+  },
+  artifact: (conn, id) => call(conn, `/api/artifacts/${encodeURIComponent(id)}`),
+  pinArtifact: (conn, id, pinned) => post(conn, `/api/artifacts/${encodeURIComponent(id)}/pin`, { pinned: !!pinned }),
+  trashArtifact: (conn, id) => del(conn, `/api/artifacts/${encodeURIComponent(id)}`),
+  restoreArtifact: (conn, id) => post(conn, `/api/artifacts/${encodeURIComponent(id)}/restore`),
   libraryItem: (conn, id) => call(conn, `/api/library/item?id=${encodeURIComponent(id)}`),
   noteDetail: (conn, id) => call(conn, `/api/notes/detail?id=${encodeURIComponent(id)}`),
   recall: (conn, q) => call(conn, `/api/recall?q=${encodeURIComponent(q)}`),

@@ -8,6 +8,16 @@ import { HEARING_CHOICES, resolveHearing } from '../hearingEngine.js';
 import { recorderSupported } from '../recorder.js';
 import { holdTiming, HOLD_PRESETS } from '../turnEnd.js';
 import { toSpokenProse } from '../spokenProse.js';
+// A document Nova names in a reply ([[artifact:<id>]]) must survive the
+// prose cleaner — toSpokenProse reads [[…]] as a vault link and would print
+// "artifact:…" in the bubble. The token passes through on its own line; the
+// prose around it is cleaned as before. (28 Sep 2026, Documents)
+const ARTIFACT_SPLIT = /(\[\[artifact:[a-z0-9][a-z0-9-]{3,63}\]\])/i;
+const bubbleProse = (t) => {
+  const s = String(t ?? '');
+  if (!/\[\[artifact:/i.test(s)) return toSpokenProse(s);
+  return s.split(ARTIFACT_SPLIT).map((p) => (ARTIFACT_SPLIT.test(p) ? `\n${p}\n` : toSpokenProse(p))).join('').replace(/\n{3,}/g, '\n\n').trim();
+};
 import { dtf } from './fmt.js';
 import { whereLabel, deviceName } from '../conversationSync.js';
 
@@ -299,7 +309,7 @@ export function valsMisc(app, ctx) {
     focusCard: (card) => app.focusCard(card),
     reportScreenMic: (on) => { if (!!st.voiceScreenMic !== !!on) app.setState({ voiceScreenMic: !!on }); },
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
-      text: toSpokenProse(m.text), typing: m.typing, panel: m.panel || null,
+      text: bubbleProse(m.text), typing: m.typing, panel: m.panel || null,
       attached: m.attached || null,
       // The announcement strip on a message where the chat STARTED A JOB
       // rather than answered. It names the lane it chose and offers the one

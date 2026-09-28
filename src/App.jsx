@@ -12,6 +12,8 @@ import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
 import { parseVisualStream } from './visualBeats.js';
+import { speakableText } from './artifactBlocks.js';
+import { streamShown, sameWidthTokens, rememberArtifacts, OPEN_EVENT } from './artifactClient.js';
 import { toSpokenProse } from './spokenProse.js';
 import { UNDO_KEY, stashOf, usableUndo } from './chatUndo.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
@@ -52,6 +54,7 @@ import { valsIndex } from './vals/valsIndex.js';
 import { valsFuelSummary } from './vals/valsFuelSummary.js';
 import { valsInboxSummary } from './vals/valsInboxSummary.js';
 import { valsSessionSummary } from './vals/valsSessionSummary.js';
+import { valsDocuments } from './vals/valsDocuments.js';
 import { upsertInboxRecord, omitKey } from './inboxSummaryFacts.js';
 import { SCREEN_KEYS } from './screenKeys.js';
 import { Sidebar } from './Sidebar.jsx';
@@ -130,6 +133,7 @@ const SCREEN_LOADERS = {
   briefing: () => import('./screens/Briefing.jsx'),
   console: () => import('./screens/ConsoleScreen.jsx'),
   index: () => import('./screens/Index.jsx'),
+  documents: () => import('./screens/Documents.jsx'),
 };
 const Galaxy = lazyScreen(SCREEN_LOADERS.galaxy, 'Galaxy');
 const Money = lazyScreen(SCREEN_LOADERS.money, 'Money');
@@ -148,6 +152,7 @@ const Practice = lazyScreen(SCREEN_LOADERS.practice, 'Practice');
 const Briefing = lazyScreen(SCREEN_LOADERS.briefing, 'Briefing');
 const ConsoleScreen = lazyScreen(SCREEN_LOADERS.console, 'ConsoleScreen');
 const Index = lazyScreen(SCREEN_LOADERS.index, 'Index');
+const Documents = lazyScreen(SCREEN_LOADERS.documents, 'Documents');
 
 // The OVERLAYS — every one is conditionally rendered (a modal, a sheet, an
 // overlay), so none of them is ever part of a first paint. RecipeOverlay
@@ -161,6 +166,7 @@ const OVERLAY_LOADERS = {
   ingestReview: () => import('./IngestReview.jsx'),
   outboxView: () => import('./OutboxView.jsx'),
   verdictCard: () => import('./VerdictCard.jsx'),
+  artifactViewer: () => import('./ArtifactViewer.jsx'),
 };
 const RecipeOverlay = lazyScreen(OVERLAY_LOADERS.recipeOverlay, 'RecipeOverlay');
 const RecipeSheet = lazyScreen(OVERLAY_LOADERS.recipeSheet, 'RecipeSheet');
@@ -169,6 +175,7 @@ const IngestModal = lazyScreen(OVERLAY_LOADERS.ingestModal, 'IngestModal');
 const IngestReview = lazyScreen(OVERLAY_LOADERS.ingestReview, 'IngestReview');
 const OutboxView = lazyScreen(OVERLAY_LOADERS.outboxView, 'OutboxView');
 const VerdictCard = lazyScreen(OVERLAY_LOADERS.verdictCard, 'VerdictCard');
+const ArtifactViewer = lazyScreen(OVERLAY_LOADERS.artifactViewer, 'ArtifactViewer');
 
 // What a not-yet-parsed screen shows. Deliberately quiet: a chunk parse is
 // tens of milliseconds after the idle prefetch, so anything busier than this
@@ -503,6 +510,9 @@ export default class App extends Component {
     recipeTweakInput: '', recipeTweakBusy: false, recipeTweakError: null, recipeTweakPreview: null, recipeTweakPhotos: [],
     recipeEdit: null, recipeEditBusy: false, recipeEditError: null,
     coachInput: '', planNote: null,
+    // DOCUMENTS (28 Sep 2026): the list loads when the screen opens, never at
+    // boot; the viewer is open exactly when artifactOpenId is set
+    documents: null, docQuery: '', docFilter: 'all', docSearch: null, artifactOpenId: null,
     // the scripted opener is demo fiction — a live backend starts the real
     // coach conversation clean
     coachChat: (typeof localStorage !== 'undefined' && localStorage.getItem('novaos.connection'))
@@ -952,6 +962,10 @@ export default class App extends Component {
       this.consumeDeepLink();
     };
     window.addEventListener('popstate', this.popH);
+    // a document card anywhere (deep inside ChatMarkdown) opens the viewer
+    // through one window event, so no chat surface has to thread a prop
+    this.openArtH = (e) => this.openArtifact(e?.detail?.id);
+    window.addEventListener(OPEN_EVENT, this.openArtH);
     window.addEventListener('hashchange', this.popH);
     // a notification tap lands here on a cold start too
     this.consumeDeepLink();
@@ -984,6 +998,7 @@ export default class App extends Component {
     window.removeEventListener('resize', this.resizeH);
     window.removeEventListener('popstate', this.popH);
     window.removeEventListener('hashchange', this.popH);
+    window.removeEventListener(OPEN_EVENT, this.openArtH);
     window.removeEventListener('online', this.onlineH);
     window.removeEventListener('pointerdown', this.tapUnlockH);
     window.removeEventListener('pagehide', this.pagehideH);
@@ -3379,7 +3394,137 @@ export default class App extends Component {
   // and capture sheets. One helper, because server/test/edgeBack.test.js
   // reads popH through a short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory() };
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory() };
+  }
+  // ---------- DOCUMENTS (28 Sep 2026) ----------
+  // What Coach, Nova and the Leader wrote as a thing he can open. The list is
+  // read when the Documents screen opens (never at boot); the viewer is a page
+  // of its own with a history entry, for the recipe's reason — the back swipe
+  // must close it, not go back a tab underneath it. Every write here is the
+  // server's (pin, trash, restore on server/lib/artifacts.js), and the one
+  // destructive one, Delete, is a move to the trash with an Undo.
+  loadDocuments() {
+    const conn = getConnection();
+    if (!conn) { this.setState({ documents: { items: [], total: 0, offline: true } }); return; }
+    api.artifacts(conn, { limit: 200 })
+      .then(({ items = [], total } = {}) => {
+        rememberArtifacts(items);
+        this.setState({ documents: { items, total: Number.isFinite(total) ? total : items.length, loadedAt: Date.now() } });
+      })
+      .catch((e) => this.setState((s) => ({ documents: { items: s.documents?.items || [], total: s.documents?.total || 0, error: e.message } })));
+  }
+  // The typed search filters what is loaded at once; past two letters the
+  // server is asked too (it can read the bodies), and its answer wins when it
+  // lands for the words still in the box.
+  searchDocuments(q) {
+    const text = String(q ?? '');
+    const query = text.trim();
+    this.setState({ docQuery: text });
+    clearTimeout(this.docSearchT);
+    const conn = getConnection();
+    if (!conn || query.length < 2) { if (this.state.docSearch) this.setState({ docSearch: null }); return; }
+    this.docSearchT = setTimeout(() => {
+      api.artifacts(conn, { q: query, limit: 100 })
+        .then(({ items = [] } = {}) => { if (this.state.docQuery.trim() === query) this.setState({ docSearch: { q: query, items } }); })
+        .catch(() => { /* the local filter still answers */ });
+    }, 280);
+  }
+  openArtifact(id) {
+    if (!id || typeof id !== 'string') return;
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'artifact') window.history.replaceState({ ...st, artifactId: id }, '');
+      else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'artifact', artifactId: id }, '');
+    }
+    this.setState({ artifactOpenId: id });
+  }
+  // On its own entry, closing IS going back; popH does the closing.
+  closeArtifact() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'artifact') { window.history.back(); return; }
+    this.setState({ artifactOpenId: null });
+  }
+  // popstate's half: leaving the viewer's entry closes it, returning reopens it
+  documentsFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'artifact';
+    if (!onEntry && this.state.artifactOpenId) return { artifactOpenId: null };
+    if (onEntry && !this.state.artifactOpenId && st.artifactId) return { artifactOpenId: st.artifactId };
+    return {};
+  }
+  // the list and the card cache agree about a document's pin at once; the
+  // server's answer is the truth, and a refusal puts it back
+  patchDocument(id, patch) {
+    this.setState((s) => (s.documents ? { documents: { ...s.documents, items: s.documents.items.map((m) => (m.id === id ? { ...m, ...patch } : m)) } } : null));
+  }
+  pinArtifact(meta, pinned) {
+    const conn = getConnection();
+    if (!conn || !meta?.id) return Promise.resolve(null);
+    this.patchDocument(meta.id, { pinned });
+    rememberArtifacts([{ ...meta, pinned }]);
+    return api.pinArtifact(conn, meta.id, pinned)
+      .then((m) => { if (m?.id) { rememberArtifacts([m]); this.patchDocument(m.id, m); } return m; })
+      .catch((e) => {
+        this.patchDocument(meta.id, { pinned: !pinned });
+        rememberArtifacts([{ ...meta, pinned: !pinned }]);
+        notify({ title: pinned ? "Couldn't pin that" : "Couldn't unpin that", message: `${e.message}. Nothing changed.`, tone: 'warn' });
+        return null;
+      });
+  }
+  // Delete is a MOVE TO THE TRASH, undoable from the island for as long as it
+  // shows; restore puts the file back and the row back where it was.
+  trashArtifact(meta) {
+    const conn = getConnection();
+    if (!conn || !meta?.id) return;
+    const before = this.state.documents?.items || null;
+    this.setState((s) => ({
+      artifactOpenId: s.artifactOpenId === meta.id ? null : s.artifactOpenId,
+      documents: s.documents ? { ...s.documents, items: s.documents.items.filter((m) => m.id !== meta.id), total: Math.max(0, (s.documents.total || 1) - 1) } : s.documents,
+    }));
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'artifact') window.history.back();
+    api.trashArtifact(conn, meta.id)
+      .then(() => {
+        notify({
+          id: `doc-trash:${meta.id}`, tone: 'info', title: 'Moved to the trash', message: meta.title || 'The document', duration: 6000,
+          action: { label: 'Undo', run: () => this.restoreArtifact(meta) },
+        });
+      })
+      .catch((e) => {
+        if (before) this.setState((s) => ({ documents: s.documents ? { ...s.documents, items: before, total: before.length } : s.documents }));
+        notify({ title: "Couldn't delete that", message: `${e.message}. It is still there.`, tone: 'warn' });
+      });
+  }
+  restoreArtifact(meta) {
+    const conn = getConnection();
+    if (!conn || !meta?.id) return;
+    api.restoreArtifact(conn, meta.id)
+      .then((m) => {
+        const back = m?.id ? m : meta;
+        rememberArtifacts([back]);
+        this.setState((s) => (s.documents && !s.documents.items.some((x) => x.id === back.id)
+          ? { documents: { ...s.documents, items: [back, ...s.documents.items].sort((a, b) => String(b.created).localeCompare(String(a.created))), total: (s.documents.total || 0) + 1 } }
+          : null));
+        notify({ id: `doc-trash:${meta.id}`, tone: 'info', title: 'Restored', message: back.title || 'The document is back', duration: 3000 });
+      })
+      .catch((e) => notify({ title: "Couldn't restore that", message: `${e.message}. It is in the trash on your Mac.`, tone: 'warn' }));
+  }
+  // ASK ABOUT THIS: the right conversation, with the question framed and left
+  // in the box for him to finish — Coach for a Coach document, Nova for the
+  // rest. The vault path goes with it so the agent reads the same file.
+  askAboutArtifact(meta) {
+    if (!meta) return;
+    const where = meta.path ? ` (${meta.path})` : '';
+    const framed = `About the document “${meta.title || 'Untitled'}”${where}: `;
+    const go = () => {
+      if (meta.agent === 'coach') {
+        // under `summary` the Coach is a sheet that takes its own history entry on mount
+        this.navigate('workouts', { trainTab: 'coach', coachInput: framed });
+      } else {
+        this.navigate('voice', { orbInput: framed });
+      }
+    };
+    // leave the viewer's own history entry first, then move — so the back
+    // swipe from the chat returns to where he was, not to a closed viewer
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'artifact') { this.afterPop(go); window.history.back(); } else go();
   }
   // The Pinned order and switches persist straight away (src/pinned.js); the
   // tick re-renders Home behind the sheet, so each change shows as he makes it.
@@ -5698,7 +5843,8 @@ export default class App extends Component {
       const onPlay = () => { if (spokenReveal) reveal(t); if (from != null) this.raiseGlass(from + t.length); };
       // What is SPOKEN is stripped of markdown; what is stored stays raw, so
       // the glass's character offsets into it never move. (spokenProse.js)
-      const heard = toSpokenProse(t);
+      // …and a document is never read aloud: its card is not a sentence
+      const heard = toSpokenProse(speakableText(t, { final: true }));
       if (!heard.trim()) { onPlay(); return; }   // a fenced block alone is nothing to say
       if (elevenPath) this.speakTtsSentence(heard, onPlay);
       else { this.speakIncremental(heard); onPlay(); }
@@ -5754,7 +5900,10 @@ export default class App extends Component {
         // ONE parser, shared with the server (src/visualBeats.js): it takes
         // the VIS directives out — a half-typed one withheld whole, so Nova
         // never reads JSON aloud — and says where each panel's prose begins.
-        const seen = parseVisualStream(job.partial);
+        // DOCUMENTS FIRST (28 Sep 2026): a document's body is cut out before
+        // the glass parser sees it, so a VIS directive inside a document can
+        // never raise a panel, and its body is never shown or spoken
+        const seen = parseVisualStream(streamShown(job.partial));
         this.setGlassBeats(seen.beats);
         const shown = stripShow(seen.text);
         if (!shown) return;
@@ -5764,6 +5913,12 @@ export default class App extends Component {
       onReady: (job) => {
         clearTimeout(stream.thinkTimer);
         const text = job.result.text;
+        // the documents this reply filed: their cards draw at once
+        rememberArtifacts(job.result.artifacts);
+        // the speech path measured the streamed text with "[[artifact:pending]]"
+        // where the finished reply has a real id of another length; measure the
+        // finished one the same way, or the tail would be sliced off-by-some
+        const spokenText = sameWidthTokens(text);
         // the conversation continues across turns AND app restarts — the
         // specialist's session is its own thread, kept under its own key
         if (job.result.sessionId) {
@@ -5859,13 +6014,13 @@ export default class App extends Component {
           // remaining sentences queue with reveal-on-play; the commit rides
           // the queue as a barrier, landing when the last word is spoken
           // (or instantly if he interrupts — resetTtsQueue runs finalizers)
-          speakNewSentences(text, true);
+          speakNewSentences(spokenText, true);
           this.queueTtsFinalize(commit);
         } else {
           commit();
           // Flush whatever trails the last sentence-ender; if nothing ever
           // streamed (non-streaming job), this speaks the whole reply.
-          if (this.state.voiceSpeak) speakNewSentences(text, true);
+          if (this.state.voiceSpeak) speakNewSentences(spokenText, true);
           else this.maybeAutoListen();
         }
       },
@@ -6503,7 +6658,8 @@ export default class App extends Component {
   // he is already looking at it, it says nothing — the answer is on screen.
   announceAway({ here, title, text, tone = 'done', go }) {
     if (here && !document.hidden) return;
-    const message = previewLine(text);
+    // a reply that filed a document carries its token; the island says words
+    const message = previewLine(speakableText(String(text ?? ''), { final: true }));
     notify({ title, message, tone, duration: 7000, onPress: go, actions: go ? [{ label: 'Open', run: go }] : [] });
   }
   // THE POCKET (IslandFeed.jsx, server/lib/pocket.js): a live workout checks
@@ -7239,6 +7395,7 @@ export default class App extends Component {
       ...valsWorkouts(this, ctx),
       ...valsNotes(this, ctx),
       ...valsLibrary(this, ctx),
+      ...valsDocuments(this, ctx),
       ...valsLeader(this, ctx),
       ...valsPractice(this, ctx),
       ...valsBriefing(this, ctx),
@@ -9661,10 +9818,12 @@ export default class App extends Component {
           },
           onProgress: (job) => {
             if (!job.partial) return;
-            const shown = stripDirective(job.partial);
+            // a half-arrived document shows as "writing", never its body
+            const shown = stripDirective(streamShown(job.partial));
             if (shown) this.applyStreamPartial('coachChat', 'coach', shown);
           },
           onReady: (job) => {
+            rememberArtifacts(job.result.artifacts);
             if (job.result.sessionId) {
               localStorage.setItem('novaos.coachSession', job.result.sessionId);
               this.setState({ coachSessionId: job.result.sessionId });
@@ -9804,10 +9963,12 @@ export default class App extends Component {
         },
         onProgress: (job) => {
           if (!job.partial) return;
-          const shown = stripDirective(job.partial);
+          // a half-arrived document shows as "writing", never its body
+          const shown = stripDirective(streamShown(job.partial));
           if (shown) this.applyStreamPartial('leaderChat', 'leader', shown);
         },
         onReady: (job) => {
+          rememberArtifacts(job.result.artifacts);
           if (job.result.sessionId) {
             localStorage.setItem('novaos.leaderSession', job.result.sessionId);
             this.setState({ leaderSessionId: job.result.sessionId });
@@ -10235,6 +10396,7 @@ export default class App extends Component {
               {v.isBriefing && <Briefing v={v} />}
               {v.isConsole && <ConsoleScreen v={v} />}
               {v.isIndex && <Index v={v} />}
+              {v.isDocuments && <Documents v={v} />}
               {v.isJournal && <Journal v={v} />}
               {v.isMoney && <Money v={v} />}
               {v.isSettings && <Settings v={v} />}
@@ -10314,6 +10476,9 @@ export default class App extends Component {
         {v.coachApply && <CoachApplySheet c={v.coachApply} />}
         {v.portionSheet && <PortionSheet p={v.portionSheet} />}
         {v.outboxView && <Suspense fallback={null}><OutboxView v={v.outboxView} /></Suspense>}
+        {/* a document, opened from a chat card or the Documents screen — a
+            page of its own with a history entry, so the back swipe closes it */}
+        {v.artifactViewer && <Suspense fallback={null}><ArtifactViewer key={v.artifactViewer.id} d={v.artifactViewer} /></Suspense>}
         <DynamicIsland />
         {v.showBoot && <Boot info={v.bootInfo} />}
       </div>

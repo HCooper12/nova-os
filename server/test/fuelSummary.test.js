@@ -303,5 +303,5 @@ test('App renders the sheet only under summary, and the Fuel vals go last', () =
   // the Recipes list is its own history entry, and popstate closes it
   assert.match(app, /novaView: 'fuelRecipes'/);
   assert.match(app, /\.\.\.this\.pagesFromHistory\(\)/);
-  assert.match(app, /pagesFromHistory\(\) \{\n    return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\) \};/);
+  assert.match(app, /pagesFromHistory\(\) \{\n    return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\) \};/);
 });

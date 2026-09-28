@@ -18,6 +18,8 @@ const PATHS = {
   money: <><circle cx="12" cy="12" r="8.4" /><path d="M12 7.2v9.6M14.6 9a3 3 0 0 0-2.6-1.2c-1.5 0-2.6.8-2.6 2s1 1.7 2.6 2.1c1.7.4 2.7 1 2.7 2.2s-1.2 2.1-2.7 2.1A3.1 3.1 0 0 1 9.3 15" /></>,
   ops: <><circle cx="12" cy="12" r="8.6" /><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" /><path d="M12 12 17.6 7.5" /><circle cx="16.4" cy="15.2" r="1" fill="currentColor" stroke="none" /><circle cx="7.6" cy="9" r="1" fill="currentColor" stroke="none" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M12 3.6v2.2M12 18.2v2.2M3.6 12h2.2M18.2 12h2.2M6.1 6.1l1.6 1.6M16.3 16.3l1.6 1.6M17.9 6.1l-1.6 1.6M7.7 16.3l-1.6 1.6" /></>,
+  // a page with a folded corner in front of another: what the agents wrote
+  documents: <><path d="M8.5 3.8h6.4l3.3 3.3v10.6h-9.7Z" /><path d="M14.6 3.8v3.6h3.6" /><path d="M5.8 7.4v12.8h9.4" /><path d="M11 11.6h4.4M11 14.4h4.4" /></>,
   more: <><rect x="4.5" y="4.5" width="6" height="6" rx="1.8" /><rect x="13.5" y="4.5" width="6" height="6" rx="1.8" /><rect x="4.5" y="13.5" width="6" height="6" rx="1.8" /><rect x="13.5" y="13.5" width="6" height="6" rx="1.8" /></>,
 };
 

@@ -15,4 +15,4 @@
 // a screen with no row of its own.
 export const SCREEN_KEYS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'stash',
   'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'practice', 'journal', 'money', 'settings', 'briefing', 'console',
-  'index'];
+  'index', 'documents'];
