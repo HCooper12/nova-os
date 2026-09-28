@@ -209,6 +209,11 @@ export const LANES = [
     off: 'Meal photo scanning is refused; log the meal by hand or from a recipe.',
   },
   {
+    id: 'recipe-video', label: 'Recipe from a reel', group: 'capture', def: 'sonnet',
+    hint: 'a recipe reel’s caption (and transcript if needed) into recipes for his collection — code decides the macros',
+    off: 'Recipe links go to the Watcher for a verdict instead; add the recipe by hand in Fuel.',
+  },
+  {
     id: 'food-refine', label: 'Meal correction', group: 'capture', def: 'sonnet',
     hint: 'his words about a scanned or described plate (“the rissole was vegetarian”) into a revised plate — code keeps untouched lines and does every sum',
     off: 'An estimate can still be edited by hand before it is logged; corrections in words are refused with a plain message.',

@@ -14,7 +14,13 @@
 
 // `program` is a lane a PLAN reaches for (his program as a dossier, by code);
 // no sentence routes to it on its own, because it is a step, not a request.
-export const LANES = ['brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'practice', 'capture', 'play', 'ask', 'book', 'program'];
+// A link plus words asking for it to become a RECIPE (29 Sep). About SAVING
+// it ("add", "save", "turn into") or naming the recipe bank, so "is this
+// recipe any good?" still goes to the Watcher for a verdict. Pure, kept here
+// so the router imports nothing with side effects.
+export const RECIPE_WORDS_RE = /\b(?:add|save|put|file|keep|turn|make|log|import|store)\b[^.?!]{0,40}\b(?:recipes?|recipe bank|recipe collection|fuel|meal prep)\b|\b(?:recipes?|meal prep) (?:from|in|off) (?:this|these|the (?:reel|video|post|caption))\b|\binto (?:a |my )?recipes?\b/i;
+
+export const LANES = ['recipe', 'brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'practice', 'capture', 'play', 'ask', 'book', 'program'];
 
 // "watch AND analyse" — the deep vault weave (transcript fetched, every
 // concept and person drafted into pages) as opposed to the Watcher's verdict.
@@ -151,6 +157,12 @@ export function routeIntent(text) {
     // 15 Sep the lane reads articles too and the question "does he want to
     // learn this?" is about the SENTENCE, not about whether the link is video.
     if (REPERTOIRE_RE.test(prose)) return { lane: 'repertoire', urls, prose, why: 'a technique to learn, not just something to digest — Nova reads the source, researches the family it belongs to, and builds a curriculum it teaches you one a day' };
+    // A RECIPE REEL (29 Sep): "add to my recipes" on a video link. It went to
+    // the Watcher on the link alone, which writes a Source note and never
+    // reads the caption where the recipe is. The words decide.
+    if (isMediaHost && VIDEO_PATH_RE.test(u) && RECIPE_WORDS_RE.test(prose)) {
+      return { lane: 'recipe', urls, prose, why: 'a recipe to save — Nova reads the caption (and the transcript if it has to) into your recipe collection' };
+    }
     if (isMediaHost && VIDEO_PATH_RE.test(u)) {
       if (WEAVE_RE.test(prose)) return { lane: 'weave', urls, prose, why: 'a video to weave into the vault — transcript fetched, every concept and person drafted as pages for review' };
       return { lane: 'watch', urls, prose, why: 'a single video link — the Watcher pulls the transcript and drafts a verdict' };
@@ -212,7 +224,7 @@ export function followUpLane(routed, raw, { lastAgent, lastAgentAt } = {}, now =
 export const LANE_LABEL = {
   build: 'BUILD',
   play: 'PLAY', paper: 'STUDY → PROGRAM',
-  watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', repertoire: 'REPERTOIRE', research: 'RESEARCH',
+  recipe: 'RECIPE', watch: 'WATCH', weave: 'WEAVE INTO VAULT', study: 'STUDY', repertoire: 'REPERTOIRE', research: 'RESEARCH',
   brief: 'BRIEFING',
   code: 'CLAUDE CODE', coach: 'COACH', leader: 'LEADER', practice: 'PRACTICE', capture: 'INBOX', ask: 'ASK NOVA', book: 'LIBRARIAN',
   browse: 'BROWSER', program: 'PROGRAM DOSSIER',

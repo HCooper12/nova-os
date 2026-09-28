@@ -1438,7 +1438,7 @@ export function captureLane(text) {
   const decision = routeIntent(text);
   const url = decision.urls?.[0];
   if (!url) return null;
-  if (decision.lane !== 'watch' && decision.lane !== 'study') return null;
+  if (decision.lane !== 'watch' && decision.lane !== 'study' && decision.lane !== 'recipe') return null;
   return { lane: decision.lane, url, urls: decision.urls, prose: decision.prose || '' };
 }
 
@@ -1449,6 +1449,10 @@ async function mediaLaneFor(vaultPath, text) {
   if (lane === 'watch') {
     const { startVideoWatch } = await import('./watcher.js');
     return startVideoWatch(vaultPath, url, decision.prose);
+  }
+  if (lane === 'recipe') {
+    const { startRecipeFromVideo } = await import('./recipeFromVideo.js');
+    return startRecipeFromVideo(vaultPath, url, decision.prose);
   }
   const { startStudy } = await import('./studyLane.js');
   return startStudy(vaultPath, { urls: decision.urls, prose: decision.prose });

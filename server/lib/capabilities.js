@@ -22,6 +22,19 @@
 // makes every estimate wrong in the same direction.
 
 export const CAPABILITIES = {
+  // A RECIPE REEL (29 Sep): the caption read into recipes for his collection;
+  // code decides the macros, and "add to my recipes" applies it on his word
+  recipe: {
+    agent: 'Recipe reader',
+    summary: 'Read a recipe video\'s caption (and transcript if needed) into recipes for his collection.',
+    input: 'one video URL with words asking for it to be saved as a recipe',
+    output: 'one recipe card per recipe, added to his collection when he asked for that (undo removes it)',
+    produces: 'recipe',
+    costUsd: 0.2,
+    autonomy: 'propose',
+    // his capture or his words start it; a plan never saves recipes on its own
+    delegable: false,
+  },
   watch: {
     agent: 'Watcher',
     summary: 'Pull a single video\'s transcript and draft a verdict on what it claims.',

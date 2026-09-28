@@ -133,11 +133,13 @@ const FEATURES = [
   ['Fuel · a calorie ring beside the protein ring (26 Sep)', 'calories: nothing logged'],
   ['Train · a finished make-up keeps the day made up (26 Sep)', 'Also scheduled today ·'],
   ['Fuel · correct a meal estimate in words, again and again (26 Sep)', 'Keep correcting as often as you like'],
+  ['Documents · the screen, the viewer and chat cards (28 Sep)', 'Search documents'],
 ];
 
 const SERVER_ROUTES = [
   ['GET', '/api/health'],
   ['GET', '/api/eat-out'],
+  ['GET', '/api/artifacts'],
   ['GET', '/api/library'],
   ['GET', '/api/recipes'],
   ['GET', '/api/shopping-list'],
