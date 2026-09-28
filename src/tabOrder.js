@@ -4,7 +4,7 @@
 const KEY = 'novaos.tabOrder';
 
 export const TAB_META = [
-  ['mission', 'Home'], ['voice', 'Voice'], ['galaxy', 'Galaxy'], ['code', 'Code'],
+  ['mission', 'Home'], ['voice', 'Nova'] /* was Voice; his call 29 Sep: "relabel voice to simply Nova so it is clear that this tab is my direct communication with Nova" */, ['galaxy', 'Galaxy'], ['code', 'Code'],
   ['inbox', 'Inbox'], ['recipes', 'Fuel'], ['shopping', 'Shop'], ['todos', 'To-Do'],
   ['workouts', 'Train'], ['notes', 'Notes'], ['journal', 'Journal'], ['money', 'Money'], ['stash', 'Stash'],
   ['ops', 'Ops'], ['settings', 'Settings'],

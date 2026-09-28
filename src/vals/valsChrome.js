@@ -185,7 +185,7 @@ export function valsChrome(app, ctx) {
     // travel with the row rather than renumbering by position.
     navMain: sortByOrder([
       mkNav('Mission Control', 'I.', 'mission'),
-      mkNav('Voice', 'II.', 'voice'),
+      mkNav('Nova', 'II.', 'voice'),
       mkNav('Memory Galaxy', 'III.', 'galaxy'),
       mkNav('Claude Code', 'IV.', 'code'),
       Object.assign(mkNav('Inbox', 'V.', 'inbox'), inboxPendingCount > 0 ? { count: String(inboxPendingCount), countHot: true } : {}),

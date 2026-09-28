@@ -33,7 +33,7 @@ export const ROW_META = {
   recipes: { label: 'Fuel', hue: '--nv-good' },
   inbox: { label: 'Inbox', hue: '--nv-gold' },
   todos: { label: 'To-Do', hue: '--nv-ink40' },
-  voice: { label: 'Voice', hue: '--nv-cy' },
+  voice: { label: 'Nova', hue: '--nv-cy' },
   practice: { label: 'Practice', hue: '--nv-or' },
   leader: { label: 'Lead', hue: '--nv-gold' },
   review: { label: 'Daily review', hue: '--nv-vi' },
