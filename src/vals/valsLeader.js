@@ -102,9 +102,11 @@ export function valsLeader(app, _ctx) {
     leaderBusy: st.leaderBusy && !st.leaderChat.some((m) => m.streaming),
     leaderContinuing: !!st.leaderSessionId,
     leaderInput: st.leaderInput,
-    setLeaderInput: (e) => app.setState({ leaderInput: e.target.value }),
+    setLeaderInput: (e) => app.setState({ leaderInput: typeof e === 'string' ? e : e.target.value }),
     leaderKey: (e) => { if (e.key === 'Enter') app.doLeaderChat(); },
-    sendLeader: () => app.doLeaderChat(),
+    // accepts the live text a LocalInput's Enter hands straight over
+    // (doLeaderChat already falls back to state for a no-arg Button click)
+    sendLeader: (text) => app.doLeaderChat(text),
     newLeaderChat: () => app.newLeaderChat(),
     openLeader: () => app.navigate('leader'),
   };

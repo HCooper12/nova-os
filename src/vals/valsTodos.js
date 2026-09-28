@@ -91,9 +91,10 @@ export function valsTodos(app, ctx) {
     todosConnected: !demoMode,
     todosLoaded: !!live,
     todoInput: st.todoInput,
-    setTodoInput: (e) => app.setState({ todoInput: e.target.value }),
+    setTodoInput: (e) => app.setState({ todoInput: typeof e === 'string' ? e : e.target.value }),
     todoInputKey: (e) => { if (e.key === 'Enter') app.addTodoItem(); },
-    submitTodo: () => app.addTodoItem(),
+    // accepts the live text a LocalInput's Enter hands straight over
+    submitTodo: (text) => app.addTodoItem(text),
     todosOpenGroups: groupsOf(open),
     todosOpenCountNum: open.length,
     todosDone: done.map(mkTodo),

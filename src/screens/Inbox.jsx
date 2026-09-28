@@ -123,6 +123,7 @@ function InboxClassic({ v }) {
           onChange={(text) => v.setInboxInput(text)}
           submitWhen={(e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey)}
           onSubmit={submit}
+          autoCorrect="on" autoCapitalize="sentences" spellCheck
           placeholder={v.inboxConnected ? 'Anything — "buy tomatoes", "idea: cold open with the drone shot", "ate a protein bar"…' : 'Connect a backend in Settings to start capturing'}
           disabled={!v.inboxConnected}
           style={css(`margin-top:12px;width:100%;box-sizing:border-box;height:84px;resize:vertical;background:var(--nv-well);border:1px solid ${dict.on ? 'var(--nv-acc-border)' : 'color-mix(in srgb, var(--nv-ink) 12%, transparent)'};border-radius:9px;padding:12px 14px;color:var(--nv-ink);font:500 14px var(--nv-font-ui);line-height:1.5;outline:none`)}

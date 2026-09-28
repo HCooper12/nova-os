@@ -511,7 +511,7 @@ export function valsWorkouts(app, ctx) {
     onToggleSkip: () => app.toggleSessionExerciseSkipped(exIdx),
     // cockpit fields
     note: e.note || '',
-    onNote: (ev) => app.updateSessionExerciseField(exIdx, 'note', ev.target.value),
+    onNote: (ev) => app.updateSessionExerciseField(exIdx, 'note', typeof ev === 'string' ? ev : ev.target.value),
     anomaly: !!e.anomaly,
     toggleAnomaly: () => app.updateSessionExerciseField(exIdx, 'anomaly', !e.anomaly),
     painLogged: e.pain || null,
@@ -690,7 +690,7 @@ export function valsWorkouts(app, ctx) {
     coachContinuing: !!st.coachSessionId,
     newCoachChat: () => app.newCoachChat(),
     coachInput: st.coachInput,
-    setCoachInput: (e) => app.setState({ coachInput: e.target.value }),
+    setCoachInput: (e) => app.setState({ coachInput: typeof e === 'string' ? e : e.target.value }),
     // THE STUDY LANE's visible door: prefills the sentence the router reads,
     // so pasting a link after it goes to the lane and not to a chat turn
     bringStudy: () => app.setState({ coachInput: 'What would this study change in my program: ' }),
@@ -705,7 +705,7 @@ export function valsWorkouts(app, ctx) {
     quickMinutes: st.quickMinutes,
     setQuickMinutes: (e) => app.setState({ quickMinutes: e.target.value }),
     quickNote: st.quickNote,
-    setQuickNote: (e) => app.setState({ quickNote: e.target.value }),
+    setQuickNote: (e) => app.setState({ quickNote: typeof e === 'string' ? e : e.target.value }),
     quickBusy: st.quickBusy,
     buildQuickSession: () => app.buildQuickSession(),
     quickPlan: st.quickPlan ? {
@@ -769,7 +769,7 @@ export function valsWorkouts(app, ctx) {
       },
     }),
     cancelGoalsEdit: () => app.setState({ goalsEditing: false }),
-    setGoalsField: (field) => (e) => app.setState((s) => ({ goalsDraft: { ...s.goalsDraft, [field]: e.target.value } })),
+    setGoalsField: (field) => (e) => app.setState((s) => ({ goalsDraft: { ...s.goalsDraft, [field]: typeof e === 'string' ? e : e.target.value } })),
     saveGoals: () => app.saveFitnessGoals(),
 
     workoutHeaderLabel: usingLiveWorkouts ? `${liveRoutines.length} routine${liveRoutines.length === 1 ? '' : 's'} · live from Obsidian` : 'Connect a backend in Settings',

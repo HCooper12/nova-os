@@ -2078,8 +2078,9 @@ export default class App extends Component {
   setFoodLogField(field, e) {
     // Typing over a macro makes the scan's lines a lie — they no longer add
     // up to what he is about to log. Same rule the server applies on edit.
+    const val = typeof e === 'string' ? e : e.target.value;
     const drops = field !== 'foodLogName' && this.state.foodLogItems;
-    this.setState({ [field]: e.target.value, ...(drops ? { foodLogItems: null } : {}), ...(field !== 'foodLogName' ? { foodEstimateLines: null } : {}) });
+    this.setState({ [field]: val, ...(drops ? { foodLogItems: null } : {}), ...(field !== 'foodLogName' ? { foodEstimateLines: null } : {}) });
     if (drops) this.toastMsg('Your number now — the itemised lines were dropped');
   }
   // Retro tracking: flip the food log to a past day. The list, adds, and
@@ -2664,7 +2665,9 @@ export default class App extends Component {
   // photo — so it is quick, works on a weak signal, and can go round again.
   refineFoodEstimate(textArg) {
     const conn = getConnection();
-    const said = String(textArg != null ? textArg : this.state.foodRefineInput || '').trim();
+    // guard by type, not nullishness — a Button's onClick hands this its
+    // MouseEvent when called bare, and that is not a string of his words
+    const said = String((typeof textArg === 'string' && textArg) || this.state.foodRefineInput || '').trim();
     if (!conn || !said || this.state.foodScanBusy) return;
     const fields = {
       p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0,
@@ -2687,9 +2690,11 @@ export default class App extends Component {
   // Describe it in words — "1 large movie popcorn from Village Cinemas". Same
   // job/preview path as a photo scan; it just fills the fields from words
   // instead of pixels, and nothing is logged until he taps Add.
-  describeFoodSearch() {
+  describeFoodSearch(said) {
     const conn = getConnection();
-    const text = (this.state.foodDescribeInput || '').trim();
+    // a LocalInput-composed Enter hands the live text straight through —
+    // state may be a debounce behind it (see LocalInput.jsx)
+    const text = (typeof said === 'string' && said.trim()) || (this.state.foodDescribeInput || '').trim();
     if (!conn || !text) return;
     this.setState({ foodScanBusy: true, foodScanError: null, foodScanQuestion: null, foodScanAnswer: '' });
     api.describeFood(conn, text)
@@ -4480,7 +4485,7 @@ export default class App extends Component {
     this.setState((s) => ({ reviewReflectOpen: !s.reviewReflectOpen, reviewReflectText: '', reviewReflectError: null, reviewReflectPromptText: null }));
   }
   setReviewReflectText(e) {
-    this.setState({ reviewReflectText: e.target.value });
+    this.setState({ reviewReflectText: typeof e === 'string' ? e : e.target.value });
   }
   generateReviewReflectPrompt() {
     const conn = getConnection();
@@ -4526,7 +4531,7 @@ export default class App extends Component {
     api.journalEntries(conn, 30).then(({ entries }) => this.setState({ liveJournalEntries: entries })).catch(() => {});
   }
   setJournalComposerText(e) {
-    this.setState({ journalComposerText: e.target.value });
+    this.setState({ journalComposerText: typeof e === 'string' ? e : e.target.value });
   }
   generateJournalPrompt() {
     const conn = getConnection();
@@ -5392,9 +5397,11 @@ export default class App extends Component {
   // reason. The category is left for the server to decide — guessing it
   // client-side would be a second copy of guessTodoCategory drifting out of
   // sync with the real one.
-  addTodoItem() {
+  addTodoItem(said) {
     const conn = getConnection();
-    const text = this.state.todoInput.trim();
+    // a LocalInput-composed Enter hands the live text straight through —
+    // state may be a debounce behind it (see LocalInput.jsx)
+    const text = (typeof said === 'string' && said.trim()) || this.state.todoInput.trim();
     if (!conn || !text) return;
     const previous = this.state.liveTodos;
     const tempRaw = `__pending__${Date.now()}__${text}`;
@@ -10316,8 +10323,11 @@ export default class App extends Component {
   // Connected, it is now the real Ask Nova path, with the open recipe named
   // as context so "can I make this higher protein?" resolves to THIS dish.
   // Demo mode keeps the scripted preview, which is what demo mode is for.
-  doRecipeAsk() {
-    const q = this.state.recipeInput.trim(); if (!q) return;
+  doRecipeAsk(said) {
+    // a LocalInput-composed Enter hands the live text straight through —
+    // state may be a debounce behind it (see LocalInput.jsx)
+    const q = ((typeof said === 'string' && said.trim()) || this.state.recipeInput.trim());
+    if (!q) return;
     const id = this.state.openRecipeId;
     const live = (this.state.liveRecipes || []).find((x) => x.id === id);
     const r = live || this.recipes.find((x) => x.id === id);

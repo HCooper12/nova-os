@@ -384,7 +384,8 @@ function RoutinesView({ v }) {
               style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 15%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: 'var(--nv-micro-l)', padding: '9px 10px', outline: 'none' }}>
               {['20', '30', '45', '60', '90'].map((m) => <option key={m} value={m} style={{ background: '#141019' }}>{m} MIN</option>)}
             </select>
-            <input value={v.quickNote} onChange={v.setQuickNote} placeholder="Optional — “hotel gym, dumbbells only”, “feeling beat”, “arms”…"
+            <LocalInput submitOnEnter={false} value={v.quickNote} onChange={v.setQuickNote} placeholder="Optional — “hotel gym, dumbbells only”, “feeling beat”, “arms”…"
+              autoCorrect="on" autoCapitalize="sentences" spellCheck
               style={{ flex: '1 1 240px', minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none' }} />
             <Button onClick={v.buildQuickSession} disabled={v.quickBusy}
             >{v.quickBusy ? 'Coach is planning…' : 'Build my session'}</Button>
@@ -623,8 +624,14 @@ function SessionView({ v }) {
               <div style={css("margin-top:10px;display:flex;gap:7px;align-items:center;flex-wrap:wrap")}>
                 {/* a NOTE grows as he types — a one-line box that scrolls
                     sideways is unreadable the moment a note earns its place */}
-                <textarea value={e.note} rows={1} placeholder={'Note — "felt strong", "grip gave first"…'}
-                  onChange={(ev) => { ev.target.style.height = 'auto'; ev.target.style.height = `${ev.target.scrollHeight}px`; e.onNote(ev); }}
+                <LocalInput multiline submitOnEnter={false} value={e.note} rows={1} placeholder={'Note — "felt strong", "grip gave first"…'}
+                  onChange={e.onNote}
+                  autoCorrect="on" autoCapitalize="sentences" spellCheck
+                  // the grow-on-type behaviour used to live in onChange, which
+                  // LocalInput now owns (it hands onChange the VALUE, not the
+                  // event) — onInput fires on the same keystrokes and still
+                  // sees the real DOM node, so the height logic just moves here
+                  onInput={(ev) => { ev.target.style.height = 'auto'; ev.target.style.height = `${ev.target.scrollHeight}px`; }}
                   ref={(el) => { if (el && el.scrollHeight > el.clientHeight) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
                   style={{ flex: 1, minWidth: '150px', resize: 'none', overflow: 'hidden', lineHeight: 1.5, background: 'rgba(0,0,0,.22)', border: '1px dashed color-mix(in srgb, var(--nv-ink) 20%, transparent)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none', boxSizing: 'border-box' }} />
                 <Chip tone={e.anomaly ? 'gold' : 'quiet'} active={e.anomaly} onClick={e.toggleAnomaly} title={'Off day — exclude today from progression and plateau signals'}>{e.anomaly ? 'Off day ✓' : 'Anomaly'}</Chip>
@@ -656,7 +663,8 @@ function SessionView({ v }) {
                         <Chip key={w} tone={e.painState.when === w ? 'warn' : 'quiet'} active={e.painState.when === w} onClick={() => e.setPainField('when')(w)}>{cap(w)}</Chip>
                       ))}
                     </div>
-                    <input value={e.painState.detail} onChange={(ev) => e.setPainField('detail')(ev.target.value)} placeholder="Exact spot + anything else — optional"
+                    <LocalInput submitOnEnter={false} value={e.painState.detail} onChange={e.setPainField('detail')} placeholder="Exact spot + anything else — optional"
+                      autoCorrect="on" autoCapitalize="sentences" spellCheck
                       style={{ marginTop: '9px', width: '100%', boxSizing: 'border-box', background: 'rgba(0,0,0,.22)', border: '1px solid var(--nv-edge)', borderRadius: '9px', padding: '8px 11px', color: 'var(--nv-ink)', fontSize: '12px', fontFamily: 'var(--nv-font-ui)', outline: 'none' }} />
                     <div style={css("display:flex;gap:8px;margin-top:10px")}>
                       <Button onClick={e.submitPain} tone="warn">Ask Coach — triage this</Button>
@@ -783,15 +791,15 @@ function SessionView({ v }) {
             {v.coachBusy && <Meta as="div" tone="cyan" style={{ textTransform: 'none', letterSpacing: 0 }}>» Coach looking at your session…▍</Meta>}
           </div>
           <div style={css("display:flex;gap:8px;margin-top:10px")}>
-            <Interactive
-              as="input"
+            <LocalInput
+              submitOnEnter={false}
               data-coach-input
               value={v.coachInput}
               onChange={v.setCoachInput}
               onKeyDown={v.coachKey}
               placeholder="Ask mid-workout…"
-              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
-              focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+              autoCorrect="on" autoCapitalize="sentences" spellCheck
+              style={css("flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none")}
             />
             <Button onClick={v.sendCoach} style={{ padding: '0 16px' }}>Ask</Button>
           </div>
@@ -892,15 +900,15 @@ function MockWorkouts({ v }) {
             ))}
           </div>
           <div style={css("display:flex;gap:8px;margin-top:14px")}>
-            <Interactive
-              as="input"
+            <LocalInput
+              submitOnEnter={false}
               data-coach-input
               value={v.coachInput}
               onChange={v.setCoachInput}
               onKeyDown={v.coachKey}
               placeholder='Try "make it shorter" or "go harder"…'
-              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
-              focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+              autoCorrect="on" autoCapitalize="sentences" spellCheck
+              style={css("flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none")}
             />
             <Interactive as="span" onClick={v.sendCoach} base="cursor:pointer;display:flex;align-items:center;font:var(--nv-micro-l);padding:0 16px;border-radius:9px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 80%, white)">SEND</Interactive>
           </div>
@@ -1014,7 +1022,8 @@ function GoalsCoachPane({ v }) {
                 style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
               <input value={v.goalsDraft.limitations} onChange={v.setGoalsField('limitations')} placeholder="Injuries / limitations — e.g. left shoulder impingement, no overhead pressing"
                 style={{ marginTop: '8px', width: '100%', boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-warn) 25%, transparent)', borderRadius: '8px', padding: '9px 12px', color: 'var(--nv-ink)', fontSize: '12.5px', fontFamily: "var(--nv-font-ui)", outline: 'none' }} />
-              <textarea value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything else the Coach should always know — preferences, schedule quirks…"
+              <LocalInput multiline submitOnEnter={false} value={v.goalsDraft.notes} onChange={v.setGoalsField('notes')} rows={3} placeholder="Anything else the Coach should always know — preferences, schedule quirks…"
+                autoCorrect="on" autoCapitalize="sentences" spellCheck
                 style={{ background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '8px', color: 'var(--nv-ink)', font: "500 12.5px var(--nv-font-ui)", padding: '9px 12px', outline: 'none', resize: 'vertical' }} />
               <div style={css("display:flex;gap:8px")}>
                 <Button onClick={v.saveGoals}>Save</Button>
@@ -1154,15 +1163,15 @@ function GoalsCoachPane({ v }) {
           </div>
           <div style={css("display:flex;gap:8px;margin-top:8px;align-items:center")}>
             <AttachStrip attach={v.attach} tone="cyan" />
-            <Interactive
-              as="input"
+            <LocalInput
+              submitOnEnter={false}
               data-coach-input
               value={v.coachInput}
               onChange={v.setCoachInput}
               onKeyDown={v.coachKey}
               placeholder="Ask your coach…"
-              base="flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none"
-              focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+              autoCorrect="on" autoCapitalize="sentences" spellCheck
+              style={css("flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:10px 14px;color:var(--nv-ink);font:500 12.5px var(--nv-font-ui);outline:none")}
             />
             <Button onClick={v.sendCoach} style={{ padding: '0 16px' }}>Ask</Button>
           </div>

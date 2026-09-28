@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
+import { LocalInput } from './LocalInput.jsx';
 import { useDictation } from './useDictation.js';
 import { TypeText } from './TypeText.jsx';
 import { Eyebrow, TextAction, Chip, Meta, isAppleStyle, Button } from './Controls.jsx';
@@ -249,17 +250,16 @@ export function RecipeOverlay({ v }) {
                     Out of an ingredient? Want it lighter? Ask — type it or tap the mic and say it. Attach a photo of a different ingredient (its label, its packaging, the thing itself) and Nova reads it before recalculating. Nova suggests a version, saved as an alternative you can switch back from any time, and you can keep talking to refine it.
                   </div>
                   <div style={css("display:flex;gap:8px;margin-top:12px;flex-wrap:wrap")}>
-                    <Interactive
-                      as="input"
+                    <LocalInput
                       value={v.recipeTweakInput}
-                      onChange={v.setRecipeTweakInput}
-                      onKeyDown={v.recipeTweakKey}
+                      onChange={v.setRecipeTweakValue}
+                      onSubmit={(text) => v.submitRecipeTweak(text)}
                       disabled={v.recipeTweakBusy}
+                      autoCorrect="on" autoCapitalize="sentences" spellCheck
                       placeholder={v.recipeTweakPreview
                         ? 'Refine it — "keep the whole eggs, what else raises protein?"'
                         : 'Try "no soy sauce, what instead?" or "cut the carbs"…'}
-                      base="flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
-                      focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+                      style={css("flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none")}
                     />
                     {dict.supported && v.setRecipeTweakValue && (
                       <Interactive
@@ -335,14 +335,13 @@ export function RecipeOverlay({ v }) {
                   <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
                 ))}
                 <div style={css("display:flex;gap:8px;margin-top:12px;flex-wrap:wrap")}>
-                  <Interactive
-                    as="input"
+                  <LocalInput
                     value={v.recipeInput}
                     onChange={v.setRecipeInput}
-                    onKeyDown={v.recipeKey}
+                    onSubmit={(text) => v.sendRecipe(text)}
+                    autoCorrect="on" autoCapitalize="sentences" spellCheck
                     placeholder='Try "suggest a swap" or "scale for cutting"…'
-                    base="flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
-                    focusStyle="border:1px solid color-mix(in srgb, var(--nv-cy) 50%, transparent)"
+                    style={css("flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none")}
                   />
                   <Button onClick={v.sendRecipe} style={{ display: 'flex', padding: '0 14px' }}>Ask</Button>
                 </div>

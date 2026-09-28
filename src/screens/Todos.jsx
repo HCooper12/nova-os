@@ -1,6 +1,7 @@
 import { css } from '../css.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
+import { LocalInput } from '../LocalInput.jsx';
 import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
@@ -22,10 +23,11 @@ export function Todos({ v }) {
       {v.todosConnected && (
         <div className="nv-pane" style={{ marginTop: '18px', padding: '14px 16px' }}>
           <div style={css("display:flex;gap:10px;align-items:center")}>
-            <input
+            <LocalInput
               value={v.todoInput}
               onChange={v.setTodoInput}
-              onKeyDown={v.todoInputKey}
+              onSubmit={(text) => v.submitTodo(text)}
+              autoCorrect="on" autoCapitalize="sentences" spellCheck
               placeholder="Add a to-do — Enter files it here, in Obsidian, and in Todoist"
               style={{ flex: 1, minWidth: 0, background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent)', borderRadius: '9px', color: 'var(--nv-ink)', font: `500 13.5px ${R}`, padding: '11px 14px', outline: 'none' }}
             />

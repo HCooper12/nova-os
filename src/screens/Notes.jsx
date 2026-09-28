@@ -1,5 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { LocalInput } from '../LocalInput.jsx';
 import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead, Tag, Button, Rail } from '../Controls.jsx';
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
@@ -87,10 +88,13 @@ export function Notes({ v }) {
                   {v.reviewReflectPromptText && (
                     <div style={css("font:italic 400 15px/1.5 var(--nv-font-serif);color:#cbb6f2;margin-bottom:10px")}>{v.reviewReflectPromptText}</div>
                   )}
-                  <textarea
+                  <LocalInput
+                    multiline
+                    submitOnEnter={false}
                     value={v.reviewReflectText}
                     onChange={v.setReviewReflectText}
                     placeholder="Your reflection on this…"
+                    autoCorrect="on" autoCapitalize="sentences" spellCheck
                     style={css("width:100%;box-sizing:border-box;height:110px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:11px 14px;color:var(--nv-ink);font-size:13.5px;font-family:var(--nv-font-ui);line-height:1.6;outline:none")}
                   />
                   <div style={css("margin-top:10px;display:flex;justify-content:flex-end")}>

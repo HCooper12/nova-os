@@ -1,5 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 
+// A TAP FLUSHES EVERY BOX (29 Sep 2026). On iOS a tap on a button does not
+// reliably blur the text field, so a Send button that reads App state could
+// run inside the 150 ms debounce and miss the last letters typed. Every box
+// with an unpushed value registers a flusher here; one capture-phase
+// pointerdown / touchstart listener runs them all BEFORE the button's click.
+const pendingFlush = new Set();
+let flushInstalled = false;
+function installFlush() {
+  if (flushInstalled || typeof document === 'undefined') return;
+  flushInstalled = true;
+  const flushAll = () => { for (const f of [...pendingFlush]) f(); };
+  document.addEventListener('pointerdown', flushAll, true);
+  document.addEventListener('touchstart', flushAll, { capture: true, passive: true });
+}
+
 // LOCAL ECHO — the text lives HERE while you type, so a keystroke re-renders
 // one input instead of the whole app. Measured before writing this (23 Aug,
 // real-size data): a keystroke in the Inbox capture box cost 37ms median /
@@ -51,25 +66,42 @@ export function LocalInput({
     }
   }, [value]);
 
-  // flush any pending debounce on unmount, so navigating away mid-type
-  // doesn't drop what was typed
-  useEffect(() => () => {
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-  }, []);
+  // the latest onChange and value, for a flush that runs outside a render
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const pendingValue = useRef(null);
+  const flusher = useRef(null);
 
   const push = (v) => {
     lastPushed.current = v;
-    onChange?.(v);
+    pendingValue.current = null;
+    if (flusher.current) pendingFlush.delete(flusher.current);
+    onChangeRef.current?.(v);
   };
+  if (!flusher.current) {
+    flusher.current = () => {
+      if (pendingValue.current == null) return;
+      clearTimeout(timer.current);
+      timer.current = null;
+      push(pendingValue.current);
+    };
+  }
+
+  // flush any pending debounce on unmount, so navigating away mid-type does
+  // not drop what was typed (it used to only cancel the timer — and drop it)
+  useEffect(() => {
+    installFlush();
+    const f = flusher.current;
+    return () => { f(); pendingFlush.delete(f); };
+  }, []);
 
   const handleChange = (e) => {
     const v = e.target.value;
     setLocal(v);
     if (!onChange) return;
     clearTimeout(timer.current);
+    pendingValue.current = v;
+    pendingFlush.add(flusher.current);
     timer.current = setTimeout(() => push(v), debounceMs);
   };
 

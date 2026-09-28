@@ -1,5 +1,6 @@
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
+import { LocalInput } from '../LocalInput.jsx';
 import { Eyebrow, Chip, Tag, Meta, ScreenHead, Button, Chevron } from '../Controls.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase()).replace(/\bnova\b/g, 'Nova');
@@ -23,10 +24,13 @@ export function Journal({ v }) {
         {v.journalPromptText && (
           <div style={css("margin-top:12px;font:italic 400 15px/1.5 var(--nv-font-serif);color:#cbb6f2")}>{v.journalPromptText}</div>
         )}
-        <textarea
+        <LocalInput
+          multiline
+          submitOnEnter={false}
           value={v.journalComposerText}
           onChange={v.setJournalComposerText}
           placeholder="What's on your mind today…"
+          autoCorrect="on" autoCapitalize="sentences" spellCheck
           style={css("margin-top:14px;width:100%;box-sizing:border-box;height:120px;resize:vertical;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:12px 14px;color:var(--nv-ink);font-size:13.5px;font-family:var(--nv-font-ui);line-height:1.6;outline:none")}
         />
         {v.journalSaveError && (

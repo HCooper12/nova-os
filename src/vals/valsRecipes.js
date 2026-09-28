@@ -717,7 +717,8 @@ export function valsRecipes(app, ctx) {
     setFoodDescribeInput: (e) => app.setState({ foodDescribeInput: typeof e === 'string' ? e : e.target.value }),
     foodDescribeValue: st.foodDescribeInput || '',
     describeFoodKey: (e) => { if (e.key === 'Enter') app.describeFoodSearch(); },
-    describeFoodSearch: () => app.describeFoodSearch(),
+    // accepts the live text a LocalInput's Enter hands straight over
+    describeFoodSearch: (text) => app.describeFoodSearch(text),
     // the submit control the input bar never actually had — the code comment
     // claimed "Enter or the arrow submits", but only Enter existed, so on a
     // phone there was nothing to tap and searching looked broken
@@ -781,7 +782,8 @@ export function valsRecipes(app, ctx) {
     foodRefine: st.foodEstimateLines?.length ? {
       value: st.foodRefineInput || '',
       set: (e) => app.setState({ foodRefineInput: typeof e === 'string' ? e : e.target.value }),
-      send: () => app.refineFoodEstimate(),
+      // accepts the live text a LocalInput's Enter hands straight over
+      send: (text) => app.refineFoodEstimate(text),
       busy: !!st.foodScanBusy,
       thread: (st.foodRefineThread || []).map((t, i) => ({
         key: `${i}-${t.said}`,
@@ -1062,7 +1064,8 @@ export function valsRecipes(app, ctx) {
     submitRecipeTweakVoice: (text) => app.submitRecipeTweak(true, text),
     recipeDictationError: (err) => app.setState({ recipeTweakError: err === 'not-allowed' ? 'Microphone access is off for this site.' : `Dictation stopped: ${err}` }),
     recipeTweakKey: (e) => { if (e.key === 'Enter') app.submitRecipeTweak(); },
-    submitRecipeTweak: () => app.submitRecipeTweak(),
+    // accepts the live text a LocalInput's Enter hands straight over
+    submitRecipeTweak: (text) => app.submitRecipeTweak(false, text),
     recipeTweakBusy: st.recipeTweakBusy,
     recipeTweakError: st.recipeTweakError,
     recipeTweakPreview: st.recipeTweakPreview,
@@ -1096,8 +1099,9 @@ export function valsRecipes(app, ctx) {
     discardRecipeTweak: () => app.discardRecipeTweak(),
     recipeMsgs: st.recipeChat.map(m => ({ text: m.text, typing: m.typing, tag: m.who === 'nova' ? '» NOVA' : '» YOU', tagStyle: { color: m.who === 'nova' ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500, fontFamily: mono, fontSize: '11px' } })),
     recipeInput: st.recipeInput,
-    setRecipeInput: (e) => app.setState({ recipeInput: e.target.value }),
+    setRecipeInput: (e) => app.setState({ recipeInput: typeof e === 'string' ? e : e.target.value }),
     recipeKey: (e) => { if (e.key === 'Enter') app.doRecipeAsk(); },
-    sendRecipe: () => app.doRecipeAsk(),
+    // accepts the live text a LocalInput's Enter hands straight over
+    sendRecipe: (text) => app.doRecipeAsk(text),
   };
 }

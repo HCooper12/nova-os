@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Interactive } from '../Interactive.jsx';
+import { LocalInput } from '../LocalInput.jsx';
 import { Pill } from '../AppleLayout.jsx';
 import { Button, Eyebrow, Meta, Rail, Tag, TextAction } from '../Controls.jsx';
 import { glowPanel } from '../glowPanel.js';
@@ -461,11 +462,12 @@ function Stage({ s, v }) {
                 <MicGlyph />
               </span>
             )}
-            <Interactive as="input" value={s.input} onChange={s.setInput}
-              onKeyDown={(e) => { if (e.key === 'Enter' && s.canTalk) s.send(); }}
+            <LocalInput value={s.input} onChange={s.setInput}
+              submitWhen={(e) => e.key === 'Enter' && s.canTalk}
+              onSubmit={(text) => s.send(text)}
+              autoCorrect="on" autoCapitalize="sentences" spellCheck
               placeholder={dict.on ? (dict.hearing ? 'Hearing you…' : 'Listening…') : s.canTalk ? 'Say your line…' : 'Their turn…'}
-              base={{ flex: 1, minWidth: 0, boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '12px', padding: '12px 14px', color: 'var(--nv-ink)', font: `450 16px ${UI}`, outline: 'none' }}
-              focusStyle="border-color:color-mix(in srgb, var(--nv-or) 55%, transparent)" />
+              style={{ flex: 1, minWidth: 0, boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '12px', padding: '12px 14px', color: 'var(--nv-ink)', font: `450 16px ${UI}`, outline: 'none' }} />
             <Button compact tone="var(--nv-or)" disabled={!s.canTalk || !s.input.trim()} onClick={() => s.send()}>Send</Button>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>

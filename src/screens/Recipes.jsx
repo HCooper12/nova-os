@@ -582,10 +582,11 @@ function RecipesPage({ v }) {
                 registered; the caption below the bar (not the placeholder —
                 the box still holds what he typed, so a placeholder swap
                 would never actually be visible) is the rest of the fix. */}
-            <Interactive as="input" value={v.foodDescribeInput} onChange={v.setFoodDescribeInput} onKeyDown={v.describeFoodKey}
+            <LocalInput value={v.foodDescribeInput} onChange={v.setFoodDescribeInput} onSubmit={(text) => v.describeFoodSearch(text)}
               disabled={v.foodScanBusy}
+              autoCorrect="on" autoCapitalize="sentences" spellCheck
               placeholder="Log anything…"
-              base="flex:1;min-width:0;box-sizing:border-box;background:none;border:none;border-radius:10px;padding:9px 8px;color:var(--nv-ink);font-family:var(--nv-font-ui);outline:none" />
+              style={css("flex:1;min-width:0;box-sizing:border-box;background:none;border:none;border-radius:10px;padding:9px 8px;color:var(--nv-ink);font-family:var(--nv-font-ui);outline:none")} />
             {dict.supported && (
               <Interactive as="span" onClick={dict.toggle} aria-label={dict.on ? 'Stop dictating' : 'Say it'}
                 base={css(`cursor:pointer;flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:${dict.on ? 'color-mix(in srgb, var(--nv-good) 22%, transparent)' : 'none'}`)}
@@ -794,7 +795,9 @@ function RecipesPage({ v }) {
           {/* manual macros are the fallback, not the feature — folded away
               (mockup: one bar, four senses; numbers only when he wants them) */}
           {manualVisible && <div style={css("margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-            <Interactive as="input" value={v.foodLogName} onChange={v.setFoodLogName} placeholder="What did you eat?" base="flex:1;min-width:140px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
+            <LocalInput submitOnEnter={false} value={v.foodLogName} onChange={v.setFoodLogName} placeholder="What did you eat?"
+              autoCorrect="on" autoCapitalize="sentences" spellCheck
+              style={css("flex:1;min-width:140px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none")} />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogP} onChange={v.setFoodLogP} placeholder="P" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-cy);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogC} onChange={v.setFoodLogC} placeholder="C" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-gold);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
             <Interactive as="input" type="number" inputMode="numeric" value={v.foodLogF} onChange={v.setFoodLogF} placeholder="F" base="width:52px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 8px;color:var(--nv-vi);font-size:12.5px;font-family:var(--nv-font-mono);outline:none" focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
@@ -848,12 +851,13 @@ function RecipesPage({ v }) {
                 </div>
               )}
               <div style={css("display:flex;gap:8px;align-items:center;flex-wrap:wrap")}>
-                <Interactive as="input" value={v.foodRefine.value} onChange={v.foodRefine.set}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !v.foodRefine.busy) v.foodRefine.send(); }}
+                <LocalInput value={v.foodRefine.value} onChange={v.foodRefine.set}
+                  submitWhen={(e) => e.key === 'Enter' && !v.foodRefine.busy}
+                  onSubmit={(text) => v.foodRefine.send(text)}
+                  autoCorrect="on" autoCapitalize="sentences" spellCheck
                   placeholder={v.foodRefine.thread.length ? 'Anything else different?' : 'Anything different? e.g. “the rissole was vegetarian”'}
                   aria-label="Correct the estimate"
-                  base="flex:1;min-width:170px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:16px;font-family:var(--nv-font-ui);outline:none"
-                  focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+                  style={css("flex:1;min-width:170px;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:8px 12px;color:var(--nv-ink);font-size:16px;font-family:var(--nv-font-ui);outline:none")} />
                 <Button onClick={v.foodRefine.send} disabled={v.foodRefine.busy || !v.foodRefine.value.trim()} tone="cyan" style={{ flex: 'none' }}>{v.foodRefine.busy ? 'Refining…' : 'Refine'}</Button>
               </div>
               <Meta tone="faint" style={{ display: 'block', marginTop: '7px' }}>Keep correcting as often as you like. Nothing is logged until you tap Add.</Meta>

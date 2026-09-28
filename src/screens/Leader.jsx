@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { css } from '../css.js';
-import { Interactive } from '../Interactive.jsx';
+import { LocalInput } from '../LocalInput.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
 import { Eyebrow, TextAction, Tag, Meta, Button } from '../Controls.jsx';
 import { useStickToBottom } from '../useStickToBottom.js';
@@ -119,10 +119,10 @@ export function Leader({ v }) {
         {v.leaderBusy && <Meta as="div" tone="gold" style={{ textTransform: 'none', letterSpacing: 0 }}>» Leader thinking it through…▍</Meta>}
       </div>
       <div style={css('margin-top:10px;display:flex;gap:9px')}>
-        <Interactive as="input" value={v.leaderInput} onChange={v.setLeaderInput} onKeyDown={v.leaderKey}
+        <LocalInput value={v.leaderInput} onChange={v.setLeaderInput} onSubmit={(text) => v.sendLeader(text)}
           placeholder="What are you facing — or what worked?"
-          base={{ flex: 1, boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '10px', padding: '11px 14px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: UI, outline: 'none' }}
-          focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)" />
+          autoCorrect="on" autoCapitalize="sentences" spellCheck
+          style={{ flex: 1, boxSizing: 'border-box', background: 'var(--nv-well)', border: '1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)', borderRadius: '10px', padding: '11px 14px', color: 'var(--nv-ink)', fontSize: '13px', fontFamily: UI, outline: 'none' }} />
         <Button onClick={v.sendLeader} style={{ display: 'flex' }}>Send</Button>
       </div>
 
