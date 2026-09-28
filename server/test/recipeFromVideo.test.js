@@ -10,7 +10,7 @@ process.env.NOVA_DATA_DIR = await mkdtemp(path.join(tmpdir(), 'nova-recipe-video
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { captionHasRecipe, macrosFor, toRecipePayload, startRecipeFromVideo, ADD_NOW_RE } = await import('../lib/recipeFromVideo.js');
+const { captionHasRecipe, macrosFor, toRecipePayload, startRecipeFromVideo, ADD_NOW_RE, categoryFor } = await import('../lib/recipeFromVideo.js');
 const { routeIntent, RECIPE_WORDS_RE } = await import('../lib/intentRouter.js');
 const { captureLane } = await import('../lib/inbox.js');
 
@@ -96,4 +96,12 @@ test('no recipe in the video fails honestly; a recipe already in the collection 
   assert.match(updates.at(-1).error, /No recipe in that video: a menu with no amounts/);
   await startRecipeFromVideo('/v', 'https://x.com/a/status/1', 'add to my recipes', { ...base, ask: async () => MODEL, loadRecipes: async () => [{ name: 'Protein Overnight Oats' }] });
   assert.match(updates.at(-1).error, /already in your collection/);
+});
+
+test('categories are his collection\'s own sections — the first live run bounced on "DESSERTS"', () => {
+  assert.equal(categoryFor('DESSERTS'), 'TREATS');
+  assert.equal(categoryFor('snacks'), 'TREATS');
+  assert.equal(categoryFor('BREAKFAST'), 'ROTATION / SWAP MEALS');
+  assert.equal(categoryFor('TREATS'), 'TREATS');
+  assert.equal(categoryFor(''), 'ROTATION / SWAP MEALS');
 });

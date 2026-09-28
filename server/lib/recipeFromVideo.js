@@ -83,7 +83,7 @@ CAPTION:
 ${caption || '(no caption)'}
 ${transcript ? `\nTRANSCRIPT:\n${transcript.slice(0, 20_000)}\n` : ''}
 Output ONLY a JSON object:
-{"recipes":[{"name":"short natural name","servings":<number of portions the whole recipe makes>,"makes":"e.g. 6 jars","ingredients":[{"text":"240 g oats","name":"rolled oats","grams":240}],"method":["step one","step two"],"statedPerServing":{"kcal":471,"p":48,"c":44,"f":11},"category":"BREAKFAST|LUNCH|DINNER|SNACKS|DESSERTS|ROTATION / SWAP MEALS"}],"notFound":""}
+{"recipes":[{"name":"short natural name","servings":<number of portions the whole recipe makes>,"makes":"e.g. 6 jars","ingredients":[{"text":"240 g oats","name":"rolled oats","grams":240}],"method":["step one","step two"],"statedPerServing":{"kcal":471,"p":48,"c":44,"f":11},"category":"TREATS for desserts, sweets and snacks | ROTATION / SWAP MEALS for meals"}],"notFound":""}
 Rules:
 - Only what the video actually says. Never invent an ingredient, amount or macro.
 - "grams": the weight in grams when the amount is a weight, or a volume of a water-like liquid (ml ≈ g); null otherwise.
@@ -111,7 +111,16 @@ async function askModel(prompt, deps) {
 /* ------------------------------ code decides ------------------------------ */
 
 const r1 = (n) => Math.round(Number(n) * 10) / 10;
-const CATEGORIES = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS', 'DESSERTS', 'ROTATION / SWAP MEALS'];
+// HIS COLLECTION'S OWN SECTIONS (recipes.js CATEGORY_TABLE_HEADING): the
+// first live run picked "DESSERTS", which his file does not have, and both
+// good recipes bounced at the write. A dessert or a snack is a Treat.
+const CATEGORIES = ['CORE DAILY MEALS', 'ROTATION / SWAP MEALS', 'TREATS'];
+const CATEGORY_ALIAS = { DESSERT: 'TREATS', DESSERTS: 'TREATS', SNACK: 'TREATS', SNACKS: 'TREATS', TREAT: 'TREATS', SWEET: 'TREATS', BAKING: 'TREATS',
+  BREAKFAST: 'ROTATION / SWAP MEALS', LUNCH: 'ROTATION / SWAP MEALS', DINNER: 'ROTATION / SWAP MEALS', MEAL: 'ROTATION / SWAP MEALS', CORE: 'CORE DAILY MEALS' };
+export function categoryFor(raw) {
+  const k = String(raw || '').trim().toUpperCase();
+  return CATEGORIES.includes(k) ? k : CATEGORY_ALIAS[k] || 'ROTATION / SWAP MEALS';
+}
 
 /**
  * The macros a recipe is filed with, and where they came from. Pure except for
@@ -151,7 +160,7 @@ export async function toRecipePayload(recipe, { url, uploader, compute } = {}) {
   const got = await macrosFor(recipe, { compute });
   if (!got) return { skip: `${name}: the video gives no macros and too few weights to compute them — Nova never guesses macros into your collection` };
   const method = (recipe.method || []).map((s) => String(s).trim()).filter(Boolean).slice(0, 30);
-  const category = CATEGORIES.includes(String(recipe.category || '').toUpperCase()) ? String(recipe.category).toUpperCase() : 'ROTATION / SWAP MEALS';
+  const category = categoryFor(recipe.category);
   return {
     payload: {
       name, category, macros: got.macros, ingredients, method,
