@@ -561,6 +561,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 30 Sep 2026 (afternoon) — NOVA FULL SCREEN published (mockup 68: A the
+  field · B the ring of words · C the stage; word-by-word subtitles paced per
+  sentence today, real word timings later, ElevenLabs timestamps and
+  speechSynthesis boundary events unmeasured). His calls: the shape or a
+  blend (A's field + C's plate for long answers); Nova's word colour (cyan,
+  which is also the talk accent, or white with agents alone in colour); how
+  focus opens (name tap; a hold on the Nova button returning into the
+  button); paced words now vs a timing pass first.
 - 30 Sep 2026 (afternoon) — NOVA POLISH MERGED (81beb2f): the record moment
   in GOLD (his exception); the stage over a dimmed, blurred thread (solid
   under reduced transparency; a tap on the dim tucks it); the settled card
