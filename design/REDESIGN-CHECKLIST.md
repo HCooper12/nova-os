@@ -133,6 +133,11 @@ gets raised at the page where it first bites, not all at once.
 
 ---
 
+**Standing (his words, 29 Sep): "after all of these refinements the desktop
+version also needs to have the same redesign so it complements the phone
+but is tailored for the MacBook desktop." Every page's phone round is
+followed by a desktop round before its rows go to [x].**
+
 ## 5 · The pages
 
 Ordering inside each tier is by how often he meets the surface, from the
@@ -556,6 +561,25 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 29 Sep 2026 (evening) — HIS FOURTH ANSWERS, and a standing rule restated with
+  disappointment: EVERY agent consults every other and Nova directs all as
+  CEO; nothing walled off (memory nova-agents-consult-everyone). → BUILD IN
+  FLIGHT (worktree consult): the shared consult rail for every lane, Nova and
+  the Leader consulting, the Librarian askable, structured asks with timing,
+  by/from authorship on the record. Who is answering: B's layout with A's
+  per-agent colour; tap an agent while it works to see what it is doing; A's
+  compact joint layout; C's open view; Nova's summary with the full agent
+  message openable; and PURPOSEFUL GLASS PANELS accompanying speech (Monday's
+  workout with the parts she names highlighted; the joint case's three
+  sources; a clear numerical time for calendar), "not simply more clutter",
+  Jarvis-like → ROUND 2 IN FLIGHT (mockup 67, one blend). The record: the
+  trophy's sound; an animation per equipment (stack, barbell…), trophy for
+  the unclear, its ring refined to mean something; the FILED overlay is his
+  favourite; it PERSISTS until he dismisses it; one moment per PB → BUILD IN
+  FLIGHT (worktree pb). Nova: D chosen; tapping the name makes the core the
+  focus like today's layout; the desktop keeps the core big always and gets
+  its own tailored redesign after the phone → BUILD IN FLIGHT (worktree
+  novab). The three Voice bugs are live (nova-os-83's reload).
 - 29 Sep 2026 (afternoon) — NOVA ROUND 2 published (e79df13, mockup 63,
   https://claude.ai/artifact/6EukaUSPUjVu5haML4kAyh: A and
   B unchanged beside D "the thread with a stage that rises" and E "the stage
