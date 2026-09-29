@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, unlink, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { backupFile } from './backup.js';
 
 const PHOTOS_DIR_REL = 'Wiki/Health/Recipe Photos';
@@ -35,6 +36,22 @@ export async function savePhoto(vaultPath, recipeId, dataUrl) {
     if (existing !== full) await unlink(existing);
   }
   await writeFile(full, buffer);
+}
+
+/** A short fingerprint of a photo's bytes, so an undo removes only the photo it saved. */
+export function photoHash(buffer) {
+  return createHash('sha256').update(buffer).digest('hex').slice(0, 16);
+}
+
+// Undo for a photo Nova saved (a reel's thumbnail). With `onlyIfHash`, a
+// photo he has since replaced with his own is left alone. Backed up first.
+export async function removePhoto(vaultPath, recipeId, { onlyIfHash = null } = {}) {
+  const full = await findExistingFile(vaultPath, recipeId);
+  if (!full) return false;
+  if (onlyIfHash && photoHash(await readFile(full)) !== onlyIfHash) return false;
+  await backupFile(full);
+  await unlink(full);
+  return true;
 }
 
 export async function getPhoto(vaultPath, recipeId) {

@@ -27,6 +27,15 @@
 //   rails  each recipe is a `recipe` card (the voice path's exact shape, whose
 //          apply is addRecipe and whose undo removes it). When his words ASK
 //          for it to be added, it is applied at once; otherwise it waits.
+//
+// THE RECIPE PAGE (29 Sep, his Osta reel: "share a recipe reel to it → a clean
+// recipe page with a photo, prep/cook time and servings"). The card now also
+// carries servings, prep/cook minutes (only when the video states them), the
+// reel as its Source, and the reel's thumbnail as `photoUrl`; the `recipe`
+// route in inbox.js saves that photo once the recipe is in the file, and a
+// failed photo never fails the recipe. A reel of a recipe he ALREADY has
+// fills in only what that recipe is missing (photo, servings, times, source)
+// and never touches a value he has, its macros or its ingredients.
 
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -63,11 +72,59 @@ function run(cmd, args, { timeoutMs = 90_000 } = {}) {
   });
 }
 
-/** { title, uploader, caption } for a video URL. */
-export async function fetchCaption(url) {
-  const out = await run('yt-dlp', ['--skip-download', '--no-warnings', '--no-playlist', '-J', url]);
+/** { title, uploader, caption, thumbnail, duration } for a video URL. */
+export async function fetchCaption(url, { timeoutMs = 90_000 } = {}) {
+  const out = await run('yt-dlp', ['--skip-download', '--no-warnings', '--no-playlist', '-J', url], { timeoutMs });
   const j = JSON.parse(out);
-  return { title: String(j.title || ''), uploader: String(j.uploader || j.channel || ''), caption: String(j.description || '') };
+  return {
+    title: String(j.title || ''),
+    uploader: String(j.uploader || j.channel || ''),
+    caption: String(j.description || ''),
+    thumbnail: /^https?:\/\//.test(String(j.thumbnail || '')) ? String(j.thumbnail) : null,
+    duration: Number.isFinite(Number(j.duration)) ? Number(j.duration) : null,
+  };
+}
+
+/* ------------------------------- the photo -------------------------------- */
+
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+const PHOTO_TYPES = /^image\/(jpeg|jpg|png|webp|gif)$/;   // what recipePhotos can store
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
+
+/** A thumbnail URL → an image data URL (≤ 4 MB, an image type recipePhotos stores). */
+export async function fetchImageDataUrl(url, { timeoutMs = 15_000 } = {}) {
+  if (!/^https?:\/\//i.test(String(url || ''))) throw new Error('not an image link');
+  const res = await fetch(url, { headers: { 'User-Agent': BROWSER_UA, Accept: 'image/*' }, redirect: 'follow', signal: AbortSignal.timeout(timeoutMs) });
+  if (!res.ok) throw new Error(`the thumbnail answered ${res.status}`);
+  const type = String(res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (!PHOTO_TYPES.test(type)) throw new Error(`the thumbnail is not a usable image (${type || 'no type'})`);
+  if (Number(res.headers.get('content-length')) > MAX_PHOTO_BYTES) throw new Error('the thumbnail is over 4 MB');
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (!buf.length || buf.length > MAX_PHOTO_BYTES) throw new Error('the thumbnail is empty or over 4 MB');
+  return `data:${type};base64,${buf.toString('base64')}`;
+}
+
+let imageFetcher = fetchImageDataUrl;
+/** Tests only: the thumbnail download the inbox `recipe` route uses (never the network in a test). */
+export function _setImageFetchForTests(fn) { imageFetcher = fn || fetchImageDataUrl; }
+
+/**
+ * Download a thumbnail and save it as a recipe's photo. Never throws: a photo
+ * is a nicety and a failed one must never fail the recipe. Returns the saved
+ * photo's fingerprint (for an exact undo), or null.
+ */
+export async function saveRecipePhotoFromUrl(vaultPath, recipeId, url, deps = {}) {
+  if (!url || !recipeId) return null;
+  try {
+    const dataUrl = await (deps.fetchImage || imageFetcher)(url);
+    const photos = await import('./recipePhotos.js');
+    await (deps.savePhoto || photos.savePhoto)(vaultPath, recipeId, dataUrl);
+    const b64 = String(dataUrl).split(',')[1] || '';
+    return photos.photoHash(Buffer.from(b64, 'base64'));
+  } catch (e) {
+    console.error(`recipe photo for ${recipeId} not saved: ${e.message}`);
+    return null;
+  }
 }
 
 /** Does this text look like it carries a recipe (quantities, an ingredient list)? Pure. */
@@ -87,11 +144,12 @@ CAPTION:
 ${caption || '(no caption)'}
 ${transcript ? `\nTRANSCRIPT:\n${transcript.slice(0, 20_000)}\n` : ''}
 Output ONLY a JSON object:
-{"recipes":[{"name":"short natural name","servings":<number of portions the whole recipe makes>,"makes":"e.g. 6 jars","ingredients":[{"text":"240 g oats","name":"rolled oats","grams":240}],"method":["step one","step two"],"statedPerServing":{"kcal":471,"p":48,"c":44,"f":11},"category":"TREATS for desserts, sweets and snacks | ROTATION / SWAP MEALS for meals"}],"notFound":""}
+{"recipes":[{"name":"short natural name","servings":<number of portions the whole recipe makes>,"makes":"e.g. 6 jars","prepMin":<minutes or null>,"cookMin":<minutes or null>,"ingredients":[{"text":"240 g oats","name":"rolled oats","grams":240}],"method":["step one","step two"],"statedPerServing":{"kcal":471,"p":48,"c":44,"f":11},"category":"TREATS for desserts, sweets and snacks | ROTATION / SWAP MEALS for meals"}],"notFound":""}
 Rules:
 - Only what the video actually says. Never invent an ingredient, amount or macro.
 - "grams": the weight in grams when the amount is a weight, or a volume of a water-like liquid (ml ≈ g); null otherwise.
 - "statedPerServing": the creator's own per-serving numbers ONLY if the caption or transcript states them; null otherwise. If they are stated for the whole batch, divide by servings.
+- "prepMin" / "cookMin": whole minutes ONLY when the caption or transcript states a prep or cook time, or one plain cooking duration ("bake for 25 minutes" → cookMin 25); null otherwise. Never estimate a time.
 - Several distinct recipes → several entries. A menu with no amounts is not a recipe.
 - No recipe at all → {"recipes":[],"notFound":"<one short reason>"}.`;
 }
@@ -160,7 +218,12 @@ export async function macrosFor(recipe, { compute } = {}) {
  * trustworthy macros the payload carries `macros: null` — filed with its
  * macros not set, never a guess. Only a recipe with no ingredients is skipped.
  */
-export async function toRecipePayload(recipe, { url, uploader, compute } = {}) {
+const intIn = (v, lo, hi) => {
+  const n = Math.round(Number(v));
+  return v != null && v !== '' && Number.isFinite(Number(v)) && n >= lo && n <= hi ? n : null;
+};
+
+export async function toRecipePayload(recipe, { url, uploader, thumbnail, compute } = {}) {
   const name = String(recipe?.name || '').trim().slice(0, 80);
   if (!name) return { skip: 'a recipe with no name' };
   const ingredients = (recipe.ingredients || []).map((i) => String(i?.text || [i?.grams ? `${i.grams} g` : '', i?.name].filter(Boolean).join(' ')).trim()).filter(Boolean).slice(0, 40);
@@ -168,15 +231,34 @@ export async function toRecipePayload(recipe, { url, uploader, compute } = {}) {
   const got = await macrosFor(recipe, { compute });
   const method = (recipe.method || []).map((s) => String(s).trim()).filter(Boolean).slice(0, 30);
   const category = categoryFor(recipe.category);
+  const servings = intIn(recipe.servings, 1, 99);
   return {
     payload: {
       name, category, macros: got ? got.macros : null, ingredients, method,
-      makes: recipe.makes ? String(recipe.makes).slice(0, 60) : (recipe.servings ? `${recipe.servings} servings` : null),
+      makes: recipe.makes ? String(recipe.makes).slice(0, 60) : (servings ? `${servings} servings` : null),
+      servings,
+      prepMin: intIn(recipe.prepMin, 0, 1440),
+      cookMin: intIn(recipe.cookMin, 0, 1440),
+      // the reel itself — written as the recipe's **Source:** line
+      source: /^https?:\/\//.test(String(url || '')) ? { url: String(url).slice(0, 500), label: uploader ? String(uploader).slice(0, 80) : null } : null,
+      photoUrl: thumbnail || null,
       description: (got
-        ? `From ${uploader || 'a reel'} — ${url}. Macros: ${got.source}.`
-        : `From ${uploader || 'a reel'} — ${url}. Macros not set: the reel gives none and too few weights to work them out. Add them when you make it (Edit this meal, or read them off the labels).`).slice(0, 300),
+        ? `Macros: ${got.source}.`
+        : 'Macros not set: the reel gives none and too few weights to work them out. Add them when you make it (Edit this meal, or read them off the labels).').slice(0, 300),
     },
   };
+}
+
+// A reel of a recipe he already has: what that recipe is MISSING and the reel
+// can supply. Never a value he has, never macros or ingredients. Pure.
+export function missingFacts(existing, payload) {
+  const edit = {};
+  const fields = [];
+  if (existing.servings == null && payload.servings != null) { edit.servings = payload.servings; fields.push('servings'); }
+  if (existing.prepMin == null && payload.prepMin != null) { edit.prepMin = payload.prepMin; fields.push('prep time'); }
+  if (existing.cookMin == null && payload.cookMin != null) { edit.cookMin = payload.cookMin; fields.push('cook time'); }
+  if (!existing.source && payload.source?.url) { edit.source = payload.source; fields.push('source'); }
+  return { edit, fields };
 }
 
 /* -------------------------------- the lane -------------------------------- */
@@ -215,15 +297,23 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
     }
     const compute = deps.compute || (await import('./nutritionFacts.js')).computeFromComponents;
     const { loadRecipes } = await import('./recipes.js');
-    const existing = (deps.loadRecipes ? await deps.loadRecipes() : await loadRecipes(vaultPath).catch(() => [])).map((r) => String(r.name).toLowerCase());
+    const existing = deps.loadRecipes ? await deps.loadRecipes() : await loadRecipes(vaultPath).catch(() => []);
     const addNow = ADD_NOW_RE.test(prose);
     const filed = [];
+    const updated = [];
     const skipped = [];
     for (const rec of recipes) {
-      const out = await toRecipePayload(rec, { url, uploader: meta.uploader, compute });
+      const out = await toRecipePayload(rec, { url, uploader: meta.uploader, thumbnail: meta.thumbnail, compute });
       if (out.skip) { skipped.push(out.skip); continue; }
       const p = out.payload;
-      if (existing.includes(p.name.toLowerCase())) { skipped.push(`${p.name} is already in your collection`); continue; }
+      const twin = existing.find((r) => String(r.name).toLowerCase() === p.name.toLowerCase());
+      if (twin) {
+        const got = await fillMissing(vaultPath, twin, p, deps);
+        if (got.error) skipped.push(`${p.name} could not be updated: ${got.error}`);
+        else if (got.fields.length) updated.push(got);
+        else skipped.push(`${p.name} is already in your collection`);
+        continue;
+      }
       const card = {
         id: randomUUID().slice(0, 8),
         text: `Recipe from ${meta.uploader || 'a reel'}: ${p.name}`,
@@ -252,12 +342,50 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
       filed.push({ id: card.id, name: p.name, applied, macros: p.macros });
     }
     const label = (f) => (f.macros ? f.name : `${f.name} (macros not set)`);
-    await update(recordId, filed.length
-      ? { status: 'filed', destination: `${filed.some((f) => f.applied) ? 'Recipe bank' : 'Waiting for your yes'} — ${filed.map(label).join(', ')}${skipped.length ? ` · not added: ${skipped.join('; ')}` : ''}`.slice(0, 400), recipeCards: filed.map((f) => f.id) }
+    const parts = [];
+    if (filed.length) parts.push(`${filed.some((f) => f.applied) ? 'Recipe bank' : 'Waiting for your yes'} — ${filed.map(label).join(', ')}`);
+    for (const u of updated) parts.push(`Updated — ${u.name} (${u.fields.join(', ')})`);
+    if (skipped.length) parts.push(`not added: ${skipped.join('; ')}`);
+    await update(recordId, filed.length || updated.length
+      ? {
+        status: 'filed',
+        destination: parts.join(' · ').slice(0, 400),
+        recipeCards: filed.map((f) => f.id),
+        filedAt: new Date().toISOString(),
+        // what was filled in, exactly, so Undo takes back only that
+        ...(updated.length ? { undoData: { route: 'recipe-backfill', items: updated.map((u) => ({ recipeId: u.recipeId, set: u.set, photoHash: u.photoHash })) } } : {}),
+      }
       : { status: 'failed', error: skipped.join('; ').slice(0, 400) || 'nothing could be filed' });
   } catch (e) {
     await update(recordId, { status: 'failed', error: e.message.slice(0, 300) });
   }
+}
+
+// Fill in what an existing recipe lacks from the reel. The facts go through
+// editRecipe (in place, sanity-checked, backed up); the photo only when it
+// has none. Returns { name, recipeId, fields, set, photoHash } or { error }.
+async function fillMissing(vaultPath, twin, payload, deps) {
+  const { edit, fields } = missingFacts(twin, payload);
+  const out = { name: twin.name, recipeId: twin.id, fields: [], set: {}, photoHash: null };
+  if (payload.photoUrl) {
+    const photos = await import('./recipePhotos.js');
+    const has = await (deps.getPhoto || photos.getPhoto)(vaultPath, twin.id).catch(() => null);
+    if (!has) {
+      out.photoHash = await saveRecipePhotoFromUrl(vaultPath, twin.id, payload.photoUrl, deps);
+      if (out.photoHash) out.fields.push('photo');
+    }
+  }
+  if (fields.length) {
+    try {
+      const { editRecipe } = await import('./recipes.js');
+      await (deps.editRecipe || editRecipe)(vaultPath, twin.id, edit);
+      out.fields.push(...fields);
+      out.set = edit;
+    } catch (e) {
+      if (!out.fields.length) return { error: e.message };
+    }
+  }
+  return out;
 }
 
 // the Watcher's transcript tooling, reused only when the caption is empty

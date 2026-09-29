@@ -55,7 +55,9 @@ const URL_RE = /https?:\/\/[^\s<>"']+/gi;
 const VIDEO_HOSTS = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|instagram\.com|twitch\.tv|x\.com|twitter\.com)$/i;
 // a channel/profile URL is a BODY OF WORK, not one video — that's a study
 const CHANNEL_RE = /youtube\.com\/(@|c\/|channel\/|user\/)|instagram\.com\/[^/]+\/?$|tiktok\.com\/@[^/]+\/?$/i;
-const VIDEO_PATH_RE = /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|vimeo\.com\/\d+|\/p\/|\/status\//i;
+// vt.tiktok.com/<code> and tiktok.com/t/<code> are what the TikTok share
+// sheet hands over (29 Sep): a single video behind a short link
+const VIDEO_PATH_RE = /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|vimeo\.com\/\d+|\/p\/|\/status\/|vt\.tiktok\.com\/|tiktok\.com\/t\//i;
 
 // THE REPERTOIRE — a clip he wants to LEARN FROM, not merely digest. The
 // Watcher answers "is this true?"; this answers "how do I do that, and what

@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { loadRecipeData, addRecipe, addAlternate, promoteAlternate, editRecipe } from '../lib/recipes.js';
+import { loadRecipeData, addRecipe, addAlternate, promoteAlternate, editRecipe, recipeMetaError } from '../lib/recipes.js';
 import { loadRotation, setRotationSlot, setSlotConsumed, setSlotVariant, addSlotOption, removeSlotOption, setSlotFocus, setOptionEaten, addCustomSlot, removeCustomSlot, renameCustomSlot } from '../lib/rotation.js';
 import { getPortions, setPortions, adjustPortions, clearPortions } from '../lib/portions.js';
 import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
@@ -43,6 +43,17 @@ function validateAlternateInput(body) {
   return null;
 }
 
+// The recipe page's facts (servings, prep/cook minutes, the reel it came
+// from): all optional. Only the keys actually sent are passed on, so an edit
+// that says nothing about servings never touches the Serves line, and an
+// explicit null removes the line.
+const META_FIELDS = ['servings', 'prepMin', 'cookMin', 'source'];
+function metaFrom(body) {
+  const out = {};
+  for (const k of META_FIELDS) if (body && body[k] !== undefined) out[k] = body[k];
+  return out;
+}
+
 export function recipesRouter(vaultPath) {
   const router = Router();
 
@@ -59,9 +70,10 @@ export function recipesRouter(vaultPath) {
 
   router.post('/recipes', async (req, res, next) => {
     try {
-      const error = validateRecipeInput(req.body);
+      const error = validateRecipeInput(req.body) || recipeMetaError(metaFrom(req.body));
       if (error) return res.status(400).json({ error });
       const recipe = await addRecipe(vaultPath, {
+        ...metaFrom(req.body),
         name: req.body.name.trim(),
         category: req.body.category,
         makes: req.body.makes ? String(req.body.makes).trim() : null,
@@ -93,7 +105,10 @@ export function recipesRouter(vaultPath) {
       if (!m || [m.p, m.c, m.f, m.kcal].some((n) => typeof n !== 'number' || Number.isNaN(n) || n < 0)) {
         return res.status(400).json({ error: 'macros.p/c/f/kcal must be non-negative numbers' });
       }
+      const metaError = recipeMetaError(metaFrom(b));
+      if (metaError) return res.status(400).json({ error: metaError });
       const recipe = await addRecipe(vaultPath, {
+        ...metaFrom(b),
         name: b.name.trim(),
         category: b.category,
         makes: b.makes ? String(b.makes).trim() : null,
@@ -255,10 +270,13 @@ export function recipesRouter(vaultPath) {
       const priorSubject = prior && req.body?.alt ? (prior.alternates || []).find((a) => a.id === req.body.alt) : prior;
       const priorIng = priorSubject ? (req.body?.alt ? priorSubject.ingredients : priorSubject.ingredients.map((i) => i.name)) : null;
 
+      const metaError = recipeMetaError(metaFrom(req.body));
+      if (metaError) return res.status(400).json({ error: metaError });
       const updated = await editRecipe(vaultPath, req.params.id, {
         ingredients: req.body?.ingredients,
         method: req.body?.method,
         macros: req.body?.macros,
+        ...metaFrom(req.body),
       }, req.body?.alt || null);
 
       // Macros are never derived from ingredients — they're whatever was typed

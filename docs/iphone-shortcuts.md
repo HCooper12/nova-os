@@ -118,8 +118,48 @@ Share any text, link, or article from any app straight into the Inbox.
    - `mode` → `auto-high`
 5. **Show notification** — "Sent to Nova".
 
-Instagram reels, articles, tweets — share → Send to Nova → it lands in the
-vault as a captured note (or queues for review if Nova isn't sure).
+Articles and tweets land in the vault as a captured note (or queue for
+review if Nova isn't sure). A video link with no words goes to the Watcher,
+with one exception since 29 Sep 2026: if the reel's caption holds a recipe
+(amounts, an ingredient list), Nova drafts it as a recipe card **waiting for
+your yes** in the Inbox. Sharing sends no words, and no words means no
+instruction to add, so nothing reaches your recipe collection until you
+approve it. To add a recipe reel in one go, use §2b.
+
+## 2b · "Save recipe to Nova" — a recipe reel straight into your collection
+
+Share a recipe reel (Instagram reels, YouTube Shorts; TikTok's short
+`vt.tiktok.com` share links are not recognised as videos yet) and it lands in
+your recipe collection at once: ingredients, method, servings, prep and cook time when
+the reel states them, the reel as its source link, and the reel's thumbnail
+as its photo. Macros are the creator's own numbers when they add up,
+otherwise worked out from the ingredient weights, otherwise left **not set**
+for you to fill in. Nova never guesses them. Undo in the Inbox removes it.
+
+If the recipe is already in your collection, Nova adds only what it's
+missing (photo, servings, times, source). Nothing you already have is
+changed.
+
+1. Create Shortcut **Save recipe to Nova** → Shortcut settings → enable
+   **Show in Share Sheet**; accepted types: *URLs, Text*.
+2. **Receive input** — set "If there's no input: Ask for Text".
+3. **Text** — content: `Add to my recipes — 〈Shortcut Input〉`
+   *(type the words, then insert Shortcut Input as the blue variable chip.
+   "Add" is what tells Nova to file it now rather than draft it.)*
+4. **Get contents of URL**
+   - URL: `BASE/api/inbox/capture`
+   - Method: `POST`
+   - Headers (one row, two separate fields):
+     - Key: `Authorization`
+     - Value: `Bearer TOKEN`
+   - Request body: `JSON` with fields:
+     - `text` → the *Text* variable
+     - `source` → `text`
+5. **Show notification** — "Saving the recipe…".
+
+Reading the reel takes a minute or so. The recipe then shows up in Fuel,
+and the Inbox record says what was filed ("Recipe bank — …", or
+"Updated — … (photo, servings, source)").
 
 ## 3 · "Nova Dispatch" — the brief on your lock screen
 

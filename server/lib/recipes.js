@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { backupFile } from './backup.js';
+import { servingsOf } from '../../src/recipeScale.js';
 
 export const RECIPES_REL_PATH = 'Wiki/Health/Meal Prep Recipe Collection.md';
 
@@ -23,6 +24,122 @@ const PENDING_MACROS_RE = /\*\*Macros[^*]*\*\*:?\s*not set\b/i;
 /** Does this recipe carry real macros? (false for a pending one) */
 export function hasMacros(r) {
   return !!(r && r.macros && Number.isFinite(Number(r.macros.kcal)));
+}
+
+// THE RECIPE PAGE'S FACTS (29 Sep 2026). His ask, with a reel for a recipe
+// app: a clean page with a photo, prep/cook time, servings he can scale, and
+// the reel it came from. Three optional lines, written under Macros/Makes and
+// above ### Ingredients, only when there is a value:
+//
+//   **Serves:** 6
+//   **Time:** 15 min prep · 20 min cook      (either half may be absent)
+//   **Source:** [Sean Graham](https://www.instagram.com/reel/…)
+//
+// Every recipe written before them parses exactly as it did, plus
+// `servings` (read from "Makes: 6 jars" when there is no Serves line — the
+// same servingsOf the Fuel screen scales with), `prepMin`, `cookMin` and
+// `source` as null. The parser takes them in any order.
+export const META_KEYS = ['Serves', 'Time', 'Source'];
+const HEADER_ORDER = ['Macros', 'Makes', 'Serves', 'Time', 'Source'];
+const SERVES_RE = /^\*\*Serves:\*\*\s*(\d+)/mi;
+const TIME_RE = /^\*\*Time:\*\*\s*([^\n]*)$/mi;
+const SOURCE_RE = /^\*\*Source:\*\*\s*([^\n]*)$/mi;
+
+// "15 min prep · 1 hr 5 min cook" → { prepMin: 15, cookMin: 65 }
+export function parseTimeLine(text) {
+  const out = { prepMin: null, cookMin: null };
+  for (const part of String(text || '').split(/[·|,;]/)) {
+    const which = /\bprep/i.test(part) ? 'prepMin' : /\bcook/i.test(part) ? 'cookMin' : null;
+    if (!which) continue;
+    let min = 0;
+    let found = false;
+    for (const m of part.matchAll(/(\d+(?:\.\d+)?)\s*(h|hrs?|hours?|m|mins?|minutes?)\b/gi)) {
+      found = true;
+      min += /^h/i.test(m[2]) ? Number(m[1]) * 60 : Number(m[1]);
+    }
+    if (found) out[which] = Math.round(min);
+  }
+  return out;
+}
+
+function parseSourceLine(text) {
+  const t = String(text || '').trim();
+  const link = /^\[([^\]]*)\]\((\S+?)\)/.exec(t);
+  if (link && /^https?:\/\//i.test(link[2])) {
+    const label = link[1].trim();
+    return { url: link[2], label: label && label !== link[2] ? label : null };
+  }
+  const bare = /^<?(https?:\/\/[^\s>]+)>?/i.exec(t);
+  return bare ? { url: bare[1], label: null } : null;
+}
+
+export function timeLineFor(prepMin, cookMin) {
+  const parts = [];
+  if (prepMin != null) parts.push(`${prepMin} min prep`);
+  if (cookMin != null) parts.push(`${cookMin} min cook`);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+// a link label cannot carry the characters that would break the link
+function cleanLabel(label, url) {
+  const t = String(label || '').replace(/[[\]()\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
+  return t && t !== url ? t : null;
+}
+
+export function sourceLineFor(source) {
+  if (!source || !source.url) return null;
+  const label = cleanLabel(source.label, source.url);
+  return label ? `[${label}](${source.url})` : source.url;
+}
+
+const isInt = (n, lo, hi) => typeof n === 'number' && Number.isInteger(n) && n >= lo && n <= hi;
+
+/**
+ * Validate the page facts on an edit or an add request. `undefined` = not
+ * touched, `null` = remove. Returns an error string, or null when fine.
+ * Shared by editRecipe and routes/recipes.js so both say the same thing.
+ */
+export function recipeMetaError(input) {
+  if (!input || typeof input !== 'object') return null;
+  const { servings, prepMin, cookMin, source } = input;
+  if (servings !== undefined && servings !== null && !isInt(servings, 1, 99)) return 'servings must be a whole number from 1 to 99';
+  for (const [k, v] of [['prepMin', prepMin], ['cookMin', cookMin]]) {
+    if (v !== undefined && v !== null && !isInt(v, 0, 1440)) return `${k} must be whole minutes from 0 to 1440`;
+  }
+  if (source !== undefined && source !== null) {
+    if (typeof source !== 'object') return 'source must be { url, label }';
+    const url = String(source.url || '');
+    if (!/^https?:\/\/\S+$/i.test(url) || url.length > 500) return 'source.url must be an http(s) link under 500 characters';
+    if (source.label != null && (typeof source.label !== 'string' || source.label.length > 120)) return 'source.label must be a short piece of text';
+  }
+  return null;
+}
+
+// Lenient twin for filing a new recipe (a reel's payload, a quick add): an
+// unusable value is dropped rather than refusing the whole recipe.
+function cleanMeta(input) {
+  const out = { servings: null, prepMin: null, cookMin: null, source: null };
+  if (!input) return out;
+  if (isInt(input.servings, 1, 99)) out.servings = input.servings;
+  if (isInt(input.prepMin, 0, 1440)) out.prepMin = input.prepMin;
+  if (isInt(input.cookMin, 0, 1440)) out.cookMin = input.cookMin;
+  if (input.source && !recipeMetaError({ source: input.source })) {
+    out.source = { url: String(input.source.url), label: cleanLabel(input.source.label, String(input.source.url)) };
+  }
+  return out;
+}
+
+// The lines a new recipe carries. Serves is left out when Makes already says
+// the same number ("6 jars" and Serves: 6 would be the file repeating itself).
+function metaLinesFor(input) {
+  const m = cleanMeta(input);
+  const lines = [];
+  if (m.servings != null && servingsOf({ makes: input.makes }) !== m.servings) lines.push(`**Serves:** ${m.servings}`);
+  const time = timeLineFor(m.prepMin, m.cookMin);
+  if (time) lines.push(`**Time:** ${time}`);
+  const src = sourceLineFor(m.source);
+  if (src) lines.push(`**Source:** ${src}`);
+  return lines;
 }
 
 function slugify(name) {
@@ -97,6 +214,11 @@ function finalizeRecipe(name, bodyLines, category) {
   // store one, which is why promoting a variant silently renamed it to
   // "Original" and lost whatever he had called it. Absent = never renamed.
   const versionMatch = body.match(/^\*\*Version:\*\*\s*(.+)$/mi);
+  const servesMatch = body.match(SERVES_RE);
+  const timeMatch = body.match(TIME_RE);
+  const sourceMatch = body.match(SOURCE_RE);
+  const time = timeMatch ? parseTimeLine(timeMatch[1]) : { prepMin: null, cookMin: null };
+  const makes = makesMatch ? stripMd(makesMatch[1]) : null;
 
   const ingredients = section(body, 'Ingredients')
     .split('\n')
@@ -128,6 +250,7 @@ function finalizeRecipe(name, bodyLines, category) {
       body
         .replace(/\*\*Macros[^*]*\*\*:?[^\n]*/i, '')
         .replace(/\*\*Version:\*\*[^\n]*/i, '')
+        .replace(/^\*\*(?:Serves|Time|Source):\*\*[^\n]*/gim, '')
         .split('\n')
         .map((l) => l.trim())
         .filter((l) => l && !l.startsWith('>') && !/^-{3,}$/.test(l))
@@ -140,7 +263,11 @@ function finalizeRecipe(name, bodyLines, category) {
     id: slugify(name),
     name,
     category,
-    makes: makesMatch ? stripMd(makesMatch[1]) : null,
+    makes,
+    servings: servingsOf({ servings: servesMatch ? Number(servesMatch[1]) : null, makes }),
+    prepMin: time.prepMin,
+    cookMin: time.cookMin,
+    source: sourceMatch ? parseSourceLine(sourceMatch[1]) : null,
     versionLabel: versionMatch ? stripMd(versionMatch[1]).trim() : null,
     macros: macroMatch
       ? { p: parseFloat(macroMatch[1]), c: parseFloat(macroMatch[2]), f: parseFloat(macroMatch[3]), kcal: parseFloat(macroMatch[4]) }
@@ -310,7 +437,7 @@ function macroLineFor(macros) {
 
 function formatRecipeBlock(num, input) {
   const macroLine = macroLineFor(input.macros);
-  const makesLine = input.makes ? `**Makes:** ${input.makes}\n` : '';
+  const makesLine = (input.makes ? `**Makes:** ${input.makes}\n` : '') + metaLinesFor(input).map((l) => `${l}\n`).join('');
   const ingredients = input.ingredients || [];
   const method = input.method || [];
   // Macro-only "quick" recipe (e.g. a snack promoted straight from a scan): no
@@ -860,14 +987,77 @@ function appendSection(block, level, heading, kind, items) {
   return `${head}\n\n${hashes} ${heading}\n${renderList(kind, items, [])}\n${block.slice(at)}`;
 }
 
+// One header fact, in place: replace its line, remove it (null), or insert it
+// directly under the header line that precedes it in Macros → Makes →
+// Serves → Time → Source order. Nothing else in the block moves; the same
+// value already there is a no-op, so an identical save rewrites nothing.
+function setHeaderLine(block, key, text) {
+  const lineRe = new RegExp(`^\\*\\*${key}:\\*\\*[^\\n]*$`, 'm');
+  const m = lineRe.exec(block);
+  if (m) {
+    if (text == null) {
+      // the line and exactly one newline: never the blank line around it
+      const end = block[m.index + m[0].length] === '\n' ? m.index + m[0].length + 1 : m.index + m[0].length;
+      return block.slice(0, m.index) + block.slice(end);
+    }
+    const line = `**${key}:** ${text}`;
+    return m[0] === line ? block : block.slice(0, m.index) + line + block.slice(m.index + m[0].length);
+  }
+  if (text == null) return block;
+  const before = HEADER_ORDER.slice(0, HEADER_ORDER.indexOf(key));
+  let anchor = null;
+  for (const k of before) {
+    const re = k === 'Macros' ? /^\*\*Macros[^*\n]*\*\*:?[^\n]*$/m : new RegExp(`^\\*\\*${k}:\\*\\*[^\\n]*$`, 'm');
+    const hit = re.exec(block);
+    if (hit && (!anchor || hit.index > anchor.index)) anchor = { index: hit.index, end: hit.index + hit[0].length };
+  }
+  if (!anchor) throw new Error('could not find this recipe\'s header (its Macros line) to add the line under');
+  return `${block.slice(0, anchor.end)}\n**${key}:** ${text}${block.slice(anchor.end)}`;
+}
+
+function applyMeta(block, edit) {
+  let out = block;
+  if (edit.servings !== undefined) {
+    const makesMatch = out.match(/\*\*Makes:\*\*\s*(.+)/i);
+    const fromMakes = servingsOf({ makes: makesMatch ? stripMd(makesMatch[1]) : null });
+    // Makes already says it → no Serves line needed (and a stale one goes)
+    const text = edit.servings == null || edit.servings === fromMakes ? null : String(edit.servings);
+    out = setHeaderLine(out, 'Serves', text);
+  }
+  if (edit.prepMin !== undefined || edit.cookMin !== undefined) {
+    const tm = out.match(TIME_RE);
+    const cur = tm ? parseTimeLine(tm[1]) : { prepMin: null, cookMin: null };
+    const prep = edit.prepMin !== undefined ? edit.prepMin : cur.prepMin;
+    const cook = edit.cookMin !== undefined ? edit.cookMin : cur.cookMin;
+    // an untouched Time line stays exactly as he wrote it
+    if (!(tm && prep === cur.prepMin && cook === cur.cookMin)) out = setHeaderLine(out, 'Time', timeLineFor(prep, cook));
+  }
+  if (edit.source !== undefined) {
+    const sm = out.match(SOURCE_RE);
+    const cur = sm ? parseSourceLine(sm[1]) : null;
+    const same = cur && edit.source && cur.url === edit.source.url && (cur.label || null) === (edit.source.label || null);
+    if (!same) out = setHeaderLine(out, 'Source', sourceLineFor(edit.source));
+  }
+  return out;
+}
+
 function applyEdit(block, level, edit) {
   let out = block;
+  if (level === 3) out = applyMeta(out, edit);
   if (edit.macros) {
     const { p, c, f, kcal } = edit.macros;
     const macroRe = /^(\*\*Macros[^*]*\*\*:?)[^\n]*/im;
     if (!macroRe.test(out)) throw new Error('could not find the macros line to update');
     const line = `${p}g P / ${c}g C / ${f}g F / ${kcal} kcal`;
-    out = out.replace(macroRe, (whole, head) => (whole === `${head} ${line}` ? whole : `${head} ${line}`));
+    // Keep whatever he wrote after the numbers ("| *Lowest-calorie
+    // high-protein meal*"). Rebuilding the line from the numbers alone
+    // dropped it on every macro save, even an identical one — found by the
+    // identity round-trip over his real file, 29 Sep (three recipes).
+    out = out.replace(macroRe, (whole, head) => {
+      const num = /[\d.]+g P \/ [\d.]+g C \/ [\d.]+g F \/ [\d.]+\s*kcal/i.exec(whole);
+      const suffix = num ? whole.slice(num.index + num[0].length) : '';
+      return `${head} ${line}${suffix}`;
+    });
   }
   for (const [field, heading] of [['ingredients', 'Ingredients'], ['method', 'Method']]) {
     if (!edit[field]) continue;
@@ -895,9 +1085,17 @@ function validateEdit(edit) {
     }
     clean.macros = { p: m.p, c: m.c, f: m.f, kcal: m.kcal };
   }
+  const metaErr = recipeMetaError(edit);
+  if (metaErr) throw new Error(metaErr);
+  for (const k of ['servings', 'prepMin', 'cookMin']) if (edit[k] !== undefined) clean[k] = edit[k];
+  if (edit.source !== undefined) {
+    clean.source = edit.source === null ? null : { url: String(edit.source.url), label: cleanLabel(edit.source.label, String(edit.source.url)) };
+  }
   if (!Object.keys(clean).length) throw new Error('nothing to change');
   return clean;
 }
+
+const hasMetaEdit = (edit) => ['servings', 'prepMin', 'cookMin', 'source'].some((k) => edit[k] !== undefined);
 
 // Pure: rewrite one recipe's, or one variant's, ingredients / method / macros.
 export function editRecipeInRaw(raw, id, rawEdit, altId = null) {
@@ -921,6 +1119,7 @@ export function editRecipeInRaw(raw, id, rawEdit, altId = null) {
 
   let newBlock;
   if (altId) {
+    if (hasMetaEdit(edit)) throw new Error('servings, time and source belong to the recipe, not one of its variants');
     if (!altsPart) throw new Error('recipe has no variants');
     const chunks = altsPart.split(/\n(?=####\s+Alternative:)/);
     let hit = -1;
@@ -939,7 +1138,8 @@ export function editRecipeInRaw(raw, id, rawEdit, altId = null) {
     const edited = applyEdit(mainPart, 3, edit);
     // mainPart was cut just before the first "#### Alternative"; restore the
     // blank line the split consumed so the variant heading isn't glued on
-    newBlock = altsPart ? edited.replace(/\s*$/, '\n\n') + altsPart : edited;
+    // (an untouched main part is kept verbatim, whatever its whitespace)
+    newBlock = edited === mainPart ? block : altsPart ? edited.replace(/\s*$/, '\n\n') + altsPart : edited;
   }
 
   return raw.slice(0, start) + newBlock + raw.slice(end);
@@ -953,17 +1153,19 @@ export async function editRecipe(vaultPath, id, edit, altId = null) {
   return run;
 }
 
-async function editRecipeUnlocked(vaultPath, id, edit, altId) {
+async function editRecipeUnlocked(vaultPath, id, rawEdit, altId) {
   const full = path.join(vaultPath, RECIPES_REL_PATH);
   const raw = await readFile(full, 'utf8');
   const before = parseRecipeCollection(raw);
   const target = before.find((r) => r.id === id);
   if (!target) throw new Error('recipe not found');
+  const edit = validateEdit(rawEdit);
 
   let newRaw = editRecipeInRaw(raw, id, edit, altId);
   // a macro edit on the PARENT keeps its quick-ref row true (variant macros
   // never appear in the table, so an alt edit leaves it alone)
   if (edit.macros && !altId) newRaw = updateQuickRefRow(newRaw, target.name, edit.macros);
+  if (newRaw === raw) return target;   // nothing actually changed: no backup, no write
   const after = parseRecipeCollection(newRaw);
   const updated = after.find((r) => r.id === id);
 
@@ -980,6 +1182,23 @@ async function editRecipeUnlocked(vaultPath, id, edit, altId) {
   }
   if (edit.method && subject.method.length !== edit.method.filter((s) => String(s).trim()).length) {
     throw new Error('Edit did not round-trip through the file — left unchanged');
+  }
+  // the page facts: each one asked for reads back as asked, and a facts-only
+  // edit leaves the food, the steps and the numbers exactly where they were
+  if (hasMetaEdit(edit)) {
+    const fromMakes = servingsOf({ makes: updated.makes });
+    const want = {
+      servings: edit.servings === undefined ? target.servings : (edit.servings ?? fromMakes),
+      prepMin: edit.prepMin === undefined ? target.prepMin : edit.prepMin,
+      cookMin: edit.cookMin === undefined ? target.cookMin : edit.cookMin,
+      source: edit.source === undefined ? target.source : edit.source,
+    };
+    const got = { servings: updated.servings, prepMin: updated.prepMin, cookMin: updated.cookMin, source: updated.source };
+    if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error('Edit did not round-trip through the file — left unchanged');
+    const food = (r) => JSON.stringify([r.macros, r.ingredients, r.method, r.notes, r.makes, r.versionLabel]);
+    if (!edit.ingredients && !edit.method && !edit.macros && food(updated) !== food(target)) {
+      throw new Error('Edit would have altered the recipe\'s content — file left unchanged');
+    }
   }
 
   await backupFile(full);

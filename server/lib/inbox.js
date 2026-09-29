@@ -20,7 +20,7 @@ import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
 import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
-import { addRecipe, removeRecipe } from './recipes.js';
+import { addRecipe, removeRecipe, editRecipe, loadRecipes } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { routeIntent } from './intentRouter.js';
@@ -778,11 +778,24 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       ingredients: payload.ingredients || [],
       method: payload.method || [],
       description: payload.description || null,
+      // the recipe page's facts (a reel's servings, stated times, the reel
+      // itself); recipes.js drops any value it cannot use rather than fail
+      servings: payload.servings ?? null,
+      prepMin: payload.prepMin ?? null,
+      cookMin: payload.cookMin ?? null,
+      source: payload.source || null,
     });
     if (!recipe) throw new Error('recipe could not be added');
+    // the reel's thumbnail becomes its photo, AFTER the recipe is in the
+    // file; a failed download never fails the recipe
+    let photoHash = null;
+    if (payload.photoUrl) {
+      const { saveRecipePhotoFromUrl } = await import('./recipeFromVideo.js');
+      photoHash = await saveRecipePhotoFromUrl(vaultPath, recipe.id, payload.photoUrl);
+    }
     return {
-      destination: `Recipe bank — ${recipe.name}${recipe.macros ? '' : ' (macros not set yet)'}`,
-      undo: { route, recipeId: recipe.id },
+      destination: `Recipe bank — ${recipe.name}${recipe.macros ? '' : ' (macros not set yet)'}${photoHash ? ' · with its photo' : ''}`,
+      undo: { route, recipeId: recipe.id, ...(photoHash ? { photoHash } : {}) },
     };
   }
 
@@ -1238,7 +1251,34 @@ export async function undoFiling(vaultPath, undo) {
   if (undo.route === 'recipe') {
     const { removed } = await removeRecipe(vaultPath, undo.recipeId);
     if (!removed) throw new Error('that recipe has already been removed or renamed');
+    // the photo Nova saved with it goes too (not one he has since replaced)
+    if (undo.photoHash) {
+      const { removePhoto } = await import('./recipePhotos.js');
+      await removePhoto(vaultPath, undo.recipeId, { onlyIfHash: undo.photoHash }).catch(() => {});
+    }
     return 'removed the recipe from your recipe bank';
+  }
+
+  // A reel of a recipe he already had filled in what it lacked. Undo takes
+  // back exactly those facts — and only where they still hold the value Nova
+  // wrote, so anything he has set since is his and stays.
+  if (undo.route === 'recipe-backfill') {
+    const recipes = await loadRecipes(vaultPath);
+    const took = [];
+    for (const item of undo.items || []) {
+      const r = recipes.find((x) => x.id === item.recipeId);
+      if (!r) continue;
+      const clear = {};
+      for (const [k, v] of Object.entries(item.set || {})) {
+        if (JSON.stringify(r[k] ?? null) === JSON.stringify(v)) clear[k] = null;
+      }
+      if (Object.keys(clear).length) { await editRecipe(vaultPath, r.id, clear); took.push(...Object.keys(clear)); }
+      if (item.photoHash) {
+        const { removePhoto } = await import('./recipePhotos.js');
+        if (await removePhoto(vaultPath, r.id, { onlyIfHash: item.photoHash }).catch(() => false)) took.push('photo');
+      }
+    }
+    return took.length ? `took back the ${took.join(', ')} filled in from the reel` : 'nothing left to take back — those details have changed since';
   }
 
   if (undo.route === 'calendar') {
@@ -1444,29 +1484,69 @@ export function captureLane(text) {
   return { lane: decision.lane, url, urls: decision.urls, prose: decision.prose || '' };
 }
 
-async function mediaLaneFor(vaultPath, text) {
+// A BARE SHARED LINK (29 Sep 2026). The share sheet sends a reel with no
+// words at all, and the lane router can only send a wordless link to the
+// Watcher. His ask was the Osta flow: share a recipe reel, get a recipe. So
+// a single video link with NO prose is looked at first: if its caption holds
+// a recipe, it becomes a recipe card WAITING FOR HIS YES (no words means no
+// instruction to add, so nothing is written until he says so). Anything else,
+// or a caption that cannot be read in 20 s, goes to the Watcher as before.
+// 12 s, not 20: a share-sheet capture goes through /inbox/capture/sync, and
+// iOS drops a request that sits silent ~25 s (the Shortcuts memory). yt-dlp
+// usually answers in 2–4 s; a slow one goes to the Watcher, honestly.
+export const BARE_LINK_CAPTION_TIMEOUT_MS = 12_000;
+// Returns the caption it read when that caption holds a recipe, else null.
+async function bareLinkRecipeCaption(url, deps) {
+  try {
+    const { fetchCaption, captionHasRecipe } = await import('./recipeFromVideo.js');
+    const fetcher = deps.fetchCaption || ((u) => fetchCaption(u, { timeoutMs: BARE_LINK_CAPTION_TIMEOUT_MS }));
+    let timer;
+    const meta = await Promise.race([
+      fetcher(url),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('caption timed out')), deps.captionTimeoutMs ?? BARE_LINK_CAPTION_TIMEOUT_MS); }),
+    ]).finally(() => clearTimeout(timer));
+    return meta && captionHasRecipe(meta.caption) ? meta : null;
+  } catch {
+    return null;
+  }
+}
+
+async function mediaLaneFor(vaultPath, text, deps = {}) {
   const decision = captureLane(text);
   if (!decision) return null;
   const { lane, url } = decision;
+  const toRecipe = async (prose, laneDeps = {}) => {
+    if (deps.startRecipeFromVideo) return deps.startRecipeFromVideo(vaultPath, url, prose, laneDeps);
+    const { startRecipeFromVideo } = await import('./recipeFromVideo.js');
+    return startRecipeFromVideo(vaultPath, url, prose, laneDeps);
+  };
   if (lane === 'watch') {
+    const bare = !String(decision.prose || '').trim() && (decision.urls || []).length === 1;
+    const meta = bare && laneEnabled('recipe-video') ? await bareLinkRecipeCaption(url, deps) : null;
+    if (meta) {
+      // the caption already read is handed on, so the reel is not fetched
+      // twice; if the recipe lane cannot start, the Watcher still gets it
+      try { return await toRecipe('', { fetchCaption: async () => meta }); } catch (e) {
+        console.error('inbox: bare recipe link could not start the recipe lane, watching instead:', e.message);
+      }
+    }
+    if (deps.startVideoWatch) return deps.startVideoWatch(vaultPath, url, decision.prose);
     const { startVideoWatch } = await import('./watcher.js');
     return startVideoWatch(vaultPath, url, decision.prose);
   }
-  if (lane === 'recipe') {
-    const { startRecipeFromVideo } = await import('./recipeFromVideo.js');
-    return startRecipeFromVideo(vaultPath, url, decision.prose);
-  }
+  if (lane === 'recipe') return toRecipe(decision.prose);
   const { startStudy } = await import('./studyLane.js');
   return startStudy(vaultPath, { urls: decision.urls, prose: decision.prose });
 }
 
 // Creates the record and kicks off async classification.
-export async function startCapture(vaultPath, { text, source = 'text', mode = 'auto-high' }) {
+// `deps` is for tests only (fetchCaption, startRecipeFromVideo, startVideoWatch).
+export async function startCapture(vaultPath, { text, source = 'text', mode = 'auto-high' }, deps = {}) {
   // a video link watches itself; a channel link studies itself. A lane that
   // is switched off, or a transcript that cannot be fetched, falls through
   // to the ordinary classifier rather than losing what he sent.
   try {
-    const routed = await mediaLaneFor(vaultPath, text);
+    const routed = await mediaLaneFor(vaultPath, text, deps);
     if (routed) return routed;
   } catch (e) {
     console.error('inbox: media routing failed, filing as a capture instead:', e.message);
