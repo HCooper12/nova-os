@@ -556,6 +556,15 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 29 Sep 2026 (midday) — THE THREE VOICE BUGS FIXED (729810b): attachment
+  composer (Send 73×143 → 73×40, route label 249px above → 2px), Tap-to-hear
+  ×, the spoken question cuts on a clause with an ellipsis (four tests). The
+  server side (briefDecisions.js) is NOT yet reloaded: nova-os-83 has Fuel
+  server files half-edited on disk, so it reloads with its next commit. WHO
+  IS ANSWERING published (ef3e800, mockup 64:
+  https://claude.ai/artifact/Vue5DjdKP5npxRVqRHJvgL; A bylines · B bench ·
+  C stage; the server lacks a Nova-level CONSULT, an askable Librarian,
+  per-ask timing and authorship on the record — his calls listed there).
 - 29 Sep 2026 (morning) — HIS VOICE + TRAIN ANSWERS. Voice: the living core
   of C, but A's and B's organisation; wants A+B blends shown WITH A and B in
   one switcher → ROUND 2 IN FLIGHT (mockup 63: A, B, and blends D "thread
