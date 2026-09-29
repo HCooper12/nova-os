@@ -7,6 +7,7 @@ import { Button, Meta, Tag } from './Controls.jsx';
 import { MealEditor } from './RecipeOverlay.jsx';
 import { FIcon } from './FuelIcon.jsx';
 import { PORTIONS, portionLabel, scaleMacros, validPortion } from './portion.js';
+import { RecipeMetaRow, RecipeScale, RecipeIngredients, RecipeMethod, RecipeMenu } from './RecipePage.jsx';
 
 // THE RECIPE, AS A SHEET — mockup 59, variation A · 3. Under the `summary`
 // style App renders this in place of RecipeOverlay, on the same state and
@@ -22,6 +23,14 @@ import { PORTIONS, portionLabel, scaleMacros, validPortion } from './portion.js'
 // foot, away from Done. Everything the overlay did is here, reached from
 // v.fuelSummary.recipeSheet (src/vals/valsFuelSummary.js); every write is
 // the overlay's own app method.
+//
+// THE RECIPE PAGE (29 Sep 2026, his Osta reel): the sheet now carries the
+// page's parts from the same view model the cupertino page renders
+// (R.page = v.recipePage; src/RecipePage.jsx) — the meta row (serves ·
+// prep · cook · source, set in place), the scale, the ingredients as a
+// checklist in the batch he is cooking (a hold adds one line to the list or
+// drops it), and the method with a cook mode — so neither idiom lacks a
+// field the other has.
 //
 // A real modal to the back swipe (edgeBack.js): an aria-modal root with its
 // z-index inline, closed by its own backdrop tap. Done and the backdrop let
@@ -57,7 +66,12 @@ export function RecipeSheet({ v }) {
   const [custom, setCustom] = useState('');
   const [morePortions, setMorePortions] = useState(false);
   const [open, setOpen] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [menu, setMenu] = useState(null);
   const toggle = (k) => setOpen((o) => (o === k ? null : k));
+  const P = R.page;
+  const pageKey = `${R.id}:${P?.version || ''}`;
+  const openDetail = (field) => setEditing(P?.meta.find((x) => x.field === field) || P?.unset.find((u) => u.field === field) || null);
 
   // talking about a meal, in the place the meal is (RecipeOverlay's rhythm:
   // a pause ends the take and the question goes straight to Nova)
@@ -73,7 +87,7 @@ export function RecipeSheet({ v }) {
   );
 
   // a new recipe in the same sheet starts at one portion, everything folded
-  useEffect(() => { setFactor(1); setCustom(''); setMorePortions(false); setOpen(null); }, [R.id]);
+  useEffect(() => { setFactor(1); setCustom(''); setMorePortions(false); setOpen(null); setEditing(null); setMenu(null); }, [R.id]);
   useEffect(() => { panelRef.current?.focus({ preventScroll: true }); }, []);
 
   const typed = custom.trim();
@@ -105,6 +119,7 @@ export function RecipeSheet({ v }) {
 
         <div className="nv-fs-body">
           {R.photo?.url && <div className="nv-fs-photo"><img src={R.photo.url} alt={R.name} /></div>}
+          {P && <div className="nv-rp" style={{ marginTop: '8px' }}><RecipeMetaRow page={P} editing={editing} onEdit={setEditing} /></div>}
 
           {m && (
             <div className="nv-fs-m4" role="img" aria-label={`${one ? 'One portion' : `${portionLabel(f)} of a portion`}: ${m.p} grams protein, ${m.kcal} kilocalories, ${m.c} grams carbs, ${m.f} grams fat`}>
@@ -172,22 +187,13 @@ export function RecipeSheet({ v }) {
           )}
           {R.fridge?.stop && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-4px' }}><Act tone="quiet" onClick={R.fridge.stop}>Stop counting</Act></div>}
 
-          {R.lines.length > 0 && (
-            <>
-              <span className="nv-fs-hk" style={{ marginTop: '10px' }}>Ingredients</span>
-              <div className="nv-sum-card nv-fs-ing">
-                {R.lines.map((l) => (
-                  <div key={l.key} className={`nv-fs-ir${l.dropped ? ' dropped' : ''}`}>
-                    <span className="nv-fs-lx"><span className="nv-fs-nm">{l.name}</span>{l.dropped && <span className="nv-fs-sv">Dropped, until you keep or undo it</span>}</span>
-                    <span>
-                      {l.toggle && (l.dropped
-                        ? <Act onClick={l.toggle} label={`Undo dropping ${l.raw}`}>Undo</Act>
-                        : <Interactive as="span" className="nv-fs-x" onClick={l.toggle} haptic="tick" focusStyle={NO_RING} aria-label={`Drop ${l.raw}`}><FIcon n="x" /></Interactive>)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
+          {P && (
+            <div className="nv-rp" style={{ overflow: 'visible' }}>
+              {P.description && <p className="nv-rp-desc">{P.description}</p>}
+              <RecipeScale key={R.id} page={P} onSetServings={P.setMeta ? () => openDetail('servings') : null} />
+              <RecipeIngredients page={P} resetKey={pageKey} onHold={(it) => setMenu(it.hold)} />
+              <RecipeMethod page={P} resetKey={pageKey} />
+            </div>
           )}
           {/* a dropped line changes nothing until he keeps it: Nova recomputes
               the figures (the tweak pipeline), and code files the version */}
@@ -273,17 +279,6 @@ export function RecipeSheet({ v }) {
           )}
 
           <div className="nv-sum-card nv-fs-rows">
-            {(R.method.length > 0 || R.description) && (
-              <>
-                <Row label={R.method.length ? 'Method' : 'About this dish'} count={R.method.length ? `${R.method.length} step${R.method.length === 1 ? '' : 's'}` : ''} open={open === 'method'} onClick={() => toggle('method')} />
-                {open === 'method' && (
-                  <div className="nv-fs-rpanel">
-                    {R.description && <p className="nv-fs-desc" style={{ marginBottom: '8px' }}>{R.description}</p>}
-                    {R.method.map((st, i) => <div key={i} className="nv-fs-step"><b>{i + 1}</b><span>{st.text}</span></div>)}
-                  </div>
-                )}
-              </>
-            )}
             {vers.length > 0 && (
               <>
                 <Row label="Versions" count={vers.length} open={open === 'versions'} onClick={() => toggle('versions')} />
@@ -318,7 +313,7 @@ export function RecipeSheet({ v }) {
             )}
             {R.shopping && (R.shopping.whole || R.shopping.all) && (
               <>
-                <Row label="Add to shopping list" count={R.shopping.whole ? 'the item' : `${R.shopping.count} item${R.shopping.count === 1 ? '' : 's'}`} open={open === 'shopping'} onClick={() => toggle('shopping')} />
+                <Row label="Add to shopping list" count={R.shopping.whole ? 'the item' : `${R.shopping.count} item${R.shopping.count === 1 ? '' : 's'}${R.shopping.scaled && P?.scale ? `, for ${P.scale.servings}` : ''}`} open={open === 'shopping'} onClick={() => toggle('shopping')} />
                 {open === 'shopping' && (
                   <div className="nv-fs-rpanel">
                     {R.shopping.whole
@@ -340,11 +335,12 @@ export function RecipeSheet({ v }) {
             )}
             {(R.edit || R.photo) && (
               <>
-                <Row label="Edit this meal" count="what’s in it, photo" open={open === 'edit' || !!R.edit?.editing} onClick={() => toggle('edit')} />
+                <Row label="Edit this meal" count={P?.unset.length ? 'what’s in it, photo, times' : 'what’s in it, photo'} open={open === 'edit' || !!R.edit?.editing} onClick={() => toggle('edit')} />
                 {(open === 'edit' || R.edit?.editing) && (
                   <div className="nv-fs-rpanel">
                     <div className="nv-fs-acts">
                       {R.edit && !R.edit.editing && <Act onClick={R.edit.start}>Change what’s in it</Act>}
+                      {P?.unset.map((u) => <Act key={u.field} onClick={() => openDetail(u.field)}>{u.field === 'servings' ? 'Say how many it makes' : `Add the ${u.label.toLowerCase()} time`}</Act>)}
                       {R.photo && (
                         <label className="nv-fs-ta" style={{ position: 'relative' }}>
                           {R.photo.busy ? 'Saving the photo…' : R.photo.url ? 'Change the photo' : 'Add a photo'}
@@ -391,6 +387,7 @@ export function RecipeSheet({ v }) {
           )}
         </div>
       </div>
+      <RecipeMenu menu={menu} onClose={() => setMenu(null)} z={150} />
     </div>
   );
 }

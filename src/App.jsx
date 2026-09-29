@@ -1419,6 +1419,31 @@ export default class App extends Component {
     }).catch((err) => this.setState({ recipeEditBusy: false, recipeEditError: err.message }));
   }
 
+  // ---------- THE RECIPE PAGE (29 Sep 2026): serves · prep · cook, set in place ----
+  // His Osta reel: a recipe page says how many it makes and how long it takes,
+  // and he sets either where he reads it. One field at a time through the
+  // existing edit route (server-side, only the fields passed are touched). The
+  // page shows the new value at once; if the vault refuses it, the old value
+  // comes back and the toast says why. Scaling the batch is NOT this: that is
+  // a view (st.recipeScaleView) and never writes.
+  saveRecipeMeta(recipeId, patch) {
+    const conn = getConnection();
+    const prior = (this.state.liveRecipes || []).find((r) => r.id === recipeId);
+    if (!conn || !prior || !patch || !Object.keys(patch).length) return;
+    const keys = Object.keys(patch);
+    const was = Object.fromEntries(keys.map((k) => [k, prior[k] ?? null]));
+    this.noteLocalWrite('recipes');
+    this.setState((s) => ({ liveRecipes: s.liveRecipes.map((r) => (r.id === recipeId ? { ...r, ...patch } : r)) }));
+    api.editRecipe(conn, recipeId, patch).then(({ recipe } = {}) => {
+      if (!recipe?.id) return;
+      this.noteLocalWrite('recipes');
+      this.setState((s) => ({ liveRecipes: s.liveRecipes.map((r) => (r.id === recipe.id ? recipe : r)) }));
+    }).catch((err) => {
+      this.setState((s) => ({ liveRecipes: s.liveRecipes.map((r) => (r.id === recipeId ? { ...r, ...was } : r)) }));
+      this.toastMsg(`Couldn't save that to the recipe: ${err.message}`);
+    });
+  }
+
   // ---------- stash (categorised restock/reference links, vault-backed) ----
   setStashField(field, e) {
     this.setState({ [field]: e.target.value, stashAddError: null });

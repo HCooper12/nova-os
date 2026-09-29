@@ -640,7 +640,7 @@ function RecipesPage({ page }) {
                 <div className={`nv-fs-rr${r.photoUrl ? ' ph' : ''}`}>
                   {r.photoUrl && <span className="nv-fs-thumb"><img src={r.photoUrl} alt="" /></span>}
                   <Interactive as="span" className="open" onClick={r.open} haptic="tick" focusStyle={NO_RING} aria-label={`Open ${r.name}`}>
-                    <span className="nv-fs-nm">{r.name}</span>
+                    <span className="nv-fs-nm">{r.name}{r.reel && <FIcon n="reel" className="nv-rp-inl" />}</span>
                     {r.pending
                       ? <span className="nv-fs-sv"><span style={{ color: 'var(--nv-gold)' }}>Macros not set</span>{r.makes ? ` · ${r.makes}` : ''}</span>
                       : <span className="nv-fs-sv"><span className="nv-fs-p">{r.p} g</span> protein · <span className="nv-fs-k">{kc(r.kcal)}</span> kcal{r.makes ? ` · ${r.makes}` : ''}</span>}

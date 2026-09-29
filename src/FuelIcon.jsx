@@ -19,6 +19,8 @@ const PATHS = {
   up: <path d="M12 19V6M5 12l7-7 7 7" />,
   list: <><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1" /><circle cx="4.5" cy="12" r="1" /><circle cx="4.5" cy="18" r="1" /></>,
   cart: <><path d="M3 4h2.5l2.2 11h10.6l2-8H6.3" /><circle cx="9" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" /></>,
+  // a recipe that came from a reel (the recipe page, 29 Sep 2026)
+  reel: <><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><path d="M10 8.8v6.4l5.2-3.2z" /></>,
 };
 export function FIcon({ n, className = '' }) {
   return <svg className={`nv-fs-ico ${className}`} viewBox="0 0 24 24" aria-hidden="true" focusable="false">{PATHS[n] || PATHS.right}</svg>;

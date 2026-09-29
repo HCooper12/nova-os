@@ -1,13 +1,13 @@
 {
-  "recordedAt": "2026-09-27T12:55:29.965Z",
+  "recordedAt": "2026-09-29T00:22:12.468Z",
   "frozenClock": "2026-09-26T14:00:00 (local)",
   "requestedStyle": "cupertino",
   "requestedTheme": "command",
   "style": "cupertino",
   "theme": null,
-  "text": "VAULT · FUEL\n6 recipes · demo data\nFuel, macros first.\nAll\nHigh protein\nQuick\nBatch\ndish photo — burrito bowl\nBurrito bowl\nHIGH PROTEIN\n52P\n68C\n18F\n640 kcal · 25 min\ndish photo — greek yogurt parfait\nGreek yogurt parfait\nQUICK\n32P\n41C\n9F\n380 kcal · 5 min\ndish photo — salmon & sticky rice\nSalmon & sticky rice\nBALANCED\n41P\n72C\n22F\n660 kcal · 30 min\ndish photo — protein oats\nProtein oats\nQUICK\n38P\n55C\n11F\n470 kcal · 8 min\ndish photo — beef stir-fry\nBeef stir-fry\nHIGH PROTEIN\n48P\n44C\n19F\n560 kcal · 20 min\ndish photo — turkey chili (batch ×4)\nTurkey chili (batch ×4)\nBATCH\n45P\n38C\n14F\n470 kcal · 45 min",
+  "text": "VAULT · FUEL\n6 recipes · demo data\nFuel, macros first.\nAll\nHigh protein\nQuick\nBatch\ndish photo — burrito bowl\nBurrito bowl\nHIGH PROTEIN\n52P\n68C\n18F\n640 kcal\nServes 1 · 25 min\ndish photo — greek yogurt parfait\nGreek yogurt parfait\nQUICK\n32P\n41C\n9F\n380 kcal\nServes 1 · 5 min\ndish photo — salmon & sticky rice\nSalmon & sticky rice\nBALANCED\n41P\n72C\n22F\n660 kcal\nServes 1 · 30 min\ndish photo — protein oats\nProtein oats\nQUICK\n38P\n55C\n11F\n470 kcal\nServes 1 · 8 min\ndish photo — beef stir-fry\nBeef stir-fry\nHIGH PROTEIN\n48P\n44C\n19F\n560 kcal\nServes 1 · 20 min\ndish photo — turkey chili (batch ×4)\nTurkey chili (batch ×4)\nBATCH\n45P\n38C\n14F\n470 kcal\nServes 4 · 45 min",
   "panes": 0,
-  "scrollHeight": 1545,
+  "scrollHeight": 1683,
   "scrollWidth": 402,
   "clientWidth": 402
 }

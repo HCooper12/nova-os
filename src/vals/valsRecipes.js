@@ -2,6 +2,7 @@ import { mono } from './shared.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
 import { offPlanTotals, recipeBankState, RECIPE_BANK_COPY } from '../fuelFacts.js';
+import { servingsOf, scaleRecipe, parseAmount, formatQuarter } from '../recipeScale.js';
 
 // The rename UI keys off a variant id. The version IN USE has none — it is
 // the recipe's main block, not an alternate — so it needs a sentinel rather
@@ -80,6 +81,187 @@ export const eatOutHasBudget = (params) => ['kcal', 'p', 'c', 'f'].some((k) => p
 // add-recipe modal, and the recipe overlay (incl. alternates + tweak chat).
 // Adds to ctx: usingLiveRecipes, rotation, profile, and the protein-gauge
 // inputs consumed by valsMission.
+// ---- THE RECIPE PAGE (29 Sep 2026) ------------------------------------------
+// His ask, with the Osta reel: a recipe he shares becomes a clean page — the
+// dish first, how many it makes and how long it takes, the servings scaled,
+// the batch onto the shopping list. `recipePage` is that page's ONE view
+// model: RecipeOverlay (cupertino/command) renders it, and valsFuelSummary
+// reshapes it into the summary sheet, so neither idiom can lack a field the
+// other has. Scaling is a VIEW (st.recipeScaleView, keyed to the recipe it was
+// set on): it never writes the recipe, and per-serving macros never move with
+// it — a jar is a jar (src/recipeScale.js says why).
+
+// "45 min", "1 hr", "1 hr 5 min" — how a cook reads a time, never "65 min"
+export function fmtMinutes(min) {
+  const n = Math.round(Number(min));
+  if (!Number.isFinite(n) || n < 0) return null;
+  if (n < 60) return `${n} min`;
+  const h = Math.floor(n / 60);
+  const m = n % 60;
+  return m ? `${h} hr ${m} min` : `${h} hr`;
+}
+
+// a source link names where it came from; a reel wears the reel glyph
+function sourceOf(src) {
+  if (!src || !/^https?:\/\//i.test(String(src.url || ''))) return null;
+  let host = '';
+  try { host = new URL(src.url).hostname.replace(/^www\./, ''); } catch { host = ''; }
+  const reel = /instagram\.com|tiktok\.com|youtube\.com\/shorts|youtu\.be|facebook\.com\/reel/i.test(src.url);
+  const known = { 'instagram.com': 'Instagram', 'tiktok.com': 'TikTok', 'youtube.com': 'YouTube', 'youtu.be': 'YouTube' };
+  const label = String(src.label || '').trim() || known[host] || host || 'Source';
+  return { url: src.url, label, reel };
+}
+
+// "240 g oats" → { amount: '240 g', item: 'oats' }; a line with no leading
+// amount ("Salt, to taste", "Chicken thigh, 180 g") is all item, unscaled
+export function splitAmount(line) {
+  const raw = String(line ?? '');
+  const a = parseAmount(raw);
+  if (a.qty == null) return { amount: '', item: raw.trim() };
+  const at = a.rest ? raw.lastIndexOf(a.rest) : raw.length;
+  return { amount: raw.slice(0, at).trim(), item: a.rest };
+}
+
+const GROUP_RE = /^—\s*(.+?)\s*—$/;
+// the demo bank's [qty, unit, name] tuples, written the way his vault writes a line
+const demoLine = ([q, unit, name]) => {
+  if (!q) return { qty: '', name };
+  const n = Number.isInteger(q) ? String(q) : formatQuarter(q);
+  return { qty: '', name: `${n}${unit ? ` ${unit}` : ''} ${name}` };
+};
+
+// what the recipe says it makes, as the meta row words it: "Makes 6 jars"
+// when that is where the count came from, "Serves 4" when it was said so
+function servesText(servings, makes) {
+  const m = String(makes || '').replace(/\*+/g, '').replace(/^\s*(?:makes|serves)\s*:?\s*/i, '').trim();
+  if (servings != null && m && servingsOf({ makes: m }) === servings && !/^\d+$/.test(m)) return `Makes ${m}`;
+  if (servings != null) return `Serves ${servings}`;
+  return m ? `Makes ${m}` : null;
+}
+
+// A bank card's one Meta line: what it makes and how long, "Serves 6 · 40 min"
+// (prep and cook together); the recipe's own "makes" words when that is all
+// it says. Null when it says neither — nothing is drawn, never a dash.
+export function cardMeta(r) {
+  if (!r) return null;
+  const serves = r.servings != null ? `Serves ${r.servings}` : null;
+  const mins = (r.prepMin ?? 0) + (r.cookMin ?? 0);
+  const time = r.prepMin != null || r.cookMin != null ? fmtMinutes(mins) : (r.time || null);
+  const parts = [serves || (r.makes ? String(r.makes).replace(/\*+/g, '').trim() : null), time].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+// the noun the scale stepper counts in: "jars" for "6 jars", else servings
+function scaleNoun(makes, n) {
+  const m = /^\s*(?:makes|serves)?\s*:?\s*\d+\s+([A-Za-z]+)/i.exec(String(makes || '').replace(/\*+/g, ''));
+  const word = m && !/^(serv|portion|batch|people|person)/i.test(m[1]) ? m[1].toLowerCase() : null;
+  if (word) return n === 1 ? word.replace(/s$/, '') : word;
+  return n === 1 ? 'serving' : 'servings';
+}
+
+// Builds the page for whichever recipe is open — a live one from his vault or
+// a demo fixture (demoMode only; the caller never passes one otherwise).
+function buildRecipePage(app, st, { live, demo, activeAlt, effIngredients, effMethod, effMacros, macrosPending, categoryLabel, extra }) {
+  const r = live || demo;
+  if (!r) return null;
+  const id = r.id;
+  const ingredients = live ? effIngredients : (demo.ingredients || []).map(demoLine);
+  const scalable = {
+    servings: live ? (live.servings ?? null) : (demo.servings ?? null),
+    makes: live ? live.makes : demo.makes,
+    ingredients,
+  };
+  const base = servingsOf(scalable);
+  const view = st.recipeScaleView && st.recipeScaleView.id === id ? Number(st.recipeScaleView.n) : null;
+  const servings = base ? (view > 0 ? view : base) : null;
+  const { factor, lines } = scaleRecipe(scalable, servings);
+  const setN = (n) => app.setState({ recipeScaleView: { id, n: Math.max(1, Math.min(99, Math.round(n))) } });
+  const removals = st.recipeRemovals || [];
+  const sourceName = live ? (activeAlt ? `${live.name} (${activeAlt.label})` : live.name) : r.name;
+
+  const items = ingredients.map((ing, i) => {
+    const name = String(ing.name ?? ing);
+    const g = ing.group ? GROUP_RE.exec(name) || [null, name] : GROUP_RE.exec(name);
+    if (g) return { key: `g${i}-${name}`, group: true, label: g[1] };
+    const line = lines[i];
+    const { amount, item } = splitAmount(line);
+    const dropped = removals.includes(name);
+    // hold (long-press / right-click): just this line to the list, AS SCALED,
+    // or drop it from this version (the tweak pipeline recomputes the figures)
+    const shop = live ? () => app.addToShoppingList([line], sourceName) : null;
+    const drop = live ? () => app.toggleIngredientRemoval(name) : null;
+    return {
+      key: `${i}-${name}`, line, amount, item, raw: name, dropped, shop, drop,
+      hold: live ? { title: line, items: [
+        { label: 'Add just this to the shopping list', run: shop },
+        { label: dropped ? 'Keep it in this version' : 'Drop it from this version', run: drop },
+      ] } : null,
+    };
+  });
+  const buyable = items.filter((it) => !it.group && !it.dropped);
+  const method = (live ? effMethod : demo.steps || []).map((text, i) => ({ n: i + 1, text }));
+
+  const prepMin = live ? live.prepMin ?? null : demo.prepMin ?? null;
+  const cookMin = live ? live.cookMin ?? null : demo.cookMin ?? null;
+  const source = sourceOf(live ? live.source : demo.source);
+  const saveMeta = live ? (patch) => app.saveRecipeMeta(id, patch) : null;
+  // each absent value is simply not drawn; Serves, Prep and Cook set in place
+  const meta = [];
+  const serves = servesText(scalable.servings ?? base, scalable.makes);
+  if (serves) meta.push({ key: 'serves', glyph: 'serves', text: serves, value: base, field: 'servings', label: 'Serves', unit: base === 1 ? 'serving' : 'servings', min: 1, max: 99, step: 1 });
+  if (prepMin != null) meta.push({ key: 'prep', glyph: 'prep', text: `Prep ${fmtMinutes(prepMin)}`, value: prepMin, field: 'prepMin', label: 'Prep', unit: 'min', min: 0, max: 1440, step: 5 });
+  if (cookMin != null) meta.push({ key: 'cook', glyph: 'cook', text: `Cook ${fmtMinutes(cookMin)}`, value: cookMin, field: 'cookMin', label: 'Cook', unit: 'min', min: 0, max: 1440, step: 5 });
+  if (source) meta.push({ key: 'source', glyph: source.reel ? 'reel' : 'link', text: source.label, url: source.url });
+  // what he could still say about it, offered once (the ⋯ sheet), never as dashes
+  const unset = [
+    base == null && { field: 'servings', label: 'Serves', unit: 'servings', value: null, min: 1, max: 99, step: 1 },
+    prepMin == null && { field: 'prepMin', label: 'Prep', unit: 'min', value: null, min: 0, max: 1440, step: 5 },
+    cookMin == null && { field: 'cookMin', label: 'Cook', unit: 'min', value: null, min: 0, max: 1440, step: 5 },
+  ].filter(Boolean);
+
+  const m = effMacros || (demo ? { p: demo.p, c: demo.c, f: demo.f, kcal: demo.kcal } : null);
+  const photoUrl = live ? (st.liveRecipePhotoUrls?.[id] || null) : null;
+  return {
+    id, name: r.name, live: !!live, demo: !!demo,
+    category: categoryLabel,
+    version: activeAlt ? activeAlt.label : null,
+    description: live && !activeAlt ? live.description || null : null,
+    hero: {
+      photoUrl,
+      busy: live ? !!st.recipePhotoUploadBusy?.[id] : false,
+      onFile: live ? (e) => app.onRecipePhotoFile(id, e.target.files) : null,
+    },
+    meta,
+    setMeta: saveMeta,
+    unset: live ? unset : [],
+    source,
+    // per serving, and never scaled with the batch
+    macros: m && !macrosPending ? { p: Math.round(m.p), c: Math.round(m.c), f: Math.round(m.f), kcal: Math.round(m.kcal), raw: m } : null,
+    pending: macrosPending ? { add: extra.addMacros || null } : null,
+    scale: base ? {
+      base, servings, factor, changed: servings !== base,
+      noun: scaleNoun(scalable.makes, servings),
+      baseNoun: scaleNoun(scalable.makes, base),
+      inc: () => setN(servings + 1),
+      dec: servings > 1 ? () => setN(servings - 1) : null,
+      reset: () => app.setState({ recipeScaleView: null }),
+    } : null,
+    ingredients: items,
+    method,
+    shopping: live ? {
+      count: extra.wholeItem ? 1 : buyable.length,
+      scaled: factor !== 1,
+      // the batch he is LOOKING AT: the scaled lines, dropped ones left out
+      lines: extra.wholeItem ? [live.name] : buyable.map((it) => it.line),
+      add: () => app.addToShoppingList(extra.wholeItem ? [live.name] : buyable.map((it) => it.line), sourceName),
+      whole: !!extra.wholeItem,
+    } : null,
+    log: extra.log || null,
+    logNote: live ? (macrosPending ? 'Add its macros first. Nova won’t log a meal as zero.' : null) : 'Demo recipe: logging needs Nova connected to your Mac.',
+    notes: live && !activeAlt ? live.notes || [] : [],
+  };
+}
+
 export function valsRecipes(app, ctx) {
   const st = app.state;
 
@@ -268,6 +450,9 @@ export function valsRecipes(app, ctx) {
           const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
           return { name: r.name, tag: RECIPE_CATEGORY_LABEL[r.category] || r.category,
             p: pending ? null : m.p, c: pending ? null : m.c, f: pending ? null : m.f, kcal: pending ? null : m.kcal, time: r.makes || '',
+            // the recipe page's facts on the card: serves and time as one line,
+            // the reel glyph when it came from one (no new tap targets)
+            meta: cardMeta(r), reel: !!sourceOf(r.source)?.reel,
             macrosPending: pending,
             // the card carries the shared name ONLY while its overlay is shut —
             // two elements may never hold the same view-transition-name at once
@@ -286,7 +471,7 @@ export function valsRecipes(app, ctx) {
     : app.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
         const tot = r.p + r.c + r.f;
         const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
-        return { name: r.name, tag: r.tag, p: r.p, c: r.c, f: r.f, kcal: r.kcal, time: r.time,
+        return { name: r.name, tag: r.tag, p: r.p, c: r.c, f: r.f, kcal: r.kcal, time: r.time, meta: cardMeta(r), reel: !!sourceOf(r.source)?.reel,
           open: () => app.setState({ openRecipeId: r.id, servings: 1, recipeChat: [], recipeInput: '' }),
           phLabel: 'dish photo — ' + r.name.toLowerCase(),
           phStyle: { height: '104px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'repeating-linear-gradient(45deg, rgba(' + r.hue + ',.13) 0 8px, rgba(' + r.hue + ',.04) 8px 16px)' },
@@ -462,7 +647,25 @@ export function valsRecipes(app, ctx) {
     };
   })();
 
+  // THE RECIPE PAGE — one view model, both idioms (buildRecipePage above)
+  const recipePage = buildRecipePage(app, st, {
+    live: liveOr, demo: liveOr ? null : or || null, activeAlt, effIngredients, effMethod, effMacros,
+    macrosPending: orMacrosPending,
+    categoryLabel: liveOr ? (RECIPE_CATEGORY_LABEL[liveOr.category] || liveOr.category || null) : (or ? or.tag : null),
+    extra: {
+      addMacros: orMacrosPending ? startMealEdit : null,
+      wholeItem: !!liveOr && effIngredients.length === 0 && effMethod.length === 0,
+      // Log a portion: the existing portion sheet, on the version he is looking at
+      log: liveOr && !orMacrosPending ? () => app.openPortionSheet({
+        name: activeAlt ? `${liveOr.name} (${activeAlt.label})` : liveOr.name,
+        macros: activeAlt?.macros || liveOr.macros,
+        source: 'recipe',
+      }) : null,
+    },
+  });
+
   return {
+    recipePage,
     pickItUp,
     // recipes
     recipesHeaderLabel: usingLiveRecipes ? `${st.liveRecipes.length} recipes · live from Obsidian`

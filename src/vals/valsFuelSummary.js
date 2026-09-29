@@ -213,8 +213,9 @@ export function valsFuelSummary(app, ctx, v) {
       return {
         key: r.name, name: r.name,
         // macros not set yet: said in words, never a 0 g / 0 kcal
-        sub: r.macrosPending ? `Macros not set${r.time ? ` · ${r.time}` : ''}` : `${round(r.p)} g protein · ${kc(r.kcal)} kcal${r.time ? ` · ${r.time}` : ''}`,
-        p: r.macrosPending ? null : round(r.p), kcal: r.macrosPending ? null : round(r.kcal), makes: r.time || '',
+        sub: r.macrosPending ? `Macros not set${r.meta || r.time ? ` · ${r.meta || r.time}` : ''}` : `${round(r.p)} g protein · ${kc(r.kcal)} kcal${r.meta || r.time ? ` · ${r.meta || r.time}` : ''}`,
+        p: r.macrosPending ? null : round(r.p), kcal: r.macrosPending ? null : round(r.kcal), makes: r.meta || r.time || '',
+        reel: !!r.reel,
         pending: !!r.macrosPending,
         photoUrl: r.photoUrl || null,
         open: r.open,
@@ -281,6 +282,10 @@ function buildRecipeSheet(app, st, v, { live }) {
   const logName = liveOr ? (activeAlt ? `${liveOr.name} (${activeAlt.label})` : liveOr.name) : '';
   const portions = v.orPortions;
   const removals = v.ingredientRemovals || [];
+  // THE RECIPE PAGE (29 Sep 2026): the same view model the cupertino page
+  // renders — meta row, scale, the scaled checklist, the method — so the
+  // sheet can never lack a field the page has
+  const P = v.recipePage || null;
 
   return {
     id: st.openRecipeId,
@@ -306,11 +311,12 @@ function buildRecipeSheet(app, st, v, { live }) {
       less: portions.left > 0 ? portions.ate : null,
       stop: portions.left != null ? portions.stop : null,
     } : null,
-    lines: (v.orIngredients || []).map((ing, i) => ({
-      key: `${i}-${ing.name}`, name: ing.qty && ing.qty !== '—' ? `${ing.name}, ${ing.qty}` : ing.name,
-      raw: ing.name, dropped: removals.includes(ing.name),
-      toggle: v.toggleIngredientRemoval ? () => v.toggleIngredientRemoval(ing.name) : null,
-      shop: v.addIngredientToShopping ? () => v.addIngredientToShopping(ing.name) : null,
+    page: P,
+    // the lines as the batch he is looking at (scaled), for the per-line
+    // shopping list and the removal pipeline; group labels are the page's
+    lines: (P ? P.ingredients.filter((it) => !it.group) : []).map((it) => ({
+      key: it.key, name: it.line, raw: it.raw, dropped: it.dropped,
+      toggle: it.drop, shop: it.shop,
     })),
     removals: removals.length ? {
       count: removals.length,
@@ -319,10 +325,12 @@ function buildRecipeSheet(app, st, v, { live }) {
       today: () => v.confirmRemovalSave('today'),
       keep: () => v.confirmRemovalSave('alt'),
     } : null,
-    shopping: liveOr ? {
-      whole: v.orIsWholeItem ? v.addWholeItemToShoppingList : null,
-      all: v.orShowAddToShoppingList ? v.addRecipeToShoppingList : null,
-      count: (v.orIngredients || []).length,
+    shopping: liveOr && P?.shopping ? {
+      whole: P.shopping.whole ? P.shopping.add : null,
+      // the scaled batch, dropped lines left out (recipePage.shopping)
+      all: !P.shopping.whole && P.shopping.count > 0 ? P.shopping.add : null,
+      count: P.shopping.count,
+      scaled: P.shopping.scaled,
     } : null,
     tweak: v.orShowTweak ? {
       value: v.recipeTweakInput, set: v.setRecipeTweakInput, onKey: v.recipeTweakKey, submit: v.submitRecipeTweak,

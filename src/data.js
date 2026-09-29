@@ -2,22 +2,22 @@
 // workout plan, chat scripts). Ported verbatim from the original design.
 
 export const recipes = [
-  { id: 'r1', name: 'Burrito bowl', tag: 'High protein', filter: 'High protein', p: 52, c: 68, f: 18, kcal: 640, time: '25 min', hue: '216,181,115',
+  { id: 'r1', name: 'Burrito bowl', tag: 'High protein', filter: 'High protein', p: 52, c: 68, f: 18, kcal: 640, time: '25 min', servings: 1, prepMin: 10, cookMin: 15, hue: '216,181,115',
     ingredients: [[180, 'g', 'chicken thigh, diced'], [80, 'g', 'basmati rice (dry)'], [60, 'g', 'black beans'], [40, 'g', 'charred corn'], [30, 'g', 'cheddar, grated'], [20, 'g', 'salsa roja'], [0.5, '', 'lime, juiced']],
     steps: ['Season chicken with smoked paprika, cumin, salt; sear 6–7 min until charred.', 'Cook rice; fold through lime juice and a pinch of salt.', 'Warm beans and corn in the same pan to pick up the fond.', 'Assemble bowl, top with cheddar and salsa.'] },
-  { id: 'r2', name: 'Greek yogurt parfait', tag: 'Quick', filter: 'Quick', p: 32, c: 41, f: 9, kcal: 380, time: '5 min', hue: '138,106,209',
+  { id: 'r2', name: 'Greek yogurt parfait', tag: 'Quick', filter: 'Quick', p: 32, c: 41, f: 9, kcal: 380, time: '5 min', servings: 1, prepMin: 5, hue: '138,106,209',
     ingredients: [[250, 'g', 'Greek yogurt 0%'], [40, 'g', 'granola'], [80, 'g', 'mixed berries'], [15, 'g', 'honey'], [10, 'g', 'chia seeds']],
     steps: ['Layer yogurt, granola and berries in a glass.', 'Drizzle honey, finish with chia.'] },
-  { id: 'r3', name: 'Salmon & sticky rice', tag: 'Balanced', filter: 'High protein', p: 41, c: 72, f: 22, kcal: 660, time: '30 min', hue: '107,229,245',
+  { id: 'r3', name: 'Salmon & sticky rice', tag: 'Balanced', filter: 'High protein', p: 41, c: 72, f: 22, kcal: 660, time: '30 min', servings: 1, prepMin: 10, cookMin: 20, hue: '107,229,245',
     ingredients: [[160, 'g', 'salmon fillet'], [90, 'g', 'sushi rice (dry)'], [15, 'g', 'soy glaze'], [50, 'g', 'edamame'], [1, '', 'spring onion, sliced']],
     steps: ['Roast salmon at 200°C for 12 min, glaze at the end.', 'Cook rice; season with rice vinegar.', 'Serve with edamame and spring onion.'] },
-  { id: 'r4', name: 'Protein oats', tag: 'Quick', filter: 'Quick', p: 38, c: 55, f: 11, kcal: 470, time: '8 min', hue: '216,181,115',
+  { id: 'r4', name: 'Protein oats', tag: 'Quick', filter: 'Quick', p: 38, c: 55, f: 11, kcal: 470, time: '8 min', servings: 1, prepMin: 3, cookMin: 5, hue: '216,181,115',
     ingredients: [[60, 'g', 'rolled oats'], [30, 'g', 'whey, vanilla'], [200, 'ml', 'milk'], [80, 'g', 'banana, sliced'], [15, 'g', 'peanut butter']],
     steps: ['Simmer oats in milk 5 min.', 'Off heat, stir in whey.', 'Top with banana and peanut butter.'] },
-  { id: 'r5', name: 'Beef stir-fry', tag: 'High protein', filter: 'High protein', p: 48, c: 44, f: 19, kcal: 560, time: '20 min', hue: '201,111,111',
+  { id: 'r5', name: 'Beef stir-fry', tag: 'High protein', filter: 'High protein', p: 48, c: 44, f: 19, kcal: 560, time: '20 min', servings: 1, prepMin: 10, cookMin: 10, hue: '201,111,111',
     ingredients: [[170, 'g', 'lean beef strips'], [70, 'g', 'jasmine rice (dry)'], [120, 'g', 'broccoli'], [20, 'g', 'oyster sauce'], [10, 'g', 'ginger, minced']],
     steps: ['Velvet beef 30 min in bicarb rinse; pat dry.', 'Stir-fry beef hard 2 min; remove.', 'Fry broccoli + ginger, return beef with sauce.', 'Serve over rice.'] },
-  { id: 'r6', name: 'Turkey chili (batch ×4)', tag: 'Batch', filter: 'Batch', p: 45, c: 38, f: 14, kcal: 470, time: '45 min', hue: '90,168,124',
+  { id: 'r6', name: 'Turkey chili (batch ×4)', tag: 'Batch', filter: 'Batch', p: 45, c: 38, f: 14, kcal: 470, time: '45 min', servings: 4, prepMin: 10, cookMin: 35, hue: '90,168,124',
     ingredients: [[500, 'g', 'turkey mince (batch)'], [240, 'g', 'kidney beans'], [400, 'g', 'chopped tomatoes'], [1, '', 'onion, diced'], [8, 'g', 'chili + cumin blend']],
     steps: ['Brown turkey with onion and spices.', 'Add tomatoes and beans; simmer 30 min.', 'Portion into 4 — freezes well.'] },
 ];

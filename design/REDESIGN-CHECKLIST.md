@@ -689,6 +689,23 @@ abstract without page content to put in it.
   calls: bar 60px (built) or 64/58 (mockups); keep the serif standfirst on
   Light (55 has none); keep the sky drift or hold it still if his phone runs
   warm.
+- 29 Sep 2026 (nova-os-83) — THE RECIPE PAGE REBUILT (his direct ask, from the
+  Osta reel: "rework and edit Nova's fuel capabilities so this is possible and
+  it all works/looks and feels more appealing") — built to ONE considered
+  design, not a mockup round: hero photo with the name over the fade, a meta
+  row (serves · prep · cook · source), the four per-serving figures, a Makes
+  stepper that rescales every amount (src/recipeScale.js), an ingredient
+  checklist, numbered method with cook mode, one filled action (Log a
+  portion) beside Add N to list, everything else under ⋯. Both idioms from
+  one view model (`recipePage`): RecipeOverlay (cupertino/command) rebuilt,
+  RecipeSheet (summary) extended. 4 type sizes, 8 first-view targets on the
+  demo recipe (14 on a live one with the checklist in view), all ≥ 44pt.
+  Data: Serves/Time/Source lines in the collection (every reader and writer),
+  a reel imports its cover photo, times, servings and source; the share
+  sheet drafts a recipe from a bare reel link (docs §2b). The `recipes`
+  guard baseline was re-recorded on purpose (each bank card gained a
+  "Serves N · time" line). Real read-only frames in the review page. His
+  tweaks make round 2.
 - 27 Sep 2026 (morning) — HIS FIRST ANSWERS. Home: Light does not feel like the
   mockup; Nova night lacks the glass; polish the glass on every glass version
   (Nova glass with the hour cycle will be his main); the bottom bar wants the

@@ -10,6 +10,7 @@ import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button } from '../Con
 import { PickItUp } from './PickItUp.jsx';
 import { SkeletonGrid } from '../Skeleton.jsx';
 import { FuelSummary } from './FuelSummary.jsx';
+import { FIcon } from '../FuelIcon.jsx';
 
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx;
 // filled buttons sentence-case in the UI face under the Apple styles
@@ -1039,19 +1040,26 @@ function RecipesPage({ v }) {
                    decided", and a dashed empty track where the bars would lie */
                 <>
                   <div style={css("margin-top:7px;display:flex;gap:10px;align-items:center;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                    <Tag tone="gold" dashed>Macros not set</Tag><span style={css("margin-left:auto")}>{r.time || 'add them when you make it'}</span>
+                    <Tag tone="gold" dashed>Macros not set</Tag><span style={css("margin-left:auto")}>add them when you make it</span>
                   </div>
                   <div aria-hidden="true" style={css("margin-top:10px;height:4px;border-radius:2px;border:1px dashed color-mix(in srgb, var(--nv-gold) 45%, transparent);box-sizing:border-box")}></div>
                 </>
               ) : (
                 <>
                   <div style={css("margin-top:7px;display:flex;gap:12px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                    <span style={css("color:var(--nv-cy)")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}><span style={css("color:var(--nv-good)")}>{r.kcal} kcal</span>{r.time ? ` · ${r.time}` : ''}</span>
+                    <span style={css("color:var(--nv-cy)")}>{r.p}P</span><span>{r.c}C</span><span>{r.f}F</span><span style={css("margin-left:auto")}><span style={css("color:var(--nv-good)")}>{r.kcal} kcal</span></span>
                   </div>
                   <div style={css("margin-top:10px;display:flex;gap:3px;height:4px")}>
                     <span style={r.pBar}></span><span style={r.cBar}></span><span style={r.fBar}></span>
                   </div>
                 </>
+              )}
+              {/* the recipe page's facts, one Meta line: serves and time, and
+                  the reel glyph when it came from one (29 Sep 2026) */}
+              {(r.meta || r.reel) && (
+                <Meta as="div" tone="faint" style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {r.reel && <FIcon n="reel" className="nv-rp-inl" />}{r.meta && <span>{r.meta}</span>}
+                </Meta>
               )}
               {r.slotToggles && r.slotToggles.length > 0 && (
                 <div style={css("margin-top:10px;display:flex;gap:5px")} onClick={(e) => e.stopPropagation()}>

@@ -1,14 +1,32 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { LocalInput } from './LocalInput.jsx';
 import { useDictation } from './useDictation.js';
 import { TypeText } from './TypeText.jsx';
-import { Eyebrow, TextAction, Chip, Meta, isAppleStyle, Button, Tag } from './Controls.jsx';
+import { Eyebrow, TextAction, Chip, Meta, Button, Tag } from './Controls.jsx';
+import { RGlyph, RecipeMetaRow, RecipeFigures, RecipeScale, RecipeIngredients, RecipeMethod, RecipeMenu } from './RecipePage.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
+// THE RECIPE, AS A PAGE (29 Sep 2026) — cupertino (his phone) and command.
+// His ask came with the Osta reel: share a recipe, get a clean page with the
+// dish on top, how many it makes and how long it takes, scale the servings,
+// send the batch to the shopping list. The audit (04-fuel, finding 10) found
+// the old overlay opening on a striped placeholder, an add-photo bar, a macro
+// table and a fridge row, with the dish's NAME the fifth object at 581px and
+// 27 targets on one recipe. Now, top to bottom, from ONE view model
+// (v.recipePage, which the summary sheet reads too):
+//   the dish (photo full-bleed, its name in the serif over it) · a meta row
+//   (serves · prep · cook · source, each absent one simply not drawn) · the
+//   four figures per serving · the scale · the ingredients as a checklist ·
+//   the method with a cook mode · the fridge and Ask Nova, folded.
+// One filled button, Log a portion, rides the foot with the scaled "Add to
+// list"; Delete, Rename, versions, the photo, the editor and the source live
+// in the ⋯ sheet. Nothing was deleted: every capability the overlay had is
+// one tap or one hold away.
 export function RecipeOverlay({ v }) {
+  const P = v.recipePage;
   // Talking about a meal, in the place the meal is. One-shot dictation: a
   // pause ends the take and the question goes straight to Nova, and because
   // the last preview travels with it, "keep the two whole eggs, what else
@@ -24,347 +42,294 @@ export function RecipeOverlay({ v }) {
     (said) => { const t = String(said ?? askRef.current ?? '').trim(); if (t) askVoice.current?.(t); },
     { holdMs: v.voiceHoldMs, leadMs: v.voiceLeadMs, onError: (err) => v.recipeDictationError?.(err) },
   );
+  const [menu, setMenu] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [askOpen, setAskOpen] = useState(false);
+  const id = P?.id;
+  const resetKey = `${id}:${P?.version || ''}`;
+  // a different recipe (or version) starts with every fold shut
+  useEffect(() => { setMenu(null); setEditing(null); setAskOpen(false); }, [id]);
+  if (!P) return null;
+
+  const mobile = v.recipeOvMobile;
+  const active = (v.orAlternates || []).find((a) => a.active);
+  const fridge = v.orPortions;
+  const batch = P.scale ? P.scale.servings : null;
+  const tweakOpen = askOpen || !!v.recipeTweakPreview || !!v.recipeTweakBusy;
+  const openDetail = (field) => {
+    const known = P.meta.find((m) => m.field === field);
+    setEditing(known || P.unset.find((u) => u.field === field) || null);
+  };
+  const more = {
+    title: P.name,
+    items: [
+      P.hero.onFile && { label: P.hero.busy ? 'Saving the photo…' : P.hero.photoUrl ? 'Change the photo' : 'Add a photo', file: P.hero.onFile, disabled: P.hero.busy },
+      ...P.unset.map((u) => ({ label: u.field === 'servings' ? 'Say how many it makes' : `Add the ${u.label.toLowerCase()} time`, run: () => openDetail(u.field) })),
+      ...((v.orAlternates || []).length > 1 ? v.orAlternates.map((a) => ({ label: `${a.id == null ? 'Version: ' : ''}${a.label}${a.isToday ? ' · today' : ''}`, on: !!a.active, run: a.onClick })) : []),
+      active?.rename && { label: 'Rename this version', run: active.rename },
+      active?.useToday && { label: 'Use this version today', run: active.useToday },
+      active?.makePrimary && { label: 'Make this version the recipe', run: active.makePrimary },
+      v.orCanEdit && !v.orEditing && { label: 'Edit what’s in it', run: v.startEdit },
+      P.source && { label: `Open the source · ${P.source.label}`, href: P.source.url },
+      fridge?.left != null && { label: 'Stop counting portions', run: fridge.stop },
+      v.orDelete && { label: v.orDeleteArmed ? 'Tap again to delete this recipe' : 'Delete recipe', danger: true, keepOpen: !v.orDeleteArmed, run: v.orDelete },
+    ],
+  };
+  const hasMore = more.items.some(Boolean);
+
   return (
     // data-edge-page: the back swipe pops this like an iOS detail page (src/edgeBack.js)
-    <div role="dialog" aria-modal="true" aria-label="Recipe detail" data-edge-page="" onClick={v.closeRecipe} style={v.recipeOvWrap}>
+    <div role="dialog" aria-modal="true" aria-label={P.name} data-edge-page="" onClick={v.closeRecipe} style={v.recipeOvWrap}>
       {/* the panel carries the SAME view-transition-name the card had, so the
           card morphs into this rather than one vanishing and the other
           appearing. The fadeUp fallback only runs where the API is absent. */}
-      <div onClick={v.stopClick} style={{ ...(v.recipeOvMobile
-        ? css("width:100%;height:100%;overflow-y:auto;background:var(--nv-glass2);padding-bottom:calc(24px + env(safe-area-inset-bottom))")
-        : css("width:860px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec)")),
+      <div onClick={v.stopClick} className="nv-rp" data-mobile={mobile ? 'true' : undefined} style={{ ...(mobile
+        ? css("width:100%;height:100%;overflow-y:auto;background:var(--nv-void)")
+        : css("width:860px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-void);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec)")),
         ...(v.recipeOvVtName ? { viewTransitionName: v.recipeOvVtName } : {}),
-        animation: v.supportsViewTransitions ? undefined : (v.recipeOvMobile ? 'fadeUp var(--nv-dur-base) var(--nv-ease)' : 'fadeUp var(--nv-dur-base) var(--nv-ease)') }}>
-        <div style={css(`position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;padding:${v.recipeOvMobile ? 'calc(12px + env(safe-area-inset-top)) 18px 12px' : '18px 26px'};border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);background:var(--nv-glass2);backdrop-filter:blur(22px)`)}>
-          <Eyebrow as="span" tone="gold">Recipe · from Obsidian</Eyebrow>
-          <span style={css("display:flex;gap:8px;align-items:center")}>
-            {v.orDelete && (
-              <Chip tone="warn" active={!!v.orDeleteArmed} onClick={v.orDelete}>{v.orDeleteArmed ? 'Tap again to delete' : '✕ Delete'}</Chip>
-            )}
-            <Chip tone="quiet" onClick={v.closeRecipe}>✕ Close</Chip>
-          </span>
+        animation: v.supportsViewTransitions ? undefined : 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}>
+
+        {/* the two controls float over the photo and stay with him as he scrolls */}
+        <div className="nv-rp-bar">
+          <Interactive as="button" type="button" className="nv-rp-fab" onClick={v.closeRecipe} data-edge-close="" haptic="tick" aria-label={mobile ? 'Back' : 'Close'}>
+            <RGlyph n={mobile ? 'back' : 'close'} />
+          </Interactive>
+          {hasMore && (
+            <Interactive as="button" type="button" className="nv-rp-fab" onClick={() => setMenu(more)} haptic="tick" aria-label="More: photo, versions, edit, source, delete">
+              <RGlyph n="more" />
+            </Interactive>
+          )}
         </div>
-        <div style={v.gridRecipeOv}>
-          <div>
-            {v.orPhotoUrl ? (
-              <div style={css("height:170px;border-radius:12px;overflow:hidden;position:relative")}>
-                <img src={v.orPhotoUrl} alt={v.orName} style={css("width:100%;height:100%;object-fit:cover;display:block")} />
+
+        {/* THE DISH: the photo settles in; no photo is a quiet material with
+            its own way to add one — never a striped box with a caption */}
+        <header className={`nv-rp-hero${P.hero.photoUrl ? '' : ' empty'}`}>
+          {P.hero.photoUrl
+            ? <img key={P.hero.photoUrl} src={P.hero.photoUrl} alt="" className="nv-rp-photo" />
+            : (
+              <div className="nv-rp-ph" aria-hidden={!P.hero.onFile}>
+                <RGlyph n="fork" className="nv-rp-ph-g" />
+                {P.hero.onFile && (
+                  <label className="nv-rp-addph">
+                    <RGlyph n="photo" /><span>{P.hero.busy ? 'Saving the photo…' : 'Add a photo'}</span>
+                    <input type="file" accept="image/*" onChange={P.hero.onFile} disabled={P.hero.busy} style={{ display: 'none' }} />
+                  </label>
+                )}
               </div>
-            ) : (
-              <div style={v.orPhStyle}><span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>{v.orPhLabel}</span></div>
             )}
-            <label style={css("cursor:pointer;display:block;margin-top:8px;text-align:center;font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track);color:var(--nv-cy);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:8px;padding:8px;background:color-mix(in srgb, var(--nv-cy) 05%, transparent)")}>
-              {v.orPhotoUploadBusy ? 'Saving…' : (v.orPhotoUrl ? 'Change photo' : '+ Add a photo of this dish')}
-              <input type="file" accept="image/*" onChange={v.onRecipePhotoFile} disabled={v.orPhotoUploadBusy} style={css("display:none")} />
-            </label>
-            <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:15px 17px;background:var(--nv-well)")}>
-              <div style={css("display:flex;justify-content:space-between;align-items:baseline")}><Eyebrow as="span">Macros</Eyebrow>{v.orMacrosPending ? <Tag tone="gold">Not set</Tag> : <Meta tone="faint">× {v.servings}</Meta>}</div>
-              {/* MACROS NOT SET: filed without numbers (a reel that gave none),
-                  never a guess. Gold is Nova's "not yet decided"; the four
-                  rows would only draw zeros, so they wait for his numbers. */}
-              {v.orMacrosPending ? (
-                <div style={css("margin-top:12px;display:flex;flex-direction:column;gap:10px;align-items:flex-start")}>
-                  <span style={css("font-size:13px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 70%, transparent)")}>Nova won't guess them. Add them when you make it, typed in or read off the labels.</span>
-                  {v.orAddMacros && !v.orEditing && <Button tone="undecided" compact onClick={v.orAddMacros}>Add macros</Button>}
+          <div className="nv-rp-title">
+            {(P.category || P.version) && (
+              <span className="nv-rp-tags">
+                {P.category && <Tag style={{ fontSize: '13px' }}>{P.category}</Tag>}
+                {P.version && <Tag tone="cyan" style={{ fontSize: '13px' }}>Version · {P.version}</Tag>}
+              </span>
+            )}
+            <h2>{P.name}</h2>
+          </div>
+        </header>
+
+        <div className="nv-rp-body">
+          <RecipeMetaRow page={P} editing={editing} onEdit={setEditing} />
+
+          {v.renameAltId && (
+            <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
+              <Interactive as="input" autoFocus value={v.renameValue} onChange={v.setRenameValue} onKeyDown={v.renameKey}
+                placeholder="Version name…" aria-label="The version's name"
+                base="flex:1;min-width:180px;max-width:340px;box-sizing:border-box;min-height:44px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:12px;padding:8px 12px;color:var(--nv-ink);font:400 16px var(--nv-font-ui);outline:none"
+                focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
+              <Button compact onClick={v.commitRename}>Save name</Button>
+              <TextAction compact tone="quiet" onClick={v.cancelRename}>Cancel</TextAction>
+              {v.renameError && <Meta tone="warn" style={{ flexBasis: '100%' }}>{v.renameError}</Meta>}
+            </div>
+          )}
+
+          <RecipeFigures page={P} />
+
+          {P.description && <p className="nv-rp-desc">{P.description}</p>}
+
+          {v.orEditing ? <MealEditor v={v} /> : (
+            <>
+              <RecipeScale key={id} page={P} onSetServings={P.setMeta ? () => openDetail('servings') : null} />
+
+              {/* the page reads as two columns on the Mac: a cookbook spread */}
+              <div className="nv-rp-cols">
+                <div>
+                  <RecipeIngredients page={P} resetKey={resetKey} onHold={(it) => setMenu(it.hold)} />
+                  {v.ingredientRemovals?.length > 0 && (
+                    <div className="nv-rp-drops nv-deck-rise">
+                      <span>{v.ingredientRemovals.length} dropped. Nova works the figures out again when you keep the change; nothing is saved until then.</span>
+                      <Button compact onClick={v.openRemovalPrompt}>Keep the change</Button>
+                    </div>
+                  )}
+                  {P.shopping?.whole && (
+                    <p className="nv-rp-hint">A whole item: no ingredients to shop for, just the thing itself.</p>
+                  )}
                 </div>
-              ) : (
-              <div style={css(`margin-top:12px;display:flex;flex-direction:column;gap:9px;font:400 ${isAppleStyle() ? '13px var(--nv-font-ui)' : '12px var(--nv-font-mono)'}`)}>
-                <div style={css("display:flex;justify-content:space-between")}><Meta tone="cyan">Protein</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orP}g</span></div>
-                <div style={css("display:flex;justify-content:space-between")}><Meta tone="gold">Carbs</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orC}g</span></div>
-                <div style={css("display:flex;justify-content:space-between")}><Meta tone="violet">Fat</Meta><span style={css("font-variant-numeric:tabular-nums")}>{v.orF}g</span></div>
-                <div style={css("display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}><Meta tone="good">Energy</Meta><span style={css("font-variant-numeric:tabular-nums;color:var(--nv-good)")}>{v.orKcal} kcal</span></div>
+                <div><RecipeMethod page={P} resetKey={resetKey} /></div>
               </div>
+            </>
+          )}
+
+          {/* folded: the fridge, Ask Nova, his notes */}
+          <section className="nv-rp-sec nv-rp-end" aria-label="More for this recipe">
+            {fridge && (
+              <div className="nv-rp-fridge" data-out={fridge.out ? 'true' : undefined}>
+                <span className="nv-rp-fl">
+                  <b>In the fridge</b>
+                  <span>{fridge.left == null ? 'Not counted' : fridge.out ? 'None left: cook more' : `${fridge.left} portion${fridge.left === 1 ? '' : 's'} left, one off each rotation tick`}</span>
+                </span>
+                {fridge.left == null ? (
+                  <TextAction compact onClick={() => fridge.set(batch || 1)}>Cooked a batch{batch ? ` of ${batch}` : ''}</TextAction>
+                ) : (
+                  <span className="nv-rp-step sm">
+                    <Interactive as="button" type="button" className="nv-rp-step-b" onClick={fridge.out ? undefined : fridge.ate} disabled={fridge.out} aria-label="Ate one outside the rotation" haptic="tick"><RGlyph n="minus" /></Interactive>
+                    <span className="nv-rp-step-n"><b key={fridge.left}>{fridge.left}</b></span>
+                    <Interactive as="button" type="button" className="nv-rp-step-b" onClick={() => fridge.cooked(1)} aria-label="One more cooked" haptic="tick"><RGlyph n="plus" /></Interactive>
+                  </span>
+                )}
+              </div>
+            )}
+            {fridge?.left != null && batch > 1 && (
+              <div className="nv-rp-fnext"><TextAction compact tone="quiet" onClick={() => fridge.cooked(batch)}>Cooked another batch of {batch}</TextAction></div>
+            )}
+
+            {(v.orShowTweak || v.orShowAskNova) && !tweakOpen && (
+              <div className="nv-rp-askrow">
+                <TextAction onClick={() => setAskOpen(true)}>{v.orShowTweak ? 'Ask Nova for a tweak' : 'Ask Nova about it'}</TextAction>
+              </div>
+            )}
+            {v.orShowTweak && tweakOpen && <TweakPanel v={v} dict={dict} onFold={() => setAskOpen(false)} />}
+            {!v.orShowTweak && v.orShowAskNova && askOpen && <AskPanel v={v} />}
+
+            {P.notes.length > 0 && (
+              <div className="nv-rp-notes">
+                <span className="nv-rp-eyebrow">Notes</span>
+                {P.notes.map((n, i) => <p key={i}>{n}</p>)}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* THE FOOT: the one filled button, and the batch onto the list */}
+        <div className="nv-rp-foot">
+          <div className="nv-rp-foot-in">
+            <Button tone="good" haptic="commit" onClick={P.log || undefined} disabled={!P.log}
+              ariaLabel={P.log ? 'Log a portion of this to your food log' : `Log a portion. ${P.logNote || ''}`}>Log a portion</Button>
+            {P.shopping && P.shopping.count > 0 && (
+              <Button variant="quiet" tone="ink" onClick={P.shopping.add}
+                ariaLabel={P.shopping.whole ? 'Add it to the shopping list' : `Add ${P.shopping.count} items${P.shopping.scaled ? `, scaled for ${batch},` : ''} to the shopping list`}>
+                {P.shopping.whole ? 'Add to list' : `Add ${P.shopping.count} to list`}
+              </Button>
+            )}
+          </div>
+          {!P.log && P.logNote && <p className={`nv-rp-footnote${P.pending ? ' gold' : ''}`}>{P.logNote}</p>}
+        </div>
+      </div>
+
+      {/* the removal choice (a dropped line changes nothing until he keeps it) */}
+      {v.removalPromptOpen && (
+        <div role="dialog" aria-modal="true" aria-label="Keep the change" className="nv-rp-menu" style={{ zIndex: 96 }} onClick={(e) => { e.stopPropagation(); v.cancelRemovalPrompt(); }}>
+          <div className="nv-rp-menu-p" onClick={(e) => e.stopPropagation()}>
+            <div className="nv-rp-menu-g">
+              <p className="nv-rp-menu-t">Dropping {v.ingredientRemovals.join(', ')}. Nova works the macros out again; the recipe itself is only touched if you save a version.</p>
+              {v.removalCanToday && <Interactive as="div" className="nv-rp-menu-i" onClick={() => v.confirmRemovalSave('today')} haptic="tick">Just for today</Interactive>}
+              <Interactive as="div" className="nv-rp-menu-i" onClick={() => v.confirmRemovalSave('alt')} haptic="tick">Save as a new version</Interactive>
+            </div>
+            <Interactive as="div" className="nv-rp-menu-i cancel" onClick={v.cancelRemovalPrompt} haptic="tick">Cancel</Interactive>
+          </div>
+        </div>
+      )}
+      <RecipeMenu menu={menu} onClose={() => setMenu(null)} />
+    </div>
+  );
+}
+
+// ASK NOVA FOR A TWEAK — folded under a TextAction until he wants it. Out of
+// an ingredient, want it lighter: type it or say it, attach a photo of a
+// substitute, and Nova suggests a version he can keep, switch back from, and
+// keep refining by talking.
+function TweakPanel({ v, dict, onFold }) {
+  return (
+    <div className="nv-rp-ask nv-deck-rise">
+      <div className="nv-rp-sechead">
+        <h3 className="nv-rp-eyebrow">Ask Nova for a tweak</h3>
+        {!v.recipeTweakPreview && !v.recipeTweakBusy && <TextAction compact tone="quiet" onClick={onFold}>Fold</TextAction>}
+      </div>
+      <p className="nv-rp-sub">Out of something, or want it lighter? Say it, or show Nova a photo of the swap.</p>
+      <div className="nv-rp-askin">
+        <LocalInput
+          value={v.recipeTweakInput}
+          onChange={v.setRecipeTweakValue}
+          onSubmit={(text) => v.submitRecipeTweak(text)}
+          disabled={v.recipeTweakBusy}
+          autoCorrect="on" autoCapitalize="sentences" spellCheck
+          aria-label="Ask Nova for a tweak"
+          placeholder={v.recipeTweakPreview ? 'Refine it: “keep the whole eggs”' : 'Try “no soy sauce, what instead?”'}
+        />
+        {v.addRecipeTweakPhotos && (
+          <label className="nv-rp-ib" aria-label="Show Nova a different ingredient">
+            <RGlyph n="photo" />
+            <input type="file" accept="image/*" multiple onChange={v.addRecipeTweakPhotos} disabled={v.recipeTweakBusy} style={{ display: 'none' }} />
+          </label>
+        )}
+        {dict.supported && v.setRecipeTweakValue && (
+          <Interactive as="button" type="button" className="nv-rp-ib" data-on={dict.on ? 'true' : undefined} onClick={v.recipeTweakBusy ? undefined : dict.toggle} haptic="tick"
+            aria-label={dict.on ? 'Listening; pause to send' : 'Ask out loud'}><RGlyph n="mic" /></Interactive>
+        )}
+        <Button compact onClick={v.submitRecipeTweak} disabled={v.recipeTweakBusy}>{v.recipeTweakBusy ? 'Thinking…' : 'Ask'}</Button>
+      </div>
+      {v.recipeTweakPhotos?.length > 0 && (
+        <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap")}>
+          {v.recipeTweakPhotos.map((ph, i) => (
+            <div key={i} style={css("position:relative;width:52px;height:52px;border-radius:10px;overflow:hidden")}>
+              <img src={ph.src} alt="" style={css("width:100%;height:100%;object-fit:cover;display:block")} />
+              {!v.recipeTweakBusy && (
+                <Interactive as="button" type="button" onClick={ph.remove} aria-label="Take this photo out"
+                  base="cursor:pointer;position:absolute;top:0;right:0;width:28px;height:28px;border:0;padding:0;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb, var(--nv-void) 70%, transparent);color:var(--nv-ink)"><RGlyph n="close" /></Interactive>
               )}
             </div>
-            {/* THE FRIDGE — how many cooked portions of this are left. Ticking
-                the meal eaten in the rotation takes one off; here he corrects
-                the count, or logs a fresh batch. Red when it is out. */}
-            {v.orPortions && (
-              <div style={css(`margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-radius:12px;padding:12px 14px;border:1px solid ${v.orPortions.out ? 'color-mix(in srgb, var(--nv-warn) 55%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 09%, transparent)'};background:${v.orPortions.out ? 'color-mix(in srgb, var(--nv-warn) 08%, transparent)' : 'var(--nv-well)'}`)}>
-                <Eyebrow as="span" tone={v.orPortions.out ? 'warn' : 'faint'}>In the fridge</Eyebrow>
-                {v.orPortions.left == null ? (
-                  <>
-                    <Meta tone="faint" style={{ flex: 1, textTransform: 'none', letterSpacing: 0 }}>Not counted — say how many you cooked</Meta>
-                    <Chip tone="good" onClick={() => { const n = Number(window.prompt('How many portions did you cook?', '8')); if (Number.isInteger(n) && n > 0) v.orPortions.set(n); }}>＋ Cooked a batch</Chip>
-                  </>
-                ) : (
-                  <>
-                    <span style={css(`font:600 20px var(--nv-font-ui);font-variant-numeric:tabular-nums;color:${v.orPortions.out ? 'var(--nv-warn)' : 'var(--nv-ink)'}`)}>{v.orPortions.left}</span>
-                    <Meta tone={v.orPortions.out ? 'warn' : 'faint'} style={{ flex: 1, textTransform: 'none', letterSpacing: 0 }}>{v.orPortions.out ? 'out — cook more' : `portion${v.orPortions.left === 1 ? '' : 's'} left`}</Meta>
-                    <Chip tone="quiet" onClick={v.orPortions.ate} disabled={v.orPortions.out} title="Ate one outside the rotation">−1</Chip>
-                    <Chip tone="good" onClick={() => { const n = Number(window.prompt('How many more did you cook?', '8')); if (Number.isInteger(n) && n > 0) v.orPortions.cooked(n); }}>＋ Cooked more</Chip>
-                    <TextAction compact tone="faint" onClick={() => { const n = Number(window.prompt('Set the count', String(v.orPortions.left))); if (Number.isInteger(n) && n >= 0) v.orPortions.set(n); }}>Set</TextAction>
-                    <TextAction compact tone="faint" onClick={v.orPortions.stop}>Stop counting</TextAction>
-                  </>
-                )}
-              </div>
-            )}
-            {v.orShowServings && (
-              <div style={css("margin-top:14px;display:flex;align-items:center;gap:12px")}>
-                <Eyebrow as="span">Servings</Eyebrow>
-                <Interactive as="span" onClick={v.decServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:var(--nv-ink)" hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">−</Interactive>
-                <span style={css("font:500 16px var(--nv-font-mono);font-variant-numeric:tabular-nums")}>{v.servings}</span>
-                <Interactive as="span" onClick={v.incServ} base="cursor:pointer;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);border-radius:8px;color:var(--nv-ink)" hoverStyle="border:1px solid color-mix(in srgb, var(--nv-gold) 50%, transparent)">+</Interactive>
-              </div>
-            )}
-          </div>
-          <div>
-            <h2 style={css("margin:0;font:400 34px/1.1 var(--nv-font-serif)")}>{v.orName}</h2>
-            <Meta as="div" tone="faint" style={{ marginTop: '7px', ...{ textTransform: 'none', letterSpacing: 0 } }}>{v.orMeta}</Meta>
-            {v.orAlternates.length > 1 && (
-              <div style={css("margin-top:12px;display:flex;flex-wrap:wrap;gap:7px")}>
-                {v.orAlternates.map((a) => (
-                  <Chip key={a.id ?? 'original'} tone={a.active ? 'cyan' : 'quiet'} active={a.active} onClick={a.onClick}>
-                    {a.label}{a.isToday ? ' · today' : ''}
-                  </Chip>
-                ))}
-              </div>
-            )}
-            {/* His ask: log the version he is LOOKING AT without promoting it
-                to primary. Sits outside the per-variant action row on
-                purpose — it must work for the Original too, and whether or
-                not this recipe happens to sit in a rotation slot today. */}
-            {v.orLogActive && (
-              <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-                <Button onClick={v.orLogActive} tone="good">＋ Log this version</Button>
-                <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>adds it to your food log — pick a portion, recipe unchanged</Meta>
-              </div>
-            )}
-            {v.orMacrosPending && (
-              <div style={css("margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-                <Button tone="good" disabled ariaLabel="Log this version. Add its macros first">＋ Log this version</Button>
-                <Meta tone="gold" style={{ textTransform: 'none', letterSpacing: 0 }}>Add its macros first — Nova won't log a meal as zero</Meta>
-              </div>
-            )}
-            {v.renameAltId && (
-              <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-                <Interactive as="input" autoFocus value={v.renameValue} onChange={v.setRenameValue} onKeyDown={v.renameKey}
-                  placeholder="Variant name…"
-                  base="flex:1;min-width:180px;max-width:340px;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 14%, transparent);border-radius:9px;padding:8px 12px;color:var(--nv-ink);font:400 12.5px var(--nv-font-ui);outline:none"
-                  focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)" />
-                <Interactive as="span" onClick={v.commitRename} base="cursor:pointer;font:600 11px var(--nv-font-ui);padding:8px 16px;border-radius:980px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle="background:color-mix(in srgb, var(--nv-cy) 85%, white)">Save name</Interactive>
-                <Interactive as="span" onClick={v.cancelRename} base="cursor:pointer;font:500 11px var(--nv-font-ui);padding:8px 14px;border-radius:980px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)" hoverStyle={{ color: 'var(--nv-ink)' }}>Cancel</Interactive>
-                {v.renameError && <Meta tone="warn" style={{ textTransform: 'none', letterSpacing: 0 }}>{v.renameError}</Meta>}
-              </div>
-            )}
-            {!v.renameAltId && v.orAlternates.filter((a) => a.active && (a.useToday || a.makePrimary || a.rename)).map((a) => (
-              <div key={'act' + (a.id ?? 'orig')} style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
-                {a.rename && (
-                  <Chip tone="quiet" onClick={a.rename} title="Rename this variant">✎ Rename</Chip>
-                )}
-                {a.useToday && (
-                  <Button onClick={a.useToday}>Use for today</Button>
-                )}
-                {a.isToday && <Meta tone="gold" style={{ textTransform: 'none', letterSpacing: 0 }}>✓ today's version — recipe unchanged</Meta>}
-                {a.makePrimary && (
-                  <Chip tone="cyan" onClick={a.makePrimary}>Make primary</Chip>
-                )}
-                {a.makePrimary && <Meta tone="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>replaces the recipe — the old version stays as "Original"</Meta>}
-              </div>
-            ))}
-            {v.orDescription && (
-              <div style={css("margin-top:16px;font-size:14px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 85%, transparent)")}>{v.orDescription}</div>
-            )}
-            {v.orCanEdit && !v.orEditing && (
-              <div style={css("margin-top:14px")}><Chip tone="quiet" onClick={v.startEdit} title="Change what's in this meal and how it's made">✎ Edit this meal</Chip></div>
-            )}
-            {v.orEditing && <MealEditor v={v} />}
-            {/* An item that IS the thing you buy gets its own way onto the
-                list — the ingredients button below can never reach it. */}
-            {!v.orEditing && v.orIsWholeItem && (
-              <div style={css("margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px 15px;border-radius:10px;border:1px solid color-mix(in srgb, var(--nv-gold) 26%, transparent);background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
-                <span style={css("font-size:12.5px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)")}>
-                  A whole item — no ingredients to shop for, just the thing itself.
-                </span>
-                <Chip tone="gold" onClick={v.addWholeItemToShoppingList} title="Add this item to the shopping list">＋ Add to shopping list</Chip>
-              </div>
-            )}
-            {!v.orEditing && v.orIngredients.length > 0 && (
-              <>
-                <div style={css("margin-top:18px;display:flex;justify-content:space-between;align-items:baseline")}>
-                  <Eyebrow as="span">Ingredients</Eyebrow>
-                  {v.orShowAddToShoppingList && (
-                    <TextAction compact tone="gold" onClick={v.addRecipeToShoppingList}>+ Add to shopping list</TextAction>
-                  )}
-                </div>
-                <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
-                  {v.orIngredients.map((ing, i) => {
-                    const marked = v.ingredientRemovals?.includes(ing.name);
-                    return (
-                      <div key={i} style={css("display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 05%, transparent);font-size:13.5px")}>
-                        <span style={css("font:var(--nv-micro-l);color:var(--nv-gold);width:74px;font-variant-numeric:tabular-nums")}>{ing.qty}</span>
-                        <span style={css(`flex:1;color:color-mix(in srgb, var(--nv-ink) ${marked ? 35 : 85}%, transparent);${marked ? 'text-decoration:line-through;' : ''}`)}>{ing.name}</span>
-                        {v.addIngredientToShopping && !ing.group && (
-                          <Interactive as="span" onClick={() => v.addIngredientToShopping(ing.name)} title="Add just this item to the shopping list"
-                            base="cursor:pointer;flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 15px/1 var(--nv-font-ui);border:1.3px solid color-mix(in srgb, var(--nv-good) 55%, transparent);color:var(--nv-good);background:color-mix(in srgb, var(--nv-good) 07%, transparent)"
-                            hoverStyle="background:color-mix(in srgb, var(--nv-good) 18%, transparent)">＋</Interactive>
-                        )}
-                        {v.toggleIngredientRemoval && !ing.group && (
-                          <Interactive as="span" onClick={() => v.toggleIngredientRemoval(ing.name)} title={marked ? 'Keep it after all' : 'Remove this ingredient — choose today-only or a saved alternative when you save'}
-                            base={`cursor:pointer;flex:none;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:500 13px/1 var(--nv-font-ui);border:1.3px solid color-mix(in srgb, var(--nv-warn) ${marked ? 80 : 45}%, transparent);color:var(--nv-warn);background:color-mix(in srgb, var(--nv-warn) ${marked ? 20 : 6}%, transparent)`}
-                            hoverStyle="background:color-mix(in srgb, var(--nv-warn) 18%, transparent)">✕</Interactive>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {v.ingredientRemovals?.length > 0 && (
-                  <Interactive as="div" onClick={v.openRemovalPrompt}
-                    base="cursor:pointer;margin-top:12px;text-align:center;padding:12px 18px;border-radius:980px;background:var(--nv-cy);color:var(--nv-on-acc);font:600 13px var(--nv-font-ui)"
-                    hoverStyle="background:color-mix(in srgb, var(--nv-cy) 85%, white)"
-                  >Save changes — {v.ingredientRemovals.length} removed</Interactive>
-                )}
-                {v.removalPromptOpen && (
-                  <div style={css("position:fixed;inset:0;z-index:96;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:18px")} onClick={v.cancelRemovalPrompt}>
-                    <div style={css("width:100%;max-width:420px;display:flex;flex-direction:column;gap:9px;padding-bottom:env(safe-area-inset-bottom)")} onClick={(e) => e.stopPropagation()}>
-                      <div style={css("border-radius:14px;overflow:hidden;background:var(--nv-pane, var(--nv-void));border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)")}>
-                        <div style={css("padding:13px 16px;text-align:center;font:400 12px var(--nv-font-ui);color:color-mix(in srgb, var(--nv-ink) 55%, transparent);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)")}>
-                          Removing {v.ingredientRemovals.join(', ')} — Nova recomputes the macros. The stored recipe is only touched if you save an alternative.
-                        </div>
-                        {v.removalCanToday && (
-                          <Interactive as="div" onClick={() => v.confirmRemovalSave('today')}
-                            base="cursor:pointer;padding:14px;text-align:center;font:500 15px var(--nv-font-ui);color:var(--nv-cy);border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)"
-                            hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">Just for today</Interactive>
-                        )}
-                        <Interactive as="div" onClick={() => v.confirmRemovalSave('alt')}
-                          base="cursor:pointer;padding:14px;text-align:center;font:500 15px var(--nv-font-ui);color:var(--nv-cy)"
-                          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 08%, transparent)">Save as a new alternative</Interactive>
-                      </div>
-                      <Interactive as="div" onClick={v.cancelRemovalPrompt}
-                        base="cursor:pointer;border-radius:14px;padding:14px;text-align:center;font:600 15px var(--nv-font-ui);color:var(--nv-cy);background:var(--nv-pane, var(--nv-void));border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent)"
-                        hoverStyle="background:color-mix(in srgb, var(--nv-ink) 06%, transparent)">Cancel</Interactive>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-            {!v.orEditing && v.orSteps.length > 0 && (
-              <>
-                <Eyebrow style={{ marginTop: '18px' }}>Method</Eyebrow>
-                <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:9px")}>
-                  {v.orSteps.map((st, i) => (
-                    <div key={i} style={css("display:flex;gap:12px;font-size:13.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}><span style={css("font:italic 400 14px var(--nv-font-serif);color:color-mix(in srgb, var(--nv-gold) 70%, transparent)")}>{st.n}</span><span>{st.text}</span></div>
-                  ))}
-                </div>
-              </>
-            )}
-            {v.orShowTweak ? (
-              <>
-                {v.orNotes.length > 0 && (
-                  <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-gold) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-gold) 04%, transparent)")}>
-                    <Eyebrow tone="gold">Notes</Eyebrow>
-                    <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:8px")}>
-                      {v.orNotes.map((n, i) => (
-                        <div key={i} style={css("font-size:12.5px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}>◆ {n}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
-                  <Eyebrow tone="cyan">Ask Nova for a tweak</Eyebrow>
-                  <div style={css("margin-top:8px;font-size:12px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-                    Out of an ingredient? Want it lighter? Ask — type it or tap the mic and say it. Attach a photo of a different ingredient (its label, its packaging, the thing itself) and Nova reads it before recalculating. Nova suggests a version, saved as an alternative you can switch back from any time, and you can keep talking to refine it.
-                  </div>
-                  <div style={css("display:flex;gap:8px;margin-top:12px;flex-wrap:wrap")}>
-                    <LocalInput
-                      value={v.recipeTweakInput}
-                      onChange={v.setRecipeTweakValue}
-                      onSubmit={(text) => v.submitRecipeTweak(text)}
-                      disabled={v.recipeTweakBusy}
-                      autoCorrect="on" autoCapitalize="sentences" spellCheck
-                      placeholder={v.recipeTweakPreview
-                        ? 'Refine it — "keep the whole eggs, what else raises protein?"'
-                        : 'Try "no soy sauce, what instead?" or "cut the carbs"…'}
-                      style={css("flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none")}
-                    />
-                    {dict.supported && v.setRecipeTweakValue && (
-                      <Interactive
-                        as="span"
-                        onClick={v.recipeTweakBusy ? undefined : dict.toggle}
-                        title={dict.on ? 'Listening — pause to send' : 'Ask out loud'}
-                        base={{ cursor: 'pointer', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', borderRadius: '8px', font: '400 15px/1 var(--nv-font-ui)', border: `1px solid color-mix(in srgb, var(--nv-cy) ${dict.on ? 60 : 22}%, transparent)`, background: `color-mix(in srgb, var(--nv-cy) ${dict.on ? 18 : 5}%, transparent)`, color: 'var(--nv-cy)' }}
-                        hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 14%, transparent)' }}
-                      >{dict.on ? '◉' : '🎙'}</Interactive>
-                    )}
-                    {v.addRecipeTweakPhotos && (
-                      <label
-                        title="Attach a photo of a different ingredient"
-                        style={css("cursor:pointer;flex:none;width:38px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid color-mix(in srgb, var(--nv-cy) 22%, transparent);background:color-mix(in srgb, var(--nv-cy) 05%, transparent)")}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--nv-cy)" strokeWidth="2"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.4"/></svg>
-                        <input type="file" accept="image/*" multiple onChange={v.addRecipeTweakPhotos} disabled={v.recipeTweakBusy} style={css("display:none")} />
-                      </label>
-                    )}
-                    <Button
-                      onClick={v.submitRecipeTweak}
-                      disabled={v.recipeTweakBusy}
-                      style={{ display: 'flex', padding: '0 14px' }}
-                    >
-                      {v.recipeTweakBusy ? 'Thinking…' : 'Ask'}
-                    </Button>
-                  </div>
-                  {v.recipeTweakPhotos?.length > 0 && (
-                    <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap")}>
-                      {v.recipeTweakPhotos.map((ph, i) => (
-                        <div key={i} style={css("position:relative;width:48px;height:48px;border-radius:8px;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-cy) 25%, transparent)")}>
-                          <img src={ph.src} alt="" style={css("width:100%;height:100%;object-fit:cover;display:block")} />
-                          {!v.recipeTweakBusy && (
-                            <Interactive as="span" onClick={ph.remove} base="cursor:pointer;position:absolute;top:1px;right:1px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;border-radius:5px;background:rgba(0,0,0,.6);color:#fff" hoverStyle="background:var(--nv-warn)">×</Interactive>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {v.recipeTweakError && (
-                    <div style={css("margin-top:10px;font-size:12px;color:var(--nv-warn)")}>{v.recipeTweakError}</div>
-                  )}
-                  {v.recipeTweakPreview && (
-                    <div style={css("margin-top:14px;border-top:1px solid color-mix(in srgb, var(--nv-cy) 15%, transparent);padding-top:12px")}>
-                      <Eyebrow style={{ marginBottom: '6px' }}>Suggestion · ask again above to refine it</Eyebrow>
-                      <div style={css("font-size:13.5px;font-weight:500;color:var(--nv-ink)")}>{v.recipeTweakPreview.label}</div>
-                      <div style={css("margin-top:7px;display:flex;gap:12px;font:var(--nv-micro-l)")}>
-                        <span style={css("color:var(--nv-cy)")}>{v.recipeTweakPreview.macros.p}P</span>
-                        <span style={css("color:var(--nv-gold)")}>{v.recipeTweakPreview.macros.c}C</span>
-                        <span style={css("color:var(--nv-vi)")}>{v.recipeTweakPreview.macros.f}F</span>
-                        <span style={css("color:var(--nv-good)")}>{v.recipeTweakPreview.macros.kcal} kcal</span>
-                      </div>
-                      <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:5px")}>
-                        {v.recipeTweakPreview.ingredients.map((ing, i) => (
-                          <div key={i} style={css("font-size:12px;color:color-mix(in srgb, var(--nv-ink) 75%, transparent)")}>· {ing}</div>
-                        ))}
-                      </div>
-                      <div style={css("display:flex;gap:8px;margin-top:14px")}>
-                        <Interactive as="span" onClick={v.discardRecipeTweak} base="cursor:pointer;font-size:12px;padding:7px 14px;border-radius:7px;border:1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);color:color-mix(in srgb, var(--nv-ink) 70%, transparent)" hoverStyle={{ background: 'rgba(255,255,255,.05)' }}>Discard</Interactive>
-                        <Interactive as="span" onClick={v.saveRecipeTweak} base="cursor:pointer;font-size:12px;font-weight:500;padding:7px 16px;border-radius:7px;background:var(--nv-cy);color:var(--nv-on-acc)" hoverStyle={{ background: 'color-mix(in srgb, var(--nv-cy) 80%, white)' }}>Save as alternative</Interactive>
-                        {v.saveRecipeTweakToday && (
-                          <Button compact onClick={v.saveRecipeTweakToday}>Save &amp; use today</Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : v.orShowAskNova && (
-              <div style={css("margin-top:20px;border:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);border-radius:12px;padding:14px 16px;background:color-mix(in srgb, var(--nv-cy) 04%, transparent)")}>
-                <Eyebrow tone="cyan">Ask Nova</Eyebrow>
-                {v.recipeMsgs.map((m, i) => (
-                  <div key={i} style={css("margin-top:10px;font-size:13px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></div>
-                ))}
-                <div style={css("display:flex;gap:8px;margin-top:12px;flex-wrap:wrap")}>
-                  <LocalInput
-                    value={v.recipeInput}
-                    onChange={v.setRecipeInput}
-                    onSubmit={(text) => v.sendRecipe(text)}
-                    autoCorrect="on" autoCapitalize="sentences" spellCheck
-                    placeholder='Try "suggest a swap" or "scale for cutting"…'
-                    style={css("flex:1;min-width:0;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none")}
-                  />
-                  <Button onClick={v.sendRecipe} style={{ display: 'flex', padding: '0 14px' }}>Ask</Button>
-                </div>
-              </div>
-            )}
+          ))}
+        </div>
+      )}
+      {v.recipeTweakError && <p className="nv-rp-err" role="alert">{v.recipeTweakError}</p>}
+      {v.recipeTweakPreview && (
+        // a suggestion waiting on his call: the one place gold is earned here
+        <div className="nv-rp-preview">
+          <Eyebrow tone="gold" style={{ fontSize: '13px' }}>Suggestion · ask again to refine it</Eyebrow>
+          <b>{v.recipeTweakPreview.label}</b>
+          <p className="nv-rp-sub">
+            <span style={{ color: 'var(--nv-cy)' }}>{Math.round(v.recipeTweakPreview.macros.p)} g protein</span> · <span style={{ color: 'var(--nv-good)' }}>{Math.round(v.recipeTweakPreview.macros.kcal)} kcal</span> · {Math.round(v.recipeTweakPreview.macros.c)} g carbs · {Math.round(v.recipeTweakPreview.macros.f)} g fat
+          </p>
+          <ul>{v.recipeTweakPreview.ingredients.map((ing, i) => <li key={i}>{ing}</li>)}</ul>
+          <div className="nv-rp-acts">
+            <Button compact onClick={v.saveRecipeTweak}>Save as a version</Button>
+            {v.saveRecipeTweakToday && <Button compact variant="quiet" onClick={v.saveRecipeTweakToday}>Save and use today</Button>}
+            <TextAction compact tone="quiet" onClick={v.discardRecipeTweak}>Discard</TextAction>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// the demo's scripted conversation (demoMode only; live recipes use the tweak)
+function AskPanel({ v }) {
+  return (
+    <div className="nv-rp-ask nv-deck-rise">
+      <h3 className="nv-rp-eyebrow">Ask Nova</h3>
+      {v.recipeMsgs.map((m, i) => (
+        <p key={i} className="nv-rp-sub" style={{ animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)' }}><span style={m.tagStyle}>{m.tag}</span> <TypeText text={m.text} active={m.typing} /></p>
+      ))}
+      <div className="nv-rp-askin">
+        <LocalInput
+          value={v.recipeInput}
+          onChange={v.setRecipeInput}
+          onSubmit={(text) => v.sendRecipe(text)}
+          autoCorrect="on" autoCapitalize="sentences" spellCheck
+          aria-label="Ask Nova about this recipe"
+          placeholder="Try “suggest a swap”"
+        />
+        <Button compact onClick={v.sendRecipe}>Ask</Button>
       </div>
     </div>
   );
