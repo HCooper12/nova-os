@@ -412,28 +412,46 @@ export function Voice({ v }) {
               )}
             </div>
           )}
-          <div style={css("display:flex;gap:8px;margin-top:14px")}>
-            {/* local echo — see LocalInput.jsx. Enter hands the live text
-                straight to sendOrb so nothing can be lost to the debounce;
-                dictation still writes in through the value prop. */}
+          {/* THE COMPOSER KEEPS ITS SHAPE WITH AN ATTACHMENT (29 Sep, audit
+              05-voice finding 2). The pending strip used to render INSIDE the
+              flex row, so one photo squeezed its caption to a word per line,
+              grew the field into a 140px pill and pushed Send off the panel
+              ("Se"). The strip now sits above the row, the way the Coach's
+              composer (Workouts.jsx) already does it; the row gets the extra
+              top margin only while a strip is showing, so the route label over
+              the field has room between the two and nothing moves as he types. */}
+          <div style={css("margin-top:14px")}>
             <AttachPending attach={v.attach} />
-            {/* Where this will go, before Enter sends it — the one thing worth
-                keeping from the command palette. Only shown when the answer is
-                not "Ask Nova": a question needs no label, and a chip on every
-                keystroke would be noise. */}
-            {(() => { const r = v.routePreview?.(v.orbInput); return r && r.lane !== 'ask' ? (
-              <Meta title={r.why} tone="cyan" style={{ position: 'absolute', top: '-22px', left: '2px', opacity: .85 }}>→ {cap(r.label)}</Meta>
-            ) : null; })()}
-            <AttachStrip attach={v.attach} tone="cyan" />
-            <LocalInput
-              value={v.orbInput}
-              onChange={(text) => v.setTypedInputValue(text)}
-              onSubmit={(text) => v.sendOrb(text)}
-              autoCorrect="on" autoCapitalize="sentences" spellCheck
-              placeholder={v.attach?.pending?.length ? 'Ask about what you attached…' : 'Speak or type to Nova…'}
-              style={css(`flex:1;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:${isAppleStyle() ? '999px' : '9px'};padding:10px 14px;color:var(--nv-ink);font:400 ${isAppleStyle() ? '15px var(--nv-font-ui)' : `12.5px ${M}`};outline:none`)}
-            />
-            <Interactive as="span" onClick={() => v.sendOrb()} base={`cursor:pointer;display:flex;align-items:center;font:${isAppleStyle() ? '600 15px var(--nv-font-ui)' : 'var(--nv-micro-l)'};padding:0 18px;border-radius:${isAppleStyle() ? '999px' : '9px'};background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="filter:brightness(1.08)">{isAppleStyle() ? 'Send' : 'SEND'}</Interactive>
+            <div style={css(`display:flex;gap:8px;margin-top:${v.attach?.pending?.length ? 20 : 0}px`)}>
+              <AttachStrip attach={v.attach} tone="cyan" />
+              {/* the field and its route label share one positioned box, so
+                  the label is anchored to the field it describes */}
+              <div style={css("position:relative;flex:1;min-width:0;display:flex")}>
+                {/* Where this will go, before Enter sends it — the one thing worth
+                    keeping from the command palette. Only shown when the answer is
+                    not "Ask Nova": a question needs no label, and a chip on every
+                    keystroke would be noise.
+                    ANCHORED TO THE FIELD: with no positioned parent it measured
+                    against the whole comms-log Panel and drew 249px above the
+                    field it labels, beside the Station panel. It now sits just
+                    over the field, in line with the text he is typing. */}
+                {(() => { const r = v.routePreview?.(v.orbInput); return r && r.lane !== 'ask' ? (
+                  <Meta title={r.why} tone="cyan" style={{ position: 'absolute', bottom: 'calc(100% + 2px)', left: '14px', opacity: .85, whiteSpace: 'nowrap' }}>→ {cap(r.label)}</Meta>
+                ) : null; })()}
+                {/* local echo — see LocalInput.jsx. Enter hands the live text
+                    straight to sendOrb so nothing can be lost to the debounce;
+                    dictation still writes in through the value prop. */}
+                <LocalInput
+                  value={v.orbInput}
+                  onChange={(text) => v.setTypedInputValue(text)}
+                  onSubmit={(text) => v.sendOrb(text)}
+                  autoCorrect="on" autoCapitalize="sentences" spellCheck
+                  placeholder={v.attach?.pending?.length ? 'Ask about what you attached…' : 'Speak or type to Nova…'}
+                  style={css(`flex:1;min-width:0;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:${isAppleStyle() ? '999px' : '9px'};padding:10px 14px;color:var(--nv-ink);font:400 ${isAppleStyle() ? '15px var(--nv-font-ui)' : `12.5px ${M}`};outline:none`)}
+                />
+              </div>
+              <Interactive as="span" onClick={() => v.sendOrb()} base={`cursor:pointer;display:flex;flex:none;white-space:nowrap;align-items:center;font:${isAppleStyle() ? '600 15px var(--nv-font-ui)' : 'var(--nv-micro-l)'};padding:0 18px;border-radius:${isAppleStyle() ? '999px' : '9px'};background:var(--nv-cy);color:var(--nv-on-acc)`} hoverStyle="filter:brightness(1.08)">{isAppleStyle() ? 'Send' : 'SEND'}</Interactive>
+            </div>
           </div>
         </Panel>
         <div style={{ flex: '1 1 420px', minWidth: '340px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
@@ -504,6 +522,15 @@ export function Voice({ v }) {
               hoverStyle="background:color-mix(in srgb, var(--nv-warn) 16%, transparent)">
               <Tag tone="warn" style={{ flex: 'none' }}>▶ Tap to hear</Tag>
               <span style={css('flex:1;min-width:0;font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 60%, transparent)')}>{v.speechBlocked.message}</span>
+              {/* HE CAN PUT IT DOWN HERE TOO (audit 05-voice finding 12). The
+                  presence copy (VoicePresence.jsx) gained this × on 22 Sep;
+                  this copy, the only one shown on Voice, never did. Same
+                  handler (valsMisc.js speechBlocked.dismiss), same target. */}
+              {v.speechBlocked.dismiss && (
+                <Interactive as="span" onClick={(e) => { e.stopPropagation(); v.speechBlocked.dismiss(); }} aria-label="Dismiss"
+                  base={css('cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;min-width:30px;min-height:30px;margin:-6px -6px -6px 0;border-radius:50%;font-size:15px;line-height:1;color:color-mix(in srgb, var(--nv-ink) 38%, transparent)')}
+                  hoverStyle={{ color: 'var(--nv-ink)', background: 'color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>×</Interactive>
+              )}
             </Interactive>
           )}
 

@@ -24,10 +24,42 @@ const ORDER = ['coach-program', 'fuel-cross', 'read-next', 'coach-audit'];
 const ASKABLE = new Set(ORDER);
 
 const clean = (s) => String(s || '').replace(/^(Coach|Librarian|Fuel × training):\s*/i, '').replace(/\s+/g, ' ').trim();
+// THE SUBJECT OF THE QUESTION, IN ONE BREATH. The first full sentence when
+// one ends within 150 characters. When none does (the program audit's line
+// is one long list joined by semicolons), it used to be cut at character 150
+// mid-list, two words into an item, and the question glued straight on: "…,
+// a goal muscle Happy for me to file that, sir?" (audit 05-voice finding 10,
+// his real morning). Now a cut lands on the last clause boundary (", " "; "
+// ": " or before " and ") after 20 characters, else on the last word
+// boundary, never between a number and its unit, and says it was cut with an
+// ellipsis. A whole line with no closing punctuation gets its full stop, so
+// the question after it is always a new sentence.
+const SENTENCE_MAX = 150;
+const CLAUSE_MIN = 20;
+const ENDED = /[.!?…]["'”’)\]]*$/;
 const firstSentence = (s) => {
   const t = clean(s);
   const m = t.match(/^(.{20,150}?[.!?])\s/);
-  return (m ? m[1] : t.slice(0, 150)).trim();
+  if (m) return m[1].trim();
+  if (t.length <= SENTENCE_MAX) return !t || ENDED.test(t) ? t : `${t}.`;
+  // where a cut may land is the index the kept text ends at, so a boundary
+  // counts when what it keeps is 20 to 150 characters long
+  const fits = (i) => i >= CLAUSE_MIN && i <= SENTENCE_MAX;
+  let clause = -1;
+  for (const x of t.matchAll(/[,;:]\s/g)) if (fits(x.index)) clause = Math.max(clause, x.index);
+  // before " and ", unless it joins two numbers ("between 3 and 5 sets")
+  for (const x of t.matchAll(/\sand\s/gi)) if (fits(x.index) && !/\d$/.test(t.slice(0, x.index))) clause = Math.max(clause, x.index);
+  let cut = clause;
+  if (cut < 0) {
+    // a word boundary, but never one that leaves a number hanging without
+    // what it counts ("84 | g", "4.4 | of them"): the word before the cut
+    // must not end in a digit
+    for (const x of t.matchAll(/\s/g)) if (fits(x.index) && !/\d$/.test(t.slice(0, x.index))) cut = x.index;
+  }
+  // no boundary at all (one unbroken token): the whole thing, uncut, rather
+  // than half a word
+  if (cut < 0) return ENDED.test(t) ? t : `${t}.`;
+  return `${t.slice(0, cut).replace(/[\s,;:—–-]+$/, '')}…`;
 };
 
 // What Nova actually says when it reaches this one. The question has to

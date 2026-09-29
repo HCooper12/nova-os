@@ -93,3 +93,65 @@ test('an empty inbox produces an empty queue, not a fabricated question', () => 
   assert.deepEqual(buildQueue([]), { decisions: [], total: 0, remaining: 0 });
   assert.deepEqual(buildQueue(null), { decisions: [], total: 0, remaining: 0 });
 });
+
+// THE CUT (audit 05-voice finding 10). His real morning: the program audit's
+// line is one list joined by semicolons with no full stop inside 150
+// characters, and the question was built from character 150 on — mid-list,
+// two words into an item, the question glued on with no punctuation.
+import { summarise } from '../lib/coachProgramAudit.js';
+
+const spoken = (q, ending) => {
+  assert.ok(q.endsWith(ending), `ends with its question: ${q}`);
+  return q.slice(0, -ending.length).trimEnd();
+};
+
+test('the program audit line is cut on a clause, says so, and the question is its own sentence', () => {
+  const L = (label, detail) => ({ label, detail });
+  const summary = summarise({
+    fired: [L('A goal muscle chronically short'), L('Training too close to failure, too often'), L('A lift flat for three weeks or more')],
+    clear: [L('a'), L('b'), L('c'), L('d')],
+    notYet: [L('A muscle past the point more sets help', 'needs three weeks of rated sets')],
+  });
+  assert.ok(summary.length > 150 && !/[.!?]\s/.test(summary.slice(0, 151)), 'the shape that broke: no full stop inside 150');
+  const q = questionFor(rec({ kind: 'coach-audit', text: `Coach: ${summary}` }));
+  const said = spoken(q, ' Happy for me to file that, sir?');
+  assert.ok(said.endsWith('…'), `a cut says it was cut: ${said}`);
+  const kept = said.slice(0, -1);
+  assert.ok(summary.startsWith(kept), 'the kept text is the start of the real line, unaltered');
+  assert.match(summary.slice(kept.length), /^(?:[,;:]\s|\sand\s)/, 'it ends where a clause ends');
+  assert.ok(kept.length >= 20 && kept.length <= 150);
+  assert.doesNotMatch(q, /[a-z] Happy/, 'never glued straight onto a half-phrase');
+  // the old helper's output, for the record: mid-item, no punctuation
+  assert.notEqual(said, summary.slice(0, 150).trim());
+});
+
+test('with no clause to cut on, the cut lands between words and never parts a number from its unit', () => {
+  // build a line whose 150th-character word boundary falls between "84" and "g"
+  let head = 'You ran short on protein';
+  while (head.length < 144) head += ' again';
+  const text = `${head} by 84 g most days this block while the plan asked for more`;
+  const at = text.indexOf(' g most');
+  assert.ok(at >= 140 && at <= 150, `the trap sits at the limit (${at})`);
+  const said = spoken(questionFor(rec({ kind: 'fuel-cross', text })), ' Worth acting on, or shall I drop it?');
+  assert.ok(said.endsWith('…'));
+  const kept = said.slice(0, -1);
+  assert.ok(text.startsWith(kept) && text[kept.length] === ' ', 'a whole-word cut, never mid-word');
+  assert.doesNotMatch(kept, /\d$/, '"…by 84" with its unit cut away is not a quantity');
+});
+
+test('" and " between two numbers is not a clause', () => {
+  let text = 'Your working sets sit between 6';
+  const tail = ' and 8 reps';
+  while ((text + tail).length < 150) text = text.replace('Your', 'Your heavy');
+  text = `${text}${tail} on every lift in the block which leaves little room to push the top end`;
+  const said = spoken(questionFor(rec({ kind: 'read-next', text })), ' Shall I keep that as your next read?');
+  assert.doesNotMatch(said, /\d…$/, `not cut inside "6 and 8": ${said}`);
+});
+
+test('a short line with no full stop still ends before its question starts', () => {
+  assert.equal(questionFor(rec({ kind: 'fuel-cross', text: 'Fuel × training: protein short on 10 of 13 days' })),
+    'protein short on 10 of 13 days. Worth acting on, or shall I drop it?');
+  // and a full first sentence inside 150 is untouched
+  assert.equal(questionFor(rec({ fix: { action: 'drop' } })),
+    'Upper Body lists 9 exercises but you finish about 4.4 of them. Shall I make that change, sir?');
+});
