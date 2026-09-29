@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Who is answering, round 2</title>
+<!--
+  67 · WHO IS ANSWERING, ROUND 2 (29 Sep 2026)
+  His answers to round 1 (mockup 64), in his words: B's summary with the
+  Coach's full message still viewable, but "I like the appearance of option
+  A more"; the roster as B's bench "but it has the colour separation for
+  each agent like option A", and "be able to tap on each agent while
+  they're working so that I can see what they are actually doing"; A's
+  joint layout, because it "takes up less screen real estate but still
+  accessible at a glance and I can tap it for more information"; C's open
+  view, and C's calendar panel with "a numerical time", as the glass panel
+  he wants Nova to raise "wherever needed": for the Coach question, "a
+  dynamic panel pop-up showing Monday's workout and highlighting the
+  specific parts that it is referring to while it speaks back to me out
+  loud", and the same for the joint answer, "purposeful and clear and not
+  simply more clutter… it feels more like Jarvis from Iron Man."
+  Standing rule, restated today: every agent can consult every other and
+  Nova directs them all as CEO; drawn here as real (Nova asks the Coach,
+  the Coach asks the Researcher, Nova asks the Librarian), with authorship
+  on every reply.
+
+  ONE blend (no variation switcher), on mockup 63's D (the thread as the
+  page, the living core heading it, the stage rising over the thread while
+  Nova speaks and settling into it as a card). Seven screens (#1 to #7);
+  3 and 5 play in beats, one per spoken sentence (#3/1 … #3/4, 4 = settled):
+    1 Ask       the hand-over line, the bench above the composer, each face
+                in its own hue, lit and turning while it works
+    2 Working   a tap on the Coach's seat: what it was handed, how long,
+                and what it asked the Researcher
+    3 Panel     Nova's short summary + "From the Coach" (openable), and the
+                stage showing Monday's workout, lighting the lift, the set
+                and the number as she says each; then the settled card
+    4 Open      C's open view: the Coach's own words on the stage
+    5 Joint     A's compact joint reply, and ONE composed panel lighting the
+                stalled row, the book's passage and the finding in turn
+    6 Alone     Nova by herself, C's calendar panel with the time
+    7 Rules     when a panel appears and when it does not, in the page's
+                own words, with small examples
+
+  WHAT IT MAY SHOW. Only what code could know: who was asked, by whom, when,
+  how long, what code handed each agent, and which asks came back. The
+  hand-over line is written by code from the ask list. Every number on a
+  panel is read by code from his records; the model only chooses WHICH part
+  to light, by an address code checks against the data it built. A light
+  is on only while the sentence that names it is being spoken.
+
+  Colour: each agent's hue means that agent and nothing else: Coach coral,
+  the Researcher blue, the Librarian teal (the hues beings.js gave them).
+  A lit part of a panel wears the hue of whoever found it; Nova's own
+  finding is lit in white. Cyan is the talk action only (the Nova button);
+  gold (waiting on him) does not appear on these screens. Nothing is said by
+  colour alone: a lit part is also ringed and everything else steps back,
+  the stage names it in words ("2 of 3 · the set"), and the sentence
+  naming it is underlined in the line below.
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data. The
+  questions, weights, reps, dates, the book "Stronger Slowly", the research
+  finding and every time are invented.
+-->
+<style>
+/* ================= copied from mockup 56 (nova-glass), unchanged ================= */
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);--switch-h:130px;--dock-h:96px;
+  --r:20px;
+}
+:root{--serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif}
+body[data-m="nova-glass"]{--bg:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.52);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);--blur:22px;--card-shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  --c1:#5fe8a8;--c2:#8f7bff;--c3:#59e6ff;--c4:#d9b56f;--c5:#8f7bff;--up:#5fe8a8;--dn:#e0616b;--acc:#59e6ff;--link:#59e6ff;--btn:#59e6ff;--btn-ink:#062028;--track:rgba(255,255,255,.14);--title-tint:currentColor;
+  --stand-a:#59e6ff;--stand-b:#8f7bff;--hl-font:var(--serif);--hl-size:20px;
+  --tab:rgba(16,20,36,.58);--tab-ring:rgba(255,255,255,.14);--tab-ink:rgba(232,236,246,.5);--tab-on:#59e6ff;--tab-on-bg:rgba(89,230,255,.1);--badge:#d9b56f;--badge-ink:#241a06;color-scheme:dark}
+.sky{position:fixed;inset:0;z-index:-1}
+body[data-m="nova-glass"] .sky{background:radial-gradient(70% 45% at 12% 8%,rgba(89,230,255,.22),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 88% 30%,rgba(143,123,255,.26),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 112%,rgba(217,181,111,.16),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%)}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden;transition:background .35s var(--ease),color .35s var(--ease)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.978);transition:transform .16s var(--ease)}
+.phone{position:relative;max-width:402px;margin:0 auto;min-height:100%}
+
+.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:color-mix(in srgb,var(--bg) 72%,transparent);border-bottom:1px solid var(--sep)}
+.switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2)}
+.seg button{padding:7px 4px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--ink);opacity:.65;transition:background .28s var(--ease),opacity .28s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.12)}
+.tally{margin:2px 2px 0;font:500 11px/1.4 var(--mono);color:var(--ink3);min-height:15px}
+.tally b{color:var(--ink2);font-weight:600}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;height:56px;justify-content:center;border-radius:28px;font:500 10px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--tab-on);background:var(--tab-on-bg)}
+.tab .badge{position:absolute;top:6px;left:50%;margin-left:4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--badge);color:var(--badge-ink);font:700 11px/18px var(--ui);text-align:center}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+.view{padding:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 10px) 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 20px)}
+.view[hidden]{display:none}
+.rise{animation:rise .3s var(--ease) both;animation-delay:calc(var(--i,0) * 40ms)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rise{animation:fade .3s ease both}@keyframes fade{from{opacity:0}to{opacity:1}}}
+h1{margin:2px 4px 4px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.stand{margin:0 4px 14px;font:italic 400 21px/1.2 var(--serif);background:linear-gradient(90deg,var(--stand-a),var(--stand-b));-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.card{background:var(--card);border-radius:var(--r);padding:14px 16px;box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.ch{display:flex;align-items:center;gap:8px;font:600 15px var(--ui);color:var(--title-tint)}
+.ch svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ch .time{margin-left:auto;font:400 14px var(--ui);color:var(--ink3)}
+.ch.c1{color:var(--c1)}.ch.c2{color:var(--c2)}.ch.c3{color:var(--c3)}.ch.c4{color:var(--c4)}.ch.c5{color:var(--c5)}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;margin:22px 4px 8px}
+.sechead h2{margin:0;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.sechead a{font:400 17px var(--ui);color:var(--link)}
+.chev{color:var(--ink3);font-size:18px}
+.btn{height:36px;padding:0 16px;border-radius:18px;background:var(--btn);color:var(--btn-ink);font:600 15px var(--ui)}
+.btn.quiet{background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card.wide{grid-column:span 2}
+.grid .card{padding:12px 14px 14px;min-height:150px;display:flex;flex-direction:column}
+.sub{margin-top:4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.group{margin:0 0 16px}
+.group .k{display:block;margin:0 0 6px 14px;font:600 12px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.glist{list-style:none;margin:0;padding:0;overflow:hidden}
+.tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff}
+.tile svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+
+/* ================= Voice, round 1: the review furniture (as mockup 58) ================= */
+.seg{grid-auto-flow:column;grid-auto-columns:1fr}
+.seg button{font-size:13px;min-height:32px;padding:7px 2px}
+.tally{font:400 13px/1.4 var(--ui);white-space:nowrap;overflow:hidden;cursor:pointer;min-height:18px}
+.tally.open{white-space:normal}
+.tally .tm{color:var(--ink2);text-decoration:underline}
+
+/* what each colour means on this page (his 27 Sep rules): one accent, and it is the talk action */
+body[data-m="nova-glass"]{--talk:var(--acc);--talk-ink:#062028;--wait:var(--c4);--done:var(--c1);--fail:var(--dn);
+  --bubble:rgba(255,255,255,.13);--well:rgba(0,0,0,.28);--solid:#141a30}
+
+/* the type scale: four sizes per view (34 or 20 · 17 · 15 · 13), numerals apart, the tab label 11 */
+.view{font-size:15px;overflow-x:clip}
+.tab{font-size:11px}
+.ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font:700 44px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+
+/* the talk control: the Nova button, lit in the page's one accent */
+.novabtn{position:relative}
+.novabtn.talk{box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 0 0 2px var(--talk),0 0 22px -4px var(--talk)}
+.novabtn .ring{position:absolute;inset:-6px;border-radius:50%;border:1.5px solid var(--talk);opacity:0;pointer-events:none}
+.novabtn.listen .ring{animation:ringout 1.6s var(--ease) infinite}
+.novabtn.listen .ring.r2{animation-delay:.53s}.novabtn.listen .ring.r3{animation-delay:1.06s}
+.novabtn.speak .ring{opacity:.55;inset:-5px;animation:swell 1.1s ease-in-out infinite alternate}
+.novabtn.off{box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset}
+.novabtn.off .orb{filter:grayscale(1) brightness(.6)}
+@keyframes ringout{from{opacity:.7;transform:scale(.9)}to{opacity:0;transform:scale(1.35)}}
+@keyframes swell{from{transform:scale(.96)}to{transform:scale(1.08)}}
+.dock .row.solo{grid-template-columns:1fr}
+
+/* top of page: title, the state in one line, the ⋯ */
+.toprow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.toprow h1{margin:0 4px}
+.iconbtn{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink);background:color-mix(in srgb,var(--ink) 9%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.iconbtn .ic{width:20px;height:20px}
+.state{display:flex;align-items:center;gap:8px;min-height:24px;margin:4px 4px 0;font:400 13px/1.3 var(--ui);color:var(--ink2)}
+.state b{font-weight:600;color:var(--ink)}
+.state.fail b{color:var(--fail)}
+.glyph{display:inline-flex;align-items:center;gap:2px;height:16px;flex:none}
+.glyph.bars i{width:3px;border-radius:2px;background:var(--ink);animation:bar 1s ease-in-out infinite alternate}
+.glyph.bars i:nth-child(1){height:6px}.glyph.bars i:nth-child(2){height:14px;animation-delay:.15s}.glyph.bars i:nth-child(3){height:9px;animation-delay:.3s}.glyph.bars i:nth-child(4){height:12px;animation-delay:.45s}
+.glyph.dots i{width:5px;height:5px;border-radius:50%;background:var(--ink);animation:dot 1.2s ease-in-out infinite}
+.glyph.dots i:nth-child(2){animation-delay:.2s}.glyph.dots i:nth-child(3){animation-delay:.4s}
+@keyframes bar{from{transform:scaleY(.4)}to{transform:scaleY(1)}}
+@keyframes dot{0%,100%{opacity:.25}50%{opacity:1}}
+
+/* the thread: his words right in monochrome glass, Nova's left as text on the sky, with its breaks kept */
+.thread{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.earlier{align-self:center;height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.day{align-self:center;font:600 13px var(--ui);color:var(--ink3)}
+.you{align-self:flex-end;max-width:80%;padding:10px 14px;border-radius:20px 20px 6px 20px;background:var(--bubble);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset;font:400 17px/1.35 var(--ui);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.you.pending{color:var(--ink3)}
+.meta{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.you + .meta,.meta.r{align-self:flex-end;margin:-8px 6px 0 0}
+.nova{align-self:flex-start;max-width:94%;font:400 17px/1.42 var(--ui);white-space:pre-line;text-wrap:pretty}
+.nova .later{color:var(--ink3)}
+.nova ul{margin:6px 0 0;padding-left:20px}
+.nova li + li{margin-top:2px}
+.nmeta{margin-top:-8px}
+
+/* a panel the reply raised, inline under it: the house card, tap to enlarge */
+.panel{display:block;width:100%;text-align:left;padding:14px 16px}
+.panel .pl{display:flex;align-items:center;justify-content:space-between;font:600 13px var(--ui);color:var(--ink2)}
+.panel .pl .ic{width:16px;height:16px;color:var(--ink3)}
+.bars7{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:92px;margin-top:12px}
+.bars7 i{display:block;border-radius:5px 5px 2px 2px;background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 80%,transparent),color-mix(in srgb,var(--ink) 30%,transparent))}
+.bars7 i.short{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink2);background-image:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--ink) 18%,transparent) 5px 7px)}
+.days7{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:6px;font:400 13px var(--ui);color:var(--ink3);text-align:center}
+.pfoot{margin-top:8px;font:400 13px var(--ui);color:var(--ink2)}
+.floor{position:relative}
+.floor::after{content:"";position:absolute;left:0;right:0;bottom:62%;border-top:1px dashed color-mix(in srgb,var(--ink) 40%,transparent)}
+
+/* a quiet row: the evidence, a report, a source */
+.erow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;min-height:44px;padding:0 12px 0 14px;border-radius:16px;text-align:left;background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.erow .t{font:600 15px var(--ui);white-space:nowrap;overflow:hidden}
+.erow .s{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.erow .ic{color:var(--ink2)}
+
+/* the close: the Coach-deck card, gold because it waits on his call */
+.decide{padding:14px 16px 10px;border-radius:var(--r);background:color-mix(in srgb,var(--wait) 8%,var(--card));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 38%,transparent),0 1px 0 var(--card-hi) inset;backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur))}
+.dk{display:flex;align-items:center;justify-content:space-between;font:600 13px var(--ui);color:var(--wait)}
+.dk span + span{color:var(--ink3);font-weight:400}
+.say{margin:8px 0 0;font:400 20px/1.3 var(--serif);text-wrap:balance}
+.change{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.pill{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:16px;font:600 13px var(--ui);white-space:nowrap;background:color-mix(in srgb,var(--ink) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 22%,transparent)}
+.pill.gone{position:relative;color:var(--ink3)}
+.pill.gone::after{content:"";position:absolute;left:10px;right:10px;top:50%;height:1.5px;background:var(--ink3)}
+.pill.arrive{background:transparent;box-shadow:none;border:1.5px dashed color-mix(in srgb,var(--ink) 55%,transparent)}
+.answer{display:flex;align-items:center;gap:4px;margin-top:10px}
+.yes{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 18px 0 15px;border-radius:22px;font:600 15px var(--ui);color:var(--done);background:color-mix(in srgb,var(--done) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--done) 34%,transparent);white-space:nowrap}
+.q{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);white-space:nowrap}
+.no{margin-left:auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 15%,transparent)}
+
+/* receipts and jobs, in the thread */
+.receipt{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;padding:4px 4px 4px 12px;border-radius:26px;background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.receipt .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--done);color:#05261a}
+.receipt .ok .ic{width:15px;height:15px;stroke-width:3}
+.rx{min-width:0}
+.rx b{display:block;font:600 15px/1.25 var(--ui);white-space:nowrap;overflow:hidden}
+.rx span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.undo{height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink)}
+.job{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;min-height:52px;padding:6px 12px;border-radius:18px;background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.spin{width:22px;height:22px;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--ink) 18%,transparent);border-top-color:var(--ink);animation:spin 1s linear infinite;justify-self:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prog{display:block;height:3px;border-radius:2px;margin-top:6px;background:color-mix(in srgb,var(--ink) 14%,transparent);overflow:hidden}
+.prog i{display:block;height:100%;width:40%;background:var(--ink2);border-radius:2px}
+.routed{display:flex;flex-wrap:wrap;align-items:center;gap:0 6px;font:400 13px/1.4 var(--ui);color:var(--ink3)}
+.routed button{height:44px;padding:0 4px;font:600 13px var(--ui);color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+.qbtn{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:color-mix(in srgb,var(--ink) 10%,transparent);box-shadow:0 0 0 .5px var(--card-ring);white-space:nowrap}
+.thumbs{display:flex;gap:6px;align-self:flex-end}
+.thumbs i{width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,#3b5b7d,#1f2d4d);box-shadow:0 0 0 .5px var(--card-ring)}
+
+/* the composer: one bar, above the tab bar */
+.composer{position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:18;max-width:378px;margin:0 auto;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:6px;align-items:end;padding:6px;border-radius:28px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.5)}
+.plus{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink);background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.field{min-height:44px;display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:6px 14px;border-radius:22px;background:var(--well);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent);font:400 15px/1.3 var(--ui);color:var(--ink3);text-align:left}
+.field.typed{color:var(--ink)}
+.field .route{display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:13px;font:600 13px var(--ui);color:var(--ink);background:color-mix(in srgb,var(--ink) 14%,transparent)}
+.field .att{display:inline-flex;align-items:center;gap:6px;font:400 13px var(--ui);color:var(--ink3)}
+.field .att i{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#3b5b7d,#1f2d4d)}
+.send{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--talk);color:var(--talk-ink)}
+.send .ic{stroke-width:2.6}
+.composer.off .field{opacity:.6}
+.meter{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 14px;border-radius:22px;background:var(--well);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.meter .lv{flex:1;display:flex;align-items:center;gap:3px;height:24px;overflow:hidden}
+.meter .lv i{flex:none;width:3px;border-radius:2px;background:var(--ink)}
+.meter .tm{font:600 15px var(--round);font-variant-numeric:tabular-nums;color:var(--ink2)}
+.stop{height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:color-mix(in srgb,var(--ink) 12%,transparent);white-space:nowrap}
+
+
+/* the skeleton and the review notes (as mockup 62) */
+.skel{display:block;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.15),rgba(255,255,255,.06));background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+/* review notes, set apart from the page by a dashed edge */
+.note{margin:18px 0 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--ink) 26%,transparent);font:400 13px/1.5 var(--ui);color:var(--ink2)}
+.note b{color:var(--ink);font-weight:600}
+.note ul{margin:6px 0 0;padding-left:16px}
+.note li + li{margin-top:3px}
+.note table{width:100%;border-collapse:collapse;margin-top:6px}
+.note td{padding:4px 6px 4px 0;vertical-align:top;border-top:1px solid var(--sep)}
+.note td:first-child{color:var(--ink3);width:42%}
+
+/* ================= 64 · who is answering ================= */
+
+/* each agent's hue, copied from src/index.css (the hues src/agentWorld/beings.js gave them) */
+body[data-m="nova-glass"]{--coach:#ff8a7a;--researcher:#7ab8ff;--librarian:#4fd1c5}
+.h-coach{--h:var(--coach)}.h-researcher{--h:var(--researcher)}.h-librarian{--h:var(--librarian)}
+.seg button{padding:7px 1px}
+
+/* the faces: one species (the helmet, the screen, the ear pods), one feature and one artefact each */
+.face{--h:var(--ink2);position:relative;display:inline-block;width:var(--s,28px);height:var(--s,28px);flex:none}
+.face svg{width:100%;height:100%;display:block;overflow:visible}
+.face .shell{fill:color-mix(in srgb,var(--h) 34%,#0a0f1f);stroke:color-mix(in srgb,var(--h) 72%,transparent);stroke-width:1.5}
+.face .pod{fill:color-mix(in srgb,var(--h) 60%,#0a0f1f)}
+.face .scr{fill:#060914}
+.face .eye{fill:color-mix(in srgb,var(--h) 40%,#fff)}
+.face .line{fill:none;stroke:color-mix(in srgb,var(--h) 40%,#fff);stroke-width:1.7;stroke-linecap:round}
+.face .blush{fill:var(--h);opacity:.5}
+.face .lens{fill:none;stroke:color-mix(in srgb,var(--h) 55%,#fff);stroke-width:1.8}
+.face .spine{fill:color-mix(in srgb,var(--h) 55%,#0a0f1f);stroke:var(--h);stroke-width:1}
+.face .badge{fill:#0b1122;stroke:var(--h);stroke-width:1.5}
+.face .art{fill:none;stroke:var(--h);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;transform-box:fill-box;transform-origin:center}
+.face .tick{display:none}
+.face.back .tick{display:inline}
+.face .tick circle{fill:var(--h);stroke:#0b1122;stroke-width:1.5}
+.face .tick path{fill:none;stroke:#07101c;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.face.work::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid color-mix(in srgb,var(--h) 20%,transparent);border-top-color:var(--h);animation:spin 1.4s linear infinite}
+.face.work .art{animation:artlift 1.1s var(--ease) infinite alternate}
+.face.h-researcher.work .art{animation:pageturn 2.2s var(--ease) infinite}
+@keyframes artlift{from{transform:translateY(1.2px)}to{transform:translateY(-1.6px)}}
+@keyframes pageturn{0%,55%{transform:scaleX(1)}75%{transform:scaleX(-1)}100%{transform:scaleX(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.orb.o24{width:24px;height:24px;flex:none}
+.orb.o30{width:30px;height:30px;flex:none}
+
+/* A · the byline: face + name + what code knows */
+.by{display:flex;align-items:center;gap:8px;min-height:28px;font:600 15px var(--ui)}
+.by .nm{color:var(--h,var(--ink))}
+.by .mt{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.msg{align-self:stretch;display:flex;flex-direction:column}
+.msg .tx{margin:4px 0 0;font:400 17px/1.42 var(--ui);white-space:pre-line;text-wrap:pretty}
+.said{align-self:stretch;padding:12px 14px 14px;border-radius:22px;background:color-mix(in srgb,var(--h) 9%,rgba(255,255,255,.05));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 32%,transparent),0 1px 0 var(--card-hi) inset;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.said.enter{animation:said .38s var(--ease) both}
+@keyframes said{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+.read{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
+.read .k{font:400 13px var(--ui);color:var(--ink3)}
+.read span:not(.k){display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:13px;font:500 13px var(--ui);color:var(--ink2);background:color-mix(in srgb,var(--ink) 9%,transparent);white-space:nowrap}
+.working{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start;padding:14px 14px 12px;border-radius:22px;background:color-mix(in srgb,var(--h) 6%,rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 22%,transparent)}
+.working .wh{display:flex;align-items:baseline;gap:8px;font:600 15px var(--ui)}
+.working .wh .nm{color:var(--h)}
+.clock{margin-left:auto;font:600 13px var(--round);font-variant-numeric:tabular-nums;color:var(--ink3)}
+.working .read{margin-top:6px}
+.roster{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.seat{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;padding:14px 6px 10px;border-radius:20px;background:color-mix(in srgb,var(--h) 6%,rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 24%,transparent)}
+.seat .face{margin-bottom:4px}
+.seat b{font:600 15px var(--ui);color:var(--h)}
+.seat .doing{font:400 13px/1.3 var(--ui);color:var(--ink2);min-height:34px}
+.seat .st{font:600 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.seat.done{background:color-mix(in srgb,var(--h) 11%,rgba(255,255,255,.05));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 44%,transparent)}
+.seat.done .st{color:var(--ink)}
+.from3{margin:6px 0 0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.contrib{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.cbtn{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 12px 0 7px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:color-mix(in srgb,var(--h) 11%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 36%,transparent)}
+.cbtn.on{background:color-mix(in srgb,var(--h) 22%,transparent);box-shadow:inset 0 0 0 1.5px var(--h)}
+.joint-tx{margin:4px 0 0;font:400 17px/1.42 var(--ui);white-space:pre-line;text-wrap:pretty}
+
+/* the sheet: one contributor's own words, over a scrim that also covers the dock (62's behind + scrim) */
+.behind{pointer-events:none;filter:blur(2px);opacity:.55}
+.scrim{position:fixed;inset:0;z-index:25;background:rgba(3,5,12,.55);animation:fadein .3s ease both}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;max-width:402px;margin:0 auto;padding:8px 16px calc(22px + env(safe-area-inset-bottom,0px));border-radius:30px 30px 0 0;background:rgba(20,25,46,.95);backdrop-filter:blur(30px) saturate(1.4);-webkit-backdrop-filter:blur(30px) saturate(1.4);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 -24px 60px -20px rgba(0,0,0,.85);animation:sheetin .36s var(--ease) both}
+@keyframes sheetin{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.grab{width:36px;height:5px;border-radius:3px;background:color-mix(in srgb,var(--ink) 30%,transparent);margin:0 auto 12px}
+.shead{display:grid;grid-template-columns:52px minmax(0,1fr) 44px;gap:12px;align-items:center}
+.shead b{display:block;font:700 20px/1.2 var(--ui);color:var(--h)}
+.shead span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.asked{margin:14px 0 0;padding:10px 12px;border-radius:16px;background:var(--well);font:400 15px/1.4 var(--ui);color:var(--ink2)}
+.asked i{font-style:normal;color:var(--ink3);font-size:13px;display:block}
+.own{margin:12px 2px 0;font:400 17px/1.45 var(--ui);white-space:pre-line}
+.sfoot{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+
+/* B · the bench: who is on this thread, lit while working, ticked when back */
+.view.benched{padding-bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 150px)}
+.bench{position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 66px);z-index:18;max-width:378px;margin:0 auto;display:flex;align-items:center;gap:8px;min-height:56px;padding:4px 10px 4px 8px;border-radius:28px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.6);animation:benchin .32s var(--ease) both}
+@keyframes benchin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.bseat{display:flex;align-items:center;gap:8px;min-height:48px;min-width:0;flex:1;text-align:left;border-radius:22px;padding:0 4px}
+.bseat .bt{min-width:0}
+.bseat b{display:block;font:600 13px/1.25 var(--ui);color:var(--h);white-space:nowrap}
+.bseat small{display:block;font:400 13px/1.25 var(--ui);color:var(--ink2);font-variant-numeric:tabular-nums}
+.bseat.solo small{white-space:normal}
+.from{margin-top:10px;border-radius:18px;background:color-mix(in srgb,var(--h) 8%,rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 30%,transparent);overflow:hidden}
+.from + .from{margin-top:6px}
+.from .fh{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;padding:0 10px 0 8px;font:600 15px var(--ui);text-align:left}
+.from .fh .nm{color:var(--h)}
+.from .fh .mt{margin-left:auto;font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.from .fh .ic{color:var(--ink3);width:16px;height:16px}
+.from .fb{padding:0 14px 12px;font:400 15px/1.42 var(--ui);white-space:pre-line}
+.from .fb .read{margin-top:8px}
+.from.open{animation:said .34s var(--ease) both}
+
+/* C · the stage: a panel per agent rises as it starts and fills as it returns */
+.stg{margin-top:12px;padding:12px;border-radius:26px;background:color-mix(in srgb,var(--ink) 4%,transparent);box-shadow:inset 0 0 0 1px var(--sep)}
+.stg .sl{display:flex;align-items:center;gap:8px;margin:0 4px;font:600 13px var(--ui);color:var(--ink3)}
+.stg .sl .clock{font-size:13px}
+.panels{display:grid;gap:8px;margin-top:10px}
+.panels.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pan{position:relative;display:flex;flex-direction:column;gap:6px;width:100%;padding:12px 10px 12px;border-radius:20px;min-height:204px;text-align:left;background:color-mix(in srgb,var(--h) 8%,var(--card));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 34%,transparent),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));animation:panrise .44s var(--ease) both;animation-delay:calc(var(--i,0) * 90ms)}
+@keyframes panrise{from{opacity:0;transform:translateY(22px) scale(.96)}to{opacity:1;transform:none}}
+.pan .pn{font:600 15px var(--ui);color:var(--h)}
+.pan .ps{font:600 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.pan .pw{font:400 13px/1.35 var(--ui);color:var(--ink2)}
+.pan .pf{font:400 15px/1.35 var(--ui);color:var(--ink);text-wrap:pretty}
+.pan.done{background:color-mix(in srgb,var(--h) 13%,var(--card));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 50%,transparent),0 1px 0 var(--card-hi) inset,var(--card-shadow)}
+.pan.done .ps{color:var(--ink)}
+.pan .skel{height:11px}
+.pan.wide{min-height:0;padding:14px 16px 16px}
+.pan.wide .ptop{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center}
+.pan.wide .pn{font-size:17px}
+.pan.wide .pf{font-size:17px;line-height:1.42;white-space:pre-line}
+.stg.quiet{padding:10px 12px}
+.joint{padding:12px 14px 14px;border-radius:22px;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));animation:collapse .46s var(--ease) both}
+@keyframes collapse{from{opacity:0;transform:translateY(-26px) scale(.94)}to{opacity:1;transform:none}}
+.joint .jh{display:flex;align-items:center;gap:0}
+.joint .jh .fb44{width:44px;height:44px;display:grid;place-items:center;border-radius:22px}
+.joint .jh .fb44.on{background:color-mix(in srgb,var(--h) 20%,transparent);box-shadow:inset 0 0 0 1.5px var(--h)}
+.joint .jh .jl{margin-left:6px;font:600 15px var(--ui)}
+.joint .jh .jl span{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.dim{opacity:.45}
+.glasskey{padding:16px 18px;border-radius:20px;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);animation:panrise .44s var(--ease) both}
+.glasskey .gk{font:600 13px var(--ui);color:var(--ink3)}
+.glasskey .gv{margin-top:4px;font:700 34px/1.1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.glasskey .gs{margin-top:4px;font:400 15px var(--ui);color:var(--ink2)}
+
+.note h3{margin:0 0 4px;font:600 13px var(--ui);color:var(--ink)}
+.note .have{color:var(--ink)}
+.note .tag{display:inline-block;font-weight:600}
+.note td:first-child{width:52px}
+/* ================= copied from mockup 63 (the rail and the D pieces) ================= */
+.brail{display:flex;gap:8px;margin-top:10px;overflow-x:auto;scrollbar-width:none}
+.mini{flex:none;min-width:112px;min-height:56px;padding:8px 12px;border-radius:16px;text-align:left;background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:0 0 0 .5px var(--card-ring);opacity:.8}
+.mini + .mini{opacity:.6}.mini + .mini + .mini{opacity:.45}
+.mini b{display:block;font:600 15px var(--ui)}
+.mini span{display:block;font:400 13px var(--ui);color:var(--ink3)}
+/* ================= round 2 (63): the living core, D and E ================= */
+#screens{display:flex;flex-wrap:wrap}
+#screens button{flex:1 1 auto;min-width:0;padding:7px 2px;white-space:nowrap;letter-spacing:-.01em}
+.corebox{position:relative;display:block;flex:none}
+.corebox canvas{display:block;width:100%;height:100%}
+canvas.core[data-core="off"]{filter:grayscale(1) brightness(.62)}
+.state.center{justify-content:center;margin:0}
+.who{display:flex;flex-direction:column;align-items:center;min-height:44px;min-width:44px;border-radius:22px}
+.who .nm{display:inline-flex;align-items:center;gap:1px;min-height:24px;font:600 17px/1.2 var(--ui);color:var(--ink)}
+.who .nm .ic{width:15px;height:15px;color:var(--ink3);stroke-width:2.4}
+.who.row{flex-direction:row;gap:6px;padding-right:6px}
+
+/* the page at rest on its newest line (both blends) */
+.view.dz:not([hidden]),.view.ez:not([hidden]){display:flex;flex-direction:column;min-height:100vh}
+.view.dz > .thread,.view.ez > .thread{margin-top:auto;padding-top:16px}
+.view.ez.hist > .thread{margin-top:0}
+.view.dz .note,.view.ez .note{margin:10px 0 0}
+
+/* D · the head: Nova's face, as a contact's face heads a Messages thread */
+.dhdr{position:sticky;top:var(--switch-h);z-index:12;margin:-10px -16px 0;padding:2px 16px 6px;display:flex;flex-direction:column;align-items:center;gap:0}
+.dhdr::before{content:"";position:absolute;inset:0 0 -18px;z-index:-1;background:rgba(6,8,18,.9);backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4);-webkit-mask-image:linear-gradient(#000 calc(100% - 20px),transparent);mask-image:linear-gradient(#000 calc(100% - 20px),transparent)}
+.dhdr .state{margin-top:0}
+
+/* D · the stage that rises: B's stage, as glass over the thread while she speaks (no scrim) */
+.dstage{position:absolute;top:calc(100% + 2px);left:12px;right:12px;z-index:13;padding:0 14px 16px;border-radius:28px;background:rgba(20,25,46,.82);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 26px 54px -20px rgba(0,0,0,.92);transform-origin:50% 0;animation:stagein .42s var(--ease) .06s both}
+@keyframes stagein{from{opacity:0;transform:translateY(-14px) scale(.96);filter:blur(8px)}to{opacity:1;transform:none;filter:none}}
+.sthead{display:flex;align-items:center;gap:8px;min-height:44px;font:600 13px var(--ui);color:var(--ink2)}
+.sthead > span:first-child{display:inline-flex;align-items:center;gap:6px;min-width:0;white-space:nowrap;overflow:hidden}
+.sthead .ic{width:16px;height:16px;flex:none}
+.sthead .sub2{margin-left:auto;font-weight:400;color:var(--ink3);white-space:nowrap}
+.tuck{width:44px;height:44px;margin:0 -10px 0 auto;border-radius:22px;display:grid;place-items:center;color:var(--ink2)}
+.spanel{display:block;width:100%;text-align:left;padding:12px 14px;border-radius:18px;background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.spanel .pl{display:flex;align-items:center;justify-content:space-between;font:600 13px var(--ui);color:var(--ink2)}
+.spanel .pl .ic{width:16px;height:16px;color:var(--ink3)}
+.dstage .line{margin:12px 2px 0}
+
+/* the stage, settled into the thread: the last panel, the others, and Replay */
+.settled{padding:0 14px 14px;border-radius:var(--r);background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.settled .brail{margin-top:8px;flex-wrap:nowrap}
+.settled .brail .mini{opacity:1;min-width:0;flex:1 1 0}
+.mini.rp b{display:flex;align-items:center;gap:4px}
+.mini.rp .ic{width:14px;height:14px}
+.bars7.sm{height:58px;margin-top:10px;gap:8px}
+
+/* ================= 67 · round 2: the blend ================= */
+#screens button{padding:7px 1px}
+#beats{grid-auto-flow:column;grid-auto-columns:1fr}
+#beats[hidden]{display:none}
+#beats button.play{flex:none}
+.view.dz{padding-bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 86px)}
+.view.dz.benched{padding-bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 150px)}
+.view .note{font-size:13px}
+
+/* the thread: Nova's byline once per turn (A), the code-written hand-over in the quieter ink */
+.msg .tx.hand{margin-top:2px;font:400 15px/1.4 var(--ui);color:var(--ink2)}
+.msg .tx + .tx{margin-top:8px}
+.msg .foot{margin-top:6px}
+
+/* "From the Coach": B's idea in A's glass, closed to one row; a tap puts its own words on the stage (screen 4) */
+.from .fh{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;min-height:56px;padding:6px 12px 6px 10px}
+.from .ft{min-width:0}
+.from .ft b{display:block;font:600 15px/1.25 var(--ui)}
+.from .ft small{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.from.on{box-shadow:inset 0 0 0 1.5px var(--h)}
+
+/* the bench (B's place) with A's colour separation: each seat is its own tinted glass, in its own hue */
+.bench{gap:6px;padding:4px}
+.bseat{flex:1 1 0;min-height:48px;gap:8px;padding:0 10px 0 7px;border-radius:24px;background:color-mix(in srgb,var(--h) 11%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 34%,transparent);transition:background-color .2s var(--ease),box-shadow .2s var(--ease)}
+.bseat.on{background:color-mix(in srgb,var(--h) 22%,transparent);box-shadow:inset 0 0 0 1.5px var(--h)}
+.bseat small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bench .via{flex:none;display:grid;place-items:center;width:12px;color:var(--ink3)}
+.bench .via .ic{width:14px;height:14px}
+
+/* 2 · the peek: what one agent is doing right now, grown from its seat */
+.scrim.soft{z-index:17;background:rgba(3,5,12,.46)}
+.peek{position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 128px);z-index:30;max-width:378px;margin:0 auto;padding:8px 14px 14px;border-radius:28px;background:rgba(20,25,46,.92);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),inset 0 0 0 1px color-mix(in srgb,var(--h) 30%,transparent),0 1px 0 var(--card-hi) inset,0 24px 50px -18px rgba(0,0,0,.9);transform-origin:26% 100%;animation:peekin .28s var(--ease) both}
+@keyframes peekin{from{opacity:0;transform:translateY(10px) scale(.95);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+.pk-head{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:12px;align-items:center}
+.pk-head b{display:block;font:700 20px/1.2 var(--ui);color:var(--h)}
+.pk-head span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums}
+.pk-q{margin:12px 0 0;padding:9px 12px;border-radius:16px;background:var(--well);font:400 15px/1.35 var(--ui);color:var(--ink)}
+.pk-q i{display:block;font:400 13px var(--ui);font-style:normal;color:var(--ink3)}
+.pk-k{margin:12px 2px 4px;font:600 13px var(--ui);color:var(--ink3)}
+.pk-list{list-style:none;margin:0;padding:0}
+.pk-list li{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:8px;align-items:center;min-height:30px;font:400 15px var(--ui)}
+.pk-list li .ic{width:16px;height:16px;color:var(--ink2);stroke-width:2.4}
+.pk-list li span:last-child{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.pk-ask{display:grid;grid-template-columns:30px minmax(0,1fr) 16px;gap:10px;align-items:center;width:100%;min-height:56px;padding:8px 10px;border-radius:18px;text-align:left;background:color-mix(in srgb,var(--h) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 32%,transparent)}
+.pk-ask b{display:block;font:600 15px var(--ui);color:var(--h)}
+.pk-ask small{display:block;font:400 13px/1.3 var(--ui);color:var(--ink2)}
+.pk-ask .ic{width:16px;height:16px;color:var(--ink3)}
+.pk-foot{margin:10px 2px 0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+
+/* the stage (63 D) carrying a data panel; the provenance chip names whose finding it shows */
+.dstage{max-height:calc(100vh - var(--switch-h) - 104px - var(--dock-h) - 70px);overflow-y:auto;scrollbar-width:none}
+.sthead .prov{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font:600 13px var(--ui);color:var(--h,var(--ink2));white-space:nowrap}
+.sthead .prov .face + .face{margin-left:-6px}
+.prov .face,.srh .face,.mini .face{height:var(--s)!important;align-self:center}
+.sthead .tuck{margin-left:0}
+.sthead > span:first-child + .tuck{margin-left:auto}
+.bench.n3 .bseat{gap:5px;padding:0 6px 0 4px}
+.bench.n3 .bseat b{letter-spacing:-.01em}
+.sthead #btl{font-variant-numeric:tabular-nums}
+
+/* the spoken line: said, saying, still to say; the part being pointed at is underlined in the finder's hue */
+.spoken{margin:10px 2px 0;font:400 20px/1.34 var(--serif);text-wrap:pretty}
+.spoken span{transition:color .3s var(--ease)}
+.spoken .done{color:var(--ink2)}
+.spoken .now{color:var(--ink)}
+.spoken .later{color:var(--ink3)}
+.spoken u{text-decoration:none}
+.spoken .done u,.spoken .now u{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px;text-decoration-color:var(--h,var(--ink))}
+.spoken .done u{text-decoration-color:color-mix(in srgb,var(--h,var(--ink)) 45%,transparent)}
+
+/* the lit/unlit grammar every data panel shares */
+.lx{transition:opacity .32s var(--ease),background-color .32s var(--ease),box-shadow .32s var(--ease),color .32s var(--ease)}
+
+/* the session panel: Monday's workout, read by code from the log */
+.sess{padding:8px 12px 8px;border-radius:18px;background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.sh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font:600 13px var(--ui);color:var(--ink2)}
+.sh span + span{font-weight:400;color:var(--ink3)}
+.hero{margin:6px 0 2px;padding:8px 10px 6px;border-radius:14px}
+.hero .ht{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hero .ht b{font:600 17px var(--ui)}
+.kg{display:inline-flex;align-items:baseline;gap:3px;height:28px;padding:0 10px;border-radius:14px;align-items:center;font:600 15px var(--ui);color:var(--ink2)}
+.kg em{font:700 20px var(--round);font-style:normal;color:var(--ink);font-variant-numeric:tabular-nums}
+.bars3{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;height:64px;margin:12px 44px 0 0}
+.set{position:relative;height:100%}
+.set .bar,.set .gap{position:absolute;left:0;right:0;bottom:0;border-radius:9px 9px 3px 3px}
+.set .bar{display:flex;justify-content:center;padding-top:5px;background:color-mix(in srgb,var(--ink) 24%,transparent);font:700 17px var(--round);color:var(--ink);font-variant-numeric:tabular-nums}
+.set .bar em{font-style:normal}
+.set .gap{border:1.5px dashed transparent;opacity:0}
+.tgt{position:absolute;left:0;right:-44px;height:0;border-top:1.5px dashed color-mix(in srgb,var(--ink) 38%,transparent)}
+.tgt b{position:absolute;right:0;top:-19px;font:600 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.caps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:6px 44px 0 0;font:400 13px/1.25 var(--ui);color:var(--ink3);text-align:center}
+.lift{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:26px;padding:0 10px;font:400 15px var(--ui)}
+.lift span{font:400 13px var(--ui);color:var(--ink3);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* beat 1 · the lift */
+.sess[data-beat="1"] .lift,.sess[data-beat="2"] .lift,.sess[data-beat="3"] .lift{opacity:.38}
+.sess[data-beat="1"] .hero{background:color-mix(in srgb,var(--coach) 13%,transparent);box-shadow:inset 0 0 0 1.5px var(--coach)}
+.sess[data-beat="1"] .hero .ht b{color:var(--coach)}
+/* beat 2 · the set */
+.sess[data-beat="2"] .hero,.sess[data-beat="3"] .hero{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--coach) 30%,transparent)}
+.sess[data-beat="2"] .s1,.sess[data-beat="2"] .s2,.sess[data-beat="2"] .c1,.sess[data-beat="2"] .c2{opacity:.36}
+.sess[data-beat="2"] .s3 .bar{background:var(--coach);color:#2b0c08;box-shadow:0 0 0 3px color-mix(in srgb,var(--coach) 26%,transparent)}
+.sess[data-beat="2"] .c3{color:var(--coach);font-weight:600}
+/* beat 3 · the number */
+.sess[data-beat="3"] .kg{background:color-mix(in srgb,var(--coach) 20%,transparent);box-shadow:inset 0 0 0 1.5px var(--coach);color:var(--ink)}
+.sess[data-beat="3"] .set .gap{opacity:1;height:88.9%;border-color:var(--coach)}
+.sess[data-beat="3"] .tgt{border-top:2px solid var(--coach)}
+.sess[data-beat="3"] .tgt b{color:var(--coach)}
+.sess.sm .lift{display:none}
+.settled .spanel .sess{background:none;box-shadow:none;padding:0}
+.sess.sm .bars3{height:56px}
+.sess.sm .hero{margin:4px 0 0;padding:4px 2px 2px}
+
+/* the joint panel: three sources composed as one, lit one at a time */
+.jp{display:grid;gap:8px}
+.jp2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.src{padding:9px 10px 10px;border-radius:16px;background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.srh{display:flex;align-items:center;gap:6px;min-height:24px;font:600 13px var(--ui)}
+.srh b{font-weight:600;color:var(--h)}
+.srh span{margin-left:auto;font-weight:400;color:var(--ink3);white-space:nowrap}
+.srm{display:block;margin-top:6px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.chart{display:block;width:100%;height:40px;margin-top:6px;overflow:visible}
+.chart .press{fill:none;stroke:color-mix(in srgb,var(--ink) 40%,transparent);stroke-width:1.6;stroke-dasharray:4 4}
+.chart .row{fill:none;stroke:var(--ink2);stroke-width:2.6;stroke-linecap:round}
+.chart circle{fill:var(--ink2)}
+.leg{display:flex;flex-wrap:wrap;gap:2px 14px;margin-top:4px;font:400 13px var(--ui);color:var(--ink3)}
+.leg b{font-weight:600;color:var(--ink2)}
+.quote{margin:6px 0 0;font:400 15px/1.38 var(--serif);color:var(--ink)}
+.quote mark{background:transparent;color:inherit;border-radius:4px;padding:0 1px}
+.fq{display:grid;gap:6px;margin-top:8px}
+.fq span{display:block;font:400 13px var(--ui);color:var(--ink2)}
+.fq i{display:block;height:10px;margin-top:3px;border-radius:5px;background:color-mix(in srgb,var(--ink) 26%,transparent)}
+.jp[data-beat="1"] .src:not(.s-coach),.jp[data-beat="2"] .src:not(.s-librarian),.jp[data-beat="3"] .src:not(.s-researcher){opacity:.38}
+.jp[data-beat="1"] .s-coach,.jp[data-beat="2"] .s-librarian,.jp[data-beat="3"] .s-researcher{background:color-mix(in srgb,var(--h) 11%,transparent);box-shadow:inset 0 0 0 1.5px var(--h)}
+.jp[data-beat="1"] .chart .row{stroke:var(--coach)}
+.jp[data-beat="1"] .chart circle{fill:var(--coach)}
+.jp[data-beat="1"] .leg b{color:var(--coach)}
+.jp[data-beat="2"] mark{background:color-mix(in srgb,var(--librarian) 32%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,var(--librarian) 32%,transparent)}
+.jp[data-beat="3"] .fq .two i{background:var(--researcher)}
+.jp[data-beat="3"] .fq .two span{color:var(--ink)}
+
+/* the calendar panel (C's alone view), lit in white: Nova's own */
+.cal{padding:10px 14px 12px;border-radius:18px;background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.calbig{display:flex;align-items:center;gap:14px;margin-top:6px}
+.calbig .num{font-size:64px;line-height:1}
+.calbig b{display:block;font:600 17px var(--ui)}
+.calbig small{display:block;font:400 15px var(--ui);color:var(--ink2);font-variant-numeric:tabular-nums}
+.tl{position:relative;height:28px;margin-top:14px;border-radius:8px;background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent)}
+.tl .blk{position:absolute;top:0;bottom:0;border-radius:7px;background:var(--ink);box-shadow:0 0 0 3px color-mix(in srgb,var(--ink) 22%,transparent)}
+.tl .free{position:absolute;top:4px;bottom:4px;border-radius:5px;background-image:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--ink) 16%,transparent) 5px 7px)}
+.tlx{display:flex;justify-content:space-between;margin-top:5px;font:400 13px var(--round);color:var(--ink3);font-variant-numeric:tabular-nums}
+
+/* the settled card: what the stage showed, kept in the thread; minis wear their finder's hue */
+.settled{animation:settle .42s var(--ease) both}
+@keyframes settle{from{opacity:0;transform:translateY(-18px) scale(.97);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+.settled .brail.g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.settled .mini{display:block}
+.mini.hu{background:color-mix(in srgb,var(--h) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 30%,transparent)}
+.mini.hu b{display:flex;align-items:center;gap:6px;color:var(--h)}
+
+/* 4 · the open view (C): one contributor's own words, raised onto the stage */
+.ownv{padding:12px 14px 14px;border-radius:22px;background:color-mix(in srgb,var(--h) 9%,rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 34%,transparent)}
+.ownv .ot{display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:center}
+.ownv .ot b{display:block;font:700 20px/1.2 var(--ui);color:var(--h)}
+.ownv .ot span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.ownv .oq{margin:10px 0 0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.ownv .oq b{font-weight:600;color:var(--ink2)}
+.ownv .ow{margin:8px 0 0;font:400 17px/1.42 var(--ui);white-space:pre-line;text-wrap:pretty}
+.ownv .pk-ask{margin-top:10px}
+.ownv .erow{margin-top:8px}
+.dim{opacity:.4}
+
+/* 7 · the rules page */
+.rtop{display:flex;align-items:center;min-height:44px}
+.rback{display:inline-flex;align-items:center;gap:2px;height:44px;padding:0 12px 0 4px;border-radius:22px;font:400 17px var(--ui);color:var(--ink)}
+.rback .ic{width:20px;height:20px;transform:scaleX(-1)}
+.rt{margin:6px 4px 2px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.rstand{margin:6px 4px 0;font:400 20px/1.3 var(--serif);color:var(--ink);text-wrap:balance}
+.rk{display:block;margin:22px 4px 8px;font:600 13px var(--ui);color:var(--ink3)}
+.rule{display:grid;grid-template-columns:minmax(0,1fr) 128px;gap:12px;align-items:center;padding:12px 12px 12px 14px;border-radius:20px;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset}
+.rule + .rule{margin-top:8px}
+.rule b{display:block;font:600 17px/1.25 var(--ui)}
+.rule .rq{display:block;margin-top:4px;font:400 15px/1.3 var(--ui);color:var(--ink2)}
+.rule .rq i{font-style:normal;color:var(--ink3)}
+.tiny{height:78px;padding:8px 10px;border-radius:14px;background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:0 0 0 .5px var(--card-ring);display:flex;flex-direction:column;justify-content:center}
+.tiny .num{font-size:28px}
+.tiny small{font:400 13px var(--ui);color:var(--ink3)}
+.tiny svg{width:100%;height:46px;overflow:visible}
+.tiny .t3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-items:end;height:48px}
+.tiny .t3 i{display:block;border-radius:5px 5px 2px 2px;background:color-mix(in srgb,var(--ink) 26%,transparent)}
+.tiny .t3 i.on{background:var(--coach)}
+.rule.none{grid-template-columns:minmax(0,1fr)}
+.rule.none .rsay{margin:8px 0 0;font:400 17px/1.4 var(--ui)}
+.rule.none .rnone{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font:600 13px var(--ui);color:var(--ink3)}
+.always{list-style:none;margin:0;padding:4px 16px;border-radius:20px;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset}
+.always li{padding:11px 0;font:400 15px/1.4 var(--ui)}
+.always li + li{border-top:1px solid var(--sep)}
+.always li b{font-weight:600}
+.view.rules{padding-bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 24px)}
+
+@media (prefers-reduced-motion:reduce){
+  .face.work::before,.face.work .art,.skel,.glyph i,.novabtn .ring{animation:none!important}
+  .face.work::before{border-color:var(--h)}
+  .said.enter,.bench,.peek,.settled,.dstage,.rise{animation:fade .3s ease both!important}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+}
+</style>
+</head>
+<body data-m="nova-glass">
+<div class="sky" aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-upc" viewBox="0 0 24 24"><path d="m6 14.5 6-6 6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-stage" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12.5" rx="2.5"/><path d="M8.5 20h7M12 16.5V20"/></symbol>
+  <symbol id="i-nopanel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12.5" rx="2.5"/><path d="M4 3l16 15"/></symbol>
+</svg>
+
+<nav class="switch" aria-label="Screen">
+  <div class="inner">
+    <div class="seg" id="screens" role="tablist" aria-label="Screen"></div>
+    <div class="seg" id="beats" role="tablist" aria-label="Beat" hidden></div>
+    <p class="tally" id="tally" title="Tap for the full tally"></p>
+  </div>
+</nav>
+
+<div class="phone" id="phone"></div>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row" id="dockrow">
+    <div class="tabbar">
+      <span class="tab" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab on" data-tab="nova"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/></svg>Nova</span>
+      <span class="tab" data-tab="train"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab" data-tab="fuel"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab" data-tab="more"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn talk" id="novabtn" aria-label="Talk to Nova"><span class="orb"></span><span class="ring"></span><span class="ring r2"></span><span class="ring r3"></span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const ico=(g,c)=>'<svg class="ic'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+g+'"/></svg>';
+  const bars=(n)=>'<span class="glyph bars" aria-hidden="true">'+'<i></i>'.repeat(n||4)+'</span>';
+  const dots='<span class="glyph dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+
+  /* ---------- the faces: copied from mockup 64 (one species, one feature and one artefact each) ---------- */
+  const TICK='<g class="tick"><circle cx="40" cy="8" r="7.5"/><path d="M36.4 8.2l2.4 2.4 4.6-4.8"/></g>';
+  const BADGE='<circle class="badge" cx="40" cy="40" r="8.5"/>';
+  const BODY='<circle class="pod" cx="5" cy="24" r="3.4"/><circle class="pod" cx="43" cy="24" r="3.4"/><rect class="shell" x="5" y="6" width="38" height="35" rx="15"/><rect class="scr" x="10" y="13" width="28" height="21" rx="9"/>';
+  const FACE={
+    /* Coach: two friendly eyes, brows that mean business, a barbell */
+    coach:BODY+'<path class="line" d="M15.4 18.4q3.2-2.4 6.4-.7M26.2 17.7q3.2-1.7 6.4.7"/><ellipse class="eye" cx="19" cy="23.6" rx="2.9" ry="3.5"/><ellipse class="eye" cx="29" cy="23.6" rx="2.9" ry="3.5"/><circle class="blush" cx="14.6" cy="28.8" r="1.7"/><circle class="blush" cx="33.4" cy="28.8" r="1.7"/><path class="line" d="M21.4 29.4q2.6 2 5.2 0"/>'+BADGE+'<path class="art" d="M34 40h12M36.2 37v6M43.8 37v6"/>',
+    /* the Researcher: one large lens, a page */
+    researcher:BODY+'<path class="line" d="M17.6 15.6q6.4-2.6 12.8 0"/><circle class="lens" cx="24" cy="23.6" r="6.6"/><circle class="eye" cx="24" cy="23.6" r="3.3"/><circle cx="22.6" cy="22.2" r="1" fill="#fff" opacity=".85"/>'+BADGE+'<path class="art" d="M36.6 35.4h4.6l2.6 2.6v6.6h-7.2zM38.6 39.6h3.2M38.6 41.9h3.2"/>',
+    /* the Librarian: a crest of spines, soft lids, an index card */
+    librarian:'<rect class="spine" x="14" y="2.4" width="5.4" height="8" rx="1.2"/><rect class="spine" x="20.4" y="0.8" width="5.4" height="9.6" rx="1.2"/><rect class="spine" x="26.8" y="2" width="5.4" height="8.4" rx="1.2"/>'+BODY+'<path class="line" d="M15.8 19.6q3.2-1.8 6.4 0M25.8 19.6q3.2-1.8 6.4 0"/><circle class="eye" cx="19" cy="24.2" r="2.8"/><circle class="eye" cx="29" cy="24.2" r="2.8"/><path class="line" d="M21.8 29.2q2.2 1.6 4.4 0"/>'+BADGE+'<path class="art" d="M35 36.6h10v7H35zM37.2 39.2h5.6M37.2 41.4h3.4"/>'
+  };
+  const NAME={coach:'Coach',researcher:'Researcher',librarian:'Librarian'};
+  const THE={coach:'the Coach',researcher:'the Researcher',librarian:'the Librarian'};
+  const face=(a,s,st)=>'<span class="face h-'+a+(st?' '+st:'')+'" style="--s:'+s+'px" aria-hidden="true"><svg viewBox="0 0 48 48">'+FACE[a]+TICK+'</svg></span>';
+  const orb=(n)=>'<span class="orb o'+(n||24)+'" aria-hidden="true"></span>';
+
+  /* ---------- the head (63 D): Nova's living core as the thread's face ---------- */
+  const CORE_WORDS={idle:'Nova, at rest',think:'Nova, working',speak:'Nova, speaking'};
+  const core=(size,st)=>'<span class="corebox" role="img" aria-label="'+CORE_WORDS[st]+'" style="width:'+size+'px;height:'+size+'px"><canvas class="core" data-size="'+size+'" data-core="'+st+'"></canvas></span>';
+  const who=(st)=>'<button class="who" aria-label="Nova: status, how Nova shows things, Brief me, New chat">'+core(72,st)+'<span class="nm">Nova'+ico('right')+'</span></button>';
+  const sline=(g,b,t)=>'<p class="state center">'+g+'<b>'+b+'</b>'+(t?'<span>· '+t+'</span>':'')+'</p>';
+  const dhdr=(st,line,stage)=>'<header class="dhdr">'+who(st)+line+(stage||'')+'</header>';
+
+  /* ---------- the demo scenarios (invented) ---------- */
+  const Q1='Should I add a fourth set to bench next week?';
+  const Q2='Should I switch to an upper/lower split? And what did that strength book I read say about it?';
+  const Q3='What time is the dentist on Wednesday?';
+  const HAND1='This is the Coach’s. Asking it now.';
+  const HAND3='Asking the Coach, the Librarian and the Researcher.';
+  const SUM1='The Coach says not yet. Your third set on Monday stopped at 6 reps, at RPE 9.5. Hold three sets at 80 kg until all three reach 8.';
+  const OWN_COACH='Not yet. Monday’s third set stopped at 6 reps at RPE 9.5, so a fourth set would be tired reps that build little. I asked the Researcher: sets taken after heavy fatigue add less than the first ones.\nHold three sets at 80 kg. When all three reach 8, add the fourth.';
+  const ASK_COACH='Is he ready for a fourth set on bench, going by his log?';
+  const ASK_RES='Does a fourth set add much when the third already stops 2 reps short?';
+  const SYN='Yes, and for a reason your own log gives. Your row has sat at 70 kg for four weeks, the one case your book says to change for. Upper/lower trains it twice a week, and the research gives that a small, real edge.\nThe Coach can draft the four days.';
+  const TOOK={coach:'0:18',librarian:'0:09',researcher:'2:41'};
+  const ORDER=['coach','librarian','researcher'];
+
+  /* the spoken sentences, one beat each; <u> marks the words that name what is lit */
+  const S3=['The Coach says not yet on <u>bench</u>.','Your <u>third set</u> on Monday stopped at 6 reps, at RPE 9.5.','Hold three sets at <u>80 kg</u> until all three reach 8.'];
+  const B3=['1 of 3 · the lift','2 of 3 · the set','3 of 3 · the number'];
+  const S5=['<span class="h-coach">Your <u>row</u> has sat at 70 kg for four weeks.</span>','<span class="h-librarian">Your book says <u>a stall</u> is the reason to change.</span>','<span class="h-researcher">And twice a week has a <u>small, real edge</u>.</span>'];
+  const B5=['1 of 3 · your row','2 of 3 · your book','3 of 3 · the research'];
+  const spoken=(sents,beat,a)=>'<p class="spoken'+(a?' h-'+a:'')+'" aria-live="polite">'+sents.map((s,i)=>'<span data-i="'+(i+1)+'" class="'+(i+1<beat?'done':i+1===beat?'now':'later')+'">'+s+'</span>').join(' ')+'</p>';
+
+  /* ---------- the thread ---------- */
+  const you=(q,t)=>'<div class="you">'+q+'</div><span class="meta">'+t+'</span>';
+  /* Nova's byline once per turn (A): the hand-over line is code's, the reply the model's */
+  const turnNova=(mt,hand,reply,extra)=>'<div class="msg"><div class="by">'+orb(24)+'<span>Nova</span><span class="mt">'+mt+'</span></div>'+
+    (hand?'<p class="tx hand">'+hand+'</p>':'')+(reply?'<p class="tx">'+reply+'</p>':'')+(extra||'')+'</div>';
+  const fromB=(a,sub,on)=>'<div class="from h-'+a+(on?' on':'')+'"><button class="fh" aria-label="Open '+THE[a]+'’s own answer">'+face(a,30,'back')+'<span class="ft"><b>From <span class="nm">'+THE[a]+'</span></b><small>'+sub+'</small></span>'+ico('right')+'</button></div>';
+  const coachFrom=(on)=>fromB('coach','its own words · back in 21 s · it asked the Researcher',on);
+  const contrib=()=>'<p class="from3">Put together from three answers. Tap one for its own words.</p><div class="contrib">'+ORDER.map((a)=>'<button class="cbtn h-'+a+'" aria-label="'+NAME[a]+'’s own answer, back in '+TOOK[a]+'">'+face(a,30,'back')+NAME[a]+'</button>').join('')+'</div>';
+  const idleComposer='<div class="composer" data-obj><button class="plus" aria-label="Attach a photo or video">'+ico('plus')+'</button><button class="field">Type, or tap Nova to talk</button><span></span></div>';
+
+  /* ---------- the bench: B's place, A's colour; each seat a button ---------- */
+  const bseat=(a,st,small,on)=>'<button class="bseat h-'+a+(on?' on':'')+'" aria-label="'+NAME[a]+', '+small+'. Tap to see what it is doing">'+face(a,30,st)+'<span class="bt"><b>'+NAME[a]+'</b><small>'+small+'</small></span></button>';
+  const via='<span class="via" aria-hidden="true">'+ico('right')+'</span>';
+  const bench=(inner,label)=>'<div class="bench" role="status" aria-label="'+label+'">'+inner+'</div>';
+  const benchAsk=(t1,t2,on)=>bench(bseat('coach','work','Working · '+t1,on)+via+bseat('researcher','work','via Coach · '+t2),'On this thread: the Coach, working, and the Researcher, asked by the Coach');
+
+  /* ---------- 2 · the peek ---------- */
+  const HANDED=[['Your program','Push A · 4 lifts'],['Bench, last 6 sessions','since 7 Sep'],['Monday’s log','28 Sep'],['Recovery, 7 days','+3 more']];
+  const peek='<div class="scrim soft"></div><section class="peek h-coach" role="dialog" aria-label="What the Coach is doing now">'+
+    '<div class="pk-head">'+face('coach',44,'work')+'<div><b>Coach</b><span>Working · 0:14 · Nova asked at 08:12</span></div><button class="iconbtn" aria-label="Close">'+ico('x')+'</button></div>'+
+    '<p class="pk-q"><i>Nova asked it</i>'+ASK_COACH+'</p>'+
+    '<p class="pk-k">Handed to it by code</p><ul class="pk-list">'+HANDED.map((h)=>'<li>'+ico('check')+'<span>'+h[0]+'</span><span>'+h[1]+'</span></li>').join('')+'</ul>'+
+    '<p class="pk-k">It asked</p><button class="pk-ask h-researcher" aria-label="The Researcher, asked by the Coach, working 0:08">'+face('researcher',30,'work')+'<span><b>The Researcher</b><small>'+ASK_RES+' · working 0:08</small></span>'+ico('right')+'</button>'+
+    '<p class="pk-foot">Its answer isn’t in yet. When it is, Nova says it here.</p></section>';
+
+  /* ---------- 3 · the session panel: Monday's workout, every number read by code from the log ---------- */
+  const SETS=[{r:8,rpe:'8'},{r:7,rpe:'9'},{r:6,rpe:'9.5'}];
+  const LIFTS=[['Incline dumbbell press','26 kg · 10 10 9'],['Cable fly','15 kg · 12 12'],['Triceps pushdown','30 kg · 12 12 11']];
+  const pct=(r)=>(r/9*100).toFixed(1)+'%';
+  const sess=(beat,sm)=>'<div class="sess'+(sm?' sm':'')+'" data-beat="'+beat+'" role="img" aria-label="Monday 28 September, Push A. Bench press, 80 kg: set 1, 8 reps at RPE 8; set 2, 7 reps at RPE 9; set 3, 6 reps at RPE 9.5. Target 8 reps.">'+
+    '<div class="sh"><span>Monday 28 Sep · Push A</span><span>from your log</span></div>'+
+    '<div class="hero lx"><div class="ht"><b class="lx">Bench press</b><span class="kg lx"><em>80</em>kg</span></div>'+
+    '<div class="bars3">'+SETS.map((s,i)=>'<span class="set lx s'+(i+1)+'"><i class="gap lx"></i><i class="bar lx" style="height:'+pct(s.r)+'"><em>'+s.r+'</em></i></span>').join('')+
+    '<span class="tgt lx" style="bottom:'+pct(8)+'"><b class="lx">8 reps</b></span></div>'+
+    '<div class="caps3">'+SETS.map((s,i)=>'<span class="lx c'+(i+1)+'">Set '+(i+1)+'<br>RPE '+s.rpe+'</span>').join('')+'</div></div>'+
+    (sm?'':LIFTS.map((l)=>'<div class="lift lx"><span style="color:var(--ink);font-size:15px">'+l[0]+'</span><span>'+l[1]+'</span></div>').join(''))+'</div>';
+  const sthead=(label,prov,tuck)=>'<div class="sthead"><span>'+ico('stage')+'<span id="btl">'+label+'</span></span>'+prov+(tuck?'<button class="tuck" aria-label="Tuck the stage into the thread now">'+ico('upc')+'</button>':'')+'</div>';
+  const provCoach='<span class="prov h-coach">'+face('coach',22,'back')+'from the Coach</span>';
+  const prov3='<span class="prov">'+ORDER.map((a)=>face(a,22,'back')).join('')+'from three</span>';
+  const stage3=(b)=>'<section class="dstage" aria-label="On the stage while Nova speaks: Monday’s workout">'+sthead(B3[b-1],provCoach,1)+sess(b)+spoken(S3,b,'coach')+'</section>';
+  const mini=(b,s,a)=>'<button class="mini'+(a?' hu h-'+a:'')+'">'+'<b>'+(a?face(a,20,'back'):'')+b+'</b><span>'+s+'</span></button>';
+  const replay=(s)=>'<button class="mini rp"><b>'+ico('play')+'Replay</b><span>'+s+'</span></button>';
+  const settled3='<div class="settled"><div class="sthead"><span>'+ico('stage')+'On the stage · 08:13</span><span class="prov h-coach">'+face('coach',22,'back')+'from the Coach</span></div>'+
+    '<button class="spanel" style="padding:8px 10px" aria-label="Monday’s bench press, three sets. Tap to open full width">'+sess(0,1)+'</button>'+
+    '<div class="brail">'+mini('Set 3','6 at RPE 9.5','coach')+mini('80 kg','hold till 8','coach')+replay('all three')+'</div></div>';
+
+  /* ---------- 5 · the joint panel: three sources, one glass ---------- */
+  const chart='<svg class="chart lx" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true"><polyline class="press" points="10,34 106,26 202,23 290,8"/><polyline class="row lx" points="10,22 106,22 202,22 290,22"/>'+[10,106,202,290].map((x)=>'<circle class="lx" cx="'+x+'" cy="22" r="4"/>').join('')+'</svg>';
+  const jp=(b)=>'<div class="jp" data-beat="'+b+'">'+
+    '<div class="src lx s-coach h-coach" role="img" aria-label="The Coach: seated row at 70 kg for four weeks, while bench rose from 75 to 80 kg"><div class="srh">'+face('coach',22,'back')+'<b>Coach</b><span>your log · 4 weeks</span></div>'+chart+
+      '<div class="leg"><span><b class="lx">Row</b> 70 kg every week</span><span>Bench, dashed, 75 to 80 kg</span></div></div>'+
+    '<div class="jp2"><div class="src lx s-librarian h-librarian"><div class="srh">'+face('librarian',22,'back')+'<b>Librarian</b></div><p class="quote">“Change the split when <mark class="lx">the log shows a stall</mark>, never because you are bored.”</p><span class="srm">Stronger Slowly, ch. 4</span></div>'+
+    '<div class="src lx s-researcher h-researcher" role="img" aria-label="The Researcher: twice a week edges once a week, a small gap, 5 sources"><div class="srh">'+face('researcher',22,'back')+'<b>Researcher</b></div><div class="fq"><span class="one"><span>Once a week</span><i class="lx" style="width:74%"></i></span><span class="two"><span class="lx">Twice a week</span><i class="lx" style="width:84%"></i></span></div><span class="srm">5 sources, 2 reviews</span></div></div></div>';
+  const stage5=(b)=>'<section class="dstage" aria-label="On the stage while Nova speaks: three findings">'+sthead(B5[b-1],prov3,1)+jp(b)+spoken(S5,b)+'</section>';
+  const settled5='<div class="settled"><div class="sthead"><span>'+ico('stage')+'On the stage · 08:23</span><span class="sub2">3 findings</span></div>'+
+    '<div class="brail g2">'+mini('Row','70 kg, 4 weeks','coach')+mini('Book','ch. 4, a stall','librarian')+mini('Study','twice edges once','researcher')+replay('all three')+'</div></div>';
+
+  /* ---------- 6 · Nova alone: the calendar panel, lit in white ---------- */
+  const cal='<div class="cal" role="img" aria-label="Wednesday 30 September: the dentist at 09:00 until 09:45; nothing else booked before 12:00"><div class="sh"><span>Wednesday 30 Sep</span><span>your calendar</span></div>'+
+    '<div class="calbig"><span class="num">09:00</span><span><b>Dentist</b><small>until 09:45</small></span></div>'+
+    '<div class="tl"><i class="blk" style="left:33.3%;width:12.5%"></i><i class="free" style="left:47.5%;width:35%"></i></div>'+
+    '<div class="tlx"><span>07:00</span><span>09:00</span><span>11:00</span><span>13:00</span></div><p class="pfoot">Free from 09:45 until midday</p></div>';
+  const S6=['<u>Nine in the morning</u>.','Nothing else is booked before midday.'];
+  const stage6='<section class="dstage" aria-label="On the stage while Nova speaks: Wednesday">'+sthead('1 of 1 · the time','<span class="prov">'+orb(24)+'Nova’s own</span>',1)+cal+spoken(S6,1)+'</section>';
+
+  /* ---------- 4 · the open view (C): the Coach's own words, raised onto the stage ---------- */
+  const openC='<section class="dstage" aria-label="The Coach’s own answer">'+
+    '<div class="sthead"><span>'+ico('stage')+'Its own words</span><button class="tuck" aria-label="Put it back in the thread">'+ico('x')+'</button></div>'+
+    '<div class="ownv h-coach"><div class="ot">'+face('coach',52,'back')+'<div><b>Coach</b><span>Nova asked 08:12 · back in 21 s</span></div></div>'+
+    '<p class="oq"><b>Nova asked it:</b> '+ASK_COACH+'</p><p class="ow">'+OWN_COACH+'</p>'+
+    '<button class="pk-ask h-researcher" aria-label="The Researcher’s answer to the Coach">'+face('researcher',30,'back')+'<span><b>The Researcher, for the Coach</b><small>Sets after heavy fatigue add little · 3 sources · 12 s</small></span>'+ico('right')+'</button>'+
+    '<button class="erow">'+ico('doc')+'<span class="t">Monday’s log and 5 more</span><span class="s">Train '+ico('right')+'</span></button></div></section>';
+
+  /* ---------- the review notes: what the server must expose, per screen ---------- */
+  const RAIL=['Being built','The consult rail: structured asks {agent, question, askedAt, settledAt, ok, ms, answer}; by / from on the record row.'];
+  const NOTES={
+    1:[RAIL,['Build','The asks published on the live job as they happen, each with who asked it (nova or coach) and a parent ask id, so the Researcher sits under the Coach the moment the Coach asks, not parsed from job.partial text.'],['Build','The hand-over line written by code from asks[] (“This is the Coach’s. Asking it now.”).']],
+    2:[RAIL,['Have','What code hands the Coach, by name, and what failed to load (coachTurn.js parts[] and failures[]).'],['Build','That list on each ask as handed[] {label, detail}, and nested asks by parent id. Not drawable, and not drawn: what a model is thinking before it answers.']],
+    3:[RAIL,['Have','VIS beats, sentence-level sync on the TTS queue’s onPlay, replaceSame; SHOW panels built by code (panels.js, “sessions”).'],['Build','A “session” data panel: one logged workout by date, built by panels.js (lifts, sets, reps, kg, RPE, the program’s target reps).'],['Build','VIS that names a data panel and a mark: VIS {"panel":"session","date":"2026-09-28","by":"coach","mark":{"lift":"Bench press"}}, then {"mark":{"lift":"Bench press","set":3}}, then {"mark":{"lift":"Bench press","field":"kg","target":true}}. A mark relights the panel already up; code checks every address against the data it built and drops one that is not there.'],['Build','The beats (panel spec, marks, sentence index) kept on the record row, so the settled card and Replay run from the record after a reload.']],
+    4:[RAIL,['Build','On from[]: read[] (what it was handed), asks[] (whom it asked, their answers), and the record paths it read, so the last row opens the real log.']],
+    5:[RAIL,['Build','A composed “sources” panel: one section per contributor, each a data panel from that contributor’s own record: the Coach’s a lift trend, the Librarian’s a passage (note path + the quoted span as offsets into his note, so the light falls on his words, never a paraphrase), the Researcher’s a finding (claim + source count from the brief). Marks address a section.'],['Build','A Librarian that can be asked, from his library notes (round 1’s gap).']],
+    6:[['Have','His calendar, read by Nova alone; no ask made, so no bench and no byline beyond hers.'],['Build','A “calendar-day” data panel (events, free stretches), marks by event id.']],
+    7:[['Build','The gate in code: a VIS panel is accepted only when it names data code can build, or a number the reply states; free-text “key” panels on agent answers retire. The prompt carries the same rules in these words.']]
+  };
+  const note=(n)=>'<aside class="note"><h3>What the server must expose here</h3><table>'+NOTES[n].map((r)=>'<tr><td class="'+(r[0]==='Have'?'have':'')+'"><span class="tag">'+r[0]+'</span></td><td>'+r[1]+'</td></tr>').join('')+'</table></aside>';
+
+  /* ---------- 7 · the rules page ---------- */
+  const tinyChart='<svg viewBox="0 0 100 46" preserveAspectRatio="none" aria-hidden="true"><polyline points="4,38 36,30 68,26 96,10" fill="none" stroke="color-mix(in srgb,var(--ink) 40%,transparent)" stroke-width="1.6" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/><polyline points="4,26 36,26 68,26 96,26" fill="none" stroke="var(--coach)" stroke-width="2.6" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>';
+  const rulesHtml='<div class="rtop rise" style="--i:0"><button class="rback">'+ico('right')+'Nova</button></div>'+
+    '<h1 class="rt rise" style="--i:1">How Nova shows things</h1>'+
+    '<p class="rstand rise" style="--i:2">A panel rises only when there is something to point at. She lights each part as she says it, and it settles into the thread when she stops.</p>'+
+    '<span class="rk">A panel, when she is saying</span>'+
+    '<div class="rule rise" style="--i:3"><div><b>A number you should see</b><span class="rq"><i>You:</i> “What time is the dentist?”</span></div><div class="tiny" role="img" aria-label="09:00, dentist"><span class="num">09:00</span><small>Dentist</small></div></div>'+
+    '<div class="rule rise" style="--i:4"><div><b>Two things against each other</b><span class="rq"><i>You:</i> “Is my row stuck?”</span></div><div class="tiny" role="img" aria-label="Row flat for four weeks, bench rising">'+tinyChart+'<small>Row flat</small></div></div>'+
+    '<div class="rule rise" style="--i:5"><div><b>A place in your own record</b><span class="rq"><i>You:</i> “Why not a fourth set?”</span></div><div class="tiny" role="img" aria-label="Three sets, the third lit"><div class="t3"><i style="height:89%"></i><i style="height:78%"></i><i class="on" style="height:67%"></i></div><small>Set 3, lit</small></div></div>'+
+    '<span class="rk">No panel, when it is only a sentence</span>'+
+    '<div class="rule none rise" style="--i:6"><div><span class="rq" style="margin:0"><i>You:</i> “Should I stretch before bed?”</span><p class="rsay">If it helps you wind down, yes. It won’t change your lifting.</p><span class="rnone">'+ico('nopanel')+'No panel: nothing to point at</span></div></div>'+
+    '<span class="rk">Always</span><ul class="always rise" style="--i:7">'+
+    '<li><b>One thing lit at a time,</b> and only while she is saying it.</li>'+
+    '<li><b>Every number comes from your records.</b> Code reads them; the model only picks which part to light, and code checks it is there.</li>'+
+    '<li><b>A lit part wears the colour of whoever found it:</b> coral for the Coach, teal for the Librarian, blue for the Researcher, white for Nova. It is also named on the panel and in her words.</li>'+
+    '<li><b>If a record can’t be read, there is no panel,</b> and she says so. Never a picture of a guess.</li>'+
+    '<li><b>It settles into the thread.</b> Replay brings it back.</li></ul>'+note(7);
+
+  /* ---------- the screens ---------- */
+  const T={
+    before:'<button class="earlier">Earlier this week · 24</button><span class="day">Yesterday</span>'+you('How did I sleep this week?','21:40')+turnNova('21:40',null,'Six of seven nights were over seven hours. Tuesday was the short one, at 6 h 10.'),
+    q1:'<span class="day">Today</span>'+you(Q1,'08:12'),
+    q1b:null,
+    handOnly:turnNova('08:12',HAND1),
+    answered:turnNova('08:12',HAND1,SUM1,coachFrom()+'<span class="meta foot">08:13 · answered from the Coach</span>'),
+    answeredOn:turnNova('08:12',HAND1,SUM1,coachFrom(1)+'<span class="meta foot">08:13 · answered from the Coach</span>'),
+    q2:'<span class="day">Today</span>'+you(Q2,'08:20'),
+    joint:turnNova('08:20',HAND3,SYN,contrib()+'<span class="meta foot">08:23 · from three, the last back at 2:41</span>'),
+    q3:you(Q3,'08:25'),
+    alone:turnNova('08:25 · 2 s',null,'Nine in the morning. Nothing else is booked before midday.')
+  };
+  const thread=(inner,cls)=>'<div class="thread'+(cls?' '+cls:'')+'">'+T.before+inner+'</div>';
+  const SPEAK=sline(bars(3),'Speaking','tap Nova to stop and talk');
+  const TURN=sline(ico('mic'),'Your turn','tap Nova or type');
+
+  const S=[
+   {n:'Ask',nova:'talk',bench:1,tally:'<b>1 Ask.</b> His training question; Nova’s one line says whose it is, written by code from the ask list, under her byline (A) · who is working lives on the bench above the composer (B), each seat its own glass in its own hue (A’s colour): the Coach coral, lit and turning, 0:08; the Researcher blue, asked by the Coach, the arrow and “via Coach” saying so · the core at the head spins: she is waiting on them · tap a seat to see what it is doing (2) · the note above the thread lists what the server must expose (scroll up)',
+    html:dhdr('think',sline(dots,'Asking the Coach','0:08'))+note(1)+thread(T.q1+T.handOnly)+benchAsk('0:08','0:02')+idleComposer},
+   {n:'Working',nova:'talk',bench:1,tally:'<b>2 Working, tapped.</b> A tap on the Coach’s seat grows a small glass sheet from it (the seat stays lit, the thread steps back): how long it has been at it, what Nova asked it, what code handed it (his program, the last 6 bench sessions, Monday’s log, recovery, +3), and what it asked the Researcher, still working, one tap deeper · the last line says the one thing it cannot show: its answer is not in yet · ✕ or a tap outside puts it back into the seat',
+    html:dhdr('think',sline(dots,'Asking the Coach','0:14'))+note(2)+thread(T.q1+T.handOnly)+peek+benchAsk('0:14','0:08',1)+idleComposer},
+   {n:'Panel',beats:['Lift','Set','Number','Settled'],tally:['<b>3 · beat 1 of 3, the lift.</b> The Coach is back; Nova speaks its answer in three sentences, and the stage rises from under her face over the thread (63 D) with Monday’s workout, read by code from the log · on “not yet on bench” the bench press row lights, ringed in the Coach’s coral, and the other lifts step back · the stage names it in words (1 of 3 · the lift) and whose it is (from the Coach) · the bench steps aside while the stage is up · plays by itself; the beats above pin one',
+      '<b>3 · beat 2 of 3, the set.</b> “Your third set on Monday stopped at 6 reps, at RPE 9.5”: set 3 fills coral and sets 1 and 2 step back; its label (Set 3, RPE 9.5) lights · the line underneath is the sentence being spoken, lit, with the part that names the light underlined in the same hue; said sentences dim, the one to come waits in grey',
+      '<b>3 · beat 3 of 3, the number.</b> “Hold three sets at 80 kg until all three reach 8”: 80 kg is ringed, the 8-rep line turns solid coral, and the gap from each set up to 8 is drawn dashed, which is the whole instruction in one picture · one thing lit per sentence, and nothing lit she isn’t saying',
+      '<b>3 · settled.</b> When she stops, the stage settles into the thread as a card under her reply: Monday’s bench, small, the two things she lit, and Replay · her reply is B’s short summary under A’s byline, with “From the Coach” as one row of the Coach’s glass: its face, its own words one tap away (4), that it asked the Researcher · the bench is back with both ticked and their times, until he next speaks'],
+    nova:['speak','speak','speak','talk'],
+    html:(b)=>dhdr('speak',SPEAK,stage3(b))+note(3)+thread(T.q1+T.answered)+idleComposer,
+    settled:dhdr('idle',TURN)+note(3)+thread(T.q1+T.answered+settled3)+bench(bseat('coach','back','Back · 0:21')+via+bseat('researcher','back','via Coach · 0:12'),'On this thread: the Coach, back in 21 seconds, and the Researcher, back')+idleComposer},
+   {n:'Open',nova:'talk',tally:'<b>4 Open.</b> A tap on “From the Coach” raises its own words onto the stage (C’s open view) and rings the row it came from: its face, when Nova asked and how long it took, what she asked it, its answer in its own voice, the Researcher’s answer to it one tap deeper, and the log it read, one tap to Train · ✕ or ⌃ sends it back into the row · the thread dims under it but does not move',
+    html:dhdr('idle',sline(ico('mic'),'Your turn','the Coach’s own words are up'),openC)+note(4)+thread(T.q1+T.answeredOn)+idleComposer},
+   {n:'Joint',beats:['Coach','Book','Study','Settled'],tally:['<b>5 · beat 1 of 3, your row.</b> A question for three. The stage carries ONE composed panel, each source in its own glass under its own face and name: the Coach’s row against pressing, the Librarian’s passage from his note, the Researcher’s finding · on “Your row has sat at 70 kg for four weeks” the Coach’s part lights coral, the row line with it; the other two step back',
+      '<b>5 · beat 2 of 3, your book.</b> “Your book says a stall is the reason to change”: the Librarian’s part lights teal and the exact words in his note are highlighted, a real span of the note, not a paraphrase',
+      '<b>5 · beat 3 of 3, the research.</b> “And twice a week has a small, real edge”: the Researcher’s part lights blue, the twice-a-week bar with it; its source count stays in view · the underline in the line below changes hue with the speaker of each finding',
+      '<b>5 · settled.</b> A’s compact joint reply: Nova’s byline, “from three” in words, the synthesis, and the three contributors as a row of face buttons, each opening its own words as in 4 · under it the settled card, one mini per source in its hue, and Replay · the bench shows all three back with their times'],
+    nova:['speak','speak','speak','talk'],
+    html:(b)=>dhdr('speak',SPEAK,stage5(b))+note(5)+thread(T.q2+T.joint)+idleComposer,
+    settled:dhdr('idle',TURN)+note(5)+thread(T.q2+T.joint+settled5)+bench(ORDER.map((a)=>bseat(a,'back','Back '+TOOK[a])).join(''),'On this thread: all three back').replace('class="bench"','class="bench n3"')+idleComposer},
+   {n:'Alone',nova:'speak',tally:'<b>6 Alone.</b> Nova answers by herself: no hand-over, no bench, no “from” · the stage still rises, because the answer is a time: C’s calendar panel, 09:00 at size, the morning as a strip with the appointment lit in white (Nova’s own finding has no hue) and the free stretch after it · on the settle it lands in the thread like the others',
+    html:dhdr('speak',SPEAK,stage6)+note(6)+thread(T.q1+T.answered+T.q3+T.alone)+idleComposer},
+   {n:'Rules',nova:'talk',rules:1,tally:'<b>7 Rules of the panel.</b> His condition, “purposeful and clear and not simply more clutter”, written as the page he can open from Nova › (How Nova shows things): three cases that raise a panel (a number, a comparison, a place in his record), each with a small example; the one that does not (a plain sentence), with an example; and five rules that always hold · the same words go into the prompt, and the gate is code’s (the note at the foot)',
+    html:rulesHtml}
+  ];
+
+  /* ---------- the living core: the filament engine of src/NovaCore.jsx, ported ----------
+     Same seed and structure (broken circuit arcs, wisps, embers, the breathing
+     heart). It changes by form and never by hue: grows with his voice while
+     listening, spins while thinking, pulses with her voice while speaking,
+     grey and still offline. The level is simulated here; the app has the real
+     one (audioLevel). Reduced motion: one still frame. */
+  const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const seeded=(seed)=>{let x=seed;return()=>(x=(x*16807)%2147483647)/2147483647;};
+  function buildCore(cv){
+    const size=+cv.dataset.size,dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.width=size*dpr;cv.height=size*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+    const o=size>=120?{bands:32,segs:36,arc:1.15,weight:1,chaos:1,speed:.16,embers:540,wisps:84,heart:.12}
+                     :{bands:12,segs:16,arc:1.2,weight:1.1,chaos:.85,speed:.14,embers:110,wisps:14,heart:.2};
+    const r=seeded(7),cx=size/2,cy=size/2,R0=size*.46;
+    const bands=[];for(let b=0;b<o.bands;b++){const f=.1+.9*(b/(o.bands-1)),segs=[],n=Math.round(o.segs*(.5+r()));
+      for(let i=0;i<n;i++)segs.push({a0:r()*6.283,len:.02+r()*r()*o.arc,w:.5+r()*1.6*o.weight,jit:(r()-.5)*R0*.05*o.chaos,al:(.16+r()*.5)*(1.35-.55*f),fl:r()*6.28,fs:.5+r()*2});
+      bands.push({f,segs,vel:(r()-.5)*o.speed,squash:1-r()*.14*o.chaos,tilt:(r()-.5)*.5*o.chaos});}
+    const embers=[];for(let i=0;i<o.embers;i++)embers.push({f:Math.pow(r(),1.25),ang:r()*6.283,sz:.35+r()*1.3,al:.15+r()*.55,tw:r()*6.28,ts:.6+r()*2.4});
+    const wisps=[];for(let i=0;i<o.wisps;i++){const a=r()*6.283;wisps.push({a,b:a+(r()-.5)*2.4,f1:.25+r()*.7,f2:.25+r()*.7,bulge:(r()-.5)*1.6,al:.05+r()*.12});}
+    let clock=0,last=null,grow=null,lvl=0;
+    const col=(f,a)=>'hsla('+(224-f*36)+','+(90-f*10)+'%,'+Math.min(38+(1-f)*44+lvl*12,88)+'%,'+a+')';
+    return function(t){
+      const st=cv.dataset.core;
+      lvl=(st==='listen'||st==='speak')?Math.max(0,.2+.17*Math.sin(t*6.3)+.11*Math.sin(t*14.1+1.3)+.06*Math.sin(t*2.2)):0;
+      const target=st==='listen'?.95:st==='speak'?.8:.74;
+      grow=grow==null?target:grow+(target-grow)*.08;
+      const R=R0*(grow+(st==='speak'?lvl*.12:st==='listen'?lvl*.05:0));
+      const dt=last==null?0:Math.min(t-last,.1);last=t;
+      clock+=dt*(1+lvl*2.6+(st==='think'?3.2:0)+(st==='listen'||st==='speak'?.4:0));
+      ctx.clearRect(0,0,size,size);ctx.globalCompositeOperation='lighter';
+      for(const w of wisps){const rot=clock*.03,x1=cx+Math.cos(w.a+rot)*R*w.f1,y1=cy+Math.sin(w.a+rot)*R*w.f1*.94,x2=cx+Math.cos(w.b+rot)*R*w.f2,y2=cy+Math.sin(w.b+rot)*R*w.f2*.94;
+        let mx=(x1+x2)/2+(y2-y1)*w.bulge*.3,my=(y1+y2)/2-(x2-x1)*w.bulge*.3;mx=mx*.62+cx*.38;my=my*.62+cy*.38;
+        ctx.strokeStyle=col(.5,w.al*(1+lvl*1.2));ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke();}
+      for(const b of bands){const rad=R*b.f*(1+lvl*.16*Math.sin(clock*3.1+b.f*9));ctx.save();ctx.translate(cx,cy);ctx.rotate(b.tilt);ctx.scale(1,b.squash);const rot=clock*b.vel;
+        for(const s of b.segs){const fl=.55+.45*Math.sin(clock*s.fs+s.fl);ctx.strokeStyle=col(b.f,s.al*fl*(1+lvl*1.4));ctx.lineWidth=s.w*(1+lvl*.5);ctx.beginPath();ctx.arc(0,0,Math.max(.5,rad+s.jit),s.a0+rot,s.a0+rot+s.len);ctx.stroke();}
+        ctx.restore();}
+      for(const e of embers){const tw=.4+.6*Math.abs(Math.sin(clock*e.ts+e.tw)),x=cx+Math.cos(e.ang+clock*.05)*R*e.f,y=cy+Math.sin(e.ang+clock*.05)*R*e.f*.94;
+        ctx.fillStyle=col(e.f,e.al*tw*(1+lvl*1.4));ctx.beginPath();ctx.arc(x,y,e.sz*(1+lvl*1.1)*(size<120?.8:1),0,6.29);ctx.fill();}
+      if(st==='think'){ /* the spin, readable in a still: two arcs chasing round the rim */
+        for(let k=0;k<2;k++){const a0=t*2.6+k*Math.PI;for(let j=0;j<16;j++){ctx.strokeStyle='hsla(190,95%,'+(60+j*2)+'%,'+(.05+j*.06)+')';ctx.lineWidth=size<120?2:3.2;ctx.lineCap='round';ctx.beginPath();ctx.arc(cx,cy,R*1.04,a0+j*.07,a0+j*.07+.08);ctx.stroke();}}}
+      const pulse=1+.07*Math.sin(t*1.8)+lvl*1.15,hr=R*o.heart*pulse;
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,hr*3.2);g.addColorStop(0,'rgba(240,252,255,.95)');g.addColorStop(.18,'rgba(158,240,255,.8)');g.addColorStop(.45,'rgba(64,170,238,.35)');g.addColorStop(1,'rgba(20,60,140,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,hr*3.2,0,6.29);ctx.fill();
+      ctx.globalCompositeOperation='source-over';
+    };
+  }
+  function drawCores(t){$$('main.view:not([hidden]) canvas.core').forEach((cv)=>{if(!cv._d)cv._d=buildCore(cv);if(cv.dataset.core==='off'&&cv._still)return;cv._d(t);if(cv.dataset.core==='off')cv._still=1;});}
+  if(!RM){const loop=()=>{drawCores(performance.now()/1000);requestAnimationFrame(loop);};requestAnimationFrame(loop);}
+
+  /* ---------- the review's ruler: window.__m() ---------- */
+  window.__m=function(){
+    const main=$('main.view:not([hidden])'),vw=innerWidth,topY=$('.switch').offsetHeight,botY=innerHeight-$('.dock').offsetHeight;
+    const vis=(el)=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0&&!el.closest('.note')&&getComputedStyle(el).visibility!=='hidden';};
+    const sizes=new Set(),small=[];
+    $$('*',document.body).forEach((el)=>{if(!vis(el)||el.closest('.switch'))return;if(![...el.childNodes].some((n)=>n.nodeType===3&&n.textContent.trim()))return;const fs=parseFloat(getComputedStyle(el).fontSize);sizes.add(fs);if(fs<13&&!el.closest('.tab'))small.push(el.textContent.trim().slice(0,20)+':'+fs);});
+    let under=[],taps=0;$$('button',document.body).forEach((b)=>{if(!vis(b)||b.closest('.switch'))return;if(b.closest('.behind'))return;const r=b.getBoundingClientRect();if(r.bottom<topY||r.top>innerHeight)return;taps++;const m=Math.min(r.width,r.height);if(m<44&&!b.closest('.spanel')&&!b.classList.contains('field'))under.push((b.getAttribute('aria-label')||b.textContent.trim()).slice(0,24)+':'+Math.round(r.width)+'x'+Math.round(r.height));});
+    const over=[];$$('*',main).forEach((el)=>{if(!vis(el))return;const r=el.getBoundingClientRect();if(r.right>vw+.5||r.left<-.5)over.push((el.className&&el.className.baseVal===undefined?el.className:el.tagName)+':'+Math.round(r.left)+'-'+Math.round(r.right));});
+    const clip=[];$$('.bseat small,.bseat b,.from .ft small,.pk-ask small,.mini b,.mini span,.sh span,.srh span,.caps3 span,.lift span,.erow .t',main.parentNode).forEach((el)=>{if(!vis(el))return;if(el.scrollWidth>el.clientWidth+1)clip.push(el.textContent.trim().slice(0,24));});
+    const ds=$('.dstage',main),comp=$('.composer',main);let stage=null;if(ds){const r=ds.getBoundingClientRect();stage={top:Math.round(r.top),bottom:Math.round(r.bottom),scroll:ds.scrollHeight>ds.clientHeight+1,compTop:comp?Math.round(comp.getBoundingClientRect().top):null};}
+    return JSON.stringify({s:location.hash,sw:document.documentElement.scrollWidth,vw,sizes:[...sizes].sort((a,b)=>b-a),small,taps,under,over:over.slice(0,6),clip,stage,switchPx:topY});
+  };
+
+  /* ---------- the switcher: screens, and beats for the two that play ---------- */
+  const phone=$('#phone');
+  const mk=(id,cls,html)=>{const m=document.createElement('main');m.id=id;m.className='view '+cls;m.hidden=true;m.innerHTML=html;phone.appendChild(m);return m;};
+  S.forEach((sc,i)=>{const n=i+1;
+    if(sc.beats){mk('v'+n,'dz',sc.html(1));mk('v'+n+'s','dz benched',sc.settled);}
+    else mk('v'+n,sc.rules?'rules':'dz'+(sc.bench?' benched':''),sc.html);});
+  const sw=$('.switch'),scr=$('#screens'),bt=$('#beats'),tally=$('#tally'),nb=$('#novabtn');
+  const setH=()=>document.documentElement.style.setProperty('--switch-h',(sw.offsetHeight-(parseFloat(getComputedStyle(sw).paddingTop)||0)+8)+'px');
+  function renderTally(){const full=tally.dataset.full||'';
+    if(tally.classList.contains('open')){tally.innerHTML=full+' <span class="tm">less</span>';return;}
+    tally.innerHTML=full;if(tally.scrollWidth<=tally.clientWidth+1)return;
+    const tmp=document.createElement('div');tmp.innerHTML=full;const words=tmp.textContent.split(' ');
+    while(words.length>1){words.pop();tally.innerHTML=words.join(' ').replace(/[\s,.;:·]+$/,'')+'… <span class="tm">more</span>';if(tally.scrollWidth<=tally.clientWidth+1)break;}}
+  tally.addEventListener('click',()=>{tally.classList.toggle('open');renderTally();setH();});
+  function setBeat(main,b,labels){
+    $$('[data-beat]',main).forEach((el)=>{el.dataset.beat=b;});
+    $$('.spoken [data-i]',main).forEach((el)=>{const i=+el.dataset.i;el.className=i<b?'done':i===b?'now':'later';});
+    const l=$('#btl',main);if(l)l.textContent=labels[b-1];
+  }
+  const LABELS={3:B3,5:B5};
+  let s=1,beat=1,timer=null;
+  function novaState(st){nb.className='novabtn'+(st==='speak'?' talk speak':' talk');nb.setAttribute('aria-label',st==='speak'?'Stop Nova and talk':'Talk to Nova');}
+  function apply(opts){
+    opts=opts||{};const sc=S[s-1];
+    const id=sc.beats?(beat>=4?'v'+s+'s':'v'+s):'v'+s,main=document.getElementById(id),was=!main.hidden;
+    $$('main.view').forEach((m)=>{m.hidden=m!==main;});
+    scr.innerHTML=S.map((x,i)=>'<button data-s="'+(i+1)+'" aria-pressed="'+(i+1===s)+'">'+x.n+'</button>').join('');
+    bt.hidden=!sc.beats;
+    if(sc.beats){bt.innerHTML=sc.beats.map((x,i)=>'<button data-b="'+(i+1)+'" aria-pressed="'+(i+1===beat)+'">'+x+'</button>').join('')+'<button class="play" data-play="1" aria-label="Play the beats">▶</button>';
+      if(beat<4)setBeat(main,beat,LABELS[s]);}
+    tally.dataset.full=sc.beats?sc.tally[beat-1]:sc.tally;tally.classList.remove('open');
+    novaState(sc.beats?sc.nova[beat-1]:sc.nova);
+    history.replaceState(null,'','#'+s+(sc.beats?'/'+beat:''));
+    try{localStorage.setItem('nova-agents-67',s+'/'+beat);}catch(e){}
+    renderTally();setH();
+    if(!was||opts.fresh){$$('.rise,.dstage,.bench,.peek,.settled',main).forEach((el)=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';});}
+    if(!was||opts.fresh)window.scrollTo(0,main.classList.contains('rules')?0:document.documentElement.scrollHeight);
+    drawCores(RM?1.7:performance.now()/1000);
+  }
+  function stop(){if(timer){clearTimeout(timer);timer=null;}}
+  function play(){stop();beat=1;apply({fresh:1});const step=()=>{timer=setTimeout(()=>{beat++;apply({fresh:beat===4});if(beat<4)step();else timer=null;},3200);};if(!RM)step();}
+  scr.addEventListener('click',(e)=>{const b=e.target.closest('[data-s]');if(!b)return;stop();s=+b.dataset.s;beat=1;window.scrollTo(0,0);if(S[s-1].beats)play();else apply({fresh:1});});
+  bt.addEventListener('click',(e)=>{const p=e.target.closest('[data-play]');if(p){play();return;}const b=e.target.closest('[data-b]');if(!b)return;stop();beat=+b.dataset.b;apply();});
+  function fromHash(){const h=(location.hash||'').replace('#','');if(!h)return null;const p=h.split('/');const n=+p[0];if(!(n>=1&&n<=S.length))return null;s=n;const bb=+p[1];beat=S[s-1].beats&&bb>=1&&bb<=4?bb:1;return p[1]?'pinned':'play';}
+  window.addEventListener('hashchange',()=>{const r=fromHash();if(r){stop();if(r==='play'&&S[s-1].beats)play();else apply({fresh:1});}});
+  window.addEventListener('resize',()=>{renderTally();setH();});
+  let r=fromHash();
+  if(!r){try{const p=(localStorage.getItem('nova-agents-67')||'').split('/');const n=+p[0];if(n>=1&&n<=S.length){s=n;beat=S[s-1].beats?Math.min(4,Math.max(1,+p[1]||1)):1;r='pinned';}}catch(e){}}
+  if(r==='play'&&S[s-1].beats)play();else apply({fresh:1});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{renderTally();setH();});
+})();
+</script>
+</body>
+</html>
