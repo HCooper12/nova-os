@@ -556,6 +556,19 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 29 Sep 2026 (afternoon) — NOVA ROUND 2 published (e79df13, mockup 63,
+  https://claude.ai/artifact/6EukaUSPUjVu5haML4kAyh: A and
+  B unchanged beside D "the thread with a stage that rises" and E "the stage
+  as the header", the living core ported from NovaCore's filament engine,
+  changing by shape and motion not colour; the kept recording + Try again;
+  Remember in the hold menu; the exchange from the Nova button landing in
+  the thread). Measured: D gives the thread 467pt (110 while speaking), E
+  295pt (531 folded on scroll-back); every control 44. His calls: D or E
+  (or E with the fold); whether the core may tint by state again (today
+  violet listening / gold speaking; gold means waiting on him); what tapping
+  the core does (drawn: status and settings, only the Nova button talks);
+  the tab and the button both named Nova; where the thread opens after he
+  talked elsewhere (drawn: first unseen line).
 - 29 Sep 2026 (afternoon) — THE RECORD published (194cdcc, mockup 65: trophy
   rises · plate loads · muscle lights · medal struck; "You beat last time" on
   the sheet, "New personal best" once the server confirms). His calls: the

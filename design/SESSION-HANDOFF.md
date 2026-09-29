@@ -13,6 +13,23 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**29 SEP (afternoon, nova-os-fc) — FOUR ROUNDS OUT FOR HIS CALLS, THREE BUGS
+FIXED, TAB IS "NOVA".** Pushed and reloaded 29 Sep by nova-os-83 on his
+yes; Documents live. His Voice/Train answers (ledger 29 Sep) → mockup 63
+Nova round 2 (https://claude.ai/artifact/6EukaUSPUjVu5haML4kAyh; D rising
+stage · E stage header, A/B kept), mockup 64 Who is answering
+(https://claude.ai/artifact/Vue5DjdKP5npxRVqRHJvgL), mockup 65 The record
+(https://claude.ai/artifact/13nM2MNAj7a87LgiLZNJrV), the three Voice bugs
+fixed (729810b; briefDecisions.js reloads with nova-os-83's next commit),
+the tab renamed Nova (2439168). nova-os-83 owns FUEL end to end now (reel
+import → recipe page, mockup 66, real read-only frames as the review) and
+has dirty Fuel files in the main tree: do not run gates that read the
+working tree while its edits are half-done, and do not reload the server
+until it does. NEXT for fc: his answers on 63/64/65 → the Nova build
+(thread + stage + kept recording + hold menu + agent provenance if chosen)
+and the record moment on the Finish sheet; then Sheets and overlays (§6
+#6). Two figure observations to verify for the anatomy pipeline (ledger).
+
 **28 SEP (late afternoon) — DO NOT RELOAD THE SERVER CASUALLY.** nova-os-83's
 Documents work (6c83dea, 6e819bc, 1ed9f0b) is on main but NOT reloaded: once
 the server restarts, Coach/Nova/Leader start filing documents and his phone
