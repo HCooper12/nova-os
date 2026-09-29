@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nova, full screen</title>
+<!--
+  68 · NOVA, FULL SCREEN (30 Sep 2026)
+  His words this morning, on the built focus mode (a large core on a black
+  ground): "When the nova icon takes up the screen I need this to be
+  designed more aesthetically appealing and nice to look at rather than
+  simply the icon with the black background. It should feel alive and
+  interactive and unique. Like a real assistant that is living. There
+  should also be coloured subtitles that appear for nova when it is
+  responding in the full screen mode. The text should dynamically and
+  animatedly appear as nova speaks each word by word. This should also
+  feel fun and engaging."
+  Also settled: the core no longer rests on the Nova screen; focus opens
+  from a tap on the name Nova (perhaps also a hold on the tab bar's Nova
+  button); the thread sits beneath it and returns on a tap or a scroll.
+
+  Three variations, switched at the top (#a/1 to #c/6):
+    A · The field   the core in a living field: Nova glass's aurora drifting
+                    behind, her embers leaning toward his voice while he
+                    talks and streaming to the word she is saying while she
+                    speaks; subtitles rise under the core one word at a time.
+    B · The ring    the words orbit the top of the core as she says them, the
+                    current one largest; said words settle into a line
+                    beneath; the core breathes with the sentence; the ground
+                    is deep glass with a lens pressed into it.
+    C · The stage   the core small, top left, a presenter; a large glass
+                    caption plate carries the words in the serif, the
+                    current word underlined in the speaker's hue as it is
+                    said; data panels dock onto the plate.
+  Each draws six screens: your turn, listening, thinking, speaking,
+  speaking with a panel, and the return to the thread.
+
+  WORD TIMING, HONESTLY. Sentence-level sync is real today: every sentence
+  handed to the speech queue carries its span of the reply, and its audio
+  start is known (src/glassBeats.js). Word-level timing is not. So each
+  sentence's words are PACED across that sentence's audio length, weighted
+  by length with a rest after a comma. The Tuesday bar lighting when
+  "Tuesday" is said is paced the same way. Word timings from the voice
+  engine are the later, true version.
+
+  Colour: the talk action is the Nova button's cyan ring (one accent). A
+  word being said is lit in its speaker's hue: Nova's (the core's cyan) or
+  the agent whose finding she is voicing (the Coach, coral, --nv-m-chest);
+  once said it turns white. The lit word is also lifted and underlined and
+  the speaker is named in words, so nothing rides on colour alone. Nova's
+  words sharing cyan with the talk ring is a decision for him (see the
+  report). Type in focus 15px and up; the tab label 11. Every target 44.
+
+  Review furniture: the bar at the top (hide it with Hide), the tally line,
+  the dashed "his finger" ring. __focus.seek(ms) freezes any screen at a
+  moment; __focus.clean() hides the bar; __m() measures the screen.
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data. The
+  sleep numbers, the Coach's call and every line are invented.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);
+  /* nova-glass, as mockup 56/63 */
+  --bg:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.52);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);
+  --tab:rgba(16,20,36,.58);--tab-ring:rgba(255,255,255,.14);--tab-ink:rgba(232,236,246,.5);--tab-on:#59e6ff;--tab-on-bg:rgba(89,230,255,.1);
+  --talk:#59e6ff;--talk-ink:#062028;--done:#5fe8a8;
+  /* who is speaking: Nova's own (--nv-cy) and the Coach's (--nv-m-chest) */
+  --nova:#59e6ff;--coach:#ff8a7a;
+  --plate:rgba(18,23,44,.62);--solid:#141a30;
+  --top:0px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.97);transition:transform .16s var(--ease)}
+.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------- the sky: Nova glass's aurora, drifting (A, C; blurred under B's glass) ---------- */
+.sky{position:fixed;inset:0;z-index:0;overflow:hidden;background:linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%)}
+.sky i{position:absolute;display:block;border-radius:50%;will-change:transform}
+.sky .b1{width:150vw;height:80vh;left:-60vw;top:-30vh;background:radial-gradient(closest-side,rgba(89,230,255,.26),rgba(89,230,255,0))}
+.sky .b2{width:140vw;height:90vh;left:30vw;top:5vh;background:radial-gradient(closest-side,rgba(143,123,255,.30),rgba(143,123,255,0))}
+.sky .b3{width:170vw;height:60vh;left:-35vw;top:78vh;background:radial-gradient(closest-side,rgba(217,181,111,.16),rgba(217,181,111,0))}
+.sky .b4{width:120vw;height:70vh;left:-10vw;top:30vh;background:radial-gradient(closest-side,rgba(47,155,240,.18),rgba(47,155,240,0))}
+#field{position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:1;pointer-events:none}
+
+/* B · deep glass: a thick sheet over the sky, a lens pressed in around the core */
+.deep{position:fixed;inset:0;z-index:1;pointer-events:none;background:rgba(10,14,32,.52);backdrop-filter:blur(34px) saturate(1.5);-webkit-backdrop-filter:blur(34px) saturate(1.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.lens{position:absolute;border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(6,9,22,.0) 62%,rgba(120,200,255,.07) 82%,rgba(190,235,255,.16) 94%,rgba(255,255,255,0) 100%);
+  box-shadow:inset 0 10px 30px -18px rgba(255,255,255,.35),inset 0 -14px 40px -20px rgba(0,0,0,.8),0 30px 60px -30px rgba(0,0,0,.7)}
+.ripple{position:absolute;border-radius:50%;border:1.5px solid rgba(190,235,255,.5);pointer-events:none;opacity:0}
+
+/* ---------- the focus screen ---------- */
+.focus{position:fixed;left:0;right:0;top:var(--top);bottom:0;z-index:5;max-width:402px;margin:0 auto;touch-action:pan-y}
+.abs{position:absolute}
+.ftop{position:absolute;top:12px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;z-index:8}
+.iconbtn{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink);background:rgba(255,255,255,.08);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.iconbtn.cc{width:auto;padding:0 12px;gap:6px;display:inline-flex;font:600 15px var(--ui)}
+.iconbtn.cc .box{display:inline-grid;place-items:center;height:20px;padding:0 4px;border-radius:5px;box-shadow:inset 0 0 0 1.5px currentColor;font:700 11px/1 var(--ui);letter-spacing:.02em}
+.corewrap{position:absolute;width:300px;height:300px;left:50%;margin-left:-150px;will-change:transform}
+.corewrap canvas{width:300px;height:300px;display:block}
+.corehit{position:absolute;inset:40px;border-radius:50%}
+.fstate{position:absolute;left:16px;right:16px;display:flex;justify-content:center;align-items:center;gap:8px;margin:0;font:400 15px/1.3 var(--ui);color:var(--ink2);text-align:center;min-height:24px}
+.fstate b{font-weight:600;color:var(--ink)}
+.fstate.l{justify-content:flex-start;text-align:left}
+.glyph{display:inline-flex;align-items:center;gap:2px;height:16px;flex:none}
+.glyph.bars i{width:3px;border-radius:2px;background:var(--ink);transform-origin:50% 50%}
+.glyph.bars i:nth-child(1){height:6px}.glyph.bars i:nth-child(2){height:14px}.glyph.bars i:nth-child(3){height:9px}.glyph.bars i:nth-child(4){height:12px}
+.glyph.dots i{width:5px;height:5px;border-radius:50%;background:var(--ink)}
+
+/* the speaker, named in words beside the lit hue */
+.who{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px 0 8px;border-radius:15px;font:600 15px var(--ui);color:var(--ink);background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hue) 45%,transparent)}
+.who .dot{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 22%,#2f9bf0 52%,rgba(23,58,153,0) 76%)}
+.who .ic{width:16px;height:16px;color:var(--hue);stroke-width:2.4}
+.who span{font-weight:400;color:var(--ink3)}
+
+/* a word as it is said: lifted, lit in the speaker's hue, underlined; white once said */
+.w{display:inline-block;will-change:transform,opacity;padding-bottom:3px}
+
+/* A · subtitles under the core */
+.subs{position:absolute;left:20px;right:20px;text-align:center}
+.subs .sent{position:absolute;left:0;right:0;top:0;margin:0;font:600 27px/1.28 var(--ui);letter-spacing:-.012em;text-wrap:balance}
+.subs .sent .in{display:inline-block;text-align:left}
+.subs .chiprow{position:absolute;left:0;right:0;top:-44px;height:30px}
+.subs .chiprow .who{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap}
+
+/* B · the ring of words, and the line they settle into */
+.ringwords{position:absolute;left:0;top:0;width:0;height:0}
+.rw{position:absolute;left:0;top:0;white-space:nowrap;font:600 24px/1 var(--ui);letter-spacing:-.01em;will-change:transform,opacity}
+.halo{position:absolute;pointer-events:none;overflow:visible}
+.bline{position:absolute;left:24px;right:24px;margin:0;text-align:left;font:500 21px/1.36 var(--ui);color:var(--ink);text-wrap:balance}
+.bline .w{padding-bottom:0}
+.bchip{position:absolute;left:24px;right:24px;display:flex;justify-content:flex-start}
+
+/* C · the stage: a presenter row, the caption plate, docked panels */
+.plate{position:absolute;left:12px;right:12px;border-radius:30px;background:var(--plate);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 26px 54px -24px rgba(0,0,0,.85);overflow:hidden}
+.plate .phead{position:absolute;left:18px;right:18px;top:14px;display:flex;align-items:center;gap:10px;min-height:32px;z-index:2}
+.plate .phead .n{margin-left:auto;font:400 15px var(--round);color:var(--ink3);font-variant-numeric:tabular-nums}
+.plate .fade{position:absolute;left:0;right:0;top:0;height:78px;z-index:1;background:linear-gradient(rgba(18,23,44,.96) 52%,rgba(18,23,44,0));pointer-events:none}
+.pcol{position:absolute;left:22px;right:22px;will-change:transform}
+.pcol p{margin:0 0 16px;font:400 31px/1.3 var(--serif);text-wrap:pretty}
+.pcol p.earlier{color:var(--ink3)}
+.pcol .w{position:relative;padding-bottom:4px}
+.pcol .w::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;background:var(--hue);transform-origin:0 50%;transform:scaleX(var(--p,0));opacity:var(--u,0)}
+.tag{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px 0 8px;margin-right:8px;border-radius:14px;vertical-align:5px;font:600 15px var(--ui);color:var(--ink);background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--coach) 50%,transparent)}
+.tag .ic{width:15px;height:15px;color:var(--coach);stroke-width:2.4}
+.presenter{position:absolute;left:0;right:0;display:flex;align-items:center;gap:6px;padding:0 16px}
+.presenter .pn{display:flex;flex-direction:column;gap:2px;min-width:0}
+.presenter .pn > b{font:700 28px/1.1 var(--ui);letter-spacing:-.02em}
+.presenter .fstate{position:static;justify-content:flex-start;text-align:left;flex-wrap:wrap;row-gap:0}
+.presenter .fstate span{white-space:nowrap}
+.dockseam{position:absolute;left:40px;right:40px;height:10px;border-radius:5px;background:rgba(255,255,255,.05);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+
+/* the stage panel: sleep this week (the house bars, as mockup 63) */
+.spanel{position:absolute;left:16px;right:16px;padding:14px 16px 12px;border-radius:26px;background:var(--plate);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 22px 44px -22px rgba(0,0,0,.85);will-change:transform,opacity}
+.spanel .pl{display:flex;align-items:center;gap:8px;font:600 15px var(--ui);color:var(--ink2)}
+.spanel .pl .n{margin-left:auto;font-weight:400;color:var(--ink3)}
+.bars7{position:relative;display:grid;grid-template-columns:repeat(7,1fr);gap:9px;align-items:end;height:96px;margin-top:12px}
+.bars7 i{display:block;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,color-mix(in srgb,var(--ink) 80%,transparent),color-mix(in srgb,var(--ink) 30%,transparent));transform-origin:50% 100%}
+.bars7 i.short{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink2);background-image:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--ink) 18%,transparent) 5px 7px)}
+.bars7 .line7{position:absolute;left:-4px;right:-4px;border-top:1px dashed color-mix(in srgb,var(--ink) 45%,transparent)}
+.bars7 .mark{position:absolute;bottom:-4px;border-radius:9px;box-shadow:0 0 0 2px var(--nova);opacity:0;pointer-events:none}
+.days7{display:grid;grid-template-columns:repeat(7,1fr);gap:9px;margin-top:6px;font:400 15px var(--ui);color:var(--ink3);text-align:center}
+.pfoot{margin:8px 0 0;font:400 15px/1.3 var(--ui);color:var(--ink2)}
+
+/* things he can say: quiet glass pills, never the accent */
+.asks{position:absolute;left:16px;right:16px;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+.ask{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 16px 0 13px;border-radius:22px;font:500 15px var(--ui);color:var(--ink);background:rgba(255,255,255,.08);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.ask .ic{width:17px;height:17px;color:var(--ink2)}
+.qbtn{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(255,255,255,.1);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset}
+.heard{position:absolute;left:20px;right:20px;margin:0;text-align:center;font:400 15px/1.35 var(--ui);color:var(--ink3)}
+.youq{position:absolute;left:24px;right:24px;margin:0;text-align:center;font:italic 400 24px/1.3 var(--serif);color:var(--ink);text-wrap:balance}
+.youq small{display:block;margin-bottom:6px;font:600 15px var(--ui);font-style:normal;color:var(--ink3)}
+.steps{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;margin:0;padding:0;list-style:none}
+.steps li{display:inline-flex;align-items:center;gap:8px;min-height:28px;font:400 15px var(--ui);color:var(--ink2)}
+.steps li .tick{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--done) 22%,transparent);color:var(--done)}
+.steps li .tick .ic{width:13px;height:13px;stroke-width:3}
+.steps li .sp{width:18px;height:18px;border-radius:50%;border:2.2px solid color-mix(in srgb,var(--ink) 20%,transparent);border-top-color:var(--ink)}
+.steps.l{align-items:flex-start;left:22px}
+.meterrow{position:absolute;left:20px;right:20px;display:flex;justify-content:center;align-items:center;gap:3px;height:44px}
+.meterrow i{width:4px;border-radius:2px;background:var(--ink);opacity:.85}
+
+/* the way back: the thread's newest line, peeking; a tap or a swipe up */
+.peek{position:absolute;left:16px;right:16px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;min-height:52px;padding:6px 8px 6px 16px;border-radius:26px;text-align:left;background:rgba(16,20,36,.5);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset;z-index:7}
+.peek .grab{position:absolute;top:5px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:color-mix(in srgb,var(--ink) 34%,transparent)}
+.peek .t{display:block;min-width:0;padding-top:4px;font:400 15px/1.3 var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.peek .t b{font-weight:600;color:var(--ink)}
+.peek .go{display:inline-flex;align-items:center;gap:4px;height:40px;padding:0 10px;font:600 15px var(--ui);color:var(--ink)}
+.peek .go .ic{width:18px;height:18px}
+.finger{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;border:2px dashed rgba(255,255,255,.7);z-index:30;pointer-events:none;opacity:0}
+.fingerlab{position:absolute;z-index:30;font:600 13px var(--ui);color:rgba(255,255,255,.8);white-space:nowrap;pointer-events:none;opacity:0}
+
+/* ---------- the thread, underneath (screen 6) ---------- */
+.tv{position:fixed;left:0;right:0;top:var(--top);bottom:0;z-index:4;max-width:402px;margin:0 auto;padding:12px 16px 0;opacity:0;pointer-events:none;will-change:transform,opacity}
+.tv.on{pointer-events:auto}
+.tvsky{position:fixed;inset:0;z-index:3;opacity:0;pointer-events:none;background:radial-gradient(70% 45% at 12% 8%,rgba(89,230,255,.16),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 88% 30%,rgba(143,123,255,.2),rgba(143,123,255,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%)}
+.thead{display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:6px}
+.thead .nm{display:inline-flex;align-items:center;gap:2px;min-height:44px;padding:0 10px;border-radius:22px;font:600 17px var(--ui);color:var(--ink)}
+.thead .nm .ic{width:15px;height:15px;color:var(--ink3);stroke-width:2.4}
+.thead .state{display:flex;align-items:center;gap:6px;margin:0;font:400 13px var(--ui);color:var(--ink2)}
+.thead .state b{color:var(--ink);font-weight:600}
+.thead .state .ic{width:16px;height:16px}
+.thread{position:absolute;left:16px;right:16px;bottom:calc(96px + 70px);display:flex;flex-direction:column;gap:12px}
+.day{align-self:center;font:600 13px var(--ui);color:var(--ink3)}
+.you{align-self:flex-end;max-width:80%;padding:10px 14px;border-radius:20px 20px 6px 20px;background:rgba(255,255,255,.13);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset;font:400 17px/1.35 var(--ui)}
+.meta{align-self:flex-end;margin:-6px 6px 0 0;font:400 13px var(--ui);color:var(--ink3)}
+.nmsg{align-self:flex-start;max-width:96%;margin:0;font:400 17px/1.42 var(--ui);text-wrap:pretty}
+.nmsg .tag{height:24px;font-size:13px;vertical-align:1px;margin-right:6px}
+.receipt{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;padding:4px 4px 4px 12px;border-radius:26px;background:rgba(255,255,255,.07);box-shadow:0 0 0 .5px var(--card-ring)}
+.receipt .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--done);color:#05261a}
+.receipt .ok .ic{width:15px;height:15px;stroke-width:3}
+.receipt b{display:block;font:600 15px/1.25 var(--ui)}
+.receipt span span{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.undo{height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui)}
+.composer{position:absolute;left:12px;right:12px;bottom:calc(96px + 2px);display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px;padding:6px;border-radius:28px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset}
+.plus{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:rgba(255,255,255,.1)}
+.field{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:22px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 1px rgba(232,236,246,.12);font:400 15px var(--ui);color:var(--ink3);text-align:left}
+
+/* ---------- the dock: tab bar and the Nova button (as mockup 63) ---------- */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:0 12px 10px;pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;height:56px;justify-content:center;border-radius:28px;font:500 11px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--tab-on);background:var(--tab-on-bg)}
+.novabtn{position:relative;width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 0 0 2px var(--talk),0 0 22px -4px var(--talk)}
+.novabtn .orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+.novabtn .ring{position:absolute;inset:-6px;border-radius:50%;border:1.5px solid var(--talk);opacity:0;pointer-events:none}
+
+/* ---------- the review bar ---------- */
+.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:8px 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:rgba(6,7,13,.78);border-bottom:1px solid var(--sep)}
+.switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2)}
+.seg button{min-height:32px;padding:6px 2px;border-radius:9px;font:600 13px var(--ui);opacity:.65;white-space:nowrap}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring)}
+.trow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:start}
+.tally{margin:0 2px;font:400 13px/1.4 var(--ui);color:var(--ink3);cursor:pointer;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tally.open{display:block}
+.tally b{color:var(--ink2);font-weight:600}
+.rbtn{height:32px;padding:0 12px;border-radius:16px;font:600 13px var(--ui);background:rgba(255,255,255,.1);box-shadow:0 0 0 .5px var(--card-ring);white-space:nowrap}
+.switch{display:none}
+body.rev .switch{display:block}
+.unhide{position:fixed;top:16px;left:50%;transform:translateX(-50%);height:36px;padding:0 14px;border-radius:18px;z-index:41;font:600 13px var(--ui);color:var(--ink2);background:rgba(6,7,13,.6);box-shadow:0 0 0 .5px var(--card-ring);white-space:nowrap}
+body.rev .unhide{display:none}
+body.clean .switch,body.clean .unhide{display:none}
+
+@media (prefers-reduced-transparency:reduce){
+  .deep{background:#0b1026;backdrop-filter:none;-webkit-backdrop-filter:none}
+  .plate,.spanel,.peek,.tabbar,.novabtn,.composer,.iconbtn,.ask{background:var(--solid);backdrop-filter:none;-webkit-backdrop-filter:none}
+  .plate .fade{background:linear-gradient(var(--solid) 52%,rgba(20,26,48,0))}
+  .sky i{opacity:.6}
+}
+</style>
+</head>
+<body>
+<div class="sky" id="sky" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b4"></i><i class="b3"></i></div>
+<canvas id="field" aria-hidden="true"></canvas>
+<div class="deep" id="deep" aria-hidden="true" hidden></div>
+<div class="tvsky" id="tvsky" aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 14.5 6-6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-talk" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-cc" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 11h4M13 11h4M7 15h7M16 15h1"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+</svg>
+
+<nav class="switch" id="switch" aria-label="Variation and screen">
+  <div class="inner">
+    <div class="seg" id="vars" aria-label="Variation">
+      <button data-var="a">A · The field</button><button data-var="b">B · The ring</button><button data-var="c">C · The stage</button>
+    </div>
+    <div class="seg" id="screens" aria-label="Screen"></div>
+    <div class="trow"><p class="tally" id="tally"></p><button class="rbtn" id="replay">Replay</button><button class="rbtn" id="hide">Done</button></div>
+  </div>
+</nav>
+<button class="unhide" id="unhide">Review ▾</button>
+
+<main class="focus" id="focus" aria-label="Nova, full screen"></main>
+<section class="tv" id="tv" aria-label="The Nova thread"></section>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row">
+    <div class="tabbar">
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/></svg>Nova</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn" id="novabtn" aria-label="Talk to Nova"><span class="orb"></span><span class="ring" id="nr1"></span><span class="ring" id="nr2"></span></button>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const ico=(g,c)=>'<svg class="ic'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+g+'"/></svg>';
+  const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+  const lerp=(a,b,k)=>a+(b-a)*k;
+
+  /* ---------- easing: the house curve and a strong ease-out ---------- */
+  function bez(p1x,p1y,p2x,p2y){const cx=3*p1x,bx=3*(p2x-p1x)-cx,ax=1-cx-bx,cy=3*p1y,by=3*(p2y-p1y)-cy,ay=1-cy-by;
+    const sx=(t)=>((ax*t+bx)*t+cx)*t,sy=(t)=>((ay*t+by)*t+cy)*t,dx=(t)=>(3*ax*t+2*bx)*t+cx;
+    return (x)=>{if(x<=0)return 0;if(x>=1)return 1;let t=x;for(let i=0;i<10;i++){const e=sx(t)-x,d=dx(t);if(Math.abs(e)<1e-5||Math.abs(d)<1e-6)break;t-=e/d;}return sy(clamp(t));};}
+  const EASE=bez(.32,.72,0,1),EOUT=bez(.23,1,.32,1),EIO=bez(.77,0,.175,1);
+  const tw=(t,a,d,f)=>(f||EASE)(clamp((t-a)/d));
+  const DUR={fast:160,base:280,slow:440}; /* --nv-dur-fast/base/slow */
+
+  /* ---------- what she says (invented) and how each word is timed ----------
+     A sentence's audio start and length are known today (the speech queue
+     plays it); its words are PACED across that length, weighted by length,
+     with a rest after a comma. Word timings from the voice engine replace
+     this later without changing anything drawn. */
+  function paced(U){U.forEach((S)=>{const ws=S.text.split(' ');const wt=ws.map((w)=>w.replace(/[^A-Za-z0-9’']/g,'').length+1.6+(/[,;]$/.test(w)?2.8:0));
+    const tot=wt.reduce((a,b)=>a+b,0);let acc=0;S.words=ws.map((w,i)=>{const st=S.at+S.dur*acc/tot;acc+=wt[i];return {w,st,en:S.at+S.dur*acc/tot};});});return U;}
+  const U_SPEAK=paced([
+    {who:'nova',text:'Seven hours twenty last night.',at:500,dur:1900},
+    {who:'nova',text:'That puts six of seven nights over your line.',at:2750,dur:3000},
+    {who:'coach',text:'The Coach says Thursday’s pull day can stay heavy.',at:6100,dur:3200}
+  ]);
+  const U_PANEL=paced([
+    {who:'nova',text:'Here is your week.',at:800,dur:1300},
+    {who:'nova',text:'Tuesday was the short one, at six hours ten.',at:2450,dur:3100},
+    {who:'nova',text:'Every other night cleared seven.',at:5900,dur:2000}
+  ]);
+  const WHO={nova:{name:'Nova',hue:'var(--nova)',sub:''},coach:{name:'Coach',hue:'var(--coach)',sub:'in Nova’s voice'}};
+  const chip=(who)=>'<span class="who" style="--hue:'+WHO[who].hue+'">'+(who==='nova'?'<i class="dot"></i>':ico('dumbbell'))+WHO[who].name+(WHO[who].sub?' <span>'+WHO[who].sub+'</span>':'')+'</span>';
+  function speechAt(U,t){let si=-1;for(let i=0;i<U.length;i++)if(t>=U[i].at)si=i;return si;}
+  function levelAt(U,t){for(const S of U){if(t<S.at||t>S.at+S.dur)continue;for(const w of S.words){if(t>=w.st&&t<w.en){const p=(t-w.st)/(w.en-w.st);return .16+.44*Math.pow(Math.sin(Math.PI*Math.min(1,p*1.2)),.7);}}}return 0;}
+  // a word's two numbers: e (it has arrived, 0..1) and L (it is being said now, 0..1)
+  function wordState(w,t){const e=tw(t,w.st,DUR.base,EOUT);const L=t<w.st?0:t<w.en?1:1-tw(t,w.en,320,EOUT);return {e,L};}
+  // his voice while listening: speech-like bursts, then the pause that sends
+  const HIS=(t)=>{if(t<300||t>3400)return 0;const s=(t-300)/1000;return clamp(.12+.3*Math.pow(Math.abs(Math.sin(s*6.1)),1.4)+.14*Math.sin(s*14.3+1.3)*Math.sin(s*2.1));};
+
+  /* ---------- the living core: the filament engine of src/NovaCore.jsx (as mockup 63) ----------
+     Same seed, bands, embers, wisps and breathing heart, blue in every state.
+     Two additions here: the heart LEANS toward his finger (attention, no face),
+     and its level comes from the paced words (the app reads the real audio). */
+  const seeded=(seed)=>{let x=seed;return ()=>(x=(x*16807)%2147483647)/2147483647;};
+  function makeCore(cv){
+    const size=300,dpr=Math.min(window.devicePixelRatio||1,2);cv.width=size*dpr;cv.height=size*dpr;const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+    const o={bands:32,segs:36,arc:1.15,weight:1,chaos:1,speed:.16,embers:540,wisps:84,heart:.12};
+    const r=seeded(7),cx=size/2,cy=size/2,R0=size*.46;
+    const bands=[];for(let b=0;b<o.bands;b++){const f=.1+.9*(b/(o.bands-1)),segs=[],n=Math.round(o.segs*(.5+r()));
+      for(let i=0;i<n;i++)segs.push({a0:r()*6.283,len:.02+r()*r()*o.arc,w:.5+r()*1.6*o.weight,jit:(r()-.5)*R0*.05*o.chaos,al:(.16+r()*.5)*(1.35-.55*f),fl:r()*6.28,fs:.5+r()*2});
+      bands.push({f,segs,vel:(r()-.5)*o.speed,squash:1-r()*.14*o.chaos,tilt:(r()-.5)*.5*o.chaos});}
+    const embers=[];for(let i=0;i<o.embers;i++)embers.push({f:Math.pow(r(),1.25),ang:r()*6.283,sz:.35+r()*1.3,al:.15+r()*.55,tw:r()*6.28,ts:.6+r()*2.4});
+    const wisps=[];for(let i=0;i<o.wisps;i++){const a=r()*6.283;wisps.push({a,b:a+(r()-.5)*2.4,f1:.25+r()*.7,f2:.25+r()*.7,bulge:(r()-.5)*1.6,al:.05+r()*.12});}
+    const S={clock:0,grow:null,lvl:0,st:'idle',lean:[0,0],leanS:[0,0]};
+    const col=(f,a)=>'hsla('+(224-f*36)+','+(90-f*10)+'%,'+Math.min(38+(1-f)*44+S.lvl*12,88)+'%,'+a+')';
+    return {S,
+      reset(){S.clock=0;S.grow=null;S.leanS=[0,0];},
+      step(dt,st,lvl,lean){S.st=st;S.lvl=lvl;const target=st==='listen'?.95:st==='speak'?.8:.74;S.grow=S.grow==null?target:S.grow+(target-S.grow)*.08;
+        S.clock+=dt*(1+lvl*2.6+(st==='think'?3.2:0)+(st==='listen'||st==='speak'?.4:0));
+        S.leanS[0]+=((lean?lean[0]:0)-S.leanS[0])*.12;S.leanS[1]+=((lean?lean[1]:0)-S.leanS[1])*.12;},
+      draw(t){const st=S.st,lvl=S.lvl,clock=S.clock;const R=R0*(S.grow+(st==='speak'?lvl*.12:st==='listen'?lvl*.06:0));
+        ctx.clearRect(0,0,size,size);ctx.globalCompositeOperation='lighter';
+        for(const w of wisps){const rot=clock*.03,x1=cx+Math.cos(w.a+rot)*R*w.f1,y1=cy+Math.sin(w.a+rot)*R*w.f1*.94,x2=cx+Math.cos(w.b+rot)*R*w.f2,y2=cy+Math.sin(w.b+rot)*R*w.f2*.94;
+          let mx=(x1+x2)/2+(y2-y1)*w.bulge*.3,my=(y1+y2)/2-(x2-x1)*w.bulge*.3;mx=mx*.62+cx*.38;my=my*.62+cy*.38;
+          ctx.strokeStyle=col(.5,w.al*(1+lvl*1.2));ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke();}
+        for(const b of bands){const rad=R*b.f*(1+lvl*.16*Math.sin(clock*3.1+b.f*9));ctx.save();ctx.translate(cx,cy);ctx.rotate(b.tilt);ctx.scale(1,b.squash);const rot=clock*b.vel;
+          for(const s of b.segs){const fl=.55+.45*Math.sin(clock*s.fs+s.fl);ctx.strokeStyle=col(b.f,s.al*fl*(1+lvl*1.4));ctx.lineWidth=s.w*(1+lvl*.5);ctx.beginPath();ctx.arc(0,0,Math.max(.5,rad+s.jit),s.a0+rot,s.a0+rot+s.len);ctx.stroke();}
+          ctx.restore();}
+        for(const e of embers){const tw2=.4+.6*Math.abs(Math.sin(clock*e.ts+e.tw)),x=cx+Math.cos(e.ang+clock*.05)*R*e.f,y=cy+Math.sin(e.ang+clock*.05)*R*e.f*.94;
+          ctx.fillStyle=col(e.f,e.al*tw2*(1+lvl*1.4));ctx.beginPath();ctx.arc(x,y,e.sz*(1+lvl*1.1),0,6.29);ctx.fill();}
+        if(st==='think'){for(let k=0;k<2;k++){const a0=clock*.9+k*Math.PI;for(let j=0;j<16;j++){ctx.strokeStyle='hsla(190,95%,'+(60+j*2)+'%,'+(.05+j*.06)+')';ctx.lineWidth=3.2;ctx.lineCap='round';ctx.beginPath();ctx.arc(cx,cy,R*1.04,a0+j*.07,a0+j*.07+.08);ctx.stroke();}}}
+        const hx=cx+S.leanS[0],hy=cy+S.leanS[1];
+        const pulse=1+.07*Math.sin(t*1.8)+lvl*1.15,hr=R*o.heart*pulse;
+        const g=ctx.createRadialGradient(hx,hy,0,hx,hy,hr*3.2);g.addColorStop(0,'rgba(240,252,255,.95)');g.addColorStop(.18,'rgba(158,240,255,.8)');g.addColorStop(.45,'rgba(64,170,238,.35)');g.addColorStop(1,'rgba(20,60,140,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(hx,hy,hr*3.2,0,6.29);ctx.fill();
+        ctx.globalCompositeOperation='source-over';}
+    };
+  }
+
+  /* ---------- A's field: her embers, loose in the room ----------
+     Each mote orbits the core on its own radius. Listening, the whole field
+     leans down toward him (his voice comes from below the glass) and shivers
+     with his level. Thinking, it draws in and quickens. Speaking, a share of
+     the motes leave the heart and travel to the word being said, taking the
+     speaker's hue as they arrive. A finger on the glass pulls them to it. */
+  function makeField(cv){
+    const ctx=cv.getContext('2d');let W=0,H=0,dpr=1;
+    const N=230,P=[];
+    function size(){dpr=Math.min(window.devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+    function reset(core){const r=seeded(11);P.length=0;for(let i=0;i<N;i++){const a=r()*6.283,rad=96+Math.pow(r(),1.1)*250;
+      P.push({a,rad,w:(r()<.5?-1:1)*(.05+r()*.12),x:core[0]+Math.cos(a)*rad,y:core[1]+Math.sin(a)*rad*.9,vx:0,vy:0,px:0,py:0,sz:.5+Math.pow(r(),2)*1.3,al:.4+r()*.6,stream:i%3===0,resp:r(),u:r(),us:.55+r()*.5,ph:r()*6.28,hot:0});}
+      P.forEach((p)=>{p.px=p.x;p.py=p.y;});}
+    function step(dt,ctxS){const {core,st,lvl,touch,word,t}=ctxS;
+      for(const p of P){p.px=p.x;p.py=p.y;
+        if(st==='speak'&&p.stream&&word){p.u+=dt*p.us*1.1;if(p.u>1){p.u-=1;}
+          const sx=core[0],sy=core[1],ex=word[0]+(p.ph-3.14)*word[2]*.1,ey=word[1];const mx=(sx+ex)/2+(p.ph-3.14)*26,my=Math.min(sy,ey)-30+(p.ph-3.14)*10;const u=p.u,iu=1-u;
+          p.x=iu*iu*sx+2*iu*u*mx+u*u*ex;p.y=iu*iu*sy+2*iu*u*my+u*u*ey;if(p.u<dt*p.us*1.2){p.px=p.x;p.py=p.y;}p.hot=u;continue;}
+        p.hot*=.9;
+        const spd=st==='think'?2.6:st==='listen'?1.1:st==='speak'?1.2:.8;p.a+=p.w*dt*spd;
+        let rad=p.rad*(st==='think'?.52:st==='listen'?1+lvl*.25:1);
+        let cx=core[0],cy=core[1];if(st==='listen'){cy+=150;cx+=Math.sin(p.ph+t*.001)*10;}
+        if(st==='speak'&&word){cy=lerp(cy,word[1],.35);}
+        let tx=cx+Math.cos(p.a)*rad,ty=cy+Math.sin(p.a)*rad*(st==='listen'?.62:.9);
+        if(st==='listen'){tx+=Math.sin(t*.02+p.ph*7)*lvl*18;ty+=Math.cos(t*.017+p.ph*5)*lvl*18;}
+        let kt=0;if(touch){const dx=touch[0]-p.x,dy=touch[1]-p.y,d=Math.hypot(dx,dy);const pull=p.resp<.5?Math.pow(clamp(1-d/560),.6):0;const orb=16+p.resp*70;tx=lerp(tx,touch[0]+Math.cos(p.a*4)*orb,pull);ty=lerp(ty,touch[1]+Math.sin(p.a*4)*orb,pull);kt=pull*10;}
+        const k=(st==='think'?9:5)+kt;p.vx+=(tx-p.x)*k*dt;p.vy+=(ty-p.y)*k*dt;p.vx*=Math.pow(.02,dt);p.vy*=Math.pow(.02,dt);p.x+=p.vx*dt;p.y+=p.vy*dt;}}
+    function draw(hueRGB,st){ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';
+      for(const p of P){const hot=p.stream&&st==='speak'?p.hot:0;const c=hot>0?[lerp(150,hueRGB[0],hot*hot),lerp(215,hueRGB[1],hot*hot),lerp(255,hueRGB[2],hot*hot)]:[150,215,255];
+        const a=p.stream&&st==='speak'?Math.min(1,p.al+.35)*clamp(p.u/.18)*(1-clamp((p.u-.9)/.1)):p.al;
+        const vx=p.x-p.px,vy=p.y-p.py,sp=Math.hypot(vx,vy);const k=sp>0?Math.min(p.stream&&st==='speak'?22:12,2+sp*3)/sp:0;const rgb=c.map(Math.round).join(',');
+        const g=ctx.createLinearGradient(p.x-vx*k,p.y-vy*k,p.x,p.y);g.addColorStop(0,'rgba('+rgb+',0)');g.addColorStop(1,'rgba('+rgb+','+(a*.7)+')');
+        ctx.strokeStyle=g;ctx.lineWidth=p.sz;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(p.x-vx*k,p.y-vy*k);ctx.lineTo(p.x,p.y);ctx.stroke();
+        ctx.fillStyle='rgba('+rgb+','+a+')';ctx.beginPath();ctx.arc(p.x,p.y,p.sz*.8,0,6.29);ctx.fill();}
+      ctx.globalCompositeOperation='source-over';}
+    function clear(){ctx.clearRect(0,0,W,H);}
+    return {size,reset,step,draw,clear,P};
+  }
+
+  /* ---------- the screens ---------- */
+  const SCREENS=[{k:'idle',n:'1 Turn',loop:6400},{k:'listen',n:'2 Listen',loop:5200},{k:'think',n:'3 Think',loop:4600},{k:'speak',n:'4 Speak',loop:10400},{k:'panel',n:'5 Panel',loop:8800},{k:'back',n:'6 Back',loop:5600}];
+  const CORE_ST={idle:'idle',listen:'listen',think:'think',speak:'speak',panel:'speak',back:'idle'};
+  const STATE_WORDS={idle:'Nova, at rest, your turn',listen:'Nova, listening to you',think:'Nova, thinking',speak:'Nova, speaking',panel:'Nova, speaking',back:'Nova, at rest'};
+  const TALLY={
+    a:['<b>A · 1 Your turn.</b> The core breathes in a field of its own embers over the drifting aurora. Touch the glass and the embers gather at your finger and the heart leans toward it (the dashed ring is a demo finger). Two things to ask, as quiet glass; the Nova button, cyan, is how you talk. The thread peeks at the foot: tap it or swipe up.',
+       '<b>A · 2 Listening.</b> The core swells with your level; the whole field leans down toward you and shivers as you speak. No transcript yet, honestly: your iPhone records and your Mac transcribes, so your words appear once they arrive. A pause sends; Send now does it at once.',
+       '<b>A · 3 Thinking.</b> The field draws in and quickens round the core, two arcs chase its rim. Your words, back from the Mac, sit where her answer will appear. The steps are the ones code narrates (reading the sleep log, then comparing), ticked as they finish.',
+       '<b>A · 4 Speaking.</b> Her words rise from under the core one at a time. The word being said is lifted, underlined and lit in the speaker’s hue (Nova’s cyan; the Coach’s coral when she voices his call, named in the chip), and turns white once said. A quarter of the embers leave the heart and fly to the current word. <b>Timing:</b> each sentence’s words are paced across that sentence’s audio length; word timings from the voice engine come later.',
+       '<b>A · 5 With a panel.</b> When a panel’s sentence starts, the core rises and shrinks to the top (440 ms, the house slow) and the panel rises into the middle; the words keep their place below it. The bars grow in, and the Tuesday bar is ringed when “Tuesday” is said (paced, like the words).',
+       '<b>A · 6 Back to the thread.</b> A swipe up on the peek (or a tap). The sentence you watched shrinks down into the thread as her newest message, the core folds back into the name Nova at the top, the field fades to the thread’s sky. In the app the swipe tracks your finger 1:1; the timing drawn is the release.'],
+    b:['<b>B · 1 Your turn.</b> Deep glass, not black: the aurora blurred under a thick sheet, a lens pressed into it round the core. Two things to ask sit under the ring where her words will orbit. A touch ripples the glass and the heart leans toward it.',
+       '<b>B · 2 Listening.</b> The ring becomes your voice: radial bars round the core, driven by your level. The core swells with you. Your words appear once your Mac has them; a pause sends.',
+       '<b>B · 3 Thinking.</b> Your question, back from the Mac, rides the ring while she works; the ring turns; the steps tick below.',
+       '<b>B · 4 Speaking.</b> Each word arrives at the top of the ring, largest and lit in the speaker’s hue, and slides down the left of the arc as the next arrives, dimming. Said words settle into the line beneath in white. The core breathes with the sentence and a thin arc on the ring fills as the sentence goes. <b>Timing:</b> paced across each sentence’s audio length.',
+       '<b>B · 5 With a panel.</b> The core and its ring rise and shrink to the top; the panel takes the middle; the settled line stays beneath. Tuesday’s bar is ringed as the word is said.',
+       '<b>B · 6 Back to the thread.</b> The settled line drops into the thread as her newest message; the ring and core fold into the name Nova; the glass clears to the thread.'],
+    c:['<b>C · 1 Your turn.</b> A presenter: the core small at the top left, her name and state beside it, and a large glass plate that carries whatever she says. At rest the plate offers what to ask, in the serif. Touch and the heart leans toward your finger.',
+       '<b>C · 2 Listening.</b> The plate carries your voice as a live band; the core swells. Your words appear once your Mac has them.',
+       '<b>C · 3 Thinking.</b> Your question at the head of the plate, in the serif; the working steps tick beneath it.',
+       '<b>C · 4 Speaking.</b> Words appear on the plate one at a time in the serif, the current one underlined in the speaker’s hue, the underline sweeping under the word for as long as it is said (an honest picture of the pacing). Earlier sentences dim and scroll up. The plate’s head names the speaker. <b>Timing:</b> paced across each sentence’s audio length.',
+       '<b>C · 5 With a panel.</b> The panel docks onto the top of the plate, the plate giving way beneath it; the words carry on below. Tuesday’s bar is ringed as the word is said.',
+       '<b>C · 6 Back to the thread.</b> The plate drops into the thread and becomes her newest message; the core folds into the name Nova.']
+  };
+
+  const focus=$('#focus'),tv=$('#tv'),field=$('#field'),deep=$('#deep'),sky=$('#sky'),tvsky=$('#tvsky');
+  let v='a',si=0,RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let core=null,F=makeField(field),SC=null,t0=performance.now(),frozen=null,simT=-1,touch=null;
+
+  /* ---------- shared markup ---------- */
+  const ftop='<div class="ftop"><button class="iconbtn" aria-label="Back to the thread">'+ico('down')+'</button><button class="iconbtn cc" aria-pressed="true" aria-label="Subtitles on">'+ico('cc')+'On</button></div>';
+  const peek=(y)=>'<button class="peek" id="peek" style="top:'+y+'px" aria-label="Back to the thread. Tap, or swipe up"><span class="grab"></span><span class="t"><b>Thread</b> · You: How did I sleep last night?</span><span class="go">'+ico('up')+'</span></button>';
+  const coreBox=(y,label)=>'<div class="corewrap" id="corewrap" style="top:'+(y-150)+'px" role="img" aria-label="'+label+'"><canvas id="corecv"></canvas><button class="corehit" aria-label="Nova. Touch her and she turns toward you"></button></div>';
+  const bars=(n)=>'<span class="glyph bars" aria-hidden="true">'+'<i></i>'.repeat(n||4)+'</span>';
+  const dots='<span class="glyph dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+  const stateLine=(k)=>k==='idle'||k==='back'?ico('mic')+'<b>Your turn</b><span>· the button, or ask one</span>':k==='listen'?bars()+'<b id="lstate">Listening</b><span id="lhint">· a pause sends</span>':k==='think'?dots+'<b>Thinking</b><span>· reading your sleep log</span>':bars(3)+'<b>Speaking</b><span>· the button stops her</span>';
+  const words=(S,cls)=>S.words.map((w,j)=>'<span class="w'+(cls?' '+cls:'')+'" data-j="'+j+'">'+w.w+'</span>').join(' ');
+  const SLEEP=[7.7,6.2,7.4,7.3,7.8,8.1,7.5];
+  const spanel=(y,extra)=>'<section class="spanel" id="spanel" style="top:'+y+'px'+(extra||'')+'" aria-label="On the stage: sleep this week"><div class="pl">'+ico('moon')+'Sleep this week<span class="n">1 of 1</span></div>'+
+    '<div class="bars7" role="img" aria-label="Sleep each night this week; Tuesday 6.2 hours, under the 7 hour line; the rest over it">'+SLEEP.map((h,i)=>'<i class="'+(h<7?'short':'')+'" data-b="'+i+'" style="height:'+Math.round((h-4)/4.5*100)+'%"></i>').join('')+
+    '<span class="line7" style="bottom:'+Math.round((7-4)/4.5*100)+'%"></span><span class="mark" id="tuemark"></span></div>'+
+    '<div class="days7"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><p class="pfoot">Tuesday 6.2 h, the one night under your 7 h line</p></section>';
+  const asks=(y,cls)=>'<div class="asks'+(cls?' '+cls:'')+'" style="top:'+y+'px"><button class="ask">'+ico('moon')+'How did I sleep?</button><button class="ask">'+ico('cal')+'What’s on tomorrow?</button></div>';
+  const finger='<span class="finger" id="finger"></span><span class="fingerlab" id="fingerlab">a finger (demo)</span>';
+  const meter=(y)=>'<div class="meterrow" id="meterrow" style="top:'+y+'px" role="img" aria-label="Your voice, live">'+'<i></i>'.repeat(34)+'</div>';
+  const steps=(y,cls)=>'<ul class="steps'+(cls?' '+cls:'')+'" id="steps" style="top:'+y+'px"><li data-s="0"><span class="sp"></span>Reading your sleep log</li><li data-s="1"><span class="sp"></span>Comparing it with your 7 h line</li></ul>';
+
+  /* ---------- the thread under it all (screen 6's destination) ---------- */
+  function threadHTML(){return '<header class="thead"><button class="nm" id="tname" aria-label="Nova: open full screen">Nova'+ico('right')+'</button><p class="state">'+ico('mic')+'<b>Your turn</b><span>· tap Nova or type</span></p></header>'+
+    '<div class="thread"><span class="day">Today</span><div class="you">Log a shake, thirty grams</div><span class="meta">12:41</span>'+
+    '<div class="receipt"><span class="ok">'+ico('check')+'</span><span><b>Logged a protein shake, 30 g</b><span>Undo lives here and in the Inbox</span></span><button class="undo">Undo</button></div>'+
+    '<div class="you">How did I sleep last night?</div><span class="meta">13:05</span>'+
+    '<p class="nmsg" id="dstmsg">Seven hours twenty last night. That puts six of seven nights over your line. <span id="dstlast">The Coach says Thursday’s pull day can stay heavy.</span></p></div>'+
+    '<div class="composer"><button class="plus" aria-label="Attach">'+ico('plus')+'</button><button class="field">Type, or tap Nova to talk</button></div>';}
+
+  /* ---------- build a screen ---------- */
+  function build(){
+    const k=SCREENS[si].k;const H=focus.clientHeight;const peekY=H-96-60;
+    SC={k,loop:SCREENS[si].loop,H,peekY,U:k==='panel'?U_PANEL:U_SPEAK,vw:innerWidth,vh:innerHeight};
+    document.body.dataset.v=v;deep.hidden=v!=='b';
+    tv.innerHTML=threadHTML();tv.classList.remove('on');tv.style.opacity=0;tv.style.transform='';tvsky.style.opacity=0;field.style.opacity=1;deep.style.opacity=1;
+    let h=ftop;
+    const cy=v==='c'?0:(k==='panel'?(v==='a'?250:270):v==='a'?(k==='idle'||k==='listen'?262:250):285);
+    if(v==='a'){
+      h+=coreBox(cy,STATE_WORDS[k]);
+      if(k==='idle'){h+='<p class="fstate" style="top:420px">'+stateLine(k)+'</p>'+asks(470)+finger;}
+      if(k==='listen'){h+='<p class="fstate" style="top:432px">'+stateLine(k)+'</p>'+meter(476)+'<p class="heard" style="top:540px">Your words appear here once your Mac has them</p><div class="asks" style="top:588px"><button class="qbtn">Send now</button></div>';}
+      if(k==='think'){h+='<p class="fstate" style="top:408px">'+stateLine(k)+'</p><p class="youq" style="top:462px"><small>You</small>“How did I sleep last night?”</p>'+steps(576);}
+      if(k==='speak'||k==='back'){h+='<p class="fstate" style="top:408px">'+stateLine(k)+'</p>'+subsA(SC.U,500);}
+      if(k==='panel'){h+=spanel(226,';opacity:0')+'<p class="fstate" id="pstate" style="top:408px">'+stateLine(k)+'</p>'+subsA(SC.U,520);}
+    }
+    if(v==='b'){
+      h+='<div class="lens abs" id="lens"></div><div class="halo abs" id="halo"></div>'+coreBox(cy,STATE_WORDS[k])+'<div class="ringwords" id="ring"></div>';
+      if(k==='idle'){h+='<p class="fstate" style="top:470px">'+stateLine(k)+'</p>'+asks(516)+finger;}
+      if(k==='listen'){h+='<p class="fstate" style="top:470px">'+stateLine(k)+'</p><p class="heard" style="top:510px">Your words appear once your Mac has them</p><div class="asks" style="top:566px"><button class="qbtn">Send now</button></div>';}
+      if(k==='think'){h+='<p class="fstate" style="top:470px">'+stateLine(k)+'</p>'+steps(516);}
+      if(k==='speak'||k==='back'){h+='<p class="fstate" style="top:462px">'+stateLine(k)+'</p><div class="bchip" id="bchip" style="top:500px"></div><p class="bline" id="bline" style="top:544px"></p>';}
+      if(k==='panel'){h+=spanel(282,';opacity:0')+'<p class="fstate" id="pstate" style="top:462px">'+stateLine(k)+'</p><div class="bchip" id="bchip" style="top:500px"></div><p class="bline" id="bline" style="top:544px"></p>';}
+    }
+    if(v==='c'){
+      h+='<div class="presenter" style="top:66px;height:120px">'+'<div style="position:relative;width:120px;height:120px;flex:none"><div class="corewrap" id="corewrap" style="top:-90px;left:-90px;margin:0;transform:scale(.4)" role="img" aria-label="'+STATE_WORDS[k]+'"><canvas id="corecv"></canvas><button class="corehit" aria-label="Nova. Touch her and she turns toward you"></button></div></div>'+
+        '<div class="pn"><b>Nova</b><p class="fstate l">'+stateLine(k)+'</p></div></div>';
+      const top=200,bot=peekY-12;
+      if(k==='idle'){const it=bot-272;h+='<section class="plate" id="plate" style="top:'+it+'px;height:'+(bot-it)+'px"><div class="pcol" style="top:24px"><p style="font-size:34px;line-height:1.2;margin-bottom:6px">Your turn.</p><p class="earlier" style="font-size:21px">Ask with the button, or try:</p></div>'+
+        '<div class="asks" style="top:'+(272-128)+'px;left:18px;right:18px;flex-direction:column;align-items:flex-start"><button class="ask" style="font:italic 400 19px var(--serif)">'+ico('moon')+'How did I sleep?</button><button class="ask" style="font:italic 400 19px var(--serif)">'+ico('cal')+'What’s on tomorrow?</button></div></section>'+finger;}
+      if(k==='listen'){const lt=bot-300;h+='<section class="plate" id="plate" style="top:'+lt+'px;height:'+(bot-lt)+'px"><div class="phead"><span class="who" style="--hue:var(--ink)">'+ico('mic')+'You</span></div>'+meter(84)+'<p class="heard" style="top:150px;font-size:17px;color:var(--ink2)">Your words appear here once your Mac has them.</p><div class="asks" style="top:'+(300-74)+'px"><button class="qbtn">Send now</button></div></section>';}
+      if(k==='think'){const kt2=bot-300;h+='<section class="plate" id="plate" style="top:'+kt2+'px;height:'+(bot-kt2)+'px"><div class="phead"><span class="who" style="--hue:var(--ink)">'+ico('mic')+'You asked</span></div><div class="pcol" style="top:64px"><p style="font-style:italic">How did I sleep last night?</p></div>'+steps(170,'l')+'</section>';}
+      if(k==='speak'||k==='back'){h+='<section class="plate" id="plate" style="top:'+top+'px;height:'+(bot-top)+'px"><div class="fade"></div><div class="phead" id="phead"></div><div class="pcol" id="pcol">'+platePs(SC.U)+'</div></section>';}
+      if(k==='panel'){h+=spanel(top,';opacity:0;left:12px;right:12px')+'<div class="dockseam" id="seam" style="opacity:0"></div><section class="plate" id="plate" style="top:'+top+'px;height:'+(bot-top)+'px"><div class="fade"></div><div class="phead" id="phead"></div><div class="pcol" id="pcol">'+platePs(SC.U)+'</div></section>';}
+    }
+    h+=peek(peekY);
+    focus.innerHTML=h;focus.style.opacity=1;focus.style.transform='';focus.style.visibility='';
+    core=makeCore($('#corecv'));
+    // measure static geometry once (layout does not move except by transforms we set)
+    const cw=$('#corewrap').getBoundingClientRect();SC.coreC=[cw.left+cw.width/2,cw.top+cw.height/2];
+    if(v==='c')SC.coreC=[cw.left+cw.width/2,cw.top+cw.height/2];
+    SC.wordC={};$$('.subs .sent',focus).forEach((p)=>{const i=+p.dataset.i;$$('.w',p).forEach((w)=>{const r=w.getBoundingClientRect();SC.wordC[i+':'+w.dataset.j]=[r.left+r.width/2,r.top+r.height*.55,r.width];});});
+    if(v==='b')buildRing();
+    if(v==='c'&&$('#pcol'))measurePlate();
+    const tm=$('#tuemark');if(tm){const b=$('.bars7 i[data-b="1"]',focus);tm.style.left=(b.offsetLeft-5)+'px';tm.style.width=(b.offsetWidth+10)+'px';tm.style.height=(b.offsetHeight+10)+'px';}
+    {const nm=$('#tname',tv).getBoundingClientRect();SC.nameC=[nm.left+nm.width/2,nm.top+nm.height/2];}
+    if(k==='back'){const d=v==='c'?$('#dstmsg',tv).getBoundingClientRect():$('#dstlast',tv).getClientRects()[0];SC.dst=d;const src=$(v==='a'?'.subs':v==='b'?'#bline':'#plate',focus).getBoundingClientRect();SC.src=src;SC.anc=v==='a'?$('.subs .sent:last-of-type .in',focus).getBoundingClientRect():src;}
+    F.size();if(v==='a')F.reset(SC.coreC);else F.clear();
+    simT=-1;
+    $('#tally').innerHTML=TALLY[v][si];
+    const nb=$('#novabtn');nb.setAttribute('aria-label',k==='listen'?'Send now':k==='speak'||k==='panel'?'Stop Nova and talk':'Talk to Nova');
+    bindTouch();
+  }
+  function subsA(U,y){return '<div class="subs" id="subs" style="top:'+y+'px;height:170px"><div class="chiprow" id="achip"></div>'+U.map((S,i)=>'<p class="sent" data-i="'+i+'" style="--hue:'+WHO[S.who].hue+'"><span class="in">'+words(S)+'</span></p>').join('')+'</div>';}
+  function platePs(U){return U.map((S,i)=>'<p data-i="'+i+'" style="--hue:'+WHO[S.who].hue+'">'+words(S)+'</p>').join('');}
+  function measurePlate(){const col=$('#pcol'),plate=$('#plate');SC.plateH=plate.clientHeight;SC.pOff=$$('p',col).map((p)=>({top:p.offsetTop,bot:p.offsetTop+p.offsetHeight}));}
+  function buildRing(){const ring=$('#ring');const k=SC.k;
+    if(k==='speak'||k==='panel'||k==='back'){ring.innerHTML=SC.U.map((S,i)=>S.words.map((w,j)=>'<span class="rw" data-i="'+i+'" data-j="'+j+'" style="--hue:'+WHO[S.who].hue+';opacity:0">'+w.w+'</span>').join('')).join('');
+      SC.rw=$$('.rw',ring).map((el)=>({el,i:+el.dataset.i,j:+el.dataset.j,w:el.offsetWidth}));
+      $('#bline').innerHTML=SC.U.map((S,i)=>'<span class="bs" data-i="'+i+'" style="--hue:'+WHO[S.who].hue+'">'+words(S)+'</span>').join('');}
+    if(k==='think'){const q='How did I sleep last night?'.split(' ');ring.innerHTML=q.map((w)=>'<span class="rw" style="font:italic 400 22px var(--serif);color:var(--ink2)">'+w+'</span>').join('');SC.rw=$$('.rw',ring).map((el)=>({el,w:el.offsetWidth}));}
+    if(k==='listen'){let s='';for(let i=0;i<64;i++)s+='<i class="rb" style="position:absolute;left:0;top:0;width:3px;border-radius:2px;background:var(--ink);opacity:.8"></i>';ring.innerHTML=s;}
+  }
+
+  /* ---------- the frame: everything is a function of the screen's own time ---------- */
+  function coreLayout(t){ // where the core is and how big, per variation and screen
+    const k=SC.k;let dx=0,dy=0,sc=1,op=1;
+    if(v==='a'){if(k==='panel'){const p=tw(t,500,DUR.slow);dy=-130*p;sc=1-.5*p;}if(k==='listen')sc=1.06;}
+    if(v==='b'){if(k==='panel'){const p=tw(t,500,DUR.slow);dy=-112*p;sc=1-.46*p;}}
+    if(k==='back'){const p=tw(t,1150,DUR.slow);const tx=SC.nameC[0]-SC.coreC[0],ty=SC.nameC[1]-SC.coreC[1];const base=v==='c'?.4:1;dx=tx*p;dy=ty*p;sc=lerp(base,.06,p)/base;op=1-tw(t,1350,240);}
+    return {dx,dy,sc,op};
+  }
+  function frame(now){
+    if(SC.vw!==innerWidth||SC.vh!==innerHeight)build(); // the viewport changed under us (emulation fires no resize)
+    const T=frozen!=null?frozen:(now-t0);
+    const t=RM?rmTime():(T%SC.loop);
+    const k=SC.k,cst=CORE_ST[k];
+    // deterministic stepping: the core clock and the field replay from 0 when time runs backwards
+    if(t<simT||simT<0){simT=0;core.reset();if(v==='a')F.reset(SC.coreC);}
+    const step=1/60;let guard=0;
+    while(simT+step*1000<=t&&guard++<2000){simT+=step*1000;simStep(simT,step,cst);}
+    render(t,cst);
+  }
+  function loop(now){if(frozen==null&&!RM&&SC)frame(now);requestAnimationFrame(loop);}
+  function rmTime(){const k=SC.k;return k==='speak'?9600:k==='panel'?8200:k==='back'?4000:k==='listen'?2000:k==='think'?3000:3000;}
+  function lvlAt(t){const k=SC.k;return k==='listen'?HIS(t):(k==='speak'||k==='panel')?levelAt(SC.U,t):0;}
+  function touchAt(t){ // his finger: a real one wins; the demo finger plays on screen 1
+    if(touch)return touch;
+    if(SC.k==='idle'&&!RM&&t>2000&&t<4600){const p=EIO(clamp((t-2000)/2600));const fx=v==='a'?lerp(310,120,p):v==='b'?lerp(335,300,p):lerp(330,250,p),fy=v==='a'?lerp(640,600,p):v==='b'?lerp(440,330,p):lerp(400,300,p);return [fx,fy+(+getComputedStyle(document.documentElement).getPropertyValue('--top').replace('px','')||0)];}
+    return null;}
+  function simStep(t,dt,cst){const L=coreLayout(t);const tc=touchAt(t);
+    let lean=null;if(tc){const cx=SC.coreC[0]+L.dx,cy=SC.coreC[1]+L.dy;const dx=tc[0]-cx,dy=tc[1]-cy,d=Math.hypot(dx,dy)||1;const m=Math.min(16,d*.06);lean=[dx/d*m,dy/d*m];}
+    core.step(dt,cst,lvlAt(t),lean);
+    if(v==='a'){const wc=currentWordC(t);F.step(dt,{core:[SC.coreC[0]+L.dx,SC.coreC[1]+L.dy],st:SC.k==='back'?'idle':cst,lvl:lvlAt(t),touch:tc,word:wc,t});}
+  }
+  function currentWordC(t){if(!(SC.k==='speak'||SC.k==='panel'))return null;const i=speechAt(SC.U,t);if(i<0)return null;const S=SC.U[i];if(t>S.at+S.dur)return null;let j=0;S.words.forEach((w,x)=>{if(t>=w.st)j=x;});return SC.wordC[i+':'+j]||null;}
+  function hueRGB(t){const i=speechAt(SC.U,t);return i>=0&&SC.U[i].who==='coach'?[255,138,122]:[89,230,255];}
+
+  function render(t,cst){
+    const k=SC.k,L=coreLayout(t);
+    // the sky drifts (slow, never a loop you can see)
+    const sk=$$('i',sky);const s=(t+ (si*1300))/1000;
+    if(!RM){sk[0].style.transform='translate('+(Math.sin(s*.11)*28)+'px,'+(Math.cos(s*.09)*18)+'px)';sk[1].style.transform='translate('+(Math.cos(s*.08)*-30)+'px,'+(Math.sin(s*.1)*22)+'px)';sk[2].style.transform='translate('+(Math.sin(s*.07+1)*24)+'px,'+(Math.cos(s*.12)*20)+'px) scale('+(1+Math.sin(s*.1)*.04)+')';sk[3].style.transform='translate('+(Math.cos(s*.06)*20)+'px,0)';}
+    const cw=$('#corewrap');if(cw){const base=v==='c'?' scale(.4)':'';cw.style.transform='translate('+L.dx+'px,'+L.dy+'px)'+base+' scale('+(L.sc*breathe(t))+')';cw.style.opacity=L.op;}
+    core.draw(t/1000);
+    if(v==='a')F.draw(hueRGB(t),SC.k==='back'?'idle':cst);
+    // the Nova button: the one accent, and its state
+    const r1=$('#nr1'),r2=$('#nr2');
+    if(k==='listen'){[r1,r2].forEach((r,i)=>{const p=((t/1000+i*.8)%1.6)/1.6;r.style.opacity=RM?.5:(.7*(1-p));r.style.transform='scale('+(RM?1:.9+.45*p)+')';});}
+    else if(k==='speak'||k==='panel'){const l=lvlAt(t);r1.style.opacity=.55;r1.style.transform='scale('+(1+l*.12)+')';r2.style.opacity=0;}
+    else{r1.style.opacity=0;r2.style.opacity=0;}
+    $$('.glyph.bars i',focus).forEach((b,i)=>{const l=k==='listen'?HIS(t):lvlAt(t);b.style.transform='scaleY('+(RM?1:clamp(.35+l*1.4*(0.6+.4*Math.sin(t/140+i*1.7)),.3,1))+')';});
+    $$('.glyph.dots i',focus).forEach((d,i)=>{d.style.opacity=RM?.8:.25+.75*Math.max(0,Math.sin(t/260-i*.7));});
+    if(k==='listen')renderListen(t);
+    if(k==='think')renderThink(t);
+    if(k==='idle')renderIdle(t);
+    if(k==='panel')renderPanel(t);
+    if(v==='a'&&(k==='speak'||k==='panel'||k==='back'))renderA(t);
+    if(v==='b')renderB(t,L);
+    if(v==='c'&&(k==='speak'||k==='panel'||k==='back'))renderC(t);
+    if(k==='back')renderBack(t);
+  }
+  function breathe(t){ // B breathes with the sentence; A and C just a whisper
+    const k=SC.k;if(RM)return 1;
+    if(v==='b'&&(k==='speak'||k==='panel')){const i=speechAt(SC.U,t);if(i<0)return 1;const S=SC.U[i];const p=clamp((t-S.at)/S.dur);return 1+.05*Math.sin(Math.PI*p)+lvlAt(t)*.03;}
+    return 1+.012*Math.sin(t/1000*1.1);}
+
+  /* A · the subtitles */
+  function renderA(t){const U=SC.U;const i=SC.k==='back'?U.length-1:speechAt(U,t);const tt=SC.k==='back'?U[U.length-1].at+U[U.length-1].dur+400:t;
+    $$('.subs .sent',focus).forEach((p)=>{const pi=+p.dataset.i;let op=0,dy=0;
+      if(pi===i){op=1;}
+      else if(pi===i-1){const x=tw(tt,U[i].at-120,DUR.base);op=1-x;dy=-26*x;}
+      p.style.opacity=op;p.style.transform='translateY('+dy+'px)';
+      if(op>0)$$('.w',p).forEach((el)=>{const w=U[pi].words[+el.dataset.j];styleWord(el,w,tt,'a');});});
+    const chip=$('#achip');const who=i>=0?U[i].who:null;if(chip.dataset.who!==String(who)){chip.dataset.who=who;chip.innerHTML=who?chip_(who):'';}
+    if(who){const x=tw(tt,U[i].at-200,DUR.base);chip.style.opacity=x;}
+  }
+  const chip_=chip;
+  function styleWord(el,w,t,mode){const {e,L}=wordState(w,t);
+    el.style.opacity=e;
+    if(mode==='a'){el.style.transform='translateY('+((1-e)*16-L*2)+'px) scale('+(1+.05*L)+')';el.style.filter=e<1?'blur('+((1-e)*6).toFixed(2)+'px)':'';
+      el.style.color=L>0?'color-mix(in srgb,var(--hue) '+Math.round(L*100)+'%,var(--ink))':'var(--ink)';
+      el.style.textShadow=L>0?'0 0 22px color-mix(in srgb,var(--hue) '+Math.round(L*55)+'%,transparent)':'none';
+      el.style.background=L>0?'linear-gradient(var(--hue),var(--hue)) 50% 100%/'+Math.round(L*100)+'% 3px no-repeat':'none';}
+    if(mode==='b'){el.style.transform='translateY('+((1-e)*-10)+'px)';el.style.color='var(--ink)';}
+    if(mode==='c'){el.style.transform='translateY('+((1-e)*10)+'px)';el.style.filter=e<1?'blur('+((1-e)*5).toFixed(2)+'px)':'';
+      const said=t>=w.en;el.style.setProperty('--p',t<w.st?0:said?1:((t-w.st)/(w.en-w.st)).toFixed(3));el.style.setProperty('--u',L.toFixed(3));
+      el.style.color=L>0?'color-mix(in srgb,var(--hue) '+Math.round(L*35)+'%,var(--ink))':'var(--ink)';}
+  }
+
+  /* B · the ring of words and the line beneath */
+  function renderB(t,L){const k=SC.k;const cx=SC.coreC[0]+L.dx-focus.getBoundingClientRect().left,cy=SC.coreC[1]+L.dy-focus.getBoundingClientRect().top;
+    const ring=$('#ring'),halo=$('#halo'),lens=$('#lens');
+    const R=(k==='panel'?lerp(158,100,tw(t,500,DUR.slow)):158)*(k==='back'?1-.9*tw(t,1150,DUR.slow):1);
+    ring.style.left=cx+'px';ring.style.top=cy+'px';
+    const LR=R+26;lens.style.left=(cx-LR)+'px';lens.style.top=(cy-LR)+'px';lens.style.width=lens.style.height=(LR*2)+'px';
+    if(k==='back')lens.style.opacity=1-tw(t,1150,DUR.slow);
+    // the halo ring and the sentence's own progress along it
+    const i=(k==='speak'||k==='panel')?speechAt(SC.U,t):-1;const S=i>=0?SC.U[i]:null;const prog=S?clamp((t-S.at)/S.dur):0;
+    const hr=R-4,circ=2*Math.PI*hr;
+    halo.style.left=(cx-hr-6)+'px';halo.style.top=(cy-hr-6)+'px';
+    halo.innerHTML='<svg width="'+(hr*2+12)+'" height="'+(hr*2+12)+'" aria-hidden="true"><circle cx="'+(hr+6)+'" cy="'+(hr+6)+'" r="'+hr+'" fill="none" stroke="rgba(190,230,255,.16)" stroke-width="1.2"/>'+
+      (S?'<circle cx="'+(hr+6)+'" cy="'+(hr+6)+'" r="'+hr+'" fill="none" stroke="'+(S.who==='coach'?'#ff8a7a':'#59e6ff')+'" stroke-opacity=".7" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="'+(circ*prog).toFixed(1)+' '+circ.toFixed(1)+'" transform="rotate(-90 '+(hr+6)+' '+(hr+6)+')"/>':'')+
+      (k==='think'?'<circle cx="'+(hr+6)+'" cy="'+(hr+6)+'" r="'+hr+'" fill="none" stroke="rgba(190,230,255,.5)" stroke-width="2" stroke-dasharray="3 9" transform="rotate('+(t/20)+' '+(hr+6)+' '+(hr+6)+')"/>':'')+'</svg>';
+    if(k==='back')halo.style.opacity=1-tw(t,1150,DUR.slow);
+    const place=(el,ang,sc,op)=>{const x=Math.cos(ang)*R,y=Math.sin(ang)*R;el.style.transform='translate('+x+'px,'+y+'px) translate(-50%,-50%) rotate('+(ang+Math.PI/2)+'rad) scale('+sc+')';el.style.opacity=op;};
+    if(k==='idle')rippleAt(t);
+    if(k==='listen'){const lv=HIS(t);$$('.rb',ring).forEach((el,n)=>{const ang=n/64*Math.PI*2;const h=6+(RM?10:lv*60*(.45+.55*Math.abs(Math.sin(n*1.7+t/120))));const rr=R-18;el.style.height=h+'px';el.style.transform='translate('+(Math.cos(ang)*rr)+'px,'+(Math.sin(ang)*rr)+'px) rotate('+(ang+Math.PI/2)+'rad) translate(-50%,-100%)';});}
+    if(k==='think'){let acc=0;const tot=SC.rw.reduce((a,r)=>a+r.w+10,0);const spin=RM?0:t/4200;SC.rw.forEach((r)=>{const d=acc+r.w/2-tot/2;acc+=r.w+10;const ang=-Math.PI/2+d/R+spin;place(r.el,ang,1,1);});}
+    if(k==='speak'||k==='panel'||k==='back'){
+      const U=SC.U;const tt=k==='back'?U[U.length-1].at+U[U.length-1].dur+400:t;const ci=speechAt(U,tt);
+      // the words of the current sentence slide round the arc: the focus point is the word being said
+      const GAP=16;
+      if(ci>=0){const S=U[ci];let cj=0;S.words.forEach((w,x)=>{if(tt>=w.st)cj=x;});const pos=[];let acc=0;const list=SC.rw.filter((r)=>r.i===ci);list.forEach((r)=>{pos[r.j]=acc+r.w/2;acc+=r.w+GAP;});
+        const e=tw(tt,S.words[cj].st,DUR.base,EOUT);const focusX=cj>0?lerp(pos[cj-1],pos[cj],e):pos[0];
+        SC.rw.forEach((r)=>{if(r.i!==ci){r.el.style.opacity=0;return;}const w=S.words[r.j];const {L:lit}=wordState(w,tt);
+          if(tt<w.st){r.el.style.opacity=0;return;}
+          const d=pos[r.j]-focusX;const ang=-Math.PI/2+d/(R+12);const sc=1.28-Math.min(.5,Math.abs(d)/R*.55);
+          const op=r.j===cj?e:clamp(1+d/(R*1.25))*.75;place(r.el,ang,sc,k==='back'?op*(1-tw(t,1150,DUR.base)):op);
+          r.el.style.color=lit>0?'color-mix(in srgb,var(--hue) '+Math.round(lit*100)+'%,var(--ink2))':'var(--ink2)';
+          r.el.style.textShadow=lit>0?'0 0 20px color-mix(in srgb,var(--hue) '+Math.round(lit*55)+'%,transparent)':'none';
+          r.el.style.textDecoration=lit>.5?'underline':'none';r.el.style.textDecorationColor='var(--hue)';r.el.style.textDecorationThickness='2px';r.el.style.textUnderlineOffset='6px';});}
+      // the line beneath: a word lands here when it stops being the word being said
+      $$('#bline .bs').forEach((sp)=>{const pi=+sp.dataset.i;const vis=pi===ci;sp.style.display=vis?'':'none';if(!vis)return;
+        $$('.w',sp).forEach((el)=>{const w=U[pi].words[+el.dataset.j];const land=tw(tt,w.en-40,DUR.base,EOUT);el.style.opacity=land;el.style.transform='translateY('+((1-land)*-12)+'px)';});});
+      const chip=$('#bchip');const who=ci>=0?U[ci].who:null;if(chip.dataset.who!==String(who)){chip.dataset.who=who;chip.innerHTML=who?chip_(who):'';}
+      if(k==='panel'){const p=tw(t,500,DUR.slow);$('#bline').style.transform='translateY('+(p*20)+'px)';chip.style.transform='translateY('+(p*20)+'px)';}
+    }
+  }
+  let ripples=[];function rippleAt(t){ // B's glass answers a touch with a ring (screen 1 demo)
+    let rp=$('#rip');if(!rp){rp=document.createElement('span');rp.className='ripple';rp.id='rip';focus.appendChild(rp);}
+    const tc=touchAt(t);if(!tc||RM){rp.style.opacity=0;return;}const ph=((t-2000)%900)/900;const r=12+ph*70;const fr=focus.getBoundingClientRect();
+    rp.style.left=(tc[0]-fr.left-r)+'px';rp.style.top=(tc[1]-fr.top-r)+'px';rp.style.width=rp.style.height=(2*r)+'px';rp.style.opacity=(1-ph)*.7;}
+
+  /* C · the plate */
+  function renderC(t){const U=SC.U;const k=SC.k;const tt=k==='back'?U[U.length-1].at+U[U.length-1].dur+400:t;const ci=speechAt(U,tt);const col=$('#pcol');
+    // scroll so the sentence being said sits near the plate's foot, earlier ones dim above
+    const padTop=72,foot=(SC.plateH||300)-40;
+    const target=(i)=>i<0?padTop:Math.min(padTop,foot-SC.pOff[i].bot);
+    let y=padTop;if(ci>=0){const from=target(ci-1),to=target(ci);y=lerp(from,to,tw(tt,U[ci].at-100,DUR.slow));}
+    col.style.transform='translateY('+y+'px)';
+    $$('p',col).forEach((p)=>{const pi=+p.dataset.i;p.classList.toggle('earlier',pi<ci);p.style.opacity=pi>ci?0:1;
+      const tag=$('[data-tag]',p);if(tag)tag.style.opacity=tw(tt,U[pi].at-150,DUR.base);
+      $$('.w',p).forEach((el)=>{const w=U[pi].words[+el.dataset.j];styleWord(el,w,tt,'c');if(pi<ci){el.style.color='';el.style.setProperty('--u',0);}});});
+    const ph=$('#phead');const who=ci>=0?U[ci].who:'nova';const n=ci>=0?(ci+1)+' of '+U.length:'';
+    const key=who+n;if(ph.dataset.k!==key){ph.dataset.k=key;ph.innerHTML=chip_(who)+'<span class="n">'+n+'</span>';}
+    if(k==='panel'){const p=tw(t,500,DUR.slow);const sp=$('#spanel');const pl=$('#plate');const ph2=sp.offsetHeight;const off=ph2+14;
+      pl.style.transform='translateY('+(off*p)+'px)';pl.style.height=((SC.plateH0||(SC.plateH0=pl.offsetHeight))-off*p)+'px';SC.plateH=(SC.plateH0-off*p);
+      const seam=$('#seam');seam.style.top=(sp.offsetTop+ph2+2)+'px';seam.style.opacity=p;}
+  }
+
+  /* screen 5: the panel rises (A, B) or docks (C); the bars grow; Tuesday is ringed as it is said */
+  function renderPanel(t){const sp=$('#spanel');if(!sp)return;const p=tw(t,500,DUR.slow);
+    const dy=v==='c'?-18*(1-p):24*(1-p);sp.style.opacity=p;sp.style.transform='translateY('+dy+'px) scale('+(.96+.04*p)+')';sp.style.filter=p<1?'blur('+((1-p)*8).toFixed(2)+'px)':'';
+    $$('.bars7 i',sp).forEach((b,n)=>{b.style.transform='scaleY('+tw(t,620+n*40,DUR.slow,EOUT)+')';});
+    const tue=U_PANEL[1].words[0];const m=$('#tuemark');const on=tw(t,tue.st,DUR.base,EOUT);m.style.opacity=on;m.style.transform='scale('+(1.06-.06*on)+')';
+    const ps=$('#pstate');if(ps&&v!=='c'){ps.style.opacity=1-p;}
+  }
+  function renderListen(t){const m=$('#meterrow');if(m){const n=m.children.length;[...m.children].forEach((b,i)=>{const lag=(n-1-i)*90;const l=HIS(t-lag);b.style.height=(4+(RM?8:l*40))+'px';});}
+    const ls=$('#lstate'),lh=$('#lhint');if(ls){const paused=t>3400&&t<4500,sending=t>=4500;ls.textContent=sending?'Sending':paused?'A pause':'Listening';lh.textContent=sending?'· to your Mac':paused?'· sending in a moment':'· a pause sends';}}
+  function renderThink(t){$$('#steps li').forEach((li,n)=>{const done=n===0?t>1700:t>3900;const shown=n===0||t>1700;li.style.opacity=shown?tw(t,n===0?0:1700,DUR.base):0;
+    const want=done?'tick':'sp';const cur=li.firstElementChild;if(!cur.classList.contains(want)){cur.outerHTML=done?'<span class="tick">'+ico('check')+'</span>':'<span class="sp"></span>';}
+    const sp=li.querySelector('.sp');if(sp)sp.style.transform='rotate('+(RM?0:t*.36)+'deg)';});}
+  function renderIdle(t){const f=$('#finger'),fl=$('#fingerlab');if(!f)return;const tc=touch?null:touchAt(t);const fr=focus.getBoundingClientRect();
+    if(tc){f.style.opacity=.9;f.style.left=(tc[0]-fr.left)+'px';f.style.top=(tc[1]-fr.top)+'px';fl.style.opacity=.9;fl.style.left=(tc[0]-fr.left+(tc[0]>240?-148:28))+'px';fl.style.top=(tc[1]-fr.top-8)+'px';}else{f.style.opacity=0;fl.style.opacity=0;}}
+
+  /* screen 6: back to the thread */
+  function renderBack(t){const g=$('#finger')||(()=>{focus.insertAdjacentHTML('beforeend',finger);return $('#finger');})();const fl=$('#fingerlab');fl.textContent='swipe up (demo)';
+    const pk=$('#peek').getBoundingClientRect(),fr=focus.getBoundingClientRect();
+    if(!RM&&t>500&&t<1250){const p=EIO(clamp((t-650)/500));g.style.opacity=t<1150?.9:0;g.style.left=(pk.left+pk.width*.6-fr.left)+'px';g.style.top=(pk.top+pk.height/2-fr.top-150*p)+'px';fl.style.opacity=g.style.opacity;fl.style.left=(pk.left+pk.width*.6-fr.left+28)+'px';fl.style.top=(pk.top+pk.height/2-fr.top-150*p-8)+'px';}else{g.style.opacity=0;fl.style.opacity=0;}
+    const p=RM?1:tw(t,1150,DUR.slow);const src=SC.src,dst=SC.dst;
+    const el=$(v==='a'?'#subs':v==='b'?'#bline':'#plate',focus);
+    const sc=v==='a'?17/27:v==='b'?17/21:dst.width/src.width;const anc=SC.anc;const sx=dst.left-src.left-(anc.left-src.left)*sc,sy=dst.top-src.top-(anc.top-src.top)*sc;
+    el.style.transformOrigin='0 0';if(v==='c'){const ky=dst.height/src.height;el.style.transform='translate('+((dst.left-src.left)*p)+'px,'+((dst.top-src.top)*p)+'px) scale('+lerp(1,sc,p)+','+lerp(1,ky,p)+')';el.style.filter=p>0&&p<1?'blur('+(p*6).toFixed(1)+'px)':'';}else el.style.transform='translate('+(sx*p)+'px,'+(sy*p)+'px) scale('+lerp(1,sc,p)+')';el.style.opacity=RM?0:1-tw(t,v==='c'?1230:1330,200);
+    // everything else in focus steps aside; the thread rises beneath
+    $$('.fstate,.peek,.ftop,#achip,#bchip,.presenter .pn',focus).forEach((x)=>{x.style.opacity=1-tw(t,1150,DUR.base);});
+    const q=RM?1:tw(t,1200,DUR.slow);tv.style.opacity=q;tv.style.transform='translateY('+((1-q)*40)+'px)';tvsky.style.opacity=q;tv.classList.toggle('on',q>.5);
+    const dm=$(v==='c'?'#dstmsg':'#dstlast',tv);dm.style.opacity=RM?1:tw(t,v==='c'?1350:1450,DUR.base);
+    if(v==='a')field.style.opacity=1-q;if(v==='b')deep.style.opacity=1-q;focus.style.visibility=q>=1?'hidden':'';
+    const nm=$('#tname',tv);const glint=RM?0:clamp(1-Math.abs(t-1650)/280);nm.style.background=glint>0?'rgba(89,230,255,'+(glint*.18)+')':'';
+  }
+
+  /* ---------- touch: her attention follows a real finger ---------- */
+  function bindTouch(){focus.onpointerdown=(e)=>{if(e.target.closest('button'))return;touch=[e.clientX,e.clientY];};
+    focus.onpointermove=(e)=>{if(touch)touch=[e.clientX,e.clientY];};focus.onpointerup=focus.onpointercancel=focus.onpointerleave=()=>{touch=null;};}
+
+  /* ---------- the review's own ruler ---------- */
+  window.__m=function(){const topY=$('#switch').offsetParent?$('#switch').offsetHeight:0;const ok=(el)=>{const r=el.getBoundingClientRect();const cs=getComputedStyle(el);return r.width>0&&r.height>0&&cs.opacity!=='0'&&cs.visibility!=='hidden'&&!el.closest('[hidden]');};
+    const sizes=new Set();const under=[];
+    $$('#focus *,#tv *').forEach((el)=>{if(!ok(el))return;if(el.closest('#tv')&&+getComputedStyle(tv).opacity<.5)return;if(el.closest('.fingerlab'))return;if(![...el.childNodes].some((n)=>n.nodeType===3&&n.textContent.trim()))return;sizes.add(Math.round(parseFloat(getComputedStyle(el).fontSize)*10)/10);});
+    $$('#focus button,#tv button,.dock button').forEach((b)=>{if(!ok(b))return;if(b.closest('#tv')&&+getComputedStyle(tv).opacity<.5)return;const r=b.getBoundingClientRect();if(Math.min(r.width,r.height)<44)under.push((b.getAttribute('aria-label')||b.textContent.trim()).slice(0,24)+' '+Math.round(r.width)+'x'+Math.round(r.height));});
+    const tabs=$$('.tab').map((x)=>parseFloat(getComputedStyle(x).fontSize));
+    return JSON.stringify({s:location.hash,vw:innerWidth,vh:innerHeight,sw:document.documentElement.scrollWidth,sizes:[...sizes].sort((a,b)=>a-b),tab:Math.min(...tabs),under44:under,top:topY});};
+
+  /* ---------- the switcher ---------- */
+  const scr=$('#screens');
+  function setTop(){document.documentElement.style.setProperty('--top','0px');$('#unhide').textContent=v.toUpperCase()+' · '+SCREENS[si].n.slice(2)+'  ▾';}
+  function apply(){
+    $$('[data-var]').forEach((b)=>b.setAttribute('aria-pressed',String(b.dataset.var===v)));
+    scr.innerHTML=SCREENS.map((x,i)=>'<button data-s="'+i+'" aria-pressed="'+(i===si)+'">'+x.n+'</button>').join('');
+    history.replaceState(null,'','#'+v+'/'+(si+1));
+    try{localStorage.setItem('nova-focus-68',v+'/'+(si+1));}catch(e){}
+    field.style.opacity=1;deep.style.opacity=1;
+    setTop();build();restart();
+  }
+  function restart(){t0=performance.now();simT=-1;if(frozen!=null||RM)frame(performance.now());}
+  scr.addEventListener('click',(e)=>{const b=e.target.closest('[data-s]');if(!b)return;si=+b.dataset.s;apply();});
+  $$('[data-var]').forEach((b)=>b.addEventListener('click',()=>{v=b.dataset.var;apply();}));
+  $('#replay').addEventListener('click',()=>{frozen=null;build();restart();});
+  $('#hide').addEventListener('click',()=>{document.body.classList.remove('rev');setTop();});
+  $('#unhide').addEventListener('click',()=>{document.body.classList.add('rev');});
+  $('#tally').addEventListener('click',()=>{$('#tally').classList.toggle('open');});
+  function fromHash(){const p=(location.hash||'').replace('#','').toLowerCase().split('/');if(!TALLY[p[0]])return false;v=p[0];const n=+p[1];si=n>=1&&n<=6?n-1:0;return true;}
+  window.addEventListener('hashchange',()=>{if(fromHash())apply();});
+  window.addEventListener('resize',()=>{setTop();build();restart();});
+  // instruments: freeze at a moment, hide the review bar, force the reduced-motion still
+  window.__focus={seek(ms){frozen=ms;simT=-1;frame(performance.now());return ms;},play(){frozen=null;restart();},clean(){document.body.classList.add('clean');document.body.classList.remove('rev');if(frozen!=null)frame(performance.now());},rm(on){RM=!!on;build();restart();},dbg(){const tc=touchAt(frozen||0);return JSON.stringify({tc,near:F.P.filter((p)=>tc&&Math.hypot(p.x-tc[0],p.y-tc[1])<60).length,sample:F.P.slice(0,3).map((p)=>[Math.round(p.x),Math.round(p.y)])});}};
+  if(!fromHash()){try{const p=(localStorage.getItem('nova-focus-68')||'').split('/');if(TALLY[p[0]]){v=p[0];const n=+p[1];si=n>=1&&n<=6?n-1:0;}}catch(e){}}
+  apply();
+  requestAnimationFrame(loop);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{setTop();build();restart();});
+})();
+</script>
+</body>
+</html>
