@@ -561,6 +561,19 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 30 Sep 2026 — THE CONSULT RAIL IS LIVE (3f5597e, server reloaded): every
+  reasoning lane (Nova, Coach, Leader, Researcher, Librarian) can ask every
+  other through server/lib/consult.js; Nova directs as CEO; the Librarian
+  answers read-only from his library with checked citations; structured asks
+  on the job; by/from on the record; no caps, loop guards only. Not on the
+  rail: Quick Session, Practice, Studio, Daily Review, Watcher, Scout, and
+  the calendar can be asked but not ask. Existing Voice sessions learn
+  CONSULT at their next fresh session. WHO IS ANSWERING ROUND 2 published
+  (6bba781, mockup 67). His calls from both: Siri asking the Researcher
+  (110 s hands-free limit); a consulted Coach advising only vs filing cards;
+  retiring free-text "key" panels; lit hue = finder's colour; the bench
+  stepping aside under the stage; word-level lighting (needs word timings);
+  shipping the Rules page as "How Nova shows things".
 - 29 Sep 2026 (evening) — HIS FOURTH ANSWERS, and a standing rule restated with
   disappointment: EVERY agent consults every other and Nova directs all as
   CEO; nothing walled off (memory nova-agents-consult-everyone). → BUILD IN
