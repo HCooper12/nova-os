@@ -556,6 +556,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 29 Sep 2026 (afternoon) — THE RECORD published (194cdcc, mockup 65: trophy
+  rises · plate loads · muscle lights · medal struck; "You beat last time" on
+  the sheet, "New personal best" once the server confirms). His calls: the
+  idea or a blend (a lift-specific one on the sheet, the trophy or medal when
+  confirmed); the sheet wording; play once or save it for the confirmed PB;
+  idea 2 needs a third drawing for dumbbell/bodyweight lifts (no equipment
+  field in the library); idea 3 flat or 3D figure. Two possible app bugs
+  found by reading, for the anatomy pipeline, NOT verified in the app:
+  BodyMap.jsx may draw off-limb mirrored muscles (lats, obliques, glutes) on
+  the left only; exerciseMotion.js arm angles may swing across the body.
 - 29 Sep 2026 (midday) — THE THREE VOICE BUGS FIXED (729810b): attachment
   composer (Send 73×143 → 73×40, route label 249px above → 2px), Tap-to-hear
   ×, the spoken question cuts on a clause with an ellipsis (four tests). The
