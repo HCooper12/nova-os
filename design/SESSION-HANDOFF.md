@@ -23,9 +23,11 @@ stage · E stage header, A/B kept), mockup 64 Who is answering
 fixed (729810b; briefDecisions.js reloads with nova-os-83's next commit),
 the tab renamed Nova (2439168). nova-os-83 owns FUEL end to end now (reel
 import → recipe page, mockup 66, real read-only frames as the review) and
-has dirty Fuel files in the main tree: do not run gates that read the
-working tree while its edits are half-done, and do not reload the server
-until it does. NEXT for fc: his answers on 63/64/65 → the Nova build
+has landed its first two commits (18b81ce data model, 9afac7f recipe page),
+pushed main to 9afac7f and reloaded the server (briefDecisions.js live);
+the recipes guard was re-recorded on purpose (bank cards gained a
+"Serves N · time" line, 1683px). Verified here after: build green, lint 0,
+three guards unchanged, health 200. The tree is clean again. NEXT for fc: his answers on 63/64/65 → the Nova build
 (thread + stage + kept recording + hold menu + agent provenance if chosen)
 and the record moment on the Finish sheet; then Sheets and overlays (§6
 #6). Two figure observations to verify for the anatomy pipeline (ledger).
