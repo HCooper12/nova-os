@@ -180,11 +180,12 @@ test('the Leader consults the Researcher and answers from its brief', async () =
   _setConsultDepsForTest(null);
 });
 
-test('a consulted agent answers the one who asked, and nothing it says acts', async () => {
+test('a consulted agent answers the one who asked; an answer with no PROPOSE files nothing', async () => {
   const done = await settled(startAskCoach(stubDir, { question: 'Should he deload?', context: 'ctx', consulted: { by: 'nova', question: 'should I deload', chain: ['nova'] } }));
   assert.equal(done.status, 'ready', done.error);
   assert.equal(done.result.text, 'A plain answer.');
-  assert.equal(done.result.proposals, undefined, 'no card path on a consulted turn');
+  assert.equal(done.result.proposals, undefined, 'a consulted turn never takes the Coach chat\'s card path');
+  assert.deepEqual(done.result.cards, [], 'no card from an answer that proposed nothing');
 });
 
 test('the Librarian answers from his library, citations checked by code, and writes nothing', async () => {
@@ -198,8 +199,8 @@ test('the Librarian answers from his library, citations checked by code, and wri
   const out = await runLibrarianAsk(vault, 'LIBRARY_Q what does my library say about identity', { from: 'nova', question: 'who am I becoming', chain: ['nova'] });
   assert.match(out.text, /Identity comes first \(Wiki\/Sources\/Atomic Habits\.md\)/);
   assert.deepEqual(out.citations, [
-    { path: 'Wiki/Sources/Atomic Habits.md', exists: true },
-    { path: 'Wiki/Sources/Ghost Book.md', exists: false },
+    { path: 'Wiki/Sources/Atomic Habits.md', title: 'Atomic Habits', exists: true },
+    { path: 'Wiki/Sources/Ghost Book.md', title: 'Ghost Book', exists: false },
   ]);
   assert.match(out.text, /not in his vault.*Ghost Book\.md/s, 'a citation that points at nothing is named');
   assert.equal(snapshot(), before, 'the vault is byte-for-byte untouched');

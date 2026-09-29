@@ -9,8 +9,6 @@ import { composeShow } from '../lib/morningShow.js';
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 // Shortcuts variable NAMES, which arrive when a JSON body row holds typed
 // text where the variable token was meant to go. They are valid strings, so
 // nothing upstream can tell them from a real question — only this list can.
@@ -464,32 +462,57 @@ export function voiceRouter(vaultPath) {
         question, context, liveLine, direct: true,
         sessionId: spoken.sessionId, resume: spoken.resumed,
       });
-      const deadline = Date.now() + 110_000;
-      while (Date.now() < deadline) {
-        if (res.writableEnded || res.destroyed) { clearInterval(keepalive); return; }
-        const job = getMessageJob(jobId);
-        if (job?.status === 'ready') {
-          // One receipt line per spoken ask: whether the session was reused
-          // and how long it took. "Why was that one slow?" is then answerable
-          // from the log instead of by guessing (the whole reason this
-          // latency problem went unexamined for so long).
-          // The reply text is on the receipt too: when he says "Siri didn't
-          // answer", the first question is whether Nova produced an answer at
-          // all, and without this that took a live reproduction to establish.
-          const reply = String(job.result.text || '');
-          console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`} q=${JSON.stringify(question.slice(0, 60))} reply=${reply.length}ch ${JSON.stringify(reply.slice(0, 80))}`);
-          const { trimForRecord } = await import('../lib/consult.js');
-          const from = trimForRecord(job.result.consult);
-          return finish({ text: job.result.text, sessionId: job.result.sessionId, record: { by: 'nova', ...(from ? { from } : {}) } });
-        }
-        if (job?.status === 'error') {
-          // A dead process or a spent budget must not poison the next ask:
-          // the following one starts a clean conversation rather than trying
-          // to --resume something that is gone.
-          dropSpokenSession();
-          return finish({ text: `Nova hit an error: ${job.error}`, error: job.error });
-        }
-        await sleep(120);
+      // THE LINE AND A SLOW ASK (lib/handsFree.js, his call 30 Sep): a
+      // consult that includes the Researcher answers at once with a
+      // code-written interim, and the synthesis lands in his thread later.
+      const { awaitHandsFree, followThrough, lateFailureLine } = await import('../lib/handsFree.js');
+      const { trimForRecord } = await import('../lib/consult.js');
+      const waited = await awaitHandsFree(jobId, {
+        getJob: getMessageJob,
+        cancelled: () => res.writableEnded || res.destroyed,
+      });
+      if (waited.kind === 'gone') { clearTimeout(keepaliveStart); if (keepalive) clearInterval(keepalive); return; }
+      if (waited.kind === 'ready') {
+        const job = waited.job;
+        // One receipt line per spoken ask: whether the session was reused
+        // and how long it took. "Why was that one slow?" is then answerable
+        // from the log instead of by guessing (the whole reason this
+        // latency problem went unexamined for so long).
+        // The reply text is on the receipt too: when he says "Siri didn't
+        // answer", the first question is whether Nova produced an answer at
+        // all, and without this that took a live reproduction to establish.
+        const reply = String(job.result.text || '');
+        console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`} q=${JSON.stringify(question.slice(0, 60))} reply=${reply.length}ch ${JSON.stringify(reply.slice(0, 80))}`);
+        const from = trimForRecord(job.result.consult);
+        return finish({ text: job.result.text, sessionId: job.result.sessionId, record: { by: 'nova', ...(from ? { from } : {}) } });
+      }
+      if (waited.kind === 'error') {
+        // A dead process or a spent budget must not poison the next ask:
+        // the following one starts a clean conversation rather than trying
+        // to --resume something that is gone.
+        dropSpokenSession();
+        return finish({ text: `Nova hit an error: ${waited.job.error}`, error: waited.job.error });
+      }
+      if (waited.kind === 'interim') {
+        // The turn still owns this session's process (it resumes it with the
+        // answers), so the next ask starts a fresh conversation rather than
+        // colliding with it.
+        dropSpokenSession();
+        console.log(`ask/sync interim after ${Date.now() - started}ms: ${JSON.stringify(waited.text)} (the turn continues)`);
+        finish({ text: waited.text, sessionId: null, pending: true, record: { by: 'nova' } });
+        followThrough(jobId, {
+          getJob: getMessageJob,
+          onReady: (job) => {
+            const from = trimForRecord(job.result.consult);
+            console.log(`ask/sync late answer after ${Date.now() - started}ms reply=${String(job.result.text || '').length}ch`);
+            logTurn({ who: 'nova', by: 'nova', text: job.result.text, via, ...(from ? { from } : {}) });
+          },
+          onError: (error, job) => {
+            console.log(`ask/sync late answer FAILED after ${Date.now() - started}ms: ${error}`);
+            logTurn({ who: 'system', text: lateFailureLine(job?.consult, error), via });
+          },
+        }).catch((e) => console.log(`ask/sync follow-through failed: ${e.message}`));
+        return;
       }
       dropSpokenSession();
       finish({ text: 'Nova took too long to answer that one.', error: 'timeout' });

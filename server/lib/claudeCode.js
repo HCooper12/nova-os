@@ -13,7 +13,7 @@ import { speakableText } from '../../src/artifactBlocks.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
 import { registerJobMap } from './jobRegistry.js';
-import { consultCapability, consultReminder, consultedBrief, openConsult, stripDirectives, GUARD_NOTE, ANSWER_NOW } from './consult.js';
+import { consultCapability, consultReminder, consultedBrief, openConsult, stripDirectives, unwrapDocuments, GUARD_NOTE, ANSWER_NOW } from './consult.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -470,10 +470,10 @@ async function consultStep(ctl, replyText, turnJob, who, resume) {
 // writes nothing: no document is filed (its body is the answer), no directive
 // acts. Its warm process is released at once: it is not a conversation he
 // will come back to, and the pool's four slots are his.
-async function finishConsulted(cwd, replyText, turnJob, { question, ctl, sessionId, kind }) {
+async function finishConsulted(cwd, replyText, turnJob, { question, ctl, sessionId, kind, extra = null }) {
   try {
     const text = stripDirectives(parseVisualStream(replyText).text);
-    turnJob.result = { text: text || '(an empty answer)', sessionId, consult: ctl.roster.length ? ctl.roster : null, question };
+    turnJob.result = { text: text || '(an empty answer)', sessionId, consult: ctl.roster.length ? ctl.roster : null, question, ...(extra || {}) };
     turnJob.status = 'ready';
   } catch (e) {
     turnJob.status = 'error';
@@ -565,6 +565,13 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
         try {
           const { createVoiceProposal } = await import('./voiceActions.js');
           proposal = await createVoiceProposal(cwd, question, parsed.proposal);
+          // never a twin: the Coach (asked this turn, or earlier) already has
+          // this change waiting on his call, and code says so, not the model
+          if (proposal?.duplicate) {
+            const waiting = String(proposal.title || '').replace(/^Coach:\s*/, '');
+            text = `${text.trim()}${text.trim() ? ' ' : ''}That change is already waiting on your call on the Coach tab${waiting ? ` (${waiting})` : ''}, so nothing new was filed.`;
+            proposal = null;
+          }
         } catch (e) {
           text = `${text} (I tried to draft that for you, but ${e.message} — nothing was changed.)`;
         }
@@ -905,7 +912,7 @@ ${GLASS_CONTRACT}
 
 ${ARTIFACT_CONTRACT}
 
-${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `Hayden asks: ${question}`}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question, { canPropose: true })}\n\nThe question: ${question}` : `Hayden asks: ${question}`}`;
 }
 
 // Prepended to every RESUMED coach turn. Deliberately short — it is a
@@ -958,8 +965,9 @@ function sideJob(forward, onError) {
 }
 
 // `consulted`: another agent is asking the Coach (lib/consult.js) — a fresh
-// session with the Coach's full picture that answers that agent and files
-// nothing: no card, no document, no cooldown stamp.
+// session with the Coach's full picture that answers that agent. It files no
+// document and stamps no cooldown; its program changes become cards for his
+// yes, never twins of one already waiting (finishConsultedCoach below).
 export function startAskCoach(cwd, { question, asked = null, context, sessionId, onReady, consulted = null }) {
   assertLaneOn('coach');
   const jobId = randomUUID().slice(0, 8);
@@ -1002,12 +1010,42 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
     from: 'coach', question: asked || question, vaultPath: cwd, job, progress: true,
     chain: consulted?.chain || [], ledger: consulted?.ledger || null, answeringTo: consulted?.by || null,
   });
+  // A CONSULTED COACH MAY FILE CARDS (30 Sep 2026, his call: "Coach can file
+  // cards directly but I want duplicates to be avoided"). Its PROPOSE lines
+  // ride the same checked pipeline as its own chat (refusals back to this
+  // session, a move as one card), but every card waits for HIS yes, a change
+  // already waiting is never filed twice (the loose duplicate rule in
+  // coachProposals.js), and code writes under the answer what was filed, so
+  // whoever asked can tell him without proposing it again. Documents are
+  // unwrapped first, so a PROPOSE inside one is never a card.
+  const finishConsultedCoach = async (replyText, turnJob) => {
+    let text = replyText;
+    let cards = [];
+    try {
+      const { settleCoachChanges } = await import('./coachProposals.js');
+      const settled = await settleCoachChanges(cwd, {
+        // the card carries HIS question, not the asking agent's
+        question: consulted.question || question,
+        replyText: unwrapDocuments(parseVisualStream(replyText).text),
+        consulted: true,
+        resume: (t) => new Promise((resolve) => {
+          const side = sideJob(null, () => resolve(null));
+          warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: resumeArgs, text: t, job: side, finishTurn: (r) => resolve(r) });
+        }),
+      });
+      text = settled.text;
+      cards = settled.filed.map((f) => ({ recordId: f.recordId, title: f.title, state: f.duplicate || f.reused ? 'waiting' : 'filed' }));
+    } catch (e) {
+      text = `${stripDirectives(replyText)}\n\n(Code check: the Coach's program changes could not be filed: ${e.message}. Nothing was changed.)`;
+    }
+    return finishConsulted(cwd, text, turnJob, { question, ctl, sessionId: effectiveSessionId, kind, extra: { cards } });
+  };
   const finishTurn = async (incomingText, turnJob) => {
     const step = await consultStep(ctl, incomingText, turnJob, 'the Coach',
       (text) => warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: turnJob, finishTurn }));
     if (!step) return;
     turnJob.consulted = ctl.roster.length ? ctl.roster.map((r) => ({ agent: r.agent, label: r.label, ok: r.ok === true, recordId: r.recordId || null })) : undefined;
-    if (consulted) return finishConsulted(cwd, step.text, turnJob, { question, ctl, sessionId: effectiveSessionId, kind });
+    if (consulted) return finishConsultedCoach(step.text, turnJob);
     let replyText = step.text;
     try {
       // THE DOCUMENTS, FIRST — before settleCoachChanges ever sees this text,

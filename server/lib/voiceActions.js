@@ -177,8 +177,18 @@ export async function createVoiceProposal(vaultPath, question, raw) {
 
   if (kind === 'routine-edit') {
     // Coach's exact validator and filer — same contract, different mouth.
-    const record = await createCoachEditRecord(vaultPath, { question, proposal: raw, source: 'voice' });
-    return { recordId: record.id, title: record.decision.title, route: 'routine-edit' };
+    // NEVER A TWIN (30 Sep 2026): the Coach Nova just consulted may already
+    // have filed this change, or it may be waiting from before; then nothing
+    // new is filed and Nova's reply says it is waiting on his call.
+    const { validateCoachEdit, routeForAction } = await import('./coach.js');
+    const { fileUnlessWaiting } = await import('./coachProposals.js');
+    const validated = await validateCoachEdit(vaultPath, raw, { asked: question });
+    const route = routeForAction(validated.payload.action);
+    const out = await fileUnlessWaiting({
+      route, payload: validated.payload,
+      create: () => createCoachEditRecord(vaultPath, { question, proposal: raw, source: 'voice', validated }),
+    });
+    return { recordId: out.record.id, title: out.record.decision?.title || validated.title, route: 'routine-edit', ...(out.duplicate ? { duplicate: true } : {}) };
   }
 
   // rotation-variant: resolve the spoken slot + alternate NAME against

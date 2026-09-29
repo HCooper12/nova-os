@@ -77,11 +77,22 @@ function dateStr(v) {
   return String(v).slice(0, 10);
 }
 
+// A note's own name for itself: its frontmatter title, else its first
+// top-level heading (an H1 is the note's name; a "## Summary" is not), else
+// its file name. The Librarian names a source by this (his
+// rule, 30 Sep 2026: "Stronger Slowly, chapter 4", never "your book").
+export function noteTitle(fm = {}, body = '', file = '') {
+  if (fm && fm.title) return String(fm.title).trim();
+  const h = String(body || '').match(/^#[ \t]+(.+?)[ \t#]*$/m);
+  if (h) return h[1].replace(/\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]/g, '$1').replace(/[*_`]/g, '').trim();
+  return path.basename(String(file || ''), '.md');
+}
+
 function itemOf({ file, fm, body }) {
   const id = `${SOURCES_DIR}/${path.basename(file, '.md')}`.split(path.sep).join('/');
   return {
     id,
-    title: String(fm.title || path.basename(file, '.md')),
+    title: noteTitle(fm, body, file),
     kind: classifyKind(fm),
     author: String(fm.author || fm.creator || fm.uploader || fm.channel || '') || null,
     provenance: fm.provenance ? String(fm.provenance) : null,

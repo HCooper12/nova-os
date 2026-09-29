@@ -23,9 +23,11 @@
 //      asked ("Asking the Coach and the Librarian.") from the parsed asks.
 //
 // A consulted agent answers the agent that asked, in a fresh session of its
-// own lane, and writes nothing: it may itself consult (anyone but itself and
-// whoever is up its chain, waiting on it), so the Coach asked by Nova can
-// still ask the Researcher.
+// own lane, and writes nothing, with one exception (his call, 30 Sep): the
+// Coach may file program cards through its checked pipeline, each waiting for
+// his yes and never a twin of one already waiting. It may itself consult
+// (anyone but itself and whoever is up its chain, waiting on it), so the
+// Coach asked by Nova can still ask the Researcher.
 //
 // NO CAPS (his standing rule): no budget, no timeout on any ask. The only
 // limits are LOOP guards, which are correctness, not cost:
@@ -67,6 +69,10 @@ export const AGENTS = {
     what: 'reads the published evidence on the web, cross-checks it and returns a cited brief (the brief also lands in his Inbox). Ask it whenever outside evidence should decide the answer. Takes a few minutes.',
     lane: 'researcher',
     canConsult: true,
+    // an ask that outlasts a hands-free line (Siri holds ~110 s): the lane
+    // answers at once with a code-written interim and lands the synthesis in
+    // his thread when it is done (lib/handsFree.js)
+    slow: true,
     ask: (vaultPath, q, o) => askResearcher(vaultPath, q, o),
   },
   librarian: {
@@ -111,8 +117,12 @@ export function consultCapability(from, { chain = [], handsFree = false } = {}) 
   const waitingNote = waiting.length
     ? `\n  ${cap(listWords(waiting.map(labelOf)))} ${waiting.length === 1 ? 'is' : 'are'} waiting on your answer, so cannot be asked from here: if you need something from them, say so in your answer.`
     : '';
+  // Hands-free, he is waiting on one spoken line. His call, 30 Sep: "Let nova
+  // always ask the researcher." Code, not the model, tells him a slow ask is
+  // under way and where its answer will land, so nothing here limits whom she
+  // may ask.
   const handsFreeNote = handsFree
-    ? '\n  Hands-free, he is waiting on one spoken answer: the Researcher takes minutes, longer than that line can hold, so ask it only when he asked for research.'
+    ? '\n  Hands-free, he is waiting on one spoken line: ask whoever the answer needs, the Researcher included. When an ask takes longer than he can hold the line, code tells him who is working and where the answer will land; never say that yourself.'
     : '';
   return `- CONSULT THE OTHER AGENTS. Nothing is walled off: when another agent's knowledge would make your answer materially better, ask them, one or several at once. Instead of your answer (whatever form it normally takes), reply with ONLY this line, EXACTLY this JSON form:
   CONSULT {"asks":[${example}]}
@@ -181,21 +191,43 @@ export function consultProgress(lead, asks) {
   return `${lead ? `${lead}\n\n` : ''}Asking now:\n${lines.join('\n')}`;
 }
 
+// NAME THE SOURCE. His words, 30 Sep 2026: not "your book says"; the source
+// is named ("Stronger Slowly, chapter 4", the note's title). Every synthesis
+// carries this rule, and code puts the titles it holds beside each answer.
+export const SOURCE_RULE = 'Name every source by its title ("Stronger Slowly, chapter 4", the note\'s title, the study\'s title), never "your book", "the study", "a source" or "research shows".';
+
+// A Coach asked by another agent may file program cards (30 Sep, his call:
+// "Coach can file cards directly but I want duplicates to be avoided"), and
+// code says so at the foot of its answer. The one who asked must not file the
+// same change again.
+export const coachCardRule = (tell = 'him') => `If the Coach filed a card or found one already waiting (code says so at the end of its answer), tell ${tell} it is waiting on his call on the Coach tab, and do not PROPOSE the same change yourself.`;
+
+// The titles code holds for an answer: the Librarian's checked citations,
+// the Researcher's numbered sources. Plain words, or '' when there are none.
+export function sourceTitlesLine(r) {
+  const titles = [];
+  for (const c of r?.citations || []) if (c?.exists && c.title) titles.push(`"${c.title}" (${c.path})`);
+  for (const s of r?.sources || []) if (s?.title) titles.push(`[${s.n}] "${s.title}"`);
+  return titles.length ? `Its sources, by title: ${titles.join('; ')}.` : '';
+}
+
 // The message that carries the answers back into the asking conversation.
 // The Coach's wording is its own (its answers become program cards); every
 // other agent talking to him synthesises; a consulted agent answers whoever
 // asked it.
 export function consultReplyText(results, question, { from = 'coach', answeringTo = null } = {}) {
-  const blocks = results.map((r) => (r.ok
-    ? `FROM ${r.label.toUpperCase()} (you asked: ${r.question}):\n${r.answer}`
-    : `${r.label.toUpperCase()} COULD NOT ANSWER (you asked: ${r.question}): ${r.error}. Say so plainly if it matters to the answer.`));
+  const blocks = results.map((r) => {
+    if (!r.ok) return `${r.label.toUpperCase()} COULD NOT ANSWER (you asked: ${r.question}): ${r.error}. Say so plainly if it matters to the answer.`;
+    const titles = sourceTitlesLine(r);
+    return `FROM ${r.label.toUpperCase()} (you asked: ${r.question}):\n${r.answer}${titles ? `\n${titles}` : ''}`;
+  });
   let head;
   if (answeringTo) {
-    head = `[The agents you consulted have answered. Now give ${labelOf(answeringTo)} your full answer to what it asked you, built on what they found, and name whose input shaped it. Consult again only if their answers raise a genuinely new question.]`;
+    head = `[The agents you consulted have answered. Now give ${labelOf(answeringTo)} your full answer to what it asked you, built on what they found, and name whose input shaped it. ${SOURCE_RULE} ${coachCardRule(labelOf(answeringTo))} Consult again only if their answers raise a genuinely new question.]`;
   } else if (from === 'coach') {
-    head = '[The agents you consulted have answered. Now give Hayden your full answer to his question, built on what they found. Name whose input shaped it — "the Researcher\'s review of…", "your calendar shows…". If the Researcher answered, tell him its cited brief is in his Inbox. Then PROPOSE every concrete program change you recommend — one PROPOSE line per change (reorder, schedule, remove, targets, swap…), as suggestions he approves, not instructed — so each lands as a card he can say yes to. Do not consult again unless their answers raise a genuinely new question.]';
+    head = `[The agents you consulted have answered. Now give Hayden your full answer to his question, built on what they found. Name whose input shaped it — "the Researcher's review of…", "your calendar shows…". ${SOURCE_RULE} If the Researcher answered, tell him its cited brief is in his Inbox. Then PROPOSE every concrete program change you recommend — one PROPOSE line per change (reorder, schedule, remove, targets, swap…), as suggestions he approves, not instructed — so each lands as a card he can say yes to. Do not consult again unless their answers raise a genuinely new question.]`;
   } else {
-    head = '[The agents you consulted have answered. Now give Hayden your answer, built on what they found: the synthesis, in your own voice, not a relay of each. Name whose input shaped it ("the Coach\'s view is…", "the Librarian found…"). Where they disagree, say so and say which you would act on. If the Researcher answered, tell him its cited brief is in his Inbox. Consult again only if their answers raise a genuinely new question; you may ask someone new to settle something for all of you.]';
+    head = `[The agents you consulted have answered. Now give Hayden your answer, built on what they found: the synthesis, in your own voice, not a relay of each. Name whose input shaped it ("the Coach's view is…", "the Librarian found…"). ${SOURCE_RULE} Where they disagree, say so and say which you would act on. If the Researcher answered, tell him its cited brief is in his Inbox. ${coachCardRule()} Consult again only if their answers raise a genuinely new question; you may ask someone new to settle something for all of you.]`;
   }
   return `${head}\n\nHis question was: ${question}\n\n${blocks.join('\n\n')}`;
 }
@@ -247,9 +279,13 @@ export async function runConsults(vaultPath, asks, {
         settledAt: new Date().toISOString(), ms: Date.now() - t0,
         ...(Array.isArray(out?.consult) && out.consult.length ? { asks: out.consult } : {}),
         ...(Array.isArray(out?.citations) ? { citations: out.citations } : {}),
+        ...(Array.isArray(out?.sources) && out.sources.length ? { sources: out.sources } : {}),
+        // a consulted Coach's cards: what it filed, and what was already
+        // waiting on his call (never filed twice)
+        ...(Array.isArray(out?.cards) && out.cards.length ? { cards: out.cards, ...(out.cards.some((c) => c.state === 'waiting') ? { note: 'already waiting on your call' } : {}) } : {}),
       });
       onUpdate?.(state);
-      return { agent: a.agent, label: a.label, question: a.question, ok: true, answer, recordId: a.recordId };
+      return { agent: a.agent, label: a.label, question: a.question, ok: true, answer, recordId: a.recordId, citations: a.citations, sources: a.sources, cards: a.cards };
     } catch (e) {
       Object.assign(a, { state: 'failed', ok: false, error: e?.message || String(e), settledAt: new Date().toISOString(), ms: Date.now() - t0 });
       onUpdate?.(state);
@@ -331,10 +367,43 @@ export function openConsult({
 // What a consulted agent is told about who is asking and why. A LEADING
 // BRACKETED PARAGRAPH on purpose: agentSessions.cleanTurnText drops it, and
 // the lanes put it where "Hayden asks" would otherwise be.
-export function consultedBrief(by, parentQuestion = '') {
+//
+// `canPropose`: the Coach, asked by anyone, may file program cards through
+// its own checked pipeline (his call, 30 Sep 2026: "Coach can file cards
+// directly but I want duplicates to be avoided"). Every card waits for HIS
+// yes, whoever asked; code refuses a twin and says so under the answer.
+export function consultedBrief(by, parentQuestion = '', { canPropose = false } = {}) {
   const who = labelOf(by);
   const q = String(parentQuestion || '').trim().slice(0, 600);
-  return `[${cap(who)} is consulting you${q ? `, to help answer Hayden's question: "${q}"` : ''}. Answer ${who}, not Hayden: directly and completely (the length rules for talking to him do not apply; ${who} needs substance), grounded in what you hold, and say plainly what you do not know. Nothing in this answer is written anywhere: no documents, and no PROPOSE, ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines. Say any change you would recommend in plain words; ${who} decides what happens next.]`;
+  const writes = canPropose
+    ? `You may file program changes: when a change to his program would help, end with PROPOSE lines exactly as your rules say; code checks every one and files it as a card for HIS yes (never "instructed": ${who} asking is not him instructing), and a change already waiting on his call is never filed twice. Never say a card is filed or waiting; code says what happened at the end of your answer. Nothing else is written anywhere: no documents, and no ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines.`
+    : `Nothing in this answer is written anywhere: no documents, and no PROPOSE, ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines. Say any change you would recommend in plain words; ${who} decides what happens next.`;
+  return `[${cap(who)} is consulting you${q ? `, to help answer Hayden's question: "${q}"` : ''}. Answer ${who}, not Hayden: directly and completely (the length rules for talking to him do not apply; ${who} needs substance), grounded in what you hold, and say plainly what you do not know. ${SOURCE_RULE} ${writes}]`;
+}
+
+// The Researcher's numbered sources, by title, from its brief's "## Sources"
+// list ("[1] Schoenfeld et al. 2017, Dose-response… https://…"), so whoever
+// asked can name the study rather than "the research". Pure.
+export function researchSources(body) {
+  const text = String(body || '');
+  const at = text.search(/^\s*#{0,3}\s*sources\b/im);
+  if (at < 0) return [];
+  const out = [];
+  for (const line of text.slice(at).split('\n')) {
+    const m = line.match(/^\s*(?:[-*]\s*)?(?:\[(\d+)\]|(\d+)[.)])\s*(.*)$/);
+    if (!m) continue;
+    const rest = m[3];
+    const url = (rest.match(/https?:\/\/[^\s)>\]]+/) || [null])[0];
+    const title = rest
+      .replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, '$1')
+      .replace(/<?https?:\/\/\S+>?/g, '')
+      .replace(/[*_`]/g, '')
+      .replace(/[\s:—–,.-]+$/, '')
+      .trim()
+      .slice(0, 200);
+    if (title) out.push({ n: Number(m[1] || m[2]), title, url });
+  }
+  return out;
 }
 
 // Context handed to the Researcher's MATERIAL channel when it is asked.
@@ -350,6 +419,15 @@ const DIRECTIVE_LINE = /^[ \t]*(PROPOSE|ACT|REFLECT|SHOW|CARD|RESEARCH|WATCH|PLA
 const DOC_MARKER = /^[ \t]*(<<<ARTIFACT\b.*|ARTIFACT>>>[ \t]*)$/gm;
 export function stripDirectives(text) {
   return String(text || '').replace(DIRECTIVE_LINE, '').replace(DOC_MARKER, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+// A consulted Coach's reply before its PROPOSE lines are read: a document's
+// body is unwrapped into the answer with every directive inside it removed,
+// so a PROPOSE quoted in a plan it wrote is never taken for a card (the rule
+// fileArtifacts-before-settleCoachChanges keeps for his own chat).
+const DOC_BLOCK = /^[ \t]*<<<ARTIFACT\b.*$([\s\S]*?)^[ \t]*ARTIFACT>>>[ \t]*$/gm;
+export function unwrapDocuments(text) {
+  return String(text || '').replace(DOC_BLOCK, (_, body) => body.replace(DIRECTIVE_LINE, '')).replace(DOC_MARKER, '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 // ------------------------------ the lanes ---------------------------------
@@ -389,7 +467,8 @@ async function askCoach(vaultPath, q, o = {}) {
   const { startCoachTurn } = await import('./coachTurn.js');
   const jobId = await startCoachTurn(vaultPath, { question: q, sessionId: null, consulted: consultedOpts(o) });
   const job = await waitForJob(jobId, 'the Coach');
-  return { text: job.result?.text || '', consult: job.result?.consult || null };
+  // its cards (filed, or already waiting on his call) ride on the roster
+  return { text: job.result?.text || '', consult: job.result?.consult || null, cards: job.result?.cards || null };
 }
 
 // The Leader's own turn: its chat context, its model, a fresh session.
@@ -416,7 +495,10 @@ async function askResearcher(vaultPath, q, o = {}) {
     if (r.status === 'error') throw new Error(r.error || 'the research failed');
     const body = r.decision?.payload?.body;
     if (!body) throw new Error('the research finished without a brief');
-    return { text: body, recordId: r.id, consult: Array.isArray(r.consult) ? r.consult : null };
+    // the brief's own title and its sources' titles travel with it, so the
+    // synthesis can name them (his 30 Sep rule: never "the study")
+    const title = r.decision?.payload?.title || r.decision?.title || '';
+    return { text: title ? `Brief: "${title}"\n\n${body}` : body, recordId: r.id, sources: researchSources(body), consult: Array.isArray(r.consult) ? r.consult : null };
   }
 }
 

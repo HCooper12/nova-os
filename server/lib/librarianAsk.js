@@ -1,12 +1,13 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import matter from 'gray-matter';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { modelFor, assertLaneOn } from './modelPrefs.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
-import { libraryCatalogue } from './library.js';
+import { libraryCatalogue, noteTitle } from './library.js';
 import { openConsult, consultCapability, consultedBrief, stripDirectives, ANSWER_NOW, GUARD_NOTE } from './consult.js';
 
 // THE LIBRARIAN, ASKED. His words, 29 Sep 2026: Nova should be able to "ask
@@ -39,10 +40,12 @@ const LIBRARIAN_ASK_DISALLOWED = [
 // while they fit, and the model can Grep for anything past the list.
 export function formatCatalogue(cat, { maxChars = 24_000 } = {}) {
   const lines = [];
-  lines.push(`SOURCES (${cat.sources.length}; each is a woven page in his vault; "raw" is the full transcript or dossier behind it):`);
+  lines.push(`SOURCES (${cat.sources.length}; each is "its title" — its path, a woven page in his vault; "raw" is the full transcript or dossier behind it):`);
   let used = 0;
   for (const s of cat.sources) {
-    const head = `- ${s.path} — "${s.title}" (${s.kind}${s.author ? `, ${s.author}` : ''}${s.provenance ? `, ${s.provenance}` : ''})${s.raw ? ` raw: ${s.raw}` : ''}`;
+    // the TITLE first, beside its path: the title is what he hears, the path
+    // is what code checks
+    const head = `- "${s.title}" — ${s.path} (${s.kind}${s.author ? `, ${s.author}` : ''}${s.provenance ? `, ${s.provenance}` : ''})${s.raw ? ` raw: ${s.raw}` : ''}`;
     const withExcerpt = s.excerpt && used < maxChars ? `${head}\n    ${s.excerpt}` : head;
     used += withExcerpt.length;
     lines.push(withExcerpt);
@@ -61,7 +64,8 @@ You are Nova's LIBRARIAN. You keep Hayden's library: every book, podcast, video 
 
 How you answer:
 - RETRIEVE, THEN ANSWER. Find the pages that bear on the question (the catalogue below, then Grep his Wiki/ and Raw/ for the words that matter), open them, and answer from what they actually say. The raw transcript is the deepest record; the woven page is the summary.
-- CITE EVERY CLAIM with the exact path of the note you read it in, in parentheses: (Wiki/Sources/Atomic Habits.md) or (Raw/some-transcript.md). End with a line "Read:" listing every path you opened. A path you did not read is never cited.
+- NAME THE SOURCE BY ITS TITLE, in the sentence itself: "Atomic Habits, chapter 2, says…", "your note Identity says…", with the chapter or section when the page gives one. Never "your book", "a source", "the study" or "your library says" on its own: he wants to know exactly which one.
+- CITE EVERY CLAIM with the exact path of the note you read it in, in parentheses after the title: Atomic Habits says identity comes first (Wiki/Sources/Atomic Habits.md). Code checks every path. End with a line "Read:" listing every path you opened. A path you did not read is never cited.
 - SAY WHAT KIND OF KNOWING IT IS. A page with provenance "researched" is Nova's account of a book from public sources, not the book: say so when it matters. A claim a source makes is the source's claim, attributed; say where two of his sources disagree.
 - HONEST WHEN IT IS NOT THERE. If his library does not hold an answer, say that first and plainly ("Nothing in your library covers X"), then name the nearest thing it does hold. Never fill the gap from general knowledge dressed as his library; if you add general knowledge, label it as yours, not his library's.
 ${consultCapability('librarian', { chain: consulted?.chain || [] })}
@@ -72,17 +76,33 @@ ${catalogue}
 ${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `${asker} asks: ${question}`}`;
 }
 
-// Every path the answer cites, checked against the vault. Pure but for the
-// existence check, which is injectable for tests.
+// A cited note's title, read from the note itself (frontmatter title, else
+// first heading, else its file name). A path that is not there keeps its file
+// name, so the code check can still say which one is missing.
+export function citedTitle(vaultPath, rel) {
+  let raw = null;
+  try { raw = readFileSync(path.join(vaultPath, rel), 'utf8'); } catch { /* not in the vault */ }
+  if (raw == null) return noteTitle({}, '', rel);
+  let fm = {}; let body = raw;
+  try { ({ data: fm, content: body } = matter(raw)); } catch { /* malformed frontmatter: the heading still names it */ }
+  return noteTitle(fm, body, rel);
+}
+
+// Every path the answer cites, checked against the vault, each with the
+// note's TITLE (so whoever asked can name it, not "your book"). Pure but for
+// the existence check and the title read, both injectable for tests.
 const CITED_PATH = /\b((?:Wiki|Raw)\/[^\n()[\]`"]+?\.md)\b/g;
-export function checkLibraryCitations(vaultPath, text, { exists = (p) => existsSync(path.join(vaultPath, p)) } = {}) {
+export function checkLibraryCitations(vaultPath, text, {
+  exists = (p) => existsSync(path.join(vaultPath, p)),
+  titleOf = (p) => citedTitle(vaultPath, p),
+} = {}) {
   const seen = new Set();
   const citations = [];
   for (const m of String(text || '').matchAll(CITED_PATH)) {
     const p = m[1].trim();
     if (seen.has(p) || p.includes('..')) continue;
     seen.add(p);
-    citations.push({ path: p, exists: !!exists(p) });
+    citations.push({ path: p, title: titleOf(p), exists: !!exists(p) });
   }
   return citations;
 }
