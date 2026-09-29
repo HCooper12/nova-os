@@ -403,6 +403,14 @@ export const LANES = [
     off: 'Book requests are refused with a plain message; pasting your own notes about a book still works via ingest.',
   },
   {
+    // THE LIBRARIAN, ASKED (29 Sep). Distinct from book research above: this
+    // one answers a question from what his library already holds, read-only,
+    // citing the note paths it read. Any agent can consult it (lib/consult.js).
+    id: 'librarian-ask', label: 'Librarian · questions', group: 'research', def: 'sonnet',
+    hint: 'answers from his library, read-only (books, podcasts, videos, concepts, the Repertoire), citing the notes it read',
+    off: 'Agents that ask the Librarian are told it is off and answer without it; nothing in your library changes.',
+  },
+  {
     id: 'studio-outline', label: 'Studio outline', group: 'research', def: 'sonnet',
     hint: 'an idea into a real outline in your voice',
     off: 'Outlines are refused; the idea stays in Studio as you wrote it.',

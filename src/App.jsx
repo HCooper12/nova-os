@@ -79,7 +79,7 @@ import { coachSuggestions } from './coachSuggestions.js';
 import { nowPlayingSpeaking, nowPlayingIdle } from './nowPlaying.js';
 import { ContextMenuHost } from './ContextMenu.jsx';
 import { VoicePresence } from './VoicePresence.jsx';
-import { deviceName, deviceId, textKey, pendingTurns, mergeRecord } from './conversationSync.js';
+import { deviceName, deviceId, textKey, pendingTurns, mergeRecord, trimConsult } from './conversationSync.js';
 import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
@@ -5862,7 +5862,7 @@ export default class App extends Component {
     const elevenPath = this.ttsUsable();
     // Trailing SHOW/PROPOSE/RESEARCH lines are typed directives for the
     // server, not prose — keep them out of the render (and out of the voice)
-    const stripShow = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH)\s*(\{[\s\S]*)?$/, '');
+    const stripShow = (t) => t.replace(/(^|\n)\s*(SHOW|PROPOSE|RESEARCH|CONSULT)\s*(\{[\s\S]*)?$/, '');
     const applyPartial = (text) => this.setState((s) => {
       const chat = [...s.voiceChat];
       const idx = chat.map((m) => !!m.streaming).lastIndexOf(true);
@@ -6008,8 +6008,10 @@ export default class App extends Component {
             // offers the matching EVIDENCE card; code still computes it.
             const evidence = this.offerVerdictFor(text, agent);
             const who = agent || 'nova';
-            if (idx === -1) chat.push({ at: Date.now(), who, text, panel, proposal, acted, research, evidence });
-            else chat[idx] = { at: Date.now(), who, text, panel, proposal, acted, research, evidence };
+            // whom this answer consulted, trimmed for the record (server/lib/consult.js)
+            const from = trimConsult(job.result.consult);
+            if (idx === -1) chat.push({ at: Date.now(), who, text, panel, proposal, acted, research, evidence, ...(from ? { from } : {}) });
+            else chat[idx] = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, ...(from ? { from } : {}) };
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
           });
           // THE GLASS: any spoken answer with a shape puts its card up — his
@@ -10000,7 +10002,7 @@ export default class App extends Component {
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     this.setState((s) => ({ leaderChat: [...s.leaderChat, { at: Date.now(), who: 'you', text: q }], leaderInput: '', leaderBusy: true }));
     // a trailing REFLECT line is a typed directive for the server, not prose
-    const stripDirective = (t) => t.replace(/(^|\n)\s*REFLECT\s*(\{[\s\S]*)?$/, '');
+    const stripDirective = (t) => t.replace(/(^|\n)\s*(REFLECT|CONSULT)\s*(\{[\s\S]*)?$/, '');
     api.askLeader(conn, q, this.state.leaderSessionId || null).then(({ jobId }) => {
       this.startPoll('leader', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 3 * 60_000,

@@ -12,6 +12,7 @@ import {
   buildWorkerPrompt, parseFindings, buildSynthesisPrompt, panelProgress,
 } from './researchPanel.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
+import { openConsult, consultCapability, ANSWER_NOW } from './consult.js';
 
 // The Researcher — Nova's first agent that reaches OUTSIDE the vault. The
 // boundaries are structural: it runs only on an explicit "research …" ask
@@ -120,7 +121,9 @@ export function normalizeResearch(parsed) {
 // summary Inbox, 27 Sep 2026). Written onto the record so the card can find
 // its report by it; nothing on the server reads it. Omitted, the record
 // carries no such key at all, exactly as before.
-export async function startResearch(vaultPath, question, { model, context, parentPlanId, parentId } = {}) {
+// `consult`: { chain, ledger } when another agent asked for this brief
+// (lib/consult.js), so the Researcher's own consults never loop back up.
+export async function startResearch(vaultPath, question, { model, context, parentPlanId, parentId, consult } = {}) {
   const q = (question || '').trim();
   if (!q) throw new Error('a research question is required');
   if (q.length > 500) throw new Error('keep the research question under 500 characters');
@@ -147,7 +150,7 @@ export async function startResearch(vaultPath, question, { model, context, paren
     // the card this was asked from (Look deeper), so the report grows on it
     ...(parentId ? { parentId: String(parentId) } : {}),
   });
-  runResearchJob(vaultPath, record.id, q, model, context);
+  runResearchJob(vaultPath, record.id, q, model, context, consult);
   return record;
 }
 
@@ -234,7 +237,7 @@ export async function planPanel(vaultPath, question) {
 // is one of two honest shapes:
 //   { title, body }          — the brief
 //   throws                   — a real failure, with the first reason attached
-async function runPanel(vaultPath, recordId, question, model, context) {
+async function runPanel(vaultPath, recordId, question, model, context, consultOpts = null) {
   const { panel, planned } = await planPanel(vaultPath, question);
   const workers = panel.map((w) => ({ name: w.name, status: 'working', found: 0 }));
   const publish = (extra = {}) => updateRecord(recordId, { panel: { ...panelProgress(workers), planned, ...extra } }).catch(() => {});
@@ -266,14 +269,43 @@ async function runPanel(vaultPath, recordId, question, model, context) {
   }
   await publish({ merging: true });
 
-  const out = await askClaude(vaultPath, {
-    prompt: buildSynthesisPrompt(question, settledReports, context),
+  // THE MERGE MAY CONSULT (lib/consult.js, his 29 Sep "nothing should be
+  // walled off"): before it writes the brief it can ask the Librarian what his
+  // library already says, Nova what he has written, the Coach what his data
+  // shows. The answers come back to the same merge session, which then writes
+  // the JSON brief; the citation gate is unchanged, so an answer from an
+  // agent is context for the brief, never a source it may cite without a URL.
+  const ctl = openConsult({
+    from: 'researcher', question, vaultPath,
+    chain: consultOpts?.chain || [], ledger: consultOpts?.ledger || null,
+    answeringTo: (consultOpts?.chain || []).slice(-1)[0] || null,
+    onRoster: (roster) => updateRecord(recordId, { consult: roster }).catch(() => {}),
+  });
+  let out = await askClaude(vaultPath, {
+    prompt: `${buildSynthesisPrompt(question, settledReports, context)}\n\nONE EXCEPTION TO THE OUTPUT RULE ABOVE:\n${consultCapability('researcher', { chain: ctl.chain })}`,
     // NO WEB. The sources are chosen; a merge that searches on its own is a
     // fifth researcher citing sources no angle vouched for.
     tools: 'Read',
     model: model || modelFor('researcher'),
   });
   if (out.error) throw new Error(`the merge failed — ${out.error}`);
+  for (;;) {
+    const consult = ctl.parse(out.text);
+    if (!consult) break;
+    let next;
+    if (ctl.exhausted) {
+      if (ctl.nudged) break;
+      ctl.nudged = true;
+      next = `${ANSWER_NOW}\n\nOutput ONLY the JSON object {"title":…,"body":…}.`;
+    } else {
+      await publish({ merging: true, consulting: true });
+      const { replyText } = await ctl.run(consult);
+      next = `${replyText}\n\nNow write the brief. Their answers are context, not sources: every [n] still needs a web source with a URL in "## Sources". Output ONLY the JSON object {"title":…,"body":…}.`;
+    }
+    const sessionId = out.sessionId;
+    out = await askClaude(vaultPath, { prompt: next, tools: 'Read', model: model || modelFor('researcher'), resume: sessionId });
+    if (out.error) throw new Error(`the merge failed after consulting — ${out.error}`);
+  }
   const json = firstBalancedObjectMatch(out.text);
   if (!json) throw new Error(out.text.slice(0, 200) || 'no JSON in the merge response');
   try {
@@ -308,9 +340,9 @@ async function runPanel(vaultPath, recordId, question, model, context) {
 // merge reports; every angle failing is an error on the record, with the
 // first reason attached, so a retry has something to act on rather than a
 // shrug.
-async function runResearchJob(vaultPath, recordId, q, model, context = '') {
+async function runResearchJob(vaultPath, recordId, q, model, context = '', consultOpts = null) {
   try {
-    const { title, body } = await runPanel(vaultPath, recordId, q, model, context);
+    const { title, body } = await runPanel(vaultPath, recordId, q, model, context, consultOpts);
     // ALWAYS pending — web content never files itself
     await updateRecord(recordId, {
       status: 'pending',

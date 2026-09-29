@@ -388,7 +388,8 @@ export function voiceRouter(vaultPath) {
       const { logTurn } = await import('../lib/conversationLog.js');
       const via = req.novaHeard ? 'action-button' : 'siri';
       logTurn({ who: 'you', text: question, via });
-      const answered = (text, failed = false) => { if (text) logTurn({ who: failed ? 'system' : 'nova', text, via }); };
+      // `extra`: who answered and whom they consulted (lib/consult.js), on the row
+      const answered = (text, failed = false, extra = {}) => { if (text) logTurn({ who: failed ? 'system' : 'nova', text, via, ...(failed ? {} : extra) }); };
       // The Reflex Layer, same as /ask: the Siri lane is where <1s matters
       // most — a reflex hit means Siri speaks the number before the CLI
       // would have finished booting. Miss → the session machinery below.
@@ -436,8 +437,9 @@ export function voiceRouter(vaultPath) {
       const finish = (payload) => {
         clearTimeout(keepaliveStart);
         if (keepalive) clearInterval(keepalive);
-        answered(payload.text, !!payload.error);
-        res.end(JSON.stringify(req.novaHeard ? { ...payload, heard: req.novaHeard } : payload));
+        const { record, ...body } = payload;
+        answered(body.text, !!body.error, record || {});
+        res.end(JSON.stringify(req.novaHeard ? { ...body, heard: req.novaHeard } : body));
       };
 
       // The spoken lane keeps ONE conversation alive rather than minting a
@@ -476,7 +478,9 @@ export function voiceRouter(vaultPath) {
           // all, and without this that took a live reproduction to establish.
           const reply = String(job.result.text || '');
           console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`} q=${JSON.stringify(question.slice(0, 60))} reply=${reply.length}ch ${JSON.stringify(reply.slice(0, 80))}`);
-          return finish({ text: job.result.text, sessionId: job.result.sessionId });
+          const { trimForRecord } = await import('../lib/consult.js');
+          const from = trimForRecord(job.result.consult);
+          return finish({ text: job.result.text, sessionId: job.result.sessionId, record: { by: 'nova', ...(from ? { from } : {}) } });
         }
         if (job?.status === 'error') {
           // A dead process or a spent budget must not poison the next ask:

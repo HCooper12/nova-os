@@ -23,7 +23,9 @@ import { preferencesContext } from './learning.js';
 
 // Returns the job id of the Coach's answer. A resumed conversation gets the
 // volatile picture as a live line; a new one gets the full assembly.
-export async function startCoachTurn(vaultPath, { question, sessionId = null, liveSession = null } = {}) {
+// `consulted` (lib/consult.js): another agent is asking — a fresh session with
+// the same full picture, answering that agent, stamping nothing on his behalf.
+export async function startCoachTurn(vaultPath, { question, sessionId = null, liveSession = null, consulted = null } = {}) {
   const { liveSessionContext, coachLiveLine } = await import('./coach.js');
   const live = liveSessionContext(liveSession);
   if (sessionId) {
@@ -341,5 +343,6 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         const { ABSENT_NOTE } = await import('./contextSections.js');
         parts.push(ABSENT_NOTE(failures.map((label) => ({ label }))));
       }
+      if (consulted) return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), consulted });
       return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined });
 }

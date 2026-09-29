@@ -32,6 +32,31 @@ const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(path.dirname(fileU
 const DIR = () => path.join(dataRoot(), 'conversation');
 
 const WHO = new Set(['you', 'nova', 'system']);
+// AUTHORSHIP (29 Sep, the consult rail): a 'nova' row names who actually
+// answered (`by`: nova, coach, leader…) and, when agents were consulted,
+// `from`: who was asked, what, how long it took, and what came back. Every
+// reader tolerates rows written before these fields existed.
+const AGENT = /^[a-z][a-z-]{1,23}$/;
+const MAX_FROM = 24;
+const MAX_ANSWER = 4000;
+
+function cleanFrom(raw) {
+  if (!Array.isArray(raw)) return null;
+  const out = [];
+  for (const a of raw.slice(0, MAX_FROM)) {
+    if (!a || typeof a !== 'object' || typeof a.agent !== 'string' || !AGENT.test(a.agent)) continue;
+    const question = typeof a.question === 'string' ? a.question.trim().slice(0, 500) : '';
+    if (!question) continue;
+    out.push({
+      agent: a.agent,
+      question,
+      ms: Number.isFinite(a.ms) && a.ms >= 0 ? Math.round(a.ms) : null,
+      ok: a.ok === true,
+      answer: typeof a.answer === 'string' ? a.answer.trim().slice(0, MAX_ANSWER) : '',
+    });
+  }
+  return out.length ? out : null;
+}
 const ID = /^[A-Za-z0-9_.:-]{6,96}$/;
 const WORD = /^[a-z][a-z0-9-]{0,23}$/;
 const MAX_TEXT = 20_000;          // a long spoken turn, never a payload
@@ -46,6 +71,8 @@ export function normaliseTurn(raw, now = new Date()) {
   const at = Number.isNaN(t.getTime()) || t.getTime() > now.getTime() + FUTURE_SLACK_MS ? now : t;
   const via = typeof raw.via === 'string' && WORD.test(raw.via) ? raw.via : 'app';
   const device = typeof raw.device === 'string' ? raw.device.replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 16) : '';
+  const by = raw.who === 'nova' ? (typeof raw.by === 'string' && AGENT.test(raw.by) ? raw.by : 'nova') : null;
+  const from = raw.who === 'nova' ? cleanFrom(raw.from) : null;
   return {
     id: typeof raw.id === 'string' && ID.test(raw.id) ? raw.id : `srv-${randomUUID()}`,
     at: at.toISOString(),
@@ -53,6 +80,8 @@ export function normaliseTurn(raw, now = new Date()) {
     text,
     via,
     ...(device ? { device } : {}),
+    ...(by ? { by } : {}),
+    ...(from ? { from } : {}),
   };
 }
 
@@ -132,6 +161,8 @@ const VIA_LABEL = {
   app: 'the app',
 };
 
+const BY_LABEL = { nova: 'You', coach: 'the Coach', leader: 'the Leader', researcher: 'the Researcher', librarian: 'the Librarian', calendar: 'his calendar' };
+
 // For Nova's own context: what he and Nova actually said, across every door
 // and device, so "what did I ask you yesterday" and "like we discussed" are
 // answered from the record instead of from a session that reset overnight.
@@ -146,9 +177,13 @@ export async function recentConversationBlock({ now = new Date(), days = 7, maxR
   };
   const lines = rows.map((r) => {
     const where = [VIA_LABEL[r.via] || r.via, r.device].filter(Boolean).join(', ');
-    const who = r.who === 'you' ? 'He' : r.who === 'nova' ? 'You' : 'System';
+    const who = r.who === 'you' ? 'He'
+      : r.who === 'nova' ? (r.by && r.by !== 'nova' ? `${BY_LABEL[r.by] || r.by} (through you)` : 'You')
+      : 'System';
     const text = r.text.length > 500 ? `${r.text.slice(0, 500)}…` : r.text;
-    return `- [${stamp(r.at)} · ${where}] ${who}: ${text.replace(/\s+/g, ' ')}`;
+    const asked = Array.isArray(r.from) && r.from.length
+      ? ` [consulted: ${[...new Set(r.from.map((a) => BY_LABEL[a.agent] || a.agent))].join(', ')}]` : '';
+    return `- [${stamp(r.at)} · ${where}] ${who}${asked}: ${text.replace(/\s+/g, ' ')}`;
   });
   // newest lines survive the character budget, oldest go first
   const kept = [];
@@ -160,6 +195,7 @@ export async function recentConversationBlock({ now = new Date(), days = 7, maxR
   }
   return 'YOUR CONVERSATION WITH HIM, FROM THE RECORD (the last week, every door: the app on his phone and Mac, Siri, the Action Button; oldest first; "He" is Hayden, "You" is you, Nova). '
     + 'These are real exchanges you had. Refer back to them when they bear on what he says now, and never tell him you have no memory of them. '
-    + 'A "System" line is a turn that failed; if he asks whether you heard him, it tells you.\n'
+    + 'A "System" line is a turn that failed; if he asks whether you heard him, it tells you. '
+    + '"(through you)" is a specialist who answered in this thread; "[consulted: …]" names the agents that answer asked.\n'
     + kept.join('\n');
 }

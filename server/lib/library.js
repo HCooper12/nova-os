@@ -95,6 +95,29 @@ function itemOf({ file, fm, body }) {
   };
 }
 
+// THE CATALOGUE — the same Source pages, plus the concept pages they feed and
+// the Repertoire, as a plain list the Librarian's question lane can hand its
+// model (lib/librarianAsk.js). Derived on read like everything here; needs no
+// vault index object, so a consult can build it cheaply.
+export async function libraryCatalogue(vaultPath) {
+  const sources = (await readSourcePages(vaultPath)).map(itemOf).map((s) => ({
+    path: `${s.id}.md`, title: s.title, kind: s.kind, author: s.author, provenance: s.provenance,
+    raw: s.raw ? `Raw/${s.raw}.md` : null, excerpt: s.excerpt,
+  }));
+  sources.sort((a, b) => a.title.localeCompare(b.title));
+  const listDir = async (rel) => {
+    try {
+      return (await readdir(path.join(vaultPath, rel))).filter((f) => f.endsWith('.md')).sort()
+        .map((f) => ({ path: `${rel}/${f}`, title: path.basename(f, '.md') }));
+    } catch { return []; }
+  };
+  const concepts = await listDir('Wiki/Concepts');
+  const entities = await listDir('Wiki/Entities');
+  let repertoire = null;
+  try { await readFile(path.join(vaultPath, 'Wiki', 'Library', 'Repertoire.md'), 'utf8'); repertoire = 'Wiki/Library/Repertoire.md'; } catch { /* not started */ }
+  return { sources, concepts, entities, repertoire };
+}
+
 // The shelf. `resolve` classifies each outgoing link against the real vault
 // (via vault.listPages()) so the client gets concept COUNTS it can trust,
 // not raw wikilink strings that may resolve nowhere.

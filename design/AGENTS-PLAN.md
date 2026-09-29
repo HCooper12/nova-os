@@ -311,6 +311,56 @@ the heartbeat + report make it visibly so.
 
 ---
 
+## Librarian — his library, asked
+
+Two lanes, one agent. **Book research** (`server/lib/librarian.js`, lane
+`librarian`) turns a title and author into a triangulated dossier that rides
+the ingest weave. **Questions** (`server/lib/librarianAsk.js`, lane
+`librarian-ask`, since 29 Sep 2026) answer from what the library already
+holds: code builds the catalogue (every `Wiki/Sources` page, the concept and
+entity pages, the Repertoire), the model reads what it needs with
+Read/Grep/Glob, and answers citing note paths; code then checks every cited
+path against the vault and names any that point at nothing. It writes
+nothing (Edit, Write and the web are blocked).
+
+## The consult rail — nothing walled off
+
+His words, 29 Sep 2026: every agent must be able to consult every other, and
+Nova, as the CEO, directs them individually and together. One rail,
+`server/lib/consult.js` (`coachConsult.js` is now its re-export):
+
+- **Registry**: `nova`, `coach`, `leader`, `researcher`, `librarian`,
+  `calendar`, each with an `ask` that runs through the agent's OWN lane and
+  model (`modelFor`). The calendar is read by code, so it can be asked but
+  cannot ask.
+- **Who may ask whom**: everyone but itself, and never an agent up its own
+  chain (Nova asks the Coach; the Coach can ask anyone but Nova, who is
+  waiting on it). `consultCapability(from)` is the one paragraph every
+  reasoning agent carries (Nova, Coach, Leader, the Researcher's merge, the
+  Librarian), generated from the registry.
+- **The loop**: a reply that is `CONSULT {"asks":[…]}` is not the answer.
+  Code runs the asks in parallel, the answers go back to the same session,
+  and the next reply is the synthesis. `MAX_CONSULT_ROUNDS` (2) per agent per
+  turn, then one plain "answer now"; the same agent is never asked the same
+  question twice in one turn (the turn's ledger answers a repeat). No budget,
+  no timeout, his standing rule.
+- **Code writes who was asked**: the reply opens with a line code builds
+  from the parsed asks ("Asking the Coach, the Librarian and the
+  Researcher."), shown before any answer exists.
+- **Structured state**: `job.consult` (and `result.consult`) is the roster:
+  `{ agent, question, askedAt, settledAt, ok, ms, answer, recordId?, round }`,
+  exposed on `GET /api/claude-code/message/:jobId`. `job.partial` still
+  carries the text the classic screens show.
+- **A consulted agent answers the asker and writes nothing**: a fresh
+  session of its lane (its own warm kind, released at once, never recorded as
+  his live Coach/Leader conversation); no cards, no REFLECT, no documents
+  filed. The Researcher still files its brief to the Inbox, as it always has.
+- **Authorship on the record**: conversation rows from Nova's side carry
+  `by` (who answered) and, when a consult happened, `from` (agent, question,
+  ms, ok, answer).
+
+---
+
 ## Access model (uniform)
 
 - **Sidebar roster** — dots per agent, lit only per "live when" above; the

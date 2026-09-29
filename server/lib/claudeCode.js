@@ -13,7 +13,7 @@ import { speakableText } from '../../src/artifactBlocks.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
 import { registerJobMap } from './jobRegistry.js';
-import { consultCapability, parseConsult, consultProgress, consultReplyText, runConsults, MAX_CONSULT_ROUNDS } from './coachConsult.js';
+import { consultCapability, consultReminder, consultedBrief, openConsult, stripDirectives, GUARD_NOTE, ANSWER_NOW } from './consult.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
@@ -106,6 +106,10 @@ function laneForKind(kind) {
     case 'coach': return 'coach';
     case 'voice': return 'ask-nova';
     case 'leader': return 'leader-chat';
+    // a consulted turn is billed to the lane that answered it
+    case 'consult-coach': return 'coach';
+    case 'consult-nova': return 'ask-nova';
+    case 'consult-leader': return 'leader-chat';
     case 'practice': return 'practice-chat';
     case 'code': return 'code';
     case 'debrief': return 'session-debrief';
@@ -130,11 +134,12 @@ function spawnWarm(key, { cwd, args, env }) {
       if (!w.currentJob) continue; // per-turn init/system chatter between turns
       if (ev.type === 'stream_event' && ev.event?.type === 'content_block_delta' && ev.event.delta?.type === 'text_delta') {
         w.streamed += ev.event.delta.text;
-        w.currentJob.partial = w.streamed;
+        // a consult's code-written hand-over stays at the top of what streams after it
+        w.currentJob.partial = (w.currentJob.partialPrefix || '') + w.streamed;
         onPartial(w.currentJob, w.streamed);
       } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
         const txt = ev.message.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-        if (txt) { w.streamed = txt; w.currentJob.partial = txt; onPartial(w.currentJob, txt); } // authoritative snapshot
+        if (txt) { w.streamed = txt; w.currentJob.partial = (w.currentJob.partialPrefix || '') + txt; onPartial(w.currentJob, txt); } // authoritative snapshot
       } else if (ev.type === 'result') {
         const job = w.currentJob;
         const finish = w.finishTurn;
@@ -282,7 +287,7 @@ export function _dropAllWarm() {
 // answers questions from what's actually written there, in a spoken
 // register. Exported separately so tests can check the prompt contract
 // without spawning anything.
-export function buildAskPrompt({ question, context = '', direct = false, spoken = false }) {
+export function buildAskPrompt({ question, context = '', direct = false, spoken = false, consulted = null }) {
   return `${NOVA_LENS}
 
 You are Nova — Hayden's personal OS and ongoing companion. This is a CONTINUING conversation: it resumes across days, so remember what he tells you here and build on it naturally, the way a sharp assistant who knows him would. Your working directory is his Obsidian vault — real notes, health pages, workout sessions, recipes, journal, money ledger context. Read whatever pages you need.
@@ -293,7 +298,9 @@ Ground rules:${direct ? `
 - ANSWER THE QUESTION HE ASKED. If the exact thing he asked for is not available, SAY THAT FIRST, in one line, before anything else — do not quietly answer a nearby question instead. Measured on 14 Sep: asked "what are my steps today" before the morning's health push had landed, you spent forty seconds and replied about his protein timing. Every word of it was true and none of it was an answer. "No step count has come through for today yet, sir" is the answer; anything you want to add comes after it, and only if he would want it.
 - His messages may open with a bracketed block describing what is ON HIS SCREEN at that moment (a card on the glass, an undecided draft, a live workout, the screen he's on) or the decision you just asked him about. Treat it as ground truth for resolving "this/that/it", answer from it, and never read the block back or mention its existence — to him it is simply you following the conversation.
 - YOU ARE THE FRONT DOOR OF THE WHOLE PLATFORM, not just this chat. Everything he has given ANY part of Nova — videos watched, creators studied, research run, workouts logged, notes filed, his Inbox — is YOUR memory, and the specialists (Coach, Researcher, Studio, the Leader) work beneath you. When he asks what he's given you or what you've done for him, answer from the live context's platform record and the vault; answering from this conversation's history alone is a failure.
-- YOU READ YOUR AGENTS' ROOMS. The live context may carry Coach's and the Leader's actual recent conversations. When he asks what they said, thinks, or advised — or asks you to tell them something — answer from those transcripts and speak for the org naturally ("Coach's position is…"). A message FOR an agent: acknowledge it and remind him the agent's own chat is where it lands with full context; never invent an exchange that isn't in the transcript.
+- YOU READ YOUR AGENTS' ROOMS. The live context may carry Coach's and the Leader's actual recent conversations. When he asks what they said, thinks, or advised — or asks you to tell them something — answer from those transcripts and speak for the org naturally ("Coach's position is…"). A message FOR an agent (something for them to keep): acknowledge it and remind him the agent's own chat is where it lands with full context; a QUESTION one of them should answer, you ask them yourself (CONSULT, below). Never invent an exchange that isn't in the transcript.
+- YOU ARE THE CEO. The Coach, the Leader, the Researcher and the Librarian work for you, and you can ask any of them, one or several at once, in rounds: talk it through with the Coach, realise the Researcher should settle a point for both of you, have the Librarian pull what a book he holds says. When they have answered, your reply is the synthesis: one answer, in your voice, under the same length rule, naming whose input shaped it.
+${consultCapability('nova', { chain: consulted?.chain || [], handsFree: direct })}
 - Spoken register: conversational, direct, no markdown, no bullet lists. Lead with the answer. TWO OR THREE SENTENCES — under ~50 words — unless he explicitly asks for detail. A conversation is a series of short turns, not a briefing: one idea per turn, and if there is more worth saying, say the most useful thing and offer the rest ("there's more on the sleep side if you want it").
 ${spoken ? `
 - HE IS LISTENING, NOT READING — TWO SENTENCES. He cannot skim a voice or re-read it, and he is usually driving. Say the one thing that matters and stop; offer the rest in four words.` : ''}
@@ -346,7 +353,7 @@ ${GLASS_CONTRACT}
 
 ${ARTIFACT_CONTRACT}
 
-Hayden asks: ${question}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `Hayden asks: ${question}`}`;
 }
 
 // A RESUMED spoken turn sends only the question — the live process already
@@ -436,18 +443,76 @@ export function prewarmAsk(cwd, sessionId, { resume = false } = {}) {
   } catch { return false; }
 }
 
-export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume }) {
+// ------------------------------- CONSULT ------------------------------------
+// The shared step every conversational lane runs first when its reply lands
+// (lib/consult.js). Returns { text } when the reply is the answer, or null
+// when a consult round took the turn over: the answers go back to the same
+// session via `resume`, which lands in finishTurn again.
+async function consultStep(ctl, replyText, turnJob, who, resume) {
+  const consult = ctl.parse(replyText);
+  if (!consult) return { text: replyText };
+  if (ctl.exhausted) {
+    // the loop guard: one plain "answer now", then the answer it has
+    if (!ctl.nudged) { ctl.nudged = true; resume(ANSWER_NOW); return null; }
+    return { text: `${consult.cleanText}\n\n${GUARD_NOTE}`.trim() };
+  }
+  try {
+    const { replyText: back } = await ctl.run(consult);
+    resume(back);
+  } catch (e) {
+    turnJob.status = 'error';
+    turnJob.error = `${who} could not consult the other agents: ${e.message}`;
+  }
+  return null;
+}
+
+// A consulted turn's answer goes to the agent that asked, never to him, and
+// writes nothing: no document is filed (its body is the answer), no directive
+// acts. Its warm process is released at once: it is not a conversation he
+// will come back to, and the pool's four slots are his.
+async function finishConsulted(cwd, replyText, turnJob, { question, ctl, sessionId, kind }) {
+  try {
+    const text = stripDirectives(parseVisualStream(replyText).text);
+    turnJob.result = { text: text || '(an empty answer)', sessionId, consult: ctl.roster.length ? ctl.roster : null, question };
+    turnJob.status = 'ready';
+  } catch (e) {
+    turnJob.status = 'error';
+    turnJob.error = e.message;
+  } finally {
+    dropWarm(`${kind}:${sessionId}`);
+  }
+}
+
+// `consulted`: another agent is asking Nova (lib/consult.js) — a fresh
+// session of her own lane that answers that agent and writes nothing.
+export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null }) {
   assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
-  const isNewSession = resume === undefined ? !sessionId : !resume;
-  const effectiveSessionId = sessionId || randomUUID();
+  const isNewSession = consulted ? true : (resume === undefined ? !sessionId : !resume);
+  const effectiveSessionId = (consulted ? null : sessionId) || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
-  attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
+  if (!consulted) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
 
   const args = askArgs(effectiveSessionId, isNewSession);
+  const kind = consulted ? 'consult-nova' : 'voice';
 
-  const finishTurn = async (replyText, turnJob) => {
+  // NOVA DIRECTS (lib/consult.js): a reply that asks the org is not the
+  // answer. Code runs the asks, says who was asked, and hands the answers
+  // back to THIS conversation, whose next reply is her synthesis.
+  const ctl = openConsult({
+    from: 'nova', question, vaultPath: cwd, job,
+    chain: consulted?.chain || [], ledger: consulted?.ledger || null, answeringTo: consulted?.by || null,
+  });
+  const finishTurn = async (incoming, turnJob) => {
+    const step = await consultStep(ctl, incoming, turnJob, 'Nova',
+      (text) => warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: askArgs(effectiveSessionId, false), text, job: turnJob, finishTurn }));
+    if (!step) return;
+    if (consulted) return finishConsulted(cwd, step.text, turnJob, { agent: 'nova', question, ctl, sessionId: effectiveSessionId, kind });
+    return settleAsk(step.text, turnJob);
+  };
+
+  const settleAsk = async (replyText, turnJob) => {
     try {
       // THE DOCUMENTS, FIRST — before anything else parses this reply, so a
       // PROPOSE/CARD/SHOW line living inside a document's body can never be
@@ -652,8 +717,10 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       // stray fence would be read aloud verbatim. Every other lane renders
       // through the client's own artifactBlocks parsing, which already
       // keeps a document's body and token out of speech.
+      // the code-written line of who she asked opens the reply he reads
+      text = ctl.finalText(text);
       if (direct) text = speakableText(text, { final: true });
-      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, acted, research, watch, modelChoicePending, card: card || playedCard, played, artifacts: filed.artifacts };
+      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, acted, research, watch, modelChoicePending, card: card || playedCard, played, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';
@@ -662,14 +729,14 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   };
 
   warmTurn({
-    kind: 'voice',
+    kind,
     sessionId: effectiveSessionId,
     cwd,
     args,
     // `spoken` rides on turn ONE only. A resumed turn sends just the question
     // by design (spokenSession.test.js guards that minimalism), and turn one's
     // contract is still in the resumed process's own context.
-    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken }) : buildResumedAsk({ question, liveLine, direct }),
+    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken, consulted }) : buildResumedAsk({ question, liveLine, direct }),
     job,
     finishTurn,
   });
@@ -795,7 +862,7 @@ export function startGreeting(cwd, { facts }) {
 // boundary as Ask Nova, but a different persona: an evidence-based strength
 // coach who knows Hayden's goals, history, and recovery data, and answers
 // like a professional — principled, specific, honest about uncertainty.
-export function buildCoachPrompt({ question, context = '' }) {
+export function buildCoachPrompt({ question, context = '', consulted = null }) {
   return `${NOVA_LENS}
 
 You are Nova's Coach — Hayden's personal strength & conditioning coach. This is a CONTINUING conversation that resumes across days — remember what he tells you and coach the long arc, not just today's question. You reason like an experienced, evidence-based practitioner: progressive overload, volume and intensity management, proximity to failure, recovery and sleep, protein targets, long-term adherence over heroics. You give the advice a great human coach would: specific to HIS data, decisive, and honest when evidence is mixed or his data is too thin to say.
@@ -825,7 +892,7 @@ Ground rules:
 - PROGRESSION IS MORE THAN KILOGRAMS: the default +2.5kg is wrong for many lifts — lateral raises, curls, cable work, anything where dumbbells jump 2kg at a time. When more load isn't the right next step, prescribe the alternative a good coach would: more reps first (repStep), a smaller step if the gym's equipment allows it (ask what increments he actually has access to if you don't know), or a QUALITY focus — slower 3-4s eccentric, a pause, strict tempo, fuller range — via PROPOSE {"action":"tune","exercise":"Lateral Raise","focus":"3s eccentric, same load","reason":"2.5kg is a 20% jump on this lift"}. A focus shows as a chip on that exercise in his session view until changed, and the weekly debrief holds the week against it.
 - For anything else you cannot change (logging food, calendar), point him at the right surface. Never claim you wrote anything.
 - SKIPPED WORK: if the context lists repeatedly-skipped exercises, raise the single most significant one once, naturally, after answering what he actually asked — name the count ("Spider Curls have missed 3 of your last 4 Pulls"), ASK WHY (no time? equipment busy? a niggle? you just hate it?), and STOP there. Do not propose a fix in the same breath — the reason decides whether it's a swap, a removal, moving it earlier in the session, or nothing at all. Once he tells you why, then offer the fix (and PROPOSE it if he wants it). Never raise the same one twice in a conversation, and never moralise about it.
-${consultCapability()}
+${consultCapability('coach', { chain: consulted?.chain || [] })}
 - RESOURCES: you have WebSearch and WebFetch — USE them whenever seeing beats describing: form checks, technique cues, a stretch or mobility routine, "how do I do X", or any claim worth a citation. Curate, never dump: 1-3 links maximum, each as a markdown link with a specific title and ONE line on why it's worth his time ("[Squat University — fixing butt wink](url) — the hip-anatomy explanation at 2:10 is the fix for your depth question"). Prefer reputable channels/sources (Squat University, Renaissance Periodization, Jeff Nippard, Stronger by Science, E3 Rehab, published studies). When you cite evidence, link it. Never invent a URL — only link what you actually found this turn.
 - Format: conversational and tight, but markdown WORKS here — links render clickable, **bold** for the one number that matters, short lists when prescribing (sets × reps × rest). No headings, no tables. Lead with the answer.
 
@@ -838,7 +905,7 @@ ${GLASS_CONTRACT}
 
 ${ARTIFACT_CONTRACT}
 
-Hayden asks: ${question}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `Hayden asks: ${question}`}`;
 }
 
 // Prepended to every RESUMED coach turn. Deliberately short — it is a
@@ -860,7 +927,7 @@ const COACH_TURN_REMINDER = [
   'His session notes are tagged [form-breakdown]/[pain]/[fatigue]/[too-easy]: treat them as your best evidence, coach the technique from what the research supports, and quote his sentence back.',
   'SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides. He HEARS this.',
   'THE RUNNING GLASS: before each movement of your reply, one line on its own, e.g. VIS {"kind":"key","label":"TWO TO FOUR WORDS","caption":"one short line"}; steps or list {"kind":"steps","label":"…","items":["…","…"]}; metric {"kind":"metric","label":"…","value":"55","unit":"min"}; bars {"kind":"bars","label":"…","bars":[{"name":"Chest","value":9},{"name":"Back","value":12}]}. Any reply longer than about three sentences carries at least one.',
-  'CONSULT the other agents when a question deserves it: one sentence saying who you are asking, then ONE final line CONSULT {"asks":[{"agent":"researcher","question":"…"},{"agent":"calendar","question":"…"}]} (researcher = cited evidence, nova = his whole vault, calendar = his next 14 days). Their answers come back to you; then answer in full and say whose input shaped it.]',
+  `${consultReminder('coach')}]`,
 ].join('\n');
 
 // A second turn run on a Coach job's behalf (the repair of a refused card).
@@ -882,6 +949,7 @@ function sideJob(forward, onError) {
   };
   if (forward) {
     Object.defineProperty(j, 'partial', { get: () => forward.partial, set: (v) => { forward.partial = v; }, enumerable: true });
+    Object.defineProperty(j, 'partialPrefix', { get: () => forward.partialPrefix, enumerable: true });
     j.onPartial = (t) => forward.onPartial?.(t);
   } else {
     j.partial = '';
@@ -889,14 +957,18 @@ function sideJob(forward, onError) {
   return j;
 }
 
-export function startAskCoach(cwd, { question, asked = null, context, sessionId, onReady }) {
+// `consulted`: another agent is asking the Coach (lib/consult.js) — a fresh
+// session with the Coach's full picture that answers that agent and files
+// nothing: no card, no document, no cooldown stamp.
+export function startAskCoach(cwd, { question, asked = null, context, sessionId, onReady, consulted = null }) {
   assertLaneOn('coach');
   const jobId = randomUUID().slice(0, 8);
-  const isNewSession = !sessionId;
-  const effectiveSessionId = sessionId || randomUUID();
+  const isNewSession = consulted ? true : !sessionId;
+  const effectiveSessionId = (consulted ? null : sessionId) || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
-  attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
+  if (!consulted) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
+  const kind = consulted ? 'consult-coach' : 'coach';
 
   const args = [
     // conversational input mode — the warm pool keeps this process alive
@@ -921,33 +993,22 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
 
-  // CONSULT (coachConsult.js): a turn that asks the other agents is not the
+  // CONSULT (lib/consult.js): a turn that asks the other agents is not the
   // answer. Code runs the asks in parallel, streams who is working into his
   // bubble, then hands the answers back to THIS conversation for the real
   // reply. Turn two resumes the session, whichever process serves it.
-  let consultRounds = 0;
   const resumeArgs = [...args.slice(0, -2), '--resume', effectiveSessionId];
+  const ctl = openConsult({
+    from: 'coach', question: asked || question, vaultPath: cwd, job, progress: true,
+    chain: consulted?.chain || [], ledger: consulted?.ledger || null, answeringTo: consulted?.by || null,
+  });
   const finishTurn = async (incomingText, turnJob) => {
-    let replyText = incomingText;
-    const consult = parseConsult(replyText);
-    if (consult && consultRounds < MAX_CONSULT_ROUNDS) {
-      consultRounds += 1;
-      turnJob.partial = consultProgress(consult.cleanText, consult.asks);
-      try {
-        const results = await runConsults(cwd, consult.asks, {
-          question,
-          onUpdate: (asks) => { turnJob.partial = consultProgress(consult.cleanText, asks); },
-        });
-        turnJob.consulted = [...(turnJob.consulted || []), ...results.map((r) => ({ agent: r.agent, label: r.label, ok: r.ok, recordId: r.recordId || null }))];
-        warmTurn({ kind: 'coach', sessionId: effectiveSessionId, cwd, args: resumeArgs, text: consultReplyText(results, question), job: turnJob, finishTurn });
-      } catch (e) {
-        turnJob.status = 'error';
-        turnJob.error = `the Coach could not consult the other agents: ${e.message}`;
-      }
-      return;
-    }
-    // the loop guard: a Coach that has consulted twice answers with what it has
-    if (consult) replyText = `${consult.cleanText}\n\n(I had more I wanted to check, but I've asked twice already, so this is my answer from what the agents gave me.)`;
+    const step = await consultStep(ctl, incomingText, turnJob, 'the Coach',
+      (text) => warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: turnJob, finishTurn }));
+    if (!step) return;
+    turnJob.consulted = ctl.roster.length ? ctl.roster.map((r) => ({ agent: r.agent, label: r.label, ok: r.ok === true, recordId: r.recordId || null })) : undefined;
+    if (consulted) return finishConsulted(cwd, step.text, turnJob, { question, ctl, sessionId: effectiveSessionId, kind });
+    let replyText = step.text;
     try {
       // THE DOCUMENTS, FIRST — before settleCoachChanges ever sees this text,
       // so a PROPOSE line sitting inside a document's body (a plan he asked
@@ -974,10 +1035,11 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
           // turn resolves null, so he still gets the first answer and plain
           // words about what did not land, never a dead job.
           const side = sideJob(rewrite ? turnJob : null, () => resolve(null));
-          warmTurn({ kind: 'coach', sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: side, finishTurn: (t) => resolve(t) });
+          warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: side, finishTurn: (t) => resolve(t) });
         }),
       });
-      const text = settled.text;
+      // the code-written line of who the Coach asked opens the reply
+      const text = ctl.finalText(settled.text);
       const proposalsOut = settled.filed.map((f) => ({ recordId: f.recordId, title: f.title, ...(f.status ? { status: f.status } : {}), destination: f.destination || null }));
       const withdrawn = settled.withdrawn.filter((w) => w.ok).map((w) => w.id);
       const proposalOut = proposalsOut[0] || null;
@@ -998,7 +1060,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
         });
         if (guess) coachPanel = await buildPanel(cwd, guess);
       } catch { /* no panel rather than a wrong one */ }
-      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, artifacts: filed.artifacts };
+      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a
       // delivered answer — a failed job used to consume the window silently
@@ -1010,7 +1072,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
   };
 
   warmTurn({
-    kind: 'coach',
+    kind,
     sessionId: effectiveSessionId,
     cwd,
     args,
@@ -1025,7 +1087,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
     // editing files. One short standing line each turn corrects a
     // conversation already in flight, without restarting it and losing his
     // history.
-    text: isNewSession ? buildCoachPrompt({ question, context }) : `${COACH_TURN_REMINDER}\n\n${question}`,
+    text: isNewSession ? buildCoachPrompt({ question, context, consulted }) : `${COACH_TURN_REMINDER}\n\n${question}`,
     job,
     finishTurn,
   });
@@ -1035,7 +1097,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
 
 /* ------------------------------- the Leader -------------------------------- */
 
-export function buildLeaderPrompt({ question, context = '' }) {
+export function buildLeaderPrompt({ question, context = '', consulted = null }) {
   return `${NOVA_LENS}
 
 You are the LEADER — Hayden's leadership development partner inside Nova, focused on how he leads people at work. This is a CONTINUING conversation that resumes across days and weeks: remember what he tells you, hold the long arc of his development, and treat every struggle and win he shares as material for how you steer.
@@ -1051,6 +1113,7 @@ How you work:
   REFLECT {"struggles":["his struggle, tightened to one sentence"],"working":["what is working, one sentence"],"resolved":["a past struggle he now reports handled"]}
   Include only keys that apply; his words tightened, never invented. Nova's code merges it into your standing profile of him — it steers the daily Try Today idea and Saturday's research run. Do not mention the mechanics; just reflect accurately.
 - The daily Try Today idea arrives on his homepage each morning from your accumulated picture — this conversation is where that picture gets richer.
+${consultCapability('leader', { chain: consulted?.chain || [] })}
 
 ${SPOKEN_REGISTER}
 
@@ -1061,23 +1124,28 @@ ${ARTIFACT_CONTRACT}
 His current picture:
 ${context || '(unavailable)'}
 
-Hayden says: ${question}`;
+${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe question: ${question}` : `Hayden says: ${question}`}`;
 }
 
-const LEADER_TURN_REMINDER = '[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix.]';
+const LEADER_TURN_REMINDER = `[Standing reminder: when he shares a struggle, a win, or reports an old struggle handled, end your reply with ONE typed line, EXACTLY this JSON form on its own final line: REFLECT {"struggles":["…"],"working":["…"],"resolved":["…"]} — only the keys that apply, his words tightened. Prose after REFLECT does not work; only the JSON object is machine-readable. It updates your standing profile of him and steers the daily idea and the weekly research. Ground advice in his vault concepts and named sources; concrete and small beats grand. SPEAK IT, DO NOT WRITE IT: no markdown, no [[wikilinks]], no parenthetical asides — he HEARS this. KEEP THE RUNNING GLASS FED: a VIS {…} line on its own before each movement of your reply, as turn one set out (kinds: key, steps, image, media, metric, bars, list). Any reply longer than about three sentences carries at least one — a long spoken answer with nothing on screen is exactly what he asked us to fix. ${consultReminder('leader')}]`;
 
 // One decision here differs from Coach on purpose: a REFLECT parse failure
 // updates NOTHING and says so in the reply — his struggles are steering
 // data, and a silently dropped reflection would quietly starve the research
 // run of exactly the thing he told us mattered.
-export function startAskLeader(cwd, { question, context, sessionId }) {
+//
+// `consulted`: another agent is asking the Leader (lib/consult.js) — a fresh
+// session that answers that agent and writes nothing (no REFLECT: those are
+// his words, and a consulting agent's question is not him speaking).
+export function startAskLeader(cwd, { question, context, sessionId, consulted = null }) {
   assertLaneOn('leader-chat');
   const jobId = randomUUID().slice(0, 8);
-  const isNewSession = !sessionId;
-  const effectiveSessionId = sessionId || randomUUID();
+  const isNewSession = consulted ? true : !sessionId;
+  const effectiveSessionId = (consulted ? null : sessionId) || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
-  attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
+  if (!consulted) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
+  const kind = consulted ? 'consult-leader' : 'leader';
 
   const args = [
     '-p', '--input-format', 'stream-json',
@@ -1092,8 +1160,21 @@ export function startAskLeader(cwd, { question, context, sessionId }) {
     '--model', modelFor('leader-chat'),
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
+  const resumeArgs = [...args.slice(0, -2), '--resume', effectiveSessionId];
 
-  const finishTurn = async (replyText, turnJob) => {
+  // The Leader consults like everyone else: when he needs more support or
+  // research it asks the Researcher, the Librarian, or anyone, and answers
+  // from what they found (lib/consult.js).
+  const ctl = openConsult({
+    from: 'leader', question, vaultPath: cwd, job,
+    chain: consulted?.chain || [], ledger: consulted?.ledger || null, answeringTo: consulted?.by || null,
+  });
+  const finishTurn = async (incoming, turnJob) => {
+    const step = await consultStep(ctl, incoming, turnJob, 'the Leader',
+      (text) => warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: turnJob, finishTurn }));
+    if (!step) return;
+    if (consulted) return finishConsulted(cwd, step.text, turnJob, { question, ctl, sessionId: effectiveSessionId, kind });
+    const replyText = step.text;
     try {
       // THE DOCUMENTS, FIRST — before REFLECT ever sees this text.
       const filed = await fileArtifacts(cwd, replyText, { agent: 'leader', question });
@@ -1115,7 +1196,7 @@ export function startAskLeader(cwd, { question, context, sessionId }) {
       } else if (parseError) {
         text += `\n\n(I tried to note that in your profile but ${parseError} — tell me again and I'll get it down.)`;
       }
-      turnJob.result = { text, sessionId: effectiveSessionId, reflected, artifacts: filed.artifacts };
+      turnJob.result = { text: ctl.finalText(text), sessionId: effectiveSessionId, reflected, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';
@@ -1124,11 +1205,11 @@ export function startAskLeader(cwd, { question, context, sessionId }) {
   };
 
   warmTurn({
-    kind: 'leader',
+    kind,
     sessionId: effectiveSessionId,
     cwd,
     args,
-    text: isNewSession ? buildLeaderPrompt({ question, context }) : `${LEADER_TURN_REMINDER}\n\n${question}`,
+    text: isNewSession ? buildLeaderPrompt({ question, context, consulted }) : `${LEADER_TURN_REMINDER}\n\n${question}`,
     job,
     finishTurn,
   });

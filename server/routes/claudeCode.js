@@ -34,7 +34,10 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
   router.get('/claude-code/message/:jobId', (req, res) => {
     const job = getMessageJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
-    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, visuals: job.visuals || null });
+    // `consult`: the agents this turn asked, as structured state (lib/consult.js)
+    // — who, what, when asked and settled, and each answer — so a screen can
+    // show the roster while they work and open each answer after.
+    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, visuals: job.visuals || null, consult: job.consult?.length ? job.consult : null });
   });
 
   // Sparring loop: spawn a read-only Breaker over the workspace. Polled via

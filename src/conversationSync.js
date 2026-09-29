@@ -21,6 +21,10 @@
 // chat's front never re-posts a group.
 
 const WHO = new Set(['you', 'nova', 'system']);
+// A specialist's line in the voice chat (who: 'coach' | 'leader') is the
+// platform answering: it goes up as a 'nova' row with `by` naming who spoke
+// (29 Sep, the consult rail). Before, those lines never reached the record.
+const AGENT_WHO = new Set(['coach', 'leader']);
 
 // 'iPhone' / 'iPad' / 'Mac' / 'Windows' / '' from a user agent. Named on each
 // line so "which device did I say that on" is answerable.
@@ -88,14 +92,17 @@ export function pendingTurns(chat, synced, { dev, device = '' } = {}) {
   const out = [];
   const ids = chatIds(chat, dev);
   (chat || []).forEach((m, i) => {
-    if (!m || m.streaming || m.typing || !WHO.has(m.who)) return;
+    if (!m || m.streaming || m.typing || !(WHO.has(m.who) || AGENT_WHO.has(m.who))) return;
     if (typeof m.text !== 'string' || !m.text.trim() || !Number.isFinite(m.at)) return;
     const id = ids[i];
     if (delivered(synced, id, textKey(m.text))) return;
+    const agent = AGENT_WHO.has(m.who);
     out.push({
-      id, at: new Date(m.at).toISOString(), who: m.who, text: m.text,
+      id, at: new Date(m.at).toISOString(), who: agent ? 'nova' : m.who, text: m.text,
       via: m.via || 'voice',
       ...((m.device || device) ? { device: m.device || device } : {}),
+      ...(agent ? { by: m.who } : (m.by ? { by: m.by } : {})),
+      ...(Array.isArray(m.from) && m.from.length ? { from: m.from } : {}),
     });
   });
   return out;
@@ -112,7 +119,10 @@ export function mergeRecord(chat, turns, { dev } = {}) {
     if (!t?.id || have.has(t.id) || !WHO.has(t.who)) continue;
     const at = Date.parse(t.at);
     if (!Number.isFinite(at)) continue;
-    incoming.push({ at, who: t.who, text: t.text, via: t.via, device: t.device, cid: t.id, fromRecord: true });
+    incoming.push({
+      at, who: t.who, text: t.text, via: t.via, device: t.device, cid: t.id, fromRecord: true,
+      ...(t.by ? { by: t.by } : {}), ...(Array.isArray(t.from) ? { from: t.from } : {}),
+    });
   }
   if (!incoming.length) return local;
   // stable by time; a local line with no clock keeps its place at the front
@@ -129,4 +139,18 @@ export function whereLabel(m, { device = '' } = {}) {
   if (VIA_WORDS[m?.via]) return VIA_WORDS[m.via];
   if (m?.fromRecord && m.device && m.device !== device) return `on your ${m.device}`;
   return null;
+}
+
+// A job's consult roster (server/lib/consult.js) trimmed to what the record
+// keeps: who was asked, what, how long, whether it answered, and the answer.
+// Mirrors trimForRecord on the server, which the client cannot import.
+export function trimConsult(roster) {
+  if (!Array.isArray(roster) || !roster.length) return null;
+  return roster.map((a) => ({
+    agent: a.agent,
+    question: String(a.question || '').slice(0, 500),
+    ms: Number.isFinite(a.ms) ? a.ms : null,
+    ok: a.ok === true,
+    answer: a.ok ? String(a.answer || '').slice(0, 4000) : String(a.error || 'no answer').slice(0, 500),
+  }));
 }
