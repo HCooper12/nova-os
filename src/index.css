@@ -3380,6 +3380,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   }
   /* the recipe page's floating rounds and its foot (the .nv-rp block at the end) go solid */
   .nv-rp-fab, .nv-rp-foot { background: var(--nv-void); }
+  /* the Nova thread's floating glass (the .nv-nt block at the end) goes solid */
+  .nv-nt-head, .nv-nt-stage, .nv-nt-composer, .nv-nt-strip, .nv-nt-sheet, .nv-nt-cmenu { background: var(--nv-void); }
 }
 
 /* ================================================================
@@ -4000,3 +4002,378 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 @keyframes nvRecStampS { 0% { transform: scale(1.14); opacity: 0; } 60% { transform: scale(.99); opacity: 1; } 100% { transform: none; opacity: 1; } }
 @keyframes nvRecFadeUp { from { opacity: 0; transform: translateY(6px); } }
 /* end of the personal-best moment */
+
+/* ================================================================
+   THE NOVA THREAD (29 Sep 2026) — the Nova tab under `summary`, mockup
+   63 D · Rising (design/mockups/63-redesign-nova-r2.html), his pick, with
+   his amendment: the name at the top toggles a focus mode, the core the
+   page's centre. src/screens/NovaThread.jsx + src/NovaThreadParts.jsx.
+   Every selector names a .nv-nt-* class nothing else wears; every colour is
+   a token. Type is 20 (the serif stage line and the close) · 17 · 15 · 13,
+   numerals in SF Rounded; every control is 44 or more. Colour means one
+   thing each: cyan (--nv-sum-btn) is Send, the page's one accent beside the
+   tab bar's Nova button; gold waits on his call; green is a done receipt;
+   red (--nv-warn) a failure. The state is said in words and drawn in a
+   shape; the core changes by form alone (NovaCore formOnly).
+   ================================================================ */
+.nv-nt {
+  --nt-top: 0px; --nt-core: 72px; --nt-k: .3462;
+  --nt-quiet: color-mix(in srgb, var(--nv-ink) 9%, transparent);
+  --nt-edge: color-mix(in srgb, var(--nv-ink) 16%, transparent);
+  --nt-bubble: color-mix(in srgb, var(--nv-ink) 13%, transparent);
+  --nt-solid: color-mix(in srgb, var(--nv-void) 90%, var(--nv-ink));
+  position: relative; box-sizing: border-box; min-height: 100%;
+  display: flex; flex-direction: column; max-width: 560px; margin: 0 auto;
+  padding: 0 16px calc(150px + min(env(safe-area-inset-bottom), 34px));
+  font: 400 15px/1.4 var(--nv-font-ui); color: var(--nv-ink);
+}
+.nv-nt.mob { --nt-top: calc(48px + env(safe-area-inset-top)); min-height: 100dvh; padding-top: var(--nt-top); }
+.nv-nt:not(.mob) { padding-top: 12px; padding-bottom: 120px; }
+.nv-nt button { -webkit-tap-highlight-color: transparent; }
+/* zero-specificity reset, so every .nv-nt-* rule below sets a button's face */
+:where(.nv-nt) button { font: inherit; color: inherit; }
+.nv-nt button:focus-visible, .nv-nt-sheet button:focus-visible, .nv-nt-cmenu button:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: 2px; }
+.nv-nt-ico { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* THE HEAD: Nova's face over the thread, as a contact's face heads Messages */
+.nv-nt-head {
+  position: sticky; top: var(--nt-top); z-index: 12; margin: 0 -16px; padding: 4px 16px 8px;
+  display: flex; flex-direction: column; align-items: center;
+  transition: min-height .34s var(--nv-ease);
+}
+.nv-nt-head {
+  background: color-mix(in srgb, var(--nv-void) 86%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4);
+}
+/* the scroll edge: a fade under the head, not a line (no blur on it, so no
+   backdrop layer sits under the head's own text) */
+.nv-nt-head::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 18px; pointer-events: none;
+  background: linear-gradient(color-mix(in srgb, var(--nv-void) 70%, transparent), transparent);
+}
+.nv-nt-face { display: block; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; min-width: 44px; min-height: 44px; }
+.nv-nt-face:active .nv-nt-core { transform: scale(.97); }
+.nv-nt-core {
+  position: relative; display: block; width: var(--nt-core); height: var(--nt-core);
+  transition: width .34s var(--nv-ease), height .34s var(--nv-ease), transform .16s var(--nv-ease);
+}
+.nv-nt-grow { position: absolute; inset: 0; will-change: transform; }
+.nv-nt-canvas {
+  position: absolute; left: 50%; top: 50%; width: 208px; height: 208px;
+  transform: translate(-50%, -50%) scale(var(--nt-k)); transition: transform .34s var(--nv-ease);
+}
+.nv-nt-core[data-state="offline"] .nv-nt-canvas { filter: grayscale(1) brightness(.62); }
+/* thinking: two bright arcs chase round the core while its rings run fast */
+.nv-nt-chase { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; animation: nvNtSpin 1.1s linear infinite; }
+.nv-nt-chase circle { fill: none; stroke: var(--nv-ink); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 14 86; opacity: .8; }
+.nv-nt-chase circle.b { stroke-dashoffset: -50; opacity: .5; }
+@keyframes nvNtSpin { to { transform: rotate(360deg); } }
+.nv-nt-who { display: flex; align-items: center; gap: 0; margin-top: -2px; }
+.nv-nt-name {
+  min-height: 44px; min-width: 44px; padding: 0 6px 0 12px; border: 0; border-radius: 22px; background: none; cursor: pointer;
+  font: 600 17px/1.2 var(--nv-font-ui); letter-spacing: -.01em; color: var(--nv-ink);
+}
+.nv-nt-more { width: 44px; height: 44px; margin-left: -10px; display: grid; place-items: center; border: 0; border-radius: 22px; background: none; cursor: pointer; color: var(--nv-sum-ink3); }
+.nv-nt-more .nv-nt-ico { width: 15px; height: 15px; stroke-width: 2.4; }
+.nv-nt-state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 22px; margin: -4px 0 0; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink60); text-align: center; }
+.nv-nt-state b { font-weight: 600; color: var(--nv-ink); }
+.nv-nt-state span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-nt-ico.g { width: 16px; height: 16px; }
+.nv-nt-glyph { display: inline-flex; align-items: center; gap: 2px; height: 16px; flex: none; }
+.nv-nt-glyph.bars i { width: 3px; height: 14px; border-radius: 2px; background: var(--nv-ink); animation: nvNtBar 1s ease-in-out infinite alternate; transform-origin: 50% 50%; }
+.nv-nt-glyph.bars i:nth-child(2) { animation-delay: .15s; } .nv-nt-glyph.bars i:nth-child(3) { animation-delay: .3s; } .nv-nt-glyph.bars i:nth-child(4) { animation-delay: .45s; }
+.nv-nt-glyph.dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--nv-ink); animation: nvNtDot 1.2s ease-in-out infinite; }
+.nv-nt-glyph.dots i:nth-child(2) { animation-delay: .2s; } .nv-nt-glyph.dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes nvNtBar { from { transform: scaleY(.35); } to { transform: scaleY(1); } }
+@keyframes nvNtDot { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+
+/* HIS AMENDMENT, FOCUS: the core is the page's centre, large, as today's
+   Voice screen has it; the newest lines stay tucked beneath. Tap the name
+   again, or scroll, to come back. */
+.nv-nt.focus { --nt-core: 208px; --nt-k: 1; }
+.nv-nt.focus .nv-nt-head { min-height: calc(62dvh - var(--nt-top)); justify-content: center; gap: 4px; }
+.nv-nt.focus .nv-nt-name { font-size: 20px; }
+.nv-nt.focus .nv-nt-state { font-size: 15px; }
+
+/* THE STAGE, RISING: glass over the thread while she speaks, no scrim. Its
+   rail is a zero-height sticky line at the head's foot (--nt-headh, measured),
+   outside the head, so its blur reaches the thread */
+.nv-nt-stagerail { position: sticky; top: calc(var(--nt-top) + var(--nt-headh, 144px)); z-index: 13; height: 0; margin: 0 -16px; }
+.nv-nt-stage {
+  position: absolute; top: 2px; left: 12px; right: 12px; z-index: 13; box-sizing: border-box;
+  max-height: calc(100dvh - var(--nt-top) - 330px - min(env(safe-area-inset-bottom), 34px)); overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 14px 16px; border-radius: 28px;
+  background: var(--nv-sum-sheen), color-mix(in srgb, var(--nv-void) 84%, transparent);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5); backdrop-filter: blur(30px) saturate(1.5);
+  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 1px 0 var(--nv-sum-card-hi) inset, 0 26px 54px -20px color-mix(in srgb, var(--nv-void) 92%, transparent);
+  transform-origin: 50% 0; animation: nvNtStageIn .42s var(--nv-ease) .06s both;
+}
+.nv-nt-stage.leaving { animation: nvNtStageOut .22s var(--nv-ease) both; pointer-events: none; }
+@keyframes nvNtStageIn { from { opacity: 0; transform: translateY(-14px) scale(.96); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes nvNtStageOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-10px) scale(.97); } }
+.nv-nt-sthead { display: flex; align-items: center; gap: 8px; min-height: 44px; font: 600 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-nt-sthead .t { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; }
+.nv-nt-sthead .nv-nt-ico { width: 16px; height: 16px; }
+.nv-nt-sthead .sub { margin-left: auto; font-weight: 400; color: var(--nv-sum-ink3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.nv-nt-tuck { flex: none; width: 44px; height: 44px; margin: 0 -10px 0 0; display: grid; place-items: center; border: 0; border-radius: 22px; background: none; cursor: pointer; color: var(--nv-ink60); }
+.nv-nt-sthead .t + .nv-nt-tuck { margin-left: auto; }
+.nv-nt-spanel {
+  position: relative; display: block; width: 100%; box-sizing: border-box; text-align: left; cursor: pointer;
+  padding: 12px 14px; border: 0; border-radius: 18px; background: var(--nt-quiet); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring);
+  animation: fadeIn .24s var(--nv-ease);
+}
+.nv-nt-spanel:active { transform: scale(.985); transition: transform .12s var(--nv-ease); }
+.nv-nt-spx { position: absolute; top: 12px; right: 12px; width: 16px; height: 16px; color: var(--nv-sum-ink3); }
+.nv-nt-line { margin: 12px 2px 0; font: 400 20px/1.34 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
+.nv-nt-line .later { color: var(--nv-sum-ink3); }
+
+/* THE STAGE, SETTLED: the last panel, the others, Replay */
+.nv-sum-card.nv-nt-settled { padding: 0 14px 14px; }
+/* the rail: short gists share the row; longer ones scroll sideways rather
+   than truncate (a label cut to "Sleep this w" says nothing) */
+.nv-nt-brail { display: flex; gap: 8px; margin: 8px -14px 0; padding: 0 14px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.nv-nt-brail::-webkit-scrollbar { display: none; }
+.nv-nt-mini {
+  flex: 1 0 auto; min-width: 104px; max-width: 78%; min-height: 56px; padding: 8px 12px; border: 0; border-radius: 16px; text-align: left; cursor: pointer;
+  background: var(--nt-quiet); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring);
+}
+.nv-nt-mini b { display: flex; align-items: center; gap: 4px; font: 600 15px/1.25 var(--nv-font-ui); white-space: nowrap; }
+.nv-nt-mini span { display: block; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-sum-ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-nt-mini .nv-nt-ico { width: 14px; height: 14px; }
+
+/* THE THREAD: his words right in monochrome glass, Nova's left as text on
+   the sky with their breaks kept, at rest on the newest line */
+.nv-nt-thread { display: flex; flex-direction: column; gap: 14px; margin-top: auto; padding-top: 18px; }
+.nv-nt-empty { margin: 0 4px; font: 400 15px/1.45 var(--nv-font-ui); color: var(--nv-ink60); text-align: center; }
+.nv-nt-day { align-self: center; display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--nv-font-ui); color: var(--nv-sum-ink3); }
+.nv-nt-day.door { margin-top: 6px; color: var(--nv-ink60); }
+.nv-nt-day .nv-nt-ico { width: 15px; height: 15px; }
+.nv-nt-you {
+  align-self: flex-end; max-width: 80%; box-sizing: border-box; padding: 10px 14px; border-radius: 20px 20px 6px 20px;
+  font: 400 17px/1.35 var(--nv-font-ui); white-space: pre-line; overflow-wrap: anywhere;
+  background: var(--nt-bubble); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring), 0 1px 0 var(--nv-sum-card-hi) inset;
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+}
+.nv-nt-meta { display: flex; align-items: center; gap: 6px; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-sum-ink3); }
+.nv-nt-meta .nv-nt-ico { width: 14px; height: 14px; }
+.nv-nt-meta.r { align-self: flex-end; margin: -8px 6px 0 0; }
+.nv-nt-nova { align-self: flex-start; max-width: 94%; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.nv-nt-say { font: 400 17px/1.42 var(--nv-font-ui); white-space: pre-line; text-wrap: pretty; overflow-wrap: anywhere; }
+.nv-nt-nova + .nv-nt-meta { margin-top: -8px; }
+.nv-nt-agent, .nv-nt-by { display: block; margin-bottom: 2px; font: 600 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-nt-in { animation: fadeUp var(--nv-dur-base) var(--nv-ease) backwards; }
+.nv-nt-you.in, .nv-nt-nova.in { animation: fadeUp var(--nv-dur-base) var(--nv-ease) backwards; }
+.nv-nt-thumbs { align-self: flex-end; display: flex; gap: 6px; }
+.nv-nt-thumbs img, .nv-nt-thumbs .vid { width: 64px; height: 64px; object-fit: cover; border-radius: 14px; box-shadow: 0 0 0 .5px var(--nv-sum-card-ring); }
+.nv-nt-thumbs .vid { display: grid; place-items: center; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); background: var(--nt-quiet); }
+.nv-nt-vpanel { min-width: 0; }
+.nv-nt-routed { margin: -4px 0 0; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-sum-ink3); }
+.nv-nt-routed button { min-height: 44px; margin-left: 4px; padding: 0 4px; border: 0; background: none; cursor: pointer; font: 600 13px var(--nv-font-ui); color: var(--nv-ink); text-decoration: underline; text-underline-offset: 3px; }
+.nv-nt-erow {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 44px;
+  padding: 0 12px 0 14px; border: 0; border-radius: 16px; text-align: left; cursor: pointer;
+  background: color-mix(in srgb, var(--nv-ink) 7%, transparent); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring);
+}
+.nv-nt-erow .t { font: 600 15px var(--nv-font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-nt-erow .s { display: inline-flex; align-items: center; gap: 2px; font: 400 13px var(--nv-font-ui); color: var(--nv-sum-ink3); white-space: nowrap; }
+.nv-nt-erow .s .nv-nt-ico { width: 14px; height: 14px; }
+.nv-nt-receipt, .nv-nt-job, .nv-nt-offl {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 52px;
+  padding: 4px 4px 4px 12px; border-radius: 26px; background: color-mix(in srgb, var(--nv-ink) 7%, transparent); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring);
+}
+.nv-nt-job, .nv-nt-offl { grid-template-columns: 28px minmax(0, 1fr); padding: 8px 14px 8px 12px; border-radius: 18px; }
+.nv-nt-offl { box-shadow: inset 0 0 0 1px var(--nt-edge); }
+.nv-nt-offl > .nv-nt-ico { width: 22px; height: 22px; color: var(--nv-ink60); }
+.nv-nt-receipt .ok { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--nv-good); color: var(--nv-void); }
+.nv-nt-receipt .ok .nv-nt-ico { width: 15px; height: 15px; stroke-width: 3; }
+.nv-nt-receipt .rx, .nv-nt-job .rx, .nv-nt-offl > span { min-width: 0; }
+.nv-nt-receipt .rx b, .nv-nt-job .rx b, .nv-nt-offl b { display: block; font: 600 15px/1.25 var(--nv-font-ui); overflow-wrap: anywhere; }
+.nv-nt-receipt .rx span, .nv-nt-job .rx span, .nv-nt-offl span span { display: block; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-sum-ink3); }
+.nv-nt-undo { height: 44px; min-width: 44px; padding: 0 14px; border: 0; border-radius: 22px; background: none; cursor: pointer; font: 600 15px var(--nv-font-ui); color: var(--nv-ink); }
+.nv-nt-job .spin { width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--nv-ink) 18%, transparent); border-top-color: var(--nv-ink); animation: nvNtSpin 1s linear infinite; justify-self: center; }
+
+/* the close and a proposal: the Coach deck's card, gold because it waits */
+.nv-nt-decide {
+  padding: 14px 16px 10px; border-radius: var(--nv-radius);
+  background: color-mix(in srgb, var(--nv-gold) 8%, var(--nv-sum-card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-gold) 38%, transparent), 0 1px 0 var(--nv-sum-card-hi) inset;
+  -webkit-backdrop-filter: blur(var(--nv-sum-blur)); backdrop-filter: blur(var(--nv-sum-blur));
+}
+.nv-nt-decide.done { background: var(--nv-sum-card); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring); }
+.nv-nt-decide .dk { display: flex; align-items: center; justify-content: space-between; font: 600 13px var(--nv-font-ui); color: var(--nv-gold); }
+.nv-nt-decide.done .dk { color: var(--nv-ink60); }
+.nv-nt-decide .dk .n { color: var(--nv-sum-ink3); font-weight: 400; font-variant-numeric: tabular-nums; }
+.nv-nt-decide .say { margin: 8px 0 0; font: 400 20px/1.3 var(--nv-font-serif); text-wrap: balance; }
+.nv-nt-decide .answer { display: flex; align-items: center; gap: 4px; margin-top: 10px; }
+.nv-nt-decide .yes {
+  display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 18px 0 15px; border: 0; border-radius: 22px; cursor: pointer; white-space: nowrap;
+  font: 600 15px var(--nv-font-ui); color: var(--nv-good);
+  background: color-mix(in srgb, var(--nv-good) 14%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-good) 34%, transparent);
+}
+.nv-nt-decide .q { display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 12px; border: 0; border-radius: 22px; background: none; cursor: pointer; white-space: nowrap; font: 600 15px var(--nv-font-ui); }
+.nv-nt-decide .q .nv-nt-ico { width: 16px; height: 16px; }
+.nv-nt-decide .no {
+  margin-left: auto; width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: var(--nv-ink60);
+  background: color-mix(in srgb, var(--nv-ink) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 15%, transparent);
+}
+.nv-sum-card.nv-nt-report { padding: 14px 16px; }
+.nv-nt-btnrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.nv-nt-qbtn {
+  display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 16px; border: 0; border-radius: 22px; cursor: pointer; white-space: nowrap;
+  font: 600 15px var(--nv-font-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 10%, transparent); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring);
+}
+.nv-nt-qbtn[disabled] { opacity: .6; cursor: default; }
+.nv-nt-qbtn .nv-nt-ico { width: 17px; height: 17px; }
+
+/* FAILURES: red, always in words, with the next step */
+.nv-nt-fail {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; padding: 12px 14px; border-radius: 20px;
+  background: color-mix(in srgb, var(--nv-warn) 9%, var(--nv-sum-card)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-warn) 40%, transparent);
+}
+.nv-nt-fail .bang { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--nv-warn); color: var(--nv-void); }
+.nv-nt-fail .bang .nv-nt-ico { width: 16px; height: 16px; stroke-width: 3; }
+.nv-nt-fail > span:nth-child(2) { min-width: 0; }
+.nv-nt-fail b { display: block; font: 600 15px/1.3 var(--nv-font-ui); }
+.nv-nt-fail span span { display: block; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink60); overflow-wrap: anywhere; }
+.nv-nt-fail .nv-nt-btnrow { grid-column: 2; margin-top: 8px; }
+.nv-nt-fail.slim { padding: 10px 14px; }
+
+/* A RECORDING, KEPT: his own bubble, playable, with the card under it */
+.nv-nt-you.rec { display: flex; align-items: center; gap: 10px; width: 62%; min-width: 200px; padding: 4px 14px 4px 4px; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.nv-nt-pb { flex: none; width: 44px; height: 44px; border: 0; border-radius: 22px; display: grid; place-items: center; cursor: pointer; color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 14%, transparent); }
+.nv-nt-pb .nv-nt-ico { width: 17px; height: 17px; }
+.nv-nt-track { flex: 1; height: 4px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--nv-ink) 18%, transparent); }
+.nv-nt-track i { display: block; height: 100%; background: var(--nv-ink); border-radius: 2px; transition: width .25s linear; }
+.nv-nt-tm { flex: none; font: 600 15px var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--nv-ink60); }
+
+/* thinking: where her answer will be, as a skeleton */
+.nv-nt-think { display: flex; flex-direction: column; gap: 8px; }
+.nv-nt-skel { display: block; height: 14px; border-radius: 6px; background: linear-gradient(90deg, var(--nt-quiet), color-mix(in srgb, var(--nv-ink) 16%, transparent), var(--nt-quiet)); background-size: 200% 100%; animation: nvNtShimmer 1.4s linear infinite; }
+@keyframes nvNtShimmer { to { background-position: -200% 0; } }
+
+/* THE COMPOSER: one bar above the tab bar */
+.nv-nt-composer {
+  position: fixed; z-index: 18; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
+  bottom: calc(76px + min(env(safe-area-inset-bottom), 34px)); max-width: 536px; margin: 0 auto; box-sizing: border-box;
+  padding: 6px; border-radius: 28px;
+  background: var(--nv-sum-sheen), var(--nv-sum-tab);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 1px 0 var(--nv-sum-card-hi) inset, var(--nv-sum-float-drop);
+}
+.nv-nt:not(.mob) .nv-nt-composer { bottom: 16px; }
+.nv-nt-composer.listening { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.nv-nt-bar { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 6px; align-items: end; }
+.nv-nt-plus { position: relative; width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center; cursor: pointer; color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 10%, transparent); }
+.nv-nt-plus input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.nv-nt-field {
+  min-width: 0; min-height: 44px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 14px;
+  border-radius: 22px; background: var(--nv-well); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 12%, transparent);
+}
+.nv-nt-field input {
+  flex: 1; min-width: 0; height: 42px; padding: 0; border: 0; outline: none; background: none;
+  font: 400 16px var(--nv-font-ui); color: var(--nv-ink);
+}
+.nv-nt-field input::placeholder { color: var(--nv-sum-ink3); }
+.nv-nt-route { flex: none; display: inline-flex; align-items: center; height: 26px; padding: 0 9px; border-radius: 13px; font: 600 13px var(--nv-font-ui); white-space: nowrap; color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 14%, transparent); }
+.nv-nt-send { width: 44px; height: 44px; border: 0; border-radius: 22px; display: grid; place-items: center; cursor: pointer; background: var(--nv-sum-btn); color: var(--nv-sum-btn-ink); animation: nvNtPop .18s var(--nv-ease); }
+.nv-nt-send .nv-nt-ico { stroke-width: 2.6; }
+@keyframes nvNtPop { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
+.nv-nt-composer.off .nv-nt-field { opacity: .6; }
+.nv-nt-pending { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 2px 4px 8px; }
+.nv-nt-att { position: relative; width: 52px; height: 52px; border-radius: 12px; overflow: hidden; background: var(--nv-well); }
+.nv-nt-att img { width: 100%; height: 100%; object-fit: cover; }
+.nv-nt-att .vid { display: grid; place-items: center; height: 100%; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-nt-att button { position: absolute; top: -6px; right: -6px; width: 44px; height: 44px; border: 0; background: none; cursor: pointer; display: grid; place-items: start end; padding: 8px; color: var(--nv-ink); }
+.nv-nt-att button .nv-nt-ico { width: 18px; height: 18px; padding: 2px; border-radius: 50%; background: color-mix(in srgb, var(--nv-void) 70%, transparent); }
+.nv-nt-meter { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border-radius: 22px; background: var(--nv-well); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 12%, transparent); }
+.nv-nt-meter .lv { flex: 1; display: flex; align-items: center; gap: 3px; height: 24px; overflow: hidden; }
+.nv-nt-meter .lv i { flex: none; width: 3px; height: 24px; border-radius: 2px; background: var(--nv-ink); transform: scaleY(.12); transition: transform .07s linear; }
+.nv-nt-meter .tm { font: 600 15px var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--nv-ink60); }
+.nv-nt-stop { height: 44px; padding: 0 14px; border: 0; border-radius: 22px; cursor: pointer; white-space: nowrap; font: 600 15px var(--nv-font-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 12%, transparent); }
+
+/* Tap to hear: a glass strip with its own way out */
+.nv-nt-strip {
+  position: fixed; z-index: 19; left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
+  bottom: calc(140px + min(env(safe-area-inset-bottom), 34px)); max-width: 536px; margin: 0 auto; box-sizing: border-box;
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 6px; align-items: center; padding: 4px; border-radius: 26px;
+  background: var(--nv-sum-sheen), var(--nv-sum-tab);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5);
+  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 1px 0 var(--nv-sum-card-hi) inset, var(--nv-sum-float-drop);
+  animation: fadeUp var(--nv-dur-base) var(--nv-ease);
+}
+.nv-nt-strip .pb, .nv-nt-strip .x { width: 44px; height: 44px; border: 0; border-radius: 22px; display: grid; place-items: center; cursor: pointer; }
+.nv-nt-strip .pb { background: color-mix(in srgb, var(--nv-ink) 14%, transparent); }
+.nv-nt-strip .x { background: none; color: var(--nv-ink60); }
+.nv-nt-strip .sx { min-width: 0; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-nt-strip .sx b { display: block; font: 600 15px var(--nv-font-ui); color: var(--nv-ink); }
+
+/* NOVA'S STATUS AND SETTINGS: a sheet from the foot */
+.nv-nt-sheetroot { display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--nv-void) 50%, transparent); animation: fadeIn var(--nv-dur-fast) var(--nv-ease) both; }
+.nv-nt-sheet {
+  width: 100%; max-width: 560px; box-sizing: border-box; max-height: 86dvh; overflow-y: auto;
+  padding: 6px 12px calc(14px + min(env(safe-area-inset-bottom), 34px)); border-radius: 28px 28px 0 0;
+  background: var(--nv-sum-sheen), color-mix(in srgb, var(--nv-void) 86%, transparent);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5); backdrop-filter: blur(30px) saturate(1.5);
+  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 1px 0 var(--nv-sum-card-hi) inset;
+  animation: sheetUp var(--nv-dur-base) var(--nv-ease) both;
+}
+.nv-nt-sheet .grab { display: block; width: 38px; height: 5px; margin: 2px auto 4px; border-radius: 3px; background: color-mix(in srgb, var(--nv-ink) 30%, transparent); }
+.nv-nt-shead { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 4px 0 8px; }
+.nv-nt-shead b { font: 700 20px var(--nv-font-ui); letter-spacing: -.01em; }
+.nv-nt-shead > span { display: inline-flex; align-items: center; gap: 6px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-nt-shead .nv-nt-tuck { margin: 0 0 0 auto; }
+.nv-nt-group { margin: 8px 0; padding: 4px; border-radius: 20px; background: var(--nv-sum-card); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring); }
+.nv-nt-stat { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; min-height: 44px; padding: 0 12px; }
+.nv-nt-stat span { font: 400 15px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-nt-stat b { justify-self: end; text-align: right; font: 600 15px var(--nv-font-ui); }
+.nv-nt-note { margin: 0 12px 6px; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-sum-ink3); }
+.nv-nt-mi {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 48px;
+  padding: 0 12px; border: 0; border-radius: 16px; background: none; cursor: pointer; text-align: left; font: 400 15px var(--nv-font-ui);
+}
+.nv-nt-mi .v { font: 400 13px var(--nv-font-ui); color: var(--nv-sum-ink3); }
+.nv-nt-mi.danger { color: var(--nv-warn); }
+.nv-nt-mi:active { background: color-mix(in srgb, var(--nv-ink) 7%, transparent); }
+.nv-nt-sw { position: relative; width: 51px; height: 31px; border-radius: 16px; background: color-mix(in srgb, var(--nv-ink) 22%, transparent); transition: background .2s var(--nv-ease); }
+.nv-nt-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: var(--nv-ink); box-shadow: 0 2px 4px color-mix(in srgb, var(--nv-void) 40%, transparent); transition: transform .2s var(--nv-ease); }
+.nv-nt-sw.on { background: var(--nv-good); }
+.nv-nt-sw.on::after { transform: translateX(20px); }
+
+/* HOLD A LINE: it lifts over the dimmed thread, and the menu grows from it */
+.nv-nt-holdroot { background: color-mix(in srgb, var(--nv-void) 55%, transparent); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: fadeIn var(--nv-dur-fast) var(--nv-ease) both; }
+.nv-nt-lift { position: absolute; left: 16px; right: 16px; max-width: 528px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.nv-nt-held {
+  align-self: flex-start; max-width: 94%; box-sizing: border-box; padding: 10px 12px; border-radius: 18px;
+  font: 400 17px/1.4 var(--nv-font-ui); white-space: pre-line; background: var(--nt-solid);
+  box-shadow: 0 0 0 .5px var(--nv-sum-card-ring), var(--nv-sum-float-drop); transform: scale(1.02); transform-origin: 0 50%;
+  animation: nvNtLift .22s var(--nv-ease) both;
+}
+.nv-nt-held.r { align-self: flex-end; transform-origin: 100% 50%; font-size: 15px; }
+@keyframes nvNtLift { from { transform: scale(1); } to { transform: scale(1.02); } }
+.nv-nt-cmenu {
+  width: 250px; box-sizing: border-box; padding: 6px; border-radius: 20px;
+  background: var(--nv-sum-sheen), color-mix(in srgb, var(--nv-void) 84%, transparent);
+  -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
+  box-shadow: 0 0 0 .5px var(--nv-sum-tab-ring), 0 1px 0 var(--nv-sum-card-hi) inset, var(--nv-sum-float-drop);
+  transform-origin: 22px 0; animation: nvNtPop .2s var(--nv-ease) both;
+}
+.nv-nt-cmenu.up { order: -1; transform-origin: 22px 100%; }
+.nv-nt-cmenu .nv-nt-mi { min-height: 44px; }
+.nv-nt-sheetbody { padding: 4px 18px 24px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .nv-nt-mi:hover, .nv-nt-mini:hover, .nv-nt-erow:hover { background: color-mix(in srgb, var(--nv-ink) 8%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-nt-stage, .nv-nt-stage.leaving { animation: fadeIn .2s ease both; }
+  .nv-nt-chase, .nv-nt-glyph i, .nv-nt-skel, .nv-nt-job .spin { animation: none; }
+  .nv-nt-chase circle.b { display: none; }
+  .nv-nt-you.in, .nv-nt-nova.in, .nv-nt-spanel, .nv-nt-held, .nv-nt-cmenu, .nv-nt-send { animation: none; }
+  .nv-nt-sheet { animation: fadeIn .2s ease both; }
+  .nv-nt-core, .nv-nt-canvas, .nv-nt-head { transition: none; }
+}
+:root[data-nv-calm="1"] .nv-nt-stage, :root[data-nv-calm="1"] .nv-nt-you.in, :root[data-nv-calm="1"] .nv-nt-nova.in { animation: none; }
+/* Reduce transparency: the app-wide guard (REDUCE TRANSPARENCY, EVERYWHERE,
+   above) drops every blur and turns these surfaces solid; it must stay the
+   file's last prefers-reduced-transparency block (mobileNative.test.js). */
+/* end of the Nova thread */

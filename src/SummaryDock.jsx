@@ -49,6 +49,7 @@ export function SummaryDock({ v }) {
   // says which branch he is in (the floating dock lit its More the same way)
   const moreOn = !!v.isIndex || !tabs.some((t) => t.active);
   const capture = v.inboxSummary?.capture;
+  const listening = !!(v.novaListening || v.novaThread?.micOpen);
   return (
     <>
     <div className="nv-sum-dock">
@@ -66,12 +67,16 @@ export function SummaryDock({ v }) {
           screen (CaptureSheet.jsx). The hold used to open the live
           transcript (toggleLiveText); that transcript is the Voice screen
           itself, one tap away, so it stays reachable there. */}
-      <Interactive onClick={v.startLiveTalk} onLongPress={v.openCaptureSheet || v.holdNovaText} aria-label="Talk to Nova. Hold to capture a thought"
-        className="nv-sum-nova" data-listening={v.novaListening ? 'true' : undefined}
+      {/* ON THE NOVA TAB (29 Sep, mockup 63 D) the tap opens that page's own
+          microphone (the thread registers it), and the orb says so while it
+          is open: that page's mic is reported as voiceScreenMic, not as the
+          presence's liveMicOpen. Everywhere else, exactly as before. */}
+      <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.openCaptureSheet || v.holdNovaText} aria-label="Talk to Nova. Hold to capture a thought"
+        className="nv-sum-nova" data-listening={listening ? 'true' : undefined}
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
-        <VoiceHalo speaking={v.novaSpeaking} listening={v.novaListening} inset="-6px" />
+        <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-6px" />
         <span className="nv-sum-nova-orb">
-          <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.novaListening} style={{ pointerEvents: 'none' }} />
+          <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} style={{ pointerEvents: 'none' }} />
         </span>
         <span className="nv-sum-nova-cap" aria-hidden="true">Talk</span>
       </Interactive>

@@ -111,9 +111,9 @@ function makeFilamentDraw(ctx, size, opts, getState) {
     lvl = audioLevel();
     const dt = last == null ? 0 : Math.min(t - last, 0.1);
     last = t;
-    mixS += ((st.speaking ? 1 : 0) - mixS) * 0.07;
-    mixL += ((st.listening ? 1 : 0) - mixL) * 0.07;
-    clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4);
+    mixS += ((st.speaking && !st.formOnly ? 1 : 0) - mixS) * 0.07;
+    mixL += ((st.listening && !st.formOnly ? 1 : 0) - mixL) * 0.07;
+    clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4) * (st.pace || 1);
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'lighter';
     for (const w of wisps) {
@@ -382,9 +382,9 @@ function makeHoloDraw(ctx, size, opts, getState) {
     lvl = audioLevel();
     const dt = last == null ? 0 : Math.min(t - last, 0.1);
     last = t;
-    mixS += ((st.speaking ? 1 : 0) - mixS) * 0.07;
-    mixL += ((st.listening ? 1 : 0) - mixL) * 0.07;
-    clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4);
+    mixS += ((st.speaking && !st.formOnly ? 1 : 0) - mixS) * 0.07;
+    mixL += ((st.listening && !st.formOnly ? 1 : 0) - mixL) * 0.07;
+    clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4) * (st.pace || 1);
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'lighter';
     const axT = 0.5 + 0.22 * Math.sin(t * 0.09);
@@ -566,12 +566,19 @@ function makeHoloDraw(ctx, size, opts, getState) {
 
 /* ------------------------------- component ------------------------------- */
 
-export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false }) {
+// FORM, NOT HUE (29 Sep 2026, the Nova thread, mockup 63 D): three optional
+// props for a surface that says the state by shape and motion alone, because
+// on that page gold means "waiting on your call" and nothing else.
+//   formOnly — the palette never leaves Nova's blue (no gold, no violet);
+//   pace     — the clock's rate (thinking runs the rings three times faster);
+//   still    — one frame and no loop, the way reduced motion draws it (offline).
+// Left at their defaults every existing caller draws exactly what it did.
+export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false, formOnly = false, pace = 1, still = false }) {
   const ref = useRef(null);
   // live state read through a ref so the rAF loop sees changes WITHOUT the
   // canvas being torn down and rebuilt on every speech toggle
-  const stateRef = useRef({ speaking, listening });
-  stateRef.current = { speaking, listening };
+  const stateRef = useRef({ speaking, listening, formOnly, pace });
+  stateRef.current = { speaking, listening, formOnly, pace };
 
   useEffect(() => {
     const canvas = ref.current;
@@ -590,7 +597,7 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
         : makeFilamentDraw(ctx, size, FILAMENT_PRESETS[variant] || FILAMENT_PRESETS.full, getState);
 
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) {
+    if (reduced || still) {
       draw(engine === 'hologram' ? 3.2 : 1.7); // reduced-motion: one still frame
       return undefined;
     }
@@ -609,7 +616,7 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [size, variant, engine]);
+  }, [size, variant, engine, still]);
 
   return <canvas ref={ref} style={{ width: size, height: size, display: 'block', ...style }} />;
 }

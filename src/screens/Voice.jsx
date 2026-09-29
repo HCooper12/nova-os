@@ -15,6 +15,7 @@ import { railDepth } from '../glassDepth.js';
 import { GlassSheet } from '../GlassSheet.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
+import { NovaThread } from './NovaThread.jsx';
 
 // THE STATION FRAME STAYS — the bracketed panels and the reticle were his
 // explicit ask (20 Aug: "a station, not a chat page"). What changes in the
@@ -81,7 +82,17 @@ function RailRow({ label, value, tone, barPct }) {
   );
 }
 
+// THE NOVA THREAD (29 Sep 2026, mockup 63 D · Rising, his pick): under the
+// `summary` style this tab is his conversation with Nova as the page
+// (NovaThread.jsx). cupertino and command keep the station below, untouched.
+// A separate component rather than an early return, because the station's
+// hooks must run in the same order on every render.
 export function Voice({ v }) {
+  if (v.summary && v.novaThread) return <NovaThread v={v} />;
+  return <VoiceClassic v={v} />;
+}
+
+function VoiceClassic({ v }) {
   // The log cascades only on the paint that mounts it. After that a new
   // message is the ONLY row mounting, and it must land immediately rather
   // than sit out a delay it would inherit purely for being last. See

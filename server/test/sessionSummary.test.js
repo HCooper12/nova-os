@@ -285,10 +285,13 @@ test('Workouts.jsx renders the summary session only under summary, after the Tra
   assert.doesNotMatch(read('src/screens/SessionSummary.jsx'), /from '\.\/Workouts\.jsx'/, 'the summary session never imports the classic screen back');
 });
 
-test('App spreads the session view model last of all in renderVals', () => {
+test('App spreads the session view model after the Inbox, then only the Nova thread after it', () => {
   const app = read('src/App.jsx');
   assert.match(app, /const withInbox = \{ \.\.\.withFuel, \.\.\.valsInboxSummary\(this, ctx, withFuel\) \};/);
-  assert.match(app, /return \{ \.\.\.withInbox, \.\.\.valsSessionSummary\(this, ctx, withInbox\) \};\n  \}/);
+  // 29 Sep: the Nova thread (novaThread.test.js) takes the session's place as
+  // the last spread; the session still reads everything before it
+  assert.match(app, /const withSession = \{ \.\.\.withInbox, \.\.\.valsSessionSummary\(this, ctx, withInbox\) \};/);
+  assert.match(app, /return \{ \.\.\.withSession, \.\.\.valsNovaThread\(this, ctx, withSession\) \};\n  \}/);
 });
 
 test('the new files reach no network: every write is an app method the classic session already calls', () => {

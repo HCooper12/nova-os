@@ -258,7 +258,11 @@ test('its styles: namespaced .nv-rec-*, at the END of index.css, 13px and up, 44
   const endMark = '/* end of the personal-best moment */';
   const end = css.indexOf(endMark);
   assert.ok(start > 0 && end > start, 'the .nv-rec-* block');
-  assert.equal(css.slice(end + endMark.length).trim(), '', 'appended at the very end');
+  // appended at the end of the file when it landed (29 Sep); later summary
+  // blocks append after it in the same way, so what follows may only be
+  // another block that opens with its own banner, never a stray rule
+  const after = css.slice(end + endMark.length).trim();
+  assert.ok(after === '' || after.startsWith('/*'), 'only a later block follows, opening with its banner');
   const block = css.slice(css.indexOf('*/', start) + 2, end).replace(/\/\*[\s\S]*?\*\//g, '');
   const sizes = [];
   for (const rule of block.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {

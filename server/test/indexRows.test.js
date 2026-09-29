@@ -218,9 +218,13 @@ test('the tab bar\'s Nova is the dock\'s Nova: tap to talk; hold captures (the s
   // the hold was the live transcript; since the summary Inbox (mockup 60 #5)
   // it raises the capture composer, and falls back to the transcript only
   // when no composer is offered
-  assert.match(dock, /onClick=\{v\.startLiveTalk\} onLongPress=\{v\.openCaptureSheet \|\| v\.holdNovaText\} aria-label="Talk to Nova\. Hold to capture a thought"/);
-  assert.match(dock, /<VoiceHalo speaking=\{v\.novaSpeaking\} listening=\{v\.novaListening\} inset="-6px" \/>/);
-  assert.match(dock, /<NovaCore size=\{46\} variant="mini" engine=\{v\.coreStyle\} speaking=\{v\.novaSpeaking\} listening=\{v\.novaListening\}/);
+  // 29 Sep (the Nova thread, mockup 63 D): on the Nova tab the tap opens that
+  // page's own microphone (novaThread.dockTalk), and the orb reads that page's
+  // mic too; on every other page it is startLiveTalk and liveMicOpen, as before
+  assert.match(dock, /onClick=\{v\.novaThread\?\.dockTalk \|\| v\.startLiveTalk\} onLongPress=\{v\.openCaptureSheet \|\| v\.holdNovaText\} aria-label="Talk to Nova\. Hold to capture a thought"/);
+  assert.match(dock, /const listening = !!\(v\.novaListening \|\| v\.novaThread\?\.micOpen\);/);
+  assert.match(dock, /<VoiceHalo speaking=\{v\.novaSpeaking\} listening=\{listening\} inset="-6px" \/>/);
+  assert.match(dock, /<NovaCore size=\{46\} variant="mini" engine=\{v\.coreStyle\} speaking=\{v\.novaSpeaking\} listening=\{listening\}/);
   assert.match(dock, /v\.tabs\.slice\(0, 4\)/, 'four of his tabs, in his order');
   assert.match(dock, /go=\{v\.goIndex\}/, 'More is the Index');
   assert.match(dock, /haptic="tick"/, 'a tab he cannot feel is the dock bug again (haptics.test.js)');

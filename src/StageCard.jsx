@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo } from 'react';
 import { css } from './css.js';
+import { sentenceCase } from './novaThreadFacts.js';
 
 const M = 'var(--nv-font-mono)';
 
@@ -73,7 +74,7 @@ function BodyPanel({ ids, side, mini }) {
   );
 }
 
-export function StageCard({ card, size = 'full' }) {
+export function StageCard({ card, size = 'full', face }) {
   if (!card) return null;
   // an instrument draws itself, frame and all
   if (card.kind === 'instrument') return <InstrumentCard card={card} />;
@@ -91,13 +92,23 @@ export function StageCard({ card, size = 'full' }) {
   // media and image are drawn WITHOUT their picture on purpose — the frame is
   // the promise that lands in context, the picture is what fills it.
   const mini = size === 'mini';
-  const accent = toneOf(card.tone);
-  const pad = mini ? '10px 12px' : '18px 20px 16px';
+  // THE SUMMARY FACE (29 Sep 2026, the Nova thread, mockup 63 D): the same
+  // panels drawn in that page's type and material. The stage it rises in is
+  // the glass, so the card brings no frame of its own; every size meets the
+  // 13px floor; the accent is ink (colour there means one thing each, and
+  // cyan is the talk action). A muscle keeps its own hue. Without `face`
+  // every value below is exactly what it always was.
+  const S = face === 'summary';
+  const fz = (n) => (S ? Math.max(13, n) : n);
+  const MF = S ? 'var(--nv-font-ui)' : M;
+  const trk = (t) => (S ? '.02em' : t);
+  const accent = S ? 'var(--nv-ink)' : toneOf(card.tone);
+  const pad = S ? '0' : mini ? '10px 12px' : '18px 20px 16px';
 
   return (
     <div style={{
       position: 'relative', width: '100%', borderRadius: mini ? '10px' : '14px', padding: pad,
-      border: `1px solid color-mix(in srgb, ${accent} ${mini ? 26 : 45}%, transparent)`,
+      border: S ? 'none' : `1px solid color-mix(in srgb, ${accent} ${mini ? 26 : 45}%, transparent)`,
       // OPAQUE, NOT TRANSLUCENT. The top stop used to be `accent 07%,
       // transparent` — glass, which reads beautifully on the dark Voice screen
       // and is unreadable everywhere else. On 15 Sep the morning brief raised
@@ -106,14 +117,14 @@ export function StageCard({ card, size = 'full' }) {
       // ring. A panel that rises anywhere in Nova has to be legible against
       // whatever is behind it, so the tint now sits ON the void rather than on
       // nothing. Same look on the Voice screen; readable on every other.
-      background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 09%, var(--nv-void)), color-mix(in srgb, var(--nv-void) 92%, black))`,
-      boxShadow: mini ? 'none' : `0 0 30px -8px color-mix(in srgb, ${accent} 55%, transparent), 0 20px 50px -24px rgba(0,0,0,.85)`,
+      background: S ? 'transparent' : `linear-gradient(180deg, color-mix(in srgb, ${accent} 09%, var(--nv-void)), color-mix(in srgb, var(--nv-void) 92%, black))`,
+      boxShadow: mini || S ? 'none' : `0 0 30px -8px color-mix(in srgb, ${accent} 55%, transparent), 0 20px 50px -24px rgba(0,0,0,.85)`,
       // full panels arrive out of depth; a mini one is placed by its rail,
       // which animates the recession itself
-      animation: mini ? 'none' : 'nvGlassArrive var(--nv-dur-slow) var(--nv-ease) both',
+      animation: mini || S ? 'none' : 'nvGlassArrive var(--nv-dur-slow) var(--nv-ease) both',
     }}>
       {card.label ? (
-        <div style={{ font: `600 ${mini ? 7.5 : 8.5}px ${M}`, letterSpacing: '.2em', color: `color-mix(in srgb, ${accent} 85%, transparent)` }}>{card.label}</div>
+        <div style={{ font: `600 ${fz(mini ? 7.5 : 8.5)}px ${MF}`, letterSpacing: trk('.2em'), color: S ? 'var(--nv-ink60)' : `color-mix(in srgb, ${accent} 85%, transparent)` }}>{S ? sentenceCase(card.label) : card.label}</div>
       ) : null}
 
       {card.kind === 'shot' && (
@@ -123,12 +134,12 @@ export function StageCard({ card, size = 'full' }) {
       )}
       {card.kind === 'shot' && card.url && card.onOpen && !mini && (
         <button type="button" onClick={() => card.onOpen(card.url)}
-          style={{ marginTop: '10px', font: `600 9px ${M}`, letterSpacing: '.18em', color: accent, background: 'transparent', border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`, borderRadius: '999px', padding: '6px 12px', cursor: 'pointer' }}>
+          style={{ marginTop: '10px', font: `600 ${fz(9)}px ${MF}`, letterSpacing: trk('.18em'), color: accent, background: 'transparent', border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`, borderRadius: '999px', padding: '6px 12px', cursor: 'pointer' }}>
           OPEN IT FOR REAL →
         </button>
       )}
       {card.kind === 'shot' && card.caption && (
-        <div style={{ marginTop: mini ? '5px' : '10px', font: `${mini ? 400 : 500} ${mini ? 10.5 : 13}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 84%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{card.caption}</div>
+        <div style={{ marginTop: mini ? '5px' : '10px', font: `${mini ? 400 : 500} ${fz(mini ? 10.5 : 13)}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 84%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{card.caption}</div>
       )}
 
       {/* still fetching: the frame is up in context and says so, and the
@@ -141,7 +152,7 @@ export function StageCard({ card, size = 'full' }) {
       )}
 
       {card.kind === 'key' && card.caption && (
-        <div style={{ marginTop: mini ? '5px' : '11px', font: `500 ${mini ? 11 : 17}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal', display: mini ? 'block' : '-webkit-box', WebkitLineClamp: mini ? undefined : 3, WebkitBoxOrient: 'vertical' }}>{card.caption}</div>
+        <div style={{ marginTop: mini ? '5px' : '11px', font: `500 ${fz(mini ? 11 : 17)}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal', display: mini ? 'block' : '-webkit-box', WebkitLineClamp: mini ? undefined : 3, WebkitBoxOrient: 'vertical' }}>{card.caption}</div>
       )}
 
       {card.kind === 'image' && card.src && (
@@ -150,10 +161,10 @@ export function StageCard({ card, size = 'full' }) {
         </div>
       )}
       {card.kind === 'image' && card.src && card.caption && !mini && (
-        <div style={{ marginTop: '9px', font: `500 13px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 84%, transparent)' }}>{card.caption}</div>
+        <div style={{ marginTop: '9px', font: `500 ${fz(13)}px/1.45 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 84%, transparent)' }}>{card.caption}</div>
       )}
       {card.kind === 'image' && card.credit && !mini && (
-        <div style={{ marginTop: '6px', font: `500 7.5px ${M}`, letterSpacing: '.18em', color: 'color-mix(in srgb, var(--nv-ink) 34%, transparent)' }}>{String(card.credit).toUpperCase()}</div>
+        <div style={{ marginTop: '6px', font: `500 ${fz(7.5)}px ${MF}`, letterSpacing: trk('.18em'), color: 'color-mix(in srgb, var(--nv-ink) 34%, transparent)' }}>{String(card.credit).toUpperCase()}</div>
       )}
 
       {/* A THING HE COULD GO AND HEAR. The timecode is the point of it — but
@@ -167,21 +178,21 @@ export function StageCard({ card, size = 'full' }) {
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ font: `500 ${mini ? 10.5 : 14}px/1.35 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{card.title || card.caption}</div>
+            <div style={{ font: `500 ${fz(mini ? 10.5 : 14)}px/1.35 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{card.title || card.caption}</div>
             {!mini && card.channel && (
-              <div style={{ marginTop: '4px', font: `500 8px ${M}`, letterSpacing: '.18em', color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{String(card.channel).toUpperCase()}</div>
+              <div style={{ marginTop: '4px', font: `500 ${fz(8)}px ${MF}`, letterSpacing: trk('.18em'), color: 'color-mix(in srgb, var(--nv-ink) 40%, transparent)' }}>{String(card.channel).toUpperCase()}</div>
             )}
             {card.stamp && (
               <a href={card.watchUrl} target="_blank" rel="noreferrer"
-                style={{ marginTop: mini ? '4px' : '9px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', font: `600 ${mini ? 8 : 9.5}px ${M}`, letterSpacing: '.16em', color: accent, border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`, borderRadius: '999px', padding: mini ? '3px 7px' : '5px 11px' }}>
+                style={{ marginTop: mini ? '4px' : '9px', display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none', font: `600 ${fz(mini ? 8 : 9.5)}px ${MF}`, letterSpacing: trk('.16em'), color: accent, border: `1px solid color-mix(in srgb, ${accent} 45%, transparent)`, borderRadius: '999px', padding: mini ? '3px 7px' : '5px 11px' }}>
                 ▶ {card.stamp}
               </a>
             )}
             {!mini && !card.stamp && !card.pending && (
-              <div style={{ marginTop: '9px', font: `500 8px ${M}`, letterSpacing: '.16em', color: 'color-mix(in srgb, var(--nv-ink) 34%, transparent)' }}>MOMENT NOT MARKED</div>
+              <div style={{ marginTop: '9px', font: `500 ${fz(8)}px ${MF}`, letterSpacing: trk('.16em'), color: 'color-mix(in srgb, var(--nv-ink) 34%, transparent)' }}>MOMENT NOT MARKED</div>
             )}
             {!mini && card.stamp && card.stampSource === 'vault' && (
-              <div style={{ marginTop: '6px', font: `500 7.5px ${M}`, letterSpacing: '.16em', color: 'color-mix(in srgb, var(--nv-ink) 34%, transparent)' }}>FROM YOUR NOTE</div>
+              <div style={{ marginTop: '6px', font: `500 ${fz(7.5)}px ${MF}`, letterSpacing: trk('.16em'), color: 'color-mix(in srgb, var(--nv-ink) 34%, transparent)' }}>FROM YOUR NOTE</div>
             )}
           </div>
         </div>
@@ -193,8 +204,8 @@ export function StageCard({ card, size = 'full' }) {
         <div style={css(`margin-top:${mini ? 7 : 14}px;display:flex;flex-direction:column;gap:${mini ? 6 : 11}px`)}>
           {(card.items || []).slice(0, Math.max(1, card.revealed ?? (card.items || []).length)).map((it, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: mini ? '7px' : '11px', animation: 'glassStep var(--nv-dur-base) var(--nv-ease)' }}>
-              <span style={{ flex: 'none', font: `600 ${mini ? 8 : 10}px ${M}`, letterSpacing: '.1em', color: accent, fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
-              <span style={{ flex: 1, minWidth: 0, font: `500 ${mini ? 10.5 : 14}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{it.name}</span>
+              <span style={{ flex: 'none', font: `600 ${fz(mini ? 8 : 10)}px ${MF}`, letterSpacing: trk('.1em'), color: accent, fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
+              <span style={{ flex: 1, minWidth: 0, font: `500 ${fz(mini ? 10.5 : 14)}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal' }}>{it.name}</span>
               {/* A DECISION IS A LIGHT TICK OR CROSS, NOT A BUTTON PER IDEA
                   (§2b rule 8). Each goes to Nova as a plain sentence and
                   comes back as a proposal on the rails; he can also just
@@ -212,8 +223,8 @@ export function StageCard({ card, size = 'full' }) {
           {card.decide && card.onAll && !mini && (card.revealed ?? card.items.length) >= card.items.length && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', animation: 'glassStep var(--nv-dur-base) var(--nv-ease)' }}>
               <button type="button" onClick={card.onAll}
-                style={{ font: `600 9.5px ${M}`, letterSpacing: '.18em', color: 'var(--nv-on-acc)', background: accent, border: 'none', borderRadius: '999px', padding: '8px 14px', cursor: 'pointer' }}>MAKE ALL OF THEM</button>
-              <span style={{ font: `500 11.5px var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>or just tell me</span>
+                style={{ font: `600 ${fz(9.5)}px ${MF}`, letterSpacing: trk('.18em'), color: 'var(--nv-on-acc)', background: accent, border: 'none', borderRadius: '999px', padding: '8px 14px', cursor: 'pointer' }}>MAKE ALL OF THEM</button>
+              <span style={{ font: `500 ${fz(11.5)}px var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>or just tell me</span>
             </div>
           )}
         </div>
@@ -229,8 +240,8 @@ export function StageCard({ card, size = 'full' }) {
           <BodyPanel ids={card.ids} side={card.side} mini={mini} />
           {card.caption && !mini && (
             <div style={{ padding: '4px 12px 10px', display: 'flex', alignItems: 'baseline', gap: '9px' }}>
-              <span style={{ font: `400 18px var(--nv-font-serif)`, color: card.hue || accent }}>{card.group || card.muscle}</span>
-              <span style={{ font: `500 12.5px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 80%, transparent)' }}>{card.caption}</span>
+              <span style={{ font: `400 ${fz(18)}px var(--nv-font-serif)`, color: card.hue || accent }}>{card.group || card.muscle}</span>
+              <span style={{ font: `500 ${fz(12.5)}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 80%, transparent)' }}>{card.caption}</span>
             </div>
           )}
         </div>
@@ -257,18 +268,18 @@ export function StageCard({ card, size = 'full' }) {
                   ...(r.verdict === 'remove'
                     ? { animation: 'nvRowBlink 1.1s var(--nv-ease) .6s 1, nvRowGone .5s var(--nv-ease) 3.4s 1 forwards' }
                     : { animation: 'glassStep var(--nv-dur-base) var(--nv-ease) both', animationDelay: `${i * 45}ms` }) }}>
-                <span style={{ flex: 'none', font: `600 ${mini ? 7.5 : 9}px ${M}`, letterSpacing: '.1em', color: lit ? hue : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)', fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
-                <span style={{ flex: 1, minWidth: 0, font: `500 ${mini ? 10.5 : 13.5}px/1.35 var(--nv-font-ui)`,
+                <span style={{ flex: 'none', font: `600 ${fz(mini ? 7.5 : 9)}px ${MF}`, letterSpacing: trk('.1em'), color: lit ? hue : 'color-mix(in srgb, var(--nv-ink) 35%, transparent)', fontVariantNumeric: 'tabular-nums' }}>{String(i + 1).padStart(2, '0')}</span>
+                <span style={{ flex: 1, minWidth: 0, font: `500 ${fz(mini ? 10.5 : 13.5)}px/1.35 var(--nv-font-ui)`,
                   color: lit ? 'var(--nv-ink)' : 'color-mix(in srgb, var(--nv-ink) 55%, transparent)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                {r.muscle && !mini && <span style={{ flex: 'none', font: `600 8.5px ${M}`, letterSpacing: '.12em', color: lit ? hue : 'color-mix(in srgb, var(--nv-ink) 30%, transparent)' }}>{String(r.muscle).toUpperCase()}</span>}
-                {r.verdict === 'keep' && <span style={{ flex: 'none', font: `600 ${mini ? 8 : 9.5}px ${M}`, letterSpacing: '.12em', color: hue }}>KEEP</span>}
+                {r.muscle && !mini && <span style={{ flex: 'none', font: `600 ${fz(8.5)}px ${MF}`, letterSpacing: trk('.12em'), color: lit ? hue : 'color-mix(in srgb, var(--nv-ink) 30%, transparent)' }}>{String(r.muscle).toUpperCase()}</span>}
+                {r.verdict === 'keep' && <span style={{ flex: 'none', font: `600 ${fz(mini ? 8 : 9.5)}px ${MF}`, letterSpacing: trk('.12em'), color: hue }}>KEEP</span>}
                 {r.verdict === 'remove' && <span aria-hidden="true" className="nv-row-strike" style={{ position: 'absolute', left: mini ? 22 : 34, top: '50%', height: '1.5px', background: 'var(--nv-warn)', transform: 'translateY(-50%)' }} />}
               </div>
             );
           })}
           {!mini && (card.remove || []).length > 0 && (
-            <div style={{ marginTop: '6px', font: `500 11.5px var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 55%, transparent)' }}>
+            <div style={{ marginTop: '6px', font: `500 ${fz(11.5)}px var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 55%, transparent)' }}>
               Leaving {card.routineName}: <span style={{ color: 'var(--nv-warn)' }}>{card.remove.join(', ')}</span>
             </div>
           )}
@@ -277,10 +288,10 @@ export function StageCard({ card, size = 'full' }) {
 
       {card.kind === 'metric' && (
         <div style={css(`text-align:center;padding:${mini ? '6px 0 2px' : '14px 0 6px'}`)}>
-          <b style={{ font: `600 ${mini ? 22 : 54}px/1 var(--nv-font-ui)`, color: accent, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.01em' }}>
+          <b style={{ font: `600 ${fz(mini ? 22 : 54)}px/1 var(--nv-font-ui)`, color: accent, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.01em' }}>
             {card.value}{card.unit && <span style={{ fontSize: '.42em', marginLeft: '2px', color: 'color-mix(in srgb, var(--nv-ink) 50%, transparent)' }}>{card.unit}</span>}
           </b>
-          {card.caption && <div style={{ marginTop: mini ? '2px' : '7px', font: `500 ${mini ? 7 : 8.5}px ${M}`, letterSpacing: '.22em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{card.caption}</div>}
+          {card.caption && <div style={{ marginTop: mini ? '2px' : '7px', font: `500 ${fz(mini ? 7 : 8.5)}px ${MF}`, letterSpacing: trk('.22em'), color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)' }}>{card.caption}</div>}
         </div>
       )}
 
@@ -288,8 +299,8 @@ export function StageCard({ card, size = 'full' }) {
         <div style={css(`display:flex;align-items:flex-end;gap:${mini ? 4 : 9}px;height:${mini ? 44 : 104}px;margin-top:${mini ? 8 : 16}px`)}>
           {(card.bars || []).map((b, i) => (
             <div key={i} style={css('flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:5px')}>
-              <div style={{ height: `${b.pct}%`, borderRadius: '3px 3px 0 0', background: `linear-gradient(180deg, ${toneOf(b.tone) || accent}, color-mix(in srgb, ${toneOf(b.tone) || accent} 35%, transparent))` }}></div>
-              {!mini && <span style={{ font: `500 7.5px ${M}`, letterSpacing: '.06em', color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>}
+              <div style={{ height: `${b.pct}%`, borderRadius: '3px 3px 0 0', background: `linear-gradient(180deg, ${S ? accent : toneOf(b.tone) || accent}, color-mix(in srgb, ${S ? accent : toneOf(b.tone) || accent} 35%, transparent))` }}></div>
+              {!mini && <span style={{ font: `500 ${fz(7.5)}px ${MF}`, letterSpacing: trk('.06em'), color: 'color-mix(in srgb, var(--nv-ink) 45%, transparent)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>}
             </div>
           ))}
         </div>
@@ -299,16 +310,16 @@ export function StageCard({ card, size = 'full' }) {
         <div style={css(`margin-top:${mini ? 7 : 13}px;display:flex;flex-direction:column;gap:${mini ? 5 : 9}px`)}>
           {(mini ? (card.items || []).slice(0, 3) : (card.items || [])).map((it, i) => (
             <div key={i} style={css('display:flex;align-items:baseline;gap:9px')}>
-              <span style={{ width: '3px', height: '3px', borderRadius: '50%', flex: 'none', background: toneOf(it.tone) || accent, transform: 'translateY(-2px)' }}></span>
-              <span style={{ flex: 1, minWidth: 0, fontSize: mini ? '10.5px' : '13px', color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
-              {it.note && <span style={{ flex: 'none', font: `500 ${mini ? 7 : 8.5}px ${M}`, letterSpacing: '.1em', color: 'color-mix(in srgb, var(--nv-ink) 42%, transparent)' }}>{it.note.toUpperCase()}</span>}
+              <span style={{ width: '3px', height: '3px', borderRadius: '50%', flex: 'none', background: S ? accent : toneOf(it.tone) || accent, transform: 'translateY(-2px)' }}></span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: `${fz(mini ? 10.5 : 13)}px`, color: 'color-mix(in srgb, var(--nv-ink) 92%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name}</span>
+              {it.note && <span style={{ flex: 'none', font: `500 ${fz(mini ? 7 : 8.5)}px ${MF}`, letterSpacing: trk('.1em'), color: 'color-mix(in srgb, var(--nv-ink) 42%, transparent)' }}>{it.note.toUpperCase()}</span>}
             </div>
           ))}
         </div>
       )}
 
       {card.foot && !mini && (
-        <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)', font: 'var(--nv-micro-m)', letterSpacing: 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}>{card.foot}</div>
+        <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)', font: S ? '400 13px var(--nv-font-ui)' : 'var(--nv-micro-m)', letterSpacing: S ? 0 : 'var(--nv-micro-track)', color: 'color-mix(in srgb, var(--nv-ink) 38%, transparent)' }}>{card.foot}</div>
       )}
     </div>
   );

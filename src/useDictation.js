@@ -81,7 +81,14 @@ export function reportBargeIn(heard, why) {
   } catch { /* a receipt must never be in the way of the conversation */ }
 }
 
-export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd } = {}) {
+// KEPT AFTER A FAILURE (29 Sep 2026, the Nova thread, mockup 63 D · 5). With
+// `keepFailed`, a turn the Mac could not write down is not an error and a
+// lost recording: the audio is handed to `onKept` ({ blob, ms, bytes, vad,
+// reason, at }) and neither onError nor onDone fires, so no "heard nothing"
+// is said about words that exist. `resend(take)` sends those same bytes to
+// the transcriber again and, on words, ends the turn through onDone exactly
+// as a first try would. Without the option every path below is unchanged.
+export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, keepFailed = false, onKept } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
   const saidRef = useRef('');      // words from earlier engines in THIS turn
@@ -288,7 +295,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       interimRef.current = '';
       emit();
     }
-    if (failure) onError?.(failure.message || 'Nova could not hear that');
+    const kept = !!(failure && keepFailed && blob && blob.size > 0);
+    if (failure && !kept) onError?.(failure.message || 'Nova could not hear that');
     if (held || onTurnEnd) {
       try {
         onTurnEnd?.({
@@ -310,7 +318,37 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     // it, and the bottom-bar surface's onDone read its ref (refreshed on
     // render) as empty. Every Nova-ears turn raced this; the browser engine
     // never did because its words arrived over many renders.
+    if (kept) {
+      try {
+        onKept?.({
+          blob, at: Date.now(), ms: turn ? Date.now() - turn.startedAt : 0, bytes: blob.size,
+          vad: wasBlind ? 'blind' : vad?.heardAny ? 'heard' : 'silent',
+          reason: String(failure.message || 'the Mac could not write that down'),
+        });
+      } catch { /* the take is his; a listener that throws must not lose the turn's end */ }
+      return;
+    }
     onDone?.(composed());
+  };
+
+  // THE SAME SECONDS, AGAIN. Only a take this hook handed to onKept comes
+  // back here; nothing is recorded anew. Resolves { ok, text } or
+  // { ok: false, reason } — the caller decides what the thread says.
+  const resend = async (take) => {
+    if (!take?.blob || hearing || liveRef.current) return { ok: false, reason: 'busy' };
+    setHearing(true);
+    let text = '';
+    let failure = null;
+    try { const tx = await transcribeRecording(take.blob, { vad: take.vad || '' }); text = String(tx.text || '').trim(); } catch (e) { failure = e; }
+    if (!mountedRef.current) return { ok: false, reason: 'gone' };
+    setHearing(false);
+    // No turn receipt: a retry is not a turn ending (the first try already
+    // wrote one), and the receipt's reason vocabulary is closed
+    // (server/lib/voiceTurns.js END_REASONS).
+    if (failure) return { ok: false, reason: String(failure.message || 'the Mac could not write that down') };
+    if (!text) return { ok: false, reason: 'the Mac found no words in it', empty: true };
+    onDone?.(text);
+    return { ok: true, text };
   };
 
   const tickNova = () => {
@@ -430,5 +468,5 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { supported: !!engine, on, toggle, hearing, blind, engine };
+  return { supported: !!engine, on, toggle, hearing, blind, engine, resend };
 }

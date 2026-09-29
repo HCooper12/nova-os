@@ -54,6 +54,8 @@ import { valsIndex } from './vals/valsIndex.js';
 import { valsFuelSummary } from './vals/valsFuelSummary.js';
 import { valsInboxSummary } from './vals/valsInboxSummary.js';
 import { valsSessionSummary } from './vals/valsSessionSummary.js';
+import { valsNovaThread } from './vals/valsNovaThread.js';
+import { glassSnapshot } from './novaThreadFacts.js';
 import { valsDocuments } from './vals/valsDocuments.js';
 import { upsertInboxRecord, omitKey } from './inboxSummaryFacts.js';
 import { SCREEN_KEYS } from './screenKeys.js';
@@ -6055,8 +6057,15 @@ export default class App extends Component {
             const who = agent || 'nova';
             // whom this answer consulted, trimmed for the record (server/lib/consult.js)
             const from = trimConsult(job.result.consult);
-            if (idx === -1) chat.push({ at: Date.now(), who, text, panel, proposal, acted, research, evidence, ...(from ? { from } : {}) });
-            else chat[idx] = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, ...(from ? { from } : {}) };
+            // WHAT IT SHOWED, KEPT WITH WHAT IT SAID (29 Sep, the Nova thread):
+            // the glass state is cleared by the next question, so the reply
+            // carries a copy and the thread can settle its stage into a card.
+            // Additive: no reader of the old line shape looks at `glass`, and
+            // the record (conversationSync) never sends it.
+            const glass = glassSnapshot(s.glassBeats, s.glassVisuals) || undefined;
+            const line = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}) };
+            if (idx === -1) chat.push(line);
+            else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
           });
           // THE GLASS: any spoken answer with a shape puts its card up — his
@@ -6887,19 +6896,37 @@ export default class App extends Component {
     // voice chat only alongside a successful answer, so a failed turn left
     // no trace that he had spoken at all (his 25 Sep report: "no history of
     // what I said when I open up the Nova voice chat").
-    this.setState((s) => ({ liveAsk: q, liveInput: '', liveReply: '', voiceBusy: true, liveVerdictOffer: null, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q, via: 'presence' }] }));
+    // `on`: the page he said it on, so the Nova thread can mark the exchange
+    // "Said on Fuel, with the Nova button" (29 Sep, mockup 63 D · 8)
+    const on = this.state.screen;
+    this.setState((s) => ({ liveAsk: q, liveInput: '', liveReply: '', voiceBusy: true, liveVerdictOffer: null, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q, via: 'presence', on }] }));
     api.ask(conn, q, this.state.voiceSessionId || null).then((resp) => {
-      const land = (text, sessionId) => {
+      const land = (text, sessionId, result = null, job = null) => {
         this.setState({ voiceBusy: false, liveReply: text, liveVerdictOffer: this.offerVerdictFor(`${q} ${text}`), ...(sessionId ? { voiceSessionId: sessionId } : {}) });
         // keep the full transcript honest — the sheet is a window on the
-        // same conversation, not a separate one
-        this.setState((s2) => ({ voiceChat: [...s2.voiceChat, { at: Date.now(), who: 'nova', text, via: 'presence' }] }));
+        // same conversation, not a separate one. EVERYTHING THE REPLY
+        // CARRIED lands with it (29 Sep): the receipt with its Undo, a
+        // proposal, a research job, a panel, and the panels its VIS lines
+        // named, so the Nova thread holds what was said on another page.
+        const extra = {};
+        if (result?.panel) extra.panel = result.panel;
+        if (result?.proposal) extra.proposal = { ...result.proposal, status: 'pending' };
+        if (result?.acted) extra.acted = { ...result.acted, status: 'done' };
+        if (result?.research) extra.research = { ...result.research, status: result.research.queued ? 'queued' : 'running' };
+        if (job?.partial) {
+          try {
+            const g = glassSnapshot(parseVisualStream(streamShown(job.partial)).beats, job.visuals);
+            if (g) extra.glass = g;
+          } catch { /* a directive that will not parse costs its panels, not the reply */ }
+        }
+        this.setState((s2) => ({ voiceChat: [...s2.voiceChat, { at: Date.now(), who: 'nova', text, via: 'presence', on, ...extra }] }));
+        if (extra.research && !extra.research.queued) this.watchVoiceResearch(conn, extra.research.recordId);
         if (this.state.voiceSpeak) this.speakTtsSentence(text, () => {}); else this.maybeAutoListen();
       };
       if (resp.text) { if (resp.card) this.putCard(resp.card); land(resp.text); return; } // a reflex: code spoke, code drew
       this.startPoll('ask', () => api.claudeCodeJob(conn, resp.jobId), {
         timeoutMs: 3 * 60_000, intervalMs: 400,
-        onReady: (job) => land(job.result.text, job.result.sessionId),
+        onReady: (job) => land(job.result.text, job.result.sessionId, job.result, job),
         onError: (msg) => this.liveTalkFailed(msg),
       });
     }).catch((e) => this.liveTalkFailed(e.message));
@@ -6911,7 +6938,7 @@ export default class App extends Component {
   liveTalkFailed(msg) {
     const reason = String(msg || 'the request failed');
     const spoken = /usage limit/i.test(reason) ? reason : "That one didn't get an answer. The reason is in the voice chat.";
-    this.setState((s) => ({ voiceBusy: false, liveReply: `Error: ${reason}`, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `That didn't get an answer: ${reason}`, via: 'presence' }] }));
+    this.setState((s) => ({ voiceBusy: false, liveReply: `Error: ${reason}`, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `That didn't get an answer: ${reason}`, via: 'presence', on: this.state.screen }] }));
     if (this.state.voiceSpeak) this.speak(spoken); else this.toastMsg(spoken);
   }
   // ---------- verdict cards (A1) ----------
@@ -7522,7 +7549,11 @@ export default class App extends Component {
     // the summary live session (Train round B, mockup 61) reshapes the
     // classic session's rows and the mid-session Coach fields; last of all,
     // and null off `summary` or whenever the session is not on screen
-    return { ...withInbox, ...valsSessionSummary(this, ctx, withInbox) };
+    const withSession = { ...withInbox, ...valsSessionSummary(this, ctx, withInbox) };
+    // the Nova thread (mockup 63 D) reads the classic Voice fields, the glass
+    // and the chrome's talk door from everything above; last of all, and null
+    // off `summary` or off the Nova tab
+    return { ...withSession, ...valsNovaThread(this, ctx, withSession) };
   }
 
   // A research job dispatched from the conversation: poll the SAME pending
