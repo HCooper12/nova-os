@@ -3,7 +3,7 @@
 // servings he can scale, like the Osta reel. Pure module: no vault, no data.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAmount, scaleLine, scaleRecipe, servingsOf, formatQuarter } from '../../src/recipeScale.js';
+import { parseAmount, scaleLine, scaleRecipe, servingsOf, formatQuarter, shortSourceLabel } from '../../src/recipeScale.js';
 
 const pick = (a) => ({ qty: a.qty, unit: a.unit, rest: a.rest });
 
@@ -105,4 +105,12 @@ test('scaleRecipe: factor = servings ÷ what it makes; group labels and unknown 
   // a recipe that does not say how many it makes cannot be scaled honestly
   const unknown = scaleRecipe({ makes: '1 batch of brownies', ingredients: [{ qty: '', name: '2 bananas' }] }, 4);
   assert.deepEqual(unknown, { factor: 1, lines: ['2 bananas'] });
+});
+
+test('a source label is the creator\'s name, not their tagline, and never longer than the row', () => {
+  assert.equal(shortSourceLabel('Sean Graham | Online Fitness & Nutrition Coach'), 'Sean Graham');
+  assert.equal(shortSourceLabel('Teagan | Easy Macro Recipes'), 'Teagan');
+  assert.equal(shortSourceLabel('MATTY DIMARCO'), 'MATTY DIMARCO');
+  assert.equal(shortSourceLabel('A very long creator name that keeps on going forever'), 'A very long creator name th…');
+  assert.equal(shortSourceLabel(''), '');
 });

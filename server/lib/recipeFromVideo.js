@@ -48,6 +48,7 @@ import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { kcalFrom } from './nutritionFacts.js';
+import { shortSourceLabel } from '../../src/recipeScale.js';
 
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const SPAWN_PATH = [process.env.PATH, '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin'].filter(Boolean).join(':');
@@ -240,7 +241,7 @@ export async function toRecipePayload(recipe, { url, uploader, thumbnail, comput
       prepMin: intIn(recipe.prepMin, 0, 1440),
       cookMin: intIn(recipe.cookMin, 0, 1440),
       // the reel itself — written as the recipe's **Source:** line
-      source: /^https?:\/\//.test(String(url || '')) ? { url: String(url).slice(0, 500), label: uploader ? String(uploader).slice(0, 80) : null } : null,
+      source: /^https?:\/\//.test(String(url || '')) ? { url: String(url).slice(0, 500), label: uploader ? shortSourceLabel(uploader, 60) || null : null } : null,
       photoUrl: thumbnail || null,
       description: (got
         ? `Macros: ${got.source}.`

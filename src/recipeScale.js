@@ -174,3 +174,13 @@ export function scaleRecipe(recipe, servings) {
   const groups = (recipe?.ingredients || []).map((i) => typeof i !== 'string' && !!i.group);
   return { factor, lines: lines.map((l, idx) => (groups[idx] ? l : scaleLine(l, factor))) };
 }
+
+// A SOURCE LABEL THAT FITS (30 Sep 2026). Instagram hands over the creator's
+// full display name ("Sean Graham | Online Fitness & Nutrition Coach"), which
+// ran off the edge of the meta row at 375. The part before the first
+// separator is the name; the rest is their tagline.
+export function shortSourceLabel(label, max = 28) {
+  const s = String(label || '').split(/\s+[|·—–-]\s+/)[0].replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}

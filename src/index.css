@@ -4003,6 +4003,9 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 @keyframes nvRecFadeUp { from { opacity: 0; transform: translateY(6px); } }
 /* end of the personal-best moment */
 
+/* the source link in the recipe meta row never runs off the edge (30 Sep) */
+.nv-rp-mi.link { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ================================================================
    THE NOVA THREAD (29 Sep 2026) — the Nova tab under `summary`, mockup
    63 D · Rising (design/mockups/63-redesign-nova-r2.html), his pick, with

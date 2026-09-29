@@ -2,7 +2,7 @@ import { mono } from './shared.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
 import { offPlanTotals, recipeBankState, RECIPE_BANK_COPY } from '../fuelFacts.js';
-import { servingsOf, scaleRecipe, parseAmount, formatQuarter } from '../recipeScale.js';
+import { servingsOf, scaleRecipe, parseAmount, formatQuarter, shortSourceLabel } from '../recipeScale.js';
 
 // The rename UI keys off a variant id. The version IN USE has none — it is
 // the recipe's main block, not an alternate — so it needs a sentinel rather
@@ -211,7 +211,7 @@ function buildRecipePage(app, st, { live, demo, activeAlt, effIngredients, effMe
   if (serves) meta.push({ key: 'serves', glyph: 'serves', text: serves, value: base, field: 'servings', label: 'Serves', unit: base === 1 ? 'serving' : 'servings', min: 1, max: 99, step: 1 });
   if (prepMin != null) meta.push({ key: 'prep', glyph: 'prep', text: `Prep ${fmtMinutes(prepMin)}`, value: prepMin, field: 'prepMin', label: 'Prep', unit: 'min', min: 0, max: 1440, step: 5 });
   if (cookMin != null) meta.push({ key: 'cook', glyph: 'cook', text: `Cook ${fmtMinutes(cookMin)}`, value: cookMin, field: 'cookMin', label: 'Cook', unit: 'min', min: 0, max: 1440, step: 5 });
-  if (source) meta.push({ key: 'source', glyph: source.reel ? 'reel' : 'link', text: source.label, url: source.url });
+  if (source) meta.push({ key: 'source', glyph: source.reel ? 'reel' : 'link', text: shortSourceLabel(source.label) || source.label, url: source.url });
   // what he could still say about it, offered once (the ⋯ sheet), never as dashes
   const unset = [
     base == null && { field: 'servings', label: 'Serves', unit: 'servings', value: null, min: 1, max: 99, step: 1 },
