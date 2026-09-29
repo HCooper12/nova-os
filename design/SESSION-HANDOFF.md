@@ -13,6 +13,42 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**30 SEP (nova-os-83) — THE RECIPE PAGE + REEL IMPORT, LIVE AND ON HIS PHONE'S
+BUILD.** His ask (29 Sep, the Osta reel): "rework and edit Nova's fuel
+capabilities so this is possible and it all works/looks and feels more
+appealing". Built to ONE design on his direct ask (nova-os-fc handed Fuel
+to me end to end; the loop's mockup round is skipped, his tweaks = round
+2). Commits 18b81ce (data), 9afac7f (page), + the label fix. Pushed,
+deployed (Pages success), server reloaded. Review page for him:
+https://claude.ai/artifact/1Jps96oY7WZVSiiZRxwEHR (real read-only frames).
+
+- **STATE (paths):** format lines Serves/Time/Source in `server/lib/
+  recipes.js` (every reader/writer; his 36 recipes byte-identical, a macro-
+  suffix drift bug fixed on the way); `src/recipeScale.js` (shared scaling +
+  shortSourceLabel); `server/lib/recipeFromVideo.js` imports cover photo,
+  times, servings, source, and BACKFILLS missing facts on an existing
+  recipe (undoable); bare shared link → caption read (12 s cap) → recipe
+  card for his yes (`inbox.js` mediaLaneFor); docs §2b share Shortcut.
+  Page: `src/RecipePage.jsx` shared parts, RecipeOverlay rebuilt, RecipeSheet
+  extended, `recipePage` in valsRecipes. Memory: nova-recipe-page.
+- **VERIFIED:** his four reel recipes backfilled on the live server (photos in
+  Wiki/Health/Recipe Photos, Source lines in the collection; Caesar Loaded
+  Potatoes arrived via the BARE share path on 29 Sep 03:41Z with no words —
+  the new door works); real read-only frames in both idioms at 375; suite
+  2888/2890 (atlas failures pre-exist); guards unchanged, recipes baseline
+  re-recorded on purpose in 9afac7f.
+- **ASSUMED:** his phone; saving serves/times from the page against the live
+  route; touch long-press on a checklist row; Instagram cover URLs expire
+  (a card approved days later may get no photo).
+- **OPEN (his):** whether the reel cover as hero is what he wants when it has
+  burned-in text; bank cards still wear the striped placeholder; TikTok
+  short links routed but never tried.
+- **DO NOT:** append CSS after the Nova thread block (novaThread.test pins it
+  last) or open a new prefers-reduced-transparency media block (mobileNative
+  pins the last one); let a subagent `git stash` with peers' files dirty.
+
+---
+
 **30 SEP (nova-os-fc) — ALL FOUR LANDED: the consult rail (3f5597e, server
 RELOADED: every reasoning agent asks every other, Nova directs), the record
 moment (58a8c3a), the Nova screen (cc43ae5), Who is answering round 2
