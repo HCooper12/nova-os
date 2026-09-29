@@ -561,6 +561,18 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 30 Sep 2026 — THE RECORD MOMENT MERGED (58a8c3a): RecordMoment.jsx replaces
+  PersonalRecord.jsx under every style; the kit from the lift's name
+  (recordKit.js table, ~90 real names tested): stack → pin drop, barbell →
+  plate on the sleeve, else (and any est.-1RM record) the trophy; the ring
+  REMOVED (a fixed-position notch said nothing and a real arc would be 7px),
+  old best + delta beside the number instead; persists until dismissed as a
+  history entry; Next / Skip all for several; the trophy's triad on the
+  ambient session armed by the Finish tap; "You beat last time" on the
+  sheet. Gates green (2866/2868, the atlas pair). NOT heard or felt: the
+  chime and the haptic. His calls: leg press as a stack (or plate-loaded →
+  sleeve); a first-ever lift still celebrated as "First on record"; browser
+  Back closes all remaining moments at once.
 - 30 Sep 2026 — THE CONSULT RAIL IS LIVE (3f5597e, server reloaded): every
   reasoning lane (Nova, Coach, Leader, Researcher, Librarian) can ask every
   other through server/lib/consult.js; Nova directs as CEO; the Librarian
