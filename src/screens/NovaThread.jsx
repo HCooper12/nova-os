@@ -19,12 +19,16 @@ import { Ico, CoreFace, Glyph, Stage, Settled, KeptTake, Meter } from '../NovaTh
 // focus." Voice.jsx hands over to this under `summary` only.
 //
 // The thread IS the page, newest at the foot, and it opens on the first line
-// he has not seen. Nova's living core is its face at the head (a contact's
-// face in Messages): it changes by shape and motion, never by hue. "Nova" under
-// it toggles FOCUS (his amendment), where the core is the page's centre, large,
-// with the newest lines tucked beneath; the face and › open her status and
-// settings. While she speaks the stage rises from under the head as glass over
-// the thread and settles into it as a card when she finishes. One composer.
+// he has not seen. At rest the head is her name and her state in words, and
+// no core (30 Sep, his: "The nova icon at the top of the voice screen
+// shouldn't be persistent since I have the nova icon at the bottom corner. It
+// should only appear if I tap on the nova name…"). The name toggles FOCUS
+// (his amendment), where the living core is the page's centre, large, with
+// the newest lines tucked beneath; it changes by shape and motion, never by
+// hue. › (and the core, in focus) open her status and settings. While she
+// speaks the stage rises from under the head as glass over the thread, which
+// blurs and dims behind it, and settles into the thread as a card when she
+// finishes. One composer.
 // The tab bar's Nova button is the one talk control, and on this page it opens
 // this page's microphone. Everything drawn comes from valsNovaThread.js;
 // nothing here computes a fact or writes a thing except through it.
@@ -101,6 +105,13 @@ export function NovaThread({ v }) {
   useEffect(() => {
     T.registerTalk(() => talkRef.current());
     return () => T.registerTalk(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // FOCUS FROM OUTSIDE (30 Sep): novaThread.enterFocus lets the dock (a hold
+  // on its Nova, once he decides) bring the core up, the same as the name
+  useEffect(() => {
+    T.registerFocus(() => setFocus(true));
+    return () => T.registerFocus(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -236,9 +247,13 @@ export function NovaThread({ v }) {
   return (
     <div ref={rootRef} className={`nv-nt${focus ? ' focus' : ''}${v.isMobile ? ' mob' : ''}`} data-screen-label="Voice">
       <header ref={headRef} className="nv-nt-head">
-        <button type="button" className="nv-nt-face" onClick={() => setStatusOpen(true)} aria-label={`Nova, ${S.word.toLowerCase()}. Status and settings`}>
-          <CoreFace stateKey={S.key} engine={T.engine} focus={focus} />
-        </button>
+        {/* THE CORE, IN FOCUS ONLY (30 Sep): at rest the tab bar's Nova is
+            the one orb on screen, and the head is her name and state */}
+        {focus && (
+          <button type="button" className="nv-nt-face" onClick={() => setStatusOpen(true)} aria-label={`Nova, ${S.word.toLowerCase()}. Status and settings`}>
+            <CoreFace stateKey={S.key} engine={T.engine} focus />
+          </button>
+        )}
         <div className="nv-nt-who">
           {/* HIS AMENDMENT: the name toggles the focus, the core large */}
           <button type="button" className="nv-nt-name" onClick={() => setFocus((f) => !f)} aria-pressed={focus}
@@ -251,6 +266,15 @@ export function NovaThread({ v }) {
           is glass (a backdrop root), and glass nested in glass can only blur
           the head, never the thread it floats over. A zero-height sticky rail
           pins it to the head's foot without taking room in the thread. */}
+      {/* THE THREAD STEPS BACK while the stage is up (30 Sep, his: "the
+          background should be blurred so the amount of visible information
+          on screen is focused and not overwhelming"): a blur and a light
+          dim over the thread, under the head, the stage and the composer,
+          which stay usable. A tap on it tucks the stage, as ⌃ does. */}
+      {(shown || leaving) && !focus && (
+        <div className={`nv-nt-stagedim${!shown ? ' leaving' : ''}`} aria-hidden="true"
+          onClick={() => { if (live) setTuckedKey(live.key); else setReplay(null); }} />
+      )}
       <div className="nv-nt-stagerail">
         {shown && !focus && (
           <Stage s={shown} replay={!live} onOpen={openSheet}

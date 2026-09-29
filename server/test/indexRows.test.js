@@ -223,8 +223,17 @@ test('the tab bar\'s Nova is the dock\'s Nova: tap to talk; hold captures (the s
   // mic too; on every other page it is startLiveTalk and liveMicOpen, as before
   assert.match(dock, /onClick=\{v\.novaThread\?\.dockTalk \|\| v\.startLiveTalk\} onLongPress=\{v\.openCaptureSheet \|\| v\.holdNovaText\} aria-label="Talk to Nova\. Hold to capture a thought"/);
   assert.match(dock, /const listening = !!\(v\.novaListening \|\| v\.novaThread\?\.micOpen\);/);
-  assert.match(dock, /<VoiceHalo speaking=\{v\.novaSpeaking\} listening=\{listening\} inset="-6px" \/>/);
-  assert.match(dock, /<NovaCore size=\{46\} variant="mini" engine=\{v\.coreStyle\} speaking=\{v\.novaSpeaking\} listening=\{listening\}/);
+  // 30 Sep (his "fill the orb further so it takes up the whole circle"): the
+  // core is drawn at the circle's inner diameter, 60px less the 1px rim each
+  // side, and the halo hugs the glass; the state tints are NovaCore's, kept
+  assert.match(dock, /<VoiceHalo speaking=\{v\.novaSpeaking\} listening=\{listening\} inset="-3px" \/>/);
+  assert.match(dock, /const ORB = 58;/);
+  assert.match(dock, /<NovaCore size=\{ORB\} variant="mini" engine=\{v\.coreStyle\} speaking=\{v\.novaSpeaking\} listening=\{listening\}/);
+  assert.doesNotMatch(dock, /formOnly/, 'the tab bar orb keeps its gold and violet tints');
+  const css = read('src/index.css');
+  assert.match(css, /\.nv-sum-nova \{\n  position: relative; flex: none; box-sizing: border-box; width: 60px; height: 60px;/, 'the circle the 58 is measured from');
+  assert.match(css, /\.nv-sum-nova-orb \{ display: block; width: 58px; height: 58px;/);
+  assert.match(css, /\.nv-sum-nova\[data-listening="true"\] \.nv-sum-nova-orb \{ transform: translateY\(-7px\) scale\(\.586\); \}/, 'listening, it still steps up to 34px');
   assert.match(dock, /v\.tabs\.slice\(0, 4\)/, 'four of his tabs, in his order');
   assert.match(dock, /go=\{v\.goIndex\}/, 'More is the Index');
   assert.match(dock, /haptic="tick"/, 'a tab he cannot feel is the dock bug again (haptics.test.js)');

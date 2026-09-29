@@ -156,6 +156,14 @@ export function valsNovaThread(app, ctx, v) {
       // tap, so iOS still sees a gesture.
       registerTalk: (fn) => { app.novaThreadTalk = fn; },
       dockTalk: () => { if (typeof app.novaThreadTalk === 'function') app.novaThreadTalk(); else app.startLiveTalk(); },
+      // THE FOCUS DOOR (30 Sep): the core is hidden at rest, and a tap on the
+      // name brings it up. The screen registers its own setter here so the
+      // dock can bring it up too (his "or if I hold the bottom corner nova
+      // icon"); nothing calls it yet, because the hold raises the capture
+      // composer (27 Sep) and which one wins is his call. A no-op when the
+      // thread is not mounted.
+      registerFocus: (fn) => { app.novaThreadFocus = fn; },
+      enterFocus: () => { if (typeof app.novaThreadFocus === 'function') app.novaThreadFocus(); },
       micOpen: !!st.voiceScreenMic,
       openCapture: v.openCaptureSheet || null,
     },

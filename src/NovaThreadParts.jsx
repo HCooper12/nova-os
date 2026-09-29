@@ -48,10 +48,10 @@ export function Ico({ name, className = '' }) {
 // THE LIVING CORE AT THE HEAD. NovaCore's own filament engine, in Nova's blue
 // only (formOnly): it grows with his level while he talks, spins while she
 // thinks (the clock three times faster, and two arcs chase round it), pulses
-// with her voice while she speaks, and goes grey and still offline. The
-// canvas is drawn once at the focus size and scaled, so toggling focus never
-// rebuilds it; the growth and pulse ride one small frame loop on a wrapper,
-// never React state.
+// with her voice while she speaks, and goes grey and still offline. Since
+// 30 Sep it is drawn in FOCUS only (at rest the tab bar's Nova is the one orb
+// on screen), at the focus size; the growth and pulse ride one small frame
+// loop on a wrapper, never React state.
 export const CORE_BIG = 208;
 export function CoreFace({ stateKey, engine, focus }) {
   const form = coreFormOf(stateKey);
@@ -120,7 +120,8 @@ export function StagePanel({ card, onOpen, sub }) {
 }
 
 // B's stage, rising from under the head as glass over the thread while she
-// speaks (no scrim, so the thread stays where he left it), and ⌃ to tuck it.
+// speaks, and ⌃ to tuck it. The thread stays where he left it, blurred and
+// dimmed behind (.nv-nt-stagedim, 30 Sep), so the stage is what he reads.
 export function Stage({ s, onTuck, onOpen, leaving, replay }) {
   return (
     <section className={`nv-nt-stage${leaving ? ' leaving' : ''}`} aria-label={replay ? 'Replaying what Nova showed' : 'On the stage while Nova speaks'} aria-live="polite">
@@ -137,26 +138,31 @@ export function Stage({ s, onTuck, onOpen, leaving, replay }) {
   );
 }
 
-// THE STAGE, SETTLED INTO THE THREAD: the last panel, the others, Replay.
+// THE STAGE, SETTLED INTO THE THREAD, so he can refer back (30 Sep, his
+// "the stage pop up should then fit into the conversation flow as well… so I
+// can refer back"). The head says what it is and offers the one act in the
+// same line: "Shown while she spoke · 13:05" and Replay. Below it the last
+// panel, and a tap on any panel opens it full width; the others ride the rail.
 export function Settled({ st, time, onOpen, onReplay }) {
+  const all = st.count === 1 ? 'the panel' : st.count === 2 ? 'both panels' : `all ${st.count} panels`;
   return (
     <div className="nv-sum-card nv-nt-settled">
       <div className="nv-nt-sthead">
-        <span className="t"><Ico name="stage" />On the stage{time ? ` · ${time}` : ''}</span>
-        <span className="sub">{st.count} {st.count === 1 ? 'panel' : 'panels'}</span>
+        <span className="t"><Ico name="stage" />Shown while she spoke{time ? ` · ${time}` : ''}</span>
+        <button type="button" className="nv-nt-streplay" onClick={onReplay} aria-label={`Replay ${all}`}>
+          <Ico name="play" />Replay
+        </button>
       </div>
       <StagePanel card={st.last} onOpen={onOpen} />
-      {/* Replay first: the one action on the rail is never scrolled off */}
-      <div className="nv-nt-brail">
-        <button type="button" className="nv-nt-mini rp" onClick={onReplay} aria-label={`Replay ${st.count === 1 ? 'the panel' : `all ${st.count} panels`}`}>
-          <b><Ico name="play" />Replay</b><span>{st.count === 1 ? 'the panel' : st.count === 2 ? 'both panels' : `all ${st.count}`}</span>
-        </button>
-        {st.others.map((c, i) => (
-          <button key={`${c.label}:${i}`} type="button" className="nv-nt-mini" onClick={(e) => onOpen(c, e.currentTarget)}>
-            <b>{st.gists[i]?.b}</b><span>{st.gists[i]?.s}</span>
-          </button>
-        ))}
-      </div>
+      {st.others.length > 0 && (
+        <div className="nv-nt-brail">
+          {st.others.map((c, i) => (
+            <button key={`${c.label}:${i}`} type="button" className="nv-nt-mini" onClick={(e) => onOpen(c, e.currentTarget)}>
+              <b>{st.gists[i]?.b}</b><span>{st.gists[i]?.s}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

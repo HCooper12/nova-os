@@ -26,6 +26,14 @@ import { CaptureSheet } from './CaptureSheet.jsx';
 // index.css instead, which the keyboard gets and a finger does not.
 const NO_TAP_RING = {};
 
+// THE ORB FILLS ITS CIRCLE (30 Sep, his: "fill the orb further so it takes
+// up the whole circle space it currently sits in"). The circle is 60px of
+// glass with a 1px specular rim inside its edge (.nv-sum-nova::after), so
+// its inner diameter is 58px, measured at 375px; the core is drawn at that.
+// It was 46, which left a 7px ring of empty glass. The gold (speaking) and
+// violet (listening) tints are NovaCore's own and unchanged.
+const ORB = 58;
+
 function Tab({ screen, label, count, active, go, warm }) {
   return (
     <Interactive as="div" onClick={go} onPointerDown={warm} haptic="tick"
@@ -74,9 +82,9 @@ export function SummaryDock({ v }) {
       <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.openCaptureSheet || v.holdNovaText} aria-label="Talk to Nova. Hold to capture a thought"
         className="nv-sum-nova" data-listening={listening ? 'true' : undefined}
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
-        <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-6px" />
+        <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-3px" />
         <span className="nv-sum-nova-orb">
-          <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} style={{ pointerEvents: 'none' }} />
+          <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} style={{ pointerEvents: 'none' }} />
         </span>
         <span className="nv-sum-nova-cap" aria-hidden="true">Talk</span>
       </Interactive>

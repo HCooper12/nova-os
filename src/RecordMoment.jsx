@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useExit } from './useExit.js';
-import { muscleVar } from './muscleHue.js';
 import { haptic } from './haptics.js';
 import { primeSfx, recordChime } from './sfx.js';
 import { fmtKg } from './sessionSummaryFacts.js';
@@ -20,7 +19,14 @@ import { recordPhrase, stackPlan, barPlan, STACK_PIN, REC_TIMELINE } from './rec
 //     plate, everything else the trophy.
 //   THE SOUND FROM THE TROPHY for all of them: the house glass bell as a
 //     rising triad (sfx.js CHIMES.record), on the moment's landing.
-//   THE MUSCLE HUE on the object ("a nice touch").
+//   GOLD ON THE OBJECT (30 Sep 2026, his call on the built frames: "Change
+//     the red PB colours to gold."). It first wore the lift's muscle hue ("a
+//     nice touch"), and the chest's coral read to him as red, the colour of
+//     a failure. The trophy, the stack's lit plates, the sleeve's new plate,
+//     the rise chip and Next are --nv-gold under every style; the glass and
+//     the ink are unchanged. Gold elsewhere in Nova means "waiting on his
+//     call"; this moment is his explicit exception to that rule, and the only
+//     one.
 //   IT STAYS until he dismisses it: "does not exit until I click on the
 //     outside of the pop-up and close the box or I tap out of it another
 //     way. I want to make sure that I have the opportunity to actually read
@@ -58,6 +64,10 @@ import { recordPhrase, stackPlan, barPlan, STACK_PIN, REC_TIMELINE } from './rec
 // seeked recording moves the count and the landing with the picture (the
 // SpinReveal lesson, memory nova-spin-reveal).
 
+
+// THE MOMENT'S ONE HUE (30 Sep, "Change the red PB colours to gold"): gold
+// here is his explicit exception to gold meaning "waiting on his call".
+const RECORD_HUE = 'var(--nv-gold)';
 
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const d = (ms) => ({ '--d': `${ms}ms` });
@@ -302,7 +312,8 @@ export function RecordMoment({ records, index = 0, onDismiss, onSkipAll }) {
   }, [exit]);
 
   if (!rec) return null;
-  const hue = (rec.muscle && muscleVar(rec.muscle) !== 'var(--nv-ink40)') ? muscleVar(rec.muscle) : 'var(--nv-cy)';
+  // gold, whatever the lift: his exception (see the head of this file)
+  const hue = RECORD_HUE;
   const phrase = recordPhrase('confirmed', rec);
   const stop = (e) => e.stopPropagation();
   // a tap on the object plays it again, and is the gesture iOS needs to sound

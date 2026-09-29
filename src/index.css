@@ -1281,16 +1281,18 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   font: 700 11px/18px var(--nv-font-ui); text-align: center; font-variant-numeric: tabular-nums;
 }
 
-/* NOVA, detached: a round button of the same glass. While the mic is open
-   the orb steps up to 34px and "Talk" appears beneath it, 180ms, in the
-   accent — the one state change on this bar that is acted out */
+/* NOVA, detached: a round button of the same glass. The orb fills the
+   circle inside its 1px rim (58px, 30 Sep: his "fill the orb further"). While
+   the mic is open the orb steps up to 34px (58 × .586) and "Talk" appears
+   beneath it, 180ms, in the accent — the one state change on this bar that
+   is acted out */
 .nv-sum-nova {
   position: relative; flex: none; box-sizing: border-box; width: 60px; height: 60px; border-radius: 50%;
   display: grid; place-items: center;
   -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
-.nv-sum-nova-orb { display: block; width: 46px; height: 46px; transition: transform 180ms var(--nv-ease); }
-.nv-sum-nova[data-listening="true"] .nv-sum-nova-orb { transform: translateY(-7px) scale(.74); }
+.nv-sum-nova-orb { display: block; width: 58px; height: 58px; transition: transform 180ms var(--nv-ease); }
+.nv-sum-nova[data-listening="true"] .nv-sum-nova-orb { transform: translateY(-7px) scale(.586); }
 .nv-sum-nova-cap {
   position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; pointer-events: none;
   font: 500 11px/13px var(--nv-font-ui); color: var(--nv-sum-tab-on);
@@ -3382,6 +3384,10 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   .nv-rp-fab, .nv-rp-foot { background: var(--nv-void); }
   /* the Nova thread's floating glass (the .nv-nt block at the end) goes solid */
   .nv-nt-head, .nv-nt-stage, .nv-nt-composer, .nv-nt-strip, .nv-nt-sheet, .nv-nt-cmenu { background: var(--nv-void); }
+  /* and the dim behind the Nova thread's stage is a solid dim, not a blur
+     (two classes: the .nv-nt block comes later in the file, and one class
+     there would outrank one class here) */
+  .nv-nt .nv-nt-stagedim { background: color-mix(in srgb, var(--nv-void) 86%, transparent); }
 }
 
 /* ================================================================
@@ -3868,7 +3874,9 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
    design/mockups/65-pb-celebration.html). The overlay that plays when the
    server confirms an all-time best, one moment per lift, chosen by the kit:
    the pin in the stack, the plate on the sleeve, or the trophy. The card
-   wears the lift's muscle hue as --h. Rule for everything below: the BASE
+   wears GOLD as --h under every style (30 Sep, his "change the red PB
+   colours to gold": the chest's coral read as red). Gold elsewhere waits on
+   his call; this moment is his one explicit exception. Rule for everything below: the BASE
    style is the final, still frame (what reduced motion and a screenshot
    get); animation is added only when motion is allowed. Every element that
    moves carries its start on the moment's one timeline as --d.
@@ -4092,13 +4100,32 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 
 /* HIS AMENDMENT, FOCUS: the core is the page's centre, large, as today's
    Voice screen has it; the newest lines stay tucked beneath. Tap the name
-   again, or scroll, to come back. */
+   again, or scroll, to come back. The core is drawn in focus only (30 Sep:
+   at rest the head is the name and the state), so it arrives: it grows out
+   of the name as the head opens, 340ms, and leaves at once when he goes back. */
 .nv-nt.focus { --nt-core: 208px; --nt-k: 1; }
+.nv-nt.focus .nv-nt-face { animation: nvNtCoreIn .34s cubic-bezier(.23, 1, .32, 1) both; transform-origin: 50% 100%; }
+@keyframes nvNtCoreIn { from { opacity: 0; transform: translateY(18px) scale(.7); } to { opacity: 1; transform: none; } }
 .nv-nt.focus .nv-nt-head { min-height: calc(62dvh - var(--nt-top)); justify-content: center; gap: 4px; }
 .nv-nt.focus .nv-nt-name { font-size: 20px; }
 .nv-nt.focus .nv-nt-state { font-size: 15px; }
 
-/* THE STAGE, RISING: glass over the thread while she speaks, no scrim. Its
+/* THE THREAD STEPS BACK while the stage is up (30 Sep, his "the background
+   should be blurred so the amount of visible information on screen is
+   focused"): a light dim and 10px of blur over the thread, under the head
+   (12), the stage (13) and the composer (18), so what she shows and the
+   words he can answer with are what stays sharp. Reduced transparency: the
+   app-wide guard drops the blur and the guard's own line makes the dim solid. */
+.nv-nt-stagedim {
+  position: fixed; inset: 0; z-index: 11;
+  background: color-mix(in srgb, var(--nv-void) 42%, transparent);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1);
+  animation: fadeIn .28s var(--nv-ease) both;
+}
+.nv-nt-stagedim.leaving { animation: nvNtDimOut .22s var(--nv-ease) both; pointer-events: none; }
+@keyframes nvNtDimOut { from { opacity: 1; } to { opacity: 0; } }
+
+/* THE STAGE, RISING: glass over the thread while she speaks. Its
    rail is a zero-height sticky line at the head's foot (--nt-headh, measured),
    outside the head, so its blur reaches the thread */
 .nv-nt-stagerail { position: sticky; top: calc(var(--nt-top) + var(--nt-headh, 144px)); z-index: 13; height: 0; margin: 0 -16px; }
@@ -4143,6 +4170,17 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-mini b { display: flex; align-items: center; gap: 4px; font: 600 15px/1.25 var(--nv-font-ui); white-space: nowrap; }
 .nv-nt-mini span { display: block; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-sum-ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-nt-mini .nv-nt-ico { width: 14px; height: 14px; }
+/* Replay, in the settled card's head beside "Shown while she spoke": a quiet
+   pill in ink (the page's one accent stays Send); the pill is 32px to the
+   eye and 44px to the finger (::before) */
+.nv-nt-streplay {
+  position: relative; flex: none; margin-left: auto; height: 32px; padding: 0 12px; border: 0; border-radius: 16px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; background: var(--nt-quiet); box-shadow: 0 0 0 .5px var(--nv-sum-card-ring);
+  font: 600 13px var(--nv-font-ui); color: var(--nv-ink);
+}
+.nv-nt-streplay::before { content: ''; position: absolute; inset: -6px -4px; }
+.nv-nt-streplay:active { transform: scale(.97); transition: transform .12s var(--nv-ease); }
+.nv-nt-streplay .nv-nt-ico { width: 13px; height: 13px; fill: currentColor; stroke: none; }
 
 /* THE THREAD: his words right in monochrome glass, Nova's left as text on
    the sky with their breaks kept, at rest on the newest line */
@@ -4374,6 +4412,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
   .nv-nt-you.in, .nv-nt-nova.in, .nv-nt-spanel, .nv-nt-held, .nv-nt-cmenu, .nv-nt-send { animation: none; }
   .nv-nt-sheet { animation: fadeIn .2s ease both; }
   .nv-nt-core, .nv-nt-canvas, .nv-nt-head { transition: none; }
+  .nv-nt.focus .nv-nt-face { animation: fadeIn .2s ease both; }
 }
 :root[data-nv-calm="1"] .nv-nt-stage, :root[data-nv-calm="1"] .nv-nt-you.in, :root[data-nv-calm="1"] .nv-nt-nova.in { animation: none; }
 /* Reduce transparency: the app-wide guard (REDUCE TRANSPARENCY, EVERYWHERE,

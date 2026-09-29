@@ -252,6 +252,24 @@ test('the Finish sheet keeps the quiet stage: its gauge, the sheet wording', () 
   assert.doesNotMatch(jsx, /<RecordMoment|import \{ RecordMoment/, 'no full celebration on the sheet');
 });
 
+test('the moment is GOLD under every style, whatever the lift (30 Sep, "change the red PB colours to gold")', () => {
+  const rm = read('src/RecordMoment.jsx');
+  assert.match(rm, /const RECORD_HUE = 'var\(--nv-gold\)';/);
+  assert.match(rm, /const hue = RECORD_HUE;/);
+  assert.match(rm, /style=\{\{ '--h': hue \}\}/, 'the card carries it as --h, which the object, the chip and Next read');
+  assert.doesNotMatch(rm, /muscleVar|rec\.muscle/, 'the muscle hue is gone from the moment');
+  assert.match(rm, /Gold elsewhere in Nova means "waiting on his\n\/\/\s+call"; this moment is his explicit exception/, 'the exception is written down where the next reader will look');
+  const css = read('src/index.css');
+  const block = css.slice(css.indexOf('THE PERSONAL-BEST MOMENT (29 Sep 2026'), css.indexOf('/* end of the personal-best moment */'));
+  for (const sel of ['.nv-rec-up', '.nv-rec-stack .lit', '.nv-rec-bar .newp', '.nv-rec-rays line', '.nv-rec-next']) {
+    assert.ok(block.includes(sel), `${sel} is in the block`);
+  }
+  assert.match(block, /\.nv-rec-up \{[^}]*var\(--h\)/);
+  assert.match(block, /\.nv-rec-stack \.lit \{ fill: var\(--h\); \}/);
+  assert.match(block, /\.nv-rec-bar \.newp \{ fill: var\(--h\);/);
+  assert.match(block, /\.nv-rec-num b \{[^}]*color: var\(--nv-ink\); \}/, 'the number keeps its ink');
+});
+
 test('its styles: namespaced .nv-rec-*, at the END of index.css, 13px and up, 44px targets, reduced motion honoured', () => {
   const css = read('src/index.css');
   const start = css.indexOf('THE PERSONAL-BEST MOMENT (29 Sep 2026');

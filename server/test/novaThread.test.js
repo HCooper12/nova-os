@@ -274,6 +274,57 @@ test('the talk door: the tab bar\'s Nova calls the page\'s own start inside the 
   assert.equal(calls.length, 0);
 });
 
+test('the focus door (30 Sep): enterFocus brings the core up through the page\'s own setter, a no-op with none registered, and the dock\'s hold is untouched', () => {
+  const { app, calls } = fakeApp();
+  const T = valsNovaThread(app, {}, vOf()).novaThread;
+  assert.doesNotThrow(() => T.enterFocus(), 'no thread mounted: nothing happens');
+  assert.equal(calls.length, 0, 'and it calls no app method');
+  let focused = 0;
+  T.registerFocus(() => { focused++; });
+  valsNovaThread(app, {}, vOf()).novaThread.enterFocus();
+  assert.equal(focused, 1);
+  T.registerFocus(null);
+  valsNovaThread(app, {}, vOf()).novaThread.enterFocus();
+  assert.equal(focused, 1, 'unregistered on unmount');
+  const src = read('src/screens/NovaThread.jsx');
+  assert.match(src, /T\.registerFocus\(\(\) => setFocus\(true\)\);\n    return \(\) => T\.registerFocus\(null\);/);
+  // the hold on the tab bar's Nova still raises the capture composer (his call pending)
+  assert.match(read('src/SummaryDock.jsx'), /onLongPress=\{v\.openCaptureSheet \|\| v\.holdNovaText\}/);
+  assert.doesNotMatch(read('src/SummaryDock.jsx'), /enterFocus/, 'nothing calls it yet');
+});
+
+test('the head at rest is the name and the state, no core; the core is drawn in focus only (30 Sep)', () => {
+  const src = read('src/screens/NovaThread.jsx');
+  assert.match(src, /\{focus && \(\n\s*<button type="button" className="nv-nt-face"[^\n]*\n\s*<CoreFace stateKey=\{S\.key\} engine=\{T\.engine\} focus \/>/);
+  assert.equal((src.match(/<CoreFace /g) || []).length, 1, 'one core, and it is inside the focus guard');
+  assert.match(src, /className="nv-nt-name" onClick=\{\(\) => setFocus\(\(f\) => !f\)\}/, 'the name still toggles the focus');
+  assert.match(src, /className="nv-nt-more" onClick=\{\(\) => setStatusOpen\(true\)\}/, 'the › still opens status at rest');
+  const css = read('src/index.css');
+  assert.match(css, /\.nv-nt\.focus \.nv-nt-face \{ animation: nvNtCoreIn/, 'the core arrives in focus');
+});
+
+test('the stage steps the thread back: a blur and a light dim under the head, stage and composer, solid under reduced transparency (30 Sep)', () => {
+  const src = read('src/screens/NovaThread.jsx');
+  assert.match(src, /\{\(shown \|\| leaving\) && !focus && \(\n\s*<div className=\{`nv-nt-stagedim\$\{!shown \? ' leaving' : ''\}`\} aria-hidden="true"/);
+  const css = read('src/index.css');
+  const rule = /\.nv-nt-stagedim \{([^}]*)\}/.exec(css.slice(css.indexOf('THE NOVA THREAD (29 Sep 2026)')));
+  assert.ok(rule, 'the dim rule');
+  assert.match(rule[1], /position: fixed; inset: 0; z-index: 11;/);
+  assert.match(rule[1], /backdrop-filter: blur\(10px\)/);
+  const z = (sel) => Number(new RegExp(`${sel} \\{[^}]*z-index: (\\d+)`).exec(css)[1]);
+  assert.ok(z('\\.nv-nt-head') > 11 && z('\\.nv-nt-stagerail') > 11 && z('\\.nv-nt-composer') > 11, 'the head, the stage and the composer stay sharp and usable');
+  const rt = css.slice(css.lastIndexOf('@media (prefers-reduced-transparency: reduce)'));
+  assert.match(rt.slice(0, rt.indexOf('\n}\n') + 3), /\.nv-nt \.nv-nt-stagedim \{ background: color-mix\(in srgb, var\(--nv-void\) 86%, transparent\); \}/);
+});
+
+test('the settled stage says what it was and offers Replay in one line (30 Sep, "so I can refer back")', () => {
+  const parts = read('src/NovaThreadParts.jsx');
+  assert.match(parts, /<Ico name="stage" \/>Shown while she spoke\{time \? ` · \$\{time\}` : ''\}/);
+  assert.match(parts, /className="nv-nt-streplay" onClick=\{onReplay\}/);
+  assert.match(parts, /<StagePanel card=\{st\.last\} onOpen=\{onOpen\} \/>/, 'a tap on the panel opens it full width');
+  assert.doesNotMatch(parts.slice(parts.indexOf('export function Settled')), /On the stage/);
+});
+
 test('the live stage: only while she speaks with a glass up; her sentence measured in the reply\'s own text', () => {
   const { app } = fakeApp({ voiceSpeaking: true, glassBeats: beats, glassSpokenTo: 43,
     voiceChat: [{ at: T0, who: 'nova', text: 'Six of seven nights were over seven hours. Tuesday was the short one.', streaming: true }] });
