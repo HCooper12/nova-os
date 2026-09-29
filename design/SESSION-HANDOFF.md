@@ -13,6 +13,20 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**30 SEP (afternoon, nova-os-fc) — HIS FIFTH ANSWERS ALL LANDED.** Pushed
+e3ce192 on his word (morning). Since then on main, UNPUSHED: the Siri
+interim + consulted Coach + source titles (1c90c29, server RELOADED), the
+Nova polish (81beb2f: gold record, blurred stage, core on demand, filled
+orb), mockup 68 Nova full screen
+(https://claude.ai/artifact/7JebTDwRyob5mjanWq5EmE), ledger notes. Review
+page v2: https://claude.ai/artifact/S8C9oy6h9zaNuqSpmMEHRP. OPEN, his:
+push; the corner-Nova hold (core vs capture); the rules page; the three
+Siri-build questions; the full-screen shape (A/B/C or blend) and Nova's
+word colour. NEXT for fc after his answers: build the chosen focus mode;
+the bench + bylines on the thread from by/from (seams in NovaThread.jsx);
+the session data panel + VIS marks (mockup 67's list); the desktop round.
+No worktrees remain; nova-os-83 is idle.
+
 **30 SEP (nova-os-83) — THE RECIPE PAGE + REEL IMPORT, LIVE AND ON HIS PHONE'S
 BUILD.** His ask (29 Sep, the Osta reel): "rework and edit Nova's fuel
 capabilities so this is possible and it all works/looks and feels more
