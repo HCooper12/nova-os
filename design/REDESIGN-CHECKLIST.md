@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 30 Sep 2026 (midday) — SIRI + CONSULTED COACH + SOURCE TITLES MERGED
+  (1c90c29): handsFree.js answers a slow consult at once with a code-written
+  interim and the synthesis lands in the record later; a consulted Coach's
+  PROPOSE files one card under a lock with a duplicate guard (same lift +
+  kind of change, or same subject; pending + this turn); the Librarian's
+  citations carry titles and every synthesis head forbids "your book". His
+  calls: an instruction he gave Nova applied at once when passed to the
+  Coach (today every consulted card waits for his yes); a differing change
+  on the same lift replacing the waiting card vs reported as waiting; a
+  push when a late Siri answer lands (today silent).
 - 30 Sep 2026 (morning) — PUSHED to e3ce192 on his word. HIS FIFTH ANSWERS.
   Who is answering: name the specific source, never "your book"; Nova always
   asks the Researcher and Siri gets an interim "the Researcher is on it,
