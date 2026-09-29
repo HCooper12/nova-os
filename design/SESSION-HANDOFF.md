@@ -13,6 +13,28 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**29 SEP (evening, nova-os-fc, CUT OFF BY THE USAGE LIMIT MID-BUILD) — FOUR
+OPUS AGENTS WERE RUNNING IN WORKTREES; THEIR WORK IS ON DISK, UNCOMMITTED.**
+`.claude/worktrees/consult` (branch build-consult): the shared consult rail
+(server/lib/consult.js, Nova + Leader consulting, an askable Librarian,
+structured asks, by/from on the record). `.claude/worktrees/novab`
+(build-novab): the Nova screen, mockup 63 D (NovaThread.jsx + vals, focus
+mode on the name tap, rising stage, kept recording + Try again, hold menu).
+`.claude/worktrees/pb` (build-pb): the record moment (recordKit.js,
+RecordMoment.jsx: per-equipment animation, trophy fallback with a refined
+ring, persists until dismissed, one per PB). Mockup 67 (Who is answering,
+round 2) was being drawn straight into design/mockups/. NEXT SESSION: read
+each worktree's `git status`/`git diff` and the frames under the scratchpad
+folders consult/ novab/ pb2/ agents2/ (if the session's scratchpad survives;
+else re-shoot); finish or re-brief from the briefs recorded in the ledger
+(§7, 29 Sep evening) and memory nova-agents-consult-everyone; review, commit
+on the branch, rebase onto main, ff-merge, gates (lint · build · server
+suite · six guards · JSX check), reload the server ONLY via
+scripts/reload-server.mjs after the consult rail lands. nova-os-83 owns Fuel
+and is running a reel backfill on the live server. Two pinned contracts in
+claudeCode.js: the Coach preamble stays one paragraph; fileArtifacts before
+settleCoachChanges.
+
 **29 SEP (afternoon, nova-os-fc) — FOUR ROUNDS OUT FOR HIS CALLS, THREE BUGS
 FIXED, TAB IS "NOVA".** Pushed and reloaded 29 Sep by nova-os-83 on his
 yes; Documents live. His Voice/Train answers (ledger 29 Sep) → mockup 63
