@@ -13,6 +13,20 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**30 SEP (nova-os-fc) — ALL FOUR LANDED: the consult rail (3f5597e, server
+RELOADED: every reasoning agent asks every other, Nova directs), the record
+moment (58a8c3a), the Nova screen (cc43ae5), Who is answering round 2
+(mockup 67, https://claude.ai/artifact/UBzk5HCYwYmtsaMxswfXDJ). The three
+worktrees are removed; main is clean; the client is NOT pushed since
+9afac7f (his call), so his phone has none of the Nova screen or the record
+moment yet. Review page for both: see the ledger (30 Sep). NEXT: his calls
+in the ledger (dock orb colour; Siri and the Researcher; free-text panels;
+the rules page), then the provenance UI on the Nova thread (the bench and
+bylines from by/from, mockup 67; the seams are in NovaThread.jsx), the
+session data panel + VIS marks (mockup 67's server list), the desktop
+round, Sheets and overlays (§6 #6). Below is the cut-off note, now
+historical.**
+
 **29 SEP (evening, nova-os-fc, CUT OFF BY THE USAGE LIMIT MID-BUILD) — FOUR
 OPUS AGENTS WERE RUNNING IN WORKTREES; THEIR WORK IS ON DISK, UNCOMMITTED.**
 `.claude/worktrees/consult` (branch build-consult): the shared consult rail

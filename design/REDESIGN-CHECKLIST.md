@@ -561,6 +561,21 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 30 Sep 2026 — THE NOVA SCREEN MERGED (cc43ae5, mockup 63 D + his focus
+  amendment): NovaThread.jsx under `summary`; the classic Voice untouched
+  (two new voice guard baselines, cupertino and command); the reply keeps a
+  glass snapshot so the stage settles into the thread; the kept recording +
+  Try again (keptTakes.js, IndexedDB); the hold menu; the tab bar's Nova reads
+  this page's mic (audit finding 3 fixed); exchanges from other pages land
+  marked with their page; byline/bench seams render nothing until by/from
+  reach the client. Merge notes: pb and novab both appended at the END of
+  index.css → the pb test's "very end" relaxed to "only a later block
+  follows"; the reply line merged as `const line = {…glass, …from}`. Gates
+  green (2887/2889). NOT on his phone until a push; not verified with a real
+  mic, Try again round trip or iOS long-press. His calls: the dock orb
+  blue-only on every summary page (today it tints gold/violet while she
+  speaks); the core tap = status (built) or also focus; live glass from the
+  Nova button on other pages (today none rises there).
 - 30 Sep 2026 — THE RECORD MOMENT MERGED (58a8c3a): RecordMoment.jsx replaces
   PersonalRecord.jsx under every style; the kit from the lift's name
   (recordKit.js table, ~90 real names tested): stack → pin drop, barbell →
