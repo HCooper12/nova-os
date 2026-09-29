@@ -561,6 +561,22 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 30 Sep 2026 (morning) — PUSHED to e3ce192 on his word. HIS FIFTH ANSWERS.
+  Who is answering: name the specific source, never "your book"; Nova always
+  asks the Researcher and Siri gets an interim "the Researcher is on it,
+  check back later" (never "took too long"); a consulted Coach files cards
+  directly with duplicates avoided; free-text panels kept for now; lit parts
+  in the agent's own hue. Nova built: PB colours → GOLD (his exception to
+  gold = waiting); the stage blurs and dims the thread behind it and settles
+  into the flow; the core at the top is NOT persistent (name tap or a hold on
+  the corner Nova shows it); full-screen Nova must feel alive with coloured
+  word-by-word subtitles → MOCKUP 68 IN FLIGHT (A field · B ring of words · C
+  stage); keep the dock orb's state tints but fill the circle; leg press =
+  stack; first-ever lifts celebrated. BUILDS IN FLIGHT: novapolish (gold,
+  blur, hidden core, filled orb), siri (interim reply, consulted Coach files
+  with dedupe, source titles). OPEN: the hold on the corner Nova today raises
+  the capture composer (his Inbox r2 approval) and he now wants it to show
+  the core; his call.
 - 30 Sep 2026 — THE NOVA SCREEN MERGED (cc43ae5, mockup 63 D + his focus
   amendment): NovaThread.jsx under `summary`; the classic Voice untouched
   (two new voice guard baselines, cupertino and command); the reply keeps a
