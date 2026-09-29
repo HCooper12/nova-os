@@ -561,6 +561,17 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 30 Sep 2026 (afternoon) — NOVA POLISH MERGED (81beb2f): the record moment
+  in GOLD (his exception); the stage over a dimmed, blurred thread (solid
+  under reduced transparency; a tap on the dim tucks it); the settled card
+  "Shown while she spoke · Replay"; no core at rest (name tap grows it into
+  focus; enterFocus exposed for the dock hold, still capture until his
+  call); the dock orb 46 → 58px filling its circle, tints kept. Gates green
+  (2906/2908, the atlas pair; seven guards unchanged). Review page v2
+  https://claude.ai/artifact/S8C9oy6h9zaNuqSpmMEHRP. NOT pushed (main is
+  ahead of origin by the Siri merge, this and the docs). Found, unfixed: the
+  thread's reduced-transparency guard lines are single-class and lose to the
+  block's own rules (surfaces sit at 84–86% void, not solid).
 - 30 Sep 2026 (midday) — SIRI + CONSULTED COACH + SOURCE TITLES MERGED
   (1c90c29): handsFree.js answers a slow consult at once with a code-written
   interim and the synthesis lands in the record later; a consulted Coach's
