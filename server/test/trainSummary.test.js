@@ -258,7 +258,7 @@ test('the ✕ path calls the reason-carrying discard, never the bare one', () =>
 test('the Coach sheet is its own history entry, and the back swipe closes it', () => {
   const app = read('src/App.jsx');
   assert.match(app, /\.\.\.this\.recipeFromHistory\(\), \.\.\.this\.pagesFromHistory\(\) \}\);/);
-  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\) \};/);
+  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\) \};/);
   assert.match(app, /novaOverlay: 'traincoach'/);
   assert.match(app, /const withTrain = \{ \.\.\.withIndex, \.\.\.valsTrainSummary\(this, ctx, withIndex\) \};/, 'spread after the Index in renderVals');
 });

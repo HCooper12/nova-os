@@ -124,6 +124,10 @@ function tick(ac, out, at, i) {
 export const CHIMES = {
   technique: { notes: [880, 1318.51], gap: 0.075, peak: 0.2, decay: 1.1 },
   review: { notes: [1318.51], gap: 0, peak: 0.13, decay: 0.7 },
+  // a personal best (29 Sep, his pick off mockup 65's trophy): the same glass
+  // bell as a rising triad, A5 → E6 → A6 — one note more than the technique,
+  // because it is the bigger moment, and still not loud
+  record: { notes: [880, 1318.51, 1760], gap: 0.07, peak: 0.17, decay: 1.2 },
 };
 const PARTIALS = [[1, 1], [2, 0.22], [3.01, 0.07]];
 
@@ -183,6 +187,21 @@ export function reelSound({ ticks = [], landAt = 0, chime = 'technique', lead = 
       },
     };
   } catch { return SILENT; }
+}
+
+// THE RECORD'S CHIME: the triad alone, landing `landAt` ms from now, on the
+// context his tap armed (Finish, or Next between records). No tap, no sound.
+export function recordChime(landAt = 0) {
+  return reelSound({ ticks: [], landAt, chime: 'record' });
+}
+
+// A tap armed a sound that nothing went on to play (a Finish that filed no
+// record, or failed): let the context go rather than hold iOS's audio
+// session awake for nothing.
+export function releaseSfx() {
+  if (!armed) return;
+  armed = false;
+  if (ctx) sleepAfter(ctx, ctx.currentTime + 0.3);
 }
 
 // What he just switched on, played once so he knows what it is.

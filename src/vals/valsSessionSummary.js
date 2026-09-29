@@ -1,5 +1,5 @@
 import { muscleVar } from '../muscleHue.js';
-import { prLift } from '../missionFocus.js';
+import { recordPhrase } from '../recordKit.js';
 import {
   shownKg, fmtKg, fmtThousands, isTimeLift, isBodyweightLift, liftIncrement, repIncrement,
   recordCandidates, voicePreview, commitOps, padKey, restStart, getRestTimer, saveRestTimer,
@@ -512,12 +512,11 @@ export function valsSessionSummary(app, ctx, v) {
       to: lead.value,
       unit: lead.kind === 'weight' ? 'kg' : isTimeLift(exs[lead.exIdx]?.trackingType) ? 's' : 'reps',
       decimals: lead.kind === 'weight',
-      head: lead.kind === 'weight' ? `${lead.name}, past last time` : `${lead.name}, more reps than last time`,
-      line: lead.kind === 'weight'
-        ? `${prLift({ weight: fmtKg(lead.value), reps: lead.reps })} · past ${fmtKg(lead.previous)} · +${fmtKg(lead.delta)} kg`
-        : `${lead.weight ? `${fmtKg(lead.weight)} kg × ` : ''}${lead.value} · past ${lead.previous} · +${lead.delta}`,
+      // the two-stage wording (recordKit.recordPhrase): before it files the
+      // only true claim is "beat last time"; "New personal best" waits for
+      // the server, and plays as its own moment (src/RecordMoment.jsx)
+      ...(({ head, line, meta, aria }) => ({ head, line, meta, aria }))(recordPhrase('sheet', lead)),
       also: cands.length > 1 ? `and ${plural(cands.length - 1, 'more lift')} up on last time` : null,
-      aria: `${lead.name}, past last time: ${lead.kind === 'weight' ? `${fmtKg(lead.value)} kilograms, past ${fmtKg(lead.previous)}` : `${lead.value}, past ${lead.previous}`}. A record is confirmed when it files`,
     } : null,
     cutShort: !editing && v.sessionHasUndone ? {
       head: `${plural(openSets, 'set')} open. Stopping early? One tap tells Coach why`,

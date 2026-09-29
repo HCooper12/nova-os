@@ -4,7 +4,7 @@ import { ExerciseSheet } from './ExerciseSheet.jsx';
 import { chatStartsAJob, planWorthy } from './chatLanes.js';
 import { reportOpening } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
-import { sfxEnabled, setSfxEnabled, previewSfx, primeSfx } from './sfx.js';
+import { sfxEnabled, setSfxEnabled, previewSfx, primeSfx, releaseSfx } from './sfx.js';
 import { buildReelRows } from './reel.js';
 import { hearingChoice, setHearingChoice } from './hearingEngine.js';
 import { runEarsTest } from './earsTest.js';
@@ -68,7 +68,8 @@ import { Voice } from './screens/Voice.jsx';
 import { Recipes } from './screens/Recipes.jsx';
 import { Workouts } from './screens/Workouts.jsx';
 import { MobileChrome } from './MobileChrome.jsx';
-import { PersonalRecord } from './PersonalRecord.jsx';
+import { RecordMoment } from './RecordMoment.jsx';
+import { confirmedRecords } from './recordKit.js';
 import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
@@ -568,7 +569,8 @@ export default class App extends Component {
     ctxMenu: null, // the long-press / right-click menu: { x, y, title?, items }
     verdict: null, verdictBusy: false, // A1 — a question answered as a card
     jobTrayOpen: false, // C3 — in-flight work, visible
-    prCelebration: null, // D2 — the star moment when a save contains PRs
+    prCelebration: null, // D2 — the star moment when a save contains PRs (recordKit.confirmedRecords, one per lift)
+    prIndex: 0, // which of them is playing; each waits for his dismissal
     // NOVA LIVE — native conversation from the orb, on any screen
     liveTalkOn: false, liveInput: '', liveAsk: '', liveReply: '', liveVerdictOffer: null, liveVerdict: null,
     // the transcript pop-up is OPT-IN (long-press the core) — his ask: the
@@ -3435,11 +3437,12 @@ export default class App extends Component {
   }
   // popstate's half for everything that is a history entry of its own over a
   // screen: Edit Pinned, the Coach sheet on the summary Train page, the
-  // Recipes list over the summary Fuel page, and the summary Inbox's report
-  // and capture sheets. One helper, because server/test/edgeBack.test.js
-  // reads popH through a short window.
+  // Recipes list over the summary Fuel page, the summary Inbox's report
+  // and capture sheets, the Documents viewer, and the personal-best moment.
+  // One helper, because server/test/edgeBack.test.js reads popH through a
+  // short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory() };
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory() };
   }
   // ---------- DOCUMENTS (28 Sep 2026) ----------
   // What Coach, Nova and the Leader wrote as a thing he can open. The list is
@@ -4246,13 +4249,19 @@ export default class App extends Component {
       // a make-up names the routine it finished, so the day stays made up
       // after the carry-over row is gone (his report, 26 Sep)
       ...(session.routineId === 'carryover' && session.sourceRoutineName ? { sourceRoutineName: session.sourceRoutineName, ...(session.sourceRoutineId ? { sourceRoutineId: session.sourceRoutineId } : {}) } : {}) };
+    // THE TAP IS THE ONLY GESTURE the record's chime will ever get: iOS lets
+    // only a tap start audio, and the server's answer arrives a moment later.
+    // So Finish arms the effects context here; a confirmed record plays its
+    // triad on it, and a finish with none lets it go.
+    primeSfx();
     api.completeWorkoutSession(conn, payload).then(({ prs } = {}) => {
-      if (prs?.length) {
-        this.setState({ prCelebration: prs });
-        haptic('celebrate'); // reaches his phone via the switch overlay; one pulse there, tiers on Android/desktop
-        clearTimeout(this.prT);
-        this.prT = setTimeout(() => this.setState({ prCelebration: null }), 4200);
-      }
+      // THE PERSONAL-BEST MOMENT (src/RecordMoment.jsx): the server's records,
+      // compared at the resolution shown and joined to this session's lifts
+      // for the hue and the kit. It stays until he dismisses it — no timer
+      // (his instruction, 29 Sep) — and each lift gets its own moment.
+      const records = confirmedRecords(prs, session.exercises);
+      if (records.length) this.openRecordMoment(records);
+      else releaseSfx();
       // finishing a makeup session consumes its carry-over
       if (carryoverId) api.removeCarryover(conn, carryoverId).then(() => this.loadCarryovers()).catch(() => {});
       const t = new Date(); t.setDate(t.getDate() + 1);
@@ -4267,6 +4276,7 @@ export default class App extends Component {
       this.refreshWorkoutRoutines();
       this.toastMsg(missed.length ? `Saved ✓ — ${missed.length} exercise${missed.length === 1 ? '' : 's'} not done; push ${missed.length === 1 ? 'it' : 'them'} to a day below` : 'Workout saved ✓');
     }).catch((e) => {
+      releaseSfx(); // nothing will play on the context Finish armed
       if (isOfflineError(e)) {
         // the finished session lives in the persisted outbox now — safe to
         // close the active-session UI; it files the moment Nova reconnects.
@@ -4279,6 +4289,41 @@ export default class App extends Component {
       }
       this.toastMsg('Could not save workout: ' + e.message);
     });
+  }
+  // ---------- THE PERSONAL-BEST MOMENT (29 Sep 2026) ----------
+  // Its own history entry, like the other sheets: the back swipe dismisses
+  // it rather than going back a tab underneath it, and it carries the records
+  // so a forward returns to it. UI state only; nothing here writes.
+  openRecordMoment(records) {
+    if (!Array.isArray(records) || !records.length) return;
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'record') window.history.replaceState({ ...st, records }, '');
+      else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'record', records }, '');
+    }
+    this.setState({ prCelebration: records, prIndex: 0 });
+  }
+  // his dismissal of the one playing (outside the card, the ✕, the swipe,
+  // Escape, Next): the next lift's moment, or, after the last, closed
+  nextRecord() {
+    const list = this.state.prCelebration || [];
+    const i = this.state.prIndex || 0;
+    if (i + 1 < list.length) { this.setState({ prIndex: i + 1 }); return; }
+    this.closeRecordMoment();
+  }
+  // Skip all, and the end of the last: on its own entry, closing IS going
+  // back; popH does the closing.
+  closeRecordMoment() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'record') { window.history.back(); return; }
+    this.setState({ prCelebration: null, prIndex: 0 });
+  }
+  // popstate's half: leaving the entry closes it, returning reopens it
+  recordFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'record';
+    if (!onEntry && this.state.prCelebration) return { prCelebration: null, prIndex: 0 };
+    if (onEntry && !this.state.prCelebration && Array.isArray(st.records) && st.records.length) return { prCelebration: st.records, prIndex: 0 };
+    return {};
   }
   // Park an in-progress session without finalizing it — stays fully
   // resumable (it's already mirrored to device storage) via the RESUME card.
@@ -10469,7 +10514,8 @@ export default class App extends Component {
             bargeIn={v.bargeIn?.on} speaking={v.bargeIn?.speaking} saying={v.bargeIn?.saying} onBargeIn={v.bargeIn?.fire} />
         )}
         {this.state.prCelebration && (
-          <PersonalRecord records={this.state.prCelebration} onClose={() => this.setState({ prCelebration: null })} />
+          <RecordMoment key={this.state.prIndex || 0} records={this.state.prCelebration} index={this.state.prIndex || 0}
+            onDismiss={() => this.nextRecord()} onSkipAll={() => this.closeRecordMoment()} />
         )}
         {this.state.verdict && (
           <Suspense fallback={null}>

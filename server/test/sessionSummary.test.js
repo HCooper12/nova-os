@@ -352,3 +352,12 @@ test('Settings shows the rest timer row only when the view model hands it one (s
   assert.match(src, /\{v\.restTimerSetting && \(/);
   assert.match(read('src/sessionSummaryFacts.js'), /REST_KEY = 'novaos\.restTimer'/);
 });
+
+test('after Finish: the quiet "You beat last time" here, the full moment only once it files, as a history entry of its own', () => {
+  const vals = read('src/vals/valsSessionSummary.js');
+  assert.match(vals, /recordPhrase\('sheet', lead\)/, 'the sheet claims only what code knows');
+  const app = read('src/App.jsx');
+  assert.match(app, /\.\.\.this\.recipeFromHistory\(\), \.\.\.this\.pagesFromHistory\(\) \}\);/);
+  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\) \};/);
+  assert.match(app, /novaOverlay: 'record', records \}/);
+});

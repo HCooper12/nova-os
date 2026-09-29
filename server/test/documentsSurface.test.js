@@ -64,7 +64,7 @@ test('every streamed partial cuts documents out BEFORE the glass parser sees it'
   // and what is spoken never includes a document or its token
   assert.match(app, /toSpokenProse\(speakableText\(t, \{ final: true \}\)\)/);
   // the viewer is a history level the back swipe and popstate close
-  assert.match(app, /\.\.\.this\.documentsFromHistory\(\) \};/);
+  assert.match(app, /\.\.\.this\.documentsFromHistory\(\)[,}]/);
   assert.match(app, /window\.addEventListener\(OPEN_EVENT, this\.openArtH\)/);
 });
 

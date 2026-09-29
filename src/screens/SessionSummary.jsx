@@ -754,10 +754,13 @@ function PickerSheet({ s, v, parts }) {
 }
 
 // ================================================================ finish ==
-// THE RECORD GAUGE, the house one's shape (src/PersonalRecord.jsx): an open
+// THE RECORD GAUGE, the shape the record overlay used to wear: an open
 // 270° ring that always completes, the old mark at a FIXED 0.72 of the
 // sweep, the arc past it lit, the number counting old → new in one damped
 // pass. In the lift's hue: a record waits on nothing, so it is not gold.
+// This is the QUIET stage (his pick on mockup 65, 29 Sep): the sheet says
+// "You beat last time"; the full moment plays only once the server confirms
+// an all-time best (src/RecordMoment.jsx).
 const GR = 38;
 const GC = 2 * Math.PI * GR;
 const GA = GC * 0.75;
@@ -806,7 +809,7 @@ function FinishSheet({ s }) {
           {s.record && (
             <>
               <Gauge r={s.record} />
-              <p className="nv-ss-prl">{s.record.head}<span>{s.record.line}</span><span>{s.record.also ? `${s.record.also} · ` : ''}a record is confirmed when it files</span></p>
+              <p className="nv-ss-prl"><b>{s.record.head}</b><span className="l">{s.record.line}</span><span>{s.record.also ? `${s.record.also}. ` : ''}{s.record.meta}</span></p>
             </>
           )}
           {s.cutShort && (
