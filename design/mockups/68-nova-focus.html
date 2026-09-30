@@ -51,7 +51,9 @@
   words sharing cyan with the talk ring is a decision for him (see the
   report). Type in focus 15px and up; the tab label 11. Every target 44.
 
-  Review furniture: the bar at the top (hide it with Hide), the tally line,
+  Review furniture: the switcher (open on load, 84px down so the artifact
+  viewer's own bar on his phone cannot cover it; Done tucks it into a
+  Switch pill), the tally line,
   the dashed "his finger" ring. __focus.seek(ms) freezes any screen at a
   moment; __focus.clean() hides the bar; __m() measures the screen.
 
@@ -237,7 +239,7 @@ button:active{transform:scale(.97);transition:transform .16s var(--ease)}
 .novabtn .ring{position:absolute;inset:-6px;border-radius:50%;border:1.5px solid var(--talk);opacity:0;pointer-events:none}
 
 /* ---------- the review bar ---------- */
-.switch{position:fixed;top:0;left:0;right:0;z-index:40;padding:8px 12px 8px;backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:rgba(6,7,13,.78);border-bottom:1px solid var(--sep)}
+.switch{position:fixed;top:var(--rev-top,84px);left:8px;right:8px;border-radius:18px;z-index:40;padding:8px 12px 8px;box-shadow:0 0 0 .5px var(--card-ring),0 18px 40px -16px rgba(0,0,0,.8);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);background:rgba(6,7,13,.9)}
 .switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2)}
 .seg button{min-height:32px;padding:6px 2px;border-radius:9px;font:600 13px var(--ui);opacity:.65;white-space:nowrap}
@@ -249,7 +251,7 @@ button:active{transform:scale(.97);transition:transform .16s var(--ease)}
 .rbtn{height:32px;padding:0 12px;border-radius:16px;font:600 13px var(--ui);background:rgba(255,255,255,.1);box-shadow:0 0 0 .5px var(--card-ring);white-space:nowrap}
 .switch{display:none}
 body.rev .switch{display:block}
-.unhide{position:fixed;top:16px;left:50%;transform:translateX(-50%);height:36px;padding:0 14px;border-radius:18px;z-index:41;font:600 13px var(--ui);color:var(--ink2);background:rgba(6,7,13,.6);box-shadow:0 0 0 .5px var(--card-ring);white-space:nowrap}
+.unhide{position:fixed;top:var(--rev-top,84px);left:50%;transform:translateX(-50%);height:44px;padding:0 18px;border-radius:22px;z-index:41;font:600 15px var(--ui);color:var(--ink);background:rgba(6,7,13,.82);box-shadow:0 0 0 .5px var(--card-ring);white-space:nowrap}
 body.rev .unhide{display:none}
 body.clean .switch,body.clean .unhide{display:none}
 
@@ -739,7 +741,7 @@ body.clean .switch,body.clean .unhide{display:none}
 
   /* ---------- the switcher ---------- */
   const scr=$('#screens');
-  function setTop(){document.documentElement.style.setProperty('--top','0px');$('#unhide').textContent=v.toUpperCase()+' · '+SCREENS[si].n.slice(2)+'  ▾';}
+  function setTop(){document.documentElement.style.setProperty('--top','0px');$('#unhide').textContent='Switch  '+v.toUpperCase()+' · '+SCREENS[si].n.slice(2)+'  ▾';}
   function apply(){
     $$('[data-var]').forEach((b)=>b.setAttribute('aria-pressed',String(b.dataset.var===v)));
     scr.innerHTML=SCREENS.map((x,i)=>'<button data-s="'+i+'" aria-pressed="'+(i===si)+'">'+x.n+'</button>').join('');
@@ -760,6 +762,7 @@ body.clean .switch,body.clean .unhide{display:none}
   window.addEventListener('resize',()=>{setTop();build();restart();});
   // instruments: freeze at a moment, hide the review bar, force the reduced-motion still
   window.__focus={seek(ms){frozen=ms;simT=-1;frame(performance.now());return ms;},play(){frozen=null;restart();},clean(){document.body.classList.add('clean');document.body.classList.remove('rev');if(frozen!=null)frame(performance.now());},rm(on){RM=!!on;build();restart();},dbg(){const tc=touchAt(frozen||0);return JSON.stringify({tc,near:F.P.filter((p)=>tc&&Math.hypot(p.x-tc[0],p.y-tc[1])<60).length,sample:F.P.slice(0,3).map((p)=>[Math.round(p.x),Math.round(p.y)])});}};
+  document.body.classList.add('rev');
   if(!fromHash()){try{const p=(localStorage.getItem('nova-focus-68')||'').split('/');if(TALLY[p[0]]){v=p[0];const n=+p[1];si=n>=1&&n<=6?n-1:0;}}catch(e){}}
   apply();
   requestAnimationFrame(loop);
