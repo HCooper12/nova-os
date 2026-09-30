@@ -561,6 +561,21 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 1 Oct 2026 — HIS SIXTH ANSWERS. (1) "How Nova shows things" stays a RULE
+  BY DESIGN, not a page: a glass panel appears for a number to see, two
+  things compared, or a place in his own record; never for a plain sentence
+  (NOVA-METHOD §2b, added). (2) Nova must do EVERYTHING from EVERY door
+  ("exactly like Siri, Claude, ChatGPT… no matter how I speak with it"): add
+  a link to the recipe vault, research and capture, analyse a video via the
+  Watcher, capture anything; the hold on the corner Nova opens the core
+  listening, capture becomes something he says → BUILD IN FLIGHT (worktree
+  everydoor: audit design/audits/every-door.md, the gaps closed through the
+  verb registry and the consult rail). (3) Coach: his words to Nova count as
+  the instruction (standing grant); a differing change REPLACES the waiting
+  card; a push when a late answer lands → BUILD IN FLIGHT (worktree coach3).
+  (4) He could not find mockup 68's A/B/C: the review pill sat under the
+  artifact viewer's bar → switcher now opens on load at 84px (8da5106),
+  republished.
 - 30 Sep 2026 (afternoon) — NOVA FULL SCREEN published (mockup 68: A the
   field · B the ring of words · C the stage; word-by-word subtitles paced per
   sentence today, real word timings later, ElevenLabs timestamps and
