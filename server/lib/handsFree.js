@@ -19,7 +19,7 @@
 //     while the Researcher's brief lands on its own Inbox record as always.
 // Code writes every word he hears about this; the model never claims it.
 
-import { AGENTS } from './consult.js';
+import { AGENTS, handoverLine } from './consult.js';
 
 export const HANDS_FREE_LIMIT_MS = 110_000;
 
@@ -85,14 +85,64 @@ export async function awaitHandsFree(jobId, {
 // After an interim: follow the turn to its end, with no timeout (his no-caps
 // rule; the job map is the only thing that can end it), then hand the result
 // on. A vanished job is a failure, said plainly.
-export async function followThrough(jobId, { getJob, pollMs = 1000, onReady, onError }) {
+//
+// THE LATE ANSWER TAPS HIS WRIST (his call, 1 Oct 2026: "Yes, push
+// notification"). Siri has already hung up by the time the synthesis lands,
+// so once onReady has put it in the record, ONE push goes to his phone
+// through the existing path (push.sendPush: every registered device, dead
+// endpoints pruned; that path has no quiet hours or rate rule of its own),
+// naming who answered and the answer's first sentence, and opening the Nova
+// thread. A failed turn sends none: the failure line in the record is the
+// whole of it. A push that fails to send never sinks the follow-through.
+export async function followThrough(jobId, { getJob, pollMs = 1000, onReady, onError, push = defaultPush }) {
   for (;;) {
     const job = getJob(jobId);
     if (!job) { await onError?.('the answer was lost before it finished', null); return; }
-    if (job.status === 'ready') { await onReady?.(job); return; }
+    if (job.status === 'ready') {
+      await onReady?.(job);
+      try { await push(latePush(job, jobId)); } catch (e) { console.log(`late answer push failed: ${e.message}`); }
+      return;
+    }
     if (job.status === 'error') { await onError?.(job.error || 'the answer failed', job); return; }
     await sleep(pollMs);
   }
+}
+
+async function defaultPush(note) {
+  const { sendPush } = await import('./push.js');
+  return sendPush(note);
+}
+
+// The one notification, from the job alone. Who answered: Nova, with every
+// agent whose answer reached her (one that failed is not named as answering).
+// The first sentence is the answer's own, after the code-written "Asking …"
+// line that opens it.
+export function latePush(job, jobId = null) {
+  const roster = Array.isArray(job?.result?.consult) ? job.result.consult : Array.isArray(job?.consult) ? job.consult : [];
+  const helped = [];
+  for (const a of roster) if (a?.ok === true && a.agent && !AGENTS[a.agent]?.code && !helped.includes(a.agent)) helped.push(a.agent);
+  const title = helped.length ? `Nova answered, with ${listWords(helped.map(labelOf))}` : 'Nova answered';
+  let text = String(job?.result?.text || '').trim();
+  const lead = handoverLine(roster);
+  if (lead && text.startsWith(lead)) text = text.slice(lead.length).trim();
+  return {
+    title,
+    body: firstSentence(text) || 'Your answer is in your Nova thread.',
+    tag: `late-answer-${String(jobId || job?.id || 'nova').replace(/[^a-z0-9-]/gi, '').slice(0, 24) || 'nova'}`,
+    url: './#/voice',
+  };
+}
+
+export function firstSentence(text) {
+  const flat = String(text || '')
+    .replace(/[*_`#>]+/g, '')
+    .replace(/\[([^\]]+)\]\((?:https?:)?[^)]*\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!flat) return '';
+  const m = flat.match(/^.+?[.!?](?=\s|$)/);
+  const one = (m ? m[0] : flat).trim();
+  return one.length > 180 ? `${one.slice(0, 179).replace(/\s+\S*$/, '')}…` : one;
 }
 
 // What the record says when a followed answer fails: who was being asked,

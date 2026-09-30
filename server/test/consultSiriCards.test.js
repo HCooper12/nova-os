@@ -251,14 +251,18 @@ test('the same PROPOSE again (already pending) files none and is reported as alr
   assert.match(out.text, /Already waiting on your call, so not filed again: move Rope Overhead Tricep Extension/);
 });
 
-test('two consulted Coaches in the same turn, same lift and kind of change: one card, the other reported', async () => {
+// 1 Oct 2026, his call "Yes replace the waiting card": different numbers on
+// the same lift replace the card rather than being reported as waiting
+// (consultInstructed.test.js carries the rule); still never two cards.
+test('two consulted Coaches in the same turn, same lift and kind of change, different numbers: one card, the other replaced', async () => {
   const before = (await pendingCoachCards()).length;
   const [a, b] = await Promise.all([
     askCoachHere('COACH_TARGETS_A carter?', { question: 'push day' }),
     askCoachHere('COACH_TARGETS_B carter?', { question: 'push day' }),
   ]);
   assert.equal((await pendingCoachCards()).length, before + 1, 'one card between them');
-  assert.deepEqual([a.cards[0].state, b.cards[0].state].sort(), ['filed', 'waiting']);
+  assert.deepEqual([a.cards[0].state, b.cards[0].state], ['filed', 'filed']);
+  assert.equal([a, b].filter((x) => /Replaced the card that was waiting on your call/.test(x.text)).length, 1);
 });
 
 test('Nova consults the Coach, the Coach files the card, and Nova\'s own PROPOSE of it files nothing', async () => {

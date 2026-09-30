@@ -177,6 +177,10 @@ export function voiceRouter(vaultPath) {
       // Aug: "what's the last video I gave you?" answered from chat memory).
       const { resumedRefreshContext } = await import('../lib/askContext.js');
       const liveLine = sessionId ? await resumedRefreshContext(vaultPath).catch(() => '') : '';
+      // his own words to Nova: a Coach she consults may apply what they
+      // instruct on his standing grant (lib/consult.js markHisWords, 1 Oct)
+      const { markHisWords } = await import('../lib/consult.js');
+      markHisWords(question);
       const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true });
       res.json({ jobId });
     } catch (e) {
@@ -458,6 +462,9 @@ export function voiceRouter(vaultPath) {
         ? ['', await todayLocalContext().catch(() => null) || '']
         : [await askContext(null, { fast: true }), ''];
       const started = Date.now();
+      // his own words to Nova (lib/consult.js markHisWords, 1 Oct)
+      const { markHisWords } = await import('../lib/consult.js');
+      markHisWords(question);
       const jobId = startAskNova(vaultPath, {
         question, context, liveLine, direct: true,
         sessionId: spoken.sessionId, resume: spoken.resumed,

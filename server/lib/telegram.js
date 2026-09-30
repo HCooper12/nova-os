@@ -103,6 +103,9 @@ async function answerAsk(vaultPath, state, chatId, question) {
   const { buildAskContext } = await import('./askContext.js');
   await tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
   // a text thread is a conversation too — fast context, same as Siri
+  // his own words to Nova (lib/consult.js markHisWords, 1 Oct)
+  const { markHisWords } = await import('./consult.js');
+  markHisWords(question);
   const jobId = startAskNova(vaultPath, { question, context: await buildAskContext(vaultPath, state.sessionId, { fast: true }), sessionId: state.sessionId });
   const deadline = Date.now() + 150_000;
   while (Date.now() < deadline) {

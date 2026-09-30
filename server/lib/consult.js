@@ -200,7 +200,7 @@ export const SOURCE_RULE = 'Name every source by its title ("Stronger Slowly, ch
 // "Coach can file cards directly but I want duplicates to be avoided"), and
 // code says so at the foot of its answer. The one who asked must not file the
 // same change again.
-export const coachCardRule = (tell = 'him') => `If the Coach filed a card or found one already waiting (code says so at the end of its answer), tell ${tell} it is waiting on his call on the Coach tab, and do not PROPOSE the same change yourself.`;
+export const coachCardRule = (tell = 'him') => `If the Coach filed a card, found one already waiting, or replaced a waiting card with a new one (code says so at the end of its answer), tell ${tell} it is waiting on his call on the Coach tab, and say which card it replaced; if code says a change is Done, it is already on his program on his own word, with its Undo in the Inbox, so say that instead; and do not PROPOSE the same change yourself.`;
 
 // The titles code holds for an answer: the Librarian's checked citations,
 // the Researcher's numbered sources. Plain words, or '' when there are none.
@@ -372,13 +372,62 @@ export function openConsult({
 // its own checked pipeline (his call, 30 Sep 2026: "Coach can file cards
 // directly but I want duplicates to be avoided"). Every card waits for HIS
 // yes, whoever asked; code refuses a twin and says so under the answer.
+//
+// HIS OWN WORDS TO NOVA ARE HIS INSTRUCTION (his call, 1 Oct 2026: "Yes, own
+// words to Nova count as the instruction, so the change applies on my
+// standing grant as it does in the Coach chat"). When the question travelling
+// with the consult is what he himself said to Nova (heldHisWords), the Coach
+// is shown it verbatim and may mark "instructed" exactly as in its own chat;
+// code then judges it the same way (coachProposals.settleCoachChanges).
 export function consultedBrief(by, parentQuestion = '', { canPropose = false } = {}) {
   const who = labelOf(by);
-  const q = String(parentQuestion || '').trim().slice(0, 600);
-  const writes = canPropose
-    ? `You may file program changes: when a change to his program would help, end with PROPOSE lines exactly as your rules say; code checks every one and files it as a card for HIS yes (never "instructed": ${who} asking is not him instructing), and a change already waiting on his call is never filed twice. Never say a card is filed or waiting; code says what happened at the end of your answer. Nothing else is written anywhere: no documents, and no ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines.`
-    : `Nothing in this answer is written anywhere: no documents, and no PROPOSE, ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines. Say any change you would recommend in plain words; ${who} decides what happens next.`;
-  return `[${cap(who)} is consulting you${q ? `, to help answer Hayden's question: "${q}"` : ''}. Answer ${who}, not Hayden: directly and completely (the length rules for talking to him do not apply; ${who} needs substance), grounded in what you hold, and say plainly what you do not know. ${SOURCE_RULE} ${writes}]`;
+  const his = canPropose && by === 'nova' && heldHisWords(parentQuestion);
+  // his words verbatim, without the machine's leading [bracketed] context
+  // (whitespace folded: this brief must stay ONE paragraph)
+  const q = his
+    ? spokenPart(parentQuestion).replace(/\s+/g, ' ').trim().slice(0, 2000)
+    : String(parentQuestion || '').trim().slice(0, 600);
+  const once = 'a change already waiting on his call is never filed twice, and a new change to the same lift, of the same kind, with different numbers replaces the card that was waiting';
+  const writes = his
+    ? `You may file program changes: end with PROPOSE lines exactly as your rules say; code checks every one. The words quoted above are HIS OWN, said to Nova: mark a PROPOSE line "instructed":true only when those words ask for exactly that change, and code applies it on his standing grant with the same checks and Undo as in your own chat. Anything you recommend beyond what he asked is a suggestion that waits for his yes, and Nova's question to you is never his instruction. ${cap(once)}. Never say a change is done, filed or waiting; code says what happened at the end of your answer. Nothing else is written anywhere: no documents, and no ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines.`
+    : canPropose
+      ? `You may file program changes: when a change to his program would help, end with PROPOSE lines exactly as your rules say; code checks every one and files it as a card for HIS yes (never "instructed": ${who} asking is not him instructing); ${once}. Never say a card is filed or waiting; code says what happened at the end of your answer. Nothing else is written anywhere: no documents, and no ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines.`
+      : `Nothing in this answer is written anywhere: no documents, and no PROPOSE, ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines. Say any change you would recommend in plain words; ${who} decides what happens next.`;
+  const asking = his
+    ? `, because of what Hayden said to her, in his own words: "${q}"`
+    : q ? `, to help answer Hayden's question: "${q}"` : '';
+  return `[${cap(who)} is consulting you${asking}. Answer ${who}, not Hayden: directly and completely (the length rules for talking to him do not apply; ${who} needs substance), grounded in what you hold, and say plainly what you do not know. ${SOURCE_RULE} ${writes}]`;
+}
+
+// WHAT HE SAID TO NOVA, verbatim, held while the turn it started can still
+// consult. Marked by the doors that carry his own words to Nova (the app's
+// Ask, Siri and the Action Button, Telegram), never by a code-written ritual
+// or plan step. Code checks a consult's question against it: the same string
+// that travels as the consulted Coach's question (consult.runConsults hands
+// Nova's own question on unchanged), so an agent's rewording of his words is
+// never mistaken for them. Bounded, and it forgets after a day.
+const HIS_WORDS_TTL_MS = 24 * 60 * 60_000;
+const HIS_WORDS_MAX = 50;
+const hisWords = new Map(); // question → when he said it
+export function markHisWords(question, { now = Date.now() } = {}) {
+  const q = String(question || '');
+  if (!spokenPart(q)) return; // nothing of his in it: no words to hold
+  hisWords.delete(q);
+  hisWords.set(q, now);
+  while (hisWords.size > HIS_WORDS_MAX) hisWords.delete(hisWords.keys().next().value);
+}
+export function heldHisWords(question, { now = Date.now() } = {}) {
+  const q = String(question || '');
+  const at = hisWords.get(q);
+  if (at == null) return false;
+  if (now - at > HIS_WORDS_TTL_MS) { hisWords.delete(q); return false; }
+  return true;
+}
+export function _clearHisWordsForTest() { hisWords.clear(); }
+// His words alone: the same rule as coach.hisWordsOf (kept here so this
+// module stays import-free; the consult test pins the two together).
+export function spokenPart(question) {
+  return String(question || '').replace(/^\s*(?:(?:\[[\s\S]*?\]|LIVE UPDATE \(recomputed[^\n]*)\s*)+/, '').trim();
 }
 
 // The Researcher's numbered sources, by title, from its brief's "## Sources"

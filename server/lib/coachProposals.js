@@ -28,6 +28,7 @@
 
 import { parseCoachProposals, validateCoachEdit, createCoachEditRecord, getCoachEditConfig, routeForAction, proposalKey, hisWordsOf, normaliseProposal } from './coach.js';
 import { COACH_ROUTES } from '../../src/coachSuggestions.js';
+import { heldHisWords } from './consult.js';
 
 // One repair round. A Coach that cannot fix a card with the reason in front
 // of it will not fix it on a third try either; he is told what did not land.
@@ -167,10 +168,17 @@ function doneSentence(f) {
 export function receiptLines({ filed = [], refused = [], withdrawn = [], announce = false } = {}) {
   const lines = [];
   for (const f of filed) {
-    if (f.status === 'done') lines.push(`Done: ${doneSentence(f)}.`);
+    // a waiting card this change replaced (his call, 1 Oct: "Yes replace the
+    // waiting card"): said first, so he knows which card is gone and why
+    const was = (f.replaced || []).map((r) => plain(r.title)).filter(Boolean);
+    if (was.length) lines.push(`Replaced the card that was waiting on your call (${was.join('; ')}) with the new numbers: ${plain(f.title)}.`);
+    // a consulted Coach's answer reaches him through another agent, so the
+    // Undo is named: it is in the Inbox, not under this answer
+    if (f.status === 'done') lines.push(`Done: ${doneSentence(f)}.${announce ? ' Undo is in your Inbox.' : ''}`);
     else if (f.instructed && f.error) lines.push(`Not done yet: ${plain(f.title)}. ${toHim(f.error)}. It is waiting for your yes on the Coach tab.`);
     else if (announce && (f.duplicate || f.reused)) lines.push(`Already waiting on your call, so not filed again: ${plain(f.title)}.`);
-    else if (announce) lines.push(`On a card for your yes on the Coach tab: ${plain(f.title)}.`);
+    else if (announce && !was.length) lines.push(`On a card for your yes on the Coach tab: ${plain(f.title)}.`);
+    else if (announce) lines.push('The new card is waiting for your yes on the Coach tab.');
   }
   const back = withdrawn.filter((w) => w.ok);
   if (back.length) lines.push(`Taken off the Coach tab: ${back.map((w) => plain(w.title)).join('; ')}.`);
@@ -206,7 +214,8 @@ const cardTitle = (r) => r?.decision?.title || String(r?.originalText || r?.text
 // Coach taking back its own card. Not his decline — a withdrawn card is
 // neither approved nor turned down, so nothing that learns from his answers
 // (the trust ladder, respect-the-no, "ask why he declined") counts it.
-export async function withdrawCards(ids, { store } = {}) {
+// `replacedBy`: the card that superseded it (the replace rule below).
+export async function withdrawCards(ids, { store, by = 'coach', replacedBy = null } = {}) {
   const s = store || await import('./inboxStore.js');
   const out = [];
   for (const id of ids || []) {
@@ -214,7 +223,7 @@ export async function withdrawCards(ids, { store } = {}) {
     if (!r) { out.push({ id, ok: false, reason: 'no card has that id' }); continue; }
     if (!isCoachCard(r)) { out.push({ id, ok: false, title: cardTitle(r), reason: 'that is not one of your cards' }); continue; }
     if (r.status !== 'pending') { out.push({ id, ok: false, title: cardTitle(r), reason: `he has already answered it (${r.status})` }); continue; }
-    await s.updateRecord(id, { status: 'withdrawn', withdrawnAt: new Date().toISOString(), withdrawnBy: 'coach' });
+    await s.updateRecord(id, { status: 'withdrawn', withdrawnAt: new Date().toISOString(), withdrawnBy: by, ...(replacedBy ? { replacedBy } : {}) });
     out.push({ id, ok: true, title: cardTitle(r) });
   }
   return out;
@@ -268,12 +277,41 @@ export function changeSignatures(route, p = {}) {
 export function waitingDuplicate(route, payload, records = [], { loose = true } = {}) {
   const mine = new Set(loose ? changeSignatures(route, payload) : [`exact|${proposalKey(route, payload)}`]);
   for (const r of records) {
-    if (r?.status !== 'pending' || !r.decision?.route || !r.decision?.payload) continue;
-    if (!COACH_ROUTES.includes(r.decision.route)) continue;
+    if (!isWaitingCoachCard(r)) continue;
     const theirs = loose ? changeSignatures(r.decision.route, r.decision.payload) : [`exact|${proposalKey(r.decision.route, r.decision.payload)}`];
     if (theirs.some((sig) => mine.has(sig))) return r;
   }
   return null;
+}
+const isWaitingCoachCard = (r) => r?.status === 'pending' && !!r.decision?.route && !!r.decision?.payload && COACH_ROUTES.includes(r.decision.route);
+
+// THE REPLACE RULE (his call, 1 Oct 2026: "Yes replace the waiting card").
+// A new change to the SAME LIFT, of the SAME KIND, with different numbers (a
+// second retarget of the Carter Extension on Push, the rope extension moved
+// off Upper Body to a different place) is newer advice about one thing: the
+// card waiting on his call is withdrawn (Coach taking its card back, never
+// his decline) and the new one filed, in one locked step. The identical
+// change is still the card already waiting. Any other overlap (the same lift
+// landing on the same routine by another verb, one card per weekday) is
+// still reported as waiting, as before: those are different changes, and
+// which one he wants is his call on the cards.
+const REPLACEABLE = (sig) => sig.startsWith('lift|') || sig.startsWith('progression-tune|');
+export function waitingConflict(route, payload, records = []) {
+  const mine = changeSignatures(route, payload);
+  const exact = mine[0];
+  const mineSet = new Set(mine);
+  const replace = [];
+  let overlap = null;
+  for (const r of records) {
+    if (!isWaitingCoachCard(r)) continue;
+    const theirs = changeSignatures(r.decision.route, r.decision.payload);
+    if (theirs[0] === exact) return { same: r, replace: [], overlap: null };
+    const shared = theirs.filter((sig) => mineSet.has(sig));
+    if (!shared.length) continue;
+    if (shared.some(REPLACEABLE)) replace.push(r);
+    else overlap = overlap || r;
+  }
+  return { same: null, replace: overlap ? [] : replace, overlap };
 }
 
 // ONE FILER AT A TIME. A turn can run two consulted Coaches in parallel (Nova
@@ -287,14 +325,34 @@ export function withCardLock(fn) {
 }
 
 // Nova's own PROPOSE of a program change: filed only when no coach card
-// already waiting is the same change. Resolves { record, duplicate }.
-export async function fileUnlessWaiting({ route, payload, create, store }) {
+// already waiting is the same change. Resolves { record, duplicate, replaced }.
+// `replace` turns on the replace rule above; it is off until the caller's
+// reply can say what was replaced (a card must never vanish without a
+// receipt), so by default a same-lift card is still reported as waiting.
+export async function fileUnlessWaiting({ route, payload, create, store, replace = false, by = 'nova' }) {
   return withCardLock(async () => {
     const s = store || await import('./inboxStore.js');
-    const dup = waitingDuplicate(route, payload, await s.listRecords());
-    if (dup) return { record: dup, duplicate: true };
-    return { record: await create(), duplicate: false };
+    const records = await s.listRecords();
+    if (!replace) {
+      const dup = waitingDuplicate(route, payload, records);
+      if (dup) return { record: dup, duplicate: true, replaced: [] };
+      return { record: await create(), duplicate: false, replaced: [] };
+    }
+    const c = waitingConflict(route, payload, records);
+    if (c.same || c.overlap) return { record: c.same || c.overlap, duplicate: true, replaced: [] };
+    const record = await create();
+    const replaced = await replaceWaiting(c.replace, record, { store: s, by });
+    return { record, duplicate: false, replaced };
   });
+}
+
+// The waiting cards a new one supersedes, withdrawn with a pointer to it.
+// The new card is filed FIRST, so a failure here can leave two cards, never
+// none. Resolves [{ id, title }] for the receipt.
+async function replaceWaiting(cards, record, { store, by }) {
+  if (!cards.length) return [];
+  const out = await withdrawCards(cards.map((r) => r.id), { store, by, replacedBy: record.id });
+  return out.filter((w) => w.ok).map((w) => ({ id: w.id, title: w.title }));
 }
 
 // File what passed. The same change already waiting is that card, not a twin
@@ -315,23 +373,31 @@ export async function fileChanges(vaultPath, { question, ok = [], deps = {}, loo
     const filed = [];
     const thisTurn = new Set();
     const filedNow = [];
+    const gone = new Set();
     for (const c of ok) {
       const key = proposalKey(c.route, c.payload);
       if (thisTurn.has(key)) continue; // the same line twice in one reply
       thisTurn.add(key);
+      let supersede = [];
       if (loose) {
-        // against what was waiting AND what this reply already filed
-        const dup = waitingDuplicate(c.route, c.payload, [...records, ...filedNow]);
+        // against what was waiting AND what this reply already filed (a card
+        // replaced earlier in this reply is no longer waiting)
+        const conflict = waitingConflict(c.route, c.payload, [...records, ...filedNow].filter((r) => !gone.has(r.id)));
+        const dup = conflict.same || conflict.overlap;
         if (dup) {
           filed.push({ recordId: dup.id, title: dup.decision?.title || c.title, route: c.route, payload: c.payload, instructed: false, duplicate: true });
           continue;
         }
+        supersede = conflict.replace;
       }
       let record = loose ? null : waiting.get(key);
       const reused = !!record;
       if (!record) record = await (deps.create || createCoachEditRecord)(vaultPath, { question, proposal: c.proposal, validated: { payload: c.payload, title: c.title } });
       filedNow.push(record);
-      const item = { recordId: record.id, title: record.decision?.title || c.title, route: c.route, payload: c.payload, instructed: c.proposal?.instructed === true, reused };
+      // the replace rule: new card filed, then the one it supersedes withdrawn
+      const replaced = await replaceWaiting(supersede, record, { store, by: 'coach' });
+      for (const r of replaced) gone.add(r.id);
+      const item = { recordId: record.id, title: record.decision?.title || c.title, route: c.route, payload: c.payload, instructed: c.proposal?.instructed === true, reused, ...(replaced.length ? { replaced } : {}) };
       if (item.instructed && direct) {
         try {
           const done = await approve(record.id);
@@ -354,13 +420,23 @@ export async function fileChanges(vaultPath, { question, ok = [], deps = {}, loo
 //
 // `consulted` (another agent asked the Coach, lib/consult.js): every card is a
 // suggestion for HIS yes, whoever asked ("instructed" is dropped: an agent's
-// question is not his instruction), the duplicate rule is the loose one, and
-// code says under the answer what was filed and what was already waiting.
+// question is not his instruction), the duplicate and replace rules are the
+// loose ones, and code says under the answer what was filed, what was
+// already waiting and what was replaced.
+//
+// THE ONE EXCEPTION (his call, 1 Oct 2026): when the question that came with
+// the consult is what HE said to Nova (consult.heldHisWords), his words count
+// as they do in the Coach chat. An instructed change applies on his standing
+// grant with the same checks (a split-breaking one needs his own words naming
+// the lift and the day) and the same receipt and Undo; one he did not
+// instruct still waits for his yes.
 export async function settleCoachChanges(vaultPath, { question, replyText, resume = null, onRepair = null, deps = {}, consulted = false }) {
   const validate = deps.validate || validateCoachEdit;
+  const his = !consulted || (deps.heldHisWords || heldHisWords)(question);
   // what HE said, for the one check that needs it (a split-breaking change is
-  // his call only when his own words name it); never the deck's framing
-  const hisWords = hisWordsOf(question);
+  // his call only when his own words name it); never the deck's framing, and
+  // never an agent's question: then there are no words of his to name it
+  const hisWords = his ? hisWordsOf(question) : '';
   const w0 = parseWithdraw(replyText);
   let ids = w0.ids;
   const first = await checkProposals(vaultPath, w0.cleanText, { validate, asked: hisWords });
@@ -392,7 +468,7 @@ export async function settleCoachChanges(vaultPath, { question, replyText, resum
     refused = again.refused;
   }
   ok = await pairMoves(vaultPath, ok, { validate, asked: hisWords, planned });
-  if (consulted) {
+  if (consulted && !his) {
     ok = ok.map((c) => {
       if (c.proposal?.instructed !== true) return c;
       const proposal = { ...c.proposal };
