@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 1 Oct 2026 — COACH ANSWERS MERGED (b533965, server reloaded): his words to
+  Nova (app Ask, Siri, Action Button, Telegram) recorded verbatim for a day;
+  a consulted Coach's "instructed" change applies on his standing grant only
+  when its question IS those words; a differing change on the same lift
+  replaces the waiting card (withdrawn + replacedBy, one lock); a late Siri
+  answer sends one push. OWED once everydoor lands: Nova's own PROPOSE path
+  (voiceActions.js) calls fileUnlessWaiting without replace:true (one line +
+  one prompt sentence in claudeCode.js). His calls: a move of the same lift
+  to another day counts as a replacement (built yes); his words in the
+  Leader chat / Coach tab counting too; quiet hours for pushes (none exist).
 - 1 Oct 2026 — HIS SIXTH ANSWERS. (1) "How Nova shows things" stays a RULE
   BY DESIGN, not a page: a glass panel appears for a number to see, two
   things compared, or a place in his own record; never for a plain sentence
