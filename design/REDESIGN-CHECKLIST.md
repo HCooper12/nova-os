@@ -561,6 +561,20 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 1 Oct 2026 — EVERY DOOR, ONE NOVA MERGED (97953ae + c23ff4f, server
+  reloaded): audit design/audits/every-door.md (26 functions × 6 doors; 75 of
+  156 cells could not do what he asked, now 152 can; the 4 left are Siri's,
+  each said aloud); 15 new verbs (capture, link, recipe import, video watch
+  and analyse, research, briefing, book, repertoire, practice, browse, screen,
+  quick session, inbox approve/undo); src/linkKind.js; recipe pages read from
+  schema.org; the tab bar's Nova runs the thread's own pipeline; the hold
+  opens the core listening (capture stays on the Inbox hint line); Nova's
+  own proposal now replaces a differing waiting card too. NOT verified: a
+  real model's ACT, a live recipe site, iOS opening the mic from a hold.
+  His calls: "analyse this video" = the deep weave (~$6/4h) vs the quick
+  read (~$0.50); a bare recipe link waits for his yes vs straight in;
+  Siri's "approve that" = newest waiting card anywhere vs Nova's own;
+  "what does the evidence say" answered by Nova (consulting) vs a job.
 - 1 Oct 2026 — COACH ANSWERS MERGED (b533965, server reloaded): his words to
   Nova (app Ask, Siri, Action Button, Telegram) recorded verbatim for a day;
   a consulted Coach's "instructed" change applies on his standing grant only
