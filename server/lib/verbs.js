@@ -31,6 +31,11 @@
 
 import { randomUUID } from 'node:crypto';
 import { bareOpen, webTarget } from '../../src/macTargets.js';
+// EVERY DOOR, ONE NOVA (1 Oct 2026): the jobs — capture, a link filed, a
+// recipe imported, a video watched or analysed, research, a briefing, a book,
+// practice, a screen, the Inbox's yes and undo — are verbs in this registry
+// too, defined in lib/verbJobs.js with their own grammar.
+import { JOB_VERBS, parseJobCommand, screenFor, probeCard } from './verbJobs.js';
 
 const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack', 'extra'];
 const TODO_CATS = ['personal', 'work', 'fitness', 'errands', 'later'];
@@ -1008,6 +1013,8 @@ verb({
   },
 });
 
+for (const def of JOB_VERBS) verb(def);
+
 export const VERB_IDS = Object.keys(VERBS);
 export const verbFor = (id) => VERBS[id] || null;
 
@@ -1030,7 +1037,11 @@ export function describeForModel() {
 // Runs a verb and lands its receipt: an 'act' verb executes now and files
 // a DONE record with undoData; a 'confirm' verb files a PENDING record the
 // existing approve rail runs (fileDecision route 'act' → execute()).
-export async function runVerb(vaultPath, question, raw, { source = 'voice', fromMac = false } = {}) {
+// `direct`: the hands-free lane (Siri, the Action Button) — no screen to open
+// and nobody to answer a follow-up, so a verb that needs either says so and
+// the model-choice gate never asks. `gateAnswered`: he has already answered
+// it (/api/act) — "keep it" arrives as no model at all.
+export async function runVerb(vaultPath, question, raw, { source = 'voice', fromMac = false, direct = false, gateAnswered = false } = {}) {
   const id = String(raw?.verb || '').trim();
   const v = VERBS[id];
   if (!v) throw new Error(`I don't have a verb called "${raw?.verb}"`);
@@ -1042,6 +1053,14 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice', from
   // resolve gets the vault too: an EDIT verb has to find the thing it is
   // about (a logged entry, a set, an ingredient line) before it can be shown
   if (v.resolve) args = await v.resolve(args, vaultPath);
+  // THE MODEL-CHOICE GATE (lib/modelChoice.js), honoured by the job verbs as
+  // it is by every other door: when his board runs this lane below Opus, the
+  // job waits for his answer. Nothing is written and nothing runs; the door
+  // asks, and his answer comes back through /api/act with `model` set.
+  if (v.gate && !args.model && !direct && !gateAnswered && !(v.gateSkip && v.gateSkip(args))) {
+    const { needsGate, gateQuestion } = await import('./modelChoice.js');
+    if (needsGate(v.gate)) return { gated: { kind: 'act', lane: v.gate, verb: id, args }, said: gateQuestion(v.gate) };
+  }
   const tier = v.tierFor ? v.tierFor(args) : v.tier;
   const { createRecord } = await import('./inboxStore.js');
   const base = {
@@ -1064,7 +1083,13 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice', from
     await createRecord(record);
     return { proposal: { recordId: record.id, title: record.decision.title, route: 'act' } };
   }
-  const out = await execute(vaultPath, { verb: id, args }, { fromMac });
+  const out = await execute(vaultPath, { verb: id, args }, { fromMac, direct });
+  // a verb that changed nothing he owns (a screen opened, a session drafted
+  // for his tap) lands no receipt: there is nothing to undo or to find later
+  if (out.receipt === false) {
+    await broadcastFor(id);
+    return { acted: { recordId: null, title: out.destination, said: out.said, undoable: false, ...(out.extra || {}) } };
+  }
   const record = {
     ...base,
     mode: 'auto',
@@ -1077,7 +1102,7 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice', from
   };
   await createRecord(record);
   await broadcastFor(id);
-  return { acted: { recordId: record.id, title: out.destination, said: out.said, undoable: !!out.undo } };
+  return { acted: { recordId: record.id, title: out.destination, said: out.said, undoable: !!out.undo, ...(out.extra || {}) } };
 }
 
 // The filer's half: run the verb, hand back the rails' { destination, undo }.
@@ -1089,7 +1114,11 @@ export async function execute(vaultPath, payload, ctx = {}) {
   if (!v) throw new Error(`unknown verb "${payload?.verb}"`);
   const out = await v.run(vaultPath, payload.args || {}, ctx);
   await broadcastFor(payload.verb);
-  return { destination: out.destination, said: out.said, undo: out.undo ? { verb: payload.verb, ...out.undo } : null };
+  return {
+    destination: out.destination, said: out.said, undo: out.undo ? { verb: payload.verb, ...out.undo } : null,
+    ...(out.extra ? { extra: out.extra } : {}),
+    ...(out.receipt === false || v.receipt === false ? { receipt: false } : {}),
+  };
 }
 
 export async function undoVerb(vaultPath, undo) {
@@ -1142,10 +1171,31 @@ const MEAL = `(${SLOTS.join('|')})`;
 // which resolveAny() settles against his real data.
 export function parseCommand(text, ctx = {}) {
   const q = norm(text);
-  if (!q || q.length > 140) return null;
+  if (!q) return null;
   let m;
 
   if ((m = q.match(/^(?:run|approve|go ahead with|start|launch)\s+(?:the\s+|that\s+)?plan$/))) return { verb: 'plan.run', args: {} };
+
+  // THE JOBS (lib/verbJobs.js) read his RAW words: a link keeps its capitals
+  // (an Instagram reel id is case-sensitive) and may be longer than any
+  // spoken command, so they come before the length limit below.
+  const job = ctx.deferJobs ? null : parseJobCommand(text, ctx);
+  if (job) return job;
+  if (q.length > 140) return null;
+
+  // THE INBOX, BY VOICE: "approve that", "undo that", "approve the recipe
+  // card". A named card is a candidate — it is a command only when a card
+  // by that name is actually there.
+  if (/^(?:approve|accept|say yes to)\s+(?:it|that|this|the (?:last|latest|newest)(?:\s+(?:one|card|draft|proposal))?|the last thing)$/.test(q)) return { verb: 'inbox.approve', args: { card: 'latest' } };
+  if ((m = q.match(/^(?:approve|accept)\s+(?:the\s+)?(.+?)(?:\s+(?:card|draft|proposal))?$/))) return { any: [{ verb: 'inbox.approve', args: { card: m[1] } }], fallthrough: true };
+
+  // A SCREEN OF NOVA'S OWN: "open Fuel", "show me the shopping list", "go to
+  // Train". At the Mac a bare "open notes" is the Mac's Notes app (Clicky,
+  // below), unless he says it is Nova's — a tab, a screen, "in Nova".
+  if ((m = q.match(/^(?:open|show(?: me)?|go to|take me to|bring up|pull up|switch to)\s+(?:up\s+)?(.+?)(?:\s+(?:in|on)\s+nova)?$/))) {
+    const novaish = /\b(?:screen|tab|page|section)$|^nova'?s\s|\s(?:in|on)\s+nova$|^(?:go to|take me to|switch to)\b/.test(q) || /(?:in|on) nova$/.test(q);
+    if (screenFor(m[1]) && (!ctx.fromMac || novaish)) return { verb: 'screen.open', args: { screen: m[1] } };
+  }
 
   // the Mac — before the lists, because "set the volume to 30" is otherwise
   // shopping.qty for an item called "volume"
@@ -1163,6 +1213,11 @@ export function parseCommand(text, ctx = {}) {
   if ((m = q.match(new RegExp(`^(?:un-?mark|unmark|undo|untick)\\s+(?:my\\s+)?${MEAL}(?:\\s+(?:as\\s+)?(?:eaten|done))?$`)))) return { verb: 'meal.uneaten', args: { slot: m[1] } };
 
   if ((m = q.match(/^(?:clear|empty|wipe)\s+(?:the\s+|my\s+)?(?:whole\s+|entire\s+)?(?:shopping\s+)?list$/))) return { verb: 'shopping.clear', args: {} };
+
+  // "undo that" — the newest thing with an undo; "undo the X" when a filed
+  // thing is called that (after the meal rule, which owns "undo lunch")
+  if (/^(?:undo|reverse|take back)\s+(?:that|it|this|the last (?:one|thing|change|action)|what you (?:just )?did|your last (?:one|change|action))$/.test(q)) return { verb: 'inbox.undo', args: { card: 'latest' } };
+  if ((m = q.match(/^undo\s+(?:the\s+)?(.+)$/))) return { any: [{ verb: 'inbox.undo', args: { card: m[1] } }], fallthrough: true };
 
   // "remind me to X at 6" — the deterministic path in front of the capture
   // classifier: it only claims the sentence when the TIME is certain.
@@ -1318,6 +1373,7 @@ async function probe(vaultPath, cand) {
       const t = await resolveTarget(cand.args.target, { where: cand.args.where || null });
       return { ok: true, label: t.label };
     }
+    if (cand.verb === 'inbox.approve' || cand.verb === 'inbox.undo') return probeCard(cand.verb, cand.args.card);
     if (cand.verb === 'plan.priority') {
       const plan = await todaysPlan(); if (!plan) return { ok: false, why: 'no plan today' };
       const m = matchName(plan.decision.payload.priorities.map((p, i) => ({ i, name: p.text || p.title || p.label || String(p) })), cand.args.priority);
@@ -1365,7 +1421,8 @@ export async function tryCommand(vaultPath, question, ctx = {}) {
   try {
     const cmd = await resolveAny(vaultPath, parsed);
     if (!cmd) return null; // the words fit no real thing — not a command after all
-    const out = await runVerb(vaultPath, question, cmd, { source: 'voice', fromMac: !!ctx.fromMac });
+    const out = await runVerb(vaultPath, question, cmd, { source: 'voice', fromMac: !!ctx.fromMac, direct: !!ctx.direct });
+    if (out.gated) return { matched: cmd.verb, text: out.said, modelChoicePending: out.gated };
     if (out.acted) return { matched: cmd.verb, text: out.acted.said, acted: out.acted };
     return { matched: cmd.verb, text: `${out.proposal.title} — say yes and it's done.`, proposal: out.proposal };
   } catch (e) {

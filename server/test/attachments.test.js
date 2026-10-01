@@ -32,7 +32,7 @@ test('images are stored as files and named to the model with the Read instructio
 
 test('bad input is refused before anything is written; an unknown id is null', async () => {
   await assert.rejects(() => storeAttachments([]), /nothing was attached/);
-  await assert.rejects(() => storeAttachments(['data:text/plain;base64,aGk=']), /not a supported image or video/);
+  await assert.rejects(() => storeAttachments(['data:application/zip;base64,aGk=']), /not a supported image, video or document/);
   await assert.rejects(() => storeAttachments(new Array(7).fill(PNG)), /up to 6/);
   assert.equal(await loadAttachment('nope'), null);
   assert.equal(await loadAttachment('../etc'), null);
@@ -53,4 +53,18 @@ test('prune removes only old material', async () => {
   const removed = await pruneOld();
   assert.equal(removed, 0);
   assert.equal((await readdir(process.env.NOVA_DATA_DIR + '/attachments')).length, before);
+});
+
+test('a document rides the turn too (every door, 1 Oct): a PDF or a text file is stored and named for the Read tool', async () => {
+  const txt = `data:text/plain;base64,${Buffer.from('Leg day notes: squat 5x5').toString('base64')}`;
+  const pdf = `data:application/pdf;base64,${Buffer.from('%PDF-1.4 fake').toString('base64')}`;
+  const stored = await storeAttachments([txt, pdf, PNG]);
+  assert.deepEqual(stored.items.map((i) => i.kind), ['file', 'file', 'image']);
+  assert.match(stored.items[0].path, /1\.txt$/);
+  assert.match(stored.items[1].path, /2\.pdf$/);
+  const again = await loadAttachment(stored.id);
+  assert.deepEqual(again.items.map((i) => i.kind).sort(), ['file', 'file', 'image']);
+  const pre = attachmentPreamble(again);
+  assert.match(pre, /He attached 2 documents — READ EACH with the Read tool/);
+  assert.ok(pre.includes(stored.items[1].path));
 });

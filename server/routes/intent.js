@@ -114,10 +114,11 @@ export function intentRouter(vaultPath) {
 
       if (lane === 'recipe') {
         const url = decision.urls?.[0];
-        if (!url) return res.status(400).json({ error: 'no video link found' });
-        const { startRecipeFromVideo } = await import('../lib/recipeFromVideo.js');
-        out.record = await startRecipeFromVideo(vaultPath, url, decision.prose || '');
-        out.said = 'Reading the recipe out of the caption — it lands in your recipe collection in a minute.';
+        if (!url) return res.status(400).json({ error: 'no recipe link found' });
+        // a reel or a recipe page — the import picks its reader by the link
+        const { startRecipeImport } = await import('../lib/recipeFromPage.js');
+        out.record = await startRecipeImport(vaultPath, url, decision.prose || '');
+        out.said = 'Reading the recipe out of it — it lands in your recipe collection in a minute.';
       } else if (lane === 'watch') {
         const { startVideoWatch, extractVideoUrl } = await import('../lib/watcher.js');
         const found = extractVideoUrl(text);

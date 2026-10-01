@@ -19,7 +19,21 @@
 //
 // Separate from App.jsx so the rule can be tested without a browser, and so
 // the planner in the next phase reads the same list rather than a copy.
-export const CHAT_JOB_LANES = ['watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'book', 'code', 'build'];
+export const CHAT_JOB_LANES = ['watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'book', 'code', 'build', 'recipe', 'brief'];
+
+// WHERE THE JOB STARTS (1 Oct 2026, every door). The chat used to start every
+// job lane itself, from a hand-written client copy of the server's router —
+// which never learned the recipe lane, so "add this to my recipes" on a reel
+// went to the Watcher, and which no other door had: the tab bar's Nova on
+// another page and Siri could start none of them. Since 1 Oct the jobs are
+// verbs on the server (lib/verbJobs.js) and every door sends his words there.
+// Only these two still start on the device, because what they need is the
+// device's own screen: the browser hand's live windows on the glass, and the
+// Code screen the session runs on.
+export const CHAT_CLIENT_LANES = ['browse', 'code'];
+export function chatDispatchesHere(lane) {
+  return CHAT_CLIENT_LANES.includes(lane);
+}
 
 // Phase 4, 5 Sep: with the palette folded into the chat, the chat inherits the
 // palette's one screen-changing dispatch — a build request opens the Code

@@ -137,17 +137,20 @@ export function captionHasRecipe(text) {
 
 /* ------------------------------- the model ------------------------------- */
 
-export function buildRecipePrompt({ title, uploader, caption, transcript, prose }) {
-  return `Read the recipe(s) out of this video's caption${transcript ? ' and transcript' : ''} for Hayden's recipe collection.${prose ? ` He said: "${prose}".` : ''}
+// `medium: 'page'` (1 Oct, recipeFromPage.js): the same read over a recipe
+// WEB PAGE's text — its schema.org Recipe block, or its readable words.
+export function buildRecipePrompt({ title, uploader, caption, transcript, prose, medium }) {
+  const page = medium === 'page';
+  return `Read the recipe(s) out of this ${page ? "web page's text" : `video's caption${transcript ? ' and transcript' : ''}`} for Hayden's recipe collection.${prose ? ` He said: "${prose}".` : ''}
 
-Video: ${title || '(untitled)'} by ${uploader || 'unknown'}
-CAPTION:
-${caption || '(no caption)'}
+${page ? 'Page' : 'Video'}: ${title || '(untitled)'} by ${uploader || 'unknown'}
+${page ? 'PAGE' : 'CAPTION'}:
+${caption || (page ? '(no readable text)' : '(no caption)')}
 ${transcript ? `\nTRANSCRIPT:\n${transcript.slice(0, 20_000)}\n` : ''}
 Output ONLY a JSON object:
 {"recipes":[{"name":"short natural name","servings":<number of portions the whole recipe makes>,"makes":"e.g. 6 jars","prepMin":<minutes or null>,"cookMin":<minutes or null>,"ingredients":[{"text":"240 g oats","name":"rolled oats","grams":240}],"method":["step one","step two"],"statedPerServing":{"kcal":471,"p":48,"c":44,"f":11},"category":"TREATS for desserts, sweets and snacks | ROTATION / SWAP MEALS for meals"}],"notFound":""}
 Rules:
-- Only what the video actually says. Never invent an ingredient, amount or macro.
+- Only what the ${page ? 'page' : 'video'} actually says. Never invent an ingredient, amount or macro.
 - "grams": the weight in grams when the amount is a weight, or a volume of a water-like liquid (ml ≈ g); null otherwise.
 - "statedPerServing": the creator's own per-serving numbers ONLY if the caption or transcript states them; null otherwise. If they are stated for the whole batch, divide by servings.
 - "prepMin" / "cookMin": whole minutes ONLY when the caption or transcript states a prep or cook time, or one plain cooking duration ("bake for 25 minutes" → cookMin 25); null otherwise. Never estimate a time.
@@ -328,7 +331,7 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
           title: p.macros
             ? `Recipe: ${p.name} — ${p.macros.p}P ${p.macros.c}C ${p.macros.f}F · ${p.macros.kcal} kcal`
             : `Recipe: ${p.name} — macros not set`,
-          reason: `read from the reel's ${transcript ? 'caption and transcript' : 'caption'}; ${p.macros ? '' : 'the reel gives no macros, so it files with them not set (never a guess) for you to fill in when you make it; '}your yes writes it into your recipe collection, and undo removes it`,
+          reason: `read from the ${meta.medium === 'page' ? 'page' : `reel's ${transcript ? 'caption and transcript' : 'caption'}`}; ${p.macros ? '' : 'the source gives no macros, so it files with them not set (never a guess) for you to fill in when you make it; '}your yes writes it into your recipe collection, and undo removes it`,
           payload: p,
         },
       };

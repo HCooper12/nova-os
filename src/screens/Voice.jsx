@@ -288,7 +288,7 @@ function VoiceClassic({ v }) {
                   <div style={css("margin-top:6px;display:flex;gap:6px;flex-wrap:wrap")}>
                     {m.attached.map((a, k) => a.thumb
                       ? <img key={k} src={a.thumb} alt="" style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '10px' }} />
-                      : <Tag key={k} tone="faint">video · {a.name}</Tag>)}
+                      : <Tag key={k} tone="faint">{a.kind === 'file' ? 'file' : 'video'} · {a.name}</Tag>)}
                   </div>
                 )}
                 {m.remember && (

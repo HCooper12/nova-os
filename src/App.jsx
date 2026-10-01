@@ -1,7 +1,8 @@
 import { Component, createRef, lazy, Suspense } from 'react';
 import { Button } from './Controls.jsx';
 import { ExerciseSheet } from './ExerciseSheet.jsx';
-import { chatStartsAJob, planWorthy } from './chatLanes.js';
+import { chatDispatchesHere, planWorthy } from './chatLanes.js';
+import { classifyLink, RECIPE_WORDS_RE } from './linkKind.js';
 import { reportOpening } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
 import { sfxEnabled, setSfxEnabled, previewSfx, primeSfx, releaseSfx } from './sfx.js';
@@ -3136,6 +3137,17 @@ export default class App extends Component {
     this.setState({ attachBusy: true });
     Promise.all(files.map(async (f) => {
       const isVideo = /^video\//.test(f.type || '');
+      // A DOCUMENT (1 Oct, every door): a PDF or a text file rides the turn as
+      // it is — the server stores it and Nova reads it with the Read tool
+      const isDoc = /^(?:application\/pdf|text\/(?:plain|markdown|csv)|application\/json)$/.test(f.type || '') || /\.(?:pdf|txt|md|csv|json)$/i.test(f.name || '');
+      if (isDoc) {
+        const raw = await this.readFileAsDataUrl(f);
+        // some browsers type a .md as octet-stream: name it by its extension
+        const ext = (String(f.name || '').match(/\.(pdf|txt|md|csv|json)$/i) || [])[1]?.toLowerCase();
+        const mime = { pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown', csv: 'text/csv', json: 'application/json' }[ext] || f.type;
+        const dataUrl = raw ? raw.replace(/^data:[^;,]*(;charset=[\w-]+)?;base64,/, `data:${mime};base64,`) : '';
+        return dataUrl ? { name: f.name, kind: 'file', dataUrl, thumb: null } : null;
+      }
       const dataUrl = isVideo ? await this.readFileAsDataUrl(f) : await this.downscaleImageFile(f);
       return dataUrl ? { name: f.name, kind: isVideo ? 'video' : 'image', dataUrl, thumb: isVideo ? null : dataUrl } : null;
     })).then((items) => {
@@ -5891,7 +5903,7 @@ export default class App extends Component {
 
   // The ask poll, attachable from a fresh boot too — an iOS reclaim used to
   // eat the in-flight answer along with the poll.
-  attachAskPoll(conn, jobId, { onDelivered, agent = null } = {}) {
+  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
     // THE REPLY IS STILL ARRIVING. voiceBusy clears at the first partial so
     // he can barge in, which left nothing saying "more sentences are coming":
@@ -6063,7 +6075,7 @@ export default class App extends Component {
             // Additive: no reader of the old line shape looks at `glass`, and
             // the record (conversationSync) never sends it.
             const glass = glassSnapshot(s.glassBeats, s.glassVisuals) || undefined;
-            const line = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}) };
+            const line = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };
@@ -6080,8 +6092,11 @@ export default class App extends Component {
           // THE MODEL CHOICE GATE: the reply just asked "Opus or Sonnet?" —
           // arm it so a tap on the popup OR the next spoken turn (see
           // askNova) dispatches the research/watch that's actually waiting.
+          // what a model's ACT started (the research is already watched above)
+          this.followActed(job.result.acted, { research: false });
           const mc = job.result.modelChoicePending;
-          if (mc) {
+          if (mc?.kind === 'act') this.armActGate(mc);
+          else if (mc) {
             this.gateModelChoice(mc.kind, (model) => {
               if (mc.kind === 'research') {
                 api.research(conn, mc.question, model).then(({ record }) => {
@@ -6841,6 +6856,37 @@ export default class App extends Component {
     this.prewarmAsk(); // the process boots while he speaks his first sentence
     this.setState({ liveTalkOn: true, voiceConvMode: true, voiceConvPaused: false, liveInput: '', liveAsk: '', liveReply: '', liveVerdictOffer: null });
   }
+  // HOLD THE CORE, AND NOVA IS LISTENING (1 Oct 2026, his words: "Holding
+  // the nova core should allow me to capture anything through nova no
+  // matter how I speak with it"). Under `summary` the hold on the tab bar's
+  // Nova used to raise the capture composer; capture is now something he
+  // SAYS to Nova (the capture.add verb, and every other one), so the hold
+  // opens the Nova page with its core full screen and the microphone open.
+  // The composer is still one tap away, on the Inbox's hint line.
+  //
+  // The thread registers its focus and its talk when it mounts; a hold from
+  // another page leaves the wish here, and the thread takes it the moment it
+  // registers (valsNovaThread registerFocus → consumeNovaHold).
+  holdNovaCore() {
+    if (!getConnection()) {
+      this.toastMsg('Not connected to your Mac — check Settings.');
+      this.navigate('settings');
+      return;
+    }
+    this.primeSpeech(); // inside the hold, the closest thing to a gesture it has
+    this.pendingNovaHold = { at: Date.now() };
+    if (this.state.screen === 'voice' && typeof this.novaThreadFocus === 'function') { this.consumeNovaHold(); return; }
+    this.navigate('voice');
+  }
+  consumeNovaHold() {
+    const p = this.pendingNovaHold;
+    if (!p || typeof this.novaThreadFocus !== 'function') return;
+    this.pendingNovaHold = null;
+    if (Date.now() - p.at > 5000) return; // a stale wish is not his hold
+    this.novaThreadFocus();
+    // already listening (a second hold) leaves the mic as it is
+    if (!this.state.voiceScreenMic && typeof this.novaThreadTalk === 'function') this.novaThreadTalk();
+  }
   // Long-press the core: the transcript pop-up. It also STARTS a conversation
   // if none is running, so holding is a complete gesture on its own.
   toggleLiveText() {
@@ -6887,58 +6933,57 @@ export default class App extends Component {
   // `said` is the turn's own words, handed over by the dictation hook. State
   // is only the fallback (a typed send, a programmatic one): on the Nova-ears
   // path it is a render behind, and reading it dropped his 25 Sep question.
+  //
+  // THE SAME NOVA FROM EVERY DOOR (1 Oct 2026, his words: "it doesn't matter
+  // … where I speak with it"). This door used to post his words straight to
+  // /api/ask and stop there: no yes to a waiting proposal, no gym words, no
+  // attachments, no Coach or Leader session, and none of the jobs the chat
+  // could start. It was a smaller Nova. Now it runs the one pipeline every
+  // conversation door runs (doOrb → askNova → the server's verbs and lanes);
+  // the presence keeps only what is its own: the words he said, shown where
+  // he said them, and the page the exchange happened on.
   sendLiveTalk(said) {
     const q = (typeof said === 'string' ? said : this.state.liveInput || '').trim();
     const conn = getConnection();
     if (!q || !conn) return;
     if (this.maybeStandDown(q)) return;
-    // HIS WORDS ARE HISTORY THE MOMENT HE SAYS THEM. They used to enter the
-    // voice chat only alongside a successful answer, so a failed turn left
-    // no trace that he had spoken at all (his 25 Sep report: "no history of
-    // what I said when I open up the Nova voice chat").
-    // `on`: the page he said it on, so the Nova thread can mark the exchange
-    // "Said on Fuel, with the Nova button" (29 Sep, mockup 63 D · 8)
-    const on = this.state.screen;
-    this.setState((s) => ({ liveAsk: q, liveInput: '', liveReply: '', voiceBusy: true, liveVerdictOffer: null, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q, via: 'presence', on }] }));
-    api.ask(conn, q, this.state.voiceSessionId || null).then((resp) => {
-      const land = (text, sessionId, result = null, job = null) => {
-        this.setState({ voiceBusy: false, liveReply: text, liveVerdictOffer: this.offerVerdictFor(`${q} ${text}`), ...(sessionId ? { voiceSessionId: sessionId } : {}) });
-        // keep the full transcript honest — the sheet is a window on the
-        // same conversation, not a separate one. EVERYTHING THE REPLY
-        // CARRIED lands with it (29 Sep): the receipt with its Undo, a
-        // proposal, a research job, a panel, and the panels its VIS lines
-        // named, so the Nova thread holds what was said on another page.
-        const extra = {};
-        if (result?.panel) extra.panel = result.panel;
-        if (result?.proposal) extra.proposal = { ...result.proposal, status: 'pending' };
-        if (result?.acted) extra.acted = { ...result.acted, status: 'done' };
-        if (result?.research) extra.research = { ...result.research, status: result.research.queued ? 'queued' : 'running' };
-        if (job?.partial) {
-          try {
-            const g = glassSnapshot(parseVisualStream(streamShown(job.partial)).beats, job.visuals);
-            if (g) extra.glass = g;
-          } catch { /* a directive that will not parse costs its panels, not the reply */ }
-        }
-        this.setState((s2) => ({ voiceChat: [...s2.voiceChat, { at: Date.now(), who: 'nova', text, via: 'presence', on, ...extra }] }));
-        if (extra.research && !extra.research.queued) this.watchVoiceResearch(conn, extra.research.recordId);
-        if (this.state.voiceSpeak) this.speakTtsSentence(text, () => {}); else this.maybeAutoListen();
-      };
-      if (resp.text) { if (resp.card) this.putCard(resp.card); land(resp.text); return; } // a reflex: code spoke, code drew
-      this.startPoll('ask', () => api.claudeCodeJob(conn, resp.jobId), {
-        timeoutMs: 3 * 60_000, intervalMs: 400,
-        onReady: (job) => land(job.result.text, job.result.sessionId, job.result, job),
-        onError: (msg) => this.liveTalkFailed(msg),
-      });
-    }).catch((e) => this.liveTalkFailed(e.message));
+    // one turn at a time, as in the thread — but his words are kept, never
+    // dropped: they wait in the box, and he is told
+    if (this.state.voiceBusy && !this.state.modelChoicePending) {
+      this.setState({ liveInput: q });
+      this.toastMsg('Nova is still answering — say it again in a moment.');
+      return;
+    }
+    // "Said on Fuel, with the Nova button" (29 Sep, mockup 63 D · 8): the
+    // rows of this turn carry the door and the page
+    this.presenceTurn = { via: 'presence', on: this.state.screen, at: Date.now() };
+    // spoken through the dictation hook, typed through the live text box
+    this.spokenInput = typeof said === 'string';
+    // doOrb clears the Nova thread's composer; a draft he left there is his
+    const draft = this.state.orbInput;
+    this.setState({ liveAsk: q, liveInput: '', liveReply: '', liveVerdictOffer: null });
+    this.doOrb(q);
+    this.presenceTurn = null; // askNova took it synchronously, or nothing did
+    if (draft) this.setState({ orbInput: draft });
+  }
+  // The door a row came in by, for the one turn it belongs to: consumed by
+  // the first question row written after a presence send, so a later turn
+  // typed in the thread is never mislabelled.
+  takePresenceMeta() {
+    const m = this.presenceTurn;
+    this.presenceTurn = null;
+    return m && Date.now() - m.at < 10_000 ? { via: m.via, on: m.on } : null;
   }
   // A turn from the icon that got no answer. The pop-up that used to carry
   // "Error: …" is hidden unless he long-presses, so on its own this failure
   // was silent: he heard nothing and saw nothing. It is said aloud and kept
   // in the voice chat, where the record picks it up.
-  liveTalkFailed(msg) {
+  // `logged`: the failure is already a row in the voice chat (askNova wrote
+  // it), so only the presence's line and the spoken reason are added here.
+  liveTalkFailed(msg, { logged = false } = {}) {
     const reason = String(msg || 'the request failed');
     const spoken = /usage limit/i.test(reason) ? reason : "That one didn't get an answer. The reason is in the voice chat.";
-    this.setState((s) => ({ voiceBusy: false, liveReply: `Error: ${reason}`, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `That didn't get an answer: ${reason}`, via: 'presence', on: this.state.screen }] }));
+    this.setState((s) => ({ voiceBusy: false, liveReply: `Error: ${reason}`, voiceChat: logged ? s.voiceChat : [...s.voiceChat, { at: Date.now(), who: 'system', text: `That didn't get an answer: ${reason}`, via: 'presence', on: this.state.screen }] }));
     if (this.state.voiceSpeak) this.speak(spoken); else this.toastMsg(spoken);
   }
   // ---------- verdict cards (A1) ----------
@@ -6989,6 +7034,14 @@ export default class App extends Component {
       const u = urls[0];
       const channel = /youtube\.com\/(@|c\/|channel\/|user\/)|tiktok\.com\/@[^/]+\/?$/i.test(u) && !/watch\?v=|youtu\.be\/|\/reel\/|\/shorts\//i.test(u);
       if (study || channel || urls.length > 1) return L('study', 'STUDY', 'a body of work — Nova enumerates it, then compares');
+      // A RECIPE — a reel he asks to keep, or a recipe page (1 Oct). Not a
+      // mirror: src/linkKind.js is the SAME module the server's router reads,
+      // so this chip can no longer say WATCH over a recipe the server imports.
+      const prose = raw.replace(/https?:\/\/[^\s<>"']+/gi, ' ').trim();
+      const link = classifyLink(u, prose);
+      if (link.kind === 'recipe-reel' || (link.kind === 'recipe-page' && (RECIPE_WORDS_RE.test(prose) || !prose.replace(/[\s:—–-]+/g, '')))) {
+        return L('recipe', 'RECIPE', 'a recipe — Nova reads it into your recipe collection');
+      }
       if (/(youtube\.com|youtu\.be|vimeo|tiktok|instagram|twitch|x\.com|twitter)/i.test(u) && /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|\/p\/|\/status\//i.test(u)) {
         // mirrors server/lib/intentRouter.js WEAVE_RE — "watch and analyse
         // fully" is the deep vault weave, reachable by words since the Inbox
@@ -7044,6 +7097,12 @@ export default class App extends Component {
   // HIS DECISION, 4 Sep: the chat stays a conversation and routing is
   // invisible until it matters. So a job lane does not stop to ask
   // permission — it announces what it did and leaves an undo.
+  //
+  // SINCE 1 OCT (every door) this starts only what needs this device's own
+  // screen — a plan's proposal, the browser hand's live glass, the Code
+  // screen (chatLanes.js CHAT_CLIENT_LANES). Every other job is a verb on the
+  // server, which every door reaches the same way; its receipt carries the
+  // undo this announcement used to.
   routeFromChat(q) {
     const conn = getConnection();
     if (!conn || this.state.connectionStatus === 'offline') return false;
@@ -7067,65 +7126,30 @@ export default class App extends Component {
       return true;
     }
     const preview = this.routeIntentLocal(q);
-    if (!preview || !chatStartsAJob(preview.lane)) return false;
+    // every other job — a recipe, a video, research, a book, a briefing — is a
+    // verb on the server now, reached by askNova like any question (1 Oct)
+    if (!preview || !chatDispatchesHere(preview.lane)) return false;
 
     const say = (text, notice) => this.setState((s) => ({
       voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text, notice: notice || null }],
     }));
     // his words land in the log first, exactly as they would for a question
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
-
-    // The model-choice gate is not bypassed here. It exists because these
-    // lanes cost real money (his ask, 24 Aug) and the Inbox composer and the
-    // palette both honour it — a third entry point that quietly skipped it
-    // would make the gate meaningless.
-    const dispatch = (model) => {
-      const notice = (recordId) => ({ label: preview.label, why: preview.why, recordId: recordId || null, text: q });
-      if (preview.lane === 'book' && preview.book) {
-        this.beginIngestJob(null, null, { ...preview.book, model });
-        say(`On it — the Librarian is researching “${preview.book.title}”. The draft pages land for your review.`, notice(null));
-        return;
-      }
-      if (preview.lane === 'weave') {
-        const url = (q.match(/https?:\/\/\S+/) || [])[0];
-        if (!url) { say('I need the video link to weave it in.'); return; }
-        this.startVideoDeepIngest(url);
-        say('Weaving it in — transcript first, then every concept and person as draft pages for your review.', notice(null));
-        return;
-      }
-      if (preview.lane === 'code') {
-        // the palette's one screen-changing dispatch, inherited by the chat
-        // when the palette was folded in: the diff is the first thing he
-        // wants to see, so the session runs on the Code screen
-        say(`Taking that to the Code screen — the session runs there so you can see the diff.`, notice(null));
-        this.navigate('code');
-        this.setState({ codeInput: q }, () => this.doCode());
-        return;
-      }
-      if (preview.lane === 'browse') {
-        api.sendIntent(conn, q, 'browse')
-          .then((r) => {
-            // the hand is being watched: start pulling its feed onto the glass
-            if (r.record?.kind === 'browse') this.watchBrowse(r.record.id, q); say(r.said || 'Opening the browser — I will stop before anything that commits.', notice(r.record?.id)); this.refreshInbox?.(); })
-          .catch((e) => say(`I couldn't open the browser: ${e.message}`));
-        return;
-      }
-      if (preview.lane === 'study') {
-        api.sendIntent(conn, q, 'study')
-          .then((r) => say(r.said || 'Study running — I compare their whole catalogue and ping you when the brief lands.', notice(r.record?.id)))
-          .catch((e) => say(`I couldn't start that: ${e.message}`));
-        return;
-      }
-      const call = preview.lane === 'research' ? api.research(conn, q, model) : api.videoWatch(conn, q, model);
-      const line = preview.lane === 'research'
-        ? 'Researching now — the brief lands in your Inbox with citations.'
-        : 'On it — pulling the transcript. The verdict lands in your Inbox.';
-      call.then((r) => { say(line, notice(r?.record?.id || r?.id)); this.refreshInbox?.(); })
-        .catch((e) => say(`I couldn't start that: ${e.message}`));
-    };
-    if (preview.lane === 'code') { dispatch(); return true; } // Claude Code picks its own model on its screen
-    if (preview.lane === 'browse') { dispatch(); return true; } // the browser lane runs on its own model board
-    this.gateModelChoice(preview.lane === 'book' || preview.lane === 'weave' ? 'book' : preview.lane, dispatch);
+    const notice = (recordId) => ({ label: preview.label, why: preview.why, recordId: recordId || null, text: q });
+    if (preview.lane === 'code') {
+      // the palette's one screen-changing dispatch, inherited by the chat
+      // when the palette was folded in: the diff is the first thing he
+      // wants to see, so the session runs on the Code screen
+      say(`Taking that to the Code screen — the session runs there so you can see the diff.`, notice(null));
+      this.navigate('code');
+      this.setState({ codeInput: q }, () => this.doCode());
+      return true;
+    }
+    // the browser hand: its windows land on this device's glass as it works
+    api.sendIntent(conn, q, 'browse')
+      .then((r) => {
+        if (r.record?.kind === 'browse') this.watchBrowse(r.record.id, q); say(r.said || 'Opening the browser — I will stop before anything that commits.', notice(r.record?.id)); this.refreshInbox?.(); })
+      .catch((e) => say(`I couldn't open the browser: ${e.message}`));
     return true;
   }
 
@@ -8802,8 +8826,11 @@ export default class App extends Component {
     // Answering the model-choice gate is not a new question for Nova to
     // reason about — intercept it here, before it ever reaches Ask Nova.
     if (this.state.modelChoicePending) { this.resolveModelChoiceFromSpeech(question); return; }
+    // the door this turn came in by (the Nova button on another page), on
+    // both of its rows — the thread says where it was said
+    const meta = this.takePresenceMeta() || undefined;
     const attached = this.state.pendingAttach.map((p) => ({ kind: p.kind, thumb: p.thumb, name: p.name }));
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question, attached: attached.length ? attached : undefined }], voiceBusy: true }));
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question, attached: attached.length ? attached : undefined, ...(meta || {}) }], voiceBusy: true }));
     this.stopSpeaking();
     this.speakAck(question); // fills the 5-8s think-gap immediately
     // caller context already names the pending decision when present —
@@ -8852,10 +8879,18 @@ export default class App extends Component {
         }
         const acted = resp.acted ? { ...resp.acted, status: 'done' } : undefined;
         const proposal = resp.proposal ? { ...resp.proposal, status: 'pending' } : undefined;
+        // a job the verbs started carries its research, so the brief lands
+        // on this line exactly as a model-dispatched one does
+        const research = resp.acted?.research ? { ...resp.acted.research, status: resp.acted.research.queued ? 'queued' : 'running' } : undefined;
         const show = () => this.setState((s) => ({
-          voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text, acted, proposal, evidence: this.offerVerdictFor(resp.text, 'nova') }],
+          voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: resp.text, acted, proposal, research, evidence: this.offerVerdictFor(resp.text, 'nova'), ...(meta || {}) }],
           voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal,
         }));
+        // the job it started, followed: the research watched, the weave's
+        // review polled, the screen it named opened; a job that waits on the
+        // model choice asks it here
+        this.followActed(resp.acted);
+        if (resp.modelChoicePending?.kind === 'act') this.armActGate(resp.modelChoicePending);
         if (this.state.voiceSpeak) this.speakTtsSentence(resp.text, show);
         else { show(); this.maybeAutoListen(); }
         return;
@@ -8867,9 +8902,60 @@ export default class App extends Component {
       // a specialist took the question: say so in one breath, then their
       // answer lands in this same transcript under their own name
       if (agent) this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: agent === 'coach' ? 'Handing that to the Coach.' : 'Handing that to the Leader.', handoff: true }] }));
-      this.attachAskPoll(conn, jobId, { agent });
+      this.attachAskPoll(conn, jobId, { agent, meta });
     }).catch((e) => {
-      this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
+      this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message, ...(meta || {}) }] }));
+      // the presence says a failed turn aloud (the words are hidden there)
+      if (meta?.via === 'presence') this.liveTalkFailed(e.message, { logged: true });
+    });
+  }
+  // WHAT A VERB STARTED, FOLLOWED (1 Oct 2026, every door). The server's
+  // verbs hand back what the door needs to show the job: the research to
+  // watch land on its line, the weave whose review he approves, the screen
+  // he asked for. Both reply paths (the fast verb reply and a model's ACT)
+  // come through here, so it is followed the same way whichever it was.
+  followActed(acted, { research = true } = {}) {
+    if (!acted) return;
+    const conn = getConnection();
+    if (research && conn && acted.research?.recordId && !acted.research.queued) this.watchVoiceResearch(conn, acted.research.recordId);
+    if (acted.ingest?.jobId) this.pollIngest(acted.ingest.jobId);
+    if (acted.open) this.openFromNova(acted.open);
+    if (acted.browse?.recordId) this.watchBrowse(acted.browse.recordId, acted.browse.task || '');
+    if (acted.record || acted.watch || acted.research || acted.ingest) this.refreshInbox?.();
+  }
+  // A screen a verb named (screen.open, quick.session, practice.prepare).
+  openFromNova(open) {
+    if (!open?.screen) return;
+    if (open.screen === 'practice') {
+      this.navigate('practice');
+      if (open.slug) this.startRehearsal(open.slug, open.scenario || null);
+      else this.refreshPractice?.();
+      return;
+    }
+    if (open.quick) {
+      this.navigate('workouts');
+      this.setState({ quickMinutes: open.quick.minutes, quickNote: open.quick.note || '' }, () => this.buildQuickSession());
+      return;
+    }
+    this.navigate(open.screen);
+  }
+  // A job verb that waited on the model-choice gate (lib/verbs.js runVerb):
+  // his answer, here or spoken, sends the same verb back with the model
+  // chosen. "Keep it" sends none, and the board's model runs it.
+  armActGate(mc) {
+    const conn = getConnection();
+    if (!conn || !mc?.verb) return;
+    this.gateModelChoice(mc.lane, (model) => {
+      api.act(conn, mc.verb, { ...(mc.args || {}), ...(model ? { model } : {}) }).then((r) => {
+        const acted = r.acted ? { ...r.acted, status: 'done' } : undefined;
+        const research = r.acted?.research ? { ...r.acted.research, status: r.acted.research.queued ? 'queued' : 'running' } : undefined;
+        const line = r.text || 'Done.';
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: line, acted, research }] }));
+        if (this.state.voiceSpeak) this.speak(line);
+        this.followActed(r.acted);
+      }).catch((e) => {
+        this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: `I couldn't start that: ${e.message}` }] }));
+      });
     });
   }
   // The doorman: a DETERMINISTIC greeting when he arrives at the Voice

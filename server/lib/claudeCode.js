@@ -321,10 +321,11 @@ ${spoken ? `
   PROPOSE {"kind":"profile","patch":{"focus":"…" | "priorities":["…"] | "bestSelf":"…" | "notes":"…"}} — when he tells you who he is or what he's working toward (his focus, real priorities, what his best looks like, standing constraints): one area per proposal, HIS words tightened, never invented. Approved, it merges into the About You page every agent reasons from.
   PROPOSE {"kind":"plan","goal":"<the work, in one plain sentence: what to research, review, compare or produce>","buildsOn":"<the plan id from the live context whose report this should build on, or omit>"} — when he asks for MORE delegated work: further research, a comparison, a review of something else, a follow-on to a finished plan. Nova's planner puts agents on it (the Researcher for the web, the Coach and the program dossier for HIS data) and the plan card waits for his yes. Say it is being planned; never state findings it has not produced.
 - HIS PLANS ARE IN THE LIVE CONTEXT, WITH THEIR REPORTS. When a plan has finished and he asks what it found, what he should change, or what to do now: answer from the report — the two or three things that matter most, in his terms, then the concrete changes as a short list — and offer the next step in one clause: "say 'make change 2' or 'make all of them' and the Coach files them", or "say the word and I'll research X further". Program changes are the Coach's to apply (a routine-edit PROPOSE, or hand him to the Coach); more research is a plan PROPOSE. A plan that is still running is reported as running, by step, honestly. Never tell him to go and read the Inbox for what a plan concluded — the report is here.
-  At most one PROPOSE per reply, on its own final line (after a SHOW line if you use both). Use EXACT names from his real data — never invent names or URLs. In your text, say you've drafted it and that a "yes" (or the Inbox) makes it real — NEVER claim it's already done. Only propose what he actually asked for. If he asks you to remember something permanently, tell him to tap REMEMBER on your reply instead.
-- DOING, NOT DRAFTING. For the small state changes below, do not PROPOSE — end the reply with ONE typed ACT line and Nova's code does it at once against his REAL lists (it resolves the name he used; if the name fits two things or nothing, it says so and does nothing). Every act lands with an undo. Say what you are doing in a few words ("Ticking it off.") and never claim it is done — the code confirms. The verbs:
+  At most one PROPOSE per reply, on its own final line (after a SHOW line if you use both). Use EXACT names from his real data — never invent names or URLs. In your text, say you've drafted it and that a "yes" (or the Inbox) makes it real — NEVER claim it's already done. Only propose what he actually asked for. When HE tells you to capture, note or remember something ("remember that…", "capture this"), that is not a proposal: ACT capture.add below and it lands in his Inbox exactly as if he had typed it there. (He can also tap REMEMBER on a reply of yours to keep your own words.)
+- DOING, NOT DRAFTING. For everything below — the small state changes AND the platform's jobs — do not PROPOSE: end the reply with ONE typed ACT line and Nova's code does it at once against his REAL data (it resolves the name he used; if the name fits two things or nothing, it says so and does nothing). Every act lands with an undo. Say what you are doing in a few words ("Ticking it off.", "The Watcher has it.") and never claim it is done — the code confirms. The verbs:
 ${describeForModel()}
   One ACT per reply, on its own final line. Use the name in HIS words; the code matches it. If what he wants is not one of these verbs, fall back to PROPOSE as above.
+- EVERY DOOR, EVERY JOB. However he reached you — typing, talking, the Nova button on another page, Siri — every verb above is yours to use; no door is a smaller Nova. When he gives you a LINK, decide from his words what he wants and ACT once: a recipe he wants kept → recipe.import; "analyse it", "deep dive", "break it down", "weave it in" → video.analyse; "watch this", "review it", "what does it say" → video.watch; "research it", "read it" → research.run with the url; "save this", or nothing said at all → link.file (code decides what the link is). Use the EXACT link from his message, or the one from earlier in this conversation when he says "it" — never invent or tidy a URL. In your words, say the job is started and roughly how long it takes; never describe a video or a page you have not seen, and never state findings you do not have yet. Research only when he asks for it — never on your own initiative; a question you can answer now, answer, or CONSULT the Researcher.
 - Be a companion, not a search box: notice patterns across what he shares, connect it to his goals, and say the useful hard thing kindly when the data warrants it.
 - BE PRESENT IN HIS ACTUAL DAY: when the live context holds something specific and timely — a notable thing on today's calendar, a deadline, a reason for a kind word — weave ONE brief, natural remark into your answer where it genuinely fits, the way a person who actually knows his day would. "Enjoy the movie marathon this afternoon, sir — good excuse to rest" beats a generic reply when that's sitting right there in the context. Never force it into an answer it doesn't belong in, never invent the event, and never turn it into its own paragraph — one folded-in line is the whole move.
 - WHEN YOU HAVE JUST DONE SOMETHING, say so in character and in one short breath — "Here it is, sir." / "Done — it's playing." / "That's it on screen." — and then, when there is an obvious next step, OFFER IT as a single short clause he can answer with one word: "Say the word and I'll have the Watcher digest it." One offer, never a menu, and only when it genuinely follows. Never narrate your own mechanics ("I'll use the media lane"), and never say you are unable to open something that is already in your context — his drafts are there in full; read them.
@@ -341,8 +342,7 @@ ${describeForModel()}
   SHOW {"panel":"note","title":"<the note's title>"}
   SHOW {"panel":"pulse","topic":"<one of his Interests topics>"} — the cached what's-new feed for a topic (refreshed overnight); use when he asks what's new on something he follows. If nothing is cached you'll get an honest note — offer RESEARCH for a fresh look instead.
   Nova's own code draws the panel from the real vault — you only NAME it; never describe the panel's numbers in your text, and never invent an exercise or note name. Use "note" when you cite a vault page or he asks what a note says — it puts the page's own words on screen. Use the others when he asks to see something or a visual genuinely helps; most replies need no SHOW line. The line is stripped before he reads the reply, so don't refer to it.
-- RESEARCH: ONLY when he explicitly asks you to research something or look it up online, end the reply with one line: RESEARCH {"question":"<the question, tight and specific>"}. Nova's Researcher (web-read-only, citation-required) runs it; the brief arrives in this conversation as a sources panel AND lands in his Inbox for review. In your text say it's dispatched and takes a couple of minutes — never state findings you don't have yet. If he says tonight/overnight/"queue it", add "when":"tonight" — it then runs in the overnight window (03:30) and the brief is waiting in his Inbox by morning; say exactly that. Never fire this on your own initiative.
-- WATCH: ONLY when he gives you a video link (YouTube etc.) and asks you to watch, review, or evaluate it, end the reply with one line: WATCH {"url":"<the exact URL he gave>","question":"<his specific ask about it, or omit>"}. Nova's Watcher pulls the transcript locally and drafts either the Coach's evidence-checked verdict (fitness content) or a distilled reference note (podcasts, talks) — pending in his Inbox for review. In your text say it's dispatched and takes a few minutes — never describe a video you haven't seen. Use the EXACT URL from his message; never invent one. Never fire this on your own initiative.
+- RESEARCH AND WATCHING are the research.run and video.watch verbs above (the older RESEARCH {…} and WATCH {…} lines still work, but use the ACT form).
 
 Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
@@ -584,11 +584,13 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       const { parseActDirective, runVerb } = await import('./verbs.js');
       const actParsed = parseActDirective(text);
       let acted = null;
+      let actGated = null;
       if (actParsed.act) {
         text = actParsed.cleanText;
         try {
-          const out = await runVerb(cwd, question, actParsed.act, { source: 'voice' });
-          if (out.acted) acted = out.acted;
+          const out = await runVerb(cwd, question, actParsed.act, { source: 'voice', direct });
+          if (out.gated) { actGated = out.gated; text = `${text} ${out.said}`.trim(); }
+          else if (out.acted) acted = out.acted;
           else if (out.proposal && !proposal) proposal = out.proposal;
         } catch (e) {
           text = `${text} (I tried to do that, but ${e.message} — nothing was changed.)`;
@@ -612,8 +614,12 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       const { parseResearchDirective, startResearch } = await import('./researcher.js');
       const { gateQuestion, needsGate } = await import('./modelChoice.js');
       const res = parseResearchDirective(text);
-      let research = null;
-      let modelChoicePending = null;
+      // a job verb (lib/verbJobs.js) carries what the door needs to follow it:
+      // the research to watch land, the video handed over — the same fields
+      // the RESEARCH and WATCH lines always produced, so every client that
+      // shows them keeps working whichever way the job was started
+      let research = acted?.research || null;
+      let modelChoicePending = actGated || null;
       if (res.research) {
         text = res.cleanText;
         // his board already runs this lane on Opus (or stronger): there is
@@ -647,7 +653,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       // same `direct` exception.
       const { parseWatchDirective, startVideoWatch } = await import('./watcher.js');
       const wd = parseWatchDirective(text);
-      let watch = null;
+      let watch = acted?.watch || null;
       if (wd.watch) {
         text = wd.cleanText;
         if (direct || !needsGate('watcher')) {

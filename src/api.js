@@ -451,6 +451,9 @@ export const api = {
   codeUnshelve: (conn, workspace) => post(conn, '/api/claude-code/unshelve', { workspace }),
   verdict: (conn, kind, of) => call(conn, `/api/verdict/${encodeURIComponent(kind)}${of ? `?of=${encodeURIComponent(of)}` : ''}`),
   sendIntent: (conn, text, lane) => post(conn, '/api/intent', lane ? { text, lane } : { text }),
+  // a job verb that waited on the model-choice gate, sent back with his answer
+  // (server/routes/voice.js /act; the same registry every door's words reach)
+  act: (conn, verb, args) => post(conn, '/api/act', { verb, args, gateAnswered: true, device: isMacDevice() ? 'mac' : 'other' }),
   // a request that is several jobs — proposes a plan, never runs one
   proposePlan: (conn, text, model) => post(conn, '/api/plan', model ? { text, model } : { text }),
   // a chat panel on demand — the exercise sheet on Train uses the same builder the chat does

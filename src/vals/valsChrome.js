@@ -426,7 +426,9 @@ export function valsChrome(app, ctx) {
       coreStyle: st.coreStyle,
       autoListenTick: st.voiceAutoListenTick,
       ask: st.liveAsk || '',
-      reply: st.liveReply || '',
+      // since 1 Oct the presence's turn runs the conversation's own pipeline,
+      // so its reply is the conversation's row after his words
+      reply: st.liveReply || replyAfterAsk(st.voiceChat, st.liveAsk),
       // the words are opt-in: long-press the core
       textOpen: !!st.liveTextOpen,
       // the card for the line being spoken right now — his "dynamic pop up
@@ -454,7 +456,7 @@ export function valsChrome(app, ctx) {
       speaking: !!st.voiceSpeaking,
       paused: !!st.voiceConvPaused,
       autoListenTick: st.voiceAutoListenTick,
-      lastAsk: st.liveAsk, lastReply: st.liveReply,
+      lastAsk: st.liveAsk, lastReply: st.liveReply || replyAfterAsk(st.voiceChat, st.liveAsk),
       notifyEmpty: () => app.notifyEmptyListen(),
       onError: (err) => app.toastMsg('Dictation: ' + err),
       verdictOffer: st.liveVerdictOffer,
@@ -517,6 +519,9 @@ export function valsChrome(app, ctx) {
     // definition only.
     novaTalkOn: !!st.liveTalkOn,
     holdNovaText: () => app.toggleLiveText(),
+    // under `summary` the tab bar's Nova: hold = the Nova page, its core full
+    // screen, listening (1 Oct, every door); other styles keep the live text
+    holdNovaCore: st.novaStyle === 'summary' ? () => app.holdNovaCore() : null,
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
     goIndex: go('index'),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
@@ -768,6 +773,18 @@ function nudgeView(app, st, demoMode) {
 // "Protein · 105 g to go" → "105 g": the part of a nudge title short enough to
 // sit beside the camera. A title with no such part gets no readout — the
 // bubble's mark alone says something is waiting.
+// The reply to his last words at the Nova button: the newest row of Nova's
+// (or the Coach's, the Leader's, a system failure) after his own. Pure.
+export function replyAfterAsk(chat, ask) {
+  const q = String(ask || '').trim();
+  if (!q || !Array.isArray(chat)) return '';
+  let i = chat.length - 1;
+  while (i >= 0 && !(chat[i]?.who === 'you' && String(chat[i].text || '').trim() === q)) i--;
+  if (i < 0) return '';
+  const after = chat.slice(i + 1).filter((m) => m && m.who !== 'you' && m.text);
+  return after.length ? String(after[after.length - 1].text) : '';
+}
+
 export function nudgeTrail(title) {
   const t = String(title || '');
   const at = t.indexOf(' · ');

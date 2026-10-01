@@ -44,12 +44,18 @@ test('ask prompt: companion contract — continuing conversation, vault-grounded
   assert.match(prompt, /"kind":"calendar"/);
   assert.match(prompt, /"kind":"rotation-variant"/);
   assert.match(prompt, /NEVER claim it's already done/);
-  // Phase 4: note citations on screen + explicit-ask-only research dispatch
+  // Phase 4: note citations on screen + explicit-ask-only research dispatch.
+  // Since 1 Oct (every door) research and watching are verbs in the generated
+  // catalogue — research.run, video.watch — and still never self-started
   assert.match(prompt, /"panel":"note"/);
-  assert.match(prompt, /RESEARCH \{"question"/);
-  assert.match(prompt, /Never fire this on your own initiative/);
+  assert.match(prompt, /ACT \{"verb":"research\.run","args":\{"question"/);
+  assert.match(prompt, /ACT \{"verb":"video\.watch"/);
+  assert.match(prompt, /Research only when he asks for it — never on your own initiative/);
+  assert.match(prompt, /no door is a smaller Nova/);
   assert.match(prompt, /never invent/);
   assert.match(prompt, /tap REMEMBER/);
+  // "remember that…" said to Nova is an Inbox capture now, not a pointer to a button
+  assert.match(prompt, /ACT capture\.add below/);
   assert.match(prompt, /Address him as "sir"/);
   // The persona register: unflappable, dry, understated — JARVIS in words, whatever engine speaks them
   assert.match(prompt, /VOICE: unflappable, precise, dry/);

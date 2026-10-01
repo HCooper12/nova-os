@@ -213,15 +213,18 @@ test('the tab bar is summary-only, and the floating dock is still there for ever
   assert.match(chrome, /onClick=\{\(\) => setMoreOpen\(true\)\}/, 'the More sheet still opens under the other styles');
 });
 
-test('the tab bar\'s Nova is the dock\'s Nova: tap to talk; hold captures (the summary Inbox, 27 Sep)', () => {
+test('the tab bar\'s Nova is the dock\'s Nova: tap to talk; hold opens Nova listening (every door, 1 Oct)', () => {
   const dock = read('src/SummaryDock.jsx');
-  // the hold was the live transcript; since the summary Inbox (mockup 60 #5)
-  // it raises the capture composer, and falls back to the transcript only
-  // when no composer is offered
+  // the hold was the live transcript; from the summary Inbox (mockup 60 #5,
+  // 27 Sep) it raised the capture composer; since 1 Oct (his "holding the
+  // nova core should allow me to capture anything through nova") it opens the
+  // Nova page with the core full screen and the mic open, and falls back to
+  // the transcript only off `summary`, where no hold is offered
   // 29 Sep (the Nova thread, mockup 63 D): on the Nova tab the tap opens that
   // page's own microphone (novaThread.dockTalk), and the orb reads that page's
   // mic too; on every other page it is startLiveTalk and liveMicOpen, as before
-  assert.match(dock, /onClick=\{v\.novaThread\?\.dockTalk \|\| v\.startLiveTalk\} onLongPress=\{v\.openCaptureSheet \|\| v\.holdNovaText\} aria-label="Talk to Nova\. Hold to capture a thought"/);
+  assert.match(dock, /onClick=\{v\.novaThread\?\.dockTalk \|\| v\.startLiveTalk\} onLongPress=\{v\.holdNovaCore \|\| v\.holdNovaText\} aria-label="Talk to Nova\. Hold to open Nova, listening"/);
+  assert.match(read('src/vals/valsChrome.js'), /holdNovaCore: st\.novaStyle === 'summary' \? \(\) => app\.holdNovaCore\(\) : null,/);
   assert.match(dock, /const listening = !!\(v\.novaListening \|\| v\.novaThread\?\.micOpen\);/);
   // 30 Sep (his "fill the orb further so it takes up the whole circle"): the
   // core is drawn at the circle's inner diameter, 60px less the 1px rim each

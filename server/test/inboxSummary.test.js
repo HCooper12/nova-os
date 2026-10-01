@@ -334,8 +334,12 @@ test('Seen has no button on the summary Inbox: it is marked by looking', () => {
   assert.ok(uses >= 1 && !/onClick=\{[^}]*markSeen/.test(src), 'markSeen is only called by the three-second timer');
 });
 
-test('the Nova hold captures under summary, and the live text stays reachable from Voice', () => {
+test('the Nova hold opens Nova listening under summary (1 Oct); the capture composer stays reachable from the Inbox hint', () => {
   const dock = read('src/SummaryDock.jsx');
-  assert.match(dock, /onLongPress=\{v\.openCaptureSheet \|\| v\.holdNovaText\}/);
+  assert.match(dock, /onLongPress=\{v\.holdNovaCore \|\| v\.holdNovaText\}/);
   assert.match(dock, /stays reachable there/);
+  // nothing is lost: the composer still renders from the dock when opened,
+  // and the Inbox's hint line opens it with a tap
+  assert.match(dock, /\{capture\?\.open && <CaptureSheet c=\{capture\} \/>\}/);
+  assert.match(read('src/screens/InboxSummary.jsx'), /className="nv-sum-ib-hint" onClick=\{S\.openCapture\}/);
 });

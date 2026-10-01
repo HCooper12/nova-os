@@ -349,7 +349,7 @@ function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
       <>
         {m.attached?.length > 0 && (
           <div className="nv-nt-thumbs" data-line={i}>
-            {m.attached.map((a, k) => (a.thumb ? <img key={k} src={a.thumb} alt="" /> : <span key={k} className="vid">Video · {a.name}</span>))}
+            {m.attached.map((a, k) => (a.thumb ? <img key={k} src={a.thumb} alt="" /> : <span key={k} className="vid">{a.kind === 'file' ? 'File' : 'Video'} · {a.name}</span>))}
           </div>
         )}
         <div className={`nv-nt-you${fresh ? ' in' : ''}`} data-line={i}>{m.text}</div>
@@ -496,7 +496,7 @@ function Composer({ T, dict, since, fieldRef, onSend, typingFor }) {
         <div className="nv-nt-pending">
           {pending.map((p, i) => (
             <span key={i} className="nv-nt-att">
-              {p.thumb ? <img src={p.thumb} alt="" /> : <span className="vid">Video</span>}
+              {p.thumb ? <img src={p.thumb} alt="" /> : <span className="vid">{p.kind === 'file' ? 'File' : 'Video'}</span>}
               <button type="button" onClick={p.remove} aria-label={`Remove ${p.name || 'this attachment'}`}><Ico name="x" /></button>
             </span>
           ))}
@@ -504,9 +504,9 @@ function Composer({ T, dict, since, fieldRef, onSend, typingFor }) {
         </div>
       )}
       <div className="nv-nt-bar">
-        <label className="nv-nt-plus" aria-label="Attach a photo or video">
+        <label className="nv-nt-plus" aria-label="Attach a photo, a video or a file">
           <Ico name="plus" />
-          <input type="file" accept="image/*,video/*" multiple disabled={!C.attach || C.attach.busy || C.offline}
+          <input type="file" accept="image/*,video/*,application/pdf,text/plain,text/markdown,text/csv,.pdf,.txt,.md,.csv" multiple disabled={!C.attach || C.attach.busy || C.offline}
             onChange={(e) => { C.attach?.pick(e.target.files); e.target.value = ''; }} />
         </label>
         {/* the route label and the field share one box: it names where the

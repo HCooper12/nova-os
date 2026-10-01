@@ -274,7 +274,7 @@ test('the talk door: the tab bar\'s Nova calls the page\'s own start inside the 
   assert.equal(calls.length, 0);
 });
 
-test('the focus door (30 Sep): enterFocus brings the core up through the page\'s own setter, a no-op with none registered, and the dock\'s hold is untouched', () => {
+test('the focus door (30 Sep): enterFocus brings the core up through the page\'s own setter, a no-op with none registered; since 1 Oct the dock\'s hold uses it', () => {
   const { app, calls } = fakeApp();
   const T = valsNovaThread(app, {}, vOf()).novaThread;
   assert.doesNotThrow(() => T.enterFocus(), 'no thread mounted: nothing happens');
@@ -288,9 +288,16 @@ test('the focus door (30 Sep): enterFocus brings the core up through the page\'s
   assert.equal(focused, 1, 'unregistered on unmount');
   const src = read('src/screens/NovaThread.jsx');
   assert.match(src, /T\.registerFocus\(\(\) => setFocus\(true\)\);\n    return \(\) => T\.registerFocus\(null\);/);
-  // the hold on the tab bar's Nova still raises the capture composer (his call pending)
-  assert.match(read('src/SummaryDock.jsx'), /onLongPress=\{v\.openCaptureSheet \|\| v\.holdNovaText\}/);
-  assert.doesNotMatch(read('src/SummaryDock.jsx'), /enterFocus/, 'nothing calls it yet');
+  // 1 Oct (every door): the hold on the tab bar's Nova opens this page with
+  // its core full screen and listening (App.holdNovaCore), no longer the
+  // capture composer; a hold from another page waits for this registration
+  assert.match(read('src/SummaryDock.jsx'), /onLongPress=\{v\.holdNovaCore \|\| v\.holdNovaText\}/);
+  let consumed = 0;
+  app.consumeNovaHold = () => { consumed++; };
+  T.registerFocus(() => {});
+  assert.equal(consumed, 1, 'registering the focus takes a waiting hold');
+  T.registerFocus(null);
+  assert.equal(consumed, 1, 'unregistering does not');
 });
 
 test('the head at rest is the name and the state, no core; the core is drawn in focus only (30 Sep)', () => {
@@ -350,10 +357,16 @@ test('App: the thread spreads last; a reply keeps its glass; a line from the Nov
   const app = read('src/App.jsx');
   assert.match(app, /return \{ \.\.\.withSession, \.\.\.valsNovaThread\(this, ctx, withSession\) \};\n  \}/);
   assert.match(app, /const glass = glassSnapshot\(s\.glassBeats, s\.glassVisuals\) \|\| undefined;/);
-  assert.match(app, /const line = \{ at: Date\.now\(\), who, text, panel, proposal, acted, research, evidence, glass, \.\.\.\(from \? \{ from \} : \{\}\) \};/, 'the reply keeps its glass beside whom it consulted');
+  // the door a turn came in by rides both of its rows (`meta`, 1 Oct)
+  assert.match(app, /const line = \{ at: Date\.now\(\), who, text, panel, proposal, acted, research, evidence, glass, \.\.\.\(from \? \{ from \} : \{\}\), \.\.\.\(meta \|\| \{\}\) \};/, 'the reply keeps its glass beside whom it consulted');
   assert.match(app, /chat\.push\(line\)/);
-  assert.match(app, /voiceChat: \[\.\.\.s\.voiceChat, \{ at: Date\.now\(\), who: 'you', text: q, via: 'presence', on \}\]/);
-  assert.match(app, /onReady: \(job\) => land\(job\.result\.text, job\.result\.sessionId, job\.result, job\),/);
+  // EVERY DOOR (1 Oct): the Nova button on another page runs the one
+  // pipeline (doOrb → askNova), so everything its reply carried lands exactly
+  // as the thread's own would; its rows keep the page it was said on
+  assert.match(app, /this\.presenceTurn = \{ via: 'presence', on: this\.state\.screen, at: Date\.now\(\) \};/);
+  assert.match(app, /this\.doOrb\(q\);\n    this\.presenceTurn = null;/);
+  assert.match(app, /who: 'you', text: question, attached: attached\.length \? attached : undefined, \.\.\.\(meta \|\| \{\}\) \}/);
+  assert.match(app, /this\.attachAskPoll\(conn, jobId, \{ agent, meta \}\);/);
   // the record never carries the glass (it sends text, who, via, device)
   assert.doesNotMatch(read('src/conversationSync.js'), /glass/);
   assert.match(read('src/SummaryDock.jsx'), /onClick=\{v\.novaThread\?\.dockTalk \|\| v\.startLiveTalk\}/);

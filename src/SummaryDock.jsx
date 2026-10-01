@@ -70,16 +70,20 @@ export function SummaryDock({ v }) {
       {/* NOVA, detached. The same Interactive the dock's centre orb is: tap
           starts talking right here. While the mic is open the orb steps up
           and says so — "Talk" — under itself.
-          HOLD CAPTURES (27 Sep 2026, the summary Inbox, mockup 60 #5): the
-          Inbox's composer moved here, so holding Nova raises it over any
-          screen (CaptureSheet.jsx). The hold used to open the live
-          transcript (toggleLiveText); that transcript is the Voice screen
-          itself, one tap away, so it stays reachable there. */}
+          HOLD OPENS NOVA, LISTENING (1 Oct 2026, his "holding the nova core
+          should allow me to capture anything through nova no matter how I
+          speak with it"): the hold takes him to the Nova page with its core
+          full screen and the microphone open (App.holdNovaCore). From 27 Sep
+          it raised the capture composer (CaptureSheet.jsx); capture is now
+          something he says to Nova, and the composer stays reachable from
+          the Inbox's hint line, so nothing is lost. Before that the hold
+          opened the live transcript (toggleLiveText), which is the Voice
+          screen itself and stays reachable there. */}
       {/* ON THE NOVA TAB (29 Sep, mockup 63 D) the tap opens that page's own
           microphone (the thread registers it), and the orb says so while it
           is open: that page's mic is reported as voiceScreenMic, not as the
           presence's liveMicOpen. Everywhere else, exactly as before. */}
-      <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.openCaptureSheet || v.holdNovaText} aria-label="Talk to Nova. Hold to capture a thought"
+      <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.holdNovaCore || v.holdNovaText} aria-label="Talk to Nova. Hold to open Nova, listening"
         className="nv-sum-nova" data-listening={listening ? 'true' : undefined}
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
         <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-3px" />

@@ -25,6 +25,11 @@ import { fileURLToPath } from 'node:url';
 const exec = promisify(execFile);
 const IMAGE_DATA_URL = /^data:image\/(png|jpe?g|webp|heic|gif);base64,([A-Za-z0-9+/=]+)$/;
 const VIDEO_DATA_URL = /^data:video\/(mp4|quicktime|webm);base64,([A-Za-z0-9+/=]+)$/;
+// DOCUMENTS (1 Oct 2026, every door: "attachments (photos, files) ride the
+// same turn"). A PDF or a text file is read by the same Read tool an image
+// is; nothing else is needed. Anything else is refused by name.
+const FILE_DATA_URL = /^data:(application\/pdf|text\/plain|text\/markdown|text\/csv|application\/json);(?:charset=[\w-]+;)?base64,([A-Za-z0-9+/=]+)$/;
+const FILE_EXT = { 'application/pdf': 'pdf', 'text/plain': 'txt', 'text/markdown': 'md', 'text/csv': 'csv', 'application/json': 'json' };
 const MAX_FILES = 6;
 const MAX_BYTES = 25 * 1024 * 1024;
 const KEEP_MS = 7 * 86_400_000;
@@ -60,7 +65,16 @@ export async function storeAttachments(dataUrls) {
     const s = String(list[i] || '');
     const img = s.match(IMAGE_DATA_URL);
     const vid = img ? null : s.match(VIDEO_DATA_URL);
-    if (!img && !vid) throw new Error(`attachment ${i + 1} is not a supported image or video`);
+    const doc = img || vid ? null : s.match(FILE_DATA_URL);
+    if (!img && !vid && !doc) throw new Error(`attachment ${i + 1} is not a supported image, video or document (PDF, text, Markdown, CSV)`);
+    if (doc) {
+      const buf = Buffer.from(doc[2], 'base64');
+      if (buf.length > MAX_BYTES) throw new Error(`attachment ${i + 1} is over ${Math.round(MAX_BYTES / 1024 / 1024)}MB`);
+      const file = path.join(base, `${i + 1}.${FILE_EXT[doc[1]]}`);
+      await writeFile(file, buf);
+      items.push({ kind: 'file', path: file });
+      continue;
+    }
     const [, ext, b64] = img || vid;
     const buf = Buffer.from(b64, 'base64');
     if (buf.length > MAX_BYTES) throw new Error(`attachment ${i + 1} is over ${Math.round(MAX_BYTES / 1024 / 1024)}MB`);
@@ -88,6 +102,7 @@ export async function loadAttachment(id) {
   const items = [];
   for (const n of names) {
     if (/^\d+\.(png|jpg|webp|heic|gif)$/.test(n)) items.push({ kind: 'image', path: path.join(base, n) });
+    else if (/^\d+\.(pdf|txt|md|csv|json)$/.test(n)) items.push({ kind: 'file', path: path.join(base, n) });
     else if (/^\d+\.(mp4|mov|webm)$/.test(n)) {
       const frameDir = path.join(base, `${n.split('.')[0]}-frames`);
       const frames = existsSync(frameDir) ? (await readdir(frameDir)).filter((f) => f.endsWith('.jpg')).sort().map((f) => path.join(frameDir, f)) : [];
@@ -103,6 +118,7 @@ export function attachmentPreamble(att) {
   if (!att?.items?.length) return '';
   const images = att.items.filter((i) => i.kind === 'image');
   const videos = att.items.filter((i) => i.kind === 'video');
+  const files = att.items.filter((i) => i.kind === 'file');
   const lines = [];
   if (images.length) lines.push(`He attached ${images.length} image${images.length === 1 ? '' : 's'} — READ EACH with the Read tool before answering, and answer from what is actually in them:\n${images.map((i, k) => `  image ${k + 1}: ${i.path}`).join('\n')}`);
   for (const v of videos) {
@@ -110,6 +126,7 @@ export function attachmentPreamble(att) {
       ? `He attached a video (${v.seconds ? `${Math.round(v.seconds)}s` : 'length unknown'}); there is NO transcript of it — these ${v.frames.length} stills are evenly spaced through it, read each with the Read tool:\n${v.frames.map((f, k) => `  frame ${k + 1}: ${f}`).join('\n')}`
       : `He attached a video but its frames could not be extracted${v.error ? ` (${v.error})` : ''} — say so; do not guess its contents.`);
   }
+  if (files.length) lines.push(`He attached ${files.length} document${files.length === 1 ? '' : 's'} — READ EACH with the Read tool before answering, and answer from what is actually in them:\n${files.map((f, k) => `  document ${k + 1}: ${f.path}`).join('\n')}`);
   return `[ATTACHED MATERIAL]\n${lines.join('\n')}\n[END ATTACHED MATERIAL]`;
 }
 

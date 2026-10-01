@@ -1517,8 +1517,9 @@ async function mediaLaneFor(vaultPath, text, deps = {}) {
   const { lane, url } = decision;
   const toRecipe = async (prose, laneDeps = {}) => {
     if (deps.startRecipeFromVideo) return deps.startRecipeFromVideo(vaultPath, url, prose, laneDeps);
-    const { startRecipeFromVideo } = await import('./recipeFromVideo.js');
-    return startRecipeFromVideo(vaultPath, url, prose, laneDeps);
+    // a reel or a recipe PAGE (1 Oct): the import picks its reader by the link
+    const { startRecipeImport } = await import('./recipeFromPage.js');
+    return startRecipeImport(vaultPath, url, prose, laneDeps);
   };
   if (lane === 'watch') {
     const bare = !String(decision.prose || '').trim() && (decision.urls || []).length === 1;

@@ -94,11 +94,20 @@ export function voiceRouter(vaultPath) {
       // his real lists — no model, a receipt with undo, honest "which one?"
       // when his words fit two things. (lib/verbs.js)
       const { tryCommand } = await import('../lib/verbs.js');
-      const command = attachmentPreamble ? null : await tryCommand(vaultPath, raw, { fromMac: fromMacOf(req) }).catch(() => null);
+      // a plan he has not approved yet owns his next sentence (below): the
+      // jobs' grammar stands aside so "research X instead" amends the plan
+      // rather than starting a second job beside it
+      let deferJobs = false;
+      try {
+        const { recentPlanContext, isAffirmativeOrNegative } = await import('../lib/planFollowUp.js');
+        const pl = await recentPlanContext();
+        deferJobs = pl?.phase === 'proposed' && !isAffirmativeOrNegative(raw);
+      } catch { /* no plan context: nothing to defer to */ }
+      const command = attachmentPreamble ? null : await tryCommand(vaultPath, raw, { fromMac: fromMacOf(req), deferJobs }).catch(() => null);
       if (command) {
         console.log(`verb ${command.miss ? 'miss' : 'hit'} [${command.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
-        return res.json({ text: command.text, reflex: true, acted: command.acted || null, proposal: command.proposal || null });
+        return res.json({ text: command.text, reflex: true, acted: command.acted || null, proposal: command.proposal || null, modelChoicePending: command.modelChoicePending || null });
       }
       // DELEGATION, INVISIBLE (Verbs phase 2). A training question is the
       // Coach's and a question about his people is the Leader's — the same
@@ -185,6 +194,29 @@ export function voiceRouter(vaultPath) {
       res.json({ jobId });
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  // A VERB, BY NAME (1 Oct 2026, every door). The door has already heard
+  // what he wants and the job only waited on one answer — which model to run
+  // it on (the model-choice gate) — so the client hands the verb back here
+  // with `model` set. Same registry, same receipt, same undo as the grammar
+  // and the model's ACT line: this route adds no capability of its own.
+  router.post('/act', async (req, res) => {
+    try {
+      const verb = typeof req.body?.verb === 'string' ? req.body.verb.trim() : '';
+      if (!verb) return res.status(400).json({ error: 'verb is required' });
+      const args = req.body?.args && typeof req.body.args === 'object' ? { ...req.body.args } : {};
+      if (args.model !== undefined && args.model !== 'opus' && args.model !== 'sonnet') delete args.model;
+      const { runVerb } = await import('../lib/verbs.js');
+      const said = typeof req.body?.question === 'string' ? req.body.question.slice(0, 300) : `${verb} (after the model choice)`;
+      // an answered gate is answered: `model` absent means "keep the board's"
+      const out = await runVerb(vaultPath, said, { verb, args: { ...args, model: args.model || undefined } }, { source: 'voice', fromMac: fromMacOf(req), gateAnswered: req.body?.gateAnswered === true });
+      if (out.gated) return res.json({ text: out.said, modelChoicePending: out.gated });
+      if (out.acted) return res.json({ text: out.acted.said, acted: out.acted });
+      return res.json({ text: `${out.proposal.title} — say yes and it's done.`, proposal: out.proposal });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 
@@ -395,7 +427,23 @@ export function voiceRouter(vaultPath) {
       // The Reflex Layer, same as /ask: the Siri lane is where <1s matters
       // most — a reflex hit means Siri speaks the number before the CLI
       // would have finished booting. Miss → the session machinery below.
-      const reflex = await tryReflex(question).catch(() => null);
+      // PHOTOS AND FILES FROM A SHORTCUT (1 Oct, every door): a Shortcut can
+      // post them to /attachments first and name the id here, or send them
+      // inline as data URLs in `files`. Either way they ride in front of his
+      // words exactly as they do in the app, and the reflex and the verbs
+      // stand aside (they answer from the record, not from a photo).
+      let attachmentPreamble = '';
+      try {
+        const { storeAttachments, loadAttachment, attachmentPreamble: pre } = await import('../lib/attachments.js');
+        const inline = Array.isArray(body?.files) && body.files.length ? await storeAttachments(body.files) : null;
+        const id = inline?.id || (typeof body?.attachmentId === 'string' ? body.attachmentId : '');
+        const att = id ? await loadAttachment(id) : null;
+        if (id && !att) return res.json({ text: 'The attachments that came with that are gone — send them again.', error: 'attachments missing' });
+        if (att) attachmentPreamble = pre(att);
+      } catch (e) {
+        return res.json({ text: `I couldn't take what you attached: ${e.message}.`, error: e.message });
+      }
+      const reflex = attachmentPreamble ? null : await tryReflex(question).catch(() => null);
       if (reflex) {
         console.log(`ask/sync reflex hit [${reflex.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
@@ -403,7 +451,9 @@ export function voiceRouter(vaultPath) {
         return res.json({ text: reflex.text, sessionId: null });
       }
       const { tryCommand: trySyncCommand } = await import('../lib/verbs.js');
-      const command = await trySyncCommand(vaultPath, question, { fromMac: fromMacOf(req) }).catch(() => null);
+      // `direct`: Siri has no screen to open and nobody to answer a follow-up,
+      // so a job runs on his board's model and a screen-only verb says so
+      const command = attachmentPreamble ? null : await trySyncCommand(vaultPath, question, { fromMac: fromMacOf(req), direct: true }).catch(() => null);
       if (command) {
         console.log(`ask/sync verb ${command.miss ? 'miss' : 'hit'} [${command.matched}]`);
         answered(command.text);
@@ -466,7 +516,7 @@ export function voiceRouter(vaultPath) {
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
       const jobId = startAskNova(vaultPath, {
-        question, context, liveLine, direct: true,
+        question: attachmentPreamble ? `${attachmentPreamble}\n\n${question}` : question, context, liveLine, direct: true,
         sessionId: spoken.sessionId, resume: spoken.resumed,
       });
       // THE LINE AND A SLOW ASK (lib/handsFree.js, his call 30 Sep): a

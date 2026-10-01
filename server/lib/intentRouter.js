@@ -14,11 +14,12 @@
 
 // `program` is a lane a PLAN reaches for (his program as a dossier, by code);
 // no sentence routes to it on its own, because it is a step, not a request.
-// A link plus words asking for it to become a RECIPE (29 Sep). About SAVING
-// it ("add", "save", "turn into") or naming the recipe bank, so "is this
-// recipe any good?" still goes to the Watcher for a verdict. Pure, kept here
-// so the router imports nothing with side effects.
-export const RECIPE_WORDS_RE = /\b(?:add|save|put|file|keep|turn|make|log|import|store)\b[^.?!]{0,40}\b(?:recipes?|recipe bank|recipe collection|fuel|meal prep)\b|\b(?:recipes?|meal prep) (?:from|in|off) (?:this|these|the (?:reel|video|post|caption))\b|\binto (?:a |my )?recipes?\b/i;
+// A link plus words asking for it to become a RECIPE (29 Sep) — and, since
+// 1 Oct, what a link IS at all — live in src/linkKind.js, shared with the
+// client's lane chip so the two can never disagree again. Pure, so the router
+// still imports nothing with side effects.
+import { URL_RE, VIDEO_HOSTS, CHANNEL_RE, VIDEO_PATH_RE, RECIPE_WORDS_RE, classifyLink } from '../../src/linkKind.js';
+export { RECIPE_WORDS_RE };
 
 export const LANES = ['recipe', 'brief', 'paper', 'watch', 'weave', 'study', 'repertoire', 'research', 'browse', 'build', 'code', 'coach', 'leader', 'practice', 'capture', 'play', 'ask', 'book', 'program'];
 
@@ -49,15 +50,6 @@ export function parseBookIntent(text) {
 // now, as opposed to handing a link to the Watcher to digest. Needs a naming
 // verb AND a media noun, so "what did that video say" still routes to ask.
 const PLAY_RE = /\b(pull up|put on|play|open|bring up|start)\b[\s\S]{0,60}\b(video|episode|podcast|clip|documentary)\b|\b(video|episode|podcast|clip)\b[\s\S]{0,30}\b(by|from)\b/i;
-
-const URL_RE = /https?:\/\/[^\s<>"']+/gi;
-
-const VIDEO_HOSTS = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|instagram\.com|twitch\.tv|x\.com|twitter\.com)$/i;
-// a channel/profile URL is a BODY OF WORK, not one video — that's a study
-const CHANNEL_RE = /youtube\.com\/(@|c\/|channel\/|user\/)|instagram\.com\/[^/]+\/?$|tiktok\.com\/@[^/]+\/?$/i;
-// vt.tiktok.com/<code> and tiktok.com/t/<code> are what the TikTok share
-// sheet hands over (29 Sep): a single video behind a short link
-const VIDEO_PATH_RE = /watch\?v=|youtu\.be\/|\/reel\/|\/shorts\/|\/video\/|vimeo\.com\/\d+|\/p\/|\/status\/|vt\.tiktok\.com\/|tiktok\.com\/t\//i;
 
 // THE REPERTOIRE — a clip he wants to LEARN FROM, not merely digest. The
 // Watcher answers "is this true?"; this answers "how do I do that, and what
@@ -168,6 +160,13 @@ export function routeIntent(text) {
     if (isMediaHost && VIDEO_PATH_RE.test(u)) {
       if (WEAVE_RE.test(prose)) return { lane: 'weave', urls, prose, why: 'a video to weave into the vault — transcript fetched, every concept and person drafted as pages for review' };
       return { lane: 'watch', urls, prose, why: 'a single video link — the Watcher pulls the transcript and drafts a verdict' };
+    }
+    // A RECIPE PAGE (1 Oct): a recipe site's page, or any page he asks to keep
+    // as a recipe, is read into the recipe bank rather than researched. Words
+    // that ask something else of it ("is this healthy?") still reach the
+    // Researcher, which reads it and answers.
+    if (classifyLink(u, prose).kind === 'recipe-page' && (RECIPE_WORDS_RE.test(prose) || !prose.replace(/[\s:—–-]+/g, ''))) {
+      return { lane: 'recipe', urls, prose, why: 'a recipe page — Nova reads the recipe into your recipe collection' };
     }
     return { lane: 'research', urls, prose, why: 'a link to read — the Researcher reads it and cites what it finds' };
   }
