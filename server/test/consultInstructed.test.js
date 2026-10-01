@@ -14,7 +14,7 @@
 //      the turn fails, and the failure line still lands.
 //
 // CLAUDE_BIN is a stub and NOVA_DATA_DIR a temp dir, both set BEFORE import.
-import { mkdtempSync, writeFileSync, chmodSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, chmodSync, readFileSync } from "node:fs";
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -404,4 +404,12 @@ test('the push reads plainly: no consult, a long first sentence, an empty answer
   assert.ok(firstSentence(`${'word '.repeat(80)}end.`).length <= 180);
   assert.equal(firstSentence('See [Kreider 2017](https://x.org/k) first. Then rest.'), 'See Kreider 2017 first.');
   assert.equal(firstSentence('Take 3.5 g daily. Then rest.'), 'Take 3.5 g daily.');
+});
+
+test("Nova's own proposal replaces a waiting card with different numbers, and her reply says so in code's words", () => {
+  const va = readFileSync(new URL('../lib/voiceActions.js', import.meta.url), 'utf8');
+  assert.match(va, /fileUnlessWaiting\(\{\s*route, payload: validated\.payload, replace: true,/, 'Nova files with the replace rule');
+  assert.match(va, /replaced: out\.replaced\.map/, 'what it replaced travels back');
+  const cc = readFileSync(new URL('../lib/claudeCode.js', import.meta.url), 'utf8');
+  assert.match(cc, /It replaces the card that was waiting on your call/, 'code says what was replaced');
 });

@@ -184,11 +184,14 @@ export async function createVoiceProposal(vaultPath, question, raw) {
     const { fileUnlessWaiting } = await import('./coachProposals.js');
     const validated = await validateCoachEdit(vaultPath, raw, { asked: question });
     const route = routeForAction(validated.payload.action);
+    // and a NEWER change to the same lift (different numbers) replaces the
+    // card that was waiting, as it does for the Coach (his call, 1 Oct: "Yes
+    // replace the waiting card"); the reply names what it replaced
     const out = await fileUnlessWaiting({
-      route, payload: validated.payload,
+      route, payload: validated.payload, replace: true,
       create: () => createCoachEditRecord(vaultPath, { question, proposal: raw, source: 'voice', validated }),
     });
-    return { recordId: out.record.id, title: out.record.decision?.title || validated.title, route: 'routine-edit', ...(out.duplicate ? { duplicate: true } : {}) };
+    return { recordId: out.record.id, title: out.record.decision?.title || validated.title, route: 'routine-edit', ...(out.duplicate ? { duplicate: true } : {}), ...(out.replaced?.length ? { replaced: out.replaced.map((r) => ({ id: r.id, title: r.decision?.title || r.title || '' })) } : {}) };
   }
 
   // rotation-variant: resolve the spoken slot + alternate NAME against

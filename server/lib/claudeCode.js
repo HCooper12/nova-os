@@ -571,6 +571,11 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
             const waiting = String(proposal.title || '').replace(/^Coach:\s*/, '');
             text = `${text.trim()}${text.trim() ? ' ' : ''}That change is already waiting on your call on the Coach tab${waiting ? ` (${waiting})` : ''}, so nothing new was filed.`;
             proposal = null;
+          } else if (proposal?.replaced?.length) {
+            // a newer change to the same lift took the old card's place (his
+            // call, 1 Oct): code names what it replaced, not the model
+            const was = proposal.replaced.map((r) => String(r.title || '').replace(/^Coach:\s*/, '')).filter(Boolean).join('; ');
+            text = `${text.trim()}${text.trim() ? ' ' : ''}It replaces the card that was waiting on your call${was ? ` (${was})` : ''}.`;
           }
         } catch (e) {
           text = `${text} (I tried to draft that for you, but ${e.message} — nothing was changed.)`;
