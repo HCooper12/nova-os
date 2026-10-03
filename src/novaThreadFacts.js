@@ -7,7 +7,8 @@
 // stands on are tests, not comments (server/test/novaThread.test.js): where
 // the page opens, what a finished stage settles into, what the head says, what
 // a door marker says, and the shape of a recording kept after a failure.
-import { mergeVisual } from './glassBeats.js';
+import { mergeVisual, dataCard, lightOn } from './glassBeats.js';
+import { DATA_KINDS, hostOf, marksOfHost, resolveMark, sentenceAfter, sentenceIndexAt, finderOf } from './glassMarks.js';
 
 // ------------------------------------------------------------ opening --
 
@@ -54,23 +55,78 @@ export function glassSnapshot(beats, visuals) {
   return { beats: list.map((b) => ({ key: b.key, at: b.at, spec: b.spec })), visuals: vis };
 }
 
+// WHICH WORDS EACH LIGHT BELONGED TO (3 Oct 2026). A mark binds to the
+// sentence it precedes; the snapshot keeps that sentence's index and its
+// words beside the mark, so after a reload the settled card and Replay still
+// light each part with the sentence that named it. `text` is the finished
+// reply the beats' offsets were measured in. Mutates and returns the
+// snapshot (it is fresh, and the line keeps it as is).
+export function bindGlassSentences(glass, text) {
+  const t = String(text || '');
+  if (!glass?.beats?.length || !t) return glass;
+  for (const b of glass.beats) {
+    if (b.spec?.kind !== 'mark' && !(DATA_KINDS.has(b.spec?.kind) && b.spec.mark)) continue;
+    const sp = sentenceAfter(t, b.at);
+    b.sentence = sentenceIndexAt(t, sp.start);
+    b.said = t.slice(sp.start, sp.end).trim().slice(0, 240);
+  }
+  return glass;
+}
+
 // The panels a snapshot draws, in the order they were shown. A fetched panel
 // whose picture never arrived keeps its frame (mergeVisual's rule); a spec
 // that merges to nothing is dropped.
+//
+// A DATA PANEL AND ITS LIGHTS (3 Oct 2026): each light is its own frame, the
+// panel with that one part lit, in spoken order, carrying the words that
+// named it (`said`). A light whose address is not there is no frame. The
+// panel unlit is a frame only when none of its lights resolves; a record
+// that could not be read is no frame at all.
 export function panelsOf(glass) {
   if (!glass?.beats?.length) return [];
-  return glass.beats.map((b) => mergeVisual(b.spec, (glass.visuals || {})[b.key])).filter(Boolean)
-    // a picture that never came is a frame on the settled card, not a spinner
-    .map((p) => (p.pending ? { ...p, pending: false } : p));
+  const beats = glass.beats;
+  const vis = glass.visuals || {};
+  const out = [];
+  beats.forEach((b, i) => {
+    const kind = b.spec?.kind;
+    if (kind === 'mark') return;   // drawn with its panel, below
+    if (!DATA_KINDS.has(kind)) {
+      const p = mergeVisual(b.spec, vis[b.key]);
+      // a picture that never came is a frame on the settled card, not a spinner
+      if (p) out.push(p.pending ? { ...p, pending: false } : p);
+      return;
+    }
+    const card = dataCard(b.spec, vis[b.key]);
+    if (!card || !card.data) return;
+    const lit = [];
+    for (const j of marksOfHost(beats, i)) {
+      if (hostOf(beats, j) !== i) continue;
+      const r = resolveMark(card, beats[j].spec.mark);
+      if (!r.ok) continue;
+      lit.push({ ...lightOn(card, beats[j].spec.mark), hostKey: b.key, said: beats[j].said || null, sentence: beats[j].sentence ?? null });
+    }
+    if (lit.length) out.push(...lit);
+    else out.push({ ...card, hostKey: b.key });
+  });
+  return out;
 }
 
 // THE STAGE SETTLES INTO THE THREAD as a card: the last panel he showed,
 // large; the others as small rows, newest first; and a count. Nothing is
 // dropped, so "all three" on Replay is always the truth.
+// A data panel settles UNLIT (nothing is being said any more), and each of
+// its lights becomes a row in the order it was spoken, wearing its finder's
+// hue (mockup 67, the settled card).
 export function settleStage(panels) {
   const list = (panels || []).filter(Boolean);
   if (!list.length) return null;
-  return { last: list[list.length - 1], others: list.slice(0, -1).reverse(), count: list.length };
+  const last = list[list.length - 1];
+  if (last.lit) {
+    const lights = list.filter((p) => p.lit);
+    const rest = list.filter((p) => !p.lit && p.hostKey !== last.hostKey).reverse();
+    return { last: { ...last, lit: null, compact: true }, others: [...lights, ...rest], count: list.length };
+  }
+  return { last: DATA_KINDS.has(last.kind) ? { ...last, compact: true } : last, others: list.slice(0, -1).reverse(), count: list.length };
 }
 
 // Two short lines for a panel in a small row: what it is, and its gist in
@@ -84,11 +140,26 @@ export function sentenceCase(s) {
   return low.charAt(0).toUpperCase() + low.slice(1);
 }
 
+const DAY3 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// "Mon 28 Sep" from a session's ISO date, read as his local day
+export function sessionDay(isoDate) {
+  const d = new Date(`${isoDate}T12:00:00`);
+  return Number.isFinite(d.getTime()) ? `${DAY3[d.getDay()]} ${d.getDate()} ${MON3[d.getMonth()]}` : String(isoDate || '');
+}
+
 export function gistOf(card) {
   if (!card) return null;
   const label = sentenceCase(card.label);
   const lead = (s) => String(s || '').trim();
+  // a light's row is its own words, in its finder's hue
+  if (card.lit) return { b: card.lit.short, s: card.lit.detail, hue: card.lit.hue || card.hue || null };
   switch (card.kind) {
+    case 'session': return { b: lead(card.data?.routineName) || label || 'Session', s: card.data ? sessionDay(card.data.date) : '', hue: card.hue || null };
+    case 'sources': {
+      const n = (card.data?.sections || []).length;
+      return { b: n === 1 ? 'One finding' : `${n} findings`, s: (card.data?.sections || []).map((x) => finderOf(x.agent).name).join(' · '), hue: null };
+    }
     case 'metric': return { b: `${lead(card.value)}${card.unit ? ` ${card.unit}` : ''}`, s: label || lead(card.caption) };
     case 'key': return { b: label || 'The point', s: lead(card.caption) };
     case 'steps':

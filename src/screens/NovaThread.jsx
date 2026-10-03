@@ -156,7 +156,17 @@ export function NovaThread({ v }) {
     }, 3200);
     return () => clearTimeout(iv);
   }, [replay]);
-  const replayStage = replay ? { hero: replay.panels[replay.idx], n: replay.idx + 1, total: replay.panels.length, key: `replay:${replay.idx}`, line: null } : null;
+  // a replayed light carries the words that named it (kept on the snapshot)
+  // and keeps its panel's key, so stepping through the lights relights one
+  // panel rather than raising it again
+  const replayHero = replay ? replay.panels[replay.idx] : null;
+  const replayStage = replay ? {
+    hero: replayHero, n: replay.idx + 1, total: replay.panels.length,
+    key: replayHero?.hostKey ? `replay:${replayHero.hostKey}` : `replay:${replay.idx}`,
+    line: replayHero?.said ? { lit: replayHero.said, later: '' } : null,
+    mark: replayHero?.lit ? { name: replayHero.lit.name, hue: replayHero.lit.hue } : null,
+    finder: replayHero?.finder ? { words: replayHero.finder, hue: replayHero.hue } : null,
+  } : null;
   const shown = live || replayStage;
   // leaving: the stage that just ended is held one beat longer, fading up
   // into the head, so the card that settles into the thread reads as it

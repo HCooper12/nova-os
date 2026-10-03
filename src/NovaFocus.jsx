@@ -224,8 +224,10 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
         {stage && (
           <div className="nv-fx-dock" key={stage.key}>
             <button type="button" className="nv-fx-panel" onClick={(e) => onOpen?.(stage.hero, e.currentTarget)}
-              aria-label={`${stage.hero.label || 'This panel'}${stage.total > 1 ? `, panel ${stage.n} of ${stage.total}` : ''}. Tap to open full width`}>
-              <span className="nv-fx-ptag"><Ico name="stage" />Showing now{stage.total > 1 ? <span>{stage.n} of {stage.total}</span> : null}</span>
+              aria-label={`${stage.mark?.name || stage.hero.label || 'This panel'}${stage.total > 1 && stage.n > 0 ? `, ${stage.n} of ${stage.total}` : ''}. Tap to open full width`}>
+              <span className="nv-fx-ptag"><Ico name="stage" />{stage.finder ? <b className="nv-fx-finder" style={{ '--h': stage.finder.hue }}>{stage.finder.words}</b> : 'Showing now'}{stage.total > 1 && stage.n > 0 ? <span>{stage.n} of {stage.total}</span> : null}</span>
+              {/* a data panel's light, named in words in its finder's hue (3 Oct 2026) */}
+              {stage.mark && <span className="nv-fx-litname" style={{ '--h': stage.mark.hue }}>{stage.mark.name}</span>}
               <span className="nv-fx-card">
                 <SafeVisual what="nova-focus-panel" resetKey={stage.key}><StageCard card={stage.hero} face="summary" /></SafeVisual>
               </span>

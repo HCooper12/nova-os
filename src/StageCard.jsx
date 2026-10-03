@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo } from 'react';
 import { css } from './css.js';
 import { sentenceCase } from './novaThreadFacts.js';
+import { SessionPanel, SourcesPanel } from './DataPanels.jsx';
 
 const M = 'var(--nv-font-mono)';
 
@@ -30,7 +31,9 @@ const toneOf = (t) => TONE[t] || TONE.cy;
 //   steps — a list that BUILDS as he is read it, his most specific request.
 //   media — a podcast or talk, with the exact timecode when one can be
 //           proven. Never an estimate: see server/lib/visualMoment.js.
-const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument', 'body', 'program']);
+// 'session' and 'sources' (3 Oct 2026): the data panels, built by the server
+// from his records and lit one part at a time (src/DataPanels.jsx).
+const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'media', 'image', 'instrument', 'body', 'program', 'session', 'sources']);
 
 // THE INSTRUMENTS, ON THE GLASS. The morning show already speaks each of
 // these lines; the instrument is the picture that belongs to the sentence —
@@ -89,6 +92,10 @@ export function StageCard({ card, size = 'full', face }) {
   if (card.kind === 'bars' && !(card.bars || []).length) return null;
   if (card.kind === 'steps' && !(card.items || []).length) return null;
   if (card.kind === 'key' && !card.caption) return null;
+  // a data panel is its data: one still being built is a real loading state
+  // in the page's own words; one whose record could not be read never
+  // reaches here (glassBeats.dataCard draws no panel for it)
+  if ((card.kind === 'session' || card.kind === 'sources') && !card.data && !card.pending) return null;
   // media and image are drawn WITHOUT their picture on purpose — the frame is
   // the promise that lands in context, the picture is what fills it.
   const mini = size === 'mini';
@@ -150,6 +157,12 @@ export function StageCard({ card, size = 'full', face }) {
           <div style={{ width: '38%', height: '100%', borderRadius: '2px', background: `linear-gradient(90deg, transparent, ${accent}, transparent)`, animation: 'glassScan 1.15s ease-in-out infinite' }}></div>
         </div>
       )}
+
+      {(card.kind === 'session' || card.kind === 'sources') && card.pending && (
+        <div className="nv-dp-wait">{card.kind === 'session' ? 'Reading the session from your log' : 'Putting their answers side by side'}</div>
+      )}
+      {card.kind === 'session' && card.data && <SessionPanel card={card} mini={mini} />}
+      {card.kind === 'sources' && card.data && <SourcesPanel card={card} mini={mini} />}
 
       {card.kind === 'key' && card.caption && (
         <div style={{ marginTop: mini ? '5px' : '11px', font: `500 ${fz(mini ? 11 : 17)}px/1.4 var(--nv-font-ui)`, color: 'color-mix(in srgb, var(--nv-ink) 94%, transparent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: mini ? 'nowrap' : 'normal', display: mini ? 'block' : '-webkit-box', WebkitLineClamp: mini ? undefined : 3, WebkitBoxOrient: 'vertical' }}>{card.caption}</div>

@@ -112,6 +112,10 @@ test('every declared kind can actually produce a spec', () => {
     bars: { bars: [{ name: 'a', value: 1 }, { name: 'b', value: 2 }] },
     body: { muscle: 'Chest' },
     program: { routine: 'Push' },
+    // the data panels (3 Oct 2026): built by the server; a mark needs an address
+    session: { date: '2026-09-28' },
+    sources: {},
+    mark: { mark: { lift: 'Bench press', set: 3 } },
   };
   for (const kind of VISUAL_KINDS) {
     const spec = normaliseSpec({ kind, label: 'Panel', ...samples[kind] });

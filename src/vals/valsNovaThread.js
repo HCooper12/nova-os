@@ -96,11 +96,17 @@ export function valsNovaThread(app, ctx, v) {
     const beats = st.glassBeats || [];
     const idx = activeBeat(beats, st.glassSpokenTo || 0);
     const lastRaw = [...chat].reverse().find((m) => m.who !== 'you' && m.who !== 'system');
+    // a data panel counts its LIGHTS ("2 of 3"), keeps its own key across
+    // them (a relight is not a new panel), and names the lit part in words
+    // in its finder's hue; the sentence saying it is underlined in that hue
+    const lit = glass.hero.lit || null;
     stage = {
       hero: glass.hero, rail: glass.rail, gists: glass.rail.map(gistOf),
-      n: idx + 1, total: beats.length,
-      key: beats[idx]?.key || glass.hero.label,
+      n: glass.n ?? idx + 1, total: glass.total ?? beats.length,
+      key: glass.key || beats[idx]?.key || glass.hero.label,
       line: lastRaw ? stageLine(lastRaw.text, st.glassSpokenTo || 0) : null,
+      mark: lit ? { name: lit.name, hue: lit.hue } : null,
+      finder: glass.hero.finder ? { words: glass.hero.finder, hue: glass.hero.hue } : null,
     };
   }
 

@@ -21,7 +21,7 @@
 // promise, the picture is the payload, and a failed fetch simply leaves an
 // honest typographic panel behind.
 
-import { FETCHED_KINDS } from '../../src/visualBeats.js';
+import { FETCHED_KINDS, DATA_KINDS } from '../../src/visualBeats.js';
 import { resolveImage, resolveClip } from './briefingMedia.js';
 import { searchVault } from './recall.js';
 import { momentInNote, pickMoment, captionsFor } from './visualMoment.js';
@@ -29,10 +29,36 @@ import { momentInNote, pickMoment, captionsFor } from './visualMoment.js';
 export const mediaUrl = (key, ext) => (key ? `/api/briefing/media/${key}${ext || ''}` : null);
 
 // injectable so the tests never touch the network or shell out to yt-dlp
-export const deps = { resolveImage, resolveClip, searchVault, captionsFor };
+// the data panels' builders are imported lazily (panels.js pulls the whole
+// training stack), and injectable for the same reason as the rest
+export const deps = {
+  resolveImage, resolveClip, searchVault, captionsFor,
+  buildSessionPanel: async (...a) => (await import('./panels.js')).buildSessionPanel(...a),
+  buildSourcesPanel: async (...a) => (await import('./panels.js')).buildSourcesPanel(...a),
+};
 
 export function needsFetch(spec) {
-  return FETCHED_KINDS.has(spec?.kind);
+  return FETCHED_KINDS.has(spec?.kind) || DATA_KINDS.has(spec?.kind);
+}
+
+// A DATA PANEL (3 Oct 2026): built by code from his records, or not at all.
+// A record that cannot be read comes back as `no-record` with the reason in
+// words: the client draws no panel (his rule: "a record that cannot be read
+// means no panel, and Nova says so"), and the reason is kept for the log.
+// `consult` is the job's consult roster (lib/consult.js), read when the
+// directive arrives, which is after the agents have answered.
+async function resolveData(spec, { vaultPath, consult }) {
+  const base = { ...spec, state: 'ready' };
+  try {
+    if (!vaultPath) throw new Error('no vault to read the record from');
+    if (spec.kind === 'session') {
+      return { ...base, data: await deps.buildSessionPanel(vaultPath, { date: spec.date, routine: spec.routine }) };
+    }
+    const roster = typeof consult === 'function' ? consult() : consult;
+    return { ...base, data: await deps.buildSourcesPanel(vaultPath, roster) };
+  } catch (e) {
+    return { ...spec, state: 'no-record', reason: String(e?.message || e || 'the record could not be read').slice(0, 200) };
+  }
 }
 
 /* ------------------------------- the moment ------------------------------ */
@@ -65,9 +91,10 @@ export async function findMoment(spec, { vaultPath, videoId, allowCaptions = tru
 
 // Never throws and never returns null: a panel that could not be filled comes
 // back as itself, which is a perfectly honest thing to leave on the glass.
-export async function resolveVisual(spec, { vaultPath = null, sources = [], allowCaptions = true } = {}, onUpdate = null) {
+export async function resolveVisual(spec, { vaultPath = null, sources = [], allowCaptions = true, consult = null } = {}, onUpdate = null) {
   const base = { ...spec, state: 'ready' };
   if (!needsFetch(spec)) return base;
+  if (DATA_KINDS.has(spec.kind)) return resolveData(spec, { vaultPath, consult });
 
   if (spec.kind === 'image') {
     try {

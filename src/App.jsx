@@ -56,7 +56,7 @@ import { valsFuelSummary } from './vals/valsFuelSummary.js';
 import { valsInboxSummary } from './vals/valsInboxSummary.js';
 import { valsSessionSummary } from './vals/valsSessionSummary.js';
 import { valsNovaThread } from './vals/valsNovaThread.js';
-import { glassSnapshot } from './novaThreadFacts.js';
+import { glassSnapshot, bindGlassSentences } from './novaThreadFacts.js';
 import { valsDocuments } from './vals/valsDocuments.js';
 import { upsertInboxRecord, omitKey } from './inboxSummaryFacts.js';
 import { SCREEN_KEYS } from './screenKeys.js';
@@ -6026,7 +6026,12 @@ export default class App extends Component {
       }
       const m = fresh.match(/[\s\S]*[.!?](?=\s|$)/);
       if (m) {
-        say(m[0], startedAt);
+        // ONE SENTENCE PER PIECE (3 Oct 2026): a fast poll tick can carry two
+        // finished sentences, and spoken as one piece the glass moved once
+        // for both, so a light bound to the first sentence never showed (a
+        // data panel's mark lights only while its own sentence is heard).
+        let off = startedAt;
+        for (const p of m[0].match(/[\s\S]*?[.!?](?=\s|$)\s*/g) || [m[0]]) { if (p.trim()) say(p, off); off += p.length; }
         stream.spokenUpTo += m[0].length;
       }
     };
@@ -6111,6 +6116,8 @@ export default class App extends Component {
             // Additive: no reader of the old line shape looks at `glass`, and
             // the record (conversationSync) never sends it.
             const glass = glassSnapshot(s.glassBeats, s.glassVisuals) || undefined;
+            // each light keeps the sentence that named it, for Replay after a reload
+            bindGlassSentences(glass, spokenText);
             const line = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;

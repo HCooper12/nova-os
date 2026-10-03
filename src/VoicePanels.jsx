@@ -4,6 +4,7 @@ const Body3D = lazy(() => import('./Body3D.jsx'));
 import { BodyMap, MuscleLegend } from './BodyMap.jsx';
 import { Eyebrow, Chip, Meta } from './Controls.jsx';
 import { muscleVar } from './muscleHue.js';
+import { StageCard } from './StageCard.jsx';
 
 const M = "var(--nv-font-mono)";
 // the UI face — for prose inside a panel, where mono is a label voice
@@ -383,6 +384,8 @@ export function VoicePanel({ panel }) {
   if (panel.type === 'note') return <Note d={panel.data} />;
   if (panel.type === 'pulse') return <Pulse d={panel.data} />;
   if (panel.type === 'sessions') return <Sessions d={panel.data} />;
+  // one logged workout (3 Oct 2026): the glass's own session panel, unlit
+  if (panel.type === 'session') return <StageCard card={{ kind: 'session', label: '', data: panel.data, by: 'nova', hue: 'var(--nv-nova)' }} />;
   return null;
 }
 

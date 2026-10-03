@@ -28,16 +28,28 @@
 // leaking `VIS {"kind":"me` into the speech queue would have Nova read JSON
 // out loud, which is the one failure that would make him turn this off.
 
+import { normaliseMark, markKey, DATA_KINDS } from './glassMarks.js';
+
 // `body` and `program` (23 Sep 2026) are the spoken report's two panels —
 // design/JARVIS-REPORT-PLAN.md. The model NAMES a muscle or a routine; code
 // lights the figure and draws his program from the vault. A name the library
 // does not hold draws nothing (glassBeats.js enriches and validates).
-export const VISUAL_KINDS = ['key', 'steps', 'image', 'media', 'metric', 'bars', 'list', 'body', 'program'];
+// `session`, `sources` and `mark` (3 Oct 2026) are the DATA panels and the
+// lights on them (src/glassMarks.js, mockup 67 screens 3 and 5): the model
+// names one logged workout, or the joint answer's contributors, and an
+// address to light; code builds the panel from his records and checks every
+// address against it.
+export const VISUAL_KINDS = ['key', 'steps', 'image', 'media', 'metric', 'bars', 'list', 'body', 'program', 'session', 'sources', 'mark'];
 
 // Kinds that need something fetched before they are whole. The others are
 // typographic and land instantly — which is what lets a beat ALWAYS have its
 // frame on the glass in context, with the picture filling in after.
 export const FETCHED_KINDS = new Set(['image', 'media']);
+
+// Kinds built by the SERVER from his records (server/lib/panels.js): the
+// frame waits for the data, and a record that cannot be read means no panel.
+// Defined beside the marks that light them (src/glassMarks.js).
+export { DATA_KINDS };
 
 const clean = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
@@ -97,8 +109,35 @@ const itemNote = (i) => {
   return i.value != null && i.value !== '' ? `${i.value}${typeof i.unit === 'string' ? ` ${i.unit}` : ''}` : '';
 };
 
+// A DATA PANEL OR A LIGHT ON ONE. `VIS {"panel":"session",…}` names the
+// panel (it may carry its first mark inline, as the mockup's note writes it);
+// `VIS {"mark":{…}}` relights the panel already up. `by` is whose finding it
+// is, and only ever one of the agents (its hue, src/glassMarks.js).
+const BY = new Set(['nova', 'coach', 'researcher', 'librarian', 'leader']);
+const byOf = (v) => { const b = String(v || '').toLowerCase().trim(); return BY.has(b) ? b : null; };
+function dataSpec(d) {
+  const panel = String(d.panel ?? d.kind ?? '').toLowerCase().trim();
+  const by = byOf(d.by);
+  const label = clean(firstString(d, ['label', 'title', 'heading']), 42).toUpperCase();
+  let mark = null;
+  if (d.mark != null) {
+    mark = normaliseMark(d.mark);
+    if (!mark) return null;   // a malformed address costs its beat, never a guessed light
+  }
+  if (panel === 'mark' || (!panel && mark)) return mark ? { kind: 'mark', label, caption: null, mark, ...(by ? { by } : {}) } : null;
+  if (panel === 'session') {
+    const date = clean(firstString(d, ['date', 'day', 'when']), 24);
+    const routine = clean(firstString(d, ['routine', 'last', 'session']), 40).replace(/^last\s+/i, '');
+    return { kind: 'session', label, caption: null, date: date || null, routine: routine || null, by: by || 'nova', ...(mark ? { mark } : {}) };
+  }
+  if (panel === 'sources') return { kind: 'sources', label, caption: null, by: by || 'nova', ...(mark ? { mark } : {}) };
+  return null;
+}
+
 export function normaliseSpec(d) {
   if (!d || typeof d !== 'object') return null;
+  // the data panels and their marks have their own grammar
+  if (d.panel != null || (d.mark != null && d.kind == null) || DATA_KINDS.has(String(d.kind ?? '').toLowerCase()) || String(d.kind ?? '').toLowerCase() === 'mark') return dataSpec(d);
   let kind = String(d.kind ?? '').toLowerCase();
   const hasItems = Array.isArray(d.items) && d.items.length;
   const known = VISUAL_KINDS.includes(kind);
@@ -168,7 +207,8 @@ export function normaliseSpec(d) {
 // client can tell "the same panel, now resolved" from "a new panel".
 export function keyOfSpec(spec, i) {
   const bits = [spec.kind, spec.label, spec.query || '', spec.title || '', spec.url || '',
-    spec.muscle || '', spec.routine || '', (spec.remove || []).join(','), (spec.keep || []).join(',')];
+    spec.muscle || '', spec.routine || '', (spec.remove || []).join(','), (spec.keep || []).join(','),
+    spec.date || '', spec.by || '', markKey(spec.mark)];
   let h = 5381;
   const s = bits.join('|');
   for (let j = 0; j < s.length; j++) h = ((h * 33) ^ s.charCodeAt(j)) >>> 0;
@@ -181,7 +221,11 @@ export function parseVisualStream(raw) {
   const s = String(raw ?? '');
   // No lookahead for the brace: a `VIS` whose object has not arrived yet
   // must be caught HERE, or the word itself is left in the prose and spoken.
-  const re = /(?:^|\n)[ \t]*VIS[ \t]*/g;
+  // The lookbehind (3 Oct 2026): a directive line straight after another one
+  // (a data panel, then its first mark) starts where the last one's newline
+  // was consumed, so neither `^` nor `\n` could see it, and the second
+  // directive was spoken as prose.
+  const re = /(?:^|\n|(?<=\n))[ \t]*VIS[ \t]*/g;
   let out = '';
   let cursor = 0;
   let truncated = false;

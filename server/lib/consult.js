@@ -215,6 +215,19 @@ export function sourceTitlesLine(r) {
 // The Coach's wording is its own (its answers become program cards); every
 // other agent talking to him synthesises; a consulted agent answers whoever
 // asked it.
+// THE JOINT PANEL, offered when it can be drawn (3 Oct 2026, mockup 67 screen
+// 5): two or more answers in, and the synthesis is told it may compose them
+// as one panel and light each part as it leans on it. Generated from who
+// actually answered, so it never names a section that cannot exist; the
+// Librarian's quote is offered only when it cited a note code found.
+export function jointPanelNote(results, { by = 'nova' } = {}) {
+  const ok = (results || []).filter((r) => r && r.ok && AGENTS[r.agent] && !AGENTS[r.agent].code);
+  const ids = [...new Set(ok.map((r) => r.agent))];
+  if (ids.length < 2) return '';
+  const quote = ok.some((r) => r.agent === 'librarian' && (r.citations || []).some((c) => c && c.exists));
+  return `THE JOINT PANEL: if their answers give him something to point at (a number, two things compared, a place in his own record), put them on the glass as one panel: VIS {"panel":"sources","by":"${by}"} on its own line, and before each sentence that leans on one of them VIS {"mark":{"section":"<${ids.join('|')}>"}}${quote ? ' (with "quote":true on the Librarian\'s section when you say the words it quoted)' : ''}. One part lit at a time, only while you say it; a plain sentence gets no panel.`;
+}
+
 export function consultReplyText(results, question, { from = 'coach', answeringTo = null } = {}) {
   const blocks = results.map((r) => {
     if (!r.ok) return `${r.label.toUpperCase()} COULD NOT ANSWER (you asked: ${r.question}): ${r.error}. Say so plainly if it matters to the answer.`;
@@ -225,9 +238,9 @@ export function consultReplyText(results, question, { from = 'coach', answeringT
   if (answeringTo) {
     head = `[The agents you consulted have answered. Now give ${labelOf(answeringTo)} your full answer to what it asked you, built on what they found, and name whose input shaped it. ${SOURCE_RULE} ${coachCardRule(labelOf(answeringTo))} Consult again only if their answers raise a genuinely new question.]`;
   } else if (from === 'coach') {
-    head = `[The agents you consulted have answered. Now give Hayden your full answer to his question, built on what they found. Name whose input shaped it — "the Researcher's review of…", "your calendar shows…". ${SOURCE_RULE} If the Researcher answered, tell him its cited brief is in his Inbox. Then PROPOSE every concrete program change you recommend — one PROPOSE line per change (reorder, schedule, remove, targets, swap…), as suggestions he approves, not instructed — so each lands as a card he can say yes to. Do not consult again unless their answers raise a genuinely new question.]`;
+    head = `[The agents you consulted have answered. Now give Hayden your full answer to his question, built on what they found. Name whose input shaped it — "the Researcher's review of…", "your calendar shows…". ${SOURCE_RULE} If the Researcher answered, tell him its cited brief is in his Inbox. Then PROPOSE every concrete program change you recommend — one PROPOSE line per change (reorder, schedule, remove, targets, swap…), as suggestions he approves, not instructed — so each lands as a card he can say yes to. Do not consult again unless their answers raise a genuinely new question.${jointPanelNote(results, { by: 'coach' }) ? ` ${jointPanelNote(results, { by: 'coach' })}` : ''}]`;
   } else {
-    head = `[The agents you consulted have answered. Now give Hayden your answer, built on what they found: the synthesis, in your own voice, not a relay of each. Name whose input shaped it ("the Coach's view is…", "the Librarian found…"). ${SOURCE_RULE} Where they disagree, say so and say which you would act on. If the Researcher answered, tell him its cited brief is in his Inbox. ${coachCardRule()} Consult again only if their answers raise a genuinely new question; you may ask someone new to settle something for all of you.]`;
+    head = `[The agents you consulted have answered. Now give Hayden your answer, built on what they found: the synthesis, in your own voice, not a relay of each. Name whose input shaped it ("the Coach's view is…", "the Librarian found…"). ${SOURCE_RULE} Where they disagree, say so and say which you would act on. If the Researcher answered, tell him its cited brief is in his Inbox. ${coachCardRule()} Consult again only if their answers raise a genuinely new question; you may ask someone new to settle something for all of you.${jointPanelNote(results, { by: from === 'leader' ? 'leader' : 'nova' }) ? ` ${jointPanelNote(results, { by: from === 'leader' ? 'leader' : 'nova' })}` : ''}]`;
   }
   return `${head}\n\nHis question was: ${question}\n\n${blocks.join('\n\n')}`;
 }

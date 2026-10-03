@@ -114,7 +114,7 @@ export function Glyph({ k }) {
 export function StagePanel({ card, onOpen, sub }) {
   if (!card) return null;
   return (
-    <button type="button" className="nv-nt-spanel" onClick={(e) => onOpen?.(card, e.currentTarget)}
+    <button type="button" className="nv-nt-spanel" onClick={(e) => onOpen?.(card.compact ? { ...card, compact: false } : card, e.currentTarget)}
       aria-label={`${card.label || 'This panel'}${sub ? `, ${sub}` : ''}. Tap to open full width`}>
       <SafeVisual what="nova-thread-panel" resetKey={card.label}>
         <StageCard card={card} face="summary" />
@@ -127,17 +127,31 @@ export function StagePanel({ card, onOpen, sub }) {
 // B's stage, rising from under the head as glass over the thread while he
 // speaks, and ⌃ to tuck it. The thread stays where he left it, blurred and
 // dimmed behind (.nv-nt-stagedim, 30 Sep), so the stage is what he reads.
+// A DATA PANEL'S LIGHT, NAMED (3 Oct 2026, mockup 67 screen 3): the head says
+// which light this is and what is lit ("2 of 3 · Bench press, set 3") and
+// whose finding the panel shows ("from the Coach"), both in the finder's
+// hue; the sentence saying it is underlined in that hue. Colour never says
+// it alone.
 export function Stage({ s, onTuck, onOpen, leaving, replay }) {
+  const count = s.total > 1 && s.n > 0 ? `${s.n} of ${s.total}` : null;
   return (
     <section className={`nv-nt-stage${leaving ? ' leaving' : ''}`} aria-label={replay ? 'Replaying what Nova showed' : 'On the stage while Nova speaks'} aria-live="polite">
       <div className="nv-nt-sthead">
         <span className="t"><Ico name="stage" />{replay ? 'Replay' : 'Showing now'}</span>
-        {s.total > 1 && <span className="sub">{s.n} of {s.total}</span>}
+        {s.finder ? <span className="sub nv-nt-finder" style={{ '--h': s.finder.hue }}>{s.finder.words}</span>
+          : count && <span className="sub">{count}</span>}
         <button type="button" className="nv-nt-tuck" onClick={onTuck} aria-label={replay ? 'Close the replay' : 'Tuck the stage into the thread now'}><Ico name="upc" /></button>
       </div>
-      <StagePanel key={s.key} card={s.hero} onOpen={onOpen} sub={s.total > 1 ? `panel ${s.n} of ${s.total}` : null} />
+      {s.finder && (count || s.mark) && (
+        <p className="nv-nt-litname" style={{ '--h': s.mark?.hue || s.finder.hue }}>
+          {count && <span className="n">{count}</span>}{s.mark ? <b>{s.mark.name}</b> : <span>nothing lit</span>}
+        </p>
+      )}
+      <StagePanel key={s.key} card={s.hero} onOpen={onOpen} sub={count ? `panel ${s.n} of ${s.total}` : null} />
       {s.line && (s.line.lit || s.line.later) && (
-        <p className="nv-nt-line">{s.line.lit}{s.line.later ? <span className="later">{s.line.later}</span> : null}</p>
+        <p className={`nv-nt-line${s.mark ? ' marked' : ''}`} style={s.mark ? { '--h': s.mark.hue } : undefined}>
+          {s.mark ? <span className="m">{s.line.lit}</span> : s.line.lit}{s.line.later ? <span className="later">{s.line.later}</span> : null}
+        </p>
       )}
     </section>
   );
@@ -158,11 +172,12 @@ export function Settled({ st, time, onOpen, onReplay }) {
           <Ico name="play" />Replay
         </button>
       </div>
+      {st.last?.finder && <p className="nv-nt-litname" style={{ '--h': st.last.hue }}><b>{st.last.finder}</b></p>}
       <StagePanel card={st.last} onOpen={onOpen} />
       {st.others.length > 0 && (
         <div className="nv-nt-brail">
           {st.others.map((c, i) => (
-            <button key={`${c.label}:${i}`} type="button" className="nv-nt-mini" onClick={(e) => onOpen(c, e.currentTarget)}>
+            <button key={`${c.label}:${i}`} type="button" className={`nv-nt-mini${st.gists[i]?.hue ? ' hu' : ''}`} style={st.gists[i]?.hue ? { '--h': st.gists[i].hue } : undefined} onClick={(e) => onOpen(c, e.currentTarget)}>
               <b>{st.gists[i]?.b}</b><span>{st.gists[i]?.s}</span>
             </button>
           ))}
