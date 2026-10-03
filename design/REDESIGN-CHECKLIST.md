@@ -561,6 +561,21 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 3 Oct 2026 (night) — HIS QUESTION: why none of the redesign is on his phone.
+  Verified: the live GitHub Pages bundle carried that day's strings, so the
+  deploy worked; every redesigned surface renders only under style Summary
+  and his phone runs Cupertino (his own 26 Sep call to keep it stable); the
+  installed PWA also keeps old JS until reopened. I had said "your phone now
+  has everything", which was wrong in effect (memory nova-deployed-vs-
+  visible). THE DONE-TODAY FIX MERGED (bc4c596, server reloaded): his day
+  (Arms and Delts 6×18, Pull make-up 1×3, Upper Body make-up 1×3 with two
+  left off by choice) reads "3 sessions today · 8 exercises · 24 sets in
+  all", a ticked line each, "2 left off"; the Saturday row ticks all three;
+  Saturday's routine IS Arms and Delts in his schedule. No stale carry-over
+  (his store is empty). WORKOUT PANEL with live marks in flight (worktree
+  sessionpanel). His calls: re-picking "finish Upper Body" re-offers the two
+  left off (today) vs a filed make-up closes for good; Home's Training card
+  naming what was done today.
 - 3 Oct 2026 (evening) — PUSHED 7fa2e2e on his word. HIS EIGHTH ANSWERS:
   keep the coral-red speaking tint; Nova's words their own hue → --nv-nova
   "starlight" in every theme (9d87daa; cyan stays the talk accent and
