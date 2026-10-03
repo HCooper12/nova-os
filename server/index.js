@@ -282,6 +282,8 @@ async function main() {
   });
   app.post('/api/push/test', async (req, res) => {
     const { sendPush } = await import('./lib/push.js');
+    // inside quiet hours the test is held like any push, and the answer says
+    // so ({ held, deliverAt }) for Settings to tell him
     res.json(await sendPush({ title: 'Nova', body: 'Notifications are live — this is what a waiting draft will feel like.', tag: 'test' }));
   });
   app.use('/api', studioRouter(process.env.VAULT_PATH));
@@ -366,6 +368,10 @@ async function main() {
     .catch((e) => console.error('weekly-debrief scheduler failed to start:', e.message));
   import('./lib/reminders.js').then(({ startRemindersScheduler }) => startRemindersScheduler())
     .catch((e) => console.error('reminders scheduler failed to start:', e.message));
+  // QUIET HOURS: pushes held before a restart go now, or at the window's end
+  import('./lib/push.js').then(({ resumeHeldPushes }) => resumeHeldPushes())
+    .then((r) => { if (r.waiting || r.delivered) console.log(`quiet hours: ${r.delivered ? `delivered ${r.delivered} held push(es)` : `${r.waiting} push(es) held for the end of the window`}`); })
+    .catch((e) => console.error('held pushes failed to resume:', e.message));
   import('./lib/healthMirror.js').then(({ startHealthMirrorScheduler }) => startHealthMirrorScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('health-mirror scheduler failed to start:', e.message));
   import('./lib/patternScout.js').then(({ startPatternScoutScheduler }) => startPatternScoutScheduler(process.env.VAULT_PATH))

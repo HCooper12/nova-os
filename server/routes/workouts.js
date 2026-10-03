@@ -504,6 +504,12 @@ export function workoutsRouter(vaultPath) {
         if (!att) return res.status(400).json({ error: 'those attachments are gone — attach them again' });
         q = `${attachmentPreamble(att)}\n\n${question}`;
       }
+      // HIS WORDS, MARKED (his call, 3 Oct 2026: "my own words in the Leader
+      // chat or the Coach tab count the same way"): the exact string the
+      // Coach's turn takes as its question, so every agent it consults is
+      // told these are his own words (lib/consult.js consultedBrief)
+      const { markHisWords } = await import('../lib/consult.js');
+      markHisWords(q);
       res.json({ jobId: await startCoachTurn(vaultPath, { question: q, sessionId, liveSession: req.body?.liveSession }) });
     } catch (e) {
       res.status(500).json({ error: e.message });

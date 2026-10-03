@@ -25,8 +25,12 @@
 //          decide to cook/bake it"); recipes.js writes the pending line and
 //          every reader shows "not set" until he enters them;
 //   rails  each recipe is a `recipe` card (the voice path's exact shape, whose
-//          apply is addRecipe and whose undo removes it). When his words ASK
-//          for it to be added, it is applied at once; otherwise it waits.
+//          apply is addRecipe and whose undo removes it), applied at once.
+//          EVERY RECIPE LINK GOES STRAIGHT IN (his call, 3 Oct 2026: "Every
+//          recipe link should go straight in"): with or without recipe words,
+//          a recipe read from a link is added now, with its Undo on the card.
+//          Until then only words like "add" applied it and a bare link waited
+//          for his yes.
 //
 // THE RECIPE PAGE (29 Sep, his Osta reel: "share a recipe reel to it → a clean
 // recipe page with a photo, prep/cook time and servings"). The card now also
@@ -55,8 +59,6 @@ const SPAWN_PATH = [process.env.PATH, '/opt/homebrew/bin', '/usr/local/bin', '/u
 const LANE = 'recipe-video';
 
 export { RECIPE_WORDS_RE } from './intentRouter.js';
-// his words ask for it to be ADDED (applied now) rather than drafted
-export const ADD_NOW_RE = /\b(?:add|save|put|file|keep|import|store)\b/i;
 
 /* ------------------------------ the caption ------------------------------ */
 
@@ -302,7 +304,8 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
     const compute = deps.compute || (await import('./nutritionFacts.js')).computeFromComponents;
     const { loadRecipes } = await import('./recipes.js');
     const existing = deps.loadRecipes ? await deps.loadRecipes() : await loadRecipes(vaultPath).catch(() => []);
-    const addNow = ADD_NOW_RE.test(prose);
+    // every recipe link goes straight in (3 Oct): his words no longer decide
+    const addNow = true;
     const filed = [];
     const updated = [];
     const skipped = [];

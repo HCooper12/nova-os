@@ -511,6 +511,10 @@ export const api = {
   pushKey: (conn) => call(conn, '/api/push/key'),
   pushSubscribe: (conn, subscription) => post(conn, '/api/push/subscribe', { subscription }),
   pushTest: (conn) => post(conn, '/api/push/test', {}),
+  // QUIET HOURS (3 Oct 2026): his window, on his Melbourne clock, held on the
+  // Mac where the pushes are sent. { enabled, start, end, waiting }
+  quietHours: (conn) => call(conn, '/api/prefs/quiet-hours'),
+  setQuietHours: (conn, patch) => put(conn, '/api/prefs/quiet-hours', patch),
   pocketPing: (conn, body) => post(conn, '/api/pocket', body),
   pocketDisarm: (conn, key, ended = false) => post(conn, '/api/pocket/disarm', { key, ended }),
   guardianRestore: (conn, backup) => post(conn, '/api/guardian/restore', { backup }),

@@ -6,12 +6,25 @@ import { AGENTS } from './shared.js';
 import { dtf } from './fmt.js';
 import { glassOf } from '../glassBeats.js';
 import { muscleVar } from '../muscleHue.js';
+import { api, getConnection } from '../api.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
 // command palette, settings (incl. appearance), agents (concept), and the
 // toast. Consumes ctx counts from the domain builders (usingLiveRecipes,
 // liveRoutines, usingLiveNotes, journalDays, shoppingItems) plus the
 // connection truth valsMission shares (statusChip, missionStatusItems).
+
+// Quiet hours pick from the half hours of his day, shown on a 24-hour clock
+// to match how they are stored ("22:00").
+const QUIET_TIMES = Array.from({ length: 48 }, (_, i) => {
+  const v = `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`;
+  return { value: v, label: v };
+});
+// "07:00" from the server's UTC deliverAt, on this device's clock
+const quietClock = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? 'the end of quiet hours' : d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', hour12: false });
+};
 
 const OFF_DOCK_TITLE = { leader: 'Leader', practice: 'Practice', briefing: 'Briefing', console: 'Console', index: 'Index' };
 
@@ -591,7 +604,26 @@ export function valsChrome(app, ctx) {
         : st.pushState === 'unsupported' ? 'INSTALL TO HOME SCREEN (SAFARI → SHARE) TO ENABLE'
         : st.pushState === 'checking' ? 'CHECKING…' : 'OFF',
       enable: () => app.enablePushNotifications(),
-      test: () => app.testPush(),
+      // the test is a push like any other, so inside quiet hours it is held:
+      // the toast says when it will arrive rather than "no devices"
+      test: () => {
+        const conn = getConnection();
+        if (!conn) return;
+        api.pushTest(conn).then((r) => {
+          if (r?.held) app.toastMsg(`Quiet hours — the test arrives at ${quietClock(r.deliverAt)}`);
+          else app.toastMsg(r?.sent ? `Test sent to ${r.sent} device${r.sent === 1 ? '' : 's'} — check the lock screen` : 'No devices subscribed yet — tap ENABLE first');
+        }).catch((e) => app.toastMsg('Test failed: ' + e.message));
+      },
+    } : null,
+    // QUIET HOURS (his call, 3 Oct 2026: "Yes notifications respect quiet
+    // hours"). Server-held beside the model board, so hidden in demo mode and
+    // offline. The row holds its own loaded copy (Settings.jsx QuietHoursRow);
+    // this hands it the calls and the half-hour clock it picks from.
+    quietHours: !demoMode && !isOffline ? {
+      load: () => { const conn = getConnection(); return conn ? api.quietHours(conn) : Promise.reject(new Error('not connected')); },
+      save: (patch) => { const conn = getConnection(); return conn ? api.setQuietHours(conn, patch) : Promise.reject(new Error('not connected')); },
+      times: QUIET_TIMES,
+      fail: (msg) => app.toastMsg(msg),
     } : null,
     tabOrderItems: (tabOrder || []).map((k) => ({ key: k, label: tabLabel(k) })),
     frequentTabs,

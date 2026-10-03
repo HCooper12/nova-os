@@ -70,11 +70,40 @@ export async function subscriptionCount() {
 
 // Fire-and-forget to every registered device; dead endpoints (410/404 —
 // the user removed the app or revoked permission) are pruned quietly.
-export async function sendPush({ title, body, tag, url }) {
+//
+// QUIET HOURS (his call, 3 Oct 2026: "Yes notifications respect quiet
+// hours"). Every push asks lib/quietHours.js first: inside his window (his
+// Melbourne time) it is HELD, not sent, and the answer says so
+// ({ sent: 0, held: true, deliverAt }); when the window ends the held pushes
+// go as one (several become one combined push). `urgent: true` goes through
+// the window; nothing passes it today.
+export async function sendPush({ title, body, tag, url, urgent = false } = {}) {
+  const note = { title: title || 'Nova', body: body || '', tag: tag || 'nova', url: url || './#/inbox' };
+  const at = clock();
+  if (!urgent) {
+    const { getQuietHours, inQuietHours, quietEndsAt } = await import('./quietHours.js');
+    const prefs = getQuietHours();
+    if (inQuietHours(prefs, at)) {
+      const deliverAt = quietEndsAt(prefs, at);
+      const held = await holdPush(note, at);
+      scheduleFlush(deliverAt);
+      console.log(`push held for quiet hours (${held} waiting, delivery ${new Date(deliverAt).toISOString()}) — ${note.title}`);
+      return { sent: 0, held: true, deliverAt: new Date(deliverAt).toISOString(), waiting: held };
+    }
+  }
+  // the window has ended (or is off): anything still held goes first, so the
+  // order on his lock screen is the order things happened
+  await flushHeldPushes();
+  return deliver(note);
+}
+
+// The send itself, past every rule. Tests replace it (never a real device).
+async function deliver(note) {
+  if (transport) return transport(note);
   await getVapid();
   const subs = await loadSubs();
   if (!subs.length) return { sent: 0 };
-  const payload = JSON.stringify({ title: title || 'Nova', body: body || '', tag: tag || 'nova', url: url || './#/inbox' });
+  const payload = JSON.stringify(note);
   let sent = 0;
   const alive = [];
   for (const sub of subs) {
@@ -89,8 +118,125 @@ export async function sendPush({ title, body, tag, url }) {
   }
   if (alive.length !== subs.length) await saveSubs(alive);
   // a receipt in the log — "did the notification go?" was unanswerable before
-  console.log(`push ${sent}/${subs.length} — ${title}${url ? ` → ${url}` : ''}`);
+  console.log(`push ${sent}/${subs.length} — ${note.title}${note.url ? ` → ${note.url}` : ''}`);
   return { sent };
+}
+
+/* ------------------------------ the held queue ----------------------------- */
+
+const HELD_PATH = () => path.join(dataRoot(), 'push-held.json');
+let transport = null;
+let clock = () => Date.now();
+let flushTimer = null;
+let flushAt = null;
+let chain = Promise.resolve(); // one writer at a time on the held file
+
+/** Tests only: replace the device send (and the clock); null restores both. */
+export function _setPushTransportForTests(fn, { now = null } = {}) {
+  transport = fn || null;
+  clock = now || (() => Date.now());
+  if (!fn) cancelFlush();
+}
+
+const locked = (fn) => { const run = chain.then(fn, fn); chain = run.catch(() => {}); return run; };
+
+async function loadHeld() {
+  if (!existsSync(HELD_PATH())) return [];
+  try {
+    const raw = JSON.parse(await readFile(HELD_PATH(), 'utf8'));
+    return Array.isArray(raw.held) ? raw.held : [];
+  } catch {
+    return [];
+  }
+}
+async function saveHeld(held) {
+  await mkdir(dataRoot(), { recursive: true });
+  const tmp = HELD_PATH() + '.tmp';
+  await writeFile(tmp, JSON.stringify({ held }, null, 2), 'utf8');
+  await rename(tmp, HELD_PATH());
+}
+
+// One push into the queue. A newer push with the same tag replaces the older
+// one (the phone would have replaced it on the lock screen anyway).
+function holdPush(note, at) {
+  return locked(async () => {
+    const held = (await loadHeld()).filter((h) => h.tag !== note.tag);
+    held.push({ ...note, heldAt: new Date(at).toISOString() });
+    await saveHeld(held);
+    return held.length;
+  });
+}
+
+export async function heldPushes() { return loadHeld(); }
+
+// What several held pushes become: ONE notification that names how many and
+// what they were, opening the Inbox (or the one screen they all point at).
+export function combinePushes(held) {
+  if (held.length === 1) {
+    const { heldAt: _heldAt, ...note } = held[0];
+    return note;
+  }
+  const titles = held.map((h) => String(h.title || 'Nova').replace(/\s+—\s+Nova$/, '').trim());
+  let body = titles.join(' · ');
+  if (body.length > 220) body = `${body.slice(0, 219).replace(/\s+\S*$/, '')}…`;
+  const urls = [...new Set(held.map((h) => h.url || './#/inbox'))];
+  return {
+    title: `Nova — ${held.length} held during quiet hours`,
+    body,
+    tag: 'quiet-hours',
+    url: urls.length === 1 ? urls[0] : './#/inbox',
+  };
+}
+
+// Deliver whatever is held, as one push, when the window is over. Inside the
+// window it does nothing (a timer that fired early, a boot at 3am).
+export async function flushHeldPushes() {
+  const { getQuietHours, inQuietHours, quietEndsAt } = await import('./quietHours.js');
+  const prefs = getQuietHours();
+  const at = clock();
+  if (inQuietHours(prefs, at)) {
+    if ((await loadHeld()).length) scheduleFlush(quietEndsAt(prefs, at));
+    return { sent: 0, held: true };
+  }
+  const held = await locked(async () => {
+    const h = await loadHeld();
+    if (h.length) await saveHeld([]);
+    return h;
+  });
+  if (!held.length) return { sent: 0, delivered: 0 };
+  cancelFlush();
+  try {
+    const out = await deliver(combinePushes(held));
+    return { ...out, delivered: held.length };
+  } catch (e) {
+    // a failed send puts them back rather than losing them
+    await locked(async () => saveHeld([...held, ...(await loadHeld())]));
+    throw e;
+  }
+}
+
+function cancelFlush() {
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = null;
+  flushAt = null;
+}
+
+function scheduleFlush(atMs) {
+  if (transport) return; // tests drive the flush themselves, with their own clock
+  if (flushTimer && flushAt === atMs) return;
+  cancelFlush();
+  flushAt = atMs;
+  // a minute's grace past the end, so the check lands outside the window
+  flushTimer = setTimeout(() => { flushTimer = null; flushHeldPushes().catch((e) => console.log(`held push delivery failed: ${e.message}`)); }, Math.max(0, atMs - Date.now()) + 1000);
+  flushTimer.unref?.();
+}
+
+// At boot: anything held before a restart is delivered now (the window is
+// over) or scheduled for the end of it.
+export async function resumeHeldPushes() {
+  if (!(await loadHeld()).length) return { waiting: 0 };
+  const out = await flushHeldPushes();
+  return { waiting: out.held ? (await loadHeld()).length : 0, ...out };
 }
 
 // The taste filter: pushes go out for things WAITING ON HAYDEN, not for

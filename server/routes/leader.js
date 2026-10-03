@@ -4,6 +4,7 @@ import {
   buildLeaderChatContext, applyLeaderReflection, leaderLiveLine, situationOf, answerSituation,
 } from '../lib/leader.js';
 import { startAskLeader } from '../lib/claudeCode.js';
+import { markHisWords } from '../lib/consult.js';
 
 export function leaderRouter(vaultPath) {
   const router = Router();
@@ -61,6 +62,13 @@ export function leaderRouter(vaultPath) {
 
   // The sit-down. Same job/session shape as Coach — the client polls the
   // existing claude-code job endpoint for streaming partials.
+  //
+  // HIS WORDS COUNT HERE TOO (his call, 3 Oct 2026: "my own words in the
+  // Leader chat or the Coach tab count the same way when those agents consult
+  // the Coach"). The exact string handed to the Leader's turn is marked as
+  // his (lib/consult.js markHisWords), so when the Leader consults the Coach
+  // with it, a change he told the Leader to make applies on his standing
+  // grant, exactly as it would from Nova or the Coach tab.
   router.post('/leader/chat', async (req, res) => {
     try {
       const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
@@ -72,9 +80,11 @@ export function leaderRouter(vaultPath) {
         // every turn, exactly as the Coach's route does.
         const fresh = await leaderLiveLine().catch(() => '');
         const q = fresh ? `[Live now — trust this over anything earlier in this conversation: ${fresh}]\n\n${question}` : question;
+        markHisWords(q);
         return res.json({ jobId: startAskLeader(vaultPath, { question: q, sessionId }) });
       }
       const context = await buildLeaderChatContext(vaultPath);
+      markHisWords(question);
       res.json({ jobId: startAskLeader(vaultPath, { question, context, sessionId: null }) });
     } catch (err) { res.status(400).json({ error: err.message }); }
   });

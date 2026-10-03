@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { TabOrderEditor } from '../TabOrderEditor.jsx';
-import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button, Chevron } from '../Controls.jsx';
+import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button, Chevron, Select } from '../Controls.jsx';
+import { SkeletonBar } from '../Skeleton.jsx';
 import { hapticCapability, HAPTIC_WORDS, haptic, hapticDiagnostic } from '../haptics.js';
 
 // the material pass (6 Sep 2026): labels through Controls.jsx; a filled
@@ -20,6 +22,67 @@ function CheckRow({ ok, stage, detail }) {
         <span style={{ color: 'var(--nv-ink)' }}>{stage}</span>
       </div>
       <div style={css("padding-left:18px;font-size:11px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>{detail}</div>
+    </div>
+  );
+}
+
+// QUIET HOURS (his call, 3 Oct 2026: "Yes notifications respect quiet
+// hours"). Pushes inside the window wait on the Mac and arrive together when
+// it ends. The row loads its own copy from the server (the window lives where
+// the pushes are sent), shows a skeleton until it lands, says so plainly if
+// it cannot, and writes each change as it is made. Times are his Melbourne
+// clock, the same 24-hour form they are stored in.
+function QuietHoursRow({ q }) {
+  const [prefs, setPrefs] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const load = () => {
+    setFailed(false);
+    q.load().then(setPrefs).catch(() => setFailed(true));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, []);
+  const save = (patch) => {
+    if (busy || !prefs) return;
+    const before = prefs;
+    setPrefs({ ...prefs, ...patch });
+    setBusy(true);
+    q.save(patch)
+      .then(setPrefs)
+      .catch((e) => { setPrefs(before); q.fail(`Quiet hours not saved: ${e.message}`); })
+      .finally(() => setBusy(false));
+  };
+  const waiting = prefs?.waiting ? ` · ${prefs.waiting} waiting now` : '';
+  return (
+    <div className="nv-pane" style={{ marginTop: '10px', padding: '14px 18px', maxWidth: '520px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span style={{ display: 'block', fontSize: '14px', fontWeight: 600 }}>Quiet hours</span>
+          {prefs ? (
+            <Meta as="div" tone="faint" style={{ marginTop: '2px' }}>
+              {prefs.enabled ? `Pushes wait until ${prefs.end}, then arrive as one${waiting}` : `Off · every push arrives when it happens${waiting}`}
+            </Meta>
+          ) : failed ? (
+            <Meta as="div" tone="warn" style={{ marginTop: '2px' }}>Could not read them from the Mac</Meta>
+          ) : (
+            <SkeletonBar w="70%" h="11px" style={{ marginTop: '6px' }} />
+          )}
+        </span>
+        {prefs && (
+          <label className="nv-sum-switch" data-on={prefs.enabled ? 'true' : 'false'}>
+            <input type="checkbox" role="switch" checked={prefs.enabled} disabled={busy} onChange={() => save({ enabled: !prefs.enabled })} aria-label="Quiet hours" />
+          </label>
+        )}
+        {failed && <TextAction onClick={load}>Try again</TextAction>}
+      </div>
+      {prefs?.enabled && (
+        <div role="group" aria-label="Quiet hours window" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Meta tone="faint">From</Meta>
+          <Select value={prefs.start} options={q.times} ariaLabel="Quiet hours start" onChange={(e) => save({ start: e.target.value })} />
+          <Meta tone="faint">to</Meta>
+          <Select value={prefs.end} options={q.times} ariaLabel="Quiet hours end" onChange={(e) => save({ end: e.target.value })} />
+        </div>
+      )}
     </div>
   );
 }
@@ -376,6 +439,7 @@ export function Settings({ v }) {
               <Chip tone="cyan" onClick={v.pushSettings.test}>Test</Chip>
             )}
           </div>
+          {v.quietHours && <QuietHoursRow q={v.quietHours} />}
           <div style={css("margin-top:8px;max-width:520px;font-size:11px;line-height:1.6;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Pushes fire when something needs your call — a drafted brief, a research outline, a Guardian alert. iPhone mirrors them to the Apple Watch automatically. Requires Nova installed to the Home Screen (Safari → Share → Add to Home Screen).</div>
         </div>
       )}

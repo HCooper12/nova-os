@@ -90,7 +90,8 @@ export async function awaitHandsFree(jobId, {
 // notification"). Siri has already hung up by the time the synthesis lands,
 // so once onReady has put it in the record, ONE push goes to his phone
 // through the existing path (push.sendPush: every registered device, dead
-// endpoints pruned; that path has no quiet hours or rate rule of its own),
+// endpoints pruned; since 3 Oct it honours his quiet hours, so an answer that
+// lands at 23:00 is held and arrives with the end of the window),
 // naming who answered and the answer's first sentence, and opening the Nova
 // thread. A failed turn sends none: the failure line in the record is the
 // whole of it. A push that fails to send never sinks the follow-through.

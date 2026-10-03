@@ -6,7 +6,7 @@
 // gets its own reader, and then rides the reel's exact rails: the same model
 // read into structured recipes, the same code-decided macros (the page's own
 // per-serving figures when they add up, else computed from weights, else not
-// set — never a guess), the same `recipe` cards, the same add-now-or-wait rule
+// set — never a guess), the same `recipe` cards, added straight in (3 Oct),
 // and the same undo.
 //
 //   code   fetches the page and takes the schema.org Recipe block most recipe
@@ -168,8 +168,8 @@ export async function fetchRecipePage(url, { timeoutMs = 20_000, fetchImpl = fet
 /**
  * "Add this to my recipes: <link>", from any door. A video goes to the reel
  * reader, anything else to the page reader; both land on the same rails.
- * `prose` is his words: words that ask for it to be ADDED apply it at once
- * (recipeFromVideo's ADD_NOW_RE); none leave the cards for his yes.
+ * `prose` is his words, handed to the reader as context. Every recipe goes
+ * straight in with its Undo, whatever he said (his call, 3 Oct 2026).
  */
 export async function startRecipeImport(vaultPath, url, prose = '', deps = {}) {
   const link = classifyLink(url, prose || 'add to my recipes');

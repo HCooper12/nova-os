@@ -61,8 +61,6 @@ export function _setJobLanesForTests(over) { lanes = over ? { ...REAL, ...over }
 
 const say = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 const short = (s, n = 60) => { const t = say(s); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
-// the words that ask for a recipe to go straight in (recipeFromVideo's rule)
-const ADD_NOW_RE = /\b(?:add|save|put|file|keep|import|store)\b/i;
 
 // ------------------------------------------------------------ withdrawal
 
@@ -153,7 +151,7 @@ export const JOB_VERBS = [
   },
   {
     id: 'link.file', tier: 'act',
-    describe: 'file a link he gave you when he wants it KEPT and has not said what to do with it — Nova\'s code decides what it is: a recipe reel or recipe page goes to his recipe bank (waiting for his yes), a video to the Watcher, a channel to a study, an article to the Inbox',
+    describe: 'file a link he gave you when he wants it KEPT and has not said what to do with it — Nova\'s code decides what it is: a recipe reel or recipe page goes straight into his recipe bank (with its Undo), a video to the Watcher, a channel to a study, an article to the Inbox',
     args: { url: 'the exact link he gave', words: 'optional — what he said with it' },
     async run(vaultPath, args) {
       const words = say(args.words);
@@ -162,10 +160,9 @@ export const JOB_VERBS = [
       let record;
       let said;
       if (link.kind === 'recipe-reel' || link.kind === 'recipe-page') {
+        // every recipe link goes straight in (his call, 3 Oct 2026), words or none
         record = await lanes.startRecipeImport(vaultPath, link.url, words);
-        said = ADD_NOW_RE.test(words)
-          ? 'That is a recipe — reading it straight into your recipe bank.'
-          : 'That is a recipe — reading it now; it waits for your yes before it goes into your recipe bank.';
+        said = 'That is a recipe — reading it straight into your recipe bank.';
       } else if (link.kind === 'channel') {
         record = await lanes.startStudy(vaultPath, { urls: [link.url], prose: words });
         said = 'That is a whole channel — the study is running, and the brief lands in your Inbox.';
@@ -191,9 +188,8 @@ export const JOB_VERBS = [
       const link = classifyLink(args.url, words || 'add to my recipes');
       if (!link.kind) throw new Error(`"${short(args.url)}" is not a link I can read a recipe from`);
       if (link.kind === 'channel') throw new Error('that is a whole channel, not one recipe — send the one video');
-      // he asked for it: the import's add-now rule sees an add word
-      const prose = ADD_NOW_RE.test(words) ? words : `add to my recipes${words ? ` — ${words}` : ''}`;
-      const record = await lanes.startRecipeImport(vaultPath, link.url, prose);
+      // it goes straight in whatever he said (3 Oct); his words ride as context
+      const record = await lanes.startRecipeImport(vaultPath, link.url, words);
       return {
         destination: `Recipe bank — importing from ${short(link.host, 40)}`,
         said: link.kind === 'recipe-page' ? 'Reading the recipe off that page — it goes into your recipe bank in a minute.' : 'Reading the recipe out of the reel — it goes into your recipe bank in a minute.',
@@ -239,7 +235,7 @@ export const JOB_VERBS = [
   },
   {
     id: 'research.run', tier: 'act', gate: 'research',
-    describe: 'put the Researcher on a question when he asks you to research something, look it up online, or "research X and capture it": web-read-only, every claim cited, and the brief is CAPTURED in his Inbox for review (and shown here when it lands). "when":"tonight" queues it for the overnight window. Never on your own initiative — a question you can answer now, answer (or CONSULT the Researcher)',
+    describe: 'put the Researcher on a question when he asks you to research something, look it up online, or "research X and capture it": web-read-only, every claim cited, and the brief is CAPTURED in his Inbox for review (and shown here when it lands). "when":"tonight" queues it for the overnight window. Start the job when he asks for research to be done or a link to be read; a QUESTION the evidence should settle, however he worded it, is a CONSULT to the Researcher instead, so you can answer him from what it finds',
     args: { question: 'the question, tight and specific', url: 'optional — a link to read, exactly as he gave it', when: 'optional — "tonight" to queue it overnight' },
     gateSkip: (args) => String(args.when || '').toLowerCase() === 'tonight',
     async run(vaultPath, args) {

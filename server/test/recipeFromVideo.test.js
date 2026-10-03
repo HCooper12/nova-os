@@ -15,7 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RECIPE_FILE } from './fixtures.js';
 
-const { captionHasRecipe, macrosFor, toRecipePayload, startRecipeFromVideo, ADD_NOW_RE, categoryFor, missingFacts, _setImageFetchForTests } = await import('../lib/recipeFromVideo.js');
+const { captionHasRecipe, macrosFor, toRecipePayload, startRecipeFromVideo, categoryFor, missingFacts, _setImageFetchForTests } = await import('../lib/recipeFromVideo.js');
 const { routeIntent, RECIPE_WORDS_RE } = await import('../lib/intentRouter.js');
 const { captureLane, startCapture, approveRecord, undoRecord } = await import('../lib/inbox.js');
 const { createRecord, getRecord } = await import('../lib/inboxStore.js');
@@ -51,7 +51,6 @@ test('THE REPORT: his exact capture words route to the recipe lane, from the cap
   // the TikTok share sheet hands over a short link (29 Sep)
   assert.equal(routeIntent('https://vt.tiktok.com/ZSabc123/ — add to my recipes').lane, 'recipe');
   assert.equal(routeIntent('https://vt.tiktok.com/ZSabc123/').lane, 'watch');
-  assert.ok(ADD_NOW_RE.test('Add to my recipes'));
 });
 
 test('a caption with quantities or an ingredient list holds a recipe; a vibe caption does not', () => {
@@ -110,12 +109,18 @@ test('the lane: a reel with no macros, and he said "add" → a "macros not set" 
   assert.deepEqual(approved, [card.id], 'he said add, so it is added — with its macros not set');
   assert.equal(updates.at(-1).status, 'filed');
   assert.match(updates.at(-1).destination, /^Recipe bank — Kinder Bueno Oats \(macros not set\)/);
-  // without "add" it still files the card, waiting for his yes
+  // without "add" it goes straight in too (his call, 3 Oct 2026: "Every
+  // recipe link should go straight in")
   created.length = 0; approved.length = 0;
   await startRecipeFromVideo('/vault', 'https://www.instagram.com/reel/x/', 'turn this into a recipe', base);
-  assert.equal(created.find((r) => r.decision?.route === 'recipe').decision.payload.macros, null);
-  assert.deepEqual(approved, []);
-  assert.match(updates.at(-1).destination, /^Waiting for your yes — Kinder Bueno Oats \(macros not set\)/);
+  const card2 = created.find((r) => r.decision?.route === 'recipe');
+  assert.equal(card2.decision.payload.macros, null);
+  assert.deepEqual(approved, [card2.id]);
+  assert.match(updates.at(-1).destination, /^Recipe bank — Kinder Bueno Oats \(macros not set\)/);
+  // and with no words at all
+  created.length = 0; approved.length = 0;
+  await startRecipeFromVideo('/vault', 'https://www.instagram.com/reel/x/', '', base);
+  assert.deepEqual(approved, [created.find((r) => r.decision?.route === 'recipe').id]);
 });
 
 test('the lane: caption → recipe card → applied at once because he said "add"', async () => {
@@ -250,7 +255,7 @@ test('a backfill never overwrites: a recipe that already has servings keeps them
   assert.equal(kept.source, null);
 });
 
-test('a new reel recipe applied at once gets its photo after it is in the file; one waiting for his yes gets it on approve; Undo removes both', async () => {
+test('a new reel recipe applied at once gets its photo after it is in the file, words or none; a card waiting for his yes gets it on approve; Undo removes both', async () => {
   await writeFile(FILE, RECIPE_FILE);
   _setImageFetchForTests(async (u) => { assert.equal(u, 'https://cdn.example/thumb.jpg'); return PNG; });
   try {
@@ -266,16 +271,27 @@ test('a new reel recipe applied at once gets its photo after it is in the file; 
     assert.ok(!existsSync(path.join(PHOTOS, 'reel-oats.png')), 'the photo Nova saved goes with it');
     assert.equal(await readFile(FILE, 'utf8'), RECIPE_FILE);
 
-    // no "add" in his words → a card waiting, with the thumbnail URL on it and no photo yet
-    const wait = await startRecipeFromVideo(vault, 'https://www.instagram.com/reel/NEW/', '', REEL('Reel Oats'));
-    const cardId = (await getRecord(wait.id)).recipeCards[0];
-    const card = await getRecord(cardId);
-    assert.equal(card.status, 'pending');
-    assert.equal(card.decision.payload.photoUrl, 'https://cdn.example/thumb.jpg');
+    // no words at all (a bare link): straight in as well, photo and Undo alike (3 Oct)
+    const bare = await startRecipeFromVideo(vault, 'https://www.instagram.com/reel/NEW/', '', REEL('Reel Oats'));
+    const bareJob = await getRecord(bare.id);
+    assert.match(bareJob.destination, /^Recipe bank — Reel Oats/);
+    const bareCard = await getRecord(bareJob.recipeCards[0]);
+    assert.equal(bareCard.status, 'filed');
+    assert.ok(existsSync(path.join(PHOTOS, 'reel-oats.png')));
+    await undoRecord(vault, bareCard.id);
     assert.ok(!existsSync(path.join(PHOTOS, 'reel-oats.png')));
-    await approveRecord(vault, cardId);
+    assert.equal(await readFile(FILE, 'utf8'), RECIPE_FILE);
+
+    // a recipe card still waiting for his yes (one filed before 3 Oct, or by
+    // Nova's PROPOSE) carries the thumbnail URL and gets the photo on approve
+    const waiting = await createRecord({
+      id: 'waitoats', text: 'r', source: 'capture', mode: 'review-all', status: 'pending', createdAt: new Date().toISOString(),
+      decision: { route: 'recipe', confidence: 'high', title: 'Recipe: Reel Oats', payload: { ...bareCard.decision.payload } },
+    });
+    assert.ok(!existsSync(path.join(PHOTOS, 'reel-oats.png')));
+    await approveRecord(vault, waiting.id);
     assert.ok(existsSync(path.join(PHOTOS, 'reel-oats.png')), 'his yes saves the photo');
-    await undoRecord(vault, cardId);
+    await undoRecord(vault, waiting.id);
     assert.equal(await readFile(FILE, 'utf8'), RECIPE_FILE);
   } finally {
     _setImageFetchForTests(async () => { throw new Error('no network in tests: inject a fetcher'); });
@@ -298,7 +314,7 @@ test('a thumbnail that will not download never fails the recipe', async () => {
 
 /* ------------------ a bare shared link (no words at all) ------------------ */
 
-test('THE SHARE SHEET: a bare reel whose caption is a recipe becomes a recipe card waiting for his yes', async () => {
+test('THE SHARE SHEET: a bare reel whose caption is a recipe takes the recipe lane, which adds it straight in', async () => {
   const calls = [];
   const deps = {
     fetchCaption: async (u) => { calls.push(['caption', u]); return { title: 't', uploader: 'Sean Graham', caption: CAPTION }; },
@@ -308,8 +324,7 @@ test('THE SHARE SHEET: a bare reel whose caption is a recipe becomes a recipe ca
   const out = await startCapture(vault, { text: 'https://www.instagram.com/reel/DdTRWX9zwd4/' }, deps);
   assert.equal(out.kind, 'recipe-video');
   assert.deepEqual(calls.map((c) => c[0]), ['caption', 'recipe']);
-  assert.equal(calls[1][2], '', 'no words = no instruction to add: the card waits for his yes');
-  assert.ok(!ADD_NOW_RE.test(calls[1][2]));
+  assert.equal(calls[1][2], '', 'no words, and the lane adds it anyway (3 Oct: every recipe link goes straight in)');
   const handed = await out.laneDeps.fetchCaption();
   assert.equal(handed.caption, CAPTION, 'the caption already read is handed on, not fetched twice');
   // captureLane itself is unchanged: still pure, still "watch" for a bare link

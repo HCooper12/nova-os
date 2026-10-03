@@ -209,7 +209,9 @@ async function fireDue() {
   for (const r of due) {
     const say = reminderFireText(r, now);
     const { sendPush } = await import('./push.js');
-    sendPush({ title: say.title, body: say.body, tag: `reminder-${r.id}` }).catch(() => {});
+    // URGENT: he set this time himself, so quiet hours never hold it
+    // (lib/quietHours.js; the parent's call, 3 Oct, on the build's finding)
+    sendPush({ title: say.title, body: say.body, tag: `reminder-${r.id}`, urgent: true }).catch(() => {});
     import('./telegram.js').then(({ telegramConfigured, sendTelegramText }) => {
       if (telegramConfigured()) return sendTelegramText(say.telegram);
     }).catch(() => {});

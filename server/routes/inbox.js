@@ -101,6 +101,11 @@ export function inboxRouter(vaultPath) {
       const { startResearch } = await import('../lib/researcher.js');
       // model: the client already asked "Opus or Sonnet?" via the
       // model-choice gate before sending this request — 'opus'/'sonnet' only.
+      // his words, typed to the Researcher himself: they count when its
+      // merge consults the Coach (lib/consult.js markHisWords; 3 Oct). The
+      // lane trims the question, and the trimmed string is what it carries.
+      const { markHisWords } = await import('../lib/consult.js');
+      markHisWords(String(req.body?.question || '').trim());
       const record = await startResearch(vaultPath, req.body?.question, { model: req.body?.model });
       res.json({ record });
     } catch (e) {

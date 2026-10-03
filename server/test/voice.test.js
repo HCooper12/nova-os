@@ -50,7 +50,11 @@ test('ask prompt: companion contract — continuing conversation, vault-grounded
   assert.match(prompt, /"panel":"note"/);
   assert.match(prompt, /ACT \{"verb":"research\.run","args":\{"question"/);
   assert.match(prompt, /ACT \{"verb":"video\.watch"/);
-  assert.match(prompt, /Research only when he asks for it — never on your own initiative/);
+  // 3 Oct 2026, his call: no phrase-gated routing. The research JOB is his
+  // to ask for; a question the evidence should settle is a CONSULT to the
+  // Researcher whatever words he used, and the prompt says whom to ask for what
+  assert.match(prompt, /a QUESTION the evidence should settle is a CONSULT to the Researcher, whatever words he used/);
+  assert.match(prompt, /WHOM TO ASK IS DECIDED BY WHAT THE ANSWER NEEDS, NEVER BY THE WORDS HE USED/);
   assert.match(prompt, /no door is a smaller Nova/);
   assert.match(prompt, /never invent/);
   assert.match(prompt, /tap REMEMBER/);

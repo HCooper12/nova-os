@@ -2,6 +2,16 @@ import { Router } from 'express';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { routeIntent, LANE_LABEL } from '../lib/intentRouter.js';
+
+// A research COMMAND the job grammar is sure of ("research X", "dig into X"),
+// as opposed to a question that merely contains a research word. verbs.js is
+// loaded first: it and verbJobs.js import each other, and verbs.js reads the
+// job verbs as it loads, so verbJobs.js must never be the first of the two.
+async function researchCommand(text) {
+  await import('../lib/verbs.js');
+  const { parseJobCommand } = await import('../lib/verbJobs.js');
+  return parseJobCommand(text)?.verb === 'research.run';
+}
 const REPO_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..'); // the same root claudeCodeRouter's 'repo' workspace uses
 
 // The front door — one endpoint behind one input, anywhere in Nova.
@@ -156,9 +166,28 @@ export function intentRouter(vaultPath) {
         const { startBriefing } = await import('../lib/briefing.js');
         out.record = await startBriefing(vaultPath, { topic: text, standing: text });
         out.said = 'On it — I will research this from a few angles at once, then write it up. You will get a notification when it is ready to read or listen to.';
+      } else if (lane === 'research' && !forced && !decision.urls?.length && !(await researchCommand(text))) {
+        // NO PHRASE-GATED ROUTING (his call, 3 Oct 2026: "it should always
+        // consult the Researcher or whatever relevant specific agent … Not
+        // just when I use a specific phrase"). A research WORD in a question
+        // ("find out…", "what does the evidence say…") no longer decides that
+        // a research job runs and nobody else is asked: the question goes to
+        // Nova, who asks whoever the answer needs (the Researcher when the
+        // evidence should settle it, the Coach, the Librarian, several at
+        // once) and answers here. A research COMMAND the job grammar is sure
+        // of ("research X") still starts the job at once: the same outcome,
+        // faster.
+        out.lane = 'ask';
+        out.label = LANE_LABEL.ask;
+        out.why = 'a question — Nova asks whoever the answer needs (the Researcher when the evidence should settle it) and answers you';
+        out.forward = { screen: 'voice', question: text };
+        out.said = 'Asking Nova.';
       } else if (lane === 'research') {
         const { startResearch } = await import('../lib/researcher.js');
         const q = decision.urls?.length ? `${decision.prose || 'Read and summarise this'}: ${decision.urls.join(' ')}` : text;
+        // his words, typed to the Researcher: they count if it consults the Coach
+        const { markHisWords } = await import('../lib/consult.js');
+        markHisWords(q.trim());
         out.record = await startResearch(vaultPath, q);
         out.said = 'Researching now — the brief lands in your Inbox with citations.';
       } else if (lane === 'repertoire') {

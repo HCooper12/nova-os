@@ -152,6 +152,10 @@ export function voiceRouter(vaultPath) {
       if (lane === 'coach') {
         const { startCoachTurn } = await import('../lib/coachTurn.js');
         const coachSession = typeof req.body?.coachSessionId === 'string' && req.body.coachSessionId ? req.body.coachSessionId : null;
+        // his words to the Coach, from Nova's door: they count as they do in
+        // the Coach tab (lib/consult.js markHisWords; his call, 3 Oct)
+        const { markHisWords } = await import('../lib/consult.js');
+        markHisWords(question);
         const jobId = await startCoachTurn(vaultPath, { question, sessionId: coachSession, liveSession: req.body?.liveSession || null });
         console.log(`ask → coach (${coachSession ? 'resumed' : 'new'}) q=${JSON.stringify(question.slice(0, 60))}`);
         return res.json({ jobId, agent: 'coach' });
@@ -160,12 +164,17 @@ export function voiceRouter(vaultPath) {
         const { startAskLeader } = await import('../lib/claudeCode.js');
         const { leaderLiveLine, buildLeaderChatContext } = await import('../lib/leader.js');
         const leaderSession = typeof req.body?.leaderSessionId === 'string' && req.body.leaderSessionId ? req.body.leaderSessionId : null;
+        // his words to the Leader, from Nova's door, count as they do in the
+        // Leader chat (lib/consult.js markHisWords; his call, 3 Oct)
+        const { markHisWords } = await import('../lib/consult.js');
         let jobId;
         if (leaderSession) {
           const fresh = await leaderLiveLine().catch(() => '');
           const q = fresh ? `[Live now — trust this over anything earlier in this conversation: ${fresh}]\n\n${question}` : question;
+          markHisWords(q);
           jobId = startAskLeader(vaultPath, { question: q, sessionId: leaderSession });
         } else {
+          markHisWords(question);
           jobId = startAskLeader(vaultPath, { question, context: await buildLeaderChatContext(vaultPath), sessionId: null });
         }
         console.log(`ask → leader (${leaderSession ? 'resumed' : 'new'})`);
@@ -513,10 +522,13 @@ export function voiceRouter(vaultPath) {
         : [await askContext(null, { fast: true }), ''];
       const started = Date.now();
       // his own words to Nova (lib/consult.js markHisWords, 1 Oct)
+      // the exact string Nova's turn takes (attachments ride in front), since
+      // that is the string her consults carry
       const { markHisWords } = await import('../lib/consult.js');
-      markHisWords(question);
+      const asked = attachmentPreamble ? `${attachmentPreamble}\n\n${question}` : question;
+      markHisWords(asked);
       const jobId = startAskNova(vaultPath, {
-        question: attachmentPreamble ? `${attachmentPreamble}\n\n${question}` : question, context, liveLine, direct: true,
+        question: asked, context, liveLine, direct: true,
         sessionId: spoken.sessionId, resume: spoken.resumed,
       });
       // THE LINE AND A SLOW ASK (lib/handsFree.js, his call 30 Sep): a

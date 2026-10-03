@@ -107,3 +107,94 @@ the thread's own talk. The CaptureSheet still opens from the Inbox's hint line
   on iOS: the core will come up, but the microphone may need a tap if iOS
   refuses to start it from a hold.
 - **No real Shortcut** has sent `files` to `/ask/sync`.
+
+## No phrase-gated routing (3 Oct 2026)
+
+His words, verbatim: "Specific phrases should not have one or the other as a
+response or route that nova goes down. For example, if I ask a research
+question or use the word evidence etc it should always consult the Researcher
+or whatever relevant specific agent and information accessed by nova and known
+exists. Not just when I use a specific phrase."
+
+The rule this section applies: a keyword may be a **fast path** to the outcome
+Nova would reach anyway (a bare command the grammar is sure of runs with no
+model). A keyword may never be the thing that decides **whether** an agent is
+asked. Every place a keyword made that decision was read in the code on branch
+`build-doors2` (from `main` at 972541c). None of it was run against a real
+model.
+
+### What was phrase-gated, and what it became
+
+| Where | Before | After |
+|---|---|---|
+| **Nova's prompt** (`claudeCode.js` `buildAskPrompt`, the EVERY DOOR bullet) | "Research only when he asks for it — never on your own initiative; a question you can answer now, answer, or CONSULT the Researcher." Nothing said *when* to consult whom, so an evidence question without the word "research" was answered from the model's own memory, and the agents were asked when the model happened to think of it | A new bullet, **WHOM TO ASK IS DECIDED BY WHAT THE ANSWER NEEDS, NEVER BY THE WORDS HE USED** (`claudeCode.js:303`), in plain terms: evidence or the literature → the Researcher (and evidence is never "something you can answer well yourself"); his books, notes, sources, concepts → the Librarian; his program, sessions, recovery, food → the Coach; work and people → the Leader; his day → the calendar; a question spanning several → ask each at once. The research line now separates the **job** he asks for (`research.run`, "research X", a link to read) from a **question** the evidence should settle, which is a CONSULT to the Researcher whatever words he used |
+| **`research.run`'s catalogue line** (`verbJobs.js`, generated into the prompt) | "Never on your own initiative" | The job when he asks for research or a link read; a question the evidence should settle is a CONSULT to the Researcher instead |
+| **The shared consult paragraph** (`consult.js` `consultCapability`, every reasoning agent) | Who can be asked, and "do not consult for something you can answer well yourself" | The same, plus one sentence: whom to ask is decided by what the answer needs, never by the words used to ask it. The Coach's per-turn reminder (`consultReminder`) is unchanged, so it stays one paragraph |
+| **The palette** (`routes/intent.js` POST `/intent`, `research` lane, no link) | Any sentence matching `RESEARCH_RE` (`research`, `look up`, `find out`, `dig into`, `what does the evidence say`, `sources on`) started a Researcher job and nobody else was asked. "Find out whether my sleep is why my bench stalled" went to the web, never to the Coach | A research **command** the job grammar is sure of (`parseJobCommand` → `research.run`: "research X", "dig into X") still starts the job at once. A **question** that merely contains a research word goes to Nova (`forward: voice`), who asks whoever the answer needs. His own lane choice from the UI still wins. The router itself (`intentRouter.js`) is unchanged; only the dispatch moved, so the lane chip still reads RESEARCH for those sentences while the reply says Nova is answering |
+
+### Kept as fast paths, and why
+
+- **The Coach and Leader lanes in `/api/ask`** (`voice.js:152-180`, from
+  `COACH_RE` / `LEADER_RE`). A sentence with "my bench", "deload", "my team"
+  goes straight to that agent's own turn. That is the agent Nova would have
+  consulted, and since 29 Sep both carry the consult rail, so a Coach answer
+  that needs the Researcher or the Leader asks them. A training question
+  **without** those words now reaches the Coach through Nova's consult (the
+  prompt above), which is what changed. Pinned in `noPhraseGating.test.js`.
+- **The same lanes in the palette** (`intent.js` `coach` / `leader`), which
+  open that agent's chat with his question. Same reasoning.
+- **The job grammar** (`verbJobs.js parseJobCommand`): a question (`?`) is
+  never dispatched; a command it is sure of ("research X and capture it",
+  "capture this…", a link with "add to my recipes") runs with no model. Same
+  lanes the model's ACT reaches.
+- **Paper, briefing, book, study, practice, browse** (`intentRouter.js`): each
+  is a request for a job, and each job already involves its agents (the paper
+  lane runs the Researcher and the Coach; the briefing fans out researchers).
+  No answer is withheld from an agent by these.
+- **The reflex layer** (`reflex.js`): code answers from the record ("what did
+  I weigh") in under a second. It involves no agent because the answer needs
+  none; a miss falls through to Nova.
+- **The panel guess** (`panels.inferPanelDirective`): picks what goes on
+  screen from the question's words. It never decides who answers.
+
+### Found, not changed
+
+- **Practice's web access** (`practiceLane.js RESEARCH_WORDS`, used by
+  `verbJobs.js practice.prepare` and `intent.js`): a practice page is prepared
+  from his vault only, and the web is opened to it only when his sentence says
+  "research", "look it up", "find sources" or "dig into". That is a phrase
+  deciding whether outside information is used. Changing it alters the cost and
+  the sources of every practice page, so it is listed as a decision for him
+  rather than changed here.
+- **Siri and Telegram** (`/ask/sync`, `telegram.js`) have no keyword lanes at
+  all: every sentence the grammar does not take goes to Nova, who now carries
+  the guidance above.
+
+### His words count on every door (decision 1, same day)
+
+`markHisWords` is now called on every door where he speaks to an agent
+directly, always with the exact string that agent's turn receives (the string
+its consults carry): the Leader chat (`routes/leader.js`, both the new and the
+resumed turn), the Coach tab (`routes/workouts.js /workouts/coach`), the Coach
+and Leader lanes reached from Nova's door (`voice.js`), the Researcher he asks
+himself (`routes/inbox.js /research`, the palette's research job), and, as
+before, Nova, Siri and Telegram. The Siri door now marks the string with its
+attachments in front, which is what Nova's turn actually takes.
+`consultedBrief` no longer requires the asking agent to be Nova: when the
+question travelling with a consult is held as his words, the Coach is told
+they are his, said to that agent, and may mark "instructed"; code judges it
+in `settleCoachChanges` exactly as before (it already checked only the held
+words). Practice runs no consult rail, so there is nothing for it to mark.
+A code-written turn (a plan step, a ritual) is never marked. Pinned in
+`hisWordsEveryDoor.test.js`.
+
+### Not verified
+
+- **No real model.** Whether the real model follows the whom-to-ask bullet
+  (consults the Researcher on an evidence question phrased without the word)
+  was not observed. The tests use a stub that consults only when the bullet is
+  in its prompt, which proves the prompt carries it and the rail runs, not that
+  a real model obeys it.
+- **No real agents.** The Researcher, the Coach and Nova were stand-ins on the
+  consult rail; the Leader-chat and Coach-tab tests ran the real routes, the
+  real consult rail and the real Coach card pipeline against a temp vault.

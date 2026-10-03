@@ -246,7 +246,7 @@ test('the grammar: his examples parse to the right verbs; the neighbours keep th
   assert.deepEqual(p('research creatine timing and capture it'), { verb: 'research.run', args: { question: 'creatine timing' } });
   assert.deepEqual(p('capture this: the drone shot for the opener'), { verb: 'capture.add', args: { text: 'the drone shot for the opener' } });
   assert.deepEqual(p('remember that the gate code is 4411'), { verb: 'capture.add', args: { text: 'the gate code is 4411' } });
-  assert.deepEqual(p(PAGE), { verb: 'link.file', args: { url: PAGE } }, 'a bare recipe page waits for his yes');
+  assert.deepEqual(p(PAGE), { verb: 'link.file', args: { url: PAGE } }, 'a bare recipe page is filed, and code decides it is a recipe (straight in since 3 Oct)');
   assert.deepEqual(p(REEL), { verb: 'link.file', args: { url: REEL } }, 'a bare reel: the capture path reads its caption first');
   assert.deepEqual(p(`${YT} what does this claim?`), { verb: 'video.watch', args: { url: YT, question: 'what does this claim?' } });
   assert.equal(p('brief me on zone 2 training').verb, 'briefing.start');
@@ -363,7 +363,7 @@ test('capture, links and the rest reach their lanes from /api/ask; Siri says pla
     assert.match((await post(server, '/ask', { question: 'capture this: the drone shot for the opener' })).text, /Captured/);
     assert.deepEqual(take(), [['capture', 'the drone shot for the opener']]);
     await post(server, '/ask', { question: PAGE });
-    assert.deepEqual(take(), [['recipe', PAGE, '']], 'a bare recipe page: imported, waiting for his yes (no add word)');
+    assert.deepEqual(take(), [['recipe', PAGE, '']], 'a bare recipe page: imported straight in, no add word needed (3 Oct)');
     await post(server, '/ask', { question: 'https://www.youtube.com/@hubermanlab' });
     assert.deepEqual(take(), [['study', 'https://www.youtube.com/@hubermanlab']]);
     await post(server, '/ask', { question: 'save this https://www.theatlantic.com/health/sleep/' });

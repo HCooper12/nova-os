@@ -30,6 +30,40 @@ export function modelPrefsRouter() {
     }
   });
 
+  // QUIET HOURS (his call, 3 Oct 2026: "Yes notifications respect quiet
+  // hours"). Server-side with the model board, for the same reason: the
+  // pushes are sent from the Mac, so the window must live where they are
+  // sent. Times are his Melbourne clock ("22:00"); `waiting` is how many
+  // pushes are held for the end of the window right now.
+  const quietView = async () => {
+    const { getQuietHours, TIME_ZONE } = await import('../lib/quietHours.js');
+    const { heldPushes } = await import('../lib/push.js');
+    return { ...getQuietHours(), timeZone: TIME_ZONE, waiting: (await heldPushes()).length };
+  };
+  router.get('/prefs/quiet-hours', async (req, res) => {
+    try {
+      res.json(await quietView());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  // { enabled?, start?, end? }: any one alone. Turning it off, or moving the
+  // window so that now is outside it, delivers what is held at once.
+  router.put('/prefs/quiet-hours', async (req, res) => {
+    try {
+      const { setQuietHours } = await import('../lib/quietHours.js');
+      const patch = {};
+      for (const k of ['enabled', 'start', 'end']) if (req.body?.[k] !== undefined) patch[k] = req.body[k];
+      if (!Object.keys(patch).length) return res.status(400).json({ error: 'send enabled, start or end' });
+      await setQuietHours(patch);
+      const { flushHeldPushes } = await import('../lib/push.js');
+      await flushHeldPushes().catch((e) => console.log(`quiet hours: held pushes could not be delivered: ${e.message}`));
+      res.json(await quietView());
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   // One lane per call: { lane, model?, enabled? }. Either field may be sent
   // alone, so flipping a toggle never silently rewrites the model too.
   router.put('/model-prefs', async (req, res) => {
