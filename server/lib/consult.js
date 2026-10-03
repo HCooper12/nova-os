@@ -45,7 +45,7 @@ export const MAX_CONSULT_ROUNDS = 2;
 export const AGENTS = {
   nova: {
     label: 'Nova',
-    what: 'the CEO of the org: reads his whole vault read-only (notes, journal, work, life), his day, his Inbox and everything the platform has done for him. Ask her when his life outside your lane bears on the answer.',
+    what: 'the CEO of the org: reads his whole vault read-only (notes, journal, work, life), his day, his Inbox and everything the platform has done for him. Ask him when his life outside your lane bears on the answer.',
     lane: 'ask-nova',
     canConsult: true,
     ask: (vaultPath, q, o) => askNova(vaultPath, q, o),
@@ -119,7 +119,7 @@ export function consultCapability(from, { chain = [], handsFree = false } = {}) 
     : '';
   // Hands-free, he is waiting on one spoken line. His call, 30 Sep: "Let nova
   // always ask the researcher." Code, not the model, tells him a slow ask is
-  // under way and where its answer will land, so nothing here limits whom she
+  // under way and where its answer will land, so nothing here limits whom he
   // may ask.
   const handsFreeNote = handsFree
     ? '\n  Hands-free, he is waiting on one spoken line: ask whoever the answer needs, the Researcher included. When an ask takes longer than he can hold the line, code tells him who is working and where the answer will land; never say that yourself.'
@@ -400,7 +400,7 @@ export function consultedBrief(by, parentQuestion = '', { canPropose = false } =
       ? `You may file program changes: when a change to his program would help, end with PROPOSE lines exactly as your rules say; code checks every one and files it as a card for HIS yes (never "instructed": ${who} asking is not him instructing); ${once}. Never say a card is filed or waiting; code says what happened at the end of your answer. Nothing else is written anywhere: no documents, and no ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines.`
       : `Nothing in this answer is written anywhere: no documents, and no PROPOSE, ACT, REFLECT, RESEARCH, WATCH, PLAY, SHOW, CARD or VIS lines. Say any change you would recommend in plain words; ${who} decides what happens next.`;
   const asking = held
-    ? `, because of what Hayden said to ${by === 'nova' ? 'her' : who}, in his own words: "${q}"`
+    ? `, because of what Hayden said to ${by === 'nova' ? 'him' : who}, in his own words: "${q}"`
     : q ? `, to help answer Hayden's question: "${q}"` : '';
   return `[${cap(who)} is consulting you${asking}. Answer ${who}, not Hayden: directly and completely (the length rules for talking to him do not apply; ${who} needs substance), grounded in what you hold, and say plainly what you do not know. ${SOURCE_RULE} ${writes}]`;
 }
@@ -506,7 +506,7 @@ async function waitForJob(jobId, who) {
 
 const consultedOpts = (o = {}) => ({ by: o.from, question: o.question || '', chain: o.chain || [], ledger: o.ledger || null });
 
-// Nova's own read-only lane over the whole vault, with her live context, in a
+// Nova's own read-only lane over the whole vault, with his live context, in a
 // fresh session so his Voice conversation is untouched.
 async function askNova(vaultPath, q, o = {}) {
   const { startAskNova } = await import('./claudeCode.js');
@@ -514,7 +514,7 @@ async function askNova(vaultPath, q, o = {}) {
   try {
     const { buildAskContext } = await import('./askContext.js');
     context = await buildAskContext(vaultPath, null, { fast: true });
-  } catch { /* she reads the vault herself; the absence is named in her prompt */ }
+  } catch { /* he reads the vault himself; the absence is named in his prompt */ }
   const jobId = startAskNova(vaultPath, { question: q, context, consulted: consultedOpts(o) });
   const job = await waitForJob(jobId, 'Nova');
   return { text: job.result?.text || '', consult: job.result?.consult || null };

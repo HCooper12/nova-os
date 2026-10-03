@@ -648,7 +648,7 @@ abstract without page content to put in it.
 - 30 Sep 2026 (afternoon) — NOVA POLISH MERGED (81beb2f): the record moment
   in GOLD (his exception); the stage over a dimmed, blurred thread (solid
   under reduced transparency; a tap on the dim tucks it); the settled card
-  "Shown while she spoke · Replay"; no core at rest (name tap grows it into
+  "Shown while he spoke · Replay"; no core at rest (name tap grows it into
   focus; enterFocus exposed for the dock hold, still capture until his
   call); the dock orb 46 → 58px filling its circle, tints kept. Gates green
   (2906/2908, the atlas pair; seven guards unchanged). Review page v2
@@ -694,7 +694,7 @@ abstract without page content to put in it.
   follows"; the reply line merged as `const line = {…glass, …from}`. Gates
   green (2887/2889). NOT on his phone until a push; not verified with a real
   mic, Try again round trip or iOS long-press. His calls: the dock orb
-  blue-only on every summary page (today it tints gold/violet while she
+  blue-only on every summary page (today it tints gold/violet while he
   speaks); the core tap = status (built) or also focus; live glass from the
   Nova button on other pages (today none rises there).
 - 30 Sep 2026 — THE RECORD MOMENT MERGED (58a8c3a): RecordMoment.jsx replaces
@@ -731,7 +731,7 @@ abstract without page content to put in it.
   per-agent colour; tap an agent while it works to see what it is doing; A's
   compact joint layout; C's open view; Nova's summary with the full agent
   message openable; and PURPOSEFUL GLASS PANELS accompanying speech (Monday's
-  workout with the parts she names highlighted; the joint case's three
+  workout with the parts he names highlighted; the joint case's three
   sources; a clear numerical time for calendar), "not simply more clutter",
   Jarvis-like → ROUND 2 IN FLIGHT (mockup 67, one blend). The record: the
   trophy's sound; an animation per equipment (stack, barbell…), trophy for

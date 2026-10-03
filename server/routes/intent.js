@@ -224,14 +224,15 @@ export function intentRouter(vaultPath) {
         out.said = 'That one is the Leader’s — opening it with your question.';
       } else if (lane === 'practice') {
         // A skill he already has a page for opens the room; anything else is
-        // prepared from his sources first. The web only when he said research.
-        const { resolvePracticeAsk, startPrepare, RESEARCH_WORDS } = await import('../lib/practiceLane.js');
+        // prepared from his sources, with the web open to Prepare always —
+        // no phrase required, the model reaches for it as necessary.
+        const { resolvePracticeAsk, startPrepare } = await import('../lib/practiceLane.js');
         const hit = await resolvePracticeAsk(vaultPath, text);
         if (hit) {
           out.forward = { screen: 'practice', slug: hit.slug, scenario: hit.scenario || null, question: text };
           out.said = `Opening Practice: ${hit.title}.`;
         } else {
-          out.record = await startPrepare(vaultPath, { text, research: RESEARCH_WORDS.test(text) });
+          out.record = await startPrepare(vaultPath, { text });
           out.said = 'Putting together a practice page for that from what you have. It lands in Practice and your Inbox.';
         }
       } else if (lane === 'coach') {

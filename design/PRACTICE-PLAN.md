@@ -74,10 +74,11 @@ Gaps section says what would make the feedback surer, and names the
 book-file upload when the book is the gap. A debrief that names a move not
 on the page is dropped by code and the drop is said.
 
-**Explicit trigger for the web.** Prepare reads only the vault unless his
-sentence says research ("research it", "look it up", "find sources"); then
-the lane gets WebSearch/WebFetch and every web-sourced move carries its URL.
-A scene never touches the web.
+**The web, as necessary (no phrase required, his ask 3 Oct 2026).** Prepare
+always carries WebSearch/WebFetch; the prompt leaves the call to the model,
+reach for the web only when the vault does not hold enough to build an
+honest page, and every web-sourced move carries its URL. A scene never
+touches the web.
 
 **Autonomy.** Prepare and the debrief file AUTO with a real undo — the same
 decision the Leader's reflection made and for the same reason: an approval
@@ -143,7 +144,7 @@ dropped with a note in the record. `updated` uses `localDateISO()` (AEST).
   moves}], gaps, sessions: [{at, scenario, landed, missed, work}],
   next: {scenario, moves, why} | null, lastRehearsedAt }`. `next` is the
   deterministic pick (below). Receipts only; no model call.
-- `POST /api/practice/prepare` `{ text, research?, slug? }` → `{ record }`.
+- `POST /api/practice/prepare` `{ text, slug? }` → `{ record }`.
   Creates a `practice-skill` record in `classifying`, runs Prepare, then
   writes the page and files the record (`status: filed`, `undoData: {route:
   'practice-skill', relPath, hash, created}`); undo deletes a page that has

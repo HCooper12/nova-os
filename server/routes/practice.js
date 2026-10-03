@@ -26,7 +26,7 @@ export function practiceRouter(vaultPath) {
       const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
       if (!text) return res.status(400).json({ error: 'say which skill you want to practise' });
       const slug = typeof req.body?.slug === 'string' && req.body.slug ? req.body.slug : null;
-      const record = await startPrepare(vaultPath, { text, research: req.body?.research === true, slug });
+      const record = await startPrepare(vaultPath, { text, slug });
       res.json({ record });
     } catch (err) { res.status(400).json({ error: err.message }); }
   });

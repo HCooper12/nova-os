@@ -17,7 +17,7 @@ import { Eyebrow, TextAction, Button, Meta } from './Controls.jsx';
 // So any banner, nudge or report can open THIS: one composer, over whatever
 // screen he is on, with the banner's own words held above it. He speaks (the
 // mic opens itself when the banner was spoken to him) or types; the reply
-// goes to Nova with the banner's full text as the situation, so she carries
+// goes to Nova with the banner's full text as the situation, so he carries
 // on rather than starting over. "Not now" is not a dismissal: it files a
 // reminder for the morning, deterministically, and says so.
 //
@@ -65,7 +65,7 @@ export function ReplySheet({ v }) {
       style={css('position:fixed;left:0;right:0;bottom:calc(96px + env(safe-area-inset-bottom));z-index:115;display:flex;justify-content:center;padding:0 12px;pointer-events:none')}>
       <div style={css(`pointer-events:auto;width:min(560px,100%);border-radius:18px;border:1px solid color-mix(in srgb, var(--nv-cy) 34%, transparent);background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 07%, transparent),color-mix(in srgb, var(--nv-void) 90%, transparent));backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 24%, transparent),0 0 30px -8px color-mix(in srgb, var(--nv-cy) 40%, transparent),0 24px 60px -20px rgba(0,0,0,.85);animation:nvGlassIn var(--nv-dur-base) var(--nv-ease) both`)}>
         {/* what he is answering — Nova's own words, held in the serif so
-            they read as hers and not as a form label */}
+            they read as his and not as a form label */}
         <div style={css('display:flex;align-items:flex-start;gap:10px;padding:12px 14px 10px')}>
           <div style={css('flex:1;min-width:0')}>
             <Eyebrow as="div" tone="cyan">{r.title ? `Replying · ${r.title}` : 'Replying to Nova'}</Eyebrow>

@@ -192,7 +192,7 @@ function AddSkill({ add }) {
     <section className="nv-pane" style={{ marginTop: '30px', padding: '15px 16px' }}>
       <Eyebrow as="div">Add a skill</Eyebrow>
       <p style={{ margin: '6px 0 10px', font: `450 13px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>
-        Say what you want to practise, in your own words. Nova builds the page from your sources; say “research it” and it searches the web too.
+        Say what you want to practise, in your own words. Nova builds the page from your sources, and reaches for the web too when they don't hold enough — every move from the web carries its link.
       </p>
       <div style={{ display: 'flex', gap: '9px', alignItems: 'stretch', flexWrap: 'wrap' }}>
         <Interactive as="textarea" value={add.value} onChange={add.set} rows={2}
@@ -202,7 +202,6 @@ function AddSkill({ add }) {
           focusStyle="border-color:color-mix(in srgb, var(--nv-or) 55%, transparent)" />
         <Button tone="var(--nv-or)" onClick={add.busy || !add.value.trim() ? undefined : add.send} disabled={add.busy || !add.value.trim()}>{add.busy ? 'Sending…' : 'Prepare'}</Button>
       </div>
-      {add.research && <Meta as="div" tone="var(--nv-or)" style={{ marginTop: '8px' }}>Nova will search the web for this one, and every move from the web carries its link.</Meta>}
     </section>
   );
 }

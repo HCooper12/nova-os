@@ -33,10 +33,13 @@ export const PREPARE_LANE = 'practice-prepare';
 
 /* --------------------------------- prepare -------------------------------- */
 
-// His words ask for the web, or they do not. A scene never touches it.
-export const RESEARCH_WORDS = /\b(research|look (it )?up|find (me )?sources?|dig into)\b/i;
+// His ask, 3 Oct 2026: "Open the web to every practice page as necessary."
+// No phrase gates it any more — Prepare always carries WebSearch and
+// WebFetch, and the prompt below leaves the call to the model: reach for the
+// web only when the vault does not hold enough to build an honest page. A
+// scene never touches the web regardless.
 
-export async function buildPreparePrompt(vaultPath, { text, research = false, slug = null }) {
+export async function buildPreparePrompt(vaultPath, { text, slug = null }) {
   let profile = '';
   try { const { profileContext } = await import('./profile.js'); profile = await profileContext(vaultPath); } catch { /* honest absence */ }
   let shelf = null;
@@ -48,7 +51,7 @@ export async function buildPreparePrompt(vaultPath, { text, research = false, sl
 
 You are PRACTICE's preparer inside Nova. Hayden wants to rehearse a skill out loud, with Nova playing the other person and telling him afterwards what landed. Your ONLY job now is to assemble what his vault actually knows about it into a practice dossier: the moves (things he can say or do), the scenes to rehearse them in, the sources, and the gaps. You are not coaching him and not replying to him.
 
-Your working directory is his Obsidian vault. Read the pages that bear on his sentence: the source pages below, their Raw/ transcripts, and the Wiki/Concepts pages they link. Grep for the skill's words when the shelf does not show it. ${research ? 'He asked for research, so you may also use WebSearch and WebFetch; a move you take from a page you fetched carries that page\'s URL.' : 'Read only the vault. Do not use the web.'}
+Your working directory is his Obsidian vault. Read the pages that bear on his sentence first: the source pages below, their Raw/ transcripts, and the Wiki/Concepts pages they link. Grep for the skill's words when the shelf does not show it. You also have WebSearch and WebFetch, always available: reach for them when his vault does not hold enough to build an honest page — a skill he named that nothing in his sources covers, or a move that would otherwise stand on "his words" alone — and cite what you find; a move you take from a page you fetched carries that page's URL. Prefer the vault when it already has what you need; the web is for a real gap, not a reflex.
 
 ${profile || 'ABOUT HAYDEN: (unavailable)'}
 
@@ -61,22 +64,24 @@ HIS SENTENCE, verbatim: """${String(text).slice(0, 2000)}"""
 
 HONESTY. Code checks each of these and drops or rewrites what fails, and the receipt says so:
 - A move's "line" is a sentence HE could say out loud, in his own voice, in the scene. A move he cannot say is not a move.
-- A move's "source" is exactly one of: a [[wikilink]] to a vault page you actually Read; "his words" when it comes from his sentence and nothing in the vault; "the book, unread by Nova" when it is the book's idea but the book's text is not in the vault${research ? '; "web: <https URL>" for a page you actually fetched' : ''}. Anything else becomes "his words".
+- A move's "source" is exactly one of: a [[wikilink]] to a vault page you actually Read; "his words" when it comes from his sentence and nothing in the vault; "the book, unread by Nova" when it is the book's idea but the book's text is not in the vault; "web: <https URL>" for a page you actually fetched. Anything else becomes "his words".
 - Never invent a quote from a book or a source. If the book itself is not in the vault, say so in gaps and name the fix: upload the book file in Library, and the moves get grounded in its text.
 - A scenario is a real situation from his life as his profile and pages describe it, named for the moment, with one other person and the one way that person pushes back. Each scenario names one to three moves by their exact names.
 - Three to six moves and two to four scenarios. Small and sayable beats complete.
 
 Output ONLY this JSON, no code fences, no commentary:
-{"title":"the skill, 2-6 words","summary":"one sentence: what the skill is","moves":[{"name":"2-5 words","summary":"one sentence","line":"the exact sentence he would say","when":"the moment to use it","tell":"how he knows it landed","source":"[[Page]] | his words | the book, unread by Nova${research ? ' | web: https://…' : ''}"}],"scenarios":[{"name":"the scene, 3-8 words","setting":"one sentence, second person","other":"who they are, and what they are like","pressure":"what they do to push back, once","moves":["exact move names"]}],"sourcesUsed":["[[Page]]"],"gaps":["what would make the feedback surer"]}`;
+{"title":"the skill, 2-6 words","summary":"one sentence: what the skill is","moves":[{"name":"2-5 words","summary":"one sentence","line":"the exact sentence he would say","when":"the moment to use it","tell":"how he knows it landed","source":"[[Page]] | his words | the book, unread by Nova | web: https://…"}],"scenarios":[{"name":"the scene, 3-8 words","setting":"one sentence, second person","other":"who they are, and what they are like","pressure":"what they do to push back, once","moves":["exact move names"]}],"sourcesUsed":["[[Page]]"],"gaps":["what would make the feedback surer"]}`;
 }
 
-function runPrepareModel(prompt, { vaultPath, research }) {
+function runPrepareModel(prompt, { vaultPath }) {
   return new Promise((resolve, reject) => {
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
-      // what the lane NEEDS; spawnBoundary denies the complement
-      ...boundaryArgs(research ? 'Read Grep Glob WebSearch WebFetch' : 'Read Grep Glob'),
+      // what the lane NEEDS; spawnBoundary denies the complement. The web
+      // tools are always granted now (his 3 Oct ask); the prompt above is
+      // what decides whether the model actually reaches for them.
+      ...boundaryArgs('Read Grep Glob WebSearch WebFetch'),
       '--output-format', 'json',
       '--model', modelFor(PREPARE_LANE),
       '--no-session-persistence',
@@ -114,15 +119,16 @@ export function prepareReceipt({ skill, notes = [], created = true }) {
 }
 
 // The job itself — exported so a test can drive it with a stub model.
-export async function runPrepareJob(vaultPath, record, { text, research = false, slug = null, runImpl = null }) {
+export async function runPrepareJob(vaultPath, record, { text, slug = null, runImpl = null }) {
   const { updateRecord } = await import('./inboxStore.js');
   try {
     const existingPaths = await vaultPageNames(vaultPath);
-    const prompt = await buildPreparePrompt(vaultPath, { text, research, slug });
-    const raw = await (runImpl || runPrepareModel)(prompt, { vaultPath, research });
+    const prompt = await buildPreparePrompt(vaultPath, { text, slug });
+    const raw = await (runImpl || runPrepareModel)(prompt, { vaultPath });
     // THE WHY IS HIS, VERBATIM. Code writes it; the model is never asked to
-    // paraphrase the reason he gave.
-    const { skill, notes } = validateDossier({ ...raw, why: `"${String(text).trim()}"` }, { existingPaths, allowWeb: !!research });
+    // paraphrase the reason he gave. The web is always allowed now; honesty
+    // checking still runs so a claimed web citation is real or dropped.
+    const { skill, notes } = validateDossier({ ...raw, why: `"${String(text).trim()}"` }, { existingPaths });
     const written = await writeSkillPage(vaultPath, skill, { slug });
     const page = parsePracticePage(written.content);
     const now = new Date().toISOString();
@@ -144,14 +150,14 @@ export async function runPrepareJob(vaultPath, record, { text, research = false,
 // going would write a second page. An identical request in flight rides the
 // first one's record.
 const inFlight = new Map(); // hash -> record
-const askKey = (text, slug, research) => createHash('sha1')
-  .update(`${String(text).toLowerCase().replace(/\s+/g, ' ').trim()}|${slug || ''}|${research ? 1 : 0}`).digest('hex');
+const askKey = (text, slug) => createHash('sha1')
+  .update(`${String(text).toLowerCase().replace(/\s+/g, ' ').trim()}|${slug || ''}`).digest('hex');
 
-export async function startPrepare(vaultPath, { text, research = false, slug = null } = {}, { runImpl = null } = {}) {
+export async function startPrepare(vaultPath, { text, slug = null } = {}, { runImpl = null } = {}) {
   const said = String(text || '').trim();
   if (!said) throw new Error('say which skill you want to practise');
   assertLaneOn(PREPARE_LANE);
-  const key = askKey(said, slug, research);
+  const key = askKey(said, slug);
   const running = inFlight.get(key);
   if (running) return { ...running, repeat: true };
   const { createRecord } = await import('./inboxStore.js');
@@ -162,11 +168,10 @@ export async function startPrepare(vaultPath, { text, research = false, slug = n
     source: 'practice',
     status: 'classifying',
     createdAt: new Date().toISOString(),
-    practiceResearch: !!research,
     practiceSlug: slug || null,
   });
   inFlight.set(key, record);
-  runPrepareJob(vaultPath, record, { text: said, research: !!research, slug, runImpl })
+  runPrepareJob(vaultPath, record, { text: said, slug, runImpl })
     .finally(() => inFlight.delete(key));
   return record;
 }

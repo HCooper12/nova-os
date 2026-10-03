@@ -206,7 +206,7 @@ export function routeIntent(text) {
 // Only the plain 'ask' fall-through is sticky. A lane the router is sure
 // about (a link, a training question, a book) still wins, and so does naming
 // Nova — "Nova, what's the weather" mid-Leader-chat is a deliberate turn to
-// her. Twenty minutes: his 01:04 → 01:17 was thirteen, with driving in it.
+// him. Twenty minutes: his 01:04 → 01:17 was thirteen, with driving in it.
 // A wrong stick costs him an answer from the Leader instead of Nova; a wrong
 // fall-through costs him the whole thread.
 export const FOLLOW_UP_WINDOW_MS = 20 * 60_000;

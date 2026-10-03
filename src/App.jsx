@@ -38,7 +38,7 @@ import { valsNotes } from './vals/valsNotes.js';
 import { valsLibrary } from './vals/valsLibrary.js';
 import { valsLeader } from './vals/valsLeader.js';
 import { startDecision, tickedSets } from './sessionGuard.js';
-import { valsPractice, PRACTICE_SCENE_KEY, stripPracticeDirective, RESEARCH_RE, stillPreparing, shorten as shortenPractice } from './vals/valsPractice.js';
+import { valsPractice, PRACTICE_SCENE_KEY, stripPracticeDirective, stillPreparing, shorten as shortenPractice } from './vals/valsPractice.js';
 import { valsBriefing } from './vals/valsBriefing.js';
 import { parseBriefingVoice, explainQuestion } from './briefingVoice.js';
 import { scaleMacros, portionName, validPortion } from './portion.js';
@@ -9350,7 +9350,7 @@ export default class App extends Component {
     }
   }
   stopSpeaking() {
-    cutSpeech(); // the captions stop where her voice did: the rest was never said
+    cutSpeech(); // the captions stop where his voice did: the rest was never said
     try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
     try { this.currentAudio?.pause(); } catch { /* fine */ }
     this.currentAudio = null;
@@ -9625,8 +9625,8 @@ export default class App extends Component {
     // him (the queue behind it is the other half)
     this.ttsNowSaying = head.said || null;
     this.noteSpokenAloud(head.said);
-    // her name and face in the iPhone's own Dynamic Island if he leaves while
-    // she is talking (nowPlaying.js) — the island's pause stops her
+    // his name and face in the iPhone's own Dynamic Island if he leaves while
+    // he is talking (nowPlaying.js) — the island's pause stops him
     nowPlayingSpeaking(head.said, () => this.stopSpeaking());
     resumeAudioGraph(); // a suspended graph plays SILENTLY — resume before every chunk
     // ...but resume() only lands near a gesture, and a reply arrives from the
@@ -10466,15 +10466,14 @@ export default class App extends Component {
     if (!t || this.state.practiceAdding) return;
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
-    const research = RESEARCH_RE.test(t);
     this.setState({ practiceAdding: true });
-    api.practicePrepare(conn, research ? { text: t, research: true } : { text: t }).then(({ record } = {}) => {
+    api.practicePrepare(conn, { text: t }).then(({ record } = {}) => {
       const id = record?.id || `local-${Date.now()}`;
       this.setState((st) => ({
         practiceAdding: false, practiceAddDraft: '',
         livePractice: { skills: [], today: null, ...(st.livePractice || {}), preparing: [...(st.livePractice?.preparing || []).filter((p) => p.id !== id), { id, text: t, status: record?.status || 'classifying' }] },
       }));
-      this.toastMsg(`Preparing “${shortenPractice(t, 40)}” — the page lands on the shelf${research ? ', with what Nova finds on the web' : ''}.`);
+      this.toastMsg(`Preparing “${shortenPractice(t, 40)}” — the page lands on the shelf, with the web too if your sources need it.`);
       clearTimeout(this.practicePollT);
       this.practicePollT = setTimeout(() => this.refreshPractice(), 4000);
     }).catch((e) => { this.setState({ practiceAdding: false }); this.toastMsg(`Couldn't start that: ${e.message}`); });

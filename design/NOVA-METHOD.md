@@ -220,13 +220,13 @@ The failure this standard is written against: the first Wrap-the-Day card
 the classic fold — so on his actual phone it was invisible.
 
 **When a glass panel appears (his rule, 1 Oct 2026, kept as design, not a
-page).** Nova raises a panel beside what she says only when there is
+page).** Nova raises a panel beside what he says only when there is
 something to point at: a number he should see, two things compared, or a
 place in his own record. A plain sentence gets no panel. One thing lit at a
-time, only while she says it; every number comes from his records and code
+time, only while he says it; every number comes from his records and code
 checks it is there; a lit part wears the colour of the agent that found it
 and is named in words too; a record that cannot be read means no panel, and
-she says so; the panel settles into the thread and Replay brings it back.
+he says so; the panel settles into the thread and Replay brings it back.
 (Mockup 67 screen 7 draws the rule.)
 
 ## 3 · The change process (for future Claude editing Nova)

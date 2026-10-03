@@ -195,7 +195,7 @@ export function voiceRouter(vaultPath) {
       // Aug: "what's the last video I gave you?" answered from chat memory).
       const { resumedRefreshContext } = await import('../lib/askContext.js');
       const liveLine = sessionId ? await resumedRefreshContext(vaultPath).catch(() => '') : '';
-      // his own words to Nova: a Coach she consults may apply what they
+      // his own words to Nova: a Coach he consults may apply what they
       // instruct on his standing grant (lib/consult.js markHisWords, 1 Oct)
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
@@ -523,7 +523,7 @@ export function voiceRouter(vaultPath) {
       const started = Date.now();
       // his own words to Nova (lib/consult.js markHisWords, 1 Oct)
       // the exact string Nova's turn takes (attachments ride in front), since
-      // that is the string her consults carry
+      // that is the string his consults carry
       const { markHisWords } = await import('../lib/consult.js');
       const asked = attachmentPreamble ? `${attachmentPreamble}\n\n${question}` : question;
       markHisWords(asked);

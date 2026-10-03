@@ -278,7 +278,7 @@ export function stepSpring(spring, dtMs, now) {
 
 // ── what a notification says about itself ────────────────────────────────────
 // Colour means something (his standing rule, 22 Sep): green is done, red is a
-// problem, gold is Nova noting something, cyan is Nova herself speaking. A
+// problem, gold is Nova noting something, cyan is Nova himself speaking. A
 // toast arrives as a bare sentence from ~270 call sites, so its tone is read
 // from how the sentence OPENS — narrowly, and falling back to plain 'info'
 // rather than guessing. A wrong green would be a lie; a missing one is not.

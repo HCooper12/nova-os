@@ -143,7 +143,7 @@ export function Briefing({ v }) {
           Nothing open. <span style={css(`font:italic 400 ${mob ? 25 : 27}px ${S};color:var(--nv-gold)`)}>Ask for one.</span>
         </h1>
         <p style={css(`margin:10px 0 0;max-width:520px;font:400 ${mob ? 14.5 : 15}px/1.6 ${UI};color:var(--nv-ink60);text-wrap:pretty`)}>
-          Nova works out the angles, researches them at once, writes the report and reads it to you with the glass showing what she means. Say it to her the way you would to a person:
+          Nova works out the angles, researches them at once, writes the report and reads it to you with the glass showing what he means. Say it to him the way you would to a person:
         </p>
         <div style={css("margin-top:12px;display:flex;flex-wrap:wrap;gap:8px")}>
           {b.starters.map((s) => (

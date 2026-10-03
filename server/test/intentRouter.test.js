@@ -105,14 +105,14 @@ test('a lane the router is sure about still wins over the last speaker', () => {
   assert.deepEqual(r, { lane: 'coach', sticky: false });
 });
 
-test('naming Nova is a deliberate turn to her, mid-conversation with the Leader', () => {
+test('naming Nova is a deliberate turn to him, mid-conversation with the Leader', () => {
   const now = Date.now();
   for (const q of ['Nova, what is the weather', 'hey nova what time is it', 'Okay Nova, different question']) {
     assert.deepEqual(followUpLane('ask', q, { lastAgent: 'leader', lastAgentAt: now - 1000 }, now), { lane: 'ask', sticky: false }, q);
   }
 });
 
-test('only the specialists are sticky; Nova herself, and garbage, are not', () => {
+test('only the specialists are sticky; Nova himself, and garbage, are not', () => {
   const now = Date.now();
   assert.deepEqual(followUpLane('ask', 'and then?', { lastAgent: 'nova', lastAgentAt: now - 1000 }, now), { lane: 'ask', sticky: false });
   assert.deepEqual(followUpLane('ask', 'and then?', { lastAgent: 'coach', lastAgentAt: 'yesterday' }, now), { lane: 'ask', sticky: false });

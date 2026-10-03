@@ -491,7 +491,7 @@ async function finishConsulted(cwd, replyText, turnJob, { question, ctl, session
 }
 
 // `consulted`: another agent is asking Nova (lib/consult.js) — a fresh
-// session of her own lane that answers that agent and writes nothing.
+// session of his own lane that answers that agent and writes nothing.
 export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null }) {
   assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
@@ -506,7 +506,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
 
   // NOVA DIRECTS (lib/consult.js): a reply that asks the org is not the
   // answer. Code runs the asks, says who was asked, and hands the answers
-  // back to THIS conversation, whose next reply is her synthesis.
+  // back to THIS conversation, whose next reply is his synthesis.
   const ctl = openConsult({
     from: 'nova', question, vaultPath: cwd, job,
     chain: consulted?.chain || [], ledger: consulted?.ledger || null, answeringTo: consulted?.by || null,
@@ -742,7 +742,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       // stray fence would be read aloud verbatim. Every other lane renders
       // through the client's own artifactBlocks parsing, which already
       // keeps a document's body and token out of speech.
-      // the code-written line of who she asked opens the reply he reads
+      // the code-written line of who he asked opens the reply he reads
       text = ctl.finalText(text);
       if (direct) text = speakableText(text, { final: true });
       turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, acted, research, watch, modelChoicePending, card: card || playedCard, played, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };

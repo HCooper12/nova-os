@@ -126,8 +126,8 @@ export function enrichProgram(spec, routines) {
 
 // A `decide` panel's items are changes he is being asked about. The
 // handlers are the conversation: a tick says "make change N", a cross says
-// "skip change N", and both go to Nova as plain sentences, which she turns
-// into a PROPOSE on the rails exactly as she would from his voice. Nothing
+// "skip change N", and both go to Nova as plain sentences, which he turns
+// into a PROPOSE on the rails exactly as he would from his voice. Nothing
 // here writes.
 export function decideHandlers(spec, say) {
   if (!spec.decide || typeof say !== 'function') return {};

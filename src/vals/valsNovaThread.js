@@ -86,9 +86,9 @@ export function valsNovaThread(app, ctx, v) {
     };
   });
 
-  // THE STAGE, while she speaks: the panel up now, the others behind it, and
-  // her sentence with the spoken words lit. The reply being spoken is the
-  // newest line of hers; its raw text is what glassSpokenTo measures.
+  // THE STAGE, while he speaks: the panel up now, the others behind it, and
+  // his sentence with the spoken words lit. The reply being spoken is the
+  // newest line of his; its raw text is what glassSpokenTo measures.
   const glass = v.glass;
   const speaking = !!st.voiceSpeaking;
   let stage = null;

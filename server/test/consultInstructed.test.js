@@ -1,7 +1,7 @@
 // THE CONSULT RAIL, 1 OCT 2026 — his three answers:
 //   1. "Yes, own words to Nova count as the instruction, so the change applies
 //      on my standing grant as it does in the Coach chat."
-//      → what he said to Nova travels verbatim to the Coach she consults; an
+//      → what he said to Nova travels verbatim to the Coach he consults; an
 //      instructed change applies with the Coach chat's checks, receipt and
 //      Undo; one he did not instruct still waits for his yes.
 //   2. "Yes replace the waiting card."
@@ -411,7 +411,7 @@ test('the push reads plainly: no consult, a long first sentence, an empty answer
   assert.equal(firstSentence('Take 3.5 g daily. Then rest.'), 'Take 3.5 g daily.');
 });
 
-test("Nova's own proposal replaces a waiting card with different numbers, and her reply says so in code's words", () => {
+test("Nova's own proposal replaces a waiting card with different numbers, and his reply says so in code's words", () => {
   const va = readFileSync(new URL('../lib/voiceActions.js', import.meta.url), 'utf8');
   assert.match(va, /fileUnlessWaiting\(\{\s*route, payload: validated\.payload, replace: true,/, 'Nova files with the replace rule');
   assert.match(va, /replaced: out\.replaced\.map/, 'what it replaced travels back');

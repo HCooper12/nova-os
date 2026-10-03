@@ -15,8 +15,8 @@ import assert from 'node:assert/strict';
 const { formatPracticePage, readPracticeState, updatePracticeState, parsePracticePage, readSkill, PRACTICE_DIR } = await import('../lib/practice.js');
 const {
   parsePracticeNote, parsePracticeDebrief, validateDebrief, matchPracticeAsk, resolvePracticeAsk,
-  finishPracticeTurn, startRehearsal, startPrepare, buildPartnerPrompt, buildDebriefInstruction,
-  PRACTICE_TURN_REMINDER, RESEARCH_WORDS,
+  finishPracticeTurn, startRehearsal, startPrepare, buildPartnerPrompt, buildDebriefInstruction, buildPreparePrompt,
+  PRACTICE_TURN_REMINDER,
 } = await import('../lib/practiceLane.js');
 const { listRecords, getRecord } = await import('../lib/inboxStore.js');
 
@@ -147,8 +147,16 @@ test('the partner prompt carries the lines verbatim, the pressure, the NOTE cont
   assert.match(d, /DEBRIEF \{"landed"/);
   assert.match(d, /Question of intent, Silence first/);
   assert.match(d, /Never invent a quote from the book/);
-  assert.ok(RESEARCH_WORDS.test('look it up and help me practise'));
-  assert.ok(!RESEARCH_WORDS.test('help me practise the silence'));
+});
+
+test('prepare always carries the web; no phrase is required (his ask, 3 Oct: "Open the web to every practice page as necessary")', async () => {
+  const noResearchWord = await buildPreparePrompt('/nonexistent-vault', { text: 'I want to practise asking for a raise' });
+  assert.match(noResearchWord, /WebSearch and WebFetch, always available/);
+  assert.doesNotMatch(noResearchWord, /Do not use the web/);
+  assert.match(noResearchWord, /web: https:\/\/…/);
+  // the phrase that used to be the only trigger changes nothing now
+  const withResearchWord = await buildPreparePrompt('/nonexistent-vault', { text: 'research it and help me practise asking for a raise' });
+  assert.equal(noResearchWord.replace(/HIS SENTENCE.*$/s, ''), withResearchWord.replace(/HIS SENTENCE.*$/s, ''));
 });
 
 /* ------------------------------- the scenes -------------------------------- */
@@ -281,9 +289,10 @@ test('prepare: a stubbed dossier is validated, written and filed auto with its u
   const said = 'I really love the ideas in chapter 8 and I want to practise them';
   let release;
   const gate = new Promise((r) => { release = r; });
-  const runImpl = async (prompt, { research }) => {
-    assert.equal(research, false);
+  const runImpl = async (prompt, { vaultPath }) => {
+    assert.equal(vaultPath, vault);
     assert.match(prompt, /HIS SENTENCE, verbatim: """I really love/);
+    assert.match(prompt, /WebSearch and WebFetch/, 'the web is always offered, no research word in this sentence');
     await gate;
     return {
       title: 'Questions of intent', summary: 'Make them own it.',

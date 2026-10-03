@@ -75,7 +75,7 @@ const lift = (color) => `color-mix(in srgb, ${color}, #fff var(--nv-island-lift)
 
 // What sits on the left of an activity — and, bigger, on the left of the card
 // it expands into. A ring for progress (the muscle he is on owns the hue), Nova's
-// core when she is talking, the tone mark otherwise.
+// core when he is talking, the tone mark otherwise.
 function Lead({ lead, size = 22 }) {
   if (!lead) return null;
   if (lead.type === 'ring') {

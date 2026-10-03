@@ -147,7 +147,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   @keyframes nvGlassIn { from { opacity: 0; } to { opacity: 1; } }
 }
 
-/* THE ISLAND'S LIVE ACTIVITIES (25 Sep 2026). Nova talking: her core breathes
+/* THE ISLAND'S LIVE ACTIVITIES (25 Sep 2026). Nova talking: his core breathes
    on the left of the camera and four bars move on the right — the same grammar
    as iOS's own Now Playing, because that is what he already reads as "sound".
    Under reduced motion both hold still; the shape alone still says it. */
@@ -2926,7 +2926,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 @keyframes glassStep { from { opacity: 0; transform: translateY(var(--nv-rise)); } to { opacity: 1; transform: none; } }
 /* THE CHANGE, SHOWN (design/JARVIS-REPORT-PLAN.md, beat four). The exercise
    Nova recommends dropping blinks, is struck through, and leaves the list as
-   she explains why — a change acted out, never stated (§2b r7). Three
+   he explains why — a change acted out, never stated (§2b r7). Three
    movements on one row: the blink (attention), the strike (the verdict), the
    collapse (gone). Reduced motion: struck at once, no blink, no collapse. */
 @keyframes nvRowBlink { 0%, 100% { opacity: 1; } 20%, 60% { opacity: .25; } 40%, 80% { opacity: 1; } }
@@ -4107,12 +4107,12 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 
 /* HIS AMENDMENT, FOCUS: since 3 Oct the full-screen Nova (the .nv-fx-*
    block after this one, src/NovaFocus.jsx), which draws the core itself;
-   the head stays her name and state. */
+   the head stays his name and state. */
 
 /* THE THREAD STEPS BACK while the stage is up (30 Sep, his "the background
    should be blurred so the amount of visible information on screen is
    focused"): a light dim and 10px of blur over the thread, under the head
-   (12), the stage (13) and the composer (18), so what she shows and the
+   (12), the stage (13) and the composer (18), so what he shows and the
    words he can answer with are what stays sharp. Reduced transparency: the
    app-wide guard drops the blur and the guard's own line makes the dim solid. */
 .nv-nt-stagedim {
@@ -4124,7 +4124,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-stagedim.leaving { animation: nvNtDimOut .22s var(--nv-ease) both; pointer-events: none; }
 @keyframes nvNtDimOut { from { opacity: 1; } to { opacity: 0; } }
 
-/* THE STAGE, RISING: glass over the thread while she speaks. Its
+/* THE STAGE, RISING: glass over the thread while he speaks. Its
    rail is a zero-height sticky line at the head's foot (--nt-headh, measured),
    outside the head, so its blur reaches the thread */
 .nv-nt-stagerail { position: sticky; top: calc(var(--nt-top) + var(--nt-headh, 144px)); z-index: 13; height: 0; margin: 0 -16px; }
@@ -4169,7 +4169,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-mini b { display: flex; align-items: center; gap: 4px; font: 600 15px/1.25 var(--nv-font-ui); white-space: nowrap; }
 .nv-nt-mini span { display: block; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-sum-ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-nt-mini .nv-nt-ico { width: 14px; height: 14px; }
-/* Replay, in the settled card's head beside "Shown while she spoke": a quiet
+/* Replay, in the settled card's head beside "Shown while he spoke": a quiet
    pill in ink (the page's one accent stays Send); the pill is 32px to the
    eye and 44px to the finger (::before) */
 .nv-nt-streplay {
@@ -4286,7 +4286,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-nt-track i { display: block; height: 100%; background: var(--nv-ink); border-radius: 2px; transition: width .25s linear; }
 .nv-nt-tm { flex: none; font: 600 15px var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--nv-ink60); }
 
-/* thinking: where her answer will be, as a skeleton */
+/* thinking: where his answer will be, as a skeleton */
 .nv-nt-think { display: flex; flex-direction: column; gap: 8px; }
 .nv-nt-skel { display: block; height: 14px; border-radius: 6px; background: linear-gradient(90deg, var(--nt-quiet), color-mix(in srgb, var(--nv-ink) 16%, transparent), var(--nt-quiet)); background-size: 200% 100%; animation: nvNtShimmer 1.4s linear infinite; }
 @keyframes nvNtShimmer { to { background-position: -200% 0; } }
@@ -4423,7 +4423,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
    design/mockups/68-nova-focus.html: A's field for his turn (refined:
    fewer, finer embers, a slower sky, nothing competing with the core) and
    C's stage while they talk (the core travels to the presenter's spot, the
-   glass plate carries the turn, her subtitles in the serif, the word being
+   glass plate carries the turn, his subtitles in the serif, the word being
    said underlined in the speaker's hue). Every selector names a .nv-fx-*
    class; every colour is a token or mixed from one. The full screen is
    always night, the core's own ground (under daylight its ink and ground
@@ -4515,7 +4515,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-fx-corehit:active .nv-nt-core { transform: scale(.97); }
 .nv-fx-core .nv-nt-canvas { width: 300px; height: 300px; }
 
-/* the field: her state in words under the core, and what he could ask */
+/* the field: his state in words under the core, and what he could ask */
 .nv-fx-fstate, .nv-fx-pstate { display: flex; align-items: center; gap: 8px; margin: 0; font: 400 15px/1.3 var(--nv-font-ui); color: var(--fx-ink2); }
 .nv-fx-fstate b, .nv-fx-pstate b { font-weight: 600; color: var(--fx-ink); }
 .nv-fx-fstate span, .nv-fx-pstate span { white-space: nowrap; }
@@ -4540,7 +4540,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
   opacity: 0; transform: translateY(10px); pointer-events: none; transition-delay: 0s;
 }
 
-/* the stage: Nova and her state beside the presenter's core */
+/* the stage: Nova and his state beside the presenter's core */
 .nv-fx-pn {
   position: absolute; z-index: 3; left: calc(var(--fx-px, 76px) + 66px); right: 16px; top: var(--fx-py, 128px);
   display: flex; flex-direction: column; gap: 2px; pointer-events: none;
@@ -4572,7 +4572,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
   display: flex; flex-direction: column; padding: 14px 18px 18px; border-radius: 30px;
   transition: flex-grow calc(var(--nv-dur-slow) * var(--fx-slow)) var(--nv-ease);
 }
-/* listening and thinking hold what they have, no more; her words take the room */
+/* listening and thinking hold what they have, no more; his words take the room */
 .nv-fx-plate[data-mode="listen"], .nv-fx-plate[data-mode="think"] { flex-grow: 0; }
 .nv-fx-phead { position: relative; z-index: 2; display: flex; align-items: center; gap: 10px; min-height: 32px; flex: none; }
 .nv-fx-who {
@@ -4586,7 +4586,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-fx-who .nv-nt-ico { width: 16px; height: 16px; }
 .nv-fx-clock { margin-left: auto; font: 400 15px/1 var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--fx-ink3); }
 
-/* HER WORDS: laid out whole, each one rising in as it is said; the word in
+/* HIS WORDS: laid out whole, each one rising in as it is said; the word in
    the air lit in the speaker's hue and underlined for as long as it lasts */
 .nv-fx-pbody {
   position: relative; flex: 1 1 auto; min-height: 0; margin-top: 6px; overflow: hidden;

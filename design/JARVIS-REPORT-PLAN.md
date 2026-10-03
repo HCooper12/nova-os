@@ -1,13 +1,13 @@
-# The Spoken Report — Nova reads it, the screen shows what she means
+# The Spoken Report — Nova reads it, the screen shows what he means
 
 **His ask, 21 Sep 2026 (13:46), after reading the Coach's program review in
 the Inbox:** the detail is welcome, but the report should come back through
-Nova herself — read aloud, with visuals that accommodate what she is saying,
+Nova himself — read aloud, with visuals that accommodate what he is saying,
 "just like we've talked about before with the idea behind Jarvis". His
 example: when the report says a muscle is over-trained for his goals, the 3D
 body rises with that muscle lit and the camera eases in; then his program
 appears with every exercise for that muscle highlighted; the one to drop
-blinks and is removed as she explains why. Aim: clearer key information, and
+blinks and is removed as he explains why. Aim: clearer key information, and
 something worth listening to.
 
 **He asked for a mockup before code.** It is here:
@@ -22,14 +22,14 @@ first.
 1. **The verdict.** Nova speaks the report's opening; the glass shows the one
    number the sentence is about (72 of 98 sets completed).
 2. **The muscle it means.** The Train screen's body model rises with the
-   named muscle lit in the report's accent; the camera eases in while she
+   named muscle lit in the report's accent; the camera eases in while he
    says the figure (chest, 12 sets/week, not a priority).
 3. **Where it comes from.** His actual program as written, every exercise for
    that muscle lit.
-4. **The change, shown.** The exercise she recommends dropping blinks, is
+4. **The change, shown.** The exercise he recommends dropping blinks, is
    struck through, and leaves the list; the row the evidence protects stays.
    Under it: *Make this change* / *Argue*.
-5. **What to do.** The numbered changes arrive one by one as she reaches
+5. **What to do.** The numbered changes arrive one by one as he reaches
    them; chips carry the words the report already accepts ("Make all of
    them", "Make change 2", "Argue with 3", "Research further").
 

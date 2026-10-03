@@ -81,11 +81,6 @@ export function skillLamps(skill) {
   return (skill?.moves || []).map((m) => ({ name: m.name, lit: (Number(m.landed) || 0) > 0 }));
 }
 
-// "Research it" in his sentence is the explicit trigger for the web
-// (PRACTICE-PLAN.md, Architecture) — the server decides too; this only says
-// so up front.
-export const RESEARCH_RE = /\b(?:research (?:it|this|that|them)|look (?:it|this|that) up|look up|find (?:me )?sources|search the web)\b/i;
-
 // The skill Home carries: the day's pick when the server named one, else the
 // first active skill, else the first at all.
 export function homeSkill(P) {
@@ -286,7 +281,6 @@ export function valsPractice(app, ctx) {
         set: (e) => app.setState({ practiceAddDraft: typeof e === 'string' ? e : e.target.value }),
         send: () => app.practicePrepare(),
         busy: !!st.practiceAdding,
-        research: RESEARCH_RE.test(st.practiceAddDraft || ''),
       },
     },
   };

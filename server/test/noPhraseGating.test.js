@@ -6,7 +6,7 @@
 //
 // What this pins:
 //   1. a research question with NO research word reaches Nova's ask lane,
-//      whose prompt tells her to ask the Researcher whenever the evidence
+//      whose prompt tells him to ask the Researcher whenever the evidence
 //      should settle it, and the consult rail asks the Researcher;
 //   2. a training question with NO training word reaches the Coach the same
 //      way (Nova consults it), and one spanning both asks both at once;

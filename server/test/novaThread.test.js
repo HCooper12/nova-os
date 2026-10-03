@@ -72,7 +72,7 @@ test('a panel\'s gist is the words already on it, never a new number', () => {
   assert.equal(gistOf(null), null);
 });
 
-test('her sentence: the spoken part lit, the rest of it and the next one dim, nothing ahead of that', () => {
+test('his sentence: the spoken part lit, the rest of it and the next one dim, nothing ahead of that', () => {
   const t = 'Six of seven nights were over seven hours. Tuesday was the short one, at six ten. The rest were fine.';
   const at43 = stageLine(t, 43);
   assert.equal(at43.lit.trim(), 'Six of seven nights were over seven hours.');
@@ -329,13 +329,13 @@ test('the stage steps the thread back: a blur and a light dim under the head, st
 
 test('the settled stage says what it was and offers Replay in one line (30 Sep, "so I can refer back")', () => {
   const parts = read('src/NovaThreadParts.jsx');
-  assert.match(parts, /<Ico name="stage" \/>Shown while she spoke\{time \? ` · \$\{time\}` : ''\}/);
+  assert.match(parts, /<Ico name="stage" \/>Shown while he spoke\{time \? ` · \$\{time\}` : ''\}/);
   assert.match(parts, /className="nv-nt-streplay" onClick=\{onReplay\}/);
   assert.match(parts, /<StagePanel card=\{st\.last\} onOpen=\{onOpen\} \/>/, 'a tap on the panel opens it full width');
   assert.doesNotMatch(parts.slice(parts.indexOf('export function Settled')), /On the stage/);
 });
 
-test('the live stage: only while she speaks with a glass up; her sentence measured in the reply\'s own text', () => {
+test('the live stage: only while he speaks with a glass up; his sentence measured in the reply\'s own text', () => {
   const { app } = fakeApp({ voiceSpeaking: true, glassBeats: beats, glassSpokenTo: 43,
     voiceChat: [{ at: T0, who: 'nova', text: 'Six of seven nights were over seven hours. Tuesday was the short one.', streaming: true }] });
   const glass = { hero: { kind: 'metric', label: 'NIGHTS OVER 7 H', value: '6' }, rail: [{ kind: 'bars', label: 'SLEEP', bars: [] }] };

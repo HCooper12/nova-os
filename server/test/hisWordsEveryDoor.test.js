@@ -33,7 +33,7 @@ const reply = (text) => {
   if (/COACH_MOVE_HIS/.test(text)) return /in his own words: "LEADER_ASK_MOVE move my rope overhead tricep extension to push/.test(text)
     ? ${JSON.stringify(`Moving it as you asked.\n${P({ ...MOVE, instructed: true })}`)}
     : ${JSON.stringify(`Moving it.\n${P({ ...MOVE, instructed: true })}`)};
-  // Nova, consulted by the Coach: does she know these were his own words?
+  // Nova, consulted by the Coach: does he know these were his own words?
   if (/NOVA_FROM_COACH/.test(text)) return /because of what Hayden said to the Coach, in his own words: "COACHTAB_ASK what does my week look like for a shoulder rehab block/.test(text) ? 'HIS_WORDS_SEEN' : 'NO_HIS_WORDS';
   if (/LEADER_ASK_MOVE/.test(text)) return ${JSON.stringify(consult('coach', 'COACH_MOVE_HIS should the rope extension move to Push?'))};
   if (/COACHTAB_ASK/.test(text)) return ${JSON.stringify(consult('nova', 'NOVA_FROM_COACH what has he written about his shoulder lately?'))};
@@ -206,7 +206,7 @@ test('THE COACH TAB: what he types to the Coach is marked, and an agent the Coac
 test('the brief names whom he said it to, for every asking agent; an unmarked question is framed as a question', () => {
   const his = 'COACHTAB_ASK what does my week look like for a shoulder rehab block';
   assert.match(consultedBrief('coach', his), /because of what Hayden said to the Coach, in his own words: "COACHTAB_ASK/);
-  assert.match(consultedBrief('nova', his), /because of what Hayden said to her, in his own words/);
+  assert.match(consultedBrief('nova', his), /because of what Hayden said to him, in his own words/);
   assert.match(consultedBrief('coach', 'an unmarked question'), /to help answer Hayden's question: "an unmarked question"/);
   // only the Coach may file, and only it is told it may mark "instructed"
   assert.doesNotMatch(consultedBrief('leader', his), /instructed/);

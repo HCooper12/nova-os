@@ -1,7 +1,7 @@
-// NOVA IN THE REAL DYNAMIC ISLAND — while she is talking and he has left.
+// NOVA IN THE REAL DYNAMIC ISLAND — while he is talking and he has left.
 //
-// His ask, 25 Sep 2026: when Nova is speaking and he leaves the app, show her
-// icon in the Dynamic Island so he can see she is still talking, and tap it to
+// His ask, 25 Sep 2026: when Nova is speaking and he leaves the app, show his
+// icon in the Dynamic Island so he can see he is still talking, and tap it to
 // come back. A web app cannot draw in the hardware island. iOS can, for any
 // app that is playing audio: that is the Now Playing activity — artwork on the
 // left, a moving waveform on the right, and a tap that opens the app. So Nova
@@ -11,8 +11,8 @@
 // What this does NOT decide is whether iOS keeps a home-screen app's audio
 // running once he leaves; speechResume.js measures that, and nothing here
 // assumes it. It only makes sure that WHEN audio is playing, the island says
-// "Nova" with her face, not "localhost" with a blank square — and that the
-// island's pause button actually stops her.
+// "Nova" with his face, not "localhost" with a blank square — and that the
+// island's pause button actually stops him.
 //
 // Only Nova's <audio> path shows up in Now Playing; the Web Audio buffer path
 // and the browser's own speech synthesis do not. Setting metadata for them is
@@ -29,7 +29,7 @@ const art = () => {
 const supported = () => typeof navigator !== 'undefined' && 'mediaSession' in navigator
   && typeof window !== 'undefined' && typeof window.MediaMetadata === 'function';
 
-// The line under her name: the start of what she is saying, cut at a word.
+// The line under his name: the start of what he is saying, cut at a word.
 export function nowPlayingLine(text, max = 64) {
   const t = String(text || '').replace(/\s+/g, ' ').trim();
   if (!t) return 'Speaking';

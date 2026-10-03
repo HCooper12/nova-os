@@ -16,7 +16,7 @@ import { agentOf } from './artifactClient.js';
 // WHERE THE CORE IS. His turn (and the quiet states that are also his turn:
 // a failed take, offline) is A's FIELD: the core large and centred among its
 // embers. The moment the conversation moves (he talks, the Mac writes it
-// down, she reads the vault, a reply is still arriving, she speaks) it is
+// down, he reads the vault, a reply is still arriving, he speaks) it is
 // C's STAGE: the core travels to the presenter's spot at the top left and
 // the glass plate carries the words.
 const STAGE_KEYS = new Set(['listening', 'thinking', 'speaking']);
@@ -34,7 +34,7 @@ export const PHASE_HOLD_MS = 900;
 
 // THE CORE KEEPS ITS COLOURS IN FOCUS (his words above): NovaCore's own
 // state tints, the ones the tab bar's Nova and the classic Voice screen
-// already wear: violet while listening, gold while she speaks, her blue at
+// already wear: violet while listening, gold while he speaks, his blue at
 // rest and while thinking (which says itself by speed and the chasing arcs).
 // The thread's small head is not part of this: it stays form-only.
 // The state is said in words beside the core as well, so nothing rides on
@@ -57,10 +57,10 @@ export const FIELD_EMBERS_CAP = 140;
 
 // ---------------------------------------------------------- the steps --
 
-// WHILE SHE WORKS, THE STEPS CODE CAN SEE, NEVER A MODEL'S NARRATION:
+// WHILE HE WORKS, THE STEPS CODE CAN SEE, NEVER A MODEL'S NARRATION:
 // the Mac writing down what he said (only when this turn was spoken, which
-// the screen saw as `heard`), then her reading the vault, each ticked as the
-// next state arrives. Nothing here is a guess at what she is doing inside.
+// the screen saw as `heard`), then his reading the vault, each ticked as the
+// next state arrives. Nothing here is a guess at what he is doing inside.
 export function focusSteps({ hearing = false, heard = false, busy = false, answering = false } = {}) {
   const steps = [];
   if (hearing || heard) {
@@ -117,7 +117,7 @@ export function lastYours(lines) {
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i];
     if (m?.who === 'you') return String(m.text || '').trim() || null;
-    if (m?.who === 'nova' && !m.streaming) return null; // she has answered since
+    if (m?.who === 'nova' && !m.streaming) return null; // he has answered since
   }
   return null;
 }

@@ -226,7 +226,7 @@ tilts and spins with comet trackers trailing fades, a graticule globe carrying
 a fibonacci particle shell, great-circle filament arcs, an inner 3-D ember
 cloud (the hollow-shell lesson, applied in volume), depth fog + perspective,
 twin billboard HUD rings, and the shared breathing heart. Blue kept per the
-identity decision (the references were orange; Nova keeps her color).
+identity decision (the references were orange; Nova keeps his color).
 
 **Shipped as a second core style**: Settings → Appearance → NOVA CORE picks
 Hologram (new default) or Filament (the original, fully preserved). The

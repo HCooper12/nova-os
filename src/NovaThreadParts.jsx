@@ -46,9 +46,9 @@ export function Ico({ name, className = '' }) {
 // ------------------------------------------------------------ the core --
 
 // THE LIVING CORE AT THE HEAD. NovaCore's own filament engine, in Nova's blue
-// only (formOnly): it grows with his level while he talks, spins while she
+// only (formOnly): it grows with his level while he talks, spins while he
 // thinks (the clock three times faster, and two arcs chase round it), pulses
-// with her voice while she speaks, and goes grey and still offline. Since
+// with his voice while he speaks, and goes grey and still offline. Since
 // 30 Sep it is drawn in FOCUS only (at rest the tab bar's Nova is the one orb
 // on screen), at the focus size; the growth and pulse ride one small frame
 // loop on a wrapper, never React state.
@@ -71,7 +71,7 @@ export function CoreFace({ stateKey, engine, focus, tinted = false, size = CORE_
     const loop = (t) => {
       const lvl = Math.min(1, audioLevel());
       // listening: about a third larger with his voice; speaking: a pulse
-      // with hers on top of a slow breath
+      // with his on top of a slow breath
       const want = form.grow ? 1 + 0.08 + lvl * 0.26 : 1 + 0.035 * Math.sin(t / 180) + lvl * 0.12;
       s += (want - s) * 0.18;
       el.style.transform = `scale(${s.toFixed(3)})`;
@@ -124,7 +124,7 @@ export function StagePanel({ card, onOpen, sub }) {
   );
 }
 
-// B's stage, rising from under the head as glass over the thread while she
+// B's stage, rising from under the head as glass over the thread while he
 // speaks, and ⌃ to tuck it. The thread stays where he left it, blurred and
 // dimmed behind (.nv-nt-stagedim, 30 Sep), so the stage is what he reads.
 export function Stage({ s, onTuck, onOpen, leaving, replay }) {
@@ -146,14 +146,14 @@ export function Stage({ s, onTuck, onOpen, leaving, replay }) {
 // THE STAGE, SETTLED INTO THE THREAD, so he can refer back (30 Sep, his
 // "the stage pop up should then fit into the conversation flow as well… so I
 // can refer back"). The head says what it is and offers the one act in the
-// same line: "Shown while she spoke · 13:05" and Replay. Below it the last
+// same line: "Shown while he spoke · 13:05" and Replay. Below it the last
 // panel, and a tap on any panel opens it full width; the others ride the rail.
 export function Settled({ st, time, onOpen, onReplay }) {
   const all = st.count === 1 ? 'the panel' : st.count === 2 ? 'both panels' : `all ${st.count} panels`;
   return (
     <div className="nv-sum-card nv-nt-settled">
       <div className="nv-nt-sthead">
-        <span className="t"><Ico name="stage" />Shown while she spoke{time ? ` · ${time}` : ''}</span>
+        <span className="t"><Ico name="stage" />Shown while he spoke{time ? ` · ${time}` : ''}</span>
         <button type="button" className="nv-nt-streplay" onClick={onReplay} aria-label={`Replay ${all}`}>
           <Ico name="play" />Replay
         </button>

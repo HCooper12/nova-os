@@ -20,16 +20,16 @@ import { NovaFocus } from '../NovaFocus.jsx';
 // focus." Voice.jsx hands over to this under `summary` only.
 //
 // The thread IS the page, newest at the foot, and it opens on the first line
-// he has not seen. At rest the head is her name and her state in words, and
+// he has not seen. At rest the head is his name and his state in words, and
 // no core (30 Sep, his: "The nova icon at the top of the voice screen
 // shouldn't be persistent since I have the nova icon at the bottom corner. It
 // should only appear if I tap on the nova name…"). The name opens FOCUS,
 // since 3 Oct the full-screen Nova (src/NovaFocus.jsx, his pick after mockup
 // 68: A's field for his turn, C's stage while they talk, the core in its
-// state colours there), its own history entry. › opens her status and
-// settings. While she
+// state colours there), its own history entry. › opens his status and
+// settings. While he
 // speaks the stage rises from under the head as glass over the thread, which
-// blurs and dims behind it, and settles into the thread as a card when she
+// blurs and dims behind it, and settles into the thread as a card when he
 // finishes. One composer.
 // The tab bar's Nova button is the one talk control, and on this page it opens
 // this page's microphone. Everything drawn comes from valsNovaThread.js;
@@ -96,7 +96,7 @@ export function NovaThread({ v }) {
   }, [v.voiceAutoListenTick]);
 
   // one gesture, everything it needs (as the classic core): unlock audio
-  // inside the tap, stop her mid-sentence, open the mic in conversation mode
+  // inside the tap, stop him mid-sentence, open the mic in conversation mode
   const startTalking = () => {
     v.primeSpeech();
     if (dictRef.current.on) { dictRef.current.toggle(); return; }
@@ -121,7 +121,7 @@ export function NovaThread({ v }) {
     return () => T.registerFocus(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // BACK TO THE THREAD: the sentence he watched is her newest line, at the
+  // BACK TO THE THREAD: the sentence he watched is his newest line, at the
   // foot; the full screen is held one beat longer while the core folds back
   // into the name and the field fades (cut under reduced motion)
   // (held in the same render the focus closes, so the full screen is never
@@ -146,7 +146,7 @@ export function NovaThread({ v }) {
     busy: T.busy, speaking: T.speaking, offline: T.offline, demo: T.demo, failed, lastReplyAt: T.lastReplyAt,
   });
 
-  // ---- the stage: live while she speaks, or a replay of a settled one ----
+  // ---- the stage: live while he speaks, or a replay of a settled one ----
   const live = T.stage && T.stage.key !== tuckedKey ? T.stage : null;
   useEffect(() => { if (!T.stage) setTuckedKey(null); }, [T.stage]);
   useEffect(() => {
@@ -268,7 +268,7 @@ export function NovaThread({ v }) {
   return (
     <div ref={rootRef} className={`nv-nt${focus ? ' focus' : ''}${v.isMobile ? ' mob' : ''}`} data-screen-label="Voice">
       <header ref={headRef} className="nv-nt-head">
-        {/* the head is her name and state, no core: at rest the tab bar's
+        {/* the head is his name and state, no core: at rest the tab bar's
             Nova is the one orb on screen, and in focus the full screen has it */}
         <div className="nv-nt-who">
           {/* HIS AMENDMENT: the name opens the focus, now the full screen */}

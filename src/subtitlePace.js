@@ -101,8 +101,8 @@ export function sentenceAt(sentences, t) {
 //   e    0..1, it has arrived (rises in over `arrive` ms from its start)
 //   lit  0..1, it is being said (1 while said, fading over `linger` after)
 //   p    0..1, how far through it the voice is (the underline's sweep)
-// A word after the point he cut her off (`cut`) never arrives: nothing is
-// shown that she did not say.
+// A word after the point he cut him off (`cut`) never arrives: nothing is
+// shown that he did not say.
 export function wordLook(span, t, { arrive = 280, linger = 320, cut = null } = {}) {
   if (!span || t < span.st || (Number.isFinite(cut) && span.st >= cut)) return { e: 0, lit: 0, p: 0 };
   const e = Math.min(1, (t - span.st) / Math.max(1, arrive));

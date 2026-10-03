@@ -1338,7 +1338,7 @@ finds "who is waiting on me" faster on the map than in the Inbox.
 **25 SEP (morning) — THE ISLAND HOLDS WHAT IS LIVE, THE POCKET, NOVA IN THE
 REAL ISLAND, AND A MODEL FAIL-SAFE.** His asks, in order: (1) move nudges
 into the island; (2) workout progress in the island, and tap it from
-OUTSIDE Nova to resume; (3) Nova's icon in the island while she talks after
+OUTSIDE Nova to resume; (3) Nova's icon in the island while he talks after
 he leaves; (4) black card stays; (5) a bug pass + missing notifications;
 (6, mid-turn) "Opus 5 instead of 5.5, Fable 5 instead of 5.1 — a fail safe
 so the newest model is always available and used." All shipped, pushed,
@@ -1357,8 +1357,8 @@ live build `b2bb1db65` = HEAD, server reloaded, verify-shipped 0 FAIL.
   url/tag validated. Route verified live (refuses a foreign url).
   **UNVERIFIED: no real push has fired yet** — needs a real workout + leaving.
 - **Now Playing** (`src/nowPlaying.js`): Media Session metadata so iOS's
-  own island shows "Nova" + her icon while her `<audio>` path plays; pause
-  stops her. **UNVERIFIED: whether iOS keeps a home-screen app's audio
+  own island shows "Nova" + his icon while his `<audio>` path plays; pause
+  stops him. **UNVERIFIED: whether iOS keeps a home-screen app's audio
   alive after he leaves** — speechResume.js measures it; unknown on device.
 - **Answer-ready notices** (`App.announceAway`): Claude Code, Breaker,
   Coach, Leader, Quick Session, voice research — only when he is elsewhere.

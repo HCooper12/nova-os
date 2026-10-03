@@ -25,14 +25,14 @@ import {
 // CONVERSATION MOVES the core TRAVELS (one element, transformed, 480 ms on
 // the house ease) to C's presenter spot at the top left, "Nova" and the
 // state beside it, and the glass plate carries the turn: his voice in the
-// core's own breath, then his words and the steps code can see, then her
+// core's own breath, then his words and the steps code can see, then his
 // subtitles word by word in the serif, the word being said underlined in
 // the speaker's hue for as long as it is said. Panels dock onto the plate.
-// When she finishes, the core travels home. The core wears its state
+// When he finishes, the core travels home. The core wears its state
 // colours here (violet listening, gold speaking, blue at rest).
 //
 // Its own history entry (App.openNovaFocus), so the ⌄, the edge swipe and a
-// swipe up on the thread's peek all return to the thread, where her newest
+// swipe up on the thread's peek all return to the thread, where his newest
 // line is the sentence he just watched. Drawn by the .nv-fx-* block at the
 // end of index.css. Reads only; every act is a function the thread hands in.
 
@@ -213,7 +213,7 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
         </div>
       )}
 
-      {/* the stage: Nova and her state beside the presenter's core */}
+      {/* the stage: Nova and his state beside the presenter's core */}
       <div className="nv-fx-pn" aria-hidden={phase !== 'stage'}>
         <b>Nova</b>
         <p className="nv-fx-pstate"><Glyph k={S.key} /><b>{S.word}</b></p>
@@ -291,7 +291,7 @@ function Thinking({ S, T, heard, streaming }) {
 
 // ------------------------------------------------------------- captions --
 
-// HER WORDS, WORD BY WORD. A sentence is laid out whole the moment its audio
+// HIS WORDS, WORD BY WORD. A sentence is laid out whole the moment its audio
 // starts (so the line never reflows), its words invisible; each one rises in
 // as it is paced to be said, lit in the speaker's hue and underlined while it
 // is in the air, white once said. Earlier sentences dim and scroll up. The
@@ -445,7 +445,7 @@ function CcIcon() {
 
 // ------------------------------------------------------------ the field --
 
-// HER EMBERS, LOOSE IN THE ROOM (mockup 68 A, refined: fewer, finer, a
+// HIS EMBERS, LOOSE IN THE ROOM (mockup 68 A, refined: fewer, finer, a
 // slower drift). Each mote orbits wherever the core is on its own radius, so
 // when the core travels to the presenter's spot its embers follow and gather
 // close round it. His finger pulls half of them to it. Listening, the field

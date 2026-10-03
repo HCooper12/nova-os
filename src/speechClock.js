@@ -12,7 +12,7 @@ import { estimateSpeechMs } from './subtitlePace.js';
 // nothing is written here before the sound is.
 //
 // A reply starts a fresh list (App.attachAskPoll, beside resetGlass); a stop
-// marks where she was cut off, so the words after it never appear.
+// marks where he was cut off, so the words after it never appear.
 
 const MAX = 12;
 // a sentence starting this long after the last one ended is a new moment
@@ -49,7 +49,7 @@ export function beginReply() {
   emit();
 }
 
-// he stopped her: the sentence in the air ends here, and its later words
+// he stopped him: the sentence in the air ends here, and its later words
 // are never shown (they were never said)
 export function cutSpeech(at = clockNow()) {
   const last = sentences[sentences.length - 1];

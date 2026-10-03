@@ -94,7 +94,7 @@ test('with no audio length, the sentence is paced on an estimate (and the clock 
 
 // ------------------------------------------------------- the speech clock --
 
-test('the speech clock: a sentence noted as its audio starts, estimated without a length, cut where he stopped her, cleared per reply', () => {
+test('the speech clock: a sentence noted as its audio starts, estimated without a length, cut where he stopped him, cleared per reply', () => {
   _resetSpeechClock();
   const seen = [];
   const off = onSpeech((l) => seen.push(l.length));
@@ -107,7 +107,7 @@ test('the speech clock: a sentence noted as its audio starts, estimated without 
   assert.equal(b.dur, estimateSpeechMs('The phone said this.'));
   assert.equal(noteSpokenSentence('   ', 500), null, 'nothing said, nothing noted');
   cutSpeech(12_400);
-  assert.equal(spokenSentences()[1].cut, 12_400, 'the sentence in the air ends where her voice did');
+  assert.equal(spokenSentences()[1].cut, 12_400, 'the sentence in the air ends where his voice did');
   cutSpeech(12_900);
   assert.equal(spokenSentences()[1].cut, 12_400, 'cut once');
   beginReply();
@@ -143,7 +143,7 @@ test('the phase: his turn is the field; the moment the conversation moves it is 
   assert.ok(PHASE_HOLD_MS >= 600 && PHASE_HOLD_MS <= 1500, 'the gap inside one exchange never sends it home');
 });
 
-test('the state → tint table: violet listening, gold speaking, her blue at rest and thinking', () => {
+test('the state → tint table: violet listening, gold speaking, his blue at rest and thinking', () => {
   assert.deepEqual(focusTint('listening'), { hue: 'violet', listening: true, speaking: false });
   assert.deepEqual(focusTint('speaking'), { hue: 'gold', listening: false, speaking: true });
   for (const k of ['turn', 'thinking', 'failed', 'offline', 'anything']) assert.deepEqual(focusTint(k), { hue: 'blue', listening: false, speaking: false }, k);
@@ -187,7 +187,7 @@ test('what to ask: at most two, only doors the app already offers, none offline,
   assert.deepEqual(focusAsks(null), []);
 });
 
-test('the peek and the words he asked: the thread\'s newest line; his question until she answers it', () => {
+test('the peek and the words he asked: the thread\'s newest line; his question until he answers it', () => {
   const lines = [{ who: 'you', text: 'How did I sleep?' }, { who: 'nova', agent: 'Coach', text: 'Seven  hours\ntwenty.' }];
   assert.deepEqual(peekLine(lines), { who: 'Coach', text: 'Seven hours twenty.' });
   assert.deepEqual(peekLine([{ who: 'you', text: 'Hi' }, { who: 'nova', text: '  ' }]), { who: 'You', text: 'Hi' });

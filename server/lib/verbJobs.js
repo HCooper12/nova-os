@@ -324,7 +324,7 @@ export const JOB_VERBS = [
           extra: ctx.direct ? {} : { open: { screen: 'practice', slug: hit.slug, scenario: hit.scenario || null } },
         };
       }
-      const record = await lanes.startPrepare(vaultPath, { text, research: /\b(research|look (it )?up|find (me )?sources?|dig into)\b/i.test(text) });
+      const record = await lanes.startPrepare(vaultPath, { text });
       return {
         destination: `Practice — preparing "${short(text)}"`,
         said: 'Putting together a practice page for that from what you have — it lands in Practice and your Inbox.',

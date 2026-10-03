@@ -40,7 +40,7 @@ const DRAWABLE = new Set(['metric', 'bars', 'list', 'shot', 'key', 'steps', 'med
 const Instruments = lazy(() => import('./Instruments.jsx'));
 // THE SPOKEN REPORT'S FIGURE (23 Sep 2026, design/JARVIS-REPORT-PLAN.md).
 // The same Body3D the exercise card turns, lit for the muscle Nova is
-// judging and eased in on it while she says the figure. Lazy for the same
+// judging and eased in on it while he says the figure. Lazy for the same
 // reason the instruments are: three.js must not be paid for before a reply
 // starts speaking.
 const Body3D = lazy(() => import('./Body3D.jsx'));

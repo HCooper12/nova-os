@@ -53,7 +53,7 @@ const INTERRUPTIONS = /^\s*(?:no[,\s]+no|no way|stop|wait|hang on|hold on|hold u
 // NOT saying. One stray word misheard out of the room is not an interruption;
 // two that Nova never said is him.
 const MIN_NEW_WORDS = 2;
-// Above this share of echo, treat it as Nova hearing herself.
+// Above this share of echo, treat it as Nova hearing himself.
 const ECHO_CEILING = 0.5;
 
 // Should this transcript, heard while Nova is speaking, cut Nova off?

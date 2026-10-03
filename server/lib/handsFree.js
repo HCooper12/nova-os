@@ -115,7 +115,7 @@ async function defaultPush(note) {
 }
 
 // The one notification, from the job alone. Who answered: Nova, with every
-// agent whose answer reached her (one that failed is not named as answering).
+// agent whose answer reached him (one that failed is not named as answering).
 // The first sentence is the answer's own, after the code-written "Asking …"
 // line that opens it.
 export function latePush(job, jobId = null) {

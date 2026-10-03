@@ -92,7 +92,7 @@ test('every agent may ask everyone but itself, and never whoever is waiting on i
     assert.ok(!cap.includes(`"${from}" (`), `${from} is not offered itself`);
     for (const id of all.filter((x) => x !== from)) assert.ok(cap.includes(`"${id}" (`), `${from} can ask ${id}`);
   }
-  // the Coach, asked by Nova, cannot ask Nova back (she is waiting on it)
+  // the Coach, asked by Nova, cannot ask Nova back (he is waiting on it)
   assert.deepEqual(consultableBy('coach', { chain: ['nova'] }).sort(), ['calendar', 'leader', 'librarian', 'researcher']);
   assert.match(consultCapability('coach', { chain: ['nova'] }), /Nova is waiting on your answer/);
   assert.equal(parseConsult('CONSULT {"asks":[{"agent":"nova","question":"q"}]}', { from: 'coach', chain: ['nova'] }), null);

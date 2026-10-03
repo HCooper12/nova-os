@@ -64,7 +64,7 @@ export function panelsOf(glass) {
     .map((p) => (p.pending ? { ...p, pending: false } : p));
 }
 
-// THE STAGE SETTLES INTO THE THREAD as a card: the last panel she showed,
+// THE STAGE SETTLES INTO THE THREAD as a card: the last panel he showed,
 // large; the others as small rows, newest first; and a count. Nothing is
 // dropped, so "all three" on Replay is always the truth.
 export function settleStage(panels) {
@@ -108,7 +108,7 @@ export function gistOf(card) {
   }
 }
 
-// HER SENTENCE, WITH THE SPOKEN WORDS LIT. `spokenTo` is how far the voice has
+// HIS SENTENCE, WITH THE SPOKEN WORDS LIT. `spokenTo` is how far the voice has
 // got in the reply (glassSpokenTo); the lit part is the sentence being said up
 // to there, the dim part the rest of that sentence and the next one. On the
 // spoken path the text is revealed as it is heard, so `later` is usually

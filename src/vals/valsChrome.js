@@ -887,7 +887,7 @@ function islandView(app, st, demoMode) {
   if (st.voiceSpeaking && st.screen !== 'voice') {
     out.speaking = {
       sig: 'speaking',
-      label: 'Nova is speaking. Show what she is saying',
+      label: 'Nova is speaking. Show what he is saying',
       lead: { type: 'nova' },
       trail: { type: 'wave' },
       expanded: () => ({
