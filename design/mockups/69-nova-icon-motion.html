@@ -1,0 +1,682 @@
+<title>Nova Core Motion</title>
+<!--
+  69 · NOVA'S ICON, IN MOTION (4 Oct 2026)
+  His instruction at the 3 Oct close: analyse the Instagram reel
+  https://www.instagram.com/reel/Dd9g4biMnS4/ (shipnotesai, "Your Jarvis
+  needs a face", 1080x1920, 60 fps, 10.8 s) and develop the dynamic
+  animations of Nova's icon further, as mockups first.
+
+  The reel, read frame by frame at 12 fps (130 frames) plus full-size
+  crops: a body of grains that changes SHAPE by state. Listening, a loose
+  sphere with ripples; thinking, it shears into strata and winds into a
+  turning ribbon knot; speaking, the strata inflate into a dense membrane
+  that wobbles with the voice, and every word pours out of its underside
+  as a plume of grains that lands as the word. Its colours (amber, violet,
+  pink) are NOT carried over: Nova keeps his own (violet listening,
+  coral-red speaking by his choice of 3 Oct, blue at rest), and thinking,
+  which has no colour today, is drawn in Nova's cyan as a proposal.
+
+  Three variations on one stage (A shapeshifter, B the heart stays, C two
+  new moves), the reel's moves named and each seekable, the dock orb (58)
+  and the presenter (120) driven by the same clock.
+
+  HONEST LIMITS. No frame of the reel is embedded (third-party footage;
+  this repo is public). The voice level is simulated from paced words; in
+  the app it comes from audioLevel (his mic while he talks, Nova's voice
+  while he speaks). Word timing is paced per sentence, as subtitlePace.js
+  does today; true word timings are the later version. DEMO CONTENT ONLY:
+  the question and the reply are invented, nothing here is his data.
+
+  Grains: 1,700 on the stage (1,300 under 500px wide), one canvas, paused
+  when the tab is hidden. prefers-reduced-motion: no travel, no pour, no
+  shear; each state is a still frame and a change is a 250 ms cross-fade.
+  "Preview reduced motion" shows that path without changing the setting.
+  __core.seek(ms) freezes the turn at a moment; __core.play() resumes.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --bg:#06070d;--bg2:#0b0e1a;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.74);--ink3:rgba(232,236,246,.5);--sep:rgba(232,236,246,.12);
+  --card:rgba(255,255,255,.055);--card-ring:rgba(255,255,255,.11);--card-hi:rgba(255,255,255,.2);
+  --nova:#cfd8f5;
+  --rest:#78beff;--listen:#b0a0ff;--think:#59e6ff;--speak:#ff806e;
+  --talk:#59e6ff;--talk-ink:#062028;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:16px;padding-block:28px 72px}
+.eyebrow{font:600 12px/1.2 var(--ui);letter-spacing:.04em;color:var(--ink3);margin:0 0 10px}
+h1{font:700 clamp(28px,5vw,40px)/1.08 var(--ui);letter-spacing:-.02em;margin:0 0 12px;text-wrap:balance}
+.lede{font:400 18px/1.5 var(--serif);color:var(--ink2);max-width:40em;margin:0 0 8px;text-wrap:pretty}
+.demo{font-size:13px;color:var(--ink3);margin:0 0 28px;max-width:46em}
+h2{font:650 20px/1.25 var(--ui);letter-spacing:-.01em;margin:0 0 6px}
+.sub{color:var(--ink2);margin:0 0 18px;max-width:44em;font-size:15px;text-wrap:pretty}
+section{margin-top:56px}
+
+/* the two-column studio: the stage leads, the controls sit beside it on the Mac */
+.studio{display:grid;grid-template-columns:minmax(0,390px) minmax(0,1fr);gap:36px;align-items:start}
+@media (max-width:860px){.studio{grid-template-columns:minmax(0,1fr)}}
+.stagecol{position:sticky;top:16px}
+@media (max-width:860px){.stagecol{position:static}}
+
+/* variation picker */
+.vars{display:grid;gap:8px;margin:0 0 14px}
+.var{appearance:none;border:0;text-align:left;cursor:pointer;color:var(--ink);background:var(--card);border-radius:16px;padding:12px 14px;
+  box-shadow:inset 0 0 0 1px var(--card-ring);display:grid;grid-template-columns:auto 1fr;gap:2px 12px;min-height:44px;
+  transition:transform 140ms ease-out,box-shadow 200ms ease,background 200ms ease;font:inherit}
+.var:active{transform:scale(.985)}
+.var .k{grid-row:span 2;font:700 15px/1 var(--ui);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.06);color:var(--ink2);margin-top:1px}
+.var b{font:600 15px/1.3 var(--ui)}
+.var span.d{font-size:13px;line-height:1.4;color:var(--ink3)}
+.var[aria-pressed="true"]{background:rgba(89,230,255,.07);box-shadow:inset 0 0 0 1.5px rgba(89,230,255,.55)}
+.var[aria-pressed="true"] .k{background:var(--talk);color:var(--talk-ink)}
+.var[aria-pressed="true"] span.d{color:var(--ink2)}
+
+/* the stage: Nova's full screen, at phone size */
+.stage{position:relative;width:100%;aspect-ratio:390/680;max-height:78vh;margin-inline:auto;border-radius:40px;overflow:hidden;isolation:isolate;
+  background:radial-gradient(120% 70% at 50% 30%,#121a35 0%,#0a0d1c 46%,#05060c 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 30px 80px -30px rgba(0,0,0,.9)}
+.stage::before{content:"";position:absolute;inset:-20%;z-index:-1;
+  background:radial-gradient(40% 30% at 30% 22%,rgba(89,120,255,.13),transparent 70%),radial-gradient(36% 28% at 74% 70%,rgba(160,110,255,.09),transparent 70%)}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.pill{position:absolute;top:22px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;
+  padding:7px 14px 7px 10px;border-radius:999px;background:rgba(16,20,38,.55);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);
+  -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%);font:600 13px/1 var(--ui);white-space:nowrap}
+.pill .nm{color:var(--ink)}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--st,var(--rest));box-shadow:0 0 10px var(--st,var(--rest));transition:background 300ms ease,box-shadow 300ms ease}
+.pill .sw{color:var(--ink2);font-weight:500}
+.caption{position:absolute;left:22px;right:22px;top:61%;height:30%;text-align:center}
+.line{position:absolute;left:0;right:0;top:0;margin:0;font:400 23px/1.36 var(--serif);text-wrap:balance;opacity:0}
+.line .w{display:inline-block;opacity:0;will-change:opacity,transform,filter}
+.line.him .w{color:var(--ink)}
+.line.nova .w{color:var(--nova)}
+.line.nova .w.cur{color:#fff;text-decoration:underline;text-decoration-color:var(--speak);text-decoration-thickness:2px;text-underline-offset:7px}
+.who{display:block;font:600 12px/1 var(--ui);letter-spacing:.02em;color:var(--ink3);margin-bottom:10px}
+.foot{position:absolute;bottom:18px;left:0;right:0;display:flex;justify-content:center}
+.chev{width:44px;height:30px;display:grid;place-items:center;color:var(--ink3)}
+
+/* transport */
+.transport{margin-top:14px;display:grid;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{appearance:none;border:0;cursor:pointer;font:600 13px/1 var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring);
+  border-radius:999px;padding:0 15px;min-height:44px;display:inline-flex;align-items:center;gap:7px;transition:transform 120ms ease-out,background 160ms ease,color 160ms ease}
+.chip:active{transform:scale(.96)}
+.chip i{width:7px;height:7px;border-radius:50%;background:var(--c,var(--ink3));display:block}
+.chip[aria-pressed="true"]{color:var(--ink);background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 1.5px var(--card-hi)}
+.chip.play{min-width:44px;justify-content:center}
+.scrub{display:grid;gap:4px}
+.scrub input{width:100%;margin:0;height:28px;-webkit-appearance:none;appearance:none;background:transparent;cursor:pointer}
+.scrub input::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:var(--track)}
+.scrub input::-moz-range-track{height:6px;border-radius:3px;background:var(--track)}
+.scrub input::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;margin-top:-6px;box-shadow:0 1px 6px rgba(0,0,0,.6)}
+.scrub input::-moz-range-thumb{width:18px;height:18px;border:0;border-radius:50%;background:#fff}
+.scrub .marks{display:flex;justify-content:space-between;font:500 11px/1 var(--ui);color:var(--ink3)}
+.toggles{display:flex;flex-wrap:wrap;gap:6px}
+
+/* the moves */
+.moves{list-style:none;margin:0;padding:0;display:grid;gap:2px;counter-reset:none}
+.mv{display:grid;grid-template-columns:78px minmax(0,1fr) auto;gap:4px 14px;align-items:start;padding:14px 4px;border-top:1px solid var(--sep)}
+.mv:first-child{border-top:0}
+.mv time{font:500 12px/1.45 var(--mono);color:var(--ink3);font-variant-numeric:tabular-nums;padding-top:2px}
+.mv h3{font:600 15px/1.3 var(--ui);margin:0 0 3px}
+.mv p{margin:0;color:var(--ink2);font-size:14px;line-height:1.45;text-wrap:pretty}
+.mv .in{margin-top:7px;font-size:13px;color:var(--ink);display:flex;gap:7px;align-items:baseline}
+.mv .in i{flex:none;width:7px;height:7px;border-radius:50%;background:var(--c);transform:translateY(-1px)}
+.mv .in em{font-style:normal;color:var(--ink3)}
+.see{appearance:none;border:0;cursor:pointer;font:600 13px/1 var(--ui);color:var(--talk);background:rgba(89,230,255,.08);border-radius:999px;padding:0 16px;min-height:44px;
+  transition:transform 120ms ease-out,background 160ms ease;white-space:nowrap}
+.see:active{transform:scale(.95)}
+.mv.on{background:linear-gradient(90deg,rgba(89,230,255,.06),transparent 70%)}
+@media (max-width:560px){.mv{grid-template-columns:minmax(0,1fr)}.mv time{padding:0}.see{justify-self:start}}
+
+/* sizes */
+.sizes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.size{margin:0;padding:22px 18px 16px;border-radius:22px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring);display:grid;gap:14px;justify-items:center}
+.size figcaption{font-size:13px;color:var(--ink2);text-align:center}
+.size figcaption b{display:block;color:var(--ink);font-weight:600;font-size:14px}
+.dock{display:flex;align-items:center;gap:10px}
+.tabs{height:58px;padding:0 16px;border-radius:999px;background:rgba(20,25,44,.72);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);display:flex;align-items:center;gap:16px}
+.tabs i{width:18px;height:18px;border-radius:6px;background:rgba(232,236,246,.22);display:block}
+.tabs i:first-child{background:rgba(89,230,255,.55)}
+.orb{width:58px;height:58px;border-radius:50%;background:#0c1022;box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);overflow:hidden;position:relative}
+.orb canvas,.pres canvas{display:block}
+.pres{display:flex;align-items:center;gap:12px}
+.pres .lab{display:grid;gap:3px}
+.pres .lab b{font:600 17px/1 var(--ui)}
+.pres .lab span{font-size:13px;color:var(--ink2)}
+
+/* today vs proposed */
+.tablewrap{overflow-x:auto;border-radius:18px;box-shadow:inset 0 0 0 1px var(--card-ring)}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:12px 14px;border-top:1px solid var(--sep)}
+thead th{border-top:0;font:600 12px/1.3 var(--ui);color:var(--ink3);letter-spacing:.02em;background:rgba(255,255,255,.03)}
+tbody th{font-weight:600;white-space:nowrap}
+tbody th i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:8px;transform:translateY(-1px)}
+td{color:var(--ink2)}
+td.same{color:var(--ink3)}
+
+/* decisions */
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 14px/1 var(--ui);background:rgba(89,230,255,.12);color:var(--talk)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:var(--ink2);font-size:14px}
+.build{color:var(--ink2);font-size:14px;max-width:46em}
+.build li{margin-bottom:6px}
+
+:focus-visible{outline:2px solid var(--talk);outline-offset:3px}
+@media (prefers-reduced-motion: reduce){.var,.chip,.see{transition:none}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 69 · 4 October 2026 · for your review</p>
+  <h1>Nova's icon, in motion</h1>
+  <p class="lede">The reel gives an assistant a body that changes shape as a conversation moves: a loose sphere while you talk, a turning knot while it thinks, a dense shell while it answers, and every word poured out of it. Below are its moves, named, and three ways to give them to Nova's core, in Nova's own colours.</p>
+  <p class="demo">Demo content: the question and the reply are invented. The voice level here is simulated from paced words; in the app it comes from your microphone while you talk and from Nova's voice while he speaks.</p>
+
+  <div class="studio">
+    <div class="stagecol">
+      <div class="stage" id="stage" role="img" aria-label="Nova full screen, the icon animating through a conversation">
+        <canvas id="cv" aria-hidden="true"></canvas>
+        <div class="pill" id="pill" aria-live="polite"><span class="nm">Nova</span><span class="dot" aria-hidden="true"></span><span class="sw" id="stname">At rest</span></div>
+        <div class="caption" id="caption"></div>
+        <div class="foot"><span class="chev" aria-hidden="true"><svg width="22" height="12" viewBox="0 0 22 12" fill="none"><path d="M2 2l9 8 9-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      </div>
+      <div class="transport">
+        <div class="scrub">
+          <input id="scrub" type="range" min="0" max="15000" step="10" value="0" aria-label="Position in the conversation">
+          <div class="marks" aria-hidden="true"><span>Rest</span><span>Listening</span><span>Thinking</span><span>Speaking</span><span>Rest</span></div>
+        </div>
+        <div class="chips" role="group" aria-label="Show">
+          <button class="chip play" id="play" type="button" aria-label="Pause">Pause</button>
+          <button class="chip" type="button" data-mode="turn" aria-pressed="true">Whole turn</button>
+          <button class="chip" type="button" data-mode="listen" aria-pressed="false" style="--c:var(--listen)"><i></i>Listening</button>
+          <button class="chip" type="button" data-mode="think" aria-pressed="false" style="--c:var(--think)"><i></i>Thinking</button>
+          <button class="chip" type="button" data-mode="speak" aria-pressed="false" style="--c:var(--speak)"><i></i>Speaking</button>
+        </div>
+        <div class="toggles">
+          <button class="chip" type="button" id="slow" aria-pressed="false">Quarter speed</button>
+          <button class="chip" type="button" id="rmprev" aria-pressed="false">Preview reduced motion</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h2>Three ways to give Nova these moves</h2>
+      <p class="sub">Each keeps the blue core you know at rest. They differ in how much of it changes while you talk to him.</p>
+      <div class="vars" role="group" aria-label="Variation">
+        <button class="var" type="button" data-v="a" aria-pressed="false"><span class="k">A</span><b>Shapeshifter</b><span class="d">Removes the rings for the length of a turn. Every state becomes one body of grains: a sphere while you talk, a knot while he thinks, a shell while he speaks, the words pouring from its underside.</span></button>
+        <button class="var" type="button" data-v="b" aria-pressed="true"><span class="k">B</span><b>The heart stays</b><span class="d">Keeps the breathing heart in every state, so Nova is always recognisably Nova. The grains form around it, the knot threads through it, and the words leave from the heart itself.</span></button>
+        <button class="var" type="button" data-v="c" aria-pressed="false"><span class="k">C</span><b>Two new moves</b><span class="d">Keeps today's core and its colours exactly. Adds the shear at every change of state, and the pour: each word flies out of the core into the subtitle.</span></button>
+      </div>
+
+      <h2 style="margin-top:30px">The reel's moves, named</h2>
+      <p class="sub">Times are the reel's own. Show me plays the move on the stage; the quick ones play at quarter speed.</p>
+      <ol class="moves" id="moves">
+        <li class="mv" data-t="2100"><time>0:00.0</time><div><h3>The grain sphere</h3><p>A loose ball of a few thousand fine grains, faint and slowly turning. It is the whole face; nothing else on the screen moves.</p><p class="in" style="--c:var(--listen)"><i></i><span>Listening, in A and B: the core loosens into grains while you talk. <em>Today the rings tint violet.</em></span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="1450"><time>0:00.4</time><div><h3>The ink-in</h3><p>Each word the person says arrives dim and brightens over a beat. The newest word is the brightest; the earlier ones settle.</p><p class="in" style="--c:var(--ink)"><i></i><span>Your words while you talk, in every variation. They rise from below, where your voice comes from.</span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="2700"><time>0:00.6</time><div><h3>The ripple</h3><p>Bands of light travel diagonally across the sphere, quicker and brighter on every syllable.</p><p class="in" style="--c:var(--listen)"><i></i><span>Listening, in A and B, driven by your microphone, the bands rising from the bottom edge.</span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="4520" data-slow="1"><time>0:01.6</time><div><h3>The shear</h3><p>The sphere cuts into horizontal slices that slide apart in alternate directions, in about a fifth of a second.</p><p class="in" style="--c:var(--think)"><i></i><span>Every change of state. In A and B the grains slice; in C it is the main new move, the core image itself slicing.</span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="5100"><time>0:01.9</time><div><h3>The knot</h3><p>The slices wind into a ribbon tangle that turns slowly, the grains flowing along it, and the colour changes.</p><p class="in" style="--c:var(--think)"><i></i><span>Thinking, in A and B, in Nova's cyan. <em>Today thinking only runs the rings three times faster.</em></span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="6520" data-slow="1"><time>0:02.5</time><div><h3>The inflate</h3><p>The knot drops back into slices and the slices swell into a dense shell, in under half a second.</p><p class="in" style="--c:var(--speak)"><i></i><span>Thinking to speaking, in A and B.</span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="7600"><time>0:02.9</time><div><h3>The membrane</h3><p>A dense, soft shell with a lit rim. It bulges and wobbles with the voice, and a band of light slides down it.</p><p class="in" style="--c:var(--speak)"><i></i><span>Speaking, in A and B, in the coral-red you kept. In B the heart glows inside it.</span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="7150" data-slow="1"><time>0:03.0</time><div><h3>The pour</h3><p>For each word, a plume of grains leaves the underside and lands as that word. The newest is white, the rest settle grey, and the line clears at each new sentence.</p><p class="in" style="--c:var(--speak)"><i></i><span>Nova's subtitles in every variation: from the shell in A, the heart in B, the core in C. The word being said keeps its underline, in the speaking colour.</span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="12800"><time>0:08.8</time><div><h3>The settle</h3><p>The shell rounds off, thins out and turns back to the resting colour while the last sentence stays a moment, then fades.</p><p class="in" style="--c:var(--rest)"><i></i><span>Back to rest: the grains fall back into the rings around the heart.</span></p></div><button class="see" type="button">Show me</button></li>
+        <li class="mv" data-t="4400"><time>Throughout</time><div><h3>The named state</h3><p>Three outlined labels above the face, the current one lit in its state's colour.</p><p class="in" style="--c:var(--ink3)"><i></i><span>Kept as Nova does it now: the state named in words beside the core, so colour is never the only signal.</span></p></div><button class="see" type="button">Show me</button></li>
+      </ol>
+    </div>
+  </div>
+
+  <section>
+    <h2>At every size Nova appears</h2>
+    <p class="sub">The same clock drives the tab bar's Nova and the presenter spot in full screen. The pour needs subtitles, so it lives only where they do. At 58 points the knot reads as a tangle rather than a knot; whether it still reads as Nova is for you to judge on your phone.</p>
+    <div class="sizes">
+      <figure class="size"><div class="dock"><span class="tabs" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="orb"><canvas id="cv58" aria-hidden="true"></canvas></span></div><figcaption><b>The tab bar's Nova</b>58 points, on every page</figcaption></figure>
+      <figure class="size"><div class="pres"><canvas id="cv120" aria-hidden="true"></canvas><div class="lab"><b>Nova</b><span id="presstate">At rest</span></div></div><figcaption><b>The presenter spot</b>120 points, full screen once the conversation moves</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Today, and what each variation changes</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th scope="col">State</th><th scope="col">Today</th><th scope="col">A · Shapeshifter</th><th scope="col">B · The heart stays</th><th scope="col">C · Two new moves</th></tr></thead>
+        <tbody>
+          <tr><th scope="row" style="--c:var(--rest)"><i></i>At rest</th><td>Blue rings around a breathing heart</td><td class="same">Unchanged</td><td class="same">Unchanged</td><td class="same">Unchanged</td></tr>
+          <tr><th scope="row" style="--c:var(--listen)"><i></i>Listening</th><td>Rings tint violet and swell with your voice</td><td>Violet grain sphere, ripples rising from below</td><td>Violet grain shell around the heart, ripples rising from below</td><td>Today's violet, sheared in</td></tr>
+          <tr><th scope="row" style="--c:var(--think)"><i></i>Thinking</th><td>Rings run three times faster; no colour of its own</td><td>Cyan knot, grains flowing along it</td><td>Cyan knot threaded through the heart</td><td>Today's quickened rings, sheared in</td></tr>
+          <tr><th scope="row" style="--c:var(--speak)"><i></i>Speaking</th><td>Rings tint coral-red and pulse with the voice</td><td>Coral shell that wobbles with the voice; words pour from its underside</td><td>Coral shell with the heart lit inside; words pour from the heart</td><td>Today's coral; words pour from the core</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>A, B or C, or parts of more than one</b><span>Whichever you pick becomes the build. The others are dropped, or kept as a setting if you want to switch between them.</span></div></li>
+      <li><div><b>Thinking gets a colour of its own: Nova's cyan</b><span>If yes, thinking reads at a glance across the room, as listening and speaking already do. If no, it stays blue and only the shape (A, B) or the speed (C) tells you he is working.</span></div></li>
+      <li><div><b>Where it lives: full screen only, or the tab bar's Nova and Home's core too</b><span>Full screen only changes nothing you see on other pages. Everywhere means the tab bar's Nova shows the sphere, knot and shell at 58 points while you talk to him from any page.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>If it is built</h2>
+    <ul class="build">
+      <li>The grain forms become a third engine inside NovaCore, beside filament and hologram, so every surface gets them from one place and the rest state stays the core you chose in Settings.</li>
+      <li>Grains capped at 1,600 on the phone, one canvas, paused when the screen is hidden. The reel uses 12,000; that many would cost your phone's battery for little you could see at this size.</li>
+      <li>The ripple reads your microphone level and the membrane reads Nova's voice level, both already measured by the app. Word timing stays paced per sentence until the voice engine can report true word times.</li>
+      <li>Reduced motion: each state a still frame, a quarter-second cross-fade between them, the words fading in without the pour.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const eo = (x) => 1 - Math.pow(1 - x, 3);
+  const eio = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+  const seeded = (seed) => { let x = seed; return () => (x = (x * 16807) % 2147483647) / 2147483647; };
+
+  const RMQ = matchMedia('(prefers-reduced-motion: reduce)');
+  let rmReal = RMQ.matches, rmPreview = false;
+  const reduced = () => rmReal || rmPreview;
+  RMQ.addEventListener?.('change', (e) => { rmReal = e.matches; });
+
+  /* ---------------- the turn: one clock, every surface reads it ---------------- */
+  const LOOP = 15000;
+  const STATES = [{ k: 'rest', at: 0 }, { k: 'listen', at: 1200 }, { k: 'think', at: 4600 }, { k: 'speak', at: 6600 }, { k: 'rest', at: 12900 }];
+  const SEG = { turn: [0, LOOP], listen: [1200, 4600], think: [4600, 6600], speak: [6600, 12900] };
+  const NAME = { rest: 'At rest', listen: 'Listening', think: 'Thinking', speak: 'Speaking' };
+  const COL = { rest: [120, 190, 255], listen: [176, 160, 255], think: [89, 230, 255], speak: [255, 128, 110] };
+  const CHANGES = [1200, 4600, 6600, 12900];
+  function stateAt(T) { let i = 0; for (let j = 0; j < STATES.length; j++) if (T >= STATES[j].at) i = j; return { s: STATES[i], prev: STATES[i - 1] || null }; }
+  function colourAt(T) {
+    const { s, prev } = stateAt(T); const c = COL[s.k]; if (!prev) return c;
+    const p = eio(clamp01((T - s.at) / (s.k === 'rest' ? 900 : 420))); const c0 = COL[prev.k];
+    return [lerp(c0[0], c[0], p), lerp(c0[1], c[1], p), lerp(c0[2], c[2], p)];
+  }
+
+  // the words: his line, then Nova's two sentences, each paced across its span
+  const LINES = [
+    { who: 'him', text: 'What does my training look like this week?', at: 1500, dur: 2600, show: [1450, 6750] },
+    { who: 'nova', text: 'Four sessions this week.', at: 7200, dur: 1300, show: [7150, 8900] },
+    { who: 'nova', text: "Tuesday's push is the heavy one, so sleep early Monday.", at: 9000, dur: 3300, show: [8950, 14300] },
+  ];
+  const hash = (s) => { let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) % 1000; return h / 1000; };
+  for (const L of LINES) {
+    const ws = L.text.split(' ');
+    const wt = ws.map((w) => w.replace(/[^A-Za-z0-9']/g, '').length + 1.6 + (/[,;]$/.test(w) ? 2.8 : 0));
+    const sum = wt.reduce((a, b) => a + b, 0); let t = L.at;
+    L.words = ws.map((w, i) => { const d = (L.dur * wt[i]) / sum; const o = { text: w, st: t, en: t + d, amp: 0.55 + 0.45 * hash(w + i) }; t += d; return o; });
+  }
+  function envAt(T) {
+    for (const L of LINES) {
+      if (T < L.at || T > L.at + L.dur) continue;
+      for (const w of L.words) if (T >= w.st && T < w.en) { const p = (T - w.st) / (w.en - w.st); return Math.pow(Math.sin(Math.PI * p), 0.7) * w.amp; }
+    }
+    return 0;
+  }
+  const levelAt = (T) => (envAt(T) + envAt(T - 50) + envAt(T - 100)) / 3;
+
+  /* ---------------- the grain body: forms, and the timeline between them ---------------- */
+  const FORMS = [
+    { f: 'rest', at: 0, d: 1 }, { f: 'listen', at: 1200, d: 700 },
+    { f: 'strata', at: 4600, d: 220 }, { f: 'knot', at: 4820, d: 600 },
+    { f: 'strata', at: 6600, d: 220 }, { f: 'membrane', at: 6820, d: 450 },
+    { f: 'rest', at: 12900, d: 1100 },
+  ];
+  function formAt(T) { let i = 0; for (let j = 0; j < FORMS.length; j++) if (T >= FORMS[j].at) i = j; return { e: FORMS[i], prev: FORMS[i - 1] || null }; }
+
+  function makeGrains(N, seed) {
+    const r = seeded(seed), P = [], ga = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < N; i++) {
+      const y0 = 1 - (2 * (i + 0.5)) / N, rad = Math.sqrt(1 - y0 * y0), th = ga * i;
+      // the lattice jittered, so the shell reads as grain rather than a grid of dots
+      let x = Math.cos(th) * rad + (r() - 0.5) * 0.07, y = y0 + (r() - 0.5) * 0.07, z = Math.sin(th) * rad + (r() - 0.5) * 0.07;
+      const l = Math.hypot(x, y, z); x /= l; y /= l; z /= l;
+      P.push({ x, y, z, ang: Math.atan2(z, x), layer: Math.min(8, Math.floor(((y + 1) / 2) * 9)),
+        ra: r() * 6.283, rr: 0.12 + 0.88 * Math.pow(r(), 0.8), rv: (r() - 0.5) * 0.0005,
+        u: r(), v: r() * 2 - 1, s1: 0.5 + r() * 2, s2: r() * 6.28, dl: ((1 - y) / 2) * 110, a: 0.55 + r() * 0.45, sz: 0.75 + r() * 0.75 });
+    }
+    return P;
+  }
+  const DIR = (() => { const v = [0.45, -0.8, 0.35]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
+  function rotProj(x, y, z, yaw, pitch, o) {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+    const cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const y1 = y * cp - z1 * sp, z2 = y * sp + z1 * cp;
+    const k = 1 + z2 * 0.14; o[0] = x1 * k; o[1] = y1 * k; o[2] = z2;
+  }
+  const kn = [0, 0, 0], kn2 = [0, 0, 0];
+  function trefoil(u, o) { o[0] = (Math.sin(u) + 2 * Math.sin(2 * u)) * 0.3; o[1] = (Math.cos(u) - 2 * Math.cos(2 * u)) * 0.3 + 0.15; o[2] = -Math.sin(3 * u) * 0.3; }
+  // each form writes [x, y, depth, alpha] in units of the body's radius, already turned and projected
+  function form(f, p, T, lvl, o) {
+    switch (f) {
+      case 'rest': { const a = p.ra + T * p.rv; o[0] = Math.cos(a) * p.rr * 0.9; o[1] = Math.sin(a) * p.rr * 0.85; o[2] = 0; o[3] = 0.5 * (1.3 - 0.5 * p.rr); return; }
+      case 'listen': {
+        const d = p.x * DIR[0] + p.y * DIR[1] + p.z * DIR[2];
+        const rip = Math.sin(d * 11 - T * 0.0075);
+        const r = 0.8 * (1 + rip * 0.05 * (0.25 + lvl * 1.3)) + 0.02 * Math.sin(T * 0.0015 * p.s1 + p.s2);
+        rotProj(p.x * r, p.y * r, p.z * r, T * 0.00018, 0.32, o);
+        o[3] = (0.26 + 0.6 * (0.5 + 0.5 * rip) * (0.3 + lvl)) * (0.5 + 0.5 * (o[2] + 1) / 2); return;
+      }
+      case 'strata': {
+        const k = p.layer, y = -0.74 + (1.48 * k) / 8, rr = Math.sqrt(Math.max(0.06, 1 - y * y)), a = p.ang + T * 0.0005;
+        o[0] = rr * Math.cos(a) * 0.92 + 0.2 * (k % 2 ? 1 : -1); o[1] = y + Math.sin(a) * 0.03; o[2] = Math.sin(a); o[3] = 0.5 + 0.3 * (o[2] + 1) / 2; return;
+      }
+      case 'knot': {
+        const u = p.u * 6.2832 + T * 0.00032;
+        trefoil(u, kn); trefoil(u + 0.02, kn2);
+        const tx = kn2[0] - kn[0], ty = kn2[1] - kn[1], tz = kn2[2] - kn[2];
+        const tl = Math.hypot(tx, ty, tz) || 1, ux = tx / tl, uy = ty / tl, uz = tz / tl;
+        let nx = uy - uz * 0.35, ny = -ux, nz = ux * 0.35; const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+        const bx = uy * nz - uz * ny, by = uz * nx - ux * nz, bz = ux * ny - uy * nx; // the ribbon twists as it runs
+        // five parallel strands, as the reel's ribbons are drawn, with a slow half-turn of twist
+        const tw = u * 1.2 + T * 0.0004, w = 0.15 * (Math.round(p.v * 2) / 2), cw = Math.cos(tw) * w, sw = Math.sin(tw) * w * 0.35;
+        rotProj(kn[0] + nx * cw + bx * sw, kn[1] + ny * cw + by * sw, kn[2] + nz * cw + bz * sw, T * 0.00045, 0.5 + 0.15 * Math.sin(T * 0.0003), o);
+        o[3] = 0.45 + 0.5 * (o[2] + 1) / 2; return;
+      }
+      case 'membrane': {
+        const th = Math.atan2(p.z, p.x), ph = Math.acos(p.y);
+        const r = 0.84 + lvl * 0.075 + 0.05 * Math.sin(2 * th + T * 0.0013) + 0.04 * Math.sin(3 * ph - T * 0.0009) + 0.03 * lvl * Math.sin(5 * th + 2 * ph + T * 0.003);
+        rotProj(p.x * r, p.y * r, p.z * r, T * 0.00012, 0.22, o);
+        const rim = 1 - Math.abs(o[2]); const sw = -1.15 + ((T * 0.00035) % 1) * 2.4; const band = Math.exp(-Math.pow((o[1] - sw) / 0.07, 2));
+        o[3] = (0.24 + 0.66 * rim * rim) * (0.6 + 0.4 * (o[2] + 1) / 2) + 0.3 * band; return;
+      }
+    }
+  }
+  const o0 = [0, 0, 0, 0], o1 = [0, 0, 0, 0];
+  function drawGrains(ctx, P, cx, cy, R, T, lvl, rgb, alphaAll, sizeK) {
+    if (alphaAll < 0.02) return;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgb(' + (rgb[0] | 0) + ',' + (rgb[1] | 0) + ',' + (rgb[2] | 0) + ')';
+    const { e, prev } = formAt(T);
+    if (reduced()) { // still forms, cross-faded
+      const k = prev ? clamp01((T - e.at) / 250) : 1;
+      if (prev && k < 1) pass(prev.f, 3000, (1 - k) * alphaAll);
+      pass(e.f, 3000, k * alphaAll);
+    } else {
+      const stag = e.f === 'strata' || (prev && prev.f === 'strata') ? 1 : 0.4;
+      for (const p of P) {
+        const pr = prev ? clamp01((T - e.at - p.dl * stag) / e.d) : 1;
+        let x, y, a, z;
+        form(e.f, p, T, lvl, o1);
+        if (pr >= 1) { x = o1[0]; y = o1[1]; a = o1[3]; z = o1[2]; }
+        else { form(prev.f, p, T, lvl, o0); const k = eio(pr); x = lerp(o0[0], o1[0], k); y = lerp(o0[1], o1[1], k); a = lerp(o0[3], o1[3], k); z = lerp(o0[2], o1[2], k); }
+        const ga = a * p.a * alphaAll; if (ga < 0.02) continue;
+        const s = sizeK * p.sz * (1 + z * 0.15);
+        ctx.globalAlpha = ga > 1 ? 1 : ga; ctx.fillRect(cx + x * R - s / 2, cy + y * R - s / 2, s, s);
+      }
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    function pass(f, Tf, al) {
+      if (al < 0.02) return;
+      for (const p of P) { form(f, p, Tf, 0, o1); const ga = o1[3] * p.a * al; if (ga < 0.02) continue; const s = sizeK * p.sz; ctx.globalAlpha = ga > 1 ? 1 : ga; ctx.fillRect(cx + o1[0] * R - s / 2, cy + o1[1] * R - s / 2, s, s); }
+    }
+  }
+
+  /* ---------------- today's core: the filament engine, ported from NovaCore.jsx ---------------- */
+  const PRESETS = {
+    full: { bands: 32, segs: 36, arc: 1.15, weight: 1, chaos: 1, speed: 0.16, embers: 540, wisps: 84, heart: 0.12 },
+    mid: { bands: 14, segs: 18, arc: 1.15, weight: 1.1, chaos: 0.9, speed: 0.14, embers: 150, wisps: 16, heart: 0.16 },
+    mini: { bands: 6, segs: 10, arc: 1.2, weight: 1.2, chaos: 0.8, speed: 0.12, embers: 30, wisps: 0, heart: 0.22 },
+  };
+  function makeCore(size, preset) {
+    const cv = document.createElement('canvas'); const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(size * dpr); cv.height = Math.round(size * dpr); const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    const o = PRESETS[preset]; const r = seeded(7), cx = size / 2, cy = size / 2, R0 = size * 0.46;
+    const bands = [];
+    for (let b = 0; b < o.bands; b++) {
+      const f = 0.1 + 0.9 * (b / Math.max(1, o.bands - 1)), segs = [], n = Math.round(o.segs * (0.5 + r()));
+      for (let i = 0; i < n; i++) segs.push({ a0: r() * 6.283, len: 0.02 + r() * r() * o.arc, w: 0.5 + r() * 1.6 * o.weight, jit: (r() - 0.5) * R0 * 0.05 * o.chaos, al: (0.16 + r() * 0.5) * (1.35 - 0.55 * f), fl: r() * 6.28, fs: 0.5 + r() * 2 });
+      bands.push({ f, segs, vel: (r() - 0.5) * o.speed, squash: 1 - r() * 0.14 * o.chaos, tilt: (r() - 0.5) * 0.5 * o.chaos });
+    }
+    const embers = []; for (let i = 0; i < o.embers; i++) embers.push({ f: Math.pow(r(), 1.25), ang: r() * 6.283, sz: 0.35 + r() * 1.3, al: 0.15 + r() * 0.55, tw: r() * 6.28, ts: 0.6 + r() * 2.4 });
+    const wisps = []; for (let i = 0; i < o.wisps; i++) { const a = r() * 6.283; wisps.push({ a, b: a + (r() - 0.5) * 2.4, f1: 0.25 + r() * 0.7, f2: 0.25 + r() * 0.7, bulge: (r() - 0.5) * 1.6, al: 0.05 + r() * 0.12 }); }
+    const S = { clock: 0, lvl: 0, st: 'rest', mixL: 0, mixS: 0, think: 0 };
+    // the app's own tint maths: toward 406 (lands coral-red) speaking, 272 (violet) listening
+    const col = (f, a) => {
+      let hue = 224 - f * 36; hue += (406 - hue) * S.mixS * 0.82; hue += (272 - hue) * S.mixL * 0.82;
+      return 'hsla(' + hue + ',' + (90 - f * 10) + '%,' + Math.min(38 + (1 - f) * 44 + S.lvl * 12, 88) + '%,' + a + ')';
+    };
+    return {
+      cv, size, S, R0,
+      step(dt, st, lvl, tint) {
+        S.st = st; S.lvl = lvl; const k = Math.min(1, dt / 0.18);
+        S.mixS += ((tint && st === 'speak' ? 1 : 0) - S.mixS) * k; S.mixL += ((tint && st === 'listen' ? 1 : 0) - S.mixL) * k;
+        S.think += ((st === 'think' ? 1 : 0) - S.think) * k;
+        S.clock += dt * (1 + lvl * 2.6 + S.think * 2 + (st === 'listen' || st === 'speak' ? 0.4 : 0));
+      },
+      draw(t, arcsA, heartA) {
+        ctx.clearRect(0, 0, size, size); ctx.globalCompositeOperation = 'lighter';
+        const clock = S.clock, lvl = S.lvl; const R = R0 * (1 + (S.st === 'speak' ? lvl * 0.1 : S.st === 'listen' ? lvl * 0.05 : 0));
+        if (arcsA > 0.02) {
+          ctx.globalAlpha = arcsA;
+          for (const w of wisps) {
+            const rot = clock * 0.03, x1 = cx + Math.cos(w.a + rot) * R * w.f1, y1 = cy + Math.sin(w.a + rot) * R * w.f1 * 0.94, x2 = cx + Math.cos(w.b + rot) * R * w.f2, y2 = cy + Math.sin(w.b + rot) * R * w.f2 * 0.94;
+            let mx = (x1 + x2) / 2 + (y2 - y1) * w.bulge * 0.3, my = (y1 + y2) / 2 - (x2 - x1) * w.bulge * 0.3; mx = mx * 0.62 + cx * 0.38; my = my * 0.62 + cy * 0.38;
+            ctx.strokeStyle = col(0.5, w.al * (1 + lvl * 1.2)); ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(mx, my, x2, y2); ctx.stroke();
+          }
+          for (const b of bands) {
+            const rad = R * b.f * (1 + lvl * 0.16 * Math.sin(clock * 3.1 + b.f * 9)); ctx.save(); ctx.translate(cx, cy); ctx.rotate(b.tilt); ctx.scale(1, b.squash); const rot = clock * b.vel;
+            for (const s of b.segs) { const fl = 0.55 + 0.45 * Math.sin(clock * s.fs + s.fl); ctx.strokeStyle = col(b.f, s.al * fl * (1 + lvl * 1.4)); ctx.lineWidth = s.w * (1 + lvl * 0.5) * (size / 260 > 1 ? 1 : Math.max(0.6, size / 260)); ctx.beginPath(); ctx.arc(0, 0, Math.max(0.5, rad + s.jit), s.a0 + rot, s.a0 + rot + s.len); ctx.stroke(); }
+            ctx.restore();
+          }
+          for (const e of embers) { const tw2 = 0.4 + 0.6 * Math.abs(Math.sin(clock * e.ts + e.tw)), x = cx + Math.cos(e.ang + clock * 0.05) * R * e.f, y = cy + Math.sin(e.ang + clock * 0.05) * R * e.f * 0.94; ctx.fillStyle = col(e.f, e.al * tw2 * (1 + lvl * 1.4)); ctx.beginPath(); ctx.arc(x, y, e.sz * (1 + lvl * 1.1) * Math.min(1, size / 200 + 0.3), 0, 6.29); ctx.fill(); }
+          ctx.globalAlpha = 1;
+        }
+        if (heartA > 0.02) { ctx.globalAlpha = heartA; drawHeart(ctx, cx, cy, R * o.heart * (1 + 0.07 * Math.sin(t * 1.8) + lvl * 1.15), null); ctx.globalAlpha = 1; }
+        ctx.globalCompositeOperation = 'source-over';
+      },
+    };
+  }
+  // the breathing heart: Nova's identity in every engine; `tint` mixes its glow toward a state colour
+  function drawHeart(ctx, x, y, hr, tint, k = 0.5) {
+    const m = (a, b) => Math.round(tint ? lerp(a, b, k) : a);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, hr * 3.2);
+    g.addColorStop(0, 'rgba(240,252,255,.95)');
+    g.addColorStop(0.18, tint ? 'rgba(' + m(158, tint[0]) + ',' + m(240, tint[1]) + ',' + m(255, tint[2]) + ',.82)' : 'rgba(158,240,255,.8)');
+    g.addColorStop(0.45, tint ? 'rgba(' + m(64, tint[0]) + ',' + m(170, tint[1]) + ',' + m(238, tint[2]) + ',.36)' : 'rgba(64,170,238,.35)');
+    g.addColorStop(1, 'rgba(20,60,140,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, hr * 3.2, 0, 6.29); ctx.fill();
+  }
+
+  /* ---------------- the views: the stage, the orb, the presenter ---------------- */
+  let V = 'b';
+  function makeView(canvas, opts) {
+    const ctx = canvas.getContext('2d');
+    const view = { canvas, ctx, opts, W: 0, H: 0, cx: 0, cy: 0, R: 0, core: null, P: null };
+    view.layout = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const W = opts.fixed ? opts.fixed : canvas.parentElement.clientWidth, H = opts.fixed ? opts.fixed : canvas.parentElement.clientHeight;
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      view.W = W; view.H = H; view.cx = W / 2; view.cy = opts.fixed ? H / 2 : H * 0.34;
+      view.R = opts.fixed ? W * 0.4 : Math.min(W * 0.29, 112);
+      const cs = Math.round((view.R * 0.98) / 0.46);
+      if (!view.core || Math.abs(view.core.size - cs) > 2) view.core = makeCore(cs, opts.preset);
+      if (!view.P) view.P = makeGrains(opts.grains(), 11);
+    };
+    return view;
+  }
+  const stageEl = $('#stage');
+  const main = makeView($('#cv'), { preset: 'full', grains: () => (innerWidth < 500 ? 1300 : 1700), pour: true });
+  const orb = makeView($('#cv58'), { preset: 'mini', grains: () => 260, fixed: 58 });
+  const pres = makeView($('#cv120'), { preset: 'mid', grains: () => 560, fixed: 120 });
+  const views = [main, orb, pres];
+
+  // how much of today's rings show, per variation, at time T (the grains take the rest)
+  function arcsAlpha(T) {
+    if (V === 'c') return 1;
+    if (T < 12900) return 1 - eio(clamp01((T - 1200) / 450));
+    return eio(clamp01((T - 13200) / 700));
+  }
+
+  function renderView(v, T, lvl, rgb, dt) {
+    const { ctx, cx, cy, R, core } = v; ctx.clearRect(0, 0, v.W, v.H);
+    const st = stateAt(T).s.k;
+    const RMnow = reduced();
+    core.step(RMnow ? 0 : dt, st, RMnow ? 0 : lvl, V === 'c');
+    const arcsA = arcsAlpha(T);
+    core.draw(RMnow ? 3.2 : performance.now() / 1000, arcsA, V === 'b' ? 0 : arcsA);
+    const cs = core.size;
+    if (V === 'c' && !RMnow) { // the shear: today's core slices at each change of state
+      const at = CHANGES.find((c) => T >= c && T < c + 380);
+      if (at != null) {
+        const p = (T - at) / 380, amp = Math.sin(Math.PI * p) * 0.16 * cs, n = 9, h = cs / n, sc = core.cv.width / cs;
+        for (let k = 0; k < n; k++) { const off = amp * (k % 2 ? 1 : -1) * (0.6 + 0.4 * Math.abs(Math.sin(k * 1.7))); ctx.drawImage(core.cv, 0, k * h * sc, core.cv.width, h * sc, cx - cs / 2 + off, cy - cs / 2 + k * h, cs, h); }
+      } else ctx.drawImage(core.cv, cx - cs / 2, cy - cs / 2, cs, cs);
+    } else ctx.drawImage(core.cv, cx - cs / 2, cy - cs / 2, cs, cs);
+    if (V !== 'c') drawGrains(ctx, v.P, cx, cy, R, RMnow ? T : T, lvl, rgb, 1 - arcsA, v.opts.fixed ? (v.opts.fixed < 80 ? 1 : 1.1) : 1.25);
+    if (V === 'b') { // the heart stays, lit by the state it is in
+      const hr = R * 0.98 * PRESETS[v.opts.preset].heart * (1 + (RMnow ? 0 : 0.07 * Math.sin(performance.now() / 1000 * 1.8) + lvl * 1.15)) * (st === 'speak' ? 1.15 : 1);
+      ctx.globalCompositeOperation = 'lighter'; drawHeart(ctx, cx, cy, hr, st === 'rest' ? null : rgb, 0.45 * (1 - arcsA)); ctx.globalCompositeOperation = 'source-over';
+    }
+    if (v.opts.pour && !RMnow) drawPour(v, T, rgb);
+  }
+
+  /* ---------------- the captions and the pour ---------------- */
+  const capEl = $('#caption');
+  capEl.innerHTML = LINES.map((L, i) => '<p class="line ' + L.who + '" data-i="' + i + '"><span class="who">' + (L.who === 'him' ? 'You' : 'Nova') + '</span>' + L.words.map((w, j) => '<span class="w" data-j="' + j + '">' + w.text + '</span>').join(' ') + '</p>').join('');
+  const lineEls = $$('.line', capEl);
+  LINES.forEach((L, i) => { L.el = lineEls[i]; L.words.forEach((w, j) => { w.el = $$('.w', lineEls[i])[j]; }); });
+
+  function measure() {
+    const capX = capEl.offsetLeft, capY = capEl.offsetTop;
+    LINES.forEach((L, li) => {
+      if (L.who !== 'nova') return;
+      L.words.forEach((w, j) => {
+        const x = capX + L.el.offsetLeft + w.el.offsetLeft, y = capY + L.el.offsetTop + w.el.offsetTop;
+        w.box = { x, y, w: w.el.offsetWidth, h: w.el.offsetHeight };
+        const r = seeded(101 + li * 50 + j), letters = w.text.replace(/[^A-Za-z]/g, '').length;
+        const K = Math.max(14, Math.min(60, 10 + letters * 5));
+        w.parts = []; for (let k = 0; k < K; k++) w.parts.push({ ex: x + r() * w.box.w, ey: y + w.box.h * (0.3 + 0.5 * r()), oa: r() * 6.283, orr: r(), lat: (r() - 0.5) * 80, dn: r() * 40, delay: (k / K) * 120 + r() * 40, dur: 330 + r() * 170, sz: 0.9 + r() * 0.9 });
+      });
+    });
+  }
+  const REVEAL = 270;
+  function emitterOf(v) {
+    if (V === 'b') return [v.cx, v.cy, 10];
+    if (V === 'a') return [v.cx, v.cy + v.R * 0.8, v.R * 0.28];
+    return [v.cx, v.cy + v.R * 0.62, v.R * 0.2];
+  }
+  function drawPour(v, T, rgb) {
+    const { ctx } = v; const [ex0, ey0, spread] = emitterOf(v);
+    ctx.globalCompositeOperation = 'lighter';
+    for (const L of LINES) {
+      if (L.who !== 'nova' || T < L.at - 10 || T > L.at + L.dur + 1200) continue;
+      for (const w of L.words) {
+        if (!w.parts || T < w.st || T > w.st + 1000) continue;
+        for (const p of w.parts) {
+          const t = T - w.st - p.delay; if (t < 0) continue;
+          const sx = ex0 + Math.cos(p.oa) * p.orr * spread, sy = ey0 + Math.sin(p.oa) * p.orr * spread * 0.5;
+          let x, y, a, q;
+          if (t < p.dur) {
+            q = eo(t / p.dur); const cxp = (sx + p.ex) / 2 + p.lat, cyp = (sy + p.ey) / 2 + p.dn;
+            x = (1 - q) * (1 - q) * sx + 2 * (1 - q) * q * cxp + q * q * p.ex; y = (1 - q) * (1 - q) * sy + 2 * (1 - q) * q * cyp + q * q * p.ey; a = 0.9;
+          } else { q = 1; a = 0.9 * (1 - (t - p.dur) / 220); if (a <= 0) continue; x = p.ex; y = p.ey; }
+          const c = [lerp(rgb[0], 255, q), lerp(rgb[1], 255, q), lerp(rgb[2], 255, q)];
+          ctx.fillStyle = 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')'; ctx.globalAlpha = a;
+          ctx.fillRect(x - p.sz / 2, y - p.sz / 2, p.sz, p.sz);
+        }
+      }
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+  function renderCaptions(T) {
+    const RMnow = reduced();
+    for (const L of LINES) {
+      const [a, b] = L.show; const fadeOut = L === LINES[2] ? 400 : 220;
+      let lo = T < a ? 0 : T < a + 180 ? (T - a) / 180 : T < b ? 1 : T < b + fadeOut ? 1 - (T - b) / fadeOut : 0;
+      if (L.who === 'him' && T > 4600) lo *= 1 - 0.55 * clamp01((T - 4600) / 300);
+      L.el.style.opacity = lo.toFixed(3);
+      if (lo <= 0) continue;
+      L.words.forEach((w, j) => {
+        let op, blur = 0, ty = 0, cur = false;
+        if (L.who === 'him') {
+          if (T < w.st) op = 0;
+          else if (RMnow) op = 1;
+          else { const next = L.words[j + 1]; const rise = 0.35 + 0.65 * eo(clamp01((T - w.st) / (w.en - w.st + 150))); op = next && T > next.en ? 0.8 : rise; ty = (1 - clamp01((T - w.st) / 200)) * 6; }
+        } else {
+          const r = RMnow ? clamp01((T - w.st) / 160) : clamp01((T - w.st - REVEAL) / 240);
+          op = r; if (!RMnow) { blur = (1 - r) * 5; ty = (1 - r) * 3; }
+          cur = T >= w.st && T < w.en + 120 && T < L.at + L.dur + 120;
+        }
+        w.el.style.opacity = op.toFixed(3);
+        w.el.style.filter = blur > 0.05 ? 'blur(' + blur.toFixed(2) + 'px)' : '';
+        w.el.style.transform = ty > 0.05 ? 'translateY(' + ty.toFixed(2) + 'px)' : '';
+        if (L.who === 'nova') w.el.classList.toggle('cur', cur);
+      });
+    }
+  }
+
+  /* ---------------- the clock and the controls ---------------- */
+  let T = 0, playing = !rmReal, speed = 1, mode = 'turn', last = null, lastState = '';
+  const pill = $('#pill'), stname = $('#stname'), presstate = $('#presstate'), scrub = $('#scrub');
+  scrub.max = String(LOOP);
+  scrub.style.setProperty('--track', 'linear-gradient(90deg,' + STATES.map((s, i) => { const a = (s.at / LOOP) * 100, b = ((STATES[i + 1] ? STATES[i + 1].at : LOOP) / LOOP) * 100; const c = 'rgba(' + COL[s.k].join(',') + ',.75)'; return c + ' ' + a + '%,' + c + ' ' + b + '%'; }).join(',') + ')');
+
+  function advance(dtms) {
+    if (!playing) return;
+    T += dtms * speed;
+    const [a, b] = SEG[mode];
+    if (T >= b || T < a) T = a + ((((T - a) % (b - a)) + (b - a)) % (b - a));
+  }
+  function frame(now) {
+    const dt = last == null ? 0 : Math.min(0.05, (now - last) / 1000); last = now;
+    if (!document.hidden) {
+      advance(dt * 1000);
+      const lvl = reduced() ? 0 : levelAt(T); const rgb = colourAt(T);
+      for (const v of views) renderView(v, T, lvl, rgb, dt * speed);
+      renderCaptions(T);
+      const st = stateAt(T).s.k;
+      if (st !== lastState) { lastState = st; stname.textContent = NAME[st]; presstate.textContent = NAME[st]; pill.style.setProperty('--st', 'var(--' + st + ')'); }
+      if (document.activeElement !== scrub) scrub.value = String(Math.round(T));
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function setPlaying(p) { playing = p; const b = $('#play'); b.textContent = p ? 'Pause' : 'Play'; b.setAttribute('aria-label', p ? 'Pause' : 'Play'); }
+  $('#play').addEventListener('click', () => setPlaying(!playing));
+  function setMode(m) {
+    mode = m; $$('.chip[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+    const [a, b] = SEG[m]; if (T < a || T >= b) T = a;
+  }
+  $$('.chip[data-mode]').forEach((b) => b.addEventListener('click', () => { setMode(b.dataset.mode); T = SEG[b.dataset.mode][0]; setPlaying(true); }));
+  function setSlow(s) { speed = s ? 0.25 : 1; $('#slow').setAttribute('aria-pressed', String(s)); }
+  $('#slow').addEventListener('click', () => setSlow(speed === 1));
+  $('#rmprev').addEventListener('click', (e) => { rmPreview = !rmPreview; e.currentTarget.setAttribute('aria-pressed', String(rmPreview)); });
+  scrub.addEventListener('input', () => { setMode('turn'); T = +scrub.value; });
+  function setVar(v) { V = v; $$('.var').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v))); try { localStorage.setItem('nv69.v', v); } catch { /* private window */ } }
+  $$('.var').forEach((b) => b.addEventListener('click', () => setVar(b.dataset.v)));
+  try { const s = localStorage.getItem('nv69.v'); if (s && /^[abc]$/.test(s)) setVar(s); } catch { /* private window */ }
+  $$('.mv').forEach((li) => li.querySelector('.see').addEventListener('click', () => {
+    $$('.mv').forEach((x) => x.classList.toggle('on', x === li));
+    setMode('turn'); T = +li.dataset.t; setSlow(li.dataset.slow === '1'); setPlaying(true);
+    if (innerWidth <= 860) stageEl.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+  }));
+
+  function relayout() { for (const v of views) v.layout(); measure(); }
+  relayout();
+  let rz = null; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(relayout, 120); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+  if (rmReal) { T = 7600; setPlaying(false); }
+  const deep = /^#([abc])(?:-(\d+))?$/.exec(location.hash || '');
+  if (deep) { setVar(deep[1]); if (deep[2]) { T = Math.min(LOOP - 1, +deep[2]); setPlaying(false); } }
+  window.__core = { seek(ms) { setMode('turn'); T = ms; setPlaying(false); }, play() { setPlaying(true); }, var: setVar };
+  requestAnimationFrame(frame);
+})();
+</script>

@@ -561,6 +561,24 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 4 Oct 2026 — NOVA'S ICON, ROUND 1 PUBLISHED (mockup 69,
+  https://claude.ai/artifact/5pCrLe7mtUxhsRRb4Df2bD). The reel (shipnotesai,
+  "Your Jarvis needs a face") read at 12 fps, 130 frames plus full-size
+  crops; its moves named with the reel's own times: grain sphere, ink-in,
+  ripple, shear, knot, inflate, membrane, pour, settle, named state. Its
+  colours NOT carried over: violet listening, coral-red speaking (his 3 Oct
+  choice), blue at rest; thinking, which has no colour today (NovaCore only
+  runs the rings 3x faster), drawn in Nova's cyan as a proposal. Three
+  variations live on one stage: A Shapeshifter (the rings give way to one
+  grain body per turn), B The heart stays (grains form around the breathing
+  heart, the knot threads it, words leave from it), C Two new moves (today's
+  core kept, plus the shear and the pour). Dock orb 58 and presenter 120
+  driven by the same clock. Measured: scrollWidth 390 at a 390pt mobile
+  viewport; every control 44. Reduced motion: still frames, 250 ms
+  cross-fades, no pour (previewable on the page). No reel frame embedded
+  (third-party footage, public repo). HIS CALLS: A, B or C (or a blend);
+  thinking in cyan or no colour; full screen only or the tab bar's Nova and
+  Home's core too. Nothing built in app until he picks.
 - 3 Oct 2026 (close) — STATUS BOARD FOR THE NEXT SESSION. Built (phone round,
   Summary style): Home; Inbox r2 (Look deeper); Train A/B + done-today; Fuel A
   (+ swipe, strip, viewed-day logging); Nova (thread, full-screen focus, record
