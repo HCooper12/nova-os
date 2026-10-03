@@ -35,11 +35,12 @@ export function ingestRouter(vaultPath) {
     try {
       await writeFile(tmp, req.body);
       const out = await extractBookText(tmp, filename);
-      const title = String(req.query.title || out.meta.title || '').trim();
-      const author = String(req.query.author || out.meta.author || '').trim();
-      if (!title || !author) {
-        return res.status(400).json({ error: 'that file carries no title/author of its own — send them with the upload' });
-      }
+      // what he typed, else the file's metadata, else the title page, else
+      // the filename (lib/bookName.js; his report, 3 Oct)
+      const { nameBook } = await import('../lib/bookName.js');
+      const named = nameBook({ typedTitle: req.query.title, typedAuthor: req.query.author, metaTitle: out.meta.title, metaAuthor: out.meta.author, text: out.text, filename });
+      const title = named.title || 'Untitled book';
+      const author = named.author || 'Unknown author';
       // his own copy => the deep path: text + book means provenance `read`
       const jobId = run(out.text, undefined, {
         title,
@@ -48,7 +49,7 @@ export function ingestRouter(vaultPath) {
         model: typeof req.query.model === 'string' ? req.query.model : undefined,
         reading: normalizeReadingState(req.query.reading, 'absorbed'),
       });
-      res.json({ jobId, title, author, kind: out.kind, chars: out.chars, parts: out.parts });
+      res.json({ jobId, title, author, guessed: named.guessed || !named.title || !named.author, kind: out.kind, chars: out.chars, parts: out.parts });
     } catch (e) {
       // extraction failures carry advice he can act on — pass them through
       res.status(400).json({ error: e.message });

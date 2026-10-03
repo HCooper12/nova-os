@@ -4944,14 +4944,14 @@ export default class App extends Component {
       // Habits copy has neither) and the server rightly refuses to file a
       // book it cannot name — say so HERE, before megabytes travel to an
       // error. EPUBs carry their own; the server falls back to it.
-      if (/\.pdf$/i.test(file.name) && (!title || !author)) {
-        this.toastMsg('Give me the book title and author too, sir — a PDF rarely knows its own name.');
-        return;
-      }
+      // No title or author typed: the server names it from the file's own
+      // metadata, its title page, then its filename (lib/bookName.js), and
+      // says when it guessed (his report, 3 Oct: "It should be capable of
+      // just obtaining that from the front page itself").
       this.setState({ ingestModalOpen: false, ingestStatus: 'reading', ingestError: null, ingestPreview: null });
-      api.uploadBookFile(conn, file, { title, author }).then(({ jobId, title: t, author: a, chars }) => {
+      api.uploadBookFile(conn, file, { title, author }).then(({ jobId, title: t, author: a, chars, guessed }) => {
         this.setState({ ingestJobId: jobId, ingestFile: null });
-        this.toastMsg(`Reading “${t}” by ${a} — ${Math.round(chars / 1000)}k characters`);
+        this.toastMsg(`Reading “${t}” by ${a} — ${Math.round(chars / 1000)}k characters${guessed ? ' · named from the file; fix it in the review if it is wrong' : ''}`);
         this.pollIngest(jobId);
       }).catch((err) => {
         // 'error', NEVER null: null once rendered the review sheet blank
