@@ -561,6 +561,17 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 3 Oct 2026 — DOORS MERGED (9a10d60): his words instruct on every door
+  (Leader chat, Coach tab, the lanes from Nova's door, the Researcher he asks
+  himself); quietHours.js (22:00–07:00 Melbourne, held pushes delivered as
+  one at the window's end, urgent passes; a reminder he set is urgent, my
+  call on the build's finding; prefs route + Settings row); every recipe
+  link straight in; no phrase-gated routing (Nova's prompt says whom to ask
+  by what the answer needs; the palette starts a Researcher job only on a
+  sure command; audit section in every-door.md). Found, left: Practice
+  opens the web only on his research words (his call); the Settings Test
+  push is held in quiet hours and says so. Two date-dependent tests
+  (compost 90-day, foodLogItems) fail today independent of this change.
 - 3 Oct 2026 — HIS SEVENTH ANSWERS. Full-screen Nova: C's stage with its
   animations, A's field as the "turn" (idle) appearance refined, the core
   travelling to C's presenter spot as he speaks, the state tints kept
