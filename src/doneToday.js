@@ -102,6 +102,18 @@ export function dayDoneMarks(d) {
   });
 }
 
+// Home's Training card (both idioms) and the Cupertino shortcut row (3
+// Oct): "it should not behave like I haven't done it" — once anything is
+// filed today, they say what, the same doneTodayCard the Gym tab and the
+// Done Today card already read. `scheduled` ({k, label, meta}) is whatever
+// the still-to-do badge/label/meta would have said; it comes back untouched
+// when nothing was filed, and is otherwise replaced whole, never patched
+// word by word, so nothing here ever says it differently from the card.
+export function homeTrainingCard(doneToday, scheduled) {
+  const done = doneTodayCard(doneToday);
+  return done ? { k: 'TRAIN · DONE', label: `✓ ${done.title}`, meta: done.meta } : scheduled;
+}
+
 // the marks as one line: "Arms and Delts · made up Pull · made up Upper Body, 2 left off"
 export function dayDoneText(marks) {
   if (!marks?.length) return null;

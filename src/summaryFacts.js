@@ -169,7 +169,7 @@ function highlightForVital(ring) {
 // reads facts the rest of the screen already shows (the focal ring, the plan
 // priorities, today's events) rather than deriving its own, which is what
 // keeps it honest.
-export function buildHighlight({ ringVitals = [], focalVital = null, oneThing = null, planToday = null, todayEvents = [], hour } = {}) {
+export function buildHighlight({ ringVitals = [], focalVital = null, oneThing = null, planToday = null, todayEvents = [], hour, trainedToday = false } = {}) {
   void hour; // reserved for a future time-of-day rung; every caller passes it
   // THE DAY IS CLOSED while his sleep block is live (missionLine.js's own
   // rule for the headline): at 00:26 on his real vault the card read "You're
@@ -180,7 +180,11 @@ export function buildHighlight({ ringVitals = [], focalVital = null, oneThing = 
   const dayClosed = !!(live && blockKind(live.label) === 'sleep');
   const ring = focalVital ? (ringVitals || []).find((r) => r && r.key === focalVital) : null;
   const daily = ring && (ring.key === 'protein' || ring.key === 'steps');
-  if (ring && ring.state !== 'absent' && !(daily && dayClosed)) return highlightForVital(ring);
+  // "go easy today" and the invitation to open Train both talk over a
+  // session he already filed — the Training card already says so (3 Oct);
+  // readiness stands down the same way a daily total does for the night.
+  const readinessStanddown = ring && ring.key === 'readiness' && trainedToday;
+  if (ring && ring.state !== 'absent' && !(daily && dayClosed) && !readinessStanddown) return highlightForVital(ring);
 
   if (oneThing) {
     const priorities = Array.isArray(planToday?.priorities) ? planToday.priorities : [];

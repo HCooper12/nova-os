@@ -27,7 +27,7 @@ process.env.NOVA_DATA_DIR = mkdtempSync(path.join(tmpdir(), 'nova-donetoday-'));
 
 const { doneTodayOf, makeupContext, makeupFor, leftoversOf } = await import('../lib/makeupDay.js');
 const { carryoverContext } = await import('../lib/workoutCarryover.js');
-const { doneTodayCard, dayDoneMarks, dayDoneText } = await import('../../src/doneToday.js');
+const { doneTodayCard, dayDoneMarks, dayDoneText, homeTrainingCard } = await import('../../src/doneToday.js');
 const { valsWorkouts } = await import('../../src/vals/valsWorkouts.js');
 const { valsTrainSummary } = await import('../../src/vals/valsTrainSummary.js');
 const { todayPanels } = await import('../../src/trainPanels.js');
@@ -129,6 +129,32 @@ test('a session that is neither the day\'s routine nor a make-up is named as the
   const day = doneTodayOf(DAY, SESSIONS, ROUTINES, { scheduledRoutine: null });
   assert.equal(dayDoneText(dayDoneMarks(day)), 'Arms and Delts (extra) · made up Pull · made up Upper Body, 2 left off');
   assert.equal(dayDoneText(dayDoneMarks(HIS_DAY)), 'Arms and Delts · made up Pull · made up Upper Body, 2 left off');
+});
+
+// ---- Home's Training card (3 Oct): "it should not behave like I haven't
+// done it" — both idioms read this same fold (valsMission.js), so a session
+// filed today replaces the scheduled badge whole, never word by word. -----
+
+const SCHEDULED = { k: 'TRAIN · TODAY', label: 'Arms and Delts', meta: '6 exercises · tap to open Train' };
+
+test('Home\'s Training card: one session filed today says its name and size, marked done', () => {
+  const one = doneTodayOf(DAY, SESSIONS.filter((s) => s.id === 'a18ac4fb'), ROUTINES, { scheduledRoutine: ARMS });
+  const card = homeTrainingCard(one, SCHEDULED);
+  assert.equal(card.k, 'TRAIN · DONE');
+  assert.equal(card.label, '✓ Arms and Delts');
+  assert.equal(card.meta, '6 exercises · 18 sets, filed today');
+});
+
+test('Home\'s Training card: three sessions say the day\'s totals, never just the last make-up', () => {
+  const card = homeTrainingCard(HIS_DAY, SCHEDULED);
+  assert.equal(card.k, 'TRAIN · DONE');
+  assert.equal(card.label, '✓ 3 sessions today');
+  assert.equal(card.meta, '8 exercises · 24 sets in all');
+});
+
+test('Home\'s Training card is untouched while nothing was filed today', () => {
+  assert.deepEqual(homeTrainingCard(null, SCHEDULED), SCHEDULED);
+  assert.deepEqual(homeTrainingCard({ sessions: [] }, SCHEDULED), SCHEDULED);
 });
 
 // ---- the real view models, on his Saturday -------------------------------

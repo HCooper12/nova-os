@@ -193,6 +193,21 @@ test('buildHighlight stands a daily total down while the sleep block is live (th
   assert.equal(day.key, 'protein');
 });
 
+test('buildHighlight stands readiness down once a session is filed today — it never invites a finished one', () => {
+  const rings = [{ key: 'readiness', value: '41', pct: 41, hint: 'LOW HRV VS BASELINE', state: 'missed' }];
+  const stillOpen = buildHighlight({ ringVitals: rings, focalVital: 'readiness', todayEvents: [], hour: 8 });
+  assert.equal(stillOpen.key, 'readiness', 'unchanged while nothing is filed');
+  const done = buildHighlight({ ringVitals: rings, focalVital: 'readiness', todayEvents: [], hour: 8, trainedToday: true });
+  assert.notEqual(done.key, 'readiness');
+  assert.doesNotMatch(joined(done.segments), /go easy today/);
+  // other focal rings (protein, steps, sleep) are untouched by trainedToday
+  const protein = buildHighlight({
+    ringVitals: [{ key: 'protein', value: '40', small: '/150G', pct: 27, state: 'behind' }],
+    focalVital: 'protein', todayEvents: [], hour: 15, trainedToday: true,
+  });
+  assert.equal(protein.key, 'protein');
+});
+
 test('buildHighlight skips an absent focal ring rather than reporting a hole as a fact', () => {
   const hi = buildHighlight({
     ringVitals: [{ key: 'protein', value: '—', small: '', pct: 0, state: 'absent' }],

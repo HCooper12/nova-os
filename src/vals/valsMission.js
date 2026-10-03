@@ -10,6 +10,7 @@ import { groupFamilies, shapeReports } from '../repertoireBook.js';
 import { buildReelRows } from '../reel.js';
 import { shortTechniqueName, techniqueQuestionState, questionOnlyWrap } from '../techniqueCheck.js';
 import { planCardFrom } from '../planCard.js';
+import { homeTrainingCard } from '../doneToday.js';
 
 // Mission Control domain (Command Core layout): connection status chips and
 // banner, the hero (eyebrow / tagline / standfirst), the core cluster's three
@@ -1183,15 +1184,26 @@ const bodyMetrics = demoMode
       : [],
     bodyMetrics,
     bodyMetricsMeta: demoMode ? 'DEMO DATA' : 'APPLE HEALTH · FOOD LOG',
-    workoutCardK: usingLiveWorkouts
-      ? (todayRoutine ? 'TRAIN · TODAY' : todayActiveRest ? 'TRAIN · ACTIVE REST' : 'TRAIN · REST DAY')
-      : demoMode ? 'TRAIN · 17:30' : 'TRAIN · OFFLINE',
-    workoutCardLabel: usingLiveWorkouts
-      ? (todayRoutine ? todayRoutine.name : todayActiveRest ? 'Active rest' : (liveRoutines.length ? 'No routine scheduled' : 'Build a routine in Train'))
-      : demoMode ? 'Push day · week 6' : 'Not synced',
-    workoutCardMeta: usingLiveWorkouts
-      ? (todayRoutine ? `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to open Train` : todayActiveRest ? 'Walk or stretch — no weights today' : 'Plan your week in Train →')
-      : demoMode ? '6 lifts · 42 min · bench PR watch' : 'reconnect to load your plan',
+    // WHAT TODAY HELD, not what was merely scheduled (his report, 3 Oct):
+    // once a session is filed, both Home idioms say that instead — the
+    // same doneTodayCard the Gym tab and Train's Done Today card read
+    // (src/doneToday.js homeTrainingCard), so Home can never name a
+    // session he already finished. Untouched while nothing is filed.
+    ...(() => {
+      const scheduled = {
+        k: usingLiveWorkouts
+          ? (todayRoutine ? 'TRAIN · TODAY' : todayActiveRest ? 'TRAIN · ACTIVE REST' : 'TRAIN · REST DAY')
+          : demoMode ? 'TRAIN · 17:30' : 'TRAIN · OFFLINE',
+        label: usingLiveWorkouts
+          ? (todayRoutine ? todayRoutine.name : todayActiveRest ? 'Active rest' : (liveRoutines.length ? 'No routine scheduled' : 'Build a routine in Train'))
+          : demoMode ? 'Push day · week 6' : 'Not synced',
+        meta: usingLiveWorkouts
+          ? (todayRoutine ? `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to open Train` : todayActiveRest ? 'Walk or stretch — no weights today' : 'Plan your week in Train →')
+          : demoMode ? '6 lifts · 42 min · bench PR watch' : 'reconnect to load your plan',
+      };
+      const card = usingLiveWorkouts ? homeTrainingCard(st.liveTrainOverview?.doneToday, scheduled) : scheduled;
+      return { workoutCardK: card.k, workoutCardLabel: card.label, workoutCardMeta: card.meta };
+    })(),
     todayIsLive: !!st.liveCalendar && !isOffline,
     // day-scoped cache honesty: offline data from another DAY says which day it
     // is — cached events rendering under "TODAY" as if fresh was a quiet lie

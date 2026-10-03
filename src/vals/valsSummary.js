@@ -32,6 +32,9 @@ export function valsSummary(app, ctx, m) {
     planToday: m.planToday,
     todayEvents: m.todayEvents,
     hour,
+    // the same doneCard the Training card reads (trainingCard below) — a
+    // readiness rung never invites a session already filed today
+    trainedToday: !!m.trainToday?.done,
   });
   const highlight = { ...highlightRaw, act: bindAct(highlightRaw.act, ctx, m) };
 
