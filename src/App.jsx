@@ -103,6 +103,7 @@ import { parseSettings } from './settingsVoice.js';
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
 
 import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
+import { noteSpokenSentence, cutSpeech, beginReply } from './speechClock.js';
 import { watchForUpdate } from './buildCheck.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
@@ -496,6 +497,9 @@ export default class App extends Component {
     // far, and `glassSpokenTo` how far the VOICE has got — which is what
     // decides which panel is the hero. See src/glassBeats.js.
     glassBeats: [], glassVisuals: {}, glassSpokenTo: 0,
+    // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx): open exactly
+    // while its own history entry is current (openNovaFocus)
+    novaFocus: false,
     // what "New chat" cleared, so the tap that ends a days-long conversation
     // is undoable like everything else here (his 9 Sep report)
     voiceChatUndo: (() => {
@@ -3456,7 +3460,38 @@ export default class App extends Component {
   // One helper, because server/test/edgeBack.test.js reads popH through a
   // short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory() };
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory() };
+  }
+  // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx) is its own history
+  // entry, for the recipe's reason: the back swipe and the browser's Back
+  // return to the thread rather than leaving the Nova tab. The name, the
+  // dock's hold (holdNovaCore → the thread's registered focus) and nothing
+  // else open it. UI state only; nothing here writes.
+  openNovaFocus() {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay !== 'novafocus') window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'novafocus' }, '');
+    }
+    if (!this.state.novaFocus) this.setState({ novaFocus: true });
+  }
+  // On its own entry, closing IS going back; popH does the closing.
+  closeNovaFocus() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'novafocus') { window.history.back(); return; }
+    if (this.state.novaFocus) this.setState({ novaFocus: false });
+  }
+  // popstate's half: leaving the entry closes it, returning reopens it. The
+  // thread also asks once when it mounts, so a focus left open on a page he
+  // has since tapped away from is not waiting for him on the next visit.
+  novaFocusFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'novafocus';
+    if (!onEntry && this.state.novaFocus) return { novaFocus: false };
+    if (onEntry && !this.state.novaFocus) return { novaFocus: true };
+    return {};
+  }
+  syncNovaFocus() {
+    const next = this.novaFocusFromHistory();
+    if ('novaFocus' in next) this.setState(next);
   }
   // ---------- DOCUMENTS (28 Sep 2026) ----------
   // What Coach, Nova and the Leader wrote as a thing he can open. The list is
@@ -5918,6 +5953,7 @@ export default class App extends Component {
     // — Nova starts talking while still thinking, like a person does.
     const stream = { spokenUpTo: 0 };
     this.resetGlass();   // last turn's panels do not belong to this one
+    beginReply();        // …nor do its captions (the full-screen Nova, speechClock.js)
     const elevenPath = this.ttsUsable();
     // Trailing SHOW/PROPOSE/RESEARCH lines are typed directives for the
     // server, not prose — keep them out of the render (and out of the voice)
@@ -9314,6 +9350,7 @@ export default class App extends Component {
     }
   }
   stopSpeaking() {
+    cutSpeech(); // the captions stop where her voice did: the rest was never said
     try { window.speechSynthesis.cancel(); } catch { /* unsupported */ }
     try { this.currentAudio?.pause(); } catch { /* fine */ }
     this.currentAudio = null;
@@ -9606,6 +9643,9 @@ export default class App extends Component {
         this.drainTtsQueue(gen);
       });
       this.currentSource = src;
+      // the captions' clock: this sentence's audio starts now and lasts
+      // exactly the decoded buffer (speechClock.js, the full-screen Nova)
+      noteSpokenSentence(head.said, head.buffer.duration * 1000);
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
       return;
     }
@@ -9633,6 +9673,9 @@ export default class App extends Component {
     audio.play().then(() => {
       // audio is genuinely rolling — NOW the words may appear
       this.noteSpeechHeard();
+      // the captions' clock: the element's own length (estimated if the
+      // browser has not read it, and the sentence says so)
+      noteSpokenSentence(head.said, Number.isFinite(audio.duration) ? audio.duration * 1000 : null);
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
     }).catch((err) => {
       // The reply exists but the device refused to play it. NEVER let that
@@ -9882,6 +9925,9 @@ export default class App extends Component {
     try {
       const u = new SpeechSynthesisUtterance(text);
       u.voice = this.resolveSpeechVoice();
+      // the captions' clock: the phone's own voice reports no length, so the
+      // sentence is paced on an estimate and marked as one (speechClock.js)
+      u.onstart = () => noteSpokenSentence(text, null);
       u.onend = finish;
       u.onerror = finish;
       window.speechSynthesis.speak(u);

@@ -9,7 +9,8 @@ import { StageCard } from '../StageCard.jsx';
 import { useLongPress } from '../longPress.js';
 import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
 import { stateOf, firstUnseenIndex, threadRows, clock, failedLast } from '../novaThreadFacts.js';
-import { Ico, CoreFace, Glyph, Stage, Settled, KeptTake, Meter } from '../NovaThreadParts.jsx';
+import { Ico, Glyph, Stage, Settled, KeptTake, Meter } from '../NovaThreadParts.jsx';
+import { NovaFocus } from '../NovaFocus.jsx';
 
 // THE NOVA THREAD (29 Sep 2026) — design/mockups/63-redesign-nova-r2.html,
 // variation D · Rising, his pick: "The rising option D mock up seems to be the
@@ -22,10 +23,11 @@ import { Ico, CoreFace, Glyph, Stage, Settled, KeptTake, Meter } from '../NovaTh
 // he has not seen. At rest the head is her name and her state in words, and
 // no core (30 Sep, his: "The nova icon at the top of the voice screen
 // shouldn't be persistent since I have the nova icon at the bottom corner. It
-// should only appear if I tap on the nova name…"). The name toggles FOCUS
-// (his amendment), where the living core is the page's centre, large, with
-// the newest lines tucked beneath; it changes by shape and motion, never by
-// hue. › (and the core, in focus) open her status and settings. While she
+// should only appear if I tap on the nova name…"). The name opens FOCUS,
+// since 3 Oct the full-screen Nova (src/NovaFocus.jsx, his pick after mockup
+// 68: A's field for his turn, C's stage while they talk, the core in its
+// state colours there), its own history entry. › opens her status and
+// settings. While she
 // speaks the stage rises from under the head as glass over the thread, which
 // blurs and dims behind it, and settles into the thread as a card when she
 // finishes. One composer.
@@ -46,7 +48,10 @@ export function NovaThread({ v }) {
   const fieldRef = useRef(null);
   const mainRef = useRef(null);
   const firstPaint = useRef(true);
-  const [focus, setFocus] = useState(false);
+  // THE FULL-SCREEN NOVA (3 Oct): open while its history entry is current
+  // (a focus left open on an entry he has since navigated away from never
+  // draws, not even for the frame before syncFocus closes it)
+  const focus = !!T.focus && (typeof window === 'undefined' || window.history.state?.novaOverlay === 'novafocus');
   const [statusOpen, setStatusOpen] = useState(false);
   const [held, setHeld] = useState(null);            // { kind: 'line'|'take', i|id, rect }
   const [tuckedKey, setTuckedKey] = useState(null);  // the stage he tucked early (this reply only)
@@ -108,12 +113,31 @@ export function NovaThread({ v }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // FOCUS FROM OUTSIDE (30 Sep): novaThread.enterFocus lets the dock (a hold
-  // on its Nova, once he decides) bring the core up, the same as the name
+  // on its Nova) bring the full screen up, the same as the name. A focus left
+  // open on an entry he has since navigated away from closes on arrival.
   useEffect(() => {
-    T.registerFocus(() => setFocus(true));
+    T.syncFocus();
+    T.registerFocus(() => T.openFocus());
     return () => T.registerFocus(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // BACK TO THE THREAD: the sentence he watched is her newest line, at the
+  // foot; the full screen is held one beat longer while the core folds back
+  // into the name and the field fades (cut under reduced motion)
+  // (held in the same render the focus closes, so the full screen is never
+  // unmounted and remounted on the way out)
+  const [fxShown, setFxShown] = useState(focus);
+  if (focus && !fxShown) setFxShown(true);
+  useEffect(() => {
+    if (focus || !fxShown) return undefined;
+    const m = mainRef.current;
+    if (m) m.scrollTop = m.scrollHeight;
+    wasAtFoot.current = true;
+    // (a dev build's recorder can stretch it, as the island's __islandSlow does)
+    const slow = (import.meta.env?.DEV && typeof window !== 'undefined' && Number(window.__fxSlow)) || 1;
+    const id = setTimeout(() => setFxShown(false), reduced() ? 0 : 460 * slow);
+    return () => clearTimeout(id);
+  }, [focus, fxShown]);
 
   // ---- the state, once, in words and a shape ----
   const failed = failedLast(T.lines, takes);
@@ -199,13 +223,10 @@ export function NovaThread({ v }) {
       wasAtFoot.current = atFoot();
       if (wasAtFoot.current) writeSeen(T.newestAt);
     };
-    // THE FOCUS ENDS WHEN HE SCROLLS (his amendment: "tap again (or scroll)"):
-    // a finger or a wheel on the page, never a scroll this screen made itself
-    const leave = () => setFocus(false);
+    // (the full screen covers the page and has its own ways back: the ⌄, a
+    // tap outside the plate, a swipe up on the peek, the edge swipe)
     m.addEventListener('scroll', onScroll, { passive: true });
-    m.addEventListener('touchmove', leave, { passive: true });
-    m.addEventListener('wheel', leave, { passive: true });
-    return () => { m.removeEventListener('scroll', onScroll); m.removeEventListener('touchmove', leave); m.removeEventListener('wheel', leave); };
+    return () => { m.removeEventListener('scroll', onScroll); };
   }, [T.newestAt]);
   useEffect(() => () => { if (wasAtFoot.current) writeSeen(T.newestAt); }, [T.newestAt]);
 
@@ -247,17 +268,12 @@ export function NovaThread({ v }) {
   return (
     <div ref={rootRef} className={`nv-nt${focus ? ' focus' : ''}${v.isMobile ? ' mob' : ''}`} data-screen-label="Voice">
       <header ref={headRef} className="nv-nt-head">
-        {/* THE CORE, IN FOCUS ONLY (30 Sep): at rest the tab bar's Nova is
-            the one orb on screen, and the head is her name and state */}
-        {focus && (
-          <button type="button" className="nv-nt-face" onClick={() => setStatusOpen(true)} aria-label={`Nova, ${S.word.toLowerCase()}. Status and settings`}>
-            <CoreFace stateKey={S.key} engine={T.engine} focus />
-          </button>
-        )}
+        {/* the head is her name and state, no core: at rest the tab bar's
+            Nova is the one orb on screen, and in focus the full screen has it */}
         <div className="nv-nt-who">
-          {/* HIS AMENDMENT: the name toggles the focus, the core large */}
-          <button type="button" className="nv-nt-name" onClick={() => setFocus((f) => !f)} aria-pressed={focus}
-            aria-label={focus ? 'Nova. Back to the conversation' : 'Nova. Make Nova the focus'}>Nova</button>
+          {/* HIS AMENDMENT: the name opens the focus, now the full screen */}
+          <button type="button" className="nv-nt-name" onClick={() => (focus ? T.closeFocus() : T.openFocus())} aria-pressed={focus}
+            aria-label={focus ? 'Nova. Back to the conversation' : 'Nova. Full screen'}>Nova</button>
           <button type="button" className="nv-nt-more" onClick={() => setStatusOpen(true)} aria-label="Nova’s status and settings"><Ico name="right" /></button>
         </div>
         {stateLine}
@@ -325,6 +341,10 @@ export function NovaThread({ v }) {
       )}
 
       <Composer T={T} dict={dict} since={listenSince} fieldRef={fieldRef} onSend={send} typingFor={typingFor} />
+
+      {fxShown && (
+        <NovaFocus T={T} S={S} dict={dict} since={listenSince} leaving={!focus} onTalk={startTalking} onOpen={openSheet} />
+      )}
 
       {statusOpen && <StatusSheet T={T} dict={dict} S={S} onClose={() => setStatusOpen(false)} />}
       {held && <HoldMenu held={held} T={T} takes={tk} onClose={() => setHeld(null)}

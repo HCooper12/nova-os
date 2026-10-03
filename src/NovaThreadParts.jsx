@@ -52,8 +52,13 @@ export function Ico({ name, className = '' }) {
 // 30 Sep it is drawn in FOCUS only (at rest the tab bar's Nova is the one orb
 // on screen), at the focus size; the growth and pulse ride one small frame
 // loop on a wrapper, never React state.
+// THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx) draws the same face,
+// larger (`size`), in its state colours (`tinted`: his "I want the different
+// colours present for the nova icon too when it is listening, idle and
+// speaking"), with the heart leaning toward his finger (`leanRef`). Left at
+// their defaults the thread's face is exactly as it was: form only.
 export const CORE_BIG = 208;
-export function CoreFace({ stateKey, engine, focus }) {
+export function CoreFace({ stateKey, engine, focus, tinted = false, size = CORE_BIG, leanRef = null }) {
   const form = coreFormOf(stateKey);
   const growRef = useRef(null);
   useEffect(() => {
@@ -79,7 +84,7 @@ export function CoreFace({ stateKey, engine, focus }) {
     <span className="nv-nt-core" data-focus={focus ? '1' : undefined} data-state={stateKey}>
       <span ref={growRef} className="nv-nt-grow">
         <span className="nv-nt-canvas">
-          <NovaCore size={CORE_BIG} engine={engine} formOnly pace={form.pace} still={form.still}
+          <NovaCore size={size} engine={engine} formOnly={!tinted} tintStill={tinted} leanRef={leanRef} pace={form.pace} still={form.still}
             listening={stateKey === 'listening'} speaking={stateKey === 'speaking'} style={{ pointerEvents: 'none' }} />
         </span>
         {form.spin && (

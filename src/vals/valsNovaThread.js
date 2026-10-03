@@ -164,6 +164,12 @@ export function valsNovaThread(app, ctx, v) {
       // up with the microphone open. A no-op when the thread is not mounted.
       registerFocus: (fn) => { app.novaThreadFocus = fn; if (fn) app.consumeNovaHold?.(); },
       enterFocus: () => { if (typeof app.novaThreadFocus === 'function') app.novaThreadFocus(); },
+      // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx): open while its
+      // own history entry is current, so the back swipe returns to the thread
+      focus: !!st.novaFocus,
+      openFocus: () => app.openNovaFocus(),
+      closeFocus: () => app.closeNovaFocus(),
+      syncFocus: () => app.syncNovaFocus(),
       micOpen: !!st.voiceScreenMic,
       openCapture: v.openCaptureSheet || null,
     },

@@ -229,7 +229,7 @@ test('it is its own history entry, folded into pagesFromHistory', () => {
   const app = read('src/App.jsx');
   assert.match(app, /pushState\(\{ novaDepth: depthOf\(st\) \+ 1, novaOverlay: 'record', records \}, ''\)/);
   assert.match(app, /closeRecordMoment\(\) \{\n\s*if \(typeof window !== 'undefined' && window\.history\.state\?\.novaOverlay === 'record'\) \{ window\.history\.back\(\); return; \}/);
-  assert.match(app, /\.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\) \};/);
+  assert.match(app, /\.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\) \};/);
   assert.match(app, /recordFromHistory\(\) \{[\s\S]{0,400}if \(!onEntry && this\.state\.prCelebration\) return \{ prCelebration: null, prIndex: 0 \};/);
 });
 

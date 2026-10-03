@@ -287,7 +287,9 @@ test('the focus door (30 Sep): enterFocus brings the core up through the page\'s
   valsNovaThread(app, {}, vOf()).novaThread.enterFocus();
   assert.equal(focused, 1, 'unregistered on unmount');
   const src = read('src/screens/NovaThread.jsx');
-  assert.match(src, /T\.registerFocus\(\(\) => setFocus\(true\)\);\n    return \(\) => T\.registerFocus\(null\);/);
+  // since 3 Oct the focus is the full-screen Nova, its own history entry
+  // (App.openNovaFocus); the registration opens it the same way the name does
+  assert.match(src, /T\.syncFocus\(\);\n    T\.registerFocus\(\(\) => T\.openFocus\(\)\);\n    return \(\) => T\.registerFocus\(null\);/);
   // 1 Oct (every door): the hold on the tab bar's Nova opens this page with
   // its core full screen and listening (App.holdNovaCore), no longer the
   // capture composer; a hold from another page waits for this registration
@@ -300,14 +302,15 @@ test('the focus door (30 Sep): enterFocus brings the core up through the page\'s
   assert.equal(consumed, 1, 'unregistering does not');
 });
 
-test('the head at rest is the name and the state, no core; the core is drawn in focus only (30 Sep)', () => {
+test('the head is the name and the state, no core; the core is drawn by the full-screen Nova only (30 Sep, 3 Oct)', () => {
   const src = read('src/screens/NovaThread.jsx');
-  assert.match(src, /\{focus && \(\n\s*<button type="button" className="nv-nt-face"[^\n]*\n\s*<CoreFace stateKey=\{S\.key\} engine=\{T\.engine\} focus \/>/);
-  assert.equal((src.match(/<CoreFace /g) || []).length, 1, 'one core, and it is inside the focus guard');
-  assert.match(src, /className="nv-nt-name" onClick=\{\(\) => setFocus\(\(f\) => !f\)\}/, 'the name still toggles the focus');
+  assert.equal((src.match(/<CoreFace /g) || []).length, 0, 'the thread\'s head draws no core');
+  assert.match(src, /\{fxShown && \(\n\s*<NovaFocus /, 'the full screen draws it, in focus (and while it folds away)');
+  assert.match(src, /if \(focus && !fxShown\) setFxShown\(true\);/, 'held in the same render the focus closes: never remounted on the way out');
+  const fx = read('src/NovaFocus.jsx');
+  assert.equal((fx.match(/<CoreFace /g) || []).length, 1, 'one core on the full screen');
+  assert.match(src, /className="nv-nt-name" onClick=\{\(\) => \(focus \? T\.closeFocus\(\) : T\.openFocus\(\)\)\}/, 'the name still toggles the focus');
   assert.match(src, /className="nv-nt-more" onClick=\{\(\) => setStatusOpen\(true\)\}/, 'the › still opens status at rest');
-  const css = read('src/index.css');
-  assert.match(css, /\.nv-nt\.focus \.nv-nt-face \{ animation: nvNtCoreIn/, 'the core arrives in focus');
 });
 
 test('the stage steps the thread back: a blur and a light dim under the head, stage and composer, solid under reduced transparency (30 Sep)', () => {
@@ -411,7 +414,11 @@ test('no type in the thread is below 13px, and every selector wears .nv-nt', () 
   const start = css.indexOf('THE NOVA THREAD (29 Sep 2026)');
   const end = css.indexOf('/* end of the Nova thread */');
   assert.ok(start > 0 && end > start, 'the .nv-nt-* block was not found');
-  assert.ok(end > css.length - 60, 'the block is the last thing in index.css');
+  // appended at the end of the file when it landed; later blocks (the
+  // full-screen Nova, 3 Oct) append after it, so what follows may only be
+  // another block that opens with its own banner, never a stray rule
+  const after = css.slice(end + '/* end of the Nova thread */'.length).trim();
+  assert.ok(after === '' || after.startsWith('/*'), 'only a later block follows, opening with its banner');
   const block = css.slice(css.indexOf('*/', start) + 2, end).replace(/\/\*[\s\S]*?\*\//g, '');
   for (const rule of block.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     for (const m of rule[2].matchAll(/font(?:-size)?:\s*([^;]+);/g)) {

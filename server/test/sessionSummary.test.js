@@ -361,6 +361,6 @@ test('after Finish: the quiet "You beat last time" here, the full moment only on
   assert.match(vals, /recordPhrase\('sheet', lead\)/, 'the sheet claims only what code knows');
   const app = read('src/App.jsx');
   assert.match(app, /\.\.\.this\.recipeFromHistory\(\), \.\.\.this\.pagesFromHistory\(\) \}\);/);
-  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\) \};/);
+  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\) \};/);
   assert.match(app, /novaOverlay: 'record', records \}/);
 });

@@ -84,6 +84,19 @@ function drawHeart(ctx, cx, cy, t, hr) {
   ctx.fill();
 }
 
+// THE HEART LEANS TOWARD HIS FINGER (3 Oct 2026, the full-screen Nova's
+// field): attention without a face. `leanRef.current` is the offset the
+// heart wants, in canvas px, or null; the heart eases toward it and home
+// again. No caller but the full screen passes one, so every other core
+// draws exactly as before.
+function leanToward(lean, ref) {
+  const want = ref && ref.current;
+  const tx = want ? want[0] : 0;
+  const ty = want ? want[1] : 0;
+  lean[0] += (tx - lean[0]) * 0.12;
+  lean[1] += (ty - lean[1]) * 0.12;
+}
+
 function makeFilamentDraw(ctx, size, opts, getState) {
   const cx = size / 2;
   const cy = size / 2;
@@ -99,6 +112,7 @@ function makeFilamentDraw(ctx, size, opts, getState) {
   //   lvl — raw amplitude, flaring alpha, weight and the band radii.
   // Idle (all three at 0) is EXACTLY the core he already knows.
   let mixS = 0, mixL = 0, clock = 0, last = null, lvl = 0;
+  const lean = [0, 0]; // the heart's lean toward his finger, smoothed (see leanRef)
   const col = (f, a) => {
     let hue = 224 - f * 36;
     hue += (406 - hue) * mixS * 0.82; // → gold, travelling through violet/rose, never green
@@ -106,13 +120,16 @@ function makeFilamentDraw(ctx, size, opts, getState) {
     const lit = Math.min(38 + (1 - f) * 44 + lvl * 12, 88);
     return `hsla(${hue % 360},${90 - f * 10}%,${lit}%,${a})`;
   };
-  return function draw(t) {
+  return function draw(t, snap = false) {
     const st = getState ? getState() : {};
     lvl = audioLevel();
     const dt = last == null ? 0 : Math.min(t - last, 0.1);
     last = t;
-    mixS += ((st.speaking && !st.formOnly ? 1 : 0) - mixS) * 0.07;
-    mixL += ((st.listening && !st.formOnly ? 1 : 0) - mixL) * 0.07;
+    // `snap`: a still frame (reduced motion) that should show the state's
+    // colour at once, since no later frame will glide it there
+    const k = snap ? 1 : 0.07;
+    mixS += ((st.speaking && !st.formOnly ? 1 : 0) - mixS) * k;
+    mixL += ((st.listening && !st.formOnly ? 1 : 0) - mixL) * k;
     clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4) * (st.pace || 1);
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'lighter';
@@ -178,7 +195,8 @@ function makeFilamentDraw(ctx, size, opts, getState) {
     // voice while speaking, his while dictating (audioLevel is 0 otherwise,
     // so idle behavior is exactly what it always was)
     const pulse = 1 + 0.07 * Math.sin(t * 1.8) + lvl * 1.15; // his note: it must READ as alive while speaking
-    drawHeart(ctx, cx, cy, t, R * opts.heart * pulse);
+    leanToward(lean, st.lean);
+    drawHeart(ctx, cx + lean[0], cy + lean[1], t, R * opts.heart * pulse);
     ctx.globalCompositeOperation = 'source-over';
   };
 }
@@ -355,6 +373,7 @@ function makeHoloDraw(ctx, size, opts, getState) {
   // an audio-accelerated clock, smoothed gold/violet state mixes, amplitude
   // flares. Idle is exactly the hologram he already knows.
   let mixS = 0, mixL = 0, clock = 0, last = null, lvl = 0;
+  const lean = [0, 0];
   const col = (dp, a) => {
     let hue = 222 - 28 * dp;
     hue += (406 - hue) * mixS * 0.82;
@@ -377,13 +396,16 @@ function makeHoloDraw(ctx, size, opts, getState) {
     return { x: cx + p[0] * s, y: cy + p[1] * s, dp: (p[2] / R + 1) / 2, s };
   };
 
-  return function draw(t) {
+  return function draw(t, snap = false) {
     const st = getState ? getState() : {};
     lvl = audioLevel();
     const dt = last == null ? 0 : Math.min(t - last, 0.1);
     last = t;
-    mixS += ((st.speaking && !st.formOnly ? 1 : 0) - mixS) * 0.07;
-    mixL += ((st.listening && !st.formOnly ? 1 : 0) - mixL) * 0.07;
+    // `snap`: a still frame (reduced motion) that should show the state's
+    // colour at once, since no later frame will glide it there
+    const k = snap ? 1 : 0.07;
+    mixS += ((st.speaking && !st.formOnly ? 1 : 0) - mixS) * k;
+    mixL += ((st.listening && !st.formOnly ? 1 : 0) - mixL) * k;
     clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4) * (st.pace || 1);
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'lighter';
@@ -559,7 +581,8 @@ function makeHoloDraw(ctx, size, opts, getState) {
       ctx.fill();
     }
     const pulse = 1 + 0.06 * Math.sin(t * 1.8) + lvl * 1.15; // ditto — the mini orb carries the same life
-    drawHeart(ctx, cx, cy, t, R * 0.125 * pulse);
+    leanToward(lean, st.lean);
+    drawHeart(ctx, cx + lean[0], cy + lean[1], t, R * 0.125 * pulse);
     ctx.globalCompositeOperation = 'source-over';
   };
 }
@@ -572,13 +595,17 @@ function makeHoloDraw(ctx, size, opts, getState) {
 //   formOnly — the palette never leaves Nova's blue (no gold, no violet);
 //   pace     — the clock's rate (thinking runs the rings three times faster);
 //   still    — one frame and no loop, the way reduced motion draws it (offline).
+// And two for the full-screen Nova (3 Oct 2026):
+//   leanRef   — a ref holding the offset the heart leans toward (his finger);
+//   tintStill — under reduced motion, the still frame wears the state colour.
 // Left at their defaults every existing caller draws exactly what it did.
-export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false, formOnly = false, pace = 1, still = false }) {
+export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false }) {
   const ref = useRef(null);
+  const stillDraw = useRef(null);
   // live state read through a ref so the rAF loop sees changes WITHOUT the
   // canvas being torn down and rebuilt on every speech toggle
-  const stateRef = useRef({ speaking, listening, formOnly, pace });
-  stateRef.current = { speaking, listening, formOnly, pace };
+  const stateRef = useRef({ speaking, listening, formOnly, pace, lean: leanRef });
+  stateRef.current = { speaking, listening, formOnly, pace, lean: leanRef };
 
   useEffect(() => {
     const canvas = ref.current;
@@ -598,8 +625,9 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
 
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || still) {
-      draw(engine === 'hologram' ? 3.2 : 1.7); // reduced-motion: one still frame
-      return undefined;
+      draw(engine === 'hologram' ? 3.2 : 1.7, tintStill); // reduced-motion: one still frame
+      stillDraw.current = tintStill ? draw : null;
+      return () => { stillDraw.current = null; };
     }
     let raf = 0;
     const loop = () => {
@@ -616,7 +644,13 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [size, variant, engine, still]);
+  }, [size, variant, engine, still, tintStill]);
+  // the full screen (tintStill) keeps its state colours under reduced
+  // motion: the one still frame is drawn again, in the new colour, when the
+  // state changes; every other caller's still frame is exactly as before
+  useEffect(() => {
+    stillDraw.current?.(engine === 'hologram' ? 3.2 : 1.7, true);
+  }, [speaking, listening, formOnly, engine]);
 
   return <canvas ref={ref} style={{ width: size, height: size, display: 'block', ...style }} />;
 }
