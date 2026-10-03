@@ -75,7 +75,7 @@ export function focusSteps({ hearing = false, heard = false, busy = false, answe
 // -------------------------------------------------------- the speaker --
 
 // WHO IS SPEAKING, by the reply's own agent: the Coach in his coral, the
-// Leader in magenta, Nova in her cyan (artifactClient's AGENT, the hues the
+// Leader in magenta, Nova in his own starlight (--nv-nova, 3 Oct; artifactClient's AGENT, the hues the
 // Agent World gave each being). One reply, one speaker: the record carries
 // no per-sentence author, so none is invented.
 export function speakerOf(agent) {

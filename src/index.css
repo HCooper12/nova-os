@@ -308,6 +308,8 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
   --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
   --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a;
+  /* NOVA'S OWN — his words' hue (his call, 3 Oct 2026: "give Nova's words their own cue"). Starlight, the colour of his core's light; cyan is the talk accent and Commander's, so it was never his alone. */
+  --nv-nova:#c9d8ff;
   --nv-good:#5fe8a8; --nv-warn:#e08383;
   --nv-or:#ffa257;   /* PRACTICE — the rehearsal hue (27 Sep 2026): stage warmth, one muscle, one colour */
   /* THE ISLAND (24 Sep 2026). Nova's notifications grow out of the Dynamic
@@ -348,6 +350,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   /* vi lifted #8a6ad1 -> #a68ce2: the old one was 3.67:1 as text on this
      ground, the only accent in any theme still under the 4.5:1 bar */
   --nv-cy:#6be5f5; --nv-vi:#a68ce2; --nv-mg:#e08f6f; --nv-gold:#d8b573; --nv-good:#5aa87c;
+  --nv-nova:#cfd8f5;
   --nv-or:#f2a04e;
   --nv-acc:#d8b573; --nv-acc-bg:rgba(216,181,115,.1); --nv-acc-border:rgba(216,181,115,.38);
   --nv-radius:14px; --nv-bracket-op:0;
@@ -371,6 +374,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-glass:rgba(34,24,20,.6); --nv-glass2:rgba(46,32,26,.78);
   --nv-edge:rgba(216,162,74,.24); --nv-spec:rgba(255,220,180,.35);
   --nv-cy:#ffb35c; --nv-vi:#ff8a4a; --nv-mg:#ff6a88; --nv-gold:#e8b464; --nv-good:#8fd88a;
+  --nv-nova:#d6e2ff;
   --nv-or:#ffc98a;
   --nv-acc:#ffb35c; --nv-acc-bg:rgba(255,179,92,.08); --nv-acc-border:rgba(255,179,92,.45);
   --nv-bracket:rgba(255,179,92,.55);
@@ -409,6 +413,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
      ink (--nv-on-acc), so darkening lifts the fills too rather than hurting
      them. Ratios below are on the white card; measured, not estimated. */
   --nv-cy:#0060df;    /* 5.62:1 */  --nv-vi:#8b32b8;   /* 6.47:1 */
+  --nv-nova:#2f4bbf;   /* 7.4:1 on white */
   --nv-mg:#d11a43;    /* 5.33:1 */  --nv-gold:#8a5200; /* 6.39:1 */
   --nv-good:#1c7a3e;  /* 5.38:1 */  --nv-warn:#c9251c; /* 5.58:1 */
   --nv-or:#b34f00;    /* 5.20:1 — the practice hue */
@@ -452,6 +457,7 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   --nv-edge:rgba(255,255,255,.3);
   --nv-spec:rgba(255,255,255,.5); /* not given; a bright specular for a glass-over-sky material */
   --nv-cy:#9AE6FF;
+  --nv-nova:#e2ecff;
   --nv-vi:#C9B8FF; /* the violet-type token */
   --nv-mg:#FF9CC0; /* Daylight's #d11a43 is tuned for white and reads 1.7:1 here; the lightest pink in the family that clears 4.5:1 on the .15 card (4.62:1) */
   --nv-gold:#FFD27A;

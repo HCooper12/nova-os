@@ -172,7 +172,7 @@ test('the steps are what code can see: the Mac writing it down (spoken turns onl
 });
 
 test('the speaker is the reply\'s own agent, in the hue the Agent World gave it; one reply, one speaker', () => {
-  assert.deepEqual(speakerOf(null), { key: 'nova', name: 'Nova', hue: 'var(--nv-cy)', voiced: false });
+  assert.deepEqual(speakerOf(null), { key: 'nova', name: 'Nova', hue: 'var(--nv-nova)', voiced: false });
   assert.deepEqual(speakerOf('Coach'), { key: 'coach', name: 'Coach', hue: 'var(--nv-m-chest)', voiced: true });
   assert.equal(speakerOf('Leader').hue, 'var(--nv-mg)');
 });
