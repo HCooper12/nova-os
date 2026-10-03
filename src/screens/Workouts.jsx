@@ -109,6 +109,38 @@ function ExercisePicker({ v }) {
   );
 }
 
+// THE DAY'S SESSIONS, one row each under the Done Today title (3 Oct). The
+// tick is the good hue because each one is done; the left-off note is ink,
+// never gold or warn, because nothing here is owed. Rows rise in turn.
+function DoneLines({ lines }) {
+  return (
+    <div style={css("margin-top:10px;display:flex;flex-direction:column")}>
+      {lines.map((l, i) => (
+        <div key={l.key} className="nv-deck-rise" style={{ ...css(`display:flex;gap:9px;align-items:baseline;padding:7px 0${i === 0 ? '' : ';border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)'}`), animationDelay: `${60 + i * 50}ms` }}>
+          <span aria-hidden="true" style={css("flex:none;color:var(--nv-good);font:700 13px var(--nv-font-ui)")}>✓</span>
+          <div style={css("min-width:0;flex:1")}>
+            <div style={css("font:600 15px/1.25 var(--nv-font-ui);overflow-wrap:anywhere")}>{l.title}</div>
+            <Meta as="div" tone="faint" style={{ marginTop: '2px' }} title={l.leftOffWhy || undefined}>{l.meta}</Meta>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// the week row's ticks for the day: wraps right-aligned on a 375px row
+function DayDoneMarks({ marks }) {
+  return (
+    <span style={css("display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px 10px")}>
+      {marks.map((m) => (
+        <span key={m.key} title={m.why || undefined} style={css("font:var(--nv-micro-m);color:var(--nv-good)")}>
+          ✓ {m.text}{m.extra ? <span style={css("color:var(--nv-ink40)")}> · extra</span> : null}{m.note ? <span style={css("color:var(--nv-ink40)")}> · {m.note}</span> : null}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function RoutinesView({ v }) {
   return (
     <>
@@ -124,7 +156,12 @@ function RoutinesView({ v }) {
           <div style={css("min-width:0;flex:1")}>
             <Eyebrow tone="good">Done today</Eyebrow>
             <div style={css("margin-top:5px;font:700 22px/1.1 var(--nv-font-ui);overflow-wrap:anywhere")}>{v.gymHero.done.title}</div>
-            <Meta as="div" tone="quiet" style={{ marginTop: '5px' }}>{v.gymHero.done.meta}{v.gymHero.done.more ? ` · ${v.gymHero.done.more}` : ''}</Meta>
+            <Meta as="div" tone="quiet" style={{ marginTop: '5px' }}>{v.gymHero.done.meta}</Meta>
+            {/* THE WHOLE DAY (his report, 3 Oct): every session filed today,
+                in the order done, each with its own tick. A make-up he
+                finished reads finished; what he left off is said quietly,
+                in ink, because it was his call and is not owed. */}
+            {v.gymHero.done.lines && <DoneLines lines={v.gymHero.done.lines} />}
           </div>
         </div>
       )}
@@ -192,11 +229,15 @@ function RoutinesView({ v }) {
                 >
                   {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
                 </select>
-                {d.makeup
-                  ? (d.makeup.done
-                    ? <span style={css("font:var(--nv-micro-m);color:var(--nv-good)")}>✓ Made up {d.makeup.sourceRoutineName} · {d.makeup.count} done</span>
-                    : <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>Make-up · finish {d.makeup.sourceRoutineName} · {d.makeup.count} left</span>)
-                  : d.carryoverNote && <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>{d.carryoverNote}</span>}
+                {/* everything done this day, a tick each (3 Oct): the
+                    make-ups finished and anything beside them */}
+                {d.doneMarks?.length
+                  ? <DayDoneMarks marks={d.doneMarks} />
+                  : d.makeup
+                    ? (d.makeup.done
+                      ? <span style={css("font:var(--nv-micro-m);color:var(--nv-good)")}>✓ Made up {d.makeup.sourceRoutineName}{d.makeup.leftOff ? <span style={css("color:var(--nv-ink40)")}> · {d.makeup.leftOff}</span> : null}</span>
+                      : <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>Make-up · finish {d.makeup.sourceRoutineName} · {d.makeup.count} left</span>)
+                    : d.carryoverNote && <span style={css("font:var(--nv-micro-m);color:var(--nv-gold)")}>{d.carryoverNote}</span>}
                 {/* MAKE-UP DAY is now a FOCUS, in the select above — it was
                     a second control stacked here, which let a day be Push and
                     also be a make-up, and that is what briefed him with two
@@ -219,9 +260,11 @@ function RoutinesView({ v }) {
               >
                 {d.options.map((o) => <option key={o.value || 'rest'} value={o.value} style={{ background: '#141019', color: 'var(--nv-ink)' }}>{o.label}</option>)}
               </select>
-              {d.makeup
+              {d.doneMarks?.length > 1
+                ? <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-good);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={d.doneMarks.map((m) => `${m.text}${m.note ? ` (${m.note})` : ''}`).join(', ')}>✓ {d.doneMarks.length} sessions</div>
+                : d.makeup
                 ? (d.makeup.done
-                  ? <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-good);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={`Made up ${d.makeup.sourceRoutineName} today`}>✓ Made up</div>
+                  ? <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-good);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={`Made up ${d.makeup.sourceRoutineName} today${d.makeup.leftOff ? `, ${d.makeup.leftOff}` : ''}`}>✓ Made up</div>
                   : <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={`Make-up: finish ${d.makeup.sourceRoutineName}`}>Make-up · {d.makeup.count}</div>)
                 : d.carryoverNote && <div style={css("margin-top:3px;font:var(--nv-micro-s);color:var(--nv-gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis")} title={d.carryoverNote}>{d.carryoverNote}</div>}
               {/* MAKE-UP DAY is a FOCUS now, in the select above — same view
@@ -1239,7 +1282,7 @@ export function Workouts({ v }) {
       {(v.usingLiveWorkouts || v.sessionLive) && v.trainTab === 'today' && (
         <div style={css('margin-top:14px')}>
           {(v.trainToday?.o || v.trainToday?.resume)
-            ? <TrainToday o={v.trainToday.o} actions={v.trainToday.actions} resume={v.trainToday.resume} />
+            ? <TrainToday o={v.trainToday.o} actions={v.trainToday.actions} resume={v.trainToday.resume} done={v.trainToday.done} />
             : <div style={css('color:color-mix(in srgb, var(--nv-ink) 45%, transparent);font:400 12px var(--nv-font-mono);padding:20px 0')}>Syncing today's picture…</div>}
         </div>
       )}

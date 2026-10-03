@@ -64,6 +64,73 @@ export function madeUpOn(date, sessions = [], routines = []) {
   return out;
 }
 
+// EVERYTHING FILED ON A DATE, in the order he did it (3 Oct 2026).
+//
+// His report: "technically I finished the full arms and delts session, make
+// up pull and the make up upper body (just chose to not complete the final
+// two makeup exercises). So this screen should be reflecting that and not
+// only partial data." The Done Today card led with ONE make-up and hid the
+// rest behind "+ 2 more", and the week row read "Made up Upper Body · 1
+// done", which says partial when the make-up was finished by his choice.
+//
+// So each session filed that day comes back with what it was: a make-up
+// names the routine it finished, and what that routine still had undone
+// after it (`leftOff`) is reported as HIS CHOICE, never as owed work. The
+// carry-over row is removed when a make-up is filed (App.finishWorkoutSession),
+// so nothing re-offers those exercises; the one exception is work he pushed
+// on again from the finish screen, which sits in a carry-over row and is
+// named as `carried` with its date, because then it IS still planned.
+//
+// Pure: the caller hands in the sessions (any order), the routines, the
+// routine scheduled for that date and the carry-over rows.
+export function doneOn(date, sessions = [], routines = [], { scheduledRoutine = null, carryovers = [] } = {}) {
+  const filed = sessions
+    .filter((s) => s && s.date === date)
+    .sort((a, b) => String(a.finishedAt || '').localeCompare(String(b.finishedAt || '')));
+  return filed.map((s) => {
+    const r = routines.find((x) => isMakeupOf(s, x)) || null;
+    const exercises = s.exercises || [];
+    const entry = {
+      id: s.id || null,
+      name: s.routineName,
+      routineId: s.routineId || null,
+      finishedAt: s.finishedAt || null,
+      exerciseCount: exercises.length,
+      setCount: exercises.reduce((n, e) => n + (Array.isArray(e.sets) ? e.sets.length : 0), 0),
+      scheduled: !!scheduledRoutine && s.routineId === scheduledRoutine.id,
+      madeUp: null,
+      leftOff: [],
+      carried: [],
+    };
+    if (!r) return entry;
+    entry.madeUp = { routineId: r.id, routineName: r.name };
+    // what the routine still had undone once THIS make-up was in: judged
+    // from the sessions up to its date, so a later day cannot rewrite it
+    const upTo = sessions.filter((x) => x && String(x.date || '') <= date);
+    const rest = leftoversOf(r, upTo).exercises;
+    for (const e of rest) {
+      const row = (carryovers || []).find((c) => sameRoutineAs(c, r) && (c.exercises || []).some((x) => x.exerciseId === e.exerciseId));
+      if (row) entry.carried.push({ name: e.name, forDate: row.forDate });
+      else entry.leftOff.push(e.name);
+    }
+    return entry;
+  });
+}
+
+// overview.doneToday: the day's sessions (doneOn), the make-ups by routine
+// (madeUpOn, unchanged for its readers), the totals counted once, and
+// whether the scheduled routine is among them. Null when nothing was filed.
+export function doneTodayOf(date, sessions = [], routines = [], { scheduledRoutine = null, carryovers = [] } = {}) {
+  const filed = doneOn(date, sessions, routines, { scheduledRoutine, carryovers });
+  if (!filed.length) return null;
+  return {
+    sessions: filed,
+    madeUp: madeUpOn(date, sessions, routines),
+    totals: { exercises: filed.reduce((n, s) => n + s.exerciseCount, 0), sets: filed.reduce((n, s) => n + s.setCount, 0) },
+    scheduledDone: filed.some((s) => s.scheduled),
+  };
+}
+
 export function todayIso(now = new Date()) {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }

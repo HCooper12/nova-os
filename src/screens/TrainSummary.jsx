@@ -124,6 +124,19 @@ function Hero({ h }) {
           {h.sub && <div className="nv-ts-sub">{h.sub}</div>}
         </div>
       </div>
+      {/* THE WHOLE DAY (3 Oct): a line per session, in the order done; a
+          left-off note is ink, because it was his call and is not owed */}
+      {h.lines?.length > 0 && (
+        <ul className="nv-ts-dlines" aria-label="Today's sessions">
+          {h.lines.map((l, i) => (
+            <li key={l.key} className="nv-ts-dline" style={{ '--i': i }} title={l.leftOffWhy || undefined}>
+              <i aria-hidden="true"><Ico p={P.check} size={11} cls="thick" /></i>
+              <span className="nv-ts-nm">{l.title}</span>
+              <span className="nv-ts-dmeta">{l.meta}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {h.chips?.length > 0 && (
         <div className="nv-ts-chips" aria-label="What it trains">
           {h.chips.map((c) => (

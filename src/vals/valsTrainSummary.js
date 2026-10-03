@@ -5,6 +5,7 @@ import { muscleVar } from '../muscleHue.js';
 import { todayPanels } from '../trainPanels.js';
 import { weekSetsView } from '../weekSets.js';
 import { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason, verdictRest } from '../trainSummaryFacts.js';
+import { dayDoneText } from '../doneToday.js';
 
 // THE SUMMARY TRAIN PAGE'S VIEW MODEL — redesign round 1, variation A, his
 // pick (27 Sep 2026, design/mockups/58-redesign-train.html; the audit it
@@ -127,7 +128,9 @@ export function valsTrainSummary(app, ctx, v) {
       const g = v.gymHero;
       return {
         kind: 'done', eyebrow: 'Done today', when, title: done.title,
-        sub: `${done.meta}${done.more ? ` · ${done.more}` : ''}`,
+        sub: done.meta,
+        // several sessions: each its own line, in the order done (3 Oct)
+        lines: done.lines,
         also: !g.rest && !done.scheduledDone && g.begin ? { text: `Also scheduled today · ${g.name}`, label: 'Begin it anyway', run: enter(g.begin) } : null,
         readiness,
       };
@@ -162,7 +165,10 @@ export function valsTrainSummary(app, ctx, v) {
       if (d.makeup) schedule[dayName] = `${d.makeup.sourceRoutineName} make-up`;
       else if (d.value && d.value !== 'active-rest') schedule[dayName] = byId.get(d.value)?.name || null;
       else schedule[dayName] = null;
-      if (d.makeup) notes.push(d.makeup.done ? `${cap(dayName)} · made up ${d.makeup.sourceRoutineName}` : `${cap(dayName)} · make-up, ${d.makeup.count} left of ${d.makeup.sourceRoutineName}`);
+      // the day's record, when it has one: everything done, not the plan's
+      // half of it (3 Oct, "not only partial data")
+      if (d.doneMarks?.length) notes.push(`${cap(dayName)} · ${dayDoneText(d.doneMarks)}`);
+      else if (d.makeup) notes.push(d.makeup.done ? `${cap(dayName)} · made up ${d.makeup.sourceRoutineName}${d.makeup.leftOff ? `, ${d.makeup.leftOff}` : ''}` : `${cap(dayName)} · make-up, ${d.makeup.count} left of ${d.makeup.sourceRoutineName}`);
       else if (d.carryoverNote) notes.push(`${cap(dayName)} · ${d.carryoverNote.replace(/^\+\s*/, '')}`);
     }
     const trained = trainedDays(o?.week, o?.doneToday, now);
@@ -177,7 +183,7 @@ export function valsTrainSummary(app, ctx, v) {
         const shown = s?.options?.find((x) => x.value === s.value)?.label || d.routine || 'Rest';
         return {
           ...d,
-          aria: `${d.label}: ${shown}, ${STATE_WORD[d.state]}${d.isToday && d.state !== 'today' ? ', today' : ''}. Change the day`,
+          aria: `${d.label}: ${shown}, ${STATE_WORD[d.state]}${s?.doneMarks?.length ? ` (${dayDoneText(s.doneMarks)})` : ''}${d.isToday && d.state !== 'today' ? ', today' : ''}. Change the day`,
           // the day's own select from valsWorkouts — the same writes the
           // classic strip makes, with make-up days as a choice
           select: s ? { value: s.value, options: s.options, onChange: s.onChange } : null,

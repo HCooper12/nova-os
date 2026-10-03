@@ -274,18 +274,13 @@ export async function buildTrainOverview(vaultPath) {
     // template as if nothing had happened.
     doneToday: await (async () => {
       try {
-        const { madeUpOn, todayIso } = await import('./makeupDay.js');
-        const date = todayIso();
-        const madeUp = madeUpOn(date, sessions, routines);
-        const filed = sessions.filter((s) => s.date === date);
-        if (!filed.length) return null;
-        return {
-          sessions: filed.map((s) => ({ id: s.id || null, name: s.routineName, exerciseCount: (s.exercises || []).length,
-            setCount: (s.exercises || []).reduce((n, e) => n + (Array.isArray(e.sets) ? e.sets.length : 0), 0) })),
-          madeUp,
-          // is the scheduled routine itself among them?
-          scheduledDone: !!routine && filed.some((s) => s.routineId === routine.id),
-        };
+        const { doneTodayOf, todayIso } = await import('./makeupDay.js');
+        const { listCarryovers } = await import('./workoutCarryover.js');
+        const carryovers = await listCarryovers().catch(() => []);
+        // 3 Oct: every session filed today, in the order done, each saying
+        // what it was (a make-up names its routine and what he left off),
+        // the totals once, and whether the scheduled routine is among them
+        return doneTodayOf(todayIso(), sessions, routines, { scheduledRoutine: routine, carryovers });
       } catch { return null; }
     })(),
     today: routine ? {

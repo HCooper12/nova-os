@@ -1450,6 +1450,16 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   border: 3px solid var(--nv-good); color: var(--nv-good);
   box-shadow: 0 0 18px -4px color-mix(in srgb, var(--nv-good) 60%, transparent);
 }
+/* the day's sessions under a Done today hero (3 Oct): a tick each, rising in turn */
+.nv-ts-dlines { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--nv-sum-sep); }
+.nv-ts-dline {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 10px; align-items: center;
+  padding: 8px 0; animation: fadeUp var(--nv-dur-base) var(--nv-ease) both; animation-delay: calc(60ms + var(--i, 0) * 50ms);
+}
+.nv-ts-dline + .nv-ts-dline { border-top: 1px solid var(--nv-sum-sep); }
+.nv-ts-dline > i { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--nv-good); color: var(--nv-on-acc); }
+.nv-ts-dmeta { grid-column: 2; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .nv-ts-dline { animation: none; } }
 .nv-ts-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .nv-ts-chips.tail { margin-top: auto; padding-top: 10px; }
 .nv-ts-mchip {

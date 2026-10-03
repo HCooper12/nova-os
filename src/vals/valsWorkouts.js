@@ -5,6 +5,7 @@ import { weekData } from '../data.js';
 import { bubble } from './shared.js';
 import { dtf } from './fmt.js';
 import { vtStyle } from '../vtName.js';
+import { doneTodayCard, dayDoneMarks } from '../doneToday.js';
 
 // The next N days (today → today+N) as {iso, short} for day pickers.
 function nextDays(n) {
@@ -40,9 +41,15 @@ export function valsWorkouts(app, ctx) {
     done: st.workoutSession.exercises.reduce((n, e2) => n + e2.sets.filter((s2) => s2.done).length, 0),
     go: () => app.setState({ trainTab: 'gym', workoutsView: 'session' }),
   } : null;
+  // THE WHOLE DAY (his report, 3 Oct): several sessions are each named, in
+  // the order done, with the day's totals once. "+ 2 more today" hid his
+  // main session behind the last make-up. One session keeps the simple card.
+  const doneCard = doneTodayCard(overview?.doneToday);
   const todayIsoDate = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
   const trainToday = {
     o: overview,
+    // the day so far, the same card the Gym tab shows (3 Oct)
+    done: doneCard,
     resume: parked,
     actions: {
       // MAKE-UP DAY: start the leftovers themselves, or drop back to the plan
@@ -148,10 +155,22 @@ export function valsWorkouts(app, ctx) {
     // carry-over row is removed when the session is filed, and the date fell
     // straight back to the weekday template ("the calendar has defaulted back
     // to leg day"). The filed session is the record, so the day reads from it.
-    const finished = isToday && !plannedMakeup ? (overview?.doneToday?.madeUp || [])[0] || null : null;
+    // (3 Oct) the LATEST make-up filed today, read from the sessions in the
+    // order done; madeUp[0] is the same answer from an older server
+    const finished = isToday && !plannedMakeup
+      ? (() => {
+        const s = [...(overview?.doneToday?.sessions || [])].reverse().find((x) => x.madeUp);
+        return s ? { routineId: s.madeUp.routineId, routineName: s.madeUp.routineName, exerciseCount: s.exerciseCount, leftOff: (s.leftOff || []).length }
+          : (overview?.doneToday?.madeUp || [])[0] || null;
+      })()
+      : null;
     const dayMakeup = plannedMakeup || (finished
-      ? { sourceRoutineId: finished.routineId, sourceRoutineName: finished.routineName, exercises: new Array(finished.exerciseCount).fill(null), done: true }
+      ? { sourceRoutineId: finished.routineId, sourceRoutineName: finished.routineName, exercises: new Array(finished.exerciseCount).fill(null), done: true, leftOff: finished.leftOff || 0 }
       : null);
+    // EVERYTHING DONE ON THIS DAY (his report, 3 Oct): the make-ups he
+    // finished and any session beside them, each its own tick. Only today's
+    // record rides the overview, so only today's row can say it.
+    const doneMarks = isToday ? dayDoneMarks(overview?.doneToday) : [];
     // A carry-over written without an id identifies by NAME (see the merge
     // rule in workoutCarryover.js), so the select falls back to the name or it
     // would show a make-up day as blank and silently re-write the template on
@@ -164,7 +183,9 @@ export function valsWorkouts(app, ctx) {
     return {
       day, dayLabel: WEEKDAY_SHORT[day], isToday, carryoverNote,
       date: dayDate,
-      makeup: dayMakeup ? { sourceRoutineName: dayMakeup.sourceRoutineName, count: dayMakeup.exercises.length, sourceDate: dayMakeup.sourceDate || null, done: !!dayMakeup.done } : null,
+      makeup: dayMakeup ? { sourceRoutineName: dayMakeup.sourceRoutineName, count: dayMakeup.exercises.length, sourceDate: dayMakeup.sourceDate || null, done: !!dayMakeup.done,
+        leftOff: dayMakeup.leftOff ? `${dayMakeup.leftOff} left off` : null } : null,
+      doneMarks,
       style: { flex: '1', minWidth: '62px', textAlign: 'center', padding: '10px 6px', borderRadius: '10px',
         border: isToday ? '1px solid color-mix(in srgb, var(--nv-cy) 45%, transparent)' : '1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)',
         background: isToday ? 'color-mix(in srgb, var(--nv-cy) 07%, transparent)' : 'rgba(0,0,0,.18)',
@@ -194,7 +215,10 @@ export function valsWorkouts(app, ctx) {
         { value: 'active-rest', label: 'Active rest' },
         ...liveRoutines.map((r) => ({ value: r.id, label: r.name })),
         ...liveRoutines.map((r) => ({ value: `makeup:${r.id}`, label: `Make-up · finish ${r.name}` })),
-      ],
+      ]
+        // a make-up he FINISHED today is not an instruction any more: the
+        // chosen option says it was done, not "finish" (3 Oct)
+        .map((o) => (dayMakeup?.done && o.value === `makeup:${makeupRoutineId}` ? { ...o, label: `Made up ${dayMakeup.sourceRoutineName}` } : o)),
     };
   });
 
@@ -254,18 +278,7 @@ export function valsWorkouts(app, ctx) {
   // this card offering the weekday template as if the day were untouched.
   // What was filed today comes first; the scheduled session stays reachable
   // beneath it, because a make-up sits beside the schedule (his 9 Sep rule).
-  const doneToday = (() => {
-    const d = overview?.doneToday;
-    if (!d || !d.sessions?.length) return null;
-    const m = d.madeUp?.[0] || null;
-    const s = d.sessions[d.sessions.length - 1];
-    return {
-      title: m ? `Made up ${m.routineName}` : s.name,
-      meta: m ? `${m.exerciseCount} exercise${m.exerciseCount === 1 ? '' : 's'} · ${m.setCount} sets, filed today` : `${s.exerciseCount} exercise${s.exerciseCount === 1 ? '' : 's'} · ${s.setCount} sets, filed today`,
-      more: d.sessions.length > 1 ? `+ ${d.sessions.length - 1} more today` : null,
-      scheduledDone: !!d.scheduledDone,
-    };
-  })();
+  const doneToday = doneCard; // the whole day — see doneCard above
   const gymHero = (() => {
     if (!usingLiveWorkouts || st.workoutSession) return null;
     const o = overview;

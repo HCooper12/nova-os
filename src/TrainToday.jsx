@@ -47,7 +47,7 @@ function Ring({ score, basis }) {
 // a row of cards and a row of boxes.
 const fcardBase = (edge) => `flex:0 0 164px;min-height:128px;box-sizing:border-box;display:flex;flex-direction:column;scroll-snap-align:start;border-radius:14px;padding:12px;border:1px solid ${edge};background:var(--nv-glass);cursor:pointer;transition:transform .2s,border-color .2s`;
 
-export function TrainToday({ o, actions, resume }) {
+export function TrainToday({ o, actions, resume, done = null }) {
   // the Coach's ask leaves in its verdict colour for one beat, then the
   // action runs (finding 13); nothing while it is leaving can be tapped twice
   const [askLeaving, setAskLeaving] = useState(null);
@@ -149,14 +149,30 @@ export function TrainToday({ o, actions, resume }) {
         )}
         {panels.madeUp && (
           <div className="nv-deck-rise" style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-good) 40%, transparent);background:color-mix(in srgb, var(--nv-good) 06%, transparent)')}>
-            <Eyebrow tone="good">✓ Make-up done</Eyebrow>
-            <div style={css('font-size:22px;font-weight:600;letter-spacing:.03em;margin-top:2px')}>Made up {o.doneToday.madeUp[0].routineName}</div>
+            {/* 3 Oct: the whole day, not the first make-up — the same card
+                the Gym tab draws (src/doneToday.js) */}
+            <Eyebrow tone="good">{done?.lines ? '✓ Done today' : '✓ Make-up done'}</Eyebrow>
+            <div style={css('font-size:22px;font-weight:600;letter-spacing:.03em;margin-top:2px')}>{done ? done.title : `Made up ${o.doneToday.madeUp[0].routineName}`}</div>
             <div style={css('color:var(--nv-ink60);font-size:12.5px;margin-top:3px;line-height:1.5;font-variant-numeric:tabular-nums')}>
-              {o.doneToday.madeUp[0].exerciseCount} exercises · {o.doneToday.madeUp[0].setCount} sets, filed today
+              {done ? done.meta : `${o.doneToday.madeUp[0].exerciseCount} exercises · ${o.doneToday.madeUp[0].setCount} sets, filed today`}
             </div>
+            {done?.lines && (
+              <div style={css('margin-top:8px;display:flex;flex-direction:column')}>
+                {done.lines.map((l, i) => (
+                  <div key={l.key} style={css(`display:flex;gap:8px;align-items:baseline;padding:6px 0${i === 0 ? '' : ';border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent)'}`)}>
+                    <span aria-hidden="true" style={css('flex:none;color:var(--nv-good);font-weight:700')}>✓</span>
+                    <span style={css('min-width:0;flex:1;font-weight:600;overflow-wrap:anywhere')}>{l.title}</span>
+                    <span title={l.leftOffWhy || undefined} style={css('flex:none;color:var(--nv-ink60);font-size:12px;font-variant-numeric:tabular-nums;text-align:right')}>{l.meta}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
-        {(panels.scheduled || panels.rest) && (
+        {/* the scheduled routine already among today's sessions is listed
+            above as done; offering to begin it again is the template
+            talking over the record (3 Oct) */}
+        {(panels.scheduled || panels.rest) && !(panels.madeUp && o.doneToday?.scheduledDone) && (
           <div style={css('flex:1 1 300px;border-radius:18px;padding:16px;position:relative;overflow:hidden;border:1px solid color-mix(in srgb, var(--nv-cy) 35%, transparent);background:linear-gradient(135deg,color-mix(in srgb, var(--nv-cy) 10%, transparent),color-mix(in srgb, var(--nv-vi) 06%, transparent))')}>
             {/* 9 Sep: when a make-up is also up, this one names itself as
                 the extra — two cards saying "today" is one thing said twice */}
