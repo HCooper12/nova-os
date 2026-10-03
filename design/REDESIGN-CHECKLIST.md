@@ -561,6 +561,13 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 3 Oct 2026 (evening) — PUSHED 7fa2e2e on his word. HIS EIGHTH ANSWERS:
+  keep the coral-red speaking tint; Nova's words their own hue → --nv-nova
+  "starlight" in every theme (9d87daa; cyan stays the talk accent and
+  Commander's); NOVA IS HE (memory nova-is-he) → every visible string,
+  prompt, doc and nearby comment (7576a1c); Practice opens the web whenever
+  a page needs it (the word gate removed in all three copies, 7576a1c).
+  Server reloaded; pushed after the gates.
 - 3 Oct 2026 — FULL-SCREEN NOVA MERGED (7697177): NovaFocus.jsx (A's field at
   rest, 110 embers, one capped canvas paused when hidden; the core travels to
   C's presenter spot when he talks; listening / thinking / speaking plates;
