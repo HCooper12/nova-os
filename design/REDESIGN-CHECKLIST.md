@@ -561,6 +561,24 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 3 Oct 2026 (close) — STATUS BOARD FOR THE NEXT SESSION. Built (phone round,
+  Summary style): Home; Inbox r2 (Look deeper); Train A/B + done-today; Fuel A
+  (+ swipe, strip, viewed-day logging); Nova (thread, full-screen focus, record
+  moment, workout panel marks, who-is-answering roster). Their row boxes
+  above still read `[ ]`; the ledger is the truth, reconcile the boxes first.
+  NOT started: Sheets and overlays (§6 #6; X1, X2, X5), Settings, Ops + Org
+  map, Library, Practice audit, Leader, Briefing, To-Do, Shopping, Notes,
+  Journal, Money, Stash, Galaxy, Code, Ambient, Console. DESKTOP (MacBook)
+  round: not started for ANY page (standing, 29 Sep). Owed to him: bench +
+  bylines on the thread (mockup 67), Jarvis-reel parts 3+4 (fanned reveal,
+  3D callouts), the Inbox re-evaluation (25 Sep). FIRST TASK TOMORROW (his
+  instruction): analyse the Instagram reel
+  https://www.instagram.com/reel/Dd9g4biMnS4/ (yt-dlp works here; 1080x1920,
+  60fps, 10.8 s) and develop the dynamic animations of Nova's ICON (dock orb,
+  NovaCore, focus core) further, mockups first, before the next page
+  redesigns. Cross-cutting still open: X1–X10 (§4), glass durability across
+  devices (server record format), the quiet-hours window (my guess), the
+  speaking tint (coral-red kept by his choice).
 - 3 Oct 2026 (late) — MERGED, NOT PUSHED: Home's Training card names the
   day's work (bd3b041) and the Fuel build (4fafa11: iOS Mail swipe in the
   house SwipeRow for every list, with a real touch bug fixed (a bubbling

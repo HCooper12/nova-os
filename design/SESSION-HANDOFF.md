@@ -13,6 +13,95 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**3 OCT, CLOSE (nova-os-fc) — EVERYTHING HE ASKED IS BUILT, PUSHED AND DEPLOYED;
+TOMORROW OPENS WITH THE NOVA-ICON REEL, THEN THE REMAINING REDESIGN PAGES.**
+Written at close from commands run at 23:1x AEST, not from memory.
+
+- **GOAL:** his standing brief (26 Sep): redesign Nova page by page under the
+  Apple aesthetic, every function kept, more fluid; loop = audit → mockups →
+  his tweaks → build; desktop (MacBook) round after each phone round.
+- **DONE CRITERIA:** MET: Home (Summary style), Inbox r2, Train A/B + done-today,
+  Fuel A + swipe/rotation strip, Nova screen (thread, full-screen focus, record
+  moment), the consult rail on every door, book naming. UNMET: Sheets and
+  overlays (§6 #6), Settings, Ops/Org map, Library, Practice audit, Leader,
+  Briefing, the eight small screens (To-Do, Shopping, Notes, Journal, Money,
+  Stash, Galaxy, Code), Ambient, Console, and the DESKTOP round for every page
+  done so far. BLOCKED: nothing, except that his phone must be fully closed
+  and reopened to run the new client.
+- **STATE (paths):** main = origin/main at bbe1f95 plus adebc91 (test fix) and
+  this handoff commit; no worktrees (`git worktree list` shows only main);
+  ledger `design/REDESIGN-CHECKLIST.md` §7 (the truth; its per-row boxes for
+  Train/Fuel/Voice/Inbox still read `[ ]` though built, only Home's rows are
+  `[b]`/`[x]`: reconcile first thing); mockups `design/mockups/57–68`; plan
+  `design/HOME-REDESIGN-PLAN.md`; key new code `server/lib/consult.js`,
+  `quietHours.js`, `bookName.js`, `src/NovaFocus.jsx`, `NovaThread*.jsx`,
+  `src/swipeReveal.js` + `SwipeRow.jsx`, `src/fuelDay.js`, `src/doneToday.js`.
+  The reel is downloaded at `$SCRATCH/novaicon-reel.mp4` (session scratchpad,
+  may be gone; re-fetch with `yt-dlp "https://www.instagram.com/reel/Dd9g4biMnS4/"`).
+- **DECISIONS (choice → reason → forecloses):**
+  - Full-screen Nova = C's stage, A's field at rest, core travels up when he
+    speaks, per-state tints kept (coral-red speaking) → his words 26–30 Sep →
+    forecloses retuning NovaCore's hue maths without touching dock orb + classic.
+  - Every agent consults every other; Nova is CEO; NO phrase-gated routing; his
+    words count as the instruction on every door → his standing rule → forecloses
+    any walled-off lane or keyword router.
+  - Quiet hours 22:00–07:00 Melbourne, urgent passes → his yes; the WINDOW is my
+    guess → forecloses nothing (a Settings row edits it).
+  - Nova is "he"; Nova's words get `--nv-nova` starlight → his call.
+  - iOS Mail swipe grammar everywhere via SwipeRow → his call.
+  - PDFs are never refused for a missing title; named from front page/filename,
+    flagged `guessed`, editable in review → his call.
+  - Deployed vs visible are reported separately → his rebuke 3 Oct.
+- **VERIFIED:** lint 0 errors / build green (run 23:1x); server suite 3042 tests,
+  after adebc91 the clock-dependent four pass singly (`node --test
+  server/test/{money,coachSuggestions,platformActivity,macVerbs}.test.js`);
+  only the two known exerciseAtlas failures remain; health 200 at
+  localhost:4173; no vite preview process; no dist/pc.json; live bundle lacks
+  "rarely knows its own name" (grep -c = 0 on the Pages bundle, earlier this
+  session, deploy run success). Reel is downloadable: 1080×1920, 60fps, 10.8 s.
+- **ASSUMED (no locator, treat as unproven):** swipe-to-delete, the rotation strip
+  snap and a past-day tick feel right under his thumb in WebKit; the PDF fix
+  works on his phone (needs a full close/reopen first); real TTS timing against
+  NovaFocus subtitles; the 60fps feel of the core's travel; glass durability
+  across devices (server record format undecided); the quiet-hours default.
+- **OPEN QUESTIONS / BLOCKERS (his):** (1) log the lasagne to 2 Oct for him, or
+  tick it himself in Yesterday's view (in NEITHER day's log now); (2) the
+  quiet-hours window; (3) confirm the Fuel swipe/strip/past-day tick and the
+  book import on his phone after reopening; (4) Nova underline hue (cyan vs
+  other). Unfinished and NOT dropped: bench + bylines on the thread (seams in
+  NovaThread.jsx from `by`/`from`, mockup 67), the Jarvis-reel parts 3+4 (fanned
+  reveal, 3D callouts) he asked to be reminded of, the Inbox re-evaluation
+  (25 Sep), desktop round for all built pages.
+- **NEXT ACTION (in this order, his instruction at close):**
+  1. FIRST TASK: analyse the Instagram reel
+     https://www.instagram.com/reel/Dd9g4biMnS4/ (download with yt-dlp, split
+     with ffmpeg into frames at ~12 fps, read them) and develop the dynamic
+     animations of Nova's ICON (the dock orb / NovaCore / focus core) further,
+     as MOCKUPS first (loop: mockup → his tweaks → build). Load apple-design,
+     emil-design-eng, interface-design before drawing. Expect: a published
+     artifact with the reel's moves named, mapped to idle/listening/thinking/
+     speaking, `prefers-reduced-motion` honoured. Do not build in app until he
+     picks.
+  2. Reconcile the REDESIGN-CHECKLIST row boxes with the ledger (Inbox, Train,
+     Fuel, Voice built), then continue §6 order: Sheets and overlays (X1, X2,
+     X5 decisions land here), Settings, Ops + Org map, Library, Practice
+     (audit now that he has used it), Leader, Briefing, then #13–22.
+  3. The desktop (MacBook) round for each built page (standing, 29 Sep).
+  4. Bench + bylines on the thread.
+  Every build via the worktree workflow in the 3 Oct ledger notes (worktree
+  from LOCAL main, Opus agents never commit, six guards "unchanged", server
+  reload ONLY via `node scripts/reload-server.mjs`).
+- **DO NOT:** say "live/shipped" without separating deployed from visible
+  (Summary-style only; installed PWA keeps old JS until fully reopened); read
+  the quiet-hours window as his decision; route by phrase; give Nova any
+  walled-off lane; claim the swipe/strip works until he has used it; run
+  `git worktree add` from `origin/main` (use LOCAL main); append CSS anywhere but
+  the END of index.css; hunk-stage App.jsx (parse-check the index); test
+  clock-dependent code after 22:00 or near a day boundary without pinning the
+  clock (the 3 Oct failures: held-push write racing teardown; "Sat 9pm"
+  already past); my earlier wrong diagnosis: the book error persisting was a
+  stale CLIENT on his phone, not the server fix failing.
+
 **3 OCT (nova-os-fc) — HIS SEVENTH ANSWERS ALL LANDED; 22 COMMITS UNPUSHED.**
 On main since the 30 Sep push: the Nova polish (81beb2f), Siri + consulted
 Coach + titles (1c90c29), Coach answers (b533965), every door (97953ae +
@@ -5056,6 +5145,18 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+### 3 October 2026 (close) — nova-os-fc
+Built and shipped in one long session: the consult rail on every door
+(his words instruct everywhere, no phrase gates, quiet hours), Nova's thread
+and full-screen focus, the record moment, the workout panel, Train's and
+Home's done-today card, Fuel's swipe-to-delete/rotation strip/viewed-day
+logging, and book naming from the file. Corrected rather than added: I told
+him the redesign was on his phone when it was deployed but invisible (Summary
+only, PWA not reopened), and the repeated book error was his old client, so
+the fix needed a push, not more server work. At close two clock-dependent
+tests failed after 22:00 (adebc91). Next session opens with the Instagram
+reel on Nova's icon motion, then the remaining redesign pages.
 
 ### 25 September 2026 — nova-os-d3: the reel, from the Hormozi spin-wheel reel he sent
 He sent an Instagram reel of someone cycling a spin-wheel through Alex
