@@ -561,6 +561,18 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 3 Oct 2026 — HIS SEVENTH ANSWERS. Full-screen Nova: C's stage with its
+  animations, A's field as the "turn" (idle) appearance refined, the core
+  travelling to C's presenter spot as he speaks, the state tints kept
+  (idle / listening / speaking) → BUILD IN FLIGHT (worktree focus). Coach:
+  moves count as replacements (kept); his words count on EVERY door (Leader
+  chat, Coach tab too): "It's just a difference in who I am directly talking
+  to"; pushes respect quiet hours → BUILD IN FLIGHT (worktree doors2), with:
+  every recipe link straight in; Siri's "approve that" = newest waiting card
+  anywhere (kept); and NO PHRASE-GATED ROUTING, Nova consults whichever
+  agent the answer needs, never keyed on words like "research" or
+  "evidence" (memory nova-agents-consult-everyone). "Analyse this video"
+  stays the Watcher's deep weave (the pipeline's own name for analyse).
 - 1 Oct 2026 — EVERY DOOR, ONE NOVA MERGED (97953ae + c23ff4f, server
   reloaded): audit design/audits/every-door.md (26 functions × 6 doors; 75 of
   156 cells could not do what he asked, now 152 can; the 4 left are Siri's,
