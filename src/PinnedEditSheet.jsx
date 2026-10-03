@@ -33,7 +33,10 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 // a tap on Done or any control inside the grab zone is a tap, not a sheet drag
 const onControl = (el) => !!(el && el.closest && el.closest('[role="button"], button, a, input'));
 
-export function PinnedEditSheet({ edit, rows }) {
+// The same sheet edits the cards at the foot of the summary Fuel page (3 Oct
+// 2026, his words: "allow me to edit the bottom section of fuel like I can
+// for the home screen"); its words come in as props, Home's are the defaults.
+export function PinnedEditSheet({ edit, rows, title = 'Pinned', dialogLabel = 'Edit Pinned', listLabel = 'Pinned cards, in order', showLabel = (l) => `Show ${l} on Home` }) {
   const exit = useExit(edit.close);
   const sheet = useSheetDrag(edit.close, { threshold: 80 });
   const panelRef = useRef(null);
@@ -164,7 +167,7 @@ export function PinnedEditSheet({ edit, rows }) {
   const abandon = (e) => letGo(e, false);
 
   return (
-    <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label="Edit Pinned" onClick={exit.close}
+    <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label={dialogLabel} onClick={exit.close}
       style={{
         position: 'fixed', inset: 0, zIndex: 145, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         background: 'color-mix(in srgb, var(--nv-void) 70%, transparent)',
@@ -186,7 +189,7 @@ export function PinnedEditSheet({ edit, rows }) {
           onPointerDown={(e) => { if (!onControl(e.target)) sheet.handleProps.onPointerDown(e); }}
           style={{ ...sheet.handleProps.style, position: 'relative', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '20px 8px 8px' }}>
           <span aria-hidden="true" style={{ position: 'absolute', top: '7px', left: '50%', width: '36px', height: '5px', marginLeft: '-18px', borderRadius: '3px', background: 'color-mix(in srgb, var(--nv-ink) 22%, transparent)' }} />
-          <span style={{ font: `600 17px ${UI}`, letterSpacing: '-.01em', color: 'var(--nv-ink)' }}>Pinned</span>
+          <span style={{ font: `600 17px ${UI}`, letterSpacing: '-.01em', color: 'var(--nv-ink)' }}>{title}</span>
           <TextAction tone="accent" onClick={exit.close}>Done</TextAction>
         </div>
         {/* the list scrolls on its own when it outgrows the sheet. Its 6px
@@ -194,13 +197,13 @@ export function PinnedEditSheet({ edit, rows }) {
             a lifted row's 2% scale, and it clips sideways — a scroller cannot
             be `visible` on one axis, so a lift would otherwise make the list
             scroll sideways under his thumb */}
-        <ul ref={listRef} aria-label="Pinned cards, in order"
+        <ul ref={listRef} aria-label={listLabel}
           style={{ listStyle: 'none', margin: '0 -6px', padding: '4px 6px 8px', minHeight: 0, overflowX: 'hidden', overflowY: 'auto', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' }}>
           {rows.map((r) => (
             <li key={r.key} className="nv-sum-row" data-pin-row={r.key}>
               <label className="nv-sum-switch" data-on={r.on ? 'true' : 'false'}>
                 <input type="checkbox" role="switch" ref={switchHapticRef} checked={r.on} onChange={() => toggle(r.key)}
-                  aria-label={`Show ${r.label} on Home`} />
+                  aria-label={showLabel(r.label)} />
               </label>
               <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
                 <span style={{ font: `500 16px ${UI}`, letterSpacing: '-.01em', color: r.on ? 'var(--nv-ink)' : 'var(--nv-ink60)', transition: 'color 180ms ease' }}>{r.label}</span>

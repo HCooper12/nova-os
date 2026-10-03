@@ -140,8 +140,12 @@ test('the client wires the meal ×, its Undo and the re-log receipt', async () =
   assert.ok(del.includes('setTimeout(() => this.setState({ foodEntryUndo: null }), 30000)'), 'for the same 30 seconds as the line undo');
   assert.ok(del.includes("action: { label: 'Undo', run: () => this.undoFoodLogEntry(undo) }"), 'and the toast offers it too, bound to this meal');
   assert.ok(method('undoFoodLogEntry').includes('api.restoreFoodLogEntry(conn, u.entry.id, { date: u.date, entry: u.entry, index: u.index })'));
+  // 3 Oct 2026: every add's receipt is one method (loggedReceipt), which
+  // names the day when it is not today and carries the same Undo
   const relog = method('relogFoodItem');
-  assert.ok(relog.includes("action: { label: 'Undo', run: () => this.undoRelogFoodItem(mine, day.date) }"), 'Log it again has a way back');
+  assert.ok(relog.includes('this.loggedReceipt(item.name, day, date)'), 'Log it again leaves the receipt');
+  assert.ok(method('loggedReceipt').includes("action: { label: 'Undo', run: () => this.undoLoggedReceipt(mine, day.date || date) }"), 'and it has a way back');
+  assert.ok(method('undoLoggedReceipt').includes('this.undoRelogFoodItem(entry, date)'));
   assert.ok(method('undoRelogFoodItem').includes('api.deleteFoodLogEntry(conn, entry.id, date)'));
   assert.ok(read('src/api.js').includes('restoreFoodLogEntry: (conn, id, body) => post(conn, `/api/food-log/${encodeURIComponent(id)}/restore`, body)'));
   const screen = read('src/screens/Recipes.jsx');

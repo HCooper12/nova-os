@@ -2,6 +2,7 @@ import { mono } from './shared.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
 import { offPlanTotals, recipeBankState, RECIPE_BANK_COPY } from '../fuelFacts.js';
+import { rotationTickedIn, loggedLine, dayWord } from '../fuelDay.js';
 import { servingsOf, scaleRecipe, parseAmount, formatQuarter, shortSourceLabel } from '../recipeScale.js';
 
 // The rename UI keys off a variant id. The version IN USE has none — it is
@@ -278,6 +279,12 @@ export function valsRecipes(app, ctx) {
   // daily rotation — which real recipe fills each meal slot, and the day's macro total
   const rotation = st.liveRotation;
   const profile = st.liveRecipeProfile;
+  // THE DAY IN VIEW DECIDES WHAT "EATEN" MEANS (3 Oct 2026). The rotation
+  // remembers today's ticks only; while the log shows a past day, a dish
+  // reads ticked when THAT day's log holds it, and a tick lands there
+  // (app.tickRotation routes it). Today, the rotation's own ticks stand.
+  const pastDayEntries = st.foodLogDate ? (st.liveFoodLogView?.entries || []) : null;
+  const eatenOn = (slot, d) => (pastDayEntries ? rotationTickedIn(pastDayEntries, slot, d?.id) : !!d?.eaten);
   // Deliberately avoids cyan/gold/purple/green — those are the P/C/F/kcal
   // macro colors, so a slot title in one of those would clash with the
   // macro reading right below it in the same card.
@@ -312,7 +319,7 @@ export function valsRecipes(app, ctx) {
       c: filled?.macros ? Math.round(filled.macros.c) : null,
       f: filled?.macros ? Math.round(filled.macros.f) : null,
       kcal: filled?.macros ? Math.round(filled.macros.kcal) : null,
-      consumed: !!filled?.consumed,
+      consumed: filled ? eatenOn(s.key, filled) : false,
       variant: filled?.variant || null,
       // the fridge: how many cooked portions of the FOCUSED dish are left
       // (null = he has never counted it); zero reads red
@@ -321,7 +328,7 @@ export function valsRecipes(app, ctx) {
       // several options: which is in focus, and the flick between them
       optionCount: options.length,
       focusIndex: Math.max(0, options.findIndex((d) => d.focus)),
-      eatenCount: options.filter((d) => d.eaten).length,
+      eatenCount: options.filter((d) => eatenOn(s.key, d)).length,
       prev: many ? () => app.cycleRotationFocus(s.key, -1) : null,
       next: many ? () => app.cycleRotationFocus(s.key, 1) : null,
       // A VARIANT BELONGS TO THE DISH, NOT THE SLOT (7 Sep 2026). The server
@@ -332,13 +339,14 @@ export function valsRecipes(app, ctx) {
       options: options.map((d) => {
         const recipe = (st.liveRecipes || []).find((r) => r.id === d.id);
         const alts = (recipe?.alternates || []).filter((a) => a.id !== d.variantId);
+        const eaten = eatenOn(s.key, d);
         return {
-          id: d.id, name: d.name, focus: !!d.focus, eaten: !!d.eaten,
+          id: d.id, name: d.name, focus: !!d.focus, eaten,
           p: Math.round(d.macros?.p || 0), kcal: Math.round(d.macros?.kcal || 0),
           portionsLeft: d.portionsLeft ?? null, out: !!d.out,
           variant: d.variant || null, variantId: d.variantId || null, alts,
           focusIt: () => app.setRotationFocus(s.key, d.id),
-          tick: () => app.toggleOptionEaten(s.key, d.id, !d.eaten),
+          tick: () => app.tickRotation(s.key, d.id, !eaten),
           remove: () => app.toggleRotationSlot(s.key, d.id),
           open: () => app.openRecipe(d.id),
           setVariant: (altId) => app.setRotationVariant(s.key, altId, d.id),
@@ -346,7 +354,7 @@ export function valsRecipes(app, ctx) {
             x, y, title: `${s.name.toUpperCase()} · ${d.name.toUpperCase()}`,
             items: [
               d.focus ? null : { label: 'Make this the one that counts', hint: d.macros ? `${Math.round(d.macros.p || 0)}P · ${Math.round(d.macros.kcal || 0)} kcal` : 'macros not set', onSelect: () => app.setRotationFocus(s.key, d.id) },
-              { label: d.eaten ? 'Mark not eaten' : 'Mark eaten', hint: d.portionsLeft != null ? `${d.portionsLeft} in the fridge` : undefined, onSelect: () => app.toggleOptionEaten(s.key, d.id, !d.eaten) },
+              { label: eaten ? 'Mark not eaten' : 'Mark eaten', hint: d.portionsLeft != null ? `${d.portionsLeft} in the fridge` : undefined, onSelect: () => app.tickRotation(s.key, d.id, !eaten) },
               ...alts.slice(0, 3).map((a) => ({ label: `Swap → ${a.label}`, hint: a.macros ? `${Math.round(a.macros.p)}P` : undefined, onSelect: () => app.setRotationVariant(s.key, a.id, d.id) })),
               d.variantId ? { label: `Back to ${d.name}`, onSelect: () => app.setRotationVariant(s.key, null, d.id) } : null,
               { label: 'Open recipe', onSelect: () => app.openRecipe(d.id) },
@@ -357,7 +365,7 @@ export function valsRecipes(app, ctx) {
       }),
       clearVariant: filled?.variant ? () => app.setRotationVariant(s.key, null, filled.id) : null,
       open: filled ? () => app.openRecipe(filled.id) : null,
-      toggleConsumed: filled ? () => app.toggleOptionEaten(s.key, filled.id, !filled.consumed) : null,
+      toggleConsumed: filled ? () => app.tickRotation(s.key, filled.id, !eatenOn(s.key, filled)) : null,
       // extra meals he added can go again once they are empty
       removeSlot: s.custom && !options.length ? () => app.removeRotationSlot(s.key) : null,
       rename: s.custom ? (label) => app.renameRotationSlot(s.key, label) : null,
@@ -373,7 +381,7 @@ export function valsRecipes(app, ctx) {
         app.openContextMenu({
           x, y, title: `${s.name.toUpperCase()} · ${filled.name.toUpperCase()}`,
           items: [
-            { label: filled.consumed ? 'Mark not eaten' : 'Mark eaten', hint: filled.macros ? `${Math.round(filled.macros.p)}P · ${Math.round(filled.macros.kcal)} kcal` : 'macros not set', onSelect: () => app.toggleSlotConsumed(s.key, !filled.consumed) },
+            { label: eatenOn(s.key, filled) ? 'Mark not eaten' : 'Mark eaten', hint: filled.macros ? `${Math.round(filled.macros.p)}P · ${Math.round(filled.macros.kcal)} kcal` : 'macros not set', onSelect: () => app.tickRotation(s.key, filled.id, !eatenOn(s.key, filled)) },
             ...alts.slice(0, 3).map((a) => ({ label: `Swap → ${a.label}`, hint: a.macros ? `${Math.round(a.macros.p)}P` : undefined, onSelect: () => app.setRotationVariant(s.key, a.id, filled.id) })),
             filled.variant ? { label: `Back to ${filled.name}`, onSelect: () => app.setRotationVariant(s.key, null, filled.id) } : null,
             { label: 'Open recipe', onSelect: () => app.openRecipe(filled.id) },
@@ -852,7 +860,10 @@ export function valsRecipes(app, ctx) {
         remove: () => app.deleteFoodLogItem(e.id, it.id),
       })),
       p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal),
-      remove: () => app.deleteFoodLogEntry(e.id),
+      // every row comes off: a rotation row un-ticks its slot for that day
+      // (app.removeFoodLogRow), any other is the delete with its Undo
+      remove: () => app.removeFoodLogRow(e),
+      fromRotation: e.source === 'rotation',
       edited: !!e.edited,
       edit: () => app.startFoodEntryEdit({ id: e.id, name: e.name, p: Math.round(e.macros.p), c: Math.round(e.macros.c), f: Math.round(e.macros.f), kcal: Math.round(e.macros.kcal) }),
       editing: st.foodEditId === e.id,
@@ -869,6 +880,18 @@ export function valsRecipes(app, ctx) {
         key: 'entry', at: st.foodEntryUndo.at || 0,
         label: `Undo — put ${st.foodEntryUndo.entry?.name || 'that meal'} back`,
         run: () => app.undoFoodLogEntry(),
+      } : null,
+      // a rotation row taken off (its slot un-ticked), and an add to a past
+      // day, ride the same rail (src/fuelDay.js)
+      st.rotationReceipt?.kind === 'untick' ? {
+        key: 'rot', at: st.rotationReceipt.at || 0,
+        label: `Undo — put ${st.rotationReceipt.name} back${dayWord(st.rotationReceipt.date) ? ` on ${dayWord(st.rotationReceipt.date)}` : ''}`,
+        run: () => app.undoRotationReceipt(),
+      } : null,
+      st.foodLoggedReceipt && dayWord(st.foodLoggedReceipt.date) ? {
+        key: 'logged', at: st.foodLoggedReceipt.at || 0,
+        label: `${loggedLine(st.foodLoggedReceipt.entry?.name, st.foodLoggedReceipt.date)} · Undo`,
+        run: () => app.undoLoggedReceipt(st.foodLoggedReceipt.entry, st.foodLoggedReceipt.date),
       } : null,
     ].filter(Boolean).sort((a, b) => b.at - a.at),
     // the breakdown a scan produced, before he logs it

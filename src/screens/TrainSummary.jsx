@@ -567,7 +567,7 @@ function LiftRow({ r }) {
     <li className="nv-ts-xitem">
       <SwipeRow radius={0}
         right={{ label: 'Move', icon: '↕', tone: 'var(--nv-cy)', run: r.move }}
-        left={{ label: 'Remove', icon: '✕', tone: 'var(--nv-warn)', run: r.remove }}>
+        left={{ label: 'Remove', icon: '✕', tone: 'var(--nv-warn)', run: r.remove, collapse: true }}>
         <div className="nv-ts-xrow">
           <button type="button" className="nv-ts-f3d" style={{ '--h': r.hue }} onClick={r.open} aria-label={`${r.name} in 3D`}><Ico p={P.fig} /></button>
           <Interactive as="div" className="nv-ts-lx" onClick={r.open} base={{ cursor: 'pointer', minWidth: 0 }} activeStyle={{}}

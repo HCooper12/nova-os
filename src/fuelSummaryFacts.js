@@ -107,3 +107,45 @@ export function tonightRotation(rotation, slots = []) {
   }
   return null;
 }
+
+// THE ROTATION AS A STRIP (3 Oct 2026, his words: "widgets or something
+// similar like the previous design of Nova so that I can simply scroll and
+// select to say that I am ticking off one of the meals from my rotation
+// rather than only being able to click the breakfast one"). Every dish in
+// every slot, in his slot order, one tile each, each tickable in place;
+// an empty slot is a quiet tile that says so. `slots` is the rotation view
+// model (valsRecipes.rotationSlots), whose `eaten` already reads the day
+// the log is showing. `nextIndex` is the first dish not yet eaten (the
+// strip scrolls it into view), or -1.
+export function rotationStrip(slots = []) {
+  const tiles = [];
+  for (const s of slots || []) {
+    const opts = Array.isArray(s?.options) ? s.options : [];
+    if (!opts.length) {
+      tiles.push({ key: `${s.key}:empty`, slot: s.key, slotName: s.name, hue: s.hue || null, empty: true });
+      continue;
+    }
+    opts.forEach((o, i) => tiles.push({
+      key: `${s.key}:${o.id}`,
+      slot: s.key,
+      slotName: s.name,
+      hue: s.hue || null,
+      id: o.id,
+      name: o.name,
+      variant: o.variant || null,
+      p: Math.round(num(o.p)),
+      kcal: Math.round(num(o.kcal)),
+      portionsLeft: o.portionsLeft ?? null,
+      out: !!o.out,
+      eaten: !!o.eaten,
+      of: opts.length > 1 ? `${i + 1} of ${opts.length}` : null,
+    }));
+  }
+  const dishes = tiles.filter((t) => !t.empty);
+  return {
+    tiles,
+    nextIndex: tiles.findIndex((t) => !t.empty && !t.eaten),
+    dishes: dishes.length,
+    eaten: dishes.filter((t) => t.eaten).length,
+  };
+}

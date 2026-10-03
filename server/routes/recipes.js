@@ -6,8 +6,9 @@ import { randomUUID } from 'node:crypto';
 import { loadRecipeData, addRecipe, addAlternate, promoteAlternate, editRecipe, recipeMetaError } from '../lib/recipes.js';
 import { loadRotation, setRotationSlot, setSlotConsumed, setSlotVariant, addSlotOption, removeSlotOption, setSlotFocus, setOptionEaten, addCustomSlot, removeCustomSlot, renameCustomSlot } from '../lib/rotation.js';
 import { getPortions, setPortions, adjustPortions, clearPortions } from '../lib/portions.js';
-import { recordTodaySnapshot } from '../lib/nutritionSnapshot.js';
-import { setRotationEntry } from '../lib/foodLog.js';
+import { recordTodaySnapshot, recordDaySnapshot } from '../lib/nutritionSnapshot.js';
+import { setRotationEntry, resolveLogDate } from '../lib/foodLog.js';
+import { setRotationEatenOn } from '../lib/rotationRetro.js';
 import { startScan, getScanJob } from '../lib/scanRecipe.js';
 import { startTweak, getTweakJob } from '../lib/tweakRecipe.js';
 import { savePhoto, getPhoto, listPhotoRecipeIds } from '../lib/recipePhotos.js';
@@ -475,8 +476,16 @@ export function recipesRouter(vaultPath) {
   // lands its own food-log entry, and a counted dish loses a portion
   router.post('/rotation/eaten', async (req, res) => {
     try {
-      const { slot, recipeId, eaten } = req.body || {};
+      const { slot, recipeId, eaten, date } = req.body || {};
       const { recipes } = await loadRecipeData(vaultPath);
+      // A DAY THAT IS NOT TODAY (3 Oct 2026): the tick lands on THAT day's
+      // log and leaves today's rotation alone (lib/rotationRetro.js). The
+      // reply carries the day as well, so the log he is looking at updates.
+      if (date && resolveLogDate(date) !== resolveLogDate()) {
+        const out = await setRotationEatenOn({ vaultPath, recipes, slot, recipeId, eaten: !!eaten, date });
+        recordDaySnapshot(vaultPath, out.date).catch(() => {});
+        return res.json(out);
+      }
       const rotation = await setOptionEaten(vaultPath, recipes, slot, recipeId, !!eaten);
       const dish = (rotation.options?.[slot] || []).find((d) => d.id === recipeId);
       if (dish) {

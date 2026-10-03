@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { useDictation } from '../useDictation.js';
@@ -11,6 +11,7 @@ import { Pill } from '../AppleLayout.jsx';
 import { PickItUpPanel } from './PickItUp.jsx';
 import { CrossBars } from './Recipes.jsx';
 import { FIcon } from '../FuelIcon.jsx';
+import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
 
 // THE SUMMARY FUEL PAGE — mockup 59, variation A ("Fuel is the plate"), his
 // pick on 27 Sep 2026. Recipes.jsx returns this under the `summary` style;
@@ -19,9 +20,12 @@ import { FIcon } from '../FuelIcon.jsx';
 // Top to bottom: the title; the plate (ONE instrument — protein a ring
 // against its target, calories a bar against theirs, carbs and fat plain
 // grams); the composer (type, photo, barcode, talk) with "Log it again"
-// under it; the day's log as rows that swipe (right logs again, left
-// deletes and leaves a 30-second Undo); one rotation row; two doors,
-// Recipes and Pick it up. The bank is its own page (A · 2) and a recipe is
+// under it; then the cards he orders himself (3 Oct 2026, the Edit sheet at
+// the foot, src/fuelCards.js): the day's log as rows that swipe the iOS way
+// (a partial swipe uncovers Delete or Log again, a long one commits; every
+// row comes off, a rotation row by un-ticking its slot), everything he has
+// logged, the rotation as a strip of every dish tickable in place, and the
+// two doors, Recipes and Pick it up. The bank is its own page (A · 2) and a recipe is
 // a sheet (src/RecipeSheet.jsx, A · 3). The audit it answers is
 // design/audits/redesign-2026-09/04-fuel.md: every inventoried feature is
 // here, moved, never dropped.
@@ -300,7 +304,7 @@ function Countdown({ at, icon, tone }) {
   );
 }
 
-function Receipt({ r, icon = 'trash', tone }) {
+function Receipt({ r, icon = r.icon || 'trash', tone = r.tone }) {
   return (
     <div className="nv-fs-receipt" role="status">
       <Countdown at={r.at} icon={icon} tone={tone} />
@@ -316,11 +320,15 @@ function LogRow({ row, open, onToggle, edit }) {
   return (
     <div>
       <div className="nv-fs-swipe">
-        <SwipeRow style={{ borderRadius: 0 }}
-          right={{ label: 'Log again', icon: '↻', tone: 'var(--nv-fs-k)', run: row.relog }}
-          left={{ label: 'Delete', icon: '✕', tone: 'var(--nv-fs-rm)', run: row.remove }}>
+        {/* iOS's grammar (SwipeRow): a partial swipe left uncovers Delete and
+            stays open on it, a long one deletes with the row sliding out and
+            folding away; right does the same for Log again. A rotation row's
+            delete un-ticks its slot for that day (removeFoodLogRow). */}
+        <SwipeRow radius={0}
+          right={{ label: 'Log again', icon: <FIcon n="again" />, tone: 'var(--nv-fs-k)', run: row.relog }}
+          left={{ label: 'Delete', icon: <FIcon n="trash" />, tone: 'var(--nv-fs-rm)', run: row.remove, collapse: true }}>
           <Interactive as="div" className="nv-fs-lrow" onClick={onToggle} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
-            aria-expanded={open} aria-label={`${row.name}, ${row.p} grams protein, ${row.kcal} kilocalories${lineCount > 1 ? `, ${lineCount} lines` : ''}. Swipe right to log it again, left to delete.`}>
+            aria-expanded={open} aria-label={`${row.name}, ${row.p} grams protein, ${row.kcal} kilocalories${lineCount > 1 ? `, ${lineCount} lines` : ''}. Swipe right to log it again, left to delete, or open it for Remove.`}>
             <span className="nv-fs-tm">{time ? <>{time.clock}<small>{time.ampm}</small></> : <small>—</small>}</span>
             <span className="nv-fs-lx">
               <span className="nv-fs-nm">{row.name}</span>
@@ -363,6 +371,8 @@ function LogRow({ row, open, onToggle, edit }) {
             <div className="nv-fs-acts">
               <Act onClick={row.edit} label={`Edit ${row.name}, or say you ate less of it`}>Edit or ate less</Act>
               <Act tone="quiet" onClick={row.toRecipe}>Save to my recipes</Act>
+              {/* the plain way off, for anyone who does not swipe */}
+              <Act tone="rm" onClick={row.remove} label={`${row.removeWord}: ${row.name}`}>{row.removeWord}</Act>
             </div>
           )}
         </div>
@@ -371,10 +381,10 @@ function LogRow({ row, open, onToggle, edit }) {
   );
 }
 
-function History({ h }) {
+function History({ h, i }) {
   return (
     <>
-      <div className="nv-sum-card nv-fs-doors" style={{ marginTop: '12px' }}>
+      <div className="nv-sum-card nv-fs-doors nv-sum-rise" style={{ marginTop: '12px', '--i': i }}>
         <Interactive as="div" className="nv-fs-door" onClick={h.toggle} haptic="tick" focusStyle={NO_RING} aria-expanded={h.open}>
           <span className="nv-fs-tile"><FIcon n="list" /></span>
           <span className="nv-fs-lx"><span className="nv-fs-nm">Everything you’ve logged</span><span className="nv-fs-sv">Log again, or save to your recipes</span></span>
@@ -401,11 +411,11 @@ function History({ h }) {
   );
 }
 
-function Log({ log }) {
+function Log({ log, i }) {
   const [openId, setOpenId] = useState(null);
   return (
     <>
-      <div className="nv-fs-lhead nv-sum-rise" style={{ '--i': 3 }}>
+      <div className="nv-fs-lhead nv-sum-rise" style={{ '--i': i }}>
         <h2>{log.heading}</h2>
         {log.prev && (
           <Interactive as="span" className="nv-fs-lnk" onClick={log.prev.go} haptic="tick" focusStyle={NO_RING} aria-label={`Show ${log.prev.label}'s log`}>
@@ -422,7 +432,7 @@ function Log({ log }) {
           ))}
         </div>
       )}
-      <div className="nv-sum-card nv-sum-rise nv-fs-list" style={{ '--i': 3 }}>
+      <div className="nv-sum-card nv-sum-rise nv-fs-list" style={{ '--i': i }}>
         {log.rows.length === 0 && <p className="nv-fs-empty" style={{ margin: 0 }}>{log.empty}</p>}
         {log.rows.map((row) => (
           <LogRow key={row.id} row={row} open={openId === row.id} edit={log.edit}
@@ -431,39 +441,66 @@ function Log({ log }) {
       </div>
       {log.receipts.map((r) => <Receipt key={r.key} r={r} />)}
       {log.total && <p className="nv-fs-total">{log.total}</p>}
-      <History h={log.history} />
     </>
   );
 }
 
 // ------------------------------------------------------------ the rotation --
-function RotationRow({ rot, onOpen, onTicked }) {
-  const t = rot.tonight;
-  if (!t) {
+// THE STRIP (3 Oct 2026, his words: "widgets or something similar like the
+// previous design of Nova so that I can simply scroll and select to say that
+// I am ticking off one of the meals from my rotation"). Every dish in every
+// slot is a glass tile in a row that scrolls and snaps; the 44pt tick on
+// each logs it to the day the log is showing (or takes it back off), with
+// the receipt and its Undo underneath. The first dish not yet eaten is in
+// view when the page opens. A tile's body opens the whole rotation.
+function RotationStrip({ rot, onOpen, i }) {
+  const railRef = useRef(null);
+  const st = rot.strip;
+  const dishes = st.tiles.filter((t) => !t.empty).length;
+  // the next dish first in view, once per page and per day, never after a
+  // tick (the strip must not move under his thumb while he is ticking)
+  useLayoutEffect(() => {
+    const rail = railRef.current;
+    if (!rail || !st.nextKey) return;
+    const el = rail.querySelector(`[data-tile="${CSS.escape(st.nextKey)}"]`);
+    if (el) rail.scrollLeft = Math.max(0, el.offsetLeft - parseFloat(getComputedStyle(rail).paddingLeft || '0'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [st.dayKey]);
+  if (!dishes) {
     return (
-      <Interactive as="div" className="nv-sum-card nv-fs-rot nv-sum-rise nv-fs-press" style={{ '--i': 5 }} onClick={onOpen} haptic="tick" focusStyle={NO_RING}
-        aria-label={`Rotation: ${rot.eatenLine}. Open the rotation`}>
-        <span className={`nv-fs-tk${rot.state === 'done' ? ' on' : ''}`} aria-hidden="true"><FIcon n={rot.state === 'done' ? 'check' : 'plus'} /></span>
-        <span className="nv-fs-lx"><span className="nv-fs-nm">{rot.state === 'done' ? 'The rotation is eaten' : 'Nothing in the rotation today'}</span><span className="nv-fs-sv">{rot.state === 'done' ? rot.eatenLine : 'Plan a dish from Recipes'}</span></span>
+      <Interactive as="div" className="nv-sum-card nv-fs-rot nv-sum-rise nv-fs-press" style={{ '--i': i }} onClick={onOpen} haptic="tick" focusStyle={NO_RING}
+        aria-label="Nothing in the rotation today. Open the rotation">
+        <span className="nv-fs-tk" aria-hidden="true"><FIcon n="plus" /></span>
+        <span className="nv-fs-lx"><span className="nv-fs-nm">Nothing in the rotation today</span><span className="nv-fs-sv">Plan a dish from Recipes</span></span>
         <FIcon n="right" className="nv-fs-cv" />
       </Interactive>
     );
   }
   return (
-    <div className="nv-sum-card nv-fs-rot nv-sum-rise" style={{ '--i': 5 }}>
-      <Interactive as="span" className="nv-fs-tk" onClick={() => { rot.tick(); onTicked(t); }} haptic="commit" focusStyle={NO_RING}
-        aria-label={`Tick it: log ${t.name}${t.portionsLeft != null ? ', one comes out of the fridge' : ''}`}>
-        <FIcon n="check" />
-      </Interactive>
-      <Interactive as="span" className="nv-fs-press" onClick={onOpen} haptic="tick" focusStyle={NO_RING} aria-label={`${t.label}: ${t.name}. Open the rotation`}
-        base={{ gridColumn: '2 / 4', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 14px', gap: '12px', alignItems: 'center', minHeight: '48px', minWidth: 0 }}>
-        <span className="nv-fs-lx">
-          <span className="nv-fs-nm">{t.label}: {t.name}{t.variant ? ` · ${t.variant}` : ''}</span>
-          <span className="nv-fs-sv"><span className="nv-fs-p">{t.p} g</span> protein · <span className="nv-fs-k">{kc(t.kcal)}</span> kcal
-            {t.portionsLeft != null ? (t.out ? ' · none in the fridge' : ` · ${t.portionsLeft} in the fridge`) : ''}</span>
-        </span>
-        <FIcon n="right" className="nv-fs-cv" />
-      </Interactive>
+    <div ref={railRef} className="nv-fs-strip nv-sum-rise" style={{ '--i': i }} role="list" aria-label="The rotation, every dish">
+      {st.tiles.map((t) => (t.empty ? (
+        <Interactive key={t.key} as="div" role="listitem" className="nv-fs-rt empty" data-tile={t.key} onClick={onOpen} haptic="tick" focusStyle={NO_RING}
+          style={t.hue ? { '--h': `rgb(${t.hue})` } : undefined} aria-label={`${t.slotName}: nothing planned. Open the rotation`}>
+          <span className="nv-fs-rt-slot">{t.slotName}</span>
+          <span className="nv-fs-rt-nm quiet">Nothing planned</span>
+          <span className="nv-fs-rt-m">Plan one</span>
+        </Interactive>
+      ) : (
+        <div key={t.key} role="listitem" className={`nv-sum-card nv-fs-rt${t.eaten ? ' on' : ''}`} data-tile={t.key}
+          style={t.hue ? { '--h': `rgb(${t.hue})` } : undefined}>
+          <Interactive as="span" className="nv-fs-rt-body" onClick={onOpen} haptic="tick" focusStyle={NO_RING}
+            aria-label={`${t.slotName}${t.of ? `, ${t.of}` : ''}: ${t.name}, ${t.p} grams protein, ${t.kcal} kilocalories${t.eaten ? ', eaten' : ''}. Open the rotation`}>
+            <span className="nv-fs-rt-slot">{t.slotName}{t.of ? <small> · {t.of}</small> : null}</span>
+            <span className="nv-fs-rt-nm">{t.name}{t.variant ? ` · ${t.variant}` : ''}</span>
+            <span className="nv-fs-rt-m"><span className="nv-fs-p">{t.p} g</span> · <span className="nv-fs-k">{kc(t.kcal)}</span> kcal</span>
+            {t.portionsLeft != null && <span className={`nv-fs-rt-f${t.out ? ' out' : ''}`}>{t.out ? 'Out, cook more' : `${t.portionsLeft} in the fridge`}</span>}
+          </Interactive>
+          <Interactive as="span" className="nv-fs-rt-tk" onClick={t.toggle} haptic={t.eaten ? 'tick' : 'commit'} focusStyle={NO_RING} aria-pressed={t.eaten}
+            aria-label={t.eaten ? `${t.name} is ticked. Take it back off` : `Tick it: log ${t.name}`}>
+            <i><FIcon n="check" /></i>
+          </Interactive>
+        </div>
+      )))}
     </div>
   );
 }
@@ -678,16 +715,33 @@ function RecipesPage({ page }) {
 }
 
 // ------------------------------------------------------------------ Fuel ---
+function Doors({ keys, F, i }) {
+  return (
+    <div className="nv-sum-card nv-fs-doors nv-sum-rise" style={{ '--i': i }}>
+      {keys.map((k) => (k === 'recipes' ? (
+        <Interactive key={k} as="div" className="nv-fs-door" onClick={F.doors.recipes.open} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
+          aria-label={`Recipes${F.doors.recipes.count != null ? `, ${F.doors.recipes.count}` : ''}`}>
+          <span className="nv-fs-tile"><FIcon n="book" /></span>
+          <span className="nv-fs-lx"><span className="nv-fs-nm">Recipes</span><span className="nv-fs-sv">{F.doors.recipes.sub}</span></span>
+          <span className="cnt">{F.doors.recipes.count ?? ''}</span>
+          <FIcon n="right" className="nv-fs-cv" />
+        </Interactive>
+      ) : F.doors.pickItUp ? (
+        <Interactive key={k} as="div" className="nv-fs-door" onClick={F.doors.pickItUp.open} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
+          aria-label="Pick it up: takeaway and shop food that fits what is left">
+          <span className="nv-fs-tile"><FIcon n="bag" /></span>
+          <span className="nv-fs-lx"><span className="nv-fs-nm">Pick it up</span><span className="nv-fs-sv">{F.doors.pickItUp.sub}</span></span>
+          <span className="cnt" />
+          <FIcon n="right" className="nv-fs-cv" />
+        </Interactive>
+      ) : null))}
+    </div>
+  );
+}
+
 function FuelPage({ F, sheets }) {
-  const [ticked, setTicked] = useState(null);
-  const tickT = useRef(0);
-  useEffect(() => () => clearTimeout(tickT.current), []);
-  const onTicked = (t) => {
-    setTicked({ ...t, at: Date.now() });
-    clearTimeout(tickT.current);
-    tickT.current = setTimeout(() => setTicked(null), 30000);
-  };
   const live = F.state === 'live';
+  const C = F.cards;
   return (
     <>
       <h1 className="nv-fs-title nv-sum-rise" style={{ '--i': 0 }}>Fuel</h1>
@@ -710,39 +764,33 @@ function FuelPage({ F, sheets }) {
       )}
 
       {F.composer && <Composer c={F.composer} />}
-      {F.log && <Log log={F.log} />}
 
-      {F.rotation && (
-        <>
-          <span className="nv-fs-hk nv-sum-rise" style={{ '--i': 5 }}>Rotation</span>
-          <RotationRow rot={F.rotation} onOpen={sheets.openKitchen} onTicked={onTicked} />
-          {ticked && (
-            <Receipt tone="fuel" icon="check" r={{
-              at: ticked.at, title: `${ticked.name} logged`,
-              sub: `${ticked.p} g and ${kc(ticked.kcal)} kcal went on the plate${ticked.portionsLeft != null ? ', one came out of the fridge' : ''}`,
-              undo: () => { F.rotation.untick(ticked.slot, ticked.id); setTicked(null); },
-            }} />
-          )}
-        </>
-      )}
+      {/* THE CARDS, in his order and only the ones he keeps on (the Edit
+          sheet at the foot, the same one Home's Pinned uses) */}
+      {C.runs.map((run, n) => {
+        const i = 3 + n;
+        if (run.kind === 'doors') return <Doors key={`doors-${run.keys.join('-')}`} keys={run.keys} F={F} i={i} />;
+        if (run.key === 'log') return <Log key="log" log={F.log} i={i} />;
+        if (run.key === 'history') return <History key="history" h={F.log.history} i={i} />;
+        if (run.key === 'rotation') {
+          return (
+            <section key="rotation" aria-label="Rotation">
+              <div className="nv-fs-rhd nv-sum-rise" style={{ '--i': i }}>
+                <span className="nv-fs-hk" style={{ margin: 0 }}>Rotation</span>
+                {F.rotation.strip.line && <span className="nv-fs-rcount">{F.rotation.strip.line}</span>}
+              </div>
+              <RotationStrip rot={F.rotation} onOpen={sheets.openKitchen} i={i} />
+              {F.rotation.receipt && <Receipt key={F.rotation.receipt.key} tone="fuel" icon="check" r={F.rotation.receipt} />}
+            </section>
+          );
+        }
+        return null;
+      })}
 
-      <div className="nv-sum-card nv-fs-doors nv-sum-rise" style={{ '--i': 6 }}>
-        <Interactive as="div" className="nv-fs-door" onClick={F.doors.recipes.open} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
-          aria-label={`Recipes${F.doors.recipes.count != null ? `, ${F.doors.recipes.count}` : ''}`}>
-          <span className="nv-fs-tile"><FIcon n="book" /></span>
-          <span className="nv-fs-lx"><span className="nv-fs-nm">Recipes</span><span className="nv-fs-sv">{F.doors.recipes.sub}</span></span>
-          <span className="cnt">{F.doors.recipes.count ?? ''}</span>
-          <FIcon n="right" className="nv-fs-cv" />
-        </Interactive>
-        {F.doors.pickItUp && (
-          <Interactive as="div" className="nv-fs-door" onClick={F.doors.pickItUp.open} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
-            aria-label="Pick it up: takeaway and shop food that fits what is left">
-            <span className="nv-fs-tile"><FIcon n="bag" /></span>
-            <span className="nv-fs-lx"><span className="nv-fs-nm">Pick it up</span><span className="nv-fs-sv">{F.doors.pickItUp.sub}</span></span>
-            <span className="cnt" />
-            <FIcon n="right" className="nv-fs-cv" />
-          </Interactive>
-        )}
+      <div className="nv-fs-foot nv-sum-rise" style={{ '--i': 3 + C.runs.length }}>
+        <Act onClick={C.edit.show} label={`Edit the cards on Fuel${C.hidden ? `, ${C.hidden} hidden` : ''}`}>
+          Edit{C.hidden ? <span className="nv-fs-hid">{C.hidden} hidden</span> : null}
+        </Act>
       </div>
     </>
   );
@@ -767,6 +815,10 @@ export function FuelSummary({ v }) {
       {weekOpen && F.plate && <WeekSheet week={F.week} onClose={() => setWeekOpen(false)} originEl={plateRef.current?.parentElement || null} />}
       {kitchenOpen && F.rotation && <KitchenSheet rot={F.rotation} onClose={() => setKitchenOpen(false)} openRecipes={F.doors.recipes.open} />}
       {F.pickItUpSheet?.open && !page.open && <PickSheet s={F.pickItUpSheet} />}
+      {F.cards.edit.open && !page.open && (
+        <PinnedEditSheet edit={F.cards.edit} rows={F.cards.rows} title="Fuel" dialogLabel="Edit Fuel"
+          listLabel="Fuel's cards, in order" showLabel={(l) => `Show ${l} on Fuel`} />
+      )}
     </div>
   );
 }

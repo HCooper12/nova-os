@@ -29,6 +29,8 @@ import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { savePinned } from './pinned.js';
+import { getFuelCards, saveFuelCards } from './fuelCards.js';
+import { logDate as viewedLogDate, loggedLine, dayWord, removalFor } from './fuelDay.js';
 import { depthOf, edgeDragInProgress } from './edgeBack.js';
 import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
@@ -538,6 +540,8 @@ export default class App extends Component {
     // recipe), and a tick that re-renders Home when the pinned order changes
     // (the order itself lives in localStorage, src/pinned.js)
     pinnedEditOpen: false, pinnedTick: 0,
+    // the bottom of Fuel in his order, and its Edit sheet (src/fuelCards.js)
+    fuelCards: getFuelCards(), fuelCardsEditOpen: false,
     // the summary Fuel page's Recipes list (mockup 59 A · 2): its own history
     // entry on the same #/recipes URL, so the back swipe returns to Fuel
     fuelView: null,
@@ -560,6 +564,9 @@ export default class App extends Component {
     liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
     foodEntryUndo: null, // the last whole meal removed with its ×, held 30s for Undo
+    // a rotation dish ticked or un-ticked from Fuel (the strip, or a log row's
+    // delete), and the last add, each held 30s with its Undo (src/fuelDay.js)
+    rotationReceipt: null, foodLoggedReceipt: null,
     formCheck: null, // FORM CHECK: { exerciseId, exerciseName, protocol, rubric, stage, jobId, result, error }
     foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodLogBusy: false, foodLogError: null,
     foodScanNote: '', foodScanPhotos: restoreFoodScanPhotos(), foodScanBusy: false, foodScanSlow: false, foodScanError: null, foodScanQuestion: null, foodLogFillSource: null,
@@ -1174,7 +1181,7 @@ export default class App extends Component {
         .then((r) => { if (p.carryoverId) api.removeCarryover(conn, p.carryoverId).catch(() => {}); return r; }),
       stash: (conn, p) => api.stashAdd(conn, p),
       rotationConsumed: (conn, p) => api.setRotationConsumed(conn, p.slot, p.consumed),
-      rotationEaten: (conn, p) => api.setRotationEaten(conn, p.slot, p.recipeId, p.eaten),
+      rotationEaten: (conn, p) => api.setRotationEaten(conn, p.slot, p.recipeId, p.eaten, p.date),
       recipe: (conn, p) => (p.macroOnly
         ? api.addQuickRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros })
         : api.addRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros, ingredients: p.ingredients, method: p.method })),
@@ -2054,14 +2061,131 @@ export default class App extends Component {
       const focused = options.find((d) => d.focus) || options[0] || null;
       this.setState({ liveRotation: { ...rot, options: { ...rot.options, [slot]: options }, slots: { ...rot.slots, [slot]: focused ? { ...focused, options, optionCount: options.length, eatenCount: options.filter((d) => d.eaten).length } : null } } });
     }
-    api.setRotationEaten(conn, slot, recipeId, eaten).then((rotation) => {
+    // returns whether the write landed, so a caller (tickRotation) can
+    // follow it with the log and the receipt
+    return api.setRotationEaten(conn, slot, recipeId, eaten).then((rotation) => {
       this.noteLocalWrite('rotation');
       this.setState({ liveRotation: rotation });
       this.refreshWrap(); // ticking a meal changes what is left to close the floor
+      return true;
     }).catch((e) => {
-      if (isOfflineError(e)) { this.noteLocalWrite('rotation'); this.enqueueOutbox('rotationEaten', `${eaten ? 'Ate' : 'Un-ate'} ${slot}`, { slot, recipeId, eaten }); return; }
+      if (isOfflineError(e)) { this.noteLocalWrite('rotation'); this.enqueueOutbox('rotationEaten', `${eaten ? 'Ate' : 'Un-ate'} ${slot}`, { slot, recipeId, eaten }); return 'queued'; }
       this.toastMsg('Could not update: ' + e.message);
+      return false;
     });
+  }
+  // ---------- WHICH DAY A FUEL WRITE LANDS ON (3 Oct 2026) ----------
+  // His report: back on yesterday to log the lasagne he ate then, he ticked
+  // it from the rotation and it went onto TODAY. Every add below asks this
+  // one method for its day: the day the log is showing, or undefined (today).
+  logDate() {
+    return viewedLogDate(this.state);
+  }
+  // A ROTATION TICK FROM FUEL, routed by the day in view. Today: the
+  // rotation's own tick (toggleOptionEaten), then the log re-read so the row
+  // and the plate agree. A past day: the server writes that day's log and
+  // leaves today's ticks alone (server/lib/rotationRetro.js). Either way it
+  // leaves a receipt with its Undo, and the Undo is the opposite tick on the
+  // SAME day, whatever day is in view by then.
+  tickRotation(slot, recipeId, eaten, { date = this.logDate(), receipt = true } = {}) {
+    const conn = getConnection();
+    if (!conn || !slot || !recipeId) return;
+    const st = this.state;
+    const dish = (st.liveRotation?.options?.[slot] || []).find((d) => d.id === recipeId)
+      || (st.liveRecipes || []).find((r) => r.id === recipeId) || null;
+    const name = dish?.name || 'That meal';
+    const macros = dish?.macros || null;
+    const leave = () => { if (receipt) this.setRotationReceipt({ kind: eaten ? 'tick' : 'untick', slot, recipeId, name, macros, date, portionsLeft: dish?.portionsLeft ?? null }); };
+    // the log row moves in the same frame as the tick (a pending row; the
+    // server's whole day replaces it), and comes back if the write fails
+    const viewing = date ? (st.foodLogDate === date ? st.liveFoodLogView : null) : st.liveFoodLog;
+    const isRow = (e) => e.source === 'rotation' && e.slot === slot && (e.recipeId === recipeId || !e.recipeId);
+    const optimistic = viewing?.entries ? {
+      ...viewing,
+      entries: eaten
+        ? [...viewing.entries.filter((e) => !isRow(e)), { id: `pending-rot-${Date.now()}`, name, macros: macros || { p: 0, c: 0, f: 0, kcal: 0 }, source: 'rotation', slot, recipeId, pending: true }]
+        : viewing.entries.filter((e) => !isRow(e)),
+    } : null;
+    const put = (day) => (date ? this.setState((s) => (s.foodLogDate === date ? { liveFoodLogView: day } : null)) : this.setState({ liveFoodLog: day }));
+    if (optimistic) put(optimistic);
+    if (!date) {
+      return this.toggleOptionEaten(slot, recipeId, eaten).then((ok) => {
+        if (!ok) { if (viewing) put(viewing); return; }
+        leave();
+        if (ok === 'queued') return;
+        this.noteLocalWrite('foodLog');
+        api.foodLog(conn).then((day) => this.setState({ liveFoodLog: day })).catch(() => {});
+      });
+    }
+    haptic(eaten ? 'commit' : 'tick');
+    return api.setRotationEaten(conn, slot, recipeId, eaten, date).then((out) => {
+      this.noteLocalWrite('rotation');
+      this.noteLocalWrite('foodLog');
+      if (out?.rotation) this.setState({ liveRotation: out.rotation });
+      if (out?.day) put(out.day);
+      leave();
+    }).catch((e) => {
+      if (isOfflineError(e)) {
+        this.noteLocalWrite('foodLog');
+        this.enqueueOutbox('rotationEaten', `${eaten ? 'Ate' : 'Un-ate'} ${slot} on ${date}`, { slot, recipeId, eaten, date });
+        leave();
+        return;
+      }
+      if (viewing) put(viewing);
+      this.toastFail('Could not update: ' + e.message);
+    });
+  }
+  setRotationReceipt(r) {
+    const rec = { ...r, at: Date.now() };
+    this.setState({ rotationReceipt: rec });
+    clearTimeout(this.rotationReceiptT);
+    this.rotationReceiptT = setTimeout(() => this.setState((s) => (s.rotationReceipt === rec ? { rotationReceipt: null } : null)), 30000);
+    const word = dayWord(r.date);
+    const title = r.kind === 'tick' ? loggedLine(r.name, r.date) : `Took ${r.name} off ${word || 'today'}`;
+    this.toastMsg({ id: `rot-receipt:${r.slot}:${r.recipeId}`, tone: r.kind === 'tick' ? 'done' : 'info', duration: 6000, title: r.kind === 'tick' ? `${title} ✓` : title,
+      action: { label: 'Undo', run: () => this.undoRotationReceipt(rec) } });
+  }
+  undoRotationReceipt(rec = this.state.rotationReceipt) {
+    if (!rec) return;
+    if (this.state.rotationReceipt === rec) { clearTimeout(this.rotationReceiptT); this.setState({ rotationReceipt: null }); }
+    this.tickRotation(rec.slot, rec.recipeId, rec.kind !== 'tick', { date: rec.date, receipt: false });
+  }
+  // EVERY LOG ROW COMES OFF (3 Oct 2026: the lasagne he could not delete).
+  // A rotation row un-ticks its slot for that day, so the plate and the
+  // rotation agree; any other row is the plain delete and its Undo. A
+  // rotation dish that has since left today's slot cannot be un-ticked
+  // there, so today it is deleted plainly instead.
+  removeFoodLogRow(entry) {
+    const plan = removalFor(entry);
+    const date = this.logDate();
+    if (plan.kind === 'untick' && (date || (this.state.liveRotation?.options?.[plan.slot] || []).some((d) => d.id === plan.recipeId))) {
+      this.tickRotation(plan.slot, plan.recipeId, false, { date });
+      return;
+    }
+    this.deleteFoodLogEntry(entry.id);
+  }
+  // THE RECEIPT FOR AN ADD: it names the day whenever that is not today
+  // ("Logged Lasagne to yesterday") and carries its own Undo. addEntry
+  // appends under the server's write lock, so the day's last entry is the
+  // one this add made.
+  loggedReceipt(name, day, date) {
+    const added = day?.entries?.at(-1);
+    const mine = added && added.name === name ? added : null;
+    const title = loggedLine(name, date);
+    if (mine) {
+      const rec = { entry: mine, date: day.date || date, title, at: Date.now() };
+      this.setState({ foodLoggedReceipt: rec });
+      clearTimeout(this.foodLoggedT);
+      this.foodLoggedT = setTimeout(() => this.setState((s) => (s.foodLoggedReceipt === rec ? { foodLoggedReceipt: null } : null)), 30000);
+    }
+    this.toastMsg({
+      id: mine ? `food-logged:${mine.id}` : undefined, tone: 'done', duration: 6000, title: `${title} ✓`,
+      ...(mine ? { action: { label: 'Undo', run: () => this.undoLoggedReceipt(mine, day.date || date) } } : {}),
+    });
+  }
+  undoLoggedReceipt(entry, date) {
+    if (this.state.foodLoggedReceipt?.entry?.id === entry?.id) { clearTimeout(this.foodLoggedT); this.setState({ foodLoggedReceipt: null }); }
+    this.undoRelogFoodItem(entry, date);
   }
   addRotationSlot(label) {
     const conn = getConnection();
@@ -2317,7 +2441,7 @@ export default class App extends Component {
     const conn = getConnection();
     const name = this.state.foodLogName.trim();
     const macros = { p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0, f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || 0 };
-    const date = this.state.foodLogDate || undefined;
+    const date = this.logDate();
     if (!conn || !name) return;
     const source = this.state.foodLogFillSource || 'manual';
     // the plate's lines, when a scan or a description produced them
@@ -2348,6 +2472,8 @@ export default class App extends Component {
       this.noteLocalWrite('foodLog');
       this.applyFoodLogDay(day); // whole-day replace — the temp row is gone
       this.setState({ foodLogBusy: false });
+      // a past day says where it landed, with its Undo; today the row itself is the receipt
+      if (date) this.loggedReceipt(name, day, date);
       this.loadFoodHistory(); // the rail is always on screen, so it always re-reads
     }).catch((e) => {
       // the optimistic row goes either way — it was never real
@@ -2368,7 +2494,7 @@ export default class App extends Component {
   deleteFoodLogEntry(id) {
     const conn = getConnection();
     if (!conn) return;
-    const date = this.state.foodLogDate || undefined;
+    const date = this.logDate();
     // optimistic removal — the row goes now, and comes back if the server says no
     const previousDay = this.state.foodLogDate ? this.state.liveFoodLogView : this.state.liveFoodLog;
     // EVERYTHING WRITEABLE IS UNDOABLE (the Fuel audit, finding 7): the ×
@@ -2429,7 +2555,7 @@ export default class App extends Component {
   deleteFoodLogItem(entryId, itemId) {
     const conn = getConnection();
     if (!conn) return;
-    const date = this.state.foodLogDate || undefined;
+    const date = this.logDate();
     haptic('tick');
     api.removeFoodLogItem(conn, entryId, itemId, date)
       .then((out) => {
@@ -2911,13 +3037,13 @@ export default class App extends Component {
     if (!validPortion(factor)) { this.toastMsg('That portion doesn’t look right — try something between a sliver and 20 servings.'); return; }
     const name = portionName(item.name, factor);
     const macros = scaleMacros(item.macros, factor);
-    const date = this.state.foodLogDate || undefined;
+    const date = this.logDate();
     this.setState({ portionSheet: null, foodPortionCustom: '' });
     api.addFoodLogEntry(conn, { name, macros, source: item.source, date })
       .then((day) => {
         this.noteLocalWrite('foodLog');
         this.applyFoodLogDay(day);
-        this.toastMsg(`Logged ${name}${date ? ` to ${date}` : ''} ✓`);
+        this.loggedReceipt(name, day, date);
       })
       .catch((e) => this.toastMsg('Could not log that: ' + e.message));
   }
@@ -2939,7 +3065,7 @@ export default class App extends Component {
     if (!validPortion(factor)) { this.toastMsg('That portion doesn’t look right — try something between a sliver and 20 servings.'); return; }
     const name = portionName(pick.name, factor);
     const macros = scaleMacros(pick.macros, factor);
-    const date = this.state.foodLogDate || undefined;
+    const date = this.logDate();
     this.closeFoodRecipePicker();
     // optimistic, like every other food write — the day updates instantly and
     // the server's copy replaces it when it lands
@@ -2947,7 +3073,7 @@ export default class App extends Component {
       .then((day) => {
         this.noteLocalWrite('foodLog');
         this.applyFoodLogDay(day);
-        this.toastMsg(`Logged ${name}${date ? ` to ${date}` : ''} ✓`);
+        this.loggedReceipt(name, day, date);
       })
       .catch((e) => this.toastMsg('Could not log that: ' + e.message));
   }
@@ -2989,7 +3115,7 @@ export default class App extends Component {
       f: Math.max(0, Number(this.state.foodEditF) || 0),
       kcal: Math.max(0, Number(this.state.foodEditKcal) || 0),
     };
-    const date = this.state.foodLogDate || undefined;
+    const date = this.logDate();
     this.setState({ foodEditId: null });
     api.editFoodLogEntry(conn, id, { name, macros, date })
       .then((day) => { this.noteLocalWrite('foodLog'); this.applyFoodLogDay(day); })
@@ -2998,22 +3124,15 @@ export default class App extends Component {
   relogFoodItem(item) {
     const conn = getConnection();
     if (!conn) return;
-    const date = this.state.foodLogDate || undefined;
+    const date = this.logDate();
     api.addFoodLogEntry(conn, { name: item.name, macros: item.macros, source: 'history', date })
       .then((day) => {
         this.noteLocalWrite('foodLog');
         this.applyFoodLogDay(day);
         this.loadFoodHistory();
         // One tap on the rail writes at once, so the receipt carries its own
-        // way back (the Fuel audit, finding 7). addEntry appends under the
-        // write lock, so the day's last entry is the one this tap made.
-        const added = day?.entries?.at(-1);
-        const mine = added && added.name === item.name ? added : null;
-        this.toastMsg({
-          id: mine ? `food-relog:${mine.id}` : undefined, tone: 'done', duration: 6000,
-          title: `Logged ${item.name}${date ? ` to ${date}` : ''} ✓`,
-          ...(mine ? { action: { label: 'Undo', run: () => this.undoRelogFoodItem(mine, day.date) } } : {}),
-        });
+        // way back (the Fuel audit, finding 7), and names the day it landed on.
+        this.loggedReceipt(item.name, day, date);
       })
       .catch((e) => this.toastMsg('Could not log: ' + e.message));
   }
@@ -3399,6 +3518,33 @@ export default class App extends Component {
     if (onEntry && !this.state.pinnedEditOpen) return { pinnedEditOpen: true };
     return {};
   }
+  // THE FUEL EDIT SHEET (3 Oct 2026, "edit the bottom section of fuel like I
+  // can for the home screen"): the same sheet and the same history level as
+  // Pinned, so the back swipe closes it rather than leaving Fuel under it.
+  openFuelCardsEdit() {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'fuelCards') window.history.replaceState({ ...st }, '');
+      else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'fuelCards' }, '');
+    }
+    this.setState({ fuelCardsEditOpen: true });
+  }
+  closeFuelCardsEdit() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'fuelCards') { window.history.back(); return; }
+    this.setState({ fuelCardsEditOpen: false });
+  }
+  fuelCardsFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'fuelCards';
+    if (!onEntry && this.state.fuelCardsEditOpen) return { fuelCardsEditOpen: false };
+    if (onEntry && !this.state.fuelCardsEditOpen) return { fuelCardsEditOpen: true };
+    return {};
+  }
+  // Order and switches persist at once; Fuel re-renders behind the sheet.
+  setFuelCards(list) {
+    saveFuelCards(list);
+    this.setState({ fuelCards: list });
+  }
   // THE COACH DOOR (summary Train, redesign variation A, 27 Sep): under the
   // `summary` style Coach is a sheet over the Train page, not a tab, and the
   // sheet is open exactly when trainTab is 'coach' — so every flow that
@@ -3451,7 +3597,8 @@ export default class App extends Component {
   viewFromHistory() {
     const st = typeof window === 'undefined' ? null : window.history.state;
     const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
-    return (this.state.fuelView || null) === want ? {} : { fuelView: want };
+    // the Fuel page's Edit sheet is the other history level over Fuel
+    return { ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.fuelCardsFromHistory() };
   }
   // popstate's half for everything that is a history entry of its own over a
   // screen: Edit Pinned, the Coach sheet on the summary Train page, the

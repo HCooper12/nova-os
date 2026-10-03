@@ -1,5 +1,7 @@
 import { dtf } from './fmt.js';
-import { plateInstrument, proteinLine, logRows, tonightRotation } from '../fuelSummaryFacts.js';
+import { plateInstrument, proteinLine, logRows, tonightRotation, rotationStrip } from '../fuelSummaryFacts.js';
+import { getFuelCards, fuelCardRuns, FUEL_CARDS } from '../fuelCards.js';
+import { dayWord, loggedLine } from '../fuelDay.js';
 
 // THE SUMMARY FUEL PAGE's view model (mockup 59, variation A, his pick on
 // 27 Sep 2026: "Fuel: option A"). Fuel is the plate: one instrument, the
@@ -69,7 +71,10 @@ export function valsFuelSummary(app, ctx, v) {
       // the lines are the entry's own; its figures are the server's sum of them
       lines: e.items.map((it) => ({ id: it.id, name: it.grams ? `${it.name}, ${it.grams} g` : it.name, sub: it.macros.replace(/(\d+)P · /, '$1 g protein · '), remove: it.remove })),
       relog: () => app.relogFoodItem({ name: e.name, macros }),
+      // every row comes off; a rotation row un-ticks its slot for that day
+      // (app.removeFoodLogRow, through valsRecipes' e.remove)
       remove: e.remove,
+      removeWord: s.fromRotation ? 'Remove and un-tick' : 'Remove',
       edit: e.edit,
       editing: e.editing,
       toRecipe: () => app.openAddRecipeFrom({ name: e.name, macros }),
@@ -88,6 +93,21 @@ export function valsFuelSummary(app, ctx, v) {
     const it = st.foodItemUndo.item;
     receipts.push({ key: `item-${it.id || it.name}`, at: st.foodItemUndo.at || Date.now(), title: `${it.name || 'That line'} dropped`,
       sub: `${round(it.macros?.p)} g and ${kc(it.macros?.kcal)} kcal came off ${st.foodItemUndo.entry?.name || 'the meal'}`, undo: () => app.undoFoodLogItem() });
+  }
+  // a rotation row taken off un-ticks its slot (src/fuelDay.js removalFor),
+  // and its way back re-ticks it on the same day
+  const rr = st.rotationReceipt;
+  if (rr?.kind === 'untick') {
+    const word = dayWord(rr.date);
+    receipts.push({ key: `rot-${rr.slot}-${rr.recipeId}`, at: rr.at || Date.now(), title: `${rr.name} removed${word ? ` from ${word}` : ''}`,
+      sub: `Un-ticked${rr.macros ? ` · ${round(rr.macros.p)} g, ${kc(rr.macros.kcal)} kcal off the plate` : ' from the rotation'}`, undo: () => app.undoRotationReceipt() });
+  }
+  // an add to a day that is not today says where it landed (his lasagne)
+  const lr = st.foodLoggedReceipt;
+  if (lr?.entry && dayWord(lr.date)) {
+    receipts.push({ key: `logged-${lr.entry.id}`, at: lr.at || Date.now(), tone: 'fuel', icon: 'check', title: loggedLine(lr.entry.name, lr.date),
+      sub: `${round(lr.entry.macros?.p)} g and ${kc(lr.entry.macros?.kcal)} kcal on ${weekday(lr.date)}'s plate`,
+      undo: () => app.undoLoggedReceipt(lr.entry, lr.date) });
   }
   receipts.sort((a, b) => b.at - a.at);
 
@@ -156,11 +176,31 @@ export function valsFuelSummary(app, ctx, v) {
   const slotList = (v.rotationSlots || []).map((s) => ({ key: s.key, name: s.name }));
   const tonight = live ? tonightRotation(ctx.rotation, slotList) : null;
   const filled = (v.rotationSlots || []).filter((s) => s.recipeName);
+  // THE STRIP (3 Oct 2026): every dish in every slot, tickable in place,
+  // reading and writing the day the log is showing (app.tickRotation)
+  const strip = rotationStrip(v.rotationSlots || []);
+  const rec = st.rotationReceipt?.kind === 'tick' ? st.rotationReceipt : null;
   const rotation = live ? {
     state: tonight ? 'next' : filled.length ? 'done' : 'empty',
     tonight,
-    tick: tonight ? () => app.toggleOptionEaten(tonight.slot, tonight.id, true) : null,
-    untick: (slot, id) => app.toggleOptionEaten(slot, id, false),
+    tick: tonight ? () => app.tickRotation(tonight.slot, tonight.id, true) : null,
+    untick: (slot, id) => app.tickRotation(slot, id, false),
+    strip: {
+      tiles: strip.tiles.map((t) => ({
+        ...t,
+        toggle: t.empty ? null : () => app.tickRotation(t.slot, t.id, !t.eaten),
+      })),
+      nextKey: strip.nextIndex >= 0 ? strip.tiles[strip.nextIndex].key : null,
+      line: strip.dishes ? `${strip.eaten} of ${strip.dishes} eaten${viewingPast ? ` on ${weekday(viewIso)}` : ' today'}` : null,
+      // the day, and whether its log has arrived: the strip scrolls its next
+      // dish into view once per day, after that day's ticks are known
+      dayKey: `${viewIso || 'today'}:${viewingPast ? (st.liveFoodLogView ? 'in' : 'wait') : 'in'}`,
+    },
+    receipt: rec ? {
+      key: `tick-${rec.slot}-${rec.recipeId}-${rec.at}`, at: rec.at, title: loggedLine(rec.name, rec.date),
+      sub: rec.macros ? `${round(rec.macros.p)} g and ${kc(rec.macros.kcal)} kcal went on ${dayWord(rec.date) ? `${weekday(rec.date)}'s` : 'the'} plate${!rec.date && rec.portionsLeft != null ? ', one came out of the fridge' : ''}` : 'It went on the plate',
+      undo: () => app.undoRotationReceipt(),
+    } : null,
     openDish: tonight ? () => app.openRecipe(tonight.id) : null,
     slots: v.rotationSlots || [],
     addMeal: v.rotationAddMeal,
@@ -235,9 +275,29 @@ export function valsFuelSummary(app, ctx, v) {
   // ---- the recipe, as a sheet ---------------------------------------------
   const recipeSheet = v.recipeOpen ? buildRecipeSheet(app, st, v, { live }) : null;
 
+  // ---- the bottom of the page, in his order (src/fuelCards.js) -----------
+  // The cards below the composer, each switchable and draggable in the same
+  // Health-style sheet as Home's Pinned. A card with nothing to draw is
+  // skipped, never drawn empty; a hidden one is one tap away in the sheet.
+  const cardList = st.fuelCards || getFuelCards();
+  const present = { log: !!log, history: !!log, rotation: !!rotation, recipes: true, pick: !!doors.pickItUp };
+  const cards = {
+    runs: fuelCardRuns(cardList, present),
+    hidden: cardList.filter((c) => !c.on).length,
+    edit: {
+      open: !!st.fuelCardsEditOpen,
+      show: () => app.openFuelCardsEdit(),
+      close: () => app.closeFuelCardsEdit(),
+      setList: (list) => app.setFuelCards(list),
+    },
+    rows: cardList.map((c) => ({ ...c, present: present[c.key] !== false })),
+    all: FUEL_CARDS.length,
+  };
+
   return {
     fuelSummary: {
       state,
+      cards,
       bankNote: v.recipeBankNote,
       plate,
       week: { data: v.fuelWeek || null, cross: v.fuelCross || null, askProtein: v.askProteinVerdict || null },

@@ -229,7 +229,8 @@ export const api = {
   // rotation v2 (7 Sep): several options per slot, one in focus, each tickable; extra meals; cooked portions
   setRotationOption: (conn, slot, recipeId, on) => post(conn, '/api/rotation/option', { slot, recipeId, on }),
   setRotationFocus: (conn, slot, recipeId) => post(conn, '/api/rotation/focus', { slot, recipeId }),
-  setRotationEaten: (conn, slot, recipeId, eaten) => post(conn, '/api/rotation/eaten', { slot, recipeId, eaten }),
+  // `date` (a past YYYY-MM-DD) lands the tick on that day's log; the reply is then { rotation, day, date }
+  setRotationEaten: (conn, slot, recipeId, eaten, date) => post(conn, '/api/rotation/eaten', { slot, recipeId, eaten, ...(date ? { date } : {}) }),
   addRotationSlot: (conn, label) => post(conn, '/api/rotation/slot', { label }),
   renameRotationSlot: (conn, key, label) => post(conn, `/api/rotation/slot/${encodeURIComponent(key)}/rename`, { label }),
   removeRotationSlot: (conn, key) => post(conn, `/api/rotation/slot/${encodeURIComponent(key)}/remove`),
