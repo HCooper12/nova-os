@@ -13,6 +13,19 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**4 OCT (morning, his answers to the 3 Oct open questions).** (1) The
+lasagne: he ticked it for 2 Oct himself; closed. (2) Quiet hours: 22:30 to
+05:00, SET on the live server through `PUT /api/prefs/quiet-hours` and read
+back from `server/data/quiet-hours.json`; the code default (22:00 to 07:00)
+is unchanged on purpose, his value is the stored pref. (3) The Nova underline
+hue FOLLOWS WHAT NOVA IS DOING: while speaking it wears the speaking tint (the
+coral-red of the full-screen core's speaking state); when it is only pointing
+something out it stays cyan. UNBUILT: queue it with the next Nova-thread
+build. Also this morning: a Mission Control redesign brief for a separate
+Science Atlas session, written to
+`Atomic_Hub/P3_Draft3/Atlas_Progress_Map/REDESIGN-BRIEF.md` (outside this
+repo, left untracked there for that session to commit).
+
 **3 OCT, CLOSE (nova-os-fc) — EVERYTHING HE ASKED IS BUILT, PUSHED AND DEPLOYED;
 TOMORROW OPENS WITH THE NOVA-ICON REEL, THEN THE REMAINING REDESIGN PAGES.**
 Written at close from commands run at 23:1x AEST, not from memory.
