@@ -19,7 +19,7 @@ const { fileDecision, undoFiling, normalizeDecision } = await import('../lib/inb
 const { runCfoReport } = await import('../lib/cfoReport.js');
 
 test.after(async () => {
-  await rm(dataDir, { recursive: true, force: true });
+  await rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   await rm(vault, { recursive: true, force: true });
 });
 

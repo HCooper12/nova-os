@@ -16,7 +16,7 @@ const { createRecord } = await import('../lib/inboxStore.js');
 const { platformActivityContext } = await import('../lib/platformActivity.js');
 const { resumedRefreshContext } = await import('../lib/askContext.js');
 
-test.after(async () => { await rm(process.env.NOVA_DATA_DIR, { recursive: true, force: true }); });
+test.after(async () => { await rm(process.env.NOVA_DATA_DIR, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); });
 
 test('quiet rails → no section, never an invented history', async () => {
   assert.equal(await platformActivityContext(), null);

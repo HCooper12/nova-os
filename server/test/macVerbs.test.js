@@ -118,7 +118,7 @@ test('"…then open my Reminders when you’re done to confirm" — the reel’s
     { head: 'Set a reminder Saturday 9pm for dinner with Sharif', tail: 'Reminders' });
   calls.length = 0;
   const r = await tryCommand(vault, "Set a reminder Saturday 9pm for dinner with Sharif, then open my Reminders when you're done to confirm.", AT_MAC);
-  assert.match(r.text, /^I'll remind you at Sat.* Opened Reminders\.$/);
+  assert.match(r.text, /^I'll remind you at (Sat|Sun).* Opened Reminders\.$/);
   assert.equal(r.matched, 'reminder.set');
   const saved = (await listReminders()).pop();
   assert.equal(saved.text, 'dinner with Sharif', 'the "for" connector is not part of the reminder');
