@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 3 Oct 2026 (late) — MERGED, NOT PUSHED: Home's Training card names the
+  day's work (bd3b041) and the Fuel build (4fafa11: iOS Mail swipe in the
+  house SwipeRow for every list, with a real touch bug fixed (a bubbling
+  lostpointercapture killed every touch swipe on frame one); every Fuel row
+  deletable, a rotation meal un-ticking its slot; every add logs to the
+  viewed day, past-day rotation ticks via rotationRetro.js; Fuel's Edit
+  sheet; the rotation strip). Server reloaded (rotationRetro is server
+  code). Gates green (3034/3036; five guards unchanged). NOT verified on
+  his phone: the swipe in WebKit under his thumb, the strip's snap, a real
+  past-day tick on his fridge count.
 - 3 Oct 2026 (late) — PUSHED 51d0978 (the done-today fix + the workout panel;
   server reloaded). He is on SUMMARY day to day now (his screenshots). His
   answers: re-picking "finish Upper Body" re-offers the left-off exercises
