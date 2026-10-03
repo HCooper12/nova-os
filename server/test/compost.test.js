@@ -42,7 +42,9 @@ test('a dismissed proposal stays dismissed for 90 days, then returns once naming
     const back = staleOf(await runCompost(vault, { now: Date.now() + 91 * DAY }));
     assert.ok(back, 'the no has had its say — the proposal may return');
     assert.equal(back.returned, true);
-    assert.match(back.detail, /\(You passed on this on \d{1,2} \w{3,4}\.\)$/);
+    // the year is named when the return falls in a different year from the
+    // pass (91 days on from a day in October lands in January)
+    assert.match(back.detail, /\(You passed on this on \d{1,2} \w{3,4}( \d{4})?\.\)$/);
   } finally { await rm(vault, { recursive: true, force: true }); }
 });
 
