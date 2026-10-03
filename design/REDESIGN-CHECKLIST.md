@@ -561,6 +561,18 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 3 Oct 2026 (late) — PUSHED 51d0978 (the done-today fix + the workout panel;
+  server reloaded). He is on SUMMARY day to day now (his screenshots). His
+  answers: re-picking "finish Upper Body" re-offers the left-off exercises
+  (kept); Home's Training card must say what was done today → BUILD
+  (worktree hometoday). His Fuel asks → BUILD (worktree fuelux): iOS Mail
+  swipe-to-delete in the house SwipeRow, platform-wide (reveal, full-swipe
+  commit, collapse, one open row); every Fuel log row deletable, a rotation
+  meal included (un-ticks the slot); logging while viewing a past day lands
+  on that day (the lasagne went to today from Yesterday's view); an Edit
+  sheet for Fuel's lower cards like Home's; the rotation as a scrolling
+  strip of every slot, each tickable in place. The lasagne is in NEITHER
+  day's log now (read-only check); logging it to 2 Oct is his call.
 - 3 Oct 2026 (night) — HIS QUESTION: why none of the redesign is on his phone.
   Verified: the live GitHub Pages bundle carried that day's strings, so the
   deploy worked; every redesigned surface renders only under style Summary
