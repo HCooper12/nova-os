@@ -561,6 +561,20 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 3 Oct 2026 — FULL-SCREEN NOVA MERGED (7697177): NovaFocus.jsx (A's field at
+  rest, 110 embers, one capped canvas paused when hidden; the core travels to
+  C's presenter spot when he talks; listening / thinking / speaking plates;
+  subtitles paced per sentence by subtitlePace.js over speechClock.js, a seam
+  for real word timings; the state tints kept in focus only; return by ⌄,
+  tap outside, Escape or swipe; its own history entry; captions persisted).
+  The model-choice prompt lifted to z 72 so it is never hidden (my call).
+  Gates green (2973/2975, the atlas pair; five guards unchanged). NOT
+  verified: real TTS timing, the <audio> duration on iOS, how the travel and
+  the word rise feel at 60 fps, a real thumb on the swipes. His calls: the
+  speaking tint lands coral-red, not gold, on the big core (NovaCore's hue
+  maths tops out near 13°; retuning it changes the dock orb and the classic
+  screen too); Nova's underline cyan (also the talk accent) or another hue;
+  on an SE the peek steps aside while a panel is docked.
 - 3 Oct 2026 — DOORS MERGED (9a10d60): his words instruct on every door
   (Leader chat, Coach tab, the lanes from Nova's door, the Researcher he asks
   himself); quietHours.js (22:00–07:00 Melbourne, held pushes delivered as

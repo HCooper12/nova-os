@@ -13,6 +13,21 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**3 OCT (nova-os-fc) — HIS SEVENTH ANSWERS ALL LANDED; 22 COMMITS UNPUSHED.**
+On main since the 30 Sep push: the Nova polish (81beb2f), Siri + consulted
+Coach + titles (1c90c29), Coach answers (b533965), every door (97953ae +
+c23ff4f), doors2 (9a10d60: his words on every door, quiet hours, recipe
+links straight in, no phrase gates), the full-screen Nova (7697177), two
+rotting tests fixed (79bbf41), mockup 68's switcher (8da5106). Server
+RELOADED after every server merge (last: doors2). The client on his phone
+is still the 30 Sep build: the push is his call. Review pages: Nova and the
+record v2 (https://claude.ai/artifact/S8C9oy6h9zaNuqSpmMEHRP), the full
+screen as built (see ledger 3 Oct). NEXT: his push; his calls in the ledger
+(the speaking tint, the underline hue, Practice's web gate, the quiet-hours
+window); then the bench + bylines on the thread from by/from (seams in
+NovaThread.jsx; mockup 67), the session data panel + VIS marks, the desktop
+round (§4 standing). No worktrees remain.
+
 **30 SEP (afternoon, nova-os-fc) — HIS FIFTH ANSWERS ALL LANDED.** Pushed
 e3ce192 on his word (morning). Since then on main, UNPUSHED: the Siri
 interim + consulted Coach + source titles (1c90c29, server RELOADED), the
