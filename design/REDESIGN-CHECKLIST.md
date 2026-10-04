@@ -374,19 +374,19 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 #### Settings — `settings`
 `src/screens/Settings.jsx` (918 lines) · vals slice of `src/vals/valsChrome.js:536-680`. One long scrolling page, 13 sections, no sub-screens, no cupertino branch. Inventory: `00-inventory-d-settings-library-ops-small.md`.
 
-- [ ] S1 · Backend connection — URL + token inputs, Test / Save & connect / Disconnect, coloured status line — `Settings.jsx:37-85`
-- [ ] S2 · About you — Edit / Set-up chip, Redo / Set my numbers (starts the Intake on Voice), summary line, edit form (focus · priorities · best self · constraints), read view — `Settings.jsx:87-145`
-- [ ] S3 · What Nova has noticed (trust ladder) — one row per lane: kept/total serif fraction, split bar, "worth easing off" flag; bullet fallback — `Settings.jsx:147-195`
-- [ ] S4 · Appearance — Design style rows (Command Core / Apple skin / Apple layout) with swatches; Theme rows (Command / Observatory / Ember / Daylight); Nova core rows (Hologram / Filament); Calm toggle — `Settings.jsx:197-292`, `src/theme.js:10-42`
-- [ ] S5 · Notifications — push state label, Enable / Test — `Settings.jsx:294-311`
-- [ ] S6 · "You can just say it" — static capability card, no control — `Settings.jsx:313-325`
-- [ ] S7 · Haptics — capability tag, "Feel each one" (5 word buttons), Different / The same chips, diagnostic line — `Settings.jsx:335-398`
-- [ ] S8 · Voice (~280 lines, 10+ rows in one card) — Speak replies, "Hey Nova", Talk over Nova, How Nova hears you + Test Nova's ears, silent-switch Duck / Speak anyway, Sound effects, turn-end pause picker, Can you hear Nova? checklist + Build + Test, Research browser sign-in, edge-swipe diagnostics, Can Nova hear you? mic check, two raw `<select>` voice pickers, engine footnote — `Settings.jsx:402-681`
-- [ ] S9 · Navigation order — drag list + explanatory copy; **the copy says "the first three fill the floating dock", the dock takes five (`MobileChrome.jsx:50`)** [Verified 26 Sep] — `Settings.jsx:683-694`, `src/TabOrderEditor.jsx:7-69`
-- [ ] S10 · Calendars — Refresh, error / loading / empty, Shown / Hidden chip per calendar — `Settings.jsx:696-726`
-- [ ] S11 · Claude models — Reset all, board states, lane-count + off-count, watch line, week's spend (serif), collapsible lane groups, per-lane row (On/Off chip · raw `<select>` · Reset · spend bar), deterministic-lane note, off-lane warning — `Settings.jsx:728-867`, `src/modelSpendView.js:38-60`
-- [ ] S12 · Time machine · Guardian — Browse snapshots, per-file list with inline Restore… confirm — `Settings.jsx:869-909`
-- [ ] S13 · Footer (server/.env, README) — `Settings.jsx:911-915`
+- [m] S1 · Backend connection — URL + token inputs, Test / Save & connect / Disconnect, coloured status line — `Settings.jsx:37-85`
+- [m] S2 · About you — Edit / Set-up chip, Redo / Set my numbers (starts the Intake on Voice), summary line, edit form (focus · priorities · best self · constraints), read view — `Settings.jsx:87-145`
+- [m] S3 · What Nova has noticed (trust ladder) — one row per lane: kept/total serif fraction, split bar, "worth easing off" flag; bullet fallback — `Settings.jsx:147-195`
+- [m] S4 · Appearance — Design style rows (Command Core / Apple skin / Apple layout) with swatches; Theme rows (Command / Observatory / Ember / Daylight); Nova core rows (Hologram / Filament); Calm toggle — `Settings.jsx:197-292`, `src/theme.js:10-42`
+- [m] S5 · Notifications — push state label, Enable / Test — `Settings.jsx:294-311`
+- [m] S6 · "You can just say it" — static capability card, no control — `Settings.jsx:313-325`
+- [m] S7 · Haptics — capability tag, "Feel each one" (5 word buttons), Different / The same chips, diagnostic line — `Settings.jsx:335-398`
+- [m] S8 · Voice (~280 lines, 10+ rows in one card) — Speak replies, "Hey Nova", Talk over Nova, How Nova hears you + Test Nova's ears, silent-switch Duck / Speak anyway, Sound effects, turn-end pause picker, Can you hear Nova? checklist + Build + Test, Research browser sign-in, edge-swipe diagnostics, Can Nova hear you? mic check, two raw `<select>` voice pickers, engine footnote — `Settings.jsx:402-681`
+- [m] S9 · Navigation order — drag list + explanatory copy; **the copy says "the first three fill the floating dock", the dock takes five (`MobileChrome.jsx:50`)** [Verified 26 Sep] — `Settings.jsx:683-694`, `src/TabOrderEditor.jsx:7-69`
+- [m] S10 · Calendars — Refresh, error / loading / empty, Shown / Hidden chip per calendar — `Settings.jsx:696-726`
+- [m] S11 · Claude models — Reset all, board states, lane-count + off-count, watch line, week's spend (serif), collapsible lane groups, per-lane row (On/Off chip · raw `<select>` · Reset · spend bar), deterministic-lane note, off-lane warning — `Settings.jsx:728-867`, `src/modelSpendView.js:38-60`
+- [m] S12 · Time machine · Guardian — Browse snapshots, per-file list with inline Restore… confirm — `Settings.jsx:869-909`
+- [m] S13 · Footer (server/.env, README) — `Settings.jsx:911-915`
 
 **States:** not connected hides profile / learning / push / calendars / models / time machine (`valsChrome.js:539-657`); offline additionally hides calendars, models, time machine. **Motion:** two `fadeUp`s on the mic-check banner and verdict; otherwise static. **Prior:** #10 trust ladder done; #19's raw-`<select>` smell recurs here four times (`:658, :669, :822`).
 **First look (UNVERIFIED):** the Voice section is the longest single scroll in the app and a candidate for its own screen; three near-identical option-row blocks copy-pasted (`:200-279`); developer diagnostics (haptics, ears, mic, swipe) sit inline among consumer preferences with no separation.
@@ -561,6 +561,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 5 Oct 2026 (morning) — SETTINGS ROUND 1 PUBLISHED: 07/72
+  https://claude.ai/artifact/7bFsrEDMaxszokaQdwzXAv (Critical: one scroll of
+  7.0 phone screens in demo with 6 of 18 sections hidden, about 20 connected;
+  30 of 45 controls under 44 pt; A Rows, B Controls, C Sentence, all in the
+  Index's family; ten copy and chip bugs in source, his call to ship them now
+  or with the build). Before publishing: his real quiet hours (22:30 to
+  05:00) in place of the code default, and B's tile text kept inside its
+  tiles. Settings rows ticked [m].
 - 5 Oct 2026 (morning, after the limit reset) — ROUND 1 PUBLISHED FOR FOUR
   PAGES (agents resumed after the 01:30 cut; each reviewed: no private text,
   no dashes, checked at 390): sheets and overlays 06/71
