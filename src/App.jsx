@@ -969,12 +969,26 @@ export default class App extends Component {
     // instantly, so the back swipe cut where a tap dissolved. His note, 22
     // Sep: "the animation needs to be refined like it is with Apple" — and
     // the refined animation already existed, on the other direction only.
-    this.popH = () => {
+    this.popH = (e) => {
+      // ONE BACK IS HANDLED ONCE. A hash Back fires popstate and then
+      // hashchange, both wired here; the second call found the screen already
+      // changed and ran a whole-page view transition over the new screen's
+      // rise (found 4 Oct 2026, verifying mockup 70's change).
+      if (e?.type === 'hashchange' && this.popSeen?.hash === location.hash && performance.now() - this.popSeen.at < 1000) return;
+      if (e?.type === 'popstate') this.popSeen = { hash: location.hash, at: performance.now() };
       // A SWIPE IS ITS OWN TRANSITION. The edge gesture animates two layers by
       // hand and navigates underneath them; running a view transition at the
       // same moment would cross-fade the thing it is already sliding.
-      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() });
-      if (edgeDragInProgress()) apply(); else this.withTransition(apply);
+      // A NEW SCREEN RISES LIKE A TAB TAP (his call, 4 Oct 2026, mockup 70):
+      // the whole-page transition photographs the glass chrome, which is what
+      // doubled and washed out on 17 Sep. Back to another screen now arrives
+      // as the live <main> rising, exactly like a tab; only a back that stays
+      // on this screen (an overlay or sheet closing) keeps the transition, so
+      // a recipe still morphs back into its card.
+      const dragged = edgeDragInProgress();
+      const changed = screenFromHash() !== this.state.screen;
+      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() }, () => { if (changed && !dragged) this.riseMain(); });
+      if (dragged || changed) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
     window.addEventListener('popstate', this.popH);
@@ -1075,11 +1089,33 @@ export default class App extends Component {
       });
     } catch { fn(); }
   }
+  // THE SCREEN ARRIVES. Deliberately the live <main>, animated with the Web
+  // Animations API rather than a view transition: main holds the content and
+  // NOT the chrome, so the bar and dock are never captured, never stale, and
+  // cannot glitch. It also needs no wrapper element and no remount, so the
+  // scroll restoration in navigate() still holds.
+  riseMain() {
+    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || !this.mainRef?.current?.animate) return;
+    try {
+      this.screenAnim?.cancel();
+      this.screenAnim = this.mainRef.current.animate(
+        [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
+      );
+      // release the hold, or a later scroll write fights a finished effect
+      this.screenAnim.finished.catch(() => {}).then(() => this.screenAnim?.cancel());
+    } catch { /* motion is never a requirement */ }
+  }
   navigate(rawScreen, extra = {}) {
     const screen = resolveScreen(rawScreen);
-    // `instant` is a navigation option, not state: it skips the view
-    // transition for a hop he made himself (tabs, sidebar)
-    const { instant = false, ...extraState } = extra;
+    // EVERY SCREEN CHANGE RISES LIKE A TAB TAP (his call, 4 Oct 2026,
+    // mockup 70). Tabs stopped using the whole-page view transition on 17 Sep
+    // (it photographs the glass chrome, which doubles and washes out); card
+    // taps and every other hop now do the same. Morphs that carry a shared
+    // name call withTransition themselves (openLibraryItem, the overlays).
+    // `instant` is still accepted from callers and no longer changes anything.
+    const { instant: _instant, ...extraState } = extra;
     const changed = this.state.screen !== screen;
     // SCROLL RESTORATION. One shared scroller means leaving a screen loses
     // your place in it — a reset to 0 was the old fix, and it's why coming
@@ -1096,8 +1132,7 @@ export default class App extends Component {
       this.scrollPositions = this.scrollPositions || {};
       this.scrollPositions[this.state.screen] = this.mainRef.current.scrollTop;
     }
-    // screens cross-fade rather than cut; anything carrying a shared
-    // view-transition-name across the two screens morphs instead
+    // the new screen rises rather than cuts (riseMain, after the scroll is restored)
     // the summary Fuel page's Recipes list belongs to Fuel: leaving the
     // screen leaves it, so a tab hop back lands on Fuel itself
     const apply = () => this.setState({ screen, ...(changed && this.state.fuelView ? { fuelView: null } : {}), ...extraState }, () => {
@@ -1111,25 +1146,10 @@ export default class App extends Component {
       if (saved > 0) requestAnimationFrame(() => {
         if (this.state.screen === screen && this.mainRef?.current) this.mainRef.current.scrollTop = saved;
       });
-      // THE SCREEN ARRIVES. Deliberately the live <main>, animated with the
-      // Web Animations API rather than a view transition: main holds the
-      // content and NOT the chrome, so the bar and dock are never captured,
-      // never stale, and cannot glitch. It also needs no wrapper element and
-      // no remount, so the scroll restoration above still holds.
-      const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (!reduce && this.mainRef?.current?.animate) {
-        try {
-          this.screenAnim?.cancel();
-          this.screenAnim = this.mainRef.current.animate(
-            [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
-            { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
-          );
-          // release the hold, or a later scroll write fights a finished effect
-          this.screenAnim.finished.catch(() => {}).then(() => this.screenAnim?.cancel());
-        } catch { /* motion is never a requirement */ }
-      }
+      this.riseMain();
     });
-    if (changed) { if (instant) apply(); else this.withTransition(apply); this.noteScreenVisit(screen); } else apply();
+    apply();
+    if (changed) this.noteScreenVisit(screen);
     if (changed && screen === 'voice') this.maybeGreet('voice');
     if (changed && screen === 'voice') this.loadConversationRecord();
     if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see

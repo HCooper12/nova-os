@@ -198,8 +198,11 @@ test('a drag-driven back skips the view transition', async () => {
   const app = await readFile(path.join(root, 'src', 'App.jsx'), 'utf8');
   const hook = await readFile(path.join(root, 'src', 'edgeBack.js'), 'utf8');
   assert.match(hook, /export function edgeDragInProgress/);
-  assert.match(app, /if \(edgeDragInProgress\(\)\) apply\(\); else this\.withTransition\(apply\);/,
+  assert.match(app, /const dragged = edgeDragInProgress\(\);/);
+  assert.match(app, /if \(dragged \|\| changed\) apply\(\); else this\.withTransition\(apply\);/,
     'a swipe and a view transition will run at the same time');
+  assert.match(app, /if \(changed && !dragged\) this\.riseMain\(\);/,
+    'a dragged back must not also rise: the drag IS the animation');
 });
 
 test('THE APP\u2019S OWN LAYOUT IS NEVER TRANSFORMED — the fault he filmed', async () => {
@@ -239,18 +242,27 @@ test('progress runs 0..1 and never goes backwards', () => {
 });
 
 test('BACK ANIMATES LIKE FORWARD', async () => {
-  // navigate() always ran its screen change through withTransition; popstate
-  // swapped instantly, so the swipe cut where a tap dissolved.
+  // 22 Sep: popstate swapped instantly while a forward hop dissolved, so back
+  // was given the same animation. 4 Oct (his call, mockup 70): forward and
+  // back now share the TAB TAP's motion, the live <main> rising, because the
+  // whole-page view transition photographs the glass chrome (the doubling he
+  // filmed on 17 Sep). A back that stays on the screen (an overlay closing)
+  // keeps the transition so its morph still plays.
   const { readFile } = await import('node:fs/promises');
   const path = await import('node:path');
   const { fileURLToPath } = await import('node:url');
   const app = await readFile(path.join(
     path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'App.jsx',
   ), 'utf8');
-  // a TAPPED back (the browser button, a deep link) still dissolves like a
-  // forward navigation; only a drag opts out, because the drag IS the animation
-  assert.match(app, /this\.popH = \(\) => \{[\s\S]{0,420}withTransition\(apply\)/,
-    'back still swaps instantly while forward dissolves');
+  const pop = app.slice(app.indexOf('this.popH = (e) => {'), app.indexOf("window.addEventListener('popstate', this.popH)"));
+  assert.match(pop, /this\.riseMain\(\)/, 'back to another screen arrives without the tab\u2019s rise');
+  assert.match(pop, /withTransition\(apply\)/, 'a back that closes an overlay lost its morph');
+  // a hash Back fires popstate AND hashchange: the second must not run again
+  assert.match(pop, /e\?\.type === 'hashchange' && this\.popSeen\?\.hash === location\.hash/,
+    'one back is handled twice, and the second photographs the page mid-rise');
+  const nav = app.slice(app.indexOf('  navigate(rawScreen, extra = {}) {'), app.indexOf('    if (changed) this.noteScreenVisit(screen);'));
+  assert.match(nav, /this\.riseMain\(\);/, 'forward must rise the same way');
+  assert.doesNotMatch(nav, /this\.withTransition\(/, 'a screen change is photographing the whole page again');
 });
 
 test('NOTHING EXPENSIVE HAPPENS ON THE FRAME HIS FINGER MOVES', async () => {
