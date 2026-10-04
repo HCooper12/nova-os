@@ -1,0 +1,1041 @@
+<title>Notes, Journal and Galaxy</title>
+<!--
+  79 · NOTES, JOURNAL AND GALAXY, ROUND 1 (5 Oct 2026)
+  Tier 3 of the redesign (REDESIGN-CHECKLIST.md §5, rows E1 to E5, J1 to J4,
+  Y1 to Y3): the three ways he meets his own vault. Read a page, write a day,
+  see how the pages connect. The audit is
+  design/audits/redesign-2026-09/15-knowledge.md; every "today" figure here was
+  measured there in demo mode at 390x844 under his look (Summary, Command,
+  glass, hologram), with invented data put into memory where demo shows
+  nothing.
+
+  TODAY, MEASURED: one of the six doors between the three screens exists (the
+  Galaxy's Open, into Notes). Notes shows a 209 pt window onto the list and a
+  note he did not pick, whose title starts 462 pt down; one reader carries four
+  kinds of extra; "Generate a prompt" is built twice (27 pt and 34 pt, one
+  literal lavender) and both save to the Journal. The Journal's filter hides
+  itself on an empty category and then says there are no entries at all. The
+  Galaxy's five kind filters are 15 pt spans no keyboard can reach, its
+  selection card lands on the star it describes, and its layout costs a 418 ms
+  frame at 4x CPU on entry and after every sync.
+
+  THREE DIRECTIONS, switched at the top:
+    A The page        each screen is one object: the list, the page, the days,
+                      the map. A page's extras are ONE row of companion
+                      capsules under its title; each opens a sheet from itself.
+    B The map         Apple Maps' shape. The Galaxy is the vault's home and the
+                      list is its sheet; a page is a place card with ONE row of
+                      action buttons. The Journal is five weeks of days with the
+                      composer in the sheet.
+    C Three rooms     the Index family he chose on 26 Sep: grouped rows, a
+                      header card, drill-down pages. A page's extras are ONE
+                      grouped card, "This page".
+  Each draws four moments: a page being read; a day opening and an entry
+  written with a prompt; a star tapped and its page rising from it; a page
+  going to its place in the Galaxy.
+
+  IN ALL THREE: six doors, each wearing the colour of the screen it opens; one
+  composer and one "Ask me a question" for everything he writes; Nova's
+  question in Nova's starlight (--nv-nova), never the literal #cbb6f2; the
+  Studio stage set either way, with Undo; a filter that never hides itself; a
+  map that rests when nothing moves; every control 44 pt; type 34 · 22 · 17 ·
+  13 (the serif for the page title and the news line), numerals SF Rounded,
+  the tab labels (11) the chrome's.
+
+  COLOUR, ONE PER SCREEN: Notes has none today (proposed --nv-cy); the
+  Journal's own code wears --nv-vi though its Index tile is neutral (kept);
+  the Galaxy is --nv-vi on the Index (proposed --nv-nova, starlight, so violet
+  is not doing two jobs in one group). The kinds keep today's colours
+  (NOTE_TYPE_COLOR) as data, each with a glyph so colour is never alone.
+
+  DEMO CONTENT ONLY. The repo is public. Every page, title, day, entry, prompt
+  and star here is invented; nothing is his.
+
+  Reduced motion: every move becomes a 200 ms cross-fade, the map never
+  drifts, the prompt appears whole. Preview it with the toggle under the
+  phone. Quarter speed slows every move. Hash: #a, #b or #c opens a direction.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --bg:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.78);--ink3:rgba(232,236,246,.62);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.08);--card-ring:rgba(255,255,255,.15);--card-hi:rgba(255,255,255,.22);
+  --notes:#59e6ff;--journal:#8f7bff;--galaxy:#c9d8ff;--nova:#c9d8ff;
+  --warn:#e08383;
+  --slow:1;
+  color-scheme:dark;
+}
+html.slow{--slow:4}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{-webkit-appearance:none;appearance:none;font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;text-align:inherit}
+:focus-visible{outline:2px solid var(--notes);outline-offset:3px}
+.ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.gi{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* ============ the page around the phone ============ */
+.wrap{max-width:1160px;margin:0 auto;padding:28px 16px 88px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+.wrap>h1{margin:0 0 12px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 10px;max-width:40em;font:400 20px/1.4 var(--serif);color:var(--ink2);text-wrap:pretty}
+.demo{margin:0 0 22px;max-width:46em;font-size:13px;color:var(--ink3)}
+.dirs{position:sticky;top:0;z-index:50;margin:0 -16px;padding:8px 16px;background:rgba(6,7,13,.8);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3)}
+.dirs .seg{max-width:620px;margin:0 auto}
+.seg{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);min-height:44px;padding:3px;border-radius:22px;background:rgba(120,120,128,.22)}
+.seg button{position:relative;z-index:1;min-width:0;min-height:38px;padding:0 4px;border-radius:19px;font:600 13px var(--ui);color:var(--ink2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color calc(200ms*var(--slow)) ease,background-color calc(200ms*var(--slow)) ease}
+.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{color:var(--ink);background:var(--card-hi);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12)}
+@media (max-width:430px){.seg .lt2{display:none}}
+.rkm{max-width:52em;margin:22px 0 18px;font-size:16px;color:var(--ink2);text-wrap:pretty}
+.rkm b{color:var(--ink);font-weight:600}
+.rkm .num{font-family:var(--round);font-weight:600;color:var(--ink)}
+.studio{display:grid;grid-template-columns:390px minmax(0,1fr);gap:40px;align-items:start}
+@media (max-width:900px){.studio{grid-template-columns:minmax(0,1fr);gap:24px}}
+.pcol{min-width:0}
+.pbox{position:relative;width:calc(390px*var(--z,1));height:calc(844px*var(--z,1));margin:0 auto}
+.under{max-width:390px;margin:16px auto 0;display:grid;gap:10px}
+.toggles{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.chip[aria-pressed="true"]{color:#062028;background:var(--notes)}
+.chip:active,.seg button:active{transform:scale(.97);transition:transform calc(120ms*var(--slow)) ease-out}
+.notes h2{margin:0 0 10px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+.notes .st{margin:0 0 12px;padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.notes h3{margin:0 0 4px;font:600 16px/1.3 var(--ui)}
+.notes p{margin:0;font-size:16px;color:var(--ink2);text-wrap:pretty}
+section.page{margin-top:64px}
+section.page>h2{margin:0 0 6px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+section.page>.sub{margin:0 0 18px;max-width:44em;color:var(--ink2);text-wrap:pretty}
+.cmp{list-style:none;margin:0;padding:0;display:grid;max-width:880px}
+.cmp li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 20px;padding:14px 4px;border-top:1px solid var(--sep)}
+.cmp li:first-child{border-top:0}
+.cmp .was{color:var(--ink3)}
+.cmp .now{color:var(--ink)}
+@media (max-width:620px){.cmp li{grid-template-columns:minmax(0,1fr)}}
+.hues{display:grid;gap:12px;max-width:880px}
+.hue{display:grid;grid-template-columns:56px minmax(0,1fr);gap:14px;align-items:start;padding:16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.hue .sw{width:56px;height:56px;border-radius:16px;background:var(--c);box-shadow:0 0 30px -8px var(--c)}
+.hue b{display:block;font-weight:600}
+.hue code{font:500 13px ui-monospace,"SF Mono",Menlo,monospace;color:var(--ink2)}
+.hue p{margin:4px 0 0;color:var(--ink2)}
+.kinds{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:8px}
+.kinds span{display:inline-flex;align-items:center;gap:6px;color:var(--c);font-size:15px}
+.states{display:grid;gap:12px;max-width:880px}
+.sblock{padding:16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.sblock h3{margin:0 0 8px;font:600 17px var(--ui)}
+.sblock dl{margin:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px 14px}
+.sblock dt{color:var(--ink3);font-size:15px}
+.sblock dd{margin:0;font-size:15px;color:var(--ink2)}
+.sblock dd q{font-family:var(--serif);color:var(--ink);quotes:none}
+@media (max-width:520px){.sblock dl{grid-template-columns:minmax(0,1fr)}.sblock dd{margin-bottom:6px}}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:880px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--round);background:rgba(89,230,255,.12);color:var(--notes)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:var(--ink2)}
+
+/* ============ the phone ============ */
+.phone{position:absolute;left:0;top:0;width:390px;height:844px;border-radius:52px;overflow:hidden;isolation:isolate;transform:scale(var(--z,1));transform-origin:0 0;background:#05060c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 80px -30px rgba(0,0,0,.9);font:17px/1.35 var(--ui);color:var(--ink)}
+@media (max-width:430px){.phone{border-radius:40px}}
+.sky{position:absolute;inset:0;z-index:0;background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.16),rgba(89,230,255,0) 60%),radial-gradient(70% 45% at 92% 28%,rgba(143,123,255,.2),rgba(143,123,255,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 38%,#0c1230 72%,#121a3a 100%)}
+.stage{position:absolute;inset:0;z-index:5;overflow:hidden}
+.top{position:absolute;inset:0;z-index:35;pointer-events:none}
+.top>*{pointer-events:auto}
+.status{position:absolute;top:0;left:0;right:0;height:50px;z-index:40;pointer-events:none}
+.status .time{position:absolute;left:34px;top:15px;font:600 16px/1 var(--ui)}
+.status .island{position:absolute;top:11px;left:50%;width:122px;height:35px;margin-left:-61px;border-radius:20px;background:#000}
+.status .dm{position:absolute;right:66px;top:16px;font:600 11px/1 var(--ui);color:rgba(232,236,246,.55)}
+.status .bat{position:absolute;right:30px;top:17px;width:25px;height:12px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.status .bat::after{content:"";position:absolute;inset:2px 6px 2px 2px;border-radius:2px;background:var(--ink)}
+.dock{position:absolute;left:12px;right:12px;bottom:10px;z-index:30;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center;pointer-events:none}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:rgba(16,20,36,.6);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 var(--card-hi),0 12px 30px -14px rgba(0,0,0,.5)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:56px;border-radius:28px;font:500 11px var(--ui);color:rgba(232,236,246,.5)}
+.tab .ic{width:22px;height:22px;stroke-width:1.8}
+.tab.on{color:#59e6ff;background:rgba(89,230,255,.1)}
+.orb{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:rgba(16,20,36,.6);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 var(--card-hi);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.orb::before{content:"";width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+.scr{position:absolute;inset:0;padding:56px 16px 120px;overflow:hidden}
+.lt{display:flex;align-items:center;gap:8px;min-height:44px}
+.lt h1{flex:1;min-width:0;margin:0;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.ib{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--h,var(--ink));background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.news{margin:4px 0 0;font:400 22px/1.25 var(--serif);color:var(--ink2);text-wrap:balance}
+.news b{font-weight:400;color:var(--ink)}
+.meta{margin:0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.num{font-family:var(--round);font-weight:600;font-variant-numeric:tabular-nums}
+.glass{background:var(--card);border-radius:20px;box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi),0 14px 34px -18px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(22px) saturate(1.5);backdrop-filter:blur(22px) saturate(1.5)}
+.down{transform:scale(.97);transition:transform calc(120ms*var(--slow)) ease-out}
+.search{display:flex;align-items:center;gap:8px;height:44px;margin-top:12px;padding:0 14px;border-radius:22px;background:rgba(120,120,128,.24);color:var(--ink3);font:400 17px var(--ui)}
+.rail{display:flex;gap:8px;margin:12px -16px 0;padding:0 16px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,#000 80%,transparent);mask-image:linear-gradient(90deg,#000 80%,transparent)}
+.kc{flex:none;display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 14px;border-radius:22px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font:400 17px var(--ui);color:var(--ink2)}
+.kc .gi{color:var(--c)}
+.kc .num{color:var(--ink3);font-size:13px}
+.kc.on{background:var(--notes);color:#062028}
+.kc.on .num{color:rgba(6,32,40,.7)}
+.list{margin-top:12px;overflow:hidden}
+.nrow{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:58px;padding:8px 16px}
+.nrow+.nrow::before,.srow+.srow::before,.erow+.erow::before{content:"";position:absolute;left:52px;right:0;top:0;height:.5px;background:var(--sep)}
+.kg{flex:none;width:28px;height:28px;display:grid;place-items:center;color:var(--c)}
+.kg.sm{width:20px;height:20px}
+.kg.sm .gi{width:16px;height:16px}
+.nrow .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nrow .w{flex:none;font-size:13px;color:var(--ink3)}
+.nrow.sel{background:color-mix(in srgb,var(--notes) 12%,transparent)}
+
+/* the page: one object, its extras in one row */
+.npg{position:absolute;inset:0;z-index:20;background:linear-gradient(180deg,#070914 0%,#0a0f24 55%,#0e1430 100%)}
+.pbar{position:absolute;top:50px;left:8px;right:8px;height:44px;display:flex;align-items:center}
+.back{display:inline-flex;align-items:center;gap:2px;height:44px;padding:0 12px 0 4px;border-radius:22px;color:var(--h,var(--notes));font:400 17px var(--ui)}
+.back .ic{width:24px;height:24px}
+.pin{position:absolute;top:98px;left:0;right:0;bottom:0;padding:0 20px 120px;overflow:hidden}
+.kline{display:flex;align-items:center;gap:6px;font:400 13px var(--ui);color:var(--ink3)}
+.ptitle{margin:6px 0 0;font:400 34px/1.12 var(--serif);letter-spacing:-.01em;text-wrap:balance}
+.pm{margin-top:6px}
+.caps{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.cap{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px 0 12px;border-radius:22px;font:600 17px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--c) 42%,transparent)}
+.cap .num{font-size:13px;opacity:.8}
+.body p{margin:16px 0 0;font:400 17px/1.5 var(--ui);color:var(--ink2);text-wrap:pretty}
+
+/* sheets */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.4)}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;border-radius:32px;padding:10px 20px 22px;background:rgba(20,24,44,.82);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),inset 0 1px 0 rgba(255,255,255,.2),0 -10px 40px -10px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6)}
+.grab{width:36px;height:5px;margin:0 auto 14px;border-radius:3px;background:rgba(255,255,255,.3)}
+.sh{margin:0;font:400 22px/1.25 var(--serif)}
+.tl{position:relative;height:44px;margin:16px 6px 0}
+.tl .rl{position:absolute;left:0;right:0;top:21px;height:2px;border-radius:1px;background:rgba(255,255,255,.16)}
+.tk2{position:absolute;top:0;width:44px;height:44px;margin-left:-22px;display:grid;place-items:center}
+.tk2 i{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.35)}
+.tk2.on i{background:var(--notes);box-shadow:0 0 12px var(--notes)}
+.tlends{display:flex;justify-content:space-between;margin:0 6px}
+.tln{margin:10px 0 0;font-size:17px}
+.wide{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:50px;margin-top:14px;border-radius:25px;background:var(--c);color:#062028;font:600 17px var(--ui)}
+.track{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:16px}
+.track .t0,.track .t1{position:absolute;left:12.5%;top:21px;height:2px;border-radius:1px}
+.track .t0{right:12.5%;background:rgba(255,255,255,.16)}
+.track .t1{width:75%;background:var(--notes);transform-origin:0 50%}
+.stop{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:64px;padding-top:15px;font-size:13px;color:var(--ink3)}
+.stop i{width:14px;height:14px;border-radius:50%;background:#1b2140;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3)}
+.stop.done i{background:var(--notes);box-shadow:none}
+.stop.on{color:var(--ink)}
+.stop.on i{box-shadow:0 0 0 4px color-mix(in srgb,var(--notes) 25%,transparent),0 0 14px var(--notes)}
+.grp2{margin-top:10px;border-radius:16px;background:rgba(255,255,255,.06)}
+.srow{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:6px 16px}
+.srow .t{flex:1;min-width:0}
+.srow small{display:block;font-size:13px;color:var(--ink3)}
+.srow .v{flex:none;font-size:17px;color:var(--ink3)}
+.chev{color:rgba(232,236,246,.38);width:16px;height:16px}
+.undo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;padding:0 6px 0 16px;min-height:52px;border-radius:26px;background:rgba(255,255,255,.1)}
+.undo button{min-height:44px;padding:0 16px;border-radius:22px;font:600 17px var(--ui);color:var(--notes)}
+
+/* the one composer */
+.cmp{margin-top:12px;padding:12px 14px;border-radius:22px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14)}
+.prompt{margin:0;font:italic 400 22px/1.3 var(--serif);color:var(--nova);min-height:0}
+.prompt:not(:empty){margin:2px 0 10px}
+.prompt .w{display:inline-block}
+.field{position:relative;min-height:44px;padding:10px 0;font:400 17px/1.45 var(--ui)}
+.field .ph{color:var(--ink3)}
+.caret{display:inline-block;width:2px;height:20px;margin-left:1px;vertical-align:-4px;background:var(--journal);opacity:0}
+.typing .caret{opacity:1;animation:blink calc(1s*var(--slow)) steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.crow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px}
+.ask{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px 0 12px;border-radius:22px;font:600 17px var(--ui);color:var(--journal);background:color-mix(in srgb,var(--journal) 14%,transparent)}
+.ask.busy .ic{animation:spin calc(.9s*var(--slow)) linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.save{height:44px;padding:0 20px;border-radius:22px;background:var(--journal);color:#140d33;font:600 17px var(--ui)}
+.toast{position:absolute;left:16px;right:16px;bottom:92px;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 8px 0 16px;border-radius:26px;background:rgba(20,24,44,.88);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),0 12px 30px -12px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);font-size:17px}
+.toast span{flex:1;min-width:0}
+.toast button{flex:none;min-height:44px;padding:0 14px;border-radius:22px;font:600 17px var(--ui);color:var(--c)}
+
+/* the Journal: a day is a track of its hours */
+.days{margin-top:12px;overflow:hidden}
+.dwrap{position:relative}
+.dwrap+.dwrap::before{content:"";position:absolute;left:16px;right:0;top:0;height:.5px;background:var(--sep)}
+.drow{display:block;width:100%;min-height:58px;padding:10px 16px 12px}
+.dtop{display:flex;align-items:baseline;gap:8px}
+.dd{font:400 17px var(--serif)}
+.tday{font-size:13px;color:var(--journal)}
+.dn{margin-left:auto;font-size:13px;color:var(--ink3)}
+.dtop .chev{align-self:center}
+.strip{position:relative;display:block;height:12px;margin-top:8px}
+.strip .ax{position:absolute;left:0;right:0;top:5px;height:2px;border-radius:1px;background:rgba(255,255,255,.1)}
+.strip .q{position:absolute;top:3px;width:1px;height:6px;background:rgba(255,255,255,.18)}
+.strip .tk{position:absolute;top:0;width:3px;height:12px;margin-left:-1.5px;border-radius:2px;background:rgba(232,236,246,.62)}
+.today .strip .tk,.strip .tk.new{background:var(--journal);box-shadow:0 0 8px color-mix(in srgb,var(--journal) 70%,transparent)}
+.dent{padding:0 0 8px}
+.erow{position:relative;display:grid;grid-template-columns:48px 20px minmax(0,1fr);gap:8px;align-items:start;padding:8px 16px}
+.erow+.erow::before{left:16px}
+.et{font-size:13px;color:var(--ink3);padding-top:2px}
+.ex{font-size:17px;color:var(--ink2)}
+.door{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-top:2px;padding:0 14px 0 10px;border-radius:22px;font:600 15px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.door .ic{width:18px;height:18px}
+.dent>.door{margin:4px 16px 4px}
+.ghost{position:absolute;border-radius:2px;background:var(--journal)}
+.spk{position:absolute;width:0;height:0}
+.spk b{position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;background:var(--journal);box-shadow:0 0 16px 4px color-mix(in srgb,var(--journal) 60%,transparent)}
+
+/* the Galaxy */
+.gal{position:absolute;inset:0}
+.skyhost{position:absolute;inset:0}
+.skycv{position:absolute;left:0;top:0;display:block}
+.gtop{position:absolute;left:0;right:0;top:0;padding:56px 16px 28px;background:linear-gradient(180deg,rgba(5,6,12,.9) 40%,rgba(5,6,12,0));pointer-events:none}
+.gtop>*{pointer-events:auto}
+.showpill{position:absolute;left:16px;bottom:92px;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px 0 12px;border-radius:22px;font:400 17px var(--ui);color:var(--ink)}
+.showpill .ic{color:var(--galaxy)}
+.showpill .sp{color:var(--ink3)}
+.scard{position:absolute;left:16px;right:16px;padding:14px 16px 12px;border-radius:24px;background:rgba(20,24,44,.84);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.22),0 18px 40px -16px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(26px) saturate(1.6);backdrop-filter:blur(26px) saturate(1.6)}
+.scard .arrow{position:absolute;top:-8px;width:16px;height:16px;margin-left:-8px;transform:rotate(45deg);border-radius:3px;background:rgba(20,24,44,.84);box-shadow:inset .5px .5px 0 rgba(255,255,255,.2)}
+.sct{margin:6px 0 2px;font:400 22px/1.25 var(--serif)}
+.scrow{display:flex;gap:8px;margin-top:12px}
+.open{flex:1;height:44px;border-radius:22px;background:var(--c);color:#062028;font:600 17px var(--ui);text-align:center}
+.pillback{position:absolute;left:12px;top:52px;display:inline-flex;align-items:center;gap:2px;height:44px;padding:0 16px 0 6px;border-radius:22px;font:400 17px var(--ui);color:var(--notes)}
+
+/* B: the sheet over the map */
+.bs{position:absolute;left:8px;right:8px;top:58px;height:698px;border-radius:30px;padding:8px 16px 0;overflow:hidden;background:rgba(18,22,40,.82);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),inset 0 1px 0 rgba(255,255,255,.2),0 -10px 40px -14px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6);will-change:transform}
+.bs .grab{margin-bottom:10px}
+.bs .search{margin-top:0}
+.bs .lt h1{font-size:34px}
+.mapdim{position:absolute;inset:0;background:rgba(3,4,10,.55);opacity:0;pointer-events:none}
+.acts{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px;margin-top:14px}
+.act{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:62px;border-radius:16px;font:600 13px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent)}
+.act .ic{width:22px;height:22px}
+.tether{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.month{margin-top:14px;padding:12px 10px 8px}
+.mhead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));text-align:center;font-size:13px;color:var(--ink3)}
+.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:2px;margin-top:4px}
+.mday{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;min-height:52px;padding-top:4px;font-size:13px;color:var(--ink3)}
+.mday i{display:block;border-radius:50%;background:rgba(232,236,246,.72)}
+.mday.zero i{background:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.mday.fut{opacity:.35}
+.mday.tod{color:var(--ink)}
+.mday.tod i{background:var(--journal);box-shadow:0 0 0 3px #0c1230,0 0 0 4.5px var(--journal),0 0 14px var(--journal)}
+.mday.pick i{box-shadow:0 0 0 3px #0c1230,0 0 0 4.5px rgba(232,236,246,.8)}
+
+/* C: rooms, grouped rows, drill-down */
+.view{position:absolute;inset:0;background:linear-gradient(180deg,#05060c 0%,#080b1c 38%,#0c1230 72%,#121a3a 100%)}
+.nav{position:absolute;top:50px;left:8px;right:8px;height:44px;display:flex;align-items:center;z-index:2}
+.nav .ttl{position:absolute;left:0;right:0;text-align:center;font:600 17px var(--ui);pointer-events:none}
+.grp{margin-top:16px;overflow:hidden}
+.ghead{margin:20px 4px 6px;font:400 13px var(--ui);color:var(--ink3)}
+.ghead+.grp{margin-top:0}
+.tile{flex:none;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--c);color:#0b0e1c}
+.tile .gi{width:18px;height:18px;stroke-width:2.1}
+.tile.big{width:52px;height:52px;border-radius:14px}
+.tile.big .gi{width:28px;height:28px}
+.srow .tile+.t{margin-left:2px}
+.srow.c .ic:first-child{color:var(--c)}
+.hcard{margin-top:8px;padding:16px}
+.hcard .ptitle{margin-top:10px}
+.hcard p.sum{margin:8px 0 0;color:var(--ink2)}
+.footsearch{position:absolute;left:16px;right:16px;bottom:88px;display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 14px;border-radius:24px;color:var(--ink3);font-size:17px}
+.footsearch .kind{margin-left:auto;display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 12px;border-radius:22px;color:var(--notes)}
+.mapcard{position:relative;height:410px;margin-top:14px;overflow:hidden;border-radius:24px}
+.callout{position:absolute;left:12px;right:12px;top:12px;display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 8px 6px 12px;border-radius:18px;background:rgba(20,24,44,.86);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.callout .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stem{position:absolute;width:1.5px;background:linear-gradient(180deg,rgba(201,216,255,.8),rgba(201,216,255,.15));transform-origin:50% 0}
+.check{color:var(--notes)}
+.mov{position:absolute;pointer-events:none}
+
+.touch{position:absolute;z-index:60;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,255,255,.22);box-shadow:0 0 0 1.5px rgba(255,255,255,.55);pointer-events:none}
+@media (prefers-reduced-transparency:reduce){.glass,.tabbar,.orb,.sheet,.bs,.scard,.toast,.callout,.dirs,.ib{-webkit-backdrop-filter:none;backdrop-filter:none;background:#161a30}}
+html.rm .typing .caret{animation:none}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 79 · round 1 · 5 October 2026 · for your review</p>
+  <h1>Notes, Journal and Galaxy</h1>
+  <p class="lede">The three ways you meet your own vault: read a page, write a day, see how it all connects. Today only one of the six doors between them exists. Every direction keeps every function, gives each screen one object and one colour, and builds the missing doors.</p>
+  <p class="demo">Demo content: every page, title, day, entry, question and star here is invented. The numbers marked "today" were measured in demo mode at 390 by 844 under your look; the audit with all of them is <b>design/audits/redesign-2026-09/15-knowledge.md</b>. The map is a stand-in drawn on this page; the app's own Galaxy keeps its layout engine.</p>
+
+  <div class="dirs"><div class="seg" role="tablist" aria-label="Direction" id="dirs">
+    <button role="tab" type="button" data-dir="a" aria-selected="true"><span class="lt2">A · </span>The page</button>
+    <button role="tab" type="button" data-dir="b" aria-selected="false"><span class="lt2">B · </span>The map</button>
+    <button role="tab" type="button" data-dir="c" aria-selected="false"><span class="lt2">C · </span>Three rooms</button>
+  </div></div>
+
+  <p class="rkm" id="rkm"></p>
+
+  <div class="studio">
+    <div class="pcol" id="pcol">
+      <div class="pbox" id="pbox"><div class="phone" id="phone"></div></div>
+      <div class="under">
+        <div class="seg" role="group" aria-label="Moment" id="moments">
+          <button type="button" data-m="read" aria-pressed="true">Read a page</button>
+          <button type="button" data-m="day" aria-pressed="false">Open a day</button>
+          <button type="button" data-m="star" aria-pressed="false">Tap a star</button>
+          <button type="button" data-m="link" aria-pressed="false">To the Galaxy</button>
+        </div>
+        <div class="seg" role="group" aria-label="The page being read" id="kinds">
+          <button type="button" data-k="source" aria-pressed="true">A source</button>
+          <button type="button" data-k="idea" aria-pressed="false">An idea</button>
+          <button type="button" data-k="review" aria-pressed="false">Today's review</button>
+        </div>
+        <div class="toggles">
+          <button class="chip" type="button" id="again">Play again</button>
+          <button class="chip" type="button" id="slow" aria-pressed="false">Quarter speed</button>
+          <button class="chip" type="button" id="rmprev" aria-pressed="false">Preview reduced motion</button>
+        </div>
+      </div>
+    </div>
+    <div class="notes" id="notes" aria-live="polite"></div>
+  </div>
+
+  <section class="page">
+    <h2>The same in every direction</h2>
+    <p class="sub">Whichever shape you pick, these change. Left is what the audit measured today; right is what all three directions draw.</p>
+    <ul class="cmp">
+      <li><span class="was"><b>One door of six.</b> Only the Galaxy's Open reaches another of the three screens. The chips headed "Linked in Galaxy" open other notes; a journal star opens in Notes; nothing in the Journal leads anywhere.</span><span class="now"><b>Six doors.</b> A page to its star and to the Journal; a day to its pages and its stars; a star to its page or its day. Each door wears the colour of the screen it opens.</span></li>
+      <li><span class="was"><b>Two composers.</b> "Generate a prompt" on two screens, built as two components (27 pt in Notes, under the 28 pt floor; 34 pt in the Journal), in a literal lavender, calling the same job and saving to the same Journal.</span><span class="now"><b>One composer.</b> The Journal's, opened from Notes when you reflect. One "Ask me a question" at 44 pt; Nova's question in his own starlight; the words land in today's day where you can see them.</span></li>
+      <li><span class="was"><b>Four kinds of extra on one page:</b> an outlined link, three chips in three colours, a violet card at the foot, a row of gold chips.</span><span class="now"><b>One pattern per direction:</b> companion capsules (A), a row of actions (B), or a grouped card (C).</span></li>
+      <li><span class="was"><b>The Studio chip</b> writes to the vault on every tap, wraps from Shipped back to Seed, and has no Undo.</span><span class="now"><b>A stage you set</b> either way, one write, with Undo.</span></li>
+      <li><span class="was"><b>A filter that hides itself.</b> Choose a category with no entries and the Journal says it has none at all, and the four chips vanish until the app reloads.</span><span class="now"><b>A filter that stays.</b> An empty category says "No system entries in these 30 days" with Show all.</span></li>
+      <li><span class="was"><b>The selection card</b> sits at the bottom right whatever you tapped, and covers the star it names.</span><span class="now"><b>It rises from the star</b> and points at it; the star stays in view.</span></li>
+      <li><span class="was"><b>Two rows of filters:</b> five 15 pt legend words no keyboard or screen reader can reach, over two chips that mean something else.</span><span class="now"><b>One Show control:</b> kinds and light as two named groups, every row 44 pt, the map described for VoiceOver.</span></li>
+      <li><span class="was"><b>The map never stops drawing</b> (about 7,700 canvas calls a frame for 400 pages, also under Reduce Motion), and its layout runs inside the first frame (90 ms here, 418 ms at 4x CPU) after every sync.</span><span class="now"><b>The map rests</b> when nothing moves, and lays itself out once, off the frame, only when the graph changed.</span></li>
+      <li><span class="was"><b>Gold for nine unrelated things</b> (the selected note, links, a title word on two screens, a card border) and 7 to 10 type sizes a screen, with map labels at 10 and 9.5 pt.</span><span class="now"><b>One colour a screen,</b> gold left for "not decided"; 34 · 22 · 17 · 13, map labels at 13.</span></li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>One colour each</h2>
+    <p class="sub">Found in the tokens and the screens' own code. Two screens in this group claim violet today, so one has to move; here the Galaxy does.</p>
+    <div class="hues">
+      <div class="hue" style="--c:#59e6ff"><span class="sw"></span><div><b>Notes · cyan</b><code>--nv-cy</code><p>None today: its Index tile is neutral and the screen borrows gold for the open note and its links. Proposed cyan, the Summary style's link and button colour and today's Watch source: Notes is the screen made of links.</p></div></div>
+      <div class="hue" style="--c:#8f7bff"><span class="sw"></span><div><b>Journal · violet</b><code>--nv-vi</code><p>Found in its own code: the composer, the personal tag and both Inbox journal badges, and the Daily review that saves into it, all violet. Its Index tile is neutral today and would follow.</p></div></div>
+      <div class="hue" style="--c:#c9d8ff"><span class="sw"></span><div><b>Galaxy · starlight</b><code>--nv-nova</code><p>Violet today, on its Index tile and the glow behind the map. Proposed starlight, Nova's own colour: the map is the vault as Nova holds it, and inside the map violet already means a topic page. Nova's question in the Journal wears the same starlight because those are his words.</p></div></div>
+      <div class="hue" style="--c:rgba(255,255,255,.08)"><span class="sw" style="box-shadow:none"></span><div><b>The kinds stay data</b><p>Today's six page colours, each now with a glyph so colour is never alone:</p><div class="kinds" id="kindkey"></div><p>Three of them sit close to colours that mean something else in Nova (concepts near gold, entities near the error coral, journal pages near "done" green). A decision below.</p></div></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>The four states, designed</h2>
+    <p class="sub">Today: a reader titled "Loading…" with no skeleton; "Loading your journal" for ever when nothing is connected; the demo constellation shown to a connected phone before its first sync; "live from Obsidian" on a cached copy; a search that finds nothing and says nothing.</p>
+    <div class="states">
+      <div class="sblock"><h3>Notes</h3><dl>
+        <dt>Loading</dt><dd>Seven skeleton rows; the page you opened keeps its title while its text arrives.</dd>
+        <dt>Empty</dt><dd><q>No pages yet.</q> Pages appear as Nova files them, or when you tell Nova to keep something.</dd>
+        <dt>Offline</dt><dd><q>72 pages · Friday 18:20's copy</q>; a page not in the copy says it needs your Mac.</dd>
+        <dt>Error</dt><dd><q>Couldn't open this page.</q> Try again, in the place it failed, in the error colour.</dd>
+        <dt>No match</dt><dd><q>Nothing called "lighthouse".</q> Search every kind.</dd>
+      </dl></div>
+      <div class="sblock"><h3>Journal</h3><dl>
+        <dt>Loading</dt><dd>Day rows as skeletons with empty tracks.</dd>
+        <dt>Not connected</dt><dd><q>Your journal lives on your Mac.</q> Connect in Settings. Never "Loading" for ever.</dd>
+        <dt>Empty</dt><dd><q>No entries yet.</q> The composer above is the next step.</dd>
+        <dt>Offline</dt><dd>Saved entries wait in the outbox and say so on today's track until your Mac answers.</dd>
+        <dt>Error</dt><dd>The words stay in the composer with the reason under them, as today.</dd>
+      </dl></div>
+      <div class="sblock"><h3>Galaxy</h3><dl>
+        <dt>Loading</dt><dd>Faint stars where the last map was, brightening as the graph lands.</dd>
+        <dt>Empty</dt><dd><q>Your Galaxy fills as your pages link to each other.</q></dd>
+        <dt>Offline</dt><dd><q>Friday 18:20's map.</q> Tapping still opens pages in the cached copy.</dd>
+        <dt>Error</dt><dd><q>Couldn't load your map.</q> Try again. Never the demo stars.</dd>
+      </dl></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Which direction</b><span>A makes each screen one object and keeps three screens. B makes the Galaxy the home of the vault with the list as its sheet, so Notes and the Galaxy become one screen. C keeps three screens in the Index's grouped rows. Pick one, or a part of one with another, and round 2 draws it in full with the Mac; the rest are dropped.</span></div></li>
+      <li><div><b>One composer for everything you write</b><span>Yes: the Daily review's reflect card leaves the foot of the note and becomes a door into the Journal's composer, with one "Ask me a question". No: both composers stay where they are, each rebuilt to 44 pt and real tokens.</span></div></li>
+      <li><div><b>The colours</b><span>Yes: Notes cyan, Journal violet, Galaxy starlight. No: the Galaxy keeps violet and the Journal goes back to neutral, as its Index tile is today. Either way gold leaves these three screens.</span></div></li>
+      <li><div><b>The Studio stage</b><span>Yes: tap any stage to set it, forward or back, with Undo. No: the one-way chip stays, without the wrap from Shipped to Seed, and gains Undo.</span></div></li>
+      <li><div><b>The Galaxy holds still</b><span>Yes: no drift or twinkle unless you are touching it (lighter on the phone, and required under Reduce Motion). No: the drift stays, slower, and stops only under Reduce Motion.</span></div></li>
+      <li><div><b>The kinds' colours</b><span>Yes: re-cut the six page colours so none borrows a meaning from elsewhere in Nova, shown in round 2. No: keep today's six, with the glyphs added here.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const doc = document.documentElement;
+const phone = $('#phone'), pbox = $('#pbox'), pcol = $('#pcol');
+let SLOW = 1, forceRM = false, Z = 1;
+const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+const RM = () => forceRM || mq.matches;
+const syncRM = () => doc.classList.toggle('rm', RM());
+const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif';
+
+/* ---------------- easing and the run ---------------- */
+function bez(x1, y1, x2, y2) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const sx = (t) => ((ax * t + bx) * t + cx) * t, sy = (t) => ((ay * t + by) * t + cy) * t, dx = (t) => (3 * ax * t + 2 * bx) * t + cx;
+  return (x) => { if (x <= 0) return 0; if (x >= 1) return 1; let t = x; for (let i = 0; i < 8; i++) { const e = sx(t) - x, d = dx(t); if (Math.abs(e) < 1e-5 || Math.abs(d) < 1e-6) break; t -= e / d; } return sy(Math.min(1, Math.max(0, t))); };
+}
+const EASE = bez(.32, .72, 0, 1);
+const CURVE = 'cubic-bezier(.32,.72,0,1)';
+const STOP = { stop: true };
+let RUN = 0;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms * SLOW));
+function run(fn) {
+  const id = ++RUN;
+  const W = async (ms) => { await sleep(ms); if (id !== RUN) throw STOP; };
+  const A = async (p) => { await p; if (id !== RUN) throw STOP; };
+  Promise.resolve().then(() => fn(W, A)).catch((e) => { if (e !== STOP) console.error(e); });
+}
+function anim(el, frames, ms, o = {}) {
+  if (!el || !el.animate) return Promise.resolve();
+  const last = frames[frames.length - 1];
+  if (RM()) {
+    let f = null;
+    if (o.rm === 'in') f = [{ opacity: 0 }, { opacity: 1 }];
+    else if (o.rm === 'out') f = [{ opacity: 1 }, { opacity: 0 }];
+    else { const a0 = frames[0].opacity, a1 = last.opacity; if (a0 != null && a1 != null && a0 !== a1) f = [{ opacity: a0 }, { opacity: a1 }]; }
+    const fin = () => { for (const k in last) if (k !== 'offset' && k !== 'easing') el.style[k] = last[k]; if (o.rm === 'out') el.style.opacity = 0; };
+    if (!f) { fin(); return Promise.resolve(); }
+    const a = el.animate(f, { duration: 200 * SLOW, easing: 'linear', fill: 'both' });
+    return a.finished.then(() => { fin(); a.cancel(); }).catch(() => {});
+  }
+  const a = el.animate(frames, { duration: ms * SLOW, delay: (o.delay || 0) * SLOW, easing: o.easing || CURVE, fill: 'both' });
+  return a.finished.then(() => { try { a.commitStyles(); } catch (e) { /* hidden */ } a.cancel(); }).catch(() => {});
+}
+const rise = (els, step = 45, base = 0) => Promise.all(els.map((el, i) => anim(el, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }], 320, { delay: base + Math.min(i, 7) * step })));
+function tween(ms, step) {
+  return new Promise((res) => {
+    if (RM()) { step(1); res(); return; }
+    const t0 = performance.now(), d = ms * SLOW;
+    const f = (now) => { const k = Math.max(0, Math.min(1, (now - t0) / d)); step(EASE(k)); if (k < 1) requestAnimationFrame(f); else res(); };
+    requestAnimationFrame(f);
+  });
+}
+function rectOf(el) { const p = phone.getBoundingClientRect(), r = el.getBoundingClientRect(); return { x: (r.left - p.left) / Z, y: (r.top - p.top) / Z, w: r.width / Z, h: r.height / Z }; }
+function touch(x, y) {
+  const t = document.createElement('i'); t.className = 'touch'; t.style.left = x + 'px'; t.style.top = y + 'px'; phone.appendChild(t);
+  anim(t, [{ opacity: 0, transform: 'scale(1.6)' }, { opacity: 1, transform: 'scale(1)' }], 160).then(() => sleep(240)).then(() => anim(t, [{ opacity: 1 }, { opacity: 0 }], 260)).then(() => t.remove());
+}
+async function tap(el, W) { const r = rectOf(el); touch(r.x + r.w / 2, r.y + r.h / 2); el.classList.add('down'); await W(170); el.classList.remove('down'); await W(60); }
+async function pour(el, text, W) {
+  el.innerHTML = text.split(' ').map((w) => `<span class="w">${w}</span>`).join(' ');
+  const ws = $$('.w', el);
+  if (RM()) return;
+  ws.forEach((w) => { w.style.opacity = 0; });
+  for (const w of ws) { anim(w, [{ opacity: 0, filter: 'blur(5px)', transform: 'translateY(5px)' }, { opacity: 1, filter: 'blur(0px)', transform: 'none' }], 420); await W(110); }
+  await W(300);
+}
+async function typeIn(el, text, W) { if (RM()) { el.textContent = text; return; } el.textContent = ''; for (const ch of text) { el.textContent += ch; await W(36); } }
+async function swapText(el, txt) { await anim(el, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-40%)' }], 150); el.textContent = txt; await anim(el, [{ opacity: 0, transform: 'translateY(40%)' }, { opacity: 1, transform: 'none' }], 220); }
+
+/* ---------------- icons ---------------- */
+const svg = (d, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const IC = {
+  back: '<path d="M15 5 8 12l7 7"/>', chev: '<path d="m9.5 6 6 6-6 6"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5Z" fill="currentColor" stroke="none"/>', out: '<path d="M8 16 16 8M9.5 8H16v6.5"/>',
+  stage: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor"/>', pen: '<path d="M5 19l1-4L16 5l3 3L9 18Z"/><path d="m14 7 3 3"/>',
+  galaxy: '<circle cx="12" cy="12" r="3.4"/><ellipse cx="12" cy="12" rx="9" ry="4.2" transform="rotate(-24 12 12)"/><circle cx="19.2" cy="7.4" r="1" fill="currentColor" stroke="none"/>',
+  spark: '<path d="M12 3.5c.6 4.4 2.1 5.9 6.5 6.5-4.4.6-5.9 2.1-6.5 6.5-.6-4.4-2.1-5.9-6.5-6.5 4.4-.6 5.9-2.1 6.5-6.5Z" fill="currentColor" stroke="none"/>',
+  filter: '<path d="M4 7h16M7 12h10M10 17h4"/>', show: '<path d="M5 8h9M18 8h1M5 16h1M10 16h9"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>', close: '<path d="M7 7l10 10M17 7 7 17"/>', moon: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z"/>',
+  links: '<circle cx="7" cy="12" r="2.5"/><circle cx="17" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path d="M9.2 10.9 14.8 8.1M9.2 13.1l5.6 2.8"/>',
+  home: '<path d="M4 11.5 12 5l8 6.5V20h-5.5v-5h-5v5H4Z"/>', mic: '<rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/>',
+  train: '<path d="M6.5 8v8M17.5 8v8M3.5 10v4M20.5 10v4M6.5 12h11"/>', fuel: '<path d="M7 3.5v7M5 3.5v4.5a2 2 0 0 0 4 0V3.5M7 10.5v10M16.5 3.5c-1.8 1-2.5 3-2.5 6v3h2.5v8"/>',
+  more: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/>',
+  dumb: '<path d="M6.5 8v8M17.5 8v8M3.5 10v4M20.5 10v4M6.5 12h11"/>', brief: '<path d="M5 5h14v14H5Z"/><path d="M8.5 9.5h7M8.5 13h7M8.5 16.5h4"/>',
+};
+const GL = {
+  concept: '<path d="M12 3.5 20.5 12 12 20.5 3.5 12Z"/>', entity: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"/>',
+  topic: '<path d="M9.5 4 7.5 20M16.5 4l-2 16M4.5 9h15M4 15h15"/>', source: '<circle cx="12" cy="12" r="8.5"/><path d="M10.2 8.8v6.4l5.2-3.2Z" fill="currentColor"/>',
+  journal: '<path d="M5 5.2A1.7 1.7 0 0 1 6.7 3.5H18.5v15.3H6.7A1.7 1.7 0 0 0 5 20.5Z"/><path d="M9 8h6"/>', analysis: '<path d="M6 19v-7M10.5 19V6M15 19v-9M19.5 19v-4"/>',
+  idea: '<path d="M9 17.5h6M10 20.5h4M12 3.5a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V17h5.2v-.7c0-.8.4-1.5 1-2A6 6 0 0 0 12 3.5Z"/>',
+};
+const KIND = {
+  concept: { w: 'Concept', pl: 'Concepts', c: '#d8b573' }, source: { w: 'Source', pl: 'Sources', c: '#6be5f5' }, topic: { w: 'Topic', pl: 'Topics', c: '#8a6ad1' },
+  idea: { w: 'Idea', pl: 'Ideas', c: '#ece5da' }, entity: { w: 'Entity', pl: 'Entities', c: '#e08f6f' }, journal: { w: 'Journal page', pl: 'Journal', c: '#5aa87c' }, analysis: { w: 'Analysis', pl: 'Analyses', c: '#ece5da' },
+};
+const kg = (k, sm) => `<span class="kg${sm ? ' sm' : ''}" style="--c:${KIND[k].c}" role="img" aria-label="${KIND[k].w}">${svg(GL[k], 'gi')}</span>`;
+const tile = (k, big) => `<span class="tile${big ? ' big' : ''}" style="--c:${KIND[k].c}" role="img" aria-label="${KIND[k].w}">${svg(GL[k], 'gi')}</span>`;
+
+/* ---------------- demo content (invented) ---------------- */
+const STAGES = ['Seed', 'Outlining', 'Scripting', 'Shipped'];
+const P = {
+  att: { id: 'att', kind: 'source', title: 'A talk on attention', when: 'Thu 1 Oct', links: 6, mins: 48,
+    ideas: [['4:12', 'Attention is a budget, spent before noon'], ['18:40', 'A switch costs a quarter of an hour'], ['33:05', 'Protect one deep block a day']],
+    body: ['Demo text. The talk argues that attention behaves like a budget, and that most of it is spent before noon.', 'Every switch between tasks costs more than it feels like at the time; the speaker prices one at a quarter of an hour.', 'The advice is plain: protect one deep block a day and let the rest of the day be shallow on purpose.'] },
+  desk: { id: 'desk', kind: 'idea', title: 'Video idea: a desk in ten minutes', when: 'Wed 30 Sep', links: 4, stage: 1,
+    body: ['Demo text. Ten minutes on one desk: clear it, light it from one side, keep one object that says what the room is for.', 'Open on the mess and close on the single object. No voice until the last shot.'] },
+  comp: { id: 'comp', kind: 'concept', title: 'Compounding', when: 'Mon 28 Sep', links: 7, review: true,
+    body: ['Demo text. Small changes, kept for long enough, stop looking small.', 'The hard part is the middle, where the curve still looks flat and nothing seems to be happening.', 'Seven pages link here, most of them about mornings and habits.'] },
+  sat: { id: 'sat', kind: 'journal', title: 'Saturday 3 October', when: 'Sat 3 Oct' }, morn: { id: 'morn', kind: 'topic', title: 'Mornings', when: 'Sun 27 Sep' },
+  wk39: { id: 'wk39', kind: 'analysis', title: 'Week 39 in review', when: 'Sun 27 Sep' }, writer: { id: 'writer', kind: 'entity', title: 'A writer I follow', when: 'Fri 25 Sep' },
+  habits: { id: 'habits', kind: 'topic', title: 'Habits', when: 'Tue 22 Sep' },
+};
+const RECENT = ['sat', 'att', 'desk', 'comp', 'morn', 'wk39', 'writer'].map((k) => P[k]);
+const KF = { source: 'att', idea: 'desk', review: 'comp' };
+const DAYS = [
+  { d: '2026-10-05', l: 'Mon 5 Oct', today: 1, e: [['07:40', 'p', 'Demo entry, a few lines.'], ['12:10', 't', 'Demo receipt, a session logged.'], ['21:05', 'r', 'Demo reflection on Compounding.', 'comp']] },
+  { d: '2026-10-04', l: 'Sun 4 Oct', e: [['08:02', 'p', 'Demo entry, a few lines.'], ['17:30', 't', 'Demo receipt, a walk logged.']] },
+  { d: '2026-10-03', l: 'Sat 3 Oct', e: [['06:55', 'p', 'Demo entry, a few lines.'], ['09:10', 'p', 'Demo entry, two more.'], ['11:00', 't', 'Demo receipt, a session logged.'], ['13:20', 'p', 'Demo entry, invented.'], ['16:45', 's', 'Demo brief, the week so far.'], ['20:30', 'r', 'Demo reflection on Habits.', 'habits'], ['22:10', 'p', 'Demo entry, the last one.']] },
+  { d: '2026-10-02', l: 'Fri 2 Oct', e: [['21:40', 'p', 'Demo entry.']] },
+  { d: '2026-10-01', l: 'Thu 1 Oct', e: [['07:15', 'p', 'Demo entry.'], ['18:05', 't', 'Demo receipt.'], ['19:30', 'p', 'Demo entry.'], ['22:00', 'p', 'Demo entry.']] },
+  { d: '2026-09-30', l: 'Wed 30 Sep', e: [['08:20', 'p', 'Demo entry.'], ['17:10', 't', 'Demo receipt.']] },
+  { d: '2026-09-29', l: 'Tue 29 Sep', e: [['22:30', 'p', 'Demo entry.']] },
+];
+const CAT = { p: ['Personal', IC.pen], t: ['Training', IC.dumb], s: ['From Nova', IC.brief], r: ['Reflection', IC.pen] };
+const QUESTION = 'What did today ask of you that yesterday did not?';
+const WORDS = 'Demo words, typed for the mockup: more than I expected, and I had it.';
+const WORDN = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five'];
+
+/* ---------------- the graph (seeded, invented) ---------------- */
+function mulberry(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const G = (() => {
+  const R = mulberry(79);
+  const named = [['att', 'A talk on attention', 'source'], ['desk', 'Video idea: a desk in ten minutes', 'idea'], ['comp', 'Compounding', 'concept'], ['morn', 'Mornings', 'topic'], ['writer', 'A writer I follow', 'entity'], ['wk39', 'Week 39 in review', 'analysis'], ['sat', 'Saturday 3 October', 'journal'], ['habits', 'Habits', 'topic'], ['interest', 'Interest, in a sentence', 'concept'], ['deep', 'Deep work', 'concept'], ['sleep', 'Sleep', 'topic'], ['switch', 'Switching costs', 'concept'], ['budget', 'Attention as a budget', 'concept'], ['studio', 'Studio', 'topic'], ['light', 'Lighting a small room', 'source'], ['wins', 'Small wins', 'concept']];
+  const nodes = named.map(([id, label, kind]) => ({ id, label, kind }));
+  const pool = ['concept', 'concept', 'concept', 'source', 'source', 'topic', 'entity', 'journal', 'journal', 'analysis', 'idea'];
+  for (let i = nodes.length; i < 72; i++) nodes.push({ id: 'n' + i, label: 'Page ' + i, kind: pool[Math.floor(R() * pool.length)] });
+  const idx = {}; nodes.forEach((n, i) => { idx[n.id] = i; });
+  const seen = new Set(), links = [];
+  const add = (a, b) => { if (a === b) return; const k = a < b ? a + ':' + b : b + ':' + a; if (seen.has(k)) return; seen.add(k); links.push([a, b]); };
+  [['comp', 'habits'], ['comp', 'att'], ['comp', 'wk39'], ['comp', 'morn'], ['comp', 'writer'], ['comp', 'sat'], ['comp', 'interest'], ['att', 'budget'], ['att', 'switch'], ['att', 'deep'], ['att', 'morn'], ['att', 'wk39'], ['desk', 'studio'], ['desk', 'light'], ['desk', 'habits'], ['desk', 'wins'], ['morn', 'sleep'], ['habits', 'wins'], ['deep', 'switch'], ['writer', 'studio'], ['budget', 'switch'], ['interest', 'wins'], ['sleep', 'sat'], ['wk39', 'sat']].forEach(([a, b]) => add(idx[a], idx[b]));
+  const hubs = ['morn', 'habits', 'deep', 'sleep', 'studio', 'writer', 'wk39', 'budget', 'interest', 'wins', 'switch', 'light', 'sat'].map((k) => idx[k]);
+  for (let i = named.length; i < nodes.length; i++) { add(i, hubs[Math.floor(R() * hubs.length)]); if (R() < .45) add(i, named.length + Math.floor(R() * (nodes.length - named.length))); }
+  const n = nodes.length, W = 640, H = 760, deg = new Array(n).fill(0);
+  links.forEach(([a, b]) => { deg[a]++; deg[b]++; });
+  const R2 = mulberry(7);
+  nodes.forEach((d, i) => { const a = (i / n) * Math.PI * 2 + (R2() - .5); const r = 230 * (.4 + R2() * .7); d.x = W / 2 + Math.cos(a) * r; d.y = H / 2 + Math.sin(a) * r; d.vx = 0; d.vy = 0; });
+  const Lk = 64, REP = Lk * Lk * 1.1;
+  for (let t = 0; t < 260; t++) {
+    const al = 1 - t / 260;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { let dx = nodes[j].x - nodes[i].x, dy = nodes[j].y - nodes[i].y; const d2 = dx * dx + dy * dy || .01, f = Math.min(REP / d2, Lk * 2) * al, d = Math.sqrt(d2); dx /= d; dy /= d; nodes[i].vx -= dx * f * .5; nodes[i].vy -= dy * f * .5; nodes[j].vx += dx * f * .5; nodes[j].vy += dy * f * .5; }
+    links.forEach(([a, b]) => { const A = nodes[a], B = nodes[b], dx = B.x - A.x, dy = B.y - A.y, d = Math.sqrt(dx * dx + dy * dy) || .01, p = (d - Lk) * .06 * al, fx = dx / d * p, fy = dy / d * p, wa = 1 / (1 + deg[a] * .15), wb = 1 / (1 + deg[b] * .15); A.vx += fx * wa; A.vy += fy * wa; B.vx -= fx * wb; B.vy -= fy * wb; });
+    nodes.forEach((d) => { d.vx += (W / 2 - d.x) * .004 * al; d.vy += (H / 2 - d.y) * .004 * al; d.vx *= .82; d.vy *= .82; d.x += d.vx; d.y += d.vy; });
+  }
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  nodes.forEach((d, i) => { d.deg = deg[i]; d.r = 2.2 + Math.min(5, Math.sqrt(deg[i]) * 1.15); x0 = Math.min(x0, d.x); x1 = Math.max(x1, d.x); y0 = Math.min(y0, d.y); y1 = Math.max(y1, d.y); });
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, bw = x1 - x0, bh = y1 - y0;
+  nodes.forEach((d) => { d.dist = Math.min(1, Math.hypot((d.x - cx) / (bw / 2), (d.y - cy) / (bh / 2)) / 1.3); });
+  const counts = {}; nodes.forEach((d) => { counts[d.kind] = (counts[d.kind] || 0) + 1; });
+  return { nodes, links, idx, cx, cy, bw, bh, counts };
+})();
+
+const SPR = {};
+function hexA(h, a) { const v = parseInt(h.slice(1), 16); return `rgba(${v >> 16},${(v >> 8) & 255},${v & 255},${a})`; }
+function sprite(c) {
+  if (SPR[c]) return SPR[c];
+  const s = document.createElement('canvas'); s.width = s.height = 64; const x = s.getContext('2d');
+  const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, '#ffffff'); g.addColorStop(.13, c); g.addColorStop(.3, hexA(c, .5)); g.addColorStop(1, hexA(c, 0));
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); SPR[c] = s; return s;
+}
+/* The map draws only while something moves: every change is a tween, and
+   between tweens the canvas is a still picture (one of the audit's asks). */
+let SKY = null;
+class Sky {
+  constructor(host, o = {}) {
+    this.host = host; this.cv = document.createElement('canvas'); this.cv.className = 'skycv'; this.cv.setAttribute('role', 'img');
+    this.cv.setAttribute('aria-label', `Your Galaxy: ${G.nodes.length} pages and ${G.links.length} links, demo`);
+    host.appendChild(this.cv); this.ctx = this.cv.getContext('2d');
+    this.anchor = o.anchor ?? .5; this.sel = -1; this.nb = new Set(); this.order = []; this.lit = 0; this.dim = 0; this.pulse = 0; this.intro = 1; this.selLabel = !!o.selLabel; this.n = 0;
+    this.resize(); this.cam = this.home(o.fit || 1); if (o.cam) Object.assign(this.cam, o.cam); this.draw();
+    SKY = this;
+  }
+  resize() { this.w = this.host.clientWidth; this.h = this.host.clientHeight; const dpr = Math.min(2, window.devicePixelRatio || 1); this.k = dpr * Z; this.cv.width = Math.max(1, Math.round(this.w * this.k)); this.cv.height = Math.max(1, Math.round(this.h * this.k)); this.cv.style.width = this.w + 'px'; this.cv.style.height = this.h + 'px'; if (this.cam) this.draw(); }
+  home(f = 1) { return { x: G.cx, y: G.cy, s: f * Math.min(this.w / (G.bw + 60), this.h * .9 / (G.bh + 60)) }; }
+  at(id, s) { const d = G.nodes[G.idx[id]]; return { x: d.x, y: d.y, s }; }
+  sp(d) { return { x: (d.x - this.cam.x) * this.cam.s + this.w / 2, y: (d.y - this.cam.y) * this.cam.s + this.h * this.anchor }; }
+  star(id) { return this.sp(G.nodes[G.idx[id]]); }
+  go(ms, step) { return tween(ms, (e) => { step(e); this.draw(); }); }
+  camTo(c, ms = 700) { const a = { ...this.cam }; return this.go(ms, (e) => { this.cam.x = a.x + (c.x - a.x) * e; this.cam.y = a.y + (c.y - a.y) * e; this.cam.s = a.s * Math.pow(c.s / a.s, e); }); }
+  async select(id, ms = 900) {
+    const i = G.idx[id]; this.sel = i; this.nb = new Set(); const ord = []; const c = G.nodes[i];
+    G.links.forEach(([a, b]) => { if (a === i) { this.nb.add(b); ord.push(b); } else if (b === i) { this.nb.add(a); ord.push(a); } });
+    ord.sort((p, q) => Math.atan2(G.nodes[p].y - c.y, G.nodes[p].x - c.x) - Math.atan2(G.nodes[q].y - c.y, G.nodes[q].x - c.x));
+    this.order = ord; this.lit = 0; const d0 = this.dim;
+    this.go(700, (e) => { this.pulse = e; });
+    await this.go(ms, (e) => { this.lit = e; this.dim = d0 + (1 - d0) * Math.min(1, e * 2); });
+    this.pulse = 0; this.draw();
+  }
+  draw() {
+    const { ctx, w, h, k } = this; if (!ctx) return; this.n++;
+    ctx.setTransform(k, 0, 0, k, 0, 0); ctx.clearRect(0, 0, w, h);
+    const N = G.nodes, Pp = N.map((d) => this.sp(d)), sel = this.sel, nb = this.nb;
+    const vis = (i) => (this.intro >= 1 ? 1 : Math.max(0, Math.min(1, (this.intro * 1.35 - N[i].dist) / .35)));
+    ctx.lineWidth = 1;
+    for (const [a, b] of G.links) {
+      if (sel >= 0 && (a === sel || b === sel)) continue;
+      let al = .15 * Math.min(vis(a), vis(b)); if (sel >= 0) al *= 1 - .8 * this.dim; if (al < .005) continue;
+      ctx.strokeStyle = `rgba(236,229,218,${al.toFixed(3)})`; ctx.beginPath(); ctx.moveTo(Pp[a].x, Pp[a].y); ctx.lineTo(Pp[b].x, Pp[b].y); ctx.stroke();
+    }
+    const n1 = this.order.length;
+    const prog = (q) => Math.max(0, Math.min(1, (this.lit * (n1 + 1) - q) / 2));
+    if (sel >= 0) { ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(201,216,255,.8)'; this.order.forEach((j, q) => { const p = prog(q); if (p <= 0) return; const A = Pp[sel], B = Pp[j]; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(A.x + (B.x - A.x) * p, A.y + (B.y - A.y) * p); ctx.stroke(); }); }
+    const zs = .8 + .2 * Math.min(this.cam.s, 2.6);
+    for (let i = 0; i < N.length; i++) {
+      let a = vis(i); if (a <= 0) continue;
+      if (sel >= 0 && i !== sel && !nb.has(i)) a *= 1 - .72 * this.dim;
+      const r = N[i].r * zs, s = r * 5.2; ctx.globalAlpha = a; ctx.drawImage(sprite(KIND[N[i].kind].c), Pp[i].x - s / 2, Pp[i].y - s / 2, s, s);
+    }
+    ctx.globalAlpha = 1;
+    if (sel < 0) return;
+    const p = Pp[sel], rr = N[sel].r * zs + 7;
+    ctx.strokeStyle = 'rgba(201,216,255,.95)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, Math.PI * 2); ctx.stroke();
+    if (this.pulse > 0 && this.pulse < 1) { ctx.strokeStyle = `rgba(201,216,255,${(.7 * (1 - this.pulse)).toFixed(3)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, rr + this.pulse * 30, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.textBaseline = 'middle'; const placed = [];
+    const label = (i, al, bold) => {
+      if (al <= .02) return; const q = Pp[i]; if (q.x < 0 || q.x > w || q.y < 60 || q.y > h - 40) return;
+      ctx.font = (bold ? '600 ' : '') + '13px ' + FONT; const t = N[i].label, tw = ctx.measureText(t).width, r0 = N[i].r * zs + 9;
+      let x = q.x + r0; if (x + tw > w - 10) x = q.x - r0 - tw; x = Math.max(10, x);
+      const b = { x0: x - 3, y0: q.y - 10, x1: x + tw + 3, y1: q.y + 10 };
+      if (placed.some((c) => b.x0 < c.x1 && b.x1 > c.x0 && b.y0 < c.y1 && b.y1 > c.y0)) return; placed.push(b);
+      ctx.globalAlpha = al; ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(6,7,13,.88)'; ctx.strokeText(t, x, q.y); ctx.fillStyle = bold ? '#fff' : 'rgba(232,236,246,.92)'; ctx.fillText(t, x, q.y); ctx.globalAlpha = 1;
+    };
+    if (this.selLabel) label(sel, 1, true);
+    this.order.forEach((j, q) => label(j, prog(q), false));
+  }
+}
+async function introSky(sky) { sky.intro = 0; sky.draw(); await sky.go(800, (e) => { sky.intro = e; }); sky.intro = 1; sky.draw(); }
+
+/* ---------------- shared pieces ---------------- */
+const stage = () => $('#stage', phone), topL = () => $('#top', phone);
+function chrome() {
+  phone.innerHTML = `<div class="sky"></div><div class="stage" id="stage"></div><div class="top" id="top"></div>
+  <nav class="dock" aria-label="Tabs (drawn, not live)"><div class="tabbar"><span class="tab">${svg(IC.home)}Home</span><span class="tab">${svg(IC.mic)}Nova</span><span class="tab">${svg(IC.train)}Train</span><span class="tab">${svg(IC.fuel)}Fuel</span><span class="tab on">${svg(IC.more)}More</span></div><span class="orb" aria-hidden="true"></span></nav>
+  <div class="status" aria-hidden="true"><span class="time">9:41</span><span class="island"></span><span class="dm">Demo</span><span class="bat"></span></div>`;
+}
+const kline = (p) => `<div class="kline">${kg(p.kind, 1)}<span>${KIND[p.kind].w}${p.review ? " · today's review" : ''}${p.mins ? ` · <span class="num">${p.mins}</span> min` : ''}</span></div>`;
+const rail = () => `<div class="rail" role="group" aria-label="Kinds"><button class="kc on" data-o aria-pressed="true">All <span class="num">${G.nodes.length}</span></button>${['concept', 'source', 'topic', 'journal', 'idea', 'entity', 'analysis'].map((k) => `<button class="kc" data-o aria-pressed="false" style="--c:${KIND[k].c}">${svg(GL[k], 'gi')}${KIND[k].pl} <span class="num">${G.counts[k] || 0}</span></button>`).join('')}</div>`;
+const rowA = (p) => `<button class="nrow" data-o data-id="${p.id}">${kg(p.kind)}<span class="t">${p.title}</span><span class="w">${p.when}</span></button>`;
+const capB = (ic, hue, label, act) => `<button class="cap" data-o data-act="${act}" style="--c:var(--${hue})">${svg(IC[ic])}<span>${label}</span></button>`;
+function capsFor(p) {
+  const c = [];
+  if (p.kind === 'source') c.push(capB('play', 'notes', `Play from ${p.ideas[0][0]}`, 'play'));
+  if (p.kind === 'idea') c.push(capB('stage', 'notes', `<span data-stg>${STAGES[p.stage]}</span>`, 'stage'));
+  if (p.review) c.push(capB('pen', 'journal', 'Reflect', 'reflect'));
+  c.push(capB('galaxy', 'galaxy', `In your Galaxy <span class="num">${p.links}</span>`, 'galaxy'));
+  return `<div class="caps">${c.join('')}</div>`;
+}
+const bodyHTML = (p) => `<div class="body">${p.body.map((t) => `<p>${t}</p>`).join('')}</div>`;
+const pageA = (p) => `<div class="npg" id="page" data-o><div class="pbar"><button class="back" data-o>${svg(IC.back)}<span>Notes</span></button></div><div class="pin">${kline(p)}<h2 class="ptitle">${p.title}</h2><p class="meta pm">${p.when} · <span class="num">${p.links}</span> links</p>${capsFor(p)}${bodyHTML(p)}</div></div>`;
+const secs = (ts) => { const [m, s] = ts.split(':').map(Number); return m * 60 + s; };
+const composer = () => `<div class="cmp" id="cmp" data-o><p class="prompt" id="pr" aria-live="polite"></p><div class="field" id="fld" data-o><span id="fx"></span><span class="ph" id="ph">Write it down</span><i class="caret"></i></div><div class="crow"><button class="ask" data-o id="ask">${svg(IC.spark)}<span>Ask me a question</span></button><button class="save" data-o id="save">Save</button></div></div>`;
+function sheetHTML(kind, p) {
+  const head = (h, m) => `<div class="grab"></div><h3 class="sh">${h}</h3><p class="meta">${m}</p>`;
+  if (kind === 'source') return `<div class="sheet" id="sheet" role="dialog" aria-label="Key ideas">${head('Key ideas', `${p.title} · <span class="num">${p.mins}</span> min`)}
+    <div class="tl"><span class="rl"></span>${p.ideas.map(([ts], i) => `<button class="tk2${i ? '' : ' on'}" data-o data-i="${i}" style="left:${(secs(ts) / (p.mins * 60) * 100).toFixed(1)}%" aria-label="${ts}"><i></i></button>`).join('')}</div>
+    <div class="tlends meta"><span>0:00</span><span>${p.mins}:00</span></div>
+    <p class="tln"><span class="num" data-ts>${p.ideas[0][0]}</span> <span data-tx>${p.ideas[0][1]}</span></p>
+    <button class="wide" data-o style="--c:var(--notes)">${svg(IC.play)}<span>Play from <span data-tsl>${p.ideas[0][0]}</span></span>${svg(IC.out)}</button><p class="meta" style="margin-top:8px;text-align:center">Opens the video in its own app.</p></div>`;
+  if (kind === 'idea') return `<div class="sheet" id="sheet" role="dialog" aria-label="Studio stage">${head('Studio stage', 'Set it either way. One write, with Undo.')}
+    <div class="track"><span class="t0"></span><span class="t1" id="trf" style="transform:scaleX(${p.stage / 3})"></span>${STAGES.map((s, i) => `<button class="stop${i <= p.stage ? ' done' : ''}${i === p.stage ? ' on' : ''}" data-o data-s="${i}"><i></i><span>${s}</span></button>`).join('')}</div>
+    <div class="grp2"><button class="srow" data-o>${svg(IC.pen)}<span class="t">Draft the outline now</span>${svg(IC.chev, 'ic chev')}</button><button class="srow" data-o>${svg(IC.moon)}<span class="t">Draft it tonight<small>In your Inbox by morning</small></span>${svg(IC.chev, 'ic chev')}</button></div>
+    <div class="undo" id="undo" hidden><span>Moved to <b>Scripting</b></span><button data-o>Undo</button></div></div>`;
+  return `<div class="sheet" id="sheet" role="dialog" aria-label="Reflect">${head('Reflect on Compounding', 'Saves to Monday 5 October in your Journal')}${composer()}</div>`;
+}
+async function openSheetFrom(from, html) {
+  const T = topL(); T.insertAdjacentHTML('beforeend', `<div class="scrim" id="scrim"></div>${html}`);
+  const sh = $('#sheet', T), sc = $('#scrim', T), f = rectOf(from), s = rectOf(sh);
+  sh.style.transformOrigin = `${f.x + f.w / 2 - s.x}px ${f.y + f.h / 2 - s.y}px`;
+  anim(sc, [{ opacity: 0 }, { opacity: 1 }], 300);
+  await anim(sh, [{ opacity: 0, transform: 'scale(.25)' }, { opacity: 1, transform: 'none' }], 420, { rm: 'in' });
+  return sh;
+}
+async function sheetScript(kind, sh, W, A, after) {
+  if (kind === 'source') {
+    await W(900); const b = $$('.tk2', sh)[1]; await tap(b, W);
+    $$('.tk2', sh).forEach((x) => x.classList.toggle('on', x === b)); const P0 = P.att;
+    swapText($('[data-ts]', sh), P0.ideas[1][0]); swapText($('[data-tx]', sh), P0.ideas[1][1]); swapText($('[data-tsl]', sh), P0.ideas[1][0]);
+    return;
+  }
+  if (kind === 'idea') {
+    await W(900); const st = $('.stop[data-s="2"]', sh); await tap(st, W);
+    await A(anim($('#trf', sh), [{ transform: 'scaleX(.3333)' }, { transform: 'scaleX(.6667)' }], 420));
+    $$('.stop', sh).forEach((x) => { const i = +x.dataset.s; x.classList.toggle('done', i <= 2); x.classList.toggle('on', i === 2); });
+    $$('[data-stg]').forEach((x) => { x.textContent = 'Scripting'; });
+    const u = $('#undo', sh); u.hidden = false; anim(u, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], 300);
+    return;
+  }
+  await W(500); await compose(sh, W, A);
+  await A(anim(sh, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(60%)' }], 360, { rm: 'out' }));
+  sh.remove(); const sc = $('#scrim', topL()); if (sc) anim(sc, [{ opacity: 1 }, { opacity: 0 }], 200).then(() => sc.remove());
+  if (after) await after();
+}
+async function compose(root, W, A) {
+  const ask = $('#ask', root), pr = $('#pr', root), fx = $('#fx', root), ph = $('#ph', root), save = $('#save', root), fld = $('#fld', root);
+  fld.classList.add('typing'); await W(400);
+  await tap(ask, W); ask.classList.add('busy'); await W(520); ask.classList.remove('busy');
+  await A(pour(pr, QUESTION, W)); await W(400);
+  ph.hidden = true; await A(typeIn(fx, WORDS, W)); await W(450);
+  await tap(save, W); fld.classList.remove('typing');
+}
+function toast(html, hue) { const T = topL(); T.insertAdjacentHTML('beforeend', `<div class="toast" role="status" style="--c:var(--${hue})">${html}</div>`); const t = T.lastElementChild; anim(t, [{ opacity: 0, transform: 'translateY(20px)' }, { opacity: 1, transform: 'none' }], 320, { rm: 'in' }); return t; }
+const savedToast = () => toast(`<span>Saved to Monday in your Journal.</span><button data-o>Open the day</button>`, 'journal');
+function clipFrom(el, r, ms = 520) {
+  const ins = `inset(${r.y}px ${390 - r.x - r.w}px ${844 - r.y - r.h}px ${r.x}px round 16px)`;
+  return anim(el, [{ clipPath: ins }, { clipPath: 'inset(0px 0px 0px 0px round 0px)' }], ms, { rm: 'in' });
+}
+const R0 = (x, y) => Math.hypot(Math.max(x, 390 - x), Math.max(y, 844 - y));
+const revealFrom = (el, x, y, ms = 580) => anim(el, [{ clipPath: `circle(6px at ${x}px ${y}px)` }, { clipPath: `circle(${R0(x, y)}px at ${x}px ${y}px)` }], ms, { rm: 'in' });
+const foldInto = (el, x, y, ms = 520) => anim(el, [{ clipPath: `circle(${R0(x, y)}px at ${x}px ${y}px)`, opacity: 1 }, { clipPath: `circle(5px at ${x}px ${y}px)`, opacity: .4 }], ms, { rm: 'out', easing: 'cubic-bezier(.65,0,.35,1)' });
+async function fly(x0, y0, x1, y1, ms = 640) {
+  if (RM()) return;
+  const s = document.createElement('i'); s.className = 'spk'; s.innerHTML = '<b></b>'; s.style.left = x0 + 'px'; s.style.top = y0 + 'px'; topL().appendChild(s);
+  const b = $('b', s);
+  await Promise.all([anim(s, [{ transform: 'translateX(0)' }, { transform: `translateX(${x1 - x0}px)` }], ms, { easing: 'cubic-bezier(.2,.6,.4,1)' }), anim(b, [{ transform: 'translateY(0) scale(1)' }, { transform: `translateY(${y1 - y0}px) scale(.55)` }], ms, { easing: 'cubic-bezier(.6,0,.8,.6)' })]);
+  s.remove();
+}
+const pctT = (t) => { const [h, m] = t.split(':').map(Number); return ((h * 60 + m) / 1440 * 100).toFixed(2); };
+const strip = (d) => `<span class="strip" aria-hidden="true"><i class="ax"></i><i class="q" style="left:25%"></i><i class="q" style="left:50%"></i><i class="q" style="left:75%"></i>${d.e.map((e) => `<i class="tk" style="left:${pctT(e[0])}%"></i>`).join('')}</span>`;
+const entry = (e) => `<div class="erow"><span class="et num">${e[0]}</span><span class="kg sm" style="--c:var(--ink3)" role="img" aria-label="${CAT[e[1]][0]}">${svg(CAT[e[1]][1], 'gi')}</span><span class="ex">${e[2]}${e[3] ? `<br><button class="door" data-o style="--c:var(--notes)">${kg(P[e[3]].kind, 1)}<span>${P[e[3]].title}</span>${svg(IC.chev, 'ic chev')}</button>` : ''}</span></div>`;
+const dayA = (d) => `<div class="dwrap${d.today ? ' today' : ''}" data-d="${d.d}"><button class="drow" data-o aria-expanded="false" aria-label="${d.l}, ${d.e.length} entries"><span class="dtop"><span class="dd">${d.l}</span>${d.today ? '<span class="tday">Today</span>' : ''}<span class="dn num">${d.e.length}</span>${svg(IC.chev, 'ic chev')}</span>${strip(d)}</button><div class="dent" hidden>${d.e.map(entry).join('')}${d.d === '2026-10-03' ? `<button class="door" data-o style="--c:var(--galaxy)">${svg(IC.galaxy)}<span>Saturday in your Galaxy</span></button>` : ''}</div></div>`;
+async function openDay(wrap, W, A) {
+  const row = $('.drow', wrap), ent = $('.dent', wrap); await tap(row, W);
+  row.setAttribute('aria-expanded', 'true'); const ticks = $$('.tk', row); ent.hidden = false; const rows = $$('.erow', ent);
+  if (!RM()) ticks.forEach((tk, i) => { const er = rows[i]; if (!er) return; const a = rectOf(tk), b = rectOf($('.et', er)); const g = document.createElement('i'); g.className = 'ghost'; Object.assign(g.style, { left: a.x + 'px', top: a.y + 'px', width: a.w + 'px', height: a.h + 'px' }); topL().appendChild(g); anim(g, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(${b.x - a.x}px,${b.y + 4 - a.y}px)`, opacity: 0 }], 560, { delay: i * 45 }).then(() => g.remove()); });
+  anim($('.chev', row), [{ transform: 'rotate(0deg)' }, { transform: 'rotate(90deg)' }], 240);
+  await A(rise([...rows, ...$$('.dent>.door', ent)], 45, 140));
+}
+async function landOnToday(stripEl, newsWord, countEl) {
+  const t = '21:40', st = rectOf(stripEl), x1 = st.x + st.w * pctT(t) / 100, y1 = st.y + st.h / 2;
+  return { x1, y1, after: async () => {
+    stripEl.insertAdjacentHTML('beforeend', `<i class="tk new" style="left:${pctT(t)}%"></i>`);
+    anim($('.tk.new', stripEl), [{ transform: 'scaleY(0)', opacity: 0 }, { transform: 'scaleY(1.4)', opacity: 1, offset: .6 }, { transform: 'scaleY(1)', opacity: 1 }], 360);
+    if (countEl) swapText(countEl, '4'); if (newsWord) swapText(newsWord, 'Four');
+  } };
+}
+
+/* ======================= A · THE PAGE ======================= */
+const notesListA = () => `<div class="scr"><div class="lt"><h1>Notes</h1></div><p class="news">Today's review is <b>Compounding</b>.</p><div class="search" data-o>${svg(IC.search)}<span>Search ${G.nodes.length} pages</span></div>${rail()}<div class="list glass" data-o>${RECENT.map(rowA).join('')}</div></div>`;
+const journalA = () => `<div class="scr" style="--h:var(--journal)"><div class="lt"><h1>Journal</h1><button class="ib" data-o aria-label="Show: all entries">${svg(IC.filter)}</button></div><p class="news"><b data-w>Three</b> entries today, twelve this week.</p><div class="glass" style="padding:2px 14px 12px;margin-top:12px" data-o id="jc">${composer()}</div><div class="days glass" data-o>${DAYS.map(dayA).join('')}</div></div>`;
+const galaxyTop = () => `<div class="gtop"><div class="lt"><h1>Galaxy</h1><button class="ib" data-o aria-label="Find a page" style="--h:var(--galaxy)">${svg(IC.search)}</button></div><p class="news">${G.nodes.length} pages, ${G.links.length} links. Three joined this week.</p></div>`;
+function galaxyA() { stage().innerHTML = `<div class="gal"><div class="skyhost" id="skyhost" data-o></div>${galaxyTop()}<button class="showpill glass" data-o>${svg(IC.show)}<span>All kinds</span><span class="sp">·</span><span class="sp">No light</span></button></div>`; return new Sky($('#skyhost', stage()), { anchor: .55 }); }
+function journalCompact(root) { const c = $('#cmp', root); $('.crow', c).style.display = 'none'; return c; }
+async function expandComposer(root, W) { const c = $('#cmp', root), row = $('.crow', c); await tap($('#fld', c), W); row.style.display = ''; await anim(row, [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], 260); }
+
+const A_ = {
+  async read(W, A, kind) {
+    const p = P[KF[kind]]; stage().innerHTML = notesListA(); rise($$('.lt, .news, .search, .rail, .list', stage()));
+    await W(1000); const row = $(`.nrow[data-id="${p.id}"]`, stage()); await tap(row, W); row.classList.add('sel');
+    const r = rectOf(row); stage().insertAdjacentHTML('beforeend', pageA(p)); const pg = $('#page', stage());
+    rise($$('.kline, .ptitle, .pm, .cap, .body p', pg), 40, 160); await A(clipFrom(pg, r));
+    await W(1300); const c = $(`.cap[data-act="${kind === 'review' ? 'reflect' : kind === 'idea' ? 'stage' : 'play'}"]`, pg); await tap(c, W);
+    const sh = await openSheetFrom(c, sheetHTML(kind, p)); await sheetScript(kind, sh, W, A, async () => { savedToast(); });
+  },
+  async day(W, A) {
+    stage().innerHTML = journalA(); const root = stage(); journalCompact(root); rise($$('.lt, .news, #jc, .days', root));
+    await W(1000); await openDay($('.dwrap[data-d="2026-10-03"]', root), W, A);
+    await W(1500); await anim($('.dwrap[data-d="2026-10-03"] .dent', root), [{ opacity: 1 }, { opacity: 0 }], 160); $('.dwrap[data-d="2026-10-03"] .dent', root).hidden = true; $('.dwrap[data-d="2026-10-03"] .drow', root).setAttribute('aria-expanded', 'false'); anim($('.dwrap[data-d="2026-10-03"] .chev', root), [{ transform: 'rotate(90deg)' }, { transform: 'rotate(0deg)' }], 200);
+    await expandComposer(root, W); await compose(root, W, A);
+    const today = $('.dwrap[data-d="2026-10-05"]', root), s = rectOf($('#save', root)); const L = await landOnToday($('.strip', today), $('[data-w]', root), $('.dn', today));
+    $('#fx', root).textContent = ''; $('#ph', root).hidden = false; anim($('#pr', root), [{ opacity: 1 }, { opacity: 0 }], 200).then(() => { $('#pr', root).textContent = ''; $('#pr', root).style.opacity = ''; });
+    await A(fly(s.x + s.w / 2, s.y + s.h / 2, L.x1, L.y1)); await L.after(); toast('<span>Saved at 21:40.</span><button data-o>Undo</button>', 'journal');
+  },
+  async star(W, A) {
+    const sky = galaxyA(); rise($$('.gtop, .showpill', stage())); await A(introSky(sky));
+    await W(600); let s = sky.star('att'); touch(s.x, s.y); await W(250);
+    sky.camTo(sky.at('att', 1.7), 760); await W(200); await A(sky.select('att', 900));
+    s = sky.star('att'); const pg = P.att;
+    stage().insertAdjacentHTML('beforeend', `<div class="scard" id="scard" style="top:${s.y + 24}px"><i class="arrow" style="left:${s.x - 16}px"></i>${kline(pg)}<h3 class="sct">${pg.title}</h3><p class="meta">${pg.when} · <span class="num">${pg.links}</span> links</p><div class="scrow"><button class="open" data-o style="--c:var(--notes)">Open</button><button class="ib" data-o aria-label="Close">${svg(IC.close)}</button></div></div>`);
+    const card = $('#scard', stage()); card.style.transformOrigin = `${s.x - 16}px -12px`;
+    await A(anim(card, [{ opacity: 0, transform: 'scale(.2)' }, { opacity: 1, transform: 'none' }], 460, { rm: 'in' }));
+    await W(1300); await tap($('.open', card), W);
+    stage().insertAdjacentHTML('beforeend', pageA(pg)); const page = $('#page', stage()); rise($$('.kline, .ptitle, .pm, .cap, .body p', page), 40, 200); await A(revealFrom(page, s.x, s.y));
+  },
+  async link(W, A) {
+    const sky = galaxyA(); sky.cam = sky.at('comp', 1.7); sky.selLabel = true; sky.draw();
+    stage().insertAdjacentHTML('beforeend', pageA(P.comp)); const pg = $('#page', stage()); rise($$('.kline, .ptitle, .pm, .cap, .body p', pg));
+    await W(1300); const c = $('.cap[data-act="galaxy"]', pg); await tap(c, W);
+    const s = sky.star('comp'); await A(foldInto(pg, s.x, s.y)); pg.remove();
+    stage().insertAdjacentHTML('beforeend', `<button class="pillback glass" data-o>${svg(IC.back)}<span>Compounding</span></button>`); anim($('.pillback', stage()), [{ opacity: 0 }, { opacity: 1 }], 300);
+    await A(sky.select('comp', 1400));
+  },
+};
+
+/* ======================= B · THE MAP ======================= */
+const DET = { full: 0, half: 368, peek: 560 };
+function mapB(o = {}) {
+  stage().innerHTML = `<div class="gal"><div class="skyhost" id="skyhost" data-o></div><div class="mapdim" id="dim"></div><svg class="tether" id="teth" width="390" height="844" viewBox="0 0 390 844" aria-hidden="true"></svg><div class="bs" id="bs" data-o style="transform:translateY(${DET[o.det || 'peek']}px)"></div></div>`;
+  return new Sky($('#skyhost', stage()), { anchor: o.anchor ?? .36, fit: .95 });
+}
+const bs = () => $('#bs', stage());
+let DETNOW = 'peek';
+function toDet(name, onStep) { const el = bs(); const a = DET[DETNOW], b = DET[name]; DETNOW = name; return tween(560, (e) => { const y = a + (b - a) * e; el.style.transform = `translateY(${y}px)`; if (onStep) onStep(y, e); }); }
+const sheetListB = () => `<div class="grab"></div><div class="search" data-o>${svg(IC.search)}<span>Search ${G.nodes.length} pages</span></div><button class="srow" data-o style="padding:6px 4px;margin-top:4px">${kg('concept')}<span class="t">Today's review: <span style="font-family:var(--serif)">Compounding</span></span>${svg(IC.chev, 'ic chev')}</button>${rail()}<div class="list" style="margin:8px -16px 0">${RECENT.map(rowA).join('')}</div>`;
+const actsB = (p) => { const a = []; const act = (ic, hue, l, k) => `<button class="act" data-o data-act="${k}" style="--c:var(--${hue})">${svg(IC[ic])}<span>${l}</span></button>`; if (p.kind === 'source') a.push(act('play', 'notes', `Play ${p.ideas[0][0]}`, 'play')); if (p.kind === 'idea') a.push(act('stage', 'notes', STAGES[p.stage], 'stage')); if (p.review) a.push(act('pen', 'journal', 'Reflect', 'reflect')); a.push(act('links', 'galaxy', `${p.links} links`, 'galaxy')); return `<div class="acts">${a.join('')}</div>`; };
+const placeB = (p) => `<div class="grab"></div>${kline(p)}<h2 class="ptitle">${p.title}</h2><p class="meta pm">${p.when} · <span class="num">${p.links}</span> links</p>${actsB(p)}${bodyHTML(p)}`;
+async function tether(sky, id, rising) {
+  const sv = $('#teth', stage()); if (RM()) return rising;
+  sv.innerHTML = '<line id="tl1" stroke="rgba(201,216,255,.8)" stroke-width="1.5" stroke-linecap="round"/>'; const ln = $('#tl1', sv);
+  const upd = (y) => { const s = sky.star(id); ln.setAttribute('x1', s.x); ln.setAttribute('y1', s.y); ln.setAttribute('x2', 195); ln.setAttribute('y2', 58 + y + 6); };
+  await rising(upd); await anim(sv, [{ opacity: 1 }, { opacity: 0 }], 360); sv.innerHTML = ''; sv.style.opacity = '';
+}
+const B_ = {
+  async read(W, A, kind) {
+    const p = P[KF[kind]]; DETNOW = 'half'; const sky = mapB({ det: 'half', anchor: .28 }); bs().innerHTML = sheetListB(); rise([bs()]);
+    await W(1100); const row = $(`.nrow[data-id="${p.id}"]`, bs()); await tap(row, W);
+    sky.camTo(sky.at(p.id, 1.8), 760);
+    await A(anim(bs(), [{ opacity: 1 }, { opacity: .2 }], 140)); bs().innerHTML = placeB(p); anim(bs(), [{ opacity: .2 }, { opacity: 1 }], 220);
+    await A(sky.select(p.id, 900)); await W(700);
+    await A(toDet('full', (y, e) => { $('#dim', stage()).style.opacity = e; })); rise($$('.body p', bs()), 45);
+    await W(1100); const c = $(`.act[data-act="${kind === 'review' ? 'reflect' : kind === 'idea' ? 'stage' : 'play'}"]`, bs()); await tap(c, W);
+    anim(bs(), [{ transform: 'translateY(0px) scale(1)' }, { transform: 'translateY(0px) scale(.94)', opacity: .7 }], 380);
+    const sh = await openSheetFrom(c, sheetHTML(kind, p)); await sheetScript(kind, sh, W, A, async () => { anim(bs(), [{ transform: 'translateY(0px) scale(.94)', opacity: .7 }, { transform: 'translateY(0px) scale(1)', opacity: 1 }], 300); savedToast(); });
+  },
+  async day(W, A) {
+    const wk = ['M', 'T', 'W', 'T', 'F', 'S', 'S'], cells = []; const start = new Date(2026, 8, 7);
+    const byDay = {}; DAYS.forEach((d) => { byDay[d.d] = d.e.length; }); const R = mulberry(5);
+    for (let i = 0; i < 35; i++) { const dt = new Date(start); dt.setDate(start.getDate() + i); const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`; const fut = dt > new Date(2026, 9, 5); const n = fut ? 0 : (byDay[iso] ?? Math.floor(R() * 4)); const sz = n ? 6 + Math.min(n, 7) * 2 : 8; cells.push(`<button class="mday${fut ? ' fut' : ''}${n ? '' : ' zero'}${iso === '2026-10-05' ? ' tod' : ''}" data-o data-d="${iso}" aria-label="${iso}, ${n} entries" ${fut ? 'disabled' : ''}><span>${dt.getDate()}</span><i style="width:${sz}px;height:${sz}px"></i></button>`); }
+    stage().innerHTML = `<div class="scr"><div class="lt"><h1>Journal</h1><button class="ib" data-o aria-label="Show: all entries" style="--h:var(--journal)">${svg(IC.filter)}</button></div><p class="news"><b data-w>Three</b> entries today, twelve this week.</p><div class="month glass" data-o><div class="mhead">${wk.map((d) => `<span>${d}</span>`).join('')}</div><div class="mgrid">${cells.join('')}</div></div></div><div class="bs" id="bs" data-o style="transform:translateY(560px)"><div class="grab"></div>${composer()}<div id="dayin"></div></div>`;
+    DETNOW = 'peek'; const root = stage(); $('.crow', root).style.display = 'none';
+    rise($$('.lt, .news, .month', root)); rise($$('.mday i', root), 8, 200);
+    await W(1100); const sat = $('.mday[data-d="2026-10-03"]', root); await tap(sat, W); sat.classList.add('pick');
+    const d = DAYS[2]; $('#dayin', root).innerHTML = `<div style="margin-top:14px"><h3 class="sh">Saturday 3 October</h3><p class="meta">Seven entries, 6:55 to 22:10</p><div style="margin-top:8px">${strip(d)}</div><div style="margin:6px -16px 0">${d.e.map(entry).join('')}</div></div>`;
+    await A(toDet('half')); await A(rise($$('#dayin .erow', root), 45));
+    await W(1400); $('#dayin', root).innerHTML = ''; sat.classList.remove('pick'); $('.crow', root).style.display = ''; await A(toDet('full'));
+    await compose(root, W, A); const s = rectOf($('#save', root));
+    $('#fx', root).textContent = ''; $('#ph', root).hidden = false; $('#pr', root).textContent = '';
+    await A(toDet('peek')); const tod = $('.mday.tod i', root), t = rectOf(tod);
+    await A(fly(s.x + s.w / 2, Math.min(s.y, 700), t.x + t.w / 2, t.y + t.h / 2));
+    await A(anim(tod, [{ width: t.w + 'px', height: t.h + 'px' }, { width: (t.w + 2) + 'px', height: (t.h + 2) + 'px' }], 300)); swapText($('[data-w]', root), 'Four'); toast('<span>Saved at 21:40.</span><button data-o>Undo</button>', 'journal');
+  },
+  async star(W, A) {
+    DETNOW = 'peek'; const sky = mapB({ det: 'peek', anchor: .4 }); bs().innerHTML = sheetListB(); await A(introSky(sky));
+    await W(600); let s = sky.star('att'); touch(s.x, s.y); await W(250);
+    sky.camTo(sky.at('att', 1.8), 760); sky.select('att', 900);
+    await A(anim(bs(), [{ opacity: 1 }, { opacity: .3 }], 140)); bs().innerHTML = placeB(P.att); anim(bs(), [{ opacity: .3 }, { opacity: 1 }], 220);
+    const anc = { a: sky.anchor }; await A(tether(sky, 'att', (upd) => toDet('half', (y, e) => { sky.anchor = anc.a + (.27 - anc.a) * e; sky.draw(); upd(y); })));
+  },
+  async link(W, A) {
+    DETNOW = 'full'; const sky = mapB({ det: 'full', anchor: .3 }); sky.cam = sky.at('comp', 1.8); sky.selLabel = true; sky.draw(); bs().innerHTML = placeB(P.comp); $('#dim', stage()).style.opacity = 1; rise([bs()]);
+    await W(1300); await tap($('.act[data-act="galaxy"]', bs()), W);
+    await A(toDet('half', (y, e) => { $('#dim', stage()).style.opacity = 1 - e; }));
+    await A(sky.select('comp', 1400));
+  },
+};
+
+/* ======================= C · THREE ROOMS ======================= */
+function push(html, W) { const st = stage(), old = $$('.view', st).pop(); st.insertAdjacentHTML('beforeend', html); const v = $$('.view', st).pop(); anim(old, [{ transform: 'none', opacity: 1 }, { transform: 'translateX(-28%)', opacity: .5 }], 440); return anim(v, [{ transform: 'translateX(100%)' }, { transform: 'none' }], 440, { rm: 'in' }).then(() => v); }
+async function pop() { const vs = $$('.view', stage()), v = vs.pop(), old = vs.pop(); anim(old, [{ transform: 'translateX(-28%)', opacity: .5 }, { transform: 'none', opacity: 1 }], 400); await anim(v, [{ transform: 'none' }, { transform: 'translateX(100%)' }], 400, { rm: 'out' }); v.remove(); }
+async function morph(from, to, o = {}) {
+  if (RM()) return; const a = rectOf(from), b = rectOf(to); const m = document.createElement('div'); m.className = 'mov';
+  Object.assign(m.style, { left: b.x + 'px', top: b.y + 'px', width: b.w + 'px', height: b.h + 'px', background: o.bg, borderRadius: o.r1 }); topL().appendChild(m); to.style.visibility = 'hidden';
+  await anim(m, [{ transform: `translate(${a.x - b.x}px,${a.y - b.y}px) scale(${a.w / b.w},${a.h / b.h})`, borderRadius: o.r0 }, { transform: 'none', borderRadius: o.r1 }], 460, { easing: CURVE });
+  to.style.visibility = ''; m.remove();
+}
+const rowC = (p) => `<button class="srow nrow" data-o data-id="${p.id}">${tile(p.kind)}<span class="t">${p.title}</span><span class="w">${p.when}</span>${svg(IC.chev, 'ic chev')}</button>`;
+const notesC = () => `<div class="view"><div class="scr"><div class="lt"><h1>Notes</h1></div><p class="news">Today's review is <b>Compounding</b>.</p><p class="ghead">Recent</p><div class="grp glass" data-o>${RECENT.map(rowC).join('')}</div><div class="footsearch glass" data-o>${svg(IC.search)}<span>Search ${G.nodes.length} pages</span><button class="kind" data-o>All kinds${svg(IC.chev, 'ic chev')}</button></div></div></div>`;
+function thisPage(p) {
+  const r = (ic, hue, l, v, act, out) => `<button class="srow c" data-o data-act="${act}" style="--c:var(--${hue})">${svg(IC[ic])}<span class="t">${l}</span><span class="v">${v}</span>${svg(IC[out ? 'out' : 'chev'], 'ic chev')}</button>`;
+  const a = []; if (p.kind === 'source') a.push(r('play', 'notes', `Play from ${p.ideas[0][0]}`, '3 key ideas', 'play'));
+  if (p.kind === 'idea') a.push(r('stage', 'notes', 'Studio stage', STAGES[p.stage], 'stage'));
+  if (p.review) a.push(r('pen', 'journal', 'Reflect on it', 'Journal', 'reflect'));
+  a.push(r('galaxy', 'galaxy', 'In your Galaxy', `${p.links} links`, 'galaxy')); a.push(r('links', 'notes', 'Linked pages', p.links, 'linked'));
+  return `<p class="ghead">This page</p><div class="grp glass" data-o>${a.join('')}</div>`;
+}
+const pageC = (p) => `<div class="view"><div class="nav"><button class="back" data-o>${svg(IC.back)}<span>Notes</span></button></div><div class="scr" style="padding-top:96px"><div class="hcard glass" data-o>${tile(p.kind, 1)}${kline(p)}<h2 class="ptitle">${p.title}</h2><p class="meta pm">${p.when} · <span class="num">${p.links}</span> links</p></div>${thisPage(p)}${bodyHTML(p)}</div></div>`;
+function subC(kind, p) {
+  if (kind === 'idea') return `<div class="view"><div class="nav"><button class="back" data-o>${svg(IC.back)}<span>Back</span></button><span class="ttl">Studio stage</span></div><div class="scr" style="padding-top:104px"><p class="meta" style="margin:0 4px 8px">Set it either way. One write, with Undo.</p><div class="grp glass" data-o>${STAGES.map((s, i) => `<button class="srow" data-o data-s="${i}"><span class="t">${s}</span>${i === p.stage ? `<span class="check" id="chk">${svg(IC.check)}</span>` : ''}</button>`).join('')}</div><div class="undo" id="undo" hidden><span>Moved to <b>Scripting</b></span><button data-o>Undo</button></div></div></div>`;
+  if (kind === 'source') return `<div class="view"><div class="nav"><button class="back" data-o>${svg(IC.back)}<span>Back</span></button><span class="ttl">Key ideas</span></div><div class="scr" style="padding-top:104px"><p class="meta" style="margin:0 4px 8px">Each opens the video at its moment, in its own app.</p><div class="grp glass" data-o>${p.ideas.map(([ts, tx], i) => `<button class="srow c" data-o data-i="${i}" style="--c:var(--notes)"><span class="num" style="flex:none;width:48px;color:var(--notes)">${ts}</span><span class="t">${tx}</span>${svg(IC.out, 'ic chev')}</button>`).join('')}</div></div></div>`;
+  return `<div class="view"><div class="nav"><button class="back" data-o>${svg(IC.back)}<span>Back</span></button><span class="ttl">Reflect</span></div><div class="scr" style="padding-top:104px"><h3 class="sh">Reflect on Compounding</h3><p class="meta">Saves to Monday 5 October in your Journal</p>${composer()}</div></div>`;
+}
+const dayRowC = (d) => `<button class="srow drC" data-o data-d="${d.d}" style="min-height:60px"><span class="t"><span class="dd">${d.l}</span><span style="display:block;width:150px">${strip(d)}</span></span><span class="v num">${d.e.length}</span>${svg(IC.chev, 'ic chev')}</button>`;
+const C_ = {
+  async read(W, A, kind) {
+    const p = P[KF[kind]]; stage().innerHTML = notesC(); rise($$('.lt, .news, .ghead, .grp, .footsearch', stage()));
+    await W(1000); const row = $(`.nrow[data-id="${p.id}"]`, stage()); await tap(row, W);
+    const v = await A(push(pageC(p))); rise($$('.ghead, .grp, .body p', v), 40);
+    await morph($('.tile', row), $('.tile.big', v), { bg: KIND[p.kind].c, r0: '8px', r1: '14px' });
+    await W(1200); const r = $(`.srow[data-act="${kind === 'review' ? 'reflect' : kind === 'idea' ? 'stage' : 'play'}"]`, v); await tap(r, W);
+    const s = await A(push(subC(kind, p))); rise($$('.grp, .meta, .sh, .cmp', s), 40);
+    if (kind === 'idea') {
+      await W(900); const to = $('.srow[data-s="2"]', s); await tap(to, W); const chk = $('#chk', s), a = rectOf(chk); to.insertAdjacentHTML('beforeend', `<span class="check" id="chk2">${svg(IC.check)}</span>`); const c2 = $('#chk2', s), b = rectOf(c2); chk.remove();
+      await anim(c2, [{ transform: `translate(${a.x - b.x}px,${a.y - b.y}px)` }, { transform: 'none' }], 380); const u = $('#undo', s); u.hidden = false; anim(u, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], 300);
+    } else if (kind === 'source') { await W(900); const b = $('.srow[data-i="1"]', s); await tap(b, W); toast('<span>Opening the video at 18:40</span>', 'notes'); }
+    else { await W(500); await compose(s, W, A); await A(pop()); savedToast(); }
+  },
+  async day(W, A) {
+    const t = DAYS[0];
+    stage().innerHTML = `<div class="view"><div class="scr"><div class="lt"><h1>Journal</h1><button class="ib" data-o aria-label="Show: all entries" style="--h:var(--journal)">${svg(IC.filter)}</button></div><p class="news"><b data-w>Three</b> entries today, twelve this week.</p><p class="ghead">Today · Mon 5 Oct</p><div class="grp glass" data-o style="padding:0 14px 4px" id="tcard">${composer()}<div id="tents" style="margin:6px -14px 0">${t.e.slice(0, 2).map(entry).join('')}</div></div><p class="ghead">This week</p><div class="grp glass" data-o>${DAYS.slice(1, 5).map(dayRowC).join('')}</div></div></div>`;
+    const root = stage(); $('.crow', root).style.display = 'none'; rise($$('.lt, .news, .ghead, .grp', root));
+    await W(1000); const row = $('.drC[data-d="2026-10-03"]', root); await tap(row, W); const d = DAYS[2];
+    const v = await A(push(`<div class="view"><div class="nav"><button class="back" data-o>${svg(IC.back)}<span>Journal</span></button></div><div class="scr" style="padding-top:96px"><div class="hcard glass" data-o><h2 class="ptitle" style="font-size:22px;margin:0">Saturday 3 October</h2><p class="meta pm">Seven entries, 6:55 to 22:10</p><div style="margin-top:10px" id="bigstrip">${strip(d)}</div></div><p class="ghead">Entries</p><div class="grp glass" data-o>${d.e.map(entry).join('')}</div></div></div>`));
+    await morph($('.strip', row), $('#bigstrip .strip', v), { bg: 'rgba(255,255,255,.1)', r0: '2px', r1: '2px' }); rise($$('.ghead, .grp', v), 45);
+    await W(1500); await tap($('.back', v), W); await A(pop());
+    await expandComposer(root, W); await compose(root, W, A);
+    $('#fx', root).textContent = ''; $('#ph', root).hidden = false; $('#pr', root).textContent = ''; $('.crow', root).style.display = 'none';
+    $('#tents', root).insertAdjacentHTML('beforeend', entry(['21:40', 'p', 'Demo words, typed for the mockup.'])); const ne = $('#tents .erow:last-child', root);
+    await A(anim(ne, [{ opacity: 0, transform: 'translateY(-8px)', backgroundColor: 'rgba(143,123,255,.25)' }, { opacity: 1, transform: 'none', backgroundColor: 'rgba(143,123,255,0)' }], 700)); swapText($('[data-w]', root), 'Four');
+  },
+  async star(W, A) {
+    stage().innerHTML = `<div class="view"><div class="scr"><div class="lt"><h1>Galaxy</h1><button class="ib" data-o aria-label="Find a page" style="--h:var(--galaxy)">${svg(IC.search)}</button></div><p class="news">${G.nodes.length} pages, ${G.links.length} links.</p><div class="mapcard glass" id="mc" data-o><div class="skyhost" id="skyhost"></div></div><p class="ghead">Show</p><div class="grp glass" data-o><button class="srow" data-o><span class="t">Kinds</span><span class="v">All seven</span>${svg(IC.chev, 'ic chev')}</button><button class="srow" data-o><span class="t">Light by</span><span class="v">Nothing</span>${svg(IC.chev, 'ic chev')}</button></div></div></div>`;
+    const mc = $('#mc', stage()); const sky = new Sky($('#skyhost', stage()), { anchor: .56, fit: 1.05 }); rise($$('.lt, .news, .mapcard, .ghead, .grp', stage())); await A(introSky(sky));
+    await W(600); let s = sky.star('att'); const m = rectOf(mc); touch(m.x + s.x, m.y + s.y); await W(250);
+    await A(sky.camTo(sky.at('att', 1.6), 600)); sky.select('att', 900); s = sky.star('att');
+    mc.insertAdjacentHTML('beforeend', `<i class="stem" style="left:${s.x}px;top:64px;height:${Math.max(0, s.y - 72)}px"></i><button class="callout" data-o>${kg('source')}<span class="t">A talk on attention<span class="meta" style="display:block">6 links · Thu 1 Oct</span></span>${svg(IC.chev, 'ic chev')}</button>`);
+    anim($('.stem', mc), [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1)' }], 360); await A(anim($('.callout', mc), [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], 320, { delay: 120 }));
+    await W(1300); await tap($('.callout', mc), W); const star = document.createElement('i'); const sr = { x: m.x + s.x - 6, y: m.y + s.y - 6 };
+    const v = await A(push(pageC(P.att))); rise($$('.ghead, .grp, .body p', v), 40);
+    if (!RM()) { star.className = 'mov'; Object.assign(star.style, { left: sr.x + 'px', top: sr.y + 'px', width: '12px', height: '12px', borderRadius: '50%', background: KIND.source.c }); }
+    const to = $('.tile.big', v); const b = rectOf(to); to.style.visibility = 'hidden'; if (!RM()) { topL().appendChild(star); await anim(star, [{ transform: 'none' }, { transform: `translate(${b.x - sr.x}px,${b.y - sr.y}px) scale(${b.w / 12},${b.h / 12})`, borderRadius: '30%' }], 520); star.remove(); } to.style.visibility = '';
+  },
+  async link(W, A) {
+    stage().innerHTML = pageC(P.comp); const v0 = stage(); rise($$('.hcard, .ghead, .grp, .body p', v0));
+    await W(1300); const r = $('.srow[data-act="galaxy"]', v0); await tap(r, W);
+    const v = await A(push(`<div class="view"><div class="nav"><button class="back" data-o>${svg(IC.back)}<span>Compounding</span></button></div><div class="scr" style="padding-top:96px"><h2 class="ptitle" style="font-size:22px;margin:0 4px">Compounding and its seven links</h2><div class="mapcard glass" id="mc" data-o><div class="skyhost" id="skyhost"></div></div><div class="grp glass" data-o><button class="srow" data-o><span class="t">Show the whole Galaxy</span>${svg(IC.chev, 'ic chev')}</button></div></div></div>`));
+    const sky = new Sky($('#skyhost', v), { anchor: .5, selLabel: true }); sky.cam = sky.at('comp', 2.0); sky.selLabel = true; sky.draw();
+    const tl = $('.tile.big', v0), s = sky.star('comp'), m = rectOf($('#mc', v));
+    if (!RM()) { const a = rectOf(tl), g = document.createElement('i'); g.className = 'mov'; Object.assign(g.style, { left: a.x + 'px', top: a.y + 'px', width: a.w + 'px', height: a.h + 'px', borderRadius: '14px', background: KIND.concept.c }); topL().appendChild(g); await anim(g, [{ transform: 'none', borderRadius: '14px' }, { transform: `translate(${m.x + s.x - 6 - a.x}px,${m.y + s.y - 6 - a.y}px) scale(${12 / a.w},${12 / a.h})`, borderRadius: '50%' }], 520); g.remove(); }
+    await A(sky.select('comp', 1400));
+  },
+};
+
+/* ---------------- the notes beside the phone ---------------- */
+const NOTE = {
+  a: {
+    read: [['A page is the whole screen', 'The list is its own page: seven pages in view instead of 3.4, search and the kinds kept. A row opens into the page and Back folds it home.'], ['One pattern for every extra', 'Companion capsules under the title, only those that apply: Play for a source, the Studio stage for an idea, Reflect on the day’s review, In your Galaxy on every page. Each opens a sheet from itself.'], ['Colour says where it goes', 'Cyan stays in Notes, violet opens the Journal, starlight the Galaxy. Switch the page under the phone to see each.']],
+    day: [['Each day is a track of its hours', 'One tick per entry at the time it was written: a count you can see and a rhythm you can read down the list.'], ['Opening a day', 'Each tick falls into its entry. A reflection names its page in cyan, a door to Notes; Saturday has a door to its stars.'], ['One composer', 'Ask me a question pours Nova’s question in his starlight; Save sends the words to today’s track as a new tick, with Undo.']],
+    star: [['The map is the page', 'Title and count above, one Show control below: kinds and light in one sheet, two named groups, every row 44 pt.'], ['A star answers in place', 'Its links draw out, its card rises from it and points at it, and the star stays in view. Open grows the page out of the star.'], ['At rest it is a picture', 'Nothing moves until you touch it, so the phone is not redrawing 400 stars every frame.']],
+    link: [['From a page to its star', 'In your Galaxy folds the page back into its own star, already centred, and draws its seven links one at a time with their names.'], ['New, and small', 'Today no door from a note reaches the Galaxy; this one opens it on the page you were reading.']],
+  },
+  b: {
+    read: [['The vault is a map with a sheet', 'Notes and the Galaxy become one screen. The sheet holds search, the kinds and the list; the Notes tab opens it half way, the Galaxy tab low.'], ['A page is a place card', 'Tap a row and the map flies to its star while the sheet becomes the page: one row of actions, as Maps does for a place. Pull up to read.'], ['One pattern', 'Play, the Studio stage, Reflect and the links are all the same button, and only the ones that apply appear.']],
+    day: [['Five weeks of days', 'Each day is a star whose size is how much you wrote, today ringed in violet. Tap one and the sheet rises with that day.'], ['The composer lives in the sheet', 'Pull it up to write. The question pours in, the words go in, Save lowers the sheet and today’s star grows.']],
+    star: [['The page rises from the star', 'A thin line holds the star to the sheet while it rises, then lets go. The card is the page; there is no separate Open.']],
+    link: [['The map was there all along', 'Lower the sheet and the page’s star is already centred; its links draw out with their names. Raise it to read again.']],
+  },
+  c: {
+    read: [['The Index you chose, one level down', 'Grouped rows with a kind tile, search at the foot as in the Index, and a header card on every page.'], ['One grouped card, This page', 'Play, Studio stage, Reflect, In your Galaxy and Linked pages are rows with a value and a chevron; each drills down like Settings.'], ['Stage is a choice list', 'The check moves from Outlining to Scripting, with Undo.']],
+    day: [['Today first', 'The composer is the first row of today’s card, today’s entries under it, then the week as rows with a small track each.'], ['A day drills down', 'Its track grows into the day page’s header. Back, and the new entry slides into today in time order.']],
+    star: [['The map is a card', 'Like a Health chart: the map in a card, Show as two rows under it. A tapped star raises a callout on a stem above it, the star still in view.'], ['Open by morph', 'The star becomes the page’s kind tile as the page slides in.']],
+    link: [['In your Galaxy is a row', 'It drills into the map focused on this page: the tile becomes the star, its seven links draw out, and one row shows the whole Galaxy.']],
+  },
+};
+const RKM = {
+  a: '<b>A · The page.</b> Removes the list window inside the page, the auto-picked note, four kinds of extra, the second filter row and the card that hides its star. Keeps every function. Moves the list to its own page, the reflect card into the Journal’s composer, the filters into one Show sheet. Objects in view at 390: Notes <span class="num">11</span> to <span class="num" data-c="a-notes">?</span> on the list and <span class="num" data-c="a-page">?</span> on a page, Journal <span class="num">18</span> to <span class="num" data-c="a-journal">?</span>, Galaxy <span class="num">9</span> to <span class="num" data-c="a-galaxy">?</span>.',
+  b: '<b>B · The map.</b> Removes Notes as a separate screen: the Galaxy is the vault’s home and the list is its sheet. Keeps every function. Moves the page into the sheet as a place card, the Journal’s days into five weeks of stars, the composer into the Journal’s sheet. Objects in view at 390: Notes and Galaxy <span class="num">11 + 9</span> to <span class="num" data-c="b-galaxy">?</span> with the sheet low and <span class="num" data-c="b-page">?</span> reading a page, Journal <span class="num">18</span> to <span class="num" data-c="b-journal">?</span>.',
+  c: '<b>C · Three rooms.</b> Removes nothing you navigate by: three screens in the Index’s grouped rows. Keeps every function. Moves each page’s extras into one grouped card, the Studio stage and the key ideas into drill-down pages, search to the foot. Objects in view at 390: Notes <span class="num">11</span> to <span class="num" data-c="c-notes">?</span> on the list and <span class="num" data-c="c-page">?</span> on a page, Journal <span class="num">18</span> to <span class="num" data-c="c-journal">?</span>, Galaxy <span class="num">9</span> to <span class="num" data-c="c-galaxy">?</span>.',
+};
+const COUNTS = { 'a-notes': 13, 'a-page': 4, 'a-journal': 12, 'a-galaxy': 3, 'b-galaxy': 7, 'b-page': 4, 'b-journal': '40 (35 of them the days)', 'c-notes': 10, 'c-page': 5, 'c-journal': 9, 'c-galaxy': 5 };
+
+/* ---------------- wiring ---------------- */
+let DIR = 'a', MOM = 'read', KND = 'source';
+const DIRS = { a: A_, b: B_, c: C_ };
+function render() {
+  $$('#dirs [data-dir]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.dir === DIR)));
+  $$('#moments [data-m]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === MOM)));
+  $$('#kinds [data-k]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === KND)));
+  $('#kinds').style.display = MOM === 'read' ? '' : 'none';
+  $('#rkm').innerHTML = RKM[DIR].replace(/<span class="num" data-c="([a-z-]+)">\?<\/span>/g, (m, k) => `<span class="num">${COUNTS[k]}</span>`);
+  $('#notes').innerHTML = `<h2>${{ a: 'A · The page', b: 'B · The map', c: 'C · Three rooms' }[DIR]}</h2>` + NOTE[DIR][MOM].map(([h, p]) => `<div class="st"><h3>${h}</h3><p>${p}</p></div>`).join('');
+  play();
+}
+function play() { if (SKY) SKY = null; chrome(); const fn = DIRS[DIR][MOM]; run((W, A) => fn(W, A, KND)); }
+$('#dirs').addEventListener('click', (e) => { const b = e.target.closest('[data-dir]'); if (!b) return; DIR = b.dataset.dir; history.replaceState(null, '', '#' + DIR); render(); });
+$('#moments').addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (!b) return; MOM = b.dataset.m; render(); });
+$('#kinds').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (!b) return; KND = b.dataset.k; render(); });
+$('#again').addEventListener('click', play);
+$('#slow').addEventListener('click', (e) => { SLOW = SLOW === 1 ? 4 : 1; doc.classList.toggle('slow', SLOW > 1); e.currentTarget.setAttribute('aria-pressed', String(SLOW > 1)); play(); });
+$('#rmprev').addEventListener('click', (e) => { forceRM = !forceRM; syncRM(); e.currentTarget.setAttribute('aria-pressed', String(forceRM)); play(); });
+if (mq.addEventListener) mq.addEventListener('change', () => { syncRM(); play(); });
+$('#kindkey').innerHTML = Object.keys(KIND).map((k) => `<span style="--c:${KIND[k].c}">${svg(GL[k], 'gi')}${KIND[k].pl}</span>`).join('');
+function fit() { const w = pcol.clientWidth; const z = Math.min(1, w / 390); if (Math.abs(z - Z) < .001 && pbox.style.getPropertyValue('--z')) return; Z = z; pbox.style.setProperty('--z', String(Z)); phone.style.setProperty('--z', String(Z)); if (SKY) SKY.resize(); }
+if (window.ResizeObserver) new ResizeObserver(fit).observe(pcol); window.addEventListener('resize', fit);
+fit(); syncRM();
+const h = (location.hash || '').slice(1); if (DIRS[h]) DIR = h;
+render();
+window.__m79 = { go(d, m, k) { DIR = d; MOM = m; if (k) KND = k; render(); }, sky: () => SKY };
+})();
+</script>
