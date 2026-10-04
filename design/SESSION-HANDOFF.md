@@ -13,6 +13,35 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**5 OCT (morning, resumed after the limit reset, nova-os-fc) — FOUR ROUND-1
+PAGES REVIEWED AND PUBLISHED; SEVEN PAGE AGENTS RUNNING; STILL NOT PUSHED.**
+- PUBLISHED + COMMITTED (rows ticked [m] in 56928b0): sheets and overlays
+  (audit 06, mockup 71, https://claude.ai/artifact/44eKjhdJvUnqqkbNNPUGtR);
+  Practice (10/75, https://claude.ai/artifact/9fBkwjtqwVdoHh5KRDEMyr); Ops and
+  the Org map (08/73, https://claude.ai/artifact/VqV5uj1HaDpCijUjL6xfw8);
+  Library (09/74, https://claude.ai/artifact/1NQ7nRo9UqMFZxhYB59Q1k).
+- FIXED: the sheet grabber did nothing on five sheets (5b7872a): the
+  `both` fill on `.nv-materialize` held the end transform over the drag.
+  Verified: a 60 px pull on the handle moves the sheet 60 px.
+- RUNNING (their files stay UNTRACKED until I have read them): Settings
+  (07 + mockup 72, partial file on disk), Leader (11/76), Briefing (12/77),
+  and, started now, four small-screen groups: the lists (To-Do, Shopping,
+  Stash: audit 13-lists, mockup 78), the knowledge screens (Notes, Journal,
+  Galaxy: 15-knowledge, 79), Money and Code (17-money-and-code, 80), Ambient
+  and Console (21-ambient-and-console, 81). Each works in its own detached
+  worktree under the session scratchpad, demo mode only, and commits nothing.
+- NEXT: read each agent's two files, look at 390, publish, commit, tick [m];
+  then regenerate the status page and republish to
+  https://claude.ai/artifact/GRnJeoNMHDLmxSfWbTSJGJ (read it first).
+- HIS, IN ORDER: (1) `! git push origin main` (30 commits ahead at 56928b0);
+  (2) THEN `node scripts/reload-server.mjs`; (3) a direction on each round 1;
+  (4) the hard-coded "7 agents live" (fixing it changes cupertino Home text,
+  which the guard protects; recommended); (5) the other sheets bugs: the
+  second cross-fade on close, island layering, the offline line clipping,
+  rubber band on the wrong side; (6) X1, X2, X4, X5.
+- NOTE: a vite on :5183 (pid 14804) has run since 27 Sep; not this
+  session's; left alone.
+
 **5 OCT, ~01:30 AEDT (nova-os-fc, CUT OFF BY THE USAGE LIMIT) — THE B BUILD IS
 MERGED AND VERIFIED IN DEMO; NOTHING IS PUSHED (this session's push is blocked by
 its permission classifier); FIVE PAGE AUDITS WERE STILL RUNNING AT THE CUT.**
