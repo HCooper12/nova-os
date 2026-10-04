@@ -166,8 +166,8 @@ test('the state → tint table (his calls, 4 Oct): violet listening, cyan thinki
   const core = read('src/NovaCore.jsx');
   assert.match(core, /leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false \}\) \{/, 'the lean and the still tint are optional; every other caller draws as before');
   // under reduced motion the full screen's one still frame wears the state colour, redrawn when it changes
-  assert.match(core, /draw\(engine === 'hologram' \? 3\.2 : 1\.7, tintStill\);/);
-  assert.match(core, /stillDraw\.current\?\.\(engine === 'hologram' \? 3\.2 : 1\.7, true\);\n  \}, \[speaking, listening, formOnly, engine\]\);/);
+  assert.match(core, /draw\(engine === 'hologram' \? 3\.2 : 1\.7, tintStill(?:, true)?\);/);
+  assert.match(core, /stillDraw\.current\?\.\(engine === 'hologram' \? 3\.2 : 1\.7, true(?:, true)?\);\n  \}, \[speaking, listening, (?:thinking, contest, )?formOnly, engine\]\);/);
   assert.match(core, /const k = snap \? 1 : 0\.07;/);
 });
 
