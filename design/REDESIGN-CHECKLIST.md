@@ -561,6 +561,20 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 4 Oct 2026 (late, his answers) — SPEAKING = LIVING JADE (body #50e4a8,
+  aqua rim #96faf0, glow #1ec88c, mockup 69 r3). BUILT, NOT PUSHED: the sky
+  rests 5 s after his last touch/scroll/key (484a6f1, src/skyRest.js +
+  test); every screen change rises like a tab tap, card taps and Back no
+  longer photograph the page, a same-screen Back keeps its morph (04991e5),
+  and a hash Back no longer runs popH twice (popstate + hashchange: the
+  second ran a view transition over the rise; found while verifying). Three
+  popstate source contracts updated (e4b0f5b). Gates: lint, build, guard
+  unchanged, suite 3041/3043 (atlas pair). Verified in demo: no view
+  transition on card tap / back / hash link, main rises; same-screen back
+  still transitions; the sky pauses at 5 s and wakes on touch and on a
+  scroll inside main. 13 commits wait for his push (the push from this
+  session is blocked by its permission classifier). OPEN: the panel motion
+  (round 2); go for the B build itself.
 - 4 Oct 2026 (late) — HIS ANSWERS: speaking = a JADE variation ("Starlight is
   too plain") -> round 3 of mockup 69 (six jade materials: body, rim, glow;
   Imperial jade my pick, Jade itself is the CFO's exact green); RED for
