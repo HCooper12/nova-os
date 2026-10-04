@@ -1,0 +1,1024 @@
+<title>Ambient and Console</title>
+<!--
+  81 · AMBIENT AND CONSOLE, ROUND 1 (5 Oct 2026)
+  The audit: design/audits/redesign-2026-09/21-ambient-and-console.md.
+
+  His brief (26 Sep 2026): "A lot of Nova has become cluttered and
+  complicated." "Simplicity with all functionality and a beautiful
+  aesthetic, along with ease of use MUST be the goal." Every function on
+  both screens is kept; the audit's section 4 maps each one.
+
+  TODAY, MEASURED (demo mode under his look: Summary, Nova glass, the
+  hologram core; the connected layout drawn with demo-shaped values):
+    Ambient. Its two state colours, gold for "something waits" and cyan
+      for "all clear", differ by 1.02:1 at their brightest pixel. On a
+      phone on a stand (844 by 390) the content is 770 points tall and
+      none of its four numbers is on screen; upright, 107 points are cut
+      off, including all three receipts. The only way out is a tap
+      anywhere, announced by a hover title a touchscreen never shows; it
+      lands on Home, and Back returns to the wall. Under the house 4x CPU
+      throttle the wall holds 43.8 frames a second, and over a third of
+      its drawing is the tab bar's orb, hidden under the wall.
+    Console. No page opens it; its doors are row 22 of 24 on the Index
+      and one row in the Mac sidebar. Its empty state asks for a button
+      the page does not have. Four of its five colours mean something
+      else on Home, and 38 of its 79 text items are hidden from VoiceOver.
+
+  THREE DIRECTIONS, switched at the top (#a, #b, #c), five frames each:
+    A · A GLANCE. The wall as StandBy: the time, what waits on him, what
+        is next; the core small. Console becomes a morning card on Home.
+    B · THE DAY, AS A DIAL. The 24-hour ring becomes the clock face and
+        the other instruments sit under it. Console retires; the wall
+        does its job and gains the Mac sidebar row it never had.
+    C · THE ORG. His ten agents around Nova fill the wall (his yes in
+        principle, 25 Sep: AGENT-WORLD-PLAN step D); a gold count rises
+        over whoever waits on him. Console stays a screen, Your day,
+        with three doors.
+  The frames: upright (390 by 844), on a stand (844 by 390), the MacBook
+  (1280 by 800), the way out, and where Console lives. Each is drawn at
+  its real size and scaled to fit; Actual size shows the wide ones 1:1.
+  The tallies are measured by this page from its own frames.
+
+  COLOUR ON THE WALL MEANS ONE THING. Gold is something waiting on his
+  call, and nothing else on the wall is coloured to ask: a light along
+  the foot, the count, the names. All clear is quiet ink. No signal is
+  grey, with words. Nova's core keeps his own states (blue at rest, cyan
+  thinking, living jade speaking, red only when Nova pushes back), so red
+  appears nowhere else. Console's instruments wear Home's hues: recovery
+  cyan, steps violet, protein green, each muscle its own. Every state is
+  also a word or a shape.
+
+  MOTION, each with a reason. The colon breathes (alive). The core
+  breathes and its rings turn (presence). The gold light draws in from
+  the left and the count rolls up a step at a time (a change, acted out),
+  then both withdraw the way they came when he answers. Controls rise on
+  a tap and sink after five idle seconds. Done plays the wall away and
+  the page he came from is there. Instruments draw their bars, arcs and
+  levels as they arrive. Under reduced motion each becomes a short
+  cross-fade or holds still; Preview reduced motion shows it.
+
+  DRAWN, NOT BUILT. The core is a CSS stand-in for the hologram engine
+  (src/NovaCore.jsx); the bodies are flat stand-ins for Body3D; the
+  beings are flat stand-ins for the 3D beings of src/agentWorld. The
+  clock runs from a demo 07:42.
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data. Every
+  number, name, event, headline and receipt is invented.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --bg:#06070d;--wall:#04050a;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.6);--sep:rgba(232,236,246,.12);
+  --card:rgba(255,255,255,.075);--card-ring:rgba(255,255,255,.14);--card-hi:rgba(255,255,255,.2);
+  --gold:#e0b26a;--gold-ink:#241a06;--cy:#59e6ff;--vi:#8f7bff;--good:#5fe8a8;--warn:#e08383;
+  --rest:#78beff;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;color:var(--ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased;background-color:var(--bg);
+  background-image:radial-gradient(80% 30% at 8% 0%,rgba(89,230,255,.11),transparent 62%),radial-gradient(70% 28% at 96% 10%,rgba(143,123,255,.13),transparent 64%),linear-gradient(180deg,#05060c 0%,#080b1c 50%,#0b1130 100%)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .16s var(--ease)}
+button:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--cy);outline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 88px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+h1{margin:0 0 12px;font:700 34px/1.08 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 10px;max-width:40em;font:400 19px/1.45 var(--serif);color:var(--ink2);text-wrap:pretty}
+.demo{margin:0;max-width:46em;font-size:13px;color:var(--ink3)}
+h2{margin:0 0 6px;font:700 22px/1.2 var(--ui);letter-spacing:-.015em;text-wrap:balance}
+.sub{margin:0 0 14px;max-width:46em;color:var(--ink2);text-wrap:pretty}
+section{margin-top:44px}
+
+/* today, measured */
+.readings{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,158px),1fr));gap:12px}
+.rd{margin:0;padding:14px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi);display:grid;gap:10px;align-content:start;min-width:0}
+.rd .num{font:700 28px/1 var(--round);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.rd p{margin:0;font-size:13px;line-height:1.4;color:var(--ink2);text-wrap:pretty}
+.rd svg{display:block;width:100%;height:auto}
+.swp{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.swatch{height:58px;border-radius:12px;background:radial-gradient(ellipse at 50% 42%,var(--c),transparent 62%),#04050a;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12)}
+.rds{font:400 11px var(--ui);fill:rgba(232,236,246,.62)}
+
+/* the switch */
+.switch{position:sticky;top:0;z-index:40;margin:40px -16px 0;padding:10px 16px;background:rgba(6,7,13,.74);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border-bottom:.5px solid var(--sep)}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:3px;border-radius:14px;background:rgba(120,120,128,.22);max-width:560px}
+.seg button{min-height:44px;border-radius:11px;font:600 15px/1.2 var(--ui);color:var(--ink2);padding:0 6px;transition:background .28s var(--ease),color .28s var(--ease),transform .16s var(--ease)}
+.seg button[aria-pressed="true"]{background:rgba(255,255,255,.15);color:var(--ink);box-shadow:inset 0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.35)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.chip[aria-pressed="true"]{color:var(--ink);background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 1.5px var(--card-hi)}
+
+/* a direction */
+.dir{margin-top:26px}
+.dir[hidden]{display:none}
+.line{margin:6px 0 10px;max-width:62em;color:var(--ink2);text-wrap:pretty}
+.line b{color:var(--ink);font-weight:600}
+.tally{margin:0 0 6px;max-width:62em;font-size:13px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.tally b{color:var(--ink);font-weight:600}
+.lives{display:flex;gap:12px;align-items:center;margin:12px 0 24px;max-width:62em;color:var(--ink2)}
+.lives b{color:var(--ink);font-weight:600}
+.lg{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(89,230,255,.1);color:var(--cy)}
+.lg svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+/* frames */
+.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:34px 24px;align-items:start}
+.fig{margin:0;min-width:0;display:grid;gap:14px;justify-items:center}
+.fig.wide{grid-column:1/-1}
+.fit{position:relative;width:100%;max-width:390px;border-radius:calc(46px * var(--k,1));overflow:hidden;background:var(--wall);
+  box-shadow:0 0 0 1px rgba(255,255,255,.13),0 0 0 calc(6px * var(--k,1)) #0b0d16,0 0 0 calc(6px * var(--k,1) + 1px) rgba(255,255,255,.1),0 30px 70px -34px rgba(0,0,0,.95)}
+.fig.wide .fit{max-width:100%}
+.fig.mac .fit{border-radius:calc(14px * var(--k,1))}
+.fig.actual .fit{overflow:auto;border-radius:14px}
+.screen{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden}
+figcaption{width:100%;max-width:390px;font-size:13px;line-height:1.45;color:var(--ink2);text-wrap:pretty}
+.fig.wide figcaption{max-width:760px}
+figcaption b{display:block;font:600 15px/1.3 var(--ui);color:var(--ink);margin-bottom:3px}
+.meas{display:block;margin-top:6px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.fbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.fbtn{min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.fbtn[aria-pressed="true"]{color:var(--ink);background:rgba(255,255,255,.14)}
+
+/* ================= the wall ================= */
+.wall{position:absolute;inset:0;background:var(--wall);color:var(--ink);font-family:var(--ui);overflow:hidden;isolation:isolate;-webkit-user-select:none;user-select:none}
+.p1{position:absolute;inset:0;transition:transform .42s var(--ease),opacity .3s ease}
+.drift{position:absolute;inset:0;display:flex;flex-direction:column;animation:drift 3600s linear infinite}
+@keyframes drift{0%,100%{transform:translate(0,0)}25%{transform:translate(4px,-3px)}50%{transform:translate(0,4px)}75%{transform:translate(-4px,1px)}}
+.clock{font:500 112px/1 var(--round);letter-spacing:-.025em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clock .colon{display:inline-block;margin:0 .01em;color:var(--ink2);animation:breath 2s ease-in-out infinite}
+@keyframes breath{0%,100%{opacity:.3}50%{opacity:1}}
+.clock.sm{font-size:64px}.clock.md{font-size:84px}.clock.lg{font-size:136px}.clock.xl{font-size:196px}
+.date{font:600 15px/1.3 var(--ui);color:var(--ink2)}
+.say{margin:0;font:400 24px/1.25 var(--serif);text-wrap:balance;transition:opacity .2s var(--ease),filter .2s var(--ease)}
+.k{font:600 15px/1.3 var(--ui);color:var(--ink2)}
+.s{font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.n{font:600 44px/1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap}
+.n small{font:600 15px var(--ui);color:var(--ink2);letter-spacing:0;margin-left:2px}
+.ro{display:grid;gap:5px;align-content:start;min-width:0}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--d)}
+.wait .n{font-size:72px;transition:color .4s ease}
+.wall[data-att="1"] .wait .n,.wall[data-att="1"] .waitline .n{color:var(--gold)}
+.who{transition:opacity .2s var(--ease),filter .2s var(--ease)}
+.wall[data-att="1"] .who{color:var(--ink)}
+.swap-out{opacity:0!important;filter:blur(3px)}
+.ro3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;text-align:center}
+.ro3 .n{font-size:34px}
+.sync{font:400 13px var(--ui);color:var(--ink3)}
+.roll{display:inline-grid;overflow:hidden;vertical-align:bottom;line-height:1}
+.roll>span{grid-area:1/1;transition:transform .3s var(--ease),opacity .3s var(--ease)}
+.roll .below{transform:translateY(60%);opacity:0}
+.roll .above{transform:translateY(-60%);opacity:0}
+.roll .out.up{transform:translateY(-60%);opacity:0}
+.roll .out.down{transform:translateY(60%);opacity:0}
+
+/* the gold light: something waits on him */
+.edge{position:absolute;left:0;right:0;bottom:0;height:4px;z-index:2;pointer-events:none;background:var(--gold);box-shadow:0 0 22px 3px rgba(224,178,106,.6);transform:scaleX(0);transform-origin:0 50%;opacity:0;transition:transform .7s var(--ease-out),opacity .3s ease}
+.floor{position:absolute;left:0;right:0;bottom:0;height:30%;z-index:1;pointer-events:none;background:linear-gradient(0deg,rgba(224,178,106,.15),rgba(224,178,106,0));opacity:0;transition:opacity .9s ease}
+.wall[data-att="1"] .edge{transform:scaleX(1);opacity:1}
+.wall[data-att="1"] .floor{opacity:1}
+
+/* page dots, controls, the hint */
+.pd{display:flex;justify-content:center}
+.pd button{width:44px;height:44px;display:grid;place-items:center}
+.pd i{display:block;width:7px;height:7px;border-radius:4px;background:rgba(232,236,246,.3);transition:width .28s var(--ease),background .28s var(--ease)}
+.pd [aria-current="true"] i{width:18px;background:var(--ink)}
+.ctl{position:absolute;left:16px;right:16px;top:54px;display:flex;align-items:center;gap:8px;z-index:6;opacity:0;visibility:hidden;transform:translateY(-10px);transition:opacity .22s var(--ease),transform .22s var(--ease),visibility 0s .22s}
+.wall[data-ctl="1"] .ctl{opacity:1;visibility:visible;transform:none;transition:opacity .22s var(--ease),transform .22s var(--ease)}
+.sp{flex:1}
+.cb{min-height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(28,32,50,.7);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),inset 0 1px 0 rgba(255,255,255,.16),0 10px 24px -14px rgba(0,0,0,.8);white-space:nowrap}
+.cb.done{background:rgba(255,255,255,.22)}
+.cb[aria-pressed="true"]{background:rgba(255,255,255,.26)}
+.hint{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);z-index:5;min-height:44px;display:flex;align-items:center;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:rgba(28,32,50,.66);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16);transition:opacity .4s ease;white-space:nowrap;pointer-events:none}
+.hint.gone{opacity:0}
+.toast{position:absolute;left:50%;top:112px;transform:translateX(-50%);z-index:6;padding:10px 16px;border-radius:16px;font:600 15px var(--ui);background:rgba(28,32,50,.86);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18);opacity:0;transition:opacity .25s ease;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1}
+.dim{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s ease;z-index:4}
+.wall[data-dim="1"] .dim{opacity:.55}
+.wall.leaving{opacity:0;transform:scale(.965);transition:opacity .26s var(--ease),transform .26s var(--ease)}
+.wall.arriving{animation:arrive .32s var(--ease) both}
+@keyframes arrive{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.mctl{position:absolute;left:28px;right:28px;top:24px;display:flex;align-items:center;gap:10px;z-index:6}
+.key{font:600 13px var(--ui);color:var(--ink3);padding:2px 8px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.28)}
+
+/* the core, a CSS stand-in for the hologram */
+.core{position:relative;display:inline-block;flex:none;width:var(--s);height:var(--s);--c:var(--rest);--hi:#d6ecff;perspective:calc(var(--s) * 3)}
+.core i{position:absolute;border-radius:50%}
+.core .heart{inset:30%;background:radial-gradient(circle at 46% 42%,#f4fbff 0,var(--hi) 15%,var(--c) 42%,rgba(120,190,255,0) 72%);box-shadow:0 0 calc(var(--s) * .24) calc(var(--s) * .02) rgba(120,190,255,.4);animation:heart 4.6s ease-in-out infinite}
+@keyframes heart{0%,100%{transform:scale(.93)}50%{transform:scale(1.05)}}
+.core .ring{inset:9%;border:1.5px solid;border-color:rgba(120,190,255,.85) transparent rgba(120,190,255,.3) transparent;animation:orbit 14s linear infinite}
+.core .ring.a{--t:16deg}
+.core .ring.b{inset:16%;--t:-54deg;animation-duration:20s;animation-direction:reverse;border-color:rgba(214,236,255,.7) transparent rgba(214,236,255,.2) transparent}
+.core .ring.c{inset:3%;--t:76deg;animation-duration:28s;border-width:1px;border-color:rgba(120,190,255,.5) rgba(120,190,255,.1)}
+@keyframes orbit{from{transform:rotate(var(--t)) rotateX(70deg) rotateZ(0deg)}to{transform:rotate(var(--t)) rotateX(70deg) rotateZ(360deg)}}
+.core .hud{inset:0;border:1px dashed rgba(120,190,255,.28);animation:spin 60s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* A · a glance */
+.A.P .drift{padding:66px 24px 18px;justify-content:space-between}
+.A.P .top{text-align:center}
+.A.P .mid{display:grid;justify-items:center;gap:16px;text-align:center}
+.A.P .ros{display:grid;gap:24px}
+.A.P .wait{justify-items:center;text-align:center}
+.A .foot{display:grid;justify-items:center}
+.A.L .drift{padding:24px 44px 40px;display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:center}
+.A.L .clock{font-size:128px}
+.lp{display:grid;justify-items:start;gap:6px;min-width:0}
+.lp .nova{display:flex;align-items:center;gap:10px;margin-top:12px}
+.rp{display:grid;gap:16px;align-content:center;min-width:0}
+.A.L .wait,.A.M .wait{grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:16px;align-items:end}
+.A.L .wait .k,.A.M .wait .k{grid-column:1/-1}
+.A.L .wait .n{font-size:76px}
+.A.L .wait .who,.A.M .wait .who{padding-bottom:8px}
+.A.L .ro3,.A.M .ro3{text-align:left}
+.footl{position:absolute;left:0;right:0;bottom:2px;z-index:3;display:flex;justify-content:center;align-items:center;gap:6px}
+.A.M .drift{padding:96px 110px 40px;display:grid;grid-template-columns:1.05fr 1fr;grid-template-rows:auto 1fr;column-gap:80px;row-gap:36px}
+.A.M .wait .n{font-size:104px}
+.band{grid-column:1/-1;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:44px;align-items:start;padding-top:28px;border-top:.5px solid var(--sep)}
+.band .col{display:grid;gap:8px;align-content:start;min-width:0}
+.syncm{position:absolute;right:30px;bottom:20px;z-index:3}
+/* the second page: Lately */
+.pg2{position:absolute;inset:0;z-index:2;padding:66px 24px 18px;display:flex;flex-direction:column;gap:20px;transform:translateX(100%);opacity:0;transition:transform .42s var(--ease),opacity .3s ease}
+.wall[data-page="2"] .pg2{transform:none;opacity:1}
+.wall[data-page="2"] .p1{transform:translateX(-24%);opacity:0}
+.late{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.late li{display:grid;gap:2px}
+.lt{font:600 15px/1.3 var(--ui)}
+.stks{display:grid;gap:14px}
+.stk{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:12px;row-gap:2px;align-items:center}
+.stk .s{grid-column:2}
+.pips{display:flex;gap:5px}
+.pips i{width:10px;height:10px;border-radius:50%;background:var(--d)}
+.meter{display:block;height:8px;border-radius:4px;background:rgba(232,236,246,.12);overflow:hidden}
+.meter i{display:block;height:100%;border-radius:4px;background:var(--good)}
+.pg2 .foot2{margin-top:auto;display:grid;justify-items:center}
+
+/* B · the day, as a dial */
+.B.P .drift{padding:56px 20px 16px;align-items:center;justify-content:space-between;text-align:center}
+.dialwrap{position:relative;flex:none;width:var(--d);height:var(--d)}
+.dialwrap>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.dialwrap>.core,.oc>.core{position:absolute;left:50%;top:50%;margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2)}
+.nextline{margin:0;font:600 15px var(--ui);color:var(--ink)}
+.nextline span{color:var(--ink3);font-weight:400;margin-right:6px}
+.waitline{display:flex;align-items:baseline;justify-content:center;gap:12px}
+.waitline .n{font-size:44px;transition:color .4s ease}
+.waitline .who{font:600 15px var(--ui);color:var(--ink2)}
+.minis{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;width:100%}
+.mini{display:grid;gap:3px;justify-items:start;text-align:left;padding:4px 2px;min-width:0}
+.mini svg{display:block;width:100%;height:auto;overflow:visible}
+.mini .mv{font:600 26px/1 var(--round);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini .mv small{font:600 15px var(--ui);color:var(--ink2);margin-left:3px}
+.mrow{display:flex;align-items:center;gap:10px;width:100%}
+.mini .mrow svg{width:34px;flex:none}
+.B.L .drift{padding:26px 40px 32px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:40px;align-items:center}
+.B.L .rp{gap:10px}
+.lt2{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.minis.row4{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.syncl{position:absolute;left:0;right:0;bottom:8px;z-index:3;text-align:center}
+.B.M .drift{padding:84px 90px 40px;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:76px;align-items:start}
+.mleft{display:grid;gap:28px;justify-items:center}
+.mleft .band2{width:100%;display:grid;gap:14px}
+.B.M .rp{gap:16px;align-content:start}
+.cards4{display:grid;grid-template-columns:1fr 1fr;gap:20px 32px}
+.B.M .clock.lg{font-size:108px}
+.B.M .body2{grid-template-columns:76px minmax(0,1fr)}
+.B.M .ins .il{font-size:20px}
+
+/* C · the org */
+.C.P .drift{padding:56px 20px 16px;align-items:center;justify-content:space-between;text-align:center}
+.org{position:relative;flex:none}
+.org .orbit{position:absolute;inset:0;width:100%;height:100%}
+.oc{position:absolute;inset:0}
+.being{position:absolute;width:var(--fs);height:var(--fs);margin:calc(var(--fs) / -2) 0 0 calc(var(--fs) / -2)}
+.being svg{display:block;width:100%;height:100%;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6))}
+.being::after{content:"";position:absolute;inset:-6px;border-radius:50%;box-shadow:0 0 0 2px var(--gold),0 0 18px rgba(224,178,106,.45);opacity:0;transition:opacity .3s ease}
+.being.asking::after{opacity:1}
+.mk{position:absolute;left:50%;bottom:calc(100% + 8px);margin-left:-15px;width:30px;height:26px;border-radius:13px;background:var(--gold);color:var(--gold-ink);font:700 15px/26px var(--round);text-align:center;opacity:0;transform:translateY(8px);transition:opacity .3s var(--ease),transform .35s var(--ease)}
+.being.asking .mk{opacity:1;transform:none;animation:bob 2.4s ease-in-out .4s infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.bn{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);font:600 13px var(--ui);color:var(--gold);white-space:nowrap;opacity:0;transition:opacity .3s ease}
+.being.asking .bn{opacity:1}
+.C.P .say{min-height:60px}
+.C.L .drift{padding:24px 44px 34px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:30px;align-items:center}
+.C.L .ro3,.C.M .ro3{text-align:left}
+.C.M .drift{padding:96px 64px 40px;display:grid;grid-template-columns:330px auto minmax(0,1fr);column-gap:56px;align-items:center}
+.C.M .rp{gap:20px}
+
+/* instruments (Console), in Home's hues */
+.ins{display:grid;gap:8px;min-width:0;text-align:left}
+.ih{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.it{font:600 15px var(--ui)}
+.im{font:400 13px var(--ui);color:var(--ink3)}
+.il{margin:0;font:400 20px/1.25 var(--serif);text-wrap:balance}
+.iv{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.big{font:600 34px/1 var(--round);font-variant-numeric:tabular-nums}
+.big small{font:600 15px var(--ui);color:var(--ink2);margin-left:3px}
+.ins svg{display:block;width:100%;height:auto;overflow:visible}
+.body2{display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;align-items:center}
+.body2 .facts{display:grid;gap:8px}
+.svgs{font:400 13px var(--ui);fill:rgba(232,236,246,.62)}
+.svgk{font:600 15px var(--ui);fill:#e8ecf6}
+.svgn{font:600 34px var(--round);fill:#e8ecf6}
+.warnfill{fill:var(--warn)}
+.bar{transform-box:fill-box;transform-origin:50% 100%}
+.in .bar{animation:barUp .55s var(--ease) both;animation-delay:calc(var(--i) * 45ms)}
+@keyframes barUp{from{transform:scaleY(.04)}to{transform:none}}
+.in .arc{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .8s var(--ease) both;animation-delay:calc(var(--i) * 70ms)}
+@keyframes draw{to{stroke-dashoffset:0}}
+.in .hmark{animation:markIn .5s var(--ease) both .25s}
+@keyframes markIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.in .grow{transform-box:fill-box;transform-origin:50% 50%;animation:growX .6s var(--ease) both}
+@keyframes growX{from{transform:scaleX(.2);opacity:0}to{transform:none;opacity:1}}
+.in .musc{animation:fadeIn .5s ease both;animation-delay:calc(var(--i) * 60ms)}
+
+/* the Index, as he left it */
+.origin{position:absolute;inset:0;padding:60px 16px 26px;display:flex;flex-direction:column;gap:8px;background:linear-gradient(180deg,#05060c,#0a0f26)}
+.ixt{display:block;font:700 34px/1.1 var(--ui);letter-spacing:-.02em}
+.ixg{margin:10px 0 0 16px;font:600 13px var(--ui);color:var(--ink3);text-transform:uppercase;letter-spacing:.06em}
+.ixcard{border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi);overflow:hidden}
+.ixrow{display:grid;grid-template-columns:30px minmax(0,1fr) auto 10px;align-items:center;gap:12px;min-height:52px;padding:0 16px;position:relative;transition:background .4s ease}
+.ixrow+.ixrow::before,.ixfold+.ixrow::before,.ixrow+.ixfold .ixrow::before{content:"";position:absolute;left:58px;right:0;top:0;height:.5px;background:var(--sep)}
+.tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:rgba(232,236,246,.1);color:var(--ink2)}
+.tile svg,.gl svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ixl{font:400 17px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ixv{font:400 15px var(--ui);color:var(--ink3);white-space:nowrap;transition:opacity .2s var(--ease),filter .2s var(--ease)}
+.chev{color:var(--ink3);font-size:17px}
+.ixrow.lit{background:rgba(255,255,255,.07)}
+.ixrow.flash{background:rgba(255,255,255,.16)}
+.ixfold{display:grid;grid-template-rows:1fr;transition:grid-template-rows .45s var(--ease),opacity .3s ease}
+.ixfold>div{overflow:hidden;min-height:0}
+.ixfold.folded{grid-template-rows:0fr;opacity:0}
+.again{align-self:center;margin-top:auto;min-height:44px;padding:0 20px;border-radius:22px;font:600 15px var(--ui);background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.onote{margin:10px 4px 0}
+
+/* Home, as the summary style draws it */
+.home{position:absolute;inset:0;padding:58px 16px 24px;display:flex;flex-direction:column;gap:12px;background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.16),transparent 60%),radial-gradient(70% 45% at 90% 28%,rgba(143,123,255,.18),transparent 62%),linear-gradient(180deg,#05060c 0%,#080b1c 40%,#0c1230 100%)}
+.hrow{display:flex;align-items:center;justify-content:space-between}
+.hdate{font:600 13px var(--ui);color:var(--ink3)}
+.htitle{margin:0;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.hread{margin:0;font:italic 400 20px/1.25 var(--serif);background:linear-gradient(90deg,#59e6ff,#8f7bff);-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.scard{border-radius:20px;padding:14px 16px;background:rgba(255,255,255,.09);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16),inset 0 1px 0 rgba(255,255,255,.22),0 14px 34px -18px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4)}
+.dch{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.dct{font:600 15px var(--ui)}
+.pager{overflow:hidden;touch-action:pan-y;cursor:grab}
+.track{display:flex;transition:transform .36s var(--ease)}
+.slide{flex:0 0 100%;min-width:0;padding-right:2px}
+.pfoot{display:flex;align-items:center;justify-content:space-between;margin:6px -8px -8px}
+.pnav{width:44px;height:44px;display:grid;place-items:center;border-radius:22px;color:var(--ink2)}
+.pnav svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pdots{display:flex}
+.hk{margin:6px 0 0 4px;font:700 22px var(--ui);letter-spacing:-.015em}
+.ghost{height:120px}
+.door{display:grid;grid-template-columns:30px minmax(0,1fr) 12px;gap:12px;align-items:center;width:100%;min-height:48px;text-align:left;border-radius:14px;transition:background .2s ease,transform .16s var(--ease)}
+.door.press{background:rgba(255,255,255,.1);transform:scale(.98)}
+.dl{font:600 17px var(--ui)}
+.gl{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:rgba(89,230,255,.16);color:var(--cy)}
+.c5{position:absolute;inset:0;overflow:hidden}
+.c5 .home{transition:transform .44s var(--ease),filter .44s ease}
+.c5[data-at="day"] .home{transform:translateX(-30%);filter:brightness(.55)}
+.yd{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;padding:54px 16px 30px;display:flex;flex-direction:column;gap:12px;background:linear-gradient(180deg,#05060c 0%,#080b1c 40%,#0c1230 100%);transform:translateX(100%);transition:transform .44s var(--ease);box-shadow:-20px 0 40px -20px rgba(0,0,0,.8)}
+.c5[data-at="day"] .yd{transform:none}
+.ydbar{display:flex;justify-content:space-between;align-items:center;margin:0 -8px}
+.ydb{min-height:44px;padding:0 12px;border-radius:22px;font:400 17px var(--ui);color:var(--cy);display:flex;align-items:center;gap:6px}
+.ydb svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* the closing sections */
+.fixes{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.fixes li{display:grid;grid-template-columns:40px minmax(0,1fr);gap:12px;align-items:start;padding:14px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);color:var(--ink2);font-size:15px}
+.fixes b{display:block;color:var(--ink);font-weight:600;margin-bottom:2px}
+.fx{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(232,236,246,.08);color:var(--ink)}
+.fx svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.fx.gold{color:var(--gold);background:rgba(224,178,106,.12)}
+.decide{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:820px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 15px/1 var(--round);background:rgba(89,230,255,.12);color:var(--cy)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:var(--ink2);text-wrap:pretty}
+
+/* reduced motion: still, or a short cross-fade */
+.rm .core i,.rm .clock .colon,.rm .drift,.rm .being.asking .mk{animation:none!important}
+.rm .clock .colon{opacity:.75}
+.rm .edge{transform:none;transition:opacity .25s linear}
+.rm .roll>span{transition:opacity .25s linear;transform:none!important}
+.rm .swap-out{filter:none}
+.rm .pg2,.rm .p1,.rm .track,.rm .yd,.rm .c5 .home{transition:opacity .25s linear!important}
+.rm .wall[data-page="2"] .p1,.rm .pg2,.rm .c5[data-at="day"] .home{transform:none}
+.rm .yd{transform:none;opacity:0;pointer-events:none}
+.rm .c5[data-at="day"] .yd{opacity:1;pointer-events:auto}
+.rm .wall.leaving{transform:none}
+.rm .wall.arriving{animation:fadeIn .25s linear both}
+.rm .in .bar,.rm .in .arc,.rm .in .hmark,.rm .in .grow,.rm .in .musc{animation:fadeIn .25s linear both;stroke-dashoffset:0}
+.rm .ctl,.rm .mk{transform:none}
+.rm button:active{transform:none}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="mglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <linearGradient id="lvl" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5fe8a8" stop-opacity=".92"/><stop class="lv" offset="0" stop-color="#5fe8a8" stop-opacity=".92"/><stop class="lv" offset="0" stop-color="#5fe8a8" stop-opacity="0"/><stop offset="1" stop-color="#5fe8a8" stop-opacity="0"/></linearGradient>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 81 · round 1 · 5 October 2026 · for your review</p>
+  <h1>Ambient and Console</h1>
+  <p class="lede">The wall should tell a room whether anything waits on you, and Console draws your morning in five instruments. Both are honest, and almost nothing leads to either. Three ways to give them a place.</p>
+  <p class="demo">Demo content: every number, name, event, headline and receipt here is invented. The core, the bodies and the beings are flat stand-ins for the 3D ones in the app.</p>
+
+  <section aria-labelledby="h-today">
+    <h2 id="h-today">Today, measured</h2>
+    <p class="sub">Demo mode, under your look, with the connected layout drawn from demo-shaped values.</p>
+    <div class="readings">
+      <figure class="rd">
+        <div class="swp"><span class="swatch" style="--c:rgba(224,178,106,.07)"></span><span class="swatch" style="--c:rgba(89,230,255,.07)"></span></div>
+        <div class="num">1.02 : 1</div>
+        <p>The wall's two answers as the app paints them: something waits (left), all clear (right). That is the whole difference between them at their brightest point.</p>
+      </figure>
+      <figure class="rd">
+        <svg viewBox="0 0 160 150" role="img" aria-label="A 390 point tall screen with 770 points of content; everything below the screen is cut off.">
+          <rect x="10" y="6" width="140" height="65" rx="9" fill="#04050a" stroke="rgba(232,236,246,.5)"/>
+          <rect x="62" y="12" width="36" height="59" rx="3" fill="rgba(232,236,246,.25)"/>
+          <rect x="62" y="71" width="36" height="69" rx="3" fill="none" stroke="rgba(232,236,246,.45)" stroke-dasharray="3 3"/>
+          <text x="104" y="98" class="rds">four</text><text x="104" y="111" class="rds">numbers</text><text x="104" y="124" class="rds">cut off</text>
+        </svg>
+        <div class="num">770 in 390</div>
+        <p>On a phone on a stand the wall is twice the screen. Only the time, the date and half the core show.</p>
+      </figure>
+      <figure class="rd">
+        <svg viewBox="0 0 160 46" role="img" aria-label="Frame time under a 4x CPU throttle: core 9.0 ms, hidden orb 5.0 ms, everything else 8.8 ms, against a 16.7 ms budget.">
+          <rect x="0" y="12" width="63" height="16" rx="3" fill="#78beff"/>
+          <rect x="64" y="12" width="35" height="16" rx="3" fill="rgba(232,236,246,.32)"/>
+          <rect x="100" y="12" width="60" height="16" rx="3" fill="rgba(232,236,246,.1)"/>
+          <line x1="117" y1="4" x2="117" y2="36" stroke="#e8ecf6" stroke-dasharray="2 2"/>
+          <text x="117" y="46" text-anchor="middle" class="rds">60 fps</text>
+        </svg>
+        <div class="num">43.8 fps</div>
+        <p>Under the house 4x throttle. Blue is the wall's core; grey is the tab bar's orb, drawing every frame under the wall where nobody can see it.</p>
+      </figure>
+      <figure class="rd">
+        <svg viewBox="0 0 160 112" role="img" aria-label="The Index's 24 rows in four groups; Console is row 22 and Ambient row 23.">
+          <g fill="rgba(232,236,246,.22)">
+            <rect x="0" y="0" width="160" height="2.6" rx="1.3"/><rect x="0" y="4" width="160" height="2.6" rx="1.3"/><rect x="0" y="8" width="160" height="2.6" rx="1.3"/><rect x="0" y="12" width="160" height="2.6" rx="1.3"/><rect x="0" y="16" width="160" height="2.6" rx="1.3"/><rect x="0" y="20" width="160" height="2.6" rx="1.3"/>
+            <rect x="0" y="30" width="160" height="2.6" rx="1.3"/><rect x="0" y="34" width="160" height="2.6" rx="1.3"/><rect x="0" y="38" width="160" height="2.6" rx="1.3"/><rect x="0" y="42" width="160" height="2.6" rx="1.3"/><rect x="0" y="46" width="160" height="2.6" rx="1.3"/><rect x="0" y="50" width="160" height="2.6" rx="1.3"/><rect x="0" y="54" width="160" height="2.6" rx="1.3"/><rect x="0" y="58" width="160" height="2.6" rx="1.3"/>
+            <rect x="0" y="68" width="160" height="2.6" rx="1.3"/><rect x="0" y="72" width="160" height="2.6" rx="1.3"/><rect x="0" y="76" width="160" height="2.6" rx="1.3"/><rect x="0" y="80" width="160" height="2.6" rx="1.3"/>
+            <rect x="0" y="90" width="160" height="2.6" rx="1.3"/><rect x="0" y="94" width="160" height="2.6" rx="1.3"/><rect x="0" y="98" width="160" height="2.6" rx="1.3"/><rect x="0" y="110" width="160" height="2" rx="1"/>
+          </g>
+          <rect x="0" y="101.5" width="160" height="3.4" rx="1.7" fill="#59e6ff"/><rect x="0" y="105.8" width="160" height="3.4" rx="1.7" fill="#e8ecf6"/>
+        </svg>
+        <div class="num">22 and 23 of 24</div>
+        <p>Console's row and Ambient's, near the foot of the Index. No page in Nova opens Console.</p>
+      </figure>
+      <figure class="rd">
+        <svg viewBox="0 0 160 52" role="img" aria-label="79 text items on Console; 38 are hidden from VoiceOver." id="vo"></svg>
+        <div class="num">38 of 79</div>
+        <p>Console's words VoiceOver never hears: each day's steps, when the long block starts, your usual range.</p>
+      </figure>
+    </div>
+  </section>
+
+  <nav class="switch" aria-label="Directions">
+    <div class="seg" role="group" aria-label="Direction">
+      <button type="button" data-go="a" aria-pressed="true">A · Glance</button>
+      <button type="button" data-go="b" aria-pressed="false">B · Dial</button>
+      <button type="button" data-go="c" aria-pressed="false">C · Org</button>
+    </div>
+  </nav>
+  <div class="tools"><button class="chip" type="button" id="rmt" aria-pressed="false">Preview reduced motion</button></div>
+
+  <section class="dir" id="dir-a" aria-labelledby="h-a">
+    <h2 id="h-a">A · A glance</h2>
+    <p class="line"><b>Removes</b> the state washes, the tracked capitals, the nine-second pulse timer and the drawing of the hidden tab-bar orb. <b>Keeps</b> every reading on the wall and all five instruments. <b>Moves</b> Lately (the pulse, the receipts, the streaks) to the wall's second page, and Console onto Home.</p>
+    <p class="tally" data-tally="a"></p>
+    <p class="lives"><span class="lg" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 11.5 12 4l8 7.5V20H4Z"/><path d="M9.5 20v-5h5v5"/></svg></span><span><b>Console lives on Home</b>, as a morning card from 05:00 to 11:00, or until you have seen all five. Pin it from Edit to keep it.</span></p>
+    <div class="frames" data-frames="a"></div>
+  </section>
+
+  <section class="dir" id="dir-b" aria-labelledby="h-b" hidden>
+    <h2 id="h-b">B · The day, as a dial</h2>
+    <p class="line"><b>Removes</b> the Console route and one Index row, the state washes, the pulse timer and the hidden orb's drawing. <b>Keeps</b> every reading and all five instruments, nothing said twice. <b>Moves</b> the instruments onto the wall: the 24-hour ring becomes the clock face, and Steps and Protein become instruments under it.</p>
+    <p class="tally" data-tally="b"></p>
+    <p class="lives"><span class="lg" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 12V7"/><path d="M12 4v1.5M20 12h-1.5M12 20v-1.5M4 12h1.5"/></svg></span><span><b>Console lives on the wall</b>, all day, and on the glass when the morning brief is spoken, as it does today.</span></p>
+    <div class="frames" data-frames="b"></div>
+  </section>
+
+  <section class="dir" id="dir-c" aria-labelledby="h-c" hidden>
+    <h2 id="h-c">C · The org</h2>
+    <p class="line"><b>Removes</b> the state washes, the 300-point core (Nova sits at the centre of his agents at 84) and the pulse timer. <b>Keeps</b> every reading, and Console as a screen. <b>Moves</b> the waiting count onto the agents who ask, and gives Console three doors: Home's morning read, an Index row with a value, the wall's controls.</p>
+    <p class="tally" data-tally="c"></p>
+    <p class="lives"><span class="lg" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.6 17a8 8 0 1 1 14.8 0"/><path d="m12 14 3.2-3.6"/><path d="M4.5 20h15"/></svg></span><span><b>Console lives as its own screen, Your day</b>, reached from Home, the Index and the wall.</span></p>
+    <div class="frames" data-frames="c"></div>
+  </section>
+
+  <section aria-labelledby="h-every">
+    <h2 id="h-every">In every direction</h2>
+    <p class="sub">Fixes that come with whichever you pick.</p>
+    <ul class="fixes">
+      <li><span class="fx" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></span><div><b>Two touches to leave, back where you were.</b>A tap shows controls; Done, Esc or a swipe down leaves. A bump never ends the wall, and Back never returns to it.</div></li>
+      <li><span class="fx" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="2"/><rect x="8" y="3" width="8" height="18" rx="2"/></svg></span><div><b>Fits upright, on a stand and on the Mac.</b>Nothing sits below the edge; nothing scrolls on a wall.</div></li>
+      <li><span class="fx gold" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 19h18"/><path d="M12 15V5"/><path d="m8 9 4-4 4 4"/></svg></span><div><b>Gold is the only colour that asks.</b>All clear is quiet ink. No signal is grey, with words and a dashed outline.</div></li>
+      <li><span class="fx" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8.5" stroke-dasharray="2 3"/></svg></span><div><b>The core costs less.</b>Smaller, 30 frames a second, a still frame when dimmed; the tab bar's orb stops drawing under the wall. The whole wall drifts a few points an hour, clock and core included.</div></li>
+      <li><span class="fx" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M9 8h6M9 16h6"/></svg></span><div><b>Reduced motion means still.</b>The colon holds, the pulse stops rising, the instruments fade in.</div></li>
+      <li><span class="fx" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M22 18H2"/></svg></span><div><b>Console speaks, and always has a way forward.</b>A VoiceOver label for every bar, block and band; Read again in the empty and error states; a skeleton while it reads; Home's colours.</div></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="h-calls">
+    <h2 id="h-calls">Your calls</h2>
+    <ol class="decide">
+      <li><div><b>C1: where Console lives.</b><span>A puts it on Home as a morning card, and the route and its Index row go. B retires it into the wall, which then gets a Mac sidebar row and one Index row instead of two. C keeps it as its own screen, Your day, with three doors. Either way the five instruments keep appearing on the glass when the morning brief is spoken.</span></div></li>
+      <li><div><b>Which wall: A, B or C.</b><span>A is the simplest and closest to StandBy; B says your day in one look; C makes the wall your agents, as you agreed in principle on 25 September, and is the most work. The wall and the Console answer can mix, for example A's wall with C's screen.</span></div></li>
+      <li><div><b>All clear: no colour, or keep the cyan.</b><span>My pick is no colour, so gold is the only colour on the wall that means anything. Keeping cyan keeps today's look, but cyan is also Nova thinking.</span></div></li>
+      <li><div><b>The core on the wall: small and capped, or full size.</b><span>Small, at 30 frames a second, is my pick: it cuts most of the wall's drawing over an evening. Full size keeps today's big presence and its cost.</span></div></li>
+      <li><div><b>Night.</b><span>Dim the wall to about half from 22:00 to 06:00 with the core still, or leave brightness to iOS. No red night tint either way: red stays Nova pushing back.</span></div></li>
+      <li><div><b>"Hey Nova" on the wall.</b><span>Today the wake word switches off while the wall is up. Allowing it, when you have it on, lets you talk to the wall from across the room; leaving it off keeps the wall's microphone closed.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const root = document.documentElement;
+  const RMQ = matchMedia('(prefers-reduced-motion: reduce)');
+  let rmPreview = false;
+  const applyRM = () => root.classList.toggle('rm', RMQ.matches || rmPreview);
+  applyRM();
+  if (RMQ.addEventListener) RMQ.addEventListener('change', applyRM);
+  const reduced = () => root.classList.contains('rm');
+  const fmt = (n) => n.toLocaleString('en-AU');
+
+  /* DEMO DATA, INVENTED */
+  const D = {
+    date: 'Monday 5 October',
+    tag: 'Cleared for deep work at 15:30.',
+    dayNews: 'Recovered, and one long block at 15:30.',
+    next: ['09:00', 'Stand-up'],
+    steps: 1840, stepFloor: 10000, protein: 42, proteinFloor: 160, proteinPlan: 165,
+    pulse: 'Demo headline: what one study says about sleep and strength',
+    pulseFrom: 'Demo Review',
+    lately: [['2 min', 'The Coach filed a program note'], ['14 min', 'The Guardian ran its checks'], ['1 h', 'The Researcher filed a brief']],
+    sync: 'Synced 2 min ago',
+    vit: { hrv: 58, lo: 48, hi: 66, delta: 6, rest: 52 },
+    blocks: [[9, 1, 'Stand-up'], [12.5, 0.75, 'Lunch walk'], [15.5, 2, 'Deep work'], [18, 1, 'Gym']],
+    now: 7.7, anchor: 2,
+    week: { days: ['Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon'], steps: [9120, 7480, null, 10240, 6630, 8810, 1840], floor: 10000 },
+  };
+  const WEEK_TOTAL = D.week.steps.reduce((s, v) => s + (v || 0), 0);
+  const WHO = ['Nothing waits on you', 'The Coach', 'The Coach and the CFO'];
+  const sayC = (n) => (n === 0 ? 'Nothing waits on you.' : n === 1 ? 'The Coach waits on you.' : 'The Coach and the CFO wait on you.');
+
+  /* the demo clock: from 07:42, in real time */
+  const T0 = Date.now(), BASE = 7 * 60 + 42;
+  const hm = () => { const m = BASE + Math.floor((Date.now() - T0) / 60000); return [String(Math.floor(m / 60) % 24).padStart(2, '0'), String(m % 60).padStart(2, '0')]; };
+  const clock = (cls = '') => { const [h, m] = hm(); return `<div class="clock ${cls}" data-obj><span class="hh">${h}</span><span class="colon" aria-hidden="true">:</span><span class="mm">${m}</span></div>`; };
+  setInterval(() => { const [h, m] = hm(); $$('.clock .hh').forEach((e) => { if (e.textContent !== h) e.textContent = h; }); $$('.clock .mm').forEach((e) => { if (e.textContent !== m) e.textContent = m; }); }, 1000);
+
+  /* pieces */
+  const core = (s) => `<span class="core" style="--s:${s}px" data-obj aria-hidden="true"><i class="hud"></i><i class="ring a"></i><i class="ring b"></i><i class="ring c"></i><i class="heart"></i></span>`;
+  const rollH = (n) => `<span class="roll"><span class="cur">${n}</span></span>`;
+  const waitRO = (n) => `<div class="ro wait" data-obj><span class="k">Waiting on you</span><span class="n">${rollH(n)}</span><span class="s who">${WHO[n]}</span></div>`;
+  const ro3 = () => `<div class="ro3">
+    <div class="ro" data-obj><span class="k">Next</span><span class="n">${D.next[0]}</span><span class="s">${D.next[1]}</span></div>
+    <div class="ro" data-obj><span class="k"><i class="dot" style="--d:var(--vi)"></i>Steps</span><span class="n">${fmt(D.steps)}</span><span class="s">of ${fmt(D.stepFloor)}</span></div>
+    <div class="ro" data-obj><span class="k"><i class="dot" style="--d:var(--good)"></i>Protein</span><span class="n">${D.protein}<small>g</small></span><span class="s">of ${D.proteinFloor} g</span></div>
+  </div>`;
+  const pdots = (cur = 1) => `<div class="pd" role="group" aria-label="Pages"><button type="button" data-pg="1" aria-label="The glance" aria-current="${cur === 1}"><i></i></button><button type="button" data-pg="2" aria-label="Lately" aria-current="${cur === 2}"><i></i></button></div>`;
+  const pips = (n, c) => `<span class="pips" aria-hidden="true">${Array.from({ length: n }, () => `<i style="--d:${c}"></i>`).join('')}</span>`;
+  const streaks = () => `<div class="stks">
+    <div class="stk" data-obj><span class="k">Training</span>${pips(4, 'var(--ink)')}<span class="s">4 sessions in a row</span></div>
+    <div class="stk" data-obj><span class="k">Protein</span><span class="meter" aria-hidden="true"><i style="width:${(12 / 21 * 100).toFixed(1)}%"></i></span><span class="s">12 of 21 days this month</span></div>
+    <div class="stk" data-obj><span class="k">Steps</span>${pips(6, 'var(--vi)')}<span class="s">6 days at the floor</span></div></div>`;
+  const lately = () => `<ul class="late">${D.lately.map(([t, l]) => `<li data-obj><span class="lt">${l}</span><span class="s">${t} ago</span></li>`).join('')}</ul>`;
+  const pulse = () => `<div class="ro" data-obj><span class="k">From the pulse</span><p class="say">${D.pulse}</p><span class="s">${D.pulseFrom} · changes every two minutes</span></div>`;
+  const pageTwo = () => `<div class="pg2" aria-label="Lately"><span class="k">Lately</span>${pulse()}${lately()}${streaks()}<div class="foot2">${pdots(2)}</div></div>`;
+  const lights = (extra = '') => `<i class="floor" aria-hidden="true"></i><i class="edge" aria-hidden="true"></i><div class="dim"></div>${extra}`;
+  const macCtl = () => `<div class="mctl"><button class="cb done" type="button">Done</button><span class="key">esc</span><span class="sp"></span><button class="cb" type="button">Full screen</button></div>`;
+
+  /* instruments */
+  function recSVG(mini) {
+    const W = 300, H = mini ? 30 : 56, lo = 42, hi = 72, x = (v) => 12 + (v - lo) / (hi - lo) * (W - 24);
+    const { hrv, lo: a, hi: b } = D.vit, y0 = mini ? 9 : 20, bh = mini ? 12 : 16;
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Heart-rate variability ${hrv} milliseconds; your usual range is ${a} to ${b}.">
+      <line x1="12" y1="${y0 + bh / 2}" x2="${W - 12}" y2="${y0 + bh / 2}" stroke="rgba(232,236,246,.16)"/>
+      <rect class="grow" x="${x(a)}" y="${y0}" width="${x(b) - x(a)}" height="${bh}" rx="${bh / 2}" fill="rgba(89,230,255,.16)" stroke="rgba(89,230,255,.5)"/>
+      <g class="hmark"><line x1="${x(hrv)}" y1="${y0 - 8}" x2="${x(hrv)}" y2="${y0 + bh + 8}" stroke="#59e6ff" stroke-width="3" stroke-linecap="round"/></g>
+      ${mini ? '' : `<text x="${(x(a) + x(b)) / 2}" y="${H}" text-anchor="middle" class="svgs">Your usual, ${a} to ${b} ms</text>`}</svg>`;
+  }
+  function weekSVG(mini) {
+    const W = 300, H = mini ? 40 : 136, s = D.week.steps, floor = D.week.floor;
+    const max = Math.max(floor, ...s.filter((v) => v != null)) * 1.08, top = mini ? 2 : 8, base = mini ? H - 2 : H - 24, col = W / 7, bw = col - (mini ? 8 : 12);
+    const y = (v) => base - v / max * (base - top);
+    let o = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Steps this week: ${s.map((v, i) => `${D.week.days[i]} ${v == null ? 'missing' : fmt(v)}`).join(', ')}. Floor ${fmt(floor)} a day.">`;
+    o += `<line x1="0" y1="${y(floor).toFixed(1)}" x2="${W}" y2="${y(floor).toFixed(1)}" stroke="rgba(143,123,255,.6)" stroke-dasharray="4 4"/>`;
+    s.forEach((v, i) => {
+      const x = i * col + (col - bw) / 2, today = i === 6;
+      if (v == null) { o += `<rect x="${x}" y="${base - 24}" width="${bw}" height="24" rx="5" fill="none" stroke="#e08383" stroke-dasharray="3 3"/>`; if (!mini) o += `<text x="${x + bw / 2}" y="${base - 7}" text-anchor="middle" class="svgs warnfill">?</text>`; }
+      else o += `<rect class="bar" style="--i:${i}" x="${x}" y="${y(v).toFixed(1)}" width="${bw}" height="${(base - y(v)).toFixed(1)}" rx="5" fill="${today ? 'rgba(143,123,255,.3)' : 'rgba(143,123,255,.8)'}" stroke="${today ? '#8f7bff' : 'none'}" stroke-width="1.5"/>`;
+      if (!mini) o += `<text x="${x + bw / 2}" y="${H - 4}" text-anchor="middle" class="svgs${v == null ? ' warnfill' : ''}"${today ? ' style="fill:#e8ecf6"' : ''}>${D.week.days[i]}</text>`;
+    });
+    return o + '</svg>';
+  }
+  const pol = (c, r, d) => { const a = (d - 90) * Math.PI / 180; return [c + r * Math.cos(a), c + r * Math.sin(a)]; };
+  const arcP = (c, r, a0, a1) => { const [x0, y0] = pol(c, r, a0), [x1, y1] = pol(c, r, a1); return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
+  function dialSVG(centre) {
+    const V = 320, C = 160, R = 104, deg = (t) => t / 24 * 360;
+    let s = `<svg viewBox="0 0 ${V} ${V}" role="img" aria-label="Today as a 24-hour dial: stand-up at 9:00, lunch walk at 12:30, deep work from 15:30 for two hours, the longest block ahead, and the gym at 18:00. Now 7:42.">`;
+    for (let h = 0; h < 24; h++) { const big = h % 6 === 0, [x0, y0] = pol(C, R + 12, deg(h)), [x1, y1] = pol(C, R + (big ? 21 : 16), deg(h)); s += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="rgba(232,236,246,${big ? .55 : .2})" stroke-width="${big ? 1.6 : 1}" stroke-linecap="round"/>`; }
+    [[0, '00'], [6, '06'], [12, '12'], [18, '18']].forEach(([h, l]) => { const [x, y] = pol(C, R + 36, deg(h)); s += `<text x="${x.toFixed(1)}" y="${(y + 4.5).toFixed(1)}" text-anchor="middle" class="svgs">${l}</text>`; });
+    s += `<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="rgba(232,236,246,.1)" stroke-width="2"/>`;
+    s += `<path d="${arcP(C, R - 16, 0.5, deg(D.now))}" fill="none" stroke="rgba(232,236,246,.16)" stroke-width="3" stroke-linecap="round"/>`;
+    D.blocks.forEach(([t, len], i) => { const an = i === D.anchor; s += `<path class="arc" pathLength="1" style="--i:${i}" d="${arcP(C, R, deg(t), deg(t + len))}" fill="none" stroke="${an ? '#eaf9ff' : 'rgba(232,236,246,.42)'}" stroke-width="${an ? 13 : 9}" stroke-linecap="round"${an ? ' filter="url(#glow)"' : ''}/>`; });
+    const [hx0, hy0] = pol(C, R - 30, deg(D.now)), [hx1, hy1] = pol(C, R + 6, deg(D.now));
+    s += `<line x1="${hx0.toFixed(1)}" y1="${hy0.toFixed(1)}" x2="${hx1.toFixed(1)}" y2="${hy1.toFixed(1)}" stroke="#59e6ff" stroke-width="2" stroke-linecap="round"/><circle cx="${hx1.toFixed(1)}" cy="${hy1.toFixed(1)}" r="4" fill="#59e6ff"/>`;
+    if (centre) s += `<text x="${C}" y="${C + 6}" text-anchor="middle" class="svgn">15:30</text><text x="${C}" y="${C + 30}" text-anchor="middle" class="svgs">Deep work, two hours</text>`;
+    else { const [t, len, label] = D.blocks[D.anchor], [lx, ly] = pol(C, R + 52, deg(t + len / 2)); s += `<text x="${lx.toFixed(1)}" y="${(ly - 2).toFixed(1)}" text-anchor="middle" class="svgk">15:30</text><text x="${lx.toFixed(1)}" y="${(ly + 15).toFixed(1)}" text-anchor="middle" class="svgs">${label}</text>`; }
+    return s + '</svg>';
+  }
+  const MUS = [[68, 70, 12, 9, 0, '#ff8a7a', 1], [92, 70, 12, 9, 0, '#ff8a7a', 1], [54, 60, 7, 7, 0, '#ffc46b', 1], [106, 60, 7, 7, 0, '#ffc46b', 1], [46.5, 66, 4.5, 7, 0, '#ffc46b', 0], [113.5, 66, 4.5, 7, 0, '#ffc46b', 0], [43, 88, 5, 11, -8, '#5fe8a8', 0], [117, 88, 5, 11, 8, '#5fe8a8', 0], [37, 90, 3.4, 10.5, -8, '#b48cff', 1], [123, 90, 3.4, 10.5, 8, '#b48cff', 1]];
+  function bodySVG(kind, label) {
+    const fuel = kind === 'fuel';
+    let s = `<svg viewBox="0 0 160 240" role="img" aria-label="${label}" class="${fuel ? 'fuelbody' : ''}"><g fill="rgba(232,236,246,.07)" stroke="rgba(232,236,246,.22)">
+      <circle cx="80" cy="24" r="15"/><rect x="74" y="37" width="12" height="10" rx="3"/>
+      <path d="M52 50Q80 44 108 50L112 60Q106 96 100 128H60Q54 96 48 60Z"/>
+      <path d="M50 54Q40 58 38 72L30 132Q31 140 37 139L44 100 52 70Z"/><path d="M110 54Q120 58 122 72L130 132Q129 140 123 139L116 100 108 70Z"/>
+      <path d="M60 126H100L104 146H56Z"/><path d="M57 144H79L77 230Q72 236 64 233L58 190Z"/><path d="M81 144H103L102 190 96 233Q88 236 83 230Z"/></g>`;
+    MUS.forEach(([cx, cy, rx, ry, rot, hue, worked], i) => {
+      const t = `transform="rotate(${rot} ${cx} ${cy})"`;
+      s += fuel ? `<ellipse class="musc" style="--i:${i}" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" ${t} fill="url(#lvl)" stroke="#5fe8a8" stroke-opacity=".75" stroke-dasharray="2.5 2"/>`
+        : `<ellipse class="musc" style="--i:${i}" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" ${t} fill="${hue}" fill-opacity="${worked ? .95 : .4}"${worked ? ' filter="url(#mglow)"' : ''}/>`;
+    });
+    return s + '</svg>';
+  }
+  const TRAIN_L = 'Upper body today: chest, front delts and triceps worked; side delts and biceps supporting.';
+  const FUEL_L = `${D.protein} grams of protein in, of ${D.proteinPlan} planned; the worked muscles fill as it arrives.`;
+  function insCard(k) {
+    if (k === 'rec') return `<article class="ins" data-obj><header class="ih"><span class="it" style="color:var(--cy)">Recovery</span><span class="im">Heart-rate variability</span></header><p class="il">Recovered: ${D.vit.delta}% above your usual.</p><div class="iv"><span class="big" style="color:var(--cy)">${D.vit.hrv}<small>ms</small></span><span class="im">Resting ${D.vit.rest} bpm</span></div>${recSVG()}</article>`;
+    if (k === 'day') return `<article class="ins" data-obj><header class="ih"><span class="it">Today</span><span class="im">4 blocks</span></header><p class="il">One long block, at 15:30.</p><div style="max-width:280px;margin:0 auto;width:100%">${dialSVG(true)}</div></article>`;
+    if (k === 'steps') return `<article class="ins" data-obj><header class="ih"><span class="it" style="color:var(--vi)">Steps</span><span class="im">Floor ${fmt(D.week.floor)} a day</span></header><p class="il">${fmt(WEEK_TOTAL)} this week; Thursday never arrived.</p><div class="iv"><span class="big">${fmt(D.steps)}<small>today</small></span><span class="im">${fmt(D.week.floor * 7 - WEEK_TOTAL)} short</span></div>${weekSVG()}</article>`;
+    if (k === 'train') return `<article class="ins" data-obj><header class="ih"><span class="it">Training</span><span class="im">6 exercises</span></header><p class="il">Upper body today.</p><div class="body2">${bodySVG('train', TRAIN_L)}<div class="facts"><span class="k">Chest, front delts, triceps</span><span class="s">Side delts and biceps support</span><span class="big">4<small>in a row</small></span></div></div></article>`;
+    return `<article class="ins" data-obj><header class="ih"><span class="it" style="color:var(--good)">Protein</span><span class="im">Floor ${D.proteinFloor} g</span></header><p class="il">The repair has started.</p><div class="body2">${bodySVG('fuel', FUEL_L)}<div class="facts"><span class="big" style="color:var(--good)">${D.protein}<small>of ${D.proteinPlan} g</small></span><span class="s">The worked muscles fill as protein arrives; the dashed part is still to come.</span></div></div></article>`;
+  }
+  function insMini(k) {
+    if (k === 'rec') return `<div class="mini ins" data-obj><span class="k" style="color:var(--cy)">Recovery</span><span class="mv">${D.vit.hrv}<small>ms</small></span>${recSVG(true)}</div>`;
+    if (k === 'steps') return `<div class="mini ins" data-obj><span class="k" style="color:var(--vi)">Steps</span><span class="mv">${fmt(D.steps)}<small>today</small></span>${weekSVG(true)}</div>`;
+    if (k === 'train') return `<div class="mini ins" data-obj><span class="k">Training</span><div class="mrow">${bodySVG('train', TRAIN_L)}<div class="ro"><span class="k" style="color:var(--ink)">Upper body</span><span class="s">6 exercises</span></div></div></div>`;
+    return `<div class="mini ins" data-obj><span class="k" style="color:var(--good)">Protein</span><div class="mrow">${bodySVG('fuel', FUEL_L)}<span class="mv">${D.protein}<small>of ${D.proteinPlan} g</small></span></div></div>`;
+  }
+  const minis = (row) => `<div class="minis${row ? ' row4' : ''}">${insMini('rec')}${insMini('steps')}${insMini('train')}${insMini('fuel')}</div>`;
+
+  /* the agents (flat stand-ins) */
+  const AG = [['commander', 'Commander', '#59e6ff'], ['coach', 'Coach', '#ff8a7a'], ['mealprep', 'Meal Prep', '#ffc46b'], ['cfo', 'CFO', '#5fe8a8'], ['guardian', 'Guardian', '#8f7bff'], ['researcher', 'Researcher', '#7ab8ff'], ['watcher', 'Watcher', '#8fd3ff'], ['librarian', 'Librarian', '#4fd1c5'], ['leader', 'Leader', '#ff7ad9'], ['practice', 'Practice', '#ffa257']];
+  const faceSVG = (h) => `<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="6" y="5" width="28" height="30" rx="12" fill="${h}"/><rect x="10" y="12.5" width="20" height="12" rx="6" fill="#0a0e1b"/><circle cx="15.8" cy="18.5" r="2.4" fill="${h}"/><circle cx="24.2" cy="18.5" r="2.4" fill="${h}"/><path d="M14 8.6h12" stroke="#fff" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  function org(size, fs, cs) {
+    const c = size / 2, R = c - fs / 2 - 26;
+    let h = `<div class="org" style="width:${size}px;height:${size}px" data-obj role="img" aria-label="Your ten agents around Nova; a gold count sits over each one waiting on you.">`;
+    h += `<svg class="orbit" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${c}" cy="${c}" r="${R}" fill="none" stroke="rgba(232,236,246,.12)" stroke-dasharray="2 6"/><circle cx="${c}" cy="${c}" r="${(R * .56).toFixed(1)}" fill="none" stroke="rgba(232,236,246,.06)"/></svg><span class="oc">${core(cs)}</span>`;
+    AG.forEach(([id, name, hue], i) => {
+      const a = (-90 + i * 36) * Math.PI / 180, x = c + R * Math.cos(a), y = c + R * Math.sin(a);
+      const ask = id === 'coach' ? 1 : id === 'cfo' ? 2 : 0;
+      h += `<span class="being" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;--fs:${fs}px"${ask ? ` data-ask="${ask}"` : ''}>${faceSVG(hue)}${ask ? `<span class="mk" aria-hidden="true">1</span><span class="bn">${name}</span>` : ''}</span>`;
+    });
+    return h + '</div>';
+  }
+
+  /* the three walls */
+  function wallA(v, n, extra = '') {
+    const head = `<div class="wall A ${v}" data-dir="a" data-att="${n ? 1 : 0}" data-n="${n}" data-page="1">`;
+    if (v === 'P') return `${head}<div class="p1"><div class="drift">
+      <div class="top">${clock()}<div class="date" data-obj>${D.date}</div></div>
+      <div class="mid">${core(104)}<p class="say" data-obj>${D.tag}</p></div>
+      <div class="ros">${waitRO(n)}${ro3()}</div>
+      <div class="foot">${pdots()}<span class="sync" data-obj>${D.sync}</span></div></div></div>${pageTwo()}${lights(extra)}</div>`;
+    if (v === 'L') return `${head}<div class="p1"><div class="drift">
+      <div class="lp">${clock()}<div class="date" data-obj>${D.date}</div><div class="nova">${core(52)}<span class="s">Nova, at rest</span></div></div>
+      <div class="rp"><p class="say" data-obj>${D.tag}</p>${waitRO(n)}${ro3()}</div></div></div>
+      <div class="footl">${pdots()}<span class="sync" data-obj>${D.sync}</span></div>${pageTwo()}${lights(extra)}</div>`;
+    return `${head}${macCtl()}<div class="p1"><div class="drift">
+      <div class="lp">${clock('xl')}<div class="date" data-obj>${D.date}</div><div class="nova">${core(84)}<span class="s">Nova, at rest</span></div></div>
+      <div class="rp"><p class="say" data-obj>${D.tag}</p>${waitRO(n)}${ro3()}</div>
+      <div class="band"><div class="col">${pulse()}</div><div class="col"><span class="k">Lately</span>${lately()}</div><div class="col">${streaks()}</div></div></div></div>
+      <span class="sync syncm" data-obj>${D.sync}</span>${lights(extra)}</div>`;
+  }
+  const waitLine = (n) => `<div class="waitline" data-obj><span class="n">${rollH(n)}</span><span class="who">${WHO[n]}</span></div>`;
+  function wallB(v, n, extra = '') {
+    const head = `<div class="wall B ${v}" data-dir="b" data-att="${n ? 1 : 0}" data-n="${n}">`;
+    if (v === 'P') return `${head}<div class="drift">
+      <div>${clock('sm')}<div class="date" data-obj>${D.date}</div></div>
+      <div class="dialwrap" style="--d:262px" data-obj>${dialSVG()}${core(72)}</div>
+      <p class="nextline" data-obj><span>Next</span>${D.next[0]} ${D.next[1]}</p>
+      <p class="say" data-obj>${D.dayNews}</p>${waitLine(n)}${minis()}
+      <span class="sync" data-obj>${D.sync}</span></div>${lights(extra)}</div>`;
+    if (v === 'L') return `${head}<div class="drift">
+      <div class="dialwrap" style="--d:316px" data-obj>${dialSVG()}${core(80)}</div>
+      <div class="rp"><div class="lt2">${clock('md')}<div><div class="date" data-obj>${D.date}</div><p class="nextline" data-obj><span>Next</span>${D.next[0]} ${D.next[1]}</p></div></div>
+      <p class="say" data-obj>${D.dayNews}</p>${waitLine(n)}${minis(true)}</div></div>
+      <span class="sync syncl" data-obj>${D.sync}</span>${lights(extra)}</div>`;
+    return `${head}${macCtl()}<div class="drift">
+      <div class="mleft"><div class="dialwrap" style="--d:340px" data-obj>${dialSVG()}${core(96)}</div><div class="band2">${pulse()}${lately()}${streaks()}</div></div>
+      <div class="rp"><div class="lt2">${clock('lg')}<div><div class="date" data-obj>${D.date}</div><p class="nextline" data-obj><span>Next</span>${D.next[0]} ${D.next[1]}</p></div></div>
+      <p class="say" data-obj>${D.dayNews}</p>${waitLine(n)}<div class="cards4">${insCard('rec')}${insCard('steps')}${insMini('train')}${insMini('fuel')}</div></div></div>
+      <span class="sync syncm" data-obj>${D.sync}</span>${lights(extra)}</div>`;
+  }
+  function wallC(v, n, extra = '') {
+    const head = `<div class="wall C ${v}" data-dir="c" data-att="${n ? 1 : 0}" data-n="${n}">`;
+    if (v === 'P') return `${head}<div class="drift">
+      <div>${clock('md')}<div class="date" data-obj>${D.date}</div></div>
+      ${org(330, 40, 84)}<p class="say" data-live data-obj>${sayC(n)}</p>${ro3()}
+      <span class="sync" data-obj>${D.sync}</span></div>${lights(extra)}</div>`;
+    if (v === 'L') return `${head}<div class="drift">
+      <div class="rp"><div class="lt2">${clock('md')}<div class="date" data-obj>${D.date}</div></div><p class="say" data-live data-obj>${sayC(n)}</p>${ro3()}</div>
+      ${org(330, 40, 84)}</div><span class="sync syncl" data-obj>${D.sync}</span>${lights(extra)}</div>`;
+    return `${head}${macCtl()}<div class="drift">
+      <div class="rp">${clock('lg')}<div class="date" data-obj>${D.date}</div><p class="say" data-live data-obj>${sayC(n)}</p>${ro3()}</div>
+      ${org(540, 52, 120)}
+      <div class="rp">${pulse()}<span class="k">Lately</span>${lately()}${streaks()}</div></div>
+      <span class="sync syncm" data-obj>${D.sync}</span>${lights(extra)}</div>`;
+  }
+
+  /* the Index, as he left it */
+  const G = {
+    ops: '<circle cx="12" cy="12" r="8"/><path d="M12 12l3.5-3.5"/><path d="M12 4.5v1.5"/>',
+    briefing: '<path d="M6.5 3.8h8L18 7.3v12.9h-11.5Z"/><path d="M14 3.8v3.9h4"/><path d="m10.5 11.4 3.9 2.4-3.9 2.4Z"/>',
+    code: '<path d="m8.5 7-5 5 5 5M15.5 7l5 5-5 5"/>',
+    console: '<path d="M4.6 17a8 8 0 1 1 14.8 0"/><path d="m12 14 3.2-3.6"/><path d="M4.5 20h15"/>',
+    ambient: '<rect x="3.5" y="4.5" width="17" height="12" rx="2.2"/><circle cx="12" cy="10.5" r="2.4"/><path d="M9.5 20h5"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4 18 18M6 18l1.6-1.6M16.4 7.6 18 6"/>',
+    retry: '<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v4.5h-4.5"/>',
+  };
+  const gsvg = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${G[k]}</svg>`;
+  const row = (k, l, v = '', lit = false) => `<div class="ixrow${lit ? ' lit' : ''}" data-row="${k}" data-obj><span class="tile">${gsvg(k)}</span><span class="ixl">${l}</span><span class="ixv">${v}</span><span class="chev" aria-hidden="true">›</span></div>`;
+  function indexStub(dir) {
+    const r = dir === 'c'
+      ? row('ops', 'Agents & Operations') + row('briefing', 'Briefing') + row('code', 'Code') + row('console', 'Your day', 'Recovered · 4 blocks') + row('ambient', 'Ambient', 'the org', true) + row('settings', 'Settings')
+      : dir === 'b'
+        ? row('ops', 'Agents & Operations') + row('briefing', 'Briefing') + row('code', 'Code') + row('ambient', 'Ambient', 'your day, drawn', true) + row('settings', 'Settings')
+        : row('ops', 'Agents & Operations') + row('briefing', 'Briefing') + row('code', 'Code') + row('ambient', 'Ambient', 'full screen', true) + row('settings', 'Settings');
+    return `<div class="origin"><span class="ixt">Index</span><p class="ixg">Nova</p><div class="ixcard">${r}</div><p class="s onote">You opened the wall from here, so Done brings you back here.</p><button class="again" type="button">Open the wall again</button></div>`;
+  }
+  const ctlBar = (dir) => `<div class="ctl" role="toolbar" aria-label="Wall controls"><button class="cb done" type="button" data-act="done">Done</button><span class="sp"></span><button class="cb" type="button" data-act="dim" aria-pressed="false">Dim</button>${dir === 'a' ? '<button class="cb" type="button" data-act="lately">Lately</button>' : dir === 'b' ? '<button class="cb" type="button" data-act="morning">Play the morning</button>' : '<button class="cb" type="button" data-act="yourday">Your day</button>'}</div><div class="hint">Tap for controls</div><div class="toast" role="status"></div>`;
+  function exitFrame(dir) {
+    const extra = ctlBar(dir);
+    const w = dir === 'a' ? wallA('P', 2, extra) : dir === 'b' ? wallB('P', 2, extra) : wallC('P', 2, extra);
+    return indexStub(dir) + w;
+  }
+  const homeTop = () => `<div class="hrow"><span class="hdate">Monday 5 October</span>${core(36)}</div><h3 class="htitle" data-obj>Good morning</h3><p class="hread" data-obj>Recovered, with one long block at 15:30.</p>`;
+  const chev = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d ? 'm9 6 6 6-6 6' : 'm15 6-6 6 6 6'}"/></svg>`;
+  function homeA5() {
+    const ks = ['rec', 'day', 'steps', 'train', 'fuel'], names = ['Recovery', 'Today', 'Steps', 'Training', 'Protein'];
+    return `<div class="home">${homeTop()}
+      <div class="scard" data-obj><div class="dch"><span class="dct">Your day, drawn</span><span class="s pcount">1 of 5</span></div>
+        <div class="pager"><div class="track">${ks.map((k) => `<div class="slide">${insCard(k)}</div>`).join('')}</div></div>
+        <div class="pfoot"><button class="pnav pprev" type="button" aria-label="Previous instrument">${chev(0)}</button><div class="pdots pd" role="group" aria-label="Instruments">${names.map((nm, i) => `<button type="button" aria-label="${nm}" aria-current="${i === 0}"><i></i></button>`).join('')}</div><button class="pnav pnext" type="button" aria-label="Next instrument">${chev(1)}</button></div>
+      </div><span class="hk">Pinned</span><div class="scard ghost" aria-hidden="true"></div></div>`;
+  }
+  function b5() {
+    return `<div class="origin"><span class="ixt" data-obj>Index</span><p class="ixg">Nova</p><div class="ixcard">${row('ops', 'Agents & Operations')}${row('briefing', 'Briefing')}${row('code', 'Code')}<div class="ixfold"><div>${row('console', 'Console')}</div></div>${row('ambient', 'Ambient', '', true)}${row('settings', 'Settings')}</div><p class="s onote">On the Mac the sidebar does the same: its Console row becomes an Ambient row, the wall's first door there.</p></div>`;
+  }
+  function c5() {
+    return `<div class="c5" data-at="home"><div class="home">${homeTop()}
+      <div class="scard"><button class="door" type="button" data-obj><span class="gl">${gsvg('console')}</span><span class="dl">See your day, drawn</span><span class="chev" aria-hidden="true">›</span></button></div>
+      <span class="hk">Pinned</span><div class="scard ghost" aria-hidden="true"></div></div>
+      <div class="yd" aria-label="Your day"><div class="ydbar"><button class="ydb ydback" type="button">${chev(0)}Home</button><button class="ydb ydre" type="button">${gsvg('retry')}Read again</button></div>
+      <h3 class="htitle">Your day</h3><p class="hread">Recovered, one long block at 15:30, and ${fmt(D.week.floor * 7 - WEEK_TOTAL)} steps to make up this week.</p>
+      ${['rec', 'day', 'steps', 'train', 'fuel'].map((k) => `<div class="scard">${insCard(k)}</div>`).join('')}
+      <p class="s">Read at 07:40 from your vault and health data. Demo.</p></div></div>`;
+  }
+
+  /* the frames */
+  const FR = {
+    a: [
+      ['a1', 390, 844, '', '1 · Upright, something waiting', 'The time, the core at 104 points, then one gold number: what waits on you, and who. Next, steps and protein sit beneath it, readable from across a room. The dots lead to Lately: the pulse, the receipts and the streaks.', () => wallA('P', 2)],
+      ['a2', 844, 390, 'wide', '2 · On a stand: something arrives', 'StandBy\'s shape: the clock on the left, the glance on the right. A gold light draws along the foot, the count rolls up one step at a time and the names arrive. When you answer on your phone it rolls back down and the light withdraws the way it came. All clear has no colour at all.', () => wallA('L', 0)],
+      ['a3', 1280, 800, 'wide mac', '3 · The MacBook', 'Everything on one screen, with the Mac\'s conventions: Done in the content, Esc, and the system\'s real full screen. Lately runs along the foot; the pulse changes every two minutes, not every nine seconds.', () => wallA('M', 2)],
+      ['a4', 390, 844, '', '4 · The way out', 'Tap the wall: controls rise for five seconds. Done plays the wall away and returns you to the page you came from; Back never brings the wall back. A bump shows controls and never ends the wall. Try Dim and Lately too.', () => exitFrame('a')],
+      ['a5', 390, 844, '', '5 · Where Console lives: Home, in the morning', 'Your day, drawn, as a morning card: one instrument at a time, in Home\'s colours. Swipe it or use the arrows. It shows until 11:00 or until you have seen all five; pin it from Edit to keep it.', homeA5],
+    ],
+    b: [
+      ['b1', 390, 844, '', '1 · Upright: the day is the dial', 'The 24-hour ring is the clock face: today\'s blocks as arcs, the longest one ahead lit, the hand at now, Nova at the centre. Recovery, steps, the session and protein sit under it as small instruments, and what waits on you is one gold line.', () => wallB('P', 2)],
+      ['b2', 844, 390, 'wide', '2 · On a stand: something arrives', 'The dial on the left, the day on the right. The gold light draws along the foot and the count rolls up; the dial does not change, because the day has not.', () => wallB('L', 0)],
+      ['b3', 1280, 800, 'wide mac', '3 · The MacBook', 'The dial with the pulse, Lately and the streaks under it; recovery and steps at full size beside it, the session and protein compact beneath them.', () => wallB('M', 2)],
+      ['b4', 390, 844, '', '4 · The way out', 'Tap for controls. Play the morning replays the instruments arriving (today\'s Read again). Done returns you to where you came from.', () => exitFrame('b')],
+      ['b5', 390, 844, '', '5 · Where Console went', 'Console retires and the wall does its job, so two rows on the Index become one.', b5],
+    ],
+    c: [
+      ['c1', 390, 844, '', '1 · Upright: the org on the wall', 'Your ten agents around Nova, as the Org Map places them, drawn flat here. A gold count rises over whoever waits on you, a ring lights around them, and the sentence names them.', () => wallC('P', 2)],
+      ['c2', 844, 390, 'wide', '2 · On a stand: something arrives', 'The Coach\'s count rises and bobs, then the CFO\'s; the light draws along the foot; the sentence names both. The cost: ten hues on a wall, where StandBy asks for little colour, so the gold has to be the brightest thing there.', () => wallC('L', 0)],
+      ['c3', 1280, 800, 'wide mac', '3 · The MacBook', 'The org at the centre, the time and the readouts on the left, the pulse, Lately and the streaks on the right.', () => wallC('M', 2)],
+      ['c4', 390, 844, '', '4 · The way out', 'Tap for controls: Done, Dim, and Your day, which opens Console.', () => exitFrame('c')],
+      ['c5', 390, 844, '', '5 · Where Console lives: its own screen', 'Home\'s morning read gains one door, See your day, drawn. The page leads with the news line, draws the five instruments in Home\'s colours, and keeps Read again within reach in every state.', c5],
+    ],
+  };
+  const TODAY = { upright: '13 of 16, three cut off', stand: '4 of 16', mac: '16 of 16' };
+
+  function buildDir(d) {
+    const box = $(`[data-frames="${d}"]`);
+    box.innerHTML = FR[d].map(([id, w, h, cls, t, cap, fn]) => `<figure class="fig ${cls}" id="${id}" data-w="${w}" data-h="${h}">
+      <div class="fit"><div class="screen" style="width:${w}px;height:${h}px">${fn()}</div></div>
+      <figcaption><b>${t}</b>${cap}<span class="meas"></span><span class="fbtns">${/[245]$/.test(id) ? '<button class="fbtn" type="button" data-replay>Replay</button>' : ''}${cls.includes('wide') ? '<button class="fbtn" type="button" data-actual aria-pressed="false">Actual size</button>' : ''}</span></figcaption></figure>`).join('');
+    $$('.fig', box).forEach((fig) => {
+      const r = $('[data-replay]', fig); if (r) r.onclick = () => { $('.screen', fig).innerHTML = FR[d].find((f) => f[0] === fig.id)[6](); start(fig); setTimeout(() => measure(fig), 150); };
+      const a = $('[data-actual]', fig); if (a) a.onclick = () => { const on = fig.classList.toggle('actual'); a.setAttribute('aria-pressed', on); fit(fig); };
+    });
+  }
+
+  function fit(fig) {
+    const w = +fig.dataset.w, h = +fig.dataset.h, f = $('.fit', fig), s = $('.screen', fig);
+    if (!f.clientWidth) return;
+    const act = fig.classList.contains('actual');
+    const k = act ? 1 : Math.min(1, f.clientWidth / w);
+    fig.style.setProperty('--k', k);
+    s.style.transform = `scale(${k})`;
+    f.style.height = (act ? Math.min(h, innerHeight * .8) : h * k) + 'px';
+  }
+  const fitAll = () => $$('.dir:not([hidden]) .fig').forEach(fit);
+
+  /* state changes */
+  function roll(r, n, anim) {
+    const cur = r.querySelector('.cur:not(.out)'), v = String(n);
+    if (cur && cur.textContent === v) return;
+    if (!anim || !cur) { r.innerHTML = `<span class="cur">${v}</span>`; return; }
+    const up = n > +cur.textContent, nx = document.createElement('span');
+    nx.className = 'cur ' + (up ? 'below' : 'above'); nx.textContent = v; r.appendChild(nx);
+    cur.classList.add('out', up ? 'up' : 'down');
+    requestAnimationFrame(() => requestAnimationFrame(() => nx.classList.remove('below', 'above')));
+    setTimeout(() => cur.remove(), 340);
+  }
+  function swap(el, t, anim = true) {
+    if (el.textContent === t) return;
+    if (!anim) { el.textContent = t; return; }
+    el.classList.add('swap-out');
+    setTimeout(() => { el.textContent = t; el.classList.remove('swap-out'); }, 210);
+  }
+  function setAtt(wall, n, anim = true) {
+    wall.dataset.att = n > 0 ? '1' : '0'; wall.dataset.n = n;
+    $$('.roll', wall).forEach((r) => roll(r, n, anim));
+    $$('.who', wall).forEach((w) => swap(w, WHO[n], anim));
+    const say = $('.say[data-live]', wall); if (say) swap(say, sayC(n), anim);
+    $$('.being[data-ask]', wall).forEach((b) => b.classList.toggle('asking', n > 0 && +b.dataset.ask <= n));
+  }
+  async function attLoop(fig, live) {
+    const wall = $('.wall', fig);
+    setAtt(wall, 0, false);
+    while (live()) {
+      await sleep(2200); if (!live()) return;
+      setAtt(wall, 1); await sleep(450); if (!live()) return;
+      setAtt(wall, 2); await sleep(6400); if (!live()) return;
+      setAtt(wall, 1); await sleep(450); if (!live()) return;
+      setAtt(wall, 0); await sleep(1600);
+    }
+  }
+  function staticAtt(fig) { const w = $('.wall', fig); if (w) setAtt(w, 2, false); }
+
+  function exitRun(fig, live) {
+    const wall = $('.wall', fig), hint = $('.hint', wall), origin = $('.origin', fig), toast = $('.toast', wall);
+    setAtt(wall, 2, false);
+    let hideT, toastT;
+    hint.classList.remove('gone'); setTimeout(() => hint.classList.add('gone'), 3400);
+    const showCtl = () => { wall.dataset.ctl = '1'; clearTimeout(hideT); hideT = setTimeout(() => { wall.dataset.ctl = '0'; }, 5000); };
+    const say = (t) => { toast.textContent = t; toast.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => toast.classList.remove('on'), 2200); };
+    wall.onclick = (e) => {
+      hint.classList.add('gone');
+      const pg = e.target.closest('[data-pg]'); if (pg) { wall.dataset.page = pg.dataset.pg; return; }
+      const b = e.target.closest('[data-act]'); showCtl(); if (!b) return;
+      const act = b.dataset.act;
+      if (act === 'done') {
+        wall.dataset.ctl = '0'; wall.classList.add('leaving');
+        setTimeout(() => { wall.hidden = true; wall.classList.remove('leaving'); const lit = $('.ixrow.lit', origin); if (lit) { lit.classList.add('flash'); setTimeout(() => lit.classList.remove('flash'), 700); } }, 280);
+      } else if (act === 'dim') { const on = wall.dataset.dim !== '1'; wall.dataset.dim = on ? '1' : '0'; b.setAttribute('aria-pressed', String(on)); }
+      else if (act === 'lately') wall.dataset.page = wall.dataset.page === '2' ? '1' : '2';
+      else if (act === 'morning') { revealIns(wall); say('The morning, once more'); }
+      else if (act === 'yourday') say('Opens Your day, the Console page');
+    };
+    $('.again', origin).onclick = () => { wall.hidden = false; wall.classList.add('arriving'); setTimeout(() => wall.classList.remove('arriving'), 360); hint.classList.remove('gone'); setTimeout(() => hint.classList.add('gone'), 3400); };
+  }
+  function pageDots(fig) {
+    const wall = $('.wall', fig); if (!wall || !$('.pg2', wall) || $('.ctl', wall)) return;
+    wall.addEventListener('click', (e) => { const pg = e.target.closest('[data-pg]'); if (pg) { wall.dataset.page = pg.dataset.pg; $$('[data-pg]', wall).forEach((b) => b.setAttribute('aria-current', String(b.dataset.pg === pg.dataset.pg))); } });
+  }
+
+  let fillAnim = 0;
+  function fillTo(p) {
+    const stops = $$('#lvl .lv'), id = ++fillAnim;
+    if (reduced()) { stops.forEach((s) => s.setAttribute('offset', p)); return; }
+    const t0 = performance.now();
+    const tick = (t) => { if (id !== fillAnim) return; const k = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - k, 3); stops.forEach((s) => s.setAttribute('offset', (p * e).toFixed(3))); if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }
+  function revealIns(scope) {
+    $$('.ins', scope).forEach((x) => { x.classList.remove('in'); void x.getBoundingClientRect(); x.classList.add('in'); });
+    if ($('.fuelbody', scope)) fillTo(D.protein / D.proteinPlan);
+  }
+
+  function pagerRun(fig, live) {
+    const pg = $('.pager', fig), track = $('.track', pg), dots = $$('.pdots button', fig), cnt = $('.pcount', fig), N = 5;
+    let i = 0;
+    const kf = () => parseFloat(getComputedStyle(fig).getPropertyValue('--k')) || 1;
+    const go = (j, anim = true) => {
+      i = Math.max(0, Math.min(N - 1, j));
+      track.style.transition = anim ? '' : 'none';
+      track.style.transform = `translateX(${-i * 100}%)`;
+      dots.forEach((d, k) => d.setAttribute('aria-current', String(k === i)));
+      cnt.textContent = `${i + 1} of ${N}`;
+      revealIns($$('.slide', track)[i]);
+    };
+    dots.forEach((d, k) => { d.onclick = () => go(k); });
+    $('.pprev', fig).onclick = () => go(i - 1);
+    $('.pnext', fig).onclick = () => go(i + 1);
+    let sx = 0, dx = 0, t0 = 0, drag = false;
+    pg.onpointerdown = (e) => { drag = true; sx = e.clientX; dx = 0; t0 = performance.now(); pg.setPointerCapture(e.pointerId); track.style.transition = 'none'; };
+    pg.onpointermove = (e) => { if (!drag) return; dx = (e.clientX - sx) / kf(); const w = pg.clientWidth; let off = -i * w + dx; if ((i === 0 && dx > 0) || (i === N - 1 && dx < 0)) off = -i * w + dx * .35; track.style.transform = `translateX(${off}px)`; };
+    pg.onpointerup = pg.onpointercancel = () => { if (!drag) return; drag = false; track.style.transition = ''; const v = Math.abs(dx) / Math.max(1, performance.now() - t0); if (Math.abs(dx) > 60 || v > .35) go(i + (dx < 0 ? 1 : -1)); else go(i); };
+    go(0, false);
+    if (!reduced()) setTimeout(() => { if (!live()) return; track.style.transform = 'translateX(-28px)'; setTimeout(() => { if (live()) go(i); }, 380); }, 1100);
+  }
+  async function mergeRun(fig, live) {
+    const fold = $('.ixfold', fig), v = $('[data-row="ambient"] .ixv', fig);
+    while (live()) {
+      fold.classList.remove('folded'); swap(v, '');
+      await sleep(2600); if (!live()) return;
+      fold.classList.add('folded'); swap(v, 'your day, drawn');
+      await sleep(4600);
+    }
+  }
+  async function pushRun(fig, live) {
+    const st = $('.c5', fig), door = $('.door', fig), yd = $('.yd', fig);
+    const open = () => { st.dataset.at = 'day'; yd.scrollTop = 0; setTimeout(() => revealIns(yd), 220); };
+    door.onclick = open;
+    $('.ydback', fig).onclick = () => { st.dataset.at = 'home'; };
+    $('.ydre', fig).onclick = () => revealIns(yd);
+    await sleep(1500); if (!live()) return;
+    door.classList.add('press'); await sleep(200); door.classList.remove('press');
+    open();
+  }
+  const RUN = { a2: attLoop, b2: attLoop, c2: attLoop, a4: exitRun, b4: exitRun, c4: exitRun, a5: pagerRun, b5: mergeRun, c5: pushRun };
+  function start(fig) {
+    const t = (fig._tok = (fig._tok || 0) + 1);
+    const live = () => fig._tok === t && !fig.closest('.dir').hidden;
+    const fn = RUN[fig.id];
+    if (!fn) staticAtt(fig);
+    pageDots(fig);
+    if (fn) fn(fig, live);
+    if (!/5$/.test(fig.id) || fig.id === 'b5') revealIns($('.screen', fig));
+  }
+
+  /* measured by this page, from its own frames */
+  const NUM = /^[\d\s:.,%×+\/]+$/;
+  const visible = (el) => (el.checkVisibility ? el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : true);
+  function measure(fig) {
+    const scr = $('.screen', fig), W = +fig.dataset.w, H = +fig.dataset.h;
+    const top = $('.wall:not([hidden])', scr) || $('.c5 .home', scr) || scr;
+    const k = parseFloat(getComputedStyle(fig).getPropertyValue('--k')) || 1, sr = scr.getBoundingClientRect();
+    let vis = 0, cut = 0, total = 0;
+    $$('[data-obj]', top).forEach((el) => {
+      if (el.parentElement.closest('[data-obj]') && !el.matches('.core,.being')) { /* counted once, by its outer object */ }
+      total++;
+      if (!visible(el)) return;
+      const pgr = el.closest('.pager'); if (pgr) { const a = el.getBoundingClientRect(), b = pgr.getBoundingClientRect(); if (a.left >= b.right - 1 || a.right <= b.left + 1) return; }
+      const r = el.getBoundingClientRect(); if (!r.width) return;
+      const t = (r.top - sr.top) / k, b = (r.bottom - sr.top) / k, l = (r.left - sr.left) / k, rt = (r.right - sr.left) / k;
+      if (b <= 0 || t >= H || rt <= 0 || l >= W) return;
+      vis++; if (t < -1 || b > H + 1 || l < -1 || rt > W + 1) cut++;
+    });
+    const sizes = new Set();
+    const tw = document.createTreeWalker(top, NodeFilter.SHOW_TEXT); let n;
+    while ((n = tw.nextNode())) { const tx = n.textContent.trim(); if (!tx || NUM.test(tx)) continue; const el = n.parentElement; if (!visible(el)) continue; const r = el.getBoundingClientRect(); if (!r.width) continue; const t = (r.top - sr.top) / k; if (t > H || t < -40) continue; sizes.add(parseFloat(getComputedStyle(el).fontSize)); }
+    let minC = Infinity;
+    $$('button', top).forEach((b) => { if (!visible(b) || b.closest('.slide:not(:first-child)')) return; const w = b.offsetWidth, h = b.offsetHeight; if (w && h) minC = Math.min(minC, w, h); });
+    fig._m = { vis, cut, total, sizes: [...sizes].sort((a, b) => a - b), minC };
+    $('.meas', fig).textContent = `Measured on this frame: ${vis} objects in view${cut ? `, ${cut} cut off` : ', none cut off'} · text sizes ${fig._m.sizes.join(', ')} besides numerals · smallest control ${minC === Infinity ? 'none (the wall itself)' : minC + ' pt'}`;
+  }
+  function tally(d) {
+    const m = (i) => $(`#${d}${i}`)._m || { vis: '?', cut: 0 };
+    const c = (x) => `${x.vis}${x.cut ? `, ${x.cut} cut off` : ', none cut off'}`;
+    $(`[data-tally="${d}"]`).innerHTML = `Objects in view upright: today <b>${TODAY.upright}</b>, here <b>${c(m(1))}</b>. On a stand: today <b>${TODAY.stand}</b>, here <b>${c(m(2))}</b>. On the Mac: today <b>${TODAY.mac}</b>, here <b>${c(m(3))}</b>.`;
+  }
+
+  /* the VoiceOver dots */
+  (() => { let s = ''; for (let i = 0; i < 79; i++) { const x = (i % 20) * 8 + 4, y = Math.floor(i / 20) * 12 + 6, hid = i >= 41; s += `<circle cx="${x}" cy="${y}" r="3" fill="${hid ? 'none' : 'rgba(232,236,246,.75)'}" stroke="${hid ? 'rgba(232,236,246,.45)' : 'none'}"/>`; } $('#vo').innerHTML = s; })();
+
+  const DIRS = ['a', 'b', 'c'];
+  const built = {};
+  function show(d) {
+    if (!DIRS.includes(d)) d = 'a';
+    DIRS.forEach((x) => { const sec = $('#dir-' + x); if (x !== d) $$('.fig', sec).forEach((f) => { f._tok = (f._tok || 0) + 1; }); sec.hidden = x !== d; });
+    $$('.seg [data-go]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.go === d)));
+    if (location.hash !== '#' + d) history.replaceState(null, '', '#' + d);
+    if (!built[d]) { buildDir(d); built[d] = true; }
+    requestAnimationFrame(() => { fitAll(); $$('#dir-' + d + ' .fig').forEach(start); setTimeout(() => { $$('#dir-' + d + ' .fig').forEach(measure); tally(d); }, 160); });
+  }
+  $$('.seg [data-go]').forEach((b) => { b.onclick = () => show(b.dataset.go); });
+  addEventListener('hashchange', () => show(location.hash.slice(1)));
+  $('#rmt').onclick = (e) => { rmPreview = !rmPreview; e.currentTarget.setAttribute('aria-pressed', String(rmPreview)); applyRM(); };
+  let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { fitAll(); const d = location.hash.slice(1) || 'a'; $$('#dir-' + d + ' .fig').forEach(measure); tally(d); }, 120); });
+  show(location.hash.slice(1) || 'a');
+})();
+</script>
