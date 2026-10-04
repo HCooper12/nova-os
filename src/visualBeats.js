@@ -203,6 +203,37 @@ export function normaliseSpec(d) {
   return null;
 }
 
+// THE STANCE (4 Oct 2026, his call): when Nova disagrees with, or advises
+// against, something he proposed or asked to do, that sentence is said in
+// red. The model NAMES the stance on its own line, immediately before the
+// sentence (`VIS {"stance":"contest"}`); code binds it to the one sentence
+// after it, as a mark binds (src/glassBeats.js stanceOfSpan, on
+// src/glassMarks.js sentenceAfter), and that sentence carries it to the
+// captions' clock (src/speechClock.js), which the subtitles draw and the
+// core and the label follow.
+//
+// It is NOT a beat on the glass. A mark lives among the beats because it
+// must find the data panel it relights (glassMarks.hostOf); a stance has no
+// panel, and among the beats it would be counted as one ("2 of 4"), become
+// the hero of glassOf, cut a panel off from its marks (hostOf stops at the
+// first beat that is not a mark), and shift every later panel's key. So the
+// parser hands stances back in their own list, and nothing that reads
+// `beats` (the stage, the rail, the snapshot, the server's fetches and mark
+// checks) can ever see one. Only "contest" is a stance; any other value is
+// dropped and changes nothing. Being a VIS line, it leaves the prose by the
+// same strip as every directive, wherever this parser runs.
+export const STANCES = ['contest'];
+export function normaliseStance(v) {
+  if (typeof v !== 'string') return null;   // ["contest"] is not the word
+  const s = v.toLowerCase().trim();
+  return STANCES.includes(s) ? s : null;
+}
+// A line that carries a stance AND names a panel or a light keeps them: the
+// stance never replaces a panel. One that carries only a stance raises
+// nothing, however its other fields read (no key panel inferred from a
+// stray caption).
+const PANEL_SIGNS = ['kind', 'panel', 'mark'];
+
 // A stable name for one visual, so the server can cache a fetch and the
 // client can tell "the same panel, now resolved" from "a new panel".
 export function keyOfSpec(spec, i) {
@@ -216,7 +247,8 @@ export function keyOfSpec(spec, i) {
 }
 
 // The whole of it. Give it a reply — finished or half-arrived — and get back
-// prose safe to speak, plus where each visual begins in that prose.
+// prose safe to speak, plus where each visual begins in that prose, and
+// where each stance begins (`stances`: [{ at, stance }], never in `beats`).
 export function parseVisualStream(raw) {
   const s = String(raw ?? '');
   // No lookahead for the brace: a `VIS` whose object has not arrived yet
@@ -230,6 +262,7 @@ export function parseVisualStream(raw) {
   let cursor = 0;
   let truncated = false;
   const beats = [];
+  const stances = [];
   let m;
   while ((m = re.exec(s))) {
     const braceAt = m.index + m[0].length;
@@ -258,7 +291,17 @@ export function parseVisualStream(raw) {
       break;
     }
     let spec = null;
-    try { spec = normaliseSpec(JSON.parse(s.slice(braceAt, end))); } catch { spec = null; }
+    try {
+      let d = JSON.parse(s.slice(braceAt, end));
+      if (d && typeof d === 'object' && !Array.isArray(d) && Object.prototype.hasOwnProperty.call(d, 'stance')) {
+        const stance = normaliseStance(d.stance);
+        if (stance) stances.push({ at: out.length, stance });
+        const rest = { ...d };
+        delete rest.stance;
+        d = PANEL_SIGNS.some((k) => rest[k] != null) ? rest : null;
+      }
+      spec = normaliseSpec(d);
+    } catch { spec = null; }
     if (spec) beats.push({ key: keyOfSpec(spec, beats.length), at: out.length, spec });
     cursor = end;
     while (cursor < s.length && (s[cursor] === ' ' || s[cursor] === '\t')) cursor++;
@@ -271,5 +314,5 @@ export function parseVisualStream(raw) {
   // holding it costs one 150ms poll tick, speaking it costs his trust.
   const stub = out.match(/(?:^|\n)([ \t]*VI?)$/);
   if (stub) { out = out.slice(0, out.length - stub[1].length); truncated = true; }
-  return { text: out, beats, truncated };
+  return { text: out, beats, stances, truncated };
 }

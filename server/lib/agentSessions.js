@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { parseVisualStream } from '../../src/visualBeats.js';
 
 // NOVA IS THE CEO — Coach and the Leader work beneath it, and he expects
 // that talking to Nova IS talking to the whole org: "what did Coach say
@@ -75,6 +76,11 @@ export function cleanTurnText(text) {
   let i = 0;
   while (i < paras.length && isPlumbing(paras[i])) i++;
   let t = paras.slice(i).join('\n\n');
+  // the running glass's lines (a panel, a mark, a stance) are directives,
+  // not what the agent said: the one shared parser takes them out, wherever
+  // they sit (4 Oct 2026: they were quoted back as the Coach's words, and
+  // ate the 220-character budget a turn gets)
+  t = parseVisualStream(t).text;
   // trailing typed directives
   t = t.replace(/(^|\n)\s*(PROPOSE|REFLECT|SHOW|RESEARCH|CONSULT|WITHDRAW)\s+\{[\s\S]*$/, '').trim();
   return t;

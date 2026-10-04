@@ -56,6 +56,9 @@ export function VoicePresence({ v }) {
   // the mic's true state drives the icon everywhere — App owns it so the
   // orb (which lives in another tree) can colour itself listening-violet
   useEffect(() => { s.reportMic(dict.on); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
+  // …and while the Mac writes his words down, the core is thinking (4 Oct)
+  useEffect(() => { v.reportHearing?.('presence', dict.hearing); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.hearing]);
+  useEffect(() => () => v.reportHearing?.('presence', false), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // turn-taking: Nova finishes speaking → the mic reopens by itself. Also
   // honours the REPLY WINDOW, so a one-off spoken line (a brief, a greeting)

@@ -123,13 +123,13 @@ test('the speech clock: a sentence noted as its audio starts, estimated without 
 
 test('App feeds the clock at the instant each sentence\'s audio starts, on every path, and cuts it on a stop', () => {
   const app = read('src/App.jsx');
-  assert.match(app, /import \{ noteSpokenSentence, cutSpeech, beginReply \} from '\.\/speechClock\.js';/);
-  // the decoded buffer: its exact length
-  assert.match(app, /this\.currentSource = src;\n[\s\S]{0,200}noteSpokenSentence\(head\.said, head\.buffer\.duration \* 1000\);\n\s*try \{ head\.onPlay\?\.\(\);/);
+  assert.match(app, /import \{ noteSpokenSentence, cutSpeech, beginReply, onSpeech, stanceNow \} from '\.\/speechClock\.js';/);
+  // the decoded buffer: its exact length (and, since 4 Oct, its stance)
+  assert.match(app, /this\.currentSource = src;\n[\s\S]{0,200}noteSpokenSentence\(head\.said, head\.buffer\.duration \* 1000, \{ stance: head\.stance \}\);\n\s*try \{ head\.onPlay\?\.\(\);/);
   // the <audio> element: once it is genuinely playing
-  assert.match(app, /this\.noteSpeechHeard\(\);\n[\s\S]{0,200}noteSpokenSentence\(head\.said, Number\.isFinite\(audio\.duration\) \? audio\.duration \* 1000 : null\);/);
+  assert.match(app, /this\.noteSpeechHeard\(\);\n[\s\S]{0,200}noteSpokenSentence\(head\.said, Number\.isFinite\(audio\.duration\) \? audio\.duration \* 1000 : null, \{ stance: head\.stance \}\);/);
   // the phone's own voice: as the utterance starts, estimated
-  assert.match(app, /u\.onstart = \(\) => noteSpokenSentence\(text, null\);/);
+  assert.match(app, /u\.onstart = \(\) => noteSpokenSentence\(text, null, \{ stance \}\);/);
   assert.match(app, /stopSpeaking\(\) \{\n\s*cutSpeech\(\);/);
   assert.match(app, /this\.resetGlass\(\);[^\n]*\n\s*beginReply\(\);/);
 });

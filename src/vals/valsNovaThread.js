@@ -3,7 +3,7 @@ import { whereLabel, deviceName } from '../conversationSync.js';
 import { enrichBody, enrichProgram, activeBeat } from '../glassBeats.js';
 import { tabLabel } from '../tabOrder.js';
 import { undoLabel } from '../chatUndo.js';
-import { clock, panelsOf, settleStage, stageLine, bylineOf, gistOf, newestAt } from '../novaThreadFacts.js';
+import { clock, panelsOf, settleStage, stageLine, bylineOf, gistOf, newestAt, contestOf } from '../novaThreadFacts.js';
 
 // THE NOVA THREAD'S VIEW MODEL (29 Sep 2026) — design/mockups/63-redesign-
 // nova-r2.html, D · Rising, with his amendment (the name at the top toggles a
@@ -122,6 +122,11 @@ export function valsNovaThread(app, ctx, v) {
       lastReplyAt: [...chat].reverse().find((m) => m.who === 'nova' && Number.isFinite(m.at))?.at ?? null,
       busy: !!st.voiceBusy,
       speaking,
+      // RED WHEN NOVA PUSHES BACK (4 Oct 2026): the sentence being spoken
+      // disagrees with what he proposed. It follows the audio on the clock
+      // the subtitles read (a sentence's `stance`), and is the same answer
+      // the chrome's novaContest gives (novaThreadFacts.contestOf)
+      contest: contestOf(st),
       stage,
       engine: st.coreStyle,
       // the close (the morning brief's questions): the Coach-deck card, gold

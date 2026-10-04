@@ -13,6 +13,7 @@ import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
 import { parseVisualStream } from './visualBeats.js';
+import { stanceOfSpan } from './glassBeats.js';
 import { speakableText } from './artifactBlocks.js';
 import { streamShown, sameWidthTokens, rememberArtifacts, OPEN_EVENT } from './artifactClient.js';
 import { toSpokenProse } from './spokenProse.js';
@@ -106,7 +107,7 @@ import { parseSettings } from './settingsVoice.js';
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
 
 import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
-import { noteSpokenSentence, cutSpeech, beginReply } from './speechClock.js';
+import { noteSpokenSentence, cutSpeech, beginReply, onSpeech, stanceNow } from './speechClock.js';
 import { watchForUpdate } from './buildCheck.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
@@ -450,6 +451,9 @@ export default class App extends Component {
     paletteOpen: false, recallResults: [],
     micOn: true, orbInput: '',
     voiceChat: [], voiceBusy: false, voiceSpeaking: false, liveTts: null,
+    // 'contest' while the sentence in the air pushes back (4 Oct 2026):
+    // mirrored from the captions' clock (speechClock.stanceNow), null otherwise
+    voiceStance: null,
     briefQueue: null, briefQueueIdx: 0, briefQueueRemaining: 0,
     updateReady: null, // a newer Nova is deployed than the one running
     voiceConvMode: false, voiceConvPaused: false, voiceAutoListenTick: 0,
@@ -594,6 +598,9 @@ export default class App extends Component {
     // can colour itself listening without lying (the old `micOn` is a
     // settings flag that defaults on — it said "listening" permanently).
     liveTextOpen: false, liveMicOpen: false, voiceScreenMic: false, voicePendingOffer: null,
+    // his recorded words being written down by the Mac, per microphone
+    // ({ presence, screen }), reported up like the mic (novaThreadFacts.thinkingOf)
+    voiceHearing: {},
     intake: null, // THE INTAKE interview in progress: { facts, idx, questions, known }
     liveWrap: null, wrapDismissedOn: null, // WRAP THE DAY — the evening card on Home
     liveRepertoire: null, // THE REPERTOIRE — today's technique on Home
@@ -1000,6 +1007,14 @@ export default class App extends Component {
     window.addEventListener('hashchange', this.popH);
     // the sky rests five seconds after his last touch, scroll or key (src/skyRest.js)
     this.stopSkyRest = startSkyRest();
+    // RED WHEN NOVA PUSHES BACK (4 Oct 2026): the sentence in the air, from
+    // the captions' own clock, so the core and the label change exactly when
+    // the subtitles do (novaContest, novaThread.contest); one small render
+    // per change, never per sentence
+    this.offSpeechStance = onSpeech((list) => {
+      const v = stanceNow(list);
+      if ((this.state.voiceStance || null) !== v) this.setState({ voiceStance: v });
+    });
     // a notification tap lands here on a cold start too
     this.consumeDeepLink();
     this.keyH = (e) => {
@@ -1032,6 +1047,7 @@ export default class App extends Component {
     window.removeEventListener('popstate', this.popH);
     window.removeEventListener('hashchange', this.popH);
     this.stopSkyRest?.();
+    this.offSpeechStance?.();
     window.removeEventListener(OPEN_EVENT, this.openArtH);
     window.removeEventListener('online', this.onlineH);
     window.removeEventListener('pointerdown', this.tapUnlockH);
@@ -6122,7 +6138,9 @@ export default class App extends Component {
     // STREAMING: the reply renders word-by-word from job.partial, and (on
     // the browser speech path) complete sentences are spoken AS they arrive
     // — Nova starts talking while still thinking, like a person does.
-    const stream = { spokenUpTo: 0 };
+    // `stances`: where this reply pushes back (the latest parse), so each
+    // sentence queued for the voice can carry its own (glassBeats.stanceOfSpan)
+    const stream = { spokenUpTo: 0, stances: [] };
     this.resetGlass();   // last turn's panels do not belong to this one
     beginReply();        // …nor do its captions (the full-screen Nova, speechClock.js)
     const elevenPath = this.ttsUsable();
@@ -6150,7 +6168,9 @@ export default class App extends Component {
     // `from` is where this sentence starts in the reply, so the panel whose
     // prose begins inside it can be raised at the instant its audio does —
     // voice leads, glass follows, exactly as the text reveal already does.
-    const say = (t, from = null) => {
+    // `stance`: 'contest' when this sentence pushes back (4 Oct 2026); it
+    // rides the queue to the captions' clock (speechClock.js)
+    const say = (t, from = null, stance = null) => {
       clearTimeout(stream.thinkTimer); // a real sentence is here — no filler needed
       this.cancelAck();                // and the queued "On it, sir" never happens
       const onPlay = () => { if (spokenReveal) reveal(t); if (from != null) this.raiseGlass(from + t.length); };
@@ -6159,8 +6179,8 @@ export default class App extends Component {
       // …and a document is never read aloud: its card is not a sentence
       const heard = toSpokenProse(speakableText(t, { final: true }));
       if (!heard.trim()) { onPlay(); return; }   // a fenced block alone is nothing to say
-      if (elevenPath) this.speakTtsSentence(heard, onPlay);
-      else { this.speakIncremental(heard); onPlay(); }
+      if (elevenPath) this.speakTtsSentence(heard, onPlay, { stance });
+      else { this.speakIncremental(heard, { stance }); onPlay(); }
     };
     // The awkward-silence filler: a long think gets ONE quiet touch-point
     // ("Still with you, sir.") — cached server-side, so it costs ~50ms —
@@ -6191,7 +6211,7 @@ export default class App extends Component {
         // a job never streamed partials.)
         const pieces = fresh.match(/[^.!?]*[.!?]+[\s]*|[^.!?]+$/g) || [fresh];
         let off = startedAt;
-        for (const p of pieces) { if (p.trim()) say(p, off); off += p.length; }
+        for (const p of pieces) { if (p.trim()) say(p, off, stanceOfSpan(stream.stances, text, off, off + p.length)); off += p.length; }
         stream.spokenUpTo = text.length;
         return;
       }
@@ -6202,7 +6222,7 @@ export default class App extends Component {
         // for both, so a light bound to the first sentence never showed (a
         // data panel's mark lights only while its own sentence is heard).
         let off = startedAt;
-        for (const p of m[0].match(/[\s\S]*?[.!?](?=\s|$)\s*/g) || [m[0]]) { if (p.trim()) say(p, off); off += p.length; }
+        for (const p of m[0].match(/[\s\S]*?[.!?](?=\s|$)\s*/g) || [m[0]]) { if (p.trim()) say(p, off, stanceOfSpan(stream.stances, text, off, off + p.length)); off += p.length; }
         stream.spokenUpTo += m[0].length;
       }
     };
@@ -6223,6 +6243,9 @@ export default class App extends Component {
         // never raise a panel, and its body is never shown or spoken
         const seen = parseVisualStream(streamShown(job.partial));
         this.setGlassBeats(seen.beats);
+        // where it pushes back: the same offsets, never a beat (4 Oct 2026);
+        // each sentence queued below carries its own stance to the captions
+        stream.stances = seen.stances;
         const shown = stripShow(seen.text);
         if (!shown) return;
         if (!spokenReveal) applyPartial(shown); // spoken path: reveal() renders, in step with the voice
@@ -9504,7 +9527,9 @@ export default class App extends Component {
       // the engine hears it as his first syllable — a turn that starts with
       // Nova's words in it. Long enough for the speaker to fall quiet, short
       // enough that the hand-back still feels immediate.
-      this.setState({ voiceSpeaking: false }, () => {
+      // (a stance ends with the speaking: the next utterance starts unmarked
+      // until its own first sentence is in the air)
+      this.setState({ voiceSpeaking: false, voiceStance: null }, () => {
         clearTimeout(this.handoverTimer);
         this.handoverTimer = setTimeout(() => this.maybeAutoListen(), 300);
       });
@@ -9537,7 +9562,7 @@ export default class App extends Component {
     this.resetTtsQueue(); // in-flight sentence fetches land against a stale generation and vanish
     this.speechActive = 0;
     nowPlayingIdle();
-    if (this.state.voiceSpeaking) this.setState({ voiceSpeaking: false });
+    if (this.state.voiceSpeaking || this.state.voiceStance) this.setState({ voiceSpeaking: false, voiceStance: null });
     clearTimeout(this.audioReleaseTimer);
     this.audioReleaseTimer = setTimeout(() => {
       if ((this.speechActive || 0) === 0 && !this.ttsPlaying) releaseAudioGraph();
@@ -9609,10 +9634,10 @@ export default class App extends Component {
     const t = this.state.liveTts;
     return !!t?.configured && t.ready !== false;
   }
-  speakIncremental(text) {
+  speakIncremental(text, { stance = null } = {}) {
     if (!this.state.voiceSpeak || !text.trim()) return;
     this.beginSpeech();
-    this.speakFallback(text, () => this.endSpeech());
+    this.speakFallback(text, () => this.endSpeech(), { stance });
   }
   // conversation mode: when Nova finishes speaking (and nothing is running),
   // reopen the mic — the turn passes back without a tap
@@ -9717,17 +9742,19 @@ export default class App extends Component {
   // can't) — it is how text is revealed in sync with speech instead of
   // seconds ahead of it. He named the failure exactly: text-first feels
   // like pressing play on something already written.
-  speakTtsSentence(text, onPlay) {
+  // `stance` (4 Oct 2026): 'contest' when the sentence pushes back; it reaches
+  // the captions' clock with the sentence, whichever voice speaks it
+  speakTtsSentence(text, onPlay, { stance = null } = {}) {
     const clean = (text || '').trim().slice(0, 2400);
     if (!clean) return;
     const conn = getConnection();
-    if (!conn || !this.ttsUsable()) { onPlay?.(); this.speakIncremental(clean); return; }
+    if (!conn || !this.ttsUsable()) { onPlay?.(); this.speakIncremental(clean, { stance }); return; }
     const gen = this.ttsGen || 0;
     // conversational output (replies, briefs, greetings) carries a reveal
     // callback; previews/acks/fillers don't — only the former earns a
     // no-button reply window when the speaking ends
     if (onPlay) this.replyWorthy = true;
-    const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean };
+    const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean, stance };
     (this.ttsQueue = this.ttsQueue || []).push(entry);
     this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
     // A reply already committed to the browser voice does not go back to the
@@ -9792,7 +9819,7 @@ export default class App extends Component {
           if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation
           this.ttsPlaying = false; this.ttsNowSaying = null;
           this.endSpeech(); this.drainTtsQueue(gen);
-        });
+        }, { stance: head.stance });
         return;
       }
       this.endSpeech(); this.drainTtsQueue(gen); return;
@@ -9823,7 +9850,7 @@ export default class App extends Component {
       this.currentSource = src;
       // the captions' clock: this sentence's audio starts now and lasts
       // exactly the decoded buffer (speechClock.js, the full-screen Nova)
-      noteSpokenSentence(head.said, head.buffer.duration * 1000);
+      noteSpokenSentence(head.said, head.buffer.duration * 1000, { stance: head.stance });
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
       return;
     }
@@ -9853,7 +9880,7 @@ export default class App extends Component {
       this.noteSpeechHeard();
       // the captions' clock: the element's own length (estimated if the
       // browser has not read it, and the sentence says so)
-      noteSpokenSentence(head.said, Number.isFinite(audio.duration) ? audio.duration * 1000 : null);
+      noteSpokenSentence(head.said, Number.isFinite(audio.duration) ? audio.duration * 1000 : null, { stance: head.stance });
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
     }).catch((err) => {
       // The reply exists but the device refused to play it. NEVER let that
@@ -10099,13 +10126,13 @@ export default class App extends Component {
     if (voices.length) { this.speechVoiceKey = key; this.speechVoiceCached = picked; }
     return picked;
   }
-  speakFallback(text, finish) {
+  speakFallback(text, finish, { stance = null } = {}) {
     try {
       const u = new SpeechSynthesisUtterance(text);
       u.voice = this.resolveSpeechVoice();
       // the captions' clock: the phone's own voice reports no length, so the
       // sentence is paced on an estimate and marked as one (speechClock.js)
-      u.onstart = () => noteSpokenSentence(text, null);
+      u.onstart = () => noteSpokenSentence(text, null, { stance });
       u.onend = finish;
       u.onerror = finish;
       window.speechSynthesis.speak(u);
@@ -10253,8 +10280,11 @@ export default class App extends Component {
           },
           onProgress: (job) => {
             if (!job.partial) return;
-            // a half-arrived document shows as "writing", never its body
-            const shown = stripDirective(streamShown(job.partial));
+            // a half-arrived document shows as "writing", never its body, and
+            // no VIS line (a panel, a mark, a stance) is ever words: the one
+            // glass parser takes them out here too (4 Oct 2026; the Coach log
+            // showed them raw until the finished answer replaced it)
+            const shown = stripDirective(parseVisualStream(streamShown(job.partial)).text);
             if (shown) this.applyStreamPartial('coachChat', 'coach', shown);
           },
           onReady: (job) => {
@@ -10398,8 +10428,9 @@ export default class App extends Component {
         },
         onProgress: (job) => {
           if (!job.partial) return;
-          // a half-arrived document shows as "writing", never its body
-          const shown = stripDirective(streamShown(job.partial));
+          // a half-arrived document shows as "writing", never its body, and
+          // a VIS line never shows at all (the one glass parser, as above)
+          const shown = stripDirective(parseVisualStream(streamShown(job.partial)).text);
           if (shown) this.applyStreamPartial('leaderChat', 'leader', shown);
         },
         onReady: (job) => {

@@ -59,8 +59,11 @@ test('every streamed partial cuts documents out BEFORE the glass parser sees it'
   const app = read('src/App.jsx');
   assert.match(app, /parseVisualStream\(streamShown\(job\.partial\)\)/, 'Ask Nova: documents first, then the glass');
   assert.doesNotMatch(app, /parseVisualStream\(job\.partial\)/, 'no raw partial reaches the glass parser');
-  assert.match(app, /stripDirective\(streamShown\(job\.partial\)\);\n\s*if \(shown\) this\.applyStreamPartial\('coachChat'/);
-  assert.match(app, /stripDirective\(streamShown\(job\.partial\)\);\n\s*if \(shown\) this\.applyStreamPartial\('leaderChat'/);
+  // the Coach and the Leader logs: documents first, then every VIS line out
+  // through the same parser (4 Oct 2026: they showed VIS lines raw while
+  // the answer streamed)
+  assert.match(app, /stripDirective\(parseVisualStream\(streamShown\(job\.partial\)\)\.text\);\n\s*if \(shown\) this\.applyStreamPartial\('coachChat'/);
+  assert.match(app, /stripDirective\(parseVisualStream\(streamShown\(job\.partial\)\)\.text\);\n\s*if \(shown\) this\.applyStreamPartial\('leaderChat'/);
   // and what is spoken never includes a document or its token
   assert.match(app, /toSpokenProse\(speakableText\(t, \{ final: true \}\)\)/);
   // the viewer is a history level the back swipe and popstate close

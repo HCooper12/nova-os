@@ -229,6 +229,17 @@ and is named in words too; a record that cannot be read means no panel, and
 he says so; the panel settles into the thread and Replay brings it back.
 (Mockup 67 screen 7 draws the rule.)
 
+**When Nova pushes back (his rule, 4 Oct 2026).** Red means one thing:
+Nova disagreeing with, or advising against, something he proposed or asked
+to do. Only that sentence is red while it is spoken (the core, its subtitle
+underline, the label "Pushing back"); the reasons after it return to the
+speaking colour. Never red for bad news, a missed target or a correction of
+fact. The model names it on its own line before the sentence
+(`VIS {"stance":"contest"}`, `GLASS_CONTRACT`); code binds it to that one
+sentence, and the words say the disagreement too, so colour is never the only
+signal. A stance is not a panel and never counts as one
+(`src/visualBeats.js`).
+
 ## 3 · The change process (for future Claude editing Nova)
 
 The mental sequence to run for any change, in order. Skipping steps is how

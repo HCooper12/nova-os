@@ -86,6 +86,9 @@ export function NovaThread({ v }) {
   dictRef.current = dict;
   useEffect(() => { v.reportScreenMic?.(dict.on); if (dict.on) setListenSince(Date.now()); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
   useEffect(() => () => v.reportScreenMic?.(false), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // "Writing it down" is thinking app-wide too (the tab bar's Nova, Home's core)
+  useEffect(() => { v.reportHearing?.('screen', dict.hearing || !!retrying); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.hearing, retrying]);
+  useEffect(() => () => v.reportHearing?.('screen', false), []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (v.voiceAutoListenTick > 0 && (v.convMode || v.replyListen) && !v.convPaused && dictRef.current.supported && !dictRef.current.on) {
       v.stopSpeaking();

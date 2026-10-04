@@ -5,6 +5,7 @@ import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS } from './shared.js';
 import { dtf } from './fmt.js';
 import { glassOf } from '../glassBeats.js';
+import { thinkingOf, contestOf } from '../novaThreadFacts.js';
 import { muscleVar } from '../muscleHue.js';
 import { api, getConnection } from '../api.js';
 
@@ -480,6 +481,11 @@ export function valsChrome(app, ctx) {
     speakText: (t) => app.speakTtsSentence(t),
     startLiveTalk: () => app.startLiveTalk(),
     novaSpeaking: !!st.voiceSpeaking,
+    // RED WHEN NOVA PUSHES BACK (4 Oct 2026): a sentence that disagrees with
+    // what he proposed is being spoken right now (novaThreadFacts.contestOf,
+    // the same answer as the thread's `contest`), for the tab bar's Nova and
+    // Home's core
+    novaContest: contestOf(st),
     micOn: !!st.micOn,
     // the dock orb's live state — the mic as it ACTUALLY is, plus the
     // long-press that reveals the words
@@ -524,6 +530,15 @@ export function valsChrome(app, ctx) {
       fire: (heard, why) => app.onBargeIn(heard, why),
     },
     novaListening: !!st.liveMicOpen,
+    // the head's Thinking, app-wide (4 Oct 2026): a voice turn being worked
+    // on (in flight, or his words still being written down) while Nova is
+    // neither speaking nor listening (novaThreadFacts.thinkingOf)
+    novaThinking: thinkingOf(st),
+    // each microphone that hands a turn to Nova says while the Mac is
+    // writing his words down, keyed by owner ('presence' | 'screen'), so one
+    // never clears another's; unchanged is no render (the updater's null)
+    reportHearing: (owner, on) => app.setState((s) => (
+      !!(s.voiceHearing || {})[owner] === !!on ? null : { voiceHearing: { ...(s.voiceHearing || {}), [owner]: !!on } })),
     // the glass, for surfaces outside the Voice screen
     stageCard: st.stageCard || null,
     // speechBlocked lives in valsMisc.js — this module spreads AFTER it in

@@ -222,6 +222,33 @@ export function stateOf({ listening = false, blind = false, hearing = false, bus
   return { key: 'turn', word: 'Your turn', hint: demo ? 'demo replies' : 'tap Nova or type' };
 }
 
+// THE CORE THINKS, APP-WIDE (4 Oct 2026, for the tab bar's Nova and Home's
+// core): the head's "Thinking" above (busy, or hearing: his recorded words
+// being written down by the Mac), and only while Nova is neither speaking
+// nor listening. From app state: `voiceBusy` is the turn in flight;
+// `voiceHearing` is reported by each microphone that hands a turn to Nova,
+// keyed by owner ('presence', 'screen'), as liveMicOpen (the presence) and
+// voiceScreenMic (the Voice screen, the Nova thread) report the mic itself.
+export function thinkingOf(st) {
+  if (!st) return false;
+  const hearing = Object.values(st.voiceHearing || {}).some(Boolean);
+  const listening = !!(st.liveMicOpen || st.voiceScreenMic);
+  return !!(st.voiceBusy || hearing) && !st.voiceSpeaking && !listening;
+}
+
+// RED WHEN NOVA PUSHES BACK (4 Oct 2026, his call), app-wide: Nova is
+// speaking and the sentence in the air disagrees with what he proposed.
+// `voiceStance` is App's mirror of the captions' clock (speechClock.stanceNow,
+// written the instant each sentence's audio starts, cleared when speaking
+// ends), so the core, the label and the subtitle underline turn red and back
+// on one clock. Not the glass's glassSpokenTo: the glass outlives the reply
+// (only a new ask clears it) and, on the phone's own voice, runs ahead of the
+// audio, so a reply ending on its pushback would redden whatever Nova said
+// next.
+export function contestOf(st) {
+  return !!st?.voiceSpeaking && st.voiceStance === 'contest';
+}
+
 // how the core moves for each state: pace is the clock's rate, `grow` and
 // `pulse` are read by the head's own frame loop, `still` stops it
 export function coreFormOf(key) {

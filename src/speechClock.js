@@ -30,11 +30,15 @@ export function clockNow() {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
 }
 
-export function noteSpokenSentence(text, durMs, { words = null, at = clockNow() } = {}) {
+// `stance` (4 Oct 2026): 'contest' when this sentence is Nova pushing back
+// on something he proposed (src/visualBeats.js THE STANCE, bound to the
+// sentence by src/glassBeats.js stanceOfSpan), else null. The subtitles draw
+// it; anything else is not a stance and is dropped here.
+export function noteSpokenSentence(text, durMs, { words = null, at = clockNow(), stance = null } = {}) {
   const t = String(text || '').trim();
   if (!t) return null;
   const known = Number.isFinite(durMs) && durMs > 0;
-  const s = { id: ++seq, text: t, at, dur: known ? durMs : estimateSpeechMs(t), estimated: !known, words: Array.isArray(words) ? words : null, cut: null };
+  const s = { id: ++seq, text: t, at, dur: known ? durMs : estimateSpeechMs(t), estimated: !known, words: Array.isArray(words) ? words : null, cut: null, stance: stance === 'contest' ? 'contest' : null };
   const last = sentences[sentences.length - 1];
   const stale = last && at - (last.cut ?? last.at + last.dur) > FRESH_GAP_MS;
   sentences = [...(stale ? [] : sentences), s].slice(-MAX);
@@ -59,6 +63,14 @@ export function cutSpeech(at = clockNow()) {
 }
 
 export function spokenSentences() { return sentences; }
+
+// THE STANCE IN THE AIR (4 Oct 2026): the newest sentence's, unless he cut
+// it off. App mirrors it into state (voiceStance) for the core and the
+// label, so they turn red and back on the very clock the subtitles read.
+export function stanceNow(list = sentences) {
+  const s = list && list[list.length - 1];
+  return s && s.cut == null && s.stance === 'contest' ? 'contest' : null;
+}
 
 export function onSpeech(fn) {
   subs.add(fn);

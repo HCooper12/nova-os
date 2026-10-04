@@ -1,5 +1,5 @@
 import { anatomyOf, sideFor, muscleVar } from './muscleHue.js';
-import { DATA_KINDS, hostOf, marksOfHost, resolveMark, litNow, hueOf, finderWords } from './glassMarks.js';
+import { DATA_KINDS, hostOf, marksOfHost, resolveMark, litNow, sentenceAfter, hueOf, finderWords } from './glassMarks.js';
 
 // WHAT IS ON THE GLASS RIGHT NOW.
 //
@@ -212,6 +212,28 @@ export function glassOf(st, app) {
   const hero = panel(beats[idx]);
   if (!hero) return null;
   return { hero, rail: before(idx).slice(-4).reverse().map(panel).filter(Boolean) };
+}
+
+// ------------------------------------------------------------ the stance --
+// RED WHEN NOVA PUSHES BACK (4 Oct 2026, his call; src/visualBeats.js THE
+// STANCE). A stance binds to the one sentence after its line, as a mark
+// does (glassMarks.sentenceAfter). App tags each sentence it queues for the
+// voice with this; the sentence carries it to the captions' clock
+// (src/speechClock.js), which the subtitles draw and the core and the label
+// follow (speechClock.stanceNow, novaThreadFacts.contestOf). Nothing here
+// draws.
+
+// The stance of one spoken piece, [from, to) of the reply: 'contest' when
+// the sentence a contest line precedes overlaps it, else null. Overlap, not
+// "starts here", because the flush-all splitter can cut "9.5 kg" into two
+// pieces, and both are that sentence.
+export function stanceOfSpan(stances, text, from, to) {
+  for (const s of stances || []) {
+    if (s?.stance !== 'contest') continue;
+    const sp = sentenceAfter(text, s.at);
+    if (sp.start < to && sp.end > from) return 'contest';
+  }
+  return null;
 }
 
 function groupLabel(name) {

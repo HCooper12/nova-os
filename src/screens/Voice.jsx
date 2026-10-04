@@ -137,6 +137,9 @@ function VoiceClassic({ v }) {
   // the wake word would fight this mic for the microphone
   useEffect(() => { v.reportScreenMic?.(dict.on); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.on]);
   useEffect(() => () => v.reportScreenMic?.(false), []); // leaving the screen frees it
+  // while the Mac writes his words down, Nova is thinking everywhere (4 Oct)
+  useEffect(() => { v.reportHearing?.('screen', dict.hearing); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [dict.hearing]);
+  useEffect(() => () => v.reportHearing?.('screen', false), []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     // conversation mode's turn-taking, OR the one-shot reply window that
     // opens whenever Nova finishes speaking — both arrive on the same tick
