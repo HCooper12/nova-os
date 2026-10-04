@@ -1,0 +1,1291 @@
+<title>Library, round 1</title>
+<!--
+  74 · THE LIBRARY, ROUND 1 (5 Oct 2026)
+
+  The ninth page of the redesign. The audit is
+  design/audits/redesign-2026-09/09-library.md. His brief (26 Sep): "Simplicity
+  with all functionality and a beautiful aesthetic, along with ease of use MUST
+  be the goal." The bar for this page he set himself on 17 Sep (the Stripe
+  Press reel): "the minimum level of quality that must be achieved moving
+  forward", and his three answers that day stand in every variation here:
+  each source is a Nova edition with its poster set in as a plate, the 3D
+  object replaces the old spines, and the open is the free three-axis tumble.
+
+  What the audit measured, and what every variation answers:
+    - eight pills in three rows before the first source (228 pt, 27% of the
+      screen) -> a title row with search and add, and at most one control
+    - Nova's reading of a source starts 1,399 px down the detail -> his
+      verdict first, the reading inside the first screen and a half
+    - 14 of 21 detail controls under the 28 pt floor -> 44 pt everywhere
+    - one source drawn four ways (plate in cloth, the 3D volume, a full-bleed
+      16:10 poster, a hash gradient) -> one object everywhere it appears
+    - Back leaves the Library with the book open -> Back, and a swipe from
+      the left edge, return the book to its place
+    - "live from Obsidian" on a cached shelf -> "synced 9:38", or offline
+      with the time of the copy
+    - 10 type sizes -> 34 · 20 · 16 · 13, numerals in SF Rounded; the tab
+      labels (11) are the chrome's, as in mockup 60
+
+  Three directions, switched at the top:
+    A One shelf         the 3D shelf is the page; the volume in front carries
+                        its name in real type and Nova's verdict in the serif;
+                        a row of 25 ticks reaches any source in one move
+    B The stack         Stripe Press's own stack: volumes lying flat on the
+                        phone's own vertical scroll, every spine legible; the
+                        one at eye level slides out; tap picks it up
+    C Shelf and covers  Apple Books' shape: the five newest on a short shelf,
+                        then one rail per kind, so the sections are the filter;
+                        a cover becomes the volume as it lifts
+  Each direction has three states under its phone: the shelf, opening a
+  source (reversible at any moment: Library, or a swipe from the left edge),
+  and what Nova does with a source. The detail is the same in all three.
+
+  STAND-INS. The volumes are CSS 3D (six faces, a crack-open board, a moving
+  specular band, foil type whose highlight moves on its own beat); no library
+  is loaded. The app's shelf is WebGL (src/shelf3d) and keeps its renderer;
+  this page shows layout, motion and order, not the app's light. The tumble
+  uses the app's own maths (Shelf3D.jsx: a wobble that is zero at both ends,
+  smoothstep cubed on the spin, 1.15 s open, 0.8 s close).
+
+  REAL, NOT INVENTED. The verdict is the Watcher's own line, written into
+  every video note (server/lib/watcher.js:244, "the watch-it-or-skip-it
+  call"), and /api/library already sends each item's first paragraph; a source
+  with no verdict shows the first line of Nova's page, labelled as such.
+  "Ask about it" is askAboutArtifact's pattern (App.jsx), new on this page.
+  The lanes named under "Nova hands this to" are the ones that call
+  shelfContext (server/lib/sourceShelf.js). New and small, and said so on the
+  page: the key-idea timeline (the note's own M:SS timestamps), the Galaxy
+  opening on this source, the cached copy's time.
+
+  DEMO CONTENT ONLY. The repo is public. Every title, channel, author,
+  verdict, idea and count is invented; the shape (21 videos, 3 articles,
+  1 book) is his shelf's as the 21 Sep still showed it. Poster art is
+  abstract colour, never a real thumbnail.
+
+  Reduced motion: the open becomes a 200 ms cross-fade with no tumble, the
+  constellation appears drawn, the dust stops, the sway stops; preview it with
+  the toggle under the phone. Quarter speed slows every move on the page.
+  Hash: #a, #b or #c opens a direction.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --bg:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.78);--ink3:rgba(232,236,246,.62);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.08);--card-ring:rgba(255,255,255,.15);--card-hi:rgba(255,255,255,.22);
+  --acc:#59e6ff;--acc-ink:#062028;
+  --concept:#d8b573;--person:#e08f6f;--topic:#8a6ad1;--source:#6be5f5;--echo:rgba(232,236,246,.6);
+  --warn:#e08383;
+  --slow:1;
+  color-scheme:dark;
+}
+html.slow{--slow:4}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{-webkit-appearance:none;appearance:none;font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+
+/* ================= the page around the phone ================= */
+.wrap{max-width:1160px;margin:0 auto;padding:28px 16px 88px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+.wrap>h1{margin:0 0 12px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 10px;max-width:40em;font:400 20px/1.4 var(--serif);color:var(--ink2);text-wrap:pretty}
+.demo{margin:0 0 22px;max-width:46em;font-size:13px;color:var(--ink3)}
+.demo a{color:var(--acc)}
+.dirs{position:sticky;top:0;z-index:50;margin:0 -16px;padding:8px 16px;background:rgba(6,7,13,.78);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3)}
+.dirs .seg{max-width:620px;margin:0 auto}
+.seg{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);height:44px;padding:3px;border-radius:22px;background:rgba(120,120,128,.22)}
+.seg button{position:relative;z-index:1;min-width:0;height:38px;padding:0 4px;border-radius:19px;font:600 13px var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color calc(220ms*var(--slow)) ease}
+@media (max-width:430px){.seg .lt{display:none}}
+.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{color:var(--ink)}
+.seg .pill{position:absolute;z-index:0;top:3px;left:3px;height:38px;border-radius:19px;background:var(--card-hi);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12);transition:transform calc(300ms*var(--slow)) var(--ease),width calc(300ms*var(--slow)) var(--ease)}
+.seg .n{margin-left:5px;font-family:var(--round);font-weight:600;color:var(--ink3)}
+.rkm{max-width:46em;margin:22px 0 18px;font-size:16px;color:var(--ink2);text-wrap:pretty}
+.rkm b{color:var(--ink);font-weight:600}
+.rkm .num{font-family:var(--round);font-weight:600;color:var(--ink)}
+.studio{display:grid;grid-template-columns:390px minmax(0,1fr);gap:40px;align-items:start}
+@media (max-width:900px){.studio{grid-template-columns:minmax(0,1fr);gap:24px}}
+.pcol{min-width:0}
+.pbox{position:relative;width:calc(390px*var(--z,1));height:calc(844px*var(--z,1));margin-left:calc((100% - 390px*var(--z,1))/2);margin-right:calc((100% - 390px*var(--z,1))/2)}
+.under{max-width:390px;margin:16px auto 0}
+.under .seg{margin-bottom:10px}
+.toggles{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.chip[aria-pressed="true"]{color:var(--acc-ink);background:var(--acc)}
+.chip:active,.cbtn:active,.btn:active,.grow:active,.srow:active,.done:active,.cpill:active{transform:scale(.97);transition:transform calc(120ms*var(--slow)) ease-out}
+.notes h2{margin:0 0 6px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+.notes .st{margin:0 0 16px;padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.notes .st.on{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--acc) 60%,transparent),0 0 0 4px color-mix(in srgb,var(--acc) 10%,transparent)}
+.notes h3{margin:0 0 4px;font:600 16px/1.3 var(--ui)}
+.notes p{margin:0;font-size:16px;color:var(--ink2);text-wrap:pretty}
+.notes .new{display:block;margin-top:8px;font-size:13px;color:var(--ink3)}
+section.page{margin-top:64px}
+section.page>h2{margin:0 0 6px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+section.page>.sub{margin:0 0 18px;max-width:44em;color:var(--ink2);text-wrap:pretty}
+.cmp{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-width:860px}
+.cmp li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 20px;padding:14px 4px;border-top:1px solid var(--sep)}
+.cmp li:first-child{border-top:0}
+.cmp .was{color:var(--ink3);font-size:16px}
+.cmp .now{color:var(--ink);font-size:16px}
+.cmp b{font-weight:600}
+@media (max-width:620px){.cmp li{grid-template-columns:minmax(0,1fr)}}
+.states4{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;max-width:1060px}
+.sc{margin:0;padding:16px;border-radius:22px;background:linear-gradient(180deg,#0a0e20,#0c1230);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.sc figcaption{margin-top:12px;font-size:13px;color:var(--ink3)}
+.sc figcaption b{display:block;margin-bottom:2px;font:600 16px var(--ui);color:var(--ink)}
+.sc .l1{font:400 13px var(--ui);color:var(--ink3)}
+.sc .l2{margin-top:6px;font:400 20px/1.3 var(--serif);color:var(--ink)}
+.skelroom{position:relative;height:120px;margin-top:10px;overflow:hidden;border-radius:12px}
+.skelroom .bk{position:absolute;bottom:22px;width:44px;border-radius:3px;background:linear-gradient(90deg,rgba(255,255,255,.07),rgba(255,255,255,.13),rgba(255,255,255,.07));background-size:200% 100%;animation:shimmer calc(1.4s*var(--slow)) linear infinite}
+.skelroom .pl{position:absolute;left:0;right:0;bottom:8px;height:14px;background:linear-gradient(180deg,#5a3d29,#2a1c12)}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+.miniacts{display:grid;gap:8px;margin-top:10px}
+.miniacts span{display:flex;align-items:center;min-height:44px;padding:0 14px;border-radius:14px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font-size:16px}
+.retry{display:inline-flex;align-items:center;min-height:44px;margin-top:10px;padding:0 18px;border-radius:22px;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn);font:600 16px var(--ui)}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:880px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--round);background:rgba(89,230,255,.12);color:var(--acc)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:var(--ink2);font-size:16px}
+
+/* ================= the phone ================= */
+.phone{position:absolute;left:0;top:0;width:390px;height:844px;border-radius:52px;overflow:hidden;isolation:isolate;transform:scale(var(--z,1));transform-origin:0 0;background:#05060c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 80px -30px rgba(0,0,0,.9);font-size:16px;line-height:1.4}
+@media (max-width:430px){.phone{border-radius:40px}}
+.sky{position:absolute;inset:0;z-index:0;background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.18),rgba(89,230,255,0) 60%),radial-gradient(70% 45% at 92% 28%,rgba(143,123,255,.22),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 110%,rgba(217,181,111,.12),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 38%,#0c1230 72%,#121a3a 100%)}
+.tint{position:absolute;inset:0;z-index:1;opacity:0;pointer-events:none;background:radial-gradient(95% 52% at 50% 24%,color-mix(in srgb,var(--book,#59e6ff) 40%,transparent),transparent 72%),linear-gradient(180deg,color-mix(in srgb,var(--book,#59e6ff) 20%,transparent),transparent 62%)}
+.status{position:absolute;top:0;left:0;right:0;height:50px;z-index:40;pointer-events:none}
+.status .time{position:absolute;left:34px;top:15px;font:600 16px/1 var(--ui);letter-spacing:-.01em}
+.status .island{position:absolute;top:11px;left:50%;width:122px;height:35px;margin-left:-61px;border-radius:20px;background:#000}
+.status .bat{position:absolute;right:30px;top:17px;width:25px;height:12px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.status .bat::after{content:"";position:absolute;inset:2px 6px 2px 2px;border-radius:2px;background:var(--ink)}
+.scr{position:absolute;inset:0;z-index:5;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:54px 16px 130px;scrollbar-width:none}
+.scr::-webkit-scrollbar{display:none}
+.scr.browse{transform-origin:50% 30%}
+.scr.browse.persp{perspective:1100px;perspective-origin:195px 140px}
+.scr.detail{z-index:6;pointer-events:none;touch-action:pan-y}
+.phone[data-view="browse"] .scr.detail{visibility:hidden}
+[data-body]{transform-style:preserve-3d;-webkit-transform-style:preserve-3d}
+.phone[data-view="detail"] .scr.detail{pointer-events:auto}
+.phone[data-view="detail"] .scr.browse{pointer-events:none}
+
+/* the title row: the large title, search and add, nothing else */
+.trow{display:flex;align-items:center;gap:8px;min-height:44px;margin-top:4px}
+.trow h1{flex:1;min-width:0;margin:0;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.cbtn{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.meta{margin:2px 0 0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.meta .num{font-family:var(--round);font-weight:600;color:var(--ink2)}
+.phone .seg{margin-top:12px}
+.sfield{display:flex;align-items:center;gap:8px;min-height:44px;margin-top:4px;animation:fieldIn calc(260ms*var(--slow)) var(--ease-out) both;transform-origin:100% 50%}
+@keyframes fieldIn{from{opacity:0;transform:scaleX(.6)}to{opacity:1;transform:none}}
+.sfield label{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:44px;padding:0 14px;border-radius:22px;background:rgba(120,120,128,.24);color:var(--ink3)}
+.sfield input{flex:1;min-width:0;height:44px;border:0;outline:0;background:none;color:var(--ink);font:400 16px var(--ui)}
+.sfield input::placeholder{color:var(--ink3)}
+.sfield button{flex:none;min-height:44px;padding:0 4px;font:400 16px var(--ui);color:var(--acc)}
+.nomatch{margin:40px 8px 0;text-align:center;color:var(--ink2)}
+.nomatch button{display:inline-flex;align-items:center;min-height:44px;margin-top:8px;padding:0 18px;border-radius:22px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font:600 16px var(--ui);color:var(--acc)}
+
+/* ================= the edition, as an object ================= */
+.vol{position:absolute;left:0;top:0;width:var(--w);height:var(--h);cursor:pointer;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transform-origin:50% 50%;will-change:transform;outline-offset:6px}
+.vol.away{visibility:hidden}
+.rig{position:absolute;inset:0;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transition:transform calc(140ms*var(--slow)) ease-out}
+.vol.press .rig{transform:scale(.97)}
+.vol.sway .rig{animation:sway calc(6.5s*var(--slow)) ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotateY(-2deg)}to{transform:rotateY(2deg)}}
+.f{position:absolute;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden;opacity:var(--op,1)}
+.cover{overflow:hidden;border-radius:2px 5px 5px 2px;background:repeating-linear-gradient(0deg,rgba(255,255,255,.028) 0 1px,transparent 1px 3px),repeating-linear-gradient(90deg,rgba(0,0,0,.06) 0 1px,transparent 1px 3px),linear-gradient(160deg,color-mix(in srgb,var(--cloth) 80%,#fff 20%),var(--cloth) 52%,color-mix(in srgb,var(--cloth) 68%,#000 32%));box-shadow:inset 4px 0 6px -3px rgba(0,0,0,.65),inset 0 0 0 1px rgba(255,255,255,.07)}
+.front{left:0;top:0;width:100%;height:100%;transform-origin:0 50%;transform:translateZ(calc(var(--d)/2)) rotateY(var(--crack,0deg))}
+.cover .plate{position:absolute;left:7%;right:7%;top:7%;height:39.4%;border-radius:2px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1),0 2px 6px rgba(0,0,0,.5)}
+.cover .ft{position:absolute;left:9%;right:9%;top:55%;text-align:center;font:400 calc(var(--w)*.088)/1.18 var(--serif);text-wrap:balance;color:var(--foil);background:linear-gradient(100deg,color-mix(in srgb,var(--foil) 62%,#000) 0%,var(--foil) 28%,#fffaf0 calc(42% + var(--spec,0)*1%),var(--foil) calc(56% + var(--spec,0)*1%),color-mix(in srgb,var(--foil) 70%,#000) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.cover .ft::before{content:"";display:block;width:32%;height:1px;margin:0 auto 7%;background:var(--foil);opacity:.55}
+.k-article .cover .ft,.k-article.cover .ft{top:24%;font-size:calc(var(--w)*.112)}
+.cover .fa{position:absolute;left:6%;right:6%;bottom:15%;text-align:center;font:600 calc(var(--w)*.05)/1 var(--ui);letter-spacing:.12em;text-transform:uppercase;color:var(--foil);opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cover .mk{position:absolute;left:0;right:0;bottom:5%;text-align:center;font:400 calc(var(--w)*.075)/1 var(--serif);color:var(--foil);opacity:.8}
+.cover .spec{position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.14) 45%,transparent 60%);transform:translateX(calc(var(--spec,0)*1%));mix-blend-mode:screen}
+.cover .jk{position:absolute;inset:0;background:radial-gradient(70% 40% at 70% 78%,rgba(255,255,255,.18),transparent 70%),linear-gradient(170deg,var(--jk1),var(--jk2))}
+.cover .jt{position:absolute;left:10%;right:10%;top:16%;font:400 calc(var(--w)*.13)/1.05 var(--serif);color:#2b1d07;letter-spacing:-.01em}
+.cover .jr{position:absolute;left:10%;width:24%;top:57%;height:2px;background:#2b1d07;opacity:.7}
+.cover .ja{position:absolute;left:10%;right:10%;bottom:9%;font:600 calc(var(--w)*.055)/1 var(--ui);letter-spacing:.14em;text-transform:uppercase;color:#2b1d07;opacity:.8}
+.leaf{left:2px;top:3px;width:calc(100% - 5px);height:calc(100% - 6px);transform:translateZ(calc(var(--d)/2 - 1px));background:linear-gradient(90deg,#cfc3a8,#f1e9d6 14%,#ece2cc)}
+.back{left:0;top:0;width:100%;height:100%;transform:rotateY(180deg) translateZ(calc(var(--d)/2));border-radius:5px 2px 2px 5px;background:linear-gradient(200deg,color-mix(in srgb,var(--cloth) 80%,#fff 20%),var(--cloth) 55%,color-mix(in srgb,var(--cloth) 66%,#000 34%));display:grid;place-items:center}
+.back .bm{font:600 calc(var(--w)*.05)/1 var(--ui);letter-spacing:.14em;color:var(--foil);opacity:.7}
+.spine{top:0;height:100%;width:var(--d);left:calc(50% - var(--d)/2);transform:rotateY(-90deg) translateZ(calc(var(--w)/2));background:linear-gradient(90deg,color-mix(in srgb,var(--cloth) 66%,#000),var(--cloth) 42%,color-mix(in srgb,var(--cloth) 78%,#000));display:flex;align-items:center;justify-content:center;overflow:hidden}
+.spine>span{writing-mode:vertical-rl;max-height:88%;font:400 calc(var(--d)*.4)/1 var(--serif);color:var(--foil);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.edge{top:3px;height:calc(100% - 6px);width:calc(var(--d) - 3px);left:calc(50% - var(--d)/2 + 1px);transform:rotateY(90deg) translateZ(calc(var(--w)/2 - 2px));background:repeating-linear-gradient(90deg,#efe6d2 0 1px,#d6c9ad 1px 2px)}
+.top,.bot{left:2px;width:calc(100% - 4px);height:calc(var(--d) - 3px);top:calc(50% - var(--d)/2 + 1px);background:repeating-linear-gradient(0deg,#ede3cd 0 1px,#d3c6a9 1px 2px)}
+.top{transform:rotateX(90deg) translateZ(calc(var(--h)/2 - 1px))}
+.bot{transform:rotateX(-90deg) translateZ(calc(var(--h)/2 - 1px))}
+.shadow{left:-16%;width:132%;height:calc(var(--d)*2.4 + 10px);top:calc(100% - var(--d)*1.2 - 5px);transform:rotateX(90deg);backface-visibility:visible;-webkit-backface-visibility:visible;background:radial-gradient(closest-side,rgba(0,0,0,.62),rgba(0,0,0,0));opacity:var(--gr,1)}
+.flat .shadow,.clone .shadow{display:none}
+.board{position:relative;display:block;width:var(--w);height:var(--h)}
+.board.cover{box-shadow:inset 4px 0 6px -3px rgba(0,0,0,.65),inset 0 0 0 1px rgba(255,255,255,.07),0 14px 26px -14px rgba(0,0,0,.9)}
+
+/* ================= A · the room ================= */
+.room{position:relative;height:340px;margin:8px -16px 0;perspective:1100px;perspective-origin:195px 150px;overflow:hidden;touch-action:pan-y}
+.room .wallword{position:absolute;left:0;right:0;top:44px;text-align:center;font:400 104px/1 var(--serif);letter-spacing:-.02em;color:rgba(232,236,246,.1);pointer-events:none;white-space:nowrap}
+.room .glow{position:absolute;left:50%;top:40px;width:360px;height:260px;margin-left:-180px;background:radial-gradient(closest-side,rgba(140,170,255,.12),transparent);pointer-events:none}
+.room .plank{position:absolute;left:0;right:0;bottom:36px;height:30px;pointer-events:none;background:linear-gradient(180deg,#7a5639 0,#62452e 32%,#3d2919 34%,#2a1b10 100%);box-shadow:0 22px 30px -14px rgba(0,0,0,.85)}
+.room .row{position:absolute;left:195px;top:274px;width:0;height:0;transform-style:preserve-3d;-webkit-transform-style:preserve-3d}
+.mote{position:absolute;width:2px;height:2px;border-radius:50%;background:rgba(232,236,246,.55);pointer-events:none;animation:mote calc(var(--t,16s)*var(--slow)) ease-in-out infinite alternate}
+@keyframes mote{from{transform:translate(0,0)}to{transform:translate(var(--dx,14px),var(--dy,-22px))}}
+.cap{min-height:118px;margin-top:6px}
+.cap .k{font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.cap .t{margin-top:2px;font:600 16px/1.3 var(--ui);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.say{margin:6px 0 0;font:400 20px/1.3 var(--serif);color:var(--ink);text-wrap:balance;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.say .dot{display:inline-block;width:8px;height:8px;margin:0 8px 2px 0;border-radius:50%;background:var(--acc);box-shadow:0 0 10px var(--acc);vertical-align:middle}
+.say.from .dot{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink3)}
+.spxw{display:flex;align-items:center;gap:10px;margin-top:6px}
+.spx{position:relative;flex:1;min-width:0;height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 4px;touch-action:none;cursor:pointer}
+.spx i{display:block;width:5px;height:16px;border-radius:2px;background:var(--c);opacity:.5;transition:height calc(180ms*var(--slow)) var(--ease),opacity calc(180ms*var(--slow)) ease}
+.spx i.on{height:30px;opacity:1;box-shadow:0 0 10px -1px var(--c)}
+.seeall{flex:none;min-height:44px;padding:0 4px;font:400 16px var(--ui);color:var(--acc);white-space:nowrap}
+
+/* ================= B · the stack ================= */
+.stack{position:relative;margin-top:16px;transform-style:preserve-3d;-webkit-transform-style:preserve-3d}
+.slot{position:relative;transform-style:preserve-3d;-webkit-transform-style:preserve-3d}
+.slot .vol{cursor:pointer}
+
+/* ================= C · shelf and covers ================= */
+.room.mini{height:236px;perspective-origin:195px 104px}
+.room.mini .wallword{top:26px;font-size:76px}
+.room.mini .row{top:186px}
+.room.mini .plank{bottom:26px;height:24px}
+.rail{margin-top:20px}
+.rhead{display:flex;align-items:center;gap:8px;min-height:44px}
+.rhead h2{margin:0;font:700 20px/1.2 var(--ui);letter-spacing:-.01em}
+.rhead .n{font:600 20px var(--round);color:var(--ink3)}
+.rhead .see{margin-left:auto;min-height:44px;padding:0 2px;font:400 16px var(--ui);color:var(--acc)}
+.rscroll{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:16px;margin:4px -16px 0;padding:4px 16px 8px;scrollbar-width:none;overscroll-behavior-x:contain}
+.rscroll::-webkit-scrollbar{display:none}
+.card{flex:none;width:124px;scroll-snap-align:start;text-align:left}
+.card .board{border-radius:2px 5px 5px 2px}
+.card{display:block}
+.card .ct{margin-top:8px;font:600 13px/1.3 var(--ui);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .cm{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.away .board{visibility:hidden}
+
+/* ================= the detail, shared ================= */
+.flyhost{position:absolute;left:0;top:0;width:390px;height:844px;z-index:3;perspective:1100px;perspective-origin:195px 230px;pointer-events:none;transform-style:flat}
+.dcontent{position:relative;z-index:2}
+.dz{opacity:0;transform:translateY(12px);transition:opacity calc(160ms*var(--slow)) ease,transform calc(160ms*var(--slow)) ease}
+.scr.detail.in .dz{opacity:1;transform:none;transition:opacity calc(320ms*var(--slow)) var(--ease-out) calc(var(--i,0)*45ms*var(--slow)),transform calc(320ms*var(--slow)) var(--ease-out) calc(var(--i,0)*45ms*var(--slow))}
+/* Back is there from the first frame of the flight, so the open can be reversed at any moment */
+.bk-btn{display:inline-flex;align-items:center;gap:2px;height:44px;margin-left:-8px;padding:0 12px 0 0;font:400 16px var(--ui);color:var(--a,var(--acc));opacity:0;transition:opacity calc(160ms*var(--slow)) ease}
+.phone[data-view="detail"] .bk-btn{opacity:1}
+.bk-btn .ic{width:24px;height:24px;stroke-width:2.4}
+.hero{height:262px}
+.dmeta{margin:0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.pv{display:inline-flex;align-items:center;gap:6px;color:var(--ink2)}
+.pv i{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.pv.res i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink3)}
+.dtitle{margin:4px 0 0;font:700 20px/1.25 var(--ui);letter-spacing:-.01em;text-wrap:balance}
+.vlab{margin:14px 0 0;font:600 13px var(--ui);color:var(--ink3)}
+.verdict{margin:2px 0 0;font:400 20px/1.32 var(--serif);text-wrap:pretty}
+.resnote{margin:8px 0 0;font-size:16px;color:var(--ink2)}
+.dacts{display:flex;gap:10px;margin-top:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:22px;font:600 16px var(--ui);white-space:nowrap;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi)}
+.btn.pri{flex:1;color:var(--acc-ink);background:var(--a,var(--acc));box-shadow:0 8px 22px -12px var(--a,var(--acc))}
+.btn .ic{width:16px;height:16px;stroke-width:2.4}
+.scr.detail h3{margin:28px 0 8px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+.body{margin:0;font-size:16px;line-height:1.5;color:var(--ink2);text-wrap:pretty}
+.tl{margin-top:14px;padding:14px 14px 6px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi)}
+.tlbar{position:relative;height:44px}
+.tlbar::before{content:"";position:absolute;left:0;right:0;top:20px;height:4px;border-radius:2px;background:rgba(232,236,246,.14)}
+.tlbar .fill{position:absolute;left:0;top:20px;height:4px;border-radius:2px;background:var(--a,var(--acc));width:var(--fw,0%);transition:width calc(360ms*var(--slow)) var(--ease)}
+.tk{position:absolute;top:0;width:44px;height:44px;margin-left:-22px;display:grid;place-items:center}
+.tk i{width:10px;height:10px;border-radius:50%;background:#0c1230;box-shadow:inset 0 0 0 2px var(--ink2);transition:transform calc(200ms*var(--slow)) var(--ease),background-color calc(200ms*var(--slow)) ease}
+.tk[aria-pressed="true"] i{background:var(--a,var(--acc));box-shadow:0 0 12px var(--a,var(--acc));transform:scale(1.35)}
+.tlends{display:flex;justify-content:space-between;font:400 13px var(--round);color:var(--ink3);margin-top:-4px}
+.tlnow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:baseline;margin-top:10px;min-height:48px}
+.tlnow .ts{font:600 16px var(--round);color:var(--a,var(--acc))}
+.tlnow .tx{font-size:16px}
+.ta{display:inline-flex;align-items:center;gap:6px;min-height:44px;font:400 16px var(--ui);color:var(--a,var(--acc))}
+.constel{display:block;width:100%;height:auto;margin-top:4px}
+.constel .ln{fill:none;stroke-width:1.2;stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.constel .nd{opacity:0;transform:scale(.5);transform-box:fill-box;transform-origin:center}
+.constel.drawn .ln{stroke-dashoffset:0;transition:stroke-dashoffset calc(520ms*var(--slow)) var(--ease-out) calc(var(--i,0)*22ms*var(--slow))}
+.constel.drawn .nd{opacity:1;transform:none;transition:opacity calc(300ms*var(--slow)) ease calc(var(--i,0)*22ms*var(--slow) + 180ms*var(--slow)),transform calc(420ms*var(--slow)) var(--ease-out) calc(var(--i,0)*22ms*var(--slow) + 180ms*var(--slow))}
+.cpills{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.cpill{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:22px;font:400 16px var(--ui);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.cpill i{width:9px;height:9px;border-radius:50%;background:var(--h)}
+.cpill b{font:600 16px var(--round)}
+.uses{margin:22px 0 0;font-size:16px;color:var(--ink2);text-wrap:pretty}
+.uses b{color:var(--ink);font-weight:600}
+.glist{margin-top:14px;border-radius:20px;overflow:hidden;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.grow{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:0 16px;text-align:left;font-size:16px}
+.grow+.grow{border-top:1px solid var(--sep)}
+.grow .v{margin-left:auto;font-size:13px;color:var(--ink3);white-space:nowrap}
+.grow .ch{color:var(--ink3)}
+
+/* ================= toast, Ask, sheet, dock ================= */
+.toast{position:absolute;left:16px;right:16px;bottom:96px;z-index:25;padding:12px 16px;border-radius:18px;font-size:13px;color:var(--ink);background:rgba(16,20,38,.82);box-shadow:inset 0 0 0 .5px var(--card-ring),0 12px 30px -12px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity calc(200ms*var(--slow)) ease,transform calc(260ms*var(--slow)) var(--ease-out)}
+.toast.show{opacity:1;transform:none}
+.toast b{display:block;font:600 13px var(--ui);color:var(--acc);margin-bottom:2px}
+.toast .caret{display:inline-block;width:2px;height:15px;margin-left:2px;vertical-align:-2px;background:var(--acc);animation:blink calc(1s*var(--slow)) steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.scrim{position:absolute;inset:0;z-index:30;background:rgba(2,3,8,.55);opacity:0;pointer-events:none;transition:opacity calc(240ms*var(--slow)) ease}
+.phone.sheet-open .scrim{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:31;max-height:86%;display:flex;flex-direction:column;border-radius:28px 28px 0 0;background:rgba(20,24,44,.92);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi),0 -20px 50px -20px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(28px) saturate(1.4);backdrop-filter:blur(28px) saturate(1.4);transform:translateY(105%);transition:transform calc(380ms*var(--slow)) var(--ease);touch-action:none}
+.phone.sheet-open .sheet{transform:translateY(0)}
+.sheet .grab{width:100%;height:24px;display:grid;place-items:center;cursor:grab}
+.sheet .grab::before{content:"";width:40px;height:5px;border-radius:3px;background:rgba(232,236,246,.3)}
+.shead{display:flex;align-items:center;padding:0 16px 4px}
+.shead h2{flex:1;margin:0;font:700 20px/1.25 var(--ui)}
+.done{min-height:44px;padding:0 4px;font:600 16px var(--ui);color:var(--acc)}
+.sbody{overflow-y:auto;padding:4px 16px 34px;touch-action:pan-y}
+.srow{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:6px 0;text-align:left}
+.srow+.srow{border-top:1px solid var(--sep)}
+.srow .tile{flex:none;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:#fff;background:var(--h,#2b6ea8)}
+.srow .tile .ic{width:18px;height:18px}
+.srow .tx b{display:block;font:600 16px var(--ui)}
+.srow .tx span{display:block;font-size:13px;color:var(--ink3)}
+.srow .ch{margin-left:auto;color:var(--ink3)}
+.sfoot{margin:12px 0 0;font-size:13px;color:var(--ink3)}
+.sgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 10px}
+.sgrid .card{width:auto}
+.sgrid .board{width:100%;height:auto;aspect-ratio:var(--ar)}
+.dock{position:absolute;left:12px;right:12px;bottom:10px;z-index:20;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center;pointer-events:none}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:rgba(16,20,36,.6);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 var(--card-hi),0 12px 30px -14px rgba(0,0,0,.5)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:56px;border-radius:28px;font:500 11px var(--ui);color:rgba(232,236,246,.5)}
+.tab .ic{width:22px;height:22px;stroke-width:1.8}
+.tab.on{color:var(--acc);background:rgba(89,230,255,.1)}
+.orb{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:rgba(16,20,36,.6);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 var(--card-hi);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.orb::before{content:"";width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+/* reduced motion: nothing travels, things cross-fade (the html.rm class follows the system setting, and the toggle) */
+html.rm .mote,html.rm .skelroom .bk{animation:none}
+html.rm .vol.sway .rig{animation:none}
+html.rm .dz,html.rm .scr.detail.in .dz{transform:none;transition:opacity calc(200ms*var(--slow)) ease}
+html.rm .seg .pill{transition:none}
+html.rm .sheet{transition:transform 1ms linear,opacity calc(200ms*var(--slow)) ease;opacity:0}
+html.rm .phone.sheet-open .sheet{opacity:1}
+html.rm .sfield{animation:none}
+html.rm .constel .ln{stroke-dashoffset:0}
+html.rm .constel .nd{opacity:1;transform:none}
+html.rm .constel.drawn .ln,html.rm .constel.drawn .nd{transition:none}
+html.rm .toast{transform:none}
+html.rm .rig{transition:none}
+html.rm .vol.press .rig{transform:none}
+html.rm .vol.press{filter:brightness(1.15)}
+@media (prefers-reduced-transparency:reduce){.cbtn,.tabbar,.orb,.sheet,.toast,.dirs{-webkit-backdrop-filter:none;backdrop-filter:none;background:#141830}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 74 · round 1 · 5 October 2026 · for your review</p>
+  <h1>The Library</h1>
+  <p class="lede">The shelf stays the object. Everything around it shrinks: eight pills become a title row, the page opens on what Nova made of a source, and a source is the same bound volume wherever you meet it. Three ways to do that.</p>
+  <p class="demo">Demo content: every title, channel, author, verdict and count here is invented, and the poster art is abstract colour. The shape (21 videos, 3 articles, 1 book) is your shelf's. The volumes are drawn in CSS 3D as a stand-in for the app's WebGL shelf, which keeps its light. The audit with the numbers is <b>design/audits/redesign-2026-09/09-library.md</b>.</p>
+
+  <div class="dirs"><div class="seg" role="tablist" aria-label="Direction" id="dirs">
+    <span class="pill" aria-hidden="true"></span>
+    <button role="tab" type="button" data-dir="a" aria-selected="true"><span class="lt">A · </span>One shelf</button>
+    <button role="tab" type="button" data-dir="b" aria-selected="false"><span class="lt">B · </span>The stack</button>
+    <button role="tab" type="button" data-dir="c" aria-selected="false"><span class="lt">C · </span>Shelf and covers</button>
+  </div></div>
+
+  <p class="rkm" id="rkm"></p>
+
+  <div class="studio">
+    <div class="pcol">
+      <div class="pbox" id="pbox"><div class="phone" id="phone" data-view="browse"></div></div>
+      <div class="under">
+        <div class="seg" role="group" aria-label="Show" id="states">
+          <span class="pill" aria-hidden="true"></span>
+          <button type="button" data-st="shelf" aria-pressed="true">The shelf</button>
+          <button type="button" data-st="open" aria-pressed="false">Open a source</button>
+          <button type="button" data-st="nova" aria-pressed="false">What Nova does</button>
+        </div>
+        <div class="toggles">
+          <button class="chip" type="button" id="slow" aria-pressed="false">Quarter speed</button>
+          <button class="chip" type="button" id="rmprev" aria-pressed="false">Preview reduced motion</button>
+        </div>
+      </div>
+    </div>
+    <div class="notes" id="notes"></div>
+  </div>
+
+  <section class="page">
+    <h2>The same in all three</h2>
+    <p class="sub">The detail is one design whichever way you arrive. What it changes, against what the audit measured today:</p>
+    <ul class="cmp">
+      <li><span class="was"><b>Today</b> the detail opens on a badge, a date, an echo count and a note; then three pills, four rows of chips and a related rail.</span><span class="now"><b>Here</b> it opens on the volume, its name, Nova's verdict in the serif, and two verbs: Ask about it, Open source.</span></li>
+      <li><span class="was">Nova's reading starts 1,399 px down (1.66 screens).</span><span class="now">It starts inside the first screen and a half, with a talk's key ideas placed on its own timeline.</span></li>
+      <li><span class="was">21 controls, 14 of them under the 28 pt floor (the chips are 26 pt).</span><span class="now">One figure of what it connects to, five counts that open lists, every control 44 pt.</span></li>
+      <li><span class="was">Back leaves the Library and the book stays open behind you.</span><span class="now">Back, or a swipe from the left edge, returns the book to its place, at any point in the flight.</span></li>
+      <li><span class="was">One source, four drawings: plate in cloth, the 3D volume, a full-bleed 16:10 poster, a hash gradient.</span><span class="now">One bound volume everywhere, the same cloth, plate and foil.</span></li>
+      <li><span class="was">"25 sources · live from Obsidian", even when it is a cached copy.</span><span class="now">"25 sources · synced 9:38", or "offline, Friday 18:20's copy".</span></li>
+      <li><span class="was">Gold for adding, for researched, for concepts, for a heading and for an error; people violet and topics cyan, unlike the Galaxy.</span><span class="now">The Galaxy's own colours: concepts tan, people coral, topics violet, sources cyan. Gold is left for "not decided".</span></li>
+      <li><span class="was">Ten type sizes in three families.</span><span class="now">34 · 20 · 16 · 13, the serif only for Nova's verdict.</span></li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>The four states, designed</h2>
+    <p class="sub">Today a first sync shows "Connect a backend in Settings" over a blank page, an empty library promises a book-by-title flow that left the Add sheet on 5 September, and an error is gold text.</p>
+    <div class="states4">
+      <figure class="sc"><div class="l1">Loading · 25 sources</div><div class="skelroom" aria-hidden="true"><span class="bk" style="left:22%;height:70px"></span><span class="bk" style="left:38%;height:84px"></span><span class="bk" style="left:54%;height:76px;animation-delay:-.4s"></span><span class="bk" style="left:70%;height:66px;animation-delay:-.8s"></span><span class="pl"></span></div><figcaption><b>Loading</b>The room and its plank arrive first, with bindings shimmering in their places; the volumes print as they land.</figcaption></figure>
+      <figure class="sc"><div class="l2">Your shelf is empty.</div><div class="miniacts"><span>Paste text</span><span>A video or podcast link</span><span>A file</span></div><figcaption><b>Empty</b>The three ways in, as the rows of the Add sheet, and one line: or just say it to Nova.</figcaption></figure>
+      <figure class="sc"><div class="l1">25 sources · offline, Friday 18:20's copy</div><div class="l2">Opening a source needs your Mac. The shelf is Friday's.</div><figcaption><b>Offline</b>The shelf is browsable from the copy, labelled with its time; the details are not cached today, so it says so instead of failing on tap.</figcaption></figure>
+      <figure class="sc"><div class="l2">Couldn't open this source.</div><div class="l1" style="margin-top:6px">Your Mac answered with an error.</div><span class="retry">Try again</span><figcaption><b>Error</b>What happened, in the place it happened, and one action, in the error colour rather than gold.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Which direction</b><span>A keeps the shelf you built as the whole page and adds the verdict and a way to reach any source in one move. B trades the standing row for Stripe Press's stack, so nine sources are in view instead of 1.3. C is Apple Books: a short shelf of the newest five, then a rail per kind. Pick one (or a part of one with another) and round 2 draws it in full, including the Mac; the others are dropped.</span></div></li>
+      <li><div><b>Retire the Covers view</b><span>Yes: A keeps it only as "See all" (a grid sheet), and B and C absorb it. No: it stays as its own view behind a toggle, drawn as the same edition and opening the same way.</span></div></li>
+      <li><div><b>One tap opens any volume</b><span>Yes: tapping a side volume opens it while the shelf glides it to the centre behind you. No: today's two steps stay, the first tap centres and the second opens, and the hint is reworded to say so.</span></div></li>
+      <li><div><b>Nova's verdict leads</b><span>Yes: the one sentence the Watcher already writes for every video becomes the serif line under the volume and the first thing in the detail, and a source without one shows the first line of Nova's page, labelled. No: the detail keeps today's order and only its chips, labels and colours are fixed.</span></div></li>
+      <li><div><b>Ask about it on every source</b><span>Yes: one tap opens Nova with the source named and the question left for you to finish, the way documents already work. No: Open source stays the only verb and Ask stays in the top bar.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const doc = document.documentElement;
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const ss = (t) => t * t * (3 - 2 * t);
+const easeIO = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---- reduced motion: the system setting, or the preview toggle
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+let forceRM = false;
+const syncRM = () => doc.classList.toggle('rm', forceRM || mq.matches);
+if (mq.addEventListener) mq.addEventListener('change', syncRM); else if (mq.addListener) mq.addListener(syncRM);
+syncRM();
+const RM = () => doc.classList.contains('rm');
+let SLOW = 1;
+
+// ---- colour helpers (the ground tint is a wash behind type, never the type itself)
+const hex2rgb = (h) => { let x = h.replace('#', ''); if (x.length === 3) x = x.split('').map((c) => c + c).join(''); const n = parseInt(x, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+const rgb2hex = (r) => '#' + r.map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
+const mix = (a, b, t) => { const A = hex2rgb(a), B = hex2rgb(b); return rgb2hex(A.map((v, i) => v + (B[i] - v) * t)); };
+
+// ---- the shelf: demo only, the shape of his (21 videos, 3 articles, 1 book)
+const KIND = { video: { word: 'Video', plural: 'Videos', mark: '▶' }, article: { word: 'Article', plural: 'Articles', mark: '¶' }, book: { word: 'Book', plural: 'Books', mark: '❦' } };
+const DIM = { video: { w: 150, h: 184, d: 30 }, book: { w: 138, h: 207, d: 34 }, article: { w: 128, h: 192, d: 18 } };
+const V = (id, title, by, mins, cloth, foil, acc, art, added, verdict, c) => ({ id, kind: 'video', title, by, mins, cloth, foil, acc, art, added, verdict, c, prov: 'read' });
+const SRC = [
+  V('s1', 'Sleep Pressure and the Afternoon Dip', 'Demo Channel', 41, '#1c2a46', '#e6cf98', '#7fa8ff', ['#5a7fd0', '#0f1a36', '#f2c46d', 'sun'], 'Friday', 'Worth it for the caffeine cut-off alone; the rest restates what you already do.', [13, 3, 3, 3, 8]),
+  V('s2', 'Grip, Hinge and the Long Pull', 'Sample Strength', 18, '#4a1f22', '#f0b89a', '#ff8f7a', ['#b8573f', '#2a0f0b', '#ffd2a8', 'horizon'], 'Thursday', 'Take the hinge cue at 6:20; skip the part selling the grip gadget.', [9, 1, 2, 2, 5]),
+  { id: 's3', kind: 'book', title: 'The Patient Practice', by: 'Demo Author', cloth: '#6b4e1e', foil: '#f3e2b8', acc: '#f0c060', jacket: ['#d9b25a', '#6e4f16'], added: 'Wednesday', excerpt: 'A book about getting good slowly: short, deliberate sessions, kept up for years.', prov: 'researched', c: [10, 2, 3, 3, 7] },
+  V('s4', 'The Quiet Interview', 'Demo Podcast', 72, '#2b2347', '#d6cff5', '#b59cff', ['#7a63c9', '#170f33', '#e8dcff', 'ring'], 'Tuesday', 'Partly useful: two questions worth stealing for your one-to-ones.', [8, 2, 2, 3, 4]),
+  V('s5', 'Zone Two, Measured Honestly', 'Sample Endurance', 26, '#17393d', '#bfe8d6', '#6fd6b6', ['#3f9a8c', '#0b2422', '#d7fff1', 'bars'], 'Monday', 'Adopt the talk test; the heart-rate maths assumes a lab you do not have.', [11, 1, 3, 2, 6]),
+  V('s6', 'Hard Conversations in Three Moves', 'Demo Talks', 34, '#45192b', '#f2b8c8', '#ff8fb0', ['#b5466e', '#24080f', '#ffd6e2', 'split'], '28 Sep', 'The middle move is the whole talk; watch 12:00 to 19:30 and stop.', [7, 2, 2, 3, 9]),
+  { id: 's7', kind: 'article', title: 'The Case for Fewer Metrics', by: 'Demo Journal', cloth: '#2b3440', foil: '#dfe6ef', acc: '#9fc3ff', added: '27 Sep', excerpt: 'Most dashboards measure what is easy to count; this essay argues for three numbers chosen on purpose.', prov: 'read', c: [6, 1, 2, 2, 3] },
+  V('s8', 'Protein Timing, What Holds Up', 'Sample Lab', 22, '#3a3d1f', '#e7e3b0', '#d7d36a', ['#8d9140', '#1c1d0a', '#f6f1c4', 'sun'], '26 Sep', 'Nothing new for you: the day’s total matters more than the window.', [9, 2, 3, 2, 5]),
+  V('s9', 'Breath Holds for Calm Under Load', 'Demo Breath', 15, '#183630', '#c9eadf', '#7fe0c4', ['#3b8f7c', '#082019', '#e2fff6', 'ring'], '25 Sep', 'Try the two-minute version before a hard set; ignore the cold-water claims.', [6, 1, 2, 2, 4]),
+  V('s10', 'Asking for the Raise', 'Demo Talks', 29, '#5a2e1b', '#f2c7a6', '#ffa36b', ['#c06a3b', '#2b1209', '#ffe0c2', 'horizon'], '24 Sep', 'Skip it: one anecdote stretched across half an hour.', [4, 1, 1, 1, 2]),
+  V('s11', 'Cold Water, Warm Evidence', 'Sample Lab', 31, '#1b2350', '#cdd6ff', '#8fa2ff', ['#4a5cc4', '#0b0f2e', '#dfe6ff', 'bars'], '23 Sep', 'Honest about weak evidence; useful mainly as a reason not to bother.', [8, 2, 2, 2, 3]),
+  V('s12', 'Habit Loops You Can See', 'Demo Podcast', 58, '#2e3b25', '#d8e8c4', '#a6d67a', ['#6e9a4c', '#14200c', '#eaffd6', 'split'], '22 Sep', 'Partly useful: the cue audit is good, the rest is a book summary.', [12, 2, 3, 3, 10]),
+  V('s13', 'Attention Budgets', 'Demo Talks', 27, '#26282e', '#e0e2e8', '#b8c4d8', ['#6c7894', '#101218', '#f1f4fa', 'sun'], '21 Sep', 'Adopt the ninety-minute block; you already do most of the rest.', [9, 1, 2, 3, 6]),
+  { id: 's14', kind: 'article', title: 'Feedback That Lands', by: 'Demo Journal', cloth: '#3a2440', foil: '#efd6f2', acc: '#d79cff', added: '20 Sep', excerpt: 'Feedback works when it names one behaviour, one effect and one next step.', prov: 'read', c: [5, 1, 2, 2, 4] },
+  V('s15', 'Recovery Weeks Without Guilt', 'Sample Strength', 19, '#5b3a24', '#f3d3b0', '#ffb877', ['#b77846', '#2a170a', '#ffe8cc', 'ring'], '19 Sep', 'Worth it: a clear rule for when a lighter week pays off.', [7, 1, 2, 2, 5]),
+  V('s16', 'Posture Myths, Gently Retired', 'Sample Lab', 24, '#2a2456', '#d2cdf7', '#9e93ff', ['#5a4fc0', '#100c2c', '#e4e0ff', 'horizon'], '18 Sep', 'Watch the first ten minutes; the stretch routine after that is filler.', [6, 1, 2, 2, 3]),
+  V('s17', 'Ten Minutes of Mobility', 'Demo Move', 12, '#17393d', '#c8ece6', '#72d9cc', ['#3c958a', '#082220', '#ddfffa', 'bars'], '17 Sep', 'Adopt as written; ten minutes is the honest length.', [5, 1, 1, 2, 3]),
+  V('s18', 'Saying No Without Burning Bridges', 'Demo Podcast', 47, '#45192b', '#f0c0cc', '#ff96ad', ['#a8455f', '#23070f', '#ffd9e1', 'sun'], '16 Sep', 'Two scripts worth keeping; the rest is the host’s story.', [8, 2, 2, 3, 7]),
+  V('s19', 'Strength Curves and Where You Fail', 'Sample Strength', 21, '#1c2a46', '#d9e2f5', '#88b0ff', ['#4e72b8', '#0c1630', '#e2ecff', 'split'], '15 Sep', 'Useful diagram at 8:40; the program pitch at the end is not.', [10, 1, 3, 2, 6]),
+  { id: 's20', kind: 'article', title: 'Slow Mornings, Fast Weeks', by: 'Demo Journal', cloth: '#183630', foil: '#d2efe4', acc: '#7fe0c4', added: '14 Sep', excerpt: 'A short case for protecting the first hour of the day.', prov: 'read', c: [4, 0, 2, 1, 2] },
+  V('s21', 'Presence on Video Calls', 'Demo Talks', 16, '#2b3440', '#e3e8ee', '#a9c6e8', ['#5d7896', '#111821', '#eef4fa', 'ring'], '13 Sep', 'Short and right: light, lens height, a pause before you answer.', [5, 1, 2, 2, 3]),
+  V('s22', 'Running Your First Off-site', 'Demo Podcast', 64, '#3a3d1f', '#ecead0', '#d5d27a', ['#8a8e43', '#1b1c09', '#f7f4cf', 'horizon'], '12 Sep', 'Partly useful: the agenda template, not the anecdotes.', [9, 2, 3, 3, 5]),
+  V('s23', 'Tempo Work for Stubborn Lifts', 'Sample Strength', 17, '#4a1f22', '#f3c2ad', '#ff9b84', ['#b0503d', '#280d0a', '#ffd9c9', 'bars'], '11 Sep', 'Adopt the three-second lowering on whichever lift has stalled.', [7, 1, 2, 2, 4]),
+  V('s24', 'The Two-Minute Story', 'Demo Talks', 23, '#2b2347', '#ddd6f7', '#b9a6ff', ['#7564c4', '#150f2f', '#ece6ff', 'sun'], '10 Sep', 'Worth it: the structure at 4:10 is the whole value.', [6, 1, 2, 3, 5]),
+  V('s25', 'Fasting Windows, the Small Print', 'Sample Lab', 33, '#26282e', '#e5e7ec', '#c4cddc', ['#737d92', '#111318', '#f4f6fa', 'split'], '9 Sep', 'Skip it: the claims outrun the studies it cites.', [8, 1, 2, 2, 2]),
+];
+const BY = Object.fromEntries(SRC.map((s) => [s.id, s]));
+// the rich page, for the source the states open; every other source gets the same shape, demo-worded
+const RICH = {
+  s1: {
+    short: 'A demo sleep researcher explains the early-afternoon slump as sleep pressure meeting the body clock’s dip, and shows how caffeine timing moves it. Two claims are well supported; the napping advice rests on one small study.',
+    ideas: [['3:10', 'Sleep pressure builds from the moment you wake.'], ['11:45', 'Caffeine borrows energy; it does not lend it.'], ['19:20', 'The dip is the body clock, not lunch.'], ['28:05', 'The cut-off: no caffeine ten hours before bed.'], ['36:40', 'A nap over twenty minutes costs you the evening.']],
+  },
+};
+const fmtMins = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`);
+const lineOf = (s) => s.verdict || s.excerpt || '';
+const isVerdict = (s) => !!s.verdict;
+const hashUnit = (id) => { let h = 2166136261; for (const ch of id) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return (h % 1000) / 1000; };
+
+// ---- icons
+const IC = {
+  search: '<svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
+  plus: '<svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  back: '<svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+  out: '<svg class="ic" viewBox="0 0 24 24"><path d="M8 16L17 7M9 7h8v8"/></svg>',
+  chev: '<svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M9 6l6 6-6 6"/></svg>',
+  play: '<svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M8 5l11 7-11 7z"/></svg>',
+  text: '<svg class="ic" viewBox="0 0 24 24"><path d="M5 6h14M5 11h14M5 16h9"/></svg>',
+  link: '<svg class="ic" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>',
+  person: '<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"/></svg>',
+  file: '<svg class="ic" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>',
+  home: '<svg class="ic" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>',
+  mic: '<svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  train: '<svg class="ic" viewBox="0 0 24 24"><path d="M3 9v6M6 7v10M18 7v10M21 9v6M6 12h12"/></svg>',
+  fuel: '<svg class="ic" viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 21V3c2.5 1.5 3.5 4 3.5 8H16"/></svg>',
+  more: '<svg class="ic" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></svg>',
+};
+
+// ---- the edition, as markup: one object for the shelf, the stack, a cover and the detail
+const artCSS = (a) => {
+  const [c1, c2, c3, shape] = a;
+  if (shape === 'sun') return `radial-gradient(circle at 70% 46%, ${c3} 0 15%, transparent 16%), linear-gradient(160deg, ${c1}, ${c2})`;
+  if (shape === 'horizon') return `radial-gradient(circle at 30% 58%, ${c3} 0 10%, transparent 11%), linear-gradient(180deg, ${c1} 0 58%, ${c3} 58% 60%, ${c2} 60%)`;
+  if (shape === 'bars') return `repeating-linear-gradient(90deg, transparent 0 16%, color-mix(in srgb, ${c3} 55%, transparent) 16% 19%), linear-gradient(160deg, ${c1}, ${c2})`;
+  if (shape === 'ring') return `radial-gradient(circle at 36% 54%, transparent 0 17%, ${c3} 18% 21%, transparent 22%), linear-gradient(150deg, ${c1}, ${c2})`;
+  return `radial-gradient(circle at 74% 34%, ${c3} 0 9%, transparent 10%), linear-gradient(115deg, ${c1} 0 50%, ${c2} 50%)`;
+};
+const coverInner = (s) => {
+  if (s.kind === 'book') return `<span class="jk" style="--jk1:${s.jacket[0]};--jk2:${s.jacket[1]}"><span class="jt">${esc(s.title)}</span><span class="jr"></span><span class="ja">${esc(s.by)}</span></span><span class="spec"></span>`;
+  const plate = s.kind === 'video' ? `<span class="plate" style="background:${artCSS(s.art)}"></span>` : '';
+  return `${plate}<span class="ft">${esc(s.title)}</span><span class="fa">${esc(s.by)}</span><span class="mk">${KIND[s.kind].mark}</span><span class="spec"></span>`;
+};
+const dimVars = (s, w) => { const d = DIM[s.kind]; const k = w ? w / d.w : 1; return `--w:${(d.w * k).toFixed(2)}px;--h:${(d.h * k).toFixed(2)}px;--d:${d.d}px;--cloth:${s.cloth};--foil:${s.foil}`; };
+// a div with a button's role: a <button> is a replaced-ish box in WebKit and can flatten 3D children
+const volHTML = (s, cls = '') => `<div role="button" tabindex="0" class="vol k-${s.kind} ${cls}" data-id="${s.id}" aria-label="${esc(s.title)}, ${KIND[s.kind].word.toLowerCase()} by ${esc(s.by)}" style="${dimVars(s)}"><span class="rig"><span class="f front cover">${coverInner(s)}</span><span class="f leaf"></span><span class="f back"><span class="bm">NOVA · DEMO</span></span><span class="f spine"><span>${esc(s.title)}</span></span><span class="f edge"></span><span class="f top"></span><span class="f bot"></span><span class="f shadow"></span></span></div>`;
+const boardHTML = (s, w) => `<span class="board cover k-${s.kind}" style="${dimVars(s, w)};--ar:${DIM[s.kind].w}/${DIM[s.kind].h}">${coverInner(s)}</span>`;
+// a spine gives way a word at a time, never mid-word (the house clampWords rule)
+function fitSpines(root) {
+  $$('.spine>span', root).forEach((el) => {
+    if (!el.dataset.full) el.dataset.full = el.textContent;
+    el.textContent = el.dataset.full;
+    if (el.scrollHeight <= el.clientHeight + 1) return;
+    const words = el.dataset.full.split(' ');
+    while (words.length > 1) {
+      words.pop();
+      el.textContent = `${words.join(' ').replace(/[\s,.;:]+$/, '')}…`;
+      if (el.scrollHeight <= el.clientHeight + 1) return;
+    }
+  });
+}
+const specFor = (ry) => { let a = ((ry % 360) + 540) % 360 - 180; return clamp(-a * 2.2, -70, 70).toFixed(1); };
+
+// ---- the phone
+const phone = $('#phone');
+phone.innerHTML = `
+  <div class="sky"></div><div class="tint"></div>
+  <div class="status" aria-hidden="true"><span class="time">9:41</span><span class="island"></span><span class="bat"></span></div>
+  <div class="scr browse" data-browse></div>
+  <div class="scr detail" data-detail aria-hidden="true"><div class="flyhost" data-fly></div><div class="dcontent" data-dc></div></div>
+  <div class="toast" role="status" aria-live="polite"></div>
+  <nav class="dock" aria-label="Tabs (decorative in this mockup)"><div class="tabbar"><span class="tab">${IC.home}Home</span><span class="tab">${IC.mic}Nova</span><span class="tab">${IC.train}Train</span><span class="tab">${IC.fuel}Fuel</span><span class="tab on">${IC.more}More</span></div><span class="orb" aria-hidden="true"></span></nav>
+  <div class="scrim" data-act="close-sheet"></div>
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-t" aria-hidden="true"><div class="grab" data-grab></div><div class="shead"><h2 id="sheet-t">Add a source</h2><button type="button" class="done" data-act="close-sheet">Done</button></div><div class="sbody"></div></section>`;
+const browse = $('[data-browse]', phone);
+const detail = $('[data-detail]', phone);
+const fly = $('[data-fly]', phone);
+const dc = $('[data-dc]', phone);
+const tint = $('.tint', phone);
+const toastEl = $('.toast', phone);
+const sheet = $('.sheet', phone);
+
+// fit the phone to the screen: full size on a desktop, the width of his phone on his phone
+let Z = 1;
+const pbox = $('#pbox');
+function fit() {
+  const avail = Math.min(390, doc.clientWidth);
+  Z = avail / 390;
+  pbox.style.setProperty('--z', String(Z));
+  phone.style.setProperty('--z', String(Z));
+}
+fit();
+window.addEventListener('resize', fit);
+const local = (rect) => { const pr = phone.getBoundingClientRect(); return { x: (rect.left - pr.left) / Z, y: (rect.top - pr.top) / Z, w: rect.width / Z, h: rect.height / Z }; };
+
+// ---- toast
+let toastT = 0;
+function toast(html, ms = 2600) {
+  toastEl.innerHTML = html;
+  toastEl.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => toastEl.classList.remove('show'), ms * SLOW);
+}
+
+// ---- filters (kind and search), shared by the three directions
+const state = { kind: 'all', q: '', searching: false };
+const filtered = () => {
+  const q = state.q.trim().toLowerCase();
+  return SRC.filter((s) => (state.kind === 'all' || s.kind === state.kind) && (!q || `${s.title} ${s.by} ${lineOf(s)}`.toLowerCase().includes(q)));
+};
+const counts = () => { const c = { all: SRC.length, video: 0, article: 0, book: 0 }; SRC.forEach((s) => { c[s.kind] += 1; }); return c; };
+const segHTML = (withSeg) => {
+  if (!withSeg) return '';
+  const c = counts();
+  const opts = [['all', 'All', c.all], ['video', 'Videos', c.video], ['article', 'Articles', c.article], ['book', 'Books', c.book]];
+  return `<div class="seg" role="group" aria-label="Kind" data-kinds><span class="pill" aria-hidden="true"></span>${opts.map(([k, l, n]) => `<button type="button" data-kind="${k}" aria-pressed="${state.kind === k}">${l}<span class="n">${n}</span></button>`).join('')}</div>`;
+};
+const headHTML = (withSeg) => `
+  <div data-head>${state.searching ? searchField() : `<div class="trow"><h1>Library</h1><button type="button" class="cbtn" data-act="search" aria-label="Search the Library">${IC.search}</button><button type="button" class="cbtn" data-act="add" aria-label="Add a source">${IC.plus}</button></div>`}</div>
+  <p class="meta"><span class="num">${SRC.length}</span> sources · synced 9:38</p>
+  ${segHTML(withSeg)}`;
+const body = () => $('[data-body]', browse);
+// a layout offset from the scroller, through whatever positioned boxes sit between (transforms ignored)
+const offTop = (el) => { let y = 0, n = el; while (n && n !== browse) { y += n.offsetTop; n = n.offsetParent; } return y; };
+const searchField = () => `<div class="sfield"><label>${IC.search}<input type="search" data-q placeholder="Search the Library" value="${esc(state.q)}" enterkeyhint="search" aria-label="Search the Library"></label><button type="button" data-act="search-cancel">Cancel</button></div>`;
+const nomatchHTML = () => `<div class="nomatch"><p style="margin:0">Nothing on the shelf matches “${esc(state.q)}”.</p><button type="button" data-act="search-clear">Clear the search</button></div>`;
+
+// the house segmented control: the lit pill slides, it does not jump
+function placePill(seg, instant) {
+  const pill = $('.pill', seg);
+  const on = $('[aria-pressed="true"],[aria-selected="true"]', seg);
+  if (!pill || !on) return;
+  const sr = seg.getBoundingClientRect(), r = on.getBoundingClientRect();
+  const k = seg.closest('.phone') ? Z : 1;
+  if (instant) pill.style.transition = 'none';
+  pill.style.width = `${r.width / k}px`;
+  pill.style.transform = `translateX(${(r.left - sr.left) / k - 3}px)`;
+  if (instant) { void pill.offsetWidth; pill.style.transition = ''; }
+}
+
+// ================= A · ONE SHELF =================
+const A = (() => {
+  let list = [], pos = 0, target = 0, vel = 0, raf = 0, drag = null, vols = [], room, row, cap, spx, lastCap = -1;
+  const PITCH = 118, ROW_TOP = 274;
+  const xOf = (o) => { const a = Math.abs(o), sg = Math.sign(o); return sg * (a <= 1 ? a * 120 : 120 + (a - 1) * 74); };
+  const band = (v) => { const max = Math.max(0, list.length - 1); return v < 0 ? v * 0.28 : v > max ? max + (v - max) * 0.28 : v; };
+  function poseAt(i) {
+    const s = list[i], d = DIM[s.kind];
+    const o = i - pos, a = Math.abs(o), f = Math.max(0, 1 - a);
+    return { x: xOf(o), z: -a * 46 + f * 26, ry: clamp(-o * 20, -46, 46), s: 1 + 0.09 * f, op: a > 2.6 ? Math.max(0, 1 - (a - 2.6) / 0.8) : 1, w: d.w, h: d.h, d: d.d };
+  }
+  function layout() {
+    vols.forEach((el, i) => {
+      const P = poseAt(i);
+      if (P.op <= 0.01) { el.style.visibility = 'hidden'; return; }
+      el.style.visibility = el.classList.contains('away') ? 'hidden' : '';
+      el.style.transform = `translate3d(${(P.x - P.w / 2).toFixed(2)}px, ${(-(P.s * P.h) / 2 - P.h / 2).toFixed(2)}px, ${P.z.toFixed(2)}px) rotateY(${P.ry.toFixed(2)}deg) scale(${P.s.toFixed(4)})`;
+      el.style.setProperty('--op', P.op.toFixed(3));
+      el.style.setProperty('--spec', specFor(P.ry));
+      el.tabIndex = Math.round(pos) === i ? 0 : -1;
+    });
+    const i = clamp(Math.round(pos), 0, list.length - 1);
+    if (i !== lastCap) caption(i);
+    $$('i', spx).forEach((t, k) => t.classList.toggle('on', k === i));
+    spx.setAttribute('aria-valuenow', String(i + 1));
+    if (list[i]) spx.setAttribute('aria-valuetext', `${list[i].title}, ${i + 1} of ${list.length}`);
+  }
+  function caption(i) {
+    lastCap = i;
+    const s = list[i];
+    if (!s) { cap.innerHTML = ''; return; }
+    cap.innerHTML = `<div class="k">${KIND[s.kind].word} · ${esc(s.by)}${s.mins ? ` · ${fmtMins(s.mins)}` : ''}</div><div class="t">${esc(s.title)}</div><p class="say ${isVerdict(s) ? '' : 'from'}"><span class="dot" aria-hidden="true"></span>${esc(lineOf(s))}</p>`;
+  }
+  function spring() {
+    cancelAnimationFrame(raf);
+    let last = performance.now();
+    const step = (now) => {
+      const dt = Math.min(1 / 30, Math.max(0, (now - last) / 1000)) / SLOW; last = now;
+      if (RM()) { pos = target; vel = 0; layout(); raf = 0; return; }
+      const w = (2 * Math.PI) / 0.42, k = w * w, c = 2 * w;
+      vel += (-k * (pos - target) - c * vel) * dt;
+      pos += vel * dt;
+      if (Math.abs(pos - target) < 0.0008 && Math.abs(vel) < 0.002) { pos = target; vel = 0; layout(); raf = 0; return; }
+      layout();
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+  }
+  const goTo = (i) => { target = clamp(i, 0, list.length - 1); spring(); };
+  function build(L) {
+    list = L; lastCap = -1;
+    pos = target = clamp(Math.round(pos), 0, Math.max(0, L.length - 1));
+    const word = state.kind === 'all' ? 'Library' : KIND[state.kind].plural;
+    const motes = Array.from({ length: 10 }, (_, i) => `<span class="mote" style="left:${(7 + i * 9.3) % 96}%;top:${18 + ((i * 37) % 60)}%;--t:${13 + (i % 5) * 3}s;--dx:${i % 2 ? 12 : -10}px;--dy:${-14 - (i % 3) * 8}px;opacity:${0.25 + (i % 4) * 0.1};animation-delay:-${i * 1.7}s"></span>`).join('');
+    body().innerHTML = `${L.length ? `<div class="room" data-room aria-label="The shelf, ${L.length} sources. Swipe, or use the arrow keys" role="group"><div class="glow"></div><div class="wallword" aria-hidden="true">${word}</div>${motes}<div class="plank"></div><div class="row" data-row>${L.map((s) => volHTML(s)).join('')}</div></div>
+      <div class="cap" data-cap aria-live="polite"></div>
+      <div class="spxw"><div class="spx" data-spx role="slider" tabindex="0" aria-label="Move along the shelf" aria-valuemin="1" aria-valuemax="${L.length}">${L.map((s) => `<i style="--c:${mix(s.cloth, '#ffffff', 0.32)}"></i>`).join('')}</div><button type="button" class="seeall" data-act="seeall">See all</button></div>` : nomatchHTML()}`;
+    browse.classList.remove('persp');
+    room = $('[data-room]', browse); row = $('[data-row]', browse); cap = $('[data-cap]', browse); spx = $('[data-spx]', browse);
+    vols = row ? $$('.vol', row) : [];
+    if (room) { bindRoom(); bindIndex(); layout(); }
+  }
+  function bindRoom() {
+    room.addEventListener('pointerdown', (e) => {
+      if (open) return;
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, p0: pos, moved: false, hist: [[e.timeStamp, e.clientX]] };
+      cancelAnimationFrame(raf); raf = 0; target = pos;
+      const v = e.target.closest('.vol'); if (v) v.classList.add('press');
+    });
+    room.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const dx = (e.clientX - drag.x) / Z, dy = (e.clientY - drag.y) / Z;
+      if (!drag.moved) {
+        if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { drag.moved = true; try { room.setPointerCapture(e.pointerId); } catch (_) { /* the drag still tracks */ } $$('.vol.press', room).forEach((x) => x.classList.remove('press')); }
+        else if (Math.abs(dy) > 10) { $$('.vol.press', room).forEach((x) => x.classList.remove('press')); drag = null; return; }
+        else return;
+      }
+      pos = band(drag.p0 - dx / PITCH);
+      drag.hist.push([e.timeStamp, e.clientX]); if (drag.hist.length > 6) drag.hist.shift();
+      layout();
+    });
+    const end = (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      $$('.vol.press', room).forEach((x) => x.classList.remove('press'));
+      if (drag.moved) {
+        const h = drag.hist, a = h[0], b = h[h.length - 1];
+        const v = b[0] > a[0] ? ((b[1] - a[1]) / Z) / ((b[0] - a[0]) / 1000) : 0;
+        const proj = (v / 1000) * 0.99 / (1 - 0.99);
+        target = clamp(Math.round(pos - proj / PITCH), 0, list.length - 1);
+        vel = -v / PITCH;
+        spring();
+        suppress = true; setTimeout(() => { suppress = false; }, 60);
+      }
+      drag = null;
+    };
+    room.addEventListener('pointerup', end);
+    room.addEventListener('pointercancel', end);
+    room.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); goTo(Math.round(target) + (e.key === 'ArrowRight' ? 1 : -1)); }
+    });
+  }
+  function bindIndex() {
+    let on = false;
+    const at = (e) => { const r = spx.getBoundingClientRect(); return clamp((e.clientX - r.left - 4 * Z) / (r.width - 8 * Z), 0, 1) * (list.length - 1); };
+    spx.addEventListener('pointerdown', (e) => { if (open) return; on = true; try { spx.setPointerCapture(e.pointerId); } catch (_) { /* fine */ } cancelAnimationFrame(raf); raf = 0; pos = target = at(e); layout(); });
+    spx.addEventListener('pointermove', (e) => { if (!on) return; pos = target = at(e); layout(); });
+    const up = () => { if (!on) return; on = false; goTo(Math.round(pos)); };
+    spx.addEventListener('pointerup', up); spx.addEventListener('pointercancel', up);
+    spx.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); goTo(Math.round(target) + 1); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); goTo(Math.round(target) - 1); }
+    });
+  }
+  function poseOfEl(el) {
+    const i = vols.indexOf(el); if (i < 0 || !room) return null;
+    const P = poseAt(i);
+    const rt = offTop(room) - browse.scrollTop;
+    return { x: 195 + P.x, y: rt + ROW_TOP - (P.s * P.h) / 2, z: P.z, rx: 0, ry: P.ry, rz: 0, s: P.s, d: P.d, w: P.w, h: P.h, oy: rt + 150, crack: 0 };
+  }
+  return {
+    build, poseOfEl, seg: true,
+    elFor: (id) => vols.find((v) => v.dataset.id === id) || null,
+    featured: () => (list[clamp(Math.round(pos), 0, list.length - 1)] || SRC[0]).id,
+    reveal: (id) => { const i = list.findIndex((s) => s.id === id); if (i >= 0) { cancelAnimationFrame(raf); raf = 0; pos = target = i; layout(); } },
+    tap: (el) => { const i = vols.indexOf(el); if (i < 0) return; if (i !== Math.round(pos)) goTo(i); openSource(el.dataset.id, el); },
+    afterClose: () => layout(),
+  };
+})();
+
+// ================= B · THE STACK =================
+const B = (() => {
+  let list = [], slots = [], vols = [], tops = [], raf = 0;
+  const PITCH = 66, FOCUS_Y = 360, ORIGIN_Y = 140;
+  function poseAt(i) {
+    const s = list[i], d = DIM[s.kind];
+    const cy = tops[i] + PITCH / 2 - browse.scrollTop;
+    const t = (cy - FOCUS_Y) / PITCH;
+    const f = ss(Math.max(0, 1 - Math.abs(t) / 1.2));
+    const jx = (hashUnit(s.id) - 0.5) * 22;
+    return { x: 195 + jx - 12 * f, y: cy, z: 46 * f, rx: 76 - 20 * f, ry: 0, rz: -90, s: 1.06 + 0.05 * f, d: d.d, w: d.w, h: d.h, oy: ORIGIN_Y, crack: 0 };
+  }
+  function update() {
+    vols.forEach((el, i) => {
+      const P = poseAt(i);
+      if (P.y < -160 || P.y > 1000) { el.style.visibility = 'hidden'; return; }
+      el.style.visibility = el.classList.contains('away') ? 'hidden' : '';
+      el.style.transform = `translate3d(${(P.x - 16 - P.w / 2).toFixed(2)}px, ${(PITCH / 2 - P.h / 2).toFixed(2)}px, ${P.z.toFixed(2)}px) rotateX(${P.rx.toFixed(2)}deg) rotateZ(-90deg) scale(${P.s.toFixed(4)})`;
+      el.style.setProperty('--spec', String((P.z / 46) * 40 - 20));
+    });
+  }
+  function build(L) {
+    list = L;
+    body().innerHTML = `${L.length ? `<div class="stack" data-stack role="list" aria-label="The stack, ${L.length} sources">${L.map((s) => `<div class="slot" role="listitem" style="height:${PITCH}px">${volHTML(s, 'flat')}</div>`).join('')}</div><p class="meta" style="text-align:center;margin-top:18px">The end of the shelf · ${L.length} sources</p>` : nomatchHTML()}`;
+    browse.classList.add('persp');
+    slots = $$('.slot', browse); vols = $$('.slot .vol', browse);
+    tops = slots.map((sl) => offTop(sl));
+    update();
+  }
+  browse.addEventListener('scroll', () => { if (cur !== B || raf) return; raf = requestAnimationFrame(() => { raf = 0; update(); }); }, { passive: true });
+  function poseOfEl(el) { const i = vols.indexOf(el); return i < 0 ? null : poseAt(i); }
+  return {
+    build, poseOfEl, seg: true,
+    elFor: (id) => vols.find((v) => v.dataset.id === id) || null,
+    featured: () => { let best = 0, bd = 1e9; vols.forEach((_, i) => { const d = Math.abs(tops[i] + PITCH / 2 - browse.scrollTop - FOCUS_Y); if (d < bd) { bd = d; best = i; } }); return (list[best] || SRC[0]).id; },
+    reveal: (id) => { const i = list.findIndex((s) => s.id === id); if (i >= 0) { browse.scrollTop = Math.max(0, tops[i] + PITCH / 2 - FOCUS_Y); update(); } },
+    tap: (el) => openSource(el.dataset.id, el),
+    afterClose: () => update(),
+    relayout: () => { tops = slots.map((sl) => offTop(sl)); update(); },
+  };
+})();
+
+// ================= C · SHELF AND COVERS =================
+const C = (() => {
+  let list = [], minis = [], miniList = [], room;
+  const ROW_TOP = 186, ORIGIN = 104, MS = 0.6;
+  // the newest stands in the middle, the next two either side, then the two before them
+  const SLOT = [2, 1, 3, 0, 4];
+  function miniPose(k) {
+    const s = miniList[k], d = DIM[s.kind];
+    const slot = SLOT[k], o = slot - 2, a = Math.abs(o), f = Math.max(0, 1 - a);
+    const sc = MS * (1 + 0.1 * f);
+    return { x: o * 74, z: -a * 22 + f * 14, ry: -o * 13, s: sc, w: d.w, h: d.h, d: d.d };
+  }
+  function layoutMini() {
+    minis.forEach((el, k) => {
+      const P = miniPose(k);
+      el.style.transform = `translate3d(${(P.x - P.w / 2).toFixed(2)}px, ${(-(P.s * P.h) / 2 - P.h / 2).toFixed(2)}px, ${P.z.toFixed(2)}px) rotateY(${P.ry.toFixed(2)}deg) scale(${P.s.toFixed(4)})`;
+      el.style.setProperty('--spec', specFor(P.ry));
+      el.style.visibility = el.classList.contains('away') ? 'hidden' : '';
+    });
+  }
+  function build(L) {
+    list = L;
+    miniList = L.slice(0, 5);
+    const kinds = ['video', 'article', 'book'].filter((k) => L.some((s) => s.kind === k));
+    const newest = miniList[0];
+    body().innerHTML = `${L.length ? `
+      <div class="room mini" data-room role="group" aria-label="Newest on the shelf"><div class="glow"></div><div class="wallword" aria-hidden="true">Newest</div><div class="plank"></div><div class="row" data-row>${miniList.map((s) => volHTML(s)).join('')}</div></div>
+      <div class="cap" style="min-height:0"><div class="k">Newest · ${esc(newest.added)} · ${KIND[newest.kind].word} · ${esc(newest.by)}</div><p class="say ${isVerdict(newest) ? '' : 'from'}"><span class="dot" aria-hidden="true"></span>${esc(lineOf(newest))}</p></div>
+      ${kinds.map((k) => { const items = L.filter((s) => s.kind === k); return `<section class="rail"><div class="rhead"><h2>${KIND[k].plural}</h2><span class="n">${items.length}</span>${items.length > 2 ? `<button type="button" class="see" data-act="seeall" data-k="${k}">See all</button>` : ''}</div><div class="rscroll">${items.map((s) => `<button type="button" class="card" data-id="${s.id}" aria-label="${esc(s.title)}, ${KIND[s.kind].word.toLowerCase()} by ${esc(s.by)}">${boardHTML(s, 124)}<span class="ct">${esc(s.title)}</span><span class="cm">${esc(s.by)}${s.mins ? ` · ${fmtMins(s.mins)}` : ''}</span></button>`).join('')}</div></section>`; }).join('')}` : nomatchHTML()}`;
+    browse.classList.remove('persp');
+    room = $('[data-room]', browse);
+    minis = room ? $$('.vol', room) : [];
+    layoutMini();
+  }
+  function poseOfEl(el) {
+    if (el.classList.contains('vol')) {
+      const k = minis.indexOf(el); if (k < 0) return null;
+      const P = miniPose(k);
+      const rt = offTop(room) - browse.scrollTop;
+      return { x: 195 + P.x, y: rt + ROW_TOP - (P.s * P.h) / 2, z: P.z, rx: 0, ry: P.ry, rz: 0, s: P.s, d: P.d, w: P.w, h: P.h, oy: rt + ORIGIN, crack: 0 };
+    }
+    const b = $('.board', el); if (!b) return null;
+    const s = BY[el.dataset.id], d = DIM[s.kind];
+    const r = local(b.getBoundingClientRect());
+    // a flat cover projects exactly, whatever the camera: z is 0 and it has no turn
+    return { x: r.x + r.w / 2, y: r.y + r.h / 2, z: 0, rx: 0, ry: 0, rz: 0, s: r.w / d.w, d: 0, w: d.w, h: d.h, oy: 230, crack: 0 };
+  }
+  return {
+    build, poseOfEl, seg: false,
+    elFor: (id) => minis.find((v) => v.dataset.id === id) || $(`.card[data-id="${id}"]`, browse),
+    featured: () => (miniList[0] || SRC[0]).id,
+    reveal: (id) => { const c = $(`.card[data-id="${id}"]`, browse); if (c) { const sc = c.parentElement; sc.scrollLeft = c.offsetLeft - 16; const top = c.closest('.rail').offsetTop - 120; browse.scrollTop = Math.max(0, top); } },
+    tap: (el) => openSource(el.dataset.id, el),
+    afterClose: () => layoutMini(),
+  };
+})();
+
+// ================= THE DETAIL, SHARED =================
+function constellation(s) {
+  const [nc, np, nt, nr, ne] = s.c;
+  const cx = 179, cy = 104;
+  let lines = '', nodes = '', k = 0;
+  const put = (n, a0, a1, r0, r1, col, kind) => {
+    for (let i = 0; i < n; i++) {
+      const a = (a0 + (a1 - a0) * (n === 1 ? 0.5 : i / (n - 1))) * Math.PI / 180;
+      const r = i % 2 ? r1 : r0;
+      const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a) * 0.8;
+      const len = Math.hypot(x - cx, y - cy).toFixed(1);
+      if (kind !== 'echo') lines += `<line class="ln" x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" style="--len:${len};--i:${k}" stroke="${col}" stroke-opacity=".45"/>`;
+      nodes += kind === 'rel'
+        ? `<rect class="nd" x="${(x - 5).toFixed(1)}" y="${(y - 7).toFixed(1)}" width="10" height="14" rx="1.5" fill="${col}" style="--i:${k}"/>`
+        : `<circle class="nd" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${kind === 'echo' ? 2.2 : kind === 'concept' ? 4 : 5}" fill="${col}" style="--i:${k}"/>`;
+      k += 1;
+    }
+  };
+  put(nc, -165, -15, 66, 88, '#d8b573', 'concept');
+  put(np, 8, 38, 92, 92, '#e08f6f', 'person');
+  put(nt, 142, 172, 88, 88, '#8a6ad1', 'topic');
+  put(nr, 62, 118, 80, 80, '#6be5f5', 'rel');
+  put(ne, 0, 360 - 360 / Math.max(1, ne), 122, 122, 'rgba(232,236,246,.65)', 'echo');
+  return `<svg class="constel" data-constel viewBox="0 0 358 210" role="img" aria-label="${s.title} connects to ${nc} concepts, ${np} people, ${nt} topics and ${nr} related sources; ${ne} pages cite it">${lines}${nodes}<rect x="${cx - 9}" y="${cy - 12}" width="18" height="24" rx="2" fill="${s.cloth}" stroke="${s.foil}" stroke-width="1.2"/></svg>`;
+}
+function timeline(s) {
+  const rich = RICH[s.id];
+  if (s.kind !== 'video') return '';
+  const ideas = rich ? rich.ideas : [[`${Math.round(s.mins * 0.12)}:00`, 'Demo idea one, tied to its moment in the talk.'], [`${Math.round(s.mins * 0.45)}:30`, 'Demo idea two.'], [`${Math.round(s.mins * 0.78)}:10`, 'Demo idea three.']];
+  const secs = (t) => { const [m, sec] = t.split(':').map(Number); return m * 60 + sec; };
+  const L = s.mins * 60;
+  return `<div class="tl" data-tl><div class="tlbar"><span class="fill"></span>${ideas.map(([ts, tx], i) => `<button type="button" class="tk" data-tk="${i}" data-ts="${ts}" data-tx="${esc(tx)}" style="left:${(secs(ts) / L * 100).toFixed(2)}%" aria-label="${ts}: ${esc(tx)}" aria-pressed="${i === 0}"><i></i></button>`).join('')}</div><div class="tlends"><span>0:00</span><span>${s.mins}:00</span></div><div class="tlnow"><span class="ts">${ideas[0][0]}</span><span class="tx">${esc(ideas[0][1])}</span></div><button type="button" class="ta" data-act="play">${IC.play}Play from <span data-tsl>${ideas[0][0]}</span></button></div>`;
+}
+function detailHTML(s) {
+  const rich = RICH[s.id];
+  const prov = s.prov === 'read' ? '<span class="pv"><i></i>Read by Nova</span>' : '<span class="pv res"><i></i>Researched, not read</span>';
+  const short = rich ? rich.short : s.kind === 'video'
+    ? 'Demo reading: the talk’s argument in two sentences, the key ideas each tied to its moment, and what bears on your training.'
+    : s.kind === 'book' ? 'Demo reading: what the book argues, its chapters as Nova found them in reviews and the author’s talks, and the ideas worth keeping.'
+      : 'Demo reading: the essay’s claim, the evidence it leans on, and the one thing worth trying.';
+  const [nc, np, nt, nr, ne] = s.c;
+  return `
+    <button type="button" class="bk-btn" data-act="back">${IC.back}Library</button>
+    <div class="hero" aria-hidden="true"></div>
+    <div class="dz" style="--i:0"><p class="dmeta">${prov} · ${KIND[s.kind].word} · ${esc(s.by)}${s.mins ? ` · ${fmtMins(s.mins)}` : ''}</p><h2 class="dtitle">${esc(s.title)}</h2></div>
+    <div class="dz" style="--i:1"><p class="vlab">${isVerdict(s) ? 'Nova’s verdict' : 'From Nova’s page'}</p><p class="verdict">${esc(lineOf(s))}</p>${s.prov === 'researched' ? '<p class="resnote">Nova has not read this book’s text. Add your copy and the reading deepens.</p>' : ''}</div>
+    <div class="dz dacts" style="--i:2"><button type="button" class="btn pri" data-act="ask">Ask about it</button>${s.prov === 'researched' ? '<button type="button" class="btn" data-act="addcopy">Add your copy</button>' : `<button type="button" class="btn" data-act="src">Open source ${IC.out}</button>`}</div>
+    <section class="dz" style="--i:3" data-holds><h3>What Nova holds</h3><p class="body">${short}</p>${timeline(s)}</section>
+    <section class="dz" style="--i:4"><h3>Connected</h3>${constellation(s)}
+      <div class="cpills">
+        <button type="button" class="cpill" data-act="list" data-g="concept" style="--h:var(--concept)"><i></i><b>${nc}</b> concepts</button>
+        <button type="button" class="cpill" data-act="list" data-g="person" style="--h:var(--person)"><i></i><b>${np}</b> ${np === 1 ? 'person' : 'people'}</button>
+        <button type="button" class="cpill" data-act="list" data-g="topic" style="--h:var(--topic)"><i></i><b>${nt}</b> topics</button>
+        <button type="button" class="cpill" data-act="list" data-g="rel" style="--h:var(--source)"><i></i><b>${nr}</b> related</button>
+        <button type="button" class="cpill" data-act="list" data-g="echo" style="--h:var(--echo)"><i></i><b>${ne}</b> pages cite it</button>
+      </div></section>
+    <section class="dz" style="--i:5"><p class="uses">Nova hands this to <b>Coach, Practice, the Briefing</b> and five more lanes when it bears on what they are doing.</p>
+      <div class="glist"><button type="button" class="grow" data-act="raw"><span>${s.kind === 'video' ? 'The transcript' : 'The original'}</span><span class="v">${s.kind === 'book' ? 'a researched dossier' : `${Math.round((s.mins || 9) * 0.92)}k characters`}</span><span class="ch">${IC.chev}</span></button><button type="button" class="grow" data-act="galaxy"><span>In the Galaxy</span><span class="v">this source in the middle</span><span class="ch">${IC.chev}</span></button></div></section>`;
+}
+
+// ---- the flight: the cover travels into its detail, on the app's own timeline
+const T_OPEN = 1.15, T_CLOSE = 0.8;
+const spin = (p) => ss(ss(ss(p)));
+const tumble = (p) => ({ rx: Math.sin(p * Math.PI) * 33, ry: 360 * spin(p), rz: Math.sin(p * Math.PI * 2) * 17, lift: -Math.sin(p * Math.PI) * 34 });
+function detailPose(s) {
+  const d = DIM[s.kind], H = 214;
+  return { x: 195, y: 54 + 44 + 18 + H / 2, z: 0, rx: 4, ry: 14, rz: 0, s: H / d.h, d: d.d, w: d.w, h: d.h, oy: 220, crack: -20 };
+}
+const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's', 'd', 'oy'];
+function poseLerp(a, b, e) { const P = { w: b.w, h: b.h }; KEYS.forEach((k) => { P[k] = lerp(a[k], b[k], e); }); return P; }
+function applyPose(el, P) {
+  el.style.transform = `translate3d(${(P.x - P.w / 2).toFixed(2)}px, ${(P.y - P.h / 2).toFixed(2)}px, ${P.z.toFixed(2)}px) rotateX(${P.rx.toFixed(2)}deg) rotateY(${P.ry.toFixed(2)}deg) rotateZ(${P.rz.toFixed(2)}deg) scale(${P.s.toFixed(4)})`;
+  el.style.setProperty('--d', `${Math.max(0, P.d).toFixed(2)}px`);
+  el.style.setProperty('--crack', `${(P.crack || 0).toFixed(2)}deg`);
+  el.style.setProperty('--spec', specFor(P.ry));
+  fly.style.perspectiveOrigin = `195px ${P.oy.toFixed(1)}px`;
+}
+let open = null;
+let suppress = false;
+let lastInput = 'pointer';
+phone.addEventListener('pointerdown', () => { lastInput = 'pointer'; }, true);
+phone.addEventListener('keydown', () => { lastInput = 'key'; }, true);
+function frame(o) {
+  const p = o.p, e = easeIO(p);
+  const P = poseLerp(o.from, o.to, e);
+  const t = tumble(p);
+  P.rx += t.rx; P.ry += t.ry; P.rz += t.rz; P.y += t.lift;
+  // the board opens last: a cover swinging through a tumble is a flap, not a book opening
+  P.crack = o.to.crack * ss(clamp((p - 0.62) / 0.38, 0, 1));
+  applyPose(o.clone, P);
+  const recede = ss(clamp(p / 0.6, 0, 1));
+  browse.style.opacity = String(1 - recede);
+  browse.style.transform = `scale(${(1 - 0.03 * recede).toFixed(4)})`;
+  tint.style.opacity = String(e);
+  // the writing arrives for the last part of the flight only, so it never sits over the room
+  if (o.dirn > 0 && p > 0.55) detail.classList.add('in');
+}
+function run() {
+  const o = open; if (!o) return;
+  cancelAnimationFrame(o.raf);
+  let last = performance.now();
+  const step = (now) => {
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+    o.p = clamp(o.p + (o.dirn * dt) / ((o.dirn > 0 ? T_OPEN : T_CLOSE) * SLOW), 0, 1);
+    frame(o);
+    if ((o.dirn > 0 && o.p >= 1) || (o.dirn < 0 && o.p <= 0)) { settle(o); return; }
+    o.raf = requestAnimationFrame(step);
+  };
+  o.raf = requestAnimationFrame(step);
+}
+function settle(o) {
+  if (o.p >= 1) {
+    applyPose(o.clone, { ...o.to });
+    browse.style.visibility = 'hidden';
+    detail.classList.add('in');
+    if (!RM()) o.clone.classList.add('sway');
+    watchConstel();
+    if (o.then) { const f = o.then; o.then = null; f(); }
+    return;
+  }
+  // home: the volume is back in its place, exactly
+  fly.innerHTML = '';
+  o.srcEl.classList.remove('away');
+  o.srcEl.style.visibility = '';
+  browse.style.opacity = ''; browse.style.transform = ''; browse.style.visibility = '';
+  tint.style.opacity = '0';
+  phone.dataset.view = 'browse';
+  detail.setAttribute('aria-hidden', 'true'); browse.removeAttribute('aria-hidden');
+  detail.classList.remove('in');
+  open = null;
+  cur.afterClose();
+  if (o.then) o.then();
+}
+function openSource(id, el, then) {
+  if (open) return;
+  const s = BY[id]; el = el || cur.elFor(id); if (!s || !el) return;
+  const from = cur.poseOfEl(el); if (!from) return;
+  dc.innerHTML = detailHTML(s);
+  // the page wears the book in its ground and its object; the controls keep Nova's cyan, the one accent
+  phone.style.setProperty('--book', s.acc);
+  fly.innerHTML = volHTML(s, 'clone');
+  const clone = fly.firstElementChild;
+  clone.tabIndex = -1; clone.setAttribute('aria-hidden', 'true');
+  fitSpines(fly);
+  el.classList.add('away');
+  if (el.classList.contains('vol')) el.style.visibility = 'hidden';
+  detail.scrollTop = 0;
+  phone.dataset.view = 'detail';
+  detail.setAttribute('aria-hidden', 'false'); browse.setAttribute('aria-hidden', 'true');
+  open = { s, clone, from, to: detailPose(s), p: 0, dirn: 1, srcEl: el, raf: 0, then };
+  if (RM()) { crossfade(1); return; }
+  frame(open);
+  run();
+  if (lastInput === 'key') setTimeout(() => { const b = $('.bk-btn', dc); if (b && open) b.focus({ preventScroll: true }); }, T_OPEN * SLOW * 1000);
+}
+function crossfade(to) {
+  const o = open; if (!o) return;
+  const ms = 200 * SLOW;
+  o.dirn = to ? 1 : -1;
+  applyPose(o.clone, { ...o.to });
+  o.clone.style.transition = `opacity ${ms}ms ease`;
+  browse.style.transition = `opacity ${ms}ms ease`;
+  tint.style.transition = `opacity ${ms}ms ease`;
+  if (to) {
+    o.clone.style.opacity = '0'; void o.clone.offsetWidth; o.clone.style.opacity = '1';
+    browse.style.opacity = '0'; tint.style.opacity = '1'; detail.classList.add('in');
+  } else {
+    o.clone.style.opacity = '0'; browse.style.visibility = ''; browse.style.opacity = '1'; tint.style.opacity = '0'; detail.classList.remove('in');
+  }
+  setTimeout(() => { browse.style.transition = ''; tint.style.transition = ''; o.p = to ? 1 : 0; settle(o); }, ms + 20);
+}
+function closeSource(then) {
+  const o = open; if (!o) { if (then) then(); return; }
+  if (o.dirn < 0) return;
+  o.then = then || null;
+  detail.classList.remove('in');
+  o.clone.classList.remove('sway');
+  browse.style.visibility = '';
+  // the book goes back to where its volume is NOW (the shelf may have moved behind it)
+  const now = cur.poseOfEl(o.srcEl);
+  if (now) o.from = now;
+  const go = () => { o.dirn = -1; if (RM()) crossfade(0); else run(); };
+  if (detail.scrollTop > 4 && !RM()) smoothTop(go); else { detail.scrollTop = 0; go(); }
+}
+function smoothTop(done) {
+  const y0 = detail.scrollTop, t0 = performance.now(), ms = 240 * SLOW;
+  const step = (now) => { const p = clamp((now - t0) / ms, 0, 1); detail.scrollTop = y0 * (1 - easeIO(p)); if (p < 1) requestAnimationFrame(step); else done(); };
+  requestAnimationFrame(step);
+}
+function snapClosed() {
+  const o = open; if (!o) return;
+  cancelAnimationFrame(o.raf);
+  o.p = 0; o.then = null; settle(o);
+}
+
+// the edge swipe: Back as a gesture, scrubbing the same timeline backwards
+let edge = null;
+detail.addEventListener('pointerdown', (e) => {
+  if (!open || open.dirn < 0 || open.p < 1 || RM()) return;
+  const x = (e.clientX - phone.getBoundingClientRect().left) / Z;
+  if (x > 24 || detail.scrollTop > 40) return;
+  edge = { id: e.pointerId, x0: e.clientX, t0: e.timeStamp, moved: false };
+  try { detail.setPointerCapture(e.pointerId); } catch (_) { /* fine */ }
+});
+detail.addEventListener('pointermove', (e) => {
+  if (!edge || e.pointerId !== edge.id) return;
+  const dx = (e.clientX - edge.x0) / Z;
+  if (!edge.moved && dx > 6) { edge.moved = true; cancelAnimationFrame(open.raf); open.dirn = 0; open.clone.classList.remove('sway'); detail.classList.remove('in'); browse.style.visibility = ''; detail.scrollTop = 0; }
+  if (!edge.moved) return;
+  open.p = clamp(1 - dx / 320, 0, 1);
+  frame(open);
+});
+const edgeEnd = (e) => {
+  if (!edge || e.pointerId !== edge.id) return;
+  const dx = (e.clientX - edge.x0) / Z;
+  const v = dx / Math.max(1, e.timeStamp - edge.t0);
+  const moved = edge.moved; edge = null;
+  if (!moved) return;
+  if (dx > 110 || v > 0.45) { const now = cur.poseOfEl(open.srcEl); if (now) open.from = now; open.dirn = -1; run(); }
+  else { open.dirn = 1; run(); }
+};
+detail.addEventListener('pointerup', edgeEnd);
+detail.addEventListener('pointercancel', edgeEnd);
+
+// the constellation draws itself when it comes into view
+let constelObs = null;
+function watchConstel() {
+  const svg = $('[data-constel]', dc); if (!svg) return;
+  if (RM()) { svg.classList.add('drawn'); return; }
+  if (constelObs) constelObs.disconnect();
+  constelObs = new IntersectionObserver((ents) => { ents.forEach((en) => { if (en.isIntersecting) { svg.classList.add('drawn'); constelObs.disconnect(); } }); }, { root: detail, threshold: 0.4 });
+  constelObs.observe(svg);
+}
+
+// ---- sheets: Add a source, a list behind a count, See all
+const GROUP = { concept: ['concepts', 'Demo concept', 'var(--concept)', 'Opens in Notes'], person: ['people', 'Demo person', 'var(--person)', 'Opens in Notes'], topic: ['topics', 'Demo topic', 'var(--topic)', 'Opens in Notes'], rel: ['related sources', '', 'var(--source)', 'Opens on the shelf'], echo: ['pages that cite it', 'Demo page', 'var(--echo)', 'Opens in Notes'] };
+let sheetKind = '';
+function openSheet(kind, arg) {
+  sheetKind = kind;
+  const h = $('#sheet-t', phone), body = $('.sbody', sheet);
+  if (kind === 'add') {
+    h.textContent = 'Add a source';
+    const rows = [['text', 'Paste text', 'A transcript, an article, or a note you wrote', '#3d6fd1'], ['link', 'A video or podcast link', 'Nova fetches the transcript itself', '#c0503d'], ['person', 'A person', 'Nova’s Scout reads their public work', '#7a5ad1'], ['file', 'A file', '.pdf · .epub · .txt · .md', '#3a8f7c']];
+    body.innerHTML = rows.map(([ic, t, sub, col]) => `<button type="button" class="srow" data-act="addrow" style="--h:${col}"${arg === ic ? ' aria-current="true"' : ''}><span class="tile">${IC[ic]}</span><span class="tx"><b>${t}</b><span>${sub}</span></span><span class="ch">${IC.chev}</span></button>`).join('') + '<p class="sfoot">Or just say it to Nova: “add the book Demo Title by Demo Author”. Nothing reaches your vault until you approve it.</p>';
+  } else if (kind === 'list') {
+    const g = GROUP[arg], s = open ? open.s : SRC[0];
+    const n = s.c[['concept', 'person', 'topic', 'rel', 'echo'].indexOf(arg)];
+    h.textContent = `${n} ${g[0]}`;
+    const rel = SRC.filter((x) => x.id !== s.id).slice(0, n);
+    body.innerHTML = Array.from({ length: n }, (_, i) => arg === 'rel'
+      ? `<button type="button" class="srow" data-act="relrow"><span class="tile" style="background:${rel[i].cloth}"></span><span class="tx"><b>${esc(rel[i].title)}</b><span>Shares Demo concept ${i + 1} and Demo concept ${i + 2}</span></span><span class="ch">${IC.chev}</span></button>`
+      : `<button type="button" class="srow" data-act="noterow"><span class="tile" style="background:${g[2]};width:12px;height:12px;border-radius:50%"></span><span class="tx"><b>${g[1]} ${i + 1}</b><span>${g[3]}</span></span><span class="ch">${IC.chev}</span></button>`).join('');
+  } else if (kind === 'all') {
+    const L = filtered().filter((s) => !arg || s.kind === arg);
+    h.textContent = arg ? `All ${L.length} ${KIND[arg].plural.toLowerCase()}` : `All ${L.length} sources`;
+    body.innerHTML = `<div class="sgrid">${L.map((s) => `<button type="button" class="card" data-act="pick" data-id="${s.id}" aria-label="${esc(s.title)}">${boardHTML(s, 108)}<span class="ct">${esc(s.title)}</span></button>`).join('')}</div>`;
+  }
+  sheet.setAttribute('aria-hidden', 'false');
+  phone.classList.add('sheet-open');
+  setTimeout(() => { const d = $('.done', sheet); if (d) d.focus({ preventScroll: true }); }, 60);
+}
+function closeSheet(then) {
+  phone.classList.remove('sheet-open');
+  sheet.setAttribute('aria-hidden', 'true');
+  sheet.style.transform = '';
+  if (then) setTimeout(then, 300 * SLOW);
+}
+// the sheet follows a finger down and goes if it is flicked
+let sdrag = null;
+$('[data-grab]', sheet).addEventListener('pointerdown', (e) => { sdrag = { id: e.pointerId, y0: e.clientY, t0: e.timeStamp }; try { e.target.setPointerCapture(e.pointerId); } catch (_) { /* fine */ } sheet.style.transition = 'none'; });
+$('[data-grab]', sheet).addEventListener('pointermove', (e) => { if (!sdrag) return; const dy = Math.max(0, (e.clientY - sdrag.y0) / Z); sheet.style.transform = `translateY(${dy}px)`; });
+const sEnd = (e) => { if (!sdrag) return; const dy = (e.clientY - sdrag.y0) / Z, v = dy / Math.max(1, e.timeStamp - sdrag.t0); sdrag = null; sheet.style.transition = ''; if (dy > 90 || v > 0.5) closeSheet(); else sheet.style.transform = ''; };
+$('[data-grab]', sheet).addEventListener('pointerup', sEnd);
+$('[data-grab]', sheet).addEventListener('pointercancel', sEnd);
+
+// ---- one listener for every tap in the phone
+phone.addEventListener('click', (e) => {
+  const v = e.target.closest('.vol, .card:not([data-act])');
+  if (v && browse.contains(v) && !open) { if (suppress) return; cur.tap(v); return; }
+  const a = e.target.closest('[data-act]');
+  if (a) act(a.dataset.act, a, e);
+  const tk = e.target.closest('[data-tk]');
+  if (tk) pickIdea(tk);
+  const kb = e.target.closest('[data-kind]');
+  if (kb && !open) { state.kind = kb.dataset.kind; rebuild(); }
+});
+function act(name, el) {
+  const s = open ? open.s : null;
+  switch (name) {
+    case 'back': closeSource(); break;
+    case 'search': state.searching = true; rebuild(true); break;
+    case 'search-cancel': state.searching = false; state.q = ''; rebuild(); break;
+    case 'search-clear': state.q = ''; rebuild(true); break;
+    case 'add': openSheet('add'); break;
+    case 'addcopy': openSheet('add', 'file'); break;
+    case 'close-sheet': closeSheet(); break;
+    case 'seeall': openSheet('all', el.dataset.k || ''); break;
+    case 'pick': { const id = el.dataset.id; closeSheet(() => { cur.reveal(id); requestAnimationFrame(() => openSource(id)); }); break; }
+    case 'list': openSheet('list', el.dataset.g); break;
+    case 'ask': if (s) toast(`<b>Nova</b>About the source “${esc(s.title)}”: <span class="caret"></span><br><span style="color:var(--ink3)">Opens Nova with the question started and left for you to finish, as documents do today.</span>`, 4200); break;
+    case 'src': toast('<b>Open source</b>Opens the talk where it lives. In this demo, nowhere.'); break;
+    case 'play': { const ts = $('[data-tsl]', dc); toast(`<b>Play from ${ts ? ts.textContent : ''}</b>New and small: the note’s own timestamps become links into the talk.`); break; }
+    case 'raw': toast('<b>The transcript</b>Opens in Notes, as today.'); break;
+    case 'galaxy': toast('<b>In the Galaxy</b>Opens with this source in the middle. Today it opens the Galaxy wherever it was last.'); break;
+    case 'addrow': toast('<b>Add a source</b>Demo: nothing is added.'); break;
+    case 'noterow': toast('<b>Opens in Notes</b>As the chips do today.'); break;
+    case 'relrow': toast('<b>Opens on the shelf</b>The book you are holding goes back first.'); break;
+    default: break;
+  }
+}
+function pickIdea(tk) {
+  const tl = tk.closest('[data-tl]');
+  $$('.tk', tl).forEach((b) => b.setAttribute('aria-pressed', String(b === tk)));
+  $('.tlnow .ts', tl).textContent = tk.dataset.ts;
+  $('.tlnow .tx', tl).textContent = tk.dataset.tx;
+  $('[data-tsl]', tl).textContent = tk.dataset.ts;
+  $('.fill', tl).style.setProperty('--fw', tk.style.left);
+}
+phone.addEventListener('input', (e) => { if (e.target.matches('[data-q]')) { state.q = e.target.value; rebuildList(); } });
+phone.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if (phone.classList.contains('sheet-open')) closeSheet(); else if (open) closeSource(); return; }
+  // a volume is a div with a button's role, so it takes Enter and Space like one
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.vol[role="button"]')) { e.preventDefault(); e.target.click(); }
+});
+
+// ---- directions
+const DIRS = { a: A, b: B, c: C };
+let cur = A, curKey = 'a';
+function rebuild(focusSearch) {
+  browse.innerHTML = `<div data-headwrap>${headHTML(cur.seg)}</div><div data-body></div>`;
+  cur.build(filtered());
+  fitSpines(browse);
+  const kinds = $('[data-kinds]', browse); if (kinds) requestAnimationFrame(() => placePill(kinds, true));
+  if (focusSearch) { const q = $('[data-q]', browse); if (q) { q.focus({ preventScroll: true }); q.setSelectionRange(q.value.length, q.value.length); } }
+}
+function rebuildList() {
+  // only the list underneath changes: the field keeps its focus, and his keyboard stays up
+  cur.build(filtered());
+  fitSpines(browse);
+}
+const RKM = {
+  a: '<b>Removes</b> the Covers view (it becomes See all), the four kind pills, the hint and the “live” label. <b>Keeps</b> the 3D shelf, the edition, the tint, the tumble, search and add. <b>Moves</b> search and add into the title row, the kinds into one control, and Nova’s verdict under the volume in front. Above the fold: <span class="num">11</span> objects today (<span class="num">17</span> on Covers) to <span class="num">9</span>; any source in one move instead of up to <span class="num">24</span> swipes.',
+  b: '<b>Removes</b> the standing row, the Covers view, the kind pills and the hint. <b>Keeps</b> the edition, the tint, the tumble, search and add. <b>Moves</b> the shelf into Stripe Press’s stack, volumes lying flat on the phone’s own scroll. Above the fold: <span class="num">11</span> objects today to <span class="num">5</span> and one list, with <span class="num">9</span> sources in view instead of <span class="num">1.3</span>.',
+  c: '<b>Removes</b> the kind pills (the sections are the kinds), the Covers and Shelf toggle and the hint. <b>Keeps</b> the 3D shelf for the five newest, the edition on every cover, the tint, the tumble. <b>Moves</b> everything else into one rail per kind, Apple Books’ shape. Above the fold: <span class="num">11</span> objects today to <span class="num">9</span>, with <span class="num">8</span> sources in view (five standing, three covers).',
+};
+const NOTES = {
+  a: [
+    ['shelf', 'The shelf', 'The 3D shelf is the page. Above it, only the title, search, add and one control for the kinds. Under the volume in front, its name in real type and Nova’s verdict in the serif: legible at any pixel ratio, and something VoiceOver can read. The row of ticks is the whole shelf in its own colours; drag along it to reach the last source in one move.', 'New: the verdict line, the tick row, See all as a grid sheet.'],
+    ['open', 'Opening a source', 'Tap any volume and it opens, side ones too. It lifts off the plank, tumbles on three axes and lands exactly on its pose; the room recedes and the page takes the book’s colour. Library, or a swipe from the left edge, reverses it from wherever it is. The writing arrives only for the last part of the flight.', 'Fixes: the two-tap open, Back leaving the Library, the title drawn over the room.'],
+    ['nova', 'What Nova does with it', 'The verdict, then two verbs, then Nova’s reading with a talk’s key ideas placed on its own length. The four chip rows become one figure of what it connects to, with five counts that open lists. The transcript and the Galaxy close the page.', 'New and small: the timeline (the note’s own timestamps), the Galaxy opening on this source.'],
+  ],
+  b: [
+    ['shelf', 'The stack', 'Stripe Press’s own opening, the reel’s first four seconds: volumes lying flat that drift past as you scroll. It is the phone’s own vertical scroll, with its momentum and its rubber band, and every spine is legible, so nine sources are in view. The one at eye level slides out and shows its cover.', 'A new arrangement of the same objects: the edition, the plate and the foil are unchanged.'],
+    ['open', 'Opening a source', 'Tap a spine and the book is picked up: it rises off the stack, turns to face you and tumbles into the detail. Back puts it down in its place in the stack, wherever you have scrolled.', 'The tumble is the app’s own maths, 1.15 s out and 0.8 s back.'],
+    ['nova', 'What Nova does with it', 'The same detail as A and C: the verdict, two verbs, the reading, one figure for what it connects to.', 'Every control 44 pt; four type sizes.'],
+  ],
+  c: [
+    ['shelf', 'Shelf and covers', 'Apple Books’ shape. The five newest stand on a short shelf with the newest one’s verdict under it; below, one rail per kind with its count, so the sections are the filter and no pills are needed. Every cover is the same edition as its volume, plate in cloth.', 'The Covers view lives on as these rails, and See all opens a kind as a grid.'],
+    ['open', 'Opening a source', 'Tap a cover and it becomes the volume as it lifts: the spine and the page block grow out of the flat cover, then it tumbles into the detail. Back lays it flat again in its rail.', 'X8 answered: the object you tap is the object that opens.'],
+    ['nova', 'What Nova does with it', 'The same detail as A and B.', 'The rails scroll sideways inside the page; the page itself never does.'],
+  ],
+};
+let curState = 'shelf';
+function renderNotes() {
+  $('#rkm').innerHTML = RKM[curKey];
+  $('#notes').innerHTML = `<h2>${{ a: 'A · One shelf', b: 'B · The stack', c: 'C · Shelf and covers' }[curKey]}</h2>` + NOTES[curKey].map(([k, t, p, n]) => `<div class="st${k === curState ? ' on' : ''}"><h3>${t}</h3><p>${p}</p><span class="new">${n}</span></div>`).join('');
+}
+function setDir(k, instant) {
+  if (!DIRS[k]) return;
+  if (open) snapClosed();
+  if (phone.classList.contains('sheet-open')) closeSheet();
+  curKey = k; cur = DIRS[k];
+  state.searching = false; state.q = ''; state.kind = 'all';
+  browse.scrollTop = 0;
+  rebuild();
+  $$('#dirs [data-dir]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.dir === k)));
+  placePill($('#dirs'), instant);
+  setStateBtn('shelf');
+  renderNotes();
+  try { history.replaceState(null, '', `#${k}`); } catch (_) { /* fine */ }
+}
+function setStateBtn(st) {
+  curState = st;
+  $$('#states [data-st]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.st === st)));
+  placePill($('#states'));
+  $$('#notes .st').forEach((n, i) => n.classList.toggle('on', NOTES[curKey][i][0] === st));
+}
+function showState(st) {
+  setStateBtn(st);
+  if (phone.classList.contains('sheet-open')) closeSheet();
+  if (st === 'shelf') { if (open) closeSource(); else browse.scrollTo({ top: 0, behavior: RM() ? 'auto' : 'smooth' }); return; }
+  const id = curKey === 'c' ? C.featured() : cur.featured();
+  if (st === 'open') { if (open) snapClosed(); requestAnimationFrame(() => openSource(id)); return; }
+  const toHolds = () => {
+    const h = $('[data-holds]', dc); if (!h) return;
+    detail.scrollTo({ top: h.offsetTop - 60, behavior: RM() ? 'auto' : 'smooth' });
+  };
+  if (open && open.p >= 1 && open.dirn >= 0) toHolds();
+  else if (open && open.dirn > 0) open.then = () => setTimeout(toHolds, 120 * SLOW);
+  else if (!open) openSource(id, null, () => setTimeout(toHolds, 120 * SLOW));
+}
+$('#dirs').addEventListener('click', (e) => { const b = e.target.closest('[data-dir]'); if (b) setDir(b.dataset.dir); });
+$('#states').addEventListener('click', (e) => { const b = e.target.closest('[data-st]'); if (b) showState(b.dataset.st); });
+$('#slow').addEventListener('click', (e) => { SLOW = SLOW === 1 ? 4 : 1; doc.classList.toggle('slow', SLOW > 1); e.currentTarget.setAttribute('aria-pressed', String(SLOW > 1)); });
+$('#rmprev').addEventListener('click', (e) => { forceRM = !forceRM; syncRM(); e.currentTarget.setAttribute('aria-pressed', String(forceRM)); });
+window.addEventListener('resize', () => { placePill($('#dirs'), true); placePill($('#states'), true); const k = $('[data-kinds]', browse); if (k) placePill(k, true); if (cur === B && B.relayout) B.relayout(); });
+const fromHash = () => { const k = (location.hash || '').replace('#', ''); return DIRS[k] ? k : null; };
+window.addEventListener('hashchange', () => { const k = fromHash(); if (k && k !== curKey) setDir(k); });
+setDir(fromHash() || 'a', true);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fitSpines(browse); placePill($('#dirs'), true); placePill($('#states'), true); const k = $('[data-kinds]', browse); if (k) placePill(k, true); if (cur === B) B.relayout(); });
+// for a reviewer: window.__lib.open('s3'), .close(), .dir('b')
+window.__lib = { open: (id) => openSource(id || cur.featured()), close: () => closeSource(), dir: setDir, state: showState };
+})();
+</script>
