@@ -6,7 +6,7 @@ import { audioLevel } from './audioLevel.js';
 import { onSpeech, spokenSentences, clockNow } from './speechClock.js';
 import { paceSentence, sentenceAt, wordAt, wordLook } from './subtitlePace.js';
 import {
-  focusPhase, PHASE_HOLD_MS, focusTint, EMBER_RGB, FIELD_EMBERS, focusSteps, speakerOf, focusAsks, peekLine, lastYours,
+  focusPhase, PHASE_HOLD_MS, focusTint, EMBER_RGB, POUR_RGB, FIELD_EMBERS, focusSteps, speakerOf, focusAsks, peekLine, lastYours,
   CAPTIONS_KEY, captionsOn,
 } from './novaFocusFacts.js';
 
@@ -65,7 +65,17 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
   const live = useRef({ key: S.key, hue: 'blue', phase: 'field', touch: null });
   const streaming = T.lines.some((m) => m.streaming);
   const phase = useHeldPhase(focusPhase(S.key, { streaming }));
-  const tint = focusTint(S.key);
+  // PUSHING BACK (his call, 4 Oct 2026): red only while he speaks a sentence
+  // that disagrees with something Hayden proposed, and named in words
+  const contest = S.key === 'speaking' && !!T.contest;
+  const tint = focusTint(S.key, { contest });
+  const stateWord = contest ? 'Pushing back' : S.word;
+  // the grains that pour from his heart into each word: Captions queues
+  // them and draws them, on their own canvas OVER the plate (under it, the
+  // plate's glass blurred them away)
+  const pourRef = useRef([]);
+  const pourCanvasRef = useRef(null);
+  const pour = useMemo(() => ({ jobs: pourRef, canvas: pourCanvasRef, core: coreRef }), []);
   const [captions, setCaptions] = useState(readCaptions);
   const [entering, setEntering] = useState(true);
   // once the screen has faded fully in it is opaque, and the page under it can stop painting (index.css, .nv-sky)
@@ -174,16 +184,36 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
   const toggleCaptions = () => setCaptions((on) => { writeCaptions(!on); return !on; });
 
   const speaker = speakerOf([...T.lines].reverse().find((m) => m.who === 'nova')?.agent);
+  // THE UNDERLINE MATCHES WHAT NOVA IS DOING (his rule, 4 Oct 2026): his
+  // speaking jade while he speaks; a voiced agent keeps its own hue; a
+  // pushback sentence turns red and a lit part takes its finder's hue (the
+  // captions set those per sentence)
+  const sayHue = speaker.voiced ? speaker.hue : 'var(--nv-say)';
   const plateMode = S.key === 'listening' ? 'listen' : S.key === 'speaking' ? 'speak' : S.key === 'thinking' ? 'think' : said.length ? 'speak' : 'think';
   const hint = S.key === 'turn' ? (T.demo ? 'demo replies' : 'tap Nova to talk') : S.hint;
   const asks = focusAsks(T.status, { offline: T.offline });
   const peek = peekLine(T.lines);
   const stage = phase === 'stage' && plateMode === 'speak' ? T.stage : null;
+  // A PANEL SETTLES AWAY (mockup 69, approved 4 Oct): the last one stays a
+  // moment as it leaves, then goes; a new panel rises out of the core
+  const lastStage = useRef(null);
+  if (stage) lastStage.current = stage;
+  const [dockLeaving, setDockLeaving] = useState(false);
+  const hasStage = !!stage;
+  useEffect(() => {
+    if (hasStage) { setDockLeaving(false); return undefined; }
+    if (!lastStage.current) return undefined;
+    if (reducedMotion()) { lastStage.current = null; return undefined; }
+    setDockLeaving(true);
+    const id = setTimeout(() => { lastStage.current = null; setDockLeaving(false); }, 420);
+    return () => clearTimeout(id);
+  }, [hasStage]);
+  const dock = stage || (dockLeaving ? lastStage.current : null);
 
   return (
     <div ref={rootRef} role="dialog" aria-modal="true" aria-label="Nova, full screen" data-edge-page
       className={`nv-fx${leaving ? ' leaving' : ''}`} data-phase={phase} data-enter={entering ? '1' : undefined} data-settled={settled ? '1' : undefined} data-state={S.key} data-panel={stage ? '1' : undefined}
-      style={{ zIndex: 71, '--fx-hue': speaker.hue }}
+      style={{ zIndex: 71, '--fx-hue': sayHue }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={release}
       onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === 'nvFxIn') setSettled(true); }}>
       <div className="nv-fx-sky" aria-hidden="true"><i /><i /><i /><i /></div>
@@ -199,14 +229,14 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
       {/* THE CORE: one element, transformed between the field and the stage */}
       <div ref={coreRef} className="nv-fx-core">
         <button type="button" className="nv-fx-corehit" onClick={onTalk}
-          aria-label={S.key === 'listening' ? 'Nova is listening. Tap to send' : S.key === 'speaking' ? 'Nova is speaking. Tap to stop and talk' : `Nova, ${S.word.toLowerCase()}. Tap to talk`}>
-          <CoreFace stateKey={S.key} engine={T.engine} focus tinted size={300} leanRef={leanRef} />
+          aria-label={S.key === 'listening' ? 'Nova is listening. Tap to send' : S.key === 'speaking' ? `Nova is ${contest ? 'pushing back' : 'speaking'}. Tap to stop and talk` : `Nova, ${S.word.toLowerCase()}. Tap to talk`}>
+          <CoreFace stateKey={S.key} engine={T.engine} focus tinted size={300} leanRef={leanRef} contest={contest} />
         </button>
       </div>
 
       {/* the field: the state in words under the core, and what to ask */}
       <p className="nv-fx-fstate" role="status" aria-hidden={phase !== 'field'}>
-        <Glyph k={S.key} /><b>{S.word}</b>{hint ? <span>· {hint}</span> : null}
+        <Glyph k={S.key} /><b>{stateWord}</b>{hint ? <span>· {hint}</span> : null}
       </p>
       {asks.length > 0 && (
         <div className="nv-fx-asks" aria-hidden={phase !== 'field'}>
@@ -219,20 +249,20 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
       {/* the stage: Nova and his state beside the presenter's core */}
       <div className="nv-fx-pn" aria-hidden={phase !== 'stage'}>
         <b>Nova</b>
-        <p className="nv-fx-pstate"><Glyph k={S.key} /><b>{S.word}</b></p>
+        <p className="nv-fx-pstate" data-contest={contest ? '1' : undefined}><Glyph k={S.key} /><b>{stateWord}</b></p>
         {hint ? <p className="nv-fx-phint">{hint}</p> : null}
       </div>
 
       <div className="nv-fx-stagebox" aria-hidden={phase !== 'stage'}>
-        {stage && (
-          <div className="nv-fx-dock" key={stage.key}>
-            <button type="button" className="nv-fx-panel" onClick={(e) => onOpen?.(stage.hero, e.currentTarget)}
-              aria-label={`${stage.mark?.name || stage.hero.label || 'This panel'}${stage.total > 1 && stage.n > 0 ? `, ${stage.n} of ${stage.total}` : ''}. Tap to open full width`}>
-              <span className="nv-fx-ptag"><Ico name="stage" />{stage.finder ? <b className="nv-fx-finder" style={{ '--h': stage.finder.hue }}>{stage.finder.words}</b> : 'Showing now'}{stage.total > 1 && stage.n > 0 ? <span>{stage.n} of {stage.total}</span> : null}</span>
+        {dock && (
+          <div className={`nv-fx-dock${stage ? '' : ' out'}`} key={dock.key} aria-hidden={stage ? undefined : true}>
+            <button type="button" className="nv-fx-panel" onClick={(e) => onOpen?.(dock.hero, e.currentTarget)} tabIndex={stage ? 0 : -1}
+              aria-label={`${dock.mark?.name || dock.hero.label || 'This panel'}${dock.total > 1 && dock.n > 0 ? `, ${dock.n} of ${dock.total}` : ''}. Tap to open full width`}>
+              <span className="nv-fx-ptag"><Ico name="stage" />{dock.finder ? <b className="nv-fx-finder" style={{ '--h': dock.finder.hue }}>{dock.finder.words}</b> : 'Showing now'}{dock.total > 1 && dock.n > 0 ? <span>{dock.n} of {dock.total}</span> : null}</span>
               {/* a data panel's light, named in words in its finder's hue (3 Oct 2026) */}
-              {stage.mark && <span className="nv-fx-litname" style={{ '--h': stage.mark.hue }}>{stage.mark.name}</span>}
+              {dock.mark && <span className="nv-fx-litname" style={{ '--h': dock.mark.hue }}>{dock.mark.name}</span>}
               <span className="nv-fx-card">
-                <SafeVisual what="nova-focus-panel" resetKey={stage.key}><StageCard card={stage.hero} face="summary" /></SafeVisual>
+                <SafeVisual what="nova-focus-panel" resetKey={dock.key}><StageCard card={dock.hero} face="summary" /></SafeVisual>
               </span>
             </button>
           </div>
@@ -241,9 +271,11 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
           aria-label={plateMode === 'speak' ? `${speaker.name}, speaking` : plateMode === 'listen' ? 'Listening to you' : 'Nova is working'}>
           {plateMode === 'listen' && <Listening dict={dict} since={since} />}
           {plateMode === 'think' && <Thinking S={S} T={T} heard={heardRef.current} streaming={streaming} />}
-          {plateMode === 'speak' && <Captions said={said} on={captions} speaker={speaker} />}
+          {plateMode === 'speak' && <Captions said={said} on={captions} speaker={speaker} markHue={stage?.mark?.hue || null} pour={pour} />}
         </section>
       </div>
+
+      <canvas ref={pourCanvasRef} className="nv-fx-pour" aria-hidden="true" />
 
       {/* the way back: the thread's newest line, peeking; a tap or a swipe up */}
       <Peek line={peek} onBack={T.closeFocus} />
@@ -294,6 +326,61 @@ function Thinking({ S, T, heard, streaming }) {
   );
 }
 
+// THE POUR, DRAWN: each queued word gets a plume of grains from the heart, on
+// a curve, landing in the word's box and fading as the word sharpens. Jobs
+// carry viewport boxes; `heart` and `o` place them on the pour canvas.
+const easeOut3 = (x) => 1 - Math.pow(1 - x, 3);
+function drawPour(ctx, jobs, heart, o, now) {
+  const [hx, hy, sc] = heart;
+  const ox = o.left;
+  const oy = o.top;
+  for (let n = jobs.length - 1; n >= 0; n--) {
+    const job = jobs[n];
+    if (!job.parts) {
+      const r = seeded(job.seed);
+      const K = Math.max(18, Math.min(60, 14 + job.letters * 5));
+      job.parts = Array.from({ length: K }, (_, k) => ({
+        oa: r() * TAU, orr: r(), ex: job.x - ox + r() * job.w, ey: job.y - oy + job.h * (0.35 + 0.5 * r()),
+        lat: (r() - 0.5) * 70, dn: r() * 36, delay: (k / K) * 90 + r() * 30, dur: job.land * (0.85 + 0.25 * r()), sz: 1.1 + r() * 1.2,
+      }));
+    }
+    const base = job.red ? POUR_RGB.red : POUR_RGB.jade;
+    let alive = false;
+    for (const q of job.parts) {
+      const t = now - job.t0 - q.delay;
+      if (t < 0) { alive = true; continue; }
+      const sx = hx + Math.cos(q.oa) * q.orr * 10 * sc;
+      const sy = hy + Math.sin(q.oa) * q.orr * 5 * sc;
+      let x; let y; let a; let k;
+      if (t < q.dur) {
+        k = easeOut3(t / q.dur);
+        const cx = (sx + q.ex) / 2 + q.lat;
+        const cy = (sy + q.ey) / 2 + q.dn;
+        x = (1 - k) * (1 - k) * sx + 2 * (1 - k) * k * cx + k * k * q.ex;
+        y = (1 - k) * (1 - k) * sy + 2 * (1 - k) * k * cy + k * k * q.ey;
+        a = 0.9;
+        alive = true;
+      } else {
+        k = 1;
+        a = 0.9 * (1 - (t - q.dur) / 220);
+        if (a <= 0) continue;
+        alive = true;
+        x = q.ex; y = q.ey;
+      }
+      // the body's colour in flight, its lit edge near the word, white as it lands
+      const toward = job.red ? [255, 200, 205] : POUR_RGB.rim;
+      const m = k < 0.6 ? k / 0.6 : 1;
+      const w2 = k < 0.6 ? 0 : (k - 0.6) / 0.4;
+      const cr = lerp(lerp(base[0], toward[0], m), 255, w2);
+      const cg = lerp(lerp(base[1], toward[1], m), 255, w2);
+      const cb = lerp(lerp(base[2], toward[2], m), 255, w2);
+      ctx.fillStyle = `rgba(${cr | 0},${cg | 0},${cb | 0},${a.toFixed(3)})`;
+      ctx.fillRect(x - q.sz / 2, y - q.sz / 2, q.sz, q.sz);
+    }
+    if (!alive) jobs.splice(n, 1);
+  }
+}
+
 // ------------------------------------------------------------- captions --
 
 // HIS WORDS, WORD BY WORD. A sentence is laid out whole the moment its audio
@@ -301,10 +388,18 @@ function Thinking({ S, T, heard, streaming }) {
 // as it is paced to be said, lit in the speaker's hue and underlined while it
 // is in the air, white once said. Earlier sentences dim and scroll up. The
 // frame loop writes styles; React only renders when a sentence arrives.
-function Captions({ said, on, speaker }) {
+// THE POUR (mockup 69, his "I LOVE the subtitle animation"): a little ahead
+// of each word, a plume of grains leaves Nova's heart and lands as that word,
+// which sharpens out of a blur as it arrives. A sentence that pushes back is
+// underlined in red; while a panel's part is lit, the sentence pointing at it
+// is underlined in its finder's hue.
+const POUR_LEAD = 300;
+function Captions({ said, on, speaker, markHue = null, pour = null }) {
   const paced = useMemo(() => said.map((s) => ({ ...s, ...paceSentence(s) })), [said]);
   const colRef = useRef(null);
   const bodyRef = useRef(null);
+  const markRef = useRef(markHue);
+  markRef.current = markHue;
   useEffect(() => {
     const col = colRef.current;
     const body = bodyRef.current;
@@ -314,7 +409,26 @@ function Captions({ said, on, speaker }) {
     const words = ps.map((p) => [...p.querySelectorAll('.nv-fx-w')]);
     let lastCi = -2;
     let lastY = null;
+    let lastMark = null;
     let raf = 0;
+    // a word pours once; words already said when the screen opens never do
+    const poured = new Set();
+    const t0 = clockNow();
+    paced.forEach((s, i) => s.spans.forEach((sp, j) => { if (sp.st - POUR_LEAD < t0) poured.add(`${i}:${j}`); }));
+    const pourCv = pour?.canvas?.current || null;
+    const pourCtx = pourCv?.getContext('2d') || null;
+    let pourDrawn = false;
+    const queuePour = (i, j, t) => {
+      const el = words[i]?.[j];
+      const sink = pour?.jobs?.current;
+      if (!el || !sink) return;
+      const r = el.getBoundingClientRect();
+      sink.push({
+        x: r.left, y: r.top, w: r.width, h: r.height, letters: el.textContent.length,
+        t0: performance.now(), land: Math.max(180, Math.min(420, paced[i].spans[j].st - t)),
+        red: paced[i].stance === 'contest', seed: (i * 131 + j * 17 + 7) % 2147483646 + 1,
+      });
+    };
     const paint = (i, t) => {
       const s = paced[i];
       s.spans.forEach((sp, j) => {
@@ -323,6 +437,7 @@ function Captions({ said, on, speaker }) {
         const L = wordLook(sp, t, { cut: s.cut });
         el.style.opacity = L.e.toFixed(3);
         el.style.transform = reduced ? '' : `translateY(${((1 - L.e) * 10).toFixed(2)}px)`;
+        el.style.filter = reduced || L.e >= 1 || L.e <= 0 ? '' : `blur(${((1 - L.e) * 4).toFixed(2)}px)`;
         el.style.setProperty('--p', reduced ? (L.lit > 0 ? '1' : '0') : L.p.toFixed(3));
         // the underline leaves a little ahead of the colour, so the word
         // just said never carries a smudge into the next one
@@ -352,11 +467,43 @@ function Captions({ said, on, speaker }) {
         y = Math.round(Math.min(0, y));
       }
       if (y !== lastY) { lastY = y; col.style.transform = `translateY(${y}px)`; }
-      if (ci !== lastCi) {
+      if (ci !== lastCi || markRef.current !== lastMark) {
         lastCi = ci;
-        ps.forEach((p, i) => { p.classList.toggle('earlier', i < ci); p.style.opacity = i > ci ? '0' : ''; });
+        lastMark = markRef.current;
+        ps.forEach((p, i) => {
+          p.classList.toggle('earlier', i < ci);
+          p.style.opacity = i > ci ? '0' : '';
+          // red for a pushback; the finder's hue for the sentence pointing at a lit part
+          const hue = paced[i].stance === 'contest' ? 'var(--nv-contest)' : i === ci && lastMark ? lastMark : '';
+          if (hue) p.style.setProperty('--fx-hue', hue); else p.style.removeProperty('--fx-hue');
+        });
         // a sentence that has finished is painted once, in its final state
         for (let i = 0; i < ci - 1; i++) paint(i, t);
+      }
+      // the pour: each word of the sentence being said, a little ahead of it
+      if (!reduced && pourCtx && ci >= 0) {
+        paced[ci].spans.forEach((sp, j) => {
+          const key = `${ci}:${j}`;
+          if (poured.has(key) || t < sp.st - POUR_LEAD) return;
+          poured.add(key);
+          if (t < sp.en && !(Number.isFinite(paced[ci].cut) && sp.st >= paced[ci].cut)) queuePour(ci, j, t);
+        });
+      }
+      // draw what is in flight; clear once when the last grain has landed
+      const jobs = pour?.jobs?.current;
+      if (pourCtx && (jobs?.length || pourDrawn)) {
+        const W = pourCv.clientWidth;
+        const H = pourCv.clientHeight;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        if (pourCv.width !== Math.round(W * dpr) || pourCv.height !== Math.round(H * dpr)) {
+          pourCv.width = Math.max(1, Math.round(W * dpr)); pourCv.height = Math.max(1, Math.round(H * dpr));
+        }
+        pourCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        pourCtx.clearRect(0, 0, W, H);
+        const c = pour.core?.current?.getBoundingClientRect();
+        const o = pourCv.getBoundingClientRect();
+        pourDrawn = !!(jobs?.length && c);
+        if (pourDrawn) drawPour(pourCtx, jobs, [c.left + c.width / 2 - o.left, c.top + c.height / 2 - o.top, c.width / 300], o, performance.now());
       }
       if (ci >= 1) paint(ci - 1, t);
       if (ci >= 0) paint(ci, t);
@@ -368,8 +515,12 @@ function Captions({ said, on, speaker }) {
     };
     raf = requestAnimationFrame(tick);
     document.addEventListener('visibilitychange', onVis);
-    return () => { cancelAnimationFrame(raf); document.removeEventListener('visibilitychange', onVis); };
-  }, [paced, on]);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVis);
+      if (pourCtx && pourCv) pourCtx.clearRect(0, 0, pourCv.width, pourCv.height);
+    };
+  }, [paced, on, pour]);
   return (
     <>
       <div className="nv-fx-phead">
@@ -481,11 +632,15 @@ function useEmberField(canvasRef, coreRef, live) {
     }));
     const rgb = [...EMBER_RGB.blue];
     let fade = 1;
-    const centre = () => {
+    // measured ONCE a frame (the 4 Oct lag survey: two rect reads per catch-up
+    // step, and one per mote while his finger is down)
+    let geo = null;
+    const measure = () => {
       const c = coreRef.current?.getBoundingClientRect();
       const o = cv.getBoundingClientRect();
-      return c ? [c.left + c.width / 2 - o.left, c.top + c.height / 2 - o.top, c.width / 300] : [W / 2, H * 0.4, 1];
+      geo = { o, c: c ? [c.left + c.width / 2 - o.left, c.top + c.height / 2 - o.top, c.width / 300] : [W / 2, H * 0.4, 1] };
     };
+    const centre = () => (geo ? geo.c : [W / 2, H * 0.4, 1]);
     // where the field's core rests (the screen measured it): the embers
     // start on their orbits there, not on the core while it is still
     // arriving from the name
@@ -510,7 +665,7 @@ function useEmberField(canvasRef, coreRef, live) {
         if (k === 'listening') { tx += Math.sin(t * 0.02 + p.ph * 7) * lvl * 14; ty += Math.cos(t * 0.017 + p.ph * 5) * lvl * 14; }
         let kt = 0;
         if (st.touch && p.resp < 0.5) {
-          const o = cv.getBoundingClientRect();
+          const o = geo ? geo.o : cv.getBoundingClientRect();
           const fx = st.touch[0] - o.left;
           const fy = st.touch[1] - o.top;
           const d = Math.hypot(fx - p.x, fy - p.y);
@@ -558,7 +713,7 @@ function useEmberField(canvasRef, coreRef, live) {
     ro?.observe(cv);
     if (reducedMotion()) {
       // one still frame: every mote at rest on its orbit
-      step(0, 0); draw();
+      measure(); step(0, 0); draw();
       return () => ro?.disconnect();
     }
     let raf = 0;
@@ -567,6 +722,7 @@ function useEmberField(canvasRef, coreRef, live) {
       // a slow frame is caught up in small steps, so the field keeps real time
       let dt = last ? Math.min(0.12, (now - last) / 1000) : 1 / 60;
       last = now;
+      measure();
       while (dt > 1e-4) { const h = Math.min(dt, 1 / 60); step(h, now); dt -= h; }
       draw();
       raf = requestAnimationFrame(loop);

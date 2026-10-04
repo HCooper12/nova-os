@@ -143,16 +143,24 @@ test('the phase: his turn is the field; the moment the conversation moves it is 
   assert.ok(PHASE_HOLD_MS >= 600 && PHASE_HOLD_MS <= 1500, 'the gap inside one exchange never sends it home');
 });
 
-test('the state → tint table: violet listening, gold speaking, his blue at rest and thinking', () => {
-  assert.deepEqual(focusTint('listening'), { hue: 'violet', listening: true, speaking: false });
-  assert.deepEqual(focusTint('speaking'), { hue: 'gold', listening: false, speaking: true });
-  for (const k of ['turn', 'thinking', 'failed', 'offline', 'anything']) assert.deepEqual(focusTint(k), { hue: 'blue', listening: false, speaking: false }, k);
-  assert.deepEqual(Object.keys(EMBER_RGB).sort(), ['blue', 'gold', 'violet'], 'the embers carry the same three');
+test('the state → tint table (his calls, 4 Oct): violet listening, cyan thinking, jade speaking, red only for a pushback, blue at rest', () => {
+  assert.deepEqual(focusTint('listening'), { hue: 'violet', listening: true, speaking: false, thinking: false });
+  assert.deepEqual(focusTint('thinking'), { hue: 'cyan', listening: false, speaking: false, thinking: true });
+  assert.deepEqual(focusTint('speaking'), { hue: 'jade', listening: false, speaking: true, thinking: false });
+  assert.deepEqual(focusTint('speaking', { contest: true }), { hue: 'red', listening: false, speaking: true, thinking: false, contest: true });
+  assert.equal(focusTint('listening', { contest: true }).hue, 'violet', 'red is for a spoken pushback only');
+  for (const k of ['turn', 'failed', 'offline', 'anything']) assert.deepEqual(focusTint(k), { hue: 'blue', listening: false, speaking: false, thinking: false }, k);
+  assert.deepEqual(Object.keys(EMBER_RGB).sort(), ['blue', 'cyan', 'jade', 'red', 'violet'], 'the embers carry every tint the core can wear');
   // the full screen asks the core for its tints; the thread's face stays form-only
   const fx = read('src/NovaFocus.jsx');
-  assert.match(fx, /<CoreFace stateKey=\{S\.key\} engine=\{T\.engine\} focus tinted size=\{300\} leanRef=\{leanRef\} \/>/);
+  assert.match(fx, /<CoreFace stateKey=\{S\.key\} engine=\{T\.engine\} focus tinted size=\{300\} leanRef=\{leanRef\} contest=\{contest\} \/>/);
+  // red only while he speaks a pushback, and named in words (4 Oct 2026)
+  assert.match(fx, /const contest = S\.key === 'speaking' && !!T\.contest;/);
+  assert.match(fx, /const stateWord = contest \? 'Pushing back' : S\.word;/);
   const parts = read('src/NovaThreadParts.jsx');
-  assert.match(parts, /export function CoreFace\(\{ stateKey, engine, focus, tinted = false, size = CORE_BIG, leanRef = null \}\) \{/);
+  assert.match(parts, /export function CoreFace\(\{ stateKey, engine, focus, tinted = false, size = CORE_BIG, leanRef = null, contest = false \}\) \{/);
+  // the core is told thinking and a pushback, as well as listening and speaking (4 Oct 2026)
+  assert.match(parts, /thinking=\{stateKey === 'thinking'\} contest=\{contest\}/);
   assert.match(parts, /<NovaCore size=\{size\} engine=\{engine\} formOnly=\{!tinted\} tintStill=\{tinted\} leanRef=\{leanRef\}/);
   assert.match(parts, /listening=\{stateKey === 'listening'\} speaking=\{stateKey === 'speaking'\}/, 'the core is told the state, which its own tints read');
   const core = read('src/NovaCore.jsx');
@@ -243,12 +251,16 @@ test('the view model offers the door and walks it only when asked', () => {
 test('the full screen: an aria-modal page the edge swipe can take, the ⌄ its close, and three ways back', () => {
   const fx = read('src/NovaFocus.jsx');
   assert.match(fx, /role="dialog" aria-modal="true" aria-label="Nova, full screen" data-edge-page/);
-  assert.match(fx, /style=\{\{ zIndex: 71, '--fx-hue': speaker\.hue \}\}/, 'over the top bar (70), under the tab bar (72)');
+  assert.match(fx, /style=\{\{ zIndex: 71, '--fx-hue': sayHue \}\}/, 'over the top bar (70), under the tab bar (72)');
+  // the underline matches what Nova is doing: his speaking jade, a voiced agent its own hue (4 Oct 2026)
+  assert.match(fx, /const sayHue = speaker\.voiced \? speaker\.hue : 'var\(--nv-say\)';/);
   assert.match(fx, /className="nv-fx-btn" data-edge-close onClick=\{T\.closeFocus\} aria-label="Back to the thread"/);
   assert.match(fx, /if \(d && phase === 'stage' && d\.moved < 10 && performance\.now\(\) - d\.t < 600\) T\.closeFocus\(\);/, 'a tap outside the plate on the stage');
   assert.match(fx, /e\.target\.closest\('button, a, input, \.nv-fx-plate, \.nv-fx-dock'\)/, 'never a tap on the plate or a panel');
   assert.match(fx, /if \(d\.dy < -48 \|\| d\.v < -0\.5\) onBack\(\);/, 'a swipe up on the peek, past 48 px or a flick');
-  assert.match(fx, /<StageCard card=\{stage\.hero\} face="summary" \/>/, 'panels dock as the house StageCard');
+  assert.match(fx, /<StageCard card=\{dock\.hero\} face="summary" \/>/, 'panels dock as the house StageCard');
+  // a panel settles away rather than cutting (approved 4 Oct): the last one is kept a moment as it leaves
+  assert.match(fx, /const dock = stage \|\| \(dockLeaving \? lastStage\.current : null\);/);
   // the thread: the newest line at the foot when he returns
   const thread = read('src/screens/NovaThread.jsx');
   assert.match(thread, /if \(m\) m\.scrollTop = m\.scrollHeight;/);
@@ -257,12 +269,19 @@ test('the full screen: an aria-modal page the edge swipe can take, the ⌄ its c
 test('the field canvas: one canvas, a capped count, stopped while the page is hidden, still under reduced motion', () => {
   assert.ok(FIELD_EMBERS <= FIELD_EMBERS_CAP && FIELD_EMBERS_CAP <= 140, `fewer and finer than the mockup's 230: ${FIELD_EMBERS}`);
   const fx = read('src/NovaFocus.jsx');
-  assert.equal((fx.match(/<canvas /g) || []).length, 1, 'one canvas');
+  // two canvases since 4 Oct: the field, and the pour over the plate. The pour
+  // has no loop of its own: the captions' frame loop draws it, and only while
+  // grains are in flight (cleared once when the last one lands)
+  assert.equal((fx.match(/<canvas /g) || []).length, 2, 'the field and the pour, no more');
+  assert.match(fx, /<canvas ref=\{pourCanvasRef\} className="nv-fx-pour" aria-hidden="true" \/>/);
+  assert.match(fx, /if \(pourCtx && \(jobs\?\.length \|\| pourDrawn\)\) \{/, 'the pour canvas is redrawn while nothing is pouring');
   const field = fx.slice(fx.indexOf('function useEmberField'));
   assert.match(field, /Array\.from\(\{ length: FIELD_EMBERS \}/);
   assert.match(field, /document\.addEventListener\('visibilitychange', onVis\)/);
   assert.match(field, /if \(document\.visibilityState === 'visible'\) raf = requestAnimationFrame\(loop\);/);
-  assert.match(field, /if \(reducedMotion\(\)\) \{\n\s*\/\/ one still frame[^\n]*\n\s*step\(0, 0\); draw\(\);\n\s*return/);
+  assert.match(field, /if \(reducedMotion\(\)\) \{\n\s*\/\/ one still frame[^\n]*\n\s*measure\(\); step\(0, 0\); draw\(\);\n\s*return/);
+  // the core and canvas are measured once a frame, never per catch-up step or per mote (4 Oct lag survey)
+  assert.match(field, /measure\(\);\n\s*while \(dt > 1e-4\)/);
   assert.match(field, /Math\.min\(window\.devicePixelRatio \|\| 1, 2\)/, 'the canvas resolution is capped');
   // the captions' loop stops while hidden too
   const caps = fx.slice(fx.indexOf('function Captions'), fx.indexOf('function Peek'));

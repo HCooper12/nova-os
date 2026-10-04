@@ -33,21 +33,27 @@ export const PHASE_HOLD_MS = 900;
 // ------------------------------------------------------------- the tint --
 
 // THE CORE KEEPS ITS COLOURS IN FOCUS (his words above): NovaCore's own
-// state tints, the ones the tab bar's Nova and the classic Voice screen
-// already wear: violet while listening, gold while he speaks, his blue at
-// rest and while thinking (which says itself by speed and the chasing arcs).
+// state tints, the ones the tab bar's Nova and Home's core wear too. Since
+// 4 Oct 2026 (his calls on mockup 69): violet while listening, CYAN while
+// thinking, LIVING JADE while he speaks, and RED only while he speaks a
+// sentence that pushes back on something Hayden proposed; his blue at rest.
 // The thread's small head is not part of this: it stays form-only.
-// The state is said in words beside the core as well, so nothing rides on
-// colour alone.
+// The state is said in words beside the core as well ("Pushing back" for
+// red), so nothing rides on colour alone.
 const TINTS = {
-  listening: { hue: 'violet', listening: true, speaking: false },
-  speaking: { hue: 'gold', listening: false, speaking: true },
+  listening: { hue: 'violet', listening: true, speaking: false, thinking: false },
+  thinking: { hue: 'cyan', listening: false, speaking: false, thinking: true },
+  speaking: { hue: 'jade', listening: false, speaking: true, thinking: false },
 };
-export function focusTint(stateKey) {
-  return TINTS[stateKey] || { hue: 'blue', listening: false, speaking: false };
+export function focusTint(stateKey, { contest = false } = {}) {
+  if (stateKey === 'speaking' && contest) return { hue: 'red', listening: false, speaking: true, thinking: false, contest: true };
+  return TINTS[stateKey] || { hue: 'blue', listening: false, speaking: false, thinking: false };
 }
 // the embers carry a gentler version of the same tint (RGB, for the canvas)
-export const EMBER_RGB = { blue: [150, 215, 255], violet: [186, 168, 255], gold: [255, 214, 150] };
+export const EMBER_RGB = { blue: [150, 215, 255], violet: [186, 168, 255], cyan: [150, 232, 255], jade: [150, 240, 205], red: [255, 150, 160] };
+// the grains that pour from the heart into each word (RGB): Nova's own
+// speaking jade, its lit edge, and red for a pushback
+export const POUR_RGB = { jade: [80, 228, 168], rim: [150, 250, 240], red: [255, 84, 96] };
 
 // THE FIELD, REFINED (his "albeit refined further"): fewer and finer embers
 // than the mockup's 230, one canvas, capped here so no later change can turn
