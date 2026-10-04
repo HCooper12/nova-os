@@ -1,0 +1,1390 @@
+<title>Lists, round 1</title>
+<!--
+  78 · THE LISTS, ROUND 1 (5 Oct 2026): To-Do, Shopping and Stash, drawn together
+
+  Three small screens of the redesign, taken as one group because they share one
+  shape: put a thing on a list, see it grouped, then finish it or let it go. The
+  audit is design/audits/redesign-2026-09/13-lists.md. His brief (26 Sep):
+  "Simplicity with all functionality and a beautiful aesthetic, along with ease
+  of use MUST be the goal." His standing calls bind every variation here: the
+  iOS Mail swipe grammar through src/SwipeRow.jsx, every write undoable, and a
+  sync that failed says so.
+
+  What the audit measured, and what every variation answers:
+    - no open to-do shows its words today (Todos.jsx:89 reads a field that
+      valsTodos.js never builds, since 23 Sep) → the words lead every row
+    - a tick leaves in one frame, and taking it back means a 21 pt box 1.3
+      screens down → the tick is acted out where it happened, Undo beside it
+    - 1 of 10 writes has an Undo, and "Confirm completion" deletes with none
+      → every write here has one, in the row and in the island
+    - Shopping says "live from Obsidian" when offline and "Connect a backend"
+      while loading → each list says where its copy came from
+    - the Todoist line never says a sync failed → it says when, and Retry
+    - Stash rows hold two links to one address and no swipe → one target,
+      swipe left to remove
+    - 81 of 102 controls under 44 pt, 3 under 28 → 44 pt everywhere
+    - 9 type sizes in 3 families → 34 · 20 · 17 · 13 (controls 15), numerals in SF Rounded
+    - gold as wallpaper on two screens and no screen with a hue of its own
+      → To-Do violet, Shopping green, Stash teal; gold only for "waiting on you"
+
+  Three directions, switched at the top:
+    A One grammar   Reminders' shape: the list is the page, the add field floats
+                    at the foot, the count is the serif news line
+    B Instruments   the same rows, each screen led by one living object: the
+                    to-dos by age, the basket by aisle, the shelves by size
+    C One screen    the three become one Lists screen with a three-way switch,
+                    and one add field that knows where a link belongs
+  Each direction draws all three screens (the switch under the phone) and plays
+  four moments: a tick acted out with its undo; four shopping lines added at
+  once and sorted into aisles; a to-do ageing, and what he can do about it; a
+  Stash row with one tap target, and its remove.
+
+  NEW, and said so on the page: a per-line Remove on Shopping (a server route;
+  its undo is the existing restore), an Undo on clearing what he got (the
+  existing restore), an Undo on a Stash remove (re-adding the same line), the
+  honest Todoist line (fields the server already sends), Later as a swipe on a
+  to-do (the existing category write), and a Stash name read from the page.
+
+  DEMO CONTENT ONLY. The repo is public. Every to-do, item, recipe, link,
+  shelf, time and count on this page is invented. Nothing here is his data.
+
+  Reduced motion: no sweeps, folds, flights or drawn ticks; 200 ms cross-fades.
+  Preview it with the toggle under the phone; Quarter speed slows every move.
+  Hash: #a, #b or #c opens a direction; #b-shop opens one of its screens.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --bg:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.78);--ink3:rgba(232,236,246,.64);--glyph:rgba(232,236,246,.38);--sep:rgba(232,236,246,.12);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);
+  --acc:#59e6ff;--acc-ink:#062028;
+  --todo:#8f7bff;   /* --nv-vi */
+  --shop:#5fe8a8;   /* --nv-good */
+  --stash:#4fd1c5;  /* --nv-m-back, the Librarian's */
+  --gold:#e0b26a;   /* --nv-gold: waiting on you, and nothing else */
+  --warn:#e08383;   /* --nv-warn: remove */
+  --on:#071018;
+  --slow:1;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+a{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ================= the review page ================= */
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 80px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.2 var(--ui);letter-spacing:.04em;color:var(--ink3)}
+h1.pt{margin:0 0 12px;font:700 clamp(30px,6vw,40px)/1.08 var(--ui);letter-spacing:-.02em;text-wrap:balance}
+.lede{max-width:40em;margin:0 0 10px;font:400 20px/1.45 var(--serif);color:var(--ink2);text-wrap:pretty}
+.demo{max-width:46em;margin:0 0 24px;font-size:13px;color:var(--ink3);text-wrap:pretty}
+.demo b{color:var(--ink2);font-weight:600}
+.bug{max-width:46em;margin:0 0 26px;padding:14px 16px;border-radius:18px;background:color-mix(in srgb,var(--warn) 9%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warn) 30%,transparent);font-size:16px;color:var(--ink2);text-wrap:pretty}
+.bug b{color:var(--ink);font-weight:600}
+.dirs{position:sticky;top:0;z-index:50;margin:0 -16px;padding:8px 16px;background:rgba(6,7,13,.8);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3)}
+.seg{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);height:44px;padding:3px;border-radius:22px;background:rgba(120,120,128,.22)}
+.dirs .seg{max-width:640px;margin:0 auto}
+.seg button{position:relative;z-index:1;min-width:0;height:38px;padding:0 6px;border-radius:19px;font:600 13px var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;transition:color calc(220ms*var(--slow)) ease}
+.seg button[aria-selected="true"],.seg button[aria-pressed="true"]{color:var(--ink)}
+.seg .pill{position:absolute;z-index:0;top:3px;left:3px;height:38px;border-radius:19px;background:rgba(255,255,255,.18);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12);transition:transform calc(300ms*var(--slow)) var(--ease),width calc(300ms*var(--slow)) var(--ease)}
+@media (max-width:430px){.seg .lt{display:none}}
+.rkm{max-width:52em;margin:20px 0 6px;font-size:16px;color:var(--ink2);text-wrap:pretty}
+.rkm b{color:var(--ink);font-weight:600}
+.counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:640px;margin:10px 0 22px}
+.counts div{padding:10px 12px;border-radius:14px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font-size:13px;color:var(--ink3);min-width:0}
+.counts b{display:block;font:600 13px var(--ui);color:var(--ink2);margin-bottom:2px}
+.counts .n{font:600 16px var(--round);color:var(--ink)}
+@media (max-width:520px){.counts{grid-template-columns:minmax(0,1fr)}}
+.studio{display:grid;grid-template-columns:390px minmax(0,1fr);gap:40px;align-items:start}
+@media (max-width:900px){.studio{grid-template-columns:minmax(0,1fr);gap:26px}}
+.pcol{min-width:0}
+.pbox{position:relative;width:calc(390px*var(--z,1));height:calc(844px*var(--z,1));margin-left:calc((100% - 390px*var(--z,1))/2);margin-right:calc((100% - 390px*var(--z,1))/2)}
+.under{max-width:390px;margin:16px auto 0}
+.under .seg{margin-bottom:10px}
+.scenes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.scene{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 14px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font:600 13px/1.3 var(--ui);color:var(--ink);text-align:left;transition:transform calc(120ms*var(--slow)) var(--ease-out),box-shadow calc(200ms*var(--slow)) ease}
+.scene i{flex:none;width:26px;height:26px;border-radius:13px;display:grid;place-items:center;background:color-mix(in srgb,var(--h,var(--acc)) 20%,transparent);color:var(--h,var(--acc));font-style:normal;font-size:12px}
+.scene[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--h,var(--acc)) 70%,transparent)}
+.toggles{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.chip[aria-pressed="true"]{color:var(--acc-ink);background:var(--acc)}
+.chip:active,.scene:active,.seg button:active{transform:scale(.97);transition:transform calc(120ms*var(--slow)) var(--ease-out)}
+.notes{min-width:0}
+.notes h2{margin:0 0 6px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+.notes .sub{margin:0 0 16px;color:var(--ink2)}
+.notes .st{margin:0 0 12px;padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);transition:box-shadow calc(240ms*var(--slow)) ease}
+.notes .st.on{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--h,var(--acc)) 60%,transparent),0 0 0 4px color-mix(in srgb,var(--h,var(--acc)) 10%,transparent)}
+.notes h3{margin:0 0 4px;font:600 16px/1.3 var(--ui)}
+.notes p{margin:0;font-size:16px;color:var(--ink2);text-wrap:pretty}
+.notes .new{display:block;margin-top:8px;font-size:13px;color:var(--ink3)}
+section.page{margin-top:64px}
+section.page>h2{margin:0 0 6px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+section.page>.sub{margin:0 0 18px;max-width:46em;color:var(--ink2);text-wrap:pretty}
+.cmp{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-width:900px}
+.cmp li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 20px;padding:14px 4px;border-top:1px solid var(--sep)}
+.cmp li:first-child{border-top:0}
+.cmp .was{color:var(--ink3);font-size:16px}
+.cmp .now{color:var(--ink);font-size:16px}
+.cmp b{font-weight:600}
+@media (max-width:620px){.cmp li{grid-template-columns:minmax(0,1fr)}}
+.hues{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;max-width:1000px}
+.hue{display:grid;grid-template-columns:48px minmax(0,1fr);gap:4px 14px;align-items:start;padding:16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.hue .sw{grid-row:span 3;width:48px;height:48px;border-radius:24px;background:radial-gradient(circle at 38% 34%,color-mix(in srgb,#fff 40%,var(--c)),var(--c) 55%,color-mix(in srgb,#000 30%,var(--c)));box-shadow:0 0 18px -4px var(--c)}
+.hue b{font:600 16px var(--ui)}
+.hue code{font:500 13px ui-monospace,"SF Mono",Menlo,monospace;color:var(--ink3)}
+.hue p{margin:0;font-size:13px;color:var(--ink3);text-wrap:pretty}
+.st4{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;max-width:1060px}
+.sc{margin:0;padding:16px;border-radius:22px;background:linear-gradient(180deg,#0a0e20,#0c1230);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.sc figcaption{margin-top:12px;font-size:13px;color:var(--ink3)}
+.sc figcaption b{display:block;margin-bottom:2px;font:600 16px var(--ui);color:var(--ink)}
+.sc .l1{font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.sc .l2{margin-top:6px;font:400 20px/1.3 var(--serif);color:var(--ink)}
+.sk{margin-top:10px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);padding:4px 0}
+.sk span{display:flex;align-items:center;gap:12px;height:48px;padding:0 14px}
+.sk span::before{content:"";flex:none;width:22px;height:22px;border-radius:11px;box-shadow:inset 0 0 0 1.5px var(--glyph)}
+.sk span::after{content:"";height:12px;border-radius:6px;width:var(--w,60%);background:linear-gradient(90deg,rgba(255,255,255,.07),rgba(255,255,255,.14),rgba(255,255,255,.07));background-size:200% 100%;animation:shimmer calc(1.4s*var(--slow)) linear infinite}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+.retry{display:inline-flex;align-items:center;min-height:44px;margin-top:10px;padding:0 18px;border-radius:22px;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn);font:600 16px var(--ui)}
+.mini-add{display:flex;align-items:center;justify-content:space-between;margin-top:10px;height:52px;padding:0 4px 0 16px;border-radius:26px;background:rgba(16,20,36,.62);box-shadow:inset 0 0 0 .5px var(--card-ring);font-size:16px;color:var(--ink3)}
+.mini-add i{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--todo);color:var(--on);font-style:normal;font-size:22px}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:900px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--round);background:rgba(89,230,255,.12);color:var(--acc)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:var(--ink2);font-size:16px}
+.mac{max-width:900px;display:grid;gap:10px}
+.mac p{margin:0;color:var(--ink2);text-wrap:pretty}
+.mac b{color:var(--ink);font-weight:600}
+
+/* ================= the phone ================= */
+.phone{position:absolute;left:0;top:0;width:390px;height:844px;border-radius:52px;overflow:hidden;isolation:isolate;transform:scale(var(--z,1));transform-origin:0 0;background:#05060c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 80px -30px rgba(0,0,0,.9);font:17px/1.3 var(--ui);color:var(--ink);--hue:var(--todo)}
+@media (max-width:430px){.phone{border-radius:40px}}
+.phone[data-scr="shop"]{--hue:var(--shop)}
+.phone[data-scr="stash"]{--hue:var(--stash)}
+.sky{position:absolute;inset:0;z-index:0;background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.16),rgba(89,230,255,0) 60%),radial-gradient(70% 45% at 92% 28%,rgba(143,123,255,.22),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 110%,rgba(217,181,111,.1),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 38%,#0c1230 72%,#121a3a 100%)}
+.wash{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(90% 34% at 50% 0%,color-mix(in srgb,var(--hue) 16%,transparent),transparent 70%);transition:background calc(400ms*var(--slow)) ease}
+.island{position:absolute;top:11px;left:50%;width:126px;height:37px;margin-left:-63px;border-radius:19px;background:#000;z-index:32}
+.scroller{position:absolute;inset:0;z-index:2;overflow-y:auto;overflow-x:hidden;padding:54px 16px 180px;scrollbar-width:none;overscroll-behavior:contain}
+.scroller::-webkit-scrollbar{display:none}
+.lapse{position:absolute;top:60px;right:16px;z-index:22;display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:16px;background:rgba(16,20,36,.72);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 0 0 .5px var(--card-ring);font:600 13px var(--ui);color:var(--ink2);opacity:0;transform:translateY(-6px);transition:opacity calc(240ms*var(--slow)) ease,transform calc(240ms*var(--slow)) var(--ease);pointer-events:none}
+.lapse.on{opacity:1;transform:none}
+.lapse i{width:8px;height:8px;border-radius:4px;background:var(--gold)}
+
+/* head */
+.nav{display:flex;align-items:center;justify-content:space-between;height:44px;margin:4px -4px 4px}
+.nb{min-width:44px;height:44px;border-radius:22px;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:0 14px;font:400 17px var(--ui);color:var(--ink);background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 rgba(255,255,255,.14);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.nb.circ{padding:0;width:44px}
+.nb svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ttl{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 4px}
+.ttl h1{margin:0;font:700 34px/1.12 var(--ui);letter-spacing:-.025em}
+.news{margin:6px 4px 0;font:400 20px/1.3 var(--serif);color:var(--ink2);text-wrap:balance}
+.news .n{display:inline-block;font-weight:600;color:var(--ink)}
+.news .g{color:var(--gold)}
+.stat{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin:8px 4px 0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.stat .dot{width:7px;height:7px;border-radius:4px;background:var(--hue)}
+.stat .n{font-family:var(--round);font-weight:600;color:var(--ink2)}
+.stat.bad{color:var(--warn)}
+.stat.bad .dot{background:var(--warn)}
+.stat .rt{min-height:44px;padding:0 14px;margin:-12px 0;border-radius:22px;color:var(--warn);font:600 13px var(--ui)}
+
+/* groups and rows: the shared grammar */
+.gh{display:flex;align-items:baseline;gap:6px;margin:22px 4px 8px 16px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.gh .c{font-family:var(--round);letter-spacing:0}
+.gh .spin{width:12px;height:12px;border-radius:6px;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--hue) 30%,transparent);border-top:2px solid var(--hue);animation:spin calc(.9s*var(--slow)) linear infinite;align-self:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+.card{position:relative;border-radius:20px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.085),rgba(255,255,255,.015) 45%,rgba(255,255,255,0) 72%,rgba(255,255,255,.03)),var(--card);box-shadow:inset 0 0 16px -6px rgba(255,255,255,.3),0 1px 0 var(--card-hi) inset,0 0 0 .5px var(--card-ring),0 14px 34px -18px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6)}
+.row{position:relative;overflow:hidden}
+.row+.row::before{content:"";position:absolute;z-index:3;left:56px;right:0;top:0;height:.5px;background:var(--sep);pointer-events:none}
+.uly{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none}
+.ua{display:flex;align-items:center;justify-content:center;gap:6px;width:0;overflow:hidden;white-space:nowrap;font:600 15px var(--ui);color:var(--on);background:var(--c,var(--hue));pointer-events:auto}
+.ua b{font-size:17px}
+.ua.trail{margin-left:auto}
+.face{position:relative;z-index:1;display:flex;align-items:stretch;min-height:64px;touch-action:pan-y}
+.face.slid{background:#161b31}
+.face::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 2px 2px 0;background:var(--gold);opacity:var(--st,0);transition:opacity calc(500ms*var(--slow)) ease}
+.tick{flex:none;width:56px;display:grid;place-items:center;align-self:stretch}
+.circ svg,.tick svg{width:26px;height:26px;overflow:visible}
+.cc{fill:transparent;stroke:var(--glyph);stroke-width:1.6;transition:fill calc(180ms*var(--slow)) ease,stroke calc(180ms*var(--slow)) ease}
+.ck{fill:none;stroke:var(--on);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:18;stroke-dashoffset:18;transition:stroke-dashoffset calc(220ms*var(--slow)) var(--ease-out) calc(60ms*var(--slow))}
+.on-tick .cc,.row.ticking .cc,.row.got .cc,.row.isdone .cc{fill:var(--hue);stroke:var(--hue)}
+.on-tick .ck,.row.ticking .ck,.row.got .ck,.row.isdone .ck{stroke-dashoffset:0}
+.pulse{position:absolute;left:28px;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:13px;box-shadow:0 0 0 2px var(--hue);opacity:0;pointer-events:none}
+.body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:11px 16px 11px 0;text-align:left}
+.tt{font:400 17px/1.3 var(--ui);color:var(--ink);overflow-wrap:anywhere;transition:color calc(260ms*var(--slow)) ease}
+.tx{background:linear-gradient(currentColor,currentColor) 0 58%/0% 1.5px no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone;transition:background-size calc(260ms*var(--slow)) var(--ease-out)}
+.row.ticking .tt,.row.got .tt,.row.isdone .tt{color:var(--ink3)}
+.row.ticking .tx,.row.got .tx,.row.isdone .tx{background-size:100% 1.5px}
+.mt{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.mt b{font-weight:600;color:var(--ink2)}
+.age.old{color:var(--gold)}
+.hold{flex:none;align-self:center;height:44px;margin-right:8px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--hue);background:color-mix(in srgb,var(--hue) 14%,transparent);display:none}
+.row.ticking .hold{display:block}
+.qty{flex:none;align-self:center;min-width:44px;height:44px;margin-right:8px;padding:0 10px;border-radius:22px;font:600 15px var(--round);color:var(--ink2);background:rgba(255,255,255,.07)}
+.qty.one{color:var(--ink3);background:transparent}
+.stepper{flex:none;align-self:center;display:flex;align-items:center;height:44px;margin-right:8px;border-radius:22px;background:rgba(255,255,255,.12);transform-origin:100% 50%}
+.stepper button{width:44px;height:44px;border-radius:22px;font:500 22px/1 var(--ui);color:var(--ink);display:grid;place-items:center}
+.stepper .v{min-width:24px;text-align:center;font:600 15px var(--round)}
+.got-btn{display:flex;align-items:stretch;flex:1;min-width:0}
+.got-btn .circ{flex:none;width:56px;display:grid;place-items:center}
+.mono{flex:none;align-self:center;width:36px;height:36px;margin:0 12px 0 10px;border-radius:10px;display:grid;place-items:center;font:600 15px var(--round);color:var(--stash);background:color-mix(in srgb,var(--stash) 14%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--stash) 40%,transparent)}
+.out{flex:none;align-self:center;width:18px;height:18px;margin-right:16px;fill:none;stroke:var(--glyph);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.link{display:flex;align-items:stretch;flex:1;min-width:0}
+.link:active,.got-btn:active,.body:active{background:rgba(255,255,255,.04)}
+.minus{flex:none;align-self:center;width:44px;height:44px;margin-left:6px;border-radius:22px;display:grid;place-items:center}
+.minus i{width:24px;height:24px;border-radius:12px;background:var(--warn);display:grid;place-items:center;font-style:normal;color:var(--on);font:700 18px/1 var(--ui)}
+.strip{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:2px 14px 14px 56px}
+.strip p{width:100%;margin:0 0 2px;font:400 13px var(--ui);color:var(--gold)}
+.pillb{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.pillb.hue{color:var(--on);background:var(--hue)}
+.pillb .nv{width:8px;height:8px;border-radius:4px;background:var(--acc)}
+.foot{display:flex;justify-content:center;margin:18px 0 0}
+.fold{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:52px;padding:0 16px;border-radius:20px;font:400 17px var(--ui);color:var(--ink2);background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.fold .c{font-family:var(--round);font-weight:600;color:var(--ink2)}
+.fold svg{width:16px;height:16px;fill:none;stroke:var(--glyph);stroke-width:2.4;stroke-linecap:round;transition:transform calc(240ms*var(--slow)) var(--ease)}
+.fold[aria-expanded="true"] svg{transform:rotate(90deg)}
+.fnote{margin:8px 4px 0 16px;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.undoline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 0;min-height:56px;padding:6px 6px 6px 16px;border-radius:20px;background:color-mix(in srgb,var(--hue) 10%,rgba(255,255,255,.04));box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--hue) 40%,transparent);font:400 15px var(--ui);color:var(--ink2)}
+.undoline button{min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--hue);background:rgba(255,255,255,.08)}
+.clearbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;margin-top:16px;border-radius:26px;font:600 17px var(--ui);color:var(--on);background:var(--shop)}
+.clearbtn .n{font-family:var(--round)}
+
+/* instruments (B) */
+.inst{margin:14px 0 4px;padding:14px 16px 14px}
+.ih{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font:600 13px var(--ui);color:var(--ink3)}
+.river{position:relative;height:96px;margin:10px 4px 0}
+.river .band{position:absolute;left:0;right:0;top:0;height:70px}
+.river .gate{position:absolute;top:0;height:70px;width:0;border-left:1px dashed color-mix(in srgb,var(--gold) 60%,transparent)}
+.river .base{position:absolute;left:0;right:0;top:72px;height:1px;background:var(--sep)}
+.river .mk{position:absolute;top:78px;transform:translateX(-50%);font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.river .mk.start{transform:none}
+.river .mk.end{transform:translateX(-100%)}
+.dot{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:6px;background:var(--todo);box-shadow:0 0 8px -1px var(--todo);transition:left calc(300ms*var(--slow)) var(--ease),background calc(300ms*var(--slow)) ease,box-shadow calc(300ms*var(--slow)) ease}
+.phone.rm .dot{transition:none}
+.dot.old{background:var(--gold);box-shadow:0 0 10px var(--gold)}
+.dot.later{background:transparent;box-shadow:inset 0 0 0 1.5px var(--glyph)}
+.dot.lit{outline:2px solid #fff;outline-offset:2px}
+.doall{display:flex;align-items:center;gap:8px;min-height:44px;margin-top:6px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--gold) 50%,transparent)}
+.doall i{width:8px;height:8px;border-radius:4px;background:var(--gold)}
+.basket{display:grid;grid-template-columns:132px minmax(0,1fr);gap:16px;align-items:center;margin-top:8px}
+.ring{position:relative;width:132px;height:132px}
+.ring svg{width:132px;height:132px;transform:rotate(-90deg)}
+.ring .tr{fill:none;stroke:rgba(255,255,255,.1);stroke-width:12}
+.ring .fl{fill:none;stroke:var(--shop);stroke-width:12;stroke-linecap:butt}
+.ring .ctr{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring .big{font:700 30px/1 var(--round);color:var(--ink)}
+.ring .sm{font:400 13px var(--ui);color:var(--ink3)}
+.legend{display:grid;gap:2px;min-width:0}
+.lg{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 10px;margin:0 -10px;border-radius:14px;font:400 15px var(--ui);color:var(--ink2);min-width:0}
+.lg i{flex:none;width:10px;height:10px;border-radius:5px;background:var(--shop)}
+.lg i.half{background:linear-gradient(90deg,var(--shop) 50%,rgba(255,255,255,.18) 50%)}
+.lg i.none{background:rgba(255,255,255,.18)}
+.lg .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lg .c{font:600 15px var(--round);color:var(--ink3)}
+.shelfbar{display:flex;gap:4px;height:64px;margin-top:10px}
+.shelfbar button{position:relative;min-width:44px;border-radius:14px;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 10px;overflow:hidden;text-align:left;background:color-mix(in srgb,var(--stash) var(--a,30%),rgba(255,255,255,.04));box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--stash) 50%,transparent)}
+.shelfbar .nm{font:600 13px var(--ui);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shelfbar .c{position:absolute;top:6px;right:10px;font:700 15px var(--round);color:var(--ink)}
+
+/* one screen (C) */
+.lseg{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;height:50px;padding:3px;margin:12px 0 2px;border-radius:25px;background:rgba(120,120,128,.22)}
+.lseg button{position:relative;z-index:1;min-width:0;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;gap:6px;font:600 15px var(--ui);color:var(--ink3);transition:color calc(200ms*var(--slow)) ease}
+.lseg button i{flex:none;width:8px;height:8px;border-radius:4px;background:var(--c)}
+.lseg button .c{font-family:var(--round);color:var(--ink3)}
+.lseg button[aria-selected="true"]{color:var(--ink)}
+.lseg .lp{position:absolute;z-index:0;top:3px;left:3px;width:calc((100% - 6px)/3);height:44px;border-radius:22px;background:rgba(255,255,255,.15);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--hue) 55%,transparent),0 0 16px -6px var(--hue);transition:transform calc(320ms*var(--slow)) var(--ease),box-shadow calc(320ms*var(--slow)) ease}
+
+/* the floating add field and the chrome */
+.addbar{position:absolute;left:12px;right:12px;bottom:90px;z-index:20;display:flex;align-items:flex-end;gap:8px;min-height:56px;padding:6px 6px 6px 18px;border-radius:28px;background:rgba(16,20,36,.66);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px rgba(255,255,255,.16),inset 0 1px 0 rgba(255,255,255,.14),0 14px 34px -16px rgba(0,0,0,.7)}
+.addbar .ph{flex:1;min-width:0;min-height:44px;align-self:center;font:400 17px/1.3 var(--ui);color:var(--ink3);text-align:left;padding:10px 0;white-space:pre-wrap}
+.addbar .ph.typed{color:var(--ink)}
+.addbar .caret{display:inline-block;width:2px;height:20px;margin-left:1px;vertical-align:-4px;background:var(--hue);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.addbar .plus{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--hue);color:var(--on)}
+.addbar .plus svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+.form{display:none;flex:1;min-width:0;flex-direction:column;gap:8px;padding:6px 0 4px}
+.addbar.formy{flex-direction:column;align-items:stretch;padding:12px 12px 12px 16px;border-radius:26px}
+.addbar.formy .ph,.addbar.formy>.plus{display:none}
+.addbar.formy .form{display:flex}
+.fld{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:14px;background:rgba(0,0,0,.28);font:400 15px var(--ui);color:var(--ink);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.fld.dim{color:var(--ink3)}
+.fld .k{flex:none;width:52px;font:400 13px var(--ui);color:var(--ink3)}
+.shelves{display:flex;flex-wrap:wrap;gap:6px}
+.shelves span{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:18px;font:600 13px var(--ui);color:var(--ink2);background:rgba(255,255,255,.08)}
+.shelves span.on{color:var(--on);background:var(--stash)}
+.formgo{display:flex;justify-content:flex-end}
+.tabbar{position:absolute;left:12px;right:12px;bottom:12px;z-index:21;display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:10px;pointer-events:none}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);height:64px;padding:0 4px;border-radius:32px;background:rgba(16,20,36,.6);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.14)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:500 10px var(--ui);color:rgba(232,236,246,.5)}
+.tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--acc)}
+.orb{width:64px;height:64px;border-radius:32px;display:grid;place-items:center;background:rgba(16,20,36,.6);box-shadow:0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.14)}
+.orb i{width:34px;height:34px;border-radius:17px;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+/* the island toast, the sheet, the finger */
+.toast{position:absolute;top:11px;left:50%;width:366px;margin-left:-183px;z-index:33;display:flex;align-items:center;gap:10px;min-height:58px;padding:7px 7px 7px 18px;border-radius:29px;background:#000;color:#fff;opacity:0;visibility:hidden;transform-origin:50% 18px}
+.toast .tm{flex:1;min-width:0;font:500 15px/1.3 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toast .tm span{color:rgba(255,255,255,.6)}
+.toast .tu{flex:none;min-height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--hue);background:rgba(255,255,255,.12)}
+.scrim{position:absolute;inset:0;z-index:24;background:rgba(0,0,0,.36);opacity:0;pointer-events:none;transition:opacity calc(260ms*var(--slow)) ease}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;z-index:25;padding:8px 18px 22px;border-radius:34px;background:rgba(22,26,46,.9);-webkit-backdrop-filter:blur(28px) saturate(1.5);backdrop-filter:blur(28px) saturate(1.5);box-shadow:0 0 0 .5px rgba(255,255,255,.16),inset 0 1px 0 rgba(255,255,255,.14),0 -10px 40px -10px rgba(0,0,0,.6);transform:translateY(112%);transition:transform calc(380ms*var(--slow)) var(--ease)}
+.phone.sheet-on .sheet{transform:none}
+.phone.sheet-on .scrim{opacity:1;pointer-events:auto}
+.grab{width:40px;height:5px;margin:2px auto 12px;border-radius:3px;background:rgba(255,255,255,.3)}
+.sheet h3{margin:0;font:400 20px/1.3 var(--serif);color:var(--ink);text-wrap:balance}
+.sheet .sm{margin:6px 0 14px;font:400 13px var(--ui);color:var(--ink3)}
+.sheet .sm.g{color:var(--gold)}
+.sheet .lab{margin:0 0 8px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.gchips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.gchips button{min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:rgba(255,255,255,.08)}
+.gchips button[aria-pressed="true"]{color:var(--on);background:var(--hue)}
+.sacts{display:flex;flex-wrap:wrap;gap:8px}
+.sheet .warnq{margin:0 0 12px;font:400 17px var(--ui);color:var(--ink)}
+.pillb.warn{color:var(--on);background:var(--warn)}
+.finger{position:absolute;left:0;top:0;z-index:40;width:48px;height:48px;margin:-24px 0 0 -24px;pointer-events:none;opacity:0;transition:opacity calc(200ms*var(--slow)) ease}
+.finger i{display:block;width:48px;height:48px;border-radius:24px;background:radial-gradient(circle,rgba(255,255,255,.5),rgba(255,255,255,.16) 62%,rgba(255,255,255,0) 72%);box-shadow:0 0 0 1.5px rgba(255,255,255,.55)}
+
+/* reduced motion, real or previewed: no sweeps, draws or flights */
+.phone.rm .cc,.phone.rm .ck,.phone.rm .tx,.phone.rm .tt,.phone.rm .sheet,.phone.rm .face::before{transition-duration:0s!important;transition-delay:0s!important}
+.phone.rm .sheet{transition:opacity calc(200ms*var(--slow)) ease!important;transform:none;opacity:0;pointer-events:none}
+.phone.rm.sheet-on .sheet{opacity:1;pointer-events:auto}
+.phone.rm .gh .spin,.phone.rm .addbar .caret{animation:none}
+@media (prefers-reduced-motion:reduce){
+  .seg .pill,.lseg .lp{transition:none}
+  .sk span::after{animation:none}
+}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 78 · round 1 · 5 October 2026 · for your review</p>
+  <h1 class="pt">To-Do, Shopping and Stash</h1>
+  <p class="lede">Three screens with one job: put a thing on a list, see it grouped, then finish it or let it go. Today each draws that job its own way. Here it is one grammar in three colours, three ways.</p>
+  <p class="demo"><b>Demo content.</b> Every to-do, item, recipe, link, shelf, time and count here is invented. The audit with the measurements is <b>design/audits/redesign-2026-09/13-lists.md</b>.</p>
+  <p class="bug"><b>Found while auditing:</b> the To-Do screen shows no open to-do's words. Each row has its box, its group and its age, and a blank where the words belong, because the screen reads a field the code never fills (since 23 September). Fixed on 5 October (1070fe2, with a test); it reaches your phone with the next push.</p>
+
+  <div class="dirs"><div class="seg" role="tablist" aria-label="Direction" id="dirs">
+    <span class="pill" aria-hidden="true"></span>
+    <button role="tab" type="button" data-dir="a" aria-selected="true"><span class="lt">A · </span>One grammar</button>
+    <button role="tab" type="button" data-dir="b" aria-selected="false"><span class="lt">B · </span>Instruments</button>
+    <button role="tab" type="button" data-dir="c" aria-selected="false"><span class="lt">C · </span>One screen</button>
+  </div></div>
+
+  <p class="rkm" id="rkm"></p>
+  <div class="counts" id="counts"></div>
+
+  <div class="studio">
+    <div class="pcol">
+      <div class="pbox" id="pbox">
+        <div class="phone" id="phone" data-scr="todo">
+          <div class="sky" aria-hidden="true"></div>
+          <div class="wash" aria-hidden="true"></div>
+          <div class="island" aria-hidden="true"></div>
+          <div class="scroller" id="scroller"></div>
+          <div class="lapse" id="lapse" aria-hidden="true"><i></i><span>Time-lapse</span></div>
+          <div class="addbar" id="addbar"></div>
+          <div class="tabbar" aria-hidden="true">
+            <div class="tabs">
+              <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>Home</span>
+              <span class="tab"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>Nova</span>
+              <span class="tab"><svg viewBox="0 0 24 24"><path d="M2 12h3M19 12h3M5 8v8M19 8v8M8 12h8"/></svg>Train</span>
+              <span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 004 0V3M7 11v10M17 3c-2 2-2 6 0 8v10"/></svg>Fuel</span>
+              <span class="tab on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="2"/><rect x="14" y="4" width="6" height="6" rx="2"/><rect x="4" y="14" width="6" height="6" rx="2"/><rect x="14" y="14" width="6" height="6" rx="2"/></svg>More</span>
+            </div>
+            <span class="orb"><i></i></span>
+          </div>
+          <div class="toast" id="toast" role="status" aria-live="polite"><span class="tm" id="tmsg"></span><button type="button" class="tu" id="tundo">Undo</button></div>
+          <div class="scrim" id="scrim" data-act="close"></div>
+          <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Details"></div>
+          <div class="finger" id="finger" aria-hidden="true"><i></i></div>
+        </div>
+      </div>
+      <div class="under">
+        <div class="seg" role="group" aria-label="Screen" id="scrs">
+          <span class="pill" aria-hidden="true"></span>
+          <button type="button" data-scr="todo" aria-pressed="true">To-Do</button>
+          <button type="button" data-scr="shop" aria-pressed="false">Shopping</button>
+          <button type="button" data-scr="stash" aria-pressed="false">Stash</button>
+        </div>
+        <div class="scenes" id="scenes"></div>
+        <div class="toggles">
+          <button class="chip" type="button" id="reset">Start over</button>
+          <button class="chip" type="button" id="slow" aria-pressed="false">Quarter speed</button>
+          <button class="chip" type="button" id="rmprev" aria-pressed="false">Preview reduced motion</button>
+        </div>
+      </div>
+    </div>
+    <div class="notes" id="notes"></div>
+  </div>
+
+  <section class="page">
+    <h2>The same in all three directions</h2>
+    <p class="sub">One list grammar for the three screens, against what the audit measured today. Everything the screens do now, they still do.</p>
+    <ul class="cmp">
+      <li><span class="was"><b>Today</b> no open to-do shows its words: a box, a group name and an age around a blank line.</span><span class="now"><b>Here</b> the words lead every row at 17 pt; the group is said once, in its header.</span></li>
+      <li><span class="was">A ticked to-do vanishes in one frame and reappears in Done, 1.3 screens down, where the box to take it back is 21 pt.</span><span class="now">The circle fills in the screen's colour, the words are struck through, the row waits a beat with Undo beside it, then folds away; Undo stays in the island for four seconds.</span></li>
+      <li><span class="was">Three row shapes: To-Do swipes right only; Shopping swipes right only; Stash has no swipe and two links to the same address on every row.</span><span class="now">Your iOS Mail grammar on all three: swipe right to finish, swipe left to remove (on To-Do, to move to Later, because nothing is ever deleted from Todoist). One tap target per Stash row.</span></li>
+      <li><span class="was">1 write in 10 has an Undo. "Confirm completion", the biggest button on Shopping, deletes what you ticked with no confirm and no undo; a Stash remove is final.</span><span class="now">Every write answers with Undo: a tick, a Later, a clear, a remove. Clearing what you got and removing a line reuse the restore Shopping already has.</span></li>
+      <li><span class="was">Shopping's steppers are 28 pt, twice per row, and the number is printed twice ("2 × onions" and "− 2 +"). Three quick taps on + add one, because the count waits for the Mac.</span><span class="now">One count pill per row, 44 pt; a tap opens a 44 pt stepper in place, and the number changes the moment you tap.</span></li>
+      <li><span class="was">Shopping says "live from Obsidian" when it is showing an offline copy, and "Connect a backend in Settings" while it is loading. The Todoist line never says a sync failed.</span><span class="now">Each list says where its copy came from and when; a failed Todoist pass says so in red with Retry. Loading is a skeleton of rows.</span></li>
+      <li><span class="was">Three heads (two in tracked capitals), three add forms (Stash's has four fields before the first link, 502 pt down), 9 type sizes in 3 families.</span><span class="now">One head: the 34 pt title, the serif news line, one quiet status line. One add field floating at the foot, in reach of the thumb. Four text sizes, 34 · 20 · 17 · 13, with controls at 15.</span></li>
+      <li><span class="was">81 of 102 controls under 44 pt; 3 under the 28 pt floor.</span><span class="now">Every control 44 pt or more.</span></li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>Each screen's colour</h2>
+    <p class="sub">None of the three has a hue today: the Index gives all three the neutral ink, and inside, Shopping and Stash wear gold on their titles and every heading. A proposal from Nova's own tokens, each with a reason. Gold keeps one job here, a to-do that has waited on you; red keeps one, remove.</p>
+    <div class="hues">
+      <div class="hue" style="--c:var(--todo)"><span class="sw"></span><b>To-Do · violet</b><code>--nv-vi</code><p>The one place Nova already colours your to-do world is the Todoist sync, in violet. It sits farthest from the two colours a to-do must keep: gold for waiting and red for remove.</p></div>
+      <div class="hue" style="--c:var(--shop)"><span class="sw"></span><b>Shopping · green</b><code>--nv-good</code><p>The list is fed by Fuel (a recipe adds its lines), and the Index already gives food green. Here green is also "got it", which is the same act.</p></div>
+      <div class="hue" style="--c:var(--stash)"><span class="sw"></span><b>Stash · teal</b><code>--nv-m-back</code><p>The Librarian's hue: "files every note where you will find it again". That is the Stash's whole job. It is also the back muscle's hue, which only ever appears in Train.</p></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>The four states, designed</h2>
+    <p class="sub">Today a load in flight shows "Loading…" on two screens and "Connect a backend in Settings" plus "Nothing on the list yet" on Shopping; offline, Shopping still says live.</p>
+    <div class="st4">
+      <figure class="sc"><div class="l1">To-Do · loading</div><div class="sk" aria-hidden="true"><span style="--w:70%"></span><span style="--w:52%"></span><span style="--w:64%"></span></div><figcaption><b>Loading</b>Rows arrive as their shape first, then fill in place; the add field works at once and queues.</figcaption></figure>
+      <figure class="sc"><div class="l2">Nothing open.</div><div class="l1" style="margin-top:4px">Say it to Nova from anywhere, or type it here.</div><div class="mini-add" aria-hidden="true">Add a to-do<i>+</i></div><figcaption><b>Empty</b>One line and the field. A cleared Shopping list says when it was cleared and keeps its Undo.</figcaption></figure>
+      <figure class="sc"><div class="l1">Shopping · offline</div><div class="l2">Friday 18:20's list.</div><div class="l1" style="margin-top:4px">Ticks and adds wait in the Outbox and land when your Mac answers.</div><figcaption><b>Offline</b>The copy is labelled with its time, never "live".</figcaption></figure>
+      <figure class="sc"><div class="l1" style="color:var(--warn)">To-Do · Todoist sync failed at 9:12</div><div class="l2">Your list is safe in the vault.</div><span class="retry">Retry</span><figcaption><b>Error</b>What failed, when, what is safe, and one action. The server already sends the last pass's error; today's line ignores it.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>On the Mac, for the desktop round</h2>
+    <div class="mac">
+      <p>Measured at 1280 today, the three lists are three widths (780, 962 and 820 pt cards), and Shopping's stepper sits about 650 pt from the item it changes. Nothing here answers Command-Z.</p>
+      <p><b>A and B</b> would hold one reading width for all three (about 680 pt), with the hover and keyboard of a Mac list: arrow keys move, Space ticks, Delete removes, Command-Z undoes. <b>C</b> would set the three lists side by side as three columns, so the whole of your lists is one glance.</p>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Which direction</b><span>A keeps the three screens and makes them one calm grammar. B adds one living object to the top of each, so the age of your to-dos, the basket and the shelves are seen before a single row. C folds the three into one Lists screen with a switch. Pick one, or a part of one with another, and round 2 draws it in full with the Mac; the others are dropped.</span></div></li>
+      <li><div><b>The three colours</b><span>Yes: To-Do violet, Shopping green, Stash teal, here and on their Index rows, with gold kept for a to-do that has waited and red for remove. No: the three stay neutral and every tick fills in Nova's cyan, as Shopping's does today.</span></div></li>
+      <li><div><b>A to-do moved to Later stops glowing</b><span>Yes: moving it is a decision, so its age still shows but the gold goes; the news line counts only what is still waiting on you. No: everything older than a fortnight glows, Later included, as today.</span></div></li>
+      <li><div><b>Shopping gets a remove per line</b><span>Yes: swipe left on one item removes just that line, with Undo; it needs one small server route, and the undo uses the restore that already exists. No: one wrong line still leaves only by ticking it and clearing everything you have ticked.</span></div></li>
+      <li><div><b>Whether a to-do can ever be deleted</b><span>Today nothing is ever deleted, on the vault page or in Todoist, by the sync's own rule; Done and Later are the only ways out. Yes: a Delete joins Later on the swipe, and the Todoist sync is changed to carry it. No: Later stays the way to let one go.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const doc = document.documentElement;
+const phone = $('#phone'), pbox = $('#pbox'), scroller = $('#scroller'), addbar = $('#addbar');
+const toastEl = $('#toast'), tmsg = $('#tmsg'), tundo = $('#tundo'), sheet = $('#sheet'), fingerEl = $('#finger'), lapse = $('#lapse');
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+let DIR = 'a', SCR = 'todo', SLOW = 1, RMP = false, Z = 1;
+const rm = () => RMP || mq.matches;
+const T = (ms) => ms * SLOW;
+const sleep = (ms) => new Promise((r) => setTimeout(r, T(ms)));
+const EASE = 'cubic-bezier(.32,.72,0,1)', OUT = 'cubic-bezier(.23,1,.32,1)', IO = 'cubic-bezier(.77,0,.175,1)';
+
+/* ---------------- invented demo data ---------------- */
+const GROUPS = [['work', 'Work'], ['personal', 'Personal'], ['fitness', 'Fitness'], ['errands', 'Errands'], ['later', 'Later'], ['unsorted', 'Unsorted']];
+const GNAME = Object.fromEntries(GROUPS);
+const AISLES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other'];
+const SHELVES = ['Desk setup', 'Reading', 'Kitchen'];
+const INIT = () => ({
+  todo: [
+    { id: 't1', text: 'Draft the outline for the spring plan', g: 'work', age: 1 },
+    { id: 't2', text: 'Send the venue the final numbers', g: 'work', age: 9 },
+    { id: 't3', text: 'Book a room for the Thursday review', g: 'work', age: 19 },
+    { id: 't4', text: 'Renew the passport photos', g: 'personal', age: 3 },
+    { id: 't5', text: 'Call the dentist to move the check-up', g: 'personal', age: 31 },
+    { id: 't6', text: 'Order new lifting straps', g: 'fitness', age: 0 },
+    { id: 't7', text: 'Return the library books', g: 'errands', age: 16 },
+    { id: 't8', text: 'Pick up the dry cleaning', g: 'errands', age: 2 },
+    { id: 't9', text: 'Try the ramen place on the corner', g: 'later', age: 52 },
+    { id: 't10', text: 'Read about sourdough starters', g: 'later', age: 40 },
+    { id: 't11', text: 'Look into a standing desk', g: 'unsorted', age: 6 },
+  ],
+  done: [{ id: 'd1', text: 'Buy a birthday card' }, { id: 'd2', text: 'Back up the laptop' }, { id: 'd3', text: 'Fix the bike light' }],
+  doneOpen: false,
+  shop: [
+    { id: 's1', name: 'brown onions', a: 'Produce', qty: 2, from: 'Weeknight chilli' },
+    { id: 's2', name: 'baby spinach', a: 'Produce', qty: 1, got: true },
+    { id: 's3', name: 'limes', a: 'Produce', qty: 3 },
+    { id: 's4', name: 'beef mince', a: 'Meat & Protein', qty: 1, amt: '500 g', from: 'Weeknight chilli' },
+    { id: 's5', name: 'chicken thighs', a: 'Meat & Protein', qty: 1, amt: '1 kg', from: 'Sheet-pan dinner' },
+    { id: 's6', name: 'Greek yoghurt', a: 'Dairy & Eggs', qty: 2, got: true },
+    { id: 's7', name: 'eggs', a: 'Dairy & Eggs', qty: 1, amt: 'a dozen' },
+    { id: 's8', name: 'kidney beans', a: 'Pantry & Seasonings', qty: 2, amt: '400 g', from: 'Weeknight chilli' },
+    { id: 's9', name: 'smoked paprika', a: 'Pantry & Seasonings', qty: 1 },
+    { id: 's10', name: 'frozen peas', a: 'Frozen', qty: 1 },
+    { id: 's11', name: 'sourdough loaf', a: 'Bakery', qty: 1, got: true },
+    { id: 's12', name: 'sparkling water', a: 'Beverages', qty: 6 },
+    { id: 's13', name: 'dish sponges', a: 'Household & Other', qty: 1 },
+    { id: 's14', name: 'bin liners', a: 'Household & Other', qty: 1 },
+  ],
+  stash: [
+    { id: 'k1', name: 'Monitor arm', host: 'shop.example.com', note: 'the 32-inch one', sh: 'Desk setup' },
+    { id: 'k2', name: 'Cable tray', host: 'hardware.example.org', sh: 'Desk setup' },
+    { id: 'k3', name: 'Desk mat', host: 'shop.example.com', note: 'restock yearly', sh: 'Desk setup' },
+    { id: 'k4', name: 'Essay on deliberate practice', host: 'essays.example.net', sh: 'Reading' },
+    { id: 'k5', name: 'Long read on sleep', host: 'magazine.example.com', note: 'finish it', sh: 'Reading' },
+    { id: 'k6', name: 'Chef knife sharpener', host: 'kitchen.example.com', sh: 'Kitchen' },
+    { id: 'k7', name: 'Coffee beans subscription', host: 'roaster.example.com', note: 'restock monthly', sh: 'Kitchen' },
+    { id: 'k8', name: 'Oven thermometer', host: 'kitchen.example.com', sh: 'Kitchen' },
+  ],
+  sync: '9:38',
+  cleared: null, removed: null, stashEdit: false, stepper: null, menuArmed: false,
+});
+let S = INIT();
+
+/* ---------------- facts, written by code from the same fields ---------------- */
+const ageLabel = (d) => (d <= 0 ? 'today' : d === 1 ? 'yesterday' : d < 14 ? `${d} days` : `${Math.floor(d / 7)} weeks`);
+const waiting = (t) => t.g !== 'later' && t.age >= 14;
+const glow = (t) => (waiting(t) ? (0.3 + 0.6 * Math.min(1, (t.age - 14) / 30)).toFixed(2) : 0);
+const openTodos = () => S.todo.filter((t) => !t.gone);
+const toGet = () => S.shop.filter((i) => !i.got && !i.gone);
+const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+
+/* ---------------- icons ---------------- */
+const CIRC = '<svg viewBox="0 0 26 26" aria-hidden="true"><circle class="cc" cx="13" cy="13" r="11.5"/><path class="ck" d="M7.6 13.4l3.6 3.6 7.2-7.4"/></svg>';
+const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+const MORE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>';
+const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const OUTI = '<svg class="out" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16L16 8M9 8h7v7"/></svg>';
+const CHEV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+
+/* ---------------- rows: the one grammar ---------------- */
+function todoRow(t) {
+  return `<div class="row${t.holding ? ' ticking' : ''}" data-id="${t.id}" data-k="todo" style="--st:${glow(t)}">
+    <div class="uly" aria-hidden="true"><span class="ua lead" data-side="r"><b>✓</b>Done</span><span class="ua trail" data-side="l" style="--c:#6b7392"><b>→</b>Later</span></div>
+    <div class="face">
+      <button class="tick" type="button" data-act="tick" aria-label="Done: ${esc(t.text)}">${CIRC}</button>
+      <button class="body" type="button" data-act="detail" aria-label="${esc(t.text)}, ${ageLabel(t.age)}. Details">
+        <span class="tt"><span class="tx">${esc(t.text)}</span></span>
+        <span class="mt"><span class="age${waiting(t) ? ' old' : ''}">${t.g === 'later' && t.age >= 14 ? `${ageLabel(t.age)} · parked` : ageLabel(t.age)}</span></span>
+      </button>
+      <button class="hold" type="button" data-act="untick">Undo</button>
+    </div>
+    ${t.decide ? decideStrip(t) : ''}
+  </div>`;
+}
+function decideStrip(t) {
+  return `<div class="strip" data-strip="${t.id}"><p>Waited ${ageLabel(t.age)}. What now?</p>
+    <button class="pillb hue" type="button" data-act="d-done" data-id="${t.id}">✓ Done</button>
+    <button class="pillb" type="button" data-act="d-later" data-id="${t.id}">→ Later</button>
+    <button class="pillb" type="button" data-act="d-talk" data-id="${t.id}"><span class="nv"></span>Talk it through</button></div>`;
+}
+function shopRow(i) {
+  const meta = [i.amt ? `<b>${esc(i.amt)}</b>` : '', i.from ? `for ${esc(i.from)}` : '', i.sorting ? 'finding its aisle' : ''].filter(Boolean).join(' · ');
+  const qty = S.stepper === i.id
+    ? `<span class="stepper" data-stepper="${i.id}"><button type="button" data-act="dec" aria-label="One fewer ${esc(i.name)}">−</button><span class="v" data-num="q-${i.id}">${i.qty}</span><button type="button" data-act="inc" aria-label="One more ${esc(i.name)}">+</button></span>`
+    : `<button class="qty${i.qty === 1 ? ' one' : ''}" type="button" data-act="qty" aria-label="Quantity ${i.qty}, change"><span data-num="q-${i.id}">×${i.qty}</span></button>`;
+  return `<div class="row${i.got ? ' got' : ''}" data-id="${i.id}" data-k="shop">
+    <div class="uly" aria-hidden="true"><span class="ua lead" data-side="r"><b>✓</b>${i.got ? 'Not yet' : 'Got it'}</span><span class="ua trail" data-side="l" style="--c:var(--warn)"><b>✕</b>Remove</span></div>
+    <div class="face">
+      <button class="got-btn" type="button" data-act="got" aria-label="${i.got ? 'Not got yet' : 'Got it'}: ${esc(i.name)}"><span class="circ">${CIRC}</span>
+        <span class="body"><span class="tt"><span class="tx">${esc(i.name)}</span></span>${meta ? `<span class="mt">${meta}</span>` : ''}</span></button>
+      ${qty}
+    </div>
+  </div>`;
+}
+function stashRow(k) {
+  return `<div class="row" data-id="${k.id}" data-k="stash">
+    <div class="uly" aria-hidden="true"><span class="ua trail" data-side="l" style="--c:var(--warn)"><b>✕</b>Remove</span></div>
+    <div class="face">
+      ${S.stashEdit ? `<button class="minus" type="button" data-act="rm" aria-label="Remove ${esc(k.name)}"><i>−</i></button>` : ''}
+      <a class="link" href="#" data-act="open" aria-label="${esc(k.name)}, opens ${esc(k.host)}"><span class="mono" aria-hidden="true">${esc(k.host[0].toUpperCase())}</span>
+        <span class="body"><span class="tt"><span class="tx">${esc(k.name)}</span></span><span class="mt">${esc(k.host)}${k.note ? ` · ${esc(k.note)}` : ''}</span></span>${OUTI}</a>
+    </div>
+  </div>`;
+}
+
+/* ---------------- heads and instruments ---------------- */
+function nav(right) {
+  if (DIR === 'c') return '';
+  return `<div class="nav"><button class="nb circ" type="button" data-act="back" aria-label="Back to More">${BACK}</button>${right || ''}</div>`;
+}
+function todoHead() {
+  const w = openTodos().filter(waiting).length;
+  const news = w ? `<span class="n g" data-num="w">${w}</span> ${w === 1 ? 'has' : 'have'} waited past a fortnight.` : 'Nothing has waited past a fortnight.';
+  const sync = S.syncBad
+    ? `<div class="stat bad"><span class="dot"></span>Todoist sync failed at 9:12 · your list is safe in the vault <button class="rt" type="button" data-act="retry">Retry</button></div>`
+    : `<div class="stat"><span class="dot"></span><span class="n" data-num="open">${openTodos().length}</span> open · <span class="n" data-num="done">${S.done.length}</span> done · Todoist synced ${S.sync}</div>`;
+  return `${nav()}${DIR === 'c' ? '' : '<div class="ttl"><h1>To-Do</h1></div>'}
+    <p class="news">${news}</p>${sync}${DIR === 'b' ? river() : ''}`;
+}
+function river() {
+  const W = 318, max = 49, open = openTodos();
+  const lane = { work: 0, personal: 1, fitness: 2, errands: 3, unsorted: 4, later: 5 };
+  const dots = open.map((t) => `<span class="dot${waiting(t) ? ' old' : t.g === 'later' ? ' later' : ''}" data-tw="dot-${t.id}" data-twl="${((Math.min(t.age, max) / max) * W).toFixed(1)}" style="left:${((Math.min(t.age, max) / max) * W).toFixed(1)}px;top:${8 + lane[t.g] * 11}px" title="${esc(t.text)}"></span>`).join('');
+  const w = open.filter(waiting).length;
+  const mk = (d, l, cls = '') => `<span class="mk ${cls}" style="left:${((d / max) * W).toFixed(1)}px">${l}</span>`;
+  return `<div class="card inst"><div class="ih"><span>How long each has waited</span><span>${open.length} open</span></div>
+    <div class="river" aria-label="${w} of ${open.length} open to-dos have waited past a fortnight"><div class="band">${dots}</div>
+      <span class="gate" style="left:${((14 / max) * W).toFixed(1)}px"></span><span class="base"></span>
+      ${mk(0, 'today', 'start')}${mk(14, '2 weeks')}${mk(28, '4 weeks')}${mk(49, '7 weeks', 'end')}</div>
+    ${w ? `<button class="doall" type="button" data-act="doall"><i></i>Move the ${w} waiting to Later</button>` : ''}</div>`;
+}
+function shopHead() {
+  const left = toGet(), got = S.shop.filter((i) => i.got && !i.gone);
+  const aisles = new Set(left.map((i) => i.a)).size;
+  const news = left.length ? `<span class="n" data-num="toget">${left.length}</span> to get, across ${plural(aisles, 'aisle')}.` : 'Everything on the list is in the basket.';
+  const right = `<button class="nb circ" type="button" data-act="menu" aria-label="More for the shopping list">${MORE}</button>`;
+  return `${nav(right)}${DIR === 'c' ? '' : '<div class="ttl"><h1>Shopping</h1></div>'}
+    <p class="news">${news}</p>
+    ${DIR === 'b' ? basket(got.length) : `<div class="stat"><span class="dot"></span><span class="n" data-num="got">${got.length}</span> in the basket · synced with your vault 9:41</div>`}`;
+}
+function basket(gotN) {
+  const live = S.shop.filter((i) => !i.gone && !i.sorting);
+  const total = live.length || 1;
+  const r = 54, C = 2 * Math.PI * r, gap = 3;
+  let start = 0;
+  const arcs = [], rows = [];
+  AISLES.forEach((a) => {
+    const items = live.filter((i) => i.a === a);
+    if (!items.length) return;
+    const len = (items.length / total) * C;
+    const got = items.filter((i) => i.got).length;
+    const fill = Math.max(0, (len - gap) * (got / items.length));
+    arcs.push(`<circle class="tr" cx="66" cy="66" r="${r}" stroke-dasharray="${(len - gap).toFixed(2)} ${(C - len + gap).toFixed(2)}" stroke-dashoffset="${(-start).toFixed(2)}"/>`);
+    arcs.push(`<circle class="fl" data-tw="arc-${a}" data-twd="${fill.toFixed(2)}" cx="66" cy="66" r="${r}" stroke-dasharray="${fill.toFixed(2)} ${(C - fill).toFixed(2)}" stroke-dashoffset="${(-start).toFixed(2)}"/>`);
+    start += len;
+    if (rows.length < 3 && got < items.length) rows.push(`<button class="lg" type="button" data-act="jump" data-to="a-${AISLES.indexOf(a)}"><i class="${got ? 'half' : 'none'}"></i><span class="nm">${esc(a)}</span><span class="c">${items.length - got}</span></button>`);
+  });
+  return `<div class="card inst"><div class="ih"><span>The basket, by aisle</span><span>${plural(live.length, 'item')}</span></div>
+    <div class="basket"><div class="ring"><svg viewBox="0 0 132 132" aria-hidden="true">${arcs.join('')}</svg><div class="ctr"><span class="big" data-num="gotring">${gotN}</span><span class="sm">of ${live.length} got</span></div></div>
+    <div class="legend"><span class="ih" style="margin-bottom:2px">Still to get</span>${rows.join('')}</div></div></div>`;
+}
+function stashHead() {
+  const live = S.stash.filter((k) => !k.gone);
+  const shelves = SHELVES.filter((s) => live.some((k) => k.sh === s));
+  const right = `<button class="nb" type="button" data-act="edit">${S.stashEdit ? 'Done' : 'Edit'}</button>`;
+  return `${nav(right)}${DIR === 'c' ? '' : '<div class="ttl"><h1>Stash</h1></div>'}
+    <p class="news"><span class="n" data-num="links">${live.length}</span> links on ${plural(shelves.length, 'shelf', 'shelves')}.</p>
+    ${DIR === 'b' ? `<div class="card inst"><div class="ih"><span>Your shelves</span><span>tap one to go to it</span></div><div class="shelfbar">${shelves.map((s) => { const n = SHELVES.indexOf(s); const c = live.filter((k) => k.sh === s).length; return `<button type="button" data-act="jump" data-to="sh-${n}" data-tw="shelf-${n}" style="flex:${c} 1 0;--a:${[34, 24, 16][n]}%" aria-label="${esc(s)}, ${c} links"><span class="c" data-num="sh${n}">${c}</span><span class="nm">${esc(s)}</span></button>`; }).join('')}</div></div>` : `<div class="stat"><span class="dot"></span>Lives in your vault · synced 9:41</div>`}`;
+}
+function lseg() {
+  const n = { todo: openTodos().length, shop: toGet().length, stash: S.stash.filter((k) => !k.gone).length };
+  const idx = { todo: 0, shop: 1, stash: 2 }[SCR];
+  const b = (k, label, c) => `<button type="button" role="tab" data-act="seg" data-scr="${k}" aria-selected="${SCR === k}" style="--c:${c}"><i></i>${label} <span class="c" data-num="seg-${k}">${n[k]}</span></button>`;
+  return `<div class="nav"><button class="nb circ" type="button" data-act="back" aria-label="Back to More">${BACK}</button>${SCR === 'shop' ? `<button class="nb circ" type="button" data-act="menu" aria-label="More for the shopping list">${MORE}</button>` : SCR === 'stash' ? `<button class="nb" type="button" data-act="edit">${S.stashEdit ? 'Done' : 'Edit'}</button>` : ''}</div>
+    <div class="ttl"><h1>Lists</h1></div>
+    <div class="lseg" role="tablist" aria-label="Lists"><span class="lp" style="transform:translateX(${idx * 100}%)"></span>${b('todo', 'To-Do', 'var(--todo)')}${b('shop', 'Shopping', 'var(--shop)')}${b('stash', 'Stash', 'var(--stash)')}</div>`;
+}
+
+/* ---------------- screens ---------------- */
+function todoView() {
+  const open = openTodos();
+  let h = todoHead();
+  GROUPS.forEach(([g, label]) => {
+    const items = open.filter((t) => t.g === g);
+    if (!items.length) return;
+    h += `<div class="gh" data-gh="${g}">${label} <span class="c" data-num="g-${g}">${items.length}</span></div><div class="card">${items.map(todoRow).join('')}</div>`;
+  });
+  h += `<div class="foot"><button class="fold" type="button" data-act="fold" aria-expanded="${S.doneOpen}"><span>Done <span class="c" data-num="done2">${S.done.length}</span></span>${CHEV}</button></div>`;
+  if (S.doneOpen) h += `<div class="card" style="margin-top:8px">${S.done.map((d) => `<div class="row isdone" data-id="${d.id}" data-k="done"><div class="face"><button class="tick" type="button" data-act="reopen" aria-label="Not done: ${esc(d.text)}">${CIRC}</button><span class="body"><span class="tt"><span class="tx">${esc(d.text)}</span></span><span class="mt">done this week</span></span></div></div>`).join('')}</div><p class="fnote">Once a week Nova offers to sweep these off the page; you approve it in the Inbox.</p>`;
+  return h;
+}
+function shopView() {
+  let h = shopHead();
+  const sorting = S.shop.filter((i) => i.sorting && !i.gone);
+  if (sorting.length) h += `<div class="gh" data-gh="sorting">Sorting into aisles <span class="spin" aria-hidden="true"></span></div><div class="card">${sorting.map(shopRow).join('')}</div>`;
+  AISLES.forEach((a, n) => {
+    const items = S.shop.filter((i) => i.a === a && !i.gone && !i.sorting);
+    if (!items.length) return;
+    const left = items.filter((i) => !i.got).length;
+    h += `<div class="gh" id="a-${n}" data-gh="${a}">${esc(a)} <span class="c" data-num="a-${n}">${left || '✓'}</span></div><div class="card">${items.map(shopRow).join('')}</div>`;
+  });
+  const got = S.shop.filter((i) => i.got && !i.gone).length;
+  if (S.cleared) h += `<div class="undoline"><span>Cleared ${plural(S.cleared.length, 'item')} you got.</span><button type="button" data-act="undo-clear">Undo</button></div>`;
+  if (got) h += `<button class="clearbtn" type="button" data-act="clear-got">Clear the <span class="n" data-num="gotbtn">${got}</span> you got</button>`;
+  return h;
+}
+function stashView() {
+  let h = stashHead();
+  const live = S.stash.filter((k) => !k.gone);
+  SHELVES.forEach((s, n) => {
+    const items = live.filter((k) => k.sh === s);
+    if (!items.length) return;
+    h += `<div class="gh" id="sh-${n}" data-gh="${s}">${esc(s)} <span class="c" data-num="s-${n}">${items.length}</span></div><div class="card">${items.map(stashRow).join('')}</div>`;
+  });
+  return h;
+}
+function addView() {
+  if (S.adding) return S.adding;
+  const ph = { todo: 'Add a to-do', shop: 'Add items, one per line', stash: 'Paste a link to keep' }[SCR];
+  return `<button class="ph" type="button" data-act="add">${ph}</button><button class="plus" type="button" data-act="add" aria-label="${ph}">${PLUS}</button>`;
+}
+
+/* ---------------- render, with FLIP so every change is acted out ---------------- */
+const twPrev = new Map();
+function render(o = {}) {
+  const before = new Map();
+  if (o.flip) $$('[data-id]', scroller).forEach((el) => before.set(el.dataset.id, el.getBoundingClientRect()));
+  const nums = new Map($$('[data-num]', phone).map((el) => [el.dataset.num, el.textContent]));
+  const top = scroller.scrollTop;
+  phone.dataset.scr = SCR;
+  phone.dataset.dir = DIR;
+  const body = SCR === 'todo' ? todoView() : SCR === 'shop' ? shopView() : stashView();
+  scroller.innerHTML = (DIR === 'c' ? lseg() : '') + body;
+  addbar.innerHTML = addView();
+  addbar.classList.toggle('formy', !!S.adding && SCR === 'stash');
+  scroller.scrollTop = o.top != null ? o.top : top;
+  // the instruments' parts glide from where they were
+  $$('[data-tw]', scroller).forEach((el) => {
+    const k = el.dataset.tw;
+    const now = el.dataset.twl != null ? { left: el.dataset.twl + 'px' } : el.dataset.twd != null ? { strokeDasharray: el.getAttribute('stroke-dasharray') } : { flexGrow: el.style.flexGrow };
+    const prev = twPrev.get(k);
+    twPrev.set(k, now);
+    if (prev && !rm() && JSON.stringify(prev) !== JSON.stringify(now)) el.animate([prev, now], { duration: T(520), easing: EASE });
+  });
+  if (o.flip && !rm()) {
+    let n = 0;
+    $$('[data-id]', scroller).forEach((el) => {
+      const b = before.get(el.dataset.id);
+      const a = el.getBoundingClientRect();
+      if (!b) { el.animate([{ opacity: 0, transform: 'translateY(10px) scale(.985)' }, { opacity: 1, transform: 'none' }], { duration: T(300), easing: OUT, delay: T(Math.min(n++, 6) * 50), fill: 'backwards' }); return; }
+      const dx = (b.left - a.left) / Z, dy = (b.top - a.top) / Z;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], { duration: T(o.slowFlip ? 520 : 340), easing: IO });
+    });
+  } else if (o.flip) {
+    $$('[data-id]', scroller).forEach((el) => { if (!before.has(el.dataset.id)) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T(200), easing: 'ease' }); });
+  }
+  // a count that changed ticks over rather than swapping
+  $$('[data-num]', phone).forEach((el) => {
+    const old = nums.get(el.dataset.num);
+    if (old != null && old !== el.textContent) el.animate(rm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ transform: 'translateY(45%)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: T(rm() ? 200 : 260), easing: OUT });
+  });
+  paintNotes();
+}
+
+/* ---------------- motion helpers ---------------- */
+const rowEl = (id) => $(`.row[data-id="${id}"]`, scroller);
+async function fold(row, dir = 0) {
+  if (!row) return;
+  const face = $('.face', row);
+  if (rm()) { await row.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T(200), fill: 'forwards' }).finished; return; }
+  if (dir) await face.animate([{ transform: face.style.transform || 'none' }, { transform: `translateX(${dir * 400}px)` }], { duration: T(240), easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).finished;
+  const h = row.offsetHeight;
+  await row.animate([{ height: h + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: T(280), easing: EASE, fill: 'forwards' }).finished;
+}
+function pulse(row) {
+  if (rm() || !row) return;
+  const p = document.createElement('span');
+  p.className = 'pulse';
+  $('.face', row).appendChild(p);
+  p.animate([{ opacity: 0.9, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(2.1)' }], { duration: T(520), easing: OUT }).finished.then(() => p.remove());
+}
+let toastTimer = 0, toastUndo = null;
+function toast(msg, undo) {
+  clearTimeout(toastTimer);
+  tmsg.innerHTML = msg;
+  toastUndo = undo || null;
+  tundo.style.display = undo ? '' : 'none';
+  toastEl.style.visibility = 'visible';
+  toastEl.animate(rm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'scale(.34,.64)' }, { opacity: 1, transform: 'none' }], { duration: T(rm() ? 200 : 380), easing: EASE, fill: 'forwards' });
+  toastTimer = setTimeout(hideToast, T(4000));
+}
+function hideToast() {
+  clearTimeout(toastTimer);
+  if (toastEl.style.visibility !== 'visible') return;
+  toastEl.animate(rm() ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.34,.64)' }], { duration: T(rm() ? 200 : 240), easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).finished.then(() => { if (toastEl.style.visibility === 'visible' && getComputedStyle(toastEl).opacity === '0') toastEl.style.visibility = 'hidden'; });
+  toastUndo = null;
+}
+tundo.addEventListener('click', () => { const u = toastUndo; hideToast(); if (u) u(); });
+function scrollTo(el, off = 220) {
+  if (!el) return Promise.resolve();
+  const sr = scroller.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const target = Math.max(0, scroller.scrollTop + (r.top - sr.top) / Z - off);
+  scroller.scrollTo({ top: target, behavior: rm() ? 'auto' : 'smooth' });
+  return sleep(rm() ? 60 : 420);
+}
+
+/* ---------------- the writes, each with its undo ---------------- */
+async function tick(id) {
+  const t = S.todo.find((x) => x.id === id);
+  const row = rowEl(id);
+  if (!t || t.gone || !row || row.classList.contains('ticking')) return;
+  row.classList.add('ticking');
+  pulse(row);
+  t.holding = true;
+  await sleep(1300);
+  if (!t.holding) return;
+  t.holding = false;
+  await fold(rowEl(id));
+  t.gone = true;
+  S.done.unshift({ id: 'x' + id, text: t.text, from: id });
+  render({ flip: true });
+  toast(`Done <span>· ${esc(t.text)}</span>`, () => untick(id, true));
+}
+function untick(id, fromToast) {
+  const t = S.todo.find((x) => x.id === id);
+  if (!t) return;
+  if (t.holding) { t.holding = false; const r = rowEl(id); if (r) r.classList.remove('ticking'); return; }
+  if (fromToast || t.gone) { t.gone = false; S.done = S.done.filter((d) => d.from !== id); render({ flip: true }); }
+}
+function reopen(did) {
+  const d = S.done.find((x) => x.id === did);
+  if (!d) return;
+  S.done = S.done.filter((x) => x !== d);
+  if (d.from) { const t = S.todo.find((x) => x.id === d.from); if (t) t.gone = false; }
+  else S.todo.push({ id: 'r' + did, text: d.text, g: 'unsorted', age: 0 });
+  render({ flip: true });
+  toast(`Back on the list <span>· ${esc(d.text)}</span>`);
+}
+function moveTo(id, g, quiet) {
+  const t = S.todo.find((x) => x.id === id);
+  if (!t) return;
+  const from = t.g;
+  t.g = g; t.decide = false;
+  closeSheet();
+  render({ flip: true, slowFlip: true });
+  if (!quiet) toast(`Moved to ${GNAME[g]} <span>· ${esc(t.text)}</span>`, () => { t.g = from; render({ flip: true }); });
+}
+function doall() {
+  const w = openTodos().filter(waiting);
+  const was = w.map((t) => [t, t.g]);
+  w.forEach((t) => { t.g = 'later'; t.decide = false; });
+  render({ flip: true, slowFlip: true });
+  toast(`Moved ${w.length} to Later`, () => { was.forEach(([t, g]) => { t.g = g; }); render({ flip: true }); });
+}
+function toggleGot(id) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i) return;
+  i.got = !i.got;
+  render();
+  const row = rowEl(id);
+  if (i.got) pulse(row);
+}
+async function clearGot() {
+  const got = S.shop.filter((i) => i.got && !i.gone);
+  if (!got.length) return;
+  if (!rm()) await Promise.all(got.map((i, n) => sleep(n * 60).then(() => fold(rowEl(i.id), 1))));
+  got.forEach((i) => { i.gone = true; });
+  S.cleared = got;
+  render({ flip: true });
+  toast(`Cleared ${plural(got.length, 'item')} you got`, undoClear);
+}
+function undoClear() {
+  if (!S.cleared) return;
+  S.cleared.forEach((i) => { i.gone = false; });
+  S.cleared = null;
+  hideToast();
+  render({ flip: true });
+}
+async function removeLine(id, kind) {
+  const list = kind === 'stash' ? S.stash : S.shop;
+  const it = list.find((x) => x.id === id);
+  if (!it || it.gone) return;
+  await fold(rowEl(id), -1);
+  it.gone = true;
+  if (kind === 'shop' && S.stepper === id) S.stepper = null;
+  render({ flip: true });
+  toast(`Removed <span>· ${esc(it.name)}</span>`, () => { it.gone = false; render({ flip: true }); });
+}
+function changeQty(id, d) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i) return;
+  i.qty = Math.max(1, Math.min(99, i.qty + d));
+  render();
+  armStepper(id);
+}
+let stepTimer = 0;
+function armStepper(id) {
+  clearTimeout(stepTimer);
+  stepTimer = setTimeout(() => { if (S.stepper === id) { S.stepper = null; render(); } }, T(3200));
+}
+
+/* ---------------- sheets ---------------- */
+function openSheet(html) { sheet.innerHTML = `<div class="grab" aria-hidden="true"></div>${html}`; phone.classList.add('sheet-on'); }
+function closeSheet() { phone.classList.remove('sheet-on'); S.menuArmed = false; }
+function detail(id) {
+  const t = S.todo.find((x) => x.id === id);
+  if (!t) return;
+  openSheet(`<h3>${esc(t.text)}</h3><p class="sm${waiting(t) ? ' g' : ''}">${GNAME[t.g]} · added ${ageLabel(t.age) === 'today' ? 'today' : ageLabel(t.age) + ' ago'} · in Todoist too</p>
+    <p class="lab">Group</p><div class="gchips">${GROUPS.filter(([g]) => g !== 'unsorted').map(([g, l]) => `<button type="button" data-act="grp" data-id="${t.id}" data-g="${g}" aria-pressed="${t.g === g}">${l}</button>`).join('')}</div>
+    <div class="sacts"><button class="pillb hue" type="button" data-act="sheet-done" data-id="${t.id}">✓ Done</button><button class="pillb" type="button" data-act="d-talk" data-id="${t.id}"><span class="nv"></span>Talk it through</button></div>`);
+}
+function menu() {
+  const n = S.shop.filter((i) => !i.gone).length;
+  openSheet(S.menuArmed
+    ? `<p class="warnq">Clear the whole list, got or not?</p><div class="sacts"><button class="pillb warn" type="button" data-act="clear-all">Clear all ${n}</button><button class="pillb" type="button" data-act="close">Keep</button></div><p class="sm">Undo stays here until you leave the screen.</p>`
+    : `<h3>Shopping list</h3><p class="sm">${plural(n, 'item')} · synced with your vault 9:41</p><div class="sacts"><button class="pillb" type="button" data-act="arm">Clear everything</button><button class="pillb" type="button" data-act="close">Close</button></div>`);
+}
+async function clearAll() {
+  closeSheet();
+  const all = S.shop.filter((i) => !i.gone);
+  if (!rm()) await Promise.all(all.slice(0, 12).map((i, n) => sleep(n * 40).then(() => fold(rowEl(i.id), 1))));
+  all.forEach((i) => { i.gone = true; });
+  S.cleared = all;
+  render({ flip: true });
+  toast(`Cleared all ${all.length}`, undoClear);
+}
+
+/* ---------------- swipe: the house grammar (SwipeRow) ---------------- */
+const SIDES = { todo: { r: true, l: true }, shop: { r: true, l: true }, stash: { r: false, l: true } };
+let sw = null, openRow = null;
+function paintSwipe(row, x) {
+  const face = $('.face', row);
+  face.style.transform = x ? `translateX(${x}px)` : '';
+  face.classList.toggle('slid', !!x);
+  const lead = $('.ua.lead', row), trail = $('.ua.trail', row);
+  if (lead) lead.style.width = Math.max(0, x) + 'px';
+  if (trail) trail.style.width = Math.max(0, -x) + 'px';
+}
+function settle(row, x) {
+  const face = $('.face', row);
+  [face, $('.ua.lead', row), $('.ua.trail', row)].forEach((el) => { if (el) el.style.transition = `transform ${T(260)}ms ${EASE}, width ${T(260)}ms ${EASE}`; });
+  paintSwipe(row, x);
+  setTimeout(() => [face, $('.ua.lead', row), $('.ua.trail', row)].forEach((el) => { if (el) el.style.transition = ''; }), T(280));
+}
+function closeOpen() { if (openRow && openRow.isConnected) settle(openRow, 0); openRow = null; }
+function commit(row, side) {
+  const id = row.dataset.id, k = row.dataset.k;
+  openRow = null;
+  if (side === 'r') { settle(row, 0); if (k === 'todo') tick(id); else if (k === 'shop') toggleGot(id); }
+  else { if (k === 'todo') { settle(row, 0); moveTo(id, 'later'); } else removeLine(id, k); }
+}
+phone.addEventListener('pointerdown', (e) => {
+  const face = e.target.closest('.face');
+  if (openRow && (!face || face.parentElement !== openRow) && !e.target.closest('.ua')) closeOpen();
+  if (!face || e.target.closest('.qty,.stepper,.hold,.minus')) return;
+  const row = face.parentElement;
+  const sides = SIDES[row.dataset.k];
+  if (!sides) return;
+  sw = { row, x0: e.clientX, y0: e.clientY, dir: null, base: openRow === row ? (parseFloat((face.style.transform.match(/-?[\d.]+/) || [0])[0]) || 0) : 0, x: 0, t: performance.now(), pid: e.pointerId, moved: false };
+});
+phone.addEventListener('pointermove', (e) => {
+  if (!sw || e.pointerId !== sw.pid) return;
+  const dx = (e.clientX - sw.x0) / Z, dy = (e.clientY - sw.y0) / Z;
+  if (!sw.dir) {
+    if (Math.hypot(dx, dy) < 8) return;
+    sw.dir = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'h' : 'v';
+    if (sw.dir === 'v') { sw = null; return; }
+    try { e.target.setPointerCapture(e.pointerId); } catch (_) { /* fine */ }
+  }
+  const sides = SIDES[sw.row.dataset.k];
+  let x = sw.base + dx;
+  if (x > 0 && !sides.r) x = 0;
+  if (x < 0 && !sides.l) x = 0;
+  sw.x = x; sw.moved = true;
+  paintSwipe(sw.row, x);
+});
+function endSwipe(e) {
+  if (!sw || (e && e.pointerId !== sw.pid)) return;
+  const s = sw; sw = null;
+  if (!s.moved) return;
+  const w = s.row.offsetWidth, x = s.x, v = Math.abs(x - s.base) / Math.max(1, performance.now() - s.t);
+  s.row.dataset.dragged = '1';
+  setTimeout(() => { delete s.row.dataset.dragged; }, 50);
+  if (Math.abs(x) > w * 0.6 || (Math.abs(x) > 90 && v > 0.9)) commit(s.row, x > 0 ? 'r' : 'l');
+  else if (Math.abs(x) > 44) { settle(s.row, x > 0 ? 96 : -96); openRow = s.row; }
+  else settle(s.row, 0);
+}
+phone.addEventListener('pointerup', endSwipe);
+phone.addEventListener('pointercancel', endSwipe);
+scroller.addEventListener('scroll', () => { if (openRow) closeOpen(); }, { passive: true });
+
+/* ---------------- taps ---------------- */
+phone.addEventListener('click', (e) => {
+  const ua = e.target.closest('.ua');
+  if (ua) { const row = ua.closest('.row'); commit(row, ua.dataset.side); return; }
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const row = el.closest('.row');
+  if (row && row.dataset.dragged) { e.preventDefault(); return; }
+  const id = (row && row.dataset.id) || el.dataset.id;
+  const act = el.dataset.act;
+  if (act === 'open') e.preventDefault();
+  stopScene();
+  ({
+    tick: () => tick(id), untick: () => untick(id), detail: () => detail(id), reopen: () => reopen(id),
+    fold: () => { S.doneOpen = !S.doneOpen; render({ flip: true }); },
+    grp: () => moveTo(el.dataset.id, el.dataset.g), 'sheet-done': () => { closeSheet(); setTimeout(() => tick(el.dataset.id), T(200)); },
+    'd-done': () => { const t = S.todo.find((x) => x.id === el.dataset.id); if (t) t.decide = false; render(); tick(el.dataset.id); },
+    'd-later': () => moveTo(el.dataset.id, 'later'),
+    'd-talk': () => { closeSheet(); toast('Opens Nova with this to-do named <span>· you say what is in the way</span>'); },
+    doall, retry: () => { S.syncBad = false; render(); toast('Todoist synced just now'); },
+    got: () => toggleGot(id), qty: () => { S.stepper = id; render(); armStepper(id); }, inc: () => changeQty(id, 1), dec: () => changeQty(id, -1),
+    'clear-got': clearGot, 'undo-clear': undoClear, menu, arm: () => { S.menuArmed = true; menu(); }, 'clear-all': clearAll, close: closeSheet,
+    open: () => { const k = S.stash.find((x) => x.id === id); if (k) toast(`Opening <span>· ${esc(k.host)}</span>`); },
+    edit: () => { S.stashEdit = !S.stashEdit; render({ flip: true }); }, rm: () => removeLine(id, 'stash'),
+    jump: () => scrollTo($('#' + el.dataset.to, scroller), 90),
+    seg: () => setScreen(el.dataset.scr), back: () => toast('Back to More'),
+    add: () => playAdd(),
+  }[act] || (() => {}))();
+});
+
+/* ---------------- the finger and the four moments ---------------- */
+let RUN = 0;
+const live = (n) => n === RUN;
+function stopScene() { RUN++; fingerEl.style.opacity = 0; lapse.classList.remove('on'); paintScenes(); }
+function fingerTo(el, dx = 0) {
+  if (!el) return Promise.resolve();
+  const pr = phone.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const x = (r.left + r.width / 2 - pr.left) / Z + dx, y = (r.top + r.height / 2 - pr.top) / Z;
+  const first = fingerEl.style.opacity !== '1';
+  fingerEl.style.transition = first ? `opacity ${T(200)}ms ease` : `opacity ${T(200)}ms ease, transform ${T(420)}ms ${EASE}`;
+  fingerEl.style.transform = `translate(${x}px,${y}px)`;
+  fingerEl.style.opacity = 1;
+  return sleep(first ? 260 : 460);
+}
+async function press() { if (!rm()) await fingerEl.firstElementChild.animate([{ transform: 'scale(1)' }, { transform: 'scale(.8)' }, { transform: 'scale(1)' }], { duration: T(240), easing: OUT }).finished; else await sleep(120); }
+async function dragFinger(row, from, to, ms) {
+  const pr = phone.getBoundingClientRect(), r = row.getBoundingClientRect();
+  const x0 = (r.left + r.width * 0.72 - pr.left) / Z, y = (r.top + r.height / 2 - pr.top) / Z;
+  if (from === 0) {
+    fingerEl.style.transition = `opacity ${T(200)}ms ease, transform ${T(300)}ms ${EASE}`;
+    fingerEl.style.transform = `translate(${x0}px,${y}px)`;
+    fingerEl.style.opacity = 1;
+    await sleep(320);
+  }
+  const steps = 14;
+  for (let s = 1; s <= steps; s++) {
+    const x = from + ((to - from) * s) / steps;
+    paintSwipe(row, x);
+    fingerEl.style.transition = 'opacity .2s ease';
+    fingerEl.style.transform = `translate(${x0 + x}px,${y}px)`;
+    await sleep(ms / steps);
+  }
+}
+function resetItem(kind, id) {
+  const fresh = INIT()[kind].find((x) => x.id === id);
+  const list = S[kind];
+  const at = list.findIndex((x) => x.id === id);
+  if (fresh && at >= 0) list[at] = fresh;
+  if (kind === 'todo') S.done = S.done.filter((d) => d.from !== id);
+}
+async function typeInto(lines, run) {
+  S.adding = '';
+  render();
+  let shown = '';
+  for (let L = 0; L < lines.length; L++) {
+    for (const ch of lines[L]) {
+      if (!live(run)) return false;
+      shown += ch;
+      S.adding = `<span class="ph typed">${esc(shown)}<span class="caret"></span></span><span class="plus" aria-hidden="true">${PLUS}</span>`;
+      addbar.innerHTML = S.adding;
+      await sleep(rm() ? 8 : 34);
+    }
+    if (L < lines.length - 1) shown += '\n';
+  }
+  return true;
+}
+async function sceneTick() {
+  const run = ++RUN; paintScenes();
+  await setScreen('todo', true);
+  resetItem('todo', 't2');
+  render({ flip: true });
+  const row = rowEl('t2');
+  await scrollTo(row, 260); if (!live(run)) return;
+  await fingerTo($('.tick', row)); if (!live(run)) return;
+  await press(); tick('t2');
+  await sleep(700); if (!live(run)) return;
+  fingerEl.style.opacity = 0;
+  await sleep(1800); if (!live(run)) return;
+  await fingerTo(tundo); if (!live(run)) return;
+  await press(); tundo.click();
+  await sleep(500);
+  fingerEl.style.opacity = 0; if (live(run)) { RUN++; paintScenes(); }
+}
+// one to-do ages in place: its age counts up, the gold edge deepens, and in B
+// its dot drifts across the two-week line. Patched, not re-rendered, so the
+// edge and the dot glide rather than jump.
+function ageInPlace(t) {
+  const row = rowEl(t.id);
+  if (!row) return;
+  row.style.setProperty('--st', glow(t));
+  const age = $('.age', row);
+  age.textContent = ageLabel(t.age);
+  age.classList.toggle('old', waiting(t));
+  const w = openTodos().filter(waiting).length;
+  const wn = $('[data-num="w"]', scroller);
+  if (wn && wn.textContent !== String(w)) {
+    wn.textContent = String(w);
+    wn.animate(rm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ transform: 'translateY(45%)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: T(260), easing: OUT });
+  } else if (!wn && w) render();
+  const dot = $(`[data-tw="dot-${t.id}"]`, scroller);
+  if (dot) {
+    const left = ((Math.min(t.age, 49) / 49) * 318).toFixed(1);
+    dot.style.left = left + 'px';
+    dot.dataset.twl = left;
+    dot.classList.toggle('old', waiting(t));
+    twPrev.set(`dot-${t.id}`, { left: left + 'px' });
+  }
+}
+async function sceneStale() {
+  const run = ++RUN; paintScenes();
+  await setScreen('todo', true);
+  resetItem('todo', 't2');
+  render({ flip: true });
+  const t = S.todo.find((x) => x.id === 't2');
+  await scrollTo(rowEl('t2'), DIR === 'b' ? 360 : 280); if (!live(run)) return;
+  lapse.querySelector('span').textContent = 'Time-lapse: five weeks pass';
+  lapse.classList.add('on');
+  for (const a of [11, 13, 15, 18, 22, 26, 30, 34, 39, 44]) {
+    await sleep(340);
+    if (!live(run)) return;
+    t.age = a;
+    ageInPlace(t);
+  }
+  await sleep(500); if (!live(run)) return;
+  lapse.classList.remove('on');
+  t.decide = true;
+  render({ flip: true });
+  const strip = $('[data-strip="t2"]', scroller);
+  if (strip) strip.animate(rm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: T(rm() ? 200 : 300), easing: OUT });
+  await sleep(1400); if (!live(run)) return;
+  await fingerTo($('[data-act="d-later"]', rowEl('t2'))); if (!live(run)) return;
+  await press(); moveTo('t2', 'later');
+  await sleep(900); fingerEl.style.opacity = 0;
+  if (live(run)) { RUN++; paintScenes(); }
+}
+async function sceneAdd() {
+  const run = ++RUN; paintScenes();
+  await setScreen('shop', true);
+  S.shop = S.shop.filter((i) => !/^n\d/.test(i.id));
+  render({ flip: true });
+  scroller.scrollTo({ top: 0, behavior: rm() ? 'auto' : 'smooth' });
+  await fingerTo($('.ph', addbar)); if (!live(run)) return;
+  await press(); fingerEl.style.opacity = 0;
+  const lines = ['lemons', 'tortillas', 'oat milk', 'foil'];
+  const ok = await typeInto(lines, run); if (!ok) return;
+  await fingerTo($('.plus', addbar)); if (!live(run)) return;
+  await press(); fingerEl.style.opacity = 0;
+  const dest = { lemons: 'Produce', tortillas: 'Bakery', 'oat milk': 'Dairy & Eggs', foil: 'Household & Other' };
+  const made = lines.map((name, n) => ({ id: 'n' + n + Date.now(), name, a: dest[name], qty: 1, sorting: true }));
+  S.adding = null;
+  S.shop.push(...made);
+  render({ flip: true, top: 0 });
+  await sleep(1300); if (!live(run)) return;
+  for (const m of made) {
+    if (!live(run)) return;
+    m.sorting = false;
+    render({ flip: true, slowFlip: true });
+    await sleep(380);
+  }
+  if (live(run)) { RUN++; paintScenes(); }
+}
+async function sceneClear() {
+  const run = ++RUN; paintScenes();
+  await setScreen('shop', true);
+  if (S.cleared) undoClear();
+  resetItem('shop', 's3'); resetItem('shop', 's7');
+  render({ flip: true });
+  for (const id of ['s3', 's7']) {
+    const i = S.shop.find((x) => x.id === id);
+    const row = rowEl(id);
+    await scrollTo(row, 300); if (!live(run)) return;
+    if (!i.got) { await fingerTo($('.circ', row)); await press(); toggleGot(id); await sleep(380); }
+  }
+  const btn = $('.clearbtn', scroller);
+  await scrollTo(btn, 420); if (!live(run)) return;
+  await fingerTo(btn); if (!live(run)) return;
+  await press(); fingerEl.style.opacity = 0;
+  await clearGot();
+  await sleep(1600); if (!live(run)) return;
+  const u = $('[data-act="undo-clear"]', scroller);
+  await scrollTo(u, 420);
+  await fingerTo(u); if (!live(run)) return;
+  await press(); undoClear();
+  await sleep(500); fingerEl.style.opacity = 0;
+  if (live(run)) { RUN++; paintScenes(); }
+}
+async function sceneOpen() {
+  const run = ++RUN; paintScenes();
+  await setScreen('stash', true);
+  const row = rowEl('k1');
+  await scrollTo(row, 240); if (!live(run)) return;
+  await fingerTo($('.mt', row), -40); if (!live(run)) return;
+  const link = $('.link', row);
+  link.style.background = 'rgba(255,255,255,.06)';
+  await press();
+  link.style.background = '';
+  const k = S.stash.find((x) => x.id === 'k1');
+  toast(`Opening <span>· ${esc(k.host)}</span>`);
+  await sleep(700); fingerEl.style.opacity = 0;
+  if (live(run)) { RUN++; paintScenes(); }
+}
+async function sceneRemove() {
+  const run = ++RUN; paintScenes();
+  await setScreen('stash', true);
+  resetItem('stash', 'k2');
+  render({ flip: true });
+  const row = rowEl('k2');
+  await scrollTo(row, 240); if (!live(run)) return;
+  await dragFinger(row, 0, -96, 360); if (!live(run)) return;
+  openRow = row;
+  await sleep(800); if (!live(run)) return;
+  await dragFinger(row, -96, -300, 300); if (!live(run)) return;
+  fingerEl.style.opacity = 0;
+  openRow = null;
+  await removeLine('k2', 'stash');
+  await sleep(1300); if (!live(run)) return;
+  await fingerTo(tundo); if (!live(run)) return;
+  await press(); tundo.click();
+  await sleep(500); fingerEl.style.opacity = 0;
+  if (live(run)) { RUN++; paintScenes(); }
+}
+async function playAdd() {
+  if (SCR === 'shop') return sceneAdd();
+  const run = ++RUN; paintScenes();
+  if (SCR === 'todo') {
+    const ok = await typeInto(['Order printer ink'], run); if (!ok) return;
+    await sleep(300); if (!live(run)) return;
+    S.adding = null;
+    S.todo.push({ id: 'n' + Date.now(), text: 'Order printer ink', g: 'errands', age: 0 });
+    render({ flip: true });
+    toast('Added to Errands <span>· Nova guessed the group</span>');
+  } else {
+    S.adding = `<div class="form"><div class="fld"><span class="k">Link</span>https://store.example.com/desk-lamp</div><div class="fld"><span class="k">Name</span>Desk lamp</div><div class="shelves"><span class="on">Desk setup</span><span>Reading</span><span>Kitchen</span><span>New shelf</span></div><div class="fld dim"><span class="k">Note</span>optional</div><div class="formgo"><span class="pillb hue">Stash it</span></div></div>`;
+    render();
+    await sleep(1800); if (!live(run)) return;
+    S.adding = null;
+    S.stash.splice(3, 0, { id: 'n' + Date.now(), name: 'Desk lamp', host: 'store.example.com', sh: 'Desk setup' });
+    render({ flip: true });
+    toast('Stashed on Desk setup <span>· the name came from the page</span>');
+  }
+  if (live(run)) { RUN++; paintScenes(); }
+}
+
+/* ---------------- notes, counts and switches ---------------- */
+const DIRS = {
+  a: { name: 'A · One grammar', h: 'var(--acc)',
+    rkm: '<b>A removes</b> the tracked-capital heads, the per-row group label, the duplicate "2 ×", the resting steppers, Stash\'s second link and ×, its four-field form and intro, and gold on every heading. <b>It keeps</b> every function, the staleness hairline, the aisles and shelves, Clear all\'s confirm and Undo, recipe amounts. <b>It moves</b> adding to a field floating at the foot, changing a group into the row\'s details, clearing everything into the ⋯ menu.',
+    notes: {
+      todo: ['To-Do', 'The words lead each row. One circle finishes, the row opens its details (group, Done, talk it through), swipe right is Done, swipe left is Later. The serif line counts what has waited on you; the status line says when Todoist last synced, or that it failed.'],
+      shop: ['Shopping', 'Tap anywhere on a row to put it in the basket; it stays in its aisle, struck through, until you clear what you got. The count is one pill; tap it for a 44 pt stepper. Swipe left removes one line.'],
+      stash: ['Stash', 'One tap target per row: the whole row opens the link. Swipe left to remove, or Edit for a remove button on every row. Adding starts with the link; name, shelf and note follow.'],
+    } },
+  b: { name: 'B · Instruments', h: 'var(--gold)',
+    rkm: '<b>B is A plus one living object</b> at the top of each screen, standing in for the count line: your to-dos plotted by how long they have waited, the basket as a ring split by aisle, the shelves drawn to their size. <b>It removes and moves</b> what A does; the object is one card above the list, and each part of it takes you to its rows.',
+    notes: {
+      todo: ['To-Do', 'Every open to-do is a dot placed by its age, in its group\'s lane. Past the gold line at two weeks it glows; once moved to Later it goes hollow. One do-all moves everything still waiting to Later, with Undo.'],
+      shop: ['Shopping', 'The ring is the list: one arc per aisle, filling green as you get things. The three aisles with the most left sit beside it, and a tap goes there. Clearing what you got empties the ring with them.'],
+      stash: ['Stash', 'The shelves as one bar, each part as wide as it is full. A tap goes to that shelf. Rows below are A\'s: one target, swipe to remove.'],
+    } },
+  c: { name: 'C · One screen', h: 'var(--stash)',
+    rkm: '<b>C folds the three into one Lists screen</b>, switched at the top, so moving between them is one tap rather than a trip through More. <b>It removes</b> two of the three heads and two of the three add forms. <b>It keeps</b> A\'s rows and every route: a link to To-Do, Shopping or Stash opens Lists on that list. <b>It moves</b> each list\'s title into the switch, with its count.',
+    notes: {
+      todo: ['To-Do', 'The same list as A under one title. The switch carries each list\'s count and colour, so you can see that 11 are open without leaving Shopping.'],
+      shop: ['Shopping', 'One add field for all three: it follows the list you are on, and a pasted link offers to go to the Stash instead.'],
+      stash: ['Stash', 'Stash is the third segment. On the Mac the three would stand side by side as columns.'],
+    } },
+};
+const SCENES = {
+  todo: [['Tick one off', '✓', sceneTick], ['A to-do goes stale', '◷', sceneStale]],
+  shop: [['Add four at once', '+', sceneAdd], ['Get two, then clear', '✓', sceneClear]],
+  stash: [['Open a link', '↗', sceneOpen], ['Remove a link', '✕', sceneRemove]],
+};
+const COUNTS = {
+  a: { todo: [15, 17], shop: [24, 18], stash: [17, 11] },
+  b: { todo: [15, 14], shop: [24, 17], stash: [17, 13] },
+  c: { todo: [15, 18], shop: [24, 19], stash: [17, 13] },
+};
+const FIRST = { a: { todo: 247, shop: 247, stash: 247 }, b: { todo: 460, shop: 441, stash: 352 }, c: { todo: 309, shop: 309, stash: 309 } };
+let sceneBtns = [];
+function paintScenes() {
+  const list = SCENES[SCR];
+  const host = $('#scenes');
+  const hue = { todo: 'var(--todo)', shop: 'var(--shop)', stash: 'var(--stash)' }[SCR];
+  if (host.dataset.scr !== SCR) {
+    host.dataset.scr = SCR;
+    host.innerHTML = list.map(([label, ic], n) => `<button class="scene" type="button" data-n="${n}" aria-pressed="false" style="--h:${hue}"><i aria-hidden="true">${ic}</i>${label}</button>`).join('');
+    sceneBtns = $$('.scene', host);
+  }
+}
+function paintNotes() {
+  const d = DIRS[DIR];
+  $('#rkm').innerHTML = d.rkm;
+  const c = COUNTS[DIR], f = FIRST[DIR];
+  const lab = { todo: 'To-Do', shop: 'Shopping', stash: 'Stash' };
+  const before = { todo: 276, shop: 290, stash: 502 };
+  $('#counts').innerHTML = ['todo', 'shop', 'stash'].map((k) => `<div><b>${lab[k]}</b>Tappable above the fold <span class="n">${c[k][0]} → ${c[k][1]}</span><br>First row <span class="n">${before[k]} → ${f[k]}</span> pt</div>`).join('');
+  $('#notes').innerHTML = `<h2>${d.name}</h2><p class="sub">The phone plays real moves: tap a circle, swipe a row either way, tap a count, use Undo. Or play a moment under the phone.</p>` +
+    ['todo', 'shop', 'stash'].map((k) => `<div class="st${k === SCR ? ' on' : ''}" style="--h:${{ todo: 'var(--todo)', shop: 'var(--shop)', stash: 'var(--stash)' }[k]}"><h3>${d.notes[k][0]}</h3><p>${d.notes[k][1]}</p>${k === 'shop' ? '<span class="new">New: removing one line (a small server route; its Undo is the existing restore) and an Undo on clearing what you got.</span>' : k === 'stash' ? '<span class="new">New: Undo on a remove, and the name read from the page when you paste a link.</span>' : '<span class="new">New: Later on the swipe (the existing group write) and the honest Todoist line (fields the server already sends).</span>'}</div>`).join('');
+}
+function placePill(seg) {
+  const on = seg.querySelector('[aria-selected="true"],[aria-pressed="true"]');
+  const pill = seg.querySelector('.pill');
+  if (!on || !pill) return;
+  pill.style.width = on.offsetWidth + 'px';
+  pill.style.transform = `translateX(${on.offsetLeft - 3}px)`;
+}
+async function setScreen(k, fromScene) {
+  if (!fromScene) stopScene();
+  closeSheet();
+  if (SCR === k) { render(); return; }
+  const IDX = { todo: 0, shop: 1, stash: 2 };
+  const from = IDX[SCR];
+  SCR = k; S.stepper = null; S.adding = null;
+  $$('#scrs [data-scr]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scr === k)));
+  placePill($('#scrs'));
+  render({ top: 0 });
+  if (!rm()) {
+    if (DIR === 'c') {
+      const lp = $('.lp', scroller);
+      if (lp) lp.animate([{ transform: `translateX(${from * 100}%)` }, { transform: `translateX(${IDX[k] * 100}%)` }], { duration: T(320), easing: EASE });
+      const dx = IDX[k] > from ? 24 : -24;
+      $$('.gh, .card, .news, .stat, .foot, .clearbtn', scroller).forEach((el) => el.animate([{ opacity: 0, transform: `translateX(${dx}px)` }, { opacity: 1, transform: 'none' }], { duration: T(300), easing: OUT }));
+    } else scroller.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: T(300), easing: EASE });
+  }
+  paintScenes();
+  location.replace('#' + DIR + (k === 'todo' ? '' : '-' + k));
+  await sleep(rm() ? 60 : 320);
+}
+function setDir(k) {
+  stopScene();
+  DIR = k;
+  $$('#dirs [data-dir]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.dir === k)));
+  placePill($('#dirs'));
+  twPrev.clear();
+  render({ top: 0 });
+  if (!rm()) scroller.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T(260), easing: 'ease' });
+  location.replace('#' + k + (SCR === 'todo' ? '' : '-' + SCR));
+}
+
+$('#dirs').addEventListener('click', (e) => { const b = e.target.closest('[data-dir]'); if (b) setDir(b.dataset.dir); });
+$('#scrs').addEventListener('click', (e) => { const b = e.target.closest('[data-scr]'); if (b) setScreen(b.dataset.scr); });
+$('#scenes').addEventListener('click', (e) => {
+  const b = e.target.closest('.scene');
+  if (!b) return;
+  stopScene();
+  sceneBtns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  SCENES[SCR][+b.dataset.n][2]().finally(() => { b.setAttribute('aria-pressed', 'false'); });
+});
+$('#reset').addEventListener('click', () => { stopScene(); hideToast(); closeSheet(); S = INIT(); twPrev.clear(); render({ top: 0 }); });
+$('#slow').addEventListener('click', (e) => { SLOW = SLOW === 1 ? 4 : 1; doc.style.setProperty('--slow', SLOW); e.currentTarget.setAttribute('aria-pressed', String(SLOW > 1)); });
+$('#rmprev').addEventListener('click', (e) => { RMP = !RMP; phone.classList.toggle('rm', rm()); e.currentTarget.setAttribute('aria-pressed', String(RMP)); });
+mq.addEventListener('change', () => phone.classList.toggle('rm', rm()));
+phone.classList.toggle('rm', rm());
+
+function fit() {
+  const avail = Math.min(390, doc.clientWidth);
+  Z = avail / 390;
+  pbox.style.setProperty('--z', String(Z));
+  phone.style.setProperty('--z', String(Z));
+  placePill($('#dirs')); placePill($('#scrs'));
+}
+window.addEventListener('resize', fit);
+
+const m = /^#([abc])(?:-(shop|stash|todo))?$/.exec(location.hash);
+if (m) { DIR = m[1]; SCR = m[2] || 'todo'; }
+$$('#dirs [data-dir]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.dir === DIR)));
+$$('#scrs [data-scr]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scr === SCR)));
+fit();
+render({ top: 0 });
+paintScenes();
+requestAnimationFrame(() => { placePill($('#dirs')); placePill($('#scrs')); });
+window.__lists = { setDir, setScreen, scenes: SCENES, state: () => S };
+})();
+</script>
