@@ -91,6 +91,19 @@ test('quick-plan normalize: maps to library ids with last-weight prefill, ad-hoc
   assert.throws(() => normalizeQuickPlan({ name: 'X', exercises: [] }, library), /incomplete/);
 });
 
+test('deload signal: a day\'s age is calendar days, across a daylight-saving change', () => {
+  // 01:00 on 5 Oct 2026 in Melbourne, the first morning of AEDT: local
+  // midnight minus local noon came out at x.46 for every day before the
+  // switch and rounded a day short (the suite went red at this hour)
+  const now = new Date(2026, 9, 5, 1, 0, 0);
+  const iso = (daysAgo) => { const d = new Date(2026, 9, 5 - daysAgo, 12); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const day = (daysAgo, hrv) => ({ date: iso(daysAgo), hrv, sleepAsleepMinutes: 420 });
+  // three steady baseline days just past the 3-day window, then a real drop
+  const s = computeDeloadSignal([day(6, 90), day(5, 90), day(4, 90), day(3, 72), day(2, 72), day(1, 72), day(0, 72)], { now });
+  assert.equal(s.advise, true);
+  assert.match(s.reason, /HRV is down 20% on your baseline across the last 4 logged days/);
+});
+
 test('deload signal: date-aware — honest on thin/sparse data, fires on a real drop, quiet when steady', () => {
   // daysAgo → a dated health-day file; the signal must reason over CALENDAR
   // days, not file order (the sweep found sparse files masquerading as

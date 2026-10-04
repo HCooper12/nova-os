@@ -307,8 +307,20 @@ export async function computeProgressions(vaultPath, routines) {
 // the last 3 CALENDAR days or the advisory claims recency the data doesn't
 // have (the honest-degradation rule; see the steps incident).
 export const RHR_RISE_THRESHOLD = 0.08;
-export function computeDeloadSignal(healthDays) {
-  const dayAge = (d) => Math.round((new Date(new Date().toDateString()) - new Date(`${d.date}T12:00:00`)) / 86400000);
+// A DAY'S AGE IS CALENDAR ARITHMETIC (5 Oct 2026). It used to be local
+// midnight minus local noon, rounded: a normal day sits on exactly x.5, and
+// the hour daylight saving takes in October pushed every day before the
+// switch to x.46, so for ten days after each clock change a day counted as a
+// day younger and the "last 3 days" slid against the baseline. Found when the
+// suite went red at 01:00 on the first AEDT morning. `now` is for the tests.
+const dayNumber = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000 : NaN;
+};
+const localDateKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export function computeDeloadSignal(healthDays, { now = new Date() } = {}) {
+  const today = dayNumber(localDateKey(now));
+  const dayAge = (d) => today - dayNumber(d.date);
   const all = (healthDays || []).filter((d) => d.date);
   const withHrv = all.filter((d) => d.hrv != null && dayAge(d) <= 10);
   const recent = withHrv.filter((d) => dayAge(d) <= 3);
