@@ -3247,8 +3247,12 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   from { opacity: 0; transform: translateY(8px) scale(.985); }
   to { opacity: 1; transform: none; }
 }
+/* `backwards`, never `both` (5 Oct 2026, the sheets audit): a forwards fill
+   keeps applying `transform: none` after the entrance, and an animation
+   outranks the inline transform the grabber's drag writes, so 5 of 9 sheets
+   ignored his finger and vanished on release past 80 px */
 .nv-materialize {
-  animation: nvMaterialize var(--nv-dur-slow) var(--nv-ease) both;
+  animation: nvMaterialize var(--nv-dur-slow) var(--nv-ease) backwards;
   transition: -webkit-backdrop-filter var(--nv-dur-slow) var(--nv-ease),
               backdrop-filter var(--nv-dur-slow) var(--nv-ease);
 }

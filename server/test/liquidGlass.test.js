@@ -183,6 +183,10 @@ test('MATERIALIZE: the entrance cannot be killed by a property one engine lacks'
   const rule = CSS.slice(CSS.indexOf('.nv-materialize {'));
   const body = rule.slice(0, rule.indexOf('}'));
   assert.match(body, /animation: nvMaterialize/);
+  // backwards, never forwards or both: a fill that outlives the entrance
+  // overrides the grabber's inline transform and the sheet ignores his finger
+  assert.match(body, /animation: nvMaterialize [^;]* backwards;/);
+  assert.doesNotMatch(body, /animation: nvMaterialize [^;]* (both|forwards);/);
   assert.match(body, /transition:[\s\S]*-webkit-backdrop-filter/, 'Safari still needs the prefix');
   assert.match(body, /transition:[\s\S]*[^-]backdrop-filter/);
   // a transition has no from-value on mount without this
