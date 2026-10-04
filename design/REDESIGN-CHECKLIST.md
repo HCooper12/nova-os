@@ -488,18 +488,18 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **Prior:** #7 title squeeze and the gold Stale tag both done and re-verified.
 
 #### Notes — `notes` · `src/screens/Notes.jsx` (123) · `src/vals/valsNotes.js`
-- [ ] E1 · Head + count, Search, type-filter `Rail` with per-type hue + count — `Notes.jsx:11-37`
-- [ ] E2 · Note list rows (title · type tag · date), prefetch on pointerdown — `Notes.jsx:40-45`
-- [ ] E3 · Reader — type eyebrow, serif title, meta, ▶ Watch source, body paragraphs, Linked in Galaxy chips — `Notes.jsx:49-65, 111-118`
-- [ ] E4 · Studio pipeline row (idea notes) — status chip seed → outlining → scripting → shipped, Draft outline, ◐ Tonight — `Notes.jsx:55-61`
-- [ ] E5 · Today's review reflect card — summary, Reflect / Close, ✦ Generate a prompt, textarea, Save — `Notes.jsx:68-108`
+- [m] E1 · Head + count, Search, type-filter `Rail` with per-type hue + count — `Notes.jsx:11-37`
+- [m] E2 · Note list rows (title · type tag · date), prefetch on pointerdown — `Notes.jsx:40-45`
+- [m] E3 · Reader — type eyebrow, serif title, meta, ▶ Watch source, body paragraphs, Linked in Galaxy chips — `Notes.jsx:49-65, 111-118`
+- [m] E4 · Studio pipeline row (idea notes) — status chip seed → outlining → scripting → shipped, Draft outline, ◐ Tonight — `Notes.jsx:55-61`
+- [m] E5 · Today's review reflect card — summary, Reflect / Close, ✦ Generate a prompt, textarea, Save — `Notes.jsx:68-108`
 **Prior:** #11 chip wall done (the Rail). **First look:** two different "extra panel on a note" patterns share one reader.
 
 #### Journal — `journal` · `src/screens/Journal.jsx` (115) · vals in `src/vals/valsNotes.js`
-- [ ] J1 · Head + count; composer — ✦ Generate a prompt (literal hex `tone="#cbb6f2"`), prompt line, textarea, Save entry — `Journal.jsx:11-43`
-- [ ] J2 · Loading / empty / empty-in-category copy; category chips ALL · PERSONAL · TRAINING · SYSTEM — `Journal.jsx:47-60`
-- [ ] J3 · Day rows — serif date (today larger + accented + Tag), one dot per entry (cap 6 + N), house Chevron, tap expands with `nvRise` — `Journal.jsx:69-89`
-- [ ] J4 · Expanded day — time, category Tag, heading (wikilink stripped), text — `Journal.jsx:96-107`
+- [m] J1 · Head + count; composer — ✦ Generate a prompt (literal hex `tone="#cbb6f2"`), prompt line, textarea, Save entry — `Journal.jsx:11-43`
+- [m] J2 · Loading / empty / empty-in-category copy; category chips ALL · PERSONAL · TRAINING · SYSTEM — `Journal.jsx:47-60`
+- [m] J3 · Day rows — serif date (today larger + accented + Tag), one dot per entry (cap 6 + N), house Chevron, tap expands with `nvRise` — `Journal.jsx:69-89`
+- [m] J4 · Expanded day — time, category Tag, heading (wikilink stripped), text — `Journal.jsx:96-107`
 **Prior:** #14 date table done and re-verified feature by feature.
 
 #### Stash — `stash` · `src/screens/Stash.jsx` (90) · vals in `src/vals/valsMisc.js`
@@ -508,9 +508,9 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **Prior:** #16 Stash half unresolved (two tap targets per row) [Verified in source].
 
 #### Galaxy — `galaxy` · `src/screens/Galaxy.jsx` (57) · vals in `src/vals/valsMisc.js` · `src/galaxyLayout.js`
-- [ ] Y1 · Head + stats, title, legend chips (type filters, tap fades others), Clear filter, overlay chips Recency · Compost — `Galaxy.jsx:11-33`
-- [ ] Y2 · The canvas — pan, pinch, tap a star; hint line; Reset view when zoomed — `Galaxy.jsx:36-42`
-- [ ] Y3 · Selection card — type eyebrow, serif label, description, Open, Dismiss — `Galaxy.jsx:43-53`
+- [m] Y1 · Head + stats, title, legend chips (type filters, tap fades others), Clear filter, overlay chips Recency · Compost — `Galaxy.jsx:11-33`
+- [m] Y2 · The canvas — pan, pinch, tap a star; hint line; Reset view when zoomed — `Galaxy.jsx:36-42`
+- [m] Y3 · Selection card — type eyebrow, serif label, description, Open, Dismiss — `Galaxy.jsx:43-53`
 **First look:** a bespoke object; the legend row and overlay row are two similar chip rows with different meanings stacked together.
 
 #### Ambient — `ambient` (off-dock, wall mode)
@@ -561,6 +561,12 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 5 Oct 2026 (late morning) — NOTES, JOURNAL AND GALAXY ROUND 1 PUBLISHED:
+  15/79 https://claude.ai/artifact/Di2AruD7vjXEtsxxPPBbfD (Critical: of the six
+  doors between the three screens one exists; "Linked in Galaxy" never opens
+  the Galaxy; the Journal filter dead end; the Studio chip wraps Shipped back
+  to Seed with no Undo). Every page in the redesign now has round 1 out except
+  the desktop round. Rows ticked [m].
 - 5 Oct 2026 (late morning, after the second limit reset) — ROUND 1
   PUBLISHED FOR NINE MORE PAGES (each reviewed: no private text, no dashes,
   checked at 390): Leader 11/76 https://claude.ai/artifact/AKKCcwKQHS2mLuJ2AHpVqL
