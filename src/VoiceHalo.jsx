@@ -10,22 +10,26 @@ export function VoiceHalo({ speaking, listening, inset = '-7px' }) {
   const ref = useRef(null);
   useEffect(() => {
     let raf = 0;
+    let nap = 0;
     let quiet = 0;
+    const live = speaking || listening;
     const tick = () => {
       const el = ref.current;
-      if (el) {
-        const lvl = audioLevel();
-        if (lvl > 0.01) quiet = 0; else quiet++;
-        const live = speaking || listening;
-        // a floor of presence between syllables, fading out once genuinely silent
-        const amp = live ? Math.max(lvl, quiet < 12 ? 0.14 : 0.05) : lvl;
-        el.style.transform = `scale(${(1 + amp * 0.6).toFixed(3)})`;
-        el.style.opacity = String(Math.min(0.95, amp * 1.6));
-      }
+      if (!el) return;
+      const lvl = audioLevel();
+      if (lvl > 0.01) quiet = 0; else quiet++;
+      // a floor of presence between syllables, fading out once genuinely silent
+      const amp = live ? Math.max(lvl, quiet < 12 ? 0.14 : 0.05) : lvl;
+      el.style.transform = `scale(${(1 + amp * 0.6).toFixed(3)})`;
+      el.style.opacity = String(Math.min(0.95, amp * 1.6));
+      // silent and nobody talking: sleep, looking in four times a second for
+      // sound, instead of a frame loop on every screen (the 4 Oct lag survey
+      // measured this halo as the last per-frame work left at rest)
+      if (!live && amp < 0.01) { nap = setTimeout(tick, 250); return; }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); clearTimeout(nap); };
   }, [speaking, listening]);
 
   return (

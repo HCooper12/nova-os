@@ -103,7 +103,7 @@ export function SummaryDock({ v }) {
       <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.holdNovaCore || v.holdNovaText} aria-label="Talk to Nova. Hold to open Nova, listening"
         className="nv-sum-nova" data-listening={listening ? 'true' : undefined}
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
-        <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-3px" />
+        {!gone && <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-3px" />}
         <span className="nv-sum-nova-orb">
           {!gone && <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} style={{ pointerEvents: 'none' }} />}
         </span>
