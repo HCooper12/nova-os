@@ -434,57 +434,57 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 
 #### Leader — `leader` (off-dock)
 `src/screens/Leader.jsx` (146) · `src/vals/valsLeader.js` · `src/LeaderBox.jsx` (shared with Home). Doors: Home's Leader box, a notification, the Mac sidebar.
-- [ ] D1 · Head + "Leadership · daily practice" + research count — `Leader.jsx:56-60`
-- [ ] D2 · Today's idea — chip · title · line · why · refs, or the honest fallbacks — `:63-79`
-- [ ] D3 · The situation box (`LeaderBox`, always `variant="apple"` here even under Command) — `:88-92`
-- [ ] D4 · Working against (struggles, tap to reveal, Handled) · Working for him — `:95-96`
-- [ ] D5 · The sit-down — head + New conversation, `ChatMarkdown` bubbles, empty placeholder, busy line, composer (no mic of its own) — `:99-127`
-- [ ] D6 · Recent ideas trail (last 5) — `:130-143`
+- [m] D1 · Head + "Leadership · daily practice" + research count — `Leader.jsx:56-60`
+- [m] D2 · Today's idea — chip · title · line · why · refs, or the honest fallbacks — `:63-79`
+- [m] D3 · The situation box (`LeaderBox`, always `variant="apple"` here even under Command) — `:88-92`
+- [m] D4 · Working against (struggles, tap to reveal, Handled) · Working for him — `:95-96`
+- [m] D5 · The sit-down — head + New conversation, `ChatMarkdown` bubbles, empty placeholder, busy line, composer (no mic of its own) — `:99-127`
+- [m] D6 · Recent ideas trail (last 5) — `:130-143`
 **First look:** the situation box is one shape drawn on two surfaces by design; the chat composer has no mic while the box above it does.
 
 #### Briefing — `briefing` (off-dock)
 `src/screens/Briefing.jsx` (376) · `src/vals/valsBriefing.js`. Doors: an Inbox `briefing` card, a voice reply, a resume nudge, `#/briefing?id=`; no dock or sidebar row.
-- [ ] B1 · Empty state — "Nothing open. Ask for one.", explainer, 3 starter chips → Voice composer, the stage at rest, "Already made" list — `Briefing.jsx:138-181`
-- [ ] B2 · Loading / working (title, topic, pulsing status, angle checklist ✓ ◍) / error + Back — `:186-222`
-- [ ] B3 · Listen / Read segmented + browser-voice footnote; progress rule — `:339-350`
-- [ ] B4 · Stage pane — hero `Glass` (title · term · heading · image · clip) + mini rail + desktop controls (Pause / Resume / Play · Restart · N/total) — `:25-103, 241-253`
-- [ ] B5 · Transcript pane — section eyebrows, tap-to-seek beat rows — `:255-274`
-- [ ] B6 · Read mode — summary, incomplete-angle warning, sections with "▶ Listen from here", glossary, Sources — `:276-320`
-- [ ] B7 · Head row — Briefing eyebrow, In your vault / Keep in vault, title, "You asked: …", Close; mobile floating controls above the dock — `:326-336, 369-373`
+- [m] B1 · Empty state — "Nothing open. Ask for one.", explainer, 3 starter chips → Voice composer, the stage at rest, "Already made" list — `Briefing.jsx:138-181`
+- [m] B2 · Loading / working (title, topic, pulsing status, angle checklist ✓ ◍) / error + Back — `:186-222`
+- [m] B3 · Listen / Read segmented + browser-voice footnote; progress rule — `:339-350`
+- [m] B4 · Stage pane — hero `Glass` (title · term · heading · image · clip) + mini rail + desktop controls (Pause / Resume / Play · Restart · N/total) — `:25-103, 241-253`
+- [m] B5 · Transcript pane — section eyebrows, tap-to-seek beat rows — `:255-274`
+- [m] B6 · Read mode — summary, incomplete-angle warning, sections with "▶ Listen from here", glossary, Sources — `:276-320`
+- [m] B7 · Head row — Briefing eyebrow, In your vault / Keep in vault, title, "You asked: …", Close; mobile floating controls above the dock — `:326-336, 369-373`
 **Prior:** #20 empty state done. **First look:** `Glass()` here and `StageCard` on Voice are two vocabularies for one idea; `valsBriefing` never reads `demoMode`.
 
 ### TIER 3 · THE SMALL SCREENS
 
 #### Money — `money` · `src/screens/Money.jsx` (155) · `src/vals/valsMoney.js`
-- [ ] M1 · Head + month `<select>` (only with >1 month) — `Money.jsx:19-28`
-- [ ] M2 · This month — total, delta, income, Monthly report chip (`tone="gold"`), Export FY — `Money.jsx:35-46`
-- [ ] M3 · Feeds — imports folder, Check folder now, Scan statement / receipt (file input), scan error / question, "type it" hint — `Money.jsx:48-61`
-- [ ] M4 · By category — rows with progress bar (warn when over), tap → **native `window.prompt` to set a budget** — `Money.jsx:66-85`, `valsMoney.js:34-39`
-- [ ] M5 · Subscription radar — monthly total, per-sub cards (cadence · next expected · price-rise tag), empty copy — `Money.jsx:88-109`
-- [ ] M6 · Ledger — Merchant + Amount inputs, Spend / Money-in toggle, Add; rows with inline category `<select>`, amount by sign, ✕; "showing N of M" cap at 120 — `Money.jsx:116-146`
+- [m] M1 · Head + month `<select>` (only with >1 month) — `Money.jsx:19-28`
+- [m] M2 · This month — total, delta, income, Monthly report chip (`tone="gold"`), Export FY — `Money.jsx:35-46`
+- [m] M3 · Feeds — imports folder, Check folder now, Scan statement / receipt (file input), scan error / question, "type it" hint — `Money.jsx:48-61`
+- [m] M4 · By category — rows with progress bar (warn when over), tap → **native `window.prompt` to set a budget** — `Money.jsx:66-85`, `valsMoney.js:34-39`
+- [m] M5 · Subscription radar — monthly total, per-sub cards (cadence · next expected · price-rise tag), empty copy — `Money.jsx:88-109`
+- [m] M6 · Ledger — Merchant + Amount inputs, Spend / Money-in toggle, Add; rows with inline category `<select>`, amount by sign, ✕; "showing N of M" cap at 120 — `Money.jsx:116-146`
 **First look:** three unrelated list styles on one page; a browser prompt inside a designed surface; gold still the commit hue on "Monthly report" (22 Sep #2 may have missed this screen: UNVERIFIED).
 
 #### Shopping — `shopping` · `src/screens/Shopping.jsx` (147) · vals in `src/vals/valsMisc.js`
-- [ ] G1 · Head + count, multi-line add textarea + Add, error line — `Shopping.jsx:11-34`
-- [ ] G2 · Clear all — idle / armed confirm / post-clear Undo banner (a change acted out) — `Shopping.jsx:39-63`
-- [ ] G3 · Category groups (gold Eyebrows), swipe-right-to-check rows, checkbox, qty prefix + recipe badge, "from {source}", "sorting into an aisle…" — `Shopping.jsx:71-112`
-- [ ] G4 · Quantity stepper − / qty / + — `Shopping.jsx:117-125`
-- [ ] G5 · Done — "Confirm completion — N collected" — `Shopping.jsx:135-144`
+- [m] G1 · Head + count, multi-line add textarea + Add, error line — `Shopping.jsx:11-34`
+- [m] G2 · Clear all — idle / armed confirm / post-clear Undo banner (a change acted out) — `Shopping.jsx:39-63`
+- [m] G3 · Category groups (gold Eyebrows), swipe-right-to-check rows, checkbox, qty prefix + recipe badge, "from {source}", "sorting into an aisle…" — `Shopping.jsx:71-112`
+- [m] G4 · Quantity stepper − / qty / + — `Shopping.jsx:117-125`
+- [m] G5 · Done — "Confirm completion — N collected" — `Shopping.jsx:135-144`
 **First look:** the clear-all flow is a model to copy; check gold category labels read as labels, not actions.
 
 #### Code (Claude Code) — `code` · `src/screens/ClaudeCode.jsx` (143) · vals in `src/vals/valsMisc.js`
-- [ ] K1 · Head + meta, Spar (send the Breaker) · New session · Add to vault (`tone="gold"`) chips — `ClaudeCode.jsx:9-19`
-- [ ] K2 · Console header — three dots, workspace path, connection dot — `ClaudeCode.jsx:27-34`
-- [ ] K3 · Uncommitted changes — count + branch, Show / Hide diff, up to 8 files, diff `<pre>` capped 46%, commit message + Commit + Shelve; read-only vault notice; shelved banner + Restore — `ClaudeCode.jsx:37-77`
-- [ ] K4 · Transcript — BUILDER · BREAKER · SYSTEM · YOU rows, busy dots, not-connected / empty copy — `ClaudeCode.jsx:78-91`
-- [ ] K5 · Input + Run — `ClaudeCode.jsx:92-104`
-- [ ] K6 · Session card — Model raw `<select>`, Workspace `Segmented` (Nova OS / Vault), status line; Can / can't card — `ClaudeCode.jsx:106-138`
+- [m] K1 · Head + meta, Spar (send the Breaker) · New session · Add to vault (`tone="gold"`) chips — `ClaudeCode.jsx:9-19`
+- [m] K2 · Console header — three dots, workspace path, connection dot — `ClaudeCode.jsx:27-34`
+- [m] K3 · Uncommitted changes — count + branch, Show / Hide diff, up to 8 files, diff `<pre>` capped 46%, commit message + Commit + Shelve; read-only vault notice; shelved banner + Restore — `ClaudeCode.jsx:37-77`
+- [m] K4 · Transcript — BUILDER · BREAKER · SYSTEM · YOU rows, busy dots, not-connected / empty copy — `ClaudeCode.jsx:78-91`
+- [m] K5 · Input + Run — `ClaudeCode.jsx:92-104`
+- [m] K6 · Session card — Model raw `<select>`, Workspace `Segmented` (Nova OS / Vault), status line; Can / can't card — `ClaudeCode.jsx:106-138`
 
 #### To-Do — `todos` · `src/screens/Todos.jsx` (127) · `src/vals/valsTodos.js`
-- [ ] T1 · Head + open/done counts, add input + Add, sync note (Todoist / vault) — `Todos.jsx:16-37`
-- [ ] T2 · Category groups (Work · Personal · Fitness · Errands · Later · Unsorted); cupertino: one grouped card per category — `Todos.jsx:44-63`
-- [ ] T3 · Row — swipe-right DONE, 44pt checkbox, full-width title, category text-action (inline `<select>` when editing), age label, staleness hairline that deepens 2→6 weeks — `Todos.jsx:54-100`, `valsTodos.js:61-66`
-- [ ] T4 · Done — header ("the compost loop sweeps these"), filled check to reopen, strikethrough, age; no swipe or undo here — `Todos.jsx:111-121`
+- [m] T1 · Head + open/done counts, add input + Add, sync note (Todoist / vault) — `Todos.jsx:16-37`
+- [m] T2 · Category groups (Work · Personal · Fitness · Errands · Later · Unsorted); cupertino: one grouped card per category — `Todos.jsx:44-63`
+- [m] T3 · Row — swipe-right DONE, 44pt checkbox, full-width title, category text-action (inline `<select>` when editing), age label, staleness hairline that deepens 2→6 weeks — `Todos.jsx:54-100`, `valsTodos.js:61-66`
+- [m] T4 · Done — header ("the compost loop sweeps these"), filled check to reopen, strikethrough, age; no swipe or undo here — `Todos.jsx:111-121`
 **Prior:** #7 title squeeze and the gold Stale tag both done and re-verified.
 
 #### Notes — `notes` · `src/screens/Notes.jsx` (123) · `src/vals/valsNotes.js`
@@ -503,8 +503,8 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **Prior:** #14 date table done and re-verified feature by feature.
 
 #### Stash — `stash` · `src/screens/Stash.jsx` (90) · vals in `src/vals/valsMisc.js`
-- [ ] X1 · Head + count, intro line, add form (Category with datalist · Name · URL · Note · Stash it) — `Stash.jsx:17-46`
-- [ ] X2 · Category groups; item row = name + host/note `<a>` **and a second `<a>` "Open ↗" pill to the same URL**, remove × with inline confirm — `Stash.jsx:57-83`
+- [m] X1 · Head + count, intro line, add form (Category with datalist · Name · URL · Note · Stash it) — `Stash.jsx:17-46`
+- [m] X2 · Category groups; item row = name + host/note `<a>` **and a second `<a>` "Open ↗" pill to the same URL**, remove × with inline confirm — `Stash.jsx:57-83`
 **Prior:** #16 Stash half unresolved (two tap targets per row) [Verified in source].
 
 #### Galaxy — `galaxy` · `src/screens/Galaxy.jsx` (57) · vals in `src/vals/valsMisc.js` · `src/galaxyLayout.js`
@@ -515,15 +515,15 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 
 #### Ambient — `ambient` (off-dock, wall mode)
 `src/screens/Ambient.jsx` (168) · fed by `src/vals/valsOps.js:247-337`. One door: Voice's "◐ Ambient" chip. Exit: tap anywhere (the only affordance is a `title` attribute, invisible on touch).
-- [ ] A1 · Full-bleed tap scrim + state wash (gold attention · cyan clear · none unknown) — `Ambient.jsx:71-78`
-- [ ] A2 · Giant clock (96px, blinking colon) + date; `NovaCore` 300 + italic tagline — `:80-95`
-- [ ] A3 · Tiles NEXT · STEPS · PROTEIN · GATE (count-ups); objectives TRAIN STREAK · PROTEIN MONTH · STEP STREAK when real — `:101-118`
-- [ ] A4 · `PulseStrip` (one topic every 9s), `StreamStrip` (3 newest receipts), sync-age corner label (warn past 15 min), 3600s OLED drift, wake lock — `:26-42, 97-128, 136-168`
+- [m] A1 · Full-bleed tap scrim + state wash (gold attention · cyan clear · none unknown) — `Ambient.jsx:71-78`
+- [m] A2 · Giant clock (96px, blinking colon) + date; `NovaCore` 300 + italic tagline — `:80-95`
+- [m] A3 · Tiles NEXT · STEPS · PROTEIN · GATE (count-ups); objectives TRAIN STREAK · PROTEIN MONTH · STEP STREAK when real — `:101-118`
+- [m] A4 · `PulseStrip` (one topic every 9s), `StreamStrip` (3 newest receipts), sync-age corner label (warn past 15 min), 3600s OLED drift, wake lock — `:26-42, 97-128, 136-168`
 **First look:** no idiom branch (plausibly deliberate for a wall); the most hidden screen after Console; the exit is undiscoverable on a touchscreen.
 
 #### Console — `console` (off-dock, sidebar only)
 `src/screens/ConsoleScreen.jsx` (29) → `src/Instruments.jsx`. The morning brief drawn as five instruments (Recovery/HRV band · 24-hour ring · Steps-this-week bars · Training body · Fuel body), each with an honest-absence state, 90ms staggered reveal, "Read again"; loading / empty / error copy — `Instruments.jsx:46-375`. **The most hidden screen in the app: no `navigate('console')` call site exists.**
-- [ ] C1 · Decide whether Console is a screen, a Home section, or retired — `ConsoleScreen.jsx:13-23`
+- [m] C1 · Decide whether Console is a screen, a Home section, or retired — `ConsoleScreen.jsx:13-23`
 
 ---
 
@@ -561,6 +561,19 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 5 Oct 2026 (late morning, after the second limit reset) — ROUND 1
+  PUBLISHED FOR NINE MORE PAGES (each reviewed: no private text, no dashes,
+  checked at 390): Leader 11/76 https://claude.ai/artifact/AKKCcwKQHS2mLuJ2AHpVqL
+  (0 of 10 struggles ever resolved); Briefing 12/77
+  https://claude.ai/artifact/4yQB7QbvVWFjug3LeuEAUq (glass on screen for 2 of
+  31 sentences on the phone); To-Do, Shopping, Stash 13/78
+  https://claude.ai/artifact/CGq5cSmK2TtujJgjkdvBof (open to-dos rendered
+  BLANK since 23 Sep: FIXED 1070fe2 with a test, reaches his phone with the
+  push); Money and Code 17/80 https://claude.ai/artifact/R2Dm5L8mGaWcTv3Dv81x2r
+  (a merchant name gets 8 pt; Commit takes every file); Ambient and Console
+  21/81 https://claude.ai/artifact/3fTVShPHeABR986sTUAPpu (the wall's two
+  answers differ by 1.02:1; C1 answered three ways). Notes, Journal and
+  Galaxy (15/79) still in flight. Rows for the nine ticked [m].
 - 5 Oct 2026 (morning) — SETTINGS ROUND 1 PUBLISHED: 07/72
   https://claude.ai/artifact/7bFsrEDMaxszokaQdwzXAv (Critical: one scroll of
   7.0 phone screens in demo with 6 of 18 sections hidden, about 20 connected;
