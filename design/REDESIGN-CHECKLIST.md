@@ -561,6 +561,22 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 4 Oct 2026 (night) — LAG: MERGED, NOT PUSHED. 43ae15a the core engine
+  (Opus agent, worktree coreperf, reviewed and re-checked here: same picture,
+  cached shades + short runs, no per-point allocation, HOLO_MINI <= 72 px,
+  IntersectionObserver pause, checkVisibility skip under a cover); 0e56a47
+  the voice halo sleeps when silent; 4d6e821 no aurora under summary, the
+  sky + thread glass stop painting under a settled full screen; 7f40549 no
+  tab bar in full screen. Measured in demo, Chrome, 4x CPU, 390pt: Home at
+  rest 23 -> 106 fps, full screen 32 -> 108 fps (the survey's 23/32 were a
+  production build with the old engine, mine a dev build with the new, so
+  the gain is if anything understated). Agent's own table: main thread per
+  core 4.4-6.4x cheaper, WebKit raster 1.4-2.3x. Gates: lint, build, guard
+  unchanged, suite 3037/3039 (the atlas pair). NOT verified on his phone.
+  Survey findings left: sky drift under the glass at rest and the tab-tap
+  View Transition (both his calls); live-only cache re-serialised on every
+  SSE push (measure on his phone first); ember field rects, Rail layout
+  effect, thread scroll handler (small).
 - 4 Oct 2026 (evening) — NOVA'S ICON: HE PICKED B ("the heart stays";
   "beautiful… very engaging"; the subtitle animation "basically perfect").
   ROUND 2 PUBLISHED to the same page (mockup 69, v2): the REST icon corrected
