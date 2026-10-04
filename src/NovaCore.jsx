@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { audioLevel } from './audioLevel.js';
+import { makeGrains, turnOf, REST, LISTEN, THINK, SPEAK } from './coreGrains.js';
 
 // The Nova Core — the being at the center of Mission Control, the Voice
 // reactor, and the tiny sibling in the sidebar. Two engines share the seed
@@ -21,9 +22,17 @@ import { audioLevel } from './audioLevel.js';
 // BOTH engines are live-speech dynamic (his 20-Aug brief, second pass: the
 // icon he already chose is the one that animates — not a different design):
 // real audio amplitude accelerates the whole scene, flares the light, and
-// surges the geometry; smoothed speaking/listening state tints the palette
-// gold/violet so the mode reads at any size. Idle is untouched. The spiked
+// surges the geometry; smoothed turn state tints the palette (see below) so
+// the mode reads at any size. Idle is untouched. The spiked
 // 'reactor' engine remains selectable but is no longer wired anywhere.
+//
+// A TURN IS A BODY OF GRAINS (5 Oct 2026, mockup 69, his pick "B, the heart
+// stays"): while Nova listens, thinks or speaks, the engine's rings fade out
+// and the grain body in coreGrains.js takes their place, the heart drawn on
+// top in the state's colour. The rings' own tint, seen only as a turn starts
+// and ends, follows the same palette: violet listening, cyan thinking, jade
+// speaking, red pushing back (it was gold, then coral, while speaking).
+// At rest none of it runs, and the core is exactly the one he chose.
 
 const FILAMENT_PRESETS = {
   full: { seed: 7, bands: 32, segs: 36, arc: 1.15, weight: 1, chaos: 1, speed: 0.16, embers: 540, wisps: 84, heart: 0.12 },
@@ -74,11 +83,32 @@ function buildFilamentScene(opts, R) {
   return { bands, embers, wisps };
 }
 
-function drawHeart(ctx, cx, cy, t, hr) {
+// The rings' pull toward the turn's colour: jade while speaking, red while
+// pushing back, cyan thinking, violet listening. Each stops at 82%, so depth
+// still shades the hue, and each target sits where 82% of the way lands on
+// the state's own hue (jade 156, red 356, cyan 189) for the middle depth.
+// With every mix at 0 (rest) the hue is exactly what it always was.
+function tintHue(hue, mS, mL, mT, mC) {
+  hue += (145 - hue) * mS * 0.82;
+  hue += (185 - hue) * mT * 0.82;
+  hue += (389 - hue) * mC * 0.82;
+  hue += (272 - hue) * mL * 0.82;
+  return hue;
+}
+
+// the heart: during a turn its inner light leans `k` of the way toward
+// `tint` (the state's glow); with no tint it is the heart it always was
+function drawHeart(ctx, cx, cy, t, hr, tint = null, k = 0) {
   const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, hr * 3.2);
   g.addColorStop(0, 'rgba(240,252,255,.95)');
-  g.addColorStop(0.18, 'rgba(158,240,255,.8)');
-  g.addColorStop(0.45, 'rgba(64,170,238,.35)');
+  if (tint && k > 0) {
+    const m = (v, c) => Math.round(v + (tint[c] - v) * k);
+    g.addColorStop(0.18, `rgba(${m(158, 0)},${m(240, 1)},${m(255, 2)},.8)`);
+    g.addColorStop(0.45, `rgba(${m(64, 0)},${m(170, 1)},${m(238, 2)},.35)`);
+  } else {
+    g.addColorStop(0.18, 'rgba(158,240,255,.8)');
+    g.addColorStop(0.45, 'rgba(64,170,238,.35)');
+  }
   g.addColorStop(1, 'rgba(20,60,140,0)');
   ctx.fillStyle = g;
   ctx.beginPath();
@@ -109,16 +139,15 @@ function makeFilamentDraw(ctx, size, opts, getState) {
   //   clock — an integrated timebase that ACCELERATES with the real audio
   //           level, so the whole being visibly quickens with each syllable
   //           and never snaps when the speed changes;
-  //   mixS/mixL — smoothed speaking/listening state, pulling the palette
-  //           toward gold / violet so the state reads across a room;
+  //   mixS/mixL/mixT/mixC — smoothed speaking/listening/thinking/pushing-
+  //           back state, pulling the palette toward the turn's colour (see
+  //           tintHue) as the rings fade out and back in;
   //   lvl — raw amplitude, flaring alpha, weight and the band radii.
-  // Idle (all three at 0) is EXACTLY the core he already knows.
-  let mixS = 0, mixL = 0, clock = 0, last = null, lvl = 0;
+  // Idle (all of them at 0) is EXACTLY the core he already knows.
+  let mixS = 0, mixL = 0, mixT = 0, mixC = 0, clock = 0, last = null, lvl = 0;
   const lean = [0, 0]; // the heart's lean toward his finger, smoothed (see leanRef)
   const col = (f, a) => {
-    let hue = 224 - f * 36;
-    hue += (406 - hue) * mixS * 0.82; // → gold, travelling through violet/rose, never green
-    hue += (272 - hue) * mixL * 0.82; // → violet
+    const hue = tintHue(224 - f * 36, mixS, mixL, mixT, mixC);
     const lit = Math.min(38 + (1 - f) * 44 + lvl * 12, 88);
     return `hsla(${hue % 360},${90 - f * 10}%,${lit}%,${a})`;
   };
@@ -127,10 +156,7 @@ function makeFilamentDraw(ctx, size, opts, getState) {
   // elliptic sectors their scaled, butt-capped strokes always covered, so
   // no band needs a save/translate/rotate/scale/restore of its own
   const pal = makePalette(FIL_STEPS, (f, o) => {
-    let hue = 224 - f * 36;
-    hue += (406 - hue) * mixS * 0.82;
-    hue += (272 - hue) * mixL * 0.82;
-    o[0] = hue % 360;
+    o[0] = tintHue(224 - f * 36, mixS, mixL, mixT, mixC) % 360;
     o[1] = 90 - f * 10;
     o[2] = Math.min(38 + (1 - f) * 44 + lvl * 12, 88);
   });
@@ -155,7 +181,27 @@ function makeFilamentDraw(ctx, size, opts, getState) {
     sh[1] = e / A_VAL[ai];
     return true;
   };
-  return function draw(t, snap = false) {
+  // the grain body's seat on the bands: each band an ellipse turned by its
+  // tilt, flat (the filament has no depth)
+  const ringTab = new Float64Array(bands.length * 8);
+  const grains = makeGrains(ctx, size, {
+    n: bands.length,
+    tab: ringTab,
+    cam: 0,
+    R,
+    fill() {
+      for (let j = 0; j < bands.length; j++) {
+        const b = bands[j];
+        const rad = R * b.f * (1 + lvl * 0.16 * Math.sin(clock * 3.1 + b.f * 9));
+        const rot = clock * b.vel, o = j * 8;
+        ringTab[o] = rad * b.ct; ringTab[o + 1] = rad * b.stt; ringTab[o + 2] = 0;
+        ringTab[o + 3] = -rad * b.squash * b.stt; ringTab[o + 4] = rad * b.squash * b.ct; ringTab[o + 5] = 0;
+        ringTab[o + 6] = Math.cos(rot); ringTab[o + 7] = Math.sin(rot);
+      }
+    },
+  });
+  // `still`: the one frame a still or reduced-motion core draws (no flight)
+  return function draw(t, snap = false, still = false) {
     const st = getState ? getState() : {};
     lvl = audioLevel();
     const dt = last == null ? 0 : Math.min(t - last, 0.1);
@@ -163,81 +209,95 @@ function makeFilamentDraw(ctx, size, opts, getState) {
     // `snap`: a still frame (reduced motion) that should show the state's
     // colour at once, since no later frame will glide it there
     const k = snap ? 1 : 0.07;
-    mixS += ((st.speaking && !st.formOnly ? 1 : 0) - mixS) * k;
-    mixL += ((st.listening && !st.formOnly ? 1 : 0) - mixL) * k;
-    clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4) * (st.pace || 1);
+    const turn = st.formOnly ? REST : turnOf(st);
+    const pushing = turn === SPEAK && !!st.contest;
+    mixS += ((turn === SPEAK && !pushing ? 1 : 0) - mixS) * k;
+    mixL += ((turn === LISTEN ? 1 : 0) - mixL) * k;
+    mixT += ((turn === THINK ? 1 : 0) - mixT) * k;
+    mixC += ((pushing ? 1 : 0) - mixC) * k;
+    clock += dt * (1 + lvl * 2.6 + (mixS + mixL + mixT + mixC) * 0.4) * (st.pace || 1);
+    grains.update(t, st, lvl, still);
+    // the rings (everything but the heart) fade while a turn runs; at rest
+    // ringsA is exactly 1 and this frame is the one it always was
+    const ringsA = grains.ringsA;
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'lighter';
-    pal.sync();
-    batch.clear();
-    // wisps stay strokes (a quadratic curve has no cheap outline), each in
-    // a cached shade with its width carrying the light the shade rounds off
-    for (const w of wisps) {
-      if (!shade(0.5, w.al * (1 + lvl * 1.2), 1)) continue;
-      const rot = clock * 0.03;
-      const x1 = cx + Math.cos(w.a + rot) * R * w.f1;
-      const y1 = cy + Math.sin(w.a + rot) * R * w.f1 * 0.94;
-      const x2 = cx + Math.cos(w.b + rot) * R * w.f2;
-      const y2 = cy + Math.sin(w.b + rot) * R * w.f2 * 0.94;
-      let mx = (x1 + x2) / 2 + (y2 - y1) * w.bulge * 0.3;
-      let my = (y1 + y2) / 2 - (x2 - x1) * w.bulge * 0.3;
-      mx = mx * 0.62 + cx * 0.38;
-      my = my * 0.62 + cy * 0.38;
-      ctx.strokeStyle = pal.style(sh[0]);
-      ctx.lineWidth = 0.7 * sh[1];
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.quadraticCurveTo(mx, my, x2, y2);
-      ctx.stroke();
-    }
-    const segW = 1 + lvl * 0.5;
-    const segA = 1 + lvl * 1.4;
-    for (const b of bands) {
-      // the filament rings SURGE outward with the voice, each band on its
-      // own phase so the whole body ripples rather than pumping as one
-      const rad = R * b.f * (1 + lvl * 0.16 * Math.sin(clock * 3.1 + b.f * 9));
-      const rot = clock * b.vel;
-      for (const s of b.segs) {
-        const fl = 0.55 + 0.45 * Math.sin(clock * s.fs + s.fl);
-        const w = s.w * segW;
-        if (!shade(b.f, s.al * fl * segA, thinLight(w * dev))) continue;
-        const hw = w / 2 * sh[1];
-        const r0 = rad + s.jit;
-        const ro = r0 + hw, ri = r0 > hw ? r0 - hw : 0;
-        const a0 = s.a0 + rot;
-        const ex = ro * Math.cos(a0), ey = ro * b.squash * Math.sin(a0);
-        batch.sector(sh[0], ro, ri, b.squash, b.tilt, a0, a0 + s.len, cx + b.ct * ex - b.stt * ey, cy + b.stt * ex + b.ct * ey);
+    if (ringsA > 0.003) {
+      if (ringsA < 1) ctx.globalAlpha = ringsA;
+      pal.sync();
+      batch.clear();
+      // wisps stay strokes (a quadratic curve has no cheap outline), each in
+      // a cached shade with its width carrying the light the shade rounds off
+      for (const w of wisps) {
+        if (!shade(0.5, w.al * (1 + lvl * 1.2), 1)) continue;
+        const rot = clock * 0.03;
+        const x1 = cx + Math.cos(w.a + rot) * R * w.f1;
+        const y1 = cy + Math.sin(w.a + rot) * R * w.f1 * 0.94;
+        const x2 = cx + Math.cos(w.b + rot) * R * w.f2;
+        const y2 = cy + Math.sin(w.b + rot) * R * w.f2 * 0.94;
+        let mx = (x1 + x2) / 2 + (y2 - y1) * w.bulge * 0.3;
+        let my = (y1 + y2) / 2 - (x2 - x1) * w.bulge * 0.3;
+        mx = mx * 0.62 + cx * 0.38;
+        my = my * 0.62 + cy * 0.38;
+        ctx.strokeStyle = pal.style(sh[0]);
+        ctx.lineWidth = 0.7 * sh[1];
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(mx, my, x2, y2);
+        ctx.stroke();
       }
+      const segW = 1 + lvl * 0.5;
+      const segA = 1 + lvl * 1.4;
+      for (const b of bands) {
+        // the filament rings SURGE outward with the voice, each band on its
+        // own phase so the whole body ripples rather than pumping as one
+        const rad = R * b.f * (1 + lvl * 0.16 * Math.sin(clock * 3.1 + b.f * 9));
+        const rot = clock * b.vel;
+        for (const s of b.segs) {
+          const fl = 0.55 + 0.45 * Math.sin(clock * s.fs + s.fl);
+          const w = s.w * segW;
+          if (!shade(b.f, s.al * fl * segA, thinLight(w * dev))) continue;
+          const hw = w / 2 * sh[1];
+          const r0 = rad + s.jit;
+          const ro = r0 + hw, ri = r0 > hw ? r0 - hw : 0;
+          const a0 = s.a0 + rot;
+          const ex = ro * Math.cos(a0), ey = ro * b.squash * Math.sin(a0);
+          batch.sector(sh[0], ro, ri, b.squash, b.tilt, a0, a0 + s.len, cx + b.ct * ex - b.stt * ey, cy + b.stt * ex + b.ct * ey);
+        }
+      }
+      const eA = 1 + lvl * 1.4;
+      const eR = 1 + lvl * 1.1;
+      for (const e of embers) {
+        const tw = 0.4 + 0.6 * Math.abs(Math.sin(clock * e.ts + e.tw));
+        if (!shade(e.f, e.al * tw * eA, 1)) continue;
+        const x = cx + Math.cos(e.ang + clock * 0.05) * R * e.f;
+        const y = cy + Math.sin(e.ang + clock * 0.05) * R * e.f * 0.94;
+        batch.dot(sh[0], x, y, e.sz * eR * Math.sqrt(sh[1]));
+      }
+      batch.fill(ctx, pal.style, cx, cy);
+      // a state-tinted bloom around the heart, so the icon's mode reads even
+      // at 44px; it fades with the rings, the grains carry the colour after
+      const bloomA = (mixS + mixL + mixT + mixC) * (0.22 + lvl * 0.5);
+      if (bloomA > 0.02) {
+        const br = R * (0.34 + lvl * 0.30);
+        const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, br);
+        g2.addColorStop(0, col(0.1, Math.min(bloomA, 0.8)));
+        g2.addColorStop(1, col(0.9, 0));
+        ctx.fillStyle = g2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, br, 0, 6.29);
+        ctx.fill();
+      }
+      if (ringsA < 1) ctx.globalAlpha = 1;
     }
-    const eA = 1 + lvl * 1.4;
-    const eR = 1 + lvl * 1.1;
-    for (const e of embers) {
-      const tw = 0.4 + 0.6 * Math.abs(Math.sin(clock * e.ts + e.tw));
-      if (!shade(e.f, e.al * tw * eA, 1)) continue;
-      const x = cx + Math.cos(e.ang + clock * 0.05) * R * e.f;
-      const y = cy + Math.sin(e.ang + clock * 0.05) * R * e.f * 0.94;
-      batch.dot(sh[0], x, y, e.sz * eR * Math.sqrt(sh[1]));
-    }
-    batch.fill(ctx, pal.style, cx, cy);
-    // a state-tinted bloom around the heart — gold while Nova speaks, violet
-    // while the mic is open — so the icon's mode is legible even at 44px
-    const bloomA = (mixS + mixL) * (0.22 + lvl * 0.5);
-    if (bloomA > 0.02) {
-      const br = R * (0.34 + lvl * 0.30);
-      const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, br);
-      g2.addColorStop(0, col(0.1, Math.min(bloomA, 0.8)));
-      g2.addColorStop(1, col(0.9, 0));
-      ctx.fillStyle = g2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, br, 0, 6.29);
-      ctx.fill();
-    }
+    grains.draw(cx, cy);
     // the heart breathes on its own and SWELLS with real audio — Nova's own
     // voice while speaking, his while dictating (audioLevel is 0 otherwise,
-    // so idle behavior is exactly what it always was)
+    // so idle behavior is exactly what it always was); in a turn it stays,
+    // on top of the grains, lit toward the state's colour
     const pulse = 1 + 0.07 * Math.sin(t * 1.8) + lvl * 1.15; // his note: it must READ as alive while speaking
     leanToward(lean, st.lean);
-    drawHeart(ctx, cx + lean[0], cy + lean[1], t, R * opts.heart * pulse);
+    drawHeart(ctx, cx + lean[0], cy + lean[1], t, R * opts.heart * pulse * grains.heartScale, grains.tint, grains.tintK);
     ctx.globalCompositeOperation = 'source-over';
   };
 }
@@ -653,23 +713,18 @@ function makeHoloDraw(ctx, size, opts, getState) {
   const dashSub = opts.dashSub || 3;
 
   // same live-speech dynamics as the filament engine (see that comment):
-  // an audio-accelerated clock, smoothed gold/violet state mixes, amplitude
-  // flares. Idle is exactly the hologram he already knows.
-  let mixS = 0, mixL = 0, clock = 0, last = null, lvl = 0;
+  // an audio-accelerated clock, smoothed state mixes toward the turn's
+  // colour, amplitude flares. Idle is exactly the hologram he already knows.
+  let mixS = 0, mixL = 0, mixT = 0, mixC = 0, clock = 0, last = null, lvl = 0;
   const lean = [0, 0];
   const col = (dp, a) => {
-    let hue = 222 - 28 * dp;
-    hue += (406 - hue) * mixS * 0.82;
-    hue += (272 - hue) * mixL * 0.82;
+    const hue = tintHue(222 - 28 * dp, mixS, mixL, mixT, mixC);
     const lit = Math.min(44 + 38 * dp + lvl * 10, 90);
     return `hsla(${hue % 360},${90 - 6 * dp}%,${lit}%,${a})`;
   };
   // the same colour, as the batched shades see it
   const pal = makePalette(HOLO_DEPTHS, (dp, o) => {
-    let hue = 222 - 28 * dp;
-    hue += (406 - hue) * mixS * 0.82;
-    hue += (272 - hue) * mixL * 0.82;
-    o[0] = hue % 360;
+    o[0] = tintHue(222 - 28 * dp, mixS, mixL, mixT, mixC) % 360;
     o[1] = 90 - 6 * dp;
     o[2] = Math.min(44 + 38 * dp + lvl * 10, 90);
   });
@@ -743,9 +798,31 @@ function makeHoloDraw(ctx, size, opts, getState) {
     const ai = aLevel(e);
     batch.dot(di * A_LEVELS + ai, PX[i], PY[i], r * PS[i] * Math.sqrt(e / A_VAL[ai]));
   };
-  let halo = null, hS = 0, hL = 0, hV = 0;
+  let halo = null, hS = 0, hL = 0, hT = 0, hC = 0, hV = 0;
 
-  return function draw(t, snap = false) {
+  // the grain body's seat on the rings: each ring's in-plane axes in world
+  // space (this frame's tumble applied) and its spin, for the grains that
+  // leave from it and return to it
+  const ringTab = new Float64Array(rings.length * 8);
+  const grains = makeGrains(ctx, size, {
+    n: rings.length,
+    tab: ringTab,
+    cam: CR,
+    R,
+    fill() {
+      for (let j = 0; j < rings.length; j++) {
+        const g = rings[j];
+        plane(g.ax);
+        const fr = g.f * R, off = g.spin * clock, o = j * 8;
+        ringTab[o] = fr * ux; ringTab[o + 1] = fr * uy; ringTab[o + 2] = fr * uz;
+        ringTab[o + 3] = fr * vx; ringTab[o + 4] = fr * vy; ringTab[o + 5] = fr * vz;
+        ringTab[o + 6] = Math.cos(off); ringTab[o + 7] = Math.sin(off);
+      }
+    },
+  });
+
+  // `still`: the one frame a still or reduced-motion core draws (no flight)
+  return function draw(t, snap = false, still = false) {
     const st = getState ? getState() : {};
     lvl = audioLevel();
     const dt = last == null ? 0 : Math.min(t - last, 0.1);
@@ -753,9 +830,17 @@ function makeHoloDraw(ctx, size, opts, getState) {
     // `snap`: a still frame (reduced motion) that should show the state's
     // colour at once, since no later frame will glide it there
     const k = snap ? 1 : 0.07;
-    mixS += ((st.speaking && !st.formOnly ? 1 : 0) - mixS) * k;
-    mixL += ((st.listening && !st.formOnly ? 1 : 0) - mixL) * k;
-    clock += dt * (1 + lvl * 2.6 + (mixS + mixL) * 0.4) * (st.pace || 1);
+    const turn = st.formOnly ? REST : turnOf(st);
+    const pushing = turn === SPEAK && !!st.contest;
+    mixS += ((turn === SPEAK && !pushing ? 1 : 0) - mixS) * k;
+    mixL += ((turn === LISTEN ? 1 : 0) - mixL) * k;
+    mixT += ((turn === THINK ? 1 : 0) - mixT) * k;
+    mixC += ((pushing ? 1 : 0) - mixC) * k;
+    clock += dt * (1 + lvl * 2.6 + (mixS + mixL + mixT + mixC) * 0.4) * (st.pace || 1);
+    grains.update(t, st, lvl, still);
+    // the rings (everything but the heart) fade while a turn runs; at rest
+    // ringsA is exactly 1 and this frame is the one it always was
+    const ringsA = grains.ringsA;
     ctx.clearRect(0, 0, size, size);
     ctx.globalCompositeOperation = 'lighter';
     const axT = 0.5 + 0.22 * Math.sin(t * 0.09);
@@ -766,187 +851,195 @@ function makeHoloDraw(ctx, size, opts, getState) {
       g11 = ca; g12 = -sa;
       g20 = -sb; g21 = cb * sa; g22 = cb * ca;
     }
-    pal.sync();
-    flare = 1 + lvl * 0.9;
-    batch.clear();
+    if (ringsA > 0.003) {
+      if (ringsA < 1) ctx.globalAlpha = ringsA;
+      pal.sync();
+      flare = 1 + lvl * 0.9;
+      batch.clear();
 
-    // graticule globe (spins about its own axis inside the tumbling assembly)
-    const Rg = R * 0.42, gs = clock * 0.12;
-    const cgs = Math.cos(gs), sgs = Math.sin(gs);
-    for (const [rc, z0] of lats) {
-      for (let k = 0; k <= gratSeg; k++) {
-        const c = CG[k] * cgs - SG[k] * sgs, s = SG[k] * cgs + CG[k] * sgs;
-        putG(k, rc * c, z0, rc * s);
+      // graticule globe (spins about its own axis inside the tumbling assembly)
+      const Rg = R * 0.42, gs = clock * 0.12;
+      const cgs = Math.cos(gs), sgs = Math.sin(gs);
+      for (const [rc, z0] of lats) {
+        for (let k = 0; k <= gratSeg; k++) {
+          const c = CG[k] * cgs - SG[k] * sgs, s = SG[k] * cgs + CG[k] * sgs;
+          putG(k, rc * c, z0, rc * s);
+        }
+        strip(gratSeg, 0.17, 0.55);
       }
-      strip(gratSeg, 0.17, 0.55);
-    }
-    for (let l = 0; l < 6; l++) {
-      const ph = l * Math.PI / 6 + gs;
-      const cph = Math.cos(ph), sph = Math.sin(ph);
-      for (let k = 0; k <= gratSeg; k++) putG(k, Rg * SG[k] * cph, Rg * CG[k], Rg * SG[k] * sph);
-      strip(gratSeg, 0.12, 0.55);
-    }
-
-    // volumetric halo — faint gas glow filling the sphere (one gradient,
-    // rebuilt only when the colour moves)
-    if (!halo || hS !== mixS || hL !== mixL || hV !== lvl) {
-      hS = mixS; hL = mixL; hV = lvl;
-      halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.56);
-      halo.addColorStop(0, col(0.5, 0.12 + lvl * 0.2));
-      halo.addColorStop(0.6, col(0.5, 0.05 + lvl * 0.08));
-      halo.addColorStop(1, 'rgba(20,60,140,0)');
-    }
-    ctx.fillStyle = halo;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R * 0.56, 0, 6.29);
-    ctx.fill();
-
-    // ember cloud (each mote on its own slow orbit inside the body)
-    const eFlare = 1 + lvl * 1.2;
-    for (let i = 0; i < embers.length; i++) {
-      const e = embers[i];
-      const ang = clock * e.sp * 4, c = Math.cos(ang), s = Math.sin(ang);
-      const x = EP[i * 3], y = EP[i * 3 + 1], z = EP[i * 3 + 2];
-      putG(0, c * x + s * z, y, -s * x + c * z);
-      const tw = 0.5 + 0.5 * Math.abs(Math.sin(clock * e.ts + e.tw));
-      dot(0, e.al * tw * depthMult(PD[0]) * eFlare, e.sz);
-    }
-
-    // particle shell (the globe's spin folded into this frame's rotation)
-    {
-      const c = cgs, s = sgs;
-      const m00 = g00 * c - g02 * s, m01 = g01, m02 = g00 * s + g02 * c;
-      const m10 = -g12 * s, m11 = g11, m12 = g12 * c;
-      const m20 = g20 * c - g22 * s, m21 = g21, m22 = g20 * s + g22 * c;
-      for (let i = 0; i < parts.length; i++) {
-        const pt = parts[i];
-        const x = PP[i * 3], y = PP[i * 3 + 1], z = PP[i * 3 + 2];
-        put(0, m00 * x + m01 * y + m02 * z, m10 * x + m11 * y + m12 * z, m20 * x + m21 * y + m22 * z);
-        const tw = 0.55 + 0.45 * Math.sin(clock * pt.ts + pt.tw);
-        dot(0, (pt.hot ? 0.95 : 0.5) * tw * depthMult(PD[0]) * flare, pt.hot ? 1.6 : 0.95);
+      for (let l = 0; l < 6; l++) {
+        const ph = l * Math.PI / 6 + gs;
+        const cph = Math.cos(ph), sph = Math.sin(ph);
+        for (let k = 0; k <= gratSeg; k++) putG(k, Rg * SG[k] * cph, Rg * CG[k], Rg * SG[k] * sph);
+        strip(gratSeg, 0.12, 0.55);
       }
-    }
 
-    // 3D filament arcs
-    for (const a of arcs) {
-      plane(a.ax);
-      const fr = a.f * R, base = a.a0 + clock * a.drift;
-      const fl = 0.55 + 0.45 * Math.sin(clock * a.fs + a.fl);
-      let c = Math.cos(base), s = Math.sin(base);
-      for (let k = 0; k <= arcSeg; k++) {
-        onPlane(k, fr, c, s);
-        const c2 = c * a.cd - s * a.sd;
-        s = s * a.cd + c * a.sd;
-        c = c2;
+      // volumetric halo — faint gas glow filling the sphere (one gradient,
+      // rebuilt only when the colour moves)
+      if (!halo || hS !== mixS || hL !== mixL || hT !== mixT || hC !== mixC || hV !== lvl) {
+        hS = mixS; hL = mixL; hT = mixT; hC = mixC; hV = lvl;
+        halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.56);
+        halo.addColorStop(0, col(0.5, 0.12 + lvl * 0.2));
+        halo.addColorStop(0.6, col(0.5, 0.05 + lvl * 0.08));
+        halo.addColorStop(1, 'rgba(20,60,140,0)');
       }
-      strip(arcSeg, a.al * fl * 0.85, a.w);
-    }
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 0.56, 0, 6.29);
+      ctx.fill();
 
-    // gyro rings
-    for (const g of rings) {
-      plane(g.ax);
-      const fr = g.f * R, off = g.spin * clock;
-      const co = Math.cos(off), so = Math.sin(off);
-      if (g.style === 'solid' || g.style === 'tick' || g.style === 'double') {
-        const alp = g.style === 'tick' ? g.al * 0.55 : g.al;
-        const two = g.style === 'double';
-        for (let pass = 0; pass < (two ? 2 : 1); pass++) {
-          const rr = two ? fr + (pass ? 1 : -1) * R * 0.012 : fr;
-          let n = 0;
-          for (let k = 0; k <= 96; k += ringStep) onPlane(n++, rr, C96[k] * co - S96[k] * so, S96[k] * co + C96[k] * so);
-          strip(n - 1, two ? alp * 0.7 : alp, two ? g.w * 0.8 : g.w);
+      // ember cloud (each mote on its own slow orbit inside the body)
+      const eFlare = 1 + lvl * 1.2;
+      for (let i = 0; i < embers.length; i++) {
+        const e = embers[i];
+        const ang = clock * e.sp * 4, c = Math.cos(ang), s = Math.sin(ang);
+        const x = EP[i * 3], y = EP[i * 3 + 1], z = EP[i * 3 + 2];
+        putG(0, c * x + s * z, y, -s * x + c * z);
+        const tw = 0.5 + 0.5 * Math.abs(Math.sin(clock * e.ts + e.tw));
+        dot(0, e.al * tw * depthMult(PD[0]) * eFlare, e.sz);
+      }
+
+      // particle shell (the globe's spin folded into this frame's rotation)
+      {
+        const c = cgs, s = sgs;
+        const m00 = g00 * c - g02 * s, m01 = g01, m02 = g00 * s + g02 * c;
+        const m10 = -g12 * s, m11 = g11, m12 = g12 * c;
+        const m20 = g20 * c - g22 * s, m21 = g21, m22 = g20 * s + g22 * c;
+        for (let i = 0; i < parts.length; i++) {
+          const pt = parts[i];
+          const x = PP[i * 3], y = PP[i * 3 + 1], z = PP[i * 3 + 2];
+          put(0, m00 * x + m01 * y + m02 * z, m10 * x + m11 * y + m12 * z, m20 * x + m21 * y + m22 * z);
+          const tw = 0.55 + 0.45 * Math.sin(clock * pt.ts + pt.tw);
+          dot(0, (pt.hot ? 0.95 : 0.5) * tw * depthMult(PD[0]) * flare, pt.hot ? 1.6 : 0.95);
         }
       }
-      if (g.style === 'dash') {
-        for (let k = 0; k < 96; k += 6) {
-          let n = 0;
-          for (let j = 0; j <= 3; j += 3 / dashSub) {
-            const m = k + j;
-            onPlane(n++, fr, C96[m] * co - S96[m] * so, S96[m] * co + C96[m] * so);
-          }
-          strip(n - 1, g.al * 1.15, g.w * 1.25);
-        }
-      }
-      if (g.style === 'tick') {
-        const n = Math.round(96 / g.tickEvery) * g.tickEvery;
-        for (let k = 0; k < n; k += g.tickEvery) {
-          const c = C96[k] * co - S96[k] * so, s = S96[k] * co + C96[k] * so;
-          const long = (k / g.tickEvery) % 4 === 0;
-          const tl = R * (long ? 0.034 : 0.018);
-          onPlane(0, fr - tl, c, s);
-          onPlane(1, fr + tl, c, s);
-          seg(0, 1, g.al * (long ? 1.3 : 0.9), g.w * (long ? 1.1 : 0.8));
-        }
-      }
-      if (g.comet) {
-        const ah = g.cometPh + g.cometSp * clock;
-        const sd = -Math.sign(g.cometSp) * sStep;
-        let c = Math.cos(ah), s = Math.sin(ah);
-        for (let k = 0; k <= COMET_K; k++) {
+
+      // 3D filament arcs
+      for (const a of arcs) {
+        plane(a.ax);
+        const fr = a.f * R, base = a.a0 + clock * a.drift;
+        const fl = 0.55 + 0.45 * Math.sin(clock * a.fs + a.fl);
+        let c = Math.cos(base), s = Math.sin(base);
+        for (let k = 0; k <= arcSeg; k++) {
           onPlane(k, fr, c, s);
-          const c2 = c * cStep - s * sd;
-          s = s * cStep + c * sd;
+          const c2 = c * a.cd - s * a.sd;
+          s = s * a.cd + c * a.sd;
           c = c2;
         }
-        key = ++lineKey;
-        for (let k = 0; k < COMET_K; k++) seg(k, k + 1, 0.85 * COMET_FADE[k], 2.2 * COMET_FADE[k] + 0.5);
-        key = -1;
-        dot(0, 0.95 * depthMult(PD[0]), 2.4); // the head never flared
+        strip(arcSeg, a.al * fl * 0.85, a.w);
       }
-    }
 
-    // inner gyro reactor — fast precessing rings around the heart
-    for (const n of inner) {
-      const fr = n.f * R, off = n.spin * clock;
-      planeAxes(n.tx + 0.6 * Math.sin(t * n.prec + n.ph), n.ty + clock * 0.25, innerAx);
-      plane(innerAx);
-      const co = Math.cos(off), so = Math.sin(off);
-      for (let k = 0; k <= innerSeg; k++) onPlane(k, fr, CI[k] * co - SI[k] * so, SI[k] * co + CI[k] * so);
-      strip(innerSeg, 0.62, 1.05);
-    }
+      // gyro rings
+      for (const g of rings) {
+        plane(g.ax);
+        const fr = g.f * R, off = g.spin * clock;
+        const co = Math.cos(off), so = Math.sin(off);
+        if (g.style === 'solid' || g.style === 'tick' || g.style === 'double') {
+          const alp = g.style === 'tick' ? g.al * 0.55 : g.al;
+          const two = g.style === 'double';
+          for (let pass = 0; pass < (two ? 2 : 1); pass++) {
+            const rr = two ? fr + (pass ? 1 : -1) * R * 0.012 : fr;
+            let n = 0;
+            for (let k = 0; k <= 96; k += ringStep) onPlane(n++, rr, C96[k] * co - S96[k] * so, S96[k] * co + C96[k] * so);
+            strip(n - 1, two ? alp * 0.7 : alp, two ? g.w * 0.8 : g.w);
+          }
+        }
+        if (g.style === 'dash') {
+          for (let k = 0; k < 96; k += 6) {
+            let n = 0;
+            for (let j = 0; j <= 3; j += 3 / dashSub) {
+              const m = k + j;
+              onPlane(n++, fr, C96[m] * co - S96[m] * so, S96[m] * co + C96[m] * so);
+            }
+            strip(n - 1, g.al * 1.15, g.w * 1.25);
+          }
+        }
+        if (g.style === 'tick') {
+          const n = Math.round(96 / g.tickEvery) * g.tickEvery;
+          for (let k = 0; k < n; k += g.tickEvery) {
+            const c = C96[k] * co - S96[k] * so, s = S96[k] * co + C96[k] * so;
+            const long = (k / g.tickEvery) % 4 === 0;
+            const tl = R * (long ? 0.034 : 0.018);
+            onPlane(0, fr - tl, c, s);
+            onPlane(1, fr + tl, c, s);
+            seg(0, 1, g.al * (long ? 1.3 : 0.9), g.w * (long ? 1.1 : 0.8));
+          }
+        }
+        if (g.comet) {
+          const ah = g.cometPh + g.cometSp * clock;
+          const sd = -Math.sign(g.cometSp) * sStep;
+          let c = Math.cos(ah), s = Math.sin(ah);
+          for (let k = 0; k <= COMET_K; k++) {
+            onPlane(k, fr, c, s);
+            const c2 = c * cStep - s * sd;
+            s = s * cStep + c * sd;
+            c = c2;
+          }
+          key = ++lineKey;
+          for (let k = 0; k < COMET_K; k++) seg(k, k + 1, 0.85 * COMET_FADE[k], 2.2 * COMET_FADE[k] + 0.5);
+          key = -1;
+          dot(0, 0.95 * depthMult(PD[0]), 2.4); // the head never flared
+        }
+      }
 
-    batch.fill(ctx, pal.style, cx, cy);
+      // inner gyro reactor — fast precessing rings around the heart
+      for (const n of inner) {
+        const fr = n.f * R, off = n.spin * clock;
+        planeAxes(n.tx + 0.6 * Math.sin(t * n.prec + n.ph), n.ty + clock * 0.25, innerAx);
+        plane(innerAx);
+        const co = Math.cos(off), so = Math.sin(off);
+        for (let k = 0; k <= innerSeg; k++) onPlane(k, fr, CI[k] * co - SI[k] * so, SI[k] * co + CI[k] * so);
+        strip(innerSeg, 0.62, 1.05);
+      }
 
-    // billboard HUD rings — flat, tying the hologram to the interface plane
-    // (each dash its own small stroke: CoreGraphics rasterises those faster
-    // than one path round the whole ring)
-    {
-      const r1 = R * 0.985, l1 = TAU / 40 * 0.5;
-      ctx.strokeStyle = 'rgba(89,230,255,.4)';
-      ctx.lineWidth = 1.2;
-      for (let k = 0; k < 40; k++) {
-        const a0 = k / 40 * TAU + clock * 0.12;
+      batch.fill(ctx, pal.style, cx, cy);
+
+      // billboard HUD rings — flat, tying the hologram to the interface plane
+      // (each dash its own small stroke: CoreGraphics rasterises those faster
+      // than one path round the whole ring)
+      {
+        const r1 = R * 0.985, l1 = TAU / 40 * 0.5;
+        ctx.strokeStyle = 'rgba(89,230,255,.4)';
+        ctx.lineWidth = 1.2;
+        for (let k = 0; k < 40; k++) {
+          const a0 = k / 40 * TAU + clock * 0.12;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r1, a0, a0 + l1);
+          ctx.stroke();
+        }
+        const r2 = R * 0.93, l2 = TAU / 64 * 0.32;
+        ctx.strokeStyle = 'rgba(143,123,255,.22)';
+        ctx.lineWidth = 0.9;
+        for (let k = 0; k < 64; k++) {
+          const a0 = -clock * 0.08 + k / 64 * TAU;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r2, a0, a0 + l2);
+          ctx.stroke();
+        }
+      }
+
+      // the state-tinted bloom round the heart fades with the rings; the
+      // grains carry the colour after
+      const bloomA = (mixS + mixL + mixT + mixC) * (0.22 + lvl * 0.5);
+      if (bloomA > 0.02) {
+        const br = R * (0.30 + lvl * 0.26);
+        const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, br);
+        g2.addColorStop(0, col(0.9, Math.min(bloomA, 0.8)));
+        g2.addColorStop(1, col(0.1, 0));
+        ctx.fillStyle = g2;
         ctx.beginPath();
-        ctx.arc(cx, cy, r1, a0, a0 + l1);
-        ctx.stroke();
+        ctx.arc(cx, cy, br, 0, 6.29);
+        ctx.fill();
       }
-      const r2 = R * 0.93, l2 = TAU / 64 * 0.32;
-      ctx.strokeStyle = 'rgba(143,123,255,.22)';
-      ctx.lineWidth = 0.9;
-      for (let k = 0; k < 64; k++) {
-        const a0 = -clock * 0.08 + k / 64 * TAU;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r2, a0, a0 + l2);
-        ctx.stroke();
-      }
+      if (ringsA < 1) ctx.globalAlpha = 1;
     }
-
+    grains.draw(cx, cy);
     // breathing heart (shared identity across both engines) — swells with
-    // real audio exactly like the filament heart
-    const bloomA = (mixS + mixL) * (0.22 + lvl * 0.5);
-    if (bloomA > 0.02) {
-      const br = R * (0.30 + lvl * 0.26);
-      const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, br);
-      g2.addColorStop(0, col(0.9, Math.min(bloomA, 0.8)));
-      g2.addColorStop(1, col(0.1, 0));
-      ctx.fillStyle = g2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, br, 0, 6.29);
-      ctx.fill();
-    }
+    // real audio exactly like the filament heart; in a turn it stays, on top
+    // of the grains, lit toward the state's colour
     const pulse = 1 + 0.06 * Math.sin(t * 1.8) + lvl * 1.15; // ditto — the mini orb carries the same life
     leanToward(lean, st.lean);
-    drawHeart(ctx, cx + lean[0], cy + lean[1], t, R * 0.125 * pulse);
+    drawHeart(ctx, cx + lean[0], cy + lean[1], t, R * 0.125 * pulse * grains.heartScale, grains.tint, grains.tintK);
     ctx.globalCompositeOperation = 'source-over';
   };
 }
@@ -956,20 +1049,27 @@ function makeHoloDraw(ctx, size, opts, getState) {
 // FORM, NOT HUE (29 Sep 2026, the Nova thread, mockup 63 D): three optional
 // props for a surface that says the state by shape and motion alone, because
 // on that page gold means "waiting on your call" and nothing else.
-//   formOnly — the palette never leaves Nova's blue (no gold, no violet);
+//   formOnly — the palette never leaves Nova's blue (no jade, no violet);
 //   pace     — the clock's rate (thinking runs the rings three times faster);
 //   still    — one frame and no loop, the way reduced motion draws it (offline).
 // And two for the full-screen Nova (3 Oct 2026):
 //   leanRef   — a ref holding the offset the heart leans toward (his finger);
 //   tintStill — under reduced motion, the still frame wears the state colour.
+// And two for the grain body (5 Oct 2026, coreGrains.js):
+//   thinking — the thinking form (cyan strata, then the turning knot);
+//   contest  — while speaking, a sentence that pushes back (the shell in red).
+// When more than one turn is set, listening wins, then speaking, then
+// thinking. `formOnly` keeps the forms and Nova's blue. A still core (`still`
+// or reduced motion) draws the turn's final form as one frame in its colour,
+// and once more when the turn changes; at rest, the frame it always drew.
 // Left at their defaults every existing caller draws exactly what it did.
-export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false }) {
+export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false }) {
   const ref = useRef(null);
   const stillDraw = useRef(null);
   // live state read through a ref so the rAF loop sees changes WITHOUT the
   // canvas being torn down and rebuilt on every speech toggle
-  const stateRef = useRef({ speaking, listening, formOnly, pace, lean: leanRef });
-  stateRef.current = { speaking, listening, formOnly, pace, lean: leanRef };
+  const stateRef = useRef({ speaking, listening, thinking, contest, formOnly, pace, lean: leanRef });
+  stateRef.current = { speaking, listening, thinking, contest, formOnly, pace, lean: leanRef };
 
   useEffect(() => {
     const canvas = ref.current;
@@ -989,8 +1089,8 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
 
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduced || still) {
-      draw(engine === 'hologram' ? 3.2 : 1.7, tintStill); // reduced-motion: one still frame
-      stillDraw.current = tintStill ? draw : null;
+      draw(engine === 'hologram' ? 3.2 : 1.7, tintStill, true); // reduced-motion: one still frame
+      stillDraw.current = draw;
       return () => { stillDraw.current = null; };
     }
     // the loop runs only while the core can be seen: the tab visible AND the
@@ -1032,12 +1132,12 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
       document.removeEventListener('visibilitychange', onVis);
     };
   }, [size, variant, engine, still, tintStill]);
-  // the full screen (tintStill) keeps its state colours under reduced
-  // motion: the one still frame is drawn again, in the new colour, when the
-  // state changes; every other caller's still frame is exactly as before
+  // a still core draws its one frame again when the turn changes: the
+  // turn's form in its colour (and, on the full screen, the rings' tint);
+  // back at rest, the very frame it drew before
   useEffect(() => {
-    stillDraw.current?.(engine === 'hologram' ? 3.2 : 1.7, true);
-  }, [speaking, listening, formOnly, engine]);
+    stillDraw.current?.(engine === 'hologram' ? 3.2 : 1.7, true, true);
+  }, [speaking, listening, thinking, contest, formOnly, engine]);
 
   return <canvas ref={ref} style={{ width: size, height: size, display: 'block', ...style }} />;
 }
