@@ -32,6 +32,7 @@ import { savePinned } from './pinned.js';
 import { getFuelCards, saveFuelCards } from './fuelCards.js';
 import { logDate as viewedLogDate, loggedLine, dayWord, removalFor } from './fuelDay.js';
 import { depthOf, edgeDragInProgress } from './edgeBack.js';
+import { startSkyRest } from './skyRest.js';
 import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 import { valsRecipes, CURRENT_VERSION, eatOutParams, eatOutHasBudget } from './vals/valsRecipes.js';
@@ -997,6 +998,8 @@ export default class App extends Component {
     this.openArtH = (e) => this.openArtifact(e?.detail?.id);
     window.addEventListener(OPEN_EVENT, this.openArtH);
     window.addEventListener('hashchange', this.popH);
+    // the sky rests five seconds after his last touch, scroll or key (src/skyRest.js)
+    this.stopSkyRest = startSkyRest();
     // a notification tap lands here on a cold start too
     this.consumeDeepLink();
     this.keyH = (e) => {
@@ -1028,6 +1031,7 @@ export default class App extends Component {
     window.removeEventListener('resize', this.resizeH);
     window.removeEventListener('popstate', this.popH);
     window.removeEventListener('hashchange', this.popH);
+    this.stopSkyRest?.();
     window.removeEventListener(OPEN_EVENT, this.openArtH);
     window.removeEventListener('online', this.onlineH);
     window.removeEventListener('pointerdown', this.tapUnlockH);

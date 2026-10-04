@@ -883,6 +883,10 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   background: radial-gradient(var(--nv-sky-b-w) var(--nv-sky-b-h) at var(--nv-sky-b-x) var(--nv-sky-b-y), var(--nv-sky-b-c), transparent var(--nv-sky-b-f));
   animation-name: nvSkyDriftB;
 }
+/* the sky rests when he does (src/skyRest.js, his call 4 Oct): the drift
+   pauses where it is five seconds after his last touch, scroll or key */
+:root[data-nv-sky-rest] .nv-sky::before,
+:root[data-nv-sky-rest] .nv-sky::after { animation-play-state: paused; }
 /* under the full-screen Nova, once it has faded fully in (opaque), the page's
    sky and the thread's glass are covered: they stop drifting and painting
    until it leaves (the 4 Oct lag survey: 24% of the screen re-blurred, unseen) */
