@@ -13,6 +13,24 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**5 OCT (late morning, nova-os-fc) — ROUND 1 IS OUT FOR EVERY PAGE; THE
+DESKTOP ROUND IS THE ONLY REDESIGN STAGE NOT STARTED; STILL NOT PUSHED.**
+- PUBLISHED + COMMITTED + ROWS [m]: Settings 07/72
+  https://claude.ai/artifact/7bFsrEDMaxszokaQdwzXAv; Leader 11/76
+  https://claude.ai/artifact/AKKCcwKQHS2mLuJ2AHpVqL; Briefing 12/77
+  https://claude.ai/artifact/4yQB7QbvVWFjug3LeuEAUq; lists 13/78
+  https://claude.ai/artifact/CGq5cSmK2TtujJgjkdvBof; knowledge 15/79
+  https://claude.ai/artifact/Di2AruD7vjXEtsxxPPBbfD; Money+Code 17/80
+  https://claude.ai/artifact/R2Dm5L8mGaWcTv3Dv81x2r; Ambient+Console 21/81
+  https://claude.ai/artifact/3fTVShPHeABR986sTUAPpu. Status page v11
+  https://claude.ai/artifact/GRnJeoNMHDLmxSfWbTSJGJ.
+- FIXED: open to-dos rendered BLANK since 23 Sep (1070fe2, test
+  todoRowText); two stale NovaCore regexes in novaFocus.test (6d967e0).
+- KNOWN RED: fuelCross.test "cut goal" and "post-training protein" fail on
+  today's clock (relative dates via setDate/toISOString in the first AEDT
+  week, like the deload DST bug); not investigated. Plus the atlas pair.
+- NEXT: his push, then reload; his picks per page; the desktop round.
+
 **5 OCT (morning, resumed after the limit reset, nova-os-fc) — FOUR ROUND-1
 PAGES REVIEWED AND PUBLISHED; SEVEN PAGE AGENTS RUNNING; STILL NOT PUSHED.**
 - PUBLISHED + COMMITTED (rows ticked [m] in 56928b0): sheets and overlays
