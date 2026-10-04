@@ -1,0 +1,1180 @@
+<title>Practice Room Redesign</title>
+<!--
+  75 · PRACTICE, ROUND 1 (5 October 2026)
+  The rehearsal room, audited in design/audits/redesign-2026-09/10-practice.md.
+  The server's own record shows no rehearsal from his phone since Practice
+  shipped on 26 Sep, so this round is about the room he would meet: a
+  reference page with the rehearsal inside it (opened, 3.04 screens, 12 type
+  sizes, Rehearse offered four times), lamps that scroll off before a line
+  lands, and notes that say their verdict three times.
+
+  Three directions, switched at the top, each drawn as phone frames at 390x844:
+    A  The next scene  the room is one lit card, the next scene, with one
+                       Rehearse; everything else on the skill moves one tap
+                       deeper, to The page. In a scene the lamps pin to the top;
+                       when it ends the notes take that bar's place.
+    B  Cue cards       the moves become a deck of cue cards, the line he can
+                       say on the front. In a scene the scene's cards lie in a row
+                       above the mic, and the one he lands lifts and lights.
+    C  Spotlight       the scene goes full screen, one exchange at a time: the
+                       partner under a spotlight, the lines as subtitles, the
+                       moves as footlights. The notes are a curtain call.
+
+  Every direction keeps: the lamp (one per move, dim until landed, a dashed rim
+  for a miss), the partner in the serif and his words in the UI face, notes
+  written by code from NOTE and DEBRIEF, filing with Undo, the hidden pressure,
+  and nothing that nags (no streaks, no reminders).
+
+  Colour: Practice's orange (#ffa257, --nv-or in Command) is the room's one hue
+  and means light: a lit lamp, the stage's spot, and the one action that starts
+  a scene. Labels and names are ink. Nova's own small core appears only where
+  he speaks as himself (the notes). The dock's lit tab keeps Nova's cyan
+  because it is the app's chrome. Type: four sizes a view at most (34, 24 or
+  20, 15, 13). Every control is 44 pt or more.
+
+  HONEST LIMITS. Demo content only: the skill, the scenes, Dana and every line
+  are invented, and nothing comes from his vault or a real rehearsal. The NOTE
+  lands when the partner's reply arrives, because that is when the server
+  sends it, so each loop lights the lamp then. His words appear after he stops
+  talking, because his iPhone records and the Mac transcribes. Say it, the
+  one-line drill in B, is new and needs a server change; it is marked.
+
+  Reduced motion: words appear a line at a time with a 250 ms cross-fade, lamps
+  light without the swell, nothing lifts, flips or sweeps. Preview it with the
+  button under the title. The page is dark in both appearances on purpose: it
+  shows a dark room. Hash #a, #b or #c opens a direction.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --void:#06070d;
+  --ink:#e8ecf6;
+  --ink2:rgba(232,236,246,.76);
+  --ink3:rgba(232,236,246,.58);
+  --sep:rgba(232,236,246,.13);
+  --glass:rgba(255,255,255,.075);
+  --glass-ring:rgba(255,255,255,.15);
+  --glass-hi:rgba(255,255,255,.2);
+  --bar:rgba(16,20,36,.66);
+  --paper:#141827;
+  --cy:#59e6ff;
+  --or:#ffa257;
+  --or-ink:#2b1505;
+  --or-edge:rgba(255,162,87,.32);
+  --or-glow:rgba(255,162,87,.5);
+  --r:20px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--void)}
+body{margin:0;background:var(--void);color:var(--ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+button:focus-visible{outline:2px solid var(--or);outline-offset:2px}
+.pr{transition:transform .14s var(--ease)}
+.pr:active{transform:scale(.97)}
+svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ------------------------------------------------------------ the page */
+.wrap{max-width:1280px;margin:0 auto;padding:28px 16px 96px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+h1{margin:0 0 12px;font:700 clamp(30px,7vw,44px)/1.06 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 12px;max-width:40em;font:400 19px/1.45 var(--serif);color:var(--ink2);text-wrap:pretty}
+.find{margin:0 0 10px;max-width:50em;color:var(--ink2);text-wrap:pretty}
+.find b{color:var(--ink);font-weight:600}
+.demo{margin:0 0 14px;max-width:50em;font-size:13px;color:var(--ink3)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.tools button{min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);box-shadow:inset 0 0 0 1px var(--sep)}
+.tools button[aria-pressed="true"]{color:var(--ink);background:var(--glass)}
+.switch{position:sticky;top:0;z-index:40;margin:0 -16px;padding:10px 16px;background:rgba(6,7,13,.84);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border-bottom:1px solid var(--sep)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;max-width:560px;padding:3px;border-radius:25px;background:rgba(120,120,128,.22)}
+.seg button{min-height:44px;padding:0 6px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);text-align:center;white-space:nowrap;overflow:hidden;transition:background-color .25s var(--ease),color .25s var(--ease)}
+.seg button[aria-pressed="true"]{background:var(--glass-hi);color:var(--ink)}
+.dir{padding-top:28px}
+.dir[hidden]{display:none}
+.dir > h2{margin:0 0 8px;font:700 26px/1.15 var(--ui);letter-spacing:-.02em}
+.dline{margin:0 0 14px;max-width:54em;color:var(--ink2);text-wrap:pretty}
+.dline b{color:var(--ink);font-weight:600}
+.counts{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.counts li{display:inline-flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px;min-height:40px;padding:9px 13px;border-radius:20px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-ring);font-size:13px;line-height:1.4;color:var(--ink2)}
+.counts .n{font:600 15px/1.25 var(--round);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mac{margin:10px 0 24px;max-width:54em;font-size:13px;color:var(--ink3)}
+.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,390px),1fr));gap:34px 22px;align-items:start}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
+figcaption{width:100%;max-width:390px;font-size:13px;line-height:1.5;color:var(--ink2);text-wrap:pretty}
+figcaption b{display:block;margin-bottom:2px;font:600 15px/1.35 var(--ui);color:var(--ink)}
+.replay{display:inline-flex;align-items:center;min-height:44px;margin-top:6px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);box-shadow:inset 0 0 0 1px var(--sep)}
+.closing{margin-top:56px;max-width:54em}
+.closing h2{margin:0 0 10px;font:700 26px/1.15 var(--ui);letter-spacing:-.02em}
+.keep{margin:0;padding-left:18px;color:var(--ink2)}
+.keep li + li{margin-top:6px}
+.decide{list-style:none;counter-reset:d;margin:0;padding:0;display:grid;gap:10px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;padding:14px 16px;border-radius:18px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-ring)}
+.decide li::before{content:counter(d);display:grid;place-items:center;width:32px;height:32px;border-radius:16px;font:600 15px var(--round);color:var(--or-ink);background:var(--or)}
+.decide b{display:block;font:600 15px/1.35 var(--ui);color:var(--ink)}
+.decide span{display:block;margin-top:3px;color:var(--ink2);text-wrap:pretty}
+
+/* ------------------------------------------------------------ the phone */
+.phone{position:relative;width:min(390px,100%);height:844px;border-radius:44px;overflow:hidden;isolation:isolate;background:var(--void);box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 70px -30px rgba(0,0,0,.9);font:15px/1.35 var(--ui);color:var(--ink);text-align:left}
+.sky{position:absolute;inset:0;z-index:-1}
+.sky.room{background:radial-gradient(64% 30% at 50% -4%,rgba(255,162,87,.16),rgba(255,162,87,0) 72%),radial-gradient(70% 42% at 8% 12%,rgba(89,230,255,.12),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 92% 34%,rgba(143,123,255,.15),rgba(143,123,255,0) 62%),linear-gradient(180deg,#05060c 0%,#080b1c 40%,#0c1230 100%)}
+.sky.house{background:radial-gradient(56% 26% at 50% -2%,rgba(255,162,87,.13),rgba(255,162,87,0) 72%),linear-gradient(180deg,#040509 0%,#06080f 55%,#0a0d1b 100%)}
+.sky.warm{background:radial-gradient(80% 40% at 50% 0%,rgba(255,162,87,.2),rgba(255,162,87,0) 72%),linear-gradient(180deg,#07070c 0%,#0b0c16 50%,#121428 100%)}
+.sky .aur{position:absolute;inset:0;background:radial-gradient(70% 42% at 8% 12%,rgba(89,230,255,.12),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 92% 34%,rgba(143,123,255,.15),rgba(143,123,255,0) 62%);transition:opacity 1s var(--ease)}
+.phone.dim .sky .aur{opacity:0}
+.sb{position:absolute;top:0;left:0;right:0;z-index:7;height:50px;display:flex;align-items:center;justify-content:space-between;padding:14px 28px 0 34px;font:600 15px/1 var(--ui);pointer-events:none}
+.sb .r{display:flex;align-items:center;gap:8px}
+.demochip{font:600 11px/1 var(--ui);color:var(--ink3);padding:3px 7px;border-radius:7px;box-shadow:inset 0 0 0 1px var(--sep)}
+.bat{position:relative;width:25px;height:12px;border-radius:3.5px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.bat::after{content:"";position:absolute;top:2px;left:2px;bottom:2px;width:15px;border-radius:2px;background:var(--ink)}
+.scr{position:absolute;top:50px;left:0;right:0;bottom:0;padding:0 16px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.navrow{flex:none;display:flex;align-items:center;justify-content:space-between;height:44px;margin:0 -8px}
+.back{display:inline-flex;align-items:center;height:44px;padding:0 12px 0 4px;font:400 15px var(--ui);color:var(--ink2)}
+.back svg{width:22px;height:22px}
+.icb{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.icb svg{width:20px;height:20px}
+.txb{min-height:44px;padding:0 10px;font:400 15px var(--ui);color:var(--ink2)}
+.lt{flex:none;margin:2px 0 12px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.k{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.fit{white-space:nowrap;overflow:hidden}
+.sx{display:block;min-width:0}
+.sx b{display:block;font:600 15px/1.3 var(--ui)}
+.sx .m{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.skill{flex:none;display:grid;grid-template-columns:minmax(0,1fr) auto 14px;align-items:center;gap:10px;width:100%;min-height:58px;padding:8px 12px 8px 14px;border-radius:16px;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.lamps{display:flex;align-items:center;gap:6px}
+.chev{width:14px;height:14px;color:var(--ink3);transition:transform .3s var(--ease)}
+.card{border-radius:var(--r);background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 14px 34px -18px rgba(0,0,0,.7)}
+.lit{background:linear-gradient(180deg,rgba(255,162,87,.13),rgba(255,162,87,.04) 48%,rgba(255,162,87,0)),var(--glass);box-shadow:inset 0 0 0 1px var(--or-edge),inset 0 1px 0 rgba(255,220,190,.26),0 0 44px -14px rgba(255,162,87,.42),0 14px 34px -18px rgba(0,0,0,.7)}
+.gk{flex:none;margin:18px 4px 6px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.list{flex:none;overflow:hidden}
+.list > * + *{border-top:1px solid var(--sep)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto 14px;align-items:center;gap:10px;width:100%;min-height:58px;padding:8px 12px 8px 14px;text-align:left}
+.cap{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:44px;padding:0 22px;border-radius:22px;background:var(--or);color:var(--or-ink);font:600 15px var(--ui);white-space:nowrap;box-shadow:0 0 26px -8px var(--or-glow)}
+.quiet{min-height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(232,236,246,.1)}
+
+/* the summary dock: five tabs in a glass pill and Nova detached (his phone's chrome) */
+.dock{position:absolute;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:minmax(0,1fr) 58px;align-items:center;gap:10px;padding:0 12px 12px}
+.tabbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));height:62px;padding:0 4px;border-radius:31px;background:var(--bar);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;margin:4px 0;border-radius:27px;font:500 10px/1.1 var(--ui);color:rgba(232,236,246,.5)}
+.tab svg{width:22px;height:22px}
+.tab.on{color:var(--cy);background:rgba(89,230,255,.1)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--bar);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+
+/* the lamp: one per move, dim until landed (PracticeLamps.jsx, index.css .nv-lamp) */
+.lamp{--l:22px;position:relative;display:inline-block;flex:none;width:var(--l);height:var(--l);border-radius:50%;border:1.5px solid rgba(255,162,87,.3);background:radial-gradient(circle at 50% 36%,rgba(255,162,87,.1),rgba(232,236,246,.05) 72%);transition:border-color .45s var(--ease)}
+.lamp::before{content:"";position:absolute;inset:-60%;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(255,162,87,.46),rgba(255,162,87,0) 62%);opacity:0;transform:scale(.55);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.lamp::after{content:"";position:absolute;inset:28%;border-radius:50%;background:rgba(232,236,246,.24);transition:background-color .45s var(--ease),box-shadow .45s var(--ease)}
+.lamp.on{border-color:rgba(255,162,87,.8)}
+.lamp.on::before{opacity:1;transform:scale(1)}
+.lamp.on::after{background:var(--or);box-shadow:0 0 calc(var(--l) * .42) 1px rgba(255,162,87,.7)}
+.lamp.miss{border-style:dashed;border-color:rgba(232,236,246,.45)}
+.lamp.swell{animation:swell .6s var(--ease)}
+@keyframes swell{40%{transform:scale(1.22)}}
+.lamp.s{--l:12px;border-width:1px}
+.lamp.m{--l:16px}
+.lamp.l{--l:28px}
+
+/* A1 and C1: the scene card */
+.stage{flex:none;margin-top:14px;padding:16px 16px 14px;transition:opacity .26s var(--ease),transform .26s var(--ease)}
+.stage.out,.poster.out{opacity:0;transform:translateY(8px)}
+.sn{margin:4px 0 0;font:400 24px/1.2 var(--serif);text-wrap:balance}
+.cast{margin:3px 0 0;color:var(--ink2)}
+.set{margin:8px 0 0;text-wrap:pretty}
+.floor{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:14px;padding-top:14px;border-top:1px solid var(--sep)}
+.mv{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;text-align:center;font:400 13px/1.25 var(--ui);color:var(--ink2)}
+.go{display:flex;align-items:center;gap:12px;margin-top:16px}
+.go .m{min-width:0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+
+/* A2: the scene, the lamps pinned under the status bar */
+.sbar{position:absolute;top:54px;left:12px;right:12px;z-index:4;padding:4px 4px 10px 14px;border-radius:24px;background:var(--bar);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.sbtop{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px}
+.sbt{min-width:0}
+.sbt b{display:block;font:600 15px/1.25 var(--ui)}
+.sbt span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.tq{flex:none;min-height:44px;min-width:44px;padding:0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2)}
+.sbl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:2px 10px 0 0}
+.sl{display:flex;align-items:center;gap:7px;min-height:44px;min-width:0;font:400 13px/1.2 var(--ui);color:var(--ink2);transition:color .45s var(--ease)}
+.sl.on{color:var(--ink)}
+.arc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:4px 10px 0 0}
+.arc i{display:block;height:3px;border-radius:2px;background:rgba(232,236,246,.14);transition:background-color .6s var(--ease)}
+.arc i.on{background:rgba(232,236,246,.62)}
+.script{position:absolute;left:16px;right:16px;top:206px;bottom:146px;display:flex;flex-direction:column;justify-content:flex-end;gap:16px;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 40px);mask-image:linear-gradient(180deg,transparent 0,#000 40px);transition:opacity .45s var(--ease)}
+.script.b{top:112px;bottom:350px}
+.rst .script,.rst .subs,.rst .foots,.rst .beam{opacity:0}
+.ln{transition:opacity .4s var(--ease),transform .4s var(--ease)}
+.ln.hide{opacity:0;transform:translateY(8px)}
+.who{display:flex;align-items:center;gap:6px;margin:0 0 4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.who svg{width:18px;height:18px;color:var(--ink2)}
+.think{display:none;align-items:center;gap:6px}
+.thinking .think{display:inline-flex}
+.dots{display:inline-flex;gap:4px}
+.dots i{width:5px;height:5px;border-radius:50%;background:var(--ink3);animation:blink 1s infinite}
+.dots i:nth-child(2){animation-delay:.2s}
+.dots i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+.pl{margin:0;font:400 20px/1.35 var(--serif)}
+.yl{margin:0;padding-left:12px;border-left:2px solid rgba(232,236,246,.18);font:400 15px/1.45 var(--ui)}
+.w{display:inline-block;opacity:0;transform:translateY(6px);filter:blur(3px);transition:opacity .38s var(--ease),transform .38s var(--ease),filter .38s var(--ease)}
+.w.on{opacity:1;transform:none;filter:none}
+.q{background:linear-gradient(var(--or),var(--or)) 0 100%/0% 2px no-repeat;padding-bottom:1px;transition:background-size .9s var(--ease-out),text-shadow .7s ease,color .7s ease}
+.q.shine{background-size:100% 2px;color:#fff;text-shadow:0 0 14px rgba(255,162,87,.5)}
+.landed{display:flex;align-items:center;gap:7px;margin:7px 0 0 14px;font:400 13px/1.3 var(--ui);color:var(--ink2);opacity:0;transform:translateY(4px);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.landed.on{opacity:1;transform:none}
+.ctl{position:absolute;left:12px;right:12px;bottom:12px;z-index:5;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:8px;height:118px;padding:0 14px;border-radius:34px;background:var(--bar);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.ctl .mid{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0}
+.side{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink2)}
+.side svg{width:22px;height:22px}
+.side.end{width:auto;min-width:44px;font:600 15px var(--ui);color:var(--ink)}
+.mic{position:relative;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:var(--or);background:rgba(255,162,87,.1);box-shadow:inset 0 0 0 2px var(--or);transition:background-color .3s var(--ease),color .3s var(--ease)}
+.mic svg{width:26px;height:26px}
+.mic::after{content:"";position:absolute;inset:-8px;border-radius:50%;box-shadow:0 0 0 2px var(--or);opacity:0;pointer-events:none}
+.mic.live{background:var(--or);color:var(--or-ink)}
+.mic.live::after{animation:ring 1.5s var(--ease) infinite}
+.mic.hear::after{opacity:.45}
+@keyframes ring{from{opacity:.75;transform:scale(.92)}to{opacity:0;transform:scale(1.3)}}
+.ml{min-height:17px;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap}
+
+/* A3: the notes, where the bar was */
+.notes{flex:none;margin-top:4px;padding:12px 14px 4px}
+.nrow{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start;padding:11px 0;opacity:0;transform:translateY(8px);transition:opacity .45s var(--ease),transform .45s var(--ease);transition-delay:calc(var(--i,0) * 120ms + 120ms)}
+.nrow + .nrow{border-top:1px solid var(--sep)}
+.nrow .lamp{margin-top:-1px}
+.nrow b{display:block;font:600 15px/1.3 var(--ui)}
+.said{display:block;margin:3px 0 0;font:400 15px/1.4 var(--ui);color:var(--ink2)}
+.in .nrow,.in .cn,.in .rise{opacity:1;transform:none}
+.rise{opacity:0;transform:translateY(8px);transition:opacity .45s var(--ease),transform .45s var(--ease);transition-delay:calc(var(--i,0) * 120ms + 120ms)}
+.work{flex:none;margin:16px 2px 0}
+.work p{margin:3px 0 0;font:400 20px/1.35 var(--serif);text-wrap:pretty}
+.receipt{flex:none;display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:56px;margin-top:16px;padding:4px 4px 4px 12px;border-radius:28px;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.receipt .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--void);background:var(--ink)}
+.receipt .ok svg{width:15px;height:15px;stroke-width:3}
+.undo{min-height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink)}
+.acts{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px}
+.orb{display:block;flex:none;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+.orb.sm{width:24px;height:24px}
+
+/* A4: The page */
+.sum{flex:none;margin:0;color:var(--ink2);text-wrap:pretty}
+.why{flex:none;margin:10px 0 0;padding-left:12px;border-left:2px solid rgba(232,236,246,.22);font:italic 400 20px/1.35 var(--serif);color:var(--ink2)}
+.lrow{display:grid;grid-template-columns:24px minmax(0,1fr) 14px;gap:10px;align-items:center;width:100%;min-height:56px;padding:8px 12px;text-align:left}
+.lrow.open{align-items:start;padding-top:12px;padding-bottom:12px}
+.lrow.open .chev{transform:rotate(90deg);margin-top:3px}
+.lrow > .lamp{justify-self:center}
+.lrow.open > .lamp{margin-top:1px}
+.lrow .tx{display:block;font:400 15px/1.35 var(--ui);color:var(--ink2)}
+.det{display:grid;gap:3px;margin-top:8px;font:400 13px/1.4 var(--ui);color:var(--ink3)}
+.det em{font-style:normal;font-weight:600;color:var(--ink2)}
+
+/* B: cue cards */
+.deck{position:relative;flex:none;margin-top:14px;padding-top:12px}
+.ghost{position:absolute;height:40px;border-radius:var(--r);background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring)}
+.ghost.g2{left:16px;right:16px;top:0;opacity:.45}
+.ghost.g1{left:8px;right:8px;top:6px;opacity:.75}
+.cue{position:relative;height:304px;perspective:1000px;touch-action:pan-y}
+.cin{position:relative;height:100%;transform-style:preserve-3d;transition:transform .55s var(--ease)}
+.cue.flip .cin{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;display:flex;flex-direction:column;padding:16px;border-radius:var(--r);overflow:hidden;background:var(--paper);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 14px 34px -18px rgba(0,0,0,.8);backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:opacity .25s linear}
+.face.rear{transform:rotateY(180deg)}
+.cue.swap .face{opacity:0}
+.ch{display:flex;align-items:center;gap:8px;min-width:0;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.ch .pos{margin-left:auto;font-variant-numeric:tabular-nums}
+.line{margin:12px 0 0;font:400 24px/1.25 var(--serif);text-wrap:pretty}
+.when,.bk{margin:10px 0 0;color:var(--ink2);text-wrap:pretty}
+.lb{color:var(--ink3)}
+.cbot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:10px}
+.turn{min-height:44px;padding:0 6px;font:600 15px var(--ui);color:var(--ink2)}
+.rail{flex:none;display:flex;justify-content:center;margin-top:6px}
+.rail button{width:44px;height:44px;display:grid;place-items:center;border-radius:22px}
+.rail button[aria-current="true"]{box-shadow:inset 0 0 0 1.5px rgba(232,236,246,.45)}
+.tiles{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:106px;min-width:0;padding:11px 10px 12px;border-radius:16px;text-align:left}
+.tile b{font:600 15px/1.25 var(--ui);overflow-wrap:anywhere}
+.tile .m{margin-top:auto;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.nb3{position:absolute;top:50px;left:6px;right:6px;z-index:4;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:4px;min-height:52px}
+.nb3 .ttl{min-width:0;text-align:center}
+.nb3 .ttl b{display:block;font:600 15px/1.25 var(--ui)}
+.nb3 .ttl span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.hand{position:absolute;left:16px;right:16px;bottom:146px;z-index:3;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cm{--base:none;position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:86px;min-width:0;padding:10px 10px 12px;border-radius:14px;text-align:left;background:#151a2b;box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 12px 24px -12px rgba(0,0,0,.85);transform:var(--base);transition:transform .5s var(--ease),box-shadow .5s var(--ease),background-color .5s var(--ease)}
+.cm.c1{--base:rotate(-2.5deg)}
+.cm.c2{--base:translateY(-5px)}
+.cm.c3{--base:rotate(2.5deg)}
+.cm b{font:400 13px/1.25 var(--ui);color:var(--ink2)}
+.cm[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px rgba(232,236,246,.45),0 12px 24px -12px rgba(0,0,0,.85)}
+.cm.up,.cm.done{background:#1d1820}
+.cm.up{transform:translateY(-12px) scale(1.04);box-shadow:inset 0 0 0 1px rgba(255,162,87,.55),0 0 40px -10px rgba(255,162,87,.6),0 14px 26px -12px rgba(0,0,0,.85)}
+.cm.done{box-shadow:inset 0 0 0 1px rgba(255,162,87,.42),0 12px 24px -12px rgba(0,0,0,.85)}
+.peek{--x:16.67%;position:absolute;left:16px;right:16px;bottom:254px;z-index:3;padding:10px 14px 12px;border-radius:16px;background:#151a2b;box-shadow:inset 0 0 0 .5px var(--glass-ring),0 12px 24px -12px rgba(0,0,0,.85);transition:opacity .3s var(--ease),transform .3s var(--ease),box-shadow .45s var(--ease),background-color .45s var(--ease)}
+.peek.out{opacity:0;transform:translateY(6px)}
+.peek.hit{background:#1d1820;box-shadow:inset 0 0 0 1px rgba(255,162,87,.5),0 0 40px -12px rgba(255,162,87,.55)}
+.peek .k{display:flex;align-items:center;gap:6px}
+.peek p{margin:4px 0 0;font:400 15px/1.4 var(--ui)}
+.peek::after{content:"";position:absolute;bottom:-7px;left:calc(var(--x) - 7px);width:14px;height:14px;background:inherit;transform:rotate(45deg);box-shadow:1px 1px 0 0 rgba(255,255,255,.08);transition:left .35s var(--ease)}
+.sub2{flex:none;margin:-6px 0 0;color:var(--ink2)}
+.cuelist{flex:none;display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.cn{padding:12px 14px;border-radius:16px;background:var(--paper);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi);opacity:0;transform:translateY(10px);transition:opacity .45s var(--ease),transform .45s var(--ease);transition-delay:calc(var(--i,0) * 120ms + 120ms)}
+.cn.lit{box-shadow:inset 0 0 0 1px var(--or-edge),0 0 34px -14px rgba(255,162,87,.45)}
+.cn.miss{box-shadow:none;outline:1.5px dashed rgba(232,236,246,.36);outline-offset:-1.5px;background:rgba(20,24,39,.6)}
+.cn .said{margin-top:6px}
+
+/* C: the spotlight */
+.ctop{position:absolute;top:50px;left:6px;right:6px;z-index:6;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:4px;min-height:52px}
+.pill{justify-self:center;max-width:100%;display:inline-flex;align-items:center;min-height:32px;padding:0 13px;border-radius:16px;background:rgba(16,20,38,.58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font:600 13px/1.2 var(--ui);color:var(--ink2);text-align:center}
+.cone{position:absolute;left:50%;top:-30px;width:340px;height:440px;margin-left:-170px;z-index:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,200,150,.16),rgba(255,162,87,.07) 72%,rgba(255,162,87,0));clip-path:polygon(43% 0,57% 0,100% 100%,0 100%);filter:blur(10px);opacity:0;transition:opacity 1s var(--ease)}
+.pool{position:absolute;left:50%;top:214px;width:240px;height:54px;margin-left:-120px;z-index:0;border-radius:50%;background:radial-gradient(closest-side,rgba(255,162,87,.2),rgba(255,162,87,0));opacity:0;transition:opacity 1s var(--ease)}
+.cone.on,.pool.on{opacity:1}
+.maskw{position:absolute;top:122px;left:0;right:0;z-index:2;display:flex;flex-direction:column;align-items:center;gap:6px}
+.maskw svg{width:66px;height:66px;color:var(--ink);filter:drop-shadow(0 0 14px rgba(255,162,87,.42))}
+.maskw.breath svg{animation:breathe 1.6s var(--ease) infinite}
+@keyframes breathe{50%{transform:scale(1.05)}}
+.maskw span{font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.subs{position:absolute;left:22px;right:22px;top:232px;z-index:2;text-align:center;transition:opacity .45s var(--ease)}
+.stw{position:relative;height:164px}
+.st{position:absolute;left:0;right:0;bottom:0;margin:0;font:400 24px/1.33 var(--serif);text-wrap:balance;transition:opacity .5s var(--ease)}
+.st.dim{opacity:.4}
+.st.gone{opacity:0}
+.yt{margin-top:18px;transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.yt.hide{opacity:0;transform:translateY(8px)}
+.yt .who{justify-content:center}
+.ytx{margin:0;font:400 17px/1.45 var(--ui)}
+.floorl{position:absolute;left:28px;right:28px;top:624px;height:2px;border-radius:1px;z-index:1;background:rgba(232,236,246,.1);overflow:hidden}
+.floorl i{display:block;height:100%;width:0;background:linear-gradient(90deg,rgba(255,162,87,.15),rgba(255,162,87,.6));transition:width 1.2s var(--ease)}
+.foots{position:absolute;left:16px;right:16px;top:610px;z-index:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;transition:opacity .45s var(--ease)}
+.ft{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;text-align:center;font:400 13px/1.25 var(--ui);color:var(--ink2)}
+.ft .tag{min-height:17px;color:var(--ink);opacity:0;transition:opacity .45s var(--ease)}
+.ft .tag.on{opacity:1}
+.ft.cur::after{content:"";position:absolute;top:-8px;left:50%;width:44px;height:44px;margin-left:-22px;border-radius:50%;box-shadow:inset 0 0 0 1.5px rgba(232,236,246,.4)}
+.beam{position:absolute;z-index:1;pointer-events:none;background:linear-gradient(0deg,rgba(255,162,87,.36),rgba(255,162,87,.08) 72%,rgba(255,162,87,0));filter:blur(4px);opacity:0;transform-origin:50% 100%;transform:scaleY(.15);transition:opacity .5s var(--ease),transform .8s var(--ease-out)}
+.beam.on{opacity:1;transform:none}
+.poster{position:relative;flex:none;margin-top:18px;padding:18px 16px 16px;text-align:center;transition:opacity .26s var(--ease),transform .26s var(--ease)}
+.poster::before{content:"";position:absolute;left:50%;bottom:100%;width:220px;height:170px;margin-left:-110px;pointer-events:none;background:linear-gradient(180deg,rgba(255,200,150,0),rgba(255,162,87,.12));clip-path:polygon(42% 0,58% 0,100% 100%,0 100%);filter:blur(6px)}
+.poster .sn{margin:0}
+.poster .go{justify-content:center}
+.foot{position:relative;border-top:0;padding-top:16px}
+.foot::before{content:"";position:absolute;left:8%;right:8%;top:30px;height:2px;border-radius:1px;background:linear-gradient(90deg,rgba(255,162,87,0),rgba(255,162,87,.28),rgba(255,162,87,0))}
+.foot .mv{position:relative}
+.minis{flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.mini{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:96px;padding:12px 10px;border-radius:16px;text-align:center}
+.mini b{font:600 15px/1.25 var(--ui)}
+.mini .m{font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.core3{position:absolute;top:112px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.core3 .orb{width:46px;height:46px}
+.core3 span{font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.news{position:absolute;left:22px;right:22px;top:190px;text-align:center}
+.news p{margin:0;font:400 24px/1.3 var(--serif);text-wrap:balance}
+.news .small{margin-top:8px;font:400 15px/1.45 var(--ui);color:var(--ink2)}
+.callout{--x:16.67%;position:absolute;left:16px;right:16px;top:306px;z-index:3;padding:12px 14px 14px;border-radius:18px;background:#1b1820;box-shadow:inset 0 0 0 1px var(--or-edge),0 0 34px -14px rgba(255,162,87,.45);transition:opacity .3s var(--ease),transform .3s var(--ease)}
+.callout.out{opacity:0;transform:translateY(6px)}
+.callout::after{content:"";position:absolute;bottom:-7px;left:calc(var(--x) - 7px);width:14px;height:14px;background:#1b1820;transform:rotate(45deg);box-shadow:1px 1px 0 0 var(--or-edge);transition:left .35s var(--ease)}
+.callout.miss{box-shadow:inset 0 0 0 1px rgba(232,236,246,.28)}
+.callout.miss::after{box-shadow:1px 1px 0 0 rgba(232,236,246,.28)}
+.callout b{display:block;font:600 15px/1.3 var(--ui)}
+.callout .said{margin-top:4px}
+.foots.c3{top:438px}
+.c3low{position:absolute;left:16px;right:16px;top:540px}
+.c3low .receipt{margin-top:0}
+
+/* reduced motion: the house rule, a cross-fade instead of movement */
+:root[data-rm="1"] .w{transform:none;filter:none;transition:opacity .25s linear}
+:root[data-rm="1"] .lamp,:root[data-rm="1"] .lamp::before,:root[data-rm="1"] .lamp::after{transition-duration:.25s}
+:root[data-rm="1"] .lamp::before{transform:none}
+:root[data-rm="1"] .lamp.swell,:root[data-rm="1"] .dots i,:root[data-rm="1"] .maskw.breath svg,:root[data-rm="1"] .mic.live::after{animation:none}
+:root[data-rm="1"] .mic.live::after{opacity:.6}
+:root[data-rm="1"] .q{transition:background-size 0s,color .25s linear,text-shadow .25s linear}
+:root[data-rm="1"] .ln.hide,:root[data-rm="1"] .yt.hide,:root[data-rm="1"] .nrow,:root[data-rm="1"] .cn,:root[data-rm="1"] .rise,:root[data-rm="1"] .landed,:root[data-rm="1"] .stage.out,:root[data-rm="1"] .poster.out,:root[data-rm="1"] .callout.out{transform:none}
+:root[data-rm="1"] .ln,:root[data-rm="1"] .yt,:root[data-rm="1"] .nrow,:root[data-rm="1"] .cn,:root[data-rm="1"] .rise,:root[data-rm="1"] .landed,:root[data-rm="1"] .stage,:root[data-rm="1"] .poster,:root[data-rm="1"] .callout{transition:opacity .25s linear;transition-delay:0s}
+:root[data-rm="1"] .cm,:root[data-rm="1"] .cm.up{transform:var(--base);transition:box-shadow .25s linear,background-color .25s linear}
+:root[data-rm="1"] .beam{transform:none;transition:opacity .25s linear}
+:root[data-rm="1"] .peek.out{transform:none}
+:root[data-rm="1"] .peek{transition:opacity .25s linear}
+:root[data-rm="1"] .cin{transition:none}
+:root[data-rm="1"] .cue.flip .cin{transform:none}
+:root[data-rm="1"] .face.rear{transform:none;opacity:0}
+:root[data-rm="1"] .cue.flip .face.rear{opacity:1}
+:root[data-rm="1"] .cue.flip .face.front{opacity:0}
+:root[data-rm="1"] .cone,:root[data-rm="1"] .pool,:root[data-rm="1"] .sky .aur,:root[data-rm="1"] .floorl i,:root[data-rm="1"] .chev{transition-duration:.25s}
+:root[data-rm="1"] .pr:active{transform:none}
+@media (prefers-reduced-motion: reduce){
+  .lamp.swell,.dots i,.maskw.breath svg,.mic.live::after{animation:none!important}
+  .w{transform:none;filter:none}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Mockup 75 · round 1 · 5 October 2026 · for your review</p>
+    <h1>Practice, three ways</h1>
+    <p class="lede">The rehearsal room, drawn three ways from the audit. Each keeps every function the room has today; what changes is what you meet first, where the lamps sit while you talk, and how the notes reach you.</p>
+    <p class="find"><b>What the audit measured.</b> Opened, a skill is three screens long in twelve type sizes, with Rehearse offered four times for three scenes. In a scene the lamps scroll off the top by the third exchange, so a line that lands lights a lamp nobody sees, and the notes then give their verdict three times, the first and last 1,270 px apart.</p>
+    <p class="demo">Demo content. The skill, the scenes, Dana and every line on this page are invented; nothing comes from your vault, and no rehearsal was run to make it.</p>
+    <div class="tools">
+      <button id="play" type="button" aria-pressed="false">Pause the scenes</button>
+      <button id="rm" type="button" aria-pressed="false">Preview reduced motion</button>
+    </div>
+  </header>
+
+  <div class="switch">
+    <div class="seg" role="group" aria-label="Direction">
+      <button type="button" data-dir="a" aria-pressed="true">A · Next scene</button>
+      <button type="button" data-dir="b" aria-pressed="false">B · Cue cards</button>
+      <button type="button" data-dir="c" aria-pressed="false">C · Spotlight</button>
+    </div>
+  </div>
+
+  <!-- ================================================================ A -->
+  <section class="dir" data-dir="a" aria-label="Direction A, the next scene">
+    <h2>A · The next scene</h2>
+    <p class="dline"><b>Removes</b> the six move write-ups, the second copy of the title and three of the four Rehearse buttons from the first screen. <b>Keeps</b> every field (lines, when, tell, source, tallies, scenes, rehearsals, gaps, the page and pause) one tap deeper, on The page. <b>Moves</b> Add a skill to a + beside the title, the lamps to a bar pinned at the top of the stage, and the notes to where that bar was.</p>
+    <ul class="counts">
+      <li>Above the fold <span class="n">12 → 8</span></li>
+      <li>Rehearse buttons <span class="n">4 → 1</span></li>
+      <li>Type sizes <span class="n">12 → 4</span></li>
+      <li>The room <span class="n">3 screens → 1</span></li>
+      <li>In a scene <span class="n">15 → 10 objects</span></li>
+      <li>Smallest stage control <span class="n">21 → 44 pt</span></li>
+      <li>Lamps in view as a line lands <span class="n">no → always</span></li>
+      <li>The verdict <span class="n">3 times → once</span></li>
+    </ul>
+    <p class="mac">On the Mac: the next scene and The page side by side; in a scene the script keeps a 640 px measure under the pinned lamp bar.</p>
+    <div class="frames">
+
+      <figure>
+        <div class="phone" data-frame="a1" role="group" aria-label="A, choosing what to rehearse">
+          <div class="sky room"></div>
+          <i data-sb></i>
+          <div class="scr">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><button type="button" class="icb pr" aria-label="Add a skill"><i data-ico="plus"></i></button></div>
+            <p class="lt">Practice</p>
+            <button type="button" class="skill pr" aria-label="Asking for more time, 0 of 6 lines landed. Open The page">
+              <span class="sx"><b>Asking for more time</b><span class="m">0 of 6 lines landed</span></span>
+              <span class="lamps" data-lamps="000000" data-size="s"></span>
+              <i data-ico="chev" class="chev"></i>
+            </button>
+            <article class="card lit stage" data-hero aria-live="polite">
+              <span class="k" data-k>Next · Name the trade has not landed yet</span>
+              <p class="sn" data-sn>The Monday stand-up</p>
+              <p class="cast" data-cast>with Dana, your manager</p>
+              <p class="set" data-set>Your manager asks, in front of the team, whether the report is still on for Wednesday.</p>
+              <div class="floor" data-floor></div>
+              <div class="go"><button type="button" class="cap pr">Rehearse</button><span class="m">Up to eight exchanges, spoken or typed.</span></div>
+            </article>
+            <p class="gk">Other scenes</p>
+            <div class="card list" data-others></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>Choose</b>The room opens on the next scene, lit, with one Rehearse. Tap another scene and it takes the card. The skill row opens The page; with more than one skill it becomes a switcher. Add a skill is the +, and saying it to Nova still works.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="a2" data-loop="a2" role="group" aria-label="A, in the scene: Dana speaks, you answer, a move lands">
+          <div class="sky house"></div>
+          <i data-sb></i>
+          <div class="sbar">
+            <div class="sbtop"><span class="sbt"><b>The Monday stand-up</b><span>with Dana, your manager</span></span><button type="button" class="tq pr">Time out</button></div>
+            <div class="sbl">
+              <span class="sl" data-move="trade"><i class="lamp m"></i><span>Name the trade</span></span>
+              <span class="sl"><i class="lamp m"></i><span>Silence after the ask</span></span>
+              <span class="sl"><i class="lamp m"></i><span>Hold once</span></span>
+            </div>
+            <div class="arc" role="img" aria-label="Where the scene is: open, middle, close"><i class="on"></i><i></i><i></i></div>
+          </div>
+          <div class="script">
+            <div class="ln" data-l="1"><span class="who"><i data-mask></i>Dana</span><p class="pl">Morning, everyone. Quick one before we start. The quarterly report is still on for Wednesday, right? I told leadership it would be in their inbox first thing.</p></div>
+            <div class="ln" data-l="2"><span class="who">You</span><p class="yl">I want it right for them. <span class="q">If it moves to Friday, the review gets the full day it needs.</span></p><span class="landed"><i class="lamp s on"></i>Name the trade · landed</span></div>
+            <div class="ln" data-l="3"><span class="who"><i data-mask></i>Dana<span class="think">is thinking<span class="dots"><i></i><i></i><i></i></span></span></span><p class="pl">Friday is cutting it fine. Everyone else made their dates this quarter. Can you not push a bit harder?</p></div>
+          </div>
+          <div class="ctl">
+            <button type="button" class="side pr" aria-label="Type instead"><i data-ico="kbd"></i></button>
+            <span class="mid"><button type="button" class="mic pr" aria-label="Speak your line"><i data-ico="mic"></i></button><span class="ml">Dana has the floor</span></span>
+            <button type="button" class="side end pr">End</button>
+          </div>
+        </div>
+        <figcaption><b>In the scene</b>The lamps stay pinned at the top. Dana speaks; your turn; your words arrive when you stop (your iPhone records, the Mac transcribes). Her reply carries the note, so as it lands Name the trade lights and the words that earned it are lit. The line under the lamps is where the scene is: open, middle, close, which the server already sends. End asks once: get notes, or leave without them.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="a3" data-enter role="group" aria-label="A, the notes">
+          <div class="sky room"></div>
+          <i data-sb></i>
+          <div class="scr" style="padding-top:8px">
+            <article class="card lit notes">
+              <span class="k">Notes · The Monday stand-up</span>
+              <div class="nrow" style="--i:0"><i class="lamp on"></i><span><b>Name the trade</b><span class="said">“If it moves to Friday, the review gets the full day it needs.”</span></span></div>
+              <div class="nrow" style="--i:1"><i class="lamp miss"></i><span><b>Silence after the ask</b><span class="said">Next time, try “Friday works. Can we agree on Friday?”</span></span></div>
+              <div class="nrow" style="--i:2"><i class="lamp on"></i><span><b>Hold once</b><span class="said">“Friday is still the honest date.”</span></span></div>
+            </article>
+            <div class="work rise" style="--i:3"><span class="k">Work on</span><p>Say the date, then stop. At the first push you filled the quiet with a reason.</p></div>
+            <div class="receipt rise" style="--i:4"><span class="ok"><i data-ico="check"></i></span><span class="sx"><b>On the page</b><span class="m">2 of 3 landed · 18:52</span></span><button type="button" class="undo pr">Undo</button></div>
+            <div class="acts rise" style="--i:5"><button type="button" class="cap pr">Next scene: The client call</button><button type="button" class="quiet pr">Done</button></div>
+            <div class="card list rise" style="--i:6;margin-top:16px">
+              <button type="button" class="row pr"><span class="sx"><b>Nova's notes</b><span class="m">In his own words, four sentences</span></span><span class="orb sm"></span><i data-ico="chev" class="chev"></i></button>
+              <button type="button" class="row pr"><span class="sx"><b>The script</b><span class="m">Nine lines</span></span><span></span><i data-ico="chev" class="chev"></i></button>
+            </div>
+          </div>
+        </div>
+        <figcaption><b>The notes</b>The stage bar becomes the notes, in the same place: each move with your words, or the line to try next time; one thing to work on; the receipt with Undo on it for as long as you are here; the next scene. Nova's own spoken notes and the script are one tap away.</figcaption>
+        <button type="button" class="replay" data-replay="a3">Replay the notes</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="a4" role="group" aria-label="A, The page">
+          <div class="sky room"></div>
+          <i data-sb></i>
+          <div class="scr">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Practice</button><button type="button" class="txb pr">Open in Notes</button></div>
+            <p class="lt">Asking for more time</p>
+            <p class="sum">Moving a deadline without apologising for it, and leaving with a date both sides can keep.</p>
+            <p class="why">“I say yes in the room and regret it on the drive home.”</p>
+            <p class="gk">Lines you can say · 0 of 6 landed</p>
+            <div class="card list" data-lines></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>The page, one tap deeper</b>Everything the skill page holds today. Tap a line for when, tell, source and its tally. Below the lines: the three scenes, the rehearsals, what would make the notes surer with Upload the book, and Pause this skill.</figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ B -->
+  <section class="dir" data-dir="b" aria-label="Direction B, cue cards" hidden>
+    <h2>B · Cue cards</h2>
+    <p class="dline"><b>Removes</b> the long list of moves and the separate scenes section from the first screen. <b>Keeps</b> each move whole on its own cue card: the line on the front, when, tell, source and tally on the back. <b>Moves</b> the scenes to a row of three under the deck, and in a scene lays that scene's cards in a row above the mic, the picked card's line showing above them. <b>Adds</b> one thing, marked new: Say it, a one-line drill.</p>
+    <ul class="counts">
+      <li>Above the fold <span class="n">12 → 11</span></li>
+      <li>Moves on screen at once <span class="n">6 → 1</span></li>
+      <li>The room <span class="n">3 screens → 1</span></li>
+      <li>Type sizes <span class="n">12 → 4</span></li>
+      <li>In a scene <span class="n">15 → 12 objects</span></li>
+      <li>Lamps in view as a line lands <span class="n">no → always</span></li>
+    </ul>
+    <p class="mac">On the Mac: three cue cards side by side; in a scene the cards stand beside the script instead of under it.</p>
+    <div class="frames">
+
+      <figure>
+        <div class="phone" data-frame="b1" role="group" aria-label="B, your lines as cue cards">
+          <div class="sky room"></div>
+          <i data-sb></i>
+          <div class="scr">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><button type="button" class="icb pr" aria-label="Add a skill"><i data-ico="plus"></i></button></div>
+            <p class="lt">Practice</p>
+            <button type="button" class="skill pr" aria-label="Asking for more time. About this skill">
+              <span class="sx"><b>Asking for more time</b><span class="m">Scenes, rehearsals, the page</span></span>
+              <span></span>
+              <i data-ico="chev" class="chev"></i>
+            </button>
+            <div class="deck">
+              <span class="ghost g2"></span><span class="ghost g1"></span>
+              <div class="cue" data-cue>
+                <div class="cin">
+                  <div class="face front">
+                    <span class="ch"><i class="lamp m"></i><span data-c="name">Name the trade</span><span class="pos" data-c="pos">1 of 6</span></span>
+                    <p class="line" data-c="line">“If this moves to Friday, the review gets the full day it needs.”</p>
+                    <p class="when"><span class="lb">When </span><span data-c="when">they want it sooner than you can do it well.</span></p>
+                    <div class="cbot"><button type="button" class="turn pr" data-turn>Turn over</button><button type="button" class="cap pr">Say it</button></div>
+                  </div>
+                  <div class="face rear" aria-hidden="true">
+                    <span class="ch"><i class="lamp m"></i><span data-c="name2">Name the trade</span></span>
+                    <p class="bk"><span class="lb">How you’ll know </span><span data-c="tell">they weigh the trade instead of your reluctance.</span></p>
+                    <p class="bk"><span class="lb">Source </span><span data-c="src">Asking Without Apologising</span></p>
+                    <p class="bk"><span class="lb">So far </span><span data-c="tally">not tried yet</span></p>
+                    <div class="cbot"><button type="button" class="turn pr" data-turn>Turn back</button></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="rail" role="group" aria-label="Your six lines" data-rail></div>
+            <p class="gk">Rehearse a scene</p>
+            <div class="tiles">
+              <button type="button" class="tile card lit pr"><b>The Monday stand-up</b><span class="lamps" data-lamps="000" data-size="s"></span><span class="m">Next</span></button>
+              <button type="button" class="tile card pr"><b>The client call</b><span class="lamps" data-lamps="000" data-size="s"></span><span class="m">with Sam</span></button>
+              <button type="button" class="tile card pr"><b>The late message</b><span class="lamps" data-lamps="00" data-size="s"></span><span class="m">a peer</span></button>
+            </div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>Choose</b>Your lines as cue cards, one at a time: the line on the front, Turn over for how you'll know, the source and the tally. Swipe, or tap a lamp, for the next line. <b style="display:inline;font-size:13px">Say it is new</b>: one push from the partner, one line from you, one note; it needs a server change, so it is your call. A full scene starts from the row of three.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="b2" data-loop="b2" role="group" aria-label="B, in the scene with the cue cards in your hand">
+          <div class="sky house"></div>
+          <i data-sb></i>
+          <div class="nb3"><button type="button" class="tq pr">Time out</button><span class="ttl"><b>The Monday stand-up</b><span>with Dana, your manager</span></span><button type="button" class="tq pr">End</button></div>
+          <div class="script b">
+            <div class="ln" data-l="1"><span class="who"><i data-mask></i>Dana</span><p class="pl">Morning, everyone. Quick one before we start. The quarterly report is still on for Wednesday, right? I told leadership it would be in their inbox first thing.</p></div>
+            <div class="ln" data-l="2"><span class="who">You</span><p class="yl">I want it right for them. <span class="q">If it moves to Friday, the review gets the full day it needs.</span></p></div>
+            <div class="ln" data-l="3"><span class="who"><i data-mask></i>Dana<span class="think">is thinking<span class="dots"><i></i><i></i><i></i></span></span></span><p class="pl">Friday is cutting it fine. Everyone else made their dates this quarter. Can you not push a bit harder?</p></div>
+          </div>
+          <div class="peek" data-peek><span class="k"><i class="lamp s"></i><span data-pk="name">Name the trade</span></span><p data-pk="text">If this moves to Friday, the review gets the full day it needs.</p></div>
+          <div class="hand" role="group" aria-label="This scene's cue cards">
+            <button type="button" class="cm c1 pr" data-cm="0" aria-pressed="true"><i class="lamp m"></i><b>Name the trade</b></button>
+            <button type="button" class="cm c2 pr" data-cm="1" aria-pressed="false"><i class="lamp m"></i><b>Silence after the ask</b></button>
+            <button type="button" class="cm c3 pr" data-cm="4" aria-pressed="false"><i class="lamp m"></i><b>Hold once</b></button>
+          </div>
+          <div class="ctl">
+            <button type="button" class="side pr" aria-label="Type instead"><i data-ico="kbd"></i></button>
+            <span class="mid"><button type="button" class="mic pr" aria-label="Speak your line"><i data-ico="mic"></i></button><span class="ml">Dana has the floor</span></span>
+            <button type="button" class="side pr" aria-label="Put the cards away"><i data-ico="cards"></i></button>
+          </div>
+        </div>
+        <figcaption><b>In the scene</b>The scene's three cue cards lie in a row above the mic, and the line on the card you pick shows above them, so it is in your hand while Dana pushes. When her reply lands with its note, Name the trade lifts and lights and its line turns into your own words; then it settles, still lit, and the next card's line comes up.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="b3" data-enter role="group" aria-label="B, the notes as cue cards">
+          <div class="sky room"></div>
+          <i data-sb></i>
+          <div class="scr" style="padding-top:6px">
+            <p class="lt">Notes</p>
+            <p class="sub2">The Monday stand-up · with Dana</p>
+            <div class="work rise" style="--i:0"><span class="k">Work on</span><p>Say the date, then stop. At the first push you filled the quiet with a reason.</p></div>
+            <div class="cuelist">
+              <div class="cn lit" style="--i:1"><span class="ch"><i class="lamp m on"></i>Name the trade</span><p class="said">You said “If it moves to Friday, the review gets the full day it needs.”</p></div>
+              <div class="cn miss" style="--i:2"><span class="ch"><i class="lamp m miss"></i>Silence after the ask</span><p class="said">Next time, try “Friday works. Can we agree on Friday?”</p></div>
+              <div class="cn lit" style="--i:3"><span class="ch"><i class="lamp m on"></i>Hold once</span><p class="said">You said “Friday is still the honest date.”</p></div>
+            </div>
+            <div class="receipt rise" style="--i:4"><span class="ok"><i data-ico="check"></i></span><span class="sx"><b>On the page</b><span class="m">2 of 3 landed · 18:52</span></span><button type="button" class="undo pr">Undo</button></div>
+            <div class="acts rise" style="--i:5"><button type="button" class="cap pr">Next scene: The client call</button><button type="button" class="quiet pr">Done</button></div>
+          </div>
+        </div>
+        <figcaption><b>The notes</b>The three cards laid out: lit with what you said, dashed with the line to try. One thing to work on above them, the receipt with Undo, and the next scene.</figcaption>
+        <button type="button" class="replay" data-replay="b3">Replay the notes</button>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ C -->
+  <section class="dir" data-dir="c" aria-label="Direction C, spotlight" hidden>
+    <h2>C · Spotlight</h2>
+    <p class="dline"><b>Removes</b> the scrolling script and the page from the stage: one exchange at a time, full screen, no tab bar, the way your Nova full screen works. <b>Keeps</b> the script one pull away, every page field on The page as A draws it, and every stage control. <b>Moves</b> the partner under a spotlight (the masks you picked for Practice's being), the lines into subtitles that pour in like Nova's, and the moves to footlights that light as you land them.</p>
+    <ul class="counts">
+      <li>Above the fold <span class="n">12 → 7</span></li>
+      <li>In a scene <span class="n">15 → 10 objects</span></li>
+      <li>Scene type sizes <span class="n">11 → 4</span></li>
+      <li>Smallest stage control <span class="n">21 → 44 pt</span></li>
+      <li>Lamps in view as a line lands <span class="n">no → always</span></li>
+      <li>The verdict <span class="n">3 times → once</span></li>
+    </ul>
+    <p class="mac">On the Mac: the stage centred at 720 px with subtitles held to about 40 characters a line, and the script in a side panel.</p>
+    <div class="frames">
+
+      <figure>
+        <div class="phone" data-frame="c1" role="group" aria-label="C, a call sheet of scenes">
+          <div class="sky room"></div>
+          <i data-sb></i>
+          <div class="scr">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><button type="button" class="icb pr" aria-label="Add a skill"><i data-ico="plus"></i></button></div>
+            <p class="lt">Practice</p>
+            <button type="button" class="skill pr" aria-label="Asking for more time, 0 of 6 lines landed. Open The page">
+              <span class="sx"><b>Asking for more time</b><span class="m">0 of 6 lines landed</span></span>
+              <span class="lamps" data-lamps="000000" data-size="s"></span>
+              <i data-ico="chev" class="chev"></i>
+            </button>
+            <article class="card lit poster" data-poster aria-live="polite">
+              <p class="sn" data-sn>The Monday stand-up</p>
+              <p class="cast" data-cast>with Dana, your manager</p>
+              <p class="set" data-set>Your manager asks, in front of the team, whether the report is still on for Wednesday.</p>
+              <div class="floor foot" data-floor></div>
+              <div class="go"><button type="button" class="cap pr">Rehearse</button></div>
+            </article>
+            <div class="minis" data-minis></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>Choose</b>A call sheet: the next scene under the light, its moves standing as footlights; the other two below. Tap one to bring it into the light.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="c2" data-loop="c2" role="group" aria-label="C, the scene full screen with subtitles and footlights">
+          <div class="sky house"><span class="aur"></span></div>
+          <i data-sb></i>
+          <span class="cone"></span><span class="pool"></span>
+          <div class="ctop"><button type="button" class="tq pr">Time out</button><span class="pill">The Monday stand-up</span><button type="button" class="tq pr">End</button></div>
+          <div class="maskw"><i data-mask></i><span data-mlabel>Dana</span></div>
+          <div class="subs">
+            <div class="stw"><p class="st" data-st="1">Morning, everyone. Quick one before we start. The quarterly report is still on for Wednesday, right?</p><p class="st gone" data-st="2">Friday is cutting it fine. Everyone else made their dates this quarter. Can you not push a bit harder?</p></div>
+            <div class="yt hide"><span class="who">You</span><p class="ytx">I want it right for them. <span class="q">If it moves to Friday, the review gets the full day it needs.</span></p></div>
+          </div>
+          <span class="beam"></span>
+          <span class="floorl"><i></i></span>
+          <div class="foots">
+            <span class="ft" data-ft="trade"><i class="lamp l"></i><span>Name the trade</span><span class="tag">landed</span></span>
+            <span class="ft"><i class="lamp l"></i><span>Silence after the ask</span><span class="tag"></span></span>
+            <span class="ft"><i class="lamp l"></i><span>Hold once</span><span class="tag"></span></span>
+          </div>
+          <div class="ctl">
+            <button type="button" class="side pr" aria-label="Type instead"><i data-ico="kbd"></i></button>
+            <span class="mid"><button type="button" class="mic pr" aria-label="Speak your line"><i data-ico="mic"></i></button><span class="ml">Dana has the floor</span></span>
+            <button type="button" class="side pr" aria-label="Pull up the script"><i data-ico="script"></i></button>
+          </div>
+        </div>
+        <figcaption><b>In the scene</b>Full screen, one exchange at a time. The house lights go down; Dana under the light, her words pouring in as subtitles; yours beneath. When her reply lands with its note, the footlight blooms and its light rises to the words that earned it, and the stage floor lights a little further as the scene moves on. The script is one pull away.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="c3" data-loop="c3" role="group" aria-label="C, the curtain call: Nova gives the notes">
+          <div class="sky warm"></div>
+          <i data-sb></i>
+          <div class="ctop"><span></span><span class="pill">Notes · The Monday stand-up</span><span></span></div>
+          <div class="core3"><span class="orb"></span><span>Nova</span></div>
+          <div class="news"><p>Say the date, then stop.</p><p class="small">At the first push you filled the quiet with a reason.</p></div>
+          <div class="callout" data-callout><b data-co="name">Name the trade</b><span class="said" data-co="text">You said “If it moves to Friday, the review gets the full day it needs.”</span></div>
+          <div class="foots c3">
+            <span class="ft cur"><i class="lamp l on"></i><span>Name the trade</span></span>
+            <span class="ft"><i class="lamp l miss"></i><span>Silence after the ask</span></span>
+            <span class="ft"><i class="lamp l on"></i><span>Hold once</span></span>
+          </div>
+          <div class="c3low">
+            <div class="receipt"><span class="ok"><i data-ico="check"></i></span><span class="sx"><b>On the page</b><span class="m">2 of 3 landed · 18:52</span></span><button type="button" class="undo pr">Undo</button></div>
+            <div class="acts"><button type="button" class="cap pr">Next scene: The client call</button><button type="button" class="quiet pr">Done</button></div>
+          </div>
+        </div>
+        <figcaption><b>Curtain call</b>Nova steps out of the scene: his own core takes Dana's place and he gives the notes as himself. Each footlight shows its note in turn, lit with your words or dashed with the line to try; then the receipt with Undo, and the next scene.</figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ every direction -->
+  <section class="closing" aria-label="Whichever you pick">
+    <h2>Whichever you pick</h2>
+    <ul class="keep">
+      <li>Leave moves inside End: End asks once, Get notes or Leave without notes, and says the scene will not be filed. One small tap can no longer throw a scene away.</li>
+      <li>Pause becomes Time out and says what it does: Dana steps out of the scene for one exchange.</li>
+      <li>The waits say what is happening: Nova is casting Dana from your page; Dana is thinking; hearing you.</li>
+      <li>A page that could not be prepared gets Try again and Dismiss where it sits.</li>
+      <li>Every control is 44 pt. Four type sizes a view at most. Orange means light: a lit lamp, the stage's spot, and the one action that starts a scene; every label is ink.</li>
+      <li>Nothing nags: no streaks, no reminders, no daily question, as you asked on 26 September.</li>
+    </ul>
+  </section>
+
+  <section class="closing" aria-label="Your calls">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Which direction</b><span>A, B or C, or a blend of named parts (C's stage with A's room is a coherent one). Either way every function stays, and your pick comes back as round 2 with your tweaks; nothing is built until you say the page is done.</span></div></li>
+      <li><div><b>The tab bar during a scene</b><span>Hidden, as in your Nova full screen: the mic and End get the bottom of the screen. Kept: one tap leaves mid-scene, and the scene is still running when you come back.</span></div></li>
+      <li><div><b>Say it, the one-line drill (new, drawn in B)</b><span>Yes: a small server change lets you try one line against one push, with its own lamp and note. No: rehearsal stays scene by scene, as built today.</span></div></li>
+      <li><div><b>Where Add a skill lives</b><span>A + beside the title that opens the same box in a sheet (saying it to Nova works either way), or the box stays on the room's first screen as it is today.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const doc = document.documentElement;
+  const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  let preview = false;
+  let playing = true;
+  const reduced = () => doc.dataset.rm === '1';
+  const setRm = () => { doc.dataset.rm = (preview || (mq && mq.matches)) ? '1' : '0'; };
+  setRm();
+
+  // ---------------------------------------------------------------- icons
+  const P = {
+    back: '<path d="M15 5l-7 7 7 7"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    chev: '<path d="M9 5l7 7-7 7"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
+    kbd: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    script: '<path d="M6 7h12M6 12h12M6 17h8"/>',
+    cards: '<rect x="7" y="4" width="12" height="16" rx="2.5"/><path d="M4 8v9.5A2.5 2.5 0 0 0 6.5 20"/>',
+    home: '<path d="M4 11l8-7 8 7v8.5a.5.5 0 0 1-.5.5H15v-6H9v6H4.5a.5.5 0 0 1-.5-.5z"/>',
+    train: '<path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/>',
+    fuel: '<path d="M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3M17 21V3c-2.2 0-3.5 2.6-3.5 6s1.3 4.5 3.5 4.5"/>',
+    more: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/>'
+  };
+  const ico = (k, cls) => '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + P[k] + '</svg>';
+  // the worried mask: the other person in the scene (Practice's being, 26 Sep)
+  const MASK = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M12 13c9-5 31-5 40 0 2 15-3 31-20 39C15 44 10 28 12 13z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="M19 27l9-3M36 24l9 3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="24.5" cy="31.5" rx="4.2" ry="2.6" fill="currentColor"/><ellipse cx="39.5" cy="31.5" rx="4.2" ry="2.6" fill="currentColor"/><path d="M26 45q6-3.6 12 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+
+  const SB = '<div class="sb" aria-hidden="true"><span>18:40</span><span class="r"><span class="demochip">Demo</span><span class="bat"></span></span></div>';
+  $$('[data-sb]').forEach((el) => { el.outerHTML = SB; });
+  const TABS = [['Home', 'home'], ['Nova', 'mic'], ['Train', 'train'], ['Fuel', 'fuel'], ['More', 'more']];
+  const DOCK = '<div class="dock" aria-hidden="true"><div class="tabbar">' + TABS.map(([n, k]) => '<span class="tab' + (k === 'more' ? ' on' : '') + '">' + ico(k) + '<span>' + n + '</span></span>').join('') + '</div><span class="novabtn"><span class="orb"></span></span></div>';
+  $$('[data-dock]').forEach((el) => { el.outerHTML = DOCK; });
+  $$('[data-ico]').forEach((el) => { el.outerHTML = ico(el.dataset.ico, el.getAttribute('class')); });
+  $$('[data-mask]').forEach((el) => { el.outerHTML = MASK; });
+  const lampsHtml = (spec, size) => [...spec].map((c) => '<i class="lamp' + (size ? ' ' + size : '') + (c === '1' ? ' on' : c === 'x' ? ' miss' : '') + '"></i>').join('');
+  $$('[data-lamps]').forEach((el) => { el.innerHTML = lampsHtml(el.dataset.lamps, el.dataset.size || ''); });
+
+  // ---------------------------------------------------------------- demo data (invented)
+  const MOVES = [
+    { name: 'Name the trade', line: 'If this moves to Friday, the review gets the full day it needs.', when: 'they want it sooner than you can do it well.', tell: 'they weigh the trade instead of your reluctance.', src: 'Asking Without Apologising' },
+    { name: 'Silence after the ask', line: 'Friday works. Can we agree on Friday?', when: 'right after you name the date.', tell: 'they answer the question, not your nerves.', src: 'Silence as Leverage' },
+    { name: 'Question of impact', line: 'What happens on your side if this lands Friday instead of Wednesday?', when: 'the pressure is vague or borrowed from someone else.', tell: 'the real constraint comes out, and it is usually smaller.', src: 'your words' },
+    { name: 'Offer two dates', line: 'I can do Thursday with a smaller scope, or Friday with all of it. Which helps more?', when: 'a flat no would stall the conversation.', tell: 'they pick one, and the choice is now theirs.', src: 'Two Good Options' },
+    { name: 'Hold once', line: 'I hear that it’s tight. Friday is still the honest date.', when: 'they push a second time.', tell: 'the push softens or turns into a question.', src: 'Asking Without Apologising' },
+    { name: 'Close on a date', line: 'So, Friday at noon, and I’ll flag it early if anything slips.', when: 'the talk is winding down.', tell: 'you both leave with the same date.', src: 'your words' }
+  ];
+  const SCENES = {
+    standup: { name: 'The Monday stand-up', cast: 'with Dana, your manager', short: 'with Dana', set: 'Your manager asks, in front of the team, whether the report is still on for Wednesday.', moves: [0, 1, 4] },
+    client: { name: 'The client call', cast: 'with Sam, a client', short: 'with Sam', set: 'A client rings to bring the date forward by two days.', moves: [2, 3, 5] },
+    late: { name: 'The late message', cast: 'with a peer who means well', short: 'a peer', set: 'At six in the evening a peer asks for a quick extra section by morning.', moves: [0, 3] }
+  };
+  const floorHtml = (sc) => sc.moves.map((i) => '<span class="mv"><i class="lamp"></i>' + MOVES[i].name + '</span>').join('');
+
+  // ---------------------------------------------------------------- A1 and C1: choosing a scene
+  function chooser(frame, heroSel, listSel, rowHtml) {
+    const hero = $(heroSel, frame);
+    const list = $(listSel, frame);
+    let current = 'standup';
+    const paint = () => {
+      const sc = SCENES[current];
+      $('[data-sn]', hero).textContent = sc.name;
+      $('[data-cast]', hero).textContent = sc.cast;
+      $('[data-set]', hero).textContent = sc.set;
+      $('[data-floor]', hero).innerHTML = floorHtml(sc);
+      const k = $('[data-k]', hero);
+      if (k) k.textContent = current === 'standup' ? 'Next · Name the trade has not landed yet' : 'Your pick';
+      list.innerHTML = Object.keys(SCENES).filter((key) => key !== current).map((key) => rowHtml(key, SCENES[key])).join('');
+      $$('[data-ico]', list).forEach((el) => { el.outerHTML = ico(el.dataset.ico, el.getAttribute('class')); });
+    };
+    paint();
+    list.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-swap]');
+      if (!b) return;
+      hero.classList.add('out');
+      setTimeout(() => { current = b.dataset.swap; paint(); hero.classList.remove('out'); }, reduced() ? 120 : 240);
+    });
+  }
+  const A1 = $('[data-frame="a1"]');
+  if (A1) chooser(A1, '[data-hero]', '[data-others]', (key, sc) => '<button type="button" class="row pr" data-swap="' + key + '"><span class="sx"><b>' + sc.name + '</b><span class="m">' + sc.cast + '</span></span><span class="lamps">' + lampsHtml('0'.repeat(sc.moves.length), 's') + '</span><i data-ico="chev" class="chev"></i></button>');
+  const C1 = $('[data-frame="c1"]');
+  if (C1) chooser(C1, '[data-poster]', '[data-minis]', (key, sc) => '<button type="button" class="mini card pr" data-swap="' + key + '"><b>' + sc.name + '</b><span class="m">' + sc.short + '</span><span class="lamps">' + lampsHtml('0'.repeat(sc.moves.length), 's') + '</span></button>');
+
+  // ---------------------------------------------------------------- A4: the lines on The page
+  const A4 = $('[data-frame="a4"]');
+  if (A4) {
+    const box = $('[data-lines]', A4);
+    let open = 0;
+    const paint = () => {
+      box.innerHTML = MOVES.map((m, i) => '<button type="button" class="lrow pr' + (i === open ? ' open' : '') + '" data-i="' + i + '" aria-expanded="' + (i === open) + '"><i class="lamp"></i><span class="sx"><b>' + m.name + '</b><span class="tx' + (i === open ? '' : ' fit') + '">' + m.line + '</span>' +
+        (i === open ? '<span class="det"><span><em>When</em> ' + m.when + '</span><span><em>Tell</em> ' + m.tell + '</span><span><em>Source</em> ' + m.src + ' · not tried yet</span></span>' : '') +
+        '</span>' + ico('chev', 'chev') + '</button>').join('');
+      fitAll(box);
+    };
+    box.addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (!b) return; const i = +b.dataset.i; open = open === i ? -1 : i; paint(); });
+    paint();
+  }
+
+  // ---------------------------------------------------------------- B1: the deck
+  const B1 = $('[data-frame="b1"]');
+  if (B1) {
+    const cue = $('[data-cue]', B1);
+    const rail = $('[data-rail]', B1);
+    let at = 0;
+    const set = (k, v) => { const el = $('[data-c="' + k + '"]', cue); if (el) el.textContent = v; };
+    const paint = () => {
+      const m = MOVES[at];
+      set('name', m.name); set('name2', m.name); set('pos', (at + 1) + ' of 6');
+      set('line', '“' + m.line + '”'); set('when', m.when); set('tell', m.tell); set('src', m.src); set('tally', 'not tried yet');
+      $$('button', rail).forEach((b, i) => b.setAttribute('aria-current', String(i === at)));
+    };
+    rail.innerHTML = MOVES.map((m, i) => '<button type="button" class="pr" aria-label="' + m.name + ', not landed yet">' + '<i class="lamp m"></i></button>').join('');
+    const go = (i) => {
+      if (i < 0 || i > 5 || i === at) return;
+      cue.classList.remove('flip');
+      cue.classList.add('swap');
+      setTimeout(() => { at = i; paint(); cue.classList.remove('swap'); }, 200);
+    };
+    rail.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) go($$('button', rail).indexOf(b)); });
+    $$('[data-turn]', cue).forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const flip = !cue.classList.contains('flip');
+      cue.classList.toggle('flip', flip);
+      $('.face.front', cue).setAttribute('aria-hidden', String(flip));
+      $('.face.rear', cue).setAttribute('aria-hidden', String(!flip));
+    }));
+    let x0 = null, y0 = null;
+    cue.addEventListener('pointerdown', (e) => { x0 = e.clientX; y0 = e.clientY; });
+    cue.addEventListener('pointerup', (e) => {
+      if (x0 == null) return;
+      const dx = e.clientX - x0, dy = e.clientY - y0;
+      x0 = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) go(at + (dx < 0 ? 1 : -1));
+    });
+    cue.addEventListener('pointercancel', () => { x0 = null; });
+    paint();
+  }
+
+  // ---------------------------------------------------------------- words that pour in
+  function split(el) {
+    if (!el.dataset.split) {
+      const t = el.textContent.trim().replace(/\s+/g, ' ');
+      el.dataset.split = '1';
+      el.innerHTML = t.split(' ').map((w) => '<span class="w">' + w + '</span>').join(' ');
+    }
+    return $$('.w', el);
+  }
+  function pour(el, gap) {
+    const ws = split(el);
+    const rm = reduced();
+    ws.forEach((w, i) => { w.style.transitionDelay = rm ? '0ms' : (i * (gap || 80)) + 'ms'; w.classList.add('on'); });
+  }
+  function unpour(el) { split(el).forEach((w) => { w.style.transitionDelay = '0ms'; w.classList.remove('on'); }); }
+
+  // a title that does not fit gives way a word at a time, never mid-word (the house rule)
+  function fit(el) {
+    if (!el.dataset.full) el.dataset.full = el.textContent;
+    el.textContent = el.dataset.full;
+    if (!el.clientWidth || el.scrollWidth <= el.clientWidth + 1) return;
+    const words = el.dataset.full.split(' ');
+    while (words.length > 1) {
+      words.pop();
+      el.textContent = words.join(' ').replace(/[\s,.;:·]+$/, '') + '…';
+      if (el.scrollWidth <= el.clientWidth + 1) return;
+    }
+  }
+  function fitAll(root) { $$('.fit', root || document).forEach(fit); }
+
+  // ---------------------------------------------------------------- the loops
+  const loops = new Map();
+  function loop(frame, def) {
+    let timers = [];
+    let on = false;
+    const clear = () => { timers.forEach(clearTimeout); timers = []; };
+    const run = () => {
+      clear();
+      def.reset();
+      requestAnimationFrame(() => frame.classList.remove('rst'));
+      const k = reduced() ? 1.2 : 1;
+      def.steps.forEach(([t, fn]) => timers.push(setTimeout(fn, t * k)));
+      timers.push(setTimeout(run, def.length * k));
+    };
+    loops.set(frame, {
+      start() { if (!on) { on = true; run(); } },
+      stop() { if (on) { on = false; clear(); } },
+      restart() { if (on) run(); }
+    });
+  }
+  function micState(frame, st, label) {
+    const mic = $('.mic', frame);
+    mic.classList.toggle('live', st === 'live');
+    mic.classList.toggle('hear', st === 'hear');
+    $('.ml', frame).textContent = label;
+  }
+  function swell(lamp) {
+    lamp.classList.add('on');
+    if (!reduced()) { lamp.classList.remove('swell'); void lamp.offsetWidth; lamp.classList.add('swell'); }
+  }
+
+  // A2 and B2 share a script: Dana opens, he answers, her reply lands with its note
+  function sceneLoop(frame, onLand, onReset, extraSteps) {
+    const L = (n) => $('[data-l="' + n + '"]', frame);
+    const p1 = $('[data-l="1"] .pl', frame);
+    const p3 = $('[data-l="3"] .pl', frame);
+    const q = $('.q', frame);
+    loop(frame, {
+      reset() {
+        frame.classList.add('rst');
+        [1, 2, 3].forEach((n) => { L(n).classList.add('hide'); L(n).classList.remove('thinking'); });
+        unpour(p1); unpour(p3);
+        q.classList.remove('shine');
+        micState(frame, 'idle', 'Dana has the floor');
+        onReset();
+      },
+      steps: [
+        [250, () => { L(1).classList.remove('hide'); pour(p1); }],
+        [3100, () => micState(frame, 'live', 'Listening')],
+        [5600, () => micState(frame, 'hear', 'Hearing you')],
+        [6500, () => { micState(frame, 'idle', 'Dana has the floor'); L(2).classList.remove('hide'); }],
+        [7000, () => { L(3).classList.add('thinking'); L(3).classList.remove('hide'); }],
+        [8600, () => { L(3).classList.remove('thinking'); pour(p3); }],
+        [10600, () => { q.classList.add('shine'); onLand(); micState(frame, 'idle', 'Your turn'); }],
+        [14800, () => frame.classList.add('rst')]
+      ].concat(extraSteps || []),
+      length: 15400
+    });
+  }
+
+  const A2 = $('[data-frame="a2"]');
+  if (A2) {
+    const sl = $('[data-move="trade"]', A2);
+    const lamp = $('.lamp', sl);
+    const landed = $('.landed', A2);
+    const arc = $$('.arc i', A2);
+    sceneLoop(A2, () => {
+      swell(lamp); sl.classList.add('on'); landed.classList.add('on');
+      arc.forEach((a, i) => a.classList.toggle('on', i <= 1));
+    }, () => {
+      lamp.classList.remove('on', 'swell'); sl.classList.remove('on'); landed.classList.remove('on');
+      arc.forEach((a, i) => a.classList.toggle('on', i === 0));
+    });
+  }
+
+  const B2 = $('[data-frame="b2"]');
+  if (B2) {
+    const cards = $$('.cm', B2);
+    const peek = $('[data-peek]', B2);
+    const pkName = $('[data-pk="name"]', peek), pkText = $('[data-pk="text"]', peek), pkLamp = $('.lamp', peek);
+    const X = ['16.67%', '50%', '83.33%'];
+    const SAID = 'You said “If it moves to Friday, the review gets the full day it needs.”';
+    let landed = false;
+    const showPeek = (i, hit) => {
+      peek.classList.add('out');
+      setTimeout(() => {
+        const m = MOVES[+cards[i].dataset.cm];
+        pkName.textContent = m.name;
+        pkText.textContent = hit ? SAID : m.line;
+        pkLamp.classList.toggle('on', !!hit);
+        peek.classList.toggle('hit', !!hit);
+        peek.style.setProperty('--x', X[i]);
+        cards.forEach((c, j) => c.setAttribute('aria-pressed', String(j === i)));
+        peek.classList.remove('out');
+      }, reduced() ? 100 : 180);
+    };
+    cards.forEach((c, i) => c.addEventListener('click', () => showPeek(i, landed && i === 0)));
+    sceneLoop(B2, () => { landed = true; cards[0].classList.add('up'); swell($('.lamp', cards[0])); showPeek(0, true); }, () => {
+      landed = false;
+      cards.forEach((c) => { c.classList.remove('up', 'done'); $('.lamp', c).classList.remove('on', 'swell'); });
+      showPeek(0, false);
+    }, [[12900, () => { cards[0].classList.remove('up'); cards[0].classList.add('done'); showPeek(1, false); }]]);
+  }
+
+  const C2 = $('[data-frame="c2"]');
+  if (C2) {
+    const cone = $('.cone', C2), pool = $('.pool', C2);
+    const st1 = $('[data-st="1"]', C2), st2 = $('[data-st="2"]', C2);
+    const yt = $('.yt', C2), q = $('.q', C2);
+    const maskw = $('.maskw', C2), mlabel = $('[data-mlabel]', C2);
+    const ft = $('[data-ft="trade"]', C2), lamp = $('.lamp', ft), tag = $('.tag', ft);
+    const beam = $('.beam', C2), floor = $('.floorl i', C2);
+    function placeBeam() {
+      const pr = C2.getBoundingClientRect();
+      const lr = lamp.getBoundingClientRect();
+      const qr = q.getBoundingClientRect();
+      const cx = lr.left + lr.width / 2 - pr.left;
+      const left = Math.min(cx - 14, qr.left - pr.left);
+      const right = Math.max(cx + 14, qr.right - pr.left);
+      const top = qr.bottom - pr.top + 2;
+      const bottom = lr.top - pr.top + 4;
+      const w = Math.max(1, right - left);
+      beam.style.left = left + 'px';
+      beam.style.top = top + 'px';
+      beam.style.width = w + 'px';
+      beam.style.height = Math.max(10, bottom - top) + 'px';
+      const pct = (x) => (100 * (x - left) / w).toFixed(1) + '%';
+      beam.style.clipPath = 'polygon(' + pct(qr.left - pr.left) + ' 0,' + pct(qr.right - pr.left) + ' 0,' + pct(cx + 12) + ' 100%,' + pct(cx - 12) + ' 100%)';
+    }
+    loop(C2, {
+      reset() {
+        C2.classList.add('rst');
+        C2.classList.remove('dim'); cone.classList.remove('on'); pool.classList.remove('on');
+        unpour(st1); unpour(st2);
+        st1.classList.remove('dim', 'gone'); st2.classList.add('gone');
+        yt.classList.add('hide'); q.classList.remove('shine');
+        maskw.classList.remove('breath'); mlabel.textContent = 'Dana';
+        lamp.classList.remove('on', 'swell'); tag.classList.remove('on');
+        beam.classList.remove('on'); floor.style.width = '0%';
+        micState(C2, 'idle', 'Dana has the floor');
+      },
+      steps: [
+        [200, () => { C2.classList.add('dim'); cone.classList.add('on'); pool.classList.add('on'); floor.style.width = '14%'; }],
+        [900, () => pour(st1)],
+        [3700, () => { st1.classList.add('dim'); micState(C2, 'live', 'Listening'); }],
+        [6100, () => micState(C2, 'hear', 'Hearing you')],
+        [6900, () => { micState(C2, 'idle', 'Dana has the floor'); yt.classList.remove('hide'); }],
+        [7400, () => { maskw.classList.add('breath'); mlabel.textContent = 'Dana is thinking'; }],
+        [8900, () => { maskw.classList.remove('breath'); mlabel.textContent = 'Dana'; st1.classList.add('gone'); st2.classList.remove('gone'); pour(st2); }],
+        [10900, () => { placeBeam(); swell(lamp); tag.classList.add('on'); q.classList.add('shine'); beam.classList.add('on'); floor.style.width = '48%'; micState(C2, 'idle', 'Your turn'); }],
+        [14900, () => C2.classList.add('rst')]
+      ],
+      length: 15500
+    });
+  }
+
+  const C3 = $('[data-frame="c3"]');
+  if (C3) {
+    const NOTES = [
+      ['Name the trade', 'You said “If it moves to Friday, the review gets the full day it needs.”'],
+      ['Silence after the ask', 'Next time, try “Friday works. Can we agree on Friday?”'],
+      ['Hold once', 'You said “Friday is still the honest date.”']
+    ];
+    const co = $('[data-callout]', C3);
+    const fts = $$('.foots.c3 .ft', C3);
+    const show = (i) => {
+      co.classList.add('out');
+      setTimeout(() => {
+        $('[data-co="name"]', co).textContent = NOTES[i][0];
+        $('[data-co="text"]', co).textContent = NOTES[i][1];
+        co.style.setProperty('--x', ['16.67%', '50%', '83.33%'][i]);
+        co.classList.toggle('miss', i === 1);
+        fts.forEach((f, j) => f.classList.toggle('cur', j === i));
+        co.classList.remove('out');
+      }, reduced() ? 120 : 220);
+    };
+    loop(C3, { reset() { show(0); }, steps: [[3000, () => show(1)], [6000, () => show(2)]], length: 9000 });
+  }
+
+  // ---------------------------------------------------------------- the notes frames enter once, and on Replay
+  function enter(frame) {
+    frame.classList.remove('in');
+    void frame.offsetWidth;
+    requestAnimationFrame(() => frame.classList.add('in'));
+  }
+  $$('[data-replay]').forEach((b) => b.addEventListener('click', () => enter($('[data-frame="' + b.dataset.replay + '"]'))));
+
+  // ---------------------------------------------------------------- run only what is on screen
+  const seen = new Set();
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting) seen.add(e.target); else seen.delete(e.target); });
+    sync();
+  }, { threshold: 0.15 }) : null;
+  loops.forEach((_, frame) => { if (io) io.observe(frame); });
+  function sync() {
+    loops.forEach((ctl, frame) => {
+      const dir = frame.closest('.dir');
+      const show = playing && dir && !dir.hidden && (!io || seen.has(frame));
+      if (show) ctl.start(); else ctl.stop();
+    });
+  }
+
+  // ---------------------------------------------------------------- the switcher and the tools
+  const segBtns = $$('.seg button');
+  function setDir(d, keep) {
+    segBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dir === d)));
+    $$('.dir').forEach((s) => { s.hidden = s.dataset.dir !== d; });
+    try { localStorage.setItem('nova-practice-75', d); } catch (e) { /* private window: the hash still works */ }
+    if (!keep) history.replaceState(null, '', '#' + d);
+    requestAnimationFrame(() => {
+      fitAll();
+      $$('.dir[data-dir="' + d + '"] [data-enter]').forEach(enter);
+      sync();
+    });
+  }
+  segBtns.forEach((b) => b.addEventListener('click', () => setDir(b.dataset.dir)));
+  const fromHash = () => { const h = (location.hash || '').slice(1); return ['a', 'b', 'c'].includes(h) ? h : null; };
+  window.addEventListener('hashchange', () => { const h = fromHash(); if (h) setDir(h, true); });
+  let first = fromHash();
+  if (!first) { try { first = localStorage.getItem('nova-practice-75'); } catch (e) { first = null; } }
+  setDir(['a', 'b', 'c'].includes(first) ? first : 'a', true);
+
+  const playBtn = $('#play');
+  playBtn.addEventListener('click', () => {
+    playing = !playing;
+    playBtn.textContent = playing ? 'Pause the scenes' : 'Play the scenes';
+    playBtn.setAttribute('aria-pressed', String(!playing));
+    sync();
+  });
+  const rmBtn = $('#rm');
+  const onRm = () => { setRm(); loops.forEach((ctl) => ctl.restart()); };
+  rmBtn.addEventListener('click', () => {
+    preview = !preview;
+    rmBtn.setAttribute('aria-pressed', String(preview));
+    onRm();
+  });
+  if (mq && mq.addEventListener) mq.addEventListener('change', onRm);
+  window.addEventListener('resize', () => fitAll());
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitAll());
+})();
+</script>
