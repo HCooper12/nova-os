@@ -162,18 +162,18 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 - [ ] N9 · Screen transition — tab hops instant (no snapshot) + 260ms WAAPI rise on `<main>`; programmatic hops cross-fade 140/280ms; per-screen scroll restore; chunk warm on pointerdown — `src/App.jsx:995-1106`, `src/index.css:1073-1083`
 
 **0.2 · Overlays, sheets and feedback**
-- [ ] O1 · Dynamic Island / toasts — `notify()` with 4 tones, tap/drag-to-dismiss, action chips, gooey merge, resident activities (workout · speaking · nudge) — `src/DynamicIsland.jsx:126-676`, `src/island.js:25-64`, `src/vals/valsChrome.js:780-857`
-- [ ] O2 · GlassSheet — FLIP grow-in from the tapped card, drag-to-dismiss with momentum projection and rubber-band, Escape, scrim — `src/GlassSheet.jsx:29-120`, `src/useSheetDrag.js:33-137`, `src/sheetPhysics.js`
-- [ ] O3 · ContextMenu on long-press (480ms) — bottom sheet on phone, popover on Mac, optional note block — `src/ContextMenu.jsx:17-70`, `src/longPress.js:19-58`
-- [ ] O4 · SwipeRow — direction-locked drag, underlay actions, commit by fraction or flick, `threshold` haptic — `src/SwipeRow.jsx:13-43`, `src/swipeAction.js:33-126`
-- [ ] O5 · Floating core (Mac) — tap talk / long-press transcript, thinking spin, listening pulse — `src/FloatingCore.jsx:18-37`
-- [ ] O6 · Voice presence + halo (any screen while talking) — HEARING / LISTENING / THINKING / SPEAKING / YOUR TURN, TAP TO HEAR, evidence card — `src/VoicePresence.jsx:27-176`, `src/VoiceHalo.jsx:9-39`
-- [ ] O7 · Wake word (headless, Settings opt-in) — `src/WakeWord.jsx:30-143`
-- [ ] O8 · Offline / demo / degraded banner — fixed pill above the dock — `src/App.jsx:9959-9971`, `src/vals/valsMission.js:679-686`
-- [ ] O9 · Boot screen — two rings, three fading status lines, bar sweep — `src/Boot.jsx:5-25`
-- [ ] O10 · Suspense fallback (one breathing dot) + idle prefetch — `src/App.jsx:163-189`
-- [ ] O11 · Skeletons (Bar / Card / List / Grid) — `src/Skeleton.jsx:20-69`
-- [ ] O12 · Exit animations — `useExit` / `nvFall`: adopted by 4 of 18 overlays (decision X2) — `src/useExit.js`, `src/index.css:103-104`
+- [m] O1 · Dynamic Island / toasts — `notify()` with 4 tones, tap/drag-to-dismiss, action chips, gooey merge, resident activities (workout · speaking · nudge) — `src/DynamicIsland.jsx:126-676`, `src/island.js:25-64`, `src/vals/valsChrome.js:780-857`
+- [m] O2 · GlassSheet — FLIP grow-in from the tapped card, drag-to-dismiss with momentum projection and rubber-band, Escape, scrim — `src/GlassSheet.jsx:29-120`, `src/useSheetDrag.js:33-137`, `src/sheetPhysics.js`
+- [m] O3 · ContextMenu on long-press (480ms) — bottom sheet on phone, popover on Mac, optional note block — `src/ContextMenu.jsx:17-70`, `src/longPress.js:19-58`
+- [m] O4 · SwipeRow — direction-locked drag, underlay actions, commit by fraction or flick, `threshold` haptic — `src/SwipeRow.jsx:13-43`, `src/swipeAction.js:33-126`
+- [m] O5 · Floating core (Mac) — tap talk / long-press transcript, thinking spin, listening pulse — `src/FloatingCore.jsx:18-37`
+- [m] O6 · Voice presence + halo (any screen while talking) — HEARING / LISTENING / THINKING / SPEAKING / YOUR TURN, TAP TO HEAR, evidence card — `src/VoicePresence.jsx:27-176`, `src/VoiceHalo.jsx:9-39`
+- [m] O7 · Wake word (headless, Settings opt-in) — `src/WakeWord.jsx:30-143`
+- [m] O8 · Offline / demo / degraded banner — fixed pill above the dock — `src/App.jsx:9959-9971`, `src/vals/valsMission.js:679-686`
+- [m] O9 · Boot screen — two rings, three fading status lines, bar sweep — `src/Boot.jsx:5-25`
+- [m] O10 · Suspense fallback (one breathing dot) + idle prefetch — `src/App.jsx:163-189`
+- [m] O11 · Skeletons (Bar / Card / List / Grid) — `src/Skeleton.jsx:20-69`
+- [m] O12 · Exit animations — `useExit` / `nvFall`: adopted by 4 of 18 overlays (decision X2) — `src/useExit.js`, `src/index.css:103-104`
 
 **0.3 · The palette a redesign draws from** (not rows to redesign; the parts)
 - House controls: `Eyebrow` `TextAction` `Chip` `Button` `Select` `Chevron` `Rail` `Tag` `Meta` `ScreenHead` `Segmented` `AttachStrip` (`src/Controls.jsx`); `Group` `GRow` `MetricTile` `Pill` (`src/AppleLayout.jsx`); `RingTile`; `LiquidGlass`; `Interactive` (press spring, haptic switch, long-press) — full list with locators in inventory A.
@@ -394,42 +394,42 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 #### Library — `library`
 `src/screens/Library.jsx` (651) · `src/vals/valsLibrary.js` · `src/shelf3d/*` (3D shelf). One of the app's bespoke objects; the redesign question is the frame around it, not the shelf.
 
-- [ ] L1 · Head + count, kind filter chips with counts, Search — `Library.jsx:108-115, 640-641`
-- [ ] L2 · "＋ Add source" → IngestModal — `Library.jsx:121`
-- [ ] L3 · Covers / Shelf toggle (raw ▦ ▥ glyphs) with FLIP morph between views — `Library.jsx:75-100, 123-139`
-- [ ] L4 · Covers grid — generated cloth covers, jacket + scrim, foil title, kind glyph, provenance, concept/echo counts, staggered `shelfIn` — `Library.jsx:215-326`
-- [ ] L5 · 3D shelf — 21 editions on a walnut board, drag to spin, tap-select then tap-open, edge guard for back-swipe, render-on-demand — `src/shelf3d/Shelf3D.jsx`, CSS spine fallback `Library.jsx:328-343`
-- [ ] L6 · Stage (3D-open) — the volume tumbles into its detail pose, text rises beside it; split 52/48 wide, stacked narrow — `Library.jsx:503-576`
-- [ ] L7 · Detail dossier — back, cover, title/author/provenance/updated/echoes, Open source ↗ · Original · See in Galaxy, Concepts / People & works / Topics / Also linked chip rows, "What Nova holds" body, related-sources rail — `Library.jsx:356-461`
-- [ ] L8 · The tint — the whole screen recolours to the open volume's accent, contrast-checked — `src/shelf3d/useLibraryTint.js:41-77`
-- [ ] L9 · States — header label connected / offline / connect-a-backend; detail loading / error + retry; 3D-unavailable notice — `valsLibrary.js:130-133, 178-189`, `Library.jsx:211-213`
+- [m] L1 · Head + count, kind filter chips with counts, Search — `Library.jsx:108-115, 640-641`
+- [m] L2 · "＋ Add source" → IngestModal — `Library.jsx:121`
+- [m] L3 · Covers / Shelf toggle (raw ▦ ▥ glyphs) with FLIP morph between views — `Library.jsx:75-100, 123-139`
+- [m] L4 · Covers grid — generated cloth covers, jacket + scrim, foil title, kind glyph, provenance, concept/echo counts, staggered `shelfIn` — `Library.jsx:215-326`
+- [m] L5 · 3D shelf — 21 editions on a walnut board, drag to spin, tap-select then tap-open, edge guard for back-swipe, render-on-demand — `src/shelf3d/Shelf3D.jsx`, CSS spine fallback `Library.jsx:328-343`
+- [m] L6 · Stage (3D-open) — the volume tumbles into its detail pose, text rises beside it; split 52/48 wide, stacked narrow — `Library.jsx:503-576`
+- [m] L7 · Detail dossier — back, cover, title/author/provenance/updated/echoes, Open source ↗ · Original · See in Galaxy, Concepts / People & works / Topics / Also linked chip rows, "What Nova holds" body, related-sources rail — `Library.jsx:356-461`
+- [m] L8 · The tint — the whole screen recolours to the open volume's accent, contrast-checked — `src/shelf3d/useLibraryTint.js:41-77`
+- [m] L9 · States — header label connected / offline / connect-a-backend; detail loading / error + retry; 3D-unavailable notice — `valsLibrary.js:130-133, 178-189`, `Library.jsx:211-213`
 
 **Prior:** #16 Library half done (search, scrim, whole-cover tap). **First look:** the shelf is a strength; the two raw glyph toggles beside house chips are the inconsistency.
 
 #### Ops (with the Org Map) — `ops`
 `src/screens/Ops.jsx` (349) · `src/vals/valsOps.js` · `src/vals/valsOrgMap.js` · `src/orgmap/*` · `src/agentWorld/*`. Three screen-sized systems on one route.
 
-- [ ] P1 · Empty state (demo / no sync) and head "records + heartbeats · nothing invented" — `Ops.jsx:175-190`
-- [ ] P2 · The human gate — pending count, gate line, Open Inbox → — `Ops.jsx:193-199`
-- [ ] P3 · The Org Map — seven districts on a ring, ten beings on their sets, walks, acts, waiting markers with real counts, tap a being → detail card (status · asks · last receipt · loops), pill-list fallback without WebGL, headline sentence, theme-aware rebuild — `Ops.jsx:201-210`, `src/orgmap/OrgMap.jsx:32-171`, `src/agentWorld/beings.js:120-156`, `habitat.js:26-34`
-- [ ] P4 · Topology — Channels column · 86px core · Connections column, "In conversation" agents (tap expands AgentDetail), legend, "N filed today" — `Ops.jsx:212-248`
-- [ ] P5 · Skill map — department cards, each skill tagged OBSERVE / PROPOSE / ACT — `Ops.jsx:251-268`
-- [ ] P6 · The Forge — input + Build it, job rows (state · title · cost · Stop · summary) — `Ops.jsx:270-302`
-- [ ] P7 · Overnight queue — input + Queue, Run now ▸, item rows with remove, empty copy — `Ops.jsx:304-330`
-- [ ] P8 · Working on this Mac — pulse + serif summary, per-project session rows with Show me / Close it — `Ops.jsx:115-172, 332`
-- [ ] P9 · The stream — newest-first receipts ledger, empty copy — `Ops.jsx:334-346`
-- [ ] P10 · Ambient hand-off — `goAmbient` lives here (`valsOps.js:250`); the only door to the wall display
+- [m] P1 · Empty state (demo / no sync) and head "records + heartbeats · nothing invented" — `Ops.jsx:175-190`
+- [m] P2 · The human gate — pending count, gate line, Open Inbox → — `Ops.jsx:193-199`
+- [m] P3 · The Org Map — seven districts on a ring, ten beings on their sets, walks, acts, waiting markers with real counts, tap a being → detail card (status · asks · last receipt · loops), pill-list fallback without WebGL, headline sentence, theme-aware rebuild — `Ops.jsx:201-210`, `src/orgmap/OrgMap.jsx:32-171`, `src/agentWorld/beings.js:120-156`, `habitat.js:26-34`
+- [m] P4 · Topology — Channels column · 86px core · Connections column, "In conversation" agents (tap expands AgentDetail), legend, "N filed today" — `Ops.jsx:212-248`
+- [m] P5 · Skill map — department cards, each skill tagged OBSERVE / PROPOSE / ACT — `Ops.jsx:251-268`
+- [m] P6 · The Forge — input + Build it, job rows (state · title · cost · Stop · summary) — `Ops.jsx:270-302`
+- [m] P7 · Overnight queue — input + Queue, Run now ▸, item rows with remove, empty copy — `Ops.jsx:304-330`
+- [m] P8 · Working on this Mac — pulse + serif summary, per-project session rows with Show me / Close it — `Ops.jsx:115-172, 332`
+- [m] P9 · The stream — newest-first receipts ledger, empty copy — `Ops.jsx:334-346`
+- [m] P10 · Ambient hand-off — `goAmbient` lives here (`valsOps.js:250`); the only door to the wall display
 
 **Prior:** #9 dial done (replaced by the Org Map). **First look (UNVERIFIED):** three systems stacked → a long scroll to reach the receipts; the skill map is a grid of same-shape bordered cards (a design pass, not a reflex fix); topology columns are dot-and-label rows.
 
 #### Practice — `practice` (off-dock, shipped 26 Sep)
 `src/screens/Practice.jsx` (488) · `src/vals/valsPractice.js` · `src/PracticeLamps.jsx`. Three states in one screen: Shelf → Stage → Debrief. Doors: Home card, the chat router, notifications, an Inbox `practice-*` card, the sidebar.
-- [ ] Q1 · Shelf — head "Rehearsal · N skills", preparing rows (live / error dot), skill `Rail` of `SkillCard`s (title · `LampRow` · last rehearsed), empty copy — `Practice.jsx:212-240, 51-67`
-- [ ] Q2 · `SkillDetail` — summary, why (pull-quote), "Next:" rehearse card, Moves (lamp · name · quoted line · When / Tell · source · tally), Scenes (Rehearse), gap notes (+ Upload the book), Rehearsals timeline (Work on), Open the page · Pause / Resume · Close — `:82-187`
-- [ ] Q3 · Add a skill — free text + Prepare, research-mode note — `:189-207`
-- [ ] Q4 · Stage — head + Leave; scenario card (title · cast · setting · lamp row chip/full · latest landed quote); script with speaker labels and streaming cursor; "Setting the scene…" dots — `:250-271, 366-416`
-- [ ] Q5 · Debrief — best line, "Work on …", landed / missed counts, unparsed warning (nothing filed, no retry), notes, Rehearse next / Done — `:419-447`
-- [ ] Q6 · Control bar — liquid glass above the dock: mic · input · Send · Pause · End scene — `:450-476`
+- [m] Q1 · Shelf — head "Rehearsal · N skills", preparing rows (live / error dot), skill `Rail` of `SkillCard`s (title · `LampRow` · last rehearsed), empty copy — `Practice.jsx:212-240, 51-67`
+- [m] Q2 · `SkillDetail` — summary, why (pull-quote), "Next:" rehearse card, Moves (lamp · name · quoted line · When / Tell · source · tally), Scenes (Rehearse), gap notes (+ Upload the book), Rehearsals timeline (Work on), Open the page · Pause / Resume · Close — `:82-187`
+- [m] Q3 · Add a skill — free text + Prepare, research-mode note — `:189-207`
+- [m] Q4 · Stage — head + Leave; scenario card (title · cast · setting · lamp row chip/full · latest landed quote); script with speaker labels and streaming cursor; "Setting the scene…" dots — `:250-271, 366-416`
+- [m] Q5 · Debrief — best line, "Work on …", landed / missed counts, unparsed warning (nothing filed, no retry), notes, Rehearse next / Done — `:419-447`
+- [m] Q6 · Control bar — liquid glass above the dock: mic · input · Send · Pause · End scene — `:450-476`
 **Motion today:** `shelfIn` 40ms stagger, `nvGlassArrive`, capped `fadeUp` rises, the lamp's 600ms bloom, `dotBlink`. **First look:** two lamp renderings (`StageLampChip` / `StageLamp`) for one concept; the unparsed-debrief path is the one place nothing files and nothing retries.
 
 #### Leader — `leader` (off-dock)
@@ -561,6 +561,18 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 5 Oct 2026 (morning, after the limit reset) — ROUND 1 PUBLISHED FOR FOUR
+  PAGES (agents resumed after the 01:30 cut; each reviewed: no private text,
+  no dashes, checked at 390): sheets and overlays 06/71
+  https://claude.ai/artifact/44eKjhdJvUnqqkbNNPUGtR (Critical: 5 of 9 grabbers
+  moved nothing, FIXED 5b7872a, verified in demo); Ops + Org map 08/73
+  https://claude.ai/artifact/VqV5uj1HaDpCijUjL6xfw8 (Critical: the first
+  agent 1,130 pt down; "7 agents live" is a constant, his call whether to fix
+  now); Library 09/74 https://claude.ai/artifact/1NQ7nRo9UqMFZxhYB59Q1k
+  (Critical: 14 of 21 detail controls under 28 pt, VoiceOver hears an empty
+  shelf); Practice 10/75 https://claude.ai/artifact/9fBkwjtqwVdoHh5KRDEMyr
+  (no rehearsal yet from his phone). Settings 07/72, Leader 11/76 and
+  Briefing 12/77 in flight. Rows for those four pages ticked [m].
 - 4 Oct 2026 (late, his answers) — SPEAKING = LIVING JADE (body #50e4a8,
   aqua rim #96faf0, glow #1ec88c, mockup 69 r3). BUILT, NOT PUSHED: the sky
   rests 5 s after his last touch/scroll/key (484a6f1, src/skyRest.js +
