@@ -68,6 +68,8 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
   const tint = focusTint(S.key);
   const [captions, setCaptions] = useState(readCaptions);
   const [entering, setEntering] = useState(true);
+  // once the screen has faded fully in it is opaque, and the page under it can stop painting (index.css, .nv-sky)
+  const [settled, setSettled] = useState(false);
   const [said, setSaid] = useState(spokenSentences);
   useEffect(() => onSpeech((list) => setSaid(list)), []);
   live.current.key = S.key;
@@ -180,9 +182,10 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
 
   return (
     <div ref={rootRef} role="dialog" aria-modal="true" aria-label="Nova, full screen" data-edge-page
-      className={`nv-fx${leaving ? ' leaving' : ''}`} data-phase={phase} data-enter={entering ? '1' : undefined} data-state={S.key} data-panel={stage ? '1' : undefined}
+      className={`nv-fx${leaving ? ' leaving' : ''}`} data-phase={phase} data-enter={entering ? '1' : undefined} data-settled={settled ? '1' : undefined} data-state={S.key} data-panel={stage ? '1' : undefined}
       style={{ zIndex: 71, '--fx-hue': speaker.hue }}
-      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={release}>
+      onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={release}
+      onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === 'nvFxIn') setSettled(true); }}>
       <div className="nv-fx-sky" aria-hidden="true"><i /><i /><i /><i /></div>
       <canvas ref={canvasRef} className="nv-fx-field" aria-hidden="true" />
 

@@ -883,6 +883,15 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   background: radial-gradient(var(--nv-sky-b-w) var(--nv-sky-b-h) at var(--nv-sky-b-x) var(--nv-sky-b-y), var(--nv-sky-b-c), transparent var(--nv-sky-b-f));
   animation-name: nvSkyDriftB;
 }
+/* under the full-screen Nova, once it has faded fully in (opaque), the page's
+   sky and the thread's glass are covered: they stop drifting and painting
+   until it leaves (the 4 Oct lag survey: 24% of the screen re-blurred, unseen) */
+body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky,
+body:has(.nv-fx[data-settled]:not(.leaving)) .nv-nt-head,
+body:has(.nv-fx[data-settled]:not(.leaving)) .nv-nt-composer,
+body:has(.nv-fx[data-settled]:not(.leaving)) .nv-nt-you { visibility: hidden; }
+body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::before,
+body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-state: paused; }
 @keyframes nvSkyDriftA { from { transform: translate3d(-2.5%, -1.5%, 0); } to { transform: translate3d(2.5%, 2%, 0) scale(1.04); } }
 @keyframes nvSkyDriftB { from { transform: translate3d(2%, 1.5%, 0); } to { transform: translate3d(-2.5%, -2%, 0) scale(1.05); } }
 @media (prefers-reduced-motion: reduce) {
