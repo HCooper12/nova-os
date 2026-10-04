@@ -221,53 +221,53 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **Prior findings:** 22 Sep #1 fold rows, #6 voice layers, #17 head meta, #18 banner, #21 ring numerals, #22 equal vitals: all fixed and re-verified in current source (inventory A).
 **First look, from source (UNVERIFIED):** the two idioms are two hand-maintained ~700/830-line render trees for one view model; the command hero's two decorative spinning orbit rings (70s/50s) have no stated job; `defaultFolds` always opens exactly the first two present sections, so `leadFirst` may push `working`/`hero` into the fold in the hour before a work block; the command 2-up shortcut cards are the one remaining generic label/value/meta pane on Home. Twenty-three sections compete for one phone screen: the audit's first question is how many of them Home needs to show at once.
 
-#### Train — `workouts`
+#### Train — `workouts`  ← BUILT 27–28 Sep 2026 (Train A f5e889d: TrainSummary, Coach a sheet; Train B the live session; done-today 3 Oct; `summary` style only; rows are the parity reference; [x] on his word)
 `src/screens/Workouts.jsx` (1,235 lines) · `src/vals/valsWorkouts.js` (903) · `src/TrainToday.jsx` (352) · `src/CoachSuggestions.jsx` · `src/WeekSets.jsx` · `src/ExerciseSheet.jsx`. Three tabs on a `Segmented` (`Workouts.jsx:1196-1199`): Today · Gym · Coach; Gym has four views (routines · routine · session · history). Inventory: `00-inventory-b-train-fuel.md`.
 
 **Today** (`src/TrainToday.jsx`)
-- [ ] R1 · Readiness ring — HRV / sleep / resting HR facts, block phase, deload warning, "Why am I tired?" / "When am I at my best?" chips → Coach — `TrainToday.jsx:20-36, 73-96`
-- [ ] R2 · The session cards — Resume (gold), Make-up day (finish · not a make-up after all), Made up today (green), Scheduled / rest day with ▶ Begin — `TrainToday.jsx:97-158`, rule `src/trainPanels.js:14-27`
-- [ ] R3 · Focus for today — serif verdict figure, reasoning demoted, "Make the change" — `TrainToday.jsx:180-208`
-- [ ] R4 · Momentum rail — PR / plateau / streak cards, scroll-snap, bordered in the lift's muscle hue — `TrainToday.jsx:213-243`
-- [ ] R5 · Coach's open ask — one change, ✓ Do it / Discuss it / ✕ Not this, leaves with an animation — `TrainToday.jsx:247-274`
-- [ ] R6 · Hard sets this week — per-muscle bars in their hues, live gold overlay, "Short by Sunday ▲", tap → WeekSetsSheet; under-target CTA row — `TrainToday.jsx:276-327`
-- [ ] R7 · Coach changes banner — "N changes from Coach" strip under Today and Gym — `Workouts.jsx:1210-1212`, `CoachSuggestions.jsx:26-44`
+- [b] R1 · Readiness ring — HRV / sleep / resting HR facts, block phase, deload warning, "Why am I tired?" / "When am I at my best?" chips → Coach — `TrainToday.jsx:20-36, 73-96`
+- [b] R2 · The session cards — Resume (gold), Make-up day (finish · not a make-up after all), Made up today (green), Scheduled / rest day with ▶ Begin — `TrainToday.jsx:97-158`, rule `src/trainPanels.js:14-27`
+- [b] R3 · Focus for today — serif verdict figure, reasoning demoted, "Make the change" — `TrainToday.jsx:180-208`
+- [b] R4 · Momentum rail — PR / plateau / streak cards, scroll-snap, bordered in the lift's muscle hue — `TrainToday.jsx:213-243`
+- [b] R5 · Coach's open ask — one change, ✓ Do it / Discuss it / ✕ Not this, leaves with an animation — `TrainToday.jsx:247-274`
+- [b] R6 · Hard sets this week — per-muscle bars in their hues, live gold overlay, "Short by Sunday ▲", tap → WeekSetsSheet; under-target CTA row — `TrainToday.jsx:276-327`
+- [b] R7 · Coach changes banner — "N changes from Coach" strip under Today and Gym — `Workouts.jsx:1210-1212`, `CoachSuggestions.jsx:26-44`
 
 **Gym · routines list** (`RoutinesView`, `Workouts.jsx:110-410`)
-- [ ] R8 · Today's state — Done-today banner, Also-scheduled + Begin it anyway, Active-rest card — `:112-141`
-- [ ] R9 · On today's card hero — muscle-hued target chips, "Per exercise ▾", ▶ Begin session — `:142-173`
-- [ ] R10 · Week strip — grouped list (cupertino) or day chips (command), per-day routine select, make-up / carry-over note — `:178-220`
-- [ ] R11 · Recovery cards — Discarded / replaced workout (Restore · Dismiss), parked-session Resume, Finish missed exercises → a day — `:235-282`
-- [ ] R12 · Carry-overs — Do it now / Reschedule / Remove, overdue colouring — `:284-320`
-- [ ] R13 · Routines grid — name, ◆ count, preview, muscle chips; tap opens, long-press context menu; "+ New routine" inline — `:322-368`
-- [ ] R14 · Quick session builder — minutes, note, Build my session → preview → Start — `:370-395`
-- [ ] R15 · Goals + Coach pane repeated here — `:407`
+- [b] R8 · Today's state — Done-today banner, Also-scheduled + Begin it anyway, Active-rest card — `:112-141`
+- [b] R9 · On today's card hero — muscle-hued target chips, "Per exercise ▾", ▶ Begin session — `:142-173`
+- [b] R10 · Week strip — grouped list (cupertino) or day chips (command), per-day routine select, make-up / carry-over note — `:178-220`
+- [b] R11 · Recovery cards — Discarded / replaced workout (Restore · Dismiss), parked-session Resume, Finish missed exercises → a day — `:235-282`
+- [b] R12 · Carry-overs — Do it now / Reschedule / Remove, overdue colouring — `:284-320`
+- [b] R13 · Routines grid — name, ◆ count, preview, muscle chips; tap opens, long-press context menu; "+ New routine" inline — `:322-368`
+- [b] R14 · Quick session builder — minutes, note, Build my session → preview → Start — `:370-395`
+- [b] R15 · Goals + Coach pane repeated here — `:407`
 
 **Gym · routine detail** (`RoutineDetailView`, `:412-486`)
-- [ ] R16 · Start workout (gated by `guardSessionStart`, `src/sessionGuard.js`) / View history — `:417-424`
-- [ ] R17 · Exercise rows — name, ◉ 3D chip → ExerciseSheet, Coach prescription chip → reasoning sheet, last-time meta, sets/reps inputs, move ↑↓, Form check toggle, Remove — `:429-465`
-- [ ] R18 · Exercise picker — search, muscle filter, tap to add / hold to preview, create if not listed — `:42-100`
-- [ ] R19 · Delete routine confirm — `:471-484`
+- [b] R16 · Start workout (gated by `guardSessionStart`, `src/sessionGuard.js`) / View history — `:417-424`
+- [b] R17 · Exercise rows — name, ◉ 3D chip → ExerciseSheet, Coach prescription chip → reasoning sheet, last-time meta, sets/reps inputs, move ↑↓, Form check toggle, Remove — `:429-465`
+- [b] R18 · Exercise picker — search, muscle filter, tap to add / hold to preview, create if not listed — `:42-100`
+- [b] R19 · Delete routine confirm — `:471-484`
 
 **Gym · live session** (`SessionView`, `:488-800`; the most tactile surface he has)
-- [ ] R20 · "Log it by talking" banner → gym voice grammar (set / weight / same / add set / next / skip / finish / later / where / undo) — `:499-508`, `src/gymVoice.js:47-159`
-- [ ] R21 · Exercise header — name, 3D, ▶ Form (curated or generic), Skipped, Coach chip, Coach-added ◆, focus note, skip toggle; muscle tag, "Extra · today only", last time — `:513-556`
-- [ ] R22 · The set grid — SET · weight · reps · RPE · RIR · TYPE (cycles working → back-off → warm-up) · 40px tick · remove; one shared column template; number pad via `LocalInput` — `:557-609`
-- [ ] R23 · + Extra set; note (auto-grow), Off day toggle, Pain? toggle, Form check toggle — `:618-631`
-- [ ] R24 · Pain flow — exercise-relevant area chips, side, when, free text, "Ask Coach — triage this" — `:633-666`, `valsWorkouts.js:419-424`
-- [ ] R25 · + Add exercise, this session only — `:670-679`
-- [ ] R26 · Cut-short reason chips (out of time · low energy · gym busy · pain) — `:681-688`
-- [ ] R27 · Finish workout / Save changes · Save for later · Cancel (confirm) — `:692-705`
-- [ ] R28 · Mid-session Ask Coach — sees live state, proposal cards Apply / Not now, "Apply all N" — `:708-782`
-- [ ] R29 · PR celebration on finish — gauge counts old → new — `src/PersonalRecord.jsx:150-209`, trigger `App.jsx:3874-3879`
+- [b] R20 · "Log it by talking" banner → gym voice grammar (set / weight / same / add set / next / skip / finish / later / where / undo) — `:499-508`, `src/gymVoice.js:47-159`
+- [b] R21 · Exercise header — name, 3D, ▶ Form (curated or generic), Skipped, Coach chip, Coach-added ◆, focus note, skip toggle; muscle tag, "Extra · today only", last time — `:513-556`
+- [b] R22 · The set grid — SET · weight · reps · RPE · RIR · TYPE (cycles working → back-off → warm-up) · 40px tick · remove; one shared column template; number pad via `LocalInput` — `:557-609`
+- [b] R23 · + Extra set; note (auto-grow), Off day toggle, Pain? toggle, Form check toggle — `:618-631`
+- [b] R24 · Pain flow — exercise-relevant area chips, side, when, free text, "Ask Coach — triage this" — `:633-666`, `valsWorkouts.js:419-424`
+- [b] R25 · + Add exercise, this session only — `:670-679`
+- [b] R26 · Cut-short reason chips (out of time · low energy · gym busy · pain) — `:681-688`
+- [b] R27 · Finish workout / Save changes · Save for later · Cancel (confirm) — `:692-705`
+- [b] R28 · Mid-session Ask Coach — sees live state, proposal cards Apply / Not now, "Apply all N" — `:708-782`
+- [b] R29 · PR celebration on finish — gauge counts old → new — `src/PersonalRecord.jsx:150-209`, trigger `App.jsx:3874-3879`
 
 **Gym · history** (`HistoryView`, `:802-849`)
-- [ ] R30 · Past sessions — sets/volume, cut-short note, "Coach said" callout, Edit / Delete confirm — `:802-849`
+- [b] R30 · Past sessions — sets/volume, cut-short note, "Coach said" callout, Edit / Delete confirm — `:802-849`
 
 **Coach** (`GoalsCoachPane`, `:972-1176`)
-- [ ] R31 · The changes deck — one card per change: WHERE, the change drawn (`ChangeStrip`: add · remove · move · swap · targets · reorder · remap · schedule · gauge), WHY, `TickButton` Yes · Discuss · ✕ Not now, "Yes to all N" — `CoachSuggestions.jsx:47-262`. **✕ discards at once with no reason asked (`App.jsx:7187-7188` → `inboxDiscard`); UI-REDESIGN-SPEC item 6 asked for "decline asks why"** [Verified]
-- [ ] R32 · Goals card — serif goal sentence, `GoalBoard` (3 rings + 7-day dots), days/week dots, priority-muscle chips, notes; edit form (goal · focus · days · 3 targets · equipment · limitations · notes) — `:945-970, 1004-1057`
-- [ ] R33 · The conversation — empty-state starters + "What the Coach is reading" bars; messages with inline `VoicePanel`s and `ChangesPointer` receipts; contextual chips; attach; "Discussing …" indicator; "Bring a study"; composer — `:1080-1163`
+- [b] R31 · The changes deck — one card per change: WHERE, the change drawn (`ChangeStrip`: add · remove · move · swap · targets · reorder · remap · schedule · gauge), WHY, `TickButton` Yes · Discuss · ✕ Not now, "Yes to all N" — `CoachSuggestions.jsx:47-262`. **✕ discards at once with no reason asked (`App.jsx:7187-7188` → `inboxDiscard`); UI-REDESIGN-SPEC item 6 asked for "decline asks why"** [Verified]
+- [b] R32 · Goals card — serif goal sentence, `GoalBoard` (3 rings + 7-day dots), days/week dots, priority-muscle chips, notes; edit form (goal · focus · days · 3 targets · equipment · limitations · notes) — `:945-970, 1004-1057`
+- [b] R33 · The conversation — empty-state starters + "What the Coach is reading" bars; messages with inline `VoicePanel`s and `ChangesPointer` receipts; contextual chips; attach; "Discussing …" indicator; "Bring a study"; composer — `:1080-1163`
 
 **Overlays Train opens:** ExerciseSheet (long-press a row / tap a name; morphs from the row; skeleton at final height; body map + 3D figure) `src/ExerciseSheet.jsx:60-100` · CoachApplySheet `src/CoachApplySheet.jsx:12-42` · FormCheckPanel (inline; protocol → clip → busy / refused / done) `src/FormCheckPanel.jsx:12-93` · WeekSetsSheet (ring + week grid of pips + per-exercise rows, "Talk this week through with Coach") `src/WeekSets.jsx:168-220` · PersonalRecord · Glossary `<Term>` dotted-underline explainers throughout `src/Glossary.jsx:22-53`.
 **States:** no connection + no demo → honest "haven't loaded" line (`:1217-1220`); demo → scripted `MockWorkouts` (`:852-903`); recovered / replaced / parked drafts; make-up day complements the schedule; form-check refused; Coach-suggestion error.
@@ -276,35 +276,35 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **UI-REDESIGN-SPEC (Aug 2026):** built 1 · 2 · 3 · 5 · 9; partly 4 (cut-short captured, Coach follow-up unverified) · 7 (Mobility tag only, no programme) · 8 (form link + 3D, no variation curation) · 10 (dynamic ring yes, Apple Health post-workout pull unverified); **not built: 6 (decline asks why)**.
 **First look (UNVERIFIED unless marked):** two parallel pattern/pose catalogues (`exerciseMotion.js` for the 2D map, `exercise3d.js` + `gym3d.js` + `rig3d.js` for the 3D figure) to keep in sync; three different confirm idioms for destructive actions in one file; Quick-session builder and Goals-edit form are plain label/input panes; `numInputStyle`/`setInputStyle` hand-rolled (`:26-33`), the input-primitive version of the `btn()` finding; Train and Home both show session cards (Resume · Make-up · Scheduled) so the same state is drawn twice in two vocabularies.
 
-#### Fuel — `recipes`
+#### Fuel — `recipes`  ← BUILT 27 Sep 2026 (Fuel A 18e685b: FuelSummary, Recipes a pushed page; the recipe page 30 Sep; swipe, rotation strip and viewed-day logging 3 Oct; `summary` style only; rows are the parity reference; [x] on his word)
 `src/screens/Recipes.jsx` (1,055) · `src/vals/valsRecipes.js` (1,077) · `src/screens/PickItUp.jsx` (345) · `src/RecipeOverlay.jsx` (473) · `src/AddRecipeModal.jsx` · `src/PortionSheet.jsx` · `src/BarcodeScanner.jsx`. One long scroll, no tabs. Inventory: `00-inventory-b-train-fuel.md`.
 
-- [ ] U1 · Fuel hero — `KcalRing` + `MacroRings` (three concentric arcs, protein outer) + legend + "Fits N kcal left" + Coach gap sentence + "Where did my protein go?" — `Recipes.jsx:244-341, 418-435`
-- [ ] U2 · Pick it up — collapsible finder under the hero (see below) — `:439`
-- [ ] U3 · Eaten-today tiles / strip — fallback only when no protein target; the one idiom fork on the screen — `:442-459`
-- [ ] U4 · 7-day protein chart — the chat's `nutrition-week` panel reused — `:463-467`
-- [ ] U5 · Training × fuel cross-check — `CrossBars` + gap figure, "Draft the fix with Coach →", hidden when nothing true to say — `:353-373, 472-486`
-- [ ] U6 · Today's rotation rail — `RotationCard` per meal slot: dish + macros, fridge "OUT" / "N left", option pager (swipe / dots), tick list with hold-to-swap, Drop · Clear · Rename (`window.prompt`) · Undo variant, "+ ADD A MEAL", ‹ › nudges — `:71-186, 496-533`
-- [ ] U7 · The log bar — one field: type · dictate · photo · barcode · submit arrow on text; Searching… states — `:536-619`. **A full day-chip picker sits above it inside `display:none` (`:540`): dead markup** [Verified]
-- [ ] U8 · Log it again — `QuickLogCard` rail (kcal figure + P/C/F bar) — `:34-64, 622-630`
-- [ ] U9 · "For" day rail + off-plan totals bar — `:635-660`
-- [ ] U10 · From your recipes — search, portion fractions, custom multiplier, live preview, Log it — `:665-706`
-- [ ] U11 · Enter macros myself — five raw inputs, collapsed by default — `:707-708, 780-790`
-- [ ] U12 · Photo scan — up to 5 photos, Analyze, per-photo remove, note, error — `:708-724`
-- [ ] U13 · Nova asks — clarifying question, answer field (gold undecided) or Keep as is; Save to my recipe bank — `:725-738, 791-793`
-- [ ] U14 · Broken down into N lines — itemised macros, new lines highlighted — `:795-807`
-- [ ] U15 · Say what's different — refine-in-words thread: struck removals, green additions, delta tag; Undo last — `:808-838`
-- [ ] U16 · Today's log — grouped list: time · name · macros · Edited tag · ✎ · ×, itemised sub-lines with their own × — `:849-919`
-- [ ] U17 · Inline entry editor — name, 4 macro fields, "Ate less —" fraction chips, Cancel / Save — `:920-947`
-- [ ] U18 · Everything you've logged — history disclosure, relog ＋, save ☆ — `:950-963`
-- [ ] U19 · Recipe filter chips + search + "fits" toggle + "+ Add recipe" — `:967-978`
-- [ ] U20 · Recipe grid — photo / placeholder, macros + P/C/F bar, slot-toggle chips, "+ Log this"; tap → RecipeOverlay — `:994-1053`
+- [b] U1 · Fuel hero — `KcalRing` + `MacroRings` (three concentric arcs, protein outer) + legend + "Fits N kcal left" + Coach gap sentence + "Where did my protein go?" — `Recipes.jsx:244-341, 418-435`
+- [b] U2 · Pick it up — collapsible finder under the hero (see below) — `:439`
+- [b] U3 · Eaten-today tiles / strip — fallback only when no protein target; the one idiom fork on the screen — `:442-459`
+- [b] U4 · 7-day protein chart — the chat's `nutrition-week` panel reused — `:463-467`
+- [b] U5 · Training × fuel cross-check — `CrossBars` + gap figure, "Draft the fix with Coach →", hidden when nothing true to say — `:353-373, 472-486`
+- [b] U6 · Today's rotation rail — `RotationCard` per meal slot: dish + macros, fridge "OUT" / "N left", option pager (swipe / dots), tick list with hold-to-swap, Drop · Clear · Rename (`window.prompt`) · Undo variant, "+ ADD A MEAL", ‹ › nudges — `:71-186, 496-533`
+- [b] U7 · The log bar — one field: type · dictate · photo · barcode · submit arrow on text; Searching… states — `:536-619`. **A full day-chip picker sits above it inside `display:none` (`:540`): dead markup** [Verified]
+- [b] U8 · Log it again — `QuickLogCard` rail (kcal figure + P/C/F bar) — `:34-64, 622-630`
+- [b] U9 · "For" day rail + off-plan totals bar — `:635-660`
+- [b] U10 · From your recipes — search, portion fractions, custom multiplier, live preview, Log it — `:665-706`
+- [b] U11 · Enter macros myself — five raw inputs, collapsed by default — `:707-708, 780-790`
+- [b] U12 · Photo scan — up to 5 photos, Analyze, per-photo remove, note, error — `:708-724`
+- [b] U13 · Nova asks — clarifying question, answer field (gold undecided) or Keep as is; Save to my recipe bank — `:725-738, 791-793`
+- [b] U14 · Broken down into N lines — itemised macros, new lines highlighted — `:795-807`
+- [b] U15 · Say what's different — refine-in-words thread: struck removals, green additions, delta tag; Undo last — `:808-838`
+- [b] U16 · Today's log — grouped list: time · name · macros · Edited tag · ✎ · ×, itemised sub-lines with their own × — `:849-919`
+- [b] U17 · Inline entry editor — name, 4 macro fields, "Ate less —" fraction chips, Cancel / Save — `:920-947`
+- [b] U18 · Everything you've logged — history disclosure, relog ＋, save ☆ — `:950-963`
+- [b] U19 · Recipe filter chips + search + "fits" toggle + "+ Add recipe" — `:967-978`
+- [b] U20 · Recipe grid — photo / placeholder, macros + P/C/F bar, slot-toggle chips, "+ Log this"; tap → RecipeOverlay — `:994-1053`
 
 **Pick it up** (`src/screens/PickItUp.jsx`)
-- [ ] U21 · Glance row — two small rings, "What can I pick up?", count / no catalogue yet, chevron — `:239-249`
-- [ ] U22 · Budget rings (kcal · protein · carb · fat) with a live numeral input inside each arc, "yours" / "from today" — `:60-92, 253-262`
-- [ ] U23 · Filters — All / Takeaway / Supermarket, Single / Pairings (`Segmented`); brand chip rail with stale flag; "not in yet" tags — `:266-280`
-- [ ] U24 · Results — `ItemCard` (brand · serve · kcal · `ProteinPill` · budget bar · P/C/F), `PairCard` (two items, one footer); skeleton rail; empty line; "Fetch the catalogue" honesty CTA — `:170-209, 285-334`
+- [b] U21 · Glance row — two small rings, "What can I pick up?", count / no catalogue yet, chevron — `:239-249`
+- [b] U22 · Budget rings (kcal · protein · carb · fat) with a live numeral input inside each arc, "yours" / "from today" — `:60-92, 253-262`
+- [b] U23 · Filters — All / Takeaway / Supermarket, Single / Pairings (`Segmented`); brand chip rail with stale flag; "not in yet" tags — `:266-280`
+- [b] U24 · Results — `ItemCard` (brand · serve · kcal · `ProteinPill` · budget bar · P/C/F), `PairCard` (two items, one footer); skeleton rail; empty line; "Fetch the catalogue" honesty CTA — `:170-209, 285-334`
 
 **Overlays Fuel opens:** RecipeOverlay (macros, servings stepper, fridge counter, variants, inline `MealEditor` with label-photo calculator, ingredients → shopping, method, "Ask Nova for a tweak") `src/RecipeOverlay.jsx` · AddRecipeModal (scan up to 4 photos, name/category/makes, macros with kJ → kcal, ingredients, method) · PortionSheet (fractions, multiplier, drag-to-dismiss) · BarcodeScanner (`@zxing/browser`, 7s timeout, manual entry).
 **States:** scan busy / slow; Nova's question; empty history copy; the recipe grid never shows empty (falls to the demo bank, `:989-993`); Pick it up skeleton / no catalogue / fetch CTA.
@@ -312,57 +312,57 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **Prior findings:** #15 ring at zero: fixed thoroughly (dashed absent state, `CrossBars`, nudge arrows, one day rail). **UI-REDESIGN-SPEC 11 · 12: built.**
 **First look:** the macro colour convention (P cyan · C gold · F violet · kcal green) is applied consistently in ~10 places: keep it. Against that: the manual-entry fallback is five raw inputs; RecipeOverlay hand-rolls its own bottom sheet (`:184-207`) and AddRecipeModal its own dialog chrome, so two sheet mechanisms coexist with `useSheetDrag`; the composer region (U7 to U18) is twelve sub-features stacked in one column, most of them conditional, which is the screen's clutter risk.
 
-#### Voice — `voice`
+#### Voice — `voice`  ← BUILT 30 Sep–3 Oct 2026 as the Nova screen (cc43ae5 NovaThread under `summary`; full-screen Nova 7697177; B motion 4–5 Oct; the classic Voice untouched for `cupertino`; rows are the parity reference; [x] on his word)
 `src/screens/Voice.jsx` (601) · vals inline in `src/App.jsx` and `src/vals/valsMisc.js` · `src/VoicePanels.jsx` · `src/StageCard.jsx` · `src/VoiceWaveform.jsx`. Inventory: `00-inventory-c-inbox-voice-agents.md`.
 
-- [ ] V1 · Head "Neural link · Voice" + state tag + live clock — `Voice.jsx:206-209`
-- [ ] V2 · Mobile stage-focus scrim — blurred backdrop, spotlit `StageCard`, the live question, TAP ANYWHERE TO DISMISS — `:215-246`
-- [ ] V3 · COMMS LOG panel — bracketed "station" frame in both idioms, Undo · N turns / New chat — `:46-69, 248-266`, `src/chatUndo.js`
-- [ ] V4 · The message list — tag/time/where + `TypeText` reveal; attachments; Remember → Inbox; research status + `SourcesPanel`; acted receipt with Undo; proposal card (Yes do it / Leave it); plan-report chips (Walk me through it · Take it to the Coach · Keep in vault); inline `VoicePanel`s (training-week · exercise · nutrition-week · note · pulse · sessions); routing notice + "Just answer it"; evidence card → VerdictCard — `:270-365`. **Replies render through bare `TypeText`, not `ChatMarkdown` (Leader, Briefing, Library do), so bold / links / bullets in a Voice answer are not rendered** [Verified in source]
-- [ ] V5 · "» NOVA reading the vault…" busy line — `:367-369`
-- [ ] V6 · The glass — hero `StageCard` + a rail up to four deep, `railDepth` recession, tap to enlarge (GlassSheet) — `:379-414`, `src/glassDepth.js`
-- [ ] V7 · Composer — attachments, route preview ("→ Shopping"), input, Send (pill in Apple, rectangle in Command) — `:415-436`
-- [ ] V8 · The core — counter-rotating rings + tick marks in a reticle; the core is the mic button; 8-rung state caption — `:195-201, 449-475`
-- [ ] V9 · briefQueue bar — Yes / No / Later / Stop, idx/total — `:485-494`
-- [ ] V10 · "▶ Tap to hear" speech-blocked banner. **Flat fill, no backdrop filter; `VoicePresence.jsx`'s copy (22 Sep #6) got the glass, this one did not** [Verified] — `:500-507`
-- [ ] V11 · Centre-stage `StageCard` with dismiss × — `:512-521`
-- [ ] V12 · `VoiceWaveform` (real meter) or iOS state-bar dots — `:526-535`
-- [ ] V13 · Chips — ritual invite ("Good morning — tap to start"), "≡ Brief me", "◐ Ambient" (the only door to Ambient) — `:536-546`
-- [ ] V14 · Right rail (Mac) — STATION · STATUS meters (MIC · ANSWERS · ENGINE), HEY NOVA toggle, engine footnote; ON THE GLASS spent-panel history — `:556-593`
+- [b] V1 · Head "Neural link · Voice" + state tag + live clock — `Voice.jsx:206-209`
+- [b] V2 · Mobile stage-focus scrim — blurred backdrop, spotlit `StageCard`, the live question, TAP ANYWHERE TO DISMISS — `:215-246`
+- [b] V3 · COMMS LOG panel — bracketed "station" frame in both idioms, Undo · N turns / New chat — `:46-69, 248-266`, `src/chatUndo.js`
+- [b] V4 · The message list — tag/time/where + `TypeText` reveal; attachments; Remember → Inbox; research status + `SourcesPanel`; acted receipt with Undo; proposal card (Yes do it / Leave it); plan-report chips (Walk me through it · Take it to the Coach · Keep in vault); inline `VoicePanel`s (training-week · exercise · nutrition-week · note · pulse · sessions); routing notice + "Just answer it"; evidence card → VerdictCard — `:270-365`. **Replies render through bare `TypeText`, not `ChatMarkdown` (Leader, Briefing, Library do), so bold / links / bullets in a Voice answer are not rendered** [Verified in source]
+- [b] V5 · "» NOVA reading the vault…" busy line — `:367-369`
+- [b] V6 · The glass — hero `StageCard` + a rail up to four deep, `railDepth` recession, tap to enlarge (GlassSheet) — `:379-414`, `src/glassDepth.js`
+- [b] V7 · Composer — attachments, route preview ("→ Shopping"), input, Send (pill in Apple, rectangle in Command) — `:415-436`
+- [b] V8 · The core — counter-rotating rings + tick marks in a reticle; the core is the mic button; 8-rung state caption — `:195-201, 449-475`
+- [b] V9 · briefQueue bar — Yes / No / Later / Stop, idx/total — `:485-494`
+- [b] V10 · "▶ Tap to hear" speech-blocked banner. **Flat fill, no backdrop filter; `VoicePresence.jsx`'s copy (22 Sep #6) got the glass, this one did not** [Verified] — `:500-507`
+- [b] V11 · Centre-stage `StageCard` with dismiss × — `:512-521`
+- [b] V12 · `VoiceWaveform` (real meter) or iOS state-bar dots — `:526-535`
+- [b] V13 · Chips — ritual invite ("Good morning — tap to start"), "≡ Brief me", "◐ Ambient" (the only door to Ambient) — `:536-546`
+- [b] V14 · Right rail (Mac) — STATION · STATUS meters (MIC · ANSWERS · ENGINE), HEY NOVA toggle, engine footnote; ON THE GLASS spent-panel history — `:556-593`
 
 **Overlays:** GlassSheet (`:596-598`), VerdictCard (`valsChrome.js:437, 455`). **States:** busy, empty placeholder, STANDING BY when not live, dictation error + blocked speech; no demo branch in the file. **Motion today:** `ringSpin` 44s / 14s (3s while busy), `riseIn()` per message keyed off first paint, `nvGlassArrive`, `railDepth`, `wave` on iOS bars, `fadeIn/fadeUp/popIn/dotBlink`.
 **First look:** `ModelChoicePrompt` is a fixed top banner for the same "pick a model" decision the Inbox draws as a card, two UIs for one choice; two vocabularies for "which visual for this beat" (`Briefing.jsx` `Glass` vs `StageCard.jsx`); the station frame never changes under cupertino.
 
-#### Inbox — `inbox`  ← his named pain ("far too clunky and confusing", 25 Sep)
+#### Inbox — `inbox`  ← his named pain ("far too clunky and confusing", 25 Sep) ← BUILT 27–28 Sep 2026 (Inbox r2 16fc29d: InboxSummary, Look deeper, CaptureSheet, the loops to Ops; `summary` style only; rows are the parity reference, a row moved elsewhere counts as carried; [x] on his word; the RE-EVALUATION he asked for on 25 Sep is still owed)
 `src/screens/Inbox.jsx` (799) · `src/vals/valsInbox.js` (792) · `src/inboxDigest.js` · `src/inboxLeave.js` · `src/SwipeRow.jsx`. Modes: Deck vs List; pattern focus drill-down; History 25 → +100; filing-mode ladder (Review everything · Auto-file high confidence · Auto-file everything). Inventory: `00-inventory-c-inbox-voice-agents.md`.
 
 **Capture**
-- [ ] I1 · Head + connection label, headline "Drop the thought, Nova files it." — `Inbox.jsx:92-96`
-- [ ] I2 · Capture composer — textarea (⌘⏎), Dictate chip, "links · research · videos → just say it in the chat" hint, ✦ Capture / Routing… — `:99-134`
-- [ ] I3 · Landed strip — today / filed-today counts + last 4 landed captures, tap-through — `:145-181`
-- [ ] I4 · Filing mode — collapsed row → 3 step-cards — `:189-218`
+- [b] I1 · Head + connection label, headline "Drop the thought, Nova files it." — `Inbox.jsx:92-96`
+- [b] I2 · Capture composer — textarea (⌘⏎), Dictate chip, "links · research · videos → just say it in the chat" hint, ✦ Capture / Routing… — `:99-134`
+- [b] I3 · Landed strip — today / filed-today counts + last 4 landed captures, tap-through — `:145-181`
+- [b] I4 · Filing mode — collapsed row → 3 step-cards — `:189-218`
 
 **Waiting for your call**
-- [ ] I5 · Eyebrow with count pulse; Deck / List segmented — `:236-241`
-- [ ] I6 · Triage digest strip — "File N routine", per-subject pattern chips ("N × subject · See all", "✓ all N"), "N to decide" — `:247-271`, `src/inboxDigest.js:43-79`
-- [ ] I7 · Focus banner "Showing X · N" + Back to the deck — `:272-277`
-- [ ] I8 · The deck — two ghost cards behind the live top card — `:282-288`
-- [ ] I9 · The pending card (one template, 44 kind-groups, 26 capture routes) — `SwipeRow` right FILE / left DISCARD; route badge + Low confidence; Seen tag + time · source; TL;DR verdict + steps; "Approve = …" line; title (2-line clamp, tap to expand); ▸ See what gets filed → You captured / Will be filed; reason line; Daily-review adjustments Done / Not today; error line — `:290-404`
-- [ ] I10 · The verb row — ✓ Approve (or the Opus / keep model gate) · ✕ Discard / Skip this week · Seen toggle · ask-why panel (reason chips + free text + Discard with reason / Keep it) · kind-specific doors: Open in Practice · Open the briefing / Watch it being made · Deep weave · Research the books — `:409-485`
-- [ ] I11 · Deck footer "1 of N · swipe right to file …" — `:492-501`
-- [ ] I12 · Proposed-rule card — Accept / alt / Skip — `:507-519`
+- [b] I5 · Eyebrow with count pulse; Deck / List segmented — `:236-241`
+- [b] I6 · Triage digest strip — "File N routine", per-subject pattern chips ("N × subject · See all", "✓ all N"), "N to decide" — `:247-271`, `src/inboxDigest.js:43-79`
+- [b] I7 · Focus banner "Showing X · N" + Back to the deck — `:272-277`
+- [b] I8 · The deck — two ghost cards behind the live top card — `:282-288`
+- [b] I9 · The pending card (one template, 44 kind-groups, 26 capture routes) — `SwipeRow` right FILE / left DISCARD; route badge + Low confidence; Seen tag + time · source; TL;DR verdict + steps; "Approve = …" line; title (2-line clamp, tap to expand); ▸ See what gets filed → You captured / Will be filed; reason line; Daily-review adjustments Done / Not today; error line — `:290-404`
+- [b] I10 · The verb row — ✓ Approve (or the Opus / keep model gate) · ✕ Discard / Skip this week · Seen toggle · ask-why panel (reason chips + free text + Discard with reason / Keep it) · kind-specific doors: Open in Practice · Open the briefing / Watch it being made · Deep weave · Research the books — `:409-485`
+- [b] I11 · Deck footer "1 of N · swipe right to file …" — `:492-501`
+- [b] I12 · Proposed-rule card — Accept / alt / Skip — `:507-519`
 
 **Loops** (seven "status line + Run now" cards before History begins)
-- [ ] I13 · Daily Review — Off / Draft / Auto chips, hour `Select`, status, Run now — `:527-544`
-- [ ] I14 · Briefs — 3 slots (morning · evening · weekly): hour `Select`, mode chips, status, Run now — `:548-578`
-- [ ] I15 · Compost — last run + open count, Run now, proposal rows Accept / Open / Dismiss — `:580-612`
-- [ ] I16 · Open promises — same shape, Accept / Open the note / Let it go — `:614-653`
-- [ ] I17 · Todoist sync — status, Sync now, footnote — `:655-669`
-- [ ] I18 · Meal prep — status, Run now — `:671-680`
-- [ ] I19 · Guardian — status dot, Run checks / Report / Export, per-check rows — `:682-708`
+- [b] I13 · Daily Review — Off / Draft / Auto chips, hour `Select`, status, Run now — `:527-544`
+- [b] I14 · Briefs — 3 slots (morning · evening · weekly): hour `Select`, mode chips, status, Run now — `:548-578`
+- [b] I15 · Compost — last run + open count, Run now, proposal rows Accept / Open / Dismiss — `:580-612`
+- [b] I16 · Open promises — same shape, Accept / Open the note / Let it go — `:614-653`
+- [b] I17 · Todoist sync — status, Sync now, footnote — `:655-669`
+- [b] I18 · Meal prep — status, Run now — `:671-680`
+- [b] I19 · Guardian — status dot, Run checks / Report / Export, per-check rows — `:682-708`
 
 **History**
-- [ ] I20 · Head, 3 honest empty variants, rows (time · route badge · title + status · Undo / Retry / Deep weave / Dismiss, expand for full text), "Show N more · N older" — `:714-793`
+- [b] I20 · Head, 3 honest empty variants, rows (time · route badge · title + status · Undo / Retry / Deep weave / Dismiss, expand for full text), "Show N more · N older" — `:714-793`
 
 **Record kinds:** 43 named `kind`s in `SOURCE_LABEL` (`valsInbox.js:16-35`) + plain captures = 44 groups; captures split into 26 `decision.route` variants (`ROUTE_META`, `:51-87`); the full table with each kind's verb deviations is in the inventory. **`'repertoire'` is retry-eligible (`:443`) but has no `SOURCE_LABEL`, so it would badge itself TYPED** [Verified]. `isContinue` is hard-wired false yet keeps live JSX (`:363-368`, `Inbox.jsx:337-342`). No client-side expiry logic found for time-value kinds (may be server-only).
 **Overlays:** none of its own; the ask-why is an inline reveal. **States:** skeleton pre-first-load; three empty copies; offline keeps capture usable via the Outbox; demo "Connect a backend to capture". **Motion today:** `countPulse`, `nv-deck-rise` on a new top card, `nv-leave-approve` / `nv-leave-discard` 420ms, `nv-stagger` on commitments.
