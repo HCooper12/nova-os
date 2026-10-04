@@ -229,14 +229,20 @@ export function NovaThread({ v }) {
   useEffect(() => {
     const m = mainRef.current;
     if (!m) return undefined;
-    const onScroll = () => {
+    // looked at once a frame at most, and "seen" written once per newest line,
+    // not on every scroll event while he is at the foot (the 4 Oct lag survey)
+    let pending = 0;
+    let written = null;
+    const check = () => {
+      pending = 0;
       wasAtFoot.current = atFoot();
-      if (wasAtFoot.current) writeSeen(T.newestAt);
+      if (wasAtFoot.current && written !== T.newestAt) { writeSeen(T.newestAt); written = T.newestAt; }
     };
+    const onScroll = () => { if (!pending) pending = requestAnimationFrame(check); };
     // (the full screen covers the page and has its own ways back: the ⌄, a
     // tap outside the plate, a swipe up on the peek, the edge swipe)
     m.addEventListener('scroll', onScroll, { passive: true });
-    return () => { m.removeEventListener('scroll', onScroll); };
+    return () => { m.removeEventListener('scroll', onScroll); cancelAnimationFrame(pending); };
   }, [T.newestAt]);
   useEffect(() => () => { if (wasAtFoot.current) writeSeen(T.newestAt); }, [T.newestAt]);
 
