@@ -13,6 +13,42 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**5 OCT, ~01:30 AEDT (nova-os-fc, CUT OFF BY THE USAGE LIMIT) — THE B BUILD IS
+MERGED AND VERIFIED IN DEMO; NOTHING IS PUSHED (this session's push is blocked by
+its permission classifier); FIVE PAGE AUDITS WERE STILL RUNNING AT THE CUT.**
+- DONE ON MAIN (all gated: lint, build, guard unchanged, suite 3072+/3076 with
+  only the atlas pair + the DST pair before 82412e1 fixed it): B icon engine
+  0d5b89c (src/coreGrains.js; rest pixel-identical); pushback stance a7492eb
+  (VIS {"stance":"contest"}, strip test per path, two older VIS leaks fixed);
+  full screen 3ae3203 (Living jade tokens --nv-say*, pour over the plate,
+  underline follows what Nova does, panels rise from the core and settle away);
+  every core told thinking/contest cbe9e6a + the floating core; sky rests
+  484a6f1; page changes rise like tab taps 04991e5 (+ hash Back handled once);
+  perf 43ae15a/0e56a47/4d6e821/5c01e15/f60e8a9; no tab bar in full screen
+  7f40549; checklist Train/Fuel/Voice/Inbox rows [b] b0c80d6; deload signal
+  DST bug 82412e1 (a real twice-a-year bug, found at 01:00 on the first AEDT day).
+- VERIFIED (demo, Chrome, 390pt): pushback turns core + label + underline red;
+  dock orb and Home core show sphere / knot / jade shell; pour lands in the
+  words; panel rises and settles away; sky pauses at 5 s; no view transition on
+  card tap / back; rest icon identical.
+- NOT VERIFIED: anything on his phone; real TTS timing of the pour; whether the
+  model writes stance lines well (no live model call was made).
+- NEXT, IN ORDER: (1) he runs `! git push origin main` (about 20 commits);
+  (2) THEN reload the server with `node scripts/reload-server.mjs` (the stance
+  contract and the DST fix are server code; reload only after the push so the
+  client and contract arrive together); (3) review the page agents' files,
+  which may be partial and are UNTRACKED in design/: audits 06-sheets-overlays,
+  07-settings, 08-ops, 09-library, 10-practice and mockups 71–75; read each,
+  look at each at 390, publish the good ones as artifacts, commit them, and
+  tick the rows [a]/[m]; (4) next pages: Leader, Briefing, the small screens,
+  Ambient, Console, then the desktop round; (5) regenerate the status page
+  (scripts/redesign-page.mjs) and republish to
+  https://claude.ai/artifact/GRnJeoNMHDLmxSfWbTSJGJ.
+- LINKS: icon mockup https://claude.ai/artifact/5pCrLe7mtUxhsRRb4Df2bD (r3,
+  Living jade picked); sky/page changes https://claude.ai/artifact/R1SaFVX9P35ACLTEjLVQHz.
+- DO NOT: reload the server before the push; publish an agent mockup unread;
+  run a test of the deload or any date code without pinning the clock.
+
 **4 OCT (morning, his answers to the 3 Oct open questions).** (1) The
 lasagne: he ticked it for 2 Oct himself; closed. (2) Quiet hours: 22:30 to
 05:00, SET on the live server through `PUT /api/prefs/quiet-hours` and read
