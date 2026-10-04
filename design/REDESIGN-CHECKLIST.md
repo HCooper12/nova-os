@@ -561,6 +561,28 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 4 Oct 2026 (evening) — NOVA'S ICON: HE PICKED B ("the heart stays";
+  "beautiful… very engaging"; the subtitle animation "basically perfect").
+  ROUND 2 PUBLISHED to the same page (mockup 69, v2): the REST icon corrected
+  to the HOLOGRAM (round 1 drew filament; ported from NovaCore.jsx with the
+  same seed, batched); speaking refined (a pulse climbs the shell per word,
+  the underside reaches for the line while a word pours, two hologram rings
+  orbit the shell, a breath per sentence, rim lit lighter); SIX speaking
+  colours on swatches (Starlight my pick; Rose; Spring = the unclaimed
+  green; Jade = CFO/"good"; Apricot; Coral = round 1 AND the Coach's hue);
+  RED = PUSHING BACK, only the sentence that disagrees, named in words;
+  GLASS PANELS rise out of the core (blur + scale), the core travels up,
+  the bar he names lights, the panel settles away; the panel arrives with
+  the sentence that has something to show (the reason, in a pushback).
+  HIS CALLS ANSWERED: B; the moves apply EVERYWHERE the icon shows (tab
+  bar, Home's core); NO TAB BAR IN FULL SCREEN (built, 7f40549). OPEN: the
+  speaking colour; red for pushback yes/no; thinking cyan (from round 1);
+  the panel motion. LAG: his recording measured 40 fps mean at rest, 13
+  frames over 50 ms in 5 s; root cause in the icon verified in source
+  (hologram ~4,500 canvas calls/frame at 300 px, ~3,000 at any size under
+  260 incl. the always-on 58 px orb; no offscreen pause). An Opus agent is
+  rewriting the engine (worktree coreperf, same look); a second is surveying
+  the rest of the app's lag (demo mode only, report in the scratchpad).
 - 4 Oct 2026 — NOVA'S ICON, ROUND 1 PUBLISHED (mockup 69,
   https://claude.ai/artifact/5pCrLe7mtUxhsRRb4Df2bD). The reel (shipnotesai,
   "Your Jarvis needs a face") read at 12 fps, 130 frames plus full-size
