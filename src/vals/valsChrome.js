@@ -421,6 +421,8 @@ export function valsChrome(app, ctx) {
       // hold = the words (his ask). The full Voice screen is a nav away.
       onLongPress: () => app.toggleLiveText(),
       speaking: !!st.voiceSpeaking,
+      // red while he speaks a sentence that pushes back (4 Oct 2026)
+      contest: contestOf(st),
       coreStyle: st.coreStyle,
       bottom: mob ? 'calc(84px + env(safe-area-inset-bottom))' : '18px',
     } : null,

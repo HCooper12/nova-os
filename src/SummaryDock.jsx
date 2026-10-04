@@ -31,8 +31,9 @@ const NO_TAP_RING = {};
 // up the whole circle space it currently sits in"). The circle is 60px of
 // glass with a 1px specular rim inside its edge (.nv-sum-nova::after), so
 // its inner diameter is 58px, measured at 375px; the core is drawn at that.
-// It was 46, which left a 7px ring of empty glass. The gold (speaking) and
-// violet (listening) tints are NovaCore's own and unchanged.
+// It was 46, which left a 7px ring of empty glass. Its turn colours are
+// NovaCore's own (since 5 Oct: violet listening, cyan thinking, jade
+// speaking, red pushing back), and in a turn it becomes the grain body.
 const ORB = 58;
 
 function Tab({ screen, label, count, active, go, warm }) {
