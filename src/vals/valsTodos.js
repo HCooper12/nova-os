@@ -42,6 +42,10 @@ export function valsTodos(app, ctx) {
   const mkTodo = (t) => ({
     key: t.raw,
     text: t.text,
+    // The row draws `display`, never `text`: a bare URL shows as where it
+    // goes. Without these two fields every open to-do rendered blank.
+    display: linkify(t.text),
+    isLink: URL_RE.test(t.text || ''),
     checked: t.checked,
     category: t.category,
     categoryLabel: t.category ? CATEGORY_LABEL[t.category] : 'UNSORTED',
