@@ -196,7 +196,7 @@ export function MissionStructured({ v }) {
       <div key="hero" className="nv-pane" style={{ marginTop: '16px', padding: '16px 18px', display: 'flex', gap: '16px', alignItems: 'center' }}>
         <Interactive onClick={v.openVoice} aria-label="Open Voice — talk to Nova"
           base={{ position: 'relative', flex: 'none', width: mob ? 84 : 104, height: mob ? 84 : 104, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: 'var(--nv-glow-core)' }} hoverStyle={{}}>
-          <NovaCore size={mob ? 84 : 104} engine={v.coreStyle} />
+          <NovaCore size={mob ? 84 : 104} engine={v.coreStyle} speaking={!!v.novaSpeaking} listening={!!v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} />
         </Interactive>
         <div style={{ minWidth: 0, flex: 1 }}>
           <Eyebrow tone="cyan">{v.coreLabel}</Eyebrow>
@@ -215,7 +215,7 @@ export function MissionStructured({ v }) {
       // outside the morning the core keeps its presence, not its acreage
       <div key="hero" className="nv-pane" style={{ marginTop: '14px', padding: '10px 14px', display: 'flex', gap: '12px', alignItems: 'center' }}>
         <Interactive onClick={v.openVoice} aria-label="Open Voice — talk to Nova" base={{ flex: 'none', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer' }} hoverStyle={{}}>
-          <NovaCore size={44} engine={v.coreStyle} />
+          <NovaCore size={44} engine={v.coreStyle} speaking={!!v.novaSpeaking} listening={!!v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} />
         </Interactive>
         <p style={{ margin: 0, minWidth: 0, flex: 1, font: `450 13px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>
           {v.heroStand.map((seg, i) => (

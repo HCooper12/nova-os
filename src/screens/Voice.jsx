@@ -499,7 +499,7 @@ function VoiceClassic({ v }) {
               title={dict.on ? 'Listening — a pause sends. Tap to stop.' : 'Tap to talk' + (v.wakeWordOn ? ' — or just say “Hey Nova”' : '')}
               base={css('position:relative;z-index:2;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0')}
               activeStyle={{ transform: 'scale(.97)', transition: 'transform .16s cubic-bezier(.32,.72,0,1)' }}>
-              <NovaCore size={coreSize} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} style={{ pointerEvents: 'none' }} />
+              <NovaCore size={coreSize} engine={v.coreStyle} speaking={v.voiceSpeaking} listening={dict.on} thinking={!!v.novaThinking} contest={!!v.novaContest} style={{ pointerEvents: 'none' }} />
             </Interactive>
           </div>
           <div style={css(`font:var(--nv-micro-m);letter-spacing:${isAppleStyle() ? '.14em' : '.42em'};text-align:center;color:${dict.on ? 'var(--nv-vi)' : v.voiceSpeaking ? 'var(--nv-gold)' : 'color-mix(in srgb, var(--nv-ink) 60%, transparent)'};transition:color .4s`)}>{caption}</div>

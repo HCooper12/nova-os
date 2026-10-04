@@ -31,7 +31,7 @@ export function FloatingCore({ s }) {
       {!s.thinking && s.listening && (
         <span aria-hidden="true" style={{ position: 'absolute', inset: '-3px', borderRadius: '50%', border: '2px solid var(--nv-cy)', opacity: 0.7, animation: 'novaPulse 1.6s infinite var(--nv-anim)' }}></span>
       )}
-      <NovaCore size={44} variant="mini" engine={s.coreStyle} speaking={s.speaking} listening={s.listening} style={{ pointerEvents: 'none' }} />
+      <NovaCore size={44} variant="mini" engine={s.coreStyle} speaking={s.speaking} listening={s.listening} thinking={!!s.thinking} contest={!!s.contest} style={{ pointerEvents: 'none' }} />
     </Interactive>
   );
 }

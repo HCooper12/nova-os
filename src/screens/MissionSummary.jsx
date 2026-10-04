@@ -708,7 +708,7 @@ export function MissionSummary({ v }) {
           <span style={{ minWidth: 0, font: `600 13px ${UI}`, letterSpacing: '.02em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{S.date}</span>
           <Interactive onClick={v.openVoice} aria-label="Talk to Nova" haptic="tick"
             base={{ flex: 'none', width: 36, height: 36, borderRadius: '50%', cursor: 'pointer' }}>
-            <NovaCore size={36} engine={v.coreStyle} />
+            <NovaCore size={36} engine={v.coreStyle} speaking={!!v.novaSpeaking} listening={!!v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} />
           </Interactive>
         </div>
         <h1 className="nv-sum-rise" style={{ '--i': 1, margin: '2px 4px 4px', font: `700 34px/1.1 ${UI}`, letterSpacing: '-.025em', textWrap: 'balance' }}>{S.greeting}</h1>
