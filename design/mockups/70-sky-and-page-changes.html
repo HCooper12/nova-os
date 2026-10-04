@@ -1,0 +1,265 @@
+<title>Sky Drift and Page Changes</title>
+<!--
+  70 · THE SKY'S DRIFT AND HOW PAGES CHANGE (4 Oct 2026)
+  His ask, on two of the lag survey's calls: "visually show me what you are
+  referring to".
+
+  1. THE SKY'S DRIFT. Summary's Nova glass sky (.nv-sky in index.css) drifts
+     two gradient layers by about 2.5% over 40 s, forever. Every glass panel
+     above it (cards, the tab bar: 7 surfaces, 73% of Home measured in the
+     survey) must re-blur whatever moves beneath it, every frame, for as long
+     as anything moves. Option: the sky rests a few seconds after his last
+     touch, easing to a stop, and wakes on the next touch or scroll.
+
+  2. HOW PAGES CHANGE. CORRECTED BEFORE DRAWING: the survey said every tab
+     tap snapshots the whole page. Verified in source: tab taps pass
+     `instant: true` (App.jsx navigate, the dock's go()), so they animate only
+     the live <main> (the 17 Sep fix: the content rises, the bar is never
+     captured). Card taps that open another page, and the app's own back
+     buttons, still go through withTransition: the browser photographs the
+     WHOLE page, tab bar included, and cross-fades the old picture out in
+     140 ms and the new one in over 280 ms. Halfway, both pictures are
+     partly transparent, so the bar dims and doubles: the glitch he filmed
+     on 17 Sep. Option: every page change moves like a tab tap; the shared
+     morphs (a recipe card growing into its page) keep their transition.
+
+  Drawn here with real glass (backdrop-filter) so his phone does the work it
+  would do in the app. Demo content only.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --bg:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.74);--ink3:rgba(232,236,246,.5);--sep:rgba(232,236,246,.12);
+  --card:rgba(255,255,255,.055);--card-ring:rgba(255,255,255,.11);
+  --cy:#59e6ff;--warm:#ffb38a;--cost:#ff5460;--ok:#5fe8a8;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding-inline:16px;padding-block:28px 72px}
+.eyebrow{font:600 12px/1.2 var(--ui);letter-spacing:.04em;color:var(--ink3);margin:0 0 10px}
+h1{font:700 clamp(28px,5vw,38px)/1.08 var(--ui);letter-spacing:-.02em;margin:0 0 12px;text-wrap:balance}
+.lede{font:400 18px/1.5 var(--serif);color:var(--ink2);max-width:40em;margin:0 0 6px;text-wrap:pretty}
+h2{font:650 22px/1.25 var(--ui);letter-spacing:-.01em;margin:0 0 6px}
+.sub{color:var(--ink2);margin:0 0 18px;max-width:46em;text-wrap:pretty}
+section{margin-top:52px}
+.note{border-radius:16px;padding:12px 14px;background:rgba(255,179,138,.07);box-shadow:inset 0 0 0 1px rgba(255,179,138,.28);color:var(--ink2);font-size:14px;max-width:46em;margin:0 0 18px}
+.note b{color:var(--ink)}
+
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:640px){.pair{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:10px;align-content:start}
+.col h3{font:600 15px/1.3 var(--ui);margin:0}
+.col p{margin:0;color:var(--ink2);font-size:14px;text-wrap:pretty}
+.tag{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 var(--ui);padding:6px 10px;border-radius:999px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring);color:var(--ink2);width:max-content}
+.tag i{width:7px;height:7px;border-radius:50%;background:var(--c,var(--ink3))}
+
+/* a phone, holding a slice of Home in Nova glass */
+.phone{position:relative;width:100%;max-width:330px;aspect-ratio:330/560;border-radius:34px;overflow:hidden;isolation:isolate;margin-inline:auto;
+  background:#070912;box-shadow:0 0 0 1px rgba(255,255,255,.1),0 24px 60px -28px rgba(0,0,0,.9);touch-action:manipulation;cursor:pointer}
+.sky{position:absolute;inset:0;background:linear-gradient(180deg,#0b1430 0%,#101a3c 40%,#141236 70%,#0a0a1c 100%)}
+.sky::before,.sky::after{content:"";position:absolute;inset:-12%;animation:driftA var(--dur,40s) ease-in-out infinite alternate;animation-play-state:var(--play,running)}
+.sky::before{background:radial-gradient(60% 40% at 25% 22%,rgba(89,230,255,.34),transparent 70%),radial-gradient(50% 36% at 80% 64%,rgba(150,110,255,.30),transparent 70%)}
+.sky::after{background:radial-gradient(55% 34% at 64% 30%,rgba(255,150,200,.16),transparent 70%),radial-gradient(70% 40% at 30% 88%,rgba(89,170,255,.22),transparent 70%);animation-name:driftB}
+@keyframes driftA{from{transform:translate3d(-5%,-3%,0)}to{transform:translate3d(5%,4%,0) scale(1.08)}}
+@keyframes driftB{from{transform:translate3d(4%,3%,0)}to{transform:translate3d(-5%,-4%,0) scale(1.1)}}
+.screen{position:absolute;inset:0;padding:22px 14px 0;display:grid;align-content:start;gap:10px}
+.date{font:600 11px/1 var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.hello{font:700 22px/1.1 var(--ui);letter-spacing:-.02em;margin:0}
+.glass{position:relative;border-radius:20px;padding:12px;
+  background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.04)),rgba(18,24,48,.26);
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22),inset 0 1px 0 rgba(255,255,255,.2);
+  -webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%)}
+.glass .t{font:600 12px/1 var(--ui);color:var(--ink2);margin-bottom:8px}
+.rings{display:flex;gap:10px;align-items:center}
+.ring{width:44px;height:44px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(255,255,255,.12) 0);-webkit-mask:radial-gradient(circle,transparent 15px,#000 16px);mask:radial-gradient(circle,transparent 15px,#000 16px)}
+.rings b{font:700 18px/1 var(--ui)}
+.strip{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.strip i{height:30px;border-radius:8px;background:rgba(255,255,255,.1)}
+.strip i:nth-child(3){background:rgba(89,230,255,.35)}
+.tabbar{position:absolute;left:10px;right:10px;bottom:12px;height:54px;border-radius:27px;display:flex;align-items:center;justify-content:space-around;padding:0 8px;
+  background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.04)),rgba(16,20,40,.5);
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22),inset 0 1px 0 rgba(255,255,255,.2);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%)}
+.tabbar i{width:18px;height:18px;border-radius:6px;background:rgba(232,236,246,.3)}
+.tabbar i.on{background:var(--cy)}
+.tabbar s{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle,#e8fbff 0%,#59b8ff 35%,#1a3a7a 70%,#0b1430 100%);text-decoration:none}
+/* the cost lens: an outline on every surface the phone is re-blurring this frame */
+.phone[data-lens="1"][data-moving="1"] .glass, .phone[data-lens="1"][data-moving="1"] .tabbar{outline:2px solid var(--cost);outline-offset:-2px;animation:lens .5s steps(2) infinite}
+@keyframes lens{50%{outline-color:rgba(255,84,96,.35)}}
+.status{position:absolute;top:10px;right:12px;z-index:3;font:600 11px/1 var(--ui);padding:6px 9px;border-radius:999px;background:rgba(6,7,13,.6);color:var(--ink2);display:flex;gap:6px;align-items:center}
+.status i{width:7px;height:7px;border-radius:50%;background:var(--c,var(--ink3))}
+.controls{display:flex;flex-wrap:wrap;gap:6px}
+.chip{appearance:none;border:0;cursor:pointer;font:600 13px/1 var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring);
+  border-radius:999px;padding:0 15px;min-height:44px;display:inline-flex;align-items:center;gap:7px;transition:transform 120ms ease-out}
+.chip:active{transform:scale(.96)}
+.chip[aria-pressed="true"]{color:var(--ink);background:rgba(255,255,255,.12);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.22)}
+
+/* page changes: two layers per phone, old and new */
+.layer{position:absolute;inset:0}
+.layer .screen{inset:0}
+.layer.train .hello::after{content:""}
+.cardA{background:linear-gradient(180deg,rgba(255,179,138,.38),rgba(255,179,138,.12))}
+.cardB{background:linear-gradient(180deg,rgba(89,230,255,.34),rgba(89,230,255,.1))}
+.bake{position:absolute;left:10px;right:10px;bottom:12px;height:54px;border-radius:27px;display:flex;align-items:center;justify-content:space-around;padding:0 8px;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22)}
+.bake i{width:18px;height:18px;border-radius:6px;background:rgba(232,236,246,.3)}
+.bake s{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle,#e8fbff 0%,#59b8ff 35%,#1a3a7a 70%,#0b1430 100%)}
+.label{position:absolute;left:12px;right:12px;bottom:74px;z-index:4;font:600 11px/1.3 var(--ui);color:var(--ink);text-align:center;padding:6px 8px;border-radius:10px;background:rgba(6,7,13,.66)}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 14px/1 var(--ui);background:rgba(89,230,255,.12);color:var(--cy)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:var(--ink2);font-size:14px}
+:focus-visible{outline:2px solid var(--cy);outline-offset:3px}
+@media (prefers-reduced-motion: reduce){.sky::before,.sky::after{animation:none}.chip{transition:none}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 70 · 4 October 2026 · two of the lag calls, drawn</p>
+  <h1>The sky's drift, and how pages change</h1>
+  <p class="lede">Two small motions that cost your phone more than they show. Each is drawn below with real glass, slowed down where it helps, so you can see what you would be choosing.</p>
+
+  <section>
+    <h2>1 · The sky's drift</h2>
+    <p class="sub">Behind Nova glass, the sky's colours drift about 2.5% over 40 seconds, forever. You can hardly see it. But every glass card and the tab bar has to re-blur whatever moves behind it, every frame, for as long as anything moves: on Home that is seven surfaces covering 73% of the screen while you are simply reading.</p>
+    <div class="controls" style="margin-bottom:14px">
+      <button class="chip" type="button" id="fast" aria-pressed="false">Speed up the drift 20x so you can see it</button>
+      <button class="chip" type="button" id="lens" aria-pressed="true">Show what is being re-blurred</button>
+    </div>
+    <div class="pair">
+      <div class="col">
+        <span class="tag" style="--c:var(--cost)"><i></i>Today</span>
+        <h3>Always drifting</h3>
+        <div class="phone sky-demo" id="pA" data-lens="1" data-moving="1">
+          <div class="sky"></div>
+          <div class="screen" aria-hidden="true">
+            <span class="date">Sunday 4 October</span><p class="hello">Good evening</p>
+            <div class="glass"><div class="t">Today</div><div class="rings"><span class="ring" style="--c:#5fe8a8;--p:72"></span><span class="ring" style="--c:#59e6ff;--p:45"></span><span class="ring" style="--c:#b48cff;--p:88"></span><b>3 of 4</b></div></div>
+            <div class="glass"><div class="t">This week</div><div class="strip"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="glass"><div class="t">Fuel</div><div class="strip"><i></i><i></i><i></i></div></div>
+          </div>
+          <div class="tabbar" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i><s></s></div>
+          <span class="status"><i style="--c:var(--cost)"></i>Re-blurring, always</span>
+        </div>
+        <p>The phone keeps re-blurring the glass the whole time this page is open, even when nothing you would notice is changing.</p>
+      </div>
+      <div class="col">
+        <span class="tag" style="--c:var(--ok)"><i></i>The option</span>
+        <h3>Rests when you do</h3>
+        <div class="phone sky-demo" id="pB" data-lens="1" data-moving="1" role="button" tabindex="0" aria-label="Touch to wake the sky">
+          <div class="sky"></div>
+          <div class="screen" aria-hidden="true">
+            <span class="date">Sunday 4 October</span><p class="hello">Good evening</p>
+            <div class="glass"><div class="t">Today</div><div class="rings"><span class="ring" style="--c:#5fe8a8;--p:72"></span><span class="ring" style="--c:#59e6ff;--p:45"></span><span class="ring" style="--c:#b48cff;--p:88"></span><b>3 of 4</b></div></div>
+            <div class="glass"><div class="t">This week</div><div class="strip"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="glass"><div class="t">Fuel</div><div class="strip"><i></i><i></i><i></i></div></div>
+          </div>
+          <div class="tabbar" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i><s></s></div>
+          <span class="status" id="bStatus"><i></i>Drifting</span>
+        </div>
+        <p>The sky drifts for five seconds after you touch or scroll, then stops where it is, and the glass stops being redrawn. At real speed you cannot see the moment it stops. Touch this phone to wake it. The colours and the time-of-day shading stay exactly as they are.</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:16px">What I can't tell you from here is how much your phone feels it: Chrome on a Mac can't measure your iPhone's glass. The quick test is yours: record Home at rest with Calm off, then with Calm on (Calm stops the drift), and compare how smooth the two feel.</p>
+  </section>
+
+  <section>
+    <h2>2 · How pages change</h2>
+    <div class="note"><b>A correction first.</b> I told you every tab tap photographs the whole page. I checked the code: it doesn't. Since your 17 September fix, a tab tap moves only the page's content and leaves the tab bar live. Two other ways of changing page still use the old method: tapping a card that opens another page, and Nova's own back buttons.</div>
+    <p class="sub">Below, both at one-sixth speed. On the left, a tab tap: the content dips and rises, the tab bar never moves. On the right, a card tap or Back: the browser photographs the whole page, tab bar included, fades the old photo out quickly and the new one in more slowly, so halfway through the bar is two half-faded photos at once. That is the doubling and wash-out you filmed on 17 September.</p>
+    <div class="controls" style="margin-bottom:14px">
+      <button class="chip" type="button" id="replay">Replay both</button>
+      <button class="chip" type="button" id="real" aria-pressed="false">Real speed</button>
+    </div>
+    <div class="pair">
+      <div class="col">
+        <span class="tag" style="--c:var(--ok)"><i></i>Today, a tab tap</span>
+        <h3>The content moves, the bar stays live</h3>
+        <div class="phone" id="tA" aria-label="A tab tap: the content changes, the tab bar stays">
+          <div class="sky" style="--play:paused"></div>
+          <div class="layer" id="tAold"><div class="screen" aria-hidden="true"><span class="date">Home</span><p class="hello">Good evening</p><div class="glass cardA"><div class="t">Today</div><div class="strip"><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="glass"><div class="t">This week</div><div class="strip"><i></i><i></i><i></i></div></div></div></div>
+          <div class="layer" id="tAnew" style="opacity:0"><div class="screen" aria-hidden="true"><span class="date">Train</span><p class="hello">Push, Tuesday</p><div class="glass cardB"><div class="t">Next set</div><div class="strip"><i></i><i></i><i></i><i></i></div></div><div class="glass"><div class="t">Coach</div><div class="strip"><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div></div>
+          <div class="tabbar" aria-hidden="true"><i></i><i></i><i class="on" id="tAtab"></i><i></i><s></s></div>
+          <span class="label">The tab bar is live glass the whole time</span>
+        </div>
+      </div>
+      <div class="col">
+        <span class="tag" style="--c:var(--cost)"><i></i>Today, a card tap or Back</span>
+        <h3>The whole page is photographed</h3>
+        <div class="phone" id="tB" aria-label="A card tap: the whole page including the tab bar is photographed and cross-faded">
+          <div class="sky" style="--play:paused"></div>
+          <div class="layer" id="tBold"><div class="screen" aria-hidden="true"><span class="date">Home</span><p class="hello">Good evening</p><div class="glass cardA"><div class="t">Today</div><div class="strip"><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="glass"><div class="t">This week</div><div class="strip"><i></i><i></i><i></i></div></div></div>
+            <div class="bake" style="background:linear-gradient(180deg,rgba(255,200,170,.3),rgba(120,90,110,.5))"><i></i><i style="background:var(--cy)"></i><i></i><i></i><s></s></div></div>
+          <div class="layer" id="tBnew" style="opacity:0"><div class="screen" aria-hidden="true"><span class="date">Train</span><p class="hello">Push, Tuesday</p><div class="glass cardB"><div class="t">Next set</div><div class="strip"><i></i><i></i><i></i><i></i></div></div><div class="glass"><div class="t">Coach</div><div class="strip"><i></i><i></i><i></i><i></i><i></i><i></i></div></div></div>
+            <div class="bake" style="background:linear-gradient(180deg,rgba(140,220,255,.28),rgba(40,70,120,.55))"><i></i><i></i><i style="background:var(--cy)"></i><i></i><s></s></div></div>
+          <span class="label">The tab bar is a photo: two of them, fading across each other</span>
+        </div>
+      </div>
+    </div>
+    <p class="sub" style="margin-top:16px">The option: every page change moves the way a tab tap does. The morphs stay (a recipe card growing into its page, a technique card opening into the book), because those are a different thing: one object travelling, not the whole page.</p>
+  </section>
+
+  <section>
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>The sky: always drifting, or resting when you do</b><span>Resting is my recommendation: you lose a motion you can barely see, and the phone stops redrawing most of Home while you read. If you would rather keep it, it stays exactly as it is.</span></div></li>
+      <li><div><b>Card taps and Back: move like a tab tap</b><span>My recommendation, and the same fix you approved for tabs on 17 September. Card taps and Back get the content-only rise, and the tab bar can no longer double or wash out. If you say no, they keep the whole-page photo and its occasional glitch.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* 1 · the sky */
+  const pA = $('#pA'), pB = $('#pB'), bStatus = $('#bStatus');
+  let wakeUntil = 0, easing = false;
+  const setDur = (fast) => document.querySelectorAll('.sky-demo .sky').forEach((s) => s.style.setProperty('--dur', fast ? '2s' : '40s'));
+  $('#fast').addEventListener('click', (e) => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); setDur(on); });
+  $('#lens').addEventListener('click', (e) => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); pA.dataset.lens = pB.dataset.lens = on ? '1' : '0'; });
+  const skyB = pB.querySelector('.sky');
+  function wake() { wakeUntil = performance.now() + 5000; skyB.style.setProperty('--play', 'running'); pB.dataset.moving = '1'; easing = false; }
+  pB.addEventListener('pointerdown', wake);
+  pB.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); wake(); } });
+  function tickB() {
+    const left = wakeUntil - performance.now();
+    if (left > 0) { bStatus.innerHTML = '<i style="background:var(--warm)"></i>Drifting · rests in ' + Math.ceil(left / 1000) + ' s'; }
+    else if (pB.dataset.moving === '1') {
+      // pause where it is: at 2.5% over 40 s a pause cannot be seen at real speed
+      skyB.style.setProperty('--play', 'paused'); pB.dataset.moving = '0';
+      bStatus.innerHTML = '<i style="background:var(--ok)"></i>At rest · nothing re-blurring';
+    }
+    requestAnimationFrame(tickB);
+  }
+  if (RM) { pA.dataset.moving = '0'; pB.dataset.moving = '0'; bStatus.textContent = 'Reduced motion: the sky is still'; }
+  else { wake(); requestAnimationFrame(tickB); }
+
+  /* 2 · page changes, at one sixth speed unless "Real speed" */
+  let slow = 6, timer = null;
+  const EXIT = 'cubic-bezier(.4,0,1,1)', EASE = 'cubic-bezier(.32,.72,0,1)';
+  function play() {
+    const k = slow;
+    const aOld = $('#tAold'), aNew = $('#tAnew'), bOld = $('#tBold'), bNew = $('#tBnew');
+    [aOld, bOld].forEach((el) => { el.getAnimations().forEach((x) => x.cancel()); el.style.opacity = '1'; });
+    [aNew, bNew].forEach((el) => { el.getAnimations().forEach((x) => x.cancel()); el.style.opacity = '0'; });
+    if (RM) { aOld.style.opacity = bOld.style.opacity = '0'; aNew.style.opacity = bNew.style.opacity = '1'; return; }
+    setTimeout(() => {
+      // a tab tap: the live main swaps and rises in 260 ms; the bar is outside it
+      aOld.style.opacity = '0';
+      aNew.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 260 * k, easing: EASE, fill: 'forwards' });
+      // a card tap: the root snapshot, old photo out in 140 ms, new photo in over 280 ms (index.css nvScreenOut / nvScreenIn)
+      bOld.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 140 * k, easing: EXIT, fill: 'forwards' });
+      bNew.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 280 * k, easing: EASE, fill: 'forwards' });
+    }, 500);
+    timer = setTimeout(play, 500 + 300 * k + 2200);
+  }
+  const restart = () => { clearTimeout(timer); play(); };
+  $('#replay').addEventListener('click', restart);
+  $('#real').addEventListener('click', (e) => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); slow = on ? 1 : 6; restart(); });
+  play();
+})();
+</script>

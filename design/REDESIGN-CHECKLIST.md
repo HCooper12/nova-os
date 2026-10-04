@@ -561,6 +561,18 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 4 Oct 2026 (late) — HIS ANSWERS: speaking = a JADE variation ("Starlight is
+  too plain") -> round 3 of mockup 69 (six jade materials: body, rim, glow;
+  Imperial jade my pick, Jade itself is the CFO's exact green); RED for
+  pushing back YES; THINKING IN CYAN YES; PUSH YES, but the push was BLOCKED
+  by this session's permission classifier: 9 commits wait for his
+  `! git push origin main`. "Visually show me" the sky drift and the page
+  transition -> mockup 70 (https://claude.ai/artifact/R1SaFVX9P35ACLTEjLVQHz).
+  CORRECTED there: the survey's "every tab tap snapshots the page" is false
+  (dock taps pass instant: true since 17 Sep); card taps and the app's back
+  buttons still take the whole-page View Transition (the bar can double).
+  OPEN, his: which jade; panel motion; sky rests when idle; card taps and
+  Back move like tab taps.
 - 4 Oct 2026 (night) — LAG: MERGED, NOT PUSHED. 43ae15a the core engine
   (Opus agent, worktree coreperf, reviewed and re-checked here: same picture,
   cached shades + short runs, no per-point allocation, HOLO_MINI <= 72 px,
