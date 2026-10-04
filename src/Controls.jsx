@@ -299,16 +299,17 @@ export function Rail({ children, gap = '6px', style, ariaLabel }) {
     const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
     setEdges((p) => (p.left === left && p.right === right ? p : { left, right }));
   };
+  // re-measured after each render (new chips can change what overflows) ...
+  useLayoutEffect(() => { measure(); });
+  // ... and when its own size changes. One observer for the rail's life: it
+  // was rebuilt on every render (the 4 Oct lag survey)
   useLayoutEffect(() => {
-    measure();
     const el = ref.current;
-    if (!el) return undefined;
-    // content can arrive after the first paint (the filters are derived from
-    // the vault), so the rail re-measures when its own size changes
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
-    ro?.observe(el);
-    return () => ro?.disconnect();
-  });
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const fade = '28px';
   const mask = edges.left && edges.right
     ? `linear-gradient(90deg, transparent 0, #000 ${fade}, #000 calc(100% - ${fade}), transparent 100%)`
