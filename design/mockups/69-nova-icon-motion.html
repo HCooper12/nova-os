@@ -51,7 +51,7 @@
   --ink:#e8ecf6;--ink2:rgba(232,236,246,.74);--ink3:rgba(232,236,246,.5);--sep:rgba(232,236,246,.12);
   --card:rgba(255,255,255,.055);--card-ring:rgba(255,255,255,.11);--card-hi:rgba(255,255,255,.2);
   --nova:#cfd8f5;
-  --rest:#78beff;--listen:#b0a0ff;--think:#59e6ff;--speak:#d6e0ff;--contest:#ff5460;
+  --rest:#78beff;--listen:#b0a0ff;--think:#59e6ff;--speak:#1ccc84;--contest:#ff5460;
   --talk:#59e6ff;--talk-ink:#062028;
   color-scheme:dark;
 }
@@ -148,7 +148,7 @@ section{margin-top:56px}
 .swatch{appearance:none;border:0;cursor:pointer;text-align:left;color:var(--ink);background:var(--card);border-radius:16px;padding:10px 12px;min-height:56px;font:inherit;
   box-shadow:inset 0 0 0 1px var(--card-ring);display:grid;grid-template-columns:28px 1fr;gap:2px 10px;align-items:center;transition:transform 140ms ease-out,box-shadow 200ms ease}
 .swatch:active{transform:scale(.97)}
-.swatch i{grid-row:span 2;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0%,var(--c) 38%,color-mix(in srgb,var(--c) 40%,#000) 100%);box-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent)}
+.swatch i{grid-row:span 2;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 50% 50%,#fff 0%,var(--g,var(--c)) 26%,var(--c) 58%,var(--r,var(--c)) 92%);box-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent),inset 0 0 0 1.5px var(--r,transparent)}
 .swatch b{font:600 14px/1.2 var(--ui)}
 .swatch span{font-size:12px;line-height:1.3;color:var(--ink3)}
 .swatch[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px var(--c),0 0 0 3px color-mix(in srgb,var(--c) 18%,transparent)}
@@ -192,9 +192,9 @@ section{margin-top:56px}
 </style>
 
 <div class="wrap">
-  <p class="eyebrow">Mockup 69 · round 2 · 4 October 2026 · for your review</p>
+  <p class="eyebrow">Mockup 69 · round 3 · 4 October 2026 · for your review</p>
   <h1>Nova's icon, in motion</h1>
-  <p class="lede">B, as you chose it, with your real hologram at rest, a livelier speaking shell, six speaking colours to try, red kept for the moment Nova pushes back, and a glass panel that rises out of him when there is something to show you.</p>
+  <p class="lede">B with your hologram at rest, thinking in cyan and red when he pushes back, as you decided. This round is jade: six versions of it, each a material with its own body, lit edge and inner glow, so you can find the one that is Nova's.</p>
   <p class="demo">Demo content: the questions, the replies, the week and the sleep figures are invented. The voice level is simulated from paced words; in the app it comes from your microphone while you talk and from Nova's voice while he speaks.</p>
 
   <div class="studio">
@@ -233,7 +233,7 @@ section{margin-top:56px}
         <button class="opt" type="button" data-scen="agree" aria-pressed="true"><b>He answers</b><span>"What does my training look like this week?" A panel shows the week.</span></button>
         <button class="opt" type="button" data-scen="push" aria-pressed="false"><b>He pushes back</b><span>"Should I add a fifth session?" Red on the sentence that disagrees.</span></button>
       </div>
-      <h3 class="sm">Speaking colour</h3>
+      <h3 class="sm">Speaking colour: the jade family</h3>
       <div class="swatches" id="swatches" role="group" aria-label="Speaking colour"></div>
       <div class="toggles"><button class="chip" type="button" id="r1" aria-pressed="false">Show round 1's speaking shell</button></div>
 
@@ -262,9 +262,8 @@ section{margin-top:56px}
   <section>
     <h2>Your calls</h2>
     <ol class="decide">
-      <li><div><b>The speaking colour</b><span>My pick is Starlight: it is the colour Nova's words already wear in the subtitles, no agent owns it, and it reads calm. Coral is also the Coach's colour, so speaking in it looks like the Coach is talking. Jade is the CFO's colour and the green of every "good" verdict; Spring is the green no one has claimed.</span></div></li>
-      <li><div><b>Red for pushing back</b><span>If yes, Nova's reply would carry a marker on a sentence that disagrees (the way his panels are requested today), and code turns that sentence red. If no, he speaks every sentence in one colour.</span></div></li>
-      <li><div><b>Thinking in cyan</b><span>Still open from round 1. Yes gives thinking its own colour; no keeps it blue with only the knot to say he is working.</span></div></li>
+      <li><div><b>Which jade</b><span>My pick is Imperial jade: its deeper body and pale mint edge read as a material and set it apart from the CFO's flat green, which is exactly round 2's Jade. Living jade is the liveliest, turning aqua at the rim. Sea glass and Celadon sit near the Librarian's teal and the mobility sage, so I would pass on those.</span></div></li>
+      <li><div><b>Decided 4 October</b><span>Thinking in cyan, red when he pushes back, the moves everywhere the icon appears, and no tab bar in full screen.</span></div></li>
       <li><div><b>The panel's motion</b><span>Rising out of the core, the core stepping up to make room, the lit bar, settling away at the end. Say what to change, or yes and it joins the build.</span></div></li>
     </ol>
   </section>
@@ -300,16 +299,20 @@ section{margin-top:56px}
   RMQ.addEventListener?.('change', (e) => { rmReal = e.matches; });
 
   /* ---------------- speaking colours ---------------- */
+  // ROUND 3 (his pick, 4 Oct: "I like the jade colour. Can we do a variation on
+  // this? Starlight is too plain"): the jade family. Each has a body, a rim
+  // (the lit edge and the words as they land) and a glow (the heart's light
+  // inside the shell), so a variation is a material, not only a hue.
   const SWATCH = [
-    { key: 'starlight', name: 'Starlight', c: [214, 224, 255], note: 'Nova\'s own; his words wear it' },
-    { key: 'rose', name: 'Rose', c: [255, 143, 184], note: 'Warm; between Leader and Coach' },
-    { key: 'spring', name: 'Spring', c: [170, 230, 112], note: 'The unclaimed green' },
-    { key: 'jade', name: 'Jade', c: [95, 232, 168], note: 'The CFO\'s and "good"' },
-    { key: 'apricot', name: 'Apricot', c: [255, 180, 138], note: 'Soft warmth; near Practice' },
-    { key: 'coral', name: 'Coral', c: [255, 128, 110], note: 'Round 1; the Coach\'s colour' },
+    { key: 'jade', name: 'Jade', c: [95, 232, 168], rim: null, glow: null, note: 'Round 2, flat; the CFO\'s exact green' },
+    { key: 'imperial', name: 'Imperial jade', c: [28, 204, 132], rim: [190, 255, 222], glow: [12, 180, 110], note: 'Deeper body, a pale mint edge' },
+    { key: 'living', name: 'Living jade', c: [80, 228, 168], rim: [150, 250, 240], glow: [30, 200, 140], note: 'Jade turning aqua at the rim' },
+    { key: 'pearl', name: 'Jade and pearl', c: [86, 222, 160], rim: [255, 246, 232], glow: [60, 210, 150], note: 'Jade with a warm pearl edge' },
+    { key: 'sea', name: 'Sea glass', c: [96, 222, 198], rim: [214, 255, 246], glow: [60, 200, 180], note: 'Bluer; near the Librarian\'s teal' },
+    { key: 'celadon', name: 'Celadon', c: [166, 236, 203], rim: [240, 255, 247], glow: [120, 215, 175], note: 'Pale and misty; near mobility sage' },
   ];
   const CONTEST = [255, 84, 96];
-  let SPEAK = SWATCH[0].c;
+  let SPEAK = SWATCH[0].c, SPEAK_RIM = null, SPEAK_GLOW = null;
 
   /* ---------------- the two conversations ---------------- */
   const SCEN = {
@@ -355,6 +358,10 @@ section{margin-top:56px}
     return T < a ? 0 : T < a + 300 ? eio((T - a) / 300) : T < b ? 1 : T < b + 400 ? 1 - eio((T - b) / 400) : 0;
   }
   function stateColour(k) { return k === 'speak' ? SPEAK : COL[k]; }
+  function speakW(T) {
+    const k = T < 6600 ? 0 : T < 12900 ? eio(clamp01((T - 6600) / 420)) : 1 - eio(clamp01((T - 12900) / 900));
+    return k * (1 - contestAt(T));
+  }
   function colourAt(T) {
     const { s, prev } = stateAt(T); let c = stateColour(s.k);
     if (prev) { const p = eio(clamp01((T - s.at) / (s.k === 'rest' ? 900 : 420))); c = mixc(stateColour(prev.k), c, p); }
@@ -469,7 +476,7 @@ section{margin-top:56px}
         rotProj(p.x * r, p.y * r, p.z * r, T * 0.00012, 0.22, o);
         const rim = 1 - Math.abs(o[2]); const sw = -1.15 + ((T * 0.00035) % 1) * 2.4; const sweep = Math.exp(-Math.pow((o[1] - sw) / 0.07, 2));
         o[3] = (0.24 + 0.66 * rim * rim) * (0.6 + 0.4 * (o[2] + 1) / 2) + 0.3 * sweep + 0.55 * band;
-        if (FX.refined && rim > 0.74) o[4] = 1; return;
+        if (FX.refined && (rim > 0.66 || band > 0.3)) o[4] = 1; return;
       }
     }
   }
@@ -498,8 +505,10 @@ section{margin-top:56px}
       }
     }
     ctx.globalCompositeOperation = 'lighter';
+    const sw = speakW(T); const rimDef = mixc(rgb, [255, 255, 255], 0.5);
+    const rim = SPEAK_RIM && sw > 0 ? mixc(rimDef, SPEAK_RIM, sw) : rimDef;
     for (let tone = 0; tone < 2; tone++) {
-      ctx.fillStyle = rgbs(tone ? mixc(rgb, [255, 255, 255], 0.5) : rgb);
+      ctx.fillStyle = rgbs(tone ? rim : rgb);
       for (let i = 0; i < n; i++) { if (buf.t[i] !== tone) continue; ctx.globalAlpha = buf.a[i]; ctx.fillRect(buf.x[i], buf.y[i], buf.s[i], buf.s[i]); }
     }
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
@@ -694,14 +703,16 @@ section{margin-top:56px}
     // the heart lights the inside of the shell while he speaks
     const speakK = st === 'speak' ? clamp01((T - 6820) / 450) : 0;
     if (speakK > 0 && FX.refined) {
+      const gc = SPEAK_GLOW ? mixc(rgb, SPEAK_GLOW, speakW(T)) : rgb;
       const g = ctx.createRadialGradient(v.cx, v.cy, 0, v.cx, v.cy, v.R * 0.86);
-      g.addColorStop(0, 'rgba(' + (rgb[0] | 0) + ',' + (rgb[1] | 0) + ',' + (rgb[2] | 0) + ',' + ((0.1 + 0.26 * lvl) * speakK).toFixed(3) + ')');
-      g.addColorStop(1, 'rgba(' + (rgb[0] | 0) + ',' + (rgb[1] | 0) + ',' + (rgb[2] | 0) + ',0)');
+      g.addColorStop(0, 'rgba(' + (gc[0] | 0) + ',' + (gc[1] | 0) + ',' + (gc[2] | 0) + ',' + ((0.12 + 0.28 * lvl) * speakK).toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(' + (gc[0] | 0) + ',' + (gc[1] | 0) + ',' + (gc[2] | 0) + ',0)');
       ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(v.cx, v.cy, v.R * 0.86, 0, 6.29); ctx.fill(); ctx.globalCompositeOperation = 'source-over';
     }
     drawGrains(v, T, lvl, rgb, 1 - arcsA, v.opts.fixed ? (v.opts.fixed < 50 ? 0.9 : 1) : 1.25);
     const hr = v.R * 0.98 * 0.125 * (1 + (RMnow ? 0 : 0.06 * Math.sin((performance.now() / 1000) * 1.8) + lvl * 1.15)) * (st === 'speak' ? 1.12 : 1);
-    ctx.globalCompositeOperation = 'lighter'; drawHeart(ctx, v.cx, v.cy, hr, st === 'rest' ? null : rgb, 0.45 * (1 - arcsA)); ctx.globalCompositeOperation = 'source-over';
+    const sw = speakW(T), heartTint = SPEAK_GLOW && sw > 0 ? mixc(rgb, SPEAK_GLOW, sw) : rgb;
+    ctx.globalCompositeOperation = 'lighter'; drawHeart(ctx, v.cx, v.cy, hr, st === 'rest' ? null : heartTint, (0.45 + 0.4 * sw) * (1 - arcsA)); ctx.globalCompositeOperation = 'source-over';
     if (v.opts.pour && !RMnow) drawPour(v, T, rgb);
   }
 
@@ -747,7 +758,7 @@ section{margin-top:56px}
           let x, y, a, q;
           if (t < p.dur) { q = eo(t / p.dur); const cxp = (sx + p.ex) / 2 + p.lat, cyp = (sy + p.ey) / 2 + p.dn; x = (1 - q) * (1 - q) * sx + 2 * (1 - q) * q * cxp + q * q * p.ex; y = (1 - q) * (1 - q) * sy + 2 * (1 - q) * q * cyp + q * q * p.ey; a = 0.9; }
           else { q = 1; a = 0.9 * (1 - (t - p.dur) / 220); if (a <= 0) continue; x = p.ex; y = p.ey; }
-          ctx.fillStyle = rgbs(mixc(rgb, [255, 255, 255], q)); ctx.globalAlpha = a; ctx.fillRect(x - p.sz / 2, y - p.sz / 2, p.sz, p.sz);
+          ctx.fillStyle = rgbs(q < 0.6 || !SPEAK_RIM ? mixc(rgb, [255, 255, 255], q) : mixc(SPEAK_RIM, [255, 255, 255], (q - 0.6) / 0.4)); ctx.globalAlpha = a; ctx.fillRect(x - p.sz / 2, y - p.sz / 2, p.sz, p.sz);
         }
       }
     }
@@ -839,12 +850,12 @@ section{margin-top:56px}
   }
   $$('.opt[data-scen]').forEach((b) => b.addEventListener('click', () => { setScen(b.dataset.scen); setMode('turn'); T = 1100; setPlaying(true); }));
   const swEl = $('#swatches');
-  swEl.innerHTML = SWATCH.map((s) => '<button class="swatch" type="button" data-k="' + s.key + '" aria-pressed="false" style="--c:' + hex(s.c) + '"><i></i><b>' + s.name + '</b><span>' + s.note + '</span></button>').join('');
+  swEl.innerHTML = SWATCH.map((s) => '<button class="swatch" type="button" data-k="' + s.key + '" aria-pressed="false" style="--c:' + hex(s.c) + (s.rim ? ';--r:' + hex(s.rim) : '') + (s.glow ? ';--g:' + hex(s.glow) : '') + '"><i></i><b>' + s.name + '</b><span>' + s.note + '</span></button>').join('');
   function setColour(k) {
-    const s = SWATCH.find((x) => x.key === k) || SWATCH[0]; SPEAK = s.c;
+    const s = SWATCH.find((x) => x.key === k) || SWATCH[0]; SPEAK = s.c; SPEAK_RIM = s.rim; SPEAK_GLOW = s.glow;
     document.documentElement.style.setProperty('--speak', hex(s.c));
     $$('.swatch').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === s.key)));
-    paintTrack(); try { localStorage.setItem('nv69.c', s.key); } catch { /* private window */ }
+    paintTrack(); try { localStorage.setItem('nv69.c3', s.key); } catch { /* private window */ }
   }
   $$('.swatch').forEach((b) => b.addEventListener('click', () => { setColour(b.dataset.k); if (stateAt(T).s.k !== 'speak') { setMode('turn'); T = 7000; } setPlaying(true); }));
   $$('.mv').forEach((li) => li.querySelector('.see').addEventListener('click', () => {
@@ -857,8 +868,8 @@ section{margin-top:56px}
   buildLines(); buildDom();
   function relayout() { for (const v of views) v.layout(); measure(); }
   relayout();
-  let saved = null; try { saved = localStorage.getItem('nv69.c'); } catch { /* private window */ }
-  setColour(saved || 'starlight');
+  let saved = null; try { saved = localStorage.getItem('nv69.c3'); } catch { /* private window */ }
+  setColour(saved && SWATCH.some((x) => x.key === saved) ? saved : 'imperial');
   let rz = null; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(relayout, 120); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
   if (rmReal) { T = 7600; setPlaying(false); }
