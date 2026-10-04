@@ -1273,6 +1273,11 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
   display: flex; align-items: center; gap: 10px;
   pointer-events: none;
 }
+/* full screen has no tab bar (4 Oct): it sinks out the way it came, and back */
+.nv-sum-dock { transition: transform var(--nv-dur-base) var(--nv-ease), opacity var(--nv-dur-fast) var(--nv-ease); }
+.nv-sum-dock[data-away] { transform: translateY(calc(100% + 24px)); opacity: 0; transition: transform var(--nv-dur-base) var(--nv-ease-exit), opacity var(--nv-dur-base) var(--nv-ease-exit); }
+.nv-sum-dock[data-away] * { pointer-events: none !important; }
+@media (prefers-reduced-motion: reduce) { .nv-sum-dock, .nv-sum-dock[data-away] { transform: none; transition: opacity var(--nv-dur-fast) linear; } }
 /* THE BAR IS THE CARDS' GLASS (27 Sep, his "can I see a similar glass
    effect for the bottom bar"): the same sheen, rim (::after, in the card
    block above), glow and saturation, over the bar's own deeper fill
@@ -4717,7 +4722,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 /* THE WAY BACK: the thread's newest line, peeking over the tab bar */
 .nv-fx-peek {
   position: absolute; z-index: 5; left: 16px; right: 16px; max-width: 408px; margin: 0 auto; box-sizing: border-box;
-  bottom: calc(8px + min(env(safe-area-inset-bottom), 34px) + 70px);
+  bottom: calc(8px + min(env(safe-area-inset-bottom), 34px));
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px;
   min-height: 52px; padding: 6px 8px 6px 16px; border: 0; border-radius: 26px; text-align: left; cursor: pointer; touch-action: none;
   color: var(--fx-ink); background: color-mix(in srgb, var(--fx-g0) 50%, transparent);
@@ -4728,7 +4733,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 /* a short phone: while a panel is docked the peek steps aside and the stage
    takes its room (the ⌄ and a tap outside the plate still return) */
 .nv-fx[data-short][data-panel] .nv-fx-peek { opacity: 0; transform: translateY(12px); pointer-events: none; }
-.nv-fx[data-short][data-panel] .nv-fx-stagebox { bottom: calc(8px + min(env(safe-area-inset-bottom), 34px) + 72px); }
+.nv-fx[data-short][data-panel] .nv-fx-stagebox { bottom: calc(8px + min(env(safe-area-inset-bottom), 34px) + 2px); }
 .nv-fx.leaving .nv-fx-peek, .nv-fx.leaving .nv-fx-top { opacity: 0; transition: opacity calc(var(--nv-dur-fast) * var(--fx-slow)) var(--nv-ease-exit); }
 .nv-fx-peek .grab { position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: color-mix(in srgb, var(--fx-ink) 34%, transparent); }
 .nv-fx-peek .t { display: block; min-width: 0; padding-top: 4px; font: 400 15px/1.3 var(--nv-font-ui); color: var(--fx-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

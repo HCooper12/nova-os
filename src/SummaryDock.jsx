@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { TabIcon } from './TabIcon.jsx';
 import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
@@ -50,7 +51,23 @@ function Tab({ screen, label, count, active, go, warm }) {
   );
 }
 
+// FULL SCREEN HAS NO TAB BAR (his call, 4 Oct 2026). While the full-screen
+// Nova is open the bar slides away, and once it is out of sight the orb is
+// unmounted so its canvas stops drawing; it is back the moment he returns.
+const AWAY_MS = 320;
+function useAway(away) {
+  const [gone, setGone] = useState(away);
+  useEffect(() => {
+    if (!away) { setGone(false); return undefined; }
+    const id = setTimeout(() => setGone(true), AWAY_MS);
+    return () => clearTimeout(id);
+  }, [away]);
+  return gone;
+}
+
 export function SummaryDock({ v }) {
+  const away = !!v.novaThread?.focus;
+  const gone = useAway(away);
   const tabs = v.tabs.slice(0, 4);
   // More is lit on the Index AND on any screen reached through it, the way an
   // iOS More tab stays selected while you are inside it — so the bar always
@@ -60,7 +77,7 @@ export function SummaryDock({ v }) {
   const listening = !!(v.novaListening || v.novaThread?.micOpen);
   return (
     <>
-    <div className="nv-sum-dock">
+    <div className="nv-sum-dock" data-away={away ? 'true' : undefined} aria-hidden={away || undefined} inert={away}>
       <nav className="nv-sum-tabbar" aria-label="Tabs">
         {tabs.map((t) => (
           <Tab key={t.screen} screen={t.screen} label={t.label} count={t.count} active={t.active} go={t.go} warm={t.warm} />
@@ -88,7 +105,7 @@ export function SummaryDock({ v }) {
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
         <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-3px" />
         <span className="nv-sum-nova-orb">
-          <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} style={{ pointerEvents: 'none' }} />
+          {!gone && <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} style={{ pointerEvents: 'none' }} />}
         </span>
         <span className="nv-sum-nova-cap" aria-hidden="true">Talk</span>
       </Interactive>
