@@ -1,0 +1,1241 @@
+<title>Ops Redesign, Round One</title>
+<!--
+  73 · AGENTS & OPERATIONS AND THE ORG MAP, ROUND 1 (5 Oct 2026)
+
+  His brief (26 Sep 2026): "A lot of Nova has become cluttered and
+  complicated." "Simplicity with all functionality and a beautiful
+  aesthetic, along with ease of use MUST be the goal." Every function is
+  kept. The audit is design/audits/redesign-2026-09/08-ops.md.
+
+  TODAY, MEASURED (390 by 844, Summary and Nova glass, the connected layout
+  drawn with demo-shaped data; the audit's section 5 says how): the page
+  runs 8.5 screens; the first agent appears 1,130 points down; 17 objects
+  sit above the fold and none of them is an agent; 13 type sizes; 53
+  controls, 28 of them under 44 points and one at 8 by 12; three rosters of
+  agents (10 beings on the map, 9 lanes in a list, and a fixed list of 7 in
+  the sidebar and the Index that always reads "7 of 7 live").
+
+  THREE DIRECTIONS, switched at the top, four phone frames each (390 by 844,
+  live motion; each frame scrolls inside itself):
+    A · THE ORG IS THE PAGE. Nova and the ten beings are the first screen.
+        Every ask, loop, skill and receipt lives on the being that does it.
+        The phone shows one being at a time: tap a face and the camera goes
+        there, and its card rises as a sheet.
+    B · YOUR ORDER, MADE LIGHT. Waiting on your call, then Nova proposes
+        (his order, 27 Sep), then what is happening now, the heartbeats as
+        one picture, the org as a living card, and the machinery as rows one
+        tap down.
+    C · VITAL SIGNS. One instrument: a lane per being and one for Nova over
+        the last day. A small blip is a beat, a tall spike is work done, the
+        right edge is now, a failure is a red notch with its words. The map
+        is the other half of a Pulse and Org switch.
+  Each direction opens with one line on what it removes, keeps and moves.
+  The tally under it is measured by this page from its first frame:
+  objects above the fold, screens deep, type sizes, the smallest control.
+
+  COLOUR MEANS ONE THING. Each agent's hue (src/agentWorld/beings.js,
+  through the --nv-* tokens) means that agent and nothing else: Commander
+  cyan, Coach coral, CFO green, Guardian violet, Researcher blue, Watcher
+  ice, Librarian teal, Meal Prep amber, Leader magenta, Practice orange.
+  Nova's own is starlight. Gold is waiting on him. Red is a failure. Green
+  is done. Cyan is talking (it is also the Commander's hue, as in the app).
+  Quiet is drawn as a flat dashed line, never as a colour. Nothing is said
+  by colour alone: every being is also its face, its artefact and its name,
+  and every state is also a word or a shape.
+
+  MOTION, each with a reason: the camera eases to the being he taps (where
+  it is); a marker bobs (this one waits on you); a working being wears a
+  turning ring and acts its work (working); a light travels between two
+  beings while one consults the other (who asked whom); a beat pulses
+  (alive); progress ticks (a running job); a decided ask lifts away and its
+  count ticks down (the change, acted out). Under reduced motion all of it
+  holds still and changes by a short fade.
+
+  DRAWN, NOT BUILT. The map is a flat stand-in for the 3D map
+  (src/orgmap/scene.js); the faces are the 2D faces of mockups 64 and 67.
+  In the app they stay the 3D beings of beings.js (his call: faces, in 3D).
+  Beats and progress are sped up so a pulse shows in seconds. The consult
+  lights need one new read (the conversation record's authorship rows),
+  which Ops does not do today. Talking to a being needs the agent switch
+  the Org Map plan names (AGENT-WORLD-PLAN 3c).
+
+  DEMO CONTENT ONLY. The repo is public; nothing here is his data. Every
+  name, count, time and question is invented, in the shape of the audit's
+  demo harness: 18 waiting (Researcher 5, Coach 4, Guardian 2, Watcher 2,
+  CFO 1, Librarian 1, Leader 1, his own notes 2), 48 loops on ten beings
+  and Nova, 9 filed today, one sync failure, two quiet loops.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --bg:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.52);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);
+  --blur:22px;--card-shadow:0 14px 34px -18px rgba(0,0,0,.7);--r:20px;
+  --talk:#59e6ff;--wait:#d9b56f;--wait-ink:#241a06;--ok:#5fe8a8;--ok-ink:#05261a;--fail:#e0616b;--nova:#c9d8ff;
+  --tab:rgba(16,20,36,.58);--tab-ring:rgba(255,255,255,.14);--tab-ink:rgba(232,236,246,.5);
+  --commander:#59e6ff;--coach:#ff8a7a;--cfo:#5fe8a8;--guardian:#8f7bff;--researcher:#7ab8ff;
+  --watcher:#8fd3ff;--librarian:#4fd1c5;--mealprep:#ffc46b;--leader:#ff7ad9;--practice:#ffa257;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 var(--ui);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;text-align:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--talk);outline-offset:2px}
+.ic{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.page{overflow-x:clip;padding-top:84px}
+
+/* ---------- the review furniture (outside every count) ---------- */
+.intro,.dhead,.calls{max-width:880px;margin:0 auto;padding-inline:16px}
+.intro .eb{margin:0 0 6px;font:600 13px var(--ui);letter-spacing:.04em;color:var(--ink3)}
+.intro h1{margin:0 0 10px;font:700 28px/1.12 var(--ui);letter-spacing:-.02em;text-wrap:balance}
+.intro p{margin:0 0 10px;color:var(--ink2);text-wrap:pretty}
+.today{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.today span{display:inline-flex;align-items:baseline;gap:6px;padding:8px 12px;border-radius:14px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px var(--sep);font:400 13px var(--ui);color:var(--ink2)}
+.today b{font:700 17px var(--round);color:var(--ink);font-variant-numeric:tabular-nums}
+.rev{position:sticky;top:var(--rev-top,84px);z-index:50;max-width:560px;margin:16px auto 0;padding:0 8px}
+.rev .in{display:flex;padding:5px;border-radius:27px;background:rgba(10,13,24,.9);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3);box-shadow:0 0 0 .5px var(--card-ring),0 18px 40px -16px rgba(0,0,0,.8)}
+.seg3{flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-radius:22px;background:rgba(120,120,128,.2)}
+.seg3 button{min-height:44px;padding:0 4px;border:3px solid transparent;border-radius:22px;background-clip:padding-box;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;transition:background-color .2s var(--ease),color .2s var(--ease)}
+.seg3 button[aria-pressed="true"]{background-color:var(--card-hi);color:var(--ink)}
+.dir{padding:22px 0 48px}
+.dir[hidden]{display:none}
+.dhead h2{margin:6px 0;font:700 22px/1.2 var(--ui);letter-spacing:-.015em}
+.dhead .line{margin:0 0 8px;color:var(--ink2);text-wrap:pretty}
+.dhead .line b{color:var(--ink);font-weight:600}
+.tally{margin:0;font:400 13px/1.55 var(--ui);color:var(--ink3)}
+.tally b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.frames{display:grid;grid-template-columns:repeat(auto-fit,390px);justify-content:center;gap:36px 28px;max-width:1700px;margin:22px auto 0}
+.fr{margin:0;min-width:0}
+.fr figcaption{padding:0 16px 10px;font:400 13px/1.45 var(--ui);color:var(--ink3);text-wrap:pretty}
+.fr figcaption b{display:block;margin-bottom:2px;font:600 15px var(--ui);color:var(--ink)}
+.fr figcaption .m{display:block;margin-top:4px;color:var(--ink2)}
+.calls{padding-top:8px;padding-bottom:96px}
+.calls h2{margin:0 0 10px;font:700 22px/1.2 var(--ui);letter-spacing:-.015em}
+.calls ol{margin:0;padding-left:22px}
+.calls li{margin:0 0 12px;color:var(--ink2);text-wrap:pretty}
+.calls li b{color:var(--ink);font-weight:600}
+
+/* ---------- the phone ---------- */
+.phone{position:relative;width:390px;height:844px;border-radius:46px;overflow:hidden;isolation:isolate;
+  background:radial-gradient(70% 45% at 12% 8%,rgba(89,230,255,.22),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 88% 30%,rgba(143,123,255,.26),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 112%,rgba(217,181,111,.16),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 40px 80px -40px rgba(0,0,0,.9)}
+@media (max-width:430px){.frames{grid-template-columns:minmax(0,1fr)}.phone{width:100%;border-radius:0;box-shadow:none}}
+.sb{position:absolute;top:0;left:0;right:0;z-index:9;height:47px;display:flex;align-items:center;justify-content:space-between;padding:0 30px 0 34px;font:600 15px var(--ui);background:linear-gradient(180deg,rgba(6,7,13,.9) 55%,rgba(6,7,13,0));pointer-events:none}
+.sb i{position:relative;display:inline-block;width:25px;height:12px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.sb i::after{content:"";position:absolute;inset:2px 7px 2px 2px;border-radius:2px;background:var(--ink)}
+.scr{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:47px 16px 140px;scrollbar-width:none}
+.scr::-webkit-scrollbar,.sbody::-webkit-scrollbar{display:none}
+.rise{animation:rise .32s var(--ease) both;animation-delay:calc(var(--i,0) * 45ms)}
+
+/* the app's own type: 34 (the title) · 20 (the news line, a being's name) · 15 · 13; numerals apart */
+.nav{display:flex;align-items:center;justify-content:space-between;min-height:44px}
+.back{display:inline-flex;align-items:center;gap:1px;min-height:44px;padding:0 12px 0 0;margin-left:-8px;font:400 15px var(--ui);color:var(--talk)}
+.back .ic{width:24px;height:24px;stroke-width:2.4}
+.navt{font:600 15px var(--ui);color:var(--ink)}
+.lt{margin:2px 0 6px;font:700 34px/1.12 var(--ui);letter-spacing:-.025em}
+.stand{margin:0 0 12px;font:italic 400 20px/1.28 var(--serif);color:var(--nova);text-wrap:balance}
+.live{display:inline-block;width:8px;height:8px;margin:0 8px 3px 0;border-radius:50%;background:var(--talk);box-shadow:0 0 10px var(--talk);vertical-align:middle;animation:breathe 2.4s var(--ease) infinite}
+.card{border-radius:var(--r);background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4);backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.pad{padding:14px 16px}
+.group{margin:22px 0 0}
+.k{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 4px 8px 14px;font:600 13px var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.k2{margin:18px 0 8px;font:600 13px var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.sub{margin:6px 0 0;font:400 13px/1.4 var(--ui);color:var(--ink3);text-wrap:pretty}
+.b15{margin:8px 0 0;font:400 15px/1.45 var(--ui);color:var(--ink2);text-wrap:pretty}
+.b15 b{color:var(--ink);font-weight:600}
+.say{margin:8px 0 0;font:400 20px/1.3 var(--serif);text-wrap:balance}
+.num{font:700 44px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.num.s{font-size:30px}.num.xl{font-size:52px}
+.num.wait{color:var(--wait);text-shadow:0 0 24px color-mix(in srgb,var(--wait) 32%,transparent)}
+
+/* rows: one grammar for every list on the page */
+.rows{overflow:hidden}
+.rows > * + *{border-top:1px solid var(--sep)}
+.row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:52px;padding:6px 14px;text-align:left}
+.lx{display:block;min-width:0}
+.nm{display:block;font:600 15px/1.3 var(--ui)}
+.sv{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.end{display:inline-flex;align-items:center;gap:6px;font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.cv{width:14px;height:14px;stroke-width:2.4;color:var(--ink3)}
+.tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--h,var(--ink));background:color-mix(in srgb,var(--h,var(--ink)) 18%,transparent)}
+.tile .ic{width:17px;height:17px}
+.tile.gold{color:var(--wait);background:color-mix(in srgb,var(--wait) 18%,transparent)}
+
+/* buttons: every one 44 points, a press state on each */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;min-width:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);white-space:nowrap;transition:transform .16s var(--ease-out),background-color .2s var(--ease),opacity .2s var(--ease)}
+.btn:active,.seat:active,.lane:active,.row:active,.now:active,.waitline:active{transform:scale(.97)}
+.btn.talk{color:var(--talk);background:color-mix(in srgb,var(--talk) 13%,transparent)}
+.btn.yes{color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ok) 36%,transparent)}
+.btn.do{color:var(--wait);background:color-mix(in srgb,var(--wait) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 34%,transparent)}
+.btn.quiet{color:var(--ink);background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.btn.retry{color:var(--ink);background:color-mix(in srgb,var(--fail) 22%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fail) 50%,transparent)}
+.btn.round{width:44px;padding:0;border-radius:50%;color:var(--ink2);background:color-mix(in srgb,var(--ink) 6%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 15%,transparent)}
+.btn.round.ok{color:var(--ok);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ok) 40%,transparent);background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.btn .ic{width:17px;height:17px}
+.btns{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+
+/* faces: the house 2D face of mockups 64 and 67, one per being */
+.face{position:relative;display:inline-block;width:var(--s,28px);height:var(--s,28px);flex:none}
+.face svg{display:block;width:100%;height:100%;overflow:visible}
+.face.work::before{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid color-mix(in srgb,var(--h) 20%,transparent);border-top-color:var(--h);animation:spin 1.3s linear infinite}
+.face.dim{opacity:.45}
+svg .shell{fill:color-mix(in srgb,var(--h) 34%,#0a0f1f);stroke:color-mix(in srgb,var(--h) 72%,transparent);stroke-width:1.5}
+svg .pod{fill:color-mix(in srgb,var(--h) 60%,#0a0f1f)}
+svg .vis{fill:#060914}
+svg .mirror{fill:color-mix(in srgb,var(--h) 14%,#0b1020)}
+svg .eye{fill:color-mix(in srgb,var(--h) 40%,#fff)}
+svg .line{fill:none;stroke:color-mix(in srgb,var(--h) 40%,#fff);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+svg .blush{fill:var(--h);opacity:.5}
+svg .lens{fill:none;stroke:color-mix(in srgb,var(--h) 55%,#fff);stroke-width:1.8}
+svg .acc{fill:var(--a)}
+svg .accs{fill:none;stroke:var(--a);stroke-width:2.4;stroke-linecap:round}
+svg .cup{fill:color-mix(in srgb,var(--a) 70%,#0a0f1f)}
+svg .toque{fill:#f1ede4;stroke:rgba(0,0,0,.18);stroke-width:.8}
+svg .smile{fill:color-mix(in srgb,var(--h) 30%,#fff)}
+svg .glow{fill:var(--a);opacity:.28}
+svg .spine{fill:color-mix(in srgb,var(--h) 55%,#0a0f1f);stroke:var(--h);stroke-width:1}
+svg .badge{fill:#0b1122;stroke:var(--h);stroke-width:1.5}
+svg .art{fill:none;stroke:var(--h);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+svg .artf{fill:var(--h)}
+svg .body{fill:color-mix(in srgb,var(--h) 44%,#0a0f1f)}
+svg .eyes{transform-box:fill-box;transform-origin:center;animation:blink 5.4s infinite;animation-delay:var(--bd,0s)}
+.work svg .pg{transform-box:fill-box;transform-origin:left center;animation:turn 2.4s var(--ease) infinite}
+.orb{display:inline-block;width:var(--s,36px);height:var(--s,36px);border-radius:50%;flex:none;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8);animation:orb 4.8s ease-in-out infinite}
+
+/* counts: gold is waiting on him; red is a failure */
+.cnt{display:inline-block;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--wait);color:var(--wait-ink);font:700 13px/22px var(--round);text-align:center;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px #0a0d18}
+.cnt.fail{background:var(--fail);color:#fff}
+.cnt.tick{animation:tickIn .32s var(--ease-out)}
+
+/* the bench: ten faces, each a 44-point door; the way in on a phone and with a keyboard */
+.bench{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px 2px;margin:8px 0 0}
+.seat{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;min-height:72px;padding:7px 0 5px;border-radius:16px;transition:background-color .25s var(--ease),transform .16s var(--ease-out)}
+.seat .nm{font:400 13px/1.15 var(--ui);letter-spacing:-.02em;color:var(--ink2);white-space:nowrap}
+.seat .cnt{position:absolute;top:1px;left:calc(50% + 9px)}
+.seat[aria-pressed="true"]{background:color-mix(in srgb,var(--h) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 42%,transparent)}
+.seat[aria-pressed="true"] .nm{color:var(--ink)}
+
+/* the org: a flat stand-in for the 3D map */
+.stage{position:relative;margin:2px -16px 0;aspect-ratio:358/280}
+.stage svg,.mapfull svg{display:block;width:100%;height:100%}
+.mapfull{position:absolute;left:0;right:0;top:47px;height:var(--mh,300px)}
+.world{transform-box:view-box;transform-origin:0 0;transition:transform .7s var(--ease)}
+.m-shadow{fill:rgba(0,0,0,.45)}
+.m-hit{fill:transparent;cursor:pointer}
+.m-workring{fill:none;stroke:var(--h);stroke-width:1.4;transform-box:fill-box;transform-origin:center;animation:ripple 1.8s var(--ease-out) infinite}
+.m-bob{animation:bob 1.9s ease-in-out infinite alternate}
+.m-mark rect,.m-mark path{fill:var(--wait)}
+.m-mark text{font:700 13px var(--round);fill:var(--wait-ink);text-anchor:middle}
+.m-mark.fail rect,.m-mark.fail path{fill:var(--fail)}
+.m-mark.fail text{fill:#fff}
+.m-label{font:600 11px var(--ui);text-anchor:middle;letter-spacing:.02em}
+.m-arc{fill:none;stroke-width:1.6;stroke-dasharray:2 5;opacity:.8}
+.m-sparkhalo{fill:var(--h);opacity:.3}
+.m-sparkdot{fill:var(--h)}
+.m-orb{transform-box:fill-box;transform-origin:center;animation:orb 4.8s ease-in-out infinite}
+
+/* sheets: a being's card rises from where it stands */
+.sheet{position:absolute;left:0;right:0;bottom:0;top:var(--top,330px);z-index:8;display:flex;flex-direction:column;border-radius:28px 28px 0 0;background:rgba(14,18,34,.84);-webkit-backdrop-filter:blur(30px) saturate(1.5);backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 1px 0 var(--card-hi) inset,0 0 0 .5px var(--card-ring),0 -20px 40px -20px rgba(0,0,0,.7);animation:sheetIn .5s var(--ease) both}
+.grab{flex:none;display:flex;justify-content:center;padding:6px 0 2px}
+.grab i{width:36px;height:5px;border-radius:3px;background:rgba(232,236,246,.3)}
+.sbody{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:4px 16px 44px;scrollbar-width:none}
+.bhead{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center}
+.bt{display:block;min-width:0}
+.bt b{display:block;font:600 20px/1.2 var(--ui)}
+.bt span{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+
+/* asks: a light tick or cross on each, one do-all, and talking back */
+.asks{margin-top:4px}
+.ask{display:grid;grid-template-columns:minmax(0,1fr) 44px 44px;gap:8px;align-items:center;padding:8px 10px 8px 14px;min-height:60px;transition:opacity .3s var(--ease),transform .3s var(--ease)}
+.ask .at{display:block;font:400 15px/1.3 var(--ui)}
+.ask .aw{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.ask.leave-yes{animation:leaveYes .42s var(--ease) both;box-shadow:inset 3px 0 0 var(--ok)}
+.ask.leave-no{animation:leaveNo .32s var(--ease) both}
+
+/* the Coach-deck proposal, as on the Inbox */
+.prop{padding:14px 16px}
+.pk{display:inline-flex;align-items:center;gap:7px;font:600 13px var(--ui);color:var(--wait)}
+.pk .ic{width:16px;height:16px}
+.change{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.pill{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:16px;font:600 13px var(--ui);white-space:nowrap;background:color-mix(in srgb,var(--h) 12%,transparent);border:1px solid color-mix(in srgb,var(--h) 34%,transparent)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--h);flex:none}
+.pill.arrive{background:transparent;border:1.5px dashed color-mix(in srgb,var(--h) 62%,transparent)}
+.change .arr{width:16px;height:16px;color:var(--ink3)}
+.answer{display:flex;align-items:center;gap:4px;margin-top:12px}
+.answer .round{margin-left:auto}
+
+/* the ladder he already has: Review all · Auto high · Auto all */
+.segc{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;height:44px;border-radius:22px;background:rgba(120,120,128,.2)}
+.segc button{height:44px;padding:0 8px;border:3px solid transparent;border-radius:22px;background-clip:padding-box;font:600 15px var(--ui);color:var(--ink2);white-space:nowrap;text-align:center}
+.segc button[aria-pressed="true"]{background-color:var(--card-hi);color:var(--ink)}
+.segc .next{outline:1.5px dashed var(--wait);outline-offset:-5px;color:var(--ink)}
+
+/* forms for running work */
+.ring{position:relative;display:inline-grid;place-items:center;width:44px;height:44px;flex:none}
+.ring svg{position:absolute;inset:0;width:44px;height:44px}
+.ring .rt{fill:none;stroke:rgba(232,236,246,.14);stroke-width:4}
+.ring .ra{fill:none;stroke:var(--h);stroke-width:4;stroke-linecap:round;transition:stroke-dasharray .6s var(--ease)}
+.ring .rn{position:relative;font:700 13px var(--round);font-variant-numeric:tabular-nums}
+.rail{display:flex;align-items:flex-start;margin-top:8px}
+.rail .st{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.rail .st::before{content:"";position:absolute;top:5px;left:-50%;right:50%;height:2px;background:rgba(232,236,246,.18)}
+.rail .st:first-child::before{display:none}
+.rail .st.done::before,.rail .st.now::before{background:var(--ink2)}
+.rail i{position:relative;width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(232,236,246,.35);background:transparent}
+.rail .done i{background:var(--ink2);box-shadow:none}
+.rail .now i{background:var(--ink);box-shadow:0 0 0 4px rgba(232,236,246,.14);animation:breathe 1.6s var(--ease) infinite}
+.rail em{font:normal 400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.rail .now em{color:var(--ink)}
+.pulse{position:relative;display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--h,var(--talk));flex:none}
+.pulse::after{content:"";position:absolute;inset:0;border-radius:50%;background:inherit;animation:ripple 1.8s var(--ease-out) infinite}
+
+/* heartbeats: a pulse strip per being or loop; blips are beats, spikes are work done */
+.strip{display:block;width:100%;height:auto;overflow:visible}
+.strip .base{fill:none;stroke:var(--h);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
+.strip .base.quiet{stroke:var(--ink3);stroke-dasharray:3 4}
+.strip .base.never{stroke:rgba(232,236,246,.22);stroke-dasharray:1 5}
+.strip .fail{fill:none;stroke:var(--fail);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.strip .faildot{fill:var(--fail)}
+.strip .tail{fill:none;stroke:var(--h);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.strip .head{fill:var(--h)}
+.strip .halo{fill:var(--h);opacity:.25;transform-box:fill-box;transform-origin:center;animation:breathe 1.4s var(--ease) infinite}
+.axis{display:flex;justify-content:space-between;margin-top:2px;font:400 13px var(--ui);color:var(--ink3)}
+.field{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:2px;align-items:end;padding:14px 8px 12px}
+.fcol{display:flex;flex-direction:column-reverse;align-items:center;gap:5px;min-width:0}
+.fcol > .face,.fcol > .orb{margin-top:4px}
+.dt{display:block;width:9px;height:9px;border-radius:50%;background:var(--h)}
+.dt.quiet{background:transparent;border:1.5px dashed var(--ink3)}
+.dt.never{background:transparent;border:1.5px dotted rgba(232,236,246,.3)}
+.dt.fail{background:var(--fail);box-shadow:0 0 0 3px rgba(224,97,107,.28)}
+.dt.beat{animation:beat .9s var(--ease-out)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:2px 14px 12px;font:400 13px var(--ui);color:var(--ink3)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .dt{--h:var(--ink2)}
+
+/* the monitor (C): one lane per being and one for Nova */
+.mon{padding:8px 0 10px}
+.monhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 6px 4px 16px}
+.monhead .sub{margin:0}
+.lane{display:grid;grid-template-columns:110px minmax(0,1fr) 34px;gap:8px;align-items:center;width:100%;min-height:46px;padding:1px 10px 1px 12px;text-align:left;transition:background-color .25s var(--ease)}
+.lane + .lane,.lopen + .lane{border-top:1px solid rgba(232,236,246,.07)}
+.lane .ln{display:flex;align-items:center;gap:8px;min-width:0}
+.lane .lnn{font:400 13px var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lane .le{display:flex;justify-content:flex-end}
+.lane[aria-expanded="true"]{background:color-mix(in srgb,var(--h) 9%,transparent)}
+.lane[aria-expanded="true"] .lnn{color:var(--ink)}
+.lopen{padding:2px 12px 14px;background:color-mix(in srgb,var(--h) 6%,transparent);animation:rise .3s var(--ease) both}
+.sublane{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px;align-items:center;min-height:28px}
+.sublane .sl{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sublane.q .sl{color:var(--ink)}
+.monaxis{display:grid;grid-template-columns:110px minmax(0,1fr) 34px;gap:8px;padding:4px 10px 0 12px}
+
+/* a failure says what and what next */
+.failbox{margin-top:12px;padding:12px 14px 14px;border-radius:16px;background:color-mix(in srgb,var(--fail) 9%,transparent);box-shadow:inset 3px 0 0 var(--fail),inset 0 0 0 1px color-mix(in srgb,var(--fail) 26%,transparent)}
+.failbox .fh{display:flex;align-items:center;gap:8px;font:600 15px/1.3 var(--ui)}
+.failbox .fh .cnt{flex:none}
+.quietbox{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;margin-top:10px;padding:10px 12px 10px 14px;border-radius:16px;border:1.5px dashed rgba(232,236,246,.24)}
+.quietbox p{margin:0;font:400 15px/1.35 var(--ui);color:var(--ink2)}
+
+/* trust, drawn as a ladder: what a being watches, proposes, and does on his yes */
+.ladder3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ladder3 > div{display:flex;flex-direction:column;gap:6px;min-width:0;padding:10px 8px;border-radius:14px;background:rgba(255,255,255,.04)}
+.ladder3 > div.top{background:color-mix(in srgb,var(--h) 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 34%,transparent)}
+.ladder3 h4{margin:0;font:600 13px var(--ui);color:var(--ink3)}
+.ladder3 .top h4{color:var(--h)}
+.ladder3 span{font:400 13px/1.3 var(--ui);color:var(--ink2);text-wrap:pretty}
+
+/* who asked whom: the consult chain, written by code */
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
+.chain .ic{width:14px;height:14px;color:var(--ink3)}
+.chain .you{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:rgba(232,236,246,.12);font:600 13px var(--ui)}
+
+/* now: running work, acted out */
+.now{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:66px;padding:10px 14px;text-align:left}
+.now .face,.now .tile{justify-self:center}
+.nowfail{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 10px 10px 14px;box-shadow:inset 3px 0 0 var(--fail)}
+.nowfail .ma{display:contents}
+.waitcard{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;align-items:center;width:100%;padding:14px 16px 12px;text-align:left}
+.waitcard .who{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding-top:10px;border-top:1px solid var(--sep);font:400 13px var(--ui);color:var(--ink2)}
+.waitcard .who span{display:inline-flex;align-items:center;gap:5px}
+.waitcard .go{grid-column:1 / -1;display:flex;align-items:center;gap:4px;min-height:32px;font:600 15px var(--ui);color:var(--wait)}
+.cx b{display:block;font:600 15px/1.3 var(--ui)}
+.cx span{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.waitline{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;min-height:52px;padding:4px 14px;text-align:left}
+.waitline .wl{font:400 15px/1.3 var(--ui);color:var(--ink2)}
+.waitline .go{display:inline-flex;align-items:center;gap:2px;font:600 15px var(--ui);color:var(--wait)}
+.mapcard{display:block;width:100%;padding:0 0 10px;text-align:left;overflow:hidden}
+.mapcard .stage{margin:0}
+.mapcard .go{display:flex;justify-content:space-between;align-items:center;padding:0 14px;font:400 13px var(--ui);color:var(--ink3)}
+.mapcard .go b{font:600 15px var(--ui);color:var(--talk)}
+
+/* Nova's own card: the CEO, his proposals, his ladder, his ways in and hands */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:15px;font:400 13px var(--ui);color:var(--ink2);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--ink2)}
+.chip.live::before{background:var(--talk);box-shadow:0 0 8px var(--talk)}
+.chip.fail{color:var(--ink)}
+.chip.fail::before{background:var(--fail);box-shadow:0 0 0 3px rgba(224,97,107,.25)}
+.wmid{display:flex;align-items:center;justify-content:center;gap:0;height:46px}
+.wline{position:relative;width:2px;height:100%;background:rgba(232,236,246,.16);overflow:hidden}
+.wline i{position:absolute;left:-2px;top:0;width:6px;height:10px;border-radius:3px;background:var(--talk);animation:fall 1.4s linear infinite}
+.waystack{display:flex;flex-direction:column;align-items:center}
+
+/* the dock: the iOS 26 tab bar he has, with Nova detached */
+.dock{position:absolute;left:0;right:0;bottom:0;z-index:7;padding:0 12px 22px;pointer-events:none}
+.dock .drow{pointer-events:auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:56px;border-radius:28px;font:500 11px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--talk);background:rgba(89,230,255,.1)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+
+/* the Pulse and Org switch (C) */
+.pseg{display:grid;grid-template-columns:1fr 1fr;height:44px;margin:4px 0 12px;border-radius:22px;background:rgba(120,120,128,.2)}
+.pseg button{height:44px;border:3px solid transparent;border-radius:22px;background-clip:padding-box;font:600 15px var(--ui);color:var(--ink2);text-align:center}
+.pseg button[aria-pressed="true"]{background-color:var(--card-hi);color:var(--ink)}
+.swap{animation:fadeIn .26s var(--ease) both}
+
+/* the map, full screen (B), and its overlays */
+.mtop{position:absolute;top:51px;left:12px;right:12px;z-index:8;display:flex;justify-content:space-between;align-items:center}
+.mtop .btn{-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);background-color:rgba(16,20,36,.66)}
+.mtop .btn.talk{background-color:color-mix(in srgb,var(--talk) 20%,rgba(16,20,36,.66))}
+.mbottom{position:absolute;left:0;right:0;bottom:0;z-index:8;padding:10px 12px 28px;border-radius:28px 28px 0 0;background:rgba(14,18,34,.84);-webkit-backdrop-filter:blur(30px) saturate(1.5);backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 1px 0 var(--card-hi) inset,0 0 0 .5px var(--card-ring)}
+.fline{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;margin-top:10px;padding:8px 8px 8px 12px;border-radius:18px;background:rgba(255,255,255,.06)}
+.prop.inner{padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.m-being.work .pg{transform-box:fill-box;transform-origin:left center;animation:turn 2.4s var(--ease) infinite}
+.lane .track{display:block;min-width:0}
+.lrow{display:grid;grid-template-columns:minmax(0,1fr) 92px auto;gap:10px;align-items:center;min-height:52px;padding:6px 10px 6px 14px}
+.lrow > .end{min-width:58px;justify-content:flex-end}
+.lrow.fail .sv{color:var(--fail)}
+.lrow2{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:52px;padding:6px 14px}
+.ldot{display:block;width:10px;height:10px;border-radius:50%;background:var(--h);box-shadow:0 0 8px -1px var(--h)}
+.ldot.fail{background:var(--fail);box-shadow:0 0 0 3px rgba(224,97,107,.28)}
+.ldot.quiet{background:transparent;border:1.5px dashed var(--ink3);box-shadow:none}
+.ldot.never{background:transparent;border:1.5px dotted rgba(232,236,246,.3);box-shadow:none}
+.orow{display:grid;grid-template-columns:28px minmax(0,1fr) 92px 14px;gap:10px;align-items:center;width:100%;min-height:56px;padding:6px 14px;text-align:left}
+.wmid{height:20px}
+.btn.busy .ic{animation:spin .9s linear infinite}
+.done-row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:56px;padding:6px 10px 6px 14px;animation:fadeIn .3s var(--ease) both}
+.done-row .tile{color:var(--ok-ink);background:var(--ok)}
+
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes sheetIn{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes bob{from{transform:translateY(0)}to{transform:translateY(-3px)}}
+@keyframes blink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
+@keyframes ripple{from{transform:scale(.7);opacity:.85}to{transform:scale(1.7);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes breathe{0%,100%{opacity:.55;transform:scale(.86)}50%{opacity:1;transform:scale(1)}}
+@keyframes orb{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+@keyframes turn{0%,58%{transform:scaleX(1)}76%{transform:scaleX(-1)}100%{transform:scaleX(1)}}
+@keyframes beat{0%{transform:scale(1)}35%{transform:scale(1.8);box-shadow:0 0 12px 2px var(--h)}100%{transform:scale(1)}}
+@keyframes leaveYes{to{opacity:0;transform:translateY(-12px) scale(.98)}}
+@keyframes leaveNo{to{opacity:0;transform:translateX(-28px)}}
+@keyframes tickIn{from{transform:translateY(-55%);opacity:0}to{transform:none;opacity:1}}
+@keyframes fall{from{transform:translateY(-12px)}to{transform:translateY(48px)}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:opacity .2s linear!important}
+  .world{transition:none!important}
+  .face.work::before{border-color:var(--h)}
+}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-talk" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2"/><circle cx="17" cy="9.5" r="2.5"/><path d="M3 19.5c.8-3.3 3.2-5.2 6-5.2s5.2 1.9 6 5.2M15.2 14.8c2.6-.5 5 1 5.8 4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-steps" viewBox="0 0 24 24"><path d="M3 19h6v-5h6V9h6"/></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 21v-5h-5"/></symbol>
+  <symbol id="i-hammer" viewBox="0 0 24 24"><path d="M14.5 3.5l6 6-2.6 2.6-6-6z"/><path d="M12.6 8.4 4 17a2 2 0 0 0 2.9 2.9l8.6-8.6"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5a7.8 7.8 0 1 0 10.1 10.1z"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="2"/><path d="M2.5 19h19"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></symbol>
+  <symbol id="i-ladder" viewBox="0 0 24 24"><path d="M7 3v18M17 3v18M7 7.5h10M7 12h10M7 16.5h10"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></symbol>
+  <symbol id="i-retry" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4v5h-5"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></symbol>
+  <symbol id="i-wall" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M9 20h6M12 16.5V20"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></symbol>
+</svg>
+
+<div class="page">
+
+<header class="intro">
+  <p class="eb">73 · Agents &amp; Operations and the Org Map · round 1 · 5 Oct 2026</p>
+  <h1>Three ways to make Ops simple</h1>
+  <p>Every function stays. Each direction is drawn as four phone frames, and each frame scrolls inside itself, the way the page would on your phone. Tap faces, ticks and crosses: they answer.</p>
+  <p>Today, measured on the page as it is (the audit, 08-ops.md):</p>
+  <div class="today" aria-label="Today's numbers">
+    <span><b>1,130</b> points before the first agent</span>
+    <span><b>8.5</b> screens deep</span>
+    <span><b>17</b> objects above the fold, none an agent</span>
+    <span><b>13</b> type sizes</span>
+    <span><b>28</b> of 53 controls under 44 points</span>
+  </div>
+  <p class="sub">Demo content: every name, count, time and question is invented. Nothing here is yours.</p>
+</header>
+
+<div class="rev" role="group" aria-label="Directions">
+  <div class="in"><div class="seg3">
+    <button type="button" data-go="a" aria-pressed="true">A · The org</button>
+    <button type="button" data-go="b" aria-pressed="false">B · Your order</button>
+    <button type="button" data-go="c" aria-pressed="false">C · Vital signs</button>
+  </div></div>
+</div>
+
+<!-- ======================================================= A -->
+<section class="dir" id="d-a" data-dir="a">
+  <div class="dhead">
+    <h2>A · The org is the page</h2>
+    <p class="line"><b>Removes</b> from the scroll the channel and connection columns, the spare core, the nine-lane list, the skill grid, the pill row and the 40-row log. <b>Keeps</b> every function and the 3D map. <b>Moves</b> each loop, ask, skill and receipt onto the being that does it, Nova's proposals and the filing ladder into his own card, and the Forge, the overnight queue and this Mac into one short list.</p>
+    <p class="tally" data-tally="a"></p>
+  </div>
+  <div class="frames">
+
+    <figure class="fr">
+      <figcaption><b>1 · At rest</b>Nova and the ten are the first screen. The gold counts sit on the beings that ask; his proposals and the ladder are in his card. Tap a face, here or on the map: the camera goes there and that being's card takes his place.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="a1">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="scr">
+          <nav class="nav"><button class="back" type="button" data-obj><svg class="ic"><use href="#i-left"/></svg>More</button></nav>
+          <h1 class="lt rise">Agents &amp; Operations</h1>
+          <p class="stand rise" style="--i:1"><span class="live"></span>Two are working, one sync failed this morning, and the rest beat on time.</p>
+          <button class="waitline card rise" style="--i:2" type="button" data-obj><span class="num s wait">18</span><span class="wl">wait on you, most from the Researcher</span><span class="go">Inbox<svg class="ic cv" style="color:var(--wait)"><use href="#i-right"/></svg></span></button>
+          <div class="stage rise" style="--i:3" data-map="a1" data-consult="coach,researcher" data-ctl="a1"></div>
+          <div class="bench rise" style="--i:4" data-bench="a1"></div>
+          <div class="group rise" style="--i:5" data-focus="a1"></div>
+          <div class="group"><h2 class="k">At work</h2><div class="card rows" data-atwork></div></div>
+          <div class="group"><h2 class="k">Everything else</h2><div class="card rows" data-else></div></div>
+        </div>
+        <div class="dock" data-dock></div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>2 · A being, opened</b>The Coach. The camera has flown to Train and his card has risen as a sheet: his four asks answered with a tick or a cross, one do-all, his day of heartbeats, what he is trusted to do, and who asked whom today.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="a2">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="mapfull" style="--mh:300px" data-map="a2" data-focus="coach" data-zoom="2.35"></div>
+        <div class="sheet" style="--top:268px">
+          <div class="grab"><i></i></div>
+          <div class="sbody">
+            <div class="bhead"><span data-face="coach" data-s="52"></span><span class="bt"><b style="color:var(--coach)">Coach</b><span>Train · reads the program, holds you to the lift</span></span><button class="btn round" type="button" aria-label="Close" data-obj><svg class="ic"><use href="#i-x"/></svg></button></div>
+            <p class="b15">Four things wait on you. Nine of its ten loops beat on time.</p>
+            <div class="btns"><button class="btn talk" type="button" data-obj><svg class="ic"><use href="#i-talk"/></svg>Talk to the Coach</button></div>
+            <h3 class="k2">Asks you · <span data-n="coach">4</span></h3>
+            <div class="card rows asks" data-asks="coach"></div>
+            <div class="btns"><button class="btn do" type="button" data-all="coach" data-obj><svg class="ic"><use href="#i-check"/></svg>Yes to all four</button></div>
+            <h3 class="k2">Heartbeats today</h3>
+            <div data-strip data-who="coach" data-w="326" data-h="40" data-ev="0.6,1.9,3.8,7.5,12.6,19.8"></div>
+            <div class="axis"><span>24 hours ago</span><span>now</span></div>
+            <div class="quietbox"><p><b>Form Videos</b> has been quiet for 4 days.</p><button class="btn quiet" type="button" data-obj>Run it now</button></div>
+            <h3 class="k2">Trusted to</h3>
+            <div class="ladder3" style="--h:var(--coach)"><div><h4>Watch</h4><span>Program drift</span><span>The week plan</span><span>e1RM trends</span></div><div><h4>Propose</h4><span>Program edits</span></div><div class="top"><h4>Act on your yes</h4><span>Log your sessions</span></div></div>
+            <h3 class="k2">Asked today</h3>
+            <div class="chain"><span class="orb" style="--s:28px"></span><svg class="ic"><use href="#i-arrow"/></svg><span data-face="coach" data-s="28"></span></div>
+            <p class="b15">Nova asked it twice: about cold water after lifting, and about a lighter week.</p>
+            <div class="chain"><span data-face="coach" data-s="28"></span><svg class="ic"><use href="#i-arrow"/></svg><span data-face="researcher" data-s="28" data-st="work"></span></div>
+            <p class="b15">It asked the Researcher once. The answer is still being read.</p>
+            <h3 class="k2">Last filed</h3>
+            <div class="card rows"><div class="row" style="--h:var(--ok)"><span class="tile"><svg class="ic"><use href="#i-check"/></svg></span><span class="lx"><span class="nm">Squat target raised</span><span class="sv">Filed 8 hours ago</span></span><button class="btn quiet" type="button" data-obj>Undo</button></div></div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>3 · Work, acted out</b>The Researcher reading for the Coach. The light crossing the map is the consult; the turning ring and the page are the work. The line under the question is written by code from the ask list, so who asked whom is a fact.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="a3">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="mapfull" style="--mh:300px" data-map="a3" data-focus="researcher" data-zoom="1.85" data-consult="coach,researcher"></div>
+        <div class="sheet" style="--top:268px">
+          <div class="grab"><i></i></div>
+          <div class="sbody">
+            <div class="bhead"><span data-face="researcher" data-s="52" data-st="work"></span><span class="bt"><b style="color:var(--researcher)">Researcher</b><span>Knowledge · reads what you ask about</span></span><button class="btn round" type="button" aria-label="Close" data-obj><svg class="ic"><use href="#i-x"/></svg></button></div>
+            <div class="card pad" style="margin-top:12px">
+              <div class="bhead" style="grid-template-columns:auto minmax(0,1fr)"><span data-ring="3/5" data-hue="var(--researcher)"></span><span class="lx"><span class="nm">Reading now</span><span class="sv" data-clock>3 of 5 sources · 6 min</span></span></div>
+              <p class="say">Does cold water after lifting blunt the gains?</p>
+              <div class="chain"><span class="you">You</span><svg class="ic"><use href="#i-arrow"/></svg><span class="orb" style="--s:28px"></span><svg class="ic"><use href="#i-arrow"/></svg><span data-face="coach" data-s="28"></span><svg class="ic"><use href="#i-arrow"/></svg><span data-face="researcher" data-s="28" data-st="work"></span></div>
+              <p class="b15">At 09:33 you asked Nova, Nova asked the Coach, and the Coach asked the Researcher.</p>
+              <div class="chain"><span data-face="researcher" data-s="28"></span><svg class="ic"><use href="#i-arrow"/></svg><span data-face="librarian" data-s="28"></span></div>
+              <p class="b15">It asked the Librarian for your saved notes on recovery. Two came back.</p>
+              <div class="btns"><button class="btn quiet" type="button" data-obj><svg class="ic"><use href="#i-stop"/></svg>Stop</button><button class="btn talk" type="button" data-obj><svg class="ic"><use href="#i-talk"/></svg>Talk to it</button></div>
+            </div>
+            <h3 class="k2">Asks you · 5</h3>
+            <div class="card rows"><button class="row" type="button" data-obj style="--h:var(--researcher)"><span class="tile gold"><svg class="ic"><use href="#i-receipt"/></svg></span><span class="lx"><span class="nm">Five briefs wait in the Inbox</span><span class="sv">Protein per meal, creatine timing, and 3 more</span></span><svg class="ic cv"><use href="#i-right"/></svg></button></div>
+            <h3 class="k2">Heartbeats today</h3>
+            <div data-strip data-who="researcher" data-w="326" data-h="40" data-ev="0.1,2.2,5.6,9.1,15.3" data-live="1"></div>
+            <div class="axis"><span>24 hours ago</span><span>now</span></div>
+            <div class="quietbox"><p><b>Repertoire top-up</b> has never run.</p><button class="btn quiet" type="button" data-obj>Run it now</button></div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>4 · A failure</b>The Commander's calendar sync. It says what failed, when, what the plan is using instead, and what to do: try again, or ask the Commander what happened.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="a4">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="mapfull" style="--mh:300px" data-map="a4" data-focus="commander" data-zoom="2.35"></div>
+        <div class="sheet" style="--top:268px">
+          <div class="grab"><i></i></div>
+          <div class="sbody">
+            <div class="bhead"><span data-face="commander" data-s="52"></span><span class="bt"><b style="color:var(--commander)">Commander</b><span>Logistics · sets the order of the day</span></span><button class="btn round" type="button" aria-label="Close" data-obj><svg class="ic"><use href="#i-x"/></svg></button></div>
+            <div class="failbox">
+              <div class="fh"><span class="cnt fail">!</span>Calendar Watch could not reach your calendar</div>
+              <p class="b15">It tried at 08:40 and 09:10. The last good copy is from 07:58, so today's plan is working from that copy.</p>
+              <div class="btns"><button class="btn retry" type="button" data-obj data-retry><svg class="ic"><use href="#i-retry"/></svg>Try again</button><button class="btn talk" type="button" data-obj><svg class="ic"><use href="#i-talk"/></svg>What happened?</button></div>
+              <div class="btns" style="margin-top:8px"><button class="btn quiet" type="button" data-obj><svg class="ic"><use href="#i-gear"/></svg>Calendar settings</button></div>
+            </div>
+            <h3 class="k2">Heartbeats today</h3>
+            <div data-strip data-who="commander" data-w="326" data-h="40" data-ev="1.7,2.8,6.2,9.5,13.4,21.2" data-fail="1.0,0.5"></div>
+            <div class="axis"><span>24 hours ago</span><span>now</span></div>
+            <p class="b15">Seven of its eight loops beat on time.</p>
+            <h3 class="k2">Its loops · 8</h3>
+            <div class="card rows" data-loops="commander" data-mode="list"></div>
+            <div class="btns"><button class="btn talk" type="button" data-obj><svg class="ic"><use href="#i-talk"/></svg>Talk to the Commander</button></div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ======================================================= B -->
+<section class="dir" id="d-b" data-dir="b" hidden>
+  <div class="dhead">
+    <h2>B · Your order, made light</h2>
+    <p class="line"><b>Removes</b> from the scroll the topology, the spare core, the lane list, the skill grid, the pill row and the 40-row log. <b>Keeps</b> your 27 Sep order (waiting, then Nova's proposals) and every function. <b>Moves</b> the seven loops into one picture of every heartbeat, running work into a Now card that acts it out, the map into a living card that opens full screen, and the rest into seven rows one tap down.</p>
+    <p class="tally" data-tally="b"></p>
+  </div>
+  <div class="frames">
+
+    <figure class="fr">
+      <figcaption><b>1 · The page</b>Waiting, then proposals, as you asked. Then Now, the heartbeats as one picture, the org as a card, and the machinery as rows.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="b1">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="scr">
+          <nav class="nav"><button class="back" type="button" data-obj><svg class="ic"><use href="#i-left"/></svg>More</button></nav>
+          <h1 class="lt rise">Agents &amp; Operations</h1>
+          <p class="stand rise" style="--i:1"><span class="live"></span>Two are working, one sync failed this morning, and the rest beat on time.</p>
+          <div class="group rise" style="--i:2"><h2 class="k">Waiting on your call</h2><div data-waitcard></div></div>
+          <div class="group rise" style="--i:3"><h2 class="k">Nova proposes · 2</h2><div data-prop></div></div>
+          <div class="group rise" style="--i:4"><h2 class="k">Now · 4</h2><div class="card rows" data-now></div></div>
+          <div class="group"><h2 class="k">Heartbeats <span class="kn">44 of 48 on time</span></h2><div class="card"><div data-field></div><div class="legend" data-legend></div><div class="rows" style="border-top:1px solid var(--sep)"><button class="row" type="button" data-obj><span class="tile"><svg class="ic"><use href="#i-pulse"/></svg></span><span class="lx"><span class="nm">Every loop</span><span class="sv">48 loops on ten beings and Nova</span></span><svg class="ic cv"><use href="#i-right"/></svg></button></div></div></div>
+          <div class="group"><h2 class="k">The org</h2><button class="card mapcard" type="button" data-obj><span class="stage" data-map="b1" data-consult="coach,researcher" style="display:block"></span><span class="go"><span>Drawn from the records, live</span><b>Walk in</b></span></button></div>
+          <div class="group"><h2 class="k">Machinery</h2><div class="card rows" data-mach></div></div>
+        </div>
+        <div class="dock" data-dock></div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>2 · Now, acted out</b>The same page, scrolled to Now and two rows opened. The failure says what and what next; the Researcher's row shows the work and the chain that asked for it.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="b2">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="scr">
+          <nav class="nav"><button class="back" type="button" data-obj><svg class="ic"><use href="#i-left"/></svg>More</button><span class="navt">Agents &amp; Operations</span><span style="width:60px"></span></nav>
+          <div class="group" style="margin-top:8px"><h2 class="k">Now · 4</h2>
+            <div class="card rows">
+              <div>
+                <div class="nowfail"><span data-face="commander" data-s="36"></span><span class="lx"><span class="nm">Calendar sync failed</span><span class="sv">09:10 · Calendar Watch, the Commander</span></span><button class="btn retry" type="button" data-obj data-retry><svg class="ic"><use href="#i-retry"/></svg>Try again</button></div>
+                <div class="pad" style="padding-top:0"><p class="b15" style="margin-top:0">It tried at 08:40 and 09:10. The last good copy is from 07:58, so today's plan is working from that copy.</p><div class="btns"><button class="btn talk" type="button" data-obj><svg class="ic"><use href="#i-talk"/></svg>What happened?</button><button class="btn quiet" type="button" data-obj><svg class="ic"><use href="#i-gear"/></svg>Settings</button></div></div>
+              </div>
+              <div>
+                <button class="now" type="button" data-obj style="--h:var(--researcher)"><span data-face="researcher" data-s="36" data-st="work"></span><span class="lx"><span class="nm">Researcher · reading</span><span class="sv" data-clock>3 of 5 sources · 6 min</span></span><span data-ring="3/5" data-hue="var(--researcher)"></span></button>
+                <div class="pad" style="padding-top:0"><p class="say" style="margin-top:0">Does cold water after lifting blunt the gains?</p><div class="chain"><span class="you">You</span><svg class="ic"><use href="#i-arrow"/></svg><span class="orb" style="--s:28px"></span><svg class="ic"><use href="#i-arrow"/></svg><span data-face="coach" data-s="28"></span><svg class="ic"><use href="#i-arrow"/></svg><span data-face="researcher" data-s="28" data-st="work"></span></div><p class="b15">At 09:33 you asked Nova, Nova asked the Coach, and the Coach asked the Researcher. It asked the Librarian for your notes on recovery; two came back.</p><div class="btns"><button class="btn quiet" type="button" data-obj><svg class="ic"><use href="#i-stop"/></svg>Stop</button><button class="btn talk" type="button" data-obj><svg class="ic"><use href="#i-talk"/></svg>Talk to it</button></div></div>
+              </div>
+              <div class="now" data-obj><span class="tile"><svg class="ic"><use href="#i-hammer"/></svg></span><span class="lx"><span class="nm">The Forge · building</span><span class="sv">A rest timer that speaks the last ten seconds</span><span data-rail data-cur="2"></span></span><span></span></div>
+              <div class="now" data-obj><span class="tile"><svg class="ic"><use href="#i-laptop"/></svg></span><span class="lx"><span class="nm">This Mac · working</span><span class="sv">Ops redesign audit · 14 min · one more waits for you</span></span><span class="pulse" style="--h:var(--talk)"></span></div>
+            </div>
+          </div>
+          <div class="group"><h2 class="k">Heartbeats <span class="kn">44 of 48 on time</span></h2><div class="card"><div data-field></div><div class="legend" data-legend></div></div></div>
+        </div>
+        <div class="dock" data-dock></div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>3 · The org, full screen</b>One tap on the org card. The map fills the screen, the bench is the way in, and the phone shows one being at a time. Tap a face to fly there.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="b3">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="mapfull" style="--mh:420px" data-map="b3" data-vbh="380" data-focus="researcher" data-zoom="1.7" data-consult="coach,researcher" data-ctl="b3" data-labels="1"></div>
+        <div class="mtop"><button class="btn round" type="button" aria-label="Close the map" data-obj><svg class="ic"><use href="#i-x"/></svg></button><button class="btn talk" type="button" data-obj><svg class="ic"><use href="#i-users"/></svg>Talk to everyone</button></div>
+        <div class="mbottom">
+          <div class="bench" data-bench="b3" data-sel="researcher" style="margin-top:0"></div>
+          <div data-focusline="b3"></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>4 · Every loop</b>One row down from the heartbeats card: every loop under its being, each with its day of beats, and Run now beside the ones that need it. The seven Inbox loops keep their settings sheets.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="b4">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="scr">
+          <nav class="nav"><button class="back" type="button" data-obj><svg class="ic"><use href="#i-left"/></svg>Agents</button></nav>
+          <h1 class="lt">Heartbeats</h1>
+          <p class="stand"><span class="live"></span>Forty-four of forty-eight beat on time. Two went quiet, one has never run and one failed.</p>
+          <div class="legend" data-legend style="margin:0 4px 4px"></div>
+          <div class="group"><h2 class="k">Commander <span class="kn">8 loops · 1 failed</span></h2><div class="card rows" data-loops="commander" data-mode="strip"></div></div>
+          <div class="group"><h2 class="k">Coach <span class="kn">10 loops · 1 quiet</span></h2><div class="card rows" data-loops="coach" data-mode="strip"></div></div>
+          <div class="group"><h2 class="k">Meal Prep <span class="kn">3 loops · 1 quiet</span></h2><div class="card rows" data-loops="mealprep" data-mode="strip"></div></div>
+          <div class="group"><h2 class="k">Researcher <span class="kn">5 loops · 1 never run</span></h2><div class="card rows" data-loops="researcher" data-mode="strip"></div></div>
+          <div class="group"><h2 class="k">On time</h2><div class="card rows" data-ontime></div></div>
+        </div>
+        <div class="dock" data-dock></div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ======================================================= C -->
+<section class="dir" id="d-c" data-dir="c" hidden>
+  <div class="dhead">
+    <h2>C · Vital signs</h2>
+    <p class="line"><b>Removes</b> every list from the first screen: the loops, the lanes, the topology, the skills and the log. <b>Keeps</b> every function, and the map behind a Pulse and Org switch. <b>Moves</b> the whole org into one instrument, a lane of heartbeats for each being and Nova; a lane opens into its loops and its asks, and the gold at its end is what it is asking you.</p>
+    <p class="tally" data-tally="c"></p>
+  </div>
+  <div class="frames">
+
+    <figure class="fr">
+      <figcaption><b>1 · The monitor</b>Eleven lanes over the last day. Small blips are beats, tall spikes are work done, the right edge is now; a live line is work happening, a red notch is a failure, the gold at the end is what each one asks of you. Tap a lane to open it.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="c1">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="scr">
+          <nav class="nav"><button class="back" type="button" data-obj><svg class="ic"><use href="#i-left"/></svg>More</button></nav>
+          <h1 class="lt rise">Agents &amp; Operations</h1>
+          <div class="pseg rise" style="--i:1" data-pseg="c1"><button type="button" aria-pressed="true" data-p="pulse" data-obj>Pulse</button><button type="button" aria-pressed="false" data-p="org" data-obj>Org</button></div>
+          <p class="stand rise" style="--i:2"><span class="live"></span>Two are working, one sync failed this morning, and the rest beat on time.</p>
+          <div data-pane="pulse">
+            <div class="card mon rise" style="--i:3"><div class="monhead"><p class="sub">The last 24 hours</p><button class="btn do" type="button" data-obj><b class="num" style="font-size:17px">18</b>wait on you</button></div><div data-lanes="c1"></div><div class="monaxis"><span></span><span class="axis" style="margin:0"><span>24 h ago</span><span>12 h</span><span>now</span></span><span></span></div></div>
+            <div class="group"><h2 class="k">Nova proposes · 2</h2><div data-prop></div></div>
+            <div class="group"><h2 class="k">Machinery</h2><div class="card rows" data-mach></div></div>
+          </div>
+          <div data-pane="org" hidden>
+            <div class="stage" data-map="c1o" data-consult="coach,researcher" data-ctl="c1o"></div>
+            <div class="bench" data-bench="c1o"></div>
+            <div class="group" data-focus="c1o"></div>
+          </div>
+        </div>
+        <div class="dock" data-dock></div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>2 · A lane, opened</b>The Coach's lane opens into its ten loops (Form Videos flat for four days) and its four asks, each with a tick or a cross.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="c2">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="scr">
+          <nav class="nav"><button class="back" type="button" data-obj><svg class="ic"><use href="#i-left"/></svg>More</button><span class="navt">Agents &amp; Operations</span><span style="width:60px"></span></nav>
+          <div class="card mon" style="margin-top:8px"><div data-lanes="c2" data-open="coach" data-skip="2"></div></div>
+        </div>
+        <div class="dock" data-dock></div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>3 · Work and a failure</b>The Commander's lane, open on its failure: what, when, what the plan uses, what to do. Below it the Researcher's live line, open on the work.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="c3">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="scr">
+          <nav class="nav"><button class="back" type="button" data-obj><svg class="ic"><use href="#i-left"/></svg>More</button><span class="navt">Agents &amp; Operations</span><span style="width:60px"></span></nav>
+          <div class="card mon" style="margin-top:8px"><div data-lanes="c3" data-open="commander,researcher"></div></div>
+        </div>
+        <div class="dock" data-dock></div>
+      </div>
+    </figure>
+
+    <figure class="fr">
+      <figcaption><b>4 · The org</b>The same page with Org chosen: the map and the bench, Nova's card under them, one being at a time.<span class="m" data-m></span></figcaption>
+      <div class="phone" data-f="c4">
+        <div class="sb"><span>9:41</span><i></i></div>
+        <div class="scr">
+          <nav class="nav"><button class="back" type="button" data-obj><svg class="ic"><use href="#i-left"/></svg>More</button></nav>
+          <h1 class="lt">Agents &amp; Operations</h1>
+          <div class="pseg"><button type="button" aria-pressed="false" data-obj>Pulse</button><button type="button" aria-pressed="true" data-obj>Org</button></div>
+          <div class="stage" data-map="c4" data-consult="coach,researcher" data-ctl="c4"></div>
+          <div class="bench" data-bench="c4"></div>
+          <div class="group" data-focus="c4"></div>
+        </div>
+        <div class="dock" data-dock></div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+
+<section class="calls" aria-label="Your calls">
+  <h2>Your calls</h2>
+  <ol>
+    <li><b>Which direction: A, B or C, or a blend.</b> A makes the ten beings the page and puts every loop, ask and skill on the being that does it. B keeps your 27 Sep order on top and moves the machinery one tap down. C turns the page into one instrument of heartbeats, with the map one tap away. Whichever you pick becomes round 2, then the build; the other two are dropped.</li>
+    <li><b>Keep "Waiting on your call" as the first card?</b> Yes: the 18 stays the first thing on the page, above the agents, as in B. No: the 18 lives on the beings as gold counts with one line to the Inbox, as in A and C, and the agents rise onto the first screen.</li>
+    <li><b>One name for the page.</b> It is "Ops" in the bar, "Operations" in the Mac sidebar and "Agents &amp; Operations" in the title and the Index. My pick is "Agents". Either way all four places change together.</li>
+    <li><b>The "7 agents live" line.</b> It comes from a fixed list, not the heartbeats: it names a Studio with no being and leaves out the Librarian, Meal Prep, the Leader and Practice. Fix it now, ahead of the redesign, to read from the heartbeats ("10 agents, 1 failing"); or leave it until this page is built.</li>
+    <li><b>Talking on Ops.</b> Build "Talk to the Coach" on every being and "Talk to everyone" on Nova as part of this page (the consult rail exists; the agent switch is the missing piece), or keep talking on the Nova tab only and let Ops just show it.</li>
+    <li><b>The map on your phone, one being at a time.</b> Yes: a tap flies the camera to that being and its card rises, with the whole ring only as the overview. No: the map stays the whole ring at today's size, about 20 to 25 points a being.</li>
+  </ol>
+</section>
+
+</div>
+<script>
+(function () {
+  'use strict';
+  var RM = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function ic(n, c) { return '<svg class="ic' + (c ? ' ' + c : '') + '" aria-hidden="true"><use href="#i-' + n + '"/></svg>'; }
+  function hash(s) { var h = 7; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); }
+  function hx(h) { h = h.replace('#', ''); return [0, 2, 4].map(function (i) { return parseInt(h.slice(i, i + 2), 16); }); }
+  function mix(a, b, t) { var A = hx(a), B = hx(b); return '#' + A.map(function (v, i) { return Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0'); }).join(''); }
+
+  /* ---------------- the ten, from beings.js (hue, accent) ---------------- */
+  var AG = {
+    commander: { name: 'Commander', the: 'the Commander', hue: '#59e6ff', acc: '#e0b26a', role: 'Logistics', line: 'sets the order of the day', wait: 0, fail: true },
+    coach: { name: 'Coach', the: 'the Coach', hue: '#ff8a7a', acc: '#ffd66b', role: 'Train', line: 'holds you to the lift', wait: 4 },
+    cfo: { name: 'CFO', the: 'the CFO', hue: '#5fe8a8', acc: '#e0b26a', role: 'Money', line: 'counts what came in and went out', wait: 1 },
+    guardian: { name: 'Guardian', the: 'the Guardian', hue: '#8f7bff', acc: '#e0b26a', role: 'Platform', line: 'keeps the backups landing', wait: 2 },
+    researcher: { name: 'Researcher', the: 'the Researcher', hue: '#7ab8ff', acc: '#59e6ff', role: 'Knowledge', line: 'reads what you ask about', wait: 5, work: true },
+    watcher: { name: 'Watcher', the: 'the Watcher', hue: '#8fd3ff', acc: '#8f7bff', role: 'Knowledge', line: 'watches the whole video for you', wait: 2 },
+    librarian: { name: 'Librarian', the: 'the Librarian', hue: '#4fd1c5', acc: '#ffc46b', role: 'Knowledge', line: 'files every note where you will find it', wait: 1 },
+    mealprep: { name: 'Meal Prep', the: 'Meal Prep', hue: '#ffc46b', acc: '#ff8a7a', role: 'Fuel', line: 'works out what to eat tonight', wait: 0 },
+    leader: { name: 'Leader', the: 'the Leader', hue: '#ff7ad9', acc: '#8f7bff', role: 'Mind', line: 'asks the question you avoided', wait: 1 },
+    practice: { name: 'Practice', the: 'Practice', hue: '#ffa257', acc: '#e0b26a', role: 'Mind', line: 'plays the other person', wait: 0 }
+  };
+  var NOVA = { name: 'Nova', hue: '#c9d8ff' };
+  var TEN = ['commander', 'coach', 'cfo', 'guardian', 'researcher', 'watcher', 'librarian', 'mealprep', 'leader', 'practice'];
+
+  /* every roster loop, placed on its being (server/lib/orgMap.js BEING_MEMBERS); demo states */
+  var LOOPS = {
+    nova: [['The conversation', 'what you say to him, on every door', 'ok']],
+    commander: [['Dispatch', 'morning and evening briefs', 'ok'], ['Plan Today', 'the top three, picked', 'ok'], ['Reminders', 'nudges, on time', 'ok'], ['Calendar Follow-ups', 'did it happen?', 'ok'], ['Todoist', 'two-way to-do sync', 'ok'], ['Calendar Watch', 'your calendar, kept fresh', 'fail'], ['Brief Warm', 'the morning voice, pre-built', 'ok'], ['Commitment Finder', 'promises never closed', 'ok']],
+    coach: [['Coach', 'your training brain', 'ok'], ['Weekly Debrief', 'the Sunday sit-down', 'ok'], ['Training Check', 'program drift', 'ok'], ['Week Plan', 'the week, annotated', 'ok'], ['Health Insight', 'twice-daily noticing', 'ok'], ['Coach Cadence', 'when it speaks up', 'ok'], ['Coach Reflection', 'its own calls, reviewed', 'ok'], ['Form Videos', 'a demo for every lift', 'quiet', '4 days'], ['Exercise Research', 'new lifts, weekly', 'ok'], ['Patterns', 'your numbers, correlated', 'ok']],
+    cfo: [['Money', 'ledger import', 'ok'], ['CFO', 'the monthly report', 'ok']],
+    guardian: [['Guardian', 'integrity and backups', 'ok'], ['Health Sync', 'iPhone health drops', 'ok'], ['Compost', 'inbox aging', 'ok'], ['Telegram', 'Nova in your pocket', 'ok'], ['Health Mirror', 'numbers into the vault', 'ok'], ['Pattern Scout', 'repeated acts', 'ok'], ['Trust Ladder', 'autonomy, proposed', 'ok'], ['Model Watch', 'which model is which', 'ok'], ['Forge', 'builds what you ask for', 'ok'], ['Overnight', 'work while you sleep', 'ok']],
+    researcher: [['Researcher', 'cited briefs', 'ok'], ['Pulse', 'new on your topics', 'ok'], ['Study Lane', 'sources into notes', 'ok'], ['Scout', 'people researched', 'ok'], ['Repertoire top-up', 'more techniques', 'never']],
+    watcher: [['Watcher', 'videos watched for you', 'ok']],
+    librarian: [['Meaning Index', 'the vault, by meaning', 'ok'], ['Distiller', 'captures woven in', 'ok'], ['Brain Week', 'what came in', 'ok'], ['Read Next', 'the book for the gap', 'ok']],
+    mealprep: [['Food Scout', 'food into recipes', 'ok'], ['Meal Prep', 'the weekly prep', 'ok'], ['Takeaway Catalogue', 'menus, every two weeks', 'quiet', '6 days']],
+    leader: [['Daily Review', 'the day, scored', 'ok'], ['Leader', 'the daily idea', 'ok'], ['Leader Reminder', 'the lead, before work', 'ok']],
+    practice: [['Practice', 'your rehearsal partner', 'ok']]
+  };
+  /* work done today, in hours ago (tall spikes); demo */
+  var EV = { nova: [0.15, 0.9, 3.2, 8.4, 12.1, 15.8], commander: [1.7, 2.8, 6.2, 9.5, 13.4, 21.2], coach: [0.6, 1.9, 3.8, 7.5, 12.6, 19.8], cfo: [5.2, 17.6], guardian: [0.8, 4.4, 8.9, 13.1, 22.3], researcher: [0.1, 2.2, 5.6, 9.1, 15.3], watcher: [3.1, 14.8], librarian: [2.6, 6.9, 18.4], mealprep: [7.2, 16.1], leader: [1.2, 10.6, 23.1], practice: [] };
+  var ASKS = { coach: [['Swap the incline press for a dumbbell press', '38 min ago'], ['Add a back-off set to the squat', '2 h ago'], ["Move Friday's pull day to Saturday", '4 h ago'], ['Take a lighter week next week', 'yesterday']] };
+  var LINE = {
+    commander: "Calendar Watch could not reach your calendar at 09:10. Today's plan is using the 07:58 copy.",
+    coach: 'Four things wait on you. Nine of its ten loops beat on time.',
+    cfo: "September's money report waits on you.",
+    guardian: 'Two things wait on you: two loops have gone quiet, and a question about a model.',
+    researcher: 'Reading for the Coach now. Five briefs wait on you.',
+    watcher: 'Two videos wait on you, watched and weighed.',
+    librarian: 'A book for the gap waits on you.',
+    mealprep: 'Nothing waits on you. Takeaway Catalogue has been quiet for 6 days.',
+    leader: 'Your follow-up from Tuesday waits on you.',
+    practice: 'Nothing waits on you. Its loop beat on time.'
+  };
+  var SHORT = { commander: 'Calendar sync failed at 09:10', coach: '4 wait on you · 9 of 10 loops on time', cfo: '1 waits on you', guardian: '2 wait on you, one about quiet loops', researcher: 'Reading for the Coach · 3 of 5 sources', watcher: '2 videos wait on you', librarian: '1 book waits on you', mealprep: 'Takeaway Catalogue quiet 6 days', leader: '1 follow-up waits on you', practice: 'Nothing waits on you' };
+
+  /* ---------------- faces: the house 2D face, one feature and one artefact each ---------------- */
+  var PODS = '<circle class="pod" cx="5" cy="24" r="3.4"/><circle class="pod" cx="43" cy="24" r="3.4"/>';
+  var SHELL = '<rect class="shell" x="5" y="6" width="38" height="35" rx="15"/>';
+  var VIS = '<rect class="vis" x="10" y="13" width="28" height="21" rx="9"/>';
+  var BADGE = '<circle class="badge" cx="40" cy="40" r="8.5"/>';
+  var FACE = {
+    commander: '<path class="acc" d="M24 -1.5l1.7 4.6 4.6 1.7-4.6 1.7L24 11.1l-1.7-4.6-4.6-1.7 4.6-1.7z"/>' + PODS + SHELL + VIS + '<path class="line" d="M15.6 18.4h6.2M26.2 18.4h6.2"/><g class="eyes"><circle class="eye" cx="19" cy="23.8" r="3"/><circle class="eye" cx="29" cy="23.8" r="3"/></g><path class="line" d="M21 29.2q3 2.2 6 0"/>' + BADGE + '<circle class="art" cx="40" cy="40" r="4.6"/><path class="artf" d="M40 36.3l1.3 3.7-1.3 3.7-1.3-3.7z"/>',
+    coach: PODS + SHELL + '<rect class="acc" x="8.5" y="8.4" width="31" height="4.2" rx="2.1"/>' + VIS + '<path class="line" d="M15.4 18.4q3.2-2.4 6.4-.7M26.2 17.7q3.2-1.7 6.4.7"/><g class="eyes"><ellipse class="eye" cx="19" cy="23.6" rx="2.9" ry="3.5"/><ellipse class="eye" cx="29" cy="23.6" rx="2.9" ry="3.5"/></g><circle class="blush" cx="14.6" cy="28.8" r="1.7"/><circle class="blush" cx="33.4" cy="28.8" r="1.7"/><path class="line" d="M21.4 29.4q2.6 2 5.2 0"/>' + BADGE + '<path class="art" d="M34 40h12M36.2 37v6M43.8 37v6"/>',
+    cfo: PODS + SHELL + '<rect x="19.5" y="5" width="9" height="2.6" rx="1.3" fill="#060914"/>' + VIS + '<path class="line" d="M16 18.6l5.4-.6M26.6 18l5.4.6"/><g class="eyes"><circle class="eye" cx="19" cy="23.8" r="2.8"/><circle class="eye" cx="29" cy="23.8" r="2.8"/></g><path class="line" d="M22 29.4q2 1.4 4 0"/><path class="acc" d="M18.8 41.4l5.2 2.6 5.2-2.6v5.2l-5.2-2.6-5.2 2.6z"/>' + BADGE + '<circle class="art" cx="40" cy="40" r="4.4"/><path class="art" d="M40 37.6v4.8"/>',
+    guardian: '<path class="acc" d="M20.6 7.5 24 -2l3.4 9.5z"/>' + PODS + SHELL + VIS + '<path class="line" d="M15.8 20.6q3.2-1.6 6.4 0M25.8 20.6q3.2-1.6 6.4 0"/><g class="eyes"><ellipse class="eye" cx="19" cy="24.4" rx="2.8" ry="3"/><ellipse class="eye" cx="29" cy="24.4" rx="2.8" ry="3"/></g><path class="line" d="M21.4 29.6q2.6 1.8 5.2 0"/>' + BADGE + '<path class="art" d="M37 37.6h6v6.2h-6zM38.2 37.6v-1.8h3.6v1.8"/><circle class="artf" cx="40" cy="40.7" r="1.5"/>',
+    researcher: PODS + SHELL + VIS + '<path class="line" d="M17.6 15.6q6.4-2.6 12.8 0"/><circle class="lens" cx="24" cy="23.6" r="6.6"/><g class="eyes"><circle class="eye" cx="24" cy="23.6" r="3.3"/></g><circle cx="22.6" cy="22.2" r="1" fill="#fff" opacity=".85"/>' + BADGE + '<path class="art pg" d="M36.6 35.4h4.6l2.6 2.6v6.6h-7.2zM38.6 39.6h3.2M38.6 41.9h3.2"/>',
+    watcher: '<rect class="cup" x="0.6" y="18.5" width="7.4" height="12" rx="3.7"/><rect class="cup" x="40" y="18.5" width="7.4" height="12" rx="3.7"/>' + SHELL + '<path class="accs" d="M4.6 21Q24 -6.5 43.4 21"/>' + VIS + '<path class="line" d="M16.6 18.4q3-1.6 6 0M26.6 18.4q3-1.6 6 0"/><g class="eyes"><ellipse class="eye" cx="20.4" cy="23.8" rx="2.9" ry="3.3"/><ellipse class="eye" cx="30.4" cy="23.8" rx="2.9" ry="3.3"/></g><path class="line" d="M22 29.6q2.4 1.8 4.8 0"/>' + BADGE + '<path class="art" d="M36.8 38.6h6.4l-1 5.2h-4.4zM37.6 38.4q-.4-2.2 1.6-2.2q.8-1.6 2.4-.4q2-.2 1.6 2.4"/>',
+    librarian: '<rect class="spine" x="14" y="2.4" width="5.4" height="8" rx="1.2"/><rect class="spine" x="20.4" y="0.8" width="5.4" height="9.6" rx="1.2"/><rect class="spine" x="26.8" y="2" width="5.4" height="8.4" rx="1.2"/>' + PODS + SHELL + VIS + '<path class="line" d="M15.8 19.6q3.2-1.8 6.4 0M25.8 19.6q3.2-1.8 6.4 0"/><g class="eyes"><circle class="eye" cx="19" cy="24.2" r="2.8"/><circle class="eye" cx="29" cy="24.2" r="2.8"/></g><path class="line" d="M21.8 29.2q2.2 1.6 4.4 0"/>' + BADGE + '<path class="art" d="M35 36.6h10v7H35zM37.2 39.2h5.6M37.2 41.4h3.4"/>',
+    mealprep: '<path class="toque" d="M13.6 10.6c-3.4-1.4-2.8-7.2 1.6-6.4.8-4 6.2-5 8.8-2 2.6-3 8-1.8 8.6 2.2 4.2-.6 4.8 5.2 1.6 6.4z"/>' + PODS + SHELL + VIS + '<path class="line" d="M16.4 25q2.6-3.6 5.2 0M26.4 25q2.6-3.6 5.2 0"/><circle class="blush" cx="14.6" cy="28.6" r="1.7"/><circle class="blush" cx="33.4" cy="28.6" r="1.7"/><path class="line" d="M20.6 28.8q3.4 2.8 6.8 0"/>' + BADGE + '<path class="art" d="M35.6 39h8.8v2.4a2.6 2.6 0 0 1-2.6 2.6h-3.6a2.6 2.6 0 0 1-2.6-2.6zM34.4 39.6h1.2M44.4 39.6h1.2M38.6 37q.8-1 0-2M41.4 37q.8-1 0-2"/>',
+    leader: '<g transform="rotate(-7 24 24)"><circle class="pod" cx="5" cy="24" r="3.4"/><circle class="glow" cx="43" cy="24" r="6.4"/><circle class="acc" cx="43" cy="24" r="3.4"/>' + SHELL + '<rect class="vis mirror" x="10" y="13" width="28" height="21" rx="9"/><path d="M15 31 23 15" stroke="rgba(255,255,255,.16)" stroke-width="3" stroke-linecap="round"/><path class="line" d="M16 18.2q3-1.4 6 .2M26 18.4q3-1.6 6-.2"/><g class="eyes"><ellipse class="eye" cx="19" cy="23.8" rx="2.7" ry="3.1"/><ellipse class="eye" cx="29" cy="23.8" rx="2.7" ry="3.1"/></g><path class="line" d="M21.6 29q2.4 1.6 4.8 0"/></g>' + BADGE + '<path class="art" d="M38 38.2q0-2.2 2.2-2.2t2.2 2q0 1.4-2.2 2.2v1M40.2 43.4v.2"/>',
+    practice: PODS + SHELL + VIS + '<path class="line" d="M15.8 17.8q3-1.8 6 0M26.2 17.8q3-1.8 6 0"/><g class="eyes"><circle class="eye" cx="19" cy="23.4" r="3"/><circle class="eye" cx="29" cy="23.4" r="3"/></g><path class="smile" d="M19.6 27.6q4.4 4.6 8.8 0z"/><circle class="blush" cx="14.4" cy="28.4" r="1.7"/><circle class="blush" cx="33.6" cy="28.4" r="1.7"/>' + BADGE + '<circle class="art" cx="37.6" cy="38.2" r="2.6"/><circle class="art" cx="42.4" cy="41.8" r="2.6"/><path class="art" d="M36.6 38.8q1 .8 2 0M41.4 42.6q1-.8 2 0"/>'
+  };
+  function face(id, s, st) {
+    var a = AG[id];
+    return '<span class="face' + (st ? ' ' + st : '') + '" style="--s:' + s + 'px;--h:' + a.hue + ';--a:' + a.acc + ';--bd:' + ((hash(id) % 50) / 10) + 's" aria-hidden="true"><svg viewBox="-1 -4 50 54">' + FACE[id] + '</svg></span>';
+  }
+  function orb(s) { return '<span class="orb" style="--s:' + s + 'px" aria-hidden="true"></span>'; }
+  function lead(id, s, st) { return id === 'nova' ? orb(s) : face(id, s, st); }
+
+  /* ---------------- the org: a flat stand-in for src/orgmap/scene.js ---------------- */
+  var ORDER7 = ['knowledge', 'mind', 'logistics', 'train', 'fuel', 'money', 'platform'];
+  var DH = { knowledge: '#7ab8ff', mind: '#ff7ad9', logistics: '#59e6ff', train: '#ff8a7a', fuel: '#ffc46b', money: '#5fe8a8', platform: '#8f7bff' };
+  var DN = { knowledge: 'Knowledge', mind: 'Mind', logistics: 'Logistics', train: 'Train', fuel: 'Fuel', money: 'Money', platform: 'Platform' };
+  var TL = {};
+  ORDER7.forEach(function (d, i) { var th = Math.PI + i * 2 * Math.PI / 7; TL[d] = { x: 179 + Math.sin(th) * 118, y: 150 + Math.cos(th) * 80, r: d === 'knowledge' ? 50 : 40 }; });
+  var FT = { researcher: ['knowledge', -25, 6], watcher: ['knowledge', 25, 6], librarian: ['knowledge', 0, -10], leader: ['mind', -13, 1], practice: ['mind', 14, 8], commander: ['logistics', 0, 3], coach: ['train', 0, 3], mealprep: ['fuel', 0, 3], cfo: ['money', 0, 3], guardian: ['platform', 0, 3] };
+  var BS = 0.62;
+  var MAPN = 0;
+  function feet(id) { var f = FT[id], t = TL[f[0]]; return { x: t.x + f[1], y: t.y + f[2] }; }
+  function hexPts(cx, cy, r) { var p = []; for (var i = 0; i < 6; i++) { var a = -Math.PI / 2 + i * Math.PI / 3; p.push([cx + r * Math.cos(a), cy + r * Math.sin(a) * 0.58]); } return p; }
+  function pth(a) { return a.map(function (q, i) { return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join(' ') + 'Z'; }
+  function tileSVG(d, labels, z) {
+    z = z || 1;
+    var t = TL[d], h = DH[d], p = hexPts(t.x, t.y, t.r), dn = function (q) { return [q[0], q[1] + 8]; };
+    var s = '<path d="' + pth([p[2], p[3], dn(p[3]), dn(p[2])]) + '" fill="' + mix('#06070d', h, 0.2) + '"/>' +
+      '<path d="' + pth([p[3], p[4], dn(p[4]), dn(p[3])]) + '" fill="' + mix('#06070d', h, 0.14) + '"/>' +
+      '<path d="' + pth(p) + '" fill="' + mix('#0d1426', h, 0.3) + '" stroke="' + mix(h, '#ffffff', 0.3) + '" stroke-opacity=".7" stroke-width="1"/>';
+    if (labels) s += '<text class="m-label" x="' + t.x.toFixed(1) + '" y="' + (t.y + t.r * 0.58 + 8 + 12 / z).toFixed(1) + '" fill="' + mix(h, '#ffffff', 0.55) + '" style="font-size:' + (11 / z).toFixed(2) + 'px">' + DN[d] + '</text>';
+    return s;
+  }
+  function markSVG(x, y, t, cls, id) {
+    var w = t.length > 1 ? 28 : 22;
+    return '<g class="m-mark ' + (cls || '') + '"' + (id ? ' data-mk="' + id + '"' : '') + ' transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ')"><g class="m-bob"><rect x="' + (-w / 2) + '" y="-18" width="' + w + '" height="18" rx="9"/><path d="M-4 -.8 0 4.2 4 -.8z"/><text y="-4.6">' + t + '</text></g></g>';
+  }
+  function beingSVG(id) {
+    var a = AG[id], f = feet(id), tx = f.x - 24 * BS, ty = f.y - 52 * BS;
+    return '<g class="m-being' + (a.work ? ' work' : '') + '" data-id="' + id + '" style="--h:' + a.hue + ';--a:' + a.acc + ';--bd:' + ((hash(id) % 50) / 10) + 's" transform="translate(' + tx.toFixed(1) + ' ' + ty.toFixed(1) + ') scale(' + BS + ')">' +
+      '<ellipse class="m-shadow" cx="24" cy="52" rx="12.5" ry="3.2"/>' + (a.work ? '<ellipse class="m-workring" cx="24" cy="52" rx="15" ry="4.2"/>' : '') +
+      '<rect class="body" x="16.5" y="38.5" width="15" height="10.5" rx="5.2"/><ellipse class="body" cx="20" cy="50.2" rx="3.4" ry="2"/><ellipse class="body" cx="28" cy="50.2" rx="3.4" ry="2"/>' +
+      FACE[id] + '<circle class="m-hit" cx="24" cy="28" r="36"/></g>';
+  }
+  function arcSVG(from, to) {
+    var a = feet(from), b = feet(to), ax = a.x, ay = a.y - 22, bx = b.x, by = b.y - 22, mx = (ax + bx) / 2 + 30, my = Math.min(ay, by) - 10;
+    var d = 'M' + ax.toFixed(1) + ' ' + ay.toFixed(1) + ' Q' + mx.toFixed(1) + ' ' + my.toFixed(1) + ' ' + bx.toFixed(1) + ' ' + by.toFixed(1);
+    var s = '<path class="m-arc" d="' + d + '" style="stroke:' + AG[from].hue + '"/><g style="--h:' + AG[from].hue + '">';
+    if (RM) {
+      var qx = (ax + 2 * mx + bx) / 4, qy = (ay + 2 * my + by) / 4;
+      s += '<g transform="translate(' + qx.toFixed(1) + ' ' + qy.toFixed(1) + ')"><circle class="m-sparkhalo" r="6"/><circle class="m-sparkdot" r="2.8"/></g>';
+    } else {
+      s += '<g><circle class="m-sparkhalo" r="6"/><circle class="m-sparkdot" r="2.8"/><animateMotion dur="2.6s" repeatCount="indefinite" path="' + d + '"/></g>';
+    }
+    return s + '</g>';
+  }
+  function worldTransform(focus, zoom, vbh) {
+    if (!focus) { var sc = vbh > 300 ? 1.12 : 1; return 'translate(179px,' + (vbh / 2) + 'px) scale(' + sc + ') translate(-179px,-132px)'; }
+    var p = FT[focus][0] === 'knowledge' ? { x: TL.knowledge.x, y: TL.knowledge.y + 4 } : feet(focus);
+    return 'translate(179px,' + (vbh * 0.58).toFixed(1) + 'px) scale(' + zoom + ') translate(' + (-p.x).toFixed(1) + 'px,' + (-(p.y - 18)).toFixed(1) + 'px)';
+  }
+  function mapSVG(el) {
+    var focus = el.dataset.focus || '', zoom = parseFloat(el.dataset.zoom || '2.2'), vbh = parseFloat(el.dataset.vbh || '280');
+    var cons = (el.dataset.consult || '').split(',').filter(Boolean), labels = !!el.dataset.labels || !!focus;
+    var gid = 'orb' + (++MAPN), g = '';
+    g += '<ellipse cx="179" cy="150" rx="78" ry="44" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="9"/>';
+    ORDER7.forEach(function (d) { g += '<line x1="179" y1="150" x2="' + TL[d].x.toFixed(1) + '" y2="' + TL[d].y.toFixed(1) + '" stroke="rgba(255,255,255,.05)" stroke-width="5"/>'; });
+    var lz = focus ? zoom : 1;
+    ['knowledge', 'mind', 'platform'].forEach(function (d) { g += tileSVG(d, labels, lz); });
+    g += '<ellipse cx="179" cy="153" rx="42" ry="23" fill="#0b1328"/><ellipse cx="179" cy="150" rx="42" ry="23" fill="' + mix('#0d1426', '#59e6ff', 0.12) + '" stroke="rgba(89,230,255,.45)"/><ellipse cx="179" cy="146" rx="20" ry="8.5" fill="none" stroke="#8f7bff" stroke-opacity=".7" stroke-width="1.3"/><circle class="m-orb" cx="179" cy="136" r="12" fill="url(#' + gid + ')"/>';
+    ['logistics', 'money', 'train', 'fuel'].forEach(function (d) { g += tileSVG(d, labels, lz); });
+    if (cons.length === 2) g += arcSVG(cons[0], cons[1]);
+    TEN.slice().sort(function (p, q) { return feet(p).y - feet(q).y; }).forEach(function (id) { g += beingSVG(id); });
+    TEN.forEach(function (id) { var a = AG[id], f = feet(id); if (a.fail) g += markSVG(f.x, f.y - 41, '!', 'fail'); else if (a.wait) g += markSVG(f.x, f.y - 41, String(a.wait), '', id); });
+    g += markSVG(202, 135, '2', '', 'nova');
+    var lab = 'The org, demo: Nova in the middle and the ten beings on seven districts. Gold counts wait on you: the Researcher 5, the Coach 4, the Guardian 2, the Watcher 2, the CFO, the Librarian and the Leader 1 each. A red mark on the Commander: a sync failed.';
+    return '<svg viewBox="0 0 358 ' + vbh + '" role="img" aria-label="' + lab + '"><defs><radialGradient id="' + gid + '" cx="42%" cy="38%" r="62%"><stop offset="0" stop-color="#e9fbff"/><stop offset=".2" stop-color="#8ef0ff"/><stop offset=".55" stop-color="#2f9bf0"/><stop offset=".88" stop-color="#173a99"/><stop offset="1" stop-color="#173a99" stop-opacity="0"/></radialGradient></defs><g class="world" style="transform:' + worldTransform(focus, zoom, vbh) + '">' + g + '</g></svg>';
+  }
+
+  /* ---------------- heartbeats: blips are beats, spikes are work, the right edge is now ---------------- */
+  function pick(seed) { var h = hash(seed), n = 1 + (h % 3), out = []; for (var i = 0; i < n; i++) out.push(((h >> (i * 5)) % 220) / 10 + 0.8); return out; }
+  function stripSVG(o) {
+    var w = o.w || 300, h = o.h || 36, b = Math.round(h * 0.62), tail = o.live ? 18 : 0;
+    var hue = o.hue || (o.who === 'nova' ? NOVA.hue : AG[o.who].hue);
+    var X = function (t) { return w - (t / 24) * w; };
+    var feats = [];
+    if (!o.quiet && !o.never) for (var t = 23.7; t > 0.25; t -= 0.5) feats.push({ x: X(t), k: 'b' });
+    (o.ev || []).forEach(function (t) { feats.push({ x: X(t), k: 'e' }); });
+    feats.sort(function (p, q) { return p.x - q.x; });
+    var keep = feats.filter(function (f) { return f.k === 'e' || !feats.some(function (g) { return g.k === 'e' && Math.abs(g.x - f.x) < 6; }); });
+    var d = 'M0 ' + b;
+    keep.forEach(function (f) {
+      var x = f.x; if (x > w - tail - 4 || x < 4) return;
+      if (f.k === 'b') d += ' L' + (x - 1.6).toFixed(1) + ' ' + b + ' L' + x.toFixed(1) + ' ' + (b - 2.6) + ' L' + (x + 1.6).toFixed(1) + ' ' + b;
+      else d += ' L' + (x - 3).toFixed(1) + ' ' + b + ' L' + (x - 1.5).toFixed(1) + ' ' + (b + 2.4) + ' L' + x.toFixed(1) + ' ' + (b - h * 0.44).toFixed(1) + ' L' + (x + 1.6).toFixed(1) + ' ' + (b + 3.2) + ' L' + (x + 3).toFixed(1) + ' ' + b;
+    });
+    d += ' L' + (w - tail).toFixed(1) + ' ' + b;
+    var s = '<svg class="strip" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true" style="--h:' + hue + '"><path class="base' + (o.quiet ? ' quiet' : o.never ? ' never' : '') + '" d="' + d + '"/>';
+    (o.fail || []).forEach(function (t) { var x = X(t); s += '<path class="fail" d="M' + (x - 2.6).toFixed(1) + ' ' + b + ' L' + x.toFixed(1) + ' ' + (b + h * 0.26).toFixed(1) + ' L' + (x + 2.6).toFixed(1) + ' ' + b + '"/><circle class="faildot" cx="' + x.toFixed(1) + '" cy="' + (b + h * 0.26 + 3).toFixed(1) + '" r="2"/>'; });
+    if (o.live) s += '<path class="tail" data-tail="' + w + ',' + b + ',' + tail + '" d="M' + (w - tail) + ' ' + b + ' L' + w + ' ' + b + '"/><circle class="halo" data-halo cx="' + (w - 2) + '" cy="' + b + '" r="5"/><circle class="head" data-head cx="' + (w - 2) + '" cy="' + b + '" r="2.4"/>';
+    else if (!o.quiet && !o.never) s += '<circle class="head" cx="' + (w - 2) + '" cy="' + b + '" r="1.8"/>';
+    return s + '</svg>';
+  }
+  function ringHTML(n, of, hue) {
+    var r = 18, c = 2 * Math.PI * r;
+    return '<span class="ring" style="--h:' + hue + '" data-ringv="' + n + '/' + of + '"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="rt" cx="22" cy="22" r="' + r + '"/><circle class="ra" cx="22" cy="22" r="' + r + '" stroke-dasharray="' + (c * n / of).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 22 22)"/></svg><span class="rn">' + n + '/' + of + '</span></span>';
+  }
+  function railHTML(cur) {
+    return '<span class="rail" role="img" aria-label="Step ' + (cur + 1) + ' of 4: writing the sound cue">' + ['Plan', 'Build', 'Sound', 'Test'].map(function (s, i) { return '<span class="st ' + (i < cur ? 'done' : i === cur ? 'now' : '') + '"><i></i><em>' + s + '</em></span>'; }).join('') + '</span>';
+  }
+  var FIELD = ['nova', 'commander', 'coach', 'cfo', 'guardian', 'researcher', 'watcher', 'librarian', 'mealprep', 'leader', 'practice'];
+  function fieldHTML() {
+    return '<div class="field" role="img" aria-label="48 loops on ten beings and Nova: 44 on time, 2 quiet, 1 never run, 1 failed">' + FIELD.map(function (id) {
+      var hue = id === 'nova' ? NOVA.hue : AG[id].hue;
+      return '<div class="fcol" style="--h:' + hue + '">' + lead(id, id === 'nova' ? 22 : 24) + LOOPS[id].map(function (l) { return '<span class="dt' + (l[2] === 'ok' ? '' : ' ' + l[2]) + '"></span>'; }).join('') + '</div>';
+    }).join('') + '</div>';
+  }
+  function legendHTML() { return '<span><span class="dt"></span>on time</span><span><span class="dt quiet"></span>gone quiet</span><span><span class="dt never"></span>never run</span><span><span class="dt fail"></span>failed</span>'; }
+
+  /* ---------------- cards and rows ---------------- */
+  function asksHTML(id) {
+    return ASKS[id].map(function (q) {
+      return '<div class="ask" data-ask="' + id + '"><span class="lx"><span class="at">' + q[0] + '</span><span class="aw">' + q[1] + '</span></span><button class="btn round ok" type="button" aria-label="Yes: ' + q[0] + '" data-yes data-obj>' + ic('check') + '</button><button class="btn round" type="button" aria-label="No: ' + q[0] + '" data-no data-obj>' + ic('x') + '</button></div>';
+    }).join('');
+  }
+  function propHTML(nested) {
+    return '<div class="' + (nested ? 'prop inner' : 'card prop') + '"><span class="pk">' + ic('steps') + 'Filing ladder</span><p class="say">Let Nova file everything on his own.</p><div class="change" role="img" aria-label="Auto high now, Auto all proposed"><span class="pill" style="--h:var(--talk)"><i></i>Auto high</span>' + ic('arrow', 'arr') + '<span class="pill arrive" style="--h:var(--wait)"><i></i>Auto all</span></div><p class="b15">You approved his last 8 review calls without changing one.</p><div class="answer"><button class="btn yes" type="button" data-obj>' + ic('check') + 'Accept</button><button class="btn talk" type="button" data-obj>' + ic('talk') + 'Talk about it</button><button class="btn round" type="button" aria-label="Skip" data-obj>' + ic('x') + '</button></div></div>' +
+      '<div class="' + (nested ? 'rows' : 'card rows') + '" style="margin-top:' + (nested ? 8 : 10) + 'px"><button class="row" type="button" data-obj' + (nested ? ' style="padding-inline:0"' : '') + '><span class="tile gold">' + ic('loop') + '</span><span class="lx"><span class="nm">Briefs</span><span class="sv">Let the morning brief file itself. You approved the last 3.</span></span>' + ic('right', 'cv') + '</button></div>';
+  }
+  function segcHTML() { return '<div class="segc" role="radiogroup" aria-label="Filing"><button type="button" role="radio" aria-checked="false" aria-pressed="false" data-obj>Review all</button><button type="button" role="radio" aria-checked="true" aria-pressed="true" data-obj>Auto high</button><button type="button" role="radio" aria-checked="false" aria-pressed="false" class="next" data-obj>Auto all</button></div>'; }
+  function waysHTML() {
+    return '<div class="waystack"><div class="chips" style="justify-content:center">' + ['App', 'Voice', 'Siri', 'Telegram'].map(function (x, i) { return '<span class="chip' + (i === 0 ? ' live' : '') + '">' + x + '</span>'; }).join('') + '</div><div class="wmid"><span class="wline">' + (RM ? '' : '<i></i>') + '</span></div>' + orb(30) + '<div class="wmid"><span class="wline"></span></div><div class="chips" style="justify-content:center">' + ['Vault', 'Calendar', 'Reminders', 'Health', 'Todoist', 'ElevenLabs'].map(function (x) { return '<span class="chip' + (x === 'Calendar' ? ' fail' : '') + '">' + x + '</span>'; }).join('') + '</div></div><p class="sub" style="text-align:center">You are talking to him from the app now. Five hands work; the calendar failed at 08:40 and 09:10.</p>';
+  }
+  function novaCard() {
+    return '<div class="card pad swap"><div class="bhead">' + orb(44) + '<span class="bt"><b style="color:var(--nova)">Nova</b><span>Runs the org. Asks any of them, alone or together.</span></span></div>' +
+      '<div class="btns"><button class="btn talk" type="button" data-obj>' + ic('users') + 'Talk to everyone</button><button class="btn quiet" type="button" data-obj>' + ic('talk') + 'Talk to Nova</button></div>' +
+      '<h3 class="k2">Proposes · 2</h3>' + propHTML(true) +
+      '<h3 class="k2">Filing</h3>' + segcHTML() + '<p class="sub">Auto high: sure things file themselves and doubts wait for you. The dashed step is the one he proposes.</p>' +
+      '<h3 class="k2">Ways in and hands</h3>' + waysHTML() +
+      '<div class="rows" style="margin-top:10px;border-top:1px solid var(--sep)"><button class="row" type="button" data-obj style="padding-inline:0"><span class="tile gold">' + ic('receipt') + '</span><span class="lx"><span class="nm">Your own notes</span><span class="sv">Two to sort, held by Nova</span></span><span class="cnt">2</span></button></div></div>';
+  }
+  function beingCard(id) {
+    var a = AG[id];
+    var s = '<div class="card pad swap" style="--h:' + a.hue + '"><div class="bhead">' + face(id, 52, a.work ? 'work' : '') + '<span class="bt"><b style="color:' + a.hue + '">' + a.name + '</b><span>' + a.role + ' · ' + a.line + '</span></span></div><p class="b15">' + LINE[id] + '</p>';
+    if (a.fail) s += '<div class="btns"><button class="btn retry" type="button" data-obj data-retry>' + ic('retry') + 'Try again</button><button class="btn talk" type="button" data-obj>' + ic('talk') + 'What happened?</button></div>';
+    else if (a.work) s += '<div class="bhead" style="grid-template-columns:auto minmax(0,1fr);margin-top:12px">' + ringHTML(3, 5, a.hue) + '<span class="lx"><span class="nm">Cold water after lifting</span><span class="sv" data-clock>3 of 5 sources · 6 min</span></span></div><div class="btns"><button class="btn talk" type="button" data-obj>' + ic('talk') + 'Talk to it</button></div>';
+    else s += '<div class="btns"><button class="btn talk" type="button" data-obj>' + ic('talk') + 'Talk to ' + a.the + '</button>' + (a.wait ? '<button class="btn quiet" type="button" data-obj>Open its card</button>' : '') + '</div>';
+    s += '<div style="margin-top:12px">' + stripSVG({ who: id, w: 326, h: 34, ev: EV[id], fail: a.fail ? [1, 0.5] : null, live: !!a.work }) + '</div><div class="axis"><span>24 hours ago</span><span>now</span></div></div>';
+    return s;
+  }
+  function benchHTML(sel) {
+    return TEN.map(function (id) {
+      var a = AG[id];
+      var c = a.fail ? '<span class="cnt fail" aria-hidden="true">!</span>' : (a.wait ? '<span class="cnt" data-cnt="' + id + '" aria-hidden="true">' + a.wait + '</span>' : '');
+      var lab = a.name + (a.fail ? ', a loop failed' : a.wait ? ', ' + a.wait + ' waiting' : '') + (a.work ? ', working' : '');
+      return '<button class="seat" type="button" data-obj data-id="' + id + '" aria-pressed="' + (sel === id) + '" aria-label="' + lab + '" style="--h:' + a.hue + '">' + face(id, 40, a.work ? 'work' : '') + c + '<span class="nm">' + a.name + '</span></button>';
+    }).join('');
+  }
+  function focusline(id) {
+    var a = AG[id];
+    return '<div class="fline swap">' + face(id, 36, a.work ? 'work' : '') + '<span class="lx"><span class="nm" style="color:' + a.hue + '">' + a.name + '</span><span class="sv">' + SHORT[id] + '</span></span>' +
+      (a.work ? ringHTML(3, 5, a.hue) : a.fail ? '<button class="btn retry" type="button" data-obj data-retry>' + ic('retry') + 'Retry</button>' : '<button class="btn talk" type="button" data-obj>' + ic('talk') + 'Talk</button>') + '</div>';
+  }
+  function row(icon, name, sub, end) { return '<button class="row" type="button" data-obj><span class="tile">' + ic(icon) + '</span><span class="lx"><span class="nm">' + name + '</span><span class="sv">' + sub + '</span></span>' + (end || ic('right', 'cv')) + '</button>'; }
+  var MACH = [['steps', 'Filing', 'Auto high · Nova proposes Auto all'], ['hammer', 'The Forge', '1 building, 1 built this week'], ['moon', 'Overnight', '1 question for 03:30'], ['laptop', 'This Mac', '2 working, 1 waiting for you'], ['ladder', 'Skills', '31 in all, 9 act on your yes'], ['link', 'Connections', '4 ways in, 6 hands, 1 failing'], ['receipt', 'Receipts', '9 filed today'], ['wall', 'Ambient', 'The org on the wall']];
+  function machHTML() { return MACH.map(function (m) { return row(m[0], m[1], m[2]); }).join(''); }
+  function forgeRow() { return '<button class="now" type="button" data-obj><span class="tile">' + ic('hammer') + '</span><span class="lx"><span class="nm">The Forge · building</span><span class="sv">A rest timer that speaks the last ten seconds</span>' + railHTML(2) + '</span><span></span></button>'; }
+  function macRow() { return '<button class="now" type="button" data-obj><span class="tile">' + ic('laptop') + '</span><span class="lx"><span class="nm">This Mac · working</span><span class="sv">Ops redesign audit · 14 min · one more waits for you</span></span><span class="pulse" style="--h:var(--talk)"></span></button>'; }
+  function atworkHTML() { return forgeRow() + row('moon', 'Overnight', '1 question queued for 03:30') + row('laptop', 'This Mac', '2 working, 1 waiting for you', '<span class="end"><span class="pulse" style="--h:var(--talk)"></span>' + ic('right', 'cv') + '</span>'); }
+  function elseHTML() { return row('receipt', 'Receipts', '9 filed today, each on its being') + row('ladder', 'Skills', 'The registry, yours to edit') + row('wall', 'Ambient', 'The org on the wall'); }
+  function waitcardHTML() {
+    var who = [['researcher', 5], ['coach', 4], ['guardian', 2], ['watcher', 2]];
+    return '<button class="card waitcard" type="button" data-obj><span class="num xl wait">18</span><span class="cx"><b>decisions</b><span>11 on 3 subjects · 7 to decide</span></span><span class="who">' + who.map(function (w) { return '<span>' + face(w[0], 22) + AG[w[0]].name + ' ' + w[1] + '</span>'; }).join('') + '<span>and 3 more</span></span><span class="go">Open the Inbox' + ic('right', 'cv') + '</span></button>';
+  }
+  function nowHTML() {
+    return '<div class="nowfail">' + face('commander', 36) + '<span class="lx"><span class="nm">Calendar sync failed</span><span class="sv">09:10 · the plan uses 07:58</span></span><button class="btn retry" type="button" data-obj data-retry>' + ic('retry') + 'Retry</button></div>' +
+      '<button class="now" type="button" data-obj style="--h:var(--researcher)">' + face('researcher', 36, 'work') + '<span class="lx"><span class="nm">Researcher · reading</span><span class="sv">Cold water after lifting, for the Coach</span></span>' + ringHTML(3, 5, AG.researcher.hue) + '</button>' + forgeRow() + macRow();
+  }
+  function loopsHTML(id, mode) {
+    var a = AG[id];
+    return LOOPS[id].map(function (l) {
+      var st = l[2], word = st === 'fail' ? 'failed 09:10' : st === 'quiet' ? 'quiet ' + l[3] : st === 'never' ? 'never run' : 'on time';
+      if (mode === 'list') return '<div class="lrow2" style="--h:' + a.hue + '"><span class="ldot' + (st === 'ok' ? '' : ' ' + st) + '"></span><span class="lx"><span class="nm">' + l[0] + '</span><span class="sv">' + l[1] + '</span></span><span class="end"' + (st === 'fail' ? ' style="color:var(--fail)"' : '') + '>' + word + '</span></div>';
+      var sv = stripSVG({ who: id, w: 92, h: 24, ev: st === 'ok' ? pick(id + l[0]) : [], quiet: st === 'quiet', never: st === 'never', fail: st === 'fail' ? [1, 0.5] : null });
+      var end = st === 'ok' ? '<span class="end">on time</span>' : '<button class="btn quiet" type="button" data-obj>' + (st === 'fail' ? 'Try again' : 'Run now') + '</button>';
+      return '<div class="lrow' + (st === 'ok' ? '' : ' ' + st) + '"><span class="lx"><span class="nm">' + l[0] + '</span><span class="sv">' + (st === 'ok' ? l[1] : word) + '</span></span><span>' + sv + '</span>' + end + '</div>';
+    }).join('');
+  }
+  function ontimeHTML() {
+    return ['guardian', 'librarian', 'leader', 'cfo', 'watcher', 'practice', 'nova'].map(function (id) {
+      var a = id === 'nova' ? NOVA : AG[id], n = LOOPS[id].length;
+      return '<button class="orow" type="button" data-obj style="--h:' + a.hue + '">' + lead(id, 28) + '<span class="lx"><span class="nm">' + a.name + '</span><span class="sv">' + n + ' loop' + (n === 1 ? '' : 's') + ', all on time</span></span><span>' + stripSVG({ who: id, hue: a.hue, w: 92, h: 24, ev: EV[id] }) + '</span>' + ic('right', 'cv') + '</button>';
+    }).join('');
+  }
+
+  /* ---------------- the monitor (C) ---------------- */
+  var LANES = ['nova', 'commander', 'researcher', 'coach', 'guardian', 'watcher', 'cfo', 'librarian', 'leader', 'mealprep', 'practice'];
+  function laneEnd(id) { if (id === 'nova') return '<span class="cnt">2</span>'; var a = AG[id]; return a.fail ? '<span class="cnt fail">!</span>' : a.wait ? '<span class="cnt" data-cnt="' + id + '">' + a.wait + '</span>' : ''; }
+  function subLanes(id) {
+    return LOOPS[id].map(function (l) {
+      var st = l[2], sv = stripSVG({ who: id, w: 200, h: 22, ev: st === 'ok' ? pick(id + l[0]) : [], quiet: st === 'quiet', never: st === 'never', fail: st === 'fail' ? [1, 0.5] : null });
+      return '<div class="sublane' + (st === 'ok' ? '' : ' q') + '"><span class="sl">' + l[0] + '</span>' + sv + '</div>';
+    }).join('');
+  }
+  function laneOpen(id) {
+    if (id === 'nova') return '<div class="lopen" style="--h:' + NOVA.hue + '"><p class="b15">Your conversations with him today, on every door: the app, voice, Siri and Telegram.</p><div class="btns"><button class="btn talk" type="button" data-obj>' + ic('users') + 'Talk to everyone</button></div></div>';
+    var a = AG[id], s = '<div class="lopen" style="--h:' + a.hue + '">';
+    if (id === 'commander') s += '<div class="failbox" style="margin-top:8px"><div class="fh"><span class="cnt fail">!</span>Calendar Watch could not reach your calendar</div><p class="b15">It tried at 08:40 and 09:10. The last good copy is from 07:58, so today\'s plan is working from that copy.</p><div class="btns"><button class="btn retry" type="button" data-obj data-retry>' + ic('retry') + 'Try again</button><button class="btn talk" type="button" data-obj>' + ic('talk') + 'What happened?</button></div></div><p class="sub">Its other seven loops beat on time.</p>';
+    else if (id === 'researcher') s += '<div class="bhead" style="grid-template-columns:auto minmax(0,1fr);margin-top:8px">' + ringHTML(3, 5, a.hue) + '<span class="lx"><span class="nm">Reading for the Coach</span><span class="sv" data-clock>3 of 5 sources · 6 min</span></span></div><p class="say">Does cold water after lifting blunt the gains?</p><p class="b15">At 09:33 you asked Nova, Nova asked the Coach, and the Coach asked the Researcher. It asked the Librarian for your notes on recovery; two came back.</p><div class="btns"><button class="btn quiet" type="button" data-obj>' + ic('stop') + 'Stop</button><button class="btn talk" type="button" data-obj>' + ic('talk') + 'Talk to it</button></div>';
+    else if (id === 'coach') s += '<div style="margin-top:6px">' + subLanes(id) + '</div><div class="quietbox"><p><b>Form Videos</b> has been quiet for 4 days.</p><button class="btn quiet" type="button" data-obj>Run it now</button></div><h3 class="k2">Asks you · <span data-n="coach">4</span></h3><div class="card rows asks">' + asksHTML('coach') + '</div><div class="btns"><button class="btn do" type="button" data-all="coach" data-obj>' + ic('check') + 'Yes to all four</button><button class="btn talk" type="button" data-obj>' + ic('talk') + 'Talk to the Coach</button></div>';
+    else s += '<div style="margin-top:6px">' + subLanes(id) + '</div><div class="btns"><button class="btn talk" type="button" data-obj>' + ic('talk') + 'Talk to ' + a.the + '</button></div>';
+    return s + '</div>';
+  }
+  function laneHTML(id, open) {
+    var nova = id === 'nova', a = nova ? NOVA : AG[id];
+    var strip = stripSVG({ who: id, hue: a.hue, w: 180, h: 34, ev: EV[id], fail: (!nova && a.fail) ? [1, 0.5] : null, live: !nova && !!a.work });
+    return '<button class="lane" type="button" data-obj data-lane="' + id + '" aria-expanded="' + (open ? 'true' : 'false') + '" style="--h:' + a.hue + '"><span class="ln">' + lead(id, 26, !nova && a.work ? 'work' : '') + '<span class="lnn">' + a.name + '</span></span><span class="track">' + strip + '</span><span class="le">' + laneEnd(id) + '</span></button>' + (open ? laneOpen(id) : '');
+  }
+  function lanesHTML(open, skip) { return LANES.slice(skip || 0).map(function (id) { return laneHTML(id, open.indexOf(id) >= 0); }).join(''); }
+
+  /* the dock he has: Home, Nova, Train, Fuel, More, and the Nova button */
+  function dockHTML() {
+    return '<div class="drow"><div class="tabbar"><span class="tab"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span><span class="tab"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Nova</span><span class="tab"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span><span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span><span class="tab on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span></div><button class="novabtn" type="button" aria-label="Talk to Nova">' + orb(36) + '</button></div>';
+  }
+
+  /* ---------------- render ---------------- */
+  $$('[data-face]').forEach(function (e) { e.outerHTML = face(e.dataset.face, +e.dataset.s || 28, e.dataset.st || ''); });
+  $$('[data-ring]').forEach(function (e) { var v = e.dataset.ring.split('/'); e.outerHTML = ringHTML(+v[0], +v[1], e.dataset.hue); });
+  $$('[data-rail]').forEach(function (e) { e.outerHTML = railHTML(+e.dataset.cur || 0); });
+  $$('[data-dock]').forEach(function (e) { e.innerHTML = dockHTML(); });
+  $$('[data-map]').forEach(function (e) { e.innerHTML = mapSVG(e); });
+  $$('[data-bench]').forEach(function (e) { e.innerHTML = benchHTML(e.dataset.sel || ''); });
+  $$('[data-focus]:not([data-map])').forEach(function (e) { e.innerHTML = novaCard(); });
+  $$('[data-focusline]').forEach(function (e) { e.innerHTML = focusline('researcher'); });
+  $$('[data-asks]').forEach(function (e) { e.innerHTML = asksHTML(e.dataset.asks); });
+  $$('[data-strip]').forEach(function (e) {
+    var num = function (k) { return (e.dataset[k] || '').split(',').filter(Boolean).map(Number); };
+    e.innerHTML = stripSVG({ who: e.dataset.who, w: +e.dataset.w, h: +e.dataset.h, ev: num('ev'), fail: num('fail'), live: !!e.dataset.live });
+  });
+  $$('[data-loops]').forEach(function (e) { e.innerHTML = loopsHTML(e.dataset.loops, e.dataset.mode); });
+  $$('[data-prop]').forEach(function (e) { e.innerHTML = propHTML(false); });
+  $$('[data-mach]').forEach(function (e) { e.innerHTML = machHTML(); });
+  $$('[data-atwork]').forEach(function (e) { e.innerHTML = atworkHTML(); });
+  $$('[data-else]').forEach(function (e) { e.innerHTML = elseHTML(); });
+  $$('[data-waitcard]').forEach(function (e) { e.innerHTML = waitcardHTML(); });
+  $$('[data-now]').forEach(function (e) { e.innerHTML = nowHTML(); });
+  $$('[data-field]').forEach(function (e) { e.innerHTML = fieldHTML(); });
+  $$('[data-legend]').forEach(function (e) { e.innerHTML = legendHTML(); });
+  $$('[data-ontime]').forEach(function (e) { e.innerHTML = ontimeHTML(); });
+  $$('[data-lanes]').forEach(function (e) { e.innerHTML = lanesHTML((e.dataset.open || '').split(','), +e.dataset.skip || 0); });
+
+  /* ---------------- interaction ---------------- */
+  function vbOf(map) { return parseFloat(map.dataset.vbh || '280'); }
+  function select(key, id) {
+    var bench = $('[data-bench="' + key + '"]'); if (!bench) return;
+    var cur = $('.seat[aria-pressed="true"]', bench), same = cur && cur.dataset.id === id;
+    $$('.seat', bench).forEach(function (s) { s.setAttribute('aria-pressed', String(!same && s.dataset.id === id)); });
+    var map = $('[data-map][data-ctl="' + key + '"]');
+    if (map) { var w = $('.world', map); w.style.transform = same ? worldTransform('', 1, vbOf(map)) : worldTransform(id, FT[id][0] === 'knowledge' ? 1.85 : 2.2, vbOf(map)); }
+    var card = $('[data-focus="' + key + '"]:not([data-map])'); if (card) card.innerHTML = same ? novaCard() : beingCard(id);
+    var line = $('[data-focusline="' + key + '"]'); if (line) line.innerHTML = focusline(same ? 'researcher' : id);
+    bindLive();
+  }
+  function decide(row, ok) {
+    if (!row || row.classList.contains('gone')) return;
+    row.classList.add('gone', ok ? 'leave-yes' : 'leave-no');
+    var id = row.dataset.ask, phone = row.closest('.phone'), list = row.parentNode;
+    setTimeout(function () {
+      row.style.display = 'none';
+      var n = $('[data-n="' + id + '"]', phone), v = n ? Math.max(0, parseInt(n.textContent, 10) - 1) : 0;
+      if (n) n.textContent = v;
+      $$('.cnt[data-cnt="' + id + '"]', phone).forEach(function (c) { if (v) { c.textContent = v; c.classList.remove('tick'); void c.offsetWidth; c.classList.add('tick'); } else c.style.display = 'none'; });
+      $$('[data-mk="' + id + '"] text', phone).forEach(function (t) { if (v) t.textContent = v; else t.closest('[data-mk]').style.display = 'none'; });
+      if (!v && list && !$('.done-row', list)) list.insertAdjacentHTML('beforeend', '<div class="done-row"><span class="tile">' + ic('check') + '</span><span class="lx"><span class="nm">All four answered</span><span class="sv">Filed by code, each one undoable</span></span><button class="btn quiet" type="button" data-obj data-undo>Undo</button></div>');
+    }, RM ? 200 : 430);
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    var go = t.closest('.seg3 [data-go]'); if (go) { show(go.dataset.go); return; }
+    var seat = t.closest('.seat'); if (seat) { select(seat.closest('[data-bench]').dataset.bench, seat.dataset.id); return; }
+    var being = t.closest('.m-being'); if (being) { var m = being.closest('[data-map]'); if (m && m.dataset.ctl) select(m.dataset.ctl, being.dataset.id); return; }
+    var yes = t.closest('[data-yes]'), no = t.closest('[data-no]'); if (yes || no) { decide((yes || no).closest('.ask'), !!yes); return; }
+    var all = t.closest('[data-all]'); if (all) { var scope = all.closest('.sbody, .lopen, .phone'); $$('.ask:not(.gone)', scope).forEach(function (r, i) { setTimeout(function () { decide(r, true); }, i * 90); }); all.disabled = true; all.style.opacity = '.45'; return; }
+    var undo = t.closest('[data-undo]'); if (undo) { var lst = undo.closest('.asks'); $$('.ask', lst).forEach(function (r) { r.classList.remove('gone', 'leave-yes', 'leave-no'); r.style.display = ''; }); var ph = lst.closest('.phone'); $$('[data-n="coach"]', ph).forEach(function (n) { n.textContent = '4'; }); $$('.cnt[data-cnt="coach"]', ph).forEach(function (c) { c.style.display = ''; c.textContent = '4'; }); $$('[data-mk="coach"]', ph).forEach(function (g) { g.style.display = ''; $('text', g).textContent = '4'; }); $$('[data-all]', ph).forEach(function (b) { b.disabled = false; b.style.opacity = ''; }); undo.closest('.done-row').remove(); return; }
+    var lane = t.closest('.lane'); if (lane) { var open = lane.getAttribute('aria-expanded') === 'true', nx = lane.nextElementSibling; if (open) { if (nx && nx.classList.contains('lopen')) nx.remove(); lane.setAttribute('aria-expanded', 'false'); } else { lane.insertAdjacentHTML('afterend', laneOpen(lane.dataset.lane)); lane.setAttribute('aria-expanded', 'true'); } bindLive(); return; }
+    var ps = t.closest('[data-pseg] button'); if (ps) { var wrap = ps.closest('[data-pseg]'), scr = wrap.closest('.scr'); $$('button', wrap).forEach(function (b) { b.setAttribute('aria-pressed', String(b === ps)); }); $('[data-pane="pulse"]', scr).hidden = ps.dataset.p !== 'pulse'; $('[data-pane="org"]', scr).hidden = ps.dataset.p !== 'org'; bindLive(); return; }
+    var rt = t.closest('[data-retry]'); if (rt && !rt.classList.contains('busy')) { var label = rt.lastChild.textContent; rt.classList.add('busy'); rt.lastChild.textContent = 'Trying'; setTimeout(function () { rt.classList.remove('busy'); rt.lastChild.textContent = label; }, 1600); return; }
+  });
+
+  /* ---------------- live motion (none under reduced motion) ---------------- */
+  var tails = [], raf = 0, last = 0;
+  function bindLive() {
+    tails = $$('.dir:not([hidden]) [data-tail]').map(function (p) {
+      var v = p.dataset.tail.split(',').map(Number), svg = p.ownerSVGElement;
+      return { p: p, w: v[0], b: v[1], tw: v[2], head: $('[data-head]', svg), halo: $('[data-halo]', svg), seed: (hash(String(Math.random())) % 100) / 10 };
+    });
+    if (RM) draw(1.2);
+  }
+  function draw(s) {
+    tails.forEach(function (o) {
+      var d = 'M' + (o.w - o.tw) + ' ' + o.b, y = o.b;
+      for (var x = o.w - o.tw + 2; x <= o.w - 2; x += 2) {
+        var k = (x - (o.w - o.tw)) / o.tw;
+        y = o.b - (Math.sin(s * 6 + x * 0.9 + o.seed) * 3 + Math.sin(s * 11 + x * 0.37 + o.seed * 2) * 2.2) * (0.35 + k * 0.65);
+        d += ' L' + x + ' ' + y.toFixed(1);
+      }
+      o.p.setAttribute('d', d);
+      if (o.head) o.head.setAttribute('cy', y.toFixed(1));
+      if (o.halo) o.halo.setAttribute('cy', y.toFixed(1));
+    });
+  }
+  function frame(t) { raf = requestAnimationFrame(frame); if (t - last < 33) return; last = t; draw(t / 1000); }
+  function startLoop() { if (!RM && !raf) raf = requestAnimationFrame(frame); }
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; } else startLoop(); });
+  if (!RM) {
+    setInterval(function () {
+      if (document.hidden) return;
+      $$('.dir:not([hidden]) .field').forEach(function (f) {
+        var dots = $$('.dt:not(.quiet):not(.never):not(.fail)', f), d = dots[Math.floor(Math.random() * dots.length)];
+        if (!d) return; d.classList.remove('beat'); void d.offsetWidth; d.classList.add('beat');
+      });
+    }, 650);
+    var prog = 3;
+    setInterval(function () {
+      if (document.hidden) return;
+      prog = prog >= 5 ? 3 : prog + 1;
+      var c = 2 * Math.PI * 18;
+      $$('[data-ringv]').forEach(function (r) { $('.ra', r).setAttribute('stroke-dasharray', (c * prog / 5).toFixed(1) + ' ' + c.toFixed(1)); $('.rn', r).textContent = prog + '/5'; });
+      $$('[data-clock]').forEach(function (el) { el.textContent = prog + ' of 5 sources · ' + (3 + prog) + ' min'; });
+    }, 4200);
+  }
+
+  /* ---------------- the page measures itself ---------------- */
+  function measure(phone) {
+    var pr = phone.getBoundingClientRect(), tab = $('.dock .tabbar', phone), foldB = tab ? tab.getBoundingClientRect().top : pr.bottom;
+    var scrs = $$('.scr, .sbody', phone), saved = scrs.map(function (s) { return s.scrollTop; });
+    scrs.forEach(function (s) { s.scrollTop = 0; });
+    var objs = $$('[data-obj]', phone).filter(function (el) {
+      if (el.closest('[hidden]') || el.closest('.dock')) return false;
+      var r = el.getBoundingClientRect(); if (!r.width || !r.height) return false;
+      var sc = el.closest('.scr, .sbody'), sr = sc ? sc.getBoundingClientRect() : pr;
+      var top = Math.max(pr.top + 47, sr.top), bot = Math.min(foldB, sr.bottom);
+      return r.bottom > top + 2 && r.top < bot - 2;
+    });
+    var main = $('.scr', phone) || $('.sbody', phone);
+    var screens = main ? (main.scrollHeight + (main.getBoundingClientRect().top - pr.top)) / pr.height : 1;
+    var sizes = {};
+    $$('*', phone).forEach(function (e) {
+      if (e.closest('.sb, .dock, svg, [hidden], .num, .rn, .cnt')) return;
+      var hasText = Array.prototype.some.call(e.childNodes, function (n) { return n.nodeType === 3 && n.textContent.trim(); });
+      if (!hasText || !e.getBoundingClientRect().width) return;
+      sizes[parseFloat(getComputedStyle(e).fontSize)] = 1;
+    });
+    var ctl = $$('button', phone).filter(function (b) { return !b.closest('.dock, [hidden]') && b.getBoundingClientRect().width; }).map(function (b) { var r = b.getBoundingClientRect(); return Math.min(r.width, r.height); });
+    scrs.forEach(function (s, i) { s.scrollTop = saved[i]; });
+    return { objs: objs.length, screens: Math.max(1, screens).toFixed(1), sizes: Object.keys(sizes).map(Number).sort(function (a, b) { return b - a; }), minc: Math.round(Math.min.apply(null, ctl)) };
+  }
+  function tally(k) {
+    var sec = document.getElementById('d-' + k); if (!sec || sec.dataset.measured) return;
+    $$('.phone', sec).forEach(function (ph, i) {
+      var m = measure(ph), cap = $('[data-m]', ph.closest('.fr'));
+      if (cap) cap.textContent = 'Measured here: ' + m.objs + ' objects above the fold · ' + m.screens + ' screens · smallest control ' + m.minc + ' points.';
+      if (i === 0) $('[data-tally]', sec).innerHTML = 'Measured on frame 1: <b>' + m.objs + '</b> objects above the fold (today 17) · <b>' + m.screens + '</b> screens deep (today 8.5) · <b>' + m.sizes.length + '</b> type sizes, ' + m.sizes.join(' · ') + ' besides numerals (today 13) · smallest control <b>' + m.minc + '</b> points (today 8 by 12).';
+    });
+    sec.dataset.measured = '1';
+  }
+  function show(k) {
+    $$('.dir').forEach(function (d) { d.hidden = d.dataset.dir !== k; });
+    $$('.seg3 [data-go]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.go === k)); });
+    try { history.replaceState(null, '', '#' + k); } catch (err) { /* a sandboxed frame */ }
+    bindLive();
+    requestAnimationFrame(function () { requestAnimationFrame(function () { tally(k); }); });
+  }
+  var start = (location.hash || '').replace('#', '');
+  show(['a', 'b', 'c'].indexOf(start) >= 0 ? start : 'a');
+  startLoop();
+  window.__ops73 = { show: show, measure: measure, select: select };
+})();
+</script>
