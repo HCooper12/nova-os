@@ -1,0 +1,1017 @@
+<title>Money and Code</title>
+<!--
+  80 · MONEY AND CODE, ROUND 1 (5 Oct 2026)
+  Audit: design/audits/redesign-2026-09/17-money-and-code.md. Two small
+  screens drawn together because they share one fault: each is a stack of
+  unrelated panels with no focal point, and each makes its most important
+  decision (a budget, a commit) the hardest thing on the page to reach.
+
+  Three directions, switched at the top. Each draws both screens.
+    A · One calm page     Home's Summary grammar: a large title, the serif
+                          news line, one hero form, grouped cards, sheets
+                          for detail. Code: the thread, with the changes in
+                          a tray above the composer.
+    B · Two levels        The Index's grammar: the top of each screen fits
+                          one phone screen; the ledger, the subscriptions,
+                          a category and the review of a commit are pages
+                          pushed from it.
+    C · Decisions first   The Coach-deck grammar: each screen opens on what
+                          is waiting for him (a tick, a cross, talk back,
+                          one do-all), the record under it. Money adds by
+                          typing at the foot; a finished run is one card.
+  Six frames each: Money · Month, Budget, Rise, Add; Code · Run, Commit.
+
+  Colour. One hue per screen, and it means that screen.
+    Money  violet, --nv-vi (#8f7bff): the hue its Index tile already wears
+           (src/indexGroups.js:46). Spending is drawn in it; a budget is a
+           line, and anything past the line is hatched AND said in words
+           ("$38 over"), so red is never needed for a missed target (his
+           4 Oct rule keeps red for Nova pushing back).
+    Code   orchid, --nv-m-glutes (#c98bff): Code has no hue today (its
+           Index tile is neutral ink). This is the one token in the house
+           palette that no agent, screen or state owns, and the furthest of
+           those from every hue that already means something. The Builder
+           and the Breaker share it and are told apart by shape and name:
+           a solid mark and rule for the Builder, a cracked mark and a
+           hatched rule for the Breaker.
+    App-wide states appear only while true: gold (--nv-gold) on a card
+    that waits on his call, green (--nv-good) on a done receipt's check.
+    Gold is no longer the commit colour anywhere.
+  Type: 34 (the large title) or 20 (serif news line, sheet titles), then
+  15 and 13; numerals in SF Rounded; the tab label 11. Every control 44.
+  Material: Nova glass (command theme, glass material), the summary card
+  tokens and the sky, as mockups 56 and 63.
+
+  Honest limits. Nothing here is built. Where a frame shows something the
+  server cannot do today it says so in its note (commit only the ticked
+  files, Undo on a commit, the cross on a price rise writing a To-Do).
+  DEMO CONTENT ONLY: the repo is public. Every merchant, amount, budget,
+  date, subscription, request, reply, file, diff line, commit message and
+  hash below is invented; none of it is his.
+
+  Reduced motion: no movement, only short cross-fades; the end state of
+  each frame shows at once. "Reduced motion" in the bar previews it.
+  Hash: #a/1 to #c/6 opens a frame.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);--ease-out:cubic-bezier(.23,1,.32,1);
+  --switch-h:124px;--dock-h:96px;--r:20px;
+  --bg:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.52);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);--blur:22px;
+  --card-shadow:0 14px 34px -18px rgba(0,0,0,.7);--track:rgba(255,255,255,.14);--well:rgba(0,0,0,.3);
+  --money:#8f7bff;   /* --nv-vi */
+  --code:#c98bff;    /* --nv-m-glutes */
+  --wait:#e0b26a;    /* --nv-gold: a card that waits on his call */
+  --done:#5fe8a8;    /* --nv-good: a done receipt */
+  --del:#e08383;     /* --nv-warn: the house swipe Delete only */
+  --hue:var(--money);
+  --tab:rgba(16,20,36,.58);--tab-ring:rgba(255,255,255,.14);--tab-ink:rgba(232,236,246,.5);--tab-on:#59e6ff;--tab-on-bg:rgba(89,230,255,.1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+button:active{transform:scale(.97);transition:transform .14s var(--ease-out)}
+.sky{position:fixed;inset:0;z-index:-1;background:radial-gradient(70% 45% at 12% 8%,rgba(89,230,255,.18),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 88% 30%,rgba(143,123,255,.22),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 112%,rgba(217,181,111,.12),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 70%,#12183a 100%)}
+.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font-family:var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ---------- the review bar (not part of the design) ---------- */
+.switch{position:fixed;top:0;left:0;right:0;z-index:60;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 6px;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border-bottom:1px solid var(--sep)}
+.switch .inner{max-width:402px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.2);min-width:0}
+.seg button{min-height:32px;padding:0 2px;border-radius:9px;font:600 13px var(--ui);text-align:center;opacity:.62;white-space:nowrap;transition:background .25s var(--ease),opacity .25s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--card);box-shadow:0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.2)}
+.segrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:6px}
+.segrow .seg button{font-size:12.5px}
+.trow{display:flex;align-items:center;gap:8px;min-height:22px}
+.tally{flex:1;min-width:0;margin:0 2px;font:400 13px/1.4 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.tally b{color:var(--ink2);font-weight:600}
+.tally.open{white-space:normal}
+.mini{flex:none;height:28px;padding:0 10px;border-radius:14px;font:600 12.5px var(--ui);color:var(--ink2);background:color-mix(in srgb,var(--ink) 9%,transparent)}
+.mini[aria-pressed="true"]{color:var(--bg);background:var(--ink2)}
+
+/* ---------- the phone ---------- */
+.phone{max-width:402px;margin:0 auto}
+.view{position:relative;padding:calc(var(--switch-h) + env(safe-area-inset-top,0px) + 10px) 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 28px);overflow-x:clip}
+.view[hidden]{display:none}
+.view.cv{--hue:var(--code)}
+.view.has-comp{padding-bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 96px)}
+.view.has-tray{padding-bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 156px)}
+
+/* the dock: the iOS 26 pill and Nova, detached; More is lit because both screens live in the Index */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:30;padding:0 12px calc(10px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.dock .row{pointer-events:auto;max-width:378px;margin:0 auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.4)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:56px;border-radius:28px;font:500 11px var(--ui);color:var(--tab-ink)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--tab-on);background:var(--tab-on-bg)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+/* ---------- house pieces ---------- */
+.top{display:flex;align-items:center;gap:8px;min-height:44px}
+.top h1{flex:1;min-width:0;margin:0 2px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.ib{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink);background:color-mix(in srgb,var(--ink) 9%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.ib.hue{color:var(--hue);background:color-mix(in srgb,var(--hue) 18%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hue) 42%,transparent)}
+.ib .ic{width:22px;height:22px}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px 0 16px;border-radius:22px;font:600 15px var(--ui);background:color-mix(in srgb,var(--ink) 9%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.pill .ic{width:16px;height:16px;color:var(--ink3)}
+.news{margin:12px 2px 0;font:400 20px/1.3 var(--serif);text-wrap:pretty}
+.news .lit{color:var(--hue)}
+.card{position:relative;background:var(--card);border-radius:var(--r);padding:14px 16px;box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur)) saturate(1.4);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.4)}
+.gap{height:12px}
+.sechead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:22px 4px 8px}
+.sechead h2{margin:0;font:700 20px/1.2 var(--ui);letter-spacing:-.015em}
+.sechead span{font:400 13px var(--ui);color:var(--ink3)}
+.ch{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px;font:600 15px var(--ui)}
+.ch span{font:400 13px var(--ui);color:var(--ink3);text-align:right}
+.k{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.sub{margin:6px 0 0;font:400 13px/1.4 var(--ui);color:var(--ink2)}
+.rise-in{animation:rise .42s var(--ease) both;animation-delay:calc(var(--i,0) * 50ms)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* a grouped row (Index grammar) */
+.grp{padding:0;overflow:hidden}
+.gr{display:grid;grid-template-columns:30px minmax(0,1fr) auto 14px;gap:12px;align-items:center;width:100%;min-height:52px;padding:6px 14px;text-align:left}
+.gr + .gr{box-shadow:inset 0 .5px 0 var(--sep)}
+.gr .tile{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff;background:color-mix(in srgb,var(--hue) 70%,#000)}
+.gr .tile .ic{width:17px;height:17px}
+.gr b{font:600 15px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gr span.v{font:400 15px var(--ui);color:var(--ink3);white-space:nowrap}
+.gr .chev{width:14px;height:14px;color:var(--ink3)}
+
+/* ---------- Money: the ring hero ---------- */
+.hero{display:grid;grid-template-columns:118px minmax(0,1fr);gap:16px;align-items:center}
+.ring{width:118px;height:118px;display:block}
+.ring circle{fill:none}
+.ring .trk{stroke:var(--track);stroke-width:12}
+.ring .arc{stroke:var(--hue);stroke-width:12;stroke-linecap:round;stroke-dasharray:0 400;transition:stroke-dasharray 1.1s var(--ease-out)}
+.ring .pace{stroke:var(--ink);stroke-width:2.5;stroke-linecap:round;opacity:0;transition:opacity .4s ease .9s}
+.on .ring .pace{opacity:.85}
+.hs .big{display:block;font-size:34px;font-weight:700;line-height:1.05;margin:2px 0 2px}
+.hs .v{display:block;font:400 15px var(--ui);color:var(--ink2)}
+.hs .t{display:block;margin-top:6px;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.hs .t b{color:var(--ink2);font-weight:600}
+.trend{display:inline-flex;align-items:center;gap:4px}
+.trend .ic{width:13px;height:13px;stroke-width:2.6;color:var(--ink2)}
+
+/* ---------- Money: budgets as one chart (A and C) ----------
+   Each bar's track is its budget; the line is the budget; anything past the
+   line is hatched and said in words. Bars grow from the left on arrival. */
+.bl{display:block;width:100%;min-height:46px;padding:5px 0 4px;text-align:left;border-radius:12px}
+.bl + .bl{margin-top:2px}
+.bl .bn{font:600 15px var(--ui)}
+.bl .bv{float:right;font:400 15px var(--ui);color:var(--ink2)}
+.bl .bv b{color:var(--ink);font-weight:600}
+.bar{position:relative;display:block;clear:both;height:14px;margin-top:4px}
+.bar::before{content:"";position:absolute;left:0;top:3px;height:8px;width:84%;border-radius:4px;background:var(--track)}
+.bar .f{position:absolute;left:0;top:3px;height:8px;width:calc(var(--p) * 84%);border-radius:4px;background:var(--hue);transform-origin:0 50%;transform:scaleX(0);transition:transform .7s var(--ease-out);transition-delay:calc(var(--i,0) * 60ms)}
+.bar .o{position:absolute;left:84%;top:3px;height:8px;width:calc(var(--o) * 84%);border-radius:0 4px 4px 0;background:repeating-linear-gradient(135deg,var(--hue) 0 2.5px,transparent 2.5px 5.5px);box-shadow:inset 0 0 0 1.2px var(--hue);transform-origin:0 50%;transform:scaleX(0);transition:transform .45s var(--ease-out),width .5s var(--ease-out);transition-delay:calc(var(--i,0) * 60ms + .65s)}
+.bar .ln{position:absolute;left:calc(84% - 1px);top:0;width:2px;height:14px;border-radius:1px;background:var(--ink2)}
+.on .bar .f,.on .bar .o{transform:none}
+.bl.press{background:color-mix(in srgb,var(--hue) 12%,transparent)}
+.nob{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;margin-top:6px;padding-top:6px;box-shadow:inset 0 .5px 0 var(--sep);text-align:left;font:400 13px/1.35 var(--ui);color:var(--ink2)}
+.nob .dash{flex:none;width:30px;height:8px;border-radius:4px;border:1.5px dashed var(--ink3)}
+.nob span{flex:1;min-width:0}
+.nob .ic{width:14px;height:14px;color:var(--ink3)}
+
+/* ---------- Money: the 31-day strip (B) ---------- */
+.strip{display:grid;grid-template-columns:repeat(31,1fr);gap:3px;align-items:end;height:96px;margin-top:10px;position:relative}
+.strip i{display:block;border-radius:3px 3px 1px 1px;background:var(--hue);transform-origin:50% 100%;transform:scaleY(0);transition:transform .6s var(--ease-out);transition-delay:calc(var(--i,0) * 18ms)}
+.strip i.fut{background:transparent;box-shadow:inset 0 0 0 1px var(--ink3);height:6px!important;opacity:.6}
+.strip i.big{background:repeating-linear-gradient(0deg,var(--hue) 0 3px,color-mix(in srgb,var(--hue) 55%,transparent) 3px 5px)}
+.on .strip i{transform:none}
+.strip .avg{position:absolute;left:0;right:0;border-top:1.5px dashed color-mix(in srgb,var(--ink) 55%,transparent)}
+.axis{display:flex;justify-content:space-between;margin-top:6px;font:400 13px var(--ui);color:var(--ink3)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;font:400 13px var(--ui);color:var(--ink3)}
+.legend i{display:inline-block;width:14px;margin-right:6px;vertical-align:middle;border-top:1.5px dashed var(--ink2)}
+
+/* ---------- Money: budget rings (B) ---------- */
+.rings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 6px;margin-top:6px}
+.rt{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:44px;padding:6px 2px;border-radius:14px;text-align:center}
+.rt svg{width:62px;height:62px;display:block;overflow:visible}
+.rt circle{fill:none}
+.rt .trk{stroke:var(--track);stroke-width:7}
+.rt .arc{stroke:var(--hue);stroke-width:7;stroke-linecap:round;stroke-dasharray:0 200;transition:stroke-dasharray 1s var(--ease-out);transition-delay:calc(var(--i,0) * 70ms)}
+.rt .lap{stroke-width:7;stroke-linecap:butt;stroke-dasharray:0 200;transition:stroke-dasharray .6s var(--ease-out);transition-delay:calc(var(--i,0) * 70ms + .9s)}
+.rt .gapc{stroke:var(--ink3);stroke-width:2.5;stroke-dasharray:3 4.2}
+.rt b{font:600 13px/1.25 var(--ui)}
+.rt span{font:400 13px/1.25 var(--ui);color:var(--ink3)}
+.rt.press{background:color-mix(in srgb,var(--hue) 14%,transparent)}
+
+/* ---------- Money: the 30-day ruler and the rows under it ---------- */
+.ruler{position:relative;height:58px;margin:8px 4px 2px}
+.ruler::before{content:"";position:absolute;left:0;right:0;top:28px;border-top:1.5px solid var(--track)}
+.ruler .d{position:absolute;top:28px;width:var(--s,10px);height:var(--s,10px);margin:calc(var(--s,10px) / -2) 0 0 calc(var(--s,10px) / -2);border-radius:50%;background:var(--hue);transform:scale(0);transition:transform .45s var(--ease-out);transition-delay:calc(var(--i,0) * 60ms)}
+.ruler .d.ring{background:transparent;box-shadow:inset 0 0 0 2px var(--hue)}
+.on .ruler .d{transform:none}
+.ruler .lb{position:absolute;top:40px;font:400 13px var(--ui);color:var(--ink3);transform:translateX(-50%);white-space:nowrap}
+.ruler .lb.l{transform:none}.ruler .lb.r{transform:translateX(-100%)}
+.ruler .flag{position:absolute;top:2px;font:600 13px var(--ui);color:var(--ink);white-space:nowrap;transform:translateX(-100%);opacity:0;transition:opacity .3s ease}
+.ruler .flag.on{opacity:1}
+.sr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;min-height:52px;padding:6px 0;box-shadow:inset 0 .5px 0 var(--sep)}
+.sr b{font:600 15px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr .a{font:600 15px var(--round);font-variant-numeric:tabular-nums;text-align:right}
+.sr span{grid-column:1/-1;font:400 13px var(--ui);color:var(--ink3)}
+
+/* ---------- a card that waits on his call (the Coach deck, gold edge) ---------- */
+.decide{position:relative;padding:14px 16px 10px;border-radius:var(--r);background:color-mix(in srgb,var(--wait) 8%,var(--card));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--wait) 40%,transparent),0 1px 0 var(--card-hi) inset,var(--card-shadow);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));transition:opacity .3s ease,transform .45s var(--ease)}
+.dk{display:flex;align-items:center;justify-content:space-between;gap:8px;font:600 13px var(--ui);color:var(--wait)}
+.dk span + span{color:var(--ink3);font-weight:400}
+.say{margin:8px 0 0;font:400 20px/1.28 var(--serif);text-wrap:balance}
+.answer{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+.yes{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 16px 0 13px;border-radius:22px;font:600 15px var(--ui);color:var(--done);background:color-mix(in srgb,var(--done) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--done) 34%,transparent);white-space:nowrap}
+.q{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);white-space:nowrap}
+.no{margin-left:auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink2);background:color-mix(in srgb,var(--ink) 7%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 15%,transparent)}
+.no.press,.yes.press{transform:scale(.94)}
+.deck{position:relative;margin-top:14px}
+.deck::before,.deck::after{content:"";position:absolute;left:10px;right:10px;bottom:-7px;height:20px;border-radius:0 0 18px 18px;background:color-mix(in srgb,var(--wait) 6%,rgba(255,255,255,.05));box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--wait) 28%,transparent);z-index:-1}
+.deck::after{left:20px;right:20px;bottom:-13px;opacity:.6}
+.doall{display:flex;justify-content:center;margin-top:16px}
+.doall button{min-height:44px;padding:0 14px;font:600 15px var(--ui);color:var(--ink2)}
+
+/* the step drawn: five charges at the old price, then the new one */
+.step{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:end;height:74px;margin-top:12px}
+.step i{position:relative;display:block;height:var(--h);border-radius:5px 5px 2px 2px;background:color-mix(in srgb,var(--ink) 34%,transparent);transform-origin:50% 100%;transform:scaleY(0);transition:transform .55s var(--ease-out);transition-delay:calc(var(--i,0) * 60ms)}
+.step i.now{background:color-mix(in srgb,var(--ink) 34%,transparent)}
+.step i.now::before{content:"";position:absolute;left:0;right:0;top:0;height:var(--up);border-radius:5px 5px 0 0;background:repeating-linear-gradient(135deg,var(--wait) 0 2.5px,transparent 2.5px 5.5px);box-shadow:inset 0 0 0 1.2px var(--wait);transform-origin:50% 100%;transform:scaleY(0);transition:transform .4s var(--ease-out) .55s}
+.on .step i,.on .step i.now::before{transform:none}
+.stepx{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:4px;font:400 13px var(--ui);color:var(--ink3);text-align:center}
+
+/* receipts: what happened, in words, with the way back */
+.receipt{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;padding:4px 4px 4px 12px;border-radius:26px;background:color-mix(in srgb,var(--ink) 8%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.receipt .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--done);color:#05261a}
+.receipt .ok .ic{width:15px;height:15px;stroke-width:3}
+.rx{min-width:0}
+.rx b{display:block;font:600 15px/1.25 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rx span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.undo{min-height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink)}
+.toast{position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 4px);z-index:28;max-width:378px;margin:0 auto;background:rgba(22,27,48,.92);backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 18px 40px -16px rgba(0,0,0,.85);opacity:0;transform:translateY(16px) scale(.98);transition:opacity .28s ease,transform .42s var(--ease);pointer-events:none}
+.toast.on{opacity:1;transform:none;pointer-events:auto}
+.has-comp .toast,.has-tray .toast{bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 66px)}
+
+/* ---------- the ledger: day groups, one line a row ---------- */
+.dh{display:flex;justify-content:space-between;gap:8px;padding:10px 0 4px;font:600 13px var(--ui);color:var(--ink3)}
+.dh:first-child{padding-top:2px}
+.lr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 12px;align-items:center;min-height:52px;padding:5px 0;box-shadow:inset 0 .5px 0 var(--sep);position:relative}
+.lr b{font:500 15px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr .c{grid-column:1;font:400 13px var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr .a{grid-row:1/3;grid-column:2;font:500 15px var(--round);font-variant-numeric:tabular-nums}
+.lr .a.in{color:var(--ink)}
+.lr .a.in::before{content:"+ "}
+.lr .tag{margin-left:6px;font:600 13px var(--ui);color:var(--wait)}
+.lr.new{animation:land .55s var(--ease) both}
+@keyframes land{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+.cap{margin:8px 0 2px;font:400 13px/1.4 var(--ui);color:var(--ink3)}
+/* the house SwipeRow, mid-swipe: Delete behind the row, Undo after */
+.swipe{position:relative;overflow:hidden;margin:0 -16px;padding:0 16px}
+.swipe .act{position:absolute;top:0;bottom:0;right:0;width:88px;display:grid;place-items:center;font:600 15px var(--ui);color:#2a0a0d;background:var(--del)}
+.swipe .lr{background:#151a31;transition:transform .5s var(--ease)}
+.swipe.out .lr{transform:translateX(-88px)}
+
+/* ---------- sheets ---------- */
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(3,5,12,.55);opacity:0;transition:opacity .3s ease;pointer-events:none}
+.scrim.on{opacity:1}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-width:402px;margin:0 auto;padding:6px 16px calc(16px + env(safe-area-inset-bottom,0px));border-radius:28px 28px 0 0;background:rgba(20,25,46,.94);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 -18px 50px -20px rgba(0,0,0,.9);transform:translateY(105%);transition:transform .46s var(--ease)}
+.sheet.up{transform:none}
+.sheet.out{transform:translateY(105%);transition-duration:.26s;transition-timing-function:cubic-bezier(.4,0,1,1)}
+.grab{display:block;width:38px;height:5px;margin:2px auto 4px;border-radius:3px;background:color-mix(in srgb,var(--ink) 34%,transparent)}
+.shtop{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:6px;min-height:44px}
+.shtop b{font:600 17px var(--ui);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shtop .q{padding:0 10px}
+.save{min-height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:#0b0a1c;background:var(--hue)}
+.save[disabled]{opacity:.4}
+.save.press{transform:scale(.94)}
+.amt{display:flex;align-items:baseline;justify-content:center;gap:2px;margin:6px 0 0;min-height:56px}
+.amt .num{font-size:48px;font-weight:700;line-height:1}
+.amt .cur{font:600 28px var(--round);color:var(--ink2)}
+.amt .caret{display:inline-block;width:2px;height:40px;margin-left:3px;align-self:center;background:var(--hue);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.hint{margin:4px 0 0;text-align:center;font:400 13px/1.4 var(--ui);color:var(--ink3)}
+.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);background:color-mix(in srgb,var(--ink) 9%,transparent);box-shadow:0 0 0 .5px var(--card-ring);white-space:nowrap}
+.chip.on{color:#0b0a1c;background:var(--hue)}
+.chip .ic{width:16px;height:16px}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.pad button{min-height:46px;border-radius:10px;font:500 22px var(--round);text-align:center;background:color-mix(in srgb,var(--ink) 12%,transparent)}
+.pad button.dim{background:transparent}
+.pad button.hit{background:color-mix(in srgb,var(--hue) 40%,transparent)}
+.hist{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:end;height:84px;margin:10px 22px 0;position:relative}
+.hist i{display:block;border-radius:6px 6px 2px 2px;background:color-mix(in srgb,var(--hue) 55%,transparent);height:var(--h)}
+.hist i.cur{background:var(--hue)}
+.hist .bud{position:absolute;left:-8px;right:-8px;bottom:var(--b);border-top:2px solid var(--ink);transition:bottom .6s var(--ease)}
+.hist .bud span{position:absolute;right:0;bottom:3px;font:600 13px var(--ui);color:var(--ink)}
+.histx{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:4px 22px 0;font:400 13px var(--ui);color:var(--ink3);text-align:center}
+.field{display:flex;align-items:center;gap:8px;min-height:48px;margin-top:10px;padding:0 14px;border-radius:14px;background:var(--well);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent);font:400 17px var(--ui);color:var(--ink)}
+.field .ph{color:var(--ink3)}
+.field .k{margin-right:auto}
+.segc{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:3px;margin-top:10px;border-radius:14px;background:rgba(120,120,128,.24)}
+.segc span{display:grid;place-items:center;min-height:40px;border-radius:11px;font:600 15px var(--ui);color:var(--ink2)}
+.segc span.on{color:var(--ink);background:var(--card);box-shadow:0 0 0 .5px var(--card-ring)}
+.guess{display:flex;align-items:center;gap:8px;margin-top:10px;font:400 13px/1.4 var(--ui);color:var(--ink3)}
+.guess .chip{min-height:44px}
+
+/* the B pages: a pushed page slides in from the right, its parent steps back */
+.stack{display:grid}
+.stack > .layer{grid-area:1/1;min-width:0;transition:transform .46s var(--ease),opacity .46s var(--ease)}
+.stack > .layer.push{transform:translateX(calc(100% + 24px));background:linear-gradient(180deg,rgba(8,10,24,.97),rgba(12,16,40,.97));margin:-10px -16px 0;padding:10px 16px 0;border-radius:24px 24px 0 0;box-shadow:-12px 0 40px -20px rgba(0,0,0,.9)}
+.stack.pushed > .layer.base{transform:translateX(-26%);opacity:.32}
+.stack.pushed > .layer.push{transform:none}
+.stack.popped > .layer.push{transform:translateX(calc(100% + 24px))}
+.back{display:inline-flex;align-items:center;gap:2px;min-height:44px;padding:0 10px 0 2px;margin-left:-6px;font:400 17px var(--ui);color:var(--hue)}
+.back .ic{width:22px;height:22px;stroke-width:2.4}
+.stepper{display:flex;align-items:center;gap:4px;margin-top:4px}
+.stepper b{font:600 17px var(--ui);min-width:0}
+.stepper .ib{background:transparent;box-shadow:none;color:var(--ink2)}
+.bigring{display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;align-items:center}
+.bigring svg{width:120px;height:120px}
+
+/* ---------- Code: the session pill, the thread, authored lines ---------- */
+.sess{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 10px;margin-top:6px;border-radius:22px;font:600 15px var(--ui);background:color-mix(in srgb,var(--ink) 9%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.sess .sw{width:10px;height:10px;border-radius:3px;background:var(--hue)}
+.sess .ic{width:16px;height:16px;color:var(--ink3)}
+.thread{display:flex;flex-direction:column;gap:14px;margin-top:16px}
+.day{align-self:center;font:600 13px var(--ui);color:var(--ink3)}
+.you{align-self:flex-end;max-width:84%;padding:10px 14px;border-radius:20px 20px 6px 20px;background:rgba(255,255,255,.13);box-shadow:0 0 0 .5px var(--card-ring),0 1px 0 var(--card-hi) inset;font:400 15px/1.4 var(--ui)}
+.msg{position:relative;padding:0 0 0 14px}
+.msg::before{content:"";position:absolute;left:0;top:2px;bottom:2px;width:3px;border-radius:2px;background:var(--hue);transform-origin:50% 0;transition:transform .5s var(--ease-out)}
+.msg.breaker::before{background:repeating-linear-gradient(180deg,var(--hue) 0 4px,transparent 4px 8px)}
+.msg header{display:flex;align-items:center;gap:8px;min-height:22px;font:600 13px var(--ui);color:var(--hue)}
+.msg.breaker header{color:var(--ink)}
+.msg header span{font-weight:400;color:var(--ink3)}
+.mk{flex:none;width:14px;height:14px;border-radius:4px;background:var(--hue)}
+.mk.crack{background:transparent;box-shadow:inset 0 0 0 2px var(--hue);position:relative;overflow:hidden}
+.mk.crack::after{content:"";position:absolute;left:-3px;top:6px;width:20px;height:2px;background:var(--hue);transform:rotate(-38deg)}
+.msg p,.msg ol{margin:4px 0 0;font:400 15px/1.42 var(--ui);text-wrap:pretty}
+.msg ol{padding-left:20px}
+.msg code,.lr code{font:400 13px var(--mono);color:var(--ink2)}
+.chg{display:inline-flex;align-items:center;gap:8px;min-height:44px;margin-top:6px;padding:0 12px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:color-mix(in srgb,var(--ink) 8%,transparent);box-shadow:0 0 0 .5px var(--card-ring)}
+.pm{display:inline-flex;height:8px;width:56px;border-radius:4px;overflow:hidden;background:var(--track)}
+.pm i{display:block;height:100%;background:var(--hue)}
+.pm i.m{background:repeating-linear-gradient(135deg,var(--ink3) 0 2px,transparent 2px 4px)}
+.sys{display:flex;align-items:center;justify-content:center;gap:8px;min-height:24px;font:400 13px var(--ui);color:var(--ink3);text-align:center}
+.sys::before,.sys::after{content:"";flex:1;max-width:40px;border-top:.5px solid var(--sep)}
+.work{display:flex;align-items:center;gap:8px;margin-top:6px;font:400 13px var(--ui);color:var(--ink3)}
+.work .tm{font:600 13px var(--round);font-variant-numeric:tabular-nums;color:var(--ink2)}
+.shim{display:block;height:12px;margin-top:8px;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.16),rgba(255,255,255,.06));background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+.typed::after{content:"";display:inline-block;width:2px;height:15px;margin-left:2px;vertical-align:-2px;background:var(--hue);animation:blink 1s steps(1) infinite}
+
+/* the composer and the changes tray, above the tab bar */
+.comp{position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:26;max-width:378px;margin:0 auto;display:grid;grid-template-columns:auto minmax(0,1fr) 44px;gap:6px;align-items:center;padding:6px;border-radius:28px;background:var(--tab);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 12px 30px -14px rgba(0,0,0,.5)}
+.comp .fld{display:flex;align-items:center;min-height:44px;padding:0 14px;border-radius:22px;background:var(--well);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent);font:400 15px var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.comp .fld.typed{color:var(--ink)}
+.comp .send{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink3);background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.comp .send.live{color:#0b0a1c;background:var(--hue)}
+.comp .brk{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px 0 10px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.comp .brk .mk{width:12px;height:12px}
+.comp .cam{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink);background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.tray{position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 66px);z-index:25;max-width:378px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;min-height:56px;padding:6px 6px 6px 16px;border-radius:24px;background:rgba(22,27,48,.9);backdrop-filter:blur(26px) saturate(1.4);-webkit-backdrop-filter:blur(26px) saturate(1.4);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 14px 34px -16px rgba(0,0,0,.8);transition:opacity .3s ease,transform .42s var(--ease)}
+.tray b{display:block;font:600 15px var(--ui)}
+.tray span{display:flex;align-items:center;gap:8px;font:400 13px var(--ui);color:var(--ink3)}
+.tray .rv{min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:#0b0a1c;background:var(--hue)}
+.tray.gone{opacity:0;transform:translateY(20px);pointer-events:none}
+
+/* the review: every changed file, ticked, with what it adds and removes */
+.rev{margin-top:12px}
+.fr{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:4px 8px;align-items:center;min-height:52px;padding:2px 0;box-shadow:inset 0 .5px 0 var(--sep);transition:transform .45s var(--ease),opacity .35s ease}
+.fr:first-of-type{box-shadow:none}
+.tick{width:44px;height:44px;display:grid;place-items:center}
+.tick i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--hue);color:#0b0a1c}
+.tick i .ic{width:14px;height:14px;stroke-width:3}
+.tick.offt i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink3)}
+.fr .p{min-width:0;font:400 13px var(--mono);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left}
+.fr .n{font:600 13px var(--round);font-variant-numeric:tabular-nums;color:var(--ink2);white-space:nowrap}
+.fr .pm{grid-column:2/4;width:100%;height:6px}
+.fr .pm i{transform-origin:0 50%;transform:scaleX(0);transition:transform .6s var(--ease-out);transition-delay:calc(var(--i,0) * 80ms)}
+.on .fr .pm i{transform:none}
+.diff{margin:4px 0 6px 52px;padding:8px 0;border-radius:12px;background:rgba(0,0,0,.34);overflow-x:auto;font:400 13px/1.55 var(--mono);clip-path:inset(0 0 100% 0);transition:clip-path .5s var(--ease)}
+.diff.open{clip-path:inset(0 0 0 0)}
+.diff div{padding:0 12px;white-space:pre;color:var(--ink3)}
+.diff .a{color:var(--ink);background:color-mix(in srgb,var(--hue) 16%,transparent);box-shadow:inset 2px 0 0 var(--hue)}
+.diff .r{text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--ink) 40%,transparent)}
+.msgf{display:block;min-height:48px;margin-top:10px;padding:13px 14px;border-radius:14px;background:var(--well);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent);font:400 15px/1.35 var(--ui);color:var(--ink3)}
+.msgf.typed{color:var(--ink)}
+.rule{display:flex;align-items:center;gap:6px;margin:6px 2px 0;font:400 13px var(--ui);color:var(--ink3)}
+.rule.ok{color:var(--ink2)}
+.rule .ic{width:14px;height:14px}
+.acts{display:flex;align-items:center;gap:8px;margin-top:12px}
+.commit{flex:1;min-height:48px;border-radius:24px;font:600 15px var(--ui);text-align:center;color:#0b0a1c;background:var(--hue);transition:opacity .2s ease}
+.commit[disabled]{opacity:.38}
+.commit.press{transform:scale(.96)}
+.shelve{min-height:48px;padding:0 18px;border-radius:24px;font:600 15px var(--ui);color:var(--ink);background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.folded .fr:not(:first-of-type){transform:translateY(calc(var(--k) * -54px)) scale(.96);opacity:0}
+.folded .diff{clip-path:inset(0 0 100% 0);height:0;margin:0;padding:0}
+.reviewcard{position:fixed;left:8px;right:8px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 2px);z-index:27;max-width:386px;margin:0 auto;padding:6px 14px 14px;border-radius:28px;background:rgba(20,25,46,.95);backdrop-filter:blur(30px) saturate(1.5);-webkit-backdrop-filter:blur(30px) saturate(1.5);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 -16px 44px -20px rgba(0,0,0,.9);transform-origin:50% 100%;transform:translateY(70%) scaleY(.2);opacity:0;transition:transform .5s var(--ease),opacity .3s ease}
+.reviewcard.up{transform:none;opacity:1}
+.reviewcard.down{transform:translateY(40%) scale(.9);opacity:0;transition-duration:.34s}
+.flyer{position:fixed;z-index:70;pointer-events:none;border-radius:26px;background:rgba(30,36,62,.96);box-shadow:0 0 0 .5px var(--tab-ring),0 18px 40px -16px rgba(0,0,0,.9);display:flex;align-items:center;gap:8px;padding:0 14px;font:600 15px var(--ui);color:var(--ink)}
+
+/* C: the run card */
+.run-card .msg{margin-top:10px}
+.run-card .you{margin-top:10px;max-width:100%;align-self:auto;display:block}
+.files{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.files b{font:600 15px var(--ui)}
+.files span{font:400 13px var(--ui);color:var(--ink3)}
+.files .pm{flex:1;width:auto}
+.earlier{display:flex;gap:8px;margin-top:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.earlier .receipt{flex:none;width:300px}
+.open-thread{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:52px;padding:0 6px;margin-top:8px;font:600 15px var(--ui)}
+.open-thread span{font:400 13px var(--ui);color:var(--ink3)}
+.open-thread .ic{width:16px;height:16px;color:var(--ink3)}
+.flip{transition:opacity .25s ease}
+.flip.hide{opacity:0}
+
+/* menus */
+.menu{position:absolute;right:0;top:50px;z-index:35;width:296px;padding:6px;border-radius:22px;background:rgba(22,27,48,.95);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);box-shadow:0 0 0 .5px var(--tab-ring),0 1px 0 var(--card-hi) inset,0 24px 50px -18px rgba(0,0,0,.85);transform-origin:calc(100% - 22px) 0;animation:pop .22s var(--ease) both}
+@keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+.mi{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;align-items:center;width:100%;min-height:48px;padding:4px 12px;border-radius:14px;text-align:left;font:400 15px/1.25 var(--ui)}
+.mi span{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.mi .ic{width:20px;height:20px;color:var(--ink2)}
+.msep{height:.5px;margin:4px 10px;background:var(--sep)}
+
+/* review notes: set apart from the design by a dashed edge */
+.note{margin:24px 0 0;padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--ink) 26%,transparent);font:400 13px/1.5 var(--ui);color:var(--ink2)}
+.note b{color:var(--ink);font-weight:600}
+.note p{margin:0 0 8px}
+.note table{width:100%;border-collapse:collapse;margin-top:6px}
+.note td{padding:5px 6px 5px 0;vertical-align:top;border-top:1px solid var(--sep)}
+.note td:first-child{color:var(--ink3);width:44%}
+.note .new{color:var(--hue);font-weight:600}
+.calls{max-width:402px;margin:0 auto;padding:0 16px calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 100px)}
+.calls h2{margin:8px 4px 10px;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.calls ol{margin:0;padding:0;list-style:none;counter-reset:c}
+.calls li{counter-increment:c;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;padding:12px 4px;border-top:1px solid var(--sep);font:400 15px/1.45 var(--ui);color:var(--ink2)}
+.calls li::before{content:counter(c);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;font:600 13px var(--round);color:var(--ink);background:color-mix(in srgb,var(--ink) 10%,transparent)}
+.calls li b{display:block;color:var(--ink);font-weight:600}
+
+/* reduced motion: nothing moves, things only appear */
+html.rm *,html.rm *::before,html.rm *::after{transition-property:opacity!important;transition-duration:.2s!important;transition-delay:0s!important;animation-duration:.01s!important;animation-iteration-count:1!important}
+html.rm .shim,html.rm .caret,html.rm .typed::after{animation:none!important}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-property:opacity!important;transition-duration:.2s!important;transition-delay:0s!important;animation-duration:.01s!important;animation-iteration-count:1!important}
+}
+</style>
+
+<div class="sky" aria-hidden="true"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9.5 6 6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-talk" viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-5 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z"/></symbol>
+  <symbol id="i-dn" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v8h14v-8"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 3l3 3-3 3"/><path d="M4 12V9a3 3 0 0 1 3-3h13"/><path d="M7 21l-3-3 3-3"/><path d="M20 12v3a3 3 0 0 1-3 3H4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 4-6 3-11 7"/></symbol>
+  <symbol id="i-new" viewBox="0 0 24 24"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M17.5 3.5a2 2 0 0 1 3 3L12 15l-4 1 1-4z"/></symbol>
+  <symbol id="i-vault" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M9 9h6M9 13h6"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M10 2v4M14 2v4M10 18v4M14 18v4M2 10h4M2 14h4M18 10h4M18 14h4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></symbol>
+</svg>
+
+<nav class="switch" aria-label="Direction and frame">
+  <div class="inner">
+    <div class="seg" id="dirs" role="group" aria-label="Direction">
+      <button data-d="a" aria-pressed="true">A · One page</button>
+      <button data-d="b" aria-pressed="false">B · Two levels</button>
+      <button data-d="c" aria-pressed="false">C · Decisions</button>
+    </div>
+    <div class="segrow">
+      <div class="seg" id="mfr" role="group" aria-label="Money frames">
+        <button data-f="1" aria-pressed="true">Month</button><button data-f="2" aria-pressed="false">Budget</button><button data-f="3" aria-pressed="false">Rise</button><button data-f="4" aria-pressed="false">Add</button>
+      </div>
+      <div class="seg" id="cfr" role="group" aria-label="Code frames">
+        <button data-f="5" aria-pressed="false">Run</button><button data-f="6" aria-pressed="false">Commit</button>
+      </div>
+    </div>
+    <div class="trow">
+      <p class="tally" id="tally" title="Tap to read it all"></p>
+      <button class="mini" id="replay" type="button">Replay</button>
+      <button class="mini" id="rmbtn" type="button" aria-pressed="false">Reduced motion</button>
+    </div>
+  </div>
+</nav>
+
+<div class="phone" id="phone"></div>
+
+<footer class="dock" aria-label="Tab bar">
+  <div class="row">
+    <div class="tabbar">
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/></svg>Nova</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+      <span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+      <span class="tab on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+    </div>
+    <button class="novabtn" aria-label="Talk to Nova"><span class="orb"></span></button>
+  </div>
+</footer>
+
+<section class="calls" id="calls" aria-label="Your calls">
+  <h2>Your calls</h2>
+  <ol>
+    <li><div><b>Which direction, for each screen</b>A, B or C, and Money and Code can take different ones. Whichever you pick is drawn again in round 2 with your changes; nothing is built until you say the page is done.</div></li>
+    <li><div><b>The two hues</b>Money in violet (the hue its Index tile already wears) and Code in orchid (new, the one unowned token). Or take the Org map's colours instead: Money in the CFO's green, Code in the Platform's violet. Either way the Index tiles change to match.</div></li>
+    <li><div><b>Over budget without red</b>My pick draws it in Money's own colour, hatched past the line and said in words ("$38 over"), which keeps your 4 Oct rule that red means Nova pushing back. Or keep the rings' red from Home for a missed budget, and red then means two things.</div></li>
+    <li><div><b>The cross on a price rise</b>New: it puts "Cancel Reelhouse" on your To-Do before the next charge, with Undo, because Nova cannot cancel a subscription for you. Or the cross only dismisses the notice, and nothing is written.</div></li>
+    <li><div><b>What a commit takes, and its Undo</b>New: Commit takes only the files you tick (today it takes every changed file in the repo, including another session's), and Undo removes the commit while it is still the newest and not pushed. Or keep today's commit-everything with no Undo.</div></li>
+  </ol>
+</section>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const ic = (g, c) => '<svg class="ic' + (c ? ' ' + c : '') + '" aria-hidden="true"><use href="#i-' + g + '"/></svg>';
+  const esc = (s) => String(s).replace(/&/g, '&amp;');
+  const usd = (n, cents) => '$' + Number(n).toLocaleString('en-AU', { minimumFractionDigits: cents ? 2 : 0, maximumFractionDigits: cents ? 2 : 0 });
+
+  /* ================= demo data: every figure is invented ================= */
+  const BUD = [
+    { k: 'gro', n: 'Groceries', s: 512, b: 650 },
+    { k: 'eat', n: 'Eating out', s: 298, b: 260 },
+    { k: 'tra', n: 'Transport', s: 186, b: 300 },
+    { k: 'sho', n: 'Shopping', s: 142, b: 300 },
+    { k: 'sub', n: 'Subscriptions', s: 91, b: 90 },
+  ];
+  const NOB = 'Health & fitness, Utilities & bills, Other';
+  const LED = [
+    { d: 'Today', t: '$56.38', rows: [['Corner Grocer', 'Groceries', 42.18], ['Kettle & Crumb', 'Eating out', 14.2]] },
+    { d: 'Yesterday', t: '$57.40', rows: [['Metro card top-up', 'Transport', 30], ['Workbench Hardware', 'Shopping', 27.4]] },
+    { d: 'Friday 23 October', t: '$30.99 out, $3,400 in', rows: [['Reelhouse', 'Subscriptions', 18.99, 'up $2.00'], ['Payroll', 'Money in', 3400, null, true], ['Odd Jobs Market', 'Other', 12]] },
+  ];
+
+  /* ================= Money pieces ================= */
+  const bl = (c, i, over) => {
+    const r = c.s / c.b, p = Math.min(r, 1), o = Math.max(0, r - 1);
+    const val = o > 0 ? '<b class="num">' + usd(c.s) + '</b> · ' + usd(c.s - c.b) + ' over' : '<b class="num">' + usd(c.s) + '</b> of ' + usd(c.b);
+    const lab = c.n + ': ' + usd(c.s) + ' of ' + usd(c.b) + (o > 0 ? ', ' + usd(c.s - c.b) + ' over' : ', ' + usd(c.b - c.s) + ' left') + '. Change the budget';
+    return '<button class="bl" data-k="' + c.k + '" style="--i:' + i + '" aria-label="' + esc(lab) + '"><span class="bn">' + esc(c.n) + '</span><span class="bv">' + val + '</span>' +
+      '<span class="bar" aria-hidden="true"><i class="f" style="--p:' + p.toFixed(3) + '"></i>' + (o > 0 || over ? '<i class="o" style="--o:' + Math.min(o, .19).toFixed(3) + '"></i>' : '') + '<i class="ln"></i></span></button>';
+  };
+  const budgets = (head) => '<section class="card" data-o>' + (head === false ? '' : '<div class="ch">Budgets<span>Tap one to change it</span></div>') +
+    BUD.map((c, i) => bl(c, i)).join('') +
+    '<button class="nob" data-o aria-label="Three categories have no budget: ' + esc(NOB) + ', $150. Set one"><i class="dash" aria-hidden="true"></i><span>No budget yet: ' + esc(NOB) + ' · $150</span>' + ic('right') + '</button></section>';
+
+  const C = 2 * Math.PI * 50;
+  const ringHero = '<section class="card hero" data-o><svg class="ring" viewBox="0 0 120 120" role="img" aria-label="$1,229 of $1,600 in budgets, 77 percent; the pace mark for today is $1,290; $1,379 spent in all">' +
+    '<circle cx="60" cy="60" r="50" class="trk"/><circle cx="60" cy="60" r="50" class="arc" data-p="0.768" transform="rotate(-90 60 60)"/>' +
+    '<line class="pace" x1="20.6" y1="45.5" x2="5.6" y2="40"/></svg>' +
+    '<div class="hs"><span class="k">Spent this month</span><b class="num big">$1,379</b><span class="v">$1,229 of $1,600 in budgets</span>' +
+    '<span class="t">Pace for today <b class="num">$1,290</b>, the white mark</span><span class="t trend">' + ic('dn') + '5% on September · $3,400 in</span></div></section>';
+
+  const ledger = (extra) => '<section class="card" data-o>' + LED.map((g, gi) =>
+    '<div class="dh"><span>' + g.d + '</span><span class="num">' + g.t + '</span></div>' + (gi === 0 && extra ? extra : '') +
+    g.rows.map((r) => '<div class="lr"><b>' + esc(r[0]) + (r[3] ? '<span class="tag">' + r[3] + '</span>' : '') + '</b><span class="c">' + esc(r[1]) + '</span><span class="a' + (r[4] ? ' in' : '') + '">' + usd(r[2], true) + '</span></div>').join('')).join('') +
+    '<p class="cap">64 lines this month. Older months are in the FY export.</p></section>';
+
+  const SUBS = [['Cloud Notes Pro', 8, 'Monthly · Tuesday 27 October'], ['Tidewater Gym', 18, 'Weekly · Thursday 29 October'], ['Northline Mobile', 45, 'Monthly · Tuesday 10 November'], ['Reelhouse', 18.99, 'Monthly · Sunday 22 November'], ['Sketchbook Cloud', 59, 'Yearly · February']];
+  const ruler = '<div class="ruler" role="img" aria-label="The next 30 days: Cloud Notes Pro in 2 days, the gym weekly from Thursday, Northline Mobile in 16 days, Reelhouse in 28 days">' +
+    [[6.7, 10, 0], [13.3, 12, 1], [36.7, 12, 2], [53.3, 16, 3], [60, 12, 4], [83.3, 12, 5], [93.3, 13, 6, 'ring']].map((d) => '<i class="d' + (d[3] ? ' ring' : '') + '" style="left:' + d[0] + '%;--s:' + d[1] + 'px;--i:' + d[2] + '"></i>').join('') +
+    '<span class="lb l" style="left:0">Today</span><span class="lb" style="left:53.3%">10 Nov</span><span class="lb r" style="left:100%">24 Nov</span><span class="flag" style="left:93.3%">to cancel</span></div>';
+  const subRows = SUBS.map((s) => '<div class="sr"><b>' + s[0] + '</b><span class="a">' + usd(s[1], s[1] % 1) + '</span><span>' + s[2] + '</span></div>').join('');
+  const riseCard = (verbs, count) => '<div class="decide" data-o data-rise><div class="dk"><span>A price went up</span><span>' + (count || 'waiting on you') + '</span></div>' +
+    '<p class="say">Reelhouse is now $18.99 a month.</p>' +
+    '<div class="step" role="img" aria-label="Five charges at $16.99, then $18.99 on Friday 23 October; the $2 step is hatched">' +
+    [0, 1, 2, 3, 4].map((i) => '<i style="--h:56px;--i:' + i + '"></i>').join('') + '<i class="now" style="--h:63px;--up:7px;--i:5"></i></div>' +
+    '<div class="stepx"><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span></div>' +
+    '<p class="sub">Up $2.00 a month, $24 a year. It tipped Subscriptions $1 over its budget.</p>' +
+    (verbs === false ? '' : '<div class="answer"><button class="yes">' + ic('check') + 'Keep it</button><button class="q">' + ic('talk') + 'Talk</button><button class="no" aria-label="Don’t keep it: put Cancel Reelhouse on To-Do before 22 November">' + ic('x') + '</button></div>') + '</div>';
+  const riseReceipt = '<div class="receipt" data-o><span class="ok">' + ic('check') + '</span><span class="rx"><b>Cancel Reelhouse is on To-Do</b><span>Due Saturday 21 November, the day before it charges</span></span><button class="undo">Undo</button></div>';
+
+  const keypad = '<div class="pad" aria-hidden="true">' + ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'].map((k) => '<button tabindex="-1" class="' + (k === '.' || k === '⌫' ? 'dim' : '') + '" data-key="' + k + '">' + k + '</button>').join('') + '</div>';
+  const budgetSheet = '<div class="scrim"></div><section class="sheet" role="dialog" aria-label="Eating out budget"><span class="grab" aria-hidden="true"></span>' +
+    '<div class="shtop"><button class="q">Cancel</button><b>Eating out</b><button class="save">Save</button></div>' +
+    '<div class="hist" role="img" aria-label="August $240, September $251, October so far $298; the line is the budget"><i style="--h:56px"></i><i style="--h:59px"></i><i class="cur" style="--h:70px"></i><span class="bud" style="--b:61px"><span class="bv2">$260</span></span></div>' +
+    '<div class="histx"><span>August</span><span>September</span><span>October</span></div>' +
+    '<div class="amt" aria-live="polite"><span class="cur">$</span><span class="num val">260</span><span class="caret"></span></div>' +
+    '<p class="hint">Typing $ or commas is fine. Empty clears the budget.</p>' +
+    '<div class="chips"><button class="chip">$263 · the 3-month average</button></div>' + keypad + '</section>';
+  const addSheet = (title) => '<div class="scrim"></div><section class="sheet" role="dialog" aria-label="Add a line"><span class="grab" aria-hidden="true"></span>' +
+    '<div class="shtop"><button class="q">Cancel</button><b>' + (title || 'Add a line') + '</b><button class="save" disabled>Add</button></div>' +
+    '<div class="amt" aria-live="polite"><span class="cur">$</span><span class="num val">0</span><span class="caret"></span></div>' +
+    '<div class="segc" role="group" aria-label="Spend or money in"><span class="on">Spend</span><span>Money in</span></div>' +
+    '<div class="field"><span class="ph mtxt">Where, like Corner Grocer</span></div>' +
+    '<div class="guess"><span class="gtxt">Category comes from the merchant</span></div>' +
+    '<div class="chips" style="justify-content:flex-start"><button class="chip">' + ic('cam') + 'Scan a receipt</button><button class="chip">' + ic('folder') + 'Check imports</button></div>' + keypad + '</section>';
+
+  const moneyMenu = '<div class="menu" role="menu" aria-label="Money menu">' +
+    '<button class="mi" role="menuitem">' + ic('doc') + '<div>Draft September’s report<span>On the rails, for your approval</span></div></button>' +
+    '<button class="mi" role="menuitem">' + ic('share') + '<div>Export FY26-27<span>A CSV of every line</span></div></button>' +
+    '<div class="msep"></div>' +
+    '<button class="mi" role="menuitem">' + ic('folder') + '<div>Check the imports folder<span>Money/Imports, also checked every 5 minutes</span></div></button>' +
+    '<button class="mi" role="menuitem">' + ic('cam') + '<div>Scan a statement or receipt<span>Up to 3 photos, drafted to the Inbox</span></div></button>' +
+    '<button class="mi" role="menuitem">' + ic('info') + '<div>How money gets in<span>Bank CSVs, scans, and “coffee 6.50” anywhere</span></div></button></div>';
+
+  /* ================= Code pieces ================= */
+  const you = (t, i) => '<div class="you rise-in" style="--i:' + (i || 0) + '">' + t + '</div>';
+  const builder = (t, meta, chg, cls) => '<article class="msg builder' + (cls ? ' ' + cls : '') + '"><header><i class="mk" aria-hidden="true"></i>Builder<span>' + meta + '</span></header><p>' + t + '</p>' + (chg ? '<button class="chg">' + pm(118, 22) + chg + '</button>' : '') + '</article>';
+  const breaker = (meta) => '<article class="msg breaker"><header><i class="mk crack" aria-hidden="true"></i>Breaker<span>' + meta + '</span></header><ol><li>Saving 0 clears the budget without asking.</li><li>Nothing undoes a save.</li></ol></article>';
+  const sys = (t) => '<p class="sys">' + t + '</p>';
+  const pm = (a, r) => '<span class="pm" aria-hidden="true"><i style="width:' + Math.round(a / (a + r) * 100) + '%"></i><i class="m" style="width:' + Math.round(r / (a + r) * 100) + '%"></i></span>';
+  const FILES = [['src/screens/Money.jsx', 46, 22], ['src/BudgetSheet.jsx', 71, 0], ['server/test/budgetSheet.test.js', 14, 0]];
+  const fileRows = (open) => FILES.map((f, i) => '<div class="fr" style="--k:' + i + ';--i:' + i + '"><button class="tick" aria-label="Include ' + f[0] + '"><i>' + ic('check') + '</i></button><span class="p">' + f[0] + '</span><span class="n">+' + f[1] + (f[2] ? ' −' + f[2] : '') + '</span>' + pm(f[1], f[2]) + '</div>' +
+    (i === 1 ? '<div class="diff' + (open ? ' open' : '') + '" role="img" aria-label="The first lines of the new file"><div class="a">+ export function BudgetSheet({ category, value, onSave }) {</div><div class="a">+   const [raw, setRaw] = useState(String(value ?? ""));</div><div class="a">+   const amount = Number(raw.replace(/[$,\\s]/g, ""));</div><div class="a">+   const readable = raw === "" || Number.isFinite(amount);</div><div>    …67 more lines</div></div>' : '')).join('');
+  const msgField = '<div class="msgf"><span class="mt">Say why, in a line</span></div><p class="rule">' + ic('info') + '<span class="rtx">8 characters or more, so the log reads later</span></p>';
+  const commitActs = '<div class="acts"><button class="commit" disabled>Commit 3 files</button><button class="shelve">Shelve</button></div>';
+  const codeComp = (txt, live) => '<div class="comp" data-o><button class="brk" aria-label="Send the Breaker: a read-only pass that changes nothing"><i class="mk crack" aria-hidden="true"></i>Breaker</button><div class="fld' + (live ? ' typed' : '') + '">' + (txt || 'Ask the Builder') + '</div><button class="send' + (live ? ' live' : '') + '" aria-label="Send">' + ic('up') + '</button></div>';
+  const tray = '<div class="tray" data-o><div><b>3 files changed</b><span>' + pm(131, 22) + '+131 −22 · main</span></div><button class="rv">Review</button></div>';
+  const commitReceipt = '<div class="receipt" data-o><span class="ok">' + ic('check') + '</span><span class="rx"><b>Committed 4c7e1a9 · 3 files</b><span>“Budget sheet replaces the browser prompt”</span></span><button class="undo">Undo</button></div>';
+  const sessPill = '<button class="sess" data-o aria-label="Session: Nova OS workspace, Sonnet 5. Model, workspace, new session, what the Builder can do"><i class="sw" aria-hidden="true"></i>Nova OS · Sonnet 5' + ic('down') + '</button>';
+  const threadA = (working) => '<div class="thread">' + '<span class="day">Today</span>' +
+    you('The budget prompt should be a sheet. Strip $ and commas before you read the amount.') +
+    builder('Done. Tapping a category opens a budget sheet with a number pad. The amount loses $ and commas before it is read, and anything still unreadable keeps the old budget instead of clearing it.', 'Sonnet 5 · 4 min', '3 files · +118 −22') +
+    sys('Breaker sent · reads Nova OS, changes nothing') + breaker('read-only pass · 3 min') +
+    you('Fix both.') +
+    (working ? '<article class="msg builder live"><header><i class="mk" aria-hidden="true"></i>Builder<span>working · <b class="tm num">0:38</b></span></header><p class="stream"></p><span class="shim" style="width:86%"></span><span class="shim" style="width:58%"></span></article>'
+      : builder('Fixed. Saving 0 now asks first, and a save leaves Undo for 8 seconds. One more test covers both.', 'Sonnet 5 · 3 min')) + '</div>';
+
+  /* ================= the frames ================= */
+  // each: { scr:'m'|'c', html, t: tally line, play(view, T) }
+  const DIR = {
+    a: '<b>A · One calm page.</b> Removes the Feeds card, the browser prompt, the 120 ✕ marks, the three dots and the Can or can’t card. Keeps every function. Moves adding, scanning, imports and the report behind ＋ and ⋯, and the commit into a tray over the thread. On the first screen: Money 11 → 6 objects, Code 10 → 7.',
+    b: '<b>B · Two levels.</b> The top of each screen fits one phone screen; the ledger, the subscriptions, each category and the review of a commit are pages pushed from it. Removes what A removes. On the first screen: Money 11 → 9 objects, Code 10 → 6.',
+    c: '<b>C · Decisions first.</b> Each screen opens on what is waiting for you: a tick, a cross, Talk, and one do-all. The record sits under it; Money adds by typing at the foot, and a finished run is one card you commit or shelve. Removes what A removes. On the first screen: Money 11 → 11 objects, Code 10 → 11; the count holds because the answers are the point (three verbs and a do-all on the card), where today’s 11 are feeds and chips.',
+  };
+  const F = { a: [], b: [], c: [] };
+
+  /* ---------- A ---------- */
+  const aTop = (menu) => '<header class="top" style="position:relative"><h1>Money</h1><button class="ib" data-o aria-label="More: the report, the export, imports, scan, how money gets in">' + ic('more') + '</button><button class="ib hue" data-o aria-label="Add a line">' + ic('plus') + '</button>' + (menu ? moneyMenu : '') + '</header>' +
+    '<button class="pill" data-o aria-label="Month: October 2026. Change month">October 2026' + ic('down') + '</button>';
+  const aNews = '<p class="news">$1,379 spent with six days left. Budgets are on pace; <span class="lit">Eating out is $38 over.</span></p>';
+  const aMonth = (extraLed) => aTop() + aNews + '<div class="gap"></div>' + ringHero + '<div class="gap"></div>' + budgets() +
+    '<div class="sechead"><h2>Coming up</h2><span>$72 a month · $18 a week</span></div>' + riseCard() + '<div class="gap"></div><section class="card" data-o>' + ruler + subRows + '</section>' +
+    '<div class="sechead" id="ledhead"><h2>October</h2><span>64 lines</span></div>' + ledger(extraLed);
+  F.a.push({ scr: 'm', html: aMonth(), t: '<b>Month.</b> The ring is October against its budgets, with today’s pace as a white mark; the serif line says what matters in a sentence code writes from the same numbers. Every budget is one bar in one chart: the track is the budget, the line is the limit, and past the line it is hatched and said in words. Under it: Coming up (the price rise waits there) and the month’s lines by day.',
+    note: '<p><b>The month as a form.</b> Spending is the violet fill; the white line is each budget; past it, the hatch and the words “$38 over”. Unbudgeted spending is a dashed gap with its total, never a zero. Tap any bar to change that budget (the Budget frame).</p>',
+    play(v, T) { T(80, () => v.classList.add('on')); T(2600, () => { const top = $('.top', v); top.insertAdjacentHTML('beforeend', moneyMenu); }); T(6200, () => { const mn = $('.menu', v); if (mn) mn.remove(); }); } });
+  F.a.push({ scr: 'm', html: aMonth() + budgetSheet, t: '<b>Budget.</b> Tapping Eating out raises a sheet from the bottom over the dimmed page: three months of that category with the budget as a line, the amount in large numerals, the iPhone’s number pad. $ and commas are fine (today “$250” silently clears the budget). Save, and the hatch past the line draws back as the bar settles under its new budget; a receipt offers Undo.',
+    note: '<p><b>No browser dialog.</b> The sheet names its task, has Cancel and Save, and shows what the number means before he commits it: the new line moves over the three months as he types. Empty clears the budget, said in the hint. Undo restores the old one.</p>',
+    play(v, T) {
+      const row = $('.bl[data-k="eat"]', v), sh = $('.sheet', v), sc = $('.scrim', v), val = $('.val', sh), bud = $('.bud', sh), bv2 = $('.bv2', sh), save = $('.save', sh);
+      T(80, () => v.classList.add('on'));
+      T(1500, () => row.classList.add('press'));
+      T(1800, () => { row.classList.remove('press'); sc.classList.add('on'); sh.classList.add('up'); });
+      [['3', 2700], ['0', 3000], ['0', 3300]].forEach(([k, at], i) => T(at, () => { const key = $('[data-key="' + k + '"]', sh); key.classList.add('hit'); setTimeout(() => key.classList.remove('hit'), 160); val.textContent = i === 0 ? '3' : val.textContent + '0'; if (i === 2) { bud.style.setProperty('--b', '70px'); bv2.textContent = '$300'; } }));
+      T(4300, () => save.classList.add('press'));
+      T(4500, () => { sh.classList.remove('up'); sh.classList.add('out'); sc.classList.remove('on'); });
+      T(5000, () => { const o = $('.o', row); o.style.setProperty('--o', '0'); o.style.transform = 'scaleX(0)'; $('.f', row).style.setProperty('--p', '.993'); $('.bv', row).innerHTML = '<b class="num">$298</b> of $300'; toast(v, '<b>Eating out budget is $300</b><span>Was $260 · $2 left this month</span>'); });
+    } });
+  F.a.push({ scr: 'm', html: aMonth(), scrollTo: '.decide', t: '<b>Rise.</b> Coming up keeps the radar’s numbers (the monthly total, every charge on a 30-day ruler) and turns a price rise into a card that waits on you: the step is drawn, the cost said in a year’s terms, and three answers. Here he taps the cross: Nova cannot cancel a subscription, so it writes “Cancel Reelhouse” to To-Do the day before the next charge, and says so with Undo.',
+    note: '<p><b>What he can do about it.</b> ✓ Keep it: the rise stops being news. Talk: opens Nova with this subscription as the subject (“is it worth keeping?”). ✕: the To-Do above, on the rails, with Undo. <span class="new">New</span>: today the radar shows the rise as a red tag and offers nothing to do.</p>',
+    play(v, T) {
+      T(80, () => v.classList.add('on'));
+      const card = $('.decide', v), no = $('.no', card);
+      T(2200, () => no.classList.add('press'));
+      T(2450, () => { no.classList.remove('press'); card.style.opacity = '0'; card.style.transform = 'scale(.96)'; });
+      T(2800, () => { card.outerHTML = riseReceipt; $('.flag', v).classList.add('on'); const r = $('.receipt', v); r.classList.add('rise-in'); });
+    } });
+  F.a.push({ scr: 'm', html: aMonth() + addSheet(), scrollTo: '#ledhead', t: '<b>Add.</b> ＋ raises the add sheet: the amount first on the number pad, Spend or Money in, where; the category is guessed by the ledger’s own keyword map (no model) and can be changed with one tap. Add, and the line lands at the top of Today while the day’s total ticks; a receipt offers Undo. Scan a receipt and Check imports live here too.',
+    note: '<p><b>One way in, three sources.</b> Typing, scanning a receipt and the imports folder all start in this sheet, so the Feeds card and its paragraph leave the page. A scan’s question (“which account is this?”) appears in this sheet with a field to answer it; today it is a line of gold text with no way to reply.</p>',
+    play(v, T) {
+      const sh = $('.sheet', v), sc = $('.scrim', v), val = $('.val', sh), add = $('.save', sh), m = $('.mtxt', sh), g = $('.gtxt', sh);
+      T(80, () => v.classList.add('on'));
+      T(1000, () => { sc.classList.add('on'); sh.classList.add('up'); });
+      [['6', 1800], ['.', 2050], ['5', 2300], ['0', 2550]].forEach(([k, at], i) => T(at, () => { const key = $('[data-key="' + k + '"]', sh); key.classList.add('hit'); setTimeout(() => key.classList.remove('hit'), 160); val.textContent = ['6', '6.', '6.5', '6.50'][i]; }));
+      T(3000, () => { m.classList.remove('ph'); typeText(m, 'Paper Lantern Cafe', 40, T); });
+      T(3900, () => { g.innerHTML = 'Category: <button class="chip on">Eating out</button> from “cafe”'; add.disabled = false; });
+      T(4800, () => add.classList.add('press'));
+      T(5000, () => { sh.classList.remove('up'); sh.classList.add('out'); sc.classList.remove('on'); });
+      T(5400, () => { const first = $('.lr', v); first.insertAdjacentHTML('beforebegin', '<div class="lr new"><b>Paper Lantern Cafe</b><span class="c">Eating out</span><span class="a">$6.50</span></div>'); const t = $('.dh .num', v); tick(t, 56.38, 62.88, 600, T); toast(v, '<b>Added $6.50 at Paper Lantern Cafe</b><span>Eating out is now $44.50 over</span>'); });
+    } });
+  F.a.push({ scr: 'c', html: '<header class="top"><h1>Code</h1><button class="ib" data-o aria-label="Session: model, workspace, new session, add to vault, what the Builder can do">' + ic('more') + '</button></header>' + sessPill +
+      '<p class="news">The Builder is fixing what the Breaker found.</p>' + threadA(true) + tray + codeComp(),
+    cls: 'has-tray', scrollEnd: true,
+    t: '<b>Run.</b> The console becomes a thread with authors. Your words sit right in glass. The Builder speaks with a solid orchid mark and rule; the Breaker with a cracked mark and a hatched rule, its findings numbered; a sent Breaker is one quiet line. While the Builder works, its words stream in under a running clock. The changes wait in a tray above the composer, with Review.',
+    note: '<p><b>Who is speaking, three ways at once.</b> The name, the mark’s shape and the rule’s pattern, so colour is never the only signal. The Breaker gets a working line too (today it runs for up to ten minutes with nothing moving). Breaker beside the composer sends it; the ⋯ holds the model, the workspace (switching asks first, then offers Undo, because today it wipes the conversation), New session (with Undo), Add to vault and what the Builder can and cannot do.</p>',
+    play(v, T) {
+      const live = $('.msg.live', v), p = $('.stream', live), tm = $('.tm', live);
+      let s = 38; for (let i = 1; i <= 8; i++) T(i * 1000, () => { s++; tm.textContent = '0:' + String(s).padStart(2, '0'); });
+      T(600, () => { p.classList.add('typed'); typeText(p, 'Reading the sheet again. Saving 0 will ask first, and a save will leave Undo for eight seconds…', 45, T); });
+    } });
+  F.a.push({ scr: 'c', html: '<header class="top"><h1>Code</h1><button class="ib" data-o aria-label="Session">' + ic('more') + '</button></header>' + sessPill +
+      '<p class="news">The Builder fixed both. Three files wait for your call.</p>' + threadA(false) + '<div class="thread" id="tail"></div>' + tray +
+      '<section class="reviewcard" role="dialog" aria-label="Review the changes"><span class="grab" aria-hidden="true"></span><div class="shtop"><span></span><b>3 files · main</b><button class="q" aria-label="Close">' + ic('x') + '</button></div><div class="rev">' + fileRows(false) + '</div>' + msgField + commitActs + '</section>' + codeComp(),
+    cls: 'has-tray', scrollEnd: true,
+    t: '<b>Commit.</b> Review grows the tray into a card: every changed file, ticked, with what it adds (orchid) and removes (struck through, never red). Tap a file for its diff, one at a time, scrolling sideways only inside the code. The message says the rule as you type. Commit folds the files into one line that drops into the thread as a receipt with Undo.',
+    note: '<p><b>The commit, acted out.</b> Diff (tap a file), message (8 characters or more, said before you press, where today the server refuses after), Commit, the files fold into one line, the receipt lands with the hash and the message. <span class="new">New</span>: Commit takes only the ticked files (today <code>git add -A</code> takes every change in the repo); Undo removes the commit and keeps the changes, while it is the newest commit and not pushed. After a push the receipt says so and Undo goes. Shelve keeps today’s stash with Restore.</p>',
+    play(v, T) {
+      const card = $('.reviewcard', v), tr = $('.tray', v), rev = $('.rev', card), diff = $('.diff', card), mt = $('.mt', card), rt = $('.rtx', card), rule = $('.rule', card), btn = $('.commit', card);
+      T(80, () => v.classList.add('on'));
+      T(900, () => $('.rv', tr).classList.add('press'));
+      T(1100, () => { card.classList.add('up'); rev.classList.add('on'); });
+      T(2100, () => diff.classList.add('open'));
+      T(3200, () => { mt.parentNode.classList.add('typed'); typeText(mt, 'Budget sheet replaces the browser prompt', 38, T); });
+      T(3600, () => { rule.classList.add('ok'); rt.textContent = 'Reads well. 41 characters'; btn.disabled = false; });
+      T(5300, () => btn.classList.add('press'));
+      T(5500, () => { btn.classList.remove('press'); rev.classList.add('folded'); });
+      T(6100, () => { card.classList.add('down'); tr.classList.add('gone'); fly(v, 'Committed 4c7e1a9 · 3 files', $('#tail', v), commitReceipt, T); });
+    } });
+
+  /* ---------- B ---------- */
+  const bTop = '<header class="top"><h1>Money</h1><button class="ib" data-o aria-label="More: the report, the export, how money gets in">' + ic('more') + '</button><button class="ib hue" data-o aria-label="Add a line">' + ic('plus') + '</button></header>' +
+    '<div class="stepper" data-o><button class="ib" aria-label="September">' + ic('left') + '</button><b>October 2026</b><button class="ib" aria-label="November, not yet">' + ic('right') + '</button></div>';
+  const DAYS = [62, 18, 95, 41, 12, 57, 30, 88, 24, 46, 9, 71, 39, 22, 64, 15, 52, 33, 140, 27, 48, 19, 31, 57, 56];
+  const stripCard = '<section class="card" data-o><div class="ch">October, day by day<span>Your daily average $55</span></div>' +
+    '<div class="strip" role="img" aria-label="Spending each day of October; the 19th was the biggest day at $140; the six days left are empty">' +
+    DAYS.map((d, i) => '<i class="' + (d > 120 ? 'big' : '') + '" style="height:' + Math.round(d / 140 * 90) + 'px;--i:' + i + '"></i>').join('') +
+    [26, 27, 28, 29, 30, 31].map(() => '<i class="fut"></i>').join('') + '<span class="avg" style="bottom:' + Math.round(55 / 140 * 90) + 'px"></span></div>' +
+    '<div class="axis"><span>1</span><span>8</span><span>15</span><span>22</span><span>31</span></div></section>';
+  const rt = (c, i) => {
+    const r = c.s / c.b, R = 26, Cc = 2 * Math.PI * R, a = Math.min(r, 1) * Cc, lap = Math.max(0, r - 1) * Cc;
+    return '<button class="rt" data-k="' + c.k + '" style="--i:' + i + '" aria-label="' + esc(c.n) + ': ' + usd(c.s) + ' of ' + usd(c.b) + (r > 1 ? ', ' + usd(c.s - c.b) + ' over' : '') + '. Open">' +
+      '<svg viewBox="0 0 62 62" aria-hidden="true"><circle cx="31" cy="31" r="26" class="trk"/><circle cx="31" cy="31" r="26" class="arc" data-a="' + a.toFixed(1) + '" transform="rotate(-90 31 31)"/>' +
+      (lap ? '<circle cx="31" cy="31" r="26" class="lap" data-a="' + lap.toFixed(1) + '" transform="rotate(-90 31 31)" stroke="url(#hatch' + c.k + ')"/><defs><pattern id="hatch' + c.k + '" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.5" height="5" fill="var(--hue)"/></pattern></defs>' : '') + '</svg>' +
+      '<b>' + esc(c.n) + '</b><span>' + (r > 1 ? usd(c.s - c.b) + ' over' : usd(c.b - c.s) + ' left') + '</span></button>';
+  };
+  const ringsCard = '<section class="card" data-o><div class="ch">Budgets<span>$1,229 of $1,600</span></div><div class="rings">' + BUD.map(rt).join('') +
+    '<button class="rt" aria-label="Three categories with no budget, $150. Open"><svg viewBox="0 0 62 62" aria-hidden="true"><circle cx="31" cy="31" r="26" class="gapc"/></svg><b>No budget</b><span>3 · $150</span></button></div></section>';
+  const bDrill = '<div class="gap"></div><section class="card grp">' +
+    '<button class="gr" data-o><span class="tile">' + ic('list') + '</span><b>Transactions</b><span class="v">64</span>' + ic('right', 'chev') + '</button>' +
+    '<button class="gr" data-o><span class="tile">' + ic('repeat') + '</span><b>Subscriptions</b><span class="v">1 rose</span>' + ic('right', 'chev') + '</button></section>';
+  const bNews = '<p class="news">On pace overall, with six days left. <span class="lit">Two budgets are over.</span></p>';
+  const bMonth = bTop + bNews + '<div class="gap"></div>' + stripCard + '<div class="gap"></div>' + ringsCard + bDrill;
+  const catPage = '<a class="back" role="button">' + ic('left') + 'Money</a><header class="top"><h1>Eating out</h1></header>' +
+    '<section class="card bigring" data-o><svg viewBox="0 0 120 120" role="img" aria-label="$298 of a $260 budget, $38 over"><circle cx="60" cy="60" r="50" class="trk" style="fill:none;stroke:var(--track);stroke-width:12"/><circle class="arc2" cx="60" cy="60" r="50" style="fill:none;stroke:var(--hue);stroke-width:12;stroke-linecap:round;stroke-dasharray:314 314" transform="rotate(-90 60 60)"/><circle class="lap2" cx="60" cy="60" r="50" style="fill:none;stroke:url(#hatchbig);stroke-width:12;stroke-dasharray:46 314;transition:stroke-dasharray .6s var(--ease-out)" transform="rotate(-90 60 60)"/><defs><pattern id="hatchbig" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="6" fill="var(--hue)"/></pattern></defs></svg>' +
+    '<div class="hs"><span class="k">Eating out, October</span><b class="num big cv2">$298</b><span class="v bt">of $260 · $38 over</span><span class="t">August $240 · September $251</span></div></section>' +
+    '<div class="gap"></div><section class="card grp"><button class="gr" data-o><span class="tile">' + ic('cal') + '</span><b>Monthly budget</b><span class="v bval">$260</span>' + ic('right', 'chev') + '</button></section>' +
+    '<div class="sechead"><h2>12 lines</h2><span>newest first</span></div><section class="card"><div class="lr"><b>Kettle &amp; Crumb</b><span class="c">Today</span><span class="a">$14.20</span></div><div class="lr"><b>Paper Lantern Cafe</b><span class="c">Thursday</span><span class="a">$6.50</span></div></section>';
+  F.b.push({ scr: 'm', html: bMonth, t: '<b>Month.</b> The top level fits one screen. October is a strip of 31 days (the dashed line is the daily average, the hatched bar the biggest day, the six days left drawn empty) and every budget is a ring: a full lap is the budget, a hatched second lap is the overspend, and the words under it say left or over. The ledger and the subscriptions are one tap down.',
+    note: '<p><b>The Index’s grammar.</b> Two rows lead on: Transactions (the ledger, with search and day groups) and Subscriptions (the radar). The month stepper replaces the select; ⋯ holds the report and the export.</p>',
+    play(v, T) { T(80, () => { v.classList.add('on'); drawRings(v); }); } });
+  F.b.push({ scr: 'm', html: '<div class="stack"><div class="layer base">' + bMonth + '</div><div class="layer push" aria-label="Eating out">' + catPage + '</div></div>' +
+      '<div class="scrim"></div><section class="sheet" role="dialog" aria-label="Monthly budget"><span class="grab" aria-hidden="true"></span><div class="shtop"><button class="q">Cancel</button><b>Monthly budget</b><button class="save">Save</button></div><div class="amt"><span class="cur">$</span><span class="num val">260</span><span class="caret"></span></div><p class="hint">Typing $ or commas is fine. Empty clears it.</p>' + keypad + '</section>',
+    t: '<b>Budget.</b> A ring opens its category as a page: the ring large, the last two months, Monthly budget as a row, and the category’s lines. The budget row raises the number pad in a short sheet; Save redraws the ring, and the hatched lap shrinks back inside the budget.',
+    note: '<p><b>A category is a place.</b> Everything about Eating out lives on its page, so changing its budget happens beside the evidence for it. Back to Money with the edge swipe or ‹ Money.</p>',
+    play(v, T) {
+      const st = $('.stack', v), ring = $('.rt[data-k="eat"]', v), sh = $('.sheet', v), sc = $('.scrim', v), val = $('.val', sh), save = $('.save', sh);
+      T(80, () => { v.classList.add('on'); drawRings(v); });
+      T(1300, () => ring.classList.add('press'));
+      T(1550, () => { ring.classList.remove('press'); st.classList.add('pushed'); window.scrollTo(0, 0); });
+      T(2500, () => { sc.classList.add('on'); sh.classList.add('up'); });
+      [['3', 3200], ['0', 3450], ['0', 3700]].forEach(([k, at], i) => T(at, () => { const key = $('[data-key="' + k + '"]', sh); key.classList.add('hit'); setTimeout(() => key.classList.remove('hit'), 160); val.textContent = i === 0 ? '3' : val.textContent + '0'; }));
+      T(4500, () => save.classList.add('press'));
+      T(4700, () => { sh.classList.remove('up'); sh.classList.add('out'); sc.classList.remove('on'); });
+      T(5100, () => { $('.lap2', v).style.strokeDasharray = '0 314'; $('.arc2', v).style.strokeDasharray = (298 / 300 * 314).toFixed(1) + ' 314'; $('.bt', v).textContent = 'of $300 · $2 left'; $('.bval', v).textContent = '$300'; toast(v, '<b>Eating out budget is $300</b><span>Was $260</span>'); });
+    } });
+  const subPage = '<a class="back" role="button">' + ic('left') + 'Money</a><header class="top"><h1>Subscriptions</h1></header>' +
+    '<p class="news">$72 a month, $18 a week and $59 a year. <span class="lit">One price went up.</span></p><div class="gap"></div>' + riseCard() +
+    '<div class="sechead"><h2>Next 30 days</h2><span>5 recurring</span></div><section class="card" data-o>' + ruler + subRows + '</section>';
+  F.b.push({ scr: 'm', html: '<div class="stack"><div class="layer base">' + bMonth + '</div><div class="layer push" aria-label="Subscriptions">' + subPage + '</div></div>',
+    t: '<b>Rise.</b> Subscriptions is its own page: the totals in a sentence, the rise as a card waiting on you with the step drawn, then the next 30 days on a ruler and every subscription as a row. The cross puts “Cancel Reelhouse” on To-Do before the next charge, with Undo.',
+    note: '<p><b>Same answers as A</b> (✓ Keep it · Talk · ✕), on the page where every subscription lives. The Subscriptions row on Money says “1 rose” until he answers.</p>',
+    play(v, T) {
+      const st = $('.stack', v);
+      T(80, () => { v.classList.add('on'); drawRings(v); });
+      T(900, () => $$('.gr', v)[1].classList.add('press'));
+      T(1100, () => { st.classList.add('pushed'); window.scrollTo(0, 0); });
+      const card = () => $('.layer.push .decide', v);
+      T(3600, () => $('.no', card()).classList.add('press'));
+      T(3850, () => { card().style.opacity = '0'; card().style.transform = 'scale(.96)'; });
+      T(4200, () => { card().outerHTML = riseReceipt; $('.layer.push .flag', v).classList.add('on'); $('.layer.push .receipt', v).classList.add('rise-in'); });
+    } });
+  const txPage = '<a class="back" role="button">' + ic('left') + 'Money</a><header class="top"><h1>Transactions</h1><button class="ib hue" data-o aria-label="Add a line">' + ic('plus') + '</button></header>' +
+    '<div class="field" style="margin-top:8px"><span class="ph">Search 64 lines</span></div><div class="gap"></div>' +
+    '<section class="card" data-o><div class="dh"><span>Today</span><span class="num tnum">$56.38</span></div><div class="newrow"></div>' +
+    '<div class="swipe"><span class="act">Delete</span><div class="lr"><b>Corner Grocer</b><span class="c">Groceries</span><span class="a">$42.18</span></div></div>' +
+    '<div class="lr"><b>Kettle &amp; Crumb</b><span class="c">Eating out</span><span class="a">$14.20</span></div>' +
+    '<div class="dh"><span>Yesterday</span><span class="num">$57.40</span></div><div class="lr"><b>Metro card top-up</b><span class="c">Transport</span><span class="a">$30.00</span></div><div class="lr"><b>Workbench Hardware</b><span class="c">Shopping</span><span class="a">$27.40</span></div>' +
+    '<p class="cap">Swipe a line to delete it, with Undo. Tap it to change its category: the change holds for that merchant from then on, and the sheet says so.</p></section>';
+  F.b.push({ scr: 'm', html: '<div class="stack"><div class="layer base">' + bMonth + '</div><div class="layer push" aria-label="Transactions">' + txPage + '</div></div>' + addSheet('New line'),
+    t: '<b>Add.</b> Transactions is a page: search, day groups with each day’s total, one line a row (merchant, category, amount), swipe to delete with Undo. ＋ raises the same add sheet as A; the new line lands under Today. The 16-point ✕ on every row is gone; a swipe and the row’s sheet replace it.',
+    note: '<p><b>The ledger as a page</b> keeps the 120-line cap and says it when it applies (“showing the newest 120 of 135; older lines are in the export”). The row sheet says what a category change does: it holds for that merchant from then on (true today, and never said).</p>',
+    play(v, T) {
+      const st = $('.stack', v), sh = $('.sheet', v), sc = $('.scrim', v), val = $('.val', sh), add = $('.save', sh), m = $('.mtxt', sh), g = $('.gtxt', sh);
+      T(80, () => { v.classList.add('on'); drawRings(v); });
+      T(700, () => { st.classList.add('pushed'); window.scrollTo(0, 0); });
+      T(1700, () => $('.swipe', v).classList.add('out'));
+      T(2600, () => $('.swipe', v).classList.remove('out'));
+      T(3200, () => { sc.classList.add('on'); sh.classList.add('up'); });
+      [['6', 3900], ['.', 4100], ['5', 4300], ['0', 4500]].forEach(([k, at], i) => T(at, () => { const key = $('[data-key="' + k + '"]', sh); key.classList.add('hit'); setTimeout(() => key.classList.remove('hit'), 160); val.textContent = ['6', '6.', '6.5', '6.50'][i]; }));
+      T(4800, () => { m.classList.remove('ph'); typeText(m, 'Paper Lantern Cafe', 40, T); });
+      T(5700, () => { g.innerHTML = 'Category: <button class="chip on">Eating out</button> from “cafe”'; add.disabled = false; });
+      T(6500, () => add.classList.add('press'));
+      T(6700, () => { sh.classList.remove('up'); sh.classList.add('out'); sc.classList.remove('on'); });
+      T(7100, () => { $('.newrow', v).outerHTML = '<div class="lr new"><b>Paper Lantern Cafe</b><span class="c">Eating out</span><span class="a">$6.50</span></div>'; tick($('.tnum', v), 56.38, 62.88, 600, T); toast(v, '<b>Added $6.50 at Paper Lantern Cafe</b><span>Eating out is now $44.50 over</span>'); });
+    } });
+  const bSess = '<section class="card" data-o style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center"><div><b style="display:flex;align-items:center;gap:8px;font:600 15px var(--ui)"><i class="mk" aria-hidden="true" style="width:14px;height:14px;border-radius:4px;background:var(--hue)"></i>Builder · Sonnet 5</b><span class="k">Nova OS · main · edits files, runs no commands</span></div><button class="ib" aria-label="Session settings">' + ic('more') + '</button></section>';
+  const bChanges = '<div class="tray" data-o style="grid-template-columns:30px minmax(0,1fr) auto 14px;padding-left:12px"><span class="tile" style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff;background:color-mix(in srgb,var(--hue) 70%,#000)">' + ic('branch') + '</span><div><b>Changes</b><span>' + pm(131, 22) + '3 files · +131 −22</span></div><span></span>' + ic('right', 'chev') + '</div>';
+  F.b.push({ scr: 'c', html: '<header class="top"><h1>Code</h1></header>' + bSess + threadA(true) + bChanges + codeComp(), cls: 'has-tray', scrollEnd: true,
+    t: '<b>Run.</b> The session is a card at the head (who is building, on which model, in which workspace, what it can do), the thread under it with the same authored lines as A, and Changes as a row above the composer that pushes the review page.',
+    note: '<p><b>The head says what the console is</b> in one line (“edits files, runs no commands”), so the Can or can’t card and the meta line leave. Its ⋯ holds the same session controls as A.</p>',
+    play(v, T) {
+      const live = $('.msg.live', v), p = $('.stream', live), tm = $('.tm', live);
+      let s = 38; for (let i = 1; i <= 8; i++) T(i * 1000, () => { s++; tm.textContent = '0:' + String(s).padStart(2, '0'); });
+      T(600, () => { p.classList.add('typed'); typeText(p, 'Reading the sheet again. Saving 0 will ask first, and a save will leave Undo for eight seconds…', 45, T); });
+    } });
+  const reviewPage = '<a class="back" role="button">' + ic('left') + 'Code</a><header class="top"><h1>Changes</h1></header>' +
+    '<p class="news">Three files on main, from this session.</p><div class="gap"></div><section class="card rev" data-o>' + fileRows(false) + '</section>' +
+    '<div class="gap"></div><section class="card" data-o>' + msgField + commitActs + '</section>';
+  F.b.push({ scr: 'c', html: '<div class="stack"><div class="layer base"><header class="top"><h1>Code</h1></header>' + bSess + threadA(false) + '<div class="thread" id="tail"></div></div><div class="layer push" aria-label="Changes">' + reviewPage + '</div></div>' + bChanges + codeComp(), cls: 'has-tray',
+    t: '<b>Commit.</b> Changes is a page of its own: every file ticked with what it adds and removes, a file’s diff opening in place, the message with its rule, Commit and Shelve. Commit folds the files, the page slides back to the thread, and the receipt lands there with Undo.',
+    note: '<p><b>The review has the whole screen</b>, so a long diff never fights the conversation for room (today the diff shows 15 points of code inside a 209-point box). The same new rules as A: commit the ticked files only, Undo while unpushed.</p>',
+    play(v, T) {
+      const st = $('.stack', v), rev = $('.layer.push .rev', v), diff = $('.layer.push .diff', v), mt = $('.layer.push .mt', v), rt2 = $('.layer.push .rtx', v), rule = $('.layer.push .rule', v), btn = $('.layer.push .commit', v), tr = $('.tray', v);
+      T(600, () => tr.classList.add('press'));
+      T(800, () => { st.classList.add('pushed'); tr.classList.add('gone'); window.scrollTo(0, 0); });
+      T(1300, () => { rev.classList.add('on'); });
+      T(2200, () => diff.classList.add('open'));
+      T(3200, () => { mt.parentNode.classList.add('typed'); typeText(mt, 'Budget sheet replaces the browser prompt', 38, T); });
+      T(3600, () => { rule.classList.add('ok'); rt2.textContent = 'Reads well. 41 characters'; btn.disabled = false; });
+      T(5300, () => btn.classList.add('press'));
+      T(5500, () => { btn.classList.remove('press'); rev.classList.add('folded'); });
+      T(6100, () => { st.classList.remove('pushed'); st.classList.add('popped'); });
+      T(6600, () => { const tail = $('#tail', v); tail.innerHTML = commitReceipt; tail.firstChild.classList.add('rise-in'); reveal(v, tail); });
+    } });
+
+  /* ---------- C ---------- */
+  const cTop = '<header class="top"><h1>Money</h1><button class="ib" data-o aria-label="More: month, the report, the export, imports, scan">' + ic('more') + '</button></header>';
+  const overCard = '<div class="decide" data-o><div class="dk"><span>Over budget</span><span>2 of 3</span></div><p class="say">Eating out is $38 over its $260.</p>' +
+    '<div class="bl" style="pointer-events:none;min-height:0;margin-top:8px">' + '<span class="bar" aria-hidden="true"><i class="f" style="--p:1"></i><i class="o" style="--o:.146"></i><i class="ln"></i></span></div>' +
+    '<p class="sub">August $240, September $251. A $300 budget fits this month.</p>' +
+    '<div class="amtrow" hidden><div class="amt"><span class="cur">$</span><span class="num val">300</span><span class="caret"></span></div>' + keypad + '</div>' +
+    '<div class="answer"><button class="yes">' + ic('check') + 'Make it $300</button><button class="q oth">Other amount</button><button class="no" aria-label="Keep $260">' + ic('x') + '</button></div></div>';
+  const cMonthCard = '<div class="sechead"><h2>October</h2><span>$1,229 of $1,600 · 6 days left</span></div>' + budgets(false);
+  const cRecent = '<div class="sechead" id="recent"><h2>Recent</h2><span>64 lines</span></div>' + ledger();
+  const cComp = (txt, live) => '<div class="comp" data-o style="grid-template-columns:44px minmax(0,1fr) 44px"><button class="cam" aria-label="Scan a receipt or statement">' + ic('cam') + '</button><div class="fld' + (live ? ' typed' : '') + '">' + (txt || 'Add or ask: coffee 6.50') + '</div><button class="send' + (live ? ' live' : '') + '" aria-label="Add">' + ic('up') + '</button></div>';
+  const cNews = '<p class="news">Three things need you this month.</p>';
+  const cMonth = (deck) => cTop + cNews + '<div class="deck">' + (deck || riseCard(true, '1 of 3')) + '</div><div class="doall"><button>Yes to all 3</button></div>' + cMonthCard + cRecent + cComp();
+  F.c.push({ scr: 'm', html: cMonth(), cls: 'has-comp', t: '<b>Month.</b> Money opens on what waits for you: three cards in a deck (a price rise, a budget over, four imported lines), each with a tick, a cross and Talk, and one “Yes to all 3”. Under the deck, October as the same budget chart as A, then the recent lines. Adding is typing at the foot.',
+    note: '<p><b>The Coach deck, applied to money.</b> Gold edges mean waiting on you and nothing else; they leave when the deck is empty, and then the month leads. The fourth kind of card is the scan’s question, answered in the card instead of a line of gold text.</p>',
+    play(v, T) { T(80, () => v.classList.add('on')); } });
+  F.c.push({ scr: 'm', html: cMonth(overCard), cls: 'has-comp',
+    t: '<b>Budget.</b> The over-budget card proposes a number from his own months and shows it; Other amount opens the number pad inside the card. The tick saves it: the card leaves with the hatch drawing back, and the chart under it settles. Any bar in the chart opens the same card for that category.',
+    note: '<p><b>A budget is a decision, so it is a card.</b> “Make it $300” comes from code (this month rounded up to the next $50), never a model. Undo is on the receipt. The cross keeps $260 and the card stops asking this month.</p>',
+    play(v, T) {
+      const card = $('.decide', v), oth = $('.oth', card), row = $('.amtrow', card), val = $('.val', card), yes = $('.yes', card);
+      T(80, () => v.classList.add('on'));
+      T(1600, () => oth.classList.add('press'));
+      T(1800, () => { oth.classList.remove('press'); row.hidden = false; row.classList.add('rise-in'); });
+      [['2', 2600], ['8', 2850], ['0', 3100]].forEach(([k, at], i) => T(at, () => { const key = $('[data-key="' + k + '"]', card); key.classList.add('hit'); setTimeout(() => key.classList.remove('hit'), 160); val.textContent = ['2', '28', '280'][i]; if (i === 2) yes.innerHTML = ic('check') + 'Make it $280'; }));
+      T(4100, () => yes.classList.add('press'));
+      T(4300, () => { const o = $('.o', card); o.style.transform = 'scaleX(0)'; });
+      T(4700, () => { card.style.opacity = '0'; card.style.transform = 'translateX(30px)'; });
+      T(5100, () => { card.outerHTML = '<div class="receipt rise-in" data-o><span class="ok">' + ic('check') + '</span><span class="rx"><b>Eating out budget is $280</b><span>Was $260 · $18 over now</span></span><button class="undo">Undo</button></div>'; const r = $('.bl[data-k="eat"]', v); $('.o', r).style.setProperty('--o', (18 / 280).toFixed(3)); $('.bv', r).innerHTML = '<b class="num">$298</b> · $18 over'; });
+    } });
+  F.c.push({ scr: 'm', html: cMonth(), cls: 'has-comp',
+    t: '<b>Rise.</b> The first card is the price rise, drawn as a step. Here he answers with the cross: the card sweeps away and leaves a receipt (“Cancel Reelhouse is on To-Do”, Undo), and the deck moves up to the next card.',
+    note: '<p><b>Talk</b> opens Nova with the subscription as the subject, and anything he settles there is filed the same way. The radar’s totals and every subscription row sit under Recent as “Coming up”.</p>',
+    play(v, T) {
+      T(80, () => v.classList.add('on'));
+      const card = $('.decide', v), no = $('.no', card);
+      T(2300, () => no.classList.add('press'));
+      T(2550, () => { card.style.opacity = '0'; card.style.transform = 'translateX(-40px) rotate(-2deg)'; });
+      T(2950, () => { card.outerHTML = riseReceipt; $('.receipt', v).classList.add('rise-in'); $('.news', v).textContent = 'Two things need you this month.'; $('.doall button', v).textContent = 'Yes to both'; });
+    } });
+  F.c.push({ scr: 'm', html: cMonth(), cls: 'has-comp', scrollTo: '#recent',
+    t: '<b>Add.</b> He types “coffee 6.50” at the foot. Code reads it (the amount, then the ledger’s keyword map for the category: coffee is Eating out) and shows the line it will add as a card, each part tappable to change. The tick adds it; it lands under Today with Undo.',
+    note: '<p><b>The habit he already has</b> (“typing coffee 6.50 into any capture surface files here too”) becomes this screen’s way in. Parsed by code, no model; the camera beside it scans a receipt into the same card.</p>',
+    play(v, T) {
+      const fld = $('.comp .fld', v), send = $('.comp .send', v);
+      T(80, () => v.classList.add('on'));
+      T(800, () => { fld.classList.add('typed'); fld.textContent = ''; typeText(fld, 'coffee 6.50', 70, T); });
+      T(1700, () => send.classList.add('live'));
+      T(1900, () => { const c = document.createElement('div'); c.className = 'parse decide rise-in'; c.setAttribute('data-o', ''); c.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom,0px) + 66px);z-index:25;max-width:378px;margin:0 auto'; c.innerHTML = '<div class="dk"><span>Add this line?</span><span>read by code</span></div><p class="say" style="font-size:20px">$6.50 · Coffee · Eating out · today</p><div class="answer"><button class="yes">' + ic('check') + 'Add</button><button class="q">Change</button><button class="no" aria-label="Don’t add">' + ic('x') + '</button></div>'; v.appendChild(c); });
+      T(3400, () => $('.parse .yes', v).classList.add('press'));
+      T(3600, () => { const c = $('.parse', v); c.style.opacity = '0'; c.style.transform = 'translateY(14px)'; fld.classList.remove('typed'); fld.textContent = 'Add or ask: coffee 6.50'; send.classList.remove('live'); });
+      T(3900, () => { $('.parse', v).remove(); const first = $$('.lr', v)[0]; first.insertAdjacentHTML('beforebegin', '<div class="lr new"><b>Coffee</b><span class="c">Eating out</span><span class="a">$6.50</span></div>'); tick($$('.dh .num', v)[0], 56.38, 62.88, 600, T); toast(v, '<b>Added $6.50 for coffee</b><span>Eating out is now $44.50 over</span>'); });
+    } });
+  const runCard = (tail) => '<div class="deck"><div class="decide run-card" data-o><div class="dk"><span>Ready for your call</span><span>run 2 of today</span></div>' +
+    '<p class="say">Budget sheet replaces the browser prompt.</p>' +
+    '<div class="you" style="margin-top:10px">The budget prompt should be a sheet. Strip $ and commas first.</div>' +
+    '<article class="msg builder"><header><i class="mk" aria-hidden="true"></i>Builder<span>Sonnet 5 · 4 min</span></header><p>A budget sheet with a number pad; $ and commas are dropped before the amount is read.</p></article>' +
+    '<article class="msg breaker"><header><i class="mk crack" aria-hidden="true"></i>Breaker<span>read-only · 3 min</span></header><p>Saving 0 cleared without asking, and nothing undid a save.</p></article>' +
+    '<article class="msg builder"><header><i class="mk" aria-hidden="true"></i>Builder<span>3 min</span></header><p>Fixed both, with a test.</p></article>' +
+    '<div class="files"><b>3 files</b>' + pm(131, 22) + '<span>+131 −22</span></div>' + (tail || '') +
+    '<div class="answer cverbs"><button class="yes">' + ic('check') + 'Commit</button><button class="q">' + ic('talk') + 'Talk</button><button class="no" aria-label="Shelve the changes; Restore brings them back">' + ic('x') + '</button></div></div></div>';
+  const cCodeHead = '<header class="top"><h1>Code</h1><button class="ib" data-o aria-label="Session settings">' + ic('more') + '</button></header>' + sessPill;
+  const earlier = '<div class="sechead" id="earlyhead"><h2>Earlier today</h2><span>1 run</span></div><div class="earlier"><div class="receipt"><span class="ok">' + ic('check') + '</span><span class="rx"><b>Committed 91b0d2e · 2 files</b><span>Run 1 · this morning</span></span><button class="undo">Undo</button></div></div>' +
+    '<button class="open-thread" data-o>Open the whole conversation<span>6 lines</span>' + ic('right') + '</button>';
+  F.c.push({ scr: 'c', html: cCodeHead + '<p class="news">One run is ready for your call.</p>' + runCard() + earlier + codeComp(), cls: 'has-comp',
+    t: '<b>Run.</b> A finished run is one card: the run named in a line, what you asked, the Builder’s answer, the Breaker’s findings and the Builder’s fix, each authored, and the change drawn. Three answers: Commit, Talk (keep going in the thread), the cross to shelve. The full thread is one row down.',
+    note: '<p><b>The run as a decision.</b> The card’s title line comes from the Builder’s last reply and is editable before the commit. While a run is still working, the card shows the Builder or Breaker working with the clock, and the answers wait.</p>',
+    play(v, T) { T(80, () => v.classList.add('on')); $$('.run-card .msg', v).forEach((m, i) => { m.style.opacity = '0'; T(400 + i * 450, () => { m.style.transition = 'opacity .35s ease'; m.style.opacity = '1'; }); }); } });
+  F.c.push({ scr: 'c', html: cCodeHead + '<p class="news">One run is ready for your call.</p>' + runCard('<div class="cstep" hidden><div class="rev">' + fileRows(true) + '</div>' + msgField + '</div>') + '<div id="tail"></div>' + earlier + codeComp(), cls: 'has-comp',
+    t: '<b>Commit.</b> The tick turns the card to its last step in place: the files with their ticks and diffs, the message already written from the run’s title, its rule met. Commit folds the files into the card’s head, and the card shrinks into a receipt in Earlier today, with Undo.',
+    note: '<p><b>Two taps to commit</b> a run he has already read (tick, then Commit), with the files and the message in view before the second. The cross shelves (a stash, with Restore); Talk returns to the thread with the run as the subject.</p>',
+    play(v, T) {
+      const card = $('.run-card', v), cs = $('.cstep', card), verbs = $('.cverbs', card), yes = $('.yes', verbs);
+      T(80, () => v.classList.add('on'));
+      T(1200, () => yes.classList.add('press'));
+      T(1400, () => { yes.classList.remove('press'); $$('.msg, .you', card).forEach((m) => { m.style.display = 'none'; }); cs.hidden = false; cs.classList.add('rise-in'); $('.rev', cs).classList.add('on'); const mt = $('.mt', cs); mt.parentNode.classList.add('typed'); mt.textContent = 'Budget sheet replaces the browser prompt'; $('.rule', cs).classList.add('ok'); $('.rtx', cs).textContent = 'Reads well. 41 characters'; verbs.innerHTML = '<div class="acts" style="width:100%;margin-top:0"><button class="commit">Commit 3 files</button><button class="shelve">Shelve</button></div>'; card.scrollIntoView({ block: 'center', behavior: reduced() ? 'auto' : 'smooth' }); });
+      T(3600, () => $('.commit', card).classList.add('press'));
+      T(3800, () => $('.rev', cs).classList.add('folded'));
+      T(4400, () => { card.style.opacity = '0'; card.style.transform = 'scale(.92)'; });
+      T(4800, () => { card.parentNode.style.display = 'none'; $('.news', v).textContent = 'Nothing waits for you. Ask the Builder for the next thing.'; const e = $('.earlier', v); e.insertAdjacentHTML('afterbegin', commitReceipt); e.firstElementChild.classList.add('rise-in'); $('#earlyhead span', v).textContent = '2 runs'; window.scrollTo({ top: 0, behavior: reduced() ? 'auto' : 'smooth' }); });
+    } });
+
+  /* ================= notes: every function, and where it went ================= */
+  const MAP_M = {
+    a: [['Month select (raw, 33 pt)', 'The month pill under the title (44 pt), a month sheet'], ['This month: total, change, money in', 'The ring and the numbers beside it'], ['Monthly report (gold chip)', '⋯ · “Draft September’s report” (names the month it covers)'], ['Export FY', '⋯ · Export FY26-27'], ['Feeds: folder, Check folder now', '⋯ · Check the imports folder; the add sheet'], ['Scan a statement or receipt, its error and question', 'The add sheet; the question gets a field to answer'], ['“Type coffee 6.50” hint', '⋯ · How money gets in'], ['By category bars, last month', 'The budgets chart; last months in the budget sheet'], ['Set a budget (window.prompt)', 'The budget sheet'], ['Subscription radar: totals, cadence, next, rise', 'Coming up: the ruler, the rows, the rise card'], ['Ledger add form', 'The add sheet (＋)'], ['Ledger rows, inline category, ✕', 'Day groups; tap for the row sheet; swipe to delete, Undo'], ['“Showing N of M” cap', 'Kept, under the lines, when it applies'], ['Empty, offline, loading', 'Said in the serif line; skeletons while loading']],
+    b: [['Month select', 'The ‹ October › stepper'], ['This month: total, change, money in', 'The day strip and the news line'], ['Monthly report, Export FY', '⋯'], ['Feeds and scan', 'Transactions › ＋ (the add sheet)'], ['By category, budgets', 'The rings; each opens its category page'], ['Set a budget', 'Category page · Monthly budget'], ['Subscription radar', 'Subscriptions page'], ['Ledger, add, rows, ✕', 'Transactions page: search, day groups, ＋, swipe'], ['The cap note, the states', 'Kept on the pages they belong to']],
+    c: [['Month select', '⋯ · Month'], ['This month', 'The October heading and the chart'], ['Monthly report, Export FY, imports', '⋯'], ['Scan', 'The camera at the foot'], ['By category, set a budget', 'The chart; a bar or an over card opens the editor'], ['Subscription radar', 'The rise card, and Coming up under Recent'], ['Ledger add form', 'Type at the foot (“coffee 6.50”), code reads it'], ['Rows, category, ✕', 'Recent, row sheet, swipe'], ['Imported lines waiting', 'A deck card (they already wait in the Inbox)']],
+  };
+  const MAP_C = {
+    a: [['Spar: send the Breaker', 'Breaker, beside the composer'], ['New session, Add to vault', '⋯ (New session leaves an Undo)'], ['Console dots, path, connection', 'Dots retired; the session pill; “not connected” said in words'], ['Uncommitted changes, branch', 'The tray: files, +/−, branch'], ['Show diff, 8 files, “and N more”', 'Review: every file, tap one for its diff'], ['Commit message, Commit, Shelve', 'Review: the message and its rule, Commit, Shelve'], ['Read-only vault notice', 'Review says it, with no Commit'], ['Shelved banner, Restore', 'A receipt in the thread with Restore'], ['BUILDER, BREAKER, SYSTEM, YOU', 'Authored lines; system events as one quiet line'], ['Busy dots', 'A working line with a clock, for the Breaker too'], ['Input and Run', 'The composer; send lights while there is text'], ['Model select, Workspace, session state', '⋯ (switching workspace asks first, then Undo)'], ['Can or can’t card, meta line', '⋯ · What the Builder can do']],
+    b: [['Spar, New session, Add to vault', 'Breaker at the foot; the session card’s ⋯'], ['Console header', 'The session card'], ['Changes, diff, commit, shelve', 'The Changes page'], ['Transcript, busy, input', 'The thread and the composer, as A'], ['Model, workspace, can or can’t', 'The session card and its ⋯']],
+    c: [['Spar', 'Breaker at the foot; a run can be sent to the Breaker before you commit'], ['Changes, diff, commit, shelve', 'The run card: tick, then Commit; the cross shelves'], ['Transcript', '“Open the whole conversation”'], ['Committed and shelved', 'Receipts in Earlier today, with Undo or Restore'], ['Session controls, can or can’t', '⋯ and the session pill']],
+  };
+  const noteFor = (d, f) => {
+    const map = f.scr === 'm' ? MAP_M[d] : MAP_C[d];
+    return '<aside class="note">' + (f.note || '') + '<p><b>Every function on today’s ' + (f.scr === 'm' ? 'Money' : 'Code') + ' screen, and where it is in ' + d.toUpperCase() + '</b></p><table>' + map.map((r) => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</table>' +
+      '<p style="margin-top:10px">Demo content: every merchant, amount, date, request, reply, file and hash is invented.</p></aside>';
+  };
+
+  /* ================= runtime ================= */
+  const phone = $('#phone'), tally = $('#tally');
+  const RMQ = matchMedia('(prefers-reduced-motion: reduce)');
+  let rmPreview = false;
+  const reduced = () => rmPreview || RMQ.matches;
+  let timers = [];
+  const T = (ms, fn) => { timers.push(setTimeout(fn, reduced() ? 0 : ms)); };
+  function clearT() { timers.forEach(clearTimeout); timers = []; $$('.flyer').forEach((f) => f.remove()); }
+  function typeText(el, text, per, Tf) { if (reduced()) { el.textContent = text; el.classList.remove('typed'); return; } el.textContent = ''; [...text].forEach((ch, i) => timers.push(setTimeout(() => { el.textContent += ch; if (i === text.length - 1) setTimeout(() => el.classList.remove('typed'), 600); }, i * per))); }
+  function tick(el, from, to, ms) { if (!el) return; if (reduced()) { el.textContent = usd(to, true); return; } const t0 = performance.now(); const step = (now) => { const k = Math.min(1, (now - t0) / ms); el.textContent = usd(from + (to - from) * (1 - Math.pow(1 - k, 3)), true); if (k < 1) requestAnimationFrame(step); }; requestAnimationFrame(step); }
+  function toast(v, html) { let t = $('.toast', v); if (!t) { t = document.createElement('div'); t.className = 'toast receipt'; v.appendChild(t); } t.innerHTML = '<span class="ok">' + ic('check') + '</span><span class="rx">' + html + '</span><button class="undo">Undo</button>'; requestAnimationFrame(() => t.classList.add('on')); }
+  function reveal(m, el) { const cover = $('.tray:not(.gone)', m) || $('.comp', m); const ct = cover ? cover.getBoundingClientRect().top : innerHeight - 96; const r = el.getBoundingClientRect(); window.scrollBy(0, r.bottom - ct + 12); }
+  function drawRings(v) { $$('.rt .arc, .rt .lap', v).forEach((c) => { c.style.strokeDasharray = c.dataset.a + ' 200'; }); }
+  function drawHero(v) { $$('.ring .arc', v).forEach((c) => { c.style.strokeDasharray = (C * Number(c.dataset.p)).toFixed(1) + ' 400'; }); }
+  function fly(v, label, target, finalHtml) {
+    const from = $('.reviewcard .fr', v) || $('.reviewcard', v); const r0 = from.getBoundingClientRect();
+    if (reduced()) { target.innerHTML = finalHtml; return; }
+    const f = document.createElement('div'); f.className = 'flyer'; f.innerHTML = ic('check') + label; Object.assign(f.style, { left: r0.left + 'px', top: r0.top + 'px', width: r0.width + 'px', height: '52px' }); document.body.appendChild(f);
+    target.innerHTML = finalHtml; const rec = target.firstChild; rec.style.opacity = '0'; reveal(v, target);
+    const r1 = rec.getBoundingClientRect();
+    const a = f.animate([{ transform: 'none' }, { transform: 'translate(' + (r1.left - r0.left) + 'px,' + (r1.top - r0.top) + 'px) scale(' + (r1.width / r0.width).toFixed(3) + ',1)' }], { duration: 560, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' });
+    a.onfinish = () => { f.remove(); rec.style.transition = 'opacity .25s ease'; rec.style.opacity = '1'; };
+  }
+
+  // build every view once; each show() rebuilds its markup, so Replay starts clean
+  const views = {};
+  ['a', 'b', 'c'].forEach((d) => F[d].forEach((f, i) => { const m = document.createElement('main'); m.id = d + '-' + (i + 1); m.className = 'view' + (f.scr === 'c' ? ' cv' : '') + (f.cls ? ' ' + f.cls : ''); m.hidden = true; phone.appendChild(m); views[m.id] = { m, f, d }; }));
+
+  let cur = { d: 'a', f: 1 };
+  function show() {
+    clearT();
+    document.documentElement.classList.toggle('rm', rmPreview);
+    Object.values(views).forEach((x) => { x.m.hidden = true; x.m.innerHTML = ''; x.m.classList.remove('on'); });
+    const x = views[cur.d + '-' + cur.f]; const { m, f, d } = x;
+    m.innerHTML = f.html + noteFor(d, f); m.hidden = false;
+    $$('#dirs button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.d === d)));
+    $$('#mfr button, #cfr button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.f) === cur.f)));
+    tally.innerHTML = DIR[d] + ' ' + f.t; tally.classList.remove('open');
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      if (f.scrollTo) { const el = $(f.scrollTo, m); if (el) window.scrollTo(0, el.getBoundingClientRect().top + scrollY - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--switch-h')) || 124) - 16); }
+      if (f.scrollEnd) { const th = $$('.thread', m).filter((t) => t.children.length).pop(); if (th) reveal(m, th); }
+      drawHero(m);
+      f.play && f.play(m, T);
+      if (location.hash !== '#' + d + '/' + cur.f) history.replaceState(null, '', '#' + d + '/' + cur.f);
+      setTimeout(() => { const r = window.__measure(); tally.innerHTML = DIR[d] + ' ' + f.t + ' <b>Measured here:</b> ' + r.objects + ' objects on the first screen, type ' + r.typeSizes.join(' ') + ', ' + (r.under44.length ? r.under44.length + ' controls under 44' : 'every control 44 or more') + ', width ' + r.scrollWidth + '.'; }, reduced() ? 30 : 60);
+    });
+  }
+  $('#dirs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cur.d = b.dataset.d; show(); });
+  $('#mfr').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cur.f = Number(b.dataset.f); show(); });
+  $('#cfr').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cur.f = Number(b.dataset.f); show(); });
+  $('#replay').addEventListener('click', show);
+  $('#rmbtn').addEventListener('click', (e) => { rmPreview = !rmPreview; e.currentTarget.setAttribute('aria-pressed', String(rmPreview)); show(); });
+  tally.addEventListener('click', () => tally.classList.toggle('open'));
+  function fromHash() { const h = (location.hash || '').replace('#', '').toLowerCase().split('/'); if (!F[h[0]]) return; cur.d = h[0]; const n = Number(h[1]); cur.f = n >= 1 && n <= 6 ? n : 1; }
+  window.addEventListener('hashchange', () => { fromHash(); show(); });
+  fromHash(); show();
+
+  // the measure the tally quotes: objects in the first 728 points of the page (his phone's band
+  // between the top bar and the tab bar), distinct type sizes, controls under 44, page width
+  window.__measure = () => {
+    // one rule for before and after: containers (cards, trays, the composer) and tap targets
+    // on his phone's first screen (728 pt under the top bar); a chart counts once, its marks do not
+    const m = views[cur.d + '-' + cur.f].m; const sb = $('.switch').getBoundingClientRect().bottom;
+    const inBand = (e) => { const r = e.getBoundingClientRect(); if (!r.width || !r.height) return false; let fx = false; for (let p = e; p && p !== m; p = p.parentElement) if (getComputedStyle(p).position === 'fixed') { fx = true; break; } return fx ? (r.top < innerHeight && r.bottom > 0) : (r.bottom > sb && r.top < sb + 728); };
+    const skip = (e) => e.closest('.note,.pad,.scrim,.reviewcard:not(.up),.sheet:not(.up)') || e.closest('.bl,.rt') || (e.matches('button') && e.tabIndex === -1) || e.closest('[hidden]');
+    const targets = $$('button,[role="button"],input,select,.fld', m).filter((e) => !skip(e) && inBand(e));
+    const boxes = $$('[data-o]', m).filter((e) => !e.matches('button,[role="button"]') && !skip(e) && inBand(e));
+    const sizes = new Set(); const walk = document.createTreeWalker(m, NodeFilter.SHOW_TEXT); let n;
+    while ((n = walk.nextNode())) { const el = n.parentElement; if (!n.nodeValue.trim() || !el || el.closest('.note,.num,.pad,.amt') || !el.getClientRects().length) continue; sizes.add(parseFloat(getComputedStyle(el).fontSize)); }
+    const small = $$('button, [role="button"]', m).filter((e) => { if (e.closest('.note,.reviewcard:not(.up),.sheet:not(.up)') || e.tabIndex === -1) return false; const r = e.getBoundingClientRect(); return r.width && r.height && Math.min(r.width, r.height) < 44; }).map((e) => (e.getAttribute('aria-label') || e.textContent).trim().slice(0, 24) + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height));
+    return { frame: cur.d + '/' + cur.f, objects: targets.length + boxes.length, boxes: boxes.length, targets: targets.length, typeSizes: [...sizes].sort((a, b) => b - a), under44: small, scrollWidth: document.documentElement.scrollWidth, vw: innerWidth };
+  };
+})();
+</script>
