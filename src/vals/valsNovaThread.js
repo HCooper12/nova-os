@@ -43,7 +43,12 @@ export function valsNovaThread(app, ctx, v) {
   const lines = chat.map((m) => {
     const who = m.who === 'you' ? 'you' : m.who === 'system' ? 'system' : 'nova';
     const text = bubbleProse(m.text);
-    const settled = who === 'nova' && m.glass ? settledOf(m) : null;
+    // a row can carry a stage card instead of running glass — the morning
+    // brief does (7 Oct: its panels vanished from this screen after the
+    // redesign, because only m.glass was read); it settles the same way
+    const settled = who === 'nova' && m.glass ? settledOf(m)
+      : who === 'nova' && m.card ? (() => { const s0 = settleStage([m.card]); return s0 ? { ...s0, gists: [], panels: [m.card] } : null; })()
+      : null;
     return {
       at: m.at, who, agent: AGENT[m.who] || null, text,
       typing: !!m.typing, streaming: !!m.streaming,
@@ -107,6 +112,21 @@ export function valsNovaThread(app, ctx, v) {
       line: lastRaw ? stageLine(lastRaw.text, st.glassSpokenTo || 0) : null,
       mark: lit ? { name: lit.name, hue: lit.hue } : null,
       finder: glass.hero.finder ? { words: glass.hero.finder, hue: glass.hero.hue } : null,
+    };
+  }
+
+  // THE BRIEF'S STAGE (7 Oct). The morning brief puts each beat's card on
+  // the stage (putCard), not into running glass, so while it speaks the
+  // stage shows that card, with the beats already said in the rail behind it.
+  if (!stage && speaking && st.stageCard) {
+    const lastRaw = [...chat].reverse().find((m) => m.who !== 'you' && m.who !== 'system');
+    const rail = (st.stageHistory || []).filter(Boolean).slice(0, 3);
+    stage = {
+      hero: st.stageCard, rail, gists: rail.map(gistOf),
+      n: null, total: null,
+      key: `stage:${st.stageCard.label || ''}:${lastRaw?.at ?? ''}`,
+      line: lastRaw ? stageLine(lastRaw.text, st.glassSpokenTo || 0) : null,
+      mark: null, finder: null,
     };
   }
 

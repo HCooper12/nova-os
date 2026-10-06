@@ -8973,7 +8973,10 @@ export default class App extends Component {
       // opening gap that reads as broken.
       steps.forEach((st, i) => {
         const show = () => {
-          this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined }] }));
+          // the beat's card rides on its own row as well as the stage: the
+          // summary Nova thread draws panels from rows, never the stage, and
+          // the brief's glass went missing there after the redesign (7 Oct)
+          this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined, card: st.card || undefined }] }));
           this.putCard(st.card); // the glass keeps up with the voice
         };
         if (!spoken) { show(); return; }
