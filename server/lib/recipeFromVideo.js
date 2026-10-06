@@ -42,9 +42,12 @@
 // and never touches a value he has, its macros or its ingredients.
 
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, readdir, mkdir, copyFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { createRecord, updateRecord } from './inboxStore.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
@@ -111,6 +114,97 @@ let imageFetcher = fetchImageDataUrl;
 /** Tests only: the thumbnail download the inbox `recipe` route uses (never the network in a test). */
 export function _setImageFetchForTests(fn) { imageFetcher = fn || fetchImageDataUrl; }
 
+/* ------------------------- a clear frame of the food ------------------------ */
+
+// HIS CALL (7 Oct 2026): "Use a clear frame of the food for the cover if it's
+// a reel." The reel's own cover is often the creator holding the dish under a
+// burned-in caption ("471 Calories 48g protein" across the Kinder Bueno oats).
+// So code samples frames across the video, a vision model picks the one that
+// best shows the finished food, and code keeps that frame as a file — which
+// also outlives Instagram's cover links, which expire. No frame that
+// qualifies → the cover, exactly as before.
+const FRAME_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'), 'recipe-frames');
+export const FRAME_SAMPLES = 12;
+
+/** The moments to sample, spread across the video and clear of its first and last seconds. Pure. */
+export function frameTimes(duration, n = FRAME_SAMPLES) {
+  const d = Number(duration);
+  if (!Number.isFinite(d) || d <= 2) return [0.5, 1, 1.5].slice(0, n);
+  // denser toward the end, where a recipe video shows the finished dish:
+  // the first sampled Kinder Bueno run (8 even frames) missed it and chose a
+  // jar mid-assembly. Square-root spacing from 10% to 97% of the video.
+  return Array.from({ length: n }, (_, i) => Math.round(d * (0.10 + 0.87 * Math.sqrt(i / Math.max(1, n - 1))) * 100) / 100);
+}
+
+export function buildFramePrompt(paths) {
+  return `These are ${paths.length} frames from a recipe video, in order:
+${paths.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+
+Read each frame with the Read tool. Pick the ONE frame that best shows the FINISHED FOOD itself, as a cover photo for the recipe:
+- the food (plated, in its bowl, jar or tray) is the subject, in focus and filling much of the frame;
+- no large on-screen text or caption across the food;
+- the dish COMPLETE (served, assembled, topped): not mid-assembly, not ingredients being added, no utensil or hand pouring into it;
+- not a person's face as the subject, not a blurred motion frame.
+Prefer a close, well-lit frame of the finished dish over a wider one.
+If no frame clearly shows the finished food, answer null.
+
+Output ONLY a JSON object: {"frame": <the frame's number, or null>, "why": "<a few words>"}`;
+}
+
+/**
+ * Sample frames from the video, let a vision model pick the food, keep that
+ * frame. Returns the kept file's path, or null (never throws).
+ */
+export async function pickFoodFrame(url, { duration = null } = {}, deps = {}) {
+  if (!url || !laneEnabled(LANE)) return null;
+  const work = await mkdtemp(path.join(os.tmpdir(), 'nova-frames-'));
+  try {
+    await (deps.download || ((u) => run('yt-dlp', ['--no-warnings', '--no-playlist', '-f', 'best[height<=720][ext=mp4]/best[height<=720]/best', '-o', path.join(work, 'v.%(ext)s'), u], { timeoutMs: 120_000 })))(url);
+    const video = (await readdir(work)).find((f) => f.startsWith('v.'));
+    if (!video) return null;
+    const src = path.join(work, video);
+    let d = Number(duration);
+    if (!Number.isFinite(d) || d <= 0) {
+      try { d = Number((await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', src], { timeoutMs: 20_000 })).trim()); } catch { d = NaN; }
+    }
+    const frames = [];
+    for (const [i, t] of frameTimes(d).entries()) {
+      const out = path.join(work, `f${i + 1}.jpg`);
+      try {
+        await (deps.extract || ((input, at, file) => run('ffmpeg', ['-y', '-v', 'error', '-ss', String(at), '-i', input, '-frames:v', '1', '-vf', 'scale=720:-2', '-q:v', '3', file], { timeoutMs: 30_000 })))(src, t, out);
+        if (existsSync(out)) frames.push(out);
+      } catch { /* one bad seek costs one frame */ }
+    }
+    if (!frames.length) return null;
+    const pick = deps.choose ? await deps.choose(frames) : await chooseFrame(frames);
+    const n = Number(pick?.frame);
+    if (!Number.isInteger(n) || n < 1 || n > frames.length) return null;
+    await mkdir(FRAME_DIR(), { recursive: true });
+    const kept = path.join(FRAME_DIR(), `${createHash('sha1').update(url).digest('hex').slice(0, 16)}.jpg`);
+    await copyFile(frames[n - 1], kept);
+    return kept;
+  } catch (e) {
+    console.error(`recipe frame for ${url} not picked: ${e.message}`);
+    return null;
+  } finally {
+    rm(work, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+async function chooseFrame(frames) {
+  const stdout = await run(CLAUDE_BIN, [
+    '-p', buildFramePrompt(frames),
+    '--permission-mode', 'bypassPermissions',
+    ...boundaryArgs('Read'),
+    '--output-format', 'json',
+    '--model', modelFor(LANE),
+    '--no-session-persistence',
+  ], { timeoutMs: 120_000 });
+  const outer = parseEnvelope(stdout, { lane: LANE });
+  const m = firstBalancedObjectMatch(String(outer.result || '').trim());
+  return m ? parseModelJson(m[0]) : null;
+}
+
 /**
  * Download a thumbnail and save it as a recipe's photo. Never throws: a photo
  * is a nicety and a failed one must never fail the recipe. Returns the saved
@@ -119,7 +213,10 @@ export function _setImageFetchForTests(fn) { imageFetcher = fn || fetchImageData
 export async function saveRecipePhotoFromUrl(vaultPath, recipeId, url, deps = {}) {
   if (!url || !recipeId) return null;
   try {
-    const dataUrl = await (deps.fetchImage || imageFetcher)(url);
+    // a kept frame (an absolute path under recipe-frames) or a cover URL
+    const dataUrl = String(url).startsWith('/')
+      ? `data:image/jpeg;base64,${(await readFile(url)).toString('base64')}`
+      : await (deps.fetchImage || imageFetcher)(url);
     const photos = await import('./recipePhotos.js');
     await (deps.savePhoto || photos.savePhoto)(vaultPath, recipeId, dataUrl);
     const b64 = String(dataUrl).split(',')[1] || '';
@@ -229,7 +326,7 @@ const intIn = (v, lo, hi) => {
   return v != null && v !== '' && Number.isFinite(Number(v)) && n >= lo && n <= hi ? n : null;
 };
 
-export async function toRecipePayload(recipe, { url, uploader, thumbnail, compute } = {}) {
+export async function toRecipePayload(recipe, { url, uploader, thumbnail, frame = null, compute } = {}) {
   const name = String(recipe?.name || '').trim().slice(0, 80);
   if (!name) return { skip: 'a recipe with no name' };
   const ingredients = (recipe.ingredients || []).map((i) => String(i?.text || [i?.grams ? `${i.grams} g` : '', i?.name].filter(Boolean).join(' ')).trim()).filter(Boolean).slice(0, 40);
@@ -248,6 +345,8 @@ export async function toRecipePayload(recipe, { url, uploader, thumbnail, comput
       // the reel itself — written as the recipe's **Source:** line
       source: /^https?:\/\//.test(String(url || '')) ? { url: String(url).slice(0, 500), label: uploader ? shortSourceLabel(uploader, 60) || null : null } : null,
       photoUrl: thumbnail || null,
+      // a clear frame of the food, kept as a file; the cover is the fallback
+      photoFile: frame || null,
       description: (got
         ? `Macros: ${got.source}.`
         : 'Macros not set: the reel gives none and too few weights to work them out. Add them when you make it (Edit this meal, or read them off the labels).').slice(0, 300),
@@ -306,11 +405,12 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
     const existing = deps.loadRecipes ? await deps.loadRecipes() : await loadRecipes(vaultPath).catch(() => []);
     // every recipe link goes straight in (3 Oct): his words no longer decide
     const addNow = true;
+    const frame = await (deps.pickFrame || ((u) => pickFoodFrame(u, { duration: meta.duration })))(url).catch(() => null);
     const filed = [];
     const updated = [];
     const skipped = [];
     for (const rec of recipes) {
-      const out = await toRecipePayload(rec, { url, uploader: meta.uploader, thumbnail: meta.thumbnail, compute });
+      const out = await toRecipePayload(rec, { url, uploader: meta.uploader, thumbnail: meta.thumbnail, frame, compute });
       if (out.skip) { skipped.push(out.skip); continue; }
       const p = out.payload;
       const twin = existing.find((r) => String(r.name).toLowerCase() === p.name.toLowerCase());
@@ -374,11 +474,11 @@ async function runRecipeJob(vaultPath, recordId, url, prose, deps) {
 async function fillMissing(vaultPath, twin, payload, deps) {
   const { edit, fields } = missingFacts(twin, payload);
   const out = { name: twin.name, recipeId: twin.id, fields: [], set: {}, photoHash: null };
-  if (payload.photoUrl) {
+  if (payload.photoFile || payload.photoUrl) {
     const photos = await import('./recipePhotos.js');
     const has = await (deps.getPhoto || photos.getPhoto)(vaultPath, twin.id).catch(() => null);
     if (!has) {
-      out.photoHash = await saveRecipePhotoFromUrl(vaultPath, twin.id, payload.photoUrl, deps);
+      out.photoHash = await saveRecipePhotoFromUrl(vaultPath, twin.id, payload.photoFile || payload.photoUrl, deps);
       if (out.photoHash) out.fields.push('photo');
     }
   }

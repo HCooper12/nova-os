@@ -359,3 +359,61 @@ test('categories are his collection\'s own sections — the first live run bounc
   assert.equal(categoryFor('TREATS'), 'TREATS');
   assert.equal(categoryFor(''), 'ROTATION / SWAP MEALS');
 });
+
+// 7 Oct, his call: "Use a clear frame of the food for the cover if it's a
+// reel." Frames are sampled across the video, a vision model picks the food,
+// code keeps that frame as a file; nothing picked → the cover as before.
+test('frame times spread across the video, clear of its first and last seconds', async () => {
+  const { frameTimes } = await import('../lib/recipeFromVideo.js');
+  const t = frameTimes(40, 12);
+  assert.equal(t.length, 12);
+  assert.ok(t[0] >= 4 && t[11] < 39.5, JSON.stringify(t));
+  assert.ok(t[11] - t[10] < t[1] - t[0], 'denser toward the end, where the finished dish is');
+  assert.ok(t.every((x, i) => i === 0 || x > t[i - 1]), 'in order');
+  assert.deepEqual(frameTimes(NaN, 3), [0.5, 1, 1.5]);
+});
+
+test('pickFoodFrame keeps the frame the model chose, and returns null when it chose none', async () => {
+  const { pickFoodFrame } = await import('../lib/recipeFromVideo.js');
+  const { writeFile: wf, readFile: rf } = await import('node:fs/promises');
+  const pathMod = await import('node:path');
+  const deps = (choice) => ({
+    download: async (u) => { /* the video lands in the work dir */ },
+    extract: async (input, at, file) => { await wf(file, `frame at ${at}`); },
+    choose: async (frames) => { assert.equal(frames.length, 12); return choice; },
+  });
+  // the stub download writes no file, so stage one the way yt-dlp would
+  const realDownload = (choice) => ({ ...deps(choice), download: async () => {} });
+  const withVideo = (choice) => ({
+    ...realDownload(choice),
+    download: async () => {
+      const os = await import('node:os');
+      const dirs = (await import('node:fs')).readdirSync(os.tmpdir()).filter((d) => d.startsWith('nova-frames-'));
+      for (const d of dirs) await wf(pathMod.join(os.tmpdir(), d, 'v.mp4'), 'video');
+    },
+  });
+  const kept = await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME/', { duration: 40 }, withVideo({ frame: 5, why: 'the jar, close' }));
+  assert.ok(kept && kept.includes('recipe-frames'), String(kept));
+  assert.match(await rf(kept, 'utf8'), /^frame at /);
+  assert.equal(await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME2/', { duration: 40 }, withVideo({ frame: null })), null);
+  assert.equal(await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME3/', { duration: 40 }, withVideo({ frame: 99 })), null, 'an out-of-range pick is no pick');
+});
+
+test('the lane carries the kept frame as the photo, with the cover as the fallback', async () => {
+  const created = [];
+  await startRecipeFromVideo('/vault', 'https://www.instagram.com/reel/DdTRWX9zwd4/', 'Add to my recipes', {
+    await: true,
+    createRecord: async (r) => { created.push(r); return r; },
+    updateRecord: async () => {},
+    fetchCaption: async () => ({ title: 't', uploader: 'Sean Graham', caption: CAPTION, thumbnail: 'https://cdn.example/cover.jpg', duration: 40 }),
+    fetchTranscript: async () => '',
+    pickFrame: async () => '/tmp/recipe-frames/abc.jpg',
+    ask: async () => MODEL,
+    compute: async () => null,
+    loadRecipes: async () => [],
+    approve: async () => {},
+  });
+  const card = created.find((r) => r.decision?.route === 'recipe');
+  assert.equal(card.decision.payload.photoFile, '/tmp/recipe-frames/abc.jpg');
+  assert.equal(card.decision.payload.photoUrl, 'https://cdn.example/cover.jpg');
+});

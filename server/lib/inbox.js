@@ -789,9 +789,11 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     // the reel's thumbnail becomes its photo, AFTER the recipe is in the
     // file; a failed download never fails the recipe
     let photoHash = null;
-    if (payload.photoUrl) {
+    if (payload.photoFile || payload.photoUrl) {
       const { saveRecipePhotoFromUrl } = await import('./recipeFromVideo.js');
-      photoHash = await saveRecipePhotoFromUrl(vaultPath, recipe.id, payload.photoUrl);
+      // the kept food frame first (7 Oct); the reel's cover if it was not picked or is gone
+      photoHash = (payload.photoFile && await saveRecipePhotoFromUrl(vaultPath, recipe.id, payload.photoFile))
+        || (payload.photoUrl ? await saveRecipePhotoFromUrl(vaultPath, recipe.id, payload.photoUrl) : null);
     }
     return {
       destination: `Recipe bank — ${recipe.name}${recipe.macros ? '' : ' (macros not set yet)'}${photoHash ? ' · with its photo' : ''}`,
