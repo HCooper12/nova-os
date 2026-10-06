@@ -392,11 +392,11 @@ test('pickFoodFrame keeps the frame the model chose, and returns null when it ch
       for (const d of dirs) await wf(pathMod.join(os.tmpdir(), d, 'v.mp4'), 'video');
     },
   });
-  const kept = await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME/', { duration: 40 }, withVideo({ frame: 5, why: 'the jar, close' }));
+  const kept = await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME/', { duration: 40 }, withVideo({ frames: [{ n: 5, food: true, complete: true, share: 0.6, text: false, hand: false, sharp: true }] }));
   assert.ok(kept && kept.includes('recipe-frames'), String(kept));
   assert.match(await rf(kept, 'utf8'), /^frame at /);
-  assert.equal(await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME2/', { duration: 40 }, withVideo({ frame: null })), null);
-  assert.equal(await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME3/', { duration: 40 }, withVideo({ frame: 99 })), null, 'an out-of-range pick is no pick');
+  assert.equal(await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME2/', { duration: 40 }, withVideo({ frames: [{ n: 2, food: true, complete: false, share: 0.7, text: false, hand: false, sharp: true }] })), null);
+  assert.equal(await pickFoodFrame('https://www.instagram.com/reel/TESTFRAME3/', { duration: 40 }, withVideo({ frames: [{ n: 99, food: true, complete: true, share: 0.7, text: false, hand: false, sharp: true }] })), null, 'an out-of-range pick is no pick');
 });
 
 test('the lane carries the kept frame as the photo, with the cover as the fallback', async () => {
@@ -416,4 +416,16 @@ test('the lane carries the kept frame as the photo, with the cover as the fallba
   const card = created.find((r) => r.decision?.route === 'recipe');
   assert.equal(card.decision.payload.photoFile, '/tmp/recipe-frames/abc.jpg');
   assert.equal(card.decision.payload.photoUrl, 'https://cdn.example/cover.jpg');
+});
+
+test('code ranks the described frames: finished, sharp, no words, food over 30%; no hand beats a hand; bigger food wins', async () => {
+  const { rankFrames } = await import('../lib/recipeFromVideo.js');
+  const f = (n, o = {}) => ({ n, food: true, complete: true, share: 0.5, text: false, hand: false, sharp: true, ...o });
+  assert.equal(rankFrames({ frames: [f(1, { share: 0.4 }), f(2, { share: 0.7 }), f(3, { share: 0.9, hand: true })] }), 2, 'no hand beats a bigger frame with a spoon in it');
+  assert.equal(rankFrames({ frames: [f(1, { text: true, share: 0.9 }), f(2, { share: 0.35 })] }), 2, 'a clean frame beats one with words');
+  assert.equal(rankFrames({ frames: [f(1, { text: true, share: 0.6 }), f(2, { text: true, share: 0.3 })] }), 1, 'no clean frame: the food with a small caption beats a titled cover, if it fills 40%');
+  assert.equal(rankFrames({ frames: [f(1, { share: 0.05 })] }), null, 'a person at an oven, the cookies a speck');
+  assert.equal(rankFrames({ frames: [f(1, { complete: false, share: 0.8 })] }), null, 'mid-assembly');
+  assert.equal(rankFrames({ frames: [f(1, { hand: true, share: 0.6 })] }), 1, 'a hand is allowed when nothing better exists');
+  assert.equal(rankFrames({}), null);
 });

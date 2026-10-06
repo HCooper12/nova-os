@@ -136,19 +136,47 @@ export function frameTimes(duration, n = FRAME_SAMPLES) {
   return Array.from({ length: n }, (_, i) => Math.round(d * (0.10 + 0.87 * Math.sqrt(i / Math.max(1, n - 1))) * 100) / 100);
 }
 
+export const MIN_FOOD_SHARE = 0.3;
+// THE MODEL DESCRIBES, CODE CHOOSES (7 Oct). Letting the model pick gave a
+// different Kinder Bueno frame on each run (a topped jar, then a jar with a
+// spoon in it) and a wide shot of a person at an oven for the M&M cookies.
+// So every frame is described and this ranks them: the finished dish, sharp,
+// no words on it, filling at least 30%; a frame without a hand beats one
+// with; then the bigger the food, the better. Nothing qualifies → null.
+export function rankFrames(described) {
+  const list = Array.isArray(described?.frames) ? described.frames : [];
+  const ok = list
+    .map((f) => ({ n: Number(f?.n), share: Number(f?.share), hand: !!f?.hand, good: f?.food === true && f?.complete === true && f?.sharp !== false && f?.text !== true }))
+    .filter((f) => Number.isInteger(f.n) && f.good && Number.isFinite(f.share) && f.share >= MIN_FOOD_SHARE);
+  const order = (a, b) => (a.hand === b.hand ? b.share - a.share || a.n - b.n : a.hand ? 1 : -1);
+  ok.sort(order);
+  if (ok.length) return ok[0].n;
+  // SECOND TIER: no frame is clean of words, but a reel's cover usually
+  // carries a big title over the creator, so a frame of the finished food
+  // with a small caption still beats it (the pancake bowl and the M&M
+  // cookies fell back to titled covers on the first ranked run). The food
+  // must fill more of this one: 40%.
+  const loose = list
+    .map((f) => ({ n: Number(f?.n), share: Number(f?.share), hand: !!f?.hand, good: f?.food === true && f?.complete === true && f?.sharp !== false }))
+    .filter((f) => Number.isInteger(f.n) && f.good && Number.isFinite(f.share) && f.share >= LOOSE_FOOD_SHARE);
+  loose.sort(order);
+  return loose.length ? loose[0].n : null;
+}
+export const LOOSE_FOOD_SHARE = 0.4;
+
 export function buildFramePrompt(paths) {
   return `These are ${paths.length} frames from a recipe video, in order:
 ${paths.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 
-Read each frame with the Read tool. Pick the ONE frame that best shows the FINISHED FOOD itself, as a cover photo for the recipe:
-- the food (plated, in its bowl, jar or tray) is the subject, in focus and filling much of the frame;
-- no large on-screen text or caption across the food;
-- the dish COMPLETE (served, assembled, topped): not mid-assembly, not ingredients being added, no utensil or hand pouring into it;
-- not a person's face as the subject, not a blurred motion frame.
-Prefer a close, well-lit frame of the finished dish over a wider one.
-If no frame clearly shows the finished food, answer null.
+Read each frame with the Read tool and describe EVERY frame, without choosing one. For each frame report:
+- "food": the finished food or dish is visible at all;
+- "complete": the dish is finished (served, assembled, topped), not mid-assembly or ingredients being added;
+- "share": roughly what fraction of the frame the food fills, 0 to 1;
+- "text": any overlaid words or caption on the frame, however small;
+- "hand": a hand, arm, spoon or utensil is in the frame;
+- "sharp": the food is in focus (not a motion blur).
 
-Output ONLY a JSON object: {"frame": <the frame's number, or null>, "why": "<a few words>"}`;
+Output ONLY a JSON object: {"frames": [{"n": 1, "food": true, "complete": true, "share": 0.6, "text": false, "hand": false, "sharp": true}, ...]} with one entry per frame, in order.`;
 }
 
 /**
@@ -176,8 +204,8 @@ export async function pickFoodFrame(url, { duration = null } = {}, deps = {}) {
       } catch { /* one bad seek costs one frame */ }
     }
     if (!frames.length) return null;
-    const pick = deps.choose ? await deps.choose(frames) : await chooseFrame(frames);
-    const n = Number(pick?.frame);
+    const described = deps.choose ? await deps.choose(frames) : await chooseFrame(frames);
+    const n = rankFrames(described);
     if (!Number.isInteger(n) || n < 1 || n > frames.length) return null;
     await mkdir(FRAME_DIR(), { recursive: true });
     const kept = path.join(FRAME_DIR(), `${createHash('sha1').update(url).digest('hex').slice(0, 16)}.jpg`);
