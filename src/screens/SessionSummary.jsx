@@ -355,11 +355,9 @@ function SetCard({ S, rs }) {
                 <Step label={`−${s.repInc}`} aria={`${s.reps.unit === 'sec' ? `${s.repInc} seconds less` : 'One rep fewer'}. Hold to repeat`} run={() => s.stepR(-1)} />
                 <Step label={`+${s.repInc}`} aria={`${s.reps.unit === 'sec' ? `${s.repInc} seconds more` : 'One rep more'}. Hold to repeat`} run={() => s.stepR(1)} />
               </span>
-              <button type="button" className="nv-ss-mo" aria-expanded={s.more} onClick={s.toggleMore} aria-label={s.more ? 'Less: hide RPE and RIR' : 'More: RPE and RIR'}>
-                {s.more ? 'Less' : 'More'}<Ico p={s.more ? P.up : P.down} size={14} cls="thick" />
-              </button>
             </div>
-            {s.more ? (
+            {/* RPE and RIR always on the row (his call, 7 Oct 2026: behind a
+                toggle he never logged them) */}
               <div className="nv-ss-effort">
                 <span className="nv-ss-mini"><span className="k">RPE</span>
                   <button type="button" onClick={s.rpe.down} aria-label="RPE down half a point"><Ico p={P.minus} size={14} cls="thick" /></button>
@@ -372,7 +370,6 @@ function SetCard({ S, rs }) {
                   <button type="button" onClick={s.rir.up} aria-label="RIR up half a rep"><Ico p={P.plus} size={14} cls="thick" /></button>
                 </span>
               </div>
-            ) : (
               <div className="nv-ss-qrow">
                 {s.done ? (
                   <>
@@ -394,7 +391,6 @@ function SetCard({ S, rs }) {
                   </>
                 )}
               </div>
-            )}
         </div>
       </div>
     </section>

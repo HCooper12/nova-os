@@ -115,7 +115,7 @@ export function valsSessionSummary(app, ctx, v) {
     return j >= 0 ? j : exs.findIndex((x, k) => k !== i && !x.skipped && (x.sets || []).some((s) => !s.done));
   };
 
-  const go = (i) => { if (valid(i)) app.setState({ sessionSumLift: i, sessionSumSel: null, sessionSumPad: null, sessionSumMore: false }); };
+  const go = (i) => { if (valid(i)) app.setState({ sessionSumLift: i, sessionSumSel: null, sessionSumPad: null }); };
   const openSheet = (name) => app.setState({ sessionSumSheet: name, sessionSumPad: null });
   const closeSheet = () => app.setState({ sessionSumSheet: null });
   const receipt = (r) => app.setState({ sessionSumReceipt: { ...r, at: Date.now() } });
@@ -152,6 +152,7 @@ export function valsSessionSummary(app, ctx, v) {
     mobility: row.muscleGroup === 'Mobility',
     target: `${e.targetSets} × ${e.targetRepsLow === e.targetRepsHigh ? e.targetRepsLow : `${e.targetRepsLow}–${e.targetRepsHigh}`}${time ? ' s' : ''}`,
     last: lastWords(tt, e.last?.sets),
+    startFrom: e.last?.sets?.length ? null : e.startFrom || null,
     focus: e.focusNote || null,
     adhoc: !!e.adhoc,
     skipped: !!e.skipped,
@@ -184,7 +185,7 @@ export function valsSessionSummary(app, ctx, v) {
   let set = null;
   if (setIdx != null && !e.skipped) {
     const s = sets[setIdx];
-    const openPad = (field) => app.setState({ sessionSumPad: { exIdx, setIdx, field, fresh: true }, sessionSumMore: false });
+    const openPad = (field) => app.setState({ sessionSumPad: { exIdx, setIdx, field, fresh: true } });
     const stepW = (dir) => {
       const cur = liveSet();
       if (!cur) return;
@@ -280,8 +281,6 @@ export function valsSessionSummary(app, ctx, v) {
         fill: () => { app.updateSessionSet(exIdx, setIdx, 'weight', prevDone.weight); app.updateSessionSet(exIdx, setIdx, 'reps', prevDone.reps); },
       } : null,
       coach,
-      more: !!ui('sessionSumMore'),
-      toggleMore: () => app.setState({ sessionSumMore: !ui('sessionSumMore'), sessionSumPad: null }),
       rpe: { text: numOr(s.rpe) == null ? '—' : String(numOr(s.rpe)), down: () => stepRpe('rpe', -1, 1, 10, 7), up: () => stepRpe('rpe', 1, 1, 10, 8) },
       rir: { text: numOr(s.rir) == null ? '—' : String(numOr(s.rir)), down: () => stepRpe('rir', -1, 0, 6, 1), up: () => stepRpe('rir', 1, 0, 6, 2) },
     };
@@ -541,7 +540,7 @@ export function valsSessionSummary(app, ctx, v) {
       key: sessionKey,
       fresh,
       adopt: () => app.setState({
-        sessionSumKey: sessionKey, sessionSumLift: null, sessionSumSel: null, sessionSumPad: null, sessionSumMore: false,
+        sessionSumKey: sessionKey, sessionSumLift: null, sessionSumSel: null, sessionSumPad: null,
         sessionRest: null, sessionSumVoice: null, sessionSumReceipt: null, sessionSumSheet: null,
       }),
       title: session.routineName,
