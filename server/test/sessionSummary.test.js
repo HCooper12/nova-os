@@ -291,7 +291,10 @@ test('App spreads the session view model after the Inbox, then only the Nova thr
   // 29 Sep: the Nova thread (novaThread.test.js) takes the session's place as
   // the last spread; the session still reads everything before it
   assert.match(app, /const withSession = \{ \.\.\.withInbox, \.\.\.valsSessionSummary\(this, ctx, withInbox\) \};/);
-  assert.match(app, /return \{ \.\.\.withSession, \.\.\.valsNovaThread\(this, ctx, withSession\) \};\n  \}/);
+  // 7 Oct: Settings A's view model (valsSettings) reads the session's rest
+  // timer, so it spreads after the session and before the Nova thread
+  assert.match(app, /const withSettings = \{ \.\.\.withSession, \.\.\.valsSettings\(this, ctx, withSession\) \};/);
+  assert.match(app, /return \{ \.\.\.withSettings, \.\.\.valsNovaThread\(this, ctx, withSettings\) \};\n  \}/);
 });
 
 test('the new files reach no network: every write is an app method the classic session already calls', () => {
@@ -351,8 +354,12 @@ test('every sheet is an aria-modal root with its z-index inline, closed by its o
 });
 
 test('Settings shows the rest timer row only when the view model hands it one (summary only)', () => {
+  // Settings A (7 Oct 2026): the row lives in the root's "In Nova's pages"
+  // group, drawn only when valsSettings hands it a value, which it does only
+  // when valsSessionSummary handed it a restTimerSetting
   const src = read('src/screens/Settings.jsx');
-  assert.match(src, /\{v\.restTimerSetting && \(/);
+  assert.match(src, /\{R\.train \? \(/);
+  assert.match(read('src/vals/valsSettings.js'), /const train = rt \? \{/);
   assert.match(read('src/sessionSummaryFacts.js'), /REST_KEY = 'novaos\.restTimer'/);
 });
 

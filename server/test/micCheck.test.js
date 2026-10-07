@@ -125,10 +125,14 @@ test('two turns with NO result event never tell him he was not ready', async () 
 });
 
 test('the mic check is reachable from Settings and runs off the view model', async () => {
-  const settings = await read('screens', 'Settings.jsx');
+  // Settings A (7 Oct 2026): the check moved to the Check Nova page, wired
+  // through Settings' own view model
+  const settings = await read('screens', 'SettingsPages.jsx');
+  const vm = await read('vals', 'valsSettings.js');
   const vals = await read('vals', 'valsMisc.js');
   assert.match(settings, /Can Nova hear you\?/, 'the mic check has no surface');
-  assert.match(settings, /v\.runMicCheck/, 'the Mic check button is not wired');
+  assert.match(settings, /run=\{K\.runMicCheck\}/, 'the Mic check button is not wired');
+  assert.match(vm, /runMicCheck: v\.runMicCheck/, 'valsSettings no longer hands the check over');
   assert.match(vals, /runMicCheck: \(\) => app\.runMicCheck\(\)/, 'valsMisc no longer exposes runMicCheck');
 });
 
