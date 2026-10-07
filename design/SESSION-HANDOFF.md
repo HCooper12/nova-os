@@ -13,6 +13,29 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**7 OCT (nova-os-fc, after his round-1 feedback) — PUSHED + RELOADED; FIVE
+AGENTS RUNNING; HIS FEEDBACK PER PAGE IS IN THE AGENT BRIEFS.**
+- SHIPPED (pushed, server reloaded, read back on the live server):
+  - 7c65553 no false agent counts: src/vals/agentsWorking.js is the one
+    source (in-flight jobs + classifying records); guard re-recorded.
+  - 3b573f8 RPE and RIR always on the set row (no More toggle).
+  - 82f8355 + 0d7…(width-only follow-up) a lift with no history of its
+    own starts from its width variant's last sets, labelled "started from".
+  - f5609c9 Fuel cross-check on his local days (the morning-after-DST bug).
+  - 521b9eb + 6d967e0 stale NovaCore regexes. Suite: only the atlas pair red.
+- HIS STANDING RULES saved to memory: nova-no-fake-data, nova-build-matches-mockup.
+- RUNNING: Settings A BUILD (worktree agent, frame-by-frame vs mockup 72,
+  checklist 07-settings-build-checklist.md; merge its branch after review);
+  Leader r2 (mockup 82: A+C blends + originals); Briefing r2 (83: A playback
+  without the pour, C's end boards, B's read view, a clear-verbs proposal);
+  Shopping+Stash r2 (84 + research 14-…: Coles/Woolworths/Aldi prices,
+  stash images, add-to-shopping, repurchase reminders, meal library access);
+  Money+Code r2 (85 + research 17-money-r2: Billroo).
+- NEXT WAVE (not started, to keep under the usage limit): Ambient+Console
+  r2 (A's simple view + C's agents needing him); Notes/Journal/Galaxy:
+  explain each one's purpose to him, then round 2. To-Do waits for his
+  Todoist screen recordings.
+
 **5 OCT (late morning, nova-os-fc) — ROUND 1 IS OUT FOR EVERY PAGE; THE
 DESKTOP ROUND IS THE ONLY REDESIGN STAGE NOT STARTED; STILL NOT PUSHED.**
 - PUBLISHED + COMMITTED + ROWS [m]: Settings 07/72
