@@ -13,6 +13,20 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**7 OCT (afternoon) — SETTINGS A IS LIVE; ROUND 2 OUT FOR SIX PAGES; NOTHING
+RUNNING.** Settings A merged c8951f6 (worktree build, 153/161 present, 8
+honest differences), pushed, reloaded. Round 2 published: Leader 82
+https://claude.ai/artifact/EBLw6ZnsVb3gXeJ1zoMNGe, Briefing 83
+https://claude.ai/artifact/8yxJvajSYi5xE9cpwtsDhs, Shopping+Stash 84
+https://claude.ai/artifact/5Ei8ufpL31FFMEWBYAAgSd, Money+Code 85
+https://claude.ai/artifact/WWsozaUXH35CPZdFJ1LKoF, Ambient+Console 86
+https://claude.ai/artifact/Gzm2Tgv4vcPrFvUZiq8ext, Notes/Journal/Galaxy 87
+https://claude.ai/artifact/M3Jsf9RmCWC8BUA98Mn2RN. Agent count now uses the
+Org map's ten (e80bd12). His Dashboard V8 reel saved (memory
+nova-reel-dashboard-v8) for the MacBook round. OPEN, recommended next: the
+readers that treat Nova's journal entries as his own words (Commitments,
+Weekly debrief; mockup 87 call 4). To-Do waits for his Todoist recordings.
+
 **7 OCT (nova-os-fc, after his round-1 feedback) — PUSHED + RELOADED; FIVE
 AGENTS RUNNING; HIS FEEDBACK PER PAGE IS IN THE AGENT BRIEFS.**
 - SHIPPED (pushed, server reloaded, read back on the live server):
