@@ -1,0 +1,1940 @@
+<title>Leader Round Two</title>
+<!--
+  82 · THE LEADER, ROUND 2 (7 October 2026)
+  Round 1 is design/mockups/76-redesign-leader.html; its audit is
+  design/audits/redesign-2026-09/11-leader.md.
+
+  His feedback on round 1, 7 Oct 2026, verbatim:
+    "I think I'd like to see a variation of A and C. I especially like that C
+    can keep things more focused and organised but I like A with the overviews.
+    Whatever is most important or relevant at the time should be at the top,
+    such as the advice for that day. With your combined mockup/s with A and C,
+    still have the original A and C versions there for me to compare."
+
+  Four tabs, each drawn as phone frames at 390x844 with live motion:
+    Blend 1  Now, then the rest   A's overview on top (the Leader's face, the
+                                  picture as beads, the honest line), then ONE
+                                  focused card chosen by the order rule, then
+                                  the rest as ranked rows. The round-up opens in
+                                  place of the card; the conversation rises as a
+                                  sheet with the item quoted.
+    Blend 2  The ranked deck      A's overview on top, then C's deck for
+                                  everything: one card on screen, dealt in the
+                                  order the rule gives. When nothing is waiting
+                                  the deck folds into one row and A's
+                                  conversation fills the page.
+    A        as drawn in round 1, unchanged.
+    C        as drawn in round 1, unchanged.
+
+  The order rule (the "ladder"): one deterministic function over the record
+  and the clock, run on every open and after every write. A model never
+  decides it. Drawn as a matrix over five moments of one invented week, with
+  the function itself beside it. Both blends use the same rule.
+
+  Kept from round 1 in both blends: every control 44 pt or more; set down has a
+  form (a tied bead in the strip, a receipt with Undo where it happened);
+  every reply says who wrote it; the agents the Leader asked sit in their own
+  colours while they work and stay openable under the reply after.
+
+  Colour: magenta (#ff7ad9, --nv-mg in Command) means the Leader: its face,
+  its question, the item it puts first, the one primary action. His words and
+  the picture are ink. The Researcher's blue and the Librarian's teal appear
+  only on their own faces and seats. No red, no gold. Type: four sizes a view
+  (20 serif, 17, 15, 13), numerals in SF Rounded.
+
+  HONEST LIMITS. Demo content only: the team, the struggles, the books, the
+  conversation, the week and every time are invented; nothing comes from his
+  vault, and no agent was asked anything. Consult times run on a sped-up
+  clock. The rule needs three small things that do not exist today: the end
+  of the morning read from his first work block (the Summary Home already
+  reads work blocks, valsSummary.js:238), a "seen" mark on a Leader reply,
+  and the round-1 changes the blends inherit (the route sending what he set
+  down, the conversation read back after a reload, a short name per struggle).
+
+  ROUND 1 FAULT, FIXED BY THE PARENT. In round 1's talking frames (A3, A4,
+  C3) the Leader's serif line never appeared: sayWords() returned no words
+  for a line split in advance. A and C are otherwise copied unchanged; their
+  sayWords now reads the split words, so the comparison is fair.
+
+  Reduced motion: no travel, no reshuffle flight; states cross-fade in 250 ms.
+  Preview it with the button under the title. Hash #b1, #b2, #a or #c opens a
+  tab.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --ease-io:cubic-bezier(.77,0,.175,1);
+  --void:#06070d;
+  --ink:#e8ecf6;
+  --ink2:rgba(232,236,246,.76);
+  --ink3:rgba(232,236,246,.6);
+  --ink4:rgba(232,236,246,.3);
+  --sep:rgba(232,236,246,.13);
+  --glass:rgba(255,255,255,.075);
+  --glass-ring:rgba(255,255,255,.15);
+  --glass-hi:rgba(255,255,255,.2);
+  --bar:rgba(16,20,36,.7);
+  --well:rgba(0,0,0,.28);
+  --cy:#59e6ff;
+  --mg:#ff7ad9;
+  --mg-ink:#2b0a21;
+  --mg-edge:rgba(255,122,217,.36);
+  --mg-soft:rgba(255,122,217,.12);
+  --mg-glow:rgba(255,122,217,.5);
+  --researcher:#7ab8ff;
+  --librarian:#4fd1c5;
+  --r:20px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--void)}
+body{margin:0;background:var(--void);color:var(--ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+button:focus-visible{outline:2px solid var(--mg);outline-offset:2px}
+.pr{transition:transform .14s var(--ease)}
+.pr:active,.pr.press{transform:scale(.97)}
+svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.noanim,.noanim *{transition:none!important;animation:none!important}
+.gone{display:none!important}
+
+/* ------------------------------------------------------------ the page */
+.wrap{max-width:1280px;margin:0 auto;padding:28px 16px 96px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+h1{margin:0 0 12px;font:700 clamp(30px,7vw,44px)/1.06 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 12px;max-width:40em;font:400 19px/1.45 var(--serif);color:var(--ink2);text-wrap:pretty}
+.find{margin:0 0 10px;max-width:50em;color:var(--ink2);text-wrap:pretty}
+.find b{color:var(--ink);font-weight:600}
+.demo{margin:0 0 14px;max-width:50em;font-size:13px;color:var(--ink3)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.tools button{min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);box-shadow:inset 0 0 0 1px var(--sep)}
+.tools button[aria-pressed="true"]{color:var(--ink);background:var(--glass)}
+.switch{position:sticky;top:0;z-index:40;margin:0 -16px;padding:10px 16px;background:rgba(6,7,13,.84);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border-bottom:1px solid var(--sep)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;max-width:560px;padding:3px;border-radius:25px;background:rgba(120,120,128,.22)}
+.seg button{min-height:44px;padding:0 6px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background-color .25s var(--ease),color .25s var(--ease)}
+.seg button[aria-pressed="true"]{background:var(--glass-hi);color:var(--ink)}
+.dir{padding-top:28px}
+.dir[hidden]{display:none}
+.dir > h2{margin:0 0 8px;font:700 26px/1.15 var(--ui);letter-spacing:-.02em}
+.dline{margin:0 0 14px;max-width:54em;color:var(--ink2);text-wrap:pretty}
+.dline b{color:var(--ink);font-weight:600}
+.counts{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.counts li{display:inline-flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px;min-height:40px;padding:9px 13px;border-radius:20px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-ring);font-size:13px;line-height:1.4;color:var(--ink2)}
+.counts .n{font:600 15px/1.25 var(--round);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mac{margin:10px 0 24px;max-width:54em;font-size:13px;color:var(--ink3)}
+.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,390px),1fr));gap:34px 22px;align-items:start}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
+figcaption{width:100%;max-width:390px;font-size:13px;line-height:1.5;color:var(--ink2);text-wrap:pretty}
+figcaption b{display:block;margin-bottom:2px;font:600 15px/1.35 var(--ui);color:var(--ink)}
+.replay{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);box-shadow:inset 0 0 0 1px var(--sep)}
+.closing{margin-top:56px;max-width:54em}
+.closing h2{margin:0 0 10px;font:700 26px/1.15 var(--ui);letter-spacing:-.02em}
+.keep{margin:0;padding-left:18px;color:var(--ink2)}
+.keep li + li{margin-top:6px}
+.decide{list-style:none;counter-reset:d;margin:0;padding:0;display:grid;gap:10px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;padding:14px 16px;border-radius:18px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-ring)}
+.decide li::before{content:counter(d);display:grid;place-items:center;width:32px;height:32px;border-radius:16px;font:600 15px var(--round);color:var(--mg-ink);background:var(--mg)}
+.decide b{display:block;font:600 15px/1.35 var(--ui);color:var(--ink)}
+.decide span{display:block;margin-top:3px;color:var(--ink2);text-wrap:pretty}
+
+/* ------------------------------------------------------------ the phone (his look: summary, Nova glass) */
+.phone{position:relative;width:min(390px,100%);height:844px;border-radius:44px;overflow:hidden;isolation:isolate;background:var(--void);box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 70px -30px rgba(0,0,0,.9);font:15px/1.35 var(--ui);color:var(--ink);text-align:left}
+.sky{position:absolute;inset:0;z-index:-1;background:radial-gradient(60% 26% at 50% -2%,rgba(255,122,217,.15),rgba(255,122,217,0) 72%),radial-gradient(70% 42% at 8% 12%,rgba(89,230,255,.1),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 92% 34%,rgba(143,123,255,.14),rgba(143,123,255,0) 62%),linear-gradient(180deg,#05060c 0%,#080b1c 40%,#0c1230 100%)}
+.sb{position:absolute;top:0;left:0;right:0;z-index:12;height:50px;display:flex;align-items:center;justify-content:space-between;padding:14px 28px 0 34px;font:600 15px/1 var(--ui);pointer-events:none}
+.sb .r{display:flex;align-items:center;gap:8px}
+.demochip{font:600 11px/1 var(--ui);color:var(--ink3);padding:3px 7px;border-radius:7px;box-shadow:inset 0 0 0 1px var(--sep)}
+.bat{position:relative;width:25px;height:12px;border-radius:3.5px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.bat::after{content:"";position:absolute;top:2px;left:2px;bottom:2px;width:15px;border-radius:2px;background:var(--ink)}
+.scr{position:absolute;top:50px;left:0;right:0;bottom:0;padding:0 16px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.scr.withdock{padding-bottom:84px}
+.navrow{flex:none;display:flex;align-items:center;justify-content:space-between;height:44px;margin:0 -8px}
+.back{display:inline-flex;align-items:center;height:44px;padding:0 12px 0 4px;font:400 15px var(--ui);color:var(--ink2)}
+.back svg{width:22px;height:22px}
+.icb{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.icb svg{width:20px;height:20px}
+.ctr{display:inline-flex;align-items:center;gap:8px;font:600 15px var(--ui)}
+.txb{min-height:44px;min-width:44px;padding:0 12px;font:400 15px var(--ui);color:var(--ink2)}
+.lt{flex:none;margin:2px 0 6px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.k{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.news{flex:none;margin:0;font:400 20px/1.3 var(--serif);text-wrap:pretty}
+.card{border-radius:var(--r);background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 14px 34px -18px rgba(0,0,0,.7)}
+.lit{background:linear-gradient(180deg,rgba(255,122,217,.13),rgba(255,122,217,.03) 50%,rgba(255,122,217,0)),var(--glass);box-shadow:inset 0 0 0 1px var(--mg-edge),inset 0 1px 0 rgba(255,220,240,.22),0 0 44px -16px var(--mg-glow),0 14px 34px -18px rgba(0,0,0,.7)}
+.cap{display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:none;min-height:44px;padding:0 18px;border-radius:22px;background:var(--mg);color:var(--mg-ink);font:600 15px var(--ui);white-space:nowrap;box-shadow:0 0 24px -8px var(--mg-glow)}
+.cap svg,.quiet svg{width:17px;height:17px;stroke-width:2.6}
+.quiet{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(232,236,246,.1);white-space:nowrap}
+.rowb{display:grid;grid-template-columns:minmax(0,1fr) 14px;align-items:center;gap:8px;width:100%;min-height:44px;font:400 15px var(--ui);color:var(--ink2);text-align:left}
+.chev{width:14px;height:14px;color:var(--ink3);transition:transform .3s var(--ease)}
+.rowb[aria-expanded="true"] .chev{transform:rotate(90deg)}
+
+/* entrances: a rise, or a material arriving (blur resolving), both cross-fades under reduced motion */
+.rise{transition:opacity .42s var(--ease),transform .42s var(--ease)}
+.rise.pre{opacity:0;transform:translateY(8px)}
+.mat{transition:opacity .42s var(--ease),transform .42s var(--ease),filter .42s var(--ease)}
+.mat.pre{opacity:0;transform:translateY(8px) scale(.98);filter:blur(6px)}
+.w{transition:opacity .34s var(--ease),filter .34s var(--ease)}
+.w.pre{opacity:0;filter:blur(3px)}
+
+/* the dock: five tabs in a glass pill and Nova detached (his phone's chrome; More is lit because the Leader opens from the Index) */
+.dock{position:absolute;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:minmax(0,1fr) 58px;align-items:center;gap:10px;padding:0 12px 12px}
+.tabbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));height:62px;padding:0 4px;border-radius:31px;background:var(--bar);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:0;margin:4px 0;border-radius:27px;font:500 10px/1.1 var(--ui);color:rgba(232,236,246,.5)}
+.tab svg{width:22px;height:22px}
+.tab.on{color:var(--cy);background:rgba(89,230,255,.1)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:var(--bar);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.orb{display:block;flex:none;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+/* ------------------------------------------------------------ the faces
+   One species (a helmet, a screen, two ear pods), one feature and one artefact
+   each, as mockup 67 drew them. The Leader is beings.js's: a mirror for a face
+   with soft eyes lit through it, the listening ear lit, and the question it is
+   holding as its artefact. Working, the question ripples as it takes the
+   answer in; a consulted agent's ring turns while it works and ticks when back. */
+.face{--h:var(--ink2);position:relative;display:inline-block;flex:none;width:var(--s,28px);height:var(--s,28px)}
+.face svg{width:100%;height:100%;display:block;overflow:visible}
+.face .shell{fill:color-mix(in srgb,var(--h) 30%,#0a0f1f);stroke:color-mix(in srgb,var(--h) 72%,transparent);stroke-width:1.5}
+.face .pod{fill:color-mix(in srgb,var(--h) 52%,#0a0f1f)}
+.face .ear{fill:var(--h)}
+.face .fs{fill:#060914}
+.face .sheen{fill:#fff;opacity:.08}
+.face .soft{fill:var(--h);opacity:.22}
+.face .eye{fill:color-mix(in srgb,var(--h) 30%,#fff)}
+.face .line{fill:none;stroke:color-mix(in srgb,var(--h) 40%,#fff);stroke-width:1.7;stroke-linecap:round}
+.face .lens{fill:none;stroke:color-mix(in srgb,var(--h) 55%,#fff);stroke-width:1.8}
+.face .spine{fill:color-mix(in srgb,var(--h) 55%,#0a0f1f);stroke:var(--h);stroke-width:1}
+.face .badge{fill:#0b1122;stroke:var(--h);stroke-width:1.5}
+.face .art{fill:none;stroke:var(--h);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.face .dot{fill:var(--h)}
+.face .ripple{fill:none;stroke:var(--h);stroke-width:1.4;opacity:0;transform-box:fill-box;transform-origin:center}
+.face .tick{display:none}
+.face.back .tick{display:inline}
+.face .tick circle{fill:var(--h);stroke:#0b1122;stroke-width:1.5}
+.face .tick path{fill:none;stroke:#07101c;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.face.work::before{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid color-mix(in srgb,var(--h) 20%,transparent);border-top-color:var(--h);animation:spin 1.4s linear infinite}
+.face.h-leader.work::before{display:none}
+.face.work .ripple{animation:ripple 1.6s var(--ease-out) infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ripple{from{opacity:.85;transform:scale(.7)}to{opacity:0;transform:scale(2)}}
+.h-leader{--h:var(--mg)}
+.h-researcher{--h:var(--researcher)}
+.h-librarian{--h:var(--librarian)}
+.flyer{position:absolute;z-index:20;margin:0;pointer-events:none;transform-origin:0 0}
+
+/* ------------------------------------------------------------ the conversation */
+.tz{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;gap:12px;overflow:hidden;padding:10px 0 8px;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 40px);mask-image:linear-gradient(180deg,transparent 0,#000 40px)}
+.msg{display:flex;flex-direction:column;gap:6px;min-width:0}
+.dimtop{opacity:.5}
+.sliver{font:400 13px/1.35 var(--ui);color:var(--ink3);text-align:center}
+.by{display:flex;align-items:center;gap:8px;min-height:28px;font:600 15px var(--ui)}
+.by .nm{color:var(--h)}
+.by .mt{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.stack{display:inline-flex;align-items:center}
+.stack .face + .face{margin-left:-8px}
+.said{padding:12px 14px 12px;border-radius:22px;background:color-mix(in srgb,var(--h) 7%,rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 26%,transparent),inset 0 1px 0 var(--glass-hi)}
+.me{align-self:flex-end;max-width:86%;margin:0;padding:10px 14px;border-radius:20px 20px 6px 20px;background:rgba(232,236,246,.11);box-shadow:inset 0 0 0 .5px var(--glass-ring);font:400 17px/1.38 var(--ui);text-wrap:pretty}
+.mewrap{display:flex;flex-direction:column;align-items:flex-end}
+.lab{display:block;margin:0 4px 4px 0;font:400 13px var(--ui);color:var(--ink3)}
+.hand{margin:0;font:400 15px/1.4 var(--ui);color:var(--ink2)}
+.lead{margin:8px 0 0;font:400 20px/1.3 var(--serif);text-wrap:pretty}
+.tx{margin:8px 0 0;font:400 17px/1.42 var(--ui);text-wrap:pretty}
+.idea .t{margin:0;font:400 20px/1.25 var(--serif);text-wrap:balance}
+.idea .l{margin:6px 0 0;font:400 15px/1.42 var(--ui);color:var(--ink2);text-wrap:pretty}
+.said.idea{padding:12px 14px 2px}
+.why{display:grid;grid-template-rows:0fr;transition:grid-template-rows .36s var(--ease)}
+.why.open{grid-template-rows:1fr}
+.why > div{overflow:hidden;min-height:0}
+.why p{margin:0 0 6px;font:400 15px/1.42 var(--ui);color:var(--ink2);text-wrap:pretty}
+.why .k{margin:0 0 10px}
+
+/* the question the Leader holds: its artefact, a glass orb with a lit question in it */
+.ask{flex:none;display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;padding:12px 14px;border-radius:22px;transition:box-shadow .5s var(--ease),background .5s var(--ease)}
+.ask .k b{font-weight:600;color:var(--mg)}
+.ask p{margin:2px 0 0;font:400 17px/1.35 var(--ui);text-wrap:pretty}
+.ask.answered{background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.qorb{position:relative;width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;color:var(--mg);background:radial-gradient(circle at 38% 32%,rgba(255,232,246,.55),rgba(255,122,217,.22) 46%,rgba(255,122,217,.04) 72%);box-shadow:inset 0 0 0 1.5px var(--mg),0 0 18px -4px var(--mg-glow)}
+.qorb svg{width:18px;height:18px;stroke-width:2.4}
+.qorb::after{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 1.5px var(--mg);opacity:0;pointer-events:none}
+.qorb.rip::after{animation:qrip 1.3s var(--ease-out)}
+@keyframes qrip{from{opacity:.85;transform:scale(1)}to{opacity:0;transform:scale(2)}}
+
+/* one composer, with the mic: while a question waits, what he sends answers it */
+.compose{flex:none;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:6px;min-height:56px;padding:6px;border-radius:28px;background:var(--bar);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.mic{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--mg)}
+.mic svg{width:22px;height:22px}
+.field{display:flex;align-items:center;min-width:0;min-height:44px;padding:0 14px;border-radius:22px;background:var(--well);font:400 17px var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden}
+.field.typed{color:var(--ink);justify-content:flex-end}
+.send{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--mg);color:var(--mg-ink);opacity:.35;transition:opacity .2s var(--ease),transform .14s var(--ease)}
+.send.on{opacity:1}
+.send svg{width:20px;height:20px;stroke-width:2.6}
+
+/* the seats: who the Leader is asking, lit while each works, openable after */
+.bench{display:flex;gap:6px;margin-top:10px}
+.seat{--h:var(--ink2);flex:1 1 0;display:flex;align-items:center;gap:8px;min-width:0;min-height:52px;padding:4px 10px 4px 8px;border-radius:26px;text-align:left;background:color-mix(in srgb,var(--h) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 32%,transparent);transition:background-color .25s var(--ease),box-shadow .25s var(--ease),transform .14s var(--ease)}
+.seat .st{min-width:0}
+.seat b{display:block;font:600 13px/1.25 var(--ui);color:var(--h);white-space:nowrap}
+.seat small{display:block;font:400 13px/1.25 var(--ui);color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seat.done{background:color-mix(in srgb,var(--h) 15%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--h) 55%,transparent)}
+.seat.on{box-shadow:inset 0 0 0 1.5px var(--h)}
+.peek{display:grid;grid-template-rows:0fr;transition:grid-template-rows .36s var(--ease)}
+.peek.open{grid-template-rows:1fr}
+.peek > div{overflow:hidden;min-height:0}
+.peek .in{margin-top:8px;padding:10px 12px;border-radius:16px;background:color-mix(in srgb,var(--h) 8%,rgba(255,255,255,.03));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 30%,transparent)}
+.pq{margin:2px 0 0;font:400 15px/1.4 var(--ui)}
+.pa{margin:6px 0 0;font:400 15px/1.4 var(--ui);color:var(--ink2)}
+.collapse{display:grid;grid-template-rows:1fr;transition:grid-template-rows .36s var(--ease),opacity .28s var(--ease)}
+.collapse.shut{grid-template-rows:0fr;opacity:0}
+.collapse > div{overflow:hidden;min-height:0}
+.froms{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.from{--h:var(--ink2);display:grid;grid-template-columns:auto minmax(0,1fr) 14px;align-items:center;gap:10px;width:100%;min-height:52px;padding:4px 12px 4px 8px;border-radius:18px;text-align:left;background:color-mix(in srgb,var(--h) 8%,rgba(255,255,255,.03));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 26%,transparent)}
+.from .ft{min-width:0}
+.from b{display:block;font:600 15px/1.25 var(--ui)}
+.from b span{color:var(--h)}
+.from small{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* the receipt code writes, with Undo where it happened */
+.rc{display:flex;flex-direction:column;padding:4px 4px 4px 12px;border-radius:20px;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.rc .r{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:44px;font:400 15px/1.3 var(--ui)}
+.rc .r + .r{border-top:1px solid var(--sep)}
+.rc .r b{font-weight:600}
+.rc .ok{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--void)}
+.rc .ok.add{background:rgba(232,236,246,.16);color:var(--ink)}
+.rc .ok svg{width:13px;height:13px;stroke-width:3}
+.undo{min-height:44px;min-width:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink)}
+
+/* ------------------------------------------------------------ the picture as beads (A's strip, C's summary) */
+.who{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;align-self:center;min-height:44px;margin:0 auto 8px;padding:0 10px}
+.who .nm{display:inline-flex;align-items:center;gap:3px;font:600 15px var(--ui)}
+.strip{flex:none;position:relative;display:grid;grid-template-columns:auto auto auto;justify-content:space-between;align-items:end;gap:10px;width:100%;min-height:64px;padding:11px 16px 12px;text-align:left}
+.sg{display:flex;flex-direction:column;gap:8px;min-width:0}
+.sn{font:400 13px/1 var(--ui);color:var(--ink3);white-space:nowrap}
+.sn b{display:inline-block;margin-right:3px;font:600 15px/1 var(--round);color:var(--ink);font-variant-numeric:tabular-nums}
+.sn b.none{margin-right:0;font:400 13px/1 var(--ui);color:var(--ink3)}
+.beads{display:flex;align-items:center;gap:5px;min-height:12px}
+.bead{--b:11px;position:relative;display:inline-block;flex:none;width:var(--b);height:var(--b);border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink2);transition:transform .3s var(--ease),opacity .3s var(--ease),box-shadow .3s var(--ease),background-color .3s var(--ease)}
+.bead.pre{opacity:0;transform:scale(.5)}
+.bead.wk{background:var(--ink3);box-shadow:none}
+.bead.d{box-shadow:none;border:1.5px dashed var(--ink4)}
+.bead.tied{background:var(--ink);box-shadow:none;border:0}
+.bead.tied::after{content:"";position:absolute;left:calc(var(--b) * .3);top:calc(var(--b) * .18);width:calc(var(--b) * .26);height:calc(var(--b) * .46);border:solid var(--void);border-width:0 1.6px 1.6px 0;transform:rotate(45deg)}
+.bead.asked,.bead.cur{box-shadow:inset 0 0 0 1.5px var(--mg),0 0 10px -1px var(--mg-glow);background:var(--mg-soft)}
+.bead.kp{box-shadow:inset 0 0 0 1.5px var(--ink3)}
+.bead.kp::after{content:"";position:absolute;inset:calc(var(--b) * .3);border-radius:50%;background:var(--ink3)}
+.stale{flex:none;margin:7px 4px 0;font:400 13px/1.35 var(--ui);color:var(--ink3);text-align:center}
+.strip.slim{min-height:48px;padding:8px 16px;align-items:center;grid-template-columns:auto auto auto}
+.strip.slim .sg{flex-direction:row;align-items:center;gap:7px}
+.strip.slim .bead{--b:9px}
+.strip.slim .beads{gap:4px}
+
+/* ------------------------------------------------------------ the picture drawn as time (A's stage, B's hero) */
+.pic{display:block;width:100%;height:auto;overflow:visible}
+.pic text{font:400 13px var(--ui);fill:var(--ink2)}
+.pic .pk,.pic .fogk,.pic .dk{fill:var(--ink3)}
+.pic .age{font:600 13px var(--round);fill:var(--ink3)}
+.pic .hit{fill:transparent;transition:fill .2s var(--ease)}
+.pic .row.hl .hit{fill:rgba(255,122,217,.12)}
+.pic .known{fill:none;stroke:var(--ink2);stroke-width:2;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .55s var(--ease-out);transition-delay:calc(var(--i,0) * 60ms)}
+.pic .unknown{fill:none;stroke:var(--ink3);stroke-width:2;stroke-linecap:round;stroke-dasharray:1 5;opacity:0;transition:opacity .4s var(--ease),stroke .3s var(--ease)}
+.pic .now{fill:none;stroke:var(--mg);stroke-width:2.2;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;opacity:0}
+.pic .start{fill:var(--ink2);opacity:0;transition:opacity .3s var(--ease),fill .3s var(--ease);transition-delay:calc(var(--i,0) * 60ms)}
+.pic .end{fill:var(--void);stroke:var(--ink3);stroke-width:1.5;opacity:0;transition:opacity .3s var(--ease),fill .3s var(--ease),stroke .3s var(--ease)}
+.pic .nm,.pic .age{opacity:0;transition:opacity .3s var(--ease),fill .3s var(--ease);transition-delay:calc(var(--i,0) * 60ms)}
+.pic .fog,.pic .fogk{opacity:0;transition:opacity .6s var(--ease)}
+.pic .axis{stroke:var(--sep);stroke-width:1}
+.pic .dk{opacity:0;transition:opacity .4s var(--ease)}
+.pic .wbar,.pic .wfog{transform-box:fill-box;transform-origin:left center;transform:scaleX(0);transition:transform .55s var(--ease-out);transition-delay:calc(var(--i,0) * 60ms)}
+.pic .wbar{fill:var(--ink3)}
+.pic .wfog{fill:var(--ink4)}
+.pic .wn,.pic .wk{opacity:0;transition:opacity .3s var(--ease);transition-delay:calc(var(--i,0) * 60ms)}
+.pic.drawn .known{stroke-dashoffset:0}
+.pic.drawn .nm,.pic.drawn .age,.pic.drawn .start,.pic.drawn .dk,.pic.drawn .pk{opacity:1}
+.pic .pk{opacity:0;transition:opacity .3s var(--ease)}
+.pic.fogged .unknown,.pic.fogged .end,.pic.fogged .fog,.pic.fogged .fogk{opacity:1}
+.pic.worked .wbar,.pic.worked .wfog{transform:none}
+.pic.worked .wn,.pic.worked .wk{opacity:1}
+.pic .row{transition:transform .62s var(--ease-io),opacity .5s var(--ease)}
+.pic .row.lit .known,.pic .row.lit .unknown{stroke:var(--mg)}
+.pic .row.lit .unknown{opacity:.8}
+.pic .row.lit .nm,.pic .row.lit .age,.pic .row.lit .start{fill:var(--mg)}
+.pic .row.lit .end{stroke:var(--mg);fill:var(--mg)}
+.pic .row.settle .now{opacity:1;stroke-dashoffset:0;transition:stroke-dashoffset .5s var(--ease-io)}
+.pic .knot{fill:none;stroke:var(--mg);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;opacity:0}
+.pic .row.tied .knot{opacity:1;stroke-dashoffset:0;transition:stroke-dashoffset .45s var(--ease-out)}
+.pic .row.tied .end{opacity:0}
+.pic .row.drop{opacity:0;transform:translateY(var(--dy,140px))}
+.pic .row.up{transform:translateY(calc(var(--rh,26px) * -1))}
+.pic .qorbg{opacity:0;transition:opacity .4s var(--ease)}
+.pic .qo{fill:rgba(6,7,13,.85);stroke:var(--mg);stroke-width:1.5}
+.pic .qm{fill:none;stroke:var(--mg);stroke-width:1.7;stroke-linecap:round}
+.pic .qd{fill:var(--mg)}
+.pic .qr{fill:none;stroke:var(--mg);stroke-width:1.2;opacity:0;transform-box:fill-box;transform-origin:center}
+.pic .qr.rip{animation:ripple 1.3s var(--ease-out)}
+.pic .tie{stroke:var(--mg);stroke-width:1.5;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .4s var(--ease-out) .15s}
+.pic.asking .qorbg{opacity:1}
+.pic.asking .tie{stroke-dashoffset:0}
+.shelf{display:flex;align-items:center;gap:10px;min-height:48px;margin-top:8px;padding:4px 4px 4px 12px;border-radius:16px;border:1.5px dashed var(--ink4);transition:border-color .4s var(--ease),background-color .4s var(--ease)}
+.shelf .ph{font:400 13px var(--ui);color:var(--ink3)}
+.shelf.has{border-style:solid;border-color:var(--sep);background:rgba(232,236,246,.05)}
+.shelf .si{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.shelf .kn{width:24px;height:24px;color:var(--ink2)}
+.shelf .sx{flex:1;min-width:0}
+.shelf .sx b{display:block;font:600 15px/1.25 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shelf .sx span{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.note{margin:10px 2px 0;font:400 13px/1.4 var(--ui);color:var(--ink3);text-wrap:pretty}
+
+/* A2: the stage that rises out of the strip over the thread, and settles back into it */
+.stage{position:absolute;left:10px;right:10px;top:150px;z-index:8;padding:4px 14px 14px;border-radius:28px;background:rgba(18,22,40,.9);backdrop-filter:blur(26px) saturate(1.4);-webkit-backdrop-filter:blur(26px) saturate(1.4);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 30px 60px -24px rgba(0,0,0,.9);transform-origin:50% 0;opacity:0;transform:translateY(-12px) scale(.94);filter:blur(8px);pointer-events:none;transition:opacity .4s var(--ease),transform .4s var(--ease),filter .4s var(--ease)}
+.stage.up{opacity:1;transform:none;filter:none;pointer-events:auto}
+.sthead{display:flex;align-items:center;gap:8px;min-height:44px}
+.sthead b{font:600 15px var(--ui)}
+.sthead .k{display:inline}
+.sthead .txb{margin-left:auto;margin-right:-10px}
+.stage .news{margin:0 0 10px}
+.dimmable{transition:opacity .4s var(--ease),filter .4s var(--ease)}
+.phone.dim .dimmable{opacity:.25;filter:blur(2px)}
+
+/* B */
+.hero{flex:none;padding:12px}
+.talkbar{position:absolute;left:12px;right:12px;bottom:84px;z-index:5;display:grid;grid-template-columns:44px minmax(0,1fr) 14px;align-items:center;gap:8px;min-height:56px;padding:6px 16px 6px 6px;border-radius:28px;background:var(--bar);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi);font:600 15px var(--ui);text-align:left}
+.talkbar .mic{background:var(--mg-soft)}
+.idea.card{flex:none;margin-top:10px;padding:12px 14px 14px}
+.scrim{position:absolute;inset:0;z-index:9;background:rgba(3,5,12,.5);opacity:0;pointer-events:none;transition:opacity .3s var(--ease)}
+.scrim.on{opacity:1}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:10;padding:8px 16px 24px;border-radius:30px 30px 0 0;background:rgba(20,25,46,.97);backdrop-filter:blur(30px) saturate(1.4);-webkit-backdrop-filter:blur(30px) saturate(1.4);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 -24px 60px -20px rgba(0,0,0,.85);transform:translateY(105%);transition:transform .42s var(--ease)}
+.sheet.up{transform:none}
+.grab{width:36px;height:5px;border-radius:3px;background:rgba(232,236,246,.3);margin:0 auto 12px}
+.sh-t{margin:2px 0 0;font:600 17px/1.3 var(--ui)}
+.his{margin:10px 0 0;padding:0 0 0 12px;border-left:2px solid var(--ink4);font:400 17px/1.42 var(--ui);text-wrap:pretty}
+.sh-m{margin:10px 0 0;font:400 13px/1.35 var(--ui);color:var(--mg)}
+.verbs{display:flex;gap:8px;margin-top:16px}
+.verbs > *{flex:1 1 0}
+
+/* C */
+.chead{flex:none;display:flex;align-items:center;gap:10px;margin:2px 0 10px}
+.chead b{display:block;font:600 15px/1.25 var(--ui)}
+.tally{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px;margin-top:12px}
+.tally .beads{gap:7px}
+.tally .pos{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.tally .pos b{font:600 15px var(--round);color:var(--ink)}
+.deck{position:relative;flex:none;height:322px;margin-top:12px}
+.dcard{position:absolute;left:0;right:0;top:0;padding:14px 14px 4px;border-radius:24px;background:rgba(24,29,52,.95);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 18px 40px -20px rgba(0,0,0,.85);transform-origin:50% 0;transition:transform .42s var(--ease),opacity .42s var(--ease),box-shadow .3s var(--ease)}
+.dcard[data-k="0"]{z-index:7;box-shadow:inset 0 0 0 1px var(--mg-edge),inset 0 1px 0 rgba(255,220,240,.22),0 0 40px -18px var(--mg-glow),0 18px 40px -20px rgba(0,0,0,.85)}
+.dcard[data-k="1"]{z-index:6;transform:translateY(22px) scale(.96);opacity:.9}
+.dcard[data-k="2"]{z-index:5;transform:translateY(42px) scale(.92);opacity:.7}
+.dcard[data-k="3"],.dcard[data-k="4"],.dcard[data-k="5"],.dcard[data-k="6"]{z-index:4;transform:translateY(42px) scale(.92);opacity:0}
+.dcard[data-k="gone"]{display:none}
+.deck .dcard.pre{opacity:0;transform:translateY(90px) scale(.94)}
+.dc-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.dc-h b{min-width:0;font:600 17px/1.3 var(--ui)}
+.dc-age{flex:none;font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.dc-age b{font:600 15px var(--round);color:var(--ink)}
+.agebar{height:4px;margin:8px 0 0;border-radius:2px;background:rgba(232,236,246,.1);overflow:hidden}
+.agebar i{display:block;height:100%;width:100%;border-radius:2px;background:var(--ink2);transform-origin:left center;transform:scaleX(var(--a,0));transition:transform .7s var(--ease-out)}
+.deck.zero .agebar i{transform:scaleX(0)}
+.dc-w{margin:12px 0 0;font:400 17px/1.42 var(--ui);text-wrap:pretty}
+.dc-m{margin:8px 0 0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.dc-v{display:flex;gap:8px;margin-top:14px}
+.dc-v > *{flex:1 1 0}
+.doall{flex:none;align-self:center;min-height:44px;padding:0 16px;font:600 15px var(--ui);color:var(--ink2)}
+.trays{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.tray{position:relative;display:flex;align-items:center;gap:8px;min-height:56px;padding:4px 4px 4px 10px;border-radius:18px;border:1.5px dashed var(--ink4);transition:border-color .35s var(--ease),background-color .35s var(--ease)}
+.tray.has{border-style:solid;border-color:var(--sep);background:rgba(232,236,246,.05)}
+.tray .tg{width:22px;height:22px;flex:none;color:var(--ink2)}
+.tray .tn{min-width:0;font:400 13px/1.25 var(--ui);color:var(--ink3);white-space:nowrap}
+.tray .tn b{display:block;font:600 15px/1.2 var(--round);color:var(--ink)}
+.tray .undo{margin-left:auto;padding:0 8px}
+.fadeaway{opacity:0!important;pointer-events:none;transition:opacity .3s var(--ease)!important}
+.summary{position:absolute;left:16px;right:16px;top:208px;display:flex;flex-direction:column;gap:10px;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.summary.on{opacity:1;transform:none;pointer-events:auto}
+.summary .stale{margin-top:0}
+.csheet{position:absolute;left:0;right:0;bottom:0;top:98px;z-index:10;display:flex;flex-direction:column;gap:8px;padding:8px 16px 16px;border-radius:30px 30px 0 0;background:rgba(18,22,42,.97);backdrop-filter:blur(30px) saturate(1.4);-webkit-backdrop-filter:blur(30px) saturate(1.4);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 -24px 60px -20px rgba(0,0,0,.85);transform:translateY(105%);transition:transform .45s var(--ease)}
+.csheet.up{transform:none}
+.csheet .grab{margin-bottom:2px}
+.cshead{flex:none;display:flex;align-items:center;justify-content:space-between;min-height:44px}
+.cshead .txb{margin-right:-10px}
+.quote{flex:none;padding:12px 14px}
+.quote b{display:block;font:600 15px/1.3 var(--ui)}
+.quote p{margin:4px 0 0;font:400 15px/1.4 var(--ui);color:var(--ink2);text-wrap:pretty}
+.quote .k{margin-top:4px}
+.csheet .tz{padding-top:4px}
+
+/* reduced motion: the house rule, a cross-fade instead of movement */
+:root[data-rm="1"] .rise,:root[data-rm="1"] .mat,:root[data-rm="1"] .stage,:root[data-rm="1"] .sheet,:root[data-rm="1"] .csheet,:root[data-rm="1"] .dcard,:root[data-rm="1"] .summary,:root[data-rm="1"] .pic .row,:root[data-rm="1"] .bead,:root[data-rm="1"] .w{transition:opacity .25s linear!important}
+:root[data-rm="1"] .rise.pre,:root[data-rm="1"] .mat.pre,:root[data-rm="1"] .bead.pre,:root[data-rm="1"] .w.pre,:root[data-rm="1"] .summary{transform:none;filter:none}
+:root[data-rm="1"] .stage{transform:none;filter:none}
+:root[data-rm="1"] .sheet,:root[data-rm="1"] .csheet{transform:none;opacity:0;pointer-events:none}
+:root[data-rm="1"] .sheet.up,:root[data-rm="1"] .csheet.up{opacity:1;pointer-events:auto}
+:root[data-rm="1"] .deck .dcard.pre{transform:none}
+:root[data-rm="1"] .dcard[data-k="1"],:root[data-rm="1"] .dcard[data-k="2"],:root[data-rm="1"] .dcard[data-k="3"]{transition:none}
+:root[data-rm="1"] .pic .known,:root[data-rm="1"] .pic .now,:root[data-rm="1"] .pic .knot,:root[data-rm="1"] .pic .tie{stroke-dashoffset:0;transition:opacity .25s linear}
+:root[data-rm="1"] .pic .known{opacity:0}
+:root[data-rm="1"] .pic.drawn .known{opacity:1}
+:root[data-rm="1"] .pic .wbar,:root[data-rm="1"] .pic .wfog{transform:none;opacity:0;transition:opacity .25s linear}
+:root[data-rm="1"] .pic.worked .wbar,:root[data-rm="1"] .pic.worked .wfog{opacity:1}
+:root[data-rm="1"] .pic .row.drop,:root[data-rm="1"] .pic .row.up{transform:none}
+:root[data-rm="1"] .pic .row.up{opacity:1}
+:root[data-rm="1"] .why,:root[data-rm="1"] .peek,:root[data-rm="1"] .collapse{transition:opacity .25s linear}
+:root[data-rm="1"] .agebar i{transition:none}
+:root[data-rm="1"] .face.work::before,:root[data-rm="1"] .face .ripple,:root[data-rm="1"] .qorb.rip::after,:root[data-rm="1"] .pic .qr.rip{animation:none}
+:root[data-rm="1"] .pr:active,:root[data-rm="1"] .pr.press,:root[data-rm="1"] .chev{transform:none;transition:none}
+@media (prefers-reduced-motion: reduce){
+  .face.work::before,.face .ripple,.qorb.rip::after,.pic .qr.rip{animation:none!important}
+  .rise.pre,.mat.pre,.bead.pre{transform:none!important;filter:none!important}
+}
+/* ================================================================ ROUND 2: the blends
+   Everything above this line is round 1's stylesheet, copied unchanged so the
+   original A and C render exactly as they did. What follows is new. */
+.seg.four button{font-size:14px}
+.was{display:inline-flex;align-items:center;min-height:28px;margin:0 0 10px;padding:4px 12px;border-radius:14px;font:600 13px/1.3 var(--ui);color:var(--ink2);box-shadow:inset 0 0 0 1px var(--sep)}
+.his-words{margin:0 0 14px;max-width:44em;padding:2px 0 2px 14px;border-left:2px solid var(--mg-edge);font:400 17px/1.45 var(--serif);color:var(--ink);text-wrap:pretty}
+.his-words span{display:block;margin-top:4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+
+/* the clock in the Leader's head, and the reason the first thing is first */
+.chead .k{transition:opacity .25s var(--ease),filter .25s var(--ease)}
+.swap{opacity:0!important;filter:blur(3px)}
+.nowk{flex:none;display:flex;align-items:center;gap:8px;min-height:26px;margin:6px 4px 0;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .25s var(--ease),filter .25s var(--ease)}
+.nowk b{color:var(--mg);font-weight:600}
+.nowk .lv{flex:none;width:7px;height:7px;border-radius:50%;background:var(--mg);box-shadow:0 0 8px var(--mg-glow)}
+.nowk span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+/* Blend 1: the one focused card. min-height keeps the glass still while its content changes */
+.focus{flex:none;position:relative;min-height:224px;margin-top:6px;padding:14px;border-radius:24px}
+.fin{transition:opacity .3s var(--ease),transform .3s var(--ease),filter .3s var(--ease)}
+.fin.pre{opacity:0;transform:translateY(8px);filter:blur(6px)}
+.ft{margin:4px 0 0;font:400 20px/1.25 var(--serif);text-wrap:balance}
+.fl{margin:6px 0 0;font:400 15px/1.42 var(--ui);color:var(--ink2);text-wrap:pretty}
+.fq{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;margin-top:4px}
+.fq p{margin:2px 0 0;font:400 17px/1.35 var(--ui);text-wrap:pretty}
+.fh{margin:12px 0 0;font:400 13px/1.35 var(--ui);color:var(--ink3);text-wrap:pretty}
+.fh b{font-weight:600;color:var(--ink2)}
+.focus .verbs,.kc .verbs{margin-top:12px}
+.focus .rc{margin-top:12px}
+.rbeads{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.rbeads .bead{--b:14px}
+
+/* Blend 1: the rest, ranked, as rows that each carry a form */
+.rl{flex:none;margin:12px 4px 0;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.rail{flex:none;display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.rrow{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;min-height:56px;padding:4px 6px 4px 10px;border-radius:18px;text-align:left;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.rrow .rt{min-width:0}
+.rrow b{display:block;font:600 15px/1.25 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow small{display:block;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow > .chev{margin:0 10px 0 4px}
+.gl{width:32px;height:32px;display:grid;place-items:center;flex:none}
+.gl .qorb{width:28px;height:28px}
+.gl .qorb svg{width:15px;height:15px}
+.gidea{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;box-shadow:inset 0 0 0 1.5px var(--ink3);font:400 20px/1 var(--serif);color:var(--ink);padding-top:7px}
+.gpic{display:grid;grid-template-columns:repeat(3,7px);gap:3px}
+.gpic i{width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 1.2px var(--ink2)}
+.gl .bead{--b:18px}
+.slimcard{flex:none;margin-top:10px}
+
+/* the one composer, lit while the Leader's question is the thing that is first */
+.compose{transition:box-shadow .35s var(--ease)}
+.compose.asking{box-shadow:0 0 0 1px var(--mg-edge),0 0 30px -10px var(--mg-glow),inset 0 1px 0 var(--glass-hi)}
+.compose.asking .mic{background:var(--mg-soft)}
+.field{transition:color .25s var(--ease)}
+
+/* Blend 2: C's deck, dealing every kind of card */
+.bdeck{position:relative;flex:none;height:300px;margin-top:10px}
+.kc{position:absolute;left:0;right:0;top:0;padding:14px;border-radius:24px;background:rgba(24,29,52,.95);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 18px 40px -20px rgba(0,0,0,.85);transform-origin:50% 0;transition:transform .42s var(--ease),opacity .42s var(--ease),box-shadow .3s var(--ease)}
+.kc[data-k="0"]{z-index:7;box-shadow:inset 0 0 0 1px var(--mg-edge),inset 0 1px 0 rgba(255,220,240,.22),0 0 40px -18px var(--mg-glow),0 18px 40px -20px rgba(0,0,0,.85)}
+.kc[data-k="1"]{z-index:6;transform:translateY(22px) scale(.96);opacity:.9}
+.kc[data-k="2"]{z-index:5;transform:translateY(42px) scale(.92);opacity:.7}
+.kc[data-k="gone"]{display:none}
+/* the blends' deck cards are opaque, so the card behind never reads through the one in front */
+.kc,[data-rdeck] .dcard{background:#181d34}
+/* one height for every card, so nothing of the card behind hangs out below the one in front */
+.kc{display:flex;flex-direction:column;min-height:272px}
+.kc [data-qin]{flex:1;display:flex;flex-direction:column}
+.kc [data-qin] > .fh{margin-top:auto;padding-top:12px}
+.kc .why{margin-top:2px}
+.kc .k b{color:var(--mg);font-weight:600}
+.btally{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px;margin-top:8px}
+.btally .pos{font:400 13px var(--ui);color:var(--ink3);white-space:nowrap}
+.btally .pos b{font:600 15px var(--round);color:var(--ink)}
+
+/* the ladder: the order rule drawn as a matrix over five moments */
+.rulecard{width:min(390px,100%);padding:16px 12px 14px;border-radius:28px;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 14px 34px -18px rgba(0,0,0,.7)}
+.rulecard h3{margin:0 4px;font:600 17px/1.3 var(--ui)}
+.rulecard > .k{margin:4px 4px 0}
+.lg{display:grid;grid-template-columns:minmax(0,1fr) repeat(5,44px);margin-top:12px}
+.lg .ch{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;padding:4px 0;border-radius:14px 14px 0 0;font:400 13px/1.15 var(--ui);color:var(--ink3);text-align:center;transition:background-color .3s var(--ease),color .3s var(--ease)}
+.lg .ch b{display:block;font:600 13px/1.2 var(--round);color:var(--ink2);font-variant-numeric:tabular-nums}
+.lg .ch.on{color:var(--ink2);background:rgba(255,122,217,.08)}
+.lg .ch.on b{color:var(--mg)}
+.lg .rg{display:flex;flex-direction:column;justify-content:center;min-width:0;min-height:56px;padding:6px 6px 6px 4px;border-top:1px solid var(--sep)}
+.lg .rg b{font:600 15px/1.25 var(--ui)}
+.lg .rg small{font:400 13px/1.3 var(--ui);color:var(--ink3);text-wrap:pretty}
+.lg .c{display:grid;place-items:center;min-height:56px;border-top:1px solid var(--sep);transition:background-color .3s var(--ease)}
+.lg .c.on{background:rgba(255,122,217,.08)}
+.lg .c.last{border-radius:0 0 14px 14px}
+.mk{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font:600 13px/1 var(--round);color:var(--ink2);transition:transform .3s var(--ease-out),background-color .3s var(--ease),box-shadow .3s var(--ease),color .3s var(--ease);transition-delay:calc(var(--r,0) * 45ms)}
+.mk.no{width:6px;height:6px;background:var(--ink4)}
+.mk.n{box-shadow:inset 0 0 0 1.5px var(--ink3)}
+.mk.top{background:var(--ink);color:var(--void)}
+.c.on .mk.top{background:var(--mg);color:var(--mg-ink);box-shadow:0 0 16px -2px var(--mg-glow)}
+.mk.held{position:relative;box-shadow:inset 0 0 0 1.5px var(--ink4)}
+.mk.held::after{content:"";position:absolute;left:4px;right:4px;top:50%;height:1.5px;background:var(--ink3);transform:rotate(-45deg)}
+.lg.pop .c.on .mk{transform:scale(.7);transition:none}
+.lout{min-height:44px;margin:12px 4px 0;font:400 15px/1.42 var(--ui);color:var(--ink2);text-wrap:pretty;transition:opacity .25s var(--ease),filter .25s var(--ease)}
+.lout b{color:var(--ink);font-weight:600}
+.lout .mg{color:var(--mg);font-weight:600}
+.code{margin:12px 0 0;padding:12px;border-radius:16px;background:var(--well);box-shadow:inset 0 0 0 .5px var(--glass-ring);font:400 13px/1.5 ui-monospace,"SF Mono",Menlo,monospace;color:var(--ink2);white-space:pre-wrap;word-break:break-word}
+.code .cm{color:var(--ink3)}
+.code .kw{color:var(--ink)}
+
+/* the function map */
+.fmap{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.fmap li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:12px 14px;border-radius:18px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-ring)}
+.fmap b{font:600 15px/1.35 var(--ui);color:var(--ink)}
+.fmap span{font-size:13px;line-height:1.45;color:var(--ink2)}
+.fmap i{font-style:normal;font-weight:600;color:var(--ink)}
+
+/* reduced motion for the blends: cross-fade, no travel */
+:root[data-rm="1"] .fin,:root[data-rm="1"] .kc,:root[data-rm="1"] .mk{transition:opacity .25s linear!important}
+:root[data-rm="1"] .fin.pre{transform:none;filter:none}
+:root[data-rm="1"] .kc[data-k="1"],:root[data-rm="1"] .kc[data-k="2"]{transition:none!important}
+:root[data-rm="1"] .lg.pop .c.on .mk{transform:none}
+@media (prefers-reduced-motion: reduce){
+  .fin.pre{transform:none!important;filter:none!important}
+  .lg.pop .c.on .mk{transform:none!important}
+}
+</style>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Mockup 82 · round 2 · 7 October 2026 · for your review</p>
+    <h1>The Leader, A and C together</h1>
+    <p class="lede">Two blends of the sit-down and one at a time. Both keep A's overview at the top and C's single focus under it, and both put whatever matters most right now first, by one rule that code applies and you can read.</p>
+    <p class="his-words">“I especially like that C can keep things more focused and organised but I like A with the overviews. Whatever is most important or relevant at the time should be at the top, such as the advice for that day.”<span>Your note on round 1, 7 October</span></p>
+    <p class="demo">Demo content. The team, the struggles, the books, the conversation, the week and every time on this page are invented; nothing comes from your vault, and no agent was asked anything to make it.</p>
+    <div class="tools">
+      <button id="play" type="button" aria-pressed="false">Pause the motion</button>
+      <button id="rm" type="button" aria-pressed="false">Preview reduced motion</button>
+    </div>
+  </header>
+
+  <div class="switch">
+    <div class="seg four" role="group" aria-label="Version">
+      <button type="button" data-dir="b1" aria-pressed="true">Blend 1</button>
+      <button type="button" data-dir="b2" aria-pressed="false">Blend 2</button>
+      <button type="button" data-dir="a" aria-pressed="false">A as was</button>
+      <button type="button" data-dir="c" aria-pressed="false">C as was</button>
+    </div>
+  </div>
+
+  <!-- ================================================================ BLEND 1 -->
+  <section class="dir" data-dir="b1" aria-label="Blend 1, now, then the rest">
+    <h2>Blend 1 · Now, then the rest</h2>
+    <p class="dline"><b>From A</b> the overview: the Leader's face, the picture as beads under it, the honest line about how long it has been, one composer with the mic at your thumb, and the picture rising as a stage when you tap the strip. <b>From C</b> the focus: one card holds the one thing that matters now, with its verbs; everything else waits below it as short rows, in order. The round-up opens in place of that card and sets each one down into the strip above.</p>
+    <ul class="counts" data-counts="b1">
+      <li>Things with a primary verb on screen <span class="n">1</span></li>
+      <li>Struggles on screen at once <span class="n">8 → 0</span> until the round-up, then 1</li>
+      <li>Type sizes <span class="n">14 → 4</span></li>
+      <li>Controls under 44 pt <span class="n">5 → 0</span></li>
+      <li>Hues <span class="n">5 → 1</span> plus each agent it asks</li>
+      <li>Scroll <span class="n">2.88 screens → 1</span></li>
+    </ul>
+    <p class="mac">On the Mac: the Now card and its rows on the left at about 520 pt, with the picture standing open on the right where the stage would rise.</p>
+    <div class="frames">
+
+      <figure>
+        <div class="phone" data-frame="x1" role="group" aria-label="Blend 1, the order follows the day">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <div class="chead rise"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k" data-when>Monday 07:10</span></div></div>
+            <button type="button" class="strip card rise pr" data-strip="full" aria-label="The picture: seven open, four working, none set down. Open it"></button>
+            <p class="stale rise" data-stale>You last told me anything 9 days ago.</p>
+            <div class="nowk rise" data-nowk></div>
+            <div class="focus lit mat" data-focus></div>
+            <p class="rl rise">Then</p>
+            <div class="rail rise" data-rail></div>
+            <div style="flex:1"></div>
+            <div class="compose rise" data-compose><button type="button" class="mic pr" aria-label="Speak to the Leader"><i data-ico="mic"></i></button><span class="field" data-field>Talk to the Leader</span><button type="button" class="send pr" data-send aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>The order follows the day</b>At 07:10 today's idea is first and the Leader's question waits as a row. At 12:40 the morning is over, so the question rises into the card, the idea drops to a row, and the composer lights to answer it. You answer: the Leader sets that thread down, the bead travels into the strip, and the rule runs again, so the idea comes back up and the receipt with Undo stays as a row.</figcaption>
+        <button type="button" class="replay" data-replay="x1">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="rulecard" data-ladder role="group" aria-label="The order rule, as code applies it">
+          <h3>The order, as code applies it</h3>
+          <p class="k">Run on every open and after every write, from the record and the clock. A model never decides it.</p>
+          <div class="lg" data-lg></div>
+          <p class="lout" data-lout></p>
+          <pre class="code"><span class="kw">function</span> order(now, r) {
+  const out = [];
+  <span class="kw">if</span> (r.reply &amp;&amp; !r.reply.seen) out.push('reply');
+  <span class="kw">if</span> (now &lt; r.firstBlock) out.push('idea');   <span class="cm">// the morning</span>
+  <span class="kw">if</span> (r.question &amp;&amp; !r.question.answered)
+    out.push('question');                    <span class="cm">// one at a time</span>
+  <span class="kw">else if</span> (r.daysQuiet &gt;= 3 &amp;&amp; r.open &gt; 0)
+    out.push('roundup');                     <span class="cm">// held while one waits</span>
+  <span class="kw">if</span> (!out.includes('idea')) out.push('idea');
+  out.push('conversation');                  <span class="cm">// always last</span>
+  <span class="kw">return</span> out;                                <span class="cm">// out[0] is Now</span>
+}</pre>
+        </div>
+        <figcaption><b>The rule, five moments of one week</b>Each column is a moment; each row a kind of thing; the number is where it lands, and the lit column is the moment the phone beside it is showing. A struck ring is held back on purpose: the round-up never arrives while a question waits, the same restraint the follow-up has today. Both blends use this one rule.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="x2" role="group" aria-label="Blend 1, the round-up opens in place">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <div class="chead rise"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k" data-when>Saturday 14:20</span></div></div>
+            <button type="button" class="strip card rise pr" data-strip="sat" aria-label="The picture: six open, five working, one set down. Open it"></button>
+            <p class="stale rise" data-stale>You last told me anything on Monday, 5 days ago.</p>
+            <div class="nowk rise" data-nowk></div>
+            <div class="focus lit mat" data-focus></div>
+            <div class="deck gone" data-rdeck></div>
+            <div class="tally gone" data-rtally><span class="beads" data-tally></span><span class="pos" data-pos></span></div>
+            <div class="rc gone" data-rrc></div>
+            <p class="rl rise" data-rl>Then</p>
+            <div class="rail rise" data-rail></div>
+            <div style="flex:1"></div>
+            <div class="compose rise"><button type="button" class="mic pr" aria-label="Speak to the Leader"><i data-ico="mic"></i></button><span class="field">Talk to the Leader</span><button type="button" class="send pr" aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>The round-up opens in place</b>Five days quiet and no question waiting, so the rule puts the round-up first. Go through them turns the card into C's deck, oldest first. A tick flies the card up into the strip, where its bead ties off and the counts turn; the receipt with Undo stays under the deck. A cross sends it back to its bead, marked as checked today.</figcaption>
+        <button type="button" class="replay" data-replay="x2">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="x3" role="group" aria-label="Blend 1, talking about the first thing">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <div class="chead"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k" data-when>Monday 07:10</span></div></div>
+            <button type="button" class="strip card pr" data-strip="full" aria-label="The picture: seven open, four working, none set down. Open it"></button>
+            <p class="stale" data-stale>You last told me anything 9 days ago.</p>
+            <div class="nowk" data-nowk></div>
+            <div class="focus lit" data-focus></div>
+          </div>
+          <i data-dock></i>
+          <div class="csheet" data-csheet role="dialog" aria-label="Talking about today's idea">
+            <div class="grab"></div>
+            <div class="cshead"><span class="ctr"><i data-face="leader" data-s="28"></i>Leader</span><button type="button" class="txb pr">Back to Now</button></div>
+            <div class="quote card"><b>Close the loop before the meeting ends</b><span class="k">Talking about today's idea</span></div>
+            <div class="tz">
+              <p class="sliver">15 Sep · the last time you talked</p>
+              <p class="me rise" data-me>How do I do that without it feeling like I'm policing them?</p>
+              <div class="msg rise" data-turn>
+                <div class="by"><span class="stack" data-stack><i data-face="leader" data-s="26"></i></span><span class="nm" style="color:var(--mg)">Leader</span><span class="mt" data-mt>asking two agents</span></div>
+                <div class="said h-leader">
+                  <div class="collapse" data-benchwrap><div>
+                    <p class="hand">Asking the Researcher and the Librarian.</p>
+                    <div class="bench">
+                      <button type="button" class="seat h-researcher pr" data-seat="researcher" aria-label="The Researcher, working"><i data-face="researcher" data-s="30"></i><span class="st"><b>Researcher</b><small data-sm>Reading the evidence</small></span></button>
+                      <button type="button" class="seat h-librarian pr" data-seat="librarian" aria-label="The Librarian, working"><i data-face="librarian" data-s="30"></i><span class="st"><b>Librarian</b><small data-sm>Searching your books</small></span></button>
+                    </div>
+                  </div></div>
+                  <p class="lead" data-lead>Make the read-back someone else's job.</p>
+                  <p class="tx rise" data-tx>Ask a different person each week to read the decisions back. It becomes the room's habit instead of your check.</p>
+                  <div class="froms rise" data-froms>
+                    <button type="button" class="from h-researcher pr"><i data-face="researcher" data-s="30"></i><span class="ft"><b>From <span>the Researcher</span></b><small>A cited brief · 38 s</small></span><i data-ico="chev" class="chev"></i></button>
+                    <button type="button" class="from h-librarian pr"><i data-face="librarian" data-s="30"></i><span class="ft"><b>From <span>the Librarian</span></b><small>One passage from your books · 5 s</small></span><i data-ico="chev" class="chev"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="compose"><button type="button" class="mic pr" aria-label="Speak to the Leader"><i data-ico="mic"></i></button><span class="field">Talk to the Leader</span><button type="button" class="send pr" aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+        </div>
+        <figcaption><b>Talking about the first thing</b>Talk about it raises the conversation as a sheet with the card quoted, so the Leader knows what you mean; the thread above it is the whole conversation, kept across reloads, with earlier ideas up it. While the Leader asks, each agent has a seat in its own colour; when they are back the seats fold into the byline, and each one's own words stay a tap away under the answer.</figcaption>
+        <button type="button" class="replay" data-replay="x3">Replay</button>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ BLEND 2 -->
+  <section class="dir" data-dir="b2" aria-label="Blend 2, the ranked deck" hidden>
+    <h2>Blend 2 · The ranked deck</h2>
+    <p class="dline"><b>From A</b> the same overview at the top and the same one composer. <b>From C</b> the deck, now for everything: today's idea, the Leader's question, a reply you have not read and the round-up are all cards, dealt in the order the rule gives, one on screen. When the deck is empty it folds into one row and the conversation fills the page, as A drew it.</p>
+    <ul class="counts" data-counts="b2">
+      <li>Cards on screen at once <span class="n">1</span></li>
+      <li>Things with a primary verb on screen <span class="n">1</span></li>
+      <li>Type sizes <span class="n">14 → 4</span></li>
+      <li>Controls under 44 pt <span class="n">5 → 0</span></li>
+      <li>Hues <span class="n">5 → 1</span> plus each agent it asks</li>
+      <li>Scroll <span class="n">2.88 screens → 1</span></li>
+    </ul>
+    <p class="mac">On the Mac: the deck in the middle at about 520 pt, the picture open on the left and the conversation standing open on the right, so nothing has to fold away.</p>
+    <div class="frames">
+
+      <figure>
+        <div class="phone" data-frame="y1" role="group" aria-label="Blend 2, the deck deals by what matters now">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <div class="chead rise"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k" data-when>Monday 07:10</span></div></div>
+            <button type="button" class="strip card rise pr" data-strip="full" aria-label="The picture: seven open, four working, none set down. Open it"></button>
+            <p class="stale rise" data-stale>You last told me anything 9 days ago.</p>
+            <div class="bdeck mat" data-bdeck="mon"></div>
+            <div class="btally rise"><span class="beads" data-btally></span><span class="pos" data-bpos></span></div>
+            <div style="flex:1"></div>
+            <div class="compose rise" data-compose><button type="button" class="mic pr" aria-label="Speak to the Leader"><i data-ico="mic"></i></button><span class="field" data-field>Talk to the Leader</span><button type="button" class="send pr" data-send aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>The deck deals what matters now</b>The same Monday as Blend 1. At 07:10 today's idea is on top, the question tucked behind it. At 12:40 the deck re-deals: the idea lifts and tucks back, the question comes forward with the reason on it, and the composer lights. Your answer sets that thread down, the card lowers into the strip, and the idea is back on top.</figcaption>
+        <button type="button" class="replay" data-replay="y1">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="y2" role="group" aria-label="Blend 2, nothing waiting, the conversation fills the page">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <div class="chead"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k" data-when>Monday 18:30</span></div></div>
+            <button type="button" class="strip card pr" data-strip="mon" aria-label="The picture: six open, five working, one set down. Open it"></button>
+            <p class="stale">You told me something today.</p>
+            <div class="bdeck" data-bdeck="eve"></div>
+            <div class="btally"><span class="beads" data-btally></span><span class="pos" data-bpos></span></div>
+            <div class="slimcard gone" data-slim></div>
+            <div class="tz gone" data-tz>
+              <p class="sliver">Today · 12:41</p>
+              <div class="msg dimtop"><div class="by h-leader"><i data-face="leader" data-s="24"></i><span class="nm">Leader</span><span class="mt">12:41</span></div><div class="said h-leader"><p class="lead">Then that one is settled. I have set it down, and kept what worked.</p></div></div>
+              <p class="me rise" data-me>How do I close the loop on Thursday without it feeling like I'm policing them?</p>
+              <div class="msg rise" data-turn>
+                <div class="by"><span class="stack" data-stack><i data-face="leader" data-s="26"></i></span><span class="nm" style="color:var(--mg)">Leader</span><span class="mt" data-mt>asking two agents</span></div>
+                <div class="said h-leader">
+                  <div class="collapse" data-benchwrap><div>
+                    <p class="hand">Asking the Researcher and the Librarian.</p>
+                    <div class="bench">
+                      <button type="button" class="seat h-researcher pr" data-seat="researcher" aria-label="The Researcher, working"><i data-face="researcher" data-s="30"></i><span class="st"><b>Researcher</b><small data-sm>Reading the evidence</small></span></button>
+                      <button type="button" class="seat h-librarian pr" data-seat="librarian" aria-label="The Librarian, working"><i data-face="librarian" data-s="30"></i><span class="st"><b>Librarian</b><small data-sm>Searching your books</small></span></button>
+                    </div>
+                  </div></div>
+                  <p class="lead" data-lead>Make the read-back someone else's job.</p>
+                  <div class="froms rise" data-froms>
+                    <button type="button" class="from h-researcher pr"><i data-face="researcher" data-s="30"></i><span class="ft"><b>From <span>the Researcher</span></b><small>A cited brief · 38 s</small></span><i data-ico="chev" class="chev"></i></button>
+                    <button type="button" class="from h-librarian pr"><i data-face="librarian" data-s="30"></i><span class="ft"><b>From <span>the Librarian</span></b><small>One passage from your books · 5 s</small></span><i data-ico="chev" class="chev"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1" data-spacer></div>
+            <div class="compose"><button type="button" class="mic pr" aria-label="Speak to the Leader"><i data-ico="mic"></i></button><span class="field">Talk to the Leader</span><button type="button" class="send pr" aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>Nothing waiting: the conversation</b>By evening the question is answered and nothing new is due, so the idea is the last card. Next folds the deck into one row (the idea stays a tap away) and the conversation fills the page, kept across reloads. While the Leader asks, the agents sit in their own colours; after, they fold into the byline and their own words stay openable under the answer.</figcaption>
+        <button type="button" class="replay" data-replay="y2">Replay</button>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ A -->
+  <section class="dir" data-dir="a" aria-label="Direction A, the sit-down">
+    <p class="was">As drawn in round 1 (mockup 76), with one fix: the Leader's serif line now appears in its talking frames (in round 1 it never did).</p>
+    <h2>A · The sit-down</h2>
+    <p class="dline"><b>Removes</b> the idea card, the situation card, both lists of paragraphs, the 388 pt chat box and the trail as separate sections, and the second answer box. <b>Keeps</b> every field: the day's idea (the Leader's first message of the morning, its why and sources one tap in), the question and your answer, every struggle and win with its age, the conversation and New conversation, the research count (behind the Leader's face), the earlier ideas (up the thread). <b>Moves</b> the question to your thumb above one composer with the mic, the picture into a strip under the Leader's name that rises into a stage, and the conversation to the whole page, kept across reloads.</p>
+    <ul class="counts" data-counts="a">
+      <li>Words above the fold <span class="n">164 → 85</span></li>
+      <li>Controls on the first screen <span class="n">0 → 7</span></li>
+      <li>Type sizes <span class="n">14 → 4</span></li>
+      <li>Controls under 44 pt <span class="n">5 → 0</span></li>
+      <li>Hues <span class="n">5 → 1</span> plus each agent it asks</li>
+      <li>The conversation <span class="n">a 388 pt box → the page</span></li>
+    </ul>
+    <p class="mac">On the Mac: the thread in a 680 pt column with the picture standing open in a panel beside it, so it never has to rise.</p>
+    <div class="frames">
+
+      <figure>
+        <div class="phone" data-frame="a1" role="group" aria-label="A, the morning: the Leader's page as its conversation">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <button type="button" class="who rise pr" aria-label="The Leader"><i data-face="leader" data-s="44"></i><span class="nm">Leader<i data-ico="chev" class="chev"></i></span></button>
+            <button type="button" class="strip card rise pr" data-strip="full" aria-label="The picture: seven open, four working, none set down. Open it"></button>
+            <p class="stale rise">You last told me anything 9 days ago.</p>
+            <div class="tz">
+              <p class="sliver rise">Yesterday · Ask for the problem before the solution</p>
+              <div class="msg rise" data-k="morning">
+                <div class="by h-leader"><i data-face="leader" data-s="24"></i><span class="nm">Leader</span><span class="mt">Try today · 07:00</span></div>
+                <div class="said h-leader idea">
+                  <p class="t">Close the loop before the meeting ends</p>
+                  <p class="l">In the last five minutes, name each decision, who owns it and when it is due, and ask someone else to read the list back.</p>
+                  <button type="button" class="rowb pr" data-why aria-expanded="false"><span>Why this, today</span><i data-ico="chev" class="chev"></i></button>
+                  <div class="why"><div><p>The planning meeting is where most of your open threads begin, and writing decisions down afterwards already works for you. This moves the habit into the room.</p><p class="k">From The Five-Minute Close and Small Rooms, Clear Calls (podcast)</p></div></div>
+                </div>
+              </div>
+              <div class="ask lit mat" data-ask>
+                <span class="qorb" data-qorb><i data-ico="q"></i></span>
+                <div><span class="k"><b>The Leader asks</b> · since Friday</span><p>Did the two leads end up in the same room? What changed after it?</p></div>
+              </div>
+            </div>
+            <div class="compose rise"><button type="button" class="mic pr" aria-label="Speak your answer"><i data-ico="mic"></i></button><span class="field">Answer the Leader</span><button type="button" class="send pr" aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>The morning</b>The Leader's face heads the page and the picture sits under its name as beads: seven open, four working, nothing set down yet, with the honest line about how long it has been. The day's idea is the Leader's first message; Why opens the reason and the sources. The question it holds waits at your thumb, above one composer with the mic.</figcaption>
+        <button type="button" class="replay" data-replay="a1">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="a2" role="group" aria-label="A, the picture rises over the thread">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow dimmable"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <button type="button" class="who dimmable pr" aria-label="The Leader"><i data-face="leader" data-s="44"></i><span class="nm">Leader<i data-ico="chev" class="chev"></i></span></button>
+            <button type="button" class="strip card dimmable pr" data-strip="full" aria-label="The picture: seven open, four working, none set down. Open it"></button>
+            <p class="stale dimmable">You last told me anything 9 days ago.</p>
+            <div class="tz dimmable">
+              <div class="msg">
+                <div class="by h-leader"><i data-face="leader" data-s="24"></i><span class="nm">Leader</span><span class="mt">Try today · 07:00</span></div>
+                <div class="said h-leader idea">
+                  <p class="t">Close the loop before the meeting ends</p>
+                  <p class="l">In the last five minutes, name each decision, who owns it and when it is due, and ask someone else to read the list back.</p>
+                  <button type="button" class="rowb pr" aria-expanded="false"><span>Why this, today</span><i data-ico="chev" class="chev"></i></button>
+                </div>
+              </div>
+              <div class="ask lit"><span class="qorb"><i data-ico="q"></i></span><div><span class="k"><b>The Leader asks</b> · since Friday</span><p>Did the two leads end up in the same room? What changed after it?</p></div></div>
+            </div>
+            <div class="compose dimmable"><button type="button" class="mic pr" aria-label="Speak your answer"><i data-ico="mic"></i></button><span class="field">Answer the Leader</span><button type="button" class="send pr" aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <div class="stage" data-stage role="group" aria-label="The picture">
+            <div class="sthead"><b>The picture</b><span class="k">since 9 Sep</span><button type="button" class="txb pr" data-done>Done</button></div>
+            <p class="news">Seven things open, and nothing new from you for nine days.</p>
+            <div data-picture="stage"></div>
+            <div class="shelf rise" data-shelf><span class="ph">Set down · nothing yet</span></div>
+            <p class="note rise" data-note>The lit thread is the one the Leader is asking about. Touch a thread and slide to light another; let go to set it down or talk about it.</p>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>The picture rises</b>Tap the strip and the picture rises out of it over the thread: each struggle a thread from the day you said it to today, solid while you have told the Leader about it and dotted through the nine days without word. What works runs below the line of days, and the shelf waits for what you set down. The one it is asking about is lit. Done settles the picture back into the strip.</figcaption>
+        <button type="button" class="replay" data-replay="a2">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="a3" role="group" aria-label="A, talking with the Leader while it asks two agents">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span class="ctr"><i data-face="leader" data-s="28"></i>Leader</span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <button type="button" class="strip slim card pr" data-strip="slim" aria-label="The picture: seven open, four working, none set down. Open it"></button>
+            <div class="tz">
+              <div class="msg dimtop"><div class="by h-leader"><i data-face="leader" data-s="24"></i><span class="nm">Leader</span><span class="mt">Try today · 07:00</span></div><div class="said h-leader idea"><p class="t">Close the loop before the meeting ends</p><p class="l">In the last five minutes, name each decision, who owns it and when it is due.</p></div></div>
+              <p class="me rise" data-me>The planning meeting ran over again. Same two people, same argument about last week. I don't want to shut them down, but I can't keep losing the hour.</p>
+              <div class="msg rise" data-turn>
+                <div class="by h-leader"><i data-face="leader" data-s="24"></i><span class="nm">Leader</span><span class="mt" data-mt>thinking it through</span></div>
+                <div class="said h-leader">
+                  <p class="hand rise" data-hand>Asking the Researcher and the Librarian.</p>
+                  <div class="bench rise" data-bench>
+                    <button type="button" class="seat h-researcher pr" data-seat="researcher" aria-label="The Researcher: what it was asked and what it found"><i data-face="researcher" data-s="30"></i><span class="st"><b>Researcher</b><small data-sm>Reading the evidence</small></span></button>
+                    <button type="button" class="seat h-librarian pr" data-seat="librarian" aria-label="The Librarian: what it was asked and what it found"><i data-face="librarian" data-s="30"></i><span class="st"><b>Librarian</b><small data-sm>Searching your books</small></span></button>
+                  </div>
+                  <div class="peek h-librarian" data-peek><div><div class="in"><span class="k">The Leader asked the Librarian · 6 s</span><p class="pq">What do the books he keeps say about meetings that reopen decisions?</p><p class="pa">From The Five-Minute Close: a decision is made when the room can say it back. And an episode of Small Rooms, Clear Calls on why the quiet half stops bringing things.</p></div></div></div>
+                  <p class="lead" data-lead>Close the loop before anyone leaves the room.</p>
+                  <p class="tx rise" data-tx>The Researcher's brief finds that saying each decision, its owner and its date out loud at the end is what keeps it closed. One of your books puts it in a line: a decision nobody has heard said back has not been made. Try it on Thursday: stop five minutes early and ask someone else to read the list.</p>
+                </div>
+              </div>
+            </div>
+            <div class="compose"><button type="button" class="mic pr" aria-label="Speak to the Leader"><i data-ico="mic"></i></button><span class="field">Talk to the Leader</span><button type="button" class="send pr" aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>Talking, with the agents it asks</b>Every reply says who wrote it. While the Leader asks the Researcher and the Librarian, each has a seat in its own colour, turning and counting; when they are back the answer arrives under them, the line that carries the news in the serif. Tap a seat to see what it was asked and what it said. Scrolling up folds the Leader's head into the bar, with the picture as a slim strip.</figcaption>
+        <button type="button" class="replay" data-replay="a3">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="a4" role="group" aria-label="A, answering the Leader's question and setting one down">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span class="ctr"><i data-face="leader" data-s="28"></i>Leader</span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <button type="button" class="strip slim card pr" data-strip="slim" aria-label="The picture: seven open, four working, none set down. Open it"></button>
+            <div class="tz" data-tz>
+              <div class="msg dimtop"><div class="by h-leader"><i data-face="leader" data-s="24"></i><span class="nm">Leader</span><span class="mt">Yesterday · 18:40</span></div><div class="said h-leader"><p class="lead">Close the loop before anyone leaves the room.</p></div></div>
+              <div class="ask lit" data-ask><span class="qorb" data-qorb><i data-ico="q"></i></span><div><span class="k" data-askk><b>The Leader asks</b> · since Friday</span><p>Did the two leads end up in the same room? What changed after it?</p></div></div>
+              <div class="mewrap rise gone" data-me><span class="lab">Answering the Leader</span><p class="me">Yes, Thursday. I sat them down together and they agreed one order for the bookings. Quiet since.</p></div>
+              <div class="msg rise gone" data-turn><div class="by h-leader"><i data-face="leader" data-s="24"></i><span class="nm">Leader</span><span class="mt">08:16</span></div><div class="said h-leader"><p class="lead" data-lead>Then that one is settled. I have set it down, and kept what worked.</p></div></div>
+              <div class="rc rise gone" data-rc>
+                <div class="r"><span class="ok"><i data-ico="check"></i></span><span><b>Set down</b> · Two leads, two versions</span><button type="button" class="undo pr">Undo</button></div>
+                <div class="r"><span class="ok add"><i data-ico="plus"></i></span><span><b>Added to what works</b> · Same room, both versions</span><span></span></div>
+              </div>
+            </div>
+            <div class="compose"><button type="button" class="mic pr" aria-label="Speak your answer"><i data-ico="mic"></i></button><span class="field" data-field>Answer the Leader</span><button type="button" class="send pr" data-send aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>Setting one down</b>Your answer goes to the question it was asked under. The Leader sets that thread down and code writes the receipt, with Undo on it. Above, the lit bead travels into the set-down place, the counts turn, and what worked joins the working beads.</figcaption>
+        <button type="button" class="replay" data-replay="a4">Replay</button>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ C -->
+  <section class="dir" data-dir="c" aria-label="Direction C, one at a time" hidden>
+    <p class="was">As drawn in round 1 (mockup 76), with one fix: the Leader's serif line now appears in its talking frames (in round 1 it never did).</p>
+    <h2>C · One at a time</h2>
+    <p class="dline"><b>Removes</b> the wall of paragraphs: one struggle on screen at a time. <b>Keeps</b> every field: every struggle and win with its age, the question (the round-up is the Leader's way of asking it), the day's idea (at the end of the round-up and on the page after), the conversation and New conversation, the research count. <b>Moves</b> resolving onto the first screen in the Coach deck's shape (a light tick, a cross, talk back, one do-all), the picture into a row of beads and two trays that fill as you go, and the conversation into a sheet that opens from the card with the card quoted.</p>
+    <ul class="counts" data-counts="c">
+      <li>Struggles on screen at once <span class="n">8 → 1</span></li>
+      <li>Words above the fold <span class="n">164 → 63</span></li>
+      <li>Setting one down <span class="n">2 hidden taps → 1</span></li>
+      <li>Where <span class="n">1.2 screens down → first screen</span></li>
+      <li>Type sizes <span class="n">14 → 4</span></li>
+      <li>Controls under 44 pt <span class="n">5 → 0</span></li>
+      <li>Hues <span class="n">5 → 1</span> plus each agent it asks</li>
+    </ul>
+    <p class="mac">On the Mac: the card in the middle at about 520 pt, the trays beside it, and Talk about it opening the conversation in a panel on the right instead of a sheet.</p>
+    <div class="frames">
+
+      <figure>
+        <div class="phone" data-frame="c1" role="group" aria-label="C, the round-up, oldest first">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research"><i data-ico="more"></i></button></div>
+            <div class="chead rise"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k">Oldest first · about two minutes</span></div></div>
+            <p class="news rise">Seven things are open. Shall we go through them?</p>
+            <div class="deck" data-deck="all"></div>
+            <div class="tally rise"><span class="beads" data-tally></span><span class="pos" data-pos></span></div>
+            <button type="button" class="doall pr rise" data-doall>Keep the rest open</button>
+            <div class="trays rise" data-trays></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>The round-up</b>When the picture has gone quiet, the Leader goes through it with you, oldest first: your words, how long it has been carried, and the Coach deck's three answers. A cross keeps it open and the next card rises; the row of beads is the picture, and the two trays fill as you go. Keep the rest open ends it at any point.</figcaption>
+        <button type="button" class="replay" data-replay="c1">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="c2" role="group" aria-label="C, setting one down">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research"><i data-ico="more"></i></button></div>
+            <div class="chead"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k">Oldest first · nearly done</span></div></div>
+            <p class="news">Two left. This one has waited thirteen days.</p>
+            <div class="deck" data-deck="late"></div>
+            <div class="tally"><span class="beads" data-tally></span><span class="pos" data-pos></span></div>
+            <button type="button" class="doall pr" data-doall>Keep the rest open</button>
+            <div class="trays" data-trays></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>Setting one down</b>The tick lowers the card into the Set down tray, where it ties off and the count turns; its bead fills, the next card rises, and Undo waits in the tray for as long as you are here. The Leader keeps the picture you just made, so tomorrow's idea and Saturday's research steer by it.</figcaption>
+        <button type="button" class="replay" data-replay="c2">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="c3" role="group" aria-label="C, talking about one card">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research"><i data-ico="more"></i></button></div>
+            <div class="chead"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k">Oldest first · nearly done</span></div></div>
+            <p class="news">Two left. This one has waited thirteen days.</p>
+            <div class="deck" data-deck="late"></div>
+          </div>
+          <i data-dock></i>
+          <div class="csheet" data-csheet role="dialog" aria-label="Talking about one card">
+            <div class="grab"></div>
+            <div class="cshead"><span class="ctr"><i data-face="leader" data-s="28"></i>Leader</span><button type="button" class="txb pr">Back to the round-up</button></div>
+            <div class="quote card"><b>Two leads, two versions</b><p>Two leads disagree about the new booking process and each comes to me alone.</p><span class="k">Open · 13 days</span></div>
+            <div class="tz">
+              <p class="me rise" data-me>They sat down together on Thursday. I think it's sorted, but I'm not sure it will hold.</p>
+              <div class="msg rise" data-turn>
+                <div class="by h-leader"><i data-face="leader" data-s="24"></i><span class="nm">Leader</span><span class="mt" data-mt>asking the Librarian</span></div>
+                <div class="said h-leader">
+                  <div class="bench"><button type="button" class="seat h-librarian pr" data-seat="librarian" aria-label="The Librarian, working"><i data-face="librarian" data-s="30"></i><span class="st"><b>Librarian</b><small data-sm>Searching your books</small></span></button></div>
+                  <p class="lead" data-lead>It sounds settled. Set it down, and we will open it again if it slips.</p>
+                  <div class="verbs rise" data-offer><button type="button" class="cap pr"><i data-ico="check"></i>Set it down</button><button type="button" class="quiet pr">Keep it open</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="compose"><button type="button" class="mic pr" aria-label="Speak to the Leader"><i data-ico="mic"></i></button><span class="field">Talk to the Leader</span><button type="button" class="send pr" aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+        </div>
+        <figcaption><b>Talk about it</b>Talk about it opens the conversation from the card, with the card quoted at the top so the Leader knows which one you mean. It can ask an agent, shown by name while it works, and it can offer the tick in its own reply. Back to the round-up returns you to the same card.</figcaption>
+        <button type="button" class="replay" data-replay="c3">Replay</button>
+      </figure>
+
+      <figure>
+        <div class="phone" data-frame="c4" role="group" aria-label="C, the end of the round-up">
+          <div class="sky"></div>
+          <i data-sb></i>
+          <div class="scr withdock">
+            <div class="navrow"><button type="button" class="back pr"><i data-ico="back"></i>Index</button><span></span><button type="button" class="icb pr" aria-label="The Leader: what it reads, its research, New conversation"><i data-ico="more"></i></button></div>
+            <div class="chead rise"><i data-face="leader" data-s="40"></i><div><b>Leader</b><span class="k">Round-up done · 08:20</span></div></div>
+            <p class="news rise">You set down two and kept five open. One thing joined what works.</p>
+            <button type="button" class="strip card rise pr" style="margin-top:12px" data-strip="after" aria-label="The picture: five open, five working, two set down. Open it"></button>
+            <p class="stale rise">The picture is current as of this morning.</p>
+            <div class="idea card rise">
+              <span class="k">Take into the week</span>
+              <p class="t" style="margin-top:2px">Close the loop before the meeting ends</p>
+              <p class="l">In the last five minutes, name each decision, who owns it and when it is due, and ask someone else to read the list back.</p>
+            </div>
+            <div style="flex:1"></div>
+            <div class="compose rise"><button type="button" class="mic pr" aria-label="Speak to the Leader"><i data-ico="mic"></i></button><span class="field">Talk to the Leader</span><button type="button" class="send pr" aria-label="Send"><i data-ico="up"></i></button></div>
+          </div>
+          <i data-dock></i>
+        </div>
+        <figcaption><b>The end of it</b>One sentence in the serif says what changed, the picture stands as you left it, and the day's idea is there to take into the week. On a day the picture is current the page opens here, with the conversation a tap away.</figcaption>
+        <button type="button" class="replay" data-replay="c4">Replay</button>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ both blends -->
+  <section class="closing" aria-label="Every function, where it lives">
+    <h2>Every function, where it lives</h2>
+    <ul class="fmap">
+      <li><b>Today's idea, with why and its sources</b><span><i>Blend 1:</i> the Now card in the morning, a row the rest of the day; Why this opens in place. <i>Blend 2:</i> the top card in the morning, one card back after.</span></li>
+      <li><b>Earlier ideas (the trail)</b><span><i>Both:</i> up the conversation, as A drew them: each morning's idea is the Leader's message that morning, and each opens to its why and sources.</span></li>
+      <li><b>The Leader's question, answered typed or spoken, and Say more</b><span><i>Both:</i> first once the morning is over; the one composer with the mic answers it, and sending again before you leave adds to the same answer.</span></li>
+      <li><b>The picture: every struggle and win with its age</b><span><i>Both:</i> the strip of beads at the top; a tap raises A's stage (round 1, frame A2) with each thread drawn over time.</span></li>
+      <li><b>Set it down, with Undo</b><span><i>Both:</i> by answering the question, by a tick in the round-up, or from the stage. The bead ties off in the strip and the receipt with Undo stays where it happened.</span></li>
+      <li><b>Still open</b><span><i>Both:</i> the round-up's cross; its bead is marked as checked today.</span></li>
+      <li><b>The round-up</b><span><i>Blend 1:</i> opens in place of the Now card. <i>Blend 2:</i> its cards join the same deck. First when the picture has been quiet three days and no question waits.</span></li>
+      <li><b>The conversation and New conversation</b><span><i>Blend 1:</i> rises as a sheet with the item quoted. <i>Blend 2:</i> fills the page when the deck is empty. Kept across reloads in both; New conversation is in the menu.</span></li>
+      <li><b>Whom the Leader asked, and their own words</b><span><i>Both:</i> seats in each agent's colour while they work, then the byline and a row per agent under the reply, with what it was asked and how long it took.</span></li>
+      <li><b>The research count and last run</b><span><i>Both:</i> behind the menu, as in round 1.</span></li>
+      <li><b>The honest line, and the follow-up's restraint</b><span><i>Both:</i> under the strip, in the Leader's voice; never a second question while one waits, and the round-up held the same way.</span></li>
+    </ul>
+  </section>
+
+  <section class="closing" aria-label="Kept from round 1">
+    <h2>Kept from round 1</h2>
+    <ul class="keep">
+      <li>Every control 44 pt or more, four type sizes a view, your words at 17.</li>
+      <li>Set down has a form: a tied bead and a count in the strip, and the receipt with Undo where it happened, not in the Inbox history.</li>
+      <li>Every reply says who wrote it, and every agent it asked is shown working, then named with its own words a tap away, from the roster the job already records.</li>
+      <li>The two channels stay apart: the day's idea is about leading in general and is never written from the open picture. The order rule moves it; it never rewrites it.</li>
+      <li>Magenta means the Leader. Red and gold are gone from the page.</li>
+    </ul>
+  </section>
+
+  <section class="closing" aria-label="Your calls">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Blend 1 or Blend 2</b><span>Blend 1: one Now card with the rest as rows you can see at a glance. Blend 2: one card at a time, the rest behind it. Either way the order rule and every function stay; your pick comes back drawn at 1280 as well, and nothing is built until you say the page is done.</span></div></li>
+      <li><div><b>Morning before a waiting question</b><span>Yes, as drawn: until your first meeting, today's idea is first and the question second. No: a waiting question is always first, and the idea sits second even at 07:00.</span></div></li>
+      <li><div><b>Where the morning ends</b><span>At your first work block, as drawn, read the same way the Summary Home already reads them. Or at a fixed time such as 11:00, which needs no calendar and is the same every day.</span></div></li>
+      <li><div><b>A reply you have not read goes first</b><span>Yes: a small new "seen" mark on the Leader's replies, and the reply leads even in the morning (the Thursday column). No: it waits in the conversation with a dot on its row, and the order is otherwise unchanged.</span></div></li>
+      <li><div><b>Home's Leader box shows the same first thing</b><span>Yes: Home calls the same rule, so the two can never disagree about what matters now. No: Home keeps its two faces, the idea and the situation, as today.</span></div></li>
+      <li><div><b>Round 1's open calls</b><span>Magenta for the Leader alone, the question leaving the Inbox, and a short name for each struggle. These frames assume yes to all three. A no to any one returns that part to round 1's "no" answer and changes nothing else here.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const doc = document.documentElement;
+  const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  let preview = false;
+  let playing = true;
+  const reduced = () => doc.dataset.rm === '1';
+  const setRm = () => { doc.dataset.rm = (preview || (mq && mq.matches)) ? '1' : '0'; };
+  setRm();
+
+  // ---------------------------------------------------------------- icons
+  const P = {
+    back: '<path d="M15 5l-7 7 7 7"/>',
+    more: '<circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/>',
+    chev: '<path d="M9 5l7 7-7 7"/>',
+    mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',
+    up: '<path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+    q: '<path d="M9.2 9.3a2.9 2.9 0 1 1 3.9 2.7c-.7.3-1.1.9-1.1 1.7v.6"/><path d="M12 17.6v.2"/>',
+    knot: '<path d="M2.5 15.5c5 0 6.5-8.5 10.5-8.5 2.8 0 3.8 3 1.8 4.8s-6 .2-5.8-2.8M13.4 12.3c2 2.2 4.8 3.2 8.1 3.2"/>',
+    home: '<path d="M4 11l8-7 8 7v8.5a.5.5 0 0 1-.5.5H15v-6H9v6H4.5a.5.5 0 0 1-.5-.5z"/>',
+    train: '<path d="M3 9v6M6 6.5v11M18 6.5v11M21 9v6M6 12h12"/>',
+    fuel: '<path d="M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3M17 21V3c-2.2 0-3.5 2.6-3.5 6s1.3 4.5 3.5 4.5"/>',
+    more4: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6"/>'
+  };
+  const ico = (k, cls) => '<svg class="i' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + P[k] + '</svg>';
+
+  // ---------------------------------------------------------------- the faces (mockup 67's species; the Leader from beings.js)
+  const TICK = '<g class="tick"><circle cx="40" cy="8" r="7.5"/><path d="M36.4 8.2l2.4 2.4 4.6-4.8"/></g>';
+  const BADGE = '<circle class="badge" cx="40" cy="40" r="8.5"/>';
+  const BODY = '<circle class="pod" cx="5" cy="24" r="3.4"/><circle class="pod" cx="43" cy="24" r="3.4"/><rect class="shell" x="5" y="6" width="38" height="35" rx="15"/><rect class="scr" x="10" y="13" width="28" height="21" rx="9" fill="#060914"/>';
+  const FACE = {
+    // the Leader: a mirror for a face, soft eyes lit through it, the listening ear lit, the question it holds
+    leader: '<circle class="pod" cx="5" cy="24" r="3.4"/><circle class="ear" cx="43" cy="24" r="3.9"/><rect class="shell" x="5" y="6" width="38" height="35" rx="15"/><rect class="fs" x="10" y="13" width="28" height="21" rx="9"/><path class="sheen" d="M12.5 17q5-4 13-3.4L16 31q-4.6-5.2-3.5-14z"/><ellipse class="soft" cx="19" cy="23.8" rx="4.6" ry="5"/><ellipse class="soft" cx="29" cy="23.8" rx="4.6" ry="5"/><ellipse class="eye" cx="19" cy="23.8" rx="2.3" ry="2.9"/><ellipse class="eye" cx="29" cy="23.8" rx="2.3" ry="2.9"/>' + BADGE + '<circle class="ripple" cx="40" cy="40" r="8.5"/><path class="art" d="M37.7 37.6a2.5 2.5 0 1 1 3.3 2.4c-.6.3-1 .8-1 1.4"/><circle class="dot" cx="40" cy="44.3" r="1.05"/>' + TICK,
+    researcher: BODY + '<path class="line" d="M17.6 15.6q6.4-2.6 12.8 0"/><circle class="lens" cx="24" cy="23.6" r="6.6"/><circle class="eye" cx="24" cy="23.6" r="3.3"/><circle cx="22.6" cy="22.2" r="1" fill="#fff" opacity=".85"/>' + BADGE + '<path class="art" d="M36.6 35.4h4.6l2.6 2.6v6.6h-7.2zM38.6 39.6h3.2M38.6 41.9h3.2"/>' + TICK,
+    librarian: '<rect class="spine" x="14" y="2.4" width="5.4" height="8" rx="1.2"/><rect class="spine" x="20.4" y=".8" width="5.4" height="9.6" rx="1.2"/><rect class="spine" x="26.8" y="2" width="5.4" height="8.4" rx="1.2"/>' + BODY + '<path class="line" d="M15.8 19.6q3.2-1.8 6.4 0M25.8 19.6q3.2-1.8 6.4 0"/><circle class="eye" cx="19" cy="24.2" r="2.8"/><circle class="eye" cx="29" cy="24.2" r="2.8"/><path class="line" d="M21.8 29.2q2.2 1.6 4.4 0"/>' + BADGE + '<path class="art" d="M35 36.6h10v7H35zM37.2 39.2h5.6M37.2 41.4h3.4"/>' + TICK
+  };
+  const face = (a, s) => '<span class="face h-' + a + '" style="--s:' + s + 'px" aria-hidden="true"><svg viewBox="0 0 48 48">' + FACE[a] + '</svg></span>';
+
+  // ---------------------------------------------------------------- demo data (invented)
+  const DAY = 26;      // today, 5 Oct, as days after 9 Sep
+  const LAST = 17;     // the last thing he told the Leader, 26 Sep
+  const OPEN = [
+    { id: 'planning', n: 'The planning meeting', d: 17, w: 'The planning meeting runs over because two people reopen last week’s decisions, and the quiet half has stopped speaking.' },
+    { id: 'twoleads', n: 'Two leads, two versions', d: 13, w: 'Two leads disagree about the new booking process and each comes to me alone, so I carry messages instead of putting them in one room.' },
+    { id: 'starter', n: 'The new starter’s questions', d: 10, w: 'A new starter on the late roster never asks a question, so I find the gaps when a handover goes wrong.' },
+    { id: 'rota', n: 'Doing the rota myself', d: 8, w: 'I keep doing the rota myself because it is quicker than teaching it, and now nobody else can change it.' },
+    { id: 'feedback', n: 'Feedback in front of others', d: 6, w: 'Feedback I give in the moment lands as criticism in front of others, but if I wait the detail goes stale.' },
+    { id: 'project', n: 'The extra project', d: 3, w: 'I said yes to an extra project without checking the team’s load, and the quiet ones are absorbing it.' },
+    { id: 'passing', n: 'Passing on a decision', d: 0, w: 'When a decision comes from above that I did not agree with, I pass it on half-heartedly.' }
+  ];
+  const WORKS = [
+    { n: 'One good thing first', d: 17 }, { n: 'Ask before answering', d: 13 },
+    { n: 'Decisions in writing', d: 8 }, { n: 'Friday planning', d: 3 }
+  ];
+  const DATE = (d) => { const t = new Date(Date.UTC(2026, 8, 9 + d)); return t.getUTCDate() + ' ' + ['Sep', 'Oct'][t.getUTCMonth() - 8]; };
+
+  // ---------------------------------------------------------------- chrome
+  const SB = '<div class="sb" aria-hidden="true"><span>08:14</span><span class="r"><span class="demochip">Demo</span><span class="bat"></span></span></div>';
+  const TABS = [['Home', 'home'], ['Nova', 'mic'], ['Train', 'train'], ['Fuel', 'fuel'], ['More', 'more4']];
+  const DOCK = '<div class="dock" aria-hidden="true"><div class="tabbar">' + TABS.map(([n, k]) => '<span class="tab' + (k === 'more4' ? ' on' : '') + '">' + ico(k) + '<span>' + n + '</span></span>').join('') + '</div><span class="novabtn"><span class="orb"></span></span></div>';
+
+  // ---------------------------------------------------------------- the picture as beads
+  function stripHTML(s) {
+    const o = [];
+    for (let i = 0; i < s.open; i++) o.push('<i class="bead' + (s.asked && i === 1 ? ' asked' : '') + '" data-o="' + i + '"></i>');
+    const w = []; for (let i = 0; i < s.working; i++) w.push('<i class="bead wk"></i>');
+    const d = []; for (let i = 0; i < Math.max(1, s.down); i++) d.push(s.down ? '<i class="bead tied"></i>' : '<i class="bead d"></i>');
+    const g = (key, n, label, beads, none) => '<span class="sg" data-g="' + key + '"><span class="sn">' + (none ? label : '<b>' + n + '</b>' + label) + '</span><span class="beads">' + beads.join('') + '</span></span>';
+    return g('o', s.open, 'open', o) + g('w', s.working, 'working', w) + g('d', s.down, s.down ? 'set down' : 'Set down', d, !s.down);
+  }
+  const STRIPS = { full: { open: 7, asked: true, working: 4, down: 0 }, slim: { open: 7, asked: true, working: 4, down: 0 }, after: { open: 5, asked: false, working: 5, down: 2 } };
+  Object.assign(STRIPS, { sat: { open: 6, asked: false, working: 5, down: 1 }, mon: { open: 6, asked: false, working: 5, down: 1 } }); // round 2
+
+  // ---------------------------------------------------------------- the picture drawn as time
+  const W = 334, X0 = 6, XT = 292;
+  const x = (d) => X0 + d * (XT - X0) / DAY;
+  const Y0 = 26, RH = 27;
+  function pictureSVG() {
+    const xl = x(LAST);
+    const openBottom = Y0 + OPEN.length * RH;
+    let s = '<svg class="pic" viewBox="0 0 ' + W + ' 360" role="img" aria-label="Seven open threads drawn from the day each was said to today, the last nine days without word; four things working below the line of days.">';
+    s += '<rect class="fog" x="' + xl + '" y="18" width="' + (XT - xl) + '" height="' + (openBottom - 18) + '" rx="6" fill="rgba(232,236,246,.05)"/>';
+    s += '<text class="fogk" x="' + (xl + 4) + '" y="13">9 days without word</text>';
+    s += '<line class="axis" x1="' + XT + '" y1="18" x2="' + XT + '" y2="' + openBottom + '"/>';
+    OPEN.forEach((t, i) => {
+      const ry = Y0 + i * RH, ly = ry + 20, xs = x(t.d), age = DAY - t.d;
+      s += '<g class="row" data-r="' + t.id + '" style="--i:' + i + '">';
+      s += '<rect class="hit" x="0" y="' + ry + '" width="' + W + '" height="' + RH + '" rx="7"/>';
+      s += '<text class="nm" x="' + X0 + '" y="' + (ry + 12) + '">' + t.n.replace('’', '&#8217;') + '</text>';
+      s += '<text class="age" x="' + (W - 2) + '" y="' + (ly + 4) + '" text-anchor="end">' + age + ' d</text>';
+      if (xs < xl) s += '<line class="known" pathLength="1" x1="' + xs + '" y1="' + ly + '" x2="' + xl + '" y2="' + ly + '"/>';
+      s += '<line class="unknown" x1="' + Math.max(xs, xl) + '" y1="' + ly + '" x2="' + XT + '" y2="' + ly + '"/>';
+      s += '<line class="now" pathLength="1" x1="' + Math.max(xs, xl) + '" y1="' + ly + '" x2="' + XT + '" y2="' + ly + '"/>';
+      s += '<circle class="start" cx="' + xs + '" cy="' + ly + '" r="3"/>';
+      s += '<circle class="end" cx="' + XT + '" cy="' + ly + '" r="3.5"/>';
+      s += '<path class="knot" pathLength="1" d="M' + (XT - 2) + ' ' + ly + 'c3-7 10-6 8 0s-9 4-8-1c1-3 5-3 7 0l5 5"/>';
+      if (t.id === 'twoleads') s += '<g class="qorbg"><circle class="qr" cx="' + XT + '" cy="' + ly + '" r="9"/><circle class="qo" cx="' + XT + '" cy="' + ly + '" r="9"/><path class="qm" d="M' + (XT - 2.6) + ' ' + (ly - 3) + 'a2.7 2.7 0 1 1 3.5 2.6c-.6.3-.9.8-.9 1.5"/><circle class="qd" cx="' + XT + '" cy="' + (ly + 4.3) + '" r="1"/></g>';
+      s += '</g>';
+    });
+    const ay = openBottom + 7;
+    s += '<line class="axis" x1="0" y1="' + ay + '" x2="' + W + '" y2="' + ay + '"/>';
+    [[0, '9 Sep', 'start'], [10, '19 Sep', 'middle'], [LAST, '26 Sep', 'middle'], [DAY, 'Today', 'middle']].forEach(([d, l, a]) => { s += '<text class="dk" x="' + (d === 0 ? X0 : x(d)) + '" y="' + (ay + 16) + '" text-anchor="' + a + '">' + l + '</text>'; });
+    s += '<text class="pk" x="' + X0 + '" y="' + (ay + 40) + '">What works</text>';
+    WORKS.forEach((t, j) => {
+      const ry = ay + 48 + j * 22, xs = x(t.d);
+      s += '<g style="--i:' + j + '"><text class="wn" x="' + X0 + '" y="' + (ry + 10) + '">' + t.n + '</text>';
+      s += '<text class="wk" x="' + (W - 2) + '" y="' + (ry + 18) + '" text-anchor="end" style="font:600 13px var(--round);fill:var(--ink3)">' + (DAY - t.d) + ' d</text>';
+      s += '<rect class="wbar" x="' + xs + '" y="' + (ry + 14) + '" width="' + Math.max(4, xl - xs) + '" height="4" rx="2"/>';
+      s += '<rect class="wfog" x="' + Math.max(xs, xl) + '" y="' + (ry + 14) + '" width="' + (XT - Math.max(xs, xl)) + '" height="4" rx="2"/></g>';
+    });
+    return s + '</svg>';
+  }
+
+  // ---------------------------------------------------------------- C: the deck, the tally, the trays
+  const OLDEST = [...OPEN].reverse();
+  const cardHTML = (t, k) => '<article class="dcard" data-k="' + k + '" data-id="' + t.id + '">' +
+    '<div class="dc-h"><b>' + t.n + '</b><span class="dc-age"><b>' + (DAY - t.d) + '</b> days</span></div>' +
+    '<div class="agebar" aria-hidden="true"><i style="--a:' + ((DAY - t.d) / 30).toFixed(2) + '"></i></div>' +
+    '<p class="dc-w">' + t.w + '</p>' +
+    '<p class="dc-m">Said ' + DATE(t.d) + ' · nothing since</p>' +
+    '<div class="dc-v"><button type="button" class="cap pr" data-tick>' + ico('check') + 'Set it down</button><button type="button" class="quiet pr" data-cross>' + ico('x') + 'Still open</button></div>' +
+    '<button type="button" class="rowb pr"><span>Talk about it</span>' + ico('chev', 'chev') + '</button></article>';
+  const DECKS = { all: OLDEST, late: OLDEST.slice(5) };
+  const TALLY = { all: 'c' + 'o'.repeat(6), late: 'tkkkkco' };
+  const tallyHTML = (spec) => [...spec].map((c) => '<i class="bead' + (c === 'c' ? ' cur' : c === 't' ? ' tied' : c === 'k' ? ' kp' : '') + '"></i>').join('');
+  const trayHTML = (key, n, label, undo) => '<div class="tray' + (n ? ' has' : '') + '" data-tray="' + key + '">' + ico(key === 'down' ? 'knot' : 'x', 'tg') + '<span class="tn">' + (n ? '<b>' + n + '</b>' : '') + label + '</span>' + (undo ? '<button type="button" class="undo pr">Undo</button>' : '') + '</div>';
+  const TRAYS = { all: [0, 0], late: [1, 4] };
+
+  // ---------------------------------------------------------------- decorate once, then keep each frame's starting state
+  $$('[data-sb]').forEach((el) => { el.outerHTML = SB; });
+  $$('[data-dock]').forEach((el) => { el.outerHTML = DOCK; });
+  $$('[data-ico]').forEach((el) => { el.outerHTML = ico(el.dataset.ico, el.getAttribute('class')); });
+  $$('[data-face]').forEach((el) => { el.outerHTML = face(el.dataset.face, el.dataset.s || 28); });
+  $$('[data-strip]').forEach((el) => { el.innerHTML = stripHTML(STRIPS[el.dataset.strip]); });
+  $$('[data-picture]').forEach((el) => { el.outerHTML = pictureSVG(); });
+  $$('[data-deck]').forEach((el) => {
+    const k = el.dataset.deck; const ph = el.closest('.phone');
+    el.innerHTML = DECKS[k].map((t, i) => cardHTML(t, i)).join('');
+    const tal = $('[data-tally]', ph); if (tal) tal.innerHTML = tallyHTML(TALLY[k]);
+    const pos = $('[data-pos]', ph); if (pos) pos.innerHTML = '<b>' + (k === 'all' ? 1 : 6) + '</b> of 7';
+    const tr = $('[data-trays]', ph); if (tr) tr.innerHTML = trayHTML('down', TRAYS[k][0], 'Set down') + trayHTML('keep', TRAYS[k][1], 'Still open');
+  });
+  // the pictures shown at rest are fully drawn, with the question on its thread
+  $$('.pic').forEach((s) => s.classList.add('drawn', 'fogged', 'worked', 'asking'));
+  $$('.pic .row[data-r="twoleads"]').forEach((r) => r.classList.add('lit'));
+
+  // ================================================================ ROUND 2: the blends (everything above is round 1's script, unchanged)
+  const EIO = 'cubic-bezier(.77,0,.175,1)', EOUT = 'cubic-bezier(.23,1,.32,1)';
+  // say a line word by word; unlike round 1's sayWords it also reveals a line that was split in advance
+  const sayW = async (el, tk, gap = 60) => { const ws = el.dataset.split ? $$('.w', el) : words(el); el.classList.remove('pre'); for (const w of ws) { w.classList.remove('pre'); await sleep(reduced() ? 18 : gap, tk); } };
+  const QUESTION = 'Did the two leads end up in the same room? What changed after it?';
+  const RECEIPT = '<div class="rc"><div class="r"><span class="ok">' + ico('check') + '</span><span><b>Set down</b> · Two leads, two versions</span><button type="button" class="undo pr">Undo</button></div><div class="r"><span class="ok add">' + ico('plus') + '</span><span><b>Added to what works</b> · Same room, both versions</span><span></span></div></div>';
+
+  // what the one focused card can hold (Blend 1)
+  const FOCUS = {
+    idea: () => '<span class="k">Try today · 07:00</span>' +
+      '<p class="ft">Close the loop before the meeting ends</p>' +
+      '<p class="fl">In the last five minutes, name each decision, who owns it and when it is due, and ask someone else to read it back.</p>' +
+      '<div class="why"><div><p style="margin-top:8px">The planning meeting is where most open threads begin, and writing decisions down already works for you.</p><p class="k">From The Five-Minute Close</p></div></div>' +
+      '<div class="verbs"><button type="button" class="quiet pr" data-why aria-expanded="false">Why this</button><button type="button" class="quiet pr" data-talk>Talk about it</button></div>',
+    idea2: () => '<span class="k">Try today · 07:00</span>' +
+      '<p class="ft">Let the quiet half speak first</p>' +
+      '<p class="fl">Before you give a view, go round the people who have said least this week.</p>' +
+      '<div class="verbs"><button type="button" class="quiet pr">Why this</button><button type="button" class="quiet pr">Talk about it</button></div>',
+    question: () => '<div class="fq"><span class="qorb" data-qorb>' + ico('q') + '</span><div><span class="k"><b style="color:var(--mg);font-weight:600">The Leader asks</b> · since Friday</span><p>' + QUESTION + '</p></div></div>' +
+      '<p class="fh">About <b>Two leads, two versions</b>, open 13 days. Answer below, typed or spoken.</p>',
+    answered: () => '<div class="by h-leader">' + face('leader', 24) + '<span class="nm">Leader</span><span class="mt">you answered · 12:41</span></div>' +
+      '<p class="lead" data-lead>Then that one is settled. I have set it down, and kept what worked.</p>' + RECEIPT,
+    roundup: () => '<span class="k">The picture · 5 days without word</span>' +
+      '<p class="ft">Six things are open. Shall we go through them, oldest first?</p>' +
+      '<div class="rbeads" aria-hidden="true">' + '<i class="bead"></i>'.repeat(6) + '</div>' +
+      '<div class="verbs"><button type="button" class="cap pr" data-go>Go through them</button><button type="button" class="quiet pr">Not today</button></div>'
+  };
+
+  // the rest, as rows that each carry a form: the question's orb, the idea's quote mark, a tied bead, the Leader's face
+  const ROW = {
+    question: ['<span class="qorb">' + ico('q') + '</span>', 'The Leader asks', 'Since Friday · two leads'],
+    idea: ['<span class="gidea">&#8220;</span>', 'Try today', 'Close the loop before the meeting ends'],
+    idea2: ['<span class="gidea">&#8220;</span>', 'Try today', 'Let the quiet half speak first'],
+    undo: ['<i class="bead tied"></i>', 'Set down', 'Two leads, two versions · 12:41', 1],
+    conversation: [face('leader', 28), 'The conversation', 'Earlier ideas inside · last 15 Sep'],
+    conversation2: [face('leader', 28), 'The conversation', 'Earlier ideas inside · last Monday']
+  };
+  const rowHTML = (k) => {
+    const r = ROW[k];
+    const inner = '<span class="gl">' + r[0] + '</span><span class="rt"><b>' + r[1] + '</b><small>' + r[2] + '</small></span>';
+    return r[3] ? '<div class="rrow" data-item="' + k + '">' + inner + '<button type="button" class="undo pr">Undo</button></div>'
+                : '<button type="button" class="rrow pr" data-item="' + k + '">' + inner + ico('chev', 'chev') + '</button>';
+  };
+
+  // the moments: what code would put first, and why (the same rule as the ladder)
+  const SIT = {
+    mon0710: { when: 'Monday 07:10', why: 'it is morning, before your 09:00', focus: 'idea', rail: ['question', 'conversation'], ask: false },
+    mon1240: { when: 'Monday 12:40', why: 'it has waited since Friday', focus: 'question', rail: ['idea', 'conversation'], ask: true },
+    mon1241: { when: 'Monday 12:41', why: 'nothing else is waiting', focus: 'idea', rail: ['undo', 'conversation'], ask: false, demoted: 'undo' },
+    sat1420: { when: 'Saturday 14:20', why: 'five days quiet, and no question waiting', focus: 'roundup', rail: ['idea2', 'conversation2'], ask: false }
+  };
+  const nowkHTML = (s) => '<i class="lv"></i><span><b>Now</b> · ' + s.why + '</span>';
+  function setCompose(ph, ask) {
+    const c = $('[data-compose]', ph); if (!c) return;
+    c.classList.toggle('asking', ask);
+    const f = $('[data-field]', c); f.classList.remove('typed'); f.textContent = ask ? 'Answer the Leader' : 'Talk to the Leader';
+    $('.mic', c).setAttribute('aria-label', ask ? 'Speak your answer' : 'Speak to the Leader');
+  }
+  function board(ph, key) {
+    const s = SIT[key];
+    const when = $('[data-when]', ph); if (when) when.textContent = s.when;
+    $('[data-nowk]', ph).innerHTML = nowkHTML(s);
+    const f = $('[data-focus]', ph); f.dataset.item = s.focus; f.innerHTML = '<div class="fin">' + FOCUS[s.focus]() + '</div>';
+    const rail = $('[data-rail]', ph); if (rail) rail.innerHTML = s.rail.map(rowHTML).join('');
+    setCompose(ph, s.ask);
+  }
+
+  // the order changes: the promoted row lifts into the card, the card's old item comes down into the rows, the rest reflow
+  async function rerank(ph, tk, key) {
+    const s = SIT[key]; const rail = $('[data-rail]', ph), focus = $('[data-focus]', ph);
+    const when = $('[data-when]', ph), nowk = $('[data-nowk]', ph);
+    const oldFocus = focus.dataset.item, demoted = s.demoted || oldFocus;
+    const firstTop = new Map($$('.rrow', rail).map((r) => [r.dataset.item, r.getBoundingClientRect().top]));
+    when.classList.add('swap'); nowk.classList.add('swap');
+    const promoted = $('.rrow[data-item="' + s.focus + '"]', rail);
+    if (promoted) {
+      if (!reduced()) { const a = rel(promoted, ph), b = rel(focus, ph); promoted.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(' + (b.y - a.y) + 'px)', opacity: 0 }], { duration: 420, easing: EIO, fill: 'forwards' }); }
+      else promoted.style.opacity = '0';
+    }
+    $('.fin', focus).classList.add('pre');
+    await sleep(reduced() ? 260 : 400, tk);
+    when.textContent = s.when; nowk.innerHTML = nowkHTML(s);
+    focus.dataset.item = s.focus; focus.innerHTML = '<div class="fin pre">' + FOCUS[s.focus]() + '</div>';
+    rail.innerHTML = s.rail.map(rowHTML).join('');
+    $$('.rrow', rail).forEach((r) => {
+      const t0 = firstTop.get(r.dataset.item);
+      if (reduced()) { r.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 250, easing: 'linear' }); return; }
+      if (r.dataset.item === demoted) {
+        const dy = rel(focus, ph).y + 40 - rel(r, ph).y;
+        r.animate([{ transform: 'translateY(' + dy + 'px) scale(.96)', opacity: 0, filter: 'blur(4px)' }, { transform: 'none', opacity: 1, filter: 'blur(0)' }], { duration: 480, easing: EOUT });
+      } else if (t0 != null) {
+        const dy = t0 - r.getBoundingClientRect().top;
+        if (Math.abs(dy) > 1) r.animate([{ transform: 'translateY(' + dy + 'px)' }, { transform: 'none' }], { duration: 420, easing: EIO });
+      } else {
+        r.animate([{ transform: 'translateY(8px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 320, easing: EOUT });
+      }
+    });
+    setCompose(ph, s.ask);
+    await sleep(40, tk);
+    $('.fin', focus).classList.remove('pre'); when.classList.remove('swap'); nowk.classList.remove('swap');
+    await sleep(380, tk);
+  }
+
+  // ---------------------------------------------------------------- the ladder: the rule as a matrix over five moments
+  const COLS = [['mon0710', 'Mon', '07:10'], ['mon1240', 'Mon', '12:40'], ['mon1241', 'Mon', '12:41'], ['thu0705', 'Thu', '07:05'], ['sat1420', 'Sat', '14:20']];
+  const RUNGS = [
+    ['reply', 'A reply you have not read', 'it finished while you were away'],
+    ['ideaM', 'Today’s idea, in the morning', 'until your first meeting'],
+    ['question', 'The Leader’s question', 'one at a time'],
+    ['roundup', 'The round-up', 'three quiet days; held while a question waits'],
+    ['ideaL', 'Today’s idea, later', 'after the morning'],
+    ['conversation', 'The conversation', 'always last']
+  ];
+  const MARKS = {
+    mon0710: { ideaM: 1, question: 2, roundup: 'h', conversation: 3 },
+    mon1240: { question: 1, roundup: 'h', ideaL: 2, conversation: 3 },
+    mon1241: { ideaL: 1, conversation: 2 },
+    thu0705: { reply: 1, ideaM: 2, roundup: 3, conversation: 4 },
+    sat1420: { roundup: 1, ideaL: 2, conversation: 3 }
+  };
+  const LOUT = {
+    mon0710: '<b>Monday 07:10.</b> <span class="mg">Now: today’s idea.</span> Then the question, then the conversation. Held: the round-up, because a question waits.',
+    mon1240: '<b>Monday 12:40.</b> <span class="mg">Now: the Leader’s question.</span> The morning is over, so the idea moves down. The round-up is still held.',
+    mon1241: '<b>Monday 12:41, after you answer.</b> <span class="mg">Now: today’s idea again.</span> The question is gone and you have just spoken, so nothing is held.',
+    thu0705: '<b>Thursday 07:05.</b> <span class="mg">Now: the reply you have not read,</span> even in the morning. Then the idea, then the round-up after three quiet days.',
+    sat1420: '<b>Saturday 14:20.</b> <span class="mg">Now: the round-up.</span> Five quiet days and no question waiting. Then the idea, then the conversation.'
+  };
+  const lg = $('[data-lg]');
+  if (lg) {
+    let h = '<span></span>' + COLS.map(([k, d, t], i) => '<button type="button" class="ch pr" data-col="' + i + '" aria-label="' + d + ' ' + t + '">' + d + '<b>' + t + '</b></button>').join('');
+    RUNGS.forEach(([rk, name, note], r) => {
+      h += '<div class="rg"><b>' + name + '</b><small>' + note + '</small></div>';
+      COLS.forEach(([ck], i) => {
+        const m = MARKS[ck][rk];
+        const mk = m === 'h' ? '<span class="mk held" role="img" aria-label="held"></span>' : m ? '<span class="mk n' + (m === 1 ? ' top' : '') + '">' + m + '</span>' : '<span class="mk no" aria-hidden="true"></span>';
+        h += '<div class="c' + (r === RUNGS.length - 1 ? ' last' : '') + '" data-col="' + i + '" style="--r:' + r + '">' + mk + '</div>';
+      });
+    });
+    lg.innerHTML = h;
+    $$('.ch', lg).forEach((b) => b.addEventListener('click', () => setLadder(COLS[+b.dataset.col][0])));
+  }
+  let ladderAt = null;
+  function setLadder(key) {
+    if (!lg || ladderAt === key) return; ladderAt = key;
+    const i = COLS.findIndex((c) => c[0] === key);
+    $$('[data-col]', lg).forEach((el) => el.classList.toggle('on', +el.dataset.col === i));
+    if (!reduced()) { lg.classList.add('pop'); void lg.offsetWidth; requestAnimationFrame(() => lg.classList.remove('pop')); }
+    const out = $('[data-lout]');
+    out.classList.add('swap'); setTimeout(() => { out.innerHTML = LOUT[key]; out.classList.remove('swap'); }, reduced() ? 120 : 220);
+  }
+  setLadder('mon0710');
+
+  // ---------------------------------------------------------------- Blend 2: the ranked deck
+  const KWHY = {
+    ideaFirst: '<b>First</b> · it is morning · Try today, 07:00',
+    ideaAgain: '<b>First again</b> · nothing else is waiting',
+    ideaLast: '<b>Last today</b> · nothing else is waiting',
+    qBehind: 'Waiting since Friday',
+    qFirst: '<b>First</b> · it has waited since Friday'
+  };
+  const kcIdea = (k, why) => '<article class="kc" data-k="' + k + '" data-id="idea"><span class="k" data-kwhy>' + KWHY[why] + '</span>' +
+    '<p class="ft">Close the loop before the meeting ends</p>' +
+    '<p class="fl">In the last five minutes, name each decision, who owns it and when it is due, and ask someone else to read it back.</p>' +
+    '<button type="button" class="rowb pr"><span>Why this, today</span>' + ico('chev', 'chev') + '</button>' +
+    '<div class="verbs"><button type="button" class="quiet pr">Talk about it</button><button type="button" class="quiet pr" data-next>Next</button></div></article>';
+  const kcQuestion = (k) => '<article class="kc" data-k="' + k + '" data-id="question"><span class="k" data-kwhy>' + KWHY.qBehind + '</span>' +
+    '<div data-qin><div class="fq"><span class="qorb" data-qorb>' + ico('q') + '</span><div><span class="k"><b style="color:var(--mg);font-weight:600">The Leader asks</b></span><p>' + QUESTION + '</p></div></div>' +
+    '<p class="fh">About <b>Two leads, two versions</b>, open 13 days. Answer below, typed or spoken.</p></div></article>';
+  function btally(ph, n, at) {
+    const t = $('[data-btally]', ph), p = $('[data-bpos]', ph); if (!t) return;
+    t.innerHTML = Array.from({ length: n }, (_, i) => '<i class="bead' + (i === at ? ' cur' : '') + '"></i>').join('');
+    p.innerHTML = '<b>' + (at + 1) + '</b> of ' + n + ' waiting';
+  }
+  $$('[data-bdeck]').forEach((d) => {
+    const ph = d.closest('.phone');
+    if (d.dataset.bdeck === 'mon') { d.innerHTML = kcIdea(0, 'ideaFirst') + kcQuestion(1); btally(ph, 2, 0); setCompose(ph, false); }
+    else { d.innerHTML = kcIdea(0, 'ideaLast'); btally(ph, 1, 0); }
+  });
+
+  // ---------------------------------------------------------------- Blend 1 boards, and the round-up deck in place
+  const SAT = 31;      // Saturday 10 Oct, as days after 9 Sep
+  const bcard = (t, k) => '<article class="dcard" data-k="' + k + '" data-id="' + t.id + '">' +
+    '<div class="dc-h"><b>' + t.n + '</b><span class="dc-age"><b>' + (SAT - t.d) + '</b> days</span></div>' +
+    '<div class="agebar" aria-hidden="true"><i style="--a:' + Math.min(1, (SAT - t.d) / 31).toFixed(2) + '"></i></div>' +
+    '<p class="dc-w">' + t.w + '</p>' +
+    '<p class="dc-m">Said ' + DATE(t.d) + ' · nothing since</p>' +
+    '<div class="dc-v"><button type="button" class="cap pr" data-tick>' + ico('check') + 'Set it down</button><button type="button" class="quiet pr" data-cross>' + ico('x') + 'Still open</button></div>' +
+    '<button type="button" class="rowb pr"><span>Talk about it</span>' + ico('chev', 'chev') + '</button></article>';
+  const SATDECK = [...OPEN].reverse().filter((t) => t.id !== 'twoleads');
+  $$('[data-frame="x1"], [data-frame="x3"]').forEach((ph) => board(ph, 'mon0710'));
+  $$('[data-frame="x2"]').forEach((ph) => {
+    board(ph, 'sat1420');
+    $('[data-rdeck]', ph).innerHTML = SATDECK.map((t, i) => bcard(t, i)).join('');
+    $('[data-tally]', ph).innerHTML = tallyHTML('c' + 'o'.repeat(5));
+    $('[data-pos]', ph).innerHTML = '<b>1</b> of 6';
+  });
+
+  // a round-up card flies up into the strip: a tick ties its bead off, a cross marks it checked today
+  async function toStrip(ph, tk, key, n) {
+    const deck = $('[data-rdeck]', ph); const card = $('.dcard[data-k="0"]', deck);
+    const strip = $('[data-strip]', ph); const og = $('[data-g="o"]', strip), dg = $('[data-g="d"]', strip);
+    const own = $('.bead.cur', og);
+    await press($(key === 'down' ? '[data-tick]' : '[data-cross]', card), tk);
+    let target = own, nb = null;
+    if (key === 'down') { nb = document.createElement('i'); nb.className = 'bead tied pre'; $('.beads', dg).appendChild(nb); target = nb; }
+    if (!reduced() && target) {
+      card.style.transformOrigin = '50% 50%';
+      const a = rel(card, ph), b = rel(target, ph);
+      card.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + ((b.x + b.w / 2) - (a.x + a.w / 2)) + 'px,' + ((b.y + b.h / 2) - (a.y + a.h / 2)) + 'px) scale(.05)', opacity: .2 }], { duration: 620, easing: EIO, fill: 'forwards' });
+      await sleep(600, tk);
+    } else { card.style.opacity = '0'; await sleep(250, tk); }
+    card.dataset.k = 'gone';
+    $$('.dcard', deck).forEach((c) => { if (c.dataset.k !== 'gone') c.dataset.k = String(+c.dataset.k - 1); });
+    if (key === 'down') {
+      own && own.remove(); nb.classList.remove('pre');
+      $('.sn', og).innerHTML = '<b>' + $$('.bead', og).length + '</b>open';
+      $('.sn', dg).innerHTML = '<b>' + $$('.bead', dg).length + '</b>set down';
+    } else if (own) { own.classList.remove('cur'); own.classList.add('kp'); }
+    const nxt = $$('.bead', og).find((b) => !b.classList.contains('kp')); if (nxt) nxt.classList.add('cur');
+    const beads = $$('[data-tally] .bead', ph); const at = beads.findIndex((b) => b.classList.contains('cur'));
+    if (at > -1) { beads[at].classList.remove('cur'); beads[at].classList.add(key === 'down' ? 'tied' : 'kp'); if (beads[at + 1]) beads[at + 1].classList.add('cur'); }
+    $('[data-pos]', ph).innerHTML = '<b>' + n + '</b> of 6';
+  }
+
+
+  const TPL = {};
+  $$('[data-frame]').forEach((f) => { TPL[f.dataset.frame] = f.innerHTML; });
+
+  // ---------------------------------------------------------------- the clock: every frame plays on its own token
+  const STOP = {};
+  const sleep = (ms, tk) => new Promise((res, rej) => setTimeout(() => (tk.dead ? rej(STOP) : res()), ms));
+  const reveal = async (els, tk, gap = 70) => { els.forEach((e) => e.classList.add('pre')); await sleep(40, tk); for (const e of els) { e.classList.remove('pre'); await sleep(gap, tk); } };
+  const hide = (els) => els.forEach((e) => e.classList.add('pre'));
+  const press = async (el, tk) => { if (!el) return; el.classList.add('press'); await sleep(140, tk); el.classList.remove('press'); };
+  const words = (el) => { if (!el || el.dataset.split) return []; el.dataset.split = '1'; el.innerHTML = el.textContent.split(/(\s+)/).map((p) => /\s+/.test(p) ? p : '<span class="w pre">' + p + '</span>').join(''); return $$('.w', el); };
+  const sayWords = async (el, tk, gap = 60) => { const ws = el.dataset.split ? $$('.w', el) : words(el); el.classList.remove('pre'); for (const w of ws) { w.classList.remove('pre'); await sleep(reduced() ? 18 : gap, tk); } };
+  const fresh = (f) => { f.innerHTML = TPL[f.dataset.frame]; };
+  const rel = (el, ph) => { const a = el.getBoundingClientRect(), b = ph.getBoundingClientRect(); return { x: a.left - b.left, y: a.top - b.top, w: a.width, h: a.height }; };
+
+  // a seat turning while its agent works, its clock on a sped-up dial, ticked when back
+  function seat(ph, who, tk, label) {
+    const s = $('[data-seat="' + who + '"]', ph); if (!s) return { done() {} };
+    const f = $('.face', s); const sm = $('[data-sm]', s); const t0 = performance.now();
+    f.classList.add('work'); f.classList.remove('back'); s.classList.remove('done');
+    const iv = setInterval(() => { if (tk.dead) return clearInterval(iv); sm.textContent = label + ' · ' + Math.round((performance.now() - t0) / 100) + ' s'; }, 100);
+    return { done(text) { clearInterval(iv); f.classList.remove('work'); f.classList.add('back'); s.classList.add('done'); sm.textContent = text; } };
+  }
+
+  // the bead the Leader asked about travels into the set-down place
+  async function flyBead(ph, tk) {
+    const strip = $('[data-strip]', ph);
+    const from = $('.bead.asked', strip); const to = $('[data-g="d"] .bead', strip);
+    const og = $('[data-g="o"]', strip), wg = $('[data-g="w"]', strip), dg = $('[data-g="d"]', strip);
+    if (!reduced() && from && to) {
+      const a = rel(from, ph), b = rel(to, ph);
+      const fl = document.createElement('i'); fl.className = 'bead asked flyer';
+      fl.style.left = a.x + 'px'; fl.style.top = a.y + 'px'; fl.style.setProperty('--b', a.w + 'px');
+      ph.appendChild(fl); from.style.opacity = '0';
+      const lift = Math.min(a.y, b.y) - 26;
+      fl.animate([
+        { transform: 'translate(0,0) scale(1)' },
+        { transform: 'translate(' + (b.x - a.x) * .5 + 'px,' + (lift - a.y) + 'px) scale(1.5)', offset: .45 },
+        { transform: 'translate(' + (b.x - a.x) + 'px,' + (b.y - a.y) + 'px) scale(1)' }
+      ], { duration: 820, easing: 'cubic-bezier(.77,0,.175,1)', fill: 'forwards' });
+      await sleep(820, tk); fl.remove();
+    }
+    from && from.remove();
+    $('.sn', og).innerHTML = '<b>6</b>open';
+    dg.innerHTML = '<span class="sn"><b>1</b>set down</span><span class="beads"><i class="bead tied"></i></span>';
+    await sleep(260, tk);
+    const nb = document.createElement('i'); nb.className = 'bead wk pre'; $('.beads', wg).appendChild(nb);
+    $('.sn', wg).innerHTML = '<b>5</b>working';
+    await sleep(30, tk); nb.classList.remove('pre');
+  }
+
+  // a thread is set down on the drawing: it runs to today, ties off, and drops to the shelf
+  async function setDownThread(ph, tk) {
+    const svg = $('.pic', ph); const row = $('.row[data-r="twoleads"]', svg);
+    const idx = OPEN.findIndex((t) => t.id === 'twoleads');
+    row.classList.add('settle'); await sleep(reduced() ? 120 : 520, tk);
+    svg.classList.remove('asking'); row.classList.add('tied'); await sleep(reduced() ? 120 : 560, tk);
+    row.style.setProperty('--dy', (360 - (Y0 + idx * RH)) + 'px');
+    row.classList.add('drop');
+    $$('.row', svg).forEach((r, i) => { if (i > idx) { r.style.setProperty('--rh', RH + 'px'); r.classList.add('up'); } });
+    await sleep(reduced() ? 260 : 640, tk);
+    const sh = $('[data-shelf]', ph);
+    sh.classList.add('has');
+    sh.innerHTML = '<span class="si">' + ico('knot', 'kn') + '<span class="sx"><b>Two leads, two versions</b><span>Set down today · carried 13 days</span></span></span><button type="button" class="undo pr">Undo</button>';
+    const n = $('[data-news]', ph);
+    if (n) { n.style.transition = 'opacity .25s'; n.style.opacity = '0'; await sleep(260, tk); n.textContent = 'Six things open. You set one down today.'; n.style.opacity = '1'; }
+  }
+
+  // a card is lowered into its tray
+  async function intoTray(ph, tk, key, nextPos) {
+    const deck = $('.deck', ph); const card = $('.dcard[data-k="0"]', deck); const tray = $('[data-tray="' + key + '"]', ph);
+    await press($(key === 'down' ? '[data-tick]' : '[data-cross]', card), tk);
+    if (!reduced()) {
+      const a = rel(card, ph), b = rel(tray, ph);
+      const dx = (b.x + b.w / 2) - (a.x + a.w / 2), dy = (b.y + b.h / 2) - (a.y + a.h / 2);
+      card.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(.22)', opacity: 0 }], { duration: 560, easing: 'cubic-bezier(.77,0,.175,1)', fill: 'forwards' });
+      await sleep(540, tk);
+    } else { card.style.opacity = '0'; await sleep(250, tk); }
+    card.dataset.k = 'gone';
+    $$('.dcard', deck).forEach((c) => { if (c.dataset.k !== 'gone') c.dataset.k = String(+c.dataset.k - 1); });
+    const tn = $('.tn', tray); const cur = +(($('b', tn) || {}).textContent || 0) + 1;
+    tray.classList.add('has'); tn.innerHTML = '<b>' + cur + '</b>' + (key === 'down' ? 'Set down' : 'Still open');
+    if (key === 'down' && !$('.undo', tray)) tray.insertAdjacentHTML('beforeend', '<button type="button" class="undo pr">Undo</button>');
+    const beads = $$('[data-tally] .bead', ph); const at = beads.findIndex((b) => b.classList.contains('cur'));
+    if (at > -1) { beads[at].classList.remove('cur'); beads[at].classList.add(key === 'down' ? 'tied' : 'kp'); if (beads[at + 1]) beads[at + 1].classList.add('cur'); }
+    const pos = $('[data-pos]', ph); if (pos) pos.innerHTML = '<b>' + nextPos + '</b> of 7';
+  }
+
+  // ---------------------------------------------------------------- the scenes
+  const SCENES = {
+    async a1(ph, tk) {
+      const ins = $$('.rise, .mat', ph); hide(ins);
+      const beads = $$('.bead', ph); beads.forEach((b) => b.classList.add('pre'));
+      await sleep(200, tk); await reveal(ins, tk, 90);
+      for (const b of beads) { b.classList.remove('pre'); await sleep(35, tk); }
+      await sleep(900, tk); $('[data-qorb]', ph).classList.add('rip');
+      await sleep(1400, tk);
+      const why = $('[data-why]', ph); await press(why, tk); why.setAttribute('aria-expanded', 'true'); $('.why', ph).classList.add('open');
+      await sleep(3600, tk); why.setAttribute('aria-expanded', 'false'); $('.why', ph).classList.remove('open');
+      await sleep(1600, tk);
+    },
+    async a2(ph, tk) {
+      const svg = $('.pic', ph); svg.classList.remove('drawn', 'fogged', 'worked', 'asking');
+      const st = $('[data-stage]', ph); const extra = [$('[data-shelf]', ph), $('[data-note]', ph)]; hide(extra);
+      await sleep(900, tk); await press($('[data-strip]', ph), tk);
+      ph.classList.add('dim'); st.classList.add('up');
+      await sleep(380, tk); svg.classList.add('drawn');
+      await sleep(reduced() ? 300 : 800, tk); svg.classList.add('fogged');
+      await sleep(500, tk); svg.classList.add('worked');
+      await sleep(600, tk); svg.classList.add('asking'); $('.qr', svg).classList.add('rip');
+      await reveal(extra, tk, 160);
+      await sleep(4200, tk);
+      await press($('[data-done]', ph), tk); st.classList.remove('up'); ph.classList.remove('dim');
+      await sleep(1600, tk);
+    },
+    async a3(ph, tk) {
+      const me = $('[data-me]', ph), turn = $('[data-turn]', ph), hand = $('[data-hand]', ph), bench = $('[data-bench]', ph), lead = $('[data-lead]', ph), tx = $('[data-tx]', ph);
+      hide([me, turn, hand, bench, tx]); words(lead);
+      await sleep(400, tk); await reveal([me], tk);
+      await sleep(700, tk); await reveal([turn], tk);
+      await sleep(500, tk); await reveal([hand, bench], tk, 160);
+      const r = seat(ph, 'researcher', tk, 'Reading the evidence'), l = seat(ph, 'librarian', tk, 'Searching your books');
+      await sleep(1100, tk); l.done('Back · 6 s · 2 passages');
+      await sleep(1500, tk); r.done('Back · 41 s · a cited brief');
+      $('[data-mt]', ph).textContent = 'asked two agents · 41 s';
+      await sleep(300, tk); await sayWords(lead, tk, 70);
+      await reveal([tx], tk);
+      await sleep(1400, tk);
+      const ls = $('[data-seat="librarian"]', ph); await press(ls, tk); ls.classList.add('on'); $('[data-peek]', ph).classList.add('open');
+      await sleep(3400, tk); ls.classList.remove('on'); $('[data-peek]', ph).classList.remove('open');
+      await sleep(1400, tk);
+    },
+    async a4(ph, tk) {
+      const field = $('[data-field]', ph), send = $('[data-send]', ph);
+      const me = $('[data-me]', ph), turn = $('[data-turn]', ph), rc = $('[data-rc]', ph), lead = $('[data-lead]', ph);
+      words(lead);
+      await sleep(800, tk);
+      field.classList.add('typed'); field.textContent = 'Yes, Thursday. I sat them down together…'; send.classList.add('on');
+      await sleep(1100, tk); await press(send, tk);
+      field.classList.remove('typed'); field.textContent = 'Answer the Leader'; send.classList.remove('on');
+      me.classList.remove('gone'); await reveal([me], tk);
+      $('[data-ask]', ph).classList.remove('lit'); $('[data-ask]', ph).classList.add('answered');
+      $('[data-askk]', ph).innerHTML = '<b>The Leader asked</b> · answered now';
+      $('[data-qorb]', ph).classList.add('rip');
+      await sleep(900, tk); turn.classList.remove('gone'); await reveal([turn], tk); await sayWords(lead, tk, 60);
+      await sleep(300, tk); await flyBead(ph, tk);
+      await sleep(300, tk); rc.classList.remove('gone'); await reveal([rc], tk);
+      await sleep(3600, tk);
+    },
+    async b1(ph, tk) {
+      const svg = $('.pic', ph); svg.classList.remove('drawn', 'fogged', 'worked', 'asking');
+      const ins = $$('.rise, .mat', ph); hide(ins);
+      await sleep(200, tk); await reveal(ins.slice(0, 2), tk, 120);
+      await sleep(250, tk); svg.classList.add('drawn');
+      await sleep(reduced() ? 300 : 800, tk); svg.classList.add('fogged');
+      await sleep(500, tk); svg.classList.add('worked');
+      await sleep(600, tk); svg.classList.add('asking'); $('.qr', svg).classList.add('rip');
+      await reveal(ins.slice(2), tk, 120);
+      await sleep(4400, tk);
+    },
+    async b2(ph, tk) {
+      const row = $('.row[data-r="twoleads"]', ph);
+      await sleep(1100, tk); row.classList.add('hl'); await sleep(160, tk);
+      $('[data-scrim]', ph).classList.add('on'); $('[data-sheet]', ph).classList.add('up');
+      await sleep(2000, tk); await press($('[data-setdown]', ph), tk);
+      $('[data-sheet]', ph).classList.remove('up'); $('[data-scrim]', ph).classList.remove('on'); row.classList.remove('hl');
+      await sleep(420, tk); await setDownThread(ph, tk);
+      await sleep(3800, tk);
+    },
+    async b3(ph, tk) {
+      const me = $('[data-me]', ph), turn = $('[data-turn]', ph), lead = $('[data-lead]', ph), tx = $('[data-tx]', ph), froms = $('[data-froms]', ph);
+      const wrap = $('[data-benchwrap]', ph); hide([me, turn, tx, froms]); words(lead); lead.classList.add('pre');
+      await sleep(400, tk); await reveal([me], tk);
+      await sleep(700, tk); await reveal([turn], tk);
+      const r = seat(ph, 'researcher', tk, 'Reading the evidence'), l = seat(ph, 'librarian', tk, 'Searching your books');
+      await sleep(1100, tk); l.done('Back · 6 s');
+      await sleep(1500, tk); r.done('Back · 41 s');
+      await sleep(500, tk); wrap.classList.add('shut');
+      const stack = $('[data-stack]', ph); stack.insertAdjacentHTML('beforeend', face('researcher', 26) + face('librarian', 26));
+      $('[data-mt]', ph).textContent = 'with the Researcher and the Librarian';
+      await sleep(380, tk); await sayWords(lead, tk, 70);
+      await reveal([tx, froms], tk, 200);
+      await sleep(4200, tk);
+    },
+    async c1(ph, tk) {
+      const deck = $('.deck', ph); const cards = $$('.dcard', deck); const ins = $$('.rise', ph);
+      deck.classList.add('zero'); hide(ins); cards.forEach((c) => c.classList.add('pre'));
+      await sleep(200, tk); await reveal(ins.slice(0, 2), tk, 110);
+      for (const c of cards.slice(0, 3).reverse()) { c.classList.remove('pre'); await sleep(90, tk); }
+      cards.slice(3).forEach((c) => c.classList.remove('pre'));
+      await sleep(250, tk); deck.classList.remove('zero');
+      await reveal(ins.slice(2), tk, 110);
+      await sleep(2400, tk); await intoTray(ph, tk, 'keep', 2);
+      await sleep(3200, tk);
+    },
+    async c2(ph, tk) {
+      await sleep(1800, tk); await intoTray(ph, tk, 'down', 7);
+      const n = $('.news', ph); n.style.transition = 'opacity .25s'; n.style.opacity = '0'; await sleep(260, tk);
+      n.textContent = 'One left. This is the last of them.'; n.style.opacity = '1';
+      await sleep(3800, tk);
+    },
+    async c3(ph, tk) {
+      const sheet = $('[data-csheet]', ph), me = $('[data-me]', ph), turn = $('[data-turn]', ph), lead = $('[data-lead]', ph), offer = $('[data-offer]', ph);
+      sheet.classList.remove('up'); hide([me, turn, offer]); words(lead); lead.classList.add('pre');
+      await sleep(900, tk); await press($('.dcard[data-k="0"] .rowb', ph), tk); sheet.classList.add('up');
+      await sleep(700, tk); await reveal([me], tk);
+      await sleep(700, tk); await reveal([turn], tk);
+      const l = seat(ph, 'librarian', tk, 'Searching your books');
+      await sleep(1300, tk); l.done('Back · 5 s · one passage');
+      $('[data-mt]', ph).textContent = 'asked the Librarian · 5 s';
+      await sleep(300, tk); await sayWords(lead, tk, 70);
+      await reveal([offer], tk);
+      await sleep(4000, tk);
+    },
+    async c4(ph, tk) {
+      const ins = $$('.rise', ph); hide(ins); const beads = $$('.bead', ph); beads.forEach((b) => b.classList.add('pre'));
+      await sleep(200, tk); await reveal(ins, tk, 110);
+      for (const b of beads) { b.classList.remove('pre'); await sleep(35, tk); }
+      await sleep(4600, tk);
+    }
+  };
+
+  // ---------------------------------------------------------------- ROUND 2: the blends' scenes
+  Object.assign(SCENES, {
+    // Blend 1: the order follows the day, and runs again after he answers
+    async x1(ph, tk) {
+      setLadder('mon0710');
+      const ins = $$('.rise, .mat', ph); hide(ins);
+      const beads = $$('[data-strip] .bead', ph); beads.forEach((b) => b.classList.add('pre'));
+      await sleep(200, tk); await reveal(ins, tk, 80);
+      for (const b of beads) { b.classList.remove('pre'); await sleep(35, tk); }
+      await sleep(2600, tk);
+      await rerank(ph, tk, 'mon1240'); setLadder('mon1240');
+      const q = $('[data-qorb]', ph); if (q) q.classList.add('rip');
+      await sleep(2000, tk);
+      const field = $('[data-field]', ph), send = $('[data-send]', ph);
+      field.classList.add('typed'); field.textContent = 'Yes, Thursday. I sat them down together…'; send.classList.add('on');
+      await sleep(1100, tk); await press(send, tk);
+      send.classList.remove('on'); setCompose(ph, false);
+      const fin = $('[data-focus] .fin', ph); fin.classList.add('pre'); await sleep(280, tk);
+      fin.innerHTML = FOCUS.answered(); const lead = $('[data-lead]', fin); words(lead);
+      fin.classList.remove('pre'); await sayW(lead, tk, 55);
+      const st = $('[data-stale]', ph); st.classList.add('swap'); await sleep(220, tk); st.textContent = 'You told me something just now.'; st.classList.remove('swap');
+      await sleep(200, tk); await flyBead(ph, tk);
+      await sleep(1900, tk);
+      await rerank(ph, tk, 'mon1241'); setLadder('mon1241');
+      await sleep(3800, tk);
+    },
+    // Blend 1: the round-up opens in place of the card, and each card flies up into the strip
+    async x2(ph, tk) {
+      const ins = $$('.rise, .mat', ph); hide(ins);
+      const beads = $$('[data-strip] .bead', ph); beads.forEach((b) => b.classList.add('pre'));
+      await sleep(200, tk); await reveal(ins, tk, 80);
+      for (const b of beads) { b.classList.remove('pre'); await sleep(35, tk); }
+      for (const b of $$('.rbeads .bead', ph)) { b.classList.add('cur'); await sleep(110, tk); }
+      await sleep(1500, tk); await press($('[data-go]', ph), tk);
+      const focus = $('[data-focus]', ph), rail = $('[data-rail]', ph), rl = $('[data-rl]', ph), nowk = $('[data-nowk]', ph);
+      [rail, rl, nowk].forEach((e) => e.classList.add('fadeaway')); $('.fin', focus).classList.add('pre');
+      await sleep(300, tk);
+      [focus, rail, rl, nowk].forEach((e) => e.classList.add('gone'));
+      const st = $('[data-stale]', ph); st.textContent = 'Oldest first. About two minutes.';
+      const deck = $('[data-rdeck]', ph), tally = $('[data-rtally]', ph); const cards = $$('.dcard', deck);
+      deck.classList.add('zero'); cards.forEach((c) => c.classList.add('pre'));
+      deck.classList.remove('gone'); tally.classList.remove('gone');
+      await sleep(40, tk);
+      for (const c of cards.slice(0, 3).reverse()) { c.classList.remove('pre'); await sleep(90, tk); }
+      cards.slice(3).forEach((c) => c.classList.remove('pre'));
+      await sleep(200, tk); deck.classList.remove('zero');
+      const ob = $('[data-strip] [data-g="o"] .bead', ph); if (ob) ob.classList.add('cur');
+      await sleep(2300, tk); await toStrip(ph, tk, 'down', 2);
+      const rc = $('[data-rrc]', ph); rc.style.marginTop = '8px';
+      rc.innerHTML = '<div class="r"><span class="ok">' + ico('check') + '</span><span><b>Set down</b> · Passing on a decision</span><button type="button" class="undo pr">Undo</button></div>';
+      rc.classList.remove('gone'); await reveal([rc], tk);
+      await sleep(1900, tk); await toStrip(ph, tk, 'keep', 3);
+      await sleep(3400, tk);
+    },
+    // Blend 1: talking about the first thing, with whom the Leader asked
+    async x3(ph, tk) {
+      const sheet = $('[data-csheet]', ph), me = $('[data-me]', ph), turn = $('[data-turn]', ph), lead = $('[data-lead]', ph), tx = $('[data-tx]', ph), froms = $('[data-froms]', ph);
+      const wrap = $('[data-benchwrap]', ph);
+      sheet.classList.remove('up'); hide([me, turn, tx, froms]); words(lead); lead.classList.add('pre');
+      await sleep(1000, tk); await press($('[data-talk]', ph), tk); sheet.classList.add('up');
+      await sleep(700, tk); await reveal([me], tk);
+      await sleep(600, tk); await reveal([turn], tk);
+      const r = seat(ph, 'researcher', tk, 'Reading the evidence'), l = seat(ph, 'librarian', tk, 'Searching your books');
+      await sleep(1000, tk); l.done('Back · 5 s');
+      await sleep(1400, tk); r.done('Back · 38 s');
+      await sleep(500, tk); wrap.classList.add('shut');
+      $('[data-stack]', ph).insertAdjacentHTML('beforeend', face('researcher', 26) + face('librarian', 26));
+      $('[data-mt]', ph).textContent = 'asked two agents · 38 s';
+      await sleep(380, tk); await sayW(lead, tk, 70);
+      await reveal([tx, froms], tk, 200);
+      await sleep(4200, tk);
+    },
+    // Blend 2: the same Monday as a deck that re-deals
+    async y1(ph, tk) {
+      const ins = $$('.rise, .mat', ph); hide(ins);
+      const beads = $$('[data-strip] .bead', ph); beads.forEach((b) => b.classList.add('pre'));
+      await sleep(200, tk); await reveal(ins, tk, 80);
+      for (const b of beads) { b.classList.remove('pre'); await sleep(35, tk); }
+      await sleep(2600, tk);
+      // 12:40: the morning is over, so the deck re-deals
+      const when = $('[data-when]', ph); when.classList.add('swap');
+      const deck = $('[data-bdeck]', ph);
+      const idea = $('.kc[data-id="idea"]', deck), qc = $('.kc[data-id="question"]', deck);
+      $('[data-kwhy]', qc).innerHTML = KWHY.qFirst;
+      if (!reduced()) {
+        idea.animate([{ transform: 'none' }, { transform: 'translateY(-34px) scale(.98)', offset: .4 }, { transform: 'translateY(22px) scale(.96)' }], { duration: 660, easing: EIO });
+        await sleep(260, tk);
+      }
+      qc.dataset.k = '0'; idea.dataset.k = '1';
+      when.textContent = 'Monday 12:40'; when.classList.remove('swap');
+      $('[data-btally]', ph).innerHTML = ''; btally(ph, 2, 0); $('[data-bpos]', ph).innerHTML = '<b>1</b> of 2 waiting';
+      setCompose(ph, true);
+      await sleep(500, tk); const q = $('[data-qorb]', qc); if (q) q.classList.add('rip');
+      await sleep(1800, tk);
+      const field = $('[data-field]', ph), send = $('[data-send]', ph);
+      field.classList.add('typed'); field.textContent = 'Yes, Thursday. I sat them down together…'; send.classList.add('on');
+      await sleep(1100, tk); await press(send, tk);
+      send.classList.remove('on'); setCompose(ph, false);
+      const qin = $('[data-qin]', qc); qin.style.transition = 'opacity .28s, filter .28s'; qin.style.opacity = '0'; qin.style.filter = 'blur(4px)';
+      await sleep(280, tk);
+      $('[data-kwhy]', qc).innerHTML = '<b>Answered</b> · 12:41';
+      when.textContent = 'Monday 12:41';
+      const st = $('[data-stale]', ph); st.classList.add('swap'); setTimeout(() => { st.textContent = 'You told me something just now.'; st.classList.remove('swap'); }, 220);
+      qin.innerHTML = FOCUS.answered(); const lead = $('[data-lead]', qin); words(lead);
+      qin.style.opacity = '1'; qin.style.filter = 'none'; await sayW(lead, tk, 55);
+      await sleep(1500, tk);
+      // the card lowers into the strip; the bead it was about ties off
+      if (!reduced()) {
+        qc.style.transformOrigin = '50% 50%';
+        const a = rel(qc, ph), b = rel($('[data-strip]', ph), ph);
+        qc.animate([{ transform: 'none', opacity: 1 }, { transform: 'translate(' + ((b.x + b.w * .82) - (a.x + a.w / 2)) + 'px,' + ((b.y + b.h / 2) - (a.y + a.h / 2)) + 'px) scale(.06)', opacity: .15 }], { duration: 600, easing: EIO, fill: 'forwards' });
+        await sleep(560, tk);
+      } else { qc.style.opacity = '0'; await sleep(250, tk); }
+      qc.dataset.k = 'gone'; idea.dataset.k = '0'; $('[data-kwhy]', idea).innerHTML = KWHY.ideaAgain;
+      btally(ph, 1, 0);
+      await flyBead(ph, tk);
+      await sleep(3600, tk);
+    },
+    // Blend 2: nothing waiting, so the deck folds into a row and the conversation fills the page
+    async y2(ph, tk) {
+      const deck = $('[data-bdeck]', ph), tally = $('.btally', ph), slim = $('[data-slim]', ph), tz = $('[data-tz]', ph), spacer = $('[data-spacer]', ph);
+      const me = $('[data-me]', ph), turn = $('[data-turn]', ph), lead = $('[data-lead]', ph), froms = $('[data-froms]', ph), wrap = $('[data-benchwrap]', ph);
+      hide([me, turn, froms]); words(lead); lead.classList.add('pre');
+      await sleep(1600, tk);
+      const card = $('.kc', deck); await press($('[data-next]', card), tk);
+      if (!reduced()) { card.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(-60px) scale(.9)', opacity: 0 }], { duration: 300, easing: EOUT, fill: 'forwards' }); }
+      else card.style.opacity = '0';
+      tally.classList.add('fadeaway');
+      await sleep(300, tk);
+      [deck, tally, spacer].forEach((e) => e.classList.add('gone'));
+      slim.innerHTML = rowHTML('idea'); slim.classList.remove('gone'); tz.classList.remove('gone');
+      slim.classList.add('pre', 'rise'); tz.classList.add('pre', 'rise'); await reveal([slim, tz], tk, 120);
+      await sleep(900, tk); await reveal([me], tk);
+      await sleep(600, tk); await reveal([turn], tk);
+      const r = seat(ph, 'researcher', tk, 'Reading the evidence'), l = seat(ph, 'librarian', tk, 'Searching your books');
+      await sleep(1000, tk); l.done('Back · 5 s');
+      await sleep(1400, tk); r.done('Back · 38 s');
+      await sleep(500, tk); wrap.classList.add('shut');
+      $('[data-stack]', ph).insertAdjacentHTML('beforeend', face('researcher', 26) + face('librarian', 26));
+      $('[data-mt]', ph).textContent = 'asked two agents · 38 s';
+      await sleep(380, tk); await sayW(lead, tk, 70);
+      await reveal([froms], tk);
+      await sleep(4200, tk);
+    }
+  });
+
+
+  // ---------------------------------------------------------------- playing: only what is on screen, looping, cancellable
+  const live = new Map();
+  function stopFrame(f) { const tk = live.get(f); if (tk) tk.dead = true; live.delete(f); fresh(f); }
+  async function loop(f) {
+    const tk = { dead: false }; live.set(f, tk);
+    try {
+      while (!tk.dead) {
+        fresh(f); f.classList.remove('dim');
+        await sleep(60, tk);
+        await SCENES[f.dataset.frame](f, tk);
+        await sleep(900, tk);
+      }
+    } catch (e) { if (e !== STOP) throw e; }
+  }
+  const seen = new Set();
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => {
+    es.forEach((e) => {
+      const f = e.target;
+      if (e.isIntersecting) { seen.add(f); if (playing && !live.has(f)) loop(f); }
+      else { seen.delete(f); if (live.has(f)) stopFrame(f); }
+    });
+  }, { threshold: 0.3 }) : null;
+  $$('[data-frame]').forEach((f) => io && io.observe(f));
+  const restart = (f) => { if (live.has(f)) stopFrame(f); if (playing) loop(f); };
+
+  $$('[data-replay]').forEach((b) => b.addEventListener('click', () => {
+    const f = $('[data-frame="' + b.dataset.replay + '"]');
+    if (!playing) { playing = true; $('#play').setAttribute('aria-pressed', 'false'); $('#play').textContent = 'Pause the motion'; }
+    restart(f);
+  }));
+  $('#play').addEventListener('click', (e) => {
+    playing = !playing;
+    e.currentTarget.setAttribute('aria-pressed', String(!playing));
+    e.currentTarget.textContent = playing ? 'Pause the motion' : 'Play the motion';
+    if (!playing) [...live.keys()].forEach(stopFrame); else seen.forEach((f) => { if (!live.has(f)) loop(f); });
+  });
+  $('#rm').addEventListener('click', (e) => {
+    preview = !preview; setRm();
+    e.currentTarget.setAttribute('aria-pressed', String(preview));
+    [...live.keys()].forEach(restart);
+  });
+  if (mq && mq.addEventListener) mq.addEventListener('change', () => { setRm(); [...live.keys()].forEach(restart); });
+
+  // ---------------------------------------------------------------- the switch
+  const show = (k) => {
+    $$('.seg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.dir === k)));
+    $$('section.dir').forEach((s) => { s.hidden = s.dataset.dir !== k; });
+    if (history.replaceState) history.replaceState(null, '', '#' + k);
+  };
+  $$('.seg button').forEach((b) => b.addEventListener('click', () => show(b.dataset.dir)));
+  const h = (location.hash || '').replace('#', '');
+  if (['b1', 'b2', 'a', 'c'].includes(h)) show(h);
+})();
+</script>
