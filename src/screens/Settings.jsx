@@ -81,7 +81,8 @@ function RootPage({ P, open, q, setQ }) {
               card said "most of this page"); src/settingsVoice.js parses them */}
           <p className="nv-set-spoken nv-set-rise" style={{ '--i': 7 }}>
             Six settings also answer to speech, on the Nova screen or the Ask bar:{' '}
-            {P.spoken.phrases.map((ph, i) => <span key={ph}><q>{ph}</q>{i < P.spoken.phrases.length - 1 ? ', ' : ''}</span>)}. Build {P.spoken.build}.
+            {P.spoken.phrases.map((ph, i) => <span key={ph}><q>{ph}</q>{i < P.spoken.phrases.length - 1 ? ', ' : ''}</span>)}.
+            {' '}He can fix what is already written, too, by voice: he asks first, and Undo puts it back. Build {P.spoken.build}.
           </p>
         </>
       )}
