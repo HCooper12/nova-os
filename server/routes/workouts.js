@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { loadExerciseLibrary, addCustomExercise, MUSCLE_GROUPS, TRACKING_TYPES } from '../lib/exercises.js';
 import { loadRoutines, createRoutine, updateRoutine, deleteRoutine, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
 import { loadExerciseState } from '../lib/exerciseState.js';
+import { variantFor } from '../lib/sessionPrefill.js';
 import { loadSessions, completeSession, updateSession, deleteSession, completedCountByRoutine } from '../lib/workoutSessions.js';
 import { computeProgressions, draftSessionSummary, normalizeQuickPlan } from '../lib/coach.js';
 import { startQuickSession } from '../lib/claudeCode.js';
@@ -10,14 +11,20 @@ import { profileContext } from '../lib/profile.js';
 import { loadRecentDays } from '../lib/healthData.js';
 import { listCarryovers, addCarryover, rescheduleCarryover, removeCarryover, carryoverContext } from '../lib/workoutCarryover.js';
 
-function annotateRoutines(routines, exerciseState, completedCounts, tunes = []) {
+// With no history of its own, a lift starts from its most recent grip or
+// width variant (lib/sessionPrefill.js variantFor), carried as startSets +
+// startFrom so lastSets stays this lift's own truth.
+function annotateRoutines(routines, exerciseState, completedCounts, tunes = [], library = []) {
   return routines.map((r) => ({
     ...r,
     completedCount: completedCounts[r.id] || 0,
     exercises: r.exercises.map((e) => {
       const state = exerciseState[e.exerciseId];
       const tune = tunes.find((t) => t.exerciseId === e.exerciseId) || null;
-      return { ...e, lastSets: state ? state.lastSets : [], lastDate: state ? state.lastDate : null, tune };
+      const own = state && Array.isArray(state.lastSets) && state.lastSets.length;
+      const variant = own ? null : variantFor(library, exerciseState, e.exerciseId);
+      const start = variant ? { startSets: exerciseState[variant.id].lastSets, startFrom: `${variant.name}, last time (${exerciseState[variant.id].lastDate || 'date unknown'})` } : {};
+      return { ...e, lastSets: state ? state.lastSets : [], lastDate: state ? state.lastDate : null, tune, ...start };
     }),
   }));
 }
@@ -181,7 +188,7 @@ export function workoutsRouter(vaultPath) {
       // made must be visible in the plan, so he never has to remember it)
       const { readMarkers } = await import('../lib/coachPlan.js');
       const markers = await readMarkers().catch(() => ({}));
-      const annotated = annotateRoutines(routines, exerciseState, completedCounts, tunes).map((r) => ({
+      const annotated = annotateRoutines(routines, exerciseState, completedCounts, tunes, exercises).map((r) => ({
         ...r,
         exercises: r.exercises.map((e) => {
           const mk = markers[`${r.id}:${e.exerciseId}`];
@@ -257,7 +264,7 @@ export function workoutsRouter(vaultPath) {
       const { exercises } = await loadExerciseLibrary(vaultPath);
       const routine = await updateRoutine(vaultPath, exercises, req.params.id, { name: req.body?.name, exercises: req.body?.exercises });
       const [exerciseState, completedCounts] = await Promise.all([loadExerciseState(vaultPath), completedCountByRoutine(vaultPath)]);
-      res.json({ routine: annotateRoutines([routine], exerciseState, completedCounts)[0] });
+      res.json({ routine: annotateRoutines([routine], exerciseState, completedCounts, [], exercises)[0] });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

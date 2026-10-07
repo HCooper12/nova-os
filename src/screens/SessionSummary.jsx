@@ -268,7 +268,7 @@ function RailCard({ S }) {
           </div>
           {L.skipped
             ? <p className="nv-ss-last">Skipped today</p>
-            : <p className="nv-ss-last">{L.last ? <>Last time <b>{L.last}</b></> : 'First time on this lift'}</p>}
+            : <p className="nv-ss-last">{L.last ? <>Last time <b>{L.last}</b></> : L.startFrom ? <>First time under this name · started from <b>{L.startFrom}</b></> : 'First time on this lift'}</p>}
           {L.focus && !L.skipped && <p className="nv-ss-focus">{L.focus}</p>}
           <div className="nv-ss-lacts">
             <Interactive as="button" type="button" className={`nv-ss-qc${L.note ? ' on' : ''}`} onClick={L.openNote} aria-label={L.note ? `Note: ${L.note}` : 'Note'}><Ico p={P.note} />Note</Interactive>

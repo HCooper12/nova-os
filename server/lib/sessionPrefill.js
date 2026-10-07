@@ -50,6 +50,31 @@ export function prefillFor({ last = null, prescription = null, progression = nul
   };
 }
 
+// A LIFT HE HAS ONLY DONE UNDER ANOTHER NAME (7 Oct 2026). He added Lat
+// Pulldown to a pull session and it came in at 0 kg × 8: every set he had
+// done was logged as Wide-Grip Lat Pulldown (73 kg). A grip or width variant
+// moves the same load, so with no history of its own the lift starts from
+// its most recent variant, and says which. Only grip and width words are
+// stripped: a machine, a cable or a barbell moves different loads, and a
+// one-arm version is never filled from a two-arm one (or the reverse).
+const GRIP_WORDS = /\b(wide|close|narrow|neutral|reverse|underhand|overhand|pronated|supinated|mixed)(-| )?(grip|stance)?\b/g;
+const ONE_SIDE = /\b(single|one)[- ](arm|leg)\b|\bunilateral\b/;
+export const movementOf = (name) => String(name || '').toLowerCase().replace(GRIP_WORDS, ' ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const hasSets = (st) => Array.isArray(st?.lastSets) && st.lastSets.some((x) => x && (Number(x.weight) > 0 || Number(x.reps) > 0));
+
+export function variantFor(exercises, state, exerciseId) {
+  const me = (exercises || []).find((e) => e.id === exerciseId);
+  if (!me) return null;
+  const move = movementOf(me.name);
+  const oneSide = ONE_SIDE.test(String(me.name).toLowerCase());
+  const candidates = (exercises || []).filter((e) => e.id !== exerciseId
+    && movementOf(e.name) === move
+    && ONE_SIDE.test(String(e.name).toLowerCase()) === oneSide
+    && hasSets(state?.[e.id]));
+  candidates.sort((a, b) => String(state[b.id].lastDate || '').localeCompare(String(state[a.id].lastDate || '')));
+  return candidates[0] || null;
+}
+
 // The routine that holds this lift, for its prescription and progression:
 // one with an earned progression first, then any.
 export function routineFor(routines, exerciseId, progressions = {}) {
@@ -70,12 +95,20 @@ export async function buildPrefill(vaultPath, exerciseId) {
   const tune = (await getTunes(vaultPath).catch(() => [])).find((t) => t.exerciseId === exerciseId) || null;
   const { readMarkers } = await import('./coachPlan.js');
   const marker = routine ? ((await readMarkers().catch(() => ({})))[`${routine.id}:${exerciseId}`] || null) : null;
+  const own = state[exerciseId] || null;
+  const variant = hasSets(own) ? null : variantFor(exercises, state, exerciseId);
+  const filled = prefillFor({ last: hasSets(own) ? own : (variant ? state[variant.id] : own),
+    prescription: entry || (exercise.research?.repRange ? { targetSets: 3, targetRepsLow: exercise.research.repRange.low, targetRepsHigh: exercise.research.repRange.high } : null),
+    progression: routine ? progressions[`${routine.id}:${exerciseId}`] || null : null, tune, marker });
+  if (variant && filled.last) {
+    // the sets are the variant's, said so; `last` stays this lift's own (none)
+    filled.from = [`${variant.name}, last time (${state[variant.id].lastDate || 'date unknown'})`, ...filled.from.slice(1)];
+    filled.last = null;
+    filled.variantOf = { id: variant.id, name: variant.name };
+  }
   return {
     exerciseId,
     routine: routine ? { id: routine.id, name: routine.name } : null,
-    // no routine holds it: the rep range Coach's research found for the lift
-    ...prefillFor({ last: state[exerciseId] || null,
-      prescription: entry || (exercise.research?.repRange ? { targetSets: 3, targetRepsLow: exercise.research.repRange.low, targetRepsHigh: exercise.research.repRange.high } : null),
-      progression: routine ? progressions[`${routine.id}:${exerciseId}`] || null : null, tune, marker }),
+    ...filled,
   };
 }

@@ -4217,7 +4217,8 @@ export default class App extends Component {
         if (i === -1 || ws.exercises[i].sets !== fresh || !p?.sets?.length) return null; // gone, or already his
         filled = true;
         const next = { ...ws.exercises[i], targetSets: p.targetSets, targetRepsLow: p.targetRepsLow, targetRepsHigh: p.targetRepsHigh,
-          coach: p.coach || null, last: p.last || null, focusNote: p.focusNote || null, sets: p.sets };
+          coach: p.coach || null, last: p.last || null, focusNote: p.focusNote || null, sets: p.sets,
+          startFrom: p.variantOf ? p.from?.[0] || null : null };
         return { workoutSession: { ...ws, exercises: ws.exercises.map((e, j) => (j === i ? next : e)) } };
       }, () => this.toastMsg(filled && p.from?.length
         ? `${lib.name} added — this session only, from ${p.from.join(' + ')}.`
@@ -4291,8 +4292,11 @@ export default class App extends Component {
     if (this.guardSessionStart({ routineId: routine.id })) return;
     const progressions = this.state.liveWorkoutProgressions || {};
     const exercises = routine.exercises.map((e) => {
-      let sets = e.lastSets && e.lastSets.length
-        ? e.lastSets.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
+      // never done under this name: its grip/width variant's last sets
+      // (server startSets, labelled startFrom), else the honest empty default
+      const base = e.lastSets?.length ? e.lastSets : e.startSets?.length ? e.startSets : null;
+      let sets = base
+        ? base.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
         : Array.from({ length: e.targetSets }, () => ({ weight: 0, reps: e.targetRepsLow, done: false }));
       // Coach progression: earned suggestions nudge the PREFILL only — what
       // gets logged is whatever actually happens on the floor.
@@ -4309,6 +4313,7 @@ export default class App extends Component {
         // comparison is otherwise invisible mid-session
         last: e.lastSets && e.lastSets.length ? { date: e.lastDate || null, sets: e.lastSets.map((s) => ({ weight: s.weight, reps: s.reps })) } : null,
         focusNote: e.tune?.focus || null,
+        startFrom: !e.lastSets?.length && e.startSets?.length ? e.startFrom || null : null,
         sets };
     });
     this.withTransition(() => this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises, startedAt: Date.now() }, sessionCancelConfirm: false }));
@@ -4590,6 +4595,7 @@ export default class App extends Component {
     const routines = this.state.liveWorkoutRoutines || [];
     const lastSetsFor = (exId) => {
       for (const r of routines) { const e = r.exercises.find((x) => x.exerciseId === exId); if (e?.lastSets?.length) return e.lastSets; }
+      for (const r of routines) { const e = r.exercises.find((x) => x.exerciseId === exId); if (e?.startSets?.length) return e.startSets; }
       return null;
     };
     const exercises = carryover.exercises.map((e) => {
