@@ -155,6 +155,12 @@ test('quiet hours: the window across midnight, its length, and the line under th
   assert.match(quietNowLine({ enabled: true, start: '22:30', end: '05:00' }, evening), /quiet in 50 minutes/);
 });
 
+test('under Command Core the page wears the sidebar\'s own numeral for Settings (it said XIV, the sidebar XV)', () => {
+  const navSystem = [{ screen: 'ops', numeral: 'XIV.' }, { screen: 'settings', numeral: 'XV.' }];
+  assert.equal(build({ st: { novaStyle: 'command' }, v: { navSystem } }).P.numeral, 'XV.');
+  assert.equal(build({ v: { navSystem } }).P.numeral, null, 'the numeral is Command Core\'s alone');
+});
+
 test('the look by name', () => {
   assert.equal(lookName({ style: 'summary', theme: 'command', material: 'glass' }), 'Nova glass');
   assert.equal(lookName({ style: 'cupertino', theme: 'command', material: 'solid' }), 'Apple layout');

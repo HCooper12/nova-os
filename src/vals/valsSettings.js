@@ -438,7 +438,8 @@ export function valsSettings(app, ctx, v) {
 
   const names = { you: you.name };
   for (const g of models.groups) names[`mg:${g.id}`] = g.label;
-  const numeral = (v.tabs || []).find((t) => t.screen === 'settings')?.num || null;
+  // the numeral the sidebar gives Settings, read off the sidebar's own row
+  const numeral = [...(v.navMain || []), ...(v.navVault || []), ...(v.navSystem || [])].find((n) => n.screen === 'settings')?.numeral || null;
 
   return {
     settingsPage: {
