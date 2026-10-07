@@ -157,7 +157,7 @@ export function AppearancePage({ P }) {
   const look = A.look;
   return (
     <>
-      <HeaderCard tile={<Tile lg className={`disc nv-set-d-${look.theme}`}><span /></Tile>} title="Appearance" text="How Nova looks on this phone. Your other devices keep their own." />
+      <HeaderCard tile={<Tile lg className={`disc nv-set-d-${look.theme}`}><span /></Tile>} title="Appearance" text={`How Nova looks on this ${P.isMobile ? 'phone' : 'Mac'}. Your other devices keep their own.`} />
       <div className="nv-set-pvw nv-set-rise" style={{ '--i': 1 }}>
         <Mini look={look} k={0.86} label={`Your Home as ${A.name}`} />
         <p className="nv-set-cap">Your Home, as it would look (demo)</p>
@@ -355,7 +355,9 @@ export function YouPage({ P }) {
 function AboutGroup({ Y, staleAt }) {
   const a = Y.about;
   const editing = Y.editing;
-  const btn = editing ? null : <TextAction onClick={Y.startEdit}>{Y.aboutSet ? 'Edit' : 'Set up'}</TextAction>;
+  const btn = editing
+    ? <TextAction onClick={Y.saving ? undefined : Y.save} disabled={Y.saving}>Done</TextAction>
+    : <TextAction onClick={Y.startEdit}>{Y.aboutSet ? 'Edit' : 'Set up'}</TextAction>;
   const foot = `Nova reads this before every answer, coaching session and brief.${Y.readOnly && staleAt ? ` Offline: as your vault said it at ${staleAt}, read only.` : ''}`;
   return (
     <Group label="About you" k="about" i={2} btn={btn} foot={foot}>
@@ -372,7 +374,7 @@ function AboutGroup({ Y, staleAt }) {
           <div className="nv-set-row nx" style={{ borderTop: '1px solid var(--s-sep)' }}>
             <span className="nv-set-rt" />
             <span style={{ display: 'flex' }}>
-              <TextAction tone="quiet" onClick={Y.cancelEdit}>Cancel</TextAction>
+              <TextAction onClick={Y.cancelEdit}>Cancel</TextAction>
               <TextAction onClick={Y.saving ? undefined : Y.save} disabled={Y.saving}>{Y.saving ? 'Saving' : 'Save'}</TextAction>
             </span>
           </div>
@@ -408,7 +410,7 @@ export function CalendarsPage({ P }) {
             <div className="nv-set-row nx3"><span className="nv-set-rt"><span className="nv-set-rs">No calendars found. Check that iCloud calendar access is set up on the Mac.</span></span></div>
           ) : C.list.map((c) => (
             <div key={c.url} className="nv-set-row">
-              <Tile><span className="nv-set-dot" /></Tile>
+              <Tile hue={c.color || undefined}><span className="nv-set-dot" /></Tile>
               <span className="nv-set-rt"><span className="nv-set-rl" style={{ overflowWrap: 'anywhere' }}>{c.name}</span></span>
               <Switch on={c.on} onToggle={() => c.toggle?.()} label={`Show ${c.name}`} disabled={C.locked} why={C.why} />
             </div>

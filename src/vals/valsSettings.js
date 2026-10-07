@@ -233,7 +233,9 @@ export function valsSettings(app, ctx, v) {
       path: cap.path,
       label: cap.path === 'switch'
         ? 'iOS web: tick and threshold are one pulse, commit two, celebrate and warn three. Press each.'
-        : cap.label,
+        : cap.path === 'native' ? 'Native shell: the full Taptic vocabulary, all five distinct. Press each.'
+          : cap.path === 'vibrate' ? 'Vibration API: patterned, so the five feel different. Press each.'
+            : 'This device has no haptics Nova can reach.',
       tiers: v.hapticTiers?.verdict ?? null,
       setTiers: v.hapticTiers?.set,
     },
@@ -261,13 +263,23 @@ export function valsSettings(app, ctx, v) {
       notes: aboutView.notes || '',
     } : null,
     aboutSet: demo ? true : !!profile?.set,
-    editing: !demo && !!profile?.editing,
+    // demo mode edits the demo copy in place; nothing is written anywhere
+    editing: !!st.profileEditing && (demo || !!profile),
     saving: !demo && !!profile?.saving,
-    draft: profile?.draft || null,
-    startEdit: demo ? () => app.toastMsg('Demo: About you is edited once the Mac is connected') : profile?.startEdit,
-    cancelEdit: profile?.cancelEdit,
-    setField: profile?.setField,
-    save: profile?.save,
+    draft: demo ? st.profileDraft : profile?.draft || null,
+    startEdit: demo
+      ? () => app.setState({ profileEditing: true, profileDraft: { focus: D.about.focus, priorities: D.about.priorities.join('\n'), bestSelf: D.about.bestSelf, notes: D.about.notes } })
+      : profile?.startEdit,
+    cancelEdit: demo ? () => app.setState({ profileEditing: false }) : profile?.cancelEdit,
+    setField: demo ? (field) => (e) => app.setProfileField(field, e.target.value) : profile?.setField,
+    save: demo
+      ? () => {
+        const d = st.profileDraft || {};
+        setDemo((x) => ({ ...x, about: { focus: d.focus || '', priorities: String(d.priorities || '').split('\n').map((t) => t.trim()).filter(Boolean), bestSelf: d.bestSelf || '', notes: d.notes || '' } }));
+        app.setState({ profileEditing: false });
+        app.toastMsg('Demo: kept on this screen only. Connected, it saves to About you in your vault');
+      }
+      : profile?.save,
     ladder: demo ? DEMO_LADDER : (learning?.enoughData ? (learning.lanes || []) : []),
     noticed: demo ? [] : (learning?.enoughData && !(learning.lanes || []).length ? learning.noticed || [] : []),
     ladderLoaded: demo || !!learning?.loaded,
@@ -284,7 +296,7 @@ export function valsSettings(app, ctx, v) {
     error: !demo && !!cs?.error,
     empty: !calHeld.loading && !(demo || cs?.error) && !!cs?.loaded && calList.length === 0,
     list: calHeld.loading ? [] : calList.map((c) => ({
-      name: c.name, url: c.url, on: !c.hidden,
+      name: c.name, url: c.url, on: !c.hidden, color: c.color || null,
       toggle: demo
         ? () => setDemo((d) => ({ ...d, calendars: d.calendars.map((x) => (x.url === c.url ? { ...x, hidden: !x.hidden } : x)) }))
         : (cs.calendars.find((x) => x.url === c.url)?.toggle),

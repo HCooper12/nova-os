@@ -16,7 +16,7 @@ import {
   SnapshotsPage, BrowserPage, TabsPage, TrainPage,
 } from './SettingsPages.jsx';
 
-// SETTINGS, DIRECTION A ("Rows"): his pick on 7 Oct 2026 — "Love the rows
+// SETTINGS, DIRECTION A ("Rows"): his pick on 7 Oct 2026: "Love the rows
 // option A and layout of it, including things like a preview of the
 // different appearances when toggled, etc. ensure this is built exactly like
 // the mockup with nothing missing". design/mockups/72-redesign-settings.html,

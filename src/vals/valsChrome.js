@@ -659,6 +659,7 @@ export function valsChrome(app, ctx) {
         name: c.name,
         url: c.url,
         hidden: c.hidden,
+        color: c.color || null,
         toggle: () => app.toggleCalendarHidden(c.url),
       })),
       anyHidden: (st.liveCalendarList || []).some((c) => c.hidden),

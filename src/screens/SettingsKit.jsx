@@ -139,6 +139,8 @@ function Menu({ anchor, title, options, value, onPick, onClose }) {
     if (!pos) return undefined;
     const raf = requestAnimationFrame(() => ref.current?.classList.add('in'));
     const f = ref.current?.querySelector('[aria-checked="true"]') || ref.current?.querySelector('button');
+    // a long list (48 half hours) opens on the current choice, not at the top
+    if (f && ref.current) ref.current.scrollTop = Math.max(0, f.offsetTop - ref.current.clientHeight / 2 + f.offsetHeight / 2);
     f?.focus({ preventScroll: true });
     const out = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } };

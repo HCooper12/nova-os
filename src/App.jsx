@@ -3651,7 +3651,7 @@ export default class App extends Component {
     const st = typeof window === 'undefined' ? null : window.history.state;
     const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
     // the Fuel page's Edit sheet is the other history level over Fuel
-    return { ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.fuelCardsFromHistory(), ...this.settingsFromHistory() };
+    return { ...this.settingsFromHistory(), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.fuelCardsFromHistory() };
   }
   // SETTINGS' PAGES (direction A, 7 Oct 2026). Each push is a history entry
   // carrying the whole path, so popstate restores exactly the page he was on

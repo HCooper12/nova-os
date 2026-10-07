@@ -1,5 +1,5 @@
 /* ================================================================
-   SETTINGS, DIRECTION A ("Rows") — his pick, 7 Oct 2026, built from
+   SETTINGS, DIRECTION A ("Rows"), his pick, 7 Oct 2026, built from
    design/mockups/72-redesign-settings.html exactly as drawn; the
    acceptance contract is design/audits/redesign-2026-09/07-settings-
    build-checklist.md. The Index's twin: grouped rows with icon tiles, a
@@ -186,7 +186,7 @@
 .nv-set-segw { padding: 0 14px 14px; }
 .nv-set-seg { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); min-height: 44px; padding: 2px; border-radius: 22px; background: color-mix(in srgb, var(--nv-ink) 14%, transparent); }
 .nv-set-seg .th { position: absolute; top: 2px; bottom: 2px; left: 0; width: 0; border-radius: 20px; background: color-mix(in srgb, var(--nv-ink) 22%, transparent); box-shadow: 0 0 0 .5px color-mix(in srgb, var(--nv-ink) 18%, transparent), 0 3px 8px -2px rgba(0,0,0,.4); transition: transform .28s var(--s-ease), width .28s var(--s-ease); }
-.nv-set-seg button { position: relative; z-index: 1; min-height: 40px; padding: 0 6px; border-radius: 20px; text-align: center; font: 600 var(--t15)/1.1 var(--nv-font-ui); color: var(--s-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-set-seg button { position: relative; z-index: 1; min-height: 44px; margin: -2px 0; padding: 0 6px; border-radius: 20px; text-align: center; font: 600 var(--t15)/1.1 var(--nv-font-ui); color: var(--s-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-set-seg button[aria-checked="true"] { color: var(--nv-ink); }
 .nv-set-seg.off { opacity: .45; }
 .nv-set-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 14px 14px; }
@@ -212,6 +212,9 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
   -webkit-backdrop-filter: blur(22px) saturate(var(--s-sat)); backdrop-filter: blur(22px) saturate(var(--s-sat));
 }
 .nv-set-search input { flex: 1; min-width: 0; height: 44px; margin: 0; padding: 0; border: 0; outline: 0; background: none; color: var(--nv-ink); font: 400 max(16px, var(--t17))/1 var(--nv-font-ui); -webkit-appearance: none; appearance: none; }
+/* index.css pins every field at 16px !important (iOS zooms below it); the
+   search may be larger with the iPhone's Text Size, never smaller */
+.nv-set .nv-set-search input { font-size: max(16px, var(--t17)) !important; }
 .nv-set-search input::placeholder { color: var(--nv-ink60); }
 .nv-set-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .nv-set-res .nv-set-rv { white-space: nowrap; }
@@ -399,6 +402,10 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
 .nv-set-tn { font: 500 var(--t13)/1.2 var(--nv-font-ui); color: var(--s-ink2); }
 .nv-set-pick[aria-pressed="true"] > .nv-set-tn { color: var(--nv-ink); font-weight: 600; }
 .nv-set-discs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 14px 6px 10px; }
+/* five names in one row: at 375 "Command" and "Observatory" met, so the
+   names step down with the width (13 px at 390) and the row gives them its gutter */
+.nv-set-discs { padding-left: 2px; padding-right: 2px; }
+.nv-set-discs .nv-set-tn { font-size: min(var(--t13), 3.4vw); letter-spacing: -.01em; }
 .nv-set-disc { position: relative; width: 48px; height: 48px; border-radius: 50%; background: var(--disc); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.22); }
 .nv-set-disc::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; box-shadow: 0 0 0 2px var(--s-acc); opacity: 0; transition: opacity .2s var(--s-ease); }
 .nv-set-d-command { --disc: radial-gradient(circle at 70% 32%, #59e6ff 0 15%, transparent 16%), radial-gradient(circle at 34% 66%, #8f7bff 0 12%, transparent 13%), radial-gradient(70% 60% at 20% 15%, rgba(89,230,255,.35), transparent 70%), linear-gradient(160deg, #0c1230, #05060c); }
@@ -420,6 +427,8 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
 /* the in-page slide (src/settingsNav.js): layers it adds over <main> */
 .nv-set-layer { position: fixed; z-index: 60; overflow: hidden; pointer-events: none; will-change: transform; }
 .nv-set-layer > main, .nv-set-layer > .nv-set-clone { position: absolute; inset: 0; overflow: hidden; margin: 0; }
+/* the frozen copy is a picture: nothing in it may restart its entrance */
+.nv-set-clone *, .nv-set-clone *::before, .nv-set-clone *::after { animation: none !important; transition: none !important; }
 .nv-set-dim { position: fixed; z-index: 59; pointer-events: none; background: #000; opacity: 0; will-change: opacity, clip-path; }
 .nv-set-edge { position: fixed; z-index: 61; pointer-events: none; width: 44px; background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.42)); will-change: transform; }
 
