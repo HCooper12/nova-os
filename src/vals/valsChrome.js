@@ -1,5 +1,5 @@
 import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES, NOVA_MATERIALS } from '../theme.js';
-import { spendView } from '../modelSpendView.js';
+import { spendView, dollars } from '../modelSpendView.js';
 import { sinceFor, startedFrom } from '../jobClock.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS } from './shared.js';
@@ -594,10 +594,11 @@ export function valsChrome(app, ctx) {
     } : null,
     pushSettings: !demoMode ? {
       state: st.pushState,
-      label: st.pushState === 'on' ? 'ON — DRAFTS & ALERTS REACH YOUR PHONE'
-        : st.pushState === 'denied' ? 'BLOCKED — ALLOW IN iOS SETTINGS → NOVA'
-        : st.pushState === 'unsupported' ? 'INSTALL TO HOME SCREEN (SAFARI → SHARE) TO ENABLE'
-        : st.pushState === 'checking' ? 'CHECKING…' : 'OFF',
+      // sentence case in the vals (audit finding 15: these were capitals)
+      label: st.pushState === 'on' ? 'On. Drafts and alerts reach your phone'
+        : st.pushState === 'denied' ? 'Blocked. Allow them in iOS Settings › Nova'
+        : st.pushState === 'unsupported' ? 'Add Nova to the Home Screen first (Safari › Share)'
+        : st.pushState === 'checking' ? 'Checking' : 'Off',
       enable: () => app.enablePushNotifications(),
       // the test is a push like any other, so inside quiet hours it is held:
       // the toast says when it will arrive rather than "no devices"
@@ -605,31 +606,38 @@ export function valsChrome(app, ctx) {
         const conn = getConnection();
         if (!conn) return;
         api.pushTest(conn).then((r) => {
-          if (r?.held) app.toastMsg(`Quiet hours — the test arrives at ${quietClock(r.deliverAt)}`);
-          else app.toastMsg(r?.sent ? `Test sent to ${r.sent} device${r.sent === 1 ? '' : 's'} — check the lock screen` : 'No devices subscribed yet — tap ENABLE first');
+          if (r?.held) app.toastMsg(`Quiet hours: the test arrives at ${quietClock(r.deliverAt)}`);
+          else app.toastMsg(r?.sent ? `Test sent to ${r.sent} device${r.sent === 1 ? '' : 's'}. Check the lock screen` : 'No devices subscribed yet. Allow notifications first');
         }).catch((e) => app.toastMsg('Test failed: ' + e.message));
       },
     } : null,
     // QUIET HOURS (his call, 3 Oct 2026: "Yes notifications respect quiet
-    // hours"). Server-held beside the model board, so hidden in demo mode and
-    // offline. The row holds its own loaded copy (Settings.jsx QuietHoursRow);
-    // this hands it the calls and the half-hour clock it picks from.
-    quietHours: !demoMode && !isOffline ? {
-      load: () => { const conn = getConnection(); return conn ? api.quietHours(conn) : Promise.reject(new Error('not connected')); },
-      save: (patch) => { const conn = getConnection(); return conn ? api.setQuietHours(conn, patch) : Promise.reject(new Error('not connected')); },
+    // hours"). Server-held beside the model board, so absent in demo mode.
+    // Read into App state when Settings opens (App.loadQuietHours), so the
+    // root row can say the window; offline, the last reading stays, read-only.
+    quietHours: !demoMode ? {
+      prefs: st.liveQuietHours,
+      error: !!st.quietHoursError,
+      busy: !!st.quietHoursBusy,
+      readOnly: isOffline,
+      load: () => app.loadQuietHours(),
+      save: (patch) => app.saveQuietHours(patch),
       times: QUIET_TIMES,
-      fail: (msg) => app.toastMsg(msg),
     } : null,
     tabOrderItems: (tabOrder || []).map((k) => ({ key: k, label: tabLabel(k) })),
     frequentTabs,
     setTabOrder: (order) => app.setTabOrder(order),
-    calendarSettings: !demoMode && !isOffline ? {
+    // offline, what the Mac last said stays on screen, read-only, rather
+    // than the section vanishing (audit finding 12)
+    calendarSettings: !demoMode && (!isOffline || st.liveCalendarList != null) ? {
+      readOnly: isOffline,
       loaded: st.liveCalendarList != null,
       error: !!st.calendarListError,
       calendars: (st.liveCalendarList || []).map((c) => ({
         name: c.name,
         url: c.url,
         hidden: c.hidden,
+        color: c.color || null,
         toggle: () => app.toggleCalendarHidden(c.url),
       })),
       anyHidden: (st.liveCalendarList || []).some((c) => c.hidden),
@@ -639,7 +647,7 @@ export function valsChrome(app, ctx) {
     // on, and an on/off switch. Server-held (see lib/modelPrefs.js), so it is
     // hidden in demo mode and while offline rather than shown as editable and
     // silently dropping his taps.
-    modelSettings: !demoMode && !isOffline ? (() => {
+    modelSettings: !demoMode && (!isOffline || st.liveModelPrefs != null) ? (() => {
       const prefs = st.liveModelPrefs;
       const lanes = prefs?.lanes || [];
       const collapsed = st.modelPrefsCollapsed || {};
@@ -650,7 +658,15 @@ export function valsChrome(app, ctx) {
       // what each lane really cost this week, measured from the CLI's own
       // numbers (server/lib/modelSpend.js) — the board used to be chosen blind
       const spend = spendView(lanes);
+      // each group's week, summed from its lanes' measured spend (the same
+      // numbers the lanes show); a group with no measured run has none
+      const groupUsd = (id) => lanes.filter((l) => l.group === id && l.spend).reduce((a, l) => a + (Number(l.spend.usd) || 0), 0);
+      const maxGroup = Math.max(0, ...(prefs?.groups || []).map((g) => groupUsd(g.id)));
       return {
+        readOnly: isOffline,
+        // the lanes as they are, so "Reset every lane" can be undone
+        snapshot: lanes.map((l) => ({ id: l.id, model: l.model, enabled: l.enabled })),
+        restore: (before) => app.restoreModelLanes(before),
         loaded: prefs != null,
         error: !!st.modelPrefsError,
         load: () => app.loadModelPrefs(),
@@ -679,6 +695,8 @@ export function valsChrome(app, ctx) {
             open: !collapsed[g.id],
             offCount: mine.filter((l) => !l.enabled).length,
             count: mine.length,
+            usd: spend.measured && mine.some((l) => l.spend) ? dollars(groupUsd(g.id)) : null,
+            share: maxGroup > 0 ? groupUsd(g.id) / maxGroup : 0,
             toggleOpen: () => app.setState({ modelPrefsCollapsed: { ...collapsed, [g.id]: !collapsed[g.id] } }),
             lanes: mine.map((l) => ({
               id: l.id,
@@ -702,7 +720,8 @@ export function valsChrome(app, ctx) {
         }),
       };
     })() : null,
-    timeMachine: !demoMode && !isOffline ? {
+    timeMachine: !demoMode && (!isOffline || st.liveBackups != null) ? {
+      readOnly: isOffline,
       loaded: st.liveBackups != null,
       files: st.liveBackups || [],
       confirming: st.restoreConfirm,

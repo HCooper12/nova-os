@@ -199,8 +199,11 @@ test('a drag-driven back skips the view transition', async () => {
   const hook = await readFile(path.join(root, 'src', 'edgeBack.js'), 'utf8');
   assert.match(hook, /export function edgeDragInProgress/);
   assert.match(app, /const dragged = edgeDragInProgress\(\);/);
-  assert.match(app, /if \(dragged \|\| changed\) apply\(\); else this\.withTransition\(apply\);/,
+  // Settings A (7 Oct 2026): a Settings page change slides itself
+  // (src/settingsNav.js), so it skips the transition for the same reason
+  assert.match(app, /if \(dragged \|\| changed \|\| settingsHop\) apply\(\); else this\.withTransition\(apply\);/,
     'a swipe and a view transition will run at the same time');
+  assert.match(app, /const settingsHop = !changed && this\.state\.screen === 'settings';/);
   assert.match(app, /if \(changed && !dragged\) this\.riseMain\(\);/,
     'a dragged back must not also rise: the drag IS the animation');
 });

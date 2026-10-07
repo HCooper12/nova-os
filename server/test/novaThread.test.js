@@ -358,7 +358,8 @@ test('Voice.jsx hands over to the thread under summary only; the station is a se
 
 test('App: the thread spreads last; a reply keeps its glass; a line from the Nova button keeps its page and what it carried', () => {
   const app = read('src/App.jsx');
-  assert.match(app, /return \{ \.\.\.withSession, \.\.\.valsNovaThread\(this, ctx, withSession\) \};\n  \}/);
+  // 7 Oct: Settings A's view model spreads between the session and the thread
+  assert.match(app, /return \{ \.\.\.withSettings, \.\.\.valsNovaThread\(this, ctx, withSettings\) \};\n  \}/);
   assert.match(app, /const glass = glassSnapshot\(s\.glassBeats, s\.glassVisuals\) \|\| undefined;/);
   // the door a turn came in by rides both of its rows (`meta`, 1 Oct)
   assert.match(app, /const line = \{ at: Date\.now\(\), who, text, panel, proposal, acted, research, evidence, glass, \.\.\.\(from \? \{ from \} : \{\}\), \.\.\.\(meta \|\| \{\}\) \};/, 'the reply keeps its glass beside whom it consulted');

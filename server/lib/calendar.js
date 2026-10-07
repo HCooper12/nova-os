@@ -44,7 +44,18 @@ export async function listCalendars() {
     name: c.displayName || 'Untitled',
     url: c.url,
     hidden: hiddenSet.has(c.url),
+    color: calendarHue(c.calendarColor),
   }));
+}
+
+// THE CALENDAR'S OWN COLOUR, as iCloud stores it (apple:calendar-color,
+// "#FF2968FF" with an alpha byte, sometimes wrapped by the XML parser), so
+// Settings' rows can wear it (Settings A, 7 Oct 2026). Anything that is not
+// a plain hex colour is no colour: the row falls back to neutral.
+export function calendarHue(raw) {
+  const v = typeof raw === 'string' ? raw : raw && typeof raw === 'object' ? (raw._cdata || raw._text || raw.value || '') : '';
+  const m = /^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/i.exec(String(v).trim());
+  return m ? `#${m[1].toLowerCase()}` : null;
 }
 
 let clientPromise = null;
