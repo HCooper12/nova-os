@@ -1,4 +1,4 @@
-import { AGENTS } from './shared.js';
+import { agentsWorkingLabels } from './agentsWorking.js';
 import { nextWorkBlock, currentWorkBlock, leadLeadsNow, untilWords, leftWords } from '../workBlock.js';
 import { KIND_LABEL, situationFace, situationReply } from './valsLeader.js';
 import { pickOneThing, prMomentFor, ringState, pickFocalVital } from '../missionFocus.js';
@@ -164,7 +164,8 @@ export function valsMission(app, ctx) {
 
   // ---- hero eyebrow / tagline / standfirst -------------------------------
   const heroDate = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' }).toUpperCase().replace(/,/g, '');
-  const agentsLiveCount = AGENTS.filter((a) => a.on).length;
+  const agentsWorking = agentsWorkingLabels(st, { demoMode, isOffline });
+  const agentsLiveCount = agentsWorking.count;
 
   // honest per-state systems word for the end of the eyebrow
   const systemsLabel = demoMode
@@ -691,7 +692,7 @@ const bodyMetrics = demoMode
         : null;
 
   // shared with valsChrome (sidebar status card reuses the same truth)
-  Object.assign(ctx, { statusChip, missionStatusItems, agentsLiveCount });
+  Object.assign(ctx, { statusChip, missionStatusItems, agentsLiveCount, agentsGroupLabel: agentsWorking.group });
 
   // ---- today list markers ------------------------------------------------
   // The blue ▸ highlight belongs to the event happening RIGHT NOW (start ≤
@@ -1129,7 +1130,8 @@ const bodyMetrics = demoMode
 
     // hero
     heroDate,
-    agentsLiveLabel: `${agentsLiveCount} AGENTS LIVE`,
+    agentsLiveLabel: agentsWorking.eyebrow,
+    agentsIndexLabel: agentsWorking.index,
     systemsLabel,
     heroTagline,
     heroTaglineTopic,

@@ -3,6 +3,7 @@ import { spendView } from '../modelSpendView.js';
 import { sinceFor, startedFrom } from '../jobClock.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS } from './shared.js';
+import { AGENT_KINDS, localWork, classifyingKinds } from './agentsWorking.js';
 import { dtf } from './fmt.js';
 import { glassOf } from '../glassBeats.js';
 import { thinkingOf, contestOf } from '../novaThreadFacts.js';
@@ -31,7 +32,7 @@ const OFF_DOCK_TITLE = { leader: 'Leader', practice: 'Practice', briefing: 'Brie
 
 export function valsChrome(app, ctx) {
   const st = app.state;
-  const { demoMode, isOffline, go, warm, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsLiveCount, inboxPendingCount } = ctx;
+  const { demoMode, isOffline, go, warm, userName, wakeWord, usingLiveRecipes, usingLiveWorkouts, liveRoutines, usingLiveNotes, journalDays, shoppingItems, statusChip, agentsGroupLabel, inboxPendingCount } = ctx;
 
   const navStyle = (act) => ({ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
     fontFamily: "var(--nv-font-ui)", fontWeight: 600, fontSize: '14px', letterSpacing: '.02em',
@@ -333,7 +334,7 @@ export function valsChrome(app, ctx) {
         goInbox: () => { app.setState({ jobTrayOpen: false }); app.navigate('inbox'); },
       };
     })(),
-    agentsGroupLabel: `AGENTS · ${agentsLiveCount} OF ${AGENTS.length} LIVE`,
+    agentsGroupLabel: agentsGroupLabel || 'AGENTS',
     // Honest lights: a dot PULSES only while its agent is actually working —
     // an in-flight job this client started, OR a classifying record on the
     // rails (so server-side work pulses on every device, not just the one
@@ -341,31 +342,10 @@ export function valsChrome(app, ctx) {
     // lands, and otherwise sits dim. A light that glows constantly says
     // nothing — lights are receipts.
     agents: (() => {
-      const KINDS = {
-        Commander: ['dispatch', 'plan-today', 'review', 'followup'],
-        Coach: ['coach', 'training-check', 'week-plan', 'weekly-debrief', 'meal-prep'],
-        CFO: ['cfo', 'money'],
-        Studio: ['studio', 'idea', 'idea-outline'],
-        Researcher: ['research'],
-        Watcher: ['video'],
-        Guardian: ['guardian'],
-      };
-      const WORKING = {
-        Commander: !!(st.calCmdBusy || st.dispatchBusy),
-        Coach: !!(st.coachBusy || st.quickBusy || st.mealPrepBusy),
-        CFO: !!(st.moneyBusy || st.moneyScanBusy),
-        Studio: false,
-        Researcher: (st.voiceChat || []).some((m) => m.research?.status === 'running'),
-        // 'fetching' is the watch toolchain pulling a transcript for a
-        // URL-only vault weave; the weave itself shows in its own overlay
-        Watcher: st.ingestStatus === 'fetching',
-        Guardian: !!st.guardianBusy,
-      };
-      // The rails are the truth: any record still classifying means its
-      // agent is reasoning RIGHT NOW, whoever started it.
-      const activeKinds = new Set(
-        (st.liveInbox?.items || []).filter((r) => r.status === 'classifying').map((r) => r.kind),
-      );
+      // one source with the counts: src/vals/agentsWorking.js
+      const KINDS = AGENT_KINDS;
+      const WORKING = localWork(st);
+      const activeKinds = classifyingKinds(st);
       const cutoff = Date.now() - 5 * 60_000;
       const recent = new Set();
       for (const r of st.liveInbox?.items || []) {

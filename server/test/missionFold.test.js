@@ -54,7 +54,8 @@ test('the rest degrade honestly when the data is not there', () => {
   assert.equal(foldStatus('deck', { commandDeck: { count: 4 } }), '4 waiting for your call');
   assert.equal(foldStatus('noticed', { usingLiveHealthInsight: true, healthInsightItems: [{}, {}] }), '2 things noticed overnight');
   assert.equal(foldStatus('noticed', { healthInsightEmptyText: 'No health data yet' }), 'No health data yet');
-  assert.equal(foldStatus('agents', { agents: [{ on: true }, { on: false }, { on: true }] }), '2 of 3 on');
+  assert.equal(foldStatus('agents', { agents: [{ on: true, working: true }, { on: true }, { on: true }] }), '1 working now');
+  assert.equal(foldStatus('agents', { agents: [{ on: true }, { on: true }] }), '2 agents, none working');
   assert.equal(foldStatus('focus', { suggestedFocus: { title: 'Deep work on ', accent: 'Nova' } }), 'Deep work on Nova');
   assert.equal(foldStatus('review', { reviewFrom: 'Atomic Habits' }), 'from Atomic Habits');
   assert.equal(foldStatus('unknown', {}), '');

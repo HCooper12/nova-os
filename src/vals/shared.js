@@ -7,10 +7,9 @@ export const NOTE_TYPE_COLOR = { concept: '#d8b573', entity: '#e08f6f', topic: '
 
 export const mono = "var(--nv-font-mono)";
 
-// The agent roster (still a concept feature): `on` marks the three whose
-// domains are genuinely wired to real data today — Commander (calendar +
-// focus), Coach (training + health), Guardian (server backups). The count
-// shown in the UI is derived from these flags, never hardcoded.
+// The agent roster drawn in the sidebar and on Home. Being listed is not
+// being live: what counts as working is src/vals/agentsWorking.js, and no
+// surface may show a count from this list (his rule, 7 Oct 2026).
 export const AGENTS = [
   { name: 'Commander', role: 'PLANNING', on: true },
   { name: 'Coach', role: 'FITNESS', on: true },

@@ -86,7 +86,7 @@ function fixture(over = {}) {
     navSystem: [nav('ops', '—'), nav('settings')],
     ringVitals: [{ key: 'protein', value: '—', small: '', state: 'absent' }],
     inboxPendingCount: 0,
-    agentsLiveLabel: '7 AGENTS LIVE',
+    agentsIndexLabel: '2 agents working',
     systemsLabel: { text: 'OFFLINE · LAST-KNOWN DATA' },
     goSettings: () => calls.push('settings'),
     ...over,
@@ -103,11 +103,11 @@ test('with nothing honest to say, a row says nothing — never a zero, never a d
   const expected = Object.fromEntries(ROWS.map((k) => [k, '']));
   // the two that describe the place rather than count anything, and the agent
   // roster, which is configuration and always known
-  Object.assign(expected, { voice: 'Talk to Nova', galaxy: 'the vault as stars', ops: '7 agents live' });
+  Object.assign(expected, { voice: 'Talk to Nova', galaxy: 'the vault as stars', ops: '2 agents working' });
   assert.deepEqual(values, expected);
   for (const g of indexPage.groups) for (const r of g.rows) assert.equal(r.hot, false, `${r.key} is hot with nothing waiting`);
   assert.equal(indexPage.you.name, 'Hayden');
-  assert.equal(indexPage.you.line, '7 agents live · offline · last-known data · 0 waiting');
+  assert.equal(indexPage.you.line, '2 agents working · offline · last-known data · 0 waiting');
 });
 
 test('live values come from the fields they name', () => {
@@ -143,8 +143,8 @@ test('live values come from the fields they name', () => {
   assert.equal(values.money, '$1,240.00 this month');
   assert.equal(values.shopping, '1 item');
   assert.equal(values.stash, '14 links');
-  assert.equal(values.ops, '7 agents live · 2 pending');
-  assert.equal(indexPage.you.line, '7 agents live · offline · last-known data · 3 waiting');
+  assert.equal(values.ops, '2 agents working · 2 pending');
+  assert.equal(indexPage.you.line, '2 agents working · offline · last-known data · 3 waiting');
 });
 
 test('the Home card\'s own words win where it has them, and a stale Leader says what is open', () => {

@@ -89,7 +89,7 @@ test('the tray hands Elapsed a startedAt on every kind of job', async () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
   const vals = await readFile(path.join(root, 'src', 'vals', 'valsChrome.js'), 'utf8');
 
-  const tray = vals.slice(vals.indexOf('jobTray:'), vals.indexOf('agentsGroupLabel'));
+  const tray = vals.slice(vals.indexOf('jobTray:'), vals.indexOf('agentsGroupLabel:'));
   const unshifts = [...tray.matchAll(/jobs\.(?:unshift|push)\(\{[\s\S]*?\}\)/g)].map((m) => m[0]);
   assert.ok(unshifts.length >= 5, `only found ${unshifts.length} tray rows — the scan is wrong`);
   for (const row of unshifts) {

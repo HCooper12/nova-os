@@ -119,7 +119,7 @@ function rowValue(key, v) {
     case 'galaxy':
       return { value: 'the vault as stars' };
     case 'ops': {
-      const live = String(v.agentsLiveLabel || '').toLowerCase();
+      const live = v.agentsIndexLabel || '';
       const pending = countOf(v, 'ops');
       return { value: [live, pending > 0 ? `${pending} pending` : ''].filter(Boolean).join(' · ') };
     }
@@ -160,7 +160,7 @@ export function valsIndex(app, ctx, v) {
       you: {
         name: ctx.userName || '',
         line: [
-          String(v.agentsLiveLabel || '').toLowerCase(),
+          v.agentsIndexLabel || '',
           String(v.systemsLabel?.text || '').toLowerCase(),
           `${waiting} waiting`,
         ].filter(Boolean).join(' · '),

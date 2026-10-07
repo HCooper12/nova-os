@@ -582,11 +582,14 @@ export function MissionStructured({ v }) {
             <span>{v.heroDate}</span>
             <span style={{ color: 'var(--nv-ink40)' }}>·</span>
             <span style={{ color: 'var(--nv-gold)', fontVariantNumeric: 'tabular-nums' }}><Clock /></span>
+            {/* only agents working right now; nothing working says nothing */}
+            {v.agentsLiveLabel && <>
             <span style={{ color: 'var(--nv-ink40)' }}>·</span>
             <span style={{ color: 'var(--nv-cy)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--nv-cy)', animation: 'novaPulse 2s infinite var(--nv-anim)' }}></span>
               {v.agentsLiveLabel}
             </span>
+            </>}
             <span style={{ color: 'var(--nv-ink40)' }}>·</span>
             <span style={{ color: v.systemsLabel.color }}>{v.systemsLabel.text}</span>
           </div>

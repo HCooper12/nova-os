@@ -110,8 +110,10 @@ export function foldStatus(key, v = {}) {
       return [text(v.workoutCardLabel), text(v.noteCard?.title)].filter(Boolean).join(' · ') || 'workouts · notes';
     case 'agents': {
       const ags = Array.isArray(v.agents) ? v.agents : [];
-      const on = ags.filter((a) => a.on).length;
-      return ags.length ? `${on} of ${ags.length} on` : 'no agents';
+      // working right now, never a count of the roster (his rule, 7 Oct)
+      const working = ags.filter((a) => a.working).length;
+      if (!ags.length) return 'no agents';
+      return working ? `${working} working now` : `${ags.length} agents, none working`;
     }
     default:
       return '';
