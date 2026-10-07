@@ -1,0 +1,1168 @@
+<title>Wall With Agents</title>
+<!--
+  86 · AMBIENT AND CONSOLE, ROUND 2 (7 Oct 2026)
+  Round 1: design/mockups/81-redesign-ambient-console.html.
+  The audit: design/audits/redesign-2026-09/21-ambient-and-console.md.
+
+  HIS WORDS, 7 Oct 2026, verbatim: "Id like a refinement of some way for
+  both A and C as I like the simple view of a but I like the option to see
+  the agents and anything they need my attention for from c"
+
+  SO THIS ROUND DRAWS TWO BLENDS OF A (Glance) AND C (Org). Both start from
+  A's StandBy wall: the time, a small core, one gold number, then Next,
+  Steps and Protein. Both add C's agents, each in its own hue and face, and
+  what they need from him.
+    BLEND 1 · HANDS UP. The agents come onto the glance only when they have
+      a reason. Whoever waits on him rises beside the gold count as its own
+      face with a gold numbered badge; whoever is working right now circles
+      the core. Tap the count (or Agents in the controls) and a sheet rises
+      with each agent's asks, who is working, and all ten. With nothing
+      waiting and nobody working, the wall is A exactly.
+    BLEND 2 · SECOND PAGE. The glance stays A exactly; the count and the
+      names are its only sign of the agents, and the second page dot turns
+      gold. One swipe (or a tap on the count) is a page of all ten: the one
+      who asks first, large, with its asks, and a strip of every face. On
+      the Mac the org sits beside the glance, because there is room.
+  My pick: Blend 1. A face reads from across a room faster than a name, the
+  wall stays one page, and at rest it is A.
+
+  ACTED OUT, in every frame, with the state chips at the top (Cycle, None,
+  One, Several, No signal): none waiting; one agent with one ask (the Coach
+  rises, the count rolls 0 to 1, the gold light draws along the foot);
+  several (the CFO arrives first because it asks most, the faces reflow,
+  the count steps up to 4); back to none (they sink out the way they came,
+  the light withdraws). "Getting to it" frames play the tap from the face
+  to the ask and the way out.
+
+  WHERE EACH THING COMES FROM (nothing on the wall is a constant):
+    The gold count       orgMap.waitingTotal (server/lib/orgMap.js
+                         composeOrgMap): every inbox record with status
+                         'pending'. It is the same set ops.pending counts
+                         (server/lib/ops.js: records.filter(status ===
+                         'pending')), which the wall reads today as
+                         ambientPending (src/vals/valsOps.js), so the two
+                         cannot disagree.
+    A face beside it     orgMap.beings[i].waiting > 0: that being's pending
+                         records, matched by KIND_BEING. The badge numeral is
+                         that being's own count. Order: most first, the
+                         roster's order on a tie (orgHeadline's rule).
+    The names line and   Composed by code from the same beings[].waiting,
+    the sheet sentence   never by a model (orgHeadline's counts, plainer
+                         words).
+    Each ask             orgMap.beings[i].asks (its three newest pending
+                         records: title, kind, when), and "N more" from
+                         waiting minus asks, as valsOrgMap's card does. Yours
+                         to sort is orgMap.core (his raw captures); records
+                         with no being yet are orgMap.unfiled, counted in the
+                         number and named in the sheet, never dropped.
+    Circling the core    workingAgentNames(st) in src/vals/agentsWorking.js,
+    ("working now")      the one honest source: a job of that agent in
+                         flight on this client, or a record of its kinds
+                         still 'classifying' on the rails. Demo and offline
+                         say nothing (agentsWorkingLabels returns null), and
+                         zero working says nothing: silence is the honest
+                         none. Nobody circles because they exist.
+    A being's line       After valsOrgMap.beingLine: waiting, then working,
+                         then its loops' freshness (ran today, recent, gone
+                         quiet, never run). Idle beings fade by freshness
+                         (valsOrgMap's dim: 0, .35, .62).
+    No signal            ops == null (valsOps ambientState 'unknown'): no
+                         gold, no faces, no orbit, grey words. A dead backend
+                         never looks like a clear board.
+    Next, Steps, Protein ambientNext, ambientSteps, ambientProtein (valsOps),
+                         unchanged from today.
+    Synced, Lately       ambientSyncMin, ambientStream, ambientPulseItems,
+                         ambientObjectives (valsOps), unchanged.
+  A FOUND DISAGREEMENT, put to him below. agentsWorking.js knows seven
+  workers (Commander, Coach, CFO, Studio, Researcher, Watcher, Guardian);
+  orgMap.js knows ten beings and has its own 30-minute rule and Practice's
+  live scene. So under today's code the wall can never show the Librarian,
+  Meal Prep, the Leader or Practice working; Meal Prep's 'meal-prep' records
+  light the Coach; and the Studio works with no face to show. The frames
+  only ever circle the six beings agentsWorking can name.
+
+  COLOUR. Gold means one thing on the wall: waiting on his call (the count,
+  the badges, the light along the foot, the second page dot). Each agent
+  wears its own hue and accent, the --nv-* tokens from src/agentWorld/
+  beings.js. Meal Prep's amber (--nv-m-shoulders) sits near gold, so the
+  call is never colour alone: it is a filled badge with a numeral, the
+  count, and the name in words. All clear is quiet ink. No signal is grey.
+  Nova's core keeps his own states; red appears nowhere.
+
+  MOTION, each with a reason. A face rising beside the count: someone
+  raised a hand (rises 12 pt and settles, 450 ms, strong ease-out; leaves
+  the way it came). The count stepping up or down one at a time: a change
+  acted out. The orbit: working, and only while the record says so (one
+  turn a minute). The gold light drawing in from the left: the room's cue.
+  The sheet: rises from the edge it leaves by, follows a drag down. The
+  colon breathes. Under reduced motion every one of these becomes a short
+  cross-fade or holds still, and the orbit stops where it is.
+
+  CHEAPER. The core is 104 points upright (84 on a stand), capped at 30
+  frames, a still frame when dimmed; the tab bar's orb stops drawing under
+  the wall. The faces are still portraits of the 3D beings, rendered once
+  from scripts/agent-sheet, so the wall runs no WebGL; the orbit is one
+  composited rotation. The whole wall drifts a few points an hour.
+
+  CONSOLE LIVES ON HOME, as A had it: a morning card, "Your day, drawn",
+  05:00 to 11:00 or until all five instruments are seen, pinnable. The
+  route and its Index row go. The wall does not carry it.
+
+  DRAWN, NOT BUILT. The core is a CSS stand-in for src/NovaCore.jsx; the
+  faces are flat stand-ins for the beings of src/agentWorld. The clock runs
+  from a demo 07:42.
+
+  DEMO CONTENT ONLY. The repo is public. Every ask, count, number, name of
+  a record, headline and receipt here is invented, and every agent's state
+  is invented for the demo.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --bg:#06070d;--wall:#04050a;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.6);--sep:rgba(232,236,246,.12);
+  --card:rgba(255,255,255,.075);--card-ring:rgba(255,255,255,.14);--card-hi:rgba(255,255,255,.2);
+  --gold:#e0b26a;--gold-ink:#241a06;--cy:#59e6ff;--vi:#8f7bff;--good:#5fe8a8;--warn:#e08383;--rest:#78beff;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;color:var(--ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased;background-color:var(--bg);
+  background-image:radial-gradient(80% 30% at 8% 0%,rgba(89,230,255,.1),transparent 62%),radial-gradient(70% 28% at 96% 10%,rgba(143,123,255,.12),transparent 64%),linear-gradient(180deg,#05060c 0%,#080b1c 50%,#0b1130 100%);overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .16s var(--ease)}
+button:active{transform:scale(.97)}
+:focus-visible{outline:2px solid var(--cy);outline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 88px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+h1{margin:0 0 12px;font:700 34px/1.08 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 10px;max-width:40em;font:400 19px/1.45 var(--serif);color:var(--ink2);text-wrap:pretty}
+.demo{margin:0;max-width:46em;font-size:13px;color:var(--ink3)}
+h2{margin:0 0 6px;font:700 22px/1.2 var(--ui);letter-spacing:-.015em;text-wrap:balance}
+.sub{margin:0 0 14px;max-width:46em;color:var(--ink2);text-wrap:pretty}
+section{margin-top:44px}
+.quote{margin:18px 0 0;padding:14px 16px 14px 18px;max-width:46em;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font:italic 400 17px/1.45 var(--serif);color:var(--ink);position:relative}
+.quote::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:2px;background:linear-gradient(180deg,var(--cy),var(--vi))}
+.quote small{display:block;margin-top:6px;font:400 13px var(--ui);color:var(--ink3);font-style:normal}
+
+/* the switch */
+.switch{position:sticky;top:0;z-index:40;margin:40px -16px 0;padding:10px 16px;background:rgba(6,7,13,.78);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border-bottom:.5px solid var(--sep)}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px;padding:3px;border-radius:14px;background:rgba(120,120,128,.22);max-width:520px}
+.seg button{min-height:44px;border-radius:11px;font:600 15px/1.2 var(--ui);color:var(--ink2);padding:0 6px;transition:background .28s var(--ease),color .28s var(--ease),transform .16s var(--ease)}
+.seg button[aria-pressed="true"]{background:rgba(255,255,255,.15);color:var(--ink);box-shadow:inset 0 0 0 .5px var(--card-ring),0 1px 3px rgba(0,0,0,.35)}
+.states{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;align-items:center}
+.states .lab{font:600 13px var(--ui);color:var(--ink3);margin-right:4px}
+.chip{min-height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.chip[aria-pressed="true"]{color:var(--ink);background:rgba(255,255,255,.15);box-shadow:inset 0 0 0 1.5px var(--card-hi)}
+.chip .g{display:inline-block;width:8px;height:8px;border-radius:4px;background:var(--gold);margin-right:6px;vertical-align:1px}
+
+.dir{margin-top:26px}
+.dir[hidden]{display:none}
+.line{margin:6px 0 10px;max-width:62em;color:var(--ink2);text-wrap:pretty}
+.line b{color:var(--ink);font-weight:600}
+
+/* frames */
+.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:34px 24px;align-items:start}
+.fig{margin:0;min-width:0;display:grid;gap:14px;justify-items:center}
+.fig.wide{grid-column:1/-1}
+.fit{position:relative;width:100%;max-width:390px;border-radius:calc(46px * var(--k,1));overflow:hidden;background:var(--wall);
+  box-shadow:0 0 0 1px rgba(255,255,255,.13),0 0 0 calc(6px * var(--k,1)) #0b0d16,0 0 0 calc(6px * var(--k,1) + 1px) rgba(255,255,255,.1),0 30px 70px -34px rgba(0,0,0,.95)}
+.fig.wide .fit{max-width:100%}
+.fig.mac .fit{border-radius:calc(14px * var(--k,1))}
+.fig.actual .fit{overflow:auto;border-radius:14px}
+.screen{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden}
+figcaption{width:100%;max-width:390px;font-size:13px;line-height:1.45;color:var(--ink2);text-wrap:pretty}
+.fig.wide figcaption{max-width:760px}
+figcaption b{display:block;font:600 15px/1.3 var(--ui);color:var(--ink);margin-bottom:3px}
+.meas{display:block;margin-top:6px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.fbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.fbtn{min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.fbtn[aria-pressed="true"]{color:var(--ink);background:rgba(255,255,255,.14)}
+
+/* ================= the wall ================= */
+.wall{position:absolute;inset:0;background:var(--wall);color:var(--ink);font-family:var(--ui);overflow:hidden;isolation:isolate;-webkit-user-select:none;user-select:none}
+.track{position:absolute;inset:0;display:flex;transition:transform .42s var(--ease);touch-action:pan-y}
+.page{flex:0 0 100%;position:relative;height:100%;overflow:hidden;margin:0}
+.drift{position:absolute;inset:0;animation:drift 3600s linear infinite}
+@keyframes drift{0%,100%{transform:translate(0,0)}25%{transform:translate(4px,-3px)}50%{transform:translate(0,4px)}75%{transform:translate(-4px,1px)}}
+.clock{font:500 112px/1 var(--round);letter-spacing:-.025em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.clock .colon{display:inline-block;margin:0 .01em;color:var(--ink2);animation:breath 2s ease-in-out infinite}
+@keyframes breath{0%,100%{opacity:.3}50%{opacity:1}}
+.date{font:600 15px/1.3 var(--ui);color:var(--ink2)}
+.say{margin:0;font:400 24px/1.25 var(--serif);text-wrap:balance;transition:opacity .2s var(--ease),filter .2s var(--ease)}
+.k{font:600 15px/1.3 var(--ui);color:var(--ink2)}
+.s{font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.n{font:600 44px/1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em;white-space:nowrap}
+.n small{font:600 15px var(--ui);color:var(--ink2);letter-spacing:0;margin-left:2px}
+.ro{display:grid;gap:5px;align-content:start;min-width:0}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--d)}
+.ro3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;text-align:center}
+.ro3 .n{font-size:34px}
+.sync{font:400 13px var(--ui);color:var(--ink3)}
+.swap-out{opacity:0!important;filter:blur(3px)}
+
+/* the core, a CSS stand-in for the hologram */
+.core{position:relative;display:inline-block;flex:none;width:var(--s);height:var(--s);--c:var(--rest);--hi:#d6ecff;perspective:calc(var(--s) * 3)}
+.core i{position:absolute;border-radius:50%}
+.core .heart{inset:30%;background:radial-gradient(circle at 46% 42%,#f4fbff 0,var(--hi) 15%,var(--c) 42%,rgba(120,190,255,0) 72%);box-shadow:0 0 calc(var(--s) * .24) calc(var(--s) * .02) rgba(120,190,255,.4);animation:heart 4.6s ease-in-out infinite}
+@keyframes heart{0%,100%{transform:scale(.93)}50%{transform:scale(1.05)}}
+.core .ring{inset:9%;border:1.5px solid;border-color:rgba(120,190,255,.85) transparent rgba(120,190,255,.3) transparent;animation:orbit 14s linear infinite;--t:16deg}
+.core .ring.b{inset:16%;--t:-54deg;animation-duration:20s;animation-direction:reverse;border-color:rgba(214,236,255,.7) transparent rgba(214,236,255,.2) transparent}
+@keyframes orbit{from{transform:rotate(var(--t)) rotateX(70deg) rotateZ(0deg)}to{transform:rotate(var(--t)) rotateX(70deg) rotateZ(360deg)}}
+.core .hud{inset:0;border:1px dashed rgba(120,190,255,.28);animation:spin 60s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.wall[data-off="1"] .core{filter:grayscale(1) brightness(.7)}
+
+/* a face: a flat stand-in for a being's portrait */
+.fc{position:relative;display:block;flex:none;width:var(--f,44px);height:var(--f,44px)}
+.fc svg{display:block;width:100%;height:100%}
+.badge{position:absolute;right:-5px;top:-5px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--gold);color:var(--gold-ink);font:700 13px/22px var(--round);text-align:center;box-shadow:0 0 0 2px var(--wall),0 0 14px rgba(224,178,106,.5);opacity:0;transform:scale(.6);transition:opacity .25s ease,transform .35s var(--ease-out)}
+.ask>.badge,.on>.badge,.fc.ask .badge{opacity:1;transform:none}
+
+/* working: circling the core */
+.coreorb{position:relative;width:var(--o);height:var(--o);display:grid;place-items:center;flex:none}
+.coreorb>.core{position:absolute;left:50%;top:50%;margin:calc(var(--s) / -2) 0 0 calc(var(--s) / -2)}
+.orb{position:absolute;inset:0;animation:spin 60s linear infinite}
+.orb .trail{position:absolute;inset:calc(var(--fw) / 2);border-radius:50%;border:1px dashed rgba(232,236,246,.1);opacity:0;transition:opacity .4s ease}
+.wall[data-work="1"] .orb .trail{opacity:1}
+.ow{position:absolute;left:50%;top:50%;width:var(--fw);height:var(--fw);margin:calc(var(--fw) / -2) 0 0 calc(var(--fw) / -2);transform:rotate(var(--a)) translateY(calc(var(--o) / -2 + var(--fw) / 2)) rotate(calc(var(--a) * -1))}
+.ow .cs{width:100%;height:100%;animation:spin 60s linear infinite reverse}
+.ow .fc{--f:100%;opacity:0;transform:scale(.8);transition:opacity .35s ease,transform .45s var(--ease-out)}
+.ow .fc::after{content:"";position:absolute;inset:-3px;border-radius:40%;box-shadow:0 0 0 1.5px var(--h)}
+.ow.on .fc{opacity:1;transform:none}
+.wk{min-height:18px;text-align:center}
+
+/* waiting on you: the count, the raised hands */
+.wait{display:grid;justify-items:center;gap:4px;padding:6px 14px 8px;border-radius:26px;min-width:44px;min-height:44px;transition:background .2s ease,transform .16s var(--ease)}
+.wait:active{background:rgba(255,255,255,.06)}
+.wait .k svg{width:13px;height:13px;margin-left:4px;vertical-align:-1px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+.wrow{display:flex;align-items:center;justify-content:center;gap:0}
+.cnt{font:600 72px/1 var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em;color:var(--ink3);transition:color .4s ease}
+.wall[data-att="1"] .cnt{color:var(--gold)}
+.cnt.unk{display:inline-block;width:.62em;height:.62em;margin:.1em .1em;border-radius:50%;border:2px dashed rgba(232,236,246,.38)}
+.roll{display:inline-grid;overflow:hidden;vertical-align:bottom;line-height:1}
+.roll>span{grid-area:1/1;transition:transform .26s var(--ease-out),opacity .26s var(--ease-out)}
+.roll .below{transform:translateY(60%);opacity:0}
+.roll .above{transform:translateY(-60%);opacity:0}
+.roll .out.up{transform:translateY(-60%);opacity:0}
+.roll .out.down{transform:translateY(60%);opacity:0}
+.hands{position:relative;height:var(--f);width:0;margin-left:0;transition:width .45s var(--ease-out),margin-left .45s var(--ease-out)}
+.hands.has{margin-left:16px}
+.hands .fc{position:absolute;left:0;top:0;border-radius:16px;background:var(--wall);box-shadow:0 0 0 2.5px var(--wall);transform:translateX(var(--x,0)) translateY(14px) scale(.86);opacity:0;transition:transform .45s var(--ease-out),opacity .3s ease}
+.hands .fc.on{transform:translateX(var(--x,0));opacity:1}
+.more{position:absolute;left:0;top:50%;height:30px;min-width:38px;margin-top:-15px;padding:0 8px;border-radius:15px;font:700 15px/30px var(--round);text-align:center;color:var(--ink);background:rgba(232,236,246,.12);opacity:0;transform:translateX(var(--x,0)) scale(.86);transition:transform .45s var(--ease-out),opacity .3s ease}
+.more.on{opacity:1;transform:translateX(var(--x,0))}
+.who{transition:opacity .2s var(--ease),filter .2s var(--ease);text-align:center}
+.wall[data-att="1"] .who{color:var(--ink)}
+.wall[data-off="1"] .who{color:var(--ink3)}
+
+/* the gold light: something waits on him */
+.edge{position:absolute;left:0;right:0;bottom:0;height:4px;z-index:3;pointer-events:none;background:var(--gold);box-shadow:0 0 22px 3px rgba(224,178,106,.6);transform:scaleX(0);transform-origin:0 50%;opacity:0;transition:transform .7s var(--ease-out),opacity .3s ease}
+.floor{position:absolute;left:0;right:0;bottom:0;height:30%;z-index:1;pointer-events:none;background:linear-gradient(0deg,rgba(224,178,106,.14),rgba(224,178,106,0));opacity:0;transition:opacity .9s ease}
+.wall[data-att="1"] .edge{transform:scaleX(1);opacity:1}
+.wall[data-att="1"] .floor{opacity:1}
+
+/* page dots, foot, controls */
+.foot{position:absolute;left:0;right:0;bottom:6px;z-index:4;display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none}
+.foot>*{pointer-events:auto}
+.pd{display:flex;justify-content:center}
+.pd button{width:44px;height:44px;display:grid;place-items:center}
+.pd i{display:block;width:7px;height:7px;border-radius:4px;background:rgba(232,236,246,.3);transition:width .28s var(--ease),background .28s var(--ease),box-shadow .28s ease}
+.pd [aria-current="true"] i{width:18px;background:var(--ink)}
+.pd .gold i{background:var(--gold);box-shadow:0 0 10px rgba(224,178,106,.7)}
+.pd .gold[aria-current="true"] i{background:var(--gold)}
+.ctl{position:absolute;left:16px;right:16px;top:54px;display:flex;align-items:center;gap:8px;z-index:7;opacity:0;visibility:hidden;transform:translateY(-10px);transition:opacity .22s var(--ease),transform .22s var(--ease),visibility 0s .22s}
+.wall[data-ctl="1"] .ctl{opacity:1;visibility:visible;transform:none;transition:opacity .22s var(--ease),transform .22s var(--ease)}
+.L .ctl{top:14px;left:20px;right:20px}
+.M .ctl{top:22px;left:28px;right:28px;opacity:1;visibility:visible;transform:none}
+.sp{flex:1}
+.cb{min-height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(28,32,50,.72);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),inset 0 1px 0 rgba(255,255,255,.16),0 10px 24px -14px rgba(0,0,0,.8);white-space:nowrap}
+.cb.done{background:rgba(255,255,255,.22)}
+.cb[aria-pressed="true"]{background:rgba(255,255,255,.26)}
+.cb.pri{background:rgba(232,236,246,.92);color:#0a0e1b}
+.ctl .key{display:none}.M .ctl .key{display:inline-block}
+.key{font:600 13px var(--ui);color:var(--ink3);padding:2px 8px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.28)}
+.hint{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);z-index:5;min-height:44px;display:flex;align-items:center;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:rgba(28,32,50,.7);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16);transition:opacity .4s ease;white-space:nowrap;pointer-events:none}
+.hint.gone{opacity:0}
+.toast{position:absolute;left:50%;top:112px;transform:translateX(-50%);z-index:12;padding:10px 16px;border-radius:16px;font:600 15px var(--ui);background:rgba(28,32,50,.92);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18);opacity:0;transition:opacity .25s ease;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1}
+.L .toast{top:70px}
+.dim{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s ease;z-index:6}
+.wall[data-dim="1"] .dim{opacity:.55}
+.wall.leaving{opacity:0;transform:scale(.965);transition:opacity .26s var(--ease),transform .26s var(--ease)}
+.wall.arriving{animation:arrive .32s var(--ease) both}
+@keyframes arrive{from{opacity:0;transform:scale(.965)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.press{transform:scale(.96)!important;background:rgba(255,255,255,.1)!important}
+
+/* the sheet (Blend 1): what they need from him */
+.scrim{position:absolute;inset:0;z-index:8;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .3s ease}
+.wall[data-sheet="1"] .scrim{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:74%;z-index:9;display:flex;flex-direction:column;border-radius:30px 30px 0 0;background:rgba(20,24,40,.9);-webkit-backdrop-filter:blur(26px) saturate(1.5);backdrop-filter:blur(26px) saturate(1.5);box-shadow:inset 0 .5px 0 rgba(255,255,255,.24),inset 0 0 0 .5px rgba(255,255,255,.1),0 -24px 60px -24px rgba(0,0,0,.9);transform:translateY(102%);transition:transform .44s var(--ease)}
+.wall[data-sheet="1"] .sheet{transform:none}
+.sheet.drag{transition:none}
+.L .sheet,.M .sheet{left:auto;top:0;height:auto;width:380px;border-radius:28px 0 0 28px;transform:translateX(102%)}
+.M .sheet{width:440px}
+.wall.L[data-sheet="1"] .sheet,.wall.M[data-sheet="1"] .sheet{transform:none}
+.sh-head{padding:8px 20px 4px;touch-action:none;cursor:grab}
+.grab{display:block;width:38px;height:5px;margin:0 auto 10px;border-radius:3px;background:rgba(232,236,246,.3)}
+.L .grab,.M .grab{display:none}
+.L .sh-head,.M .sh-head{padding-top:18px}
+.sh-t{display:flex;align-items:center;gap:10px}
+.sh-t h4{flex:1;margin:0;font:700 24px/1.15 var(--ui);letter-spacing:-.015em}
+.sh-say{margin:6px 0 4px;font:400 17px/1.35 var(--serif);color:var(--ink2);text-wrap:pretty}
+.sh-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:4px 20px 16px;display:grid;gap:6px;align-content:start}
+.sh-foot{display:flex;gap:10px;padding:10px 20px 26px;border-top:.5px solid var(--sep)}
+.sh-foot .cb{flex:1}
+.L .sh-foot,.M .sh-foot{padding-bottom:18px}
+.ag{position:relative;margin:0;padding:12px 0 10px 16px;display:grid;gap:8px}
+.ag::before{content:"";position:absolute;left:0;top:14px;bottom:12px;width:3px;border-radius:2px;background:linear-gradient(180deg,var(--h),color-mix(in srgb,var(--h) 20%,transparent))}
+.ag-h{display:flex;align-items:center;gap:12px}
+.ag-h b{display:block;font:600 17px/1.2 var(--ui);color:var(--h)}
+.asks{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.askb{display:grid;grid-template-columns:8px minmax(0,1fr) auto 10px;gap:10px;align-items:center;width:100%;min-height:48px;padding:8px 12px;border-radius:14px;text-align:left;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.08);transition:background .2s ease,transform .16s var(--ease)}
+.askb .gd{width:8px;height:8px;border-radius:4px;background:var(--gold)}
+.askb .tt{font:400 15px/1.3 var(--ui);color:var(--ink);text-wrap:pretty}
+.askb .ch{color:var(--ink3);font-size:15px}
+.shk{margin:14px 0 2px;font:600 13px var(--ui);color:var(--ink3)}
+.wrk{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center}
+.wrk span{display:flex;align-items:center;gap:8px;font:600 15px var(--ui)}
+.all{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.sb{position:relative;display:grid;justify-items:center;align-content:center;gap:4px;min-height:56px;padding:6px 0;border-radius:16px;transition:opacity .4s ease,background .2s ease,transform .16s var(--ease)}
+.sb[aria-pressed="true"]{background:rgba(255,255,255,.08)}
+.sb .nm{font:600 13px var(--ui);color:var(--ink2);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb .wr{position:absolute;left:50%;top:6px;width:calc(var(--f) + 10px);height:calc(var(--f) + 10px);margin-left:calc(var(--f) / -2 - 5px);margin-top:-5px;border-radius:50%;border:1.5px dashed var(--h);opacity:0;transition:opacity .3s ease}
+.sb.work .wr{opacity:.9;animation:spin 8s linear infinite}
+.allcap{min-height:38px;margin:6px 0 0}
+
+/* Blend 2: the agents page */
+.agp{position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;padding:66px 20px 64px}
+.subj{flex:1;display:grid;align-content:center;gap:14px;transition:opacity .22s var(--ease),filter .22s var(--ease),transform .22s var(--ease)}
+.subj.swap-out{transform:translateY(6px)}
+.subj-h{display:flex;align-items:center;gap:16px}
+.subj-h b{display:block;font:600 24px/1.15 var(--ui);color:var(--h,var(--ink))}
+.strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+
+/* Lately */
+.late{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.late li{display:grid;gap:2px}
+.lt{font:600 15px/1.3 var(--ui)}
+.stks{display:grid;gap:14px}
+.stk{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:12px;row-gap:2px;align-items:center}
+.stk .s{grid-column:2}
+.pips{display:flex;gap:5px}
+.pips i{width:10px;height:10px;border-radius:50%;background:var(--d)}
+.meter{display:block;height:8px;border-radius:4px;background:rgba(232,236,246,.12);overflow:hidden}
+.meter i{display:block;height:100%;border-radius:4px;background:var(--good)}
+.lately{position:absolute;inset:0;padding:66px 24px 64px;display:flex;flex-direction:column;gap:20px}
+
+/* phone upright */
+.P .g{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:60px 22px 78px;text-align:center}
+.P .top{display:grid;justify-items:center;gap:2px}
+.P .mid{display:grid;justify-items:center;gap:6px}
+.P .say{max-width:330px}
+.P .ro3{width:100%}
+
+/* phone on a stand */
+.L .g{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;padding:22px 44px 48px}
+.L .lp{display:grid;justify-items:start;gap:4px;min-width:0}
+.L .clock{font-size:124px}
+.L .nova{display:flex;align-items:center;gap:12px;margin-top:8px}
+.L .nova .wk{text-align:left;max-width:170px}
+.L .rp{display:grid;gap:12px;align-content:center;min-width:0}
+.L .wait{justify-items:start;padding-left:0}
+.L .who{text-align:left}
+.L .cnt{font-size:72px}
+.L .ro3{text-align:left}
+.L .foot{bottom:0;flex-direction:row;justify-content:center;gap:4px}
+.L .agp{display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:auto 1fr;column-gap:34px;row-gap:6px;padding:20px 40px 46px}
+.L .agp .aghead{grid-column:1/-1}
+.L .agp .say{font-size:20px}
+.L .subj{align-content:center}
+.L .strip{align-self:center}
+.L .lately{display:grid;grid-template-columns:1fr 1fr;column-gap:40px;padding:22px 40px 50px;align-content:center}
+
+/* the MacBook */
+.M .g{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1.05fr;grid-template-rows:auto 1fr;column-gap:76px;row-gap:28px;padding:96px 104px 36px}
+.M .clock{font-size:170px}
+.M .lp{display:grid;justify-items:start;gap:6px;align-content:start}
+.M .nova{display:flex;align-items:center;gap:16px;margin-top:14px}
+.M .nova .wk{text-align:left}
+.M .rp{display:grid;gap:16px;align-content:start;min-width:0}
+.M .wait{justify-items:start;padding-left:0}
+.M .who{text-align:left}
+.M .cnt{font-size:104px}
+.M .ro3{text-align:left}
+.prev{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.prev{transition:opacity .2s ease}
+.prev li{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;font:400 15px/1.3 var(--ui)}
+.prev li .s{display:block}
+.band{grid-column:1/-1;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:44px;align-items:start;padding-top:24px;border-top:.5px solid var(--sep)}
+.band .col{display:grid;gap:8px;align-content:start;min-width:0}
+.syncm{position:absolute;right:30px;bottom:18px;z-index:3}
+.W2.M .g{grid-template-columns:minmax(0,1fr) 540px;grid-template-rows:1fr;padding:92px 76px 36px 96px;column-gap:56px}
+.orgring{position:relative;width:520px;height:520px;justify-self:center}
+.orgring .orbitline{position:absolute;inset:0;width:100%;height:100%}
+.orgring .sb{position:absolute;width:96px;margin:0 0 0 -48px;transform:translateY(-36px)}
+.ringcard{position:absolute;left:50%;top:50%;width:250px;transform:translate(-50%,-50%);text-align:center;display:grid;justify-items:center;gap:8px;pointer-events:none}
+.ringcard .asks{pointer-events:auto;width:100%;text-align:left}
+.ringcard .askb{min-height:44px;padding:6px 10px}
+
+/* the Home stub and the Console card */
+.origin{position:absolute;inset:0;padding:60px 16px 26px;display:flex;flex-direction:column;gap:12px;background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.14),transparent 60%),radial-gradient(70% 45% at 90% 28%,rgba(143,123,255,.16),transparent 62%),linear-gradient(180deg,#05060c 0%,#080b1c 40%,#0c1230 100%)}
+.hrow{display:flex;align-items:center;justify-content:space-between}
+.hdate{font:600 13px var(--ui);color:var(--ink3)}
+.htitle{margin:0;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.hread{margin:0;font:italic 400 20px/1.25 var(--serif);color:var(--ink);text-wrap:balance}
+.scard{border-radius:22px;padding:14px 16px;background:rgba(255,255,255,.09);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16),inset 0 1px 0 rgba(255,255,255,.22),0 14px 34px -18px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(22px) saturate(1.4);backdrop-filter:blur(22px) saturate(1.4)}
+.again{align-self:center;margin-top:auto;min-height:44px;padding:0 20px;border-radius:22px;font:600 15px var(--ui);background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.flash{animation:flash .9s ease}
+@keyframes flash{0%{background:rgba(255,255,255,.2)}100%{background:rgba(255,255,255,.09)}}
+.dch{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.dct{font:600 15px var(--ui)}
+.pager{overflow:hidden;touch-action:pan-y;cursor:grab}
+.ptrack{display:flex;transition:transform .36s var(--ease)}
+.slide{flex:0 0 100%;min-width:0}
+.pfoot{display:flex;align-items:center;justify-content:space-between;margin:6px -8px -8px}
+.pnav{width:44px;height:44px;display:grid;place-items:center;border-radius:22px;color:var(--ink2)}
+.pnav svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ins{display:grid;gap:8px;min-width:0}
+.ih{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.it{font:600 15px var(--ui)}
+.il{margin:0;font:400 20px/1.25 var(--serif);text-wrap:balance}
+.big{font:600 34px/1 var(--round);font-variant-numeric:tabular-nums}
+.big small{font:600 15px var(--ui);color:var(--ink2);margin-left:3px}
+.ins svg{display:block;width:100%;height:auto;overflow:visible}
+.svgs{font:400 13px var(--ui);fill:rgba(232,236,246,.62)}
+.svgk{font:600 15px var(--ui);fill:#e8ecf6}
+.bar{transform-box:fill-box;transform-origin:50% 100%}
+.in .bar{animation:barUp .55s var(--ease-out) both;animation-delay:calc(var(--i) * 45ms)}
+@keyframes barUp{from{transform:scaleY(.04)}to{transform:none}}
+.in .arc{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .8s var(--ease-out) both;animation-delay:calc(var(--i) * 70ms)}
+@keyframes draw{to{stroke-dashoffset:0}}
+.in .grow{transform-box:fill-box;transform-origin:0 50%;animation:growX .6s var(--ease-out) both}
+@keyframes growX{from{transform:scaleX(.1)}to{transform:none}}
+.mus{display:flex;flex-wrap:wrap;gap:6px}
+.mus span{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 10px;border-radius:15px;font:600 13px var(--ui);background:color-mix(in srgb,var(--d) 16%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--d) 50%,transparent)}
+.mus i{width:8px;height:8px;border-radius:4px;background:var(--d)}
+
+/* closing sections */
+.src{width:100%;border-collapse:collapse;margin-top:12px;font-size:15px}
+.src th,.src td{padding:12px 10px;text-align:left;vertical-align:top;border-top:.5px solid var(--sep)}
+.src th{font-weight:600;color:var(--ink);width:30%}
+.src td{color:var(--ink2)}
+.src code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink)}
+.fixes{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.fixes li{padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);color:var(--ink2);font-size:15px}
+.fixes b{display:block;color:var(--ink);font-weight:600;margin-bottom:2px}
+.decide{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:820px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 15px/1 var(--round);background:rgba(224,178,106,.14);color:var(--gold)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:var(--ink2);text-wrap:pretty}
+
+/* reduced motion: still, or a short cross-fade */
+.rm .core i,.rm .clock .colon,.rm .drift,.rm .orb,.rm .ow .cs,.rm .sb.work .wr{animation:none!important}
+.rm .clock .colon{opacity:.75}
+.rm .edge{transform:none;transition:opacity .25s linear}
+.rm .roll>span{transition:opacity .2s linear;transform:none!important}
+.rm .swap-out{filter:none;transform:none}
+.rm .hands .fc,.rm .hands .fc.on,.rm .more,.rm .more.on{transition:opacity .25s linear;transform:translateX(var(--x,0))}
+.rm .hands{transition:none}
+.rm .ow .fc{transform:none;transition:opacity .25s linear}
+.rm .badge{transform:none;transition:opacity .25s linear}
+.rm .track,.rm .ptrack{transition:opacity .25s linear}
+.rm .sheet{transition:opacity .25s linear;transform:none;opacity:0;pointer-events:none}
+.rm .wall[data-sheet="1"] .sheet{opacity:1;pointer-events:auto}
+.rm .wall.L .sheet,.rm .wall.M .sheet{transform:none}
+.rm .ctl{transform:none}
+.rm .wall.leaving{transform:none}
+.rm .wall.arriving{animation:fadeIn .25s linear both}
+.rm .in .bar,.rm .in .arc,.rm .in .grow{animation:fadeIn .25s linear both;stroke-dashoffset:0}
+.rm button:active,.rm .wait:active{transform:none}
+@media (prefers-reduced-transparency:reduce){.sheet,.cb,.scard{-webkit-backdrop-filter:none;backdrop-filter:none;background:#161a2b}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 86 · round 2 · 7 October 2026 · for your review</p>
+  <h1>The wall, with your agents</h1>
+  <p class="lede">A's quiet wall, and C's agents when they need you. Two ways to blend them, each acted out with nobody waiting, one agent asking, and several.</p>
+  <p class="quote">"Id like a refinement of some way for both A and C as I like the simple view of a but I like the option to see the agents and anything they need my attention for from c"<small>You, 7 October, on round 1 (mockup 81)</small></p>
+  <p class="demo" style="margin-top:12px">Demo content: every ask, count and receipt is invented, and so is every agent's state. The faces and the core are flat stand-ins for the 3D ones in the app.</p>
+
+  <nav class="switch" aria-label="Blends">
+    <div class="seg" role="group" aria-label="Blend">
+      <button type="button" data-go="1" aria-pressed="true">1 · Hands up</button>
+      <button type="button" data-go="2" aria-pressed="false">2 · Second page</button>
+    </div>
+  </nav>
+  <div class="states" role="group" aria-label="What the records say">
+      <span class="lab">Records say</span>
+      <button class="chip" type="button" data-st="cycle" aria-pressed="true">Cycle</button>
+      <button class="chip" type="button" data-st="none" aria-pressed="false">None waiting</button>
+      <button class="chip" type="button" data-st="one" aria-pressed="false"><i class="g"></i>One</button>
+      <button class="chip" type="button" data-st="several" aria-pressed="false"><i class="g"></i>Several</button>
+      <button class="chip" type="button" data-st="off" aria-pressed="false">No signal</button>
+      <button class="chip" type="button" id="rmt" aria-pressed="false">Reduced motion</button>
+  </div>
+
+  <section class="dir" id="dir-1" aria-labelledby="h-1">
+    <h2 id="h-1">Blend 1 · Hands up</h2>
+    <p class="line"><b>At rest it is A.</b> When an agent needs you, its face rises beside the gold count with a numbered badge; when one is working, it circles the core. <b>Tap the count</b> and a sheet rises with each agent's asks, who is working, and all ten. Nobody appears on the wall without a record that says so.</p>
+    <div class="frames" data-frames="1"></div>
+  </section>
+
+  <section class="dir" id="dir-2" aria-labelledby="h-2" hidden>
+    <h2 id="h-2">Blend 2 · Second page</h2>
+    <p class="line"><b>The glance is A, unchanged.</b> The gold count names who is asking, and the second page dot turns gold. <b>One swipe</b> is all ten agents: whoever asks first, large, with its asks, and a strip of every face. On the Mac the org sits beside the glance, because there is room.</p>
+    <div class="frames" data-frames="2"></div>
+  </section>
+
+  <section aria-labelledby="h-console">
+    <h2 id="h-console">Where Console lives: Home, in the morning</h2>
+    <p class="sub">The same answer as A in round 1, for either blend. The wall's job is who needs you; the instruments live where you already look each morning. The Console route and its Index row go, and the glass still raises the instruments when the morning brief is spoken.</p>
+    <div class="frames" data-frames="console"></div>
+  </section>
+
+  <section aria-labelledby="h-src">
+    <h2 id="h-src">Where each thing comes from</h2>
+    <p class="sub">Nothing on the wall is a constant. When a source cannot say, the wall says nothing, or says so in words.</p>
+    <table class="src">
+      <tr><th>The gold count</th><td><code>orgMap.waitingTotal</code>: every inbox record with status <code>pending</code>. The same records <code>ops.pending</code> counts, so the count and the faces cannot disagree.</td></tr>
+      <tr><th>A face beside it, and its badge</th><td><code>orgMap.beings[i].waiting</code>: that agent's own pending records, matched by kind. Most first.</td></tr>
+      <tr><th>Each ask in the sheet</th><td><code>orgMap.beings[i].asks</code>, its three newest pending records, then "N more". Your own captures are <code>orgMap.core</code> (Yours to sort); kinds with no agent yet are <code>orgMap.unfiled</code>, counted and named, never dropped.</td></tr>
+      <tr><th>Circling the core, "Working now"</th><td><code>workingAgentNames()</code> in <code>src/vals/agentsWorking.js</code>: a job in flight on this device, or a record still classifying on the rails. Offline and demo say nothing; nobody working says nothing.</td></tr>
+      <tr><th>An agent's line</th><td>As <code>valsOrgMap.beingLine</code> writes it: waiting, working, then how its loops are doing (ran today, recent, gone quiet, never run). Quiet agents fade by the same rule.</td></tr>
+      <tr><th>No signal</th><td><code>ops</code> absent: no gold, no faces, no orbit, grey words.</td></tr>
+    </table>
+  </section>
+
+  <section aria-labelledby="h-every">
+    <h2 id="h-every">Kept from round 1, in both blends</h2>
+    <ul class="fixes">
+      <li><b>A findable way out.</b>A tap shows Done, Dim and Agents; Done, Esc or a swipe down returns you to the page you came from. A bump never ends the wall, and Back never brings it back.</li>
+      <li><b>Fits every screen.</b>Upright, on a stand and on the MacBook; nothing below the edge, nothing scrolls sideways.</li>
+      <li><b>Gold means waiting.</b>Only the count, the badges, the light along the foot and the page dot. All clear is quiet ink; no signal is grey, with words.</li>
+      <li><b>A cheaper core.</b>104 points, 30 frames, still when dimmed; the hidden tab-bar orb stops; faces are still portraits, so no WebGL on the wall; the wall drifts a few points an hour.</li>
+      <li><b>Reduced motion holds still.</b>Faces cross-fade in place, the orbit stops where it is, the sheet fades, the colon holds.</li>
+      <li><b>Accessible.</b>Every face is a labelled button, the count is a live region, each instrument on the Home card has a VoiceOver label for every bar, block and band.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="h-calls">
+    <h2 id="h-calls">Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Which blend: 1 (Hands up) or 2 (Second page).</b><span>With 1, the faces of whoever needs you sit on the glance, whoever is working circles the core, and a tap opens their asks; at rest it is exactly A. With 2, the glance never shows a face and the agents are one swipe away, all ten every time. My pick is 1.</span></div></li>
+      <li><div><b>Where Console lives: a Home card, or its own screen.</b><span>As a Home card (my pick) it shows from 05:00 to 11:00 or until you have seen all five, pinnable, and the route and its Index row go. As its own screen it keeps a page, called Your day, with a door from Home's morning line. Either way the brief still raises the instruments on the glass.</span></div></li>
+      <li><div><b>Answer on the wall, or only open the Inbox from it.</b><span>Answering means a light tick or cross on each ask in the sheet, riding the inbox rails with Undo, and "Talk it through" for the rest. Opening only (as drawn) keeps the wall read-only: each ask opens the Inbox at that card.</span></div></li>
+      <li><div><b>One source for "working".</b><span><code>agentsWorking.js</code> knows seven workers and <code>orgMap.js</code> ten beings, with different rules. If you say yes, I extend <code>agentsWorking.js</code> to all ten beings and have the Org Map read it, so the Librarian, Meal Prep, the Leader and Practice can show working and Meal Prep stops lighting the Coach. Left as is, the wall can only ever circle six agents, and Ops and the wall can disagree about who is working.</span></div></li>
+      <li><div><b>Count Claude sessions on your Mac that are waiting for you.</b><span>Yes adds a quiet line under the count ("2 sessions waiting on the Mac"), from the same source as Home's line today, and never folds them into the gold number. No keeps the wall to Nova's own agents.</span></div></li>
+      <li><div><b>Round 1's smaller calls, still open.</b><span>No colour for all clear, a small capped core, a night dim from 22:00 to 06:00, and "Hey Nova" on the wall. This round assumes my round-1 picks (no colour, small and capped, dim at night, wake word off). Say otherwise and only those details change.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const root = document.documentElement;
+  const RMQ = matchMedia('(prefers-reduced-motion: reduce)');
+  let rmPreview = false;
+  const applyRM = () => root.classList.toggle('rm', RMQ.matches || rmPreview);
+  applyRM();
+  if (RMQ.addEventListener) RMQ.addEventListener('change', applyRM);
+  const reduced = () => root.classList.contains('rm');
+  const fmt = (n) => n.toLocaleString('en-AU');
+
+  /* DEMO DATA, INVENTED. The roster and hues are the real ones (src/agentWorld/beings.js). */
+  const AG = [
+    { id: 'commander', name: 'Commander', dist: 'Logistics', h: '#59e6ff', a: '#e0b26a', fresh: 'today' },
+    { id: 'coach', name: 'Coach', dist: 'Train', h: '#ff8a7a', a: '#ffd66b', fresh: 'today' },
+    { id: 'cfo', name: 'CFO', dist: 'Money', h: '#5fe8a8', a: '#e0b26a', fresh: 'today' },
+    { id: 'guardian', name: 'Guardian', dist: 'Platform', h: '#8f7bff', a: '#e0b26a', fresh: 'today' },
+    { id: 'researcher', name: 'Researcher', dist: 'Knowledge', h: '#7ab8ff', a: '#59e6ff', fresh: 'today' },
+    { id: 'watcher', name: 'Watcher', dist: 'Knowledge', h: '#8fd3ff', a: '#8f7bff', fresh: 'recent' },
+    { id: 'librarian', name: 'Librarian', dist: 'Knowledge', h: '#4fd1c5', a: '#ffc46b', fresh: 'stale' },
+    { id: 'mealprep', name: 'Meal Prep', dist: 'Fuel', h: '#ffc46b', a: '#ff8a7a', fresh: 'today' },
+    { id: 'leader', name: 'Leader', dist: 'Mind', h: '#ff7ad9', a: '#8f7bff', fresh: 'recent' },
+    { id: 'practice', name: 'Practice', dist: 'Mind', h: '#ffa257', a: '#e0b26a', fresh: 'never' },
+  ];
+  const BY = Object.fromEntries(AG.map((b) => [b.id, b]));
+  /* the beings agentsWorking.js can name today (Studio has no face) */
+  const CAN_WORK = ['commander', 'coach', 'cfo', 'guardian', 'researcher', 'watcher'];
+  const ASKS = {
+    coach: [['Swap Thursday\'s incline press for a dumbbell press?', '12 min ago']],
+    cfo: [['Is the $64 at the hardware store home or work?', '40 min ago'], ['Keep all six subscriptions this month?', '2 h ago']],
+    leader: [['Book the one-to-one you planned for this week?', '3 h ago']],
+  };
+  const STATES = {
+    none: { wait: {}, work: [] },
+    one: { wait: { coach: 1 }, work: ['researcher'] },
+    several: { wait: { cfo: 2, coach: 1, leader: 1 }, work: ['researcher', 'guardian'] },
+    off: null,
+  };
+  const D = {
+    date: 'Wednesday 7 October', tag: 'Cleared for deep work at 15:30.', next: ['09:00', 'Stand-up'],
+    steps: 1840, stepFloor: 10000, protein: 42, proteinFloor: 160, sync: 'Synced 2 min ago', stale: 'No signal from the Mac · last synced 41 min ago',
+    pulse: 'Demo headline: what one study says about sleep and strength', pulseFrom: 'Demo Review',
+    lately: [['2 min', 'The Coach filed a program note'], ['14 min', 'The Guardian ran its checks'], ['1 h', 'The Researcher filed a brief']],
+  };
+
+  /* the words, all written by code from the counts */
+  const waitingList = (st) => AG.filter((b) => st.wait[b.id]).map((b) => ({ ...b, n: st.wait[b.id] })).sort((x, y) => y.n - x.n);
+  const total = (st) => (st ? Object.values(st.wait).reduce((a, b) => a + b, 0) : 0);
+  const the = (b) => `the ${b.name}`;
+  const andJoin = (a) => (a.length < 2 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`);
+  const NUM = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+  function whoLine(st) {
+    if (!st) return D.stale;
+    const L = waitingList(st);
+    if (!L.length) return 'Nothing waits on you';
+    const names = L.length > 3 ? [...L.slice(0, 2).map(the), `${L.length - 2} others`] : L.map(the);
+    const s = andJoin(names);
+    return s[0].toUpperCase() + s.slice(1);
+  }
+  function sayLine(st) {
+    if (!st) return 'Nova cannot reach the Mac, so nobody\'s asks can be read.';
+    const L = waitingList(st), t = total(st);
+    if (!t) return 'Nothing is waiting on you.';
+    if (L.length === 1) return `The ${L[0].name} is asking you ${L[0].n === 1 ? 'one thing' : `${NUM[L[0].n].toLowerCase()} things`}.`;
+    return `${NUM[t] || t} things wait on you: ${andJoin(L.map((b) => `${b.n} from ${the(b)}`))}.`;
+  }
+  const workLine = (st) => {
+    if (!st || !st.work.length) return '';
+    return `Working now: ${andJoin(st.work.map((id) => the(BY[id])))}`;
+  };
+  const FRESH = { today: 'Quiet. Its loops ran today.', recent: 'Quiet. Its loops ran in the last two days.', stale: 'Gone quiet. Its loops have not run for days.', never: 'Has never run.' };
+  const DIM = { today: 0, recent: 0, stale: 0.35, never: 0.62 };
+  function beingLine(b, st) {
+    if (!st) return 'Unknown until the Mac answers.';
+    const n = st.wait[b.id] || 0, w = st.work.includes(b.id);
+    const parts = [];
+    if (n) parts.push(`${n === 1 ? 'One thing' : `${NUM[n]} things`} waiting on you.`);
+    if (w) parts.push('Working now.');
+    return parts.length ? parts.join(' ') : FRESH[b.fresh];
+  }
+
+  /* the demo clock: from 07:42, in real time */
+  const T0 = Date.now(), BASE = 7 * 60 + 42;
+  const hm = () => { const m = BASE + Math.floor((Date.now() - T0) / 60000); return [String(Math.floor(m / 60) % 24).padStart(2, '0'), String(m % 60).padStart(2, '0')]; };
+  const clock = () => { const [h, m] = hm(); return `<div class="clock" data-obj><span class="hh">${h}</span><span class="colon" aria-hidden="true">:</span><span class="mm">${m}</span></div>`; };
+  setInterval(() => { const [h, m] = hm(); $$('.clock .hh').forEach((e) => { if (e.textContent !== h) e.textContent = h; }); $$('.clock .mm').forEach((e) => { if (e.textContent !== m) e.textContent = m; }); }, 1000);
+
+  /* pieces */
+  const coreH = (s) => `<span class="core" style="--s:${s}px" aria-hidden="true"><i class="hud"></i><i class="ring"></i><i class="ring b"></i><i class="heart"></i></span>`;
+  const faceSVG = (b) => `<svg viewBox="0 0 44 40" aria-hidden="true">
+    <circle cx="5.5" cy="21" r="3.6" fill="${b.a}"/><circle cx="38.5" cy="21" r="3.6" fill="${b.a}"/>
+    <rect x="6" y="4" width="32" height="33" rx="14" fill="${b.h}"/>
+    <path d="M13 8h18" stroke="#fff" stroke-opacity=".45" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="10.5" y="12" width="23" height="15.5" rx="7.5" fill="#0a0e1b"/>
+    <circle cx="17" cy="18.6" r="2.8" fill="${b.h}"/><circle cx="27" cy="18.6" r="2.8" fill="${b.h}"/>
+    <circle cx="17.9" cy="17.7" r=".95" fill="#fff"/><circle cx="27.9" cy="17.7" r=".95" fill="#fff"/>
+    <path d="M19.2 23.3q2.8 2 5.6 0" stroke="${b.h}" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>`;
+  const face = (b, f, extra = '') => `<span class="fc" style="--f:${f}px;--h:${b.h}" data-id="${b.id}"${extra}>${faceSVG(b)}<i class="badge" aria-hidden="true"></i></span>`;
+  const chevSVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+  const coreOrb = (o, s, fw, faces = true) => `<div class="coreorb" style="--o:${o}px;--fw:${fw}px" data-obj>${coreH(s)}${faces ? `<div class="orb"><i class="trail"></i>${CAN_WORK.map((id, i) => `<span class="ow" data-id="${id}" style="--a:${i * 60 + 20}deg"><span class="cs">${face(BY[id], fw)}</span></span>`).join('')}</div>` : ''}</div>`;
+  const wkLine = () => `<span class="s wk" aria-live="polite"></span>`;
+  const ro3 = () => `<div class="ro3">
+    <div class="ro" data-obj><span class="k">Next</span><span class="n">${D.next[0]}</span><span class="s">${D.next[1]}</span></div>
+    <div class="ro" data-obj><span class="k"><i class="dot" style="--d:var(--vi)"></i>Steps</span><span class="n">${fmt(D.steps)}</span><span class="s">of ${fmt(D.stepFloor)}</span></div>
+    <div class="ro" data-obj><span class="k"><i class="dot" style="--d:var(--good)"></i>Protein</span><span class="n">${D.protein}<small>g</small></span><span class="s">of ${D.proteinFloor} g</span></div></div>`;
+  /* the waiting block: one button; blend 1 has the hands */
+  const waitBlock = (blend, f) => `<button class="wait" type="button" data-act="${blend === 1 ? 'sheet' : 'agents'}" data-obj aria-label="Waiting on you. Open your agents.">
+    <span class="k">Waiting on you${chevSVG}</span>
+    <span class="wrow"><span class="cnt" role="status"><span class="roll"><span class="cur">0</span></span></span>${blend === 1 ? `<span class="hands" style="--f:${f}px">${AG.map((b) => face(b, f)).join('')}<span class="more"></span></span>` : ''}</span>
+    <span class="s who"></span></button>`;
+  const pips = (n, c) => `<span class="pips" aria-hidden="true">${Array.from({ length: n }, () => `<i style="--d:${c}"></i>`).join('')}</span>`;
+  const lately = () => `<div class="ro" data-obj><span class="k">From the pulse</span><p class="say" style="font-size:20px">${D.pulse}</p><span class="s">${D.pulseFrom} · changes every two minutes</span></div>
+    <div class="ro"><span class="k">Lately</span><ul class="late">${D.lately.map(([t, l]) => `<li data-obj><span class="lt">${l}</span><span class="s">${t} ago</span></li>`).join('')}</ul></div>`;
+  const streaks = () => `<div class="stks">
+    <div class="stk" data-obj><span class="k">Training</span>${pips(4, 'var(--ink)')}<span class="s">4 sessions in a row</span></div>
+    <div class="stk" data-obj><span class="k">Protein</span><span class="meter" aria-hidden="true"><i style="width:57%"></i></span><span class="s">12 of 21 days this month</span></div>
+    <div class="stk" data-obj><span class="k">Steps</span>${pips(6, 'var(--vi)')}<span class="s">6 days at the floor</span></div></div>`;
+  const latelyPage = () => `<section class="page" aria-label="Lately"><div class="lately">${lately()}${streaks()}</div></section>`;
+  const dots = (names) => `<div class="pd" role="group" aria-label="Pages">${names.map((n, i) => `<button type="button" data-pg="${i}" aria-label="${n}" aria-current="${i === 0}"${n === 'Agents' ? ' data-agdot' : ''}><i></i></button>`).join('')}</div>`;
+  const ctlBar = (blend) => `<div class="ctl" role="toolbar" aria-label="Wall controls"><button class="cb done" type="button" data-act="done">Done</button><span class="key">esc</span><span class="sp"></span><button class="cb" type="button" data-act="dim" aria-pressed="false">Dim</button><button class="cb" type="button" data-act="${blend === 1 ? 'sheet' : 'agents'}">Agents</button></div>`;
+  const chrome = (blend, v) => `<i class="floor" aria-hidden="true"></i><i class="edge" aria-hidden="true"></i><div class="dim"></div>${ctlBar(blend)}
+    ${blend === 1 ? `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-label="Your agents"></div>` : ''}<div class="toast" role="status"></div>${v === 'M' ? '' : '<div class="hint gone">Tap for controls</div>'}`;
+  const strip = (f) => AG.map((b) => `<button class="sb" type="button" data-pick="${b.id}" style="--h:${b.h};--f:${f}px" aria-label="${b.name}" aria-pressed="false"><i class="wr" aria-hidden="true"></i>${face(b, f)}</button>`).join('');
+  const stripNamed = (f) => AG.map((b) => `<button class="sb" type="button" data-pick="${b.id}" style="--h:${b.h};--f:${f}px" aria-label="${b.name}" aria-pressed="false"><i class="wr" aria-hidden="true"></i>${face(b, f)}<span class="nm">${b.name}</span></button>`).join('');
+
+  /* ===== Blend 1 ===== */
+  function wall1(v) {
+    const head = `<div class="wall W1 ${v}" data-blend="1" data-v="${v}" data-page="0" data-att="0">`;
+    if (v === 'P') return `${head}<div class="track"><section class="page" aria-label="The glance"><div class="drift"><div class="g">
+        <div class="top">${clock()}<div class="date" data-obj>${D.date}</div></div>
+        <div class="mid">${coreOrb(168, 104, 32)}${wkLine()}</div>
+        <p class="say" data-obj>${D.tag}</p>
+        ${waitBlock(1, 46)}
+        ${ro3()}</div></div></section>${latelyPage()}</div>
+      <div class="foot">${dots(['The glance', 'Lately'])}<span class="sync" data-obj>${D.sync}</span></div>${chrome(1, v)}</div>`;
+    if (v === 'L') return `${head}<div class="track"><section class="page" aria-label="The glance"><div class="drift"><div class="g">
+        <div class="lp">${clock()}<div class="date" data-obj>${D.date}</div><div class="nova">${coreOrb(112, 58, 26)}${wkLine()}</div></div>
+        <div class="rp"><p class="say" data-obj>${D.tag}</p>${waitBlock(1, 46)}${ro3()}</div></div></div></section>${latelyPage()}</div>
+      <div class="foot">${dots(['The glance', 'Lately'])}<span class="sync" data-obj style="align-self:center">${D.sync}</span></div>${chrome(1, v)}</div>`;
+    return `${head}<div class="track"><section class="page"><div class="drift"><div class="g">
+        <div class="lp">${clock()}<div class="date" data-obj>${D.date}</div><div class="nova">${coreOrb(156, 84, 34)}${wkLine()}</div></div>
+        <div class="rp"><p class="say" data-obj>${D.tag}</p>${waitBlock(1, 54)}<ul class="prev" aria-label="What they are asking"></ul>${ro3()}</div>
+        <div class="band"><div class="col">${lately().split('<div class="ro"><span class="k">Lately')[0]}</div><div class="col"><span class="k">Lately</span><ul class="late">${D.lately.map(([t, l]) => `<li data-obj><span class="lt">${l}</span><span class="s">${t} ago</span></li>`).join('')}</ul></div><div class="col">${streaks()}</div></div>
+      </div></div></section></div><span class="sync syncm" data-obj>${D.sync}</span>${chrome(1, v)}</div>`;
+  }
+
+  /* ===== Blend 2 ===== */
+  const subjHTML = () => `<div class="subj" aria-live="polite" data-obj></div>`;
+  function wall2(v) {
+    const head = `<div class="wall W2 ${v}" data-blend="2" data-v="${v}" data-page="0" data-att="0">`;
+    if (v === 'P') return `${head}<div class="track"><section class="page" aria-label="The glance"><div class="drift"><div class="g">
+        <div class="top">${clock()}<div class="date" data-obj>${D.date}</div></div>
+        <div class="mid">${coreOrb(150, 104, 32, false)}</div>
+        <p class="say" data-obj>${D.tag}</p>
+        ${waitBlock(2)}
+        ${ro3()}</div></div></section>
+        <section class="page" aria-label="Agents"><div class="agp"><div class="aghead"><span class="k">Your agents</span><p class="say agsay" style="font-size:20px;margin-top:4px"></p></div>${subjHTML()}<div class="strip" data-obj>${strip(48)}</div></div></section>
+        ${latelyPage()}</div>
+      <div class="foot">${dots(['The glance', 'Agents', 'Lately'])}<span class="sync" data-obj>${D.sync}</span></div>${chrome(2, v)}</div>`;
+    if (v === 'L') return `${head}<div class="track"><section class="page" aria-label="The glance"><div class="drift"><div class="g">
+        <div class="lp">${clock()}<div class="date" data-obj>${D.date}</div><div class="nova">${coreOrb(84, 58, 26, false)}<span class="s">Nova, at rest</span></div></div>
+        <div class="rp"><p class="say" data-obj>${D.tag}</p>${waitBlock(2)}${ro3()}</div></div></div></section>
+        <section class="page" aria-label="Agents"><div class="agp"><div class="aghead"><span class="k">Your agents</span> <span class="say agsay" style="font-size:17px;margin-left:8px"></span></div>${subjHTML()}<div class="strip" data-obj>${stripNamed(40)}</div></div></section>
+        ${latelyPage()}</div>
+      <div class="foot">${dots(['The glance', 'Agents', 'Lately'])}<span class="sync" data-obj style="align-self:center">${D.sync}</span></div>${chrome(2, v)}</div>`;
+    /* Mac: the org beside the glance */
+    const R = 222, C = 260;
+    const ringFaces = AG.map((b, i) => { const a = (-90 + i * 36) * Math.PI / 180; return `<button class="sb" type="button" data-pick="${b.id}" style="--h:${b.h};--f:56px;left:${(C + R * Math.cos(a)).toFixed(1)}px;top:${(C + R * Math.sin(a)).toFixed(1)}px" aria-label="${b.name}" aria-pressed="false"><i class="wr" aria-hidden="true"></i>${face(b, 56)}<span class="nm">${b.name}</span></button>`; }).join('');
+    return `${head}<div class="track"><section class="page"><div class="drift"><div class="g">
+        <div class="rp" style="align-content:center">${clock()}<div class="date" data-obj>${D.date}</div><p class="say" data-obj style="margin-top:12px">${D.tag}</p>${waitBlock(2)}${ro3()}<div style="margin-top:10px">${lately().split('<div class="ro"><span class="k">Lately')[0]}</div></div>
+        <div class="orgring" data-obj><svg class="orbitline" viewBox="0 0 520 520" aria-hidden="true"><circle cx="260" cy="260" r="${R}" fill="none" stroke="rgba(232,236,246,.12)" stroke-dasharray="2 6"/></svg>
+          ${ringFaces}<div class="ringcard">${coreH(64)}${subjHTML()}</div></div>
+      </div></div></section></div><span class="sync syncm" data-obj>${D.sync}</span>${chrome(2, v)}</div>`;
+  }
+
+  /* ===== applying a state to a wall, acted out ===== */
+  function roll(r, n, anim) {
+    const cur = r.querySelector('.cur:not(.out)'), v = String(n);
+    if (cur && cur.textContent === v) return;
+    if (!anim || !cur || reduced()) { r.innerHTML = `<span class="cur">${v}</span>`; return; }
+    const up = n > +cur.textContent, nx = document.createElement('span');
+    nx.className = 'cur ' + (up ? 'below' : 'above'); nx.textContent = v; r.appendChild(nx);
+    cur.classList.add('out', up ? 'up' : 'down');
+    requestAnimationFrame(() => requestAnimationFrame(() => nx.classList.remove('below', 'above')));
+    setTimeout(() => cur.remove(), 300);
+  }
+  function countTo(cnt, target, anim) {
+    const tok = (cnt._tok = (cnt._tok || 0) + 1);
+    if (target == null) { cnt.classList.add('unk'); cnt.innerHTML = ''; cnt.setAttribute('aria-label', 'No signal'); return; }
+    if (cnt.classList.contains('unk')) { cnt.classList.remove('unk'); cnt.innerHTML = '<span class="roll"><span class="cur">0</span></span>'; }
+    cnt.setAttribute('aria-label', `${target} waiting`);
+    const r = $('.roll', cnt);
+    const from = +($('.cur:not(.out)', r) || { textContent: 0 }).textContent;
+    if (!anim || reduced() || from === target) { roll(r, target, false); return; }
+    const step = target > from ? 1 : -1;
+    let v = from;
+    const tick = () => { if (cnt._tok !== tok) return; v += step; roll(r, v, true); if (v !== target) setTimeout(tick, 120); };
+    tick();
+  }
+  function swap(el, t, anim = true) {
+    if (!el || el.textContent === t) return;
+    if (!anim) { el.textContent = t; return; }
+    el.classList.add('swap-out');
+    setTimeout(() => { el.textContent = t; el.classList.remove('swap-out'); }, 200);
+  }
+  function layoutHands(hands, st, anim) {
+    if (!hands) return;
+    const f = parseFloat(hands.style.getPropertyValue('--f')), STEP = Math.round(f * 0.9);
+    const L = st ? waitingList(st) : [];
+    const vis = L.slice(0, 3), more = L.length - vis.length;
+    $$('.fc', hands).forEach((fc) => {
+      const i = vis.findIndex((b) => b.id === fc.dataset.id);
+      const was = fc.classList.contains('on');
+      if (i < 0) { fc.classList.remove('on'); fc.style.transitionDelay = '0ms'; return; }
+      fc.style.setProperty('--x', `${i * STEP}px`);
+      fc.style.zIndex = String(10 - i);
+      fc.style.transitionDelay = anim && !was ? `${i * 70}ms` : '0ms';
+      $('.badge', fc).textContent = vis[i].n;
+      fc.classList.add('on');
+      fc.setAttribute('aria-label', `${vis[i].name}, ${vis[i].n} waiting`);
+    });
+    const m = $('.more', hands);
+    if (more > 0) { m.textContent = `+${more}`; m.style.setProperty('--x', `${vis.length * STEP + 6}px`); m.classList.add('on'); } else m.classList.remove('on');
+    const w = vis.length ? f + STEP * (vis.length - 1) + (more > 0 ? 54 : 0) : 0;
+    hands.style.width = `${w}px`;
+    hands.classList.toggle('has', vis.length > 0);
+  }
+  function stripState(scope, st) {
+    $$('.sb', scope).forEach((sb) => {
+      const b = BY[sb.dataset.pick], n = st ? st.wait[b.id] || 0 : 0, w = st ? st.work.includes(b.id) : false;
+      sb.classList.toggle('ask', n > 0); sb.classList.toggle('work', w);
+      const fc = $('.fc', sb); fc.classList.toggle('ask', n > 0); $('.badge', fc).textContent = n || '';
+      sb.style.opacity = !st ? 0.4 : n || w ? 1 : 1 - DIM[b.fresh];
+      sb.setAttribute('aria-label', `${b.name}. ${beingLine(b, st)}`);
+    });
+  }
+  const askList = (b) => {
+    const a = ASKS[b.id] || [], n = b.n ?? 0;
+    return `<ul class="asks">${a.slice(0, 3).map(([t, w]) => `<li><button class="askb" type="button" data-act="ask"><i class="gd" aria-hidden="true"></i><span class="tt">${t}</span><span class="s">${w}</span><span class="ch" aria-hidden="true">›</span></button></li>`).join('')}${n > a.length ? `<li class="s">${n - a.length} more in the Inbox</li>` : ''}</ul>`;
+  };
+  function subjectFor(wall, st) {
+    if (wall._pick) return wall._pick;
+    if (!st) return null;
+    const L = waitingList(st);
+    return L.length ? L[0].id : st.work[0] || null;
+  }
+  function renderSubject(wall, st, anim) {
+    const box = $('.subj', wall); if (!box) return;
+    const id = subjectFor(wall, st), M = wall.dataset.v === 'M';
+    $$('.sb', wall).forEach((sb) => sb.setAttribute('aria-pressed', String(sb.dataset.pick === id)));
+    let h;
+    if (!st) h = `<div class="subj-h"><div><b>No signal</b><span class="s">Nova cannot read who is asking until the Mac answers.</span></div></div>`;
+    else if (!id) h = M ? `<span class="k">${sayLine(st)}</span><span class="s">Nobody is working right now.</span>`
+      : `<div class="subj-h">${coreH(72)}<div><b>Everyone is quiet</b><span class="s">Nothing is waiting on you, and nobody is working right now.</span></div></div>`;
+    else {
+      const b = { ...BY[id], n: st.wait[id] || 0 };
+      h = M ? `<b style="font:600 20px var(--ui);color:${b.h}">${b.name}</b><span class="s">${b.dist} · ${beingLine(b, st)}</span>${b.n ? askList(b) : ''}`
+        : `<div class="subj-h" style="--h:${b.h}">${face(b, wall.dataset.v === 'L' ? 84 : 104, b.n ? ' data-big' : '')}<div><b>${b.name}</b><span class="s">${b.dist} · ${beingLine(b, st)}</span></div></div>${b.n ? askList(b) : ''}`;
+    }
+    const key = `${id}|${st ? JSON.stringify(st) : 'off'}`;
+    if (box._key === key) return;
+    box._key = key;
+    const put = () => { box.innerHTML = h; $$('.fc[data-big]', box).forEach((f) => f.classList.add('ask')); $$('.fc[data-big] .badge', box).forEach((x) => { x.textContent = st.wait[id]; }); };
+    if (!anim || reduced() || !box.innerHTML) { put(); return; }
+    box.classList.add('swap-out'); setTimeout(() => { put(); box.classList.remove('swap-out'); }, 200);
+  }
+  function renderPreview(wall, st, anim) {
+    const ul = $('.prev', wall); if (!ul) return;
+    const L = st ? waitingList(st) : [];
+    const rows = [];
+    L.forEach((b) => (ASKS[b.id] || []).forEach(([t]) => rows.push([b, t])));
+    const show = rows.slice(0, 2), rest = (st ? total(st) : 0) - show.length;
+    const html = show.map(([b, t]) => `<li data-obj>${face(b, 28)}<span>${t}<span class="s">${b.name}</span></span></li>`).join('') + (rest > 0 ? `<li><span></span><span class="s">and ${rest} more · tap the count</span></li>` : '');
+    if (ul._h === html) return; ul._h = html;
+    if (!anim || reduced()) { ul.innerHTML = html; return; }
+    ul.style.opacity = '0';
+    setTimeout(() => { ul.innerHTML = html; ul.style.opacity = '1'; }, 200);
+  }
+  function sheetHTML(st) {
+    const L = st ? waitingList(st) : [];
+    let body = '';
+    if (!st) body = `<p class="s">Nova cannot reach the Mac, so nobody's asks or work can be read. The wall will fill in when it answers.</p>`;
+    else {
+      body += L.map((b) => `<section class="ag" style="--h:${b.h}"><div class="ag-h">${face(b, 40)}<div><b>${b.name}</b><span class="s">${b.dist} · ${beingLine(b, st)}</span></div></div>${askList(b)}</section>`).join('');
+      if (!L.length) body += `<p class="s" style="margin:6px 0">Nothing is waiting on you.</p>`;
+      body += `<p class="shk">Working now</p>` + (st.work.length ? `<div class="wrk">${st.work.map((id) => `<span>${face(BY[id], 30)}${BY[id].name}</span>`).join('')}</div>` : `<p class="s" style="margin:0">Nobody is working right now.</p>`);
+    }
+    body += `<p class="shk">All ten</p><div class="all">${strip(36)}</div><p class="s allcap" aria-live="polite">Tap a face to hear how it is doing.</p>`;
+    return `<div class="sh-head"><span class="grab" aria-hidden="true"></span><div class="sh-t"><h4>Your agents</h4><button class="cb" type="button" data-act="close">Close</button></div><p class="sh-say">${sayLine(st)}</p></div>
+      <div class="sh-body">${body}</div>
+      <div class="sh-foot"><button class="cb pri" type="button" data-act="inbox">Open the Inbox</button><button class="cb" type="button" data-act="talk">Talk it through</button></div>`;
+  }
+  function apply(wall, key, anim = true) {
+    const st = STATES[key], t = st ? total(st) : null;
+    wall.dataset.state = key;
+    wall.dataset.att = st && t > 0 ? '1' : '0';
+    wall.dataset.off = st ? '0' : '1';
+    wall.dataset.work = st && st.work.length ? '1' : '0';
+    $$('.cnt', wall).forEach((c) => countTo(c, t, anim));
+    $$('.who', wall).forEach((w) => swap(w, whoLine(st), anim));
+    $$('.agsay', wall).forEach((w) => swap(w, sayLine(st), anim));
+    $$('.wk', wall).forEach((w) => swap(w, workLine(st), anim));
+    $$('.sync', wall).forEach((s) => { s.textContent = st ? D.sync : 'Last synced 41 min ago'; });
+    $$('.wait', wall).forEach((w) => w.setAttribute('aria-label', `Waiting on you: ${whoLine(st)}. Open your agents.`));
+    $$('.hands', wall).forEach((h) => layoutHands(h, st, anim));
+    $$('.ow', wall).forEach((o) => o.classList.toggle('on', !!st && st.work.includes(o.dataset.id)));
+    $$('[data-agdot]', wall).forEach((d) => { d.classList.toggle('gold', !!st && t > 0); d.setAttribute('aria-label', st && t ? `Agents, ${t} waiting` : 'Agents'); });
+    stripState(wall, st);
+    renderSubject(wall, st, anim);
+    renderPreview(wall, st, anim);
+    if (wall.dataset.sheet === '1') fillSheet(wall);
+  }
+  function fillSheet(wall) {
+    const sh = $('.sheet', wall); if (!sh) return;
+    sh.innerHTML = sheetHTML(STATES[wall.dataset.state]);
+    stripState(sh, STATES[wall.dataset.state]);
+    sheetDrag(wall);
+  }
+
+  /* ===== interaction on a wall ===== */
+  function toast(wall, t) { const el = $('.toast', wall); el.textContent = t; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 2200); }
+  function go(wall, i, anim = true) {
+    const n = $$('.track > .page', wall).length; i = Math.max(0, Math.min(n - 1, i));
+    wall.dataset.page = i;
+    const tr = $('.track', wall); tr.style.transition = anim ? '' : 'none'; tr.style.transform = `translateX(${-i * 100}%)`;
+    $$('.pd [data-pg]', wall).forEach((b) => b.setAttribute('aria-current', String(+b.dataset.pg === i)));
+  }
+  function openSheet(wall) { wall.dataset.sheet = '1'; fillSheet(wall); }
+  function closeSheet(wall) { wall.dataset.sheet = '0'; const sh = $('.sheet', wall); if (sh) sh.style.transform = ''; }
+  function showCtl(wall) { if (wall.dataset.v === 'M') return; wall.dataset.ctl = '1'; clearTimeout(wall._ct); wall._ct = setTimeout(() => { wall.dataset.ctl = '0'; }, 5000); }
+  function sheetDrag(wall) {
+    const sh = $('.sheet', wall), hd = $('.sh-head', sh);
+    if (!hd || wall.dataset.v !== 'P') return;
+    let y0 = 0, dy = 0, t0 = 0, on = false;
+    const k = () => parseFloat(getComputedStyle(wall.closest('.fig')).getPropertyValue('--k')) || 1;
+    hd.onpointerdown = (e) => { if (e.target.closest('button')) return; on = true; y0 = e.clientY; dy = 0; t0 = performance.now(); hd.setPointerCapture(e.pointerId); sh.classList.add('drag'); };
+    hd.onpointermove = (e) => { if (!on) return; dy = (e.clientY - y0) / k(); const d = dy < 0 ? dy * 0.2 : dy; sh.style.transform = `translateY(${d}px)`; };
+    hd.onpointerup = hd.onpointercancel = () => { if (!on) return; on = false; sh.classList.remove('drag'); const v = dy / Math.max(1, performance.now() - t0); if (dy > 90 || v > 0.5) closeSheet(wall); sh.style.transform = ''; };
+  }
+  function wire(wall, opts = {}) {
+    const tr = $('.track', wall);
+    let sx = 0, dx = 0, t0 = 0, drag = false, moved = false;
+    const k = () => parseFloat(getComputedStyle(wall.closest('.fig')).getPropertyValue('--k')) || 1;
+    if ($$('.track > .page', wall).length > 1) {
+      tr.addEventListener('pointerdown', (e) => { if (wall.dataset.sheet === '1') return; drag = true; moved = false; sx = e.clientX; dx = 0; t0 = performance.now(); });
+      tr.addEventListener('pointermove', (e) => {
+        if (!drag) return; dx = (e.clientX - sx) / k();
+        if (!moved && Math.abs(dx) > 10) { moved = true; try { tr.setPointerCapture(e.pointerId); } catch (_) { /* fine */ } tr.style.transition = 'none'; }
+        if (moved) { const i = +wall.dataset.page, n = $$('.track > .page', wall).length, W = wall.clientWidth; let off = -i * W + dx; if ((i === 0 && dx > 0) || (i === n - 1 && dx < 0)) off = -i * W + dx * 0.3; tr.style.transform = `translateX(${off}px)`; }
+      });
+      const up = () => { if (!drag) return; drag = false; if (!moved) return; const v = Math.abs(dx) / Math.max(1, performance.now() - t0), i = +wall.dataset.page; go(wall, Math.abs(dx) > 60 || v > 0.35 ? i + (dx < 0 ? 1 : -1) : i); };
+      tr.addEventListener('pointerup', up); tr.addEventListener('pointercancel', up);
+    }
+    wall.addEventListener('click', (e) => {
+      if (moved) { moved = false; return; }
+      const pg = e.target.closest('[data-pg]'); if (pg) { go(wall, +pg.dataset.pg); return; }
+      const pick = e.target.closest('[data-pick]');
+      if (pick) {
+        const b = BY[pick.dataset.pick], st = STATES[wall.dataset.state];
+        if (pick.closest('.sheet')) { swap($('.allcap', wall), `${b.name} · ${beingLine(b, st)}`); $$('.sheet .sb', wall).forEach((x) => x.setAttribute('aria-pressed', String(x === pick))); return; }
+        wall._pick = pick.dataset.pick; renderSubject(wall, st, true); return;
+      }
+      const b = e.target.closest('[data-act]');
+      if (!b) { if (wall.dataset.sheet !== '1') showCtl(wall); return; }
+      const act = b.dataset.act;
+      if (act === 'sheet') { openSheet(wall); }
+      else if (act === 'close') closeSheet(wall);
+      else if (act === 'agents') { wall._pick = null; go(wall, 1); renderSubject(wall, STATES[wall.dataset.state], false); }
+      else if (act === 'ask') toast(wall, 'Opens the Inbox at this card');
+      else if (act === 'inbox') toast(wall, 'Opens the Inbox');
+      else if (act === 'talk') toast(wall, 'Opens Nova, with these asks in hand');
+      else if (act === 'dim') { const on = wall.dataset.dim !== '1'; wall.dataset.dim = on ? '1' : '0'; b.setAttribute('aria-pressed', String(on)); }
+      else if (act === 'done') { if (opts.onDone) opts.onDone(); else toast(wall, 'Back to the page you came from'); }
+    });
+  }
+
+  /* ===== the Console card on Home ===== */
+  const VIT = { hrv: 58, lo: 48, hi: 66, delta: 6, rest: 52 };
+  const WEEK = { days: ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed'], steps: [9120, 7480, null, 10240, 6630, 8810, 1840], floor: 10000 };
+  const pol = (c, r, d) => { const a = (d - 90) * Math.PI / 180; return [c + r * Math.cos(a), c + r * Math.sin(a)]; };
+  const arcP = (c, r, a0, a1) => { const [x0, y0] = pol(c, r, a0), [x1, y1] = pol(c, r, a1); return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`; };
+  function recSVG() {
+    const W = 300, x = (v) => 12 + (v - 42) / 30 * (W - 24);
+    return `<svg viewBox="0 0 ${W} 56" role="img" aria-label="Heart-rate variability ${VIT.hrv} milliseconds; your usual range is ${VIT.lo} to ${VIT.hi}."><line x1="12" y1="28" x2="${W - 12}" y2="28" stroke="rgba(232,236,246,.16)"/>
+      <rect class="grow" x="${x(VIT.lo)}" y="20" width="${x(VIT.hi) - x(VIT.lo)}" height="16" rx="8" fill="rgba(89,230,255,.16)" stroke="rgba(89,230,255,.5)"/>
+      <line x1="${x(VIT.hrv)}" y1="12" x2="${x(VIT.hrv)}" y2="44" stroke="#59e6ff" stroke-width="3" stroke-linecap="round"/>
+      <text x="${(x(VIT.lo) + x(VIT.hi)) / 2}" y="56" text-anchor="middle" class="svgs">Your usual, ${VIT.lo} to ${VIT.hi} ms</text></svg>`;
+  }
+  function weekSVG() {
+    const W = 300, H = 136, s = WEEK.steps, max = 11000, base = H - 24, col = W / 7, bw = col - 12, y = (v) => base - v / max * (base - 8);
+    let o = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Steps this week: ${s.map((v, i) => `${WEEK.days[i]} ${v == null ? 'missing' : fmt(v)}`).join(', ')}. Floor ${fmt(WEEK.floor)} a day.">`;
+    o += `<line x1="0" y1="${y(WEEK.floor)}" x2="${W}" y2="${y(WEEK.floor)}" stroke="rgba(143,123,255,.6)" stroke-dasharray="4 4"/>`;
+    s.forEach((v, i) => { const x = i * col + 6, today = i === 6;
+      o += v == null ? `<rect x="${x}" y="${base - 24}" width="${bw}" height="24" rx="5" fill="none" stroke="rgba(232,236,246,.4)" stroke-dasharray="3 3"/>`
+        : `<rect class="bar" style="--i:${i}" x="${x}" y="${y(v).toFixed(1)}" width="${bw}" height="${(base - y(v)).toFixed(1)}" rx="5" fill="${today ? 'rgba(143,123,255,.3)' : 'rgba(143,123,255,.8)'}" stroke="${today ? '#8f7bff' : 'none'}" stroke-width="1.5"/>`;
+      o += `<text x="${x + bw / 2}" y="${H - 4}" text-anchor="middle" class="svgs">${WEEK.days[i]}</text>`; });
+    return o + '</svg>';
+  }
+  function dialSVG() {
+    const C = 160, R = 104, deg = (t) => t / 24 * 360, B = [[9, 1, 'Stand-up'], [12.5, .75, 'Lunch walk'], [15.5, 2, 'Deep work'], [18, 1, 'Gym']];
+    let s = `<svg viewBox="0 0 320 320" role="img" aria-label="Today as a 24-hour ring: stand-up at 9:00, lunch walk at 12:30, deep work from 15:30 for two hours, the longest block ahead, and the gym at 18:00. Now 7:42.">`;
+    for (let h = 0; h < 24; h++) { const big = h % 6 === 0, [x0, y0] = pol(C, R + 12, deg(h)), [x1, y1] = pol(C, R + (big ? 21 : 16), deg(h)); s += `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="rgba(232,236,246,${big ? .55 : .2})" stroke-width="${big ? 1.6 : 1}" stroke-linecap="round"/>`; }
+    [[6, '06'], [12, '12'], [18, '18']].forEach(([h, l]) => { const [x, y] = pol(C, R + 36, deg(h)); s += `<text x="${x.toFixed(1)}" y="${(y + 4.5).toFixed(1)}" text-anchor="middle" class="svgs">${l}</text>`; });
+    s += `<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="rgba(232,236,246,.1)" stroke-width="2"/>`;
+    B.forEach(([t, len], i) => { const an = i === 2; s += `<path class="arc" pathLength="1" style="--i:${i}" d="${arcP(C, R, deg(t), deg(t + len))}" fill="none" stroke="${an ? '#eaf9ff' : 'rgba(232,236,246,.42)'}" stroke-width="${an ? 13 : 9}" stroke-linecap="round"/>`; });
+    const [hx, hy] = pol(C, R + 6, deg(7.7)); s += `<circle cx="${hx.toFixed(1)}" cy="${hy.toFixed(1)}" r="4" fill="#e8ecf6"/>`;
+    return s + `<text x="${C}" y="${C + 6}" text-anchor="middle" style="font:600 34px var(--round);fill:#e8ecf6">15:30</text><text x="${C}" y="${C + 30}" text-anchor="middle" class="svgs">Deep work, two hours</text></svg>`;
+  }
+  function protSVG() {
+    const W = 300, p = 42 / 165, fl = 160 / 165;
+    return `<svg viewBox="0 0 ${W} 50" role="img" aria-label="Protein 42 grams of 165 planned; floor 160 grams."><rect x="0" y="14" width="${W}" height="16" rx="8" fill="rgba(95,232,168,.12)"/><rect class="grow" x="0" y="14" width="${(W * p).toFixed(1)}" height="16" rx="8" fill="#5fe8a8"/><line x1="${(W * fl).toFixed(1)}" y1="6" x2="${(W * fl).toFixed(1)}" y2="38" stroke="#e8ecf6" stroke-dasharray="3 3"/><text x="${(W * fl).toFixed(1)}" y="50" text-anchor="end" class="svgs">Floor 160 g</text></svg>`;
+  }
+  const INS = [
+    ['Recovery', `<article class="ins"><header class="ih"><span class="it" style="color:var(--cy)">Recovery</span><span class="s">Heart-rate variability</span></header><p class="il">Recovered: ${VIT.delta}% above your usual.</p><span class="big" style="color:var(--cy)">${VIT.hrv}<small>ms</small></span>${recSVG()}</article>`],
+    ['Today', `<article class="ins"><header class="ih"><span class="it">Today</span><span class="s">4 blocks</span></header><p class="il">One long block, at 15:30.</p><div style="max-width:250px;margin:0 auto;width:100%">${dialSVG()}</div></article>`],
+    ['Steps', `<article class="ins"><header class="ih"><span class="it" style="color:var(--vi)">Steps</span><span class="s">Floor ${fmt(WEEK.floor)} a day</span></header><p class="il">Saturday never arrived; the push was not running.</p><span class="big">${fmt(1840)}<small>today</small></span>${weekSVG()}</article>`],
+    ['Training', `<article class="ins"><header class="ih"><span class="it">Training</span><span class="s">6 exercises</span></header><p class="il">Upper body today.</p><div class="mus"><span style="--d:#ff8a7a"><i></i>Chest</span><span style="--d:#ffc46b"><i></i>Front delts</span><span style="--d:#b48cff"><i></i>Triceps</span><span style="--d:#5fe8a8"><i></i>Biceps, supporting</span></div><span class="big">4<small>sessions in a row</small></span></article>`],
+    ['Protein', `<article class="ins"><header class="ih"><span class="it" style="color:var(--good)">Protein</span><span class="s">Plan 165 g</span></header><p class="il">The repair has started.</p><span class="big" style="color:var(--good)">42<small>of 165 g</small></span>${protSVG()}</article>`],
+  ];
+  const chev = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d ? 'm9 6 6 6-6 6' : 'm15 6-6 6 6 6'}"/></svg>`;
+  const homeConsole = () => `<div class="origin"><div class="hrow"><span class="hdate">Wednesday 7 October</span>${coreH(36)}</div><h3 class="htitle" data-obj>Good morning</h3><p class="hread" data-obj>Recovered, with one long block at 15:30.</p>
+    <div class="scard" data-obj><div class="dch"><span class="dct">Your day, drawn</span><span class="s pcount">1 of 5</span></div>
+      <div class="pager"><div class="ptrack">${INS.map(([, h]) => `<div class="slide">${h}</div>`).join('')}</div></div>
+      <div class="pfoot"><button class="pnav pprev" type="button" aria-label="Previous instrument">${chev(0)}</button><div class="pd" role="group" aria-label="Instruments">${INS.map(([n], i) => `<button type="button" aria-label="${n}" aria-current="${i === 0}"><i></i></button>`).join('')}</div><button class="pnav pnext" type="button" aria-label="Next instrument">${chev(1)}</button></div></div>
+    <p class="s" style="margin:4px 4px 0">Until 11:00, or until you have seen all five. Pin it from Edit to keep it.</p></div>`;
+  function pagerRun(fig, live) {
+    const pg = $('.pager', fig), track = $('.ptrack', pg), dts = $$('.pfoot .pd button', fig), cnt = $('.pcount', fig), N = INS.length;
+    let i = 0;
+    const kf = () => parseFloat(getComputedStyle(fig).getPropertyValue('--k')) || 1;
+    const reveal = (el) => { el.classList.remove('in'); void el.getBoundingClientRect(); el.classList.add('in'); };
+    const goP = (j, anim = true) => { i = Math.max(0, Math.min(N - 1, j)); track.style.transition = anim ? '' : 'none'; track.style.transform = `translateX(${-i * 100}%)`; dts.forEach((d, k) => d.setAttribute('aria-current', String(k === i))); cnt.textContent = `${i + 1} of ${N}`; reveal($$('.slide', track)[i]); };
+    dts.forEach((d, k) => { d.onclick = () => goP(k); });
+    $('.pprev', fig).onclick = () => goP(i - 1); $('.pnext', fig).onclick = () => goP(i + 1);
+    let sx = 0, dx = 0, t0 = 0, drag = false;
+    pg.onpointerdown = (e) => { drag = true; sx = e.clientX; dx = 0; t0 = performance.now(); pg.setPointerCapture(e.pointerId); track.style.transition = 'none'; };
+    pg.onpointermove = (e) => { if (!drag) return; dx = (e.clientX - sx) / kf(); const w = pg.clientWidth; let off = -i * w + dx; if ((i === 0 && dx > 0) || (i === N - 1 && dx < 0)) off = -i * w + dx * .3; track.style.transform = `translateX(${off}px)`; };
+    pg.onpointerup = pg.onpointercancel = () => { if (!drag) return; drag = false; track.style.transition = ''; const v = Math.abs(dx) / Math.max(1, performance.now() - t0); if (Math.abs(dx) > 60 || v > .35) goP(i + (dx < 0 ? 1 : -1)); else goP(i); };
+    goP(0, false);
+    (async () => { for (let s = 1; s < N; s++) { await sleep(3400); if (!live() || drag) return; goP(s); } })();
+  }
+
+  /* ===== the frames ===== */
+  const homeStub = () => `<div class="origin"><div class="hrow"><span class="hdate">Wednesday 7 October</span>${coreH(36)}</div><h3 class="htitle">Good morning</h3><p class="hread">Recovered, with one long block at 15:30.</p><div class="scard home-wall" style="min-height:96px"><span class="k">You opened the wall from here, so Done brings you back here.</span></div><button class="again" type="button">Open the wall again</button></div>`;
+  const FR = {
+    1: [
+      ['p1', 390, 844, '', 'Upright: the records, acted out', 'None waiting: A exactly. One: the Coach rises beside the count with a badge, the count rolls to 1, the gold light draws along the foot. Several: the CFO arrives first because it asks most, the faces reflow, the count steps to 4. Whoever is working circles the core, and the line under it names them.', () => wall1('P'), 'follow'],
+      ['p2', 390, 844, '', 'Getting to it, and the way out', 'The Coach rises; you tap the count and the sheet comes up with its ask, who is working, and all ten. An ask opens the Inbox at that card. Swipe the sheet down, tap the wall for controls, and Done returns you to Home.', () => homeStub() + wall1('P'), 'script'],
+      ['p3', 844, 390, 'wide', 'On a stand', 'StandBy\'s shape: the time and the core on the left, the glance on the right. The faces rise beside the count here too. Tap the count and the sheet comes in from the right edge.', () => wall1('L'), 'follow'],
+      ['p4', 1280, 800, 'wide mac', 'The MacBook', 'Room for the asks themselves: the first two sit under the count with their agent\'s face. Done, Esc and Agents stay in reach.', () => wall1('M'), 'follow'],
+    ],
+    2: [
+      ['q1', 390, 844, '', 'Upright: the glance never changes shape', 'The count and the names are the only sign. When anyone waits, the second dot turns gold. Swipe left, or tap the count, for the agents.', () => wall2('P'), 'follow'],
+      ['q2', 390, 844, '', 'Getting to it, and the way out', 'The Coach asks; the dot turns gold; you swipe. The Coach is the subject, with its ask; the strip below holds all ten (a gold badge waits, a turning ring works). Tap the Researcher to see what it is doing, then come back and leave by Done.', () => homeStub() + wall2('P'), 'script'],
+      ['q3', 844, 390, 'wide', 'On a stand: the agents page', 'Shown on its second page, so you can see it in landscape: the subject on the left, all ten named on the right.', () => wall2('L'), 'follow2'],
+      ['q4', 1280, 800, 'wide mac', 'The MacBook: the org beside the glance', 'C\'s ring at the side, with whoever asks first at its centre. Click any face to bring it to the centre.', () => wall2('M'), 'follow'],
+    ],
+    console: [
+      ['c1', 390, 844, '', 'Home in the morning: Your day, drawn', 'One instrument at a time, in Home\'s colours, each with a VoiceOver label for every bar, block and band. Swipe, or use the arrows.', homeConsole, 'pager'],
+    ],
+  };
+
+  let mode = 'cycle';
+  const following = () => $$('.dir:not([hidden]) .fig[data-run^="follow"] .wall');
+  function setAll(key, anim = true) { following().forEach((w) => apply(w, key, anim)); }
+  let cycTok = 0;
+  async function cycle() {
+    const t = ++cycTok;
+    const ok = () => t === cycTok && mode === 'cycle';
+    setAll('none', false);
+    while (ok()) {
+      await sleep(2600); if (!ok()) return; setAll('one');
+      await sleep(4600); if (!ok()) return; setAll('several');
+      await sleep(5600); if (!ok()) return; setAll('none');
+    }
+  }
+  function setMode(m) {
+    mode = m;
+    $$('.states [data-st]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.st === m)));
+    cycTok++;
+    if (m === 'cycle') cycle(); else setAll(m);
+  }
+  $$('.states [data-st]').forEach((b) => { b.onclick = () => setMode(b.dataset.st); });
+
+  async function script1(fig, live) {
+    const wall = $('.wall', fig), origin = $('.origin', fig);
+    const hint = $('.hint', wall); hint.classList.remove('gone'); setTimeout(() => hint.classList.add('gone'), 2600);
+    const pause = async (ms) => { await sleep(ms); return live(); };
+    const press = async (el) => { if (!el) return; el.classList.add('press'); await sleep(180); el.classList.remove('press'); };
+    wall.hidden = false; wall.dataset.ctl = '0'; closeSheet(wall); apply(wall, 'none', false);
+    if (!await pause(1500)) return; apply(wall, 'one');
+    if (!await pause(2600)) return; await press($('.wait', wall)); openSheet(wall);
+    if (!await pause(3000)) return; await press($('.sheet .askb', wall)); toast(wall, 'Opens the Inbox at this card');
+    if (!await pause(2600)) return; closeSheet(wall);
+    if (!await pause(1300)) return; showCtl(wall);
+    if (!await pause(1300)) return; await press($('.ctl [data-act="done"]', wall)); leave(wall, origin);
+  }
+  async function script2(fig, live) {
+    const wall = $('.wall', fig), origin = $('.origin', fig);
+    const hint = $('.hint', wall); hint.classList.remove('gone'); setTimeout(() => hint.classList.add('gone'), 2600);
+    const pause = async (ms) => { await sleep(ms); return live(); };
+    const press = async (el) => { if (!el) return; el.classList.add('press'); await sleep(180); el.classList.remove('press'); };
+    wall.hidden = false; wall.dataset.ctl = '0'; wall._pick = null; go(wall, 0); apply(wall, 'none', false);
+    if (!await pause(1500)) return; apply(wall, 'one');
+    if (!await pause(2600)) return; await press($('[data-agdot]', wall)); go(wall, 1);
+    if (!await pause(2800)) return; await press($('.subj .askb', wall)); toast(wall, 'Opens the Inbox at this card');
+    if (!await pause(2400)) return; const r = $('.strip [data-pick="researcher"]', wall); await press(r); wall._pick = 'researcher'; renderSubject(wall, STATES.one, true);
+    if (!await pause(2600)) return; wall._pick = null; go(wall, 0);
+    if (!await pause(1300)) return; showCtl(wall);
+    if (!await pause(1300)) return; await press($('.ctl [data-act="done"]', wall)); leave(wall, origin);
+  }
+  function leave(wall, origin) {
+    wall.dataset.ctl = '0'; wall.classList.add('leaving');
+    setTimeout(() => { wall.hidden = true; wall.classList.remove('leaving'); const c = $('.home-wall', origin); if (c) { c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); } }, 280);
+  }
+
+  function buildDir(d) {
+    const box = $(`[data-frames="${d}"]`);
+    box.innerHTML = FR[d].map(([id, w, h, cls, t, cap, fn, run]) => `<figure class="fig ${cls}" id="${id}" data-w="${w}" data-h="${h}" data-run="${run}">
+      <div class="fit"><div class="screen" style="width:${w}px;height:${h}px">${fn()}</div></div>
+      <figcaption><b>${t}</b>${cap}<span class="meas"></span><span class="fbtns">${run === 'script' ? '<button class="fbtn" type="button" data-replay>Replay</button>' : ''}${cls.includes('wide') ? '<button class="fbtn" type="button" data-actual aria-pressed="false">Actual size</button>' : ''}</span></figcaption></figure>`).join('');
+    $$('.fig', box).forEach((fig) => {
+      const wall = $('.wall', fig), origin = $('.origin', fig);
+      if (wall) wire(wall, fig.dataset.run === 'script' ? { onDone: () => leave(wall, origin) } : {});
+      if (fig.dataset.run === 'script') {
+        $('.again', fig).onclick = () => { wall.hidden = false; wall.classList.add('arriving'); setTimeout(() => wall.classList.remove('arriving'), 360); };
+        $('[data-replay]', fig).onclick = () => start(fig);
+      }
+      const a = $('[data-actual]', fig); if (a) a.onclick = () => { const on = fig.classList.toggle('actual'); a.setAttribute('aria-pressed', on); fit(fig); };
+    });
+  }
+  function fit(fig) {
+    const w = +fig.dataset.w, h = +fig.dataset.h, f = $('.fit', fig), s = $('.screen', fig);
+    if (!f.clientWidth) return;
+    const act = fig.classList.contains('actual'), k = act ? 1 : Math.min(1, f.clientWidth / w);
+    fig.style.setProperty('--k', k); s.style.transform = `scale(${k})`;
+    f.style.height = (act ? Math.min(h, innerHeight * .8) : h * k) + 'px';
+  }
+  function start(fig) {
+    const t = (fig._tok = (fig._tok || 0) + 1);
+    const live = () => fig._tok === t && !fig.closest('.dir,section').hidden;
+    const run = fig.dataset.run, wall = $('.wall', fig);
+    if (run === 'script') (wall.dataset.blend === '1' ? script1 : script2)(fig, live);
+    else if (run === 'pager') pagerRun(fig, live);
+    else if (run === 'follow2') go(wall, 1, false);
+  }
+
+  /* measured by this page, from its own frames, with four things waiting */
+  const NUMRE = /^[\d\s:.,%+\/]+$/;
+  const visible = (el) => (el.checkVisibility ? el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) : true);
+  function measure(fig) {
+    const scr = $('.screen', fig), W = +fig.dataset.w, H = +fig.dataset.h, wall = $('.wall', fig);
+    const k = parseFloat(getComputedStyle(fig).getPropertyValue('--k')) || 1, sr = scr.getBoundingClientRect();
+    const scope = wall ? $$('.track > .page', wall)[+wall.dataset.page] : scr;
+    let vis = 0, cut = 0;
+    $$('[data-obj]', scope).forEach((el) => {
+      if (!visible(el)) return;
+      const r = el.getBoundingClientRect(); if (!r.width) return;
+      const t = (r.top - sr.top) / k, b = (r.bottom - sr.top) / k, l = (r.left - sr.left) / k, rt = (r.right - sr.left) / k;
+      if (b <= 0 || t >= H || rt <= 0 || l >= W) return;
+      const pager = el.closest('.pager'); if (pager) { const p = pager.getBoundingClientRect(); if (r.left >= p.right - 1 || r.right <= p.left + 1) return; }
+      vis++; if (t < -1 || b > H + 1 || l < -1 || rt > W + 1) cut++;
+    });
+    const sizes = new Set(), tw = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT); let n;
+    while ((n = tw.nextNode())) { const tx = n.textContent.trim(); if (!tx || NUMRE.test(tx)) continue; const el = n.parentElement; if (!visible(el) || el.closest('.sheet,.ctl,.toast,.hint,svg')) continue; const r = el.getBoundingClientRect(); if (!r.width) continue; const t = (r.top - sr.top) / k; if (t > H || t < -40) continue; sizes.add(parseFloat(getComputedStyle(el).fontSize)); }
+    let minC = Infinity;
+    [...$$('button', scope), ...(wall ? $$('.foot button', wall) : [])].forEach((b) => { if (!visible(b) || b.closest('.slide:not(:first-child)')) return; const w = b.offsetWidth, h = b.offsetHeight; if (w && h) minC = Math.min(minC, w, h); });
+    $('.meas', fig).textContent = `Measured on this frame${wall ? ', with four things waiting' : ''}: ${vis} objects in view, ${cut ? `${cut} cut off` : 'none cut off'} · text sizes ${[...sizes].sort((a, b) => a - b).join(', ')} besides numerals · smallest control ${minC === Infinity ? 'none' : `${minC} pt`}`;
+  }
+
+  const built = {};
+  function show(d) {
+    if (!['1', '2'].includes(d)) d = '1';
+    ['1', '2'].forEach((x) => { const sec = $('#dir-' + x); if (x !== d) $$('.fig', sec).forEach((f) => { f._tok = (f._tok || 0) + 1; }); sec.hidden = x !== d; });
+    $$('.seg [data-go]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.go === d)));
+    if (location.hash !== '#' + d) history.replaceState(null, '', '#' + d);
+    if (!built[d]) { buildDir(d); built[d] = true; }
+    requestAnimationFrame(() => {
+      $$('#dir-' + d + ' .fig').forEach(fit);
+      const figs = $$('#dir-' + d + ' .fig');
+      figs.forEach((f) => { const w = $('.wall', f); if (w && f.dataset.run !== 'script') { if (f.dataset.run === 'follow2') go(w, 1, false); apply(w, 'several', false); } });
+      setTimeout(() => {
+        figs.forEach((f) => { if (f.dataset.run !== 'script') measure(f); });
+        figs.forEach(start);
+        setMode(mode);
+      }, 120);
+    });
+  }
+  buildDir('console');
+  requestAnimationFrame(() => { const f = $('#c1'); fit(f); measure(f); start(f); });
+  $$('.seg [data-go]').forEach((b) => { b.onclick = () => show(b.dataset.go); });
+  addEventListener('hashchange', () => show(location.hash.slice(1)));
+  $('#rmt').onclick = (e) => { rmPreview = !rmPreview; e.currentTarget.setAttribute('aria-pressed', String(rmPreview)); applyRM(); };
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') $$('.wall[data-sheet="1"]').forEach(closeSheet); });
+  let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => $$('.fig').forEach(fit), 120); });
+  show(location.hash.slice(1) || '1');
+})();
+</script>
