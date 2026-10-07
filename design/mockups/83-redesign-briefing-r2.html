@@ -1,0 +1,1014 @@
+<title>Briefing Round Two</title>
+<!--
+  83 · THE BRIEFING, ROUND 2 (7 October 2026)
+  Round 1 was mockup 77 (three directions), audited in
+  design/audits/redesign-2026-09/12-briefing.md. His answer, 7 Oct:
+    "the 'keep it' etc options ... I don't know what that means. Is it
+     information to store? ... Or is it something for me to consider or some
+     kind of change to make? This is too ambiguous"
+    "I like the overview from option C at the end with the boards"
+    "I like the read view option for B, but prefer the dynamic layout of A and C"
+    "I like how A transitions more between the visuals as it progresses.
+     Although let's remove the sparks moving from the nova icon to the
+     subtitles as it's distracting"
+
+  ONE DIRECTION. A's playback and its transitions (a panel rises out of Nova
+  with its sentence and settles away; a part's name drops into the rail), with
+  the grains from Nova to the subtitles removed: each word fades up in place.
+  C's end: the parts lift out of the rail and spread out as boards. B's page as
+  the Read view. The end card's verbs are sorted into keeping information,
+  thinking it over and changing something, and each one says what it will do
+  before he taps it, from what the code does today.
+
+  Then a panel, "The words Nova uses for decisions": every ambiguous decision
+  word found in src/ (grep, 7 Oct), what it does in code, and a proposed
+  vocabulary. A proposal only; no code was changed.
+
+  Sources read for the consequences: server/lib/briefing.js (route 'note',
+  :343), server/lib/inbox.js (the note filer :986-1003, its undo :1381-1389,
+  discardRecord :1761, reopenRecord :1805, the time-value expiry list :1622),
+  server/lib/inboxStore.js (:19, 400 resolved records kept),
+  server/routes/briefing.js, src/App.jsx (openBriefing :5136, closeBriefing
+  :5178, fileBriefing :5226), src/vals/valsBriefing.js, server/lib/sourceShelf.js,
+  server/lib/compost.js, server/lib/distill.js, server/lib/commitments.js,
+  server/lib/planObserve.js, server/lib/planToday.js.
+
+  HONEST LIMITS. Demo content only: the briefing "Caffeine and your sleep",
+  its parts, sentences, figures, terms, sources and the saved podcast are
+  invented for this mockup, not researched, and not advice. The receptor
+  diagram is drawn here; in the app a picture is a credited image or nothing.
+  The curve and comparison panels and "Hand to the Coach" are new (marked New).
+  No voice plays; word pacing and the core's breath are simulated. "About three
+  weeks" is the audit's measurement on 5 Oct (oldest resolved Inbox record
+  13 Sep), not a constant.
+
+  Colour: jade #50e4a8 only while Nova speaks; violet listening, cyan thinking,
+  blue at rest; the Researcher's blue #7ab8ff on what the Researcher found,
+  named in words; gold only on Your calls. The three kinds of decision are told
+  apart by their glyph and their heading, never by colour alone.
+  Reduced motion: words appear whole with a quarter-second fade, panels and
+  boards fade without moving, the core holds still. Preview it with the button
+  under the title; Quarter speed slows every move.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --void:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.76);--ink3:rgba(232,236,246,.58);--sep:rgba(232,236,246,.14);
+  --glass:rgba(255,255,255,.075);--glass-ring:rgba(255,255,255,.15);--glass-hi:rgba(255,255,255,.2);
+  --plate:rgba(14,18,34,.5);
+  --cy:#59e6ff;--nova:#c9d8ff;--say:#50e4a8;--found:#7ab8ff;--good:#5fe8a8;--gold:#e0b26a;
+  --slow:1;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--void)}
+body{margin:0;background:var(--void);color:var(--ink);font:15px/1.5 var(--ui);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+button:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.i .f{fill:currentColor;stroke:none}
+code{font:500 13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink2);overflow-wrap:anywhere}
+
+/* ------------------------------------------------------------ the page */
+.wrap{max-width:1280px;margin:0 auto;padding-inline:16px;padding-block:28px 96px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+h1{margin:0 0 12px;font:700 clamp(30px,7vw,44px)/1.06 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 18px;max-width:40em;font:400 19px/1.45 var(--serif);color:var(--ink2);text-wrap:pretty}
+.said{list-style:none;margin:0 0 18px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:10px;max-width:1100px}
+.said li{padding:14px 16px;border-radius:20px;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 rgba(255,255,255,.1)}
+.said q{display:block;font:italic 400 17px/1.35 var(--serif);color:var(--ink);quotes:"\201C" "\201D"}
+.said span{display:block;margin-top:8px;font-size:13px;line-height:1.45;color:var(--ink2);text-wrap:pretty}
+.demo{margin:0 0 14px;max-width:50em;font-size:13px;color:var(--ink3)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+.tools button,.replay{min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);box-shadow:inset 0 0 0 1px var(--sep)}
+.tools button[aria-pressed="true"]{color:var(--ink);background:var(--glass)}
+.sec{padding-top:40px}
+.sec > h2{margin:0 0 8px;font:700 26px/1.15 var(--ui);letter-spacing:-.02em}
+.sline{margin:0 0 18px;max-width:54em;color:var(--ink2);text-wrap:pretty}
+.sline b{color:var(--ink);font-weight:600}
+.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,390px),1fr));gap:34px 22px;align-items:start}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
+figcaption{width:100%;max-width:390px;font-size:13px;line-height:1.5;color:var(--ink2);text-wrap:pretty}
+figcaption b{display:block;margin-bottom:2px;font:600 15px/1.35 var(--ui);color:var(--ink)}
+.new{display:inline-block;padding:0 7px;border-radius:8px;font:600 12px/1.6 var(--ui);font-style:normal;color:var(--ink);box-shadow:inset 0 0 0 1px var(--sep)}
+
+/* ------------------------------------------------------------ the phone */
+.phone{position:relative;width:min(390px,100%);height:844px;border-radius:44px;overflow:hidden;isolation:isolate;background:var(--void);box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 70px -30px rgba(0,0,0,.9);font:15px/1.35 var(--ui);color:var(--ink);text-align:left}
+.sky{position:absolute;inset:0;z-index:-1;background:radial-gradient(70% 42% at 8% 12%,rgba(89,230,255,.12),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 92% 34%,rgba(143,123,255,.15),rgba(143,123,255,0) 62%),linear-gradient(180deg,#05060c 0%,#080b1c 40%,#0c1230 100%)}
+.sky.house{background:radial-gradient(70% 40% at 8% 8%,rgba(89,230,255,.09),rgba(89,230,255,0) 60%),radial-gradient(70% 50% at 92% 30%,rgba(143,123,255,.11),rgba(143,123,255,0) 62%),linear-gradient(180deg,#05060c 0%,#070a17 50%,#0a0e22 100%)}
+canvas.fx{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}
+.sb{position:absolute;top:0;left:0;right:0;z-index:8;height:50px;display:flex;align-items:center;justify-content:space-between;padding:14px 28px 0 34px;font:600 15px/1 var(--ui);pointer-events:none}
+.sb .r{display:flex;align-items:center;gap:8px}
+.demochip{font:600 13px/1 var(--ui);color:var(--ink3);padding:3px 7px;border-radius:7px;box-shadow:inset 0 0 0 1px var(--sep)}
+.bat{position:relative;width:25px;height:12px;border-radius:3.5px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.bat::after{content:"";position:absolute;top:2px;left:2px;bottom:2px;width:15px;border-radius:2px;background:var(--ink)}
+.icb,.txb,.tb,.pp,.pb,.vrow,.composer .mic{-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.icb{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;flex:none;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.txb{min-height:44px;padding:0 16px;border-radius:22px;display:inline-flex;align-items:center;gap:6px;font:600 15px/1 var(--ui);color:var(--ink);background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi);white-space:nowrap}
+.icb,.txb,.tb,.pp,.pb,.ln,.segs button,.back,.vrow,.fb{transition:transform calc(140ms*var(--slow)) var(--ease)}
+.press{transform:scale(.96)!important}
+.tapdot{position:absolute;z-index:9;left:0;top:0;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(255,255,255,.26);box-shadow:0 0 0 1.5px rgba(255,255,255,.65);opacity:0;pointer-events:none}
+.phone .top{position:absolute;z-index:6;top:52px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+
+/* the stage (A) */
+.pn{position:absolute;z-index:4;left:88px;top:128px;right:16px;display:grid;gap:2px;opacity:0;transform:translateX(-8px);transition:opacity calc(240ms*var(--slow)) var(--ease),transform calc(420ms*var(--slow)) var(--ease);pointer-events:none}
+.pn b{font:600 15px/1.25 var(--ui)}
+.pn span{font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.phone[data-ph="stage"] .pn{opacity:1;transform:none}
+.dock{position:absolute;z-index:4;left:12px;right:12px;top:186px;height:262px}
+.panel{position:absolute;inset:0;border-radius:28px;padding:16px 18px 14px;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.035)),rgba(14,18,36,.46);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22),inset 0 1px 0 rgba(255,255,255,.18),0 20px 50px -20px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);will-change:transform,opacity}
+.plate{position:absolute;z-index:3;left:12px;right:12px;top:458px;height:180px;border-radius:28px;background:var(--plate);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16),inset 0 1px 0 rgba(255,255,255,.12),0 24px 50px -26px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(26px) saturate(1.4);backdrop-filter:blur(26px) saturate(1.4);transition:opacity calc(300ms*var(--slow)) var(--ease)}
+.pbody{position:absolute;left:18px;right:18px;top:8px;bottom:16px;overflow:hidden;-webkit-mask-image:linear-gradient(transparent 0,#000 30px);mask-image:linear-gradient(transparent 0,#000 30px)}
+.pcol{position:absolute;left:0;right:0;bottom:0}
+.pcol p{margin:12px 0 0;font:400 24px/1.3 var(--serif);color:var(--nova);text-wrap:pretty;transition:color calc(300ms*var(--slow)) var(--ease)}
+.pcol p.earlier{color:rgba(201,216,255,.42)}
+.his{font-style:italic;color:var(--ink)!important}
+.note{font:400 15px/1.3 var(--ui)!important;color:var(--ink3)!important}
+/* words fade up IN PLACE: no grains, no travel from the core */
+.w{position:relative;display:inline-block;padding-bottom:3px;opacity:0;transform:translateY(4px);filter:blur(3px);transition:opacity calc(240ms*var(--slow)) var(--ease-out),transform calc(300ms*var(--slow)) var(--ease-out),filter calc(240ms*var(--slow)) var(--ease-out),color calc(200ms*var(--slow)) ease}
+.w.on{opacity:1;transform:none;filter:none}
+.w.cur{color:#fff}
+.w::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:2px;background:var(--say);transform-origin:0 50%;transform:scaleX(var(--p,0));opacity:0;transition:opacity calc(220ms*var(--slow)) ease}
+.w.cur::after{opacity:1}
+.his .w::after{display:none}
+.moment{position:absolute;z-index:4;left:24px;right:24px;top:494px;text-align:center;pointer-events:none;opacity:0}
+.moment .mk{display:block;margin-bottom:6px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.moment .mt{display:block;font:400 28px/1.15 var(--serif);text-wrap:balance}
+.rail{position:absolute;z-index:6;left:16px;right:16px;top:648px;transition:opacity calc(300ms*var(--slow)) var(--ease)}
+.rl{display:flex;align-items:baseline;gap:8px;height:18px;font:400 13px/1.3 var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;transition:opacity calc(240ms*var(--slow)) ease}
+.rl b{font-weight:600;color:var(--ink2)}
+.segs{display:flex;gap:4px}
+.segs button{flex:1;min-width:0;height:44px;display:flex;align-items:center}
+.segs i{display:block;width:100%;height:4px;border-radius:2px;background:var(--sep);overflow:hidden}
+.segs i b{display:block;height:100%;background:var(--ink2);transform-origin:0 50%;transform:scaleX(var(--f,0));transition:transform calc(600ms*var(--slow)) var(--ease)}
+.segs .cur i b{background:var(--say)}
+.tp{position:absolute;z-index:6;left:12px;right:12px;bottom:30px;display:flex;align-items:center;justify-content:space-between;gap:6px;transition:opacity calc(300ms*var(--slow)) var(--ease)}
+.tb{min-width:44px;height:44px;border-radius:22px;padding:0 14px 0 12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font:600 15px/1 var(--ui);color:var(--ink);background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi)}
+.tb.ic{width:44px;padding:0}
+.tb.play{width:64px;height:64px;border-radius:32px;padding:0;background:rgba(232,236,246,.92);color:#0b1020;box-shadow:0 10px 30px -12px rgba(0,0,0,.8)}
+.tb.play svg{width:26px;height:26px}
+.ip{display:none}
+.paused .ip{display:block}
+.paused .iz{display:none}
+.phone[data-end] .plate,.phone[data-end] .rail,.phone[data-end] .tp{opacity:0;pointer-events:none}
+.sheet{position:absolute;z-index:7;left:0;right:0;bottom:0;height:560px;border-radius:30px 30px 0 0;padding:8px 16px 0;background:rgba(14,18,34,.9);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 -20px 60px -20px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);transform:translateY(102%);transition:transform calc(460ms*var(--slow)) var(--ease),opacity calc(250ms*var(--slow)) ease}
+.sheet.up{transform:none}
+.grab{display:block;width:36px;height:5px;border-radius:3px;margin:0 auto 8px;background:rgba(232,236,246,.3)}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.sh b{font:600 15px var(--ui)}
+.sp{margin:12px 0 4px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.ln{display:block;width:100%;min-height:44px;padding:10px 12px;border-radius:14px;font:400 15px/1.4 var(--ui);color:var(--ink2);text-align:left}
+.ln.now{color:var(--ink);background:rgba(80,228,168,.1);box-shadow:inset 3px 0 0 var(--say)}
+.ln.hit{background:rgba(255,255,255,.1);color:var(--ink)}
+
+/* panels */
+.ph2{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;min-width:0}
+.ph2 b{font:600 15px/1.25 var(--ui);white-space:nowrap}
+.ph2 span{font:400 13px/1.3 var(--ui);color:var(--ink3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk{font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.pterm{margin-top:4px;font:400 28px/1.15 var(--serif)}
+.pdef{margin-top:8px;font:400 15px/1.4 var(--ui);color:var(--ink2);text-wrap:pretty}
+.pnote{margin-top:auto;padding-top:8px;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.crv svg{display:block;width:100%;height:auto;overflow:visible}
+.cax{position:relative;height:16px;margin-top:4px;font:400 13px/1 var(--ui);color:var(--ink3)}
+.cax span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.cax span:first-child{transform:none}
+.cax span:last-child{transform:translateX(-100%)}
+.dotm{fill:rgba(232,236,246,.6);transform-box:fill-box;transform-origin:center;transition:transform calc(320ms*var(--slow)) var(--ease),fill calc(320ms*var(--slow)) var(--ease)}
+.dotm.lit{fill:var(--found);transform:scale(1.9)}
+.calls{display:grid;margin-top:8px;min-height:30px}
+.call{grid-area:1/1;display:flex;align-items:baseline;gap:8px;opacity:0;transform:translateY(4px);transition:opacity calc(300ms*var(--slow)) var(--ease),transform calc(300ms*var(--slow)) var(--ease)}
+.call.lit{opacity:1;transform:none}
+.call .num{font:600 24px/1 var(--round);color:var(--found);font-variant-numeric:tabular-nums}
+.call .by{font:400 13px/1.3 var(--ui);color:var(--ink2)}
+.call .by i{font-style:normal;color:var(--found)}
+.cmp{display:grid;gap:8px}
+.row{padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12);transition:background-color calc(320ms*var(--slow)) var(--ease),box-shadow calc(320ms*var(--slow)) var(--ease)}
+.row.lit{background:rgba(122,184,255,.1);box-shadow:inset 0 0 0 1px rgba(122,184,255,.62)}
+.rk{display:flex;justify-content:space-between;gap:8px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+.rk i{font-style:normal;color:var(--found);opacity:0;transition:opacity calc(300ms*var(--slow)) ease}
+.row.lit .rk i{opacity:1}
+.rv{display:block;margin-top:2px;font:400 15px/1.35 var(--ui)}
+.img svg{display:block;width:100%;height:auto}
+.ilab{display:flex;justify-content:space-between;gap:6px;margin-top:6px;font:400 13px/1.3 var(--ui);color:var(--ink3)}
+
+/* the end: C's boards, fanned */
+.fan{position:absolute;z-index:4;left:0;right:0;top:100px;height:220px;pointer-events:none}
+.fb{position:absolute;width:104px;height:106px;border-radius:20px;padding:8px 10px 8px;display:flex;flex-direction:column;gap:2px;pointer-events:auto;text-align:left;background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.04)),rgba(14,18,36,.62);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.24),inset 0 1px 0 rgba(255,255,255,.2),0 16px 34px -16px rgba(0,0,0,.85);-webkit-backdrop-filter:blur(16px) saturate(160%);backdrop-filter:blur(16px) saturate(160%)}
+.fb .fn{display:flex;align-items:center;justify-content:space-between;font:400 13px/1.2 var(--ui);color:var(--ink3)}
+.fb .fn svg{width:12px;height:12px;opacity:.7}
+.fb.fs{background:none;box-shadow:inset 0 0 0 1px var(--sep);-webkit-backdrop-filter:none;backdrop-filter:none}
+.fb.fs .fv{color:var(--ink2)}
+.fb.fs .fv svg{width:22px;height:22px}
+.fb .ft{font:400 15px/1.1 var(--serif);color:var(--ink);text-wrap:balance}
+.fb .fv{margin-top:auto}
+.fb .fv svg{display:block;width:100%;height:18px}
+.ghost{position:absolute;z-index:8;width:44px;height:56px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.12));box-shadow:inset 0 0 0 .5px rgba(255,255,255,.5);pointer-events:none}
+.ghost::before{content:"";position:absolute;left:8px;right:8px;top:10px;height:22px;background:repeating-linear-gradient(180deg,rgba(255,255,255,.55) 0 2px,transparent 2px 6px)}
+
+/* the end card: every verb says what it does */
+.endv{position:absolute;z-index:6;left:10px;right:10px;top:326px;bottom:12px;border-radius:28px;padding:14px 12px 10px;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03)),rgba(14,18,36,.56);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22),inset 0 1px 0 rgba(255,255,255,.18),0 24px 60px -24px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%)}
+.eh{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:0 4px 2px}
+.et{font:400 24px/1.15 var(--serif);min-width:0;text-wrap:balance}
+.gk{display:flex;align-items:center;gap:6px;margin:8px 4px 3px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+.vrow,.vdone{position:relative;display:grid;grid-template-columns:34px minmax(0,1fr);align-items:center;column-gap:10px;width:100%;min-height:58px;padding:7px 10px;border-radius:18px;text-align:left}
+.vrow{background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12)}
+.vrow + .vrow{margin-top:5px}
+.vg{display:grid;place-items:center;width:34px;height:34px;border-radius:17px;background:rgba(232,236,246,.1);color:var(--ink)}
+.vg svg{width:18px;height:18px}
+.vt{display:grid;gap:1px;min-width:0}
+.vt b{font:600 15px/1.25 var(--ui)}
+.vt span{font:400 13px/1.35 var(--ui);color:var(--ink2);text-wrap:pretty}
+.vrow.quiet{background:none;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.1)}
+.vrow.quiet .vg{background:none;box-shadow:inset 0 0 0 1px var(--sep);color:var(--ink2)}
+.vrow.quiet b{color:var(--ink2)}
+.vdone{grid-template-columns:34px minmax(0,1fr) auto;background:rgba(95,232,168,.08);box-shadow:inset 0 0 0 .5px rgba(95,232,168,.35)}
+.vdone .ok{display:grid;place-items:center;width:34px;height:34px;border-radius:17px;background:rgba(95,232,168,.18);color:var(--good)}
+.vdone .ok path{stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset calc(420ms*var(--slow)) var(--ease-out) calc(80ms*var(--slow))}
+.vdone.on .ok path{stroke-dashoffset:0}
+.vdone .txb{padding:0 14px}
+.vrow .new{position:absolute;top:8px;right:10px}
+
+/* Read (B's page) */
+.R .nav{position:absolute;z-index:6;top:50px;left:6px;right:16px;height:44px;display:flex;align-items:center;justify-content:space-between}
+.back{display:inline-flex;align-items:center;gap:2px;min-height:44px;padding:0 12px 0 4px;font:400 17px/1 var(--ui);color:var(--ink2)}
+.back svg{width:24px;height:24px}
+.doc{position:absolute;z-index:2;top:94px;left:0;right:0;bottom:0;overflow:hidden;-webkit-mask-image:linear-gradient(transparent 0,#000 14px);mask-image:linear-gradient(transparent 0,#000 14px)}
+.doccol{padding:8px 16px 200px;transform:translateY(var(--sy,0px));transition:transform calc(900ms*var(--slow)) var(--ease)}
+.lt{margin:0 0 6px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.meta{margin:0 0 14px;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.lede2{margin:0 0 6px;font:400 22px/1.32 var(--serif);text-wrap:pretty}
+.part{position:relative;margin:0 -16px;padding:14px 16px 6px 26px}
+.part::before{content:"";position:absolute;left:12px;top:18px;bottom:8px;width:3px;border-radius:2px;background:var(--say);transform:scaleY(0);transform-origin:50% 0;transition:transform calc(500ms*var(--slow)) var(--ease)}
+.part.lit::before{transform:none}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ph h2{margin:0;font:400 22px/1.2 var(--serif);text-wrap:balance}
+.pp{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring)}
+.pp svg{width:16px;height:16px}
+.now{display:none;align-items:center;gap:6px;margin-top:2px;font:600 13px/1.3 var(--ui);color:var(--say)}
+.now::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--say);box-shadow:0 0 8px var(--say)}
+.part.lit .now{display:flex}
+.part p{margin:8px 0 0;font:400 17px/1.5 var(--ui);color:var(--ink2);text-wrap:pretty}
+.player{position:absolute;z-index:6;left:10px;right:10px;bottom:24px;min-height:84px;border-radius:26px;padding:10px 10px 10px 64px;display:flex;align-items:center;gap:10px;background:rgba(18,23,42,.72);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.14),0 18px 40px -18px rgba(0,0,0,.85);-webkit-backdrop-filter:blur(26px) saturate(1.5);backdrop-filter:blur(26px) saturate(1.5)}
+.ps{flex:1;min-width:0;max-height:66px;overflow:hidden;font:400 17px/1.3 var(--serif);color:var(--nova)}
+.ps p{margin:0}
+.ps .w::after{height:2px}
+.ps .note{font-size:13px!important}
+.pb{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:rgba(232,236,246,.92);color:#0b1020}
+.pcard{position:absolute;z-index:6;left:10px;right:10px;bottom:118px;height:252px}
+.R .ph2 b,.R .rv,.R .pdef{font-size:17px}
+.R .pterm{font-size:22px}
+.R .call .num{font-size:22px}
+.tail h2{margin:24px 0 10px;font:400 22px/1.2 var(--serif)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{min-height:44px;padding:0 15px;border-radius:22px;font:400 17px/1 var(--ui);color:var(--ink);background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring)}
+.srcs{list-style:none;margin:0;padding:0}
+.srcs button{display:block;width:100%;min-height:44px;padding:10px 0;font:400 17px/1.35 var(--ui);color:var(--ink2);text-align:left;border-bottom:1px solid var(--sep)}
+.R .tail .vrow{background:rgba(255,255,255,.05)}
+
+/* ------------------------------------------------------------ the Mac */
+.macbox{position:relative;width:100%;max-width:1280px;aspect-ratio:1280/800;margin-top:6px;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 70px -30px rgba(0,0,0,.9)}
+.mx{position:absolute;left:0;top:0;width:1280px;height:800px;transform-origin:0 0;transform:scale(var(--k,1));font:15px/1.35 var(--ui);color:var(--ink);isolation:isolate}
+.mx .sky{border-radius:0}
+.mx .mtop{position:absolute;top:24px;left:32px;right:32px;display:flex;justify-content:space-between;align-items:center}
+.mx .mtl{display:flex;align-items:center;gap:12px}
+.mx .mcore{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 50% 46%,#fff 0,#bfe0ff 18%,rgba(120,190,255,.45) 42%,rgba(120,190,255,0) 72%)}
+.mx .mtl span{font:400 15px/1.3 var(--ui);color:var(--ink3)}
+.mx .mstage{position:absolute;left:40px;top:96px;width:780px;height:680px}
+.mx .mfan{position:absolute;left:0;right:0;top:0;height:330px}
+.mx .fb{width:140px;height:200px;border-radius:26px;padding:14px 14px 12px;gap:6px}
+.mx .fb .ft{font-size:20px}
+.mx .fb .fn{font-size:13px}
+.mx .fb .fv svg{height:52px}
+.mx .mtitle{position:absolute;left:0;right:0;top:360px;text-align:center}
+.mx .mtitle b{display:block;font:400 34px/1.15 var(--serif)}
+.mx .mtitle span{display:block;margin-top:6px;font:400 15px/1.3 var(--ui);color:var(--ink3)}
+.mx .mtitle .txb{margin-top:16px}
+.mx .mside{position:absolute;right:32px;top:96px;width:388px;bottom:28px}
+.mx .endv{position:absolute;inset:0;top:0;bottom:0;left:0;right:0;padding:18px 14px 12px}
+.mx .vrow,.mx .vdone{min-height:64px}
+.mx .vrow + .vrow{margin-top:6px}
+.mx .gk{margin-top:12px}
+.mcap{max-width:54em;margin-top:12px;font-size:13px;line-height:1.5;color:var(--ink2)}
+.mcap b{display:block;margin-bottom:2px;font:600 15px/1.35 var(--ui);color:var(--ink)}
+
+/* ------------------------------------------------------------ consequences */
+.cq{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px}
+.cqc{padding:16px;border-radius:22px;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 rgba(255,255,255,.1);min-width:0}
+.cqh{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.cqh .vg{flex:none}
+.cqh small{display:block;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+.cqh b{display:block;font:600 17px/1.25 var(--ui)}
+.cqc p{margin:0 0 8px;color:var(--ink2);text-wrap:pretty}
+.cqc p b{color:var(--ink);font-weight:600}
+.cqc .src{margin:0;font-size:13px;color:var(--ink3)}
+.cqc.fix{box-shadow:inset 0 0 0 1px rgba(224,178,106,.0),inset 0 0 0 .5px var(--glass-ring)}
+.life{margin:16px 0 0;padding:16px;border-radius:22px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 .5px var(--glass-ring);max-width:1100px}
+.life h3{margin:0 0 4px;font:600 17px/1.3 var(--ui)}
+.life > p{margin:0 0 12px;color:var(--ink2);font-size:13px}
+.track{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.track::before{content:"";position:absolute;left:12px;right:12px;top:15px;height:2px;background:linear-gradient(90deg,var(--say),rgba(122,184,255,.7) 40%,rgba(232,236,246,.25))}
+.st{position:relative;padding-top:34px;min-width:0}
+.st::before{content:"";position:absolute;left:4px;top:8px;width:16px;height:16px;border-radius:8px;background:var(--void);box-shadow:inset 0 0 0 2px var(--ink2)}
+.st b{display:block;font:600 15px/1.3 var(--ui)}
+.st span{display:block;margin-top:2px;font-size:13px;line-height:1.4;color:var(--ink2);text-wrap:pretty}
+@media (max-width:640px){.track{grid-template-columns:minmax(0,1fr);gap:14px}.track::before{left:11px;right:auto;top:12px;bottom:12px;width:2px;height:auto;background:linear-gradient(180deg,var(--say),rgba(122,184,255,.7) 40%,rgba(232,236,246,.25))}.st{padding:0 0 0 34px}.st::before{top:2px}}
+
+/* ------------------------------------------------------------ vocabulary */
+.voc{display:grid;gap:14px}
+.fam{padding:16px;border-radius:24px;background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 rgba(255,255,255,.1)}
+.famh{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:start;margin-bottom:12px}
+.famh b{display:block;font:600 17px/1.3 var(--ui)}
+.famh span{display:block;margin-top:2px;color:var(--ink2);text-wrap:pretty}
+.famh .rule{margin-top:6px;font-size:13px;color:var(--ink3)}
+.vr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:4px 16px;padding:12px 0;border-top:1px solid var(--sep)}
+.vr .from{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;min-width:0}
+.was{display:inline-block;padding:3px 10px;border-radius:12px;font:600 15px/1.3 var(--ui);color:var(--ink2);box-shadow:inset 0 0 0 1px var(--sep);text-decoration:line-through;text-decoration-color:rgba(232,236,246,.4)}
+.arr{color:var(--ink3)}
+.to{display:inline-block;padding:3px 10px;border-radius:12px;font:600 15px/1.3 var(--ui);color:#0b1020;background:rgba(232,236,246,.9)}
+.to.same{background:none;color:var(--ink);box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.vr .why{min-width:0;font-size:13px;line-height:1.45;color:var(--ink2);text-wrap:pretty}
+.vr .why i{font-style:normal;color:var(--ink)}
+.vr .why .where{display:block;margin-top:3px;color:var(--ink3)}
+@media (max-width:640px){.vr{grid-template-columns:minmax(0,1fr)}}
+.findn{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px}
+.findn div{flex:1 1 220px;padding:14px 16px;border-radius:20px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 .5px var(--glass-ring)}
+.findn .n{display:block;font:600 34px/1 var(--round);font-variant-numeric:tabular-nums}
+.findn span{display:block;margin-top:6px;font-size:13px;line-height:1.45;color:var(--ink2)}
+
+/* ------------------------------------------------------------ closing */
+.keep2{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:0 24px;margin:0;padding:0;list-style:none;max-width:1100px}
+.keep2 li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:10px 0;border-top:1px solid var(--sep);font-size:13px;line-height:1.45}
+.keep2 li b{font:600 15px/1.35 var(--ui);color:var(--ink)}
+.keep2 li span{color:var(--ink2)}
+.decide{list-style:none;counter-reset:d;margin:0;padding:0;display:grid;gap:10px;max-width:54em}
+.decide li{counter-increment:d;display:grid;grid-template-columns:32px minmax(0,1fr);gap:12px;padding:14px 16px;border-radius:18px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--glass-ring)}
+.decide li::before{content:counter(d);display:grid;place-items:center;width:32px;height:32px;border-radius:16px;font:600 15px var(--round);color:#2a1d08;background:var(--gold)}
+.decide b{display:block;font:600 15px/1.35 var(--ui);color:var(--ink)}
+.decide span{display:block;margin-top:3px;color:var(--ink2);text-wrap:pretty}
+.decide em{font-style:normal;color:var(--ink)}
+
+/* reduced motion: fades only */
+.rm .w{transform:none;filter:none;transition:opacity calc(250ms*var(--slow)) ease}
+.rm .w::after{display:none}
+.rm .sheet{transform:none;opacity:0;pointer-events:none}
+.rm .sheet.up{opacity:1;pointer-events:auto}
+.rm .pn,.rm .segs i b,.rm .part::before,.rm .call{transition-property:opacity}
+.rm .doccol{transition:none}
+.rm .vdone .ok path{transition:none}
+@media (max-width:420px){.wrap{padding-block:20px 72px}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 83 · round 2 · 7 October 2026 · for your review</p>
+  <h1>The Briefing, round 2</h1>
+  <p class="lede">One briefing, played on Nova's stage the way A moved, ending on C's boards, read the way B reads. Every button at the end now says what it will do, and where, before you tap it.</p>
+  <ul class="said" aria-label="What you said, and what changed">
+    <li><q>Keep it ... too ambiguous</q><span>The end card sorts its verbs into keeping the information, thinking it over and changing something. Under each verb, one line says where things go and how to take it back, taken from what the code does. So Save now says Wiki/Inbox, where the page really lands.</span></li>
+    <li><q>The overview from option C at the end</q><span>When Nova finishes, the parts you heard lift out of the progress rail and spread out as boards, one per part, with what each one showed. Tap one to hear that part again.</span></li>
+    <li><q>The read view option for B</q><span>Read is B's page: the parts in the serif, each with its own play button, and Nova pinned in a small player at the foot.</span></li>
+    <li><q>Remove the sparks</q><span>Playback is A's: pictures rise out of Nova with their sentence and settle away, and each new part drops into the rail. The grains that flew from Nova to the words are gone. Each word fades up where it sits.</span></li>
+  </ul>
+  <p class="demo">Demo content: "Caffeine and your sleep", its parts, figures, terms, sources and the saved podcast are invented for this mockup. They are not researched and they are not advice. No voice plays; the word pacing is simulated the way the app paces subtitles.</p>
+  <div class="tools">
+    <button type="button" id="slow" aria-pressed="false">Quarter speed</button>
+    <button type="button" id="rmprev" aria-pressed="false">Preview reduced motion</button>
+  </div>
+
+  <section class="sec" aria-label="Listening">
+    <h2>Listening: A's stage</h2>
+    <p class="sline"><b>Kept from A:</b> the picture rises out of Nova with its sentence and settles away; a part's name is said in the plate and drops into the rail; skip, back, Script and Ask sit under your thumb. <b>Removed:</b> the grains that travelled from Nova to the subtitles. A word now fades up in place, a quarter of a second, with the word being said underlined in jade.</p>
+    <div class="frames">
+      <figure><div class="phone" data-scene="p1" role="img" aria-label="Phone: a briefing playing on Nova's stage, words fading up in place"></div><figcaption><b>Playing</b>The receptor rises out of Nova with the sentence it belongs to, then settles away. Part 2 is said in the plate and drops into the rail. "Half-life" brings its plain words; the curve lights 8 pm as he says "eight", in the Researcher's blue, named in words. A plain sentence gets no panel: Nova himself is the picture.</figcaption><button class="replay" type="button" data-replay="p1">Replay</button></figure>
+      <figure><div class="phone" data-scene="p2" role="img" aria-label="Phone: pausing, skipping a part, and playing from a line in the Script"></div><figcaption><b>Pause, skip, Script</b>Pause stops mid-word and Nova settles to blue. Next part skips to part 3. Script lists every line, with From the start at its head (today's Restart). A tap on a line plays from there, here into part 4, where your saved podcast and the trials are set side by side.</figcaption><button class="replay" type="button" data-replay="p2">Replay</button></figure>
+      <figure><div class="phone R" data-scene="r1" role="img" aria-label="Phone: the Read view, a document with Nova in a pinned player"></div><figcaption><b>Read: B's page</b>Read in the top corner opens the report as a page: the parts in the serif, each with its own play button, the part being spoken lit in jade. Nova keeps talking from the player at the foot, and a panel still rises out of him when a sentence has one. Stage takes you back. The page ends with the terms, the sources and the same verbs.</figcaption><button class="replay" type="button" data-replay="r1">Replay</button></figure>
+    </div>
+  </section>
+
+  <section class="sec" aria-label="The end">
+    <h2>The end: C's boards, and verbs that say what they do</h2>
+    <p class="sline"><b>When Nova finishes,</b> the five parts lift out of the rail and spread out as boards, each carrying a small picture of what it showed: the reveal you asked to be reminded of. Tap a board to hear that part again; the sixth plays it all from the start. <b>Below them,</b> every verb has its consequence written under it: the first group keeps the information, the second leaves it with you to think over, the third changes something. Discard sits apart, and says it writes nothing.</p>
+    <div class="frames">
+      <figure><div class="phone" data-scene="e1" role="img" aria-label="Phone: boards spread out, then Save to your notes is acted out with Undo on the same row"></div><figcaption><b>The end, and saving</b>The rail's five parts fly up and settle as boards. Save to your notes: a page leaves the boards and drops into the row, the tick draws, and the row now reads where it went and what Undo does. Decide later and Discard step aside, because a saved briefing has nothing left to decide. Then Undo, on the same row, puts it all back.</figcaption><button class="replay" type="button" data-replay="e1">Replay</button></figure>
+      <figure><div class="phone" data-scene="e2" role="img" aria-label="Phone: asking about the briefing, then handing part 5 to the Coach"></div><figcaption><b>Asking, and handing on a change</b>Ask about it: Nova turns violet while you talk, cyan while he thinks, jade as he answers, and the curve comes back because the answer points at it. The boards return. Part 5 suggests a change, so the third group offers Hand part 5 to the Coach: a draft for Train, and nothing moves until you say yes there. <span class="new">New</span></figcaption><button class="replay" type="button" data-replay="e2">Replay</button></figure>
+    </div>
+    <div class="macbox" id="macbox"><div class="mx" id="mx" role="img" aria-label="Mac at 1280 by 800: the boards spread across the stage with the end card as a column beside them"></div></div>
+    <p class="mcap"><b>On the Mac, at the end</b>The boards spread across the stage in one row, and the end card is a column beside them, so nothing hides in a sheet. While it plays, the stage sits centred at 720 pt and Script opens as a side panel instead of a sheet.</p>
+  </section>
+
+  <section class="sec" aria-label="What each word on the end card does">
+    <h2>What each word on the end card does</h2>
+    <p class="sline">Written from the code as it stands today, so the line under each button is true the day it ships. <b>One correction is built in:</b> the old Keep in vault button said Wiki/Sources in its tooltip, and the page lands in Wiki/Inbox. The words here say Wiki/Inbox. Where it should land is Your call 1.</p>
+    <div class="cq">
+      <div class="cqc">
+        <div class="cqh"><span class="vg" data-ic="tray"></span><div><small>Keep the information</small><b>Save to your notes</b></div></div>
+        <p><b>What happens:</b> the report becomes one page, <code>Wiki/Inbox/Caffeine and your sleep.md</code>, marked as a capture. Ask Nova and the agents can open it when they search your vault. It is not on your Library shelf, and the next briefing's shelf check does not read it, because both look in Wiki/Sources.</p>
+        <p><b>Undo:</b> deletes the page, after checking you have not edited it. If you have, it leaves it and says so. Undo is on the same row; today it lives one screen away, in the Inbox's history, and the toast says only "Kept".</p>
+        <p><b>Later:</b> if the page stays unlinked for 14 days, Compost may suggest archiving it, and Saturday's distiller may suggest linking it in. Both are proposals you answer. The briefing stays playable here for as long as its Inbox record lasts: the 400 newest decisions, about three weeks at your pace when measured on 5 October.</p>
+        <p class="src"><code>briefing.js:343</code> route note · <code>inbox.js:986</code> the filer · <code>inbox.js:1381</code> its undo · <code>sourceShelf.js</code> · <code>compost.js:24</code> · <code>distill.js:43</code> · <code>inboxStore.js:19</code> · <code>App.jsx:5230</code></p>
+      </div>
+      <div class="cqc">
+        <div class="cqh"><span class="vg" data-ic="ask"></span><div><small>Think it over</small><b>Ask about it</b></div></div>
+        <p><b>What happens:</b> Nova answers on the same stage, from this briefing, and the panel his answer points at comes back. The exchange joins your conversation record like any spoken turn; nothing is written to your vault.</p>
+        <p><b>Today:</b> "explain that again" does this by voice, for the sentence just spoken, and then offers to carry on. The button extends it to the whole briefing once it has ended.</p>
+        <p class="src"><code>App.jsx:5112</code> explain that again · <code>App.jsx:6287</code> carry on offer</p>
+      </div>
+      <div class="cqc">
+        <div class="cqh"><span class="vg" data-ic="clock"></span><div><small>Think it over</small><b>Decide later</b></div></div>
+        <p><b>What happens:</b> the briefing closes and goes back to where you came from. It waits in your Inbox as one undecided card. Nothing is written. A waiting briefing never expires and is never trimmed, so it stays playable until you decide.</p>
+        <p><b>Today:</b> Close already does this, without saying so, and always lands in the Inbox. The button names it.</p>
+        <p class="src"><code>App.jsx:5178</code> close · <code>inbox.js:1622</code> expiry list, briefing not on it · <code>inboxStore.js:102</code> only decided records are trimmed</p>
+      </div>
+      <div class="cqc">
+        <div class="cqh"><span class="vg" data-ic="swap"></span><div><small>Change something</small><b>Hand part 5 to the Coach</b> <span class="new">New</span></div></div>
+        <p><b>What happens:</b> the Coach drafts one change from the part that suggested it (here: the late pre-workout). It is checked before it is filed, like every Coach change, and appears in Train as one card for your yes or no. Nothing in your plan moves until you say yes there, and Undo puts it back after.</p>
+        <p><b>Shown only</b> when a part suggests a change in an area an agent owns. A briefing with nothing to change has no third group.</p>
+        <p class="src">Does not exist today. It would ride the Coach changes pipeline (checked before filing, one card a move, yes, no and Undo in Train). Your call 3.</p>
+      </div>
+      <div class="cqc">
+        <div class="cqh"><span class="vg" data-ic="cross"></span><div><small>Apart from the three</small><b>Discard</b></div></div>
+        <p><b>What happens:</b> nothing is written anywhere. The card leaves your Inbox and the Briefing's list.</p>
+        <p><b>No undo today:</b> only a Coach card can be reopened, so the row says so. Your call 5.</p>
+        <p class="src"><code>inbox.js:1761</code> discardRecord · <code>inbox.js:1805</code> reopen, Coach cards only · <code>valsBriefing.js:66</code> the list</p>
+      </div>
+    </div>
+    <div class="life" aria-label="A saved briefing, over time">
+      <h3>A saved briefing, over time</h3>
+      <p>What Save sets in motion, in order. Every step after the first is something you answer or can undo.</p>
+      <div class="track">
+        <div class="st"><b>Today</b><span>One page in Wiki/Inbox. Undo on the row deletes it.</span></div>
+        <div class="st"><b>Saturdays</b><span>The distiller may propose links between it and your other pages.</span></div>
+        <div class="st"><b>After 14 days unlinked</b><span>Compost may propose moving it to Wiki/Inbox/Archive.</span></div>
+        <div class="st"><b>About 3 weeks</b><span>The playable version leaves with its Inbox record. The page stays. Your call 4.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-label="The words Nova uses for decisions">
+    <h2>The words Nova uses for decisions</h2>
+    <p class="sline">A proposal for the whole app; no code was changed. Found by searching <code>src/</code> for Keep it, Keep in vault, Noted, Approve, Let it go, Not now, Keep the rest open and their kin on 7 October. Keep the rest open does not appear in <code>src/</code> today.</p>
+    <div class="findn">
+      <div><span class="n">3</span><span>different things "Keep it" does today: save a report to your vault, cancel a discard, and cancel deleting a session.</span></div>
+      <div><span class="n">4</span><span>different things "Not now" does: hide a promise for 3 days, decline a Coach change, decline a proposal, and clear a notification.</span></div>
+      <div><span class="n">0</span><span>decision buttons that say where the thing goes. The Inbox already knows the place (<code>destinationOf()</code>); the button does not use it.</span></div>
+    </div>
+    <p class="sline"><b>The rule:</b> a decision button names what happens, and the line under it names where and how to take it back. No bare Keep, Noted, Approve, Let it go, Not now or Dismiss anywhere. Four families, told apart by glyph and heading, plus Undo.</p>
+    <div class="voc">
+      <div class="fam">
+        <div class="famh"><span class="vg" data-ic="tray"></span><div><b>Keep the information: "Save to {place}"</b><span>Information is stored; nothing in your day changes. The line says the folder and who reads it.</span><span class="rule">Undo deletes what was saved.</span></div></div>
+        <div class="vr"><div class="from"><span class="was">Keep it</span><span class="arr">to</span><span class="to">Save to {place}</span></div><div class="why"><i>Does today:</i> approves a report card in the Inbox (research, Coach review, plan, program, briefing) and files it through its route.<span class="where"><code>valsInboxSummary.js:282</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">File it</span><span class="arr">to</span><span class="to">Save to {place}</span></div><div class="why"><i>Does today:</i> approves every other Inbox card. A journal entry, idea or recipe is information, so it is Save. A to-do, shopping item, reminder or calendar event changes your lists, so it moves to the third family.<span class="where"><code>valsInboxSummary.js:282</code>, place from <code>destinationOf()</code> in the same file</span></div></div>
+        <div class="vr"><div class="from"><span class="was">Keep in vault</span><span class="arr">to</span><span class="to">Save to your notes</span></div><div class="why"><i>Does today:</i> on the Briefing, writes Wiki/Inbox as a capture while its tooltip says Wiki/Sources. After a plan comes back, approves the plan's report the same way.<span class="where"><code>Briefing.jsx:330</code> · <code>Voice.jsx:352</code> · <code>NovaThread.jsx:491</code> · <code>App.jsx:8386</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">Approve</span><span class="was">Approve, into the vault</span><span class="arr">to</span><span class="to">Save to today's journal</span></div><div class="why"><i>Does today:</i> files today's top 3 as an entry in today's journal; Undo removes the entry.<span class="where"><code>valsSummary.js:179</code> · <code>MissionStructured.jsx:423</code> · <code>MissionControl.jsx:579</code> · <code>planToday.js:279</code> · <code>inbox.js:804</code></span></div></div>
+      </div>
+      <div class="fam">
+        <div class="famh"><span class="vg" data-ic="ask"></span><div><b>Think it over: "Ask about it", "Decide later", "Ask again in {days}"</b><span>Nothing is stored and nothing changes; it stays with you. The line says when it comes back.</span><span class="rule">Nothing to undo; it is still waiting.</span></div></div>
+        <div class="vr"><div class="from"><span class="was">Not now</span><span class="arr">to</span><span class="to">Ask again in 3 days</span></div><div class="why"><i>Does today:</i> on a stuck promise, hides it for exactly three days.<span class="where"><code>StuckCard.jsx:76</code> · <code>MissionSummary.jsx:545</code> · <code>planObserve.js:272</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">Close</span><span class="arr">to</span><span class="to">Decide later</span></div><div class="why"><i>Does today:</i> on a briefing, Close leaves the card waiting in the Inbox, unsaid. Close stays as the way out; Decide later says what closing means.<span class="where"><code>App.jsx:5178</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">Talk about it</span><span class="arr">to</span><span class="to same">Ask about it</span></div><div class="why"><i>Does today:</i> opens a conversation that starts from the card. Clear already; one word for it everywhere.<span class="where"><code>valsInboxSummary.js:233</code></span></div></div>
+      </div>
+      <div class="fam">
+        <div class="famh"><span class="vg" data-ic="swap"></span><div><b>Change something: "Yes, {verb} it", "Add to {list}", "Make the change"</b><span>Your plan, program, calendar or lists change. The line says exactly what moves.</span><span class="rule">Undo puts it back as it was.</span></div></div>
+        <div class="vr"><div class="from"><span class="was">Yes, do it</span><span class="arr">to</span><span class="to">Yes, {verb} it</span></div><div class="why"><i>Does today:</i> approves a change Nova proposed in conversation. The Coach deck already names its verb ("Yes, swap it"); this spreads it.<span class="where"><code>Voice.jsx:322</code> · <code>NovaThread.jsx:469</code> · <code>yesLabel()</code> <code>valsInboxSummary.js:118</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">Apply</span><span class="was">Apply it</span><span class="arr">to</span><span class="to">Yes, {verb} it</span></div><div class="why"><i>Does today:</i> applies a proposal from a session summary or a workout.<span class="where"><code>SessionSummary.jsx:719</code> · <code>Workouts.jsx:795</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">File it</span><span class="arr">to</span><span class="to">Add to {list}</span></div><div class="why"><i>Does today:</i> on a to-do, shopping, reminder or calendar card, files it to that list. "Add to your calendar" says it.<span class="where"><code>valsInboxSummary.js:282</code></span></div></div>
+        <div class="vr"><div class="from"><span class="to same">Make the change</span></div><div class="why"><i>Does today:</i> applies Train's focus fix. Already clear; it gains the line that says what changes.<span class="where"><code>valsTrainSummary.js:80</code></span></div></div>
+      </div>
+      <div class="fam">
+        <div class="famh"><span class="vg" data-ic="cross"></span><div><b>Nothing happens: "Discard", "Stop asking", "Clear"</b><span>Nothing is written. The line says whether it can come back.</span><span class="rule">Undo where one exists; where it does not, the line says so.</span></div></div>
+        <div class="vr"><div class="from"><span class="was">Let it go</span><span class="arr">to</span><span class="to">Stop asking</span></div><div class="why"><i>Does today:</i> on a stuck promise, never raises it again (Undo restores it). On an open promise in Ops and the older Inbox, hides it for 120 days. The note itself is untouched in both.<span class="where"><code>StuckCard.jsx:77</code> · <code>MissionSummary.jsx:546</code> · <code>App.jsx:9337</code> · <code>OpsInboxHead.jsx:105</code> · <code>Inbox.jsx:662</code> · <code>commitments.js:39</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">Noted</span><span class="arr">to</span><span class="to">Clear</span></div><div class="why"><i>Does today:</i> hides a record or "landed" moment from Home, remembered on this device only. "Noted" sounds as if Nova wrote something down; it writes nothing.<span class="where"><code>MissionSummary.jsx:164</code>, <code>:216</code> · <code>MissionStructured.jsx:648</code>, <code>:721</code> · <code>valsMission.js:831</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">Not now</span><span class="was">Dismiss</span><span class="arr">to</span><span class="to">Clear</span></div><div class="why"><i>Does today:</i> clears a notification, a Home card, a shopping suggestion.<span class="where"><code>valsChrome.js:913</code> · <code>MissionSummary.jsx:268</code>, <code>:288</code> · <code>Shopping.jsx:46</code></span></div></div>
+        <div class="vr"><div class="from"><span class="to same">Discard</span></div><div class="why"><i>Does today:</i> an Inbox card is closed with nothing written. Kept; the line adds "no undo" where that is true.<span class="where"><code>valsInboxSummary.js:284</code> · <code>inbox.js:1761</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">Keep it</span><span class="arr">to</span><span class="to">Don't discard</span></div><div class="why"><i>Does today:</i> in the "Why not?" row, cancels the discard and leaves the card waiting. The same words that save a report here mean the opposite of discarding.<span class="where"><code>InboxSummary.jsx:222</code> · <code>TrainSummary.jsx:766</code></span></div></div>
+        <div class="vr"><div class="from"><span class="was">Keep it</span><span class="arr">to</span><span class="to">Don't delete</span></div><div class="why"><i>Does today:</i> cancels deleting a session.<span class="where"><code>TrainSummary.jsx:534</code></span></div></div>
+        <div class="vr"><div class="from"><span class="to same">Not now</span><span class="arr">stays, as a reason</span></div><div class="why"><i>A contract:</i> "Not now" is also one of the Coach's decline reasons, and Pattern Scout counts declines by their words. As a reason chip it stays word for word; only buttons change.<span class="where"><code>valsInbox.js:15</code></span></div></div>
+      </div>
+      <div class="fam">
+        <div class="famh"><span class="vg" data-ic="undo"></span><div><b>Undo: "Undo" plus what it reverses</b><span>Always on the same card or row as the decision, never only in a history one screen away. Its line says what it will do: "Undo deletes the page", "Undo puts Dips back on Push".</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-label="Every function stays">
+    <h2>Every function stays</h2>
+    <p class="sline">Every function of today's Briefing, and where it lives in round 2.</p>
+    <ul class="keep2">
+      <li><b>Play, pause, resume</b><span>The transport's centre button; resume opens at the sentence you left.</span></li>
+      <li><b>Restart</b><span>From the start, at the head of Script; the sixth board at the end.</span></li>
+      <li><b>Tap a line to play from it</b><span>Script, a sheet from the transport.</span></li>
+      <li><b>Next part, back a part</b><span>Buttons beside play, a tap on the rail, or saying it.</span></li>
+      <li><b>Explain that again</b><span>Ask, mid-briefing, hands Nova the sentence just spoken; then "carry on".</span></li>
+      <li><b>Listen and Read</b><span>Read in the top corner opens B's page; Stage returns.</span></li>
+      <li><b>Listen from a section</b><span>Each part's play button on the Read page.</span></li>
+      <li><b>Terms in plain words, sources</b><span>On the stage as they are said; listed at the foot of Read.</span></li>
+      <li><b>Pictures and clips, cached before Play</b><span>Rise out of Nova with their sentence; no picture means no panel.</span></li>
+      <li><b>The missing angle said aloud</b><span>Spoken, and written in the end card's line when it applies.</span></li>
+      <li><b>Keep in vault</b><span>Save to your notes, with its place and Undo on the row.</span></li>
+      <li><b>Close</b><span>Returns to where you came from; the same as Decide later when undecided.</span></li>
+      <li><b>Voice commands</b><span>All eight kept: pause, resume, restart, next part, back a part, again, close, explain.</span></li>
+      <li><b>Asking, working, error, the list of briefings</b><span>Unchanged from round 1's plan; not redrawn here.</span></li>
+    </ul>
+  </section>
+
+  <section class="sec" aria-label="Your calls">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Where a saved briefing goes</b><span><em>Wiki/Sources:</em> it sits on your Library shelf and the next briefing weighs it as your own material; the button reads "Save to your Library" (a small server change to the briefing's route). <em>Wiki/Inbox, as today:</em> the button reads "Save to your notes", as drawn, and it stays off the shelf.</span></div></li>
+      <li><div><b>Adopt the decision vocabulary across Nova</b><span><em>Yes:</em> every button in the table is renamed to its family's word and gains a consequence line, about fifteen files of strings, with the Coach's reason chips left word for word. <em>No:</em> only the Briefing's end card uses it, and Keep it keeps meaning three things elsewhere.</span></div></li>
+      <li><div><b>Hand a change to the Coach from a briefing</b><span><em>Yes:</em> when a part suggests a change in an area an agent owns, the end card offers to hand it on, and it arrives in Train as one checked card (new server path). <em>No:</em> the end card has the first two groups only, and you tell the Coach yourself.</span></div></li>
+      <li><div><b>Keep saved briefings playable for good</b><span><em>Yes:</em> a small store of their own outside the Inbox's 400-record window (a server change); the 9 September briefing can only come back as text. <em>No:</em> about three weeks after you save one it becomes a page only, and the Briefing says so instead of "No briefings yet".</span></div></li>
+      <li><div><b>Give Discard an Undo for briefings</b><span><em>Yes:</em> a discarded briefing can be reopened like a Coach card (a one-line change to which kinds may reopen), and the row loses "no undo". <em>No:</em> Discard stays final and says so, as drawn.</span></div></li>
+      <li><div><b>Round 1's two panel calls, drawn here as yes</b><span><em>Yes:</em> a plain sentence gets no panel, and figures and comparisons become panels that code checks against the research (the curve and the comparison here). <em>No:</em> the heading card returns on plain sentences, and only pictures, clips and terms are shown.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const TAU = Math.PI * 2;
+
+/* ---------------- icons ---------------- */
+const sv = (p, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+const IC = {
+  down: sv('<path d="m6 9 6 6 6-6"/>'),
+  back: sv('<path d="m15 18-6-6 6-6"/>'),
+  list: sv('<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" stroke-width="3"/>'),
+  prev: sv('<path class="f" d="M19 6.5v11L10.5 12 19 6.5Z"/><path d="M6.5 6v12" stroke-width="2.4"/>'),
+  next: sv('<path class="f" d="M5 6.5v11l8.5-5.5L5 6.5Z"/><path d="M17.5 6v12" stroke-width="2.4"/>'),
+  play: '<svg class="i ip" viewBox="0 0 24 24" aria-hidden="true"><path class="f" d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>',
+  pause: '<svg class="i iz" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5v13M15.5 5.5v13" stroke-width="3.2"/></svg>',
+  play1: sv('<path class="f" d="M8 5.5v13l11-6.5-11-6.5Z"/>'),
+  mic: sv('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>'),
+  tick: sv('<path d="m5 12.5 4.5 4.5L19 7.5" stroke-width="2.6"/>'),
+  cross: sv('<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>'),
+  tray: sv('<path d="M12 3.5v9M8 9l4 4 4-4"/><path d="M4 13.5v4A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-4"/>'),
+  ask: sv('<path d="M5 18.5V7a2.5 2.5 0 0 1 2.5-2.5h9A2.5 2.5 0 0 1 19 7v6a2.5 2.5 0 0 1-2.5 2.5H9z"/><path d="M9.5 9.2a2.5 2.5 0 1 1 3.3 2.4c-.5.2-.8.6-.8 1.1" /><path d="M12 14.4h.01" stroke-width="2.6"/>'),
+  clock: sv('<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>'),
+  swap: sv('<path d="M5 8h12M14 5l3 3-3 3"/><path d="M19 16H7M10 13l-3 3 3 3"/>'),
+  undo: sv('<path d="M9 7 5 11l4 4"/><path d="M5 11h9.5a4.5 4.5 0 0 1 0 9H11"/>'),
+  restart: sv('<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/>'),
+};
+$$('[data-ic]').forEach((el) => { el.innerHTML = IC[el.dataset.ic] || ''; });
+
+/* ---------------- demo content (invented) ---------------- */
+const TITLE = 'Caffeine and your sleep';
+const PARTS = ['What caffeine does', 'How long it stays', 'What the evidence says', 'Where your sources differ', 'What it means for you'];
+const L = {
+  p1b: 'Caffeine sits in the receptor adenosine would use, so the signal never lands.',
+  p2a: 'Caffeine has a half-life of about five hours.',
+  p2b: 'So half of a three o’clock coffee is still working at eight.',
+  p2c: 'And by one in the morning, a quarter of it is still there.',
+  p3a: 'Most of what we know comes from small lab trials, so treat the exact hours as rough.',
+  p4a: 'A podcast you saved says to stop caffeine at noon.',
+  p4b: 'The trials say it depends on the dose, and on how fast you clear it.',
+  p5a: 'If you train late, the pre-workout is the one to watch.',
+  ask: 'Does that mean no coffee after lunch?',
+  ans1: 'Not quite. The trials point at the size of the dose.',
+  ans2: 'Here is the curve again.',
+};
+const BODY = [
+  'Adenosine builds up from the moment you wake, and the more of it there is, the sleepier you feel. Caffeine fits the same receptors without switching them on, so the sleepy signal is muffled while it lasts.',
+  'For an average adult the body clears half the caffeine in about five hours, though it varies widely between people. Half of an afternoon coffee is still active in the evening, and a quarter around midnight.',
+  'Most of the evidence comes from small lab studies with set doses, so the exact hours are rough guides. The studies agree on the direction: later and larger doses cost more sleep.',
+  'One podcast in your library gives a fixed cut-off at noon. The research does not support one time for everyone: the dose, your body and your habits all move the line.',
+  'On days you train in the evening, a strong pre-workout is the largest dose of your day and the closest to bed. Moving it earlier, or halving it, is the change most likely to show in your sleep.',
+];
+
+/* ---------------- panels ---------------- */
+const curvePts = (() => { const p = []; for (let k = 0; k <= 20; k++) { const t = k / 2; p.push([20 + t * 28, 10 + (1 - Math.pow(.5, t / 5)) * 90]); } return p.map((q) => q.map((v) => v.toFixed(1)).join(',')).join(' '); })();
+const CURVE_SVG = `<svg viewBox="0 0 320 112" aria-hidden="true"><line x1="20" y1="100" x2="300" y2="100" stroke="rgba(232,236,246,.14)"/><polygon points="20,100 ${curvePts} 300,100" fill="rgba(201,216,255,.07)"/><polyline points="${curvePts}" fill="none" stroke="rgba(201,216,255,.75)" stroke-width="2.2" stroke-linecap="round"/><circle class="dotm" cx="20" cy="10" r="4"/><circle class="dotm" data-m="p8" cx="160" cy="55" r="4"/><circle class="dotm" data-m="p1" cx="300" cy="77.5" r="4"/></svg>`;
+const CALLS = `<div class="calls"><div class="call" data-m="p8"><span class="num">50%</span><span class="by">left at 8 pm, <i>from the Researcher</i></span></div><div class="call" data-m="p1"><span class="num">25%</span><span class="by">left at 1 am, <i>from the Researcher</i></span></div></div>`;
+const AXIS = '<div class="cax"><span style="left:6.25%">3 pm</span><span style="left:50%">8 pm</span><span style="left:93.75%">1 am</span></div>';
+const RECEPTOR = `<svg viewBox="0 0 300 140" aria-hidden="true"><rect x="0" y="104" width="300" height="16" rx="8" fill="rgba(232,236,246,.07)"/><path d="M104 112V60q0-14 14-14h14v34q18 16 36 0V46h14q14 0 14 14v52" fill="rgba(122,184,255,.16)" stroke="rgba(201,216,255,.7)" stroke-width="2"/><polygon points="150,55 163,62.5 163,77.5 150,85 137,77.5 137,62.5" fill="rgba(232,236,246,.85)"/><g transform="translate(244 40)" fill="none" stroke="rgba(201,216,255,.6)" stroke-width="2" stroke-dasharray="4 4"><polygon points="0,-14 13,-4 8,12 -8,12 -13,-4"/></g><path d="M226 54 196 64" stroke="rgba(232,236,246,.35)" stroke-width="2" stroke-dasharray="3 5"/></svg>`;
+const PANELS = {
+  img: () => `<div class="ph2"><b>The receptor</b><span>diagram, drawn for this mockup</span></div><div class="img">${RECEPTOR}</div><div class="ilab"><span>Receptor</span><span>Caffeine, seated</span><span>Adenosine, shut out</span></div><div class="pnote">In the app this is a credited picture, or nothing.</div>`,
+  term: () => `<span class="pk">In plain words</span><div class="pterm">Half-life</div><div class="pdef">The time your body takes to clear half of something.</div><div class="pnote">One of four terms this briefing defines.</div>`,
+  curve: () => `<div class="ph2"><b>Caffeine still in you</b><span>after one coffee at 3 pm</span></div><div class="crv">${CURVE_SVG}</div>${AXIS}${CALLS}<div class="pnote">Demo curve for an average adult; it varies a lot between people.</div>`,
+  cmp: () => `<div class="ph2"><b>One question, two answers</b><span>when to stop</span></div><div class="cmp"><div class="row" data-m="ra"><span class="rk">A podcast you saved</span><span class="rv">Stop caffeine at noon</span></div><div class="row" data-m="rb"><span class="rk">The trials <i>from the Researcher</i></span><span class="rv">It depends on the dose and on you</span></div></div><div class="pnote">Your source and the research disagree; Nova says so by name.</div>`,
+};
+
+/* the small picture on each board: what that part showed */
+const MINI = [
+  `<svg viewBox="0 0 120 40" aria-hidden="true"><rect x="0" y="31" width="120" height="6" rx="3" fill="rgba(232,236,246,.08)"/><path d="M44 34V16q0-5 5-5h5v12q6 6 12 0V11h5q5 0 5 5v18" fill="rgba(122,184,255,.18)" stroke="rgba(201,216,255,.7)" stroke-width="1.5"/><polygon points="60,15 65,18 65,23 60,26 55,23 55,18" fill="rgba(232,236,246,.85)"/></svg>`,
+  `<svg viewBox="0 0 120 40" aria-hidden="true"><polyline points="4,6 20,14 36,20 52,25 68,29 84,32 100,34 116,35" fill="none" stroke="rgba(201,216,255,.75)" stroke-width="1.8" stroke-linecap="round"/><circle cx="52" cy="25" r="3" fill="#7ab8ff"/></svg>`,
+  `<svg viewBox="0 0 120 40" aria-hidden="true"><defs><radialGradient id="mg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="rgba(160,205,255,.7)"/><stop offset="1" stop-color="rgba(120,190,255,0)"/></radialGradient></defs><circle cx="60" cy="20" r="18" fill="url(#mg)"/></svg>`,
+  `<svg viewBox="0 0 120 40" aria-hidden="true"><rect x="4" y="6" width="112" height="12" rx="6" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.18)"/><rect x="4" y="23" width="112" height="12" rx="6" fill="rgba(122,184,255,.14)" stroke="rgba(122,184,255,.6)"/></svg>`,
+  `<svg viewBox="0 0 120 40" aria-hidden="true" fill="none" stroke="rgba(232,236,246,.75)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M38 14h40M70 8l8 6-8 6"/><path d="M82 28H42M50 22l-8 6 8 6"/></svg>`,
+];
+const fbHTML = (i) => i === 5 ? `<button type="button" class="fb fs" data-b="all" aria-label="Play the whole briefing from the start"><span class="fn">All five</span><b class="ft">From the start</b><span class="fv">${IC.restart}</span></button>` : `<button type="button" class="fb" data-b="${i + 1}" aria-label="Part ${i + 1}, ${PARTS[i]}: hear it again"><span class="fn">Part ${i + 1}${IC.play1}</span><b class="ft">${PARTS[i]}</b><span class="fv">${MINI[i]}</span></button>`;
+
+/* the end card's verbs, each with its consequence written under it */
+const endCard = (opts = {}) => `
+  <div class="eh"><b class="et">${TITLE}</b></div>
+  <p class="gk">Keep the information</p>
+  <button type="button" class="vrow" data-v="save"><span class="vg">${IC.tray}</span><span class="vt"><b>Save to your notes</b><span>A page in Wiki/Inbox that Nova and the agents can open, off your Library shelf.</span></span></button>
+  <div class="vdone" data-d="save" hidden><span class="ok">${IC.tick}</span><span class="vt"><b>Saved to Wiki/Inbox</b><span>Undo deletes the page, if you have not edited it.</span></span><button type="button" class="txb" data-v="undo">Undo</button></div>
+  <p class="gk">Think it over</p>
+  <button type="button" class="vrow" data-v="ask"><span class="vg">${IC.ask}</span><span class="vt"><b>Ask about it</b><span>Nova answers here, from this briefing. Nothing goes into your vault.</span></span></button>
+  <button type="button" class="vrow" data-v="later"><span class="vg">${IC.clock}</span><span class="vt"><b>Decide later</b><span>It waits in your Inbox, still playable. Nothing is written.</span></span></button>
+  <p class="gk">Change something</p>
+  <button type="button" class="vrow" data-v="coach"><span class="vg">${IC.swap}</span><span class="vt"><b>Hand part 5 to the Coach</b><span>He drafts one change for Train. Nothing moves until you say yes.</span></span><i class="new">New</i></button>
+  <div class="vdone" data-d="coach" hidden><span class="ok">${IC.tick}</span><span class="vt"><b>With the Coach</b><span>A draft card will appear in Train for your yes or no.</span></span></div>
+  <p class="gk" data-g="disc">Not for you</p>
+  <button type="button" class="vrow quiet" data-v="discard"><span class="vg">${IC.cross}</span><span class="vt"><b>Discard</b><span>Nothing is written. It leaves your Inbox; no undo today.</span></span></button>`;
+
+/* ---------------- templates ---------------- */
+const SB = '<div class="sb"><span>9:41</span><span class="r"><span class="demochip">Demo</span><span class="bat"></span></span></div>';
+const TAIL = '<canvas class="fx" aria-hidden="true"></canvas><span class="tapdot" aria-hidden="true"></span>';
+const playBtn = (big) => `<button type="button" class="${big ? 'tb play' : 'pb'}" data-k="play" aria-label="Pause">${IC.pause}${IC.play}</button>`;
+const TPL = {
+  stage: (id) => `<div class="sky"></div>${SB}
+    <div class="top"><button type="button" class="icb" aria-label="Close, back to where you came from">${IC.down}</button><button type="button" class="txb" data-k="read">Read</button></div>
+    <div class="pn" aria-hidden="true"><b>Nova</b><span>${TITLE}</span></div>
+    <div class="dock"></div>
+    <div class="plate"><div class="pbody"><div class="pcol"></div></div></div>
+    <div class="moment" aria-hidden="true"></div>
+    <div class="rail"><div class="rl"><b class="rn"></b><span class="rt"></span></div><div class="segs">${PARTS.map((t, i) => `<button type="button" aria-label="Part ${i + 1}, ${t}"><i><b></b></i></button>`).join('')}</div></div>
+    <div class="tp"><button type="button" class="tb ic" data-k="script" aria-label="Script">${IC.list}</button><button type="button" class="tb ic" data-k="prev" aria-label="Back a part">${IC.prev}</button>${playBtn(true)}<button type="button" class="tb ic" data-k="next" aria-label="Next part">${IC.next}</button><button type="button" class="tb" data-k="ask">${IC.mic}Ask</button></div>
+    ${id === 'p2' ? `<div class="sheet"><span class="grab"></span><div class="sh"><b>Script</b><button type="button" class="txb">${IC.restart}From the start</button></div>
+      <p class="sp">Part 3 · ${PARTS[2]}</p><button type="button" class="ln now">${L.p3a}</button>
+      <p class="sp">Part 4 · ${PARTS[3]}</p><button type="button" class="ln" data-l="4a">${L.p4a}</button><button type="button" class="ln">${L.p4b}</button>
+      <p class="sp">Part 5 · ${PARTS[4]}</p><button type="button" class="ln">${L.p5a}</button></div>` : ''}
+    ${id[0] === 'e' ? `<div class="fan"></div><div class="endv" hidden>${endCard()}</div>` : ''}
+    ${TAIL}`,
+  read: () => `<div class="sky house"></div>${SB}
+    <div class="nav"><button type="button" class="back">${IC.back}<span>Stage</span></button></div>
+    <div class="doc"><div class="doccol">
+      <h1 class="lt">${TITLE}</h1>
+      <p class="meta">Made Sunday · 5 parts · 6 sources · demo</p>
+      <p class="lede2">Caffeine keeps you awake by blocking the chemical that makes you sleepy, and it lasts longer than most people think. How late is too late depends on the dose and on you.</p>
+      ${PARTS.map((t, i) => `<section class="part" data-p="${i + 1}"><div class="ph"><h2>${t}</h2><button type="button" class="pp" aria-label="Play part ${i + 1}">${IC.play1}</button></div><span class="now">Playing</span><p>${BODY[i]}</p></section>`).join('')}
+      <div class="tail"><h2>Terms, in plain words</h2><div class="chips"><button type="button">Adenosine</button><button type="button">Half-life</button><button type="button">Receptor</button><button type="button">Sleep pressure</button></div>
+        <h2>Sources</h2><ul class="srcs"><li><button type="button">Demo source 1 · a review of caffeine and sleep</button></li><li><button type="button">Demo source 2 · a lab trial of evening doses</button></li><li><button type="button">Show 4 more</button></li></ul>
+        <h2>What to do with it</h2><div class="tcard">${endCard().replace(/<div class="eh">[\s\S]*?<\/div>/, '')}</div></div>
+    </div></div>
+    <div class="pcard"></div>
+    <div class="player"><div class="ps"></div>${playBtn(false)}</div>
+    ${TAIL}`,
+};
+
+/* ---------------- motion settings ---------------- */
+const RMQ = matchMedia('(prefers-reduced-motion: reduce)');
+let rmPreview = false, SPEED = 1;
+const RM = () => RMQ.matches || rmPreview;
+const syncRoot = () => { document.documentElement.classList.toggle('rm', RM()); document.documentElement.style.setProperty('--slow', String(1 / SPEED)); };
+RMQ.addEventListener?.('change', syncRoot);
+const EASE = 'cubic-bezier(.32,.72,0,1)', EOUT = 'cubic-bezier(.23,1,.32,1)', EIO = 'cubic-bezier(.77,0,.175,1)';
+const anim = (el, kf, ms, easing = EASE, delay = 0) => el.animate(kf, { duration: ms / SPEED, delay: delay / SPEED, easing, fill: 'both' });
+const CANCEL = Symbol('cancel');
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+const COL = { rest: [120, 190, 255], speak: [80, 228, 168], listen: [176, 160, 255], think: [89, 230, 255] };
+const RIM = [150, 250, 240];
+const rgba = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const mixc = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+const SPH = (() => { const n = 150, out = [], g = Math.PI * (3 - Math.sqrt(5)); for (let i = 0; i < n; i++) { const y = 1 - (i / (n - 1)) * 2, r = Math.sqrt(1 - y * y), th = g * i; out.push([Math.cos(th) * r, y, Math.sin(th) * r]); } return out; })();
+const norm = (w) => w.toLowerCase().replace(/[^a-z0-9-]/g, '');
+const ROT = [-2.5, 1.5, -1.5, 2, -2, 2.5];
+
+class Scene {
+  constructor(el) { this.el = el; this.id = el.dataset.scene; this.kind = this.id[0] === 'r' ? 'read' : 'stage'; this.now = 0; this.gen = 0; this.waits = []; this.visible = false; this.active = true; }
+  wait(ms) { const g = this.gen; return new Promise((res, rej) => this.waits.push({ at: this.now + ms, res, rej, g })); }
+  cancel() { this.gen++; const ws = this.waits; this.waits = []; ws.forEach((w) => w.rej(CANCEL)); }
+  tick(dt) { this.now += dt; if (!this.waits.length) return; const due = this.waits.filter((w) => w.at <= this.now); if (!due.length) return; this.waits = this.waits.filter((w) => w.at > this.now); for (const w of due) (w.g === this.gen ? w.res() : w.rej(CANCEL)); }
+  reset() {
+    this.el.innerHTML = TPL[this.kind](this.id);
+    delete this.el.dataset.ph; delete this.el.dataset.end;
+    this.W = this.el.clientWidth || 358; this.H = 844;
+    this.cv = $('canvas.fx', this.el); this.cv.width = Math.round(this.W * DPR); this.cv.height = Math.round(this.H * DPR);
+    this.ctx = this.cv.getContext('2d'); this.ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    this.curWord = null; this.panelEl = null;
+    const p = this.pos(this.kind === 'read' ? 'player' : 'home');
+    this.core = { x: p.x, y: p.y, r: p.r, tx: p.x, ty: p.y, tr: p.r, c: [...COL.rest], tc: [...COL.rest], mode: 'rest', pulse: -1e9 };
+  }
+  pos(n) {
+    const W = this.W;
+    return ({ home: { x: W / 2, y: 318, r: 88 }, presenter: { x: 50, y: 150, r: 26 }, top: { x: W / 2, y: 74, r: 13 },
+      player: { x: 42, y: this.H - 24 - 42, r: 17 } })[n];
+  }
+  coreTo(n, mode) { const p = this.pos(n); Object.assign(this.core, { tx: p.x, ty: p.y, tr: p.r }); if (RM()) Object.assign(this.core, { x: p.x, y: p.y, r: p.r }); if (mode) this.coreMode(mode); }
+  coreMode(m) { this.core.mode = m; this.core.tc = [...COL[m]]; if (RM()) this.core.c = [...COL[m]]; }
+
+  /* drawing, once a frame while visible. No particles: the core breathes,
+     and a band of light passes over it when a word lands, on the core only */
+  draw(dt) {
+    const c = this.core, ctx = this.ctx, rm = RM();
+    const k = rm ? 1 : 1 - Math.exp(-dt / 130), kc = rm ? 1 : 1 - Math.exp(-dt / 240);
+    c.x += (c.tx - c.x) * k; c.y += (c.ty - c.y) * k; c.r += (c.tr - c.r) * k;
+    for (let i = 0; i < 3; i++) c.c[i] += (c.tc[i] - c.c[i]) * kc;
+    ctx.clearRect(0, 0, this.W, this.H);
+    if (c.r > 2) this.drawCore(ctx, c, rm ? 0 : this.now);
+    if (this.curWord) { const w = this.curWord; w.el.style.setProperty('--p', clamp01((this.now - w.t0) / w.d).toFixed(3)); }
+  }
+  drawCore(ctx, c, T) {
+    const { x, y, r } = c, col = c.c, speak = c.mode === 'speak';
+    let g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.4);
+    g.addColorStop(0, rgba(col, .3)); g.addColorStop(.45, rgba(col, .1)); g.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 1.4, 0, TAU); ctx.fill();
+    ctx.lineWidth = Math.max(.7, r * .014);
+    for (const [tilt, sp, ph] of [[.42, .00035, 0], [-.62, -.00027, 2]]) {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(tilt);
+      ctx.strokeStyle = rgba(col, .3); ctx.beginPath(); ctx.ellipse(0, 0, r * .98, r * .28, 0, 0, TAU); ctx.stroke();
+      const a = T * sp + ph; ctx.fillStyle = rgba(mixc(col, [255, 255, 255], .55), .95);
+      ctx.beginPath(); ctx.arc(Math.cos(a) * r * .98, Math.sin(a) * r * .28, Math.max(1.3, r * .035), 0, TAU); ctx.fill(); ctx.restore();
+    }
+    const rot = T * .00042, tl = .35, ct = Math.cos(tl), st = Math.sin(tl), cr = Math.cos(rot), sr = Math.sin(rot);
+    const age = T - c.pulse, band = speak && age < 520 && age >= 0 ? 1 - age / 520 : 0, bandY = 1 - 2 * clamp01(age / 520);
+    const R = r * (speak ? .66 : .8) * (1 + (speak ? .03 * Math.sin(T * .006) : .02 * Math.sin(T * .0018)));
+    const s0 = Math.max(.9, r / 46), bins = [[], [], []], hot = [];
+    for (const p of SPH) {
+      const X = p[0] * cr - p[2] * sr, Z = p[0] * sr + p[2] * cr, Y2 = p[1] * ct - Z * st, Z2 = p[1] * st + Z * ct, d = (Z2 + 1) / 2;
+      const px = x + X * R, py = y + Y2 * R; bins[d < .33 ? 0 : d < .66 ? 1 : 2].push(px, py);
+      if (band && d > .4 && Math.abs(Y2 - bandY) < .2) hot.push(px, py);
+    }
+    [[.22, .8], [.5, 1.1], [.9, 1.5]].forEach(([a, s], i) => { const b = bins[i], z = s * s0; ctx.fillStyle = rgba(col, a); ctx.beginPath(); for (let j = 0; j < b.length; j += 2) ctx.rect(b[j] - z / 2, b[j + 1] - z / 2, z, z); ctx.fill(); });
+    if (hot.length) { const z = 1.8 * s0; ctx.fillStyle = rgba(RIM, band); ctx.beginPath(); for (let j = 0; j < hot.length; j += 2) ctx.rect(hot[j] - z / 2, hot[j + 1] - z / 2, z, z); ctx.fill(); }
+    const hb = r * .2 * (1 + (speak ? .1 * Math.max(0, Math.sin(T * .012)) : .04 * Math.sin(T * .003)));
+    g = ctx.createRadialGradient(x, y, 0, x, y, hb * 2.4);
+    g.addColorStop(0, 'rgba(255,255,255,.96)'); g.addColorStop(.25, rgba(mixc(col, [255, 255, 255], .5), .85)); g.addColorStop(.6, rgba(col, .3)); g.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, hb * 2.4, 0, TAU); ctx.fill();
+  }
+
+  /* subtitles: each word fades up where it sits */
+  host() { return $(this.kind === 'read' ? '.ps' : '.pcol', this.el); }
+  line(html, cls = '') {
+    const h = this.host();
+    if (this.kind === 'stage') { $$('p', h).forEach((p) => p.classList.add('earlier')); const ps = $$('p', h); if (ps.length > 1) ps[0].remove(); }
+    else h.innerHTML = '';
+    const p = document.createElement('p'); if (cls) p.className = cls; p.innerHTML = html; h.appendChild(p); return p;
+  }
+  clearSub() { this.host().innerHTML = ''; }
+  note(t) { this.line(esc(t), 'note'); }
+  async say(text, o = {}) {
+    const words = text.split(' '), his = o.who === 'his';
+    const p = this.line(words.map((w) => `<span class="w">${esc(w)}</span>`).join(' '), his ? 'his' : '');
+    const spans = $$('.w', p);
+    if (o.panel) this.dock(o.panel);
+    const total = Math.min(5600, Math.max(1300, text.length * 56));
+    const wt = words.map((w) => w.length + 2 + (/[,.?!]$/.test(w) ? 4 : 0)), sum = wt.reduce((a, b) => a + b, 0);
+    const cue = (i) => { const f = o.cues && o.cues[norm(words[i])]; if (f) f(); };
+    if (RM()) { spans.forEach((s) => s.classList.add('on')); words.forEach((_, i) => cue(i)); await this.wait(total); return; }
+    const stop = o.stopAt ?? spans.length;
+    for (let i = 0; i < stop; i++) {
+      const d = total * wt[i] / sum;
+      if (i) spans[i - 1].classList.remove('cur');
+      spans[i].classList.add('on', 'cur'); this.curWord = { el: spans[i], t0: this.now, d };
+      if (!his) this.core.pulse = this.now;
+      cue(i); await this.wait(d);
+    }
+    if (stop < spans.length) { this.curWord = null; return; }
+    spans[spans.length - 1].classList.remove('cur'); this.curWord = null;
+  }
+
+  /* panels rise out of the core and settle away (A's transition) */
+  dock(kind, still) {
+    const host = $(this.kind === 'read' ? '.pcard' : '.dock', this.el); if (!host) return;
+    if (this.panelEl) this.drop(this.panelEl);
+    if (this.kind === 'stage') { this.coreTo('presenter'); this.el.dataset.ph = 'stage'; }
+    const el = document.createElement('div'); el.className = 'panel'; el.innerHTML = PANELS[kind](); host.appendChild(el); this.panelEl = el;
+    if (still) return;
+    const hr = host.getBoundingClientRect(), pr = this.el.getBoundingClientRect();
+    el.style.transformOrigin = `${this.core.tx - (hr.left - pr.left)}px ${this.core.ty - (hr.top - pr.top)}px`;
+    anim(el, RM() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'scale(.42)', filter: 'blur(12px)' }, { opacity: 1, transform: 'none', filter: 'blur(0px)' }], RM() ? 250 : 560);
+  }
+  drop(el) { anim(el, RM() ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'none', filter: 'blur(0px)' }, { opacity: 0, transform: 'translateY(-10px) scale(.96)', filter: 'blur(8px)' }], 280, EOUT); setTimeout(() => el.remove(), 300 / SPEED); }
+  async undock() { if (!this.panelEl) return; this.drop(this.panelEl); this.panelEl = null; if (this.kind === 'stage') { delete this.el.dataset.ph; if (!this.el.hasAttribute('data-end')) this.coreTo('home'); } await this.wait(300); }
+  light(id) {
+    const scope = this.panelEl; if (!scope) return;
+    const hit = $$(`[data-m="${id}"]`, scope); if (!hit.length) return;
+    $$('.lit', scope).forEach((e) => e.classList.remove('lit')); hit.forEach((e) => e.classList.add('lit'));
+  }
+
+  /* controls */
+  setPlay(on) { $$('[data-k="play"]', this.el).forEach((b) => { b.classList.toggle('paused', !on); b.setAttribute('aria-label', on ? 'Pause' : 'Play'); }); }
+  async tap(sel) {
+    const el = typeof sel === 'string' ? $(sel, this.el) : sel; if (!el) return;
+    const pr = this.el.getBoundingClientRect(), r = el.getBoundingClientRect(), d = $('.tapdot', this.el);
+    d.style.left = (r.left - pr.left + r.width / 2) + 'px'; d.style.top = (r.top - pr.top + r.height / 2) + 'px';
+    anim(d, [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 1, transform: 'scale(1)', offset: .35 }, { opacity: 0, transform: 'scale(1.25)' }], 520, EOUT);
+    el.classList.add('press'); await this.wait(160); el.classList.remove('press'); await this.wait(240);
+  }
+  part(n, f = 0) {
+    if (this.kind === 'stage') {
+      $('.rn', this.el).textContent = n; $('.rt', this.el).textContent = PARTS[n - 1];
+      $$('.segs button', this.el).forEach((b, i) => { b.classList.toggle('cur', i === n - 1); b.style.setProperty('--f', i < n - 1 ? 1 : i === n - 1 ? f : 0); });
+    } else {
+      $$('.part', this.el).forEach((p) => p.classList.toggle('lit', +p.dataset.p === n));
+    }
+  }
+  async moment(n) {
+    const m = $('.moment', this.el); this.clearSub(); this.coreTo('home', 'speak');
+    m.innerHTML = `<span class="mk">Part ${n} of 5</span><span class="mt">${PARTS[n - 1]}</span>`;
+    anim(m, RM() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }], 380);
+    this.part(n, 0); $('.rl', this.el).style.opacity = .3;
+    await this.wait(1150);
+    anim(m, RM() ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(150px) scale(.5)' }], 460);
+    await this.wait(380); $('.rl', this.el).style.opacity = 1;
+  }
+  sheet(up) { $('.sheet', this.el).classList.toggle('up', up); }
+
+  /* the end: the rail's parts fly up into C's fan of boards */
+  /* C's boards spread out on the stage, three and three, each a little askew
+     like boards laid on a table, so every title can be read */
+  fanGeom(i) {
+    const w = 104, h = 106, gap = 8, pad = (this.W - (3 * w + 2 * gap)) / 2, col = i % 3, row = Math.floor(i / 3);
+    const left = pad + col * (w + gap), top = 2 + row * (h + 6);
+    return { left, top, cx: left + w / 2, cy: 100 + top + h / 2, a: ROT[i] };
+  }
+  async endOverview(from = 'rail') {
+    const fan = $('.fan', this.el), card = $('.endv', this.el);
+    const segs = $$('.segs button', this.el).map((b) => b.getBoundingClientRect()), pr = this.el.getBoundingClientRect();
+    this.clearSub(); this.el.dataset.end = ''; this.coreTo('top', 'rest');
+    fan.innerHTML = [0, 1, 2, 3, 4, 5].map(fbHTML).join('');
+    $$('.fb', fan).forEach((b, i) => {
+      const g = this.fanGeom(i); Object.assign(b.style, { left: g.left + 'px', top: g.top + 'px', transform: `rotate(${g.a}deg)` });
+      if (RM()) { anim(b, [{ opacity: 0 }, { opacity: 1 }], 260, 'ease', i * 40); return; }
+      const sx = from === 'rail' && segs[i] ? segs[i].left - pr.left + segs[i].width / 2 : this.W / 2;
+      const sy = from === 'rail' && segs[i] ? segs[i].top - pr.top + segs[i].height / 2 : 318;
+      anim(b, [{ opacity: 0, transform: `translate(${sx - g.cx}px,${sy - g.cy}px) rotate(0deg) scale(.22)` }, { opacity: 1, offset: .25 }, { opacity: 1, transform: `translate(0,0) rotate(${g.a}deg) scale(1)` }], 640, EASE, i * 70);
+    });
+    await this.wait(RM() ? 300 : 640 + 5 * 70);
+    card.hidden = false;
+    anim(card, RM() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(24px) scale(.97)', filter: 'blur(8px)' }, { opacity: 1, transform: 'none', filter: 'blur(0px)' }], 460);
+    await this.wait(460);
+  }
+  async endAway() {
+    const fan = $('.fan', this.el), card = $('.endv', this.el);
+    anim(card, RM() ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(24px) scale(.97)' }], 240, EOUT);
+    $$('.fb', fan).forEach((b, i) => {
+      const g = this.fanGeom(i);
+      anim(b, RM() ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: `rotate(${g.a}deg)` }, { opacity: 0, transform: `translate(${this.W / 2 - g.cx}px,${318 - g.cy}px) scale(.22)` }], 300, EOUT, i * 30);
+    });
+    await this.wait(420); card.hidden = true; fan.innerHTML = ''; delete this.el.dataset.end;
+  }
+  /* Save, acted out: a page leaves the boards and drops into the row */
+  async saveActed() {
+    const pr = this.el.getBoundingClientRect(), row = $('.endv [data-v="save"]', this.el), g = $('.vg', row).getBoundingClientRect();
+    if (!RM()) {
+      const gh = document.createElement('span'); gh.className = 'ghost'; this.el.appendChild(gh);
+      const sx = this.W / 2 - 22, sy = 100 + 80, ex = g.left - pr.left + g.width / 2 - 22, ey = g.top - pr.top + g.height / 2 - 28;
+      Object.assign(gh.style, { left: sx + 'px', top: sy + 'px' });
+      anim(gh, [{ opacity: 0, transform: 'translateY(10px) scale(.9)' }, { opacity: 1, transform: 'translateY(-14px) scale(1)', offset: .25 }, { opacity: .9, transform: `translate(${ex - sx}px,${ey - sy}px) scale(.4)`, offset: .92 }, { opacity: 0, transform: `translate(${ex - sx}px,${ey - sy}px) scale(.3)` }], 700, EIO);
+      await this.wait(700); gh.remove();
+    }
+    await this.swapDone('save', ['later', 'discard'], ['disc']);
+  }
+  async swapDone(v, hide = [], hideG = []) {
+    const card = $('.endv', this.el), row = $(`[data-v="${v}"]`, card), done = $(`[data-d="${v}"]`, card);
+    const gone = [...hide.map((h) => $(`[data-v="${h}"]`, card)), ...hideG.map((h) => $(`[data-g="${h}"]`, card))];
+    anim(row, [{ opacity: 1 }, { opacity: 0 }], 160, EOUT); gone.forEach((x) => anim(x, [{ opacity: 1 }, { opacity: 0 }], 200, EOUT));
+    await this.wait(170);
+    row.hidden = true; done.hidden = false; gone.forEach((x) => { x.hidden = true; });
+    anim(done, RM() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'scale(.97)' }, { opacity: 1, transform: 'none' }], 260, EOUT);
+    await this.wait(30); done.classList.add('on'); await this.wait(480);
+  }
+  async undoSave() {
+    const card = $('.endv', this.el), done = $('[data-d="save"]', card), row = $('[data-v="save"]', card);
+    const back = [$('[data-v="later"]', card), $('[data-v="discard"]', card), $('[data-g="disc"]', card)];
+    anim(done, [{ opacity: 1 }, { opacity: 0 }], 160, EOUT); await this.wait(170);
+    done.hidden = true; done.classList.remove('on'); row.hidden = false; back.forEach((x) => { x.hidden = false; });
+    [row, ...back].forEach((x) => anim(x, [{ opacity: 0 }, { opacity: 1 }], 240, EOUT));
+    await this.wait(260);
+  }
+
+  /* Read */
+  scrollDoc(to) {
+    const col = $('.doccol', this.el); let y = 0;
+    if (to === 'end') { const c = $('.tcard', this.el); y = c.offsetTop + c.offsetHeight - (this.H - 94 - 130); }
+    else { const p = $(`.part[data-p="${to}"]`, this.el); y = p.offsetTop - 8; }
+    col.style.setProperty('--sy', -Math.max(0, y) + 'px');
+  }
+}
+
+/* ---------------- the scripts ---------------- */
+const SCRIPTS = {
+  async p1(S) {
+    S.part(1, .5); S.setPlay(true); S.coreTo('home', 'speak');
+    await S.say(L.p1b, { panel: 'img' });
+    await S.wait(700); await S.undock();
+    await S.moment(2);
+    await S.say(L.p2a, { panel: 'term' }); S.part(2, .34);
+    await S.say(L.p2b, { panel: 'curve', cues: { eight: () => S.light('p8') } }); S.part(2, .67);
+    await S.say(L.p2c, { cues: { one: () => S.light('p1') } }); S.part(2, 1);
+    await S.wait(900); await S.undock(); await S.wait(700);
+  },
+  async p2(S) {
+    S.part(2, .34); S.setPlay(true); S.coreTo('presenter', 'speak'); S.dock('curve', true);
+    await S.say(L.p2b, { stopAt: 7 });
+    await S.tap('[data-k="play"]'); S.setPlay(false); S.coreMode('rest');
+    await S.wait(1500);
+    await S.tap('[data-k="next"]'); await S.undock(); S.setPlay(true);
+    await S.moment(3);
+    await S.say(L.p3a); S.part(3, 1);
+    await S.wait(400);
+    await S.tap('[data-k="script"]'); S.sheet(true); await S.wait(1200);
+    const ln = $('[data-l="4a"]', S.el); await S.tap(ln); ln.classList.add('hit');
+    S.sheet(false); await S.wait(420);
+    await S.moment(4);
+    await S.say(L.p4a, { panel: 'cmp' }); S.part(4, .5);
+    await S.say(L.p4b, { cues: { depends: () => S.light('rb') } }); S.part(4, 1);
+    await S.wait(1000); await S.undock(); await S.wait(500);
+  },
+  async r1(S) {
+    S.scrollDoc(2); S.part(2); S.setPlay(true); S.coreMode('speak');
+    await S.wait(400);
+    await S.say(L.p2a, { panel: 'term' });
+    await S.say(L.p2b, { panel: 'curve', cues: { eight: () => S.light('p8') } });
+    await S.tap('.player [data-k="play"]'); S.setPlay(false); S.coreMode('rest'); await S.undock();
+    await S.wait(900);
+    S.scrollDoc(4); await S.wait(1200);
+    await S.tap('.part[data-p="4"] .pp'); S.part(4); S.setPlay(true); S.coreMode('speak');
+    await S.say(L.p4a, { panel: 'cmp' });
+    await S.say(L.p4b, { cues: { depends: () => S.light('rb') } });
+    await S.wait(900); await S.undock();
+    S.part(0); S.setPlay(false); S.coreMode('rest'); S.note('Finished · tap play to hear it again');
+    S.scrollDoc('end'); await S.wait(2800);
+  },
+  async e1(S) {
+    S.part(5, .5); S.setPlay(true); S.coreTo('home', 'speak');
+    await S.say(L.p5a); S.part(5, 1); S.setPlay(false);
+    await S.wait(500); await S.endOverview('rail');
+    await S.wait(1600);
+    await S.tap('.endv [data-v="save"]'); await S.saveActed();
+    await S.wait(2200);
+    await S.tap('.endv [data-v="undo"]'); await S.undoSave();
+    await S.wait(1600);
+  },
+  async e2(S) {
+    S.part(5, 1); S.setPlay(false); S.coreTo('top', 'rest');
+    await S.endOverview('core'); await S.wait(1200);
+    await S.tap('.endv [data-v="ask"]'); await S.endAway();
+    S.coreTo('home', 'listen'); S.clearSub();
+    await S.say(L.ask, { who: 'his' });
+    S.coreMode('think'); S.note('Thinking'); await S.wait(1300);
+    S.coreMode('speak');
+    await S.say(L.ans1);
+    await S.say(L.ans2, { panel: 'curve' }); S.light('p8');
+    await S.wait(1500); await S.undock(); await S.wait(300);
+    await S.endOverview('core'); await S.wait(1200);
+    await S.tap('.endv [data-v="coach"]'); await S.swapDone('coach');
+    await S.wait(2600);
+  },
+};
+
+/* ---------------- wiring ---------------- */
+const scenes = $$('.phone[data-scene]').map((el) => new Scene(el));
+async function run(S) {
+  for (;;) {
+    try { await S.wait(0); S.reset(); await SCRIPTS[S.id](S); await S.wait(1200); }
+    catch (e) { if (e !== CANCEL) { console.error(e); await new Promise((r) => setTimeout(r, 1500)); } }
+  }
+}
+scenes.forEach((S) => { S.reset(); run(S); });
+const io = new IntersectionObserver((es) => es.forEach((e) => { const S = scenes.find((s) => s.el === e.target); if (S) S.visible = e.isIntersecting; }), { threshold: .12 });
+scenes.forEach((S) => io.observe(S.el));
+$$('[data-replay]').forEach((b) => b.addEventListener('click', () => { const S = scenes.find((s) => s.id === b.dataset.replay); if (S) S.cancel(); }));
+const restartAll = () => scenes.forEach((S) => S.cancel());
+$('#slow').addEventListener('click', (e) => { SPEED = SPEED === 1 ? .25 : 1; e.currentTarget.setAttribute('aria-pressed', String(SPEED !== 1)); syncRoot(); restartAll(); macDeal(); });
+$('#rmprev').addEventListener('click', (e) => { rmPreview = !rmPreview; e.currentTarget.setAttribute('aria-pressed', String(rmPreview)); syncRoot(); restartAll(); macDeal(); });
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { restartAll(); fitMac(); }, 250); });
+syncRoot();
+
+let last = performance.now();
+function frame(t) {
+  const dt = Math.min(64, t - last) * SPEED; last = t;
+  for (const S of scenes) { if (!S.visible) continue; S.tick(dt); if (S.ctx) S.draw(dt); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------------- the Mac, at the end ---------------- */
+const mx = $('#mx'), macbox = $('#macbox');
+mx.innerHTML = `<div class="sky"></div>
+  <div class="mtop"><div class="mtl"><button type="button" class="icb" aria-label="Close, back to where you came from">${IC.down}</button><span class="mcore" aria-hidden="true"></span><span>Nova · finished · demo</span></div><button type="button" class="txb">Read</button></div>
+  <div class="mstage"><div class="mfan"></div>
+    <div class="mtitle"><b>${TITLE}</b><span>5 parts · 6 sources · 4 terms · tap a board to hear that part again</span><button type="button" class="txb">${IC.restart}From the start</button></div></div>
+  <div class="mside"><div class="endv">${endCard()}</div></div>`;
+const MANG = [-6, -3, 0, 3, 6];
+function macGeom(i) { const cx = 390 + (i - 2) * 152, top = 40 + Math.abs(i - 2) * 14; return { left: cx - 70, top, a: MANG[i] }; }
+const mfan = $('.mfan', mx);
+mfan.innerHTML = PARTS.map((_, i) => fbHTML(i)).join('');
+$$('.fb', mfan).forEach((b, i) => { const g = macGeom(i); Object.assign(b.style, { left: g.left + 'px', top: g.top + 'px', transform: `rotate(${g.a}deg)` }); });
+function fitMac() { const k = macbox.clientWidth / 1280; mx.style.setProperty('--k', k.toFixed(4)); }
+function macDeal() {
+  $$('.fb', mfan).forEach((b, i) => {
+    const g = macGeom(i);
+    anim(b, RM() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: `translate(${390 - g.left - 70}px,240px) rotate(0deg) scale(.3)` }, { opacity: 1, transform: `rotate(${g.a}deg)` }], RM() ? 260 : 640, EASE, i * 70);
+  });
+}
+fitMac();
+let dealt = false;
+new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting && !dealt) { dealt = true; macDeal(); } }), { threshold: .3 }).observe(macbox);
+})();
+</script>
