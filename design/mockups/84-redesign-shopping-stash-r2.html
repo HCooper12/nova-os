@@ -1,0 +1,1797 @@
+<title>Shopping and Stash</title>
+<!--
+  84 · SHOPPING AND STASH, ROUND 2 (7 Oct 2026): direction B "Instruments", in full
+
+  Round 1 is design/mockups/78-redesign-lists.html (audit 13-lists.md). He chose B
+  for both screens on 7 Oct and asked for more. His words, verbatim:
+
+    "For shopping it is starting to look good. I'd like to be able to easily access
+    my meal library/rotation as well. It'd be even better if nova can annotate
+    whether Coles or woolworths have that item cheaper and/or display the
+    variations of that item unless I point out a specific one I buy (like lean beef
+    mince 1kg from Woolworths. Although if there's a better alternative both macro
+    and price wise then it should tell me). I'd like it to check Aldi too but Aldi
+    doesn't seem as accessible with online info in Australia"
+
+    "The instruments option looks best for shopping list, ensuring that it doesn't
+    lose anything option A has too"
+
+    "Instruments also looks good for the stash but I want the stash organisation and
+    accessibility and appearance refined further with anything else that'll make it
+    easier to use, navigate, add and access. Images of the items from the site link
+    added should also be present. Plus the option to add anything to the shopping
+    list (like I would for skincare). I'd also like the ability to set repurchasing
+    reminders, such as for the skincare items so I can keep that as a reminder to
+    check the level before I run out before ordering more"
+
+  The research behind it: design/audits/redesign-2026-09/14-shopping-stash-r2-research.md
+  (where prices can honestly come from, link pictures, restock checks, meals).
+  To-Do waits for his screen recordings and is left out on purpose.
+
+  SHOPPING (B, kept whole, plus):
+    - the basket card gains the price comparison: the whole list at each shop,
+      Aldi drawn dashed and said in words, and how many lines were compared
+    - "Your meals": the rotation as a rail of dishes, each showing how much of it
+      is on the list, and the recipe library one tap away
+    - a price on every line: which shop is cheaper, the kinds when nothing is
+      pinned, his pinned product alone when one is, and a marked suggestion only
+      when another product beats it on price AND macros
+    - an "Order online" group for things added from the Stash
+  STASH (B, refined):
+    - "Running down": the restock levels as vials, a check line a week before empty
+    - each link shows its page's own picture; product shelves are a grid of cards
+    - a shelf bar that stays put and a search, so any link is two taps away
+    - adding starts from a pasted link; Nova reads the name and the picture
+    - add to the shopping list, and a restock rhythm with a check-the-level nudge
+
+  DEMO CONTENT ONLY. The repo is public. Every item, product, price, recipe, link,
+  shelf, date and count here is invented. Every price is an invented example and
+  says so on the page. No real product's price is claimed. Product pictures are
+  drawn for the mockup; Nova would show each page's own picture.
+
+  Reduced motion: no sweeps, flights, drains or fills in motion; 200 ms
+  cross-fades. Preview it with the toggle under the phone; Quarter speed slows
+  every move. Hash: #shop or #stash opens a screen.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --bg:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.78);--ink3:rgba(232,236,246,.64);--glyph:rgba(232,236,246,.38);--sep:rgba(232,236,246,.12);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);--card-hi:rgba(255,255,255,.22);
+  --acc:#59e6ff;--acc-ink:#062028;
+  --shop:#5fe8a8;   /* --nv-good: Shopping's hue, and "got it" */
+  --stash:#4fd1c5;  /* --nv-m-back: the Librarian's, Stash's hue */
+  --gold:#e0b26a;   /* --nv-gold: not yet decided (a suggestion, a level to check) */
+  --warn:#e08383;   /* --nv-warn: remove, and a source that failed */
+  --on:#071018;
+  --slow:1;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+a{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ================= the review page ================= */
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 80px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.2 var(--ui);letter-spacing:.04em;color:var(--ink3)}
+h1.pt{margin:0 0 12px;font:700 clamp(30px,6vw,40px)/1.08 var(--ui);letter-spacing:-.02em;text-wrap:balance}
+.lede{max-width:40em;margin:0 0 10px;font:400 20px/1.45 var(--serif);color:var(--ink2);text-wrap:pretty}
+.demo{max-width:46em;margin:0 0 24px;padding:12px 16px;border-radius:16px;background:color-mix(in srgb,var(--gold) 8%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 30%,transparent);font-size:15px;color:var(--ink2);text-wrap:pretty}
+.demo b{color:var(--ink);font-weight:600}
+.dirs{position:sticky;top:0;z-index:50;margin:0 -16px;padding:8px 16px;background:rgba(6,7,13,.8);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3)}
+.seg{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);height:50px;padding:3px;border-radius:22px;background:rgba(120,120,128,.22)}
+.dirs .seg{max-width:420px;margin:0 auto}
+.seg button{position:relative;z-index:1;min-width:0;height:44px;padding:0 6px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;transition:color calc(220ms*var(--slow)) ease}
+.seg button[aria-pressed="true"]{color:var(--ink)}
+.seg .pill{position:absolute;z-index:0;top:3px;left:3px;height:44px;border-radius:22px;background:rgba(255,255,255,.18);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12);transition:transform calc(300ms*var(--slow)) var(--ease),width calc(300ms*var(--slow)) var(--ease)}
+.studio{display:grid;grid-template-columns:390px minmax(0,1fr);gap:40px;align-items:start;margin-top:24px}
+@media (max-width:900px){.studio{grid-template-columns:minmax(0,1fr);gap:26px}}
+.pcol{min-width:0}
+.pbox{position:relative;width:calc(390px*var(--z,1));height:calc(844px*var(--z,1));margin-left:calc((100% - 390px*var(--z,1))/2);margin-right:calc((100% - 390px*var(--z,1))/2)}
+.under{max-width:390px;margin:16px auto 0}
+.under .lab{margin:14px 2px 6px;font:600 13px var(--ui);color:var(--ink3)}
+.scenes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:6px}
+.scene{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 14px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font:600 13px/1.3 var(--ui);color:var(--ink);text-align:left;transition:transform calc(120ms*var(--slow)) var(--ease-out),box-shadow calc(200ms*var(--slow)) ease}
+.scene i{flex:none;width:26px;height:26px;border-radius:13px;display:grid;place-items:center;background:color-mix(in srgb,var(--h,var(--acc)) 20%,transparent);color:var(--h,var(--acc));font-style:normal;font-size:12px}
+.scene[aria-pressed="true"]{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--h,var(--acc)) 70%,transparent)}
+.toggles{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.chip[aria-pressed="true"]{color:var(--acc-ink);background:var(--acc)}
+.chip:active,.scene:active,.seg button:active{transform:scale(.97);transition:transform calc(120ms*var(--slow)) var(--ease-out)}
+.notes{min-width:0}
+.notes h2{margin:0 0 6px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+.notes .sub{margin:0 0 16px;color:var(--ink2)}
+.notes .st{margin:0 0 12px;padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.notes h3{margin:0 0 4px;font:600 16px/1.3 var(--ui)}
+.notes p{margin:0;font-size:16px;color:var(--ink2);text-wrap:pretty}
+.notes .new{display:block;margin-top:8px;font-size:13px;color:var(--ink3)}
+.notes .new b{color:var(--gold);font-weight:600}
+section.page{margin-top:64px}
+section.page>h2{margin:0 0 6px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+section.page>.sub{margin:0 0 18px;max-width:46em;color:var(--ink2);text-wrap:pretty}
+.cmp{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-width:900px}
+.cmp li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4px 20px;padding:14px 4px;border-top:1px solid var(--sep)}
+.cmp li:first-child{border-top:0}
+.cmp .was{color:var(--ink3);font-size:16px}
+.cmp .now{color:var(--ink);font-size:16px}
+.cmp b{font-weight:600}
+@media (max-width:620px){.cmp li{grid-template-columns:minmax(0,1fr)}}
+.src{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;max-width:1060px}
+.srcc{padding:16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.srcc h3{margin:0 0 2px;font:600 17px/1.3 var(--ui)}
+.srcc .k{display:inline-flex;align-items:center;gap:6px;margin:0 0 10px;font:600 13px var(--ui);color:var(--ink3)}
+.srcc .k i{width:8px;height:8px;border-radius:4px;background:var(--c,var(--glyph))}
+.srcc p{margin:0 0 8px;font-size:15px;color:var(--ink2);text-wrap:pretty}
+.srcc p:last-child{margin:0}
+.loop{max-width:900px;padding:18px;border-radius:22px;background:linear-gradient(180deg,#0a0e20,#0c1230);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.loop svg{display:block;width:100%;height:auto}
+.loop p{margin:12px 0 0;color:var(--ink2);font-size:15px;text-wrap:pretty}
+.writes{list-style:none;margin:0;padding:0;display:grid;gap:2px;max-width:900px}
+.writes li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:4px 20px;padding:12px 4px;border-top:1px solid var(--sep);font-size:15px}
+.writes li:first-child{border-top:0}
+.writes .w{color:var(--ink)}
+.writes .u{color:var(--ink2)}
+.writes .nw{color:var(--gold);font-size:13px;font-weight:600;margin-left:6px}
+@media (max-width:620px){.writes li{grid-template-columns:minmax(0,1fr)}}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:900px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--round);background:rgba(89,230,255,.12);color:var(--acc)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:var(--ink2);font-size:16px}
+.mac{max-width:900px;display:grid;gap:10px}
+.mac p{margin:0;color:var(--ink2);text-wrap:pretty}
+.mac b{color:var(--ink);font-weight:600}
+
+/* ================= the phone ================= */
+.phone{position:absolute;left:0;top:0;width:390px;height:844px;border-radius:52px;overflow:hidden;isolation:isolate;transform:scale(var(--z,1));transform-origin:0 0;background:#05060c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 80px -30px rgba(0,0,0,.9);font:17px/1.3 var(--ui);color:var(--ink);--hue:var(--shop)}
+@media (max-width:430px){.phone{border-radius:40px}}
+.phone[data-scr="stash"]{--hue:var(--stash)}
+.sky{position:absolute;inset:0;z-index:0;background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.16),rgba(89,230,255,0) 60%),radial-gradient(70% 45% at 92% 28%,rgba(143,123,255,.2),rgba(143,123,255,0) 60%),radial-gradient(90% 40% at 50% 110%,rgba(217,181,111,.1),rgba(217,181,111,0) 60%),linear-gradient(180deg,#05060c 0%,#080b1c 38%,#0c1230 72%,#121a3a 100%)}
+.wash{position:absolute;inset:0;z-index:1;pointer-events:none;background:radial-gradient(90% 34% at 50% 0%,color-mix(in srgb,var(--hue) 16%,transparent),transparent 70%)}
+.island{position:absolute;top:11px;left:50%;width:126px;height:37px;margin-left:-63px;border-radius:19px;background:#000;z-index:32}
+.scroller{position:absolute;inset:0;z-index:2;overflow-y:auto;overflow-x:hidden;padding:54px 16px 190px;scrollbar-width:none;overscroll-behavior:contain}
+.scroller::-webkit-scrollbar{display:none}
+.lapse{position:absolute;top:60px;right:16px;z-index:22;display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:16px;background:rgba(16,20,36,.72);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 0 0 .5px var(--card-ring);font:600 13px var(--ui);color:var(--ink2);opacity:0;transform:translateY(-6px);transition:opacity calc(240ms*var(--slow)) ease,transform calc(240ms*var(--slow)) var(--ease);pointer-events:none}
+.lapse.on{opacity:1;transform:none}
+.lapse i{width:8px;height:8px;border-radius:4px;background:var(--gold)}
+
+/* head */
+.nav{display:flex;align-items:center;justify-content:space-between;height:44px;margin:4px -4px 4px}
+.nb{min-width:44px;height:44px;border-radius:22px;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:0 14px;font:400 17px var(--ui);color:var(--ink);background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 rgba(255,255,255,.14);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.nb.circ{padding:0;width:44px}
+.nb svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.ttl h1{margin:0 4px;font:700 34px/1.12 var(--ui);letter-spacing:-.025em}
+.news{margin:6px 4px 0;font:400 20px/1.3 var(--serif);color:var(--ink2);text-wrap:balance}
+.news .n{display:inline-block;font-weight:600;color:var(--ink)}
+.news .g{color:var(--gold)}
+.stat{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;margin:8px 4px 0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.stat .dot{flex:none;width:7px;height:7px;border-radius:4px;background:var(--hue);align-self:center}
+.stat .n{font-family:var(--round);font-weight:600;color:var(--ink2)}
+.stat.bad{color:var(--warn)}
+.stat.bad .dot{background:var(--warn)}
+.stat .rt{min-height:44px;padding:0 14px;margin:-12px 0;border-radius:22px;color:var(--warn);font:600 13px var(--ui)}
+.ex{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:10px;font:600 12px/1 var(--ui);letter-spacing:.02em;color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,transparent)}
+
+/* groups and rows */
+.gh{display:flex;align-items:baseline;gap:6px;margin:22px 4px 8px 16px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.gh .c{font-family:var(--round);letter-spacing:0}
+.gh .spin{width:12px;height:12px;border-radius:6px;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--hue) 30%,transparent);border-top:2px solid var(--hue);animation:spin calc(.9s*var(--slow)) linear infinite;align-self:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sh2{display:flex;align-items:center;justify-content:space-between;margin:22px 0 6px 4px}
+.sh2 h2{margin:0;font:600 20px/1.25 var(--ui);letter-spacing:-.01em}
+.sh2 .nb{font-size:15px;font-weight:600;color:var(--hue)}
+.card{position:relative;border-radius:20px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.085),rgba(255,255,255,.015) 45%,rgba(255,255,255,0) 72%,rgba(255,255,255,.03)),var(--card);box-shadow:inset 0 0 16px -6px rgba(255,255,255,.3),0 1px 0 var(--card-hi) inset,0 0 0 .5px var(--card-ring),0 14px 34px -18px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6)}
+.row{position:relative;overflow:hidden}
+.row+.row::before{content:"";position:absolute;z-index:3;left:56px;right:0;top:0;height:.5px;background:var(--sep);pointer-events:none}
+.uly{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none}
+.ua{display:flex;align-items:center;justify-content:center;gap:6px;width:0;overflow:hidden;white-space:nowrap;font:600 15px var(--ui);color:var(--on);background:var(--c,var(--hue));pointer-events:auto}
+.ua b{font-size:17px}
+.ua.trail{margin-left:auto}
+.face{position:relative;z-index:1;display:flex;align-items:stretch;min-height:64px;touch-action:pan-y}
+.face.slid{background:#161b31}
+.circ svg{width:26px;height:26px;overflow:visible}
+.cc{fill:transparent;stroke:var(--glyph);stroke-width:1.6;transition:fill calc(180ms*var(--slow)) ease,stroke calc(180ms*var(--slow)) ease}
+.ck{fill:none;stroke:var(--on);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:18;stroke-dashoffset:18;transition:stroke-dashoffset calc(220ms*var(--slow)) var(--ease-out) calc(60ms*var(--slow))}
+.row.got .cc{fill:var(--hue);stroke:var(--hue)}
+.row.got .ck{stroke-dashoffset:0}
+.pulse{position:absolute;left:28px;top:32px;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:13px;box-shadow:0 0 0 2px var(--hue);opacity:0;pointer-events:none}
+.body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:11px 8px 11px 0;text-align:left}
+.tt{font:400 17px/1.3 var(--ui);color:var(--ink);overflow-wrap:anywhere;transition:color calc(260ms*var(--slow)) ease}
+.tx{background:linear-gradient(currentColor,currentColor) 0 58%/0% 1.5px no-repeat;-webkit-box-decoration-break:clone;box-decoration-break:clone;transition:background-size calc(260ms*var(--slow)) var(--ease-out)}
+.row.got .tt{color:var(--ink3)}
+.row.got .tx{background-size:100% 1.5px}
+.mt{display:block;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.mt b{font-weight:600;color:var(--ink2)}
+.mt .pin{color:var(--ink2)}
+.mt .pin svg{width:13px;height:13px;margin-right:3px;fill:var(--hue);vertical-align:-2px}
+.got-btn{display:flex;align-items:stretch;flex:1;min-width:0}
+.got-btn .circ{flex:none;width:56px;display:grid;place-items:center}
+.got-btn:active,.pcell:active{background:rgba(255,255,255,.04)}
+.qty{flex:none;align-self:center;min-width:44px;height:44px;margin-right:8px;padding:0 10px;border-radius:22px;font:600 15px var(--round);color:var(--ink2);background:rgba(255,255,255,.07)}
+.qty.one{color:var(--ink3);background:transparent}
+.stepper{flex:none;align-self:center;display:flex;align-items:center;height:44px;margin-right:8px;border-radius:22px;background:rgba(255,255,255,.12)}
+.stepper button{width:44px;height:44px;border-radius:22px;font:500 22px/1 var(--ui);color:var(--ink);display:grid;place-items:center}
+.stepper .v{min-width:22px;text-align:center;font:600 15px var(--round)}
+/* the price cell: one number, which shop, and the way into the kinds */
+.pcell{position:relative;flex:none;align-self:center;width:96px;min-height:52px;margin-right:4px;padding:6px;border-radius:14px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;text-align:right}
+.pcell .v{font:600 15px/1.2 var(--round);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pcell .w{display:flex;align-items:center;gap:4px;font:400 13px/1.25 var(--ui);color:var(--ink3);white-space:nowrap}
+.pcell .w i{flex:none;width:6px;height:6px;border-radius:3px;background:var(--shop)}
+.pcell.none .v{font:400 13px/1.25 var(--ui);color:var(--ink3)}
+.pcell .sg{position:absolute;top:6px;left:6px;width:8px;height:8px;border-radius:4px;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.ocell{flex:none;align-self:center;display:inline-flex;align-items:center;gap:4px;height:44px;margin-right:8px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--hue);background:color-mix(in srgb,var(--hue) 12%,transparent)}
+.ocell svg,.op svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.thumb{flex:none;align-self:center;width:36px;height:36px;margin:0 10px;border-radius:9px;overflow:hidden;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12)}
+.thumb svg{display:block;width:100%;height:100%}
+/* the suggestion: marked, gold, a light tick or cross and a way to talk */
+.strip{padding:0 12px 14px 56px}
+.strip .sgc{padding:12px 14px;border-radius:16px;background:color-mix(in srgb,var(--gold) 9%,rgba(255,255,255,.03));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 38%,transparent)}
+.strip .lb{display:flex;align-items:center;gap:6px;margin:0 0 4px;font:600 13px var(--ui);color:var(--gold)}
+.strip .lb i{width:7px;height:7px;border-radius:4px;background:var(--gold)}
+.strip p{margin:0 0 10px;font:400 15px/1.35 var(--ui);color:var(--ink)}
+.strip p b{font-weight:600}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.pillb{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.pillb.hue{color:var(--on);background:var(--hue)}
+.pillb.gold{color:#1d1407;background:var(--gold)}
+.pillb.warn{color:var(--on);background:var(--warn)}
+.pillb.quiet{background:transparent;box-shadow:none;color:var(--ink2)}
+.pillb .nv{width:8px;height:8px;border-radius:4px;background:var(--acc)}
+.pillb:active,.nb:active,.qty:active,.ocell:active,.vial:active,.mcard:active,.pcard .open:active,.chipb:active{transform:scale(.97);transition:transform calc(120ms*var(--slow)) var(--ease-out)}
+.clearbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;margin-top:16px;border-radius:26px;font:600 17px var(--ui);color:var(--on);background:var(--shop)}
+.clearbtn .n{font-family:var(--round)}
+.undoline{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 0;min-height:56px;padding:6px 6px 6px 16px;border-radius:20px;background:color-mix(in srgb,var(--hue) 10%,rgba(255,255,255,.04));box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--hue) 40%,transparent);font:400 15px var(--ui);color:var(--ink2)}
+.undoline button{min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);color:var(--hue);background:rgba(255,255,255,.08)}
+
+/* the basket instrument, now with the price */
+.inst{margin:14px 0 4px;padding:14px 16px}
+.ih{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font:600 13px var(--ui);color:var(--ink3)}
+.basket{display:grid;grid-template-columns:112px minmax(0,1fr);gap:14px;align-items:center;margin-top:10px}
+.ring{position:relative;width:112px;height:112px}
+.ring svg{width:112px;height:112px;transform:rotate(-90deg)}
+.ring .tr{fill:none;stroke:rgba(255,255,255,.1);stroke-width:11}
+.ring .fl{fill:none;stroke:var(--shop);stroke-width:11}
+.ring .ctr{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring .big{font:700 28px/1 var(--round);color:var(--ink)}
+.ring .sm{font:400 13px var(--ui);color:var(--ink3)}
+.bars{display:grid;gap:8px;min-width:0}
+.bars .bt{font:600 13px var(--ui);color:var(--ink3)}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;align-items:baseline;min-width:0}
+.bar .nm{font:400 13px var(--ui);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .v{font:600 15px var(--round);color:var(--ink);font-variant-numeric:tabular-nums}
+.bar .tk{grid-column:1 / -1;height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar .tk i{display:block;height:100%;border-radius:4px;background:color-mix(in srgb,var(--ink) 55%,transparent);transform-origin:0 50%}
+.bar.win .tk i{background:var(--shop)}
+.bar.win .nm{color:var(--ink)}
+.bar.gap .tk{background:transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 6px,transparent 6px 11px)}
+.bar.gap .v{font:400 13px var(--ui);color:var(--ink3)}
+.bar.bad .v{color:var(--warn);font:400 13px var(--ui)}
+.bfoot{margin-top:10px;font:400 13px/1.4 var(--ui);color:var(--ink3);text-wrap:pretty}
+.bfoot b{color:var(--ink2);font-weight:600}
+.aisles{display:flex;gap:6px;margin:12px -16px 0;padding:0 16px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
+.aisles::-webkit-scrollbar{display:none}
+.chipb{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 .5px var(--card-ring);scroll-snap-align:start;white-space:nowrap}
+.chipb .c{font-family:var(--round);color:var(--ink3)}
+.chipb i{width:8px;height:8px;border-radius:4px;background:var(--shop)}
+.chipb i.half{background:linear-gradient(90deg,var(--shop) 50%,rgba(255,255,255,.2) 50%)}
+.chipb i.none{background:rgba(255,255,255,.2)}
+.chipb[aria-pressed="true"]{color:var(--on);background:var(--hue);box-shadow:none}
+.chipb[aria-pressed="true"] .c{color:var(--on)}
+
+/* your meals: the rotation as a rail of dishes */
+.rail{display:flex;gap:10px;margin:0 -16px;padding:4px 16px 6px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x mandatory}
+.rail::-webkit-scrollbar{display:none}
+.mcard{flex:none;width:224px;min-height:72px;display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;align-items:center;padding:8px 12px 8px 8px;border-radius:18px;scroll-snap-align:start;text-align:left;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi)}
+.mcard .art{width:56px;height:56px;border-radius:14px;overflow:hidden;display:block}
+.mcard .art svg{display:block;width:100%;height:100%}
+.mcard .tx2{display:block;min-width:0}
+.mcard .sl{display:block;font:600 13px var(--ui);color:var(--ink3)}
+.mcard .dn{display:block;font:600 15px/1.25 var(--ui);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mcard .cv{display:flex;align-items:center;gap:6px;margin-top:5px;font:400 13px var(--round);color:var(--ink3)}
+.mcard .cv .tk{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden}
+.mcard .cv .tk i{display:block;height:100%;background:var(--shop);border-radius:3px;transform-origin:0 50%}
+.mcard.all{grid-template-columns:44px minmax(0,1fr);background:color-mix(in srgb,var(--shop) 10%,rgba(255,255,255,.04));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--shop) 40%,transparent)}
+.mcard.all b{display:block;font:600 15px/1.25 var(--ui)}
+.mcard.all span.s2{display:block;font:400 13px var(--ui);color:var(--ink3)}
+.mcard.all .plus{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--shop);color:var(--on)}
+.mcard.all .plus svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+
+/* stash: running down */
+.vials{display:flex;gap:6px;margin:10px -16px 0;padding:0 16px;overflow-x:auto;scrollbar-width:none}
+.vials::-webkit-scrollbar{display:none}
+.vial{flex:none;width:76px;min-height:44px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 2px 4px;border-radius:16px;text-align:center}
+.vial .tube{position:relative;width:34px;height:84px;border-radius:12px 12px 14px 14px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2),inset 0 6px 10px -6px rgba(255,255,255,.3);overflow:hidden}
+.vial .cap{width:18px;height:7px;margin-bottom:-6px;border-radius:3px 3px 0 0;background:rgba(255,255,255,.22)}
+.vial .fill{position:absolute;left:0;right:0;bottom:0;height:100%;background:linear-gradient(180deg,color-mix(in srgb,var(--stash) 70%,#fff),var(--stash) 40%,color-mix(in srgb,var(--stash) 70%,#000));transform-origin:50% 100%;transform:scaleY(var(--lv,1));transition:transform calc(420ms*var(--slow)) var(--ease),background calc(300ms*var(--slow)) ease}
+.vial.due .fill{background:linear-gradient(180deg,color-mix(in srgb,var(--gold) 70%,#fff),var(--gold) 40%,color-mix(in srgb,var(--gold) 70%,#000))}
+.vial .line{position:absolute;left:-2px;right:-2px;height:0;border-top:1.5px dashed rgba(255,255,255,.7);bottom:var(--ck,10%)}
+.vial .nm{font:600 13px/1.2 var(--ui);color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:31px}
+.vial .when{font:400 13px/1.2 var(--ui);color:var(--ink3)}
+.vial.due .when{color:var(--gold);font-weight:600}
+/* stash: the shelf bar that stays put */
+.shelfbar{position:sticky;top:46px;z-index:6;margin:16px -16px 0;padding:8px 16px;background:linear-gradient(180deg,rgba(6,8,18,.92) 0,rgba(6,8,18,.82) 75%,rgba(6,8,18,0));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.shelfbar .in{display:flex;gap:6px;align-items:center}
+.shelfbar .chips{display:flex;gap:6px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.shelfbar .chips::-webkit-scrollbar{display:none}
+.srch{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.srch svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.sfield{display:flex;align-items:center;gap:8px;height:44px;margin-top:8px;padding:0 6px 0 14px;border-radius:22px;background:rgba(0,0,0,.32);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.sfield input{flex:1;min-width:0;height:44px;border:0;background:transparent;outline:none;font:400 17px var(--ui);color:var(--ink)}
+.sfield input::placeholder{color:var(--ink3)}
+.sfield button{min-height:44px;padding:0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--hue)}
+.shh{display:flex;align-items:baseline;justify-content:space-between;margin:20px 4px 8px 4px;scroll-margin-top:60px}
+.shh h3{margin:0;font:600 20px/1.25 var(--ui);letter-spacing:-.01em}
+.shh .c{font:600 15px var(--round);color:var(--ink3)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pcard{position:relative;border-radius:20px;overflow:hidden;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring),inset 0 1px 0 var(--card-hi),0 12px 28px -18px rgba(0,0,0,.7)}
+.pcard .open{display:block;width:100%;text-align:left}
+.pcard .img{display:block;aspect-ratio:4/3;overflow:hidden}
+.pcard .img svg{display:block;width:100%;height:100%}
+.pcard .cap2{display:block;padding:9px 12px 12px;padding-right:48px;min-height:70px}
+.pcard .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font:600 15px/1.25 var(--ui);color:var(--ink)}
+.pcard .hs{display:block;margin-top:2px;font:400 13px var(--ui);color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .more{position:absolute;right:2px;bottom:2px;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink2)}
+.pcard .more svg,.lrow .more svg{width:20px;height:20px}
+.badges{position:absolute;left:8px;top:8px;right:8px;display:flex;flex-wrap:wrap;gap:4px;pointer-events:none}
+.bdg{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:12px;font:600 12px/1 var(--ui);color:var(--ink);background:rgba(6,8,18,.66);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18)}
+.bdg i{width:6px;height:6px;border-radius:3px;background:var(--stash)}
+.bdg.due{color:#1d1407;background:var(--gold)}
+.bdg.due i{background:#1d1407}
+.bdg.list i{background:var(--shop)}
+.rm{position:absolute;left:6px;top:6px;z-index:3;width:44px;height:44px;border-radius:22px;display:grid;place-items:center}
+.rm i{width:26px;height:26px;border-radius:13px;background:var(--warn);display:grid;place-items:center;font:700 18px/1 var(--ui);font-style:normal;color:var(--on);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.lrow .face{align-items:center}
+.lrow .open{display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:10px 0 10px 12px;text-align:left}
+.lrow .tn{flex:none;width:64px;height:48px;border-radius:10px;overflow:hidden;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12)}
+.lrow .tn svg{display:block;width:100%;height:100%}
+.lrow .more{flex:none;width:44px;height:44px;margin-right:6px;border-radius:22px;display:grid;place-items:center;color:var(--ink2)}
+.lrow+.lrow::before{left:88px}
+.empty{margin:24px 4px;font:400 17px/1.4 var(--serif);color:var(--ink2)}
+
+/* the floating add field and the chrome */
+.addbar{position:absolute;left:12px;right:12px;bottom:90px;z-index:20;display:flex;align-items:flex-end;gap:8px;min-height:56px;padding:6px 6px 6px 18px;border-radius:28px;background:rgba(16,20,36,.7);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px rgba(255,255,255,.16),inset 0 1px 0 rgba(255,255,255,.14),0 14px 34px -16px rgba(0,0,0,.7)}
+.addbar .ph{flex:1;min-width:0;min-height:44px;align-self:center;font:400 17px/1.3 var(--ui);color:var(--ink3);text-align:left;padding:10px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.addbar .ph.typed{color:var(--ink)}
+.addbar .caret{display:inline-block;width:2px;height:20px;margin-left:1px;vertical-align:-4px;background:var(--hue);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.addbar .plus{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--hue);color:var(--on)}
+.addbar .plus svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+.addbar.formy{flex-direction:column;align-items:stretch;padding:12px;border-radius:26px}
+.form{display:flex;flex-direction:column;gap:8px}
+.pv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:center}
+.pv .im{width:96px;height:72px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14)}
+.pv .im svg{display:block;width:100%;height:100%}
+.pv .im.sk{background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.14),rgba(255,255,255,.06));background-size:200% 100%;animation:shimmer calc(1.2s*var(--slow)) linear infinite}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+.pv .nm{font:600 17px/1.25 var(--ui);color:var(--ink)}
+.pv .nm.sk{height:14px;width:80%;border-radius:7px;background:rgba(255,255,255,.1)}
+.pv .hs{margin-top:3px;font:400 13px var(--ui);color:var(--ink3);overflow-wrap:anywhere}
+.flab{margin:4px 2px 0;font:600 13px var(--ui);color:var(--ink3)}
+.fchips{display:flex;flex-wrap:wrap;gap:6px}
+.fchips button{min-height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:rgba(255,255,255,.08)}
+.fchips button[aria-pressed="true"]{color:var(--on);background:var(--hue)}
+.fchips .hint{font:400 13px var(--ui);color:var(--ink3);align-self:center;padding-left:4px}
+.formgo{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.tabbar{position:absolute;left:12px;right:12px;bottom:12px;z-index:21;display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:10px;pointer-events:none}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);height:64px;padding:0 4px;border-radius:32px;background:rgba(16,20,36,.6);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.14)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:500 10px var(--ui);color:rgba(232,236,246,.5)}
+.tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--acc)}
+.orb{width:64px;height:64px;border-radius:32px;display:grid;place-items:center;background:rgba(16,20,36,.6);box-shadow:0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 rgba(255,255,255,.14)}
+.orb i{width:34px;height:34px;border-radius:17px;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+/* the island toast, the push banner, the sheet, the finger */
+.toast{position:absolute;top:11px;left:50%;width:366px;margin-left:-183px;z-index:33;display:flex;align-items:center;gap:10px;min-height:58px;padding:7px 7px 7px 18px;border-radius:29px;background:#000;color:#fff;opacity:0;visibility:hidden;transform-origin:50% 18px}
+.toast .tm{flex:1;min-width:0;font:500 15px/1.3 var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toast .tm span{color:rgba(255,255,255,.6)}
+.toast .tu{flex:none;min-height:44px;padding:0 18px;border-radius:22px;font:600 15px var(--ui);color:var(--hue);background:rgba(255,255,255,.12)}
+.notif{position:absolute;top:58px;left:10px;right:10px;z-index:34;display:grid;grid-template-columns:38px minmax(0,1fr);gap:10px;align-items:start;min-height:72px;padding:12px 14px;border-radius:24px;background:rgba(40,44,62,.86);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6);box-shadow:0 0 0 .5px rgba(255,255,255,.18),0 18px 40px -16px rgba(0,0,0,.8);text-align:left;opacity:0;visibility:hidden}
+.notif .ic{width:38px;height:38px;border-radius:10px;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 70%);}
+.notif .t1{display:flex;justify-content:space-between;font:600 15px/1.25 var(--ui);color:#fff}
+.notif .t1 span{font-weight:400;color:rgba(255,255,255,.6);font-size:13px}
+.notif .t2{margin-top:2px;font:400 15px/1.3 var(--ui);color:rgba(255,255,255,.88)}
+.scrim{position:absolute;inset:0;z-index:24;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity calc(260ms*var(--slow)) ease}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;z-index:25;max-height:760px;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding:8px 18px 22px;border-radius:34px;background:rgba(22,26,46,.94);-webkit-backdrop-filter:blur(28px) saturate(1.5);backdrop-filter:blur(28px) saturate(1.5);box-shadow:0 0 0 .5px rgba(255,255,255,.16),inset 0 1px 0 rgba(255,255,255,.14),0 -10px 40px -10px rgba(0,0,0,.6);transform:translateY(112%);transition:transform calc(380ms*var(--slow)) var(--ease)}
+.sheet::-webkit-scrollbar{display:none}
+.phone.sheet-on .sheet{transform:none}
+.phone.sheet-on .scrim{opacity:1;pointer-events:auto}
+.grab{width:40px;height:5px;margin:2px auto 12px;border-radius:3px;background:rgba(255,255,255,.3)}
+.sheet h3{margin:0;font:400 20px/1.3 var(--serif);color:var(--ink);text-wrap:balance}
+.sheet .sm{margin:4px 0 12px;font:400 13px/1.4 var(--ui);color:var(--ink3);text-wrap:pretty}
+.sheet .lab{margin:16px 0 8px;font:600 13px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.sheet .warnq{margin:0 0 12px;font:400 17px var(--ui);color:var(--ink)}
+.sheet .note{margin:12px 0 0;font:400 13px/1.45 var(--ui);color:var(--ink3);text-wrap:pretty}
+.sheet .note b{color:var(--ink2);font-weight:600}
+.shdr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start}
+.shdr .x{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:rgba(255,255,255,.08);color:var(--ink2)}
+.shdr .x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+.plot{display:block;width:100%;height:auto;margin-top:6px}
+.plot text{font:400 12px var(--ui);fill:var(--ink3)}
+.plot .lbl{font:600 11px var(--round);fill:var(--on)}
+.kind{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:.5px solid var(--sep)}
+.kind:first-of-type{border-top:0}
+.kind .ix{width:24px;height:24px;border-radius:12px;display:grid;place-items:center;font:600 12px var(--round);color:var(--on);background:var(--ink3)}
+.kind.mine .ix{background:#fff}
+.kind.better .ix{background:var(--gold)}
+.kind .kn{font:400 15px/1.3 var(--ui);color:var(--ink)}
+.kind .km{display:flex;flex-wrap:wrap;gap:2px 8px;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.kind .km b{font-weight:600;color:var(--ink2)}
+.kind .km .ch{color:var(--ink)}
+.kind .km .ch i{display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:3px;background:var(--shop);vertical-align:1px}
+.kind .pinb{min-width:64px}
+.yours{display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:center;margin-top:4px;padding:12px;border-radius:18px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.yours .im{width:56px;height:56px;border-radius:12px;overflow:hidden}
+.yours .im svg{display:block;width:100%;height:100%}
+.yours b{display:block;font:600 15px/1.3 var(--ui)}
+.yours span{display:block;font:400 13px/1.4 var(--ui);color:var(--ink3)}
+.cmp2{display:grid;gap:10px;margin-top:6px}
+.aldi{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:14px;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 8px,transparent 8px 16px)}
+.aldi b{font:600 15px var(--ui)}
+.aldi span{font:400 13px/1.4 var(--ui);color:var(--ink3)}
+.ing{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;min-height:52px;border-top:.5px solid var(--sep)}
+.ing:first-of-type{border-top:0}
+.ing .in1{font:400 17px/1.3 var(--ui)}
+.ing .in2{font:400 13px var(--ui);color:var(--ink3)}
+.ing .on{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;font:600 15px var(--ui);color:var(--shop)}
+.dhero{height:110px;margin:0 -18px 12px;overflow:hidden}
+.dhero svg{display:block;width:100%;height:100%}
+.rrow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:60px;border-top:.5px solid var(--sep)}
+.rrow:first-of-type{border-top:0}
+.rrow .ra{width:44px;height:44px;border-radius:12px;overflow:hidden}
+.rrow .ra svg{display:block;width:100%;height:100%}
+.rrow b{display:block;font:400 17px/1.3 var(--ui)}
+.rrow span{font:400 13px var(--ui);color:var(--ink3)}
+.shero{height:160px;margin:0 -18px 14px;overflow:hidden}
+.shero svg{display:block;width:100%;height:100%}
+.chk{margin:0 0 14px;padding:14px;border-radius:18px;background:color-mix(in srgb,var(--gold) 10%,rgba(255,255,255,.03));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 40%,transparent)}
+.chk p{margin:0 0 10px;font:400 17px/1.35 var(--ui);color:var(--ink)}
+.chk .lb{display:flex;align-items:center;gap:6px;margin:0 0 6px;font:600 13px var(--ui);color:var(--gold)}
+.rhythm{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:center;margin-top:10px}
+.rhythm .mini{position:relative;width:34px;height:64px;margin-left:5px;border-radius:10px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2);overflow:hidden}
+.rhythm .mini i{position:absolute;left:0;right:0;bottom:0;height:100%;background:var(--stash);transform-origin:50% 100%;transform:scaleY(var(--lv,1));transition:transform calc(420ms*var(--slow)) var(--ease)}
+.rhythm .mini.due i{background:var(--gold)}
+.rhythm .mini b{position:absolute;left:-2px;right:-2px;bottom:var(--ck,10%);border-top:1.5px dashed rgba(255,255,255,.7)}
+.rhythm p{margin:0;font:400 15px/1.4 var(--ui);color:var(--ink2)}
+.rhythm p b{color:var(--ink);font-weight:600}
+.finger{position:absolute;left:0;top:0;z-index:40;width:48px;height:48px;margin:-24px 0 0 -24px;pointer-events:none;opacity:0;transition:opacity calc(200ms*var(--slow)) ease}
+.finger i{display:block;width:48px;height:48px;border-radius:24px;background:radial-gradient(circle,rgba(255,255,255,.5),rgba(255,255,255,.16) 62%,rgba(255,255,255,0) 72%);box-shadow:0 0 0 1.5px rgba(255,255,255,.55)}
+
+/* reduced motion, real or previewed: no sweeps, draws, drains or flights */
+.phone.rm .cc,.phone.rm .ck,.phone.rm .tx,.phone.rm .tt,.phone.rm .vial .fill,.phone.rm .rhythm .mini i{transition-duration:0s!important;transition-delay:0s!important}
+.phone.rm .sheet{transition:opacity calc(200ms*var(--slow)) ease!important;transform:none;opacity:0;pointer-events:none}
+.phone.rm.sheet-on .sheet{opacity:1;pointer-events:auto}
+.phone.rm .gh .spin,.phone.rm .addbar .caret,.phone.rm .pv .im.sk{animation:none}
+@media (prefers-reduced-motion:reduce){
+  .seg .pill{transition:none}
+}
+@media (prefers-reduced-transparency:reduce){
+  .card,.sheet,.addbar,.tabs,.orb,.notif,.shelfbar{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .sheet{background:#161a2e}.addbar{background:#121628}.shelfbar{background:#070a16}
+}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 84 · round 2 · 7 October 2026 · for your review</p>
+  <h1 class="pt">Shopping and Stash, Instruments in full</h1>
+  <p class="lede">Shopping keeps all of direction A, then learns your meals and the price of each line at Coles and Woolworths. The Stash shows each link's picture, sends anything to your list, and asks you to check a bottle's level a week before it runs out.</p>
+  <p class="demo"><b>Every price on this page is an invented example.</b> So is every product, recipe, link, date and count. Nova does not read any supermarket price today; where prices could honestly come from, and what that costs, is your first call at the foot of the page. Product pictures are drawn for the mockup; Nova would show each page's own picture. The research is <b>design/audits/redesign-2026-09/14-shopping-stash-r2-research.md</b>.</p>
+
+  <div class="dirs"><div class="seg" role="group" aria-label="Screen" id="scrs">
+    <span class="pill" aria-hidden="true"></span>
+    <button type="button" data-scr="shop" aria-pressed="true">Shopping</button>
+    <button type="button" data-scr="stash" aria-pressed="false">Stash</button>
+  </div></div>
+
+  <div class="studio">
+    <div class="pcol">
+      <div class="pbox" id="pbox">
+        <div class="phone" id="phone" data-scr="shop">
+          <div class="sky" aria-hidden="true"></div>
+          <div class="wash" aria-hidden="true"></div>
+          <div class="island" aria-hidden="true"></div>
+          <div class="scroller" id="scroller"></div>
+          <div class="lapse" id="lapse" aria-hidden="true"><i></i><span>Time-lapse</span></div>
+          <div class="addbar" id="addbar"></div>
+          <div class="tabbar" aria-hidden="true">
+            <div class="tabs">
+              <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>Home</span>
+              <span class="tab"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>Nova</span>
+              <span class="tab"><svg viewBox="0 0 24 24"><path d="M2 12h3M19 12h3M5 8v8M19 8v8M8 12h8"/></svg>Train</span>
+              <span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 004 0V3M7 11v10M17 3c-2 2-2 6 0 8v10"/></svg>Fuel</span>
+              <span class="tab on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="2"/><rect x="14" y="4" width="6" height="6" rx="2"/><rect x="4" y="14" width="6" height="6" rx="2"/><rect x="14" y="14" width="6" height="6" rx="2"/></svg>More</span>
+            </div>
+            <span class="orb"><i></i></span>
+          </div>
+          <div class="toast" id="toast" role="status" aria-live="polite"><span class="tm" id="tmsg"></span><button type="button" class="tu" id="tundo">Undo</button></div>
+          <button class="notif" id="notif" type="button" aria-live="polite"><span class="ic" aria-hidden="true"></span><span><span class="t1">Check the level<span>now</span></span><span class="t2" id="ntext"></span></span></button>
+          <div class="scrim" id="scrim" data-act="close"></div>
+          <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Details"></div>
+          <div class="finger" id="finger" aria-hidden="true"><i></i></div>
+        </div>
+      </div>
+      <div class="under">
+        <p class="lab">Play a moment</p>
+        <div class="scenes" id="scenes"></div>
+        <div id="pmode"></div>
+        <p class="lab">Preview</p>
+        <div class="toggles">
+          <button class="chip" type="button" id="reset">Start over</button>
+          <button class="chip" type="button" id="slow" aria-pressed="false">Quarter speed</button>
+          <button class="chip" type="button" id="rmprev" aria-pressed="false">Preview reduced motion</button>
+        </div>
+      </div>
+    </div>
+    <div class="notes" id="notes"></div>
+  </div>
+
+  <section class="page">
+    <h2>Everything A had, and where it lives in B</h2>
+    <p class="sub">You asked that Instruments lose nothing from One grammar. Each of A's parts, and its place here.</p>
+    <ul class="cmp">
+      <li><span class="was"><b>The head</b>: 34 pt title, the serif news line counting what is left to get, one quiet status line.</span><span class="now">The same, above the basket card. The status line now also says when prices were read, and from where.</span></li>
+      <li><span class="was"><b>The row</b>: the words at 17 pt; tap anywhere on it or its circle and the circle fills green, the words are struck through, it stays in its aisle.</span><span class="now">The same. One thing joins the right of the row: the price cell, its own 44 pt target, which opens the kinds and prices.</span></li>
+      <li><span class="was"><b>Swipe</b>: right for Got it (and Not yet), left to remove one line, each with Undo.</span><span class="now">The same, on every aisle and on the new Order online group.</span></li>
+      <li><span class="was"><b>Quantity</b>: one count pill; a tap opens a 44 pt stepper in place; the number changes the moment you tap.</span><span class="now">The same pill, at the row's right edge after the price.</span></li>
+      <li><span class="was"><b>Aisles</b> in shop order, each header counting what is left, a tick when done. The recipe amount in bold, "for" the dish it came from.</span><span class="now">The same, and the dish name now opens that dish from its row's price sheet. B's aisle jump moves from the ring's side to a row of aisle chips under it.</span></li>
+      <li><span class="was"><b>Adding</b>: one field floating at the foot, several lines at once; new lines wait under "Sorting into aisles" with a spinner, then fly to their aisle.</span><span class="now">The same field and the same flight, and two more doors in: a dish from Your meals, or a whole recipe from the library.</span></li>
+      <li><span class="was"><b>Clearing</b>: "Clear the N you got" in green, with an Undo line and Undo in the island; ⋯ holds Clear everything, armed first, with Undo.</span><span class="now">The same, untouched.</span></li>
+      <li><span class="was"><b>The four states</b>: rows as a skeleton while loading; a one-line empty with the field; offline labelled with its time and the Outbox; an error that says what failed.</span><span class="now">The same, and prices get theirs: read, one shop failed (said in red, Try again), or no price source at all (cells disappear, the ring stays). Try the three under the phone.</span></li>
+      <li><span class="was"><b>B's ring</b>: one arc per aisle, filling green as you get things.</span><span class="now">Kept, a little smaller, with the cost of the whole list at each shop beside it.</span></li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>Where the prices could come from</h2>
+    <p class="sub">Read in October 2026; the research file has the sources. Today no supermarket in Australia offers a sanctioned price feed. The ACCC recommended in February 2025 that Coles and Woolworths open one to comparison tools; the government agreed in principle, and I found no sign one exists yet.</p>
+    <div class="src">
+      <div class="srcc" style="--c:var(--shop)"><h3>Woolworths</h3><span class="k"><i></i>Prices and nutrition, against its terms</span><p>Its website answers product searches from its own service, nutrition panel included. Its terms forbid "any robot, spider, site search and retrieval application or other mechanism to retrieve or index any portion of the Site".</p><p>Online prices, usually national unless a store is chosen. Specials change each Wednesday.</p></div>
+      <div class="srcc" style="--c:var(--shop)"><h3>Coles</h3><span class="k"><i></i>Prices behind a bot wall, against its terms</span><p>Sits behind a bot check that refused cloud addresses outright on 16 September. Its terms forbid copying or reproducing any of its content. One comparison app links out to Coles instead, saying Coles does not permit automated lookups.</p></div>
+      <div class="srcc" style="--c:var(--glyph)"><h3>Aldi</h3><span class="k"><i></i>Prices yes, nutrition no, no online shop</span><p>Its site lists every product with a price and a unit price, but shows no nutrition to a visitor and sells nothing online. Its terms allow search engines and forbid any other automated access. So Aldi can never get a "better on both" suggestion from Aldi's own data.</p></div>
+      <div class="srcc" style="--c:var(--acc)"><h3>Open Food Facts</h3><span class="k"><i></i>Macros, openly licensed</span><p>Nova already reads it by barcode for scans and for the Pick it up finder. Many Australian products are in it, with the nutrition panel per 100 g. This is the clean source for the macro half of "better on both".</p></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>The restock rhythm</h2>
+    <p class="sub">Nova cannot see inside the bottle. It counts days from when you bought it, and asks you to look before it would run out.</p>
+    <div class="loop">
+      <svg viewBox="0 0 860 150" role="img" aria-label="A timeline: bought, then about seven days before it would run out Nova asks you to check the level; you answer plenty left, getting low, or just reordered.">
+        <defs><linearGradient id="lg1" x1="0" x2="1"><stop offset="0" stop-color="#4fd1c5"/><stop offset=".78" stop-color="#4fd1c5"/><stop offset=".86" stop-color="#e0b26a"/><stop offset="1" stop-color="#e0b26a"/></linearGradient></defs>
+        <rect x="20" y="58" width="820" height="10" rx="5" fill="rgba(255,255,255,.08)"/>
+        <rect x="20" y="58" width="820" height="10" rx="5" fill="url(#lg1)" opacity=".85"/>
+        <circle cx="20" cy="63" r="9" fill="#4fd1c5"/><text x="20" y="36" fill="#e8ecf6" font-size="15" font-weight="600" text-anchor="start">Bought</text><text x="20" y="98" fill="rgba(232,236,246,.64)" font-size="13">the clock starts</text>
+        <line x1="700" y1="40" x2="700" y2="86" stroke="#fff" stroke-dasharray="4 4" stroke-width="1.5"/>
+        <text x="700" y="30" fill="#e0b26a" font-size="15" font-weight="600" text-anchor="middle">Check the level</text><text x="700" y="104" fill="rgba(232,236,246,.64)" font-size="13" text-anchor="middle">a week before empty,</text><text x="700" y="120" fill="rgba(232,236,246,.64)" font-size="13" text-anchor="middle">after quiet hours</text>
+        <circle cx="840" cy="63" r="9" fill="none" stroke="#e0b26a" stroke-width="2"/><text x="840" y="36" fill="#e8ecf6" font-size="15" font-weight="600" text-anchor="end">Would run out</text>
+        <text x="20" y="142" fill="rgba(232,236,246,.78)" font-size="14">Plenty left: asked again in two weeks · Getting low: onto your list with its link · Just reordered: the clock restarts</text>
+      </svg>
+      <p>The check rides the reminders Nova already keeps: a notification to your phone that waits for quiet hours to end, and a Telegram line if you use it. Tapping it opens this item with three answers. Ticking it off on the shopping list later counts as bought, so the loop closes on its own. After two real cycles Nova proposes a truer rhythm from what you did; it never changes one by itself.</p>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>Every write, and its undo</h2>
+    <p class="sub">Each change lands at once and answers with Undo in the island for four seconds; the ones marked new need a server change, named in the research.</p>
+    <ul class="writes">
+      <li><span class="w">Got it, Not yet</span><span class="u">The same tap again; swipe; Undo.</span></li>
+      <li><span class="w">Quantity</span><span class="u">The stepper's other button; Undo puts back the number before.</span></li>
+      <li><span class="w">Remove one line<span class="nw">new route</span></span><span class="u">Undo restores the line exactly, through the restore route that exists.</span></li>
+      <li><span class="w">Clear what you got, clear everything</span><span class="u">Undo restores the exact items (exists today for clear all).</span></li>
+      <li><span class="w">Add a dish's missing lines, a recipe, the week<span class="nw">undo is new</span></span><span class="u">Undo removes exactly the lines that were added, by their ids.</span></li>
+      <li><span class="w">Pin a product, unpin, switch to a suggestion<span class="nw">new</span></span><span class="u">Undo puts back the pin you had, or none.</span></li>
+      <li><span class="w">Keep mine (decline a suggestion)<span class="nw">new</span></span><span class="u">Undo brings the suggestion back; declining also stops that product being suggested for this line again.</span></li>
+      <li><span class="w">Stash a link<span class="nw">picture is new</span></span><span class="u">Undo removes the line just written.</span></li>
+      <li><span class="w">Remove a link</span><span class="u">Undo writes the same line back to its shelf (new; today a remove is final).</span></li>
+      <li><span class="w">Move to a shelf<span class="nw">new</span></span><span class="u">Undo moves it back.</span></li>
+      <li><span class="w">Add to the shopping list from the Stash<span class="nw">new</span></span><span class="u">Undo removes that line from the list.</span></li>
+      <li><span class="w">Set or change a restock rhythm; I just bought it<span class="nw">new</span></span><span class="u">Undo restores the rhythm and the bought date, and its scheduled check.</span></li>
+      <li><span class="w">Answer a level check<span class="nw">new</span></span><span class="u">Undo restores the check, and takes the line off the list if the answer added one.</span></li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>On the Mac, for the desktop round</h2>
+    <div class="mac">
+      <p><b>Shopping</b> would hold one reading width for the list, with Your meals and the basket card in a column beside it rather than above. The price sheet becomes a popover from the price cell. Arrow keys move, Space ticks, Delete removes, Command-Z undoes.</p>
+      <p><b>Stash</b> grids widen to four cards a row; the shelf bar becomes a sidebar of shelves with their counts, and search takes Command-F.</p>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Where prices come from</b><span>No sanctioned source exists, so every option has a cost. (a) Nova reads the public product pages of Woolworths and Coles once a week, after Wednesday's change, only for lines on your list or pinned, from your Mac: this is against the letter of both chains' terms, and either can block it at any time; when one does, its prices disappear and the screen says so. (b) Nova reads no supermarket: the price cells and totals do not appear, the kinds and macros still do (from Open Food Facts), and each kind links out so you can check the price yourself. (c) Build (b) now and switch to a supermarket's own price feed the day one exists. Whichever you choose, nothing shows a price Nova did not read that week.</span></div></li>
+      <li><div><b>Aldi</b><span>Yes: if you chose (a), Nova reads Aldi's listed prices too, with the same terms problem, but without nutrition, so Aldi joins the price comparison and never the "better on both". No: Aldi stays dashed and named, with a link that opens its site for you to look yourself.</span></div></li>
+      <li><div><b>What "better on macros" means</b><span>Proposed: at least as much protein per 100 g and no more kilojoules per 100 g, and cheaper per kilo, all three at once, so a suggestion is never a trade you did not ask for. Yes: that rule. No: you name the one you want (less fat, more protein per dollar), and code uses that instead.</span></div></li>
+      <li><div><b>An "Order online" group on the shopping list</b><span>Yes: things sent from the Stash keep their link and picture in their own group at the foot of the list; it adds one group to the list's format, and every reader of the list changes with it. No: they join Household and other, as plain lines without their link.</span></div></li>
+      <li><div><b>Where a restock rhythm is kept</b><span>Yes, in the vault: the Stash line carries it, readable and editable in Obsidian ("lasts:: 8 weeks, bought:: 12 Sep"), a change to the Stash file's format that every reader and writer takes together. No: Nova keeps it in its own data on the Mac; the Stash file stays as it is, and the rhythm is lost if that data is.</span></div></li>
+      <li><div><b>Where Your meals sits</b><span>Measured at 390, the first shopping line now starts 692 pt down, against 441 in round 1's B, because the meals rail and the prices sit above the list. Yes, above: the rotation is one glance from the top, and in the shop you scroll once more. No, below the list: the first line rises to about 540 pt (estimated: the price card keeps its height), and Your meals waits under the last aisle, with Recipes kept in the head.</span></div></li>
+      <li><div><b>Whether level checks also go to Apple Reminders</b><span>Yes: each check also appears in your Reminders app with an alarm, as your timed reminders do, so it fires even while the Mac sleeps. No: a Nova notification and Telegram only, and your Reminders list stays yours.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const doc = document.documentElement;
+const phone = $('#phone'), pbox = $('#pbox'), scroller = $('#scroller'), addbar = $('#addbar');
+const toastEl = $('#toast'), tmsg = $('#tmsg'), tundo = $('#tundo'), sheet = $('#sheet'), fingerEl = $('#finger'), lapse = $('#lapse'), notif = $('#notif');
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+let SCR = 'shop', SLOW = 1, RMP = false, Z = 1;
+const rm = () => RMP || mq.matches;
+const T = (ms) => ms * SLOW;
+const sleep = (ms) => new Promise((r) => setTimeout(r, T(ms)));
+const EASE = 'cubic-bezier(.32,.72,0,1)', OUT = 'cubic-bezier(.23,1,.32,1)', IO = 'cubic-bezier(.77,0,.175,1)';
+const $$$ = (n) => `$${n.toFixed(2)}`;
+const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+const CH = { c: 'Coles', w: 'Woolworths' };
+
+/* ---------------- drawn pictures (for the mockup only) ---------------- */
+let gid = 0;
+function bg(c1, c2) { const id = 'g' + (++gid); return [`<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>`, `url(#${id})`]; }
+function art(kind) {
+  const P = {
+    bottle: ['#1d3b46', '#0f1d2c', (f) => `<rect x="52" y="30" width="34" height="50" rx="9" fill="#dff4f2"/><rect x="52" y="44" width="34" height="18" fill="#4fd1c5" opacity=".7"/><rect x="63" y="20" width="12" height="11" rx="2" fill="#c8d4dc"/><path d="M69 20v-6h12" stroke="#c8d4dc" stroke-width="4" fill="none" stroke-linecap="round"/>`],
+    tube: ['#3a2f22', '#1a1610', (f) => `<path d="M40 26h58l-6 46H46z" fill="#f3e9da"/><rect x="58" y="72" width="22" height="9" rx="2" fill="#e0b26a"/><rect x="47" y="40" width="44" height="10" fill="#e0b26a" opacity=".55"/>`],
+    dropper: ['#2b2140', '#141024', (f) => `<rect x="54" y="40" width="30" height="40" rx="6" fill="#c9a36a" opacity=".9"/><rect x="58" y="26" width="22" height="15" rx="3" fill="#2b2b2f"/><ellipse cx="69" cy="20" rx="9" ry="8" fill="#2b2b2f"/><rect x="58" y="54" width="22" height="10" fill="#fff" opacity=".8"/>`],
+    balm: ['#3a1f2a', '#1a0f16', (f) => `<rect x="60" y="34" width="18" height="44" rx="5" fill="#f2c4cf"/><rect x="60" y="34" width="18" height="12" rx="4" fill="#d98aa0"/>`],
+    serum: ['#3b2a18', '#1a120a', (f) => `<rect x="55" y="38" width="28" height="42" rx="7" fill="#f0a64a" opacity=".92"/><rect x="59" y="24" width="20" height="15" rx="3" fill="#f6efe6"/><rect x="59" y="54" width="20" height="9" fill="#fff" opacity=".85"/>`],
+    bag: ['#2b2018', '#140e0a', (f) => `<path d="M46 30h46l4 50H42z" fill="#6b4a33"/><path d="M46 30l6-8h34l6 8" fill="#8a6447"/><rect x="54" y="46" width="30" height="18" rx="3" fill="#f2e6d6"/>`],
+    sharpener: ['#1f2a33', '#0e141a', (f) => `<rect x="36" y="52" width="66" height="22" rx="8" fill="#9aa7b2"/><path d="M58 52l11-20 11 20" fill="#c8d2da"/>`],
+    arm: ['#1e2433', '#0d111c', (f) => `<rect x="44" y="70" width="50" height="8" rx="3" fill="#8b95a8"/><path d="M69 70V48l18-14" stroke="#b9c2d2" stroke-width="6" fill="none" stroke-linecap="round"/><rect x="80" y="20" width="32" height="22" rx="3" fill="#2a3346" stroke="#b9c2d2" stroke-width="2"/>`],
+    mat: ['#1d2a26', '#0c1513', (f) => `<rect x="24" y="44" width="90" height="30" rx="8" fill="#3c5a52"/><rect x="30" y="50" width="78" height="18" rx="5" fill="#4f7468"/>`],
+    tray: ['#232327', '#0f0f12', (f) => `<path d="M30 46h78v18a6 6 0 01-6 6H36a6 6 0 01-6-6z" fill="#6c7380"/><path d="M40 46c6-10 12 10 20 0s12 10 20 0 12 10 20 0" stroke="#e0b26a" stroke-width="2.5" fill="none"/>`],
+    page: ['#16223a', '#0b1222', (f) => `<circle cx="96" cy="26" r="10" fill="#e0b26a" opacity=".85"/><path d="M0 70l30-22 22 14 26-26 30 30 30-16v40H0z" fill="#2c4a7a"/><path d="M0 78l40-18 30 12 34-14 34 16v16H0z" fill="#1f3459"/>`],
+    page2: ['#24183a', '#120c20', (f) => `<circle cx="34" cy="30" r="12" fill="#a99bff" opacity=".7"/><path d="M0 74c30-14 50 6 70-6s40-10 68 2v20H0z" fill="#3b2d66"/>`],
+    pump: ['#163330', '#0a1716', (f) => `<rect x="54" y="34" width="30" height="46" rx="8" fill="#e8f3ef"/><rect x="62" y="22" width="14" height="13" rx="2" fill="#9fb5b0"/><path d="M69 22v-6h11" stroke="#9fb5b0" stroke-width="4" fill="none" stroke-linecap="round"/><rect x="54" y="50" width="30" height="12" fill="#7cc7b9" opacity=".7"/>`],
+  }[kind] || ['#222', '#111', () => ''];
+  const [d, fill] = bg(P[0], P[1]);
+  return `<svg viewBox="0 0 138 92" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${d}<rect width="138" height="92" fill="${fill}"/><ellipse cx="69" cy="84" rx="40" ry="5" fill="#000" opacity=".25"/>${P[2]()}</svg>`;
+}
+function bowl(colors, sq) {
+  const [d, fill] = bg('#1b2333', '#0c111c');
+  if (sq) { const dots2 = colors.slice(0, 4).map((c, i) => `<circle cx="${22 + (i % 2) * 12}" cy="${24 + Math.floor(i / 2) * 10}" r="7" fill="${c}"/>`).join(''); return `<svg viewBox="0 0 56 56" aria-hidden="true">${d}<rect width="56" height="56" fill="${fill}"/><ellipse cx="28" cy="30" rx="22" ry="16" fill="#e9edf3"/><ellipse cx="28" cy="28" rx="18" ry="11" fill="#cfd6e0"/>${dots2}</svg>`; }
+  const dots = colors.map((c, i) => `<circle cx="${52 + (i % 3) * 16 + (i > 2 ? 8 : 0)}" cy="${40 + Math.floor(i / 3) * 10}" r="9" fill="${c}"/>`).join('');
+  return `<svg viewBox="0 0 148 74" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${d}<rect width="148" height="74" fill="${fill}"/><ellipse cx="74" cy="44" rx="44" ry="20" fill="#e9edf3"/><ellipse cx="74" cy="40" rx="38" ry="14" fill="#cfd6e0"/>${dots}</svg>`;
+}
+function pack(kind) {
+  const c = { mince: ['#5a2630', '#e35d6a'], can: ['#2e3a2a', '#8fbf6a'], tub: ['#2a3340', '#e8eef6'], bag: ['#3a3020', '#e0b26a'], egg: ['#3a3328', '#f2e3c6'], bottle: ['#1a3340', '#59e6ff'] }[kind] || ['#333', '#999'];
+  return `<svg viewBox="0 0 56 56" aria-hidden="true"><rect width="56" height="56" fill="${c[0]}"/><rect x="12" y="16" width="32" height="26" rx="6" fill="${c[1]}" opacity=".85"/><rect x="12" y="16" width="32" height="7" rx="3" fill="#fff" opacity=".35"/></svg>`;
+}
+
+/* ---------------- invented demo data ---------------- */
+const AISLES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other', 'Order online'];
+// a kind: n name, s size, c Coles price, w Woolworths price, kg price per kg (for the plot), pr protein g/100 g, kj kJ/100 g (Open Food Facts)
+const INIT = () => ({
+  shop: [
+    { id: 's1', name: 'brown onions', a: 'Produce', qty: 2, from: 'Weeknight chilli', p: { t: 'kinds', pk: 'bag', kinds: [
+      { n: 'Brown onions, loose', s: 'per kg', c: 3.5, w: 3.9 }, { n: 'Brown onions bag', s: '1 kg', c: 3.0, w: 2.9 }, { n: 'Organic brown onions', s: '750 g', c: 4.5, w: 4.8 }] } },
+    { id: 's2', name: 'baby spinach', a: 'Produce', qty: 1, got: true, p: { t: 'same', pk: 'bag', k: { n: 'Baby spinach', s: '120 g', c: 3.0, w: 3.0 } } },
+    { id: 's3', name: 'limes', a: 'Produce', qty: 3, p: { t: 'kinds', pk: 'bag', kinds: [{ n: 'Limes, each', s: 'each', c: 0.8, w: 0.75 }, { n: 'Limes bag', s: '500 g', c: 4.0, w: 4.5 }] } },
+    { id: 's4', name: 'beef mince', a: 'Meat & Protein', qty: 1, amt: '1 kg', from: 'Weeknight chilli', p: { t: 'pin', pk: 'mince',
+      mine: { n: 'Lean beef mince 5% fat', s: '1 kg', ch: 'w', price: 13.0, kg: 13.0, pr: 20.5, kj: 573 },
+      kinds: [
+        { n: 'Lean beef mince 5% fat', s: '1 kg', ch: 'w', price: 13.0, kg: 13.0, pr: 20.5, kj: 573, mine: true },
+        { n: 'Lean beef mince 4% fat', s: '1 kg', ch: 'c', price: 12.0, kg: 12.0, pr: 21.5, kj: 536, better: true },
+        { n: 'Premium mince 3% fat', s: '500 g', ch: 'w', price: 8.0, kg: 16.0, pr: 22.0, kj: 510 },
+        { n: 'Regular beef mince 15% fat', s: '1 kg', ch: 'c', price: 9.5, kg: 9.5, pr: 18.0, kj: 920 },
+        { n: 'Beef and pork mince', s: '500 g', ch: 'w', price: 6.0, kg: 12.0, pr: 17.5, kj: 890 }],
+      suggest: 1 } },
+    { id: 's5', name: 'chicken thighs', a: 'Meat & Protein', qty: 1, amt: '1 kg', from: 'Chicken rice bowl', p: { t: 'kinds', pk: 'mince', kinds: [
+      { n: 'Chicken thigh fillets', s: '1 kg', c: 14.0, w: 15.0, kg: 14.0, pr: 19.5, kj: 690 }, { n: 'Chicken thigh fillets', s: '500 g', c: 8.0, w: 8.5, kg: 16.0, pr: 19.5, kj: 690 }, { n: 'Free range thigh fillets', s: '600 g', c: 11.0, w: 11.4, kg: 18.3, pr: 19.0, kj: 700 }] } },
+    { id: 's6', name: 'Greek yoghurt', a: 'Dairy & Eggs', qty: 2, got: true, p: { t: 'pinboth', pk: 'tub', k: { n: 'Greek yoghurt, plain', s: '1 kg', c: 6.0, w: 6.5 } } },
+    { id: 's7', name: 'eggs', a: 'Dairy & Eggs', qty: 1, amt: 'a dozen', p: { t: 'kinds', pk: 'egg', kinds: [{ n: 'Free range eggs', s: '12 pack', c: 7.5, w: 7.2 }, { n: 'Cage free eggs', s: '12 pack', c: 6.0, w: 6.2 }, { n: 'Free range eggs', s: '6 pack', c: 4.2, w: 4.0 }] } },
+    { id: 's8', name: 'kidney beans', a: 'Pantry & Seasonings', qty: 2, amt: '400 g', from: 'Weeknight chilli', p: { t: 'kinds', pk: 'can', plot: true, kinds: [
+      { n: 'Red kidney beans', s: '400 g', c: 1.1, w: 1.2, kg: 2.75, pr: 6.8, kj: 400 }, { n: 'Red kidney beans, no added salt', s: '400 g', c: 1.6, w: 1.5, kg: 3.75, pr: 7.1, kj: 395 },
+      { n: 'Organic kidney beans', s: '400 g', c: 2.4, w: 2.5, kg: 6.0, pr: 7.4, kj: 410 }, { n: 'Kidney beans', s: '3 × 400 g', c: 3.0, w: 3.3, kg: 2.5, pr: 6.8, kj: 400 }] } },
+    { id: 's9', name: 'smoked paprika', a: 'Pantry & Seasonings', qty: 1, from: 'Weeknight chilli', p: { t: 'none' } },
+    { id: 's10', name: 'frozen peas', a: 'Frozen', qty: 1, p: { t: 'kinds', pk: 'bag', kinds: [{ n: 'Garden peas', s: '1 kg', c: 3.0, w: 3.2 }, { n: 'Baby peas', s: '500 g', c: 2.6, w: 2.4 }] } },
+    { id: 's11', name: 'sourdough loaf', a: 'Bakery', qty: 1, got: true, p: { t: 'none' } },
+    { id: 's12', name: 'sparkling water', a: 'Beverages', qty: 6, p: { t: 'same', pk: 'bottle', k: { n: 'Sparkling mineral water', s: '1.25 L', c: 1.0, w: 1.15 } } },
+    { id: 's13', name: 'dish sponges', a: 'Household & Other', qty: 1, p: { t: 'kinds', pk: 'bag', kinds: [{ n: 'Scrub sponges', s: '5 pack', c: 3.5, w: 3.5 }, { n: 'Non scratch sponges', s: '3 pack', c: 2.8, w: 3.0 }] } },
+    { id: 's14', name: 'bin liners', a: 'Household & Other', qty: 1, p: { t: 'kinds', pk: 'bag', kinds: [{ n: 'Kitchen tidy bags', s: '30 pack', c: 4.0, w: 3.8 }, { n: 'Bin liners, large', s: '20 pack', c: 5.5, w: 5.0 }] } },
+  ],
+  rotation: [
+    { id: 'r1', slot: 'Breakfast', name: 'Overnight oats', mac: '32 g protein · 480 kcal', col: ['#e8d9b8', '#a99bff', '#e35d6a', '#f2e3c6'], ing: [['rolled oats', '500 g'], ['Greek yoghurt', '1 kg'], ['frozen berries', '500 g'], ['honey', '']] },
+    { id: 'r2', slot: 'Lunch', name: 'Chicken rice bowl', mac: '48 g protein · 610 kcal', col: ['#f2e3c6', '#e0b26a', '#5fe8a8', '#3b2a18'], ing: [['chicken thighs', '1 kg'], ['jasmine rice', '1 kg'], ['broccoli', '2 heads'], ['soy sauce', '']] },
+    { id: 'r3', slot: 'Dinner', name: 'Weeknight chilli', mac: '44 g protein · 560 kcal', col: ['#b8433f', '#6b2a24', '#e35d6a', '#e0b26a', '#8fbf6a'], ing: [['beef mince', '1 kg'], ['kidney beans', '2 × 400 g'], ['brown onions', '2'], ['smoked paprika', ''], ['diced tomatoes', '2 × 400 g']] },
+    { id: 'r4', slot: 'Snack', name: 'Protein yoghurt bowl', mac: '30 g protein · 310 kcal', col: ['#f2f2f2', '#f0d36b', '#8a6447'], ing: [['Greek yoghurt', '1 kg'], ['bananas', '4'], ['peanut butter', '']] },
+  ],
+  library: [
+    { id: 'L1', name: 'Overnight oats', mac: '32 g · 480 kcal', col: ['#e8d9b8', '#a99bff'], from: 'r1' },
+    { id: 'L2', name: 'Chicken rice bowl', mac: '48 g · 610 kcal', col: ['#f2e3c6', '#5fe8a8'], from: 'r2' },
+    { id: 'L3', name: 'Weeknight chilli', mac: '44 g · 560 kcal', col: ['#b8433f', '#e0b26a'], from: 'r3' },
+    { id: 'L4', name: 'Sheet-pan salmon and greens', mac: '41 g · 590 kcal', col: ['#f0a07a', '#5fe8a8'], ing: [['salmon fillets', '4'], ['green beans', '300 g'], ['lemons', '2']] },
+    { id: 'L5', name: 'Turkey meatballs', mac: '45 g · 540 kcal', col: ['#c08a5a', '#e35d6a'], ing: [['turkey mince', '1 kg'], ['passata', '700 g'], ['parmesan', '']] },
+    { id: 'L6', name: 'Protein yoghurt bowl', mac: '30 g · 310 kcal', col: ['#f2f2f2', '#f0d36b'], from: 'r4' },
+  ],
+  stash: [
+    { id: 'k1', name: 'Hydrating cleanser 236 ml', host: 'skin.example.com', note: 'morning and night', sh: 'Skincare', art: 'pump', rs: { weeks: 8, since: 44 } },
+    { id: 'k2', name: 'Daily moisturiser SPF 30', host: 'skin.example.com', sh: 'Skincare', art: 'tube', rs: { weeks: 6, since: 37 } },
+    { id: 'k3', name: 'Retinol serum 30 ml', host: 'shop.example.net', note: 'nights only', sh: 'Skincare', art: 'dropper', rs: { weeks: 12, since: 20 } },
+    { id: 'k4', name: 'Lip balm', host: 'skin.example.com', sh: 'Skincare', art: 'balm' },
+    { id: 'k5', name: 'Coffee beans 1 kg', host: 'roaster.example.com', note: 'medium roast', sh: 'Kitchen', art: 'bag', rs: { weeks: 4, since: 10 } },
+    { id: 'k6', name: 'Chef knife sharpener', host: 'kitchen.example.com', sh: 'Kitchen', art: 'sharpener' },
+    { id: 'k7', name: 'Monitor arm', host: 'shop.example.com', note: 'the 32-inch one', sh: 'Desk setup', art: 'arm' },
+    { id: 'k8', name: 'Desk mat', host: 'shop.example.com', sh: 'Desk setup', art: 'mat' },
+    { id: 'k11', name: 'Cable tray', host: 'hardware.example.org', sh: 'Desk setup', art: 'tray' },
+    { id: 'k9', name: 'Essay on deliberate practice', host: 'essays.example.net', sh: 'Reading', art: 'page', read: true },
+    { id: 'k10', name: 'Long read on sleep', host: 'magazine.example.com', note: 'finish it', sh: 'Reading', art: 'page2', read: true },
+  ],
+  shelves: ['Skincare', 'Kitchen', 'Desk setup', 'Reading'],
+  pmode: 'read', stepper: null, cleared: null, menuArmed: false, adding: null,
+  stashEdit: false, search: false, q: '', shelfOn: 'all',
+});
+let S = INIT();
+
+/* ---------------- price facts, written by code from the same fields ---------------- */
+const pm = () => S.pmode;
+const pc = (k, ch) => (ch === 'c' && pm() === 'colesFail' ? null : k[ch]);
+function cheapest(k) { // a kind or a both-shops product: which shop, and its price
+  const c = pc(k, 'c'), w = pc(k, 'w');
+  if (c == null && w == null) return null;
+  if (c == null) return { ch: 'w', v: w, d: null };
+  if (w == null) return { ch: 'c', v: c, d: null };
+  if (Math.abs(c - w) < 0.005) return { ch: 'same', v: c, d: 0 };
+  return c < w ? { ch: 'c', v: c, d: w - c } : { ch: 'w', v: w, d: c - w };
+}
+function lineCell(i) { // what the price cell says
+  const p = i.p;
+  if (p.t === 'online') return null;
+  if (pm() === 'off') { // no prices read: the cell still opens the kinds and their macros
+    if (p.t === 'kinds') return { v: plural(p.kinds.length, 'kind'), w: 'no prices' };
+    if (p.t === 'pin' || p.t === 'pinboth') return { v: 'Pinned', w: 'no prices', none: true };
+    return null;
+  }
+  if (p.t === 'none') return { v: 'No price', w: 'not matched', none: true };
+  if (p.t === 'new') return { v: 'No price', w: 'until Wed', none: true };
+  if (p.t === 'pin') {
+    const m = p.mine;
+    if (m.ch === 'c' && pm() === 'colesFail') return { v: 'No price', w: 'Coles failed', none: true, pin: true };
+    return { v: $$$(m.price * i.qty), w: CH[m.ch], pin: true, sg: p.suggest != null && !p.declined };
+  }
+  if (p.t === 'same' || p.t === 'pinboth') {
+    const b = cheapest(p.k);
+    if (!b) return { v: 'No price', w: 'not read', none: true };
+    return { v: $$$(b.v * i.qty), w: b.ch === 'same' ? 'Same price' : CH[b.ch], win: b.ch !== 'same' };
+  }
+  const all = p.kinds.map(cheapest).filter(Boolean);
+  if (!all.length) return { v: 'No price', w: 'not read', none: true };
+  const lo = all.reduce((a, b) => (b.v < a.v ? b : a));
+  return { v: 'from ' + $$$(lo.v * i.qty), w: plural(p.kinds.length, 'kind') };
+}
+// the whole list at one shop: only lines priced at BOTH, so the two totals compare like with like
+function totals() {
+  const live = S.shop.filter((i) => !i.gone && !i.sorting && i.a !== 'Order online');
+  let c = 0, w = 0, n = 0, wn = 0, split = 0;
+  live.forEach((i) => {
+    const p = i.p;
+    let pc1 = null, pw1 = null;
+    if (p.t === 'same' || p.t === 'pinboth') { pc1 = pc(p.k, 'c'); pw1 = pc(p.k, 'w'); }
+    else if (p.t === 'kinds') {
+      const cs = p.kinds.map((k) => pc(k, 'c')).filter((v) => v != null), ws = p.kinds.map((k) => pc(k, 'w')).filter((v) => v != null);
+      pc1 = cs.length ? Math.min(...cs) : null; pw1 = ws.length ? Math.min(...ws) : null;
+    }
+    if (pc1 != null && pw1 != null) { c += pc1 * i.qty; w += pw1 * i.qty; split += Math.min(pc1, pw1) * i.qty; n++; }
+    else if (pw1 != null && pm() === 'colesFail') { w += pw1 * i.qty; wn++; }
+  });
+  return { c, w, n, wn, split, all: live.length };
+}
+
+/* ---------------- icons ---------------- */
+const CIRC = '<svg viewBox="0 0 26 26" aria-hidden="true"><circle class="cc" cx="13" cy="13" r="11.5"/><path class="ck" d="M7.6 13.4l3.6 3.6 7.2-7.4"/></svg>';
+const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+const MORE = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const OUTI = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16L16 8M9 8h7v7"/></svg>';
+const SRCH = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>';
+const PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3.5l6 6-3 1-3.5 3.5.5 4-1.5 1.5-4-4-4.5 4.5-1-1L8 14.5l-4-4L5.5 9l4 .5L13 6z"/></svg>';
+
+/* ---------------- shopping: rows ---------------- */
+function shopRow(i) {
+  const meta = [i.amt ? `<b>${esc(i.amt)}</b>` : '', i.from ? `for ${esc(i.from)}` : '', i.host ? `from your Stash · ${esc(i.host)}` : '', i.sorting ? 'finding its aisle' : ''];
+  if (i.p.t === 'pin' && pm() !== 'off') meta.push(`<span class="pin">${PIN}${esc(i.p.mine.n)}, ${esc(i.p.mine.s)}</span>`);
+  if (i.p.t === 'pinboth' && pm() !== 'off') meta.push(`<span class="pin">${PIN}${esc(i.p.k.n)}, ${esc(i.p.k.s)}, either shop</span>`);
+  const mt = meta.filter(Boolean).join(' · ');
+  const qty = S.stepper === i.id
+    ? `<span class="stepper"><button type="button" data-act="dec" aria-label="One fewer ${esc(i.name)}">−</button><span class="v" data-num="q-${i.id}">${i.qty}</span><button type="button" data-act="inc" aria-label="One more ${esc(i.name)}">+</button></span>`
+    : `<button class="qty${i.qty === 1 ? ' one' : ''}" type="button" data-act="qty" aria-label="Quantity ${i.qty}, change"><span data-num="q-${i.id}">×${i.qty}</span></button>`;
+  let right;
+  if (i.p.t === 'online') right = `<a class="ocell" href="#" data-act="openlink" aria-label="Open ${esc(i.host)}">Open${OUTI}</a>`;
+  else {
+    const c = lineCell(i);
+    right = c ? `<button class="pcell${c.none ? ' none' : ''}" type="button" data-act="price" aria-label="${esc(i.name)}: ${esc(c.v)}, ${esc(c.w)}. Kinds and prices">${c.sg ? '<span class="sg" aria-hidden="true"></span>' : ''}<span class="v" data-num="p-${i.id}">${esc(c.v)}</span><span class="w">${c.win ? '<i></i>' : ''}${esc(c.w)}</span></button>` : '';
+  }
+  return `<div class="row${i.got ? ' got' : ''}" data-id="${i.id}" data-k="shop">
+    <div class="uly" aria-hidden="true"><span class="ua lead" data-side="r"><b>✓</b>${i.got ? 'Not yet' : 'Got it'}</span><span class="ua trail" data-side="l" style="--c:var(--warn)"><b>✕</b>Remove</span></div>
+    <div class="face">
+      <button class="got-btn" type="button" data-act="got" aria-label="${i.got ? 'Not got yet' : 'Got it'}: ${esc(i.name)}"><span class="circ">${CIRC}</span>
+        <span class="body"><span class="tt"><span class="tx">${esc(i.name)}</span></span>${mt ? `<span class="mt">${mt}</span>` : ''}</span></button>
+      ${i.art ? `<span class="thumb" aria-hidden="true">${art(i.art)}</span>` : ''}${right}${i.p.t === 'online' ? '' : qty}
+    </div>
+    ${i.p.t === 'pin' && i.p.suggest != null && !i.p.declined && pm() === 'read' ? suggestStrip(i) : ''}
+  </div>`;
+}
+function suggestStrip(i) {
+  const p = i.p, m = p.mine, b = p.kinds[p.suggest];
+  const save = m.kg - b.kg;
+  return `<div class="strip" data-strip="${i.id}"><div class="sgc">
+    <span class="lb"><i></i>Nova suggests · a better buy on both</span>
+    <p><b>${esc(b.n)}, ${esc(b.s)} at ${CH[b.ch]}</b> is ${$$$(save)} a kilo cheaper, with ${(b.pr - m.pr).toFixed(1)}&nbsp;g more protein and ${m.kj - b.kj}&nbsp;kJ less per 100&nbsp;g.</p>
+    <div class="acts"><button class="pillb gold" type="button" data-act="switch" data-ref="${i.id}">✓ Switch</button><button class="pillb" type="button" data-act="keep" data-ref="${i.id}">✕ Keep mine</button><button class="pillb quiet" type="button" data-act="talk" data-ref="${i.id}"><span class="nv"></span>Talk</button></div>
+  </div></div>`;
+}
+
+/* ---------------- shopping: head, basket, meals ---------------- */
+function nav(right) { return `<div class="nav"><button class="nb circ" type="button" data-act="back" aria-label="Back to More">${BACK}</button>${right || ''}</div>`; }
+const toGet = () => S.shop.filter((i) => !i.got && !i.gone);
+function shopHead() {
+  const left = toGet();
+  const aisles = new Set(left.map((i) => i.a)).size;
+  const news = left.length ? `<span class="n" data-num="toget">${left.length}</span> to get, across ${plural(aisles, 'aisle')}.` : 'Everything on the list is in the basket.';
+  const status = pm() === 'colesFail'
+    ? `<div class="stat bad"><span class="dot"></span><span>Coles did not answer Wed 06:10 · its prices are not shown</span> <button class="rt" type="button" data-act="retry">Try again</button></div>`
+    : pm() === 'off'
+      ? `<div class="stat"><span class="dot"></span><span>Synced with your vault 9:41 · no prices read, your choice</span></div>`
+      : `<div class="stat"><span class="dot"></span><span>Synced 9:41 · prices read Wed 06:10 <span class="ex">example prices</span></span></div>`;
+  return `${nav(`<button class="nb circ" type="button" data-act="menu" aria-label="More for the shopping list">${MORE}</button>`)}<div class="ttl"><h1>Shopping</h1></div>
+    <p class="news">${news}</p>${status}${basket()}${meals()}`;
+}
+function basket() {
+  const live = S.shop.filter((i) => !i.gone && !i.sorting);
+  const total = live.length || 1, gotN = live.filter((i) => i.got).length;
+  const r = 47, C = 2 * Math.PI * r, gap = 3;
+  let start = 0;
+  const arcs = [], chips = [];
+  AISLES.forEach((a, n) => {
+    const items = live.filter((i) => i.a === a);
+    if (!items.length) return;
+    const len = (items.length / total) * C;
+    const got = items.filter((i) => i.got).length;
+    const fill = Math.max(0, (len - gap) * (got / items.length));
+    arcs.push(`<circle class="tr" cx="56" cy="56" r="${r}" stroke-dasharray="${(len - gap).toFixed(2)} ${(C - len + gap).toFixed(2)}" stroke-dashoffset="${(-start).toFixed(2)}"/>`);
+    arcs.push(`<circle class="fl" data-tw="arc-${n}" data-twd="1" cx="56" cy="56" r="${r}" stroke-dasharray="${fill.toFixed(2)} ${(C - fill).toFixed(2)}" stroke-dashoffset="${(-start).toFixed(2)}"/>`);
+    start += len;
+    if (got < items.length) chips.push(`<button class="chipb" type="button" data-act="jump" data-to="a-${n}"><i class="${got ? 'half' : 'none'}"></i>${esc(a === 'Pantry & Seasonings' ? 'Pantry' : a === 'Household & Other' ? 'Household' : a === 'Meat & Protein' ? 'Meat' : a)} <span class="c">${items.length - got}</span></button>`);
+  });
+  let right;
+  if (pm() === 'off') right = `<div class="bars"><span class="bt">No prices</span><span class="bfoot" style="margin:0">You chose not to read the supermarkets. The kinds and macros of each line still open from its row.</span></div>`;
+  else {
+    const t = totals();
+    const max = Math.max(t.c, t.w, 1);
+    const cBar = pm() === 'colesFail'
+      ? `<div class="bar bad"><span class="nm">Coles</span><span class="v">did not answer</span><span class="tk"></span></div>`
+      : `<div class="bar${t.c < t.w ? ' win' : ''}"><span class="nm">Coles</span><span class="v" data-num="tc">${$$$(t.c)}</span><span class="tk"><i data-tw="bar-c" data-tws="${(t.c / max).toFixed(3)}" style="transform:scaleX(${(t.c / max).toFixed(3)})"></i></span></div>`;
+    const wBar = `<div class="bar${pm() !== 'colesFail' && t.w < t.c ? ' win' : ''}"><span class="nm">Woolworths</span><span class="v" data-num="tw">${$$$(t.w)}</span><span class="tk"><i data-tw="bar-w" data-tws="${(t.w / max).toFixed(3)}" style="transform:scaleX(${(t.w / max).toFixed(3)})"></i></span></div>`;
+    const aBar = `<div class="bar gap"><span class="nm">Aldi</span><span class="v">not read</span><span class="tk"></span></div>`;
+    right = `<div class="bars"><span class="bt">The list at one shop</span>${pm() !== 'colesFail' && t.w < t.c ? wBar + cBar : cBar + wBar}${aBar}</div>`;
+  }
+  const t = totals();
+  const foot = pm() === 'off' ? '' : pm() === 'colesFail'
+    ? `<p class="bfoot">Woolworths only this week. Lines priced at Woolworths: <b>${t.wn}</b>.</p>`
+    : `<p class="bfoot">Compared on the <b data-num="tn">${t.n}</b> lines priced at both. Splitting the shop across both saves <b data-num="tsplit">${$$$(Math.min(t.c, t.w) - t.split)}</b>.</p>`;
+  return `<div class="card inst"><div class="ih"><span>The basket</span><span>${plural(live.length, 'item')}</span></div>
+    <div class="basket"><div class="ring"><svg viewBox="0 0 112 112" aria-hidden="true">${arcs.join('')}</svg><div class="ctr"><span class="big" data-num="gotring">${gotN}</span><span class="sm">of ${live.length} got</span></div></div>${right}</div>
+    ${foot}<div class="aisles" aria-label="Go to an aisle">${chips.join('')}</div></div>`;
+}
+function coverage(r) {
+  const names = S.shop.filter((i) => !i.gone).map((i) => i.name.toLowerCase());
+  return r.ing.map(([n]) => names.some((x) => x.includes(n.toLowerCase()) || n.toLowerCase().includes(x)));
+}
+function meals() {
+  let missing = 0;
+  const cards = S.rotation.map((r) => {
+    const cv = coverage(r); const on = cv.filter(Boolean).length; missing += cv.length - on;
+    return `<button class="mcard" type="button" data-act="dish" data-ref="${r.id}" aria-label="${esc(r.slot)}: ${esc(r.name)}, ${on} of ${cv.length} on the list"><span class="art">${bowl(r.col, true)}</span><span class="tx2"><span class="sl">${esc(r.slot)}</span><span class="dn">${esc(r.name)}</span><span class="cv"><span class="tk"><i data-tw="cv-${r.id}" data-tws="${(on / cv.length).toFixed(3)}" style="transform:scaleX(${(on / cv.length).toFixed(3)})"></i></span><span data-num="cv-${r.id}">${on}/${cv.length}</span></span></span></button>`;
+  }).join('');
+  const all = missing ? `<button class="mcard all" type="button" data-act="addweek"><span class="plus">${PLUS}</span><span><b>Add the week's ${missing}</b><span class="s2">missing from your rotation</span></span></button>` : '';
+  return `<div class="sh2"><h2>Your meals</h2><button class="nb" type="button" data-act="library">Recipes</button></div><div class="rail" aria-label="Your rotation">${cards}${all}</div>`;
+}
+function shopView() {
+  let h = shopHead();
+  const sorting = S.shop.filter((i) => i.sorting && !i.gone);
+  if (sorting.length) h += `<div class="gh">Sorting into aisles <span class="spin" aria-hidden="true"></span></div><div class="card">${sorting.map(shopRow).join('')}</div>`;
+  AISLES.forEach((a, n) => {
+    const items = S.shop.filter((i) => i.a === a && !i.gone && !i.sorting);
+    if (!items.length) return;
+    const left = items.filter((i) => !i.got).length;
+    h += `<div class="gh" id="a-${n}">${esc(a)} <span class="c" data-num="a-${n}">${left || '✓'}</span></div><div class="card">${items.map(shopRow).join('')}</div>`;
+  });
+  const got = S.shop.filter((i) => i.got && !i.gone).length;
+  if (S.cleared) h += `<div class="undoline"><span>Cleared ${plural(S.cleared.length, 'item')} you got.</span><button type="button" data-act="undo-clear">Undo</button></div>`;
+  if (got) h += `<button class="clearbtn" type="button" data-act="clear-got">Clear the <span class="n" data-num="gotbtn">${got}</span> you got</button>`;
+  return h;
+}
+
+/* ---------------- stash ---------------- */
+const liveStash = () => S.stash.filter((k) => !k.gone);
+const lv = (k) => Math.max(0, 1 - k.rs.since / (k.rs.weeks * 7));
+const ckFrac = (k) => 7 / (k.rs.weeks * 7);
+const daysToCheck = (k) => k.rs.weeks * 7 - 7 - k.rs.since;
+const due = (k) => k.rs && daysToCheck(k) <= 0 && !k.rs.snooze;
+function whenWord(k) { const d = daysToCheck(k); return k.onList ? 'on your list' : due(k) ? 'check now' : k.rs.snooze ? 'in 14 days' : d === 1 ? 'tomorrow' : `in ${d} days`; }
+function stashHead() {
+  const live = liveStash();
+  const shelves = S.shelves.filter((s) => live.some((k) => k.sh === s));
+  const nDue = live.filter(due).length;
+  const news = `${nDue ? `<span class="n g" data-num="due">${nDue}</span> to check soon. ` : ''}<span class="n" data-num="links">${live.length}</span> links on ${plural(shelves.length, 'shelf', 'shelves')}.`;
+  return `${nav(`<button class="nb" type="button" data-act="edit">${S.stashEdit ? 'Done' : 'Edit'}</button>`)}<div class="ttl"><h1>Stash</h1></div>
+    <p class="news">${news}</p><div class="stat"><span class="dot"></span><span>Lives in your vault · synced 9:41</span></div>${levels()}`;
+}
+function levels() {
+  const tracked = liveStash().filter((k) => k.rs).sort((a, b) => (due(b) - due(a)) || daysToCheck(a) - daysToCheck(b));
+  if (!tracked.length) return '';
+  const v = tracked.map((k) => `<button class="vial${due(k) ? ' due' : ''}" type="button" data-act="detail" data-ref="${k.id}" data-vial="${k.id}" aria-label="${esc(k.name)}: about ${Math.round(lv(k) * 100)} percent left by the calendar, ${whenWord(k)}"><span class="cap" aria-hidden="true"></span><span class="tube" aria-hidden="true" style="--ck:${(ckFrac(k) * 100).toFixed(1)}%"><span class="fill" style="--lv:${lv(k).toFixed(3)}"></span><span class="line"></span></span><span class="nm">${esc(k.name.replace(/ \d.*$/, ''))}</span><span class="when">${whenWord(k)}</span></button>`).join('');
+  return `<div class="card inst"><div class="ih"><span>Running down</span><span>counted in days</span></div><div class="vials">${v}</div>
+    <p class="bfoot">Each level is the days since you bought it against how long it lasts. The dashed line is a week before empty, when Nova asks you to look.</p></div>`;
+}
+function shelfBar() {
+  const live = liveStash();
+  const shelves = S.shelves.filter((s) => live.some((k) => k.sh === s));
+  const chip = (key, label, n) => `<button class="chipb" type="button" data-act="shelf" data-sh="${esc(key)}" aria-pressed="${S.shelfOn === key}">${esc(label)} <span class="c">${n}</span></button>`;
+  return `<div class="shelfbar"><div class="in"><div class="chips">${chip('all', 'All', live.length)}${shelves.map((s) => chip(s, s, live.filter((k) => k.sh === s).length)).join('')}</div><button class="srch" type="button" data-act="search" aria-label="Search the Stash" aria-pressed="${S.search}">${SRCH}</button></div>
+    ${S.search ? `<div class="sfield"><input id="sq" type="search" placeholder="Search names, sites and notes" value="${esc(S.q)}" autocomplete="off" aria-label="Search the Stash"><button type="button" data-act="search">Cancel</button></div>` : ''}</div>`;
+}
+function badges(k) {
+  const b = [];
+  if (k.rs && !k.onList) b.push(`<span class="bdg${due(k) ? ' due' : ''}"><i></i>${due(k) ? 'Check the level' : 'Check ' + whenWord(k)}</span>`);
+  if (k.onList) b.push('<span class="bdg list"><i></i>On your list</span>');
+  return b.length ? `<span class="badges">${b.join('')}</span>` : '';
+}
+function pcard(k) {
+  return `<div class="pcard" data-id="${k.id}" data-k="card">
+    ${S.stashEdit ? `<button class="rm" type="button" data-act="rmk" aria-label="Remove ${esc(k.name)}"><i>−</i></button>` : ''}
+    <a class="open" href="#" data-act="open" aria-label="${esc(k.name)}, opens ${esc(k.host)}"><span class="img">${art(k.art)}</span>${badges(k)}<span class="cap2"><span class="nm">${esc(k.name)}</span><span class="hs">${esc(k.host)}${k.note ? ' · ' + esc(k.note) : ''}</span></span></a>
+    <button class="more" type="button" data-act="detail" aria-label="More for ${esc(k.name)}">${MORE}</button></div>`;
+}
+function lrow(k) {
+  return `<div class="row lrow" data-id="${k.id}" data-k="stash">
+    <div class="uly" aria-hidden="true"><span class="ua trail" data-side="l" style="--c:var(--warn)"><b>✕</b>Remove</span></div>
+    <div class="face">${S.stashEdit ? `<button class="rm" style="position:static;flex:none;margin-left:4px" type="button" data-act="rmk" aria-label="Remove ${esc(k.name)}"><i>−</i></button>` : ''}
+      <a class="open" href="#" data-act="open" aria-label="${esc(k.name)}, opens ${esc(k.host)}"><span class="tn">${art(k.art)}</span><span class="body"><span class="tt">${esc(k.name)}</span><span class="mt">${esc(k.host)}${k.note ? ' · ' + esc(k.note) : ''}</span></span></a>
+      <button class="more" type="button" data-act="detail" aria-label="More for ${esc(k.name)}">${MORE}</button></div></div>`;
+}
+function stashView() {
+  let h = stashHead() + shelfBar();
+  const q = S.q.trim().toLowerCase();
+  const live = liveStash().filter((k) => !q || `${k.name} ${k.host} ${k.note || ''} ${k.sh}`.toLowerCase().includes(q));
+  let any = false;
+  S.shelves.forEach((s, n) => {
+    const items = live.filter((k) => k.sh === s);
+    if (!items.length) return;
+    any = true;
+    const asRows = items.every((k) => k.read);
+    h += `<div class="shh" id="sh-${n}" data-shelf="${esc(s)}"><h3>${esc(s)}</h3><span class="c" data-num="s-${n}">${items.length}</span></div>`;
+    h += asRows ? `<div class="card">${items.map(lrow).join('')}</div>` : `<div class="grid">${items.map(pcard).join('')}</div>`;
+  });
+  if (!any) h += `<p class="empty">Nothing in the Stash matches "${esc(S.q)}".</p>`;
+  return h;
+}
+
+/* ---------------- the add field ---------------- */
+function addView() {
+  if (S.adding) return S.adding;
+  const ph = SCR === 'shop' ? 'Add items, one per line' : 'Paste a link to keep';
+  return `<button class="ph" type="button" data-act="add">${ph}</button><button class="plus" type="button" data-act="add" aria-label="${ph}">${PLUS}</button>`;
+}
+
+/* ---------------- render, with FLIP so every change is acted out ---------------- */
+const twPrev = new Map();
+function render(o = {}) {
+  const before = new Map();
+  if (o.flip) $$('[data-id]', scroller).forEach((el) => before.set(el.dataset.id, el.getBoundingClientRect()));
+  const nums = new Map($$('[data-num]', phone).map((el) => [el.dataset.num, el.textContent]));
+  const top = scroller.scrollTop;
+  const hadFocus = document.activeElement && document.activeElement.id === 'sq';
+  phone.dataset.scr = SCR;
+  scroller.innerHTML = SCR === 'shop' ? shopView() : stashView();
+  addbar.innerHTML = addView();
+  addbar.classList.toggle('formy', !!S.adding && SCR === 'stash' && S.adding.includes('class="form"'));
+  scroller.scrollTop = o.top != null ? o.top : top;
+  if (hadFocus) { const i = $('#sq'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+  // instrument parts glide from where they were
+  $$('[data-tw]', scroller).forEach((el) => {
+    const k = el.dataset.tw;
+    const now = el.dataset.twd != null ? { strokeDasharray: el.getAttribute('stroke-dasharray') } : { transform: el.style.transform };
+    const prev = twPrev.get(k);
+    twPrev.set(k, now);
+    if (prev && !rm() && JSON.stringify(prev) !== JSON.stringify(now)) el.animate([prev, now], { duration: T(520), easing: EASE });
+  });
+  $$('.vial', scroller).forEach((el) => {
+    const f = $('.fill', el), k = 'v-' + el.dataset.vial, now = f.style.getPropertyValue('--lv');
+    const prev = twPrev.get(k); twPrev.set(k, now);
+    if (prev != null && prev !== now && !rm()) f.animate([{ transform: `scaleY(${prev})` }, { transform: `scaleY(${now})` }], { duration: T(520), easing: EASE });
+  });
+  if (o.flip && !rm()) {
+    let n = 0;
+    $$('[data-id]', scroller).forEach((el) => {
+      const b = before.get(el.dataset.id);
+      const a = el.getBoundingClientRect();
+      if (!b) { el.animate([{ opacity: 0, transform: 'translateY(10px) scale(.985)' }, { opacity: 1, transform: 'none' }], { duration: T(300), easing: OUT, delay: T(Math.min(n++, 6) * 50), fill: 'backwards' }); return; }
+      const dx = (b.left - a.left) / Z, dy = (b.top - a.top) / Z;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], { duration: T(o.slowFlip ? 520 : 340), easing: IO });
+    });
+  } else if (o.flip) {
+    $$('[data-id]', scroller).forEach((el) => { if (!before.has(el.dataset.id)) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: T(200), easing: 'ease' }); });
+  }
+  $$('[data-num]', phone).forEach((el) => {
+    const old = nums.get(el.dataset.num);
+    if (old != null && old !== el.textContent) el.animate(rm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ transform: 'translateY(45%)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: T(rm() ? 200 : 260), easing: OUT });
+  });
+  paintNotes();
+}
+
+/* ---------------- motion helpers ---------------- */
+const rowEl = (id) => $(`[data-id="${id}"]`, scroller);
+async function fold(row, dir = 0) {
+  if (!row) return;
+  const face = $('.face', row) || row;
+  if (rm()) { await row.animate([{ opacity: 1 }, { opacity: 0 }], { duration: T(200), fill: 'forwards' }).finished; return; }
+  if (dir) await face.animate([{ transform: face.style.transform || 'none' }, { transform: `translateX(${dir * 400}px)` }], { duration: T(240), easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).finished;
+  const h = row.offsetHeight;
+  await row.animate([{ height: h + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: T(280), easing: EASE, fill: 'forwards' }).finished;
+}
+function pulse(row) {
+  if (rm() || !row) return;
+  const p = document.createElement('span');
+  p.className = 'pulse';
+  $('.face', row).appendChild(p);
+  p.animate([{ opacity: 0.9, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(2.1)' }], { duration: T(520), easing: OUT }).finished.then(() => p.remove());
+}
+function lightUp(el) { if (!el) return; el.animate(rm() ? [{ opacity: 0.4 }, { opacity: 1 }] : [{ boxShadow: '0 0 0 2px var(--hue)' }, { boxShadow: '0 0 0 0 transparent' }], { duration: T(900), easing: 'ease' }); }
+let toastTimer = 0, toastUndo = null;
+function toast(msg, undo) {
+  clearTimeout(toastTimer);
+  tmsg.innerHTML = msg;
+  toastUndo = undo || null;
+  tundo.style.display = undo ? '' : 'none';
+  toastEl.style.visibility = 'visible';
+  toastEl.animate(rm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'scale(.34,.64)' }, { opacity: 1, transform: 'none' }], { duration: T(rm() ? 200 : 380), easing: EASE, fill: 'forwards' });
+  toastTimer = setTimeout(hideToast, T(4000));
+}
+function hideToast() {
+  clearTimeout(toastTimer);
+  if (toastEl.style.visibility !== 'visible') return;
+  toastEl.animate(rm() ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.34,.64)' }], { duration: T(rm() ? 200 : 240), easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).finished.then(() => { if (getComputedStyle(toastEl).opacity === '0') toastEl.style.visibility = 'hidden'; });
+  toastUndo = null;
+}
+tundo.addEventListener('click', () => { const u = toastUndo; hideToast(); if (u) u(); });
+function showNotif(text) {
+  $('#ntext').textContent = text;
+  notif.style.visibility = 'visible';
+  notif.animate(rm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(-40px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: T(rm() ? 200 : 420), easing: EASE, fill: 'forwards' });
+}
+function hideNotif() {
+  if (notif.style.visibility !== 'visible') return;
+  notif.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: rm() ? 'none' : 'translateY(-30px)' }], { duration: T(220), easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).finished.then(() => { notif.style.visibility = 'hidden'; });
+}
+function scrollTo(el, off = 220) {
+  if (!el) return Promise.resolve();
+  const sr = scroller.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const target = Math.max(0, scroller.scrollTop + (r.top - sr.top) / Z - off);
+  scroller.scrollTo({ top: target, behavior: rm() ? 'auto' : 'smooth' });
+  return sleep(rm() ? 60 : 420);
+}
+
+/* ---------------- shopping writes, each with its undo ---------------- */
+function toggleGot(id) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i) return;
+  i.got = !i.got;
+  render();
+  if (i.got) pulse(rowEl(id));
+  if (i.stashId) { const k = S.stash.find((x) => x.id === i.stashId); if (k && k.rs) { if (i.got) { k.rs.prev = k.rs.since; k.rs.since = 0; k.rs.snooze = false; } else if (k.rs.prev != null) { k.rs.since = k.rs.prev; k.rs.prev = null; } } }
+}
+async function clearGot() {
+  const got = S.shop.filter((i) => i.got && !i.gone);
+  if (!got.length) return;
+  if (!rm()) await Promise.all(got.map((i, n) => sleep(n * 60).then(() => fold(rowEl(i.id), 1))));
+  got.forEach((i) => { i.gone = true; });
+  S.cleared = got;
+  render({ flip: true });
+  toast(`Cleared ${plural(got.length, 'item')} you got`, undoClear);
+}
+function undoClear() {
+  if (!S.cleared) return;
+  S.cleared.forEach((i) => { i.gone = false; });
+  S.cleared = null;
+  hideToast();
+  render({ flip: true });
+}
+async function removeLine(id) {
+  const it = S.shop.find((x) => x.id === id);
+  if (!it || it.gone) return;
+  await fold(rowEl(id), -1);
+  it.gone = true;
+  if (S.stepper === id) S.stepper = null;
+  if (it.stashId) { const k = S.stash.find((x) => x.id === it.stashId); if (k) k.onList = false; }
+  render({ flip: true });
+  toast(`Removed <span>· ${esc(it.name)}</span>`, () => { it.gone = false; if (it.stashId) { const k = S.stash.find((x) => x.id === it.stashId); if (k) k.onList = true; } render({ flip: true }); });
+}
+function changeQty(id, d) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i) return;
+  i.qty = Math.max(1, Math.min(99, i.qty + d));
+  render();
+  armStepper(id);
+}
+let stepTimer = 0;
+function armStepper(id) { clearTimeout(stepTimer); stepTimer = setTimeout(() => { if (S.stepper === id) { S.stepper = null; render(); } }, T(3200)); }
+function switchTo(id) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i || i.p.t !== 'pin') return;
+  const before = JSON.parse(JSON.stringify(i.p));
+  const b = i.p.kinds[i.p.suggest];
+  i.p.kinds.forEach((k) => { k.mine = false; k.better = false; });
+  b.mine = true;
+  i.p.mine = { ...b };
+  i.p.suggest = null;
+  closeSheet();
+  render({ flip: true });
+  lightUp($('.pcell', rowEl(id)));
+  toast(`Pinned <span>· ${esc(b.n)}, ${esc(b.s)}, ${CH[b.ch]}</span>`, () => { i.p = before; render({ flip: true }); });
+}
+async function keepMine(id) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i) return;
+  const strip = $(`[data-strip="${id}"]`, scroller);
+  if (strip && !rm()) await strip.animate([{ opacity: 1, height: strip.offsetHeight + 'px' }, { opacity: 0, height: '0px' }], { duration: T(260), easing: EASE, fill: 'forwards' }).finished;
+  i.p.declined = true;
+  closeSheet();
+  render({ flip: true });
+  toast('Kept yours <span>· not suggested for this line again</span>', () => { i.p.declined = false; render({ flip: true }); });
+}
+function pinKind(id, n) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i || i.p.t !== 'kinds') return;
+  const before = JSON.parse(JSON.stringify(i.p));
+  const k = i.p.kinds[n];
+  const b = cheapest(k) || { ch: 'w', v: k.w };
+  const ch = b.ch === 'same' ? 'w' : b.ch;
+  const mine = { n: k.n, s: k.s, ch, price: k[ch], kg: k.kg, pr: k.pr, kj: k.kj };
+  i.p = { t: 'pin', pk: before.pk, mine, kinds: before.kinds.map((x, j) => ({ ...x, ch, price: x[ch], mine: j === n })), suggest: null };
+  closeSheet();
+  render({ flip: true });
+  lightUp($('.pcell', rowEl(id)));
+  toast(`Pinned <span>· ${esc(k.n)}, ${esc(k.s)}, ${CH[ch]}</span>`, () => { i.p = before; render({ flip: true }); });
+}
+function unpin(id) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i || i.p.t !== 'pin') return;
+  const before = JSON.parse(JSON.stringify(i.p));
+  i.p = { t: 'kinds', pk: before.pk, plot: true, kinds: before.kinds.map((k) => ({ n: k.n, s: k.s, c: k.ch === 'c' ? k.price : +(k.price * 1.06).toFixed(2), w: k.ch === 'w' ? k.price : +(k.price * 1.05).toFixed(2), kg: k.kg, pr: k.pr, kj: k.kj })) };
+  closeSheet();
+  render({ flip: true });
+  toast(`Unpinned <span>· ${esc(i.name)} shows every kind</span>`, () => { i.p = before; render({ flip: true }); });
+}
+async function addLines(lines, src, run) {
+  const made = lines.map(([name, amt], n) => ({ id: 'n' + n + Date.now(), name, amt: amt || null, a: guessAisle(name), qty: 1, from: src, sorting: true, p: { t: 'new' } }));
+  S.shop.push(...made);
+  render({ flip: true });
+  toast(`Added ${plural(made.length, 'line')} <span>· for ${esc(src)}</span>`, () => { made.forEach((m) => { m.gone = true; }); render({ flip: true }); });
+  await sleep(1200);
+  for (const m of made) {
+    if (run != null && !live(run)) { made.forEach((x) => { x.sorting = false; }); render(); return made; }
+    m.sorting = false;
+    render({ flip: true, slowFlip: true });
+    await sleep(320);
+  }
+  return made;
+}
+function guessAisle(n) {
+  n = n.toLowerCase();
+  if (/rice|sauce|oats|honey|peanut|paprika|tomato|passata|beans/.test(n)) return 'Pantry & Seasonings';
+  if (/chicken|mince|salmon|turkey|beef/.test(n)) return 'Meat & Protein';
+  if (/yoghurt|parmesan|egg|milk/.test(n)) return 'Dairy & Eggs';
+  if (/frozen/.test(n)) return 'Frozen';
+  return 'Produce';
+}
+function missingOf(r) { const cv = coverage(r); return r.ing.filter((_, j) => !cv[j]); }
+async function addMissing(rid, run) {
+  const r = S.rotation.find((x) => x.id === rid);
+  const miss = missingOf(r);
+  if (!miss.length) return;
+  closeSheet();
+  await sleep(240);
+  await scrollTo($('.gh', scroller) || scroller.firstElementChild, 120);
+  await addLines(miss, r.name, run);
+}
+async function addWeek() {
+  const all = [];
+  S.rotation.forEach((r) => missingOf(r).forEach((m) => { if (!all.some((x) => x[0] === m[0])) all.push(m); }));
+  if (!all.length) return;
+  await addLines(all, 'this week\'s rotation');
+}
+
+/* ---------------- sheets ---------------- */
+function openSheet(html) {
+  sheet.innerHTML = `<div class="grab" aria-hidden="true"></div>${html}`;
+  sheet.scrollTop = 0;
+  phone.classList.add('sheet-on');
+  const q = $('#lq', sheet); if (q) q.addEventListener('input', () => { S.libq = q.value; paintLib(); });
+}
+function closeSheet() { phone.classList.remove('sheet-on'); S.menuArmed = false; }
+const head = (t, sub) => `<div class="shdr"><div><h3>${t}</h3>${sub ? `<p class="sm">${sub}</p>` : ''}</div><button class="x" type="button" data-act="close" aria-label="Close">${X}</button></div>`;
+function plot(kinds) {
+  const W = 326, H = 178, L = 34, R = 10, Tp = 12, B = 34;
+  const xs = kinds.map((k) => k.kg), ys = kinds.map((k) => k.pr);
+  const x0 = Math.min(...xs) * 0.85, x1 = Math.max(...xs) * 1.08, y0 = Math.min(...ys) - 1, y1 = Math.max(...ys) + 1;
+  const X1 = (v) => L + ((v - x0) / (x1 - x0)) * (W - L - R), Y1 = (v) => Tp + (1 - (v - y0) / (y1 - y0)) * (H - Tp - B);
+  const mine = kinds.find((k) => k.mine);
+  let zone = '';
+  if (mine) zone = `<rect x="${L}" y="${Tp}" width="${(X1(mine.kg) - L).toFixed(1)}" height="${(Y1(mine.pr) - Tp).toFixed(1)}" fill="rgba(224,178,106,.1)" stroke="rgba(224,178,106,.45)" stroke-dasharray="3 3"/><text x="${L + 6}" y="${Tp + 15}" fill="#e0b26a">cheaper, more protein</text>`;
+  const dots = kinds.map((k, j) => {
+    const fill = k.mine ? '#fff' : k.better ? '#e0b26a' : 'rgba(232,236,246,.64)';
+    return `<g data-dot="${j}"><circle cx="${X1(k.kg).toFixed(1)}" cy="${Y1(k.pr).toFixed(1)}" r="11" fill="${fill}"${k.better ? ' style="filter:drop-shadow(0 0 6px #e0b26a)"' : ''}/><text class="lbl" x="${X1(k.kg).toFixed(1)}" y="${(Y1(k.pr) + 4).toFixed(1)}" text-anchor="middle">${j + 1}</text></g>`;
+  }).join('');
+  return `<svg class="plot" viewBox="0 0 ${W} ${H}" role="img" aria-label="Each kind placed by price per kilo, cheaper to the left, and protein per 100 grams, more is higher">
+    ${zone}<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="rgba(255,255,255,.2)"/><line x1="${L}" y1="${Tp}" x2="${L}" y2="${H - B}" stroke="rgba(255,255,255,.2)"/>
+    ${dots}<text x="${L}" y="${H - 12}">cheaper per kilo</text><text x="${W - R}" y="${H - 12}" text-anchor="end">$${x1.toFixed(0)}/kg</text>
+    <text x="4" y="${Tp + 10}">more</text><text x="4" y="${H - B}">less</text><text x="${W - R}" y="${H - B - 8}" text-anchor="end">protein / 100 g</text></svg>`;
+}
+const aldiBox = () => `<div class="aldi"><b>Aldi · not read</b><span>Aldi lists prices on its own site, but shows no nutrition there, and its terms forbid reading it automatically.</span><div class="acts"><a class="pillb" href="#" data-act="aldi">Look it up at Aldi ${'<span style="display:inline-flex;width:14px;height:14px">' + OUTI.replace('<svg', '<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4"') + '</span>'}</a></div></div>`;
+const srcNote = () => pm() === 'off' ? `<p class="note"><b>No prices read, your choice.</b> Kinds and macros come from Open Food Facts by barcode; open a shop's page to see its price yourself.</p>` : `<p class="note"><b>Example prices, invented.</b> In the real screen: prices as Coles and Woolworths list them online for a Melbourne store, read Wednesday 06:10, after the week's specials change; macros from Open Food Facts by barcode.</p>`;
+function priceSheet(id) {
+  const i = S.shop.find((x) => x.id === id);
+  if (!i) return;
+  const p = i.p;
+  const sub = [i.amt ? `${i.qty > 1 ? i.qty + ' × ' : ''}${esc(i.amt)}` : `×${i.qty}`, i.from ? `for ${esc(i.from)}` : ''].filter(Boolean).join(' · ');
+  let body = '';
+  if (p.t === 'pin') {
+    const m = p.mine;
+    body += `<p class="lab">Your pick</p><div class="yours"><span class="im">${pack(p.pk)}</span><span><b>${esc(m.n)}, ${esc(m.s)}</b><span>${CH[m.ch]}${pm() === 'off' ? '' : ` · ${$$$(m.price)}${m.kg != null ? ` · ${$$$(m.kg)}/kg` : ''}`}</span>${m.pr != null ? `<span>${m.pr} g protein · ${m.kj} kJ per 100 g</span>` : ''}</span></div>`;
+    if (p.suggest != null && !p.declined && pm() !== 'off') {
+      const b = p.kinds[p.suggest];
+      body += `<p class="lab">Every kind Nova found</p>${plot(p.kinds)}`;
+      body += `<div class="strip" style="padding:10px 0 0"><div class="sgc"><span class="lb"><i></i>Nova suggests · better on price and macros</span><p><b>${esc(b.n)}, ${esc(b.s)} at ${CH[b.ch]}</b>, number ${p.suggest + 1}: ${$$$(m.kg - b.kg)} a kilo cheaper, ${(b.pr - m.pr).toFixed(1)}&nbsp;g more protein, ${m.kj - b.kj}&nbsp;kJ less per 100&nbsp;g. Only shown because it wins on all three.</p><div class="acts"><button class="pillb gold" type="button" data-act="switch" data-ref="${i.id}">✓ Switch</button><button class="pillb" type="button" data-act="keep" data-ref="${i.id}">✕ Keep mine</button><button class="pillb quiet" type="button" data-act="talk" data-ref="${i.id}"><span class="nv"></span>Talk</button></div></div></div>`;
+    } else body += `<p class="note">No other kind beats yours on price and macros together this week, so nothing else is shown. Unpin to see every kind.</p>`;
+    body += `<div class="acts" style="margin-top:14px"><button class="pillb" type="button" data-act="unpin" data-ref="${i.id}">Unpin, show every kind</button></div>`;
+  } else if (p.t === 'same' || p.t === 'pinboth') {
+    const k = p.k, c = pc(k, 'c'), w = pc(k, 'w'), mx = Math.max(c || 0, w || 0) || 1;
+    const b = cheapest(k);
+    body += `<p class="lab">${p.t === 'pinboth' ? 'Your pick, at both shops' : 'The same product at both'}</p><div class="yours"><span class="im">${pack(p.pk)}</span><span><b>${esc(k.n)}, ${esc(k.s)}</b><span>${b && b.ch !== 'same' ? `${CH[b.ch]} is ${$$$(b.d)} cheaper` : b ? 'The same price at both' : 'Not read this week'}</span></span></div>`;
+    body += `<div class="cmp2">${[['Coles', c], ['Woolworths', w]].map(([n, v]) => `<div class="bar${b && b.ch !== 'same' && CH[b.ch] === n ? ' win' : ''}${v == null ? ' bad' : ''}"><span class="nm">${n}</span><span class="v">${v == null ? 'did not answer' : $$$(v)}</span><span class="tk">${v == null ? '' : `<i style="transform:scaleX(${(v / mx).toFixed(3)})"></i>`}</span></div>`).join('')}</div>`;
+  } else if (p.t === 'kinds') {
+    const withMac = p.kinds.filter((k) => k.pr != null).length >= 2;
+    if (withMac && pm() !== 'off') body += `<p class="lab">Every kind, by price and protein</p>${plot(p.kinds)}`;
+    body += `<p class="lab">${withMac ? 'The kinds' : 'Every kind Nova found'}</p>` + p.kinds.map((k, j) => {
+      const b = cheapest(k);
+      const cv = pc(k, 'c'), wv = pc(k, 'w');
+      const chs = pm() === 'off' ? '' : [['c', cv], ['w', wv]].map(([ch, v]) => `<span class="${b && b.ch === ch ? 'ch' : ''}">${b && b.ch === ch ? '<i></i>' : ''}${CH[ch]} ${v == null ? 'not read' : $$$(v)}</span>`).join('');
+      return `<div class="kind"><span class="ix" aria-hidden="true">${j + 1}</span><span><span class="kn">${esc(k.n)}, ${esc(k.s)}</span><span class="km">${chs}${k.pr != null ? `<span><b>${k.pr} g</b> protein /100 g</span>` : ''}</span></span><button class="pillb pinb" type="button" data-act="pinkind" data-ref="${i.id}" data-n="${j}">Pin</button></div>`;
+    }).join('');
+    body += `<p class="note">Pin the one you buy and the row shows only that from then on, plus a marked suggestion if another kind ever beats it on price and macros.</p>`;
+  } else {
+    body += `<p class="lab">No price</p><p class="sm" style="font-size:15px;color:var(--ink2)">${p.t === 'new' ? 'Added after this week\'s read. It is priced at the next one, on Wednesday morning.' : 'Nova has not matched this line to a product it can read at either shop. It stays unpriced rather than guessed.'}</p>`;
+  }
+  if (i.from && S.rotation.some((r) => r.name === i.from)) body += `<div class="acts" style="margin-top:12px"><button class="pillb" type="button" data-act="dishname" data-name="${esc(i.from)}">Open ${esc(i.from)}</button></div>`;
+  body += aldiBox() + srcNote();
+  openSheet(head(esc(i.name[0].toUpperCase() + i.name.slice(1)), sub) + body);
+}
+function dishSheet(rid) {
+  const r = S.rotation.find((x) => x.id === rid);
+  if (!r) return;
+  const cv = coverage(r), miss = cv.filter((x) => !x).length;
+  openSheet(`<div class="dhero">${bowl(r.col)}</div>${head(esc(r.name), `${esc(r.slot)} in your rotation · ${esc(r.mac)} a serve`)}
+    <p class="lab">Ingredients</p>${r.ing.map(([n, a], j) => `<div class="ing"><span><span class="in1">${esc(n)}</span>${a ? `<span class="in2"> · ${esc(a)}</span>` : ''}</span>${cv[j] ? `<span class="on">✓ On the list</span>` : `<button class="pillb" type="button" data-act="addone" data-ref="${r.id}" data-n="${j}">+ Add</button>`}</div>`).join('')}
+    <div class="acts" style="margin-top:14px">${miss ? `<button class="pillb hue" type="button" data-act="addmissing" data-ref="${r.id}">Add the ${miss} missing</button>` : '<span class="sm" style="margin:0;align-self:center">Everything for this dish is on the list.</span>'}<button class="pillb" type="button" data-act="openrecipe">Open in Fuel</button></div>`);
+}
+function libSheet() {
+  S.libq = '';
+  openSheet(`${head('Your recipes', 'The library from Fuel · 6 recipes in this demo')}<div class="sfield" style="margin:4px 0 8px"><input id="lq" type="search" placeholder="Search your recipes" autocomplete="off" aria-label="Search your recipes"></div><div id="libl"></div>`);
+  paintLib();
+}
+function paintLib() {
+  const host = $('#libl', sheet); if (!host) return;
+  const q = (S.libq || '').toLowerCase();
+  const rows = S.library.filter((r) => !q || r.name.toLowerCase().includes(q));
+  host.innerHTML = rows.length ? rows.map((r) => `<div class="rrow"><span class="ra">${bowl(r.col, true)}</span><span><b>${esc(r.name)}</b><span>${esc(r.mac)}${r.from ? ' · in your rotation' : ''}</span></span><button class="pillb" type="button" data-act="addrecipe" data-ref="${r.id}" aria-label="Add ${esc(r.name)} to the list">+ Add</button></div>`).join('') : `<p class="sm">No recipe matches.</p>`;
+}
+function menu() {
+  const n = S.shop.filter((i) => !i.gone).length;
+  openSheet(S.menuArmed
+    ? `<p class="warnq">Clear the whole list, got or not?</p><div class="acts"><button class="pillb warn" type="button" data-act="clear-all">Clear all ${n}</button><button class="pillb" type="button" data-act="close">Keep</button></div><p class="sm" style="margin-top:12px">Undo stays here until you leave the screen.</p>`
+    : `${head('Shopping list', `${plural(n, 'item')} · synced with your vault 9:41`)}<div class="acts"><button class="pillb" type="button" data-act="arm">Clear everything</button></div>`);
+}
+async function clearAll() {
+  closeSheet();
+  const all = S.shop.filter((i) => !i.gone);
+  if (!rm()) await Promise.all(all.slice(0, 10).map((i, n) => sleep(n * 40).then(() => fold(rowEl(i.id), 1))));
+  all.forEach((i) => { i.gone = true; });
+  S.cleared = all;
+  render({ flip: true });
+  toast(`Cleared all ${all.length}`, undoClear);
+}
+function stashSheet(id, focusCheck) {
+  const k = S.stash.find((x) => x.id === id);
+  if (!k) return;
+  const opts = [0, 4, 6, 8, 12];
+  const chk = k.rs && (due(k) || focusCheck) ? `<div class="chk"><span class="lb"><i style="width:7px;height:7px;border-radius:4px;background:var(--gold)"></i>Time to check the level</span><p>By the calendar about ${Math.max(0, k.rs.weeks * 7 - k.rs.since)} days are left. How does it look?</p><div class="acts"><button class="pillb" type="button" data-act="plenty" data-ref="${k.id}">Plenty left</button><button class="pillb gold" type="button" data-act="low" data-ref="${k.id}">Getting low, add to list</button><button class="pillb" type="button" data-act="reordered" data-ref="${k.id}">Just reordered</button></div></div>` : '';
+  const rhythm = k.rs
+    ? `<div class="rhythm"><span class="mini${due(k) ? ' due' : ''}" style="--lv:${lv(k).toFixed(3)};--ck:${(ckFrac(k) * 100).toFixed(1)}%"><i></i><b></b></span><p>Bought <b>${k.rs.since === 0 ? 'today' : k.rs.since + ' days ago'}</b>, lasts about <b>${k.rs.weeks} weeks</b>. Nova asks you to check ${due(k) ? '<b>now</b>' : `<b>${whenWord(k)}</b>`}, a week before it would run out, after quiet hours.</p></div>`
+    : `<p class="sm" style="margin-top:8px">No rhythm set. Pick how long one usually lasts and Nova will ask you to check the level a week before it runs out.</p>`;
+  openSheet(`<div class="shero">${art(k.art)}</div>${head(esc(k.name), `${esc(k.host)}${k.note ? ' · ' + esc(k.note) : ''} · on ${esc(k.sh)}`)}${chk}
+    <div class="acts"><a class="pillb hue" href="#" data-act="open" data-ref="${k.id}">Open ${'<span style="display:inline-flex">' + OUTI.replace('<svg', '<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4"') + '</span>'}</a>${k.read ? '' : k.onList ? `<button class="pillb" type="button" data-act="unlist" data-ref="${k.id}">✓ On your list · Undo</button>` : `<button class="pillb" type="button" data-act="tolist" data-ref="${k.id}">Add to shopping list</button>`}</div>
+    ${k.read ? '' : `<p class="lab">Restock rhythm</p><div class="fchips">${opts.map((w) => `<button type="button" data-act="rs" data-ref="${k.id}" data-w="${w}" aria-pressed="${(k.rs ? k.rs.weeks : 0) === w}">${w ? w + ' weeks' : 'Off'}</button>`).join('')}</div>${rhythm}${k.rs ? `<div class="acts" style="margin-top:10px"><button class="pillb" type="button" data-act="reordered" data-ref="${k.id}">I just bought it</button></div>` : ''}`}
+    <p class="lab">Shelf</p><div class="fchips">${S.shelves.map((s) => `<button type="button" data-act="move" data-ref="${k.id}" data-sh="${esc(s)}" aria-pressed="${k.sh === s}">${esc(s)}</button>`).join('')}</div>
+    <div class="acts" style="margin-top:18px"><button class="pillb warn" type="button" data-act="rmk" data-ref="${k.id}">Remove from Stash</button></div>`);
+}
+
+/* ---------------- stash writes, each with its undo ---------------- */
+function toList(id, quiet) {
+  const k = S.stash.find((x) => x.id === id);
+  if (!k || k.onList) return;
+  k.onList = true;
+  const line = { id: 'o' + id + Date.now(), name: k.name, a: 'Order online', qty: 1, host: k.host, art: k.art, stashId: k.id, p: { t: 'online' } };
+  S.shop.push(line);
+  if (phone.classList.contains('sheet-on')) stashSheet(id);
+  render({ flip: true });
+  lightUp($('.pcard[data-id="' + id + '"]', scroller));
+  if (!quiet) toast(`On your shopping list <span>· Order online</span>`, () => { k.onList = false; line.gone = true; if (phone.classList.contains('sheet-on')) stashSheet(id); render({ flip: true }); });
+  return line;
+}
+function unList(id) {
+  const k = S.stash.find((x) => x.id === id);
+  if (!k) return;
+  k.onList = false;
+  S.shop.forEach((i) => { if (i.stashId === id && !i.gone) i.gone = true; });
+  stashSheet(id); render();
+}
+function setRhythm(id, w) {
+  const k = S.stash.find((x) => x.id === id);
+  if (!k) return;
+  const before = k.rs ? { ...k.rs } : null;
+  k.rs = w ? { weeks: w, since: before ? before.since : 0 } : null;
+  stashSheet(id); render();
+  toast(w ? `Lasts about ${w} weeks <span>· Nova asks a week before</span>` : 'Restock rhythm off', () => { k.rs = before; if (phone.classList.contains('sheet-on')) stashSheet(id); render(); });
+}
+function answer(id, kind) {
+  const k = S.stash.find((x) => x.id === id);
+  if (!k || !k.rs) return;
+  const before = { ...k.rs };
+  let line = null;
+  if (kind === 'plenty') { k.rs.snooze = true; }
+  if (kind === 'reordered') { k.rs.since = 0; k.rs.snooze = false; }
+  if (kind === 'low') { line = toList(id, true); k.rs.snooze = true; }
+  closeSheet();
+  render();
+  const words = { plenty: 'Asked again in two weeks', reordered: 'Clock restarted <span>· full again</span>', low: `On your shopping list <span>· with its link</span>` }[kind];
+  toast(words, () => { k.rs = before; if (line) { line.gone = true; k.onList = false; } render({ flip: true }); });
+}
+function moveShelf(id, sh) {
+  const k = S.stash.find((x) => x.id === id);
+  if (!k || k.sh === sh) return;
+  const from = k.sh;
+  k.sh = sh; closeSheet();
+  render({ flip: true, slowFlip: true });
+  toast(`Moved to ${esc(sh)}`, () => { k.sh = from; render({ flip: true }); });
+}
+async function removeK(id) {
+  const k = S.stash.find((x) => x.id === id);
+  if (!k || k.gone) return;
+  closeSheet();
+  const el = rowEl(id);
+  if (el && !rm()) await el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.94)' }], { duration: T(220), easing: OUT, fill: 'forwards' }).finished;
+  k.gone = true;
+  render({ flip: true });
+  toast(`Removed <span>· ${esc(k.name)}</span>`, () => { k.gone = false; render({ flip: true }); });
+}
+
+/* ---------------- swipe: the house grammar ---------------- */
+const SIDES = { shop: { r: true, l: true }, stash: { r: false, l: true } };
+let sw = null, openRow = null;
+function paintSwipe(row, x) {
+  const face = $('.face', row);
+  face.style.transform = x ? `translateX(${x}px)` : '';
+  face.classList.toggle('slid', !!x);
+  const lead = $('.ua.lead', row), trail = $('.ua.trail', row);
+  if (lead) lead.style.width = Math.max(0, x) + 'px';
+  if (trail) trail.style.width = Math.max(0, -x) + 'px';
+}
+function settle(row, x) {
+  const els = [$('.face', row), $('.ua.lead', row), $('.ua.trail', row)];
+  els.forEach((el) => { if (el) el.style.transition = `transform ${T(260)}ms ${EASE}, width ${T(260)}ms ${EASE}`; });
+  paintSwipe(row, x);
+  setTimeout(() => els.forEach((el) => { if (el) el.style.transition = ''; }), T(280));
+}
+function closeOpen() { if (openRow && openRow.isConnected) settle(openRow, 0); openRow = null; }
+function commit(row, side) {
+  const id = row.dataset.id, k = row.dataset.k;
+  openRow = null;
+  if (side === 'r') { settle(row, 0); if (k === 'shop') toggleGot(id); }
+  else if (k === 'shop') removeLine(id); else removeK(id);
+}
+phone.addEventListener('pointerdown', (e) => {
+  const face = e.target.closest('.face');
+  if (openRow && (!face || face.parentElement !== openRow) && !e.target.closest('.ua')) closeOpen();
+  if (!face || e.target.closest('.qty,.stepper,.pcell,.ocell,.more,.rm,.strip')) return;
+  const row = face.parentElement;
+  if (!SIDES[row.dataset.k]) return;
+  sw = { row, x0: e.clientX, y0: e.clientY, dir: null, base: openRow === row ? (parseFloat((face.style.transform.match(/-?[\d.]+/) || [0])[0]) || 0) : 0, x: 0, t: performance.now(), pid: e.pointerId, moved: false };
+});
+phone.addEventListener('pointermove', (e) => {
+  if (!sw || e.pointerId !== sw.pid) return;
+  const dx = (e.clientX - sw.x0) / Z, dy = (e.clientY - sw.y0) / Z;
+  if (!sw.dir) {
+    if (Math.hypot(dx, dy) < 8) return;
+    sw.dir = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'h' : 'v';
+    if (sw.dir === 'v') { sw = null; return; }
+    try { e.target.setPointerCapture(e.pointerId); } catch (_) { /* fine */ }
+  }
+  const sides = SIDES[sw.row.dataset.k];
+  let x = sw.base + dx;
+  if (x > 0 && !sides.r) x = 0;
+  if (x < 0 && !sides.l) x = 0;
+  sw.x = x; sw.moved = true;
+  paintSwipe(sw.row, x);
+});
+function endSwipe(e) {
+  if (!sw || (e && e.pointerId !== sw.pid)) return;
+  const s = sw; sw = null;
+  if (!s.moved) return;
+  const w = s.row.offsetWidth, x = s.x, v = Math.abs(x - s.base) / Math.max(1, performance.now() - s.t);
+  s.row.dataset.dragged = '1';
+  setTimeout(() => { delete s.row.dataset.dragged; }, 50);
+  if (Math.abs(x) > w * 0.6 || (Math.abs(x) > 90 && v > 0.9)) commit(s.row, x > 0 ? 'r' : 'l');
+  else if (Math.abs(x) > 44) { settle(s.row, x > 0 ? 96 : -96); openRow = s.row; }
+  else settle(s.row, 0);
+}
+phone.addEventListener('pointerup', endSwipe);
+phone.addEventListener('pointercancel', endSwipe);
+scroller.addEventListener('scroll', () => { if (openRow) closeOpen(); spy(); }, { passive: true });
+function spy() {
+  if (SCR !== 'stash' || S.shelfOn === '__lock') return;
+  const sr = scroller.getBoundingClientRect();
+  let on = 'all';
+  $$('.shh', scroller).forEach((h) => { if ((h.getBoundingClientRect().top - sr.top) / Z < 150) on = h.dataset.shelf; });
+  if (scroller.scrollTop < 200) on = 'all';
+  if (on !== S.shelfOn) { S.shelfOn = on; $$('.shelfbar .chipb', scroller).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sh === on))); }
+}
+scroller.addEventListener('input', (e) => { if (e.target.id === 'sq') { S.q = e.target.value; render({ flip: true }); } });
+
+/* ---------------- taps ---------------- */
+phone.addEventListener('click', (e) => {
+  const ua = e.target.closest('.ua');
+  if (ua) { commit(ua.closest('.row'), ua.dataset.side); return; }
+  if (e.target.closest('#notif')) { hideNotif(); stashSheet(S.notifFor || 'k1', true); return; }
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const row = el.closest('[data-id]');
+  if (row && row.dataset.dragged) { e.preventDefault(); return; }
+  const id = el.dataset.ref || (row && row.dataset.id);
+  const act = el.dataset.act;
+  if (el.tagName === 'A') e.preventDefault();
+  if (!e.__scene) stopScene();
+  ({
+    got: () => toggleGot(id), qty: () => { S.stepper = id; render(); armStepper(id); }, inc: () => changeQty(id, 1), dec: () => changeQty(id, -1),
+    price: () => priceSheet(id), switch: () => switchTo(id), keep: () => keepMine(id), talk: () => { closeSheet(); toast('Opens Nova with this line named <span>· you say what matters to you</span>'); },
+    pinkind: () => pinKind(id, +el.dataset.n), unpin: () => unpin(id), aldi: () => toast('Opens Aldi\'s site in Safari <span>· you read it yourself</span>'),
+    dish: () => dishSheet(id), dishname: () => { const r = S.rotation.find((x) => x.name === el.dataset.name); if (r) dishSheet(r.id); },
+    addone: () => { const r = S.rotation.find((x) => x.id === id); closeSheet(); addLines([r.ing[+el.dataset.n]], r.name); },
+    addmissing: () => addMissing(id), addweek: () => addWeek(), library: () => libSheet(),
+    addrecipe: () => { const r = S.library.find((x) => x.id === id); const ing = r.ing || S.rotation.find((x) => x.id === r.from).ing; const miss = ing.filter(([n]) => !S.shop.some((i) => !i.gone && i.name.toLowerCase().includes(n.toLowerCase()))); closeSheet(); if (miss.length) addLines(miss, r.name); else toast(`Everything for ${esc(r.name)} is on the list`); },
+    openrecipe: () => { closeSheet(); toast('Opens the recipe in Fuel'); }, openlink: () => toast('Opens the product page'),
+    'clear-got': clearGot, 'undo-clear': undoClear, menu, arm: () => { S.menuArmed = true; menu(); }, 'clear-all': clearAll, close: closeSheet,
+    jump: () => scrollTo($('#' + el.dataset.to, scroller), 90), back: () => toast('Back to More'),
+    retry: () => { S.pmode = 'read'; render(); paintPmode(); toast('Coles answered <span>· prices read just now</span>'); },
+    open: () => { const k = S.stash.find((x) => x.id === id); if (k) toast(`Opening <span>· ${esc(k.host)}</span>`); },
+    detail: () => stashSheet(id), edit: () => { S.stashEdit = !S.stashEdit; render({ flip: true }); }, rmk: () => removeK(id),
+    shelf: () => { S.shelfOn = el.dataset.sh; $$('.shelfbar .chipb', scroller).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sh === S.shelfOn))); if (S.shelfOn === 'all') scroller.scrollTo({ top: 0, behavior: rm() ? 'auto' : 'smooth' }); else { const n = S.shelves.indexOf(S.shelfOn); scrollTo($('#sh-' + n, scroller), 120); } },
+    search: () => { S.search = !S.search; if (!S.search) S.q = ''; render({ flip: true }); if (S.search) { const i = $('#sq'); if (i) i.focus(); } },
+    tolist: () => toList(id), unlist: () => unList(id), rs: () => setRhythm(id, +el.dataset.w),
+    plenty: () => answer(id, 'plenty'), low: () => answer(id, 'low'), reordered: () => answer(id, 'reordered'), move: () => moveShelf(id, el.dataset.sh),
+    add: () => (SCR === 'shop' ? sceneTypeShop() : sceneAddLink()),
+    pick: () => { S.form.sh = el.dataset.sh; paintForm(); }, lasts: () => { S.form.w = +el.dataset.w; paintForm(); }, stashit: () => commitForm(), cancelform: () => { S.adding = null; S.form = null; render(); },
+  }[act] || (() => {}))();
+});
+
+/* ---------------- the finger and the moments ---------------- */
+let RUN = 0;
+const live = (n) => n === RUN;
+function stopScene() { RUN++; fingerEl.style.opacity = 0; lapse.classList.remove('on'); }
+function fingerTo(el, dx = 0) {
+  if (!el) return Promise.resolve();
+  const pr = phone.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const x = (r.left + r.width / 2 - pr.left) / Z + dx, y = (r.top + r.height / 2 - pr.top) / Z;
+  const first = fingerEl.style.opacity !== '1';
+  fingerEl.style.transition = first ? `opacity ${T(200)}ms ease` : `opacity ${T(200)}ms ease, transform ${T(420)}ms ${EASE}`;
+  fingerEl.style.transform = `translate(${x}px,${y}px)`;
+  fingerEl.style.opacity = 1;
+  return sleep(first ? 260 : 460);
+}
+async function press() { if (!rm()) await fingerEl.firstElementChild.animate([{ transform: 'scale(1)' }, { transform: 'scale(.8)' }, { transform: 'scale(1)' }], { duration: T(240), easing: OUT }).finished; else await sleep(120); }
+function tap(el) { const ev = new MouseEvent('click', { bubbles: true }); ev.__scene = true; el.dispatchEvent(ev); }
+async function tapFinger(el, run) { await fingerTo(el); if (!live(run)) return false; await press(); if (!live(run)) return false; tap(el); return true; }
+function sceneDone(run) { fingerEl.style.opacity = 0; if (live(run)) RUN++; $$('.scene').forEach((b) => b.setAttribute('aria-pressed', 'false')); }
+async function typeInto(lines, run) {
+  let shown = '';
+  for (let L = 0; L < lines.length; L++) {
+    for (const ch of lines[L]) {
+      if (!live(run)) return false;
+      shown += ch;
+      S.adding = `<span class="ph typed">${esc(shown)}<span class="caret"></span></span><span class="plus" aria-hidden="true">${PLUS}</span>`;
+      addbar.innerHTML = S.adding;
+      await sleep(rm() ? 8 : 30);
+    }
+    if (L < lines.length - 1) shown += '\n';
+  }
+  return true;
+}
+async function sceneMince() {
+  const run = ++RUN;
+  await setScreen('shop', true);
+  const i = S.shop.find((x) => x.id === 's4'); i.p = INIT().shop.find((x) => x.id === 's4').p;
+  render({ flip: true });
+  await scrollTo(rowEl('s4'), 230); if (!live(run)) return;
+  if (!(await tapFinger($('.pcell', rowEl('s4')), run))) return;
+  fingerEl.style.opacity = 0;
+  await sleep(1200); if (!live(run)) return;
+  const st = $('.strip', sheet); if (st) sheet.scrollTo({ top: st.offsetTop - 260, behavior: rm() ? 'auto' : 'smooth' });
+  await sleep(2400); if (!live(run)) return;
+  if (!(await tapFinger($('[data-act="switch"]', sheet), run))) return;
+  await sleep(1400);
+  sceneDone(run);
+}
+async function sceneKinds() {
+  const run = ++RUN;
+  await setScreen('shop', true);
+  const i = S.shop.find((x) => x.id === 's8'); i.p = INIT().shop.find((x) => x.id === 's8').p;
+  render({ flip: true });
+  await scrollTo(rowEl('s8'), 230); if (!live(run)) return;
+  if (!(await tapFinger($('.pcell', rowEl('s8')), run))) return;
+  fingerEl.style.opacity = 0;
+  await sleep(2600); if (!live(run)) return;
+  const pinb = $$('[data-act="pinkind"]', sheet)[3];
+  if (pinb) { sheet.scrollTo({ top: pinb.offsetTop - 300, behavior: rm() ? 'auto' : 'smooth' }); await sleep(500); }
+  if (!(await tapFinger(pinb, run))) return;
+  await sleep(1400);
+  sceneDone(run);
+}
+async function sceneMeals() {
+  const run = ++RUN;
+  await setScreen('shop', true);
+  S.shop = S.shop.filter((x) => !/^n\d/.test(x.id));
+  render({ flip: true });
+  const card = $('[data-act="dish"][data-ref="r2"]', scroller);
+  await scrollTo(card, 300); if (!live(run)) return;
+  if (!(await tapFinger(card, run))) return;
+  fingerEl.style.opacity = 0;
+  await sleep(1800); if (!live(run)) return;
+  const b = $('[data-act="addmissing"]', sheet);
+  await fingerTo(b); if (!live(run)) return; await press(); fingerEl.style.opacity = 0;
+  await addMissing('r2', run);
+  await sleep(600);
+  const c2 = $('[data-act="dish"][data-ref="r2"]', scroller);
+  if (c2) { await scrollTo(c2, 300); lightUp(c2); }
+  sceneDone(run);
+}
+async function sceneClear() {
+  const run = ++RUN;
+  await setScreen('shop', true);
+  if (S.cleared) undoClear();
+  for (const id of ['s3', 's7']) {
+    const i = S.shop.find((x) => x.id === id);
+    if (!i || i.gone) continue;
+    const row = rowEl(id);
+    await scrollTo(row, 300); if (!live(run)) return;
+    if (!i.got) { if (!(await tapFinger($('.got-btn', row), run))) return; await sleep(380); }
+  }
+  const btn = $('.clearbtn', scroller);
+  await scrollTo(btn, 420); if (!live(run)) return;
+  await fingerTo(btn); if (!live(run)) return;
+  await press(); fingerEl.style.opacity = 0;
+  await clearGot();
+  await sleep(1600); if (!live(run)) return;
+  const u = $('[data-act="undo-clear"]', scroller);
+  await scrollTo(u, 420);
+  await fingerTo(u); if (!live(run)) return;
+  await press(); undoClear();
+  await sleep(500);
+  sceneDone(run);
+}
+async function sceneTypeShop() {
+  const run = ++RUN;
+  scroller.scrollTo({ top: 0, behavior: rm() ? 'auto' : 'smooth' });
+  const ok = await typeInto(['lemons', 'tortillas', 'oat milk'], run); if (!ok) return;
+  await sleep(300); if (!live(run)) return;
+  S.adding = null;
+  await addLines([['lemons'], ['tortillas'], ['oat milk']], 'you', run);
+  sceneDone(run);
+}
+/* stash */
+function paintForm() {
+  const f = S.form; if (!f) return;
+  const pv = f.read
+    ? `<div class="pv"><span class="im" data-pvimg>${art(f.art)}</span><span><span class="nm">${esc(f.name)}</span><span class="hs">${esc(f.host)} · name and picture read from the page</span></span></div>`
+    : `<div class="pv"><span class="im sk"></span><span><span class="nm sk" style="display:block"></span><span class="hs">${esc(f.url)}</span></span></div>`;
+  const hint = f.read ? `<span class="hint">${f.sh === 'Skincare' ? 'same site as 3 on Skincare' : ''}</span>` : '';
+  S.adding = `<div class="form">${pv}${f.read ? `<p class="flab">Shelf</p><div class="fchips">${S.shelves.map((s) => `<button type="button" data-act="pick" data-sh="${esc(s)}" aria-pressed="${f.sh === s}">${esc(s)}</button>`).join('')}${hint}</div>
+    <p class="flab">Lasts about (optional)</p><div class="fchips">${[0, 4, 6, 8, 12].map((w) => `<button type="button" data-act="lasts" data-w="${w}" aria-pressed="${f.w === w}">${w ? w + ' wk' : 'Off'}</button>`).join('')}</div>
+    <div class="formgo"><button class="pillb quiet" type="button" data-act="cancelform">Cancel</button><button class="pillb hue" type="button" data-act="stashit">Stash it</button></div>` : ''}</div>`;
+  addbar.innerHTML = S.adding;
+  addbar.classList.add('formy');
+}
+function commitForm() {
+  const f = S.form; if (!f || !f.read) return;
+  const k = { id: 'n' + Date.now(), name: f.name, host: f.host, sh: f.sh, art: f.art, rs: f.w ? { weeks: f.w, since: 0 } : null };
+  if (!k.rs) delete k.rs;
+  const at = S.stash.findIndex((x) => x.sh === f.sh);
+  S.stash.splice(at < 0 ? 0 : at, 0, k);
+  S.adding = null; S.form = null;
+  render({ flip: true });
+  const el = rowEl(k.id);
+  if (el && !rm()) el.animate([{ transform: 'translateY(240px) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: T(520), easing: EASE });
+  toast(`Stashed on ${esc(f.sh)}`, () => { k.gone = true; render({ flip: true }); });
+  return k;
+}
+async function sceneAddLink() {
+  const run = ++RUN;
+  await setScreen('stash', true);
+  S.stash = S.stash.filter((x) => !/^n\d/.test(x.id));
+  render({ flip: true });
+  await fingerTo($('.ph', addbar)); if (!live(run)) return;
+  await press(); fingerEl.style.opacity = 0;
+  const ok = await typeInto(['https://skin.example.com/vitamin-c-serum'], run); if (!ok) return;
+  await sleep(400); if (!live(run)) return;
+  S.form = { url: 'skin.example.com/vitamin-c-serum', read: false };
+  paintForm();
+  if (!rm()) addbar.animate([{ transform: 'translateY(20px)', opacity: 0.6 }, { transform: 'none', opacity: 1 }], { duration: T(300), easing: OUT });
+  await sleep(1300); if (!live(run)) return;
+  Object.assign(S.form, { read: true, name: 'Vitamin C serum 30 ml', host: 'skin.example.com', art: 'serum', sh: 'Skincare', w: 0 });
+  paintForm();
+  const im = $('[data-pvimg]', addbar); if (im && !rm()) im.animate([{ filter: 'blur(8px)', opacity: 0, transform: 'scale(1.04)' }, { filter: 'blur(0)', opacity: 1, transform: 'none' }], { duration: T(360), easing: OUT });
+  await sleep(1400); if (!live(run)) return;
+  if (!(await tapFinger($('[data-act="lasts"][data-w="8"]', addbar), run))) return;
+  await sleep(600); if (!live(run)) return;
+  if (!(await tapFinger($('[data-act="stashit"]', addbar), run))) return;
+  fingerEl.style.opacity = 0;
+  await sleep(500);
+  const nk = S.stash.find((x) => /^n\d/.test(x.id) && !x.gone);
+  if (nk) await scrollTo(rowEl(nk.id), 260);
+  sceneDone(run);
+}
+async function sceneLevel() {
+  const run = ++RUN;
+  await setScreen('stash', true);
+  const k = S.stash.find((x) => x.id === 'k1');
+  Object.assign(k, { gone: false, onList: false }); k.rs = { weeks: 8, since: 44 };
+  S.shop = S.shop.filter((i) => i.stashId !== 'k1');
+  render({ flip: true, top: 0 });
+  await sleep(500); if (!live(run)) return;
+  lapse.querySelector('span').textContent = 'Time-lapse: five days pass';
+  lapse.classList.add('on');
+  for (const d of [45, 46, 47, 48, 49]) { await sleep(520); if (!live(run)) return; k.rs.since = d; render(); }
+  await sleep(500); lapse.classList.remove('on'); if (!live(run)) return;
+  S.notifFor = 'k1';
+  showNotif('Hydrating cleanser: about a week left by the calendar. Worth a look before you order.');
+  await sleep(1800); if (!live(run)) return;
+  await fingerTo(notif); if (!live(run)) return; await press(); fingerEl.style.opacity = 0;
+  hideNotif(); stashSheet('k1', true);
+  await sleep(2200); if (!live(run)) return;
+  if (!(await tapFinger($('[data-act="low"]', sheet), run))) return;
+  fingerEl.style.opacity = 0;
+  await sleep(900);
+  await scrollTo(rowEl('k1'), 300);
+  lightUp(rowEl('k1'));
+  await sleep(1400);
+  sceneDone(run);
+}
+async function sceneFind() {
+  const run = ++RUN;
+  await setScreen('stash', true);
+  S.search = false; S.q = '';
+  render({ top: 0 });
+  await sleep(300);
+  const sb = $('.srch', scroller);
+  await scrollTo(sb, 120); if (!live(run)) return;
+  if (!(await tapFinger(sb, run))) return;
+  fingerEl.style.opacity = 0;
+  for (const ch of 'ser') { await sleep(rm() ? 40 : 220); if (!live(run)) return; S.q += ch; render({ flip: true }); }
+  await sleep(900); if (!live(run)) return;
+  const card = $('.pcard .open', scroller);
+  if (!(await tapFinger(card, run))) return;
+  await sleep(1200);
+  S.search = false; S.q = ''; render({ flip: true });
+  sceneDone(run);
+}
+
+/* ---------------- notes, switches ---------------- */
+const SCENES = {
+  shop: [['A better buy on the mince', '$', sceneMince], ['Every kind, then pin one', '◎', sceneKinds], ['Shop from your meals', '+', sceneMeals], ['Get two, then clear', '✓', sceneClear]],
+  stash: [['Paste a link', '+', sceneAddLink], ['Time to check the level', '◷', sceneLevel], ['Find and open', '⌕', sceneFind]],
+};
+const NOTES = {
+  shop: [
+    ['The basket, now with the price', 'The ring is still the list by aisle. Beside it, what the lines priced at both shops cost at each, the cheaper in green, and Aldi dashed and named. Under it, a chip per aisle still to get.', '<b>New</b>: the price read and its honest states, three of which play from the switch under the phone.'],
+    ['Your meals', 'Your rotation as a rail: each dish shows how much of it is already on the list. A dish opens its ingredients; add one, or every missing one, and they fly into their aisles. Recipes opens the whole library to search.', '<b>New</b>: an Undo for lines added from a recipe (they can be removed by id).'],
+    ['A price on every line', 'One cell at the row\'s right: the price and the cheaper shop. With nothing pinned it says "from" and how many kinds; it opens every kind placed by price per kilo and protein. Pin the one you buy and the row shows only that. A gold dot and a marked strip appear only when another kind is cheaper and better on macros at once.', '<b>New</b>: products, pins and suggestions; prices depend on your first call.'],
+  ],
+  stash: [
+    ['Running down', 'Each restock item is a vial, draining by the days since you bought it. The dashed line is a week before empty; past it the vial turns gold and Nova asks you to look.', '<b>New</b>: restock rhythm and the level check, riding the reminders Nova already sends.'],
+    ['Shelves you can see', 'Every link shows its page\'s own picture. Product shelves are a grid of cards, reading stays as rows. The shelf bar stays at the top as you scroll and lights the shelf you are on; search finds by name, site or note.', '<b>New</b>: the picture, read once when you stash it and kept on the Mac.'],
+    ['Adding and acting', 'Paste a link: Nova reads its name and picture, suggests the shelf its site already lives on, and asks how long it lasts if you want reminding. From any card, ⋯ sends it to the shopping list, sets its rhythm, moves its shelf or removes it, each with Undo.', '<b>New</b>: add to the shopping list, move shelf, undo a remove.'],
+  ],
+};
+function paintNotes() {
+  $('#notes').innerHTML = `<h2>${SCR === 'shop' ? 'Shopping' : 'Stash'} · Instruments</h2><p class="sub">The phone plays real moves: tap a circle or a price, swipe a row either way, open a dish, use Undo. Or play a moment under the phone.</p>` +
+    NOTES[SCR].map(([h, p, n]) => `<div class="st"><h3>${h}</h3><p>${p}</p><span class="new">${n}</span></div>`).join('');
+}
+function paintScenes() {
+  const host = $('#scenes');
+  const hue = SCR === 'shop' ? 'var(--shop)' : 'var(--stash)';
+  host.innerHTML = SCENES[SCR].map(([label, ic], n) => `<button class="scene" type="button" data-n="${n}" aria-pressed="false" style="--h:${hue}"><i aria-hidden="true">${ic}</i>${label}</button>`).join('');
+}
+function paintPmode() {
+  const host = $('#pmode');
+  if (SCR !== 'shop') { host.innerHTML = ''; return; }
+  const m = [['read', 'Prices read'], ['colesFail', 'Coles failed'], ['off', 'No price source']];
+  host.innerHTML = `<p class="lab">Prices</p><div class="toggles">${m.map(([k, l]) => `<button class="chip" type="button" data-pm="${k}" aria-pressed="${S.pmode === k}">${l}</button>`).join('')}</div>`;
+}
+function placePill(seg) {
+  const on = seg.querySelector('[aria-pressed="true"]');
+  const pill = seg.querySelector('.pill');
+  if (!on || !pill) return;
+  pill.style.width = on.offsetWidth + 'px';
+  pill.style.transform = `translateX(${on.offsetLeft - 3}px)`;
+}
+async function setScreen(k, fromScene) {
+  if (!fromScene) stopScene();
+  closeSheet(); hideNotif();
+  if (SCR === k) { return; }
+  SCR = k; S.stepper = null; S.adding = null; S.form = null;
+  $$('#scrs [data-scr]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scr === k)));
+  placePill($('#scrs'));
+  twPrev.clear();
+  render({ top: 0 });
+  if (!rm()) scroller.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: T(300), easing: EASE });
+  paintScenes(); paintPmode();
+  location.replace('#' + k);
+  await sleep(rm() ? 60 : 320);
+}
+
+$('#scrs').addEventListener('click', (e) => { const b = e.target.closest('[data-scr]'); if (b) setScreen(b.dataset.scr); });
+$('#scenes').addEventListener('click', (e) => {
+  const b = e.target.closest('.scene');
+  if (!b) return;
+  stopScene();
+  $$('.scene').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  SCENES[SCR][+b.dataset.n][2]().catch(() => {});
+});
+$('#pmode').addEventListener('click', (e) => { const b = e.target.closest('[data-pm]'); if (!b) return; stopScene(); closeSheet(); S.pmode = b.dataset.pm; paintPmode(); render({ flip: true }); });
+$('#reset').addEventListener('click', () => { stopScene(); hideToast(); hideNotif(); closeSheet(); S = INIT(); twPrev.clear(); render({ top: 0 }); paintPmode(); });
+$('#slow').addEventListener('click', (e) => { SLOW = SLOW === 1 ? 4 : 1; doc.style.setProperty('--slow', SLOW); e.currentTarget.setAttribute('aria-pressed', String(SLOW > 1)); });
+$('#rmprev').addEventListener('click', (e) => { RMP = !RMP; phone.classList.toggle('rm', rm()); e.currentTarget.setAttribute('aria-pressed', String(RMP)); });
+mq.addEventListener('change', () => phone.classList.toggle('rm', rm()));
+phone.classList.toggle('rm', rm());
+
+function fit() {
+  const avail = Math.min(390, doc.clientWidth);
+  Z = avail / 390;
+  pbox.style.setProperty('--z', String(Z));
+  phone.style.setProperty('--z', String(Z));
+  placePill($('#scrs'));
+}
+window.addEventListener('resize', fit);
+if (location.hash === '#stash') SCR = 'stash';
+$$('#scrs [data-scr]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scr === SCR)));
+fit();
+render({ top: 0 });
+paintScenes(); paintPmode();
+requestAnimationFrame(() => placePill($('#scrs')));
+window.__ss = { setScreen, scenes: SCENES, state: () => S, render };
+})();
+</script>
