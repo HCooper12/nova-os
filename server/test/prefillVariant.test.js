@@ -16,11 +16,14 @@ const lib = [
   { id: 'single-arm-lat-pulldown', name: 'Single-Arm Lat Pulldown' },
   { id: 'machine-row', name: 'Machine Row' },
   { id: 'barbell-row', name: 'Barbell Row' },
+  { id: 'ez-bar-curl', name: 'EZ-Bar Curl' },
+  { id: 'ez-bar-reverse-curl', name: 'EZ-Bar Reverse Curl' },
 ];
 const state = {
   'wide-grip-lat-pulldown': { lastDate: '2026-09-30', lastSets: [{ weight: 73, reps: 9 }] },
   'close-grip-lat-pulldown': { lastDate: '2026-08-01', lastSets: [{ weight: 60, reps: 10 }] },
   'barbell-row': { lastDate: '2026-10-01', lastSets: [{ weight: 80, reps: 8 }] },
+  'ez-bar-reverse-curl': { lastDate: '2026-10-02', lastSets: [{ weight: 30, reps: 10 }] },
 };
 
 test('grip and width words are stripped, the movement is not', () => {
@@ -36,6 +39,7 @@ test('the most recent grip variant fills a lift with no history of its own', () 
 test('a one-arm lift is never filled from a two-arm one, nor a machine from a barbell', () => {
   assert.equal(variantFor(lib, state, 'single-arm-lat-pulldown'), null);
   assert.equal(variantFor(lib, state, 'machine-row'), null);
+  assert.equal(variantFor(lib, state, 'ez-bar-curl'), null, 'a reverse curl moves far less than a curl');
 });
 
 test('the session start uses the variant only when the lift has no sets of its own, and says so', async () => {

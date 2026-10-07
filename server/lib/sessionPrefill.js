@@ -52,12 +52,14 @@ export function prefillFor({ last = null, prescription = null, progression = nul
 
 // A LIFT HE HAS ONLY DONE UNDER ANOTHER NAME (7 Oct 2026). He added Lat
 // Pulldown to a pull session and it came in at 0 kg × 8: every set he had
-// done was logged as Wide-Grip Lat Pulldown (73 kg). A grip or width variant
-// moves the same load, so with no history of its own the lift starts from
+// done was logged as Wide-Grip Lat Pulldown (73 kg). A width variant (wide,
+// close, narrow, neutral) moves about the same load; a reverse or underhand
+// grip does not (EZ-Bar Reverse Curl is no start for an EZ-Bar Curl), so
+// those words keep the lifts apart, so with no history of its own the lift starts from
 // its most recent variant, and says which. Only grip and width words are
 // stripped: a machine, a cable or a barbell moves different loads, and a
 // one-arm version is never filled from a two-arm one (or the reverse).
-const GRIP_WORDS = /\b(wide|close|narrow|neutral|reverse|underhand|overhand|pronated|supinated|mixed)(-| )?(grip|stance)?\b/g;
+const GRIP_WORDS = /\b(wide|close|narrow|neutral)(-| )?(grip|stance)?\b/g;
 const ONE_SIDE = /\b(single|one)[- ](arm|leg)\b|\bunilateral\b/;
 export const movementOf = (name) => String(name || '').toLowerCase().replace(GRIP_WORDS, ' ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 const hasSets = (st) => Array.isArray(st?.lastSets) && st.lastSets.some((x) => x && (Number(x.weight) > 0 || Number(x.reps) > 0));
