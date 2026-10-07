@@ -4,10 +4,11 @@
 // exercised here without a vault.
 
 import { test } from 'node:test';
+import { localDateISO } from '../lib/localDate.js';
 import assert from 'node:assert/strict';
 import { analyze, crossContext } from '../lib/fuelCross.js';
 
-const iso = (daysAgo) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+const iso = (daysAgo) => { const d = new Date(); d.setDate(d.getDate() - daysAgo); return localDateISO(d); };
 const day = (daysAgo, p, kcal) => ({ date: iso(daysAgo), entries: [{ macros: { p, c: 100, f: 40, kcal } }] });
 const keys = (f) => f.map((x) => x.key);
 
@@ -139,7 +140,7 @@ test('cut goal: rest days out-eating training days by 300+ kcal, and training da
   assert.equal(goalWantsCut('Lean muscle gain with simultaneous fat loss'), true, 'a recomp is a cut too');
   assert.equal(goalWantsCut('Build muscle and strength'), false);
   const day = (date, kcal, p) => ({ date, entries: [{ name: 'x', macros: { kcal, p, c: 0, f: 0 } }] });
-  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return localDateISO(d); };
   const sessions = [1, 3, 5].map((n) => ({ date: iso(n) }));
   const days = [day(iso(1), 1900, 150), day(iso(3), 1850, 150), day(iso(5), 1950, 150), day(iso(2), 2800, 150), day(iso(4), 2900, 150), day(iso(6), 2950, 150)];
   const cut = analyze({ sessions, days, profile: { proteinFloorG: 150, targetKcal: 2200 }, goal: 'fat loss' });
@@ -158,7 +159,7 @@ test('cut goal: rest days out-eating training days by 300+ kcal, and training da
 // ---- [03] plan 5: the floor pattern draws its own numbers ----
 test('floor-most-days carries data + metric like its siblings', async () => {
   const { analyze } = await import('../lib/fuelCross.js');
-  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return localDateISO(d); };
   const days = [1, 2, 3, 4, 5].map((n) => ({ date: iso(n), entries: [{ name: 'x', macros: { kcal: 2000, p: n === 1 ? 160 : 100, c: 0, f: 0 } }] }));
   const [f] = analyze({ sessions: [], days, profile: { proteinFloorG: 150 }, goal: '' }).filter((x) => x.key === 'floor-most-days');
   assert.deepEqual(f.data, { kind: 'floor-pattern', under: 4, of: 5, floor: 150 });
@@ -168,7 +169,7 @@ test('floor-most-days carries data + metric like its siblings', async () => {
 // ---- [03] plan 6: protein after the session, timed entries only ----
 test('post-training protein: half or more of timed training days under 25g within 3h → finding; untimed days are not evidence; fewer than 5 timed days stays silent', async () => {
   const { analyze } = await import('../lib/fuelCross.js');
-  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+  const iso = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return localDateISO(d); };
   const finishedAt = (n, h) => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(h, 0, 0, 0); return d.toISOString(); };
   const entry = (time, p) => ({ name: 'x', time, macros: { kcal: 400, p, c: 0, f: 0 } });
   // 6 training days, finish 14:00; protein lands at 19:00 on five of them, at 15:00 on one
@@ -183,4 +184,25 @@ test('post-training protein: half or more of timed training days under 25g withi
   // retro logs (no time) are not evidence: with only 3 timed days the join stays silent
   const untimed = days.map((d, i) => (i < 3 ? d : { date: d.date, entries: [{ name: 'x', macros: { kcal: 400, p: 10, c: 0, f: 0 } }] }));
   assert.ok(!analyze({ sessions, days: untimed, profile: null, goal: '' }).find((x) => x.key === 'post-training-protein'));
+});
+
+// ---- 7 Oct 2026: the morning after daylight saving began ----
+// The cut and post-training tests failed only before 11:00 local in the
+// fortnight after 4 Oct: dates were made by local arithmetic and printed in
+// UTC, so two different days printed as the same date, and the lookback
+// cutoff was a UTC date. Pinned to that morning, the joins must still see
+// six distinct training and rest days.
+test('his local days, not UTC days, on the morning after daylight saving starts', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-06T23:30:00Z') });
+  const { analyze } = await import('../lib/fuelCross.js');
+  const local = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return localDateISO(d); };
+  const dates = [1, 2, 3, 4, 5, 6].map(local);
+  assert.equal(new Set(dates).size, 6, 'two days printed as one date');
+  const dayOf = (n, kcal) => ({ date: local(n), entries: [{ name: 'x', macros: { kcal, p: 150, c: 0, f: 0 } }] });
+  const out = analyze({
+    sessions: [1, 3, 5].map((n) => ({ date: local(n) })),
+    days: [dayOf(1, 1900), dayOf(3, 1850), dayOf(5, 1950), dayOf(2, 2800), dayOf(4, 2900), dayOf(6, 2950)],
+    profile: { proteinFloorG: 150, targetKcal: 2200 }, goal: 'fat loss',
+  });
+  assert.ok(out.find((f) => f.key === 'rest-outeats-training'), 'rest days out-eat training days on a cut');
 });

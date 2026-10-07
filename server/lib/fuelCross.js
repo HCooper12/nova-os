@@ -21,6 +21,7 @@ import { loadRotation } from './rotation.js';
 import { loadRecipeData } from './recipes.js';
 import { getFitnessGoals } from './fitnessGoals.js';
 import { loadSources, unreadable } from './sources.js';
+import { localDateISO } from './localDate.js';
 
 export const SOURCE_LABEL = { sessions: 'session history', foodLog: 'food log', recipes: 'recipe bank', goals: 'fitness goals', rotation: 'rotation' };
 
@@ -115,7 +116,10 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
   }
 
   // 2 — behavioural: are training days actually fuelled like training days?
-  const cutoff = new Date(Date.now() - LOOKBACK_DAYS * 86_400_000).toISOString().slice(0, 10);
+  // his days, not UTC's: food and sessions are keyed by his local date, and
+  // in the morning the UTC date is still yesterday (lib/localDate.js)
+  const cutoffDay = new Date(); cutoffDay.setDate(cutoffDay.getDate() - LOOKBACK_DAYS);
+  const cutoff = localDateISO(cutoffDay);
   const sessionDates = new Set(sessions.map((s) => s.date).filter((d) => d >= cutoff));
   const { trained, rest } = splitDays(days, sessionDates);
   if (trained.length >= MIN_LOGGED_DAYS && rest.length >= MIN_LOGGED_DAYS) {
