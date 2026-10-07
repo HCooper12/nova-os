@@ -56,6 +56,7 @@ import { valsChrome } from './vals/valsChrome.js';
 import { valsSummary } from './vals/valsSummary.js';
 import { valsTrainSummary } from './vals/valsTrainSummary.js';
 import { valsIndex } from './vals/valsIndex.js';
+import { valsSettings } from './vals/valsSettings.js';
 import { valsFuelSummary } from './vals/valsFuelSummary.js';
 import { valsInboxSummary } from './vals/valsInboxSummary.js';
 import { valsSessionSummary } from './vals/valsSessionSummary.js';
@@ -102,6 +103,7 @@ import { haptic } from './haptics.js';
 import { leaveMs, prefersReducedMotion } from './inboxLeave.js';
 import { parseInSession, parseStart, applyInSession, matchRoutine } from './gymVoice.js';
 import { parseSettings } from './settingsVoice.js';
+import { cleanPath } from './settingsModel.js';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
 // the element for the reply that arrives seconds later.
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
@@ -651,6 +653,14 @@ export default class App extends Component {
     mealPrepBusy: false,
     quickMinutes: '45', quickNote: '', quickBusy: false, quickPlan: null,
     liveBackups: null, restoreConfirm: null, pushState: 'checking',
+    // SETTINGS, direction A (7 Oct 2026): the pages pushed over the root,
+    // oldest first, and the row a search hit lights on arrival. Each page is
+    // a history entry of its own (openSettingsPage), so the back swipe and
+    // the browser's Back pop it. Quiet hours and the research browser's
+    // profile are read from the Mac when Settings opens.
+    settingsPath: (() => { try { return screenFromHash() === 'settings' && window.history.state?.novaView === 'settings' ? cleanPath(window.history.state.settingsPath) : []; } catch { return []; } })(),
+    settingsLit: null, settingsDemo: null,
+    liveQuietHours: null, quietHoursError: false, quietHoursBusy: false, liveBrowserStatus: null,
     liveProfile: null, profileEditing: false, profileDraft: { focus: '', priorities: '', bestSelf: '', notes: '' }, profileSaving: false,
     liveLearning: null,
     // offline outbox — writes queued while the backend is unreachable
@@ -995,8 +1005,11 @@ export default class App extends Component {
       // a recipe still morphs back into its card.
       const dragged = edgeDragInProgress();
       const changed = screenFromHash() !== this.state.screen;
+      // a Settings page slides itself (src/settingsNav.js): the whole-page
+      // transition would photograph the slide it is about to play
+      const settingsHop = !changed && this.state.screen === 'settings';
       const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() }, () => { if (changed && !dragged) this.riseMain(); });
-      if (dragged || changed) apply(); else this.withTransition(apply);
+      if (dragged || changed || settingsHop) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
     window.addEventListener('popstate', this.popH);
@@ -1155,7 +1168,7 @@ export default class App extends Component {
     // the new screen rises rather than cuts (riseMain, after the scroll is restored)
     // the summary Fuel page's Recipes list belongs to Fuel: leaving the
     // screen leaves it, so a tab hop back lands on Fuel itself
-    const apply = () => this.setState({ screen, ...(changed && this.state.fuelView ? { fuelView: null } : {}), ...extraState }, () => {
+    const apply = () => this.setState({ screen, ...(changed && this.state.fuelView ? { fuelView: null } : {}), ...(changed && (this.state.settingsPath || []).length ? { settingsPath: [], settingsLit: null } : {}), ...extraState }, () => {
       if (!changed || !this.mainRef?.current) return;
       const saved = NO_RESTORE.has(screen) ? 0 : (this.scrollPositions?.[screen] || 0);
       this.mainRef.current.scrollTop = saved;
@@ -3638,7 +3651,33 @@ export default class App extends Component {
     const st = typeof window === 'undefined' ? null : window.history.state;
     const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
     // the Fuel page's Edit sheet is the other history level over Fuel
-    return { ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.fuelCardsFromHistory() };
+    return { ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.fuelCardsFromHistory(), ...this.settingsFromHistory() };
+  }
+  // SETTINGS' PAGES (direction A, 7 Oct 2026). Each push is a history entry
+  // carrying the whole path, so popstate restores exactly the page he was on
+  // and the edge swipe (src/edgeBack.js) has somewhere to go back to. UI
+  // state only; nothing here writes.
+  openSettingsPage(id, lit = null) {
+    const next = cleanPath([...(this.state.settingsPath || []), id]);
+    if (next.length === (this.state.settingsPath || []).length) return;
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      window.history.pushState({ novaDepth: depthOf(st) + 1, novaView: 'settings', settingsPath: next }, '');
+    }
+    this.setState({ settingsPath: next, settingsLit: lit || null });
+  }
+  // On its own entry, closing IS going back; popH does the closing.
+  closeSettingsPage() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    if (st?.novaView === 'settings' && (st.settingsPath || []).length) { window.history.back(); return; }
+    this.setState((s) => ({ settingsPath: (s.settingsPath || []).slice(0, -1), settingsLit: null }));
+  }
+  settingsFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const want = screenFromHash() === 'settings' && st?.novaView === 'settings' ? cleanPath(st.settingsPath) : [];
+    const have = this.state.settingsPath || [];
+    if (want.length === have.length && want.every((p, i) => p === have[i])) return {};
+    return { settingsPath: want, settingsLit: null };
   }
   // popstate's half for everything that is a history entry of its own over a
   // screen: Edit Pinned, the Coach sheet on the summary Train page, the
@@ -6071,10 +6110,12 @@ export default class App extends Component {
   // (iCloud not configured) or any error just yields an empty list, not a crash.
   loadCalendarList() {
     const conn = getConnection();
-    if (!conn) return;
+    if (!conn || this.calendarListLoading) return;
+    this.calendarListLoading = true;
     api.calendars(conn)
       .then(({ calendars }) => this.setState({ liveCalendarList: calendars || [], calendarListError: false }))
-      .catch(() => this.setState({ liveCalendarList: null, calendarListError: true })); // error ≠ "no calendars found"
+      .catch(() => this.setState({ liveCalendarList: null, calendarListError: true })) // error ≠ "no calendars found"
+      .finally(() => { this.calendarListLoading = false; });
   }
   toggleCalendarHidden(url) {
     const conn = getConnection();
@@ -6091,10 +6132,23 @@ export default class App extends Component {
   // held, so the phone and the Mac's schedulers can never disagree about it.
   loadModelPrefs() {
     const conn = getConnection();
-    if (!conn) return;
+    if (!conn || this.modelPrefsLoading) return;
+    this.modelPrefsLoading = true;
     api.modelPrefs(conn)
       .then((prefs) => this.setState({ liveModelPrefs: prefs, modelPrefsError: false }))
-      .catch(() => this.setState({ liveModelPrefs: null, modelPrefsError: true })); // a failed load is NOT "no lanes"
+      .catch(() => this.setState({ liveModelPrefs: null, modelPrefsError: true })) // a failed load is NOT "no lanes"
+      .finally(() => { this.modelPrefsLoading = false; });
+  }
+  // EVERYTHING THE SETTINGS ROWS READ FROM THE MAC, once Settings is on
+  // screen (it mounts on arrival, and on a boot straight into #/settings,
+  // which the arrival hook in componentDidUpdate never sees). Each loader
+  // refuses a second request while one is in flight. Reads only.
+  ensureSettingsData() {
+    if (!getConnection() || this.state.connectionStatus === 'offline') return;
+    if (this.state.liveCalendarList == null) this.loadCalendarList();
+    if (this.state.liveModelPrefs == null) this.loadModelPrefs();
+    this.loadQuietHours();
+    this.loadBrowserStatus();
   }
   // One lane, one field. The server answers with the whole board, so what
   // renders after a write is always the server's truth rather than a guess.
@@ -6121,6 +6175,54 @@ export default class App extends Component {
         this.toastMsg('Could not reset: ' + e.message);
         this.loadModelPrefs();
       });
+  }
+  // THE UNDO FOR "RESET EVERY LANE" (Settings A, 7 Oct 2026). `before` is the
+  // board's lanes as they were; every lane that the reset changed is put
+  // back, one write each, through the same route a single lane uses, and the
+  // board is read again afterwards so the screen shows the server's truth.
+  restoreModelLanes(before) {
+    const conn = getConnection();
+    if (!conn || !Array.isArray(before)) return;
+    const now = new Map((this.state.liveModelPrefs?.lanes || []).map((l) => [l.id, l]));
+    const writes = before.filter((l) => {
+      const n = now.get(l.id);
+      return n && (n.model !== l.model || n.enabled !== l.enabled);
+    });
+    if (!writes.length) return;
+    this.setState({ modelPrefsBusy: '*' });
+    writes.reduce((p, l) => p.then(() => api.setModelLane(conn, l.id, { model: l.model, enabled: l.enabled })), Promise.resolve())
+      .then(() => { this.setState({ modelPrefsBusy: null }); this.toastMsg('Every lane is back as it was'); this.loadModelPrefs(); this.loadModelGates(); })
+      .catch((e) => { this.setState({ modelPrefsBusy: null }); this.toastMsg('Could not put the lanes back: ' + e.message); this.loadModelPrefs(); });
+  }
+  // QUIET HOURS, read and written from Settings (moved into App state on 7 Oct
+  // 2026 so the root row can say the window). The shape the row always had:
+  // optimistic, rolled back on a failure, and a failed read said in words.
+  loadQuietHours() {
+    const conn = getConnection();
+    if (!conn || this.quietHoursLoading) return;
+    this.quietHoursLoading = true;
+    this.setState({ quietHoursError: false });
+    api.quietHours(conn)
+      .then((q) => this.setState({ liveQuietHours: q, quietHoursError: false }))
+      .catch(() => this.setState({ quietHoursError: true }))
+      .finally(() => { this.quietHoursLoading = false; });
+  }
+  saveQuietHours(patch) {
+    const conn = getConnection();
+    const before = this.state.liveQuietHours;
+    if (!conn || !before || this.state.quietHoursBusy) return;
+    this.setState({ liveQuietHours: { ...before, ...patch }, quietHoursBusy: true });
+    api.setQuietHours(conn, patch)
+      .then((q) => this.setState({ liveQuietHours: q, quietHoursBusy: false }))
+      .catch((e) => { this.setState({ liveQuietHours: before, quietHoursBusy: false }); this.toastMsg(`Quiet hours not saved: ${e.message}`); });
+  }
+  // whether the Scout's own browser profile exists on the Mac. Deliberately
+  // not "signed in": the profile existing proves only that a page loaded
+  // once (server/routes/ingest.js says why)
+  loadBrowserStatus() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.browserStatus(conn).then((b) => this.setState({ liveBrowserStatus: b })).catch(() => {});
   }
 
   // The ask poll, attachable from a fresh boot too — an iOS reclaim used to
@@ -7814,7 +7916,10 @@ export default class App extends Component {
     // the Nova thread (mockup 63 D) reads the classic Voice fields, the glass
     // and the chrome's talk door from everything above; last of all, and null
     // off `summary` or off the Nova tab
-    return { ...withSession, ...valsNovaThread(this, ctx, withSession) };
+    // Settings (direction A, 7 Oct 2026) reads the voice slice, the settings
+    // slice and the rest timer from everything above; null off Settings
+    const withSettings = { ...withSession, ...valsSettings(this, ctx, withSession) };
+    return { ...withSettings, ...valsNovaThread(this, ctx, withSettings) };
   }
 
   // A research job dispatched from the conversation: poll the SAME pending
