@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 7 Oct 2026 — HIS INSPIRATION REEL for the redesign ("Dashboard V8",
+  https://www.instagram.com/reel/Dd_j23tzrLt/), studied frame by frame.
+  Borrow: one frosted pane over a real backdrop with tiles as a second glass
+  depth; a slim icon rail whose label slides out (the Mac sidebar); a bento
+  whose hero tile is live media; section changes that frost over and
+  resolve; big numerals with goal and average beneath; a value bubble riding
+  the sparkline. Not: Lucide, hover-lift on every card, its lime and blue.
+  First use: the MacBook desktop round. ROUND 2 PUBLISHED today: Leader 82,
+  Briefing 83, Shopping+Stash 84, Money+Code 85, Ambient+Console 86,
+  Notes/Journal/Galaxy 87 (with what each is for).
 - 5 Oct 2026 (late morning) — NOTES, JOURNAL AND GALAXY ROUND 1 PUBLISHED:
   15/79 https://claude.ai/artifact/Di2AruD7vjXEtsxxPPBbfD (Critical: of the six
   doors between the three screens one exists; "Linked in Galaxy" never opens
