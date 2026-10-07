@@ -1,46 +1,56 @@
 // WHICH AGENTS ARE WORKING RIGHT NOW: one answer for every surface that
 // counts them (his standing rule, 7 Oct 2026: "only true actual live working
 // agents at any time. Never false data"). The Home eyebrow, the Mac sidebar's
-// group header, the Index's Ops row and the roster's pulsing dots all read
-// this, so a count can never disagree with the lights beside it.
+// group header, the Index's Ops row, the roster's pulsing dots and the Org
+// map all agree, because the roster, the kind-to-agent table and the 30
+// minute "stuck, not working" cutoff are the Org map's own
+// (server/lib/orgMap.js, a pure module both sides import).
 //
-// An agent is working when this client has a job of its in flight, or when a
-// record of one of its kinds is still classifying on the rails (server-side
-// work, whoever started it, on any device). Nothing else counts: an agent
-// that exists but is idle is not "live".
+// An agent is working when a record of one of its kinds is classifying on
+// the rails and started within WORKING_MS (server work, any device), or when
+// this client has a job of its in flight. Nothing else counts: an agent that
+// exists but is idle is not "live".
+import { BEINGS, WORKING_MS, beingForRecord } from '../../server/lib/orgMap.js';
 
-export const AGENT_KINDS = {
-  Commander: ['dispatch', 'plan-today', 'review', 'followup'],
-  Coach: ['coach', 'training-check', 'week-plan', 'weekly-debrief', 'meal-prep'],
-  CFO: ['cfo', 'money'],
-  Studio: ['studio', 'idea', 'idea-outline'],
-  Researcher: ['research'],
-  Watcher: ['video'],
-  Guardian: ['guardian'],
-};
-
+// this client's own in-flight work, by Org map being id
 export function localWork(st) {
   return {
-    Commander: !!(st.calCmdBusy || st.dispatchBusy),
-    Coach: !!(st.coachBusy || st.quickBusy || st.mealPrepBusy),
-    CFO: !!(st.moneyBusy || st.moneyScanBusy),
-    Studio: false,
-    Researcher: (st.voiceChat || []).some((m) => m.research?.status === 'running'),
+    commander: !!(st.calCmdBusy || st.dispatchBusy),
+    coach: !!(st.coachBusy || st.quickBusy),
+    mealprep: !!st.mealPrepBusy,
+    cfo: !!(st.moneyBusy || st.moneyScanBusy),
+    researcher: (st.voiceChat || []).some((m) => m.research?.status === 'running'),
     // 'fetching' is the watch toolchain pulling a transcript for a
     // URL-only vault weave; the weave itself shows in its own overlay
-    Watcher: st.ingestStatus === 'fetching',
-    Guardian: !!st.guardianBusy,
+    watcher: st.ingestStatus === 'fetching',
+    guardian: !!st.guardianBusy,
+    leader: !!st.leaderBusy,
+    // a live scene is Practice working (the Org map's 'scene' tell)
+    practice: !!(st.practiceScene || st.practiceBusy),
   };
 }
 
-export function classifyingKinds(st) {
-  return new Set((st.liveInbox?.items || []).filter((r) => r.status === 'classifying').map((r) => r.kind));
+export function workingBeingIds(st, now = Date.now()) {
+  const ids = new Set(Object.entries(localWork(st)).filter(([, on]) => on).map(([id]) => id));
+  for (const r of st.liveInbox?.items || []) {
+    if (r.status !== 'classifying' || !r.createdAt || now - new Date(r.createdAt).getTime() >= WORKING_MS) continue;
+    const b = beingForRecord(r);
+    if (BEINGS.some((x) => x.id === b)) ids.add(b);
+  }
+  return ids;
 }
 
-export function workingAgentNames(st) {
-  const local = localWork(st);
-  const active = classifyingKinds(st);
-  return Object.keys(AGENT_KINDS).filter((name) => local[name] || AGENT_KINDS[name].some((k) => active.has(k)));
+export function workingAgentNames(st, now = Date.now()) {
+  const ids = workingBeingIds(st, now);
+  return BEINGS.filter((b) => ids.has(b.id)).map((b) => b.name);
+}
+
+// The classifying record a working agent is on, for the roster's hover hint.
+export function activeRecordOf(st, name, now = Date.now()) {
+  const being = BEINGS.find((b) => b.name === name);
+  if (!being) return null;
+  return (st.liveInbox?.items || []).find((r) => r.status === 'classifying' && r.createdAt
+    && now - new Date(r.createdAt).getTime() < WORKING_MS && beingForRecord(r) === being.id) || null;
 }
 
 // The words. Demo and offline say nothing: demo has no agents, and an

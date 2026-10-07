@@ -3,7 +3,8 @@ import { spendView } from '../modelSpendView.js';
 import { sinceFor, startedFrom } from '../jobClock.js';
 import { TAB_META, tabLabel, romanFor } from '../tabOrder.js';
 import { AGENTS } from './shared.js';
-import { AGENT_KINDS, localWork, classifyingKinds } from './agentsWorking.js';
+import { workingBeingIds, activeRecordOf } from './agentsWorking.js';
+import { beingForRecord } from '../../server/lib/orgMap.js';
 import { dtf } from './fmt.js';
 import { glassOf } from '../glassBeats.js';
 import { thinkingOf, contestOf } from '../novaThreadFacts.js';
@@ -342,29 +343,26 @@ export function valsChrome(app, ctx) {
     // lands, and otherwise sits dim. A light that glows constantly says
     // nothing — lights are receipts.
     agents: (() => {
-      // one source with the counts: src/vals/agentsWorking.js
-      const KINDS = AGENT_KINDS;
-      const WORKING = localWork(st);
-      const activeKinds = classifyingKinds(st);
-      const cutoff = Date.now() - 5 * 60_000;
+      // one source with the counts: src/vals/agentsWorking.js (the Org map's rules)
+      const now = Date.now();
+      const workingIds = workingBeingIds(st, now);
+      const cutoff = now - 5 * 60_000;
       const recent = new Set();
       for (const r of st.liveInbox?.items || []) {
         if (!r.createdAt || new Date(r.createdAt).getTime() < cutoff) continue;
-        for (const name of Object.keys(KINDS)) if (KINDS[name].includes(r.kind)) recent.add(name);
+        recent.add(beingForRecord(r));
       }
       const dot = { marginLeft: '2px', width: '6px', height: '6px', borderRadius: '50%', flex: 'none' };
       return AGENTS.map((a, i) => {
-        const working = WORKING[a.name] || (KINDS[a.name] || []).some((k) => activeKinds.has(k));
+        const working = workingIds.has(a.id);
         // hover on a pulsing dot names the actual job — detail without pixels
-        const activeRec = working
-          ? (st.liveInbox?.items || []).find((r) => r.status === 'classifying' && (KINDS[a.name] || []).includes(r.kind))
-          : null;
+        const activeRec = working ? activeRecordOf(st, a.name, now) : null;
         return {
           name: a.name, role: a.role, on: a.on, working,
           hint: activeRec ? `working: ${activeRec.text?.slice(0, 120) || activeRec.kind}` : working ? 'working…' : undefined,
           dotStyle: working
             ? { ...dot, background: 'var(--nv-cy)', boxShadow: '0 0 9px var(--nv-cy)', animation: `novaPulse ${1.1 + i * 0.1}s infinite var(--nv-anim)` }
-            : recent.has(a.name)
+            : recent.has(a.id)
               ? { ...dot, background: 'var(--nv-cy)', boxShadow: '0 0 7px var(--nv-cy)' }
               : { ...dot, background: a.on ? 'color-mix(in srgb, var(--nv-cy) 38%, transparent)' : 'rgba(232,236,246,.16)' },
         };

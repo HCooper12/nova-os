@@ -20,11 +20,12 @@ test('nothing in flight counts nobody, and says nothing on the eyebrow', () => {
   assert.equal(l.group, 'AGENTS · NONE WORKING');
 });
 
+const now = new Date().toISOString();
 test('a local job and a classifying record each count their agent once', () => {
   const st = { coachBusy: true, liveInbox: { items: [
-    { kind: 'research', status: 'classifying' },
-    { kind: 'coach', status: 'classifying' },
-    { kind: 'money', status: 'filed' },
+    { kind: 'research', status: 'classifying', createdAt: now },
+    { kind: 'coach', status: 'classifying', createdAt: now },
+    { kind: 'money', status: 'filed', createdAt: now },
   ] } };
   assert.deepEqual(workingAgentNames(st).sort(), ['Coach', 'Researcher']);
   const l = agentsWorkingLabels(st, live);
@@ -48,4 +49,19 @@ test('no surface counts the roster list any more', async () => {
     assert.doesNotMatch(src, /AGENTS\.filter\(\(a\) => a\.on\)/, `${f} counts the roster`);
     assert.doesNotMatch(src, /AGENTS LIVE|OF \$\{AGENTS\.length\}/, `${f} still claims a live count`);
   }
+});
+
+test('the same ten agents and rules as the Org map: Meal Prep is its own agent, and a record stuck past 30 minutes is not working', () => {
+  const old = new Date(Date.now() - 31 * 60e3).toISOString();
+  const fresh = new Date().toISOString();
+  assert.deepEqual(workingAgentNames({ liveInbox: { items: [{ kind: 'meal-prep', status: 'classifying', createdAt: fresh }] } }), ['Meal Prep']);
+  assert.deepEqual(workingAgentNames({ liveInbox: { items: [{ kind: 'coach', status: 'classifying', createdAt: old }] } }), []);
+  assert.deepEqual(workingAgentNames({ leaderBusy: true, practiceScene: { slug: 'x' } }), ['Leader', 'Practice']);
+  assert.deepEqual(workingAgentNames({ liveInbox: { items: [{ kind: 'read-next', status: 'classifying', createdAt: fresh }] } }), ['Librarian']);
+});
+
+test('the roster is the Org map\'s ten', async () => {
+  const { AGENTS } = await import('../../src/vals/shared.js');
+  const { BEINGS } = await import('../lib/orgMap.js');
+  assert.deepEqual(AGENTS.map((a) => a.id), BEINGS.map((b) => b.id));
 });

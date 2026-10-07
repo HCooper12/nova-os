@@ -11,13 +11,18 @@ export const mono = "var(--nv-font-mono)";
 // being live: what counts as working is src/vals/agentsWorking.js, and no
 // surface may show a count from this list (his rule, 7 Oct 2026).
 export const AGENTS = [
-  { name: 'Commander', role: 'PLANNING', on: true },
-  { name: 'Coach', role: 'FITNESS', on: true },
-  { name: 'CFO', role: 'MONEY', on: true },
-  { name: 'Studio', role: 'CONTENT', on: true },
-  { name: 'Researcher', role: 'WEB', on: true },
-  { name: 'Watcher', role: 'VIDEO', on: true },
-  { name: 'Guardian', role: 'BACKUPS', on: true },
+  // the Org map's ten (server/lib/orgMap.js BEINGS), in its order; `id` is
+  // the being id the working rule keys on
+  { id: 'commander', name: 'Commander', role: 'PLANNING', on: true },
+  { id: 'coach', name: 'Coach', role: 'FITNESS', on: true },
+  { id: 'cfo', name: 'CFO', role: 'MONEY', on: true },
+  { id: 'guardian', name: 'Guardian', role: 'BACKUPS', on: true },
+  { id: 'researcher', name: 'Researcher', role: 'WEB', on: true },
+  { id: 'watcher', name: 'Watcher', role: 'VIDEO', on: true },
+  { id: 'librarian', name: 'Librarian', role: 'LIBRARY', on: true },
+  { id: 'mealprep', name: 'Meal Prep', role: 'FUEL', on: true },
+  { id: 'leader', name: 'Leader', role: 'LEADERSHIP', on: true },
+  { id: 'practice', name: 'Practice', role: 'REHEARSAL', on: true },
 ];
 
 export const bubble = (who) => who === 'you'
