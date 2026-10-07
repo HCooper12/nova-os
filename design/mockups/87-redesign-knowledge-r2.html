@@ -1,0 +1,1666 @@
+<title>Knowledge Round Two</title>
+<!--
+  87 · NOTES, JOURNAL AND GALAXY, ROUND 2 (7 October 2026)
+  Round 1 was mockup 79 (three directions: A The page, B The map, C Three
+  rooms), audited in design/audits/redesign-2026-09/15-knowledge.md. His
+  answer, 7 Oct, verbatim:
+    "I need support for further understanding of the purpose of these
+     sections and then further refinement of their look and use"
+
+  SO THE PAGE OPENS ON PURPOSE. Part 1 says what each screen is, where its
+  pages come from, who reads them, the job only it does, when in his week he
+  would open it, and where it overlaps another screen. Every claim is from
+  the code, and every number about his vault is a count read on 7 Oct.
+
+  HOW THE COUNTS WERE READ. The server's own Vault reader (server/lib/vault.js,
+  the same walk /api/notes and /api/graph use) was run read-only over his
+  vault from a scratch script, plus folder counts and the journal's section
+  headings. Nothing was written. No title, body or entry text appears here:
+  only counts by folder, by kind and by the code's own provenance labels
+  ("Morning dispatch", "Session receipt"), which are strings in src/server.
+
+  WHAT THE CODE SAYS (sources):
+    Notes   server/routes/notes.js (/notes, /notes/detail: every .md under
+            Wiki/ and Raw/), server/lib/vault.js, src/vals/valsNotes.js
+            (live search matches titles only, :19), the doors into Notes
+            (App.jsx:4809 Daily review card, :10507 Practice; valsMission.js
+            :665; valsMisc.js:456; valsInbox.js:616, :635; valsLibrary.js:123,
+            :165).
+    Journal server/lib/journal.js (Wiki/Journal/<date>.md, one heading per
+            entry carrying its time, kind and label), routes/journal.js, every writer: dispatch.js:577,
+            planToday.js:285, dailyReview.js:332, coach.js:681,
+            weeklyDebrief.js:299, trainingCheck.js, brainWeek.js:125,
+            followUps.js:68, guardian.js, cfoReport.js:80, leader.js:1005,
+            coachReflection.js:242, verbs.js:440 ("Said to Nova"), the composer
+            and the reflect card (routes/journal.js). Readers: weeklyDebrief.js
+            :182, healthInsight.js:147, commitments.js:64 and :171, and Ask
+            Nova through Claude Code in the vault.
+    Galaxy  /api/graph (routes/notes.js), App.jsx:6778 (nodes.slice(0, 400)),
+            galaxyLayout.js:103, valsMisc.js:59-96 (kinds, Recency, Compost),
+            server/lib/compost.js (orphans, stale captures and seeds; its
+            proposals are decided in the Inbox, Inbox.jsx:536-606).
+
+  ROUND 2, ONE DIRECTION PER SCREEN, built from round 1's strongest parts:
+    Notes   "What you know, and the reader every door opens". A's page with
+            ONE row of companion capsules; C's grouped rows; the kinds rail
+            becomes one proportion bar he can tap; Nova's own records fold
+            behind one chip; a page ends in its neighbourhood, drawn.
+    Journal "The day, told": a day is its hours, and every entry says who
+            wrote it. Nova's briefs sit on the rail; his own line closes the
+            day in the one composer. A's track per day, C's Today card.
+    Galaxy  shown both ways, because Part 1 argues it is thin on its own:
+            its own screen with a sharper job (what arrived and where it
+            joined, and the islands), or B's idea made small: a Map view
+            inside Notes. His choice.
+  Plus the doors: the six between the three screens, and the four from
+  Home, the Library and the Inbox, each wearing the colour of where it goes.
+
+  COLOUR. Notes cyan (--nv-cy), Journal violet (--nv-vi), Galaxy starlight
+  (--nv-nova), as proposed in round 1 and not yet decided. Inside the
+  Journal, Nova's words wear starlight and the Coach's wear his own coral
+  (--nv-m-chest); his own words wear the Journal's violet and the serif. Gold
+  appears only on Compost's islands (waiting on his decision) and on Your
+  calls. The page kinds keep today's NOTE_TYPE_COLOR, each with a glyph.
+
+  DEMO CONTENT ONLY, inside the phones: every page, title, entry, question,
+  star and phone count is invented and labelled. The real counts are in
+  Part 1 only, and they are counts.
+
+  Reduced motion: every move becomes a 200 ms cross-fade, the map never
+  moves, words appear whole. Preview it from the bar at the top. Quarter
+  speed slows every move. No sideways scroll at 390.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --void:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.78);--ink3:rgba(232,236,246,.62);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.07);--ring:rgba(255,255,255,.14);--hi:rgba(255,255,255,.2);
+  --notes:#59e6ff;--journal:#8f7bff;--galaxy:#c9d8ff;--nova:#c9d8ff;--coach:#ff8a7a;
+  --gold:#e0b26a;--warn:#e08383;
+  --slow:1;
+  color-scheme:dark;
+}
+html.slow{--slow:4}
+*{box-sizing:border-box}
+html{background:var(--void)}
+body{margin:0;background:var(--void);color:var(--ink);font:16px/1.5 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{-webkit-appearance:none;appearance:none;font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;text-align:inherit}
+:focus-visible{outline:2px solid var(--notes);outline-offset:3px}
+.ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.gi{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.num{font-family:var(--round);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ============ the page around the phones ============ */
+.wrap{max-width:1160px;margin:0 auto;padding:28px 16px 96px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+.wrap>h1{margin:0 0 12px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 12px;max-width:38em;font:400 22px/1.35 var(--serif);color:var(--ink2);text-wrap:pretty}
+.lede b{font-weight:400;color:var(--ink)}
+.demo{margin:0 0 20px;max-width:48em;font-size:13px;color:var(--ink3)}
+.bar{position:sticky;top:0;z-index:50;margin:0 -16px;padding:8px 16px;background:rgba(6,7,13,.82);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3)}
+.bar .in{max-width:1160px;margin:0 auto;display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none}
+.bar .in::-webkit-scrollbar{display:none}
+.jump{flex:none;display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);text-decoration:none;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.jump i{width:8px;height:8px;margin-right:8px;border-radius:50%;background:var(--c)}
+.tg{flex:none;display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:transparent;box-shadow:inset 0 0 0 1px var(--ring)}
+.tg[aria-pressed="true"]{color:#06070d;background:var(--ink)}
+.sp{flex:1}
+.jump:active,.tg:active,.seg button:active{transform:scale(.97);transition:transform calc(120ms*var(--slow)) ease-out}
+
+section.part{margin-top:56px}
+.ph2{display:flex;align-items:baseline;gap:12px;margin:0 0 6px}
+.ph2 .pn{font:600 13px var(--ui);color:var(--ink3)}
+section.part>h2,.ph2 h2{margin:0;font:700 28px/1.15 var(--ui);letter-spacing:-.02em;text-wrap:balance}
+.sub{margin:6px 0 18px;max-width:44em;color:var(--ink2);text-wrap:pretty}
+h3.sh{margin:40px 0 6px;font:700 22px/1.2 var(--ui);letter-spacing:-.01em}
+
+/* the vault band */
+.band{position:relative;max-width:1000px;padding:18px 16px 16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring),inset 0 1px 0 var(--hi)}
+.band h4{margin:0;font:400 22px/1.3 var(--serif)}
+.band h4 .num{font-family:var(--round)}
+.band .bm{margin:4px 0 14px;font-size:13px;color:var(--ink3)}
+.strip{position:relative;display:flex;height:34px;border-radius:10px;overflow:hidden;gap:2px}
+.strip .s{position:relative;height:100%;background:var(--c);transform-origin:0 50%;min-width:3px}
+.strip .s.rec{background:repeating-linear-gradient(135deg,rgba(232,236,246,.28) 0 4px,rgba(232,236,246,.12) 4px 8px)}
+.strip.go .s{animation:grow calc(520ms*var(--slow)) var(--ease-out) both;animation-delay:calc(var(--i)*45ms*var(--slow))}
+@keyframes grow{from{transform:scaleX(0);opacity:.3}to{transform:none;opacity:1}}
+.cut{position:absolute;top:-6px;bottom:-6px;width:2px;margin-left:-1px;border-radius:1px;background:var(--galaxy);box-shadow:0 0 10px var(--galaxy);opacity:0}
+.band.go .cut{animation:fadein calc(300ms*var(--slow)) ease-out calc(900ms*var(--slow)) both}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:13px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.legend i.rec{background:repeating-linear-gradient(135deg,rgba(232,236,246,.5) 0 2px,rgba(232,236,246,.15) 2px 4px)}
+.reach{display:grid;gap:10px;margin-top:16px}
+.rr{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.rr b{font:600 15px var(--ui);color:var(--c)}
+.rtrack{position:relative;height:26px}
+.rtrack .span{position:absolute;top:8px;height:10px;border-radius:5px;background:color-mix(in srgb,var(--c) 34%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 70%,transparent);transform-origin:0 50%}
+.band.go .rtrack .span{animation:grow calc(500ms*var(--slow)) var(--ease-out) both;animation-delay:calc((600ms + var(--i)*140ms)*var(--slow))}
+.rr small{margin-top:-2px;font-size:13px;color:var(--ink3)}
+
+/* purpose cards */
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:22px}
+@media (max-width:1000px){.cards{grid-template-columns:minmax(0,1fr)}}
+.pc{position:relative;padding:18px 16px 16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring),inset 0 1px 0 var(--hi);overflow:hidden}
+.pc::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,var(--c),transparent 80%)}
+.pc .ttl{display:flex;align-items:center;gap:10px}
+.pc .ttl .tile{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c)}
+.pc .ttl h3{margin:0;font:700 22px/1.2 var(--ui)}
+.pc .ttl .vd{margin-left:auto;font:600 13px var(--ui);padding:5px 10px;border-radius:12px;color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent)}
+.pc .is{margin:12px 0 0;font:400 20px/1.35 var(--serif);color:var(--ink);text-wrap:pretty}
+.pc dl{margin:14px 0 0;display:grid;gap:12px}
+.pc dt{font:600 13px var(--ui);color:var(--ink3)}
+.pc dd{margin:4px 0 0;color:var(--ink2);font-size:15px;text-wrap:pretty}
+.flow{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.who{--c:rgba(232,236,246,.45);display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:3px 10px 3px 8px;border-radius:14px;font-size:13px;color:var(--ink);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px var(--ring)}
+.who i{width:8px;height:8px;border-radius:50%;background:var(--c,var(--ink3))}
+.who.none{color:var(--ink3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);background:none;border:0;font-style:italic}
+.mom{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:start;margin-top:8px}
+.mom .d{display:grid;place-items:center;height:44px;border-radius:12px;font:600 13px/1.1 var(--ui);text-align:center;color:var(--c);background:color-mix(in srgb,var(--c) 11%,transparent)}
+.mom p{margin:0;font-size:15px;color:var(--ink2)}
+.authors{margin-top:8px}
+.abar{display:flex;height:16px;border-radius:6px;overflow:hidden;gap:2px}
+.abar span{height:100%;background:var(--c);transform-origin:0 50%}
+.abar.go span{animation:grow calc(600ms*var(--slow)) var(--ease-out) both;animation-delay:calc(var(--i)*120ms*var(--slow))}
+.akey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:13px;color:var(--ink2)}
+.akey span{display:inline-flex;align-items:center;gap:6px}
+.akey i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.akey .zero{color:var(--ink)}
+.akey .zero i{background:none;box-shadow:inset 0 0 0 1.5px var(--journal)}
+.labels{margin:10px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 14px;font-size:13px;color:var(--ink3)}
+.labels li{display:flex;justify-content:space-between;gap:8px;border-bottom:.5px solid var(--sep);padding:3px 0}
+.labels .num{color:var(--ink2);font-weight:600}
+
+/* overlaps */
+.ovl{display:grid;gap:10px;max-width:1000px}
+.ov{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px 20px;padding:16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+@media (max-width:760px){.ov{grid-template-columns:minmax(0,1fr)}}
+.ov h4{margin:0 0 4px;font:600 17px/1.3 var(--ui);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ov h4 .pair{display:inline-flex;gap:4px}
+.ov h4 .pair i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.ov p{margin:0;color:var(--ink2);font-size:15px;text-wrap:pretty}
+.opts{display:flex;flex-wrap:wrap;gap:6px;align-content:start}
+.opt{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 12px;border-radius:16px;font-size:13px;color:var(--ink3);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.opt.lean{color:var(--ink);background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+.opt.lean::before{content:"Lean";font:600 11px var(--ui);color:var(--void);background:var(--ink);padding:1px 6px;border-radius:8px}
+.opts p{flex-basis:100%;margin-top:4px;font-size:13px;color:var(--ink3)}
+
+/* studio around each phone */
+.studio{display:grid;grid-template-columns:390px minmax(0,1fr);gap:40px;align-items:start;margin-top:18px}
+@media (max-width:900px){.studio{grid-template-columns:minmax(0,1fr);gap:22px}}
+.pcol{min-width:0}
+.pbox{position:relative;width:calc(390px*var(--z,1));height:calc(844px*var(--z,1));margin:0 auto}
+.under{max-width:390px;margin:14px auto 0;display:grid;gap:10px}
+.seg{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);min-height:44px;padding:3px;border-radius:22px;background:rgba(120,120,128,.22)}
+.seg button{position:relative;z-index:1;min-width:0;min-height:38px;padding:0 4px;border-radius:19px;font:600 13px var(--ui);color:var(--ink2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color calc(200ms*var(--slow)) ease,background-color calc(200ms*var(--slow)) ease}
+.seg button[aria-pressed="true"]{color:var(--ink);background:var(--hi);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12)}
+.again{justify-self:start;min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.side h4{margin:0 0 6px;font:700 20px/1.25 var(--ui)}
+.side .lead{margin:0 0 14px;font:400 20px/1.35 var(--serif);color:var(--ink2);text-wrap:pretty}
+.side .st{margin:0 0 10px;padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.side .st b{display:block;margin-bottom:2px;font-weight:600}
+.side .st p{margin:0;color:var(--ink2);font-size:15px;text-wrap:pretty}
+.side .st .from{display:inline-block;margin-left:6px;font:600 11px var(--ui);color:var(--ink3);padding:1px 7px;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);vertical-align:2px}
+.side .st .new{color:var(--gold);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 50%,transparent)}
+.now{margin:0 0 12px;padding:12px 16px;border-radius:16px;font-size:15px;color:var(--ink);background:color-mix(in srgb,var(--c,var(--notes)) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c,var(--notes)) 30%,transparent)}
+.now b{color:var(--c,var(--notes))}
+.both{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;margin-top:18px}
+.both>div{min-width:0}
+@media (max-width:900px){.both{grid-template-columns:minmax(0,1fr)}}
+.both h4{margin:0 0 4px;text-align:center;font:700 17px var(--ui)}
+.both .cap{margin:0 auto 12px;max-width:390px;text-align:center;font-size:15px;color:var(--ink2)}
+
+/* doors */
+.doors{max-width:1000px;padding:16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.doors svg{display:block;width:100%;max-width:560px;height:auto;margin:0 auto}
+.dlist{margin:14px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px}
+@media (max-width:700px){.dlist{grid-template-columns:minmax(0,1fr)}}
+.dlist li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;font-size:15px;color:var(--ink2)}
+.dlist li i{margin-top:6px;width:12px;height:12px;border-radius:50%;background:var(--c)}
+.dlist b{color:var(--ink);font-weight:600}
+.dlist em{font-style:normal;font-size:13px;color:var(--ink3)}
+
+/* tables */
+.ft{list-style:none;margin:0;padding:0;max-width:1000px}
+.ft li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:4px 20px;padding:12px 4px;border-top:.5px solid var(--sep)}
+.ft li:first-child{border-top:0}
+.ft .was{color:var(--ink3)}
+.ft .is2{color:var(--ink)}
+@media (max-width:620px){.ft li{grid-template-columns:minmax(0,1fr)}}
+.states{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:1000px}
+@media (max-width:900px){.states{grid-template-columns:minmax(0,1fr)}}
+.sblock{padding:16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.sblock h4{margin:0 0 8px;font:600 17px var(--ui);color:var(--c)}
+.sblock dl{margin:0;display:grid;grid-template-columns:84px minmax(0,1fr);gap:8px 12px}
+.sblock dt{color:var(--ink3);font-size:15px}
+.sblock dd{margin:0;font-size:15px;color:var(--ink2)}
+.sblock q{font-family:var(--serif);color:var(--ink);quotes:none}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:1000px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--round);background:color-mix(in srgb,var(--gold) 16%,transparent);color:var(--gold)}
+.decide b{display:block;font-weight:600;margin-bottom:4px}
+.decide span{display:block;color:var(--ink2);font-size:15px}
+.decide span+span{margin-top:4px}
+.decide span i{font-style:normal;font-weight:600;color:var(--ink)}
+
+/* ============ the phone ============ */
+.phone{position:absolute;left:0;top:0;width:390px;height:844px;border-radius:52px;overflow:hidden;isolation:isolate;transform:scale(var(--z,1));transform-origin:0 0;background:#05060c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 80px -30px rgba(0,0,0,.9);font:17px/1.35 var(--ui);color:var(--ink)}
+.sky{position:absolute;inset:0;z-index:0;background:radial-gradient(70% 40% at 12% 4%,color-mix(in srgb,var(--h) 16%,transparent),transparent 62%),linear-gradient(180deg,#05060c 0%,#080b1c 38%,#0c1230 72%,#121a3a 100%)}
+.stage{position:absolute;inset:0;z-index:5;overflow:hidden}
+.status{position:absolute;top:0;left:0;right:0;height:50px;z-index:40;pointer-events:none}
+.status .time{position:absolute;left:34px;top:15px;font:600 16px/1 var(--ui)}
+.status .island{position:absolute;top:11px;left:50%;width:122px;height:35px;margin-left:-61px;border-radius:20px;background:#000}
+.status .dm{position:absolute;right:66px;top:16px;font:600 11px/1 var(--ui);color:rgba(232,236,246,.55)}
+.status .bat{position:absolute;right:30px;top:17px;width:25px;height:12px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.status .bat::after{content:"";position:absolute;inset:2px 6px 2px 2px;border-radius:2px;background:var(--ink)}
+.dock{position:absolute;left:12px;right:12px;bottom:10px;z-index:30;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center;pointer-events:none}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:rgba(16,20,36,.6);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 var(--hi),0 12px 30px -14px rgba(0,0,0,.5)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:56px;border-radius:28px;font:500 11px var(--ui);color:rgba(232,236,246,.5)}
+.tab .ic{width:22px;height:22px;stroke-width:1.8}
+.tab.on{color:#59e6ff;background:rgba(89,230,255,.1)}
+.orb{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:rgba(16,20,36,.6);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 var(--hi);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.orb::before{content:"";width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+.dbadge{position:absolute;top:54px;right:20px;z-index:41;font:600 11px var(--ui);color:var(--ink3);padding:2px 8px;border-radius:9px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18);pointer-events:none}
+
+.scr{position:absolute;inset:0;padding:56px 16px 120px;overflow:hidden}
+.scroll{will-change:transform;transition:transform calc(520ms*var(--slow)) var(--ease)}
+.lt{display:flex;align-items:center;gap:8px;min-height:44px}
+.lt h1{flex:1;min-width:0;margin:0;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.ib{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--h);background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring),inset 0 1px 0 var(--hi);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.news{margin:4px 0 0;font:400 22px/1.27 var(--serif);color:var(--ink2);text-wrap:balance}
+.news b{font-weight:400;color:var(--ink)}
+.meta{margin:0;font:400 13px/1.35 var(--ui);color:var(--ink3)}
+.glass{background:var(--card);border-radius:20px;box-shadow:inset 0 0 0 .5px var(--ring),inset 0 1px 0 var(--hi),0 14px 34px -18px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(22px) saturate(1.5);backdrop-filter:blur(22px) saturate(1.5)}
+.down{transform:scale(.97);transition:transform calc(120ms*var(--slow)) ease-out}
+.touch{position:absolute;z-index:60;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,255,255,.22);box-shadow:0 0 0 1.5px rgba(255,255,255,.55);pointer-events:none;opacity:0}
+.ghead{margin:18px 4px 6px;font:400 13px var(--ui);color:var(--ink3);display:flex;justify-content:space-between}
+.grp{overflow:hidden}
+.row{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:6px 14px}
+.row+.row::before{content:"";position:absolute;left:54px;right:0;top:0;height:.5px;background:var(--sep)}
+.row .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .w{flex:none;font-size:13px;color:var(--ink3)}
+.kt{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.kt .gi{width:17px;height:17px}
+.in-rise{animation:rise calc(340ms*var(--slow)) var(--ease-out) backwards;animation-delay:calc(var(--d,0)*1ms*var(--slow))}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.fade{transition:opacity calc(240ms*var(--slow)) ease}
+.gone{opacity:0;pointer-events:none}
+
+/* Notes: what you know */
+.know{margin-top:14px;padding:12px 12px 4px}
+.kbar{display:flex;height:14px;gap:2px;border-radius:7px;overflow:hidden}
+.kbar span{height:100%;background:var(--c);transform-origin:0 50%;transition:opacity calc(240ms*var(--slow)) ease}
+.kbar.go span{animation:grow calc(520ms*var(--slow)) var(--ease-out) backwards;animation-delay:calc(var(--i)*55ms*var(--slow))}
+.kbar span.rec{background:repeating-linear-gradient(135deg,rgba(232,236,246,.3) 0 3px,rgba(232,236,246,.12) 3px 6px)}
+.kbar span.dim{opacity:.18}
+.kchips{display:flex;flex-wrap:wrap;gap:0 2px;margin:6px -4px 0}
+.kc{display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:0 8px;border-radius:22px;font:400 15px var(--ui);color:var(--ink2);transition:background-color calc(200ms*var(--slow)) ease,color calc(200ms*var(--slow)) ease}
+.kc .gi{width:15px;height:15px;color:var(--c)}
+.kc .num{font-size:13px;color:var(--ink3);font-weight:600}
+.kc.on{background:color-mix(in srgb,var(--c) 20%,transparent);color:var(--ink)}
+.kc.off{color:var(--ink3)}
+.search{display:flex;align-items:center;gap:8px;height:44px;margin-top:10px;padding:0 14px;border-radius:22px;background:rgba(120,120,128,.24);color:var(--ink3);font:400 17px var(--ui)}
+
+/* a page */
+.npg{position:absolute;inset:0;z-index:20;background:linear-gradient(180deg,#070914 0%,#0a0f24 55%,#0e1430 100%)}
+.pbar{position:absolute;top:0;left:0;right:0;height:98px;padding:50px 8px 4px;display:flex;align-items:center;z-index:3;background:linear-gradient(180deg,#070914 70%,rgba(7,9,20,0))}
+.back{display:inline-flex;align-items:center;gap:2px;height:44px;padding:0 12px 0 4px;border-radius:22px;color:var(--bc,var(--notes));font:400 17px var(--ui)}
+.back .ic{width:24px;height:24px}
+.pin{position:absolute;top:98px;left:0;right:0;bottom:0;padding:0 20px 120px;overflow:hidden}
+.kline{display:flex;align-items:center;gap:8px;font:400 13px var(--ui);color:var(--ink3)}
+.kline .kt{width:24px;height:24px;border-radius:7px}
+.kline .kt .gi{width:15px;height:15px}
+.tag{font:600 13px var(--ui);padding:2px 9px;border-radius:10px;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.ptitle{margin:8px 0 0;font:400 34px/1.12 var(--serif);letter-spacing:-.01em;text-wrap:balance}
+.pm{margin-top:6px}
+.caps{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.capb{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 15px 0 11px;border-radius:22px;font:600 15px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 13%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--c) 42%,transparent)}
+.capb .ic{width:18px;height:18px}
+.capb .out{width:14px;height:14px;opacity:.75}
+.body p{margin:14px 0 0;font:400 17px/1.5 var(--ui);color:var(--ink2);text-wrap:pretty}
+.conn{margin-top:22px;padding:12px 12px 10px}
+.conn h5{margin:0 4px;font:400 13px var(--ui);color:var(--ink3);display:flex;justify-content:space-between}
+.conn>svg{display:block;width:100%;height:auto;margin-top:2px}
+.conn .ln{stroke:var(--galaxy);stroke-width:1.2;opacity:.55;stroke-dasharray:1;stroke-dashoffset:1}
+.conn.go .ln{transition:stroke-dashoffset calc(520ms*var(--slow)) var(--ease-out);transition-delay:calc(var(--i)*70ms*var(--slow));stroke-dashoffset:0}
+.conn .nb{opacity:0;transition:opacity calc(260ms*var(--slow)) ease;transition-delay:calc((200ms + var(--i)*70ms)*var(--slow))}
+.conn.go .nb{opacity:1}
+.conn text{font:400 13px var(--ui);fill:var(--ink2)}
+.wide{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;margin-top:8px;border-radius:24px;font:600 17px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.stg{margin-top:16px;padding:12px 10px 8px}
+.stg h5{margin:0 6px;font:400 13px var(--ui);color:var(--ink3)}
+.track{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:6px}
+.track .t0,.track .t1{position:absolute;left:12.5%;top:21px;height:2px;border-radius:1px}
+.track .t0{right:12.5%;background:rgba(255,255,255,.16)}
+.track .t1{width:75%;background:var(--c);transform-origin:0 50%;transition:transform calc(380ms*var(--slow)) var(--ease)}
+.stop{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:64px;padding-top:15px;font-size:13px;color:var(--ink3);transition:color calc(200ms*var(--slow)) ease}
+.stop i{width:14px;height:14px;border-radius:50%;background:#1b2140;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3);transition:background-color calc(200ms*var(--slow)) ease,box-shadow calc(200ms*var(--slow)) ease}
+.stop.done i{background:var(--c);box-shadow:none}
+.stop.on{color:var(--ink)}
+.stop.on i{background:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 25%,transparent),0 0 14px var(--c)}
+.srows{margin-top:10px}
+.srow{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:6px 14px}
+.srow+.srow::before{content:"";position:absolute;left:14px;right:0;top:0;height:.5px;background:var(--sep)}
+.srow .t{flex:1;min-width:0}
+.srow small{display:block;font-size:13px;color:var(--ink3)}
+.srow .ic{color:var(--notes)}
+.chev{color:rgba(232,236,246,.38);width:16px;height:16px}
+
+/* sheets, composer, toast */
+.scrim{position:absolute;inset:0;z-index:44;background:rgba(0,0,0,.42);opacity:0;pointer-events:none;transition:opacity calc(260ms*var(--slow)) ease}
+.scrim.on{opacity:1}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;z-index:45;border-radius:34px;padding:10px 18px 22px;background:rgba(20,24,44,.86);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),inset 0 1px 0 rgba(255,255,255,.2),0 -10px 40px -10px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6);transform:translateY(110%);transition:transform calc(420ms*var(--slow)) var(--ease)}
+.sheet.on{transform:none}
+.grab{width:36px;height:5px;margin:0 auto 12px;border-radius:3px;background:rgba(255,255,255,.3)}
+.shh{display:flex;align-items:center;gap:8px}
+.shh h5{flex:1;margin:0;font:400 22px/1.25 var(--serif)}
+.shh .x{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink2);background:rgba(255,255,255,.08)}
+.prompt{margin:0;font:italic 400 20px/1.32 var(--serif);color:var(--nova)}
+.prompt:not(:empty){margin:10px 0 2px}
+.prompt .w{display:inline-block;opacity:0;transform:translateY(4px);transition:opacity calc(240ms*var(--slow)) ease-out,transform calc(240ms*var(--slow)) var(--ease-out)}
+.prompt .w.in{opacity:1;transform:none}
+.field{min-height:72px;margin-top:8px;padding:10px 12px;border-radius:16px;background:rgba(0,0,0,.25);box-shadow:inset 0 0 0 .5px var(--ring);font:400 17px/1.45 var(--ui)}
+.field .ph{color:var(--ink3)}
+.caret{display:inline-block;width:2px;height:20px;margin-left:1px;vertical-align:-4px;background:var(--journal);opacity:0}
+.typing .caret{opacity:1;animation:blink calc(1s*var(--slow)) steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.crow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.ask{flex:none;white-space:nowrap;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px 0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--nova);background:color-mix(in srgb,var(--nova) 12%,transparent)}
+.ask.busy .ic{animation:spin calc(.9s*var(--slow)) linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.save{height:44px;padding:0 20px;border-radius:22px;background:var(--journal);color:#140d33;font:600 17px var(--ui)}
+.dest{margin:8px 2px 0;font-size:13px;color:var(--ink3)}
+.toast{position:absolute;left:16px;right:16px;bottom:92px;z-index:46;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 6px 0 16px;border-radius:26px;background:rgba(20,24,44,.92);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),0 12px 30px -12px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);font-size:15px;opacity:0;transform:translateY(12px);transition:opacity calc(240ms*var(--slow)) ease-out,transform calc(300ms*var(--slow)) var(--ease-out);pointer-events:none}
+.toast.on{opacity:1;transform:none}
+.toast span{flex:1;min-width:0}
+.toast button{flex:none;min-height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--c)}
+
+/* Journal */
+.today{margin-top:14px;padding:12px 14px 14px}
+.thead{display:flex;align-items:baseline;justify-content:space-between}
+.thead b{font:400 17px var(--serif)}
+.thead span{font-size:13px;color:var(--ink3)}
+.rail{position:relative;margin-top:8px;padding-left:58px}
+.rail::before{content:"";position:absolute;left:46px;top:4px;bottom:4px;width:1.5px;border-radius:1px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.2),rgba(255,255,255,.08))}
+.bead{position:relative;display:block;min-height:46px;padding:4px 0 6px}
+.bead .tm{position:absolute;left:-58px;top:6px;width:38px;text-align:right;font-size:13px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.bead .dot{position:absolute;left:-16px;top:9px;width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px #0b1029}
+.bead .by{display:flex;align-items:center;gap:6px;font:600 13px var(--ui);color:var(--c)}
+.bead .by span{font-weight:400;color:var(--ink3)}
+.bead .tx{display:block;font-size:15px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bead.you .dot{width:13px;height:13px;left:-17px;background:var(--journal);box-shadow:0 0 0 3px #0b1029,0 0 14px var(--journal)}
+.bead.you .tx{font:400 17px/1.35 var(--serif);color:var(--ink);white-space:normal}
+.bead.slot .dot{background:none;box-shadow:0 0 0 3px #0b1029,inset 0 0 0 1.5px var(--journal)}
+.bead.slot .by{color:var(--journal)}
+.ring1{position:absolute;left:-23px;top:3px;width:25px;height:25px;border-radius:50%;box-shadow:0 0 0 1.5px var(--journal);opacity:0}
+.compose{margin-top:6px}
+.compose .field{min-height:52px}
+.drow{position:relative;display:block;width:100%;padding:10px 14px 12px}
+.drow+.drow::before{content:"";position:absolute;left:14px;right:0;top:0;height:.5px;background:var(--sep)}
+.dtop{display:flex;align-items:baseline;gap:8px}
+.dd{font:400 17px var(--serif)}
+.dn{margin-left:auto;font-size:13px;color:var(--ink3)}
+.dtop .chev{align-self:center;transition:transform calc(200ms*var(--slow)) var(--ease)}
+.drow.open .dtop .chev{transform:rotate(90deg)}
+.hstrip{position:relative;display:block;height:14px;margin-top:8px}
+.hstrip .ax{position:absolute;left:0;right:0;top:6px;height:2px;border-radius:1px;background:rgba(255,255,255,.1)}
+.hstrip .tk{position:absolute;top:1px;width:4px;height:12px;margin-left:-2px;border-radius:2px;background:var(--c)}
+.hstrip .tk.you{height:14px;top:0;width:6px;margin-left:-3px;background:var(--journal);box-shadow:0 0 8px var(--journal)}
+.dent{display:grid;gap:0;margin-top:8px;overflow:hidden}
+.ent{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;padding:6px 0}
+.ent .tm{font-size:13px;color:var(--ink3);padding-top:2px}
+.ent .by{display:flex;align-items:center;gap:6px;font:600 13px var(--ui);color:var(--c)}
+.ent .by i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.ent .by span{font-weight:400;color:var(--ink3)}
+.ent .tx{font-size:15px;color:var(--ink2)}
+.ent.you .tx{font:400 17px/1.35 var(--serif);color:var(--ink)}
+.door{display:inline-flex;align-items:center;gap:6px;min-height:44px;margin-top:2px;padding:0 14px 0 10px;border-radius:22px;font:600 15px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.door .ic{width:18px;height:18px}
+.fgrp{margin-top:6px;border-radius:16px;background:rgba(255,255,255,.06)}
+.fgrp .srow .t{font-size:17px}
+.fh{margin:14px 6px 6px;font:400 13px var(--ui);color:var(--ink3);display:flex;justify-content:space-between}
+.fh .nw{color:var(--gold)}
+.chk{color:var(--journal);width:20px;height:20px;opacity:0;transition:opacity calc(160ms*var(--slow)) ease}
+.srow.sel .chk{opacity:1}
+.wi{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.empty{margin:14px 0 0;padding:16px;border-radius:18px;text-align:center}
+.empty p{margin:0;font:400 20px/1.3 var(--serif)}
+.empty small{display:block;margin-top:4px;font-size:13px;color:var(--ink3)}
+
+/* Galaxy */
+.map{position:absolute;left:0;right:0;top:0;bottom:0}
+.map svg{position:absolute;left:0;top:0;width:390px;height:844px;overflow:visible}
+.map .lk{stroke:rgba(201,216,255,.18);stroke-width:.8;transition:opacity calc(260ms*var(--slow)) ease,stroke calc(260ms*var(--slow)) ease}
+.map .lk.lit{stroke:rgba(201,216,255,.85);stroke-width:1.2}
+.map .st{transition:opacity calc(260ms*var(--slow)) ease}
+.map.dimmed .st:not(.lit){opacity:.22}
+.map.dimmed .lk:not(.lit){opacity:.25}
+.map.kindoff .st.ko,.map.kindoff .lk.ko{opacity:.08}
+.map .lbl{font:400 13px var(--ui);fill:var(--ink2);opacity:0;transition:opacity calc(240ms*var(--slow)) ease}
+.map .lbl.on{opacity:1}
+.isl{fill:none;stroke:var(--gold);stroke-width:1.5;stroke-dasharray:3 3;opacity:0;transition:opacity calc(260ms*var(--slow)) ease}
+.map.islands .isl{opacity:1}
+.newring{fill:none;stroke:var(--galaxy);stroke-width:1.2;opacity:0}
+.gtop{position:absolute;left:0;right:0;top:0;z-index:6;padding:56px 16px 36px;background:linear-gradient(180deg,rgba(5,6,12,.94) 45%,rgba(5,6,12,0));pointer-events:none}
+.gtop>*{pointer-events:auto}
+.hud{position:absolute;left:16px;bottom:92px;z-index:6;display:flex;gap:8px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px 0 12px;border-radius:22px;font:400 15px var(--ui);color:var(--ink)}
+.pill .ic{color:var(--galaxy)}
+.pill small{font-size:13px;color:var(--ink3)}
+.callout{position:absolute;z-index:7;width:300px;padding:12px 14px 12px;border-radius:22px;background:rgba(20,24,44,.88);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.22),0 18px 40px -16px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(26px) saturate(1.6);backdrop-filter:blur(26px) saturate(1.6);opacity:0;transform:translateY(8px) scale(.96);transition:opacity calc(200ms*var(--slow)) ease-out,transform calc(260ms*var(--slow)) var(--ease-out);pointer-events:none}
+.callout.on{opacity:1;transform:none;pointer-events:auto}
+.callout .arrow{position:absolute;bottom:-7px;width:14px;height:14px;margin-left:-7px;transform:rotate(45deg);border-radius:3px;background:rgba(20,24,44,.88);box-shadow:inset -.5px -.5px 0 rgba(255,255,255,.2)}
+.callout.below .arrow{bottom:auto;top:-7px;box-shadow:inset .5px .5px 0 rgba(255,255,255,.2)}
+.cth{margin:6px 0 0;font:400 20px/1.25 var(--serif)}
+.cbt{display:flex;gap:8px;margin-top:10px}
+.open{flex:1;height:44px;border-radius:22px;background:var(--c);color:#062028;font:600 17px var(--ui);text-align:center}
+.xb{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink2);background:rgba(255,255,255,.08)}
+.grow{position:absolute;inset:0;z-index:20;clip-path:circle(0px at var(--x) var(--y));transition:clip-path calc(520ms*var(--slow)) var(--ease)}
+.grow.on{clip-path:circle(1100px at var(--x) var(--y))}
+.banner{position:absolute;left:16px;right:16px;top:206px;z-index:7;display:flex;align-items:center;gap:10px;min-height:52px;padding:4px 6px 4px 14px;border-radius:20px;background:rgba(20,24,44,.88);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 40%,transparent);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);font-size:15px;opacity:0;transform:translateY(-6px);transition:opacity calc(220ms*var(--slow)) ease-out,transform calc(300ms*var(--slow)) var(--ease-out)}
+.banner.on{opacity:1;transform:none}
+.banner span{flex:1}
+.banner .door{--c:var(--gold)}
+
+/* merge: List / Map inside Notes */
+.lm{margin-top:12px}
+.flyer{position:absolute;z-index:25;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent);pointer-events:none}
+.flyer .gi{width:17px;height:17px}
+
+@media (prefers-reduced-transparency:reduce){.glass,.tabbar,.orb,.sheet,.toast,.callout,.bar,.ib,.banner{-webkit-backdrop-filter:none;backdrop-filter:none;background:#161a30}}
+html.rm .typing .caret{animation:none}
+html.rm .strip.go .s,html.rm .abar.go span,html.rm .band.go .rtrack .span{animation:fadein calc(200ms*var(--slow)) ease both}
+html.rm .kbar.go span{animation:fadein calc(200ms*var(--slow)) ease backwards}
+html.rm .in-rise{animation:fadein calc(200ms*var(--slow)) ease backwards}
+html.rm .sheet{transform:none;opacity:0;transition:opacity calc(200ms*var(--slow)) ease;pointer-events:none}
+html.rm .sheet.on{opacity:1;pointer-events:auto}
+html.rm .callout{transform:none}
+html.rm .scroll{transition:opacity calc(200ms*var(--slow)) ease}
+html.rm .grow{clip-path:none;opacity:0;transition:opacity calc(200ms*var(--slow)) ease}
+html.rm .grow.on{opacity:1}
+html.rm .prompt .w{transform:none}
+html.rm .toast{transform:none}
+html.rm .conn .ln{stroke-dashoffset:0;transition:none}
+html.rm .track .t1{transition:transform 0s}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 87 · round 2 · 7 October 2026 · for your review</p>
+  <h1>Notes, Journal and Galaxy, round 2</h1>
+  <p class="lede">You asked what these three are for. In one line each: <b>Notes is the reader</b> for every page in your vault, <b>the Journal is the day as it was told</b>, and <b>the Galaxy is how the pages connect</b>. Below is what that means in the code, with your vault's real counts, then the three screens redrawn so the job shows at a glance.</p>
+  <p class="demo">The counts in Part 1 were read from your vault on 7 October with the server's own reader, read-only: counts by folder, by kind and by the code's own labels, never a title or a word of an entry. Everything inside the phones is demo content, invented and labelled. Round 1 is mockup 79; its audit is design/audits/redesign-2026-09/15-knowledge.md.</p>
+
+  <div class="bar"><div class="in">
+    <a class="jump" href="#purpose" style="--c:var(--ink)"><i></i>What they're for</a>
+    <a class="jump" href="#notes" style="--c:var(--notes)"><i></i>Notes</a>
+    <a class="jump" href="#journal" style="--c:var(--journal)"><i></i>Journal</a>
+    <a class="jump" href="#galaxy" style="--c:var(--galaxy)"><i></i>Galaxy</a>
+    <a class="jump" href="#doors" style="--c:var(--ink3)"><i></i>Doors</a>
+    <a class="jump" href="#calls" style="--c:var(--gold)"><i></i>Your calls</a>
+    <span class="sp"></span>
+    <button class="tg" type="button" id="slowT" aria-pressed="false">Quarter speed</button>
+    <button class="tg" type="button" id="rmT" aria-pressed="false">Reduced motion</button>
+  </div></div>
+
+  <!-- ====================== PART 1 ====================== -->
+  <section class="part" id="purpose">
+    <div class="ph2"><span class="pn">Part 1</span><h2>What each one is for</h2></div>
+    <p class="sub">All three read the same folder of Markdown on your Mac. What differs is which pages each one shows, who writes them, and what you can do there.</p>
+
+    <div class="band" id="band">
+      <h4><span class="num">650</span> pages in your vault, by folder</h4>
+      <p class="bm">Wiki/ and Raw/, in the order the server reads them. Striped: Nova's own working records (workouts, plans, library and practice state).</p>
+      <div class="strip" id="vstrip" role="img" aria-label="650 pages: Concepts 251, Entities 63, Health 82, Inbox 40, Journal 48, Library 7, Plans 7, Practice 1, Sources 52, Studio 3, Topics 17, Raw transcripts 79."></div>
+      <div class="legend" id="vlegend"></div>
+      <div class="reach" id="reach"></div>
+    </div>
+
+    <div class="cards">
+      <!-- NOTES -->
+      <article class="pc" style="--c:var(--notes)">
+        <div class="ttl"><span class="tile" data-ic="notes"></span><h3>Notes</h3><span class="vd">Keep · sharper</span></div>
+        <p class="is">The reader. Any page in the vault, opened in Nova, in the serif.</p>
+        <dl>
+          <dt>Where its pages come from</dt>
+          <dd>Every Markdown page under Wiki/ and Raw/, all 650.
+            <div class="flow">
+              <span class="who" style="--c:#8fd3ff"><i></i>WATCH + ANALYSE: concepts, people, topics, sources</span>
+              <span class="who" style="--c:#8fd3ff"><i></i>Watcher: sources + transcripts</span>
+              <span class="who" style="--c:#7ab8ff"><i></i>Researcher + your captures: Inbox</span>
+              <span class="who" style="--c:var(--coach)"><i></i>Coach and the workout log: Health</span>
+              <span class="who" style="--c:var(--nova)"><i></i>Nova: Journal, Plans, Studio seeds</span>
+              <span class="who" style="--c:var(--ink)"><i></i>You, in Obsidian</span>
+            </div></dd>
+          <dt>Who reads these pages</dt>
+          <dd><div class="flow">
+              <span class="who" style="--c:var(--nova)"><i></i>Ask Nova (opens any page)</span>
+              <span class="who"><i></i>Recall search</span>
+              <span class="who"><i></i>Library (sources, concepts)</span>
+              <span class="who"><i></i>Brain Week, Sundays</span>
+              <span class="who"><i></i>Daily review card</span>
+              <span class="who"><i></i>Commitments</span>
+            </div></dd>
+          <dt>Only here</dt>
+          <dd>Reading any page inside Nova. Six other places open their pages here: the Home's Daily review and latest-note cards, the Galaxy, the Inbox, the Library and Practice. A Studio idea's stage and outline are set only here.</dd>
+          <dt>When you'd open it</dt>
+          <dd>
+            <div class="mom"><span class="d">Each<br>morning</span><p>The Home's Daily review card picks one Concept or Topic for the day and opens it here, with Reflect under it.</p></div>
+            <div class="mom"><span class="d">After a<br>weave</span><p>A WATCH + ANALYSE run is approved in the Inbox and lands a dozen new pages; you read them here.</p></div>
+          </dd>
+          <dt>Where it's thin</dt>
+          <dd>97 of its 650 rows are Nova's own records (82 workout and health pages alone). Its search matches titles only, while Recall searches the words. Sources are also in the Library, which shows them better.</dd>
+        </dl>
+      </article>
+
+      <!-- JOURNAL -->
+      <article class="pc" style="--c:var(--journal)">
+        <div class="ttl"><span class="tile" data-ic="journal"></span><h3>Journal</h3><span class="vd">Keep · sharper</span></div>
+        <p class="is">One page a day in Wiki/Journal. Today it is mostly Nova telling the day.</p>
+        <dl>
+          <dt>Who wrote it, 1 Sep to 7 Oct</dt>
+          <dd>214 entries across 37 days. Every one arrived through the Inbox from an agent or a loop; none was typed in the Journal itself.
+            <div class="authors">
+              <div class="abar" id="abar" role="img" aria-label="Nova 167, Coach 39, Guardian, Leader and CFO 8, you 0."></div>
+              <div class="akey" id="akey"></div>
+              <ul class="labels" id="jlabels"></ul>
+            </div></dd>
+          <dt>Who reads it</dt>
+          <dd><div class="flow">
+              <span class="who" style="--c:var(--coach)"><i></i>Weekly debrief (the Coach, Sundays)</span>
+              <span class="who"><i></i>Health insight (last 3 days)</span>
+              <span class="who"><i></i>Commitments (your promises)</span>
+              <span class="who" style="--c:var(--nova)"><i></i>Ask Nova</span>
+            </div>
+            Two of them read <b>personal</b> and <b>training</b> as your own voice. Since 1 Sep, all 74 personal entries were Nova's Plan today and Daily review reflection, and all 39 training entries were the Coach's.</dd>
+          <dt>Only here</dt>
+          <dd>Reading your days in order, as the vault keeps them, for good. The Inbox shows the same filings as decisions, but keeps only its most recent 400.</dd>
+          <dt>When you'd open it</dt>
+          <dd>
+            <div class="mom"><span class="d">Each<br>evening</span><p>The Evening debrief and the Daily review reflection have landed. Read what Nova made of the day, and add your own line.</p></div>
+            <div class="mom"><span class="d">Sun</span><p>The Weekly review, the Coach's Weekly debrief and Brain Week (16:00) all land in the Journal.</p></div>
+          </dd>
+          <dt>Where it's thin</dt>
+          <dd>Your own words are missing. The composer and the review's reflect card have saved nothing in this window, and the screen can't tell an entry of yours from one of Nova's.</dd>
+        </dl>
+      </article>
+
+      <!-- GALAXY -->
+      <article class="pc" style="--c:var(--galaxy)">
+        <div class="ttl"><span class="tile" data-ic="galaxy"></span><h3>Galaxy</h3><span class="vd">Sharpen, or fold in</span></div>
+        <p class="is">The same pages as stars, and every [[link]] between them as a line.</p>
+        <dl>
+          <dt>Where it comes from</dt>
+          <dd>The server's graph: 650 pages and 3,105 links. It writes nothing. The app draws the first 400 in folder order, so it stops partway through the Inbox: <b>no Source, Topic, Journal day, Plan or idea ever appears</b>, and 73 of the 82 workout and health stars it does draw link to nothing.</dd>
+          <dt>Who reads it</dt>
+          <dd><div class="flow"><span class="who none">No agent reads the graph</span><span class="who" style="--c:var(--gold)"><i></i>Compost finds islands on its own</span></div></dd>
+          <dt>Only here</dt>
+          <dd>Seeing how pages connect, and what links to nothing. 152 of your 650 pages are islands. Notes shows a page's links and backlink count, never the shape.</dd>
+          <dt>When you'd open it</dt>
+          <dd>
+            <div class="mom"><span class="d">After a<br>weave</span><p>Turn on Recency to see where the new pages joined what you already had.</p></div>
+            <div class="mom"><span class="d">Weekly</span><p>Compost proposes islands to link or archive; the Galaxy can light them, and you decide them in the Inbox.</p></div>
+          </dd>
+          <dt>Where it's thin</dt>
+          <dd>Its one action is Open, which goes to Notes. Nothing reads it, and on your vault it can't show a Source or a Topic.</dd>
+        </dl>
+      </article>
+    </div>
+
+    <h3 class="sh">Where they overlap, said plainly</h3>
+    <p class="sub">Each overlap has three possible answers: merge, give it a sharper job, or retire it. Where I lean, the answer is marked; every one of them is your call below.</p>
+    <div class="ovl">
+      <div class="ov">
+        <div><h4><span class="pair"><i style="--c:var(--galaxy)"></i><i style="--c:var(--notes)"></i></span>Galaxy and Notes show the same pages</h4>
+          <p>Same 650 pages, two shapes. The Galaxy's only action opens Notes. No agent reads the graph.</p></div>
+        <div class="opts"><span class="opt lean">Merge: a Map view inside Notes</span><span class="opt">Sharper job on its own screen</span><span class="opt">Retire</span>
+          <p>Both kept options are drawn below, side by side. Retiring loses the only view of shape and islands.</p></div>
+      </div>
+      <div class="ov">
+        <div><h4><span class="pair"><i style="--c:var(--notes)"></i><i style="--c:#c98bff"></i></span>Notes and the Library both hold your sources</h4>
+          <p>All 52 Sources are rows in Notes and volumes in the Library. The Library shows what a source taught and its transcript; Notes shows the text.</p></div>
+        <div class="opts"><span class="opt lean">Sharper: the Library owns sources, Notes reads</span><span class="opt">Merge</span>
+          <p>A source page in Notes gets an "Open in Library" capsule; the Library's pages keep opening in Notes.</p></div>
+      </div>
+      <div class="ov">
+        <div><h4><span class="pair"><i style="--c:var(--notes)"></i><i style="--c:var(--ink3)"></i></span>Notes lists Nova's working records</h4>
+          <p>82 workout and health pages, 7 plans, 7 library and 1 practice page: Nova's state, shown better in Train and elsewhere.</p></div>
+        <div class="opts"><span class="opt lean">Fold behind one "Nova's records" chip</span><span class="opt">Leave as is</span></div>
+      </div>
+      <div class="ov">
+        <div><h4><span class="pair"><i style="--c:var(--journal)"></i><i style="--c:#ffd66b"></i></span>The Journal and Inbox history</h4>
+          <p>Every agent entry is first an Inbox record (approved, or filed automatically), then a section in the day's page. The Inbox is the decision and its Undo; the Journal is the permanent copy.</p></div>
+        <div class="opts"><span class="opt lean">Sharper: the Journal is the day, told</span><span class="opt">Merge into Inbox history</span>
+          <p>A merge would lose the record: the Inbox keeps its newest 400 resolved records, the vault keeps every day.</p></div>
+      </div>
+      <div class="ov">
+        <div><h4><span class="pair"><i style="--c:var(--notes)"></i><i style="--c:var(--journal)"></i></span>"Daily review" names two different things</h4>
+          <p>On Home, it is one Concept a day for you to reflect on (it opens in Notes). In the Journal, it is Nova's evening read of your day, 37 of them since 1 Sep. The first has saved no reflection yet.</p></div>
+        <div class="opts"><span class="opt lean">Rename one</span><span class="opt">Leave both</span>
+          <p>For example "Today's page" for the Home card, so the two stop sharing a name.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== PART 2: NOTES ====================== -->
+  <section class="part" id="notes">
+    <div class="ph2"><span class="pn">Part 2 · Notes</span><h2>What you know, and the reader every door opens</h2></div>
+    <p class="sub">Round 1's A gave each screen one object, and its page one row of companions. C gave the calm of grouped rows. Both are kept here; what's new is that the list says what's in the vault before you scroll it, and a page ends in its own neighbourhood.</p>
+    <div class="studio">
+      <div class="pcol">
+        <div class="pbox" data-ph="notes"></div>
+        <div class="under">
+          <div class="seg" role="group" aria-label="Notes moment" data-for="notes">
+            <button type="button" data-m="0" aria-pressed="true">What's here</button>
+            <button type="button" data-m="1" aria-pressed="false">Read a page</button>
+            <button type="button" data-m="2" aria-pressed="false">Reflect</button>
+            <button type="button" data-m="3" aria-pressed="false">An idea</button>
+          </div>
+          <button class="again" type="button" data-again="notes">Play again</button>
+        </div>
+      </div>
+      <div class="side" style="--c:var(--notes)">
+        <p class="now" id="now-notes"></p>
+        <div class="st"><b>One bar for what's in the vault <span class="from">from round 1 A's rail</span></b><p>The kinds rail becomes one proportion bar with the chips under it. Tap a kind and the bar lights its share while the list filters; tap it again for everything. Nova's records are one striped chip, off by default.</p></div>
+        <div class="st"><b>Arrived this week, then everything <span class="from">from C</span></b><p>Two grouped lists, newest first, so what a weave or a capture just added is at the top. The headline is code's sentence from the pages' own dates.</p></div>
+        <div class="st"><b>Nothing opened for you <span class="from">fixes round 1 finding 5</span></b><p>The list is the page until you tap. The row's title travels up into the page's serif title; back reverses it.</p></div>
+        <div class="st"><b>One row of companions <span class="from">A</span></b><p>Play the source, Open in Library, Reflect: each wears the colour of where it goes. The Studio stage is a track you set either way, with Undo.</p></div>
+        <div class="st"><b>The page ends in its neighbourhood <span class="from new">new</span></b><p>The gold "Linked in Galaxy" chips become a small drawn map of this page and the pages it links to, each a 44 pt target, with "See it in your Galaxy" under it: the door round 1 found missing.</p></div>
+        <div class="st"><b>One composer <span class="from">round 1, all directions</span></b><p>Reflect opens the Journal's own composer as a sheet. "Ask me a question" is 44 pt and Nova's question is in his starlight. Saving says where it went, with Open.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== PART 2: JOURNAL ====================== -->
+  <section class="part" id="journal">
+    <div class="ph2"><span class="pn">Part 2 · Journal</span><h2>The day, told: Nova's account, then yours</h2></div>
+    <p class="sub">Part 1 found the Journal is almost entirely Nova and the Coach. So round 2 stops pretending otherwise: a day is its hours, every entry says who wrote it, and your line closes the day in the same composer Notes uses.</p>
+    <div class="studio">
+      <div class="pcol">
+        <div class="pbox" data-ph="journal"></div>
+        <div class="under">
+          <div class="seg" role="group" aria-label="Journal moment" data-for="journal">
+            <button type="button" data-m="0" aria-pressed="true">Today</button>
+            <button type="button" data-m="1" aria-pressed="false">Your line</button>
+            <button type="button" data-m="2" aria-pressed="false">A past day</button>
+            <button type="button" data-m="3" aria-pressed="false">Who wrote it</button>
+          </div>
+          <button class="again" type="button" data-again="journal">Play again</button>
+        </div>
+      </div>
+      <div class="side" style="--c:var(--journal)">
+        <p class="now" id="now-journal"></p>
+        <div class="st"><b>Today is a rail of hours <span class="from">A's track, turned upright</span></b><p>Each entry is a bead at its time, named by who wrote it: Nova in starlight, the Coach in his coral. The authors come from the labels the code already writes ("Morning dispatch", "Session receipt").</p></div>
+        <div class="st"><b>Your line closes the day <span class="from">C's Today card</span></b><p>The composer sits at the foot of today's rail as an open bead. Saved, your words land on the rail at the minute you wrote them, in the serif, larger than anything Nova filed.</p></div>
+        <div class="st"><b>Past days keep their shape <span class="from">kept from today</span></b><p>A spoken date and a 24-hour strip with one tick per entry, coloured by author, so a week of your own words would show at a glance. Opening a day lists its entries in the order of the ticks.</p></div>
+        <div class="st"><b>Doors out <span class="from">fixes round 1 finding 1</span></b><p>A reflection opens the page it was about, in Notes. An entry from an agent opens the Inbox record it came from, where Undo lives.</p></div>
+        <div class="st"><b>Who and kind, and a filter that stays <span class="from new">Who is new</span></b><p>The filter is one button. Kind keeps today's four (all, personal, training, system); Who is new. An empty result says so and keeps the filter in view, never "No journal entries yet".</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== PART 2: GALAXY ====================== -->
+  <section class="part" id="galaxy">
+    <div class="ph2"><span class="pn">Part 2 · Galaxy</span><h2>Its own screen, or a Map inside Notes</h2></div>
+    <p class="sub">Part 1 argues the Galaxy is thin on its own. Both answers are drawn, with every function kept in each: kinds, Recency, Compost's islands, tap, pinch, Open. On the right it stops being a separate screen; its Index tile would open Notes on Map.</p>
+    <div class="both">
+      <div>
+        <h4>A · Its own screen, a sharper job</h4>
+        <p class="cap">What arrived, where it joined, and what joined nothing.</p>
+        <div class="pbox" data-ph="galaxy"></div>
+        <div class="under">
+          <div class="seg" role="group" aria-label="Galaxy moment" data-for="galaxy">
+            <button type="button" data-m="0" aria-pressed="true">Arrive</button>
+            <button type="button" data-m="1" aria-pressed="false">Tap a star</button>
+            <button type="button" data-m="2" aria-pressed="false">Islands</button>
+            <button type="button" data-m="3" aria-pressed="false">A day's star</button>
+          </div>
+          <button class="again" type="button" data-again="galaxy">Play again</button>
+        </div>
+      </div>
+      <div>
+        <h4>B · A Map view inside Notes</h4>
+        <p class="cap">The same pages, one switch away from the list.</p>
+        <div class="pbox" data-ph="merge"></div>
+        <div class="under">
+          <div class="seg" role="group" aria-label="Map moment" data-for="merge">
+            <button type="button" data-m="0" aria-pressed="true">List to Map</button>
+            <button type="button" data-m="1" aria-pressed="false">Map to page</button>
+          </div>
+          <button class="again" type="button" data-again="merge">Play again</button>
+        </div>
+      </div>
+    </div>
+    <div class="side" style="--c:var(--galaxy);max-width:1000px;margin-top:22px">
+      <p class="now" id="now-galaxy"></p>
+      <div class="st"><b>In both: the map rests <span class="from">round 1</span></b><p>Nothing drifts or twinkles while you're not touching it. New pages ring once when you arrive, then hold still. Layout happens once, off the frame, only when the graph changed.</p></div>
+      <div class="st"><b>In both: the card rises from the star <span class="from">A</span></b><p>It points at the star, never covers it, and Open grows the page out of the star. A journal day's star opens that day in the Journal, not in Notes.</p></div>
+      <div class="st"><b>In both: one Show sheet <span class="from">A</span></b><p>Kinds as rows with a glyph, a count and a check, every row 44 pt; light as Recency or Islands. Islands wear gold because each one is a Compost proposal waiting on you, with a door to decide it in the Inbox.</p></div>
+      <div class="st"><b>In both: the 400 is said, and chosen well <span class="from new">new</span></b><p>"400 of 650 pages" stays on screen with the reason. Which 400 is your call below; today it is the first 400 by folder.</p></div>
+    </div>
+  </section>
+
+  <!-- ====================== DOORS ====================== -->
+  <section class="part" id="doors">
+    <div class="ph2"><span class="pn">Part 2 · Doors</span><h2>Every way between them</h2></div>
+    <p class="sub">Round 1 counted one door of six between the three screens. Here are all six, and the four from elsewhere that land in them. A door wears the colour of the screen it opens.</p>
+    <div class="doors" id="doorsBox">
+      <svg id="doorsSvg" viewBox="0 0 480 560" role="img" aria-label="A diagram of the doors between Notes, the Journal and the Galaxy, and from Home, the Library and the Inbox."></svg>
+      <ul class="dlist" id="dlist"></ul>
+    </div>
+  </section>
+
+  <!-- ====================== FUNCTIONS + STATES ====================== -->
+  <section class="part">
+    <h2>Every function stays</h2>
+    <p class="sub">Left is today; right is where it lives in round 2.</p>
+    <ul class="ft">
+      <li><span class="was">Notes: search, the kinds rail with counts, the list (title, kind, date)</span><span class="is2">Search (Recall's engine, if you say yes), the kinds bar and chips with counts, Arrived this week and Everything.</span></li>
+      <li><span class="was">The reader: serif title, kind, date, backlinks, the text</span><span class="is2">The page, opened from its row: kind line, serif title, "Updated · N pages link here", the text.</span></li>
+      <li><span class="was">Watch source (outlined link)</span><span class="is2">The Play capsule, which says it leaves Nova.</span></li>
+      <li><span class="was">Studio: the stage chip that advances and wraps, Draft outline, Outline tonight</span><span class="is2">The stage track (set either way, Undo), then Draft the outline now and Draft it tonight as two rows.</span></li>
+      <li><span class="was">The Daily review card's Reflect, Generate a prompt, Save</span><span class="is2">The Reflect capsule opens the one composer: Ask me a question, your words, Save to today.</span></li>
+      <li><span class="was">"Linked in Galaxy" chips</span><span class="is2">The drawn neighbourhood: each linked page a 44 pt star that opens it, and See it in your Galaxy.</span></li>
+      <li><span class="was">Journal: composer with Generate a prompt and Save; four category chips; day rows with a dot per entry; an open day's sections</span><span class="is2">Your line at the foot of today; Kind in the filter sheet (with Who added); day rows with the 24-hour strip; an open day's entries with author, label and doors.</span></li>
+      <li><span class="was">Galaxy: stats, five kind filters, Recency, Compost, tap, pinch, wheel, double-tap reset, Reset view, the selection card (Open, Dismiss)</span><span class="is2">"400 of 650 pages", the Show sheet (kinds, Recency, Islands), every gesture, Reset view, the card that rises from the star (Open, close).</span></li>
+    </ul>
+
+    <h3 class="sh">The states, designed</h3>
+    <div class="states">
+      <div class="sblock" style="--c:var(--notes)"><h4>Notes</h4><dl>
+        <dt>Loading</dt><dd>Seven skeleton rows; the bar fills when the counts land. A page keeps its title while its text arrives.</dd>
+        <dt>Offline</dt><dd><q>Friday 18:20's copy</q> under the title; a page not in the copy says it needs your Mac. Never "live" on a copy.</dd>
+        <dt>No match</dt><dd><q>Nothing called that.</q> Search every kind.</dd>
+        <dt>Error</dt><dd><q>Couldn't open this page.</q> Try again, where it failed.</dd>
+      </dl></div>
+      <div class="sblock" style="--c:var(--journal)"><h4>Journal</h4><dl>
+        <dt>Not connected</dt><dd><q>Your journal lives on your Mac.</q> Connect in Settings. Never "Loading" for ever.</dd>
+        <dt>Empty day</dt><dd>Today's rail with only your open bead.</dd>
+        <dt>Filtered empty</dt><dd><q>Nothing from you marked system in these 30 days.</q> Show all; the filter stays.</dd>
+        <dt>Offline save</dt><dd>Your bead lands dashed, "waiting for your Mac", and fills when the outbox sends it.</dd>
+      </dl></div>
+      <div class="sblock" style="--c:var(--galaxy)"><h4>Galaxy</h4><dl>
+        <dt>Loading</dt><dd>Faint stars where the last map was, brightening as the graph lands.</dd>
+        <dt>Offline</dt><dd><q>Friday 18:20's map.</q> Stars still open their cached pages.</dd>
+        <dt>Error</dt><dd><q>Couldn't load your map.</q> Try again. Never the demo stars outside demo mode.</dd>
+        <dt>Capped</dt><dd><q>400 of 650 pages.</q> Show says which are left out, by kind.</dd>
+      </dl></div>
+    </div>
+  </section>
+
+  <!-- ====================== CALLS ====================== -->
+  <section class="part" id="calls">
+    <h2>Your calls</h2>
+    <p class="sub">Each says what happens either way. Round 1's open calls (the three colours, the stage track, the map holding still, re-cutting the kind colours) still stand as drawn here unless you say otherwise.</p>
+    <ol class="decide">
+      <li><div><b>The Galaxy: its own screen, or a Map inside Notes</b>
+        <span><i>Own screen (A):</i> it stays in the Index under Life with the sharper job drawn above: what arrived, where it joined, the islands.</span>
+        <span><i>Map in Notes (B):</i> one fewer screen; Notes gets a List and Map switch, the Galaxy tile opens Notes on Map, and the Library's "See in Galaxy" lands there. I lean this way, because it is the same pages and nothing else reads the graph.</span></div></li>
+      <li><div><b>Which 400 pages the map draws</b>
+        <span><i>Best-linked first:</i> the 400 with the most links across every kind, so Sources and Topics appear and lone workout pages drop out.</span>
+        <span><i>Leave it:</i> the first 400 by folder, so Concepts, Entities and Health fill it and no Source, Topic or Journal day appears. (A third way, drawing all 650, needs the layout moved off the frame and measured on your phone first.)</span></div></li>
+      <li><div><b>The Journal says who wrote each entry</b>
+        <span><i>Yes:</i> each entry shows Nova, the Coach or you, from the label the code already writes, and the filter gains Who beside Kind.</span>
+        <span><i>No:</i> entries stay grouped by kind only, and Nova's personal entries keep looking like yours.</span></div></li>
+      <li><div><b>Tell the readers which words are yours (a code change)</b>
+        <span><i>Yes:</i> Commitments and the Weekly debrief stop treating Plan today, the Daily review reflection and session receipts as your own voice, tested against your real pages first.</span>
+        <span><i>No:</i> they keep reading every personal and training entry as yours, and since 1 Sep none of those was.</span></div></li>
+      <li><div><b>Nova's records fold behind one chip in Notes</b>
+        <span><i>Yes:</i> the 97 workout, health, plan, library and practice pages leave the list until you tap "Nova's records"; Train and the other screens still show them.</span>
+        <span><i>No:</i> Notes keeps listing all 650.</span></div></li>
+      <li><div><b>Search in Notes uses Recall</b>
+        <span><i>Yes:</i> the search field finds words inside pages, ranked the way the Recall palette ranks them.</span>
+        <span><i>No:</i> it keeps matching titles only.</span></div></li>
+      <li><div><b>Rename one of the two "Daily review"s</b>
+        <span><i>Yes:</i> the Home card that serves a Concept a day becomes "Today's page" (or a name you pick), and "Daily review" means only Nova's evening read.</span>
+        <span><i>No:</i> both keep the name.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const doc = document.documentElement;
+let SLOW = 1, forceRM = false;
+const mq = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+const RM = () => forceRM || mq.matches;
+const syncRM = () => doc.classList.toggle('rm', RM());
+syncRM();
+const STOP = { stop: true };
+const svg = (d, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+
+/* ---------------- icons and kinds ---------------- */
+const IC = {
+  back: '<path d="M15 5 8 12l7 7"/>', chev: '<path d="m9.5 6 6 6-6 6"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
+  play: '<path d="M8 5.5v13l10.5-6.5Z" fill="currentColor" stroke="none"/>', out: '<path d="M8 16 16 8M9.5 8H16v6.5"/>',
+  pen: '<path d="M5 19l1-4L16 5l3 3L9 18Z"/><path d="m14 7 3 3"/>', book: '<path d="M5 5.5A2 2 0 0 1 7 3.5h11v15H7a2 2 0 0 0-2 2Z"/><path d="M5 20.5V5.5"/>',
+  galaxy: '<circle cx="12" cy="12" r="3.4"/><ellipse cx="12" cy="12" rx="9" ry="4.2" transform="rotate(-24 12 12)"/><circle cx="19.2" cy="7.4" r="1" fill="currentColor" stroke="none"/>',
+  spark: '<path d="M12 3.5c.6 4.4 2.1 5.9 6.5 6.5-4.4.6-5.9 2.1-6.5 6.5-.6-4.4-2.1-5.9-6.5-6.5 4.4-.6 5.9-2.1 6.5-6.5Z" fill="currentColor" stroke="none"/>',
+  filter: '<path d="M4 7h16M7 12h10M10 17h4"/>', show: '<path d="M5 8h9M18 8h1M5 16h1M10 16h9"/><circle cx="16" cy="8" r="2"/><circle cx="8" cy="16" r="2"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>', close: '<path d="M7 7l10 10M17 7 7 17"/>', moon: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z"/>',
+  tray: '<path d="M4 13.5 6.5 5h11l2.5 8.5V19H4Z"/><path d="M4 13.5h4.5l1 2h5l1-2H20"/>',
+  notes: '<path d="M6 3.5h9l3.5 3.5v13.5H6Z"/><path d="M9 11h6M9 14.5h6M9 18h3"/>',
+  journal: '<path d="M5 5.2A1.7 1.7 0 0 1 6.7 3.5H18.5v15.3H6.7A1.7 1.7 0 0 0 5 20.5Z"/><path d="M9 8h6"/>',
+  home: '<path d="M4 11.5 12 5l8 6.5V20h-5.5v-5h-5v5H4Z"/>', mic: '<rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/>',
+  train: '<path d="M6.5 8v8M17.5 8v8M3.5 10v4M20.5 10v4M6.5 12h11"/>', fuel: '<path d="M7 3.5v7M5 3.5v4.5a2 2 0 0 0 4 0V3.5M7 10.5v10M16.5 3.5c-1.8 1-2.5 3-2.5 6v3h2.5v8"/>',
+  more: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/>',
+  inbox: '<path d="M4 13.5 6.5 5h11l2.5 8.5V19H4Z"/><path d="M4 13.5h4.5l1 2h5l1-2H20"/>', undo: '<path d="M9 7 4.5 11.5 9 16"/><path d="M5 11.5h9a5 5 0 0 1 0 10h-2"/>',
+  list: '<path d="M8 6.5h12M8 12h12M8 17.5h12"/><circle cx="4.5" cy="6.5" r="1" fill="currentColor"/><circle cx="4.5" cy="12" r="1" fill="currentColor"/><circle cx="4.5" cy="17.5" r="1" fill="currentColor"/>',
+};
+const GL = {
+  concept: '<path d="M12 3.5 20.5 12 12 20.5 3.5 12Z"/>', entity: '<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.6 4-5.5 7-5.5s5.8 1.9 7 5.5"/>',
+  topic: '<path d="M9.5 4 7.5 20M16.5 4l-2 16M4.5 9h15M4 15h15"/>', source: '<circle cx="12" cy="12" r="8.5"/><path d="M10.2 8.8v6.4l5.2-3.2Z" fill="currentColor"/>',
+  journal: IC.journal, idea: '<path d="M9 17.5h6M10 20.5h4M12 3.5a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V17h5.2v-.7c0-.8.4-1.5 1-2A6 6 0 0 0 12 3.5Z"/>',
+  capture: IC.tray, records: '<path d="M5 4.5h14v15H5Z"/><path d="M8.5 9h7M8.5 12.5h7M8.5 16h4"/>',
+};
+const KIND = {
+  concept: { w: 'Concept', pl: 'Concepts', c: '#d8b573' }, entity: { w: 'Person or thing', pl: 'People', c: '#e08f6f' },
+  source: { w: 'Source', pl: 'Sources', c: '#6be5f5' }, topic: { w: 'Topic', pl: 'Topics', c: '#8a6ad1' },
+  capture: { w: 'Capture', pl: 'Captures', c: '#c7c1b8' }, idea: { w: 'Idea', pl: 'Ideas', c: '#ece5da' },
+  journal: { w: 'Journal day', pl: 'Journal', c: '#5aa87c' }, records: { w: "Nova's record", pl: "Nova's records", c: 'rgba(232,236,246,.4)' },
+};
+const kt = (k) => `<span class="kt" style="--c:${KIND[k].c}" role="img" aria-label="${KIND[k].w}">${svg(GL[k], 'gi')}</span>`;
+$$('[data-ic]').forEach((el) => { el.innerHTML = svg(IC[el.dataset.ic]); });
+
+/* ---------------- PART 1: the vault band (real counts, 7 Oct) ---------------- */
+const FOLD = [
+  ['Concepts', 251, KIND.concept.c], ['Entities', 63, KIND.entity.c], ['Health', 82, 'rec'], ['Inbox', 40, KIND.capture.c],
+  ['Journal', 48, KIND.journal.c], ['Library', 7, 'rec'], ['Plans', 7, 'rec'], ['Practice', 1, 'rec'], ['Sources', 52, KIND.source.c],
+  ['Studio', 3, KIND.idea.c], ['Topics', 17, KIND.topic.c], ['Raw transcripts', 79, 'rgba(107,229,245,.45)'],
+];
+const TOTAL = 650;
+const vstrip = $('#vstrip');
+vstrip.innerHTML = FOLD.map(([n, v, c], i) => `<span class="s${c === 'rec' ? ' rec' : ''}" style="flex:${v} 0 0;--c:${c};--i:${i}" title="${n} ${v}"></span>`).join('') + '<span class="cut" id="cut"></span>';
+$('#vlegend').innerHTML = FOLD.map(([n, v, c]) => `<span><i class="${c === 'rec' ? 'rec' : ''}" style="--c:${c}"></i>${n} <b class="num">${v}</b></span>`).join('');
+const pct = (n) => (n / TOTAL * 100).toFixed(2) + '%';
+const before = (idx) => FOLD.slice(0, idx).reduce((a, f) => a + f[1], 0);
+const REACH = [
+  { n: 'Notes', c: 'var(--notes)', l: 0, w: TOTAL, s: 'Lists all 650, Nova’s records included.' },
+  { n: 'Journal', c: 'var(--journal)', l: before(4), w: 48, s: 'Reads only Wiki/Journal: 48 day pages, 233 entries since 20 July.' },
+  { n: 'Galaxy', c: 'var(--galaxy)', l: 0, w: 400, s: 'Draws the first 400 by folder, then stops: nothing to the right of the line appears.' },
+];
+$('#reach').innerHTML = REACH.map((r, i) => `<div class="rr" style="--c:${r.c}"><b>${r.n}</b><div class="rtrack"><span class="span" style="left:${pct(r.l)};width:${pct(r.w)};--i:${i}"></span></div><small>${r.s}</small></div>`).join('');
+// the cut sits at 400 pages, measured against the drawn strip so the 2px gaps are honoured
+function placeCut() {
+  const segs = $$('.s', vstrip); let acc = 0, x = 0;
+  for (let i = 0; i < FOLD.length; i++) {
+    const v = FOLD[i][1], s = segs[i];
+    if (acc + v >= 400) { x = s.offsetLeft + s.offsetWidth * ((400 - acc) / v); break; }
+    acc += v;
+  }
+  $('#cut').style.left = x + 'px';
+}
+
+/* journal authorship, 1 Sep to 7 Oct, by the code's own labels */
+const AUTH = [['Nova', 167, 'var(--nova)'], ['Coach', 39, 'var(--coach)'], ['Guardian, Leader, CFO', 8, 'rgba(232,236,246,.38)']];
+$('#abar').innerHTML = AUTH.map(([n, v, c], i) => `<span style="flex:${v} 0 0;--c:${c};--i:${i}"></span>`).join('');
+$('#akey').innerHTML = AUTH.map(([n, v, c]) => `<span><i style="--c:${c}"></i>${n} <b class="num">${v}</b></span>`).join('') + '<span class="zero"><i></i>You <b class="num">0</b></span>';
+const LABELS = [['Morning dispatch', 38], ['Evening debrief', 38], ['Plan today', 37], ['Daily review reflection', 37], ['Session receipt', 31], ['Weekly debrief', 6], ['Weekly review', 6], ['Second-brain week', 6], ['Calendar follow-up', 5], ['Guardian report', 4], ['Training check', 2], ['Leader follow-up', 2], ['CFO report', 2], ['Typed in the Journal', 0]];
+$('#jlabels').innerHTML = LABELS.map(([n, v]) => `<li><span>${n}</span><span class="num">${v}</span></li>`).join('');
+
+const once = (el, fn) => {
+  if (!('IntersectionObserver' in window)) { fn(); return; }
+  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); fn(); } }, { threshold: .25 });
+  io.observe(el);
+};
+once($('#band'), () => { placeCut(); vstrip.classList.add('go'); $('#band').classList.add('go'); });
+once($('#abar'), () => $('#abar').classList.add('go'));
+window.addEventListener('resize', () => placeCut());
+
+/* ---------------- the phones ---------------- */
+const TABS = `<nav class="dock" aria-hidden="true"><div class="tabbar"><span class="tab">${svg(IC.home)}Home</span><span class="tab">${svg(IC.mic)}Nova</span><span class="tab">${svg(IC.train)}Train</span><span class="tab">${svg(IC.fuel)}Fuel</span><span class="tab on">${svg(IC.more)}More</span></div><span class="orb"></span></nav>`;
+const STATUS = '<div class="status" aria-hidden="true"><span class="time">21:08</span><span class="island"></span><span class="dm">DEMO</span><span class="bat"></span></div>';
+const PHONES = {};
+function mountPhone(key, hue) {
+  const box = $(`.pbox[data-ph="${key}"]`);
+  box.innerHTML = `<div class="phone" style="--h:${hue}" role="img" aria-label="An animated phone, demo content"><div class="sky"></div><div class="stage"></div>${STATUS}${TABS}<div class="touch"></div></div>`;
+  const ph = $('.phone', box);
+  PHONES[key] = { box, ph, stage: $('.stage', ph), touch: $('.touch', ph), run: 0, m: 0 };
+  return PHONES[key];
+}
+function fit() {
+  $$('.pbox').forEach((b) => {
+    const avail = Math.min(b.parentElement.getBoundingClientRect().width || 390, document.documentElement.clientWidth - 32);
+    const w = Math.max(200, avail);
+    b.style.setProperty('--z', Math.min(1, w / 390));
+  });
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms * SLOW));
+const zOf = (P) => P.ph.getBoundingClientRect().width / 390 || 1;
+function rel(P, el) {
+  const pr = P.ph.getBoundingClientRect(), r = el.getBoundingClientRect(), z = zOf(P);
+  return { x: (r.left - pr.left) / z, y: (r.top - pr.top) / z, w: r.width / z, h: r.height / z };
+}
+function start(key, m) {
+  const P = PHONES[key]; P.m = m; const id = ++P.run;
+  const W = async (ms) => { await sleep(ms); if (id !== P.run) throw STOP; };
+  const tap = async (el) => {
+    if (!el) return;
+    const r = rel(P, el);
+    const t = P.touch; t.style.left = (r.x + r.w / 2) + 'px'; t.style.top = (r.y + r.h / 2) + 'px';
+    t.animate([{ opacity: 0, transform: 'scale(.7)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 120 * SLOW, fill: 'forwards', easing: 'ease-out' });
+    el.classList.add('down');
+    await W(170);
+    el.classList.remove('down');
+    t.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220 * SLOW, fill: 'forwards' });
+  };
+  $$('.seg[data-for="' + key + '"] button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.m === m)));
+  const nowEl = $('#now-' + (key === 'merge' ? 'galaxy' : key));
+  if (nowEl && NOW[key]) nowEl.innerHTML = NOW[key][m];
+  SCRIPTS[key](P, m, W, tap).catch((e) => { if (e !== STOP) console.error(e); });
+}
+const typeInto = async (el, text, W, perChar = 38) => {
+  el.parentElement.classList.add('typing');
+  if (RM()) { el.textContent = text; el.parentElement.classList.remove('typing'); return; }
+  for (let i = 1; i <= text.length; i++) { el.textContent = text.slice(0, i); await W(perChar); }
+  el.parentElement.classList.remove('typing');
+};
+const sayWords = async (el, text, W) => {
+  el.innerHTML = text.split(' ').map((w) => `<span class="w">${w}</span>`).join(' ');
+  const ws = $$('.w', el);
+  if (RM()) { ws.forEach((w) => w.classList.add('in')); return; }
+  for (const w of ws) { w.classList.add('in'); await W(55); }
+};
+const flip = (el, from, to, ms, fill = 'none') => {
+  if (RM()) return el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 * SLOW, fill: 'both' }).finished.catch(() => {});
+  const dx = from.x - to.x, dy = from.y - to.y, s = from.w / to.w;
+  return el.animate([{ transform: `translate(${dx}px,${dy}px) scale(${s})`, transformOrigin: '0 0' }, { transform: 'none', transformOrigin: '0 0' }], { duration: ms * SLOW, easing: 'cubic-bezier(.32,.72,0,1)', fill }).finished.catch(() => {});
+};
+
+/* ======================= NOTES ======================= */
+const NK = [['concept', 184], ['entity', 46], ['source', 38], ['topic', 12], ['capture', 24], ['idea', 3], ['journal', 30], ['records', 70]];
+const NROWS = {
+  week: [['source', 'Demo podcast: the craft of focus', 'Tue'], ['concept', 'Attention residue', 'Tue'], ['concept', 'Deep work blocks', 'Tue'], ['entity', 'A demo host', 'Tue']],
+  all: [['idea', 'Video idea: a desk in ten minutes', '30 Sep'], ['concept', 'Compounding', '28 Sep'], ['topic', 'Mornings', '27 Sep'], ['capture', 'A link saved from a walk', '26 Sep']],
+};
+const PAGES = {
+  source: { kind: 'source', title: 'Demo podcast: the craft of focus', line: 'Source · watched Tuesday · 48 min', meta: 'Updated Tuesday · 6 pages link here',
+    caps: [['Play', IC.play, 'rgba(232,236,246,.9)', true], ['Open in Library', IC.book, '#c98bff'], ['Reflect', IC.pen, 'var(--journal)']],
+    body: ['Demo text. The episode argues that attention behaves like a budget, and that most of it is spent before noon.', 'Every switch between tasks leaves something behind; the host calls it residue and prices it at a quarter of an hour.'],
+    nb: [['concept', 'Attention residue'], ['concept', 'Deep work'], ['entity', 'A demo host'], ['topic', 'Mornings'], ['concept', 'Compounding'], ['capture', 'A saved link']] },
+  concept: { kind: 'concept', title: 'Attention residue', line: 'Concept', tag: "Today's review", meta: 'Updated Tuesday · 4 pages link here',
+    caps: [['Reflect', IC.pen, 'var(--journal)'], ['Open in Library', IC.book, '#c98bff']],
+    body: ['Demo text. When you leave a task unfinished, part of your attention stays with it.', 'The cost shows up in the next task, not the last one.'],
+    nb: [['source', 'Demo podcast'], ['concept', 'Deep work blocks'], ['topic', 'Mornings'], ['concept', 'Compounding']] },
+  idea: { kind: 'idea', title: 'Video idea: a desk in ten minutes', line: 'Idea · Studio', meta: 'Updated 30 Sep · 2 pages link here', caps: [],
+    body: ['Demo text. Ten minutes on one desk: clear it, light it from one side, keep one object that says what the room is for.'], nb: [] },
+};
+function notesList(opts = {}) {
+  const total = NK.filter(([k]) => k !== 'records').reduce((a, [, n]) => a + n, 0);
+  const rows = (list, d0) => list.map(([k, t, w], i) => `<button type="button" class="row" data-k="${k}" data-t="${t}" style="--d:${d0 + i * 45}">${kt(k)}<span class="t">${t}</span><span class="w">${w}</span>${svg(IC.chev, 'ic chev')}</button>`).join('');
+  return `<div class="scr scroll" data-v="list">
+    <div class="lt"><h1>Notes</h1>${opts.mapSwitch ? '' : `<button type="button" class="ib" aria-label="Search">${svg(IC.search)}</button>`}</div>
+    ${opts.mapSwitch ? `<div class="seg lm" role="group" aria-label="View"><button type="button" data-lm="list" aria-pressed="true">${'List'}</button><button type="button" data-lm="map" aria-pressed="false">Map</button></div>` : ''}
+    <p class="news">Four pages arrived this week, <b>all from one podcast.</b></p>
+    <div class="glass know">
+      <div class="kbar" role="img" aria-label="${total} pages by kind">${NK.map(([k, n], i) => `<span data-k="${k}" class="${k === 'records' ? 'rec' : ''}" style="flex:${n} 0 0;--c:${KIND[k].c};--i:${i}"></span>`).join('')}</div>
+      <div class="kchips">${NK.map(([k, n]) => `<button type="button" class="kc${k === 'records' ? ' off' : ''}" data-k="${k}" style="--c:${KIND[k].c}">${svg(GL[k], 'gi')}${KIND[k].pl}<span class="num">${n}</span></button>`).join('')}</div>
+    </div>
+    ${opts.mapSwitch ? '' : `<div class="search">${svg(IC.search)}Search words in every page</div>`}
+    <div class="ghead"><span>Arrived this week</span><span class="num">4</span></div>
+    <div class="glass grp">${rows(NROWS.week, 120)}</div>
+    <div class="ghead"><span>Everything, newest first</span></div>
+    <div class="glass grp">${rows(NROWS.all, 300)}</div>
+  </div>`;
+}
+function notesPage(p, backLabel = 'Notes', bc = 'var(--notes)') {
+  const P = PAGES[p];
+  const caps = P.caps.map(([n, ic, c, out], i) => `<button type="button" class="capb in-rise" data-cap="${n}" style="--c:${c};--d:${180 + i * 50}">${svg(ic)}${n}${out ? svg(IC.out, 'ic out') : ''}</button>`).join('');
+  const nb = P.nb;
+  const cx = 179, cy = 84, R = [[0, -56], [112, -30], [112, 34], [0, 58], [-112, 34], [-112, -30]];
+  const conn = nb.length ? `<div class="glass conn"><h5><span>Connected</span><span class="num">${nb.length}</span></h5>
+    <svg viewBox="0 0 358 170" aria-label="This page and the ${nb.length} pages it links to">
+      ${nb.map((_, i) => `<line class="ln" pathLength="1" style="--i:${i}" x1="${cx}" y1="${cy}" x2="${cx + R[i][0]}" y2="${cy + R[i][1]}"/>`).join('')}
+      <circle cx="${cx}" cy="${cy}" r="9" fill="${KIND[P.kind].c}"/><circle cx="${cx}" cy="${cy}" r="15" fill="none" stroke="${KIND[P.kind].c}" stroke-opacity=".35"/>
+      ${nb.map(([k, t], i) => { const x = cx + R[i][0], y = cy + R[i][1]; const tx = Math.max(56, Math.min(302, x)); const ty = R[i][1] < 0 && R[i][0] === 0 ? y - 12 : y + 20; return `<g class="nb" style="--i:${i}"><circle cx="${x}" cy="${y}" r="5.5" fill="${KIND[k].c}"/><text x="${tx}" y="${ty}" text-anchor="middle">${t}</text></g>`; }).join('')}
+    </svg>
+    <button type="button" class="wide" data-galaxy style="--c:var(--galaxy)">${svg(IC.galaxy)}See it in your Galaxy</button></div>` : '';
+  const stage = P.kind === 'idea' ? `<div class="glass stg" style="--c:var(--notes)"><h5>Stage</h5>
+      <div class="track"><span class="t0"></span><span class="t1" style="transform:scaleX(.333)"></span>
+      ${['Seed', 'Outlining', 'Scripting', 'Shipped'].map((s, i) => `<button type="button" class="stop ${i < 1 ? 'done' : i === 1 ? 'on' : ''}" data-st="${i}"><i></i>${s}</button>`).join('')}</div></div>
+      <div class="glass srows"><button type="button" class="srow">${svg(IC.pen)}<span class="t">Draft the outline now<small>Studio drafts it while you wait</small></span>${svg(IC.chev, 'ic chev')}</button>
+      <button type="button" class="srow">${svg(IC.moon)}<span class="t">Draft it tonight<small>In the Inbox by morning</small></span>${svg(IC.chev, 'ic chev')}</button></div>` : '';
+  return `<div class="npg">
+    <div class="pbar"><button type="button" class="back" style="--bc:${bc}">${svg(IC.back)}${backLabel}</button></div>
+    <div class="pin"><div class="pinner scroll"><div class="kline">${kt(P.kind)}<span>${P.line}</span>${P.tag ? `<span class="tag" style="--c:var(--journal)">${P.tag}</span>` : ''}</div>
+      <h2 class="ptitle">${P.title}</h2><p class="meta pm">${P.meta}</p>
+      ${caps ? `<div class="caps">${caps}</div>` : ''}${stage}
+      <div class="body">${P.body.map((t) => `<p>${t}</p>`).join('')}</div>${conn}</div></div></div>`;
+}
+const COMPOSER = (dest) => `<div class="scrim"></div><div class="sheet" role="dialog" aria-label="Reflect">
+  <div class="grab"></div><div class="shh"><h5>${dest}</h5><button type="button" class="x" aria-label="Close">${svg(IC.close)}</button></div>
+  <p class="prompt"></p><div class="field"><span class="ph">Your words</span><span class="tx"></span><span class="caret"></span></div>
+  <div class="crow"><button type="button" class="ask">${svg(IC.spark)}Ask me a question</button><button type="button" class="save">Save</button></div>
+  <p class="dest">Saves to today in your Journal</p></div>`;
+const TOAST = '<div class="toast" role="status"><span></span><button type="button"></button></div>';
+async function showToast(P, text, btn, c, W, hold = 1600) {
+  const t = $('.toast', P.stage); $('span', t).textContent = text; const b = $('button', t); b.textContent = btn; b.style.setProperty('--c', c);
+  t.classList.add('on'); await W(hold); return b;
+}
+
+const NOW = {
+  notes: [
+    '<b>What’s here.</b> The bar fills kind by kind; tap Concepts and the bar and list agree; tap again for everything.',
+    '<b>Read a page.</b> Nothing is open until you tap. The row’s title travels up into the page; the page ends in its neighbourhood.',
+    '<b>Reflect.</b> From the Home’s Daily review: one composer, Nova’s question in starlight, your words saved to today with a door to see them.',
+    '<b>An idea.</b> Set the stage forward or back; one write, with Undo. The two outline actions say when they finish.',
+  ],
+  journal: [
+    '<b>Today.</b> Nova’s four entries land on the rail at their hours; your bead waits at the foot.',
+    '<b>Your line.</b> Ask for a question, write, save: your words land on the rail at 21:10, in the serif.',
+    '<b>A past day.</b> Its strip opens into entries in the same order; a reflection opens its page in Notes.',
+    '<b>Who wrote it.</b> One filter, Who and Kind. An empty result keeps the filter in view and says why.',
+  ],
+  galaxy: [
+    '<b>A · Arrive.</b> The map settles once; this week’s pages ring a single time, then everything holds still.',
+    '<b>A · Tap a star.</b> Its neighbourhood lights, the card rises from it and points at it; Open grows the page out of the star.',
+    '<b>A · Islands.</b> Show, then Islands: Compost’s three proposals ring in gold, with a door to decide them in the Inbox.',
+    '<b>A · A day’s star.</b> A journal day opens that day in the Journal, not in Notes.',
+  ],
+  merge: [
+    '<b>B · List to Map.</b> Each row’s glyph flies to its star; the lines arrive after; switching back reverses it.',
+    '<b>B · Map to page.</b> The same card and Open; Back returns to the map where you left it.',
+  ],
+};
+
+const SCRIPTS = {};
+SCRIPTS.notes = async (P, m, W, tap) => {
+  const S = P.stage;
+  const page = m === 1 ? 'source' : m === 2 ? 'concept' : 'idea';
+  S.innerHTML = notesList() + COMPOSER('Reflect on Attention residue') + TOAST;
+  const list = $('[data-v="list"]', S);
+  const bar = $('.kbar', S);
+  $$('.row', S).forEach((r) => r.classList.add('in-rise'));
+  bar.classList.add('go');
+  await W(m === 0 ? 1300 : 700);
+  if (m === 0) {
+    const chip = $('.kc[data-k="concept"]', S);
+    await tap(chip);
+    chip.classList.add('on');
+    $$('span', bar).forEach((s) => s.classList.toggle('dim', s.dataset.k !== 'concept'));
+    $$('.row', S).forEach((r) => { r.classList.add('fade'); if (r.dataset.k !== 'concept') r.classList.add('gone'); });
+    await W(1800);
+    await tap($('.kc[data-k="records"]', S));
+    const rc = $('.kc[data-k="records"]', S); rc.classList.remove('off');
+    $$('span', bar).forEach((s) => s.classList.toggle('dim', !['concept', 'records'].includes(s.dataset.k)));
+    await W(1500);
+    await tap(chip); chip.classList.remove('on'); rc.classList.add('off');
+    $$('span', bar).forEach((s) => s.classList.remove('dim'));
+    $$('.row', S).forEach((r) => r.classList.remove('gone'));
+    await W(2400);
+    return start('notes', 0);
+  }
+  // open a row: its title travels into the page title
+  const row = m === 1 ? $('.row[data-k="source"]', S) : m === 2 ? $$('.row[data-k="concept"]', S)[0] : $('.row[data-k="idea"]', S);
+  if (m === 2) {
+    // arrives from the Home card: say so, then open
+    const b = await showToast(P, 'From Home: today’s review page', '', 'var(--notes)', W, 900);
+    $('.toast', S).classList.remove('on');
+  }
+  await tap(row);
+  const from = rel(P, $('.t', row));
+  S.insertAdjacentHTML('beforeend', notesPage(page));
+  const pg = $('.npg', S); const title = $('.ptitle', pg);
+  // the toast and sheet sit above the page
+  S.append($('.scrim', S), $('.sheet', S), $('.toast', S));
+  const to = rel(P, title);
+  pg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 * SLOW, easing: 'ease-out' });
+  await flip(title, { x: from.x, y: from.y, w: to.w * .5 }, to, 460);
+  const conn = $('.conn', pg);
+  if (m === 1) {
+    await W(1200);
+    const pin = $('.pinner', pg);
+    pin.style.transform = 'translateY(-240px)';
+    await W(600);
+    conn.classList.add('go');
+    await W(1700);
+    await tap($('[data-galaxy]', pg));
+    await showToast(P, 'Opens the Galaxy, centred on this page', 'Galaxy', 'var(--galaxy)', W, 1800);
+    $('.toast', S).classList.remove('on');
+    pin.style.transform = '';
+    await W(800);
+    await tap($('.back', pg));
+    if (RM()) pg.remove(); else { await pg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220 * SLOW, fill: 'forwards' }).finished.catch(() => {}); pg.remove(); }
+    await W(1600);
+    return start('notes', 1);
+  }
+  if (m === 2) {
+    await W(900);
+    const cap = $('.capb[data-cap="Reflect"]', pg);
+    await tap(cap);
+    $('.scrim', S).classList.add('on'); $('.sheet', S).classList.add('on');
+    await W(600);
+    const ask = $('.ask', S); await tap(ask); ask.classList.add('busy');
+    await W(900); ask.classList.remove('busy');
+    await sayWords($('.prompt', S), 'Demo question: where did your attention stay behind today?', W);
+    await W(600);
+    $('.field .ph', S).style.display = 'none';
+    await typeInto($('.field .tx', S), 'Demo words. In the meeting after training; I was still on the session.', W);
+    await W(500);
+    await tap($('.save', S));
+    $('.sheet', S).classList.remove('on'); $('.scrim', S).classList.remove('on');
+    await W(300);
+    const b = await showToast(P, 'Saved to today in your Journal, 21:10', 'Open', 'var(--journal)', W, 900);
+    await tap(b);
+    await W(1600);
+    $('.toast', S).classList.remove('on');
+    await W(800);
+    return start('notes', 2);
+  }
+  // the idea's stage
+  await W(1000);
+  const stops = $$('.stop', pg), t1 = $('.t1', pg);
+  const set = (n) => { stops.forEach((s, i) => { s.classList.toggle('done', i < n); s.classList.toggle('on', i === n); }); t1.style.transform = `scaleX(${n / 3})`; };
+  await tap(stops[2]); set(2);
+  const b = await showToast(P, 'Stage set to Scripting', 'Undo', 'var(--notes)', W, 1000);
+  await tap(b); set(1);
+  $('.toast', S).classList.remove('on');
+  await W(900);
+  await tap(stops[0]); set(0);
+  await showToast(P, 'Stage set to Seed, a step back', 'Undo', 'var(--notes)', W, 1500);
+  $('.toast', S).classList.remove('on');
+  await W(600);
+  await tap($$('.srow', pg)[1]);
+  await showToast(P, 'Queued for tonight; the outline waits in the Inbox at dawn', 'Inbox', '#ffd66b', W, 2000);
+  $('.toast', S).classList.remove('on');
+  await W(1200);
+  return start('notes', 3);
+};
+
+/* ======================= JOURNAL ======================= */
+const TODAY = [
+  ['06:30', 'nova', 'Nova', 'Morning dispatch', 'Demo. Two meetings before noon; training at 17:30.'],
+  ['07:05', 'nova', 'Nova', 'Plan today', 'Demo. Three things: the draft, the session, a call back.'],
+  ['18:40', 'coach', 'Coach', 'Session receipt', 'Demo. Upper body done; every set logged.'],
+  ['20:30', 'nova', 'Nova', 'Evening debrief', 'Demo. Two of the three planned things done.'],
+];
+const AC = { nova: 'var(--nova)', coach: 'var(--coach)', you: 'var(--journal)' };
+const DAYS = [
+  { d: 'Tue 6 Oct', n: 6, ticks: [[6.5, 'nova'], [7.1, 'nova'], [12.4, 'coach'], [20.5, 'nova'], [21.2, 'nova'], [21.6, 'you']],
+    ent: [['06:30', 'nova', 'Nova', 'Morning dispatch', 'Demo. A clear morning; one meeting at ten.'], ['07:05', 'nova', 'Nova', 'Plan today', 'Demo. The report, the session, an early night.'], ['12:25', 'coach', 'Coach', 'Session receipt', 'Demo. Lower body; one lift up.'], ['20:30', 'nova', 'Nova', 'Evening debrief', 'Demo. All three done.'], ['21:10', 'nova', 'Nova', 'Daily review reflection', 'Demo. A steady day.'], ['21:35', 'you', 'You', 'Reflection on Compounding', 'Demo words. The middle of the curve is today.']] },
+  { d: 'Mon 5 Oct', n: 4, ticks: [[6.5, 'nova'], [7.1, 'nova'], [20.5, 'nova'], [21.2, 'nova']] },
+  { d: 'Sun 4 Oct', n: 7, ticks: [[6.5, 'nova'], [7.1, 'nova'], [16, 'nova'], [17.5, 'coach'], [18, 'nova'], [20.5, 'nova'], [21.2, 'nova']] },
+];
+function journalScreen() {
+  const bead = ([tm, a, who, lab, tx], i) => `<div class="bead" style="--c:${AC[a]}" data-i="${i}"><span class="tm">${tm}</span><span class="dot"></span><span class="by">${who}<span>· ${lab}</span></span><span class="tx">${tx}</span></div>`;
+  const day = (D, i) => `<div class="drow" data-day="${i}"><button type="button" class="dtop" style="width:100%;display:flex"><span class="dd">${D.d}</span><span class="dn">${D.n} entries</span>${svg(IC.chev, 'ic chev')}</button>
+    <span class="hstrip">${'<span class="ax"></span>'}${D.ticks.map(([h, a]) => `<span class="tk${a === 'you' ? ' you' : ''}" style="left:${(h / 24 * 100).toFixed(1)}%;--c:${AC[a]}"></span>`).join('')}</span><div class="dent" hidden></div></div>`;
+  return `<div class="scr scroll" data-v="j">
+    <div class="lt"><h1>Journal</h1><button type="button" class="ib" data-filter aria-label="Filter" style="--h:var(--journal)">${svg(IC.filter)}</button></div>
+    <p class="news" id="jnews">Nova wrote four times today. <b>Your line is still open.</b></p>
+    <div class="glass today"><div class="thead"><b>Today, Wed 7 Oct</b><span>Nova 3 · Coach 1</span></div>
+      <div class="rail">${TODAY.map(bead).join('')}
+        <div class="bead slot" data-slot><span class="tm">now</span><span class="dot"></span><span class="by">You</span>
+          <div class="compose"><p class="prompt"></p><div class="field"><span class="ph">Your line for today</span><span class="tx"></span><span class="caret"></span></div>
+          <div class="crow"><button type="button" class="ask">${svg(IC.spark)}Ask me a question</button><button type="button" class="save">Save</button></div></div></div>
+      </div></div>
+    <div class="ghead"><span>This week</span></div>
+    <div class="glass grp">${DAYS.map(day).join('')}</div>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet" role="dialog" aria-label="Filter"><div class="grab"></div><div class="shh"><h5>Show entries</h5><button type="button" class="x" aria-label="Done">${svg(IC.close)}</button></div>
+    <div class="fh"><span>Who</span><span class="nw">New</span></div>
+    <div class="fgrp">${[['Everyone', 'var(--ink3)'], ['You', 'var(--journal)'], ['Nova', 'var(--nova)'], ['Coach', 'var(--coach)']].map(([n, c], i) => `<button type="button" class="srow${i === 0 ? ' sel' : ''}" data-who="${n}"><span class="wi" style="--c:${c}"></span><span class="t">${n}</span>${svg(IC.check, 'ic chk')}</button>`).join('')}</div>
+    <div class="fh"><span>Kind</span><span>as today</span></div>
+    <div class="fgrp">${['All', 'Personal', 'Training', 'System'].map((n, i) => `<button type="button" class="srow${i === 0 ? ' sel' : ''}" data-kind="${n}"><span class="t">${n}</span>${svg(IC.check, 'ic chk')}</button>`).join('')}</div>
+  </div>${TOAST}`;
+}
+SCRIPTS.journal = async (P, m, W, tap) => {
+  const S = P.stage;
+  S.innerHTML = journalScreen();
+  const beads = $$('.bead:not(.slot)', S);
+  const slot = $('[data-slot]', S);
+  const scr = $('[data-v="j"]', S);
+  // beads drop in at their hours
+  const drop = async (fast) => {
+    for (const b of beads) {
+      if (RM()) b.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 * SLOW, fill: 'both' });
+      else b.animate([{ opacity: 0, transform: 'translateY(-10px)' }, { opacity: 1, transform: 'none' }], { duration: 360 * SLOW, easing: 'cubic-bezier(.23,1,.32,1)', fill: 'both' });
+      await W(fast ? 60 : 220);
+    }
+    slot.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300 * SLOW, fill: 'both' });
+  };
+  if (m === 0) {
+    beads.forEach((b) => (b.style.opacity = 0));
+    await W(400); beads.forEach((b) => (b.style.opacity = ''));
+    await drop(false);
+    await W(1200);
+    scr.style.transform = 'translateY(-330px)';
+    await W(2200);
+    scr.style.transform = '';
+    await W(2000);
+    return start('journal', 0);
+  }
+  await drop(true);
+  if (m === 1) {
+    await W(700);
+    const ask = $('.ask', slot); await tap(ask); ask.classList.add('busy');
+    await W(900); ask.classList.remove('busy');
+    await sayWords($('.prompt', slot), 'Demo question: what did the session ask of you that the plan didn’t?', W);
+    await W(500);
+    $('.field .ph', slot).style.display = 'none';
+    await typeInto($('.field .tx', slot), 'Demo words. Patience on the last set.', W);
+    await W(400);
+    await tap($('.save', slot));
+    // the composer folds into a bead on the rail at 21:10
+    const words = $('.field .tx', slot).textContent;
+    const mine = document.createElement('div');
+    mine.className = 'bead you'; mine.style.setProperty('--c', 'var(--journal)');
+    mine.innerHTML = `<span class="tm">21:10</span><span class="dot"></span><span class="ring1"></span><span class="by">You</span><span class="tx">${words}</span>`;
+    const compose = $('.compose', slot);
+    await compose.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180 * SLOW, fill: 'forwards' }).finished.catch(() => {});
+    slot.before(mine);
+    slot.remove();
+    if (!RM()) {
+      mine.animate([{ opacity: 0, transform: 'translateY(14px) scale(.98)' }, { opacity: 1, transform: 'none' }], { duration: 380 * SLOW, easing: 'cubic-bezier(.23,1,.32,1)', fill: 'both' });
+      $('.ring1', mine).animate([{ opacity: .9, transform: 'scale(.6)' }, { opacity: 0, transform: 'scale(1.8)' }], { duration: 700 * SLOW, easing: 'ease-out', delay: 200 * SLOW });
+    } else mine.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 * SLOW, fill: 'both' });
+    $('#jnews', S).innerHTML = 'Nova wrote four times today. <b>You wrote once.</b>';
+    $('.thead span', S).textContent = 'Nova 3 · Coach 1 · You 1';
+    await W(3200);
+    return start('journal', 1);
+  }
+  if (m === 2) {
+    await W(600);
+    scr.style.transform = 'translateY(-370px)';
+    await W(700);
+    const row = $('.drow[data-day="0"]', S);
+    await tap($('.dtop', row));
+    row.classList.add('open');
+    const dent = $('.dent', row); dent.hidden = false;
+    const D = DAYS[0];
+    dent.innerHTML = D.ent.map(([tm, a, who, lab, tx]) => `<div class="ent${a === 'you' ? ' you' : ''}" style="--c:${AC[a]}"><span class="tm">${tm}</span><div><span class="by"><i></i>${who}<span>· ${lab}</span></span><div class="tx">${tx}</div>${a === 'you' ? `<button type="button" class="door" style="--c:var(--notes)">${svg(IC.notes)}Open Compounding</button>` : ''}</div></div>`).join('');
+    const ticks = $$('.tk', row);
+    const ents = $$('.ent', dent);
+    for (let i = 0; i < ents.length; i++) {
+      ticks[i].animate([{ transform: 'scaleY(1)' }, { transform: 'scaleY(1.8)' }, { transform: 'scaleY(1)' }], { duration: 300 * SLOW });
+      if (RM()) ents[i].animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 * SLOW, fill: 'both' });
+      else ents[i].animate([{ opacity: 0, transform: 'translateY(-8px)' }, { opacity: 1, transform: 'none' }], { duration: 320 * SLOW, easing: 'cubic-bezier(.23,1,.32,1)', fill: 'both' });
+      await W(110);
+    }
+    await W(900);
+    scr.style.transform = 'translateY(-640px)';
+    await W(900);
+    const door = $('.door', dent);
+    await tap(door);
+    S.insertAdjacentHTML('beforeend', notesPage('concept', 'Journal', 'var(--journal)'));
+    const pg = $('.npg', S);
+    $('.kline .tag', pg).remove();
+    if (RM()) pg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 * SLOW, fill: 'both' });
+    else pg.animate([{ transform: 'translateX(100%)' }, { transform: 'none' }], { duration: 420 * SLOW, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' });
+    $('.ptitle', pg).textContent = 'Compounding';
+    await W(2000);
+    await tap($('.back', pg));
+    if (RM()) await pg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 * SLOW, fill: 'forwards' }).finished.catch(() => {});
+    else await pg.animate([{ transform: 'none' }, { transform: 'translateX(100%)' }], { duration: 320 * SLOW, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' }).finished.catch(() => {});
+    pg.remove();
+    await W(1600);
+    return start('journal', 2);
+  }
+  // who wrote it: the filter sheet
+  await W(700);
+  await tap($('[data-filter]', S));
+  $('.scrim', S).classList.add('on'); $('.sheet', S).classList.add('on');
+  await W(700);
+  const pick = async (sel, attr) => { const b = $(sel, S); await tap(b); $$(`[${attr}]`, S).forEach((x) => x.classList.toggle('sel', x === b)); };
+  await pick('[data-who="You"]', 'data-who');
+  await W(500);
+  await pick('[data-kind="System"]', 'data-kind');
+  await W(600);
+  await tap($('.sheet .x', S));
+  $('.scrim', S).classList.remove('on'); $('.sheet', S).classList.remove('on');
+  // the honest empty: the filter stays in view
+  const today = $('.today', S), grp = $$('.grp', S)[0], gh = $$('.ghead', S)[0];
+  [today, grp, gh].forEach((e) => e.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 * SLOW, fill: 'forwards' }));
+  await W(220);
+  [today, grp, gh].forEach((e) => (e.style.display = 'none'));
+  $('#jnews', S).innerHTML = 'Showing <b>You · System</b>.';
+  const em = document.createElement('div'); em.className = 'glass empty';
+  em.innerHTML = '<p>Nothing from you marked system in these 30 days.</p><small>Your entries are personal or training.</small><button type="button" class="door" style="--c:var(--journal);margin-top:10px">Show all</button>';
+  $('[data-v="j"]', S).append(em);
+  em.animate([{ opacity: 0, transform: RM() ? 'none' : 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 300 * SLOW, easing: 'cubic-bezier(.23,1,.32,1)', fill: 'both' });
+  $('[data-filter]', S).style.background = 'color-mix(in srgb, var(--journal) 22%, transparent)';
+  await W(1800);
+  await tap($('.door', em));
+  em.remove(); [today, grp, gh].forEach((e) => { e.style.display = ''; e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220 * SLOW, fill: 'forwards' }); });
+  $('#jnews', S).innerHTML = 'Nova wrote four times today. <b>Your line is still open.</b>';
+  $('[data-filter]', S).style.background = '';
+  await W(2000);
+  return start('journal', 3);
+};
+
+/* ======================= GALAXY (a seeded stand-in map) ======================= */
+function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+function buildSky(top = 230, bottom = 740) {
+  const r = rng(87);
+  const C = [{ x: 120, y: top + 120, k: 'concept' }, { x: 270, y: top + 90, k: 'concept' }, { x: 210, y: top + 260, k: 'source' }, { x: 95, y: top + 360, k: 'entity' }, { x: 300, y: top + 390, k: 'journal' }];
+  const stars = [];
+  const mix = ['concept', 'concept', 'concept', 'entity', 'source', 'concept', 'topic', 'idea', 'capture'];
+  C.forEach((c, ci) => {
+    stars.push({ x: c.x, y: c.y, k: ci === 2 ? 'topic' : c.k, r: 6.5, hub: true, c: ci });
+    const n = 11 + Math.floor(r() * 4);
+    for (let i = 0; i < n; i++) {
+      const a = r() * Math.PI * 2, d = 26 + r() * 62;
+      const k = ci === 4 ? (r() < .7 ? 'journal' : 'concept') : mix[Math.floor(r() * mix.length)];
+      stars.push({ x: Math.max(22, Math.min(368, c.x + Math.cos(a) * d)), y: Math.max(top, Math.min(bottom, c.y + Math.sin(a) * d * .85)), k, r: 2.2 + r() * 2.4, c: ci });
+    }
+  });
+  // three islands
+  [[340, top + 20], [40, top + 230], [350, top + 250]].forEach(([x, y]) => stars.push({ x, y, k: 'capture', r: 2.6, island: true, c: -1 }));
+  const links = [];
+  stars.forEach((s, i) => {
+    if (s.hub || s.island) return;
+    const hub = stars.findIndex((h) => h.hub && h.c === s.c); links.push([i, hub]);
+    if (r() < .35) { const j = stars.findIndex((t, jj) => jj !== i && t.c === s.c && !t.hub && r() < .2); if (j > -1) links.push([i, j]); }
+  });
+  const hubs = stars.map((s, i) => (s.hub ? i : -1)).filter((i) => i > -1);
+  [[0, 1], [0, 2], [1, 2], [2, 3], [2, 4], [3, 4]].forEach(([a, b]) => links.push([hubs[a], hubs[b]]));
+  // this week's six new pages: one source and its neighbours
+  const src = stars.findIndex((s) => s.c === 2 && !s.hub);
+  stars[src].k = 'source'; stars[src].r = 5;
+  const fresh = new Set([src]);
+  links.forEach(([a, b]) => { if (fresh.size < 6 && (a === src || b === src)) { fresh.add(a); fresh.add(b); } });
+  stars.forEach((s, i) => { if (fresh.has(i)) s.fresh = true; });
+  stars[src].title = 'Demo podcast: the craft of focus';
+  const jday = stars.findIndex((s, i) => s.c === 4 && !s.hub && !s.fresh);
+  stars[jday].title = 'Tuesday 6 October'; stars[jday].k = 'journal';
+  return { stars, links, src, jday };
+}
+function skySvg(G, cls = '') {
+  const { stars, links } = G;
+  return `<div class="map ${cls}"><svg viewBox="0 0 390 844" aria-label="A map of demo pages as stars">
+    <g>${links.map(([a, b], i) => `<line class="lk" data-a="${a}" data-b="${b}" x1="${stars[a].x}" y1="${stars[a].y}" x2="${stars[b].x}" y2="${stars[b].y}"/>`).join('')}</g>
+    <g>${stars.map((s, i) => `<g class="st" data-i="${i}" data-k="${s.k}">${s.fresh ? `<circle class="newring" cx="${s.x}" cy="${s.y}" r="${s.r + 5}"/>` : ''}${s.island ? `<circle class="isl" cx="${s.x}" cy="${s.y}" r="${s.r + 6}"/>` : ''}<circle cx="${s.x}" cy="${s.y}" r="${s.r}" fill="${KIND[s.k].c}" ${s.fresh ? 'style="filter:drop-shadow(0 0 4px rgba(201,216,255,.9))"' : 'fill-opacity=".85"'}/>${s.title ? `<text class="lbl" x="${s.x}" y="${s.y - 14}" text-anchor="middle">${s.title.length > 26 ? s.title.slice(0, 24) + '…' : s.title}</text>` : ''}</g>`).join('')}</g>
+  </svg></div>`;
+}
+const GAL = buildSky();
+function galaxyScreen() {
+  return `${skySvg(GAL)}
+  <div class="gtop"><div class="lt"><h1>Galaxy</h1><button type="button" class="ib" data-show aria-label="Show" style="--h:var(--galaxy)">${svg(IC.show)}</button></div>
+    <p class="news" id="gnews">Six pages arrived this week. <b>Three link to nothing yet.</b></p></div>
+  <div class="hud"><span class="pill glass">${svg(IC.galaxy)}<span class="num">400</span><small>of 427 pages</small></span></div>
+  <div class="callout" role="dialog"><span class="arrow"></span><div class="kline"></div><p class="cth"></p><p class="meta"></p><div class="cbt"><button type="button" class="open">Open</button><button type="button" class="xb" aria-label="Close">${svg(IC.close)}</button></div></div>
+  <div class="banner"><span>Three pages link to nothing. Compost proposes what to do with each.</span><button type="button" class="door">${svg(IC.inbox)}Decide</button></div>
+  <div class="scrim"></div>
+  <div class="sheet" role="dialog" aria-label="Show"><div class="grab"></div><div class="shh"><h5>Show</h5><button type="button" class="x" aria-label="Done">${svg(IC.close)}</button></div>
+    <div class="fh"><span>Kinds</span><span>demo counts</span></div>
+    <div class="fgrp">${[['concept', 184], ['entity', 46], ['source', 38], ['topic', 12], ['journal', 30]].map(([k, n]) => `<button type="button" class="srow sel" data-k="${k}">${kt(k)}<span class="t">${KIND[k].pl}</span><span class="meta num" style="margin-right:6px">${n}</span>${svg(IC.check, 'ic chk')}</button>`).join('')}</div>
+    <div class="fh"><span>Light</span></div>
+    <div class="fgrp"><button type="button" class="srow sel" data-light="recency"><span class="wi" style="--c:var(--galaxy)"></span><span class="t">This week</span>${svg(IC.check, 'ic chk')}</button><button type="button" class="srow" data-light="islands"><span class="wi" style="--c:var(--gold)"></span><span class="t">Islands <span class="num meta">3</span></span>${svg(IC.check, 'ic chk')}</button></div>
+  </div>${TOAST}`;
+}
+function placeCallout(P, map, i, kind, title, meta, openC) {
+  const s = GAL.stars[i];
+  const co = $('.callout', P.stage);
+  const above = s.y > 420;
+  co.classList.toggle('below', !above);
+  const left = Math.max(16, Math.min(390 - 16 - 300, s.x - 150));
+  co.style.left = left + 'px';
+  $('.arrow', co).style.left = (s.x - left) + 'px';
+  $('.kline', co).innerHTML = kt(kind) + `<span>${KIND[kind].w}</span>`;
+  $('.cth', co).textContent = title; $('.meta', co).textContent = meta;
+  const h = co.offsetHeight;
+  co.style.top = above ? (s.y - 18 - h) + 'px' : (s.y + 18) + 'px';
+  co.style.transformOrigin = `${s.x - left}px ${above ? '100%' : '0'}`;
+  $('.open', co).style.setProperty('--c', openC);
+  co.classList.add('on');
+}
+function lightAround(map, i) {
+  map.classList.add('dimmed');
+  $$('.lk', map).forEach((l) => { const on = +l.dataset.a === i || +l.dataset.b === i; l.classList.toggle('lit', on); if (on) { $(`.st[data-i="${l.dataset.a}"]`, map).classList.add('lit'); $(`.st[data-i="${l.dataset.b}"]`, map).classList.add('lit'); } });
+  $(`.st[data-i="${i}"]`, map).classList.add('lit');
+}
+function clearLight(map) { map.classList.remove('dimmed'); $$('.lit', map).forEach((e) => e.classList.remove('lit')); }
+const starEl = (map, i) => $(`.st[data-i="${i}"] circle:last-of-type`, map) || $(`.st[data-i="${i}"] circle`, map);
+async function arrive(P, map, W) {
+  const groups = [0, 1, 2, 3, 4, -1];
+  const sts = $$('.st', map), lks = $$('.lk', map);
+  sts.forEach((s) => (s.style.opacity = 0)); lks.forEach((l) => (l.style.opacity = 0));
+  await W(200);
+  for (const g of groups) {
+    sts.filter((s) => GAL.stars[+s.dataset.i].c === g).forEach((s) => s.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 360 * SLOW, fill: 'forwards' }));
+    await W(RM() ? 0 : 110);
+  }
+  lks.forEach((l) => l.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500 * SLOW, fill: 'forwards' }));
+  await W(500);
+  sts.forEach((s) => (s.style.opacity = '')); lks.forEach((l) => (l.style.opacity = ''));
+  sts.forEach((s) => s.getAnimations().forEach((a) => a.cancel())); lks.forEach((l) => l.getAnimations().forEach((a) => a.cancel()));
+  if (!RM()) $$('.newring', map).forEach((r) => r.animate([{ opacity: .9, transform: 'scale(.6)' }, { opacity: 0, transform: 'scale(2.2)' }], { duration: 1100 * SLOW, easing: 'ease-out', fill: 'none' }));
+  $$('.newring', map).forEach((r) => { r.style.transformBox = 'fill-box'; r.style.transformOrigin = 'center'; });
+}
+async function growPage(P, i, html, W) {
+  const s = GAL.stars[i];
+  const wrap = document.createElement('div'); wrap.className = 'grow'; wrap.style.setProperty('--x', s.x + 'px'); wrap.style.setProperty('--y', s.y + 'px');
+  wrap.innerHTML = html; P.stage.append(wrap);
+  await W(30); wrap.classList.add('on');
+  return wrap;
+}
+SCRIPTS.galaxy = async (P, m, W, tap) => {
+  const S = P.stage;
+  S.innerHTML = galaxyScreen();
+  const map = $('.map', S);
+  if (m === 0) {
+    await arrive(P, map, W);
+    $(`.st[data-i="${GAL.src}"] .lbl`, map).classList.add('on');
+    await W(4200);
+    return start('galaxy', 0);
+  }
+  await W(500);
+  if (m === 1) {
+    const st = starEl(map, GAL.src);
+    await tap(st);
+    lightAround(map, GAL.src);
+    $(`.st[data-i="${GAL.src}"] .lbl`, map).classList.add('on');
+    placeCallout(P, map, GAL.src, 'source', 'Demo podcast: the craft of focus', 'Arrived Tuesday · 6 links', 'var(--notes)');
+    await W(1800);
+    await tap($('.open', S));
+    $('.callout', S).classList.remove('on');
+    const wrap = await growPage(P, GAL.src, notesPage('source', 'Galaxy', 'var(--galaxy)'), W);
+    await W(2600);
+    await tap($('.back', wrap));
+    wrap.classList.remove('on');
+    await W(700); wrap.remove(); clearLight(map);
+    await W(1400);
+    return start('galaxy', 1);
+  }
+  if (m === 2) {
+    await tap($('[data-show]', S));
+    $('.scrim', S).classList.add('on'); $('.sheet', S).classList.add('on');
+    await W(800);
+    const isl = $('[data-light="islands"]', S); await tap(isl);
+    isl.classList.add('sel'); $('[data-light="recency"]', S).classList.remove('sel');
+    await W(500);
+    await tap($('.sheet .x', S));
+    $('.scrim', S).classList.remove('on'); $('.sheet', S).classList.remove('on');
+    map.classList.add('islands');
+    $('#gnews', S).innerHTML = 'Showing islands. <b>Three link to nothing.</b>';
+    await W(400);
+    $('.banner', S).classList.add('on');
+    await W(1600);
+    const d = $('.banner .door', S); await tap(d);
+    await showToast(P, 'Opens the Inbox at Compost’s three proposals', 'Inbox', '#ffd66b', W, 2000);
+    $('.toast', S).classList.remove('on');
+    await W(1400);
+    return start('galaxy', 2);
+  }
+  // a journal day's star opens that day in the Journal
+  const st = starEl(map, GAL.jday);
+  await tap(st);
+  lightAround(map, GAL.jday);
+  placeCallout(P, map, GAL.jday, 'journal', 'Tuesday 6 October', '6 entries · links to 2 pages', 'var(--journal)');
+  $('.open', S).textContent = 'Open in Journal';
+  await W(1800);
+  await tap($('.open', S));
+  $('.callout', S).classList.remove('on');
+  const wrap = await growPage(P, GAL.jday, `<div class="npg"><div class="pbar"><button type="button" class="back" style="--bc:var(--galaxy)">${svg(IC.back)}Galaxy</button></div><div class="pin"><p class="meta">Journal</p><h2 class="ptitle" style="font:700 34px/1.1 var(--ui);letter-spacing:-.025em">Tue 6 Oct</h2><div class="glass grp" style="margin-top:14px;padding:4px 14px">${DAYS[0].ent.map(([tm, a, who, lab, tx]) => `<div class="ent${a === 'you' ? ' you' : ''}" style="--c:${AC[a]}"><span class="tm">${tm}</span><div><span class="by"><i></i>${who}<span>· ${lab}</span></span><div class="tx">${tx}</div></div></div>`).join('')}</div></div></div>`, W);
+  await W(2800);
+  await tap($('.back', wrap));
+  wrap.classList.remove('on');
+  await W(700); wrap.remove(); clearLight(map);
+  await W(1400);
+  return start('galaxy', 3);
+};
+
+/* ======================= MERGE: the Map inside Notes ======================= */
+SCRIPTS.merge = async (P, m, W, tap) => {
+  const S = P.stage;
+  S.innerHTML = notesList({ mapSwitch: true }) + `<div class="mapwrap" style="position:absolute;inset:0;z-index:4;pointer-events:none">${skySvg(GAL)}</div>` + `<div class="callout" role="dialog"><span class="arrow"></span><div class="kline"></div><p class="cth"></p><p class="meta"></p><div class="cbt"><button type="button" class="open">Open</button><button type="button" class="xb" aria-label="Close">${svg(IC.close)}</button></div></div>` + TOAST;
+  const list = $('[data-v="list"]', S);
+  const mw = $('.mapwrap', S), map = $('.map', mw);
+  map.style.opacity = 0;
+  $('.kbar', S).classList.add('go');
+  $$('.row', S).forEach((r) => r.classList.add('in-rise'));
+  const swList = $('[data-lm="list"]', S), swMap = $('[data-lm="map"]', S);
+  // keep the title and switch above the map
+  const head = document.createElement('div');
+  head.className = 'gtop'; head.style.zIndex = 8;
+  const toMap = async () => {
+    await tap(swMap);
+    swMap.setAttribute('aria-pressed', 'true'); swList.setAttribute('aria-pressed', 'false');
+    const rows = $$('.row', list);
+    // each row's glyph flies to a star of its kind
+    const used = new Set();
+    const flyers = rows.map((r) => {
+      const k = r.dataset.k; const from = rel(P, $('.kt', r));
+      let i = GAL.stars.findIndex((s, ii) => !used.has(ii) && (s.k === k || (k === 'capture' && s.island)) && s.y > 300);
+      if (i < 0) i = GAL.stars.findIndex((s, ii) => !used.has(ii));
+      used.add(i);
+      const f = document.createElement('span'); f.className = 'flyer'; f.style.setProperty('--c', KIND[k].c); f.innerHTML = svg(GL[k], 'gi');
+      f.style.left = from.x + 'px'; f.style.top = from.y + 'px'; S.append(f);
+      return { f, from, to: GAL.stars[i] };
+    });
+    list.querySelectorAll('.know,.ghead,.grp,.news').forEach((e) => e.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220 * SLOW, fill: 'forwards' }));
+    if (RM()) {
+      flyers.forEach(({ f }) => f.remove());
+    } else {
+      await Promise.all(flyers.map(({ f, from, to }, i) => f.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${to.x - from.x - 14}px,${to.y - from.y - 14}px) scale(.3)`, opacity: .2 }], { duration: 560 * SLOW, delay: i * 40 * SLOW, easing: 'cubic-bezier(.77,0,.175,1)', fill: 'forwards' }).finished.catch(() => {})));
+      flyers.forEach(({ f }) => f.remove());
+    }
+    map.style.transition = `opacity ${300 * SLOW}ms ease`; map.style.opacity = 1;
+    mw.style.pointerEvents = 'auto';
+    $$('.lk', map).forEach((l) => l.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500 * SLOW, delay: 120 * SLOW, fill: 'backwards' }));
+  };
+  const toList = async () => {
+    await tap(swList);
+    swList.setAttribute('aria-pressed', 'true'); swMap.setAttribute('aria-pressed', 'false');
+    map.style.opacity = 0; mw.style.pointerEvents = 'none';
+    list.querySelectorAll('.know,.ghead,.grp,.news').forEach((e) => { e.getAnimations().forEach((a) => a.cancel()); e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260 * SLOW, fill: 'both' }); });
+  };
+  list.style.zIndex = 6; list.style.position = 'absolute';
+  // the list sits on top of the map; its header stays visible in Map
+  await W(1400);
+  await toMap();
+  await W(m === 0 ? 2600 : 900);
+  if (m === 0) {
+    await toList();
+    await W(2400);
+    return start('merge', 0);
+  }
+  const st = starEl(map, GAL.src);
+  await tap(st);
+  lightAround(map, GAL.src);
+  placeCallout(P, map, GAL.src, 'source', 'Demo podcast: the craft of focus', 'Arrived Tuesday · 6 links', 'var(--notes)');
+  $('.callout', S).style.zIndex = 9;
+  await W(1600);
+  await tap($('.open', S));
+  $('.callout', S).classList.remove('on');
+  const wrap = await growPage(P, GAL.src, notesPage('source', 'Map', 'var(--notes)'), W);
+  wrap.style.zIndex = 20;
+  await W(2400);
+  await tap($('.back', wrap));
+  wrap.classList.remove('on');
+  await W(700); wrap.remove(); clearLight(map);
+  await W(1400);
+  return start('merge', 1);
+};
+
+/* ======================= doors diagram ======================= */
+const NODES = { notes: [240, 160, 'Notes', 'var(--notes)'], journal: [92, 380, 'Journal', 'var(--journal)'], galaxy: [388, 380, 'Galaxy', 'var(--galaxy)'],
+  home: [62, 52, 'Home', 'var(--ink3)'], library: [418, 52, 'Library', '#c98bff'], inbox: [240, 510, 'Inbox', '#ffd66b'] };
+const DOORS = [
+  ['notes', 'galaxy', 'See it in your Galaxy', 'A page to its star, centred and lit.', 'new'],
+  ['notes', 'journal', 'Reflect, then Open', 'Your words saved to today, and a way to see them.', 'new'],
+  ['journal', 'notes', 'Open the page', 'A reflection opens the page it was about.', 'new'],
+  ['journal', 'galaxy', 'This day in your Galaxy', 'A day’s star, once journal days are drawn.', 'new'],
+  ['galaxy', 'notes', 'Open', 'Any star opens its page. Today’s one door, kept.', 'kept'],
+  ['galaxy', 'journal', 'Open in Journal', 'A journal day’s star opens that day, not a Notes page.', 'new'],
+  ['home', 'notes', 'Daily review card', 'Today’s Concept, with Reflect.', 'kept'],
+  ['library', 'notes', 'A concept or transcript', 'The Library’s pages open in Notes.', 'kept'],
+  ['library', 'galaxy', 'See in Galaxy', 'Now centred on that source, not wherever the map was.', 'fixed'],
+  ['journal', 'inbox', 'From the Inbox', 'An agent’s entry opens the record it came from, where Undo lives.', 'new'],
+  ['galaxy', 'inbox', 'Decide islands', 'Compost’s proposals, in the Inbox.', 'new'],
+];
+function drawDoors() {
+  const g = $('#doorsSvg');
+  const curve = (a, b, bend) => { const [x1, y1] = NODES[a], [x2, y2] = NODES[b]; const mx = (x1 + x2) / 2, my = (y1 + y2) / 2; const dx = x2 - x1, dy = y2 - y1; const L = Math.hypot(dx, dy) || 1; const nx = -dy / L * bend, ny = dx / L * bend; return { d: `M${x1} ${y1} Q${mx + nx} ${my + ny} ${x2} ${y2}`, lx: mx + nx * .55, ly: my + ny * .55 }; };
+  const pairSeen = {};
+  let html = '<defs>' + Object.entries(NODES).map(([k, [, , , c]]) => `<marker id="ar-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10Z" fill="${c}"/></marker>`).join('') + '</defs>';
+  DOORS.forEach(([a, b], i) => {
+    const key = [a, b].sort().join('|'); pairSeen[key] = (pairSeen[key] || 0) + 1;
+    const bend = pairSeen[key] === 1 ? 26 : -26;
+    const { d } = curve(a, b, a < b ? bend : -bend);
+    // shorten so arrows stop at the node's edge
+    html += `<path class="dr" d="${d}" fill="none" stroke="${NODES[b][3]}" stroke-width="2" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#ar-${b})" style="opacity:.85;--i:${i}"/>`;
+  });
+  Object.entries(NODES).forEach(([k, [x, y, n, c]]) => {
+    const main = ['notes', 'journal', 'galaxy'].includes(k);
+    html += `<g><circle cx="${x}" cy="${y}" r="${main ? 42 : 34}" fill="#0c1230" stroke="${c}" stroke-width="${main ? 2 : 1.2}"/><text x="${x}" y="${y + 5}" text-anchor="middle" style="font:${main ? 600 : 400} ${main ? 19 : 17}px var(--ui);fill:${main ? c : 'rgba(232,236,246,.8)'}">${n}</text></g>`;
+  });
+  g.innerHTML = html;
+  $('#dlist').innerHTML = DOORS.map(([a, b, n, s, st]) => `<li style="--c:${NODES[b][3]}"><i></i><span><b>${NODES[a][2]} to ${NODES[b][2]}: ${n}.</b> ${s} <em>${st}</em></span></li>`).join('');
+  // the arrows draw in, shortened by the node radius, once, when seen
+  $$('.dr', g).forEach((p) => {
+    const L = p.getTotalLength(); const a = p.getPointAtLength(0); // trim both ends
+    const trimStart = 46 / L, trimEnd = 50 / L;
+    p.setAttribute('stroke-dasharray', `0 ${trimStart} ${Math.max(0, 1 - trimStart - trimEnd)} 1`);
+    p.dataset.full = `0 ${trimStart} ${Math.max(0, 1 - trimStart - trimEnd)} 1`;
+    p.style.strokeDashoffset = 0; p.style.opacity = 0;
+  });
+  once($('#doorsBox'), () => {
+    $$('.dr', g).forEach((p, i) => {
+      if (RM()) { p.style.opacity = .85; return; }
+      p.animate([{ opacity: 0 }, { opacity: .85 }], { duration: 300 * SLOW, delay: i * 120 * SLOW, fill: 'forwards' });
+    });
+  });
+}
+// markers sit at the path end, which is the node centre: pull markers back by drawing them at trimmed ends instead
+function fixMarkers() {
+  $$('#doorsSvg .dr').forEach((p) => {
+    const L = p.getTotalLength(); const end = p.getPointAtLength(L - 48), prev = p.getPointAtLength(L - 54);
+    p.removeAttribute('marker-end');
+    const ang = Math.atan2(end.y - prev.y, end.x - prev.x) * 180 / Math.PI;
+    const ns = 'http://www.w3.org/2000/svg';
+    const tri = document.createElementNS(ns, 'path');
+    tri.setAttribute('d', 'M-7 -5 3 0 -7 5Z'); tri.setAttribute('fill', p.getAttribute('stroke'));
+    tri.setAttribute('transform', `translate(${end.x} ${end.y}) rotate(${ang})`);
+    tri.classList.add('dr-ar'); tri.style.opacity = 0; tri.style.setProperty('--i', p.style.getPropertyValue('--i'));
+    p.after(tri);
+  });
+  once($('#doorsBox'), () => $$('#doorsSvg .dr-ar').forEach((t, i) => { if (RM()) t.style.opacity = .85; else t.animate([{ opacity: 0 }, { opacity: .85 }], { duration: 300 * SLOW, delay: (i * 120 + 200) * SLOW, fill: 'forwards' }); }));
+}
+
+/* ======================= wiring ======================= */
+mountPhone('notes', 'var(--notes)');
+mountPhone('journal', 'var(--journal)');
+mountPhone('galaxy', 'var(--galaxy)');
+mountPhone('merge', 'var(--notes)');
+fit();
+window.addEventListener('resize', fit);
+$$('.seg[data-for] button').forEach((b) => b.addEventListener('click', () => start(b.closest('.seg').dataset.for, +b.dataset.m)));
+$$('[data-again]').forEach((b) => b.addEventListener('click', () => start(b.dataset.again, PHONES[b.dataset.again].m)));
+$('#slowT').addEventListener('click', (e) => { SLOW = SLOW === 1 ? 4 : 1; doc.classList.toggle('slow', SLOW === 4); e.currentTarget.setAttribute('aria-pressed', String(SLOW === 4)); Object.keys(PHONES).forEach((k) => start(k, PHONES[k].m)); });
+$('#rmT').addEventListener('click', (e) => { forceRM = !forceRM; syncRM(); e.currentTarget.setAttribute('aria-pressed', String(forceRM)); Object.keys(PHONES).forEach((k) => start(k, PHONES[k].m)); });
+if (mq.addEventListener) mq.addEventListener('change', syncRM);
+drawDoors(); fixMarkers();
+// start each phone when it is first seen, so the loops don't all run off screen
+Object.keys(PHONES).forEach((k) => once(PHONES[k].box, () => { if (!PHONES[k].run) start(k, 0); }));
+})();
+</script>
