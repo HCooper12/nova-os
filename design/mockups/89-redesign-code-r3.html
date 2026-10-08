@@ -1,0 +1,863 @@
+<title>Code, round three</title>
+<!--
+  89 · CODE, ROUND 3 (9 Oct 2026)
+  Round 1: 80-redesign-money-code.html, audit design/audits/redesign-2026-09/17-money-and-code.md.
+  Round 2: 85-redesign-money-code-r2.html (Code tabs D Projects, E Today), research 17-money-r2-research.md §3.
+
+  His words, 9 Oct: "I'm liking option D better. Keep in mind that Wren is the AI assistant for
+  science atlas, so this is essentially the same thing but science atlas would refer to the actual
+  work itself whereas wren may do tasks to support and guide the science atlas project. Can we
+  potentially further refine the appearance and organisation so it feels even more organised and
+  clean, especially for the review 'project' screen. Consider if there are any refinements
+  incorporating D with some parts of E."
+
+  FRAMES (phone, 390 x 844; the bar above the phone switches them; hash #r #p #c #a #m #s)
+    Code      D refined. E's "Needs you" strip at the top, only while something waits on him.
+              Projects as tiles with E's state chips. Science Atlas and Wren are ONE family tile:
+              the work on top, its assistant nested beneath on a branch, sharing the family's hue.
+    Project   the review screen, his named ask. One focal object (the commit review, the diff
+              drawn as file bars), then three groups with an anchor bar: Commit, Sessions, Runs.
+    Commit    the same page acting out a commit: message typed, the length rule met, Commit, the
+              bars fold into a receipt with Undo, Nova's line lands in Runs. Undo plays it back.
+    Atlas     the family page: the work, then Wren's tasks on a branch, and an honest empty
+              Commit group (Nova reads git only where the Builder works).
+    More      the ⋯ sheet: model, where the Builder works, New session, Add to vault, Can and
+              can't, the connection. Every round-1 function that left the page lives here.
+    States    loading (the page's own shape), the Mac out of reach, nothing running.
+  Below the phone: one MacBook frame at 1280 x 800, scaled to fit.
+
+  WHAT CAME FROM E. The Needs you column became a strip at the top of the root (hidden when empty).
+  The lanes became state chips on the tiles: Working, Waiting for you, Ready to commit, Done today,
+  Left open. Done today keeps a short receipt list because each receipt carries Undo. E's board
+  itself is NOT drawn: with the strip and the chips, every state the board showed is already on
+  the root, and a second organising axis would put each task in two places.
+
+  COLOUR, and what each one means here.
+    Code's own hue is the Platform's violet (--nv-vi): the news dot, the back button, a file's
+    Ready to commit chip, Commit, Send. Nova's own lines in Runs are cyan (--nv-cy), Nova's hue;
+    Nova OS is Nova's own house and wears cyan too. Each project family owns one hue: Nova OS
+    --nv-cy, Science Atlas --nv-m-quads (Wren wears the SAME hue, drawn outlined: the assistant
+    of that project), Vault --nv-m-mobility, Builds --nv-m-triceps. The Builder's mark is a solid
+    orchid square (--nv-m-glutes), the Breaker's the same square cracked; you are a plain ring.
+    Gold (--nv-gold) only while something waits on him; green (--nv-good) only on a done check.
+    Red is never used (his 4 Oct rule: red is Nova pushing back).
+
+  REAL RECORDS BEHIND EVERY STATE (nothing here is a fake session; every name is demo).
+    Session states and sentences: server/lib/claudeSessions.js judge() and plainFor(): working,
+      waiting ("Waiting for you: it has something to say or a question."), blocked, left-open
+      after 12 quiet hours (STALE_AFTER_MS), gone; agoWords() for "about 6 minutes ago";
+      projectOf() maps the folders to Nova, Science Atlas and Wren. Show and Close: /api/ops/
+      sessions/show and /close, Close only for left-open or gone (claudeSessionsLive.js).
+      The Ops slice "Working on this Mac" (src/vals/valsOps.js macSessions) is the same list.
+    Files to commit: server/lib/codeChanges.js changeSummary() (git status, diff --stat, diff,
+      branch). Lines per file are in the --stat it already returns.
+    Runs: the Code transcript (st.codeChat: you, claude = Builder, breaker, system = Nova),
+      startMessage() and startBreaker() in server/lib/claudeCode.js.
+    agentSessions.js records which CLI session is live per agent; it is where a run's session id
+      would come from if Runs ever reads the CLI's journal instead of the phone's copy.
+
+  Type: 34 (large title), 28 (project title), 20 (section heads, serif news), 17, 15, 13, and 12
+  for chips and chart labels only. Numerals SF Rounded. Controls 44.
+  Material: Nova glass (command theme, glass material), summary card tokens, the sky.
+
+  DEMO CONTENT ONLY: the repo is public. Every session name, file path, line count, commit
+  message, hash, time and run line is invented. The project names are the ones Nova's code knows.
+
+  Motion: cards rise once as they scroll in (opacity + 14px); file bars draw from the left; the
+  working ring turns; a commit folds the bars into a receipt and Nova's line lands; Undo plays it
+  back. Transform, opacity and clip only. Reduced motion (or the bar's switch): nothing moves,
+  the end state shows at once, short cross-fades only. No hijacked scroll.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);--ease-out:cubic-bezier(.23,1,.32,1);--ease-io:cubic-bezier(.77,0,.175,1);
+  --nv-ink:#e8ecf6;--nv-sum-ink2:rgba(232,236,246,.76);--nv-sum-ink3:rgba(232,236,246,.54);--sep:rgba(232,236,246,.13);
+  --nv-sum-card:rgba(255,255,255,.085);--ring:rgba(255,255,255,.15);--hi:rgba(255,255,255,.2);--track:rgba(255,255,255,.12);--well:rgba(0,0,0,.3);
+  --nv-cy:#59e6ff;--nv-gold:#e0b26a;--nv-good:#5fe8a8;--nv-vi:#8f7bff;
+  --nv-m-quads:#7ab8ff;--nv-m-mobility:#9ad5c8;--nv-m-glutes:#c98bff;--nv-m-triceps:#b48cff;
+  --code:var(--nv-vi);
+  --bg:#06070d;--r:22px;
+  --shadow:0 14px 34px -18px rgba(0,0,0,.7);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--nv-ink);font:15px/1.35 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+button:active{transform:scale(.97);transition:transform .14s var(--ease-out)}
+.ic{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.num{font-family:var(--round);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ===== the review bar (not part of the design) ===== */
+.bar{position:sticky;top:0;z-index:80;padding:8px 12px;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--sep)}
+.bar .in{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:3px;border-radius:12px;background:rgba(120,120,128,.22);min-width:0}
+.seg button{min-height:32px;padding:0 2px;border-radius:9px;font:600 12.5px var(--ui);text-align:center;opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background-color .25s var(--ease),opacity .25s var(--ease)}
+.seg button[aria-pressed="true"]{opacity:1;background:var(--nv-sum-card);box-shadow:0 0 0 .5px var(--ring)}
+.trow{display:flex;align-items:center;gap:8px}
+.tally{flex:1;min-width:0;margin:0 2px;font:400 13px/1.4 var(--ui);color:var(--nv-sum-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini{flex:none;height:28px;padding:0 10px;border-radius:14px;font:600 12.5px var(--ui);color:var(--nv-sum-ink2);background:color-mix(in srgb,var(--nv-ink) 9%,transparent)}
+.mini[aria-pressed="true"]{color:var(--bg);background:var(--nv-sum-ink2)}
+
+/* ===== the phone ===== */
+.stage{display:flex;justify-content:center;padding:14px 0 0}
+.device{position:relative;width:390px;max-width:100%;height:844px;border-radius:48px;overflow:hidden;background:var(--bg);box-shadow:0 0 0 1px rgba(255,255,255,.1),0 0 0 9px #0d0f17,0 40px 80px -30px rgba(0,0,0,.9);isolation:isolate}
+@media (max-width:420px){.stage{padding:0}.device{border-radius:0;box-shadow:none}}
+.sky{position:absolute;inset:0;z-index:-1;background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.15),rgba(89,230,255,0) 60%),radial-gradient(75% 45% at 90% 30%,rgba(143,123,255,.24),rgba(143,123,255,0) 62%),linear-gradient(180deg,#05060c 0%,#080b1c 35%,#0c1230 72%,#12183a 100%)}
+.status{position:absolute;left:0;right:0;top:0;z-index:40;height:50px;display:flex;align-items:center;padding:4px 34px 0;font:600 16px var(--ui);pointer-events:none;background:linear-gradient(180deg,rgba(6,7,13,.8),rgba(6,7,13,0))}
+.island{position:absolute;left:50%;top:11px;width:122px;height:35px;margin-left:-61px;border-radius:20px;background:#000;z-index:41}
+.scr{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:56px 16px 200px;overscroll-behavior:contain;scrollbar-width:none}
+.scr::-webkit-scrollbar{display:none}
+.scr.nocomp{padding-bottom:132px}
+.dock{position:absolute;left:0;right:0;bottom:0;z-index:30;padding:0 12px 22px;pointer-events:none}
+.dock .row{pointer-events:auto;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);height:64px;padding:0 4px;border-radius:32px;background:rgba(16,20,36,.6);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--ring),0 1px 0 var(--hi) inset}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:500 11px var(--ui);color:rgba(232,236,246,.5)}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--nv-cy)}
+.novabtn{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:rgba(16,20,36,.6);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 0 0 .5px var(--ring),0 1px 0 var(--hi) inset}
+.orb{width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+
+/* ===== house pieces ===== */
+.top{display:flex;align-items:center;gap:8px;min-height:48px}
+.top h1{flex:1;min-width:0;margin:0 2px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.ib{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:color-mix(in srgb,var(--nv-ink) 9%,transparent);box-shadow:0 0 0 .5px var(--ring)}
+.ib .ic{width:22px;height:22px}
+.news{margin:10px 2px 0;font:400 20px/1.3 var(--serif);text-wrap:pretty}
+.news .dot{display:inline-block;width:8px;height:8px;margin:0 8px 2px 0;border-radius:50%;background:var(--code);box-shadow:0 0 0 4px color-mix(in srgb,var(--code) 24%,transparent);vertical-align:middle}
+.card{position:relative;background:var(--nv-sum-card);border-radius:var(--r);padding:14px 16px;box-shadow:0 0 0 .5px var(--ring),0 1px 0 var(--hi) inset,var(--shadow);backdrop-filter:blur(22px) saturate(1.4);-webkit-backdrop-filter:blur(22px) saturate(1.4)}
+.sh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:26px 4px 10px}
+.sh h2{margin:0;font:700 20px/1.2 var(--ui);letter-spacing:-.015em}
+.sh span{font:400 13px var(--ui);color:var(--nv-sum-ink3)}
+.k{display:block;font:400 13px/1.35 var(--ui);color:var(--nv-sum-ink3)}
+.rv{opacity:0;transform:translateY(14px);transition:opacity .45s var(--ease-out),transform .55s var(--ease)}
+.rv.in{opacity:1;transform:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:22px;font:600 15px var(--ui);background:color-mix(in srgb,var(--nv-ink) 10%,transparent);white-space:nowrap}
+.btn .ic{width:17px;height:17px}
+.btn.sm{font-size:13px;padding:0 14px}
+
+/* project glyphs: a family shares a hue; its assistant wears the same hue outlined */
+.pgl{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;flex:none;color:var(--h);background:color-mix(in srgb,var(--h) 18%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 40%,transparent)}
+.pgl .ic{width:20px;height:20px}
+.pgl.kin{background:transparent;box-shadow:inset 0 0 0 1.5px var(--h)}
+.pgl.s{width:30px;height:30px;border-radius:10px}.pgl.s .ic{width:16px;height:16px}
+.pgl.l{width:56px;height:56px;border-radius:18px}.pgl.l .ic{width:28px;height:28px}
+
+/* state chips, taken from E's lanes */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.sc{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:0 10px 0 8px;border-radius:13px;font:600 12px var(--ui);white-space:nowrap;background:color-mix(in srgb,var(--nv-ink) 8%,transparent);box-shadow:inset 0 0 0 .5px var(--ring)}
+.sc i{position:relative;width:10px;height:10px;border-radius:50%;flex:none}
+.sc.work i{background:color-mix(in srgb,var(--h,var(--nv-ink)) 30%,transparent)}
+.sc.work i::after,.pip.work::after{content:"";position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(var(--h,var(--nv-ink)) 0 30%,transparent 30% 100%);-webkit-mask:radial-gradient(circle,transparent 52%,#000 56%);mask:radial-gradient(circle,transparent 52%,#000 56%);animation:spin 1.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sc.wait{color:var(--nv-gold);background:color-mix(in srgb,var(--nv-gold) 13%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-gold) 38%,transparent)}
+.sc.wait i{background:var(--nv-gold)}
+.sc.ready{background:color-mix(in srgb,var(--code) 18%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--code) 45%,transparent)}
+.sc.ready i{border-radius:3px;background:var(--code)}
+.sc.done{color:var(--nv-sum-ink2)}
+.sc.done .ic{width:12px;height:12px;stroke-width:3;color:var(--nv-good)}
+.sc.open i{box-shadow:inset 0 0 0 1.5px var(--nv-sum-ink3)}
+
+/* ===== root: Needs you (E's first column, as a strip) ===== */
+.needs{padding:6px 6px 6px 16px;margin-top:14px;border-radius:24px;background:color-mix(in srgb,var(--nv-gold) 8%,var(--nv-sum-card));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-gold) 36%,transparent),0 1px 0 var(--hi) inset,var(--shadow);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.nh{display:flex;align-items:center;gap:8px;min-height:36px;padding-right:10px}
+.nh .cnt{min-width:22px;height:22px;padding:0 7px;border-radius:11px;display:grid;place-items:center;font:700 12px var(--round);color:#1d1606;background:var(--nv-gold)}
+.nh b{font:600 15px var(--ui)}
+.nh > span:last-child{margin-left:auto;font:400 13px var(--ui);color:var(--nv-sum-ink3)}
+.nrow{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:60px;padding:6px 0}
+.nrow + .nrow{box-shadow:inset 0 .5px 0 color-mix(in srgb,var(--nv-gold) 22%,transparent)}
+.nrow b{display:block;font:600 15px/1.25 var(--ui)}
+.nrow .k{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== root: project tiles ===== */
+.tile{position:relative;display:block;width:100%;padding:14px;border-radius:24px;text-align:left;background:linear-gradient(165deg,color-mix(in srgb,var(--h) 15%,transparent),rgba(255,255,255,.035) 62%),var(--nv-sum-card);box-shadow:0 0 0 .5px color-mix(in srgb,var(--h) 32%,transparent),0 1px 0 var(--hi) inset,var(--shadow)}
+.tile + .tile,.fam + .duo,.tile + .fam,.fam + .tile{margin-top:10px}
+.th{display:flex;align-items:center;gap:12px}
+.th .t{flex:1;min-width:0}
+.th .t b{display:block;font:600 17px/1.2 var(--ui);letter-spacing:-.01em}
+.th .t .k{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th > .ic{width:16px;height:16px;color:var(--nv-sum-ink3)}
+.tile .chips{margin-top:12px}
+.minidiff{display:flex;flex-direction:column;gap:3px;margin-top:12px}
+.minidiff span{display:flex;height:5px;gap:2px;transform-origin:0 50%;transform:scaleX(0);transition:transform .6s var(--ease-out)}
+.in .minidiff span{transform:none}
+.minidiff i{display:block;height:100%;border-radius:3px}
+.minidiff i.a{background:var(--h)}
+.minidiff i.r{background:repeating-linear-gradient(135deg,var(--nv-sum-ink2) 0 2px,transparent 2px 4px)}
+.tfoot{display:flex;align-items:center;gap:8px;margin-top:10px;font:400 13px var(--ui);color:var(--nv-sum-ink3)}
+.tfoot .mk{width:12px;height:12px;border-radius:3px}
+
+/* the family tile: Science Atlas, with Wren on a branch inside it */
+.fam{position:relative;padding:14px;border-radius:24px;background:linear-gradient(165deg,color-mix(in srgb,var(--h) 16%,transparent),rgba(255,255,255,.035) 62%),var(--nv-sum-card);box-shadow:0 0 0 .5px color-mix(in srgb,var(--h) 34%,transparent),0 1px 0 var(--hi) inset,var(--shadow)}
+.fam > button{display:block;width:100%;text-align:left}
+.kinrow{position:relative;display:block;width:100%;margin-top:12px;padding:12px;margin-left:0;border-radius:18px;text-align:left;background:rgba(0,0,0,.2);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--h) 30%,transparent)}
+.kinwrap{position:relative;padding-left:30px}
+.branch{position:absolute;left:19px;top:-6px;width:22px;height:46px;overflow:visible}
+.branch path{fill:none;stroke:var(--h);stroke-width:1.5;stroke-linecap:round;stroke-dasharray:60;stroke-dashoffset:60;transition:stroke-dashoffset .7s var(--ease-out) .2s;opacity:.7}
+.in .branch path{stroke-dashoffset:0}
+.kinrow .th .t b{font-size:15px}
+.rel{font:400 12px var(--ui);color:var(--h);opacity:.9;letter-spacing:.01em}
+.duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.duo .tile{margin:0;display:flex;flex-direction:column;gap:10px;min-height:150px}
+.duo .tile .chips{margin-top:auto}
+.duo .tile b{font:600 15px/1.2 var(--ui)}
+
+/* receipts (Done today) */
+.rcp{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:58px;padding:6px 0}
+.rcp + .rcp{box-shadow:inset 0 .5px 0 var(--sep)}
+.rcp .ok{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#06281a;background:var(--nv-good)}
+.rcp .ok .ic{width:16px;height:16px;stroke-width:3}
+.rcp b{display:block;font:600 15px/1.25 var(--ui)}
+.rcp .k{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ===== the project page ===== */
+.back{display:inline-flex;align-items:center;gap:2px;min-height:44px;padding:0 10px 0 0;margin-left:-6px;font:400 17px var(--ui);color:var(--code)}
+.back .ic{width:22px;height:22px;stroke-width:2.4}
+.push{animation:pushIn .42s var(--ease) both}
+@keyframes pushIn{from{opacity:.3;transform:translateX(36px)}to{opacity:1;transform:none}}
+.phead{display:flex;align-items:center;gap:14px;margin-top:4px}
+.phead .t{flex:1;min-width:0}
+.phead b{display:block;font:700 28px/1.1 var(--ui);letter-spacing:-.02em}
+.phead .k{margin-top:3px}
+/* the anchor bar: three groups, one tap each */
+.anchors{position:sticky;top:48px;z-index:12;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:16px -6px 0;padding:4px;border-radius:24px;background:rgba(18,22,40,.92);backdrop-filter:blur(24px) saturate(1.4);-webkit-backdrop-filter:blur(24px) saturate(1.4);box-shadow:0 0 0 .5px var(--ring),0 1px 0 var(--hi) inset}
+.anchors button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border-radius:20px;font:600 13px var(--ui);color:var(--nv-sum-ink2);transition:background-color .25s var(--ease),color .25s var(--ease)}
+.anchors button.on{color:var(--nv-ink);background:color-mix(in srgb,var(--nv-ink) 11%,transparent)}
+.anchors .n{font:700 13px var(--round);color:var(--nv-ink)}
+.anchors .glyph{width:10px;height:10px;border-radius:3px;flex:none}
+.grp{scroll-margin-top:110px}
+.gh{display:flex;align-items:baseline;gap:10px;margin:26px 4px 10px}
+.gh h2{margin:0;font:700 20px/1.2 var(--ui);letter-spacing:-.015em}
+.gh span{margin-left:auto;font:400 13px var(--ui);color:var(--nv-sum-ink3);white-space:nowrap}
+
+/* the focal object: the commit review, the diff drawn as a shape */
+.review{padding:16px;border-radius:26px;background:linear-gradient(160deg,color-mix(in srgb,var(--code) 20%,transparent) 0%,rgba(255,255,255,.05) 50%),var(--nv-sum-card);box-shadow:0 0 0 .5px color-mix(in srgb,var(--code) 48%,transparent),0 1px 0 var(--hi) inset,0 26px 60px -30px color-mix(in srgb,var(--code) 70%,transparent);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.rtot{display:flex;align-items:baseline;gap:12px}
+.rtot b{font:700 34px/1 var(--round);letter-spacing:-.02em}
+.rtot b.rm{color:var(--nv-sum-ink2);font-size:22px}
+.rtot span{margin-left:auto;font:400 13px var(--ui);color:var(--nv-sum-ink3);text-align:right}
+.rbody,.rtot{transition:opacity .3s var(--ease-out),transform .45s var(--ease)}
+.files{margin-top:12px}
+.fr{display:grid;grid-template-columns:44px minmax(0,1fr) auto;column-gap:6px;align-items:center;min-height:58px;padding:4px 0;transition:opacity .3s ease,transform .45s var(--ease)}
+.fr + .fr,.dpeek + .fr{box-shadow:inset 0 .5px 0 var(--sep)}
+.tick{width:44px;height:44px;display:grid;place-items:center;grid-row:1/3}
+.tick i{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;color:#0d0a26;background:var(--code);transition:background-color .2s ease,box-shadow .2s ease}
+.tick i .ic{width:15px;height:15px;stroke-width:3}
+.tick.off i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--nv-sum-ink3);color:transparent}
+.fn{min-width:0;display:flex;align-items:baseline;gap:6px;white-space:nowrap;overflow:hidden}
+.fn b{font:600 15px var(--ui);flex:none}
+.fn span{font:400 12px var(--mono);color:var(--nv-sum-ink3);overflow:hidden;text-overflow:ellipsis}
+.fcount{grid-row:1/3;grid-column:3;font:600 13px var(--round);color:var(--nv-sum-ink2);text-align:right;padding-left:6px;white-space:nowrap}
+.fbar{grid-column:2;display:flex;gap:2px;height:8px;margin-top:6px;transform-origin:0 50%;transform:scaleX(0);transition:transform .6s var(--ease-out)}
+.in .fbar{transform:none}
+.fbar i{display:block;height:100%;border-radius:4px}
+.fbar i.a{background:var(--h)}
+.fbar i.r{background:repeating-linear-gradient(135deg,var(--nv-sum-ink2) 0 2px,transparent 2px 4px);border-radius:2px}
+.fr.off{opacity:.5}
+.fr.off .k{grid-column:2;margin-top:2px}
+.dpeek{margin:0 0 8px 50px;padding:8px 0;border-radius:12px;background:rgba(0,0,0,.34);font:400 12px/1.6 var(--mono);overflow:hidden}
+.dpeek div{padding:0 12px;white-space:pre;overflow:hidden;text-overflow:ellipsis;color:var(--nv-sum-ink3)}
+.dpeek .a{color:var(--nv-ink);background:color-mix(in srgb,var(--h) 14%,transparent);box-shadow:inset 2px 0 0 var(--h)}
+.dpeek .more{display:flex;justify-content:space-between;align-items:center;padding-top:4px;font-family:var(--ui)}
+.dpeek .more button{min-height:32px;padding:0 4px;color:var(--code);font:600 13px var(--ui)}
+.msgf{display:flex;align-items:center;min-height:50px;margin-top:12px;padding:0 14px;border-radius:15px;background:var(--well);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-ink) 12%,transparent);font:400 15px/1.35 var(--ui);color:var(--nv-sum-ink3)}
+.msgf.typed{color:var(--nv-ink)}
+.msgf .caret{display:inline-block;width:2px;height:18px;margin-left:1px;background:var(--code);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+/* the 8-character rule, drawn as eight ticks that light as he types */
+.rule{display:flex;align-items:center;gap:8px;margin:8px 2px 0;font:400 13px var(--ui);color:var(--nv-sum-ink3)}
+.eight{display:flex;gap:3px}
+.eight i{width:6px;height:10px;border-radius:2px;background:color-mix(in srgb,var(--nv-ink) 16%,transparent);transition:background-color .15s ease}
+.eight i.on{background:var(--code)}
+.rule.met{color:var(--nv-sum-ink2)}
+.rule .ok{display:none;width:14px;height:14px;color:var(--nv-good);stroke-width:3}
+.rule.met .ok{display:block}
+.cacts{display:flex;gap:8px;margin-top:12px}
+.commit{flex:1;min-height:50px;border-radius:25px;font:600 15px var(--ui);text-align:center;color:#0d0a26;background:var(--code);transition:opacity .2s ease}
+.commit[disabled]{opacity:.38;cursor:default}
+.shelve{min-height:50px;padding:0 18px;border-radius:25px;font:600 15px var(--ui);background:color-mix(in srgb,var(--nv-ink) 10%,transparent)}
+.fine{margin:8px 2px 0;font:400 13px/1.4 var(--ui);color:var(--nv-sum-ink3)}
+/* after a commit: the receipt that took the bars' place */
+.creceipt{display:none;grid-template-columns:36px minmax(0,1fr);gap:12px;align-items:center;margin-top:14px;opacity:0;transform:translateY(10px);transition:opacity .35s var(--ease-out),transform .45s var(--ease)}
+.creceipt.show{opacity:1;transform:none}
+.creceipt .ok{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#06281a;background:var(--nv-good)}
+.creceipt .ok .ic{width:20px;height:20px;stroke-width:3;stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .4s var(--ease-out) .15s}
+.creceipt.show .ok .ic{stroke-dashoffset:0}
+.creceipt b{display:block;font:600 17px/1.25 var(--ui)}
+.creceipt .row2{grid-column:1/-1;display:flex;gap:8px;margin-top:4px}
+.creceipt .row2 .btn{flex:1}
+.leftout{margin-top:12px;padding:10px 12px;border-radius:14px;font:400 13px/1.4 var(--ui);color:var(--nv-sum-ink2);background:rgba(0,0,0,.2);box-shadow:inset 0 0 0 .5px var(--ring)}
+
+/* sessions: a state mark, the sentence the server writes, and how long it has been quiet */
+.sess{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:12px 0}
+.sess + .sess{box-shadow:inset 0 .5px 0 var(--sep)}
+.pip{position:relative;width:14px;height:14px;border-radius:50%;flex:none;grid-row:1/4;align-self:start;margin:4px 5px 0}
+.pip.work{background:color-mix(in srgb,var(--h) 30%,transparent)}
+.pip.wait{background:var(--nv-gold);box-shadow:0 0 10px -2px var(--nv-gold)}
+.pip.open{box-shadow:inset 0 0 0 1.5px var(--nv-sum-ink3)}
+.sess b{font:600 15px var(--ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sess .st{font:400 13px/1.35 var(--ui);color:var(--nv-sum-ink2)}
+.sess .st.wait{color:var(--nv-gold)}
+.sess .btn{grid-row:1/4;grid-column:3;align-self:center}
+.quiet{grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:6px}
+.qt{position:relative;height:6px;border-radius:3px;background:var(--track)}
+.qt i{position:absolute;left:0;right:0;top:0;bottom:0;border-radius:3px;background:var(--qc,var(--nv-sum-ink3));transform-origin:0 50%;transform:scaleX(0);transition:transform .7s var(--ease-out)}
+.in .qt i{transform:scaleX(var(--q))}
+.qt::after{content:"";position:absolute;right:-1px;top:-3px;width:2px;height:12px;border-radius:1px;background:var(--nv-sum-ink3)}
+.qt.over i{background:var(--nv-sum-ink2)}
+.qt.live i{width:30%;right:auto;transform:none;background:var(--h);animation:sweep 1.6s var(--ease-io) infinite}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+.qt.live{overflow:hidden}
+.quiet span{font:400 12px var(--ui);color:var(--nv-sum-ink3);white-space:nowrap}
+
+/* runs: every line has an author, by mark and by name */
+.thread{position:relative}
+.ln{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;padding:10px 0}
+.ln::before{content:"";position:absolute;left:13px;top:34px;bottom:-10px;width:2px;border-radius:1px;background:var(--sep)}
+.ln:last-child::before{display:none}
+.au{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:none}
+.au.you{border-radius:50%;box-shadow:inset 0 0 0 2px var(--nv-sum-ink2)}
+.au.bld{background:color-mix(in srgb,var(--nv-m-glutes) 20%,transparent)}
+.au.brk{background:color-mix(in srgb,var(--nv-m-glutes) 12%,transparent)}
+.au.nova{border-radius:50%;background:color-mix(in srgb,var(--nv-cy) 18%,transparent)}
+.au.nova i{width:10px;height:10px;border-radius:50%;background:var(--nv-cy)}
+.mk{position:relative;flex:none;width:14px;height:14px;border-radius:4px;background:var(--nv-m-glutes)}
+.mk.crack{background:transparent;box-shadow:inset 0 0 0 2px var(--nv-m-glutes);overflow:hidden}
+.mk.crack::after{content:"";position:absolute;left:-3px;top:6px;width:20px;height:2px;background:var(--nv-m-glutes);transform:rotate(-38deg)}
+.lh{display:flex;align-items:baseline;gap:8px;font:600 13px var(--ui)}
+.lh span{font-weight:400;color:var(--nv-sum-ink3)}
+.lh .clock{margin-left:auto;font:600 13px var(--round);color:var(--nv-ink)}
+.lt{margin:3px 0 0;font:400 15px/1.42 var(--ui);color:var(--nv-ink)}
+.ln.you .lt{color:var(--nv-sum-ink2)}
+.ln.nova .lt{color:var(--nv-sum-ink2)}
+.lt ol{margin:2px 0 0;padding-left:20px}
+.ln .acts{display:flex;gap:8px;margin-top:8px}
+.stream::after{content:"";display:inline-block;width:7px;height:15px;margin-left:2px;vertical-align:-2px;background:var(--nv-m-glutes);animation:blink 1s steps(1) infinite}
+.prog{position:relative;height:4px;margin-top:10px;border-radius:2px;overflow:hidden;background:color-mix(in srgb,var(--nv-m-glutes) 18%,transparent)}
+.prog i{position:absolute;top:0;bottom:0;width:36%;border-radius:2px;background:var(--nv-m-glutes);animation:sweep 1.6s var(--ease-io) infinite}
+.ln.land{animation:land .5s var(--ease) both}
+@keyframes land{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* the composer, over the tab bar */
+.comp{position:absolute;left:12px;right:12px;bottom:98px;z-index:32;display:grid;grid-template-columns:auto minmax(0,1fr) 44px;gap:6px;align-items:center;padding:6px;border-radius:30px;background:rgba(20,25,46,.9);backdrop-filter:blur(26px) saturate(1.4);-webkit-backdrop-filter:blur(26px) saturate(1.4);box-shadow:0 0 0 .5px var(--ring),0 1px 0 var(--hi) inset,0 16px 40px -18px #000}
+.comp .fld{min-width:0;min-height:44px;display:flex;align-items:center;padding:0 6px;font:400 15px var(--ui);color:var(--nv-sum-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.comp .send{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#0d0a26;background:var(--code)}
+.brk{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 12px;border-radius:22px;font:600 13px var(--ui);background:color-mix(in srgb,var(--nv-ink) 9%,transparent)}
+
+/* the Atlas family page */
+.kinsec{position:relative;padding-left:22px}
+.kinsec::before{content:"";position:absolute;left:8px;top:-18px;bottom:18px;width:1.5px;border-radius:1px;background:linear-gradient(180deg,color-mix(in srgb,var(--h) 70%,transparent),color-mix(in srgb,var(--h) 10%,transparent))}
+.kinhead{display:flex;align-items:center;gap:12px;margin:26px 0 10px}
+.kinhead b{display:block;font:700 20px/1.2 var(--ui);letter-spacing:-.015em}
+.empty{padding:16px;border-radius:22px;border:1.5px dashed rgba(232,236,246,.22);font:400 15px/1.45 var(--ui);color:var(--nv-sum-ink2)}
+.empty b{display:block;color:var(--nv-ink);font-weight:600;margin-bottom:4px}
+
+/* sheet */
+.scrim{position:absolute;inset:0;z-index:44;background:rgba(4,5,10,.5);animation:fadeIn .25s ease both}
+@keyframes fadeIn{from{opacity:0}}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:45;max-height:84%;overflow-y:auto;padding:8px 16px 34px;border-radius:30px 30px 0 0;background:rgba(22,27,48,.97);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);box-shadow:0 0 0 .5px var(--ring),0 1px 0 var(--hi) inset;animation:sheetUp .42s var(--ease) both;scrollbar-width:none}
+@keyframes sheetUp{from{transform:translateY(100%)}}
+.grab{display:block;width:36px;height:5px;margin:0 auto 10px;border-radius:3px;background:rgba(232,236,246,.3)}
+.sheet h3{margin:4px 2px 2px;font:600 17px var(--ui)}
+.slab{margin:18px 4px 8px;font:600 13px var(--ui);color:var(--nv-sum-ink3)}
+.sgroup{border-radius:18px;background:var(--nv-sum-card);box-shadow:0 0 0 .5px var(--ring)}
+.srow{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;min-height:54px;padding:6px 14px;text-align:left}
+.srow + .srow{box-shadow:inset 0 .5px 0 var(--sep)}
+.srow .ic{width:20px;height:20px;color:var(--nv-sum-ink2)}
+.srow b{display:block;font:400 15px var(--ui)}
+.srow .k{font-size:13px}
+.srow .chev{width:16px;height:16px;color:var(--nv-sum-ink3)}
+.sseg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:3px;border-radius:14px;background:rgba(120,120,128,.24)}
+.sseg button{min-height:40px;border-radius:11px;font:600 13px var(--ui);text-align:center;color:var(--nv-sum-ink2);white-space:nowrap}
+.sseg button.on{color:var(--nv-ink);background:rgba(255,255,255,.14);box-shadow:0 0 0 .5px var(--ring)}
+.cando{padding:4px 14px 10px}
+.cando div{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;padding:6px 0;font:400 15px/1.4 var(--ui)}
+.cando .ic{width:16px;height:16px;margin-top:2px}
+.cando .y .ic{color:var(--nv-good);stroke-width:3}
+.cando .n{color:var(--nv-sum-ink2)}
+.cando .n .ic{color:var(--nv-sum-ink3)}
+.conn{display:inline-flex;align-items:center;gap:6px;font:400 13px var(--ui);color:var(--nv-sum-ink2)}
+.conn i{width:8px;height:8px;border-radius:50%;background:var(--nv-cy)}
+
+/* states */
+.stlab{margin:26px 4px 10px;font:600 13px var(--ui);color:var(--nv-sum-ink3)}
+.skel{display:block;border-radius:8px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.13),rgba(255,255,255,.06));background-size:200% 100%;animation:shim 1.4s linear infinite}
+@keyframes shim{to{background-position:-200% 0}}
+
+/* ===== notes, the Mac frame, calls (outside the phone) ===== */
+.notes{max-width:420px;margin:18px auto 0;padding:0 16px}
+.note{padding:12px 14px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--nv-ink) 26%,transparent);font:400 13px/1.5 var(--ui);color:var(--nv-sum-ink2)}
+.note b{color:var(--nv-ink);font-weight:600}
+.note p{margin:0 0 8px}
+.note p:last-child{margin:0}
+.note table{width:100%;border-collapse:collapse;margin-top:6px}
+.note td{padding:5px 6px 5px 0;vertical-align:top;border-top:1px solid var(--sep)}
+.note td:first-child{color:var(--nv-sum-ink3);width:40%}
+.note .new{color:var(--nv-vi);font-weight:600}
+.note code{font:400 12px var(--mono);overflow-wrap:anywhere}
+.machead{max-width:1100px;margin:34px auto 10px;padding:0 16px;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.machead span{display:block;margin-top:4px;font:400 13px/1.4 var(--ui);color:var(--nv-sum-ink3);letter-spacing:0}
+.macbox{position:relative;max-width:1100px;margin:0 auto;padding:0 16px}
+.macclip{position:relative;width:100%;overflow:hidden;border-radius:14px;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 70px -30px #000}
+.mac{position:absolute;left:0;top:0;width:1280px;height:800px;transform-origin:0 0;display:grid;grid-template-columns:320px minmax(0,1fr);background:#070912;overflow:hidden;isolation:isolate}
+.mac .sky{z-index:-1}
+.mside{padding:22px 16px;border-right:1px solid var(--sep);background:rgba(10,13,26,.55);overflow:hidden}
+.mside h1{margin:0 4px 12px;font:700 28px/1.1 var(--ui);letter-spacing:-.02em}
+.mside .needs{margin-top:0}
+.mside .tile{padding:12px}
+.mside .sel{box-shadow:0 0 0 1.5px color-mix(in srgb,var(--h) 70%,transparent),0 1px 0 var(--hi) inset}
+.mmain{padding:22px 28px;overflow:hidden}
+.mcols{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;margin-top:6px}
+.mcols .comp{position:static;margin-top:12px}
+.calls{max-width:420px;margin:0 auto;padding:24px 16px 80px}
+.calls h2{margin:8px 4px 10px;font:700 22px/1.2 var(--ui);letter-spacing:-.02em}
+.calls ol{margin:0;padding:0;list-style:none;counter-reset:c}
+.calls li{counter-increment:c;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;padding:12px 4px;border-top:1px solid var(--sep);font:400 15px/1.45 var(--ui);color:var(--nv-sum-ink2)}
+.calls li::before{content:counter(c);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;font:600 13px var(--round);color:var(--nv-ink);background:color-mix(in srgb,var(--nv-ink) 10%,transparent)}
+.calls li b{display:block;color:var(--nv-ink);font-weight:600}
+
+/* reduced motion: nothing moves, the end state shows, short cross-fades only */
+html.rm .device *,html.rm .device *::before,html.rm .device *::after,html.rm .mac *,html.rm .mac *::before{transition-property:opacity!important;transition-duration:.2s!important;transition-delay:0s!important;animation:none!important}
+html.rm .rv{transform:none}
+html.rm .fbar,html.rm .minidiff span{transform:none}
+html.rm .qt i{transform:scaleX(var(--q))}
+html.rm .branch path{stroke-dashoffset:0}
+@media (prefers-reduced-motion:reduce){
+  .device *,.device *::before,.device *::after,.mac *,.mac *::before{transition-property:opacity!important;transition-duration:.2s!important;transition-delay:0s!important;animation:none!important}
+  .rv{transform:none}
+  .fbar,.minidiff span{transform:none}
+  .qt i{transform:scaleX(var(--q))}
+  .branch path{stroke-dashoffset:0}
+}
+@media (prefers-reduced-transparency:reduce){
+  .card,.review,.needs,.tile,.fam,.anchors,.comp,.sheet,.tabbar,.novabtn{backdrop-filter:none;-webkit-backdrop-filter:none;background-color:#151a30}
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5.5 6.5 6.5L9 18.5"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5.5 8.5 12l6.5 6.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-mac" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M12 3v11M7.5 9.5 12 14l4.5-4.5"/><path d="M4 14v5h16v-5"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M10 2v4M14 2v4M10 18v4M14 18v4M2 10h4M2 14h4M18 10h4M18 14h4"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 7h11l-3-3M17 17H6l3 3"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4-3 7.5-7 9-4-1.5-7-5-7-9V6z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-shelf" viewBox="0 0 24 24"><path d="M4 7h16v4H4zM5 11v8h14v-8"/><path d="M10 15h4"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="7" cy="6" r="2.2"/><circle cx="7" cy="18" r="2.2"/><circle cx="17" cy="8" r="2.2"/><path d="M7 8.2v7.6M17 10.2c0 4-6 3-9.2 6"/></symbol>
+  <symbol id="p-nova" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.6"/></symbol>
+  <symbol id="p-vault" viewBox="0 0 24 24"><path d="M6 4h10a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z"/><path d="M6 18a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="p-atlas" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 2.5 14.4 0 17M12 3.5c-2.5 2.6-2.5 14.4 0 17"/></symbol>
+  <symbol id="p-wren" viewBox="0 0 24 24"><path d="M4 15c3 0 5-2 6-5 1.5-3.5 5-5 8-3l2 1-2 1c0 5-4 9-9 9H5z"/><path d="M9 18l-1 3"/></symbol>
+  <symbol id="p-build" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+</svg>
+
+<div class="bar">
+  <div class="in">
+    <div class="seg" id="frSeg" role="group" aria-label="Frame"></div>
+    <div class="trow">
+      <p class="tally" id="tally"></p>
+      <button class="mini" id="replay" type="button">Replay</button>
+      <button class="mini" id="rmbtn" type="button" aria-pressed="false">Reduced motion</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="device" id="dev">
+    <div class="sky"></div>
+    <div class="status" aria-hidden="true"><span>9:41</span></div>
+    <div class="island" aria-hidden="true"></div>
+    <main class="scr" id="scr"></main>
+    <div id="over"></div>
+    <footer class="dock" aria-label="Tab bar">
+      <div class="row">
+        <div class="tabbar">
+          <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/></svg>Home</span>
+          <span class="tab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/></svg>Nova</span>
+          <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/></svg>Train</span>
+          <span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 0-3 2-3 5v3h3v10M16 3v18"/></svg>Fuel</span>
+          <span class="tab on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>More</span>
+        </div>
+        <button class="novabtn" aria-label="Talk to Nova"><span class="orb"></span></button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<div class="notes" id="notes"></div>
+
+<h2 class="machead">On the MacBook, 1280 × 800<span>The same view models. The root becomes the sidebar (Needs you, then the projects with Wren on Science Atlas's branch); the project page splits into the review beside Sessions and Runs, with the composer under Runs. Scaled to fit this page.</span></h2>
+<div class="macbox"><div class="macclip" id="macclip"><div class="mac" id="mac"></div></div></div>
+
+<section class="calls" aria-label="Your calls">
+  <h2>Your calls</h2>
+  <ol>
+    <li><div><b>Wren on Science Atlas's branch</b>My pick: one family tile, Science Atlas on top and Wren nested under it on a branch line, both in Atlas's blue with Wren's glyph drawn outlined (the assistant of that project). Tapping Wren opens the Atlas page at Wren's tasks. Or two tiles side by side joined by a line, which keeps Wren a place of its own but takes a second full tile on the root. Or round 2's separate orange Wren tile, which reads as an unrelated project.</div></li>
+    <li><div><b>E's board stays out</b>My pick: E arrives as the Needs you strip and the state chips only; the board is not drawn, because every state it showed is already on the root and a second view would list each task twice. Or add E's board as a second view behind a Projects / Today switch at the top, which costs one control and one more place to look.</div></li>
+    <li><div><b>Commit only what is ticked, with Undo while unpushed</b>Carried from rounds 1 and 2. My pick: Commit takes only the ticked files (another session's file arrives unticked) and Undo takes the commit back while it is the newest and not pushed. Both are new server work in codeChanges.js. Or keep today's commit-everything (git add -A) with no Undo, and the review shows every file as ticked with no tick to change.</div></li>
+    <li><div><b>Files to commit for Science Atlas and Wren</b>My pick: Nova reads git status read-only in those two folders too, so their pages get the same review shape, while Commit stays Nova OS only. Small server work; nothing in those projects is written. Or their pages show sessions only, with the honest empty Commit group drawn in the Atlas frame.</div></li>
+    <li><div><b>Code's hue</b>As round 2 put it, Code wears the Platform's violet. Money's chrome is also violet in mockup 85, so the two screens share a hue. My pick: Code keeps violet and Money moves to the CFO's green when it is built. Or Code takes orchid instead, which then sits close to the Builder's own mark.</div></li>
+    <li><div><b>Switching where the Builder works, or a New session, keeps the conversation</b>My pick: both move the current conversation into Runs as a closed run with Undo for 8 seconds (today both wipe it at once with no question). Small client change. Or ask a yes or no question first and keep today's wipe.</div></li>
+    <li><div><b>What a waiting session said</b>Today Nova knows only that a session is waiting and when it last spoke, so the Needs you row says "It has something to say or a question" and offers Show. My pick: Nova reads that session's last message from its journal (it already reads the journal's times) and quotes one line, so you can decide from the phone. Or keep it to the state and the time, and you look on the Mac.</div></li>
+  </ol>
+</section>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const ic = (g, c) => `<svg class="ic${c ? ' ' + c : ''}" aria-hidden="true"><use href="#${/^[a-z]-/.test(g) ? g : 'i-' + g}"/></svg>`;
+  const RM = () => document.documentElement.classList.contains('rm') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ===== demo data: every name, path, number, time and line is invented ===== */
+  const P = {
+    nova: { n: 'Nova OS', h: 'var(--nv-cy)', g: 'p-nova' },
+    atlas: { n: 'Science Atlas', h: 'var(--nv-m-quads)', g: 'p-atlas' },
+    wren: { n: 'Wren', h: 'var(--nv-m-quads)', g: 'p-wren', kin: true },
+    vault: { n: 'Vault', h: 'var(--nv-m-mobility)', g: 'p-vault' },
+    build: { n: 'Builds', h: 'var(--nv-m-triceps)', g: 'p-build' },
+  };
+  // [dir, file, added, removed, otherSession]
+  const FILES = [
+    ['src/sheets/', 'TideSheet.jsx', 71, 0],
+    ['src/screens/', 'Harbour.jsx', 46, 22],
+    ['server/test/', 'tideSheet.test.js', 17, 1],
+    ['src/', 'lanterns.js', 3, 1, true],
+  ];
+  const MAXL = Math.max(...FILES.map((f) => f[2] + f[3]));
+  const MSG = 'Tide sheet asks before it clears a value';
+
+  const glyph = (p, size) => `<span class="pgl${P[p].kin ? ' kin' : ''}${size ? ' ' + size : ''}" style="--h:${P[p].h}">${ic(P[p].g)}</span>`;
+  const chip = (kind, text, h) => {
+    const mark = kind === 'done' ? ic('check') : '<i></i>';
+    return `<span class="sc ${kind}"${h ? ` style="--h:${h}"` : ''}>${mark}${text}</span>`;
+  };
+
+  /* ===== root (D refined, with E's strip and chips) ===== */
+  const needs = (n) => `<section class="needs rv" aria-label="Needs you">
+      <div class="nh"><span class="cnt num">${n}</span><b>Needs you</b><span>oldest first</span></div>
+      <div class="nrow">${glyph('wren', 's')}<div style="min-width:0"><b>Wren is waiting for you</b><span class="k">It has something to say or a question. About 6 minutes ago.</span></div><button class="btn sm" aria-label="Show this Wren session on your Mac">${ic('mac')}Show</button></div>
+      <div class="nrow">${glyph('nova', 's')}<div style="min-width:0"><b>The Breaker found two things</b><span class="k">A read-only pass on Nova OS, 9:58</span></div><button class="btn sm" data-go="p">Open</button></div>
+    </section>`;
+  const miniDiff = () => '<div class="minidiff" aria-hidden="true">' + FILES.filter((f) => !f[4]).map((f, i) =>
+    `<span style="width:${((f[2] + f[3]) / MAXL * 100).toFixed(1)}%;transition-delay:${i * 70}ms"><i class="a" style="flex:${f[2]}"></i>${f[3] ? `<i class="r" style="flex:${f[3]}"></i>` : ''}</span>`).join('') + '</div>';
+  const novaTile = (sel) => `<button class="tile rv${sel ? ' sel' : ''}" style="--h:${P.nova.h}" data-go="p" aria-label="Nova OS: one session working, three files ready to commit, one commit today">
+      <div class="th">${glyph('nova')}<div class="t"><b>Nova OS</b><span class="k">main · the Builder works here</span></div>${ic('right')}</div>
+      ${miniDiff()}
+      <div class="chips">${chip('work', 'Working', P.nova.h)}${chip('ready', '3 to commit')}${chip('done', 'Done today 1')}</div>
+      <div class="tfoot"><i class="mk"></i>The Builder is fixing what the Breaker found</div>
+    </button>`;
+  const famTile = () => `<section class="fam rv" style="--h:${P.atlas.h}" aria-label="Science Atlas and its assistant Wren">
+      <button data-go="a"><div class="th">${glyph('atlas')}<div class="t"><b>Science Atlas</b><span class="k">the work itself</span></div>${ic('right')}</div>
+      <div class="chips" style="margin-top:12px">${chip('open', '1 left open')}</div></button>
+      <div class="kinwrap"><svg class="branch" viewBox="0 0 22 46" aria-hidden="true"><path d="M1 0v30c0 6 4 10 10 10h11"/></svg>
+        <button class="kinrow" data-go="a" data-to="g-wren"><div class="th">${glyph('wren', 's')}<div class="t"><span class="rel">its assistant</span><b>Wren</b></div>${ic('right')}</div>
+        <span class="k" style="margin-top:6px">Tasks that support and guide the Atlas</span>
+        <div class="chips" style="margin-top:10px">${chip('wait', 'Waiting for you')}${chip('work', 'Working', P.wren.h)}</div></button>
+      </div>
+    </section>`;
+  const duo = () => `<div class="duo">
+      <button class="tile rv" style="--h:${P.vault.h}">${glyph('vault', 's')}<b>Vault</b><span class="k">Read and edited by the Builder, never committed by Nova</span><div class="chips">${chip('done', '1 run today')}</div></button>
+      <button class="tile rv" style="--h:${P.build.h}">${glyph('build', 's')}<b>Builds</b><span class="k">Lantern site, built last night in Nova Projects</span><div class="chips">${chip('done', 'Done today 1')}</div></button>
+    </div>`;
+  const doneToday = () => `<div class="sh"><h2>Done today</h2><span>each with a way back</span></div>
+    <section class="card rv" style="padding-top:6px;padding-bottom:6px">
+      <div class="rcp"><span class="ok">${ic('check')}</span><div style="min-width:0"><b>Committed 91b0d2e · 2 files</b><span class="k">Nova OS, 10:12 · not pushed</span></div><button class="btn sm">Undo</button></div>
+      <div class="rcp"><span class="ok">${ic('check')}</span><div style="min-width:0"><b>Built Lantern site</b><span class="k">Builds, last night · Undo moves it aside</span></div><button class="btn sm">Undo</button></div>
+    </section>`;
+  const codeTop = `<header class="top"><h1>Code</h1><button class="ib" data-go="m" aria-label="More: model, where the Builder works, new session, add to vault, what it can do, connection">${ic('more')}</button></header>`;
+  const root = () => codeTop +
+    '<p class="news"><span class="dot" aria-hidden="true"></span>Wren is waiting on you, and Nova OS has three files ready to commit.</p>' +
+    needs(2) +
+    '<div class="sh"><h2>Projects</h2><span>5 sessions on your Mac</span></div>' +
+    novaTile() + famTile() + duo() + doneToday();
+
+  /* ===== the project page ===== */
+  const fileRow = (f, i) => {
+    const [dir, name, a, r, other] = f;
+    const w = ((a + r) / MAXL * 100).toFixed(1);
+    return `<div class="fr${other ? ' off' : ''}" style="--h:${P.nova.h}" data-f="${i}">
+      <button class="tick${other ? ' off' : ''}" aria-label="${other ? 'Include' : 'Leave out'} ${name}"><i>${ic('check')}</i></button>
+      <div class="fn"><b>${name}</b><span>${dir}</span></div>
+      <span class="fcount">+${a}${r ? ' −' + r : ''}</span>
+      ${other ? '<span class="k">Changed by another session, left out</span>' : `<span class="fbar" aria-hidden="true" style="width:${w}%;transition-delay:${120 + i * 80}ms"><i class="a" style="flex:${a}"></i>${r ? `<i class="r" style="flex:${r}"></i>` : ''}</span>`}
+    </div>` + (i === 0 ? `<div class="dpeek" style="--h:${P.nova.h}" aria-label="The first lines of TideSheet.jsx"><div class="a">+ export function TideSheet({ value, onSave }) {</div><div class="a">+   const [draft, setDraft] = useState(value);</div><div class="a">+   const clearing = draft === "";</div><div class="more"><span>68 more lines</span><button>Show all</button></div></div>` : '');
+  };
+  const eight = (n) => '<span class="eight" aria-hidden="true">' + Array.from({ length: 8 }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('') + '</span>';
+  const review = (typed) => `<section class="grp" id="g-commit"><div class="gh"><h2>Ready to commit</h2><span id="ghC">main · 3 of 4 files</span></div>
+    <div class="review rv" id="review">
+      <div class="rtot" id="rtot"><b class="num" id="addN">+134</b><b class="num rm" id="remN">−23</b><span>lines, in the<br>3 ticked files</span></div>
+      <div class="rbody" id="rbody">
+        <div class="files" id="files">${FILES.map(fileRow).join('')}</div>
+        <div class="msgf${typed ? ' typed' : ''}" id="msgf">${typed ? MSG : 'Say why, in a line'}</div>
+        <p class="rule${typed ? ' met' : ''}" id="rule">${eight(typed ? 8 : 0)}<span id="ruletx">${typed ? 'Long enough to read later' : '8 characters or more'}</span>${ic('check', 'ok')}</p>
+        <div class="cacts"><button class="commit" id="commitBtn"${typed ? '' : ' disabled'}>Commit 3 files</button><button class="shelve">Shelve</button></div>
+        <p class="fine">Shelve sets every change aside and keeps it. Restore brings it back.</p>
+      </div>
+      <div class="creceipt" id="crcpt"><span class="ok">${ic('check')}</span><div><b>Committed 7f3c2d1 · 3 files</b><span class="k">“${MSG}” · not pushed</span></div>
+        <div class="row2"><button class="btn" id="undoBtn">Undo</button></div>
+        <div class="leftout" style="grid-column:1/-1">1 file left out: <span style="font-weight:600;color:var(--nv-ink)">lanterns.js</span>, changed by another session. It stays uncommitted.</div>
+      </div>
+    </div></section>`;
+  const sessRow = (state, name, line, quiet, btn, h) => {
+    const q = state === 'work' ? '<span class="qt live" style="--h:' + h + '"><i></i></span><span>talking now</span>'
+      : `<span class="qt${quiet.over ? ' over' : ''}" style="--q:${quiet.q}${state === 'wait' ? ';--qc:var(--nv-gold)' : ''}"><i></i></span><span>${quiet.t}</span>`;
+    return `<div class="sess"><i class="pip ${state}" style="--h:${h}"></i><b>${name}</b><span class="st${state === 'wait' ? ' wait' : ''}">${line}</span><div class="quiet" aria-label="Quiet time against the 12 hours after which a session counts as left open">${q}</div>${btn ? `<button class="btn sm">${btn}</button>` : ''}</div>`;
+  };
+  const novaSessions = () => `<section class="grp" id="g-sess"><div class="gh"><h2>On your Mac</h2><span>2 sessions</span></div>
+    <div class="card rv" style="padding-top:2px;padding-bottom:2px">
+      ${sessRow('work', 'Harbour copy pass', 'Working now. Started about 40 minutes ago.', null, 'Show', P.nova.h)}
+      ${sessRow('open', 'Old tide experiment', 'Left open. Nothing has happened in it for 14 hours.', { q: 1, over: true, t: '14 h quiet' }, 'Close', P.nova.h)}
+    </div><p class="fine" style="margin:8px 4px 0">The bar is quiet time; past its end, 12 hours, a session counts as left open.</p></section>`;
+  const ln = (who, head, body, extra = '') => {
+    const au = { you: '<span class="au you" aria-hidden="true"></span>', bld: '<span class="au bld"><i class="mk"></i></span>', brk: '<span class="au brk"><i class="mk crack"></i></span>', nova: '<span class="au nova"><i></i></span>' }[who];
+    return `<div class="ln ${who === 'brk' ? 'breaker' : who}${extra}">${au}<div style="min-width:0"><div class="lh">${head}</div><div class="lt">${body}</div></div></div>`;
+  };
+  const runsLines = (live) => [
+    ln('nova', 'Nova<span>9:20</span>', 'Shelved 2 files. Nothing lost.<div class="acts"><button class="btn sm">Restore</button></div>'),
+    ln('you', 'You<span>9:41</span>', 'The tide sheet should ask before it clears a value.'),
+    ln('bld', 'Builder<span>Sonnet 5 · 4 min · 3 files</span>', 'Done. Clearing now asks first, and a cleared value comes back with Undo.'),
+    ln('brk', 'Breaker<span>read-only · 3 min</span>', '<ol><li>An empty value still clears without asking.</li><li>Undo is lost if the sheet closes.</li></ol>'),
+    ln('you', 'You<span>9:58</span>', 'Fix both.'),
+    live ? ln('bld', 'Builder<span>working</span><b class="clock" id="clk">0:38</b>', '<span class="stream" id="strm">Reading the sheet again. An empty value will ask first</span><div class="prog"><i></i></div>')
+      : ln('bld', 'Builder<span>3 min · 2 files</span>', 'Fixed. An empty value asks first, and Undo survives the sheet closing.'),
+  ].join('');
+  const runs = (live) => `<section class="grp" id="g-runs"><div class="gh"><h2>Runs</h2><span>this session</span></div>
+    <div class="card rv thread" id="thread" style="padding-top:4px;padding-bottom:4px">${runsLines(live)}</div></section>`;
+  const anchors = (c) => `<nav class="anchors" aria-label="Groups on this page">
+      <button class="on" data-to="g-commit"><span class="glyph" style="background:var(--code)"></span>Commit <span class="n" id="anC">${c}</span></button>
+      <button data-to="g-sess"><span class="glyph" style="border-radius:50%;background:var(--nv-cy)"></span>Sessions <span class="n">2</span></button>
+      <button data-to="g-runs"><span class="glyph" style="background:var(--nv-m-glutes)"></span>Runs <span class="n">6</span></button>
+    </nav>`;
+  const projHead = (p, sub, extra = '') => `<button class="back" data-go="r">${ic('left')}Code</button>
+    <div class="phead">${glyph(p, 'l')}<div class="t"><b>${P[p].n}</b><span class="k">${sub}</span></div>${extra}</div>`;
+  const projectPage = (typed, live = true) => '<div class="push">' +
+    projHead('nova', 'main · the Builder works here', `<button class="ib" data-go="m" aria-label="More for this project">${ic('more')}</button>`) +
+    anchors(3) + review(typed) + novaSessions() + runs(live) + '</div>';
+  const composer = (p) => `<div class="comp" style="--h:${P[p].h}"><button class="brk" aria-label="Send the Breaker: a read-only pass that changes nothing"><i class="mk crack" aria-hidden="true"></i>Breaker</button><div class="fld">Ask the Builder in ${P[p].n}</div><button class="send" aria-label="Run">${ic('up')}</button></div>`;
+
+  /* ===== the Atlas family page ===== */
+  const atlasPage = () => '<div class="push">' + projHead('atlas', 'the work itself · with Wren, its assistant') +
+    `<nav class="anchors" aria-label="Groups on this page"><button class="on" data-to="g-work"><span class="glyph" style="border-radius:50%;background:var(--nv-m-quads)"></span>The work <span class="n">1</span></button><button data-to="g-wren"><span class="glyph" style="border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--nv-m-quads)"></span>Wren <span class="n">2</span></button><button data-to="g-files"><span class="glyph" style="background:var(--code)"></span>Commit <span class="n">·</span></button></nav>` +
+    `<section class="grp" id="g-work"><div class="gh"><h2>The work</h2><span>1 session</span></div><div class="card rv" style="padding-top:2px;padding-bottom:2px">
+      ${sessRow('open', 'Chapter map draft', 'Left open. Nothing has happened in it for 15 hours.', { q: 1, over: true, t: '15 h quiet' }, 'Close', P.atlas.h)}</div></section>` +
+    `<section class="grp kinsec" id="g-wren" style="--h:${P.wren.h}"><div class="kinhead">${glyph('wren')}<div><span class="rel">its assistant</span><b>Wren</b><span class="k">Tasks that support and guide the Atlas</span></div></div>
+      <div class="card rv" style="padding-top:2px;padding-bottom:2px">
+      ${sessRow('wait', 'Reading-list sweep', 'Waiting for you: it has something to say or a question.', { q: 0.03, t: '6 min quiet' }, 'Show', P.wren.h)}
+      ${sessRow('work', 'Source check, chapter 4', 'Working now. Started about 20 minutes ago.', null, 'Show', P.wren.h)}</div></section>` +
+    `<section class="grp" id="g-files"><div class="gh"><h2>Files to commit</h2><span>not read here yet</span></div>
+      <div class="empty rv"><b>Nova reads uncommitted work only where the Builder works.</b>That is Nova OS and the Vault today. Reading this project's folder too is your call 4; until then, its sessions are the whole picture, and Show brings one forward on your Mac.</div></section>` +
+    `<p class="fine" style="margin:18px 4px 0">No composer here: the Builder does not work in Science Atlas. These sessions run in your terminal.</p></div>`;
+
+  /* ===== the ⋯ sheet ===== */
+  const moreSheet = () => `<div class="scrim" data-go="p"></div><section class="sheet" role="dialog" aria-label="Nova OS session"><span class="grab" aria-hidden="true"></span>
+    <h3>Nova OS session</h3><span class="conn"><i></i>Connected to your Mac · session open, it remembers this conversation</span>
+    <p class="slab">Model for the next message</p>
+    <div class="sseg" role="group" aria-label="Model"><button class="on">Sonnet 5</button><button>Opus 5</button><button>Fable 5</button><button>Haiku 4.5</button></div>
+    <p class="slab">Where the Builder works</p>
+    <div class="sseg" role="group" aria-label="Where the Builder works"><button class="on">Nova OS</button><button>Vault</button></div>
+    <p class="fine" style="margin:8px 4px 0">Switching starts a new session. This one moves into Runs as a closed run, with Undo for 8 seconds. <span style="color:var(--nv-vi);font-weight:600">New</span></p>
+    <div class="sgroup" style="margin-top:16px">
+      <button class="srow">${ic('plus')}<span><b>New session</b><span class="k">Starts clean; this one stays in Runs, with Undo</span></span>${ic('right', 'chev')}</button>
+      <button class="srow">${ic('in')}<span><b>Add to vault</b><span class="k">Library's door: a file or a link into your notes</span></span>${ic('right', 'chev')}</button>
+    </div>
+    <p class="slab">What the Builder can and can't do</p>
+    <div class="sgroup cando">
+      <div class="y">${ic('check')}<span>Read and edit real files where it works</span></div>
+      <div class="y">${ic('check')}<span>Remember the conversation until a new session</span></div>
+      <div class="n">${ic('x')}<span>Run commands, install anything, or use git itself. Commits happen on this screen, by you.</span></div>
+    </div></section>`;
+
+  /* ===== states ===== */
+  const statesPage = () => codeTop +
+    '<p class="stlab">Loading: the page\'s own shape, never a blank</p>' +
+    `<div class="card" aria-busy="true" aria-label="Loading projects" style="padding:14px"><div style="display:flex;gap:12px;align-items:center"><span class="skel" style="width:40px;height:40px;border-radius:13px"></span><span style="flex:1"><span class="skel" style="width:46%;height:14px"></span><span class="skel" style="width:70%;height:11px;margin-top:8px"></span></span></div><span class="skel" style="width:80%;height:5px;margin-top:14px"></span><span class="skel" style="width:55%;height:5px;margin-top:4px"></span><div style="display:flex;gap:6px;margin-top:12px"><span class="skel" style="width:76px;height:26px;border-radius:13px"></span><span class="skel" style="width:92px;height:26px;border-radius:13px"></span></div></div>` +
+    '<p class="stlab">The Mac out of reach</p>' +
+    `<div class="card"><b style="display:block;font:600 15px var(--ui)">Your Mac isn't answering</b><span class="k" style="margin-top:4px">The sessions list is live only, so it needs the Mac. Showing what Nova saw at 9:12. Commit, Shelve and Run are paused, not hidden.</span></div>` +
+    `<div style="opacity:.6;margin-top:10px;pointer-events:none">${novaTile()}</div>` +
+    '<p class="stlab">Nothing running, nothing to commit</p>' +
+    `<div class="card"><b style="display:block;font:600 15px var(--ui)">Nothing is running.</b><span class="k" style="margin-top:4px">No session is open on your Mac and every project is committed. The strip comes back the moment something waits on you.</span><div style="margin-top:12px"><button class="btn">${ic('plus')}Ask the Builder in Nova OS</button></div></div>`;
+
+  /* ===== frames ===== */
+  const NOTE_FN = `<table>
+      <tr><td>Spar (send the Breaker)</td><td>The Breaker button in the composer, on a project page</td></tr>
+      <tr><td>New session</td><td>⋯ sheet</td></tr>
+      <tr><td>Add to vault</td><td>⋯ sheet (Library's door)</td></tr>
+      <tr><td>Console header (workspace, connection)</td><td>The project title and its branch line; the connection line at the top of the ⋯ sheet. The three dots are gone.</td></tr>
+      <tr><td>Uncommitted changes, Show diff</td><td>The review: every file a bar; tap a file for its lines (TideSheet's are open)</td></tr>
+      <tr><td>Commit · Shelve · Restore</td><td>Commit and Shelve on the review; Restore on Nova's "Shelved" line in Runs</td></tr>
+      <tr><td>The transcript</td><td>Runs, each line authored: you, Builder, Breaker, Nova</td></tr>
+      <tr><td>Input + Run</td><td>The composer, scoped to the project</td></tr>
+      <tr><td>Model select</td><td>⋯ sheet, a segmented control</td></tr>
+      <tr><td>Workspace segmented</td><td>Choosing the Nova OS or Vault tile; also in the ⋯ sheet</td></tr>
+      <tr><td>Can / can't</td><td>⋯ sheet</td></tr>
+    </table>`;
+  const FR = {
+    r: { label: 'Code', tally: 'Root · 1 strip, 4 tiles, Done today', comp: false, page: root,
+      note: `<p><b>D, refined.</b> One axis: places. Science Atlas and Wren are one family: the work on top, Wren nested on a branch, the same blue, Wren's glyph outlined. Tapping Wren opens the Atlas page at Wren's tasks.</p>
+        <p><b>From E.</b> The Needs you strip (only while a session is waiting or stuck, or a run's findings wait on you) and the state chips on tiles: Working, Waiting for you, Ready to commit, Done today, Left open. E's board is not drawn: the strip plus the chips already show every state it showed, and a second axis would list each task twice.</p>
+        <p><b>Real.</b> Waiting, working and left open come from claudeSessions.js judge(); "It has something to say or a question" is plainFor('waiting'). Show is /api/ops/sessions/show. A folder Nova does not know gets its own tile, named by projectOf().</p>` },
+    p: { label: 'Project', tally: 'Nova OS · review, sessions, runs', comp: 'nova', page: () => projectPage(false),
+      note: `<p><b>The review screen.</b> One focal object, the commit review: the diff as a shape (each file a bar as long as its lines changed, added in the project's hue, removed hatched), the ticked files, the message, and the 8-character rule drawn as eight ticks that light as you type. Commit stays dim until the rule is met. Then two quieter groups. An anchor bar keeps all three one tap away and counts them.</p>
+        <p><b>Sessions</b> show the server's own sentence and a quiet bar against the 12 hours after which a session counts as left open. <b>Runs</b> are authored lines: a ring for you, the Builder's solid mark, the Breaker's cracked one, Nova's cyan dot.</p>
+        <p><b>Where every function lives</b></p>${NOTE_FN}
+        <p style="margin-top:8px"><span class="new">New:</span> ticking files (today Commit takes every change) and Undo on an unpushed commit (call 3).</p>` },
+    c: { label: 'Commit', tally: 'acted out · Undo plays it back', comp: 'nova', page: () => projectPage(false, false), play: playCommit,
+      note: `<p><b>A commit, acted out.</b> The message types, the eight ticks fill, Commit lights; on Commit the bars fold away and a receipt takes their place with Undo while it is unpushed, the file another session changed stays behind and says so, the anchor's count goes to zero, and Nova's line lands in Runs. Undo plays it back. Replay runs it again.</p>
+        <p><b>Real.</b> commitChanges() returns the short hash and the file count; the receipt shows both. The 8-character rule is the server's own. Committing only ticked files and Undo are new (call 3).</p>` },
+    a: { label: 'Atlas', tally: 'the family page: the work, then Wren', comp: false, page: atlasPage,
+      note: `<p><b>Science Atlas is the work; Wren supports and guides it.</b> The page reads top down that way: the work's own sessions, then Wren's tasks on a branch line in the family's hue. Both are folders projectOf() already names (Atomic_Hub, atlas-partner).</p>
+        <p><b>Honest gap.</b> Nova runs git only where the Builder works, so this page has no review yet; the empty group says why and what would change it (call 4). No composer, because the Builder does not work here.</p>` },
+    m: { label: 'More', tally: 'the ⋯ sheet: every function that left the page', comp: false, page: () => projectPage(true), sheet: moreSheet,
+      note: `<p><b>The ⋯ sheet</b> holds what used to crowd the console: the model, where the Builder works, New session, Add to vault, Can and can't, and the connection the console header used to carry. The model list is the model board's (codeModelOptions), drawn here with its fallback labels.</p>
+        <p>The Can't line is in ink, not red. It no longer says "can't use git" above a Commit button without saying who commits: you do, here.</p>` },
+    s: { label: 'States', tally: 'loading · Mac away · nothing running', comp: false, page: statesPage,
+      note: `<p><b>States.</b> Loading is a skeleton of the tile. When the Mac is out of reach the copy is valsOps's own ("live only, so it needs the Mac"), the last view is kept and labelled with its time, and the write controls are paused, not hidden. "Nothing is running." is summarise()'s sentence.</p>` },
+  };
+  const ORDER = ['r', 'p', 'c', 'a', 'm', 's'];
+
+  const scr = $('#scr'), over = $('#over'), notes = $('#notes');
+  let cur = 'r', timers = [], io;
+  const later = (fn, ms) => timers.push(setTimeout(fn, RM() ? Math.min(ms, 60) : ms));
+
+  function reveal(rootEl, scrollRoot) {
+    if (io) io.disconnect();
+    io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { root: scrollRoot, threshold: 0.08 });
+    $$('.rv', rootEl).forEach((el, i) => { el.style.transitionDelay = RM() ? '0ms' : Math.min(i, 6) * 60 + 'ms'; io.observe(el); });
+  }
+
+  function show(id, push = true) {
+    timers.forEach(clearTimeout); timers = [];
+    cur = id; const f = FR[id];
+    scr.innerHTML = f.page();
+    scr.scrollTop = 0;
+    scr.classList.toggle('nocomp', !f.comp);
+    over.innerHTML = (f.comp ? composer(f.comp) : '') + (f.sheet ? f.sheet() : '');
+    notes.innerHTML = '<div class="note">' + f.note + '</div>';
+    $('#tally').textContent = f.tally;
+    $$('#frSeg button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.f === id)));
+    reveal(scr, scr);
+    wire();
+    if (id === 'p' || id === 'c') tickClock();
+    if (f.play) f.play();
+    if (push) history.replaceState(null, '', '#' + id);
+  }
+
+  function wire() {
+    $$('[data-go]', $('#dev')).forEach((b) => b.addEventListener('click', () => {
+      const to = b.dataset.to; show(b.dataset.go);
+      if (to) later(() => { const t = $('#' + to); if (t) scr.scrollTo({ top: t.offsetTop - 104, behavior: RM() ? 'auto' : 'smooth' }); }, 80);
+    }));
+    $$('.anchors button', scr).forEach((b) => b.addEventListener('click', () => {
+      const t = $('#' + b.dataset.to); if (!t) return;
+      $$('.anchors button', scr).forEach((x) => x.classList.toggle('on', x === b));
+      scr.scrollTo({ top: t.offsetTop - 104, behavior: RM() ? 'auto' : 'smooth' });
+    }));
+    $$('.tick', scr).forEach((t) => t.addEventListener('click', () => {
+      t.classList.toggle('off'); t.closest('.fr').classList.toggle('off', t.classList.contains('off'));
+    }));
+    const cb = $('#commitBtn'); if (cb) cb.addEventListener('click', () => { if (!cb.disabled) doCommit(); });
+    const ub = $('#undoBtn'); if (ub) ub.addEventListener('click', undoCommit);
+  }
+
+  // the anchor bar follows the reader
+  scr.addEventListener('scroll', () => {
+    const bs = $$('.anchors button', scr); if (!bs.length) return;
+    let on = bs[0];
+    bs.forEach((b) => { const t = $('#' + b.dataset.to); if (t && t.offsetTop - 140 <= scr.scrollTop) on = b; });
+    bs.forEach((b) => b.classList.toggle('on', b === on));
+  }, { passive: true });
+
+  function tickClock() {
+    let s = 38;
+    const step = () => { const c = $('#clk'); if (!c) return; s++; c.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); timers.push(setTimeout(step, 1000)); };
+    timers.push(setTimeout(step, 1000));
+    const st = $('#strm'), more = ' unless you say so, and Undo keeps its value when the sheet closes.';
+    if (st && !RM()) { let i = 0; const go = () => { if (i >= more.length || !$('#strm')) return; st.textContent += more[i++]; timers.push(setTimeout(go, 55)); }; timers.push(setTimeout(go, 1400)); }
+    else if (st) st.textContent += more;
+  }
+
+  function playCommit() {
+    const m = $('#msgf'), rule = $('#rule'), tx = $('#ruletx');
+    m.innerHTML = '<span class="caret"></span>'; m.classList.add('typed');
+    let i = 0;
+    const type = () => {
+      if (!$('#msgf')) return;
+      i++;
+      m.innerHTML = MSG.slice(0, i) + '<span class="caret"></span>';
+      $$('.eight i', rule).forEach((t, k) => t.classList.toggle('on', k < i));
+      if (i >= 8 && !rule.classList.contains('met')) { rule.classList.add('met'); tx.textContent = 'Long enough to read later'; $('#commitBtn').disabled = false; }
+      if (i < MSG.length) timers.push(setTimeout(type, RM() ? 0 : 42));
+      else { m.textContent = MSG; later(doCommit, 1100); }
+    };
+    later(type, 700);
+  }
+
+  function doCommit() {
+    const body = $('#rbody'), rc = $('#crcpt'), rows = $$('.fr:not(.off)', body);
+    if (!body || !rc) return;
+    // the bars fold right to left, then the body gives way to the receipt
+    rows.reverse().forEach((r, k) => { const b = $('.fbar', r); if (b) { b.style.transitionDelay = (k * 60) + 'ms'; b.style.transform = 'scaleX(0)'; } });
+    later(() => { body.style.opacity = '0'; body.style.transform = 'translateY(-12px) scale(.98)'; const t = $('#rtot'); t.style.opacity = '0'; t.style.transform = 'translateY(-8px)'; }, 320);
+    later(() => {
+      body.style.display = 'none'; $('#rtot').style.display = 'none'; rc.style.display = 'grid'; rc.style.marginTop = '0'; $('#ghC').textContent = 'main · 1 file left, another session’s';
+      requestAnimationFrame(() => requestAnimationFrame(() => rc.classList.add('show')));
+      const a = $('#anC'); if (a) a.textContent = '0';
+      const th = $('#thread');
+      if (th) th.insertAdjacentHTML('beforeend', ln('nova', 'Nova<span>10:04</span>', 'Committed 7f3c2d1 · 3 files. Not pushed, so Undo can still take it back.', ' land'));
+    }, 760);
+  }
+  function undoCommit() {
+    const body = $('#rbody'), rc = $('#crcpt');
+    rc.classList.remove('show');
+    later(() => {
+      rc.style.display = 'none'; body.style.display = ''; const t = $('#rtot'); t.style.display = ''; $('#ghC').textContent = 'main · 3 of 4 files';
+      requestAnimationFrame(() => { body.style.opacity = ''; body.style.transform = ''; t.style.opacity = ''; t.style.transform = ''; $$('.fbar', body).forEach((b, k) => { b.style.transitionDelay = (k * 70) + 'ms'; b.style.transform = ''; }); });
+            const a = $('#anC'); if (a) a.textContent = '3';
+      const th = $('#thread'); if (th) th.insertAdjacentHTML('beforeend', ln('nova', 'Nova<span>10:05</span>', 'Undid 7f3c2d1. The 3 files are back as they were, uncommitted.', ' land'));
+    }, 260);
+  }
+
+  /* ===== the Mac frame ===== */
+  function buildMac() {
+    const mac = $('#mac');
+    mac.innerHTML = `<div class="sky"></div>
+      <aside class="mside">${'<h1>Code</h1>' + needs(2) + '<div class="sh" style="margin-top:18px"><h2 style="font-size:17px">Projects</h2><span>5 sessions</span></div>' + novaTile(true) + famTile() + duo()}</aside>
+      <section class="mmain">${projHead('nova', 'main · the Builder works here')}
+        <div class="mcols"><div>${review(true)}${novaSessions()}</div><div>${runs(true)}${composer('nova')}</div></div>
+      </section>`;
+    $$('.rv, .fam, .tile, .review, .card, .thread', mac).forEach((e) => e.classList.add('in'));
+    $$('.back', mac).forEach((b) => b.remove());
+    fitMac();
+  }
+  function fitMac() {
+    const clip = $('#macclip'), w = clip.clientWidth, s = Math.min(1, w / 1280);
+    $('#mac').style.transform = `scale(${s})`;
+    clip.style.height = Math.round(800 * s) + 'px';
+  }
+  addEventListener('resize', fitMac);
+
+  /* ===== bar ===== */
+  $('#frSeg').innerHTML = ORDER.map((id) => `<button type="button" data-f="${id}" aria-pressed="false">${FR[id].label}</button>`).join('');
+  $$('#frSeg button').forEach((b) => b.addEventListener('click', () => show(b.dataset.f)));
+  $('#replay').addEventListener('click', () => show(cur));
+  $('#rmbtn').addEventListener('click', (e) => {
+    const on = document.documentElement.classList.toggle('rm');
+    e.currentTarget.setAttribute('aria-pressed', String(on)); show(cur);
+  });
+
+  buildMac();
+  const h = location.hash.slice(1);
+  show(FR[h] ? h : 'r', false);
+})();
+</script>
