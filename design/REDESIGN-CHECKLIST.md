@@ -434,12 +434,12 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 
 #### Leader — `leader` (off-dock)
 `src/screens/Leader.jsx` (146) · `src/vals/valsLeader.js` · `src/LeaderBox.jsx` (shared with Home). Doors: Home's Leader box, a notification, the Mac sidebar.
-- [m] D1 · Head + "Leadership · daily practice" + research count — `Leader.jsx:56-60`
-- [m] D2 · Today's idea — chip · title · line · why · refs, or the honest fallbacks — `:63-79`
-- [m] D3 · The situation box (`LeaderBox`, always `variant="apple"` here even under Command) — `:88-92`
-- [m] D4 · Working against (struggles, tap to reveal, Handled) · Working for him — `:95-96`
-- [m] D5 · The sit-down — head + New conversation, `ChatMarkdown` bubbles, empty placeholder, busy line, composer (no mic of its own) — `:99-127`
-- [m] D6 · Recent ideas trail (last 5) — `:130-143`
+- [b] D1 · Head + "Leadership · daily practice" + research count — `Leader.jsx:56-60`
+- [b] D2 · Today's idea — chip · title · line · why · refs, or the honest fallbacks — `:63-79`
+- [b] D3 · The situation box (`LeaderBox`, always `variant="apple"` here even under Command) — `:88-92`
+- [b] D4 · Working against (struggles, tap to reveal, Handled) · Working for him — `:95-96`
+- [b] D5 · The sit-down — head + New conversation, `ChatMarkdown` bubbles, empty placeholder, busy line, composer (no mic of its own) — `:99-127`
+- [b] D6 · Recent ideas trail (last 5) — `:130-143`
 **First look:** the situation box is one shape drawn on two surfaces by design; the chat composer has no mic while the box above it does.
 
 #### Briefing — `briefing` (off-dock)
@@ -561,6 +561,15 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — THE LEADER BUILT AND SHIPPED (merge, pushed, reloaded):
+  blend 1 of mockup 82 with his rules as code (src/leaderOrder.js, 24 table
+  tests: unread reply first; the idea first in the morning, the hour before
+  his work block and during it; then the open question, the round-up, the
+  idea, receipts). Replies kept server-side with a seen mark (POST
+  /leader/seen, idempotent, no card). Fixed on the way: answerSituation's
+  `added` was always empty. 99-line checklist: 96 present, 3 differ (struggle
+  names are his own first words; no "two minutes" estimate; one Mac column).
+  Rows [b].
 - 9 Oct 2026 — THE BRIEFING BUILT AND SHIPPED (merge, pushed, reloaded):
   mockup 83 against a 110-line checklist, 101 present, 9 differ for honesty
   (figure/comparison panels and Hand-to-the-Coach not built, drawn disabled;
