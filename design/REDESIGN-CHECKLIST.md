@@ -561,6 +561,21 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — HIS CALLS ON ROUND 2. Briefing 83: "looking good" (BUILD).
+  Leader 82: BLEND 1; an unread Leader reply jumps to the top (needs a seen
+  mark); the day's advice is the top item in the morning, in the hour before
+  his work block and during it; at other times the top is an open question or
+  whatever else matters; the rest as rows he can expand (BUILD). Wall 86:
+  option 1, Hands up (BUILD; Console = Home card). Shopping 84: each line
+  must show the cheapest current price with a subtle Woolworths/Coles/Aldi
+  tag and where to buy; pack vs single by waste (half an onion: no bag;
+  several onions and the bag is cheaper: the bag); the UI is "a bit bland and
+  too dark", wants Apple-style colourful icons and text styles that make
+  things stand out without noise (ROUND 3). Stash: good, further refinements.
+  Money 85: "so much better", further refinements. Code 85: direction D;
+  Wren is the AI assistant for Science Atlas (Science Atlas = the work, Wren
+  = tasks that support it); refine the project review screen; fold in parts
+  of E (ROUND 3). Notes/Journal/Galaxy 87: he will look closer later.
 - 7 Oct 2026 — SETTINGS A BUILT AND SHIPPED (merge c8951f6, pushed, server
   reloaded). Built in an isolated worktree from mockup 72 against a
   161-line checklist (design/audits/redesign-2026-09/07-settings-build-
