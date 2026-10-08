@@ -259,7 +259,8 @@ export function situationOf(state = {}, now = new Date()) {
   const working = state.profile?.working || [];
   if (!open.length) return null;
   const nowMs = now.getTime();
-  const stamps = [...open, ...working].map((x) => new Date(x.at).getTime()).filter(Number.isFinite);
+  // a Still open from the round-up is word from him too (checkedAt)
+  const stamps = [...open, ...working].flatMap((x) => [x.at, x.checkedAt]).filter(Boolean).map((t) => new Date(t).getTime()).filter(Number.isFinite);
   const newest = stamps.length ? Math.max(...stamps) : 0;
   const daysSinceUpdate = newest ? Math.floor((nowMs - newest) / 86_400_000) : null;
   // Newest first BY TIMESTAMP, not by array position. Insertion order has been
@@ -628,7 +629,7 @@ export async function verifyInsightUrls(insights, { fetchImpl = globalThis.fetch
 // leading — struggles and wins, HIS words. Code merges; nothing is inferred
 // here. A struggle he later reports as handled is resolved, not deleted —
 // the history is how progress stays visible.
-export async function applyLeaderReflection({ struggles = [], working = [], resolved = [] }) {
+export async function applyLeaderReflection({ struggles = [], working = [], resolved = [], checked = [] }) {
   const state = await readLeaderState();
   const now = new Date().toISOString();
   const norm = (t) => String(t || '').trim();
@@ -649,6 +650,17 @@ export async function applyLeaderReflection({ struggles = [], working = [], reso
     const hit = state.profile.struggles.find((x) => !x.resolvedAt && x.text.toLowerCase().includes(r.toLowerCase()));
     if (hit) { hit.resolvedAt = now; added.resolved.push(hit.text); }
   }
+  // STILL OPEN (the round-up's cross, Blend 1, 9 Oct 2026): he looked at it
+  // and it is not done. That is him telling the Leader something, so it
+  // stamps `checkedAt` (which counts as word from him, see situationOf) and
+  // keeps the stamp it replaced, so the undo puts back exactly what was there.
+  for (const c of checked.map(norm).filter(Boolean)) {
+    const hit = state.profile.struggles.find((x) => !x.resolvedAt && x.text.toLowerCase() === c.toLowerCase());
+    if (hit) {
+      (added.checked ||= []).push({ text: hit.text, prev: hit.checkedAt || null });
+      hit.checkedAt = now;
+    }
+  }
   state.profile.struggles = state.profile.struggles.slice(-40);
   state.profile.working = state.profile.working.slice(-40);
   await writeLeaderState(state);
@@ -666,7 +678,9 @@ export async function applyLeaderReflection({ struggles = [], working = [], reso
   // consent, it is friction pretending to be a gate. Auto-file with a real
   // undo is the honest middle, and it is exactly what the trust ladder
   // grants elsewhere for low-stakes writes.
-  const total = added.struggles.length + added.working.length + added.resolved.length;
+  const nChecked = added.checked?.length || 0;
+  const total = added.struggles.length + added.working.length + added.resolved.length + nChecked;
+  let receiptId = null;
   if (total) {
     try {
       const { createRecord } = await import('./inboxStore.js');
@@ -674,11 +688,13 @@ export async function applyLeaderReflection({ struggles = [], working = [], reso
         added.struggles.length ? `${added.struggles.length} struggle${added.struggles.length === 1 ? '' : 's'}` : null,
         added.working.length ? `${added.working.length} thing${added.working.length === 1 ? '' : 's'} working` : null,
         added.resolved.length ? `${added.resolved.length} resolved` : null,
+        nChecked ? `${nChecked} still open` : null,
       ].filter(Boolean).join(', ');
+      receiptId = randomUUID().slice(0, 8);
       await createRecord({
-        id: randomUUID().slice(0, 8),
+        id: receiptId,
         kind: 'leader-reflect',
-        text: `The Leader noted ${bits}: ${[...added.struggles, ...added.working].map((t) => `"${t}"`).join('; ') || added.resolved.map((t) => `"${t}" resolved`).join('; ')}`,
+        text: `The Leader noted ${bits}: ${[...added.struggles, ...added.working].map((t) => `"${t}"`).join('; ') || added.resolved.map((t) => `"${t}" resolved`).join('; ') || (added.checked || []).map((c) => `"${c.text}" still open`).join('; ')}`,
         source: 'leader',
         mode: 'auto',
         status: 'filed',
@@ -688,9 +704,11 @@ export async function applyLeaderReflection({ struggles = [], working = [], reso
         destination: 'your leadership profile',
         undoData: { route: 'leader-reflect', added },
       });
-    } catch { /* the profile write already succeeded; a missing receipt must not undo it */ }
+    } catch { receiptId = null; /* the profile write already succeeded; a missing receipt must not undo it */ }
   }
-  return state.profile;
+  // The profile as before, plus what this call did and the receipt that can
+  // take it back (the Leader page puts Undo where it happened, Blend 1).
+  return { ...state.profile, added, receiptId };
 }
 
 // The precise reversal: remove only what that reflection added, and un-resolve
@@ -707,9 +725,16 @@ export async function undoLeaderReflection(added = {}) {
   for (const x of state.profile.struggles) {
     if (x.resolvedAt && unres.includes(x.text.toLowerCase())) delete x.resolvedAt;
   }
+  // a Still open goes back to the stamp it replaced
+  const checks = Array.isArray(added.checked) ? added.checked : [];
+  for (const c of checks) {
+    const hit = state.profile.struggles.find((x) => x.text.toLowerCase() === String(c?.text || '').toLowerCase());
+    if (!hit) continue;
+    if (c.prev) hit.checkedAt = c.prev; else delete hit.checkedAt;
+  }
   await writeLeaderState(state);
   const removed = before - (state.profile.struggles.length + state.profile.working.length);
-  return removed || unres.length
+  return removed || unres.length || checks.length
     ? `took that back out of your leadership profile${unres.length ? ` and reopened ${unres.length} struggle${unres.length === 1 ? '' : 's'}` : ''}`
     : 'that was already gone from your leadership profile';
 }
@@ -963,6 +988,9 @@ async function runAnswerSituation(vaultPath, { text, now = new Date(), runImpl }
     acknowledged: String(parsed.acknowledged || '').trim().slice(0, 200)
       || (changed ? 'Noted.' : 'Nothing to change on the record from that, sir.'),
     added: applied.added || { struggles: [], working: [], resolved: [] },
+    // the receipt that takes it back, so the Leader page can put Undo where
+    // it happened (it was always filed; until 9 Oct the page could not see it)
+    receiptId: applied.receiptId || null,
     question,
   };
   // The receipt is written LAST and re-reads state, because
@@ -974,6 +1002,28 @@ async function runAnswerSituation(vaultPath, { text, now = new Date(), runImpl }
     await writeLeaderState(fresh);
   } catch { /* the profile write already succeeded; a missing receipt must not undo it */ }
   return result;
+}
+
+// THE QUESTION THE LEADER IS WAITING ON, as the Leader page orders it
+// (Blend 1, 9 Oct 2026). The follow-up record when one is pending (the
+// question that reached his phone); otherwise the question this morning's
+// read asked. Open until he answers after it was asked; `about` is the open
+// thing it names when code can tell (the follow-up quotes it), else null:
+// the bead is lit only when that is known, never guessed.
+export function openQuestion(state, records = [], now = new Date()) {
+  const pending = records
+    .filter((r) => r.kind === 'leader-followup' && r.status === 'pending' && r.text)
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
+  const today = todayLead(state, now);
+  const q = pending
+    ? { text: pending.text, since: pending.createdAt, source: 'followup', recordId: pending.id }
+    : (today?.situation?.question ? { text: today.situation.question, since: today.createdAt || null, source: 'situation', recordId: null } : null);
+  if (!q) return null;
+  const answeredAt = state.lastAnswer?.at || null;
+  const answered = !!(answeredAt && q.since && new Date(answeredAt).getTime() >= new Date(q.since).getTime());
+  const lower = q.text.toLowerCase();
+  const hit = (state.profile?.struggles || []).find((s) => !s.resolvedAt && s.text && lower.includes(String(s.text).slice(0, 140).toLowerCase()));
+  return { ...q, open: !answered, answeredAt: answered ? answeredAt : null, about: hit ? hit.text : null };
 }
 
 export async function raiseSituationFollowUp(vaultPath, { now = new Date() } = {}) {

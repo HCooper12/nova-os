@@ -1193,7 +1193,7 @@ const LEADER_TURN_REMINDER = `[Standing reminder: when he shares a struggle, a w
 // `consulted`: another agent is asking the Leader (lib/consult.js) — a fresh
 // session that answers that agent and writes nothing (no REFLECT: those are
 // his words, and a consulting agent's question is not him speaking).
-export function startAskLeader(cwd, { question, context, sessionId, consulted = null }) {
+export function startAskLeader(cwd, { question, context, sessionId, consulted = null, keep = false }) {
   assertLaneOn('leader-chat');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = consulted ? true : !sessionId;
@@ -1253,6 +1253,16 @@ export function startAskLeader(cwd, { question, context, sessionId, consulted = 
         text += `\n\n(I tried to note that in your profile but ${parseError} — tell me again and I'll get it down.)`;
       }
       turnJob.result = { text: ctl.finalText(text), sessionId: effectiveSessionId, reflected, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };
+      // KEPT, ON THE LEADER'S OWN DOOR (Blend 1): the reply as he will read
+      // it, with whom it asked, so it survives a reload and can be marked
+      // seen. Before the job is ready, so the page's next read has it.
+      if (keep) {
+        try {
+          const { appendThread } = await import('./leaderThread.js');
+          const kept = await appendThread({ who: 'leader', text: turnJob.result.text, sessionId: effectiveSessionId, consult: ctl.trimmed() });
+          turnJob.result.threadId = kept.id;
+        } catch { /* the answer still reaches him; only the keeping failed */ }
+      }
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';

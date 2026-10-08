@@ -112,8 +112,9 @@ export function LeaderBox({ box, variant = 'apple', mob = false, bare = false })
                 {reply.said ? (
                   <div style={css('display:flex;align-items:baseline;gap:9px;flex-wrap:wrap')}>
                     <span style={{ font: `450 12.5px/1.5 ${UI}`, color: 'var(--nv-good)', flex: 1, minWidth: 0 }}>{reply.said}</span>
-                    <Interactive as="span" onClick={reply.clearSaid} haptic="tick"
-                      base={{ cursor: 'pointer', font: `600 11.5px ${UI}`, color: 'var(--nv-ink60)' }}
+                    {/* 44 pt (the Leader audit's one Critical: it measured 53×14) */}
+                    <Interactive as="span" onClick={reply.clearSaid} haptic="tick" role="button" aria-label="Say more"
+                      base={{ cursor: 'pointer', font: `600 13px ${UI}`, color: 'var(--nv-ink60)', display: 'inline-flex', alignItems: 'center', minHeight: '44px', minWidth: '44px', padding: '0 12px', margin: '-12px -12px -12px 0' }}
                       hoverStyle={{ color: 'var(--nv-ink)' }}>Say more</Interactive>
                   </div>
                 ) : (

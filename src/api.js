@@ -390,8 +390,11 @@ export const api = {
     return URL.createObjectURL(await res.blob());
   },
   leaderRun: (conn, kind, force) => post(conn, '/api/leader/run', { kind, force }),
-  askLeader: (conn, question, sessionId) => post(conn, '/api/leader/chat', { question, sessionId }),
+  // `quote`: the item he is talking about (Blend 1), kept with his line
+  askLeader: (conn, question, sessionId, quote) => post(conn, '/api/leader/chat', quote ? { question, sessionId, quote } : { question, sessionId }),
   leaderReflect: (conn, body) => post(conn, '/api/leader/reflect', body),
+  // the seen mark: once, when he opens the Leader with that reply on top
+  leaderSeen: (conn, id) => post(conn, '/api/leader/seen', { id }),
   // PRACTICE — a skill he is rehearsing (server/lib/practice.js). Prepare and
   // rehearse both return at once: the model work runs on the server as a job
   // (prepare: poll `practice()` until `preparing` empties; rehearse: poll
