@@ -10529,10 +10529,13 @@ export default class App extends Component {
   // undoable leader-reflect receipt; its id comes back so Undo sits where it
   // happened. DEMO: nothing is sent; the change is acted out on the demo
   // record in memory only, so the page can be looked at without a server.
+  // demo is derived from the connection status (valsX ctx.demoMode); there is
+  // no state.demoMode, so the Leader's writes ask this instead
+  leaderDemo() { return this.state.connectionStatus === 'demo'; }
   async leaderSetDown(text) {
     if (!text) return null;
     const stamp = new Date().toISOString();
-    if (this.state.demoMode) {
+    if (this.leaderDemo()) {
       this.setState((s) => {
         const L = s.liveLeader; if (!L?.picture) return null;
         const hit = L.picture.open.find((o) => o.text === text); if (!hit) return null;
@@ -10563,7 +10566,7 @@ export default class App extends Component {
   async leaderStillOpen(text) {
     if (!text) return null;
     const stamp = new Date().toISOString();
-    if (this.state.demoMode) {
+    if (this.leaderDemo()) {
       this.setState((s) => {
         const L = s.liveLeader; if (!L?.picture) return null;
         return { liveLeader: { ...L, picture: { ...L.picture, open: L.picture.open.map((o) => (o.text === text ? { ...o, checkedAt: stamp } : o)), lastToldAt: stamp, lastToldDays: 0 } } };
@@ -10608,7 +10611,7 @@ export default class App extends Component {
   }
   // THE SEEN MARK — once per reply, never in demo, never a model
   leaderSeen(id) {
-    if (!id || this.state.demoMode) return;
+    if (!id || this.leaderDemo()) return;
     const conn = getConnection();
     if (!conn) return;
     this.leaderSeenSent = this.leaderSeenSent || new Set();
@@ -10620,6 +10623,7 @@ export default class App extends Component {
   leaderAnswer(text) {
     const t = String(text || '').trim();
     if (!t) return;
+    if (this.leaderDemo()) { this.toastMsg('Demo data: your answer is recorded once Nova is connected to your Mac'); return; }
     this.setState({ situationAnswer: t }, () => this.submitSituationAnswer());
   }
   // "Mark handled" from a WORKING AGAINST chip — the same resolved path the
@@ -10642,7 +10646,7 @@ export default class App extends Component {
     const q = (typeof preset === 'string' && preset.trim()) || this.state.leaderInput.trim();
     if (!q || this.state.leaderBusy) return;
     const conn = getConnection();
-    if (!conn) { this.toastMsg(this.state.demoMode ? 'Demo data: the Leader answers once Nova is connected to your Mac' : 'Connect a backend in Settings first'); return; }
+    if (!conn) { this.toastMsg(this.leaderDemo() ? 'Demo data: the Leader answers once Nova is connected to your Mac' : 'Connect a backend in Settings first'); return; }
     this.setState((s) => ({ leaderChat: [...s.leaderChat, { at: Date.now(), who: 'you', text: q, ...(quote ? { quote } : {}) }], leaderInput: '', leaderBusy: true, leaderConsult: null }));
     // a trailing REFLECT line is a typed directive for the server, not prose
     const stripDirective = (t) => t.replace(/(^|\n)\s*(REFLECT|CONSULT)\s*(\{[\s\S]*)?$/, '');

@@ -148,3 +148,18 @@ test('POST /leader/reflect returns its receipt and keeps the old profile key', a
   assert.equal(r.added.checked[0].text, 'Open thing number 3');
   assert.ok(Array.isArray(r.profile.struggles));
 });
+
+// THE SEEN MARK NEVER FIRES IN DEMO. The client half: App.leaderSeen returns
+// before any request when the connection is demo, and "demo" is read from the
+// connection status (state.demoMode does not exist; reading it was a silent
+// false the build caught on 9 Oct).
+test('the page never sends the seen mark in demo', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  assert.match(src, /leaderDemo\(\) \{ return this\.state\.connectionStatus === 'demo'; \}/);
+  const at = src.indexOf('  leaderSeen(id) {');
+  const seen = src.slice(at, at + 420);
+  assert.match(seen, /if \(!id \|\| this\.leaderDemo\(\)\) return;/);
+  assert.ok(seen.indexOf('leaderDemo') < seen.indexOf('api.leaderSeen'), 'the demo guard comes before the request');
+  assert.match(seen, /leaderSeenSent\.has\(id\)\) return;/, 'and a reply is marked once per visit');
+});

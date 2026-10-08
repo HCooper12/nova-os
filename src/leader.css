@@ -246,8 +246,11 @@
 .nv-ld-ok svg { width: 13px; height: 13px; stroke-width: 3; }
 
 /* ------------------------------------------------------------ the round-up, in place of the card (C's deck) */
-.nv-ld-deck { position: relative; flex: none; height: 322px; margin-top: 12px; }
-.nv-ld-dcard { position: absolute; left: 0; right: 0; top: 0; padding: 14px 14px 4px; border-radius: 24px; background: color-mix(in srgb, var(--nv-bg1) 92%, var(--nv-ink) 4%);
+/* every card in one grid cell, so all share the tallest card's height and
+   nothing of the card behind hangs out below the one in front; the 42 pt at
+   the foot is the stack's depth */
+.nv-ld-deck { position: relative; flex: none; display: grid; margin-top: 12px; padding-bottom: 42px; }
+.nv-ld-dcard { grid-area: 1 / 1; display: flex; flex-direction: column; padding: 14px 14px 4px; border-radius: 24px; background: color-mix(in srgb, var(--nv-bg1) 94%, var(--nv-ink) 6%);
   box-shadow: inset 0 0 0 .5px var(--ld-ring), inset 0 1px 0 var(--ld-hi), 0 18px 40px -20px rgba(0,0,0,.85); transform-origin: 50% 0; transition: transform .42s var(--ease), opacity .42s var(--ease), box-shadow .3s var(--ease); }
 .nv-ld-dcard[data-k="0"] { z-index: 7; box-shadow: inset 0 0 0 1px var(--mg-edge), inset 0 1px 0 color-mix(in srgb, var(--mg) 22%, white 30%), 0 0 40px -18px var(--mg-glow), 0 18px 40px -20px rgba(0,0,0,.85); }
 .nv-ld-dcard[data-k="1"] { z-index: 6; transform: translateY(22px) scale(.96); opacity: .9; }
@@ -264,7 +267,7 @@
 .nv-ld-deck.zero .nv-ld-agebar i { transform: scaleX(0); }
 .nv-ld-dc-w { margin: 12px 0 0; font: 400 17px/1.42 var(--ld-ui); text-wrap: pretty; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 .nv-ld-dc-m { margin: 8px 0 0; font: 400 13px/1.35 var(--ld-ui); color: var(--ld-ink3); }
-.nv-ld-dc-v { display: flex; gap: 8px; margin-top: 14px; }
+.nv-ld-dc-v { display: flex; gap: 8px; margin-top: auto; padding-top: 14px; }
 .nv-ld-dc-v > * { flex: 1 1 0; min-width: 0; }
 .nv-ld-tally { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; margin-top: 12px; }
 .nv-ld-tally .nv-ld-beads { gap: 7px; max-width: none; }
