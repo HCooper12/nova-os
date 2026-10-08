@@ -250,7 +250,8 @@ test('the view model offers the door and walks it only when asked', () => {
 
 test('the full screen: an aria-modal page the edge swipe can take, the ⌄ its close, and three ways back', () => {
   const fx = read('src/NovaFocus.jsx');
-  assert.match(fx, /role="dialog" aria-modal="true" aria-label="Nova, full screen" data-edge-page/);
+  // named for what it is showing: the thread's full screen, or the Briefing on Nova's stage (round 2, 9 Oct 2026)
+  assert.match(fx, /role="dialog" aria-modal="true" aria-label=\{briefing \? 'Briefing, on Nova’s stage' : 'Nova, full screen'\} data-edge-page/);
   assert.match(fx, /style=\{\{ zIndex: 71, '--fx-hue': sayHue \}\}/, 'over the top bar (70), under the tab bar (72)');
   // the underline matches what Nova is doing: his speaking jade, a voiced agent its own hue (4 Oct 2026)
   assert.match(fx, /const sayHue = speaker\.voiced \? speaker\.hue : 'var\(--nv-say\)';/);

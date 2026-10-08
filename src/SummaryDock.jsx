@@ -67,7 +67,8 @@ function useAway(away) {
 }
 
 export function SummaryDock({ v }) {
-  const away = !!v.novaThread?.focus;
+  // the Briefing plays on the same full-screen stage (round 2, 9 Oct 2026)
+  const away = !!v.novaThread?.focus || !!v.briefingStage;
   const gone = useAway(away);
   const tabs = v.tabs.slice(0, 4);
   // More is lit on the Index AND on any screen reached through it, the way an

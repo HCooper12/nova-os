@@ -132,3 +132,24 @@ export function lastYours(lines) {
 
 export const CAPTIONS_KEY = 'novaos.captions';
 export function captionsOn(stored) { return stored !== 'off'; }
+
+// ------------------------------------------------------ the briefing mode --
+
+// THE POUR IS THE THREAD'S ALONE (round 2 of the Briefing, 9 Oct 2026). His
+// words on mockup 77: "I like how A transitions more between the visuals as
+// it progresses. Although let's remove the sparks moving from the nova icon
+// to the subtitles as it's distracting." On the Briefing's stage no grain
+// leaves the core: each word fades up where it sits. The thread keeps its
+// pour, which he loved there (mockup 69).
+export function focusPours(mode) {
+  return mode !== 'briefing';
+}
+
+// How a word arrives. The thread's rises 10 px out of a 4 px blur over
+// 280 ms behind its pour; the briefing's fades up in place (mockup 83: 4 px,
+// a 3 px blur, about 240 ms), and under reduced motion the briefing's whole
+// sentence appears at once in a quarter-second fade.
+export const WORD_LOOK = {
+  thread: { rise: 10, blur: 4, arrive: 280, whole: false },
+  briefing: { rise: 4, blur: 3, arrive: 240, whole: true },
+};

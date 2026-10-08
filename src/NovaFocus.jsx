@@ -7,7 +7,7 @@ import { onSpeech, spokenSentences, clockNow } from './speechClock.js';
 import { paceSentence, sentenceAt, wordAt, wordLook } from './subtitlePace.js';
 import {
   focusPhase, PHASE_HOLD_MS, focusTint, EMBER_RGB, POUR_RGB, FIELD_EMBERS, focusSteps, speakerOf, focusAsks, peekLine, lastYours,
-  CAPTIONS_KEY, captionsOn,
+  CAPTIONS_KEY, captionsOn, focusPours, WORD_LOOK,
 } from './novaFocusFacts.js';
 
 // THE FULL-SCREEN NOVA (3 Oct 2026) — design/mockups/68-nova-focus.html, his
@@ -35,6 +35,19 @@ import {
 // swipe up on the thread's peek all return to the thread, where his newest
 // line is the sentence he just watched. Drawn by the .nv-fx-* block at the
 // end of index.css. Reads only; every act is a function the thread hands in.
+//
+// THE BRIEFING'S STAGE IS A MODE OF THIS SCREEN (round 2, 9 Oct 2026,
+// design/mockups/83-redesign-briefing-r2.html): `mode="briefing"` keeps the
+// one core, its colours, the field, the panels rising out of the core and
+// settling away, and the words with the jade underline, and changes four
+// things. NO POUR: his words on mockup 77, "let's remove the sparks moving
+// from the nova icon to the subtitles as it's distracting", so each word
+// fades up in place (novaFocusFacts focusPours, WORD_LOOK) and the pour's
+// canvas is never drawn. The core's spot follows `bphase` (home, stage, the
+// end's top, Read's player) instead of the turn. The thread's furniture (the
+// peek, the asks, the captions switch, a tap outside the plate) gives way to
+// the Briefing's own chrome, handed in as children. And a panel can be the
+// Briefing's own drawing (`node`) rather than a StageCard.
 
 const TAU = Math.PI * 2;
 const FADE = 40; // the plate's top fade (.nv-fx-pbody's mask): the current word never sits in it
@@ -57,14 +70,19 @@ function useHeldPhase(want) {
   return want === 'stage' ? 'stage' : phase;
 }
 
-export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
+export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen, mode = 'thread', bphase = null, presenter = null, topRight = null, plateIdle = null, saidSince = 0, children = null }) {
+  const briefing = mode === 'briefing';
+  const pours = focusPours(mode);
   const rootRef = useRef(null);
   const coreRef = useRef(null);
   const canvasRef = useRef(null);
   const leanRef = useRef(null);
   const live = useRef({ key: S.key, hue: 'blue', phase: 'field', touch: null });
   const streaming = T.lines.some((m) => m.streaming);
-  const phase = useHeldPhase(focusPhase(S.key, { streaming }));
+  const heldPhase = useHeldPhase(focusPhase(S.key, { streaming }));
+  // the briefing's stage moves the core by its own phase: to the presenter's
+  // spot only while a panel is up, never home and back on a pause
+  const phase = briefing ? (bphase === 'stage' ? 'stage' : 'field') : heldPhase;
   // PUSHING BACK (his call, 4 Oct 2026): red only while he speaks a sentence
   // that disagrees with something Hayden proposed, and named in words
   const contest = S.key === 'speaking' && !!T.contest;
@@ -80,8 +98,11 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
   const [entering, setEntering] = useState(true);
   // once the screen has faded fully in it is opaque, and the page under it can stop painting (index.css, .nv-sky)
   const [settled, setSettled] = useState(false);
-  const [said, setSaid] = useState(spokenSentences);
+  const [allSaid, setSaid] = useState(spokenSentences);
   useEffect(() => onSpeech((list) => setSaid(list)), []);
+  // the briefing shows only what was said since it last started or was asked
+  // about, never a greeting still in the clock from before it opened
+  const said = useMemo(() => (briefing && saidSince ? allSaid.filter((x) => x.at >= saidSince - 50) : allSaid), [allSaid, briefing, saidSince]);
   live.current.key = S.key;
   live.current.hue = tint.hue;
   live.current.phase = phase;
@@ -100,6 +121,7 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
     const put = () => {
       const r = root.getBoundingClientRect();
       const top = root.querySelector('.nv-fx-top')?.getBoundingClientRect().bottom - r.top || 60;
+      if (briefing) { putBriefing(root, r, top); return; }
       const peekTop = root.querySelector('.nv-fx-peek')?.getBoundingClientRect().top - r.top || r.height - 140;
       const colW = Math.min(r.width, 440);
       const x0 = (r.width - colW) / 2;
@@ -126,7 +148,17 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(put);
     ro?.observe(root);
     return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2); ro?.disconnect(); };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // the briefing's spots are measured again when its phase moves (Read's
+  // player and the end's top are drawn by the Briefing's own chrome)
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || !briefing) return;
+    const r = root.getBoundingClientRect();
+    const top = root.querySelector('.nv-fx-top')?.getBoundingClientRect().bottom - r.top || 60;
+    putBriefing(root, r, top);
+  }, [briefing, bphase]);
 
   // Escape returns, as the ⌄ does (a keyboard on the Mac), unless a sheet
   // opened over the full screen (a panel shown full width) is the one on top
@@ -164,6 +196,8 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
   };
   const release = () => { live.current.touch = null; leanRef.current = null; };
   const onPointerDown = (e) => {
+    // the briefing's stage is no field to touch and no thread to return to
+    if (briefing) return;
     if (e.target.closest('button, a, input, .nv-fx-plate, .nv-fx-dock')) return;
     down.current = { x: e.clientX, y: e.clientY, t: performance.now(), moved: 0 };
     if (phase === 'field') follow(e.clientX, e.clientY);
@@ -189,11 +223,11 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
   // pushback sentence turns red and a lit part takes its finder's hue (the
   // captions set those per sentence)
   const sayHue = speaker.voiced ? speaker.hue : 'var(--nv-say)';
-  const plateMode = S.key === 'listening' ? 'listen' : S.key === 'speaking' ? 'speak' : S.key === 'thinking' ? 'think' : said.length ? 'speak' : 'think';
+  const plateMode = S.key === 'listening' ? 'listen' : S.key === 'speaking' ? 'speak' : S.key === 'thinking' ? 'think' : said.length ? 'speak' : briefing ? 'idle' : 'think';
   const hint = S.key === 'turn' ? (T.demo ? 'demo replies' : 'tap Nova to talk') : S.hint;
   const asks = focusAsks(T.status, { offline: T.offline });
   const peek = peekLine(T.lines);
-  const stage = phase === 'stage' && plateMode === 'speak' ? T.stage : null;
+  const stage = briefing ? T.stage || null : phase === 'stage' && plateMode === 'speak' ? T.stage : null;
   // A PANEL SETTLES AWAY (mockup 69, approved 4 Oct): the last one stays a
   // moment as it leaves, then goes; a new panel rises out of the core
   const lastStage = useRef(null);
@@ -211,8 +245,9 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
   const dock = stage || (dockLeaving ? lastStage.current : null);
 
   return (
-    <div ref={rootRef} role="dialog" aria-modal="true" aria-label="Nova, full screen" data-edge-page
+    <div ref={rootRef} role="dialog" aria-modal="true" aria-label={briefing ? 'Briefing, on Nova’s stage' : 'Nova, full screen'} data-edge-page
       className={`nv-fx${leaving ? ' leaving' : ''}`} data-phase={phase} data-enter={entering ? '1' : undefined} data-settled={settled ? '1' : undefined} data-state={S.key} data-panel={stage ? '1' : undefined}
+      data-mode={briefing ? 'briefing' : undefined} data-bphase={briefing ? bphase || 'home' : undefined}
       style={{ zIndex: 71, '--fx-hue': sayHue }}
       onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={release}
       onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === 'nvFxIn') setSettled(true); }}>
@@ -220,10 +255,19 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
       <canvas ref={canvasRef} className="nv-fx-field" aria-hidden="true" />
 
       <div className="nv-fx-top">
-        <button type="button" className="nv-fx-btn" data-edge-close onClick={T.closeFocus} aria-label="Back to the thread"><Ico name="downc" /></button>
-        <button type="button" className="nv-fx-btn cc" onClick={toggleCaptions} aria-pressed={captions} aria-label={captions ? 'Subtitles on' : 'Subtitles off'}>
-          <CcIcon />{captions ? 'On' : 'Off'}
-        </button>
+        {briefing ? (
+          <>
+            <button type="button" className="nv-fx-btn" data-edge-close onClick={T.closeFocus} aria-label="Close, back to where you came from"><Ico name="downc" /></button>
+            {topRight}
+          </>
+        ) : (
+          <>
+            <button type="button" className="nv-fx-btn" data-edge-close onClick={T.closeFocus} aria-label="Back to the thread"><Ico name="downc" /></button>
+            <button type="button" className="nv-fx-btn cc" onClick={toggleCaptions} aria-pressed={captions} aria-label={captions ? 'Subtitles on' : 'Subtitles off'}>
+              <CcIcon />{captions ? 'On' : 'Off'}
+            </button>
+          </>
+        )}
       </div>
 
       {/* THE CORE: one element, transformed between the field and the stage */}
@@ -235,10 +279,12 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
       </div>
 
       {/* the field: the state in words under the core, and what to ask */}
-      <p className="nv-fx-fstate" role="status" aria-hidden={phase !== 'field'}>
-        <Glyph k={S.key} /><b>{stateWord}</b>{hint ? <span>· {hint}</span> : null}
-      </p>
-      {asks.length > 0 && (
+      {!briefing && (
+        <p className="nv-fx-fstate" role="status" aria-hidden={phase !== 'field'}>
+          <Glyph k={S.key} /><b>{stateWord}</b>{hint ? <span>· {hint}</span> : null}
+        </p>
+      )}
+      {!briefing && asks.length > 0 && (
         <div className="nv-fx-asks" aria-hidden={phase !== 'field'}>
           {asks.map((a) => (
             <button key={a.key} type="button" className="nv-fx-ask" onClick={a.run} tabIndex={phase === 'field' ? 0 : -1}><Ico name={a.icon} />{a.label}</button>
@@ -249,13 +295,21 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
       {/* the stage: Nova and his state beside the presenter's core */}
       <div className="nv-fx-pn" aria-hidden={phase !== 'stage'}>
         <b>Nova</b>
-        <p className="nv-fx-pstate" data-contest={contest ? '1' : undefined}><Glyph k={S.key} /><b>{stateWord}</b></p>
-        {hint ? <p className="nv-fx-phint">{hint}</p> : null}
+        {briefing ? <span className="nv-fx-ptitle">{presenter}</span> : (
+          <>
+            <p className="nv-fx-pstate" data-contest={contest ? '1' : undefined}><Glyph k={S.key} /><b>{stateWord}</b></p>
+            {hint ? <p className="nv-fx-phint">{hint}</p> : null}
+          </>
+        )}
       </div>
 
       <div className="nv-fx-stagebox" aria-hidden={phase !== 'stage'}>
         {dock && (
           <div className={`nv-fx-dock${stage ? '' : ' out'}`} key={dock.key} aria-hidden={stage ? undefined : true}>
+            {dock.node ? (
+              // the briefing's own drawing: a picture, a clip or a term
+              <div className="nv-fx-panel" role="figure" aria-label={dock.label || 'Showing now'}>{dock.node}</div>
+            ) : (
             <button type="button" className="nv-fx-panel" onClick={(e) => onOpen?.(dock.hero, e.currentTarget)} tabIndex={stage ? 0 : -1}
               aria-label={`${dock.mark?.name || dock.hero.label || 'This panel'}${dock.total > 1 && dock.n > 0 ? `, ${dock.n} of ${dock.total}` : ''}. Tap to open full width`}>
               <span className="nv-fx-ptag"><Ico name="stage" />{dock.finder ? <b className="nv-fx-finder" style={{ '--h': dock.finder.hue }}>{dock.finder.words}</b> : 'Showing now'}{dock.total > 1 && dock.n > 0 ? <span>{dock.n} of {dock.total}</span> : null}</span>
@@ -265,20 +319,23 @@ export function NovaFocus({ T, S, dict, since, leaving, onTalk, onOpen }) {
                 <SafeVisual what="nova-focus-panel" resetKey={dock.key}><StageCard card={dock.hero} face="summary" /></SafeVisual>
               </span>
             </button>
+            )}
           </div>
         )}
         <section className="nv-fx-plate" data-mode={plateMode} aria-live="polite"
           aria-label={plateMode === 'speak' ? `${speaker.name}, speaking` : plateMode === 'listen' ? 'Listening to you' : 'Nova is working'}>
           {plateMode === 'listen' && <Listening dict={dict} since={since} />}
           {plateMode === 'think' && <Thinking S={S} T={T} heard={heardRef.current} streaming={streaming} />}
-          {plateMode === 'speak' && <Captions said={said} on={captions} speaker={speaker} markHue={stage?.mark?.hue || null} pour={pour} />}
+          {plateMode === 'speak' && <Captions said={said} on={briefing || captions} speaker={speaker} markHue={stage?.mark?.hue || null} pour={pours ? pour : null} look={WORD_LOOK[mode] || WORD_LOOK.thread} />}
+          {plateMode === 'idle' && plateIdle}
         </section>
       </div>
 
-      <canvas ref={pourCanvasRef} className="nv-fx-pour" aria-hidden="true" />
+      {pours && <canvas ref={pourCanvasRef} className="nv-fx-pour" aria-hidden="true" />}
 
       {/* the way back: the thread's newest line, peeking; a tap or a swipe up */}
-      <Peek line={peek} onBack={T.closeFocus} />
+      {!briefing && <Peek line={peek} onBack={T.closeFocus} />}
+      {children}
     </div>
   );
 }
@@ -394,7 +451,13 @@ function drawPour(ctx, jobs, heart, o, now) {
 // underlined in red; while a panel's part is lit, the sentence pointing at it
 // is underlined in its finder's hue.
 const POUR_LEAD = 300;
-function Captions({ said, on, speaker, markHue = null, pour = null }) {
+// A WORD WITH NO POUR (the briefing, round 2): the whole sentence arrives in
+// a quarter-second fade under reduced motion, its words never moving
+function wholeLook(s, sp, t) {
+  if (Number.isFinite(s.cut) && sp.st >= s.cut) return { e: 0, lit: 0, p: 0 };
+  return { e: clamp01((t - s.at) / 250), lit: 0, p: 0 };
+}
+function Captions({ said, on, speaker, markHue = null, pour = null, look = WORD_LOOK.thread }) {
   const paced = useMemo(() => said.map((s) => ({ ...s, ...paceSentence(s) })), [said]);
   const colRef = useRef(null);
   const bodyRef = useRef(null);
@@ -434,10 +497,10 @@ function Captions({ said, on, speaker, markHue = null, pour = null }) {
       s.spans.forEach((sp, j) => {
         const el = words[i]?.[j];
         if (!el) return;
-        const L = wordLook(sp, t, { cut: s.cut });
+        const L = reduced && look.whole ? wholeLook(s, sp, t) : wordLook(sp, t, { cut: s.cut, arrive: look.arrive });
         el.style.opacity = L.e.toFixed(3);
-        el.style.transform = reduced ? '' : `translateY(${((1 - L.e) * 10).toFixed(2)}px)`;
-        el.style.filter = reduced || L.e >= 1 || L.e <= 0 ? '' : `blur(${((1 - L.e) * 4).toFixed(2)}px)`;
+        el.style.transform = reduced ? '' : `translateY(${((1 - L.e) * look.rise).toFixed(2)}px)`;
+        el.style.filter = reduced || L.e >= 1 || L.e <= 0 ? '' : `blur(${((1 - L.e) * look.blur).toFixed(2)}px)`;
         el.style.setProperty('--p', reduced ? (L.lit > 0 ? '1' : '0') : L.p.toFixed(3));
         // the underline leaves a little ahead of the colour, so the word
         // just said never carries a smudge into the next one
@@ -520,7 +583,7 @@ function Captions({ said, on, speaker, markHue = null, pour = null }) {
       document.removeEventListener('visibilitychange', onVis);
       if (pourCtx && pourCv) pourCtx.clearRect(0, 0, pourCv.width, pourCv.height);
     };
-  }, [paced, on, pour]);
+  }, [paced, on, pour, look]);
   return (
     <>
       <div className="nv-fx-phead">
@@ -588,6 +651,39 @@ function Peek({ line, onBack }) {
       <span className="go" aria-hidden="true"><Ico name="upc" /></span>
     </button>
   );
+}
+
+// THE BRIEFING'S SPOTS (round 2, mockup 83 at 390 by 844): the core's home
+// sits 140 above the plate (centred over the stage), the presenter's spot 50
+// in from the column's edge and 54 under the top row, the end's spot at the
+// top row's centre (beside the ⌄ on the Mac), and Read's inside the player.
+// The plate is bottom-anchored in the CSS (206 + 180 above the foot), so the
+// spots are worked from the same numbers. Measured, never guessed, on every
+// resize and every move of phase.
+function putBriefing(root, r, top) {
+  const W = r.width;
+  const H = r.height;
+  const mac = W >= 900;
+  const colW = Math.min(W, mac ? 720 : 440);
+  const x0 = (W - colW) / 2;
+  const plateTop = H - 386;
+  const cx = W / 2;
+  const cy = Math.max(top + 150, plateTop - 140);
+  const px = x0 + 50;
+  const py = top + 54;
+  const btn = root.querySelector('.nv-fx-top .nv-fx-btn')?.getBoundingClientRect();
+  const ey = btn ? btn.top + btn.height / 2 - r.top : top - 22;
+  const ex = mac && btn ? btn.right - r.left + 26 : cx;
+  const pl = root.querySelector('.nv-bf-player')?.getBoundingClientRect();
+  const rx = pl ? pl.left - r.left + 32 : 42;
+  const ry = pl ? pl.top - r.top + pl.height / 2 : H - 66;
+  const set = (k, v) => root.style.setProperty(k, `${Math.round(v)}px`);
+  set('--fx-cx', cx); set('--fx-cy', cy); set('--fx-px', px); set('--fx-py', py); set('--fx-peek', H);
+  set('--fx-sx', px - cx); set('--fx-sy', py - cy); set('--fx-nx', 0); set('--fx-ny', -cy + 40);
+  set('--bf-ex', ex - cx); set('--bf-ey', ey - cy); set('--bf-rx', rx - cx); set('--bf-ry', ry - cy);
+  root.style.setProperty('--fx-k', String(H < 740 ? 0.6 : 0.7));
+  root.toggleAttribute('data-short', H < 720);
+  root.toggleAttribute('data-mac', mac);
 }
 
 function CcIcon() {
