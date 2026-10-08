@@ -444,13 +444,13 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 
 #### Briefing — `briefing` (off-dock)
 `src/screens/Briefing.jsx` (376) · `src/vals/valsBriefing.js`. Doors: an Inbox `briefing` card, a voice reply, a resume nudge, `#/briefing?id=`; no dock or sidebar row.
-- [m] B1 · Empty state — "Nothing open. Ask for one.", explainer, 3 starter chips → Voice composer, the stage at rest, "Already made" list — `Briefing.jsx:138-181`
-- [m] B2 · Loading / working (title, topic, pulsing status, angle checklist ✓ ◍) / error + Back — `:186-222`
-- [m] B3 · Listen / Read segmented + browser-voice footnote; progress rule — `:339-350`
-- [m] B4 · Stage pane — hero `Glass` (title · term · heading · image · clip) + mini rail + desktop controls (Pause / Resume / Play · Restart · N/total) — `:25-103, 241-253`
-- [m] B5 · Transcript pane — section eyebrows, tap-to-seek beat rows — `:255-274`
-- [m] B6 · Read mode — summary, incomplete-angle warning, sections with "▶ Listen from here", glossary, Sources — `:276-320`
-- [m] B7 · Head row — Briefing eyebrow, In your vault / Keep in vault, title, "You asked: …", Close; mobile floating controls above the dock — `:326-336, 369-373`
+- [b] B1 · Empty state — "Nothing open. Ask for one.", explainer, 3 starter chips → Voice composer, the stage at rest, "Already made" list — `Briefing.jsx:138-181`
+- [b] B2 · Loading / working (title, topic, pulsing status, angle checklist ✓ ◍) / error + Back — `:186-222`
+- [b] B3 · Listen / Read segmented + browser-voice footnote; progress rule — `:339-350`
+- [b] B4 · Stage pane — hero `Glass` (title · term · heading · image · clip) + mini rail + desktop controls (Pause / Resume / Play · Restart · N/total) — `:25-103, 241-253`
+- [b] B5 · Transcript pane — section eyebrows, tap-to-seek beat rows — `:255-274`
+- [b] B6 · Read mode — summary, incomplete-angle warning, sections with "▶ Listen from here", glossary, Sources — `:276-320`
+- [b] B7 · Head row — Briefing eyebrow, In your vault / Keep in vault, title, "You asked: …", Close; mobile floating controls above the dock — `:326-336, 369-373`
 **Prior:** #20 empty state done. **First look:** `Glass()` here and `StageCard` on Voice are two vocabularies for one idea; `valsBriefing` never reads `demoMode`.
 
 ### TIER 3 · THE SMALL SCREENS
@@ -561,6 +561,12 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — THE BRIEFING BUILT AND SHIPPED (merge, pushed, reloaded):
+  mockup 83 against a 110-line checklist, 101 present, 9 differ for honesty
+  (figure/comparison panels and Hand-to-the-Coach not built, drawn disabled;
+  Undo on Save says what it cannot restore; a real picture shows its credit),
+  none missing. NovaFocus gained a briefing mode (no pour); briefingStage
+  test checks every end-card verb against its code path. Rows [b].
 - 9 Oct 2026 — ROUND 3 PUBLISHED: Code 89
   https://claude.ai/artifact/7nJ65tuCA6RTkJHXbQxy9f (D refined, Wren under
   Science Atlas, the commit review as bars, E's Needs-you strip); Shopping 88
