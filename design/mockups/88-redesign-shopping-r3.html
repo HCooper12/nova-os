@@ -1,0 +1,1218 @@
+<title>Shopping, round three</title>
+<!--
+  88 · SHOPPING, ROUND 3 (9 Oct 2026), with light refinements to the Stash
+
+  Round 2 is design/mockups/84-redesign-shopping-stash-r2.html (research:
+  design/audits/redesign-2026-09/14-shopping-stash-r2-research.md). Round 1 is
+  78-redesign-lists.html (audit 13-lists.md, section 3 Keep). His words, 9 Oct 2026:
+
+    "I want to ensure that the lowest price for each item is automatically visible
+    with a subtle logo or tag to represent Woolworths, Coles or Aldi. The idea should
+    be that when I look at my shopping list I will automatically be able to see what
+    the cheapest current up-to-date daily price is and where I should be buying it
+    from. This includes whether there is a better offer to buy things as a pack rather
+    than individual items. The only difference would be if it is not worth buying
+    multiples or a pack of an item because it would go to waste. For example, if one
+    of the items on my shopping list correlates to a meal that is half of a brown
+    onion, then it would be a waste to buy a bag of onions as it will both waste money
+    and likely waste onions as well. However, if I require multiple onions and it is
+    cheaper overall to buy a bag of them then that should be the recommendation."
+
+    "I still feel like the UI could be further refined as it still feels and looks a
+    bit bland and too dark with just the white text with dark background. Consider
+    apples approach to things like having colourful icons, or different text styles
+    and colours as relevant to make certain information stand out at a simple glance
+    but also not feel overwhelming or like it is all in my face and there is too much
+    going on."
+
+    "Stash is looking pretty good. Possibly consider any other further refinements in
+    terms of appearance and usability"
+
+  WHAT CHANGED
+    - every priced line carries its cheapest buy: the total, a store tag (a tinted
+      letter, W C A, never a copied logo) and the date it was read
+    - pack or singles is decided by code from the need the recipes give, with a
+      waste guard for things that go off; the sheet shows every way to buy it
+    - colour on icons, tags and savings only: an aisle tile per group in its own
+      hue, the ring's arcs in those hues, the saving in --nv-good, a serif line
+      for the one sentence that is news
+    - "By aisle" or "By shop": the same lines regrouped by where to buy them
+    - Stash: shelf tiles, the due check answered in place, paste from clipboard,
+      the long-press menu, days left as a number
+
+  DEMO CONTENT ONLY. The repo is public. Every price, product, pack size, recipe,
+  link and date is invented. No real product's price is claimed. Shelf lives are
+  a proposed table for code, written for this mockup.
+
+  Reduced motion: the phone takes the rm class (or the OS setting); slides,
+  flights and fills become 200 ms cross-fades.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --page:#07080f;
+  --nv-ink:#e8ecf6;--nv-ink60:rgba(232,236,246,.62);--nv-ink50:rgba(232,236,246,.52);--nv-ink40:rgba(232,236,246,.38);
+  --sep:rgba(232,236,246,.12);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);
+  --nv-acc:#59e6ff;--nv-good:#5fe8a8;--nv-gold:#e0b26a;--nv-warn:#e08383;--nv-vi:#8f7bff;
+  --on:#071018;
+  /* store tags: each chain's own colour, as a tinted letter, never a logo */
+  --st-w:#3fcf74;--st-c:#ff5f5f;--st-a:#6f9bff;
+  /* aisle hues (iOS system colours, dark variants) */
+  --a-pr:#30d158;--a-me:#ff6961;--a-da:#ffd60a;--a-pa:#ff9f0a;--a-fr:#64d2ff;--a-ba:#c69c6d;--a-be:#5e5ce6;--a-ho:#bf5af2;--a-on:#4fd1c5;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--page);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--nv-ink);font:16px/1.5 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--nv-acc);outline-offset:2px}
+
+/* ============ the review page ============ */
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 80px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.2 var(--ui);letter-spacing:.04em;color:var(--nv-ink60)}
+h1.pt{margin:0 0 12px;font:700 clamp(30px,6vw,40px)/1.08 var(--ui);letter-spacing:-.02em;text-wrap:balance}
+.lede{max-width:40em;margin:0 0 12px;font:400 20px/1.45 var(--serif);color:rgba(232,236,246,.8);text-wrap:pretty}
+.demo{max-width:46em;margin:0 0 24px;padding:12px 16px;border-radius:16px;background:color-mix(in srgb,var(--nv-gold) 8%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-gold) 30%,transparent);font-size:15px;color:rgba(232,236,246,.8);text-wrap:pretty}
+.demo b{color:var(--nv-ink);font-weight:600}
+.seg{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);padding:3px;border-radius:22px;background:rgba(120,120,128,.22)}
+.seg button{min-width:0;height:44px;padding:0 6px;border-radius:20px;font:600 13px var(--ui);color:var(--nv-ink60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;transition:background-color 200ms ease,color 200ms ease}
+.seg button[aria-pressed="true"]{color:var(--nv-ink);background:rgba(255,255,255,.16);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.seg button:active,.chip:active,.mom:active{transform:scale(.97)}
+.dirs{position:sticky;top:0;z-index:50;margin:0 -16px;padding:8px 16px;background:rgba(7,8,15,.82);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.dirs .seg{max-width:420px;margin:0 auto}
+.studio{display:grid;grid-template-columns:390px minmax(0,1fr);gap:40px;align-items:start;margin-top:24px}
+@media (max-width:900px){.studio{grid-template-columns:minmax(0,1fr);gap:26px}}
+.pcol{min-width:0}
+.pbox{position:relative;width:calc(390px*var(--z,1));height:calc(844px*var(--z,1));margin:0 auto}
+.under{max-width:390px;margin:16px auto 0}
+.lab{margin:16px 2px 6px;font:600 13px var(--ui);color:var(--nv-ink60)}
+.moms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.mom{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 12px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font:600 13px/1.3 var(--ui);text-align:left;transition:transform 120ms var(--ease-out)}
+.mom i{flex:none;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--h,var(--nv-acc));color:#fff;font:700 12px/1 var(--round);font-style:normal}
+.toggles{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:rgba(232,236,246,.8);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);transition:transform 120ms var(--ease-out)}
+.chip[aria-pressed="true"]{color:#062028;background:var(--nv-acc)}
+.notes{min-width:0}
+.notes h2{margin:0 0 6px;font:700 20px/1.25 var(--ui);letter-spacing:-.01em}
+.notes .sub{margin:0 0 16px;color:rgba(232,236,246,.8)}
+.st{margin:0 0 12px;padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.st h3{margin:0 0 4px;font:600 16px/1.3 var(--ui);display:flex;align-items:center;gap:10px}
+.st h3 i{flex:none;width:24px;height:24px;border-radius:7px;background:var(--h);display:grid;place-items:center}
+.st h3 i svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.st p{margin:0;color:rgba(232,236,246,.8);text-wrap:pretty}
+section.page{margin-top:64px}
+section.page>h2{margin:0 0 6px;font:700 22px/1.25 var(--ui);letter-spacing:-.01em}
+section.page>.sub{margin:0 0 18px;max-width:46em;color:rgba(232,236,246,.8);text-wrap:pretty}
+.rule{max-width:900px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.code{margin:0;padding:16px 18px;border-radius:18px;background:#0b0e1a;box-shadow:inset 0 0 0 1px var(--card-ring);font:13px/1.6 ui-monospace,"SF Mono",Menlo,monospace;color:rgba(232,236,246,.86);white-space:pre-wrap;overflow-wrap:anywhere}
+.code .c{color:var(--nv-ink50)}
+.code .k{color:var(--nv-acc)}
+.ex3{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;max-width:1060px}
+.exc{padding:16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.exc h3{margin:0 0 2px;font:600 17px/1.3 var(--ui)}
+.exc .need{margin:0 0 10px;font-size:14px;color:var(--nv-ink60)}
+.exc table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.exc td{padding:6px 0;border-top:1px solid var(--sep);vertical-align:top}
+.exc td:last-child{text-align:right;white-space:nowrap;padding-left:8px}
+.exc tr.win td{color:var(--nv-ink);font-weight:600}
+.exc tr:not(.win) td{color:var(--nv-ink60)}
+.exc .say{margin:12px 0 0;font:400 17px/1.4 var(--serif);color:var(--nv-ink);text-wrap:pretty}
+.keeps{max-width:900px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.kp{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:8px 14px;border-radius:14px;background:var(--card);font-size:15px}
+.kp span:last-child{color:var(--nv-ink60);font-variant-numeric:tabular-nums;text-align:right}
+.kp .p{color:var(--nv-gold)}
+.cmp{list-style:none;margin:0;padding:0;display:grid;max-width:900px}
+.cmp li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:4px 20px;padding:12px 4px;border-top:1px solid var(--sep);font-size:15px}
+.cmp li:first-child{border-top:0}
+.cmp .was{color:var(--nv-ink)}
+.cmp .now{color:rgba(232,236,246,.8)}
+.cmp .tag{display:inline-block;margin-left:6px;font-size:12px;font-weight:600;color:var(--nv-gold)}
+@media (max-width:620px){.cmp li{grid-template-columns:minmax(0,1fr)}}
+.src{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;max-width:1060px}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:900px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--round);background:rgba(89,230,255,.12);color:var(--nv-acc)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{color:rgba(232,236,246,.8)}
+
+/* ============ the phone ============ */
+.phone{
+  --bg:#05060c;--ink:var(--nv-ink);--ink60:var(--nv-ink60);--ink40:var(--nv-ink40);--sepp:rgba(232,236,246,.1);
+  --glass:rgba(255,255,255,.1);--glass-ring:rgba(255,255,255,.17);--glass-hi:rgba(255,255,255,.24);--bar:rgba(18,22,40,.72);
+  --hue:var(--nv-good);
+  position:absolute;left:0;top:0;width:390px;height:844px;border-radius:52px;overflow:hidden;isolation:isolate;transform:scale(var(--z,1));transform-origin:0 0;background:var(--bg);box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 80px -30px rgba(0,0,0,.9);font:17px/1.3 var(--ui);color:var(--ink)}
+.phone[data-scr="stash"]{--hue:#4fd1c5}
+.phone.light{--bg:#eef0f6;--ink:#1c1c1e;--ink60:rgba(28,28,30,.66);--ink40:rgba(28,28,30,.42);--sepp:rgba(28,28,30,.1);--glass:rgba(255,255,255,.72);--glass-ring:rgba(28,28,30,.08);--glass-hi:rgba(255,255,255,.9);--bar:rgba(246,247,251,.8);--nv-good:#1c7a3e;--nv-gold:#8a5200;--nv-warn:#c9251c;--st-w:#178a46;--st-c:#d42a2f;--st-a:#2c5fd6;color-scheme:light}
+.sky{position:absolute;inset:0;z-index:0;background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.15),transparent 60%),radial-gradient(70% 45% at 92% 28%,rgba(143,123,255,.18),transparent 60%),linear-gradient(180deg,#05060c 0%,#0a0e22 40%,#0e1534 75%,#141d40 100%)}
+.phone.light .sky{background:radial-gradient(70% 40% at 12% 6%,rgba(89,230,255,.22),transparent 60%),radial-gradient(70% 45% at 92% 28%,rgba(143,123,255,.16),transparent 60%),linear-gradient(180deg,#f4f6fb,#e9ecf5)}
+.island{position:absolute;top:11px;left:50%;width:126px;height:37px;margin-left:-63px;border-radius:19px;background:#000;z-index:40}
+.scroller{position:absolute;inset:0;z-index:2;overflow-y:auto;overflow-x:hidden;padding:54px 16px 200px;scrollbar-width:none;overscroll-behavior:contain}
+.scroller::-webkit-scrollbar{display:none}
+.nav{display:flex;align-items:center;justify-content:space-between;height:44px;margin:4px -4px 2px}
+.nb{min-width:44px;height:44px;border-radius:22px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;font:400 17px var(--ui);background:var(--glass);box-shadow:inset 0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);transition:transform 120ms var(--ease-out)}
+.nb.circ{width:44px;padding:0}
+.nb svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.nb:active{transform:scale(.95)}
+.ttl{margin:0 4px;font:700 34px/1.12 var(--ui);letter-spacing:-.025em}
+.news{margin:6px 4px 0;font:400 20px/1.32 var(--serif);color:var(--ink);text-wrap:balance}
+.news b{font-weight:600}
+.stat{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin:8px 4px 0;font:400 13px/1.35 var(--ui);color:var(--ink60)}
+.stat .dot{flex:none;width:7px;height:7px;border-radius:4px;background:var(--hue)}
+.stat.bad{color:var(--nv-warn)}
+.stat.bad .dot{background:var(--nv-warn)}
+.stat.off .dot{background:var(--nv-gold)}
+.stat .rt{min-height:44px;margin:-10px 0;padding:0 12px;border-radius:22px;color:var(--nv-warn);font:600 13px var(--ui)}
+.ex{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:10px;font:600 12px/1 var(--ui);color:var(--nv-gold);background:color-mix(in srgb,var(--nv-gold) 15%,transparent)}
+
+.card{position:relative;border-radius:22px;overflow:hidden;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,0) 50%),var(--glass);box-shadow:inset 0 1px 0 var(--glass-hi),0 0 0 .5px var(--glass-ring),0 14px 34px -20px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6)}
+.phone.light .card{box-shadow:0 0 0 .5px var(--glass-ring),0 6px 18px -10px rgba(20,30,60,.18)}
+
+/* the coloured tile: an SF-style glyph in a filled rounded square */
+.tile{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:linear-gradient(180deg,color-mix(in srgb,var(--t) 82%,#fff),var(--t));box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18)}
+.tile svg{width:17px;height:17px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tile.sm{width:20px;height:20px;border-radius:6px}
+.tile.sm svg{width:12px;height:12px;stroke-width:2.3}
+.tile.store{background:color-mix(in srgb,var(--t) 22%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--t) 50%,transparent);color:var(--t);font:800 14px/1 var(--round)}
+/* the store tag: a tinted letter */
+.tg{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:5px;font:800 11px/1 var(--round);color:var(--t);background:color-mix(in srgb,var(--t) 20%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--t) 45%,transparent);vertical-align:-3px}
+.tg.dash{background:none;color:var(--ink40);outline:1px dashed var(--ink40);outline-offset:-1px;box-shadow:none}
+
+/* basket instrument */
+.basket{margin-top:16px;padding:14px 16px 12px}
+.bk{display:grid;grid-template-columns:104px minmax(0,1fr);gap:16px;align-items:center}
+.ring{position:relative;width:104px;height:104px}
+.ring svg{width:104px;height:104px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9;stroke-linecap:butt}
+.ring .tr{stroke:color-mix(in srgb,var(--c) 24%,transparent)}
+.ring .fl{stroke:var(--c);transition:stroke-dasharray 520ms var(--ease)}
+.ring .ctr{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring .big{font:700 28px/1 var(--round);font-variant-numeric:tabular-nums}
+.ring .sm{font:500 12px/1.2 var(--ui);color:var(--ink60);margin-top:3px}
+.wb h3{margin:0 0 6px;font:600 13px/1.2 var(--ui);color:var(--ink60)}
+.split{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;background:color-mix(in srgb,var(--ink) 8%,transparent)}
+.split i{display:block;height:100%;background:var(--t);transform-origin:0 50%;transition:flex-grow 520ms var(--ease)}
+.split i.na{background:repeating-linear-gradient(90deg,var(--ink40) 0 4px,transparent 4px 7px)}
+.legend{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px}
+.legend li{display:grid;grid-template-columns:17px minmax(0,1fr) auto;gap:8px;align-items:center;font:400 14px/1.3 var(--ui);color:var(--ink60)}
+.legend b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.legend .gap{color:var(--ink40)}
+.bfoot{margin:10px 0 0;padding-top:10px;border-top:.5px solid var(--sepp);font:400 13px/1.4 var(--ui);color:var(--ink60)}
+.bfoot b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.bfoot .sv{color:var(--nv-good);font-weight:600}
+.grp{margin-top:12px}
+.aisles{display:flex;gap:6px;margin:10px -16px 0;padding:0 16px 2px;overflow-x:auto;scrollbar-width:none}
+.aisles::-webkit-scrollbar{display:none}
+.achip{flex:none;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px 0 8px;border-radius:18px;background:color-mix(in srgb,var(--ink) 7%,transparent);font:600 13px var(--ui);color:var(--ink);position:relative}
+.achip::after{content:"";position:absolute;inset:-4px 0}
+.achip .c{color:var(--ink60);font-variant-numeric:tabular-nums}
+
+/* meals rail */
+.sh2{display:flex;align-items:center;justify-content:space-between;margin:22px 0 8px 4px}
+.sh2 h2{margin:0;font:700 22px/1.2 var(--ui);letter-spacing:-.015em}
+.sh2 .nb{font-size:15px;font-weight:600;color:var(--hue)}
+.rail{display:flex;gap:10px;margin:0 -16px;padding:2px 16px 4px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+.rail::-webkit-scrollbar{display:none}
+.mcard{flex:none;width:150px;scroll-snap-align:start;padding:10px;border-radius:20px;background:var(--glass);box-shadow:inset 0 1px 0 var(--glass-hi),0 0 0 .5px var(--glass-ring);text-align:left;transition:transform 120ms var(--ease-out)}
+.mcard:active{transform:scale(.97)}
+.mcard .art{display:block;height:64px;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,var(--m1),var(--m2));position:relative}
+.mcard .art::after{content:"";position:absolute;left:50%;top:54%;width:74px;height:34px;margin:-17px 0 0 -37px;border-radius:50%;background:radial-gradient(circle at 35% 45%,var(--m3) 0 9px,transparent 10px),radial-gradient(circle at 62% 40%,var(--m4) 0 9px,transparent 10px),radial-gradient(circle at 50% 66%,var(--m1) 0 8px,transparent 9px),#e9edf3;box-shadow:0 6px 10px -4px rgba(0,0,0,.4)}
+.mcard .sl{display:block;margin-top:8px;font:600 12px/1.2 var(--ui);color:var(--m)}
+.mcard .dn{display:block;font:600 15px/1.25 var(--ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mcard .cv{display:flex;align-items:center;gap:6px;margin-top:6px;font:500 12px var(--ui);color:var(--ink60);font-variant-numeric:tabular-nums}
+.mcard .tk{flex:1;height:4px;border-radius:2px;background:color-mix(in srgb,var(--ink) 12%,transparent);overflow:hidden}
+.mcard .tk i{display:block;height:100%;background:var(--nv-good);transform-origin:0 50%}
+
+/* groups */
+.gh{display:flex;align-items:center;gap:10px;margin:24px 4px 8px}
+.gh .nm{font:700 20px/1.2 var(--ui);letter-spacing:-.01em}
+.gh .c{margin-left:auto;font:600 15px var(--round);color:var(--ink60);font-variant-numeric:tabular-nums}
+.gh .c.done{color:var(--nv-good)}
+.gh .sub{font:400 13px var(--ui);color:var(--ink60);font-variant-numeric:tabular-nums}
+.gh .spin{width:14px;height:14px;border-radius:7px;border:2px solid color-mix(in srgb,var(--hue) 30%,transparent);border-top-color:var(--hue);animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* rows */
+.row{position:relative;overflow:hidden}
+.row+.row::before{content:"";position:absolute;z-index:3;left:54px;right:0;top:0;height:.5px;background:var(--sepp)}
+.uly{position:absolute;inset:0;display:flex;justify-content:space-between;pointer-events:none}
+.ua{display:flex;align-items:center;gap:6px;padding:0 20px;font:600 15px var(--ui);color:var(--on);opacity:0}
+.ua.l{background:var(--nv-good);flex:1}
+.ua.r{background:var(--nv-warn);flex:1;justify-content:flex-end}
+.face{position:relative;z-index:1;display:flex;align-items:stretch;min-height:62px;background:transparent;touch-action:pan-y;transition:transform 300ms var(--ease)}
+.face.drag{transition:none}
+.face.moved{background:color-mix(in srgb,var(--bg) 92%,var(--ink))}
+.tick{flex:none;width:54px;display:grid;place-items:center;position:relative}
+.cbox{width:24px;height:24px;border-radius:12px;box-shadow:inset 0 0 0 1.6px var(--ink40);display:grid;place-items:center;transition:background-color 200ms ease,box-shadow 200ms ease}
+.cbox svg{width:14px;height:14px;fill:none;stroke:var(--on);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.6);transition:opacity 160ms ease,transform 220ms var(--ease-out)}
+.got .cbox{background:var(--nv-good);box-shadow:none}
+.got .cbox svg{opacity:1;transform:none}
+.body{flex:1;min-width:0;padding:10px 4px 10px 0;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.nm1{font:400 17px/1.25 var(--ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color 200ms ease}
+.got .nm1{color:var(--ink40);text-decoration:line-through;text-decoration-color:var(--ink40)}
+.meta{font:400 13px/1.3 var(--ui);color:var(--ink60);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta b{font-weight:600;color:var(--ink)}
+.got .meta b{color:var(--ink60)}
+.adv{display:flex;align-items:flex-start;gap:5px;font:400 13px/1.3 var(--ui);color:var(--ink60);text-wrap:pretty}
+.adv svg{flex:none;width:13px;height:13px;margin-top:1px;fill:none;stroke:var(--ink60);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.adv .sv,.meta .sv{color:var(--nv-good);font-weight:600}
+.adv .wt{color:var(--nv-gold)}
+.got .adv{display:none}
+.pin{display:inline-flex;align-items:center;gap:3px}
+.pin svg{width:11px;height:11px;fill:var(--ink60)}
+.pcell{flex:none;min-width:74px;padding:10px 6px 10px 4px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:3px;position:relative}
+.pcell .v{font:600 17px/1.1 var(--ui);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.pcell .w{display:flex;align-items:center;gap:5px;font:500 12px/1 var(--ui);color:var(--ink60);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pcell.none .v{font-size:13px;font-weight:500;color:var(--ink60)}
+.pcell .sg{position:absolute;top:10px;right:-2px;width:7px;height:7px;border-radius:4px;background:var(--nv-gold)}
+.got .pcell .v{color:var(--ink60)}
+.qty{flex:none;width:46px;display:grid;place-items:center}
+.qty span{min-width:30px;height:26px;padding:0 6px;border-radius:13px;display:grid;place-items:center;font:600 13px var(--round);background:color-mix(in srgb,var(--ink) 9%,transparent);font-variant-numeric:tabular-nums}
+.qty.one span{color:var(--ink60);background:none}
+.stepper{flex:none;display:flex;align-items:center;margin-right:6px}
+.stepper button{width:44px;height:44px;display:grid;place-items:center;font:500 22px/1 var(--ui);color:var(--hue)}
+.stepper .vv{min-width:18px;text-align:center;font:600 15px var(--round);font-variant-numeric:tabular-nums}
+.ocell{flex:none;display:flex;align-items:center;gap:4px;padding:0 14px;font:600 15px var(--ui);color:#4fd1c5}
+.ocell svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+.strip{padding:0 14px 12px 54px}
+.sgc{padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--nv-gold) 11%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--nv-gold) 40%,transparent)}
+.sgc .lb{display:block;font:600 12px var(--ui);color:var(--nv-gold);margin-bottom:3px}
+.sgc p{margin:0;font:400 14px/1.35 var(--ui);color:var(--ink)}
+.acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.pillb{min-height:44px;padding:0 14px;border-radius:22px;font:600 14px var(--ui);background:color-mix(in srgb,var(--ink) 10%,transparent);transition:transform 120ms var(--ease-out)}
+.pillb.gold{background:var(--nv-gold);color:#1a1205}
+.pillb.good{background:var(--nv-good);color:var(--on)}
+.pillb.warn{color:var(--nv-warn)}
+.pillb:active{transform:scale(.97)}
+
+.clearbtn{display:block;width:100%;min-height:50px;margin:18px 0 0;border-radius:25px;background:color-mix(in srgb,var(--nv-good) 16%,transparent);color:var(--nv-good);font:600 17px var(--ui);text-align:center}
+.empty{margin:28px 8px;text-align:center;font:400 20px/1.35 var(--serif);color:var(--ink60)}
+.skel{height:62px;display:flex;align-items:center;gap:14px;padding:0 16px}
+.skel i{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,color-mix(in srgb,var(--ink) 8%,transparent),color-mix(in srgb,var(--ink) 16%,transparent),color-mix(in srgb,var(--ink) 8%,transparent));background-size:200% 100%;animation:shim 1.4s linear infinite}
+.skel i:first-child{width:24px;height:24px;border-radius:12px;flex:none}
+@keyframes shim{to{background-position:-200% 0}}
+
+/* chrome: add bar, tab bar, toast, sheet */
+.addbar{position:absolute;left:12px;right:12px;bottom:88px;z-index:20;display:flex;align-items:center;gap:8px;min-height:56px;padding:6px 6px 6px 18px;border-radius:28px;background:var(--bar);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi),0 14px 34px -16px rgba(0,0,0,.6)}
+.addbar .ph{flex:1;min-width:0;min-height:44px;font:400 17px/44px var(--ui);color:var(--ink60);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.addbar textarea{flex:1;min-width:0;height:66px;resize:none;border:0;outline:0;background:none;font:400 17px/1.3 var(--ui);padding:8px 0}
+.addbar .plus{flex:none;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;background:var(--hue);color:var(--on);transition:transform 120ms var(--ease-out)}
+.addbar .plus:active{transform:scale(.94)}
+.addbar .plus svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round}
+.addbar .paste{flex:none;display:inline-flex;align-items:center;gap:6px;max-width:190px;min-height:44px;padding:0 12px;border-radius:22px;background:color-mix(in srgb,#4fd1c5 18%,transparent);color:#4fd1c5;font:600 14px var(--ui);white-space:nowrap;overflow:hidden}
+.addbar .paste span{overflow:hidden;text-overflow:ellipsis}
+.tabbar{position:absolute;left:12px;right:12px;bottom:12px;z-index:21;height:64px;display:grid;grid-template-columns:repeat(5,1fr);padding:0 4px;border-radius:32px;background:var(--bar);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:0 0 0 .5px var(--glass-ring),inset 0 1px 0 var(--glass-hi);pointer-events:none}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:600 10px var(--ui);color:var(--ink60)}
+.tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--nv-acc)}
+.phone.light .tab.on{color:#0060df}
+.toast{position:absolute;left:50%;top:8px;z-index:45;display:flex;align-items:center;gap:10px;height:44px;padding:0 4px 0 18px;margin-left:-150px;width:300px;border-radius:22px;background:#000;color:#fff;font:500 14px var(--ui);opacity:0;transform:scale(.9);transform-origin:50% 0;transition:opacity 220ms ease,transform 300ms var(--ease);pointer-events:none}
+.toast.on{opacity:1;transform:none;pointer-events:auto}
+.toast .tm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toast button{min-height:44px;padding:0 14px;color:#59e6ff;font:600 14px var(--ui)}
+.scrim{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity 300ms ease}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:31;max-height:86%;overflow-y:auto;overflow-x:hidden;padding:8px 18px 28px;border-radius:30px 30px 0 0;background:var(--bar);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6);box-shadow:0 -1px 0 var(--glass-hi),0 0 0 .5px var(--glass-ring);transform:translateY(102%);transition:transform 420ms var(--ease);scrollbar-width:none}
+.phone.light .sheet{background:rgba(250,251,254,.94)}
+.sheet::-webkit-scrollbar{display:none}
+.phone.sheet-on .scrim{opacity:1;pointer-events:auto}
+.phone.sheet-on .sheet{transform:none}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--ink40);margin:0 auto 10px}
+.shd{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.shd h3{margin:0;flex:1;min-width:0;font:700 22px/1.2 var(--ui);letter-spacing:-.015em}
+.shd .sub{display:block;font:400 13px var(--ui);color:var(--ink60)}
+.needbox{display:flex;gap:14px;align-items:center;padding:12px 14px;border-radius:18px;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.needbox .n{font:700 34px/1 var(--round);font-variant-numeric:tabular-nums;min-width:44px;text-align:center}
+.needbox ul{list-style:none;margin:0;padding:0;flex:1;min-width:0;font:400 14px/1.4 var(--ui);color:var(--ink60)}
+.needbox ul b{color:var(--ink);font-weight:600}
+.needbox .stepper{margin:0}
+.verdict{margin:14px 2px 10px;font:400 19px/1.35 var(--serif);text-wrap:pretty}
+.ways{list-style:none;margin:0;padding:0;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.ways li{display:grid;grid-template-columns:17px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:10px 14px;border-top:.5px solid var(--sepp)}
+.ways li:first-child{border-top:0}
+.ways .wl{font:400 15px/1.3 var(--ui)}
+.ways .ws{grid-column:2;font:400 12px/1.3 var(--ui);color:var(--ink60)}
+.ways .ws .p{color:var(--nv-gold)}
+.ways .wt{grid-row:1/3;grid-column:3;text-align:right;font:600 16px var(--ui);font-variant-numeric:tabular-nums}
+.ways li.pick{background:color-mix(in srgb,var(--nv-good) 10%,transparent)}
+.ways li.pick .wt{color:var(--nv-good)}
+.ways li.gone{opacity:.5}
+.sfoot{margin:12px 2px 0;font:400 12px/1.45 var(--ui);color:var(--ink60)}
+.sacts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.ingl{list-style:none;margin:0;padding:0;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.ingl li{display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-top:.5px solid var(--sepp);font-size:16px}
+.ingl li:first-child{border-top:0}
+.ingl .ok{margin-left:auto;font:600 13px var(--ui);color:var(--nv-good)}
+.ingl .no{margin-left:auto;font:500 13px var(--ui);color:var(--ink60)}
+.menuarm{padding:12px 14px;border-radius:18px;background:color-mix(in srgb,var(--nv-warn) 10%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--nv-warn) 40%,transparent);font-size:15px}
+.mlist{list-style:none;margin:0;padding:0;border-radius:18px;overflow:hidden;background:color-mix(in srgb,var(--ink) 6%,transparent)}
+.mlist button{display:flex;align-items:center;gap:12px;width:100%;min-height:50px;padding:0 14px;border-top:.5px solid var(--sepp);font-size:17px}
+.mlist li:first-child button{border-top:0}
+.mlist .warn{color:var(--nv-warn)}
+
+/* ============ stash ============ */
+.due{margin-top:14px;padding:14px;border-radius:22px;background:color-mix(in srgb,var(--nv-gold) 12%,var(--glass));box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--nv-gold) 45%,transparent)}
+.due .top{display:flex;gap:12px;align-items:center}
+.due .thumb{flex:none;width:48px;height:48px;border-radius:12px;overflow:hidden}
+.due .lb{display:block;font:600 13px var(--ui);color:var(--nv-gold)}
+.due .nm{display:block;font:600 17px/1.25 var(--ui)}
+.due .acts{margin-top:10px}
+.due .acts .pillb{flex:1}
+.vials{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:12px 10px 4px}
+.vial{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:44px;text-align:center}
+.vial .tube{position:relative;width:30px;height:62px;border-radius:9px 9px 12px 12px;background:color-mix(in srgb,var(--t) 14%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--t) 40%,transparent);overflow:hidden}
+.vial .fill{position:absolute;left:0;right:0;bottom:0;height:100%;background:linear-gradient(180deg,color-mix(in srgb,var(--t) 70%,#fff),var(--t));transform-origin:50% 100%;transform:scaleY(var(--lv));transition:transform 520ms var(--ease)}
+.vial .line{position:absolute;left:3px;right:3px;bottom:var(--ck);border-top:1.5px dashed rgba(255,255,255,.75)}
+.vial.dueit .fill{background:linear-gradient(180deg,color-mix(in srgb,var(--nv-gold) 70%,#fff),var(--nv-gold))}
+.vial .d{font:700 15px/1 var(--round);font-variant-numeric:tabular-nums}
+.vial .d small{font:500 11px var(--ui);color:var(--ink60)}
+.vial .nmv{font:500 12px/1.2 var(--ui);color:var(--ink60);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shelfbar{position:sticky;top:40px;z-index:5;margin:16px -16px 0;padding:8px 16px;}
+.shelfbar .in{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:4px;border-radius:24px;background:var(--bar);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:0 0 0 .5px var(--glass-ring)}
+.shelfbar .in::-webkit-scrollbar{display:none}
+.schip{flex:none;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px 0 8px;border-radius:20px;font:600 14px var(--ui);color:var(--ink60)}
+.schip[aria-pressed="true"]{background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink)}
+.schip .c{font-variant-numeric:tabular-nums;color:var(--ink60)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.pcard{position:relative;border-radius:20px;overflow:hidden;background:var(--glass);box-shadow:inset 0 1px 0 var(--glass-hi),0 0 0 .5px var(--glass-ring);transition:transform 300ms var(--ease),box-shadow 300ms ease}
+.pcard .img{display:block;height:96px;position:relative}
+.pcard .img svg{display:block;width:100%;height:100%}
+.pcard .cap{display:block;padding:8px 10px 10px}
+.pcard .nm{display:block;font:600 14px/1.25 var(--ui);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pcard .hs{display:block;font:400 12px/1.3 var(--ui);color:var(--ink60);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .bdg{position:absolute;left:8px;top:8px;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:11px;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);font:600 11px var(--ui);color:#fff;font-variant-numeric:tabular-nums}
+.pcard .bdg i{width:6px;height:6px;border-radius:3px;background:var(--t)}
+.pcard .bdg.due i{background:var(--nv-gold)}
+.pcard.lift{transform:scale(1.04);box-shadow:0 0 0 .5px var(--glass-ring),0 24px 50px -16px rgba(0,0,0,.8);z-index:33}
+.ctx{position:absolute;z-index:34;width:240px;border-radius:16px;overflow:hidden;background:var(--bar);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);box-shadow:0 0 0 .5px var(--glass-ring),0 20px 50px -10px rgba(0,0,0,.7);transform-origin:20% 0;opacity:0;transform:scale(.9);transition:opacity 200ms ease,transform 300ms var(--ease);pointer-events:none}
+.ctx.on{opacity:1;transform:none;pointer-events:auto}
+.phone.ctx-on .scroller>*:not(.has-lift),.phone.ctx-on .has-lift>.pcard:not(.lift),.phone.ctx-on .addbar{opacity:.28;transition:opacity 200ms ease}
+.ctx button{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;padding:0 14px;border-top:.5px solid var(--sepp);font-size:16px}
+.ctx button:first-child{border-top:0}
+.ctx svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.ctx .warn{color:var(--nv-warn)}
+.lrow{display:flex;align-items:center;gap:12px;min-height:62px;padding:8px 14px}
+.lrow+.lrow{border-top:.5px solid var(--sepp)}
+.lrow .tn{flex:none;width:44px;height:44px;border-radius:10px;overflow:hidden}
+.lrow .tn svg{width:100%;height:100%;display:block}
+.lrow .tt{display:block;font:400 17px/1.25 var(--ui)}
+.lrow .mt{display:block;font:400 13px var(--ui);color:var(--ink60)}
+
+/* entrances and reduced motion */
+.enter{animation:rise 360ms var(--ease-out) backwards}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.phone.rm *,.phone.rm *::before,.phone.rm *::after{animation-duration:1ms!important;transition-property:opacity,background-color,color!important;transition-duration:200ms!important}
+.phone.rm .sheet{transform:none;opacity:0;pointer-events:none}
+.phone.rm.sheet-on .sheet{opacity:1;pointer-events:auto}
+@media (prefers-reduced-motion:reduce){
+  .phone *,.phone *::before,.phone *::after{animation-duration:1ms!important;transition-property:opacity,background-color,color!important;transition-duration:200ms!important}
+  .phone .sheet{transform:none;opacity:0;pointer-events:none}
+  .phone.sheet-on .sheet{opacity:1;pointer-events:auto}
+  .mom:active,.chip:active,.seg button:active{transform:none}
+}
+@media (prefers-reduced-transparency:reduce){.phone .card,.phone .sheet,.phone .addbar,.phone .tabbar{-webkit-backdrop-filter:none;backdrop-filter:none;background:#141a30}.phone.light .card,.phone.light .sheet{background:#fff}}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 88 · Shopping round 3 · 9 October 2026 · for your review</p>
+  <h1 class="pt">Every line says where to buy it, and how many</h1>
+  <p class="lede">Each line on the list now shows its cheapest buy, the shop as a small tinted letter, and the day that price was read. Whether to take the bag or the singles comes from what your recipes need, so half an onion never buys a bag.</p>
+  <p class="demo"><b>Every price, pack, product and recipe here is invented.</b> Nova reads no supermarket today. The prices it could read are a week old at best, not daily, and where they come from is your first call at the foot of the page. The shelf lives are a table I wrote for code to use, yours to correct.</p>
+
+  <div class="dirs"><div class="seg" role="group" aria-label="Screen" id="scrs">
+    <button type="button" data-scr="shop" aria-pressed="true">Shopping</button>
+    <button type="button" data-scr="stash" aria-pressed="false">Stash</button>
+  </div></div>
+
+  <div class="studio">
+    <div class="pcol" id="pcol">
+      <div class="pbox" id="pbox">
+        <div class="phone" id="phone" data-scr="shop">
+          <div class="sky" aria-hidden="true"></div>
+          <div class="island" aria-hidden="true"></div>
+          <div class="scroller" id="scroller"></div>
+          <div class="addbar" id="addbar"></div>
+          <div class="tabbar" aria-hidden="true">
+            <span class="tab"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>Home</span>
+            <span class="tab"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/></svg>Nova</span>
+            <span class="tab"><svg viewBox="0 0 24 24"><path d="M2 12h3M19 12h3M5 8v8M19 8v8M8 12h8"/></svg>Train</span>
+            <span class="tab"><svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 004 0V3M7 11v10M17 3c-2 2-2 6 0 8v10"/></svg>Fuel</span>
+            <span class="tab on"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="2"/><rect x="14" y="4" width="6" height="6" rx="2"/><rect x="4" y="14" width="6" height="6" rx="2"/><rect x="14" y="14" width="6" height="6" rx="2"/></svg>More</span>
+          </div>
+          <div class="toast" id="toast" role="status" aria-live="polite"><span class="tm" id="tmsg"></span><button type="button" id="tundo">Undo</button></div>
+          <div class="ctx" id="ctx" role="menu"></div>
+          <div class="scrim" id="scrim" data-act="close"></div>
+          <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Details"></div>
+        </div>
+      </div>
+      <div class="under">
+        <p class="lab">Play a moment</p>
+        <div class="moms" id="moms"></div>
+        <div id="ctl"></div>
+        <p class="lab">Preview</p>
+        <div class="toggles">
+          <button class="chip" type="button" id="reset">Start over</button>
+          <button class="chip" type="button" id="light" aria-pressed="false">Light appearance</button>
+          <button class="chip" type="button" id="rmprev" aria-pressed="false">Reduced motion</button>
+        </div>
+      </div>
+    </div>
+    <div class="notes" id="notes"></div>
+  </div>
+
+  <section class="page">
+    <h2>The pack rule, as code applies it</h2>
+    <p class="sub">No model decides how many to buy. The need is read from the recipes behind the line, by the same <b>parseAmount</b> that scales a recipe today (src/recipeScale.js), so "½ brown onion" in the chilli is a need of 0.5. Code then prices every way to buy at least that much and picks one.</p>
+    <div class="rule">
+<pre class="code"><span class="c">// need: the sum of every recipe amount behind this line, scaled to the servings planned</span>
+need = sum(line.needs.map(n =&gt; n.qty))          <span class="c">// ½ + 2 + ½ = 3 onions</span>
+
+<span class="c">// every way to buy it, at every shop with a price read this week</span>
+for each option (single, bag of 5, 4-pack, 1 kg ...):
+  count = ceil(need / option.size)              <span class="c">// you cannot buy half a bag</span>
+  total = count × option.price
+  spare = count × option.size − need
+
+cheapest = lowest total (ties: less spare)
+exact    = least spare (ties: lower total)
+
+<span class="c">// the waste guard: a pack whose spares go off before you use them</span>
+<span class="k">if</span> cheapest.spare &gt; exact.spare
+   <span class="k">and</span> shelfLife(line) &lt; 14 days <span class="k">and</span> it does not freeze
+   <span class="k">and</span> no other meal this week uses the spare
+   <span class="k">and</span> exact.total − cheapest.total &lt; $0.50:       <span class="c">// your call 3 sets this margin</span>
+  pick = exact                                   <span class="c">// "saves 20c, but 2 would go off"</span>
+<span class="k">else</span>
+  pick = cheapest</pre>
+      <div class="ex3" id="ex3"></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>How long things keep: code's table</h2>
+    <p class="sub">The "keeps" judgement on each line comes from a small table, by kind, not from a model. Gold marks the ones that go off inside two weeks, where the waste guard applies. These are my estimates for a Melbourne kitchen, stored as code with the list; your call 5 is whether you can edit them in the vault.</p>
+    <div class="keeps" id="keeps"></div>
+  </section>
+
+  <section class="page">
+    <h2>Where each price comes from, unchanged from round 2</h2>
+    <p class="sub">No supermarket in Australia offers an approved price feed yet. The research is in 14-shopping-stash-r2-research.md. What changed this round is how a price is shown, not where it comes from.</p>
+    <div class="src">
+      <div class="st"><h3><span class="tg" style="--t:#3fcf74">W</span>Woolworths and <span class="tg" style="--t:#ff5f5f">C</span>Coles</h3><p>Prices are on their public sites, and both sites' terms forbid automated reading. A narrow weekly read from your Mac, just after Wednesday's specials change, is possible and blockable. Every price shows the date it was read; one older than the next Wednesday would say "last week's".</p></div>
+      <div class="st"><h3><span class="tg" style="--t:#6f9bff">A</span>Aldi</h3><p>Prices are listed on its site, with no nutrition and no online shop, and its terms forbid automated access too. When not read, Aldi stays a dashed letter, named, in the basket, and is never claimed cheapest.</p></div>
+      <div class="st"><h3><span class="tg dash">·</span>Why not daily</h3><p>A daily price means reading the chains every day, which their terms forbid. Specials change once a week, on Wednesday, so a Wednesday read is about as fresh as their own catalogues. Each price cell says the date of its read, so you can always see how old it is.</p></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <h2>Every function from rounds 1 and 2, and where it lives now</h2>
+    <p class="sub">Nothing is dropped. Marked <span style="color:var(--nv-gold);font-weight:600">new</span> where round 3 adds to it.</p>
+    <ul class="cmp" id="keepList"></ul>
+  </section>
+
+  <section class="page">
+    <h2>What it needs that does not exist</h2>
+    <ul class="cmp">
+      <li><span class="was">The need, kept per recipe</span><span class="now">A list line carries one <b>amount</b> and one <b>source</b> today (server/lib/shoppingList.js). Summing ½ from the chilli and 2 from a stew needs a <b>needs</b> list on the line, each with its recipe and amount. That changes the list's frontmatter, so shoppingList.js, mealPrep.js, the inbox's shopping route and valsMisc.js change together (your call 4).</span></li>
+      <li><span class="was">Pack sizes per product</span><span class="now">Each product a line matches carries its size in the line's unit (a 1 kg onion bag counts as about 5 onions). Code reads the size from the product's own name; a bag sold by weight states its count as "about", and the sheet says so.</span></li>
+      <li><span class="was">The shelf-life table</span><span class="now">A small pure module beside recipeScale.js, with its own tests: kind to days, and whether it freezes.</span></li>
+      <li><span class="was">Prices</span><span class="now">Your call 1. Nothing here works without a source except the need and the waste judgement, which still show on every line with no prices at all.</span></li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Where prices come from (first, because everything priced depends on it)</b><span>(a) Nova reads Woolworths' and Coles' public product pages once a week, Wednesday after the specials change, only for lines on your list, from your Mac. Against both chains' terms, and either can block it. (b) No supermarket reads: the need, the pack-or-singles advice and the keeps judgement still show; no price, no store tag, no basket total. (c) Build (b) now and add a chain's own feed the day one exists. A daily price is not on offer under any of them, because the chains forbid it; whichever you choose, each price says the date it was read and none is shown that Nova did not read.</span></div></li>
+      <li><div><b>Aldi</b><span>Yes, under (a): Aldi's listed prices join, and its letter appears on the lines where it is cheapest (eggs, beans and chicken in this demo). No: Aldi stays a dashed letter in the basket, never on a line, and the cheapest is chosen between the other two.</span></div></li>
+      <li><div><b>How much a pack must save before it can waste food</b><span>Proposed: 50c. Yes: a pack whose spares would go off is only recommended when it saves more than 50c over buying just what you need. No: you name the margin; at $0 the cheapest always wins, and at "never" a perishable pack with spare is never suggested.</span></div></li>
+      <li><div><b>Adding a needs list to each shopping line</b><span>Yes: a line remembers each recipe's amount, so the need adds up across meals and a recipe you drop takes its share away. A format change, made in every reader and writer together. No: a line keeps one amount; the need comes from the most recent recipe only, and two meals wanting onions can each say ½.</span></div></li>
+      <li><div><b>Where the shelf-life table lives</b><span>Yes, in the vault: a short note you can edit in Obsidian ("avocado: 3 days"), read by code. No: it stays in code with its tests, and you ask me to change a number.</span></div></li>
+      <li><div><b>Store tags in the chains' colours</b><span>Yes: W green, C red, A blue, tinted, a letter in each; recognised at a glance, though Woolworths' green sits near the saving green and Coles' red near the red of remove. No: one neutral tint for all three, told apart by the letter alone.</span></div></li>
+      <li><div><b>Open the list by aisle or by shop</b><span>By aisle (drawn as the default): you walk the shop in order, and each line names where it is cheapest. By shop: the list opens split into Woolworths, Coles and Aldi, for the day you do two shops. Either way the other is one tap away.</span></div></li>
+      <li><div><b>Where Your meals sits</b><span>The price card is taller this round, and with Your meals above it the first line started 865 pt down, below the bottom of the screen. Drawn: Your meals under the last aisle, the first line about 640 pt down (measured below). Yes, keep it there: the list leads, the rotation is one scroll away and in ⋯. No, put it back above: the rotation is first, and you scroll once before any line.</span></div></li>
+      <li><div><b>Round 2's other calls still open</b><span>"Better on macros", the Order online group, where a restock rhythm lives, and level checks to Apple Reminders. Each stands as round 2 put it; nothing here changes them. If you answer them, the next round builds on the answers; if not, this layout keeps round 2's defaults.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const phone = $('#phone'), scroller = $('#scroller'), addbar = $('#addbar'), sheet = $('#sheet'), toastEl = $('#toast'), ctx = $('#ctx');
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+let RMP = false;
+const rm = () => RMP || mq.matches;
+const OUT = 'cubic-bezier(.23,1,.32,1)', IO = 'cubic-bezier(.77,0,.175,1)';
+const money = (n) => (n < 1 ? `${Math.round(n * 100)}c` : `$${n.toFixed(2)}`);
+const dollars = (n) => `$${n.toFixed(2)}`;
+const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
+const FR = { 0.25: '¼', 0.5: '½', 0.75: '¾' };
+const frac = (n) => { const w = Math.floor(n), f = Math.round((n - w) * 4) / 4; return `${w || ''}${FR[f] || ''}` || '0'; };
+const WORD = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const word = (n) => WORD[n] || String(n);
+const AS_OF = '7 Oct', READ_AT = 'Wed 7 Oct, 06:10';
+const MARGIN = 0.5;
+
+/* ---------- glyphs (SF-style, drawn) ---------- */
+const G = {
+  pr: '<path d="M6 19c0-8 5-13 13-13 0 8-5 13-13 13zM6 19l7-7"/>',
+  me: '<path d="M8 15c-3-1-4-5-1-8s8-3 10 0 1 8-3 9l-3 1-2 3-2-1 1-3z"/>',
+  da: '<path d="M9 3h6v3l2 3v11a1 1 0 01-1 1H8a1 1 0 01-1-1V9l2-3z"/><path d="M7 13h10"/>',
+  pa: '<rect x="6" y="8" width="12" height="13" rx="2"/><path d="M8 4h8v4H8zM6 13h12"/>',
+  fr: '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9M9 4.5l3 2 3-2M9 19.5l3-2 3 2"/>',
+  ba: '<path d="M4 13c0-4 4-7 8-7s8 3 8 7v5H4z"/><path d="M9 9v3M12 8v4M15 9v3"/>',
+  be: '<path d="M7 4h10l-1 16a1 1 0 01-1 1H9a1 1 0 01-1-1z"/><path d="M7.5 9h9"/>',
+  ho: '<path d="M8 21V11h8v10M10 11V7h4v4M14 7l3-3M6 21h12"/>',
+  on: '<path d="M3.5 8L12 4l8.5 4v9L12 21l-8.5-4z"/><path d="M3.5 8L12 12l8.5-4M12 12v9"/>',
+  skin: '<path d="M12 3c3 5 6 8 6 11.5A6 6 0 016 14.5C6 11 9 8 12 3z"/>',
+  kit: '<path d="M5 9h12v6a4 4 0 01-4 4H9a4 4 0 01-4-4z"/><path d="M17 11h1.5a2 2 0 010 4H17M8 3v3M12 3v3"/>',
+  desk: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/>',
+  read: '<path d="M4 5c3-1 6-1 8 1 2-2 5-2 8-1v14c-3-1-6-1-8 1-2-2-5-2-8-1z"/><path d="M12 6v14"/>',
+  bag: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 016 0"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  leaf: '<path d="M6 18c0-7 5-12 12-12 0 7-5 12-12 12z"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+  move: '<path d="M4 7h16M4 12h10M4 17h7M17 14l3 3-3 3"/>',
+  trash: '<path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/>',
+  share: '<path d="M12 3v12M8 7l4-4 4 4M5 12v8h14v-8"/>',
+};
+const ic = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${G[k]}</svg>`;
+const tile = (k, hueVar, sm) => `<span class="tile${sm ? ' sm' : ''}" style="--t:var(${hueVar})" aria-hidden="true">${ic(k)}</span>`;
+const CHK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+const MORE = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
+const PLUS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+const OUTI = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16L16 8M9 8h7v7"/></svg>';
+const PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 3.5l6 6-3 1-3.5 3.5.5 4-1.5 1.5-4-4-4.5 4.5-1-1L8 14.5l-4-4L5.5 9l4 .5L13 6z"/></svg>';
+
+/* ---------- aisles and shops ---------- */
+const AISLES = [
+  { k: 'pr', n: 'Produce', h: '--a-pr' }, { k: 'me', n: 'Meat', h: '--a-me' }, { k: 'da', n: 'Dairy and eggs', h: '--a-da' },
+  { k: 'pa', n: 'Pantry', h: '--a-pa' }, { k: 'fr', n: 'Frozen', h: '--a-fr' }, { k: 'ba', n: 'Bakery', h: '--a-ba' },
+  { k: 'be', n: 'Drinks', h: '--a-be' }, { k: 'ho', n: 'Household', h: '--a-ho' }, { k: 'on', n: 'Order online', h: '--a-on' },
+];
+const AI = Object.fromEntries(AISLES.map((a) => [a.k, a]));
+const SHOP = { w: { n: 'Woolworths', l: 'W', h: '--st-w' }, c: { n: 'Coles', l: 'C', h: '--st-c' }, a: { n: 'Aldi', l: 'A', h: '--st-a' } };
+const tag = (ch) => `<span class="tg" style="--t:var(${SHOP[ch].h})" aria-hidden="true">${SHOP[ch].l}</span>`;
+
+/* ---------- code's shelf-life table (proposed; days, and whether it freezes) ---------- */
+const KEEPS = {
+  onion: { n: 'Brown onions', d: 30 }, citrus: { n: 'Limes, lemons', d: 14 }, avocado: { n: 'Avocados, ripe', d: 3 },
+  spinach: { n: 'Baby spinach', d: 5 }, herbs: { n: 'Fresh herbs', d: 5 }, banana: { n: 'Bananas', d: 5 }, tomato: { n: 'Tomatoes', d: 7 },
+  mince: { n: 'Mince, fresh', d: 2, fz: true }, chicken: { n: 'Chicken, fresh', d: 2, fz: true }, yoghurt: { n: 'Yoghurt, opened', d: 7 },
+  eggs: { n: 'Eggs', d: 35 }, bread: { n: 'Bread', d: 4, fz: true }, tin: { n: 'Tins', d: 730 }, dry: { n: 'Rice, pasta', d: 365 },
+  frozen: { n: 'Frozen', d: 180 }, drink: { n: 'Bottled drinks', d: 270 }, house: { n: 'Household', d: null },
+};
+function keepsWord(k) {
+  const t = KEEPS[k]; if (!t) return '';
+  if (t.d == null) return 'keeps';
+  if (t.fz) return 'freezes';
+  if (t.d >= 60) return 'keeps months';
+  if (t.d >= 14) return `keeps ${Math.round(t.d / 7)} weeks`;
+  return `goes off in ${t.d} days`;
+}
+const perishable = (k) => { const t = KEEPS[k]; return t && t.d != null && t.d < 14 && !t.fz; };
+
+/* ---------- invented demo data ---------- */
+const o = (ch, label, pk, size, price) => ({ ch, label, pk, size, price });
+const INIT = () => ({
+  scr: 'shop', group: 'aisle', price: 'read', aldi: true, list: 'live',
+  stepper: null, cleared: null, armed: false, adding: false, ctx: null, clip: false, shelfOn: 'all',
+  lines: [
+    { id: 'l1', name: 'brown onion', a: 'pr', keep: 'onion', unit: '', needs: [{ from: 'Weeknight chilli', q: 0.5 }],
+      opts: [o('w', 'Brown onion, loose', 'single', 1, 0.8), o('w', 'Brown onions 1 kg bag, about 5', 'bag of 5', 5, 2.2), o('c', 'Brown onion, loose', 'single', 1, 0.85), o('c', 'Brown onions 1 kg bag, about 5', 'bag of 5', 5, 2.4), o('a', 'Brown onions 2 kg bag, about 10', 'bag of 10', 10, 3.49)] },
+    { id: 'l2', name: 'limes', a: 'pr', keep: 'citrus', unit: '', needs: [{ from: 'Weeknight chilli', q: 1 }, { from: 'Chicken rice bowl', q: 2 }],
+      opts: [o('w', 'Limes, each', 'single', 1, 0.75), o('w', 'Limes 500 g bag, about 6', 'bag of 6', 6, 4.0), o('c', 'Limes, each', 'single', 1, 0.7), o('a', 'Limes bag, about 5', 'bag of 5', 5, 2.99)] },
+    { id: 'l3', name: 'avocados', a: 'pr', keep: 'avocado', unit: '', needs: [{ from: 'Chicken rice bowl', q: 2 }],
+      opts: [o('w', 'Avocado, each', 'single', 1, 1.9), o('w', 'Avocados, bag of 4', 'bag of 4', 4, 3.6), o('c', 'Avocado, each', 'single', 1, 2.1), o('a', 'Avocados, bag of 4', 'bag of 4', 4, 3.99)] },
+    { id: 'l4', name: 'baby spinach', a: 'pr', keep: 'spinach', unit: 'g', needs: [{ from: 'Chicken rice bowl', q: 120, say: '120 g' }], got: true,
+      opts: [o('w', 'Baby spinach 120 g', '120 g', 120, 3.0), o('w', 'Baby spinach 280 g', '280 g', 280, 4.5), o('c', 'Baby spinach 120 g', '120 g', 120, 3.2), o('a', 'Baby spinach 150 g', '150 g', 150, 3.29)] },
+    { id: 'l5', name: 'beef mince', a: 'me', keep: 'mince', unit: 'g', needs: [{ from: 'Weeknight chilli', q: 1000, say: '1 kg' }],
+      pin: { label: 'Lean beef mince 5% fat', s: '1 kg' }, sug: { ch: 'c', label: 'Lean beef mince 4% fat, 1 kg', price: 12.0, pr: 1.0, kj: 37 }, declined: false,
+      opts: [o('w', 'Lean beef mince 5% fat, 1 kg', '1 kg', 1000, 13.0)] },
+    { id: 'l6', name: 'chicken thighs', a: 'me', keep: 'chicken', unit: 'g', needs: [{ from: 'Chicken rice bowl', q: 1000, say: '1 kg' }],
+      opts: [o('w', 'Chicken thigh fillets 1 kg', '1 kg', 1000, 15.0), o('w', 'Chicken thigh fillets 500 g', '500 g', 500, 8.5), o('c', 'Chicken thigh fillets 1 kg', '1 kg', 1000, 14.0), o('a', 'Chicken thigh fillets 1 kg', '1 kg', 1000, 11.99)] },
+    { id: 'l7', name: 'Greek yoghurt', a: 'da', keep: 'yoghurt', unit: 'g', got: true, needs: [{ from: 'Overnight oats', q: 1000, say: '1 kg' }, { from: 'Protein yoghurt bowl', q: 1000, say: '1 kg' }],
+      opts: [o('w', 'Greek yoghurt, plain 1 kg', '1 kg', 1000, 6.5), o('c', 'Greek yoghurt, plain 1 kg', '1 kg', 1000, 6.0), o('a', 'Greek yoghurt, plain 1 kg', '1 kg', 1000, 4.79)] },
+    { id: 'l8', name: 'eggs', a: 'da', keep: 'eggs', unit: '', typed: 'a dozen', needs: [{ q: 12 }],
+      opts: [o('w', 'Free range eggs, 12 pack', '12 pack', 12, 7.2), o('w', 'Free range eggs, 6 pack', '6 pack', 6, 4.0), o('c', 'Free range eggs, 12 pack', '12 pack', 12, 7.5), o('a', 'Free range eggs, 12 pack', '12 pack', 12, 5.69)] },
+    { id: 'l9', name: 'kidney beans', a: 'pa', keep: 'tin', unit: '', needs: [{ from: 'Weeknight chilli', q: 2, say: '2 × 400 g' }],
+      opts: [o('w', 'Red kidney beans 400 g', 'tin', 1, 1.2), o('c', 'Red kidney beans 400 g', 'tin', 1, 1.1), o('c', 'Kidney beans 3 × 400 g', '3-pack', 3, 3.0), o('a', 'Red kidney beans 400 g', 'tin', 1, 0.89)] },
+    { id: 'l10', name: 'jasmine rice', a: 'pa', keep: 'dry', unit: 'g', needs: [{ from: 'Chicken rice bowl', q: 1000, say: '1 kg' }],
+      opts: [o('w', 'Jasmine rice 1 kg', '1 kg', 1000, 2.6), o('w', 'Jasmine rice 5 kg', '5 kg', 5000, 11.0), o('c', 'Jasmine rice 1 kg', '1 kg', 1000, 2.8), o('a', 'Jasmine rice 1 kg', '1 kg', 1000, 2.69)] },
+    { id: 'l11', name: 'smoked paprika', a: 'pa', keep: 'dry', unit: '', needs: [{ from: 'Weeknight chilli', q: null, say: '1 tsp' }], opts: [] },
+    { id: 'l12', name: 'frozen peas', a: 'fr', keep: 'frozen', unit: '', typed: '1 kg', needs: [{ q: 1 }],
+      opts: [o('w', 'Garden peas 1 kg', '1 kg', 1, 2.8), o('c', 'Garden peas 1 kg', '1 kg', 1, 3.0), o('a', 'Garden peas 1 kg', '1 kg', 1, 2.99)] },
+    { id: 'l13', name: 'sourdough loaf', a: 'ba', keep: 'bread', unit: '', typed: '', needs: [{ q: 1 }], opts: [], got: true },
+    { id: 'l14', name: 'sparkling water', a: 'be', keep: 'drink', unit: '', typed: '', needs: [{ q: 6 }],
+      opts: [o('w', 'Sparkling water 1.25 L', 'single', 1, 1.15), o('w', 'Sparkling water 4 × 1.25 L', '4-pack', 4, 2.8), o('c', 'Sparkling water 1.25 L', 'single', 1, 1.0)] },
+    { id: 'l15', name: 'dish sponges', a: 'ho', keep: 'house', unit: '', typed: '', needs: [{ q: 1 }],
+      opts: [o('w', 'Scrub sponges, 5 pack', '5 pack', 1, 3.5), o('c', 'Scrub sponges, 5 pack', '5 pack', 1, 3.5)] },
+    { id: 'l16', name: 'bin liners', a: 'ho', keep: 'house', unit: '', typed: '', needs: [{ q: 1 }],
+      opts: [o('w', 'Kitchen tidy bags, 30 pack', '30 pack', 1, 3.8), o('c', 'Kitchen tidy bags, 30 pack', '30 pack', 1, 4.0)] },
+    { id: 'l17', name: 'Hydrating cleanser', a: 'on', online: 'skin.example.com', needs: [{ q: 1 }], opts: [] },
+  ],
+  rotation: [
+    { id: 'r1', slot: 'Breakfast', name: 'Overnight oats', m: ['#e8d9b8', '#6b5a3a', '#a99bff', '#e35d6a'], ing: [['rolled oats', '500 g', 'pa'], ['Greek yoghurt', '1 kg', 'da'], ['frozen berries', '500 g', 'fr']] },
+    { id: 'r2', slot: 'Lunch', name: 'Chicken rice bowl', m: ['#3a4a2a', '#1a2414', '#e0b26a', '#5fe8a8'], ing: [['chicken thighs', '1 kg', 'me'], ['jasmine rice', '1 kg', 'pa'], ['avocados', '2', 'pr'], ['limes', '2', 'pr'], ['baby spinach', '120 g', 'pr']] },
+    { id: 'r3', slot: 'Dinner', name: 'Weeknight chilli', m: ['#6b2a24', '#2a120f', '#e35d6a', '#e0b26a'], ing: [['beef mince', '1 kg', 'me'], ['kidney beans', '2 × 400 g', 'pa'], ['brown onion', '½', 'pr'], ['smoked paprika', '1 tsp', 'pa'], ['diced tomatoes', '2 × 400 g', 'pa']] },
+    { id: 'r4', slot: 'Dinner, Sunday', name: 'Beef and onion stew', m: ['#4a2a1a', '#1e120a', '#c08a5a', '#f2e3c6'], ing: [['brown onion', '2', 'pr'], ['stewing beef', '800 g', 'me'], ['carrots', '3', 'pr']] },
+  ],
+  stash: [
+    { id: 'k1', name: 'Hydrating cleanser 236 ml', host: 'skin.example.com', sh: 'skin', art: 'pump', rs: { weeks: 8, since: 50 } },
+    { id: 'k2', name: 'Daily moisturiser SPF 30', host: 'skin.example.com', sh: 'skin', art: 'tube', rs: { weeks: 6, since: 30 } },
+    { id: 'k3', name: 'Retinol serum 30 ml', host: 'shop.example.net', sh: 'skin', art: 'dropper', rs: { weeks: 12, since: 20 } },
+    { id: 'k4', name: 'Lip balm', host: 'skin.example.com', sh: 'skin', art: 'balm' },
+    { id: 'k5', name: 'Coffee beans 1 kg', host: 'roaster.example.com', sh: 'kit', art: 'bag', rs: { weeks: 4, since: 10 } },
+    { id: 'k6', name: 'Chef knife sharpener', host: 'kitchen.example.com', sh: 'kit', art: 'sharpener' },
+    { id: 'k7', name: 'Monitor arm', host: 'shop.example.com', sh: 'desk', art: 'arm' },
+    { id: 'k8', name: 'Desk mat', host: 'shop.example.com', sh: 'desk', art: 'mat' },
+    { id: 'k9', name: 'Essay on deliberate practice', host: 'essays.example.net', sh: 'read', art: 'page' },
+    { id: 'k10', name: 'Long read on sleep', host: 'magazine.example.com', sh: 'read', art: 'page2' },
+  ],
+});
+const SHELVES = [{ k: 'skin', n: 'Skincare', h: '--s-skin', c: '#ff7aa8' }, { k: 'kit', n: 'Kitchen', h: '--s-kit', c: '#ff9f0a' }, { k: 'desk', n: 'Desk setup', h: '--s-desk', c: '#7d7aff' }, { k: 'read', n: 'Reading', h: '--s-read', c: '#c69c6d' }];
+const SH = Object.fromEntries(SHELVES.map((s) => [s.k, s]));
+SHELVES.forEach((s) => phone.style.setProperty(s.h, s.c));
+let S = INIT();
+let firstPaint = true;
+
+/* ---------- the rule, as code ---------- */
+const avail = (ch) => S.price !== 'off' && !(ch === 'c' && S.price === 'colesFail') && !(ch === 'a' && !S.aldi);
+const needOf = (l) => l.needs.reduce((s, n) => s + (n.q || 0), 0) + (l.adj || 0);
+function decide(l) {
+  const need = needOf(l);
+  const opts = l.opts.filter((x) => avail(x.ch));
+  if (!opts.length || !(need > 0)) return null;
+  const cand = opts.map((x) => { const count = Math.max(1, Math.ceil(need / x.size - 1e-9)); return { ...x, count, total: count * x.price, spare: count * x.size - need }; });
+  const byTotal = [...cand].sort((a, b) => a.total - b.total || a.spare - b.spare);
+  const exact = [...cand].sort((a, b) => a.spare - b.spare || a.total - b.total)[0];
+  let pick = byTotal[0], why = 'cheapest';
+  if (pick.spare > exact.spare + 1e-9 && perishable(l.keep) && exact.total - pick.total < MARGIN) { pick = exact; why = 'waste'; }
+  const other = byTotal.find((c) => c.ch !== pick.ch);
+  const singles = byTotal.filter((c) => c.size === 1 && c.pk === 'single');
+  const packs = byTotal.filter((c) => c.size > 1 && c.pk !== '1 kg');
+  return { need, pick, why, cand: byTotal, exact, cheapest: byTotal[0], other, single: singles[0], pack: packs[0] };
+}
+// the line under the name: what code decided, in one sentence
+function advice(l, d) {
+  if (!d || l.unit === 'g' || l.typed != null && l.opts.every((x) => x.size === 1)) return '';
+  const p = d.pick, n = d.need;
+  if (d.why === 'waste') return `${word(p.count)[0].toUpperCase() + word(p.count).slice(1)} singles: a ${d.cheapest.pk} saves ${money(p.total - d.cheapest.total)}, <span class="wt">but ${frac(d.cheapest.spare)} would go off in ${KEEPS[l.keep].d} days</span>.`;
+  if (p.size > 1 && d.single && n > 1) {
+    const sTot = d.single.total;
+    return `${p.pk[0].toUpperCase() + p.pk.slice(1)} at ${dollars(p.total / p.count)}: <span class="sv">${money(sTot - p.total)} under ${n} singles</span>, ${frac(p.spare)} spare · ${keepsWord(l.keep)}`;
+  }
+  if (p.size === 1 && n < 1 && d.pack) return `One single. A ${d.pack.pk} would leave ${frac(d.pack.spare)} over.`;
+  if (p.size === 1 && d.pack && d.pack.total > p.total) return `Singles: ${money(d.pack.total - p.total)} under a ${d.pack.pk}.`;
+  return '';
+}
+function cheapestCount() {
+  const tally = { w: 0, c: 0, a: 0 }; let n = 0;
+  S.lines.forEach((l) => { if (l.gone || l.sorting) return; const d = decide(l); if (!d) return; n++; const tie = d.other && Math.abs(d.other.total - d.pick.total) < 0.005; if (!tie) tally[d.pick.ch]++; });
+  const top = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
+  return { tally, n, top };
+}
+function totals() {
+  const by = { w: { t: 0, n: 0 }, c: { t: 0, n: 0 }, a: { t: 0, n: 0 } };
+  const one = { w: { t: 0, n: 0 }, c: { t: 0, n: 0 }, a: { t: 0, n: 0 } };
+  let split = 0, priced = 0;
+  S.lines.forEach((l) => {
+    if (l.gone || l.sorting || l.got) return;
+    const d = decide(l); if (!d) return;
+    by[d.pick.ch].t += d.pick.total; by[d.pick.ch].n++; split += d.pick.total; priced++;
+    ['w', 'c', 'a'].forEach((ch) => { const c = d.cand.find((x) => x.ch === ch); if (c) { one[ch].t += c.total; one[ch].n++; } });
+  });
+  return { by, one, split, priced };
+}
+
+/* ---------- rendering: shopping ---------- */
+function nav(right) { return `<div class="nav"><button class="nb circ" type="button" data-act="noop" aria-label="Back to More">${BACK}</button>${right || ''}</div>`; }
+const live = () => S.lines.filter((l) => !l.gone);
+function shopHead() {
+  const L = live().filter((l) => !l.sorting), left = L.filter((l) => !l.got);
+  let news;
+  if (S.list === 'empty') news = 'Nothing to get.';
+  else if (S.price === 'off') news = `<b data-num="left">${left.length}</b> to get, across ${plural(new Set(left.map((l) => l.a)).size, 'aisle')}.`;
+  else { const c = cheapestCount(); news = `${SHOP[c.top].n} is cheapest on <b data-num="top">${c.tally[c.top]}</b> of ${c.n} priced lines this week.`; }
+  let stat;
+  if (S.list === 'offline') stat = `<div class="stat off"><span class="dot"></span><span>Offline · the list as of 9:12 · 1 tick waiting in the Outbox</span></div>`;
+  else if (S.list === 'loading') stat = `<div class="stat"><span class="dot"></span><span>Reading your vault…</span></div>`;
+  else if (S.price === 'colesFail') stat = `<div class="stat bad"><span class="dot"></span><span>Coles did not answer ${READ_AT} · its prices are hidden</span><button class="rt" type="button" data-act="retry">Try again</button></div>`;
+  else if (S.price === 'off') stat = `<div class="stat"><span class="dot"></span><span>Synced 9:41 · no prices read, your choice</span></div>`;
+  else stat = `<div class="stat"><span class="dot"></span><span>Synced 9:41 · prices read ${READ_AT}</span><span class="ex">example prices</span></div>`;
+  return `${nav(`<button class="nb circ" type="button" data-act="menu" aria-label="More for the shopping list">${MORE}</button>`)}<h1 class="ttl">Shopping</h1><p class="news">${news}</p>${stat}`;
+}
+function basket() {
+  const L = live().filter((l) => !l.sorting), total = L.length || 1, gotN = L.filter((l) => l.got).length;
+  const r = 44, C = 2 * Math.PI * r, gap = 3;
+  let start = 0; const arcs = [], chips = [];
+  AISLES.forEach((a) => {
+    const items = L.filter((l) => l.a === a.k); if (!items.length) return;
+    const len = (items.length / total) * C, got = items.filter((l) => l.got).length;
+    const fill = Math.max(0, (len - gap) * (got / items.length));
+    arcs.push(`<circle class="tr" style="--c:var(${a.h})" cx="52" cy="52" r="${r}" stroke-dasharray="${(len - gap).toFixed(2)} ${(C - len + gap).toFixed(2)}" stroke-dashoffset="${(-start).toFixed(2)}"/>`);
+    arcs.push(`<circle class="fl" style="--c:var(${a.h})" cx="52" cy="52" r="${r}" stroke-dasharray="${fill.toFixed(2)} ${(C - fill).toFixed(2)}" stroke-dashoffset="${(-start).toFixed(2)}"/>`);
+    start += len;
+    if (got < items.length) chips.push(`<button class="achip" type="button" data-act="jump" data-to="g-${a.k}">${tile(a.k, a.h, true)}${esc(a.n)} <span class="c">${items.length - got}</span></button>`);
+  });
+  let right, foot = '';
+  if (S.price === 'off') {
+    right = `<div class="wb"><h3>Where to buy</h3><p style="margin:0;font:400 14px/1.4 var(--ui);color:var(--ink60)">No prices: you chose not to read the supermarkets. Each line still says how many to buy.</p></div>`;
+  } else {
+    const t = totals();
+    const segs = ['w', 'c', 'a'].map((ch) => {
+      if (!avail(ch)) return ch === 'a' || S.price === 'colesFail' ? `<i class="na" style="flex-grow:.12"></i>` : '';
+      return t.by[ch].n ? `<i style="--t:var(${SHOP[ch].h});flex-grow:${t.by[ch].t.toFixed(2)}"></i>` : '';
+    }).join('');
+    const rows = ['w', 'c', 'a'].map((ch) => {
+      if (!avail(ch)) return `<li><span class="tg dash" style="--t:var(${SHOP[ch].h})">${SHOP[ch].l}</span><span class="gap">${SHOP[ch].n} · ${ch === 'c' ? 'did not answer' : 'not read'}</span><span></span></li>`;
+      return `<li>${tag(ch)}<span>${SHOP[ch].n} <span style="font-variant-numeric:tabular-nums">${t.by[ch].n}</span></span><b data-num="by-${ch}">${dollars(t.by[ch].t)}</b></li>`;
+    }).join('');
+    right = `<div class="wb"><h3>Where to buy what is left</h3><div class="split" aria-hidden="true">${segs}</div><ul class="legend">${rows}</ul></div>`;
+    const best1 = ['w', 'c', 'a'].filter((ch) => avail(ch) && t.one[ch].n === t.priced).sort((a, b) => t.one[a].t - t.one[b].t)[0];
+    foot = best1
+      ? `<p class="bfoot"><b data-num="split">${dollars(t.split)}</b> for ${t.priced} priced lines, split as above: <span class="sv">${money(t.one[best1].t - t.split)} less</span> than all at ${SHOP[best1].n}.</p>`
+      : `<p class="bfoot"><b data-num="split">${dollars(t.split)}</b> for ${t.priced} priced lines, split as above. No one shop has every line.</p>`;
+  }
+  return `<div class="card basket"><div class="bk"><div class="ring"><svg viewBox="0 0 104 104" aria-hidden="true">${arcs.join('')}</svg><div class="ctr"><span class="big" data-num="ring">${L.length - gotN}</span><span class="sm">of ${L.length} to get</span></div></div>${right}</div>${foot}
+    <div class="seg grp" role="group" aria-label="Group the list"><button type="button" data-act="group" data-g="aisle" aria-pressed="${S.group === 'aisle'}">By aisle</button><button type="button" data-act="group" data-g="shop" aria-pressed="${S.group === 'shop'}">By shop</button></div>
+    ${S.group === 'aisle' && chips.length ? `<div class="aisles" aria-label="Go to an aisle">${chips.join('')}</div>` : ''}</div>`;
+}
+function coverage(r) { const names = live().map((l) => l.name.toLowerCase()); return r.ing.map(([n]) => names.some((x) => x === n.toLowerCase())); }
+function meals() {
+  const cards = S.rotation.map((r) => { const cv = coverage(r), on = cv.filter(Boolean).length;
+    return `<button class="mcard" type="button" data-act="dish" data-ref="${r.id}" style="--m1:${r.m[0]};--m2:${r.m[1]};--m3:${r.m[2]};--m4:${r.m[3]};--m:var(--a-pa)" aria-label="${esc(r.slot)}: ${esc(r.name)}, ${on} of ${cv.length} on the list"><span class="art"></span><span class="sl">${esc(r.slot)}</span><span class="dn">${esc(r.name)}</span><span class="cv"><span class="tk"><i style="transform:scaleX(${(on / cv.length).toFixed(3)})"></i></span>${on}/${cv.length}</span></button>`; }).join('');
+  return `<div class="sh2"><h2>Your meals</h2><button class="nb" type="button" data-act="library">Recipes</button></div><div class="rail">${cards}</div>`;
+}
+function metaLine(l) {
+  const bits = [];
+  if (l.online) bits.push(`from your Stash · ${esc(l.online)}`);
+  else if (l.sorting) bits.push('finding its aisle');
+  else if (l.typed != null) { if (l.typed) bits.push(`<b>${esc(l.typed)}</b>`); }
+  else {
+    const n = needOf(l), named = l.needs.filter((x) => x.from);
+    const amt = l.needs.length === 1 && l.needs[0].say && !l.adj ? esc(l.needs[0].say) : l.unit === 'g' ? `${n / 1000} kg` : frac(n);
+    bits.push(`<b>${amt}</b> for ${named.length > 1 ? plural(named.length, 'meal') : esc(named[0].from)}`);
+  }
+  if (l.pin && S.price !== 'off') bits.push(`<span class="pin">${PIN}${esc(l.pin.label)}</span>`);
+  return bits.join(' · ');
+}
+function priceCell(l, d) {
+  if (l.online) return `<button class="ocell" type="button" data-act="noop" aria-label="Open ${esc(l.online)}">Open${OUTI}</button>`;
+  if (S.price === 'off') return '';
+  if (l.fresh) return `<button class="pcell none" type="button" data-act="price" aria-label="${esc(l.name)}: priced at the next Wednesday read"><span class="v">No price</span><span class="w">until Wed</span></button>`;
+  if (!l.opts.length) return `<button class="pcell none" type="button" data-act="price" aria-label="${esc(l.name)}: no price, not matched to a product"><span class="v">No price</span><span class="w">not matched</span></button>`;
+  if (!d) return `<button class="pcell none" type="button" data-act="price" aria-label="${esc(l.name)}: no price read"><span class="v">No price</span><span class="w">${S.price === 'colesFail' ? 'Coles failed' : 'not read'}</span></button>`;
+  const tie = d.other && Math.abs(d.other.total - d.pick.total) < 0.005;
+  const sg = l.sug && !l.declined && S.price === 'read';
+  return `<button class="pcell" type="button" data-act="price" aria-label="${esc(l.name)}: ${dollars(d.pick.total)} at ${tie ? SHOP[d.pick.ch].n + ' or ' + SHOP[d.other.ch].n : SHOP[d.pick.ch].n}, as of ${AS_OF}. Every way to buy it">${sg ? '<span class="sg" aria-hidden="true"></span>' : ''}<span class="v" data-num="p-${l.id}">${dollars(d.pick.total)}</span><span class="w">${tag(d.pick.ch)}${tie ? tag(d.other.ch) : ''}${AS_OF}</span></button>`;
+}
+function qtyCell(l, d) {
+  if (l.online) return '';
+  if (S.stepper === l.id) return `<span class="stepper"><button type="button" data-act="dec" aria-label="One fewer ${esc(l.name)}">−</button><span class="vv" data-num="q-${l.id}">${buyCount(l, d)}</span><button type="button" data-act="inc" aria-label="One more ${esc(l.name)}">+</button></span>`;
+  const n = buyCount(l, d);
+  return `<button class="qty${n === 1 ? ' one' : ''}" type="button" data-act="${l.unit === 'g' ? 'price' : 'qty'}" aria-label="Buying ${n}, change"><span data-num="q-${l.id}">×${n}</span></button>`;
+}
+const buyCount = (l, d) => (d ? d.pick.count : l.unit === 'g' ? 1 : Math.max(1, Math.ceil(needOf(l) || 1)));
+function row(l) {
+  const d = decide(l), adv = advice(l, d);
+  let sv = '';
+  if (!adv && d && d.other && d.other.total - d.pick.total > 0.004 && !l.got) sv = ` · <span class="sv">${money(d.other.total - d.pick.total)} less than ${SHOP[d.other.ch].n}</span>`;
+  const sug = l.sug && !l.declined && S.price === 'read' && !l.got
+    ? `<div class="strip"><div class="sgc"><span class="lb">Nova suggests · better on price and macros</span><p><b>${esc(l.sug.label)}</b> at Coles is ${money(13 - l.sug.price)} cheaper, with ${l.sug.pr} g more protein and ${l.sug.kj} kJ less per 100 g.</p><div class="acts"><button class="pillb gold" type="button" data-act="switch">✓ Switch</button><button class="pillb" type="button" data-act="keep">✕ Keep mine</button><button class="pillb" type="button" data-act="talk">Talk</button></div></div></div>` : '';
+  return `<div class="row${l.got ? ' got' : ''}" data-id="${l.id}">
+    <div class="uly" aria-hidden="true"><span class="ua l">✓ ${l.got ? 'Not yet' : 'Got it'}</span><span class="ua r">Remove ✕</span></div>
+    <div class="face"><button class="tick" type="button" data-act="got" aria-label="${l.got ? 'Not got yet' : 'Got it'}: ${esc(l.name)}"><span class="cbox">${CHK}</span></button>
+      <button class="body" type="button" data-act="got" tabindex="-1" aria-hidden="true"><span class="nm1">${esc(l.name)}</span><span class="meta">${metaLine(l)}${sv}</span>${adv ? `<span class="adv">${ic(adv.includes('go off') ? 'clock' : 'bag')}<span>${adv}</span></span>` : ''}</button>
+      ${priceCell(l, d)}${qtyCell(l, d)}</div>${sug}</div>`;
+}
+function shopList() {
+  if (S.list === 'loading') return `<div class="gh"><span class="nm" style="color:var(--ink60)">Produce</span></div><div class="card">${'<div class="skel"><i></i><i style="width:46%"></i><i style="width:18%;margin-left:auto"></i></div>'.repeat(4)}</div>`;
+  if (S.list === 'empty') return `<p class="empty">Add what you need below, or shop from one of your meals.</p>`;
+  let h = '';
+  const sorting = live().filter((l) => l.sorting);
+  if (sorting.length) h += `<div class="gh"><span class="nm">Sorting into aisles</span><span class="spin" aria-hidden="true"></span></div><div class="card">${sorting.map(row).join('')}</div>`;
+  const L = live().filter((l) => !l.sorting);
+  if (S.group === 'aisle') {
+    AISLES.forEach((a) => {
+      const items = L.filter((l) => l.a === a.k); if (!items.length) return;
+      const left = items.filter((l) => !l.got).length;
+      h += `<div class="gh" id="g-${a.k}">${tile(a.k, a.h)}<span class="nm">${esc(a.n)}</span><span class="c${left ? '' : ' done'}" data-num="g-${a.k}">${left || '✓'}</span></div><div class="card">${items.map(row).join('')}</div>`;
+    });
+  } else {
+    const groups = { w: [], c: [], a: [], none: [], on: [] };
+    L.forEach((l) => { if (l.online) return groups.on.push(l); const d = decide(l); groups[d ? d.pick.ch : 'none'].push(l); });
+    ['w', 'c', 'a'].forEach((ch) => {
+      const items = groups[ch]; if (!items.length) return;
+      const sub = items.filter((l) => !l.got).reduce((s, l) => s + decide(l).pick.total, 0);
+      h += `<div class="gh"><span class="tile store" style="--t:var(${SHOP[ch].h})" aria-hidden="true">${SHOP[ch].l}</span><span class="nm">${SHOP[ch].n}</span><span class="c">${dollars(sub)}</span></div><div class="card">${items.map(row).join('')}</div>`;
+    });
+    if (groups.none.length) h += `<div class="gh">${tile('list', '--a-ho')}<span class="nm">No price</span><span class="c">${groups.none.length}</span></div><div class="card">${groups.none.map(row).join('')}</div>`;
+    if (groups.on.length) h += `<div class="gh">${tile('on', '--a-on')}<span class="nm">Order online</span><span class="c">${groups.on.length}</span></div><div class="card">${groups.on.map(row).join('')}</div>`;
+  }
+  const got = L.filter((l) => l.got).length;
+  if (got) h += `<button class="clearbtn" type="button" data-act="clear-got">Clear the <span data-num="gotbtn">${got}</span> you got</button>`;
+  return h;
+}
+function shopView() { const full = !(S.list === 'empty' || S.list === 'loading'); return shopHead() + (full ? basket() : '') + shopList() + (full ? meals() : ''); }
+
+/* ---------- rendering: stash ---------- */
+const liveK = () => S.stash.filter((k) => !k.gone);
+const lv = (k) => Math.max(0, 1 - k.rs.since / (k.rs.weeks * 7));
+const daysLeft = (k) => Math.max(0, k.rs.weeks * 7 - k.rs.since);
+const isDue = (k) => k.rs && daysLeft(k) <= 7 && !k.rs.answered;
+function art(kind) {
+  const P = {
+    pump: ['#163330', '#0a1716', '<rect x="54" y="34" width="30" height="46" rx="8" fill="#e8f3ef"/><rect x="62" y="22" width="14" height="13" rx="2" fill="#9fb5b0"/><path d="M69 22v-6h11" stroke="#9fb5b0" stroke-width="4" fill="none" stroke-linecap="round"/><rect x="54" y="50" width="30" height="12" fill="#ff7aa8" opacity=".6"/>'],
+    tube: ['#3a2f22', '#1a1610', '<path d="M40 26h58l-6 46H46z" fill="#f3e9da"/><rect x="58" y="72" width="22" height="9" rx="2" fill="#e0b26a"/>'],
+    dropper: ['#2b2140', '#141024', '<rect x="54" y="40" width="30" height="40" rx="6" fill="#c9a36a"/><rect x="58" y="26" width="22" height="15" rx="3" fill="#2b2b2f"/><ellipse cx="69" cy="20" rx="9" ry="8" fill="#2b2b2f"/>'],
+    balm: ['#3a1f2a', '#1a0f16', '<rect x="60" y="34" width="18" height="44" rx="5" fill="#f2c4cf"/><rect x="60" y="34" width="18" height="12" rx="4" fill="#d98aa0"/>'],
+    bag: ['#2b2018', '#140e0a', '<path d="M46 30h46l4 50H42z" fill="#6b4a33"/><path d="M46 30l6-8h34l6 8" fill="#8a6447"/><rect x="54" y="46" width="30" height="18" rx="3" fill="#f2e6d6"/>'],
+    sharpener: ['#1f2a33', '#0e141a', '<rect x="36" y="52" width="66" height="22" rx="8" fill="#9aa7b2"/><path d="M58 52l11-20 11 20" fill="#c8d2da"/>'],
+    arm: ['#1e2433', '#0d111c', '<rect x="44" y="70" width="50" height="8" rx="3" fill="#8b95a8"/><path d="M69 70V48l18-14" stroke="#b9c2d2" stroke-width="6" fill="none" stroke-linecap="round"/><rect x="80" y="20" width="32" height="22" rx="3" fill="#2a3346" stroke="#b9c2d2" stroke-width="2"/>'],
+    mat: ['#1d2a26', '#0c1513', '<rect x="24" y="44" width="90" height="30" rx="8" fill="#3c5a52"/><rect x="30" y="50" width="78" height="18" rx="5" fill="#4f7468"/>'],
+    page: ['#16223a', '#0b1222', '<circle cx="96" cy="26" r="10" fill="#e0b26a" opacity=".85"/><path d="M0 70l30-22 22 14 26-26 30 30 30-16v40H0z" fill="#2c4a7a"/>'],
+    page2: ['#24183a', '#120c20', '<circle cx="34" cy="30" r="12" fill="#a99bff" opacity=".7"/><path d="M0 74c30-14 50 6 70-6s40-10 68 2v20H0z" fill="#3b2d66"/>'],
+  }[kind];
+  return `<svg viewBox="0 0 138 92" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="138" height="92" fill="${P[1]}"/><rect width="138" height="46" fill="${P[0]}" opacity=".9"/><ellipse cx="69" cy="84" rx="40" ry="5" fill="#000" opacity=".25"/>${P[2]}</svg>`;
+}
+function stashView() {
+  const L = liveK(), dueK = L.find(isDue);
+  const shelves = SHELVES.filter((s) => L.some((k) => k.sh === s.k));
+  const news = dueK ? `The cleanser is due a look. <b>${L.length}</b> links on ${shelves.length} shelves.` : `<b>${L.length}</b> links on ${shelves.length} shelves, nothing running low.`;
+  let h = `${nav('<button class="nb" type="button" data-act="noop">Edit</button>')}<h1 class="ttl">Stash</h1><p class="news">${news}</p><div class="stat"><span class="dot"></span><span>Lives in your vault · synced 9:41</span></div>`;
+  if (dueK) h += `<div class="due enter" data-due="${dueK.id}"><div class="top"><span class="thumb">${art(dueK.art)}</span><span><span class="lb">Check the level</span><span class="nm">${esc(dueK.name)}</span><span style="font:400 13px var(--ui);color:var(--ink60)">About ${daysLeft(dueK)} days left by the calendar</span></span></div>
+    <div class="acts"><button class="pillb" type="button" data-act="ans" data-a="plenty">Plenty left</button><button class="pillb gold" type="button" data-act="ans" data-a="low">Getting low</button><button class="pillb" type="button" data-act="ans" data-a="re">Reordered</button></div></div>`;
+  const tracked = L.filter((k) => k.rs).sort((a, b) => daysLeft(a) - daysLeft(b));
+  h += `<div class="card" style="margin-top:12px"><div class="vials">${tracked.map((k) => `<button class="vial${isDue(k) ? ' dueit' : ''}" type="button" data-act="noop" style="--t:${SH[k.sh].c}" aria-label="${esc(k.name)}: about ${daysLeft(k)} days left by the calendar"><span class="tube"><span class="fill" style="--lv:${lv(k).toFixed(3)}"></span><span class="line" style="--ck:${(7 / (k.rs.weeks * 7) * 100).toFixed(1)}%"></span></span><span class="d">${daysLeft(k)}<small> d</small></span><span class="nmv">${esc(k.name.split(' ')[0] === 'Daily' ? 'Moisturiser' : k.name.split(' ')[0] === 'Hydrating' ? 'Cleanser' : k.name.split(' ')[0] === 'Retinol' ? 'Retinol' : 'Coffee')}</span></button>`).join('')}</div>
+    <p class="bfoot" style="margin:6px 14px 12px">Days left, counted from when you bought each one. The dashed line is a week before empty.</p></div>`;
+  h += `<div class="shelfbar"><div class="in" role="group" aria-label="Shelves"><button class="schip" type="button" data-act="shelf" data-sh="all" aria-pressed="${S.shelfOn === 'all'}">All <span class="c">${L.length}</span></button>${shelves.map((s) => `<button class="schip" type="button" data-act="shelf" data-sh="${s.k}" aria-pressed="${S.shelfOn === s.k}"><span class="tile sm" style="--t:${s.c}" aria-hidden="true">${ic(s.k)}</span>${esc(s.n)} <span class="c">${L.filter((k) => k.sh === s.k).length}</span></button>`).join('')}</div></div>`;
+  shelves.forEach((s) => {
+    if (S.shelfOn !== 'all' && S.shelfOn !== s.k) return;
+    const items = L.filter((k) => k.sh === s.k);
+    h += `<div class="gh"><span class="tile" style="--t:${s.c}" aria-hidden="true">${ic(s.k)}</span><span class="nm">${esc(s.n)}</span><span class="c">${items.length}</span></div>`;
+    if (s.k === 'read') h += `<div class="card">${items.map((k) => `<button class="lrow" type="button" data-act="noop" data-id="${k.id}"><span class="tn">${art(k.art)}</span><span><span class="tt">${esc(k.name)}</span><span class="mt">${esc(k.host)}</span></span></button>`).join('')}</div>`;
+    else h += `<div class="grid">${items.map((k) => `<div class="pcard" data-id="${k.id}" data-card="${k.id}" style="--t:${s.c}"><button type="button" data-act="noop" style="display:block;width:100%" aria-label="${esc(k.name)}, opens ${esc(k.host)}. Press and hold for more"><span class="img">${art(k.art)}</span>${k.onList ? '<span class="bdg"><i style="background:var(--nv-good)"></i>On your list</span>' : k.rs ? `<span class="bdg${isDue(k) ? ' due' : ''}"><i></i>${daysLeft(k)} days left</span>` : ''}<span class="cap"><span class="nm">${esc(k.name)}</span><span class="hs">${esc(k.host)}</span></span></button></div>`).join('')}</div>`;
+  });
+  return h;
+}
+
+/* ---------- add bar ---------- */
+function addView() {
+  if (S.scr === 'stash') {
+    if (S.clip) return `<span class="ph">Paste a link to keep</span><button class="paste" type="button" data-act="pasteclip">${ic('share').replace('<svg', '<svg style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2"')}<span>Paste skin.example.com/serum…</span></button>`;
+    return `<button class="ph" type="button" data-act="noop">Paste a link to keep</button><button class="plus" type="button" data-act="noop" aria-label="Paste a link to keep">${PLUS}</button>`;
+  }
+  if (S.adding) return `<textarea id="addf" aria-label="Add items, one per line" placeholder="One per line">carrots\nfresh coriander</textarea><button class="plus" type="button" data-act="commit" aria-label="Add these">${PLUS}</button>`;
+  return `<button class="ph" type="button" data-act="add">Add items, one per line</button><button class="plus" type="button" data-act="add" aria-label="Add items">${PLUS}</button>`;
+}
+
+/* ---------- render with FLIP and number rolls ---------- */
+function render(opt = {}) {
+  const before = new Map();
+  if (opt.flip) $$('[data-id]', scroller).forEach((el) => before.set(el.dataset.id, el.getBoundingClientRect()));
+  const nums = new Map($$('[data-num]', phone).map((el) => [el.dataset.num, el.textContent]));
+  const top = scroller.scrollTop;
+  phone.dataset.scr = S.scr;
+  scroller.innerHTML = S.scr === 'shop' ? shopView() : stashView();
+  addbar.innerHTML = addView();
+  scroller.scrollTop = opt.top != null ? opt.top : top;
+  const Z = parseFloat(getComputedStyle(phone).getPropertyValue('--z')) || 1;
+  if (firstPaint || opt.enter) {
+    firstPaint = false;
+    if (!rm()) Array.from(scroller.children).forEach((el, n) => el.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }], { duration: 360, easing: OUT, delay: Math.min(n, 10) * 40, fill: 'backwards' }));
+    else scroller.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+  } else if (opt.flip) {
+    let n = 0;
+    $$('[data-id]', scroller).forEach((el) => {
+      const b = before.get(el.dataset.id), a = el.getBoundingClientRect();
+      if (rm()) { if (!b) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 }); return; }
+      if (!b) { el.animate([{ opacity: 0, transform: 'translateY(10px) scale(.985)' }, { opacity: 1, transform: 'none' }], { duration: 300, easing: OUT, delay: Math.min(n++, 6) * 50, fill: 'backwards' }); return; }
+      const dx = (b.left - a.left) / Z, dy = (b.top - a.top) / Z;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) el.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }], { duration: 420, easing: IO });
+    });
+  }
+  $$('[data-num]', phone).forEach((el) => {
+    const old = nums.get(el.dataset.num);
+    if (old != null && old !== el.textContent) el.animate(rm() ? [{ opacity: 0 }, { opacity: 1 }] : [{ transform: 'translateY(40%)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: rm() ? 200 : 260, easing: OUT });
+  });
+  paintNotes();
+}
+
+/* ---------- toast with Undo, in the island ---------- */
+let toastT = 0, undoFn = null;
+function toast(msg, undo) {
+  $('#tmsg').textContent = msg; undoFn = undo || null; $('#tundo').style.display = undo ? '' : 'none';
+  toastEl.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('on'), 4000);
+}
+$('#tundo').addEventListener('click', () => { const f = undoFn; undoFn = null; toastEl.classList.remove('on'); if (f) f(); });
+
+/* ---------- sheets ---------- */
+function openSheet(html) { sheet.innerHTML = `<div class="grab" aria-hidden="true"></div>${html}`; sheet.scrollTop = 0; phone.classList.add('sheet-on'); }
+function closeSheet() { phone.classList.remove('sheet-on'); S.armed = false; }
+function priceSheet(id) {
+  const l = S.lines.find((x) => x.id === id), d = decide(l), a = AI[l.a];
+  const named = l.needs.filter((x) => x.from);
+  const needList = l.typed != null ? `<li>You typed <b>${esc(l.typed || l.name)}</b>; no recipe behind it, so it is priced as written.</li>` : named.map((n) => `<li><b>${n.say ? esc(n.say) : frac(n.q)}</b> for ${esc(n.from)}</li>`).join('') + (l.adj ? `<li><b>+${l.adj}</b> you added</li>` : '');
+  const bigN = l.unit === 'g' ? (needOf(l) >= 1000 ? `${needOf(l) / 1000}<small style="font-size:15px"> kg</small>` : `${needOf(l)}<small style="font-size:15px"> g</small>`) : l.needs.some((x) => x.q == null) ? '?' : frac(needOf(l));
+  const step = l.unit === 'g' || l.online ? '' : `<span class="stepper"><button type="button" data-act="ndec" data-ref="${l.id}" aria-label="Need one fewer">−</button><button type="button" data-act="ninc" data-ref="${l.id}" aria-label="Need one more">+</button></span>`;
+  let body = `<div class="needbox"><span class="n" data-num="need">${bigN}</span><ul>${needList}</ul>${step}</div>`;
+  if (S.price === 'off') body += `<p class="verdict">${verdictNoPrice(l)}</p><p class="sfoot">No prices are read, by your choice. The need and how long it keeps still decide how many to buy.</p>`;
+  else if (!l.opts.length) body += `<p class="verdict">Not matched to a product yet, so no price. Pin the one you buy and Nova prices it from next Wednesday.</p>`;
+  else if (!d) body += `<p class="verdict">No price was read for this one this week.</p>`;
+  else {
+    const all = l.opts.map((x) => { const c = d.cand.find((y) => y.ch === x.ch && y.label === x.label); return c || { ...x, gone: true }; });
+    all.sort((p, q) => (p.gone - q.gone) || (p.total - q.total));
+    const ways = all.map((c) => {
+      if (c.gone) return `<li class="gone"><span class="tg dash">${SHOP[c.ch].l}</span><span class="wl">${esc(c.label)}</span><span class="wt">·</span><span class="ws">${c.ch === 'c' ? 'Coles did not answer' : 'Aldi not read'}</span></li>`;
+      const isPick = c === d.pick;
+      const sp = c.spare > 1e-9 ? (l.unit === 'g' ? `${Math.round(c.spare)} g spare` : `${frac(c.spare)} spare`) : 'no spare';
+      const kp = c.spare > 1e-9 ? ` · <span class="${perishable(l.keep) ? 'p' : ''}">${keepsWord(l.keep)}</span>` : '';
+      return `<li class="${isPick ? 'pick' : ''}">${tag(c.ch)}<span class="wl">${c.count > 1 ? `${c.count} × ` : ''}${esc(c.label)}</span><span class="wt">${dollars(c.total)}</span><span class="ws">${sp}${kp}${isPick ? ' · <b style="color:var(--nv-good)">the pick</b>' : ''}</span></li>`;
+    }).join('');
+    body += `<p class="verdict">${verdict(l, d)}</p><ul class="ways">${ways}</ul>
+      <p class="sfoot">Online prices as of ${READ_AT}, read by Nova from each shop's site for Melbourne. Pack counts for produce sold by weight are "about". Every figure here is an invented example.</p>`;
+  }
+  body += `<div class="sacts">${l.pin ? '<button class="pillb" type="button" data-act="noop">Unpin</button>' : '<button class="pillb" type="button" data-act="noop">Pin the one I buy</button>'}${named[0] ? `<button class="pillb" type="button" data-act="noop">Open ${esc(named[0].from)}</button>` : ''}</div>`;
+  openSheet(`<div class="shd">${tile(a.k, a.h)}<h3>${esc(l.name)}<span class="sub">${esc(a.n)}</span></h3><button class="nb circ" type="button" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>${body}`);
+}
+function verdict(l, d) {
+  const p = d.pick, at = SHOP[p.ch].n;
+  if (d.why === 'waste') return `${word(p.count)[0].toUpperCase() + word(p.count).slice(1)} singles at ${at}. The ${d.cheapest.pk} is ${money(p.total - d.cheapest.total)} cheaper, and ${frac(d.cheapest.spare)} would go off before you used them.`;
+  if (p.size > 1 && d.single && d.need > 1 && l.unit !== 'g') return `The ${p.pk} at ${at}: ${money(d.single.total - p.total)} under ${word(d.need)} singles, and the ${word(Math.round(p.spare))} spare ${keepsWord(l.keep).replace('keeps', 'keep')}.`;
+  if (d.need < 1 && d.pack) return `One single at ${at}. You need ${frac(d.need)}; a ${d.pack.pk} would cost ${money(d.pack.total - p.total)} more and leave ${frac(d.pack.spare)} over.`;
+  if (d.other && d.other.total - p.total > 0.004) return `${at}, ${money(d.other.total - p.total)} less than ${SHOP[d.other.ch].n}.`;
+  if (d.other) return `The same price at ${at} and ${SHOP[d.other.ch].n}.`;
+  return `${at} is the only price read.`;
+}
+function verdictNoPrice(l) {
+  const n = needOf(l);
+  if (l.unit === 'g') return `Buy what the recipe says; nothing to compare without prices.`;
+  if (n < 1) return `You need ${frac(n)}: buy one single. A bag would leave the rest over.`;
+  return `You need ${frac(n)}. ${perishable(l.keep) ? 'These go off fast, so buy just that.' : `A bag is fine if it is cheaper; spares ${keepsWord(l.keep).replace('keeps', 'keep')}.`}`;
+}
+function dishSheet(rid) {
+  const r = S.rotation.find((x) => x.id === rid), cv = coverage(r), miss = r.ing.filter((_, j) => !cv[j]);
+  openSheet(`<div class="shd"><h3>${esc(r.name)}<span class="sub">${esc(r.slot)} · in your rotation</span></h3><button class="nb circ" type="button" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <ul class="ingl">${r.ing.map(([n, amt, a], j) => `<li>${tile(a, AI[a].h, true)}<span><b style="font-weight:600">${esc(amt)}</b> ${esc(n)}</span>${cv[j] ? '<span class="ok">On the list</span>' : '<span class="no">Missing</span>'}</li>`).join('')}</ul>
+    <div class="sacts">${miss.length ? `<button class="pillb good" type="button" data-act="addmiss" data-ref="${r.id}">Add the ${miss.length} missing</button>` : '<span style="font-size:15px;color:var(--ink60)">Everything for this dish is on the list.</span>'}</div>`);
+}
+function menuSheet() {
+  openSheet(`<div class="shd"><h3>Shopping list</h3><button class="nb circ" type="button" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    ${S.armed ? `<div class="menuarm">Clear the whole list, ticked or not? Undo brings back every line.<div class="acts"><button class="pillb warn" type="button" data-act="clearall">Clear it</button><button class="pillb" type="button" data-act="disarm">Keep</button></div></div>`
+    : `<ul class="mlist"><li><button type="button" data-act="addweek">${tile('list', '--a-on', true)}Add the week's missing lines</button></li><li><button type="button" data-act="library">${tile('pa', '--a-pa', true)}Recipes</button></li><li><button type="button" data-act="arm" class="warn">${tile('trash', '--a-me', true)}Clear everything…</button></li></ul>`}`);
+}
+
+/* ---------- actions ---------- */
+const lineOf = (el) => { const r = el.closest('[data-id]'); return r && S.lines.find((l) => l.id === r.dataset.id); };
+function toggleGot(l) { l.got = !l.got; render(); const row = $(`[data-id="${l.id}"] .cbox`, scroller); if (row && !rm() && l.got) row.animate([{ transform: 'scale(.8)' }, { transform: 'scale(1.08)' }, { transform: 'none' }], { duration: 300, easing: OUT }); toast(`${l.got ? 'Got' : 'Not yet'}: ${l.name}`, () => { l.got = !l.got; render(); }); }
+async function removeLine(l) { await fold(l.id); l.gone = true; render({ flip: true }); toast(`Removed ${l.name}`, () => { l.gone = false; render({ flip: true }); }); }
+async function fold(id) { const el = $(`[data-id="${id}"]`, scroller); if (!el || rm()) return; await el.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(.98)' }], { duration: 200, easing: OUT, fill: 'forwards' }).finished; }
+async function clearGot() {
+  const got = live().filter((l) => l.got); for (const l of got) { const el = $(`[data-id="${l.id}"]`, scroller); if (el && !rm()) el.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateX(24px)' }], { duration: 220, easing: OUT, fill: 'forwards' }); }
+  await new Promise((r) => setTimeout(r, rm() ? 0 : 230)); got.forEach((l) => { l.gone = true; }); render({ flip: true }); toast(`Cleared ${plural(got.length, 'line')} you got`, () => { got.forEach((l) => { l.gone = false; }); render({ flip: true }); });
+}
+function guess(n) { return /carrot|coriander|onion|lime|spinach|berr|banana/.test(n) ? 'pr' : /beef|chicken|mince/.test(n) ? 'me' : /yoghurt|egg|milk/.test(n) ? 'da' : /frozen/.test(n) ? 'fr' : 'pa'; }
+async function addLines(lines, from) {
+  const added = lines.map(([name, q, a, say], n) => {
+    const l = { id: 'n' + Date.now() + n, name, a: a || guess(name), keep: /carrot/.test(name) ? 'onion' : /coriander/.test(name) ? 'herbs' : 'dry', unit: '', needs: [from ? { from, q: q || 1, say } : { q: 1 }], typed: from ? undefined : '', opts: [], sorting: true, fresh: true };
+    S.lines.push(l); return l;
+  });
+  render({ flip: true });
+  await new Promise((r) => setTimeout(r, rm() ? 300 : 1100));
+  added.forEach((l) => { l.sorting = false; }); render({ flip: true });
+  const first = $(`[data-id="${added[0].id}"]`, scroller); if (first) scroller.scrollTo({ top: Math.max(0, first.offsetTop - 260), behavior: rm() ? 'auto' : 'smooth' });
+  toast(`Added ${plural(added.length, 'line')}`, () => { added.forEach((l) => { l.gone = true; }); render({ flip: true }); });
+}
+function onionsThree() { // the stew joins the week: the onion's need becomes 2½ + ½ = 3
+  const l = S.lines.find((x) => x.id === 'l1'); l.needs = [{ from: 'Weeknight chilli', q: 0.5 }, { from: 'Beef and onion stew', q: 2 }, { from: 'Omelette, Saturday', q: 0.5 }]; render();
+}
+
+phone.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b || justSwiped) return;
+  const act = b.dataset.act, l = lineOf(b);
+  if (act === 'noop') return;
+  if (act === 'close') return closeSheet();
+  if (act === 'got' && l) return toggleGot(l);
+  if (act === 'price' && l) return priceSheet(l.id);
+  if (act === 'qty' && l) { S.stepper = l.id; render(); clearTimeout(window.__st); window.__st = setTimeout(() => { S.stepper = null; render(); }, 3200); return; }
+  if ((act === 'inc' || act === 'dec') && l) { if (l.unit === 'g') return; const d = decide(l); const unit = d ? d.pick.size : 1; l.adj = (l.adj || 0) + (act === 'inc' ? unit : -unit); if (needOf(l) < 0.25) l.adj += unit; render(); clearTimeout(window.__st); window.__st = setTimeout(() => { S.stepper = null; render(); }, 3200); return; }
+  if (act === 'ninc' || act === 'ndec') { const x = S.lines.find((y) => y.id === b.dataset.ref); x.adj = (x.adj || 0) + (act === 'ninc' ? 1 : -1); if (needOf(x) < 0.25) x.adj += 1; render(); priceSheet(x.id); return; }
+  if (act === 'switch' && l) { const prev = { pin: l.pin, opts: l.opts }; l.pin = { label: 'Lean beef mince 4% fat', s: '1 kg' }; l.opts = [o('c', 'Lean beef mince 4% fat, 1 kg', '1 kg', 1000, 12)]; l.declined = true; render(); toast('Pinned the 4% at Coles', () => { Object.assign(l, prev, { declined: false }); render(); }); return; }
+  if (act === 'keep' && l) { l.declined = true; render({ flip: true }); toast('Kept yours; not suggested again', () => { l.declined = false; render({ flip: true }); }); return; }
+  if (act === 'talk') return toast('Opens Nova with this suggestion');
+  if (act === 'group') { S.group = b.dataset.g; render({ flip: true }); return; }
+  if (act === 'jump') { const t = $('#' + b.dataset.to, scroller); if (t) scroller.scrollTo({ top: t.offsetTop - 60, behavior: rm() ? 'auto' : 'smooth' }); return; }
+  if (act === 'clear-got') return clearGot();
+  if (act === 'retry') { S.price = 'read'; paintCtl(); render(); toast('Coles answered; prices are back'); return; }
+  if (act === 'menu') { S.armed = false; return menuSheet(); }
+  if (act === 'arm') { S.armed = true; return menuSheet(); }
+  if (act === 'disarm') { S.armed = false; return menuSheet(); }
+  if (act === 'clearall') { const was = live(); was.forEach((x) => { x.gone = true; }); closeSheet(); render({ flip: true }); toast(`Cleared all ${was.length}`, () => { was.forEach((x) => { x.gone = false; }); render({ flip: true }); }); return; }
+  if (act === 'dish') return dishSheet(b.dataset.ref);
+  if (act === 'addmiss') { const r = S.rotation.find((x) => x.id === b.dataset.ref), cv = coverage(r); const miss = r.ing.filter((_, j) => !cv[j]).map(([n, amt, a]) => [n, parseFloat(amt) || 1, a, amt]); closeSheet(); setTimeout(() => addLines(miss, r.name), rm() ? 0 : 300); return; }
+  if (act === 'addweek') { const miss = []; S.rotation.forEach((r) => { const cv = coverage(r); r.ing.forEach((x, j) => { if (!cv[j] && !miss.some((m) => m[0] === x[0])) miss.push([x[0], parseFloat(x[1]) || 1, x[2], x[1], r.name]); }); }); closeSheet(); setTimeout(() => addLines(miss.map((m) => m.slice(0, 4)), 'the week'), rm() ? 0 : 300); return; }
+  if (act === 'library') { openSheet(`<div class="shd"><h3>Recipes</h3><button class="nb circ" type="button" data-act="close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><ul class="mlist">${S.rotation.map((r) => `<li><button type="button" data-act="dish" data-ref="${r.id}">${tile('kit', '--a-pa', true)}${esc(r.name)}</button></li>`).join('')}</ul><p class="sfoot">Search and the full library sit here, as in round 2.</p>`); return; }
+  if (act === 'add') { S.adding = true; render(); const f = $('#addf'); if (f) f.focus({ preventScroll: true }); return; }
+  if (act === 'commit') { const f = $('#addf'); const names = (f ? f.value : '').split('\n').map((x) => x.trim()).filter(Boolean); S.adding = false; if (names.length) addLines(names.map((n) => [n])); else render(); return; }
+  if (act === 'shelf') { S.shelfOn = b.dataset.sh; render({ flip: true }); return; }
+  if (act === 'ans') { const k = liveK().find(isDue); const prev = JSON.stringify(k.rs), wasOn = k.onList; const a = b.dataset.a;
+    const card = b.closest('.due'); if (card && !rm()) card.animate([{ opacity: 1 }, { opacity: 0, transform: 'scale(.97)' }], { duration: 200, easing: OUT, fill: 'forwards' });
+    setTimeout(() => { if (a === 'low') { k.onList = true; k.rs.answered = true; } else if (a === 'plenty') { k.rs.answered = true; } else { k.rs.since = 0; } render({ flip: true });
+      toast(a === 'low' ? 'On your list, with its link' : a === 'plenty' ? 'Asked again in two weeks' : 'Clock restarted from today', () => { k.rs = JSON.parse(prev); k.onList = wasOn; render({ flip: true }); }); }, rm() ? 0 : 200); return; }
+  if (act === 'pasteclip') { S.clip = false; S.stash.unshift({ id: 'k' + Date.now(), name: 'Vitamin C serum 30 ml', host: 'skin.example.com', sh: 'skin', art: 'dropper' }); render({ flip: true }); toast('Stashed on Skincare, its site\'s shelf', () => { S.stash.shift(); render({ flip: true }); }); return; }
+});
+$('#scrim').addEventListener('click', closeSheet);
+
+/* ---------- swipe: right for got it, left to remove (one row open at a time) ---------- */
+let sw = null, justSwiped = false;
+scroller.addEventListener('pointerdown', (e) => {
+  const face = e.target.closest('.face'); if (!face || S.scr !== 'shop') return;
+  sw = { face, x0: e.clientX, y0: e.clientY, dx: 0, lock: null, id: e.pointerId };
+});
+scroller.addEventListener('pointermove', (e) => {
+  if (!sw || e.pointerId !== sw.id) return;
+  const Z = parseFloat(getComputedStyle(phone).getPropertyValue('--z')) || 1;
+  const dx = (e.clientX - sw.x0) / Z, dy = (e.clientY - sw.y0) / Z;
+  if (!sw.lock) { if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return; sw.lock = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'; if (sw.lock === 'x') { sw.face.setPointerCapture(e.pointerId); sw.face.classList.add('drag', 'moved'); } }
+  if (sw.lock !== 'x') return;
+  e.preventDefault(); sw.dx = dx;
+  sw.face.style.transform = `translateX(${dx}px)`;
+  const row = sw.face.parentElement; const l = $('.ua.l', row), r = $('.ua.r', row);
+  l.style.opacity = dx > 0 ? Math.min(1, dx / 70) : 0; r.style.opacity = dx < 0 ? Math.min(1, -dx / 70) : 0;
+});
+const endSwipe = () => {
+  if (!sw) return; const { face, dx, lock } = sw; sw = null;
+  if (lock !== 'x') return;
+  justSwiped = true; setTimeout(() => { justSwiped = false; }, 50);
+  face.classList.remove('drag');
+  const l = lineOf(face);
+  if (dx > 90 && l) { face.style.transform = ''; setTimeout(() => toggleGot(l), rm() ? 0 : 200); return; }
+  if (dx < -110 && l) { face.style.transform = 'translateX(-110%)'; setTimeout(() => removeLine(l), rm() ? 0 : 220); return; }
+  face.style.transform = ''; const row = face.parentElement; $$('.ua', row).forEach((u) => { u.style.opacity = 0; }); setTimeout(() => face.classList.remove('moved'), 300);
+};
+scroller.addEventListener('pointerup', endSwipe); scroller.addEventListener('pointercancel', endSwipe);
+
+/* ---------- moments, controls, notes ---------- */
+const MOMS = {
+  shop: [
+    ['Half an onion', '½', '--a-pr', () => { resetShop(); setTimeout(() => priceSheet('l1'), 250); }],
+    ['Three onions: the bag', '3', '--a-pr', () => { resetShop(); onionsThree(); setTimeout(() => { const el = $('[data-id="l1"]', scroller); if (el) el.animate([{ background: 'color-mix(in srgb,var(--nv-good) 18%,transparent)' }, { background: 'transparent' }], { duration: 1100 }); setTimeout(() => priceSheet('l1'), 900); }, 100); }],
+    ['Two avocados: no bag', '2', '--a-pr', () => { resetShop(); setTimeout(() => priceSheet('l3'), 250); }],
+    ['By shop', 'W', '--st-w', () => { S.group = S.group === 'aisle' ? 'shop' : 'aisle'; closeSheet(); render({ flip: true }); scroller.scrollTo({ top: 280, behavior: rm() ? 'auto' : 'smooth' }); }],
+  ],
+  stash: [
+    ['Answer the level check', '◷', '--a-pa', () => { const b = $('.due [data-a="low"]', scroller); if (b) { b.animate([{ transform: 'scale(1)' }, { transform: 'scale(.95)' }, { transform: 'none' }], { duration: 240 }); setTimeout(() => b.click(), 260); } }],
+    ['Paste from clipboard', '+', '--a-on', () => { S.clip = true; render(); }],
+    ['Press and hold a card', '⋯', '--a-be', () => showCtx('k2')],
+  ],
+};
+function showCtx(id) {
+  hideCtx();
+  const card = $(`[data-card="${id}"]`, scroller); if (!card) return;
+  scroller.scrollTop = Math.max(0, card.offsetTop - 130);
+  const pr = phone.getBoundingClientRect(), cr = card.getBoundingClientRect();
+  const Z = parseFloat(getComputedStyle(phone).getPropertyValue('--z')) || 1;
+  card.classList.add('lift'); card.parentElement.classList.add('has-lift'); phone.classList.add('ctx-on');
+  ctx.innerHTML = `<button type="button" data-cx="list">Add to shopping list${ic('list')}</button><button type="button" data-cx="rh">Restock every 6 weeks${ic('clock')}</button><button type="button" data-cx="mv">Move to a shelf${ic('move')}</button><button type="button" data-cx="sh">Share link${ic('share')}</button><button type="button" data-cx="rm" class="warn">Remove${ic('trash')}</button>`;
+  const left = Math.min(390 - 256, Math.max(16, (cr.left - pr.left) / Z));
+  ctx.style.left = left + 'px'; ctx.style.top = ((cr.bottom - pr.top) / Z + 10) + 'px';
+  requestAnimationFrame(() => ctx.classList.add('on'));
+}
+function hideCtx() { ctx.classList.remove('on'); phone.classList.remove('ctx-on'); $$('.pcard.lift', scroller).forEach((c) => c.classList.remove('lift')); $$('.has-lift', scroller).forEach((c) => c.classList.remove('has-lift')); }
+phone.addEventListener('click', (e) => { if (ctx.classList.contains('on') && !e.target.closest('#ctx')) { e.stopPropagation(); hideCtx(); } }, true);
+ctx.addEventListener('click', (e) => { const b = e.target.closest('[data-cx]'); if (!b) return; const k = S.stash.find((x) => x.id === 'k2'); hideCtx();
+  if (b.dataset.cx === 'list') { k.onList = true; render(); toast('Moisturiser is on your list', () => { k.onList = false; render(); }); }
+  else if (b.dataset.cx === 'rm') { k.gone = true; render({ flip: true }); toast('Removed the moisturiser', () => { k.gone = false; render({ flip: true }); }); }
+  else toast('Opens its own short sheet'); });
+
+function resetShop() { const keep = { group: S.group, price: S.price, aldi: S.aldi }; const fresh = INIT(); S.lines = fresh.lines; Object.assign(S, keep, { list: 'live', stepper: null, adding: false }); closeSheet(); render({ top: 0 }); }
+function paintMoms() { $('#moms').innerHTML = MOMS[S.scr].map(([t, g, h], n) => `<button class="mom" type="button" data-m="${n}"><i style="--h:var(${h})">${g}</i>${t}</button>`).join(''); }
+$('#moms').addEventListener('click', (e) => { const b = e.target.closest('[data-m]'); if (!b) return; hideCtx(); MOMS[S.scr][+b.dataset.m][3](); });
+function paintCtl() {
+  if (S.scr !== 'shop') { $('#ctl').innerHTML = ''; return; }
+  $('#ctl').innerHTML = `<p class="lab">Prices</p><div class="seg" role="group" aria-label="Price state">${[['read', 'Read this week'], ['colesFail', 'Coles failed'], ['off', 'No source']].map(([k, t]) => `<button type="button" data-p="${k}" aria-pressed="${S.price === k}">${t}</button>`).join('')}</div>
+    <div class="toggles" style="margin-top:8px"><button class="chip" type="button" data-aldi aria-pressed="${S.aldi}">Aldi read</button>${[['live', 'Live'], ['loading', 'Loading'], ['offline', 'Offline'], ['empty', 'Empty']].map(([k, t]) => `<button class="chip" type="button" data-l="${k}" aria-pressed="${S.list === k}">${t}</button>`).join('')}</div>`;
+}
+$('#ctl').addEventListener('click', (e) => {
+  const p = e.target.closest('[data-p]'), a = e.target.closest('[data-aldi]'), li = e.target.closest('[data-l]');
+  if (p) S.price = p.dataset.p; else if (a) S.aldi = !S.aldi; else if (li) S.list = li.dataset.l; else return;
+  closeSheet(); paintCtl(); render({ flip: true });
+});
+const NOTES = {
+  shop: [
+    ['pr', '--a-pr', 'Colour on icons, tags and savings only', 'Each aisle opens with a filled tile in its own hue, as Reminders and Settings do, and the ring\'s arcs wear the same hues. Body text stays ink. Green appears only where money is saved; gold only where food would go off or Nova suggests.'],
+    ['bag', '--st-w', 'Where to buy, at a glance', 'Every priced line ends in its cheapest total, a tinted letter for the shop, and the date it was read. Tap the price for every way to buy it. "By shop" regroups the same lines into one trip per shop.'],
+    ['clock', '--a-pa', 'Pack or singles, from your recipes', 'The need is the sum of the recipe amounts behind the line. Code prices every way to buy at least that much, picks the cheapest total, and refuses a pack whose spares would go off unless it saves more than 50c.'],
+    ['leaf', '--a-be', 'One serif sentence of news', 'The line under the title says which shop wins this week, counted by code. With no prices it falls back to what is left to get.'],
+  ],
+  stash: [
+    ['skin', '#ff7aa8', 'Shelves wear a tile and a hue', 'Skincare, Kitchen, Desk and Reading each own a colour, carried into the shelf bar, the vials and the badge on each card.'],
+    ['clock', '#e0b26a', 'The due check, answered where it is', 'When a level check is due it sits under the title with its three answers, one tap each, with Undo. No sheet to open.'],
+    ['list', '#4fd1c5', 'Paste from the clipboard', 'When a link is on your clipboard, the add bar offers it by name. iOS asks you to allow the paste the first time.'],
+    ['move', '#7d7aff', 'Press and hold for everything else', 'Add to the list, set a restock rhythm, move shelf, share, remove: the iOS menu, lifted from the card, in place of round 2\'s sheet.'],
+  ],
+};
+function paintNotes() {
+  $('#notes').innerHTML = `<h2>${S.scr === 'shop' ? 'Shopping, round 3' : 'Stash, refined'}</h2><p class="sub">The phone is live: tap a circle or a price, swipe a row either way, open a meal, use Undo in the island. Or play a moment under it.</p>` +
+    NOTES[S.scr].map(([g, h, t, p]) => `<div class="st"><h3><i style="--h:${h.startsWith('--') ? `var(${h})` : h}">${ic(g)}</i>${t}</h3><p>${p}</p></div>`).join('');
+}
+
+/* ---------- the page's own static parts, written from the same code ---------- */
+function examples() {
+  const save = { scr: S.scr, price: S.price, aldi: S.aldi }; S.price = 'read'; S.aldi = true;
+  const base = INIT().lines;
+  const one = base.find((x) => x.id === 'l1');
+  const three = { ...one, needs: [{ from: 'Weeknight chilli', q: 0.5 }, { from: 'Beef and onion stew', q: 2 }, { from: 'Omelette', q: 0.5 }] };
+  const avo = base.find((x) => x.id === 'l3');
+  const card = (title, needTxt, l) => { const d = decide(l);
+    return `<div class="exc"><h3>${title}</h3><p class="need">${needTxt}</p><table>${d.cand.slice(0, 5).map((c) => `<tr class="${c === d.pick ? 'win' : ''}"><td>${SHOP[c.ch].n}: ${c.count > 1 ? c.count + ' × ' : ''}${esc(c.pk)}${c.spare > 1e-9 ? `, ${frac(c.spare)} spare` : ''}</td><td>${dollars(c.total)}</td></tr>`).join('')}</table><p class="say">${verdict(l, d)}</p></div>`; };
+  $('#ex3').innerHTML = card('Half a brown onion', 'Need ½, for Weeknight chilli', one) + card('Three brown onions', 'Need ½ + 2 + ½ = 3, across three meals', three) + card('Two avocados', 'Need 2, for Chicken rice bowl; ripe avocados go off in about 3 days', avo);
+  Object.assign(S, save);
+  $('#keeps').innerHTML = Object.values(KEEPS).map((k) => `<div class="kp"><span>${esc(k.n)}</span><span class="${k.d != null && k.d < 14 && !k.fz ? 'p' : ''}">${k.d == null ? 'keeps' : k.fz ? `${k.d} days, freezes` : k.d >= 60 ? `${Math.round(k.d / 30)} months` : `${k.d} days`}</span></div>`).join('');
+  const K = [
+    ['The head: title, serif news line, one status line', 'Kept. The news line now says which shop is cheapest on how many lines; it falls back to the count left when no prices are read.', 'r1'],
+    ['Tap a row or its circle to tick; it stays in its aisle, struck through', 'Kept, with a small press on the circle.', 'r1'],
+    ['Swipe right for Got it or Not yet, left to remove, each with Undo', 'Kept on every group, by aisle and by shop.', 'r1'],
+    ['The count pill and its 44 pt stepper', 'Kept at the row\'s right. For a recipe line the pill is how many to buy (a bag counts as one); the stepper adds or takes one from the need.', 'r1'],
+    ['Aisles in shop order; the amount in bold; "for" the dish', 'Kept, each aisle now headed by its coloured tile. A line wanted by several meals says "3 for 3 meals" and its sheet lists each.', 'r1'],
+    ['Adding: one field, several lines, the "Sorting into aisles" flight', 'Kept unchanged.', 'r1'],
+    ['Clear the N you got, with Undo; ⋯ holds Clear everything, armed first', 'Kept unchanged.', 'r1'],
+    ['Loading skeleton, one-line empty, offline with its time and Outbox, honest errors', 'Kept; play each from "Live, Loading, Offline, Empty" under the phone.', 'r1'],
+    ['The aisle ring', 'Kept; each arc now in its aisle\'s hue, filling as you get things, with what is left in its centre.', 'r2'],
+    ['The basket price comparison, Aldi dashed when unread', 'Became "Where to buy what is left": the split by shop, each shop\'s lines and total, and the one-shop total for comparison.', 'new'],
+    ['A price on every line; kinds; pin the one you buy', 'Kept and extended: the cell shows the cheapest buy, tag and date; the sheet lists every way to buy it, pins included.', 'new'],
+    ['"Nova suggests": better on price and macros, Switch, Keep mine, Talk', 'Kept on the mince, with its gold dot and strip.', 'r2'],
+    ['Three price states: read, one shop failed, no source', 'Kept; with no source, rows still carry the need and the keeps judgement.', 'r2'],
+    ['Your meals rail, the dish sheet, Add the missing, Recipes', 'Kept whole, moved under the last aisle; Recipes and the week\'s missing lines also sit in ⋯. Your call 8.', 'r2'],
+    ['Order online group from the Stash', 'Kept, with its own tile and Open.', 'r2'],
+    ['Stash: Running down vials, the check a week before empty', 'Kept; each vial in its shelf\'s hue with days left as a number.', 'new'],
+    ['Stash: link pictures, product grids, reading rows', 'Kept unchanged.', 'r2'],
+    ['Stash: the shelf bar that stays put; search', 'Kept, chips now carry their shelf tile; search sits in the bar as in round 2.', 'r2'],
+    ['Stash: paste a link, Nova reads its name and picture', 'Kept, plus the clipboard offer.', 'new'],
+    ['Stash: add to list, restock rhythm, move, remove, each with Undo', 'Kept, reached by press and hold.', 'new'],
+    ['Stash: the level check push and its three answers', 'Kept, and answerable from the Stash head as well as from the push.', 'new'],
+  ];
+  $('#keepList').innerHTML = K.map(([w, n, t]) => `<li><span class="was">${w}<span class="tag" style="color:${t === 'new' ? 'var(--nv-gold)' : 'var(--nv-ink50)'}">${t === 'new' ? 'new' : 'round ' + t.slice(1)}</span></span><span class="now">${n}</span></li>`).join('');
+}
+
+/* ---------- screen switch, preview toggles, fit ---------- */
+$('#scrs').addEventListener('click', (e) => { const b = e.target.closest('[data-scr]'); if (!b) return; S.scr = b.dataset.scr; $$('#scrs button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); hideCtx(); closeSheet(); paintMoms(); paintCtl(); render({ top: 0, enter: true }); try { history.replaceState(null, '', '#' + S.scr); } catch (_) {} });
+$('#reset').addEventListener('click', () => { const keepScr = S.scr; S = INIT(); S.scr = keepScr; hideCtx(); closeSheet(); paintCtl(); render({ top: 0, enter: true }); });
+$('#light').addEventListener('click', (e) => { const on = phone.classList.toggle('light'); e.currentTarget.setAttribute('aria-pressed', String(on)); paintNotes(); });
+$('#rmprev').addEventListener('click', (e) => { RMP = !RMP; phone.classList.toggle('rm', RMP); e.currentTarget.setAttribute('aria-pressed', String(RMP)); });
+function fit() { const w = $('#pcol').clientWidth; const z = Math.min(1, w / 390); document.documentElement.style.setProperty('--z', z.toFixed(4)); }
+addEventListener('resize', fit); fit();
+if (location.hash === '#stash') { S.scr = 'stash'; $$('#scrs button').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.scr === 'stash'))); }
+examples(); paintMoms(); paintCtl(); render({ top: 0 });
+})();
+</script>
