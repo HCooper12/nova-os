@@ -1206,6 +1206,42 @@ export default class App extends Component {
       window.history.pushState({ novaDepth: depthOf(window.history.state) + 1 }, '', want);
     }
   }
+  // ---------- the wall (Ambient, mockup 86) ----------
+  // THE WAY OUT GOES BACK. The wall was pushed on top of wherever he opened
+  // it from, so Done (and Esc, and the swipe down) pops that entry: he lands
+  // where he was, and Back from there can never bring the wall back. The
+  // old exit pushed Home on top of the wall, so Back from Home reopened it
+  // (audit 21 §2.1). Arrived cold (a reload on #/ambient), there is nothing
+  // under it to go back to, so the entry is REPLACED with Home instead.
+  exitAmbient() {
+    if (this.state.screen !== 'ambient') return;
+    if (typeof window !== 'undefined' && window.location.hash.startsWith('#/ambient') && depthOf(window.history.state) > 0) {
+      window.history.back();
+      return;
+    }
+    this.leaveWallTo('mission');
+  }
+  // Onward from the wall to another screen, in place of the wall's entry:
+  // Back from the Inbox or the conversation returns to where he was before
+  // the wall, never to the wall itself.
+  leaveWallTo(screen, extra = {}, then) {
+    if (typeof window !== 'undefined' && window.location.hash.startsWith('#/ambient')) {
+      window.history.replaceState({ ...(window.history.state || {}), novaDepth: depthOf(window.history.state) }, '', '#/' + screen);
+    }
+    // navigate() finds the hash already there, so it pushes nothing, and it
+    // still runs everything an arrival runs (the rise, the screen's loads)
+    this.navigate(screen, extra);
+    then?.();
+  }
+  // An ask on the wall opens the Inbox at that card (the deep link's own
+  // rule: the record expanded); the sheet's "Open the Inbox" opens it plain.
+  wallOpenInbox(id) {
+    this.leaveWallTo('inbox', id ? { inboxExpanded: { ...(this.state.inboxExpanded || {}), [id]: true } } : {});
+  }
+  // "Talk it through": Nova, with the asks in hand (talkAboutInbox's rails)
+  wallTalk(subject) {
+    this.leaveWallTo('voice', {}, () => this.talkAboutInbox(subject));
+  }
   // ---------- job polling (shared) ----------
   startPoll(name, fetchJob, handlers) {
     this.stopPoll(name);

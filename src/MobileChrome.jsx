@@ -176,7 +176,7 @@ export function MobileChrome({ v }) {
           )}
           {/* ONE Nova icon on the phone, and it is this one: his chosen core,
               always drawn (never the ✦ glyph), live-dynamic while talking */}
-          <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} style={{ pointerEvents: 'none' }} />
+          <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} still={!!v.isAmbient} style={{ pointerEvents: 'none' }} />
         </Interactive>
         {dockTabs.slice(3, 5).map((t) => <DockTab key={t.screen} t={t} />)}
         <Interactive as="div" onClick={() => setMoreOpen(true)} haptic="tick" base={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>

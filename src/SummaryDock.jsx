@@ -106,7 +106,9 @@ export function SummaryDock({ v }) {
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
         {!gone && <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-3px" />}
         <span className="nv-sum-nova-orb">
-          {!gone && <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} thinking={!!v.novaThinking} contest={!!v.novaContest} style={{ pointerEvents: 'none' }} />}
+          {/* under the wall (Ambient covers the bar) it holds one still frame: an
+              orb nobody can see drew every frame there (audit 21 §5) */}
+          {!gone && <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} thinking={!!v.novaThinking} contest={!!v.novaContest} still={!!v.isAmbient} style={{ pointerEvents: 'none' }} />}
         </span>
         <span className="nv-sum-nova-cap" aria-hidden="true">Talk</span>
       </Interactive>
