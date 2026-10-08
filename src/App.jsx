@@ -469,6 +469,11 @@ export default class App extends Component {
     // the Leader — leadership development: state mirror + its conversation
     liveLeader: null, leaderChat: [], leaderInput: '', leaderBusy: false,
     leaderFace: 0, // which face of the Home Leader box he swiped to
+    // the Leader page, Blend 1: whom the running turn is asking (the job's
+    // roster), his answer just taken (the card holds the Leader's line back
+    // for a few seconds), and what he set down this visit, each with its
+    // receipt so Undo sits where it happened
+    leaderConsult: null, leaderAnswered: null, leaderReceipts: [],
     // PRACTICE — the rehearsal room (design/PRACTICE-PLAN.md): the server's
     // skills, the one opened on the shelf, and the live scene. The scene
     // survives a reload (novaos.practiceScene) until its debrief lands.
@@ -1188,6 +1193,7 @@ export default class App extends Component {
     if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see
     if (changed && screen === 'ops') this.refreshForge(); // arriving at Ops is when the fleet's jobs matter
     if (changed && screen === 'practice') this.refreshPractice(); // the shelf is read on arrival
+    if (changed && screen === 'leader') this.refreshLeader(); // the order rule runs on every open (Blend 1)
     // The quick-log rail sits at the TOP of Fuel and is the fastest path to
     // logging anything he has eaten before, so its data cannot wait for him to
     // open a disclosure at the bottom of the screen — it loads on arrival.
@@ -2375,7 +2381,15 @@ export default class App extends Component {
     api.leaderAnswer(conn, text).then((r) => {
       const n = (r.added?.struggles?.length || 0) + (r.added?.working?.length || 0) + (r.added?.resolved?.length || 0);
       if (n) haptic('commit');
-      this.setState({ situationAnswerBusy: false, situationAnswer: '', situationAnswerSaid: r.acknowledged || 'Noted.' });
+      this.setState((s) => ({
+        situationAnswerBusy: false, situationAnswer: '', situationAnswerSaid: r.acknowledged || 'Noted.',
+        // the Leader page (Blend 1) holds the Leader's line back in its card,
+        // then keeps the receipt as a row with Undo
+        leaderAnswered: { at: Date.now(), ack: r.acknowledged || 'Noted.', added: r.added || null, receiptId: r.receiptId || null },
+        leaderReceipts: r.receiptId && (r.added?.resolved?.length || r.added?.working?.length)
+          ? [{ key: r.receiptId, receiptId: r.receiptId, kind: 'answer', at: Date.now(), resolved: r.added.resolved || [], working: r.added.working || [] }, ...s.leaderReceipts]
+          : s.leaderReceipts,
+      }));
       // the card reads the record, so it has to re-read it
       api.leader(conn).then((L) => this.setState({ liveLeader: L })).catch(() => {});
     }).catch((e) => {
@@ -10509,6 +10523,105 @@ export default class App extends Component {
     if (!conn) return;
     api.leader(conn).then((r) => this.setState({ liveLeader: r })).catch(() => {});
   }
+  // ---------- the Leader page, Blend 1 (design/mockups/82-redesign-leader-r2.html) ----------
+  // SET IT DOWN — the round-up's tick, or from the drawn picture. The same
+  // resolved path the chat's REFLECT directive uses, so it files the same
+  // undoable leader-reflect receipt; its id comes back so Undo sits where it
+  // happened. DEMO: nothing is sent; the change is acted out on the demo
+  // record in memory only, so the page can be looked at without a server.
+  async leaderSetDown(text) {
+    if (!text) return null;
+    const stamp = new Date().toISOString();
+    if (this.state.demoMode) {
+      this.setState((s) => {
+        const L = s.liveLeader; if (!L?.picture) return null;
+        const hit = L.picture.open.find((o) => o.text === text); if (!hit) return null;
+        const rc = { key: `demo-${Date.now()}`, receiptId: null, demo: true, kind: 'down', at: Date.now(), resolved: [text], working: [] };
+        return {
+          liveLeader: { ...L, picture: { ...L.picture, open: L.picture.open.filter((o) => o.text !== text), resolved: [{ text, at: hit.at, resolvedAt: stamp }, ...L.picture.resolved], resolvedCount: (L.picture.resolvedCount || 0) + 1, lastToldAt: stamp, lastToldDays: 0 } },
+          leaderReceipts: [rc, ...s.leaderReceipts],
+        };
+      });
+      return true;
+    }
+    const conn = getConnection();
+    if (!conn) return null;
+    try {
+      const r = await api.leaderReflect(conn, { resolved: [text] });
+      haptic('commit');
+      if (r.receiptId) this.setState((s) => ({ leaderReceipts: [{ key: r.receiptId, receiptId: r.receiptId, kind: 'down', at: Date.now(), resolved: r.added?.resolved || [text], working: [] }, ...s.leaderReceipts] }));
+      this.refreshLeader();
+      return r;
+    } catch (e) {
+      this.toastFail(`Could not set that down: ${e.message}`);
+      this.refreshLeader();
+      return null;
+    }
+  }
+  // STILL OPEN — the round-up's cross: he looked, and it is not done. Stamps
+  // checkedAt on the same rails (an Inbox receipt with its own undo).
+  async leaderStillOpen(text) {
+    if (!text) return null;
+    const stamp = new Date().toISOString();
+    if (this.state.demoMode) {
+      this.setState((s) => {
+        const L = s.liveLeader; if (!L?.picture) return null;
+        return { liveLeader: { ...L, picture: { ...L.picture, open: L.picture.open.map((o) => (o.text === text ? { ...o, checkedAt: stamp } : o)), lastToldAt: stamp, lastToldDays: 0 } } };
+      });
+      return true;
+    }
+    const conn = getConnection();
+    if (!conn) return null;
+    try {
+      const r = await api.leaderReflect(conn, { checked: [text] });
+      this.refreshLeader();
+      return r;
+    } catch (e) {
+      this.toastFail(`Could not mark that: ${e.message}`);
+      return null;
+    }
+  }
+  // UNDO, WHERE IT HAPPENED: the receipt's own inbox undo (the exact reversal)
+  async leaderUndo(rc) {
+    if (!rc) return;
+    if (rc.demo) {
+      this.setState((s) => {
+        const L = s.liveLeader;
+        const back = (L?.picture?.resolved || []).filter((x) => rc.resolved.includes(x.text));
+        return {
+          leaderReceipts: s.leaderReceipts.filter((x) => x.key !== rc.key),
+          liveLeader: L?.picture ? { ...L, picture: { ...L.picture, open: [...L.picture.open, ...back.map((x) => ({ text: x.text, at: x.at, checkedAt: null }))], resolved: L.picture.resolved.filter((x) => !rc.resolved.includes(x.text)), resolvedCount: Math.max(0, (L.picture.resolvedCount || 0) - back.length) } } : L,
+        };
+      });
+      return;
+    }
+    const conn = getConnection();
+    if (!conn || !rc.receiptId) return;
+    try {
+      await api.inboxUndo(conn, rc.receiptId);
+      haptic('tick');
+      this.setState((s) => ({ leaderReceipts: s.leaderReceipts.filter((x) => x.key !== rc.key) }));
+    } catch (e) {
+      this.toastFail(`Could not undo that: ${e.message}`);
+    }
+    this.refreshLeader();
+  }
+  // THE SEEN MARK — once per reply, never in demo, never a model
+  leaderSeen(id) {
+    if (!id || this.state.demoMode) return;
+    const conn = getConnection();
+    if (!conn) return;
+    this.leaderSeenSent = this.leaderSeenSent || new Set();
+    if (this.leaderSeenSent.has(id)) return;
+    this.leaderSeenSent.add(id);
+    api.leaderSeen(conn, id).catch(() => { this.leaderSeenSent.delete(id); });
+  }
+  // HIS ANSWER, FROM THE PAGE'S ONE COMPOSER (the same send as Home's box)
+  leaderAnswer(text) {
+    const t = String(text || '').trim();
+    if (!t) return;
+    this.setState({ situationAnswer: t }, () => this.submitSituationAnswer());
+  }
   // "Mark handled" from a WORKING AGAINST chip — the same resolved path the
   // chat's REFLECT directive uses, so it files the same undoable receipt.
   async leaderResolve(text) {
@@ -10525,15 +10638,15 @@ export default class App extends Component {
       this.setState({ leaderResolving: null });
     }
   }
-  doLeaderChat(preset) {
+  doLeaderChat(preset, quote = null) {
     const q = (typeof preset === 'string' && preset.trim()) || this.state.leaderInput.trim();
     if (!q || this.state.leaderBusy) return;
     const conn = getConnection();
-    if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
-    this.setState((s) => ({ leaderChat: [...s.leaderChat, { at: Date.now(), who: 'you', text: q }], leaderInput: '', leaderBusy: true }));
+    if (!conn) { this.toastMsg(this.state.demoMode ? 'Demo data: the Leader answers once Nova is connected to your Mac' : 'Connect a backend in Settings first'); return; }
+    this.setState((s) => ({ leaderChat: [...s.leaderChat, { at: Date.now(), who: 'you', text: q, ...(quote ? { quote } : {}) }], leaderInput: '', leaderBusy: true, leaderConsult: null }));
     // a trailing REFLECT line is a typed directive for the server, not prose
     const stripDirective = (t) => t.replace(/(^|\n)\s*(REFLECT|CONSULT)\s*(\{[\s\S]*)?$/, '');
-    api.askLeader(conn, q, this.state.leaderSessionId || null).then(({ jobId }) => {
+    api.askLeader(conn, q, this.state.leaderSessionId || null, quote).then(({ jobId }) => {
       this.startPoll('leader', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 3 * 60_000,
         intervalMs: 700,
@@ -10541,6 +10654,8 @@ export default class App extends Component {
           if (!this.state.leaderChat.some((m) => m.streaming)) this.applyStreamPartial('leaderChat', 'leader', 'Still working on this. It will land right here, and the island will tell you if you are elsewhere.');
         },
         onProgress: (job) => {
+          // whom the Leader is asking, as the job records it (the seats on the page)
+          if (job.consult) this.setState({ leaderConsult: job.consult });
           if (!job.partial) return;
           // a half-arrived document shows as "writing", never its body, and
           // a VIS line never shows at all (the one glass parser, as above)
@@ -10554,11 +10669,22 @@ export default class App extends Component {
             this.setState({ leaderSessionId: job.result.sessionId });
           }
           this.finalizeStream('leaderChat', { who: 'leader', text: job.result.text }, { leaderBusy: false });
+          // authorship on every reply: whom it asked rides on the line, and
+          // the kept copy (server thread) is re-read so a reload shows it
+          this.setState((s) => {
+            const chat = [...s.leaderChat];
+            const i = chat.map((m) => m.who).lastIndexOf('leader');
+            if (i > -1) chat[i] = { ...chat[i], consult: trimConsult(job.result.consult), threadId: job.result.threadId || null };
+            return { leaderChat: chat, leaderConsult: null };
+          });
+          // landing in front of him on the Leader is reading it
+          if (this.state.screen === 'leader' && job.result.threadId) this.leaderSeen(job.result.threadId);
+          this.refreshLeader();
           this.announceAway({ here: this.state.screen === 'leader', title: 'Leader answered', text: job.result.text, go: () => this.navigate('leader') });
           // a reflection landed — the profile the daily idea steers by changed
           if (job.result.reflected) this.refreshLeader();
         },
-        onError: (msg) => this.setState((s) => ({ leaderBusy: false, leaderChat: [...s.leaderChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
+        onError: (msg) => this.setState((s) => ({ leaderBusy: false, leaderConsult: null, leaderChat: [...s.leaderChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })),
       });
     }).catch((e) => {
       this.setState((s) => ({ leaderBusy: false, leaderChat: [...s.leaderChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
@@ -10566,6 +10692,8 @@ export default class App extends Component {
   }
   newLeaderChat() {
     localStorage.removeItem('novaos.leaderSession');
+    // the boundary the kept thread is read from (this device's)
+    try { localStorage.setItem('novaos.leaderSince', new Date().toISOString()); } catch { /* per-device convenience */ }
     this.setState({ leaderSessionId: null, leaderChat: [] });
   }
   // ---------- Practice (design/PRACTICE-PLAN.md) ----------
