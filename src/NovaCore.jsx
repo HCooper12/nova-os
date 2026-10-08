@@ -1066,7 +1066,7 @@ function makeHoloDraw(ctx, size, opts, getState) {
 // or reduced motion) draws the turn's final form as one frame in its colour,
 // and once more when the turn changes; at rest, the frame it always drew.
 // Left at their defaults every existing caller draws exactly what it did.
-export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false, fps = 0 }) {
+export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false }) {
   const ref = useRef(null);
   const stillDraw = useRef(null);
   // live state read through a ref so the rAF loop sees changes WITHOUT the
