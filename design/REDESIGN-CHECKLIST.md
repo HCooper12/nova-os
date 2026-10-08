@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — ROUND 3 PUBLISHED: Code 89
+  https://claude.ai/artifact/7nJ65tuCA6RTkJHXbQxy9f (D refined, Wren under
+  Science Atlas, the commit review as bars, E's Needs-you strip); Shopping 88
+  https://claude.ai/artifact/6mFt5m8pEKDCSNy2c94xYv (cheapest price + store
+  letter per line, the pack rule by waste with a 50c margin, coloured aisles,
+  where to buy what is left); Money 90
+  https://claude.ai/artifact/G6eU3oTWGvoNZTxt4VD1VH (last-month compare, line sheet, bill
+  confidence in words, the Billroo import acted out, Stash beyond 88).
+  BUILDS RUNNING in worktrees: Leader blend 1 + his ordering rules, Briefing
+  r2, the wall option 1 + Console as a Home card.
 - 9 Oct 2026 — HIS CALLS ON ROUND 2. Briefing 83: "looking good" (BUILD).
   Leader 82: BLEND 1; an unread Leader reply jumps to the top (needs a seen
   mark); the day's advice is the top item in the morning, in the hour before
