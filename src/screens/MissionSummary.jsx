@@ -16,6 +16,8 @@ import { Pill } from '../AppleLayout.jsx';
 import { Eyebrow, TextAction, Meta } from '../Controls.jsx';
 import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
 import { prLift, prBasis } from '../missionFocus.js';
+import { YourDay } from '../Instruments.jsx';
+import { readDaySeen, markDaySeen, DAY_KEYS } from '../dayCard.js';
 
 // THE SUMMARY HOME (P2-B, 26 Sep 2026) — design/HOME-REDESIGN-PLAN.md, drawn
 // from mockup 56 (round 5, his pick). The third idiom of the same view model:
@@ -350,7 +352,29 @@ function layoutCards(cards) {
 // headers — their rings and strip carry the colour — and are lit in Nova's
 // own cyan.
 const CARD_HUE = { plan: 'var(--nv-sum-c5)', waiting: 'var(--nv-sum-c4)', training: 'var(--nv-sum-c3)', practice: 'var(--nv-or)', trends: 'var(--nv-sum-c2)' };
-const CARD_LIGHT = { ...CARD_HUE, body: 'var(--nv-cy)', today: 'var(--nv-cy)' };
+const CARD_LIGHT = { ...CARD_HUE, body: 'var(--nv-cy)', today: 'var(--nv-cy)', day: 'var(--nv-cy)' };
+
+// YOUR DAY, DRAWN (mockup 86): Console's five instruments as a Home card,
+// at the head of the page in the morning, or in Pinned all day when he pins
+// it. Whether all five were already seen this morning is read ONCE, when
+// Home mounts, so the card never vanishes under his finger on the fifth;
+// the next visit to Home finds it gone. Reads the day once if it has not
+// arrived yet (the slowest slice, so never at boot).
+function YourDayCard({ d, cls = 'nv-sum-card nv-sum-rise', style }) {
+  const [seenAll] = useState(() => DAY_KEYS.every((k) => readDaySeen().includes(k)));
+  const shows = !!d && (d.pinned || !seenAll);
+  useEffect(() => {
+    if (shows && !d.data && !d.loading && !d.error && d.refresh) d.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shows]);
+  if (!shows) return null;
+  return (
+    <section className={`${cls} nv-day`} style={{ '--i': 2, padding: '14px 16px', ...lit(CARD_LIGHT.day), ...style }} aria-label="Your day, drawn">
+      <YourDay data={d.data} loading={d.loading} error={d.error} onRefresh={d.refresh} foot={d.foot}
+        onSeen={(k) => markDaySeen(k)} />
+    </section>
+  );
+}
 
 // BODY — the ring hero. Protein, steps and sleep nested, each in its own hue
 // by position (c1 · c2 · c3); a ring with no reading is dashed, never a zero.
@@ -687,6 +711,7 @@ function PinnedCard({ card, i }) {
     case 'training': return <TrainingCard card={card} cls={cls} style={style} />;
     case 'practice': return <PracticeTile card={card.card} cls={cls} style={style} />;
     case 'trends': return <TrendsCard card={card} cls={cls} style={style} />;
+    case 'day': return <YourDayCard d={card} cls={cls} style={style} />;
     default: return null;
   }
 }
@@ -715,6 +740,7 @@ export function MissionSummary({ v }) {
         {S.standfirst ? <p className="nv-sum-rise nv-sum-stand" style={{ '--i': 1 }}>{S.standfirst}</p> : null}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: S.standfirst ? 0 : '12px' }}>
+          {S.yourDay && !S.yourDay.pinned && <YourDayCard d={S.yourDay} />}
           {S.moments.map((k) => <Moment key={k} k={k} v={v} />)}
           <Highlight h={S.highlight} />
         </div>

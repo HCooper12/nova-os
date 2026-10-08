@@ -1,6 +1,7 @@
 import { dtf } from './fmt.js';
 import { localDateISO } from '../localDate.js';
 import { getPinned } from '../pinned.js';
+import { inMorning } from '../dayCard.js';
 import { prLift, prBasis } from '../missionFocus.js';
 import { stripSlots, nextLine, buildHighlight, buildTrends, summaryStandfirst } from '../summaryFacts.js';
 
@@ -55,8 +56,22 @@ export function valsSummary(app, ctx, m) {
     practice: m.practiceCard ? { card: m.practiceCard } : null,
     trends: trendsCard(st, ctx, m, demoMode),
   };
-  const WIDE = new Set(['body', 'today', 'training']);
+  // YOUR DAY, DRAWN (mockup 86): the five instruments, a morning card from
+  // 05:00 to 11:00, or all day when pinned. Whether all five were already
+  // seen is read by the card itself when Home mounts (src/dayCard.js).
   const pinnedList = getPinned();
+  const dayPinned = !!pinnedList.find((p) => p.key === 'day' && p.on);
+  const yourDay = (dayPinned || inMorning(hour)) ? {
+    pinned: dayPinned,
+    data: m.instruments || null,
+    loading: !!m.instrumentsBusy,
+    error: m.instrumentsError || null,
+    // demo mode has no Mac to read the day from; a Read again there would do nothing
+    refresh: demoMode ? null : m.refreshInstruments,
+    foot: dayPinned ? null : 'Until 11:00, or until you have seen all five. Pin it from Edit to keep it.',
+  } : null;
+  cardData.day = dayPinned ? yourDay : null;
+  const WIDE = new Set(['body', 'today', 'training', 'day']);
   const cards = pinnedList
     .filter((p) => p.on && cardData[p.key])
     .map((p) => ({ key: p.key, wide: WIDE.has(p.key), ...cardData[p.key] }));
@@ -72,6 +87,7 @@ export function valsSummary(app, ctx, m) {
       cards,
       allCards,
       moments: buildMoments(m),
+      yourDay,
       edit: {
         open: !!st.pinnedEditOpen,
         openEdit: () => app.openPinnedEdit?.(),

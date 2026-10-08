@@ -4863,3 +4863,62 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 /* the full-screen plate docks the panel at 15px: the lit lift and its sets,
    the other lifts left to the thread's stage (the dock has no room to scroll) */
 .nv-fx-panel .nv-dp-lift { display: none; }
+
+/* ================================================================
+   YOUR DAY, DRAWN (mockup 86, 9 Oct 2026): Console's five instruments
+   as a Home morning card, one at a time, in Home's colours
+   (src/Instruments.jsx YourDay). Three text sizes besides numerals.
+   ================================================================ */
+.nv-day-ch { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.nv-day-ct { font: 600 15px var(--nv-font-ui); letter-spacing: -.01em; color: var(--nv-ink); }
+.nv-day-s { font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-day-pager { overflow: hidden; touch-action: pan-y; cursor: grab; }
+.nv-day-track { display: flex; transition: transform .36s var(--nv-ease); }
+.nv-day-slide { flex: 0 0 100%; min-width: 0; }
+.nv-day-ins { display: grid; gap: 8px; min-width: 0; }
+.nv-day-ih { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.nv-day-it { font: 600 15px var(--nv-font-ui); color: var(--nv-ink); }
+.nv-day-il { margin: 0; font: 400 20px/1.25 var(--nv-font-serif); color: var(--nv-ink); text-wrap: balance; }
+.nv-day-quiet { color: var(--nv-ink60); }
+.nv-day-big { font: 600 34px/1 var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--nv-ink); }
+.nv-day-big small { font: 600 15px var(--nv-font-ui); color: var(--nv-ink60); margin-left: 4px; }
+.nv-day-ins svg { display: block; width: 100%; height: auto; overflow: visible; }
+.nv-day-dial { max-width: 250px; width: 100%; margin: 0 auto; }
+.nv-day-svgs { font: 400 13px var(--nv-font-ui); fill: var(--nv-ink60); }
+.nv-day-svgbig { font: 600 34px var(--nv-font-round); fill: var(--nv-ink); }
+.nv-day-mus { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.nv-day-mus li { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border-radius: 15px; font: 600 13px var(--nv-font-ui); color: var(--nv-ink);
+  background: color-mix(in srgb, var(--d) 16%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--d) 50%, transparent); }
+.nv-day-mus i { width: 8px; height: 8px; border-radius: 4px; background: var(--d); }
+.nv-day-pfoot { display: flex; align-items: center; justify-content: space-between; margin: 6px -8px -8px; }
+.nv-day-pnav { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 22px; background: none; color: var(--nv-ink60); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.nv-day-pnav:disabled { opacity: .35; cursor: default; }
+.nv-day-pnav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nv-day-dots { display: flex; justify-content: center; }
+.nv-day-dots button { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.nv-day-dots i { display: block; width: 7px; height: 7px; border-radius: 4px; background: color-mix(in srgb, var(--nv-ink) 30%, transparent); transition: width .28s var(--nv-ease), background .28s var(--nv-ease); }
+.nv-day-dots [aria-current="true"] i { width: 18px; background: var(--nv-ink); }
+.nv-day-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink60); text-wrap: pretty; }
+.nv-day-again { flex: none; min-height: 44px; padding: 0 18px; border: 0; border-radius: 22px; font: 600 13px var(--nv-font-ui); color: var(--nv-ink);
+  background: color-mix(in srgb, var(--nv-ink) 10%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--nv-ink) 16%, transparent); cursor: pointer; }
+.nv-day-again:disabled { opacity: .6; cursor: default; }
+.nv-day-state { display: grid; gap: 12px; justify-items: start; padding: 4px 0 2px; }
+.nv-day-skel { display: grid; gap: 10px; padding: 2px 0 4px; }
+.nv-day-skel i { display: block; height: 14px; border-radius: 8px; background: color-mix(in srgb, var(--nv-ink) 9%, transparent); animation: nvDaySkel 1.4s ease-in-out infinite; }
+@keyframes nvDaySkel { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+/* the drawing, played each time an instrument comes in */
+.nv-day-bar { transform-box: fill-box; transform-origin: 50% 100%; }
+.nv-day-in .nv-day-bar { animation: nvDayBar .55s cubic-bezier(.23,1,.32,1) both; animation-delay: calc(var(--i) * 45ms); }
+@keyframes nvDayBar { from { transform: scaleY(.04); } to { transform: none; } }
+.nv-day-in .nv-day-arc { stroke-dasharray: 1; stroke-dashoffset: 1; animation: nvDayDraw .8s cubic-bezier(.23,1,.32,1) both; animation-delay: calc(var(--i) * 70ms); }
+@keyframes nvDayDraw { to { stroke-dashoffset: 0; } }
+.nv-day-grow { transform-box: fill-box; transform-origin: 0 50%; }
+.nv-day-in .nv-day-grow { animation: nvDayGrow .6s cubic-bezier(.23,1,.32,1) both; }
+@keyframes nvDayGrow { from { transform: scaleX(.1); } to { transform: none; } }
+@keyframes nvDayFade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .nv-day-track { transition: none; }
+  .nv-day-in .nv-day-bar, .nv-day-in .nv-day-arc, .nv-day-in .nv-day-grow { animation: nvDayFade .25s linear both; stroke-dashoffset: 0; }
+  .nv-day-skel i { animation: none; }
+}
+:root[data-nv-calm="1"] .nv-day-in .nv-day-bar, :root[data-nv-calm="1"] .nv-day-in .nv-day-arc, :root[data-nv-calm="1"] .nv-day-in .nv-day-grow { animation: none; stroke-dashoffset: 0; }

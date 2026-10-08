@@ -31,7 +31,6 @@ const ROW_MARKS = {
   technique: <><circle cx="12" cy="12" r="8" /><path d="M12 4v3.6M12 16.4V20M4 12h3.6M16.4 12H20" /></>,
   library: <><path d="M4.5 4.5h4.4v15H4.5Z" /><path d="M10.6 4.5H15v15h-4.4Z" /><path d="m16.4 5.8 3.5.9-3.1 13.2-3.5-.9Z" /></>,
   briefing: <><path d="M6.5 3.8h8L18 7.3v12.9h-11.5Z" /><path d="M14 3.8v3.9h4" /><path d="m10.5 11.4 3.9 2.4-3.9 2.4Z" /></>,
-  console: <><path d="M4.6 17a8 8 0 1 1 14.8 0" /><path d="m12 14 3.2-3.6" /><path d="M4.5 20h15" /></>,
   ambient: <><rect x="3.5" y="4.5" width="17" height="12" rx="2.2" /><circle cx="12" cy="10.5" r="2.4" /><path d="M9.5 20h5" /></>,
 };
 

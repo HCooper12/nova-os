@@ -5,23 +5,28 @@
 // HOME-REDESIGN-PLAN.md §3 (Pinned order) and §1.5 (the Edit sheet).
 export const PINNED_CARDS = [
   ['body', 'Body'], ['today', 'Today'], ['plan', 'The plan'], ['waiting', 'Waiting'],
-  ['training', 'Training'], ['practice', 'Practice'], ['trends', 'Trends'],
+  ['training', 'Training'], ['practice', 'Practice'], ['trends', 'Trends'], ['day', 'Your day'],
 ];
+// Cards that arrive OFF: "Your day, drawn" is a morning card by default
+// (mockup 86) and stays all day only when he pins it here.
+export const PINNED_DEFAULT_OFF = ['day'];
 export const PINNED_KEY = 'novaos.pinned';
 
 // Pure: `stored` is whatever localStorage handed back (or garbage, or
 // nothing) → the list the Edit sheet and the card grid both read. Unknown
 // keys drop out (a card retired since he last saved), missing ones are
 // appended in the house default order (a card added since), and `on` is the
-// absence from `off` — so a freshly-appended card is on by default.
-export function reconcilePinned(stored, meta = PINNED_CARDS) {
+// absence from `off` — so a freshly-appended card is on by default, unless
+// it is one of `defaultOff` (then it arrives off until he turns it on).
+export function reconcilePinned(stored, meta = PINNED_CARDS, defaultOff = PINNED_DEFAULT_OFF) {
   const metaKeys = meta.map(([k]) => k);
   const labelFor = Object.fromEntries(meta);
   const s = stored && typeof stored === 'object' ? stored : {};
   const off = Array.isArray(s.off) ? s.off : [];
   const order = (Array.isArray(s.order) ? s.order : []).filter((k) => metaKeys.includes(k));
-  for (const k of metaKeys) if (!order.includes(k)) order.push(k);
-  return order.map((key) => ({ key, label: labelFor[key], on: !off.includes(key) }));
+  const appended = new Set();
+  for (const k of metaKeys) if (!order.includes(k)) { order.push(k); appended.add(k); }
+  return order.map((key) => ({ key, label: labelFor[key], on: !off.includes(key) && !(appended.has(key) && defaultOff.includes(key)) }));
 }
 
 export function getPinned() {

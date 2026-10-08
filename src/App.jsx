@@ -142,7 +142,6 @@ const SCREEN_LOADERS = {
   leader: () => import('./screens/Leader.jsx'),
   practice: () => import('./screens/Practice.jsx'),
   briefing: () => import('./screens/Briefing.jsx'),
-  console: () => import('./screens/ConsoleScreen.jsx'),
   index: () => import('./screens/Index.jsx'),
   documents: () => import('./screens/Documents.jsx'),
 };
@@ -161,7 +160,6 @@ const Library = lazyScreen(SCREEN_LOADERS.library, 'Library');
 const Leader = lazyScreen(SCREEN_LOADERS.leader, 'Leader');
 const Practice = lazyScreen(SCREEN_LOADERS.practice, 'Practice');
 const Briefing = lazyScreen(SCREEN_LOADERS.briefing, 'Briefing');
-const ConsoleScreen = lazyScreen(SCREEN_LOADERS.console, 'ConsoleScreen');
 const Index = lazyScreen(SCREEN_LOADERS.index, 'Index');
 const Documents = lazyScreen(SCREEN_LOADERS.documents, 'Documents');
 
@@ -10978,7 +10976,6 @@ export default class App extends Component {
               {v.isLeader && <Leader v={v} />}
               {v.isPractice && <Practice v={v} />}
               {v.isBriefing && <Briefing v={v} />}
-              {v.isConsole && <ConsoleScreen v={v} />}
               {v.isIndex && <Index v={v} />}
               {v.isDocuments && <Documents v={v} />}
               {v.isJournal && <Journal v={v} />}

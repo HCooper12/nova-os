@@ -13,6 +13,10 @@
 // list to prove it does — which it could not do while the list lived inside
 // App.jsx. 'index' is the Index itself (the More tab under `summary`), so it is
 // a screen with no row of its own.
+//
+// 'console' left on 9 Oct 2026 (mockup 86): the five instruments are the
+// summary Home's morning card "Your day, drawn" now, and an old #/console
+// falls back to Home, where the card is.
 export const SCREEN_KEYS = ['mission', 'inbox', 'voice', 'galaxy', 'code', 'recipes', 'shopping', 'stash',
-  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'practice', 'journal', 'money', 'settings', 'briefing', 'console',
+  'ops', 'ambient', 'todos', 'workouts', 'notes', 'library', 'leader', 'practice', 'journal', 'money', 'settings', 'briefing',
   'index', 'documents'];

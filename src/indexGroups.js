@@ -11,7 +11,7 @@ export const INDEX_GROUPS = [
   { key: 'today', label: 'Today', rows: ['mission', 'workouts', 'recipes', 'inbox', 'todos', 'voice'] },
   { key: 'mind', label: 'Mind', rows: ['practice', 'leader', 'review', 'technique', 'library', 'documents', 'notes', 'journal'] },
   { key: 'life', label: 'Life', rows: ['money', 'shopping', 'stash', 'galaxy'] },
-  { key: 'nova', label: 'Nova', rows: ['ops', 'briefing', 'code', 'console', 'ambient', 'settings'] },
+  { key: 'nova', label: 'Nova', rows: ['ops', 'briefing', 'code', 'ambient', 'settings'] },
 ];
 
 // The two rows that are not screens: Daily review opens today's concept in
@@ -50,7 +50,6 @@ export const ROW_META = {
   ops: { label: 'Agents & Operations', hue: '--nv-cy' },
   briefing: { label: 'Briefing', hue: '--nv-ink40' },
   code: { label: 'Code', hue: '--nv-ink40' },
-  console: { label: 'Console', hue: '--nv-ink40' },
   ambient: { label: 'Ambient', hue: '--nv-ink40' },
   settings: { label: 'Settings', hue: '--nv-ink40' },
 };
