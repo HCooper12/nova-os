@@ -3496,6 +3496,8 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   /* the full-screen Nova's glass (the .nv-fx block at the end) goes solid:
      two classes for the same reason as the line above */
   .nv-fx .nv-fx-plate, .nv-fx .nv-fx-panel, .nv-fx .nv-fx-peek, .nv-fx .nv-fx-btn, .nv-fx .nv-fx-ask { background: var(--fx-g1); }
+  /* and the Briefing's glass on that stage (the .nv-bf block at the end) */
+  .nv-fx .nv-bf-tb:not(.play), .nv-fx .nv-bf-txb, .nv-fx .nv-bf-fb:not(.fs), .nv-fx .nv-bf-endv, .nv-fx .nv-bf-mside, .nv-fx .nv-bf-sheet, .nv-fx .nv-bf-player, .nv-fx .nv-bf-pp, .nv-fx .nv-bf-doc { background: var(--fx-g1); }
 }
 
 /* ================================================================
@@ -4863,3 +4865,392 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 /* the full-screen plate docks the panel at 15px: the lit lift and its sets,
    the other lifts left to the thread's stage (the dock has no room to scroll) */
 .nv-fx-panel .nv-dp-lift { display: none; }
+
+/* ================================================================
+   THE BRIEFING, ROUND 2 (9 Oct 2026) — src/screens/Briefing.jsx on the
+   full-screen Nova's briefing mode (src/NovaFocus.jsx mode="briefing"),
+   design/mockups/83-redesign-briefing-r2.html, his "Looking good". A's
+   stage (a panel rises out of the core with its sentence and settles away,
+   each word fades up in place with the jade underline, no pour), C's boards
+   at the end, B's page as Read, and the end card's verbs each with its
+   line. Layout follows the mockup at 390 by 844: the plate, the rail and the
+   transport are anchored to the foot (206 + 180, 134, 30), everything else
+   hangs from the top row (--bf-top). On the Mac the stage is a 720 column.
+   Type: 34 · 28 · 24 · 22 · 17 · 15 · 13, nothing smaller; every control
+   44 or more; jade only while Nova speaks. Reduced motion: fades only.
+   ================================================================ */
+.nv-fx[data-mode="briefing"] {
+  --bf-top: calc(env(safe-area-inset-top) + 52px);
+  --bf-lift: max(0px, calc(min(env(safe-area-inset-bottom), 34px) - 22px));
+  --bf-col: 440px;
+  --bf-x: max(12px, calc(50% - var(--bf-col) / 2 + 12px));
+  --bf-ink: var(--fx-ink); --bf-ink2: var(--fx-ink2); --bf-ink3: var(--fx-ink3);
+  --bf-row: color-mix(in srgb, var(--fx-ink) 5%, transparent);
+  --bf-ring: color-mix(in srgb, var(--fx-ink) 12%, transparent);
+  touch-action: manipulation; -webkit-user-select: none; user-select: none;
+}
+.nv-fx[data-mode="briefing"][data-mac] { --bf-col: 720px; }
+.nv-bf-host { display: contents; }
+
+/* the glyphs */
+.nv-bf-i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nv-bf-i .f { fill: currentColor; stroke: none; }
+.nv-bf-i.sm { width: 14px; height: 14px; }
+
+/* the core's spots: home (large, centred), the presenter's (house), the
+   end's (small, at the top row), Read's (in the player) */
+.nv-fx[data-mode="briefing"][data-bphase="end"] .nv-fx-core { transform: translate(var(--bf-ex, 0px), var(--bf-ey, -240px)) scale(.12); }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-core { z-index: 4; transform: translate(var(--bf-rx, 0px), var(--bf-ry, 300px)) scale(.16); }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-field { opacity: .35; }
+/* at the end the small core is a mark, not a target (Ask is on the card) */
+.nv-fx[data-mode="briefing"][data-bphase="end"] .nv-fx-corehit { pointer-events: none; }
+
+/* the top: ⌄ and Read; in Read, "Stage" takes its place */
+.nv-fx[data-mode="briefing"] .nv-fx-top { max-width: calc(var(--bf-col) + 0px); }
+.nv-fx[data-mode="briefing"][data-mac] .nv-fx-top { max-width: none; padding: 0 32px; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-top { opacity: 0; pointer-events: none; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-top > * { pointer-events: none; }
+.nv-bf-txb {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; cursor: pointer;
+  font: 600 15px/1 var(--nv-font-ui); color: var(--bf-ink, var(--nv-ink)); white-space: nowrap;
+  background: var(--fx-quiet, color-mix(in srgb, var(--nv-ink) 8%, transparent));
+  box-shadow: inset 0 0 0 .5px var(--fx-ring, var(--nv-edge)), inset 0 1px 0 var(--fx-hi, transparent);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  transition: transform var(--nv-dur-fast) var(--nv-ease);
+}
+.nv-bf-txb .nv-bf-i { width: 18px; height: 18px; }
+.nv-bf-txb:active, .nv-bf-tb:active, .nv-bf-vrow:active, .nv-bf-fb:active, .nv-bf-pp:active, .nv-bf-pb:active, .nv-bf-ln:active, .nv-bf-back:active, .nv-bf-chips button:active { transform: scale(.96); }
+
+/* the presenter's line: Nova, over the briefing's title */
+.nv-fx[data-mode="briefing"] .nv-fx-pn { left: calc(var(--fx-px, 50px) + 38px); }
+.nv-fx[data-mode="briefing"] .nv-fx-pn > b { font: 600 15px/1.25 var(--nv-font-ui); letter-spacing: 0; }
+.nv-fx-ptitle { font: 400 13px/1.3 var(--nv-font-ui); color: var(--bf-ink3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the stagebox: always up on the briefing's stage; the dock hangs from the
+   top, the plate sits on the foot */
+.nv-fx[data-mode="briefing"] .nv-fx-stagebox {
+  opacity: 1; transform: none; pointer-events: none; display: block;
+  top: 0; bottom: 0; left: 0; right: 0; max-width: none; margin: 0;
+}
+.nv-fx[data-mode="briefing"] .nv-fx-stagebox > * { pointer-events: auto; }
+.nv-fx[data-mode="briefing"][data-bphase="end"] .nv-fx-stagebox { opacity: 0; transition: opacity calc(300ms * var(--fx-slow)) var(--nv-ease); }
+.nv-fx[data-mode="briefing"][data-bphase="end"] .nv-fx-stagebox > * { pointer-events: none; }
+.nv-fx[data-mode="briefing"] .nv-fx-dock {
+  position: absolute; left: var(--bf-x); right: var(--bf-x);
+  top: calc(var(--bf-top) + 90px); bottom: calc(206px + 180px + 10px + var(--bf-lift));
+  max-height: none; border-radius: 28px;
+  /* A PANEL RISES OUT OF THE CORE (A's transition): from the presenter's
+     core, above and to the left of the dock, small and blurred */
+  transform-origin: calc(var(--fx-px, 50px) - 12px) -36px;
+  animation: nvBfRise calc(560ms * var(--fx-slow)) var(--nv-ease) both;
+}
+@keyframes nvBfRise { from { opacity: 0; transform: scale(.42); } to { opacity: 1; transform: none; } }
+.nv-fx[data-mode="briefing"] .nv-fx-dock.out { animation: nvBfSettle calc(280ms * var(--fx-slow)) var(--nv-ease-exit) both; }
+@keyframes nvBfSettle { from { opacity: 1; transform: none; filter: blur(0); } to { opacity: 0; transform: translateY(-10px) scale(.96); filter: blur(8px); } }
+.nv-fx[data-mode="briefing"] .nv-fx-dock > .nv-fx-panel { height: 100%; padding: 16px 18px 14px; border-radius: 28px; cursor: default; display: flex; flex-direction: column; overflow: hidden; }
+.nv-bf-pc { display: flex; flex-direction: column; min-height: 0; flex: 1; animation: nvBfSharp calc(560ms * var(--fx-slow)) var(--nv-ease) both; }
+@keyframes nvBfSharp { from { filter: blur(12px); } to { filter: none; } }
+.nv-bf-pk { font: 400 13px/1.3 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-pterm { margin-top: 4px; font: 400 28px/1.15 var(--nv-font-serif); color: var(--bf-ink); text-wrap: balance; }
+.nv-bf-pdef { margin-top: 8px; font: 400 15px/1.4 var(--nv-font-ui); color: var(--bf-ink2); text-wrap: pretty; overflow: hidden; }
+.nv-bf-pnote { margin-top: auto; padding-top: 8px; font: 400 13px/1.35 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-ph2 { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; min-width: 0; }
+.nv-bf-ph2 b { font: 600 15px/1.25 var(--nv-font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.nv-bf-ph2 span { font: 400 13px/1.3 var(--nv-font-ui); color: var(--bf-ink3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-bf-img { display: block; width: 100%; min-height: 0; flex: 1; object-fit: cover; border-radius: 16px; }
+.nv-bf-clip { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: #000; }
+.nv-bf-clip iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* THE PLATE: on the foot, the words in the serif at 24, Nova's starlight */
+.nv-fx[data-mode="briefing"] .nv-fx-plate {
+  position: absolute; left: var(--bf-x); right: var(--bf-x); top: auto;
+  bottom: calc(206px + var(--bf-lift)); height: 180px; border-radius: 28px; padding: 8px 18px 16px;
+  transition: opacity calc(300ms * var(--fx-slow)) var(--nv-ease);
+}
+.nv-fx[data-mode="briefing"] .nv-fx-plate[data-mode="speak"] .nv-fx-phead { display: none; }
+.nv-fx[data-mode="briefing"] .nv-fx-plate[data-mode="listen"], .nv-fx[data-mode="briefing"] .nv-fx-plate[data-mode="think"] { padding-top: 14px; }
+.nv-fx[data-mode="briefing"] .nv-fx-pbody { margin-top: 0; -webkit-mask-image: linear-gradient(transparent 0, #000 30px); mask-image: linear-gradient(transparent 0, #000 30px); transition: opacity calc(240ms * var(--fx-slow)) var(--nv-ease); }
+.nv-fx[data-mode="briefing"] .nv-fx-pcol { top: auto; bottom: 0; }
+.nv-fx[data-mode="briefing"] .nv-fx-pcol p { margin: 0 0 12px; font: 400 24px/1.3 var(--nv-font-serif); color: var(--nv-nova); }
+.nv-fx[data-mode="briefing"] .nv-fx-pcol p.earlier { color: color-mix(in srgb, var(--nv-nova) 42%, transparent); }
+.nv-fx[data-mode="briefing"] .nv-fx-w { padding-bottom: 3px; }
+.nv-fx[data-mode="briefing"]:has(.nv-bf-moment) .nv-fx-pbody { opacity: 0; }
+.nv-bf-idle { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; min-width: 0; }
+.nv-bf-idle b { font: 400 24px/1.2 var(--nv-font-serif); color: var(--bf-ink); text-wrap: balance; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nv-bf-idle span { font: 400 15px/1.35 var(--nv-font-ui); color: var(--bf-ink2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nv-bf-idle span.m { font-size: 13px; color: var(--bf-ink3); }
+
+/* THE MOMENT: a part's name said over the plate, then dropped into the rail */
+.nv-bf-moment {
+  position: absolute; z-index: 5; left: max(24px, calc(50% - var(--bf-col) / 2 + 24px)); right: max(24px, calc(50% - var(--bf-col) / 2 + 24px));
+  bottom: calc(206px + 52px + var(--bf-lift)); text-align: center; pointer-events: none;
+  animation: nvBfMomentIn calc(380ms * var(--fx-slow)) var(--nv-ease) both;
+}
+.nv-bf-moment.drop { animation: nvBfMomentDrop calc(460ms * var(--fx-slow)) var(--nv-ease) both; }
+.nv-bf-moment .mk { display: block; margin-bottom: 6px; font: 400 13px/1.3 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-moment .mt { display: block; font: 400 28px/1.15 var(--nv-font-serif); color: var(--bf-ink); text-wrap: balance; }
+@keyframes nvBfMomentIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes nvBfMomentDrop { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(150px) scale(.5); } }
+
+/* THE RAIL: the part's name, and a segment per part filling as it is said */
+.nv-bf-rail {
+  position: absolute; z-index: 6; left: max(16px, calc(50% - var(--bf-col) / 2 + 16px)); right: max(16px, calc(50% - var(--bf-col) / 2 + 16px));
+  bottom: calc(134px + var(--bf-lift));
+  transition: opacity calc(300ms * var(--fx-slow)) var(--nv-ease);
+}
+.nv-bf-rail[data-hidden], .nv-bf-tp[data-hidden] { opacity: 0; pointer-events: none; }
+.nv-bf-rl { display: flex; align-items: baseline; gap: 8px; height: 18px; font: 400 13px/1.3 var(--nv-font-ui); color: var(--bf-ink3); white-space: nowrap; overflow: hidden; transition: opacity calc(240ms * var(--fx-slow)) ease; }
+.nv-bf-rl b { font-weight: 600; color: var(--bf-ink2); }
+.nv-bf-rl span { overflow: hidden; text-overflow: ellipsis; }
+.nv-bf-segs { display: flex; gap: 4px; }
+.nv-bf-segs button { flex: 1; min-width: 0; height: 44px; padding: 0; border: 0; background: none; display: flex; align-items: center; cursor: pointer; }
+.nv-bf-segs i { display: block; width: 100%; height: 4px; border-radius: 2px; background: var(--bf-ring); overflow: hidden; }
+.nv-bf-segs i b { display: block; height: 100%; background: var(--bf-ink2); transform-origin: 0 50%; transform: scaleX(var(--f, 0)); transition: transform calc(600ms * var(--fx-slow)) var(--nv-ease); }
+.nv-bf-segs .cur i b { background: var(--nv-say); }
+
+/* THE TRANSPORT, under his thumb */
+.nv-bf-tp {
+  position: absolute; z-index: 6; left: max(12px, calc(50% - var(--bf-col) / 2 + 12px)); right: max(12px, calc(50% - var(--bf-col) / 2 + 12px));
+  bottom: calc(30px + var(--bf-lift)); display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  transition: opacity calc(300ms * var(--fx-slow)) var(--nv-ease);
+}
+.nv-bf-tb {
+  min-width: 44px; height: 44px; border: 0; border-radius: 22px; padding: 0 14px 0 12px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font: 600 15px/1 var(--nv-font-ui); color: var(--bf-ink); background: var(--fx-quiet);
+  box-shadow: inset 0 0 0 .5px var(--fx-ring), inset 0 1px 0 var(--fx-hi);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  transition: transform var(--nv-dur-fast) var(--nv-ease);
+}
+.nv-bf-tb.ic { width: 44px; padding: 0; }
+.nv-bf-tb.play { width: 64px; height: 64px; border-radius: 32px; padding: 0; color: var(--fx-g0); background: color-mix(in srgb, var(--fx-ink) 92%, transparent); box-shadow: 0 10px 30px -12px color-mix(in srgb, var(--fx-g0) 90%, transparent); }
+.nv-bf-tb.play .nv-bf-i { width: 26px; height: 26px; }
+.nv-bf-tb[aria-pressed="true"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-vi) 70%, transparent); }
+
+/* THE SCRIPT: a sheet from the foot (a side panel on the Mac) */
+.nv-bf-scrim { position: absolute; inset: 0; z-index: 79; background: color-mix(in srgb, var(--fx-g0) 40%, transparent); animation: fadeIn calc(240ms * var(--fx-slow)) ease both; }
+.nv-bf-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; height: min(560px, calc(100% - var(--bf-top) - 8px)); box-sizing: border-box;
+  max-width: 560px; margin: 0 auto; border-radius: 30px 30px 0 0; padding: 8px 16px 0; display: flex; flex-direction: column;
+  background: color-mix(in srgb, var(--fx-g1) 90%, transparent); color: var(--bf-ink);
+  box-shadow: inset 0 1px 0 var(--fx-hi), 0 -20px 60px -20px color-mix(in srgb, var(--fx-g0) 90%, transparent);
+  -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
+  animation: nvBfSheetUp calc(460ms * var(--fx-slow)) var(--nv-ease) both;
+}
+@keyframes nvBfSheetUp { from { transform: translateY(102%); } to { transform: none; } }
+.nv-bf-sheet.side { left: auto; top: 0; height: auto; width: 400px; max-width: 400px; border-radius: 0; padding: calc(env(safe-area-inset-top) + 18px) 16px 0; animation-name: nvBfSideIn; }
+@keyframes nvBfSideIn { from { transform: translateX(102%); } to { transform: none; } }
+.nv-bf-grabzone { touch-action: none; flex: none; }
+.nv-bf-grab { display: block; width: 36px; height: 5px; border-radius: 3px; margin: 0 auto 8px; background: color-mix(in srgb, var(--fx-ink) 30%, transparent); }
+.nv-bf-sh { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.nv-bf-sh b { font: 600 15px var(--nv-font-ui); }
+.nv-bf-lines { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding-bottom: calc(24px + env(safe-area-inset-bottom)); -webkit-user-select: text; user-select: text; }
+.nv-bf-sp { margin: 12px 0 4px; font: 400 13px/1.3 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-ln { display: block; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-radius: 14px; background: none; cursor: pointer; text-align: left; font: 400 15px/1.4 var(--nv-font-ui); color: var(--bf-ink2); transition: background-color calc(200ms * var(--fx-slow)) ease, transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-bf-ln.now { color: var(--bf-ink); background: color-mix(in srgb, var(--nv-say) 10%, transparent); box-shadow: inset 3px 0 0 var(--nv-say); }
+.nv-bf-ln.hit { background: color-mix(in srgb, var(--fx-ink) 10%, transparent); color: var(--bf-ink); }
+
+/* THE END: C's boards, then the card whose verbs say what they do */
+.nv-bf-fan { position: absolute; z-index: 5; left: 0; right: 0; top: calc(var(--bf-top) + 4px); pointer-events: none; }
+.nv-bf-fan .nv-bf-fb, .nv-bf-fan .nv-bf-fbw { pointer-events: auto; }
+.nv-bf-fb {
+  position: absolute; width: 104px; height: 106px; box-sizing: border-box; border: 0; border-radius: 20px; padding: 8px 10px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; text-align: left; color: var(--bf-ink);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--fx-ink) 12%, transparent), color-mix(in srgb, var(--fx-ink) 4%, transparent)), color-mix(in srgb, var(--fx-g1) 62%, transparent);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--fx-ink) 24%, transparent), inset 0 1px 0 var(--fx-hi), 0 16px 34px -16px color-mix(in srgb, var(--fx-g0) 90%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%);
+}
+.nv-bf-fbw .nv-bf-fb { position: relative; }
+.nv-bf-fb .fn { display: flex; align-items: center; justify-content: space-between; font: 400 13px/1.2 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-fb .fn .nv-bf-i { width: 12px; height: 12px; opacity: .7; }
+.nv-bf-fb .ft { font: 400 15px/1.1 var(--nv-font-serif); color: var(--bf-ink); text-wrap: balance; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.nv-bf-fb .fv { margin-top: auto; display: block; min-height: 18px; }
+.nv-bf-fb.fs { background: none; box-shadow: inset 0 0 0 1px var(--bf-ring); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.nv-bf-fb.fs .fv { color: var(--bf-ink2); }
+.nv-bf-fb.fs .fv .nv-bf-i { width: 22px; height: 22px; }
+.nv-bf-mini { display: block; width: 100%; height: 18px; }
+.nv-bf-mini.img { object-fit: cover; border-radius: 5px; }
+.nv-bf-mini.term { font: 400 13px/18px var(--nv-font-serif); color: var(--bf-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-bf-mini.core { position: relative; }
+.nv-bf-mini.core i { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: radial-gradient(circle, #fff 0, color-mix(in srgb, var(--nv-nova) 70%, transparent) 30%, transparent 100%); }
+.nv-bf-mini.core.mac i { width: 52px; height: 52px; margin: -26px 0 0 -26px; }
+.nv-bf-ghost { position: absolute; z-index: 9; width: 44px; height: 56px; border-radius: 8px; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--fx-ink) 30%, transparent), color-mix(in srgb, var(--fx-ink) 12%, transparent)); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--fx-ink) 50%, transparent); }
+.nv-bf-ghost::before { content: ''; position: absolute; left: 8px; right: 8px; top: 10px; height: 22px; background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--fx-ink) 55%, transparent) 0 2px, transparent 2px 6px); }
+
+.nv-bf-endv {
+  position: absolute; z-index: 6; left: max(10px, calc(50% - var(--bf-col) / 2 + 10px)); right: max(10px, calc(50% - var(--bf-col) / 2 + 10px));
+  bottom: calc(12px + var(--bf-lift)); box-sizing: border-box; border-radius: 28px; padding: 14px 12px 10px; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--fx-ink) 9%, transparent), color-mix(in srgb, var(--fx-ink) 3%, transparent)), color-mix(in srgb, var(--fx-g1) 56%, transparent);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--fx-ink) 22%, transparent), inset 0 1px 0 var(--fx-hi), 0 24px 60px -24px color-mix(in srgb, var(--fx-g0) 90%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+}
+.nv-bf-card { display: flex; flex-direction: column; }
+.nv-bf-eh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 4px 2px; }
+.nv-bf-et { font: 400 24px/1.15 var(--nv-font-serif); min-width: 0; text-wrap: balance; color: var(--bf-ink); }
+.nv-bf-missing { margin: 6px 4px 0; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-warn); text-wrap: pretty; }
+.nv-bf-gk { display: flex; align-items: center; gap: 6px; margin: 8px 4px 3px; font: 600 13px/1.3 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-vrow, .nv-bf-vdone {
+  position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; column-gap: 10px;
+  width: 100%; box-sizing: border-box; min-height: 58px; padding: 7px 10px; border: 0; border-radius: 18px; text-align: left; color: var(--bf-ink);
+}
+.nv-bf-vrow { cursor: pointer; background: var(--bf-row); box-shadow: inset 0 0 0 .5px var(--bf-ring); transition: transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-bf-vrow + .nv-bf-vrow, .nv-bf-vdone + .nv-bf-vrow, .nv-bf-vrow + .nv-bf-vdone { margin-top: 5px; }
+.nv-bf-vg { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 17px; background: color-mix(in srgb, var(--fx-ink) 10%, transparent); color: var(--bf-ink); }
+.nv-bf-vg .nv-bf-i { width: 18px; height: 18px; }
+.nv-bf-vt { display: grid; gap: 1px; min-width: 0; }
+.nv-bf-vt b { font: 600 15px/1.25 var(--nv-font-ui); }
+.nv-bf-vt span { font: 400 13px/1.35 var(--nv-font-ui); color: var(--bf-ink2); text-wrap: pretty; }
+.nv-bf-vrow.quiet { background: none; box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--fx-ink) 10%, transparent); }
+.nv-bf-vrow.quiet .nv-bf-vg { background: none; box-shadow: inset 0 0 0 1px var(--bf-ring); color: var(--bf-ink2); }
+.nv-bf-vrow.quiet b { color: var(--bf-ink2); }
+.nv-bf-vrow.off { cursor: default; background: none; box-shadow: inset 0 0 0 1px var(--bf-ring); }
+.nv-bf-vrow.off .nv-bf-vg { background: none; color: var(--bf-ink3); box-shadow: inset 0 0 0 1px var(--bf-ring); }
+.nv-bf-vrow.off b { color: var(--bf-ink2); }
+.nv-bf-vrow.off .nv-bf-vt b { padding-right: 84px; }
+.nv-bf-vrow.off:active { transform: none; }
+.nv-bf-new { position: absolute; top: 8px; right: 10px; padding: 0 7px; border-radius: 8px; font: 600 13px/1.6 var(--nv-font-ui); font-style: normal; color: var(--bf-ink2); box-shadow: inset 0 0 0 1px var(--bf-ring); }
+.nv-bf-vdone { grid-template-columns: 34px minmax(0, 1fr) auto; background: var(--bf-row); box-shadow: inset 0 0 0 .5px var(--bf-ring); animation: nvBfDone calc(260ms * var(--fx-slow)) var(--nv-ease-exit) both; }
+.nv-bf-vdone.ok { background: color-mix(in srgb, var(--nv-good) 8%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--nv-good) 35%, transparent); }
+@keyframes nvBfDone { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+.nv-bf-ok { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 17px; background: color-mix(in srgb, var(--fx-ink) 10%, transparent); color: var(--bf-ink2); }
+.nv-bf-vdone.ok .nv-bf-ok { background: color-mix(in srgb, var(--nv-good) 18%, transparent); color: var(--nv-good); }
+.nv-bf-vdone.ok .nv-bf-ok path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: nvBfTick calc(420ms * var(--fx-slow)) var(--nv-ease) calc(80ms * var(--fx-slow)) both; }
+@keyframes nvBfTick { to { stroke-dashoffset: 0; } }
+.nv-bf-vdone .nv-bf-txb { padding: 0 14px; }
+.nv-bf-spin { width: 16px; height: 16px; box-sizing: border-box; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--fx-ink) 20%, transparent); border-top-color: var(--fx-ink); animation: nvNtSpin .9s linear infinite; }
+
+/* the Mac's end: one row of boards, the title under them, the card beside */
+.nv-bf-mac { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.nv-bf-mac > * { pointer-events: auto; }
+.nv-bf-mstage { position: absolute; left: 40px; top: 96px; width: 780px; height: 680px; }
+.nv-bf-mfan { position: absolute; left: 0; right: 0; top: 0; height: 330px; }
+.nv-bf-mac .nv-bf-fb { width: 140px; height: 200px; border-radius: 26px; padding: 14px 14px 12px; gap: 6px; }
+.nv-bf-mac .nv-bf-fb .ft { font-size: 20px; }
+.nv-bf-mac .nv-bf-mini { height: 52px; }
+.nv-bf-mac .nv-bf-mini.term { font-size: 17px; line-height: 52px; }
+.nv-bf-mtitle { position: absolute; left: 0; right: 0; top: 360px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.nv-bf-mtitle b { display: block; font: 400 34px/1.15 var(--nv-font-serif); color: var(--bf-ink); text-wrap: balance; }
+.nv-bf-mtitle span { display: block; margin-top: 6px; font: 400 15px/1.3 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-mtitle .nv-bf-txb { margin-top: 16px; }
+.nv-bf-mside { position: absolute; right: 32px; top: 96px; width: 388px; bottom: 28px; box-sizing: border-box; border-radius: 28px; padding: 18px 14px 12px; overflow-y: auto; overscroll-behavior: contain;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--fx-ink) 9%, transparent), color-mix(in srgb, var(--fx-ink) 3%, transparent)), color-mix(in srgb, var(--fx-g1) 56%, transparent);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--fx-ink) 22%, transparent), inset 0 1px 0 var(--fx-hi), 0 24px 60px -24px color-mix(in srgb, var(--fx-g0) 90%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%);
+  animation: nvBfCardUp calc(460ms * var(--fx-slow)) var(--nv-ease) calc(400ms * var(--fx-slow)) both; }
+.nv-bf-mac[data-leaving] .nv-bf-mside, .nv-bf-mac[data-leaving] .nv-bf-mtitle { opacity: 0; transition: opacity calc(240ms * var(--fx-slow)) var(--nv-ease-exit); }
+.nv-bf-mside .nv-bf-vrow, .nv-bf-mside .nv-bf-vdone { min-height: 64px; }
+.nv-bf-mside .nv-bf-gk { margin-top: 12px; }
+@keyframes nvBfCardUp { from { opacity: 0; transform: translateY(24px) scale(.97); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* READ: B's page over the stage, Nova in the player at the foot */
+.nv-bf-rnav { position: absolute; z-index: 6; top: calc(env(safe-area-inset-top) + 6px); left: 6px; right: 16px; height: 44px; display: flex; align-items: center; }
+.nv-bf-back { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 12px 0 4px; border: 0; background: none; cursor: pointer; font: 400 17px/1 var(--nv-font-ui); color: var(--bf-ink2); }
+.nv-bf-back .nv-bf-i { width: 24px; height: 24px; }
+.nv-bf-doc {
+  position: absolute; z-index: 2; top: calc(env(safe-area-inset-top) + 50px); left: 0; right: 0; bottom: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  -webkit-user-select: text; user-select: text;
+  -webkit-mask-image: linear-gradient(transparent 0, #000 14px); mask-image: linear-gradient(transparent 0, #000 14px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--fx-g0) 70%, transparent), color-mix(in srgb, var(--fx-g0) 40%, transparent));
+}
+/* Read arrives as a page laid over the stage: it rises a little and fades in */
+.nv-bf-doc { animation: nvBfReadIn calc(380ms * var(--fx-slow)) var(--nv-ease) both; }
+.nv-bf-player, .nv-bf-rnav { animation: nvBfReadIn calc(380ms * var(--fx-slow)) var(--nv-ease) calc(80ms * var(--fx-slow)) both; }
+@keyframes nvBfReadIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.nv-bf-doccol { max-width: 680px; margin: 0 auto; padding: 8px 16px calc(220px + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.nv-bf-lt { margin: 0 0 6px; font: 700 34px/1.1 var(--nv-font-ui); letter-spacing: -.025em; text-wrap: balance; color: var(--bf-ink); }
+.nv-bf-meta { margin: 0 0 14px; font: 400 13px/1.35 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-lede2 { margin: 0 0 6px; font: 400 22px/1.32 var(--nv-font-serif); color: var(--bf-ink); text-wrap: pretty; }
+.nv-bf-part { position: relative; margin: 0 -16px; padding: 14px 16px 6px 26px; scroll-margin-top: 12px; }
+.nv-bf-part::before { content: ''; position: absolute; left: 12px; top: 18px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--nv-say); transform: scaleY(0); transform-origin: 50% 0; transition: transform calc(500ms * var(--fx-slow)) var(--nv-ease); }
+.nv-bf-part.lit::before { transform: none; }
+.nv-bf-ph { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.nv-bf-ph h2 { margin: 0; font: 400 22px/1.2 var(--nv-font-serif); text-wrap: balance; color: var(--bf-ink); }
+.nv-bf-pp { flex: none; width: 44px; height: 44px; border: 0; border-radius: 22px; display: grid; place-items: center; cursor: pointer; color: var(--bf-ink); background: var(--fx-quiet); box-shadow: inset 0 0 0 .5px var(--fx-ring); transition: transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-bf-pp .nv-bf-i { width: 16px; height: 16px; }
+.nv-bf-now { display: flex; align-items: center; gap: 6px; margin-top: 2px; font: 600 13px/1.3 var(--nv-font-ui); color: var(--nv-say); }
+.nv-bf-now::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--nv-say); box-shadow: 0 0 8px var(--nv-say); }
+.nv-bf-part p { margin: 8px 0 0; font: 400 17px/1.5 var(--nv-font-ui); color: var(--bf-ink2); text-wrap: pretty; }
+.nv-bf-tail h2 { margin: 24px 0 10px; font: 400 22px/1.2 var(--nv-font-serif); color: var(--bf-ink); }
+.nv-bf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.nv-bf-chips button { min-height: 44px; padding: 0 15px; border: 0; border-radius: 22px; cursor: pointer; font: 400 17px/1 var(--nv-font-ui); color: var(--bf-ink); background: var(--fx-quiet); box-shadow: inset 0 0 0 .5px var(--fx-ring); transition: transform var(--nv-dur-fast) var(--nv-ease); }
+.nv-bf-chips button[aria-expanded="true"] { background: color-mix(in srgb, var(--fx-ink) 16%, transparent); }
+.nv-bf-def { margin: 10px 0 0; font: 400 17px/1.45 var(--nv-font-ui); color: var(--bf-ink2); text-wrap: pretty; }
+.nv-bf-def b { font-weight: 600; color: var(--bf-ink); }
+.nv-bf-srcs { list-style: none; margin: 0; padding: 0; }
+.nv-bf-srcs a, .nv-bf-srcs button { display: flex; align-items: center; width: 100%; min-height: 44px; padding: 10px 0; box-sizing: border-box; border: 0; border-bottom: 1px solid var(--bf-ring); background: none; cursor: pointer; text-align: left; font: 400 17px/1.35 var(--nv-font-ui); color: var(--bf-ink2); text-decoration: none; overflow-wrap: anywhere; }
+.nv-bf-tail .nv-bf-card { margin-top: 2px; }
+.nv-bf-tail .nv-bf-gk { margin-left: 0; }
+.nv-bf-player {
+  position: absolute; z-index: 3; left: max(10px, calc(50% - 340px)); right: max(10px, calc(50% - 340px)); bottom: calc(24px + var(--bf-lift)); min-height: 84px; box-sizing: border-box;
+  border-radius: 26px; padding: 10px 10px 10px 64px; display: flex; align-items: center; justify-content: flex-end; gap: 10px; pointer-events: none;
+  background: color-mix(in srgb, var(--fx-g1) 72%, transparent);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--fx-ink) 20%, transparent), inset 0 1px 0 var(--fx-hi), 0 18px 40px -18px color-mix(in srgb, var(--fx-g0) 90%, transparent);
+  -webkit-backdrop-filter: blur(26px) saturate(1.5); backdrop-filter: blur(26px) saturate(1.5);
+}
+.nv-bf-player > * { pointer-events: auto; }
+.nv-bf-fin { position: absolute; left: 64px; right: 64px; top: 50%; margin: 0; transform: translateY(-50%); font: 400 13px/1.3 var(--nv-font-ui); color: var(--bf-ink3); }
+.nv-bf-pb { position: relative; z-index: 6; flex: none; width: 44px; height: 44px; border: 0; border-radius: 22px; display: grid; place-items: center; cursor: pointer; color: var(--fx-g0); background: color-mix(in srgb, var(--fx-ink) 92%, transparent); transition: transform var(--nv-dur-fast) var(--nv-ease); }
+/* in Read the plate is the player's line, and a panel rises above it */
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-plate {
+  left: max(10px, calc(50% - 340px)); right: max(10px, calc(50% - 340px)); bottom: calc(24px + var(--bf-lift)); height: 84px;
+  padding: 9px 64px 9px 64px; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; border-radius: 26px; pointer-events: none;
+}
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-phead { display: none; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-pbody { -webkit-mask-image: none; mask-image: none; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-pcol { top: 0; bottom: auto; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-pcol p { margin: 0; font-size: 17px; line-height: 1.3; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-pcol p.earlier { opacity: 0 !important; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-w::after { height: 2px; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-bf-idle { display: none; }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-dock { top: auto; bottom: calc(118px + var(--bf-lift)); height: 252px; left: max(10px, calc(50% - 340px)); right: max(10px, calc(50% - 340px)); transform-origin: 32px calc(100% + 76px); }
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-pn { opacity: 0; }
+/* over the page's words the panel needs a body of its own, not only its blur */
+.nv-fx[data-mode="briefing"][data-bphase="read"] .nv-fx-dock > .nv-fx-panel { background: color-mix(in srgb, var(--fx-g1) 94%, transparent); }
+
+/* the states around the stage: the head clears the floating bar (the house
+   tall wrap), and nothing is set under 13 */
+.nv-bf-page { box-sizing: border-box; }
+.nv-bf-label { margin: 0; font: 600 13px/1.3 var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-bf-label.cy { color: var(--nv-cy); }
+.nv-bf-label.warn { color: var(--nv-warn); }
+.nv-bf-lead { margin: 10px 0 0; max-width: 520px; font: 400 15px/1.6 var(--nv-font-ui); color: var(--nv-ink60); text-wrap: pretty; }
+.nv-bf-note { margin: 12px 0 0; max-width: 560px; font: 400 13px/1.5 var(--nv-font-ui); color: var(--nv-ink50); text-wrap: pretty; }
+.nv-bf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.nv-bf-skel { display: block; border-radius: 10px; background: linear-gradient(90deg, color-mix(in srgb, var(--nv-ink) 6%, transparent), color-mix(in srgb, var(--nv-ink) 11%, transparent), color-mix(in srgb, var(--nv-ink) 6%, transparent)); background-size: 200% 100%; animation: nvBfShimmer 1.4s ease-in-out infinite; }
+@keyframes nvBfShimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.nv-bf-rest { position: relative; box-sizing: border-box; width: 100%; padding: 20px 22px 18px; border-radius: 16px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--nv-cy) 7%, transparent), color-mix(in srgb, var(--nv-void) 92%, black)); }
+.nv-bf-rest.mini { padding: 10px 12px; border-radius: 10px; }
+.nv-bf-rest .k { display: block; font: 600 13px/1.3 var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-bf-rest b { display: block; margin-top: 8px; font: 400 26px/1.2 var(--nv-font-serif); color: var(--nv-ink); text-wrap: balance; }
+.nv-bf-rest.mini b { margin-top: 3px; font-size: 15px; }
+.nv-bf-rest .s { display: block; margin-top: 10px; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink50); }
+
+/* the tab bar of the other styles steps away under the stage too */
+body:has(.nv-fx[data-mode="briefing"]) .nv-liquid-dock { opacity: 0; pointer-events: none; }
+body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visibility: hidden; }
+/* the Mac's end: beside the small core, what the stage is now */
+.nv-bf-mlabel { position: absolute; top: calc(env(safe-area-inset-top) + 8px); left: 140px; height: 44px; display: flex; align-items: center; font: 400 15px/1.3 var(--nv-font-ui); color: var(--bf-ink3); pointer-events: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .nv-bf-txb:hover, .nv-bf-tb:not(.play):hover, .nv-bf-pp:hover, .nv-bf-chips button:hover { background: color-mix(in srgb, var(--fx-ink) 14%, transparent); }
+  .nv-bf-vrow:not(.off):hover, .nv-bf-ln:hover { background: color-mix(in srgb, var(--fx-ink) 9%, transparent); }
+}
+/* REDUCED MOTION: fades only. Words appear whole (Captions' WORD_LOOK) with
+   no underline; panels, the moment, the sheet and the boards fade without
+   moving; the core's travel is a cut (the house block above) */
+@media (prefers-reduced-motion: reduce) {
+  .nv-fx[data-mode="briefing"] .nv-fx-w::after { display: none; }
+  .nv-fx[data-mode="briefing"] .nv-fx-dock { animation: fadeIn .25s ease both; }
+  .nv-fx[data-mode="briefing"] .nv-fx-dock.out { animation: none; opacity: 0; }
+  .nv-bf-pc, .nv-bf-vdone, .nv-bf-mside { animation: fadeIn .25s ease both; }
+  .nv-bf-moment, .nv-bf-moment.drop { animation: fadeIn .25s ease both; }
+  .nv-bf-moment.drop { animation: none; opacity: 0; transition: opacity .25s ease; }
+  .nv-bf-sheet, .nv-bf-sheet.side { animation: fadeIn .25s ease both; }
+  .nv-bf-segs i b, .nv-bf-part::before { transition: opacity .2s ease; }
+  .nv-bf-vdone.ok .nv-bf-ok path { animation: none; stroke-dashoffset: 0; }
+  .nv-bf-skel { animation: none; }
+  .nv-bf-doc, .nv-bf-player, .nv-bf-rnav { animation: fadeIn .25s ease both; }
+}
+/* end of the Briefing */

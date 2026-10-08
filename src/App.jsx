@@ -480,6 +480,9 @@ export default class App extends Component {
     hapticTick: 0, // his haptic reading changed — re-render the row that states it
     // the briefing reader: the loaded document, its playback, listen|read
     briefing: null, briefingLoading: false, briefingError: null, briefingPlay: null, briefingMode: 'listen',
+    // round 2 (9 Oct 2026): the end card's save row ({ id, state }, briefingFacts.SAVE_STATES)
+    // and an Ask on the stage ({ scope: 'mid' | 'end', at }) while it is open
+    briefingSave: null, briefingAsk: null,
     briefingMediaUrls: {}, // key → blob URL, fetched when the briefing opens so the glass never buffers
     liveForge: null, forgeInput: '', forgeBusy: false, browserSignInBusy: false, liveIngestJobs: [],
     leaderSessionId: typeof localStorage === 'undefined' ? null : (localStorage.getItem('novaos.leaderSession') || null),
@@ -3651,7 +3654,7 @@ export default class App extends Component {
     const st = typeof window === 'undefined' ? null : window.history.state;
     const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
     // the Fuel page's Edit sheet is the other history level over Fuel
-    return { ...this.settingsFromHistory(), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.fuelCardsFromHistory() };
+    return { ...this.settingsFromHistory(), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory() };
   }
   // SETTINGS' PAGES (direction A, 7 Oct 2026). Each push is a history entry
   // carrying the whole path, so popstate restores exactly the page he was on
@@ -5159,7 +5162,10 @@ export default class App extends Component {
       const b = beats[Math.max(0, cur)];
       const heading = b?.kind === 'summary' ? 'the summary' : (doc.briefing.sections[b?.section]?.heading || '');
       this.setState({ orbInput: '' });
-      this.navigate('voice');
+      // ON THE STAGE (round 2, 9 Oct 2026): asked from the Briefing itself,
+      // the answer is spoken on the same stage (its captions read the one
+      // speech clock); from anywhere else it lands in the conversation
+      if (this.state.screen !== 'briefing') this.navigate('voice');
       // The offer to carry on must land AFTER the answer, not now: the queue is
       // empty at this instant, so a finalizer queued here fires immediately
       // and the offer is buried under the reply (the first live run). The
@@ -5182,7 +5188,12 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn || !id) return;
     try { localStorage.setItem('novaos.briefing.last', id); } catch { /* best-effort */ }
-    if (!silent) this.setState({ screen: 'briefing', briefingLoading: true, briefingError: null, briefing: this.state.briefing?.id === id ? this.state.briefing : null });
+    // A HISTORY ENTRY OF ITS OWN (round 2; audit finding 9): navigate, so
+    // Close, Decide later and the edge swipe return to where he came from
+    if (!silent) {
+      const same = this.state.briefing?.id === id;
+      this.navigate('briefing', { briefingLoading: true, briefingError: null, briefing: same ? this.state.briefing : null, briefingMode: 'listen', briefingAsk: null, ...(same ? {} : { briefingSave: null }) });
+    }
     api.briefing(conn, id)
       .then((doc) => {
         // a briefing he left half-way opens with RESUME at that beat, not
@@ -5220,9 +5231,39 @@ export default class App extends Component {
         .catch(() => { /* the typographic glass stands in for this beat */ });
     }
   }
+  // CLOSE RETURNS TO WHERE HE CAME FROM (round 2; audit finding 9). The
+  // Briefing is a history entry of its own (openBriefing navigates), so
+  // closing is going back: past the Read entry too when he closes from it.
+  // Opened cold (a notification's deep link, a reload), there is nowhere to
+  // go back to inside Nova, so it lands on the Inbox as before. Nothing is
+  // written: an undecided briefing waits in the Inbox, which is what Decide
+  // later says.
   closeBriefing() {
     this.pauseBriefing();
+    this.setState({ briefingAsk: null });
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const steps = st?.novaView === 'briefingRead' ? 2 : 1;
+    if (typeof window !== 'undefined' && screenFromHash() === 'briefing' && depthOf(st) >= steps) { window.history.go(-steps); return; }
     this.navigate('inbox');
+  }
+  // READ IS A PAGE OVER THE STAGE (B's page, round 2): its own history
+  // entry, so the edge swipe and "Stage" both come back to the stage, and
+  // Nova keeps talking from the player at the foot. UI state only.
+  openBriefingRead() {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaView !== 'briefingRead') window.history.pushState({ novaDepth: depthOf(st) + 1, novaView: 'briefingRead' }, '');
+    }
+    if (this.state.briefingMode !== 'read') this.setState({ briefingMode: 'read' });
+  }
+  closeBriefingRead() {
+    if (typeof window !== 'undefined' && window.history.state?.novaView === 'briefingRead') { window.history.back(); return; }
+    if (this.state.briefingMode !== 'listen') this.setState({ briefingMode: 'listen' });
+  }
+  briefingReadFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const want = screenFromHash() === 'briefing' && st?.novaView === 'briefingRead' ? 'read' : 'listen';
+    return (this.state.briefingMode || 'listen') === want ? {} : { briefingMode: want };
   }
   playBriefing(from = 0) {
     const doc = this.state.briefing;
@@ -5232,7 +5273,9 @@ export default class App extends Component {
     const beats = doc.beats;
     const WINDOW = 3;
     let queued = from;
-    this.setState({ briefingPlay: { id: doc.id, playing: true, current: from, gen, at: Date.now() }, briefingMode: 'listen' });
+    // a part's play button on the Read page keeps him reading: Nova talks
+    // from the player at its foot (round 2), so the mode is left as it is
+    this.setState({ briefingPlay: { id: doc.id, playing: true, current: from, gen, at: Date.now() }, briefingAsk: null });
     const enqueue = (i) => {
       if (i >= beats.length) return;
       this.speakTtsSentence(beats[i].say, () => {
@@ -5268,12 +5311,89 @@ export default class App extends Component {
     }
   }
   seekBriefing(i) { this.playBriefing(Math.max(0, i)); }
+  // Next part from the last part: the end, where the parts become boards
+  // (round 2). Stops the voice and parks the clock on the last sentence.
+  endBriefing() {
+    const doc = this.state.briefing;
+    if (!doc?.beats?.length) return;
+    this.pauseBriefing();
+    this.setState({ briefingPlay: { id: doc.id, playing: false, current: doc.beats.length - 1, gen: null, at: Date.now() }, briefingAsk: null });
+  }
+  // THE END CARD'S VERBS (round 2, src/briefingFacts.js BRIEFING_VERBS).
+  // Save files the record through its route, 'note', which writes one page to
+  // Wiki/Inbox; the row itself turns into the receipt with Undo on it, so no
+  // toast says "Kept" one screen away from its Undo.
   fileBriefing(id) {
     const conn = getConnection();
     if (!conn || !id) return;
+    this.setState({ briefingSave: { id, state: 'saving' } });
     api.inboxApprove(conn, id)
-      .then(() => { this.toastMsg('Kept — it is in your vault now'); this.openBriefing(id, { silent: true }); this.refreshInbox(); })
-      .catch((e) => this.toastMsg(e.message || 'Could not file it'));
+      .then(() => { this.setState({ briefingSave: { id, state: 'saved' } }); this.openBriefing(id, { silent: true }); this.refreshInbox(); })
+      .catch((e) => { this.setState({ briefingSave: null }); this.toastMsg(e.message || 'Could not save it'); });
+  }
+  // Undo, on the same row: the note filer's own undo, which deletes the page
+  // only if it is byte for byte what was filed. An edited page is left in
+  // place, and the row says so in his words rather than the server's.
+  undoFileBriefing(id) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    this.setState({ briefingSave: { id, state: 'undoing' } });
+    api.inboxUndo(conn, id)
+      .then(() => { this.setState({ briefingSave: { id, state: 'undone' } }); this.openBriefing(id, { silent: true }); this.refreshInbox(); })
+      .catch((e) => {
+        const edited = /edited since filing/i.test(e.message || '');
+        this.setState({ briefingSave: { id, state: edited ? 'edited' : 'saved' } });
+        if (!edited) this.toastMsg(e.message || 'Could not undo it');
+      });
+  }
+  // Discard writes nothing and has no undo (only a Coach card reopens;
+  // his call 5), and the line under the button says so before he taps it.
+  discardBriefing(id) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    api.inboxDiscard(conn, id)
+      .then(() => { this.toastMsg('Discarded. Nothing was written.'); this.refreshInbox(); this.closeBriefing(); })
+      .catch((e) => this.toastMsg(e.message || 'Could not discard it'));
+  }
+  // ASK, ON THE STAGE (round 2). Mid-briefing it is "explain that again" with
+  // a button: the briefing pauses where it is, the stage's microphone opens,
+  // and his words reach Nova with the sentence just spoken (askAboutBriefing,
+  // from doOrb), then "Shall I carry on?". At the end it is "Ask about it",
+  // with the whole briefing in hand. The microphone is the stage's own
+  // (Briefing.jsx), so this only pauses and marks the ask.
+  askBriefing(scope = 'mid') {
+    if (!this.state.briefing?.beats?.length) return;
+    this.primeSpeech();
+    this.pauseBriefing();
+    this.setState({ briefingAsk: { scope: scope === 'end' ? 'end' : 'mid', at: Date.now() } });
+  }
+  endBriefingAsk() {
+    if (this.state.briefingAsk) this.setState({ briefingAsk: null });
+  }
+  // His words, asked from the Briefing: the briefing travels with them as the
+  // ask's context, built here by code (never hoped for from the model), and
+  // a mid-briefing ask offers to carry on once the answer has been spoken.
+  askAboutBriefing(q) {
+    const doc = this.state.briefing;
+    const b = doc?.briefing;
+    if (!b || !doc.beats?.length) return false;
+    const play = this.state.briefingPlay;
+    const cur = play?.id === doc.id ? (play.current ?? -1) : -1;
+    const atEnd = cur >= doc.beats.length - 1 && !play?.playing;
+    const scope = this.state.briefingAsk?.scope || (atEnd || cur < 0 ? 'end' : 'mid');
+    let context;
+    if (scope === 'mid' && cur >= 0) {
+      const beat = doc.beats[cur];
+      const heading = beat?.kind === 'summary' ? 'the summary' : (b.sections[beat?.section]?.heading || '');
+      context = `[Briefing context: you are reading him your briefing "${b.title}", in the part called "${heading}". The sentence you just said: "${beat?.say || ''}". His words below are about it. Answer from the briefing and its sources, briefly and plainly; he will carry on listening after.]`;
+      this.briefingAfterAsk = { id: doc.id, from: Math.max(0, cur) };
+    } else {
+      const parts = b.sections.map((s, i) => `${i + 1}. ${s.heading}`).join('; ');
+      context = `[Briefing context: he has just heard your briefing "${b.title}". In brief: ${b.summary || '(no summary)'} Its parts: ${parts}. His words below are about this briefing. Answer from it and its sources, briefly and plainly.]`;
+    }
+    this.setState({ orbInput: '' });
+    this.askNova(q, context);
+    return true;
   }
   // Clear a job that FAILED. Nothing was written to the vault (an errored
   // weave never reaches the apply step), so this is a card he is throwing
@@ -8657,6 +8777,8 @@ export default class App extends Component {
       this.setState({ voicePendingOffer: null });
     }
     if (this.tryBriefingVoice(q)) return;
+    // asked on the Briefing's own stage (round 2): the briefing rides along
+    if (this.state.screen === 'briefing' && this.state.briefingAsk && this.askAboutBriefing(q)) return;
     if (this.tryBrowseVoice(q)) return;
     if (this.tryWrapVoice(q)) return;
     if (this.tryIntakeVoice(q)) return;
