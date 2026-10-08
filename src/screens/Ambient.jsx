@@ -26,10 +26,17 @@ const PULSE_MS = 120_000;
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const fmt = (n) => Number(n).toLocaleString('en-AU');
 
+// The wall shows hours and minutes, so it renders once a minute, not once a
+// second: a per-second render of the whole wall was most of its main-thread
+// cost under a 4x throttle (measured 9 Oct). Checked every second so the
+// minute turns over on time.
 function useClock() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
+    const t = setInterval(() => {
+      const d = new Date();
+      setNow((p) => (p.getMinutes() === d.getMinutes() && p.getHours() === d.getHours() ? p : d));
+    }, 1000);
     return () => clearInterval(t);
   }, []);
   return now;
@@ -182,11 +189,11 @@ function Readouts({ v }) {
   const p = v.ambientProtein;
   return (
     <div className="ro3">
-      <div className="ro"><span className="k">Next</span><span className="n">{next ? next.time : 'None'}</span><span className="s">{next ? next.label : 'nothing else today'}</span></div>
+      <div className="ro"><span className="k">Next</span><span className={`n${next ? '' : ' none'}`}>{next ? next.time : 'None'}</span><span className="s">{next ? next.label : 'nothing left'}</span></div>
       <div className="ro"><span className="k"><i className="dot" style={{ '--d': 'var(--nv-vi)' }} />Steps</span>
-        <span className="n">{steps != null ? fmt(steps) : 'None'}</span><span className="s">{steps != null ? `of ${fmt(v.ambientStepGoal)}` : 'no reading yet'}</span></div>
+        <span className={`n${steps != null ? '' : ' none'}`}>{steps != null ? fmt(steps) : 'None'}</span><span className="s">{steps != null ? `of ${fmt(v.ambientStepGoal)}` : 'no reading yet'}</span></div>
       <div className="ro"><span className="k"><i className="dot" style={{ '--d': 'var(--nv-good)' }} />Protein</span>
-        <span className="n">{p ? <>{p.p}<small>g</small></> : 'None'}</span><span className="s">{p ? (p.floor ? `of ${p.floor} g` : 'today') : 'no reading yet'}</span></div>
+        <span className={`n${p ? '' : ' none'}`}>{p ? <>{p.p}<small>g</small></> : 'None'}</span><span className="s">{p ? (p.floor ? `of ${p.floor} g` : 'today') : 'no reading yet'}</span></div>
     </div>
   );
 }

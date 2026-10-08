@@ -4955,6 +4955,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-wall .k { font: 600 15px/1.3 var(--nv-font-ui); color: var(--w-ink2); }
 .nv-wall .s { font: 400 13px/1.35 var(--nv-font-ui); color: var(--w-ink3); }
 .nv-wall .n { font: 600 34px/1 var(--nv-font-round); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
+.nv-wall .n.none { color: var(--w-ink3); }
 .nv-wall .n small { font: 600 15px var(--nv-font-ui); color: var(--w-ink2); letter-spacing: 0; margin-left: 2px; }
 .nv-wall .ro { display: grid; gap: 5px; align-content: start; min-width: 0; }
 .nv-wall .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--d); }

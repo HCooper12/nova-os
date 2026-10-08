@@ -53,6 +53,7 @@ function look(id) {
 
 // The names line under the count: who is asking, most first.
 export function whoLine(w) {
+  if (w.demo) return 'Demo mode has no agents to read';
   if (!w.signal) return w.syncMin != null ? `No signal from the Mac · last synced ${w.syncMin} min ago` : 'No signal from the Mac';
   const names = w.waiting.map((b) => the(b.name));
   if (w.yours) names.push('your own notes');
@@ -64,6 +65,7 @@ export function whoLine(w) {
 
 // The sheet's sentence.
 export function sayLine(w) {
+  if (w.demo) return 'Demo mode has no agents, so nobody\'s asks can be read.';
   if (!w.signal) return 'Nova cannot reach the Mac, so nobody\'s asks can be read.';
   if (!w.total) return 'Nothing is waiting on you.';
   const parts = w.waiting.map((b) => ({ n: b.n, from: `from ${the(b.name)}` }));
@@ -123,7 +125,7 @@ export function wallAgents({ ops, st = {}, demoMode = false, isOffline = false, 
     };
   });
 
-  const w = { signal, total, waiting, yours, unfiled, working, all, syncMin };
+  const w = { signal, demo: !!demoMode, total, waiting, yours, unfiled, working, all, syncMin };
   // the Mac's preview under the count: the first two asks with their being
   const rows = [];
   for (const b of waiting) for (const a of b.asks) rows.push({ id: a.id, title: a.title, being: { id: b.id, name: b.name, face: b.face, hue: b.hue } });

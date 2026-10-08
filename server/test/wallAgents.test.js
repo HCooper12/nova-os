@@ -61,7 +61,7 @@ test('no signal, demo and offline show nobody and say so', () => {
     assert.equal(w.total, null);
     assert.deepEqual(w.waiting, []);
     assert.deepEqual(w.working, []);
-    assert.equal(w.whoLine, 'No signal from the Mac · last synced 41 min ago');
+    assert.equal(w.whoLine, args.demoMode ? 'Demo mode has no agents to read' : 'No signal from the Mac · last synced 41 min ago');
     assert.ok(w.all.every((b) => b.opacity === 0.4));
   }
 });
