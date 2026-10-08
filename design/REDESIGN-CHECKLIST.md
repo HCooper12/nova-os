@@ -515,15 +515,15 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 
 #### Ambient — `ambient` (off-dock, wall mode)
 `src/screens/Ambient.jsx` (168) · fed by `src/vals/valsOps.js:247-337`. One door: Voice's "◐ Ambient" chip. Exit: tap anywhere (the only affordance is a `title` attribute, invisible on touch).
-- [m] A1 · Full-bleed tap scrim + state wash (gold attention · cyan clear · none unknown) — `Ambient.jsx:71-78`
-- [m] A2 · Giant clock (96px, blinking colon) + date; `NovaCore` 300 + italic tagline — `:80-95`
-- [m] A3 · Tiles NEXT · STEPS · PROTEIN · GATE (count-ups); objectives TRAIN STREAK · PROTEIN MONTH · STEP STREAK when real — `:101-118`
-- [m] A4 · `PulseStrip` (one topic every 9s), `StreamStrip` (3 newest receipts), sync-age corner label (warn past 15 min), 3600s OLED drift, wake lock — `:26-42, 97-128, 136-168`
+- [b] A1 · Full-bleed tap scrim + state wash (gold attention · cyan clear · none unknown) — `Ambient.jsx:71-78`
+- [b] A2 · Giant clock (96px, blinking colon) + date; `NovaCore` 300 + italic tagline — `:80-95`
+- [b] A3 · Tiles NEXT · STEPS · PROTEIN · GATE (count-ups); objectives TRAIN STREAK · PROTEIN MONTH · STEP STREAK when real — `:101-118`
+- [b] A4 · `PulseStrip` (one topic every 9s), `StreamStrip` (3 newest receipts), sync-age corner label (warn past 15 min), 3600s OLED drift, wake lock — `:26-42, 97-128, 136-168`
 **First look:** no idiom branch (plausibly deliberate for a wall); the most hidden screen after Console; the exit is undiscoverable on a touchscreen.
 
 #### Console — `console` (off-dock, sidebar only)
 `src/screens/ConsoleScreen.jsx` (29) → `src/Instruments.jsx`. The morning brief drawn as five instruments (Recovery/HRV band · 24-hour ring · Steps-this-week bars · Training body · Fuel body), each with an honest-absence state, 90ms staggered reveal, "Read again"; loading / empty / error copy — `Instruments.jsx:46-375`. **The most hidden screen in the app: no `navigate('console')` call site exists.**
-- [m] C1 · Decide whether Console is a screen, a Home section, or retired — `ConsoleScreen.jsx:13-23`
+- [b] C1 · Decide whether Console is a screen, a Home section, or retired — `ConsoleScreen.jsx:13-23`
 
 ---
 
@@ -561,6 +561,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — THE WALL BUILT AND SHIPPED (merge, pushed, reloaded): option
+  1 of mockup 86; waiting and asks from the Org map's own functions, working
+  from agentsWorking.js (one source, wallAgents test); portraits of the real
+  3D beings (scripts/agent-sheet/portraits.mjs); the core capped at 30 fps
+  (page 58 to 120 fps at 4x CPU, canvas calls a second 2.03M to 0.50M);
+  Done uses history.back. Console is the summary Home's "Your day, drawn"
+  card (route, Index row and sidebar row gone; cupertino untouched).
+  94-line checklist: 88 present, 6 differ, none missing. Rows [b].
 - 9 Oct 2026 — THE LEADER BUILT AND SHIPPED (merge, pushed, reloaded):
   blend 1 of mockup 82 with his rules as code (src/leaderOrder.js, 24 table
   tests: unread reply first; the idea first in the morning, the hour before

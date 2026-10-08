@@ -13,6 +13,18 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**9 OCT (afternoon) — BRIEFING, LEADER AND THE WALL BUILT AND LIVE; ROUND 3
+OUT FOR CODE, SHOPPING, MONEY; NOTHING RUNNING.** Each built in an isolated
+worktree against a checklist with frame pairs, merged, pushed, reloaded.
+Round 3: Code 89 https://claude.ai/artifact/7nJ65tuCA6RTkJHXbQxy9f, Shopping
+88 https://claude.ai/artifact/6mFt5m8pEKDCSNy2c94xYv, Money 90
+https://claude.ai/artifact/G6eU3oTWGvoNZTxt4VD1VH. OPEN HIS CALLS: the
+Shopping price source (none is honest and daily); Code 1-5; Shopping 2-6;
+Money 1-7; Briefing 1-3; Leader 1-2; wall: Talk it through sends the asks,
+night dim 22:00-06:00. NEXT: his picks, then build Code/Shopping/Money;
+Notes/Journal/Galaxy when he has looked; the MacBook round (use the
+Dashboard V8 reel memory); To-Do waits for his Todoist recordings.
+
 **7 OCT (afternoon) — SETTINGS A IS LIVE; ROUND 2 OUT FOR SIX PAGES; NOTHING
 RUNNING.** Settings A merged c8951f6 (worktree build, 153/161 present, 8
 honest differences), pushed, reloaded. Round 2 published: Leader 82
