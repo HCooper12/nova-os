@@ -527,11 +527,11 @@ function ProteinSvg({ d }) {
   const p = Math.min(1, d.eaten / scale), fl = d.floor ? d.floor / scale : null;
   const label = `Protein ${d.eaten} grams of ${d.planned} planned${d.floor ? `; floor ${d.floor} grams` : ''}.`;
   return (
-    <svg viewBox={`0 0 ${W} 52`} role="img" aria-label={label}>
+    <svg viewBox={`0 0 ${W} 58`} role="img" aria-label={label}>
       <rect x="0" y="14" width={W} height="16" rx="8" fill="color-mix(in srgb, var(--nv-sum-c1) 12%, transparent)" />
       {p > 0 && <rect className="nv-day-grow" x="0" y="14" width={Math.max(16, W * p).toFixed(1)} height="16" rx="8" fill="var(--nv-sum-c1)" />}
       {fl != null && <line x1={(W * fl).toFixed(1)} y1="6" x2={(W * fl).toFixed(1)} y2="38" stroke="var(--nv-ink)" strokeDasharray="3 3" />}
-      {fl != null && <text x={(W * fl).toFixed(1)} y="51" textAnchor="end" className="nv-day-svgs">Floor {d.floor} g</text>}
+      {fl != null && <text x={(W * fl).toFixed(1)} y="52" textAnchor="end" className="nv-day-svgs">Floor {d.floor} g</text>}
     </svg>
   );
 }
@@ -610,6 +610,9 @@ export function YourDay({ data, loading, error, onRefresh, onSeen, foot }) {
     // the drawing replays each time an instrument comes in
     const el = trackRef.current?.children[i];
     if (el) { el.classList.remove('nv-day-in'); void el.getBoundingClientRect(); el.classList.add('nv-day-in'); }
+    // the card takes the height of the instrument in view, so a short one
+    // never sits above the tallest one's empty space
+    if (el && pagerRef.current) pagerRef.current.style.height = `${el.firstElementChild?.offsetHeight || el.offsetHeight}px`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i, data]);
 

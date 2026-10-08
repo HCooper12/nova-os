@@ -4872,8 +4872,8 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 .nv-day-ch { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .nv-day-ct { font: 600 15px var(--nv-font-ui); letter-spacing: -.01em; color: var(--nv-ink); }
 .nv-day-s { font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); }
-.nv-day-pager { overflow: hidden; touch-action: pan-y; cursor: grab; }
-.nv-day-track { display: flex; transition: transform .36s var(--nv-ease); }
+.nv-day-pager { overflow: hidden; touch-action: pan-y; cursor: grab; transition: height .36s var(--nv-ease); }
+.nv-day-track { display: flex; align-items: flex-start; transition: transform .36s var(--nv-ease); }
 .nv-day-slide { flex: 0 0 100%; min-width: 0; }
 .nv-day-ins { display: grid; gap: 8px; min-width: 0; }
 .nv-day-ih { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
@@ -4917,7 +4917,7 @@ button.nv-rp-mi[aria-expanded="true"] span { text-decoration: underline; text-un
 @keyframes nvDayGrow { from { transform: scaleX(.1); } to { transform: none; } }
 @keyframes nvDayFade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .nv-day-track { transition: none; }
+  .nv-day-track, .nv-day-pager { transition: none; }
   .nv-day-in .nv-day-bar, .nv-day-in .nv-day-arc, .nv-day-in .nv-day-grow { animation: nvDayFade .25s linear both; stroke-dashoffset: 0; }
   .nv-day-skel i { animation: none; }
 }
