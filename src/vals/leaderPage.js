@@ -65,7 +65,7 @@ export const countWordLower = (n) => (n >= 0 && n < NUMW.length ? NUMW[n].toLowe
 // The honest line under the strip, in the Leader's own voice.
 export function staleLine(days, lastAt) {
   if (days == null) return 'You have not told me anything yet.';
-  if (days === 0) return 'You told me something today.';
+  if (days === 0) return lastAt && Date.now() - toDate(lastAt).getTime() < 10 * 60_000 ? 'You told me something just now.' : 'You told me something today.';
   if (days === 1) return 'You last told me anything yesterday.';
   if (days < 7 && lastAt) return `You last told me anything on ${WEEKDAY[toDate(lastAt).getDay()]}, ${days} days ago.`;
   return `You last told me anything ${days} days ago.`;

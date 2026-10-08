@@ -667,7 +667,7 @@ function Seat({ a }) {
   return (
     <span className={`nv-ld-seat${asking ? '' : ' done'}`} style={{ '--h': agentHue(a.agent) }} aria-label={`${agentName(a.agent)}, ${asking ? 'working' : 'back'}`}>
       <Face who={a.agent} size={30} work={asking} back={!asking} />
-      <span className="st"><b>{agentName(a.agent)}</b><small>{asking ? `${doing} · ${secs} s` : a.state === 'failed' ? `Could not answer · ${secs} s` : `Back · ${secs} s`}</small></span>
+      <span className="st"><b>{agentName(a.agent)}</b><small>{asking ? `${secs} s · ${doing}` : a.state === 'failed' ? `Could not answer · ${secs} s` : `Back · ${secs} s`}</small></span>
     </span>
   );
 }
@@ -705,19 +705,22 @@ function LeaderLine({ m, P, live }) {
   const working = m.streaming && (P.liveConsult || []).some((c) => c.state === 'asking');
   const r = readReply(m.text, { consult: consult && consult.length ? consult : null, clean: P.clean });
   const maxMs = Math.max(0, ...(consult || []).map((c) => c.ms || 0));
-  const [shut, setShut] = useState(!live || !consult?.length);
+  // the seats fold away once, half a second after the answer first lands;
+  // `live` is only true on that first render, so the fold keys off its birth
+  const born = useRef(live).current;
+  const [shut, setShut] = useState(!born || !consult?.length);
   useEffect(() => {
-    if (!live || m.streaming || !consult?.length) return undefined;
+    if (!born || m.streaming || !consult?.length) return undefined;
     const t = setTimeout(() => setShut(true), 500);
     return () => clearTimeout(t);
-  }, [live, m.streaming, consult?.length]);
+  }, [born, m.streaming, consult?.length]);
   const meta = m.streaming
     ? (working ? `asking ${countWordLower(agents.length)} agent${agents.length === 1 ? '' : 's'}` : consult?.length ? 'answering' : 'thinking it through')
     : consult?.length ? `asked ${countWordLower(agents.length)} agent${agents.length === 1 ? '' : 's'} · ${Math.round(maxMs / 1000)} s` : hhmm(new Date(m.at));
   return (
     <div className="nv-ld-msg">
       <div className="nv-ld-by">
-        <span className="nv-ld-stack"><Face who="leader" size={26} work={m.streaming && !working} />{(shut || !m.streaming) && !working ? agents.map((a) => <Face key={a} who={a} size={26} />) : null}</span>
+        <span className="nv-ld-stack"><Face who="leader" size={26} work={m.streaming && !working} />{shut && !m.streaming ? agents.map((a) => <Face key={a} who={a} size={26} />) : null}</span>
         <span className="nm">Leader</span><span className="mt">{meta}</span>
       </div>
       <div className="nv-ld-said">

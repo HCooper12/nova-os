@@ -102,7 +102,7 @@
 .nv-ld-chev { width: 14px; height: 14px; color: var(--ld-ink3); transition: transform .3s var(--ease); }
 [aria-expanded="true"] > .nv-ld-chev, [aria-expanded="true"] .nv-ld-chev.turn { transform: rotate(90deg); }
 .nv-ld-undo { min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 22px; font: 600 15px var(--ld-ui); color: var(--nv-ink); }
-.nv-ld-txb { min-height: 44px; padding: 0 12px; font: 600 15px var(--ld-ui); color: var(--mg); }
+.nv-ld-txb { min-height: 44px; padding: 0 12px; font: 600 15px var(--ld-ui); color: var(--nv-ink); }
 
 /* entrances: a rise, or a material arriving (blur resolving); cross-fades under reduced motion */
 .nv-ld-rise { transition: opacity .42s var(--ease), transform .42s var(--ease); }
