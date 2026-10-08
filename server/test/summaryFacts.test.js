@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   shortLabel, stripSlots, nextLine, buildHighlight, buildTrends, summaryStandfirst,
 } from '../../src/summaryFacts.js';
-import { reconcilePinned, movePinned, PINNED_CARDS } from '../../src/pinned.js';
+import { reconcilePinned, movePinned, PINNED_CARDS, PINNED_DEFAULT_OFF } from '../../src/pinned.js';
 import { prLift, prBasis } from '../../src/missionFocus.js';
 
 const joined = (segments) => segments.map((s) => s.t).join('');
@@ -349,7 +349,7 @@ test('buildTrends always returns exactly the four rows, in order', () => {
 test('reconcilePinned drops a retired key and appends a new one in meta order', () => {
   const meta = [...PINNED_CARDS, ['newcard', 'New card']];
   const list = reconcilePinned({ order: ['trends', 'retired', 'body'], off: [] }, meta);
-  assert.deepEqual(list.map((x) => x.key), ['trends', 'body', 'today', 'plan', 'waiting', 'training', 'practice', 'newcard']);
+  assert.deepEqual(list.map((x) => x.key), ['trends', 'body', 'today', 'plan', 'waiting', 'training', 'practice', 'day', 'newcard']);
 });
 
 test('reconcilePinned keeps `off` as on=false, and defaults everything else on', () => {
@@ -359,12 +359,19 @@ test('reconcilePinned keeps `off` as on=false, and defaults everything else on',
   assert.equal(list.find((x) => x.key === 'trends').on, true, 'never-saved keys default on');
 });
 
-test('reconcilePinned treats garbage input as empty — the house default order, all on', () => {
+test('reconcilePinned treats garbage input as empty — the house default order, all on but the default-off cards', () => {
   for (const garbage of [null, undefined, 'nope', 42, []]) {
     const list = reconcilePinned(garbage);
     assert.deepEqual(list.map((x) => x.key), PINNED_CARDS.map((x) => x[0]));
-    assert.ok(list.every((x) => x.on));
+    assert.ok(list.every((x) => x.on === !PINNED_DEFAULT_OFF.includes(x.key)));
   }
+});
+
+test('Your day arrives off, and stays on once he pins it', () => {
+  assert.equal(reconcilePinned(null).find((x) => x.key === 'day').on, false);
+  // saved with it on: it is in `order` and not in `off`
+  const saved = { order: PINNED_CARDS.map((x) => x[0]), off: [] };
+  assert.equal(reconcilePinned(saved).find((x) => x.key === 'day').on, true);
 });
 
 test('movePinned reorders, and an out-of-range move is a no-op returning the same array', () => {

@@ -81,7 +81,7 @@ function fixture(over = {}) {
   // configured but not yet synced: the sidebar shows '—', and so should say nothing here
   const v = {
     navMain: [nav('mission'), nav('voice'), nav('galaxy'), nav('code'), nav('inbox')],
-    navVault: [nav('console'), nav('recipes', '—'), nav('shopping', '—'), nav('todos', '—'), nav('workouts', '—'),
+    navVault: [nav('recipes', '—'), nav('shopping', '—'), nav('todos', '—'), nav('workouts', '—'),
       nav('notes', '—'), nav('library', '—'), nav('leader'), nav('practice'), nav('journal', '—'), nav('money'), nav('stash', '—')],
     navSystem: [nav('ops', '—'), nav('settings')],
     ringVitals: [{ key: 'protein', value: '—', small: '', state: 'absent' }],
@@ -113,7 +113,7 @@ test('with nothing honest to say, a row says nothing — never a zero, never a d
 test('live values come from the fields they name', () => {
   const month = localDateISO().slice(0, 7);
   const { app, ctx, v } = fixture({
-    navVault: [nav('console'), nav('recipes', '40'), nav('shopping', '1'), nav('todos', '4'), nav('workouts', '5'),
+    navVault: [nav('recipes', '40'), nav('shopping', '1'), nav('todos', '4'), nav('workouts', '5'),
       nav('notes', '312'), nav('library', '21'), nav('leader', '3', { countHot: false }), nav('practice', '2'),
       nav('journal', '1'), nav('money'), nav('stash', '14')],
     navSystem: [nav('ops', '2'), nav('settings')],

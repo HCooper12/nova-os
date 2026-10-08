@@ -3,7 +3,7 @@
 // heartbeats; this file only arranges it. No model, no fetch: looking at the
 // map costs nothing (§5a, held by server/test/agentWorldNoModel.test.js).
 
-const DISTRICT_NAME = { train: 'Train', knowledge: 'Knowledge', logistics: 'Logistics', fuel: 'Fuel', platform: 'Platform', money: 'Money', mind: 'Mind' };
+export const DISTRICT_NAME = { train: 'Train', knowledge: 'Knowledge', logistics: 'Logistics', fuel: 'Fuel', platform: 'Platform', money: 'Money', mind: 'Mind' };
 
 function ago(iso, now) {
   if (!iso) return null;
@@ -67,6 +67,23 @@ export function loopList(members, now) {
     }));
 }
 
+// WHO IS WAITING ON HIM, and what each asks: the one reading the Org map's
+// card and the Ambient wall both draw from (mockup 86: "the Org map's asks
+// and the wall's asks must be the same numbers"). Beings with pending
+// records, most first; a tie keeps the roster's order (orgHeadline's rule).
+export function waitingBeings(m) {
+  if (!m?.beings) return [];
+  return m.beings.map((b, i) => [b, i]).filter(([b]) => b.waiting > 0)
+    .sort((x, y) => y[0].waiting - x[0].waiting || x[1] - y[1]).map(([b]) => b);
+}
+
+// A being's asks as rows (its three newest pending records), and how many
+// more wait behind them in the Inbox.
+export function beingAsks(b, now = Date.now()) {
+  const asks = (b?.asks || []).map((a) => ({ id: a.id, title: a.title, when: ago(a.at, now) }));
+  return { asks, more: b && b.waiting > asks.length ? b.waiting - asks.length : 0 };
+}
+
 export function valsOrgMap(ops, app, ctx) {
   const m = ops?.orgMap;
   if (ctx.demoMode) return { live: false, line: 'The Org Map is drawn from the real records, so it needs the Mac.' };
@@ -108,8 +125,7 @@ export function valsOrgMap(ops, app, ctx) {
     return {
       id: b.id, name: b.name, district: DISTRICT_NAME[b.district] || b.district,
       line: beingLine(b),
-      asks: b.asks.map((a) => ({ id: a.id, title: a.title, when: ago(a.at, now) })),
-      more: b.waiting > b.asks.length ? b.waiting - b.asks.length : 0,
+      ...beingAsks(b, now),
       last: b.last ? { title: b.last.title, status: b.last.status, when: ago(b.last.at, now) } : null,
       loops: loopsLine(b.members),
       loopList: loopList(b.members, now),

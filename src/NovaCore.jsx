@@ -1058,12 +1058,15 @@ function makeHoloDraw(ctx, size, opts, getState) {
 // And two for the grain body (5 Oct 2026, coreGrains.js):
 //   thinking — the thinking form (cyan strata, then the turning knot);
 //   contest  — while speaking, a sentence that pushes back (the shell in red).
+// And one for the wall (9 Oct 2026, mockup 86):
+//   fps      — a cap on the frame rate; a core that runs for hours on a
+//              wall needs 30, not the display's 60 or 120. Absent, uncapped.
 // When more than one turn is set, listening wins, then speaking, then
 // thinking. `formOnly` keeps the forms and Nova's blue. A still core (`still`
 // or reduced motion) draws the turn's final form as one frame in its colour,
 // and once more when the turn changes; at rest, the frame it always drew.
 // Left at their defaults every existing caller draws exactly what it did.
-export function NovaCore({ size = 312, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false }) {
+export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false }) {
   const ref = useRef(null);
   const stillDraw = useRef(null);
   // live state read through a ref so the rAF loop sees changes WITHOUT the
@@ -1104,10 +1107,16 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
     // or faded to nothing): looked up every 30 frames, and the frame skipped
     let frames = 0;
     let covered = false;
-    const loop = () => {
+    // the cap: a frame is drawn only once its slot has come round (a 1 ms
+    // slack so a 60 Hz display lands every second frame, not every third)
+    const minGap = fps > 0 ? 1000 / fps - 1 : 0;
+    let lastDraw = -Infinity;
+    const loop = (ts = performance.now()) => {
+      raf = requestAnimationFrame(loop);
+      if (minGap && ts - lastDraw < minGap) return;
+      lastDraw = ts;
       if (frames++ % 30 === 0 && canvas.checkVisibility) covered = !canvas.checkVisibility({ visibilityProperty: true, opacityProperty: true });
       if (!covered) draw(performance.now() / 1000);
-      raf = requestAnimationFrame(loop);
     };
     const run = () => {
       cancelAnimationFrame(raf);
@@ -1131,7 +1140,7 @@ export function NovaCore({ size = 312, variant = 'full', engine = 'filament', st
       io?.disconnect();
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [size, variant, engine, still, tintStill]);
+  }, [size, variant, engine, still, tintStill, fps]);
   // a still core draws its one frame again when the turn changes: the
   // turn's form in its colour (and, on the full screen, the rings' tint);
   // back at rest, the very frame it drew before

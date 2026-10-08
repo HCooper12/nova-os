@@ -3,6 +3,7 @@
 // renders as missing: no ops slice yet → the screen says so.
 
 import { valsOrgMap } from './valsOrgMap.js';
+import { wallAgents } from './valsWall.js';
 
 const STATUS_COLOR = {
   pending: 'var(--nv-gold)',
@@ -246,8 +247,20 @@ export function valsOps(app, ctx) {
     })(),
     // ambient wall mode — same live state, arranged as presence
     isAmbient: st.screen === 'ambient',
-    exitAmbient: () => app.navigate('mission'),
+    // Done, Esc and the swipe down: back to the page he came from, with the
+    // wall's history entry gone so Back never brings it back (App.exitAmbient)
+    exitAmbient: () => app.exitAmbient(),
     goAmbient: () => app.navigate('ambient'),
+    // who is waiting on him and who is working, the Org map's own reading
+    // (src/vals/valsWall.js), read only while the wall is up; the sheet's
+    // three ways onward
+    wall: st.screen !== 'ambient' ? null : wallAgents({
+      ops, st, demoMode, isOffline: !!ctx.isOffline,
+      syncMin: st.lastSyncAt ? Math.max(0, Math.floor((Date.now() - new Date(st.lastSyncAt).getTime()) / 60000)) : null,
+    }),
+    wallOpenAsk: (id) => app.wallOpenInbox(id),
+    wallOpenInbox: () => app.wallOpenInbox(null),
+    wallTalk: (subject) => app.wallTalk(subject),
     ambientNext: (() => {
       const nowHM = `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`;
       const e = (st.liveCalendar || []).find((x) => x.time && x.time >= nowHM);
@@ -259,25 +272,33 @@ export function valsOps(app, ctx) {
       const day = (st.liveHealthDays || []).find((x) => x.date === key);
       return day?.steps ?? null;
     })(),
+    // the floor Home's Steps ring is scored against (valsMission's STEP_GOAL)
+    ambientStepGoal: st.liveGoalBoard?.metrics?.find((x) => x.key === 'steps')?.target || 10000,
     ambientProtein: st.liveRotation?.consumedTotals
       ? { p: Math.round(st.liveRotation.consumedTotals.p), floor: st.liveRecipeProfile?.proteinFloorG ?? null }
       : null,
-    ambientPending: ops?.pending ?? null,
     // Stale self-labels, wall edition: minutes since the last successful
     // sync. Past AMBIENT_STALE_MIN the tiles dim and the corner says so —
     // numbers from 40 minutes ago must not glow like live ones.
     ambientSyncMin: st.lastSyncAt ? Math.max(0, Math.floor((Date.now() - new Date(st.lastSyncAt).getTime()) / 60000)) : null,
-    // the objectives row — momentum stated as fact (real streaks + the month
-    // scored), and one overall state the core's glow reflects: gold when
-    // something waits or the day is drifting, cyan when the board is clear
+    // the streaks on Lately — momentum stated as fact, each only when real:
+    // the training run (sessions or days), the protein month, the step run
     ambientObjectives: [
-      st.liveStreaks?.workoutStreak >= 1 ? { key: 'train', label: 'TRAIN STREAK', value: st.liveStreaks.workoutStreakUnit === 'sessions' ? `${st.liveStreaks.workoutStreak}×` : `${st.liveStreaks.workoutStreak}d` } : null,
-      st.liveNutritionMonth?.pct != null ? { key: 'fuel', label: 'PROTEIN MONTH', value: `${st.liveNutritionMonth.met}/${st.liveNutritionMonth.tracked}d` } : null,
-      st.liveStreaks?.stepGoalStreak >= 1 ? { key: 'steps', label: 'STEP STREAK', value: `${st.liveStreaks.stepGoalStreak}d` } : null,
+      st.liveStreaks?.workoutStreak >= 1 ? {
+        key: 'train', label: 'Training', n: st.liveStreaks.workoutStreak,
+        line: st.liveStreaks.workoutStreakUnit === 'sessions'
+          ? `${st.liveStreaks.workoutStreak} ${st.liveStreaks.workoutStreak === 1 ? 'session' : 'sessions in a row'}`
+          : `${st.liveStreaks.workoutStreak} ${st.liveStreaks.workoutStreak === 1 ? 'day' : 'days in a row'}`,
+      } : null,
+      st.liveNutritionMonth?.pct != null && st.liveNutritionMonth.tracked > 0 ? {
+        key: 'fuel', label: 'Protein', met: st.liveNutritionMonth.met, tracked: st.liveNutritionMonth.tracked,
+        line: `${st.liveNutritionMonth.met} of ${st.liveNutritionMonth.tracked} days this month`,
+      } : null,
+      st.liveStreaks?.stepGoalStreak >= 1 ? {
+        key: 'steps', label: 'Steps', n: st.liveStreaks.stepGoalStreak,
+        line: `${st.liveStreaks.stepGoalStreak} ${st.liveStreaks.stepGoalStreak === 1 ? 'day' : 'days'} at the floor`,
+      } : null,
     ].filter(Boolean),
-    // 'unknown' when the ops slice is absent — a dead backend and a clear
-    // board used to be indistinguishable from across the room
-    ambientState: ops == null ? 'unknown' : (ops.pending ?? 0) > 0 ? 'attention' : 'clear',
     // the pulse strip: every cached item flattened; the screen rotates them
     ambientPulseItems: (st.livePulse || []).flatMap((t) => (t.items || []).map((i) => ({
       topic: t.topic, title: i.title, source: i.source,

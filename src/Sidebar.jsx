@@ -82,7 +82,7 @@ export function Sidebar({ v }) {
         hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}
       >
         <Meta as="div" tone={v.sideStatus.color} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600 }}>
-          <NovaCore size={30} variant="mini" style={{ flex: 'none', marginRight: '2px' }} />
+          <NovaCore size={30} variant="mini" still={!!v.isAmbient} style={{ flex: 'none', marginRight: '2px' }} />
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', flex: 'none', background: v.sideStatus.color, boxShadow: `0 0 9px ${v.sideStatus.color}`, animation: v.sideStatus.pulse ? 'novaPulse 2.2s infinite var(--nv-anim)' : 'none' }}></span>
           <span>{v.sideStatus.row1}</span>
         </Meta>
