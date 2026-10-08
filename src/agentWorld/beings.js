@@ -12,6 +12,30 @@
 // Pure scene-building: geometry, materials, poses. No network, no model, no
 // storage. server/test/agentWorldNoModel.test.js holds that line.
 
+// EACH BEING'S TWO HUES, the one table every surface reads: the 3D kit
+// below (as TK.hue keys), and the flat surfaces that cannot run three, such
+// as the Ambient wall's faces and badges (as --nv-* tokens via HUE_VAR).
+// `hue` is the department's and dominant; `accent` is the second.
+export const BEING_HUES = {
+  commander: { hue: 'cy', accent: 'gold' },
+  coach: { hue: 'chest', accent: 'abs' },
+  cfo: { hue: 'good', accent: 'gold' },
+  guardian: { hue: 'vi', accent: 'gold' },
+  researcher: { hue: 'quads', accent: 'cy' },
+  watcher: { hue: 'calves', accent: 'vi' },
+  librarian: { hue: 'back', accent: 'shoulders' },
+  mealprep: { hue: 'shoulders', accent: 'chest' },
+  leader: { hue: 'mg', accent: 'vi' },
+  practice: { hue: 'or', accent: 'gold' },
+};
+
+// The --nv-* token each hue key names (src/index.css), for CSS callers.
+export const HUE_VAR = {
+  cy: '--nv-cy', vi: '--nv-vi', mg: '--nv-mg', good: '--nv-good', gold: '--nv-gold', or: '--nv-or',
+  chest: '--nv-m-chest', back: '--nv-m-back', shoulders: '--nv-m-shoulders', quads: '--nv-m-quads',
+  calves: '--nv-m-calves', abs: '--nv-m-abs', triceps: '--nv-m-triceps', biceps: '--nv-m-biceps', glutes: '--nv-m-glutes',
+};
+
 export function createBeingKit(T, TK) {
   'use strict';
   // COLOUR HELPERS
@@ -117,47 +141,48 @@ export function createBeingKit(T, TK) {
   // `skin` picks the procedural grain; `face` is the expression set.
   // ---------------------------------------------------------------
   var AGENTS = [
-    { id: 'commander', name: 'Commander', dept: 'Logistics', hue: 'cy', accent: 'gold', skin: 'brushed',
+    { id: 'commander', name: 'Commander', dept: 'Logistics', skin: 'brushed',
       line: 'Sets the order of the day and points the fleet at the next thing.',
       work: 'Working: the arm comes up to point, and the compass rose swings to find the heading.',
       wait: 'Waiting: hand on hip, a marker over its head, eyes blinking slow.' },
-    { id: 'coach', name: 'Coach', dept: 'Train', hue: 'chest', accent: 'abs', skin: 'knit',
+    { id: 'coach', name: 'Coach', dept: 'Train', skin: 'knit',
       line: 'Reads the program, calls the session, and holds you to the lift.',
       work: 'Working: it curls the bar, and grins at the top of every rep.',
       wait: 'Waiting: hands on hips, the bar set down on the floor in front.' },
-    { id: 'cfo', name: 'CFO', dept: 'Money', hue: 'good', accent: 'gold', skin: 'ruled',
+    { id: 'cfo', name: 'CFO', dept: 'Money', skin: 'ruled',
       line: 'Counts what came in and what went out, and says so plainly.',
       work: 'Working: it flips a coin and watches it all the way up and back.',
       wait: 'Waiting: the ledger held in its arm, the month’s stack beside it.' },
-    { id: 'guardian', name: 'Guardian', dept: 'Platform', hue: 'vi', accent: 'gold', skin: 'hex',
+    { id: 'guardian', name: 'Guardian', dept: 'Platform', skin: 'hex',
       line: 'Keeps the backups landing and the quiet loops from staying quiet.',
       work: 'Working: the lantern comes up bright as a backup lands.',
       wait: 'Waiting: the lantern hangs low at amber; something went quiet.' },
-    { id: 'researcher', name: 'Researcher', dept: 'Knowledge', hue: 'quads', accent: 'cy', skin: 'brushed',
+    { id: 'researcher', name: 'Researcher', dept: 'Knowledge', skin: 'brushed',
       line: 'Reads the thing you asked about and comes back with the page.',
       work: 'Working: the lens reads along the lines, a page turns, the idea bulb glows.',
       wait: 'Waiting at the budget: the page hangs half-turned and it looks up at you.' },
-    { id: 'watcher', name: 'Watcher', dept: 'Knowledge', hue: 'calves', accent: 'vi', skin: 'scan',
+    { id: 'watcher', name: 'Watcher', dept: 'Knowledge', skin: 'scan',
       line: 'Watches the whole video so you only see the two minutes that matter.',
       work: 'Working: a scanline plays across the screen and the film’s light flickers over it.',
       wait: 'Waiting: paused, head tilted, the popcorn held.' },
-    { id: 'librarian', name: 'Librarian', dept: 'Knowledge', hue: 'back', accent: 'shoulders', skin: 'paper',
+    { id: 'librarian', name: 'Librarian', dept: 'Knowledge', skin: 'paper',
       line: 'Files every note where you will find it again, and says where.',
       work: 'Working: a drawer slides out and an index card rises from it.',
       wait: 'Waiting: the drawer stands open with nothing filed.' },
-    { id: 'mealprep', name: 'Meal Prep', dept: 'Fuel', hue: 'shoulders', accent: 'chest', skin: 'glaze',
+    { id: 'mealprep', name: 'Meal Prep', dept: 'Fuel', skin: 'glaze',
       line: 'Works out what to eat tonight from what is actually in the kitchen.',
       work: 'Working: it stirs, the steam curls up, and the eyes go to happy crescents.',
       wait: 'Waiting: the pot held off the heat, a warm smile.' },
-    { id: 'leader', name: 'Leader', dept: 'Mind', hue: 'mg', accent: 'vi', skin: 'glaze',
+    { id: 'leader', name: 'Leader', dept: 'Mind', skin: 'glaze',
       line: 'Listens back over the struggle, then asks the question you avoided.',
       work: 'Working: it nods as it listens, and a ripple goes out from the question.',
       wait: 'Waiting: head tilted to its listening ear, holding the question.' },
-    { id: 'practice', name: 'Practice', dept: 'Mind', hue: 'or', accent: 'gold', skin: 'glaze',
+    { id: 'practice', name: 'Practice', dept: 'Mind', skin: 'glaze',
       line: 'Plays the other person so you can try the sentence before it counts.',
       work: 'Working: in a scene it lifts the worried mask and plays the other person; preparing a page, it reads the cue card and turns it over.',
       wait: 'Waiting: both masks tucked in its sash, the card at its hip, hands folded, its own face smiling.' }
   ];
+  AGENTS.forEach(function (a) { a.hue = BEING_HUES[a.id].hue; a.accent = BEING_HUES[a.id].accent; });
 
 
   // PROCEDURAL SKIN. One canvas pair per being: a colour map that carries
