@@ -84,6 +84,8 @@ export function valsTodos(app, ctx) {
 
   return {
     isTodos: st.screen === 'todos',
+    // the two figures a tick moves, counted where they are drawn (Todos.jsx)
+    todosCounts: !demoMode && !isOffline && live ? { open: open.length, done: done.length } : null,
     todosHeaderLabel: demoMode
       ? 'Connect a backend to see your list'
       : isOffline

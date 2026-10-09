@@ -375,7 +375,7 @@ export function valsSessionSummary(app, ctx, v) {
     } else if (p.kind === 'undo') {
       const last = app.state.sessionSumVoice?.last;
       const s0 = last && app.state.workoutSession?.exercises?.[last.exIdx]?.sets?.[last.setIdx];
-      if (s0?.done) { app.toggleSessionSetDone(last.exIdx, last.setIdx); note = `Unticked set ${last.setIdx + 1}.`; }
+      if (s0?.done) { app.toggleSessionSetDone(last.exIdx, last.setIdx, { receipt: false }); note = `Unticked set ${last.setIdx + 1}.`; }
       else note = 'Nothing spoken to take back.';
     }
     say(note);
@@ -435,7 +435,7 @@ export function valsSessionSummary(app, ctx, v) {
         const at = s0.exercises[r.exIdx].sets.length;
         app.addSessionSet(r.exIdx);
         for (const k of ['weight', 'reps', 'rpe', 'rir', 'setType']) if (r.set[k] !== undefined) app.updateSessionSet(r.exIdx, at, k, r.set[k]);
-        if (r.set.done) app.toggleSessionSetDone(r.exIdx, at);
+        if (r.set.done) app.toggleSessionSetDone(r.exIdx, at, { receipt: false });
       }
       app.setState({ sessionSumReceipt: null });
     },

@@ -3,6 +3,7 @@ import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
+import { CountUp } from '../CountUp.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 const R = "var(--nv-font-ui)";
@@ -17,7 +18,8 @@ export function Todos({ v }) {
       <Eyebrow>Nova · To-Do</Eyebrow>
       <div style={css("display:flex;align-items:baseline;gap:14px;flex-wrap:wrap")}>
         <h1 style={css(`margin:6px 0 0;font:700 30px/1.05 ${R};letter-spacing:var(--nv-display-track)`)}>To-Do</h1>
-        <Meta tone="faint">{v.todosHeaderLabel}</Meta>
+        {/* a tick moves both figures; they count to their new values */}
+        <Meta tone="faint">{v.todosCounts ? <><CountUp value={v.todosCounts.open} /> open · <CountUp value={v.todosCounts.done} /> done</> : v.todosHeaderLabel}</Meta>
       </div>
 
       {v.todosConnected && (
@@ -45,7 +47,7 @@ export function Todos({ v }) {
 
       {v.todosOpenGroups.map((g) => (
         <div key={g.key} style={{ marginTop: '20px' }}>
-          <Eyebrow>{g.label} · {g.items.length}</Eyebrow>
+          <Eyebrow>{g.label} · <CountUp value={g.items.length} /></Eyebrow>
           {/* Apple layout: one grouped card with hairline rows; classic keeps a pane per item. Same nodes either way. */}
           <div className={v.structured ? 'nv-pane' : undefined} style={v.structured ? { marginTop: '8px', padding: '3px 0', overflow: 'hidden' } : css("margin-top:8px;display:flex;flex-direction:column;gap:8px")}>
             {g.items.map((t, ti) => (
@@ -110,7 +112,7 @@ export function Todos({ v }) {
 
       {v.todosDone.length > 0 && (
         <div style={{ marginTop: '26px' }}>
-          <Eyebrow>Done · {v.todosDone.length} — the compost loop sweeps these</Eyebrow>
+          <Eyebrow>Done · <CountUp value={v.todosDone.length} /> — the compost loop sweeps these</Eyebrow>
           <div style={css("margin-top:10px;display:flex;flex-direction:column;gap:6px")}>
             {v.todosDone.map((t) => (
               <div key={t.key} style={css("display:flex;align-items:center;gap:13px;padding:9px 15px;border-radius:11px;border:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);opacity:.55")}>

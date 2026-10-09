@@ -2,6 +2,7 @@ import { css } from '../css.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
 import { Eyebrow, TextAction, Chip, isAppleStyle, ScreenHead, Meta, Button } from '../Controls.jsx';
+import { CountUp } from '../CountUp.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 export function Shopping({ v }) {
@@ -138,7 +139,7 @@ export function Shopping({ v }) {
             onClick={v.confirmShoppingCompletion}
             style={{ textTransform: 'none' }}
           >
-            Confirm completion — {v.shoppingCheckedCount} collected
+            Confirm completion — <CountUp value={v.shoppingCheckedCount} /> collected
           </Button>
         </div>
       )}
