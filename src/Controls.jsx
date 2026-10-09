@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
 import { haptic } from './haptics.js';
@@ -437,7 +437,15 @@ export function Segmented({ options, value, onChange, ariaLabel, stretch }) {
   // position to travel from.
   const settled = useRef(false);
 
-  useLayoutEffect(() => {
+  // MEASURED ON SELECTION AND ON RESIZE ONLY (9 Oct 2026, the motion audit:
+  // 32 ms of forced reflow at 4x). The effect used to depend on `options`,
+  // which most callers pass as a fresh array literal, so EVERY whole-app
+  // render re-read the layout of every mounted control inside its commit.
+  // It now keys on what the options say (values and text labels joined) and
+  // a ResizeObserver catches a width change (a label, a font, the window).
+  const optionsKey = options.map(([val, label]) => `${val}\u0001${typeof label === 'string' || typeof label === 'number' ? label : ''}`).join('\u0002');
+  const measure = useRef(null);
+  measure.current = () => {
     const el = listRef.current;
     if (!el) return;
     const active = el.querySelector('[data-seg-active="1"]');
@@ -448,7 +456,16 @@ export function Segmented({ options, value, onChange, ariaLabel, stretch }) {
     const radius = apple ? 8 : 6;
     setClip(`inset(0 ${Math.max(0, l.right - a.right)}px 0 ${Math.max(0, a.left - l.left)}px round ${radius}px)`);
     settled.current = true;
-  }, [value, options, apple, stretch]);
+  };
+  useLayoutEffect(() => { measure.current(); }, [value, optionsKey, apple, stretch]);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el || typeof ResizeObserver !== 'function') return undefined;
+    let first = true;   // observe() reports once at once; the layout effect has it
+    const ro = new ResizeObserver(() => { if (first) { first = false; return; } measure.current(); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const railStyle = css(`position:relative;display:${stretch ? 'flex' : 'inline-flex'};gap:2px;padding:2px;border-radius:${apple ? '10px' : '8px'};background:color-mix(in srgb, var(--nv-ink) ${apple ? '9%' : '6%'}, transparent)`);
