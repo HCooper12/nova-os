@@ -25,15 +25,21 @@ export const LOOK_MS = 250;
 
 const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// `apply` must change the look synchronously (App flushes its setState and
-// stamps the attributes inside it), so the new frame is the one captured
-export function crossFadeLook(apply, { doc = typeof document !== 'undefined' ? document : null } = {}) {
-  if (!doc || reducedMotion() || doc.hidden) { apply(); return 'cut'; }
-  if (typeof doc.startViewTransition !== 'function') { fadeGround(apply, doc); return 'ground'; }
+// `apply` must change the look synchronously, so the new frame is the one
+// captured. `after` runs once the new look is in place (straight after
+// `apply` for a cut): App gives its state there when the change is only the
+// root's attributes, so React's whole-tree render does not sit inside the
+// one frame the fade has to wait for (measured, 9 Oct: 50 ms at 4x with it
+// inside, the cut it replaced was 24 ms).
+export function crossFadeLook(apply, { doc = typeof document !== 'undefined' ? document : null, after = null } = {}) {
+  const then = () => { try { after?.(); } catch { /* the look already changed */ } };
+  if (!doc || reducedMotion() || doc.hidden) { apply(); then(); return 'cut'; }
+  if (typeof doc.startViewTransition !== 'function') { fadeGround(apply, doc); then(); return 'ground'; }
   const root = doc.documentElement;
   root.classList.add('nv-look');
   try {
     const t = doc.startViewTransition(() => { apply(); });
+    if (t?.updateCallbackDone) t.updateCallbackDone.then(then, then); else then();
     const done = () => root.classList.remove('nv-look');
     // a second switch mid-fade supersedes this one: its promises reject with
     // "Transition was skipped", which is expected and not worth a console line
@@ -44,6 +50,7 @@ export function crossFadeLook(apply, { doc = typeof document !== 'undefined' ? d
   } catch {
     root.classList.remove('nv-look');
     apply();
+    then();
     return 'cut';
   }
 }

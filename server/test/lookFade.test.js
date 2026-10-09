@@ -46,7 +46,10 @@ test('the theme switch goes through one function', () => {
   }
   assert.equal((app.match(/applyAppearance\(/g) || []).length, 1, 'App stamps the look in exactly one place');
   const cl = between(app, '  changeLook(patch) {', '  setNovaTheme(');
-  assert.match(cl, /crossFadeLook\(\(\) => \{\s*flushSync\(\(\) => this\.setState\(patch, \(\) => applyAppearance\(/);
+  assert.match(cl, /const stamp = \(\) => applyAppearance\(look\.novaTheme, look\.calmMode, look\.novaStyle, look\.material\);/);
+  assert.match(cl, /crossFadeLook\(redraws \? \(\) => \{ flushSync\(\(\) => this\.setState\(patch\)\); stamp\(\); \} : stamp, \{/, 'a style change renders inside the fade; a colour change only stamps');
+  assert.match(cl, /if \(!redraws\) this\.setState\(patch\);/, 'and React follows once the new frame is captured');
+  assert.match(cl, /\.\.\.\(this\.pendingLook \|\| \{\}\), \.\.\.patch/, 'two setters in one tick never stamp a stale look');
 });
 
 test('a look change is a root dissolve, with every other name lifted while it runs', async () => {
@@ -66,6 +69,17 @@ test('a look change is a root dissolve, with every other name lifted while it ru
   assert.equal(LOOK_MS, 250);
 });
 
+test('`after` runs once the new look is in place, on every path', async () => {
+  const { doc, log, finish } = fakeDoc();
+  crossFadeLook(() => log.push('apply'), { doc, after: () => log.push('after') });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(log.filter((x) => x === 'apply' || x === 'after'), ['apply', 'after']);
+  finish();
+  const cut = fakeDoc({ hidden: true });
+  crossFadeLook(() => cut.log.push('apply'), { doc: cut.doc, after: () => cut.log.push('after') });
+  assert.deepEqual(cut.log, ['apply', 'after']);
+});
+
 test('a hidden page cuts, and a browser without View Transitions fades the old ground instead', () => {
   const hidden = fakeDoc({ hidden: true });
   let n = 0;
@@ -73,6 +87,6 @@ test('a hidden page cuts, and a browser without View Transitions fades the old g
   assert.equal(n, 1);
   assert.ok(!hidden.log.includes('start'));
   const src = read('src/lookFade.js');
-  assert.match(src, /if \(!doc \|\| reducedMotion\(\) \|\| doc\.hidden\) \{ apply\(\); return 'cut'; \}/, 'reduced motion: a cut');
-  assert.match(src, /typeof doc\.startViewTransition !== 'function'\) \{ fadeGround\(apply, doc\); return 'ground'; \}/);
+  assert.match(src, /if \(!doc \|\| reducedMotion\(\) \|\| doc\.hidden\) \{ apply\(\); then\(\); return 'cut'; \}/, 'reduced motion: a cut');
+  assert.match(src, /typeof doc\.startViewTransition !== 'function'\) \{ fadeGround\(apply, doc\); then\(\); return 'ground'; \}/);
 });

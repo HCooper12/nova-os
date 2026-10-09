@@ -1641,12 +1641,25 @@ export default class App extends Component {
   // THE ONE WAY THE LOOK CHANGES (9 Oct 2026, his call: the theme change
   // cross-fades the whole app). Theme, style, material and calm all come
   // here; src/lookFade.js dissolves the old frame into the new one (a cut
-  // under reduced motion). Applied from the settled state inside a flushed
-  // setState, so the new frame is the one the fade captures, and two
-  // setters in one tick (a theme switch then a calm toggle) never go stale.
+  // under reduced motion).
+  //   - the look is merged into `pendingLook` first, so two setters in one
+  //     tick (a theme switch then a calm toggle) never stamp a stale value
+  //   - a theme, calm or material change is the root's attributes alone, so
+  //     those are stamped inside the fade and React's state follows once the
+  //     new frame is captured: the whole-tree render stays out of the frame
+  //     the fade waits on (50 ms at 4x CPU with it inside)
+  //   - a style change redraws Home's very shape, so React renders inside
+  //     the fade (flushed) and the attributes are stamped with it
   changeLook(patch) {
-    crossFadeLook(() => {
-      flushSync(() => this.setState(patch, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material)));
+    const look = { novaTheme: this.state.novaTheme, calmMode: this.state.calmMode, novaStyle: this.state.novaStyle, material: this.state.material, ...(this.pendingLook || {}), ...patch };
+    this.pendingLook = look;
+    const stamp = () => applyAppearance(look.novaTheme, look.calmMode, look.novaStyle, look.material);
+    const redraws = 'novaStyle' in patch;
+    crossFadeLook(redraws ? () => { flushSync(() => this.setState(patch)); stamp(); } : stamp, {
+      after: () => {
+        if (!redraws) this.setState(patch);
+        if (this.pendingLook === look) this.pendingLook = null;
+      },
     });
   }
   setNovaTheme(theme) {
