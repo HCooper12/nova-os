@@ -69,7 +69,7 @@ export function CountUp({ value, format = defaultFormat, style, className, durat
   }, [figure, duration, fromZero]);
 
   return (
-    // the box's width is held by a hidden ::after reading data-w (index.css
+    // the box's width is held by a hidden ::before reading data-w (index.css
     // .nv-count), so the figure's text appears once in the DOM
     <span ref={boxRef} className={className ? `nv-count ${className}` : 'nv-count'} data-w={final} style={style}>
       <span ref={textRef}>{final}</span>

@@ -101,6 +101,8 @@ test('the three numerals that move most count when a write changes them', () => 
 
 test('the count holds its width: tabular numerals and a box sized to the wider figure', () => {
   const css = read('src/index.css');
-  assert.match(css, /\.nv-count \{ display: inline-grid; font-variant-numeric: tabular-nums; \}/);
-  assert.match(css, /\.nv-count::after \{ content: attr\(data-w\); visibility: hidden;/);
+  assert.match(css, /\.nv-count \{ display: inline-block; font-variant-numeric: tabular-nums; white-space: pre; \}/);
+  assert.match(css, /\.nv-count::before \{ content: attr\(data-w\); display: block; height: 0; visibility: hidden;/);
+  // not a grid: a grid box split "96" from "/180 g" in the page's text
+  assert.ok(!/\.nv-count \{ display: inline-grid/.test(css));
 });
