@@ -16,6 +16,8 @@ import { createRecord } from './inboxStore.js';
 // Filed records never push (lib/push.js pushes only for pending ones).
 
 const fmt = (n) => `$${Math.abs(Number(n) || 0).toFixed(2)}`;
+// the category in the page's own words: "Eating out", "Health & fitness"
+const cat = (c) => String(c || '').replace(/\b(Out|Fitness|Bills)\b/g, (w) => w.toLowerCase());
 
 async function fileReceipt({ text, destination, undoData, payload }) {
   const now = new Date().toISOString();
@@ -52,7 +54,7 @@ export async function addLine(input) {
   const sign = added.amount < 0 ? '−' : '+';
   const record = await fileReceipt({
     text: `Added ${added.merchant} ${sign}${fmt(added.amount)}`,
-    destination: `Ledger · ${added.merchant} ${sign}${fmt(added.amount)} (${added.category})`,
+    destination: `Ledger · ${added.merchant} ${sign}${fmt(added.amount)} (${cat(added.category)})`,
     undoData: { route: 'expense', ids: [added.id] },
     payload: { transaction: added },
   });
@@ -84,7 +86,7 @@ export async function editLine(id, { category, note, rule = false } = {}) {
   const res = await editTransaction(id, { category, note, rule });
   const t = res.transaction;
   const what = category !== undefined && category !== res.before.category
-    ? `${t.merchant} to ${t.category}${res.override ? ', and every line from it' : ''}`
+    ? `${t.merchant} to ${cat(t.category)}${res.override ? ', and every line from it' : ''}`
     : `the note on ${t.merchant}`;
   const record = await fileReceipt({
     text: `Changed ${what}`,
@@ -102,8 +104,8 @@ export async function changeBudget(category, raw) {
   const budgets = await setBudget(category, raw);
   const after = budgets[category] || null;
   const record = await fileReceipt({
-    text: after ? `${category} budget ${before ? `$${before} to ` : ''}$${after}` : `Cleared the ${category} budget`,
-    destination: `Budgets · ${category}`,
+    text: after ? `${cat(category)} budget ${before ? `$${before} to ` : ''}$${after}` : `Cleared the ${cat(category).toLowerCase()} budget`,
+    destination: `Budgets · ${cat(category)}`,
     undoData: { route: 'money-budget', category, before },
     payload: { category, before, after },
   });

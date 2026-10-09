@@ -366,7 +366,7 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
     const meta = isIncome ? CATS.Income : catOf(t.category);
     const r = risenOn.get(`${t.merchant}|${t.date}`);
     const odd = unusualByTxn.get(t.id) || null;
-    const srcWord = t.source === 'import' ? 'bank export' : t.source === 'scan' ? 'receipt scan' : t.source === 'capture' ? 'captured' : 'typed';
+    const from = t.source === 'import' ? 'From a bank export' : t.source === 'scan' ? 'From a receipt scan' : t.source === 'capture' ? 'Captured by you' : 'Typed by you';
     return {
       id: t.id, date: t.date, name: t.merchant, initial: initialOf(t.merchant),
       category: isIncome ? 'Income' : (t.category || 'Other'), catLabel: incoming && !isIncome ? `${meta.label} · refund` : meta.label,
@@ -375,7 +375,7 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
       note: t.note || null,
       up: r ? `up ${usdq(r.to - r.from)}` : null,
       odd: odd ? { id: odd.id, ratio: odd.ratio, word: `${odd.ratio}x usual`, talk: `Let's talk about this money alert: “${odd.title}” Is it right?` } : null,
-      where: `${dayLabel(t.date, today)} · ${srcWord}`,
+      where: dayLabel(t.date, today), from,
       source: t.source || 'manual',
     };
   };

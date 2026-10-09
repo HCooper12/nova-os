@@ -307,7 +307,7 @@ function PaceCard({ V, M }) {
 
 function BudgetRow({ r, onOpen, on, ro }) {
   return (
-    <button type="button" className={`nv-mo-bud${on ? ' in' : ''}`} style={{ '--h': r.hue, '--p': r.fill.toFixed(3) }} disabled={ro}
+    <button type="button" data-flip={r.category} className={`nv-mo-bud${on ? ' in' : ''}`} style={{ '--h': r.hue, '--p': r.fill.toFixed(3) }} disabled={ro}
       aria-label={`${r.label}: ${fmtUsd(r.spent)} of ${fmtUsd(r.budget)}${r.over ? `, ${fmtUsd(r.over)} over` : `, ${fmtUsd(r.budget - r.spent)} left`}. Change the budget`}
       onClick={() => { haptic('tick'); onOpen(r.category); }}>
       <span className="nv-mo-gt"><MIcon n={r.key} /></span>
@@ -329,11 +329,14 @@ function Budgets({ V, M }) {
   const ref = useRef(null);
   const on = useInView(ref);
   const open = (category) => M.openSheet({ kind: 'budget', category });
+  // an over row moves to the top (or back) by FLIP, never a jump
+  const listRef = useRef(null);
+  useFlipList(listRef, B.rows.map((r) => r.category).join(','));
   return (
     <>
       <Sh title="Budgets" aside={B.head} />
       <section ref={ref} className={`nv-sum-card nv-mo-card nv-mo-rv${on ? ' in' : ''}`} aria-label="Budgets">
-        {B.rows.map((r) => <BudgetRow key={r.category} r={r} on={on} onOpen={open} ro={V.readOnly} />)}
+        <div ref={listRef}>{B.rows.map((r) => <BudgetRow key={r.category} r={r} on={on} onOpen={open} ro={V.readOnly} />)}</div>
         {!B.rows.length && (
           <button type="button" className="nv-mo-nob first" onClick={() => open('Groceries')} disabled={V.readOnly}>
             <i className="dash" aria-hidden="true" /><span>No budgets yet. Give a category one and the donut measures the month against it.</span><MIcon n="right" />
@@ -619,8 +622,13 @@ function Pad({ value, onChange }) {
   );
 }
 
+// the digits as typed ("6.50" stays "6.50"), the whole dollars grouped
+const typed = (value) => {
+  const [whole, cents] = String(value).split('.');
+  return `${Number(whole || 0).toLocaleString('en-AU')}${cents !== undefined ? `.${cents}` : ''}`;
+};
 const Amount = ({ value, placeholder = '0' }) => (
-  <div className="nv-mo-amt" aria-live="polite"><span className="cur">$</span><span className="num">{value ? Number(value.replace(/\.$/, '') || 0).toLocaleString('en-AU', { maximumFractionDigits: 2 }) + (value.endsWith('.') ? '.' : '') : placeholder}</span><span className="nv-mo-caret" /></div>
+  <div className="nv-mo-amt" aria-live="polite"><span className="cur">$</span><span className="num">{value ? typed(value) : placeholder}</span><span className="nv-mo-caret" /></div>
 );
 
 function MenuSheet({ M, onClose }) {
@@ -772,7 +780,7 @@ function BudgetSheet({ M, category, onClose }) {
 }
 
 // a line's own sheet on the phone, and the right-hand pane on the Mac
-function LineEditor({ M, row, onDone, inline }) {
+function LineEditor({ M, row, onDone, inline, saveRef, onChanged }) {
   const V = M.view;
   const [cat, setCat] = useState(row.category);
   const [note, setNote] = useState(row.note || '');
@@ -784,6 +792,10 @@ function LineEditor({ M, row, onDone, inline }) {
     M.edit(row.id, { ...(cat !== row.category ? { category: cat, rule } : {}), ...((note.trim() || null) !== (row.note || null) ? { note: note.trim() } : {}) });
     onDone?.();
   };
+  // the phone sheet's Save sits in its title bar: it reads the latest save
+  // through a ref, and hears only when "changed" flips
+  useLayoutEffect(() => { if (saveRef) saveRef.current = save; });
+  useEffect(() => { onChanged?.(changed); }, [changed, onChanged]);
   return (
     <div className={inline ? 'nv-mo-insp' : ''}>
       <div className="nv-mo-lhd" style={{ '--h': row.hue }}>
@@ -817,31 +829,25 @@ function LineEditor({ M, row, onDone, inline }) {
         </label>
       )}
       <div className="nv-mo-foot2">
-        <span className="nv-mo-k">{row.where}</span>
+        <span className="nv-mo-k">{row.from}</span>
         <button type="button" className="nv-mo-del" disabled={V.readOnly} onClick={() => { haptic('commit'); M.remove(row.id); onDone?.(); }}>Delete line</button>
       </div>
       {inline && <button type="button" className="nv-mo-save block" disabled={!changed || V.readOnly} onClick={save}>Save</button>}
-      {!inline && <SaveSlot changed={changed} onSave={save} />}
     </div>
   );
 }
-// the phone sheet's Save lives in its title bar; the editor publishes it there
-let saveSlotSetter = null;
-function SaveSlot({ changed, onSave }) {
-  useLayoutEffect(() => { saveSlotSetter?.({ changed, onSave }); });
-  return null;
-}
 function LineSheet({ M, id, onClose }) {
   const row = M.view.lines.rows.find((r) => r.id === id);
-  const [slot, setSlot] = useState({ changed: false, onSave: null });
-  useLayoutEffect(() => { saveSlotSetter = setSlot; return () => { saveSlotSetter = null; }; }, []);
-  useEffect(() => { if (!row) onClose(); }, [row, onClose]);
+  const saveRef = useRef(null);
+  const [changed, setChanged] = useState(false);
+  const gone = !row;
+  useEffect(() => { if (gone) onClose(); }, [gone, onClose]);
   if (!row) return null;
   return (
     <Sheet label={`${row.name}, ${row.amountLabel}`} title="" onClose={onClose}
       left={(close) => <button type="button" className="nv-mo-q" onClick={close}>Cancel</button>}
-      right={(close) => <button type="button" className="nv-mo-save" disabled={!slot.changed || M.view.readOnly} onClick={() => { slot.onSave?.(); close(); }}>Save</button>}>
-      {(close) => <LineEditor M={M} row={row} onDone={close} />}
+      right={(close) => <button type="button" className="nv-mo-save" disabled={!changed || M.view.readOnly} onClick={() => { saveRef.current?.(); close(); }}>Save</button>}>
+      {(close) => <LineEditor M={M} row={row} onDone={close} saveRef={saveRef} onChanged={setChanged} />}
     </Sheet>
   );
 }
@@ -936,7 +942,7 @@ function LinesPage({ M }) {
     const out = [];
     for (const r of rows.slice(0, 120)) {
       let g = out[out.length - 1];
-      if (!g || g.date !== r.date) { g = { date: r.date, label: r.where.split(' · ')[0], rows: [] }; out.push(g); }
+      if (!g || g.date !== r.date) { g = { date: r.date, label: r.where, rows: [] }; out.push(g); }
       g.rows.push(r);
     }
     return out;

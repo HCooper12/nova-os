@@ -84,6 +84,7 @@ import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
 import { demoMoneyState, demoVariant, demoWrites } from './moneyDemo.js';
 import { budgetFromInput } from './moneyParse.js';
+import { catOf } from './moneyModel.js';
 import { noteScreen } from './arrival.js';
 import { crossFadeLook } from './lookFade.js';
 import { newStages, jobSettled } from './jobBeats.js';
@@ -6236,7 +6237,11 @@ export default class App extends Component {
   // DISCUSS: the Nova conversation, opened with the money event quoted (the
   // house door, talkAboutInbox). A sheet in the way closes first.
   moneyDiscuss(subject) {
-    const go = () => this.talkAboutInbox(subject);
+    // demo has no Mac to send to: the thread takes his words and answers
+    // with its demo replies, so the door can still be seen working
+    const go = () => (this.state.connectionStatus === 'demo'
+      ? (this.navigate('voice'), this.doOrb(subject))
+      : this.talkAboutInbox(subject));
     if (this.state.moneySheet) this.closeMoneySheet(go); else go();
   }
   // EVERY MONEY WRITE, ONE PATH (10 Oct 2026; the audit's findings 2, 5, 6).
@@ -6260,8 +6265,8 @@ export default class App extends Component {
       let title = '';
       if (kind === 'add') { next = demoWrites.add(before, a); title = `Added ${a.merchant}`; }
       else if (kind === 'remove') { next = demoWrites.remove(before, a); title = `Deleted ${line(a)?.merchant || 'the line'}`; }
-      else if (kind === 'edit') { next = demoWrites.edit(before, a, b || {}); title = b?.category && b.category !== line(a)?.category ? `Changed ${line(a)?.merchant} to ${b.category}` : `Changed the note on ${line(a)?.merchant}`; }
-      else if (kind === 'budget') { const v = budgetFromInput(b); next = demoWrites.budget(before, a, v); title = v ? `${a} budget $${v}` : `Cleared the ${a} budget`; }
+      else if (kind === 'edit') { next = demoWrites.edit(before, a, b || {}); title = b?.category && b.category !== line(a)?.category ? `Changed ${line(a)?.merchant} to ${catOf(b.category).label}` : `Changed the note on ${line(a)?.merchant}`; }
+      else if (kind === 'budget') { const v = budgetFromInput(b); next = demoWrites.budget(before, a, v); title = v ? `${catOf(a).label} budget $${v}` : `Cleared the ${catOf(a).label.toLowerCase()} budget`; }
       this.setState({ moneyDemo: next });
       tickReceipt({ key: `money:${kind}:${Date.now()}`, title, undo: () => this.setState({ moneyDemo: before }) });
       return Promise.resolve(true);
