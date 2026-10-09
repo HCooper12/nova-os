@@ -20,7 +20,7 @@ function rig() {
   const posts = [];
   const dismissed = [];
   let t = 1000;
-  const r = createReceipts({ post: (n) => posts.push(n), dismiss: (id) => dismissed.push(id), now: () => t });
+  const r = createReceipts({ post: (n) => posts.push(n), dismiss: (id) => dismissed.push(id), now: () => t, schedule: (fn) => fn() });
   return { r, posts, dismissed, advance: (ms) => { t += ms; }, last: () => posts[posts.length - 1] };
 }
 
@@ -95,6 +95,24 @@ test('the batch closes when the pill leaves, or after a quiet spell', () => {
   advance(RECEIPT_MS - 500);
   r.tickReceipt({ key: 'd', label: 'd', undo: () => {} });
   assert.equal(last().title, '2 ticked', 'inside the life of the pill, it counts on');
+});
+
+test('the pill is posted after the tick has painted, once per frame however many ticks', () => {
+  const posts = [];
+  const queue = [];
+  const r = createReceipts({ post: (n) => posts.push(n), dismiss: () => {}, now: () => 0, schedule: (fn) => queue.push(fn) });
+  r.tickReceipt({ key: 'a', label: 'a', undo: () => {} });
+  r.tickReceipt({ key: 'b', label: 'b', undo: () => {} });
+  r.tickReceipt({ key: 'c', label: 'c', undo: () => {} });
+  assert.equal(posts.length, 0, 'nothing rides in the tick\'s own frame');
+  assert.equal(queue.length, 1, 'three ticks in one frame schedule one post');
+  queue.shift()();
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].title, '3 ticked', 'with the latest words');
+  r.tickReceipt({ key: 'd', label: 'd', undo: () => {} });
+  queue.shift()();
+  assert.equal(posts.at(-1).title, '4 ticked');
+  assert.match(read('src/receipt.js'), /requestAnimationFrame\(\(\) => setTimeout\(fn, 0\)\)/);
 });
 
 test('the words: mixed, all unticked, and the caller\'s own title for one', () => {

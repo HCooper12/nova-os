@@ -24,6 +24,12 @@ import { notify, dismissIsland } from './island.js';
 //     rather than growing the pill
 //   - nothing here calls the server. A tick in demo mode never reaches one
 //     because its reverse path is the same local change the tick made.
+//   - the pill is posted the frame AFTER the tick has painted. Posted inside
+//     the tick handler, the island's mount rode in the same frame as the
+//     tick's whole-app render (37 to 39 ms at 4x CPU, measured 9 Oct, against
+//     18 to 23 ms for the tick alone); a frame later the row changes, then
+//     the pill drops, and each frame carries one of them. Ticks inside one
+//     frame post once, with the latest words.
 
 export const RECEIPT_MS = 4000;
 export const RECEIPT_IDLE = RECEIPT_MS + 1500;
@@ -52,13 +58,27 @@ export function foldTick(entries, entry) {
   return entries;
 }
 
-export function createReceipts({ post = notify, dismiss = dismissIsland, now = () => Date.now() } = {}) {
+// after this frame paints: a rAF lands just before the next paint, and the
+// timeout inside it runs once that paint is done
+const nextFrame = (fn) => {
+  if (typeof requestAnimationFrame !== 'function') { setTimeout(fn, 0); return; }
+  requestAnimationFrame(() => setTimeout(fn, 0));
+};
+
+export function createReceipts({ post = notify, dismiss = dismissIsland, now = () => Date.now(), schedule = nextFrame } = {}) {
   let batch = null;
   let seq = 0;
+  let pending = null; // the batch whose post is waiting for the next frame
 
   const close = (b) => { if (batch === b) batch = null; };
 
   const show = (b) => {
+    if (pending === b) return;
+    pending = b;
+    schedule(() => { if (pending === b) pending = null; paint(b); });
+  };
+
+  const paint = (b) => {
     const title = receiptWords(b.entries);
     if (!title) { close(b); dismiss(b.id); return; }
     post({
