@@ -561,6 +561,9 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — HIS MOTION CALLS, all yes: a pill with Undo on every tick;
+  count up from zero on every arrival; the theme change cross-fades the
+  whole app (judged on his phone for the glass). Motion step 2 started.
 - 9 Oct 2026 — MOTION STEP 1 SHIPPED (merge, pushed): his yes to the
   motion audit (24, 4 of 64 moves met) and break-ui. A count-up written
   through a ref (on change by default; fromZero is his open call) on Home's
