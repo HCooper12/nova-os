@@ -10,6 +10,7 @@ import {
 } from './SettingsKit.jsx';
 import { Mini, Disc, MaterialPatch } from './SettingsMini.jsx';
 import { say, refuse, lightRow } from '../settingsToast.js';
+import { PUSH_MS, FADE_MS, reducedMotion } from '../settingsNav.js';
 
 // THE PAGES A ROW OPENS (mockup 72, direction A). Each one opens with a
 // header card, holds its settings in groups of rows, and says in words when
@@ -152,14 +153,38 @@ export function NotifPage({ P }) {
 
 // ------------------------------------------------------------ appearance --
 
+// THE PREVIEWS ARRIVE AFTER THE PAGE DOES (9 Oct 2026, motion step 2). The
+// push used to mount four live miniatures of his Home and three NovaCore
+// canvases in the same frame the slide began: 44 to 75 ms at 4x CPU, most
+// of it this page's own render and the layout it forced. The page now slides
+// in with same-size empty frames where they go, and they mount once the
+// slide has landed, one group a frame (the large preview, then the style
+// thumbnails, then the cores), each fading in. Nothing moves when they do:
+// every frame is held at its final size from the start.
+export const PREVIEW_STAGES = 3;
+export function useStaged(stages = PREVIEW_STAGES) {
+  const [stage, setStage] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const step = (n) => {
+      setStage(n);
+      if (n < stages) raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => step(n + 1)); });
+    };
+    const t = setTimeout(() => step(1), (reducedMotion() ? FADE_MS : PUSH_MS) + 40);
+    return () => { clearTimeout(t); cancelAnimationFrame(raf); };
+  }, [stages]);
+  return stage;
+}
+
 export function AppearancePage({ P }) {
   const A = P.app;
   const look = A.look;
+  const stage = useStaged();
   return (
     <>
       <HeaderCard tile={<Tile lg className={`disc nv-set-d-${look.theme}`}><span /></Tile>} title="Appearance" text={`How Nova looks on this ${P.isMobile ? 'phone' : 'Mac'}. Your other devices keep their own.`} />
       <div className="nv-set-pvw nv-set-rise" style={{ '--i': 1 }}>
-        <Mini look={look} k={0.86} label={`Your Home as ${A.name}`} />
+        {stage >= 1 ? <span className="nv-set-later"><Mini look={look} k={0.86} label={`Your Home as ${A.name}`} /></span> : <span className="nvm-wrap" style={{ '--k': 0.86 }} aria-hidden="true" />}
         <p className="nv-set-cap">Your Home, as it would look (demo)</p>
       </div>
       <Group label="Style" k="style" i={2}>
@@ -167,7 +192,7 @@ export function AppearancePage({ P }) {
           {A.styles.map((s) => (
             <button key={s.value} type="button" className="nv-set-pick nv-set-thumb" aria-pressed={s.on}
               onClick={() => { if (s.on) return; const back = A.fallsBack(s.value); s.pick(); if (back) say('Daylight and Sky are drawn for the Apple styles, so the theme is Command again'); }}>
-              <Mini look={{ ...look, style: s.value }} k={0.34} />
+              {stage >= 2 ? <span className="nv-set-later"><Mini look={{ ...look, style: s.value }} k={0.34} /></span> : <span className="nvm-wrap" style={{ '--k': 0.34 }} aria-hidden="true" />}
               <span className="nv-set-tn">{s.label}</span>
             </button>
           ))}
@@ -201,7 +226,7 @@ export function AppearancePage({ P }) {
         <div className="nv-set-cores">
           {A.cores.map((c) => (
             <button key={c.value} type="button" className="nv-set-pick" aria-pressed={c.on} onClick={() => { if (!c.on) c.pick(); }}>
-              <span className="nv-set-cbox"><NovaCore size={104} engine={c.value} style={{ pointerEvents: 'none' }} /><i className="nv-set-cring" /></span>
+              <span className="nv-set-cbox">{stage >= 3 && <span className="nv-set-later"><NovaCore size={104} engine={c.value} style={{ pointerEvents: 'none' }} /></span>}<i className="nv-set-cring" /></span>
               <span className="nv-set-tn">{c.label}</span>
               <span className="nv-set-th2">{c.line}</span>
             </button>
