@@ -82,6 +82,8 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
+import { demoMoneyState, demoVariant, demoWrites } from './moneyDemo.js';
+import { budgetFromInput } from './moneyParse.js';
 import { noteScreen } from './arrival.js';
 import { crossFadeLook } from './lookFade.js';
 import { newStages, jobSettled } from './jobBeats.js';
@@ -684,6 +686,10 @@ export default class App extends Component {
     ...restoreChats(),
     liveMoney: null, moneyBusy: false, moneyScanBusy: false, moneyScanError: null, moneyScanQuestion: null,
     moneyAddMerchant: '', moneyAddAmount: '', moneyAddIsSpend: true, moneyEditCategoryId: null,
+    // the summary Money page (10 Oct 2026): its one open sheet, its pushed
+    // page, the pace card's mode, the Mac's selected line, the list search,
+    // and the demo's invented month in memory (demoMode only)
+    moneySheet: null, moneyPage: null, moneyCompare: false, moneyLineSel: null, moneySearch: '', moneyDemo: null,
     sparBusy: false,
 
     // live-data connection (Settings screen)
@@ -3802,7 +3808,7 @@ export default class App extends Component {
   // One helper, because server/test/edgeBack.test.js reads popH through a
   // short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory() };
+    return { ...this.moneyFromHistory(), ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory() };
   }
   // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx) is its own history
   // entry, for the recipe's reason: the back swipe and the browser's Back
@@ -6179,49 +6185,183 @@ export default class App extends Component {
     return api.money(conn, month).then((data) => this.setState({ liveMoney: data })).catch(() => {});
   }
   setMoneyMonth(month) {
-    this.refreshMoney(month);
-  }
-  submitMoneyAdd() {
-    const conn = getConnection();
-    const merchant = this.state.moneyAddMerchant.trim();
-    const raw = Number(this.state.moneyAddAmount);
-    if (!conn || !merchant || !Number.isFinite(raw) || raw === 0 || this.state.moneyBusy) return;
-    const amount = this.state.moneyAddIsSpend ? -Math.abs(raw) : Math.abs(raw);
-    this.setState({ moneyBusy: true });
-    api.moneyAdd(conn, { merchant, amount }).then(() => {
-      this.setState({ moneyBusy: false, moneyAddMerchant: '', moneyAddAmount: '' });
-      this.refreshMoney(this.state.liveMoney?.month);
-    }).catch((e) => {
-      this.setState({ moneyBusy: false });
-      this.toastMsg('Could not add: ' + e.message);
-    });
-  }
-  removeMoneyTransaction(id) {
-    const conn = getConnection();
-    if (!conn) return;
-    // two-tap confirm — an ~11px ✕ with no confirm was a fat-finger delete
-    if (this.state.moneyRemoveConfirm !== id) {
-      this.setState({ moneyRemoveConfirm: id });
-      this.toastMsg('Tap ✕ again to remove this transaction');
-      setTimeout(() => { if (this.state.moneyRemoveConfirm === id) this.setState({ moneyRemoveConfirm: null }); }, 4000);
+    if (this.state.connectionStatus === 'demo') {
+      // demo: the invented September stands in for any earlier month
+      const base = demoMoneyState(demoVariant());
+      this.setState({ moneyDemo: month && month !== '2026-10' ? { ...demoMoneyState('past'), month } : base });
       return;
     }
-    this.setState({ moneyRemoveConfirm: null });
-    api.moneyRemove(conn, id).then(() => this.refreshMoney(this.state.liveMoney?.month))
-      .catch((e) => this.toastMsg('Could not remove: ' + e.message));
+    this.refreshMoney(month);
+  }
+  // THE SUMMARY MONEY PAGE'S LAYERS (10 Oct 2026). A sheet (the menu, add,
+  // a budget, a line, the budget app, an import) is one history level, so
+  // the back swipe closes it; a pushed page (every line, every recurring
+  // charge) is its own view on the same URL, as Fuel's Recipes is.
+  openMoneySheet(sheet) {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'moneySheet') window.history.replaceState({ ...st }, '');
+      else window.history.pushState({ ...(st || {}), novaDepth: depthOf(st) + 1, novaOverlay: 'moneySheet' }, '');
+    }
+    this.setState({ moneySheet: sheet });
+  }
+  closeMoneySheet(then) {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'moneySheet') {
+      if (typeof then === 'function') this.afterPop(then);
+      window.history.back();
+      return;
+    }
+    this.setState({ moneySheet: null }, typeof then === 'function' ? then : undefined);
+  }
+  openMoneyPage(page) {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaView !== 'moneyPage') window.history.pushState({ novaDepth: depthOf(st) + 1, novaView: 'moneyPage', moneyPage: page }, '');
+    }
+    this.setState({ moneyPage: page, moneySearch: '' });
+    if (this.mainRef?.current) this.mainRef.current.scrollTop = 0;
+  }
+  closeMoneyPage() {
+    if (typeof window !== 'undefined' && window.history.state?.novaView === 'moneyPage' && window.history.state?.novaOverlay == null) { window.history.back(); return; }
+    this.setState({ moneyPage: null });
+  }
+  moneyFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const out = {};
+    if (st?.novaOverlay !== 'moneySheet' && this.state.moneySheet) out.moneySheet = null;
+    const page = st?.novaView === 'moneyPage' ? (st.moneyPage || null) : null;
+    if ((this.state.moneyPage || null) !== page) out.moneyPage = page;
+    return out;
+  }
+  // DISCUSS: the Nova conversation, opened with the money event quoted (the
+  // house door, talkAboutInbox). A sheet in the way closes first.
+  moneyDiscuss(subject) {
+    const go = () => this.talkAboutInbox(subject);
+    if (this.state.moneySheet) this.closeMoneySheet(go); else go();
+  }
+  // EVERY MONEY WRITE, ONE PATH (10 Oct 2026; the audit's findings 2, 5, 6).
+  // Live: the server writes AND files a record with undoData
+  // (server/lib/moneyRails.js); the row changes at once (optimistic), the
+  // figures count to the server's values when the month reloads, and ONE
+  // pill offers Undo through /api/inbox/:id/undo. Demo: the same change to
+  // the invented month in memory, and the same pill. Offline: refused, in
+  // words, because nothing could keep it.
+  moneyWrite(kind, a, b) {
+    const st = this.state;
+    if (st.connectionStatus === 'offline') { this.toastMsg('Offline: Money is read only until Nova is back'); return Promise.resolve(false); }
+    if (kind === 'budget' && budgetFromInput(b) === undefined) {
+      this.toastMsg(`Could not read "${String(b).slice(0, 24)}" as an amount. The budget is unchanged.`);
+      return Promise.resolve(false);
+    }
+    if (st.connectionStatus === 'demo') {
+      const before = st.moneyDemo || demoMoneyState(demoVariant());
+      const line = (id) => before.lines.find((t) => t.id === id);
+      let next = before;
+      let title = '';
+      if (kind === 'add') { next = demoWrites.add(before, a); title = `Added ${a.merchant}`; }
+      else if (kind === 'remove') { next = demoWrites.remove(before, a); title = `Deleted ${line(a)?.merchant || 'the line'}`; }
+      else if (kind === 'edit') { next = demoWrites.edit(before, a, b || {}); title = b?.category && b.category !== line(a)?.category ? `Changed ${line(a)?.merchant} to ${b.category}` : `Changed the note on ${line(a)?.merchant}`; }
+      else if (kind === 'budget') { const v = budgetFromInput(b); next = demoWrites.budget(before, a, v); title = v ? `${a} budget $${v}` : `Cleared the ${a} budget`; }
+      this.setState({ moneyDemo: next });
+      tickReceipt({ key: `money:${kind}:${Date.now()}`, title, undo: () => this.setState({ moneyDemo: before }) });
+      return Promise.resolve(true);
+    }
+    const conn = getConnection();
+    if (!conn) return Promise.resolve(false);
+    const month = st.liveMoney?.month;
+    const was = st.liveMoney;
+    if (was) {
+      // the row moves now; the totals follow when the month reloads
+      if (kind === 'remove') this.setState({ liveMoney: { ...was, transactions: (was.transactions || []).filter((t) => t.id !== a) } });
+      if (kind === 'edit') this.setState({ liveMoney: { ...was, transactions: (was.transactions || []).map((t) => (t.id === a ? { ...t, ...(b?.category ? { category: b.category } : {}), ...(b?.note !== undefined ? { note: b.note || null } : {}) } : t)) } });
+      if (kind === 'budget') { const v = budgetFromInput(b); this.setState({ liveMoney: { ...was, byCategory: (was.byCategory || []).map((c) => (c.category === a ? { ...c, budget: v || null } : c)) } }); }
+    }
+    const call = kind === 'add' ? api.moneyAdd(conn, a)
+      : kind === 'remove' ? api.moneyRemove(conn, a)
+        : kind === 'edit' ? api.moneyEdit(conn, a, b || {})
+          : api.moneyBudget(conn, a, b);
+    return call.then(({ record }) => {
+      this.refreshMoney(month);
+      if (record) {
+        tickReceipt({
+          key: `money:${record.id}`, label: record.text, title: record.text,
+          undo: () => api.inboxUndo(conn, record.id).then(() => this.refreshMoney(month)).catch((e) => this.toastMsg('Could not undo: ' + e.message)),
+        });
+      }
+      return true;
+    }).catch((e) => {
+      if (was) this.setState({ liveMoney: was });
+      this.toastMsg(`${kind === 'budget' ? 'Budget' : 'Money'} change failed: ${e.message}`);
+      return false;
+    });
+  }
+  // A MONEY CARD ANSWERED: keep / noted (nothing written), cancel (a To-Do
+  // to cancel a risen subscription, with Undo), file or discard an import.
+  moneyAnswer(ids, answer) {
+    const list = Array.isArray(ids) ? ids : [ids];
+    const st = this.state;
+    if (st.connectionStatus === 'offline') { this.toastMsg('Offline: answer it when Nova is back'); return; }
+    if (st.connectionStatus === 'demo') {
+      const before = st.moneyDemo || demoMoneyState(demoVariant());
+      let next = before;
+      for (const id of list) {
+        const rec = before.records.find((r) => r.id === id);
+        if (answer === 'file' && rec?.kind === 'money-import') {
+          for (const t of rec.decision.payload.transactions) next = demoWrites.add(next, t);
+        }
+        next = demoWrites.resolve(next, id);
+      }
+      const rec = before.records.find((r) => r.id === list[0]);
+      const title = answer === 'cancel' ? `Cancel ${rec?.event?.merchant || 'it'} is on To-Do`
+        : answer === 'file' ? `Filed ${rec?.decision?.payload?.transactions?.length || 0} lines`
+          : answer === 'discard' ? 'Left the file where it is' : list.length > 1 ? `${list.length} noted` : 'Noted';
+      this.setState({ moneyDemo: next });
+      tickReceipt({ key: `money-answer:${list.join(',')}`, title, undo: () => this.setState({ moneyDemo: before }) });
+      return;
+    }
+    const conn = getConnection();
+    if (!conn) return;
+    const month = st.liveMoney?.month;
+    for (const id of list) {
+      const call = answer === 'file' ? api.inboxApprove(conn, id)
+        : answer === 'discard' ? api.inboxDiscard(conn, id)
+          : api.moneyEventAnswer(conn, id, answer);
+      call.then(({ record }) => {
+        this.refreshInbox();
+        this.refreshMoney(month);
+        const undoable = record && record.status === 'filed' && record.undoData;
+        const title = answer === 'cancel' ? (record?.destination ? record.destination.replace(/^To-Do\s*[—-]\s*/, 'On To-Do: ') : 'On To-Do')
+          : answer === 'file' ? (record?.destination || 'Filed') : answer === 'discard' ? 'Left the file where it is' : 'Noted';
+        tickReceipt({
+          key: `money-answer:${id}`, label: title, title,
+          undo: undoable ? () => api.inboxUndo(conn, id).then(() => { this.refreshInbox(); this.refreshMoney(month); }).catch((e) => this.toastMsg('Could not undo: ' + e.message)) : undefined,
+        });
+      }).catch((e) => this.toastMsg('That did not go through: ' + e.message));
+    }
+  }
+  // the classic panels' doors, now on the same write path
+  submitMoneyAdd() {
+    const merchant = this.state.moneyAddMerchant.trim();
+    const raw = Number(this.state.moneyAddAmount);
+    if (!merchant || !Number.isFinite(raw) || raw === 0 || this.state.moneyBusy) return;
+    const amount = this.state.moneyAddIsSpend ? -Math.abs(raw) : Math.abs(raw);
+    this.setState({ moneyBusy: true });
+    this.moneyWrite('add', { merchant, amount }).then((ok) => {
+      this.setState(ok ? { moneyBusy: false, moneyAddMerchant: '', moneyAddAmount: '' } : { moneyBusy: false });
+    });
+  }
+  // a delete is one tap now: the row leaves and the pill offers Undo (it used
+  // to be a 16pt cross confirmed by a toast, and nothing brought it back)
+  removeMoneyTransaction(id) {
+    this.moneyWrite('remove', id);
   }
   setMoneyCategory(id, category) {
-    const conn = getConnection();
-    if (!conn) return;
     this.setState({ moneyEditCategoryId: null });
-    api.moneyCategory(conn, id, category).then(() => this.refreshMoney(this.state.liveMoney?.month))
-      .catch((e) => this.toastMsg('Could not recategorise: ' + e.message));
+    // the classic door keeps its old meaning: the merchant follows, said in the pill
+    this.moneyWrite('edit', id, { category, rule: true });
   }
-  setMoneyBudget(category, amount) {
-    const conn = getConnection();
-    if (!conn) return;
-    api.moneyBudget(conn, category, amount).then(() => this.refreshMoney(this.state.liveMoney?.month))
-      .catch((e) => this.toastMsg('Budget failed: ' + e.message));
+  setMoneyBudget(category, raw) {
+    this.moneyWrite('budget', category, raw);
   }
   runMoneyImportNow() {
     const conn = getConnection();
