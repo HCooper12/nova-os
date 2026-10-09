@@ -82,6 +82,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
+import { loadCode, codeFromHistory, commit as codeCommit, shelve as codeShelve, restore as codeRestore, switchWorkspace as codeSwitchWorkspace, newSession as codeNewSession } from './codeActions.js';
 import { noteScreen } from './arrival.js';
 import { crossFadeLook } from './lookFade.js';
 import { newStages, jobSettled } from './jobBeats.js';
@@ -549,6 +550,14 @@ export default class App extends Component {
     codeChat: [],
     codeSessionId: null, codeWorkspace: 'repo', codeModel: 'sonnet',
     codeChanges: null, codeChangesOpen: false, codeCommitMsg: '', codeChangeBusy: false, codeShelf: null,
+    // THE CODE SCREEN, round 3 (mockup 89): the review per workspace, his
+    // ticks, the receipt while Undo can reach it, today's commits, the runs
+    // a switch or New session closed (kept, with Undo), and the project
+    // page, a history entry of its own (src/codeActions.js)
+    codeChangesBy: {}, codeTicks: {}, codeReceipt: null, codeCommits: [], codeOpenFiles: {}, codeRunOpen: {},
+    codeRuns: (() => { try { const r = JSON.parse(localStorage.getItem('novaos.codeRuns') || '[]'); return Array.isArray(r) ? r.slice(0, 12) : []; } catch { return []; } })(),
+    codeProject: (() => { try { return screenFromHash() === 'code' && window.history.state?.novaView === 'code' ? (window.history.state.codeProject || null) : null; } catch { return null; } })(),
+    codeSection: null, codeSheet: false, codeAway: false, codeSeenAt: null, codeFixture: null, codeBusyAt: null, sparBusyAt: null,
     liveHealthInsight: null, liveHealthDays: null, liveStreaks: null,
     stepsOverlayOpen: false, stepsOverlayMode: 'steps', stepEditDate: null, stepEditValue: '', stepEditWeight: '', moneyRemoveConfirm: null,
     tabOrder: getTabOrder(),
@@ -1209,7 +1218,7 @@ export default class App extends Component {
     if (changed) this.noteScreenVisit(screen);
     if (changed && screen === 'voice') this.maybeGreet('voice');
     if (changed && screen === 'voice') this.loadConversationRecord();
-    if (changed && screen === 'code') this.refreshCodeChanges(); // the diff is the first thing he wants to see
+    if (changed && screen === 'code') { this.setState(codeFromHistory(this, 'code')); this.refreshCodeChanges(); } // the diff is the first thing he wants to see
     if (changed && screen === 'ops') this.refreshForge(); // arriving at Ops is when the fleet's jobs matter
     if (changed && screen === 'practice') this.refreshPractice(); // the shelf is read on arrival
     if (changed && screen === 'leader') this.refreshLeader(); // the order rule runs on every open (Blend 1)
@@ -1765,6 +1774,10 @@ export default class App extends Component {
     // …and the model board, for the same reason
     if (this.state.screen === 'settings' && prevState.screen !== 'settings' && this.state.liveModelPrefs == null && getConnection()) {
       this.loadModelPrefs();
+    }
+    // the Code screen's closed runs survive a reload (kept, never deleted by a switch)
+    if (prevState.codeRuns !== this.state.codeRuns) {
+      try { localStorage.setItem('novaos.codeRuns', JSON.stringify((this.state.codeRuns || []).slice(0, 12).map((r) => ({ ...r, chat: r.chat.slice(-CHAT_KEEP) })))); } catch { /* storage full: the runs just won't persist */ }
     }
     // mirror chat transcripts (trimmed) — a reclaim must not eat the thread
     if (prevState.voiceChat !== this.state.voiceChat || prevState.coachChat !== this.state.coachChat || prevState.codeChat !== this.state.codeChat) {
@@ -3802,7 +3815,7 @@ export default class App extends Component {
   // One helper, because server/test/edgeBack.test.js reads popH through a
   // short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory() };
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory(), ...codeFromHistory(this, screenFromHash()) };
   }
   // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx) is its own history
   // entry, for the recipe's reason: the back swipe and the browser's Back
@@ -6981,14 +6994,15 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     if (this.state.sparBusy) return;
-    const target = this.state.codeWorkspace === 'repo' ? 'Nova OS' : 'the vault';
-    this.setState((s) => ({ sparBusy: true, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: `Breaker engaged — read-only adversarial pass over ${target}…` }] }));
+    const target = this.state.codeWorkspace === 'repo' ? 'Nova OS' : 'the Vault';
+    const sentAt = Date.now();
+    this.setState((s) => ({ sparBusy: true, sparBusyAt: sentAt, codeChat: [...s.codeChat, { at: sentAt, who: 'system', text: `The Breaker is reading ${target}. It changes nothing.` }] }));
     const focus = [...this.state.codeChat].reverse().find((m) => m.who === 'you')?.text || '';
     api.sparStart(conn, this.state.codeWorkspace, focus).then(({ jobId }) => {
       this.startPoll('spar', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 10 * 60_000,
         onReady: (job) => {
-          this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { who: 'breaker', text: job.result.text }] }));
+          this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'breaker', text: job.result.text, startedAt: job.result.startedAt || sentAt, endedAt: job.result.endedAt || Date.now() }] }));
           this.announceAway({ here: this.state.screen === 'code', title: 'The Breaker finished its pass', text: job.result.text, go: () => this.navigate('code') });
         },
         onError: (msg) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + msg }] })),
@@ -11230,14 +11244,18 @@ export default class App extends Component {
     const q = this.state.codeInput.trim();
     if (!q) return;
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
-    this.setState(s => ({ codeChat: [...s.codeChat, { at: Date.now(), who: 'you', text: q }], codeInput: '', codeBusy: true }));
+    // the model this message went with, for the Builder's authored line
+    const model = this.state.codeModel;
+    const sentAt = Date.now();
+    this.setState(s => ({ codeChat: [...s.codeChat, { at: sentAt, who: 'you', text: q }], codeInput: '', codeBusy: true, codeBusyAt: sentAt }));
     api.startClaudeCodeMessage(conn, q, this.state.codeSessionId, this.state.codeModel, this.state.codeWorkspace).then(({ jobId }) => {
       this.startPoll('code', () => api.claudeCodeJob(conn, jobId), {
         timeoutMs: 10 * 60_000,
         intervalMs: 700,
         onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
         onReady: (job) => {
-          this.finalizeStream('codeChat', { who: 'claude', text: job.result.text }, { codeBusy: false, codeSessionId: job.result.sessionId });
+          const r = job.result;
+          this.finalizeStream('codeChat', { at: Date.now(), who: 'claude', text: r.text, model, startedAt: r.startedAt || sentAt, endedAt: r.endedAt || Date.now(), files: Array.isArray(r.files) ? r.files.length : undefined }, { codeBusy: false, codeSessionId: r.sessionId });
           this.announceAway({ here: this.state.screen === 'code', title: 'Claude Code finished', text: job.result.text, go: () => this.navigate('code') });
           this.refreshCodeChanges(); // the diff is the point — surface it the moment the turn lands
         },
@@ -11250,50 +11268,23 @@ export default class App extends Component {
       this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });
   }
-  refreshCodeChanges() {
-    const conn = getConnection();
-    if (!conn) return;
-    api.codeChanges(conn, this.state.codeWorkspace)
-      .then((c) => this.setState({ codeChanges: c }))
-      .catch(() => {});
-  }
-  commitCodeChanges() {
-    const conn = getConnection();
-    const message = this.state.codeCommitMsg.trim();
-    if (!conn) return;
-    this.setState({ codeChangeBusy: true });
-    api.codeCommit(conn, this.state.codeWorkspace, message).then((r) => {
-      this.setState({ codeChangeBusy: false, codeCommitMsg: '', codeChanges: null, codeChangesOpen: false });
-      this.toastMsg(`Committed ${r.sha} — ${r.files} file${r.files === 1 ? '' : 's'}`);
-      this.refreshCodeChanges();
-    }).catch((e) => { this.setState({ codeChangeBusy: false }); this.toastMsg(e.message); });
-  }
-  shelveCodeChanges() {
-    const conn = getConnection();
-    if (!conn) return;
-    this.setState({ codeChangeBusy: true });
-    api.codeShelve(conn, this.state.codeWorkspace).then((r) => {
-      this.setState({ codeChangeBusy: false, codeChanges: null, codeShelf: r });
-      this.toastMsg(`Shelved ${r.files} file${r.files === 1 ? '' : 's'} — recoverable, nothing lost`);
-      this.refreshCodeChanges();
-    }).catch((e) => { this.setState({ codeChangeBusy: false }); this.toastMsg(e.message); });
-  }
-  unshelveCodeChanges() {
-    const conn = getConnection();
-    if (!conn) return;
-    api.codeUnshelve(conn, this.state.codeWorkspace).then(() => {
-      this.setState({ codeShelf: null });
-      this.toastMsg('Restored the shelved changes');
-      this.refreshCodeChanges();
-    }).catch((e) => this.toastMsg(e.message));
-  }
-  setCodeWorkspace(workspace) {
-    this.stopPoll('code');
-    this.setState({ codeWorkspace: workspace, codeSessionId: null, codeChat: [], codeBusy: false });
-  }
-  newClaudeCodeSession() {
-    this.stopPoll('code');
-    this.setState({ codeSessionId: null, codeChat: [], codeBusy: false });
+  // THE CODE SCREEN'S WRITES live in src/codeActions.js (round 3): Commit
+  // takes only the ticked files, Undo takes back an unpushed commit, Shelve
+  // and Restore go by the shelf's sha, and a switch or New session keeps the
+  // run in Runs with Undo. These names stay for the voice verbs and older
+  // callers.
+  refreshCodeChanges() { loadCode(this); }
+  commitCodeChanges() { codeCommit(this); }
+  shelveCodeChanges() { codeShelve(this); }
+  unshelveCodeChanges() { if (this.state.codeShelf?.sha) codeRestore(this, this.state.codeShelf.sha); }
+  setCodeWorkspace(workspace) { codeSwitchWorkspace(this, workspace); }
+  newClaudeCodeSession() { codeNewSession(this); }
+  // DEV ONLY: invented state in memory, so the screen can be looked at and
+  // recorded without a Mac (src/dev/codeFixtures.js). A production build
+  // never reaches the import.
+  setCodeFixture(name) {
+    if (!import.meta.env.DEV) return;
+    import('./dev/codeFixtures.js').then(({ applyCodeFixture }) => applyCodeFixture(this, name));
   }
   // THE RECIPE CHAT WAS A MOCK. It answered from mockAssistants.js whether
   // or not he was connected — it looked like Nova and replied like a demo.
