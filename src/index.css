@@ -3859,11 +3859,15 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
    .nv-look: the old frame dissolves into the new over 250 ms, opacity only,
    and no element but the root is named, so no glass is snapshotted on its
    own (the 17 Sep dock). Declared after the navigation rules above so it
-   wins for the length of the fade. Reduced motion never starts one. */
+   wins for the length of the fade. Reduced motion never starts one.
+   The old frame stays fully opaque under the new one as it fades in: two
+   frames fading against each other dipped the page about 20% darker at
+   the midpoint (measured on every material, 9 Oct). Over an opaque old
+   frame the new one at opacity a gives exactly a·new + (1−a)·old. */
 :root.nv-look * { view-transition-name: none !important; }
-:root.nv-look::view-transition-old(root) { animation: nvLookOut 250ms ease both; }
-:root.nv-look::view-transition-new(root) { animation: nvLookIn 250ms ease both; }
-@keyframes nvLookOut { from { opacity: 1; } to { opacity: 0; } }
+:root.nv-look::view-transition-old(root) { animation: nvLookHold 250ms linear both; mix-blend-mode: normal; }
+:root.nv-look::view-transition-new(root) { animation: nvLookIn 250ms ease both; mix-blend-mode: normal; }
+@keyframes nvLookHold { from { opacity: 1; } to { opacity: 1; } }
 @keyframes nvLookIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* THE CHROME IS NEVER SNAPSHOTTED (17 Sep 2026, second pass).

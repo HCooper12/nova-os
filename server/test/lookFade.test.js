@@ -64,7 +64,8 @@ test('a look change is a root dissolve, with every other name lifted while it ru
   assert.ok(!classes.has('nv-look'), 'and off once the fade has finished');
   const css = read('src/index.css');
   assert.match(css, /:root\.nv-look \* \{ view-transition-name: none !important; \}/);
-  assert.match(css, /:root\.nv-look::view-transition-old\(root\) \{ animation: nvLookOut 250ms ease both; \}/);
+  assert.match(css, /:root\.nv-look::view-transition-old\(root\) \{ animation: nvLookHold 250ms linear both; mix-blend-mode: normal; \}/, 'the old frame holds, so the midpoint never dips');
+  assert.match(css, /@keyframes nvLookHold \{ from \{ opacity: 1; \} to \{ opacity: 1; \} \}/);
   assert.match(css, /@keyframes nvLookIn \{ from \{ opacity: 0; \} to \{ opacity: 1; \} \}/, 'opacity only: no rise, nothing moves');
   assert.equal(LOOK_MS, 250);
 });
