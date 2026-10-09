@@ -494,11 +494,13 @@ export function valsMisc(app, ctx) {
     // the first sync lands
     codeModelOptions: (st.liveModelPrefs?.models || []).some((m) => m.alias)
       ? st.liveModelPrefs.models.filter((m) => m.alias).map(({ value, label }) => ({ value, label }))
+      // before the first sync: the family and "newest", never a version
+      // number typed by hand (it said "Fable 5" after 5.1 shipped; 10 Oct)
       : [
-        { value: 'sonnet', label: 'Sonnet 5' },
-        { value: 'opus', label: 'Opus 5' },
-        { value: 'fable', label: 'Fable 5' },
-        { value: 'haiku', label: 'Haiku 4.5' },
+        { value: 'sonnet', label: 'Sonnet (newest)' },
+        { value: 'opus', label: 'Opus (newest)' },
+        { value: 'fable', label: 'Fable (newest)' },
+        { value: 'haiku', label: 'Haiku (newest)' },
       ],
     codeSessionActive: !!st.codeSessionId,
     newCodeSession: () => app.newClaudeCodeSession(),
