@@ -103,7 +103,7 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
       bars: novaRows.filter((f) => f.ticked).slice(0, 6).map((f) => ({ key: f.path, width: f.width, added: f.added, removed: f.removed })),
       chipExtra: { building: ws === 'repo' && (st.codeBusy || st.sparBusy), ready: novaReady, doneToday: commitsToday.length },
       foot: busyLine('repo'),
-      selected: st.codeProject === 'nova',
+      selected: st.codeProject === 'nova' || (!st.codeProject && !st.isMobile),
     }),
     atlas: tile('atlas', { sub: 'the work itself', selected: st.codeProject === 'atlas' }),
     wren: tile('wren', { sub: 'Tasks that support and guide the Atlas', open: () => act.openProject(app, 'atlas', 'wren') }),

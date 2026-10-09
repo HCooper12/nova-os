@@ -59,7 +59,8 @@ export function quietOf(s) {
   if (ms == null) return { live: false, q: s.state === 'left-open' || s.state === 'gone' ? 1 : 0, over: s.state === 'left-open' || s.state === 'gone', words: s.quietAgo ? `quiet ${s.quietAgo.replace(/^about /, '')}` : 'quiet' };
   const mins = Math.round(ms / 60000);
   const words = mins < 1 ? 'just quiet' : mins < 90 ? `${mins} min quiet` : mins < 36 * 60 ? `${Math.round(mins / 60)} h quiet` : `${Math.round(mins / 1440)} days quiet`;
-  return { live: false, q: Math.min(1, ms / STALE_MS), over: ms > STALE_MS, words };
+  // a sliver stays visible for a session that went quiet a minute ago
+  return { live: false, q: ms > 0 ? Math.min(1, Math.max(0.02, ms / STALE_MS)) : 0, over: ms > STALE_MS, words };
 }
 
 /** The server's own sentence, with when it started for a working one. */
@@ -199,6 +200,10 @@ export function unansweredBreaker(chat) {
 export function newsLine({ waiting = [], ready = [], working = null, away = false, nothing = false }) {
   if (away) return 'Your Mac isn\u2019t answering, so this is what Nova last saw.';
   const parts = [];
+  // one project both waiting and ready reads as one sentence about it
+  if (waiting.length === 1 && ready[0]?.title === waiting[0]) {
+    return `${waiting[0]} is waiting on you and has ${countWord(ready[0].n)} file${ready[0].n === 1 ? '' : 's'} ready to commit.`;
+  }
   if (waiting.length === 1) parts.push(`${waiting[0]} is waiting on you`);
   else if (waiting.length > 1) parts.push(`${cap(countWord(waiting.length))} sessions are waiting on you`);
   for (const r of ready.slice(0, 1)) parts.push(`${r.title} has ${countWord(r.n)} file${r.n === 1 ? '' : 's'} ready to commit`);

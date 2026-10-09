@@ -120,7 +120,7 @@
 .nv-cd-needs .nrow { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 60px; padding: 6px 0; }
 .nv-cd-needs .nrow + .nrow { box-shadow: inset 0 .5px 0 color-mix(in srgb, var(--nv-gold) 22%, transparent); }
 .nv-cd-needs .t { min-width: 0; }
-.nv-cd-needs .nrow b { display: block; font: 600 15px/1.25 var(--cd-ui); overflow-wrap: anywhere; }
+.nv-cd-needs .nrow b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 600 15px/1.25 var(--cd-ui); overflow-wrap: anywhere; }
 .nv-cd-needs .nrow .nv-cd-k { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ===== root: project tiles ===== */
@@ -154,7 +154,7 @@
 .nv-cd-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
 .nv-cd-tile.small { margin: 0; display: flex; flex-direction: column; gap: 10px; min-height: 150px; }
 .nv-cd-tile.small .nv-cd-chips { margin-top: auto; }
-.nv-cd-tile.small b { font: 600 15px/1.2 var(--cd-ui); overflow-wrap: anywhere; }
+.nv-cd-tile.small b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 600 15px/1.2 var(--cd-ui); overflow-wrap: anywhere; }
 .nv-cd .clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 
 /* receipts (Done today) */
@@ -176,7 +176,7 @@
 .nv-cd-phead b { display: block; font: 700 28px/1.1 var(--cd-ui); letter-spacing: -.02em; overflow-wrap: anywhere; }
 .nv-cd-phead .nv-cd-k { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* the anchor bar: three groups, one tap each, and it follows the reader */
-.nv-cd-anchors { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 52px); z-index: 12; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin: 16px -6px 0; padding: 4px; border-radius: 24px; background: color-mix(in srgb, var(--nv-void, #0b0e1c) 88%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4); box-shadow: 0 0 0 .5px var(--cd-ring), inset 0 1px 0 var(--cd-hi); }
+.nv-cd-anchors { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 52px); z-index: 12; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin: 16px -6px 0; padding: 4px; border-radius: 24px; background: color-mix(in srgb, color-mix(in srgb, var(--nv-bg2, #06070d) 89%, var(--cd)) 94%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4); box-shadow: 0 0 0 .5px var(--cd-ring), inset 0 1px 0 var(--cd-hi); }
 .nv-cd-anchors button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; min-width: 0; padding: 0 4px; border-radius: 20px; font: 600 13px var(--cd-ui); color: var(--cd-ink2); white-space: nowrap; transition: background-color .25s var(--cd-ease), color .25s var(--cd-ease); }
 .nv-cd-anchors button.on { color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 11%, transparent); }
 .nv-cd-anchors .n { font: 700 13px var(--cd-round); color: var(--nv-ink); }
@@ -194,28 +194,29 @@
 .nv-cd-review { padding: 16px; border-radius: 26px; background: linear-gradient(160deg, color-mix(in srgb, var(--cd) 20%, transparent) 0%, rgba(255, 255, 255, .05) 50%), var(--cd-card); box-shadow: 0 0 0 .5px color-mix(in srgb, var(--cd) 48%, transparent), inset 0 1px 0 var(--cd-hi), 0 26px 60px -30px color-mix(in srgb, var(--cd) 70%, transparent); -webkit-backdrop-filter: blur(var(--cd-blur)); backdrop-filter: blur(var(--cd-blur)); }
 .nv-cd-review.clean .nv-cd-k { margin-top: 4px; }
 .nv-cd-review .rtot { display: flex; align-items: baseline; gap: 12px; }
-.nv-cd-review .rtot b { font: 700 34px/1 var(--cd-round); letter-spacing: -.02em; }
+.nv-cd-review .rtot b { font: 700 34px/1 var(--cd-round); letter-spacing: -.02em; white-space: nowrap; }
 .nv-cd-review .rtot b.rm { color: var(--cd-ink2); font-size: 22px; }
 .nv-cd-review .rtot > span { margin-left: auto; font: 400 13px var(--cd-ui); color: var(--cd-ink3); text-align: right; }
 .nv-cd-review .files { margin-top: 12px; }
-.nv-cd-fr { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; column-gap: 6px; align-items: center; min-height: 58px; padding: 4px 0; transition: opacity .3s ease; }
+.nv-cd-fr { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; column-gap: 6px; align-items: center; min-height: 58px; padding: 0 0 6px; transition: opacity .3s ease; }
 .nv-cd-fr + .nv-cd-fr, .nv-cd-dpeek + .nv-cd-fr { box-shadow: inset 0 .5px 0 var(--cd-sep); }
 .nv-cd-fr .tick { width: 44px; height: 44px; display: grid; place-items: center; grid-row: 1 / 3; }
 .nv-cd-fr .tick i { width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center; color: #0d0a26; background: var(--cd); transition: background-color .2s ease, box-shadow .2s ease, color .2s ease; }
 .nv-cd-fr .tick i .nv-cd-ic { width: 15px; height: 15px; stroke-width: 3; }
 .nv-cd-fr .tick.off i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--cd-ink3); color: transparent; }
 .nv-cd-fr .tick.none { grid-row: 1 / 3; }
-.nv-cd-fr .fn { min-width: 0; min-height: 30px; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; overflow: hidden; }
+.nv-cd-fr .fn { min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
 .nv-cd-fr .fn b { font: 600 15px var(--cd-ui); flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .nv-cd-fr .fn span { font: 400 12px var(--cd-mono); color: var(--cd-ink3); min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; }
 .nv-cd-fr .fcount { grid-row: 1 / 3; grid-column: 3; font: 600 13px var(--cd-round); color: var(--cd-ink2); text-align: right; padding-left: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.nv-cd-fr .fbar { grid-column: 2; display: flex; gap: 2px; height: 8px; margin-top: 6px; transform-origin: 0 50%; animation: nvCdDraw .6s var(--cd-out) both; }
+.nv-cd-fr .fbar { grid-column: 2; display: flex; gap: 2px; height: 8px; margin-top: 0; transform-origin: 0 50%; animation: nvCdDraw .6s var(--cd-out) both; }
 .nv-cd-fr .fbar i { display: block; height: 100%; border-radius: 4px; min-width: 3px; }
 .nv-cd-fr .fbar i.a { background: var(--h); }
 .nv-cd-fr .fbar i.r { background: repeating-linear-gradient(135deg, var(--cd-ink2) 0 2px, transparent 2px 4px); border-radius: 2px; }
 .nv-cd-fr .fbar i.b { background: repeating-linear-gradient(90deg, var(--cd-ink3) 0 3px, transparent 3px 6px); }
 .nv-cd-fr.off { opacity: .5; }
 .nv-cd-fr .note { grid-column: 2; margin-top: 2px; }
+.nv-cd-more { display: block; width: 100%; min-height: 44px; margin-top: 4px; border-radius: 14px; font: 600 13px var(--cd-ui); color: var(--cd); text-align: center; background: color-mix(in srgb, var(--cd) 10%, transparent); }
 .nv-cd-dpeek { margin: 0 0 8px 50px; padding: 8px 0; border-radius: 12px; background: rgba(0, 0, 0, .34); font: 400 12px/1.6 var(--cd-mono); overflow: hidden; }
 .nv-cd-dpeek > div { padding: 0 12px; white-space: pre; overflow: hidden; text-overflow: ellipsis; color: var(--cd-ink3); }
 .nv-cd-dpeek .a { color: var(--nv-ink); background: color-mix(in srgb, var(--nv-cy) 14%, transparent); box-shadow: inset 2px 0 0 var(--nv-cy); }
@@ -309,7 +310,7 @@
 
 /* the composer, at the thumb over the tab bar */
 .nv-cd-dock { position: sticky; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 14; margin-top: 18px; }
-.nv-cd-comp { display: grid; grid-template-columns: auto minmax(0, 1fr) 44px; gap: 6px; align-items: center; padding: 6px; border-radius: 30px; background: color-mix(in srgb, var(--nv-void, #0b0e1c) 90%, transparent); -webkit-backdrop-filter: blur(26px) saturate(1.4); backdrop-filter: blur(26px) saturate(1.4); box-shadow: 0 0 0 .5px var(--cd-ring), inset 0 1px 0 var(--cd-hi), 0 16px 40px -18px #000; }
+.nv-cd-comp { display: grid; grid-template-columns: auto minmax(0, 1fr) 44px; gap: 6px; align-items: center; padding: 6px; border-radius: 30px; background: color-mix(in srgb, color-mix(in srgb, var(--nv-bg2, #06070d) 88%, var(--cd)) 92%, transparent); -webkit-backdrop-filter: blur(26px) saturate(1.4); backdrop-filter: blur(26px) saturate(1.4); box-shadow: 0 0 0 .5px var(--cd-ring), inset 0 1px 0 var(--cd-hi), 0 16px 40px -18px #000; }
 .nv-cd-comp .fld { min-width: 0; min-height: 44px; padding: 0 8px; border: 0; background: transparent; font: 400 16px var(--cd-ui); color: var(--nv-ink); outline: none; text-overflow: ellipsis; }
 .nv-cd-comp .fld::placeholder { color: var(--cd-ink3); }
 .nv-cd-comp .send { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #0d0a26; background: var(--cd); transition: opacity .2s ease; }
@@ -328,7 +329,7 @@
 /* the ⋯ sheet */
 .nv-cd-scrim { position: fixed; inset: 0; z-index: 150; background: rgba(4, 5, 10, .5); animation: nvCdFade .25s ease both; }
 @keyframes nvCdFade { from { opacity: 0; } }
-.nv-cd-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 151; max-width: 560px; margin: 0 auto; max-height: 84vh; overflow-y: auto; padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); border-radius: 30px 30px 0 0; background: color-mix(in srgb, var(--nv-void, #161b30) 96%, #2a2f4a); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); box-shadow: 0 0 0 .5px var(--cd-ring), inset 0 1px 0 var(--cd-hi); animation: nvCdSheetUp .42s var(--cd-ease) both; scrollbar-width: none; overscroll-behavior: contain; }
+.nv-cd-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 151; max-width: 560px; margin: 0 auto; max-height: 84vh; overflow-y: auto; padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); border-radius: 30px 30px 0 0; background: color-mix(in srgb, var(--nv-bg2, #06070d) 86%, var(--cd)); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); box-shadow: 0 0 0 .5px var(--cd-ring), inset 0 1px 0 var(--cd-hi); animation: nvCdSheetUp .42s var(--cd-ease) both; scrollbar-width: none; overscroll-behavior: contain; }
 @keyframes nvCdSheetUp { from { transform: translateY(100%); } }
 .nv-cd-sheet .grabzone { display: flex; justify-content: center; padding: 8px 0 10px; }
 .nv-cd-sheet .grab { display: block; width: 36px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--nv-ink) 30%, transparent); }

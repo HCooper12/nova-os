@@ -213,7 +213,7 @@ function Root({ c, compact = false }) {
         </div>
       ) : (
         <>
-          {!compact && <p className="nv-cd-news"><span className="dot" aria-hidden="true" />{c.news}</p>}
+          {!compact && !c.loading && <p className="nv-cd-news"><span className="dot" aria-hidden="true" />{c.news}</p>}
           {c.away && (
             <div className="nv-cd-card nv-cd-rv" style={{ marginTop: 14 }}>
               <b className="nv-cd-strong">Your Mac isn&apos;t answering</b>
@@ -281,10 +281,15 @@ function FileRow({ f, i, readOnly }) {
   );
 }
 
+const FILES_SHOWN = 12;
+
 function Review({ r }) {
   const bodyRef = useRef(null);
   const listRef = useRef(null);
   const [folding, setFolding] = useState(false);
+  // sixty changed files are a long page: the first twelve, then all on a tap
+  // (break-ui, 10 Oct 2026); the totals and Commit always count every tick
+  const [allFiles, setAllFiles] = useState(false);
   useFlipList(listRef, r.files.map((f) => f.path + (f.ticked ? '+' : '-')).join('|'));
 
   // the bars fold right to left, the body gives way, and the receipt takes
@@ -337,11 +342,16 @@ function Review({ r }) {
     <div className="nv-cd-review" id="nv-cd-review">
       <div className="rtot" style={folding ? { opacity: 0, transition: 'opacity .3s' } : undefined}>
         <b className="num">+<CountUp value={t.added} fromZero /></b>
-        <b className="num rm">{'−'}<CountUp value={t.removed} fromZero /></b>
+        {t.removed > 0 && <b className="num rm">{'−'}<CountUp value={t.removed} fromZero /></b>}
         <span>lines, in the<br />{t.files === 1 ? '1 ticked file' : `${t.files} ticked files`}</span>
       </div>
       <div className="rbody" ref={bodyRef}>
-        <div className="files" ref={listRef}>{r.files.map((f, i) => <FileRow key={f.path} f={f} i={i} readOnly={r.readOnly} />)}</div>
+        <div className="files" ref={listRef}>{(allFiles ? r.files : r.files.slice(0, FILES_SHOWN)).map((f, i) => <FileRow key={f.path} f={f} i={i} readOnly={r.readOnly} />)}</div>
+        {r.files.length > FILES_SHOWN + 2 && (
+          <button type="button" className="nv-cd-more" onClick={() => setAllFiles((x) => !x)}>
+            {allFiles ? 'Show fewer files' : `Show all ${r.files.length} files (${r.files.length - FILES_SHOWN} more, ${r.totals.files} ticked in all)`}
+          </button>
+        )}
         {r.readOnly ? (
           <p className="nv-cd-fine">The vault is read-only from here. Nova never commits your notes for you.</p>
         ) : (
@@ -646,7 +656,7 @@ export function ClaudeCode({ v }) {
     if (!import.meta.env.DEV || !c?.fixture) return;
     const want = new URLSearchParams(location.search).get('codefx');
     if (want && want !== 'off' && c.fixture.name !== want) c.fixture.set(want);
-  }, [c?.fixture]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => c?.stopPoll?.(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!c) return null;
@@ -655,7 +665,7 @@ export function ClaudeCode({ v }) {
     <div className={`nv-cd${wide ? ' wide' : ''}`} data-screen-label="Claude Code" ref={rootRef} style={wide ? { padding: '24px 32px 44px' } : v.wrapCode}>
       {wide ? (
         <>
-          <aside className="nv-cd-side"><Root c={c} compact={false} /></aside>
+          <aside className="nv-cd-side"><Root c={c} compact={!!page} /></aside>
           <section className="nv-cd-main">{page ? <Page c={c} page={page} wide /> : null}</section>
         </>
       ) : page ? <Page key={page.key} c={c} page={page} /> : <Root c={c} />}

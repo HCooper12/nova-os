@@ -76,7 +76,13 @@ export function loadCode(app) {
   refreshChanges(app, 'repo');
   refreshChanges(app, 'vault');
   refreshCommits(app);
-  if (getConnection()) { app.startMacSessionsPoll(); app.refreshForge(); }
+  if (getConnection()) {
+    app.startMacSessionsPoll();
+    app.refreshForge();
+    // the model labels are the CLI's own (modelWatch via the model board),
+    // never typed here; read them if the boot snapshot has not yet
+    if (app.state.liveModelPrefs == null) app.loadModelPrefs();
+  }
 }
 
 export function showFileLines(app, ws, path) {
