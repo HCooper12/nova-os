@@ -114,19 +114,16 @@ export function RecipeFigures({ page }) {
 }
 
 function Figures({ m }) {
-  // mount at zero, then hand CountUp the real figure: that is the count-up
-  const [armed, setArmed] = useState(false);
-  useEffect(() => { const r = requestAnimationFrame(() => setArmed(true)); return () => cancelAnimationFrame(r); }, []);
-  const at = (n) => (armed ? n : 0);
+  // the page arrives counting from 0 (CountUp's fromZero), with no second render
   const kc = (n) => Math.round(n).toLocaleString('en-AU');
   return (
     <div className="nv-rp-figs-w">
       <span className="nv-rp-eyebrow">Per serving</span>
       <div className="nv-rp-figs" role="img" aria-label={`Per serving: ${m.p} grams protein, ${m.kcal} kilocalories, ${m.c} grams carbs, ${m.f} grams fat`}>
-        <div className="p"><b><CountUp value={at(m.p)} /></b><span>g protein</span></div>
-        <div className="k"><b><CountUp value={at(m.kcal)} format={kc} /></b><span>kcal</span></div>
-        <div><b><CountUp value={at(m.c)} /></b><span>g carbs</span></div>
-        <div><b><CountUp value={at(m.f)} /></b><span>g fat</span></div>
+        <div className="p"><b><CountUp value={m.p} fromZero /></b><span>g protein</span></div>
+        <div className="k"><b><CountUp value={m.kcal} format={kc} fromZero /></b><span>kcal</span></div>
+        <div><b><CountUp value={m.c} fromZero /></b><span>g carbs</span></div>
+        <div><b><CountUp value={m.f} fromZero /></b><span>g fat</span></div>
       </div>
     </div>
   );

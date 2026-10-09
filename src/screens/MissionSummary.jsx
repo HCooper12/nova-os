@@ -18,6 +18,7 @@ import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
 import { prLift, prBasis } from '../missionFocus.js';
 import { YourDay } from '../Instruments.jsx';
 import { readDaySeen, markDaySeen, DAY_KEYS } from '../dayCard.js';
+import { CountText } from '../CountUp.jsx';
 
 // THE SUMMARY HOME (P2-B, 26 Sep 2026) — design/HOME-REDESIGN-PLAN.md, drawn
 // from mockup 56 (round 5, his pick). The third idiom of the same view model:
@@ -414,7 +415,8 @@ function BodyStat({ r, tone }) {
     <>
       <div style={{ font: `600 12px ${UI}`, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{r.label}</div>
       <div style={{ font: `700 23px/1.05 ${ROUND}`, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', color: tone, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {absent ? '—' : r.value}
+        {/* a write that changes the figure counts it to the new value (CountUp) */}
+        {absent ? '—' : <CountText text={r.value} />}
         {absent
           ? <small style={{ font: `600 14px ${ROUND}`, letterSpacing: 0, color: 'var(--nv-ink60)' }}> no data</small>
           : r.small ? <small style={{ font: `600 14px ${ROUND}`, letterSpacing: 0, opacity: 0.7 }}>{r.small}</small> : null}

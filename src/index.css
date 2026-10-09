@@ -115,6 +115,13 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 .nv-leave-approve { animation: nvLeaveFile var(--nv-dur-base) var(--nv-ease) both; box-shadow: inset 3px 0 0 var(--nv-good); border-radius: 14px; pointer-events: none; }
 .nv-leave-discard { animation: nvLeaveDiscard var(--nv-dur-base) var(--nv-ease) both; box-shadow: inset 3px 0 0 var(--nv-warn); border-radius: 14px; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .nv-leave-approve, .nv-leave-discard { animation: nvFadeOut .2s ease both; } }
+/* A COUNTED FIGURE (src/CountUp.jsx). The digits are written into the inner
+   span frame by frame; the box holds the width of the wider of the start and
+   end figures (data-w, through this hidden ::after) so a count never pushes
+   its neighbours, and tabular numerals keep every digit the same width. */
+.nv-count { display: inline-grid; font-variant-numeric: tabular-nums; }
+.nv-count > span, .nv-count::after { grid-area: 1 / 1; white-space: pre; }
+.nv-count::after { content: attr(data-w); visibility: hidden; pointer-events: none; }
 .nv-deck-rise { animation: deckRise var(--nv-dur-base) var(--nv-ease) both; }
 @media (prefers-reduced-motion: reduce) { .nv-deck-rise { animation: none; } }
 

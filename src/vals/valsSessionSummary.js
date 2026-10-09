@@ -547,6 +547,9 @@ export function valsSessionSummary(app, ctx, v) {
       editing,
       startedAt: Number.isFinite(session.startedAt) ? session.startedAt : null,
       progress: `${ticked} of ${total} sets`,
+      // the count apart from its words, so a tick counts the figure up (CountUp)
+      progressDone: ticked,
+      progressTotal: total,
       openFinish: () => openSheet('finish'),
       finishLabel: editing ? 'Save' : 'Finish',
       rail, lift, pills, set, allDone, skipped,
