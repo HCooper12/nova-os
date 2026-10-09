@@ -561,6 +561,13 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — CODE EXTENDED AND LIVE (merge, pushed, reloaded): Science
+  Atlas (Atlas_Progress_Map) and Wren (atlas-partner) are real workspaces
+  (server/data/code-workspaces.json); read live after reload: Atlas 2
+  changed files, Wren 6, both on main. Needs-you quotes a waiting session's
+  last message (capped 280, secrets scrubbed). Commit Undo moved onto the
+  rails as `code-commit` records with the same refusals. Shopping round 5
+  published: https://claude.ai/artifact/8m6hrZpnhPKSrjsPyhM3kf.
 - 10 Oct 2026 — HIS CALLS: Code: connect Science Atlas (Atomic_Hub/P3_Draft3/
   Atlas_Progress_Map) and Wren (atlas-partner) for commits; quote a waiting
   session's last message; move commit undo onto the rails (agent running).
