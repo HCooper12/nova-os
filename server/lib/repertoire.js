@@ -462,7 +462,12 @@ export const RESULTS = ['landed', 'missed'];
 //
 // `result`: undefined = not asked (the card's own two taps), so a result he
 // already gave survives a re-mark of 'tried'; null = cleared on purpose.
+//
+// outcome null TAKES THE MARK BACK (9 Oct 2026): the tick receipt's Undo of
+// a first mark. The day returns to unmarked, each tally it counted comes off,
+// and its line leaves the log, so the record reads as if he never tapped.
 export async function logPractice(vaultPath, dateISO, outcome, note = '', { result } = {}) {
+  if (outcome === null) return clearPractice(vaultPath, dateISO);
   if (!['tried', 'skipped'].includes(outcome)) throw new Error("outcome must be 'tried' or 'skipped'");
   if (result != null && !RESULTS.includes(result)) throw new Error("result must be 'landed' or 'missed'");
   if (result && outcome !== 'tried') throw new Error('only a technique he tried can have landed');
@@ -501,6 +506,44 @@ export async function logPractice(vaultPath, dateISO, outcome, note = '', { resu
   } catch { /* the vault log is a nicety; the tally is the record */ }
   const s = state.techniques[day.id];
   return { outcome, result: nextResult, tried: s.tried, landed: s.landed, streak: computeStreak(state, dateISO), logged };
+}
+
+async function clearPractice(vaultPath, dateISO) {
+  const state = await readState();
+  const day = state.days[dateISO];
+  if (!day?.id) throw new Error('no technique has been served for that day yet');
+  const prev = state.techniques[day.id] || {};
+  const was = day.outcome || null;
+  const wasResult = day.result || null;
+  if (!was) {
+    return { unchanged: true, outcome: null, result: null, tried: Number(prev.tried) || 0, landed: Number(prev.landed) || 0, streak: computeStreak(state, dateISO), logged: false };
+  }
+  const less = (n, v) => Math.max(0, (Number(n) || 0) - (v ? 1 : 0));
+  state.techniques[day.id] = {
+    ...prev,
+    tried: less(prev.tried, was === 'tried'),
+    skipped: less(prev.skipped, was === 'skipped'),
+    landed: less(prev.landed, wasResult === 'landed'),
+    missed: less(prev.missed, wasResult === 'missed'),
+  };
+  state.days[dateISO] = { ...day, outcome: null, result: null, note: null };
+  await writeState(state);
+  let logged = false;
+  try {
+    const t = flatten(await loadRepertoire(vaultPath)).find((x) => x.id === day.id);
+    const full = path.join(vaultPath, LOG_REL);
+    if (t && existsSync(full)) {
+      const raw = await readFile(full, 'utf8');
+      const kept = raw.split('\n').filter((l) => !l.startsWith(`- ${dateISO} · **${t.name}**`));
+      if (kept.length !== raw.split('\n').length) {
+        await backupFile(full);
+        await writeFile(full, `${kept.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\s*$/, '')}\n`, 'utf8');
+        logged = true;
+      }
+    }
+  } catch { /* the vault log is a nicety; the tally is the record */ }
+  const s = state.techniques[day.id];
+  return { outcome: null, result: null, tried: s.tried, landed: s.landed, streak: computeStreak(state, dateISO), logged };
 }
 
 export function formatLogLine(dateISO, name, outcome, note = '', result = null) {

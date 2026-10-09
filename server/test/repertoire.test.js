@@ -414,6 +414,33 @@ test('a result marks it tried, tallies it, logs it, and a pass takes it back', a
   assert.match(log, /— passed$/m);
 });
 
+test('the receipt\'s Undo takes a first mark back: the day, the tally and the log line', async () => {
+  const vault = await tempVault();
+  const { addTechniques, techniqueForDay, logPractice, readState } = await import('../lib/repertoire.js');
+  await addTechniques(vault, [{ family: 'Suggestion', name: 'The planted sensation', summary: 's', move: 'm', drill: 'd', tell: 't', source: 'src' }]);
+  await techniqueForDay(vault, '2026-09-15');
+  await logPractice(vault, '2026-09-15', 'tried', '', { result: 'landed' });
+  const back = await logPractice(vault, '2026-09-15', null);
+  assert.equal(back.outcome, null);
+  assert.equal(back.tried, 0);
+  assert.equal(back.landed, 0);
+  assert.equal(back.streak, 0);
+  const st = await readState();
+  assert.equal(st.days['2026-09-15'].outcome, null, 'the day is unmarked again');
+  assert.equal(st.days['2026-09-15'].id, 'the-planted-sensation', 'the served technique stays served');
+  const log = await readFile(path.join(vault, LOG_REL), 'utf8');
+  assert.ok(!/2026-09-15/.test(log), 'its line left the log');
+  assert.ok(log.endsWith('\n') && !log.endsWith('\n\n'));
+  // a second Undo is a no-op, never a negative tally
+  const again = await logPractice(vault, '2026-09-15', null);
+  assert.equal(again.unchanged, true);
+  assert.equal((await readState()).techniques['the-planted-sensation'].tried, 0);
+  // and a pass taken back takes the pass off, not an attempt
+  await logPractice(vault, '2026-09-15', 'skipped');
+  await logPractice(vault, '2026-09-15', null);
+  assert.equal((await readState()).techniques['the-planted-sensation'].skipped, 0);
+});
+
 test('a result that is not a word it knows, or on a day he passed, is refused', async () => {
   const vault = await tempVault();
   const { addTechniques, techniqueForDay, logPractice } = await import('../lib/repertoire.js');
