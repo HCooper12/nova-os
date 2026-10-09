@@ -95,6 +95,13 @@ test('the three numerals that move most count when a write changes them', () => 
   assert.match(vm, /progress: `\$\{ticked\} of \$\{total\} sets`/, 'the sentence is still there for its other readers');
 });
 
+test('a page\'s descendant span rule cannot turn a counted figure into a block', () => {
+  const css = read('src/index.css');
+  assert.match(css, /span\.nv-count \{ display: inline-block !important; margin: 0 !important; \}/);
+  assert.match(css, /span\.nv-count > span \{ display: inline !important; margin: 0 !important; \}/);
+  assert.match(css, /\.nv-ss-st > span \{ display: block;/, 'the session header styles its own line, not every span inside it');
+});
+
 test('the count holds its width: tabular numerals and a box sized to the wider figure', () => {
   const css = read('src/index.css');
   assert.match(css, /\.nv-count \{ display: inline-block; font-variant-numeric: tabular-nums; white-space: pre; \}/);

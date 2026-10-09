@@ -123,6 +123,11 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
    unit in the page's text ("96" / "/180 g"), which the summary guard caught;
    the text line stays last, so the baseline is the figure's own. */
 .nv-count { display: inline-block; font-variant-numeric: tabular-nums; white-space: pre; }
+/* a counted figure stays on its text line whatever a page's own `x span`
+   rule says (9 Oct 2026: the session header's `.nv-ss-st span {display:
+   block}` put "1" on a line of its own between "0 min ·" and "of 9 sets") */
+span.nv-count { display: inline-block !important; margin: 0 !important; }
+span.nv-count > span { display: inline !important; margin: 0 !important; }
 .nv-count::before { content: attr(data-w); display: block; height: 0; visibility: hidden; pointer-events: none; }
 .nv-deck-rise { animation: deckRise var(--nv-dur-base) var(--nv-ease) both; }
 /* reduced motion: the card does not travel, it fades. !important because the
@@ -2644,7 +2649,7 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-ss-st { min-width: 0; }
 .nv-ss-st b { display: block; font: 700 20px/1.2 var(--nv-font-ui); letter-spacing: -.015em; color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-ss-st b em { font-style: normal; font-weight: 400; color: var(--nv-ink60); }
-.nv-ss-st span { display: block; margin-top: 2px; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; }
+.nv-ss-st > span { display: block; margin-top: 2px; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; }
 .nv-ss-fin {
   flex: none; height: 44px; padding: 0 18px; border: 0; border-radius: 22px; cursor: pointer;
   font: 600 15px var(--nv-font-ui); color: var(--nv-ink); background: var(--ss-quiet); box-shadow: inset 0 0 0 1px var(--ss-edge);
