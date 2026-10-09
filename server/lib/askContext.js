@@ -246,13 +246,10 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
       const review = await getDailyReviewStatus();
       return review?.today?.text ? `TODAY'S DAILY REVIEW (engage with its specifics if he brings it up):\n${review.today.text}` : null;
     } },
-    { label: 'money this month', load: async () => {
-      const { getMonthSummary } = await import('./money.js');
-      const m = await getMonthSummary();
-      if (!m?.count) return null;
-      const top = (m.byCategory || []).sort((a, b) => b.spent - a.spent).slice(0, 3).map((c) => `${c.category} $${Math.round(c.spent)}`);
-      return `Money this month: ${Math.round(m.spent)} spent (last month ${Math.round(m.prevSpent)}); top: ${top.join(', ')}.`;
-    } },
+    // the CFO's own read (10 Oct 2026): budgets, pace, last month to the same
+    // day, bills and the alerts waiting on him, every figure computed by code
+    // (lib/moneySignals.js). The same block the CFO answers a consult with.
+    { label: 'money this month', load: async () => (await import('./moneySignals.js')).moneyContext() },
     { label: "the Leader's idea of the day", load: async () => {
       // the Leader's idea of the day — Nova mentions it in the morning brief
       // conversation and can discuss it; the deeper sit-down lives in the

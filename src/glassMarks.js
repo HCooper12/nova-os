@@ -33,6 +33,8 @@ export const FINDERS = {
   librarian: { key: 'librarian', name: 'Librarian', the: 'the Librarian', hue: 'var(--nv-m-back)' },
   leader: { key: 'leader', name: 'Leader', the: 'the Leader', hue: 'var(--nv-mg)' },
   calendar: { key: 'calendar', name: 'Calendar', the: 'your calendar', hue: 'var(--nv-nova)' },
+  // Money's hue (its Index tile): the CFO is a code-read source like the calendar
+  cfo: { key: 'cfo', name: 'CFO', the: 'the CFO', hue: 'var(--nv-vi)' },
   nova: { key: 'nova', name: 'Nova', the: 'Nova', hue: 'var(--nv-nova)' },
 };
 export const finderOf = (by) => FINDERS[String(by || '').toLowerCase()] || FINDERS.nova;
