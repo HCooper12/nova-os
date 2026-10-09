@@ -48,7 +48,7 @@ import { parseBriefingVoice, explainQuestion } from './briefingVoice.js';
 import { scaleMacros, portionName, validPortion } from './portion.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
-import { valsTodos } from './vals/valsTodos.js';
+import { valsTodos, linkify as todoLabel } from './vals/valsTodos.js';
 import { valsMoney } from './vals/valsMoney.js';
 import { valsMission } from './vals/valsMission.js';
 import { valsOps } from './vals/valsOps.js';
@@ -6080,7 +6080,9 @@ export default class App extends Component {
     const item = previous?.items?.find((t) => t.raw === rawLine);
     if (!item) return;
     const done = !item.checked;
-    const leave = () => { if (receipt) tickReceipt({ key: `todo:${item.text}`, label: item.text, done, undo: () => this.undoTodoTick(item.text, done) }); };
+    // named the way its row names it: a bare link reads as where it goes
+    // (found by the break-ui pass: the pill showed a URL's tracking query)
+    const leave = () => { if (receipt) tickReceipt({ key: `todo:${item.text}`, label: todoLabel(item.text), done, undo: () => this.undoTodoTick(item.text, done) }); };
     haptic('tick');
     this.setState((s) => {
       if (!s.liveTodos?.items) return null;

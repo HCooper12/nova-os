@@ -204,6 +204,13 @@ test('a tick in demo mode changes the screen and raises the pill, never the serv
   assert.ok(!/api\./.test(between(app, '  toggleSessionSetDone(exIdx, setIdx', '  addSessionSet(')));
 });
 
+test('a to-do is named in the pill the way its row names it (a bare link reads as where it goes)', async () => {
+  const { linkify } = await import('../../src/vals/valsTodos.js');
+  assert.equal(linkify('https://www.youtube.com/watch?v=dQw4w9WgXcQ&si=ViCNnsot-cpYEZ8Y'), 'youtube.com \u2197');
+  assert.equal(linkify('Email Aleksandra Wiśniewska-Kowalczyk'), 'Email Aleksandra Wiśniewska-Kowalczyk');
+  assert.match(read('src/App.jsx'), /label: todoLabel\(item\.text\)/);
+});
+
 test('the figures a tick moves count to their new values', () => {
   assert.match(read('src/screens/Todos.jsx'), /<CountUp value=\{v\.todosCounts\.open\} \/> open · <CountUp value=\{v\.todosCounts\.done\} \/> done/);
   assert.match(read('src/screens/Shopping.jsx'), /<CountUp value=\{v\.shoppingCheckedCount\} \/> collected/);
