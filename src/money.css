@@ -312,7 +312,7 @@
 .nv-mo-shtop > b { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; font: 600 17px var(--nv-font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-mo-shl { justify-self: start; }
 .nv-mo-shr { justify-self: end; }
-.nv-mo-shbody { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 2px 4px; margin: 0 -2px; }
+.nv-mo-shbody { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 2px 2px 4px; margin: 0 -2px; }
 .nv-mo-shfoot { flex: none; padding-top: 4px; }
 .nv-mo-save { min-height: 44px; padding: 0 18px !important; border-radius: 22px; font: 600 15px var(--nv-font-ui) !important; color: #120d2e !important; background: var(--nv-vi) !important; white-space: nowrap; }
 .nv-mo-save.block { display: block; width: 100%; margin-top: 12px !important; min-height: 48px; border-radius: 24px; text-align: center !important; }
@@ -377,7 +377,7 @@
 .nv-mo-path .pn.on { opacity: 1; }
 .nv-mo-path .bub { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: color-mix(in srgb, var(--nv-void) 70%, var(--nv-vi)); box-shadow: inset 0 0 0 1px var(--nv-sum-card-ring); }
 .nv-mo-path .pn.on .bub { box-shadow: inset 0 0 0 1.5px var(--nv-vi), 0 0 18px -6px var(--nv-vi); }
-.nv-mo-file { position: absolute; left: calc(var(--x, 0) * 25% + 2%); top: -28px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 9px; font: 600 12px var(--nv-font-mono, ui-monospace, monospace); background: color-mix(in srgb, var(--nv-void) 60%, var(--nv-vi)); box-shadow: 0 0 0 1px var(--nv-sum-card-ring); opacity: 0; transition: left .6s var(--nv-mo-ease), opacity .25s ease; }
+.nv-mo-file { position: absolute; left: calc(var(--x, 0) * (100% - 112px) / 3); top: -28px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 9px; font: 600 12px var(--nv-font-mono, ui-monospace, monospace); background: color-mix(in srgb, var(--nv-void) 60%, var(--nv-vi)); box-shadow: 0 0 0 1px var(--nv-sum-card-ring); opacity: 0; transition: left .6s var(--nv-mo-ease), opacity .25s ease; }
 .nv-mo-file[data-on="true"] { opacity: 1; }
 .nv-mo-file .nv-mo-ic { width: 14px; height: 14px; }
 .nv-mo-ilist { margin-top: 8px; }
