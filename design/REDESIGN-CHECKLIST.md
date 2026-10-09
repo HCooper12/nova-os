@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — MOTION STEP 2 SHIPPED (merge, pushed, reloaded): a pill
+  with Undo on every tick through one receipt (src/receipt.js), coalesced
+  ("20 ticked"), Undo refusing honestly when the record changed since; the
+  practice mark gained a reverse path (repertoire outcome: null); arrival
+  count-ups from zero (no re-count on a quick back); the theme cross-fades the
+  whole app (Chrome: no doubled glass on glass/solid/lit; Safari is his
+  phone's call); FLIP rows animate height and exit. 4x: Settings push 50-91
+  to 33-44 ms (floor = the whole-app re-render, P8); theme swap frame 38-52
+  ms. break-ui fixed: a link to-do's raw URL, overlapping exits, the session
+  header wrapping. fleetContext/inboxReaper flake under full-suite load only.
 - 9 Oct 2026 — HIS MOTION CALLS, all yes: a pill with Undo on every tick;
   count up from zero on every arrival; the theme change cross-fades the
   whole app (judged on his phone for the glass). Motion step 2 started.
