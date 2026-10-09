@@ -561,6 +561,15 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — HIS MOTION AND PERFORMANCE BAR (standing): the "Bento
+  dashboard animation" reel, https://www.instagram.com/reel/DeHGjlZPIHF/.
+  Six moves: arrival over a skeleton with numbers counting up and bars
+  growing; a write acted out on every number it changes plus a pill toast;
+  drag lifts the card and the target lights; filters move cards to their
+  new places (FLIP); charts scrub with a riding tooltip; one accent re-tints
+  everything in one move. Every build's acceptance now includes these where
+  they apply, and a frame budget measured by trace (memory
+  nova-motion-standard).
 - 9 Oct 2026 — THE WALL BUILT AND SHIPPED (merge, pushed, reloaded): option
   1 of mockup 86; waiting and asks from the Org map's own functions, working
   from agentsWorking.js (one source, wallAgents test); portraits of the real
