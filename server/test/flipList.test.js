@@ -90,7 +90,7 @@ test('a row that leaves is seen leaving: a copy at its old slot, faster out than
   assert.match(ghost, /removeAttribute\?\.\('data-flip'\)/, 'the copy is invisible to measure');
   assert.match(ghost, /setAttribute\('aria-hidden', 'true'\)/);
   assert.match(ghost, /pointerEvents: 'none'/);
-  assert.match(src, /reduce \? \[\{ opacity: 1 \}, \{ opacity: 0 \}\] : \[\{ opacity: 1, transform: 'scale\(1\)' \}, \{ opacity: 0, transform: 'scale\(\.97\)' \}\]/);
+  assert.match(src, /reduce \? \[\{ opacity: 1 \}, \{ opacity: 0 \}\] : \[\{ opacity: 1, transform: 'scale\(1\)' \}, \{ opacity: 0, transform: 'scale\(\.98\)', offset: 0\.6 \}, \{ opacity: 0, transform: 'scale\(\.97\)' \}\]/, 'the copy is gone before the incoming row settles over its slot');
   assert.match(src, /ghost\.remove\(\)/);
 });
 

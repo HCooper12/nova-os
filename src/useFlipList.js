@@ -138,7 +138,9 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
         const ghost = ghostOf(was, inset);
         if (!ghost) { settled(); continue; }
         rootEl.appendChild(ghost);
-        const frames = reduce ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.97)' }];
+        // gone by 60% of the run: frame by frame (9 Oct) a slower fade left
+        // its words over the row sliding into its slot for ~100 ms
+        const frames = reduce ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.98)', offset: 0.6 }, { opacity: 0, transform: 'scale(.97)' }];
         try {
           const a = ghost.animate(frames, { duration: reduce ? FADE_MS : EXIT_MS, easing: 'ease-out', fill: 'forwards' });
           anims.current.set(`${EXIT}${id}`, a);
