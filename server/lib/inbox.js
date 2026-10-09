@@ -11,7 +11,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { queueTodoistSync } from './todoistSync.js';
-import { addTransactions, removeTransactions, CATEGORIES as MONEY_CATEGORIES } from './money.js';
+import { addTransactions, removeTransactions, restoreTransactions, editTransaction, restoreMerchantOverride, setBudget, CATEGORIES as MONEY_CATEGORIES } from './money.js';
 import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
@@ -851,7 +851,8 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   }
 
   if (route === 'money-import') {
-    const added = await addTransactions(payload.transactions, 'import');
+    // a statement photo's lines say so (the Money page's "receipt scans")
+    const added = await addTransactions(payload.transactions, payload.source === 'scan' ? 'scan' : 'import');
     if (payload.file) await archiveImportFile(vaultPath, payload.file).catch(() => {});
     const spend = Math.round(added.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0));
     return {
@@ -1351,6 +1352,24 @@ export async function undoFiling(vaultPath, undo) {
     await writeFile(full, raw.replace(undo.block, '\n'), 'utf8');
     return 'removed the appended outline';
   }
+  // HIS OWN CHANGES ON THE MONEY SCREEN (10 Oct 2026, the audit's finding 6:
+  // manual delete, recategorise, note and budget wrote straight to the ledger
+  // with no record and no way back). Each is now a filed record whose undo
+  // puts the ledger back exactly as it was.
+  if (undo.route === 'money-restore') {
+    const restored = await restoreTransactions(undo.transactions || []);
+    if (!restored) throw new Error('those lines are already back in the ledger');
+    return `put ${restored} ledger ${restored === 1 ? 'line' : 'lines'} back`;
+  }
+  if (undo.route === 'money-edit') {
+    await editTransaction(undo.id, { category: undo.before?.category, note: undo.before?.note ?? '' });
+    if (undo.override?.key) await restoreMerchantOverride(undo.override.key, undo.override.before || null);
+    return `put the line back to ${undo.before?.category || 'its old category'}${undo.override?.key ? ' and the merchant rule back as it was' : ''}`;
+  }
+  if (undo.route === 'money-budget') {
+    await setBudget(undo.category, undo.before == null ? '' : String(undo.before));
+    return undo.before == null ? `cleared the ${undo.category} budget again` : `put the ${undo.category} budget back to $${undo.before}`;
+  }
   if (undo.route === 'expense' || undo.route === 'money-import') {
     if (!undo.ids.length) throw new Error('this filing added nothing (it was a duplicate) — there is nothing to undo');
     const removed = await removeTransactions(undo.ids);
@@ -1739,6 +1758,12 @@ export async function approveRecord(vaultPath, id) {
   }
   // A fuel-cross finding is a receipt, not a write: it carries no decision
   // because nothing goes to the vault. Approving means "seen, acknowledged".
+  // A money event (lib/moneySignals.js) is news, not a filing: approving it
+  // means "seen, noted". Its one real write, a price rise's "don't keep it",
+  // has its own door (answerMoneyEvent) with its own undo.
+  if (record.kind === 'money') {
+    return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
+  }
   if (record.kind === 'fuel-cross') {
     return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }

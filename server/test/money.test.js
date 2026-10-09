@@ -77,8 +77,9 @@ test('subscriptions: cadence + next-expected + price rise; one-offs are not subs
   assert.deepEqual(names, ['Netflix.com', 'Spotify AU']);
   const netflix = subs.find((s) => s.merchant === 'Netflix.com');
   assert.equal(netflix.cadence, 'monthly');
-  assert.equal(netflix.nextExpected, '2026-08-12');
-  assert.deepEqual(netflix.priceRise, { from: 22.99, to: 24.99 });
+  // by the calendar: charged on the 13th, next due on the 13th (it was +30 days)
+  assert.equal(netflix.nextExpected, '2026-08-13');
+  assert.deepEqual(netflix.priceRise, { from: 22.99, to: 24.99, on: '2026-07-13' });
   assert.equal(subs.find((s) => s.merchant === 'Spotify AU').priceRise, null);
 });
 
