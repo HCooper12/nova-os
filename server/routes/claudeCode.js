@@ -56,29 +56,36 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
 
   // C2: what the session changed, and his call on it. The diff is the
   // thing that made a terminal necessary; keeping/shelving closes the loop.
+  // Round 3 (10 Oct 2026): every write takes the ticked paths, checked in
+  // lib/codeChanges.js before git is touched, and Undo takes back an
+  // unpushed commit Nova made. `repoRoot` is this router's repoPath, so a
+  // test mounts the router over a temporary repo and never his real one.
+  const changes = () => import('../lib/codeChanges.js');
+  const ws = (w) => (w === 'vault' ? 'vault' : 'repo');
+  const fail = (res, e) => res.status(400).json({ error: e.message, code: e.code || null });
   router.get('/claude-code/changes', async (req, res) => {
     try {
-      const { changeSummary } = await import('../lib/codeChanges.js');
-      res.json(await changeSummary(req.query.workspace || 'repo', vaultPath));
-    } catch (e) { res.status(400).json({ error: e.message }); }
+      const sid = typeof req.query.sessionId === 'string' && SESSION_ID_RE.test(req.query.sessionId) ? req.query.sessionId : null;
+      res.json(await (await changes()).changeSummary(ws(req.query.workspace), vaultPath, { repoRoot: repoPath, sessionId: sid }));
+    } catch (e) { fail(res, e); }
+  });
+  router.get('/claude-code/diff', async (req, res) => {
+    try { res.json(await (await changes()).fileDiff(ws(req.query.workspace), vaultPath, req.query.path, { repoRoot: repoPath })); } catch (e) { fail(res, e); }
+  });
+  router.get('/claude-code/commits', async (req, res) => {
+    try { res.json(await (await changes()).listCommits(ws(req.query.workspace), vaultPath, { repoRoot: repoPath, since: Number(req.query.since) || 0 })); } catch (e) { fail(res, e); }
   });
   router.post('/claude-code/commit', async (req, res) => {
-    try {
-      const { commitChanges } = await import('../lib/codeChanges.js');
-      res.json(await commitChanges(req.body?.workspace || 'repo', vaultPath, req.body?.message));
-    } catch (e) { res.status(400).json({ error: e.message }); }
+    try { res.json(await (await changes()).commitChanges(ws(req.body?.workspace), vaultPath, req.body?.message, { repoRoot: repoPath, paths: req.body?.paths })); } catch (e) { fail(res, e); }
+  });
+  router.post('/claude-code/undo', async (req, res) => {
+    try { res.json(await (await changes()).undoCommit(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, sha: req.body?.sha })); } catch (e) { fail(res, e); }
   });
   router.post('/claude-code/shelve', async (req, res) => {
-    try {
-      const { shelveChanges } = await import('../lib/codeChanges.js');
-      res.json(await shelveChanges(req.body?.workspace || 'repo', vaultPath));
-    } catch (e) { res.status(400).json({ error: e.message }); }
+    try { res.json(await (await changes()).shelveChanges(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, paths: req.body?.paths })); } catch (e) { fail(res, e); }
   });
   router.post('/claude-code/unshelve', async (req, res) => {
-    try {
-      const { unshelveLatest } = await import('../lib/codeChanges.js');
-      res.json(await unshelveLatest(req.body?.workspace || 'repo', vaultPath));
-    } catch (e) { res.status(400).json({ error: e.message }); }
+    try { res.json(await (await changes()).unshelveLatest(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, sha: req.body?.sha || undefined })); } catch (e) { fail(res, e); }
   });
 
   return router;
