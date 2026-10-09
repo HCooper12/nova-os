@@ -82,6 +82,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
+import { noteScreen } from './arrival.js';
 import { newStages, jobSettled } from './jobBeats.js';
 import { bareOpen, webTarget, isMacDevice } from './macTargets.js';
 import { previewLine } from './islandCore.js';
@@ -752,7 +753,16 @@ export default class App extends Component {
     ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null, ingestFile: null, ingestPerson: '', ingestProgress: null,
   };
 
+  // THE ARRIVAL COUNT asks which screen it is on (src/arrival.js). This runs
+  // before the new screen's figures lay out, so a quick return to a page is
+  // known to be one by the time they ask whether to count again.
+  getSnapshotBeforeUpdate(prevProps, prevState) {
+    if (prevState.screen !== this.state.screen) noteScreen(this.state.screen);
+    return null;
+  }
+
   componentDidMount() {
+    noteScreen(this.state.screen);
     try { const d = localStorage.getItem('novaos.wrap.dismissed'); if (d) this.setState({ wrapDismissedOn: d }); } catch { /* private mode */ }
     if (import.meta.env.DEV) window.__novaApp = this; // dev-only introspection hook
     // a cold open straight onto #/recipes never passes through navigate(),

@@ -189,5 +189,5 @@ test('a tick in demo mode changes the screen and raises the pill, never the serv
 test('the figures a tick moves count to their new values', () => {
   assert.match(read('src/screens/Todos.jsx'), /<CountUp value=\{v\.todosCounts\.open\} \/> open · <CountUp value=\{v\.todosCounts\.done\} \/> done/);
   assert.match(read('src/screens/Shopping.jsx'), /<CountUp value=\{v\.shoppingCheckedCount\} \/> collected/);
-  assert.match(read('src/screens/MissionSummary.jsx'), /<CountUp value=\{t\.streak\} \/>-day streak/);
+  assert.match(read('src/screens/MissionSummary.jsx'), /<CountUp value=\{t\.streak\} fromZero \/>-day streak/);
 });

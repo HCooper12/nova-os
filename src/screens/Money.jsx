@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, Button } from '../Controls.jsx';
+import { CountUp } from '../CountUp.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 const M = "var(--nv-font-mono)";
@@ -34,7 +35,7 @@ export function Money({ v }) {
           <div style={{ display: 'flex', gap: '12px', marginTop: '18px', flexWrap: 'wrap' }}>
             <div className="nv-pane" style={{ flex: '1 1 250px', padding: '16px 18px' }}>
               <Eyebrow tone="gold">This month</Eyebrow>
-              <div style={css(`margin-top:8px;font:700 34px/1 ${R};font-variant-numeric:tabular-nums`)}>{v.moneySpentLabel}</div>
+              <div style={css(`margin-top:8px;font:700 34px/1 ${R};font-variant-numeric:tabular-nums`)}>{v.moneySpent != null ? <CountUp value={v.moneySpent} format={v.moneyFmt} fromZero /> : v.moneySpentLabel}</div>
               <Meta as="div" tone="quiet" style={{ marginTop: '6px' }}>
                 spent{v.moneySpentDelta && <span style={{ color: v.moneySpentDelta.up ? 'var(--nv-warn)' : 'var(--nv-good)' }}> · {v.moneySpentDelta.label}</span>}
                 {v.moneyIncomeLabel && <span> · {v.moneyIncomeLabel} in</span>}

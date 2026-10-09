@@ -33,15 +33,11 @@ test('the first paint is still; a change counts from what was on screen', () => 
   assert.equal(countStart({ prev: 120, next: 96 }), 120, 'a figure that went down counts down');
 });
 
-test('fromZero is the one switch for an arrival count, and it is off by default', () => {
+test('fromZero is the one switch for an arrival count; the primitive stays off unless asked', () => {
   assert.equal(countStart({ prev: undefined, next: 96, fromZero: true }), 0);
   assert.equal(countStart({ prev: undefined, next: 0, fromZero: true }), null, 'zero has nothing to count');
   const src = read('src/CountUp.jsx');
-  assert.match(src, /fromZero = false/, 'the default stays off until he decides');
-  // only the recipe page arrives counting (it did before this primitive)
-  for (const f of ['src/screens/MissionSummary.jsx', 'src/screens/FuelSummary.jsx', 'src/screens/SessionSummary.jsx']) {
-    assert.ok(!/fromZero/.test(read(f)), `${f} counts on change only`);
-  }
+  assert.match(src, /fromZero = false/, 'a figure counts on arrival only where its page asks (his call, 9 Oct: server/test/arrivalCount.test.js)');
 });
 
 test('reduced motion: no count, the figure lands', () => {
@@ -88,10 +84,10 @@ test('a formatted figure reads back to the same string', () => {
 
 test('the three numerals that move most count when a write changes them', () => {
   const home = read('src/screens/MissionSummary.jsx');
-  assert.match(home, /<CountText text=\{r\.value\} \/>/, 'Home: the three ring values');
+  assert.match(home, /<CountText text=\{r\.value\} fromZero \/>/, 'Home: the three ring values');
   const fuel = read('src/screens/FuelSummary.jsx');
-  assert.match(fuel, /<CountUp value=\{protein\.value\} \/>/, 'Fuel: the plate centre');
-  assert.match(fuel, /<CountUp value=\{k\.value\} format=\{kc\} \/>/, 'Fuel: calories');
+  assert.match(fuel, /<CountUp value=\{protein\.value\} fromZero \/>/, 'Fuel: the plate centre');
+  assert.match(fuel, /<CountUp value=\{k\.value\} format=\{kc\} fromZero \/>/, 'Fuel: calories');
   const ses = read('src/screens/SessionSummary.jsx');
   assert.match(ses, /<CountUp value=\{S\.progressDone\}/, 'the live session progress');
   const vm = read('src/vals/valsSessionSummary.js');

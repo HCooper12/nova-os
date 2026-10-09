@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import { COUNT_MS, countAt, countStart, isFigure, parseFigure } from './countFigure.js';
+import { arrivalAllowed, arrivalTiming } from './arrival.js';
 
 // A number that arrives rather than appears. Counts from what was on screen
 // to the new value on the ring arcs' decelerating curve, so a figure that
@@ -14,8 +15,12 @@ import { COUNT_MS, countAt, countStart, isFigure, parseFigure } from './countFig
 // The rules it keeps:
 //   - never invents a value: null, NaN and Infinity show a dash
 //   - counts only when the value CHANGES; the first paint shows the figure
-//     still. `fromZero` is the single switch for an arrival count from 0
-//     (his call on arrival count-ups is open, so it defaults off)
+//     still. `fromZero` is the single switch for an arrival count from 0,
+//     set where a figure arrives with its page (his call, 9 Oct 2026: Home,
+//     Fuel's plate, the session, Money, the Inbox, the wall). An arrival
+//     takes its place in a 40 ms stagger and the whole arrival stays inside
+//     650 ms; a quick return to the page shows the figures still
+//     (src/arrival.js)
 //   - a second change mid-count carries on from the digits on screen
 //   - tabular numerals, and the box is held at the wider of the start and
 //     end figures for the length of the count, so nothing beside it moves
@@ -24,6 +29,7 @@ export function CountUp({ value, format = defaultFormat, style, className, durat
   const textRef = useRef(null);
   const boxRef = useRef(null);
   const shownRef = useRef(undefined); // the figure on screen right now
+  const arrivedRef = useRef(false);    // a figure has been shown here once
   const rafRef = useRef(0);
   const fmtRef = useRef(format);
   fmtRef.current = format;
@@ -36,7 +42,12 @@ export function CountUp({ value, format = defaultFormat, style, className, durat
   useLayoutEffect(() => {
     const node = textRef.current?.firstChild;
     const box = boxRef.current;
-    const from = countStart({ prev: shownRef.current, next: figure, fromZero, reduced: reducedMotion() });
+    // an arrival is the first figure this place shows (a dash that becomes a
+    // number arrives too), on a page he has not just left
+    const arriving = fromZero && !arrivedRef.current && isFigure(figure) && arrivalAllowed();
+    const prev = arriving ? undefined : shownRef.current;
+    if (isFigure(figure)) arrivedRef.current = true;
+    const from = countStart({ prev, next: figure, fromZero: arriving, reduced: reducedMotion() });
     if (from == null || !node) {
       // no count: the figure React rendered is the one on screen (a count
       // this one interrupted may have left its own digits in the node)
@@ -46,7 +57,8 @@ export function CountUp({ value, format = defaultFormat, style, className, durat
       return undefined;
     }
     const fmt = fmtRef.current;
-    const start = performance.now();
+    const { delay, duration: span } = arriving ? arrivalTiming() : { delay: 0, duration };
+    const start = performance.now() + delay;
     const fromText = fmt(from);
     const to = fmt(figure);
     // hold the wider of the two strings so the count never moves its neighbours
@@ -54,7 +66,7 @@ export function CountUp({ value, format = defaultFormat, style, className, durat
     node.nodeValue = fromText;
     shownRef.current = from;
     const tick = (now) => {
-      const n = countAt(from, figure, now - start, duration);
+      const n = countAt(from, figure, now - start, span);
       shownRef.current = n;
       const s = fmt(n);
       if (node.nodeValue !== s) node.nodeValue = s;

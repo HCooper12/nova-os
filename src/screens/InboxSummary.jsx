@@ -9,6 +9,7 @@ import { autoSeenDue, elapsedLabel, AUTO_SEEN_MS, TONE_HUE } from '../inboxSumma
 import { Ico, Tile } from '../InboxSumIcons.jsx';
 import { DeeperReportSheet } from '../DeeperReportSheet.jsx';
 import { Verbs } from '../InboxSumVerbs.jsx';
+import { CountText } from '../CountUp.jsx';
 
 // THE SUMMARY INBOX (27 Sep 2026) — design/mockups/60-redesign-inbox-r2.html,
 // his pick ("Option A seems best and most clean/organised"), answering the
@@ -331,7 +332,7 @@ function SubjectCard({ s, i }) {
     <div className="nv-sum-card nv-sum-ib-scard nv-sum-rise" style={{ '--i': 2 + i * 0.25 }}>
       <Interactive as="div" className="open" onClick={s.open} haptic="tick" aria-label={`Open ${s.name}, ${s.count} waiting`} base={{ cursor: 'pointer' }}>
         <span className="nm"><i className="nv-sum-ib-dot" style={{ '--h': TONE_HUE[s.tone] || 'var(--nv-ink40)' }} />{s.name}</span>
-        <span className="nv-sum-ib-num s wait">{s.count}</span>
+        <span className="nv-sum-ib-num s wait"><CountText text={s.count} fromZero /></span>
       </Interactive>
       {s.all && (
         <Interactive as="button" className="nv-sum-ib-allb" aria-label={s.aria} haptic="commit" base={{ cursor: s.busy ? 'default' : 'pointer' }}
@@ -398,7 +399,7 @@ function Filed({ f }) {
   return (
     <>
       <div className="nv-sum-ib-count nv-sum-rise" style={{ '--i': 1 }}>
-        <span className="nv-sum-ib-num">{f.count}</span>
+        <span className="nv-sum-ib-num"><CountText text={f.count} fromZero /></span>
         <div className="nv-sum-ib-cx"><b>on the record</b><span>{f.sub}</span></div>
       </div>
       {f.honest && <p className="nv-sum-ib-honest nv-sum-rise" style={{ '--i': 2 }}><Ico name="checkc" /><span>{f.honest}</span></p>}
@@ -424,7 +425,7 @@ function Waiting({ S, v }) {
   return (
     <>
       <div className="nv-sum-ib-count nv-sum-rise" style={{ '--i': 1 }}>
-        <span className={`nv-sum-ib-num${S.count ? ' wait' : ''}`}>{S.count}</span>
+        <span className={`nv-sum-ib-num${S.count ? ' wait' : ''}`}><CountText text={S.count} fromZero /></span>
         <div className="nv-sum-ib-cx">
           <b>waiting on your call</b>
           {S.digestLine && <span>{S.digestLine}</span>}

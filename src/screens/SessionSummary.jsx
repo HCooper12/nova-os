@@ -166,7 +166,7 @@ export function SessionSummary({ v, parts }) {
         <header className="nv-ss-top nv-sum-rise" style={{ '--i': 0 }}>
           <div className="nv-ss-st">
             <b>{S.title}{S.editing && <em> · editing</em>}</b>
-            <span>{minutes != null ? `${minutes} min · ` : ''}<CountUp value={S.progressDone} duration={420} /> of {S.progressTotal} sets</span>
+            <span>{minutes != null ? `${minutes} min · ` : ''}<CountUp value={S.progressDone} duration={420} fromZero /> of {S.progressTotal} sets</span>
           </div>
           <Interactive as="button" type="button" className="nv-ss-fin" onClick={S.openFinish}>{S.finishLabel}</Interactive>
         </header>

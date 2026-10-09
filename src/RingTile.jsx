@@ -1,4 +1,5 @@
 import { css } from './css.js';
+import { CountText } from './CountUp.jsx';
 
 // THE RING, EVERYWHERE — B1 from the 4 Sep audit, his pick on 5 Sep.
 //
@@ -30,7 +31,8 @@ function abbreviate(value) {
   return `${Math.abs(k) >= 100 ? Math.round(k) : Math.round(k * 10) / 10}k`;
 }
 
-export function RingTile({ label, value, small, pct, state = 'absent', hint, onOpen, size = 58 }) {
+// `arrive` (summary Home only): the figure counts up from 0 with its page
+export function RingTile({ label, value, small, pct, state = 'absent', hint, onOpen, size = 58, arrive = false }) {
   const r = 24;
   const c = 2 * Math.PI * r;
   const shown = state === 'absent' ? 0 : Math.max(0, Math.min(100, Number(pct) || 0));
@@ -62,7 +64,7 @@ export function RingTile({ label, value, small, pct, state = 'absent', hint, onO
         </svg>
         <div style={css('position:absolute;inset:0;display:flex;align-items:center;justify-content:center')}>
           <b style={css(`font:600 ${compact.length > 4 ? '11px' : '13px'} ${M};color:${state === 'absent' ? TONE.absent : 'var(--nv-ink)'};font-variant-numeric:tabular-nums`)}>
-            {state === 'absent' ? '—' : compact}
+            {state === 'absent' ? '—' : arrive ? <CountText text={compact} fromZero /> : compact}
           </b>
         </div>
       </div>
