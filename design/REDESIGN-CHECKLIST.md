@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 9 Oct 2026 — MOTION STEP 1 SHIPPED (merge, pushed): his yes to the
+  motion audit (24, 4 of 64 moves met) and break-ui. A count-up written
+  through a ref (on change by default; fromZero is his open call) on Home's
+  rings, Fuel's plate and the session progress; a shared useFlipList (Fuel's
+  filter now glides, 280 ms); Notes keyed by id; reduced motion fades (a
+  global !important rule had turned every fade into a cut); Segmented and the
+  recipe sheet off the frame budget; the Settings push without the deep
+  clone (4x: 75-96 to 61-84 ms, still over 33). break-ui found Home's
+  protein tile printing "/null" and "NaN": fixed 4a94409. Next: the write
+  receipt (his tick-pill call), FLIP height + exits, the summary session.
 - 9 Oct 2026 — HIS MOTION AND PERFORMANCE BAR (standing): the "Bento
   dashboard animation" reel, https://www.instagram.com/reel/DeHGjlZPIHF/.
   Six moves: arrival over a skeleton with numbers counting up and bars
