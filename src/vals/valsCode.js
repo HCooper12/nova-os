@@ -167,7 +167,9 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
     models: modelOptions.map((o) => ({ value: o.value, label: o.label, on: o.value === st.codeModel })),
     setModel: (value) => app.setState({ codeModel: value }),
     workspaces: [{ value: 'repo', label: 'Nova OS', on: ws === 'repo' }, { value: 'vault', label: 'Vault', on: ws === 'vault' }],
-    setWorkspace: (w) => { if (act.switchWorkspace(app, w) && st.codeProject && PROJECTS[st.codeProject]?.workspace) act.openProject(app, WORKSPACE_PROJECT[w]); },
+    // on a workspace's own page the page follows the switch (openProject
+    // switches); anywhere else only the Builder moves. One switch either way.
+    setWorkspace: (w) => { if (st.codeProject && PROJECTS[st.codeProject]?.workspace) act.openProject(app, WORKSPACE_PROJECT[w]); else act.switchWorkspace(app, w); },
     newSession: () => { act.newSession(app); app.setState({ codeSheet: false }); },
     addToVault: () => { app.setState({ codeSheet: false }); app.openIngestModal(); },
   };

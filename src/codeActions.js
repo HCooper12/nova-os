@@ -1,6 +1,6 @@
 import { api, getConnection } from './api.js';
 import { notify } from './island.js';
-import { tickReceipt } from './receipt.js';
+import { RECEIPT_MS } from './receipt.js';
 import { depthOf } from './edgeBack.js';
 import { reviewFiles, startOfToday, plural, WORKSPACE_PROJECT, projectInfo } from './codeModel.js';
 
@@ -36,6 +36,16 @@ function io(app) {
 }
 export const codeLive = (app) => !!io(app);
 
+// THE PILL WITH UNDO (his call, 9 Oct 2026), one per write. The shared tick
+// receipt (src/receipt.js) folds rapid ticks into "3 ticked"; a commit, a
+// shelf and a restore are different acts with different ways back, so each
+// gets its own pill on the same island, at the tick receipt's length.
+function pill({ key, title, undo }) {
+  notify({
+    id: `code-${key}`, replace: true, oneLine: true, tone: 'done', title, duration: RECEIPT_MS,
+    ...(undo ? { action: { label: 'Undo', run: undo } } : {}),
+  });
+}
 const ticksFor = (st, ws) => (st.codeTicks && st.codeTicks[ws]) || {};
 
 // ------------------------------------------------------------- reading
@@ -129,7 +139,7 @@ export function commit(app, { paths: given, message: msgGiven, receipt = true } 
       codeTicks: { ...(s.codeTicks || {}), [ws]: {} },
       codeChat: [...s.codeChat, { at: Date.now(), who: 'system', kind: 'commit', sha: r.fullSha, text: `Committed ${r.sha} · ${plural(r.files, 'file')}. Not pushed, so Undo can still take it back.` }],
     }));
-    if (receipt) tickReceipt({ key: `commit:${r.fullSha}`, title: `Committed ${r.sha} · ${plural(r.files, 'file')}`, undo: () => undoCommit(app, r.fullSha) });
+    if (receipt) pill({ key: `commit:${r.fullSha}`, title: `Committed ${r.sha} · ${plural(r.files, 'file')}`, undo: () => undoCommit(app, r.fullSha) });
     refreshChanges(app, ws);
     refreshCommits(app);
     return true;
@@ -156,7 +166,7 @@ export function undoCommit(app, fullSha) {
     }));
     // the pill's own Undo commits the same files again with the same words
     const message = known?.message;
-    tickReceipt({ key: `undo:${fullSha}`, title: `Took back ${r.sha}`, undo: message ? () => commit(app, { paths: r.paths, message, receipt: true }) : undefined });
+    pill({ key: `undo:${fullSha}`, title: `Took back ${r.sha}`, undo: message ? () => commit(app, { paths: r.paths, message, receipt: true }) : undefined });
     refreshChanges(app, 'repo');
     refreshCommits(app);
   }).catch((e) => {
@@ -180,7 +190,7 @@ export function shelve(app, { paths: given } = {}) {
       codeTicks: { ...(s.codeTicks || {}), repo: {} },
       codeChat: [...s.codeChat, { at: Date.now(), who: 'system', kind: 'shelf', sha: r.sha, files: r.files, paths: r.paths, text: `Shelved ${plural(r.files, 'file')}. Nothing lost.` }],
     }));
-    tickReceipt({ key: `shelf:${r.sha}`, title: `Shelved ${plural(r.files, 'file')}`, undo: () => restore(app, r.sha) });
+    pill({ key: `shelf:${r.sha}`, title: `Shelved ${plural(r.files, 'file')}`, undo: () => restore(app, r.sha) });
     refreshChanges(app, 'repo');
   }).catch((e) => {
     app.setState({ codeChangeBusy: false });
@@ -201,7 +211,7 @@ export function restore(app, sha) {
       codeChat: [...s.codeChat.map((m) => (m.kind === 'shelf' && m.sha === sha ? { ...m, restored: true } : m)),
         { at: Date.now(), who: 'system', kind: 'restore', text: n ? `Restored ${plural(n, 'file')} from the shelf.` : 'Restored the shelf.' }],
     }));
-    tickReceipt({ key: `restore:${sha}`, title: n ? `Restored ${plural(n, 'file')}` : 'Restored the shelf', undo: line?.paths ? () => shelve(app, { paths: line.paths }) : undefined });
+    pill({ key: `restore:${sha}`, title: n ? `Restored ${plural(n, 'file')}` : 'Restored the shelf', undo: line?.paths ? () => shelve(app, { paths: line.paths }) : undefined });
     refreshChanges(app, 'repo');
   }).catch((e) => {
     app.setState({ codeChangeBusy: false });
