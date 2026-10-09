@@ -473,12 +473,12 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **First look:** the clear-all flow is a model to copy; check gold category labels read as labels, not actions.
 
 #### Code (Claude Code) — `code` · `src/screens/ClaudeCode.jsx` (143) · vals in `src/vals/valsMisc.js`
-- [m] K1 · Head + meta, Spar (send the Breaker) · New session · Add to vault (`tone="gold"`) chips — `ClaudeCode.jsx:9-19`
-- [m] K2 · Console header — three dots, workspace path, connection dot — `ClaudeCode.jsx:27-34`
-- [m] K3 · Uncommitted changes — count + branch, Show / Hide diff, up to 8 files, diff `<pre>` capped 46%, commit message + Commit + Shelve; read-only vault notice; shelved banner + Restore — `ClaudeCode.jsx:37-77`
-- [m] K4 · Transcript — BUILDER · BREAKER · SYSTEM · YOU rows, busy dots, not-connected / empty copy — `ClaudeCode.jsx:78-91`
-- [m] K5 · Input + Run — `ClaudeCode.jsx:92-104`
-- [m] K6 · Session card — Model raw `<select>`, Workspace `Segmented` (Nova OS / Vault), status line; Can / can't card — `ClaudeCode.jsx:106-138`
+- [b] K1 · Head + meta, Spar (send the Breaker) · New session · Add to vault (`tone="gold"`) chips — `ClaudeCode.jsx:9-19`
+- [b] K2 · Console header — three dots, workspace path, connection dot — `ClaudeCode.jsx:27-34`
+- [b] K3 · Uncommitted changes — count + branch, Show / Hide diff, up to 8 files, diff `<pre>` capped 46%, commit message + Commit + Shelve; read-only vault notice; shelved banner + Restore — `ClaudeCode.jsx:37-77`
+- [b] K4 · Transcript — BUILDER · BREAKER · SYSTEM · YOU rows, busy dots, not-connected / empty copy — `ClaudeCode.jsx:78-91`
+- [b] K5 · Input + Run — `ClaudeCode.jsx:92-104`
+- [b] K6 · Session card — Model raw `<select>`, Workspace `Segmented` (Nova OS / Vault), status line; Can / can't card — `ClaudeCode.jsx:106-138`
 
 #### To-Do — `todos` · `src/screens/Todos.jsx` (127) · `src/vals/valsTodos.js`
 - [m] T1 · Head + open/done counts, add input + Add, sync note (Todoist / vault) — `Todos.jsx:16-37`
@@ -561,6 +561,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — CODE BUILT AND SHIPPED (merge, pushed, reloaded): mockup 89,
+  74-line checklist (66 present, 8 differ, none missing). His ask "ensure
+  committing etc are all actually functional": 17 actions, 14 PROVEN by
+  server/test/codeActionsReal.test.js on a temp repo (commit takes only
+  ticked files, traversal refused, message rule server-side, Undo only on
+  an unpushed HEAD Nova made, shelve/restore byte-exact), 2 proven by live
+  reads, Add to vault unchanged (Library's door). Commit undo records live
+  in server/data/code-commits.json (his call whether they move to the rails).
 - 10 Oct 2026 — HIS ROUND-3 CALLS. Code 89: "looking good" (BUILD); models
   must be current (fixed b3175d1: live labels already came from the CLI,
   Opus 5.5 / Sonnet 5.5 / Fable 5.1 / Haiku 4.5; the hand-typed fallback
