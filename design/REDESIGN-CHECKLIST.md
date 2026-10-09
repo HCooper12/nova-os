@@ -561,6 +561,15 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — HIS ROUND-3 CALLS. Code 89: "looking good" (BUILD); models
+  must be current (fixed b3175d1: live labels already came from the CLI,
+  Opus 5.5 / Sonnet 5.5 / Fable 5.1 / Haiku 4.5; the hand-typed fallback
+  said "Fable 5"); commit and the rest must be proven real, not shown.
+  Money 90: "looking good" (BUILD), uncluttered, and wired into Nova so it
+  can alert him and discuss money. Shopping 88: "looking good"; add Everyday
+  Rewards and Flybuys offers (bonus points, gift-card multipliers) without
+  him checking; item names must stand out from their description (ROUND 4 +
+  research). Stash: "looking great", asked what is missing.
 - 9 Oct 2026 — MOTION STEP 2 SHIPPED (merge, pushed, reloaded): a pill
   with Undo on every tick through one receipt (src/receipt.js), coalesced
   ("20 ticked"), Undo refusing honestly when the record changed since; the
