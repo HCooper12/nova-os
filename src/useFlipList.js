@@ -21,17 +21,32 @@ import { useLayoutEffect, useRef } from 'react';
 //     running animation's current offset), not from its old slot
 //   - rows that arrive fade in; rows wholly off screen before and after are
 //     left still (a 200-row list animates only what can be seen)
-//   - reduced motion: no movement, a short opacity fade on what changed
+//   - THE CARD MOVES WITH ITS ROWS (9 Oct 2026, step 2). The root's height
+//     used to snap while its rows glided. It now runs from its old height to
+//     its new one on the same curve, clipped for the length of the move, so
+//     the card and whatever sits below it travel together. Height is the
+//     one layout property animated, and only on the root: there is no
+//     transform that resizes a card without scaling its rows.
+//   - ROWS THAT LEAVE ARE SEEN TO LEAVE. A row filtered out used to vanish.
+//     A copy of it (never React's node) is laid at its old slot and fades
+//     out a little faster than rows arrive, under the rows sliding into its
+//     place; it carries no data-flip, so nothing ever measures it
+//   - reduced motion: no movement and no height run, a short opacity fade
+//     on what changed and on what left
 //   - every read happens before any write, so one layout pass serves all
 export const FLIP_MS = 280;
 export const FLIP_EASE = 'cubic-bezier(.32,.72,0,1)';
 export const FADE_MS = 160;
+export const EXIT_MS = 200;
+const EXIT_MAX = 12;
 
-export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLIP_EASE, scale = false, dim = 1, attr = 'flip' } = {}) {
+export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLIP_EASE, scale = false, dim = 1, attr = 'flip', height = true, exits = true } = {}) {
   const prev = useRef(null);           // Map id -> resting box, relative to root
+  const prevH = useRef(0);             // the root's resting height with them
   const anims = useRef(new Map());     // id -> running Animation
+  const kept = useRef(null);           // the root's own inline styles, while a height run borrows them
   const opts = useRef(null);
-  opts.current = { duration, easing, scale, dim, attr };
+  opts.current = { duration, easing, scale, dim, attr, height, exits };
 
   // the resting positions, kept current between triggers. The root can mount
   // after the hook does (a list that appears once it has rows), so each
@@ -45,9 +60,10 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
     w.el = rootEl;
     w.ro = null;
     prev.current = rootEl ? measure(rootEl, opts.current.attr) : null;
+    prevH.current = rootEl ? rootEl.offsetHeight : 0;
     if (!rootEl || typeof ResizeObserver !== 'function') return;
     w.ro = new ResizeObserver(() => {
-      if (w.el && !anyRunning(anims.current)) prev.current = measure(w.el, opts.current.attr);
+      if (w.el && !anyRunning(anims.current)) { prev.current = measure(w.el, opts.current.attr); prevH.current = w.el.offsetHeight; }
     });
     w.ro.observe(rootEl);
   });
@@ -61,8 +77,13 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
     if (!rootEl || !prev.current || watched.current.el !== rootEl) return;
     const o = opts.current;
     const before = prev.current;
-    // READ: the new resting boxes, the root on screen, and where each moving
-    // item is drawn right now (only items with a running move need the last)
+    // READ: the root's height as drawn (mid-run if a height move is going),
+    // then its new resting height, the new resting boxes, the root on
+    // screen, and where each moving item is drawn right now
+    const heightRun = anims.current.get(HEIGHT);
+    const fromH = heightRun ? rootEl.offsetHeight : prevH.current;
+    if (heightRun) { try { heightRun.cancel(); } catch { /* gone */ } anims.current.delete(HEIGHT); }
+    const toH = rootEl.offsetHeight;
     const after = measure(rootEl, o.attr);
     const rootBox = rootEl.getBoundingClientRect();
     const drawn = new Map();
@@ -75,6 +96,9 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
     }
     const view = { top: -rootBox.top, bottom: (typeof window !== 'undefined' ? window.innerHeight : 1e6) - rootBox.top };
     const reduce = reducedMotion();
+    const leaving = o.exits ? exitsOf(before, after, view) : [];
+    const rootStyle = leaving.length && typeof getComputedStyle === 'function' ? getComputedStyle(rootEl) : null;
+    const inset = { x: rootEl.clientLeft || 0, y: rootEl.clientTop || 0 };
     // WRITE
     for (const [id, it] of after) {
       const was = before.get(id);
@@ -103,7 +127,48 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
       const k1 = o.dim < 1 ? { transform: 'none', opacity: 1 } : { transform: 'none' };
       play(id, it.el, [k0, k1], { duration: o.duration, easing: o.easing });
     }
+
+    // the rows that left, seen leaving: a copy at the old slot, fading out
+    if (leaving.length && typeof rootEl.animate === 'function') {
+      const lift = rootStyle && rootStyle.position === 'static';
+      if (lift) rootEl.style.position = 'relative';
+      let left = leaving.length;
+      const settled = () => { left -= 1; if (!left && lift) rootEl.style.position = ''; };
+      for (const [id, was] of leaving) {
+        const ghost = ghostOf(was, inset);
+        if (!ghost) { settled(); continue; }
+        rootEl.appendChild(ghost);
+        // gone by 60% of the run: frame by frame (9 Oct) a slower fade left
+        // its words over the row sliding into its slot for ~100 ms
+        const frames = reduce ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.98)', offset: 0.6 }, { opacity: 0, transform: 'scale(.97)' }];
+        try {
+          const a = ghost.animate(frames, { duration: reduce ? FADE_MS : EXIT_MS, easing: 'ease-out', fill: 'forwards' });
+          anims.current.set(`${EXIT}${id}`, a);
+          const gone = () => { ghost.remove(); if (anims.current.get(`${EXIT}${id}`) === a) anims.current.delete(`${EXIT}${id}`); settled(); };
+          a.finished.then(gone, gone);
+        } catch { ghost.remove(); settled(); }
+      }
+    }
+
+    // the card travels with its rows: old height to new, clipped meanwhile
+    if (o.height && !reduce && Math.abs(fromH - toH) > 1 && typeof rootEl.animate === 'function' && onScreen({ y: 0, h: Math.max(fromH, toH) }, view)) {
+      // an interrupted run hands its borrowed styles on; only the last gives them back
+      if (!kept.current) kept.current = { overflow: rootEl.style.overflow, boxSizing: rootEl.style.boxSizing };
+      const giveBack = () => { if (kept.current) { rootEl.style.overflow = kept.current.overflow; rootEl.style.boxSizing = kept.current.boxSizing; kept.current = null; } };
+      rootEl.style.overflow = 'hidden';
+      rootEl.style.boxSizing = 'border-box';
+      try {
+        const a = rootEl.animate([{ height: `${fromH}px` }, { height: `${toH}px` }], { duration: o.duration, easing: o.easing });
+        anims.current.set(HEIGHT, a);
+        const done = () => {
+          if (anims.current.get(HEIGHT) === a) anims.current.delete(HEIGHT);
+          if (!anims.current.has(HEIGHT)) giveBack();
+        };
+        a.finished.then(done, done);
+      } catch { giveBack(); }
+    }
     prev.current = after;
+    prevH.current = toH;
 
     function play(id, el, frames, timing) {
       if (typeof el.animate !== 'function') return;
@@ -116,6 +181,38 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger]);
+}
+
+const HEIGHT = '\u0000height';
+const EXIT = '\u0000exit:';
+
+// the rows in `before` that are gone from `after` and could be seen, nearest
+// the top first, at most EXIT_MAX (a filter that empties a long list fades
+// what was on screen, not two hundred copies)
+export function exitsOf(before, after, view) {
+  const out = [];
+  for (const [id, was] of before) {
+    if (after.has(id) || !was?.el) continue;
+    if (was.el.isConnected) continue; // still in the page under another id: not ours to copy
+    if (!onScreen(was, view)) continue;
+    out.push([id, was]);
+  }
+  return out.sort((a, b) => a[1].y - b[1].y).slice(0, EXIT_MAX);
+}
+
+// a copy of the row that left, at its old box, inert and unseen by measure
+function ghostOf(was, inset) {
+  try {
+    const g = was.el.cloneNode(true);
+    for (const n of [g, ...g.querySelectorAll('[data-flip],[id]')]) { n.removeAttribute?.('data-flip'); n.removeAttribute?.('id'); }
+    g.setAttribute('aria-hidden', 'true');
+    g.setAttribute('inert', '');
+    Object.assign(g.style, {
+      position: 'absolute', left: `${was.x - inset.x}px`, top: `${was.y - inset.y}px`, width: `${was.w}px`, height: `${was.h}px`,
+      margin: '0', pointerEvents: 'none', boxSizing: 'border-box', transformOrigin: '50% 50%',
+    });
+    return g;
+  } catch { return null; }
 }
 
 // each [data-<attr>] item's layout box relative to the root: offset sums,

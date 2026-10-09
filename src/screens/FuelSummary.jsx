@@ -76,7 +76,7 @@ function PlateRing({ protein }) {
         )}
       </svg>
       <span className="nv-fs-ring-c" aria-hidden="true">
-        <b>{protein.value > 0 || protein.target != null ? <CountUp value={protein.value} /> : '—'}</b>
+        <b>{protein.value > 0 || protein.target != null ? <CountUp value={protein.value} fromZero /> : '—'}</b>
         <small>{protein.target != null ? <>of {protein.target} g<br />protein</> : <>g protein<br />no target</>}</small>
       </span>
     </span>
@@ -100,7 +100,7 @@ function Plate({ p, onOpen, openRef }) {
         <div className="nv-fs-side">
           <div>
             <div className="nv-fs-kh"><span>Calories</span><span>{right}</span></div>
-            <span className="nv-fs-kv"><CountUp value={k.value} format={kc} />{k.target != null ? <small> of {kc(k.target)}</small> : <small> kcal</small>}</span>
+            <span className="nv-fs-kv"><CountUp value={k.value} format={kc} fromZero />{k.target != null ? <small> of {kc(k.target)}</small> : <small> kcal</small>}</span>
             {k.target != null && (
               <div className="nv-fs-kbar" role="img" aria-label={`${kc(k.value)} of ${kc(k.target)} kilocalories`}>
                 <i style={{ width: `${k.pct}%` }} />
@@ -108,8 +108,8 @@ function Plate({ p, onOpen, openRef }) {
             )}
           </div>
           <div className="nv-fs-mf">
-            <span><b><CountUp value={p.carbs.value} /><small> g</small></b>carbs</span>
-            <span><b><CountUp value={p.fat.value} /><small> g</small></b>fat</span>
+            <span><b><CountUp value={p.carbs.value} fromZero /><small> g</small></b>carbs</span>
+            <span><b><CountUp value={p.fat.value} fromZero /><small> g</small></b>fat</span>
           </div>
         </div>
       </div>

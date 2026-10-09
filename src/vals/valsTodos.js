@@ -10,7 +10,8 @@
 // nothing is lost. Anything that is not a URL is returned untouched — this
 // must never mangle his own words.
 const URL_RE = /https?:\/\/[^\s]+/i;
-function linkify(text) {
+// exported for the tick receipt, which names the to-do the way its row does
+export function linkify(text) {
   return String(text || '').replace(/https?:\/\/[^\s]+/gi, (u) => {
     try { return `${new URL(u).host.replace(/^www\./, '')} \u2197`; } catch { return u; }
   }).trim();
@@ -84,6 +85,8 @@ export function valsTodos(app, ctx) {
 
   return {
     isTodos: st.screen === 'todos',
+    // the two figures a tick moves, counted where they are drawn (Todos.jsx)
+    todosCounts: !demoMode && !isOffline && live ? { open: open.length, done: done.length } : null,
     todosHeaderLabel: demoMode
       ? 'Connect a backend to see your list'
       : isOffline

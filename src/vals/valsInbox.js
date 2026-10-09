@@ -430,7 +430,7 @@ export function valsInbox(app, ctx) {
     adjustments: r.kind === 'review' && Array.isArray(r.decision?.payload?.adjustments) && r.decision.payload.adjustments.length && ['pending', 'filed'].includes(r.status)
       ? r.decision.payload.adjustments.map((a, i) => ({
         text: a.do, why: a.why || '', outcome: a.outcome || null,
-        mark: (o) => app.setPlanOutcome(r.id, i, a.outcome === o ? null : o),
+        mark: (o) => app.setPlanOutcome(r.id, i, a.outcome === o ? null : o, { was: a.outcome || null, label: a.do || '' }),
       }))
       : null,
     // a bare slice(0, 60) cut mid-word and left no ellipsis, so a clipped

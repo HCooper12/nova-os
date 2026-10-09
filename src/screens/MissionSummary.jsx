@@ -18,7 +18,7 @@ import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
 import { prLift, prBasis } from '../missionFocus.js';
 import { YourDay } from '../Instruments.jsx';
 import { readDaySeen, markDaySeen, DAY_KEYS } from '../dayCard.js';
-import { CountText } from '../CountUp.jsx';
+import { CountText, CountUp } from '../CountUp.jsx';
 
 // THE SUMMARY HOME (P2-B, 26 Sep 2026) — design/HOME-REDESIGN-PLAN.md, drawn
 // from mockup 56 (round 5, his pick). The third idiom of the same view model:
@@ -245,7 +245,7 @@ function Moment({ k, v }) {
         <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)'), ...vt }} aria-label={t.modeLabel}>
           <MomentHead label={t.modeLabel} tint="var(--nv-mg)" meta={(
             <>
-              {t.streak > 0 && <Meta tone="faint">{t.streak}-day streak</Meta>}
+              {t.streak > 0 && <Meta tone="faint"><CountUp value={t.streak} fromZero />-day streak</Meta>}
               <TextAction tone="faint" compact onClick={t.openAll}>{t.position} of {t.total} ›</TextAction>
             </>
           )} />
@@ -280,7 +280,7 @@ function Moment({ k, v }) {
           <MomentHead label="Wrap the day" tint={hue} meta={<Meta tone={short ? 'gold' : 'good'}>{w.note}</Meta>} />
           <div style={{ marginTop: '12px', display: 'flex', flexDirection: v.isMobile ? 'column' : 'row', alignItems: v.isMobile ? 'stretch' : 'center', gap: v.isMobile ? '14px' : '20px', minWidth: 0 }}>
             <div style={{ display: 'flex', gap: '18px', flex: 'none' }}>
-              {w.rings.map(({ key, ...r }) => <RingTile key={key} {...r} size={58} />)}
+              {w.rings.map(({ key, ...r }) => <RingTile key={key} {...r} size={58} arrive />)}
             </div>
             <div style={{ minWidth: 0, flex: 1, font: `400 ${v.isMobile ? 18 : 19}px/1.35 ${SERIF}`, textWrap: 'pretty', color: 'var(--nv-ink)' }}>{w.line}</div>
           </div>
@@ -416,7 +416,7 @@ function BodyStat({ r, tone }) {
       <div style={{ font: `600 12px ${UI}`, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{r.label}</div>
       <div style={{ font: `700 23px/1.05 ${ROUND}`, letterSpacing: '-.02em', fontVariantNumeric: 'tabular-nums', color: tone, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {/* a write that changes the figure counts it to the new value (CountUp) */}
-        {absent ? '—' : <CountText text={r.value} />}
+        {absent ? '—' : <CountText text={r.value} fromZero />}
         {absent
           ? <small style={{ font: `600 14px ${ROUND}`, letterSpacing: 0, color: 'var(--nv-ink60)' }}> no data</small>
           : r.small ? <small style={{ font: `600 14px ${ROUND}`, letterSpacing: 0, opacity: 0.7 }}>{r.small}</small> : null}
@@ -598,7 +598,7 @@ function WaitingCard({ card, cls, style }) {
     <Interactive as="section" className={`${cls} nv-sum-tile`} style={style} onClick={card.open}
       aria-label={`Waiting: ${card.count} for your call. Open the Inbox`} base={{ cursor: 'pointer' }}>
       <CardHead icon="waiting" label="Waiting" tint={CARD_HUE.waiting} />
-      <div className="nv-sum-big">{card.count}</div>
+      <div className="nv-sum-big"><CountText text={card.count} fromZero /></div>
       <div className="nv-sum-sub">{card.sub}</div>
     </Interactive>
   );
@@ -626,7 +626,7 @@ function TrainingCard({ card, cls, style }) {
               <div style={{ font: `600 16px/1.25 ${UI}`, color: 'var(--nv-ink)' }}>{card.title}</div>
               {card.sub ? <div className="nv-sum-sub">{card.sub}</div> : null}
             </div>
-            {card.readiness ? <RingTile size={44} label="Ready" value={card.readiness.value} pct={card.readiness.pct} state={card.readiness.state} /> : <span />}
+            {card.readiness ? <RingTile size={44} label="Ready" value={card.readiness.value} pct={card.readiness.pct} state={card.readiness.state} arrive /> : <span />}
           </>
         )}
       </div>

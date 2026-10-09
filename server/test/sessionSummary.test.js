@@ -204,12 +204,12 @@ const vOf = (app, calls) => ({
 });
 const CTX = { demoMode: false };
 
-test('the view model is null off summary, in demo, off the session and off the screen; the Settings row is summary-only', () => {
+test('the view model is null off summary, off the session and off the screen; demo renders it; the Settings row is summary-only', () => {
   const run = (st, ctx = CTX) => { const { app, calls } = fakeApp(st); return valsSessionSummary(app, ctx, vOf(app, calls)); };
   assert.equal(run({ novaStyle: 'cupertino' }).sessionSummary, null);
   assert.equal(run({ novaStyle: 'cupertino' }).restTimerSetting, null);
   assert.equal(run({ novaStyle: 'command' }).sessionSummary, null);
-  assert.equal(run({}, { demoMode: true }).sessionSummary, null);
+  assert.ok(run({}, { demoMode: true }).sessionSummary, 'a demo session is in-memory state, so demo shows the view his phone shows');
   assert.equal(run({ workoutsView: 'routines' }).sessionSummary, null);
   assert.equal(run({ screen: 'mission' }).sessionSummary, null);
   assert.equal(run({ workoutSession: null }).sessionSummary, null);

@@ -312,22 +312,32 @@ export function normalizeNotice(n, seq = 0) {
     serif: !!o.serif,
     // an expanded activity wears its own face (the workout ring, Nova's core)
     lead: o.lead || null,
+    // a pill (the tick receipt) keeps to one line, however long his words
+    oneLine: !!o.oneLine,
+    replace: !!o.replace,
+    // told once, when this notice leaves the island (or is dropped unseen)
+    onClose: typeof o.onClose === 'function' ? o.onClose : null,
   };
 }
 
 // What to do with a new arrival, given what is showing and what is waiting.
+//  - the SAME id as the card on screen, flagged `replace`: change its words
+//    in place and restart its clock (the tick receipt counting "3 ticked"
+//    instead of dropping three cards, 9 Oct 2026)
 //  - the same words again: restart the clock, do not replay the drop
 //  - nothing showing: show it
 //  - otherwise: queue it (oldest dropped past QUEUE_MAX) and cut the current
 //    one short — no sooner than its minShow
 export function arrival({ current, queue, next }) {
+  if (current && next.replace && current.id === next.id) return { kind: 'update', queue };
   if (current && current.title === next.title && current.message === next.message) {
     return { kind: 'refresh', queue };
   }
   if (!current) return { kind: 'show', queue };
   const q = [...queue.filter((x) => x.id !== next.id), next];
-  while (q.length > QUEUE_MAX) q.shift();
-  return { kind: 'queue', queue: q };
+  const dropped = [];
+  while (q.length > QUEUE_MAX) dropped.push(q.shift());
+  return { kind: 'queue', queue: q, dropped };
 }
 
 // How long the current notification has left, given when it became readable.

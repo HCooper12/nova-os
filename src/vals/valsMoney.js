@@ -91,6 +91,9 @@ export function valsMoney(app, ctx) {
     moneyReadOnly: isOffline,
     moneyLoaded: !!money,
     moneySpentLabel: money ? fmtMoney(money.spent) : '—',
+    // the hero counts up from $0 with the page (Money.jsx, CountUp)
+    moneySpent: money && Number.isFinite(Number(money.spent)) ? Math.abs(Number(money.spent)) : null,
+    moneyFmt: fmtMoney,
     moneySpentDelta: spendDelta != null ? { label: `${spendDelta >= 0 ? '+' : '−'}${Math.abs(spendDelta)}% vs ${monthLabel(money.prevMonth)}`, up: spendDelta > 0 } : null,
     moneyIncomeLabel: money && money.income ? fmtMoney(money.income) : null,
     moneyMonths: (money?.months || []).map((m) => ({

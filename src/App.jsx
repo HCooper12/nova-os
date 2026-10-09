@@ -48,7 +48,7 @@ import { parseBriefingVoice, explainQuestion } from './briefingVoice.js';
 import { scaleMacros, portionName, validPortion } from './portion.js';
 import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
-import { valsTodos } from './vals/valsTodos.js';
+import { valsTodos, linkify as todoLabel } from './vals/valsTodos.js';
 import { valsMoney } from './vals/valsMoney.js';
 import { valsMission } from './vals/valsMission.js';
 import { valsOps } from './vals/valsOps.js';
@@ -81,6 +81,9 @@ import { confirmedRecords } from './recordKit.js';
 import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
+import { tickReceipt } from './receipt.js';
+import { noteScreen } from './arrival.js';
+import { crossFadeLook } from './lookFade.js';
 import { newStages, jobSettled } from './jobBeats.js';
 import { bareOpen, webTarget, isMacDevice } from './macTargets.js';
 import { previewLine } from './islandCore.js';
@@ -751,7 +754,16 @@ export default class App extends Component {
     ingestJobId: null, ingestStatus: 'idle', ingestPreview: null, ingestError: null, ingestFile: null, ingestPerson: '', ingestProgress: null,
   };
 
+  // THE ARRIVAL COUNT asks which screen it is on (src/arrival.js). This runs
+  // before the new screen's figures lay out, so a quick return to a page is
+  // known to be one by the time they ask whether to count again.
+  getSnapshotBeforeUpdate(prevProps, prevState) {
+    if (prevState.screen !== this.state.screen) noteScreen(this.state.screen);
+    return null;
+  }
+
   componentDidMount() {
+    noteScreen(this.state.screen);
     try { const d = localStorage.getItem('novaos.wrap.dismissed'); if (d) this.setState({ wrapDismissedOn: d }); } catch { /* private mode */ }
     if (import.meta.env.DEV) window.__novaApp = this; // dev-only introspection hook
     // a cold open straight onto #/recipes never passes through navigate(),
@@ -1626,25 +1638,50 @@ export default class App extends Component {
   }
 
   // ---------- appearance (theme + calm mode, persisted) ----------
-  // Apply from the settled state in the setState callback — applying from
-  // arguments + this.state directly goes stale when both setters run in the
-  // same tick (theme switch immediately followed by a calm toggle).
+  // THE ONE WAY THE LOOK CHANGES (9 Oct 2026, his call: the theme change
+  // cross-fades the whole app). Theme, style, material and calm all come
+  // here; src/lookFade.js dissolves the old frame into the new one (a cut
+  // under reduced motion).
+  //   - the look is merged into `pendingLook` first, so two setters in one
+  //     tick (a theme switch then a calm toggle) never stamp a stale value
+  //   - a theme, calm or material change is the root's attributes alone, so
+  //     those are stamped inside the fade and React's state follows once the
+  //     new frame is captured: the whole-tree render stays out of the frame
+  //     the fade waits on (50 ms at 4x CPU with it inside)
+  //   - a style change redraws Home's very shape, so React renders inside
+  //     the fade (flushed) and the attributes are stamped with it
+  changeLook(patch) {
+    const look = { novaTheme: this.state.novaTheme, calmMode: this.state.calmMode, novaStyle: this.state.novaStyle, material: this.state.material, ...(this.pendingLook || {}), ...patch };
+    this.pendingLook = look;
+    const stamp = () => applyAppearance(look.novaTheme, look.calmMode, look.novaStyle, look.material);
+    const redraws = 'novaStyle' in patch;
+    crossFadeLook(redraws ? () => { flushSync(() => this.setState(patch)); stamp(); } : stamp, {
+      after: () => {
+        if (!redraws) this.setState(patch);
+        if (this.pendingLook === look) this.pendingLook = null;
+      },
+    });
+  }
   setNovaTheme(theme) {
-    this.setState({ novaTheme: theme }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+    if (theme === this.state.novaTheme) return;
+    this.changeLook({ novaTheme: theme });
   }
   setCalmMode(calm) {
-    this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+    if (!!calm === !!this.state.calmMode) return;
+    this.changeLook({ calmMode: calm });
   }
   setNovaStyle(style) {
     // Daylight and Sky are Apple-family palettes — returning to Command Core
     // falls the theme back too, so the HUD never renders on a white or system-
     // colour ground built for the Apple styles.
+    if (style === this.state.novaStyle) return;
     const next = { novaStyle: style };
     if (style === 'command' && (this.state.novaTheme === 'daylight' || this.state.novaTheme === 'sky')) next.novaTheme = 'command';
-    this.setState(next, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+    this.changeLook(next);
   }
   setMaterial(material) {
-    this.setState({ material }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+    if (material === this.state.material) return;
+    this.changeLook({ material });
   }
   setCoreStyle(core) {
     saveCoreStyle(core);
@@ -2244,8 +2281,8 @@ export default class App extends Component {
     this.rotationReceiptT = setTimeout(() => this.setState((s) => (s.rotationReceipt === rec ? { rotationReceipt: null } : null)), 30000);
     const word = dayWord(r.date);
     const title = r.kind === 'tick' ? loggedLine(r.name, r.date) : `Took ${r.name} off ${word || 'today'}`;
-    this.toastMsg({ id: `rot-receipt:${r.slot}:${r.recipeId}`, tone: r.kind === 'tick' ? 'done' : 'info', duration: 6000, title: r.kind === 'tick' ? `${title} ✓` : title,
-      action: { label: 'Undo', run: () => this.undoRotationReceipt(rec) } });
+    tickReceipt({ key: `rot:${r.slot}:${r.recipeId}:${r.date || ''}`, label: r.name, done: r.kind === 'tick', title,
+      undo: () => this.undoRotationReceipt(rec) });
   }
   undoRotationReceipt(rec = this.state.rotationReceipt) {
     if (!rec) return;
@@ -2490,14 +2527,24 @@ export default class App extends Component {
     try { if (on) localStorage.setItem('novaos.reveal.technique', on); } catch { /* private mode */ }
     this.withTransition(() => this.setState({ techniqueSpin: null, techniqueRevealedOn: on }));
   }
-  markPractice(outcome, note = '') {
+  // outcome null takes the day's mark back (the receipt's Undo of a first
+  // mark; server/lib/repertoire.js logPractice clears the day and its line)
+  markPractice(outcome, note = '', { receipt = true } = {}) {
     const conn = getConnection();
     const cur = this.state.liveRepertoire;
-    if (!conn || !cur?.technique) return;
+    if (!cur?.technique) return;
+    const was = cur.outcome || null;
+    if (was === outcome && !note) return;
+    const name = cur.technique.name || 'today’s technique';
     // a pass takes a result with it (only what he tried can have landed)
-    this.setState({ liveRepertoire: { ...cur, outcome, ...(outcome === 'skipped' ? { result: null } : {}) } });
+    this.setState({ liveRepertoire: { ...cur, outcome, ...(outcome !== 'tried' ? { result: null } : {}) } });
+    const leave = () => {
+      if (!receipt || !outcome) return;
+      tickReceipt({ key: `practice:${cur.date || ''}`, label: name, done: true, title: outcome === 'tried' ? `Practised ${name}` : `Passed on ${name} today`, undo: () => this.markPractice(was, '', { receipt: false }) });
+    };
+    if (!conn) { leave(); return; }
     api.repertoirePractice(conn, outcome, note)
-      .then((r) => this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: r.outcome, result: r.result ?? null, tried: r.tried, streak: r.streak } })))
+      .then((r) => { this.setState((st) => ({ liveRepertoire: { ...st.liveRepertoire, outcome: r.outcome, result: r.result ?? null, tried: r.tried, streak: r.streak } })); leave(); })
       .catch((e) => {
         // it flipped under his thumb and is flipping back — say so, and buzz.
         // A silent revert is the worst version of an optimistic write.
@@ -2519,7 +2566,9 @@ export default class App extends Component {
     const note = (this.state.techniqueNoteDraft || '').trim();
     if (!result) {
       this.setState({ techniqueReopen: null, techniqueNoteDraft: '', techniqueAnsweredOn: cur.date || null });
-      this.markPractice('skipped', note);
+      // an answer to Wrap the day's question, not a one-tap tick: its row
+      // is its receipt, and Change reopens it
+      this.markPractice('skipped', note, { receipt: false });
       return;
     }
     const landed = result === 'landed';
@@ -4104,16 +4153,22 @@ export default class App extends Component {
       this.setState({ shoppingAddBusy: false, shoppingAddError: e.message });
     });
   }
-  toggleShoppingItem(id, checked) {
+  // the receipt's Undo is the same call with the opposite value: the server
+  // sets `checked`, it does not flip it, so a repeat is harmless
+  toggleShoppingItem(id, checked, { receipt = true } = {}) {
     const conn = getConnection();
-    if (!conn) return;
+    const item = this.state.liveShoppingList?.items?.find((i) => i.id === id);
+    if (!item) { if (!receipt) this.toastMsg('That item has left the list, so there is nothing to undo'); return; }
     haptic('tick');
     this.setState((s) => ({
       liveShoppingList: (this.noteLocalWrite('shoppingList'), { ...s.liveShoppingList, items: s.liveShoppingList.items.map((i) => (i.id === id ? { ...i, checked } : i)) }),
     }));
+    const leave = () => { if (receipt) tickReceipt({ key: `shop:${id}`, label: item.name, done: checked, title: checked ? `Got ${item.name}` : `${item.name} back on the list`, undo: () => this.toggleShoppingItem(id, !checked, { receipt: false }) }); };
+    if (!conn) { leave(); return; }
     api.toggleShoppingItem(conn, id, checked).then(({ items }) => {
       this.noteLocalWrite('shoppingList');
       this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
+      leave();
     }).catch((e) => this.toastFail('Could not update item: ' + e.message));
   }
   confirmShoppingCompletion() {
@@ -4460,10 +4515,26 @@ export default class App extends Component {
       },
     }));
   }
-  toggleSessionSetDone(exIdx, setIdx) {
+  toggleSessionSetDone(exIdx, setIdx, { receipt = true } = {}) {
     // THE MOST TACTILE THING HE DOES. Mid-set, one hand, not looking — the hand
     // is the only sense available, and this screen had no haptic anywhere.
+    const session = this.state.workoutSession;
+    const ex = session?.exercises?.[exIdx];
+    const set = ex?.sets?.[setIdx];
+    if (!set) return;
     haptic('tick');
+    if (receipt) {
+      // local state only, so the Undo is the same toggle, but only on the set
+      // it ticked: the same session, and that set still reading as ticked
+      const done = !set.done;
+      const startedAt = session.startedAt ?? null;
+      const name = ex.name || 'that lift';
+      tickReceipt({ key: `set:${startedAt}:${exIdx}:${setIdx}`, label: `${name}, set ${setIdx + 1}`, done, undo: () => {
+        const now = this.state.workoutSession;
+        if ((now?.startedAt ?? null) !== startedAt || !!now?.exercises?.[exIdx]?.sets?.[setIdx]?.done !== done) { this.toastMsg('That set changed since, so there is nothing to undo'); return; }
+        this.toggleSessionSetDone(exIdx, setIdx, { receipt: false });
+      } });
+    }
     this.setState((s) => ({
       workoutSession: {
         ...s.workoutSession,
@@ -5606,11 +5677,19 @@ export default class App extends Component {
   // the day plan's completion loop (and the daily review's adjustments —
   // same route, dispatched by kind) — a mark is a receipt, so it is never
   // optimistic: the row changes when the server's record comes back
-  setPlanOutcome(id, index, outcome) {
+  // `was` and `label` come from the row: the receipt's Undo puts back
+  // exactly the mark that was there (the route sets, it does not toggle)
+  setPlanOutcome(id, index, outcome, { was = null, label = '', receipt = true } = {}) {
     const conn = getConnection();
     if (!conn) return;
     api.planPriorityOutcome(conn, id, index, outcome)
-      .then(() => this.refreshInbox())
+      .then(() => {
+        this.refreshInbox();
+        if (!receipt) return;
+        const what = label || `priority ${index + 1}`;
+        tickReceipt({ key: `plan:${id}:${index}`, label: what, done: !!outcome, title: outcome === 'done' ? `Done: ${what}` : outcome ? `Not today: ${what}` : `Cleared: ${what}`,
+          undo: () => this.setPlanOutcome(id, index, was, { receipt: false }) });
+      })
       .catch((e) => this.toastMsg('Could not mark it: ' + e.message));
   }
   // ---------- nova inbox (capture → classify → file) ----------
@@ -5989,24 +6068,42 @@ export default class App extends Component {
   // a busy lock — 100-600ms of dead UI per tap over Tailscale, and no
   // second tick until it returned. The tick now lands in the same frame; the
   // server's answer replaces it, and a failure reverts with the reason.
-  toggleTodoItem(rawLine) {
+  // THE RECEIPT (9 Oct 2026, his call): every tick leaves a pill with Undo
+  // (src/receipt.js), raised once the write has landed. The Undo is the same
+  // toggle again on the line as it reads NOW, found by its words, so a line
+  // ticked or edited elsewhere since says so instead of flipping a stranger.
+  // Demo mode has no server: the tick and its Undo change only what is on
+  // screen.
+  toggleTodoItem(rawLine, { receipt = true } = {}) {
     const conn = getConnection();
-    if (!conn) return;
     const previous = this.state.liveTodos;
+    const item = previous?.items?.find((t) => t.raw === rawLine);
+    if (!item) return;
+    const done = !item.checked;
+    // named the way its row names it: a bare link reads as where it goes
+    // (found by the break-ui pass: the pill showed a URL's tracking query)
+    const leave = () => { if (receipt) tickReceipt({ key: `todo:${item.text}`, label: todoLabel(item.text), done, undo: () => this.undoTodoTick(item.text, done) }); };
     haptic('tick');
     this.setState((s) => {
       if (!s.liveTodos?.items) return null;
       this.noteLocalWrite('todos'); // a racing snapshot must not clobber this
       return { liveTodos: { ...s.liveTodos, items: s.liveTodos.items.map((t) => (t.raw === rawLine ? { ...t, checked: !t.checked } : t)) } };
     });
+    if (!conn) { leave(); return; }
     api.todoToggle(conn, rawLine).then((data) => {
       this.noteLocalWrite('todos');
       this.setState({ liveTodos: data });
+      leave();
     }).catch((e) => {
       // revert to exactly what was on screen before the tap, then say why
       this.setState({ liveTodos: previous });
       this.toastFail('Could not update that to-do: ' + e.message);
     });
+  }
+  undoTodoTick(text, done) {
+    const now = this.state.liveTodos?.items?.find((t) => t.text === text && t.checked === done);
+    if (!now) { this.toastMsg('That to-do changed since, so there is nothing to undo'); return; }
+    this.toggleTodoItem(now.raw, { receipt: false });
   }
   setInboxInput(value) {
     this.setState({ inboxInput: typeof value === 'string' ? value : value.target.value });

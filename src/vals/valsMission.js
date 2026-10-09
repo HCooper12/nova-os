@@ -745,7 +745,7 @@ const bodyMetrics = demoMode
         // mark(outcome) that toggles it (marking the same outcome again clears it)
         priorities: planRec.status === 'error' ? [] : (planRec.decision?.payload?.priorities || []).slice(0, 3).map((p, i) => ({
           ...p,
-          mark: ['pending', 'filed'].includes(planRec.status) ? (outcome) => app.setPlanOutcome(planRec.id, i, p.outcome === outcome ? null : outcome) : null,
+          mark: ['pending', 'filed'].includes(planRec.status) ? (outcome) => app.setPlanOutcome(planRec.id, i, p.outcome === outcome ? null : outcome, { was: p.outcome || null, label: p.do || '' }) : null,
           // SEEN, NOT TICKED (server/lib/planObserve.js): done in his log with
           // no mark from him. His own mark always outranks it.
           seen: !p.outcome && p.observed?.state === 'done' ? p.observed.evidence : null,

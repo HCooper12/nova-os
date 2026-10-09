@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NovaCore } from '../NovaCore.jsx';
 import { agoWords } from '../vals/valsWall.js';
+import { CountUp } from '../CountUp.jsx';
 
 // THE WALL (mockup 86, blend 1 "Hands up", his pick of 9 Oct 2026: "I like
 // option 1"). A phone on a stand, or the Mac: StandBy's glance. At rest it
@@ -191,9 +192,9 @@ function Readouts({ v }) {
     <div className="ro3">
       <div className="ro"><span className="k">Next</span><span className={`n${next ? '' : ' none'}`}>{next ? next.time : 'None'}</span><span className="s">{next ? next.label : 'nothing left'}</span></div>
       <div className="ro"><span className="k"><i className="dot" style={{ '--d': 'var(--nv-vi)' }} />Steps</span>
-        <span className={`n${steps != null ? '' : ' none'}`}>{steps != null ? fmt(steps) : 'None'}</span><span className="s">{steps != null ? `of ${fmt(v.ambientStepGoal)}` : 'no reading yet'}</span></div>
+        <span className={`n${steps != null ? '' : ' none'}`}>{steps != null ? <CountUp value={Number(steps)} format={fmt} fromZero /> : 'None'}</span><span className="s">{steps != null ? `of ${fmt(v.ambientStepGoal)}` : 'no reading yet'}</span></div>
       <div className="ro"><span className="k"><i className="dot" style={{ '--d': 'var(--nv-good)' }} />Protein</span>
-        <span className={`n${p ? '' : ' none'}`}>{p ? <>{p.p}<small>g</small></> : 'None'}</span><span className="s">{p ? (p.floor ? `of ${p.floor} g` : 'today') : 'no reading yet'}</span></div>
+        <span className={`n${p ? '' : ' none'}`}>{p ? <><CountUp value={Number(p.p)} fromZero /><small>g</small></> : 'None'}</span><span className="s">{p ? (p.floor ? `of ${p.floor} g` : 'today') : 'no reading yet'}</span></div>
     </div>
   );
 }

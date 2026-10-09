@@ -84,7 +84,11 @@ test('NOTHING SNAPSHOTS THE CHROME — glass cannot survive being captured', () 
   // He filmed the dock doubling and washing out with page text readable
   // through it. So navigation stops snapshotting the page entirely.
   const css = strip(CSS);
-  assert.ok(!/view-transition-name/.test(css), 'naming the chrome only moved the problem');
+  // the one rule allowed to mention it takes every name AWAY while the theme
+  // cross-fades (9 Oct 2026, src/lookFade.js), the opposite of naming the chrome
+  const unnaming = ':root.nv-look * { view-transition-name: none !important; }';
+  assert.ok(css.includes(unnaming), 'a look change lifts every name, so no glass is captured alone');
+  assert.ok(!/view-transition-name/.test(css.replace(unnaming, '')), 'naming the chrome only moved the problem');
   assert.ok(!/nova-topbar|nova-dock/.test(css));
   const app = readFileSync(root('src/App.jsx'), 'utf8');
   assert.match(app, /this\.navigate\(screen, \{ paletteOpen: false, instant: true \}\)/,

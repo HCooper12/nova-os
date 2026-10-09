@@ -10,7 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { measure, FLIP_MS, FLIP_EASE, FADE_MS } from '../../src/useFlipList.js';
+import { measure, exitsOf, FLIP_MS, FLIP_EASE, FADE_MS, EXIT_MS } from '../../src/useFlipList.js';
 
 const root = (p) => fileURLToPath(new URL(`../../${p}`, import.meta.url));
 const read = (p) => readFileSync(root(p), 'utf8');
@@ -57,7 +57,41 @@ test('transform only, the house drawer curve, and a fade under reduced motion', 
   const src = read('src/useFlipList.js');
   assert.match(src, /prefers-reduced-motion: reduce/);
   assert.match(src, /if \(reduce\) \{\s*play\(id, it\.el, \[\{ opacity: 0\.4 \}, \{ opacity: 1 \}\]/);
-  assert.ok(!/\b(top|left|width|height|margin):/.test(src.slice(src.indexOf('const t0'), src.indexOf('prev.current = after'))), 'no layout property is animated');
+  assert.ok(!/\b(top|left|width|height|margin):/.test(src.slice(src.indexOf('const t0'), src.indexOf('// the rows that left'))), 'a row moves on transform alone');
+});
+
+// STEP 2 (9 Oct 2026): the card's height snapped while its rows glided, and
+// a row filtered out vanished. The card now travels with its rows, and a row
+// that leaves is seen leaving.
+test('the card travels with its rows: old height to new, on the same curve, root only', () => {
+  const src = read('src/useFlipList.js');
+  assert.match(src, /height = true, exits = true/, 'on for every list unless it says otherwise');
+  assert.match(src, /rootEl\.animate\(\[\{ height: `\$\{fromH\}px` \}, \{ height: `\$\{toH\}px` \}\], \{ duration: o\.duration, easing: o\.easing \}\)/);
+  assert.match(src, /if \(o\.height && !reduce && Math\.abs\(fromH - toH\) > 1/, 'reduced motion: the card snaps, nothing travels');
+  // interrupted, the height starts from where it is drawn, and the borrowed
+  // overflow goes back only when the last run ends
+  assert.match(src, /const fromH = heightRun \? rootEl\.offsetHeight : prevH\.current;/);
+  assert.match(src, /if \(!anims\.current\.has\(HEIGHT\)\) giveBack\(\);/);
+  assert.match(src, /prevH\.current = toH;/);
+});
+
+test('a row that leaves is seen leaving: a copy at its old slot, faster out than in', () => {
+  assert.equal(EXIT_MS, 200);
+  const view = { top: 0, bottom: 800 };
+  const gone = (y) => ({ el: { isConnected: false }, x: 0, y, w: 300, h: 64 });
+  const before = new Map([['a', gone(0)], ['b', gone(64)], ['c', gone(2000)], ['d', { el: { isConnected: true }, x: 0, y: 128, w: 300, h: 64 }], ['e', gone(192)]]);
+  const after = new Map([['e', { y: 0 }]]);
+  assert.deepEqual(exitsOf(before, after, view).map(([id]) => id), ['a', 'b'], 'still there (e), off screen (c) or reused elsewhere (d) is not an exit');
+  const many = new Map(Array.from({ length: 40 }, (_, i) => [`r${i}`, gone(i * 10)]));
+  assert.equal(exitsOf(many, new Map(), view).length, 12, 'a filter that empties a long list fades what was seen, capped');
+  const src = read('src/useFlipList.js');
+  const ghost = src.slice(src.indexOf('function ghostOf'), src.indexOf('// each [data-<attr>] item'));
+  assert.match(ghost, /was\.el\.cloneNode\(true\)/, "a copy, never React's node");
+  assert.match(ghost, /removeAttribute\?\.\('data-flip'\)/, 'the copy is invisible to measure');
+  assert.match(ghost, /setAttribute\('aria-hidden', 'true'\)/);
+  assert.match(ghost, /pointerEvents: 'none'/);
+  assert.match(src, /reduce \? \[\{ opacity: 1 \}, \{ opacity: 0 \}\] : \[\{ opacity: 1, transform: 'scale\(1\)' \}, \{ opacity: 0, transform: 'scale\(\.98\)', offset: 0\.6 \}, \{ opacity: 0, transform: 'scale\(\.97\)' \}\]/, 'the copy is gone before the incoming row settles over its slot');
+  assert.match(src, /ghost\.remove\(\)/);
 });
 
 test('Library moved onto the shared hook, with its own size morph kept', () => {

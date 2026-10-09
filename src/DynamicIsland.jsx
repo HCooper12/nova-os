@@ -283,6 +283,10 @@ export function DynamicIsland() {
     s.pause = pause;
     s.resume = resume;
 
+    // a notice that has left (or was dropped before it was ever seen) says
+    // so once: the tick receipt closes its batch on it
+    const closed = (notice) => { try { notice?.onClose?.(); } catch { /* a listener's fault is not the island's */ } };
+
     // ── enter / exit / settle (use-notification-timeline.ts) ──
     const enter = (notice) => {
       s.current = notice;
@@ -324,6 +328,7 @@ export function DynamicIsland() {
       s.exiting = false;
       s.hand = null;
       const next = s.queue.shift();
+      closed(s.current);
       s.current = null;
       if (next) { enter(next); return; }
       // (review #10) this runs inside the frame where the drop landed, so the
@@ -396,7 +401,10 @@ export function DynamicIsland() {
         return;
       }
       if (msg.type === 'dismiss') {
-        if (msg.id) s.queue = s.queue.filter((x) => x.id !== msg.id);
+        if (msg.id) {
+          for (const x of s.queue) if (x.id === msg.id) closed(x);
+          s.queue = s.queue.filter((x) => x.id !== msg.id);
+        }
         if (s.current && (!msg.id || s.current.id === msg.id)) exit();
         return;
       }
@@ -408,6 +416,17 @@ export function DynamicIsland() {
         scheduleLife();
         return;
       }
+      if (call.kind === 'update') {
+        // the same card, new words: no second drop, a fresh clock. The key
+        // stays, so React patches the text and the layout effect re-measures
+        // without starting the springs again.
+        s.current = next;
+        s.life.shownAt = Math.max(s.life.shownAt, performance.now());
+        scheduleLife();
+        setShown((cur) => (cur ? { ...cur, notice: next, update: performance.now() } : cur));
+        return;
+      }
+      for (const x of call.dropped || []) closed(x);
       if (call.kind === 'show' && !s.exiting) { enter(next); return; }
       s.queue = call.kind === 'show' ? [...s.queue, next] : call.queue;
       scheduleLife(); // something is waiting now — cut the current one short
@@ -452,7 +471,13 @@ export function DynamicIsland() {
   useLayoutEffect(() => {
     const s = m.current;
     if (!shown || !cardRef.current) return;
+    // new words on the card already showing (the tick receipt's count): the
+    // card is re-placed for its height and repainted where the springs are
+    // now, never dropped a second time
+    const updating = !!(shown.update && s.started && !s.exiting && s.layout);
     const { env } = shown;
+    // the card carries the last layout's fixed height; let the words size it
+    if (updating) cardRef.current.style.height = '';
     const h = cardRef.current.offsetHeight;
     const L = C.islandLayout({ width: env.width, insetTop: env.insetTop, island: env.island, cardHeight: h });
     s.layout = L;
@@ -486,7 +511,8 @@ export function DynamicIsland() {
     card.style.top = `${L.cardTop}px`;
     card.style.left = `${L.cardLeft}px`;
     card.style.height = `${L.cardHeight}px`;
-    s.start();
+    if (updating) s.paint?.();
+    else s.start();
   }, [shown]);
 
   const s = m.current;
@@ -660,7 +686,7 @@ export function DynamicIsland() {
                   <div style={{ ...CLAMP(actions.length > 1 ? 3 : 4), marginTop: 2, color: 'var(--nv-island-ink)', font: n.serif ? 'italic 400 14.5px/1.4 var(--nv-font-serif)' : '500 14px/1.35 var(--nv-font-ui)' }}>{n.message}</div>
                 </>
               ) : (
-                <div style={{ ...CLAMP(3), color: 'var(--nv-island-ink)', font: '500 14.5px/1.35 var(--nv-font-ui)', letterSpacing: '-.005em' }}>{n.title}</div>
+                <div style={{ ...CLAMP(n.oneLine ? 1 : 3), color: 'var(--nv-island-ink)', font: '500 14.5px/1.35 var(--nv-font-ui)', letterSpacing: '-.005em' }}>{n.title}</div>
               )}
             </div>
             {sideChip && chip(actions[0], 0)}

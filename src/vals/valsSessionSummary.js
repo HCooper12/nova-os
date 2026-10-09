@@ -15,9 +15,15 @@ import {
 // Spread LAST in App.renderVals, after valsInboxSummary: it reads the
 // classic session's own rows (valsWorkouts' sessionExercises, with every
 // handler already bound) and the mid-session Coach fields. Null under every
-// style but `summary`, in demo mode, and whenever the live session is not
-// the thing on screen, so cupertino and command render the classic
-// SessionView byte for byte.
+// style but `summary` and whenever the live session is not the thing on
+// screen, so cupertino and command render the classic SessionView byte for
+// byte.
+//
+// DEMO RENDERS IT TOO (9 Oct 2026, motion step 2). It used to be off in
+// demo, so the view his phone shows for a workout was the one screen no
+// frame budget had ever measured. A demo session is in-memory state (a
+// routine started from the demo plan, every set local until Finish, which
+// has no server to reach), so nothing here needs a connection to be true.
 //
 // NOTHING HERE WRITES ON ITS OWN. Every act is a method the classic session
 // already calls — toggleSessionSetDone, updateSessionSet, addSessionSet,
@@ -74,7 +80,7 @@ export function valsSessionSummary(app, ctx, v) {
   } : null;
 
   const session = st.workoutSession;
-  if (!summary || ctx.demoMode || !session || st.workoutsView !== 'session' || st.screen !== 'workouts') {
+  if (!summary || !session || st.workoutsView !== 'session' || st.screen !== 'workouts') {
     return { sessionSummary: null, restTimerSetting };
   }
   const exs = session.exercises || [];
@@ -375,7 +381,7 @@ export function valsSessionSummary(app, ctx, v) {
     } else if (p.kind === 'undo') {
       const last = app.state.sessionSumVoice?.last;
       const s0 = last && app.state.workoutSession?.exercises?.[last.exIdx]?.sets?.[last.setIdx];
-      if (s0?.done) { app.toggleSessionSetDone(last.exIdx, last.setIdx); note = `Unticked set ${last.setIdx + 1}.`; }
+      if (s0?.done) { app.toggleSessionSetDone(last.exIdx, last.setIdx, { receipt: false }); note = `Unticked set ${last.setIdx + 1}.`; }
       else note = 'Nothing spoken to take back.';
     }
     say(note);
@@ -435,7 +441,7 @@ export function valsSessionSummary(app, ctx, v) {
         const at = s0.exercises[r.exIdx].sets.length;
         app.addSessionSet(r.exIdx);
         for (const k of ['weight', 'reps', 'rpe', 'rir', 'setType']) if (r.set[k] !== undefined) app.updateSessionSet(r.exIdx, at, k, r.set[k]);
-        if (r.set.done) app.toggleSessionSetDone(r.exIdx, at);
+        if (r.set.done) app.toggleSessionSetDone(r.exIdx, at, { receipt: false });
       }
       app.setState({ sessionSumReceipt: null });
     },
