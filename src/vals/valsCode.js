@@ -1,7 +1,7 @@
 import { getConnection } from '../api.js';
 import {
   PROJECTS, WORKSPACE_PROJECT, projectKeyOf, projectInfo, sessionRows, chipsFor, reviewFiles, reviewTotals,
-  ruleOf, leftOutLine, findingsOf, textBlocks, lineHead, unansweredBreaker, newsLine, clock, plural, startOfToday,
+  ruleOf, leftOutLine, findingsOf, textBlocks, lineHead, unansweredBreaker, newsLine, clock, plural, startOfToday, quoteOf,
 } from '../codeModel.js';
 import * as act from '../codeActions.js';
 
@@ -12,9 +12,14 @@ import * as act from '../codeActions.js';
 // (/api/claude-code/changes), today's commits (/api/claude-code/commits),
 // the Forge's jobs, and the transcript. Missing records say so in words.
 //
-// Science Atlas and Wren are not places the Builder works, so their pages are
-// their sessions and an honest empty Commit group; the server reads git only
-// in Nova OS and the Vault.
+// Science Atlas and Wren (round 4, 10 Oct 2026, his call: "Connect Science
+// Atlas and Wren for commits") are workspaces once the server names them in
+// server/data/code-workspaces.json: each gets the review, Commit, Shelve,
+// Undo and the Builder. Wren stays nested: its tile hangs off the Atlas
+// tile, its sessions and its own review sit in the Atlas page's Wren group,
+// and its page says whose assistant it is. Until the server names them (an
+// older server), their pages say plainly that they are not connected.
+// Needs you quotes what a waiting session last said, scrubbed by the server.
 
 export function valsCode(app, ctx, { modelOptions = [] } = {}) {
   const st = app.state;
@@ -43,8 +48,10 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
   const ticks = (w) => (st.codeTicks && st.codeTicks[w]) || {};
   const changes = (w) => st.codeChangesBy?.[w] || null;
   const rowsOf = (w) => reviewFiles(changes(w)?.files, ticks(w));
+  const known = (w) => !!w && act.knownWorkspace(st, w);
+  const readyIn = (w) => (known(w) && changes(w) && !changes(w).readOnly ? reviewTotals(rowsOf(w)).files : 0);
   const novaRows = rowsOf('repo');
-  const novaReady = changes('repo')?.readOnly ? 0 : reviewTotals(novaRows).files;
+  const novaReady = readyIn('repo');
 
   // ----- runs: the live one and the closed ones, today
   const today = startOfToday(now);
@@ -53,6 +60,7 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
     ...(st.codeRuns || []).filter((r) => r.workspace === w).flatMap((r) => r.chat),
   ].filter((m) => m.who === 'claude' && !m.streaming && (m.at || m.endedAt || 0) >= today).length;
   const commitsToday = (st.codeCommits || []).filter((c) => !c.undone);
+  const doneIn = (w) => commitsToday.filter((c) => (c.workspace || 'repo') === w).length;
 
   const busyLine = (w) => {
     if (ws !== w) return null;
@@ -73,6 +81,8 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
         key: `s:${s.sessionId}`, glyph: p, quietMs: s.quietMs ?? 0,
         title: s.state === 'blocked' ? `${p.title} is stuck and needs you` : `${p.title} is waiting for you`,
         line: `${(s.plain || '').replace(/^Waiting for you: /, '').replace(/^./, (c) => c.toUpperCase())} ${s.quietAgo ? s.quietAgo.replace(/^./, (c) => c.toUpperCase()) + '.' : ''}`.trim(),
+        // what it last said, when the server could read it (his call 2)
+        quote: quoteOf(s, { now }),
         action: { label: 'Show', icon: 'mac', aria: `Show this ${p.title} session on your Mac`, run: () => app.showMacSession(s.sessionId), busy: st.macSessionBusyId === s.sessionId, disabled: away || !s.canShow },
       });
     }
@@ -91,6 +101,7 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
   }
 
   // ----- tiles
+  const readyRows = (w) => (known(w) ? rowsOf(w).filter((f) => f.ticked).slice(0, 6).map((f) => ({ key: f.path, width: f.width, added: f.added, removed: f.removed })) : []);
   const tile = (key, extra = {}) => {
     const p = projectInfo(key, byTile.get(key)?.label);
     const ss = sessionsOf(key);
@@ -101,12 +112,22 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
     nova: tile('nova', {
       sub: [novaBranch, ws === 'repo' ? 'the Builder works here' : null].filter(Boolean).join(' · ') || 'Nova’s own code',
       bars: novaRows.filter((f) => f.ticked).slice(0, 6).map((f) => ({ key: f.path, width: f.width, added: f.added, removed: f.removed })),
-      chipExtra: { building: ws === 'repo' && (st.codeBusy || st.sparBusy), ready: novaReady, doneToday: commitsToday.length },
+      chipExtra: { building: ws === 'repo' && (st.codeBusy || st.sparBusy), ready: novaReady, doneToday: doneIn('repo') },
       foot: busyLine('repo'),
       selected: st.codeProject === 'nova' || (!st.codeProject && !st.isMobile),
     }),
-    atlas: tile('atlas', { sub: 'the work itself', selected: st.codeProject === 'atlas' }),
-    wren: tile('wren', { sub: 'Tasks that support and guide the Atlas', open: () => act.openProject(app, 'atlas', 'wren') }),
+    atlas: tile('atlas', {
+      sub: ['the work itself', known('atlas') ? changes('atlas')?.branch : null, ws === 'atlas' ? 'the Builder works here' : null].filter(Boolean).join(' · '),
+      bars: readyRows('atlas'),
+      chipExtra: { building: ws === 'atlas' && (st.codeBusy || st.sparBusy), ready: readyIn('atlas'), doneToday: doneIn('atlas') },
+      foot: busyLine('atlas'),
+      selected: st.codeProject === 'atlas',
+    }),
+    wren: tile('wren', {
+      sub: ['Tasks that support and guide the Atlas', ws === 'wren' ? 'the Builder works here' : null].filter(Boolean).join(' · '),
+      chipExtra: { building: ws === 'wren' && (st.codeBusy || st.sparBusy), ready: readyIn('wren'), doneToday: doneIn('wren') },
+      open: () => act.openProject(app, 'atlas', 'wren'),
+    }),
     vault: tile('vault', {
       sub: 'Read and edited by the Builder, never committed by Nova',
       chipExtra: { building: ws === 'vault' && (st.codeBusy || st.sparBusy), runsToday: runsTodayIn('vault') },
@@ -134,25 +155,27 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
   const doneToday = commitsToday.map((c) => ({
     key: c.sha,
     title: `Committed ${c.short} · ${plural(c.files, 'file')}`,
-    line: `Nova OS, ${clock(c.at)} · ${c.pushed ? 'pushed' : c.head ? 'not pushed' : 'a newer commit sits on top'}`,
+    line: `${projectInfo(WORKSPACE_PROJECT[c.workspace || 'repo'] || 'nova').title}, ${clock(c.at)} · ${c.pushed ? 'pushed' : c.head ? 'not pushed' : 'a newer commit sits on top'}`,
     canUndo: !!c.canUndo && !away,
-    undo: () => act.undoCommit(app, c.sha),
+    undo: () => act.undoCommit(app, c.sha, c.workspace || 'repo'),
     busy: !!st.codeChangeBusy,
   }));
 
   // ----- news
   const waitingNames = needs.filter((n) => n.key.startsWith('s:')).map((n) => n.title.replace(/ is (waiting for you|stuck and needs you)$/, ''));
-  const nothing = connected && !loading && !away && allSessions.length === 0 && !novaRows.length && !st.codeChat.length && !st.codeBusy;
+  const writable = act.writableWorkspaces(st);
+  const anyRows = writable.some((w) => rowsOf(w).length);
+  const nothing = connected && !loading && !away && allSessions.length === 0 && !anyRows && !st.codeChat.length && !st.codeBusy;
   const news = newsLine({
     waiting: waitingNames,
-    ready: novaReady ? [{ title: 'Nova OS', n: novaReady }] : [],
+    ready: writable.map((w) => ({ title: projectInfo(WORKSPACE_PROJECT[w]).title, n: readyIn(w) })).filter((r) => r.n),
     working: (st.codeBusy || st.sparBusy) ? projectInfo(here).title : null,
     away,
     nothing,
   });
 
   // ----- the project page
-  const pageFor = (key) => projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf, changes, byTile });
+  const pageFor = (key) => projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf, changes, byTile, known, readyIn });
   const page = st.codeProject ? pageFor(st.codeProject) : null;
 
   // ----- the ⋯ sheet
@@ -166,7 +189,7 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
     connOn: connected && !away,
     models: modelOptions.map((o) => ({ value: o.value, label: o.label, on: o.value === st.codeModel })),
     setModel: (value) => app.setState({ codeModel: value }),
-    workspaces: [{ value: 'repo', label: 'Nova OS', on: ws === 'repo' }, { value: 'vault', label: 'Vault', on: ws === 'vault' }],
+    workspaces: ['repo', 'vault', ...writable.filter((w) => w !== 'repo')].map((w) => ({ value: w, label: projectInfo(WORKSPACE_PROJECT[w]).title, on: ws === w })),
     // on a workspace's own page the page follows the switch (openProject
     // switches); anywhere else only the Builder moves. One switch either way.
     setWorkspace: (w) => { if (st.codeProject && PROJECTS[st.codeProject]?.workspace) act.openProject(app, WORKSPACE_PROJECT[w]); else act.switchWorkspace(app, w); },
@@ -193,10 +216,11 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
   };
 }
 
-function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf, changes, byTile }) {
+function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf, changes, byTile, known, readyIn }) {
   const st = app.state;
   const p = projectInfo(key, byTile.get(key)?.label);
-  const pageWs = p.workspace || null;
+  // a page is a workspace once the server can read it there
+  const pageWs = p.workspace && known(p.workspace) ? p.workspace : null;
   const builderHere = !!pageWs && pageWs === ws;
   const ss = sessionsOf(key);
   const sessionRowsOf = (list) => sessionRows(list).map((r) => ({
@@ -216,11 +240,11 @@ function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf,
     const c = changes(pageWs);
     const rows = rowsOf(pageWs);
     const totals = reviewTotals(rows);
-    const msg = st.codeCommitMsg || '';
+    const msg = act.msgFor(st, pageWs);
     const rule = ruleOf(msg);
     const readOnly = !!c?.readOnly;
     const openFiles = st.codeOpenFiles || {};
-    const r = st.codeReceipt && pageWs === 'repo' ? st.codeReceipt : null;
+    const r = st.codeReceipt && (st.codeReceipt.ws || 'repo') === pageWs ? st.codeReceipt : null;
     const peekPath = c?.peek?.path;
     review = {
       loading: !c,
@@ -241,20 +265,20 @@ function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf,
         };
       }),
       msg,
-      setMsg: (e) => app.setState({ codeCommitMsg: e.target.value }),
+      setMsg: (e) => { const v = e.target.value; app.setState((s) => ({ codeCommitMsgs: { ...(s.codeCommitMsgs || {}), [pageWs]: v } })); },
       rule,
       commit: {
         label: `Commit ${plural(totals.files, 'file')}`,
         enabled: !readOnly && !away && rule.met && totals.files > 0 && !st.codeChangeBusy,
-        run: () => act.commit(app),
+        run: () => act.commit(app, { ws: pageWs }),
         busy: !!st.codeChangeBusy,
       },
-      shelve: { enabled: !readOnly && !away && totals.files > 0 && !st.codeChangeBusy, run: () => act.shelve(app) },
+      shelve: { enabled: !readOnly && !away && totals.files > 0 && !st.codeChangeBusy, run: () => act.shelve(app, { ws: pageWs }) },
       paused: away,
       receipt: r ? {
         title: `Committed ${r.sha} · ${plural(r.files, 'file')}`,
         line: `“${r.message}” · not pushed`,
-        undo: () => act.undoCommit(app, r.fullSha),
+        undo: () => act.undoCommit(app, r.fullSha, pageWs),
         undoEnabled: !away && !st.codeChangeBusy,
         left: leftOutLine(r.leftOut, r.rows),
         dismiss: () => app.setState({ codeReceipt: null }),
@@ -267,7 +291,7 @@ function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf,
   const lines = chat.map((m, i) => {
     const h = lineHead(m, { modelLabel });
     const shelf = m.kind === 'shelf' && m.sha && !m.restored
-      ? { label: 'Restore', run: () => act.restore(app, m.sha), enabled: !away && !st.codeChangeBusy } : null;
+      ? { label: 'Restore', run: () => act.restore(app, m.sha, m.ws || pageWs), enabled: !away && !st.codeChangeBusy } : null;
     return { key: `${m.at || 0}:${i}`, ...h, blocks: textBlocks(m.text), streaming: !!m.streaming, startedAt: m.streaming ? (st.codeBusyAt || m.at) : (m.startedAt || m.at), at: m.at, action: shelf };
   });
   if (builderHere && st.codeBusy && !chat.some((m) => m.streaming)) {
@@ -285,10 +309,31 @@ function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf,
     lines: r.chat.map((m, i) => ({ key: `${r.id}:${i}`, ...lineHead(m, { modelLabel }), blocks: textBlocks(m.text), streaming: false })),
   }));
 
+  const wrenWs = key === 'atlas' && known('wren') ? 'wren' : null;
+  const wrenGroup = key === 'atlas' ? {
+    glyph: PROJECTS.wren,
+    sessions: sessionRowsOf(sessionsOf('wren')),
+    head: plural(sessionsOf('wren').length, 'session'),
+    // Wren's own review lives on its page; here, how much waits there
+    review: wrenWs ? (() => {
+      const c = changes('wren');
+      const n = readyIn('wren');
+      return {
+        loading: !c,
+        line: !c ? 'Reading Wren’s changes' : c.clean ? `${c.branch} · nothing to commit` : `${c.branch} · ${plural(n, 'file')} ready to commit`,
+        ready: n,
+        open: () => act.openProject(app, 'wren'),
+      };
+    })() : null,
+  } : null;
+
   const anchors = pageWs
     ? [
       { id: 'commit', label: 'Commit', count: review && !review.readOnly ? review.totals.files : '·', glyph: 'commit' },
-      { id: 'sessions', label: 'Sessions', count: ss.length, glyph: 'sessions' },
+      key === 'atlas'
+        ? { id: 'sessions', label: 'The work', count: ss.length, glyph: 'work' }
+        : { id: 'sessions', label: 'Sessions', count: ss.length, glyph: 'sessions' },
+      ...(key === 'atlas' ? [{ id: 'wren', label: 'Wren', count: wrenWs ? readyIn('wren') || sessionsOf('wren').length : sessionsOf('wren').length, glyph: 'kin' }] : []),
       { id: 'runs', label: 'Runs', count: lines.length, glyph: 'runs' },
     ]
     : key === 'atlas'
@@ -304,19 +349,25 @@ function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf,
 
   return {
     key, title: p.title, glyph: p, hue: p.hue,
-    sub: key === 'atlas' ? 'the work itself · with Wren, its assistant'
-      : pageWs ? [changes(pageWs)?.branch, builderHere ? 'the Builder works here' : null].filter(Boolean).join(' · ')
-        : plural(ss.length, 'session') + ' on your Mac',
+    sub: key === 'atlas' ? (pageWs ? ['the work itself', changes(pageWs)?.branch, builderHere ? 'the Builder works here' : null].filter(Boolean).join(' · ') : 'the work itself · with Wren, its assistant')
+      : key === 'wren' ? ['Science Atlas’s assistant', pageWs ? changes(pageWs)?.branch : null, builderHere ? 'the Builder works here' : null].filter(Boolean).join(' · ')
+        : pageWs ? [changes(pageWs)?.branch, builderHere ? 'the Builder works here' : null].filter(Boolean).join(' · ')
+          : plural(ss.length, 'session') + ' on your Mac',
+    // Wren's page names whose assistant it is, and goes back up to the Atlas
+    parent: p.parent ? { title: projectInfo(p.parent).title, open: () => act.openProject(app, p.parent, 'wren') } : null,
     section: st.codeSection || null,
     clearSection: () => app.setState({ codeSection: null }),
     anchors,
     review,
     sessions: sessionRowsOf(ss),
     sessionsHead: plural(ss.length, 'session'),
-    wren: key === 'atlas' ? { glyph: PROJECTS.wren, sessions: sessionRowsOf(sessionsOf('wren')), head: plural(sessionsOf('wren').length, 'session') } : null,
+    wren: wrenGroup,
     workSessionsHead: plural(ss.length, 'session'),
     runs: pageWs ? { lines, closed, count: lines.length } : null,
     honestCommit: !pageWs,
+    // asked of a server that does not name this folder yet (an older one, or
+    // a folder taken out of server/data/code-workspaces.json)
+    notConnected: !pageWs && !!p.connectable,
     composer: pageWs ? {
       placeholder: `Ask the Builder in ${p.title}`,
       value: st.codeInput || '',

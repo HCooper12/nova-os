@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   reviewFiles, reviewTotals, ruleOf, quietOf, findingsOf, textBlocks, newsLine, chipsFor, leftOutLine,
-  lineHead, unansweredBreaker, projectKeyOf, sessionLine, STALE_MS,
+  lineHead, unansweredBreaker, projectKeyOf, sessionLine, STALE_MS, quoteOf, PROJECTS, WORKSPACE_PROJECT,
 } from '../../src/codeModel.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -95,4 +95,22 @@ test('the Builder line names the model by the board\'s label, never a typed vers
     const src = await readFile(path.join(ROOT, f), 'utf8');
     assert.doesNotMatch(src, /\b(?:Sonnet|Opus|Fable|Haiku) \d/, `${f} types a model version by hand`);
   }
+});
+
+test('a waiting session’s quote names who said it and when; an empty or missing one is no quote', () => {
+  const now = new Date(2026, 9, 10, 10, 0).getTime();
+  const q = quoteOf({ name: 'Reading-list sweep', quote: { text: 'Shall I carry on?', at: new Date(2026, 9, 10, 9, 41).getTime() } }, { now });
+  assert.deepEqual(q, { who: 'Claude', where: 'Reading-list sweep', when: '9:41', text: 'Shall I carry on?' });
+  assert.equal(quoteOf({ name: 'x', quote: { text: 'Now', at: now - 30_000 } }, { now }).when, 'just now');
+  assert.equal(quoteOf({ name: 'x', quote: { text: '   ', at: now } }, { now }), null);
+  assert.equal(quoteOf({ name: 'x', quote: null }, { now }), null);
+  assert.equal(quoteOf({ name: 'x' }, { now }), null);
+  assert.equal(quoteOf({ quote: { text: 'Hi', at: null } }, { now }).when, '');
+});
+
+test('Science Atlas and Wren are workspaces, Wren nested under the Atlas', () => {
+  assert.equal(PROJECTS.atlas.workspace, 'atlas');
+  assert.equal(PROJECTS.wren.workspace, 'wren');
+  assert.equal(PROJECTS.wren.parent, 'atlas');
+  assert.equal(WORKSPACE_PROJECT.wren, 'wren');
 });

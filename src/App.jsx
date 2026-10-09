@@ -7140,7 +7140,7 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) { this.toastMsg('Connect a backend in Settings first'); return; }
     if (this.state.sparBusy) return;
-    const target = this.state.codeWorkspace === 'repo' ? 'Nova OS' : 'the Vault';
+    const target = { repo: 'Nova OS', vault: 'the Vault', atlas: 'Science Atlas', wren: 'Wren' }[this.state.codeWorkspace] || this.state.codeWorkspace;
     const sentAt = Date.now();
     this.setState((s) => ({ sparBusy: true, sparBusyAt: sentAt, codeChat: [...s.codeChat, { at: sentAt, who: 'system', text: `The Breaker is reading ${target}. It changes nothing.` }] }));
     const focus = [...this.state.codeChat].reverse().find((m) => m.who === 'you')?.text || '';

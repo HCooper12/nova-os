@@ -10,16 +10,19 @@ export const MESSAGE_MIN = 8;                // codeChanges.js MESSAGE_MIN
 
 // The families Nova already knows by folder (claudeSessions.js projectOf).
 // Each owns one hue; Wren is Science Atlas's assistant and wears the same
-// hue, drawn outlined. Nova OS and the Vault are where the Builder works.
+// hue, drawn outlined. The Builder works in each one the server knows.
 export const PROJECTS = {
   nova: { key: 'nova', title: 'Nova OS', hue: 'var(--nv-cy)', glyph: 'nova', workspace: 'repo', folder: 'nova-os' },
-  atlas: { key: 'atlas', title: 'Science Atlas', hue: 'var(--nv-m-quads)', glyph: 'atlas', folder: 'Atomic_Hub' },
-  wren: { key: 'wren', title: 'Wren', hue: 'var(--nv-m-quads)', glyph: 'wren', kin: true, folder: 'atlas-partner' },
+  atlas: { key: 'atlas', title: 'Science Atlas', hue: 'var(--nv-m-quads)', glyph: 'atlas', workspace: 'atlas', connectable: true, folder: 'Atomic_Hub' },
+  wren: { key: 'wren', title: 'Wren', hue: 'var(--nv-m-quads)', glyph: 'wren', kin: true, parent: 'atlas', workspace: 'wren', connectable: true, folder: 'atlas-partner' },
   vault: { key: 'vault', title: 'Vault', hue: 'var(--nv-m-mobility)', glyph: 'vault', workspace: 'vault' },
   builds: { key: 'builds', title: 'Builds', hue: 'var(--nv-m-triceps)', glyph: 'build' },
 };
 const BY_FOLDER = { 'nova-os': 'nova', Atomic_Hub: 'atlas', 'atlas-partner': 'wren' };
-export const WORKSPACE_PROJECT = { repo: 'nova', vault: 'vault' };
+// Science Atlas and Wren are workspaces when the server names them
+// (server/data/code-workspaces.json, 10 Oct 2026); `connectable` marks the
+// ones that need that word from the server before the screen treats them so.
+export const WORKSPACE_PROJECT = { repo: 'nova', vault: 'vault', atlas: 'atlas', wren: 'wren' };
 
 /** Which tile a session belongs to: a known family, or its own folder. */
 export function projectKeyOf(project) {
@@ -94,6 +97,20 @@ export function chipsFor(sessions, { building = false, ready = 0, doneToday = 0,
   const open = n('left-open') + n('gone');
   if (open) chips.push({ kind: 'open', text: `${open} left open` });
   return chips;
+}
+
+/**
+ * A waiting session's last words, as Needs you shows them: who said it
+ * (Claude, in that session) and when, then the line itself. The server has
+ * already made it one line and scrubbed it; null when there is none.
+ */
+export function quoteOf(s, { now = Date.now() } = {}) {
+  const q = s?.quote;
+  const text = typeof q?.text === 'string' ? q.text.trim() : '';
+  if (!text) return null;
+  const at = Number.isFinite(q.at) ? q.at : null;
+  const when = at == null ? '' : now - at < 90_000 ? 'just now' : startOfToday(now) <= at ? clock(at) : new Date(at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+  return { who: 'Claude', where: s.name || 'this session', when, text };
 }
 
 // ------------------------------------------------------------- the review
