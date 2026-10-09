@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { startMessage, getMessageJob, startBreaker } from '../lib/claudeCode.js';
 import { isValidModel } from '../lib/modelPrefs.js';
+import { listWorkspaces } from '../lib/codeWorkspaces.js';
 
-const WORKSPACES = { repo: 'repoPath', vault: 'vaultPath' };
 // Exactly the values the model board recognises (aliases + pinned ids,
 // including legacy pins kept valid for a saved choice) — anything else is
 // rejected rather than passed through to the CLI's --model flag. isValidModel
@@ -12,7 +12,16 @@ const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 
 export function claudeCodeRouter({ repoPath, vaultPath }) {
   const router = Router();
-  const cwdFor = { repo: repoPath, vault: vaultPath };
+  // Where the Builder runs: Nova OS, the Vault, or a folder named in
+  // server/data/code-workspaces.json (Science Atlas and Wren, 10 Oct 2026).
+  // Anything else is refused, never quietly sent to Nova OS.
+  // The same check the commit path makes (lib/codeChanges.js where): a
+  // named folder must be the top of its own repository.
+  const cwdOf = async (workspace) => {
+    if (typeof workspace !== 'string' || !workspace) return null;
+    try { return (await (await import('../lib/codeChanges.js')).where(workspace, vaultPath, repoPath)).cwd || null; } catch { return null; }
+  };
+  const badWorkspace = async () => 'workspace must be one of ' + (await listWorkspaces({ vaultPath })).map((w) => w.key).join(', ');
 
   router.post('/claude-code/message', async (req, res, next) => {
     try {
@@ -21,10 +30,11 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
       const sessionId = req.body?.sessionId || undefined;
       const model = req.body?.model || undefined;
       if (!text) return res.status(400).json({ error: 'text is required' });
-      if (!WORKSPACES[workspace]) return res.status(400).json({ error: 'workspace must be one of ' + Object.keys(WORKSPACES).join(', ') });
+      const cwd = await cwdOf(workspace);
+      if (!cwd) return res.status(400).json({ error: await badWorkspace() });
       if (model && !isValidModel(model)) return res.status(400).json({ error: 'model is not a recognised alias or pinned id' });
       if (sessionId && !SESSION_ID_RE.test(sessionId)) return res.status(400).json({ error: 'invalid sessionId' });
-      const jobId = startMessage(cwdFor[workspace], { text, sessionId, model });
+      const jobId = startMessage(cwd, { text, sessionId, model });
       res.json({ jobId });
     } catch (err) {
       next(err);
@@ -46,8 +56,9 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
     try {
       const workspace = req.body?.workspace;
       const focus = typeof req.body?.focus === 'string' ? req.body.focus.trim().slice(0, 2000) : '';
-      if (!WORKSPACES[workspace]) return res.status(400).json({ error: 'workspace must be one of ' + Object.keys(WORKSPACES).join(', ') });
-      const jobId = startBreaker(cwdFor[workspace], { focus });
+      const cwd = await cwdOf(workspace);
+      if (!cwd) return res.status(400).json({ error: await badWorkspace() });
+      const jobId = startBreaker(cwd, { focus });
       res.json({ jobId });
     } catch (err) {
       next(err);
@@ -61,8 +72,13 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
   // unpushed commit Nova made. `repoRoot` is this router's repoPath, so a
   // test mounts the router over a temporary repo and never his real one.
   const changes = () => import('../lib/codeChanges.js');
-  const ws = (w) => (w === 'vault' ? 'vault' : 'repo');
+  // a missing workspace is Nova OS (older clients sent none); an unknown one
+  // is refused in lib/codeWorkspaces.js, never quietly read as Nova OS
+  const ws = (w) => (typeof w === 'string' && w ? w : 'repo');
   const fail = (res, e) => res.status(400).json({ error: e.message, code: e.code || null });
+  router.get('/claude-code/workspaces', async (req, res) => {
+    try { res.json({ workspaces: await listWorkspaces({ vaultPath }) }); } catch (e) { fail(res, e); }
+  });
   router.get('/claude-code/changes', async (req, res) => {
     try {
       const sid = typeof req.query.sessionId === 'string' && SESSION_ID_RE.test(req.query.sessionId) ? req.query.sessionId : null;
@@ -73,7 +89,7 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
     try { res.json(await (await changes()).fileDiff(ws(req.query.workspace), vaultPath, req.query.path, { repoRoot: repoPath })); } catch (e) { fail(res, e); }
   });
   router.get('/claude-code/commits', async (req, res) => {
-    try { res.json(await (await changes()).listCommits(ws(req.query.workspace), vaultPath, { repoRoot: repoPath, since: Number(req.query.since) || 0 })); } catch (e) { fail(res, e); }
+    try { res.json(await (await changes()).listCommits(req.query.workspace === 'all' ? 'all' : ws(req.query.workspace), vaultPath, { repoRoot: repoPath, since: Number(req.query.since) || 0 })); } catch (e) { fail(res, e); }
   });
   router.post('/claude-code/commit', async (req, res) => {
     try { res.json(await (await changes()).commitChanges(ws(req.body?.workspace), vaultPath, req.body?.message, { repoRoot: repoPath, paths: req.body?.paths })); } catch (e) { fail(res, e); }

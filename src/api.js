@@ -457,6 +457,9 @@ export const api = {
   // checks each one (server/lib/codeChanges.js) before git runs
   codeChanges: (conn, workspace, sessionId) => call(conn, `/api/claude-code/changes?workspace=${encodeURIComponent(workspace || 'repo')}${sessionId ? `&sessionId=${encodeURIComponent(sessionId)}` : ''}`),
   codeFileDiff: (conn, workspace, path) => call(conn, `/api/claude-code/diff?workspace=${encodeURIComponent(workspace || 'repo')}&path=${encodeURIComponent(path)}`),
+  // the folders the screen can commit in: Nova OS, the Vault (read-only),
+  // and those named in server/data/code-workspaces.json (Science Atlas, Wren)
+  codeWorkspaces: (conn) => call(conn, '/api/claude-code/workspaces'),
   codeCommits: (conn, workspace, since) => call(conn, `/api/claude-code/commits?workspace=${encodeURIComponent(workspace || 'repo')}&since=${encodeURIComponent(since || 0)}`),
   codeCommit: (conn, workspace, message, paths) => post(conn, '/api/claude-code/commit', { workspace, message, paths }),
   codeUndoCommit: (conn, workspace, sha) => post(conn, '/api/claude-code/undo', { workspace, sha }),

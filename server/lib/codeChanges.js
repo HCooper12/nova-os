@@ -29,9 +29,23 @@
 //
 // Every function takes `repoRoot`, so the tests run against a temporary git
 // repo made with mkdtemp and never touch his real repositories.
+//
+// ROUND 4 (10 Oct 2026, his three calls):
+//   - Science Atlas and Wren are workspaces too, named in one file under
+//     server data (lib/codeWorkspaces.js). Every guard below holds in each:
+//     a ticked path is checked against THAT folder, and a file another
+//     session's journal edited arrives unticked there as here. The journals
+//     of the folders above a workspace are read too, because his Atlas
+//     sessions run one level up, in P3_Draft3.
+//   - A commit is a record on the inbox rails (kind `code-commit`, with
+//     `undoData`), and Undo goes through the rails' own undo path, from this
+//     screen or from the Inbox alike. The old code-commits.json is folded in
+//     once and set aside.
+//   - Reads never take git's optional index lock (GIT_OPTIONAL_LOCKS=0), so
+//     looking at a folder another session is working in never writes to it.
 
 import { execFile } from 'node:child_process';
-import { readFile, writeFile, mkdir, rename, readdir, stat, open, realpath } from 'node:fs/promises';
+import { readFile, rename, readdir, stat, open, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -41,12 +55,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const COMMITS_FILE = () => path.join(dataRoot(), 'code-commits.json');
+export const COMMIT_KIND = 'code-commit';
 
 export const MESSAGE_MIN = 8;
 const MAX_PATHS = 2000;
 const PEEK_LINES = 3;
 const FILE_DIFF_LINES = 400;
 const UNTRACKED_READ_MAX = 4 * 1024 * 1024;
+const ANCESTOR_LEVELS = 2;
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 
 function git(args, cwd) {
@@ -56,7 +72,8 @@ function git(args, cwd) {
       maxBuffer: 64 * 1024 * 1024,
       // a path is always a path: `*`, `:` and `!` in a file name are never
       // read as a pattern that could match other files
-      env: { ...process.env, GIT_LITERAL_PATHSPECS: '1', GIT_TERMINAL_PROMPT: '0' },
+      // and a read never refreshes the index behind another session's back
+      env: { ...process.env, GIT_LITERAL_PATHSPECS: '1', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' },
     }, (err, stdout, stderr) => {
       if (err) return reject(new Error((stderr || err.message).trim()));
       resolve(stdout);
@@ -73,12 +90,19 @@ function refuse(message, code = 'refused') {
 
 // Workspace → cwd. 'repo' is Nova itself; the vault is a real git repo too
 // in his setup, but it is NOT ours to commit, so it stays read-only here.
-function where(workspace, vaultPath, repoRoot = REPO_ROOT) {
-  if (workspace === 'vault') {
-    if (!vaultPath) throw refuse('the vault folder is not configured on this Mac');
-    return { cwd: vaultPath, readOnly: true };
+// Any other key is a folder named in server/data/code-workspaces.json, and
+// it must be the top of its own repository: a folder inside some larger
+// repo would let a commit reach files outside the workspace he chose.
+export async function where(workspace, vaultPath, repoRoot = REPO_ROOT) {
+  const { resolveWorkspace } = await import('./codeWorkspaces.js');
+  const w = await resolveWorkspace(workspace, { repoRoot, vaultPath });
+  if (w.key !== 'repo' && w.key !== 'vault') {
+    let top = '';
+    try { top = (await git(['rev-parse', '--show-toplevel'], w.cwd)).trim(); } catch { throw refuse(`${w.title} is not a git repository at ${w.cwd}`, 'workspace'); }
+    const [a, b] = await Promise.all([realpath(top).catch(() => top), realpath(w.cwd).catch(() => w.cwd)]);
+    if (a !== b) throw refuse(`${w.title} is a folder inside another repository, so Nova will not commit there`, 'workspace');
   }
-  return { cwd: repoRoot, readOnly: false };
+  return w;
 }
 
 // ------------------------------------------------------------- reading git
@@ -172,25 +196,62 @@ async function readTail(file, bytes) {
  * A file changed by hand or by a shell command leaves no journal entry, so
  * it is never called another session's: that claim needs a record.
  */
-export async function sessionEdits(cwd, { since = 0, home = os.homedir(), maxFiles = 40, tailBytes = 8 * 1024 * 1024 } = {}) {
+export async function sessionEdits(cwd, { since = 0, home = os.homedir(), maxFiles = 60, tailBytes = 8 * 1024 * 1024 } = {}) {
   const out = new Map();
   const roots = new Set([cwd]);
   try { roots.add(await realpath(cwd)); } catch { /* keep the given path */ }
-  const dirs = [...new Set([...roots].map((r) => path.join(home, '.claude', 'projects', slug(r))))];
-  for (const dir of dirs) {
-    let names = [];
-    try { names = (await readdir(dir)).filter((n) => n.endsWith('.jsonl')); } catch { continue; }
-    const withTime = [];
-    for (const n of names) {
-      try { const s = await stat(path.join(dir, n)); if (s.mtimeMs >= since) withTime.push({ n, t: s.mtimeMs }); } catch { /* gone */ }
+  // WHICH JOURNALS. The folder's own, the two folders above it, and every
+  // folder beside it: his Atlas redesign sessions run in a SIBLING folder
+  // ("Atomic_Hub_P3_Draft 3", next to Atlas_Progress_Map) and edit files in
+  // here by full path, so reading only this folder's journals would call
+  // their files his (found on the real Mac, 10 Oct 2026). Never the home
+  // folder or above. The newest journals since the last commit are read,
+  // at most `maxFiles` of them across every folder, so the cost is bounded.
+  const projectsDir = path.join(home, '.claude', 'projects');
+  const wanted = new Set();
+  const besides = new Set();
+  for (const r of roots) {
+    wanted.add(slug(r));
+    let p = r;
+    for (let i = 0; i < ANCESTOR_LEVELS; i++) {
+      const up = path.dirname(p);
+      if (up === p || up === os.homedir() || up.length < 2) break;
+      wanted.add(slug(up));
+      if (i === 0) besides.add(slug(up) + '-');
+      p = up;
     }
-    withTime.sort((a, b) => b.t - a.t);
-    for (const { n } of withTime.slice(0, maxFiles)) {
-      const sessionId = n.slice(0, -'.jsonl'.length);
+  }
+  let all = [];
+  try { all = await readdir(projectsDir); } catch { all = []; }
+  const dirs = all.filter((d) => wanted.has(d) || [...besides].some((b) => d.startsWith(b))).map((d) => path.join(projectsDir, d));
+  const withTime = [];
+  for (const dir of dirs) {
+    let entries = [];
+    try { entries = await readdir(dir); } catch { continue; }
+    for (const n of entries.filter((e) => e.endsWith('.jsonl'))) {
+      try { const s = await stat(path.join(dir, n)); if (s.mtimeMs >= since) withTime.push({ dir, n, t: s.mtimeMs }); } catch { /* gone */ }
+    }
+    // a session's subagents journal in a folder named for it
+    // (<id>/subagents/*.jsonl); what they edit is that session's work, so it
+    // carries its id
+    for (const id of entries.filter((e) => /^[0-9a-f-]{36}$/i.test(e))) {
+      const sub = path.join(dir, id, 'subagents');
+      let subs = [];
+      try { subs = (await readdir(sub)).filter((x) => x.endsWith('.jsonl')); } catch { subs = []; }
+      for (const x of subs) {
+        try { const s = await stat(path.join(sub, x)); if (s.mtimeMs >= since) withTime.push({ dir: sub, n: x, id, t: s.mtimeMs }); } catch { /* gone */ }
+      }
+    }
+  }
+  withTime.sort((a, b) => b.t - a.t);
+  const marks = [...roots].map((r) => path.basename(r));
+  {
+    for (const { dir: jdir, n, id } of withTime.slice(0, maxFiles)) {
+      const sessionId = id || n.slice(0, -'.jsonl'.length);
       let text = '';
-      try { text = await readTail(path.join(dir, n), tailBytes); } catch { continue; }
+      try { text = await readTail(path.join(jdir, n), tailBytes); } catch { continue; }
       for (const line of text.split('\n')) {
-        if (!line.includes('"tool_use"')) continue;
+        if (!line.includes('"tool_use"') || !marks.some((m) => line.includes(m))) continue;
         let j; try { j = JSON.parse(line); } catch { continue; }
         if (j.type !== 'assistant' || !Array.isArray(j.message?.content)) continue;
         const at = Date.parse(j.timestamp || '');
@@ -234,7 +295,7 @@ async function filePeek(cwd, entry, hasHead, maxLines = PEEK_LINES) {
 
 /** The changes in a workspace, file by file, drawn by the review. */
 export async function changeSummary(workspace, vaultPath, { repoRoot = REPO_ROOT, sessionId = null, home = os.homedir() } = {}) {
-  const { cwd, readOnly } = where(workspace, vaultPath, repoRoot);
+  const { cwd, readOnly } = await where(workspace, vaultPath, repoRoot);
   const head = await headInfo(cwd);
   const branch = (await git(['rev-parse', '--abbrev-ref', 'HEAD'], cwd).catch(() => 'main')).trim();
   const entries = await statusEntries(cwd);
@@ -273,7 +334,7 @@ export async function changeSummary(workspace, vaultPath, { repoRoot = REPO_ROOT
 
 /** One file's own diff (or an untracked file's lines), for "Show all". */
 export async function fileDiff(workspace, vaultPath, file, { repoRoot = REPO_ROOT } = {}) {
-  const { cwd } = where(workspace, vaultPath, repoRoot);
+  const { cwd } = await where(workspace, vaultPath, repoRoot);
   const rel = safeRel(cwd, file);
   const entries = await statusEntries(cwd);
   const e = entries.find((x) => x.path === rel);
@@ -328,14 +389,85 @@ export function messageOk(message) {
 
 // ------------------------------------------------------------- the record
 
-async function readCommits() {
-  try { const j = JSON.parse(await readFile(COMMITS_FILE(), 'utf8')); return Array.isArray(j) ? j : []; } catch { return []; }
+// A COMMIT RIDES THE INBOX RAILS (his call 3, 10 Oct 2026: "move the undo
+// records if you think it's worth it"). Nova's rule is that everything
+// writeable is undoable through one door: a record with a kind, a status and
+// undoData. Until today a commit's way back lived in a file of its own,
+// code-commits.json, which the Inbox, the fleet and the Org Map could not
+// see, so "what did I change today" had two answers. Now a commit files a
+// `code-commit` record (status filed, undoData {sha, parent, workspace,
+// root, paths}) and Undo is the rails' own undoRecord, whose undoFiling
+// calls revertNovaCommit below. The guards live there, so the Inbox's Undo
+// and this screen's are the same act with the same refusals.
+
+const SHA_RE = /^[0-9a-f]{40}$/;
+const store = () => import('./inboxStore.js');
+
+async function commitRecords() {
+  const { listRecords } = await store();
+  return (await listRecords()).filter((r) => r.kind === COMMIT_KIND && r.undoData && SHA_RE.test(r.undoData.sha || ''));
 }
-async function writeCommits(list) {
-  await mkdir(dataRoot(), { recursive: true });
-  const tmp = COMMITS_FILE() + '.' + randomUUID().slice(0, 6) + '.tmp';
-  await writeFile(tmp, JSON.stringify(list.slice(-200), null, 1));
-  await rename(tmp, COMMITS_FILE());
+
+function commitRecord({ sha, short, parent, workspace, root, title, branch, paths, message, at = Date.now(), undone = false }) {
+  const iso = new Date(at).toISOString();
+  const text = `Committed ${short} in ${title} · ${paths.length} file${paths.length === 1 ? '' : 's'}: “${message.length > 140 ? message.slice(0, 138).trimEnd() + '…' : message}”`;
+  return {
+    id: randomUUID().slice(0, 8),
+    kind: COMMIT_KIND,
+    text,
+    source: 'code',
+    mode: 'auto',
+    status: undone ? 'undone' : 'filed',
+    createdAt: iso,
+    filedAt: iso,
+    auto: false,
+    destination: `${title}${branch ? ` · ${branch}` : ''}, not pushed`,
+    undoData: { kind: COMMIT_KIND, sha, short, parent: parent || null, workspace, root, paths },
+    decision: {
+      route: COMMIT_KIND,
+      confidence: 'high',
+      title: text,
+      reason: 'His own commit on the Code screen, of the files he ticked. Undo takes it back while it is unpushed and still the newest commit.',
+      payload: { sha, short, workspace, message, files: paths.length },
+    },
+    ...(undone ? { undoneAt: iso, undoSummary: 'taken back before the rails held commits' } : {}),
+  };
+}
+
+// THE OLD FILE, FOLDED IN ONCE. Every entry of code-commits.json becomes a
+// record unless one with the same sha and folder is already there, and the
+// file is renamed aside (code-commits.migrated.json), so a second run finds
+// nothing to do and a restored file can never make a duplicate.
+let migration = null;
+export function migrateCommitsFile() {
+  if (!migration) migration = migrateNow().catch((e) => { migration = null; throw e; });
+  return migration;
+}
+export function _resetCommitMigration() { migration = null; }
+
+async function migrateNow() {
+  let list;
+  try { list = JSON.parse(await readFile(COMMITS_FILE(), 'utf8')); } catch { return { migrated: 0, skipped: 0 }; }
+  if (!Array.isArray(list)) list = [];
+  const { createRecord } = await store();
+  const have = new Set((await commitRecords()).map((r) => `${r.undoData.root}\0${r.undoData.sha}`));
+  let migrated = 0, skipped = 0;
+  for (const e of list) {
+    if (!e || !SHA_RE.test(e.sha || '') || typeof e.root !== 'string') { skipped++; continue; }
+    const k = `${e.root}\0${e.sha}`;
+    if (have.has(k)) { skipped++; continue; }
+    have.add(k);
+    await createRecord(commitRecord({
+      sha: e.sha, short: e.short || e.sha.slice(0, 7), parent: null,
+      workspace: e.workspace || 'repo', root: e.root,
+      title: e.workspace && e.workspace !== 'repo' ? e.workspace : 'Nova OS',
+      branch: null, paths: Array.isArray(e.paths) ? e.paths : [], message: String(e.message || ''),
+      at: Number(e.at) || Date.now(), undone: !!e.undone,
+    }));
+    migrated++;
+  }
+  await rename(COMMITS_FILE(), path.join(dataRoot(), 'code-commits.migrated.json'));
+  return { migrated, skipped };
 }
 
 async function onRemote(cwd, sha) {
@@ -347,69 +479,119 @@ async function onRemote(cwd, sha) {
 
 /** Commit exactly the ticked files. Nothing else in the repo moves. */
 export async function commitChanges(workspace, vaultPath, message, { repoRoot = REPO_ROOT, paths } = {}) {
-  const { cwd, readOnly } = where(workspace, vaultPath, repoRoot);
+  const w = await where(workspace, vaultPath, repoRoot);
+  const { cwd, readOnly } = w;
   if (readOnly) throw refuse('the vault is read-only from here; Nova never commits your notes for you', 'readonly');
   const msg = messageOk(message);
   const { take } = await checkedPaths(cwd, paths);
+  await migrateCommitsFile().catch(() => {});
+  const before = await headInfo(cwd);
   await git(['add', '-A', '--', ...take], cwd);
   // --only: the commit holds these paths and nothing else already in the
   // shared index (another session's staged work stays staged, untouched)
   await git(['commit', '--only', '-m', msg, '--', ...take], cwd);
   const head = await headInfo(cwd);
   const short = (await git(['rev-parse', '--short', 'HEAD'], cwd)).trim();
+  const branch = (await git(['rev-parse', '--abbrev-ref', 'HEAD'], cwd).catch(() => '')).trim();
   const left = (await statusEntries(cwd)).map((e) => e.path);
-  const list = await readCommits();
-  list.push({ sha: head.sha, short, at: Date.now(), workspace, root: cwd, paths: take, message: msg, undone: false });
-  await writeCommits(list);
-  return { sha: short, fullSha: head.sha, message: msg, files: take.length, paths: take, leftOut: left, pushed: false };
+  const { createRecord } = await store();
+  const record = await createRecord(commitRecord({
+    sha: head.sha, short, parent: before?.sha || null, workspace: w.key, root: cwd, title: w.title, branch, paths: take, message: msg,
+  }));
+  return { sha: short, fullSha: head.sha, message: msg, files: take.length, paths: take, leftOut: left, pushed: false, recordId: record.id };
 }
 
 /**
- * Take a commit back while it is safe to: Nova made it, it is still HEAD,
- * and no remote has it. The work is kept: a soft reset, then the paths it
- * committed are unstaged, so the files are back exactly as before.
+ * THE GUARDS, called by the rails' undoFiling for a `code-commit` record
+ * (lib/inbox.js), so the Inbox's Undo and the Code screen's are one act.
+ * Take a commit back only while it is safe to: it is still HEAD, its parent
+ * is the one it was made on, and no remote has it. The work is kept: a soft
+ * reset, then the paths it committed are unstaged, so the files are back
+ * exactly as before. Returns the rails' human summary.
  */
-export async function undoCommit(workspace, vaultPath, { repoRoot = REPO_ROOT, sha } = {}) {
-  const { cwd, readOnly } = where(workspace, vaultPath, repoRoot);
-  if (readOnly) throw refuse('the vault is read-only from here', 'readonly');
-  if (typeof sha !== 'string' || !/^[0-9a-f]{40}$/.test(sha)) throw refuse('which commit? a full commit id is needed', 'sha');
-  const list = await readCommits();
-  const rec = list.find((r) => r.sha === sha && r.root === cwd);
-  if (!rec) throw refuse('Nova did not make that commit, so it will not take it back', 'notmine');
-  if (rec.undone) throw refuse('that commit was already taken back', 'undone');
+export async function revertNovaCommit(undo) {
+  const sha = undo?.sha;
+  const cwd = undo?.root;
+  if (typeof sha !== 'string' || !SHA_RE.test(sha)) throw refuse('which commit? a full commit id is needed', 'sha');
+  if (typeof cwd !== 'string' || !path.isAbsolute(cwd)) throw refuse('the record does not say which folder the commit is in', 'workspace');
   const head = await headInfo(cwd);
-  if (!head || head.sha !== sha) throw refuse('a newer commit sits on top of it now, so Undo would take that too; it stays', 'nothead');
+  if (!head) throw refuse('that folder is not a repository Nova can read any more; the commit stays', 'workspace');
+  if (head.sha !== sha) throw refuse('a newer commit sits on top of it now, so Undo would take that too; it stays', 'nothead');
   const remotes = await onRemote(cwd, sha);
   if (remotes.length) throw refuse('it is pushed already, so taking it back here would rewrite shared history; it stays', 'pushed');
-  try { await git(['rev-parse', '--verify', '--quiet', `${sha}^`], cwd); } catch { throw refuse('it is the first commit in the repository, so there is nothing to go back to', 'root'); }
+  let parent = '';
+  try { parent = (await git(['rev-parse', '--verify', '--quiet', `${sha}^`], cwd)).trim(); } catch { throw refuse('it is the first commit in the repository, so there is nothing to go back to', 'root'); }
+  if (undo.parent && parent !== undo.parent) throw refuse('its history was rewritten since Nova made it, so Undo would not land where it should; it stays', 'nothead');
   const names = (await git(['diff-tree', '--no-commit-id', '--name-only', '-r', '-z', sha], cwd)).split('\0').filter(Boolean);
   await git(['reset', '--soft', 'HEAD~1'], cwd);
   if (names.length) await git(['reset', '-q', 'HEAD', '--', ...names], cwd);
-  rec.undone = true;
-  rec.undoneAt = Date.now();
-  await writeCommits(list);
-  return { undone: true, sha: rec.short, files: names.length, paths: names };
+  const short = undo.short || sha.slice(0, 7);
+  return `took back ${short}; ${names.length === 1 ? 'its file is' : `its ${names.length} files are`} uncommitted again, exactly as before`;
 }
 
-/** Today's commits Nova made, each with whether Undo can still reach it. */
+/**
+ * Undo from the Code screen: find Nova's own record of this commit in this
+ * folder, then hand it to the rails. A commit with no record (made by hand,
+ * or by another session) is not Nova's to take back.
+ */
+export async function undoCommit(workspace, vaultPath, { repoRoot = REPO_ROOT, sha } = {}) {
+  const { cwd, readOnly } = await where(workspace, vaultPath, repoRoot);
+  if (readOnly) throw refuse('the vault is read-only from here', 'readonly');
+  if (typeof sha !== 'string' || !SHA_RE.test(sha)) throw refuse('which commit? a full commit id is needed', 'sha');
+  await migrateCommitsFile().catch(() => {});
+  const recs = (await commitRecords()).filter((r) => r.undoData.sha === sha && r.undoData.root === cwd);
+  const rec = recs.find((r) => r.status === 'filed') || recs[0];
+  if (!rec) throw refuse('Nova did not make that commit, so it will not take it back', 'notmine');
+  if (rec.status === 'undone') throw refuse('that commit was already taken back', 'undone');
+  if (rec.status !== 'filed') throw refuse('that commit is not one Undo can reach', 'undone');
+  const names = (await git(['diff-tree', '--no-commit-id', '--name-only', '-r', '-z', sha], cwd).catch(() => '')).split('\0').filter(Boolean);
+  const { undoRecord } = await import('./inbox.js');
+  await undoRecord(vaultPath, rec.id);
+  return { undone: true, sha: rec.undoData.short || sha.slice(0, 7), files: names.length, paths: names, recordId: rec.id };
+}
+
+/**
+ * Today's commits Nova made, each with whether Undo can still reach it.
+ * `workspace: 'all'` reads every folder the screen knows, each commit
+ * carrying its workspace key.
+ */
 export async function listCommits(workspace, vaultPath, { repoRoot = REPO_ROOT, since = 0 } = {}) {
-  const { cwd } = where(workspace, vaultPath, repoRoot);
-  const head = await headInfo(cwd);
-  const out = [];
-  for (const r of (await readCommits()).filter((x) => x.root === cwd && x.at >= since).reverse()) {
-    const pushed = (await onRemote(cwd, r.sha)).length > 0;
-    out.push({
-      sha: r.sha, short: r.short, at: r.at, files: r.paths.length, message: r.message, undone: !!r.undone,
-      pushed, head: head?.sha === r.sha,
-      canUndo: !r.undone && !pushed && head?.sha === r.sha,
-    });
+  await migrateCommitsFile().catch(() => {});
+  let places;
+  if (workspace === 'all') {
+    const { listWorkspaces } = await import('./codeWorkspaces.js');
+    places = [];
+    for (const w of await listWorkspaces({ vaultPath })) {
+      if (w.readOnly) continue;
+      try { places.push(await where(w.key, vaultPath, repoRoot)); } catch { /* a folder that is not there lists nothing */ }
+    }
+  } else {
+    places = [await where(workspace, vaultPath, repoRoot)];
   }
+  const all = await commitRecords();
+  const out = [];
+  for (const p of places) {
+    const head = await headInfo(p.cwd);
+    const mine = all.filter((r) => r.undoData.root === p.cwd && Date.parse(r.createdAt) >= since);
+    for (const r of mine) {
+      const u = r.undoData;
+      const undone = r.status !== 'filed';
+      const pushed = (await onRemote(p.cwd, u.sha)).length > 0;
+      out.push({
+        sha: u.sha, short: u.short || u.sha.slice(0, 7), at: Date.parse(r.createdAt), files: (u.paths || []).length,
+        message: r.decision?.payload?.message || '', undone, workspace: p.key, recordId: r.id,
+        pushed, head: head?.sha === u.sha,
+        canUndo: !undone && !pushed && head?.sha === u.sha,
+      });
+    }
+  }
+  out.sort((a, b) => b.at - a.at);
   return { commits: out };
 }
 
 // Undoable discard: stash (including untracked) so it is always recoverable.
 export async function shelveChanges(workspace, vaultPath, { repoRoot = REPO_ROOT, paths } = {}) {
-  const { cwd, readOnly } = where(workspace, vaultPath, repoRoot);
+  const { cwd, readOnly } = await where(workspace, vaultPath, repoRoot);
   if (readOnly) throw refuse('the vault is read-only from here', 'readonly');
   const before = await statusEntries(cwd);
   if (!before.length) throw refuse('nothing to shelve', 'clean');
@@ -433,7 +615,7 @@ async function stashList(cwd) {
 
 /** Bring a shelf back. By sha when given (the stack is shared), else the newest, and only Nova's own. */
 export async function unshelveLatest(workspace, vaultPath, { repoRoot = REPO_ROOT, sha } = {}) {
-  const { cwd, readOnly } = where(workspace, vaultPath, repoRoot);
+  const { cwd, readOnly } = await where(workspace, vaultPath, repoRoot);
   if (readOnly) throw refuse('the vault is read-only from here', 'readonly');
   if (sha !== undefined && sha !== null && (typeof sha !== 'string' || !/^[0-9a-f]{40}$/.test(sha))) throw refuse('which shelf? a full id is needed', 'sha');
   const list = await stashList(cwd);

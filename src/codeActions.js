@@ -17,11 +17,13 @@ import { reviewFiles, startOfToday, plural, WORKSPACE_PROJECT, projectInfo } fro
 // at and recorded without a Mac; a production build never carries it.
 
 export const SWITCH_UNDO_MS = 8000;
+const titleOf = (ws) => projectInfo(WORKSPACE_PROJECT[ws] || 'nova').title;
 
 function io(app) {
   const conn = getConnection();
   if (conn) {
     return {
+      workspaces: () => api.codeWorkspaces(conn),
       changes: (ws, sid) => api.codeChanges(conn, ws, sid),
       fileDiff: (ws, p) => api.codeFileDiff(conn, ws, p),
       commits: (ws, since) => api.codeCommits(conn, ws, since),
@@ -47,6 +49,20 @@ function pill({ key, title, undo }) {
   });
 }
 const ticksFor = (st, ws) => (st.codeTicks && st.codeTicks[ws]) || {};
+// each workspace keeps its own commit message: words typed for Wren never
+// land on a Nova OS commit
+export const msgFor = (st, ws) => (st.codeCommitMsgs && st.codeCommitMsgs[ws]) || '';
+const withMsg = (s, ws, msg) => ({ codeCommitMsgs: { ...(s.codeCommitMsgs || {}), [ws]: msg } });
+
+/** Is this workspace one the server can read? Nova OS and the Vault always; the rest when it names them. */
+export function knownWorkspace(st, ws) {
+  if (ws === 'repo' || ws === 'vault') return true;
+  return (st.codeWorkspaces || []).some((w) => w.key === ws);
+}
+/** The workspaces a commit can land in, as the server names them. */
+export function writableWorkspaces(st) {
+  return ['repo', ...(st.codeWorkspaces || []).filter((w) => !w.readOnly && w.key !== 'repo' && w.key !== 'vault').map((w) => w.key)];
+}
 
 // ------------------------------------------------------------- reading
 
@@ -72,11 +88,13 @@ export function refreshChanges(app, ws = app.state.codeWorkspace) {
 export function refreshCommits(app) {
   const x = io(app);
   if (!x) return Promise.resolve();
-  return x.commits('repo', startOfToday()).then(({ commits }) => app.setState((s) => {
+  // every workspace at once; an older server reads 'all' as Nova OS, so a
+  // commit with no workspace on it is Nova OS's
+  return x.commits('all', startOfToday()).then(({ commits }) => app.setState((s) => {
     const r = s.codeReceipt;
     // the receipt stays while Undo can still reach its commit
     const still = r ? (commits || []).find((c) => c.sha === r.fullSha) : null;
-    return { codeCommits: commits || [], ...(r && (!still || !still.canUndo) ? { codeReceipt: null } : {}) };
+    return { codeCommits: (commits || []).map((c) => ({ ...c, workspace: c.workspace || 'repo' })), ...(r && (!still || !still.canUndo) ? { codeReceipt: null } : {}) };
   })).catch(() => {});
 }
 
@@ -86,6 +104,16 @@ export function loadCode(app) {
   refreshChanges(app, 'repo');
   refreshChanges(app, 'vault');
   refreshCommits(app);
+  // Science Atlas and Wren, when the server names them; an older server has
+  // no list, and their pages then say plainly they are not connected
+  const x = io(app);
+  if (x?.workspaces) {
+    x.workspaces().then(({ workspaces }) => {
+      const list = Array.isArray(workspaces) ? workspaces : [];
+      app.setState({ codeWorkspaces: list });
+      for (const w of list) if (w.key !== 'repo' && w.key !== 'vault') refreshChanges(app, w.key);
+    }).catch(() => app.setState((s) => (s.codeWorkspaces ? null : { codeWorkspaces: [] })));
+  }
   if (getConnection()) {
     app.startMacSessionsPoll();
     app.refreshForge();
@@ -120,12 +148,16 @@ export function toggleFile(app, ws, path) {
 
 const tickedPaths = (st, ws) => reviewFiles((st.codeChangesBy?.[ws] || {}).files, ticksFor(st, ws)).filter((f) => f.ticked).map((f) => f.path);
 
-export function commit(app, { paths: given, message: msgGiven, receipt = true } = {}) {
+// with no workspace named (an older caller, a voice verb), the commit goes
+// where the Builder works, when that is somewhere a commit can land
+const defaultWs = (st) => (writableWorkspaces(st).includes(st.codeWorkspace) ? st.codeWorkspace : 'repo');
+
+export function commit(app, { ws: wsGiven, paths: given, message: msgGiven, receipt = true } = {}) {
   const st = app.state;
-  const ws = 'repo';
+  const ws = wsGiven || defaultWs(st);
   const x = io(app);
   if (!x || st.codeChangeBusy) return Promise.resolve(false);
-  const message = (msgGiven ?? st.codeCommitMsg ?? '').trim();
+  const message = (msgGiven ?? msgFor(st, ws)).trim();
   const paths = given || tickedPaths(st, ws);
   if (!paths.length) return Promise.resolve(false);
   const rows = reviewFiles((st.codeChangesBy?.[ws] || {}).files, ticksFor(st, ws));
@@ -134,12 +166,12 @@ export function commit(app, { paths: given, message: msgGiven, receipt = true } 
     const leftOut = r.leftOut || [];
     app.setState((s) => ({
       codeChangeBusy: false,
-      codeCommitMsg: '',
-      codeReceipt: { sha: r.sha, fullSha: r.fullSha, files: r.files, message: r.message, leftOut, rows, at: Date.now() },
+      ...withMsg(s, ws, ''),
+      codeReceipt: { ws, sha: r.sha, fullSha: r.fullSha, files: r.files, message: r.message, leftOut, rows, at: Date.now() },
       codeTicks: { ...(s.codeTicks || {}), [ws]: {} },
-      codeChat: [...s.codeChat, { at: Date.now(), who: 'system', kind: 'commit', sha: r.fullSha, text: `Committed ${r.sha} · ${plural(r.files, 'file')}. Not pushed, so Undo can still take it back.` }],
+      codeChat: ws === s.codeWorkspace ? [...s.codeChat, { at: Date.now(), who: 'system', kind: 'commit', sha: r.fullSha, ws, text: `Committed ${r.sha} · ${plural(r.files, 'file')}. Not pushed, so Undo can still take it back.` }] : s.codeChat,
     }));
-    if (receipt) pill({ key: `commit:${r.fullSha}`, title: `Committed ${r.sha} · ${plural(r.files, 'file')}`, undo: () => undoCommit(app, r.fullSha) });
+    if (receipt) pill({ key: `commit:${r.fullSha}`, title: ws === 'repo' ? `Committed ${r.sha} · ${plural(r.files, 'file')}` : `Committed ${r.sha} in ${titleOf(ws)}`, undo: () => undoCommit(app, r.fullSha, ws) });
     refreshChanges(app, ws);
     refreshCommits(app);
     return true;
@@ -150,24 +182,25 @@ export function commit(app, { paths: given, message: msgGiven, receipt = true } 
   });
 }
 
-export function undoCommit(app, fullSha) {
+export function undoCommit(app, fullSha, wsGiven) {
   const x = io(app);
   if (!x || !fullSha) return;
   const st = app.state;
   const known = (st.codeCommits || []).find((c) => c.sha === fullSha) || (st.codeReceipt?.fullSha === fullSha ? st.codeReceipt : null);
+  const ws = wsGiven || known?.workspace || known?.ws || 'repo';
   app.setState({ codeChangeBusy: true });
-  x.undo('repo', fullSha).then((r) => {
+  x.undo(ws, fullSha).then((r) => {
     app.setState((s) => ({
       codeChangeBusy: false,
       codeReceipt: s.codeReceipt?.fullSha === fullSha ? null : s.codeReceipt,
       // the review comes back as it was, his words included
-      codeCommitMsg: s.codeCommitMsg || known?.message || '',
-      codeChat: [...s.codeChat, { at: Date.now(), who: 'system', kind: 'undo', text: `Undid ${r.sha}. The ${plural(r.files, 'file')} ${r.files === 1 ? 'is' : 'are'} back as ${r.files === 1 ? 'it was' : 'they were'}, uncommitted.` }],
+      ...withMsg(s, ws, msgFor(s, ws) || known?.message || ''),
+      codeChat: ws === s.codeWorkspace ? [...s.codeChat, { at: Date.now(), who: 'system', kind: 'undo', text: `Undid ${r.sha}. The ${plural(r.files, 'file')} ${r.files === 1 ? 'is' : 'are'} back as ${r.files === 1 ? 'it was' : 'they were'}, uncommitted.` }] : s.codeChat,
     }));
     // the pill's own Undo commits the same files again with the same words
     const message = known?.message;
-    pill({ key: `undo:${fullSha}`, title: `Took back ${r.sha}`, undo: message ? () => commit(app, { paths: r.paths, message, receipt: true }) : undefined });
-    refreshChanges(app, 'repo');
+    pill({ key: `undo:${fullSha}`, title: `Took back ${r.sha} in ${titleOf(ws)}`, undo: message ? () => commit(app, { ws, paths: r.paths, message, receipt: true }) : undefined });
+    refreshChanges(app, ws);
     refreshCommits(app);
   }).catch((e) => {
     app.setState({ codeChangeBusy: false });
@@ -176,43 +209,49 @@ export function undoCommit(app, fullSha) {
   });
 }
 
-export function shelve(app, { paths: given } = {}) {
+export function shelve(app, { ws: wsGiven, paths: given } = {}) {
   const st = app.state;
+  const ws = wsGiven || defaultWs(st);
   const x = io(app);
   if (!x || st.codeChangeBusy) return;
-  const paths = given || tickedPaths(st, 'repo');
+  const paths = given || tickedPaths(st, ws);
   if (!paths.length) return;
   app.setState({ codeChangeBusy: true });
-  x.shelve('repo', paths).then((r) => {
+  x.shelve(ws, paths).then((r) => {
+    const line = { at: Date.now(), who: 'system', kind: 'shelf', ws, sha: r.sha, files: r.files, paths: r.paths, text: `Shelved ${plural(r.files, 'file')}. Nothing lost.` };
     app.setState((s) => ({
       codeChangeBusy: false,
-      codeShelf: r,
-      codeTicks: { ...(s.codeTicks || {}), repo: {} },
-      codeChat: [...s.codeChat, { at: Date.now(), who: 'system', kind: 'shelf', sha: r.sha, files: r.files, paths: r.paths, text: `Shelved ${plural(r.files, 'file')}. Nothing lost.` }],
+      codeShelf: { ...r, ws },
+      codeShelves: [line, ...(s.codeShelves || [])].slice(0, 20),
+      codeTicks: { ...(s.codeTicks || {}), [ws]: {} },
+      codeChat: ws === s.codeWorkspace ? [...s.codeChat, line] : s.codeChat,
     }));
-    pill({ key: `shelf:${r.sha}`, title: `Shelved ${plural(r.files, 'file')}`, undo: () => restore(app, r.sha) });
-    refreshChanges(app, 'repo');
+    pill({ key: `shelf:${r.sha}`, title: `Shelved ${plural(r.files, 'file')} in ${titleOf(ws)}`, undo: () => restore(app, r.sha, ws) });
+    refreshChanges(app, ws);
   }).catch((e) => {
     app.setState({ codeChangeBusy: false });
     notify({ title: 'Nothing was shelved', message: e.message, tone: 'warn' });
   });
 }
 
-export function restore(app, sha) {
+export function restore(app, sha, wsGiven) {
   const x = io(app);
   if (!x || !sha) return;
-  const line = (app.state.codeChat || []).find((m) => m.kind === 'shelf' && m.sha === sha);
+  const st = app.state;
+  const line = [...(st.codeChat || []), ...(st.codeShelves || [])].find((m) => m.kind === 'shelf' && m.sha === sha);
+  const ws = wsGiven || line?.ws || (st.codeShelf?.sha === sha ? st.codeShelf.ws : null) || 'repo';
   app.setState({ codeChangeBusy: true });
-  x.unshelve('repo', sha).then(() => {
+  x.unshelve(ws, sha).then(() => {
     const n = line?.files || 0;
     app.setState((s) => ({
       codeChangeBusy: false,
       codeShelf: s.codeShelf?.sha === sha ? null : s.codeShelf,
+      codeShelves: (s.codeShelves || []).filter((m) => m.sha !== sha),
       codeChat: [...s.codeChat.map((m) => (m.kind === 'shelf' && m.sha === sha ? { ...m, restored: true } : m)),
-        { at: Date.now(), who: 'system', kind: 'restore', text: n ? `Restored ${plural(n, 'file')} from the shelf.` : 'Restored the shelf.' }],
+        ...(ws === s.codeWorkspace ? [{ at: Date.now(), who: 'system', kind: 'restore', text: n ? `Restored ${plural(n, 'file')} from the shelf.` : 'Restored the shelf.' }] : [])],
     }));
-    pill({ key: `restore:${sha}`, title: n ? `Restored ${plural(n, 'file')}` : 'Restored the shelf', undo: line?.paths ? () => shelve(app, { paths: line.paths }) : undefined });
-    refreshChanges(app, 'repo');
+    pill({ key: `restore:${sha}`, title: n ? `Restored ${plural(n, 'file')}` : 'Restored the shelf', undo: line?.paths ? () => shelve(app, { ws, paths: line.paths }) : undefined });
+    refreshChanges(app, ws);
   }).catch((e) => {
     app.setState({ codeChangeBusy: false });
     notify({ title: 'Nothing was restored', message: e.message, tone: 'warn' });
@@ -262,7 +301,7 @@ export function newSession(app) {
 // so the back swipe and the browser's Back return to the root.
 export function openProject(app, key, section = null) {
   const ws = PROJECT_WS[key];
-  if (ws) switchWorkspace(app, ws);
+  if (ws && knownWorkspace(app.state, ws)) switchWorkspace(app, ws);
   if (typeof window !== 'undefined' && app.state.codeProject !== key) {
     const h = window.history.state;
     if (h?.novaView === 'code' && h.codeProject) window.history.replaceState({ ...h, codeProject: key }, '');
@@ -270,7 +309,7 @@ export function openProject(app, key, section = null) {
   }
   app.setState({ codeProject: key, codeSection: section, codeSheet: false });
 }
-const PROJECT_WS = { nova: 'repo', vault: 'vault' };
+const PROJECT_WS = { nova: 'repo', vault: 'vault', atlas: 'atlas', wren: 'wren' };
 
 export function closeProject(app) {
   const h = typeof window === 'undefined' ? null : window.history.state;

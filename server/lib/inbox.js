@@ -1015,6 +1015,14 @@ export async function undoFiling(vaultPath, undo) {
   // keeps any exercise that was created (harmless, and sessions may already
   // reference it — deleting history's foreign keys is never worth a tidier
   // library).
+  // HIS COMMIT ON THE CODE SCREEN (10 Oct 2026): taken back only while it is
+  // still the newest commit, on the parent it was made on, and on no remote.
+  // The guards are codeChanges.js's own, so this door and the Code screen's
+  // Undo refuse the same things in the same words.
+  if (undo.kind === 'code-commit') {
+    const { revertNovaCommit } = await import('./codeChanges.js');
+    return revertNovaCommit(undo);
+  }
   if (undo.kind === 'coach-plan') {
     const { clearMarkers, commitVaultState } = await import('./coachPlan.js');
     let n;

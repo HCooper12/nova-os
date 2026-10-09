@@ -20,6 +20,8 @@ export const KIND_AGENT = {
   money: 'Money', cfo: 'CFO', research: 'Researcher', studio: 'Studio',
   // his own change on the Money screen, filed with Undo (lib/moneyRails.js)
   'money-write': 'Money',
+  // his own commit on the Code screen, filed with Undo (lib/codeChanges.js)
+  'code-commit': 'Code',
   // a delegated multi-step goal — Nova put several agents on one request and
   // wrote the report. Named 'Nova' rather than 'Planner' because that is who
   // he asked, and who comes back with the answer.

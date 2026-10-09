@@ -105,7 +105,15 @@ function Needs({ needs }) {
       {needs.map((n) => (
         <div className="nrow" key={n.key}>
           <Glyph p={n.glyph} size="s" />
-          <div className="t"><b>{n.title}</b><span className="nv-cd-k">{n.line}</span></div>
+          <div className="t">
+            <b>{n.title}</b>
+            {n.quote ? (
+              <figure className="nv-cd-quote">
+                <figcaption>{n.quote.who}{n.quote.when ? `, ${n.quote.when}` : ''}, in <span className="nm">{n.quote.where}</span></figcaption>
+                <blockquote>{n.quote.text}</blockquote>
+              </figure>
+            ) : <span className="nv-cd-k">{n.line}</span>}
+          </div>
           <button type="button" className="nv-cd-btn sm" onClick={n.action.run} disabled={n.action.busy || n.action.disabled} aria-label={n.action.aria || n.action.label}>
             {n.action.icon && <Ic g={n.action.icon} />}{n.action.busy ? 'Opening' : n.action.label}
           </button>
@@ -557,6 +565,19 @@ function Page({ c, page, wide }) {
       <p className="nv-cd-fine">The bar is quiet time; past its end, 12 hours, a session counts as left open.</p>
     </section>
   );
+  const wrenSec = page.wren && (
+    <section className="nv-cd-grp nv-cd-kinsec" id="nv-cd-g-wren" style={{ '--h': page.wren.glyph.hue }}>
+      <div className="kinhead"><Glyph p={page.wren.glyph} /><div><span className="rel">its assistant</span><b>Wren</b><span className="nv-cd-k">Tasks that support and guide the Atlas</span></div></div>
+      {page.wren.review && (
+        <button type="button" className="nv-cd-card nv-cd-rv nv-cd-kinrev" onClick={page.wren.review.open}>
+          <span className={`n${page.wren.review.ready ? ' on' : ''}`} aria-hidden="true">{page.wren.review.loading ? '·' : page.wren.review.ready}</span>
+          <span className="t"><b>{page.wren.review.ready ? 'Wren’s changes, ready to commit' : 'Wren’s own repository'}</b><span className="nv-cd-k">{page.wren.review.line}</span></span>
+          <Ic g="right" className="nv-cd-ic chev" />
+        </button>
+      )}
+      <SessionsCard rows={page.wren.sessions} hue={page.wren.glyph.hue} empty="No Wren session is open on your Mac." />
+    </section>
+  );
   const runs = page.runs && (
     <section className="nv-cd-grp" id="nv-cd-g-runs">
       <div className="nv-cd-gh"><h2>Runs</h2><span>this session</span></div>
@@ -567,6 +588,7 @@ function Page({ c, page, wide }) {
   return (
     <div className={`nv-cd-page${wide ? '' : ' push'}`} ref={rootRef} style={{ '--h': page.hue }}>
       {!wide && <button type="button" className="nv-cd-back" onClick={c.back}><Ic g="left" />Code</button>}
+      {page.parent && <button type="button" className="nv-cd-crumb" onClick={page.parent.open}><span className="rel">its assistant, under</span> {page.parent.title}<Ic g="right" className="nv-cd-ic chev" /></button>}
       <div className="nv-cd-phead">
         <Glyph p={page.glyph} size="l" />
         <div className="t"><b>{page.title}</b><span className="nv-cd-k">{page.sub}</span></div>
@@ -576,9 +598,9 @@ function Page({ c, page, wide }) {
 
       {page.review ? (
         wide ? (
-          <div className="nv-cd-cols"><div>{review}{sessions}</div><div>{runs}{page.composer && <Composer cp={page.composer} inputRef={inputRef} />}</div></div>
+          <div className="nv-cd-cols"><div>{review}{sessions}{wrenSec}</div><div>{runs}{page.composer && <Composer cp={page.composer} inputRef={inputRef} />}</div></div>
         ) : (
-          <>{review}{sessions}{runs}{page.composer && <Composer cp={page.composer} inputRef={inputRef} />}</>
+          <>{review}{sessions}{wrenSec}{runs}{page.composer && <Composer cp={page.composer} inputRef={inputRef} />}</>
         )
       ) : (
         <>
@@ -593,8 +615,8 @@ function Page({ c, page, wide }) {
             </section>
           )}
           <section className="nv-cd-grp" id="nv-cd-g-commit">
-            <div className="nv-cd-gh"><h2>Files to commit</h2><span>not read here yet</span></div>
-            <div className="nv-cd-empty nv-cd-rv"><b>Nova reads uncommitted work only where the Builder works.</b>That is Nova OS and the Vault today. {page.title} is not connected for commits: connecting it means naming its folder as a Builder workspace on the Mac, which would also let the Builder edit it. Until then its sessions are the whole picture, and Show brings one forward on your Mac.</div>
+            <div className="nv-cd-gh"><h2>Files to commit</h2><span>not connected on this Mac</span></div>
+            <div className="nv-cd-empty nv-cd-rv"><b>The server on your Mac does not name {page.title} yet.</b>{page.notConnected ? `Its folder is listed in server/data/code-workspaces.json once the server has restarted on this version. Until then its sessions are the whole picture, and Show brings one forward on your Mac.` : 'Its sessions are the whole picture here, and Show brings one forward on your Mac.'}</div>
           </section>
           <p className="nv-cd-fine" style={{ marginTop: 18 }}>No composer here: the Builder does not work in {page.title}. These sessions run in your terminal.</p>
         </>
@@ -645,7 +667,7 @@ function Sheet({ s }) {
 
 // ---------------------------------------------------------------- dev only --
 
-const FIXTURES = ['off', 'demo', 'idle', 'worst', 'empty', 'one', 'away', 'loading'];
+const FIXTURES = ['off', 'demo', 'idle', 'worst', 'empty', 'one', 'quotes', 'old', 'away', 'loading'];
 function FixtureBar({ f }) {
   return (
     <div className="nv-cd-fx" role="group" aria-label="Dev data">

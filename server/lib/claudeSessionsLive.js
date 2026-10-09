@@ -16,7 +16,9 @@ import { execFile, spawn } from 'node:child_process';
 import { mkdir, writeFile, chmod } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, summarise, projectOf } from './claudeSessions.js';
+import os from 'node:os';
+import { describe, summarise, projectOf, transcriptPath } from './claudeSessions.js';
+import { lastAssistantQuote } from './sessionQuote.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
@@ -59,19 +61,33 @@ export async function readAgents({ execFn = runCommand, detail = false } = {}) {
 
 const NOVA_KEY = 'nova-os';
 
+// a journal that cannot be read is no quote, never a failed picture
+function safeQuote(read, cwd, id) {
+  try { return read(cwd, id) || null; } catch { return null; }
+}
+
 /**
  * The whole picture, grouped by project. Groups are ordered by how many
  * raised hands they hold (waiting plus stuck), because the point of the
  * screen is "who is asking"; ties break to Nova's own group first and then
  * alphabetically, so the order is stable between polls.
  */
-export async function sessionsNow({ execFn = runCommand, now = Date.now(), ...rest } = {}) {
+export async function sessionsNow({ execFn = runCommand, now = Date.now(), readQuote, ...rest } = {}) {
   const { agents, ok } = await readAgents({ execFn, detail: true });
   // quietMs: how long since anyone spoke in it, as a number, so the Code
   // screen can draw it against the 12 hours after which a session counts as
   // left open (null when the journal has no message to measure from)
+  // quote: what a waiting or stuck session last said, one scrubbed line
+  // (lib/sessionQuote.js), so Needs you can say WHAT it wants, not only that
+  // it wants him. Only for a raised hand; null when its journal has no words.
+  const home = rest.home || os.homedir();
+  const quoteOf = readQuote || ((cwd, id) => lastAssistantQuote(transcriptPath(cwd, id, home)));
   const sessions = describe(agents, { now, ...rest })
-    .map((s) => ({ ...s, quietMs: s.lastAt != null ? Math.max(0, now - s.lastAt) : null }));
+    .map((s) => ({
+      ...s,
+      quietMs: s.lastAt != null ? Math.max(0, now - s.lastAt) : null,
+      quote: s.state === 'waiting' || s.state === 'blocked' ? safeQuote(quoteOf, s.cwd, s.sessionId) : null,
+    }));
 
   const byKey = new Map();
   for (const s of sessions) {
