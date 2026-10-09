@@ -226,11 +226,16 @@ async function pushFor(record, at, deps) {
 
 // THE TICK. Detect, file what is new, push by the rule, expire what is stale.
 // `now` and `deps` (sendPush) are injectable for tests.
-export async function runMoneySignals({ vaultPath = null, now = Date.now(), deps = {} } = {}) {
+// `types` limits a run to some event types: the ledger-change check runs
+// only over-budget and unusual (news the moment it happens); the nightly run
+// passes none and does everything, including the expiry sweep and the bill
+// that is now due tomorrow.
+export const ON_CHANGE_TYPES = ['over-budget', 'unusual'];
+export async function runMoneySignals({ vaultPath = null, now = Date.now(), deps = {}, types = null } = {}) {
   return locked(async () => {
     const transactions = await listTransactions({ sinceMonths: 13 });
     const budgets = await getBudgets();
-    const events = detectMoneyEvents({ transactions, budgets, now });
+    const events = detectMoneyEvents({ transactions, budgets, now }).filter((e) => !types || types.includes(e.type));
     const seen = await loadSeen();
     const created = [];
     let pushed = 0;
@@ -246,7 +251,7 @@ export async function runMoneySignals({ vaultPath = null, now = Date.now(), deps
     }
 
     let expired = 0;
-    for (const r of await listRecords()) {
+    for (const r of types ? [] : await listRecords()) {
       if (r.kind !== 'money' || r.status !== 'pending') continue;
       const e = r.event || r.decision?.payload?.event;
       // a bill filed days out, now due tomorrow: its one push

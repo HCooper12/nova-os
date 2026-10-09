@@ -79,11 +79,25 @@ async function readMonth(month) {
   }
 }
 
+// THE LEDGER TELLS WHEN IT CHANGED (his call, 10 Oct 2026: a category over
+// budget is seen the moment it happens, not on a timer). Every write to a
+// month or the budget config pings the listeners, debounced, so a batch of
+// lines is one check. No listener, nothing happens (tests stay quiet).
+const changeListeners = new Set();
+let changeTimer = null;
+export function onMoneyChange(fn) { changeListeners.add(fn); return () => changeListeners.delete(fn); }
+function noteMoneyChange() {
+  if (!changeListeners.size) return;
+  clearTimeout(changeTimer);
+  changeTimer = setTimeout(() => { for (const fn of changeListeners) Promise.resolve().then(fn).catch((e) => console.error('money change listener failed:', e.message)); }, 1500);
+}
+
 async function writeMonth(month, data) {
   await mkdir(MONEY_DIR(), { recursive: true });
   const tmp = monthPath(month) + '.tmp';
   await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
   await rename(tmp, monthPath(month));
+  noteMoneyChange();
 }
 
 // A transaction's identity for dedupe: same day, same cents, same
@@ -271,6 +285,7 @@ async function writeConfig(cfg) {
   await writeFile(tmp, JSON.stringify(cfg, null, 2), 'utf8');
   await rename(tmp, CONFIG_PATH());
   overridesCache = cfg.merchantOverrides || {};
+  noteMoneyChange();
 }
 
 export async function getBudgets() {

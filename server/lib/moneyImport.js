@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { listTransactions, dedupeKey, categorize, loadOverrides } from './money.js';
+import { listTransactions, dedupeKey, categorize, loadOverrides, onMoneyChange } from './money.js';
 import { createRecord, listRecords, updateRecord } from './inboxStore.js';
 
 // Bank-CSV ingestion — the automatic pipeline. Drop a bank export into the
@@ -242,15 +242,31 @@ export function startMoneyImportScheduler(vaultPath) {
     } catch (err) {
       console.error('money import scan failed:', err.message);
     }
-    // the money signals ride the same five-minute tick: a line that just
-    // landed is checked for news (a rise, an over, a bill, an odd charge)
-    try {
-      const { runMoneySignals } = await import('./moneySignals.js');
-      await runMoneySignals({ vaultPath });
-    } catch (err) {
-      console.error('money signals failed:', err.message);
+    // the full money check runs once a night (his call, 10 Oct 2026), on
+    // the first tick past 04:00 his time: price rises, bills now due, odd
+    // charges, overs, and old news swept away. Code only, no model.
+    const day = dayFmt.format(new Date());
+    if (lastFullDay !== day && localHour(Date.now()) >= NIGHTLY_HOUR) {
+      lastFullDay = day;
+      try {
+        const { runMoneySignals } = await import('./moneySignals.js');
+        await runMoneySignals({ vaultPath });
+      } catch (err) {
+        console.error('money signals (nightly) failed:', err.message);
+      }
     }
   };
+  // ...and an over budget or an odd charge is news the moment a line lands:
+  // the ledger pings on every write (lib/money.js onMoneyChange)
+  onMoneyChange(async () => {
+    const { runMoneySignals, ON_CHANGE_TYPES } = await import('./moneySignals.js');
+    await runMoneySignals({ vaultPath, types: ON_CHANGE_TYPES });
+  });
   tick();
   setInterval(tick, 5 * 60 * 1000);
 }
+let lastFullDay = null;
+export const NIGHTLY_HOUR = 4;
+const hourFmt = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hourCycle: 'h23' });
+const localHour = (t) => Number(hourFmt.format(new Date(t)));
+const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit' });
