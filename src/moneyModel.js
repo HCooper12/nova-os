@@ -131,7 +131,7 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
   const overWords = () => {
     if (!over.length) return;
     if (over.length === 1) { say(catOf(over[0].category).label, catOf(over[0].category).hue); say(` is ${usd(over[0].spent - over[0].budget)} over.`); return; }
-    over.slice(0, 2).forEach((c, i) => { if (i) say(' and '); say(catOf(c.category).label, catOf(c.category).hue); });
+    over.slice(0, 2).forEach((c, i) => { if (i) say(over.length > 2 ? ', ' : ' and '); say(catOf(c.category).label, catOf(c.category).hue); });
     say(over.length > 2 ? ` and ${over.length - 2} more are over.` : ' are over.');
   };
   if (!txns.length) {
@@ -176,7 +176,7 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
   };
   hero.lines = [];
   if (hero.perDay != null) hero.lines.push([{ text: 'About ' }, { text: `${usd(hero.perDay)} a day`, b: true }, { text: ` for the ${plural(daysLeft, 'day')} left` }]);
-  else if (isCurrent && totalBudget && left < 0) hero.lines.push([{ text: `${usd(-left)} past the ` }, { text: usd(totalBudget), b: true }, { text: ' of budgets' }]);
+  else if (isCurrent && totalBudget && left < 0) hero.lines.push([{ text: 'Against ' }, { text: usd(totalBudget), b: true }, { text: ' of budgets' }]);
   if (hero.paceDelta != null) hero.lines.push([{ text: `${hero.paceDelta >= 0 ? 'Under' : 'Over'} today’s pace by ` }, { text: usd(Math.abs(hero.paceDelta)), b: true }, { text: ', the white tick' }]);
   if (!totalBudget && txns.length) hero.lines.push([{ text: 'No budgets set. Tap a category below to give it one.' }]);
   if (!isCurrent && totalBudget) hero.lines.push([{ text: `Against ${usd(totalBudget)} of budgets` }]);

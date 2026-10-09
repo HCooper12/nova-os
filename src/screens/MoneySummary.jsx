@@ -29,6 +29,9 @@ import '../money.css';
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const fmtUsd = (n) => usd(n);
 const fmtUsd2 = (n) => usd2(n);
+// a figure keeps its box (break-ui, 10 Oct): past `l` characters it steps
+// down a size, past `xl` another, so "$1,235,090" is never clipped
+const fitClass = (text, l, xl) => (text.length > xl ? 'xl' : text.length > l ? 'l' : '');
 
 // a card that has entered the view once (the mockup's reveal): its charts
 // draw then, not while it is still below the fold
@@ -129,7 +132,7 @@ const C = 2 * Math.PI * R;
 function Donut({ hero, empty }) {
   const [drawn, setDrawn] = useState(reduced);
   useEffect(() => { if (drawn) return undefined; const t = requestAnimationFrame(() => requestAnimationFrame(() => setDrawn(true))); return () => cancelAnimationFrame(t); }, [drawn]);
-  const tick = hero.tickFrac != null ? (() => {
+  const tick = hero.tickFrac != null && !empty ? (() => {
     const a = (-90 + hero.tickFrac * 360) * Math.PI / 180;
     const p = (r) => [75 + r * Math.cos(a), 75 + r * Math.sin(a)];
     return [p(49), p(71)];
@@ -153,14 +156,14 @@ function Donut({ hero, empty }) {
     </svg>
     {/* the centre is HTML over the ring, so its figure can count up */}
     <span className="nv-mo-dc" aria-hidden="true">
-      <b>{empty ? '$0' : <CountUp value={hero.spent} format={fmtUsd} fromZero />}</b>
+      <b className={fitClass(fmtUsd(hero.spent), 7, 10)}>{empty ? '$0' : <CountUp value={hero.spent} format={fmtUsd} fromZero />}</b>
       <small>{empty ? 'nothing filed' : hero.totalBudget ? `of ${fmtUsd(hero.totalBudget)}` : 'spent'}</small>
     </span>
     </div>
   );
 }
 
-function Hero({ V, offline }) {
+function Hero({ V, M, offline }) {
   const h = V.hero;
   const empty = V.state === 'empty';
   return (
@@ -176,14 +179,20 @@ function Hero({ V, offline }) {
             </>
           ) : (
             <>
-              <span className="nv-mo-k">{offline ? `${h.label}, as last read` : h.label}</span>
-              <b className="nv-mo-big"><CountUp value={h.big} format={fmtUsd} fromZero /></b>
+              <span className="nv-mo-k">{offline ? `${h.label}, at ${M.syncedLabel || 'the last read'}` : h.label}</span>
+              <b className={`nv-mo-big ${fitClass(fmtUsd(h.big), 6, 9)}`}><CountUp value={h.big} format={fmtUsd} fromZero /></b>
               {h.lines.map((l, k) => <span key={k} className="nv-mo-t"><Parts parts={l} /></span>)}
               {offline && <span className="nv-mo-t">Budgets and the ＋ button are paused, not hidden.</span>}
             </>
           )}
         </div>
       </div>
+      {empty && (
+        <div className="nv-mo-acts">
+          <button type="button" className="nv-mo-chip on" disabled={V.readOnly} onClick={() => M.openSheet({ kind: 'add' })}><MIcon n="plus" />Add a line</button>
+          <button type="button" className="nv-mo-chip" disabled={V.readOnly} onClick={M.checkImports}><MIcon n="folder" />Check the folder</button>
+        </div>
+      )}
       {!empty && V.legend.length > 0 && (
         <div className="nv-mo-legend" aria-label="Spending by category">
           {V.legend.map((c, i) => (
@@ -548,7 +557,7 @@ function Skeleton() {
             <span className="nv-mo-skel" style={{ display: 'block', width: '90%', height: 12, marginTop: 10 }} />
           </div>
         </div>
-        <span className="nv-mo-skel" style={{ display: 'block', height: 30, marginTop: 14, borderRadius: 15 }} />
+        <div className="nv-mo-legend">{[90, 110, 80, 120, 70].map((w) => <span key={w} className="nv-mo-skel" style={{ width: w, height: 30, borderRadius: 15 }} />)}</div>
       </section>
       <div className="nv-mo-tiles">
         <span className="nv-sum-card nv-mo-tile nv-mo-inflow"><span className="nv-mo-skel" style={{ display: 'block', height: 100 }} /></span>
@@ -561,7 +570,7 @@ function Skeleton() {
 
 /* -------------------------------------------------------------- sheets -- */
 
-function Sheet({ label, onClose, left, title, right, children, wide }) {
+function Sheet({ label, onClose, left, title, right, children, wide, foot }) {
   const exit = useExit(onClose);
   const drag = useSheetDrag(onClose, { threshold: 80 });
   const panelRef = useRef(null);
@@ -587,6 +596,7 @@ function Sheet({ label, onClose, left, title, right, children, wide }) {
           <span className="nv-mo-shr">{right ? right(exit.close) : <button type="button" className="nv-mo-q" onClick={exit.close} aria-label="Close"><MIcon n="x" /></button>}</span>
         </div>
         <div className="nv-mo-shbody">{children(exit.close)}</div>
+        {foot && <div className="nv-mo-shfoot">{foot(exit.close)}</div>}
       </div>
     </div>
   );
@@ -888,8 +898,11 @@ function ImportSheet({ M, id, onClose }) {
   if (!c) return null;
   return (
     <Sheet label={`${c.count} lines from the export`} title={c.file || 'Statement photo'} onClose={onClose} wide
-      left={(close) => <button type="button" className="nv-mo-q" onClick={close}>Close</button>} right={() => <span style={{ width: 44 }} />}>
-      {(close) => (
+      left={(close) => <button type="button" className="nv-mo-q" onClick={close}>Close</button>} right={() => <span style={{ width: 44 }} />}
+      foot={(close) => (
+        <button type="button" className="nv-mo-save block" disabled={M.view.readOnly} onClick={() => { haptic('commit'); M.approveImport(c.id); close(); }}>File all {c.count}{c.monthName ? ` into ${c.monthName}` : ''}</button>
+      )}>
+      {() => (
         <>
           <p className="nv-mo-sub" style={{ textAlign: 'center', marginTop: 0 }}>{c.count} lines · {c.range}</p>
           <div className="nv-mo-segc" role="group" aria-label="Which lines">
@@ -914,7 +927,6 @@ function ImportSheet({ M, id, onClose }) {
             <p className="nv-mo-sub">{c.leftOut ? `${c.leftOut} ${c.leftOut === 1 ? 'line was' : 'lines were'} already in the ledger (same day, amount and merchant), so ${c.leftOut === 1 ? 'it is' : 'they are'} left out and nothing is filed twice.` : 'Nothing was left out: every line is new.'}</p>
           )}
           <p className="nv-mo-sub quiet">The coloured category is where each line lands here, guessed from the merchant.</p>
-          <button type="button" className="nv-mo-save block" disabled={M.view.readOnly} onClick={() => { haptic('commit'); M.approveImport(c.id); close(); }}>File all {c.count}{c.monthName ? ` into ${c.monthName}` : ''}</button>
         </>
       )}
     </Sheet>
@@ -1029,14 +1041,17 @@ export function MoneySummary({ v }) {
     );
     const col1 = (
       <>
-        <Hero V={V} offline={V.offline} />
+        {V.offline && (
+          <div className="nv-mo-offl band"><MIcon n="cloudx" /><span>Offline. This is the ledger as of {M.syncedLabel || 'the last read'}. Adding, budgets and imports wait until Nova is back.</span></div>
+        )}
+        <Hero V={V} M={M} offline={V.offline} />
         {!empty && <Tiles V={V} M={M} />}
         {!empty && <PaceCard V={V} M={M} />}
       </>
     );
     const col2 = (
       <>
-        {(!empty || V.budgets.rows.length > 0) && <Budgets V={V} M={M} />}
+        {!empty && <Budgets V={V} M={M} />}
         {V.rise && <><Sh title="Price watch" aside="1 change" /><RiseCard rise={V.rise} M={M} ro={V.readOnly} /></>}
         {V.coming && <ComingUp V={V} M={M} />}
       </>

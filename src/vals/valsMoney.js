@@ -113,6 +113,8 @@ export function valsMoney(app, ctx) {
     scanQuestion: st.moneyScanQuestion || null,
     fyLabel,
     prevMonthLabel,
+    // when the ledger on screen was read, for the offline words ("as of 9:12")
+    syncedLabel: st.lastSyncAt ? new Date(st.lastSyncAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) : null,
     importsDir: money?.importsDir || 'Money/Imports',
     // doors
     openSheet: (sheet) => app.openMoneySheet(sheet),

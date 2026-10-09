@@ -137,7 +137,7 @@ const IMPORT_LINES = Array.from({ length: 41 }, (_, i) => {
   return { date: `2026-09-${pad(30 - (i % 30))}`, amount: -(8 + (i * 3.7) % 60), merchant: pick[0], category: pick[1], source: 'import' };
 });
 const IMPORT_REC = { id: 'demo-import', kind: 'money-import', status: 'pending', text: '41 transactions from transactions.csv', createdAt: `${TODAY}T09:45:00Z`,
-  decision: { route: 'money-import', title: '41 transactions from transactions.csv', reason: 'Parsed from Money/Imports/transactions.csv — 41 new after dedupe (6 already in the ledger).', payload: { file: 'transactions.csv', transactions: IMPORT_LINES } } };
+  decision: { route: 'money-import', title: '41 transactions from transactions.csv', reason: 'Parsed from Money/Imports/transactions.csv: 41 new after dedupe (6 already in the ledger).', payload: { file: 'transactions.csv', transactions: IMPORT_LINES } } };
 const XLSX_REC = ev('demo-xlsx', { type: 'unreadable-file', key: 'file|transactions.xlsx', file: 'transactions.xlsx', dir: 'Money/Imports', title: 'transactions.xlsx is a spreadsheet. Nova reads CSV files.', body: '' });
 
 // The fixture for a variant: { lines, budgets, records, offline, loading, month, subs }
@@ -168,7 +168,8 @@ export function demoVariant() {
 // The summary the page reads, from the state in memory.
 export function demoSummary(state) {
   if (!state || state.loading) return null;
-  const s = summarizeDemo({ lines: state.lines, budgets: state.budgets, subs: state.subs, month: state.month || MONTH });
+  const past = state.month && state.month !== MONTH;
+  const s = summarizeDemo({ lines: state.lines, budgets: state.budgets, subs: state.subs, month: state.month || MONTH, ...(past ? { prevMonth: '2026-08' } : {}) });
   if (state.month && state.month !== MONTH) {
     // a past month: the whole month, nothing "left"
     return { ...s, isCurrent: false, asOfDay: s.daysInMonth };
