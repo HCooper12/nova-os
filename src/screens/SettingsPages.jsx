@@ -161,8 +161,8 @@ export function NotifPage({ P }) {
 // slide has landed, one group a frame (the large preview, then the style
 // thumbnails, then the cores), each fading in. Nothing moves when they do:
 // every frame is held at its final size from the start.
-export const PREVIEW_STAGES = 3;
-export function useStaged(stages = PREVIEW_STAGES) {
+const PREVIEW_STAGES = 3;
+function useStaged(stages = PREVIEW_STAGES) {
   const [stage, setStage] = useState(0);
   useEffect(() => {
     let raf = 0;
