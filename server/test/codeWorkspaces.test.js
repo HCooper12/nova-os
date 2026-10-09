@@ -106,6 +106,13 @@ test('a commit in Science Atlas takes only his ticked files; another session\'s 
   const other = '33333333-3333-4333-8333-333333333333';
   const edit = (f, name = 'Edit') => JSON.stringify({ type: 'assistant', timestamp: new Date(Date.now() + 1000).toISOString(), message: { content: [{ type: 'tool_use', name, input: { file_path: path.join(ATLAS, f) } }] } });
   writeFileSync(path.join(jdir, `${other}.jsonl`), edit('other.txt') + '\n' + edit('REDESIGN-BRIEF.md', 'Write') + '\n');
+  // and a session in a folder BESIDE it (his redesign runs in "Atomic_Hub_P3_Draft 3"),
+  // through one of its subagents, edited a third
+  const sibling = '66666666-6666-4666-8666-666666666666';
+  const sdir = path.join(home, '.claude', 'projects', path.join(P3, 'Atomic_Hub_P3_Draft 3').replace(/[^A-Za-z0-9]/g, '-'), sibling, 'subagents');
+  mkdirSync(sdir, { recursive: true });
+  writeFileSync(path.join(ATLAS, 'map.html'), '<p>mid-redesign</p>\n');
+  writeFileSync(path.join(sdir, 'agent-abc.jsonl'), edit('map.html', 'Write') + '\n');
 
   const sum = await lib.changeSummary('atlas', null, { repoRoot: NOVA, home });
   const f = Object.fromEntries(sum.files.map((x) => [x.path, x]));
@@ -113,6 +120,7 @@ test('a commit in Science Atlas takes only his ticked files; another session\'s 
   assert.deepEqual(f['other.txt'].other, { sessionId: other }, 'a session one folder up still counts');
   assert.deepEqual(f['REDESIGN-BRIEF.md'].other, { sessionId: other });
   assert.equal(f['a.txt'].other, null);
+  assert.deepEqual(f['map.html'].other, { sessionId: sibling }, 'a subagent of a session in the folder beside it counts');
 
   const novaBefore = head(NOVA);
   const before = head(ATLAS);
@@ -122,7 +130,7 @@ test('a commit in Science Atlas takes only his ticked files; another session\'s 
   const st = status(ATLAS);
   assert.match(st, /^ M other\.txt$/m, 'the other session\'s edit is still uncommitted');
   assert.match(st, /^\?\? REDESIGN-BRIEF\.md$/m, 'its untracked brief is still untracked');
-  assert.deepEqual([...r.leftOut].sort(), ['REDESIGN-BRIEF.md', 'other.txt']);
+  assert.deepEqual([...r.leftOut].sort(), ['REDESIGN-BRIEF.md', 'map.html', 'other.txt']);
   assert.equal(head(NOVA), novaBefore, 'Nova OS did not move');
   assert.equal(head(WREN), g(WREN, 'rev-parse', 'HEAD').trim());
 

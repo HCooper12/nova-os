@@ -196,39 +196,62 @@ async function readTail(file, bytes) {
  * A file changed by hand or by a shell command leaves no journal entry, so
  * it is never called another session's: that claim needs a record.
  */
-export async function sessionEdits(cwd, { since = 0, home = os.homedir(), maxFiles = 40, tailBytes = 8 * 1024 * 1024 } = {}) {
+export async function sessionEdits(cwd, { since = 0, home = os.homedir(), maxFiles = 60, tailBytes = 8 * 1024 * 1024 } = {}) {
   const out = new Map();
   const roots = new Set([cwd]);
   try { roots.add(await realpath(cwd)); } catch { /* keep the given path */ }
-  // the folder's own journals, and those of the two folders above it: a
-  // session started one level up (his Atlas sessions run in P3_Draft3)
-  // edits files in here too. Never the home folder or anything above it.
-  const folders = new Set();
+  // WHICH JOURNALS. The folder's own, the two folders above it, and every
+  // folder beside it: his Atlas redesign sessions run in a SIBLING folder
+  // ("Atomic_Hub_P3_Draft 3", next to Atlas_Progress_Map) and edit files in
+  // here by full path, so reading only this folder's journals would call
+  // their files his (found on the real Mac, 10 Oct 2026). Never the home
+  // folder or above. The newest journals since the last commit are read,
+  // at most `maxFiles` of them across every folder, so the cost is bounded.
+  const projectsDir = path.join(home, '.claude', 'projects');
+  const wanted = new Set();
+  const besides = new Set();
   for (const r of roots) {
-    folders.add(r);
+    wanted.add(slug(r));
     let p = r;
     for (let i = 0; i < ANCESTOR_LEVELS; i++) {
       const up = path.dirname(p);
       if (up === p || up === os.homedir() || up.length < 2) break;
-      folders.add(up);
+      wanted.add(slug(up));
+      if (i === 0) besides.add(slug(up) + '-');
       p = up;
     }
   }
-  const dirs = [...new Set([...folders].map((r) => path.join(home, '.claude', 'projects', slug(r))))];
+  let all = [];
+  try { all = await readdir(projectsDir); } catch { all = []; }
+  const dirs = all.filter((d) => wanted.has(d) || [...besides].some((b) => d.startsWith(b))).map((d) => path.join(projectsDir, d));
+  const withTime = [];
   for (const dir of dirs) {
-    let names = [];
-    try { names = (await readdir(dir)).filter((n) => n.endsWith('.jsonl')); } catch { continue; }
-    const withTime = [];
-    for (const n of names) {
-      try { const s = await stat(path.join(dir, n)); if (s.mtimeMs >= since) withTime.push({ n, t: s.mtimeMs }); } catch { /* gone */ }
+    let entries = [];
+    try { entries = await readdir(dir); } catch { continue; }
+    for (const n of entries.filter((e) => e.endsWith('.jsonl'))) {
+      try { const s = await stat(path.join(dir, n)); if (s.mtimeMs >= since) withTime.push({ dir, n, t: s.mtimeMs }); } catch { /* gone */ }
     }
-    withTime.sort((a, b) => b.t - a.t);
-    for (const { n } of withTime.slice(0, maxFiles)) {
-      const sessionId = n.slice(0, -'.jsonl'.length);
+    // a session's subagents journal in a folder named for it
+    // (<id>/subagents/*.jsonl); what they edit is that session's work, so it
+    // carries its id
+    for (const id of entries.filter((e) => /^[0-9a-f-]{36}$/i.test(e))) {
+      const sub = path.join(dir, id, 'subagents');
+      let subs = [];
+      try { subs = (await readdir(sub)).filter((x) => x.endsWith('.jsonl')); } catch { subs = []; }
+      for (const x of subs) {
+        try { const s = await stat(path.join(sub, x)); if (s.mtimeMs >= since) withTime.push({ dir: sub, n: x, id, t: s.mtimeMs }); } catch { /* gone */ }
+      }
+    }
+  }
+  withTime.sort((a, b) => b.t - a.t);
+  const marks = [...roots].map((r) => path.basename(r));
+  {
+    for (const { dir: jdir, n, id } of withTime.slice(0, maxFiles)) {
+      const sessionId = id || n.slice(0, -'.jsonl'.length);
       let text = '';
-      try { text = await readTail(path.join(dir, n), tailBytes); } catch { continue; }
+      try { text = await readTail(path.join(jdir, n), tailBytes); } catch { continue; }
       for (const line of text.split('\n')) {
-        if (!line.includes('"tool_use"')) continue;
+        if (!line.includes('"tool_use"') || !marks.some((m) => line.includes(m))) continue;
         let j; try { j = JSON.parse(line); } catch { continue; }
         if (j.type !== 'assistant' || !Array.isArray(j.message?.content)) continue;
         const at = Date.parse(j.timestamp || '');
