@@ -456,12 +456,12 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 ### TIER 3 · THE SMALL SCREENS
 
 #### Money — `money` · `src/screens/Money.jsx` (155) · `src/vals/valsMoney.js`
-- [m] M1 · Head + month `<select>` (only with >1 month) — `Money.jsx:19-28`
-- [m] M2 · This month — total, delta, income, Monthly report chip (`tone="gold"`), Export FY — `Money.jsx:35-46`
-- [m] M3 · Feeds — imports folder, Check folder now, Scan statement / receipt (file input), scan error / question, "type it" hint — `Money.jsx:48-61`
-- [m] M4 · By category — rows with progress bar (warn when over), tap → **native `window.prompt` to set a budget** — `Money.jsx:66-85`, `valsMoney.js:34-39`
-- [m] M5 · Subscription radar — monthly total, per-sub cards (cadence · next expected · price-rise tag), empty copy — `Money.jsx:88-109`
-- [m] M6 · Ledger — Merchant + Amount inputs, Spend / Money-in toggle, Add; rows with inline category `<select>`, amount by sign, ✕; "showing N of M" cap at 120 — `Money.jsx:116-146`
+- [b] M1 · Head + month `<select>` (only with >1 month) — `Money.jsx:19-28`
+- [b] M2 · This month — total, delta, income, Monthly report chip (`tone="gold"`), Export FY — `Money.jsx:35-46`
+- [b] M3 · Feeds — imports folder, Check folder now, Scan statement / receipt (file input), scan error / question, "type it" hint — `Money.jsx:48-61`
+- [b] M4 · By category — rows with progress bar (warn when over), tap → **native `window.prompt` to set a budget** — `Money.jsx:66-85`, `valsMoney.js:34-39`
+- [b] M5 · Subscription radar — monthly total, per-sub cards (cadence · next expected · price-rise tag), empty copy — `Money.jsx:88-109`
+- [b] M6 · Ledger — Merchant + Amount inputs, Spend / Money-in toggle, Add; rows with inline category `<select>`, amount by sign, ✕; "showing N of M" cap at 120 — `Money.jsx:116-146`
 **First look:** three unrelated list styles on one page; a browser prompt inside a designed surface; gold still the commit hue on "Monthly report" (22 Sep #2 may have missed this screen: UNVERIFIED).
 
 #### Shopping — `shopping` · `src/screens/Shopping.jsx` (147) · vals in `src/vals/valsMisc.js`
@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — MONEY BUILT AND SHIPPED (merge 70b6249, pushed, reloaded):
+  mockups 85 + 90, 131-line checklist (119 present, 12 differ, none missing;
+  Split and Billroo category mapping left out pending his calls). Wired into
+  Nova: moneySignals (price rise 35 d, over budget this month, bill due 3 d,
+  unusual >2.5x a merchant's median over 7 d) file ONE money record each,
+  pushes held for quiet hours, a code-read cfo consult source for Ask Nova
+  and every agent, Discuss opens Nova with the alert quoted, a Home row only
+  while something waits; manual writes ride the rails with Undo. Clutter
+  held at 7 objects above the fold. Live read after reload: his ledger has
+  no lines this month, so no alerts filed (honest).
 - 10 Oct 2026 — CODE BUILT AND SHIPPED (merge, pushed, reloaded): mockup 89,
   74-line checklist (66 present, 8 differ, none missing). His ask "ensure
   committing etc are all actually functional": 17 actions, 14 PROVEN by
