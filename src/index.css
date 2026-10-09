@@ -3849,6 +3849,18 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
 
+/* THE LOOK CROSS-FADES (9 Oct 2026, his call; src/lookFade.js). While a
+   theme, style, material or calm switch is in flight the root carries
+   .nv-look: the old frame dissolves into the new over 250 ms, opacity only,
+   and no element but the root is named, so no glass is snapshotted on its
+   own (the 17 Sep dock). Declared after the navigation rules above so it
+   wins for the length of the fade. Reduced motion never starts one. */
+:root.nv-look * { view-transition-name: none !important; }
+:root.nv-look::view-transition-old(root) { animation: nvLookOut 250ms ease both; }
+:root.nv-look::view-transition-new(root) { animation: nvLookIn 250ms ease both; }
+@keyframes nvLookOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes nvLookIn { from { opacity: 0; } to { opacity: 1; } }
+
 /* THE CHROME IS NEVER SNAPSHOTTED (17 Sep 2026, second pass).
 
    The first pass named the bar and the dock so they would not cross-fade

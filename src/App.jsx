@@ -83,6 +83,7 @@ import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
 import { noteScreen } from './arrival.js';
+import { crossFadeLook } from './lookFade.js';
 import { newStages, jobSettled } from './jobBeats.js';
 import { bareOpen, webTarget, isMacDevice } from './macTargets.js';
 import { previewLine } from './islandCore.js';
@@ -1637,25 +1638,37 @@ export default class App extends Component {
   }
 
   // ---------- appearance (theme + calm mode, persisted) ----------
-  // Apply from the settled state in the setState callback — applying from
-  // arguments + this.state directly goes stale when both setters run in the
-  // same tick (theme switch immediately followed by a calm toggle).
+  // THE ONE WAY THE LOOK CHANGES (9 Oct 2026, his call: the theme change
+  // cross-fades the whole app). Theme, style, material and calm all come
+  // here; src/lookFade.js dissolves the old frame into the new one (a cut
+  // under reduced motion). Applied from the settled state inside a flushed
+  // setState, so the new frame is the one the fade captures, and two
+  // setters in one tick (a theme switch then a calm toggle) never go stale.
+  changeLook(patch) {
+    crossFadeLook(() => {
+      flushSync(() => this.setState(patch, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material)));
+    });
+  }
   setNovaTheme(theme) {
-    this.setState({ novaTheme: theme }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+    if (theme === this.state.novaTheme) return;
+    this.changeLook({ novaTheme: theme });
   }
   setCalmMode(calm) {
-    this.setState({ calmMode: calm }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+    if (!!calm === !!this.state.calmMode) return;
+    this.changeLook({ calmMode: calm });
   }
   setNovaStyle(style) {
     // Daylight and Sky are Apple-family palettes — returning to Command Core
     // falls the theme back too, so the HUD never renders on a white or system-
     // colour ground built for the Apple styles.
+    if (style === this.state.novaStyle) return;
     const next = { novaStyle: style };
     if (style === 'command' && (this.state.novaTheme === 'daylight' || this.state.novaTheme === 'sky')) next.novaTheme = 'command';
-    this.setState(next, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+    this.changeLook(next);
   }
   setMaterial(material) {
-    this.setState({ material }, () => applyAppearance(this.state.novaTheme, this.state.calmMode, this.state.novaStyle, this.state.material));
+    if (material === this.state.material) return;
+    this.changeLook({ material });
   }
   setCoreStyle(core) {
     saveCoreStyle(core);
