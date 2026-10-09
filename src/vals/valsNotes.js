@@ -20,7 +20,7 @@ export function valsNotes(app, ctx) {
 
   const noteList = allNotesNorm
     .filter(n => (st.noteType === 'All' || n.typeLabel === st.noteType || (st.noteType === 'NOTE' && n.typeLabel === 'IDENTITY')) && (!q || n.searchText.includes(q)))
-    .map(n => ({ title: n.title, type: n.typeLabel, date: n.date, select: () => app.selectNote(n.id),
+    .map(n => ({ id: n.id, title: n.title, type: n.typeLabel, date: n.date, select: () => app.selectNote(n.id),
       // Intent prefetch: the body starts loading when the finger lands, not
       // when it lifts — so the reader is usually already filled by the time
       // the tap registers. ensureNoteDetail is idempotent and caches, so the

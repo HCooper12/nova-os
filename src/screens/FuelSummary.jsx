@@ -12,6 +12,8 @@ import { PickItUpPanel } from './PickItUp.jsx';
 import { CrossBars } from './Recipes.jsx';
 import { FIcon } from '../FuelIcon.jsx';
 import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
+import { CountUp } from '../CountUp.jsx';
+import { useFlipList } from '../useFlipList.js';
 
 // THE SUMMARY FUEL PAGE — mockup 59, variation A ("Fuel is the plate"), his
 // pick on 27 Sep 2026. Recipes.jsx returns this under the `summary` style;
@@ -74,7 +76,7 @@ function PlateRing({ protein }) {
         )}
       </svg>
       <span className="nv-fs-ring-c" aria-hidden="true">
-        <b>{protein.value > 0 || protein.target != null ? protein.value : '—'}</b>
+        <b>{protein.value > 0 || protein.target != null ? <CountUp value={protein.value} /> : '—'}</b>
         <small>{protein.target != null ? <>of {protein.target} g<br />protein</> : <>g protein<br />no target</>}</small>
       </span>
     </span>
@@ -98,7 +100,7 @@ function Plate({ p, onOpen, openRef }) {
         <div className="nv-fs-side">
           <div>
             <div className="nv-fs-kh"><span>Calories</span><span>{right}</span></div>
-            <span className="nv-fs-kv">{kc(k.value)}{k.target != null ? <small> of {kc(k.target)}</small> : <small> kcal</small>}</span>
+            <span className="nv-fs-kv"><CountUp value={k.value} format={kc} />{k.target != null ? <small> of {kc(k.target)}</small> : <small> kcal</small>}</span>
             {k.target != null && (
               <div className="nv-fs-kbar" role="img" aria-label={`${kc(k.value)} of ${kc(k.target)} kilocalories`}>
                 <i style={{ width: `${k.pct}%` }} />
@@ -106,8 +108,8 @@ function Plate({ p, onOpen, openRef }) {
             )}
           </div>
           <div className="nv-fs-mf">
-            <span><b>{p.carbs.value}<small> g</small></b>carbs</span>
-            <span><b>{p.fat.value}<small> g</small></b>fat</span>
+            <span><b><CountUp value={p.carbs.value} /><small> g</small></b>carbs</span>
+            <span><b><CountUp value={p.fat.value} /><small> g</small></b>fat</span>
           </div>
         </div>
       </div>
@@ -636,6 +638,10 @@ function PickSheet({ s }) {
 // ------------------------------------------------------------ Recipes page --
 function RecipesPage({ page }) {
   const [planFor, setPlanFor] = useState(null);
+  // a filter chip moves the recipes to their new places (FLIP) instead of
+  // jumping them there; the search field narrows in place, unanimated
+  const listRef = useRef(null);
+  useFlipList(listRef, page.scope.filter((f) => f.active).map((f) => f.key).join('|'));
   const dict = useDictation(() => page.search || '', (text) => page.setSearch(text), null);
   return (
     <>
@@ -669,11 +675,11 @@ function RecipesPage({ page }) {
       )}
       {page.bankNote && <p className="nv-fs-note" role="status">{page.bankNote}</p>}
       {page.rows.length > 0 && (
-        <div className="nv-sum-card nv-fs-rlist nv-sum-rise" style={{ '--i': 2 }}>
+        <div ref={listRef} className="nv-sum-card nv-fs-rlist nv-sum-rise" style={{ '--i': 2 }}>
           {page.rows.map((r) => {
             const open = planFor === r.key;
             return (
-              <div key={r.key}>
+              <div key={r.key} data-flip={r.key}>
                 <div className={`nv-fs-rr${r.photoUrl ? ' ph' : ''}`}>
                   {r.photoUrl && <span className="nv-fs-thumb"><img src={r.photoUrl} alt="" /></span>}
                   <Interactive as="span" className="open" onClick={r.open} haptic="tick" focusStyle={NO_RING} aria-label={`Open ${r.name}`}>

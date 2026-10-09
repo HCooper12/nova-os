@@ -38,8 +38,10 @@ export function Notes({ v }) {
             </Rail>
           </div>
           <div style={css("flex:1;overflow-y:auto;padding:0 8px 10px;display:flex;flex-direction:column;gap:2px")}>
-            {v.noteList.map((n, i) => (
-              <Interactive key={i} onClick={n.select} onPointerDown={n.warm} base={n.style} hoverStyle="background:rgba(255,255,255,.05)">
+            {/* keyed by the note's id: an index key hands one note's node to
+                another when the filter changes, so any motion moves the wrong row */}
+            {v.noteList.map((n) => (
+              <Interactive key={n.id} onClick={n.select} onPointerDown={n.warm} base={n.style} hoverStyle="background:rgba(255,255,255,.05)">
                 <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}><span style={css("font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{n.title}</span><Tag tone={n.typeColor} style={{ flex: 'none' }}>{n.type}</Tag></div>
                 <Meta as="div" tone="faint" style={{ marginTop: '3px' }}>{n.date}</Meta>
               </Interactive>

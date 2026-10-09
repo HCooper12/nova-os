@@ -433,16 +433,18 @@ textarea.nv-set-fin { min-height: 84px; padding: 10px 12px; font: 400 16px/1.4 v
 .nv-set-edge { position: fixed; z-index: 61; pointer-events: none; width: 44px; background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.42)); will-change: transform; }
 
 /* reduced motion: every slide a short fade (settingsNav.js), and nothing
-   here moves; less transparency: no blur, opaque fills */
+   here moves; less transparency: no blur, opaque fills. The fades carry
+   !important: index.css's global reduced-motion rule crushes every
+   animation to .01s, which had been turning these fades into cuts */
 @media (prefers-reduced-motion: reduce) {
-  .nv-set-rise { animation: nvSetFade .2s ease backwards; }
+  .nv-set-rise { animation: nvSetFade .2s ease backwards !important; }
   @keyframes nvSetFade { from { opacity: 0; } }
-  .nv-set-flip { animation: nvSetFade .16s ease; }
+  .nv-set-flip { animation: nvSetFade .16s ease !important; }
   .nv-set-row.lit, .nv-set-blk.lit > .nv-set-row:first-child { animation: nvSetLit 1.4s ease both; }
   .nv-set-sw .kn, .nv-set-sw .tr, .nv-set-seg .th, .nv-set-qarc, .nv-set-nt, .nv-set-menu, .nvm.ghost, .nv-set-rring .rr, .nv-set-tlmark { transition-duration: .01ms !important; }
   .nv-set-sk { animation: none; }
   .nv-set-nudge { animation: none; }
-  .nv-set-stg { animation: nvSetFade .2s linear backwards; }
+  .nv-set-stg { animation: nvSetFade .2s linear backwards !important; }
   .nv-set-stg path { animation: none; stroke-dashoffset: 0; }
 }
 @media (prefers-reduced-transparency: reduce) {

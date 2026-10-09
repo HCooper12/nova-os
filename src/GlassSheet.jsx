@@ -10,7 +10,7 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 // should grow into something readable under a thumb, "Apple-like transitions
 // too." The card MORPHS from the exact rect he tapped into this sheet with
 // FLIP — the same shared-element technique the Library shelf already uses
-// (screens/Library.jsx's useShelfFlip): render the sheet at its FINAL box,
+// (src/useFlipList.js, once Library's useShelfFlip): render the sheet at its FINAL box,
 // invert that into a transform that lands it exactly over the tapped card
 // (transform-origin pinned to the top-left corner, so translate+scale line up
 // exactly), then animate the transform back to none. The box never changes

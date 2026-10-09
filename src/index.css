@@ -115,8 +115,20 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 .nv-leave-approve { animation: nvLeaveFile var(--nv-dur-base) var(--nv-ease) both; box-shadow: inset 3px 0 0 var(--nv-good); border-radius: 14px; pointer-events: none; }
 .nv-leave-discard { animation: nvLeaveDiscard var(--nv-dur-base) var(--nv-ease) both; box-shadow: inset 3px 0 0 var(--nv-warn); border-radius: 14px; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .nv-leave-approve, .nv-leave-discard { animation: nvFadeOut .2s ease both; } }
+/* A COUNTED FIGURE (src/CountUp.jsx). The digits are written into the inner
+   span frame by frame; the box holds the width of the wider of the start and
+   end figures (data-w, through this hidden zero-height ::before) so a count
+   never pushes its neighbours, and tabular numerals keep every digit the same
+   width. An inline-block, not a grid: a grid box breaks the figure from its
+   unit in the page's text ("96" / "/180 g"), which the summary guard caught;
+   the text line stays last, so the baseline is the figure's own. */
+.nv-count { display: inline-block; font-variant-numeric: tabular-nums; white-space: pre; }
+.nv-count::before { content: attr(data-w); display: block; height: 0; visibility: hidden; pointer-events: none; }
 .nv-deck-rise { animation: deckRise var(--nv-dur-base) var(--nv-ease) both; }
-@media (prefers-reduced-motion: reduce) { .nv-deck-rise { animation: none; } }
+/* reduced motion: the card does not travel, it fades. !important because the
+   global reduced-motion rule below crushes every animation to .01s, and a
+   cut is not what reduced motion asks for (apple-design: a short cross-fade) */
+@media (prefers-reduced-motion: reduce) { .nv-deck-rise { animation: fadeIn .16s ease both !important; } }
 
 /* THE HOUSE SWIPE ROW (src/SwipeRow.jsx, 3 Oct 2026): iOS Mail's buttons.
    Each side's group sits at its edge and its width follows the row's
@@ -1025,7 +1037,9 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   animation: deckRise var(--nv-dur-base) var(--nv-ease) backwards;
   animation-delay: calc(var(--i, 0) * 40ms);
 }
-@media (prefers-reduced-motion: reduce) { .nv-sum-rise { animation: none; } }
+/* reduced motion: a 160 ms fade in place of the rise (no stagger, nothing
+   moves); calm mode keeps its stillness */
+@media (prefers-reduced-motion: reduce) { :root:not([data-nv-calm="1"]) .nv-sum-rise { animation: fadeIn .16s ease backwards !important; } }
 :root[data-nv-calm="1"] .nv-sum-rise { animation: none; }
 
 /* THE CARD IS GLASS (27 Sep). The mockup's fill, ring and top highlight,

@@ -313,10 +313,14 @@ export function valsMission(app, ctx) {
     : proteinTarget == null && !demoMode
       // a live gauge with no floor says so — it never tracks an invented target
       ? { label: 'PROTEIN', value: String(Math.round(proteinCurrent)), small: 'G', pct: 0, hint: 'NO FLOOR SET — CHECK PROFILE LINE' }
-      : {
+      : !Number.isFinite(proteinCurrent)
+        // a broken macro says so; never "NaN" (the 9 Oct worst-case pass)
+        ? { label: 'PROTEIN', value: '—', small: '', pct: 0, hint: 'COULD NOT READ TODAY\'S LOG' }
+        : {
           label: 'PROTEIN',
-          value: String(Math.round(proteinCurrent)),
-          small: `/${proteinTarget}G`,
+          value: String(Math.max(0, Math.round(proteinCurrent))),
+          // no target, no "/null": the floor shows only when there is one
+          small: proteinTarget != null ? `/${proteinTarget}G` : 'G',
           pct: Math.round(proteinRatio * 100),
           // the month scored alongside the day — adherence is the story a
           // single day can't tell (from the reference nutrition app)
@@ -1092,7 +1096,7 @@ const bodyMetrics = demoMode
       }
       const f = w.facts || {};
       const eatenKcal = Math.round(f.eaten?.kcal || 0);
-      const eatenP = Math.round(f.eaten?.p || 0);
+      const eatenP = Math.max(0, Math.round(f.eaten?.p || 0));
       const target = f.targets?.kcal || null;
       const floor = f.targets?.protein || null;
       const pPct = floor ? Math.round((eatenP / floor) * 100) : 0;

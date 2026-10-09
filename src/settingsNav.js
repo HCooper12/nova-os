@@ -46,37 +46,101 @@ export function finishRunning() {
 
 // THE PAGE BEING LEFT, frozen. Children of <main>, not <main> itself, so
 // nothing that looks for the app's <main> ever finds the copy.
+//
+// ONLY WHAT CAN BE SEEN IS COPIED (9 Oct 2026, the motion audit: 91 to
+// 190 ms for the push frame at 4x). It used to deep-clone the whole page,
+// every row of a long page included, then set the copy's scrollTop, which
+// forced a layout of the full copy before the slide could start. Now every
+// read happens first, on a page that is already laid out; then the copy is
+// built. An element on screen is copied with its children; one wholly above
+// or below the viewport becomes an empty box of its own size (same class,
+// same margins, children dropped), so what is on screen sits exactly where
+// it was.
 export function snapshot() {
   const main = mainEl();
   if (!main) return null;
   finishRunning();
+  // READ
   const box = main.getBoundingClientRect();
+  const scrollTop = main.scrollTop;
+  const held = new Map();   // off-screen element -> its height
+  const walk = (el) => {
+    for (const child of el.children) {
+      const r = child.getBoundingClientRect();
+      const off = r.bottom < box.top || r.top > box.bottom;
+      if (off && r.height > 0 && blockish(child)) { held.set(child, r.height); continue; }
+      if (!off) walk(child);
+    }
+  };
+  walk(main);
+  // WRITE
   const layer = document.createElement('div');
   layer.className = 'nv-set-layer';
   layer.setAttribute('aria-hidden', 'true');
   Object.assign(layer.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
   const clone = document.createElement('div');
   clone.className = 'nv-set-clone';
-  for (const child of Array.from(main.children)) clone.appendChild(child.cloneNode(true));
-  clone.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
-  // a canvas clones blank; the cores keep their last frame
-  const from = main.querySelectorAll('canvas');
-  clone.querySelectorAll('canvas').forEach((c, i) => {
-    const src = from[i];
-    if (!src) return;
-    try { c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); } catch { /* tainted or gone */ }
-  });
-  // a typed value is a property, not an attribute, and does not clone
-  const fields = main.querySelectorAll('input, textarea');
-  clone.querySelectorAll('input, textarea').forEach((f, i) => { if (fields[i]) f.value = fields[i].value; });
+  for (const child of Array.from(main.children)) clone.appendChild(copyVisible(child, held));
   const dim = document.createElement('div');
   dim.className = 'nv-set-dim';
   Object.assign(dim.style, { position: 'absolute', inset: '0', zIndex: '1' });
   layer.appendChild(clone);
   layer.appendChild(dim);
   document.body.appendChild(layer);
-  clone.scrollTop = main.scrollTop;
-  return { layer, clone, dim, box, W: box.width };
+  // The copy is scrolled, not translated: a transform would move the page's
+  // sticky search field off its edge (found frame by frame, 9 Oct). Scrolling
+  // lays out only this layer, which now holds the visible part of one page,
+  // and nothing when the page sat at the top.
+  if (scrollTop > 0) clone.scrollTop = scrollTop;
+  return { layer, clone, dim, box, W: box.width, scrollTop };
+}
+
+// a box whose height can be held, not a run of inline text whose lines an
+// empty copy would collapse
+function blockish(el) {
+  const d = getComputedStyle(el).display;
+  return !d.startsWith('inline') || d === 'inline-block' || d === 'inline-flex' || d === 'inline-grid';
+}
+
+// on screen: the element and its children; off screen: the element alone,
+// held at its measured height
+function copyVisible(node, held) {
+  const h = held.get(node);
+  if (h != null) {
+    const empty = node.cloneNode(false);
+    empty.removeAttribute('id');
+    Object.assign(empty.style, { height: `${h}px`, minHeight: `${h}px`, boxSizing: 'border-box', visibility: 'hidden' });
+    return empty;
+  }
+  if (node.nodeType !== 1 || !holdsAny(node, held)) return deepCopy(node);
+  const shell = node.cloneNode(false);
+  shell.removeAttribute('id');
+  for (const c of Array.from(node.childNodes)) shell.appendChild(c.nodeType === 1 ? copyVisible(c, held) : c.cloneNode(true));
+  return shell;
+}
+
+function holdsAny(node, held) {
+  for (const el of held.keys()) if (node.contains(el)) return true;
+  return false;
+}
+
+// a whole subtree, with what cloneNode leaves behind: a canvas's picture (the
+// cores keep their last frame) and a typed value (a property, not an attribute)
+function deepCopy(node) {
+  const copy = node.cloneNode(true);
+  if (node.nodeType !== 1) return copy;
+  copy.removeAttribute('id');
+  copy.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+  const pick = (el, sel) => (el.matches(sel) ? [el] : Array.from(el.querySelectorAll(sel)));
+  const fromC = pick(node, 'canvas');
+  pick(copy, 'canvas').forEach((c, i) => {
+    const src = fromC[i];
+    if (!src) return;
+    try { c.width = src.width; c.height = src.height; c.getContext('2d').drawImage(src, 0, 0); } catch { /* tainted or gone */ }
+  });
+  const fromF = pick(node, 'input, textarea');
+  pick(copy, 'input, textarea').forEach((f, i) => { if (fromF[i]) f.value = fromF[i].value; });
+  return copy;
 }
 
 function dropSnap(snap) {

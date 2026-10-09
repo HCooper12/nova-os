@@ -1133,14 +1133,20 @@ export default class App extends Component {
   // NOT the chrome, so the bar and dock are never captured, never stale, and
   // cannot glitch. It also needs no wrapper element and no remount, so the
   // scroll restoration in navigate() still holds.
+  // Under reduced motion the screen does not travel: it cross-fades in
+  // 160 ms (opacity only), the way Settings' pages do, instead of cutting.
   riseMain() {
     const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce || !this.mainRef?.current?.animate) return;
+    if (!this.mainRef?.current?.animate) return;
     try {
       this.screenAnim?.cancel();
       this.screenAnim = this.mainRef.current.animate(
-        [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
-        { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
+        reduce
+          ? [{ opacity: 0 }, { opacity: 1 }]
+          : [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+        reduce
+          ? { duration: 160, easing: 'ease', fill: 'both' }
+          : { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
       );
       // release the hold, or a later scroll write fights a finished effect
       this.screenAnim.finished.catch(() => {}).then(() => this.screenAnim?.cancel());
@@ -3574,7 +3580,7 @@ export default class App extends Component {
       if (st?.novaOverlay === 'recipe') window.history.replaceState({ ...st, recipeId: id }, '');
       else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'recipe', recipeId: id }, '');
     }
-    this.withTransition(() => this.setState({
+    this.recipeTransition(() => this.setState({
       openRecipeId: id, servings, recipeChat: [], recipeInput: '',
       recipeAltSelected: null, recipeTweakInput: '', recipeTweakBusy: false,
       recipeTweakError: null, recipeTweakPreview: null, recipeTweakPhotos: [],
@@ -3587,7 +3593,17 @@ export default class App extends Component {
   closeRecipe() {
     this.stopPoll('recipeTweak');
     if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'recipe') { window.history.back(); return; }
-    this.withTransition(() => this.setState(RECIPE_CLOSED));
+    this.recipeTransition(() => this.setState(RECIPE_CLOSED));
+  }
+  // THE RECIPE'S OWN MOVE (9 Oct 2026, the motion audit's budget fixes).
+  // Under `summary` the recipe is a sheet (RecipeSheet) that rises and falls
+  // by itself and carries no shared name, so the view transition around it
+  // morphed nothing and cost a synchronous first render (flushSync) for its
+  // snapshot: 52 to 59 ms frames at 4x. It is a plain setState there. The
+  // cupertino overlay keeps the card-into-page morph it was built for.
+  recipeTransition(fn) {
+    if (this.state.novaStyle === 'summary') fn();
+    else this.withTransition(fn);
   }
   // popstate's half: leaving the recipe's entry closes it; returning to one
   // (a browser's Forward) reopens it
@@ -4406,7 +4422,11 @@ export default class App extends Component {
         startFrom: !e.lastSets?.length && e.startSets?.length ? e.startFrom || null : null,
         sets };
     });
-    this.withTransition(() => this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises, startedAt: Date.now() }, sessionCancelConfirm: false }));
+    // A SESSION STARTS LIKE EVERY OTHER HOP (9 Oct 2026, the motion audit):
+    // the live <main> rises. It used to be a view transition, whose flushSync
+    // made the session's whole first render synchronous inside the snapshot
+    // (a 58 ms frame at 1x); nothing in it carries a shared name to morph.
+    this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises, startedAt: Date.now() }, sessionCancelConfirm: false }, () => this.riseMain());
   }
   // cockpit: exercise-level fields (note / anomaly / pain) — same immutable
   // update pattern as sets; unknown fields flow through to the save intact

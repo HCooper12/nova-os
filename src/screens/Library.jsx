@@ -1,4 +1,4 @@
-import { useRef, useLayoutEffect, useEffect, useState, lazy, Suspense } from 'react';
+import { useRef, useEffect, useState, lazy, Suspense } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { ChatMarkdown } from '../ChatMarkdown.jsx';
@@ -6,6 +6,7 @@ import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead } from '../Controls.js
 import { useLibraryTint } from '../shelf3d/useLibraryTint.js';
 import { editionFor } from '../shelf3d/edition.js';
 import { artFor, artNow } from '../shelf3d/artPalette.js';
+import { useFlipList } from '../useFlipList.js';
 
 // THE TINT, everywhere it is read. Untinted, this resolves to the theme's own
 // accent, so the fallback IS the current design and there is no second code
@@ -68,36 +69,10 @@ function ChipRow({ label, chips }) {
 }
 
 // FLIP, so the toggle MORPHS instead of cutting. Every item keeps its DOM
-// node across the two shapes; layout jumps in one frame and this animates
-// the difference on transform alone, which composites. Recording rects in a
-// layout effect means the map already holds the PREVIOUS positions when the
-// next one runs — that is the "first" of first-last-invert-play, for free.
-function useShelfFlip(view, count) {
-  const prev = useRef(new Map());
-  const lastView = useRef(view);
-  useLayoutEffect(() => {
-    const nodes = [...document.querySelectorAll('[data-flip]')];
-    const changed = lastView.current !== view;
-    for (const n of nodes) {
-      const key = n.dataset.flip;
-      const last = n.getBoundingClientRect();
-      const first = prev.current.get(key);
-      if (changed && first && last.width && first.width) {
-        const dx = first.left - last.left, dy = first.top - last.top;
-        const sx = first.width / last.width, sy = first.height / last.height;
-        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5 || Math.abs(sx - 1) > 0.01) {
-          n.animate(
-            [{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.75 },
-             { transform: 'none', opacity: 1 }],
-            { duration: 520, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
-          );
-        }
-      }
-      prev.current.set(key, last);
-    }
-    lastView.current = view;
-  }, [view, count]);
-}
+// node across the two shapes; layout jumps in one frame and the shared hook
+// (src/useFlipList.js, lifted out of this file on 9 Oct 2026) animates the
+// difference on transform alone, size included, which composites.
+const SHELF_FLIP = { duration: 520, scale: true, dim: 0.75 };
 
 // The shelf's own controls: filters, search, add, and the two-way view
 // toggle. Lifted out of Shelf because the 3D stage needs the same row above
@@ -189,7 +164,8 @@ const gridCloth = (e) => [
 function Shelf({ v, fellBack }) {
   const spines = v.libraryView === 'spines';
   const editionOf = useArtEditions(v.libraryShelf);
-  useShelfFlip(v.libraryView, v.libraryShelf.length);
+  const flipRoot = useRef(null);
+  useFlipList(flipRoot, v.libraryView, SHELF_FLIP);
   return (
     <>
       <ChipsRow v={v} />
@@ -206,7 +182,7 @@ function Shelf({ v, fellBack }) {
           changes instantly, and useFlip animates the delta on the
           compositor. Two separate trees would have meant an unmount and a
           fade, which is exactly the cut the whole motion contract avoids. */}
-      <div style={spines ? { position: 'relative', marginTop: '22px' } : undefined}>
+      <div ref={flipRoot} style={spines ? { position: 'relative', marginTop: '22px' } : undefined}>
       {spines && fellBack && (
         <div style={css('margin-bottom:12px;text-align:center')}>
           <Meta tone="faint">3D shelf unavailable on this device</Meta>
