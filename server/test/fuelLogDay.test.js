@@ -285,5 +285,5 @@ test('the view model carries the cards and the Edit sheet, and the sheet is the 
   // the sheet is a history level, so the back swipe closes it rather than leaving Fuel under it
   const app = read('src/App.jsx');
   assert.match(app, /window\.history\.pushState\(\{ novaDepth: depthOf\(st\) \+ 1, novaOverlay: 'fuelCards' \}, ''\)/);
-  assert.match(app, /\.\.\.this\.fuelCardsFromHistory\(\) \};/);
+  assert.match(app, /\.\.\.this\.fuelCardsFromHistory\(\), \.\.\.this\.moneyFromHistory\(\) \};/);
 });

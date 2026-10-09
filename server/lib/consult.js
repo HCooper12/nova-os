@@ -82,6 +82,19 @@ export const AGENTS = {
     canConsult: true,
     ask: (vaultPath, q, o) => askLibrarian(vaultPath, q, o),
   },
+  // THE CFO (10 Oct 2026, his ask that Money "interacts with everything else
+  // in nova so it can alert me and discuss important things"). No model runs:
+  // code reads the ledger and every figure in the answer is computed
+  // (lib/moneySignals.js moneyContext), so "how am I tracking this month" is
+  // answered from his real numbers, never an estimate.
+  cfo: {
+    label: 'the CFO',
+    what: "his money, read by code from his ledger: this month's spending against every budget, the even pace, last month to the same day, every category, recurring bills with how sure each date is, price rises, and money alerts waiting on him. Ask it whenever an answer touches money, spending or bills.",
+    lane: null,
+    canConsult: false,
+    code: true,
+    ask: () => askCfo(),
+  },
   calendar: {
     label: 'your calendar',
     what: 'his actual calendar for the next 14 days: when he trains, what else is booked. Read by code; any question returns the fortnight.',
@@ -584,6 +597,12 @@ async function askCalendar() {
   const { fetchEventsForRange } = await import('./calendar.js');
   const events = await fetchEventsForRange(14);
   return { text: formatFortnight(events) };
+}
+
+// Code reads the ledger; the CFO's answer is figures, never a model's guess.
+async function askCfo() {
+  const { moneyContext } = await import('./moneySignals.js');
+  return { text: await moneyContext() };
 }
 
 export function formatFortnight(events = []) {

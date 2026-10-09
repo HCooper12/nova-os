@@ -422,6 +422,10 @@ export const api = {
   moneyRemove: (conn, id) => post(conn, `/api/money/transaction/${encodeURIComponent(id)}/remove`, {}),
   moneyCategory: (conn, id, category) => post(conn, `/api/money/transaction/${encodeURIComponent(id)}/category`, { category }),
   moneyBudget: (conn, category, amount) => post(conn, '/api/money/budget', { category, amount }),
+  // the line sheet: { category?, note?, rule? } — rule files every line from the merchant that way
+  moneyEdit: (conn, id, patch) => post(conn, `/api/money/transaction/${encodeURIComponent(id)}/edit`, patch),
+  // a money card answered: keep | noted | cancel (a price rise → a To-Do with Undo)
+  moneyEventAnswer: (conn, id, answer) => post(conn, `/api/money/event/${encodeURIComponent(id)}/answer`, { answer }),
   moneyImportRun: (conn) => post(conn, '/api/money/import/run', {}),
   moneyReport: (conn) => post(conn, '/api/money/report', {}),
   moneyScanStatement: (conn, images, note) => post(conn, '/api/money/scan-statement', { images, note }),

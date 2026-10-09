@@ -85,7 +85,7 @@ const settled = (jobId) => waitFor(() => { const j = getMessageJob(jobId); retur
 
 test('every agent may ask everyone but itself, and never whoever is waiting on it', () => {
   const all = Object.keys(AGENTS);
-  for (const id of ['nova', 'coach', 'leader', 'researcher', 'librarian', 'calendar']) assert.ok(all.includes(id), id);
+  for (const id of ['nova', 'coach', 'leader', 'researcher', 'librarian', 'calendar', 'cfo']) assert.ok(all.includes(id), id);
   for (const from of all) {
     assert.deepEqual(consultableBy(from), all.filter((id) => id !== from), from);
     const cap = consultCapability(from);
@@ -93,7 +93,7 @@ test('every agent may ask everyone but itself, and never whoever is waiting on i
     for (const id of all.filter((x) => x !== from)) assert.ok(cap.includes(`"${id}" (`), `${from} can ask ${id}`);
   }
   // the Coach, asked by Nova, cannot ask Nova back (he is waiting on it)
-  assert.deepEqual(consultableBy('coach', { chain: ['nova'] }).sort(), ['calendar', 'leader', 'librarian', 'researcher']);
+  assert.deepEqual(consultableBy('coach', { chain: ['nova'] }).sort(), ['calendar', 'cfo', 'leader', 'librarian', 'researcher']);
   assert.match(consultCapability('coach', { chain: ['nova'] }), /Nova is waiting on your answer/);
   assert.equal(parseConsult('CONSULT {"asks":[{"agent":"nova","question":"q"}]}', { from: 'coach', chain: ['nova'] }), null);
   assert.equal(parseConsult('CONSULT {"asks":[{"agent":"coach","question":"q"}]}', { from: 'coach' }), null, 'never itself');

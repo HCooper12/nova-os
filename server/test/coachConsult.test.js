@@ -25,12 +25,12 @@ test('only agents that exist can be asked; junk is dropped, duplicates collapse'
   const c = parseConsult(line([
     { agent: 'Researcher', question: 'q1' },
     { agent: 'researcher', question: 'q1' },
-    { agent: 'cfo', question: 'what does it cost' },
+    { agent: 'accountant', question: 'what does it cost' },
     { agent: 'nova', question: '' },
     { agent: 'nova', question: 'What has he written about work stress this month?' },
   ]));
   assert.deepEqual(c.asks.map((a) => `${a.agent}:${a.question}`), ['researcher:q1', 'nova:What has he written about work stress this month?']);
-  assert.equal(parseConsult(line([{ agent: 'cfo', question: 'x' }])), null, 'nothing valid means no consult');
+  assert.equal(parseConsult(line([{ agent: 'accountant', question: 'x' }])), null, 'nothing valid means no consult');
   assert.equal(parseConsult('CONSULT {not json'), null);
   assert.equal(parseConsult('A normal answer with no directive.'), null);
   assert.equal(parseConsult('CONSULT {"asks":[{"agent":"researcher","question":"x"}]} and then more prose'), null, 'the line must be the last thing');

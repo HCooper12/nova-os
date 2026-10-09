@@ -136,6 +136,31 @@ function Moment({ k, v }) {
         </Interactive>
       );
     }
+    case 'money': {
+      // MONEY THAT NEEDS HIM (10 Oct 2026): the CFO's signals, by code, in
+      // Money's violet; each line in its category's hue. Discuss opens Nova
+      // with the alert quoted; Noted files them as seen.
+      const mm = v.moneyMoment;
+      return (
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-vi)') }} aria-label="Money">
+          <MomentHead label="Money" tint="var(--nv-vi)" meta={<Meta tone="faint">{mm.count === 1 ? 'one thing for you' : `${mm.count} things for you`}</Meta>} />
+          <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {mm.items.map((it) => (
+              <div key={it.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>
+                <span aria-hidden="true" style={{ flex: 'none', width: 7, height: 7, borderRadius: '50%', background: it.hue, transform: 'translateY(-2px)' }} />
+                <span style={{ flex: 1, minWidth: 0, font: `400 17px/1.3 ${SERIF}`, color: 'var(--nv-ink)', textWrap: 'pretty', overflowWrap: 'anywhere' }}>{it.title}</span>
+              </div>
+            ))}
+            {mm.more > 0 && <Meta tone="faint">and {mm.more} more on Money</Meta>}
+          </div>
+          <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <Pill label="Discuss" onClick={mm.discuss} accent="--nv-vi" />
+            <Pill label="Open Money" onClick={mm.open} tone="quiet" />
+            <Pill label="Noted" onClick={mm.noted} tone="quiet" />
+          </div>
+        </section>
+      );
+    }
     case 'pr': {
       // THE RECORD MOMENT: the morning after a PR, once; the set he did first
       const p = v.prMoment;

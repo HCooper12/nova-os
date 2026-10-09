@@ -91,6 +91,11 @@ export async function getRecord(id) {
 // buttons, so acting is one tap in the thread he already reads
 function notifyIfPending(record, previousStatus) {
   if (record.status !== 'pending' || previousStatus === 'pending') return;
+  // a money event pushes by its own rule (lib/moneySignals.js pushRule: a
+  // price rise, a bill due tomorrow, a category over budget), never because
+  // it is pending: an unusual charge or a bill three days out is for the
+  // Inbox and Home, not his lock screen
+  if (record.kind === 'money') return;
   import('./push.js').then(({ pushForRecord }) => pushForRecord(record)).catch(() => {});
   import('./telegram.js').then(({ announceRecord }) => announceRecord(record)).catch(() => {});
 }

@@ -3,7 +3,8 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { getMonthSummary, addTransactions, removeTransactions, setTransactionCategory, setBudget, exportFinancialYear, listMonths, CATEGORIES } from '../lib/money.js';
+import { getMonthSummary, exportFinancialYear, listMonths, CATEGORIES } from '../lib/money.js';
+import { addLine, deleteLines, editLine, changeBudget } from '../lib/moneyRails.js';
 import { scanImports, IMPORTS_DIR_REL } from '../lib/moneyImport.js';
 import { startStatementScan, getStatementScanJob } from '../lib/scanStatement.js';
 import { runCfoReport } from '../lib/cfoReport.js';
@@ -23,38 +24,65 @@ export function moneyRouter(vaultPath) {
     }
   });
 
+  // Every write here rides the inbox rails (lib/moneyRails.js): it files a
+  // record with undoData and returns it, so the screen's pill can offer Undo.
+  const fail = (res, e) => res.status(e.status || 400).json({ error: e.message });
+
   router.post('/money/transaction', async (req, res) => {
     try {
-      const [added] = await addTransactions([req.body || {}], 'manual');
-      res.json({ transaction: added });
+      res.json(await addLine(req.body || {}));
     } catch (e) {
-      res.status(400).json({ error: e.message });
+      fail(res, e);
     }
   });
 
   router.post('/money/transaction/:id/remove', async (req, res) => {
     try {
-      const removed = await removeTransactions([req.params.id]);
-      if (!removed) return res.status(404).json({ error: 'transaction not found' });
-      res.json({ removed });
+      res.json(await deleteLines([req.params.id]));
     } catch (e) {
-      res.status(400).json({ error: e.message });
+      fail(res, e);
     }
   });
 
+  // the old door: a category change (and, as before, the merchant rule)
   router.post('/money/transaction/:id/category', async (req, res) => {
     try {
-      res.json({ transaction: await setTransactionCategory(req.params.id, req.body?.category) });
+      res.json(await editLine(req.params.id, { category: req.body?.category, rule: req.body?.rule !== false }));
     } catch (e) {
-      res.status(400).json({ error: e.message });
+      fail(res, e);
+    }
+  });
+
+  // the line sheet: category, note, and the merchant rule only when asked
+  router.post('/money/transaction/:id/edit', async (req, res) => {
+    try {
+      const b = req.body || {};
+      res.json(await editLine(req.params.id, {
+        category: typeof b.category === 'string' ? b.category : undefined,
+        note: typeof b.note === 'string' ? b.note : undefined,
+        rule: b.rule === true,
+      }));
+    } catch (e) {
+      fail(res, e);
     }
   });
 
   router.post('/money/budget', async (req, res) => {
     try {
-      res.json({ budgets: await setBudget(req.body?.category, req.body?.amount) });
+      res.json(await changeBudget(req.body?.category, req.body?.amount));
     } catch (e) {
-      res.status(400).json({ error: e.message });
+      fail(res, e);
+    }
+  });
+
+  // a money event answered with its one real write: a price rise he does
+  // not want to keep becomes a To-Do to cancel it, filed with Undo
+  router.post('/money/event/:id/answer', async (req, res) => {
+    try {
+      const { answerMoneyEvent } = await import('../lib/moneySignals.js');
+      res.json({ record: await answerMoneyEvent(vaultPath, req.params.id, req.body?.answer) });
+    } catch (e) {
+      fail(res, e);
     }
   });
 
@@ -139,7 +167,7 @@ export function moneyRouter(vaultPath) {
           confidence: 'high',
           title,
           reason: `Extracted by photo scan — ${fresh.length} new after dedupe${raw.length - fresh.length ? ` (${raw.length - fresh.length} already in the ledger)` : ''}. ~$${spend} spend.`,
-          payload: { transactions: fresh },
+          payload: { transactions: fresh, source: 'scan' },
         },
       });
       res.json({ record, duplicates: raw.length - fresh.length });

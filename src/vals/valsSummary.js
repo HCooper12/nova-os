@@ -248,6 +248,9 @@ function trendsCard(st, ctx, m, demoMode) {
 function buildMoments(m) {
   const list = [];
   if (m.macSessionsHeadline) list.push('asking');
+  // MONEY THAT NEEDS HIM (10 Oct 2026): only while a money record waits on
+  // him (an over, a bill, a rise, an odd charge); nothing when all is fine
+  if (m.moneyMoment) list.push('money');
   if (m.prMoment) list.push('pr');
   if (m.runningPlan) list.push('plan');
   if (m.landedMoment) list.push('landed');

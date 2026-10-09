@@ -135,13 +135,29 @@ async function pendingImportFiles() {
 export async function scanImports(vaultPath) {
   const dir = path.join(vaultPath, IMPORTS_DIR_REL);
   if (!existsSync(dir)) return { found: 0, records: [] };
-  const files = (await readdir(dir)).filter((f) => f.toLowerCase().endsWith('.csv'));
-  if (!files.length) return { found: 0, records: [] };
+  const all = await readdir(dir);
+  // A SPREADSHEET IS SAID, NEVER SKIPPED IN SILENCE (mockup 90's .xlsx frame):
+  // a budget app's "Excel format" export lands here and used to sit unread.
+  // Nova does not parse it (reading .xlsx is his call, still open); it raises
+  // one honest card per file and content saying how to re-save it as CSV.
+  const unreadable = [];
+  for (const f of all.filter((x) => /\.(xlsx|xls|numbers)$/i.test(x))) {
+    try {
+      const buf = await readFile(path.join(dir, f));
+      const { noteUnreadableFile } = await import('./moneySignals.js');
+      const rec = await noteUnreadableFile({ file: f, hash: createHash('sha256').update(buf).digest('hex').slice(0, 16), dir: IMPORTS_DIR_REL });
+      if (rec) unreadable.push(rec);
+    } catch (e) {
+      console.error(`money import: could not note ${f}: ${e.message}`);
+    }
+  }
+  const files = all.filter((f) => f.toLowerCase().endsWith('.csv'));
+  if (!files.length) return { found: 0, records: unreadable };
 
   const existing = new Set((await listTransactions({ sinceMonths: 26 })).map(dedupeKey));
   const alreadyPending = await pendingImportRecords();
   await loadOverrides().catch(() => {}); // his merchant corrections apply to every row parsed below
-  const records = [];
+  const records = [...unreadable];
 
   for (const file of files) {
     const raw = await readFile(path.join(dir, file), 'utf8');
@@ -225,6 +241,14 @@ export function startMoneyImportScheduler(vaultPath) {
       await scanImports(vaultPath);
     } catch (err) {
       console.error('money import scan failed:', err.message);
+    }
+    // the money signals ride the same five-minute tick: a line that just
+    // landed is checked for news (a rise, an over, a bill, an odd charge)
+    try {
+      const { runMoneySignals } = await import('./moneySignals.js');
+      await runMoneySignals({ vaultPath });
+    } catch (err) {
+      console.error('money signals failed:', err.message);
     }
   };
   tick();

@@ -21,7 +21,7 @@ export const COACH_DECLINE_REASONS = ['Not now', 'Too aggressive', 'No equipment
 // audited by a test; a ternary chain cannot.
 const SOURCE_LABEL = {
   review: 'DAILY REVIEW', dispatch: 'DISPATCH', compost: 'COMPOST', guardian: 'GUARDIAN',
-  cfo: 'CFO', 'money-import': 'CFO', 'meal-prep': 'MEAL PREP', 'food-suggestion': 'NUTRITION',
+  cfo: 'CFO', 'money-import': 'CFO', money: 'CFO', 'money-write': 'MONEY', 'meal-prep': 'MEAL PREP', 'food-suggestion': 'NUTRITION',
   calendar: 'SCHEDULE', 'training-check': 'TRAINING', 'week-plan': 'COMMANDER',
   'plan-today': 'PLANNER', pattern: 'SCOUT', autonomy: 'TRUST LADDER', distill: 'DISTILLER', ingest: 'VAULT INGEST',
   coach: 'COACH', 'weekly-debrief': 'COACH', 'exercise-research': 'COACH · LIBRARY', research: 'RESEARCHER', video: 'WATCHER',
@@ -64,6 +64,9 @@ export const ROUTE_META = {
   food: { label: 'FOOD LOG', hue: '255,122,217' },
   expense: { label: 'EXPENSE', hue: '224,178,106' },
   'money-import': { label: 'LEDGER IMPORT', hue: '224,178,106' },
+  // a money signal (lib/moneySignals.js) and his own Money-screen change (lib/moneyRails.js), in Money's violet
+  'money-event': { label: 'MONEY', hue: '143,123,255' },
+  'money-write': { label: 'LEDGER', hue: '143,123,255' },
   idea: { label: 'IDEA', hue: '143,123,255' },
   'idea-outline': { label: 'OUTLINE', hue: '143,123,255' },
   // an iCloud write must never wear a NOTE badge — name what approving does

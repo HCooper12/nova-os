@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { budgetFromInput } from '../../src/moneyParse.js';
 
 // The CFO's ledger. Transactions live in monthly JSON stores under
 // data/money/ (high-volume structured data, same reasoning as the food log);
@@ -155,20 +156,86 @@ export async function removeTransactions(ids) {
   return removed;
 }
 
+// The old door: a category change that also files every future line from
+// the merchant the same way (the correct-once rail, said nowhere). Kept for
+// any caller that wants exactly that; the Money screen now uses
+// editTransaction, where the merchant rule is his switch.
 export async function setTransactionCategory(id, category) {
-  if (!CATEGORIES.includes(category)) throw new Error('unknown category');
+  return (await editTransaction(id, { category, rule: true })).transaction;
+}
+
+// ONE LINE CHANGED, with everything an undo needs to put it back: the line's
+// category and note before, and the merchant rule before (its category, or
+// null when there was none). `rule` true also files every future line from
+// this merchant this way (the line sheet's switch, off unless he turns it on).
+export async function editTransaction(id, { category, note, rule = false } = {}) {
+  if (category !== undefined && !CATEGORIES.includes(category)) throw new Error('unknown category');
   for (const month of await listMonths()) {
     const data = await readMonth(month);
     const t = data.transactions.find((x) => x.id === id);
-    if (t) {
-      t.category = category;
-      await writeMonth(month, data);
-      // the fix holds for the merchant — the correct-once rail
-      await setMerchantOverride(t.merchant, category).catch(() => {});
-      return t;
+    if (!t) continue;
+    const before = { category: t.category, note: t.note ?? null };
+    if (category !== undefined) t.category = category;
+    if (note !== undefined) t.note = String(note || '').trim().slice(0, 200) || null;
+    await writeMonth(month, data);
+    let override = null;
+    if (rule && category !== undefined) {
+      const key = merchantKey(t.merchant);
+      if (key) {
+        const cfg = await readConfig();
+        override = { key, before: cfg.merchantOverrides[key] || null };
+        await setMerchantOverride(t.merchant, category);
+      }
     }
+    return { transaction: t, before, override };
   }
   throw new Error('transaction not found');
+}
+
+// A merchant rule set back to what it was (null removes it): an undo's half.
+export async function restoreMerchantOverride(key, category) {
+  if (!key) return;
+  const cfg = await readConfig();
+  if (category && CATEGORIES.includes(category)) cfg.merchantOverrides[key] = category;
+  else delete cfg.merchantOverrides[key];
+  await writeConfig(cfg);
+}
+
+// Lines put back EXACTLY as they were (same id, same stamps): a delete's undo.
+// A line whose id is already in its month is left alone, so a double undo
+// cannot duplicate it.
+export async function restoreTransactions(list) {
+  const byMonth = new Map();
+  for (const t of list || []) {
+    if (!t || !t.id || !/^\d{4}-\d{2}-\d{2}$/.test(t.date || '')) continue;
+    const m = monthOf(t.date);
+    if (!byMonth.has(m)) byMonth.set(m, []);
+    byMonth.get(m).push(t);
+  }
+  let restored = 0;
+  for (const [month, rows] of byMonth) {
+    const data = await readMonth(month);
+    const ids = new Set(data.transactions.map((t) => t.id));
+    for (const t of rows) {
+      if (ids.has(t.id)) continue;
+      data.transactions.push(t);
+      restored++;
+    }
+    data.transactions.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    await writeMonth(month, data);
+  }
+  if (restored) import('./events.js').then(({ broadcast }) => broadcast('money')).catch(() => {});
+  return restored;
+}
+
+// The lines with these ids, as stored (for a delete to keep before it deletes).
+export async function findTransactions(ids) {
+  const want = new Set(ids);
+  const out = [];
+  for (const month of await listMonths()) {
+    for (const t of (await readMonth(month)).transactions) if (want.has(t.id)) out.push(t);
+  }
+  return out;
 }
 
 export async function listMonths() {
@@ -210,14 +277,23 @@ export async function getBudgets() {
   return (await readConfig()).budgets;
 }
 
+// The amount is read by the one shared reader (src/moneyParse.js): "$250" and
+// "1,200" set 250 and 1200; empty clears; anything unreadable THROWS and the
+// old budget stays (it used to become 0, which deleted it).
 export async function setBudget(category, amount) {
   if (!CATEGORIES.includes(category)) throw new Error('unknown category');
+  const value = budgetFromInput(amount);
+  if (value === undefined) throw new Error(`could not read "${String(amount).slice(0, 40)}" as an amount; the budget is unchanged`);
   const cfg = await readConfig();
-  const value = Math.round(Number(amount));
-  if (value > 0) cfg.budgets[category] = value;
+  if (value) cfg.budgets[category] = value;
   else delete cfg.budgets[category];
   await writeConfig(cfg);
   return cfg.budgets;
+}
+
+// The budget a category has right now (null for none), for an undo to restore.
+export async function getBudget(category) {
+  return (await readConfig()).budgets[category] || null;
 }
 
 // MERCHANT OVERRIDES — the correct-once rail, applied to money. A category he
@@ -253,13 +329,90 @@ const CADENCES = [
   { name: 'yearly', days: 365, tolerance: 20 },
 ];
 
-function merchantKey(m) {
+export function merchantKey(m) {
   return (m || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(pty|ltd|au|com|www|pay|payment)\b/g, '').trim();
 }
 
+// Calendar arithmetic on plain dates, in UTC so a daylight-saving night can
+// never make a day 23 hours long.
+const toUTC = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+const fromUTC = (ms) => { const d = new Date(ms); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; };
+export const daysBetween = (a, b) => Math.round((toUTC(b) - toUTC(a)) / 86400000);
+const MONTHS_OF = { monthly: 1, quarterly: 3, yearly: 12 };
+// One cadence step on from `iso`, `k` times: a month is the same day next
+// month (the 31st becomes the last day of a shorter month), never 30 days.
+export function addCadence(iso, cadence, k = 1) {
+  const c = typeof cadence === 'string' ? CADENCES.find((x) => x.name === cadence) : cadence;
+  const months = MONTHS_OF[c.name];
+  if (!months) return fromUTC(toUTC(iso) + c.days * k * 86400000);
+  const [y, m, d] = iso.split('-').map(Number);
+  const total = (m - 1) + months * k;
+  const ty = y + Math.floor(total / 12), tm = total % 12;
+  const last = new Date(Date.UTC(ty, tm + 1, 0)).getUTCDate();
+  return `${ty}-${pad(tm + 1)}-${pad(Math.min(d, last))}`;
+}
+
+const NOUN = { weekly: 'week', fortnightly: 'fortnight', monthly: 'month', quarterly: 'quarter', yearly: 'year' };
+const WEEKDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+// HOW SURE NOVA IS OF A BILL'S NEXT DATE (mockup 90, Bills; his call 5 taken
+// as the build's default). Computed over EVERY gap, not the last two: each
+// charge is placed against the day the one before it predicted (a missed
+// period counts as whole periods, so a skipped month is not a wander), and
+// the word comes from the worst miss:
+//   Sure      four or more charges, none more than a day off
+//   Likely    three or more, none more than five days off; the window on the
+//             calendar is that many days either side
+//   A guess   two charges, or three or more that wander further
+// `offsets` is one per charge, the first at 0, for the strip of dots. Pure.
+export function billConfidence(dates, cadence) {
+  const c = typeof cadence === 'string' ? CADENCES.find((x) => x.name === cadence) : cadence;
+  const sorted = [...dates].sort();
+  const offsets = [0];
+  for (let i = 1; i < sorted.length; i++) {
+    const gap = daysBetween(sorted[i - 1], sorted[i]);
+    const k = Math.max(1, Math.round(gap / c.days));
+    offsets.push(daysBetween(addCadence(sorted[i - 1], c, k), sorted[i]));
+  }
+  const n = sorted.length;
+  const worst = Math.max(0, ...offsets.map((o) => Math.abs(o)));
+  const kind = n >= 4 && worst <= 1 ? 'sure' : n >= 3 && worst <= 5 ? 'likely' : 'guess';
+  const latest = sorted[n - 1];
+  let said;
+  if (kind === 'sure') {
+    if (worst === 0) {
+      said = MONTHS_OF[c.name]
+        ? `${n} charges, every one on the ${ordinal(Number(latest.slice(8)))}.`
+        : `${n} charges, every one on a ${WEEKDAY[new Date(toUTC(latest)).getUTCDay()]}.`;
+    } else said = `${n} charges, none more than a day off.`;
+  } else if (kind === 'likely') {
+    said = `${n} charges, each within ${plural(worst, 'day')} of the ${NOUN[c.name]}. The window on the calendar is those days.`;
+  } else if (n === 2) {
+    said = `Seen twice, ${daysBetween(sorted[0], sorted[1])} days apart. Two is the least Nova counts as recurring, so it stays a guess until a third.`;
+  } else {
+    said = `${n} charges, landing up to ${plural(worst, 'day')} from the expected day, so the date is a guess.`;
+  }
+  return {
+    kind,
+    word: kind === 'sure' ? 'Sure' : kind === 'likely' ? 'Likely' : 'A guess',
+    charges: n,
+    offsets: offsets.slice(-12),
+    window: kind === 'likely' ? worst : 0,
+    said,
+  };
+}
+
+// What a recurring charge costs a month, for "$72 a month · $18 a week".
+const PER_MONTH = { weekly: 52 / 12, fortnightly: 26 / 12, monthly: 1, quarterly: 1 / 3, yearly: 1 / 12 };
+
 // Recurring spend: same merchant, similar amount (±12%), a consistent
-// interval, at least 2 occurrences. Returns cadence, next expected date, and
-// whether the price has risen since the previous charge.
+// interval, at least 2 occurrences. Returns cadence, next expected date (by
+// the calendar: a monthly charge on the 13th is next due on the 13th), how
+// sure that date is (billConfidence, over every charge), the recent charges
+// for the price-rise drawing, and whether the price has risen since the
+// previous charge.
 export function detectSubscriptions(transactions) {
   const spends = transactions.filter((t) => t.amount < 0);
   const groups = new Map();
@@ -271,28 +424,34 @@ export function detectSubscriptions(transactions) {
   }
 
   const subs = [];
-  for (const list of groups.values()) {
+  for (const [key, list] of groups) {
     if (list.length < 2) continue;
-    const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : 1));
+    const sorted = [...list].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const latest = sorted[sorted.length - 1];
     const prev = sorted[sorted.length - 2];
     const similar = Math.abs(Math.abs(latest.amount) - Math.abs(prev.amount)) <= Math.abs(prev.amount) * 0.12;
     if (!similar) continue;
-    const gapDays = Math.round((new Date(latest.date) - new Date(prev.date)) / 86400000);
+    const gapDays = daysBetween(prev.date, latest.date);
     const cadence = CADENCES.find((c) => Math.abs(gapDays - c.days) <= c.tolerance);
     if (!cadence) continue;
 
-    const next = new Date(latest.date);
-    next.setDate(next.getDate() + cadence.days);
+    // the charges that are this bill: amounts within 30% of the latest, so a
+    // one-off purchase at the same merchant does not count as a wander
+    const charges = sorted.filter((t) => Math.abs(Math.abs(t.amount) - Math.abs(latest.amount)) <= Math.abs(latest.amount) * 0.3);
     subs.push({
+      key,
       merchant: latest.merchant,
+      category: latest.category || null,
       amount: Math.abs(latest.amount),
       cadence: cadence.name,
+      perMonth: Math.round(Math.abs(latest.amount) * PER_MONTH[cadence.name] * 100) / 100,
       lastDate: latest.date,
-      nextExpected: `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`,
+      nextExpected: addCadence(latest.date, cadence),
       occurrences: sorted.length,
+      confidence: billConfidence(charges.map((t) => t.date), cadence),
+      history: charges.slice(-6).map((t) => ({ date: t.date, amount: Math.abs(t.amount) })),
       priceRise: Math.abs(latest.amount) > Math.abs(prev.amount) * 1.02
-        ? { from: Math.abs(prev.amount), to: Math.abs(latest.amount) }
+        ? { from: Math.abs(prev.amount), to: Math.abs(latest.amount), on: latest.date }
         : null,
     });
   }
@@ -301,32 +460,98 @@ export function detectSubscriptions(transactions) {
 
 /* -------------------------------- summary -------------------------------- */
 
-export async function getMonthSummary(month) {
-  const m = month || todayISO().slice(0, 7);
-  const { transactions } = await readMonth(m);
-  const prevDate = new Date(`${m}-15T00:00:00`);
-  prevDate.setMonth(prevDate.getMonth() - 1);
-  const prevMonth = `${prevDate.getFullYear()}-${pad(prevDate.getMonth() + 1)}`;
-  const prev = (await readMonth(prevMonth)).transactions;
+const monthShift = (m, k) => {
+  const d = new Date(`${m}-15T00:00:00`);
+  d.setMonth(d.getMonth() + k);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+};
+const daysIn = (m) => { const [y, mo] = m.split('-').map(Number); return new Date(Date.UTC(y, mo, 0)).getUTCDate(); };
+const cents = (n) => Math.round(n * 100) / 100;
+const spendOf = (list) => cents(list.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0));
+const incomeOf = (list) => cents(list.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0));
+// spend per day of the month, index 0 = the 1st
+function dailyOf(list, days) {
+  const out = new Array(days).fill(0);
+  for (const t of list) {
+    if (t.amount >= 0) continue;
+    const d = Number(String(t.date).slice(8, 10));
+    if (d >= 1 && d <= days) out[d - 1] = cents(out[d - 1] - t.amount);
+  }
+  return out;
+}
+// where a line came from, in the words the page uses
+export function sourceKind(source) {
+  const s = String(source || 'manual');
+  if (s === 'import') return 'export';
+  if (s === 'scan') return 'scan';
+  return 'typed'; // manual, capture, voice and anything a person typed
+}
 
-  const spendOf = (list) => Math.round(list.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0) * 100) / 100;
-  const incomeOf = (list) => Math.round(list.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0) * 100) / 100;
+// THE MONTH, every figure the page draws, computed here so the screen never
+// adds anything up. `asOfDay` is the day the month is compared at: today's
+// date in the current month, the whole month for a past one (so a past month
+// never says "this month" or "days left"). `now` is injectable for tests.
+export async function getMonthSummary(month, { now = new Date() } = {}) {
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const current = today.slice(0, 7);
+  const m = month || current;
+  const { transactions, corrupt } = await readMonth(m);
+  const prevMonth = monthShift(m, -1);
+  const prev = (await readMonth(prevMonth)).transactions;
+  const before = (await readMonth(monthShift(m, -2))).transactions;
+
+  const days = daysIn(m);
+  const prevDays = daysIn(prevMonth);
+  const isCurrent = m === current;
+  const asOfDay = isCurrent ? now.getDate() : m < current ? days : 0;
+  const prevAsOf = Math.min(asOfDay, prevDays);
+  const upTo = (list, day) => list.filter((t) => Number(String(t.date).slice(8, 10)) <= day);
+  const prevToDay = upTo(prev, prevAsOf);
+
   const budgets = await getBudgets();
-  const byCategory = CATEGORIES.map((c) => ({
-    category: c,
-    spent: spendOf(transactions.filter((t) => t.category === c)),
-    prev: spendOf(prev.filter((t) => t.category === c)),
-    budget: budgets[c] || null,
-  })).filter((c) => c.spent > 0 || c.prev > 0 || c.budget);
+  const byCategory = CATEGORIES.map((c) => {
+    const mine = transactions.filter((t) => t.category === c);
+    const theirs = prev.filter((t) => t.category === c);
+    return {
+      category: c,
+      spent: spendOf(mine),
+      prev: spendOf(theirs),
+      prevToDay: spendOf(prevToDay.filter((t) => t.category === c)),
+      visits: mine.filter((t) => t.amount < 0).length,
+      prevVisitsToDay: prevToDay.filter((t) => t.category === c && t.amount < 0).length,
+      // the two months before this one and this one, oldest first (the budget sheet's bars)
+      history: [spendOf(before.filter((t) => t.category === c)), spendOf(theirs), spendOf(mine)],
+      budget: budgets[c] || null,
+    };
+  }).filter((c) => c.spent > 0 || c.prev > 0 || c.budget);
+
+  const sources = { export: 0, typed: 0, scan: 0 };
+  for (const t of transactions) sources[sourceKind(t.source)] += 1;
+  const recent = [...transactions, ...prev].filter((t) => t.source === 'import' && t.addedAt).map((t) => t.addedAt).sort();
+  const incomes = transactions.filter((t) => t.amount > 0).sort((a, b) => (a.date < b.date ? 1 : -1));
 
   return {
     month: m,
     prevMonth,
+    today,
+    isCurrent,
+    asOfDay,
+    daysInMonth: days,
+    daysInPrev: prevDays,
     spent: spendOf(transactions),
     prevSpent: spendOf(prev),
+    prevSpentToDay: spendOf(prevToDay),
     income: incomeOf(transactions),
+    incomeCount: incomes.length,
+    lastIncomeDate: incomes[0]?.date || null,
     count: transactions.length,
+    corrupt: !!corrupt,
+    budgets,
     byCategory,
+    daily: dailyOf(transactions, days),
+    prevDaily: dailyOf(prev, prevDays),
+    sources,
+    lastImportAt: recent[recent.length - 1] || null,
     transactions,
     subscriptions: detectSubscriptions(await listTransactions({ sinceMonths: 13 })),
   };
