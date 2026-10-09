@@ -302,6 +302,16 @@ async function main() {
     const stale = await reapStaleErrors();
     if (stale.reaped) console.log(`inbox reaper: aged out ${stale.reaped} stale failure(s)`);
   }).catch((e) => console.error('inbox reaper failed:', e.message));
+  // THE CODE SCREEN'S WORKSPACES (10 Oct 2026): Science Atlas and Wren are
+  // named once, in server/data/code-workspaces.json, written here with his
+  // two folders if there is no file yet (never overwritten), and the old
+  // code-commits.json is folded onto the inbox rails once.
+  import('./lib/codeWorkspaces.js').then(({ seedWorkspaces }) => seedWorkspaces())
+    .then(({ seeded }) => { if (seeded) console.log('code workspaces: named Science Atlas and Wren in server/data/code-workspaces.json'); })
+    .catch((e) => console.error('code workspaces seed failed:', e.message));
+  import('./lib/codeChanges.js').then(({ migrateCommitsFile }) => migrateCommitsFile())
+    .then(({ migrated }) => { if (migrated) console.log(`code commits: moved ${migrated} undo record(s) onto the inbox rails`); })
+    .catch((e) => console.error('code commits migration failed:', e.message));
   // and expire stale time-value drafts (old dispatches/reviews/today-checks)
   // at boot + every 6h, so the pending queue holds only things worth a yes
   const expireTick = () => import('./lib/inbox.js').then(({ expireStaleDrafts }) =>

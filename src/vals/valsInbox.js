@@ -38,6 +38,8 @@ const SOURCE_LABEL = {
   plan: 'NOVA', program: 'PROGRAM DOSSIER', 'coach-review': 'COACH',
   // Practice (27 Sep): the page Prepare wrote, the debrief's receipt, a pause
   'practice-skill': 'PRACTICE', 'practice-session': 'PRACTICE', 'practice-status': 'PRACTICE',
+  // his own commit on the Code screen (10 Oct): the rails hold its Undo
+  code: 'CODE',
 };
 
 // PRACTICE RECORDS (27 Sep). The badge is the kind's own, whatever route the
@@ -67,6 +69,8 @@ export const ROUTE_META = {
   // a money signal (lib/moneySignals.js) and his own Money-screen change (lib/moneyRails.js), in Money's violet
   'money-event': { label: 'MONEY', hue: '143,123,255' },
   'money-write': { label: 'LEDGER', hue: '143,123,255' },
+  // a commit he made on the Code screen; its Undo is the commit taken back
+  'code-commit': { label: 'COMMIT', hue: '89,230,255' },
   idea: { label: 'IDEA', hue: '143,123,255' },
   'idea-outline': { label: 'OUTLINE', hue: '143,123,255' },
   // an iCloud write must never wear a NOTE badge — name what approving does
