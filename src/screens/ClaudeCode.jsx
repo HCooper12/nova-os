@@ -451,9 +451,18 @@ function Line({ l, live }) {
 function Runs({ runs }) {
   const ref = useRef(null);
   useFlipList(ref, runs.lines.map((l) => l.key).join('|'), { exits: false });
+  // closed runs stay one tap away without pushing the live run down: the
+  // newest shows, the rest fold behind one row (break-ui: twelve of them)
+  const [allClosed, setAllClosed] = useState(false);
+  const closed = allClosed ? runs.closed : runs.closed.slice(0, 1);
   return (
     <>
-      {runs.closed.map((r) => (
+      {runs.closed.length > 1 && (
+        <button type="button" className="nv-cd-more" style={{ marginBottom: 10 }} onClick={() => setAllClosed((x) => !x)}>
+          {allClosed ? 'Show only the newest closed run' : `${runs.closed.length - 1} more closed run${runs.closed.length === 2 ? '' : 's'}`}
+        </button>
+      )}
+      {closed.map((r) => (
         <div className="nv-cd-card nv-cd-closed" key={r.key}>
           <button type="button" className="crow" onClick={r.toggle} aria-expanded={r.open}><span className="nv-cd-mk ghost" /><span className="t"><b>{r.title}</b><span className="nv-cd-k">{r.line}</span></span><Ic g="right" className={`nv-cd-ic chev${r.open ? ' down' : ''}`} /></button>
           {r.open && <div className="nv-cd-thread inset">{r.lines.map((l) => <Line key={l.key} l={l} />)}</div>}
