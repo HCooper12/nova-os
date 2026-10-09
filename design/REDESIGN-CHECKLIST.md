@@ -561,6 +561,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — HIS CALLS: Code: connect Science Atlas (Atomic_Hub/P3_Draft3/
+  Atlas_Progress_Map) and Wren (atlas-partner) for commits; quote a waiting
+  session's last message; move commit undo onto the rails (agent running).
+  Shopping round 5: programme colours as subtle glass tints per card, and two
+  distinct forms for a multiplier vs a points total (agent running). Money:
+  the full check once a night, over budget at once (shipped e7053e4; it was
+  code only, no tokens). New: Claude Dashboards and Motion (beta, 8 Oct);
+  the Dashboard artifact type is on his account, Motion is not.
 - 10 Oct 2026 — MONEY BUILT AND SHIPPED (merge 70b6249, pushed, reloaded):
   mockups 85 + 90, 131-line checklist (119 present, 12 differ, none missing;
   Split and Billroo category mapping left out pending his calls). Wired into
