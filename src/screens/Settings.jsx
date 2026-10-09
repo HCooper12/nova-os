@@ -275,7 +275,9 @@ export function Settings({ v }) {
     const p = pend.current;
     pend.current = null;
     if (path.length > prev.length) {
-      if (main) main.scrollTop = 0;
+      // writing scrollTop forces a layout of the new page inside the commit;
+      // a parent left at the top is already where the new page starts
+      if (main && p?.snap?.scrollTop !== 0) main.scrollTop = 0;
       if (p?.kind === 'push' && p.snap) playPush(p.snap);
       else if (p?.snap) p.snap.layer.remove();
       return;
