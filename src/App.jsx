@@ -1133,14 +1133,20 @@ export default class App extends Component {
   // NOT the chrome, so the bar and dock are never captured, never stale, and
   // cannot glitch. It also needs no wrapper element and no remount, so the
   // scroll restoration in navigate() still holds.
+  // Under reduced motion the screen does not travel: it cross-fades in
+  // 160 ms (opacity only), the way Settings' pages do, instead of cutting.
   riseMain() {
     const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce || !this.mainRef?.current?.animate) return;
+    if (!this.mainRef?.current?.animate) return;
     try {
       this.screenAnim?.cancel();
       this.screenAnim = this.mainRef.current.animate(
-        [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
-        { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
+        reduce
+          ? [{ opacity: 0 }, { opacity: 1 }]
+          : [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+        reduce
+          ? { duration: 160, easing: 'ease', fill: 'both' }
+          : { duration: 260, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' },
       );
       // release the hold, or a later scroll write fights a finished effect
       this.screenAnim.finished.catch(() => {}).then(() => this.screenAnim?.cancel());

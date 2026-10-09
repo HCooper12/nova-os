@@ -123,7 +123,10 @@ input::placeholder, textarea::placeholder { color: color-mix(in srgb, var(--nv-i
 .nv-count > span, .nv-count::after { grid-area: 1 / 1; white-space: pre; }
 .nv-count::after { content: attr(data-w); visibility: hidden; pointer-events: none; }
 .nv-deck-rise { animation: deckRise var(--nv-dur-base) var(--nv-ease) both; }
-@media (prefers-reduced-motion: reduce) { .nv-deck-rise { animation: none; } }
+/* reduced motion: the card does not travel, it fades. !important because the
+   global reduced-motion rule below crushes every animation to .01s, and a
+   cut is not what reduced motion asks for (apple-design: a short cross-fade) */
+@media (prefers-reduced-motion: reduce) { .nv-deck-rise { animation: fadeIn .16s ease both !important; } }
 
 /* THE HOUSE SWIPE ROW (src/SwipeRow.jsx, 3 Oct 2026): iOS Mail's buttons.
    Each side's group sits at its edge and its width follows the row's
@@ -1032,7 +1035,9 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   animation: deckRise var(--nv-dur-base) var(--nv-ease) backwards;
   animation-delay: calc(var(--i, 0) * 40ms);
 }
-@media (prefers-reduced-motion: reduce) { .nv-sum-rise { animation: none; } }
+/* reduced motion: a 160 ms fade in place of the rise (no stagger, nothing
+   moves); calm mode keeps its stillness */
+@media (prefers-reduced-motion: reduce) { :root:not([data-nv-calm="1"]) .nv-sum-rise { animation: fadeIn .16s ease backwards !important; } }
 :root[data-nv-calm="1"] .nv-sum-rise { animation: none; }
 
 /* THE CARD IS GLASS (27 Sep). The mockup's fill, ring and top highlight,
