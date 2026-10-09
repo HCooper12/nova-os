@@ -67,7 +67,11 @@ const NOVA_KEY = 'nova-os';
  */
 export async function sessionsNow({ execFn = runCommand, now = Date.now(), ...rest } = {}) {
   const { agents, ok } = await readAgents({ execFn, detail: true });
-  const sessions = describe(agents, { now, ...rest });
+  // quietMs: how long since anyone spoke in it, as a number, so the Code
+  // screen can draw it against the 12 hours after which a session counts as
+  // left open (null when the journal has no message to measure from)
+  const sessions = describe(agents, { now, ...rest })
+    .map((s) => ({ ...s, quietMs: s.lastAt != null ? Math.max(0, now - s.lastAt) : null }));
 
   const byKey = new Map();
   for (const s of sessions) {

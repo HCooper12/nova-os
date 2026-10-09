@@ -449,10 +449,15 @@ export const api = {
   prewarmAsk: (conn, sessionId) => post(conn, '/api/ask/prewarm', { sessionId }).catch(() => null),
   trainOverview: (conn) => call(conn, '/api/train/overview'),
   fuelCross: (conn) => call(conn, '/api/train/fuel-cross'),
-  codeChanges: (conn, workspace) => call(conn, `/api/claude-code/changes?workspace=${encodeURIComponent(workspace || 'repo')}`),
-  codeCommit: (conn, workspace, message) => post(conn, '/api/claude-code/commit', { workspace, message }),
-  codeShelve: (conn, workspace) => post(conn, '/api/claude-code/shelve', { workspace }),
-  codeUnshelve: (conn, workspace) => post(conn, '/api/claude-code/unshelve', { workspace }),
+  // the Code screen (round 3): every write names the ticked paths; the server
+  // checks each one (server/lib/codeChanges.js) before git runs
+  codeChanges: (conn, workspace, sessionId) => call(conn, `/api/claude-code/changes?workspace=${encodeURIComponent(workspace || 'repo')}${sessionId ? `&sessionId=${encodeURIComponent(sessionId)}` : ''}`),
+  codeFileDiff: (conn, workspace, path) => call(conn, `/api/claude-code/diff?workspace=${encodeURIComponent(workspace || 'repo')}&path=${encodeURIComponent(path)}`),
+  codeCommits: (conn, workspace, since) => call(conn, `/api/claude-code/commits?workspace=${encodeURIComponent(workspace || 'repo')}&since=${encodeURIComponent(since || 0)}`),
+  codeCommit: (conn, workspace, message, paths) => post(conn, '/api/claude-code/commit', { workspace, message, paths }),
+  codeUndoCommit: (conn, workspace, sha) => post(conn, '/api/claude-code/undo', { workspace, sha }),
+  codeShelve: (conn, workspace, paths) => post(conn, '/api/claude-code/shelve', { workspace, paths }),
+  codeUnshelve: (conn, workspace, sha) => post(conn, '/api/claude-code/unshelve', { workspace, sha }),
   verdict: (conn, kind, of) => call(conn, `/api/verdict/${encodeURIComponent(kind)}${of ? `?of=${encodeURIComponent(of)}` : ''}`),
   sendIntent: (conn, text, lane) => post(conn, '/api/intent', lane ? { text, lane } : { text }),
   // a job verb that waited on the model-choice gate, sent back with his answer

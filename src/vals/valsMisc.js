@@ -1,4 +1,5 @@
 import { getConnection } from '../api.js';
+import { valsCode } from './valsCode.js';
 import { isStandalone, lastEdgeGesture, depthOf } from '../edgeBack.js';
 import { GALAXY_MAX_NODES, toWorld } from '../galaxyLayout.js';
 import { orbReply } from '../mockAssistants.js';
@@ -105,7 +106,7 @@ export function valsMisc(app, ctx) {
   // number; it only arranges what arrived and shows absences as absences.
   const instruments = st.liveInstruments || null;
 
-  return {
+  const out = {
     instruments,
     instrumentsBusy: !!st.instrumentsBusy,
     instrumentsError: st.instrumentsError || null,
@@ -459,31 +460,9 @@ export function valsMisc(app, ctx) {
       else app.navigate(t, { galaxySel: null });
     },
 
-    // code
-    codeConnected: !!getConnection(),
-    // C2 — the diff panel's view model
-    codeChanges: st.codeChanges,
-    codeChangesOpen: !!st.codeChangesOpen,
-    toggleCodeChanges: () => app.setState({ codeChangesOpen: !st.codeChangesOpen }),
-    codeCommitMsg: st.codeCommitMsg || '',
-    setCodeCommitMsg: (e) => app.setState({ codeCommitMsg: e.target.value }),
-    codeChangeBusy: !!st.codeChangeBusy,
-    commitCodeChanges: () => app.commitCodeChanges(),
-    shelveCodeChanges: () => app.shelveCodeChanges(),
-    unshelveCodeChanges: () => app.unshelveCodeChanges(),
-    codeShelf: st.codeShelf,
-    codeMsgs: st.codeChat.map(m => ({ text: m.text, tag: m.who === 'claude' ? '» BUILDER' : m.who === 'breaker' ? '» BREAKER' : m.who === 'system' ? '» SYSTEM' : '» YOU', tagStyle: { color: m.who === 'claude' ? 'var(--nv-gold)' : m.who === 'breaker' ? 'var(--nv-mg)' : m.who === 'system' ? 'var(--nv-warn)' : 'color-mix(in srgb, var(--nv-ink) 50%, transparent)', fontWeight: 500 } })),
-    sparBusy: st.sparBusy,
-    startSpar: () => app.startSpar(),
-    codeBusy: st.codeBusy,
-    codeInput: st.codeInput,
-    setCodeInput: (e) => app.setState({ codeInput: e.target.value }),
-    codeKey: (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); app.doCode(); } },
-    sendCode: () => app.doCode(),
-    codeWorkspace: st.codeWorkspace,
-    setCodeWorkspace: (w) => app.setCodeWorkspace(w),
-    codeModel: st.codeModel,
-    setCodeModel: (e) => app.setState({ codeModel: e.target.value }),
+    // code: round 3 (mockup 89) builds the whole screen's model in
+    // src/vals/valsCode.js from the model list below (see the end of this
+    // function)
     // Aliases, not pinned ids: this picker is a per-message override and
     // should follow whatever is newest in each family. The labels track the
     // model board's (server/lib/modelPrefs.js) — change both together.
@@ -503,7 +482,6 @@ export function valsMisc(app, ctx) {
         { value: 'haiku', label: 'Haiku (newest)' },
       ],
     codeSessionActive: !!st.codeSessionId,
-    newCodeSession: () => app.newClaudeCodeSession(),
 
     // ingest
     ingestModalOpen: st.ingestModalOpen,
@@ -565,4 +543,7 @@ export function valsMisc(app, ctx) {
     stashAddError: st.stashAddError,
     submitStashAdd: () => app.addStashItem(),
   };
+  // the Code screen (round 3): one model, built only while it is on screen
+  out.code = st.screen === 'code' ? valsCode(app, ctx, { modelOptions: out.codeModelOptions }) : null;
+  return out;
 }

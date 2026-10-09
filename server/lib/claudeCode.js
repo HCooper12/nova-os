@@ -138,6 +138,12 @@ function spawnWarm(key, { cwd, args, env }) {
         w.currentJob.partial = (w.currentJob.partialPrefix || '') + w.streamed;
         onPartial(w.currentJob, w.streamed);
       } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
+        // the files this turn wrote, from the CLI's own tool calls (the Code
+        // screen's Builder line says "N files" from this, never a guess)
+        for (const c of ev.message.content) {
+          const fp = c?.type === 'tool_use' && /^(Edit|Write|MultiEdit|NotebookEdit)$/.test(c.name) ? (c.input?.file_path || c.input?.notebook_path) : null;
+          if (typeof fp === 'string') (w.currentJob.touched ||= new Set()).add(fp);
+        }
         const txt = ev.message.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
         if (txt) { w.streamed = txt; w.currentJob.partial = (w.currentJob.partialPrefix || '') + txt; onPartial(w.currentJob, txt); } // authoritative snapshot
       } else if (ev.type === 'result') {
@@ -230,7 +236,7 @@ export function startMessage(cwd, { text, sessionId, model }) {
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
   const effectiveSessionId = sessionId || randomUUID();
-  const job = { id: jobId, status: 'running', result: null, error: null };
+  const job = { id: jobId, status: 'running', result: null, error: null, startedAt: Date.now() };
   jobs.set(jobId, job);
 
   const args = [
@@ -261,7 +267,14 @@ export function startMessage(cwd, { text, sessionId, model }) {
     text,
     job,
     finishTurn: (replyText, turnJob) => {
-      turnJob.result = { text: replyText, sessionId: effectiveSessionId };
+      turnJob.result = {
+        text: replyText,
+        sessionId: effectiveSessionId,
+        // which files the Builder wrote this turn, relative to its workspace
+        files: [...(turnJob.touched || [])].map((f) => (path.isAbsolute(f) ? path.relative(cwd, f) : f)).filter((f) => f && !f.startsWith('..')),
+        startedAt: turnJob.startedAt,
+        endedAt: Date.now(),
+      };
       turnJob.status = 'ready';
     },
   });
@@ -1417,7 +1430,7 @@ export function repoFocus(cwd) {
 export function startBreaker(cwd, { focus }) {
   assertLaneOn('breaker');
   const jobId = randomUUID().slice(0, 8);
-  const job = { id: jobId, status: 'running', result: null, error: null };
+  const job = { id: jobId, status: 'running', result: null, error: null, startedAt: Date.now() };
   jobs.set(jobId, job);
 
   const prompt = `You are the BREAKER in a builder/breaker sparring loop over this workspace. Your job is adversarial review: find what is genuinely broken, fragile, or wrong — then STOP. You cannot edit anything (your tools are read-only by design); the builder is the only one who can fix what you find.
@@ -1451,7 +1464,7 @@ Report format: a short verdict line, then a numbered list of findings — each w
       const outer = parseEnvelope(stdout, { lane: 'breaker', code, stderr });
       const replyText = (outer.result || '').trim();
       if (!replyText) throw new Error('Empty response');
-      job.result = { text: replyText };
+      job.result = { text: replyText, startedAt: job.startedAt, endedAt: Date.now() };
       job.status = 'ready';
     } catch (e) {
       job.status = 'error';
