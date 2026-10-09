@@ -74,7 +74,7 @@ export const KIND_BEING = {
   coach: 'coach', 'coach-program': 'coach', 'coach-audit': 'coach', 'coach-review': 'coach', 'exercise-research': 'coach',
   program: 'coach', 'weekly-debrief': 'coach', 'week-plan': 'coach', 'training-check': 'coach',
   'food-suggestion': 'mealprep', 'meal-prep': 'mealprep', 'fuel-cross': 'mealprep',
-  cfo: 'cfo', money: 'cfo', 'money-import': 'cfo',
+  cfo: 'cfo', money: 'cfo', 'money-import': 'cfo', 'money-write': 'cfo',
   guardian: 'guardian', compost: 'guardian', pattern: 'guardian', autonomy: 'guardian',
   'model-choice': 'guardian', 'forge-job': 'guardian',
   research: 'researcher', study: 'researcher', paper: 'researcher', scout: 'researcher', repertoire: 'researcher',
