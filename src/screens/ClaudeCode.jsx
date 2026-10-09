@@ -301,7 +301,10 @@ function Review({ r }) {
     if (body && !reduced()) {
       const bars = [...body.querySelectorAll('.nv-cd-fr:not(.off) .fbar')].reverse();
       bars.forEach((b, k) => anims.push(b.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: 300, delay: k * 60, easing: EOUT, fill: 'forwards' })));
-      anims.push(body.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-12px) scale(.98)' }], { duration: 320, delay: 320, easing: EOUT, fill: 'forwards' }));
+      // the files give way; the message and "Committing" stay until the
+      // server answers, so a slow Mac never leaves an empty card
+      const list = body.querySelector('.files');
+      if (list) anims.push(list.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-12px) scale(.98)' }], { duration: 320, delay: 320, easing: EOUT, fill: 'forwards' }));
     }
     setFolding(true);
     const wait = new Promise((res) => setTimeout(res, reduced() ? 0 : 640));
