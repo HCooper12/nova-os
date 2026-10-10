@@ -145,7 +145,7 @@ const IMPORT_REC = { id: 'demo-import', kind: 'money-import', status: 'pending',
 // a budget app's .xlsx, read directly (10 Oct 2026): its own category on each
 // line, mapped where the name clearly matches Nova's, else Nova's guess
 const THEIRS = { Groceries: 'Groceries', 'Eating Out': 'Dining out', Transport: 'Travel', 'Health & Fitness': 'Fitness', Shopping: 'Home', Other: 'Uncategorised' };
-const MAPS = new Set(['Groceries', 'Eating Out']);
+const MAPS = new Set(['Groceries', 'Eating Out', 'Health & Fitness']); // what mapTheirCategory maps (Travel, Home, Uncategorised do not)
 const xlsxRec = (n, file = 'billroo-export.xlsx') => {
   const lines = Array.from({ length: n }, (_, i) => {
     const l = IMPORT_LINES[i % IMPORT_LINES.length];

@@ -1015,16 +1015,16 @@ function ImportSheet({ M, id, onClose }) {
   useEffect(() => { if (!c) onClose(); }, [c, onClose]);
   if (!c) return null;
   return (
-    <Sheet label={`${c.count} lines from the export`} title={c.file || 'Statement photo'} onClose={onClose} wide
+    <Sheet label={`${c.countLabel} lines from the export`} title={c.file || 'Statement photo'} onClose={onClose} wide
       left={(close) => <button type="button" className="nv-mo-q" onClick={close}>Close</button>} right={() => <span style={{ width: 44 }} />}
       foot={(close) => (
-        <button type="button" className="nv-mo-save block" disabled={M.view.readOnly} onClick={() => { haptic('commit'); M.approveImport(c.id); close(); }}>File all {c.count}{c.monthName ? ` into ${c.monthName}` : ''}</button>
+        <button type="button" className="nv-mo-save block" disabled={M.view.readOnly} onClick={() => { haptic('commit'); M.approveImport(c.id); close(); }}>File all {c.countLabel}{c.monthName ? ` into ${c.monthName}` : ''}</button>
       )}>
       {() => (
         <>
-          <p className="nv-mo-sub" style={{ textAlign: 'center', marginTop: 0 }}>{c.count} lines · {c.range}</p>
+          <p className="nv-mo-sub" style={{ textAlign: 'center', marginTop: 0 }}>{c.countLabel} lines · {c.range}</p>
           <div className="nv-mo-segc" role="group" aria-label="Which lines">
-            <button type="button" aria-pressed={tab === 'new'} onClick={() => setTab('new')}>New {c.count}</button>
+            <button type="button" aria-pressed={tab === 'new'} onClick={() => setTab('new')}>New {c.countLabel}</button>
             <button type="button" aria-pressed={tab === 'out'} onClick={() => setTab('out')}>Left out {c.leftOut}</button>
           </div>
           {tab === 'new' && c.capNote && <p className="nv-mo-sub quiet">{c.capNote}</p>}

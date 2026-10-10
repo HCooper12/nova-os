@@ -142,10 +142,15 @@ test('the import card says where categories came from, and a 5,000-line sheet li
     const v = buildMoneyView({ money: demoSummary(st), records: st.records, demo: true });
     const card = v.importCards[0];
     assert.equal(card.count, n);
-    assert.match(card.mixWords, /Categories: \d+ from the file’s own, where the name matches Nova’s; \d+ guessed by Nova from the merchant name\./);
+    assert.match(card.mixWords, /Categories: [\d,]+ from the file’s own, where the name matches Nova’s; [\d,]+ guessed by Nova from the merchant name\./);
     const shown = card.groups.flatMap((g) => g.rows);
     assert.equal(shown.length, Math.min(n, 120), 'the sheet draws every line of a huge export');
-    if (n > 120) assert.equal(card.capNote, 'Showing the newest 120 of 5,000. Filing files all of them.');
+    if (n > 120) {
+      assert.equal(card.capNote, 'Showing the newest 120 of 5,000. Filing files all of them.');
+      assert.equal(card.say, '5,000 new lines from billroo-export.xlsx.', 'a big count is not grouped');
+      assert.equal(card.countLabel, '5,000');
+      assert.equal(card.monthName, '', 'an export spanning months says it files "into" one of them');
+    } else assert.equal(card.monthName, 'September');
     assert.ok(shown.some((r) => r.theirs === 'Dining out' && r.catLabel === 'Eating out'), 'the theirs-to-ours mapping is not drawn');
     assert.ok(shown.every((r) => r.theirs !== 'Groceries'), 'a name that already matches is drawn twice');
   }

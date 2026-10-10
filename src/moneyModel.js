@@ -453,26 +453,32 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
     const fromRule = list.filter((t) => t.categoryFrom === 'rule').length;
     const carried = list.some((t) => t.categoryFrom);
     const guessed = list.length - fromTheirs - fromRule;
+    // counts grouped as he reads them: "5,000", never "5000" (break-ui, 10 Oct)
+    const g = (k) => AUD0.format(k);
     const whence = !carried ? 'Nova guessed each category from the merchant name.'
       : `Categories: ${[
-        fromTheirs ? `${fromTheirs} from the file’s own, where the name matches Nova’s` : null,
-        fromRule ? `${fromRule} by your merchant ${fromRule === 1 ? 'rule' : 'rules'}` : null,
-        guessed ? `${guessed} guessed by Nova from the merchant name` : null,
+        fromTheirs ? `${g(fromTheirs)} from the file’s own, where the name matches Nova’s` : null,
+        fromRule ? `${g(fromRule)} by your merchant ${fromRule === 1 ? 'rule' : 'rules'}` : null,
+        guessed ? `${g(guessed)} guessed by Nova from the merchant name` : null,
       ].filter(Boolean).join('; ')}.`;
+    // "into September" only when every line is in September: an export that
+    // spans months files each line into its own (break-ui, 10 Oct)
+    const oneMonth = dates.length && dates[0].slice(0, 7) === dates[dates.length - 1].slice(0, 7);
     const IMPORT_CAP = 120;
     const shownList = [...list].map((t, i) => ({ ...t, id: t.id || `${r.id}-${i}` })).sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, IMPORT_CAP);
     return {
       id: r.id, file,
-      say: `${plural(list.length, 'new line')} from ${file || 'a statement photo'}.`,
+      say: `${list.length === 1 ? '1 new line' : `${g(list.length)} new lines`} from ${file || 'a statement photo'}.`,
       range: dates.length ? `${Number(dates[0].slice(8))} ${dates[0].slice(0, 7) === dates[dates.length - 1].slice(0, 7) ? '' : `${monthName(dates[0].slice(0, 7))} `}to ${Number(dates[dates.length - 1].slice(8))} ${monthName(dates[dates.length - 1].slice(0, 7))}`.replace(/\s+/g, ' ') : '',
       leftOut,
       preview: mix.map(([c, n]) => ({ hue: catOf(c).hue, n })),
-      mixWords: `${mix.slice(0, 3).map(([c, n]) => `${catOf(c).label} ${n}`).join(', ')}${mix.length > 3 ? ` and ${list.length - mix.slice(0, 3).reduce((s, [, n]) => s + n, 0)} more` : ''}. ${whence}`,
+      mixWords: `${mix.slice(0, 3).map(([c, n]) => `${catOf(c).label} ${g(n)}`).join(', ')}${mix.length > 3 ? ` and ${g(list.length - mix.slice(0, 3).reduce((s, [, n]) => s + n, 0))} more` : ''}. ${whence}`,
       // the sheet lists the newest IMPORT_CAP; the count says the rest
       groups: groupRows(shownList),
-      capNote: list.length > IMPORT_CAP ? `Showing the newest ${IMPORT_CAP} of ${list.length.toLocaleString('en-AU')}. Filing files all of them.` : null,
+      capNote: list.length > IMPORT_CAP ? `Showing the newest ${IMPORT_CAP} of ${g(list.length)}. Filing files all of them.` : null,
       count: list.length,
-      monthName: dates.length ? monthName(dates[dates.length - 1].slice(0, 7)) : '',
+      countLabel: g(list.length),
+      monthName: oneMonth ? monthName(dates[0].slice(0, 7)) : '',
       talk: `Let's talk about this import waiting in my Inbox: “${r.decision?.title || r.text}”`,
     };
   });
