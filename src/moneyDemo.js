@@ -12,6 +12,8 @@
 // one, loading, offline, past, import, xlsx. A production build always
 // shows the demo.
 
+import { merchantKey } from './moneyModel.js';
+
 const pad = (n) => String(n).padStart(2, '0');
 const TODAY = '2026-10-25';
 const MONTH = '2026-10';
@@ -183,7 +185,34 @@ let demoId = 0;
 export const demoWrites = {
   add: (st, { merchant, amount, category }) => ({ ...st, lines: [{ id: `dn${++demoId}`, date: TODAY, amount, merchant, category: category || 'Other', note: null, source: 'manual', addedAt: new Date().toISOString() }, ...st.lines] }),
   remove: (st, id) => ({ ...st, lines: st.lines.filter((t) => t.id !== id) }),
-  edit: (st, id, { category, note }) => ({ ...st, lines: st.lines.map((t) => (t.id === id ? { ...t, ...(category !== undefined ? { category } : {}), ...(note !== undefined ? { note: note || null } : {}) } : t)) }),
+  // with `rule`, every other line from the merchant moves too (the server's
+  // moveMerchantLines: same direction, not split)
+  edit: (st, id, { category, note, rule }) => {
+    const line = st.lines.find((t) => t.id === id);
+    const key = rule && category !== undefined && line ? merchantKey(line.merchant) : null;
+    return {
+      ...st,
+      lines: st.lines.map((t) => {
+        if (t.id === id) return { ...t, ...(category !== undefined ? { category } : {}), ...(note !== undefined ? { note: note || null } : {}) };
+        if (key && merchantKey(t.merchant) === key && (t.amount > 0) === (line.amount > 0) && !(t.parts?.length > 1)) return { ...t, category };
+        return t;
+      }),
+    };
+  },
+  // the merchant's other lines by category (GET .../merchant, in memory)
+  merchant: (st, id) => {
+    const line = st.lines.find((t) => t.id === id);
+    if (!line) return null;
+    const key = merchantKey(line.merchant);
+    const byCategory = {};
+    let split = 0;
+    for (const t of st.lines) {
+      if (t.id === id || merchantKey(t.merchant) !== key || (t.amount > 0) !== (line.amount > 0)) continue;
+      if (t.parts?.length > 1) { split++; continue; }
+      byCategory[t.category] = (byCategory[t.category] || 0) + 1;
+    }
+    return { id, byCategory, split };
+  },
   budget: (st, category, value) => { const b = { ...st.budgets }; if (value) b[category] = value; else delete b[category]; return { ...st, budgets: b }; },
   resolve: (st, id) => ({ ...st, records: st.records.filter((r) => r.id !== id) }),
 };

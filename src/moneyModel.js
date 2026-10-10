@@ -79,6 +79,30 @@ export function initialOf(name) {
   return m ? m[0].toUpperCase() : s[0];
 }
 
+// the server's merchantKey (lib/money.js), the same normalising: what makes
+// "DEMO CORNER STORE" and "Demo Corner Store" one merchant
+export const merchantKey = (m) => String(m || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(pty|ltd|au|com|www|pay|payment)\b/g, '').trim();
+
+// THE MERCHANT SWITCH'S COUNT (his call 10 Oct 2026, "every last purchase
+// too"): from the merchant's other lines by category (GET .../merchant, or
+// the demo's own list), how many a move to `target` would change. The
+// server moves exactly these: same direction, not already there, not split.
+export function merchantMoveCount(info, target) {
+  if (!info || !info.byCategory) return null;
+  let n = 0;
+  for (const [c, k] of Object.entries(info.byCategory)) if (c !== target) n += k;
+  return { moves: n, split: info.split || 0 };
+}
+
+// the switch's small line, in words that are true before he saves
+export function merchantSwitchWords(on, count) {
+  if (!on) return 'Off: only this line changes';
+  if (!count) return 'On: past and future lines from it follow';
+  const keep = !count.split ? '' : count.split === 1 ? ' One split line keeps its parts.' : ` ${count.split} split lines keep their parts.`;
+  if (!count.moves) return `On: no past lines to move; future ones follow.${keep}`;
+  return `On: moves ${count.moves === 1 ? '1 past line' : `${count.moves.toLocaleString('en-AU')} past lines`} too, and future ones follow.${keep}`;
+}
+
 /* ---------------------------------------------------------- cadences -- */
 
 const CAD_DAYS = { weekly: 7, fortnightly: 14, monthly: 30, quarterly: 91, yearly: 365 };

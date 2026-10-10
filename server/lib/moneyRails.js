@@ -85,14 +85,18 @@ export async function deleteLines(ids) {
 export async function editLine(id, { category, note, rule = false } = {}) {
   const res = await editTransaction(id, { category, note, rule });
   const t = res.transaction;
+  const n = res.moved?.length || 0;
   const what = category !== undefined && category !== res.before.category
-    ? `${t.merchant} to ${cat(t.category)}${res.override ? ', and every line from it' : ''}`
-    : `the note on ${t.merchant}`;
+    ? `${t.merchant} to ${cat(t.category)}${res.override ? (n ? `, with ${n} past ${n === 1 ? 'line' : 'lines'} and every future one` : ', and every future line from it') : ''}`
+    : res.override && n ? `${n} past ${t.merchant} ${n === 1 ? 'line' : 'lines'} to ${cat(t.category)}`
+      : `the note on ${t.merchant}`;
   const record = await fileReceipt({
-    text: `Changed ${what}`,
+    text: `${n ? 'Moved' : 'Changed'} ${what}`,
     destination: `Ledger · ${t.merchant}`,
-    undoData: { route: 'money-edit', id, before: res.before, override: res.override },
-    payload: { id, category: t.category, note: t.note, rule: !!res.override },
+    // ONE record for the whole move: Undo puts this line, every moved line
+    // (each to its own old category) and the merchant rule back
+    undoData: { route: 'money-edit', id, before: res.before, override: res.override, moved: res.moved || [] },
+    payload: { id, category: t.category, note: t.note, rule: !!res.override, moved: n },
   });
   return { transaction: t, record };
 }

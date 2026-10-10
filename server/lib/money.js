@@ -180,8 +180,10 @@ export async function setTransactionCategory(id, category) {
 
 // ONE LINE CHANGED, with everything an undo needs to put it back: the line's
 // category and note before, and the merchant rule before (its category, or
-// null when there was none). `rule` true also files every future line from
-// this merchant this way (the line sheet's switch, off unless he turns it on).
+// null when there was none). `rule` true files the merchant his way from now
+// on AND moves every other line already in the ledger from it ("Yes, every
+// last purchase too", his call 10 Oct 2026): `moved` lists each one with the
+// category it had, so Undo puts every line back where it was.
 export async function editTransaction(id, { category, note, rule = false } = {}) {
   if (category !== undefined && !CATEGORIES.includes(category)) throw new Error('unknown category');
   for (const month of await listMonths()) {
@@ -193,17 +195,89 @@ export async function editTransaction(id, { category, note, rule = false } = {})
     if (note !== undefined) t.note = String(note || '').trim().slice(0, 200) || null;
     await writeMonth(month, data);
     let override = null;
+    let moved = [];
     if (rule && category !== undefined) {
       const key = merchantKey(t.merchant);
       if (key) {
         const cfg = await readConfig();
         override = { key, before: cfg.merchantOverrides[key] || null };
         await setMerchantOverride(t.merchant, category);
+        moved = await moveMerchantLines(key, category, { except: id, incoming: t.amount > 0 });
       }
     }
-    return { transaction: t, before, override };
+    return { transaction: t, before, override, moved };
   }
   throw new Error('transaction not found');
+}
+
+// Would this other line move with a merchant rule? Same merchant, same
+// direction (a purchase moves purchases, money in moves money in), not
+// already there, and not one he split by hand (a split keeps its parts).
+const isSplit = (t) => Array.isArray(t.parts) && t.parts.length > 1;
+const movesWith = (t, key, category, { except, incoming }) => t.id !== except
+  && merchantKey(t.merchant) === key
+  && (t.amount > 0) === !!incoming
+  && t.category !== category
+  && !isSplit(t);
+
+// Every other line from the merchant filed `category`; returns [{ id, the
+// category it had }] for the undo. One write per month touched.
+async function moveMerchantLines(key, category, opts) {
+  const moved = [];
+  for (const month of await listMonths()) {
+    const data = await readMonth(month);
+    let changed = false;
+    for (const t of data.transactions) {
+      if (!movesWith(t, key, category, opts)) continue;
+      moved.push({ id: t.id, category: t.category });
+      t.category = category;
+      changed = true;
+    }
+    if (changed) await writeMonth(month, data);
+  }
+  if (moved.length) import('./events.js').then(({ broadcast }) => broadcast('money')).catch(() => {});
+  return moved;
+}
+
+// The other lines in the ledger from this line's merchant, in the same
+// direction, counted by the category each is in now: what the line sheet
+// says a merchant rule would move. `split` counts the ones that stay put.
+export async function merchantLines(id) {
+  const all = [];
+  for (const month of await listMonths()) all.push(...(await readMonth(month)).transactions);
+  const t = all.find((x) => x.id === id);
+  if (!t) throw new Error('transaction not found');
+  const key = merchantKey(t.merchant);
+  const incoming = t.amount > 0;
+  const byCategory = {};
+  let split = 0;
+  for (const x of all) {
+    if (x.id === id || !key || merchantKey(x.merchant) !== key || (x.amount > 0) !== incoming) continue;
+    if (isSplit(x)) { split++; continue; }
+    byCategory[x.category] = (byCategory[x.category] || 0) + 1;
+  }
+  return { id, byCategory, split };
+}
+
+// Lines put back in the categories they had (a merchant move's undo). A line
+// deleted since is skipped; returns how many came back.
+export async function restoreCategories(list) {
+  const want = new Map((list || []).filter((m) => m && m.id && CATEGORIES.includes(m.category)).map((m) => [m.id, m.category]));
+  if (!want.size) return 0;
+  let restored = 0;
+  for (const month of await listMonths()) {
+    const data = await readMonth(month);
+    let changed = false;
+    for (const t of data.transactions) {
+      if (!want.has(t.id)) continue;
+      t.category = want.get(t.id);
+      restored++;
+      changed = true;
+    }
+    if (changed) await writeMonth(month, data);
+  }
+  if (restored) import('./events.js').then(({ broadcast }) => broadcast('money')).catch(() => {});
+  return restored;
 }
 
 // A merchant rule set back to what it was (null removes it): an undo's half.

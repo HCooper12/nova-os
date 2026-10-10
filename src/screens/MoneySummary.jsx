@@ -6,7 +6,7 @@ import { useExit } from '../useExit.js';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { haptic } from '../haptics.js';
 import { MIcon } from '../MoneyIcon.jsx';
-import { usd, usd2, catOf } from '../moneyModel.js';
+import { usd, usd2, catOf, merchantMoveCount, merchantSwitchWords } from '../moneyModel.js';
 import { readAmount, budgetFromInput } from '../moneyParse.js';
 import '../money.css';
 
@@ -794,7 +794,13 @@ function LineEditor({ M, row, onDone, inline, saveRef, onChanged }) {
   const V = M.view;
   const [cat, setCat] = useState(row.category);
   const [note, setNote] = useState(row.note || '');
-  const [rule, setRule] = useState(false);
+  // ON by default (his call 10 Oct 2026, "Yes, every last purchase too"):
+  // a new category moves the merchant's past lines and files its future ones
+  const [rule, setRule] = useState(true);
+  // asked once per line (the view model's doors are new every render)
+  const loadRef = useRef(M.loadMerchant);
+  useEffect(() => { loadRef.current?.(row.id); }, [row.id]);
+  const count = M.merchant?.id === row.id ? merchantMoveCount(M.merchant, cat) : null;
   const changed = cat !== row.category || (note.trim() || null) !== (row.note || null);
   const cats = V.categories.filter((c) => c.category !== 'Income' || row.incoming);
   const save = () => {
@@ -834,7 +840,7 @@ function LineEditor({ M, row, onDone, inline, saveRef, onChanged }) {
       </label>
       {cat !== row.category && (
         <label className="nv-mo-trow2">
-          <span>File every {row.name} line this way<small>{rule ? 'On: future lines from it follow' : 'Off: only this line changes'}</small></span>
+          <span>File every {row.name} line this way<small>{merchantSwitchWords(rule, count)}</small></span>
           <span className="nv-sum-switch" data-on={rule ? 'true' : 'false'}><input type="checkbox" checked={rule} onChange={(e) => setRule(e.target.checked)} aria-label={`File every ${row.name} line this way`} /></span>
         </label>
       )}

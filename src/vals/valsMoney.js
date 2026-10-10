@@ -129,6 +129,9 @@ export function valsMoney(app, ctx) {
     add: (line) => app.moneyWrite('add', line),
     remove: (id) => app.moneyWrite('remove', id),
     edit: (id, patch) => app.moneyWrite('edit', id, patch),
+    // what the merchant switch would move, for the line open now
+    merchant: st.moneyMerchant || null,
+    loadMerchant: (id) => app.loadMoneyMerchant(id),
     setBudget: (category, raw) => app.moneyWrite('budget', category, raw),
     answer: (id, answer) => app.moneyAnswer(id, answer),
     approveImport: (id) => app.moneyAnswer(id, 'file'),
