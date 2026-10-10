@@ -51,6 +51,7 @@ export function demoStashState(variant = 'demo', now = Date.now()) {
       item({ name: 'Daily moisturiser SPF 30', url: 'https://skin.example.com/p/moisturiser', lasts: 6, bought: d(-30) }),
       item({ name: 'Retinol serum 30 ml', url: 'https://shop.example.net/retinol', note: 'nights only', lasts: 12, bought: d(-20) }),
       item({ name: 'Lip balm', url: 'https://skin.example.com/p/balm' }),
+      item({ name: 'Mineral sunscreen SPF 50', url: 'https://skin.example.com/p/sunscreen' }),
     ]),
     shelf('Kitchen', [
       item({ name: 'Coffee beans 1 kg', url: 'https://roaster.example.com/beans', note: 'medium roast', lasts: 4, bought: d(-10) }),
@@ -74,7 +75,7 @@ export function demoStashState(variant = 'demo', now = Date.now()) {
       item({ name: 'Coffee beans 1 kg', url: 'https://roaster.example.com/beans', bought: d(-38), paid: 32, from: 'Kitchen' }),
     ]),
   ];
-  const art = { cleanser: 'pump', moisturiser: 'tube', retinol: 'dropper', balm: 'balm', beans: 'bag', sharpener: 'sharpener', arm: 'arm', mat: 'mat', practice: 'page', sleep: 'page2', scarf: 'scarf', sampler: 'tea', lamp: 'lamp' };
+  const art = { sunscreen: 'serum', cleanser: 'pump', moisturiser: 'tube', retinol: 'dropper', balm: 'balm', beans: 'bag', sharpener: 'sharpener', arm: 'arm', mat: 'mat', practice: 'page', sleep: 'page2', scarf: 'scarf', sampler: 'tea', lamp: 'lamp' };
   const opened = { cleanser: 12, moisturiser: 2, retinol: 30, balm: 0, beans: 5, sharpener: 70, arm: 9, mat: 21, practice: 3, sleep: 16, scarf: 1, sampler: 6 };
   const added = { cleanser: 140, moisturiser: 96, retinol: 20, balm: 61, beans: 180, sharpener: 15, arm: 44, mat: 40, practice: 21, sleep: 33, scarf: 8, sampler: 4 };
   const meta = {};
@@ -82,6 +83,8 @@ export function demoStashState(variant = 'demo', now = Date.now()) {
     const slug = it.url.split('/').pop();
     meta[it.key] = {
       demoArt: art[slug] || null,
+      // mockup 90 s3: one link that came in from Safari's share sheet an hour ago
+      ...(slug === 'sunscreen' ? { via: 'safari', addedAt: ago(1 / 24, now) } : {}),
       opens: opened[slug] != null ? 2 : 0,
       lastOpened: opened[slug] != null ? ago(opened[slug], now) : null,
       addedAt: added[slug] != null ? ago(added[slug], now) : null,
@@ -177,8 +180,11 @@ export const demoWrites = {
   },
   read(s0, raw, done = true) {
     const s = clone(s0); const h = locate(s, raw); if (!h) throw new Error('that item is no longer there');
-    h.c.items[h.i] = rebuild(h.it, { read: done ? todayISO() : null });
-    return { state: s, title: done ? `Finished ${h.it.name}` : `${h.it.name} is unread again`, raw: h.c.items[h.i].raw };
+    const next = rebuild(h.it, { read: done ? todayISO() : null });
+    if (!done || h.c.name === 'Read') { h.c.items[h.i] = next; return { state: s, title: done ? `Finished ${h.it.name}` : `${h.it.name} is unread again`, raw: next.raw }; }
+    h.c.items.splice(h.i, 1);
+    shelfOf(s, 'Read').items.unshift(next);
+    return { state: s, title: `Finished, moved to Read: ${h.it.name}`, raw: next.raw };
   },
   bought(s0, raw, { paid, date } = {}) {
     const s = clone(s0); const h = locate(s, raw); if (!h) throw new Error('that item is no longer there');

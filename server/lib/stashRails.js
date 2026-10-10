@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { createRecord } from './inboxStore.js';
 import {
-  loadStash, stashAdd, stashRemove, stashUpdate, stashMove, stashBought, stashShelf, findItem, applyStashOps,
+  loadStash, stashAdd, stashRemove, stashUpdate, stashMove, stashBought, stashShelf, findItem, applyStashOps, formatStashItem, fieldsOf,
 } from './stash.js';
 import { noteAdded } from './stashMeta.js';
 import { todayISO, addDays, SNOOZE_DAYS, RHYTHM_WEEKS } from '../../src/stashRhythm.js';
@@ -156,11 +156,24 @@ export async function setNote(vaultPath, raw, note) {
   return { stash: out.stash, raw: out.raw, record };
 }
 
+// FINISHED (mockup 90 s1: "Finished, moved to Read"): the line takes the
+// day he finished it and moves to the Read shelf, made if it is not there.
+// Unread again clears the day and leaves it where it is.
+export const READ_SHELF = 'Read';
 export async function markRead(vaultPath, raw, done = true) {
   const { item, category } = await hit(vaultPath, raw);
-  const out = await stashUpdate(vaultPath, raw, { read: done ? todayISO() : null });
-  const record = await fileReceipt({ text: done ? `Finished ${item.name}` : `${item.name} is unread again`, destination: where(category.name), ops: out.inverse, payload: { raw: out.raw } });
-  return { stash: out.stash, raw: out.raw, record };
+  if (!done || category.name.toLowerCase() === READ_SHELF.toLowerCase()) {
+    const out = await stashUpdate(vaultPath, raw, { read: done ? todayISO() : null });
+    const record = await fileReceipt({ text: done ? `Finished ${item.name}` : `${item.name} is unread again`, destination: where(category.name), ops: out.inverse, payload: { raw: out.raw } });
+    return { stash: out.stash, raw: out.raw, record };
+  }
+  const next = formatStashItem({ name: item.name, url: item.url, note: item.note, fields: { ...fieldsOf(item), read: todayISO() } });
+  const out = await applyStashOps(vaultPath, [
+    { op: 'replace', from: raw, to: null },
+    { op: 'insert', raw: next, category: READ_SHELF, at: 'start' },
+  ]);
+  const record = await fileReceipt({ text: `Finished, moved to Read: ${item.name}`, destination: where(READ_SHELF), ops: out.inverse, payload: { raw: next, from: category.name } });
+  return { stash: out.stash, raw: next, record };
 }
 
 export async function markBought(vaultPath, raw, { paid, date } = {}) {

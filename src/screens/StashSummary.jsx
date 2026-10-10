@@ -705,7 +705,8 @@ function Reader({ S, V }) {
 
   const words = doc?.words ? `${doc.minutes} min, counted from ${doc.words.toLocaleString('en-AU')} words` : null;
   const saved = card.addedAt ? `Saved ${Math.max(0, Math.round((Date.now() - Date.parse(card.addedAt)) / 86400000 / 7)) || 'this'} ${Math.round((Date.now() - Date.parse(card.addedAt)) / 86400000 / 7) === 1 ? 'week' : 'weeks'} ago` : null;
-  const opened = card.opens ? `opened ${card.opens === 1 ? 'once' : card.opens === 2 ? 'twice' : `${card.opens} times`}` : null;
+  const lastDay = card.lastOpened ? new Date(card.lastOpened).toLocaleDateString('en-AU', { weekday: 'long' }) : null;
+  const opened = card.opens ? `opened ${card.opens === 1 ? 'once' : card.opens === 2 ? 'twice' : `${card.opens} times`}${lastDay ? `, last ${lastDay}` : ''}` : null;
   return (
     <>
     <div ref={rootRef} className={`nv-st-rd${reduced() ? '' : ' push'}${big ? ' big' : ''}`} data-screen-label="Stash reader" style={{ '--t': 'var(--nv-m-shoulders)' }}>

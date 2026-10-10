@@ -146,7 +146,10 @@ export function buildStashView({ stash, ui = {}, now = Date.now(), demo = false,
     };
   };
 
-  const order = (list) => {
+  // mockup 90 s3: a link that came in from Safari in the last day sits first
+  // on its shelf, whatever the order, until the day is out
+  const order = (all) => {
+    const list = [...all.filter((x) => x.isNew), ...all.filter((x) => !x.isNew)];
     if (sort === 'added') return list;
     const idx = new Map(list.map((x, i) => [x.key, i]));
     const by = {
@@ -205,10 +208,13 @@ export function buildStashView({ stash, ui = {}, now = Date.now(), demo = false,
   if (total) {
     news.push({ text: String(total), num: total, b: true }, { text: ` ${total === 1 ? 'link' : 'links'} on ${plural(shelfCount, 'shelf', 'shelves')}` });
     news.push({ text: !due.length && tracked.length && news.length === 2 ? ', nothing running low.' : '.' });
+    // mockup 90 s3: "One came in from Safari just now."
+    const fromSafari = items.filter((x) => { const m = meta[x.it.key]; return m?.via === 'safari' && m.addedAt && now - Date.parse(m.addedAt) < DAY; }).length;
+    if (fromSafari && !due.length) news.push({ text: ` ${fromSafari === 1 ? 'One' : String(fromSafari)} came in from Safari today.` });
   }
 
-  const status = demo ? 'Demo links, invented'
-    : offline ? `Offline · showing the Stash as of ${clock(stash.readAt) || 'the last read'}`
+  const status = offline ? `Offline · showing the Stash as of ${clock(stash.readAt) || 'the last read'}`
+    : demo ? 'Demo links, invented'
       : `Lives in your vault · synced ${clock(stash.readAt) || 'just now'}`;
 
   const first = due[0];
