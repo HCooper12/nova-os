@@ -248,6 +248,11 @@ function trendsCard(st, ctx, m, demoMode) {
 function buildMoments(m) {
   const list = [];
   if (m.macSessionsHeadline) list.push('asking');
+  // THE DAILY REVIEW (mockup 96): at the head of Home while something is
+  // due (arriving over its skeleton, or read-only from the last sync while
+  // the Mac is away), and once the day is done so "Draw one early" has
+  // somewhere to live. Never when nothing is due: More names the next day.
+  if (m.review && ['card', 'all-done', 'loading'].includes(m.review.state)) list.push('review');
   // MONEY THAT NEEDS HIM (10 Oct 2026): only while a money record waits on
   // him (an over, a bill, a rise, an odd charge); nothing when all is fine
   if (m.moneyMoment) list.push('money');
@@ -257,9 +262,5 @@ function buildMoments(m) {
   if (m.leaderBox && m.leadFirst) list.push('lead');
   if (m.todayTechnique && !m.todayTechnique.empty && !m.todayTechnique.outcome) list.push('technique');
   if (m.wrapCard) list.push('wrap');
-  // THE DAILY REVIEW (mockup 96): a Moment while something is genuinely due
-  // and unanswered, or once the day is done (so "Draw one early" has
-  // somewhere to live) — never while loading, never when nothing is due.
-  if (m.review && (m.review.state === 'card' || m.review.state === 'all-done')) list.push('review');
   return list;
 }

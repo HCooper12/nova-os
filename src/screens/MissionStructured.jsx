@@ -25,8 +25,7 @@ import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
 import { TabIcon } from '../TabIcon.jsx';
 import { Group, GRow, MetricTile, Pill } from '../AppleLayout.jsx';
-import { SkeletonBar } from '../Skeleton.jsx';
-import { ReviewCurve } from '../ReviewCurve.jsx';
+import { ReviewGroup } from '../ReviewCard.jsx';
 
 // Mission Control in the "Apple layout" — same view model as the classic
 // screen, rendered as a grouped stack whose ORDER follows the day:
@@ -470,76 +469,10 @@ export function MissionStructured({ v }) {
       </Group>
     ),
 
-    // THE DAILY REVIEW, on a forgetting curve (mockup 96). His decision: a
-    // card only shown never moves — Next (grade 'read') is the primary act,
-    // Got it / Fuzzy / Forgot stay secondary and each say where they send
-    // the concept. "Draw one early" replaces the old random shuffle once
-    // the day's reviews are done — order cannot be broken while any are due.
-    review: (() => {
-      const r = v.review;
-      if (r.state === 'loading') {
-        return (
-          <Group key="review" label="Daily review" accent="--nv-gold">
-            <div style={{ padding: '13px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <SkeletonBar w="55%" h="15px" />
-              <SkeletonBar w="90%" h="13px" />
-              <SkeletonBar w="65%" h="13px" />
-            </div>
-          </Group>
-        );
-      }
-      if (r.state === 'mac-unreachable') {
-        return (
-          <Group key="review" label="Daily review" accent="--nv-gold">
-            <GRow first title={<span style={{ color: 'var(--nv-ink60)' }}>The Mac is unreachable — your review returns on the next sync.</span>} />
-          </Group>
-        );
-      }
-      if (r.state === 'nothing-due') return null; // no moment, no row — truly nothing to show
-      if (r.state === 'all-done') {
-        return (
-          <Group key="review" label="Daily review" accent="--nv-good" trailing={r.pips ? <Meta tone="good">{r.pips.done} of {r.pips.total} done</Meta> : null}>
-            <div style={{ padding: '13px 16px' }}>
-              <div style={{ font: `400 16px/1.45 ${S}`, color: 'var(--nv-ink)' }}>Today's reviews are done.</div>
-              {r.drawEarly && <div style={{ marginTop: '11px' }}><Pill label={r.drawBusy ? 'Drawing…' : 'Draw one early'} onClick={r.drawBusy ? undefined : r.drawEarly} tone="quiet" /></div>}
-            </div>
-          </Group>
-        );
-      }
-      return (
-        <Group key="review" label="Daily review" accent="--nv-gold" trailing={r.pips ? <Meta tone="faint">{r.pips.done} of {r.pips.total} done</Meta> : null}>
-          <div style={{ padding: '13px 16px' }}>
-            {r.firstLook && <Meta tone="faint">New · first look</Meta>}
-            <div style={{ marginTop: '4px', font: `500 15px ${UI}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere', textWrap: 'pretty' }}>{r.title}</div>
-            <div style={{ marginTop: '6px', font: `italic 400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.gist}</div>
-            <div style={{ marginTop: '9px', font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>
-              {r.source
-                ? `${r.source.kind ? `${r.source.kind} · ` : ''}${r.source.title}${r.source.time ? ` · Play from ${r.source.time}` : ''}${r.source.extra > 0 ? ` · +${r.source.extra}` : ''}`
-                : 'No source on this page'}
-            </div>
-            {r.connected.length > 0 && (
-              <div style={{ marginTop: '9px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {r.connected.map((c) => (
-                  <Interactive key={c.id} as="span" onClick={c.go} base={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 9px', borderRadius: '999px', border: `1px solid color-mix(in srgb, ${c.color} 40%, transparent)`, font: `500 12px ${UI}`, color: 'var(--nv-ink)' }}>
-                    <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />{c.title}
-                  </Interactive>
-                ))}
-              </div>
-            )}
-            {r.curve && <ReviewCurve curve={r.curve} hue="var(--nv-gold)" />}
-            {r.curve?.due && <Meta tone="faint">Next due {r.curve.due}</Meta>}
-            <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
-              <Pill label="Next" accent="--nv-gold" onClick={r.next} />
-              {r.grades.map((g) => <Pill key={g.key} label={`${g.label} — ${g.goesTo}`} onClick={g.go} tone="quiet" />)}
-            </div>
-            <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-              <Interactive as="span" onClick={r.writeAboutIt} base={css('cursor:pointer;font:450 12.5px var(--nv-font-ui);color:var(--nv-ink60)')}>Write about it</Interactive>
-              <Interactive as="span" onClick={r.open} base={css('cursor:pointer;font:450 12.5px var(--nv-font-ui);color:var(--nv-ink60)')}>Open the page ›</Interactive>
-            </div>
-          </div>
-        </Group>
-      );
-    })(),
+    // THE DAILY REVIEW, on a forgetting curve (mockup 96): the same view
+    // model as the summary card, drawn as rows (src/ReviewCard.jsx). Nothing
+    // due is no Group at all; More names the next day.
+    review: v.review.state === 'nothing-due' ? null : <ReviewGroup key="review" r={v.review} />,
 
     noticed: (
       <Group key="noticed" label="Nova noticed" trailing={<Meta tone="faint">While you slept</Meta>}>

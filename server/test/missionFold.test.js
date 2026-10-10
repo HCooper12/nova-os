@@ -57,7 +57,8 @@ test('the rest degrade honestly when the data is not there', () => {
   assert.equal(foldStatus('agents', { agents: [{ on: true, working: true }, { on: true }, { on: true }] }), '1 working now');
   assert.equal(foldStatus('agents', { agents: [{ on: true }, { on: true }] }), '2 agents, none working');
   assert.equal(foldStatus('focus', { suggestedFocus: { title: 'Deep work on ', accent: 'Nova' } }), 'Deep work on Nova');
-  assert.equal(foldStatus('review', { reviewFrom: 'Atomic Habits' }), 'from Atomic Habits');
+  assert.equal(foldStatus('review', { review: { state: 'card', title: 'Atomic Habits' } }), 'Atomic Habits');
+  assert.equal(foldStatus('review', {}), 'nothing due today');
   assert.equal(foldStatus('unknown', {}), '');
 });
 
@@ -91,7 +92,7 @@ test('agents are one dot on the arc each, cyan while any is on; today reads the 
   assert.deepEqual(foldInstrument('today', { todayEvents: [{ past: true, time: '09:00' }, { time: '14:30', label: 'Dinner' }] }), { kind: 'when', hue: 'cy', text: '14:30' });
   assert.deepEqual(foldInstrument('today', { todayEvents: [{ now: true }] }), { kind: 'live', hue: 'cy' });
   assert.deepEqual(foldInstrument('today', {}), { kind: 'count', hue: 'ink40', text: '—' });
-  assert.deepEqual(foldInstrument('review', { reviewConcept: 'Spacing effect' }), { kind: 'count', hue: 'vi', text: '1' });
+  assert.deepEqual(foldInstrument('review', { review: { pips: { done: 1, total: 3 } } }), { kind: 'count', hue: 'vi', text: '1/3' });
 });
 
 test('every fold label has an instrument, and an unknown key is a faint dot', () => {

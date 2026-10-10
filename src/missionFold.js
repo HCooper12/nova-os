@@ -100,7 +100,7 @@ export function foldStatus(key, v = {}) {
       return n ? `${n} waiting for your call` : 'nothing waiting';
     }
     case 'review':
-      return v.reviewFrom ? `from ${text(v.reviewFrom)}` : text(v.reviewMeta) || 'a concept to review';
+      return v.review?.state === 'card' ? text(v.review.title) : v.review?.state === 'all-done' ? 'done for today' : 'nothing due today';
     case 'noticed': {
       const items = Array.isArray(v.healthInsightItems) ? v.healthInsightItems : [];
       if (v.usingLiveHealthInsight && items.length) return `${items.length} ${items.length === 1 ? 'thing' : 'things'} noticed overnight`;
@@ -176,7 +176,7 @@ export function foldInstrument(key, v = {}) {
       return { kind: 'count', hue: n ? 'gold' : faint, text: n ? String(n) : '0' };
     }
     case 'review':
-      return { kind: 'count', hue: text(v.reviewConcept) ? 'vi' : faint, text: text(v.reviewConcept) ? '1' : '—' };
+      return { kind: 'count', hue: v.review?.pips ? 'vi' : faint, text: v.review?.pips ? `${v.review.pips.done}/${v.review.pips.total}` : '—' };
     case 'noticed': {
       const items = Array.isArray(v.healthInsightItems) ? v.healthInsightItems : [];
       const n = v.usingLiveHealthInsight ? items.length : 0;

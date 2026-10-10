@@ -18,8 +18,7 @@ import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
 import { MissionStructured } from './MissionStructured.jsx';
 import { MissionSummary } from './MissionSummary.jsx';
-import { SkeletonBar } from '../Skeleton.jsx';
-import { ReviewCurve } from '../ReviewCurve.jsx';
+import { ReviewInline } from '../ReviewCard.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, the BODY metrics strip
@@ -457,67 +456,14 @@ export function MissionControl({ v }) {
         </div>
 
         <div className="nv-pane nv-glow" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', ...glowSoft('--nv-vi').style }}>
-          {/* DAILY REVIEW, on a forgetting curve (mockup 96, his decision 6
-              Oct: this pane takes the name back — "Concept revisit" is gone). */}
-          {(() => {
-            const r = v.review;
-            return (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
-                  <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>DAILY REVIEW</span>
-                  {r?.pips && <span style={phMeta}>{r.pips.done} of {r.pips.total} done</span>}
-                </div>
-                {!r || r.state === 'loading' ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
-                    <SkeletonBar w="55%" h="14px" />
-                    <SkeletonBar w="85%" h="12px" />
-                  </div>
-                ) : r.state === 'mac-unreachable' ? (
-                  <div style={{ font: `400 15px ${S}`, color: 'var(--nv-ink60)' }}>The Mac is unreachable — your review returns on the next sync.</div>
-                ) : r.state === 'nothing-due' ? (
-                  <div style={{ font: `400 15px ${S}`, color: 'var(--nv-ink60)' }}>Nothing due today.</div>
-                ) : r.state === 'all-done' ? (
-                  <>
-                    <div style={{ font: `400 16px/1.45 ${S}`, color: 'rgba(232,236,246,.92)' }}>Today's reviews are done.</div>
-                    {r.drawEarly && (
-                      <div style={{ marginTop: 'auto', paddingTop: '12px' }}>
-                        <Interactive as="span" onClick={r.drawBusy ? undefined : r.drawEarly}
-                          base={css("cursor:pointer;flex:none;font:600 12.5px var(--nv-font-ui);padding:6px 14px;border-radius:8px;border:1px solid rgba(143,123,255,.45);color:#cbb6f2;background:rgba(143,123,255,.1)")}
-                          hoverStyle={{ background: 'rgba(143,123,255,.22)' }}
-                        >{r.drawBusy ? 'Drawing…' : 'Draw one early'}</Interactive>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {r.firstLook && <span style={{ ...phMeta, display: 'block', marginBottom: '4px' }}>New · first look</span>}
-                    <div style={{ font: `500 14px ${R}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere', textWrap: 'pretty' }}>{r.title}</div>
-                    <div style={{ marginTop: '4px', font: `italic 400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'rgba(232,236,246,.92)', maxHeight: '96px', overflowY: 'auto' }}>{r.gist}</div>
-                    <div style={{ marginTop: '8px', font: `450 12px ${R}`, color: 'var(--nv-ink60)' }}>
-                      {r.source
-                        ? `${r.source.kind ? `${r.source.kind} · ` : ''}${r.source.title}${r.source.time ? ` · Play from ${r.source.time}` : ''}${r.source.extra > 0 ? ` · +${r.source.extra}` : ''}`
-                        : 'No source on this page'}
-                    </div>
-                    {r.curve && <ReviewCurve curve={r.curve} hue="#cbb6f2" />}
-                    {r.curve?.due && <span style={{ font: `450 11.5px var(--nv-font-ui)`, color: 'var(--nv-ink60)' }}>Next due {r.curve.due}</span>}
-                    <div style={{ marginTop: 'auto', paddingTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
-                      <Button compact onClick={r.next} style={{ flex: 'none' }}>NEXT</Button>
-                      {r.grades.map((g) => (
-                        <Interactive key={g.key} as="span" onClick={g.go}
-                          base={css("cursor:pointer;flex:none;font:600 12px var(--nv-font-ui);padding:6px 12px;border-radius:8px;border:1px solid rgba(143,123,255,.3);color:#cbb6f2;background:rgba(143,123,255,.06)")}
-                          hoverStyle={{ background: 'rgba(143,123,255,.18)' }}
-                        >{g.label} — {g.goesTo}</Interactive>
-                      ))}
-                    </div>
-                    <div style={{ marginTop: '8px', display: 'flex', gap: '14px' }}>
-                      <Interactive as="span" onClick={r.writeAboutIt} base={css('cursor:pointer;font:450 12px var(--nv-font-ui);color:var(--nv-ink60)')}>Write about it</Interactive>
-                      <Interactive as="span" onClick={r.open} base={css('cursor:pointer;font:450 12px var(--nv-font-ui);color:var(--nv-ink60)')}>Open the page ›</Interactive>
-                    </div>
-                  </>
-                )}
-              </>
-            );
-          })()}
+          {/* DAILY REVIEW, on a forgetting curve (mockup 96): the pane takes
+              the name back, and the body is the same card as the other two
+              Homes (src/ReviewCard.jsx), from the same view model. */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '2px' }}>
+            <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>DAILY REVIEW</span>
+            {v.review?.pips && <span style={phMeta}>{v.review.pips.done} of {v.review.pips.total} done</span>}
+          </div>
+          <ReviewInline r={v.review} />
         </div>
       </section>
 

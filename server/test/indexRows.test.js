@@ -120,7 +120,7 @@ test('live values come from the fields they name', () => {
     ringVitals: [{ key: 'protein', value: '96', small: '/150G', pct: 64, state: 'behind' }],
     inboxPendingCount: 3,
     workoutCardLabel: 'Push day · week 6',
-    reviewFrom: 'Atomic Habits — key ideas',
+    review: { state: 'card', title: 'Atomic Habits, key ideas' },
     todayTechnique: { position: 6, total: 12, name: 'Labelling' },
     leaderBox: { face: { title: 'Ask before you answer' } },
     moneyLoaded: true, moneyMonth: month, moneySpentLabel: '$1,240.00',
@@ -135,7 +135,7 @@ test('live values come from the fields they name', () => {
   assert.equal(values.practice, '2 skills', 'with no Home card, the sidebar\'s count of skills in rehearsal');
   assert.equal(values.leader, 'Ask before you answer');
   assert.equal(rowOf(indexPage, 'leader').hot, false);
-  assert.equal(values.review, 'from Atomic Habits — key ideas');
+  assert.equal(values.review, 'Atomic Habits, key ideas');
   assert.equal(values.technique, '6 of 12');
   assert.equal(values.library, '21 volumes');
   assert.equal(values.notes, '312 notes');

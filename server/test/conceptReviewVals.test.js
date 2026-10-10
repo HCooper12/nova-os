@@ -1,4 +1,4 @@
-// THE DAILY REVIEW's view model (src/vals/valsNotes.js `review`), the shape
+// THE DAILY REVIEW's view model (src/vals/valsReview.js via valsNotes `review`), the shape
 // read by the summary Moment, the grouped Group and the classic pane alike
 // (mockup 96). Built with a fakeApp the way inboxSummary.test.js does, so
 // the honest states are tested on the shapes the app really hands it.
@@ -79,11 +79,14 @@ test('a card: title, gist, source, connected notes and the curve all come throug
   assert.equal(r.source.kind, 'video'); // youtube.com
   assert.equal(r.connected.length, 1);
   assert.equal(r.connected[0].title, 'Sunk Cost');
-  assert.ok(r.curve && r.curve.gaps.length === 7);
-  assert.equal(r.curve.answers[0].grade, 'got');
-  assert.deepEqual(r.pips, { done: 0, total: 1 });
+  assert.ok(r.curve && r.curve.today === '2026-10-11');
+  assert.equal(r.curve.history[0].grade, 'got');
+  assert.equal(r.curve.result, null, 'nothing answered yet');
+  assert.deepEqual(r.pips, { done: 0, total: 1, cur: 0 });
   assert.equal(r.grades.length, 3);
-  for (const g of r.grades) assert.ok(g.goesTo && typeof g.goesTo === 'string' && g.goesTo.length > 0);
+  // each answer says where it sends the page: step 1 -> Got it 7 days, Fuzzy 3 days, Forgot tomorrow
+  assert.deepEqual(r.grades.map((g) => g.gapWord), ['7 days', '3 days', 'Tomorrow']);
+  assert.match(r.kicker.text, /^Review 2 · last seen Tue 1 Sep/);
   assertNoNaNOrNull(r);
 });
 
@@ -106,11 +109,42 @@ test('a source with no time: named, no Play — the time field is simply absent,
 });
 
 test('a first look: a new, never-answered concept is flagged, and only that one', () => {
-  const fresh = item({ id: 'new-one', kind: 'new', answered: false, title: 'New One' });
+  const fresh = item({ id: 'new-one', kind: 'new', answered: false, title: 'New One', history: [], step: 0, due: null });
   const today = { date: '2026-10-11', items: [fresh], total: 1, doneCount: 0, dueCount: 0 };
   const app = fakeApp({ liveNotes: [{ id: 'new-one', title: 'New One', type: 'concept' }], liveReviewToday: today });
   const r = valsNotes(app, ctx()).review;
   assert.equal(r.firstLook, true);
+  assert.equal(r.kicker.text, 'first look');
+});
+
+test('an answer is acted out at once: the held page shows where it went, and the count rises before the server confirms', () => {
+  const today = { date: '2026-10-11', items: [item(), item({ id: 'b', title: 'B' })], total: 2, doneCount: 0, dueCount: 2 };
+  const app = fakeApp({ liveNotes: [{ id: 'effort-debt', title: 'Effort Debt', type: 'concept' }], liveReviewToday: today,
+    reviewJust: { id: 'effort-debt', grade: 'fuzzy', step: 1, due: '2026-10-11' }, reviewOpenId: 'effort-debt' });
+  const r = valsNotes(app, ctx()).review;
+  assert.equal(r.state, 'card');
+  assert.equal(r.title, 'Effort Debt');
+  assert.deepEqual({ grade: r.result.grade, gap: r.result.gap, due: r.result.due }, { grade: 'fuzzy', gap: 3, due: '2026-10-14' });
+  assert.equal(r.pips.done, 1);
+  assert.equal(r.isLast, false);
+  assert.ok(r.grades.find((g) => g.key === 'fuzzy').selected);
+  assert.equal(r.readNext, null, 'Next-as-read is gone once answered');
+});
+
+test('offline with a last sync: the card reads, the answers wait, and it says why', () => {
+  const today = { date: '2026-10-11', items: [item()], total: 1, doneCount: 0, dueCount: 1 };
+  const app = fakeApp({ liveNotes: [{ id: 'effort-debt', title: 'Effort Debt', type: 'concept' }], liveReviewToday: today, connectionStatus: 'offline', lastSyncAt: null });
+  const r = valsNotes(app, ctx()).review;
+  assert.equal(r.state, 'card');
+  assert.ok(r.offline && /needs the Mac/.test(r.offline.line));
+  assert.ok(r.grades.every((g) => g.disabled));
+});
+
+test('nothing due names the next day something returns', () => {
+  const today = { date: '2026-10-11', items: [], total: 0, doneCount: 0, dueCount: 0, ahead: [], nextDue: { date: '2026-10-13', count: 2 } };
+  const app = fakeApp({ liveNotes: [{ id: 'a', title: 'A', type: 'concept' }], liveReviewToday: today });
+  const r = valsNotes(app, ctx()).review;
+  assert.equal(r.nothingDueLine, 'Nothing due today · next Tue 13 Oct, 2 pages');
 });
 
 test('all done: every item answered, with Draw one early offered', () => {
@@ -119,7 +153,8 @@ test('all done: every item answered, with Draw one early offered', () => {
   const app = fakeApp({ liveNotes: [{ id: 'effort-debt', title: 'Effort Debt', type: 'concept' }], liveReviewToday: today });
   const v = valsNotes(app, ctx());
   assert.equal(v.review.state, 'all-done');
-  assert.ok(typeof v.review.drawEarly === 'function');
+  assert.ok(typeof v.review.done.drawEarly === 'function');
+  assert.match(v.review.done.line, /^Today’s page is reviewed\./);
   assertNoNaNOrNull(v.review);
 });
 
@@ -129,7 +164,8 @@ test('zero connected links and no history still render honestly — never NaN, n
   const app = fakeApp({ liveNotes: [{ id: 'effort-debt', title: 'Effort Debt', type: 'concept' }], liveReviewToday: today });
   const r = valsNotes(app, ctx()).review;
   assert.deepEqual(r.connected, []);
-  assert.deepEqual(r.curve.answers, []);
+  assert.deepEqual(r.curve.history, []);
+  assert.equal(r.curveLeft, 'Not seen yet');
   assertNoNaNOrNull(r);
 });
 

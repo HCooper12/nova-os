@@ -86,8 +86,14 @@ function rowValue(key, v) {
       if (row?.countHot && open) return { value: `${open} open`, hot: true };
       return { value: clipWords(v.leaderBox?.face?.title) || (open ? `${open} open` : '') };
     }
-    case 'review':
-      return { value: v.reviewFrom ? `from ${clipWords(v.reviewFrom, 28)}` : '' };
+    case 'review': {
+      // the Daily review row: the page due now, or, when nothing is, the
+      // next day something returns (mockup 96 Part 6)
+      const r = v.review;
+      if (r?.state === 'nothing-due') return { value: r.nothingDueLine.replace('Nothing due today · ', 'Nothing due · ') };
+      if (r?.state === 'all-done') return { value: 'Done for today' };
+      return { value: r?.state === 'card' && r.title ? clipWords(r.title, 28) : '' };
+    }
     case 'technique': {
       const t = v.todayTechnique;
       return { value: t && !t.empty && t.position != null && t.total != null ? `${t.position} of ${t.total}` : '' };

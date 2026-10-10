@@ -83,6 +83,7 @@ import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
 import { pickReviewItem } from './reviewPick.js';
+import { GAPS as REVIEW_GAPS, nextStep as nextReviewStep, shiftISO, localISO, demoDrawn, DEMO_UNREVIEWED } from './reviewDemo.js';
 import { loadCode, codeFromHistory, commit as codeCommit, shelve as codeShelve, restore as codeRestore, switchWorkspace as codeSwitchWorkspace, newSession as codeNewSession } from './codeActions.js';
 import { demoMoneyState, demoVariant, demoWrites } from './moneyDemo.js';
 import { demoShopState, shopDemoVariant, demoTurn } from './shopDemo.js';
@@ -724,6 +725,7 @@ export default class App extends Component {
     // the first fetch returns; [] items with total 0 is the honest "nothing
     // due" state, never confused with "not loaded yet")
     liveReviewToday: null, reviewOpenId: null, reviewDrawnExtra: null, reviewSheetOpen: false,
+    reviewJust: null, reviewDemoAnswers: {},
     liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null,
     libraryView: (() => { try { return localStorage.getItem('novaos.libraryView') === 'spines' ? 'spines' : 'grid'; } catch { return 'grid'; } })(), liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
@@ -768,7 +770,7 @@ export default class App extends Component {
     discardedDraft: null, // a discarded workout still inside its 7-day window
 
     // daily review + journal
-    // the concept shuffle, mid-spin: its rows frozen at the tap (shuffleDailyReview)
+    // Draw one early, mid-spin: its rows frozen at the tap (drawReviewEarly)
     reviewSpin: null,
     reviewReflectOpen: false, reviewReflectText: '', reviewReflectBusy: false, reviewReflectError: null,
     reviewReflectPromptBusy: false, reviewReflectPromptText: null,
@@ -5175,56 +5177,82 @@ export default class App extends Component {
     return {};
   }
   // "DRAW ONE EARLY" (his call, 11 Oct): the shuffle reel survives only
-  // here, once the day's reviews are done. A random never-logged concept,
-  // which enters as new the moment he answers it.
-  shuffleDailyReview() {
+  // here, once the day's reviews are done. The draw is real (the server's
+  // never-logged pool; the demo's invented one), the reel spins through
+  // pages that have never been reviewed and lands on it, and it enters as
+  // new the moment he answers it.
+  drawReviewEarly(demo = false) {
+    if (this.state.reviewDrawBusy || this.state.reviewSpin) return;
+    const land = (item, pool) => {
+      const others = pool.filter((t) => t && t !== item.title);
+      for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [others[i], others[j]] = [others[j], others[i]]; }
+      const rows = [...others.slice(0, 8), item.title];
+      haptic('tick');
+      this.setState({ reviewDrawBusy: false, reviewSpin: { rows, item } });
+    };
+    if (demo) { land(demoDrawn(localISO(), this.state.reviewDemoAnswers), DEMO_UNREVIEWED); return; }
     const conn = getConnection();
     const today = this.state.liveReviewToday;
-    if (!conn || !today || today.total === 0 || today.doneCount < today.total || this.state.reviewDrawBusy) return;
+    if (!conn || !today || today.total === 0 || today.doneCount < today.total) return;
     this.setState({ reviewDrawBusy: true });
     api.reviewDraw(conn).then(({ item }) => {
       this.ensureNoteDetail(item.id);
       this.ensureReviewSummary(item.id);
-      haptic('tick');
-      this.withTransition(() => this.setState({
-        reviewDrawBusy: false, reviewDrawnExtra: item, reviewOpenId: item.id,
-        reviewReflectOpen: false, reviewReflectText: '', reviewReflectPromptText: null,
-      }));
+      const pool = (this.state.liveNotes || []).filter((n) => /^(concept|topic)$/i.test(n.type || '')).map((n) => n.title);
+      land(item, pool);
     }).catch((e) => { this.setState({ reviewDrawBusy: false }); this.toastMsg('Could not draw a concept: ' + e.message); });
   }
-  // His "Next": grade 'read', logged distinctly so read-only use is
-  // measurable later, advancing the card exactly like Got it.
-  answerReview(pageId, grade) {
+  finishReviewSpin() {
+    const spin = this.state.reviewSpin;
+    if (!spin) return;
+    this.setState({ reviewSpin: null, reviewDrawnExtra: spin.item, reviewOpenId: spin.item.id, reviewJust: null });
+  }
+  // ONE TAP after reading (mockup 96). Got it / Fuzzy / Forgot are acted out
+  // at once: `reviewJust` holds the grade and the page's step before it, so
+  // the card shows where the page went and stays on that page until Next.
+  // Next before answering records 'read' (his call: answering is optional)
+  // and moves straight on. The write rides the Inbox rails; the pill's Undo
+  // takes it back. Demo mode answers its own invented day the same way.
+  answerReview(item, grade, before = {}) {
+    if (!item?.id) return;
+    const step = nextReviewStep(before.step || 0, grade);
+    const due = shiftISO(localISO(), REVIEW_GAPS[step]);
+    const title = `${item.title} · back ${new Date(`${due}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')}`;
+    const held = grade === 'read' ? null : { id: item.id, grade, step: before.step || 0, due: before.due || null };
+    haptic('commit');
+    if (item.demo) {
+      const prev = this.state.reviewDemoAnswers || {};
+      this.setState({ reviewDemoAnswers: { ...prev, [item.id]: grade }, reviewJust: held, reviewOpenId: held ? item.id : null, ...(held ? {} : { reviewDrawnExtra: null }) });
+      tickReceipt({
+        key: `review:${item.id}`, label: item.title, title,
+        undo: () => {
+          const { [item.id]: _gone, ...rest } = this.state.reviewDemoAnswers || {};
+          this.setState({ reviewDemoAnswers: rest, reviewJust: null, reviewOpenId: item.id });
+        },
+      });
+      return;
+    }
     const conn = getConnection();
-    if (!conn || !pageId) return;
-    const item = this.currentReviewItem();
-    const name = item?.title || 'that concept';
-    const label = { got: 'Got it', fuzzy: 'Fuzzy', forgot: 'Forgot', read: 'Read' }[grade] || grade;
-    api.reviewAnswer(conn, pageId, grade).then(({ record }) => {
-      haptic('commit');
-      this.setState({ reviewDrawnExtra: null });
+    if (!conn) return;
+    this.setState({ reviewJust: held, reviewOpenId: held ? item.id : null, ...(held ? {} : { reviewDrawnExtra: null }) });
+    api.reviewAnswer(conn, item.id, grade).then(({ record }) => {
       this.refreshReviewToday();
       tickReceipt({
-        key: `review:${pageId}:${Date.now()}`, title: `${label} — ${name}`,
-        undo: () => { if (record?.id) api.inboxUndo(conn, record.id).then(() => this.refreshReviewToday()).catch((e) => this.toastMsg('Could not undo: ' + e.message)); },
+        key: `review:${item.id}`, label: item.title, title,
+        undo: () => {
+          if (!record?.id) return;
+          this.setState((s) => (s.reviewJust?.id === item.id ? { reviewJust: null, reviewOpenId: item.id } : null));
+          api.inboxUndo(conn, record.id).then(() => this.refreshReviewToday()).catch((e) => this.toastMsg('Could not undo: ' + e.message));
+        },
       });
-    }).catch((e) => this.toastMsg('Could not save that answer: ' + e.message));
-  }
-  // DEMO MODE's answer: there is no server to grade against, so this moves
-  // the scripted reel on (the old shuffle's own step) and shows the same
-  // tick-pill-with-undo receipt the live path does — the motion is real
-  // even though the grade behind it is demo content.
-  answerReviewDemo(grade) {
-    const label = { got: 'Got it', fuzzy: 'Fuzzy', forgot: 'Forgot', read: 'Read' }[grade] || grade;
-    const before = this.state.reviewIdx;
-    const name = this.reviews[before]?.f || 'that concept';
-    const next = (before + 1) % this.reviews.length;
-    this.setState({ reviewIdx: next });
-    haptic('commit');
-    tickReceipt({
-      key: `review-demo:${Date.now()}`, title: `${label} — ${name}`,
-      undo: () => this.setState({ reviewIdx: before }),
+    }).catch((e) => {
+      this.setState((s) => (s.reviewJust?.id === item.id ? { reviewJust: null } : null));
+      this.toastMsg(`Could not save that answer: ${e.message}`);
     });
+  }
+  // Next after an answer: only moves on (the answer is already written)
+  reviewNext() {
+    this.setState((s) => ({ reviewJust: null, reviewOpenId: null, reviewDrawnExtra: s.reviewJust && s.reviewDrawnExtra?.id === s.reviewJust.id ? null : s.reviewDrawnExtra }));
   }
   openDailyReview() {
     const item = this.currentReviewItem();

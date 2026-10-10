@@ -19,8 +19,7 @@ import { prLift, prBasis } from '../missionFocus.js';
 import { YourDay } from '../Instruments.jsx';
 import { readDaySeen, markDaySeen, DAY_KEYS } from '../dayCard.js';
 import { CountText, CountUp } from '../CountUp.jsx';
-import { SkeletonBar } from '../Skeleton.jsx';
-import { ReviewCurve, ReviewPips } from '../ReviewCurve.jsx';
+import { ReviewMoment } from '../ReviewCard.jsx';
 
 // THE SUMMARY HOME (P2-B, 26 Sep 2026) — design/HOME-REDESIGN-PLAN.md, drawn
 // from mockup 56 (round 5, his pick). The third idiom of the same view model:
@@ -321,79 +320,10 @@ function Moment({ k, v }) {
         </section>
       );
     }
-    // THE DAILY REVIEW, on a forgetting curve (mockup 96). Answering is
-    // optional — Next is the primary act, the three recall choices are
-    // secondary and each say where they send the concept.
-    case 'review': {
-      const r = v.review;
-      const hue = r.typeColor;
-      if (r.state === 'loading' || r.state === 'mac-unreachable') {
-        return (
-          <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-gold)') }} aria-label="Daily review">
-            <MomentHead label="Daily review" tint="var(--nv-gold)" />
-            {r.state === 'mac-unreachable' ? (
-              <div style={{ marginTop: '8px', font: `italic 400 15.5px/1.45 ${SERIF}`, color: 'var(--nv-ink60)' }}>The Mac is unreachable — your review returns on the next sync.</div>
-            ) : (
-              <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <SkeletonBar w="60%" h="16px" />
-                <SkeletonBar w="92%" h="13px" />
-                <SkeletonBar w="70%" h="13px" />
-              </div>
-            )}
-          </section>
-        );
-      }
-      if (r.state === 'nothing-due') return null;
-      if (r.state === 'all-done') {
-        return (
-          <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-good)') }} aria-label="Daily review">
-            <MomentHead label="Daily review" tint="var(--nv-good)" meta={<ReviewPips pips={r.pips} tone="good" />} />
-            <div style={{ marginTop: '8px', font: `italic 400 17px/1.3 ${SERIF}`, color: 'var(--nv-ink)' }}>Today's reviews are done.</div>
-            {r.drawEarly && (
-              <div style={{ marginTop: '12px' }}>
-                <Pill label={r.drawBusy ? 'Drawing…' : 'Draw one early'} onClick={r.drawBusy ? undefined : r.drawEarly} tone="quiet" />
-              </div>
-            )}
-          </section>
-        );
-      }
-      return (
-        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit(hue) }} aria-label="Daily review">
-          <MomentHead label="Daily review" tint={hue} meta={<ReviewPips pips={r.pips} />} />
-          {r.firstLook && <Meta tone="faint">New · first look</Meta>}
-          <div style={{ marginTop: '6px', font: `500 17px/1.3 ${UI}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere', textWrap: 'pretty' }}>{r.title}</div>
-          <div style={{ marginTop: '6px', font: `italic 400 15.5px/1.45 ${SERIF}`, color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', textWrap: 'pretty' }}>{r.gist}</div>
-          {r.source ? (
-            <div style={{ marginTop: '8px', font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>
-              {r.source.kind ? `${r.source.kind} · ` : ''}{r.source.title}
-              {r.source.time ? ` · Play from ${r.source.time}` : ''}
-              {r.source.extra > 0 ? ` · +${r.source.extra}` : ''}
-            </div>
-          ) : (
-            <div style={{ marginTop: '8px', font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>No source on this page</div>
-          )}
-          {r.connected.length > 0 && (
-            <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {r.connected.map((c) => (
-                <Interactive key={c.id} as="span" onClick={c.go} base={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 9px', borderRadius: '999px', border: `1px solid color-mix(in srgb, ${c.color} 40%, transparent)`, font: `500 12px ${UI}`, color: 'var(--nv-ink)' }}>
-                  <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />{c.title}
-                </Interactive>
-              ))}
-            </div>
-          )}
-          {r.curve && <ReviewCurve curve={r.curve} hue={hue} />}
-          {r.curve?.due && <Meta tone="faint">Next due {r.curve.due}</Meta>}
-          <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
-            <Pill label="Next" accent="--nv-gold" onClick={r.next} />
-            {r.grades.map((g) => <Pill key={g.key} label={`${g.label} — ${g.goesTo}`} onClick={g.go} tone="quiet" />)}
-          </div>
-          <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-            <TextAction tone="faint" onClick={r.writeAboutIt}>Write about it</TextAction>
-            <TextAction tone="faint" onClick={r.open}>Open the page ›</TextAction>
-          </div>
-        </section>
-      );
-    }
+    // THE DAILY REVIEW, on a forgetting curve (mockup 96): src/ReviewCard.jsx,
+    // the same view model the grouped Home draws as rows.
+    case 'review':
+      return <ReviewMoment r={v.review} style={{ '--i': 2 }} />;
     default:
       return null;
   }
@@ -842,8 +772,11 @@ export function MissionSummary({ v }) {
         {S.standfirst ? <p className="nv-sum-rise nv-sum-stand" style={{ '--i': 1 }}>{S.standfirst}</p> : null}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: S.standfirst ? 0 : '12px' }}>
+          {/* the Daily review leads while something is due (mockup 96 Part 3:
+              "at the head of Home"), so its answers sit above the fold */}
+          {S.moments.includes('review') && <Moment key="review" k="review" v={v} />}
           {S.yourDay && !S.yourDay.pinned && <YourDayCard d={S.yourDay} />}
-          {S.moments.map((k) => <Moment key={k} k={k} v={v} />)}
+          {S.moments.filter((k) => k !== 'review').map((k) => <Moment key={k} k={k} v={v} />)}
           <Highlight h={S.highlight} />
         </div>
 
