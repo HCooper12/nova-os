@@ -282,7 +282,7 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
         reason: "Plan Today — the day's top 3, picked from the real picture.",
         // priorities ride the decision so the Home card can render them
         // without re-parsing the markdown
-        payload: { text: body, category: 'personal', label: 'Plan today', priorities },
+        payload: { text: body, category: 'personal', author: 'nova', label: 'Plan today', priorities },
       };
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);

@@ -77,7 +77,7 @@ export async function runCfoReport({ force = false } = {}) {
       confidence: 'high',
       title,
       reason: 'Monthly money report composed from the ledger — no model call.',
-      payload: { text: `${title}\n\n${lines.join('\n')}`, category: 'system', label: 'CFO report' },
+      payload: { text: `${title}\n\n${lines.join('\n')}`, category: 'system', author: 'cfo', label: 'CFO report' },
     },
   };
   await createRecord(record);

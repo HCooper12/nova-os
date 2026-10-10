@@ -1053,6 +1053,7 @@ export async function raiseSituationFollowUp(vaultPath, { now = new Date() } = {
       payload: {
         text: `Nova asked: ${question}`,
         category: 'system',
+        author: 'leader',
         label: 'Leader follow-up',
       },
     },

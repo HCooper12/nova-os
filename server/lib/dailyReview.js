@@ -329,7 +329,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
         reason: 'Daily Review — reasoned across your whole day through the Nova lens.',
         // personal category, labelled — it lives with Hayden's own reflections
         // but is always distinguishable from them
-        payload: { text: body, category: 'personal', label: 'Daily review reflection', read, adjustments },
+        payload: { text: body, category: 'personal', author: 'nova', label: 'Daily review reflection', read, adjustments },
       };
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);

@@ -437,7 +437,8 @@ verb({
   async run(vaultPath, args) {
     const { addEntry } = await import('./journal.js');
     const text = String(args.text).trim();
-    await addEntry(vaultPath, { text, category: 'personal', label: 'Said to Nova' });
+    // his line, said to Nova: the one verb whose words are his own
+    await addEntry(vaultPath, { text, author: 'hayden', category: 'personal', label: 'Said to Nova' });
     return { destination: `Journal — "${text.slice(0, 60)}${text.length > 60 ? '…' : ''}"`, said: 'In your journal.', undo: { verb: 'journal.add', text, date: new Date().toISOString().slice(0, 10) } };
   },
   async undo(vaultPath, u) {

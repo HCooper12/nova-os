@@ -122,7 +122,7 @@ export async function runBrainWeek(vaultPath, { force = false, now = new Date() 
       confidence: 'high',
       title: `Second brain — ${key}`,
       reason: 'The week\'s additions to your knowledge base, listed with links — approve to file it in the journal.',
-      payload: { text, category: 'system', label: 'Second-brain week' },
+      payload: { text, category: 'system', author: 'nova', label: 'Second-brain week' },
     },
   });
   return { recordId: record.id };

@@ -65,7 +65,7 @@ export function followUpRecord({ key, label, time, date }, { yesterday = false, 
       confidence: 'high',
       title: `✓ ${label}`,
       reason: `“${label}” was on ${when}'s calendar${time ? ` at ${time}` : ''}. Approve if it happened — it journals the receipt; discard if it didn't.`,
-      payload: { text: `✓ ${label}${time ? ` (${time} on the calendar)` : ''} — done${yesterday ? ` (${date})` : ''}.`, category: 'system', label: 'Calendar follow-up', eventLabel: label, date },
+      payload: { text: `✓ ${label}${time ? ` (${time} on the calendar)` : ''} — done${yesterday ? ` (${date})` : ''}.`, category: 'system', author: 'nova', label: 'Calendar follow-up', eventLabel: label, date },
     },
   };
 }

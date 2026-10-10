@@ -575,6 +575,7 @@ export async function runDispatch(vaultPath, { slot = 'morning', force = false }
     payload: {
       text,
       category: 'system',
+      author: 'nova',
       label: slot === 'weekly' ? 'Weekly review' : slot === 'morning' ? 'Morning dispatch' : 'Evening debrief',
     },
   };

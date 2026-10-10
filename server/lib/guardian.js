@@ -372,7 +372,7 @@ export async function restoreBackup(vaultPath, backupRel) {
       confidence: 'high',
       title: `Restored ${path.basename(originalRel)}`,
       reason: 'Guardian time-machine restore — the pre-restore state was snapshotted first.',
-      payload: { text: `Restored ${originalRel} from snapshot ${path.basename(backupRel)}.`, category: 'system', label: 'Guardian restore' },
+      payload: { text: `Restored ${originalRel} from snapshot ${path.basename(backupRel)}.`, category: 'system', author: 'guardian', label: 'Guardian restore' },
     },
     // restoring a file that didn't exist is undone by deleting it again —
     // undoData:null here was the ONE write on the rails with no undo
@@ -432,7 +432,7 @@ export async function runGuardianReport(vaultPath, { force = false } = {}) {
     confidence: 'high',
     title,
     reason: 'Monthly integrity report from Guardian’s read-only checks.',
-    payload: { text: `${title}\n\n${lines.join('\n')}`, category: 'system', label: 'Guardian report' },
+    payload: { text: `${title}\n\n${lines.join('\n')}`, category: 'system', author: 'guardian', label: 'Guardian report' },
   };
   const record = {
     id: randomUUID().slice(0, 8),

@@ -239,7 +239,7 @@ export async function runReflection(vaultPath, { force = false } = {}) {
         await createRecord({
           id: randomUUID().slice(0, 8), kind: 'coach', text: 'Coach — a word for tonight', source: 'nova', mode: 'draft', status: 'pending', createdAt: new Date().toISOString(),
           decision: { route: 'journal', confidence: 'high', title: 'Coach — a word for tonight', reason: reflection.outreach,
-            payload: { text: `Coach reached out: ${reflection.outreach}`, category: 'training', label: 'Coach outreach' } },
+            payload: { text: `Coach reached out: ${reflection.outreach}`, category: 'training', author: 'coach', label: 'Coach outreach' } },
         });
         delivered = 'inbox';
       }

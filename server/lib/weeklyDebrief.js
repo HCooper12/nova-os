@@ -296,7 +296,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now, { weekStart = 
         confidence: 'high',
         title,
         reason: "The Coach's weekly sit-down — the week held against the plan.",
-        payload: { text: body, category: 'training', label: 'Weekly debrief', changes, weekStart },
+        payload: { text: body, category: 'training', author: 'coach', label: 'Weekly debrief', changes, weekStart },
       };
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);
