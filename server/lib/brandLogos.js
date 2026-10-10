@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { USER_AGENT, detectBlock } from './shopPrices.js';
 
-// THE REAL LOGOS (10 Oct 2026, his call: "Real logos" — with the rule that
+// THE REAL LOGOS (10 Oct 2026, his call: "Real logos", with the rule that
 // the repo is PUBLIC, so no logo file is ever committed). Each programme's
 // and chain's own site names its icon in its page head (the apple-touch-icon
 // a phone puts on a home screen, or the site icon). The server reads that
