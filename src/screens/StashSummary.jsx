@@ -678,6 +678,7 @@ function Reader({ S, V }) {
   const saved = card.addedAt ? `Saved ${Math.max(0, Math.round((Date.now() - Date.parse(card.addedAt)) / 86400000 / 7)) || 'this'} ${Math.round((Date.now() - Date.parse(card.addedAt)) / 86400000 / 7) === 1 ? 'week' : 'weeks'} ago` : null;
   const opened = card.opens ? `opened ${card.opens === 1 ? 'once' : card.opens === 2 ? 'twice' : `${card.opens} times`}` : null;
   return (
+    <>
     <div ref={rootRef} className={`nv-st-rd${reduced() ? '' : ' push'}${big ? ' big' : ''}`} data-screen-label="Stash reader" style={{ '--t': 'var(--nv-m-shoulders)' }}>
       <div className="nv-st-rdprog" aria-hidden="true"><i ref={progRef} /></div>
       <div className="nv-st-rdart"><Picture S={S} card={card} className="nv-st-rdpic" /></div>
@@ -707,7 +708,9 @@ function Reader({ S, V }) {
           </div>
         ))}
       </div>
-      <div className="nv-st-rbar nv-liquid on">
+    </div>
+    {/* outside the page: its entrance transform would capture a fixed bar */}
+    <div className="nv-st-rbar nv-liquid on" style={{ '--t': 'var(--nv-m-shoulders)' }}>
         <button type="button" onClick={() => S.open(card)} aria-label={`Open the original on ${card.host}`}><SIcon n="open" />Original</button>
         <span />
         {card.raw && !S.readOnly && (
@@ -716,7 +719,7 @@ function Reader({ S, V }) {
           </button>
         )}
       </div>
-    </div>
+    </>
   );
 }
 

@@ -41,6 +41,8 @@ export const SORTS = [
 
 const plural = (n, w, p = `${w}s`) => `${n} ${n === 1 ? w : p}`;
 const money = (n) => `$${Number(n).toFixed(2)}`;
+// a difference reads whole when it is whole: "Down $10", "Down $4.45"
+const moneyShort = (n) => (Math.abs(Number(n) - Math.round(Number(n))) < 0.005 ? `$${Math.round(Number(n))}` : money(n));
 // "Hydrating cleanser 236 ml" -> "Hydrating cleanser"
 export const shortName = (s) => String(s || '').replace(/\s+\d[\d.,]*\s*(ml|g|kg|l|oz|pack|x|cm|mm|in)\b.*$/i, '').trim() || String(s || '');
 
@@ -68,7 +70,7 @@ function badgeOf({ it, r, m, onList, now }) {
   if (onList) return { tone: 'list', text: 'On your list' };
   const p = m?.price;
   const fresh = p?.event && daysBetween(p.event.on, todayISO(now)) <= 7;
-  if (fresh && p.event.type === 'price-drop' && p.event.from != null && p.event.to != null) return { tone: 'drop', text: `Down ${money(p.event.from - p.event.to)}` };
+  if (fresh && p.event.type === 'price-drop' && p.event.from != null && p.event.to != null) return { tone: 'drop', text: `Down ${moneyShort(p.event.from - p.event.to)}` };
   if (fresh && p.event.type === 'back-in-stock') return { tone: 'drop', text: 'Back in stock' };
   if (m?.via === 'safari' && m.addedAt && now - Date.parse(m.addedAt) < DAY) return { tone: 'new', text: 'From Safari' };
   if (r) return { tone: 'days', text: `${plural(r.left, 'day')} left` };
@@ -195,7 +197,7 @@ export function buildStashView({ stash, ui = {}, now = Date.now(), demo = false,
   else {
     const drop = items.map((x) => ({ x, p: meta[x.it.key]?.price })).find(({ x, p }) => x.it.watch && p?.event?.type === 'price-drop' && daysBetween(p.event.on, today) <= 7);
     const gift = shelves.find((s) => s.gift && s.dateSoon);
-    if (drop) news.push({ text: shortName(drop.x.it.name) }, { text: ' is down ' }, { text: money(drop.p.event.from - drop.p.event.to), hue: 'var(--nv-good)' }, { text: '. ' });
+    if (drop) news.push({ text: shortName(drop.x.it.name) }, { text: ' is down ' }, { text: moneyShort(drop.p.event.from - drop.p.event.to), hue: 'var(--nv-good)' }, { text: '. ' });
     else if (gift) news.push({ text: `${gift.gift}'s day is ${gift.dateWords.split(' · ')[1]}. ` });
   }
   if (total) {

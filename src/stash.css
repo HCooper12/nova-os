@@ -260,15 +260,15 @@
 @keyframes nvStPulse { 50% { opacity: .55; } }
 
 /* ---------- the Reader ---------- */
-.nv-st-rd { position: relative; margin: calc(-48px - env(safe-area-inset-top)) -16px 0; padding-bottom: 150px; min-height: 100vh; background: color-mix(in srgb, var(--nv-void) 88%, transparent); }
+.nv-st-rd { position: relative; margin: -8px -16px 0; padding-bottom: 150px; border-radius: 22px 22px 0 0; min-height: 100vh; background: color-mix(in srgb, var(--nv-void) 88%, transparent); }
 .nv-st-rd.push { animation: nvStPush .45s var(--st-ease) both; }
 @keyframes nvStPush { from { opacity: .3; transform: translateX(40px); } to { opacity: 1; transform: none; } }
-.nv-st-rdprog { position: sticky; top: 0; z-index: 4; height: calc(4px + env(safe-area-inset-top)); }
-.nv-st-rdprog i { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--t); transform-origin: 0 50%; transform: scaleX(0); }
-.nv-st-rdart { height: 170px; margin-top: calc(-4px - env(safe-area-inset-top)); }
+.nv-st-rdprog { position: sticky; top: calc(48px + env(safe-area-inset-top)); z-index: 6; height: 0; }
+.nv-st-rdprog i { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--t); transform-origin: 0 50%; transform: scaleX(0); }
+.nv-st-rdart { height: 170px; border-radius: 22px 22px 0 0; overflow: hidden; }
 .nv-st-rdpic { display: block; height: 100%; overflow: hidden; }
 .nv-st-rdpic.mono b { font-size: 54px; }
-.nv-st-rdnav { position: sticky; top: calc(10px + env(safe-area-inset-top)); z-index: 5; display: flex; justify-content: space-between; padding: 0 12px; margin-top: -160px; height: 160px; pointer-events: none; }
+.nv-st-rdnav { position: sticky; top: calc(58px + env(safe-area-inset-top)); z-index: 5; display: flex; justify-content: space-between; padding: 0 12px; margin-top: -160px; height: 160px; pointer-events: none; }
 .nv-st-rdnav > * { pointer-events: auto; }
 .nv-st-rdnav .nv-st-nb { background: color-mix(in srgb, var(--nv-void) 70%, transparent) !important; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
 .nv-st-rdnavr { display: flex; gap: 8px; }
