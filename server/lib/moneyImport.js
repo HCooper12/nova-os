@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { listTransactions, dedupeKey, categorize, loadOverrides, onMoneyChange } from './money.js';
+import { listTransactions, dedupeKey, categorize, overrideFor, loadOverrides, onMoneyChange } from './money.js';
 import { createRecord, listRecords, updateRecord } from './inboxStore.js';
 
 // Bank-CSV ingestion — the automatic pipeline. Drop a bank export into the
@@ -38,8 +38,17 @@ function splitCsvLine(line) {
   return cells.map((c) => c.trim());
 }
 
+const pad2 = (n) => String(n).padStart(2, '0');
 function parseDate(raw) {
-  const s = (raw || '').trim();
+  // a spreadsheet cell: a real date (read as UTC midnight), or an Excel
+  // serial when the column was not formatted as a date
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : `${raw.getUTCFullYear()}-${pad2(raw.getUTCMonth() + 1)}-${pad2(raw.getUTCDate())}`;
+  if (typeof raw === 'number') {
+    if (!(raw > 20000 && raw < 80000)) return null; // 1954..2118: anything else is not a date
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(raw) * 86400000);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+  }
+  const s = String(raw ?? '').trim();
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[1]}-${m[2]}-${m[3]}`;
   m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/); // AU banks: DD/MM/YYYY
@@ -51,59 +60,126 @@ function parseDate(raw) {
 
 function parseAmount(raw) {
   if (raw == null || raw === '') return null;
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw !== 0 ? Math.round(raw * 100) / 100 : null;
   const n = Number(String(raw).replace(/[$,\s]/g, '').replace(/^\((.*)\)$/, '-$1'));
   return Number.isFinite(n) && n !== 0 ? Math.round(n * 100) / 100 : null;
 }
 
-// Accepts the common Australian bank export shapes (the same files Billroo
-// takes): headered CSVs with date/description/amount or debit+credit
-// columns, and headerless CommBank-style `date,amount,description,balance`.
-export function parseBankCsv(raw) {
-  const lines = raw.split(/\r?\n/).filter((l) => l.trim());
-  if (!lines.length) return { transactions: [], skipped: 0 };
+// A BUDGET APP'S OWN CATEGORY, mapped onto Nova's where the names clearly
+// match (his open call, built as this default on 10 Oct 2026); anything
+// else is null and Nova's guess from the merchant stands. Keys are the
+// lowercased name with "&"/"and" and punctuation folded.
+const THEIR_CATEGORY = new Map(Object.entries({
+  groceries: 'Groceries', grocery: 'Groceries', supermarket: 'Groceries', supermarkets: 'Groceries',
+  'eating out': 'Eating Out', 'dining out': 'Eating Out', dining: 'Eating Out', restaurants: 'Eating Out', restaurant: 'Eating Out', takeaway: 'Eating Out', 'cafes': 'Eating Out', 'cafes restaurants': 'Eating Out', 'restaurants cafes': 'Eating Out',
+  transport: 'Transport', transportation: 'Transport', 'public transport': 'Transport', fuel: 'Transport', petrol: 'Transport', parking: 'Transport', tolls: 'Transport',
+  'health fitness': 'Health & Fitness', health: 'Health & Fitness', fitness: 'Health & Fitness', gym: 'Health & Fitness', medical: 'Health & Fitness', pharmacy: 'Health & Fitness',
+  subscriptions: 'Subscriptions', subscription: 'Subscriptions', streaming: 'Subscriptions',
+  'utilities bills': 'Utilities & Bills', 'bills utilities': 'Utilities & Bills', utilities: 'Utilities & Bills', bills: 'Utilities & Bills', 'phone internet': 'Utilities & Bills', electricity: 'Utilities & Bills', insurance: 'Utilities & Bills', rent: 'Utilities & Bills',
+  shopping: 'Shopping', clothing: 'Shopping', clothes: 'Shopping', electronics: 'Shopping',
+  entertainment: 'Entertainment',
+  income: 'Income', salary: 'Income', wages: 'Income',
+  other: 'Other',
+}));
+export function mapTheirCategory(raw, amount) {
+  const k = String(raw ?? '').toLowerCase().replace(/&|\band\b/g, ' ').replace(/[^a-z]+/g, ' ').trim();
+  const c = THEIR_CATEGORY.get(k) || null;
+  // money in is Income only when it is money in; a spend never files as Income
+  if (c === 'Income' && !(amount > 0)) return null;
+  return c;
+}
 
-  const first = splitCsvLine(lines[0]);
-  const lower = first.map((c) => c.toLowerCase());
-  const hasHeader = lower.some((c) => /date|description|narrative|amount|debit|credit|payee|merchant|details/.test(c)) && !parseDate(first[0]);
+const cellText = (c) => (c instanceof Date ? parseDate(c) : c == null ? '' : String(c));
+const UNRECOGNISED = (kind, headers) => `unrecognised ${kind} columns: expected date, description and amount (or debit/credit)${headers ? `; this file has: ${headers.slice(0, 8).join(', ').slice(0, 120)}` : ''}`;
 
-  let idx = { date: -1, desc: -1, amount: -1, debit: -1, credit: -1 };
+// THE ONE READER for a bank or budget-app export, as rows of cells (CSV text
+// split, or an .xlsx sheet's own cells: strings, numbers, real dates).
+// Headered with date/description/amount or debit+credit, an optional
+// Category (a budget app's, mapped by mapTheirCategory) and Tags (kept as
+// the line's note); or headerless CommBank-style date,amount,description.
+export function parseBankRows(rows, { kind = 'CSV' } = {}) {
+  const all = (rows || []).filter((r) => Array.isArray(r) && r.some((c) => cellText(c).trim()));
+  if (!all.length) return { transactions: [], skipped: 0, skippedLines: [] };
+
+  const first = all[0].map(cellText);
+  const lower = first.map((c) => c.toLowerCase().trim());
+  const hasHeader = lower.some((c) => /date|description|narrative|amount|debit|credit|payee|merchant|details/.test(c)) && !parseDate(all[0][0]);
+
+  let idx = { date: -1, desc: -1, amount: -1, debit: -1, credit: -1, cat: -1, tags: -1 };
   let start = 0;
   if (hasHeader) {
     start = 1;
     idx.date = lower.findIndex((c) => c.includes('date'));
     idx.desc = lower.findIndex((c) => /description|narrative|details|payee|merchant|memo/.test(c));
-    idx.amount = lower.findIndex((c) => c.trim() === 'amount' || /transaction amount|^amount/.test(c));
+    idx.amount = lower.findIndex((c) => c === 'amount' || /transaction amount|^amount/.test(c));
     idx.debit = lower.findIndex((c) => c.includes('debit'));
     idx.credit = lower.findIndex((c) => c.includes('credit'));
+    idx.cat = lower.findIndex((c) => c === 'category');
+    idx.tags = lower.findIndex((c) => c === 'tags' || c === 'tag');
   } else {
     // headerless: assume date,amount,description[,balance] (CommBank shape) —
     // but only if the first row actually fits it, so garbage fails loudly
-    if (first.length < 3 || !parseDate(first[0]) || parseAmount(first[1]) == null) {
-      throw new Error('unrecognised CSV columns — expected date, description and amount (or debit/credit)');
-    }
-    idx = { date: 0, amount: 1, desc: 2, debit: -1, credit: -1 };
+    if (all[0].length < 3 || !parseDate(all[0][0]) || parseAmount(all[0][1]) == null) throw new Error(UNRECOGNISED(kind));
+    idx = { date: 0, amount: 1, desc: 2, debit: -1, credit: -1, cat: -1, tags: -1 };
   }
   if (idx.date === -1 || idx.desc === -1 || (idx.amount === -1 && idx.debit === -1 && idx.credit === -1)) {
-    throw new Error('unrecognised CSV columns — expected date, description and amount (or debit/credit)');
+    throw new Error(UNRECOGNISED(kind, hasHeader ? first.filter(Boolean) : null));
   }
 
   const transactions = [];
   let skipped = 0;
   const skippedLines = []; // the first few, so a recurring format quirk is visible on the first approval
-  for (const line of lines.slice(start)) {
-    const cells = splitCsvLine(line);
+  for (const cells of all.slice(start)) {
     const date = parseDate(cells[idx.date]);
-    const desc = (cells[idx.desc] || '').replace(/\s+/g, ' ').trim();
+    const desc = cellText(cells[idx.desc]).replace(/\s+/g, ' ').trim();
     let amount = idx.amount !== -1 ? parseAmount(cells[idx.amount]) : null;
     if (amount == null && idx.debit !== -1) {
       const debit = parseAmount(cells[idx.debit]);
       const credit = idx.credit !== -1 ? parseAmount(cells[idx.credit]) : null;
       amount = debit != null ? -Math.abs(debit) : credit != null ? Math.abs(credit) : null;
     }
-    if (!date || !desc || amount == null) { skipped++; if (skippedLines.length < 3) skippedLines.push(line.trim().slice(0, 80)); continue; }
-    transactions.push({ date, amount, merchant: desc, category: categorize(desc), source: 'import' });
+    if (!date || !desc || amount == null) {
+      skipped++;
+      if (skippedLines.length < 3) skippedLines.push(cells.map(cellText).join(',').trim().slice(0, 80));
+      continue;
+    }
+    // his own merchant rule first, then the budget app's category where it
+    // clearly matches one of Nova's, then Nova's guess from the merchant
+    const theirs = idx.cat !== -1 ? cellText(cells[idx.cat]).trim().slice(0, 60) : '';
+    const rule = overrideFor(desc);
+    const mapped = theirs ? mapTheirCategory(theirs, amount) : null;
+    const category = rule || mapped || categorize(desc);
+    const tags = idx.tags !== -1 ? cellText(cells[idx.tags]).replace(/\s+/g, ' ').trim().slice(0, 200) : '';
+    transactions.push({
+      date, amount, merchant: desc, category, source: 'import',
+      ...(tags ? { note: tags } : {}),
+      // where the category came from, said on the import sheet; only a file
+      // that carries its own Category column has anything to say
+      ...(idx.cat !== -1 ? { theirs, categoryFrom: rule ? 'rule' : mapped ? 'theirs' : 'guess' } : {}),
+    });
   }
   return { transactions, skipped, skippedLines };
+}
+
+export function parseBankCsv(raw) {
+  const lines = String(raw || '').split(/\r?\n/).filter((l) => l.trim());
+  return parseBankRows(lines.map(splitCsvLine), { kind: 'CSV' });
+}
+
+// A BUDGET APP'S .xlsx, READ DIRECTLY (his call 10 Oct 2026, "Read it
+// directly"): Billroo's export is "Excel format" with Date, Description,
+// Category, Tags, Amount. The first sheet's cells go through the same
+// reader as a CSV's, so dedupe, the pending record, his yes and Undo are
+// the CSV path's. A file that is not really a spreadsheet says so.
+export async function parseBankXlsx(buf) {
+  const { readSheet } = await import('read-excel-file/node');
+  let rows;
+  try {
+    rows = await readSheet(buf);
+  } catch (e) {
+    throw new Error(`this file ends in .xlsx but is not a spreadsheet Nova can open (${String(e.message || e).slice(0, 80)})`);
+  }
+  return parseBankRows(rows, { kind: 'spreadsheet' });
 }
 
 /* ------------------------------- the watcher ------------------------------ */
@@ -136,12 +212,12 @@ export async function scanImports(vaultPath) {
   const dir = path.join(vaultPath, IMPORTS_DIR_REL);
   if (!existsSync(dir)) return { found: 0, records: [] };
   const all = await readdir(dir);
-  // A SPREADSHEET IS SAID, NEVER SKIPPED IN SILENCE (mockup 90's .xlsx frame):
-  // a budget app's "Excel format" export lands here and used to sit unread.
-  // Nova does not parse it (reading .xlsx is his call, still open); it raises
-  // one honest card per file and content saying how to re-save it as CSV.
+  // A FILE NOVA CANNOT READ IS SAID, NEVER SKIPPED IN SILENCE (mockup 90's
+  // file card). An .xlsx is read directly since 10 Oct 2026 (his call,
+  // "Read it directly"); a .numbers file or an old .xls still raises one
+  // honest card per file and content saying how to re-save it as CSV.
   const unreadable = [];
-  for (const f of all.filter((x) => /\.(xlsx|xls|numbers)$/i.test(x))) {
+  for (const f of all.filter((x) => /\.(xls|numbers)$/i.test(x))) {
     try {
       const buf = await readFile(path.join(dir, f));
       const { noteUnreadableFile } = await import('./moneySignals.js');
@@ -151,7 +227,7 @@ export async function scanImports(vaultPath) {
       console.error(`money import: could not note ${f}: ${e.message}`);
     }
   }
-  const files = all.filter((f) => f.toLowerCase().endsWith('.csv'));
+  const files = all.filter((f) => /\.(csv|xlsx)$/i.test(f) && !f.startsWith('~$')); // ~$ is Excel's lock file
   if (!files.length) return { found: 0, records: unreadable };
 
   const existing = new Set((await listTransactions({ sinceMonths: 26 })).map(dedupeKey));
@@ -160,8 +236,9 @@ export async function scanImports(vaultPath) {
   const records = [...unreadable];
 
   for (const file of files) {
-    const raw = await readFile(path.join(dir, file), 'utf8');
-    const contentHash = createHash('sha256').update(raw).digest('hex').slice(0, 16);
+    const buf = await readFile(path.join(dir, file));
+    const contentHash = createHash('sha256').update(buf).digest('hex').slice(0, 16);
+    const isXlsx = /\.xlsx$/i.test(file);
     const prior = alreadyPending.get(file);
     if (prior) {
       if (!prior.hash || prior.hash === contentHash) continue; // the same content already has its record
@@ -170,7 +247,7 @@ export async function scanImports(vaultPath) {
     }
     let parsed;
     try {
-      parsed = parseBankCsv(raw);
+      parsed = isXlsx ? await parseBankXlsx(buf) : parseBankCsv(buf.toString('utf8'));
     } catch (e) {
       records.push(await createRecord({
         id: randomUUID().slice(0, 8),

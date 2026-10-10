@@ -11,6 +11,8 @@
 // calendar coin and monogram. Over budget is SHAPE and WORDS (a hatched tab
 // and "$38 over"), never red: red is Nova pushing back (his 4 Oct rule).
 
+import { partsOf } from './moneyParts.js';
+
 export const CATS = {
   Groceries: { key: 'gro', label: 'Groceries', hue: 'var(--nv-m-back)' },
   'Eating Out': { key: 'eat', label: 'Eating out', hue: 'var(--nv-or)' },
@@ -77,6 +79,30 @@ export function initialOf(name) {
   } catch { /* fall through */ }
   const m = s.match(/[\p{L}\p{N}]/u);
   return m ? m[0].toUpperCase() : s[0];
+}
+
+// the server's merchantKey (lib/money.js), the same normalising: what makes
+// "DEMO CORNER STORE" and "Demo Corner Store" one merchant
+export const merchantKey = (m) => String(m || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\b(pty|ltd|au|com|www|pay|payment)\b/g, '').trim();
+
+// THE MERCHANT SWITCH'S COUNT (his call 10 Oct 2026, "every last purchase
+// too"): from the merchant's other lines by category (GET .../merchant, or
+// the demo's own list), how many a move to `target` would change. The
+// server moves exactly these: same direction, not already there, not split.
+export function merchantMoveCount(info, target) {
+  if (!info || !info.byCategory) return null;
+  let n = 0;
+  for (const [c, k] of Object.entries(info.byCategory)) if (c !== target) n += k;
+  return { moves: n, split: info.split || 0 };
+}
+
+// the switch's small line, in words that are true before he saves
+export function merchantSwitchWords(on, count) {
+  if (!on) return 'Off: only this line changes';
+  if (!count) return 'On: past and future lines from it follow';
+  const keep = !count.split ? '' : count.split === 1 ? ' One split line keeps its parts.' : ` ${count.split} split lines keep their parts.`;
+  if (!count.moves) return `On: no past lines to move; future ones follow.${keep}`;
+  return `On: moves ${count.moves === 1 ? '1 past line' : `${count.moves.toLocaleString('en-AU')} past lines`} too, and future ones follow.${keep}`;
 }
 
 /* ---------------------------------------------------------- cadences -- */
@@ -367,9 +393,14 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
     const r = risenOn.get(`${t.merchant}|${t.date}`);
     const odd = unusualByTxn.get(t.id) || null;
     const from = t.source === 'import' ? 'From a bank export' : t.source === 'scan' ? 'From a receipt scan' : t.source === 'capture' ? 'Captured by you' : 'Typed by you';
+    // a split line: both parts, each in its category's hue (mockup 90, Line)
+    const ps = partsOf(t);
+    const split = ps.length > 1 ? ps.map((p) => ({ category: p.category, label: catOf(p.category).label, hue: catOf(p.category).hue, amount: p.amount, amountLabel: usd2(p.amount) })) : null;
     return {
       id: t.id, date: t.date, name: t.merchant, initial: initialOf(t.merchant),
-      category: isIncome ? 'Income' : (t.category || 'Other'), catLabel: incoming && !isIncome ? `${meta.label} · refund` : meta.label,
+      category: isIncome ? 'Income' : (t.category || 'Other'),
+      catLabel: split ? split.map((p) => p.label).join(' + ') : incoming && !isIncome ? `${meta.label} · refund` : meta.label,
+      split,
       hue: meta.hue, ink: !!meta.ink, income: isIncome, incoming,
       amount: t.amount, amountLabel: `${incoming ? '+' : ''}${usd2(t.amount)}`,
       note: t.note || null,
@@ -377,6 +408,9 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
       odd: odd ? { id: odd.id, ratio: odd.ratio, word: `${odd.ratio}x usual`, talk: `Let's talk about this money alert: “${odd.title}” Is it right?` } : null,
       where: dayLabel(t.date, today), from,
       source: t.source || 'manual',
+      // an import line's own category from its file, when it reads differently
+      // from where it lands (the import sheet draws "Dining out → Eating out")
+      theirs: t.theirs && t.theirs.toLowerCase() !== meta.label.toLowerCase() ? t.theirs : null,
     };
   };
   const groupRows = (list) => {
@@ -413,16 +447,38 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
     const mix = [...counts].sort((a, b) => b[1] - a[1]);
     const leftOut = Number((/(\d+) already in the ledger/.exec(r.decision?.reason || '') || [])[1] || 0);
     const file = r.decision?.payload?.file || null;
+    // where each category came from: a budget app's export carries its own
+    // (mapped where the names clearly match, 10 Oct 2026); a bank CSV does not
+    const fromTheirs = list.filter((t) => t.categoryFrom === 'theirs').length;
+    const fromRule = list.filter((t) => t.categoryFrom === 'rule').length;
+    const carried = list.some((t) => t.categoryFrom);
+    const guessed = list.length - fromTheirs - fromRule;
+    // counts grouped as he reads them: "5,000", never "5000" (break-ui, 10 Oct)
+    const g = (k) => AUD0.format(k);
+    const whence = !carried ? 'Nova guessed each category from the merchant name.'
+      : `Categories: ${[
+        fromTheirs ? `${g(fromTheirs)} from the file’s own, where the name matches Nova’s` : null,
+        fromRule ? `${g(fromRule)} by your merchant ${fromRule === 1 ? 'rule' : 'rules'}` : null,
+        guessed ? `${g(guessed)} guessed by Nova from the merchant name` : null,
+      ].filter(Boolean).join('; ')}.`;
+    // "into September" only when every line is in September: an export that
+    // spans months files each line into its own (break-ui, 10 Oct)
+    const oneMonth = dates.length && dates[0].slice(0, 7) === dates[dates.length - 1].slice(0, 7);
+    const IMPORT_CAP = 120;
+    const shownList = [...list].map((t, i) => ({ ...t, id: t.id || `${r.id}-${i}` })).sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, IMPORT_CAP);
     return {
       id: r.id, file,
-      say: `${plural(list.length, 'new line')} from ${file || 'a statement photo'}.`,
+      say: `${list.length === 1 ? '1 new line' : `${g(list.length)} new lines`} from ${file || 'a statement photo'}.`,
       range: dates.length ? `${Number(dates[0].slice(8))} ${dates[0].slice(0, 7) === dates[dates.length - 1].slice(0, 7) ? '' : `${monthName(dates[0].slice(0, 7))} `}to ${Number(dates[dates.length - 1].slice(8))} ${monthName(dates[dates.length - 1].slice(0, 7))}`.replace(/\s+/g, ' ') : '',
       leftOut,
       preview: mix.map(([c, n]) => ({ hue: catOf(c).hue, n })),
-      mixWords: `${mix.slice(0, 3).map(([c, n]) => `${catOf(c).label} ${n}`).join(', ')}${mix.length > 3 ? ` and ${list.length - mix.slice(0, 3).reduce((s, [, n]) => s + n, 0)} more` : ''}. Nova guessed each category from the merchant name.`,
-      groups: groupRows([...list].map((t, i) => ({ ...t, id: t.id || `${r.id}-${i}` })).sort((a, b) => (a.date < b.date ? 1 : -1))),
+      mixWords: `${mix.slice(0, 3).map(([c, n]) => `${catOf(c).label} ${g(n)}`).join(', ')}${mix.length > 3 ? ` and ${g(list.length - mix.slice(0, 3).reduce((s, [, n]) => s + n, 0))} more` : ''}. ${whence}`,
+      // the sheet lists the newest IMPORT_CAP; the count says the rest
+      groups: groupRows(shownList),
+      capNote: list.length > IMPORT_CAP ? `Showing the newest ${IMPORT_CAP} of ${g(list.length)}. Filing files all of them.` : null,
       count: list.length,
-      monthName: dates.length ? monthName(dates[dates.length - 1].slice(0, 7)) : '',
+      countLabel: g(list.length),
+      monthName: oneMonth ? monthName(dates[0].slice(0, 7)) : '',
       talk: `Let's talk about this import waiting in my Inbox: “${r.decision?.title || r.text}”`,
     };
   });

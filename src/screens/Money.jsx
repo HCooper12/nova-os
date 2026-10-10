@@ -61,7 +61,7 @@ function MoneyClassic({ v }) {
             <div className="nv-pane" style={{ flex: '1 1 300px', padding: '16px 18px' }}>
               <Eyebrow tone="cyan">Feeds</Eyebrow>
               <div style={css(`margin-top:9px;font:500 11.5px/1.6 ${R};color:var(--nv-ink60)`)}>
-                Drop bank CSVs into <span style={css("color:var(--nv-ink)")}>{v.moneyImportsDir}</span> in the vault. Nova checks every 5 minutes, leaves out what it already has, and drafts the rest to the Inbox for approval.
+                Drop bank CSVs or .xlsx exports into <span style={css("color:var(--nv-ink)")}>{v.moneyImportsDir}</span> in the vault. Nova checks every 5 minutes, leaves out what it already has, and drafts the rest to the Inbox for approval.
               </div>
               <div style={css("margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
                 <Chip tone="cyan" disabled={v.moneyBusy} onClick={v.moneyBusy ? undefined : v.runMoneyImportNow}>{v.moneyBusy ? 'Checking…' : 'Check folder now'}</Chip>
@@ -134,7 +134,7 @@ function MoneyClassic({ v }) {
               <Button onClick={v.submitMoneyAdd} disabled={v.moneyBusy || v.moneyReadOnly}>Add</Button>
             </div>
             {v.moneyTransactions.length === 0 ? (
-              <div style={css(`margin-top:14px;font:500 12px ${R};color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>Nothing in the ledger for this month yet. Capture an expense, drop a bank CSV, or scan a receipt.</div>
+              <div style={css(`margin-top:14px;font:500 12px ${R};color:color-mix(in srgb, var(--nv-ink) 45%, transparent)`)}>Nothing in the ledger for this month yet. Capture an expense, drop a bank CSV or .xlsx, or scan a receipt.</div>
             ) : (
               <div style={css("margin-top:12px;display:flex;flex-direction:column")}>
                 {v.moneyListNote && (
@@ -150,7 +150,7 @@ function MoneyClassic({ v }) {
                         {v.moneyAllCategories.map((c) => <option key={c} value={c} style={{ background: '#141019' }}>{c}</option>)}
                       </select>
                     ) : (
-                      <TextAction compact tone="quiet" onClick={t.startEditCategory} style={{ flex: 'none' }}>{t.category}</TextAction>
+                      <TextAction compact tone="quiet" onClick={t.startEditCategory} style={{ flex: 'none' }}>{t.categoryLabel}</TextAction>
                     )}
                     <span title={t.source} style={css(`flex:none;width:86px;text-align:right;font:500 12px ${M};font-variant-numeric:tabular-nums;color:${t.isSpend ? 'var(--nv-ink)' : 'var(--nv-good)'}`)}>{t.amountLabel}</span>
                     {t.remove && (

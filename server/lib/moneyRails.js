@@ -82,17 +82,27 @@ export async function deleteLines(ids) {
 }
 
 // A line's category and/or note, and the merchant rule only when he asked.
-export async function editLine(id, { category, note, rule = false } = {}) {
-  const res = await editTransaction(id, { category, note, rule });
+export async function editLine(id, { category, note, rule = false, parts } = {}) {
+  const res = await editTransaction(id, { category, note, rule, parts });
   const t = res.transaction;
+  const n = res.moved?.length || 0;
   const what = category !== undefined && category !== res.before.category
-    ? `${t.merchant} to ${cat(t.category)}${res.override ? ', and every line from it' : ''}`
-    : `the note on ${t.merchant}`;
+    ? `${t.merchant} to ${cat(t.category)}${res.override ? (n ? `, with ${n} past ${n === 1 ? 'line' : 'lines'} and every future one` : ', and every future line from it') : ''}`
+    : res.override && n ? `${n} past ${t.merchant} ${n === 1 ? 'line' : 'lines'} to ${cat(t.category)}`
+      : `the note on ${t.merchant}`;
+  // a split says both parts (mockup 90's receipt: "Split Corner Grocer ·
+  // $34.18 Groceries · $8.00 Health & fitness"); a join says where it went
+  const text = Array.isArray(parts)
+    ? `Split ${t.merchant} · ${t.parts.map((p) => `${fmt(p.amount)} ${cat(p.category)}`).join(' · ')}`
+    : res.before.parts && !t.parts ? `Joined ${t.merchant} into ${cat(t.category)}`
+      : `${n ? 'Moved' : 'Changed'} ${what}`;
   const record = await fileReceipt({
-    text: `Changed ${what}`,
+    text,
     destination: `Ledger · ${t.merchant}`,
-    undoData: { route: 'money-edit', id, before: res.before, override: res.override },
-    payload: { id, category: t.category, note: t.note, rule: !!res.override },
+    // ONE record for the whole move: Undo puts this line, every moved line
+    // (each to its own old category) and the merchant rule back
+    undoData: { route: 'money-edit', id, before: res.before, override: res.override, moved: res.moved || [] },
+    payload: { id, category: t.category, note: t.note, rule: !!res.override, moved: n, parts: t.parts || null },
   });
   return { transaction: t, record };
 }

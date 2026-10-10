@@ -81,6 +81,8 @@ export function valsMoney(app, ctx) {
     merchant: t.merchant,
     note: t.note,
     category: t.category,
+    // a split line names both parts; picking one category here joins it
+    categoryLabel: t.parts?.length > 1 ? t.parts.map((p) => p.category).join(' + ') : t.category,
     editingCategory: st.moneyEditCategoryId === t.id,
     startEditCategory: readOnly ? undefined : () => app.setState({ moneyEditCategoryId: t.id }),
     pickCategory: (e) => app.setMoneyCategory(t.id, e.target.value),
@@ -129,6 +131,11 @@ export function valsMoney(app, ctx) {
     add: (line) => app.moneyWrite('add', line),
     remove: (id) => app.moneyWrite('remove', id),
     edit: (id, patch) => app.moneyWrite('edit', id, patch),
+    // what the merchant switch would move, for the line open now
+    merchant: st.moneyMerchant || null,
+    // the row a change just landed on, lit once
+    fresh: st.moneyFreshId || null,
+    loadMerchant: (id) => app.loadMoneyMerchant(id),
     setBudget: (category, raw) => app.moneyWrite('budget', category, raw),
     answer: (id, answer) => app.moneyAnswer(id, answer),
     approveImport: (id) => app.moneyAnswer(id, 'file'),

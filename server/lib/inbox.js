@@ -11,7 +11,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
 import { queueTodoistSync } from './todoistSync.js';
-import { addTransactions, removeTransactions, restoreTransactions, editTransaction, restoreMerchantOverride, setBudget, CATEGORIES as MONEY_CATEGORIES } from './money.js';
+import { addTransactions, removeTransactions, restoreTransactions, editTransaction, restoreMerchantOverride, restoreCategories, setBudget, CATEGORIES as MONEY_CATEGORIES } from './money.js';
 import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
@@ -1370,9 +1370,13 @@ export async function undoFiling(vaultPath, undo) {
     return `put ${restored} ledger ${restored === 1 ? 'line' : 'lines'} back`;
   }
   if (undo.route === 'money-edit') {
-    await editTransaction(undo.id, { category: undo.before?.category, note: undo.before?.note ?? '' });
+    // the line exactly as it was: its category, note, and its parts (a split
+    // comes back split, a line split since comes back whole)
+    await editTransaction(undo.id, { category: undo.before?.category, note: undo.before?.note ?? '', parts: undo.before?.parts ?? null });
     if (undo.override?.key) await restoreMerchantOverride(undo.override.key, undo.override.before || null);
-    return `put the line back to ${undo.before?.category || 'its old category'}${undo.override?.key ? ' and the merchant rule back as it was' : ''}`;
+    // the merchant's other lines, each back to its own old category
+    const back = undo.moved?.length ? await restoreCategories(undo.moved) : 0;
+    return `put the line back to ${undo.before?.category || 'its old category'}${back ? `, ${back} more ${back === 1 ? 'line' : 'lines'} back where ${back === 1 ? 'it was' : 'they were'}` : ''}${undo.override?.key ? ' and the merchant rule back as it was' : ''}`;
   }
   if (undo.route === 'money-budget') {
     await setBudget(undo.category, undo.before == null ? '' : String(undo.before));

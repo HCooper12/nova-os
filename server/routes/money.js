@@ -3,7 +3,7 @@ import { writeFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { getMonthSummary, exportFinancialYear, listMonths, CATEGORIES } from '../lib/money.js';
+import { getMonthSummary, exportFinancialYear, listMonths, merchantLines, CATEGORIES } from '../lib/money.js';
 import { addLine, deleteLines, editLine, changeBudget } from '../lib/moneyRails.js';
 import { scanImports, IMPORTS_DIR_REL } from '../lib/moneyImport.js';
 import { startStatementScan, getStatementScanJob } from '../lib/scanStatement.js';
@@ -61,9 +61,21 @@ export function moneyRouter(vaultPath) {
         category: typeof b.category === 'string' ? b.category : undefined,
         note: typeof b.note === 'string' ? b.note : undefined,
         rule: b.rule === true,
+        // a split: two { category, amount } parts; null joins it back
+        parts: Array.isArray(b.parts) ? b.parts.slice(0, 3).map((p) => ({ category: String(p?.category || ''), amount: Number(p?.amount) })) : b.parts === null ? null : undefined,
       }));
     } catch (e) {
       fail(res, e);
+    }
+  });
+
+  // what a merchant rule would move: the merchant's other lines by category,
+  // so the line sheet can say "moves 12 past lines" before he saves
+  router.get('/money/transaction/:id/merchant', async (req, res) => {
+    try {
+      res.json(await merchantLines(req.params.id));
+    } catch (e) {
+      res.status(404).json({ error: e.message });
     }
   });
 

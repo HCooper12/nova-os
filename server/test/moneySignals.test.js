@@ -308,19 +308,19 @@ test('the CFO answers a consult with code-computed numbers, never a model', asyn
   assert.match(answer.answer, /MONEY THIS MONTH/);
 });
 
-test('a spreadsheet in Money/Imports raises ONE honest card, and leaves when the file does', async () => {
+test('a Numbers file in Money/Imports raises ONE honest card, and leaves when the file does', async () => {
   const { scanImports } = await import('../lib/moneyImport.js');
   const dir = path.join(vault, 'Money/Imports');
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, 'transactions.xlsx'), Buffer.from('PK\u0003\u0004 not really a workbook'));
+  await writeFile(path.join(dir, 'transactions.numbers'), Buffer.from('PK\u0003\u0004 a Numbers package'));
   const first = await scanImports(vault);
   const card = first.records.find((r) => r.event?.type === 'unreadable-file');
-  assert.ok(card, 'the .xlsx is said, not skipped in silence');
-  assert.equal(card.text, 'transactions.xlsx is a spreadsheet. Nova reads CSV files.');
+  assert.ok(card, 'the .numbers file is said, not skipped in silence');
+  assert.equal(card.text, 'transactions.numbers is a Numbers file. Nova reads CSV and .xlsx files.');
   const second = await scanImports(vault);
   assert.equal(second.records.filter((r) => r.event?.type === 'unreadable-file').length, 0, 'once per file and content');
   const { rm: rmFile } = await import('node:fs/promises');
-  await rmFile(path.join(dir, 'transactions.xlsx'));
+  await rmFile(path.join(dir, 'transactions.numbers'));
   await runMoneySignals({ vaultPath: vault, now: Date.now(), deps: { sendPush: async () => ({ sent: 0 }) } });
   const gone = await getRecord(card.id);
   assert.equal(gone.status, 'discarded');

@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { listTransactions, getBudgets, detectSubscriptions, merchantKey, daysBetween, getMonthSummary } from './money.js';
 import { createRecord, listRecords, updateRecord, getRecord } from './inboxStore.js';
 import { TIME_ZONE } from './quietHours.js';
+import { explodeParts } from '../../src/moneyParts.js';
 
 // MONEY THAT NEEDS HIM, AS SIGNALS (10 Oct 2026). His words that day: "ensure
 // … it interacts with everything else in nova so it can alert me and discuss
@@ -104,7 +105,8 @@ export function detectMoneyEvents({ transactions = [], budgets = {}, subscriptio
     });
   }
 
-  const monthLines = transactions.filter((t) => String(t.date).slice(0, 7) === month);
+  // a split line's parts each count against their own category's budget
+  const monthLines = explodeParts(transactions.filter((t) => String(t.date).slice(0, 7) === month));
   for (const [category, budget] of Object.entries(budgets || {})) {
     if (!(budget > 0)) continue;
     const spent = Math.round(monthLines.filter((t) => t.category === category && t.amount < 0).reduce((s, t) => s - t.amount, 0) * 100) / 100;
@@ -279,7 +281,8 @@ export async function noteUnreadableFile({ file, hash, dir = 'Money/Imports', no
     const ext = path.extname(file).slice(1).toLowerCase();
     const event = {
       type: 'unreadable-file', key, file, dir, ext,
-      title: `${file} is a spreadsheet. Nova reads CSV files.`,
+      // an .xlsx is read directly (10 Oct 2026); these two still are not
+      title: ext === 'xls' ? `${file} is an older Excel file (.xls). Nova reads CSV and .xlsx files.` : ext === 'numbers' ? `${file} is a Numbers file. Nova reads CSV and .xlsx files.` : `${file} is a spreadsheet Nova can’t open. Nova reads CSV and .xlsx files.`,
       body: 'Open it in Numbers, File › Export To › CSV, and save it into the same folder. Nova finds the CSV within five minutes and asks before filing anything.',
       expiresAt: null,
     };

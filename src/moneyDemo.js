@@ -9,10 +9,14 @@
 //
 // THE WORST CASE (break-ui, his yes 9 Oct): in a DEV build only, the URL
 // parameter ?moneyDemo= picks a fixture: demo (the default), worst, empty,
-// one, loading, offline, past, import, xlsx. A production build always
+// one, loading, offline, past, import, xlsx, xlsxbig, numbers. A production build always
 // shows the demo.
 
+import { merchantKey } from './moneyModel.js';
+import { explodeParts, normalizeSplit } from './moneyParts.js';
+
 const pad = (n) => String(n).padStart(2, '0');
+const CATEGORY_NAMES = ['Groceries', 'Eating Out', 'Transport', 'Health & Fitness', 'Subscriptions', 'Utilities & Bills', 'Shopping', 'Entertainment', 'Income', 'Other'];
 const TODAY = '2026-10-25';
 const MONTH = '2026-10';
 const PREV = '2026-09';
@@ -97,7 +101,7 @@ export function summarizeDemo(d) {
   const spendOf = (l) => cents(l.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0));
   const cats = ['Groceries', 'Eating Out', 'Transport', 'Shopping', 'Subscriptions', 'Health & Fitness', 'Utilities & Bills', 'Entertainment', 'Other', 'Income'];
   const byCategory = cats.map((c) => {
-    const mine = lines.filter((t) => t.category === c);
+    const mine = explodeParts(lines).filter((t) => t.category === c); // a split counts each part
     const p = prev[c] || [0, 0, 0];
     return { category: c, spent: spendOf(mine), prev: p[1], prevToDay: p[0], visits: mine.filter((t) => t.amount < 0).length, prevVisitsToDay: p[2], history: [AUG[c] || 0, p[1], spendOf(mine)], budget: budgets[c] || null };
   }).filter((c) => c.spent > 0 || c.prev > 0 || c.budget);
@@ -138,7 +142,19 @@ const IMPORT_LINES = Array.from({ length: 41 }, (_, i) => {
 });
 const IMPORT_REC = { id: 'demo-import', kind: 'money-import', status: 'pending', text: '41 transactions from transactions.csv', createdAt: `${TODAY}T09:45:00Z`,
   decision: { route: 'money-import', title: '41 transactions from transactions.csv', reason: 'Parsed from Money/Imports/transactions.csv: 41 new after dedupe (6 already in the ledger).', payload: { file: 'transactions.csv', transactions: IMPORT_LINES } } };
-const XLSX_REC = ev('demo-xlsx', { type: 'unreadable-file', key: 'file|transactions.xlsx', file: 'transactions.xlsx', dir: 'Money/Imports', title: 'transactions.xlsx is a spreadsheet. Nova reads CSV files.', body: '' });
+// a budget app's .xlsx, read directly (10 Oct 2026): its own category on each
+// line, mapped where the name clearly matches Nova's, else Nova's guess
+const THEIRS = { Groceries: 'Groceries', 'Eating Out': 'Dining out', Transport: 'Travel', 'Health & Fitness': 'Fitness', Shopping: 'Home', Other: 'Uncategorised' };
+const MAPS = new Set(['Groceries', 'Eating Out', 'Health & Fitness']); // what mapTheirCategory maps (Travel, Home, Uncategorised do not)
+const xlsxRec = (n, file = 'billroo-export.xlsx') => {
+  const lines = Array.from({ length: n }, (_, i) => {
+    const l = IMPORT_LINES[i % IMPORT_LINES.length];
+    return { ...l, date: n > 41 ? `2026-${pad(1 + (i % 9))}-${pad(1 + (i % 28))}` : l.date, amount: n > 41 ? -(1 + (i % 400) / 7) : l.amount, merchant: n > 41 ? `${l.merchant} ${i + 1}` : l.merchant, theirs: THEIRS[l.category], categoryFrom: MAPS.has(l.category) ? 'theirs' : 'guess' };
+  });
+  return { id: `demo-${file}`, kind: 'money-import', status: 'pending', text: `${n} transactions from ${file}`, createdAt: `${TODAY}T09:45:00Z`,
+    decision: { route: 'money-import', title: `${n} transactions from ${file}`, reason: `Parsed from Money/Imports/${file}: ${n} new after dedupe (6 already in the ledger).`, payload: { file, transactions: lines } } };
+};
+const NUMBERS_REC = ev('demo-numbers', { type: 'unreadable-file', key: 'file|transactions.numbers', file: 'transactions.numbers', dir: 'Money/Imports', title: 'transactions.numbers is a Numbers file. Nova reads CSV and .xlsx files.', body: '' });
 
 // The fixture for a variant: { lines, budgets, records, offline, loading, month, subs }
 export function demoMoneyState(variant = 'demo') {
@@ -152,7 +168,9 @@ export function demoMoneyState(variant = 'demo') {
     case 'offline': return { ...base, offline: true };
     case 'past': return { ...base, month: PREV, lines: OCT.map(([d, ...rest]) => line([d, ...rest], PREV)), records: [] };
     case 'import': return { ...base, records: [...EVENTS, IMPORT_REC] };
-    case 'xlsx': return { ...base, records: [...EVENTS, XLSX_REC] };
+    case 'xlsx': return { ...base, records: [...EVENTS, xlsxRec(41)] };
+    case 'xlsxbig': return { ...base, records: [...EVENTS, xlsxRec(5000)] };
+    case 'numbers': return { ...base, records: [...EVENTS, NUMBERS_REC] };
     default: return base;
   }
 }
@@ -183,7 +201,46 @@ let demoId = 0;
 export const demoWrites = {
   add: (st, { merchant, amount, category }) => ({ ...st, lines: [{ id: `dn${++demoId}`, date: TODAY, amount, merchant, category: category || 'Other', note: null, source: 'manual', addedAt: new Date().toISOString() }, ...st.lines] }),
   remove: (st, id) => ({ ...st, lines: st.lines.filter((t) => t.id !== id) }),
-  edit: (st, id, { category, note }) => ({ ...st, lines: st.lines.map((t) => (t.id === id ? { ...t, ...(category !== undefined ? { category } : {}), ...(note !== undefined ? { note: note || null } : {}) } : t)) }),
+  // with `rule`, every other line from the merchant moves too (the server's
+  // moveMerchantLines: same direction, not split). `parts` splits the line
+  // (or null joins it), as the server's editTransaction does.
+  edit: (st, id, { category, note, rule, parts }) => {
+    const line = st.lines.find((t) => t.id === id);
+    const key = rule && category !== undefined && !Array.isArray(parts) && line ? merchantKey(line.merchant) : null;
+    const reshape = (t) => {
+      if (Array.isArray(parts)) {
+        const sound = normalizeSplit(t.amount, parts, CATEGORY_NAMES);
+        return { ...t, parts: sound, category: sound[0].category };
+      }
+      if (parts === null || category !== undefined) {
+        const { parts: _drop, ...rest } = t; // eslint-disable-line no-unused-vars
+        return { ...rest, ...(category !== undefined ? { category } : {}) };
+      }
+      return t;
+    };
+    return {
+      ...st,
+      lines: st.lines.map((t) => {
+        if (t.id === id) return { ...reshape(t), ...(note !== undefined ? { note: note || null } : {}) };
+        if (key && merchantKey(t.merchant) === key && (t.amount > 0) === (line.amount > 0) && !(t.parts?.length > 1)) return { ...t, category };
+        return t;
+      }),
+    };
+  },
+  // the merchant's other lines by category (GET .../merchant, in memory)
+  merchant: (st, id) => {
+    const line = st.lines.find((t) => t.id === id);
+    if (!line) return null;
+    const key = merchantKey(line.merchant);
+    const byCategory = {};
+    let split = 0;
+    for (const t of st.lines) {
+      if (t.id === id || merchantKey(t.merchant) !== key || (t.amount > 0) !== (line.amount > 0)) continue;
+      if (t.parts?.length > 1) { split++; continue; }
+      byCategory[t.category] = (byCategory[t.category] || 0) + 1;
+    }
+    return { id, byCategory, split };
+  },
   budget: (st, category, value) => { const b = { ...st.budgets }; if (value) b[category] = value; else delete b[category]; return { ...st, budgets: b }; },
   resolve: (st, id) => ({ ...st, records: st.records.filter((r) => r.id !== id) }),
 };

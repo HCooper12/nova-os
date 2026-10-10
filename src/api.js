@@ -424,6 +424,8 @@ export const api = {
   moneyBudget: (conn, category, amount) => post(conn, '/api/money/budget', { category, amount }),
   // the line sheet: { category?, note?, rule? } — rule files every line from the merchant that way
   moneyEdit: (conn, id, patch) => post(conn, `/api/money/transaction/${encodeURIComponent(id)}/edit`, patch),
+  // the merchant's other lines by category: what the switch would move
+  moneyMerchant: (conn, id) => call(conn, `/api/money/transaction/${encodeURIComponent(id)}/merchant`),
   // a money card answered: keep | noted | cancel (a price rise → a To-Do with Undo)
   moneyEventAnswer: (conn, id, answer) => post(conn, `/api/money/event/${encodeURIComponent(id)}/answer`, { answer }),
   moneyImportRun: (conn) => post(conn, '/api/money/import/run', {}),

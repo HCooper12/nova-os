@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { budgetFromInput } from '../../src/moneyParse.js';
+import { isSplit, explodeParts, partsOf, normalizeSplit } from '../../src/moneyParts.js';
 
 // The CFO's ledger. Transactions live in monthly JSON stores under
 // data/money/ (high-volume structured data, same reasoning as the food log);
@@ -31,6 +32,13 @@ const CATEGORY_KEYWORDS = [
   ['Shopping', ['amazon', 'ebay', 'kmart', 'target', 'big w', 'bunnings', 'officeworks', 'jb hi', 'myer', 'uniqlo', 'asos', 'the iconic', 'chemist warehouse']],
   ['Income', ['salary', 'payroll', 'pay ', 'wage', 'interest', 'dividend', 'refund', 'reimburse', 'centrelink']],
 ];
+
+// his own merchant rule for this text, or null (an import asks first, so
+// his correction beats a budget app's category and the keyword guess)
+export function overrideFor(text) {
+  const key = overridesCache ? merchantKey(text) : null;
+  return key && overridesCache[key] ? overridesCache[key] : null;
+}
 
 export function categorize(text) {
   // a merchant he has corrected once is filed his way from then on
@@ -180,30 +188,117 @@ export async function setTransactionCategory(id, category) {
 
 // ONE LINE CHANGED, with everything an undo needs to put it back: the line's
 // category and note before, and the merchant rule before (its category, or
-// null when there was none). `rule` true also files every future line from
-// this merchant this way (the line sheet's switch, off unless he turns it on).
-export async function editTransaction(id, { category, note, rule = false } = {}) {
+// null when there was none). `rule` true files the merchant his way from now
+// on AND moves every other line already in the ledger from it ("Yes, every
+// last purchase too", his call 10 Oct 2026): `moved` lists each one with the
+// category it had, so Undo puts every line back where it was.
+//
+// `parts` (his call 10 Oct 2026, "Yes, split across categories"): two
+// { category, amount } pieces split the line (src/moneyParts.js holds the
+// shape; the line's category becomes the first part's); null joins a split
+// line back into one category. Giving a category without parts also joins
+// it, since one category for the whole line is what that means. `before`
+// keeps the parts (or null) so Undo restores the line exactly.
+export async function editTransaction(id, { category, note, rule = false, parts } = {}) {
   if (category !== undefined && !CATEGORIES.includes(category)) throw new Error('unknown category');
   for (const month of await listMonths()) {
     const data = await readMonth(month);
     const t = data.transactions.find((x) => x.id === id);
     if (!t) continue;
-    const before = { category: t.category, note: t.note ?? null };
-    if (category !== undefined) t.category = category;
+    const before = { category: t.category, note: t.note ?? null, parts: isSplit(t) ? t.parts.map((p) => ({ ...p })) : null };
+    if (Array.isArray(parts)) {
+      const sound = normalizeSplit(t.amount, parts, CATEGORIES); // throws before anything is written
+      t.parts = sound;
+      t.category = sound[0].category;
+    } else if (parts === null || category !== undefined) {
+      if (category !== undefined) t.category = category;
+      delete t.parts;
+    }
     if (note !== undefined) t.note = String(note || '').trim().slice(0, 200) || null;
     await writeMonth(month, data);
     let override = null;
-    if (rule && category !== undefined) {
+    let moved = [];
+    if (rule && category !== undefined && !Array.isArray(parts)) {
       const key = merchantKey(t.merchant);
       if (key) {
         const cfg = await readConfig();
         override = { key, before: cfg.merchantOverrides[key] || null };
         await setMerchantOverride(t.merchant, category);
+        moved = await moveMerchantLines(key, category, { except: id, incoming: t.amount > 0 });
       }
     }
-    return { transaction: t, before, override };
+    return { transaction: t, before, override, moved };
   }
   throw new Error('transaction not found');
+}
+
+// Would this other line move with a merchant rule? Same merchant, same
+// direction (a purchase moves purchases, money in moves money in), not
+// already there, and not one he split by hand (a split keeps its parts).
+const movesWith = (t, key, category, { except, incoming }) => t.id !== except
+  && merchantKey(t.merchant) === key
+  && (t.amount > 0) === !!incoming
+  && t.category !== category
+  && !isSplit(t);
+
+// Every other line from the merchant filed `category`; returns [{ id, the
+// category it had }] for the undo. One write per month touched.
+async function moveMerchantLines(key, category, opts) {
+  const moved = [];
+  for (const month of await listMonths()) {
+    const data = await readMonth(month);
+    let changed = false;
+    for (const t of data.transactions) {
+      if (!movesWith(t, key, category, opts)) continue;
+      moved.push({ id: t.id, category: t.category });
+      t.category = category;
+      changed = true;
+    }
+    if (changed) await writeMonth(month, data);
+  }
+  if (moved.length) import('./events.js').then(({ broadcast }) => broadcast('money')).catch(() => {});
+  return moved;
+}
+
+// The other lines in the ledger from this line's merchant, in the same
+// direction, counted by the category each is in now: what the line sheet
+// says a merchant rule would move. `split` counts the ones that stay put.
+export async function merchantLines(id) {
+  const all = [];
+  for (const month of await listMonths()) all.push(...(await readMonth(month)).transactions);
+  const t = all.find((x) => x.id === id);
+  if (!t) throw new Error('transaction not found');
+  const key = merchantKey(t.merchant);
+  const incoming = t.amount > 0;
+  const byCategory = {};
+  let split = 0;
+  for (const x of all) {
+    if (x.id === id || !key || merchantKey(x.merchant) !== key || (x.amount > 0) !== incoming) continue;
+    if (isSplit(x)) { split++; continue; }
+    byCategory[x.category] = (byCategory[x.category] || 0) + 1;
+  }
+  return { id, byCategory, split };
+}
+
+// Lines put back in the categories they had (a merchant move's undo). A line
+// deleted since is skipped; returns how many came back.
+export async function restoreCategories(list) {
+  const want = new Map((list || []).filter((m) => m && m.id && CATEGORIES.includes(m.category)).map((m) => [m.id, m.category]));
+  if (!want.size) return 0;
+  let restored = 0;
+  for (const month of await listMonths()) {
+    const data = await readMonth(month);
+    let changed = false;
+    for (const t of data.transactions) {
+      if (!want.has(t.id)) continue;
+      t.category = want.get(t.id);
+      restored++;
+      changed = true;
+    }
+    if (changed) await writeMonth(month, data);
+  }
+  if (restored) import('./events.js').then(({ broadcast }) => broadcast('money')).catch(() => {});
+  return restored;
 }
 
 // A merchant rule set back to what it was (null removes it): an undo's half.
@@ -524,18 +619,21 @@ export async function getMonthSummary(month, { now = new Date() } = {}) {
   const prevToDay = upTo(prev, prevAsOf);
 
   const budgets = await getBudgets();
+  // by category, a split line counts each part in its own category
+  // (src/moneyParts.js); the month's total and its days read lines whole
+  const [partsNow, partsPrev, partsPrevToDay, partsBefore] = [transactions, prev, prevToDay, before].map(explodeParts);
   const byCategory = CATEGORIES.map((c) => {
-    const mine = transactions.filter((t) => t.category === c);
-    const theirs = prev.filter((t) => t.category === c);
+    const mine = partsNow.filter((t) => t.category === c);
+    const theirs = partsPrev.filter((t) => t.category === c);
     return {
       category: c,
       spent: spendOf(mine),
       prev: spendOf(theirs),
-      prevToDay: spendOf(prevToDay.filter((t) => t.category === c)),
+      prevToDay: spendOf(partsPrevToDay.filter((t) => t.category === c)),
       visits: mine.filter((t) => t.amount < 0).length,
-      prevVisitsToDay: prevToDay.filter((t) => t.category === c && t.amount < 0).length,
+      prevVisitsToDay: partsPrevToDay.filter((t) => t.category === c && t.amount < 0).length,
       // the two months before this one and this one, oldest first (the budget sheet's bars)
-      history: [spendOf(before.filter((t) => t.category === c)), spendOf(theirs), spendOf(mine)],
+      history: [spendOf(partsBefore.filter((t) => t.category === c)), spendOf(theirs), spendOf(mine)],
       budget: budgets[c] || null,
     };
   }).filter((c) => c.spent > 0 || c.prev > 0 || c.budget);
@@ -584,6 +682,14 @@ export async function exportFinancialYear(fy) {
     .sort((a, b) => (a.date < b.date ? -1 : 1));
   const esc = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
   const lines = ['Date,Amount,Merchant,Category,Note,Source'];
-  for (const t of rows) lines.push([t.date, t.amount.toFixed(2), esc(t.merchant), t.category, esc(t.note || ''), t.source].join(','));
-  return { filename: `nova-money-FY${String(fy - 1).slice(2)}-${String(fy).slice(2)}.csv`, csv: lines.join('\n') + '\n', count: rows.length };
+  // a split line is one row per part, each in its category, its note saying
+  // so; the columns stay the same, and the rows still add up to the ledger
+  for (const t of rows) {
+    const parts = partsOf(t);
+    parts.forEach((p, i) => {
+      const note = parts.length > 1 ? `split ${i + 1} of ${parts.length}${t.note ? `; ${t.note}` : ''}` : (t.note || '');
+      lines.push([t.date, Number(p.amount).toFixed(2), esc(t.merchant), p.category, esc(note), t.source].join(','));
+    });
+  }
+  return { filename: `nova-money-FY${String(fy - 1).slice(2)}-${String(fy).slice(2)}.csv`, csv: lines.join('\n') + '\n', count: lines.length - 1 };
 }

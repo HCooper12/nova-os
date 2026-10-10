@@ -612,6 +612,34 @@ export function MissionStructured({ v }) {
         )}
         </div>
 
+        {/* MONEY THAT NEEDS HIM (his call 10 Oct 2026, "Show row on the
+            other home too"): the same moment the summary Home draws, from
+            the same view model (v.moneyMoment), and only while a money
+            record waits on him: an over, a bill due, a rise, an odd charge.
+            Nothing at all when the money is fine. Money's violet; each line
+            wears its category's hue. */}
+        {v.moneyMoment && (
+          <section className="nv-glow" aria-label="Money" style={{ marginTop: '18px', padding: mob ? '15px 16px 13px' : '18px 20px 16px', animation: 'fadeUp var(--nv-dur-base) var(--nv-ease)', ...glowPanel('--nv-vi', { radius: '16px' }).style }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ font: `600 11px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-vi)' }}>Money</div>
+              <Meta tone="faint">{v.moneyMoment.count === 1 ? 'one thing for you' : `${v.moneyMoment.count} things for you`}</Meta>
+            </div>
+            <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {v.moneyMoment.items.map((it) => (
+                <div key={it.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>
+                  <span aria-hidden="true" style={{ flex: 'none', width: 7, height: 7, borderRadius: '50%', background: it.hue, transform: 'translateY(-2px)' }} />
+                  <span style={{ flex: 1, minWidth: 0, font: `italic 400 ${mob ? '17px' : '19px'}/1.3 ${S}`, color: 'var(--nv-ink)', textWrap: 'pretty', overflowWrap: 'anywhere' }}>{it.title}</span>
+                </div>
+              ))}
+              {v.moneyMoment.more > 0 && <Meta tone="faint">and {v.moneyMoment.more} more on Money</Meta>}
+            </div>
+            <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              <Pill label="Discuss" onClick={v.moneyMoment.discuss} accent="--nv-vi" />
+              <Pill label="Open Money" onClick={v.moneyMoment.open} tone="quiet" />
+              <Pill label="Noted" onClick={v.moneyMoment.noted} tone="quiet" />
+            </div>
+          </section>
+        )}
         {/* C3 — THE RECORD MOMENT. Two PRs on 3 Sep rendered as two small
             cards identical in weight to a rest-day notice. A system built to
             make him better should be visibly pleased when he gets better.
