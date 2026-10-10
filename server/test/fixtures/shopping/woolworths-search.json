@@ -1,0 +1,8 @@
+{"Products":[
+ {"Products":[{"Stockcode":100001,"Name":"Brown Onions Each","DisplayName":"Woolworths Brown Onions Each","UrlFriendlyName":"woolworths-brown-onions-each","Price":0.8,"WasPrice":0.8,"CupString":"$4.44 / 1KG","PackageSize":"Each","Unit":"Each","IsOnSpecial":false,"IsHalfPrice":false,"IsAvailable":true}],"Name":"Brown Onions Each"},
+ {"Products":[{"Stockcode":100002,"Name":"Brown Onions Bag 1kg","DisplayName":"Woolworths Brown Onions Bag 1kg","UrlFriendlyName":"woolworths-brown-onions-bag-1kg","Price":2.2,"WasPrice":2.9,"CupString":"$2.20 / 1KG","PackageSize":"1kg","Unit":"Each","IsOnSpecial":true,"IsHalfPrice":false,"IsAvailable":true}],"Name":"Brown Onions Bag"},
+ {"Products":[{"Stockcode":100003,"Name":"Onion Powder 50g","DisplayName":"Spice Co Brown Onion Powder 50g","Price":2.5,"CupString":"$5.00 / 100G","PackageSize":"50g","Unit":"Each","IsAvailable":true}],"Name":"Onion Powder"},
+ {"Products":[{"Stockcode":100004,"Name":"Red Onions Each","DisplayName":"Woolworths Red Onions Each","Price":0.9,"CupString":"$5.00 / 1KG","PackageSize":"Each","Unit":"Each","IsAvailable":true}],"Name":"Red Onions"},
+ {"Products":[{"Stockcode":100005,"Name":"Brown Onions Loose","DisplayName":"Brown Onions Loose","Price":null,"PackageSize":"Each","Unit":"Each","IsAvailable":false}],"Name":"Unavailable"},
+ {"Products":[{"Stockcode":100006,"Name":"Brown Onions Free","DisplayName":"Brown Onions Promo","Price":0,"PackageSize":"Each","Unit":"Each","IsAvailable":true}],"Name":"Zero"}
+],"SearchResultsCount":6}

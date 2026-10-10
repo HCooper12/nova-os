@@ -1,0 +1,5 @@
+{"meta":{"pagination":{"offset":0,"limit":24,"totalCount":3}},"data":[
+{"sku":"000000000000300001","name":"Chicken Thigh Fillets 1kg","brandName":"Market Farm","urlSlugText":"market-farm-chicken-thigh-fillets-1kg","sellingSize":"1kg","notForSale":false,"price":{"amount":1199,"amountRelevantDisplay":"$11.99","comparisonDisplay":"$11.99 per 1 kg","wasPriceDisplay":null}},
+{"sku":"000000000000300002","name":"Chicken Thigh Fillets 500g","brandName":"Market Farm","urlSlugText":"market-farm-chicken-thigh-fillets-500g","sellingSize":"500g","notForSale":false,"price":{"amount":699,"amountRelevantDisplay":"$6.99","comparisonDisplay":"$13.98 per 1 kg","wasPriceDisplay":"$7.49"}},
+{"sku":"000000000000300003","name":"Chicken Breast Fillets 1kg","brandName":"Market Farm","urlSlugText":"x","sellingSize":"1kg","price":{"amount":1099,"amountRelevantDisplay":"$10.99"}}
+]}
