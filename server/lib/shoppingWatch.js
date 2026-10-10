@@ -8,8 +8,8 @@ import { ensureAllLogos } from './brandLogos.js';
 // his time, queue today's price reads for the lines on his list that have no
 // read today. The queue itself is the polite part (server/lib/shopPrices.js):
 // one request at a time, a delay between, at most one read per product per
-// chain per day, and a blocked chain left alone until tomorrow. The logos are
-// read once, on the first tick, and never again once cached.
+// chain per day, and a blocked chain left alone until tomorrow. A logo is
+// read once and kept; one that failed is asked again a day later.
 
 const READ_FROM_HOUR = 6;
 const hourInMelbourne = (d = new Date()) => Number(new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Melbourne', hour: 'numeric', hourCycle: 'h23' }).format(d));
@@ -27,12 +27,14 @@ export async function shoppingTick(vaultPath, { now = new Date() } = {}) {
 }
 
 export function startShoppingScheduler(vaultPath) {
-  let first = true;
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('shopping');
     await shoppingTick(vaultPath);
-    if (first) { first = false; ensureAllLogos().catch((e) => console.error('logos failed:', e.message)); }
+    // every tick asks; it is a no-op for a cached logo and for a miss less
+    // than a day old, so a site that refused at boot is tried again tomorrow
+    // (10 Oct 2026: Flybuys dropped the connection, Coles showed a bot check)
+    ensureAllLogos().catch((e) => console.error('logos failed:', e.message));
   };
   setTimeout(tick, 90 * 1000); // after boot settles
   setInterval(tick, 30 * 60 * 1000);

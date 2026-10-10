@@ -70,12 +70,15 @@ test('fetched once, cached, served; a blocked site is a miss the app answers wit
   const f = await L.logoFile('er');
   assert.ok(f.path.includes(path.join('logos', 'er.png')), 'kept in server/data/logos, outside the repo');
   assert.equal(await L.logoFile('fb'), null, 'no file: the app draws the mark');
-  // ONCE: a second pass asks no one (the misses wait a week)
+  // ONCE: a second pass asks no one, and a miss waits a day (10 Oct 2026:
+  // the scheduler asks every tick, so a refusal at boot is tried tomorrow)
   const before = net.calls.length;
   await L.ensureAllLogos({ fetchImpl: net.fetchImpl, sleep: async () => {} });
   assert.equal(net.calls.length, before);
-  // a week later, only the misses are asked again
-  await L.ensureAllLogos({ fetchImpl: net.fetchImpl, sleep: async () => {}, now: new Date(Date.now() + 8 * 86400000) });
+  await L.ensureAllLogos({ fetchImpl: net.fetchImpl, sleep: async () => {}, now: new Date(Date.now() + 2 * 3600000) });
+  assert.equal(net.calls.length, before, 'a miss was asked again within the day');
+  // a day later, only the misses are asked again
+  await L.ensureAllLogos({ fetchImpl: net.fetchImpl, sleep: async () => {}, now: new Date(Date.now() + 25 * 3600000) });
   assert.ok(!net.calls.slice(before).some((u) => u.includes('everyday')), 'a cached logo is never fetched again');
   assert.ok(net.calls.slice(before).some((u) => u.includes('flybuys')));
 });

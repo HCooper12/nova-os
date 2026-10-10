@@ -10,7 +10,7 @@ import { USER_AGENT, detectBlock } from './shopPrices.js';
 // a phone puts on a home screen, or the site icon). The server reads that
 // once, keeps the file in server/data/logos/ (gitignored with all of
 // server/data), and serves it to the app. A site that refuses, or has no
-// usable icon, is noted as a miss and asked again a week later at most; the
+// usable icon, is noted as a miss and asked again a day later at most; the
 // screen draws its own coloured mark meanwhile. Nothing is ever evaded.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,7 +25,7 @@ export const BRANDS = {
   c: { name: 'Coles', home: 'https://www.coles.com.au/' },
   a: { name: 'Aldi', home: 'https://www.aldi.com.au/' },
 };
-const MISS_RETRY_MS = 7 * 86400000;
+const MISS_RETRY_MS = 24 * 60 * 60 * 1000;
 const TYPES = { 'image/png': 'png', 'image/svg+xml': 'svg', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/x-icon': 'ico', 'image/vnd.microsoft.icon': 'ico' };
 
 // the best icon a page's head names: the largest apple-touch-icon, then an
