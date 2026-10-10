@@ -170,7 +170,7 @@ export function dueCards(cards, pagesById, today) {
     const late = Math.max(0, daysBetween(card.due, today));
     out.push({ id, page, step: card.step, due: card.due, score: late / GAPS[card.step] });
   }
-  out.sort((a, b) => b.score - a.score || a.step - b.step || a.page.title.localeCompare(b.page.title));
+  out.sort((a, b) => b.score - a.score || a.step - b.step || titleKey(a.page.title).localeCompare(titleKey(b.page.title)));
   return out;
 }
 
@@ -193,6 +193,12 @@ export function aheadOf(cards, pagesById, today, days = 7) {
   return { ahead, nextDue: next ? { date: next, count: counts.get(next) } : null };
 }
 
+// Frontmatter is YAML: a bare `date: 2026-09-14` arrives as a Date object
+// and a numeric title as a number. Every comparison goes through these, so
+// one odd page can never 500 the whole morning (it did, on his vault, 11 Oct).
+const dateKey = (v) => (v instanceof Date ? (Number.isNaN(v.getTime()) ? '' : v.toISOString().slice(0, 10)) : String(v ?? ''));
+const titleKey = (v) => String(v ?? '');
+
 // Candidates never in the log, ranked newest page first (its concept page's
 // own date, standing in for "the day after the source was ingested, while
 // the curve is steepest"), then most backlinked, then title.
@@ -201,9 +207,9 @@ export function newCandidates(pages, cards, backlinkCounts) {
   return pages
     .filter((p) => (p.type === 'concept' || p.type === 'topic') && !seen.has(p.id))
     .map((p) => ({ id: p.id, page: p, backlinks: backlinkCounts?.get(p.id) || 0 }))
-    .sort((a, b) => (b.page.date || '').localeCompare(a.page.date || '')
+    .sort((a, b) => dateKey(b.page.date).localeCompare(dateKey(a.page.date))
       || b.backlinks - a.backlinks
-      || a.page.title.localeCompare(b.page.title));
+      || titleKey(a.page.title).localeCompare(titleKey(b.page.title)));
 }
 
 // The whole day's queue: up to DAILY ids, due cards first (most overdue),
@@ -286,7 +292,7 @@ export function connectedNotes(page, pages, backlinkCounts, max = 4) {
     const linksBack = (target.links || []).some((l) => String(l).toLowerCase() === page.title.toLowerCase());
     (linksBack ? mutual : rest).push(target);
   }
-  const rank = (a, b) => (backlinkCounts.get(b.id) || 0) - (backlinkCounts.get(a.id) || 0) || a.title.localeCompare(b.title);
+  const rank = (a, b) => (backlinkCounts.get(b.id) || 0) - (backlinkCounts.get(a.id) || 0) || titleKey(a.title).localeCompare(titleKey(b.title));
   mutual.sort(rank);
   rest.sort(rank);
   return [...mutual, ...rest].slice(0, max).map((p) => ({ id: p.id, title: p.title, type: p.type }));

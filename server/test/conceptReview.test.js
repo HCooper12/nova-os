@@ -3,7 +3,8 @@
 // server/data, and this module's dataRoot() is read lazily at call time so
 // the env var only needs to land before the first call, not the import, but
 // we set it first regardless, per house convention.
-process.env.NOVA_DATA_DIR = '';
+// a throwaway dir, never '' (which falls back to his live server/data)
+process.env.NOVA_DATA_DIR = (await import('node:fs')).mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'nova-review-'));
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -281,4 +282,16 @@ test('aheadOf counts the week ahead and finds the next due day, skipping gone pa
   assert.deepEqual(ahead[1], { date: '2026-10-13', count: 2 });
   assert.deepEqual(nextDue, { date: '2026-10-13', count: 2 });
   assert.equal(aheadOf({}, pagesById, '2026-10-11').nextDue, null);
+});
+
+// His real vault, 11 Oct: YAML turns a bare `date:` into a Date object and
+// the whole morning answered 500 ("localeCompare is not a function").
+test('newCandidates survives YAML Date objects and numeric titles', () => {
+  const pages = [
+    { id: 'a', type: 'concept', title: 'Alpha', date: new Date('2026-09-14T00:00:00Z') },
+    { id: 'b', type: 'concept', title: 1984, date: '2026-10-02' },
+    { id: 'c', type: 'topic', title: 'Gamma' },
+  ];
+  const out = newCandidates(pages, {}, new Map());
+  assert.deepEqual(out.map((x) => x.id), ['b', 'a', 'c']);
 });
