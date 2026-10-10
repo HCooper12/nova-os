@@ -52,11 +52,13 @@ export function valsNotes(app, ctx) {
   const reviewPage = reviewItem ? { id: reviewItem.id, title: reviewItem.title } : null;
   const reviewSummary = reviewItem ? (st.liveReviewSummaries[reviewItem.id] ?? reviewItem.gist) : undefined;
   // honest states (mockup 96 Part 4) — distinguished, never collapsed into
-  // one generic "unavailable"
+  // one generic "unavailable". Demo mode (no connection at all) is its own
+  // branch below, never one of these — a demo card is content, not a state.
   const reviewLoading = usingLiveReview && today === null;
   const reviewMacUnreachable = usingLiveReview && today === null && st.connectionStatus === 'offline';
   const reviewNothingDue = usingLiveReview && today && today.total === 0;
   const reviewAllDone = usingLiveReview && today && today.total > 0 && today.doneCount >= today.total && !st.reviewDrawnExtra;
+  const demoReview = ctx.demoMode ? app.reviews[st.reviewIdx] : null;
   const curveFor = (item) => !item ? null : {
     gaps: [1, 3, 7, 16, 35, 90, 180],
     step: item.step || 0,
