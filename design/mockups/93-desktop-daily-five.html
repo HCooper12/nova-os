@@ -1,0 +1,1526 @@
+<title>Desktop daily five</title>
+<!--
+  93 · THE DAILY FIVE ON THE MACBOOK, ROUND 1 (11 Oct 2026)
+
+  The desktop round for Home, the Nova screen, Train, Fuel and Inbox, whose
+  phone rounds are built under the `summary` style. His standing words, 29 Sep:
+  "after all of these refinements the desktop version also needs to have the
+  same redesign so it complements the phone but is tailored for the MacBook
+  desktop."
+
+  The audit behind it: design/audits/redesign-2026-09/25-desktop-daily-five.md.
+  Its number: at 1512 the five pages leave 40% of the content width unused
+  (a 760 px phone column on a 1,274 px canvas), and 21 Tab stops in the
+  sidebar come before the first thing on any page.
+
+  His inspiration for this round: the "Dashboard V8" reel (one frosted pane
+  over a real backdrop, an icon rail whose label slides out, a bento with a
+  live hero tile, blur-through section changes, big numerals with goal and
+  average). His motion bar: the "Bento dashboard animation" reel (arrival
+  over a skeleton with count-ups, a write acted out on every number it
+  changes plus a pill with Undo, FLIP reorders, a riding chart tooltip).
+
+  THREE DIRECTIONS, switched at the top. Each draws all five pages in a Mac
+  window at 1512 × 982 (plus a 28 px title bar), scaled to fit.
+    A · The pane       the reel, in Nova's glass: one pane, a rail, a bento per page
+    B · The source list the Mac's grammar: the Index as the sidebar, a column, an inspector
+    C · Nova alongside the rail, the page, and a Nova column that knows the page
+
+  Every frame works: click the rail or sidebar to change page (a click blurs
+  through; a key cuts), file and discard in the Inbox, log again or delete in
+  Fuel, answer Coach on Train, edit Home's tiles, write to Nova. Click a
+  frame, then press ? for its keys. "Look closer" opens a frame large.
+
+  Nova's house materials are kept: the liquid glass, violet and cyan, the
+  soft radius, the calm shadow, the blue core (CLAUDE.md, NOVA-METHOD §2b).
+  Colour means one thing each: cyan is Nova's own and the active place,
+  gold is only what waits on his call, green a done thing or a yes, a
+  muscle wears its own hue (src/muscleHue.js), Fuel keeps P cyan · kcal green.
+
+  DEMO CONTENT ONLY. The repo is public. Every name, number, time, item,
+  recipe, bill and message in these frames is invented for the mockup.
+  Nothing is sent anywhere; Nova's replies here are scripted and say so.
+
+  Reduced motion (the OS setting, or the switch at the top): blur, slides,
+  sweeps and count-ups become 160 to 200 ms cross-fades or arrive set.
+  On a 390 px phone the frames scale down with no sideways scroll; "Look
+  closer" shows one large inside its own scrolling layer.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --page:#07080f;
+  --nv-ink:#e8ecf6;--nv-ink80:rgba(232,236,246,.8);--nv-ink60:rgba(232,236,246,.62);--nv-ink50:rgba(232,236,246,.52);--nv-ink40:rgba(232,236,246,.38);
+  --sep:rgba(232,236,246,.12);
+  --card:rgba(255,255,255,.09);--card-ring:rgba(255,255,255,.16);
+  --nv-acc:#59e6ff;--nv-good:#5fe8a8;--nv-gold:#e0b26a;--nv-gold-ink:#241a06;--nv-warn:#e08383;--nv-vi:#8f7bff;
+  --sum-c1:#5fe8a8;--sum-c2:#8f7bff;--sum-c3:#59e6ff;
+  --m-chest:#ff8a7a;--m-back:#4fd1c5;--m-shoulders:#ffc46b;--m-biceps:#5fe8a8;--m-triceps:#b48cff;--m-quads:#7ab8ff;--m-hams:#5aa0ff;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--page);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--nv-ink);font:16px/1.5 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:inherit}
+input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--nv-acc);outline-offset:2px}
+
+/* ================= the review page ================= */
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 80px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.2 var(--ui);letter-spacing:.04em;color:var(--nv-ink60)}
+h1.pt{margin:0 0 12px;font:700 clamp(30px,6vw,40px)/1.08 var(--ui);letter-spacing:-.02em;text-wrap:balance}
+.lede{max-width:40em;margin:0 0 12px;font:400 20px/1.45 var(--serif);color:var(--nv-ink80);text-wrap:pretty}
+.demo{max-width:46em;margin:0 0 24px;padding:12px 16px;border-radius:16px;background:color-mix(in srgb,var(--nv-gold) 8%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-gold) 30%,transparent);font-size:15px;color:var(--nv-ink80);text-wrap:pretty}
+.demo b{color:var(--nv-ink);font-weight:600}
+.dirs{position:sticky;top:0;z-index:50;margin:0 -16px;padding:8px 16px;background:rgba(7,8,15,.84);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.dirrow{display:flex;gap:10px;align-items:center;max-width:720px;margin:0 auto}
+.seg{position:relative;flex:1;min-width:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);padding:3px;border-radius:22px;background:rgba(120,120,128,.22)}
+.seg button{min-width:0;height:44px;padding:0 6px;border-radius:20px;font:600 13px var(--ui);color:var(--nv-ink60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;transition:background-color 200ms ease,color 200ms ease}
+.seg button .sh{display:none}
+@media (max-width:520px){.seg button .lg{display:none}.seg button .sh{display:inline}}
+.seg button[aria-pressed="true"]{color:var(--nv-ink);background:rgba(255,255,255,.16);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.seg button:active,.chip:active{transform:scale(.97)}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:22px;font:600 13px var(--ui);color:var(--nv-ink80);background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);white-space:nowrap;transition:transform 120ms var(--ease-out)}
+.chip[aria-pressed="true"]{color:#062028;background:var(--nv-acc)}
+.intro{margin:22px 0 26px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px 28px}
+@media (max-width:820px){.intro{grid-template-columns:minmax(0,1fr)}}
+.intro h2{margin:0 0 6px;font:700 24px/1.2 var(--ui);letter-spacing:-.01em}
+.intro .one{margin:0;font:400 19px/1.45 var(--serif);color:var(--nv-ink80);text-wrap:pretty}
+.facts{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.facts li{padding:10px 14px;border-radius:16px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring);font-size:14.5px;color:var(--nv-ink80);text-wrap:pretty}
+.facts b{display:block;font:600 12px/1.3 var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--nv-ink60);margin-bottom:2px}
+.fr{margin:0 0 44px}
+.frhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 2px 10px}
+.frhead h3{margin:0;font:700 19px/1.2 var(--ui);letter-spacing:-.01em}
+.frhead .closer{flex:none;min-height:36px;padding:0 12px;border-radius:18px;font:600 13px var(--ui);color:var(--nv-acc);background:rgba(89,230,255,.1)}
+.fr figcaption{margin:12px 2px 0;max-width:62em;font-size:15px;color:var(--nv-ink80);text-wrap:pretty}
+.mac{position:relative;width:100%;aspect-ratio:1512/1010;border-radius:12px;overflow:hidden;background:#05060c;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 30px 70px -30px rgba(0,0,0,.85);contain:layout paint}
+.hint-keys{margin:0 0 18px;font-size:14px;color:var(--nv-ink60)}
+section.page{margin-top:56px}
+section.page>h2{margin:0 0 6px;font:700 22px/1.25 var(--ui);letter-spacing:-.01em}
+section.page>.sub{margin:0 0 18px;max-width:46em;color:var(--nv-ink80);text-wrap:pretty}
+.tbl{width:100%;border-collapse:collapse;font-size:14.5px}
+.tbl th{text-align:left;font:600 12px/1.3 var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--nv-ink60);padding:8px 10px;border-bottom:1px solid var(--sep)}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--sep);vertical-align:top;color:var(--nv-ink80);text-wrap:pretty}
+.tbl td:first-child{color:var(--nv-ink);font-weight:500}
+.tbl tr.grp td{padding-top:18px;font:700 15px var(--ui);color:var(--nv-ink);border-bottom:0}
+.kbd{display:inline-block;min-width:22px;padding:1px 7px;margin:1px 2px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.24),0 1px 0 rgba(255,255,255,.08);font:600 13px/1.5 var(--ui);color:var(--nv-ink);text-align:center;white-space:nowrap}
+@media (max-width:720px){
+  .tbl thead{display:none}
+  .tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+  .tbl tr{padding:10px 0;border-bottom:1px solid var(--sep)}
+  .tbl td{border:0;padding:3px 2px}
+  .tbl td[data-l]::before{content:attr(data-l)": ";color:var(--nv-ink60);font-weight:600}
+  .tbl tr.grp{border:0}
+}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.nb{padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--card-ring)}
+.nb b{display:block;font:600 30px/1.1 var(--round);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.nb span{display:block;margin-top:4px;font-size:14px;color:var(--nv-ink80);text-wrap:pretty}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:900px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--card-ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--round);background:rgba(89,230,255,.12);color:var(--nv-acc)}
+.decide b{display:block;font-weight:600;margin-bottom:3px}
+.decide span{display:block;color:var(--nv-ink80);text-wrap:pretty}
+.decide span+span{margin-top:6px}
+.foot{margin-top:40px;font-size:14px;color:var(--nv-ink60)}
+
+/* look closer */
+.closer-layer{position:fixed;inset:0;z-index:200;background:rgba(5,6,12,.94);overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.closer-layer .bar{position:fixed;top:0;left:0;right:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:rgba(5,6,12,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.closer-layer .bar span{font:600 14px var(--ui);color:var(--nv-ink80)}
+.closer-layer .bar button{min-height:40px;padding:0 16px;border-radius:20px;background:rgba(255,255,255,.12);font:600 14px var(--ui)}
+.closer-box{position:relative;margin:70px auto 30px}
+
+/* ================= the Mac window ================= */
+.screen{position:absolute;left:0;top:0;width:1512px;height:1010px;transform:scale(var(--z,.5));transform-origin:0 0;font:15px/1.4 var(--ui);color:var(--nv-ink);overflow:hidden;outline:none;isolation:isolate;background:#0b0d1c}
+.tb{position:relative;z-index:3;height:28px;display:flex;align-items:center;gap:8px;padding:0 12px;background:rgba(12,14,26,.96);border-bottom:1px solid rgba(255,255,255,.07)}
+.tb i{width:12px;height:12px;border-radius:50%}
+.tb span{position:absolute;left:50%;transform:translateX(-50%);font:600 13px var(--ui);color:var(--nv-ink60)}
+.tb em{margin-left:auto;font:600 11px var(--ui);font-style:normal;letter-spacing:.06em;text-transform:uppercase;color:var(--nv-gold);padding:2px 8px;border-radius:8px;background:rgba(224,178,106,.12)}
+.sky{position:absolute;inset:28px 0 0;z-index:0;background:
+  radial-gradient(760px 520px at 6% -4%,rgba(168,96,64,.36),transparent 62%),
+  radial-gradient(900px 700px at 96% 34%,rgba(118,86,214,.34),transparent 62%),
+  radial-gradient(800px 560px at 46% 112%,rgba(38,74,170,.4),transparent 62%),
+  linear-gradient(180deg,#0a0c1a 0%,#0c1130 55%,#13173a 100%)}
+.app{position:absolute;inset:28px 0 0;z-index:1;display:flex}
+.ic{fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* A: one pane */
+.pane{position:absolute;inset:14px;display:flex;border-radius:30px;background:rgba(16,20,38,.4);-webkit-backdrop-filter:blur(30px) saturate(1.5);backdrop-filter:blur(30px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.18),0 30px 60px -30px rgba(0,0,0,.7);overflow:hidden}
+
+/* the rail (A and C) */
+.rail{position:relative;z-index:6;width:76px;flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px 0 16px}
+.rail.cap{margin:14px 0 14px 14px;border-radius:30px;background:rgba(14,18,34,.55);-webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),inset 0 1px 0 rgba(255,255,255,.16)}
+.rail .sp{flex:1}
+.rail hr{width:28px;border:0;border-top:1px solid var(--sep);margin:6px 0}
+.ri{position:relative;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--nv-ink60);transition:background-color 140ms ease,color 140ms ease}
+.ri.on{background:rgba(89,230,255,.15);color:var(--nv-acc);box-shadow:inset 0 0 0 1px rgba(89,230,255,.38)}
+.ri .bd{position:absolute;top:0;right:-2px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:grid;place-items:center;background:var(--nv-gold);color:var(--nv-gold-ink);font:700 11px/1 var(--round);font-variant-numeric:tabular-nums}
+.ri .lbl{position:absolute;left:54px;top:50%;transform:translate(-6px,-50%);opacity:0;pointer-events:none;white-space:nowrap;padding:7px 12px;border-radius:12px;background:rgba(14,18,34,.94);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2),0 10px 24px -10px rgba(0,0,0,.7);font:600 13px var(--ui);color:var(--nv-ink);transition:opacity 160ms var(--ease-out),transform 160ms var(--ease-out)}
+.ri .lbl kbd{margin-left:8px;font:500 12px var(--ui);color:var(--nv-ink50)}
+.rail:not(.warm) .ri:hover .lbl{transition-delay:300ms}
+@media (hover:hover) and (pointer:fine){
+  .ri:hover{color:var(--nv-ink);background:rgba(255,255,255,.07)}
+  .ri.on:hover{background:rgba(89,230,255,.2);color:var(--nv-acc)}
+  .ri:hover .lbl{opacity:1;transform:translate(0,-50%)}
+}
+.ri:focus-visible .lbl{opacity:1;transform:translate(0,-50%)}
+.rcore{position:relative;width:52px;height:52px;border-radius:50%;display:grid;place-items:center}
+.rfoot{display:flex;align-items:center;gap:5px;font:600 10.5px var(--ui);letter-spacing:.04em;color:var(--nv-gold)}
+.rfoot i{width:6px;height:6px;border-radius:50%;background:var(--nv-gold)}
+
+/* the Nova core: the blue core, the house's own */
+.core{position:relative;display:block;width:var(--s,44px);height:var(--s,44px);border-radius:50%;background:radial-gradient(circle at 50% 50%,#f1fdff 0 7%,#86e8ff 17%,#3a8bff 36%,rgba(48,90,230,.42) 58%,rgba(48,90,230,0) 70%);box-shadow:0 0 22px rgba(89,170,255,.4)}
+.core::after{content:"";position:absolute;inset:6%;border-radius:50%;border:1px solid rgba(160,224,255,.55);border-top-color:transparent;border-left-color:rgba(160,224,255,.15);animation:spin 14s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* B: the source list */
+.side{position:relative;z-index:6;width:264px;flex:none;display:flex;flex-direction:column;gap:12px;padding:18px 12px 14px;background:rgba(8,10,22,.6);-webkit-backdrop-filter:blur(30px) saturate(1.4);backdrop-filter:blur(30px) saturate(1.4);box-shadow:inset -1px 0 0 rgba(255,255,255,.08)}
+.sfind{display:flex;align-items:center;gap:8px;height:36px;padding:0 10px;border-radius:11px;background:rgba(255,255,255,.07);color:var(--nv-ink50);font-size:14px}
+.sfind kbd{margin-left:auto;font:500 12px var(--ui);color:var(--nv-ink40)}
+.sg h4{margin:4px 10px 4px;font:600 11.5px/1.2 var(--ui);letter-spacing:.05em;text-transform:uppercase;color:var(--nv-ink50)}
+.sr{display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 10px 0 8px;border-radius:10px;font:500 14px var(--ui);color:var(--nv-ink80);transition:background-color 140ms ease}
+.sr .tile{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--h);color:#fff;flex:none}
+.sr .tile .ic{width:14px;height:14px;stroke-width:2.2}
+.sr .v{margin-left:auto;font:500 13px var(--ui);color:var(--nv-ink50);font-variant-numeric:tabular-nums}
+.sr .v.gold{min-width:20px;height:20px;padding:0 6px;border-radius:10px;display:grid;place-items:center;background:var(--nv-gold);color:var(--nv-gold-ink);font:700 11.5px/1 var(--round)}
+.sr.on{background:rgba(89,230,255,.14);color:var(--nv-ink)}
+@media (hover:hover) and (pointer:fine){.sr:not(.on):hover{background:rgba(255,255,255,.06)}}
+.sfoot{margin-top:auto;display:flex;align-items:center;gap:10px;padding:10px;border-radius:14px;background:rgba(255,255,255,.05)}
+.sfoot b{display:block;font:600 13px var(--ui)}
+.sfoot small{display:block;font-size:12px;color:var(--nv-gold)}
+
+/* the swap: the part of the window a page change replaces */
+.swap{position:relative;flex:1;min-width:0;display:flex;transition:filter 240ms var(--ease-out),opacity 240ms var(--ease-out),transform 240ms var(--ease-out)}
+.swap.blur-out{filter:blur(10px);opacity:.35;transform:scale(.992);transition-duration:150ms}
+.swap.blur-in{filter:blur(10px);opacity:0;transform:scale(1.006);transition:none}
+.swap.fade-out{opacity:0;transition:opacity 160ms ease}
+.pg{position:relative;flex:1;min-width:0;padding:24px 28px 22px;overflow:auto;scrollbar-width:none}
+.pg::-webkit-scrollbar{display:none}
+.app-B .pg{padding:26px 34px 30px}
+.app-C .pg{padding:24px 22px 22px 22px}
+
+/* inspector (B) and Nova column (C) */
+.asd{position:relative;width:384px;flex:none;margin:14px 14px 14px 0;border-radius:26px;display:flex;flex-direction:column;overflow:hidden;background:rgba(22,26,48,.56);-webkit-backdrop-filter:blur(26px) saturate(1.5);backdrop-filter:blur(26px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.18),0 24px 50px -26px rgba(0,0,0,.75)}
+.asd.wide{width:auto;flex:1;margin-left:0}
+.asd .ah{display:flex;align-items:center;gap:10px;padding:16px 18px 12px;border-bottom:1px solid var(--sep)}
+.asd .ah h3{margin:0;font:700 17px/1.2 var(--ui);flex:1;min-width:0}
+.asd .ah .who{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.asd .ah .who small{display:block;font:500 12.5px var(--ui);color:var(--nv-ink60)}
+.asd .ab{flex:1;min-height:0;overflow:auto;padding:14px 18px 16px;scrollbar-width:none}
+.asd .ab::-webkit-scrollbar{display:none}
+.esc{flex:none;height:28px;padding:0 9px;border-radius:9px;font:600 12px var(--ui);color:var(--nv-ink60);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.asd .comp{margin:0 14px 14px}
+
+/* page head */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 18px}
+.ph .ey{margin:0;font:600 12.5px/1.2 var(--ui);letter-spacing:.04em;text-transform:uppercase;color:var(--nv-ink60)}
+.ph h1{margin:3px 0 0;font:700 34px/1.08 var(--ui);letter-spacing:-.022em}
+.ph .stand{margin:4px 0 0;font:italic 400 20px/1.3 var(--serif);background:linear-gradient(90deg,var(--nv-acc),var(--nv-vi));-webkit-background-clip:text;background-clip:text;color:transparent}
+.phr{display:flex;align-items:center;gap:10px;flex:none}
+
+/* tiles: the second glass level inside the pane */
+.bento{display:grid;grid-template-columns:repeat(var(--cols,12),minmax(0,1fr));grid-auto-rows:92px;gap:14px}
+.bento.b2{grid-auto-rows:minmax(84px,auto);grid-auto-flow:row dense}
+.t{position:relative;min-width:0;display:flex;flex-direction:column;border-radius:22px;padding:15px 18px 16px;background:linear-gradient(180deg,rgba(255,255,255,.085),rgba(255,255,255,.03));box-shadow:inset 0 0 0 .5px rgba(255,255,255,.17),inset 0 1px 0 rgba(255,255,255,.17),0 16px 34px -22px rgba(0,0,0,.65);overflow:hidden}
+.app-B .t{background:rgba(255,255,255,.07)}
+.t.btn{cursor:pointer;transition:box-shadow 140ms ease,transform 120ms var(--ease-out)}
+.t.btn:active{transform:scale(.99)}
+.t.sel{box-shadow:inset 0 0 0 1.5px rgba(89,230,255,.55),inset 0 1px 0 rgba(255,255,255,.2)}
+@media (hover:hover) and (pointer:fine){
+  .t.btn:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.34),inset 0 1px 0 rgba(255,255,255,.26),0 16px 34px -22px rgba(0,0,0,.65)}
+}
+.th{display:flex;align-items:center;gap:8px;margin-bottom:8px;font:600 15px/1.2 var(--ui);color:var(--h,var(--nv-acc))}
+.th .meta{margin-left:auto;font:500 13px var(--ui);color:var(--nv-ink60)}
+.th .ic{width:17px;height:17px}
+.news{margin:0;font:400 19px/1.35 var(--serif);color:var(--nv-ink);text-wrap:pretty}
+.news b{font-weight:600}
+.sub2{margin:4px 0 0;font-size:13.5px;color:var(--nv-ink60);text-wrap:pretty}
+.big{font:600 46px/1 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.big small{font:600 17px var(--round);color:var(--nv-ink60);letter-spacing:0;margin-left:2px}
+.gl{display:flex;gap:14px;margin-top:6px;font:500 12.5px var(--ui);color:var(--nv-ink60);font-variant-numeric:tabular-nums;white-space:nowrap}
+.gl b{color:var(--nv-ink80);font-weight:600}
+.tfoot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px}
+.lnk{display:inline-flex;align-items:center;gap:4px;min-height:32px;font:600 13.5px var(--ui);color:var(--nv-acc)}
+.lnk .ic{width:14px;height:14px}
+.hint{font:500 12.5px var(--ui);color:var(--nv-ink50)}
+.kc{display:inline-block;margin-left:6px;padding:0 6px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);font:600 11px/18px var(--ui);color:var(--nv-ink60);vertical-align:1px}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 16px;border-radius:19px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14);font:600 13.5px var(--ui);color:var(--nv-ink);white-space:nowrap;transition:background-color 140ms ease,transform 120ms var(--ease-out)}
+.pill:active{transform:scale(.97)}
+.pill.p{background:var(--nv-acc);color:#062028;box-shadow:none}
+.pill.vi{background:var(--nv-vi);color:#fff;box-shadow:none}
+.pill .kc{color:inherit;opacity:.7;box-shadow:inset 0 0 0 1px currentColor}
+@media (hover:hover) and (pointer:fine){.pill:not(.p):not(.vi):hover{background:rgba(255,255,255,.14)}}
+.row{display:flex;align-items:center;gap:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--h);flex:none}
+
+/* arrival: the skeleton sits where the content lands */
+.pre .t>*{opacity:0}
+.t>*{transition:opacity 260ms var(--ease-out) calc(var(--i,0)*40ms)}
+.pre .t::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.06) 50%,transparent 70%);background-size:220% 100%;animation:shim 1.1s linear infinite}
+@keyframes shim{from{background-position:120% 0}to{background-position:-100% 0}}
+.arc{fill:none;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset 900ms var(--ease-out)}
+.go .arc,.arc.set{stroke-dashoffset:var(--o)}
+.trk2{fill:none;stroke:rgba(255,255,255,.1)}
+.trk2.gap{stroke-dasharray:3 4;stroke:rgba(255,255,255,.3)}
+.bar{display:block;transform-origin:0 50%;transform:scaleX(0);transition:transform 800ms var(--ease-out) calc(var(--i,0)*40ms)}
+.go .bar,.bar.set{transform:scaleX(var(--p))}
+.vbar{transform-origin:50% 100%;transform:scaleY(0);transition:transform 700ms var(--ease-out) calc(var(--i,0)*40ms)}
+.go .vbar{transform:scaleY(var(--p))}
+.cu{font-variant-numeric:tabular-nums}
+.tick{animation:tick 420ms var(--ease-out)}
+@keyframes tick{0%{transform:translateY(0)}30%{transform:translateY(-3px);color:var(--nv-acc)}100%{transform:none}}
+
+/* Home */
+.day{position:relative;height:118px;margin:6px 6px 4px}
+.day .trk{position:absolute;left:0;right:0;top:56px;height:4px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
+.day .trk .bar{height:100%;background:linear-gradient(90deg,rgba(89,230,255,.35),var(--nv-acc))}
+.ev{position:absolute;top:0;width:0;display:flex;flex-direction:column;align-items:center}
+.ev b{font:600 13px var(--ui);color:var(--nv-ink60);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev i{margin:22px 0 10px;width:12px;height:12px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--nv-ink40);background:#14183a}
+.ev.done i{background:var(--nv-acc);box-shadow:none}
+.ev span{font:500 14.5px var(--ui);white-space:nowrap}
+.ev.done span{color:var(--nv-ink60)}
+.now{position:absolute;top:22px;width:0}
+.now i{position:absolute;left:-1px;top:8px;width:2px;height:44px;border-radius:1px;background:var(--nv-acc);box-shadow:0 0 12px var(--nv-acc)}
+.now i::after{content:"";position:absolute;left:-4px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--nv-acc);animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{50%{box-shadow:0 0 0 7px rgba(89,230,255,0)}0%,100%{box-shadow:0 0 0 0 rgba(89,230,255,.45)}}
+.now span{position:absolute;left:8px;top:-10px;font:700 11px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--nv-acc)}
+.body2{display:flex;align-items:center;gap:20px;flex:1;min-height:0}
+.body2 svg{flex:none}
+.bnums{display:grid;gap:9px;min-width:0}
+.bn .lab{display:block;font:600 11.5px var(--ui);letter-spacing:.05em;text-transform:uppercase;color:var(--nv-ink60)}
+.bn .v{display:block;font:600 30px/1.05 var(--round);letter-spacing:-.015em;color:var(--h);font-variant-numeric:tabular-nums}
+.bn .v small{font:600 14px var(--round);color:var(--nv-ink60);margin-left:1px}
+.bn .gl{margin-top:2px;gap:10px}
+.mline{display:flex;gap:10px;align-items:baseline;margin:0 0 6px;font:400 17px/1.35 var(--serif);text-wrap:pretty}
+.mline i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--h);transform:translateY(-2px)}
+.trow{display:flex;align-items:center;gap:10px;padding:5px 0;border-top:1px solid var(--sep);font-size:14.5px}
+.trow:first-child{border-top:0}
+.trow .r{margin-left:auto;font:500 13px var(--ui);color:var(--nv-ink60)}
+.trow .ar{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.08)}
+.trow .ar .ic{width:13px;height:13px}
+.spark{position:relative;flex:1;min-width:0}
+.spark svg{display:block;width:100%;height:90px;overflow:visible}
+.spark .bub{position:absolute;top:0;transform:translate(-50%,-110%);padding:3px 8px;border-radius:9px;background:rgba(14,18,34,.94);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22);font:600 12px var(--round);white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums}
+.chips-m{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.mch{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;background:color-mix(in srgb,var(--h) 14%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--h) 45%,transparent);font:600 12.5px var(--ui);color:var(--nv-ink)}
+.mch i{width:7px;height:7px;border-radius:50%;background:var(--h)}
+.ed{position:absolute;top:10px;right:10px;display:none;gap:4px;z-index:2}
+.editing .ed{display:flex}
+.ed button{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(14,18,34,.9);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.25);color:var(--nv-ink)}
+.ed button .ic{width:14px;height:14px}
+.editing .t{animation:jig 1.6s ease-in-out infinite}
+.editing .t:nth-child(2n){animation-delay:-.8s}
+@keyframes jig{0%,100%{transform:rotate(-.25deg)}50%{transform:rotate(.25deg)}}
+
+/* Nova page */
+.nh{display:flex;flex-direction:column;align-items:center;margin:0 0 12px}
+.nm{display:inline-flex;align-items:center;gap:4px;font:600 19px var(--ui)}
+.nm .ic{width:15px;height:15px;color:var(--nv-ink60)}
+.nstate{margin:2px 0 0;display:flex;align-items:center;gap:6px;font:500 13.5px var(--ui);color:var(--nv-ink60)}
+.nstate i{width:7px;height:7px;border-radius:50%;background:var(--nv-good)}
+.thr{display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto;width:100%}
+.msg{max-width:92%;font:400 16.5px/1.5 var(--ui);text-wrap:pretty}
+.msg.me{align-self:flex-end;padding:9px 15px;border-radius:20px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16)}
+.msg .by{display:block;margin-bottom:2px;font:600 12px var(--ui);letter-spacing:.03em;color:var(--h,var(--nv-acc))}
+.msg.new{animation:rise 300ms var(--ease-out)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.prop{padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16)}
+.prop p{margin:0 0 10px;font:400 16px/1.4 var(--serif)}
+.comp{display:flex;align-items:center;gap:6px;padding:6px;border-radius:28px;background:rgba(16,20,36,.72);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:0 0 0 .5px rgba(255,255,255,.18),inset 0 1px 0 rgba(255,255,255,.14),0 18px 40px -18px rgba(0,0,0,.7)}
+.comp input{flex:1;min-width:0;height:40px;padding:0 10px;border:0;background:transparent;outline:none;font-size:15.5px}
+.comp input::placeholder{color:var(--nv-ink50)}
+.cb{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.08);color:var(--nv-ink80);flex:none}
+.cb.mic{background:var(--nv-acc);color:#062028}
+.cb .ic{width:18px;height:18px}
+.ncomp{position:sticky;bottom:0;max-width:640px;margin:16px auto 0;width:100%}
+.stage{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{position:relative;padding:16px 18px;border-radius:22px;background:linear-gradient(180deg,rgba(89,230,255,.12),rgba(89,230,255,.03));box-shadow:inset 0 0 0 1px rgba(89,230,255,.32),inset 0 1px 0 rgba(255,255,255,.2),0 0 40px -12px rgba(89,230,255,.35)}
+.panel .lit{position:absolute;top:12px;right:14px;font:700 11px var(--ui);letter-spacing:.06em;text-transform:uppercase;color:var(--nv-acc)}
+.wk{display:flex;align-items:flex-end;gap:12px;height:170px;margin-top:12px;position:relative}
+.wk .col{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.wk .stk{position:relative;width:100%;max-width:38px;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.wk .vbar{display:block;width:100%;border-radius:8px 8px 4px 4px;background:rgba(89,230,255,.4)}
+.wk .col.today .vbar{background:var(--nv-acc)}
+.wk .plan{display:block;width:100%;border-radius:8px 8px 0 0;box-shadow:inset 0 0 0 1.5px rgba(89,230,255,.7);background:repeating-linear-gradient(135deg,rgba(89,230,255,.12) 0 4px,transparent 4px 8px)}
+.wk .col b{font:600 12px var(--ui);color:var(--nv-ink60)}
+.wk .goal{position:absolute;left:0;right:0;border-top:1.5px dashed rgba(232,236,246,.4)}
+.wk .goal span{position:absolute;right:0;top:-18px;font:600 11.5px var(--ui);color:var(--nv-ink60)}
+.hist{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.hist button{padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14);font:600 13px/1.3 var(--ui);text-align:left;min-height:64px}
+.hist button small{display:block;margin-top:3px;font:500 12px var(--ui);color:var(--nv-ink60)}
+.chipsrow{display:flex;flex-wrap:wrap;gap:8px}
+.stn{display:grid;gap:0}
+.stn div{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--sep);font-size:14px}
+.stn div:first-child{border-top:0}
+.stn span:last-child{color:var(--nv-ink60)}
+.lab2{margin:14px 0 8px;font:600 12px var(--ui);letter-spacing:.05em;text-transform:uppercase;color:var(--nv-ink60)}
+
+/* Train */
+.lifts{display:grid;gap:0;margin-top:4px}
+.lift{display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:9px 2px;border-top:1px solid var(--sep)}
+.lift:first-child{border-top:0}
+.lift .n{font:600 13px var(--round);color:var(--nv-ink50)}
+.lift .nm2{font:500 15.5px var(--ui);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lift .sx{font:500 14px var(--round);color:var(--nv-ink60);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sets{display:flex;gap:4px}
+.sets i{width:9px;height:9px;border-radius:50%;background:var(--h)}
+.sets i.add{background:transparent;box-shadow:inset 0 0 0 1.5px var(--h);animation:arrive 600ms var(--ease-out)}
+.sets i.add.solid{background:var(--h);box-shadow:none}
+@keyframes arrive{from{transform:scale(.4);opacity:0}}
+.week{display:flex;justify-content:space-between;gap:6px;margin-top:4px}
+.wd{display:flex;flex-direction:column;align-items:center;gap:6px;font:600 12px var(--ui);color:var(--nv-ink60)}
+.wd i{width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.18)}
+.wd.done i{background:var(--nv-good);box-shadow:none}
+.wd.today i{box-shadow:inset 0 0 0 2.5px var(--nv-acc),0 0 12px rgba(89,230,255,.35)}
+.wd.today{color:var(--nv-acc)}
+.wd span{font:500 11.5px var(--ui);color:var(--nv-ink50)}
+.cc{position:relative;padding:13px 14px;border-radius:18px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16);transition:transform 320ms var(--ease-out),opacity 320ms var(--ease-out)}
+.cc .wh{font:600 12px var(--ui);letter-spacing:.03em;color:var(--nv-ink60)}
+.cc p{margin:3px 0 8px;font:400 17px/1.35 var(--serif);text-wrap:pretty}
+.cc .why{margin:6px 0 10px;font-size:13px;color:var(--nv-ink60);text-wrap:pretty}
+.cc.leave-r{transform:translateX(50px);opacity:0}
+.cc.leave-l{transform:translateX(-50px);opacity:0}
+.draw{display:flex;align-items:center;gap:10px;font:500 13.5px var(--ui);color:var(--nv-ink80)}
+.strike{position:relative;color:var(--nv-ink60)}
+.strike::after{content:"";position:absolute;left:0;right:0;top:52%;height:1.5px;background:currentColor}
+.verbs{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hs{display:grid;gap:8px}
+.hsr{display:grid;grid-template-columns:86px minmax(0,1fr) 54px;gap:10px;align-items:center;font-size:13.5px}
+.hsr .tr{position:relative;height:9px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden}
+.hsr .tr .bar{height:100%;border-radius:5px;background:var(--h)}
+.hsr span:last-child{text-align:right;font:600 13px var(--round);color:var(--nv-ink60);font-variant-numeric:tabular-nums}
+.rl{display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid var(--sep);font-size:14.5px}
+.rl:first-child{border-top:0}
+.rl .r{margin-left:auto;font-size:13px;color:var(--nv-ink60)}
+.mom{display:grid;gap:8px}
+.mc{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:color-mix(in srgb,var(--h) 10%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--h) 40%,transparent)}
+.mc b{display:block;font:600 13.5px var(--ui)}
+.mc small{display:block;font-size:12px;color:var(--nv-ink60)}
+.mc .k{font:700 11px var(--ui);letter-spacing:.05em;text-transform:uppercase;color:var(--h);width:56px;flex:none}
+
+/* Fuel */
+.plate{display:flex;align-items:center;gap:22px;flex:1}
+.kbar{position:relative;height:12px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden;margin:8px 0 4px}
+.kbar .bar{height:100%;border-radius:6px;background:var(--nv-good)}
+.mac2{display:flex;gap:18px;margin-top:10px;font:500 13.5px var(--ui);color:var(--nv-ink60)}
+.mac2 b{font:600 17px var(--round);color:var(--nv-ink);font-variant-numeric:tabular-nums}
+.fin{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 14px;border-radius:24px;background:rgba(0,0,0,.22);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16)}
+.fin input{flex:1;min-width:0;height:38px;border:0;background:transparent;outline:none;font-size:15.5px}
+.fin input::placeholder{color:var(--nv-ink50)}
+.again{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ag{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:17px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14);font:500 13.5px var(--ui)}
+.ag b{font:600 12.5px var(--round);color:var(--nv-acc)}
+.log{display:grid}
+.lr{position:relative;display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:50px;padding:6px 8px;border-radius:12px;border-top:1px solid var(--sep);cursor:pointer}
+.lr:first-child{border-top-color:transparent}
+.lr .tm{font:500 13px var(--round);color:var(--nv-ink50);font-variant-numeric:tabular-nums}
+.lr .nm2{font:500 15px var(--ui);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lr .mx{font:500 13.5px var(--round);color:var(--nv-ink60);white-space:nowrap;font-variant-numeric:tabular-nums}
+.lr .mx b{color:var(--nv-acc);font-weight:600}.lr .mx em{font-style:normal;color:var(--nv-good);font-weight:600}
+.lr .acts{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;gap:6px;opacity:0;pointer-events:none;transition:opacity 140ms ease}
+.lr .acts .pill{height:32px;padding:0 12px;font-size:12.5px;background:rgba(20,24,44,.96)}
+.lr.sel{background:rgba(89,230,255,.1);border-top-color:transparent}
+.lr.sel+.lr{border-top-color:transparent}
+@media (hover:hover) and (pointer:fine){
+  .lr:hover{background:rgba(255,255,255,.05)}
+  .lr:hover .acts{opacity:1;pointer-events:auto}
+  .lr:hover .mx{opacity:0}
+}
+.lr:focus-within .acts{opacity:1;pointer-events:auto}
+.lr.new{animation:rise 320ms var(--ease-out)}
+.rot{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.rd{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:14px;background:rgba(255,255,255,.05);font-size:14px}
+.rd i{flex:none;width:20px;height:20px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--nv-ink40)}
+.rd.on i{background:var(--nv-good);box-shadow:none}
+.rd small{display:block;font-size:12px;color:var(--nv-ink60)}
+.dish{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dish button{padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14);text-align:left;min-height:62px;transition:box-shadow 140ms ease}
+.dish button b{display:block;font:600 13.5px/1.25 var(--ui)}
+.dish button span{display:block;margin-top:3px;font:500 12.5px var(--round);color:var(--nv-ink60)}
+.dish button span i{font-style:normal;color:var(--nv-acc)}
+@media (hover:hover) and (pointer:fine){.dish button:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}}
+.lines{display:grid}
+.ln{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--sep);font-size:14.5px}
+.ln:first-child{border-top:0}
+.ln .q{width:54px;font:500 13px var(--mono);color:var(--nv-ink60)}
+.ln .r{margin-left:auto;font:500 13px var(--round);color:var(--nv-ink60)}
+.ln.cut{color:var(--nv-ink50)}
+.ln.cut .nm3{text-decoration:line-through}
+
+/* Inbox */
+.q{display:grid;gap:4px}
+.qr{position:relative;display:grid;grid-template-columns:10px minmax(0,1fr);gap:4px 12px;align-items:center;padding:11px 12px;border-radius:14px;text-align:left;transition:background-color 140ms ease}
+.qr .dot{grid-row:1/3}
+.qr b{font:500 14.5px/1.3 var(--ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr small{font-size:12.5px;color:var(--nv-ink60)}
+.qr.on{background:rgba(89,230,255,.12);box-shadow:inset 0 0 0 1px rgba(89,230,255,.3)}
+@media (hover:hover) and (pointer:fine){.qr:not(.on):hover{background:rgba(255,255,255,.05)}}
+.card{position:relative;flex:1;display:flex;flex-direction:column;transition:transform 300ms var(--ease-out),opacity 300ms var(--ease-out)}
+.card.leave-r{transform:translateX(70px) rotate(1.2deg);opacity:0}
+.card.leave-l{transform:translateX(-70px) rotate(-1.2deg);opacity:0}
+.kt{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.kt .tile{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--h);color:#081018}
+.kt .tile .ic{width:19px;height:19px;stroke-width:2.2}
+.kt b{display:block;font:600 14px var(--ui);color:var(--h)}
+.kt small{display:block;font-size:12.5px;color:var(--nv-ink60)}
+.kt .pos{margin-left:auto;font:600 13px var(--round);color:var(--nv-ink60)}
+.ctitle{margin:0 0 14px;font:400 27px/1.25 var(--serif);text-wrap:balance}
+.halves{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.half{padding:12px 14px;border-radius:16px;background:rgba(0,0,0,.18);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12)}
+.half h5{margin:0 0 6px;font:600 11.5px var(--ui);letter-spacing:.05em;text-transform:uppercase;color:var(--nv-ink60)}
+.half p{margin:0;font-size:14.5px;line-height:1.45;text-wrap:pretty}
+.half.will{background:color-mix(in srgb,var(--h) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--h) 40%,transparent)}
+.drw{display:flex;align-items:center;gap:10px;margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(8,10,22,.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14);font-size:14px}
+.drw b{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drw.col{flex-direction:column;align-items:flex-start;gap:6px}
+.drw.col span{display:flex;align-items:center;gap:8px;color:var(--nv-ink80)}
+.drw .cbx{flex:none;width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 1.6px var(--h)}
+.drw .spine{flex:none;width:6px;height:22px;border-radius:2px;background:var(--h)}
+.drw .due{margin-left:auto;flex:none;padding:2px 8px;border-radius:8px;background:color-mix(in srgb,var(--h) 18%,transparent);font:600 12px var(--ui);color:var(--nv-ink)}
+.why2{margin:12px 0 0;font-size:14px;color:var(--nv-ink60);text-wrap:pretty}
+.cverbs{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:14px}
+.cverbs .pill.ok{background:color-mix(in srgb,var(--nv-good) 18%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--nv-good) 50%,transparent)}
+.cverbs .sp{flex:1}
+.reveal{margin-top:12px;padding:12px;border-radius:16px;background:rgba(0,0,0,.2);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14);animation:rise 220ms var(--ease-out)}
+.reveal p{margin:0 0 8px;font-size:14px;color:var(--nv-ink80)}
+.reveal .fin{background:rgba(0,0,0,.25)}
+.filed .qr{grid-template-columns:10px minmax(0,1fr) auto}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;flex:1;text-align:center;color:var(--nv-ink60)}
+.empty .tile{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:var(--nv-good);color:#062018}
+
+/* panels (A and C): centred, never from the bottom */
+.scrim{position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:rgba(6,8,16,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:fadeIn 180ms ease}
+.mod{width:880px;max-height:820px;display:flex;flex-direction:column;border-radius:28px;overflow:hidden;background:rgba(22,26,48,.86);-webkit-backdrop-filter:blur(28px) saturate(1.5);backdrop-filter:blur(28px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22),inset 0 1px 0 rgba(255,255,255,.2),0 40px 80px -30px rgba(0,0,0,.85);animation:pop 240ms var(--ease-out)}
+@keyframes pop{from{opacity:0;transform:scale(.96)}}
+@keyframes fadeIn{from{opacity:0}}
+.mod .ah{display:flex;align-items:center;gap:12px;padding:18px 22px 12px;border-bottom:1px solid var(--sep)}
+.mod .ah h3{margin:0;font:700 22px/1.2 var(--ui);flex:1}
+.mod .mb{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:26px;padding:18px 22px 22px;overflow:auto}
+.mods{display:flex;gap:22px;margin:0 0 12px;font:500 14px var(--ui);color:var(--nv-ink80)}
+.mm{display:flex;gap:26px;margin:4px 0 16px}
+.mm div b{display:block;font:600 30px/1 var(--round);font-variant-numeric:tabular-nums}
+.mm div span{font-size:12.5px;color:var(--nv-ink60)}
+.steps{margin:0;padding:0;list-style:none;display:grid;gap:12px;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;font-size:15px;line-height:1.45}
+.steps li::before{content:counter(s);font:400 24px/1 var(--serif);color:var(--nv-ink60)}
+
+/* the pill toast, centred on the content it reports on */
+.toast{position:absolute;left:50%;bottom:22px;z-index:30;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;border-radius:22px;background:rgba(14,18,34,.94);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22),0 18px 40px -16px rgba(0,0,0,.8);font:600 14px var(--ui);white-space:nowrap;transform:translate(-50%,14px);opacity:0;pointer-events:none;transition:transform 260ms var(--ease-out),opacity 200ms ease}
+.toast.show{transform:translate(-50%,0);opacity:1;pointer-events:auto}
+.toast button{height:32px;padding:0 14px;border-radius:16px;background:rgba(89,230,255,.16);color:var(--nv-acc);font:600 13px var(--ui)}
+.toast i{width:8px;height:8px;border-radius:50%;background:var(--nv-good)}
+
+/* the key map inside a frame */
+.km{position:absolute;inset:28px 0 0;z-index:40;display:grid;place-items:center;background:rgba(5,6,12,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.km[hidden]{display:none}
+.kmc{width:760px;padding:22px 26px;border-radius:26px;background:rgba(20,24,44,.92);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.22),0 40px 80px -30px rgba(0,0,0,.85)}
+.kmc h3{margin:0 0 12px;font:700 20px var(--ui)}
+.kmc dl{display:grid;grid-template-columns:200px minmax(0,1fr);gap:8px 16px;margin:0;font-size:14.5px}
+.kmc dt{text-align:right}
+.kmc dd{margin:0;color:var(--nv-ink80)}
+
+/* reduced motion: fades only */
+.rm .swap,.rm .t>*,.rm .bar,.rm .vbar,.rm .arc,.rm .cc,.rm .card,.rm .toast{transition-property:opacity!important;transition-duration:180ms!important;transition-delay:0ms!important}
+.rm .bar,.rm .bar.set{transform:scaleX(var(--p))}
+.rm .vbar{transform:scaleY(var(--p))}
+.rm .arc{stroke-dashoffset:var(--o)}
+.rm .pre .t::after{animation:none}
+.rm .core::after,.rm .now i::after,.rm .editing .t,.rm .sets i.add{animation:none}
+.rm .swap.blur-out,.rm .swap.blur-in{filter:none;transform:none}
+.rm .msg.new,.rm .lr.new,.rm .reveal,.rm .mod{animation:fadeIn 180ms ease}
+.rm .cc.leave-r,.rm .cc.leave-l,.rm .card.leave-r,.rm .card.leave-l{transform:none}
+.rm .toast{transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){
+  .seg button,.chip{transition:none}
+}
+@media (prefers-reduced-transparency:reduce){
+  .pane,.side,.asd,.rail.cap,.comp,.mod{background:#151a33;-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+</style>
+
+<div class="wrap" id="top">
+  <p class="eyebrow">Nova redesign · desktop round 1 · mockup 93</p>
+  <h1 class="pt">The daily five, made for your MacBook</h1>
+  <p class="lede">Home, Nova, Train, Fuel and Inbox, drawn three ways for a 1512 × 982 screen. Today each is the phone page centred, with 40% of the width left empty; these use it.</p>
+  <p class="demo"><b>Demo content.</b> Every name, number, time, recipe, bill and message below is invented for this mockup. Nova's replies in the frames are scripted. Nothing is sent anywhere.</p>
+
+  <div class="dirs">
+    <div class="dirrow">
+      <div class="seg" role="group" aria-label="Direction">
+        <button type="button" data-dir="A" aria-pressed="true"><span class="lg">A · The pane</span><span class="sh">A · Pane</span></button>
+        <button type="button" data-dir="B" aria-pressed="false"><span class="lg">B · Source list</span><span class="sh">B · List</span></button>
+        <button type="button" data-dir="C" aria-pressed="false"><span class="lg">C · Nova alongside</span><span class="sh">C · Nova</span></button>
+      </div>
+      <button type="button" class="chip" id="rmToggle" aria-pressed="false" title="Reduced motion">Calm</button>
+    </div>
+  </div>
+
+  <div class="intro" id="intro"></div>
+  <p class="hint-keys">Every frame works. Click inside one, then press <span class="kbd">?</span> for its keys. A click on the rail or sidebar blurs through to the next page; <span class="kbd">⌥1</span> to <span class="kbd">⌥5</span> cut straight to it.</p>
+
+  <div id="frames"></div>
+
+  <section class="page" id="keys">
+    <h2>Keyboard first</h2>
+    <p class="sub">The same map in all three directions. Shortcuts avoid <span class="kbd">⌘1</span> to <span class="kbd">⌘9</span>, which Safari and Chrome keep for their own tabs, and every single-letter key works only outside a text field.</p>
+    <table class="tbl">
+      <thead><tr><th>Keys</th><th>What it does</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td><span class="kbd">⌥1</span> to <span class="kbd">⌥5</span></td><td data-l="Does">Home, Nova, Train, Fuel, Inbox, in your saved tab order</td><td data-l="Where">Everywhere</td></tr>
+        <tr><td><span class="kbd">⌘K</span></td><td data-l="Does">Nova, with the cursor already in the composer. Press it again to talk.</td><td data-l="Where">Everywhere (today it opens Nova with no cursor)</td></tr>
+        <tr><td><span class="kbd">N</span></td><td data-l="Does">Drop a thought: the capture sheet, from any page</td><td data-l="Where">Outside a text field</td></tr>
+        <tr><td><span class="kbd">/</span></td><td data-l="Does">The page's own field: Fuel's log, Nova's composer, Recipes search, the sidebar's search in B</td><td data-l="Where">Every page with a field</td></tr>
+        <tr><td><span class="kbd">J</span> <span class="kbd">K</span> or <span class="kbd">↓</span> <span class="kbd">↑</span></td><td data-l="Does">Next and previous in a list: the Inbox queue, the Fuel log, routines</td><td data-l="Where">Lists</td></tr>
+        <tr><td><span class="kbd">Return</span></td><td data-l="Does">Opens the selection (the inspector in B, a centred panel in A and C). On Train's hero, Begin.</td><td data-l="Where">Lists, Train</td></tr>
+        <tr><td><span class="kbd">Y</span> <span class="kbd">T</span> <span class="kbd">X</span> <span class="kbd">L</span></td><td data-l="Does">File, Talk about it, Discard (it asks why), Look deeper</td><td data-l="Where">Inbox</td></tr>
+        <tr><td><span class="kbd">Y</span> <span class="kbd">D</span> <span class="kbd">X</span> <span class="kbd">⇧Y</span></td><td data-l="Does">Yes, Discuss, Not now, Yes to all</td><td data-l="Where">Coach's changes on Train</td></tr>
+        <tr><td><span class="kbd">R</span> <span class="kbd">⌫</span></td><td data-l="Does">Log again, Delete</td><td data-l="Where">Fuel, the selected log row</td></tr>
+        <tr><td><span class="kbd">E</span>, then <span class="kbd">⌥←</span> <span class="kbd">⌥→</span></td><td data-l="Does">Edit Home, then move the focused tile</td><td data-l="Where">Home</td></tr>
+        <tr><td><span class="kbd">⌘Z</span></td><td data-l="Does">Undo the last write, the same receipt the pill offers</td><td data-l="Where">Outside a text field</td></tr>
+        <tr><td><span class="kbd">Esc</span></td><td data-l="Does">Closes the panel, inspector or reveal, and puts focus back on what opened it (today it falls to the page)</td><td data-l="Where">Everywhere</td></tr>
+        <tr><td><span class="kbd">⌘B</span> <span class="kbd">?</span></td><td data-l="Does">Fold the sidebar or rail (kept as it is); show this map</td><td data-l="Where">Everywhere</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page" id="motion">
+    <h2>Motion, to your bar</h2>
+    <p class="sub">Your 9 Oct reel, move by move, and where each lands here. The frames above run every one of them.</p>
+    <table class="tbl">
+      <thead><tr><th>Move</th><th>On the Mac</th><th>Reduced motion</th></tr></thead>
+      <tbody>
+        <tr><td>Arrival</td><td data-l="Mac">Tiles stand where they will be as a quiet shimmer while the data loads, then the content fades in 40 ms apart; numbers count up from zero (your call, about 0.65 s), rings sweep in 0.9 s, bars grow from their baseline.</td><td data-l="Reduced">Everything arrives set, in a 180 ms fade.</td></tr>
+        <tr><td>Section change</td><td data-l="Mac">A click frosts the page over (150 ms) and the next resolves out of the blur (240 ms, ease-out); the rail or sidebar stays sharp. A key cuts with no movement: what you do a hundred times a day should never wait on an animation.</td><td data-l="Reduced">A 160 ms cross-fade.</td></tr>
+        <tr><td>A write, acted out</td><td data-l="Mac">File an Inbox card and it leaves to the right, the queue closes up by FLIP, every count that changed ticks at once (the rail badge, the sidebar's value, Home's Waiting tile in the other frames), and a pill at the foot of the page offers Undo. Fuel's plate ring and calorie bar run to their new totals. Coach's yes draws the new set on the lift.</td><td data-l="Reduced">The same changes, as fades.</td></tr>
+        <tr><td>Hover</td><td data-l="Mac">Only what you can click answers: the glass rim brightens in 140 ms, and a log row shows its two actions where the phone swipes. Nothing lifts. Gated to a fine pointer.</td><td data-l="Reduced">Unchanged (no movement).</td></tr>
+        <tr><td>Chart scrub</td><td data-l="Mac">Run the pointer along Home's steps line: the day's value rides with it in a bubble.</td><td data-l="Reduced">Unchanged.</td></tr>
+        <tr><td>The rail's label</td><td data-l="Mac">Slides 6 px out and fades in after 300 ms on the first hover, then at once along the rail, the way tooltips should.</td><td data-l="Reduced">A fade.</td></tr>
+        <tr><td>The frame budget</td><td data-l="Mac">Today a page switch costs one 118 to 218 ms frame at 4x CPU (audit finding 8). A blur cannot hide that: it would stall halfway. The switch is made cheap first, and only then does the blur-through ship.</td><td data-l="Reduced">Same budget.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page" id="parity">
+    <h2>Every phone function, and where it lives on the Mac</h2>
+    <p class="sub">Taken from the built summary pages (MissionSummary, NovaThread, TrainSummary and SessionSummary, FuelSummary, InboxSummary). Nothing is dropped; a row that moved says where.</p>
+    <table class="tbl">
+      <thead><tr><th>Phone function</th><th>A · The pane</th><th>B · Source list</th><th>C · Nova alongside</th></tr></thead>
+      <tbody id="parityBody"></tbody>
+    </table>
+  </section>
+
+  <section class="page" id="audit">
+    <h2>What the audit measured</h2>
+    <p class="sub">design/audits/redesign-2026-09/25-desktop-daily-five.md, demo mode, at 1280, 1512 and 1920.</p>
+    <div class="nums">
+      <div class="nb"><b>40%</b><span>of the content width unused at 1512: a 760 px phone column on a 1,274 px canvas.</span></div>
+      <div class="nb"><b>21</b><span>Tab stops in the sidebar before the first control of any page; no skip link.</span></div>
+      <div class="nb"><b>119 px</b><span>between the Nova thread and its composer, which centres on the window instead of the page.</span></div>
+      <div class="nb"><b>47 to 71 px</b><span>sideways jump of the page column between Home and Fuel at 1512 and 1920.</span></div>
+      <div class="nb"><b>0</b><span>hover answers on summary cards and pills. Only the sidebar's rows respond.</span></div>
+      <div class="nb"><b>118 to 218 ms</b><span>for one frame when changing page at 4x CPU, against a 33 ms bar.</span></div>
+    </div>
+  </section>
+
+  <section class="page" id="calls">
+    <h2>Your calls</h2>
+    <ol class="decide">
+      <li><div><b>Which direction, or the mix.</b><span>My recommendation is the mix: A's pane and bento for Home, Train and Fuel; B's inspector everywhere a phone sheet opens today; C's Nova column only on Train (as Coach) and the Inbox (as talk about it).</span><span>Whichever you pick goes to round 2 drawn at 1280 and 1920 as well; the others are dropped. If none is right, round 2 starts from what you say about these.</span></div></li>
+      <li><div><b>The sidebar: a rail, or your Index as a source list.</b><span>Rail (A, C): 76 px, your tab order, the label slides out, every other page behind "All pages". Source list (B): every page visible with its live value, 264 px.</span><span>Either way the ten-agent roster leaves the sidebar for the Org map in Operations, unless you want it kept, in which case each dot is wired to work that is really running.</span></div></li>
+      <li><div><b>The shortcuts on Option, not Command.</b><span>⌘1 to ⌘9 belong to the browser's tabs in Safari and Chrome, so the five pages sit on ⌥1 to ⌥5.</span><span>Yes: built as the map above. No: we test ⌘1 to ⌘5 inside an installed Nova window first, where the browser may let them through, and fall back to Option where it does not.</span></div></li>
+      <li><div><b>Blur on a click, a cut on a key.</b><span>Yes: keyboard switches stay instant. No: the blur-through runs for keys too.</span><span>Either way it waits until a page switch is under 33 ms at 4x; that work comes first.</span></div></li>
+      <li><div><b>The quick fixes now, before the round settles.</b><span>Findings 1 to 7: the composer centred on its thread, one page column, Mac-true words ("in the sidebar", not "under More"), ⌘K into the field, focus back on Escape, a hover rim, sheets centred above 900 px, the frame at 1920.</span><span>Yes: a small build this week, each visible on your Mac under Summary. No: they fold into the direction's build.</span></div></li>
+      <li><div><b>A demo fixture for Train.</b><span>Demo mode shows the old Train today, so no one can check the built Train (or its Mac version) without your vault.</span><span>Yes: half a day, dev-only, never in a production build. No: Train's desktop build is checked against your vault, read-only.</span></div></li>
+      <li><div><b>Where the live session goes on the Mac.</b><span>Begin on the Mac opens the session as a centred page made for keys (Tab between weight and reps, Return ticks the set), or the Mac leaves the session to the phone and shows Begin only there.</span><span>Either way the phone's session is untouched.</span></div></li>
+    </ol>
+  </section>
+
+  <p class="foot">Mockup 93 · 11 Oct 2026 · demo content only · the audit is design/audits/redesign-2026-09/25-desktop-daily-five.md</p>
+</div>
+
+<script>
+(function () {
+"use strict";
+var $ = function (s, el) { return (el || document).querySelector(s); };
+var $$ = function (s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); };
+var fmtN = function (n) { return Math.round(n).toLocaleString("en-AU"); };
+var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); };
+
+/* ---------- motion preference ---------- */
+var mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+var reduce = mq.matches;
+function applyRm() { document.documentElement.classList.toggle("rm", reduce); var b = $("#rmToggle"); if (b) b.setAttribute("aria-pressed", reduce ? "true" : "false"); }
+applyRm();
+if (mq.addEventListener) mq.addEventListener("change", function (e) { reduce = e.matches; applyRm(); });
+$("#rmToggle").addEventListener("click", function () { reduce = !reduce; applyRm(); });
+
+/* ---------- icons: one stroke family ---------- */
+var P = {
+  home: "M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z",
+  train: "M3 9v6M6.5 7v10M17.5 7v10M21 9v6M6.5 12h11",
+  fuel: "M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16.5 3c-2.2 2-2.2 6 0 8v10",
+  inbox: "M4 13l2.2-8h11.6l2.2 8M4 13v6h16v-6M4 13h5l1 2h4l1-2h5",
+  grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4",
+  todo: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12l3 3 5-6",
+  book: "M5 5a2 2 0 0 1 2-2h11v15H7a2 2 0 0 0-2 2zM5 20a2 2 0 0 0 2 1h11",
+  note: "M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h4",
+  money: "M12 3v18M16 7.5c-.8-1.2-2.2-2-4-2-2.2 0-4 1.2-4 3s1.8 2.6 4 3 4 1.2 4 3-1.8 3-4 3c-1.8 0-3.2-.8-4-2",
+  cal: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4",
+  ring: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+  trend: "M3 17l6-6 4 4 8-8M15 7h6v6",
+  clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2",
+  chev: "M9 6l6 6-6 6",
+  left: "M15 6l-6 6 6 6",
+  up: "M12 19V5M6 11l6-6 6 6",
+  down: "M12 5v14M6 13l6 6 6-6",
+  flat: "M5 12h14",
+  plus: "M12 5v14M5 12h14",
+  minus: "M6 12h12",
+  mic: "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21",
+  cam: "M4 8h3l2-3h6l2 3h3v11H4zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
+  code: "M5 6v12M8 6v12M11.5 6v12M14 6v12M17 6v12M19.5 6v12",
+  check: "M5 12.5l4.5 4.5L19 7.5",
+  x: "M6.5 6.5l11 11M17.5 6.5l-11 11",
+  chat: "M4 5h16v11H9.5L4 20z",
+  steps: "M8 4c1.7 0 2.5 1.6 2.5 3.5S9.6 12 8 12 5.5 9.4 5.5 7.5 6.3 4 8 4zM16 9c1.7 0 2.5 1.6 2.5 3.5S17.6 17 16 17s-2.5-2.6-2.5-4.5S14.3 9 16 9zM6.5 15h3M14.5 20h3",
+  bolt: "M13 3L5 13h6l-1 8 8-10h-6z",
+  gear: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19 12l2-1-1-3-2 .3-1.4-1.4.3-2-3-1-1 2h-2l-1-2-3 1 .3 2L5.8 8.3 3.8 8l-1 3 2 1v0l-2 1 1 3 2-.3 1.4 1.4-.3 2 3 1 1-2h2l1 2 3-1-.3-2 1.4-1.4 2 .3 1-3z",
+  cart: "M4 5h2l2 11h10l2-8H7M10 20h.01M17 20h.01",
+  journal: "M6 3h12v18H6zM9 7h6M9 11h6",
+  bag: "M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0",
+  people: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.5M17.5 14a5 5 0 0 1 3 5",
+  ops: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 12l4-3"
+};
+function I(n, s) { s = s || 18; return '<svg class="ic" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" aria-hidden="true"><path d="' + P[n] + '"/></svg>'; }
+function core(s) { return '<span class="core" style="--s:' + s + 'px" aria-hidden="true"></span>'; }
+
+/* ---------- the demo world (invented) ---------- */
+var PAGES = ["home", "nova", "train", "fuel", "inbox"];
+var LBL = { home: "Home", nova: "Nova", train: "Train", fuel: "Fuel", inbox: "Inbox" };
+var ICO = { home: "home", nova: "chat", train: "train", fuel: "fuel", inbox: "inbox" };
+var S = {
+  inbox: [
+    { id: "i1", route: "To-Do", h: "#59e6ff", g: "todo", title: "Book a physio for the left shoulder", you: "“shoulder still clicks on bench, book the physio this week”", will: "A to-do: Book a physio for the left shoulder, due Thursday", why: "You said this week, and Thursday morning is clear.", from: "Captured by voice", age: "2 h", d: '<div class="drw"><span class="cbx"></span><b>Book a physio for the left shoulder</b><span class="due">Thu</span></div>' },
+    { id: "i2", route: "Library", h: "#8f7bff", g: "book", title: "Zone 2 and mitochondria, a long read", you: "A link to a 40 minute article on zone 2 training", will: "Library, Reading: tagged Training, beside 3 others on zone 2", why: "It is something to read, not something to do.", from: "Shared from Safari", age: "5 h", d: '<div class="drw"><span class="spine"></span><b>Zone 2 and mitochondria</b><span class="due">40 min read</span></div>' },
+    { id: "i3", route: "Notes", h: "#7ab8ff", g: "note", title: "Thursday meeting: three follow-ups", you: "A 4 minute voice memo from the team meeting", will: "Notes, Meetings: one note, with 3 to-dos linked inside it", why: "Three actions were named; each becomes a to-do in the note.", from: "Voice memo", age: "yesterday", d: '<div class="drw col"><b>Meetings / Thursday</b><span><span class="cbx"></span>Send the deck round</span><span><span class="cbx"></span>Book a room for Monday</span><span><span class="cbx"></span>Draft the quarter plan</span></div>' },
+    { id: "i4", route: "Money", h: "#b3a6ff", g: "money", title: "Car registration renews on 2 November", you: "An email: your renewal notice", will: "Money: a bill of $412, due 2 November", why: "A dated bill belongs in Money, which warns you 3 days before.", from: "Mail rule", age: "yesterday", d: '<div class="drw"><span class="cbx" style="border-radius:7px"></span><b>Car registration</b><span class="due">$412 · 2 Nov</span></div>' }
+  ],
+  cur: 0,
+  filed: [ { id: "f1", title: "Reading list, three links", route: "Library", h: "#8f7bff" }, { id: "f2", title: "Buy chalk", route: "Shopping", h: "#5fe8a8" }, { id: "f3", title: "Sleep note from Friday", route: "Journal", h: "#ffc46b" } ],
+  log: [
+    { id: "l1", t: "07:30", name: "Protein oats", p: 38, kcal: 470, c: 58, f: 12 },
+    { id: "l2", t: "11:00", name: "Flat white", p: 6, kcal: 90, c: 8, f: 4 },
+    { id: "l3", t: "12:40", name: "Burrito bowl", p: 52, kcal: 640, c: 68, f: 18 }
+  ],
+  logSel: "l3",
+  coach: [
+    { id: "c1", where: "Push day · Barbell bench press", say: "Add one back-off set after your top sets: 70 kg × 8.", why: "Bench moved 2.5 kg in three weeks; more work at a lighter load is the next step.", kind: "add" },
+    { id: "c2", where: "Push day · Cable fly", say: "Swap cable fly for the pec deck.", why: "The cable stack was taken at 17:30 on three of your last four push days.", kind: "swap" }
+  ],
+  backoff: false, swapped: false,
+  home: ["today", "body", "money", "steps", "training", "trends", "waiting"],
+  editing: false,
+  homeSel: "today",
+  view: "waiting",
+  chat: [],
+  last: null
+};
+var RECIPES = [
+  { name: "Burrito bowl", p: 52, kcal: 640, c: 68, f: 18, t: "25 min" },
+  { name: "Greek yogurt parfait", p: 32, kcal: 380, c: 44, f: 8, t: "5 min" },
+  { name: "Salmon and sticky rice", p: 41, kcal: 660, c: 72, f: 20, t: "30 min" },
+  { name: "Protein oats", p: 38, kcal: 470, c: 58, f: 12, t: "8 min" },
+  { name: "Beef stir-fry", p: 48, kcal: 560, c: 50, f: 16, t: "20 min" },
+  { name: "Turkey chili, batch of 4", p: 45, kcal: 470, c: 38, f: 14, t: "45 min" }
+];
+var GOAL = { p: 180, kcal: 2600 };
+function totals() { var t = { p: 0, kcal: 0, c: 0, f: 0 }; S.log.forEach(function (r) { t.p += r.p; t.kcal += r.kcal; t.c += r.c; t.f += r.f; }); return t; }
+function waiting() { return S.inbox.length; }
+
+/* ---------- small builders ---------- */
+function head(title, ic, hue, meta) { return '<div class="th" style="--h:' + hue + '">' + I(ic, 17) + "<span>" + title + "</span>" + (meta ? '<span class="meta">' + meta + "</span>" : "") + "</div>"; }
+function T(o) {
+  var st = "grid-column:span " + (o.c || 4) + ";grid-row:span " + (o.r || 2) + ";--i:" + (o.i || 0);
+  var a = o.act ? ' role="button" tabindex="0" data-act="' + o.act + '"' : "";
+  var lab = o.label ? ' aria-label="' + esc(o.label) + '"' : "";
+  return '<div class="t' + (o.act ? " btn" : "") + (o.cls ? " " + o.cls : "") + '" style="' + st + '"' + a + lab + (o.id ? ' data-tile="' + o.id + '"' : "") + ">" + (o.edit ? '<div class="ed"><button type="button" data-act="home:move:' + o.id + ':-1" aria-label="Move earlier">' + I("left", 14) + '</button><button type="button" data-act="home:move:' + o.id + ':1" aria-label="Move later">' + I("chev", 14) + '</button></div>' : "") + o.body + "</div>";
+}
+function cu(v, opts) { opts = opts || {}; return '<span class="cu" data-to="' + v + '"' + (opts.f ? ' data-fmt="' + opts.f + '"' : "") + (opts.from != null ? ' data-from="' + opts.from + '"' : "") + (opts.k ? ' data-k="' + opts.k + '"' : "") + ">" + showN(v, opts.f) + "</span>"; }
+function showN(v, f) {
+  if (f === "hm") return Math.floor(v / 60) + ":" + String(Math.round(v % 60)).padStart(2, "0");
+  if (f === "dur") return Math.floor(v / 60) + " h " + Math.round(v % 60) + " min";
+  return fmtN(v);
+}
+function ringsSVG(size, list) {
+  return '<svg viewBox="0 0 100 100" width="' + size + '" height="' + size + '" aria-hidden="true">' + list.map(function (x) {
+    return '<circle cx="50" cy="50" r="' + x.r + '" class="trk2' + (x.gap ? " gap" : "") + '" stroke-width="' + (x.w || 9) + '"/>' + (x.gap ? "" : '<circle cx="50" cy="50" r="' + x.r + '" class="arc" pathLength="100" stroke-width="' + (x.w || 9) + '" style="stroke:' + x.c + ";--o:" + (100 - x.p).toFixed(1) + '"' + (x.k ? ' data-k="' + x.k + '"' : "") + "/>");
+  }).join("") + "</svg>";
+}
+
+/* ---------- HOME ---------- */
+function tToday() {
+  var pos = function (h) { return ((h - 6) / 16 * 100).toFixed(2); };
+  var now = 14 + 5 / 60;
+  var ev = [ { t: "09:00", h: 9, n: "Deep work", d: 1 }, { t: "12:30", h: 12.5, n: "Lunch", d: 1 }, { t: "17:30", h: 17.5, n: "Gym" }, { t: "20:00", h: 20, n: "Reflection" } ];
+  return head("Today", "clock", "var(--nv-acc)", "Sunday · 14:05") +
+    '<div class="day"><div class="trk"><i class="bar" style="--p:' + ((now - 6) / 16).toFixed(3) + '"></i></div>' +
+    ev.map(function (e) { return '<div class="ev' + (e.d ? " done" : "") + '" style="left:' + pos(e.h) + '%"><b>' + e.t + "</b><i></i><span>" + e.n + "</span></div>"; }).join("") +
+    '<div class="now" style="left:' + pos(now) + '%"><i></i><span>now</span></div></div>' +
+    '<p class="news">Next: <b>Gym at 17:30</b>, push day, in ' + cu(205, { f: "dur" }) + ".</p>" +
+    '<div class="tfoot"><button type="button" class="lnk" data-act="say:Next 14 days opens your calendar, as it does on the phone.">Next 14 days ' + I("chev", 14) + '</button><span class="hint">Move something: ask Nova <span class="kc">⌘K</span></span></div>';
+}
+function tBody(sz) {
+  sz = sz || 150;
+  return head("Body", "ring", "var(--sum-c1)", "Today") + '<div class="body2">' + ringsSVG(sz, [ { r: 44, c: "var(--sum-c1)", p: 53 }, { r: 32, c: "var(--sum-c2)", p: 62 }, { r: 20, c: "var(--sum-c3)", p: 90 } ]) +
+    '<div class="bnums">' +
+    '<div class="bn" style="--h:var(--sum-c1)"><span class="lab">Protein</span><span class="v">' + cu(96) + "<small>/180 g</small></span><span class=\"gl\"><span>Average <b>142 g</b></span></span></div>" +
+    '<div class="bn" style="--h:var(--sum-c2)"><span class="lab">Steps</span><span class="v">' + cu(6240) + "<small>/10,000</small></span><span class=\"gl\"><span>Average <b>8,120</b></span></span></div>" +
+    '<div class="bn" style="--h:var(--sum-c3)"><span class="lab">Sleep</span><span class="v">' + cu(432, { f: "hm" }) + "<small>/8 h</small></span><span class=\"gl\"><span>Average <b>7:02</b></span></span></div>" +
+    "</div></div>";
+}
+function tMoney(compact) {
+  return head("Money", "money", "var(--nv-vi)", "3 things for you") +
+    '<p class="mline" style="--h:#f5a35c"><i></i><span>Eating out is $38 over its $260 budget for October.</span></p>' +
+    (compact ? "" : '<p class="mline" style="--h:var(--nv-vi)"><i></i><span>Cloud Notes Pro, $8.00, is due on Tuesday 27 October.</span></p>') +
+    '<div class="tfoot" style="justify-content:flex-start"><button type="button" class="pill vi" data-act="say:Discuss opens Nova with the Money note quoted.">Discuss</button><button type="button" class="pill" data-act="say:Open Money goes to Money.">Open Money</button><button type="button" class="pill" data-act="say:Noted: the moment leaves Home until it has news.">Noted</button></div>';
+}
+function tSteps() {
+  return head("Steps", "steps", "var(--sum-c2)", "") +
+    '<div class="big">' + cu(3760) + '</div><p class="sub2" style="font:400 17px/1.3 var(--serif);color:var(--nv-ink)">steps still on the plan</p>' +
+    '<div class="kbar" style="margin-top:10px"><i class="bar" style="--p:.624;background:var(--sum-c2)"></i></div>' +
+    '<div class="gl"><span>Goal <b>10,000</b></span><span>Average <b>8,120</b></span><span><b>6,240</b> today</span></div>';
+}
+function tTraining(compact) {
+  if (compact) return head("Training", "train", "var(--nv-acc)", "17:30") + '<p class="sub2" style="color:var(--nv-ink);font-size:15px;margin:0">Push day, week six · about ' + cu(S.backoff ? 45 : 42) + " min</p>";
+  return head("Training", "train", "var(--nv-acc)", "17:30") +
+    '<p class="news" style="font-size:18px">Push day, week six</p><p class="sub2">' + cu(6) + " lifts · about " + cu(S.backoff ? 45 : 42) + " min</p>" +
+    '<div class="chips-m"><span class="mch" style="--h:var(--m-chest)"><i></i>Chest 3</span><span class="mch" style="--h:var(--m-shoulders)"><i></i>Shoulders 2</span><span class="mch" style="--h:var(--m-triceps)"><i></i>Triceps 1</span></div>';
+}
+var STEPS7 = [7420, 9080, 8610, 10240, 7930, 9180, 6240];
+function tTrends(wide) {
+  var w = 300, h = 96, max = 11000, min = 5000;
+  var pts = STEPS7.map(function (v, i) { return [(i / 6 * w).toFixed(1), (h - (v - min) / (max - min) * h).toFixed(1)]; });
+  var svg = '<svg viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" aria-label="Steps, the last 7 days"><polyline points="' + pts.map(function (p) { return p.join(","); }).join(" ") + '" fill="none" stroke="var(--sum-c2)" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><line x1="0" x2="' + w + '" y1="' + (h - (10000 - min) / (max - min) * h).toFixed(1) + '" y2="' + (h - (10000 - min) / (max - min) * h).toFixed(1) + '" stroke="rgba(232,236,246,.35)" stroke-dasharray="4 5" vector-effect="non-scaling-stroke"/></svg>';
+  var rows = '<div class="trow"><span class="ar" style="color:var(--nv-good)">' + I("up", 13) + '</span>Steps<span class="r">rising, 7 days</span></div>' +
+    '<div class="trow"><span class="ar">' + I("down", 13) + '</span>Protein<span class="r">falling, 2 days</span></div>' +
+    '<div class="trow"><span class="ar">' + I("flat", 13) + '</span>Sleep<span class="r">mixed</span></div>' +
+    '<div class="trow">' + ringsSVG(22, [ { r: 40, gap: true, w: 12 } ]) + 'HRV<span class="r">no data from the watch</span></div>';
+  return head("Trends", "trend", "var(--nv-good)", "7 days") +
+    '<div class="row" style="gap:22px;align-items:flex-start;flex:1">' + (wide ? '<div class="spark" data-spark><span class="bub" hidden></span>' + svg + '<div class="gl" style="justify-content:space-between"><span>Mon</span><span>Sun</span></div></div>' : "") + '<div style="flex:1;min-width:0">' + rows + "</div></div>";
+}
+function tWaiting() {
+  var n = waiting(); var top = S.inbox[0];
+  return head("Waiting", "inbox", "var(--nv-gold)", "Inbox") +
+    '<div class="row" style="align-items:baseline;gap:10px"><span class="big" style="color:var(--nv-gold)" data-bind="waiting">' + n + '</span><span class="sub2" style="font-size:15px;color:var(--nv-ink)">waiting on your call</span></div>' +
+    (top ? '<p class="sub2" style="margin-top:8px">First: ' + esc(top.title) + "</p>" : '<p class="sub2">Nothing waits.</p>') +
+    '<div class="tfoot"><button type="button" class="lnk" data-act="nav:inbox">Open the Inbox ' + I("chev", 14) + '</button><span class="hint"><span class="kc">⌥5</span></span></div>';
+}
+var HOME_T = { today: tToday, body: tBody, money: tMoney, steps: tSteps, training: tTraining, trends: tTrends, waiting: tWaiting };
+function homeHead(fr, extra) {
+  return '<div class="ph"><div><p class="ey">Sunday 11 October</p><h1>Good afternoon</h1><p class="stand">Lunch is logged; push day at 17:30.</p></div><div class="phr">' + (extra || "") +
+    '<button type="button" class="pill" data-act="home:edit" aria-pressed="' + (S.editing ? "true" : "false") + '">' + (S.editing ? "Done" : "Edit") + (S.editing ? "" : '<span class="kc">E</span>') + "</button></div></div>";
+}
+function homeA(fr) {
+  var sp = { today: [8, 3], body: [4, 3], money: [4, 2], steps: [4, 2], training: [4, 2], trends: [8, 2], waiting: [4, 2] };
+  var acts = { body: "say:Body opens the 7-day history for protein, steps and sleep.", steps: "say:Steps opens its history.", training: "nav:train", waiting: "nav:inbox" };
+  var tiles = S.home.map(function (id, i) {
+    return T({ id: id, c: sp[id][0], r: sp[id][1], i: i, act: S.editing ? null : acts[id], edit: S.editing, body: id === "trends" ? tTrends(true) : id === "body" ? tBody(156) : HOME_T[id](), label: id === "training" ? "Training: Push day, week six. Open Train" : null });
+  }).join("");
+  return { main: homeHead(fr) + '<div class="bento' + (S.editing ? " editing" : "") + '" style="--cols:12">' + tiles + "</div>" };
+}
+function homeB(fr) {
+  var sp = { money: [2, 2], today: [2, 2], body: [1, 3], steps: [1, 2], training: [1, 1], trends: [1, 2], waiting: [1, 2] };
+  var tiles = S.home.map(function (id, i) {
+    var sel = S.homeSel === id;
+    return T({ id: id, c: sp[id][0], r: sp[id][1], i: i, act: S.editing ? null : "home:sel:" + id, cls: sel ? "sel" : "", edit: S.editing, body: id === "body" ? tBody(118) : id === "trends" ? tTrends(false) : id === "training" ? head("Training", "train", "var(--nv-acc)", "17:30") + '<p class="sub2" style="color:var(--nv-ink);font-size:15px">Push day, week six · about ' + cu(S.backoff ? 45 : 42) + " min</p>" : HOME_T[id]() });
+  }).join("");
+  return { main: homeHead(fr) + '<div class="bento b2' + (S.editing ? " editing" : "") + '" style="--cols:2">' + tiles + "</div>", aside: homeInsp(fr) };
+}
+function homeInsp() {
+  if (S.editing) {
+    return asideHead("Edit Pinned", "Done") + '<div class="ab"><p class="sub2" style="margin:0 0 10px">Switch a card off, or move it with the arrows on its tile (⌥← ⌥→ on the focused one).</p>' +
+      S.home.map(function (id) { return '<div class="trow" style="padding:10px 0"><span class="ar" style="background:var(--nv-acc);color:#062028">' + I("check", 13) + "</span>" + id.charAt(0).toUpperCase() + id.slice(1) + '<span class="r">on</span></div>'; }).join("") +
+      '<div class="trow" style="padding:10px 0"><span class="ar"></span>The plan<span class="r">nothing to show today</span></div><div class="trow" style="padding:10px 0"><span class="ar"></span>Practice<span class="r">nothing to show today</span></div></div>';
+  }
+  var sel = S.homeSel;
+  if (sel === "body" || sel === "steps" || sel === "trends") {
+    var vals = sel === "steps" ? STEPS7 : [150, 172, 138, 181, 120, 160, 96];
+    var goal = sel === "steps" ? 10000 : 180, max = sel === "steps" ? 11000 : 200;
+    return asideHead(sel === "steps" ? "Steps, 7 days" : "Protein, 7 days", "Esc") + '<div class="ab"><div class="wk" style="height:200px">' +
+      '<div class="goal" style="bottom:' + (goal / max * 100).toFixed(1) + '%"><span>Goal ' + fmtN(goal) + "</span></div>" +
+      vals.map(function (v, i) { return '<div class="col' + (i === 6 ? " today" : "") + '"><div class="stk"><i class="vbar" style="height:' + (v / max * 100).toFixed(1) + "%;--p:1;--i:" + i + '"></i></div><b>' + "MTWTFSS".charAt(i) + "</b></div>"; }).join("") +
+      '</div><p class="sub2" style="margin-top:14px">Average ' + (sel === "steps" ? "8,120 steps" : "142 g") + ". Today so far: " + (sel === "steps" ? "6,240" : "96 g") + '.</p><div class="lab2">From the phone</div><p class="sub2">This is the history the phone opens from Body or Steps, standing beside the page instead of covering it.</p></div>';
+  }
+  if (sel === "money") return asideHead("Money", "Esc") + '<div class="ab">' + tMoney(false) + '<div class="lab2">And 1 more on Money</div><p class="sub2">Groceries are 64% through October’s budget with 20 days to go.</p></div>';
+  if (sel === "waiting") return asideHead("Waiting on you", "Esc") + '<div class="ab"><div class="q">' + S.inbox.map(function (it) { return '<div class="qr"><i class="dot" style="--h:' + it.h + '"></i><b>' + esc(it.title) + "</b><small>" + it.route + " · " + it.age + "</small></div>"; }).join("") + '</div><div class="tfoot"><button type="button" class="lnk" data-act="nav:inbox">Open the Inbox ' + I("chev", 14) + "</button></div></div>";
+  if (sel === "training") return asideHead("Push day", "Esc") + '<div class="ab">' + liftsHTML() + '<div class="tfoot"><button type="button" class="pill p" data-act="say:Begin opens the session.">Begin</button><button type="button" class="lnk" data-act="nav:train">Open Train ' + I("chev", 14) + "</button></div></div>";
+  return asideHead("Today, in full", "Esc") + '<div class="ab">' +
+    [ ["09:00", "Deep work", "video script · 3 h", 1], ["12:30", "Lunch", "burrito bowl · 52 g protein", 1], ["17:30", "Gym", "push day · about 42 min", 0], ["20:00", "Reflection", "15 min", 0] ].map(function (r) {
+      return '<div class="trow" style="padding:11px 0"><span style="width:48px;font:600 13px var(--round);color:' + (r[3] ? "var(--nv-ink50)" : "var(--nv-acc)") + '">' + r[0] + '</span><span><b style="font-weight:500">' + r[1] + '</b><br><small style="color:var(--nv-ink60)">' + r[2] + "</small></span></div>";
+    }).join("") + '<div class="lab2">Ask Nova to change it</div>' + compHTML("Move the gym", "home") + '<div class="tfoot"><button type="button" class="lnk" data-act="say:Next 14 days opens your calendar.">Next 14 days ' + I("chev", 14) + "</button></div></div>";
+}
+function homeC(fr) {
+  var sp = { today: [8, 3], body: [4, 3], steps: [4, 2], training: [4, 1], trends: [8, 2] };
+  var acts = { training: "nav:train", body: "say:Body opens the 7-day history." };
+  var order = S.home.filter(function (id) { return sp[id]; });
+  var tiles = order.map(function (id, i) { return T({ id: id, c: sp[id][0], r: sp[id][1], i: i, act: S.editing ? null : acts[id], edit: S.editing, body: id === "body" ? tBody(134) : id === "trends" ? tTrends(true) : id === "training" ? tTraining(true) : HOME_T[id]() }); }).join("");
+  var col = novaColHead("Nova", "on Home, with you") + '<div class="ab"><div class="thr">' +
+    msg("nova", "Eating out is $38 over its $260 budget for October, and Cloud Notes Pro, $8.00, is due on Tuesday 27 October.", null, '<div class="verbs" style="margin-top:8px"><button type="button" class="pill vi" data-act="say:Discuss: Nova talks it through, with the Money figures on the glass.">Discuss</button><button type="button" class="pill" data-act="say:Open Money goes to Money.">Open Money</button><button type="button" class="pill" data-act="say:Noted.">Noted</button></div>') +
+    msg("nova", '<span data-bind="waiting">' + waiting() + "</span> things wait in your Inbox. The physio one is dated for this week.", null, '<div class="verbs" style="margin-top:8px"><button type="button" class="pill" data-act="nav:inbox">Open the Inbox <span class="kc">⌥5</span></button></div>') +
+    '<div class="chipsrow"><button type="button" class="pill" data-act="say:Asked (demo): nothing is sent.">What should dinner be?</button><button type="button" class="pill" data-act="say:Asked (demo): nothing is sent.">Move the gym to 18:30</button></div>' +
+    '</div></div>' + '<div class="comp" style="margin:0 14px 14px">' + compInner("Ask about today", "home") + "</div>";
+  return { main: homeHead(fr) + '<div class="bento' + (S.editing ? " editing" : "") + '" style="--cols:8;grid-auto-rows:86px">' + tiles + "</div>", aside: col, asideCls: "ncol" };
+}
+
+/* ---------- NOVA ---------- */
+function msg(who, html, by, extra, cls) {
+  return '<div class="msg ' + (who === "me" ? "me" : "nova") + (cls ? " " + cls : "") + '"' + (by ? ' style="--h:' + by.h + '"' : "") + ">" + (who !== "me" ? '<span class="by">' + (by ? by.n : "Nova") + "</span>" : "") + html + (extra || "") + "</div>";
+}
+function weekPanel(big) {
+  var vals = [150, 172, 138, 181, 120, 160, 96], max = 200;
+  return '<div class="panel"><span class="lit">On the glass</span>' + head("Protein, this week", "fuel", "var(--nv-acc)", "") +
+    '<div class="wk" style="height:' + (big ? 260 : 170) + 'px"><div class="goal" style="bottom:90%"><span>Goal 180 g</span></div>' +
+    vals.map(function (v, i) {
+      return '<div class="col' + (i === 6 ? " today" : "") + '"><div class="stk">' + (i === 6 ? '<i class="plan" style="height:' + (73 / max * 100).toFixed(1) + '%"></i>' : "") + '<i class="vbar" style="height:' + (v / max * 100).toFixed(1) + "%;--p:1;--i:" + i + '"></i></div><b>' + "MTWTFSS".charAt(i) + "</b></div>";
+    }).join("") + '</div><p class="sub2" style="margin-top:12px">Today: 96 g eaten, with 73 g planned (salmon, then a yogurt) shown dashed until it is eaten.</p></div>';
+}
+function threadHTML() {
+  return msg("nova", "Good afternoon. Lunch is logged, and you are 84&nbsp;g short on protein with push day at 17:30.") +
+    msg("me", "What should dinner be?") +
+    msg("nova", "Salmon and sticky rice covers 41&nbsp;g. With a Greek yogurt after training you land at 169 of 180.") +
+    '<div class="prop"><p>Put the salmon on tonight’s plate in Fuel?</p><div class="verbs"><button type="button" class="pill p" data-act="say:Yes, do it: it would file to Fuel with Undo. Demo only.">Yes, do it</button><button type="button" class="pill" data-act="say:Left as it is.">Leave it</button></div></div>' +
+    S.chat.map(function (m) { return msg(m.who, esc(m.text), null, m.who === "nova" ? '<span class="hint" style="display:block;margin-top:2px">Scripted demo reply</span>' : "", m.fresh ? "new" : ""); }).join("");
+}
+function compInner(ph, ctx) {
+  return '<button type="button" class="cb" aria-label="Attach" data-act="say:Attach a photo or file, as on the phone.">' + I("plus", 18) + '</button><input data-field data-ctx="' + ctx + '" placeholder="' + esc(ph) + '" aria-label="' + esc(ph) + '"><span class="kc">⌘K</span><button type="button" class="cb mic" aria-label="Talk" data-act="say:Talk: the microphone opens (⌘K twice).">' + I("mic", 18) + "</button>";
+}
+function compHTML(ph, ctx) { return '<div class="comp">' + compInner(ph, ctx) + "</div>"; }
+function novaHead() { return '<div class="nh"><button type="button" class="nm" data-act="say:Nova’s name opens Focus, the full-screen core.">Nova ' + I("chev", 15) + '</button><p class="nstate"><i></i>Your turn · scripted demo replies</p></div>'; }
+function glassHist() {
+  return '<div class="hist"><button type="button" data-act="say:Brings that panel back to the glass.">Protein, this week<small>now</small></button><button type="button" data-act="say:Brings that panel back to the glass.">Push day, the lifts<small>11:20</small></button><button type="button" data-act="say:Brings that panel back to the glass.">Steps, 7 days<small>08:05</small></button></div>';
+}
+function novaChips() { return '<div class="chipsrow"><button type="button" class="pill" data-act="say:Brief me: Nova reads you the day.">Brief me</button><button type="button" class="pill" data-act="say:Ambient: the glance screen.">Ambient</button><button type="button" class="pill" data-act="say:New chat: a boundary in the record, nothing deleted.">New chat</button><button type="button" class="pill" data-act="say:Undo the last 2 turns.">Undo · 2 turns</button></div>'; }
+function novaA() {
+  return { main: '<div style="display:grid;grid-template-columns:minmax(0,1fr) 450px;gap:26px;height:100%"><div style="display:flex;flex-direction:column;min-width:0">' + novaHead() + '<div class="thr" style="flex:1;justify-content:flex-end">' + threadHTML() + '</div><div class="ncomp">' + compHTML("Message Nova", "nova") + '</div></div><div class="stage">' + weekPanel(true) + '<div class="lab2" style="margin:2px 0 0">Was on the glass</div>' + glassHist() + novaChips() + "</div></div>" };
+}
+function novaB() {
+  return { main: '<div style="display:flex;flex-direction:column;height:100%">' + novaHead() + '<div class="thr" style="flex:1;justify-content:flex-end">' + threadHTML() + '</div><div class="ncomp">' + compHTML("Message Nova", "nova") + "</div></div>",
+    aside: asideHead("On the glass", "") + '<div class="ab">' + weekPanel(false) + '<div class="lab2">Earlier</div>' + glassHist() + '<div class="lab2">Station</div><div class="stn"><div><span>Microphone</span><span>off</span></div><div><span>Answers</span><span>demo, scripted</span></div><div><span>Engine</span><span>not connected</span></div><div><span>Hey Nova</span><span>off</span></div></div><div class="lab2">Doors</div>' + novaChips() + "</div>" };
+}
+function novaC() {
+  return { main: '<div class="stage" style="height:100%">' + weekPanel(true) + '<div class="lab2" style="margin:2px 0 0">Was on the glass</div>' + glassHist() + novaChips() + "</div>",
+    aside: novaColHead("Nova", "the column, opened wide") + '<div class="ab"><div class="thr">' + threadHTML() + '</div></div><div class="comp" style="margin:0 14px 14px">' + compInner("Message Nova", "nova") + "</div>", asideCls: "ncol wide" };
+}
+function novaColHead(name, sub, hue) { return '<div class="ah"><div class="who">' + core(30) + '<div><h3 style="margin:0;font:700 16px var(--ui)' + (hue ? ";color:" + hue : "") + '">' + name + "</h3><small>" + sub + '</small></div></div><span class="kc">⌘K</span></div>'; }
+function asideHead(title, close) { return '<div class="ah"><h3>' + title + "</h3>" + (close ? '<button type="button" class="esc" data-act="aside:close">' + close + "</button>" : "") + "</div>"; }
+
+/* ---------- TRAIN ---------- */
+var LIFTS = [
+  { n: "Barbell bench press", m: "chest", s: 4, x: "4 × 6 · 82.5 kg", pr: true },
+  { n: "Incline dumbbell press", m: "chest", s: 3, x: "3 × 10 · 28 kg" },
+  { n: "Seated shoulder press", m: "shoulders", s: 3, x: "3 × 8 · 50 kg" },
+  { n: "Cable fly", m: "chest", s: 3, x: "3 × 12 · 15 kg", swap: "Pec deck" },
+  { n: "Lateral raise", m: "shoulders", s: 4, x: "4 × 15 · 10 kg" },
+  { n: "Triceps rope pushdown", m: "triceps", s: 3, x: "3 × 12 · 32 kg" }
+];
+function liftsHTML() {
+  return '<div class="lifts">' + LIFTS.map(function (l, i) {
+    var dots = ""; for (var k = 0; k < l.s; k++) dots += "<i></i>";
+    if (i === 0 && S.backoff) dots += '<i class="add solid"></i>';
+    var name = l.swap && S.swapped ? '<span class="strike">' + l.n + "</span> " + l.swap : l.n;
+    return '<div class="lift" style="--h:var(--m-' + l.m + ')"><span class="n">0' + (i + 1) + '</span><span class="nm2">' + name + (l.pr ? ' <span class="mch" style="--h:var(--nv-gold);height:22px;margin-left:6px">PR watch</span>' : "") + '</span><span class="sets">' + dots + '</span><span class="sx">' + (i === 0 && S.backoff ? l.x + " + 70 × 8" : l.x) + "</span></div>";
+  }).join("") + "</div>";
+}
+function trainHero() {
+  return head("Today", "train", "var(--nv-acc)", "17:30") + '<div class="row" style="align-items:flex-end;justify-content:space-between"><div><p class="news" style="font-size:24px">Push day, week six</p><p class="sub2">' + cu(6) + " lifts · about " + cu(S.backoff ? 45 : 42, { from: S.backoff ? 42 : null, k: "mins" }) + ' min · as planned</p></div><div class="verbs"><button type="button" class="lnk" data-act="say:Per exercise shows each lift’s targets.">Per exercise</button><button type="button" class="pill p" data-act="say:Begin opens the session (your call 7).">Begin<span class="kc">Return</span></button></div></div>' + liftsHTML();
+}
+function trainLast() { return '<div class="tfoot"><span class="hint">Last push day: Friday, 41 min, bench 82.5 kg × 6, a record</span></div>'; }
+function trainWeek() {
+  var d = [ ["M", "Pull", 1], ["T", "Run", 1], ["W", "Legs", 1], ["T", "Rest", 0], ["F", "Zone 2", 1], ["S", "Rest", 0], ["S", "Push", 2] ];
+  return head("This week", "cal", "var(--nv-acc)", "4 of 5 done") + '<div class="week">' + d.map(function (x) { return '<div class="wd' + (x[2] === 1 ? " done" : x[2] === 2 ? " today" : "") + '"><b>' + x[0] + "</b><i></i><span>" + x[1] + "</span></div>"; }).join("") + "</div>";
+}
+function coachCards(max) {
+  if (!S.coach.length) return '<div class="empty" style="min-height:120px"><span class="tile">' + I("check", 22) + "</span>Coach has nothing waiting. Talk to Coach any time.</div>";
+  return S.coach.slice(0, max || 1).map(function (c, i) {
+    var drawn = c.kind === "add" ? '<div class="draw" style="--h:var(--m-chest)"><span class="sets"><i></i><i></i><i></i><i></i><i class="add"></i></span>Bench: 4 sets, then one at 70 kg × 8</div>' : '<div class="draw"><span class="strike">Cable fly</span>' + I("chev", 14) + "<b>Pec deck</b></div>";
+    return '<div class="cc" data-coach="' + c.id + '"><div class="wh">' + c.where + "</div><p>" + c.say + "</p>" + drawn + '<p class="why">' + c.why + '</p><div class="verbs"><button type="button" class="pill ok" style="background:color-mix(in srgb,var(--nv-good) 18%,transparent)" data-act="coach:yes:' + c.id + '">' + I("check", 15) + 'Yes<span class="kc">Y</span></button><button type="button" class="pill" data-act="coach:discuss:' + c.id + '">Discuss<span class="kc">D</span></button><button type="button" class="pill" data-act="coach:no:' + c.id + '" aria-label="Not now">' + I("x", 15) + '<span class="kc">X</span></button></div></div>';
+  }).join("") + (S.coach.length > 1 ? '<div class="tfoot"><span class="hint">' + S.coach.length + ' changes</span><button type="button" class="lnk" data-act="coach:all">Yes to all ' + S.coach.length + '<span class="kc">⇧Y</span></button></div>' : "");
+}
+function trainCoachTile() { return head("Coach", "people", "var(--nv-gold)", '<span style="color:var(--nv-gold)">' + S.coach.length + " waiting on you</span>") + coachCards(1); }
+function trainHard() {
+  var m = [ ["Chest", "chest", 9, 12], ["Back", "back", 12, 14], ["Shoulders", "shoulders", 7, 10], ["Triceps", "triceps", 5, 8], ["Quads", "quads", 10, 12], ["Hamstrings", "hams", 4, 8] ];
+  return head("Hard sets this week", "bolt", "var(--nv-acc)", "hamstrings short") + '<div class="hs">' + m.map(function (x, i) { return '<div class="hsr" style="--h:var(--m-' + x[1] + ");--i:" + i + '"><span>' + x[0] + '</span><span class="tr"><i class="bar" style="--p:' + (x[2] / x[3]).toFixed(2) + '"></i></span><span>' + x[2] + " / " + x[3] + "</span></div>"; }).join("") + "</div>";
+}
+function trainRoutines() {
+  var r = [ ["Push", "6 lifts", ["chest", "shoulders", "triceps"]], ["Pull", "6 lifts", ["back", "biceps"]], ["Legs", "5 lifts", ["quads", "hams"]], ["Zone 2 run", "40 min", []] ];
+  return head("Routines", "grid", "var(--nv-acc)", "") + r.map(function (x) { return '<div class="rl" role="button" tabindex="0" data-act="say:Opens the routine page: its lifts, reorder, remove, Start, history.">' + x[0] + '<span class="sets" style="margin-left:6px">' + x[2].map(function (m) { return '<i style="background:var(--m-' + m + ')"></i>'; }).join("") + '</span><span class="r">' + x[1] + "</span></div>"; }).join("") +
+    '<div class="tfoot"><button type="button" class="lnk" data-act="say:New routine.">' + I("plus", 14) + ' New routine</button><button type="button" class="lnk" data-act="say:Quick session: minutes and a note, Nova builds it.">Quick session ' + I("chev", 14) + "</button></div>";
+}
+function trainMomentum() {
+  return head("Momentum", "trend", "var(--nv-good)", "") + '<div class="mom"><div class="mc" style="--h:var(--m-chest)"><span class="k">PR</span><div><b>Bench 82.5 kg</b><small>Friday, week five</small></div></div><div class="mc" style="--h:var(--m-shoulders)"><span class="k">Plateau</span><div><b>Seated press 50 kg</b><small>3 weeks at this load</small></div></div><div class="mc" style="--h:var(--nv-good)"><span class="k">Streak</span><div><b>5 weeks on plan</b><small>every planned day done</small></div></div></div>';
+}
+function trainHeadHTML() { return '<div class="ph"><div><p class="ey">Train</p><h1>Push day, <span style="font:italic 400 34px var(--serif);color:var(--nv-gold)">week six.</span></h1></div><div class="phr"><button type="button" class="pill" data-act="say:History: past sessions, edit or delete.">History</button></div></div>'; }
+function trainA() {
+  return { main: trainHeadHTML() + '<div class="bento" style="--cols:12;grid-auto-rows:86px">' +
+    T({ c: 7, r: 5, i: 0, body: trainHero() + trainLast() }) + T({ c: 5, r: 2, i: 1, body: trainWeek() }) + T({ c: 5, r: 3, i: 2, body: trainCoachTile() }) +
+    T({ c: 5, r: 3, i: 3, act: "say:Hard sets opens the week: a ring, a grid of pips, each exercise.", body: trainHard() }) + T({ c: 4, r: 3, i: 4, body: trainRoutines() }) + T({ c: 3, r: 3, i: 5, body: trainMomentum() }) + "</div>" };
+}
+function trainB() {
+  return { main: trainHeadHTML() + '<div class="bento b2" style="--cols:2">' + T({ c: 2, r: 4, i: 0, body: trainHero() }) + T({ c: 2, r: 1, i: 1, body: trainWeek() }) + T({ c: 1, r: 3, i: 2, body: trainHard() }) + T({ c: 1, r: 3, i: 3, body: trainRoutines() }) + T({ c: 2, r: 2, i: 4, body: trainMomentum() }) + "</div>",
+    aside: asideHead("Coach", "") + '<div class="ab"><div style="display:grid;gap:10px">' + coachCards(2) + '</div><div class="lab2">Goals</div><p class="news" style="font-size:17px">Bench 90 kg by December, four days a week, shoulders kept happy.</p><div class="lab2">Talk to Coach</div><p class="sub2">The conversation sits under the deck; Coach reads your week and can ask Nova or the Researcher mid-answer.</p></div><div class="comp" style="margin:0 14px 14px">' + compInner("Talk to Coach", "coach") + "</div>" };
+}
+function trainC() {
+  return { main: trainHeadHTML() + '<div class="bento" style="--cols:8;grid-auto-rows:78px">' + T({ c: 8, r: 4, i: 0, body: trainHero() }) + T({ c: 3, r: 2, i: 1, body: trainWeek() }) + T({ c: 5, r: 2, i: 2, body: trainMomentum().replace('class="mom"', 'class="mom" style="grid-template-columns:repeat(3,minmax(0,1fr))"') }) + T({ c: 5, r: 3, i: 3, act: "say:Hard sets opens the week sheet.", body: trainHard() }) + T({ c: 3, r: 3, i: 4, body: trainRoutines() }) + "</div>",
+    aside: novaColHead("Coach", "through Nova · on Train", "var(--nv-good)") + '<div class="ab"><div style="display:grid;gap:10px">' + coachCards(2) + "</div>" + '<div class="thr" style="margin-top:14px">' + msg("nova", "Your shoulders have been quiet for three weeks, so the back-off set is safe to try.", { n: "Coach", h: "var(--nv-good)" }) + "</div></div>" + '<div class="comp" style="margin:0 14px 14px">' + compInner("Talk to Coach", "coach") + "</div>", asideCls: "ncol" };
+}
+
+/* ---------- FUEL ---------- */
+function plateHTML(big) {
+  var t = totals(); var size = big ? 170 : 128;
+  return head("Today’s plate", "fuel", "var(--nv-good)", '<button type="button" class="lnk" data-act="say:This week opens the plate’s 7 days.">This week ' + I("chev", 13) + "</button>") +
+    '<div class="plate">' + ringsSVG(size, [ { r: 42, c: "var(--nv-acc)", p: Math.min(100, t.p / GOAL.p * 100), k: "pring", w: 11 } ]) +
+    '<div style="flex:1;min-width:0"><span class="bn" style="--h:var(--nv-acc)"><span class="lab">Protein</span><span class="v" style="font-size:' + (big ? 44 : 34) + 'px">' + cu(t.p, { k: "p" }) + '<small>/180 g</small></span></span><div class="gl"><span>Goal <b>180 g</b></span><span>Average <b>142 g</b></span></div>' +
+    '<div style="margin-top:14px"><span class="bn"><span class="lab">Calories</span></span><div class="kbar"><i class="bar" data-k="kbar" style="--p:' + (t.kcal / GOAL.kcal).toFixed(3) + '"></i></div><div class="gl"><span><b>' + cu(t.kcal, { k: "kcal" }) + "</b> of 2,600 kcal</span><span>Average <b>2,310</b></span></div></div>" +
+    '<div class="mac2"><span><b>' + cu(t.c, { k: "c" }) + '</b> g carbs</span><span><b>' + cu(t.f, { k: "f" }) + "</b> g fat</span></div></div></div>";
+}
+function fuelComposer() {
+  return head("Log a meal", "plus", "var(--nv-acc)", '<span class="hint">For today · <button type="button" class="lnk" style="min-height:0" data-act="say:The day rail: log to yesterday or tomorrow.">change day</button></span>') +
+    '<div class="fin"><input data-field data-ctx="fuel" placeholder="What did you eat? Type it, or press / from anywhere on Fuel" aria-label="What did you eat"><button type="button" class="cb" aria-label="Photo" data-act="say:Photo scan: up to 5 photos, Nova reads the plate.">' + I("cam", 18) + '</button><button type="button" class="cb" aria-label="Barcode" data-act="say:Barcode: the camera reads it, or type the number.">' + I("code", 18) + '</button><button type="button" class="cb mic" aria-label="Talk" data-act="say:Talk: say what you ate.">' + I("mic", 18) + "</button></div>" +
+    '<div class="again"><span class="hint" style="align-self:center">Log it again</span>' + [RECIPES[1], RECIPES[3], RECIPES[2]].map(function (r) { return '<button type="button" class="ag" data-act="fuel:againr:' + r.name + '">' + r.name + " <b>" + r.p + " g</b></button>"; }).join("") + "</div>";
+}
+function logRows(selectable) {
+  return '<div class="log" data-flip="log">' + S.log.map(function (r) {
+    return '<div class="lr' + (selectable && S.logSel === r.id ? " sel" : "") + '" data-id="' + r.id + '" tabindex="0" data-act="fuel:sel:' + r.id + '" aria-label="' + esc(r.name) + ", " + r.p + " grams protein, " + r.kcal + ' kilocalories"><span class="tm">' + r.t + '</span><span class="nm2">' + esc(r.name) + '</span><span class="mx"><b>' + r.p + " g</b> · <em>" + r.kcal + '</em> kcal</span><span class="acts"><button type="button" class="pill" data-act="fuel:again:' + r.id + '">Log again<span class="kc">R</span></button><button type="button" class="pill" data-act="fuel:del:' + r.id + '">Delete<span class="kc">⌫</span></button></span></div>';
+  }).join("") + "</div>";
+}
+function fuelLog(selectable) { return head("Today’s log", "clock", "var(--nv-acc)", '<span data-bind="logn">' + S.log.length + "</span> entries · right-click for more") + logRows(selectable) + '<div class="tfoot"><button type="button" class="lnk" data-act="say:Everything you have logged: relog or save to recipes.">Everything you’ve logged ' + I("chev", 14) + "</button></div>"; }
+function fuelRotation() {
+  return head("Rotation", "grid", "var(--nv-good)", "tick what you ate") + '<div class="rot"><div class="rd on"><i></i><div>Burrito bowl<small>lunch</small></div></div><div class="rd"><i></i><div>Salmon and sticky rice<small>dinner</small></div></div><div class="rd"><i></i><div>Turkey chili<small>3 left in the fridge</small></div></div><div class="rd"><i></i><div>Greek yogurt parfait<small>after training</small></div></div></div>';
+}
+function fuelRecipes(n) {
+  return head("Recipes", "book", "var(--nv-acc)", "6 · demo bank") + '<div class="dish">' + RECIPES.slice(0, n || 6).map(function (r, i) { return '<button type="button" data-act="fuel:recipe:' + i + '"><b>' + r.name + "</b><span><i>" + r.p + " g</i> · " + r.kcal + " kcal · " + r.t + "</span></button>"; }).join("") + "</div>";
+}
+function fuelPick() {
+  var t = totals();
+  return head("Pick it up", "bag", "var(--nv-acc)", "") + '<div class="row" style="gap:16px;flex:1">' + ringsSVG(74, [ { r: 42, c: "var(--nv-acc)", p: Math.min(100, (GOAL.p - t.p) / GOAL.p * 100), w: 10 } ]) + '<div><p class="news" style="font-size:17px">What can I pick up?</p><p class="sub2">' + (GOAL.p - t.p) + " g protein and " + fmtN(GOAL.kcal - t.kcal) + ' kcal left today. Takeaway and supermarket, from the demo catalogue.</p></div></div>';
+}
+function fuelHeadHTML() { return '<div class="ph"><div><p class="ey">Sunday 11 October</p><h1>Fuel</h1></div><div class="phr"><button type="button" class="pill" data-act="say:Edit: order and switch the cards, as on the phone.">Edit</button></div></div>'; }
+function fuelA() {
+  return { main: fuelHeadHTML() + '<div class="bento" style="--cols:12">' + T({ c: 5, r: 3, i: 0, body: plateHTML(true) }) + T({ c: 7, r: 2, i: 1, body: fuelComposer() }) + T({ c: 7, r: 3, i: 2, body: fuelLog(false) }) + T({ c: 5, r: 2, i: 3, body: fuelRotation() }) + T({ c: 7, r: 2, i: 4, body: fuelRecipes(6) }) + T({ c: 5, r: 2, i: 5, act: "say:Pick it up: budget rings, takeaway or supermarket, results.", body: fuelPick() }) + "</div>" };
+}
+function fuelB(fr) {
+  var r = S.log.filter(function (x) { return x.id === S.logSel; })[0] || S.log[S.log.length - 1];
+  return { main: fuelHeadHTML() + '<div class="bento b2" style="--cols:2">' + T({ c: 1, r: 3, i: 0, body: plateHTML(false) }) + T({ c: 1, r: 3, i: 1, body: fuelComposer() }) + T({ c: 2, r: 3, i: 2, body: fuelLog(true) }) + T({ c: 1, r: 2, i: 3, body: fuelRotation() }) + T({ c: 1, r: 2, i: 4, body: fuelPick() }) + T({ c: 2, r: 2, i: 5, body: fuelRecipes(3) }) + "</div>",
+    aside: fr.recipe != null ? recipeAside(fr.recipe) : entryAside(r) };
+}
+function entryAside(r) {
+  if (!r) return asideHead("Today’s log", "") + '<div class="ab"><p class="sub2">Nothing logged yet today.</p></div>';
+  var lines = r.name === "Burrito bowl" ? [ ["180 g", "chicken thigh", "34 g"], ["80 g", "basmati rice", "6 g"], ["60 g", "black beans", "5 g"], ["30 g", "cheddar", "7 g"] ] : [ ["1", r.name, r.p + " g"] ];
+  return asideHead(esc(r.name) + ", " + r.t, "Esc") + '<div class="ab"><div class="mm"><div><b style="color:var(--nv-acc)">' + r.p + '</b><span>g protein</span></div><div><b style="color:var(--nv-good)">' + r.kcal + '</b><span>kcal</span></div><div><b>' + r.c + "</b><span>g carbs</span></div><div><b>" + r.f + '</b><span>g fat</span></div></div><div class="lab2">' + lines.length + ' lines</div><div class="lines">' + lines.map(function (l) { return '<div class="ln"><span class="q">' + l[0] + '</span><span class="nm3">' + l[1] + '</span><span class="r">' + l[2] + '</span><button type="button" class="lnk" style="margin-left:8px" data-act="say:Remove takes the line off and the totals follow, with Undo.">Remove</button></div>'; }).join("") +
+    '</div><div class="lab2">Ate less</div><div class="chipsrow"><button type="button" class="pill" data-act="say:A quarter less.">¾</button><button type="button" class="pill" data-act="say:Half.">½</button><button type="button" class="pill" data-act="say:A quarter.">¼</button></div><div class="lab2">Say what was different</div>' + compHTML("No cheese today", "fuel") + '<div class="tfoot"><button type="button" class="pill" data-act="fuel:again:' + r.id + '">Log again<span class="kc">R</span></button><button type="button" class="pill" data-act="fuel:del:' + r.id + '">Delete<span class="kc">⌫</span></button></div></div>';
+}
+function recipeBody(i, twoCol) {
+  var r = RECIPES[i];
+  var ing = [ ["180 g", "chicken thigh, diced"], ["80 g", "basmati rice (dry)"], ["60 g", "black beans"], ["40 g", "charred corn"], ["30 g", "cheddar, grated"], ["20 g", "salsa roja"], ["½", "lime, juiced"] ];
+  var steps = [ "Season the chicken with smoked paprika, cumin and salt; sear 6 to 7 min until charred.", "Cook the rice; fold through the lime juice and a pinch of salt.", "Warm the beans and corn in the same pan to pick up the fond.", "Build the bowl; top with cheddar and salsa." ];
+  var left = '<div class="mods"><span>Serves 1</span><span>Prep 10 min</span><span>Cook 15 min</span></div><div class="mm"><div><b style="color:var(--nv-acc)">' + r.p + '</b><span>g protein</span></div><div><b style="color:var(--nv-good)">' + r.kcal + '</b><span>kcal</span></div><div><b>' + r.c + '</b><span>g carbs</span></div><div><b>' + r.f + '</b><span>g fat</span></div></div><div class="lab2">Ingredients · tick as they go in</div><div class="lines">' + ing.map(function (x) { return '<div class="ln"><span class="rd" style="padding:0;background:none"><i></i></span><span class="q">' + x[0] + "</span><span>" + x[1] + "</span></div>"; }).join("") + "</div>";
+  var right = '<div class="lab2" style="margin-top:0">Method</div><ol class="steps">' + steps.map(function (s) { return "<li>" + s + "</li>"; }).join("") + '</ol><div class="tfoot" style="justify-content:flex-start"><button type="button" class="pill p" data-act="say:Start cooking: one step at a time, large.">Start cooking</button><button type="button" class="pill" data-act="say:Ask Nova for a tweak, about this dish.">Ask Nova for a tweak</button><button type="button" class="pill" data-act="fuel:againr:' + r.name + '">Log this</button></div>';
+  return twoCol ? '<div class="mb"><div>' + left + "</div><div>" + right + "</div></div>" : '<div class="ab">' + left + right + "</div>";
+}
+function recipeAside(i) { return asideHead(RECIPES[i].name, "Esc") + recipeBody(i, false); }
+function fuelC(fr) {
+  var r = S.log.filter(function (x) { return x.id === S.logSel; })[0] || S.log[S.log.length - 1];
+  return { main: fuelHeadHTML() + '<div class="bento" style="--cols:8">' + T({ c: 4, r: 3, i: 0, body: plateHTML(false) }) + T({ c: 4, r: 3, i: 1, body: fuelComposer() }) + T({ c: 5, r: 3, i: 2, body: fuelLog(true) }) + T({ c: 3, r: 3, i: 3, body: fuelRotation() }) + "</div>",
+    aside: novaColHead("Nova", "on Fuel · " + (r ? esc(r.name) : "today")) + '<div class="ab"><div class="thr">' + msg("nova", "Tell me what was different about the " + (r ? esc(r.name).toLowerCase() : "meal") + " and I will redraw it.") + msg("me", "No cheese today") + msg("nova", '<div class="lines" style="margin:6px 0"><div class="ln cut"><span class="q">30 g</span><span class="nm3">cheddar, grated</span><span class="r">−7 g</span></div></div>Protein 52 to 45 g, 640 to 520 kcal.', null, '<div class="verbs" style="margin-top:8px"><button type="button" class="pill" data-act="say:Undo last: the cheddar comes back.">Undo last</button></div><span class="hint" style="display:block;margin-top:4px">Scripted demo</span>') + '</div></div><div class="comp" style="margin:0 14px 14px">' + compInner("Say what’s different", "fuel") + "</div>", asideCls: "ncol" };
+}
+
+/* ---------- INBOX ---------- */
+function queueHTML() {
+  if (S.view === "filed") return '<div class="q filed">' + S.filed.map(function (f) { return '<div class="qr" data-id="' + f.id + '"><i class="dot" style="--h:' + f.h + '"></i><b>' + esc(f.title) + "</b><small>Filed to " + f.route + '</small><button type="button" class="lnk" style="grid-row:1/3;grid-column:3" data-act="inbox:unfile:' + f.id + '">Undo</button></div>'; }).join("") + "</div>";
+  if (!S.inbox.length) return '<p class="sub2">Nothing waiting.</p>';
+  return '<div class="q" data-flip="q">' + S.inbox.map(function (it, i) { return '<button type="button" class="qr' + (i === S.cur ? " on" : "") + '" data-id="' + it.id + '" data-act="inbox:sel:' + i + '"><i class="dot" style="--h:' + it.h + '"></i><b>' + esc(it.title) + "</b><small>" + it.route + " · " + it.age + "</small></button>"; }).join("") + "</div>";
+}
+function cardHTML(fr) {
+  if (!S.inbox.length) return '<div class="empty"><span class="tile">' + I("check", 24) + '</span><p class="news" style="font-size:20px">Nothing is waiting on your call.</p><p class="sub2">Everything that came in has been filed or answered.</p></div>';
+  var it = S.inbox[S.cur];
+  var reveal = "";
+  if (fr.reveal === "why") reveal = '<div class="reveal"><p>Why discard it? One word is enough, or say it.</p><div class="chipsrow"><button type="button" class="pill" data-act="inbox:why:Not useful">Not useful</button><button type="button" class="pill" data-act="inbox:why:Already done">Already done</button><button type="button" class="pill" data-act="inbox:why:Wrong place">Wrong place</button><button type="button" class="pill" data-act="reveal:close">Keep it</button></div></div>';
+  if (fr.reveal === "talk") reveal = '<div class="reveal"><p>Talk about it. Nova has this card in front of him.</p><div class="fin"><input data-field data-ctx="inbox" placeholder="Make it a calendar booking instead" aria-label="Talk about it"><span class="kc">Esc</span></div></div>';
+  return '<div class="card" data-card style="--h:' + it.h + '"><div class="kt"><span class="tile">' + I(it.g, 19) + "</span><div><b>" + it.route + "</b><small>" + it.from + " · " + it.age + '</small></div><span class="pos">' + (S.cur + 1) + " of " + '<span data-bind="waiting">' + S.inbox.length + "</span></span></div>" +
+    '<h2 class="ctitle">' + esc(it.title) + '</h2><div class="halves"><div class="half"><h5>You captured</h5><p>' + it.you + '</p></div><div class="half will"><h5>Will be filed</h5><p>' + it.will + '</p>' + (it.d || "") + '</div></div><p class="why2">' + it.why + ' <button type="button" class="lnk" style="min-height:0" data-act="inbox:deeper">Look deeper<span class="kc">L</span></button></p>' + reveal +
+    '<div class="cverbs"><button type="button" class="pill ok" data-act="inbox:file">' + I("check", 16) + 'File<span class="kc">Y</span></button><button type="button" class="pill" data-act="inbox:talk">Talk about it<span class="kc">T</span></button><span class="sp"></span><button type="button" class="pill" data-act="inbox:discard" aria-label="Discard">' + I("x", 16) + '<span class="kc">X</span></button></div></div>';
+}
+function inboxHead() {
+  return '<div class="ph"><div><p class="ey">Waiting on your call</p><h1>Inbox</h1></div><div class="phr"><div class="seg" style="width:220px;flex:none" role="tablist"><button type="button" role="tab" aria-pressed="' + (S.view === "waiting") + '" data-act="inbox:view:waiting">Waiting</button><button type="button" role="tab" aria-pressed="' + (S.view === "filed") + '" data-act="inbox:view:filed">Filed</button></div><button type="button" class="pill" data-act="say:Drop a thought: the capture sheet, from any page.">Drop a thought<span class="kc">N</span></button></div></div>';
+}
+function filedTile() {
+  return head("Filed today", "check", "var(--nv-good)", '<span data-bind="filedn">' + S.filed.length + "</span>") + '<div class="chipsrow">' + S.filed.slice(0, 4).map(function (f) { return '<span class="mch" style="--h:' + f.h + '"><i></i>' + esc(f.title) + " · " + f.route + "</span>"; }).join("") + '</div><div class="tfoot"><button type="button" class="lnk" data-act="inbox:view:filed">Undo any of them under Filed ' + I("chev", 14) + '</button><button type="button" class="lnk" data-act="say:Loops live in Agents and Operations now.">Loops, in Operations ' + I("chev", 14) + "</button></div>";
+}
+function inboxFoot() { return '<div class="tfoot"><span class="hint">Filed today: <span data-bind="filedn">' + S.filed.length + '</span> · <button type="button" class="lnk" style="min-height:0" data-act="inbox:view:filed">see them</button></span><button type="button" class="lnk" data-act="say:Loops live in Agents and Operations now.">Loops, in Operations ' + I("chev", 14) + "</button></div>"; }
+function inboxA(fr) {
+  return { main: inboxHead() + '<div class="bento" style="--cols:12">' + T({ c: 4, r: 7, i: 0, body: head(S.view === "filed" ? "Filed today" : "In the queue", "inbox", "var(--nv-gold)", S.view === "filed" ? "" : '<span data-bind="waiting">' + waiting() + "</span>") + queueHTML() + '<div class="tfoot"><span class="hint"><span class="kc">J</span> <span class="kc">K</span> to move</span></div>' }) +
+    T({ c: 8, r: 5, i: 1, body: cardHTML(fr) }) + T({ c: 8, r: 2, i: 2, body: filedTile() }) + "</div>" };
+}
+function inboxB(fr) {
+  return { main: inboxHead() + '<div class="t" style="--i:0;padding:12px">' + queueHTML() + '</div><div style="margin-top:12px">' + inboxFoot() + "</div>",
+    aside: '<div class="ab" style="display:flex;flex-direction:column;padding:22px 24px">' + cardHTML(fr) + "</div>", asideCls: "wide" };
+}
+function inboxC(fr) {
+  var it = S.inbox[S.cur];
+  return { main: inboxHead() + '<div class="bento" style="--cols:8">' + T({ c: 3, r: 7, i: 0, body: head("In the queue", "inbox", "var(--nv-gold)", '<span data-bind="waiting">' + waiting() + "</span>") + queueHTML() }) + T({ c: 5, r: 7, i: 1, body: cardHTML(fr) }) + "</div>",
+    aside: novaColHead("Nova", "talking about this card") + '<div class="ab"><div class="thr">' + (it ? msg("nova", it.route === "To-Do" ? "Thursday 09:00 is clear. Do you want the physio as a to-do, or booked into the calendar as well?" : "This one files to " + it.route + ". Anything you want changed before it goes?", null, '<div class="verbs" style="margin-top:8px"><button type="button" class="pill" data-act="say:Scripted demo: nothing is sent.">To-do and the calendar</button><button type="button" class="pill" data-act="inbox:file">Just file it</button></div>') : msg("nova", "Nothing waits. I will say when something does.")) + '</div></div><div class="comp" style="margin:0 14px 14px">' + compInner("Talk about it", "inbox") + "</div>", asideCls: "ncol" };
+}
+
+var R = {
+  A: { home: homeA, nova: novaA, train: trainA, fuel: fuelA, inbox: inboxA },
+  B: { home: homeB, nova: novaB, train: trainB, fuel: fuelB, inbox: inboxB },
+  C: { home: homeC, nova: novaC, train: trainC, fuel: fuelC, inbox: inboxC }
+};
+
+/* ---------- the nav: rail (A, C) or source list (B) ---------- */
+function railHTML(fr, capsule) {
+  return '<nav class="rail' + (capsule ? " cap" : "") + '" aria-label="Pages">' + PAGES.map(function (p, i) {
+    return '<button type="button" class="ri' + (fr.page === p ? " on" : "") + '" data-act="nav:' + p + '" aria-label="' + LBL[p] + '"' + (fr.page === p ? ' aria-current="page"' : "") + ">" + I(ICO[p], 20) + (p === "inbox" ? '<span class="bd" data-bind="waiting">' + waiting() + "</span>" : "") + '<span class="lbl">' + LBL[p] + "<kbd>⌥" + (i + 1) + "</kbd></span></button>";
+  }).join("") + '<hr><button type="button" class="ri" data-act="say:All pages: the Index, every page with its live value." aria-label="All pages">' + I("grid", 19) + '<span class="lbl">All pages</span></button><button type="button" class="ri" data-act="say:Settings." aria-label="Settings">' + I("gear", 19) + '<span class="lbl">Settings</span></button><span class="sp"></span><button type="button" class="rcore" data-act="say:Click to talk. Right-click for Drop a thought or Open Nova." aria-label="Talk to Nova">' + core(42) + '</button><span class="rfoot" title="Demo: not connected"><i></i>Demo</span></nav>';
+}
+function sideHTML(fr) {
+  var row = function (p, ic, hue, val, gold) { var on = fr.page === p; return '<button type="button" class="sr' + (on ? " on" : "") + '" ' + (PAGES.indexOf(p) >= 0 ? 'data-act="nav:' + p + '"' : 'data-act="say:' + p + ' opens, as in the Index."') + (on ? ' aria-current="page"' : "") + '><span class="tile" style="--h:' + hue + '">' + I(ic, 14) + "</span>" + (LBL[p] || p) + '<span class="v' + (gold ? " gold" : "") + '"' + (gold ? ' data-bind="waiting"' : "") + ">" + val + "</span></button>"; };
+  var t = totals();
+  return '<nav class="side" aria-label="Pages"><div class="sfind">' + I("search", 15) + "Search Nova<kbd>/</kbd></div>" +
+    '<div class="sg"><h4>Today</h4>' + row("home", "home", "#3a8bff", "") + row("nova", "chat", "#59b8ff", "your turn") + row("train", "train", "#2fb5c9", "Push · 17:30") + row("fuel", "fuel", "#34b37e", t.p + " of 180 g") + row("inbox", "inbox", "#c9963f", waiting(), true) + "</div>" +
+    '<div class="sg"><h4>Vault</h4>' + row("To-Do", "todo", "#5b7cff", "3 today") + row("Shopping", "cart", "#2e9e6a", "5 items") + row("Notes", "note", "#6f86d6", "") + row("Library", "book", "#8a6ce0", "") + row("Money", "money", "#7a62d9", "1 bill") + "</div>" +
+    '<div class="sg"><h4>System</h4>' + row("Operations", "ops", "#5a6378", "") + row("Settings", "gear", "#5a6378", "") + "</div>" +
+    '<button type="button" class="sfoot" data-act="say:Click to talk to Nova. Right-click: Drop a thought, Open Nova.">' + core(34) + '<span style="text-align:left"><b>Talk to Nova</b><small>Demo · not connected</small></span><span class="kc" style="margin-left:auto">⌘K</span></button></nav>';
+}
+
+/* ---------- frames ---------- */
+var dir = "A";
+var frames = [];
+function frameHTML(fr) {
+  var nav = dir === "B" ? sideHTML(fr) : railHTML(fr, dir === "C");
+  var sw = '<div class="swap" data-swap>' + pageHTML(fr) + "</div>";
+  var app = dir === "A" ? '<div class="pane">' + nav + sw + "</div>" : nav + sw;
+  return '<div class="tb" aria-hidden="true"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i><span>Nova</span><em>Demo</em></div><div class="sky"></div><div class="app app-' + dir + '">' + app + "</div>" + kmHTML();
+}
+function pageHTML(fr) {
+  var r = R[dir][fr.page](fr);
+  var asd = r.aside ? '<aside class="asd ' + (r.asideCls || "") + '">' + r.aside + "</aside>" : "";
+  var panel = fr.recipe != null && dir !== "B" ? '<div class="scrim" data-act="panel:close"><div class="mod" role="dialog" aria-modal="true" aria-label="' + esc(RECIPES[fr.recipe].name) + '" data-stop><div class="ah"><h3>' + RECIPES[fr.recipe].name + '</h3><button type="button" class="esc" data-act="panel:close">Esc</button></div>' + recipeBody(fr.recipe, true) + "</div></div>" : "";
+  return '<div class="pg pg-' + fr.page + '">' + r.main + "</div>" + asd + '<div class="toast" role="status" aria-live="polite"></div>' + panel;
+}
+function kmHTML() {
+  var rows = [ ["⌥1 to ⌥5", "Home, Nova, Train, Fuel, Inbox"], ["⌘K", "Nova, cursor in the composer"], ["/", "this page’s field"], ["J  K", "next, previous"], ["Y  T  X  L", "Inbox: file, talk, discard, look deeper"], ["Y  D  X  ⇧Y", "Coach: yes, discuss, not now, all"], ["R  ⌫", "Fuel: log again, delete"], ["E", "Edit Home"], ["⌘Z", "undo the last write"], ["Esc", "close, focus goes back"] ];
+  return '<div class="km" hidden><div class="kmc"><h3>Keys in this frame</h3><dl>' + rows.map(function (r) { return "<dt><span class=\"kbd\">" + r[0] + "</span></dt><dd>" + r[1] + "</dd>"; }).join("") + "</dl></div></div>";
+}
+var CAP = {
+  A: { home: "The day strip is the live hero: the now line moves with the clock and the next thing is the news. Body carries big numerals with their goal and average; Money, Steps, Training, Trends and Waiting tile around it. Run the pointer along the steps line. Edit arranges the tiles in place.",
+    nova: "The thread sits in the middle at a readable measure with its composer directly under it. The stage beside it is the live tile: the panel Nova is pointing at, lit, with what was on the glass before it underneath.",
+    train: "The session is the hero, each lift in its muscle’s hue and Begin the one filled button. Coach’s changes sit on the page as a deck tile instead of a sheet: press Y and the new set is drawn on the bench row and the minutes tick to 45.",
+    fuel: "The plate is the hero. Hover a log row for Log again and Delete, where the phone swipes; the ring and the calorie bar run to the new totals. A recipe opens as a centred panel with ingredients and method side by side.",
+    inbox: "The queue on the left, the card in the middle with everything it can tell you, and three verbs on keys: Y files, T talks about it, X asks why and discards. Every count in every frame follows." },
+  B: { home: "The sidebar is your Index: each page with its live value. Home is a readable column; select a card and its detail opens in the inspector on the right, where the phone opened a sheet. Edit Pinned lives there too.",
+    nova: "The thread in the centre column. The inspector holds what is on the glass, what was, and the station: microphone, answers and engine, each saying its true state.",
+    train: "Train’s page in the centre and Coach docked in the inspector for as long as it has something to say: the deck first, your goal under it, the conversation at the foot.",
+    fuel: "Select a log entry (or press J and K) and its lines open in the inspector: remove one, say you ate less, log it again, or say what was different.",
+    inbox: "Mail’s shape: the list on the left, the card as the reading pane. J and K move, Y, T and X answer, and the sidebar’s gold count ticks down." },
+  C: { home: "Nova stands in a column beside the page and knows it is on Home: the Money moment and the Inbox count arrive as things he says, with the same verbs as the cards. The page keeps the instruments.",
+    nova: "The Nova screen is that same column opened wide, with the stage taking the rest of the window.",
+    train: "On Train the column is Coach’s, through Nova: the changes and the conversation together. Decisions are a conversation, so the conversation never closes.",
+    fuel: "On Fuel the column holds “say what’s different” for the entry you select: the removal struck, the totals redrawn, Undo beside it.",
+    inbox: "On the Inbox the column is “talk about it” for the card in front of you, already open before you ask." }
+};
+var DIRS = {
+  A: { name: "A · The pane", one: "One frosted pane over the sky, a slim icon rail, and a bento on every page with one live hero tile. Your reel, in Nova’s own glass.",
+    facts: [ ["The sidebar", "A 76 px rail of your tab order. The label slides out on hover or focus; the Inbox badge is gold because it waits on you; the Nova core sits at the rail’s foot as the one Nova icon; All pages opens the Index."], ["Removes, keeps, moves", "Removes the 238 px sidebar, the agent roster (to Operations) and every bottom sheet. Keeps every phone function. Moves sheets into centred panels."], ["Above the fold, Home at 1512", "7 tiles and 10 controls, all on one screen. Today: 5 cards and 6 controls above the fold, 1.5 screens deep."], ["Cost", "The most new layout of the three. Its blur-through waits on the 118 to 218 ms page switch."] ] },
+  B: { name: "B · The source list", one: "The Mac’s own grammar: your Index as the sidebar, a readable centre column, and an inspector where the phone had sheets.",
+    facts: [ ["The sidebar", "Search at the top, then grouped rows with an icon tile in the page’s hue and its live value: Fuel “96 of 180 g”, Inbox in gold. The Nova core is its foot. ⌘B folds it."], ["Removes, keeps, moves", "Removes every sheet and the agent roster. Keeps every function. Moves the details into the inspector, which Esc closes."], ["Above the fold, Home at 1512", "7 cards and 12 controls beside the inspector; the column scrolls about 1.1 screens. Today: 5 cards, 6 controls, 1.5 screens."], ["Cost", "The least like your reel. At 1280 three columns are tight, so the inspector would lay over the column there."] ] },
+  C: { name: "C · Nova alongside", one: "The rail from A, the page in the middle, and Nova in a column on the right of every page, already talking about that page.",
+    facts: [ ["The sidebar", "The rail, as in A. The core at its foot opens the column wide, which is the Nova screen."], ["Removes, keeps, moves", "Removes the floating core, the Coach sheet and the talk-about-it reveal. Keeps every function. Moves Money and the Inbox count into what Nova says on Home."], ["Above the fold, Home at 1512", "5 tiles and 4 controls on the page, 2 things Nova says beside it; one screen. Today: 5 cards, 6 controls, 1.5 screens."], ["Cost", "The column takes 384 px from every page; below about 1360 it folds to the core."] ] }
+};
+function renderIntro() {
+  var d = DIRS[dir];
+  $("#intro").innerHTML = '<div><h2>' + d.name + '</h2><p class="one">' + d.one + '</p></div><ul class="facts">' + d.facts.map(function (f) { return "<li><b>" + f[0] + "</b>" + f[1] + "</li>"; }).join("") + "</ul>";
+}
+function buildFrames() {
+  var host = $("#frames"); host.innerHTML = "";
+  frames = PAGES.map(function (p, i) {
+    var fig = document.createElement("figure"); fig.className = "fr";
+    fig.innerHTML = '<div class="frhead"><h3>' + (i + 1) + " · " + LBL[p] + '</h3><button type="button" class="closer">Look closer</button></div><div class="mac"><div class="screen" tabindex="-1" role="region" aria-label="' + LBL[p] + ", direction " + dir + '"></div></div><figcaption></figcaption>';
+    host.appendChild(fig);
+    var fr = { fig: fig, mac: $(".mac", fig), el: $(".screen", fig), page: p, start: p, recipe: null, reveal: null, seen: false };
+    fr.el.innerHTML = frameHTML(fr);
+    $("figcaption", fig).textContent = CAP[dir][p];
+    bind(fr);
+    $(".closer", fig).addEventListener("click", function (e) { openCloser(fr, e.currentTarget); });
+    return fr;
+  });
+  fit();
+  observe();
+}
+function fit() { frames.forEach(function (fr) { var w = fr.mac.clientWidth; fr.el.style.setProperty("--z", (w / 1512).toFixed(5)); }); }
+window.addEventListener("resize", fit);
+var io;
+function observe() {
+  if (io) io.disconnect();
+  io = "IntersectionObserver" in window ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) { var fr = frames.filter(function (f) { return f.el === e.target; })[0]; if (fr && e.isIntersecting && !fr.seen) { fr.seen = true; arrive(fr, true); } });
+  }, { threshold: 0.25 }) : null;
+  frames.forEach(function (fr) { if (io) io.observe(fr.el); else arrive(fr, false); });
+}
+
+/* ---------- arrival, counting, page change ---------- */
+function ease(t) { return 1 - Math.pow(1 - t, 3); }
+function countUp(root) {
+  $$(".cu", root).forEach(function (el) {
+    var to = parseFloat(el.getAttribute("data-to")); var f = el.getAttribute("data-fmt");
+    var fromA = el.getAttribute("data-from"); var from = fromA != null ? parseFloat(fromA) : 0;
+    if (reduce) { el.textContent = showN(to, f); return; }
+    var t0 = performance.now(), dur = 650;
+    (function step(now) { var k = Math.min(1, (now - t0) / dur); el.textContent = showN(from + (to - from) * ease(k), f); if (k < 1) requestAnimationFrame(step); })(t0);
+  });
+}
+function arrive(fr, skeleton) {
+  var sw = $("[data-swap]", fr.el); if (!sw) return;
+  sw.classList.remove("go");
+  if (reduce) { sw.classList.add("go"); countUp(sw); return; }
+  if (skeleton) { sw.classList.add("pre"); setTimeout(function () { sw.classList.remove("pre"); go(); }, 420); } else go();
+  function go() { void sw.offsetWidth; requestAnimationFrame(function () { sw.classList.add("go"); countUp(sw); }); }
+}
+function navTo(fr, page, how) {
+  if (fr.page === page && how !== "force") return;
+  fr.page = page; fr.recipe = null; fr.reveal = null;
+  var sw = $("[data-swap]", fr.el);
+  var swap = function () { sw.innerHTML = pageHTML(fr); refreshNav(fr); };
+  if (how === "key") { swap(); sw.classList.add("go"); countUp(sw); return; }
+  if (reduce) { sw.classList.add("fade-out"); setTimeout(function () { swap(); sw.classList.remove("fade-out"); arrive(fr, false); }, 160); return; }
+  sw.classList.add("blur-out");
+  setTimeout(function () {
+    swap(); sw.classList.remove("blur-out"); sw.classList.add("blur-in"); sw.classList.remove("go");
+    requestAnimationFrame(function () { requestAnimationFrame(function () { sw.classList.remove("blur-in"); arrive(fr, false); }); });
+  }, 150);
+}
+function refreshNav(fr) {
+  var nav = $(".rail, .side", fr.el); if (!nav) return;
+  var tmp = document.createElement("div"); tmp.innerHTML = dir === "B" ? sideHTML(fr) : railHTML(fr, dir === "C");
+  nav.parentNode.replaceChild(tmp.firstChild, nav);
+}
+function rerender(fr, keepGo) {
+  var sw = $("[data-swap]", fr.el); sw.innerHTML = pageHTML(fr); if (keepGo !== false) sw.classList.add("go");
+}
+function syncCounts() {
+  var n = String(waiting());
+  $$('[data-bind="waiting"]').forEach(function (el) { if (el.textContent !== n) { el.textContent = n; el.classList.remove("tick"); void el.offsetWidth; if (!reduce) el.classList.add("tick"); } });
+  $$('[data-bind="filedn"]').forEach(function (el) { el.textContent = S.filed.length; });
+  frames.forEach(function (f) { if (dir === "B") { var v = $('.sr[data-act="nav:fuel"] .v', f.el); if (v) v.textContent = totals().p + " of 180 g"; } });
+}
+function others(fr, pages) { frames.forEach(function (f) { if (f !== fr && pages.indexOf(f.page) >= 0) { rerender(f); countSet(f); } }); }
+function countSet(fr) { $$(".cu", fr.el).forEach(function (el) { el.textContent = showN(parseFloat(el.getAttribute("data-to")), el.getAttribute("data-fmt")); }); }
+
+/* ---------- FLIP ---------- */
+function flip(fr, sel, mutate) {
+  var before = {}; $$(sel + " [data-id]", fr.el).forEach(function (el) { before[el.getAttribute("data-id")] = el.getBoundingClientRect().top; });
+  mutate();
+  if (reduce) return;
+  var z = parseFloat(getComputedStyle(fr.el).getPropertyValue("--z")) || 1;
+  $$(sel + " [data-id]", fr.el).forEach(function (el) {
+    var id = el.getAttribute("data-id"); var top = el.getBoundingClientRect().top;
+    if (before[id] == null) { el.classList.add("new"); return; }
+    var dy = (before[id] - top) / z; if (Math.abs(dy) < 1) return;
+    el.style.transform = "translateY(" + dy + "px)"; el.style.transition = "none";
+    requestAnimationFrame(function () { requestAnimationFrame(function () { el.style.transition = "transform 280ms cubic-bezier(.23,1,.32,1)"; el.style.transform = ""; }); });
+  });
+}
+
+/* ---------- toast with Undo ---------- */
+function toast(fr, text, undo) {
+  var t = $(".toast", fr.el); if (!t) return;
+  t.innerHTML = "<i></i><span>" + esc(text) + "</span>" + (undo ? '<button type="button" data-act="undo">Undo</button>' : "");
+  S.last = undo || null;
+  t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove("show"); }, 4200);
+}
+
+/* ---------- acts ---------- */
+function act(fr, a, srcEl, how) {
+  var p = a.split(":"); var k = p[0];
+  if (k === "nav") { navTo(fr, p[1], how === "key" ? "key" : "pointer"); return; }
+  if (k === "say") { toast(fr, a.slice(4)); return; }
+  if (k === "undo") { if (S.last) { var u = S.last; S.last = null; u(fr); } return; }
+  if (k === "aside" && p[1] === "close") { if (S.editing) { S.editing = false; rerender(fr); return; } if (fr.page === "home") S.homeSel = "today"; fr.recipe = null; rerender(fr); countSet(fr); restore(fr); return; }
+  if (k === "panel") { fr.recipe = null; rerender(fr); restore(fr); return; }
+  if (k === "reveal") { fr.reveal = null; rerender(fr); return; }
+  if (k === "home") {
+    if (p[1] === "edit") { S.editing = !S.editing; frames.forEach(function (f) { if (f.page === "home") { rerender(f); countSet(f); } }); return; }
+    if (p[1] === "sel") { S.homeSel = p[2]; fr.opener = p[2]; rerender(fr); countSet(fr); return; }
+    if (p[1] === "move") {
+      var id = p[2], d = parseInt(p[3], 10), i = S.home.indexOf(id), j = i + d;
+      if (j < 0 || j >= S.home.length) return;
+      var before = {}; $$("[data-tile]", fr.el).forEach(function (el) { var r = el.getBoundingClientRect(); before[el.getAttribute("data-tile")] = [r.left, r.top]; });
+      S.home.splice(i, 1); S.home.splice(j, 0, id); rerender(fr); countSet(fr);
+      var z = parseFloat(getComputedStyle(fr.el).getPropertyValue("--z")) || 1;
+      if (!reduce) $$("[data-tile]", fr.el).forEach(function (el) { var b = before[el.getAttribute("data-tile")]; if (!b) return; var r = el.getBoundingClientRect(); var dx = (b[0] - r.left) / z, dy = (b[1] - r.top) / z; el.style.transform = "translate(" + dx + "px," + dy + "px)"; el.style.transition = "none"; requestAnimationFrame(function () { requestAnimationFrame(function () { el.style.transition = "transform 300ms cubic-bezier(.23,1,.32,1)"; el.style.transform = ""; }); }); });
+      var again = $('[data-tile="' + id + '"] .ed button', fr.el); if (again) again.focus({ preventScroll: true });
+      frames.forEach(function (f) { if (f !== fr && f.page === "home") { rerender(f); countSet(f); } });
+      return;
+    }
+  }
+  if (k === "inbox") {
+    if (p[1] === "view") { S.view = p[2]; rerender(fr); countSet(fr); return; }
+    if (p[1] === "sel") { S.cur = parseInt(p[2], 10); fr.reveal = null; rerender(fr); countSet(fr); return; }
+    if (!S.inbox.length) return;
+    if (p[1] === "file") { leaveCard(fr, "r", "Filed to " + S.inbox[S.cur].route); return; }
+    if (p[1] === "discard") { fr.reveal = "why"; rerender(fr); countSet(fr); var b = $(".reveal button", fr.el); if (b) b.focus({ preventScroll: true }); return; }
+    if (p[1] === "why") { leaveCard(fr, "l", "Discarded: " + a.split(":").slice(2).join(":").toLowerCase()); return; }
+    if (p[1] === "talk") {
+      if (dir === "C") { var inp = $(".asd input[data-field]", fr.el); if (inp) inp.focus({ preventScroll: true }); return; }
+      fr.reveal = "talk"; rerender(fr); countSet(fr); var f = $(".reveal input", fr.el); if (f) f.focus({ preventScroll: true }); return;
+    }
+    if (p[1] === "deeper") { toast(fr, "Look deeper asks the Researcher for a report on this card. Demo: nothing is sent."); return; }
+    if (p[1] === "unfile") { var fi = S.filed.filter(function (x) { return x.id === p[2]; })[0]; toast(fr, "Undone: " + (fi ? fi.title : "")); return; }
+  }
+  if (k === "fuel") {
+    if (p[1] === "sel") { if (srcEl && srcEl.closest && srcEl.closest(".acts")) return; S.logSel = p[2]; fr.recipe = null; fr.opener = p[2]; if (dir === "A") { toast(fr, "Opens the entry: its lines, Remove, Ate less, Save. Hover for Log again and Delete."); return; } rerender(fr); countSet(fr); frames.forEach(function (f) { if (f !== fr && f.page === "fuel") { rerender(f); countSet(f); } }); return; }
+    if (p[1] === "again" || p[1] === "againr") {
+      var src = p[1] === "again" ? S.log.filter(function (x) { return x.id === p[2]; })[0] : RECIPES.filter(function (x) { return x.name === a.split(":").slice(2).join(":"); })[0];
+      if (!src) return;
+      var nr = { id: "l" + Date.now(), t: "14:05", name: src.name, p: src.p, kcal: src.kcal, c: src.c, f: src.f };
+      fuelWrite(fr, function () { S.log.push(nr); S.logSel = nr.id; }, "Logged " + src.name, function (f2) { fuelWrite(f2, function () { S.log = S.log.filter(function (x) { return x.id !== nr.id; }); }, "Undone"); });
+      return;
+    }
+    if (p[1] === "del") {
+      var idx = -1; S.log.forEach(function (x, i) { if (x.id === p[2]) idx = i; }); if (idx < 0) return; var gone = S.log[idx];
+      fuelWrite(fr, function () { S.log.splice(idx, 1); if (S.logSel === gone.id) S.logSel = (S.log[S.log.length - 1] || {}).id; }, "Deleted " + gone.name, function (f2) { fuelWrite(f2, function () { S.log.splice(idx, 0, gone); }, "Undone"); });
+      return;
+    }
+    if (p[1] === "recipe") { fr.recipe = parseInt(p[2], 10); fr.opener = "recipe" + p[2]; rerender(fr); countSet(fr); var c = $(".mod .esc, .asd .esc", fr.el); if (c) c.focus({ preventScroll: true }); return; }
+  }
+  if (k === "coach") {
+    if (p[1] === "all") { var ids = S.coach.map(function (c) { return c.id; }); ids.forEach(function (id) { coachAnswer(fr, id, true, true); }); return; }
+    if (p[1] === "discuss") { if (dir === "A") toast(fr, "Discuss opens the conversation with Coach, this change quoted."); else { var ci = $(".asd input[data-field]", fr.el); if (ci) ci.focus({ preventScroll: true }); } return; }
+    coachAnswer(fr, p[2], p[1] === "yes"); return;
+  }
+}
+function restore(fr) {
+  var sel = fr.opener; fr.opener = null; if (!sel) return;
+  var el = sel.indexOf("recipe") === 0 ? $('[data-act="fuel:recipe:' + sel.slice(6) + '"]', fr.el) : $('[data-act="home:sel:' + sel + '"], [data-act="fuel:sel:' + sel + '"]', fr.el);
+  if (el) el.focus({ preventScroll: true });
+}
+function leaveCard(fr, side, text) {
+  var card = $("[data-card]", fr.el); var it = S.inbox[S.cur];
+  var done = function () {
+    flip(fr, '[data-flip="q"]', function () {
+      S.inbox.splice(S.cur, 1); if (side === "r") S.filed.unshift({ id: "f" + Date.now(), title: it.title, route: it.route, h: it.h });
+      if (S.cur >= S.inbox.length) S.cur = Math.max(0, S.inbox.length - 1); fr.reveal = null; rerender(fr); countSet(fr);
+    });
+    syncCounts(); others(fr, ["inbox", "home"]);
+    toast(fr, text, function (f2) { S.inbox.splice(Math.min(S.cur, S.inbox.length), 0, it); if (side === "r") S.filed.shift(); S.cur = S.inbox.indexOf(it); f2.reveal = null; rerender(f2); countSet(f2); syncCounts(); others(f2, ["inbox", "home"]); toast(f2, "Undone"); });
+  };
+  if (card && !reduce) { card.classList.add(side === "r" ? "leave-r" : "leave-l"); setTimeout(done, 260); } else done();
+}
+function fuelWrite(fr, mutate, text, undo) {
+  var old = totals();
+  flip(fr, '[data-flip="log"]', function () { mutate(); rerender(fr); });
+  var t = totals();
+  /* every number on the plate runs from its old value to its new one */
+  [["p", old.p, t.p], ["kcal", old.kcal, t.kcal], ["c", old.c, t.c], ["f", old.f, t.f]].forEach(function (x) { $$('.cu[data-k="' + x[0] + '"]', fr.el).forEach(function (el) { el.setAttribute("data-from", x[1]); el.setAttribute("data-to", x[2]); }); });
+  var ring = $('.arc[data-k="pring"]', fr.el); var bar = $('.bar[data-k="kbar"]', fr.el);
+  if (ring) { ring.style.setProperty("--o", (100 - Math.min(100, old.p / GOAL.p * 100)).toFixed(1)); ring.classList.add("set"); }
+  if (bar) { bar.style.setProperty("--p", (old.kcal / GOAL.kcal).toFixed(3)); bar.classList.add("set"); }
+  var sw = $("[data-swap]", fr.el); sw.classList.add("go");
+  requestAnimationFrame(function () { requestAnimationFrame(function () {
+    if (ring) ring.style.setProperty("--o", (100 - Math.min(100, t.p / GOAL.p * 100)).toFixed(1));
+    if (bar) bar.style.setProperty("--p", (t.kcal / GOAL.kcal).toFixed(3));
+    countUp(fr.el);
+  }); });
+  $$('.cu:not([data-k])', fr.el).forEach(function (el) { el.textContent = showN(parseFloat(el.getAttribute("data-to")), el.getAttribute("data-fmt")); });
+  syncCounts(); others(fr, ["fuel", "home"]);
+  toast(fr, text, undo);
+}
+function coachAnswer(fr, id, yes, quiet) {
+  var c = S.coach.filter(function (x) { return x.id === id; })[0]; if (!c) return;
+  var card = $('[data-coach="' + id + '"]', fr.el);
+  var done = function () {
+    S.coach = S.coach.filter(function (x) { return x.id !== id; });
+    if (yes && c.kind === "add") S.backoff = true; if (yes && c.kind === "swap") S.swapped = true;
+    rerender(fr); countSet(fr);
+    if (yes && c.kind === "add") { var m = $('.cu[data-k="mins"]', fr.el); if (m) { m.setAttribute("data-from", 42); countUp(m.parentNode); } }
+    others(fr, ["train", "home"]);
+    if (!quiet || S.coach.length === 0) toast(fr, yes ? (quiet ? "Both changes made" : "Coach’s change made") : "Not now. Coach will not ask again this week", function (f2) { S.coach.unshift(c); if (c.kind === "add") S.backoff = false; if (c.kind === "swap") S.swapped = false; rerender(f2); countSet(f2); others(f2, ["train", "home"]); toast(f2, "Undone"); });
+  };
+  if (card && !reduce) { card.classList.add(yes ? "leave-r" : "leave-l"); setTimeout(done, 280); } else done();
+}
+
+/* ---------- binding: pointer, keys, scrub, composer ---------- */
+function bind(fr) {
+  var el = fr.el;
+  el.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-act]"); if (!t || !el.contains(t)) return;
+    if (t.classList.contains("scrim") && e.target.closest("[data-stop]")) return;
+    e.preventDefault(); act(fr, t.getAttribute("data-act"), e.target, "pointer");
+  });
+  el.addEventListener("contextmenu", function (e) {
+    var r = e.target.closest(".lr"); if (r) { e.preventDefault(); toast(fr, "Right-click menu: Log again, Delete, Ate less, Save to recipes"); }
+    var c = e.target.closest(".rcore, .sfoot"); if (c) { e.preventDefault(); toast(fr, "Right-click: Drop a thought · Open Nova · Read it to me"); }
+  });
+  el.addEventListener("mouseover", function (e) { var r = e.target.closest(".rail"); if (r) { if (r._t) clearTimeout(r._t); r._t = setTimeout(function () { r.classList.add("warm"); }, 320); } });
+  el.addEventListener("mouseout", function (e) { var r = e.target.closest(".rail"); if (r && !r.contains(e.relatedTarget)) { clearTimeout(r._t); r._t = setTimeout(function () { r.classList.remove("warm"); }, 500); } });
+  el.addEventListener("pointermove", function (e) {
+    var sp = e.target.closest("[data-spark]"); if (!sp) return;
+    var svg = $("svg", sp), b = $(".bub", sp); var r = svg.getBoundingClientRect();
+    var x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); var i = Math.round(x * 6);
+    var z = r.width / svg.clientWidth || 1;
+    b.hidden = false; b.style.left = (i / 6 * svg.clientWidth) + "px"; b.textContent = "MTWTFSS".charAt(i) + " · " + fmtN(STEPS7[i]);
+    var y = (96 - (STEPS7[i] - 5000) / 6000 * 96); b.style.top = y + "px";
+  });
+  el.addEventListener("pointerleave", function () { $$(".bub", el).forEach(function (b) { b.hidden = true; }); }, true);
+  el.addEventListener("keydown", function (e) {
+    var inField = e.target.matches && e.target.matches("input,textarea");
+    if (e.key === "Enter" && inField) { e.preventDefault(); send(fr, e.target); return; }
+    if (e.key === "Escape") {
+      var km = $(".km", el); if (!km.hidden) { km.hidden = true; return; }
+      if (fr.recipe != null) { act(fr, "panel:close"); return; }
+      if (fr.reveal) { fr.reveal = null; rerender(fr); countSet(fr); var bt = $('[data-act="inbox:' + (e.target.closest(".reveal") ? "discard" : "file") + '"]', el); if (bt) bt.focus({ preventScroll: true }); return; }
+      if (S.editing) { act(fr, "home:edit"); return; }
+      if (inField) { e.target.blur(); el.focus({ preventScroll: true }); return; }
+      if (dir === "B" && (fr.page === "home" || fr.page === "fuel")) { restore(fr); }
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+      e.preventDefault();
+      var go = function () { var f = $('.pg-nova input[data-field], .asd input[data-field][data-ctx="nova"]', el) || $("input[data-field]", el); if (f) f.focus({ preventScroll: true }); };
+      if (fr.page !== "nova" && dir !== "C") { navTo(fr, "nova", "key"); go(); } else if (dir === "C" && fr.page !== "nova") { var f2 = $(".asd input[data-field]", el); if (f2) f2.focus({ preventScroll: true }); } else go();
+      return;
+    }
+    if (e.altKey && /^Digit[1-5]$/.test(e.code)) { e.preventDefault(); navTo(fr, PAGES[parseInt(e.code.slice(5), 10) - 1], "key"); return; }
+    if (e.metaKey && (e.key === "z" || e.key === "Z") && !inField) { e.preventDefault(); act(fr, "undo"); return; }
+    if (inField || e.metaKey || e.ctrlKey) return;
+    if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && S.editing) { var tile = e.target.closest("[data-tile]"); if (tile) { e.preventDefault(); act(fr, "home:move:" + tile.getAttribute("data-tile") + ":" + (e.key === "ArrowLeft" ? -1 : 1)); } return; }
+    var key = e.key;
+    if (key === "?") { var k2 = $(".km", el); k2.hidden = !k2.hidden; return; }
+    if (key === "/") { var fld = $(".pg input[data-field], .asd input[data-field]", el); if (fld) { e.preventDefault(); fld.focus({ preventScroll: true }); } return; }
+    if (key === "n" || key === "N") { toast(fr, "Drop a thought: the capture sheet opens over this page."); return; }
+    if (key === "Enter" && e.target.matches("[role=button],.lr,.rl")) { e.preventDefault(); e.target.click(); return; }
+    if (fr.page === "inbox" && S.view === "waiting") {
+      if (key === "j" || key === "ArrowDown") { e.preventDefault(); if (S.cur < S.inbox.length - 1) { S.cur++; fr.reveal = null; rerender(fr); countSet(fr); } return; }
+      if (key === "k" || key === "ArrowUp") { e.preventDefault(); if (S.cur > 0) { S.cur--; fr.reveal = null; rerender(fr); countSet(fr); } return; }
+      if (key === "y") return act(fr, "inbox:file", null, "key");
+      if (key === "x") return act(fr, "inbox:discard", null, "key");
+      if (key === "t") { e.preventDefault(); return act(fr, "inbox:talk", null, "key"); }
+      if (key === "l") return act(fr, "inbox:deeper", null, "key");
+    }
+    if (fr.page === "train" && S.coach.length) {
+      if (key === "Y") return act(fr, "coach:all");
+      if (key === "y") return act(fr, "coach:yes:" + S.coach[0].id);
+      if (key === "x") return act(fr, "coach:no:" + S.coach[0].id);
+      if (key === "d") return act(fr, "coach:discuss:" + S.coach[0].id);
+    }
+    if (fr.page === "fuel" && S.log.length) {
+      var ids = S.log.map(function (x) { return x.id; }); var ci = ids.indexOf(S.logSel);
+      if (key === "j" || key === "ArrowDown" || key === "k" || key === "ArrowUp") { e.preventDefault(); ci = Math.max(0, Math.min(ids.length - 1, ci + (key === "j" || key === "ArrowDown" ? 1 : -1))); S.logSel = ids[ci]; rerender(fr); countSet(fr); var row = $('.lr[data-id="' + S.logSel + '"]', el); if (row) row.focus({ preventScroll: true }); return; }
+      if (key === "r") return act(fr, "fuel:again:" + S.logSel);
+      if (key === "Backspace" || key === "Delete") { e.preventDefault(); return act(fr, "fuel:del:" + S.logSel); }
+    }
+    if (fr.page === "home" && (key === "e" || key === "E")) return act(fr, "home:edit");
+  });
+}
+function send(fr, input) {
+  var v = input.value.trim(); if (!v) return; var ctx = input.getAttribute("data-ctx");
+  input.value = "";
+  if (ctx === "nova") {
+    S.chat.push({ who: "me", text: v, fresh: true });
+    frames.forEach(function (f) { if (f.page === "nova") { rerender(f); countSet(f); } });
+    S.chat.forEach(function (m) { m.fresh = false; });
+    setTimeout(function () { S.chat.push({ who: "nova", text: "This is a mockup, so nothing was sent. In Nova this line would go to him, and his answer would land here.", fresh: true }); frames.forEach(function (f) { if (f.page === "nova") { rerender(f); countSet(f); } }); S.chat.forEach(function (m) { m.fresh = false; }); var inp = $('input[data-ctx="nova"]', fr.el); if (inp) inp.focus({ preventScroll: true }); }, 700);
+    return;
+  }
+  if (ctx === "fuel" && input.closest(".fin")) {
+    fuelWrite(fr, function () { S.log.push({ id: "l" + Date.now(), t: "14:05", name: v.charAt(0).toUpperCase() + v.slice(1), p: 20, kcal: 300, c: 30, f: 10 }); }, "Logged “" + v + "” (demo figures)", null);
+    return;
+  }
+  toast(fr, "Said (demo): “" + v + "”. Nothing is sent.");
+}
+
+/* ---------- look closer ---------- */
+function openCloser(fr, btn) {
+  var layer = document.createElement("div"); layer.className = "closer-layer"; layer.setAttribute("role", "dialog"); layer.setAttribute("aria-modal", "true"); layer.setAttribute("aria-label", LBL[fr.page] + ", large");
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var z = vw >= 900 ? Math.min((vw - 32) / 1512, (vh - 70) / 1010) : Math.max(0.5, (vh - 80) / 1010);
+  layer.innerHTML = '<div class="bar"><span>' + LBL[fr.page] + " · " + DIRS[dir].name + '</span><button type="button">Close</button></div><div class="closer-box" style="width:' + Math.round(1512 * z) + "px;height:" + Math.round(1010 * z) + 'px"></div>';
+  document.body.appendChild(layer); document.body.style.overflow = "hidden";
+  var box = $(".closer-box", layer); var parent = fr.el.parentNode;
+  box.appendChild(fr.el); fr.el.style.setProperty("--z", z.toFixed(5));
+  var close = function () { parent.appendChild(fr.el); fit(); layer.remove(); document.body.style.overflow = ""; document.removeEventListener("keydown", onKey, true); btn.focus({ preventScroll: true }); };
+  var onKey = function (e) { if (e.key === "Escape" && !e.target.matches("input") && fr.recipe == null && !fr.reveal && $(".km", fr.el).hidden) { e.stopPropagation(); close(); } };
+  document.addEventListener("keydown", onKey, true);
+  $(".bar button", layer).addEventListener("click", close);
+  $(".bar button", layer).focus();
+}
+
+/* ---------- parity table ---------- */
+var PAR = [
+  ["Home"],
+  ["Talk to Nova (the core)", "The core at the rail’s foot", "The sidebar’s foot", "The rail’s foot opens the column wide"],
+  ["Date, greeting, serif standfirst", "Page head", "Page head", "Page head"],
+  ["Moments (record, plan in flight, landed, Your day, Money) and their verbs", "Tiles while they are news", "Cards at the top of the column", "Said by Nova in the column, with the same verbs"],
+  ["Highlight sentence, bar, one act", "Steps tile, big numeral with goal and average", "Steps card", "Steps tile"],
+  ["Pinned cards: Body, Today, Training, Trends, Waiting, The plan, Practice", "Bento tiles, Today the live hero", "Column cards, detail in the inspector", "Bento tiles; Waiting in the column"],
+  ["Edit Pinned (switch, order)", "In place: arrows on each tile, ⌥← ⌥→", "Inspector list, arrows on tiles", "In place, as A"],
+  ["Steps and protein history, Calendar 14 days", "Centred panel", "Inspector", "Centred panel"],
+  ["Nova"],
+  ["Name opens Focus; › status and settings", "Head of the thread", "Head of the thread", "Head of the column"],
+  ["Thread: glass panels, receipts with Undo, proposals, sources", "Thread, middle of the pane", "Centre column", "The column, opened wide"],
+  ["The stage while he speaks; On the glass history", "Live stage tile beside the thread", "Inspector", "The rest of the window"],
+  ["Composer: attach, type, talk", "Under the thread, centred on it", "Under the thread", "Foot of the column"],
+  ["New chat, Undo turns, Brief me, Ambient", "Chips under the stage", "Inspector, Doors", "Chips under the stage"],
+  ["Train"],
+  ["Hero and Begin (guarded start)", "Hero tile, Return begins", "Hero card", "Hero tile"],
+  ["Recovery rows (Resume, Restore, Dismiss)", "Above the hero while they exist", "Same", "Same"],
+  ["Week dots, per-day routine", "Week tile", "Week card", "Week tile"],
+  ["Coach: changes deck (Yes, Discuss, Not now, all), conversation, goals", "Deck tile on the page; Discuss opens the talk", "Inspector, docked", "The Nova column, as Coach"],
+  ["Routines, routine page, Quick session", "Routines tile; the routine opens as a page", "Column card; routine in the inspector", "Routines tile"],
+  ["Hard sets and the week sheet; Momentum", "Tiles; the week opens centred", "Cards; week in the inspector", "Tiles"],
+  ["Live session (set card, pad, tick, rest ring, Pain, Note)", "Your call 7", "Your call 7", "Your call 7"],
+  ["Fuel"],
+  ["The plate and its week", "Hero tile", "Card", "Tile"],
+  ["Composer: type, photo, barcode, talk; Log it again", "Composer tile, / focuses it", "Card", "Tile"],
+  ["Today’s log: swipe for Log again or Delete; open for lines, Remove, Ate less", "Hover actions, R and ⌫, right-click menu", "Select a row, the inspector holds the rest", "Select a row, the Nova column holds the rest"],
+  ["Everything logged; the day rail", "Links in the log and composer", "Same", "Same"],
+  ["Rotation strip, the kitchen", "Rotation tile", "Card", "Tile"],
+  ["Recipes page and recipe sheet; Pick it up", "Recipe tiles; a centred two-column recipe", "Inspector", "Centred panel"],
+  ["Say what’s different, Nova asks", "In the entry panel", "Inspector", "The Nova column"],
+  ["Inbox"],
+  ["Waiting and Filed", "Segmented, page head", "Segmented over the list", "Segmented"],
+  ["The card: kind, title, You captured, Will be filed, reason, Look deeper", "Card tile, the hero", "The reading pane", "Card tile"],
+  ["File, Talk about it, Discard (asks why)", "Y, T, X and the buttons", "Same", "Same; Talk is the column"],
+  ["Receipt with Undo; do-all per pattern", "The pill at the page’s foot; do-all on the queue’s group head", "Same", "Same"],
+  ["Drop a thought (capture)", "N anywhere, the button in the head", "Same", "Same"],
+  ["Loops, now in Operations", "A link at the foot", "Same", "Same"]
+];
+function renderParity() {
+  $("#parityBody").innerHTML = PAR.map(function (r) {
+    if (r.length === 1) return '<tr class="grp"><td colspan="4">' + r[0] + "</td></tr>";
+    return "<tr><td>" + r[0] + '</td><td data-l="A">' + r[1] + '</td><td data-l="B">' + r[2] + '</td><td data-l="C">' + r[3] + "</td></tr>";
+  }).join("");
+}
+
+/* ---------- direction switch ---------- */
+$$(".dirs [data-dir]").forEach(function (b) {
+  b.addEventListener("click", function () {
+    if (dir === b.getAttribute("data-dir")) return;
+    dir = b.getAttribute("data-dir");
+    $$(".dirs [data-dir]").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+    S.editing = false;
+    renderIntro(); buildFrames();
+  });
+});
+renderIntro(); renderParity(); buildFrames();
+})();
+</script>
