@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 11 Oct 2026 — JOURNAL HONESTY FIX SHIPPED (merge f299a07, pushed,
+  reloaded): Commitments, the Weekly debrief, the health insight and every
+  agent that reads Wiki/Journal treat an entry as his words only if he wrote
+  it (JOURNAL_AUTHORSHIP_RULE; lens.js and NOVA-METHOD.md changed together).
+  Every writer stamps its author in the heading; older entries take it from
+  their label, else "unknown", never his. Real vault since 1 Sep: 231
+  entries, Nova 184, Coach 39, others 8, him 0. Also fixed: undoing a line
+  he said to Nova never removed it. The two pending journal records resolve
+  correctly (his capture; the Leader's follow-up). Journal shows an author
+  tag (mockup 87 call 3, his to keep or revert).
 - 10 Oct 2026 — "PROCEED WITH YOUR RECOMMENDATIONS": Woolworths keeps one
   try a day and says "did not answer" (no evasion); pins stay in server data;
   logos a site refused retry daily (44964ce; cached now: Everyday Rewards,
