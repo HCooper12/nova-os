@@ -465,11 +465,11 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **First look:** three unrelated list styles on one page; a browser prompt inside a designed surface; gold still the commit hue on "Monthly report" (22 Sep #2 may have missed this screen: UNVERIFIED).
 
 #### Shopping — `shopping` · `src/screens/Shopping.jsx` (147) · vals in `src/vals/valsMisc.js`
-- [m] G1 · Head + count, multi-line add textarea + Add, error line — `Shopping.jsx:11-34`
-- [m] G2 · Clear all — idle / armed confirm / post-clear Undo banner (a change acted out) — `Shopping.jsx:39-63`
-- [m] G3 · Category groups (gold Eyebrows), swipe-right-to-check rows, checkbox, qty prefix + recipe badge, "from {source}", "sorting into an aisle…" — `Shopping.jsx:71-112`
-- [m] G4 · Quantity stepper − / qty / + — `Shopping.jsx:117-125`
-- [m] G5 · Done — "Confirm completion — N collected" — `Shopping.jsx:135-144`
+- [b] G1 · Head + count, multi-line add textarea + Add, error line — `Shopping.jsx:11-34`
+- [b] G2 · Clear all — idle / armed confirm / post-clear Undo banner (a change acted out) — `Shopping.jsx:39-63`
+- [b] G3 · Category groups (gold Eyebrows), swipe-right-to-check rows, checkbox, qty prefix + recipe badge, "from {source}", "sorting into an aisle…" — `Shopping.jsx:71-112`
+- [b] G4 · Quantity stepper − / qty / + — `Shopping.jsx:117-125`
+- [b] G5 · Done — "Confirm completion — N collected" — `Shopping.jsx:135-144`
 **First look:** the clear-all flow is a model to copy; check gold category labels read as labels, not actions.
 
 #### Code (Claude Code) — `code` · `src/screens/ClaudeCode.jsx` (143) · vals in `src/vals/valsMisc.js`
@@ -561,6 +561,15 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — SHOPPING BUILT AND SHIPPED (merge, pushed, reloaded):
+  mockup 92 under summary (classic list kept for cupertino/command); 92-line
+  checklist (80 present, 10 differ, none missing; not built: "Nova
+  suggests", Order online, bought-often offers). Prices read from the
+  chains' public pages, one polite queue, daily, never evading a bot check:
+  live check 10 Oct: Coles read (onions 1kg $4.00 special), Aldi read
+  (onions 1kg $1.99), Woolworths did not answer in 20 s three times. Rewards
+  from his emails via a Mail rule (docs/rewards-mail-rule.md, his step).
+  Logos fetched at runtime into server/data/logos (gitignored, public repo).
 - 10 Oct 2026 — STASH BUILT AND SHIPPED (merge, pushed, reloaded): rounds
   84/88/90 plus all five additions; 92-line checklist (84 present, 8 differ,
   none missing). New facts live as inline fields on the Stash.md lines
