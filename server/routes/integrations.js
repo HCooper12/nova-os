@@ -26,7 +26,8 @@ export function integrationsRouter() {
       // never the token itself — just what Notion said about the connection
       res.json(await notionStatus());
     } catch (e) {
-      const status = e.message === 'Notion did not accept that key' ? 401 : 502;
+      // 422, never 401: a 401 from Nova means HIS Nova token failed, not Notion's key
+      const status = e.message === 'Notion did not accept that key' ? 422 : 502;
       res.status(status).json({ error: e.message });
     }
   });

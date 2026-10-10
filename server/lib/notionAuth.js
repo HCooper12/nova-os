@@ -84,6 +84,9 @@ export async function notionStatus({ fetchImpl = globalThis.fetch } = {}) {
   const token = envToken || stored?.token || null;
   if (!token) return { connected: false, botName: null, workspaceName: null, journalShared: false };
   const res = await callNotion(fetchImpl, `https://api.notion.com/v1/databases/${JOURNAL_DATABASE_ID}`, token);
+  // a key Notion has since revoked (or he deleted the connection) is not
+  // "connected": say so, rather than keep showing the last good state
+  if (res.status === 401) return { connected: false, rejected: true, botName: null, workspaceName: null, journalShared: false };
   const journalShared = res.status === 200;
   return {
     connected: true,

@@ -131,3 +131,18 @@ test('the route never echoes the token', async () => {
     await new Promise((r) => srv.close(r));
   }
 });
+
+test('a key Notion has since revoked reads as not connected, and says why', async () => {
+  await saveNotionToken('secret_good', { fetchImpl: fakeNotion() });
+  const revoked = async () => ({ status: 401, ok: false, json: async () => ({}) });
+  const status = await notionStatus({ fetchImpl: revoked });
+  assert.equal(status.connected, false);
+  assert.equal(status.rejected, true);
+  assert.doesNotMatch(JSON.stringify(status), /secret_good/);
+});
+
+test('a refused key answers 422, never 401 (a 401 means his Nova token failed)', async () => {
+  const src = await readFile(new URL('../routes/integrations.js', import.meta.url), 'utf8');
+  assert.match(src, /'Notion did not accept that key' \? 422/);
+  assert.doesNotMatch(src, /\? 401 :/);
+});

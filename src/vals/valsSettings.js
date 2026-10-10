@@ -402,7 +402,7 @@ export function valsSettings(app, ctx, v) {
   // whether the Journal database has been shared with the connection yet.
   const ns = demo ? D.notion : st.liveNotionStatus;
   const notionHeld = demo ? held(true) : held(!!ns, !!st.notionStatusError);
-  const notionValue = !ns ? '' : !ns.connected ? 'Not connected' : ns.journalShared ? 'Connected · Journal shared' : 'Connected · tick Journal in Notion';
+  const notionValue = !ns ? '' : !ns.connected ? (ns.rejected ? 'Key no longer accepted' : 'Not connected') : ns.journalShared ? 'Connected · Journal shared' : 'Connected · tick Journal in Notion';
   const notion = {
     ...notionHeld,
     demo,
