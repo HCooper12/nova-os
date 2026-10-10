@@ -1176,6 +1176,13 @@ export async function undoFiling(vaultPath, undo) {
     const { undoPracticeStatus } = await import('./practice.js');
     return undoPracticeStatus(vaultPath, undo);
   }
+  // THE DAILY REVIEW: one line taken back out of Wiki/Library/Review Log.md,
+  // exactly as it was written (or the line it replaced, if this was a
+  // same-day re-mark) — never a blank line, never a guess.
+  if (undo.route === 'concept-recall') {
+    const { undoConceptAnswer } = await import('./conceptReview.js');
+    return undoConceptAnswer(vaultPath, undo);
+  }
   if (undo.route === 'coach-learning') {
     const { removeLearning } = await import('./coachKnowledge.js');
     const r = await removeLearning(vaultPath, undo.line);

@@ -10,12 +10,12 @@ import { mondayOf as analyticsMonday } from '../lib/trainingAnalytics.js';
 import { WORKOUT_RE } from '../lib/calendar.js';
 import { AISLE, aisleFor } from '../lib/mealPrep.js';
 import { SHOPPING_CATEGORIES } from '../lib/shoppingList.js';
-import { dateHashIndex } from '../lib/dispatch.js';
 import { yesterdayStepsShape } from '../lib/healthData.js';
 import { tableSchedule, doublingSchedule, nextDueAt } from '../lib/spacing.js';
 import { SCHEDULE as librarySchedule, INTERVALS } from '../lib/librarySpacing.js';
 import { SCHEDULE as leaderSchedule } from '../lib/leader.js';
 import { SCHEDULE as repertoireSchedule, REVIEW_INTERVALS } from '../lib/repertoire.js';
+import { GAPS as reviewGaps } from '../lib/conceptReview.js';
 import { MODEL_CHOICES } from '../lib/modelPrefs.js';
 
 test('ONE Monday: local midnight, every weekday of a week, weeksBack, a date string, and the ISO flavour', () => {
@@ -51,13 +51,6 @@ test('every aisle the meal-prep list files into is a heading the shopping list r
   assert.equal(aisleFor('chicken breast'), 'Meat & Protein');
 });
 
-test('the review pick hash is pinned — the client twin (App.jsx dailyReviewIndex) must produce these', () => {
-  assert.equal(dateHashIndex('2026-09-02', 7), 1);
-  assert.equal(dateHashIndex('2026-01-01', 5), 0);
-  assert.equal(dateHashIndex('2026-12-31', 13), 2);
-  assert.equal(dateHashIndex('2026-09-02', 0), 0, 'an empty pool is index 0, never NaN');
-});
-
 test("yesterday's steps have one shape: missing, partial (received on its own day before the evening), complete", () => {
   const now = new Date('2026-09-02T08:00:00');
   assert.equal(yesterdayStepsShape([], now).kind, 'missing');
@@ -89,6 +82,10 @@ test('the three spacing schedules are pinned side by side, and the due arithmeti
   assert.equal(nextDueAt(1000, 0, librarySchedule), 1000 + 1 * DAY);
   assert.equal(nextDueAt(1000, 1, leaderSchedule), 1000 + 6 * DAY);
   assert.equal(nextDueAt(undefined, 0, leaderSchedule), 3 * DAY, 'never seen counts from the epoch — due at once');
+  // THE DAILY REVIEW'S own table (his call, 11 Oct 2026) sits beside the
+  // other three on purpose — a fourth genuinely different cadence, not a
+  // fork of one of these. Pinned here so a change is a decision.
+  assert.deepEqual(reviewGaps, [1, 3, 7, 16, 35, 90, 180]);
 });
 
 test('every kind the Inbox offers RETRY for is a kind retryRecord can actually re-run', async () => {

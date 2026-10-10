@@ -245,3 +245,160 @@ export async function undoAnswer(vaultPath, undo) {
 }
 
 export { invalidateCache as _invalidateReviewCache };
+
+/* ----------------------------- composition --------------------------------- */
+// Everything above is pure or vault-only. These are the whole-vault views the
+// route layer actually serves: the day's queue with a source, connected
+// notes and a curve ready to draw, and the write path for one tap.
+
+export function titleToIdMap(pages) {
+  return new Map(pages.map((p) => [p.title.toLowerCase(), p.id]));
+}
+
+// 2 to 4 connected notes from the page's own links — mutual links (the
+// target links back) first, then the most backlinked overall, then title.
+export function connectedNotes(page, pages, backlinkCounts, max = 4) {
+  const byTitle = new Map(pages.map((p) => [p.title.toLowerCase(), p]));
+  const mutual = [];
+  const rest = [];
+  for (const link of page.links || []) {
+    const target = byTitle.get(String(link).toLowerCase());
+    if (!target || target.id === page.id) continue;
+    const linksBack = (target.links || []).some((l) => String(l).toLowerCase() === page.title.toLowerCase());
+    (linksBack ? mutual : rest).push(target);
+  }
+  const rank = (a, b) => (backlinkCounts.get(b.id) || 0) - (backlinkCounts.get(a.id) || 0) || a.title.localeCompare(b.title);
+  mutual.sort(rank);
+  rest.sort(rank);
+  return [...mutual, ...rest].slice(0, max).map((p) => ({ id: p.id, title: p.title, type: p.type }));
+}
+
+// The first `sources:` page, by its real url — never the concept's own
+// title as a stand-in (the honesty rule mockup 96 names explicitly).
+export function resolveSource(page, pages) {
+  if (!page.sources?.length) return null;
+  const byTitle = new Map(pages.map((p) => [p.title.toLowerCase(), p]));
+  const [first, ...more] = page.sources;
+  const src = byTitle.get(first.title.toLowerCase());
+  return { title: first.title, time: first.time || null, url: src?.url || null, extra: more.length };
+}
+
+// The one card shape every caller below returns — the fields the mockup's
+// card and sheet both read.
+function buildItemView({ id, kind, page, pages, cards, history, backlinkCounts, today }) {
+  const card = cards[id] || null;
+  const answered = !!card && card.due > today;
+  return {
+    id, kind, answered,
+    title: page.title, type: page.type,
+    gist: page.paragraphs?.[0] || null,
+    source: resolveSource(page, pages),
+    connected: connectedNotes(page, pages, backlinkCounts),
+    history: history[id] || [],
+    step: card ? card.step : 0,
+    due: card ? card.due : null,
+  };
+}
+
+async function loadVaultView(vaultPath, vault) {
+  const pages = await vault.listPages();
+  const titleToId = titleToIdMap(pages);
+  const backlinkCounts = await vault.backlinkCounts(pages);
+  const { cards, history } = await getReviewState(vaultPath, titleToId);
+  return { pages, backlinkCounts, cards, history };
+}
+
+// in-memory only: which ids were picked for today, so the pips ("N of M")
+// stay stable through the session even once an answer moves a card off
+// today's due list. Lost on restart — the honest fallback is simply picking
+// fresh (still deterministic, still correct), never inventing a count.
+let todayPick = null;
+
+export async function reviewToday(vaultPath, vault, now = new Date()) {
+  const { localDateISO } = await import('./localDate.js');
+  const today = localDateISO(now);
+  const { pages, backlinkCounts, cards, history } = await loadVaultView(vaultPath, vault);
+
+  if (!todayPick || todayPick.date !== today) {
+    const { queue } = buildQueue({ pages, cards, backlinkCounts, today });
+    todayPick = { date: today, items: queue.map((q) => ({ id: q.id, kind: q.kind })) };
+  }
+
+  const pagesById = new Map(pages.map((p) => [p.id, p]));
+  const items = todayPick.items
+    .map(({ id, kind }) => ({ id, kind, page: pagesById.get(id) }))
+    .filter((i) => i.page)
+    .map(({ id, kind, page }) => buildItemView({ id, kind, page, pages, cards, history, backlinkCounts, today }));
+
+  const dueCount = dueCards(cards, pagesById, today).length;
+  return {
+    date: today,
+    items,
+    total: items.length,
+    doneCount: items.filter((i) => i.answered).length,
+    dueCount, // the real backlog, independent of what fit in today's cap
+  };
+}
+
+// "Draw one early" (his call: the shuffle reel survives only here, once the
+// day's reviews are done). A random concept/topic page never yet logged —
+// the same pool buildQueue's "new" rule draws from, just unordered. It
+// enters as new: answering it writes the very same log line any other
+// answer would.
+export async function drawEarly(vaultPath, vault, now = new Date()) {
+  const { localDateISO } = await import('./localDate.js');
+  const today = localDateISO(now);
+  const { pages, backlinkCounts, cards, history } = await loadVaultView(vaultPath, vault);
+  const candidates = newCandidates(pages, cards, backlinkCounts);
+  if (!candidates.length) return null;
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  return buildItemView({ id: pick.id, kind: 'new', page: pick.page, pages, cards, history, backlinkCounts, today });
+}
+
+// One arbitrary page's card view (used after the reel lands, and by the
+// sheet for a page outside today's queue). Returns null for a page the
+// vault no longer has.
+export async function reviewItemFor(vaultPath, vault, pageId, now = new Date()) {
+  const { localDateISO } = await import('./localDate.js');
+  const today = localDateISO(now);
+  const { pages, backlinkCounts, cards, history } = await loadVaultView(vaultPath, vault);
+  const page = pages.find((p) => p.id === pageId);
+  if (!page) return null;
+  const kind = cards[pageId] ? 'due' : 'new';
+  return buildItemView({ id: pageId, kind, page, pages, cards, history, backlinkCounts, today });
+}
+
+// One tap: write the vault log line, rebuild the schedule, and return the
+// Inbox record (kind 'concept-recall', undoable) plus the item's new state.
+export async function submitAnswer(vaultPath, vault, { pageId, grade }, now = new Date()) {
+  const { localDateISO } = await import('./localDate.js');
+  const today = localDateISO(now);
+  const page = await vault.getPage(pageId).catch(() => null);
+  if (!page) throw new Error('that page is no longer in the vault');
+  if (!GRADES.includes(grade)) throw new Error(`grade must be one of: ${GRADES.join(', ')}`);
+
+  const written = await appendAnswer(vaultPath, { date: today, title: page.title, grade });
+
+  const pages = await vault.listPages();
+  const titleToId = titleToIdMap(pages);
+  const { cards } = await getReviewState(vaultPath, titleToId);
+  const card = cards[pageId] || null;
+
+  const { createRecord } = await import('./inboxStore.js');
+  const { randomUUID } = await import('node:crypto');
+  const at = now.toISOString();
+  const record = await createRecord({
+    id: randomUUID().slice(0, 8), kind: 'concept-recall',
+    text: `Daily review: ${page.title} — ${GRADE_LABEL[grade]}.`,
+    source: 'review', mode: 'auto', status: 'filed', auto: true,
+    createdAt: at, filedAt: at, destination: written.relPath,
+    undoData: { route: 'concept-recall', ...written },
+  });
+
+  return { record, pageId, grade, step: card?.step ?? 0, due: card?.due ?? null };
+}
+
+export async function undoConceptAnswer(vaultPath, undo) {
+  const removed = await undoAnswer(vaultPath, undo);
+  return removed ? 'took that review answer back off the Review Log' : 'that review answer was already gone from the Review Log';
+}

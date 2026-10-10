@@ -8,11 +8,10 @@ process.env.NOVA_DATA_DIR = '';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  GAPS, DAILY, NEW_WHEN_BELOW, answer, nextStep, daysBetween, shiftDate,
+  GAPS, DAILY, answer, nextStep, daysBetween, shiftDate,
   dueCards, newCandidates, buildQueue, rebuildState, parseLogLine, formatLogLine,
   appendAnswer, undoAnswer, LOG_REL,
 } from '../lib/conceptReview.js';
@@ -211,7 +210,6 @@ test('a log line naming a page no longer in the vault is orphaned honestly, not 
 });
 
 test('a hand-edited log line (he fixed a typo in Obsidian) rebuilds the same as a code-written one', () => {
-  const titleToId = new Map([['effort debt', 'effort-debt']]);
   const handEdited = ['-   2026-10-11 · [[Effort Debt]] · Got it  '];
   // the strict format still parses with surrounding whitespace tolerated,
   // and if it truly doesn't match, it must be excluded, never crash
@@ -246,7 +244,7 @@ test('appendAnswer writes one line, newest after the header, and undoAnswer remo
 test('re-grading the SAME concept on the SAME day replaces its one line, and undo restores the line it replaced', async () => {
   const vault = await tempVault();
   const full = path.join(vault, LOG_REL);
-  const r1 = await appendAnswer(vault, { date: '2026-10-11', title: 'Effort Debt', grade: 'fuzzy' });
+  await appendAnswer(vault, { date: '2026-10-11', title: 'Effort Debt', grade: 'fuzzy' });
   const afterFirst = await readFile(full, 'utf8');
   const r2 = await appendAnswer(vault, { date: '2026-10-11', title: 'Effort Debt', grade: 'got' });
   const afterSecond = await readFile(full, 'utf8');

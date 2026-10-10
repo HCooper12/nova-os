@@ -440,6 +440,12 @@ export const api = {
   practicePrepare: (conn, body) => post(conn, '/api/practice/prepare', body),
   practiceRehearse: (conn, body) => post(conn, '/api/practice/rehearse', body),
   practiceStatus: (conn, slug, status) => post(conn, `/api/practice/skills/${encodeURIComponent(slug)}/status`, { status }),
+  // THE DAILY REVIEW — the forgetting-curve queue (server/lib/conceptReview.js).
+  // The pick lives on the server alone now; this is the only read.
+  reviewToday: (conn) => call(conn, '/api/review/today'),
+  reviewAnswer: (conn, pageId, grade) => post(conn, '/api/review/answer', { pageId, grade }),
+  reviewDraw: (conn) => call(conn, '/api/review/draw'),
+  reviewItem: (conn, id) => call(conn, `/api/review/item?id=${encodeURIComponent(id)}`),
   healthInsight: (conn) => call(conn, '/api/health-insight'),
   streaks: (conn) => call(conn, '/api/streaks'),
   healthData: (conn, days) => call(conn, `/api/health-data${days ? '?days=' + days : ''}`),
