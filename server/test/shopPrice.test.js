@@ -132,3 +132,16 @@ test('the words: fractions and money as a cook and a shopper say them', () => {
   assert.equal(S.ptsWorth(2000), 10);
   assert.match(S.verdictNoPrice({ fam: 'n', q: 0.5 }, S.keepFor('onion')), /buy one single/);
 });
+
+test('sold by the kilo: weighed to the need, or by the piece at what one weighs, and always "about"', () => {
+  const thigh = S.decide({ need: { fam: 'g', q: 600 }, keep: S.keepFor('chicken thighs'), products: [{ chain: 'a', name: 'Chicken Thigh Fillets per kg', size: 'approx. 0.6 kg per package', price: 15.99, perKg: true }] });
+  assert.equal(thigh.pick.total, 9.59);
+  assert.ok(thigh.pick.approx);
+  assert.equal(thigh.pick.perKgPrice, 15.99);
+  const onion = S.decide({ need: { fam: 'n', q: 2 }, keep: S.keepFor('brown onion'), products: [{ chain: 'a', name: 'Brown Onions per kg', size: '', price: 3.49, perKg: true }] });
+  assert.equal(onion.pick.count, 2);
+  assert.equal(onion.pick.total, 1.26);
+  assert.ok(!S.productMatches('brown onion', 'Gravox Brown Onion Liquid Gravy Pouch 165g'), 'live check: gravy is not an onion');
+  assert.ok(!S.productMatches('brown onion', 'Coles Brown Onion Shallots Loose'));
+  assert.ok(!S.productMatches('limes', 'BROOKDALE Lime Jelly 85g'));
+});

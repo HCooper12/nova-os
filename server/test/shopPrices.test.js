@@ -132,7 +132,7 @@ test('a blocked chain: recorded with its time, the rest of its queue dropped, no
   const coles = net.calls.filter((c) => c.url.includes('coles'));
   assert.equal(coles.length, 1, 'one bot check stops the chain: three more reads were not sent');
   const aldi = net.calls.filter((c) => c.url.includes('aldi'));
-  assert.equal(aldi.length, 4, 'an error is recorded once per read, never retried');
+  assert.equal(aldi.length, 1, 'an error stops the chain for the day too: one failed request, not four');
   let prices = await P.pricesFor(items);
   assert.equal(prices.chains.c.state, 'blocked');
   assert.ok(prices.chains.c.since, 'blocked since a real time');
@@ -181,4 +181,40 @@ test('an unreadable page says so for that chain', async () => {
   assert.equal(prices.chains.c.state, 'unreadable');
   assert.equal(prices.reads.lime.c.status, 'unreadable');
   assert.deepEqual(prices.reads.lime.c.products, []);
+});
+
+test('a real page that carries its data is an answer, whatever its scripts mention (the live check of 10 Oct)', async () => {
+  P._resetForTests();
+  const page = (await fx('coles-search.html')).replace('</body>', '<script>window.cfg={recaptcha:"captcha",waf:"Incapsula"}</script></body>');
+  const net = stubNet({ 'www.coles.com.au': { status: 200, body: page } });
+  const q = P.createQueue({ fetchImpl: net.fetchImpl, delayMs: 0, sleep: async () => {} });
+  await P.readStale([{ name: 'limes' }], { q, chains: ['c'] });
+  await q.idle();
+  const prices = await P.pricesFor([{ name: 'limes' }]);
+  assert.equal(prices.chains.c.state, 'ok');
+  assert.equal(prices.reads.lime.c.status, 'ok');
+});
+
+test('a chain that hangs is stopped after one request (the live check: Woolworths held three for 20 s each)', async () => {
+  P._resetForTests();
+  const calls = [];
+  const fetchImpl = async (url) => { calls.push(url); const e = new Error('aborted'); e.name = 'AbortError'; throw e; };
+  const q = P.createQueue({ fetchImpl, delayMs: 0, sleep: async () => {} });
+  await P.readStale([{ name: 'limes' }, { name: 'eggs' }, { name: 'onions' }], { q, chains: ['w'] });
+  await q.idle();
+  assert.equal(calls.length, 1);
+  const prices = await P.pricesFor([{ name: 'limes' }]);
+  assert.equal(prices.chains.w.state, 'error');
+  assert.match(prices.chains.w.detail, /no answer in 20s/);
+});
+
+test('Aldi: no online shop is not "unavailable"; a per-kilo product is flagged', () => {
+  const out = P.parseAldi(JSON.stringify({ data: [
+    { sku: '1', name: 'Brown Onions per kg', brandName: null, sellingSize: '', notForSale: true, price: { amount: 349 } },
+    { sku: '2', name: 'Lime Each', sellingSize: '1 each', notForSale: true, price: { amount: 169 } },
+  ] }));
+  assert.equal(out.length, 2);
+  assert.ok(out.every((p) => p.available));
+  assert.equal(out[0].perKg, true);
+  assert.equal(out[1].perKg, false);
 });

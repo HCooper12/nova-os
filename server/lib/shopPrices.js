@@ -92,7 +92,7 @@ export function parseWoolworths(body) {
       if (price == null || !(price > 0)) continue; // not sold online right now, or a $0.00 that is not a price
       const unit = clean(p.Unit);
       let size = clean(p.PackageSize);
-      if (/^kg$/i.test(unit) && (!size || /per\s*kg/i.test(size))) size = '1kg';
+      const perKg = /^kg$/i.test(unit) && (!size || /per\s*kg/i.test(size));
       const was = num(p.WasPrice);
       out.push({
         chain: 'w',
@@ -103,6 +103,7 @@ export function parseWoolworths(body) {
         unitPrice: clean(p.CupString) || null,
         was: was && was > price ? was : null,
         special: p.IsHalfPrice ? 'Half price' : (p.IsOnSpecial || p.InstoreIsOnSpecial) ? 'Special' : null,
+        perKg,
         url: p.Stockcode ? `https://www.woolworths.com.au/shop/productdetails/${p.Stockcode}${p.UrlFriendlyName ? `/${p.UrlFriendlyName}` : ''}` : null,
         available: p.IsAvailable !== false,
       });
@@ -137,6 +138,7 @@ export function parseColes(body) {
       unitPrice: clean(pr.comparable) || null,
       was: was && was > price ? was : null,
       special,
+      perKg: /\bper\s?kg\b/i.test(`${p.name} ${p.size}`),
       url: p.id ? `https://www.coles.com.au/product/${String(p.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${p.id}` : null,
       available: p.availability !== false,
     });
@@ -169,7 +171,10 @@ export function parseAldi(body) {
       was: was && was > price ? was : null,
       special: was && was > price ? 'Special' : null,
       url: p.urlSlugText && p.sku ? `https://www.aldi.com.au/product/${p.urlSlugText}-${p.sku}` : null,
-      available: p.notForSale !== true,
+      // Aldi has no online shop: every product is "not for sale" online, and
+      // in the store all the same (the live check of 10 Oct)
+      available: true,
+      perKg: /\bper\s?kg\b/i.test(`${p.name} ${p.sellingSize}`),
     });
   }
   return out;
@@ -243,17 +248,24 @@ export function createQueue({ fetchImpl = globalThis.fetch, delayMs = DELAY_MS, 
         status = res.status;
         body = await res.text();
       } finally { if (timer) clearTimeout(timer); }
-      const blocked = detectBlock(status, body);
-      if (blocked) rec = { status: 'blocked', detail: blocked };
-      else if (status < 200 || status >= 300) rec = { status: 'error', detail: `answered ${status}` };
-      else {
-        try {
-          const all = def.parse(body);
-          const products = all.filter((p) => p.available !== false && productMatches(job.term, p.name)).slice(0, KEEP_PRODUCTS);
-          rec = { status: products.length ? 'ok' : 'none', products, seen: all.length };
-        } catch (e) {
-          rec = { status: 'unreadable', detail: e.message };
-        }
+      // A page that carries its product data is an answer, whatever its
+      // scripts mention (Coles' real page names CAPTCHA and Incapsula in its
+      // own code: the live check of 10 Oct read it as a block). Only a page
+      // WITHOUT the data is checked for a bot wall.
+      const refused = status === 401 || status === 403 || status === 429;
+      let all = null;
+      let parseErr = null;
+      if (!refused && status >= 200 && status < 300) {
+        try { all = def.parse(body); } catch (e) { parseErr = e; }
+      }
+      if (all) {
+        const products = all.filter((p) => p.available !== false && productMatches(job.term, p.name)).slice(0, KEEP_PRODUCTS);
+        rec = { status: products.length ? 'ok' : 'none', products, seen: all.length };
+      } else {
+        const blocked = detectBlock(status, body);
+        if (blocked) rec = { status: 'blocked', detail: blocked };
+        else if (status < 200 || status >= 300) rec = { status: 'error', detail: `answered ${status}` };
+        else rec = { status: 'unreadable', detail: parseErr?.message || 'no product data' };
       }
     } catch (e) {
       rec = { status: 'error', detail: e.name === 'AbortError' ? `no answer in ${TIMEOUT_MS / 1000}s` : String(e.message || e).slice(0, 160) };
@@ -264,12 +276,13 @@ export function createQueue({ fetchImpl = globalThis.fetch, delayMs = DELAY_MS, 
     const key = `${job.chain}|${job.term}`;
     s.reads[key] = { chain: job.chain, term: job.term, at, day: melDay(new Date(at)), ...rec };
     const ch = s.chains[job.chain] || {};
-    if (rec.status === 'blocked') {
-      s.chains[job.chain] = { ...ch, state: 'blocked', since: ch.state === 'blocked' && ch.since ? ch.since : at, lastAt: at, detail: rec.detail, triedDay: melDay(new Date(at)) };
-      // the rest of this chain's reads wait for tomorrow or his Try again
-      for (let i = jobs.length - 1; i >= 0; i -= 1) if (jobs[i].chain === job.chain) { queued.delete(`${jobs[i].chain}|${jobs[i].term}`); jobs.splice(i, 1); }
-    } else if (rec.status === 'error' || rec.status === 'unreadable') {
+    if (rec.status === 'blocked' || rec.status === 'error' || rec.status === 'unreadable') {
       s.chains[job.chain] = { ...ch, state: rec.status, since: ch.state === rec.status && ch.since ? ch.since : at, lastAt: at, detail: rec.detail, triedDay: melDay(new Date(at)) };
+      // ONE failure stops the chain for the day: a site that hangs, refuses
+      // or changed its page will do the same for the next line (the live
+      // check of 10 Oct: Woolworths held three requests for 20 s each). The
+      // rest wait for tomorrow or his Try again.
+      for (let i = jobs.length - 1; i >= 0; i -= 1) if (jobs[i].chain === job.chain) { queued.delete(`${jobs[i].chain}|${jobs[i].term}`); jobs.splice(i, 1); }
     } else {
       s.chains[job.chain] = { state: 'ok', lastAt: at, triedDay: melDay(new Date(at)) };
     }
@@ -327,14 +340,14 @@ export async function readStale(items, { q = sharedQueue(), now = new Date(), ch
   let added = 0;
   for (const chain of chains) {
     const ch = s.chains[chain];
-    const blockedToday = ch && ch.state === 'blocked' && ch.triedDay === today;
-    if (blockedToday) continue;
+    const failed = ch && ['blocked', 'error', 'unreadable'].includes(ch.state);
+    if (failed && ch.triedDay === today) continue;
     for (const term of termsFor(items)) {
       const r = s.reads[`${chain}|${term}`];
-      if (r && r.day === today && r.status !== 'blocked') continue;
+      if (r && r.day === today && (r.status === 'ok' || r.status === 'none')) continue;
       if (q.add(chain, term)) added += 1;
-      // a chain that was blocked gets ONE probe; the rest follow if it answers
-      if (ch && ch.state === 'blocked') break;
+      // a chain that failed gets ONE probe; the rest follow if it answers
+      if (failed) break;
     }
   }
   return added;

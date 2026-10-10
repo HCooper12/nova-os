@@ -178,7 +178,9 @@ export function sizeFor(product, need, keep) {
 // Does a product answer this line at all? Every word of the line must be in
 // its name (plurals folded), and a prepared food never stands in for the raw
 // one unless the line asks for it ("lime cordial" is not limes).
-const PREPARED = /\b(juice|cordial|powder|sauce|soup|pie|lasagne|chips|crisps|flavou?red|seasoning|paste|dip|dressing|marinade|cracker|biscuits?|cake|bar|drink|frozen|tinned|canned|dried|pickled|smoked|kit|mix)\b/;
+// (the words added on 10 Oct came from the live check: "brown onion" found
+// a gravy pouch and shallots, "lime" a jelly, a soda and a vodka crush)
+const PREPARED = /\b(juice|cordial|powder|sauce|soup|pie|lasagne|chips|crisps|flavou?red|seasoning|paste|dip|dressing|marinade|marinated|cracker|biscuits?|cake|bar|drink|frozen|tinned|canned|dried|pickled|smoked|kit|mix|gravy|pouch|jelly|soda|vodka|crush|burger|tuna|rings|shallots?|cordial|lollies|chutney|relish|noodles|ready)\b/;
 const STOP = new Set(['fresh', 'free', 'range', 'large', 'small', 'the', 'a', 'of', 'and', 'raw', 'whole', 'organic']);
 const fold = (w) => w.replace(/(ies)$/, 'y').replace(/(oes|ches|shes|sses|xes)$/, (x) => x.slice(0, -2)).replace(/s$/, '');
 const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w && !STOP.has(w)).map(fold);
@@ -203,14 +205,23 @@ const EPS = 1e-9;
 export function decide({ need, products, keep }) {
   if (!need || !(need.q > 0)) return null;
   const cand = [];
-  for (const p of products || []) {
-    if (!(Number(p.price) > 0)) continue; // a $0.00 read is unreadable, never free
-    const sz = sizeFor(p, need, keep);
+  for (const raw of products || []) {
+    if (!(Number(raw.price) > 0)) continue; // a $0.00 read is unreadable, never free
+    // sold by the kilo: weighed out to the need, or by the piece at what one
+    // weighs; either way an "about" price, and it says so
+    let p = raw;
+    if (raw.perKg) {
+      if (need.fam === 'g') p = { ...raw, price: Math.round(raw.price * need.q / 10) / 100, size: `${need.q}g`, kgSized: need.q };
+      else if (need.fam === 'n' && keep?.each) p = { ...raw, price: Math.max(0.01, Math.round(raw.price * keep.each / 10) / 100), size: 'each', perEachApprox: true };
+      else continue;
+      if (!(p.price > 0)) continue;
+    }
+    const sz = p.kgSized ? { size: p.kgSized, approx: true } : sizeFor(p, need, keep);
     if (!sz || !(sz.size > 0)) continue;
     const count = need.fam === 'any' ? Math.max(1, Math.round(need.q)) : Math.max(1, Math.ceil(need.q / sz.size - EPS));
     const total = Math.round(count * p.price * 100) / 100;
     const spare = need.fam === 'any' ? 0 : count * sz.size - need.q;
-    cand.push({ ...p, size: sz.size, approx: sz.approx, sizeText: p.size, count, total, spare });
+    cand.push({ ...p, size: sz.size, approx: sz.approx || !!raw.perKg, sizeText: raw.size, perKgPrice: raw.perKg ? raw.price : null, count, total, spare });
   }
   if (!cand.length) return null;
   const byTotal = [...cand].sort((a, b) => a.total - b.total || a.spare - b.spare);
