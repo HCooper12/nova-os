@@ -197,3 +197,15 @@ test('an amount survives a clear and undo', async () => {
   await restoreItems(vault, cleared);
   assert.equal((await loadShoppingList(vault)).items[0].amount, '400g');
 });
+
+test('remove some lines (a swipe, Clear the N you got): exactly those leave, and restore puts them back verbatim', async () => {
+  const { removeItemsReturning } = await import('../lib/shoppingList.js');
+  const added = await seed();
+  await toggleItem(vault, added[1].id, true);
+  const { items, removed } = await removeItemsReturning(vault, [added[1].id, 'not-there']);
+  assert.deepEqual(removed.map((i) => i.id), [added[1].id]);
+  assert.equal(items.length, 2);
+  await restoreItems(vault, removed);
+  const back = (await loadShoppingList(vault)).items.find((i) => i.id === added[1].id);
+  assert.equal(back.checked, true, 'the same line, ticked as it was');
+});

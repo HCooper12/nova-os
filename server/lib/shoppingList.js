@@ -151,6 +151,19 @@ export async function removeItems(vaultPath, ids) {
   });
 }
 
+// Remove some lines and hand back exactly what left (for Undo through
+// restoreItems, which puts them back verbatim with the same ids).
+export async function removeItemsReturning(vaultPath, ids) {
+  const idSet = new Set(ids);
+  return withWriteLock(async () => {
+    const current = await getItems(vaultPath);
+    const removed = current.filter((i) => idSet.has(i.id));
+    const items = current.filter((i) => !idSet.has(i.id));
+    if (removed.length) await persist(vaultPath, items);
+    return { items, removed };
+  });
+}
+
 export async function toggleItem(vaultPath, id, checked) {
   return withWriteLock(async () => {
     const items = [...(await getItems(vaultPath))];

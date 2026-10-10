@@ -20,6 +20,7 @@ import { calendarRouter } from './routes/calendar.js';
 import { ingestRouter } from './routes/ingest.js';
 import { recipesRouter } from './routes/recipes.js';
 import { shoppingListRouter } from './routes/shoppingList.js';
+import { shoppingRouter } from './routes/shopping.js';
 import { workoutsRouter } from './routes/workouts.js';
 import { journalRouter } from './routes/journal.js';
 import { claudeCodeRouter } from './routes/claudeCode.js';
@@ -183,6 +184,9 @@ async function main() {
     /^\/events/, /^\/workouts\/session-draft/, /^\/push\//, /^\/ask/, /^\/tts/,
     /^\/food-log\/scan/, /^\/recipes\/scan/, /^\/recipes\/tweak/, /^\/notes\/summary/,
     /^\/journal\/prompt/, /^\/shopping-list\/add-items\//, /^\/claude-code/, /^\/voice\/transcribe/,
+    // the Shopping screen's operational reads (a price retry, a mail scan, an
+    // offer mark): server/data only, re-read when the screen opens
+    /^\/shopping\//,
   ];
   app.use('/api', (req, res, next) => {
     if (req.method === 'GET' || BROADCAST_SILENT.some((re) => re.test(req.path))) return next();
@@ -220,6 +224,7 @@ async function main() {
   app.use('/api', ingestRouter(process.env.VAULT_PATH));
   app.use('/api', recipesRouter(process.env.VAULT_PATH));
   app.use('/api', shoppingListRouter(process.env.VAULT_PATH));
+  app.use('/api', shoppingRouter(process.env.VAULT_PATH)); // prices read politely from the chains, rewards offers from his saved emails, logos (mockup 92)
   app.use('/api', stashRouter(process.env.VAULT_PATH));
   app.use('/api', repertoireRouter(process.env.VAULT_PATH)); // THE REPERTOIRE — one technique a day, and the tap that says he practised it
   app.use('/api', opsRouter(process.env.VAULT_PATH));
@@ -358,6 +363,9 @@ async function main() {
   import('./lib/pulse.js').then(({ startPulseScheduler }) => startPulseScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('pulse scheduler failed to start:', e.message));
   startMoneyImportScheduler(process.env.VAULT_PATH);
+  // Shopping: rewards emails every 30 min, today's price reads from 6am, the logos once
+  import('./lib/shoppingWatch.js').then(({ startShoppingScheduler }) => startShoppingScheduler(process.env.VAULT_PATH))
+    .catch((e) => console.error('shopping scheduler failed to start:', e.message));
   startCfoScheduler();
   startMealPrepScheduler(process.env.VAULT_PATH);
   startFoodSuggestScheduler(process.env.VAULT_PATH);
