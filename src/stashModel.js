@@ -147,10 +147,10 @@ export function buildStashView({ stash, ui = {}, now = Date.now(), demo = false,
   };
 
   // mockup 90 s3: a link that came in from Safari in the last day sits first
-  // on its shelf, whatever the order, until the day is out
-  const order = (all) => {
-    const list = [...all.filter((x) => x.isNew), ...all.filter((x) => !x.isNew)];
-    if (sort === 'added') return list;
+  // on its shelf in Added (and Last opened puts it first by its time); Name
+  // and Days left stay strict
+  const order = (list) => {
+    if (sort === 'added') return [...list.filter((x) => x.isNew), ...list.filter((x) => !x.isNew)];
     const idx = new Map(list.map((x, i) => [x.key, i]));
     const by = {
       opened: (a, b) => (Date.parse(b.lastOpened || b.addedAt || 0) || 0) - (Date.parse(a.lastOpened || a.addedAt || 0) || 0),
