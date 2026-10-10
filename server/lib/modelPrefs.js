@@ -260,6 +260,11 @@ export const LANES = [
     off: 'Items still get added — they just land uncategorised.',
   },
   {
+    id: 'rewards-offer-read', label: 'Rewards email offers', group: 'capture', def: 'haiku',
+    hint: 'an Everyday Rewards or Flybuys email code could not read, into offers — code checks every figure is in the email before one is kept',
+    off: 'Offers code can read still arrive; an email it cannot read is noted as unread and shows nothing.',
+  },
+  {
     id: 'ingest', label: 'Vault ingest', group: 'capture', def: 'opus',
     hint: 'a pasted note or article woven into real vault pages — one pass doing all the thinking',
     off: 'Ingest is refused. The verbatim original is still saved to Raw/ untouched.',
