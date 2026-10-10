@@ -1,0 +1,1442 @@
+<title>Journal, his own</title>
+<!--
+  95 · THE JOURNAL, HIS OWN (11 October 2026), round 1
+  His words, 11 Oct, verbatim:
+    "Keep the journal tag, although let's alter this feature. The original
+     intention was for journal to be simply for me to actually journal ideas,
+     thoughts, my day, etc. now it has files from nova and its agents rather
+     than only me. Can we make some separate section for the others and a
+     journal area for me? This journal could link directly to Notion so I
+     could either journal directly into Notion myself or into Nova which also
+     saves my journaling into Notion so I have a back up. ... I want the
+     option to press a button and Nova provides me with a deep, thoughtful
+     question to respond to ... or an alternative where I could ask it to
+     provide me with a prompt pertaining to the daily review topic ... or
+     relating to something else relevant to my life ... I don't want this UI
+     to be cluttered, so perhaps some sort of toggle to switch between the
+     prompts ... Maybe there's a way to also implement some sort of tag ..."
+  (Full text in the memory note nova-journal-intent.md.)
+
+  WHAT IS DRAWN
+    1 Two places. ONE Index row, "Journal", opens HIS page. A quiet two-part
+      switch under the title reaches Nova's log. Recommended over two Index
+      rows (drawn small beside it, as the alternative).
+      Nova's log is a VIEW, not a move: the vault files stay exactly as they
+      are, and the split is by the author every entry now carries
+      (server/lib/journal.js journalAuthorOf, isHisOwnEntry, f299a07).
+    2 The prompt picker. One button, "Give me a prompt". A sheet holds three
+      cards, Deep, Daily review, My life, behind a three-part switch that
+      follows a swipe. Use one, several or all; each is answered in turn and
+      saved as its own entry.
+    3 Tags. Own (violet, his unprompted voice, the Journal's own colour),
+      Life (cyan, Nova's colour, because Nova drew it from his life or the
+      Daily review), Deep (magenta, the colour Nova already gives Technique:
+      a thing to think with). Each tag also has a glyph and a word, so colour
+      is never the only signal. Set by where the entry came from; one tap to
+      change, with Undo.
+    4 Notion, as honest states: in Notion (a quiet glyph only), waiting
+      (words appear), not connected yet (his setup step, gold because it
+      waits on him), and an entry written in Notion arriving in Nova.
+    5 The Daily review stays on Home: one row on the summary Home that opens
+      the Journal with the Daily review prompt ready.
+    6 Kept: categories (personal, training, system) as Kind in the filter,
+      day rows with a dot per entry, expanded days.
+
+  WHAT THE CODE SAYS (read 11 Oct)
+    src/screens/Journal.jsx: composer, "Generate a prompt" chip, four
+      category chips, day rows with one dot per entry, expanded days with
+      author and category tags.
+    server/lib/journal.js: JOURNAL_CATEGORIES personal/training/system;
+      JOURNAL_AUTHORS hayden/nova/coach/leader/guardian/cfo; isHisOwnEntry.
+    server/lib/journalPrompt.js: one Sonnet call per prompt on the
+      journal-prompt lane, seeded by a concept or a sample of his wiki.
+    src/pinned.js PINNED_CARDS: body, today, plan, waiting, training,
+      practice, trends, day. The summary Home has NO Daily review card today;
+      it lives in the Index (Mind) and on the grouped Home (MissionStructured
+      Group "review"). So the Home row drawn here is new on his phone.
+    Notion: no Notion code exists in server/ or src/. The database "Journal"
+      exists; nothing in Nova talks to it yet.
+
+  DEMO CONTENT ONLY inside the phones. Every entry, prompt, time, concept,
+  meeting, lift and amount is invented and labelled. The example prompts are
+  ORIGINAL to this mockup, written for the depth of a long-form psychology or
+  philosophy conversation; none is quoted from anyone. Nothing here quotes
+  his journal. The one real figure, 231 entries since 1 Sep with 0 his, is
+  the count taken on 11 Oct for the authorship fix.
+
+  Motion: arrival over a skeleton, counts rise from zero, a write is acted
+  out on every number it changes, a pill with Undo on every write. Transform,
+  opacity and clip only. Reduced motion (the OS setting or the bar's switch)
+  gives 200 ms cross-fades and end states. No sideways scroll at 390.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --ease-io:cubic-bezier(.77,0,.175,1);
+  --void:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.78);--ink3:rgba(232,236,246,.62);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.07);--ring:rgba(255,255,255,.14);--hi:rgba(255,255,255,.2);
+  --own:#8f7bff;--life:#59e6ff;--deep:#ff7ad9;
+  --nova:#c9d8ff;--coach:#ff8a7a;--lead:#e0b26a;--guard:rgba(232,236,246,.5);
+  --gold:#e0b26a;--good:#5fe8a8;--cy:#59e6ff;--vi:#8f7bff;
+  --slow:1;
+  color-scheme:dark;
+}
+html.slow{--slow:4}
+*{box-sizing:border-box}
+html{background:var(--void)}
+body{margin:0;background:var(--void);color:var(--ink);font:16px/1.5 var(--ui);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{-webkit-appearance:none;appearance:none;font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;text-align:inherit}
+:focus-visible{outline:2px solid var(--life);outline-offset:3px}
+.ic{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.num{font-family:var(--round);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ============ the page around the phones ============ */
+.wrap{max-width:1160px;margin:0 auto;padding:28px 16px 96px}
+.eyebrow{margin:0 0 10px;font:600 13px/1.3 var(--ui);color:var(--ink3)}
+.wrap>h1{margin:0 0 12px;font:700 34px/1.1 var(--ui);letter-spacing:-.025em;text-wrap:balance}
+.lede{margin:0 0 12px;max-width:38em;font:400 22px/1.35 var(--serif);color:var(--ink2);text-wrap:pretty}
+.lede b{font-weight:400;color:var(--ink)}
+.demo{margin:0 0 20px;max-width:48em;font-size:13px;color:var(--ink3)}
+.bar{position:sticky;top:0;z-index:50;margin:0 -16px;padding:8px 16px;background:rgba(6,7,13,.82);-webkit-backdrop-filter:blur(18px) saturate(1.3);backdrop-filter:blur(18px) saturate(1.3)}
+.bar .in{max-width:1160px;margin:0 auto;display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none}
+.bar .in::-webkit-scrollbar{display:none}
+.jump{flex:none;display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);text-decoration:none;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.jump i{width:8px;height:8px;margin-right:8px;border-radius:50%;background:var(--c)}
+.tg{flex:none;display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:transparent;box-shadow:inset 0 0 0 1px var(--ring)}
+.tg[aria-pressed="true"]{color:#06070d;background:var(--ink)}
+.sp{flex:1}
+.jump:active,.tg:active,.seg button:active,.again:active{transform:scale(.97);transition:transform calc(120ms*var(--slow)) ease-out}
+
+section.part{margin-top:56px}
+.ph2{display:flex;align-items:baseline;gap:12px;margin:0 0 6px;flex-wrap:wrap}
+.ph2 .pn{font:600 13px var(--ui);color:var(--ink3)}
+.ph2 h2{margin:0;font:700 28px/1.15 var(--ui);letter-spacing:-.02em;text-wrap:balance}
+.sub{margin:6px 0 18px;max-width:44em;color:var(--ink2);text-wrap:pretty}
+
+/* Part 1 */
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:1100px}
+@media (max-width:960px){.facts{grid-template-columns:minmax(0,1fr)}}
+.fact{position:relative;padding:18px 16px 16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring),inset 0 1px 0 var(--hi)}
+.fact h4{margin:0;font:600 13px var(--ui);color:var(--ink3)}
+.fact p{margin:8px 0 0;color:var(--ink2);font-size:15px;text-wrap:pretty}
+.fact p b{color:var(--ink);font-weight:600}
+.pair{display:flex;align-items:center;gap:22px;margin-top:10px}
+.pair .fig{display:flex;flex-direction:column;align-items:flex-start}
+.pair .big{font:400 54px/1 var(--serif);font-variant-numeric:tabular-nums}
+.pair .fig small{margin-top:4px;font-size:13px;color:var(--ink3)}
+.zero{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;border:1.5px dashed var(--own);font:400 34px/1 var(--serif);color:var(--own)}
+.homeset{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.hs{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:2px 10px;border-radius:15px;font-size:13px;color:var(--ink2);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px var(--ring)}
+.hs.miss{color:var(--vi);background:none;box-shadow:none;border:1.5px dashed color-mix(in srgb,var(--vi) 70%,transparent)}
+.fields{margin:10px 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 14px;font-size:13px;color:var(--ink2)}
+.fields li{display:flex;align-items:center;gap:6px;border-bottom:.5px solid var(--sep);padding:4px 0}
+.fields li i{width:6px;height:6px;border-radius:50%;background:var(--ink3)}
+.nolink{display:inline-flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--gold)}
+.nolink i{width:22px;height:0;border-top:1.5px dashed var(--gold)}
+
+/* two places: recommendation and alternative */
+.places{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;max-width:1100px;margin-top:22px}
+@media (max-width:960px){.places{grid-template-columns:minmax(0,1fr)}}
+.pl{padding:18px 16px;border-radius:24px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.pl h4{margin:0 0 4px;font:700 17px/1.3 var(--ui);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pl .lean{font:600 11px var(--ui);color:var(--void);background:var(--ink);padding:1px 7px;border-radius:8px}
+.pl p{margin:0 0 12px;color:var(--ink2);font-size:15px;text-wrap:pretty}
+.flowd{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr) 28px minmax(0,1fr);align-items:center;gap:4px}
+@media (max-width:520px){.flowd{grid-template-columns:minmax(0,1fr);gap:6px}.flowd .ar{transform:rotate(90deg);justify-self:center}}
+.nd{padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px var(--ring);font-size:13px;color:var(--ink2);min-width:0}
+.nd b{display:block;font:600 15px var(--ui);color:var(--c,var(--ink))}
+.ar{color:var(--ink3);justify-self:center}
+.mini{border-radius:16px;background:rgba(255,255,255,.06);overflow:hidden}
+.mrow{position:relative;display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 12px;font-size:15px}
+.mrow+.mrow::before{content:"";position:absolute;left:50px;right:0;top:0;height:.5px;background:var(--sep)}
+.mrow .tl{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 16%,transparent)}
+.mrow .tl .ic{width:17px;height:17px}
+.mrow small{margin-left:auto;font-size:13px;color:var(--ink3)}
+
+/* studios */
+.studio{display:grid;grid-template-columns:390px minmax(0,1fr);gap:40px;align-items:start;margin-top:18px}
+@media (max-width:900px){.studio{grid-template-columns:minmax(0,1fr);gap:22px}}
+.pcol{min-width:0}
+.pbox{position:relative;width:calc(390px*var(--z,1));height:calc(844px*var(--z,1));margin:0 auto}
+.under{max-width:390px;margin:14px auto 0;display:grid;gap:10px}
+.seg{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);min-height:44px;padding:3px;border-radius:22px;background:rgba(120,120,128,.22)}
+.seg button{position:relative;z-index:1;min-width:0;min-height:38px;padding:0 4px;border-radius:19px;font:600 13px var(--ui);color:var(--ink2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color calc(200ms*var(--slow)) ease,background-color calc(200ms*var(--slow)) ease}
+.seg button[aria-pressed="true"]{color:var(--ink);background:var(--hi);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12)}
+.again{justify-self:start;min-height:44px;padding:0 16px;border-radius:22px;font:600 13px var(--ui);color:var(--ink2);background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.side{min-width:0}
+.side .st{margin:0 0 10px;padding:14px 16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.side .st b{display:block;margin-bottom:2px;font-weight:600}
+.side .st p{margin:0;color:var(--ink2);font-size:15px;text-wrap:pretty}
+.side .st code{font:13px ui-monospace,Menlo,monospace;color:var(--ink);background:rgba(255,255,255,.07);padding:1px 5px;border-radius:5px;word-break:break-word}
+.now{margin:0 0 12px;padding:12px 16px;border-radius:16px;font-size:15px;color:var(--ink);background:color-mix(in srgb,var(--c) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 30%,transparent)}
+.now b{color:var(--c)}
+.keyrow{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.tagk{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:3px 12px 3px 9px;border-radius:16px;font:600 13px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.tagk .ic{width:15px;height:15px}
+.tagk span{font-weight:400;color:var(--ink2)}
+.map{list-style:none;margin:0;padding:0;font-size:13px}
+.map li{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;padding:5px 0;border-top:.5px solid var(--sep);color:var(--ink2)}
+.map li:first-child{border-top:0}
+.map li b{color:var(--ink);font-weight:600}
+
+/* kept + states + calls */
+.ft{list-style:none;margin:0;padding:0;max-width:1000px}
+.ft li{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:4px 20px;padding:12px 4px;border-top:.5px solid var(--sep)}
+.ft li:first-child{border-top:0}
+.ft .was{color:var(--ink3)}
+.ft .is2{color:var(--ink)}
+@media (max-width:620px){.ft li{grid-template-columns:minmax(0,1fr)}}
+.states{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:1000px}
+@media (max-width:760px){.states{grid-template-columns:minmax(0,1fr)}}
+.sblock{padding:16px;border-radius:20px;background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring)}
+.sblock h4{margin:0 0 8px;font:600 17px var(--ui);color:var(--c)}
+.sblock dl{margin:0;display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px 12px}
+.sblock dt{color:var(--ink3);font-size:15px}
+.sblock dd{margin:0;font-size:15px;color:var(--ink2)}
+.sblock q{font-family:var(--serif);color:var(--ink);quotes:none}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:d;max-width:1000px}
+.decide li{counter-increment:d;display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;align-items:start;padding:16px;border-radius:18px;background:var(--card);box-shadow:inset 0 0 0 1px var(--ring)}
+.decide li::before{content:counter(d);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--round);background:color-mix(in srgb,var(--gold) 16%,transparent);color:var(--gold)}
+.decide b{display:block;font-weight:600;margin-bottom:4px}
+.decide span{display:block;color:var(--ink2);font-size:15px}
+.decide span+span{margin-top:4px}
+.decide span i{font-style:normal;font-weight:600;color:var(--ink)}
+
+/* ============ the phone ============ */
+.phone{position:absolute;left:0;top:0;width:390px;height:844px;border-radius:52px;overflow:hidden;isolation:isolate;transform:scale(var(--z,1));transform-origin:0 0;background:#05060c;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 30px 80px -30px rgba(0,0,0,.9);font:17px/1.35 var(--ui);color:var(--ink)}
+.sky{position:absolute;inset:0;z-index:0;background:radial-gradient(70% 40% at 12% 4%,color-mix(in srgb,var(--h) 16%,transparent),transparent 62%),linear-gradient(180deg,#05060c 0%,#080b1c 38%,#0c1230 72%,#121a3a 100%)}
+.stage{position:absolute;inset:0;z-index:5;overflow:hidden}
+.status{position:absolute;top:0;left:0;right:0;height:50px;z-index:40;pointer-events:none}
+.status .time{position:absolute;left:34px;top:15px;font:600 16px/1 var(--ui)}
+.status .island{position:absolute;top:11px;left:50%;width:122px;height:35px;margin-left:-61px;border-radius:20px;background:#000}
+.status .dm{position:absolute;right:66px;top:16px;font:600 11px/1 var(--ui);color:rgba(232,236,246,.55)}
+.status .bat{position:absolute;right:30px;top:17px;width:25px;height:12px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(232,236,246,.5)}
+.status .bat::after{content:"";position:absolute;inset:2px 6px 2px 2px;border-radius:2px;background:var(--ink)}
+.dock{position:absolute;left:12px;right:12px;bottom:10px;z-index:30;transition:opacity calc(240ms*var(--slow)) ease;display:grid;grid-template-columns:1fr 58px;gap:10px;align-items:center;pointer-events:none}
+/* a sheet covers the tab bar, as on iOS */
+.phone:has(.sheet.on) .dock{opacity:0}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);align-items:center;height:64px;padding:0 4px;border-radius:32px;background:rgba(16,20,36,.6);-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 var(--hi),0 12px 30px -14px rgba(0,0,0,.5)}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:56px;border-radius:28px;font:500 11px var(--ui);color:rgba(232,236,246,.5)}
+.tab .ic{width:22px;height:22px;stroke-width:1.8}
+.tab.on{color:#59e6ff;background:rgba(89,230,255,.1)}
+.orb{width:58px;height:58px;border-radius:29px;display:grid;place-items:center;background:rgba(16,20,36,.6);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.14),inset 0 1px 0 var(--hi);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
+.orb::before{content:"";width:36px;height:36px;border-radius:50%;background:radial-gradient(circle at 42% 38%,#e9fbff 0,#8ef0ff 16%,#2f9bf0 40%,#173a99 64%,rgba(23,58,153,0) 74%);box-shadow:0 0 18px -4px rgba(89,180,255,.8)}
+.touch{position:absolute;z-index:60;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,255,255,.22);box-shadow:0 0 0 1.5px rgba(255,255,255,.55);pointer-events:none;opacity:0}
+.down{transform:scale(.97);transition:transform calc(120ms*var(--slow)) ease-out}
+
+.scr{position:absolute;inset:0;padding:56px 16px 120px;overflow:hidden}
+.scroll{will-change:transform;transition:transform calc(520ms*var(--slow)) var(--ease)}
+.lt{display:flex;align-items:center;gap:8px;min-height:44px}
+.lt h1{flex:1;min-width:0;margin:0;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.ib{flex:none;position:relative;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--own);background:var(--card);box-shadow:inset 0 0 0 .5px var(--ring),inset 0 1px 0 var(--hi);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.news{margin:8px 0 0;font:400 20px/1.3 var(--serif);color:var(--ink2);text-wrap:balance}
+.news b{font-weight:400;color:var(--ink)}
+.glass{background:var(--card);border-radius:20px;box-shadow:inset 0 0 0 .5px var(--ring),inset 0 1px 0 var(--hi),0 14px 34px -18px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(22px) saturate(1.5);backdrop-filter:blur(22px) saturate(1.5)}
+.ghead{margin:18px 4px 6px;font:400 13px var(--ui);color:var(--ink3);display:flex;justify-content:space-between}
+
+/* the quiet switch: Mine | Nova's log */
+.sw{position:relative;display:grid;grid-template-columns:1fr 1fr;width:220px;height:36px;margin-top:6px;padding:2px;border-radius:18px;background:rgba(120,120,128,.2)}
+.sw button{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:6px;font:600 13px var(--ui);color:var(--ink3);transition:color calc(200ms*var(--slow)) ease}
+.sw button.on{color:var(--ink)}
+.sw button .num{font-size:12px;color:var(--ink3);font-weight:600}
+.sw .th{position:absolute;left:2px;top:2px;bottom:2px;width:calc(50% - 2px);border-radius:16px;background:rgba(255,255,255,.16);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12);transition:transform calc(300ms*var(--slow)) var(--ease)}
+.sw.log .th{transform:translateX(100%)}
+/* the switch sits on a hit area of 44 */
+.sw button::before{content:"";position:absolute;inset:-4px 0}
+
+/* tag ribbon: the week by tag */
+.ribbon{margin-top:12px;padding:10px 12px 8px}
+.rbar{position:relative;height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.06)}
+.rbar span{position:absolute;left:0;top:0;bottom:0;width:100%;background:var(--c);transform-origin:0 50%;transform:translateX(var(--x,0%)) scaleX(var(--w,0));transition:transform calc(460ms*var(--slow)) var(--ease-io)}
+.rkey{display:flex;gap:14px;margin-top:7px;font-size:13px;color:var(--ink2);align-items:center}
+.rkey span{display:inline-flex;align-items:center;gap:5px}
+.rkey i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.rkey .num{color:var(--ink)}
+.rkey .wk{margin-left:auto;color:var(--ink3)}
+
+/* composer */
+.comp{margin-top:12px;padding:12px 14px 12px}
+.chead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.chead b{font:400 17px var(--serif)}
+.qstep{display:none;margin-top:8px}
+.qstep.on{display:block}
+.qmeta{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink3)}
+.qmeta .tagc{pointer-events:none}
+.qtext{margin:6px 0 0;font:italic 400 18px/1.32 var(--serif);color:var(--ink)}
+.field{min-height:64px;margin-top:8px;padding:10px 12px;border-radius:16px;background:rgba(0,0,0,.28);box-shadow:inset 0 0 0 .5px var(--ring);font:400 17px/1.45 var(--ui)}
+.field .ph{color:var(--ink3)}
+.caret{display:inline-block;width:2px;height:20px;margin-left:1px;vertical-align:-4px;background:var(--own);opacity:0}
+.typing .caret{opacity:1;animation:blink calc(1s*var(--slow)) steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.crow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.ask{flex:none;white-space:nowrap;display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px 0 12px;border-radius:22px;font:600 15px var(--ui);color:var(--ink);background:rgba(255,255,255,.09);box-shadow:inset 0 0 0 .5px var(--ring)}
+.ask .ic{color:var(--own)}
+.save{height:44px;padding:0 20px;border-radius:22px;background:var(--own);color:#140d33;font:600 17px var(--ui);transition:opacity calc(200ms*var(--slow)) ease}
+.save.idle{opacity:.45}
+
+/* entries */
+.ents{padding:2px 0}
+.ent{position:relative;display:block;padding:10px 14px 12px}
+.ent+.ent::before{content:"";position:absolute;left:14px;right:0;top:0;height:.5px;background:var(--sep)}
+.etop{display:flex;align-items:center;gap:8px;min-height:30px}
+.etop .tm{font-size:13px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.tagc{position:relative;display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px 0 7px;border-radius:13px;font:600 13px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent);transition:color calc(220ms*var(--slow)) ease,background-color calc(220ms*var(--slow)) ease}
+.tagc .ic{width:14px;height:14px}
+.tagc::before{content:"";position:absolute;inset:-9px -4px}
+.sync{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink3)}
+.sync .ic{width:15px;height:15px}
+.sync.ok .ic{color:rgba(232,236,246,.45)}
+.sync.wait{color:var(--ink2)}
+.sync.wait .ic{color:var(--ink2)}
+.sync.busy .ic{animation:spin calc(.9s*var(--slow)) linear infinite}
+.sync.from{color:var(--ink2)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.eq{margin:4px 0 0;font:italic 400 14px/1.35 var(--serif);color:var(--ink3)}
+.etx{margin:4px 0 0;font:400 17px/1.4 var(--serif);color:var(--ink);text-wrap:pretty}
+.ring1{position:absolute;left:8px;top:12px;width:30px;height:30px;border-radius:50%;box-shadow:0 0 0 1.5px var(--c);opacity:0;pointer-events:none}
+
+/* tag popover */
+.tpop{position:absolute;z-index:42;display:flex;gap:4px;padding:5px;border-radius:22px;background:rgba(22,26,48,.92);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.2),inset 0 1px 0 rgba(255,255,255,.2),0 16px 34px -14px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px);transform-origin:var(--ox,0) 0;opacity:0;transform:scale(.94);transition:opacity calc(160ms*var(--slow)) ease-out,transform calc(200ms*var(--slow)) var(--ease-out);pointer-events:none}
+.tpop.on{opacity:1;transform:none;pointer-events:auto}
+.tpop button{display:inline-flex;align-items:center;gap:5px;height:40px;padding:0 12px 0 9px;border-radius:20px;font:600 14px var(--ui);color:var(--c)}
+.tpop button .ic{width:15px;height:15px}
+.tpop button.sel{background:color-mix(in srgb,var(--c) 18%,transparent)}
+
+/* day rows */
+.drow{position:relative;display:block;width:100%;padding:8px 14px}
+.drow+.drow::before{content:"";position:absolute;left:14px;right:0;top:0;height:.5px;background:var(--sep)}
+.dtop{display:flex;align-items:center;gap:10px;width:100%;min-height:44px}
+.dd{font:400 17px var(--serif)}
+.dots{margin-left:auto;display:flex;gap:4px;align-items:center}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.dtop .chev{width:16px;height:16px;color:rgba(232,236,246,.38);transition:transform calc(200ms*var(--slow)) var(--ease)}
+.drow.open .chev{transform:rotate(90deg)}
+.dent{display:grid;margin:2px 0 6px}
+.dent .ent{padding:8px 0 8px}
+.dent .ent+.ent::before{left:0}
+
+/* Nova's log */
+.rail{position:relative;margin-top:6px;padding:4px 14px 8px 72px}
+.rail::before{content:"";position:absolute;left:60px;top:10px;bottom:12px;width:1.5px;border-radius:1px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.2),rgba(255,255,255,.08))}
+.bead{position:relative;display:block;min-height:50px;padding:6px 0}
+.bead .tm{position:absolute;left:-66px;top:8px;width:40px;text-align:right;font-size:13px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.bead .dot{position:absolute;left:-17px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px #0b1029}
+.bead .by{display:flex;align-items:center;gap:6px;font:600 13px var(--ui);color:var(--c)}
+.bead .by span{font-weight:400;color:var(--ink3)}
+.bead .tx{display:block;font-size:15px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bead.hide{display:none}
+.lognote{margin:10px 4px 0;font-size:13px;color:var(--ink3)}
+
+/* sheets, toast */
+.scrim{position:absolute;inset:0;z-index:44;background:rgba(0,0,0,.42);opacity:0;pointer-events:none;transition:opacity calc(260ms*var(--slow)) ease}
+.scrim.on{opacity:1}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;z-index:45;border-radius:34px;padding:10px 18px 22px;background:rgba(20,24,44,.88);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),inset 0 1px 0 rgba(255,255,255,.2),0 -10px 40px -10px rgba(0,0,0,.6);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6);transform:translateY(110%);transition:transform calc(420ms*var(--slow)) var(--ease)}
+.sheet.on{transform:none}
+.grab{width:36px;height:5px;margin:0 auto 12px;border-radius:3px;background:rgba(255,255,255,.3)}
+.shh{display:flex;align-items:center;gap:8px}
+.shh h5{flex:1;margin:0;font:400 22px/1.25 var(--serif)}
+.shh .x{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:var(--ink2);background:rgba(255,255,255,.08)}
+.fh{margin:14px 6px 6px;font:400 13px var(--ui);color:var(--ink3)}
+.fgrp{border-radius:16px;background:rgba(255,255,255,.06)}
+.srow{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:6px 14px;font-size:17px}
+.srow+.srow::before{content:"";position:absolute;left:14px;right:0;top:0;height:.5px;background:var(--sep)}
+.srow .t{flex:1;min-width:0}
+.srow .wi{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.chk{color:var(--own);width:20px;height:20px;opacity:0;transition:opacity calc(160ms*var(--slow)) ease}
+.srow.sel .chk{opacity:1}
+.toast{position:absolute;left:16px;right:16px;bottom:92px;z-index:46;display:flex;align-items:center;gap:10px;min-height:52px;padding:0 6px 0 16px;border-radius:26px;background:rgba(20,24,44,.94);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),0 12px 30px -12px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);font-size:15px;opacity:0;transform:translateY(12px);transition:opacity calc(240ms*var(--slow)) ease-out,transform calc(300ms*var(--slow)) var(--ease-out);pointer-events:none}
+.toast.on{opacity:1;transform:none}
+.toast span{flex:1;min-width:0}
+.toast button{flex:none;min-height:44px;padding:0 14px;border-radius:22px;font:600 15px var(--ui);color:var(--c)}
+
+/* the prompt picker */
+.pick{padding-bottom:18px}
+.kseg{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));height:40px;margin-top:10px;padding:2px;border-radius:20px;background:rgba(120,120,128,.22)}
+.kseg button{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;font:600 13px var(--ui);color:var(--ink3);white-space:nowrap;transition:color calc(200ms*var(--slow)) ease}
+.kseg button i{width:7px;height:7px;border-radius:50%;background:var(--c)}
+.kseg button.on{color:var(--ink)}
+.kseg button .ck{width:14px;height:14px;color:var(--c);display:none}
+.kseg button.used .ck{display:block}
+.kseg button.used i{display:none}
+.kseg .th{position:absolute;left:2px;top:2px;bottom:2px;width:calc((100% - 4px)/3);border-radius:18px;background:rgba(255,255,255,.16);box-shadow:0 1px 3px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.12);transition:transform calc(320ms*var(--slow)) var(--ease)}
+.cards{overflow:hidden;margin:12px -4px 0}
+.track{display:flex;transition:transform calc(380ms*var(--slow)) var(--ease)}
+.pcard{flex:0 0 100%;min-width:0;padding:0 4px}
+.pin{position:relative;min-height:262px;padding:14px 14px 12px;border-radius:22px;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 .5px var(--ring);display:flex;flex-direction:column;transition:box-shadow calc(220ms*var(--slow)) ease,background-color calc(220ms*var(--slow)) ease}
+.pcard.used .pin{background:color-mix(in srgb,var(--c) 9%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c) 55%,transparent)}
+.pk{display:flex;align-items:center;gap:6px;font:600 13px var(--ui);color:var(--c)}
+.pk .ic{width:15px;height:15px}
+.inv{margin-left:auto;font:600 11px var(--ui);color:var(--ink3);padding:1px 7px;border-radius:8px;border:1px dashed rgba(232,236,246,.3)}
+.pq{margin:10px 0 0;font:400 21px/1.3 var(--serif);color:var(--ink);text-wrap:pretty;transition:opacity calc(200ms*var(--slow)) ease,filter calc(200ms*var(--slow)) ease}
+.pq.swap{opacity:0;filter:blur(3px)}
+.psrc{margin-top:auto;padding-top:10px;display:flex;flex-wrap:wrap;gap:4px}
+.sc{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 9px 0 6px;border-radius:13px;font-size:12px;color:var(--ink3);box-shadow:inset 0 0 0 .5px var(--ring);transition:color calc(200ms*var(--slow)) ease,background-color calc(200ms*var(--slow)) ease}
+.sc .ic{width:13px;height:13px}
+.sc.lit{color:var(--ink);background:color-mix(in srgb,var(--life) 16%,transparent);box-shadow:inset 0 0 0 .5px color-mix(in srgb,var(--life) 50%,transparent)}
+.sc.gone{color:rgba(232,236,246,.38);box-shadow:none;border:1px dashed rgba(232,236,246,.28)}
+.pfrom{margin-top:8px;font-size:13px;color:var(--ink3)}
+.pfrom b{font-weight:600;color:var(--ink2)}
+.pact{display:flex;gap:8px;margin-top:10px}
+.another{display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 14px 0 10px;border-radius:22px;font:600 15px var(--ui);color:var(--ink2);background:rgba(255,255,255,.08)}
+.another .ic{width:17px;height:17px}
+.use{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:44px;border-radius:22px;font:600 15px var(--ui);color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);transition:background-color calc(200ms*var(--slow)) ease,color calc(200ms*var(--slow)) ease}
+.use .ic{width:17px;height:17px;display:none}
+.pcard.used .use{background:var(--c);color:#0b0f22}
+.pcard.used .use .ic{display:block}
+.pfoot{display:flex;align-items:center;gap:10px;margin-top:12px}
+.pfoot .chosen{flex:1;min-width:0;font-size:13px;color:var(--ink3)}
+.pfoot .chosen b{color:var(--ink);font-weight:600}
+.write{height:44px;padding:0 20px;border-radius:22px;background:var(--own);color:#140d33;font:600 17px var(--ui);transition:opacity calc(200ms*var(--slow)) ease}
+.write.idle{opacity:.4}
+.loadq{display:block;height:14px;margin-top:8px;border-radius:7px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.12),rgba(255,255,255,.06));background-size:200% 100%;animation:shim calc(1.2s*var(--slow)) linear infinite}
+@keyframes shim{to{background-position:-200% 0}}
+
+/* Notion */
+.setup{display:flex;align-items:center;gap:10px;margin-top:12px;min-height:52px;padding:6px 6px 6px 14px;border-radius:18px;font-size:15px;color:var(--ink);background:color-mix(in srgb,var(--gold) 9%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gold) 40%,transparent)}
+.setup span{flex:1;min-width:0}
+.setup small{display:block;font-size:13px;color:var(--ink3)}
+.setup button{flex:none;height:40px;padding:0 14px;border-radius:20px;font:600 15px var(--ui);color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent)}
+.offl{display:inline-flex;align-items:center;gap:6px;margin-top:10px;height:30px;padding:0 12px 0 9px;border-radius:15px;font-size:13px;color:var(--ink2);background:rgba(255,255,255,.07);transition:opacity calc(240ms*var(--slow)) ease}
+.offl .ic{width:15px;height:15px}
+.steps{list-style:none;margin:10px 0 0;padding:0;counter-reset:s}
+.steps li{counter-increment:s;position:relative;padding:8px 0 8px 36px;font-size:15px;color:var(--ink2)}
+.steps li::before{content:counter(s);position:absolute;left:0;top:8px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:700 12px/1 var(--round);color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent)}
+.steps li b{color:var(--ink);font-weight:600}
+.found{margin-top:6px;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.06)}
+.found h6{margin:0;font:600 13px var(--ui);color:var(--ink3)}
+.fl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 10px;margin-top:6px}
+.fl span{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);opacity:.35;transition:opacity calc(200ms*var(--slow)) ease}
+.fl span .ic{width:14px;height:14px;color:var(--good);opacity:0;transition:opacity calc(200ms*var(--slow)) ease}
+.fl span.ok{opacity:1}
+.fl span.ok .ic{opacity:1}
+.fnote{margin:8px 2px 0;font-size:13px;color:var(--ink3)}
+
+/* Home */
+.hdate{margin:4px 0 0;font:600 13px var(--ui);color:var(--ink3)}
+.hgreet{margin:2px 0 0;font:700 34px/1.1 var(--ui);letter-spacing:-.025em}
+.hline{margin:6px 0 0;font:400 20px/1.3 var(--serif);color:var(--ink2)}
+.rings{display:flex;align-items:center;gap:16px;margin-top:14px;padding:14px}
+.rings svg{flex:none;width:112px;height:112px}
+.rings .arc{fill:none;stroke-width:11;stroke-linecap:round;transform:rotate(-90deg);transform-origin:56px 56px;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset calc(900ms*var(--slow)) var(--ease-out)}
+.rings .trk{fill:none;stroke-width:11;opacity:.16}
+.rlab{display:grid;gap:6px;font-size:13px;color:var(--ink3)}
+.rlab b{display:block;font:600 22px/1 var(--round);color:var(--ink);font-variant-numeric:tabular-nums}
+.drr{position:relative;display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;min-height:64px;padding:10px 12px 10px 12px}
+.drr .tl{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;color:var(--vi);background:color-mix(in srgb,var(--vi) 18%,transparent)}
+.drr .t{flex:1;min-width:0}
+.drr .t small{display:block;font-size:13px;color:var(--ink3)}
+.drr .t span{display:block;font:400 18px/1.25 var(--serif);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drr .go{flex:none;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px 0 10px;border-radius:18px;font:600 13px var(--ui);color:var(--own);background:color-mix(in srgb,var(--own) 15%,transparent)}
+.drr .go .ic{width:15px;height:15px}
+.dim{opacity:.55}
+.ghost{height:120px;margin-top:12px;padding:14px 16px}
+.gl{font-size:13px;color:var(--ink3)}
+.push{position:absolute;inset:0;z-index:20;background:linear-gradient(180deg,#070914 0%,#0a0f24 55%,#0e1430 100%)}
+.backb{display:inline-flex;align-items:center;gap:2px;height:44px;margin-left:-8px;padding:0 12px 0 4px;border-radius:22px;color:var(--life);font:400 17px var(--ui)}
+.backb .ic{width:24px;height:24px}
+
+/* skeleton */
+.sk{border-radius:14px;background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.1),rgba(255,255,255,.05));background-size:200% 100%;animation:shim calc(1.2s*var(--slow)) linear infinite}
+.skel{position:absolute;inset:0;padding:56px 16px 0;z-index:3;transition:opacity calc(260ms*var(--slow)) ease}
+
+@media (prefers-reduced-transparency:reduce){.glass,.tabbar,.orb,.sheet,.toast,.bar,.ib,.tpop{-webkit-backdrop-filter:none;backdrop-filter:none;background:#161a30}}
+html.rm .typing .caret{animation:none}
+html.rm .sk,html.rm .loadq{animation:none}
+html.rm .sheet{transform:none;opacity:0;transition:opacity calc(200ms*var(--slow)) ease;pointer-events:none}
+html.rm .sheet.on{opacity:1;pointer-events:auto}
+html.rm .scroll{transition:opacity calc(200ms*var(--slow)) ease}
+html.rm .toast{transform:none}
+html.rm .tpop{transform:none}
+html.rm .track,html.rm .sw .th,html.rm .kseg .th,html.rm .rbar span{transition:none}
+html.rm .sync.busy .ic{animation:none}
+html.rm .rings .arc{transition:none}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Mockup 95 · round 1 · 11 October 2026 · for your review</p>
+  <h1>Your Journal, and Nova's log beside it</h1>
+  <p class="lede">The Journal opens to <b>your</b> page: today, a calm composer, and only your words. What Nova and the agents write moves to <b>Nova's log</b>, one quiet switch away. One button gives you three prompts to choose from, every entry carries a tag that says where it came from, and everything you write is <b>backed up to Notion</b>.</p>
+  <p class="demo">Everything inside the phones is demo content, invented and labelled. The example prompts were written for this mockup and quote no one. The one real figure is the authorship count of 11 October. Nothing here is built, and nothing has been sent to Notion.</p>
+
+  <nav class="bar" aria-label="Sections and preview settings"><div class="in">
+    <a class="jump" href="#stands" style="--c:var(--ink3)"><i></i>Where it stands</a>
+    <a class="jump" href="#journal" style="--c:var(--own)"><i></i>Two places</a>
+    <a class="jump" href="#picker" style="--c:var(--deep)"><i></i>The prompt</a>
+    <a class="jump" href="#notion" style="--c:var(--life)"><i></i>Notion</a>
+    <a class="jump" href="#home" style="--c:var(--vi)"><i></i>Home</a>
+    <a class="jump" href="#calls" style="--c:var(--gold)"><i></i>Your calls</a>
+    <span class="sp"></span>
+    <button class="tg" type="button" id="slowT" aria-pressed="false">Quarter speed</button>
+    <button class="tg" type="button" id="rmT" aria-pressed="false">Reduced motion</button>
+  </div></nav>
+
+  <!-- ====================== PART 1 ====================== -->
+  <section class="part" id="stands">
+    <div class="ph2"><span class="pn">Part 1</span><h2>Where it stands today</h2></div>
+    <p class="sub">Three facts from the code and the vault, then the shape of the answer.</p>
+    <div class="facts">
+      <article class="fact" id="fact1">
+        <h4>Who wrote the Journal, 1 Sep to 11 Oct</h4>
+        <div class="pair">
+          <div class="fig"><span class="big num" data-count="231">0</span><small>by Nova and the agents</small></div>
+          <div class="fig"><span class="zero" aria-label="zero">0</span><small>by you</small></div>
+        </div>
+        <p>Counted on 11 October for the authorship fix (f299a07). Every entry now names its author, and readers that quote you count <b>only yours</b>. So the split below needs <b>no files moved</b>: it is a view by author.</p>
+      </article>
+      <article class="fact">
+        <h4>The Daily review on your phone's Home</h4>
+        <div class="homeset" aria-label="Cards on the summary Home">
+          <span class="hs">Body</span><span class="hs">Today</span><span class="hs">The plan</span><span class="hs">Waiting</span><span class="hs">Training</span><span class="hs">Practice</span><span class="hs">Trends</span><span class="hs">Your day</span><span class="hs miss">Daily review</span>
+        </div>
+        <p>Your phone runs the summary Home, and its eight cards have <b>no Daily review</b>. It lives in the Index (Mind) and on the grouped Home. So "it stays on Home" means <b>adding one row</b> to the summary Home (Part 2, Home).</p>
+      </article>
+      <article class="fact">
+        <h4>The Notion database "Journal"</h4>
+        <ul class="fields">
+          <li><i></i>Entry (title)</li><li><i></i>Date</li><li><i></i>Tag: Own, Life, Deep</li><li><i></i>Prompt</li>
+          <li><i></i>Prompt from</li><li><i></i>Written in</li><li><i></i>Nova id</li><li><i></i>Created</li>
+        </ul>
+        <span class="nolink"><i></i>Nova has no Notion connection yet</span>
+        <p>The database exists. Nothing in Nova's server or app talks to Notion today, so connecting it is your setup step (one key, drawn in Part 2).</p>
+      </article>
+    </div>
+
+    <div class="places">
+      <div class="pl">
+        <h4>One Journal, with a quiet switch <span class="lean">Recommended</span></h4>
+        <p>One row in the Index, as today. It always opens to your page. The switch under the title reaches Nova's log; it never remembers the log, so you never land in the agents' words by accident.</p>
+        <div class="flowd">
+          <div class="nd" style="--c:var(--ink)"><b>Index · Journal</b>the row you have</div>
+          <svg class="ic ar" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <div class="nd" style="--c:var(--own)"><b>Mine</b>your words, today first</div>
+          <svg class="ic ar" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          <div class="nd" style="--c:var(--nova)"><b>Nova's log</b>the agents, signed</div>
+        </div>
+      </div>
+      <div class="pl">
+        <h4>Or two rows in the Index</h4>
+        <p>Equal weight in the Mind group. Clean, though the log then sits beside your Journal every time you open the Index.</p>
+        <div class="mini" aria-label="The alternative: two Index rows">
+          <div class="mrow"><span class="tl" style="--c:var(--own)" data-ic="journal"></span>Journal<small>yours</small></div>
+          <div class="mrow"><span class="tl" style="--c:var(--nova)" data-ic="log"></span>Nova's log<small>the agents</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== PART 2: JOURNAL ====================== -->
+  <section class="part" id="journal">
+    <div class="ph2"><span class="pn">Part 2 · Two places</span><h2>Your page first, the agents one switch away</h2></div>
+    <p class="sub">The page opens to today and the composer. Your entries carry their tag and, quietly, whether they reached Notion. The week's tags sit in one thin bar, so you can see at a glance how much was yours, from your life, or deep.</p>
+    <div class="studio">
+      <div class="pcol">
+        <div class="pbox" data-ph="mine"></div>
+        <div class="under">
+          <div class="seg" role="group" aria-label="Journal moment" data-for="mine">
+            <button type="button" data-m="0">Today</button><button type="button" data-m="1">Write</button><button type="button" data-m="2">Retag</button><button type="button" data-m="3">A day</button><button type="button" data-m="4">Log</button>
+          </div>
+          <button class="again" type="button" data-again="mine">Play again</button>
+        </div>
+      </div>
+      <div class="side" style="--c:var(--own)">
+        <p class="now" id="now-mine"></p>
+        <div class="keyrow">
+          <span class="tagk" style="--c:var(--own)"><svg class="ic" viewBox="0 0 24 24" data-g="own"></svg>Own <span>off the cuff</span></span>
+          <span class="tagk" style="--c:var(--life)"><svg class="ic" viewBox="0 0 24 24" data-g="life"></svg>Life <span>Nova's life or review prompt</span></span>
+          <span class="tagk" style="--c:var(--deep)"><svg class="ic" viewBox="0 0 24 24" data-g="deep"></svg>Deep <span>a question to think with</span></span>
+        </div>
+        <div class="st"><b>Why these three colours</b><p>Violet is the Journal's own colour, so your unprompted words wear it. Cyan is Nova's colour: a Life entry began with something Nova drew from your life. Magenta is the hue Nova already gives Technique, the things you think with. Each tag also has its own glyph and word, so colour is never the only signal.</p></div>
+        <div class="st"><b>Tagged by where it came from</b><p>Typed with no prompt: Own. Answered from a Daily review or My life prompt: Life. Answered from a Deep prompt: Deep. One tap on the tag changes it, with Undo, and the week's bar moves to match.</p></div>
+        <div class="st"><b>Quiet when fine, words when not</b><p>An entry that reached Notion shows one small glyph. Only the states that need your eye use words: waiting, not connected, written in Notion.</p></div>
+        <div class="st"><b>Nova's log is a view</b><p>The vault files stay as they are. Mine shows entries whose author is you; the log shows the rest, signed (Nova, Coach, Leader, Guardian, CFO), with Who and Kind in its filter. Kind keeps today's personal, training and system.</p></div>
+        <div class="st"><b>Where your words live</b><p>As today, in <code>Wiki/Journal/&lt;date&gt;.md</code>, with the tag beside the author in the heading, for example <code>## 21:10 · personal · by Hayden · deep</code>. That heading is a shared format, so every reader of it changes together. Notion holds the backup.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== PART 2: PICKER ====================== -->
+  <section class="part" id="picker">
+    <div class="ph2"><span class="pn">Part 2 · The prompt</span><h2>One button, three prompts, use as many as you like</h2></div>
+    <p class="sub">"Give me a prompt" raises one sheet. The three kinds sit side by side behind a three-part switch that follows your swipe. Use one, two or all three: each is answered in turn and saved as its own entry with its own tag.</p>
+    <div class="studio">
+      <div class="pcol">
+        <div class="pbox" data-ph="pick"></div>
+        <div class="under">
+          <div class="seg" role="group" aria-label="Picker moment" data-for="pick">
+            <button type="button" data-m="0">The three</button><button type="button" data-m="1">Use two</button><button type="button" data-m="2">My life sources</button>
+          </div>
+          <button class="again" type="button" data-again="pick">Play again</button>
+        </div>
+      </div>
+      <div class="side" style="--c:var(--deep)">
+        <p class="now" id="now-pick"></p>
+        <div class="st"><b>Deep</b><p>Philosophical and psychological questions at the depth of a long-form conversation about how to live. They stand alone: a Deep prompt never reads your schedule, so it never turns into a to-do. The examples in the phone are invented for this mockup and quote no one.</p></div>
+        <div class="st"><b>Daily review</b><p>Built from the same concept your Home's Daily review shows today, and the shuffle there changes it here too. If you have no concepts yet, the card says so.</p></div>
+        <div class="st"><b>My life, with its source named</b><p>Drawn from one source Nova really reads: your calendar, training, the Lead picture, money, or the Daily review topic. The source is named under the prompt. A source with nothing readable today (a stale calendar, no money import this month) is drawn dashed and skipped, never guessed.</p></div>
+        <div class="st"><b>Another</b><p>Each card has its own Another, so changing the Deep question leaves the other two where they are.</p></div>
+        <div class="st"><b>What it costs</b><p>Today's composer makes one Sonnet call per prompt on the journal-prompt lane. The sheet makes three when it opens, and one more per Another. The skeleton line holds each card's place while its prompt is written.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== PART 2: NOTION ====================== -->
+  <section class="part" id="notion">
+    <div class="ph2"><span class="pn">Part 2 · Notion</span><h2>Every entry backed up, and Notion entries brought home</h2></div>
+    <p class="sub">Write in Nova and the entry is saved to your vault and then to Notion. Write in Notion and it arrives in your Journal. Four honest states, drawn in order.</p>
+    <div class="studio">
+      <div class="pcol">
+        <div class="pbox" data-ph="notion"></div>
+        <div class="under">
+          <div class="seg" role="group" aria-label="Notion state" data-for="notion">
+            <button type="button" data-m="0">Saved</button><button type="button" data-m="1">Offline</button><button type="button" data-m="2">Not set up</button><button type="button" data-m="3">From Notion</button>
+          </div>
+          <button class="again" type="button" data-again="notion">Play again</button>
+        </div>
+      </div>
+      <div class="side" style="--c:var(--life)">
+        <p class="now" id="now-notion"></p>
+        <div class="st"><b>How a Nova entry fills the database</b>
+          <ul class="map">
+            <li><b>Entry</b><span>the first line of your words</span></li>
+            <li><b>Date</b><span>the day it belongs to</span></li>
+            <li><b>Tag</b><span>Own, Life or Deep</span></li>
+            <li><b>Prompt</b><span>the prompt you answered, if any</span></li>
+            <li><b>Prompt from</b><span>None, Deep question, Daily review or My life</span></li>
+            <li><b>Written in</b><span>Nova</span></li>
+            <li><b>Nova id</b><span>ties the two copies, so nothing is ever filed twice</span></li>
+            <li><b>Created</b><span>when you wrote it</span></li>
+          </ul></div>
+        <div class="st"><b>The order of the hops</b><p>Your vault first, Notion second. If your phone cannot reach your Mac, the entry waits on the phone (the outbox Nova already has). If the Mac cannot reach Notion, the entry is safe in your vault and Notion waits. Neither is ever shown as saved before it is.</p></div>
+        <div class="st"><b>From Notion</b><p>Nova checks the database every few minutes and brings in any page without a Nova id. It lands in your Journal marked Written in Notion, with the Tag you gave it there (Own if you gave none), and gets its Nova id so it never comes back twice.</p></div>
+        <div class="st"><b>Undo</b><p>Undo on a saved entry removes it from your vault and archives the Notion page (Notion keeps archived pages in its trash for 30 days).</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== PART 2: HOME ====================== -->
+  <section class="part" id="home">
+    <div class="ph2"><span class="pn">Part 2 · Home</span><h2>The Daily review, one row on Home</h2></div>
+    <p class="sub">One row on the summary Home: the concept in the serif, and "Write on it". It opens the Journal with the Daily review prompt already in the composer. The grouped Home's Daily review card gains the same action, so both idioms read one view model.</p>
+    <div class="studio">
+      <div class="pcol">
+        <div class="pbox" data-ph="home"></div>
+        <div class="under">
+          <div class="seg" role="group" aria-label="Home moment" data-for="home">
+            <button type="button" data-m="0">Row to Journal</button><button type="button" data-m="1">Written</button>
+          </div>
+          <button class="again" type="button" data-again="home">Play again</button>
+        </div>
+      </div>
+      <div class="side" style="--c:var(--vi)">
+        <p class="now" id="now-home"></p>
+        <div class="st"><b>One row, no new card</b><p>A row under the rings, so it costs Home one line. The tile wears the violet the Index already gives the Daily review. The row's label goes to Notes as today; "Write on it" goes to the Journal.</p></div>
+        <div class="st"><b>After you write</b><p>The row stays and says you wrote on it today, with a check, so the Home shows the review is done without hiding it.</p></div>
+        <div class="st"><b>Two names, kept apart</b><p>The Daily review on Home is today's concept for you. The evening "Daily review reflection" is Nova's read of your day, and it moves to Nova's log with the other agent entries.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====================== KEPT ====================== -->
+  <section class="part">
+    <div class="ph2"><span class="pn">Kept</span><h2>Everything the Journal does today</h2></div>
+    <ul class="ft">
+      <li><span class="was">The composer with a prompt and Save</span><span class="is2">Mine opens on it. "Generate a prompt" becomes "Give me a prompt" with three kinds.</span></li>
+      <li><span class="was">Four category chips: all, personal, training, system</span><span class="is2">Kind, in each page's filter. Mine filters by tag too.</span></li>
+      <li><span class="was">Day rows, the serif day, a dot per entry</span><span class="is2">The same rows. In Mine each dot wears its entry's tag colour; in the log, its author's.</span></li>
+      <li><span class="was">An expanded day with its sections</span><span class="is2">The same, opening in place. Your entries show tag, prompt and Notion state; the log shows author and label.</span></li>
+      <li><span class="was">The author tag on each entry</span><span class="is2">Kept on every entry in Nova's log. In Mine every entry is yours, so the tag shows where it came from.</span></li>
+    </ul>
+  </section>
+
+  <!-- ====================== STATES ====================== -->
+  <section class="part">
+    <div class="ph2"><span class="pn">States</span><h2>What each part says when it cannot do its job</h2></div>
+    <div class="states">
+      <div class="sblock" style="--c:var(--own)"><h4>Mine</h4><dl>
+        <dt>Loading</dt><dd>A skeleton in the exact places the composer and entries land.</dd>
+        <dt>Empty</dt><dd><q>Nothing yet today.</q> The composer is the page.</dd>
+        <dt>No Mac</dt><dd><q>Your journal lives on your Mac.</q> Writing still works; entries wait on the phone.</dd>
+      </dl></div>
+      <div class="sblock" style="--c:var(--deep)"><h4>The prompt sheet</h4><dl>
+        <dt>Writing</dt><dd>A shimmer line in the card while its prompt is written.</dd>
+        <dt>Lane off</dt><dd><q>Prompts are off in Settings.</q> With the switch named.</dd>
+        <dt>Failed</dt><dd><q>Couldn't write this one.</q> Try again on that card only.</dd>
+      </dl></div>
+      <div class="sblock" style="--c:var(--life)"><h4>Notion</h4><dl>
+        <dt>Not set up</dt><dd>One gold row at the top of Mine until it is connected.</dd>
+        <dt>Waiting</dt><dd><q>Notion waiting</q> on the entry, with the reason in its detail.</dd>
+        <dt>Refused</dt><dd><q>Notion refused this entry.</q> The entry stays in your vault; Retry.</dd>
+      </dl></div>
+      <div class="sblock" style="--c:var(--nova)"><h4>Nova's log</h4><dl>
+        <dt>Empty filter</dt><dd>Says which filter is on, with Show all.</dd>
+        <dt>Unattributed</dt><dd>Old entries no writer claims show as Unknown, never as yours.</dd>
+      </dl></div>
+    </div>
+  </section>
+
+  <!-- ====================== CALLS ====================== -->
+  <section class="part" id="calls">
+    <div class="ph2"><span class="pn">Your calls</span><h2>Decisions this needs from you</h2></div>
+    <ol class="decide">
+      <li><div><b>One Journal with a switch, or two Index rows</b>
+        <span><i>One with a switch (recommended):</i> the Index keeps one Journal row; it always opens to your page and the log is one tap away.</span>
+        <span><i>Two rows:</i> Journal and Nova's log sit side by side in the Index's Mind group, each its own page.</span></div></li>
+      <li><div><b>Magenta for Deep</b>
+        <span><i>Yes:</i> Deep borrows Technique's magenta, the "things to think with" hue.</span>
+        <span><i>Another colour:</i> name it, and it replaces magenta on the tag, the bar and the card.</span></div></li>
+      <li><div><b>Should Nova's log also go to Notion</b>
+        <span><i>No (recommended):</i> Notion holds only your own words, which is the backup you asked for.</span>
+        <span><i>Yes:</i> the agents' entries are copied too, marked with their author, and the Notion database grows by about six a day.</span></div></li>
+      <li><div><b>When you edit or delete in Notion</b>
+        <span><i>Edits follow, deletes don't (recommended):</i> an edit in Notion updates the vault copy; a delete in Notion leaves the vault entry and marks it "removed in Notion".</span>
+        <span><i>Both follow:</i> a delete in Notion deletes the vault entry too, with Undo in Nova.</span></div></li>
+      <li><div><b>When the three prompts are written</b>
+        <span><i>At the tap:</i> three model calls each time you open the sheet; nothing is spent on days you don't journal.</span>
+        <span><i>Each morning:</i> the three are ready instantly, but are written (and paid for) every day, journal or not.</span></div></li>
+      <li><div><b>The Notion title of an entry</b>
+        <span><i>Your first line (recommended):</i> the database reads as your words.</span>
+        <span><i>The prompt:</i> the database reads as a list of questions, with your words inside each page.</span></div></li>
+      <li><div><b>The Daily review row on Home after you write</b>
+        <span><i>Stays with a check (recommended):</i> the row says you wrote on it today.</span>
+        <span><i>Leaves:</i> the row drops off Home for the rest of the day once you have written on it.</span></div></li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const doc = document.documentElement;
+let SLOW = 1, forceRM = false;
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+const RM = () => forceRM || mq.matches;
+const syncRM = () => doc.classList.toggle('rm', RM());
+syncRM();
+const STOP = Symbol('stop');
+
+/* ---------------- icons ---------------- */
+const IC = {
+  chev: '<path d="m9.5 6 6 6-6 6"/>', close: '<path d="M7 7l10 10M17 7 7 17"/>', check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  back: '<path d="M15 5 8 12l7 7"/>', filter: '<path d="M4 7h16M7 12h10M10 17h4"/>',
+  own: '<path d="M5 19l1-4L16 5l3 3L9 18Z"/><path d="m14 7 3 3"/>',
+  life: '<circle cx="12" cy="12" r="3.6"/><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.5 1.5M16.5 16.5 18 18M6 18l1.5-1.5M16.5 7.5 18 6"/>',
+  deep: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>',
+  ask: '<path d="M4.5 5.5h15v10.5h-8l-4.5 3.5V16h-2.5Z"/><path d="M10.2 9.2a1.9 1.9 0 1 1 2.7 1.7c-.6.3-.9.7-.9 1.3"/><circle cx="12" cy="14" r=".7" fill="currentColor" stroke="none"/>',
+  another: '<path d="M4 7h3c4 0 6 10 10 10h3M4 17h3c1.6 0 2.8-1.6 3.9-3.6M13.1 9.6C14.2 7.6 15.4 7 17 7h3"/><path d="m18 5 2 2-2 2M18 15l2 2-2 2"/>',
+  synced: '<path d="M7 17.5h10a4 4 0 0 0 .6-8A5.5 5.5 0 0 0 7 9.2a4.2 4.2 0 0 0 0 8.3Z"/><path d="m9.5 13 2 2 3.5-3.6"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  spin: '<path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5"/>',
+  arrive: '<path d="M12 3.5v10M7.5 9 12 13.5 16.5 9"/><path d="M4 14.5V19h16v-4.5"/>',
+  offline: '<path d="M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 13a9.5 9.5 0 0 1 4-2.3M19 13a9.5 9.5 0 0 0-2.6-1.8M12 20h.01"/>',
+  cal: '<rect x="4" y="5.5" width="16" height="14.5" rx="3"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+  train: '<path d="M6.5 8v8M17.5 8v8M3.5 10v4M20.5 10v4M6.5 12h11"/>',
+  lead: '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3.5 19c.8-3.2 3-5 5.5-5s4.7 1.8 5.5 5M14.5 15.2c.8-.5 1.6-.7 2.5-.7 2 0 3.6 1.4 4.2 4.5"/>',
+  money: '<circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2c-.5-.9-1.5-1.4-2.8-1.4-1.6 0-2.7.8-2.7 2s1 1.7 2.7 2.1 2.9.9 2.9 2.2-1.2 2.1-2.9 2.1c-1.4 0-2.5-.6-3-1.6M12 6v1.8M12 16.2V18"/>',
+  review: '<path d="M12 3.5 20.5 12 12 20.5 3.5 12Z"/>',
+  journal: '<path d="M5 5.2A1.7 1.7 0 0 1 6.7 3.5H18.5v15.3H6.7A1.7 1.7 0 0 0 5 20.5Z"/><path d="M9 8h6"/>',
+  log: '<path d="M6 5h12M6 9.5h12M6 14h8M6 18.5h5"/>',
+  home: '<path d="M4 11.5 12 5l8 6.5V20h-5.5v-5h-5v5H4Z"/>', mic: '<rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v2.5"/>',
+  fuel: '<path d="M7 3.5v7M5 3.5v4.5a2 2 0 0 0 4 0V3.5M7 10.5v10M16.5 3.5c-1.8 1-2.5 3-2.5 6v3h2.5v8"/>',
+  more: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/>',
+};
+const svg = (p, cls = 'ic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+$$('[data-ic]').forEach((el) => { el.innerHTML = svg(IC[el.dataset.ic]); });
+$$('svg[data-g]').forEach((el) => { el.innerHTML = IC[el.dataset.g]; });
+
+const TAG = {
+  own: { n: 'Own', c: 'var(--own)' }, life: { n: 'Life', c: 'var(--life)' }, deep: { n: 'Deep', c: 'var(--deep)' },
+};
+const tagc = (t, attrs = '') => `<button type="button" class="tagc" data-tag="${t}" style="--c:${TAG[t].c}" ${attrs}>${svg(IC[t])}${TAG[t].n}</button>`;
+const SYNC = {
+  ok: () => `<span class="sync ok" aria-label="In Notion" title="In Notion">${svg(IC.synced)}</span>`,
+  busy: () => `<span class="sync busy" aria-label="Saving to Notion">${svg(IC.spin)}</span>`,
+  wait: (w) => `<span class="sync wait">${svg(IC.clock)}${w}</span>`,
+  from: () => `<span class="sync from">${svg(IC.arrive)}Written in Notion</span>`,
+  none: () => '',
+};
+
+/* ---------------- count-up ---------------- */
+function countTo(el, to, ms = 650) {
+  const from = +el.dataset.v || 0; el.dataset.v = to;
+  if (RM() || from === to) { el.textContent = to; return; }
+  const t0 = performance.now(), d = ms * SLOW;
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / d), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = Math.round(from + (to - from) * e);
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+const once = (el, fn) => {
+  if (!('IntersectionObserver' in window)) { fn(); return; }
+  const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); fn(); } }, { threshold: .25 });
+  io.observe(el);
+};
+once($('#fact1'), () => { const b = $('#fact1 [data-count]'); b.dataset.v = 0; countTo(b, 231, 900); });
+
+/* ---------------- the phones ---------------- */
+const TABS = `<nav class="dock" aria-hidden="true"><div class="tabbar"><span class="tab">${svg(IC.home)}Home</span><span class="tab">${svg(IC.mic)}Nova</span><span class="tab">${svg(IC.train)}Train</span><span class="tab">${svg(IC.fuel)}Fuel</span><span class="tab on">${svg(IC.more)}More</span></div><span class="orb"></span></nav>`;
+const TABS_HOME = TABS.replace('<span class="tab on">', '<span class="tab">').replace('<span class="tab">' + svg(IC.home), '<span class="tab on">' + svg(IC.home));
+const STATUS = '<div class="status" aria-hidden="true"><span class="time">21:08</span><span class="island"></span><span class="dm">DEMO</span><span class="bat"></span></div>';
+const PHONES = {};
+function mountPhone(key, hue, home) {
+  const box = $(`.pbox[data-ph="${key}"]`);
+  box.innerHTML = `<div class="phone" style="--h:${hue}" role="img" aria-label="An animated phone, demo content"><div class="sky"></div><div class="stage"></div>${STATUS}<div class="tabs">${home ? TABS_HOME : TABS}</div><div class="touch"></div></div>`;
+  const ph = $('.phone', box);
+  PHONES[key] = { box, ph, stage: $('.stage', ph), touch: $('.touch', ph), run: 0, m: 0 };
+}
+function fit() {
+  $$('.pbox').forEach((b) => {
+    const avail = Math.min(b.parentElement.getBoundingClientRect().width || 390, document.documentElement.clientWidth - 32);
+    b.style.setProperty('--z', Math.min(1, Math.max(200, avail) / 390));
+  });
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms * SLOW));
+const zOf = (P) => P.ph.getBoundingClientRect().width / 390 || 1;
+function rel(P, el) {
+  const pr = P.ph.getBoundingClientRect(), r = el.getBoundingClientRect(), z = zOf(P);
+  return { x: (r.left - pr.left) / z, y: (r.top - pr.top) / z, w: r.width / z, h: r.height / z };
+}
+const fadeIn = (el, y = 8, ms = 320) => RM()
+  ? el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 * SLOW, fill: 'both' })
+  : el.animate([{ opacity: 0, transform: `translateY(${y}px)` }, { opacity: 1, transform: 'none' }], { duration: ms * SLOW, easing: 'cubic-bezier(.23,1,.32,1)', fill: 'both' });
+const fadeOut = (el, ms = 180) => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms * SLOW, fill: 'forwards' }).finished.catch(() => {});
+
+const NOW = {
+  mine: [
+    '<b>Today.</b> The page arrives over its skeleton: the composer first, your two entries, and the week\'s tags counting up in one thin bar.',
+    '<b>Off the cuff.</b> No prompt, so it lands as Own. The glyph turns while it goes to Notion, then rests. A pill with Undo; the bar\'s Own count follows.',
+    '<b>Retag.</b> Tap the tag, choose Deep. The capsule re-tints and the bar moves to match. Undo puts it back.',
+    '<b>A past day.</b> Each dot wears its entry\'s tag colour. The day opens in place, with the prompt each entry answered.',
+    '<b>Nova\'s log.</b> The switch slides, the agents\' page comes in from the side it sits on. Every bead is signed; the filter keeps Who and Kind.',
+  ],
+  pick: [
+    '<b>The three.</b> The sheet rises with three cards. Swipe, and the switch follows: Deep, Daily review, My life. Another rewrites one card only.',
+    '<b>Use two.</b> Use the Deep question and the My life one. Write takes you through them in turn; each saves as its own entry, with its own tag.',
+    '<b>My life sources.</b> Another moves through the sources Nova really reads. Money has no import this month, so it is dashed and skipped.',
+  ],
+  notion: [
+    '<b>Saved.</b> Vault first, then Notion. The glyph turns while it travels and rests once Notion has it. The pill says both.',
+    '<b>Offline.</b> The phone cannot reach your Mac, so the entry waits on the phone and says so. Back online, it goes to the vault, then Notion.',
+    '<b>Not set up.</b> One gold row, because it waits on you. Three steps, then Nova checks the database\'s eight fields.',
+    '<b>From Notion.</b> A page you wrote in Notion arrives on today, marked Written in Notion, with the tag you gave it there.',
+  ],
+  home: [
+    '<b>Row to Journal.</b> The rings count up, then one row: the Daily review concept and "Write on it". It opens the Journal with that prompt in the composer.',
+    '<b>Written.</b> Back on Home after writing, the row keeps its place and says you wrote on it today.',
+  ],
+};
+
+function start(key, m) {
+  const P = PHONES[key]; P.m = m; const id = ++P.run;
+  const W = async (ms) => { await sleep(ms); if (id !== P.run) throw STOP; };
+  const tap = async (el) => {
+    if (!el) return;
+    const r = rel(P, el), t = P.touch;
+    t.style.left = (r.x + r.w / 2) + 'px'; t.style.top = (r.y + r.h / 2) + 'px';
+    t.animate([{ opacity: 0, transform: 'scale(.7)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 120 * SLOW, fill: 'forwards', easing: 'ease-out' });
+    el.classList.add('down');
+    await W(170);
+    el.classList.remove('down');
+    t.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220 * SLOW, fill: 'forwards' });
+  };
+  $$('.seg[data-for="' + key + '"] button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.m === m)));
+  const nowEl = $('#now-' + key);
+  if (nowEl) nowEl.innerHTML = NOW[key][m];
+  SCRIPTS[key](P, m, W, tap).catch((e) => { if (e !== STOP) console.error(e); });
+}
+const typeInto = async (field, text, W, perChar = 34) => {
+  const ph = $('.ph', field), tx = $('.tx', field);
+  if (ph) ph.style.display = 'none';
+  field.classList.add('typing');
+  if (RM()) { tx.textContent = text; field.classList.remove('typing'); return; }
+  for (let i = 1; i <= text.length; i++) { tx.textContent = text.slice(0, i); await W(perChar); }
+  field.classList.remove('typing');
+};
+async function toast(S, text, act, c, W, hold = 1600) {
+  const t = $('.toast', S);
+  t.style.setProperty('--c', c);
+  t.innerHTML = `<span>${text}</span>${act ? `<button type="button">${act}</button>` : ''}`;
+  t.classList.add('on');
+  await W(hold);
+  return $('button', t);
+}
+const hideToast = (S) => { const t = $('.toast', S); if (t) t.classList.remove('on'); };
+
+/* ---------------- demo data ---------------- */
+const P_DEEP = [
+  'Which belief about yourself have you defended for so long that you no longer check whether it is still true?',
+  'What are you waiting to feel before you let yourself begin, and what if that feeling never arrives?',
+  'If you were remembered only for how you treated people when nothing was at stake, what would this week say?',
+];
+const P_REVIEW = { concept: 'Second-order effects', q: 'Today\'s review is second-order effects. Which easy yes from this month will cost the most in a year, and who will pay it?' };
+const P_LIFE = [
+  { src: 'cal', from: 'From your calendar · Thursday', q: 'Thursday has three meetings back to back. Who do you want to be in the third one, when you are tired and no one would notice the difference?' },
+  { src: 'train', from: 'From your training · bench, three weeks', q: 'Your bench has held the same weight for three weeks. What does staying with a plateau ask of you that a good week never does?' },
+  { src: 'lead', from: 'From your Lead picture', q: 'Your team picture says one person has gone quiet. What might they be waiting for you to notice?' },
+  { src: 'review', from: 'From the Daily review topic', q: 'Where in your own week can you see a second-order effect already arriving?' },
+];
+const SRC = [['cal', 'Calendar'], ['train', 'Training'], ['lead', 'Lead'], ['money', 'Money'], ['review', 'Review']];
+
+// his page: today's entries (invented), then the week
+const TODAY0 = [
+  { tm: '07:40', tag: 'deep', q: P_DEEP[2], tx: 'Demo words. Patient with the people who could do nothing for me; short with the ones closest.', s: 'ok' },
+  { tm: '12:15', tag: 'own', tx: 'Demo words. A walk at lunch fixed more than the coffee did.', s: 'ok' },
+];
+const WEEK = [
+  { d: 'Sat 10 Oct', e: [['life', '08:10', 'Demo words. Saturday training felt like paying a debt I chose.', 'From your training'], ['own', '22:30', 'Demo words. Dinner with friends; I listened more than I talked.']] },
+  { d: 'Fri 9 Oct', e: [['life', '21:05', 'Demo words. The review concept landed: small choices, long tails.', 'Daily review'], ['own', '21:40', 'Demo words. Tired, but the week moved.']] },
+  { d: 'Thu 8 Oct', e: [['own', '06:50', 'Demo words. Up before the alarm.']] },
+];
+const ribbonCounts = (extra = {}) => {
+  const c = { own: 0, life: 0, deep: 0 };
+  TODAY0.forEach((e) => c[e.tag]++);
+  WEEK.forEach((d) => d.e.forEach(([t]) => c[t]++));
+  Object.keys(extra).forEach((k) => (c[k] += extra[k]));
+  return c;
+};
+function setRibbon(S, c) {
+  const tot = c.own + c.life + c.deep || 1;
+  let x = 0;
+  ['own', 'life', 'deep'].forEach((k) => {
+    const s = $(`.rbar [data-k="${k}"]`, S); if (!s) return;
+    const w = c[k] / tot;
+    s.style.setProperty('--x', (x * 100) + '%'); s.style.setProperty('--w', w);
+    x += w;
+    const n = $(`.rkey [data-n="${k}"]`, S); if (n) countTo(n, c[k]);
+  });
+}
+
+function entryHTML(e, i) {
+  return `<div class="ent" data-i="${i}" data-tag="${e.tag}" style="--c:${TAG[e.tag].c}"><div class="etop"><span class="tm">${e.tm}</span>${tagc(e.tag)}${SYNC[e.s || 'ok'](e.w)}</div>${e.q ? `<p class="eq">${e.q}</p>` : ''}<p class="etx">${e.tx}</p><span class="ring1"></span></div>`;
+}
+function dayHTML(D, i) {
+  return `<div class="drow" data-day="${i}"><button type="button" class="dtop"><span class="dd">${D.d}</span><span class="dots" aria-label="${D.e.length} entries">${D.e.map(([t]) => `<i style="--c:${TAG[t].c}"></i>`).join('')}</span>${svg(IC.chev, 'ic chev')}</button><div class="dent" hidden></div></div>`;
+}
+const TOAST = '<div class="toast" role="status"></div>';
+const TPOP = `<div class="tpop" role="menu" aria-label="Change tag">${['own', 'life', 'deep'].map((t) => `<button type="button" data-set="${t}" style="--c:${TAG[t].c}">${svg(IC[t])}${TAG[t].n}</button>`).join('')}</div>`;
+
+function minePage(o = {}) {
+  const today = o.today || TODAY0;
+  return `<div class="scr scroll" data-v="mine">
+    <div class="lt"><h1>Journal</h1><button type="button" class="ib" aria-label="Filter">${svg(IC.filter)}</button></div>
+    <div class="sw" role="tablist" aria-label="Whose entries"><span class="th"></span><button type="button" role="tab" class="on" data-sw="mine" aria-selected="true">Mine</button><button type="button" role="tab" data-sw="log" aria-selected="false">Nova's log <span class="num">6</span></button></div>
+    ${o.setup ? `<div class="setup" data-setup><span>Notion isn't connected yet<small>Your entries are safe in your vault.</small></span><button type="button">Connect</button></div>` : ''}
+    ${o.offline ? `<span class="offl" data-offl>${svg(IC.offline)}Offline · entries wait on this phone</span>` : ''}
+    <p class="news" data-news>${o.news || 'Two entries today. <b>One off the cuff, one deep.</b>'}</p>
+    <div class="glass comp">
+      <div class="chead"><b>Sunday 11 October</b></div>
+      <div class="qstep" data-qstep><div class="qmeta"><span data-qn>1 of 2</span><span data-qtag></span></div><p class="qtext" data-qtext></p></div>
+      <div class="field"><span class="ph">What's on your mind</span><span class="tx"></span><span class="caret"></span></div>
+      <div class="crow"><button type="button" class="ask">${svg(IC.ask)}Give me a prompt</button><button type="button" class="save idle">Save</button></div>
+    </div>
+    <div class="glass ribbon" aria-label="This week by tag"><div class="rbar"><span data-k="own" style="--c:var(--own)"></span><span data-k="life" style="--c:var(--life)"></span><span data-k="deep" style="--c:var(--deep)"></span></div>
+      <div class="rkey"><span style="--c:var(--own)"><i></i>Own <b class="num" data-n="own">0</b></span><span style="--c:var(--life)"><i></i>Life <b class="num" data-n="life">0</b></span><span style="--c:var(--deep)"><i></i>Deep <b class="num" data-n="deep">0</b></span><span class="wk">this week</span></div></div>
+    <div class="ghead"><span>Today</span></div>
+    <div class="glass ents" data-today>${today.map(entryHTML).join('')}</div>
+    <div class="ghead"><span>This week</span></div>
+    <div class="glass" data-week>${WEEK.map(dayHTML).join('')}</div>
+  </div>`;
+}
+function skeleton() {
+  return `<div class="skel" data-skel><div class="sk" style="width:150px;height:38px;border-radius:12px"></div><div class="sk" style="width:220px;height:34px;margin-top:8px;border-radius:17px"></div><div class="sk" style="height:48px;margin-top:12px"></div><div class="sk" style="height:168px;margin-top:12px;border-radius:20px"></div><div class="sk" style="height:46px;margin-top:12px"></div><div class="sk" style="height:200px;margin-top:30px;border-radius:20px"></div></div>`;
+}
+
+const LOG = [
+  ['06:30', 'nova', 'Nova', 'Morning dispatch', 'Demo. Two meetings before noon; training at 17:30.'],
+  ['07:05', 'nova', 'Nova', 'Plan today', 'Demo. Three things: the draft, the session, a call back.'],
+  ['12:40', 'lead', 'Leader', 'Leader follow-up', 'Demo. One check-in waiting from Friday.'],
+  ['18:40', 'coach', 'Coach', 'Session receipt', 'Demo. Upper body done; every set logged.'],
+  ['20:30', 'nova', 'Nova', 'Evening debrief', 'Demo. Two of the three planned things done.'],
+  ['21:00', 'nova', 'Nova', 'Daily review reflection', 'Demo. A steady day with one long tail.'],
+];
+const AC = { nova: 'var(--nova)', coach: 'var(--coach)', lead: 'var(--lead)', guard: 'var(--guard)' };
+function logPage() {
+  return `<div class="scr" data-v="log">
+    <div class="lt"><h1>Journal</h1><button type="button" class="ib" data-lfilter aria-label="Filter" style="color:var(--nova)">${svg(IC.filter)}</button></div>
+    <div class="sw log" role="tablist" aria-label="Whose entries"><span class="th"></span><button type="button" role="tab" data-sw="mine" aria-selected="false">Mine</button><button type="button" role="tab" class="on" data-sw="log" aria-selected="true">Nova's log <span class="num">6</span></button></div>
+    <p class="news" data-lnews>Nova and the agents wrote <b>six times today.</b></p>
+    <div class="glass"><div class="rail">${LOG.map(([tm, a, who, lab, tx], i) => `<div class="bead" data-a="${a}" style="--c:${AC[a]}"><span class="tm">${tm}</span><span class="dot"></span><span class="by">${who}<span>· ${lab}</span></span><span class="tx">${tx}</span></div>`).join('')}</div></div>
+    <p class="lognote">Nothing here is yours, and nothing here quotes you. It stays in your vault and does not go to Notion.</p>
+  </div>
+  <div class="scrim" data-lscrim></div>
+  <div class="sheet" data-lsheet role="dialog" aria-label="Filter"><div class="grab"></div><div class="shh"><h5>Show entries</h5><button type="button" class="x" aria-label="Done">${svg(IC.close)}</button></div>
+    <div class="fh">Who</div>
+    <div class="fgrp">${[['Everyone', 'var(--ink3)', 'all'], ['Nova', 'var(--nova)', 'nova'], ['Coach', 'var(--coach)', 'coach'], ['Leader', 'var(--lead)', 'lead']].map(([n, c, k], i) => `<button type="button" class="srow${i === 0 ? ' sel' : ''}" data-who="${k}"><span class="wi" style="--c:${c}"></span><span class="t">${n}</span>${svg(IC.check, 'ic chk')}</button>`).join('')}</div>
+    <div class="fh">Kind, as today</div>
+    <div class="fgrp">${['All', 'Personal', 'Training', 'System'].map((n, i) => `<button type="button" class="srow${i === 0 ? ' sel' : ''}" data-kind="${n}"><span class="t">${n}</span>${svg(IC.check, 'ic chk')}</button>`).join('')}</div>
+  </div>`;
+}
+
+/* the picker sheet */
+function pickSheet() {
+  const kinds = [['deep', 'Deep'], ['review', 'Daily review'], ['life', 'My life']];
+  const card = (k) => {
+    if (k === 'deep') return `<div class="pcard" data-card="deep" style="--c:var(--deep)"><div class="pin"><div class="pk">${svg(IC.deep)}Deep<span class="inv">invented example</span></div><p class="pq" data-q>${P_DEEP[0]}</p><p class="pfrom">Stands alone; reads nothing of your schedule.</p><div class="pact"><button type="button" class="another">${svg(IC.another)}Another</button><button type="button" class="use">${svg(IC.check)}Use</button></div></div></div>`;
+    if (k === 'review') return `<div class="pcard" data-card="review" style="--c:var(--life)"><div class="pin"><div class="pk">${svg(IC.review)}Daily review<span class="inv">invented example</span></div><p class="pq" data-q>${P_REVIEW.q}</p><p class="pfrom">From today's Daily review: <b>${P_REVIEW.concept}</b> (demo concept)</p><div class="pact"><button type="button" class="another">${svg(IC.another)}Another</button><button type="button" class="use">${svg(IC.check)}Use</button></div></div></div>`;
+    return `<div class="pcard" data-card="life" style="--c:var(--life)"><div class="pin"><div class="pk">${svg(IC.life)}My life<span class="inv">invented example</span></div><p class="pq" data-q>${P_LIFE[0].q}</p><div class="psrc">${SRC.map(([s, n]) => `<span class="sc${s === 'cal' ? ' lit' : ''}${s === 'money' ? ' gone' : ''}" data-src="${s}">${svg(IC[s])}${n}</span>`).join('')}</div><p class="pfrom" data-from>${P_LIFE[0].from} (demo)</p><div class="pact"><button type="button" class="another">${svg(IC.another)}Another</button><button type="button" class="use">${svg(IC.check)}Use</button></div></div></div>`;
+  };
+  return `<div class="scrim" data-pscrim></div>
+  <div class="sheet pick" data-psheet role="dialog" aria-label="Prompts for today"><div class="grab"></div>
+    <div class="shh"><h5>Three prompts for today</h5><button type="button" class="x" aria-label="Close">${svg(IC.close)}</button></div>
+    <div class="kseg" role="tablist"><span class="th"></span>${kinds.map(([k, n], i) => `<button type="button" role="tab" data-k="${k}" class="${i === 0 ? 'on' : ''}" style="--c:${k === 'deep' ? 'var(--deep)' : 'var(--life)'}"><i></i>${svg(IC.check, 'ic ck')}${n}</button>`).join('')}</div>
+    <div class="cards"><div class="track">${kinds.map(([k]) => card(k)).join('')}</div></div>
+    <div class="pfoot"><span class="chosen" data-chosen>Use one, some or all</span><button type="button" class="write idle">Write</button></div>
+  </div>`;
+}
+function goCard(S, i) {
+  $('.track', S).style.transform = `translateX(${-i * 100}%)`;
+  $('.kseg .th', S).style.transform = `translateX(${i * 100}%)`;
+  $$('.kseg button', S).forEach((b, j) => b.classList.toggle('on', j === i));
+}
+async function swapQ(el, text, W) {
+  el.classList.add('swap');
+  await W(200);
+  el.textContent = text;
+  el.classList.remove('swap');
+}
+
+/* land a new entry on today, acted out */
+async function landEntry(S, e, W, first = true) {
+  const box = $('[data-today]', S);
+  const i = box.children.length;
+  box.insertAdjacentHTML(first ? 'afterbegin' : 'beforeend', entryHTML(e, i));
+  const el = first ? box.firstElementChild : box.lastElementChild;
+  fadeIn(el, 14, 380);
+  if (!RM()) $('.ring1', el).animate([{ opacity: .9, transform: 'scale(.6)' }, { opacity: 0, transform: 'scale(1.8)' }], { duration: 700 * SLOW, easing: 'ease-out', delay: 200 * SLOW });
+  return el;
+}
+async function syncSettle(el, W, wait = 900) {
+  const s = $('.sync', el);
+  await W(wait);
+  s.outerHTML = SYNC.ok();
+}
+const clearField = (S) => { const f = $('.comp .field', S); $('.tx', f).textContent = ''; $('.ph', f).style.display = ''; $('.comp .save', S).classList.add('idle'); };
+
+const SCRIPTS = {};
+
+/* ======================= MINE + LOG ======================= */
+SCRIPTS.mine = async (P, m, W, tap) => {
+  const S = P.stage;
+  S.innerHTML = minePage() + TPOP + TOAST;
+  const scr = $('[data-v="mine"]', S);
+  if (m === 0) {
+    // arrival over the skeleton
+    scr.style.opacity = 0;
+    S.insertAdjacentHTML('afterbegin', skeleton());
+    await W(700);
+    const sk = $('[data-skel]', S);
+    sk.style.opacity = 0;
+    scr.style.opacity = '';
+    const parts = [$('.lt', scr), $('.sw', scr), $('.news', scr), $('.comp', scr), $('.ribbon', scr), ...$$('.ghead', scr), $('[data-today]', scr), $('[data-week]', scr)];
+    parts.forEach((p, i) => { p.style.opacity = 0; setTimeout(() => { p.style.opacity = ''; fadeIn(p, 8, 340); }, i * 45 * SLOW); });
+    await W(300);
+    setRibbon(S, ribbonCounts());
+    await W(500); sk.remove();
+    await W(2600);
+    scr.style.transform = 'translateY(-300px)';
+    await W(2600);
+    scr.style.transform = '';
+    await W(1800);
+    return start('mine', 0);
+  }
+  setRibbon(S, ribbonCounts());
+  if (m === 1) {
+    await W(900);
+    const field = $('.comp .field', S);
+    await tap(field);
+    await typeInto(field, 'Demo words. Said no to the late call and the evening felt longer.', W);
+    $('.comp .save', S).classList.remove('idle');
+    await W(400);
+    await tap($('.comp .save', S));
+    clearField(S);
+    const el = await landEntry(S, { tm: '21:08', tag: 'own', tx: 'Demo words. Said no to the late call and the evening felt longer.', s: 'busy' }, W);
+    setRibbon(S, ribbonCounts({ own: 1 }));
+    $('[data-news]', S).innerHTML = 'Three entries today. <b>Two off the cuff, one deep.</b>';
+    await toast(S, 'Saved to your Journal and Notion', 'Undo', 'var(--own)', W, 300);
+    await syncSettle(el, W, 900);
+    await W(2400);
+    hideToast(S);
+    await W(1500);
+    return start('mine', 1);
+  }
+  if (m === 2) {
+    await W(900);
+    const ent = $('.ent[data-tag="own"]', S);
+    const tg = $('.tagc', ent);
+    await tap(tg);
+    const pop = $('.tpop', S), r = rel(P, tg);
+    pop.style.left = r.x + 'px'; pop.style.top = (r.y + r.h + 6) + 'px'; pop.style.setProperty('--ox', '20px');
+    $$('button', pop).forEach((b) => b.classList.toggle('sel', b.dataset.set === 'own'));
+    pop.classList.add('on');
+    await W(800);
+    const set = async (t) => {
+      ent.dataset.tag = t; ent.style.setProperty('--c', TAG[t].c);
+      tg.style.setProperty('--c', TAG[t].c); tg.innerHTML = svg(IC[t]) + TAG[t].n;
+    };
+    await tap($('[data-set="deep"]', pop));
+    pop.classList.remove('on');
+    await set('deep');
+    setRibbon(S, ribbonCounts({ own: -1, deep: 1 }));
+    $('[data-news]', S).innerHTML = 'Two entries today. <b>Both deep.</b>';
+    const u = await toast(S, 'Tagged Deep, here and in Notion', 'Undo', 'var(--deep)', W, 2000);
+    await tap(u);
+    await set('own');
+    setRibbon(S, ribbonCounts());
+    $('[data-news]', S).innerHTML = 'Two entries today. <b>One off the cuff, one deep.</b>';
+    hideToast(S);
+    await W(300);
+    await toast(S, 'Back to Own', '', 'var(--own)', W, 1500);
+    hideToast(S);
+    await W(1600);
+    return start('mine', 2);
+  }
+  if (m === 3) {
+    await W(700);
+    scr.style.transform = 'translateY(-440px)';
+    await W(800);
+    const row = $('.drow[data-day="0"]', S);
+    await tap($('.dtop', row));
+    row.classList.add('open');
+    const dent = $('.dent', row); dent.hidden = false;
+    dent.innerHTML = WEEK[0].e.map(([t, tm, tx, from], i) => entryHTML({ tm, tag: t, tx, q: from ? `Answered a prompt · ${from}` : '', s: 'ok' }, i)).join('');
+    const dots = $$('.dots i', row);
+    for (let i = 0; i < dent.children.length; i++) {
+      if (!RM()) dots[i].animate([{ transform: 'scale(1)' }, { transform: 'scale(1.7)' }, { transform: 'scale(1)' }], { duration: 300 * SLOW });
+      fadeIn(dent.children[i], -8, 320);
+      await W(110);
+    }
+    await W(3200);
+    scr.style.transform = '';
+    await W(1400);
+    return start('mine', 3);
+  }
+  // m === 4: to Nova's log
+  await W(900);
+  const sw = $('.sw', scr);
+  await tap($('[data-sw="log"]', sw));
+  sw.classList.add('log');
+  $$('button', sw).forEach((b) => b.classList.toggle('on', b.dataset.sw === 'log'));
+  await W(140);
+  S.insertAdjacentHTML('beforeend', `<div class="lwrap" style="position:absolute;inset:0;z-index:8">${logPage()}</div>`);
+  const lw = $('.lwrap', S);
+  const lscr = $('[data-v="log"]', lw);
+  // the switch already moved; the log's own switch rests in place, its body slides from the right
+  const body = [$('.news', lscr), $('.glass', lscr), $('.lognote', lscr)];
+  $('.lt', lscr).style.visibility = 'hidden'; $('.sw', lscr).style.visibility = 'hidden';
+  const mineBody = [$('.news', scr), $('.comp', scr), $('.ribbon', scr), ...$$('.ghead', scr), $('[data-today]', scr), $('[data-week]', scr)];
+  if (RM()) { mineBody.forEach((e) => e.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 200 * SLOW, fill: 'forwards' })); body.forEach((e) => e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 * SLOW, fill: 'both' })); }
+  else {
+    mineBody.forEach((e) => e.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateX(-30%)', opacity: 0 }], { duration: 360 * SLOW, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' }));
+    body.forEach((e) => e.animate([{ transform: 'translateX(100%)', opacity: .6 }, { transform: 'none', opacity: 1 }], { duration: 420 * SLOW, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' }));
+  }
+  const beads = $$('.bead', lw);
+  beads.forEach((b, i) => { b.style.opacity = 0; setTimeout(() => { b.style.opacity = ''; fadeIn(b, -8, 320); }, (260 + i * 70) * SLOW); });
+  await W(400);
+  scr.style.visibility = 'hidden';
+  $('.lt', lscr).style.visibility = ''; $('.sw', lscr).style.visibility = '';
+  await W(1800);
+  await tap($('[data-lfilter]', lw));
+  $('[data-lscrim]', lw).classList.add('on'); $('[data-lsheet]', lw).classList.add('on');
+  await W(700);
+  const coach = $('[data-who="coach"]', lw);
+  await tap(coach);
+  $$('[data-who]', lw).forEach((x) => x.classList.toggle('sel', x === coach));
+  await W(500);
+  await tap($('[data-lsheet] .x', lw));
+  $('[data-lscrim]', lw).classList.remove('on'); $('[data-lsheet]', lw).classList.remove('on');
+  beads.forEach((b) => { if (b.dataset.a !== 'coach') fadeOut(b, 160).then(() => b.classList.add('hide')); });
+  await W(200);
+  $('[data-lnews]', lw).innerHTML = 'Showing <b>the Coach</b>: one entry today.';
+  $('[data-lfilter]', lw).style.background = 'color-mix(in srgb, var(--nova) 20%, transparent)';
+  await W(2400);
+  await tap($$('.sw [data-sw="mine"]', lw)[0]);
+  $('.sw', lscr).classList.remove('log');
+  await W(260);
+  scr.style.visibility = '';
+  mineBody.forEach((e) => { e.getAnimations().forEach((a) => a.cancel()); fadeIn(e, 0, 240); });
+  await fadeOut(lw, 200);
+  lw.remove();
+  await W(1600);
+  return start('mine', 4);
+};
+
+/* ======================= PICKER ======================= */
+SCRIPTS.pick = async (P, m, W, tap) => {
+  const S = P.stage;
+  S.innerHTML = minePage() + pickSheet() + TOAST;
+  setRibbon(S, ribbonCounts());
+  const sheet = $('[data-psheet]', S), scrim = $('[data-pscrim]', S);
+  const openSheet = async () => {
+    await W(700);
+    await tap($('.comp .ask', S));
+    // the three cards' prompts are written while the sheet rises: a shimmer holds each place
+    $$('.pq', sheet).forEach((q) => { q.dataset.t = q.textContent; q.innerHTML = '<span class="loadq"></span><span class="loadq" style="width:70%"></span>'; });
+    scrim.classList.add('on'); sheet.classList.add('on');
+    await W(800);
+    $$('.pq', sheet).forEach((q, i) => { setTimeout(() => { q.textContent = q.dataset.t; fadeIn(q, 4, 260); }, i * 90 * SLOW); });
+    await W(700);
+  };
+  await openSheet();
+  const used = new Set();
+  const markUse = (k) => {
+    const c = $(`[data-card="${k}"]`, sheet);
+    c.classList.toggle('used'); used.has(k) ? used.delete(k) : used.add(k);
+    $(`.kseg [data-k="${k}"]`, sheet).classList.toggle('used', used.has(k));
+    const n = used.size;
+    $('[data-chosen]', sheet).innerHTML = n ? `<b>${n} chosen</b>, answered in turn` : 'Use one, some or all';
+    const wr = $('.write', sheet); wr.classList.toggle('idle', !n); wr.textContent = n > 1 ? `Write ${n}` : 'Write';
+  };
+  if (m === 0) {
+    await W(900);
+    // a swipe: the cards move and the switch follows
+    goCard(S, 1); await W(1600);
+    goCard(S, 2); await W(1400);
+    await tap($('[data-card="life"] .another', sheet));
+    const lq = $('[data-card="life"] [data-q]', sheet);
+    $$('[data-card="life"] .sc', sheet).forEach((s) => s.classList.toggle('lit', s.dataset.src === 'train'));
+    $('[data-from]', sheet).textContent = P_LIFE[1].from + ' (demo)';
+    await swapQ(lq, P_LIFE[1].q, W);
+    await W(1600);
+    await tap($('.kseg [data-k="deep"]', sheet));
+    goCard(S, 0); await W(900);
+    await tap($('[data-card="deep"] .another', sheet));
+    await swapQ($('[data-card="deep"] [data-q]', sheet), P_DEEP[1], W);
+    await W(2200);
+    return start('pick', 0);
+  }
+  if (m === 2) {
+    goCard(S, 2); await W(1100);
+    const lq = $('[data-card="life"] [data-q]', sheet);
+    for (const i of [1, 2, 3]) {
+      await tap($('[data-card="life"] .another', sheet));
+      $$('[data-card="life"] .sc', sheet).forEach((s) => s.classList.toggle('lit', s.dataset.src === P_LIFE[i].src));
+      if (i === 3) {
+        const money = $('[data-card="life"] [data-src="money"]', sheet);
+        if (!RM()) money.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'none' }], { duration: 260 * SLOW });
+      }
+      $('[data-from]', sheet).textContent = P_LIFE[i].from + (i === 3 ? ' (Money skipped: no import this month)' : ' (demo)');
+      await swapQ(lq, P_LIFE[i].q, W);
+      await W(2000);
+    }
+    await W(800);
+    return start('pick', 2);
+  }
+  // m === 1: use two, answer in turn
+  await W(700);
+  await tap($('[data-card="deep"] .use', sheet)); markUse('deep');
+  await W(600);
+  goCard(S, 1); await W(700);
+  goCard(S, 2); await W(900);
+  await tap($('[data-card="life"] .use', sheet)); markUse('life');
+  await W(900);
+  await tap($('.write', sheet));
+  sheet.classList.remove('on'); scrim.classList.remove('on');
+  await W(420);
+  const qs = $('[data-qstep]', S), field = $('.comp .field', S), save = $('.comp .save', S);
+  const turn = [
+    { tag: 'deep', q: P_DEEP[0], a: 'Demo words. That I am bad at rest. I have not checked that since school.', n: '1 of 2' },
+    { tag: 'life', q: P_LIFE[0].q, a: 'Demo words. The one who still asks the good question at four o\'clock.', n: '2 of 2', from: 'From your calendar' },
+  ];
+  const landed = { deep: 0, life: 0 };
+  for (const t of turn) {
+    qs.classList.add('on');
+    $('[data-qn]', qs).textContent = t.n;
+    $('[data-qtag]', qs).innerHTML = tagc(t.tag);
+    $('[data-qtext]', qs).textContent = t.q;
+    fadeIn(qs, 10, 340);
+    save.textContent = t.n === '1 of 2' ? 'Save, next' : 'Save';
+    await W(1100);
+    await typeInto(field, t.a, W, 30);
+    save.classList.remove('idle');
+    await W(300);
+    await tap(save);
+    clearField(S);
+    const el = await landEntry(S, { tm: t.n[0] === '1' ? '21:09' : '21:11', tag: t.tag, q: t.q, tx: t.a, s: 'busy' }, W);
+    landed[t.tag]++;
+    setRibbon(S, ribbonCounts(landed));
+    syncSettle(el, W, 900).catch(() => {});
+    await fadeOut(qs, 160);
+    qs.getAnimations().forEach((a) => a.cancel());
+    await W(300);
+  }
+  qs.classList.remove('on'); save.textContent = 'Save';
+  $('[data-news]', S).innerHTML = 'Four entries today. <b>Two answered prompts tonight.</b>';
+  await toast(S, 'Two entries saved, Deep and Life', 'Undo', 'var(--own)', W, 2600);
+  hideToast(S);
+  await W(1800);
+  return start('pick', 1);
+};
+
+/* ======================= NOTION ======================= */
+SCRIPTS.notion = async (P, m, W, tap) => {
+  const S = P.stage;
+  if (m === 2) {
+    S.innerHTML = minePage({ setup: true, today: TODAY0.map((e) => ({ ...e, s: 'none' })), news: 'Two entries today, <b>saved in your vault.</b>' }) + `<div class="scrim" data-nscrim></div>
+    <div class="sheet" data-nsheet role="dialog" aria-label="Connect Notion"><div class="grab"></div><div class="shh"><h5>Back up to Notion</h5><button type="button" class="x" aria-label="Close">${svg(IC.close)}</button></div>
+      <ol class="steps"><li>Make an <b>internal integration</b> in Notion's settings and copy its key.</li><li>In the <b>Journal</b> database, add the integration under Connections.</li><li>Paste the key into <b>Settings, Notion</b> on your Mac.</li></ol>
+      <div class="found"><h6>Then Nova checks the Journal database</h6><div class="fl">${['Entry', 'Date', 'Tag', 'Prompt', 'Prompt from', 'Written in', 'Nova id', 'Created'].map((f) => `<span>${svg(IC.check)}${f}</span>`).join('')}</div></div>
+      <p class="fnote">Nothing is copied until all eight fields are found. Then Nova offers to back up the entries you have already written.</p></div>` + TOAST;
+    setRibbon(S, ribbonCounts());
+    await W(1400);
+    await tap($('[data-setup] button', S));
+    $('[data-nscrim]', S).classList.add('on'); $('[data-nsheet]', S).classList.add('on');
+    await W(1600);
+    for (const f of $$('.fl span', S)) { f.classList.add('ok'); await W(160); }
+    await W(2600);
+    await tap($('[data-nsheet] .x', S));
+    $('[data-nscrim]', S).classList.remove('on'); $('[data-nsheet]', S).classList.remove('on');
+    await W(1800);
+    return start('notion', 2);
+  }
+  S.innerHTML = minePage({ offline: m === 1 }) + TOAST;
+  setRibbon(S, ribbonCounts());
+  if (m === 3) {
+    await W(1600);
+    const el = await landEntry(S, { tm: '20:55', tag: 'own', tx: 'Demo words. Wrote this one on the laptop between calls.', s: 'from' }, W);
+    setRibbon(S, ribbonCounts({ own: 1 }));
+    $('[data-news]', S).innerHTML = 'Three entries today. <b>One came from Notion.</b>';
+    await toast(S, 'One entry arrived from Notion', 'Open', 'var(--life)', W, 2600);
+    hideToast(S);
+    await W(2600);
+    return start('notion', 3);
+  }
+  await W(900);
+  const field = $('.comp .field', S);
+  await tap(field);
+  await typeInto(field, 'Demo words. A quiet hour after dinner, nothing scheduled.', W, 30);
+  $('.comp .save', S).classList.remove('idle');
+  await W(300);
+  await tap($('.comp .save', S));
+  clearField(S);
+  if (m === 0) {
+    const el = await landEntry(S, { tm: '21:08', tag: 'own', tx: 'Demo words. A quiet hour after dinner, nothing scheduled.', s: 'busy' }, W);
+    setRibbon(S, ribbonCounts({ own: 1 }));
+    await W(700);
+    $('.sync', el).outerHTML = SYNC.wait('In your vault · to Notion');
+    await W(1100);
+    $('.sync', el).outerHTML = SYNC.ok();
+    if (!RM()) $('.sync', el).animate([{ transform: 'scale(.8)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 240 * SLOW, easing: 'cubic-bezier(.23,1,.32,1)' });
+    await toast(S, 'Saved to your Journal and Notion', 'Undo', 'var(--own)', W, 2600);
+    hideToast(S);
+    await W(1600);
+    return start('notion', 0);
+  }
+  // offline
+  const el = await landEntry(S, { tm: '21:08', tag: 'own', tx: 'Demo words. A quiet hour after dinner, nothing scheduled.', s: 'wait', w: 'Waiting on this phone' }, W);
+  await toast(S, 'Kept on this phone until your Mac answers', 'Undo', 'var(--own)', W, 2400);
+  hideToast(S);
+  await W(1400);
+  const off = $('[data-offl]', S);
+  off.innerHTML = svg(IC.synced) + 'Back online';
+  await W(700);
+  $('.sync', el).outerHTML = SYNC.wait('In your vault · to Notion');
+  setRibbon(S, ribbonCounts({ own: 1 }));
+  await W(1200);
+  $('.sync', el).outerHTML = SYNC.ok();
+  await fadeOut(off, 240);
+  await toast(S, 'Saved to your Journal and Notion', '', 'var(--own)', W, 2000);
+  hideToast(S);
+  await W(1600);
+  return start('notion', 1);
+};
+
+/* ======================= HOME ======================= */
+function homePage(written) {
+  return `<div class="scr" data-v="home">
+    <p class="hdate">Sunday 11 October</p><h1 class="hgreet">Good evening</h1>
+    <p class="hline">A full day; <b style="font-weight:400;color:var(--ink)">training done.</b></p>
+    <div class="glass rings"><svg viewBox="0 0 112 112" aria-hidden="true">
+      <circle class="trk" cx="56" cy="56" r="49" stroke="#ff7a8a"/><circle class="arc" pathLength="1" cx="56" cy="56" r="49" stroke="#ff7a8a" data-a=".82"/>
+      <circle class="trk" cx="56" cy="56" r="35" stroke="#5fe8a8"/><circle class="arc" pathLength="1" cx="56" cy="56" r="35" stroke="#5fe8a8" data-a=".64"/>
+      <circle class="trk" cx="56" cy="56" r="21" stroke="#59e6ff"/><circle class="arc" pathLength="1" cx="56" cy="56" r="21" stroke="#59e6ff" data-a=".9"/></svg>
+      <div class="rlab"><span><b class="num" data-to="8214">0</b>steps (demo)</span><span><b class="num" data-to="142">0</b>g protein (demo)</span><span><b class="num" data-to="7">0</b>h sleep (demo)</span></div></div>
+    <button type="button" class="glass drr" data-row><span class="tl">${svg(IC.review)}</span><span class="t"><small>Daily review${written ? ' · you wrote on it today' : ''}</small><span>${P_REVIEW.concept}</span></span>${written ? `<span class="go" style="color:var(--good);background:color-mix(in srgb,var(--good) 14%,transparent)">${svg(IC.check)}Written</span>` : `<span class="go">${svg(IC.own)}Write on it</span>`}</button>
+    <div class="glass ghost dim"><span class="gl">The plan, as today</span></div><div class="glass ghost dim" style="height:90px"><span class="gl">Training, as today</span></div>
+  </div>`;
+}
+SCRIPTS.home = async (P, m, W, tap) => {
+  const S = P.stage;
+  S.innerHTML = homePage(m === 1) + TOAST;
+  const home = $('[data-v="home"]', S);
+  const arrive = () => {
+    $$('.arc', S).forEach((a) => { a.style.strokeDashoffset = 1; });
+    requestAnimationFrame(() => requestAnimationFrame(() => $$('.arc', S).forEach((a) => { a.style.strokeDashoffset = 1 - a.dataset.a; })));
+    $$('[data-to]', S).forEach((n) => { n.dataset.v = 0; countTo(n, +n.dataset.to, 650); });
+    [$('.rings', S), $('[data-row]', S), ...$$('.ghost', S)].forEach((e, i) => setTimeout(() => fadeIn(e, 8, 340), i * 50 * SLOW));
+  };
+  arrive();
+  if (m === 1) {
+    await W(1200);
+    const row = $('[data-row]', S);
+    if (!RM()) $('.go', row).animate([{ transform: 'scale(.9)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300 * SLOW, easing: 'cubic-bezier(.23,1,.32,1)', fill: 'both' });
+    await W(4200);
+    return start('home', 1);
+  }
+  await W(2200);
+  await tap($('[data-row] .go', S));
+  // push: the Journal comes in from the right
+  S.insertAdjacentHTML('beforeend', `<div class="push">${minePage({ news: 'Writing on today\'s review.' })}${pickSheet()}</div>`);
+  const pg = $('.push', S);
+  $('.lt', pg).insertAdjacentHTML('beforebegin', `<button type="button" class="backb">${svg(IC.back)}Home</button>`);
+  setRibbon(pg, ribbonCounts());
+  if (RM()) pg.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 * SLOW, fill: 'both' });
+  else {
+    pg.animate([{ transform: 'translateX(100%)' }, { transform: 'none' }], { duration: 440 * SLOW, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'both' });
+    home.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateX(-25%)', opacity: .4 }], { duration: 440 * SLOW, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' });
+  }
+  await W(600);
+  // the sheet opens on the Daily review card, already chosen
+  const sheet = $('[data-psheet]', pg), scrim = $('[data-pscrim]', pg);
+  goCard(pg, 1);
+  $('[data-card="review"]', sheet).classList.add('used');
+  $('.kseg [data-k="review"]', sheet).classList.add('used');
+  $('[data-chosen]', sheet).innerHTML = '<b>1 chosen</b> from Home';
+  $('.write', sheet).classList.remove('idle');
+  scrim.classList.add('on'); sheet.classList.add('on');
+  await W(2200);
+  await tap($('.write', sheet));
+  sheet.classList.remove('on'); scrim.classList.remove('on');
+  await W(420);
+  const qs = $('[data-qstep]', pg);
+  qs.classList.add('on');
+  $('[data-qn]', qs).textContent = 'Daily review';
+  $('[data-qtag]', qs).innerHTML = tagc('life');
+  $('[data-qtext]', qs).textContent = P_REVIEW.q;
+  fadeIn(qs, 10, 340);
+  await W(1200);
+  await typeInto($('.comp .field', pg), 'Demo words. Saying yes to every Friday drink.', W, 32);
+  $('.comp .save', pg).classList.remove('idle');
+  await W(300);
+  await tap($('.comp .save', pg));
+  clearField(pg); qs.classList.remove('on');
+  const el = await landEntry(pg, { tm: '21:10', tag: 'life', q: P_REVIEW.q, tx: 'Demo words. Saying yes to every Friday drink.', s: 'busy' }, W);
+  setRibbon(pg, ribbonCounts({ life: 1 }));
+  syncSettle(el, W, 900).catch(() => {});
+  await toast(pg.parentElement, 'Saved as Life, from the Daily review', 'Undo', 'var(--life)', W, 2400);
+  hideToast(S);
+  await W(1600);
+  return start('home', 0);
+};
+
+/* ======================= wiring ======================= */
+mountPhone('mine', 'var(--own)');
+mountPhone('pick', 'var(--deep)');
+mountPhone('notion', 'var(--life)');
+mountPhone('home', 'var(--vi)', true);
+fit();
+window.addEventListener('resize', fit);
+$$('.seg[data-for] button').forEach((b) => b.addEventListener('click', () => start(b.closest('.seg').dataset.for, +b.dataset.m)));
+$$('[data-again]').forEach((b) => b.addEventListener('click', () => start(b.dataset.again, PHONES[b.dataset.again].m)));
+$('#slowT').addEventListener('click', (e) => { SLOW = SLOW === 1 ? 4 : 1; doc.classList.toggle('slow', SLOW === 4); e.currentTarget.setAttribute('aria-pressed', String(SLOW === 4)); Object.keys(PHONES).forEach((k) => PHONES[k].run && start(k, PHONES[k].m)); });
+$('#rmT').addEventListener('click', (e) => { forceRM = !forceRM; syncRM(); e.currentTarget.setAttribute('aria-pressed', String(forceRM)); Object.keys(PHONES).forEach((k) => PHONES[k].run && start(k, PHONES[k].m)); });
+if (mq.addEventListener) mq.addEventListener('change', syncRM);
+Object.keys(PHONES).forEach((k) => once(PHONES[k].box, () => { if (!PHONES[k].run) start(k, 0); }));
+})();
+</script>
