@@ -221,6 +221,20 @@ export const api = {
   setShoppingQty: (conn, id, qty) => post(conn, '/api/shopping-list/qty', { id, qty }),
   clearShoppingList: (conn) => post(conn, '/api/shopping-list/clear'),
   restoreShoppingList: (conn, items) => post(conn, '/api/shopping-list/restore', { items }),
+  // the summary Shopping screen (mockup 92): a line removed with its Undo set,
+  // prices read from the chains, rewards offers from his saved emails, logos
+  removeShoppingItems: (conn, ids) => post(conn, '/api/shopping-list/remove', { ids }),
+  shopPrices: (conn) => call(conn, '/api/shopping/prices'),
+  shopRetry: (conn, chain) => post(conn, '/api/shopping/prices/retry', { chain }),
+  shopOffers: (conn) => call(conn, '/api/shopping/offers'),
+  shopPin: (conn, key, product) => post(conn, '/api/shopping/pins', { key, product }),
+  shopOfferMark: (conn, id, body) => post(conn, `/api/shopping/offers/${encodeURIComponent(id)}/mark`, body),
+  shopLogos: (conn) => call(conn, '/api/shopping/logos'),
+  shopLogoBlobUrl: async (conn, key) => {
+    const res = await fetch(baseOf(conn) + `/api/shopping/logo/${encodeURIComponent(key)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
+    if (!res.ok) return null; // no logo cached: the drawn mark stands
+    return URL.createObjectURL(await res.blob());
+  },
   rotation: (conn) => call(conn, '/api/rotation'),
   setRotationSlot: (conn, slot, recipeId) => post(conn, '/api/rotation', { slot, recipeId }),
   setRotationVariant: (conn, slot, altId, recipeId = null) => post(conn, '/api/rotation/variant', { slot, altId, recipeId }),

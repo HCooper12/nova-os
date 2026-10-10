@@ -3,9 +3,18 @@ import { SwipeRow } from '../SwipeRow.jsx';
 import { Interactive } from '../Interactive.jsx';
 import { Eyebrow, TextAction, Chip, isAppleStyle, ScreenHead, Meta, Button } from '../Controls.jsx';
 import { CountUp } from '../CountUp.jsx';
+import { ShoppingSummary } from './ShoppingSummary.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
+// Under the `summary` style (his phone) Shopping is the redesign, mockup 92
+// (ShoppingSummary.jsx, 10 Oct 2026). Under cupertino and command this
+// classic list stays.
 export function Shopping({ v }) {
+  if (v.shopSum) return <ShoppingSummary v={v} />;
+  return <ShoppingClassic v={v} />;
+}
+
+function ShoppingClassic({ v }) {
   return (
     <div style={v.wrapShopping} data-screen-label="Shopping List">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>

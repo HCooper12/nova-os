@@ -17,6 +17,8 @@ import { whereLabel, deviceName } from '../conversationSync.js';
 // this device, named once: a record line from another one says where it was said
 const THIS_DEVICE = deviceName(typeof navigator === 'undefined' ? '' : navigator.userAgent);
 import { RUNNING_BUILD, applyUpdate } from '../buildCheck.js';
+import { buildShopView } from '../shopModel.js';
+import { demoShopState, shopDemoVariant, demoShopRotation, demoShopRecipes } from '../shopDemo.js';
 
 // The smaller screens: Voice (concept preview), Memory Galaxy, Shopping List,
 // Claude Code, and transcript ingest. Adds to ctx: shoppingItems (nav count).
@@ -97,6 +99,12 @@ export function valsMisc(app, ctx) {
     },
   ];
 
+  // THE SUMMARY SHOPPING PAGE (mockup 92, built 10 Oct 2026): everything it
+  // draws is computed by src/shopModel.js from the list, the day's price
+  // reads, the rewards offers and the rotation; demo draws the invented week
+  // (src/shopDemo.js). Under cupertino and command the classic list stays.
+  const shopSum = st.novaStyle === 'summary' && st.screen === 'shopping' ? shopSummary(app, st, { demoMode, isOffline }) : null;
+
   // shared with valsChrome (nav count)
   Object.assign(ctx, { shoppingItems });
 
@@ -112,6 +120,7 @@ export function valsMisc(app, ctx) {
     instrumentsError: st.instrumentsError || null,
     refreshInstruments: () => app.refreshInstruments(),
     // shopping list
+    shopSum,
     shoppingHeaderLabel: st.liveShoppingList ? `${shoppingItems.length} item${shoppingItems.length === 1 ? '' : 's'} · live from Obsidian` : 'Connect a backend in Settings',
     shoppingCategories,
     shoppingCheckedCount,
@@ -546,4 +555,70 @@ export function valsMisc(app, ctx) {
   // the Code screen (round 3): one model, built only while it is on screen
   out.code = st.screen === 'code' ? valsCode(app, ctx, { modelOptions: out.codeModelOptions }) : null;
   return out;
+}
+
+function shopSummary(app, st, { demoMode, isOffline }) {
+  const ds = demoMode ? (st.shopDemo || demoShopState(shopDemoVariant())) : null;
+  const list = demoMode ? (ds.items ? { items: ds.items } : null) : st.liveShoppingList;
+  const synced = st.lastSyncAt ? new Date(st.lastSyncAt) : new Date();
+  const view = buildShopView({
+    list,
+    prices: demoMode ? ds.prices : st.liveShopPrices,
+    offers: demoMode ? ds.offers : st.liveShopOffers,
+    rotation: demoMode ? demoShopRotation() : st.liveRotation,
+    recipes: demoMode ? demoShopRecipes() : st.liveRecipes,
+    logos: demoMode ? {} : (st.liveShopLogos || {}),
+    offline: isOffline || !!ds?.offline,
+    demo: demoMode,
+    syncedLabel: synced.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }),
+    outboxCount: (st.outbox || []).length,
+    group: st.shopGroup || 'aisle',
+  });
+  // stable doors for effects (the page loads on arrival and every 45 s)
+  if (!app._shopLoad) app._shopLoad = () => app.refreshShopExtras();
+  if (!app._shopTurn) app._shopTurn = () => app.shopTurn();
+  const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const all = (view.groups || []).flatMap((g) => g.rows).concat(view.sorting || []);
+  return {
+    view,
+    demo: demoMode,
+    sheet: st.shopSheet || null,
+    logos: demoMode ? {} : (st.liveShopLogos || {}),
+    adding: !!st.shopAdding,
+    addText: st.shoppingAddInput || '',
+    load: app._shopLoad,
+    turn: app._shopTurn,
+    back: () => app.navigate('index'),
+    openFuel: () => app.navigate('recipes'),
+    openSheet: (sheet) => app.openShopSheet(sheet),
+    closeSheet: (then) => app.closeShopSheet(then),
+    setGroup: (g) => app.setState({ shopGroup: g }),
+    jump: (id) => {
+      const el = typeof document !== 'undefined' ? document.getElementById(`nv-sh-${id}`) : null;
+      if (el) el.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    },
+    tick: (r) => app.shopTick(r.ids, !r.got, r.name),
+    remove: (r) => app.shopRemove(r.ids, `Removed ${r.name}`),
+    step: (r, d) => { if (r.stepItem) app.shopQty(r.stepItem, r.stepQty + d); },
+    qty: (id, n) => app.shopQty(id, n),
+    clearGot: () => app.shopRemove(view.got || [], `Cleared the ${view.gotLines} you got`),
+    clearAll: () => app.shopRemove(all.flatMap((r) => r.ids), `Cleared all ${all.length}`),
+    retry: (chain, name) => app.shopRetry(chain, name),
+    mark: (id, patch, title) => app.shopMark(id, patch, title),
+    pin: (key, product, title) => app.shopPin(key, product, title),
+    openApp: (p) => { try { window.open(p === 'er' ? 'https://www.everyday.com.au/' : 'https://experience.flybuys.com.au/', '_blank', 'noopener'); } catch { /* blocked */ } },
+    add: (names, source) => app.shopAdd(names, source),
+    addWeek: (missing) => {
+      const bySource = new Map();
+      for (const m of missing) { if (!bySource.has(m.from)) bySource.set(m.from, []); bySource.get(m.from).push(m.raw); }
+      for (const [from, names] of bySource) app.shopAdd(names, from);
+    },
+    setAdding: (on) => app.setState({ shopAdding: !!on }),
+    setAddText: (t) => app.setState({ shoppingAddInput: t }),
+    commitAdd: () => {
+      const names = String(st.shoppingAddInput || '').split('\n').map((x) => x.trim()).filter(Boolean);
+      app.setState({ shopAdding: false, ...(demoMode ? { shoppingAddInput: '' } : {}) });
+      if (names.length) app.shopAdd(names, null);
+    },
+  };
 }
