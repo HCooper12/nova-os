@@ -13,7 +13,7 @@ import {
 import { Ico, Tile, NavRow, SwitchRow, Group, HeaderCard, ActRow, Stages, Val } from './SettingsKit.jsx';
 import {
   VoicePage, NotifPage, AppearancePage, CheckPage, YouPage, CalendarsPage, ModelsPage, ModelGroupPage,
-  SnapshotsPage, BrowserPage, TabsPage, TrainPage,
+  SnapshotsPage, BrowserPage, NotionPage, TabsPage, TrainPage,
 } from './SettingsPages.jsx';
 
 // SETTINGS, DIRECTION A ("Rows"): his pick on 7 Oct 2026: "Love the rows
@@ -71,6 +71,7 @@ function RootPage({ P, open, q, setQ }) {
             <NavRow k="mac" tile={<Tile icon="laptop" hue={R.mac.tile === 'good' ? 'var(--s-good)' : 'var(--nv-ink40)'} />} label="The Mac" value={R.mac.value} ok={R.mac.ok} onOpen={() => open('mac')} />
             <NavRow k="cals" tile={<Tile icon="cal" />} label="Calendars" value={R.cals.value} staleAt={P.staleAt} onOpen={() => open('cals')} />
             <NavRow k="browser" tile={<Tile icon="globe" />} label="Research browser" value={R.browser.value} staleAt={P.staleAt} onOpen={() => open('browser')} />
+            <NavRow k="notion" tile={<Tile icon="notion" />} label="Notion" value={R.notion.value} staleAt={P.staleAt} onOpen={() => open('notion')} />
           </Group>
           <Group label="Under the hood" i={6}>
             <NavRow k="models" tile={<Tile icon="chip" />} label="Claude models" value={R.models.value} staleAt={P.staleAt} onOpen={() => open('models')} />
@@ -171,6 +172,7 @@ function PageBody({ id, P, open }) {
   if (id === 'snap') return <SnapshotsPage P={P} />;
   if (id === 'mac') return <MacPage P={P} />;
   if (id === 'browser') return <BrowserPage P={P} />;
+  if (id === 'notion') return <NotionPage P={P} />;
   if (id === 'tabs') return <TabsPage P={P} />;
   if (id === 'train') return <TrainPage P={P} />;
   return null;

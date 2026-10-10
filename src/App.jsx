@@ -684,6 +684,9 @@ export default class App extends Component {
     settingsPath: (() => { try { return screenFromHash() === 'settings' && window.history.state?.novaView === 'settings' ? cleanPath(window.history.state.settingsPath) : []; } catch { return []; } })(),
     settingsLit: null, settingsDemo: null,
     liveQuietHours: null, quietHoursError: false, quietHoursBusy: false, liveBrowserStatus: null,
+    // NOTION, HIS KEY (Settings › Notion): read-only status from the Mac
+    // (server/lib/notionAuth.js never hands the key itself to the client).
+    liveNotionStatus: null, notionStatusError: false, notionSaving: false, notionSaveError: '',
     liveProfile: null, profileEditing: false, profileDraft: { focus: '', priorities: '', bestSelf: '', notes: '' }, profileSaving: false,
     liveLearning: null,
     // offline outbox — writes queued while the backend is unreachable
@@ -6813,6 +6816,7 @@ export default class App extends Component {
     if (this.state.liveModelPrefs == null) this.loadModelPrefs();
     this.loadQuietHours();
     this.loadBrowserStatus();
+    this.loadNotionStatus();
   }
   // One lane, one field. The server answers with the whole board, so what
   // renders after a write is always the server's truth rather than a guess.
@@ -6887,6 +6891,34 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     api.browserStatus(conn).then((b) => this.setState({ liveBrowserStatus: b })).catch(() => {});
+  }
+  // NOTION, HIS KEY (Settings › Notion). The status read is honest and
+  // read-only; the Mac holds the secret (server/lib/notionAuth.js), this
+  // never sees it. Saving refuses before asking the Mac to check it with
+  // Notion, so a typo never gets as far as "stored".
+  loadNotionStatus() {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ notionStatusError: false });
+    api.notionStatus(conn)
+      .then((s) => this.setState({ liveNotionStatus: s, notionStatusError: false }))
+      .catch(() => this.setState({ notionStatusError: true }));
+  }
+  saveNotionToken(token) {
+    const conn = getConnection();
+    if (!conn || this.state.notionSaving) return;
+    this.setState({ notionSaving: true, notionSaveError: '' });
+    api.saveNotionToken(conn, token)
+      .then((s) => { this.setState({ notionSaving: false, liveNotionStatus: s }); this.toastMsg('Notion connected'); })
+      .catch((e) => this.setState({ notionSaving: false, notionSaveError: e.message || 'Notion did not accept that key' }));
+  }
+  disconnectNotion() {
+    const conn = getConnection();
+    if (!conn) return;
+    api.disconnectNotion(conn)
+      .then(() => this.setState({ liveNotionStatus: { connected: false, botName: null, workspaceName: null, journalShared: false } }))
+      .then(() => this.toastMsg('Notion disconnected'))
+      .catch((e) => this.toastMsg(`Could not disconnect Notion: ${e.message}`));
   }
 
   // The ask poll, attachable from a fresh boot too — an iOS reclaim used to

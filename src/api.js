@@ -377,6 +377,11 @@ export const api = {
   openIngestJobs: (conn) => call(conn, '/api/ingest'),
   browserStatus: (conn) => call(conn, '/api/browser/status'),
   browserSignIn: (conn, url) => post(conn, '/api/browser/sign-in', { url }),
+  // NOTION, HIS KEY: a status read (never the token itself), a save that the
+  // Mac checks with Notion before it ever lands on disk, and a disconnect.
+  notionStatus: (conn) => call(conn, '/api/integrations/notion'),
+  saveNotionToken: (conn, token) => post(conn, '/api/integrations/notion', { token }),
+  disconnectNotion: (conn) => del(conn, '/api/integrations/notion'),
   briefState: (conn) => call(conn, '/api/brief-state'),
   markBriefDelivered: (conn, variant) => post(conn, '/api/brief-state/delivered', { variant }),
   markGreeted: (conn) => post(conn, '/api/brief-state/greeted'),

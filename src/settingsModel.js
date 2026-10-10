@@ -23,6 +23,7 @@ export const PAGES = {
   snap: 'Snapshots',
   mac: 'The Mac',
   browser: 'Research browser',
+  notion: 'Notion',
   tabs: 'Tab bar',
   train: 'Train',
 };

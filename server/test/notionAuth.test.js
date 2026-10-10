@@ -3,7 +3,7 @@
 // touches the real network — and NOVA_DATA_DIR is a fresh temp dir set
 // before the module is imported, so this never reads or writes his real
 // server/data.
-import { mkdtemp, rm, stat, readFile } from 'node:fs/promises';
+import { mkdtemp, stat, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 

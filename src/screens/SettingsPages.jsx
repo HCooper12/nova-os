@@ -580,6 +580,49 @@ export function BrowserPage({ P }) {
   );
 }
 
+// --------------------------------------------------------------- notion --
+
+// HIS KEY, PASTED FROM HIS PHONE. The field clears the moment Save is
+// pressed, whatever Notion answers: it is a one-time paste, never a value
+// this page keeps showing back at him (unlike The Mac's token, which he may
+// come back to read). server/lib/notionAuth.js is the only place the key
+// itself ever lands.
+export function NotionPage({ P }) {
+  const N = P.notion;
+  const [input, setInput] = useState('');
+  const save = () => {
+    const val = input.trim();
+    if (!val || N.saving) return;
+    N.save(val);
+    setInput('');
+  };
+  return (
+    <>
+      <HeaderCard tile={<Tile lg icon="notion" hue="var(--nv-ink60)" />} title="Notion" text="Give Nova your Notion integration key so he can back your Journal up there later." />
+      <Group i={1} foot="Find the key: Notion › Settings › Connections › Nova › Configuration › Internal integration secret › Copy. Share the Journal: on the connection, Content access › Edit access › tick Journal.">
+        <label className="nv-set-fl" htmlFor="nv-set-notion-tok">
+          <span>Internal integration secret</span>
+          <input className="nv-set-fin" id="nv-set-notion-tok" type="password" value={input} onChange={(e) => setInput(e.target.value)}
+            placeholder="secret_…" autoComplete="off" autoCapitalize="none" spellCheck={false} />
+        </label>
+        <ActRow>
+          <TextAction onClick={N.saving || !input.trim() ? undefined : save} disabled={N.saving || !input.trim()}>{N.saving ? 'Saving' : 'Save'}</TextAction>
+        </ActRow>
+        {N.saveError ? <p className="nv-set-rs cost" style={{ margin: '0 14px 14px' }}>{N.saveError}</p> : null}
+        <div className="nv-set-row nx">
+          <span className="nv-set-rt"><span className="nv-set-rl">Status</span><Val v={N.value} staleAt={P.staleAt} /></span>
+          <span />
+        </div>
+        {N.connected ? (
+          <ActRow sub={N.workspaceName ? `Connected to ${N.workspaceName}.` : ''}>
+            <TextAction tone="warn" onClick={N.disconnect}>Disconnect</TextAction>
+          </ActRow>
+        ) : null}
+      </Group>
+    </>
+  );
+}
+
 // ---------------------------------------------------------------- tab bar --
 
 // THE ORDER, DRAGGED BY ITS GRIP: the row lifts and the others slide aside
