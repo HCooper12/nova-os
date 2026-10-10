@@ -54,7 +54,11 @@ async function post(conn, path, body, { timeoutMs } = {}) {
   });
   if (!res.ok) {
     const detail = await res.json().catch(() => null);
-    throw new Error(detail?.error || `${path} failed: ${res.status}`);
+    const err = new Error(detail?.error || `${path} failed: ${res.status}`);
+    // the body travels too: a 409 from the Stash carries the item it already has
+    err.status = res.status;
+    err.detail = detail;
+    throw err;
   }
   return res.json();
 }
@@ -181,6 +185,20 @@ export const api = {
   stash: (conn) => call(conn, '/api/stash'),
   stashAdd: (conn, item) => post(conn, '/api/stash/items', item),
   stashRemove: (conn, raw) => post(conn, '/api/stash/items/remove', { raw }),
+  // THE STASH REBUILD (10 Oct 2026): every other write through one door, each
+  // answering with the record whose Undo takes it back (server/lib/stashRails.js)
+  stashAct: (conn, raw, action, args = {}) => post(conn, '/api/stash/items/act', { raw, action, ...args }),
+  stashShelf: (conn, name, date) => post(conn, '/api/stash/shelves', { name, date: date || null }),
+  // reads the page once on the Mac (the polite queue): its name and picture, or the duplicate
+  stashPreview: (conn, url) => post(conn, '/api/stash/preview', { url }, { timeoutMs: 30000 }),
+  stashOpened: (conn, url) => post(conn, '/api/stash/opened', { url }),
+  stashPlace: (conn, url, para) => post(conn, '/api/stash/place', { url, para }),
+  stashReader: (conn, url) => post(conn, '/api/stash/reader', { url }, { timeoutMs: 30000 }),
+  stashImageBlobUrl: async (conn, file) => {
+    const res = await fetch(baseOf(conn) + `/api/stash/image/${encodeURIComponent(file)}`, { headers: { Authorization: `Bearer ${conn.token}` } });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
+  },
   renameCurrentVersion: (conn, recipeId, label) => post(conn, `/api/recipes/${encodeURIComponent(recipeId)}/rename-current`, { label }),
   renameAlternate: (conn, recipeId, altId, label) => post(conn, `/api/recipes/${encodeURIComponent(recipeId)}/alternates/rename`, { altId, label }),
   describeFood: (conn, text) => post(conn, '/api/food-log/describe', { text }),
