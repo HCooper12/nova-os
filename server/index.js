@@ -35,6 +35,7 @@ import { stashRouter } from './routes/stash.js';
 import { repertoireRouter } from './routes/repertoire.js';
 import { opsRouter } from './routes/ops.js';
 import { modelPrefsRouter } from './routes/modelPrefs.js';
+import { integrationsRouter } from './routes/integrations.js';
 import { voiceRouter } from './routes/voice.js';
 import { voiceTurnsRouter } from './routes/voiceTurns.js';
 import { conversationRouter } from './routes/conversation.js';
@@ -230,6 +231,7 @@ async function main() {
   app.use('/api', repertoireRouter(process.env.VAULT_PATH)); // THE REPERTOIRE — one technique a day, and the tap that says he practised it
   app.use('/api', opsRouter(process.env.VAULT_PATH));
   app.use('/api', modelPrefsRouter());
+  app.use('/api', integrationsRouter()); // third-party keys he gives Nova from his phone (Settings › Notion)
   app.use('/api', overnightRouter(process.env.VAULT_PATH));
   app.use('/api', workoutsRouter(process.env.VAULT_PATH));
   app.use('/api', journalRouter(vault, process.env.VAULT_PATH));
