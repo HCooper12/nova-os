@@ -18,6 +18,8 @@ import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
 import { MissionStructured } from './MissionStructured.jsx';
 import { MissionSummary } from './MissionSummary.jsx';
+import { SkeletonBar } from '../Skeleton.jsx';
+import { ReviewCurve } from '../ReviewCurve.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, the BODY metrics strip
@@ -466,7 +468,10 @@ export function MissionControl({ v }) {
                   {r?.pips && <span style={phMeta}>{r.pips.done} of {r.pips.total} done</span>}
                 </div>
                 {!r || r.state === 'loading' ? (
-                  <div style={{ font: `400 15px ${S}`, color: 'var(--nv-ink60)' }}>Loading…</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                    <SkeletonBar w="55%" h="14px" />
+                    <SkeletonBar w="85%" h="12px" />
+                  </div>
                 ) : r.state === 'mac-unreachable' ? (
                   <div style={{ font: `400 15px ${S}`, color: 'var(--nv-ink60)' }}>The Mac is unreachable — your review returns on the next sync.</div>
                 ) : r.state === 'nothing-due' ? (
@@ -493,6 +498,8 @@ export function MissionControl({ v }) {
                         ? `${r.source.kind ? `${r.source.kind} · ` : ''}${r.source.title}${r.source.time ? ` · Play from ${r.source.time}` : ''}${r.source.extra > 0 ? ` · +${r.source.extra}` : ''}`
                         : 'No source on this page'}
                     </div>
+                    {r.curve && <ReviewCurve curve={r.curve} hue="#cbb6f2" />}
+                    {r.curve?.due && <span style={{ font: `450 11.5px var(--nv-font-ui)`, color: 'var(--nv-ink60)' }}>Next due {r.curve.due}</span>}
                     <div style={{ marginTop: 'auto', paddingTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
                       <Button compact onClick={r.next} style={{ flex: 'none' }}>NEXT</Button>
                       {r.grades.map((g) => (

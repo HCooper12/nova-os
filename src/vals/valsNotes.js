@@ -197,9 +197,18 @@ export function valsNotes(app, ctx) {
       { key: 'forgot', label: 'Forgot', goesTo: gradeDestination.forgot, go: () => app.answerReview(reviewItem.id, 'forgot') },
     ] : [],
     writeAboutIt: reviewItem ? () => { app.selectNote(reviewItem.id); app.toggleReviewReflect(); } : () => {},
-    open: reviewItem ? () => app.openDailyReview() : () => {},
+    // "Open the page" opens the sheet (mockup 96 Part 3) — the whole note,
+    // the connected map, the source with Play, the history — in place,
+    // never a navigation away from the card.
+    open: reviewItem ? () => app.openReviewSheet() : () => {},
     drawEarly: reviewAllDone ? () => app.shuffleDailyReview() : null,
     drawBusy: !!st.reviewDrawBusy,
+    sheetOpen: !!st.reviewSheetOpen && !!reviewItem,
+    closeSheet: () => app.closeReviewSheet(),
+    warmDetail: reviewItem ? () => app.ensureNoteDetail(reviewItem.id) : () => {},
+    sheetDetail: reviewItem
+      ? (st.liveNoteDetails[reviewItem.id] === undefined ? null : st.liveNoteDetails[reviewItem.id])
+      : null,
   };
   Object.assign(ctx, { review });
 

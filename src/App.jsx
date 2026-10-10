@@ -185,6 +185,7 @@ const OVERLAY_LOADERS = {
   outboxView: () => import('./OutboxView.jsx'),
   verdictCard: () => import('./VerdictCard.jsx'),
   artifactViewer: () => import('./ArtifactViewer.jsx'),
+  reviewSheet: () => import('./ReviewSheet.jsx'),
 };
 const RecipeOverlay = lazyScreen(OVERLAY_LOADERS.recipeOverlay, 'RecipeOverlay');
 const RecipeSheet = lazyScreen(OVERLAY_LOADERS.recipeSheet, 'RecipeSheet');
@@ -194,6 +195,7 @@ const IngestReview = lazyScreen(OVERLAY_LOADERS.ingestReview, 'IngestReview');
 const OutboxView = lazyScreen(OVERLAY_LOADERS.outboxView, 'OutboxView');
 const VerdictCard = lazyScreen(OVERLAY_LOADERS.verdictCard, 'VerdictCard');
 const ArtifactViewer = lazyScreen(OVERLAY_LOADERS.artifactViewer, 'ArtifactViewer');
+const ReviewSheet = lazyScreen(OVERLAY_LOADERS.reviewSheet, 'ReviewSheet');
 
 // What a not-yet-parsed screen shows. Deliberately quiet: a chunk parse is
 // tens of milliseconds after the idle prefetch, so anything busier than this
@@ -721,7 +723,7 @@ export default class App extends Component {
     // THE DAILY REVIEW — the server's forgetting-curve queue (null until
     // the first fetch returns; [] items with total 0 is the honest "nothing
     // due" state, never confused with "not loaded yet")
-    liveReviewToday: null, reviewOpenId: null, reviewDrawnExtra: null,
+    liveReviewToday: null, reviewOpenId: null, reviewDrawnExtra: null, reviewSheetOpen: false,
     liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null,
     libraryView: (() => { try { return localStorage.getItem('novaos.libraryView') === 'spines' ? 'spines' : 'grid'; } catch { return 'grid'; } })(), liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
@@ -3833,7 +3835,7 @@ export default class App extends Component {
   // One helper, because server/test/edgeBack.test.js reads popH through a
   // short window.
   pagesFromHistory() {
-    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory() };
+    return { ...this.pinnedFromHistory(), ...this.trainCoachFromHistory(), ...this.viewFromHistory(), ...this.deeperReportFromHistory(), ...this.captureSheetFromHistory(), ...this.documentsFromHistory(), ...this.recordFromHistory(), ...this.novaFocusFromHistory(), ...this.reviewSheetFromHistory() };
   }
   // THE FULL-SCREEN NOVA (3 Oct 2026, src/NovaFocus.jsx) is its own history
   // entry, for the recipe's reason: the back swipe and the browser's Back
@@ -5148,6 +5150,30 @@ export default class App extends Component {
   }
   openReviewItem(id) {
     this.setState({ reviewOpenId: id, reviewDrawnExtra: null });
+  }
+  // THE SHEET (mockup 96 Part 3) — "Open the page" on the card. Its own
+  // history entry, the novaFocus pattern: closing IS going back on its own
+  // entry, popH does the closing on a swipe or Back elsewhere.
+  openReviewSheet() {
+    const item = this.currentReviewItem();
+    if (!item) return;
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay !== 'reviewSheet') window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'reviewSheet' }, '');
+    }
+    this.ensureNoteDetail(item.id);
+    if (!this.state.reviewSheetOpen) this.setState({ reviewSheetOpen: true });
+  }
+  closeReviewSheet() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'reviewSheet') { window.history.back(); return; }
+    if (this.state.reviewSheetOpen) this.setState({ reviewSheetOpen: false });
+  }
+  reviewSheetFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'reviewSheet';
+    if (!onEntry && this.state.reviewSheetOpen) return { reviewSheetOpen: false };
+    if (onEntry && !this.state.reviewSheetOpen) return { reviewSheetOpen: true };
+    return {};
   }
   // "DRAW ONE EARLY" (his call, 11 Oct): the shuffle reel survives only
   // here, once the day's reviews are done. A random never-logged concept,
@@ -11841,6 +11867,9 @@ export default class App extends Component {
         {/* a document, opened from a chat card or the Documents screen — a
             page of its own with a history entry, so the back swipe closes it */}
         {v.artifactViewer && <Suspense fallback={null}><ArtifactViewer key={v.artifactViewer.id} d={v.artifactViewer} /></Suspense>}
+        {/* THE DAILY REVIEW's sheet (mockup 96 Part 3) — "Open the page" on
+            the card; its own history entry, closed by the back swipe */}
+        {v.review?.sheetOpen && <Suspense fallback={null}><ReviewSheet v={v} /></Suspense>}
         <DynamicIsland />
         {v.showBoot && <Boot info={v.bootInfo} />}
       </div>

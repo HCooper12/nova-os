@@ -25,6 +25,8 @@ import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
 import { TabIcon } from '../TabIcon.jsx';
 import { Group, GRow, MetricTile, Pill } from '../AppleLayout.jsx';
+import { SkeletonBar } from '../Skeleton.jsx';
+import { ReviewCurve } from '../ReviewCurve.jsx';
 
 // Mission Control in the "Apple layout" — same view model as the classic
 // screen, rendered as a grouped stack whose ORDER follows the day:
@@ -478,7 +480,11 @@ export function MissionStructured({ v }) {
       if (r.state === 'loading') {
         return (
           <Group key="review" label="Daily review" accent="--nv-gold">
-            <GRow first title={<span style={{ color: 'var(--nv-ink60)' }}>Loading…</span>} />
+            <div style={{ padding: '13px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <SkeletonBar w="55%" h="15px" />
+              <SkeletonBar w="90%" h="13px" />
+              <SkeletonBar w="65%" h="13px" />
+            </div>
           </Group>
         );
       }
@@ -520,6 +526,8 @@ export function MissionStructured({ v }) {
                 ))}
               </div>
             )}
+            {r.curve && <ReviewCurve curve={r.curve} hue="var(--nv-gold)" />}
+            {r.curve?.due && <Meta tone="faint">Next due {r.curve.due}</Meta>}
             <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
               <Pill label="Next" accent="--nv-gold" onClick={r.next} />
               {r.grades.map((g) => <Pill key={g.key} label={`${g.label} — ${g.goesTo}`} onClick={g.go} tone="quiet" />)}
