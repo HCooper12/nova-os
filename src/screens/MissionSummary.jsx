@@ -346,7 +346,7 @@ function Moment({ k, v }) {
           ) : (
             <>
               {r.firstLook && <Meta tone="faint">New · first look</Meta>}
-              <div style={{ marginTop: '6px', font: `500 17px/1.3 ${UI}`, color: 'var(--nv-ink)' }}>{r.title}</div>
+              <div style={{ marginTop: '6px', font: `500 17px/1.3 ${UI}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere', textWrap: 'pretty' }}>{r.title}</div>
               <div style={{ marginTop: '6px', font: `italic 400 15.5px/1.45 ${SERIF}`, color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', textWrap: 'pretty' }}>{r.gist}</div>
               {r.source ? (
                 <div style={{ marginTop: '8px', font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>

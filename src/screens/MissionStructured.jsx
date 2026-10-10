@@ -504,7 +504,7 @@ export function MissionStructured({ v }) {
         <Group key="review" label="Daily review" accent="--nv-gold" trailing={r.pips ? <Meta tone="faint">{r.pips.done} of {r.pips.total} done</Meta> : null}>
           <div style={{ padding: '13px 16px' }}>
             {r.firstLook && <Meta tone="faint">New · first look</Meta>}
-            <div style={{ marginTop: '4px', font: `500 15px ${UI}`, color: 'var(--nv-ink)' }}>{r.title}</div>
+            <div style={{ marginTop: '4px', font: `500 15px ${UI}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere', textWrap: 'pretty' }}>{r.title}</div>
             <div style={{ marginTop: '6px', font: `italic 400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.gist}</div>
             <div style={{ marginTop: '9px', font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>
               {r.source

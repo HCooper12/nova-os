@@ -486,7 +486,7 @@ export function MissionControl({ v }) {
                 ) : (
                   <>
                     {r.firstLook && <span style={{ ...phMeta, display: 'block', marginBottom: '4px' }}>New · first look</span>}
-                    <div style={{ font: `500 14px ${R}`, color: 'var(--nv-ink)' }}>{r.title}</div>
+                    <div style={{ font: `500 14px ${R}`, color: 'var(--nv-ink)', overflowWrap: 'anywhere', textWrap: 'pretty' }}>{r.title}</div>
                     <div style={{ marginTop: '4px', font: `italic 400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'rgba(232,236,246,.92)', maxHeight: '96px', overflowY: 'auto' }}>{r.gist}</div>
                     <div style={{ marginTop: '8px', font: `450 12px ${R}`, color: 'var(--nv-ink60)' }}>
                       {r.source
