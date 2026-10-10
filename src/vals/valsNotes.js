@@ -160,12 +160,25 @@ export function valsNotes(app, ctx) {
   // THE CARD, both idioms, one shape (mockup 96 Part 2). Every honest state
   // this file can distinguish is a DIFFERENT value here, never one generic
   // "unavailable" — the components read `state` and switch on it.
-  const reviewState = reviewLoading ? (reviewMacUnreachable ? 'mac-unreachable' : 'loading')
+  const reviewState = demoReview ? 'card'
+    : reviewLoading ? (reviewMacUnreachable ? 'mac-unreachable' : 'loading')
     : reviewNothingDue ? 'nothing-due'
     : reviewAllDone ? 'all-done'
-    : reviewItem ? 'card' : 'loading';
+    : reviewItem ? 'card' : (usingLiveReview ? 'loading' : 'mac-unreachable'); // no connection, no demo: say so plainly
 
-  const review = {
+  const review = demoReview ? {
+    // DEMO MODE: the scripted cards (data.js `reviews`), never a stand-in
+    // for a real honest state — a demo has no real source/links/history,
+    // so those fields are honestly absent rather than invented.
+    state: 'card', title: demoReview.f, typeColor: 'var(--nv-vi)', gist: demoReview.c,
+    firstLook: false, source: null, connected: [], curve: null, pips: null,
+    next: () => app.navigate('notes', { openNoteId: demoReview.id }),
+    grades: [],
+    writeAboutIt: () => {},
+    open: () => { app.navigate('notes', { openNoteId: demoReview.id }); app.toastMsg('Commander queued this concept for tonight’s reflection'); },
+    drawEarly: () => app.setState((s) => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (app.reviews.length - 1))) % app.reviews.length })),
+    drawBusy: false,
+  } : {
     state: reviewState,
     title: reviewItem?.title || '',
     typeColor: reviewItem ? (NOTE_TYPE_COLOR[(reviewItem.type || '').toLowerCase()] || 'var(--nv-ink)') : 'var(--nv-ink)',
