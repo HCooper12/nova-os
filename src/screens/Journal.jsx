@@ -102,6 +102,7 @@ export function Journal({ v }) {
                     <div key={i}>
                       <Meta as="div" tone="faint" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', textTransform: 'none', letterSpacing: 0 }}>
                         <span>{s.time}</span>
+                        {s.authorMeta && <Tag tone={s.authorMeta.tone} dashed={s.authorMeta.dashed} title="Who wrote this entry">{s.authorMeta.label}</Tag>}
                         {s.categoryMeta && <Tag hue={s.categoryMeta.hue}>{s.categoryMeta.label}</Tag>}
                         {s.heading && <span>— {s.heading}</span>}
                       </Meta>
