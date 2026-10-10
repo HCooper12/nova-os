@@ -14,7 +14,7 @@ import '../money.css';
 // 9 Oct: "I love the layout and colour choices as well as the features"),
 // with mockup 90's refinements taken as defaults: Compare on the pace card,
 // a line's own sheet, how sure each bill is, the budget app's export path
-// with the honest .xlsx card, and three columns on the Mac. Built 10 Oct
+// with the honest card for a file it cannot read, and three columns on the Mac. Built 10 Oct
 // 2026, held to his note that day: "ensure everything is not cluttered".
 //
 // The phone's first screen holds what round 2's did (the clutter budget in
@@ -671,7 +671,7 @@ function HowSheet({ M, onClose }) {
     <Sheet label="How money gets in" title="How money gets in" onClose={onClose}>
       {() => (
         <ol className="nv-mo-howto">
-          <li><span><b>Bank and budget app exports.</b> Save a CSV into {M.importsDir}. Nova checks every five minutes, leaves out lines it already has, and files nothing until you say so.</span></li>
+          <li><span><b>Bank and budget app exports.</b> Save a CSV or .xlsx into {M.importsDir}. Nova checks every five minutes, leaves out lines it already has, and files nothing until you say so.</span></li>
           <li><span><b>Receipt and statement photos.</b> Up to three at a time, from ⋯ or the add sheet. Nova reads them and drafts the lines to your Inbox.</span></li>
           <li><span><b>Typed anywhere.</b> “coffee 6.50” into any capture box files a line here; so does ＋ on this page.</span></li>
         </ol>
@@ -875,18 +875,18 @@ function LinkSheet({ M, onClose }) {
     const ts = [0, 1, 2, 3].map((k) => setTimeout(() => setStep(k), 350 + k * 650));
     return () => ts.forEach(clearTimeout);
   }, []);
-  const nodes = [['web', 'Export on its website'], ['file', 'Save it as CSV'], ['folder', 'Into Money/ Imports'], ['inbox', 'Nova asks you']];
+  const nodes = [['web', 'Export on its website'], ['file', 'Save the file'], ['folder', 'Into Money/ Imports'], ['inbox', 'Nova asks you']];
   return (
     <Sheet label="Bring in your budget app" title="Your budget app" onClose={onClose}>
       {() => (
         <>
           <p className="nv-mo-news" style={{ marginTop: 4, fontSize: 18 }}>Nova reads its export, the same way it reads your bank’s.</p>
           <div className="nv-mo-path">
-            <span className="nv-mo-file" style={{ '--x': Math.max(0, step) }} data-on={step >= 0 ? 'true' : 'false'}><MIcon n="file" />export.csv</span>
+            <span className="nv-mo-file" style={{ '--x': Math.max(0, step) }} data-on={step >= 0 ? 'true' : 'false'}><MIcon n="file" />export.xlsx</span>
             {nodes.map(([ic, t], k) => <div key={ic} className={`pn${step >= k ? ' on' : ''}`}><span className="bub"><MIcon n={ic} /></span>{t}</div>)}
           </div>
           <p className="nv-mo-sub" style={{ marginTop: 14 }}>The export is on its website only: Transactions, Select all, Export. Save the file into Money/Imports in Files. Nova checks every five minutes, leaves out lines it already has, and files nothing until you say so.</p>
-          <p className="nv-mo-sub quiet">Nova never signs in to it and never sees its password or your bank’s. If the file comes out as a spreadsheet (.xlsx), Nova says so and shows how to save it as CSV.</p>
+          <p className="nv-mo-sub quiet">Nova never signs in to it and never sees its password or your bank’s. Its spreadsheet (.xlsx) is read as it is, and its categories are kept where the names match Nova’s. A Numbers file still needs saving as CSV first.</p>
           <div className="nv-mo-acts">
             <button type="button" className="nv-mo-chip" onClick={M.openBudgetSite}><MIcon n="open" />Open its website</button>
             <button type="button" className="nv-mo-chip" onClick={M.checkImports} disabled={M.view.readOnly}><MIcon n="folder" />Check now</button>
@@ -915,6 +915,7 @@ function ImportSheet({ M, id, onClose }) {
             <button type="button" aria-pressed={tab === 'new'} onClick={() => setTab('new')}>New {c.count}</button>
             <button type="button" aria-pressed={tab === 'out'} onClick={() => setTab('out')}>Left out {c.leftOut}</button>
           </div>
+          {tab === 'new' && c.capNote && <p className="nv-mo-sub quiet">{c.capNote}</p>}
           {tab === 'new' ? (
             <div className="nv-mo-ilist">
               {c.groups.map((g) => (
@@ -923,7 +924,9 @@ function ImportSheet({ M, id, onClose }) {
                   {g.rows.map((r) => (
                     <div key={r.id} className="nv-mo-il" style={{ '--h': r.hue }}>
                       <span className={`nv-mo-mono${r.ink ? ' oth' : ''}`} aria-hidden="true">{r.initial}</span>
-                      <b>{r.name}</b><span className="nv-mo-map"><i />{r.catLabel}</span><span className="nv-mo-a">{r.amountLabel}</span>
+                      <b>{r.name}</b>
+                      <span className="nv-mo-map">{r.theirs && <><em>{r.theirs}</em><MIcon n="right" /></>}<i />{r.catLabel}</span>
+                      <span className="nv-mo-a">{r.amountLabel}</span>
                     </div>
                   ))}
                 </div>
@@ -932,7 +935,7 @@ function ImportSheet({ M, id, onClose }) {
           ) : (
             <p className="nv-mo-sub">{c.leftOut ? `${c.leftOut} ${c.leftOut === 1 ? 'line was' : 'lines were'} already in the ledger (same day, amount and merchant), so ${c.leftOut === 1 ? 'it is' : 'they are'} left out and nothing is filed twice.` : 'Nothing was left out: every line is new.'}</p>
           )}
-          <p className="nv-mo-sub quiet">The coloured category is where each line lands here, guessed from the merchant.</p>
+          <p className="nv-mo-sub quiet">The coloured category is where each line lands here. {c.mixWords.replace(/^[^.]*\.\s*/, '')}</p>
         </>
       )}
     </Sheet>

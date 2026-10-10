@@ -279,7 +279,8 @@ export async function noteUnreadableFile({ file, hash, dir = 'Money/Imports', no
     const ext = path.extname(file).slice(1).toLowerCase();
     const event = {
       type: 'unreadable-file', key, file, dir, ext,
-      title: `${file} is a spreadsheet. Nova reads CSV files.`,
+      // an .xlsx is read directly (10 Oct 2026); these two still are not
+      title: ext === 'xls' ? `${file} is an older Excel file (.xls). Nova reads CSV and .xlsx files.` : ext === 'numbers' ? `${file} is a Numbers file. Nova reads CSV and .xlsx files.` : `${file} is a spreadsheet Nova can’t open. Nova reads CSV and .xlsx files.`,
       body: 'Open it in Numbers, File › Export To › CSV, and save it into the same folder. Nova finds the CSV within five minutes and asks before filing anything.',
       expiresAt: null,
     };

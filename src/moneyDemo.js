@@ -9,7 +9,7 @@
 //
 // THE WORST CASE (break-ui, his yes 9 Oct): in a DEV build only, the URL
 // parameter ?moneyDemo= picks a fixture: demo (the default), worst, empty,
-// one, loading, offline, past, import, xlsx. A production build always
+// one, loading, offline, past, import, xlsx, xlsxbig, numbers. A production build always
 // shows the demo.
 
 import { merchantKey } from './moneyModel.js';
@@ -140,7 +140,19 @@ const IMPORT_LINES = Array.from({ length: 41 }, (_, i) => {
 });
 const IMPORT_REC = { id: 'demo-import', kind: 'money-import', status: 'pending', text: '41 transactions from transactions.csv', createdAt: `${TODAY}T09:45:00Z`,
   decision: { route: 'money-import', title: '41 transactions from transactions.csv', reason: 'Parsed from Money/Imports/transactions.csv: 41 new after dedupe (6 already in the ledger).', payload: { file: 'transactions.csv', transactions: IMPORT_LINES } } };
-const XLSX_REC = ev('demo-xlsx', { type: 'unreadable-file', key: 'file|transactions.xlsx', file: 'transactions.xlsx', dir: 'Money/Imports', title: 'transactions.xlsx is a spreadsheet. Nova reads CSV files.', body: '' });
+// a budget app's .xlsx, read directly (10 Oct 2026): its own category on each
+// line, mapped where the name clearly matches Nova's, else Nova's guess
+const THEIRS = { Groceries: 'Groceries', 'Eating Out': 'Dining out', Transport: 'Travel', 'Health & Fitness': 'Fitness', Shopping: 'Home', Other: 'Uncategorised' };
+const MAPS = new Set(['Groceries', 'Eating Out']);
+const xlsxRec = (n, file = 'billroo-export.xlsx') => {
+  const lines = Array.from({ length: n }, (_, i) => {
+    const l = IMPORT_LINES[i % IMPORT_LINES.length];
+    return { ...l, date: n > 41 ? `2026-${pad(1 + (i % 9))}-${pad(1 + (i % 28))}` : l.date, amount: n > 41 ? -(1 + (i % 400) / 7) : l.amount, merchant: n > 41 ? `${l.merchant} ${i + 1}` : l.merchant, theirs: THEIRS[l.category], categoryFrom: MAPS.has(l.category) ? 'theirs' : 'guess' };
+  });
+  return { id: `demo-${file}`, kind: 'money-import', status: 'pending', text: `${n} transactions from ${file}`, createdAt: `${TODAY}T09:45:00Z`,
+    decision: { route: 'money-import', title: `${n} transactions from ${file}`, reason: `Parsed from Money/Imports/${file}: ${n} new after dedupe (6 already in the ledger).`, payload: { file, transactions: lines } } };
+};
+const NUMBERS_REC = ev('demo-numbers', { type: 'unreadable-file', key: 'file|transactions.numbers', file: 'transactions.numbers', dir: 'Money/Imports', title: 'transactions.numbers is a Numbers file. Nova reads CSV and .xlsx files.', body: '' });
 
 // The fixture for a variant: { lines, budgets, records, offline, loading, month, subs }
 export function demoMoneyState(variant = 'demo') {
@@ -154,7 +166,9 @@ export function demoMoneyState(variant = 'demo') {
     case 'offline': return { ...base, offline: true };
     case 'past': return { ...base, month: PREV, lines: OCT.map(([d, ...rest]) => line([d, ...rest], PREV)), records: [] };
     case 'import': return { ...base, records: [...EVENTS, IMPORT_REC] };
-    case 'xlsx': return { ...base, records: [...EVENTS, XLSX_REC] };
+    case 'xlsx': return { ...base, records: [...EVENTS, xlsxRec(41)] };
+    case 'xlsxbig': return { ...base, records: [...EVENTS, xlsxRec(5000)] };
+    case 'numbers': return { ...base, records: [...EVENTS, NUMBERS_REC] };
     default: return base;
   }
 }

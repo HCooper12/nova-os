@@ -32,6 +32,13 @@ const CATEGORY_KEYWORDS = [
   ['Income', ['salary', 'payroll', 'pay ', 'wage', 'interest', 'dividend', 'refund', 'reimburse', 'centrelink']],
 ];
 
+// his own merchant rule for this text, or null (an import asks first, so
+// his correction beats a budget app's category and the keyword guess)
+export function overrideFor(text) {
+  const key = overridesCache ? merchantKey(text) : null;
+  return key && overridesCache[key] ? overridesCache[key] : null;
+}
+
 export function categorize(text) {
   // a merchant he has corrected once is filed his way from then on
   if (overridesCache) {

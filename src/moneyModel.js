@@ -401,6 +401,9 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
       odd: odd ? { id: odd.id, ratio: odd.ratio, word: `${odd.ratio}x usual`, talk: `Let's talk about this money alert: “${odd.title}” Is it right?` } : null,
       where: dayLabel(t.date, today), from,
       source: t.source || 'manual',
+      // an import line's own category from its file, when it reads differently
+      // from where it lands (the import sheet draws "Dining out → Eating out")
+      theirs: t.theirs && t.theirs.toLowerCase() !== meta.label.toLowerCase() ? t.theirs : null,
     };
   };
   const groupRows = (list) => {
@@ -437,14 +440,30 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
     const mix = [...counts].sort((a, b) => b[1] - a[1]);
     const leftOut = Number((/(\d+) already in the ledger/.exec(r.decision?.reason || '') || [])[1] || 0);
     const file = r.decision?.payload?.file || null;
+    // where each category came from: a budget app's export carries its own
+    // (mapped where the names clearly match, 10 Oct 2026); a bank CSV does not
+    const fromTheirs = list.filter((t) => t.categoryFrom === 'theirs').length;
+    const fromRule = list.filter((t) => t.categoryFrom === 'rule').length;
+    const carried = list.some((t) => t.categoryFrom);
+    const guessed = list.length - fromTheirs - fromRule;
+    const whence = !carried ? 'Nova guessed each category from the merchant name.'
+      : `Categories: ${[
+        fromTheirs ? `${fromTheirs} from the file’s own, where the name matches Nova’s` : null,
+        fromRule ? `${fromRule} by your merchant ${fromRule === 1 ? 'rule' : 'rules'}` : null,
+        guessed ? `${guessed} guessed by Nova from the merchant name` : null,
+      ].filter(Boolean).join('; ')}.`;
+    const IMPORT_CAP = 120;
+    const shownList = [...list].map((t, i) => ({ ...t, id: t.id || `${r.id}-${i}` })).sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, IMPORT_CAP);
     return {
       id: r.id, file,
       say: `${plural(list.length, 'new line')} from ${file || 'a statement photo'}.`,
       range: dates.length ? `${Number(dates[0].slice(8))} ${dates[0].slice(0, 7) === dates[dates.length - 1].slice(0, 7) ? '' : `${monthName(dates[0].slice(0, 7))} `}to ${Number(dates[dates.length - 1].slice(8))} ${monthName(dates[dates.length - 1].slice(0, 7))}`.replace(/\s+/g, ' ') : '',
       leftOut,
       preview: mix.map(([c, n]) => ({ hue: catOf(c).hue, n })),
-      mixWords: `${mix.slice(0, 3).map(([c, n]) => `${catOf(c).label} ${n}`).join(', ')}${mix.length > 3 ? ` and ${list.length - mix.slice(0, 3).reduce((s, [, n]) => s + n, 0)} more` : ''}. Nova guessed each category from the merchant name.`,
-      groups: groupRows([...list].map((t, i) => ({ ...t, id: t.id || `${r.id}-${i}` })).sort((a, b) => (a.date < b.date ? 1 : -1))),
+      mixWords: `${mix.slice(0, 3).map(([c, n]) => `${catOf(c).label} ${n}`).join(', ')}${mix.length > 3 ? ` and ${list.length - mix.slice(0, 3).reduce((s, [, n]) => s + n, 0)} more` : ''}. ${whence}`,
+      // the sheet lists the newest IMPORT_CAP; the count says the rest
+      groups: groupRows(shownList),
+      capNote: list.length > IMPORT_CAP ? `Showing the newest ${IMPORT_CAP} of ${list.length.toLocaleString('en-AU')}. Filing files all of them.` : null,
       count: list.length,
       monthName: dates.length ? monthName(dates[dates.length - 1].slice(0, 7)) : '',
       talk: `Let's talk about this import waiting in my Inbox: “${r.decision?.title || r.text}”`,
