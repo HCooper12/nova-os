@@ -293,5 +293,5 @@ test('Close goes back to where he came from, and Read is a history level of its 
   assert.match(close, /window\.history\.go\(-steps\)/);
   assert.match(close, /this\.navigate\('inbox'\);/, 'opened cold, the Inbox as before');
   assert.match(method(app, 'openBriefingRead'), /pushState\(\{ novaDepth: depthOf\(st\) \+ 1, novaView: 'briefingRead' \}, ''\)/);
-  assert.match(app, /\.\.\.this\.briefingReadFromHistory\(\), \.\.\.this\.fuelCardsFromHistory\(\), \.\.\.this\.moneyFromHistory\(\) \};/);
+  assert.match(app, /\.\.\.this\.briefingReadFromHistory\(\), \.\.\.this\.fuelCardsFromHistory\(\), \.\.\.this\.moneyFromHistory\(\), \.\.\.this\.shopFromHistory\(\) \};/);
 });
