@@ -72,3 +72,18 @@ test('insightMemoryLines: the last three insights with dates and the never-repea
   const latest = await getLatestInsight();
   assert.ok(Array.isArray(latest.history), 'history rides the same file');
 });
+
+test('the journal lines name who wrote each entry; only his are his words', async () => {
+  // 11 Oct 2026: "Recent journal entries, including daily-review reflections"
+  // served Nova's reflections as if they were his.
+  const { journalInsightLines } = await import('../lib/healthInsight.js');
+  const lines = journalInsightLines([{ date: '2026-10-06', sections: [
+    { time: '21:30', category: 'personal', heading: 'Daily review reflection', author: 'nova', text: 'Recovery led the day.' },
+    { time: '18:02', category: 'training', heading: 'Session receipt', author: 'coach', text: 'Pull logged.' },
+    { time: '22:00', category: 'personal', heading: null, author: 'hayden', text: 'Felt flat today.' },
+  ] }]).join('\n');
+  assert.match(lines, /2026-10-06 21:30 \[by Nova, Daily review reflection\] Recovery led the day\./);
+  assert.match(lines, /2026-10-06 18:02 \[by the Coach, Session receipt\] Pull logged\./);
+  assert.match(lines, /2026-10-06 22:00 \[HIS OWN WORDS\] Felt flat today\./);
+  assert.match(journalInsightLines([]).join('\n'), /No journal entries yet/);
+});
