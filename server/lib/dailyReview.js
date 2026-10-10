@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
+import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { profileContext } from './profile.js';
 import { composeDispatch } from './dispatch.js';
 import { loadSessions } from './workoutSessions.js';
@@ -241,6 +242,8 @@ export function buildReviewPrompt(context, now = new Date()) {
   return `${NOVA_LENS}
 
 You are Nova composing Hayden's DAILY REVIEW for ${dateLong} — the single intelligent read of his whole life today. This is the one moment each day where you step back, reason across everything, and tell him what actually matters. You may also read his vault (goals, journal, notes) for depth.
+
+${JOURNAL_AUTHORSHIP_RULE}
 
 What to produce:
 - A short honest READ (2-3 sentences): where he genuinely is today across recovery, training, fuel, and whatever else stands out — grounded in the real numbers below, and connected to what he's working toward.

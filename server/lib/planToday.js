@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
+import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { profileContext } from './profile.js';
 import { composeDispatch } from './dispatch.js';
 import { listTodos } from './todos.js';
@@ -172,6 +173,8 @@ export function buildPlanPrompt(context, now = new Date()) {
   return `${NOVA_LENS}
 
 You are Nova picking Hayden's TOP 3 PRIORITIES for ${dateLong} — what this day is actually for, decided before it starts. You may read his vault (goals, journal, notes) for depth.
+
+${JOURNAL_AUTHORSHIP_RULE}
 
 What to produce: exactly 1 to 3 priorities, most important first. Each is one concrete, today-doable action with a one-line why tied to the data below.
 
