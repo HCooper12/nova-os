@@ -79,7 +79,7 @@ export const KIND_BEING = {
   'model-choice': 'guardian', 'forge-job': 'guardian',
   research: 'researcher', study: 'researcher', paper: 'researcher', scout: 'researcher', repertoire: 'researcher',
   video: 'watcher',
-  'read-next': 'librarian', 'index-repair': 'librarian', 'brain-week': 'librarian', distill: 'librarian', ingest: 'librarian',
+  'read-next': 'librarian', 'stash': 'librarian', 'stash-write': 'librarian', 'index-repair': 'librarian', 'brain-week': 'librarian', distill: 'librarian', ingest: 'librarian',
   review: 'leader', 'leader-reflect': 'leader', 'leader-followup': 'leader',
   // the tenth being, his pick of 26 Sep (the two masks), in Mind with the Leader
   'practice-skill': 'practice', 'practice-session': 'practice', 'practice-status': 'practice',

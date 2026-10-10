@@ -50,6 +50,7 @@ import { valsMisc } from './vals/valsMisc.js';
 import { valsInbox } from './vals/valsInbox.js';
 import { valsTodos, linkify as todoLabel } from './vals/valsTodos.js';
 import { valsMoney } from './vals/valsMoney.js';
+import { stashFromHistory } from './stashActions.js';
 import { valsMission } from './vals/valsMission.js';
 import { valsOps } from './vals/valsOps.js';
 import { valsChrome } from './vals/valsChrome.js';
@@ -589,7 +590,7 @@ export default class App extends Component {
     // retro tracking: null = today; a past YYYY-MM-DD flips the log view and
     // its adds/removes to that day, while today's gauges keep liveFoodLog
     foodLogDate: null, liveFoodLogView: null,
-    liveStash: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
+    liveStash: null, liveStashFull: null, stashUi: null, stashDemo: null, stashReader: null, stashAddCategory: '', stashAddName: '', stashAddUrl: '', stashAddNote: '', stashAddBusy: false, stashAddError: null, stashRemoveConfirm: null,
     foodLogItems: null, foodItemUndo: null, // THE ITEMISED PLATE: the lines a scan produced, and the last one dropped
     foodEntryUndo: null, // the last whole meal removed with its ×, held 30s for Undo
     // a rotation dish ticked or un-ticked from Fuel (the strip, or a log row's
@@ -1901,7 +1902,7 @@ export default class App extends Component {
     apply('nutritionWeek', (r) => this.setState({ liveNutritionWeek: r }));
     apply('trainOverview', (r) => this.setState({ liveTrainOverview: r }));
     apply('fuelCross', (r) => this.setState({ liveFuelCross: r }));
-    apply('stash', (r) => this.setState({ liveStash: r.categories }));
+    apply('stash', (r) => this.setState({ liveStash: r.categories, liveStashFull: r }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
     apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
@@ -1993,7 +1994,7 @@ export default class App extends Component {
     if (!conn) return;
     if (this.refreshInFlight) return this.refreshInFlight;
     const tasks = [
-      async () => this.setState({ liveStash: (await api.stash(conn)).categories }),
+      async () => { const r = await api.stash(conn); this.setState({ liveStash: r.categories, liveStashFull: r }); },
       async () => {
         const notesRes = await api.notes(conn);
         this.setState({ liveNotes: notesRes.notes });
@@ -3788,7 +3789,7 @@ export default class App extends Component {
     const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
     // the Fuel page's Edit sheet is the other history level over Fuel
     // the Money page's sheet and pushed page are its other two levels (10 Oct 2026)
-    return { ...this.settingsFromHistory(), ...codeFromHistory(this, screenFromHash()), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory(), ...this.moneyFromHistory() };
+    return { ...this.settingsFromHistory(), ...codeFromHistory(this, screenFromHash()), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory(), ...this.moneyFromHistory(), ...stashFromHistory(this) };
   }
   // SETTINGS' PAGES (direction A, 7 Oct 2026). Each push is a history entry
   // carrying the whole path, so popstate restores exactly the page he was on

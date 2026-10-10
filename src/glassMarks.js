@@ -35,6 +35,8 @@ export const FINDERS = {
   calendar: { key: 'calendar', name: 'Calendar', the: 'your calendar', hue: 'var(--nv-nova)' },
   // Money's hue (its Index tile): the CFO is a code-read source like the calendar
   cfo: { key: 'cfo', name: 'CFO', the: 'the CFO', hue: 'var(--nv-vi)' },
+  // the Stash's teal (its hue is the Librarian's): a code-read source like the calendar
+  stash: { key: 'stash', name: 'Stash', the: 'the Stash', hue: 'var(--nv-m-back)' },
   nova: { key: 'nova', name: 'Nova', the: 'Nova', hue: 'var(--nv-nova)' },
 };
 export const finderOf = (by) => FINDERS[String(by || '').toLowerCase()] || FINDERS.nova;

@@ -1079,6 +1079,13 @@ export async function undoFiling(vaultPath, undo) {
     if (!removed) throw new Error('that food-log entry is no longer there');
     return 'removed the food-log entry';
   }
+  // HIS OWN CHANGES ON THE STASH (10 Oct 2026): the inverse of the line
+  // operations a write made, applied through lib/stash.js (which refuses a
+  // line that changed since), and any shopping line it added taken off
+  if (undo.route === 'stash-ops') {
+    const { undoStashOps } = await import('./stashRails.js');
+    return undoStashOps(vaultPath, undo);
+  }
   if (undo.route === 'stash') {
     await removeStashItem(vaultPath, undo.raw);
     return 'removed the stashed link';
@@ -1655,7 +1662,7 @@ const TIME_VALUE_HOURS = {
   dispatch: 48, review: 48, 'training-check': 48, 'plan-today': 24,
   'week-plan': 8 * 24, 'weekly-debrief': 8 * 24, 'brain-week': 8 * 24, 'meal-prep': 8 * 24, 'coach-audit': 8 * 24,
   distill: 7 * 24, 'fuel-cross': 7 * 24,
-  cfo: 14 * 24,
+  cfo: 14 * 24, stash: 14 * 24,
 };
 export async function expireStaleDrafts() {
   const records = await listRecords();
@@ -1774,6 +1781,12 @@ export async function approveRecord(vaultPath, id) {
   // means "seen, noted". Its one real write, a price rise's "don't keep it",
   // has its own door (answerMoneyEvent) with its own undo.
   if (record.kind === 'money') {
+    return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
+  }
+  // A Stash signal (lib/stashSignals.js: a level check, a gift day, a price
+  // drop) is news too: approving it means "seen". Its answers that write
+  // (Getting low, Reordered) have their own doors on the Stash, with Undo.
+  if (record.kind === 'stash') {
     return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
   if (record.kind === 'fuel-cross') {

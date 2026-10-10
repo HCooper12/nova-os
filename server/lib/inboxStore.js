@@ -96,6 +96,9 @@ function notifyIfPending(record, previousStatus) {
   // it is pending: an unusual charge or a bill three days out is for the
   // Inbox and Home, not his lock screen
   if (record.kind === 'money') return;
+  // the same for a Stash signal: lib/stashSignals.js pushes it once, held
+  // through quiet hours
+  if (record.kind === 'stash') return;
   import('./push.js').then(({ pushForRecord }) => pushForRecord(record)).catch(() => {});
   import('./telegram.js').then(({ announceRecord }) => announceRecord(record)).catch(() => {});
 }

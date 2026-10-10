@@ -95,6 +95,17 @@ export const AGENTS = {
     code: true,
     ask: () => askCfo(),
   },
+  // THE STASH (10 Oct 2026, his yes: "what skincare am I running low on"
+  // answered from records). No model runs: code reads Stash.md and the
+  // Stash's own reads (lib/stashSignals.js stashContext).
+  stash: {
+    label: 'the Stash',
+    what: 'his saved links and products, read by code: every shelf, each restock item with the days left by the calendar and whether its level check is due, watched prices and their state, gift lists with their dates, and what he bought when. Ask it whenever an answer touches what he owns, restocks, wants to buy or saved to read.',
+    lane: null,
+    canConsult: false,
+    code: true,
+    ask: (vaultPath) => askStash(vaultPath),
+  },
   calendar: {
     label: 'your calendar',
     what: 'his actual calendar for the next 14 days: when he trains, what else is booked. Read by code; any question returns the fortnight.',
@@ -603,6 +614,12 @@ async function askCalendar() {
 async function askCfo() {
   const { moneyContext } = await import('./moneySignals.js');
   return { text: await moneyContext() };
+}
+
+// Code reads the Stash; the answer is its lines, never a model's guess.
+async function askStash(vaultPath) {
+  const { stashContext } = await import('./stashSignals.js');
+  return { text: (await stashContext({ vaultPath: vaultPath || process.env.VAULT_PATH })) || 'The Stash could not be read.' };
 }
 
 export function formatFortnight(events = []) {

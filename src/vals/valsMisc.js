@@ -1,5 +1,7 @@
 import { getConnection } from '../api.js';
 import { valsCode } from './valsCode.js';
+import { valsStash } from './valsStash.js';
+import { stashWrite } from '../stashActions.js';
 import { isStandalone, lastEdgeGesture, depthOf } from '../edgeBack.js';
 import { GALAXY_MAX_NODES, toWorld } from '../galaxyLayout.js';
 import { orbReply } from '../mockAssistants.js';
@@ -528,7 +530,8 @@ export function valsMisc(app, ctx) {
         confirming: st.stashRemoveConfirm === it.raw,
         askRemove: () => app.setState({ stashRemoveConfirm: it.raw }),
         cancelRemove: () => app.setState({ stashRemoveConfirm: null }),
-        remove: () => app.removeStashItem(it.raw),
+        // one write path with the summary page: a pill with Undo, no confirm
+        remove: () => stashWrite(app, 'remove', it.raw),
         host: (() => { try { return new URL(it.url).hostname.replace(/^www\./, ''); } catch { return it.url; } })(),
       })),
     })),
@@ -545,5 +548,7 @@ export function valsMisc(app, ctx) {
   };
   // the Code screen (round 3): one model, built only while it is on screen
   out.code = st.screen === 'code' ? valsCode(app, ctx, { modelOptions: out.codeModelOptions }) : null;
+  // the summary Stash (10 Oct 2026): one model, built only while it is on screen
+  out.stashSum = st.screen === 'stash' ? valsStash(app, ctx) : null;
   return out;
 }
