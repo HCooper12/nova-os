@@ -261,7 +261,9 @@ test('Talk about it on a capture opens a conversation that starts from the card'
 test('Agents & Operations gets the seven loops, the ladder and the waiting count', () => {
   const app = fakeApp({ screen: 'ops', liveInbox: { items: [card, other] } });
   const o = build(app).inboxSummary.ops;
-  assert.deepEqual(o.loops.map((l) => l.name), ['Daily review', 'Briefs', 'Compost', 'Open promises', 'Todoist', 'Meal prep', 'Guardian']);
+  // the evening model read is shown as "Day read" since 11 Oct — "Daily
+  // review" now names the forgetting-curve card (mockup 96)
+  assert.deepEqual(o.loops.map((l) => l.name), ['Day read', 'Briefs', 'Compost', 'Open promises', 'Todoist', 'Meal prep', 'Guardian']);
   assert.equal(o.waiting.count, 2);
   assert.deepEqual(o.ladder.options.map((m) => [m.label, m.active]), [['Review all', false], ['Auto high', true], ['Auto all', false]]);
   assert.ok(o.loops.filter((l) => l.loading).length >= 4, 'a loop with no data yet loads as the house skeleton, never "checking…"');

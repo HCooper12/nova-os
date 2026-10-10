@@ -257,5 +257,9 @@ function buildMoments(m) {
   if (m.leaderBox && m.leadFirst) list.push('lead');
   if (m.todayTechnique && !m.todayTechnique.empty && !m.todayTechnique.outcome) list.push('technique');
   if (m.wrapCard) list.push('wrap');
+  // THE DAILY REVIEW (mockup 96): a Moment while something is genuinely due
+  // and unanswered, or once the day is done (so "Draw one early" has
+  // somewhere to live) — never while loading, never when nothing is due.
+  if (m.review && (m.review.state === 'card' || m.review.state === 'all-done')) list.push('review');
   return list;
 }

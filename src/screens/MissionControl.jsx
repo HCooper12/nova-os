@@ -6,7 +6,6 @@ import { PracticeCard } from '../PracticeCard.jsx';
 import { prLift, prBasis } from '../missionFocus.js';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
-import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
 import { TechniqueCheck } from '../TechniqueCheck.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
@@ -456,32 +455,62 @@ export function MissionControl({ v }) {
         </div>
 
         <div className="nv-pane nv-glow" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', ...glowSoft('--nv-vi').style }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
-            {/* CONCEPT REVISIT, not "DAILY REVIEW": that name belongs to the
-                day's actual review (the Inbox card), and this card wearing it
-                let a spaced concept impersonate the flagship artefact. */}
-            <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>CONCEPT REVISIT</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={phMeta}>{v.reviewMeta}</span>
-              <ShuffleButton onClick={v.shuffleReview} spinning={!!v.reviewSpin} label="Shuffle concept revisit" />
-            </span>
-          </div>
-          {v.reviewSpin ? (
-            <SpinReveal rows={v.reviewSpin.rows} spinning={v.reviewSpin.spinning} rowH={38} accent="--nv-vi"
-              face={`italic 400 16px/1.2 ${S}`} onLanded={v.reviewSpin.landed} chime="review"
-              label="Shuffle concept revisit" landedLabel="A new concept to review" />
-          ) : (<>
-          <div style={{ font: `400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'rgba(232,236,246,.92)', maxHeight: '132px', overflowY: 'auto' }}>{v.reviewConcept}</div>
-          <div style={{ marginTop: 'auto', paddingTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-            <span style={{ font: `500 12.5px ${R}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              from <em style={{ font: `italic 400 15px ${S}`, color: '#cbb6f2' }}>{v.reviewFrom}</em>
-            </span>
-            <Interactive as="span" onClick={v.openReview}
-              base={css("cursor:pointer;flex:none;font:600 12.5px var(--nv-font-ui);padding:6px 14px;border-radius:8px;border:1px solid rgba(143,123,255,.45);color:#cbb6f2;background:rgba(143,123,255,.1)")}
-              hoverStyle={{ background: 'rgba(143,123,255,.22)' }}
-            >Review</Interactive>
-          </div>
-          </>)}
+          {/* DAILY REVIEW, on a forgetting curve (mockup 96, his decision 6
+              Oct: this pane takes the name back — "Concept revisit" is gone). */}
+          {(() => {
+            const r = v.review;
+            return (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
+                  <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>DAILY REVIEW</span>
+                  {r?.pips && <span style={phMeta}>{r.pips.done} of {r.pips.total} done</span>}
+                </div>
+                {!r || r.state === 'loading' ? (
+                  <div style={{ font: `400 15px ${S}`, color: 'var(--nv-ink60)' }}>Loading…</div>
+                ) : r.state === 'mac-unreachable' ? (
+                  <div style={{ font: `400 15px ${S}`, color: 'var(--nv-ink60)' }}>The Mac is unreachable — your review returns on the next sync.</div>
+                ) : r.state === 'nothing-due' ? (
+                  <div style={{ font: `400 15px ${S}`, color: 'var(--nv-ink60)' }}>Nothing due today.</div>
+                ) : r.state === 'all-done' ? (
+                  <>
+                    <div style={{ font: `400 16px/1.45 ${S}`, color: 'rgba(232,236,246,.92)' }}>Today's reviews are done.</div>
+                    {r.drawEarly && (
+                      <div style={{ marginTop: 'auto', paddingTop: '12px' }}>
+                        <Interactive as="span" onClick={r.drawBusy ? undefined : r.drawEarly}
+                          base={css("cursor:pointer;flex:none;font:600 12.5px var(--nv-font-ui);padding:6px 14px;border-radius:8px;border:1px solid rgba(143,123,255,.45);color:#cbb6f2;background:rgba(143,123,255,.1)")}
+                          hoverStyle={{ background: 'rgba(143,123,255,.22)' }}
+                        >{r.drawBusy ? 'Drawing…' : 'Draw one early'}</Interactive>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {r.firstLook && <span style={{ ...phMeta, display: 'block', marginBottom: '4px' }}>New · first look</span>}
+                    <div style={{ font: `500 14px ${R}`, color: 'var(--nv-ink)' }}>{r.title}</div>
+                    <div style={{ marginTop: '4px', font: `italic 400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'rgba(232,236,246,.92)', maxHeight: '96px', overflowY: 'auto' }}>{r.gist}</div>
+                    <div style={{ marginTop: '8px', font: `450 12px ${R}`, color: 'var(--nv-ink60)' }}>
+                      {r.source
+                        ? `${r.source.kind ? `${r.source.kind} · ` : ''}${r.source.title}${r.source.time ? ` · Play from ${r.source.time}` : ''}${r.source.extra > 0 ? ` · +${r.source.extra}` : ''}`
+                        : 'No source on this page'}
+                    </div>
+                    <div style={{ marginTop: 'auto', paddingTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                      <Button compact onClick={r.next} style={{ flex: 'none' }}>NEXT</Button>
+                      {r.grades.map((g) => (
+                        <Interactive key={g.key} as="span" onClick={g.go}
+                          base={css("cursor:pointer;flex:none;font:600 12px var(--nv-font-ui);padding:6px 12px;border-radius:8px;border:1px solid rgba(143,123,255,.3);color:#cbb6f2;background:rgba(143,123,255,.06)")}
+                          hoverStyle={{ background: 'rgba(143,123,255,.18)' }}
+                        >{g.label} — {g.goesTo}</Interactive>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '14px' }}>
+                      <Interactive as="span" onClick={r.writeAboutIt} base={css('cursor:pointer;font:450 12px var(--nv-font-ui);color:var(--nv-ink60)')}>Write about it</Interactive>
+                      <Interactive as="span" onClick={r.open} base={css('cursor:pointer;font:450 12px var(--nv-font-ui);color:var(--nv-ink60)')}>Open the page ›</Interactive>
+                    </div>
+                  </>
+                )}
+              </>
+            );
+          })()}
         </div>
       </section>
 

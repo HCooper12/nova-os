@@ -538,17 +538,19 @@ function InboxClassic({ v }) {
         <div style={{ marginTop: '24px' }}>
           <Eyebrow>Loops</Eyebrow>
 
-          {/* the flagship: the Daily Review reasons across everything, once a day */}
+          {/* the flagship: Day read (server/lib/dailyReview.js) reasons
+              across everything, once a day. Shown as "Day read" since 11
+              Oct — "Daily review" is now the forgetting-curve card's name. */}
           <div className="nv-pane" style={{ marginTop: '10px', padding: '16px 18px', border: '1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent)', background: 'color-mix(in srgb, var(--nv-cy) 04%, transparent)' }}>
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
-              <Eyebrow as="span" tone="cyan">◆ Daily review</Eyebrow>
+              <Eyebrow as="span" tone="cyan">◆ Day read</Eyebrow>
               <Meta tone="faint">Nova reasons across your whole day · one coached read + adjustments</Meta>
             </div>
             <div style={css("margin-top:11px;display:flex;gap:6px;flex-wrap:wrap;align-items:center")}>
               {v.dailyReview.modes.map((m) => (
                 <Chip key={m.value} tone={m.active ? 'accent' : 'quiet'} active={m.active} onClick={m.pick}>{m.label}</Chip>
               ))}
-              <Select value={v.dailyReview.hour} onChange={v.dailyReview.setHour} ariaLabel="Daily review time"
+              <Select value={v.dailyReview.hour} onChange={v.dailyReview.setHour} ariaLabel="Day read time"
                 style={{ flex: 'none', marginLeft: 'auto' }}
                 options={v.dailyReview.hourOptions.map((h) => ({ value: h, label: `${String(h).padStart(2, '0')}:00` }))} />
             </div>

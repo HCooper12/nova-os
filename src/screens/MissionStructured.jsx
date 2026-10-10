@@ -9,7 +9,6 @@ import { StuckCard } from '../StuckCard.jsx';
 import { prLift, prBasis } from '../missionFocus.js';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
-import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
 import { TechniqueCheck } from '../TechniqueCheck.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, foldInstrument, FOLD_LABELS, NEVER_FOLD, loadFolds, saveFolds } from '../missionFold.js';
@@ -469,34 +468,70 @@ export function MissionStructured({ v }) {
       </Group>
     ),
 
-    review: (
-      <Group key="review" label="Daily review" accent="--nv-vi" trailing={
-        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Meta tone="faint">{v.reviewMeta}</Meta>
-          <ShuffleButton onClick={v.shuffleReview} spinning={!!v.reviewSpin} label="Shuffle daily review" />
-        </span>
-      }>
-        <div style={{ padding: '13px 16px' }}>
-          {/* the shuffle, spun (25 Sep): his concepts pass through the band
-              and it lands on the one drawn; the card returns around it */}
-          {v.reviewSpin ? (
-            <SpinReveal rows={v.reviewSpin.rows} spinning={v.reviewSpin.spinning} rowH={38} accent="--nv-vi"
-              face={`italic 400 16px/1.2 ${S}`} onLanded={v.reviewSpin.landed} chime="review"
-              label="Shuffle daily review" landedLabel="A new concept to review" />
-          ) : (
-            <>
-              <div style={{ font: `400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)' }}>{v.reviewConcept}</div>
-              <div style={{ marginTop: '11px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                <span style={{ font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  from <em style={{ font: `italic 400 14px ${S}`, color: 'var(--nv-vi)' }}>{v.reviewFrom}</em>
-                </span>
-                <Pill label="Review" onClick={v.openReview} tone="quiet" />
+    // THE DAILY REVIEW, on a forgetting curve (mockup 96). His decision: a
+    // card only shown never moves — Next (grade 'read') is the primary act,
+    // Got it / Fuzzy / Forgot stay secondary and each say where they send
+    // the concept. "Draw one early" replaces the old random shuffle once
+    // the day's reviews are done — order cannot be broken while any are due.
+    review: (() => {
+      const r = v.review;
+      if (r.state === 'loading') {
+        return (
+          <Group key="review" label="Daily review" accent="--nv-gold">
+            <GRow first title={<span style={{ color: 'var(--nv-ink60)' }}>Loading…</span>} />
+          </Group>
+        );
+      }
+      if (r.state === 'mac-unreachable') {
+        return (
+          <Group key="review" label="Daily review" accent="--nv-gold">
+            <GRow first title={<span style={{ color: 'var(--nv-ink60)' }}>The Mac is unreachable — your review returns on the next sync.</span>} />
+          </Group>
+        );
+      }
+      if (r.state === 'nothing-due') return null; // no moment, no row — truly nothing to show
+      if (r.state === 'all-done') {
+        return (
+          <Group key="review" label="Daily review" accent="--nv-good" trailing={r.pips ? <Meta tone="good">{r.pips.done} of {r.pips.total} done</Meta> : null}>
+            <div style={{ padding: '13px 16px' }}>
+              <div style={{ font: `400 16px/1.45 ${S}`, color: 'var(--nv-ink)' }}>Today's reviews are done.</div>
+              {r.drawEarly && <div style={{ marginTop: '11px' }}><Pill label={r.drawBusy ? 'Drawing…' : 'Draw one early'} onClick={r.drawBusy ? undefined : r.drawEarly} tone="quiet" /></div>}
+            </div>
+          </Group>
+        );
+      }
+      return (
+        <Group key="review" label="Daily review" accent="--nv-gold" trailing={r.pips ? <Meta tone="faint">{r.pips.done} of {r.pips.total} done</Meta> : null}>
+          <div style={{ padding: '13px 16px' }}>
+            {r.firstLook && <Meta tone="faint">New · first look</Meta>}
+            <div style={{ marginTop: '4px', font: `500 15px ${UI}`, color: 'var(--nv-ink)' }}>{r.title}</div>
+            <div style={{ marginTop: '6px', font: `italic 400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{r.gist}</div>
+            <div style={{ marginTop: '9px', font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>
+              {r.source
+                ? `${r.source.kind ? `${r.source.kind} · ` : ''}${r.source.title}${r.source.time ? ` · Play from ${r.source.time}` : ''}${r.source.extra > 0 ? ` · +${r.source.extra}` : ''}`
+                : 'No source on this page'}
+            </div>
+            {r.connected.length > 0 && (
+              <div style={{ marginTop: '9px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {r.connected.map((c) => (
+                  <Interactive key={c.id} as="span" onClick={c.go} base={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 9px', borderRadius: '999px', border: `1px solid color-mix(in srgb, ${c.color} 40%, transparent)`, font: `500 12px ${UI}`, color: 'var(--nv-ink)' }}>
+                    <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />{c.title}
+                  </Interactive>
+                ))}
               </div>
-            </>
-          )}
-        </div>
-      </Group>
-    ),
+            )}
+            <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+              <Pill label="Next" accent="--nv-gold" onClick={r.next} />
+              {r.grades.map((g) => <Pill key={g.key} label={`${g.label} — ${g.goesTo}`} onClick={g.go} tone="quiet" />)}
+            </div>
+            <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+              <Interactive as="span" onClick={r.writeAboutIt} base={css('cursor:pointer;font:450 12.5px var(--nv-font-ui);color:var(--nv-ink60)')}>Write about it</Interactive>
+              <Interactive as="span" onClick={r.open} base={css('cursor:pointer;font:450 12.5px var(--nv-font-ui);color:var(--nv-ink60)')}>Open the page ›</Interactive>
+            </div>
+          </div>
+        </Group>
+      );
+    })(),
 
     noticed: (
       <Group key="noticed" label="Nova noticed" trailing={<Meta tone="faint">While you slept</Meta>}>

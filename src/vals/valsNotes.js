@@ -41,13 +41,38 @@ export function valsNotes(app, ctx) {
   const on = usingLiveNotes ? null : (app.notes.find(n => n.id === st.openNoteId) || app.notes[0]);
   const noteByTitle = (label) => app.notes.find(n => n.title.startsWith(label.split(' ·')[0].slice(0, 12)));
 
-  // daily review — a deterministic-by-date pick from the real Concepts/Topics
-  // pages in the vault, falling back to the fictional demo cards when not connected
+  // THE DAILY REVIEW — the server's forgetting-curve queue (mockup 96).
+  // usingLiveReview mirrors usingLiveNotes: the scripted demo cards only
+  // ever show when there is no real connection at all, never as a stand-in
+  // for "the Mac hasn't answered yet" (that is reviewMacUnreachable below).
   const usingLiveReview = usingLiveNotes;
-  const reviewPool = app.dailyReviewPool(st.liveNotes);
-  const reviewIdx = st.reviewShuffleIdx != null ? st.reviewShuffleIdx : app.dailyReviewIndex(reviewPool);
-  const reviewPage = reviewPool[reviewIdx] || null;
-  const reviewSummary = reviewPage ? st.liveReviewSummaries[reviewPage.id] : undefined;
+  const today = st.liveReviewToday;
+  const reviewItem = usingLiveReview ? app.currentReviewItem(today) : null;
+  const reviewPage = reviewItem ? { id: reviewItem.id, title: reviewItem.title } : null;
+  const reviewSummary = reviewItem ? (st.liveReviewSummaries[reviewItem.id] ?? reviewItem.gist) : undefined;
+  // honest states (mockup 96 Part 4) — distinguished, never collapsed into
+  // one generic "unavailable"
+  const reviewLoading = usingLiveReview && today === null;
+  const reviewMacUnreachable = usingLiveReview && today === null && st.connectionStatus === 'offline';
+  const reviewNothingDue = usingLiveReview && today && today.total === 0;
+  const reviewAllDone = usingLiveReview && today && today.total > 0 && today.doneCount >= today.total && !st.reviewDrawnExtra;
+  const curveFor = (item) => !item ? null : {
+    gaps: [1, 3, 7, 16, 35, 90, 180],
+    step: item.step || 0,
+    due: item.due,
+    answers: (item.history || []).map((h) => ({ date: h.date, grade: h.grade })),
+  };
+  const REVIEW_GAPS = [1, 3, 7, 16, 35, 90, 180];
+  const reviewGapAfter = (step, grade) => {
+    const s0 = Math.min(Math.max(step || 0, 0), REVIEW_GAPS.length - 1);
+    if (grade === 'got' || grade === 'read') return REVIEW_GAPS[Math.min(s0 + 1, REVIEW_GAPS.length - 1)];
+    return REVIEW_GAPS[s0];
+  };
+  const gradeDestination = {
+    got: `in ${reviewGapAfter(reviewItem?.step, 'got')} day${reviewGapAfter(reviewItem?.step, 'got') === 1 ? '' : 's'}`,
+    fuzzy: `in ${reviewGapAfter(reviewItem?.step, 'fuzzy')} day${reviewGapAfter(reviewItem?.step, 'fuzzy') === 1 ? '' : 's'}`,
+    forgot: 'tomorrow',
+  };
 
   // journal — live entries (Wiki/Journal/) grouped by day, newest first.
   // Category filter keeps personal reflections separate from training receipts
@@ -118,22 +143,63 @@ export function valsNotes(app, ctx) {
   // the scripted demo review only ever shows in demo mode — a configured
   // session that hasn't synced (offline, first connect) says so instead
   const demoMode = ctx.demoMode;
+
+  const kindWordFor = (url) => {
+    if (!url) return null;
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, '');
+      if (/youtube\.|youtu\.be/.test(host)) return 'video';
+      if (/spotify\.|podcasts\.apple|overcast\./.test(host)) return 'podcast';
+      return host;
+    } catch { return null; }
+  };
+
+  // THE CARD, both idioms, one shape (mockup 96 Part 2). Every honest state
+  // this file can distinguish is a DIFFERENT value here, never one generic
+  // "unavailable" — the components read `state` and switch on it.
+  const reviewState = reviewLoading ? (reviewMacUnreachable ? 'mac-unreachable' : 'loading')
+    : reviewNothingDue ? 'nothing-due'
+    : reviewAllDone ? 'all-done'
+    : reviewItem ? 'card' : 'loading';
+
+  const review = {
+    state: reviewState,
+    title: reviewItem?.title || '',
+    typeColor: reviewItem ? (NOTE_TYPE_COLOR[(reviewItem.type || '').toLowerCase()] || 'var(--nv-ink)') : 'var(--nv-ink)',
+    gist: reviewItem ? (reviewSummary ? reviewSummary : (reviewSummary === undefined || reviewSummary === null ? 'Summarizing…' : reviewItem.gist || '')) : '',
+    firstLook: !!reviewItem && reviewItem.kind === 'new' && !reviewItem.answered,
+    source: reviewItem?.source
+      ? { title: reviewItem.source.title, time: reviewItem.source.time, url: reviewItem.source.url, kind: kindWordFor(reviewItem.source.url), extra: reviewItem.source.extra || 0 }
+      : null, // null, honestly — "No source on this page", never his own title as a stand-in
+    connected: (reviewItem?.connected || []).map((c) => ({ id: c.id, title: c.title, color: NOTE_TYPE_COLOR[(c.type || '').toLowerCase()] || 'var(--nv-ink)', go: () => app.selectNote(c.id) })),
+    curve: curveFor(reviewItem),
+    pips: today ? { done: today.doneCount, total: today.total } : null,
+    next: reviewItem ? () => app.answerReview(reviewItem.id, 'read') : () => {},
+    grades: reviewItem ? [
+      { key: 'got', label: 'Got it', goesTo: gradeDestination.got, go: () => app.answerReview(reviewItem.id, 'got') },
+      { key: 'fuzzy', label: 'Fuzzy', goesTo: gradeDestination.fuzzy, go: () => app.answerReview(reviewItem.id, 'fuzzy') },
+      { key: 'forgot', label: 'Forgot', goesTo: gradeDestination.forgot, go: () => app.answerReview(reviewItem.id, 'forgot') },
+    ] : [],
+    writeAboutIt: reviewItem ? () => { app.selectNote(reviewItem.id); app.toggleReviewReflect(); } : () => {},
+    open: reviewItem ? () => app.openDailyReview() : () => {},
+    drawEarly: reviewAllDone ? () => app.shuffleDailyReview() : null,
+    drawBusy: !!st.reviewDrawBusy,
+  };
+  Object.assign(ctx, { review });
+
   return {
-    // daily review (Mission Control card)
+    // THE DAILY REVIEW's full view model — one shape, read by the summary
+    // Moment, the grouped Group and the classic pane alike (mockup 96).
+    review,
+    // legacy flat fields some surfaces (the Index nav row) still read
     reviewConcept: usingLiveReview
-      ? (reviewPage
-          ? (reviewSummary ? reviewSummary : (reviewSummary === undefined || reviewSummary === null ? 'Summarizing…' : reviewPage.title))
-          : 'Add some Concepts or Topics to your wiki to start daily review')
+      ? (reviewItem ? review.gist : reviewNothingDue ? 'Nothing due today' : reviewMacUnreachable ? 'The Mac is unreachable — showing the last sync' : 'Add some Concepts or Topics to your wiki to start daily review')
       : demoMode
         ? app.reviews[st.reviewIdx].c
         : 'Offline — your daily review returns on the next sync.',
     reviewFrom: usingLiveReview
       ? (reviewPage ? reviewPage.title : '')
       : demoMode ? app.reviews[st.reviewIdx].f : '',
-    // mid-spin, the card shows the reel instead of the concept (SpinReveal)
-    reviewSpin: usingLiveReview && st.reviewSpin
-      ? { rows: st.reviewSpin.rows, spinning: true, landed: () => app.finishReviewSpin() }
-      : null,
     shuffleReview: usingLiveReview
       ? () => app.shuffleDailyReview()
       : demoMode

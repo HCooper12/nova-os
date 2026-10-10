@@ -319,9 +319,99 @@ function Moment({ k, v }) {
         </section>
       );
     }
+    // THE DAILY REVIEW, on a forgetting curve (mockup 96). Answering is
+    // optional — Next is the primary act, the three recall choices are
+    // secondary and each say where they send the concept.
+    case 'review': {
+      const r = v.review;
+      const hue = r.typeColor;
+      if (r.state === 'all-done') {
+        return (
+          <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-good)') }} aria-label="Daily review">
+            <MomentHead label="Daily review" tint="var(--nv-good)" meta={r.pips ? <Meta tone="good">{r.pips.done} of {r.pips.total} done</Meta> : null} />
+            <div style={{ marginTop: '8px', font: `italic 400 17px/1.3 ${SERIF}`, color: 'var(--nv-ink)' }}>Today's reviews are done.</div>
+            {r.drawEarly && (
+              <div style={{ marginTop: '12px' }}>
+                <Pill label="Draw one early" onClick={r.drawEarly} tone="quiet" />
+              </div>
+            )}
+          </section>
+        );
+      }
+      return (
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit(hue) }} aria-label="Daily review">
+          <MomentHead label="Daily review" tint={hue} meta={r.pips ? <Meta tone="faint">{r.pips.done} of {r.pips.total} done</Meta> : null} />
+          {r.spin ? (
+            <div style={{ marginTop: '10px' }}><SpinReel spin={r.spin} /></div>
+          ) : (
+            <>
+              {r.firstLook && <Meta tone="faint">New · first look</Meta>}
+              <div style={{ marginTop: '6px', font: `500 17px/1.3 ${UI}`, color: 'var(--nv-ink)' }}>{r.title}</div>
+              <div style={{ marginTop: '6px', font: `italic 400 15.5px/1.45 ${SERIF}`, color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', textWrap: 'pretty' }}>{r.gist}</div>
+              {r.source ? (
+                <div style={{ marginTop: '8px', font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>
+                  {r.source.kind ? `${r.source.kind} · ` : ''}{r.source.title}
+                  {r.source.time ? ` · Play from ${r.source.time}` : ''}
+                  {r.source.extra > 0 ? ` · +${r.source.extra}` : ''}
+                </div>
+              ) : (
+                <div style={{ marginTop: '8px', font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)' }}>No source on this page</div>
+              )}
+              {r.connected.length > 0 && (
+                <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {r.connected.map((c) => (
+                    <Interactive key={c.id} as="span" onClick={c.go} base={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '4px 9px', borderRadius: '999px', border: `1px solid color-mix(in srgb, ${c.color} 40%, transparent)`, font: `500 12px ${UI}`, color: 'var(--nv-ink)' }}>
+                      <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />{c.title}
+                    </Interactive>
+                  ))}
+                </div>
+              )}
+              {r.curve && <ReviewCurve curve={r.curve} hue={hue} />}
+              <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                <Pill label="Next" accent="--nv-gold" onClick={r.next} />
+                {r.grades.map((g) => <Pill key={g.key} label={`${g.label} — ${g.goesTo}`} onClick={g.go} tone="quiet" />)}
+              </div>
+              <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                <TextAction tone="faint" onClick={r.writeAboutIt}>Write about it</TextAction>
+                <TextAction tone="faint" onClick={r.open}>Open the page ›</TextAction>
+              </div>
+            </>
+          )}
+        </section>
+      );
+    }
     default:
       return null;
   }
+}
+
+// a tiny forgetting-curve read: his real answers as dots on their dates,
+// plotted against the seven gaps — no percentage, just the shape of it
+function ReviewCurve({ curve, hue }) {
+  const w = 220; const h = 34;
+  const totalGapDays = curve.gaps.reduce((a, b) => a + b, 0);
+  let x = 0;
+  const pts = curve.gaps.map((g) => { x += g; return (x / totalGapDays) * w; });
+  const path = `M0 ${h} ` + pts.map((px, i) => `L${px} ${h - (h * (i + 1)) / curve.gaps.length}`).join(' ');
+  return (
+    <svg width="100%" height={h + 6} viewBox={`0 0 ${w} ${h + 6}`} style={{ display: 'block', marginTop: '10px' }} aria-hidden="true">
+      <path d={path} fill="none" stroke={`color-mix(in srgb, ${hue} 45%, transparent)`} strokeWidth="1.5" />
+      {curve.answers.map((a, i) => {
+        const cx = Math.min(w, (i / Math.max(1, curve.answers.length - 1 || 1)) * w);
+        const tone = a.grade === 'forgot' ? 'var(--nv-warn)' : a.grade === 'fuzzy' ? 'var(--nv-gold)' : 'var(--nv-good)';
+        return <circle key={i} cx={cx} cy={h - 4} r="3" fill={tone} />;
+      })}
+    </svg>
+  );
+}
+
+function SpinReel({ spin }) {
+  return (
+    <div onClick={spin.landed} style={{ font: `450 13px ${UI}`, color: 'var(--nv-ink60)', cursor: 'pointer' }}>
+      {spin.rows.map((r) => r.text).slice(0, 1).join(' ')}
+      <span style={{ marginLeft: 8 }}>Drawing…</span>
+    </div>
+  );
 }
 
 // -------------------------------------------------------------- highlight --

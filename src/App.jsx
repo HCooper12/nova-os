@@ -6,7 +6,6 @@ import { classifyLink, RECIPE_WORDS_RE } from './linkKind.js';
 import { reportOpening } from './planCard.js';
 import { claimForSpeech, setDuckingPreference, ducksOtherAudio } from './audioSession.js';
 import { sfxEnabled, setSfxEnabled, previewSfx, primeSfx, releaseSfx } from './sfx.js';
-import { buildReelRows } from './reel.js';
 import { hearingChoice, setHearingChoice } from './hearingEngine.js';
 import { runEarsTest } from './earsTest.js';
 import { unspokenTexts, resumeVerdict } from './speechResume.js';
@@ -391,7 +390,7 @@ const CACHED_LIVE_KEYS = [
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
   // fetched every sync anyway — excluding them just blanked flagship surfaces
   // (About You, Daily Review card, learning panel) on every phone reload
-  'liveDailyReview', 'liveProfile', 'liveLearning',
+  'liveDailyReview', 'liveProfile', 'liveLearning', 'liveReviewToday',
   // the surfaces added this week — omitted here they went BLANK the moment the
   // Mac slept, which is exactly when the phone is all he has
   'liveOps', 'liveOvernight', 'liveSkills', 'livePulse',
@@ -718,6 +717,10 @@ export default class App extends Component {
     foodEditId: null, foodEditName: '', foodEditP: '', foodEditC: '', foodEditF: '', foodEditKcal: '',
     foodRecipePickerOpen: false, foodRecipePickerQuery: '', foodRecipePick: null, foodPortionFactor: 1, foodPortionCustom: '',
     liveNotes: null, liveNoteDetails: {},
+    // THE DAILY REVIEW — the server's forgetting-curve queue (null until
+    // the first fetch returns; [] items with total 0 is the honest "nothing
+    // due" state, never confused with "not loaded yet")
+    liveReviewToday: null, reviewOpenId: null, reviewDrawnExtra: null,
     liveLibrary: null, liveLibraryDetails: {}, liveBookCoverUrls: {}, libraryFilter: 'all', libraryQuery: '', libraryOpenId: null,
     libraryView: (() => { try { return localStorage.getItem('novaos.libraryView') === 'spines' ? 'spines' : 'grid'; } catch { return 'grid'; } })(), liveCalendar: null, liveCalendarList: null, calCmdText: '', calCmdBusy: false,
     // the model board (Settings): null until loaded, so "not loaded" and
@@ -762,7 +765,6 @@ export default class App extends Component {
     discardedDraft: null, // a discarded workout still inside its 7-day window
 
     // daily review + journal
-    reviewShuffleIdx: null,
     // the concept shuffle, mid-spin: its rows frozen at the tap (shuffleDailyReview)
     reviewSpin: null,
     reviewReflectOpen: false, reviewReflectText: '', reviewReflectBusy: false, reviewReflectError: null,
@@ -1885,7 +1887,7 @@ export default class App extends Component {
     apply('notes', (r) => {
       this.setState({ liveNotes: r.notes });
       if (r.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(r.notes[0].id);
-      this.refreshDailyReviewDetail(r.notes);
+      this.refreshReviewToday();
     });
     apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
     apply('leader', (r) => this.setState({ liveLeader: r }));
@@ -2005,8 +2007,8 @@ export default class App extends Component {
         const notesRes = await api.notes(conn);
         this.setState({ liveNotes: notesRes.notes });
         if (notesRes.notes[0] && !this.state.liveNoteDetails[this.state.openNoteId]) this.selectNote(notesRes.notes[0].id);
-        this.refreshDailyReviewDetail(notesRes.notes);
       },
+      async () => this.refreshReviewToday(),
       async () => { const r = await api.library(conn); this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); },
       async () => this.setState({ liveLeader: await api.leader(conn) }),
       async () => this.setPracticeLive(await api.practice(conn)),
@@ -5124,75 +5126,71 @@ export default class App extends Component {
       onError: () => this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: '' } })),
     });
   }
-  // Deterministic "concept of the day" — hashes today's date into the pool of
-  // concept/topic pages so it's stable across reloads within a day but
-  // changes daily, without needing a dedicated backend endpoint (the pool
-  // comes straight from the already-fetched notes list).
-  dailyReviewPool(liveNotes) {
-    // Sorted by title so the pick matches the server-side Morning Dispatch
-    // pool regardless of fetch ordering.
-    return (liveNotes || [])
-      .filter((n) => n.type === 'concept' || n.type === 'topic')
-      .sort((a, b) => a.title.localeCompare(b.title));
+  // THE DAILY REVIEW — the forgetting-curve queue (server/lib/conceptReview.js).
+  // The pick lives on the server alone now: no date-hash twin to keep in
+  // sync with dispatch.js, nothing to drift.
+  async refreshReviewToday() {
+    const conn = getConnection();
+    if (!conn) return;
+    try {
+      const today = await api.reviewToday(conn);
+      this.setState({ liveReviewToday: today });
+      const open = this.currentReviewItem(today);
+      if (open) { this.ensureNoteDetail(open.id); this.ensureReviewSummary(open.id); }
+    } catch { /* the card shows its own "Mac unreachable" state from liveReviewToday staying null/stale */ }
   }
-  dailyReviewIndex(pool) {
-    if (!pool.length) return 0;
-    // THE SERVER'S TWIN — dispatch.js dateHashIndex, pinned there by
-    // twins.test.js ('2026-09-02' over 7 → 1). Local date, as the server
-    // uses: this hashed the UTC date, so before 10:00 the morning brief named
-    // one concept and this screen showed another.
-    const d = new Date();
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    let h = 0;
-    for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) | 0;
-    return Math.abs(h) % pool.length;
+  // Which item is on screen: his own tap (reviewOpenId) if it's still in
+  // today's queue, a drawn-early extra, else the first not-yet-answered
+  // item, else simply the first — never undefined while items exist.
+  currentReviewItem(today = this.state.liveReviewToday) {
+    if (this.state.reviewDrawnExtra) return this.state.reviewDrawnExtra;
+    const items = today?.items || [];
+    if (!items.length) return null;
+    const picked = this.state.reviewOpenId && items.find((i) => i.id === this.state.reviewOpenId);
+    return picked || items.find((i) => !i.answered) || items[0];
   }
-  refreshDailyReviewDetail(liveNotes) {
-    const pool = this.dailyReviewPool(liveNotes);
-    const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
-    const page = pool[idx];
-    if (page) { this.ensureNoteDetail(page.id); this.ensureReviewSummary(page.id); }
+  openReviewItem(id) {
+    this.setState({ reviewOpenId: id, reviewDrawnExtra: null });
   }
-  // THE SHUFFLE, SPUN (25 Sep, from the Hormozi reel). This one IS a random
-  // draw, so it is the one place the reel's theatre is literally what
-  // happens: it passes a random handful of his concepts and lands on the page
-  // drawn. The summary is asked for at the tap, so the spin covers the wait.
-  // A tap mid-spin hurries the reel (SpinReveal), never draws twice.
+  // "DRAW ONE EARLY" (his call, 11 Oct): the shuffle reel survives only
+  // here, once the day's reviews are done. A random never-logged concept,
+  // which enters as new the moment he answers it.
   shuffleDailyReview() {
-    const pool = this.dailyReviewPool(this.state.liveNotes);
-    if (pool.length < 2 || this.state.reviewSpin) return;
-    const current = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
-    let next = current;
-    while (next === current) next = Math.floor(Math.random() * pool.length);
-    this.ensureNoteDetail(pool[next].id);
-    this.ensureReviewSummary(pool[next].id);
-    const row = (p) => ({ key: p.id, text: p.title });
-    const rest = pool.filter((_, i) => i !== current && i !== next);
-    for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
-    primeSfx({ busy: !!(this.ttsPlaying || this.state.voiceSpeaking) });
-    this.setState({
-      reviewSpin: {
-        // the page, not its index: the notes can re-sync under a spin
-        nextId: pool[next].id,
-        rows: buildReelRows({ start: row(pool[current] || pool[0]), others: rest.slice(0, 11).map(row), target: row(pool[next]) }),
-      },
-    });
+    const conn = getConnection();
+    const today = this.state.liveReviewToday;
+    if (!conn || !today || today.total === 0 || today.doneCount < today.total || this.state.reviewDrawBusy) return;
+    this.setState({ reviewDrawBusy: true });
+    api.reviewDraw(conn).then(({ item }) => {
+      this.ensureNoteDetail(item.id);
+      this.ensureReviewSummary(item.id);
+      haptic('tick');
+      this.withTransition(() => this.setState({
+        reviewDrawBusy: false, reviewDrawnExtra: item, reviewOpenId: item.id,
+        reviewReflectOpen: false, reviewReflectText: '', reviewReflectPromptText: null,
+      }));
+    }).catch((e) => { this.setState({ reviewDrawBusy: false }); this.toastMsg('Could not draw a concept: ' + e.message); });
   }
-  finishReviewSpin() {
-    const spin = this.state.reviewSpin;
-    if (!spin) return;
-    const idx = this.dailyReviewPool(this.state.liveNotes).findIndex((p) => p.id === spin.nextId);
-    this.withTransition(() => this.setState({
-      reviewSpin: null,
-      ...(idx >= 0 ? { reviewShuffleIdx: idx, reviewReflectOpen: false, reviewReflectText: '', reviewReflectPromptText: null } : {}),
-    }));
+  // His "Next": grade 'read', logged distinctly so read-only use is
+  // measurable later, advancing the card exactly like Got it.
+  answerReview(pageId, grade) {
+    const conn = getConnection();
+    if (!conn || !pageId) return;
+    const item = this.currentReviewItem();
+    const name = item?.title || 'that concept';
+    const label = { got: 'Got it', fuzzy: 'Fuzzy', forgot: 'Forgot', read: 'Read' }[grade] || grade;
+    api.reviewAnswer(conn, pageId, grade).then(({ record }) => {
+      haptic('commit');
+      this.setState({ reviewDrawnExtra: null });
+      this.refreshReviewToday();
+      tickReceipt({
+        key: `review:${pageId}:${Date.now()}`, title: `${label} — ${name}`,
+        undo: () => { if (record?.id) api.inboxUndo(conn, record.id).then(() => this.refreshReviewToday()).catch((e) => this.toastMsg('Could not undo: ' + e.message)); },
+      });
+    }).catch((e) => this.toastMsg('Could not save that answer: ' + e.message));
   }
   openDailyReview() {
-    const pool = this.dailyReviewPool(this.state.liveNotes);
-    const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
-    const page = pool[idx];
-    if (page) this.selectNote(page.id);
-    this.navigate('notes');
+    const item = this.currentReviewItem();
+    if (item) { this.selectNote(item.id); this.navigate('notes'); } else this.navigate('notes');
   }
   toggleReviewReflect() {
     this.setState((s) => ({ reviewReflectOpen: !s.reviewReflectOpen, reviewReflectText: '', reviewReflectError: null, reviewReflectPromptText: null }));
@@ -5202,13 +5200,10 @@ export default class App extends Component {
   }
   generateReviewReflectPrompt() {
     const conn = getConnection();
-    const pool = this.dailyReviewPool(this.state.liveNotes);
-    const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
-    const page = pool[idx];
-    if (!conn || !page) return;
-    const detail = this.state.liveNoteDetails[page.id];
+    const item = this.currentReviewItem();
+    if (!conn || !item) return;
     this.setState({ reviewReflectPromptBusy: true });
-    api.startJournalPrompt(conn, page.title, detail?.paragraphs?.[0] || '').then(({ jobId }) => {
+    api.startJournalPrompt(conn, item.title, item.gist || '').then(({ jobId }) => {
       this.startPoll('reviewPrompt', () => api.journalPromptJob(conn, jobId), {
         onReady: (job) => this.setState({ reviewReflectPromptBusy: false, reviewReflectPromptText: job.result.prompt }),
         onError: (msg) => {
@@ -5224,9 +5219,7 @@ export default class App extends Component {
   saveReviewReflection() {
     const conn = getConnection();
     const text = this.state.reviewReflectText.trim();
-    const pool = this.dailyReviewPool(this.state.liveNotes);
-    const idx = this.state.reviewShuffleIdx != null ? this.state.reviewShuffleIdx : this.dailyReviewIndex(pool);
-    const page = pool[idx];
+    const page = this.currentReviewItem();
     if (!conn || !text || !page) return;
     this.setState({ reviewReflectBusy: true });
     api.addJournalEntry(conn, text, page.title).then(() => {
