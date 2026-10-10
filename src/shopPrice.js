@@ -160,11 +160,13 @@ export function sizeFor(product, need, keep) {
   if (!need || need.fam === 'any') return { size: 1, approx: false };
   const pk = packOf(`${product.size || ''} ${product.name || ''}`);
   if (need.fam === 'n') {
-    if (pk.count && (!pk.g || !keep?.each || /pack|pk|bag of|dozen/.test(String(product.name).toLowerCase()))) return { size: pk.count, approx: false };
+    if (pk.count && (!pk.g || !keep?.each || /pack|pk|bag of|dozen|about \d/.test(`${product.name} ${product.size}`.toLowerCase()))) return { size: pk.count, approx: pk.approx };
     if (pk.each && !pk.count) return { size: 1, approx: false };
     if (pk.g && keep?.each) return { size: Math.max(1, Math.round(pk.g / keep.each)), approx: true };
-    if (!pk.g && !pk.ml && !pk.count) return { size: 1, approx: false };
-    return null;
+    // a litre of something is not a count of limes
+    if (pk.ml && keep?.each) return null;
+    // otherwise one product is one of the thing (a 1.25 L bottle, a loaf)
+    return { size: pk.count || 1, approx: false };
   }
   if (need.fam === 'g') {
     if (pk.g) return { size: pk.g, approx: pk.approx };
@@ -248,8 +250,9 @@ export function frac(n) {
 const WORD = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 export const word = (n) => WORD[n] || String(n);
 const up = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
-export const money = (n) => (Math.abs(n) < 1 ? `${Math.round(Math.abs(n) * 100)}c` : `$${Math.abs(n).toFixed(2)}`);
-export const dollars = (n) => `$${(Number(n) || 0).toFixed(2)}`;
+// thousands grouped (break-ui, 10 Oct: "$1271.85" read as a typo)
+export const dollars = (n) => `$${(Number(n) || 0).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export const money = (n) => (Math.abs(n) < 1 ? `${Math.round(Math.abs(n) * 100)}c` : dollars(Math.abs(n)));
 
 // a candidate's kind in a few words: "single", "bag of 5", "1 kg", "12 pack"
 export function packWords(c, fam) {
