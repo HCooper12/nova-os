@@ -20,6 +20,9 @@ export const KIND_AGENT = {
   money: 'Money', cfo: 'CFO', research: 'Researcher', studio: 'Studio',
   // his own change on the Money screen, filed with Undo (lib/moneyRails.js)
   'money-write': 'Money',
+  // the Stash: his own change filed with Undo (lib/stashRails.js), and its
+  // news (a level check, a gift day, a price drop; lib/stashSignals.js)
+  'stash-write': 'Stash', stash: 'Stash',
   // his own commit on the Code screen, filed with Undo (lib/codeChanges.js)
   'code-commit': 'Code',
   // a delegated multi-step goal — Nova put several agents on one request and

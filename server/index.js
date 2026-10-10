@@ -45,6 +45,7 @@ import { intakeRouter } from './routes/intake.js';
 import { wrapRouter } from './routes/wrap.js';
 import { formCheckRouter } from './routes/formCheck.js';
 import { startMoneyImportScheduler } from './lib/moneyImport.js';
+import { startStashScheduler } from './lib/stashSignals.js';
 import { startCfoScheduler } from './lib/cfoReport.js';
 import { startMealPrepScheduler } from './lib/mealPrep.js';
 import { startFoodSuggestScheduler } from './lib/foodSuggest.js';
@@ -358,6 +359,9 @@ async function main() {
   import('./lib/pulse.js').then(({ startPulseScheduler }) => startPulseScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('pulse scheduler failed to start:', e.message));
   startMoneyImportScheduler(process.env.VAULT_PATH);
+  // the Stash's level checks and gift days (half-hourly, no network) and its
+  // price watch (once a day, past 05:00), pushes held through quiet hours
+  startStashScheduler(process.env.VAULT_PATH);
   startCfoScheduler();
   startMealPrepScheduler(process.env.VAULT_PATH);
   startFoodSuggestScheduler(process.env.VAULT_PATH);

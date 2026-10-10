@@ -250,6 +250,11 @@ export async function buildAskContext(vaultPath, sessionId, { fast = false } = {
     // day, bills and the alerts waiting on him, every figure computed by code
     // (lib/moneySignals.js). The same block the CFO answers a consult with.
     { label: 'money this month', load: async () => (await import('./moneySignals.js')).moneyContext() },
+    // THE STASH (10 Oct 2026, his yes to "ask Nova about the stash"): shelves,
+    // restock items with days left, due checks, watched prices, gift days and
+    // recent buys, every figure computed by code (lib/stashSignals.js). The
+    // same block the Stash source answers a consult with.
+    { label: 'the stash', load: async () => (await import('./stashSignals.js')).stashContext({ vaultPath }) },
     { label: "the Leader's idea of the day", load: async () => {
       // the Leader's idea of the day — Nova mentions it in the morning brief
       // conversation and can discuss it; the deeper sit-down lives in the
