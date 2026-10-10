@@ -13,6 +13,21 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**10 OCT (afternoon) — EVERY ROUND HE APPROVED IS BUILT AND LIVE; NOTHING
+RUNNING; NO DECISION OPEN.** Built, merged, pushed, reloaded today: Code
+(actions proven on a temp repo; Science Atlas + Wren workspaces; quotes;
+undo on the rails), Money (+ wired into Nova; nightly full check, over budget
+on change; merchant move; xlsx; Split; cupertino row), Stash (five
+additions; his 12 real lines round-trip), Shopping (real prices: Coles and
+Aldi read, Woolworths does not answer; rewards via a Mail rule; runtime
+logos). Motion steps 1 and 2 shipped 9 Oct. HIS STEPS: the rewards Mail rule
+(docs/rewards-mail-rule.md); the Stash share Shortcut
+(docs/stash-share-shortcut.md); the Science Atlas dashboard prompt was given
+to him for the Atlas session. NEXT: Notes/Journal/Galaxy when he has looked
+(mockup 87; and the journal-attribution honesty bug); the MacBook desktop
+round (reel memory nova-reel-dashboard-v8); To-Do waits for his Todoist
+recordings; motion: the theme swap frame and Settings push floor (P8).
+
 **9 OCT (afternoon) — BRIEFING, LEADER AND THE WALL BUILT AND LIVE; ROUND 3
 OUT FOR CODE, SHOPPING, MONEY; NOTHING RUNNING.** Each built in an isolated
 worktree against a checklist with frame pairs, merged, pushed, reloaded.

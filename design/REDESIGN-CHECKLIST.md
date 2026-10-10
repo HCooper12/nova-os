@@ -561,6 +561,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — "PROCEED WITH YOUR RECOMMENDATIONS": Woolworths keeps one
+  try a day and says "did not answer" (no evasion); pins stay in server data;
+  logos a site refused retry daily (44964ce; cached now: Everyday Rewards,
+  Woolworths, Aldi); Stash sorts by added, no Home row for level checks (the
+  push and the card carry it), Stash reads Woolworths and Coles under the
+  same polite rules; Code: files a session changed by shell arrive ticked
+  (he reads the list; Undo while unpushed), commits stay in the Inbox
+  history; Billroo categories used only where names clearly match.
 - 10 Oct 2026 — SHOPPING BUILT AND SHIPPED (merge, pushed, reloaded):
   mockup 92 under summary (classic list kept for cupertino/command); 92-line
   checklist (80 present, 10 differ, none missing; not built: "Nova
