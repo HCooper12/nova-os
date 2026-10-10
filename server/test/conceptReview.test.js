@@ -13,7 +13,7 @@ import path from 'node:path';
 import {
   GAPS, DAILY, answer, nextStep, daysBetween, shiftDate,
   dueCards, newCandidates, buildQueue, rebuildState, parseLogLine, formatLogLine,
-  appendAnswer, undoAnswer, LOG_REL,
+  appendAnswer, undoAnswer, LOG_REL, aheadOf,
 } from '../lib/conceptReview.js';
 
 async function tempVault() {
@@ -264,4 +264,21 @@ test('undoing a line that is no longer there (already edited by hand) is a clean
   await writeFile(full, (await readFile(full, 'utf8')).replace('Got it', 'Got it (his own note)'), 'utf8');
   const ok = await undoAnswer(vault, r1);
   assert.equal(ok, false);
+});
+
+test('aheadOf counts the week ahead and finds the next due day, skipping gone pages and today', () => {
+  const pagesById = new Map([['a', {}], ['b', {}], ['c', {}], ['d', {}]]);
+  const cards = {
+    a: { step: 1, due: '2026-10-13' },
+    b: { step: 2, due: '2026-10-13' },
+    c: { step: 0, due: '2026-10-11' }, // due today: not "ahead"
+    d: { step: 4, due: '2026-11-30' }, // beyond the week, still counts as a next date if nothing nearer
+    gone: { step: 1, due: '2026-10-12' }, // no page: never counted
+  };
+  const { ahead, nextDue } = aheadOf(cards, pagesById, '2026-10-11');
+  assert.equal(ahead.length, 7);
+  assert.deepEqual(ahead[0], { date: '2026-10-12', count: 0 });
+  assert.deepEqual(ahead[1], { date: '2026-10-13', count: 2 });
+  assert.deepEqual(nextDue, { date: '2026-10-13', count: 2 });
+  assert.equal(aheadOf({}, pagesById, '2026-10-11').nextDue, null);
 });

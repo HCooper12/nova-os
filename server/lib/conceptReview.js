@@ -174,6 +174,25 @@ export function dueCards(cards, pagesById, today) {
   return out;
 }
 
+// The week ahead, by pages due (mockup 96's done state), and the next day
+// anything is due at all (the "nothing due" row). Counted from the real
+// schedule only; a page whose card is gone from the vault is not counted.
+export function aheadOf(cards, pagesById, today, days = 7) {
+  const counts = new Map();
+  let next = null;
+  for (const [id, card] of Object.entries(cards)) {
+    if (!pagesById.has(id) || !card?.due || card.due <= today) continue;
+    counts.set(card.due, (counts.get(card.due) || 0) + 1);
+    if (!next || card.due < next) next = card.due;
+  }
+  const ahead = [];
+  for (let i = 1; i <= days; i++) {
+    const date = shiftDate(today, i);
+    ahead.push({ date, count: counts.get(date) || 0 });
+  }
+  return { ahead, nextDue: next ? { date: next, count: counts.get(next) } : null };
+}
+
 // Candidates never in the log, ranked newest page first (its concept page's
 // own date, standing in for "the day after the source was ingested, while
 // the curve is steepest"), then most backlinked, then title.
@@ -331,7 +350,9 @@ export async function reviewToday(vaultPath, vault, now = new Date()) {
     .map(({ id, kind, page }) => buildItemView({ id, kind, page, pages, cards, history, backlinkCounts, today }));
 
   const dueCount = dueCards(cards, pagesById, today).length;
+  const { ahead, nextDue } = aheadOf(cards, pagesById, today);
   return {
+    ahead, nextDue,
     date: today,
     items,
     total: items.length,
