@@ -172,12 +172,22 @@ export function valsNotes(app, ctx) {
     // so those fields are honestly absent rather than invented.
     state: 'card', title: demoReview.f, typeColor: 'var(--nv-vi)', gist: demoReview.c,
     firstLook: false, source: null, connected: [], curve: null, pips: null,
-    next: () => app.navigate('notes', { openNoteId: demoReview.id }),
-    grades: [],
+    next: () => app.answerReviewDemo('read'),
+    grades: [
+      { key: 'got', label: 'Got it', goesTo: 'in 3 days', go: () => app.answerReviewDemo('got') },
+      { key: 'fuzzy', label: 'Fuzzy', goesTo: 'the same gap again', go: () => app.answerReviewDemo('fuzzy') },
+      { key: 'forgot', label: 'Forgot', goesTo: 'tomorrow', go: () => app.answerReviewDemo('forgot') },
+    ],
     writeAboutIt: () => {},
-    open: () => { app.navigate('notes', { openNoteId: demoReview.id }); app.toastMsg('Commander queued this concept for tonight’s reflection'); },
+    // "Open the page" opens the sheet here too — demo content stands in for
+    // the whole note, honestly labelled, never claimed as a real page
+    open: () => app.openReviewSheet(),
     drawEarly: () => app.setState((s) => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (app.reviews.length - 1))) % app.reviews.length })),
     drawBusy: false,
+    sheetOpen: !!st.reviewSheetOpen,
+    closeSheet: () => app.closeReviewSheet(),
+    warmDetail: () => {},
+    sheetDetail: { paragraphs: [demoReview.c, 'Demo data — connect your backend in Settings to read the real note.'] },
   } : {
     state: reviewState,
     title: reviewItem?.title || '',

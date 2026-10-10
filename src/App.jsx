@@ -5155,13 +5155,12 @@ export default class App extends Component {
   // history entry, the novaFocus pattern: closing IS going back on its own
   // entry, popH does the closing on a swipe or Back elsewhere.
   openReviewSheet() {
-    const item = this.currentReviewItem();
-    if (!item) return;
     if (typeof window !== 'undefined') {
       const st = window.history.state;
       if (st?.novaOverlay !== 'reviewSheet') window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'reviewSheet' }, '');
     }
-    this.ensureNoteDetail(item.id);
+    const item = this.currentReviewItem();
+    if (item) this.ensureNoteDetail(item.id); // demo mode has no live item — the sheet shows its scripted content instead
     if (!this.state.reviewSheetOpen) this.setState({ reviewSheetOpen: true });
   }
   closeReviewSheet() {
@@ -5210,6 +5209,22 @@ export default class App extends Component {
         undo: () => { if (record?.id) api.inboxUndo(conn, record.id).then(() => this.refreshReviewToday()).catch((e) => this.toastMsg('Could not undo: ' + e.message)); },
       });
     }).catch((e) => this.toastMsg('Could not save that answer: ' + e.message));
+  }
+  // DEMO MODE's answer: there is no server to grade against, so this moves
+  // the scripted reel on (the old shuffle's own step) and shows the same
+  // tick-pill-with-undo receipt the live path does — the motion is real
+  // even though the grade behind it is demo content.
+  answerReviewDemo(grade) {
+    const label = { got: 'Got it', fuzzy: 'Fuzzy', forgot: 'Forgot', read: 'Read' }[grade] || grade;
+    const before = this.state.reviewIdx;
+    const name = this.reviews[before]?.f || 'that concept';
+    const next = (before + 1) % this.reviews.length;
+    this.setState({ reviewIdx: next });
+    haptic('commit');
+    tickReceipt({
+      key: `review-demo:${Date.now()}`, title: `${label} — ${name}`,
+      undo: () => this.setState({ reviewIdx: before }),
+    });
   }
   openDailyReview() {
     const item = this.currentReviewItem();
