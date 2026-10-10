@@ -83,8 +83,6 @@ export function demoStashState(variant = 'demo', now = Date.now()) {
     const slug = it.url.split('/').pop();
     meta[it.key] = {
       demoArt: art[slug] || null,
-      // mockup 90 s3: one link that came in from Safari's share sheet an hour ago
-      ...(slug === 'sunscreen' ? { via: 'safari', addedAt: ago(1 / 24, now) } : {}),
       opens: opened[slug] != null ? 2 : 0,
       lastOpened: opened[slug] != null ? ago(opened[slug], now) : null,
       addedAt: added[slug] != null ? ago(added[slug], now) : null,
@@ -96,6 +94,8 @@ export function demoStashState(variant = 'demo', now = Date.now()) {
       price: slug === 'sharpener' ? { amount: 49, currency: 'AUD', inStock: true, state: 'ok', checkedOn: t, event: { type: 'price-drop', on: d(-1), from: 59, to: 49 } }
         : slug === 'mat' ? { amount: 74, currency: 'AUD', inStock: true, state: 'blocked', why: 'the site asked for a bot check', checkedOn: t, event: null }
           : null,
+      // mockup 90 s3: one link that came in from Safari's share sheet an hour ago
+      ...(slug === 'sunscreen' ? { via: 'safari', addedAt: ago(1 / 24, now) } : {}),
     };
   }
   return { categories, meta, readAt: new Date(now).toISOString(), onList: [], offline: variant === 'offline', clip: 'https://skin.example.com/p/vitamin-c-serum' };
