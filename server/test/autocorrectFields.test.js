@@ -61,6 +61,8 @@ test('the Fuel "Log anything…" describe field is a LocalInput with autocorrect
 const ALLOWED_AUTOCORRECT_OFF = new Set([
   'src/screens/Settings.jsx',
   'src/screens/Stash.jsx',
+  // the summary Stash's add bar: a pasted URL (its search field keeps autocorrect)
+  'src/screens/StashSummary.jsx',
 ]);
 
 function listJsFiles(absDir, relDir, out) {

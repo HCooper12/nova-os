@@ -223,6 +223,14 @@ export function buildStashView({ stash, ui = {}, now = Date.now(), demo = false,
     today, total, shelfCount, news, status, offline, demo,
     due: first ? { ...card(first.it, first.c, shelfLook(first.c), first.r), words: first.r.left ? `About ${plural(first.r.left, 'day')} left by the calendar` : `Empty by the calendar: bought ${plural(first.r.since, 'day')} ago` } : null,
     dueCount: due.length,
+    // a watched price that changed this week, once per change (the screen
+    // raises one pill for each it has not shown on this device)
+    priceNews: items.flatMap(({ it }) => {
+      const e = meta[it.key]?.price?.event;
+      if (!it.watch || !e || daysBetween(e.on, today) > 7) return [];
+      return [{ key: `${it.key}|${e.type}|${e.on}|${e.to ?? ''}`, title: e.type === 'price-drop' ? 'Price drop' : 'Back in stock',
+        message: e.type === 'price-drop' && e.from != null && e.to != null ? `${shortName(it.name)}: ${money(e.from)} to ${money(e.to)}` : `${shortName(it.name)} is back in stock` }];
+    }),
     // the instrument holds two rows; the rest are one tap away in the Days left sort
     vialsMore: Math.max(0, tracked.length - VIAL_MAX),
     vials: tracked.slice(0, VIAL_MAX).map(({ it, c, r }) => ({ raw: it.raw, key: it.key, name: shortName(it.name), full: it.name, hue: shelfLook(c).hue, level: r.level, checkFrac: r.checkFrac, left: r.left, due: r.due })),

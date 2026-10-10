@@ -8,6 +8,7 @@ import { haptic } from '../haptics.js';
 import { SIcon, Tile } from '../StashIcon.jsx';
 import { StashArt } from '../StashArt.jsx';
 import { isLink, shortLink } from '../stashUrl.js';
+import { notify } from '../island.js';
 import '../stash.css';
 
 // THE SUMMARY STASH (10 Oct 2026). Mockup 84's Stash tab ("Instruments",
@@ -179,7 +180,7 @@ function ShelfBar({ S, V }) {
       </div>
       {S.ui.search && (
         <div className="nv-st-sfield">
-          <input type="search" autoFocus placeholder="Search names, sites and notes" value={S.ui.q} onChange={(e) => S.setQuery(e.target.value)} aria-label="Search the Stash" autoCapitalize="none" autoCorrect="off" />
+          <input type="search" autoFocus placeholder="Search names, sites and notes" value={S.ui.q} onChange={(e) => S.setQuery(e.target.value)} aria-label="Search the Stash" />
           <button type="button" onClick={() => S.toggleSearch()}>Cancel</button>
         </div>
       )}
@@ -766,9 +767,29 @@ function Skeleton() {
 
 /* ------------------------------ the page ---------------------------------- */
 
+// A PRICE THAT CHANGED, SAID ONCE (his addition 1: "a change files one
+// record and a pill"). The server files the record and pushes it through
+// quiet hours; here, the first time the page sees the change on this
+// device, one pill names it.
+const SEEN_KEY = 'novaos.stashPriceSeen';
+function usePricePills(news) {
+  const sig = (news || []).map((n) => n.key).join('|');
+  useEffect(() => {
+    if (!news?.length) return;
+    let seen = [];
+    try { seen = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch { seen = []; }
+    const fresh = news.filter((n) => !seen.includes(n.key));
+    if (!fresh.length) return;
+    const n = fresh[0];
+    notify({ id: `stash-price:${n.key}`, tone: 'info', title: fresh.length > 1 ? `${fresh.length} price changes` : n.title, message: n.message, duration: 5000 });
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen, ...fresh.map((x) => x.key)].slice(-60))); } catch { /* per device, best effort */ }
+  }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export function StashSummary({ v }) {
   const S = v.stashSum;
   const V = S.view;
+  usePricePills(V.priceNews);
   const sheet = S.ui.sheet;
   const sheetCard = sheet?.raw ? findCard(V, sheet.raw) : null;
   if (S.reader) {
