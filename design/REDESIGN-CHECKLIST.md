@@ -503,8 +503,8 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 **Prior:** #14 date table done and re-verified feature by feature.
 
 #### Stash — `stash` · `src/screens/Stash.jsx` (90) · vals in `src/vals/valsMisc.js`
-- [m] X1 · Head + count, intro line, add form (Category with datalist · Name · URL · Note · Stash it) — `Stash.jsx:17-46`
-- [m] X2 · Category groups; item row = name + host/note `<a>` **and a second `<a>` "Open ↗" pill to the same URL**, remove × with inline confirm — `Stash.jsx:57-83`
+- [b] X1 · Head + count, intro line, add form (Category with datalist · Name · URL · Note · Stash it) — `Stash.jsx:17-46`
+- [b] X2 · Category groups; item row = name + host/note `<a>` **and a second `<a>` "Open ↗" pill to the same URL**, remove × with inline confirm — `Stash.jsx:57-83`
 **Prior:** #16 Stash half unresolved (two tap targets per row) [Verified in source].
 
 #### Galaxy — `galaxy` · `src/screens/Galaxy.jsx` (57) · vals in `src/vals/valsMisc.js` · `src/galaxyLayout.js`
@@ -561,6 +561,12 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — STASH BUILT AND SHIPPED (merge, pushed, reloaded): rounds
+  84/88/90 plus all five additions; 92-line checklist (84 present, 8 differ,
+  none missing). New facts live as inline fields on the Stash.md lines
+  ([lasts:: 8] etc.); his real file read back: 12 of 12 lines round-trip
+  byte for byte, 3 shelves. His step: the share-sheet Shortcut
+  (docs/stash-share-shortcut.md).
 - 10 Oct 2026 — MONEY FOLLOW-UPS SHIPPED (merge, pushed, reloaded): the
   merchant move takes every past purchase (switch on by default, says how
   many; one record, exact Undo); the Money row on the cupertino Home too
