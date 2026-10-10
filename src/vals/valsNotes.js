@@ -1,5 +1,6 @@
 import { NOTE_TYPE_COLOR } from './shared.js';
 import { vtStyle } from '../vtName.js';
+import { pickReviewItem } from '../reviewPick.js';
 
 // Notes domain: the notes browser, the daily-review pick (+ reflect composer),
 // and the journal. Adds to ctx: usingLiveNotes, reviewPage, journalDays.
@@ -47,7 +48,7 @@ export function valsNotes(app, ctx) {
   // for "the Mac hasn't answered yet" (that is reviewMacUnreachable below).
   const usingLiveReview = usingLiveNotes;
   const today = st.liveReviewToday;
-  const reviewItem = usingLiveReview ? app.currentReviewItem(today) : null;
+  const reviewItem = usingLiveReview ? pickReviewItem({ items: today?.items, drawnExtra: st.reviewDrawnExtra, openId: st.reviewOpenId }) : null;
   const reviewPage = reviewItem ? { id: reviewItem.id, title: reviewItem.title } : null;
   const reviewSummary = reviewItem ? (st.liveReviewSummaries[reviewItem.id] ?? reviewItem.gist) : undefined;
   // honest states (mockup 96 Part 4) — distinguished, never collapsed into

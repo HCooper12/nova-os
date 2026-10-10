@@ -82,6 +82,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
+import { pickReviewItem } from './reviewPick.js';
 import { loadCode, codeFromHistory, commit as codeCommit, shelve as codeShelve, restore as codeRestore, switchWorkspace as codeSwitchWorkspace, newSession as codeNewSession } from './codeActions.js';
 import { demoMoneyState, demoVariant, demoWrites } from './moneyDemo.js';
 import { demoShopState, shopDemoVariant, demoTurn } from './shopDemo.js';
@@ -5143,11 +5144,7 @@ export default class App extends Component {
   // today's queue, a drawn-early extra, else the first not-yet-answered
   // item, else simply the first — never undefined while items exist.
   currentReviewItem(today = this.state.liveReviewToday) {
-    if (this.state.reviewDrawnExtra) return this.state.reviewDrawnExtra;
-    const items = today?.items || [];
-    if (!items.length) return null;
-    const picked = this.state.reviewOpenId && items.find((i) => i.id === this.state.reviewOpenId);
-    return picked || items.find((i) => !i.answered) || items[0];
+    return pickReviewItem({ items: today?.items, drawnExtra: this.state.reviewDrawnExtra, openId: this.state.reviewOpenId });
   }
   openReviewItem(id) {
     this.setState({ reviewOpenId: id, reviewDrawnExtra: null });
