@@ -561,6 +561,14 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — MONEY FOLLOW-UPS SHIPPED (merge, pushed, reloaded): the
+  merchant move takes every past purchase (switch on by default, says how
+  many; one record, exact Undo); the Money row on the cupertino Home too
+  (guard re-recorded, diff = the row only); Billroo .xlsx read directly
+  (read-excel-file 9.3.10 pinned; Billroo categories used only where names
+  clearly match); Split across two categories (optional `parts`, old ledgers
+  load). break-ui fixed the divider clipping and "File all 5000 into
+  September" for a multi-month file.
 - 10 Oct 2026 — HIS DECISIONS (all answered). Shopping: Nova reads prices
   from the chains' public sites (his call, against their terms: polite, never
   evading bot checks); rewards from his emails via a Mail rule: yes; real
