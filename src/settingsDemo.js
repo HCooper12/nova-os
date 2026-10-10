@@ -52,6 +52,7 @@ export function demoSettingsSeed() {
       { file: 'Inbox/Captures.md', stamp: '08:15' },
     ],
     browser: { chrome: true, profileExists: true },
+    notion: { connected: true, botName: 'Nova', workspaceName: "Hayden's workspace", journalShared: true },
     about: {
       focus: 'Getting stronger while work is busy',
       priorities: ['Strength', 'protein', 'sleep before 11'],

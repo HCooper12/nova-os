@@ -396,6 +396,31 @@ export function valsSettings(app, ctx, v) {
     busy: !!v.browserSignIn?.busy,
   };
 
+  // --------------------------------------------------------------- notion --
+  // HIS KEY. The Mac holds the secret (server/lib/notionAuth.js); this reads
+  // only the honest summary it will give back: connected or not, and
+  // whether the Journal database has been shared with the connection yet.
+  const ns = demo ? D.notion : st.liveNotionStatus;
+  const notionHeld = demo ? held(true) : held(!!ns, !!st.notionStatusError);
+  const notionValue = !ns ? '' : !ns.connected ? (ns.rejected ? 'Key no longer accepted' : 'Not connected') : ns.journalShared ? 'Connected · Journal shared' : 'Connected · tick Journal in Notion';
+  const notion = {
+    ...notionHeld,
+    demo,
+    value: mv(notionValue, notionHeld),
+    connected: !!ns?.connected,
+    journalShared: !!ns?.journalShared,
+    botName: ns?.botName || null,
+    workspaceName: ns?.workspaceName || null,
+    saving: !!st.notionSaving,
+    saveError: st.notionSaveError || '',
+    save: demo
+      ? () => { app.toastMsg('Demo: this would be checked with Notion and saved on the Mac'); return Promise.resolve(); }
+      : (token) => app.saveNotionToken(token),
+    disconnect: demo
+      ? () => app.toastMsg('Demo: nothing is connected to disconnect')
+      : () => app.disconnectNotion(),
+  };
+
   // -------------------------------------------------------------- tab bar --
   const slots = dockSlots({ style, isMobile: !!st.isMobile });
   const items = v.tabOrderItems || [];
@@ -431,6 +456,7 @@ export function valsSettings(app, ctx, v) {
     mac: { value: { text: macText, loading: false, stale: false }, ok: mac.ok, tile: macTile },
     cals: { value: mv(cals.connected && calList.length ? `${shown} of ${calList.length} shown` : '', calHeld) },
     browser: { value: browser.value },
+    notion: { value: notion.value },
     models: { value: mv(board ? `${board.laneCount} lanes · ${board.offCount} off` : '', boardHeld) },
     snap: { value: 'Before every write' },
     check: { value: '5 tests' },
@@ -465,7 +491,7 @@ export function valsSettings(app, ctx, v) {
       summary: style === 'summary',
       coreStyle: st.coreStyle,
       statusBanner: !!v.statusBanner,
-      you, rows, voice, notif, app: app_, check, cals, models, snap, mac, browser, tabs, train,
+      you, rows, voice, notif, app: app_, check, cals, models, snap, mac, browser, notion, tabs, train,
       wake: voice.wake,
       calm: app_.calm,
     },
