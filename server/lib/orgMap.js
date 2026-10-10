@@ -80,6 +80,9 @@ export const KIND_BEING = {
   research: 'researcher', study: 'researcher', paper: 'researcher', scout: 'researcher', repertoire: 'researcher',
   video: 'watcher',
   'read-next': 'librarian', 'stash': 'librarian', 'stash-write': 'librarian', 'index-repair': 'librarian', 'brain-week': 'librarian', distill: 'librarian', ingest: 'librarian',
+  // his own answer on the Daily review card — Wiki/Library/Review Log.md,
+  // the same shelf the Librarian already keeps (conceptReview.js)
+  'concept-recall': 'librarian',
   review: 'leader', 'leader-reflect': 'leader', 'leader-followup': 'leader',
   // the tenth being, his pick of 26 Sep (the two masks), in Mind with the Leader
   'practice-skill': 'practice', 'practice-session': 'practice', 'practice-status': 'practice',

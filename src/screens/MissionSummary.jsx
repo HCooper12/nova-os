@@ -19,6 +19,7 @@ import { prLift, prBasis } from '../missionFocus.js';
 import { YourDay } from '../Instruments.jsx';
 import { readDaySeen, markDaySeen, DAY_KEYS } from '../dayCard.js';
 import { CountText, CountUp } from '../CountUp.jsx';
+import { ReviewMoment } from '../ReviewCard.jsx';
 
 // THE SUMMARY HOME (P2-B, 26 Sep 2026) — design/HOME-REDESIGN-PLAN.md, drawn
 // from mockup 56 (round 5, his pick). The third idiom of the same view model:
@@ -319,6 +320,10 @@ function Moment({ k, v }) {
         </section>
       );
     }
+    // THE DAILY REVIEW, on a forgetting curve (mockup 96): src/ReviewCard.jsx,
+    // the same view model the grouped Home draws as rows.
+    case 'review':
+      return <ReviewMoment r={v.review} style={{ '--i': 2 }} />;
     default:
       return null;
   }
@@ -767,8 +772,11 @@ export function MissionSummary({ v }) {
         {S.standfirst ? <p className="nv-sum-rise nv-sum-stand" style={{ '--i': 1 }}>{S.standfirst}</p> : null}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: S.standfirst ? 0 : '12px' }}>
+          {/* the Daily review leads while something is due (mockup 96 Part 3:
+              "at the head of Home"), so its answers sit above the fold */}
+          {S.moments.includes('review') && <Moment key="review" k="review" v={v} />}
           {S.yourDay && !S.yourDay.pinned && <YourDayCard d={S.yourDay} />}
-          {S.moments.map((k) => <Moment key={k} k={k} v={v} />)}
+          {S.moments.filter((k) => k !== 'review').map((k) => <Moment key={k} k={k} v={v} />)}
           <Highlight h={S.highlight} />
         </div>
 

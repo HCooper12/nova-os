@@ -15,6 +15,7 @@ import { intentRouter } from './routes/intent.js';
 import { briefingRouter } from './routes/briefing.js';
 import { leaderRouter } from './routes/leader.js';
 import { practiceRouter } from './routes/practice.js';
+import { reviewRouter } from './routes/review.js';
 import { startLeaderScheduler } from './lib/leader.js';
 import { calendarRouter } from './routes/calendar.js';
 import { ingestRouter } from './routes/ingest.js';
@@ -249,6 +250,7 @@ async function main() {
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
   app.use('/api', leaderRouter(process.env.VAULT_PATH));
   app.use('/api', practiceRouter(process.env.VAULT_PATH)); // PRACTICE — a skill prepared from his sources, rehearsed in a scene, debriefed with undo
+  app.use('/api', reviewRouter(process.env.VAULT_PATH, vault)); // THE DAILY REVIEW — concepts on a forgetting curve, undoable
   app.get('/api/events', (req, res) => subscribe(res));
   // what is running right now — scripts/reload-server.mjs waits for zero
   // before any restart (lib/jobRegistry.js; the 25 Sep lost Coach answer)

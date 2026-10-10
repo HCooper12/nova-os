@@ -433,7 +433,12 @@ export function valsInboxSummary(app, ctx, v) {
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
   const loops = [
     {
-      key: 'review', name: 'Daily review', loading: !drRaw,
+      // DISPLAY ONLY: the evening model read (server/lib/dailyReview.js) is
+      // now shown as "Day read" (his decision, 11 Oct) — the Daily review
+      // name belongs to the forgetting-curve card. The stored kind/label on
+      // disk is untouched (journal.js, commitments.js, weeklyDebrief.js all
+      // read it), so this loop's `key` stays 'review' on purpose.
+      key: 'review', name: 'Day read', loading: !drRaw,
       dot: !drRaw ? 'idle' : drRaw.config?.mode === 'off' ? 'idle' : drToday?.status === 'pending' ? 'wait' : drToday?.status === 'error' ? 'alert' : drToday?.status === 'filed' ? 'ok' : 'idle',
       line: !drRaw ? '' : drRaw.config?.mode === 'off' ? 'Off'
         : !drToday ? `Composes at ${String(drRaw.config?.hour ?? 8).padStart(2, '0')}:00`

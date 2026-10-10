@@ -222,7 +222,7 @@ test('focus is its own history entry, folded into pagesFromHistory; the thread a
   const app = read('src/App.jsx');
   assert.match(app, /pushState\(\{ novaDepth: depthOf\(st\) \+ 1, novaOverlay: 'novafocus' \}, ''\)/);
   assert.match(app, /closeNovaFocus\(\) \{\n\s*if \(typeof window !== 'undefined' && window\.history\.state\?\.novaOverlay === 'novafocus'\) \{ window\.history\.back\(\); return; \}/);
-  assert.match(app, /\.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\) \};/);
+  assert.match(app, /\.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\), \.\.\.this\.reviewSheetFromHistory\(\) \};/);
   assert.match(app, /novaFocusFromHistory\(\) \{[\s\S]{0,300}if \(!onEntry && this\.state\.novaFocus\) return \{ novaFocus: false \};\n\s*if \(onEntry && !this\.state\.novaFocus\) return \{ novaFocus: true \};/);
   assert.match(app, /novaFocus: false,/, 'closed at boot');
   const thread = read('src/screens/NovaThread.jsx');

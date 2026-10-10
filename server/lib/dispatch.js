@@ -83,25 +83,14 @@ export async function setDispatchConfig(slot, patch) {
 
 /* ------------------------------ composition ------------------------------ */
 
-// Deterministic daily-review pick — the SAME date-hash + title sort the
-// client uses (App.jsx dailyReviewIndex), so the dispatch names the concept
-// Mission Control shows. The hash is exported and pinned by a fixture test
-// (twins.test.js) because the two copies cannot share code — and they HAD
-// drifted: the client hashed the UTC date, so before 10:00 in Melbourne the
-// morning brief named one concept and the home screen showed another.
-export function dateHashIndex(dateStr, poolSize) {
-  if (!poolSize) return 0;
-  let h = 0;
-  for (let i = 0; i < dateStr.length; i++) h = (h * 31 + dateStr.charCodeAt(i)) | 0;
-  return Math.abs(h) % poolSize;
-}
-function reviewPick(pages) {
-  const pool = pages
-    .filter((p) => p.type === 'concept' || p.type === 'topic')
-    .sort((a, b) => a.title.localeCompare(b.title));
-  if (!pool.length) return null;
-  return pool[dateHashIndex(todayISO(), pool.length)];
-}
+// The daily-review pick USED TO be a date-hash twin kept in sync with
+// App.jsx by hand (dailyReviewIndex) and pinned here by a fixture test — and
+// the two drifted once already (the client hashed the UTC date, so before
+// 10:00 in Melbourne the morning brief named one concept and the home
+// screen showed another). The pick now lives on the server alone
+// (conceptReview.js, the forgetting-curve schedule); this just reads its
+// queue head so the brief names the same concept the Daily review card
+// shows, with nothing left to keep in sync.
 
 async function streakLine(vaultPath) {
   const s = await computeStreaks(vaultPath);
@@ -299,11 +288,14 @@ async function composeMorning(vaultPath, now) {
     if (lead) lines.push(lead);
   } catch { /* optional */ }
 
-  // daily review concept
+  // daily review concept — the server queue's own head, the same one the
+  // Daily review card shows (conceptReview.js; no client-side twin anymore)
   try {
+    const { reviewToday } = await import('./conceptReview.js');
     const vault = new Vault(vaultPath);
-    const pick = reviewPick(await vault.listPages());
-    if (pick) lines.push(`**Review.** Today's concept: ${pick.title}.`);
+    const today = await reviewToday(vaultPath, vault, now);
+    const head = today.items[0];
+    if (head) lines.push(`**Review.** Today's concept: ${head.title}.`);
   } catch { /* optional */ }
 
   return lines;

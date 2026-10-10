@@ -261,7 +261,9 @@ test('Talk about it on a capture opens a conversation that starts from the card'
 test('Agents & Operations gets the seven loops, the ladder and the waiting count', () => {
   const app = fakeApp({ screen: 'ops', liveInbox: { items: [card, other] } });
   const o = build(app).inboxSummary.ops;
-  assert.deepEqual(o.loops.map((l) => l.name), ['Daily review', 'Briefs', 'Compost', 'Open promises', 'Todoist', 'Meal prep', 'Guardian']);
+  // the evening model read is shown as "Day read" since 11 Oct — "Daily
+  // review" now names the forgetting-curve card (mockup 96)
+  assert.deepEqual(o.loops.map((l) => l.name), ['Day read', 'Briefs', 'Compost', 'Open promises', 'Todoist', 'Meal prep', 'Guardian']);
   assert.equal(o.waiting.count, 2);
   assert.deepEqual(o.ladder.options.map((m) => [m.label, m.active]), [['Review all', false], ['Auto high', true], ['Auto all', false]]);
   assert.ok(o.loops.filter((l) => l.loading).length >= 4, 'a loop with no data yet loads as the house skeleton, never "checking…"');
@@ -324,7 +326,7 @@ test('both sheets are modals the back swipe can find and close', () => {
   assert.match(app, /novaOverlay: 'deeper', parentId/);
   assert.match(app, /novaOverlay: 'capture'/);
   assert.match(app, /\.\.\.this\.recipeFromHistory\(\), \.\.\.this\.pagesFromHistory\(\) \}(?:\);|, \(\) =>)/, 'popstate closes and reopens them');
-  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\) \};/);
+  assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\), \.\.\.this\.reviewSheetFromHistory\(\) \};/);
 });
 
 test('Seen has no button on the summary Inbox: it is marked by looking', () => {

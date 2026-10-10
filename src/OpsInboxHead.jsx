@@ -65,7 +65,7 @@ function LoopControls({ k, c }) {
         <p style={LINE}>Nova reasons across your whole day: one coached read and its adjustments.</p>
         <div className="nv-sum-ib-lctl">
           {(d.modes || []).map((m) => <Chip key={m.value} tone={m.active ? 'accent' : 'quiet'} active={m.active} onClick={m.pick}>{m.label}</Chip>)}
-          <Select value={d.hour} onChange={d.setHour} ariaLabel="Daily review time" style={{ marginLeft: 'auto' }} options={hourOpts(d.hourOptions || [])} />
+          <Select value={d.hour} onChange={d.setHour} ariaLabel="Day read time" style={{ marginLeft: 'auto' }} options={hourOpts(d.hourOptions || [])} />
         </div>
         <div className="nv-sum-ib-lstat"><span>{d.status}</span><TextAction disabled={d.busy} onClick={d.run}>{d.busy ? 'Reasoning…' : 'Run now'}</TextAction></div>
       </>
@@ -151,7 +151,9 @@ function LoopControls({ k, c }) {
   return null;
 }
 
-const LOOP_NAME = { review: 'Daily review', briefs: 'Briefs', compost: 'Compost', promises: 'Open promises', todoist: 'Todoist', mealprep: 'Meal prep', guardian: 'Guardian' };
+// review: the evening model read (server/lib/dailyReview.js), shown as "Day
+// read" since 11 Oct — "Daily review" now names the forgetting-curve card.
+const LOOP_NAME = { review: 'Day read', briefs: 'Briefs', compost: 'Compost', promises: 'Open promises', todoist: 'Todoist', mealprep: 'Meal prep', guardian: 'Guardian' };
 
 export function OpsInboxHead({ o }) {
   const origin = useRef({});

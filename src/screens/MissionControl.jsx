@@ -6,7 +6,6 @@ import { PracticeCard } from '../PracticeCard.jsx';
 import { prLift, prBasis } from '../missionFocus.js';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
-import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
 import { TechniqueCheck } from '../TechniqueCheck.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { Eyebrow, TextAction, Meta, Button } from '../Controls.jsx';
@@ -19,6 +18,7 @@ import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
 import { MissionStructured } from './MissionStructured.jsx';
 import { MissionSummary } from './MissionSummary.jsx';
+import { ReviewInline } from '../ReviewCard.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, the BODY metrics strip
@@ -456,32 +456,14 @@ export function MissionControl({ v }) {
         </div>
 
         <div className="nv-pane nv-glow" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', ...glowSoft('--nv-vi').style }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '10px' }}>
-            {/* CONCEPT REVISIT, not "DAILY REVIEW": that name belongs to the
-                day's actual review (the Inbox card), and this card wearing it
-                let a spaced concept impersonate the flagship artefact. */}
-            <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>CONCEPT REVISIT</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={phMeta}>{v.reviewMeta}</span>
-              <ShuffleButton onClick={v.shuffleReview} spinning={!!v.reviewSpin} label="Shuffle concept revisit" />
-            </span>
+          {/* DAILY REVIEW, on a forgetting curve (mockup 96): the pane takes
+              the name back, and the body is the same card as the other two
+              Homes (src/ReviewCard.jsx), from the same view model. */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '2px' }}>
+            <span style={phH('--nv-vi', '--nv-tsh-head-vi')}>DAILY REVIEW</span>
+            {v.review?.pips && <span style={phMeta}>{v.review.pips.done} of {v.review.pips.total} done</span>}
           </div>
-          {v.reviewSpin ? (
-            <SpinReveal rows={v.reviewSpin.rows} spinning={v.reviewSpin.spinning} rowH={38} accent="--nv-vi"
-              face={`italic 400 16px/1.2 ${S}`} onLanded={v.reviewSpin.landed} chime="review"
-              label="Shuffle concept revisit" landedLabel="A new concept to review" />
-          ) : (<>
-          <div style={{ font: `400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'rgba(232,236,246,.92)', maxHeight: '132px', overflowY: 'auto' }}>{v.reviewConcept}</div>
-          <div style={{ marginTop: 'auto', paddingTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-            <span style={{ font: `500 12.5px ${R}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              from <em style={{ font: `italic 400 15px ${S}`, color: '#cbb6f2' }}>{v.reviewFrom}</em>
-            </span>
-            <Interactive as="span" onClick={v.openReview}
-              base={css("cursor:pointer;flex:none;font:600 12.5px var(--nv-font-ui);padding:6px 14px;border-radius:8px;border:1px solid rgba(143,123,255,.45);color:#cbb6f2;background:rgba(143,123,255,.1)")}
-              hoverStyle={{ background: 'rgba(143,123,255,.22)' }}
-            >Review</Interactive>
-          </div>
-          </>)}
+          <ReviewInline r={v.review} />
         </div>
       </section>
 

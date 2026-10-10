@@ -9,7 +9,6 @@ import { StuckCard } from '../StuckCard.jsx';
 import { prLift, prBasis } from '../missionFocus.js';
 import { RepertoireBook } from '../RepertoireBook.jsx';
 import { TechniqueReveal } from '../TechniqueReveal.jsx';
-import { SpinReveal, ShuffleButton } from '../SpinReveal.jsx';
 import { TechniqueCheck } from '../TechniqueCheck.jsx';
 import { RingTile } from '../RingTile.jsx';
 import { resolveFolds, foldStatus, foldInstrument, FOLD_LABELS, NEVER_FOLD, loadFolds, saveFolds } from '../missionFold.js';
@@ -26,6 +25,7 @@ import { CalendarView } from '../CalendarView.jsx';
 import { FocusChip } from '../FocusChip.jsx';
 import { TabIcon } from '../TabIcon.jsx';
 import { Group, GRow, MetricTile, Pill } from '../AppleLayout.jsx';
+import { ReviewGroup } from '../ReviewCard.jsx';
 
 // Mission Control in the "Apple layout" — same view model as the classic
 // screen, rendered as a grouped stack whose ORDER follows the day:
@@ -469,34 +469,10 @@ export function MissionStructured({ v }) {
       </Group>
     ),
 
-    review: (
-      <Group key="review" label="Daily review" accent="--nv-vi" trailing={
-        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Meta tone="faint">{v.reviewMeta}</Meta>
-          <ShuffleButton onClick={v.shuffleReview} spinning={!!v.reviewSpin} label="Shuffle daily review" />
-        </span>
-      }>
-        <div style={{ padding: '13px 16px' }}>
-          {/* the shuffle, spun (25 Sep): his concepts pass through the band
-              and it lands on the one drawn; the card returns around it */}
-          {v.reviewSpin ? (
-            <SpinReveal rows={v.reviewSpin.rows} spinning={v.reviewSpin.spinning} rowH={38} accent="--nv-vi"
-              face={`italic 400 16px/1.2 ${S}`} onLanded={v.reviewSpin.landed} chime="review"
-              label="Shuffle daily review" landedLabel="A new concept to review" />
-          ) : (
-            <>
-              <div style={{ font: `400 16px/1.45 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)' }}>{v.reviewConcept}</div>
-              <div style={{ marginTop: '11px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                <span style={{ font: `450 12.5px ${UI}`, color: 'var(--nv-ink60)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  from <em style={{ font: `italic 400 14px ${S}`, color: 'var(--nv-vi)' }}>{v.reviewFrom}</em>
-                </span>
-                <Pill label="Review" onClick={v.openReview} tone="quiet" />
-              </div>
-            </>
-          )}
-        </div>
-      </Group>
-    ),
+    // THE DAILY REVIEW, on a forgetting curve (mockup 96): the same view
+    // model as the summary card, drawn as rows (src/ReviewCard.jsx). Nothing
+    // due is no Group at all; More names the next day.
+    review: v.review.state === 'nothing-due' ? null : <ReviewGroup key="review" r={v.review} />,
 
     noticed: (
       <Group key="noticed" label="Nova noticed" trailing={<Meta tone="faint">While you slept</Meta>}>

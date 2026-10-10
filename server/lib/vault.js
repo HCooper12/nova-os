@@ -23,6 +23,19 @@ function extractWikilinks(body) {
   return [...links];
 }
 
+// The `sources:` frontmatter line every concept/topic page carries (the
+// vault's own schema). gray-matter already parses the YAML list into real
+// strings, so there is no hand-rolled frontmatter scan here (practice.js
+// needs one because it round-trips bytes; this is read-only). Each entry is
+// a wikilink to a Source page, sometimes followed by an mm:ss — the moment
+// in that source this concept came from.
+const SOURCE_LINE_RE = /^\[\[([^\]|#]+)(?:[|#][^\]]*)?\]\]\s*(?:(\d{1,3}:\d{2}(?::\d{2})?))?\s*$/;
+function parseSourceEntry(entry) {
+  const m = String(entry || '').trim().match(SOURCE_LINE_RE);
+  if (!m) return null;
+  return { title: m[1].trim(), time: m[2] || null };
+}
+
 async function walk(dir, root) {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = [];
@@ -92,6 +105,13 @@ export class Vault {
       status: frontmatter.status || null, // pipeline state on Studio ideas
       date,
       url: frontmatter.url || null,
+      // resolved names only — THIS page's idea of its sources. The source
+      // page's own `url` is a different page and has to be looked up by
+      // title against the rest of the vault (conceptReview.js does this,
+      // since it is the only caller that has the full page list in hand).
+      sources: (Array.isArray(frontmatter.sources) ? frontmatter.sources : [])
+        .map(parseSourceEntry)
+        .filter(Boolean),
       paragraphs,
       links: extractWikilinks(content),
       raw: content,

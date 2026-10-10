@@ -21,7 +21,7 @@ const GROUPS = [
   ['conversation', 'Conversation', 'The surfaces you talk to', 1.10, L('Ask Nova:H|Doorman greeting:H|Calendar in plain words:H|Leader · conversation:O|Practice · the scene:O|Leader · record his answer:H')],
   ['coach', 'Coach & training', 'The strength coach and everything it writes', 1.90, L('Ask Coach:O|Quick Session designer:S|Post-session debrief:S|Coach nightly reflection:S|Exercise research:S|Weekly training debrief:S|Study → program:O|Form check:O')],
   ['capture', 'Capture & scan', 'A photo, a paste or a sentence into real data', 0.80, L('Capture classifier:H|Food label scan:H|Meal photo scan:S|Recipe from a reel:S|Meal correction:S|Takeaway menu read:S|Food from a description:S|Recipe scan:H|Bank statement scan:S|Recipe tweak:S|Shopping list sorting:S|Vault ingest:O|Vault ingest · long transcripts:S')],
-  ['daily', 'Daily & background', 'The scheduled lanes that run without you', 2.30, L('Daily review:S|Plan today:S|Journal prompt:S|Health insight:S|Note summaries:S|Pattern scout:S|Leader · daily idea:S|Leader · weekly research:O|Practice · preparing a skill:O|Distill:S|Pulse:H|Study lane:S|Monthly CFO report:D|Weekly meal-prep list:D')],
+  ['daily', 'Daily & background', 'The scheduled lanes that run without you', 2.30, L('Day read:S|Plan today:S|Journal prompt:S|Health insight:S|Note summaries:S|Pattern scout:S|Leader · daily idea:S|Leader · weekly research:O|Practice · preparing a skill:O|Distill:S|Pulse:H|Study lane:S|Monthly CFO report:D|Weekly meal-prep list:D')],
   ['research', 'Research & media', 'Reading the web and watching video for you', 1.40, L('Planner · delegation:S|The browser hand:S|Briefing · the angles:H|Briefing · the report:S|Repertoire · analyse & learn:S|Researcher:S|Watcher · transcript pass:S|Watcher · verdict pass:S|Scout · people research:S|Librarian · book research:S|Librarian · questions:S|Studio outline:S')],
   ['build', 'Build', 'The lanes that write code', 0.60, L('Builder · projects:O|Code tab · Builder:S|Code tab · Breaker:S|Forge:S')],
 ];
@@ -67,7 +67,7 @@ export const DEMO_LADDER = [
   { kind: 'recipe', label: 'Recipe suggestions from food', kept: 2, total: 11, verdict: 'skips' },
   { kind: 'coach', label: 'Coach suggestions', kept: 14, total: 16, verdict: 'acts' },
   { kind: 'dispatch', label: 'Morning dispatch', kept: 22, total: 30, verdict: 'asks' },
-  { kind: 'review', label: 'Daily review prompts', kept: 9, total: 14, verdict: 'asks' },
+  { kind: 'review', label: 'Day read prompts', kept: 9, total: 14, verdict: 'asks' },
 ];
 
 // the model board, in the shape valsChrome hands the real one over

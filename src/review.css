@@ -1,0 +1,215 @@
+/* ================================================================
+   THE DAILY REVIEW (mockup 96, design/mockups/96-daily-review.html).
+   The card on both Homes and the page behind it. Every class is .nv-rv-*,
+   so nothing here reaches another surface. The review's own hue is the
+   violet (--nv-vi); answers wear their grade (good / gold / warn); the
+   source and the connected notes wear the Galaxy's kinds, handed in as
+   --rv-k by the component from NOTE_TYPE_COLOR.
+   Motion: transform and opacity only, plus the curve's drawn stretch,
+   which reveals through a clip scaled on X. Reduced motion (the OS
+   setting) gives 200 ms cross-fades and end states, at the foot.
+   ================================================================ */
+
+.nv-rv { --rv-ink2: color-mix(in srgb, var(--nv-ink) 78%, transparent); --rv-ink3: var(--nv-ink60);
+  --rv-ease: cubic-bezier(.23,1,.32,1); --rv-ease-io: cubic-bezier(.77,0,.175,1);
+  --rv-fill: color-mix(in srgb, var(--nv-ink) 7%, transparent);
+  --rv-ring: color-mix(in srgb, var(--nv-ink) 14%, transparent);
+  --rv-sep: color-mix(in srgb, var(--nv-ink) 14%, transparent);
+  color: var(--nv-ink); }
+:where(.nv-rv) button { -webkit-appearance: none; appearance: none; font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; text-align: inherit; }
+.nv-rv .nv-rv-ic { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nv-rv .nv-rv-num { font-family: var(--nv-font-round); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* the summary card: house glass, washed in the review's violet */
+.nv-sum-card.nv-rv-card { padding: 14px 16px 6px; --nv-sum-tint: var(--nv-vi);
+  background: linear-gradient(165deg, color-mix(in srgb, var(--nv-vi) 20%, transparent) 0%, color-mix(in srgb, var(--nv-vi) 5%, transparent) 46%, transparent 100%), var(--nv-sum-sheen), var(--nv-sum-card);
+  box-shadow: var(--nv-sum-glow), inset 0 0 0 .5px color-mix(in srgb, var(--nv-vi) 42%, transparent), 0 1px 0 var(--nv-sum-card-hi) inset, 0 22px 50px -26px color-mix(in srgb, var(--nv-vi) 60%, transparent); }
+
+/* the head: mark, name, pips, the count */
+.nv-rv-dh { display: flex; align-items: center; gap: 8px; min-height: 24px; font: 600 15px var(--nv-font-ui); color: var(--nv-vi); white-space: nowrap; }
+.nv-rv-dh .nv-rv-cnt { margin-left: auto; }
+.nv-rv-dh .nv-rv-pips + .nv-rv-cnt { margin-left: 0; }
+.nv-rv-dh .nv-rv-ic { width: 18px; height: 18px; }
+.nv-rv-pips { display: flex; gap: 5px; margin-left: auto; align-items: center; }
+.nv-rv-pips i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--nv-vi) 55%, transparent); transition: background-color 240ms ease, box-shadow 240ms ease; animation: rvPip 320ms var(--rv-ease) backwards; animation-delay: calc(var(--i, 0) * 60ms + 120ms); }
+.nv-rv-pips i.on { background: var(--nv-vi); box-shadow: none; }
+.nv-rv-pips i.cur { box-shadow: inset 0 0 0 1.5px var(--nv-vi), 0 0 0 3px color-mix(in srgb, var(--nv-vi) 24%, transparent); }
+@keyframes rvPip { from { opacity: 0; transform: scale(.4); } }
+.nv-rv-cnt { font: 500 13px var(--nv-font-ui); color: var(--rv-ink3); white-space: nowrap; }
+.nv-rv-cnt .nv-rv-num { color: var(--nv-ink); }
+
+/* the body: arrives over the skeleton by fading; the next page slides in */
+.nv-rv-body { min-width: 0; }
+.nv-rv-body.arrive { animation: rvArrive 320ms var(--rv-ease) backwards; }
+.nv-rv-body.swap { animation: rvSwap 300ms var(--rv-ease) backwards; }
+@keyframes rvArrive { from { opacity: 0; } }
+@keyframes rvSwap { from { opacity: 0; transform: translateX(14px); } }
+.nv-rv-kick { margin: 10px 0 0; font: 500 13px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-kick .new { color: var(--nv-vi); font-weight: 600; }
+.nv-rv-ct { margin: 2px 0 0; font: 400 26px/1.15 var(--nv-font-serif); color: var(--nv-ink); text-wrap: balance; overflow-wrap: anywhere; }
+.nv-rv-body .nv-rv-ct { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.nv-rv-gist { margin: 6px 0 0; font: 400 16px/1.42 var(--nv-font-serif); color: var(--rv-ink2); text-wrap: pretty; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* the source line, only where the page records one */
+.nv-rv-src { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 44px; margin-top: 6px; font: 450 14px/1.3 var(--nv-font-ui); color: var(--rv-ink2); text-align: left; }
+.nv-rv-pl { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--rv-k) 15%, transparent); color: var(--rv-k); }
+.nv-rv-pl .nv-rv-ic { width: 15px; height: 15px; }
+.nv-rv-src .tx { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.nv-rv-src em { font: italic 400 15px var(--nv-font-serif); color: var(--nv-ink); }
+.nv-rv-src .at { flex: none; font: 600 13px var(--nv-font-round); color: var(--rv-k); font-variant-numeric: tabular-nums; }
+.nv-rv-src.none { color: var(--rv-ink3); cursor: default; }
+.nv-rv-src.none .nv-rv-pl { background: color-mix(in srgb, var(--nv-ink) 5%, transparent); color: var(--rv-ink3); }
+
+/* connected notes, in the Galaxy's colours */
+.nv-rv-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.nv-rv-ln { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 30px; max-width: 100%; padding: 0 11px 0 9px; border-radius: 15px; font: 500 13px var(--nv-font-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 6%, transparent); box-shadow: inset 0 0 0 .5px var(--rv-ring); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-rv-ln i { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--rv-k); box-shadow: 0 0 6px var(--rv-k); }
+.nv-rv-ln span { overflow: hidden; text-overflow: ellipsis; }
+.nv-rv-ln::before { content: ""; position: absolute; inset: -7px -2px; }
+
+/* the curve */
+.nv-rv-curve { margin-top: 12px; }
+.nv-rv-curve svg { display: block; width: 100%; height: auto; overflow: visible; }
+.nv-rv-clab { display: flex; justify-content: space-between; gap: 10px; margin-top: 3px; font: 500 12px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-clab b { font-weight: 600; color: var(--nv-ink); }
+.nv-rv-clab .dl { animation: rvFade 300ms ease backwards; }
+.nv-rv-curve .fadeout { opacity: 0; transition: opacity 200ms ease; }
+.nv-rv-curve .nseg-clip { transform-box: fill-box; transform-origin: 0 50%; animation: rvDraw 560ms var(--rv-ease-io) backwards; }
+.nv-rv-curve .nring { animation: rvFade 200ms ease-out backwards; animation-delay: 560ms; }
+.nv-rv-curve .ndot { transform-box: fill-box; transform-origin: center; animation: rvDot 260ms var(--rv-ease) backwards; }
+@keyframes rvDraw { from { transform: scaleX(0); } }
+@keyframes rvDot { from { opacity: 0; transform: scale(.5); } }
+@keyframes rvFade { from { opacity: 0; } }
+
+/* the answer: three buttons that say where they send the page, then where it went */
+.nv-rv-slot { display: grid; margin-top: 10px; }
+.nv-rv-slot > * { grid-area: 1 / 1; transition: opacity 200ms ease, transform 200ms var(--rv-ease); transition-delay: 140ms; }
+.nv-rv-qrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 7px; min-height: 20px; }
+.nv-rv-q { margin: 0; font: 500 13px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-rec { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.nv-rv-rb { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-height: 54px; border-radius: 16px; background: var(--rv-fill); box-shadow: inset 0 0 0 .5px var(--rv-ring); color: var(--nv-ink); transition: background-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease, transform 120ms ease-out; }
+.nv-rv-rb:active { transform: scale(.97); }
+.nv-rv-rb b { display: flex; align-items: center; gap: 5px; font: 600 15px var(--nv-font-ui); }
+.nv-rv-rb b .nv-rv-ic { width: 15px; height: 15px; color: var(--g); }
+.nv-rv-rb small { font: 500 12px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-rb.sel { background: color-mix(in srgb, var(--g) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--g) 60%, transparent); }
+.nv-rv-rb.dim, .nv-rv-rb[disabled] { opacity: .35; }
+.nv-rv-rb[disabled] { cursor: default; }
+.nv-rv-rb[disabled]:active { transform: none; }
+.nv-rv-res { display: flex; align-items: center; gap: 10px; min-height: 54px; opacity: 0; pointer-events: none; transform: translateY(4px); }
+.nv-rv-mark { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--g); background: color-mix(in srgb, var(--g) 18%, transparent); }
+.nv-rv-mark .nv-rv-ic { width: 16px; height: 16px; }
+.nv-rv-res p { flex: 1; min-width: 0; margin: 0; font: 400 16px/1.3 var(--nv-font-serif); color: var(--nv-ink); }
+.nv-rv-res p small { display: block; font: 500 12px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-slot.answered .nv-rv-ask { opacity: 0; pointer-events: none; transform: translateY(-4px); }
+.nv-rv-slot.answered .nv-rv-res { opacity: 1; pointer-events: auto; transform: none; }
+.nv-rv-slot:not(.answered) .nv-rv-ask { transition-delay: 0ms; }
+.nv-rv-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
+.nv-rv-offl { display: flex; gap: 8px; align-items: flex-start; margin: 0 0 8px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--nv-ink) 5%, transparent); font: 450 14px/1.4 var(--nv-font-ui); color: var(--rv-ink2); text-wrap: pretty; }
+.nv-rv-offl .nv-rv-ic { color: var(--rv-ink3); margin-top: 1px; }
+
+/* done: the week ahead, and Draw one early */
+.nv-rv-big2 { margin: 10px 0 0; font: 400 22px/1.25 var(--nv-font-serif); color: var(--nv-ink); text-wrap: balance; }
+.nv-rv-m { margin: 4px 0 0; font: 400 14px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; height: 74px; margin-top: 12px; }
+.nv-rv-week div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; height: 100%; font: 500 12px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-week i { display: block; width: 100%; max-width: 26px; border-radius: 5px 5px 2px 2px; background: color-mix(in srgb, var(--nv-vi) 70%, transparent); transform-origin: 50% 100%; animation: rvBar 500ms var(--rv-ease) backwards; animation-delay: calc(var(--i) * 40ms + 120ms); }
+.nv-rv-week i.z { background: color-mix(in srgb, var(--nv-ink) 18%, transparent); }
+.nv-rv-week b { font: 600 12px var(--nv-font-round); color: var(--nv-ink); min-height: 15px; }
+@keyframes rvBar { from { transform: scaleY(0); } }
+.nv-rv-reel { position: relative; height: 40px; margin-top: 10px; overflow: hidden; border-radius: 12px; background: color-mix(in srgb, var(--nv-void) 45%, transparent); box-shadow: inset 0 0 0 .5px var(--rv-ring); -webkit-mask: linear-gradient(transparent, #000 30%, #000 70%, transparent); mask: linear-gradient(transparent, #000 30%, #000 70%, transparent); }
+.nv-rv-reel ol { list-style: none; margin: 0; padding: 0; will-change: transform; }
+.nv-rv-reel li { height: 40px; display: flex; align-items: center; justify-content: center; font: italic 400 17px var(--nv-font-serif); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* the skeleton sits exactly where the card will land */
+.nv-rv-sk { display: flex; flex-direction: column; padding: 2px 0 12px; }
+
+/* ------------------------------ grouped (cupertino) ------------------------------ */
+.nv-rv-glab { display: flex; align-items: center; gap: 8px; margin: 16px 6px 7px; font: 600 13px var(--nv-font-ui); color: var(--nv-vi); white-space: nowrap; }
+.nv-rv-glab .nv-rv-ic { width: 17px; height: 17px; }
+.nv-rv-glab .nv-rv-cnt { margin-left: auto; }
+.nv-rv-glab .nv-rv-pips { margin-left: 4px; }
+.nv-rv-grp { overflow: hidden; padding: 0 !important; }
+.nv-rv-gpad { position: relative; padding: 12px 16px; }
+.nv-rv-gr { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 46px; padding: 9px 16px; text-align: left; box-sizing: border-box; }
+.nv-rv-gr + .nv-rv-gr::before, .nv-rv-gr + .nv-rv-gpad::before, .nv-rv-gpad + .nv-rv-gr::before, .nv-rv-gpad + .nv-rv-gpad::before { content: ""; position: absolute; left: 16px; right: 0; top: 0; height: .5px; background: var(--rv-sep); }
+.nv-rv-gr .t { flex: 1; min-width: 0; font: 450 15px var(--nv-font-ui); color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-rv-gr .t em { font: italic 400 16px var(--nv-font-serif); }
+.nv-rv-gr .k { flex: none; font: 500 13px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-gr .k.at { font-variant-numeric: tabular-nums; }
+.nv-rv-gr .chev { width: 15px; height: 15px; color: var(--nv-ink40); }
+.nv-rv-gr .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--rv-k); box-shadow: 0 0 6px var(--rv-k); }
+.nv-rv-gr.vi .t { color: var(--nv-vi); font-weight: 600; }
+.nv-rv-gr:active { background: color-mix(in srgb, var(--nv-ink) 4%, transparent); }
+.nv-rv-gpad .nv-rv-ct { font-size: 22px; }
+.nv-rv-gpad .nv-rv-gist { font-size: 15.5px; }
+.nv-rv-gpad .nv-rv-kick:first-child { margin-top: 0; }
+.nv-rv-irow { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; }
+.nv-rv-irow .tl { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; flex: none; color: var(--nv-vi); background: color-mix(in srgb, var(--nv-vi) 16%, transparent); }
+.nv-rv-irow .tl .nv-rv-ic { width: 17px; height: 17px; }
+.nv-rv-irow .tt { flex: 1; min-width: 0; }
+.nv-rv-irow .tt b { display: block; font: 600 15px var(--nv-font-ui); }
+.nv-rv-irow .tt small { display: block; font: 400 13px var(--nv-font-ui); color: var(--rv-ink3); }
+
+/* ------------------------------ the page (sheet) ------------------------------ */
+.nv-rv-scrim { position: fixed; inset: 0; z-index: 150; background: color-mix(in srgb, var(--nv-void) 45%, transparent); animation: rvFade 300ms ease backwards; }
+.nv-rv-sheet { position: fixed; left: 0; right: 0; bottom: 0; top: max(58px, calc(env(safe-area-inset-top) + 12px)); z-index: 151; margin: 0 auto; max-width: 560px; border-radius: 30px 30px 0 0; display: flex; flex-direction: column; overflow: hidden;
+  background: color-mix(in srgb, var(--nv-bg2) 92%, transparent); -webkit-backdrop-filter: blur(30px) saturate(1.4); backdrop-filter: blur(30px) saturate(1.4);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--nv-ink) 16%, transparent), inset 0 1px 0 color-mix(in srgb, var(--nv-ink) 20%, transparent);
+  animation: rvSheetIn 460ms cubic-bezier(.32,.72,0,1) backwards; }
+@keyframes rvSheetIn { from { transform: translateY(102%); } }
+@media (min-width: 700px) { .nv-rv-sheet { top: 6vh; bottom: 6vh; border-radius: 30px; } }
+.nv-rv-grab { width: 38px; height: 5px; margin: 8px auto 0; border-radius: 3px; background: color-mix(in srgb, var(--nv-ink) 30%, transparent); flex: none; }
+.nv-rv-shead { display: flex; align-items: center; gap: 8px; padding: 2px 10px 0 18px; flex: none; }
+.nv-rv-shead b { font: 600 15px var(--nv-font-ui); color: var(--nv-vi); display: flex; align-items: center; gap: 7px; }
+.nv-rv-shead b .nv-rv-ic { width: 17px; height: 17px; }
+.nv-rv-x { margin-left: auto; width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center; color: var(--rv-ink2); }
+.nv-rv-x:active { transform: scale(.94); }
+.nv-rv-sscroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 18px 20px; scrollbar-width: none; -webkit-mask: linear-gradient(transparent, #000 14px); mask: linear-gradient(transparent, #000 14px); }
+.nv-rv-sscroll::-webkit-scrollbar { display: none; }
+.nv-rv-sscroll .nv-rv-ct { font-size: 30px; }
+.nv-rv-sh3 { margin: 22px 0 8px; font: 600 13px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-note p { margin: 0 0 10px; font: 400 17px/1.5 var(--nv-font-serif); color: var(--nv-ink); text-wrap: pretty; }
+.nv-rv-note .dl { display: inline-flex; align-items: center; min-height: 32px; font: 500 12px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-map { display: block; width: 100%; height: auto; border-radius: 18px; background: radial-gradient(60% 60% at 50% 50%, color-mix(in srgb, var(--nv-vi) 8%, transparent), transparent 70%), color-mix(in srgb, var(--nv-void) 22%, transparent); box-shadow: inset 0 0 0 .5px var(--rv-ring); }
+.nv-rv-map .e { stroke: color-mix(in srgb, var(--nv-ink) 28%, transparent); stroke-width: 1.2; fill: none; }
+.nv-rv-map text { font: 500 13px var(--nv-font-ui); fill: var(--rv-ink2); }
+.nv-rv-map text.c { font: 400 15px var(--nv-font-serif); fill: var(--nv-ink); }
+.nv-rv-map .nd { transform-box: fill-box; transform-origin: center; animation: rvNode 360ms var(--rv-ease) backwards; animation-delay: calc(var(--i) * 70ms + 540ms); }
+.nv-rv-map .nd.tap { cursor: pointer; }
+.nv-rv-map .e { transform-box: fill-box; animation: rvFade 420ms var(--rv-ease-io) backwards; animation-delay: calc(var(--i) * 70ms + 380ms); }
+@keyframes rvNode { from { opacity: 0; transform: scale(.6); } }
+.nv-rv-mapk { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; font: 400 13px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-mapk span { display: inline-flex; align-items: center; gap: 5px; }
+.nv-rv-mapk i { width: 8px; height: 8px; border-radius: 50%; background: var(--rv-k); }
+.nv-rv-sbox { padding: 12px 14px; border-radius: 18px; background: color-mix(in srgb, var(--nv-ink) 6%, transparent); box-shadow: inset 0 0 0 .5px var(--rv-ring); }
+.nv-rv-sbox .st { font: italic 400 18px/1.3 var(--nv-font-serif); color: var(--nv-ink); overflow-wrap: anywhere; }
+.nv-rv-sbox .sm { margin-top: 2px; font: 400 13px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-playb { display: inline-flex; align-items: center; gap: 8px; height: 44px; margin-top: 10px; padding: 0 16px 0 12px; border-radius: 22px; font: 600 15px var(--nv-font-ui); color: var(--nv-void); background: var(--rv-k); }
+.nv-rv-playb .nv-rv-ic { width: 16px; height: 16px; fill: currentColor; stroke: none; }
+.nv-rv-playb:active { transform: scale(.97); }
+.nv-rv-openb { display: inline-flex; align-items: center; min-height: 44px; margin-top: 4px; font: 600 15px var(--nv-font-ui); color: var(--rv-k); }
+.nv-rv-hist { list-style: none; margin: 0; padding: 0; border-radius: 18px; background: color-mix(in srgb, var(--nv-ink) 5%, transparent); box-shadow: inset 0 0 0 .5px var(--rv-ring); overflow: hidden; }
+.nv-rv-hist li { position: relative; display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 14px; font: 400 15px var(--nv-font-ui); }
+.nv-rv-hist li + li::before { content: ""; position: absolute; left: 46px; right: 0; top: 0; height: .5px; background: var(--rv-sep); }
+.nv-rv-hist .g { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--g); background: color-mix(in srgb, var(--g) 18%, transparent); }
+.nv-rv-hist .g .nv-rv-ic { width: 13px; height: 13px; }
+.nv-rv-hist .d { flex: 1; color: var(--nv-ink); }
+.nv-rv-hist .w { font-size: 13px; color: var(--rv-ink3); }
+.nv-rv-hist li.new { animation: rvHin 260ms var(--rv-ease) backwards; }
+@keyframes rvHin { from { opacity: 0; transform: translateY(-8px); } }
+.nv-rv-empty { padding: 12px 14px; border-radius: 18px; background: color-mix(in srgb, var(--nv-ink) 5%, transparent); font: 400 14px var(--nv-font-ui); color: var(--rv-ink3); }
+.nv-rv-sbar { flex: none; padding: 10px 18px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, color-mix(in srgb, var(--nv-bg2) 96%, transparent) 30%); }
+.nv-rv-sbar .nv-rv-slot { margin-top: 0; }
+.nv-rv-foot2 { margin: 14px 0 4px; font: 400 13px/1.5 var(--nv-font-ui); color: var(--rv-ink3); text-wrap: pretty; }
+
+/* reduced motion: 200 ms cross-fades and end states; nothing travels */
+@media (prefers-reduced-motion: reduce) {
+  .nv-rv *, .nv-rv-sheet, .nv-rv-scrim { animation-name: rvFade !important; animation-duration: 200ms !important; animation-delay: 0ms !important; }
+  .nv-rv .nv-rv-slot > *, .nv-rv-sheet .nv-rv-slot > * { transition-property: opacity !important; transition-duration: 200ms !important; transition-delay: 0ms !important; transform: none !important; }
+  .nv-rv .nv-rv-curve .nseg-clip, .nv-rv-sheet .nv-rv-curve .nseg-clip { animation: none !important; }
+  .nv-rv-reel ol { transition: none !important; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .nv-rv-sheet { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--nv-bg2); }
+}

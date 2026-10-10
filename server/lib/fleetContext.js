@@ -25,6 +25,8 @@ export const KIND_AGENT = {
   'stash-write': 'Stash', stash: 'Stash',
   // his own commit on the Code screen, filed with Undo (lib/codeChanges.js)
   'code-commit': 'Code',
+  // his own answer on the Daily review card, filed with Undo (conceptReview.js)
+  'concept-recall': 'Daily Review',
   // a delegated multi-step goal — Nova put several agents on one request and
   // wrote the report. Named 'Nova' rather than 'Planner' because that is who
   // he asked, and who comes back with the answer.

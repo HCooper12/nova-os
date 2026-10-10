@@ -1,5 +1,6 @@
 import { NOTE_TYPE_COLOR } from './shared.js';
 import { vtStyle } from '../vtName.js';
+import { buildReview } from './valsReview.js';
 
 // Notes domain: the notes browser, the daily-review pick (+ reflect composer),
 // and the journal. Adds to ctx: usingLiveNotes, reviewPage, journalDays.
@@ -41,13 +42,9 @@ export function valsNotes(app, ctx) {
   const on = usingLiveNotes ? null : (app.notes.find(n => n.id === st.openNoteId) || app.notes[0]);
   const noteByTitle = (label) => app.notes.find(n => n.title.startsWith(label.split(' ·')[0].slice(0, 12)));
 
-  // daily review — a deterministic-by-date pick from the real Concepts/Topics
-  // pages in the vault, falling back to the fictional demo cards when not connected
-  const usingLiveReview = usingLiveNotes;
-  const reviewPool = app.dailyReviewPool(st.liveNotes);
-  const reviewIdx = st.reviewShuffleIdx != null ? st.reviewShuffleIdx : app.dailyReviewIndex(reviewPool);
-  const reviewPage = reviewPool[reviewIdx] || null;
-  const reviewSummary = reviewPage ? st.liveReviewSummaries[reviewPage.id] : undefined;
+  // THE DAILY REVIEW — one view model for every idiom and the sheet
+  // (src/vals/valsReview.js, mockup 96).
+  const { review, reviewPage, legacy: reviewLegacy } = buildReview(app, ctx);
 
   // journal — live entries (Wiki/Journal/) grouped by day, newest first.
   // Category filter keeps personal reflections separate from training receipts
@@ -115,36 +112,17 @@ export function valsNotes(app, ctx) {
   // shared with valsMission (suggested focus, daily review card) and valsChrome (nav counts)
   Object.assign(ctx, { usingLiveNotes, reviewPage, journalDays });
 
-  // the scripted demo review only ever shows in demo mode — a configured
-  // session that hasn't synced (offline, first connect) says so instead
-  const demoMode = ctx.demoMode;
+  Object.assign(ctx, { review });
+
   return {
-    // daily review (Mission Control card)
-    reviewConcept: usingLiveReview
-      ? (reviewPage
-          ? (reviewSummary ? reviewSummary : (reviewSummary === undefined || reviewSummary === null ? 'Summarizing…' : reviewPage.title))
-          : 'Add some Concepts or Topics to your wiki to start daily review')
-      : demoMode
-        ? app.reviews[st.reviewIdx].c
-        : 'Offline — your daily review returns on the next sync.',
-    reviewFrom: usingLiveReview
-      ? (reviewPage ? reviewPage.title : '')
-      : demoMode ? app.reviews[st.reviewIdx].f : '',
-    // mid-spin, the card shows the reel instead of the concept (SpinReveal)
-    reviewSpin: usingLiveReview && st.reviewSpin
-      ? { rows: st.reviewSpin.rows, spinning: true, landed: () => app.finishReviewSpin() }
-      : null,
-    shuffleReview: usingLiveReview
-      ? () => app.shuffleDailyReview()
-      : demoMode
-        ? () => app.setState(s => ({ reviewIdx: (s.reviewIdx + 1 + Math.floor(Math.random() * (app.reviews.length - 1))) % app.reviews.length }))
-        : () => {},
-    openReview: usingLiveReview
-      ? () => app.openDailyReview()
-      : demoMode
-        ? () => { app.navigate('notes', { openNoteId: app.reviews[st.reviewIdx].id }); app.toastMsg('Commander queued this concept for tonight’s reflection'); }
-        : ctx.go('notes'),
-    reviewShowReflect: usingLiveReview && !!reviewPage && st.openNoteId === reviewPage.id,
+    // THE DAILY REVIEW's full view model — one shape, read by the summary
+    // Moment, the grouped Group and the classic pane alike (mockup 96).
+    review,
+    // the flat fields older surfaces (Notes, the Index row, the fold line) read
+    reviewConcept: reviewLegacy.reviewConcept,
+    reviewFrom: reviewLegacy.reviewFrom,
+    openReview: () => review.open(),
+    reviewShowReflect: !!st.liveNotes && !!reviewPage && st.openNoteId === reviewPage.id,
     reviewReflectOpen: st.reviewReflectOpen,
     toggleReviewReflect: () => app.toggleReviewReflect(),
     reviewReflectText: st.reviewReflectText,
