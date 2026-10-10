@@ -139,6 +139,39 @@ test("Nova's own dispatch inside his journal is not his promise", () => {
   assert.deepEqual(found.map((f) => f.text), ['cancel the unused equipment storage unit this week']);
 });
 
+test("a personal or training section Nova or the Coach wrote is not his promise", () => {
+  // 11 Oct 2026: since 1 Sep every `· personal` section was Nova's Plan
+  // today or Daily review reflection and every `· training` one the Coach's.
+  // Authorship comes from the marker or the writer's label, never the category.
+  const found = commitmentsIn([
+    '# 2026-10-02',
+    '## 06:10 · personal — Plan today',
+    "I'll protect the morning block for the supplier contract review.",
+    '## 21:30 · personal — Daily review reflection',
+    "I need to move the quarterly forecast meeting to Thursday.",
+    '## 18:02 · training — Session receipt',
+    "I'll add a back-off set to the Romanian deadlift next session.",
+    '## 19:00 · personal · by Nova',
+    "I'll remind him about the dentist rebooking on Friday morning.",
+    '## 20:15 · personal · by Hayden',
+    "I'll repaint the back fence pickets before the summer rain.",
+    '## 21:05 · personal — Reflection on [[Deep Work]]',
+    "I want to block two hours of focused reading every Sunday morning.",
+    '## 22:00 · personal',
+    "I'll return the borrowed tile saw to the neighbour this weekend.",
+  ].join('\n'));
+  assert.deepEqual(found.map((f) => f.text), [
+    'repaint the back fence pickets before the summer rain',
+    'block two hours of focused reading every Sunday morning',
+    'return the borrowed tile saw to the neighbour this weekend',
+  ]);
+});
+
+test('a bare legacy heading has no known author, so it is not read as his', () => {
+  const found = commitmentsIn(['# 2026-07-20', '## 09:15', "I'll rewire the garage workbench lighting circuit."].join('\n'));
+  assert.deepEqual(found, []);
+});
+
 test('a promise he wrote about again later counts as closed', async () => {
   const v = await vault({
     'Wiki/Journal/Intent.md': note(60, "I'll rebuild the greenhouse irrigation manifold this spring."),

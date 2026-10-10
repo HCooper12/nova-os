@@ -8,6 +8,7 @@ import { tokenize } from './recall.js';
 import { listTodos, addTodo, TODO_REL, guessTodoCategory } from './todos.js';
 import { createRecord } from './inboxStore.js';
 import { respectNo } from './respectTheNo.js';
+import { parseJournalHeading, isHisOwnEntry } from './journal.js';
 
 // THE COMMITMENT FINDER — the "recovered record", turned on his own life.
 //
@@ -162,13 +163,15 @@ function oneSentence(s) {
 }
 
 // A journal day is not written by one author. Nova files its own dispatches,
-// reviews and plans into the same page his own entries live in, under the
-// convention `## HH:MM · system` (his are `· personal` / `· training`). His
-// vault has 37 system sections against 47 of his — so without this, Nova's
-// own prose would be read back to him as his promise. Same class of mistake
-// as reading a podcast transcript; it just happens inside the right folder.
-const SECTION_RE = /^##\s+\d{1,2}:\d{2}\s+·\s+([a-z-]+)/i;
-const NOT_HIS_VOICE = new Set(['system']);
+// reviews and plans into the same page his own entries live in, and the
+// category never said who wrote a section: Plan today and the Daily review
+// reflection are `· personal`, the Coach's receipts `· training`. Since 1 Sep
+// not one section in his Journal was his (11 Oct 2026), so reading by
+// category served Nova's prose back to him as his promise. A section counts
+// only when journal.js says HE wrote it: its `by` marker, or the label its
+// writer put in the heading. Same class of mistake as reading a podcast
+// transcript; it just happens inside the right folder.
+const SECTION_RE = /^##\s+\d{1,2}:\d{2}(?:\s|$)/;
 
 // Pull every commitment out of one page's raw markdown.
 export function commitmentsIn(raw) {
@@ -178,8 +181,7 @@ export function commitmentsIn(raw) {
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    const section = trimmed.match(SECTION_RE);
-    if (section) mine = !NOT_HIS_VOICE.has(section[1].toLowerCase());
+    if (SECTION_RE.test(trimmed)) mine = isHisOwnEntry(parseJournalHeading(trimmed));
     if (!mine) continue;
     if (trimmed.startsWith('>')) continue;                 // a quotation — someone else
     if (/^[-*]\s*\[x\]/i.test(trimmed)) continue;          // already ticked
