@@ -437,12 +437,17 @@ verb({
   async run(vaultPath, args) {
     const { addEntry } = await import('./journal.js');
     const text = String(args.text).trim();
-    await addEntry(vaultPath, { text, category: 'personal', label: 'Said to Nova' });
-    return { destination: `Journal — "${text.slice(0, 60)}${text.length > 60 ? '…' : ''}"`, said: 'In your journal.', undo: { verb: 'journal.add', text, date: new Date().toISOString().slice(0, 10) } };
+    // his line, said to Nova: the one verb whose words are his own
+    const saved = await addEntry(vaultPath, { text, author: 'hayden', category: 'personal', label: 'Said to Nova' });
+    // undo names the section the way removeEntry finds it: the page's own
+    // (local) date and the entry's time. It carried a UTC date and no time,
+    // so it matched nothing and still said it had removed the line.
+    return { destination: `Journal — "${text.slice(0, 60)}${text.length > 60 ? '…' : ''}"`, said: 'In your journal.', undo: { verb: 'journal.add', text: saved.text, date: saved.date, time: saved.time } };
   },
   async undo(vaultPath, u) {
     const { removeEntry } = await import('./journal.js');
-    await removeEntry(vaultPath, { date: u.date, text: u.text });
+    const ok = await removeEntry(vaultPath, { date: u.date, time: u.time, text: u.text });
+    if (!ok) throw new Error('that journal line has been edited or removed since');
     return 'removed it from the journal';
   },
 });

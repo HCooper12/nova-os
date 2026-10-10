@@ -18,20 +18,20 @@ test.after(async () => { await rm(vault, { recursive: true, force: true }); });
 test('categories + labels round-trip through the vault file and stay hand-readable', async () => {
   assert.deepEqual(JOURNAL_CATEGORIES, ['personal', 'training', 'system']);
 
-  const personal = await addEntry(vault, { text: 'Felt sharp today. Grateful for the morning walk.' });
+  const personal = await addEntry(vault, { text: 'Felt sharp today. Grateful for the morning walk.', author: 'hayden' });
   assert.equal(personal.category, 'personal', 'hand-written entries default to personal');
 
   const review = await addEntry(vault, { text: 'Recovery led the day; protein closed late.', category: 'personal', label: 'Daily review reflection' });
   const training = await addEntry(vault, { text: 'Pull logged — 5 exercises, 16 sets.', category: 'training', label: 'Session receipt' });
   const brief = await addEntry(vault, { text: 'Morning brief body.', category: 'system', label: 'Morning dispatch' });
-  const junk = await addEntry(vault, { text: 'Bad category coerces safely.', category: 'nonsense' });
+  const junk = await addEntry(vault, { text: 'Bad category coerces safely.', author: 'hayden', category: 'nonsense' });
   assert.equal(junk.category, 'personal', 'unknown categories coerce to personal, never crash');
 
   // the raw file stays human-readable with the marker in the heading
   const raw = await readFile(path.join(vault, 'Wiki/Journal', `${personal.date}.md`), 'utf8');
-  assert.match(raw, new RegExp(`## ${review.time} · personal — Daily review reflection`));
-  assert.match(raw, new RegExp(`## ${training.time} · training — Session receipt`));
-  assert.match(raw, new RegExp(`## ${brief.time} · system — Morning dispatch`));
+  assert.match(raw, new RegExp(`## ${review.time} · personal · by Nova — Daily review reflection`));
+  assert.match(raw, new RegExp(`## ${training.time} · training · by Coach — Session receipt`));
+  assert.match(raw, new RegExp(`## ${brief.time} · system · by Nova — Morning dispatch`));
 
   // parse-back carries the category + heading
   const [day] = await listEntries(vault, { limit: 1 });

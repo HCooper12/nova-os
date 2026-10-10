@@ -150,3 +150,36 @@ test('the drafted week plan rides the debrief context for its week, and a discar
   assert.doesNotMatch(await buildDebriefContext(vault, new Date('2026-09-06T17:00:00')), /THE WEEK PLAN NOVA DRAFTED/, 'a plan for next week is not this week\'s');
   assert.doesNotMatch(await buildDebriefContext(vault, new Date('2026-09-13T17:00:00')), /week-plan FAILED/);
 });
+
+test('the journal block gives only his own entries the weight of his words; the agents\' are labelled notes', async () => {
+  // 11 Oct 2026: every personal and training entry since 1 Sep was Nova's or
+  // the Coach's, and this block called them "what he and Nova filed".
+  const { writeFile: write } = await import('node:fs/promises');
+  await mkdir(path.join(vault, 'Wiki/Journal'), { recursive: true });
+  await write(path.join(vault, 'Wiki/Journal/2026-10-06.md'), [
+    '---', 'type: journal', 'tags: []', "created: '2026-10-06'", "updated: '2026-10-06'", '---', '# 2026-10-06', '',
+    '## 06:10 · personal — Plan today', '', 'Top 3: the supplier review, Pull, an early night.', '',
+    '## 18:02 · training — Session receipt', '', 'Pull logged: 6 exercises, 18 sets.', '',
+    '## 21:30 · personal · by Nova — Daily review reflection', '', 'Recovery led the day.', '',
+    '## 22:00 · personal', '', 'Felt flat in the gym but the deadlift moved well.', '',
+  ].join('\n'), 'utf8');
+  const { listEntries } = await import('../lib/journal.js');
+  const { journalWeekContext } = await import('../lib/weeklyDebrief.js');
+  const ctx = journalWeekContext(await listEntries(vault), '2026-10-05');
+  const [his, noted] = ctx.split('FILED TO THE JOURNAL BY NOVA AND THE AGENTS');
+  assert.match(his, /HIS OWN WORDS IN THE JOURNAL THIS WEEK \(entries he wrote/);
+  assert.match(his, /22:00 \[personal\]: Felt flat in the gym/);
+  assert.doesNotMatch(his, /Plan today|Session receipt|Recovery led the day/, 'no agent entry rides as his words');
+  assert.match(noted, /- by Nova, 2026-10-06 06:10 \[Plan today\]/);
+  assert.match(noted, /- by the Coach, 2026-10-06 18:02 \[Session receipt\]/);
+  assert.match(noted, /- by Nova, 2026-10-06 21:30 \[Daily review reflection\]/);
+  assert.match(noted, /never as "you said"/);
+
+  // a week with nothing of his says so, in words
+  const none = journalWeekContext([{ date: '2026-10-06', sections: [{ time: '06:10', category: 'personal', heading: 'Plan today', author: 'nova', text: 'x' }] }], '2026-10-05');
+  assert.match(none, /HIS OWN WORDS IN THE JOURNAL THIS WEEK: none/);
+  assert.equal(journalWeekContext([], '2026-10-05'), null);
+
+  // and the prompt carries the rule a model reading Wiki/Journal itself needs
+  assert.match(buildDebriefPrompt('x'), /WHO WROTE A JOURNAL ENTRY/);
+});

@@ -57,9 +57,26 @@ export function valsNotes(app, ctx) {
     training: { label: 'TRAINING', hue: '89,230,255' },
     system: { label: 'SYSTEM', hue: '224,178,106' },
   };
+  // WHO WROTE IT (11 Oct 2026). Since 1 Sep Nova and the agents filed every
+  // entry here and he filed none, and the screen could not tell his line from
+  // Nova's. The server derives `author` (server/lib/journal.js); each entry
+  // now wears it in the colours mockup 87 drew: his words the Journal's
+  // violet, Nova's his starlight, the Coach's coral, the Leader's magenta
+  // (src/glassMarks.js FINDERS). An entry nobody can attribute says so.
+  const AUTHOR_META = {
+    hayden: { label: 'You', tone: 'var(--nv-vi)' },
+    nova: { label: 'Nova', tone: 'var(--nv-nova)' },
+    coach: { label: 'Coach', tone: 'var(--nv-m-chest)' },
+    leader: { label: 'Leader', tone: 'var(--nv-mg)' },
+    guardian: { label: 'Guardian', tone: 'faint' },
+    cfo: { label: 'CFO', tone: 'faint' },
+    unknown: { label: 'Author unknown', tone: 'faint', dashed: true },
+  };
   const jFilter = st.journalFilter || 'all';
   const mapSection = (s) => ({
     time: s.time,
+    // an older server sends no author: show nothing rather than guess
+    authorMeta: s.author ? AUTHOR_META[s.author] || AUTHOR_META.unknown : null,
     category: s.category || null,
     categoryMeta: s.category ? CATEGORY_META[s.category] || null : null,
     // "Reflection on [[X]]" reads as a concept reflection — label it that way

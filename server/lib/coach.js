@@ -678,7 +678,7 @@ export async function draftSessionSummary(vaultPath, session) {
       confidence: 'high',
       title,
       reason: 'Coach’s deterministic session receipt — approve to journal it.',
-      payload: { text: body, category: 'training', label: 'Session receipt' },
+      payload: { text: body, category: 'training', author: 'coach', label: 'Session receipt' },
     },
   };
   await createRecord(record);

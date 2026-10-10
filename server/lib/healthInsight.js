@@ -7,7 +7,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadRecentDays } from './healthData.js';
 import { loadSessions } from './workoutSessions.js';
-import { listEntries as listJournalEntries } from './journal.js';
+import { listEntries as listJournalEntries, isHisOwnEntry, journalAuthorName } from './journal.js';
 import { loadRecipeData } from './recipes.js';
 import { loadRotation } from './rotation.js';
 import { fetchEventsForDay } from './calendar.js';
@@ -28,6 +28,24 @@ const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin
 function today() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// The last few journal days, each line named by who wrote it (11 Oct 2026).
+// This block was "Recent journal entries, including daily-review
+// reflections", and the reflections are Nova's: every line read as his. Now
+// his own entries say so, and the rest carry their author, so the insight
+// can use Nova's notes as context without quoting them as his mood or words.
+export function journalInsightLines(journalDays) {
+  const lines = ['\n## Recent journal entries, most recent first (only lines marked HIS OWN WORDS are his; the rest are what Nova or an agent filed)'];
+  if (!journalDays?.length) return [...lines, '- No journal entries yet.'];
+  for (const d of journalDays) {
+    for (const s of d.sections) {
+      const preview = s.text.replace(/\s+/g, ' ').slice(0, 140);
+      const who = isHisOwnEntry(s) ? 'HIS OWN WORDS' : `by ${journalAuthorName(s.author)}${s.heading ? `, ${s.heading}` : ''}`;
+      lines.push(`- ${d.date} ${s.time} [${who}] ${preview}`);
+    }
+  }
+  return lines;
 }
 
 async function buildContext(vaultPath, slot) {
@@ -144,18 +162,7 @@ async function buildContext(vaultPath, slot) {
   }
 
   try {
-    const journalDays = await listJournalEntries(vaultPath, { limit: 3 });
-    lines.push('\n## Recent journal entries, including daily-review reflections (most recent first)');
-    if (journalDays.length) {
-      for (const d of journalDays) {
-        for (const s of d.sections) {
-          const preview = s.text.replace(/\s+/g, ' ').slice(0, 140);
-          lines.push(`- ${d.date} ${s.time} — ${preview}`);
-        }
-      }
-    } else {
-      lines.push('- No journal entries yet.');
-    }
+    lines.push(...journalInsightLines(await listJournalEntries(vaultPath, { limit: 3 })));
   } catch {
     lines.push('\n## Recent journal entries\n- Unavailable.');
   }
@@ -178,7 +185,7 @@ You are a thoughtful, holistic health coach looking at Hayden's recent personal 
 
 ${context}
 
-Write ONE short, genuinely useful observation or piece of advice (1-2 sentences) that a good coach would proactively raise — something that connects at least two of these data sources if the data supports it (e.g. recovery signals vs training load, a packed calendar day vs the next morning's sleep/HRV, nutrition vs energy, a theme recurring across journal/reflection entries). Be specific and concrete, not generic wellness advice. If there truly isn't enough data yet for a real observation, say so honestly rather than forcing one.
+Write ONE short, genuinely useful observation or piece of advice (1-2 sentences) that a good coach would proactively raise — something that connects at least two of these data sources if the data supports it (e.g. recovery signals vs training load, a packed calendar day vs the next morning's sleep/HRV, nutrition vs energy, a theme recurring across his own journal entries; an entry Nova or an agent filed is their note, never his words or mood). Be specific and concrete, not generic wellness advice. If there truly isn't enough data yet for a real observation, say so honestly rather than forcing one.
 
 Output ONLY a JSON object with exactly these keys:
 - hasInsight: boolean (false if there wasn't enough data for a genuine, specific observation)

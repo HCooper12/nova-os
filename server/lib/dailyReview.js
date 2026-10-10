@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
+import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { profileContext } from './profile.js';
 import { composeDispatch } from './dispatch.js';
 import { loadSessions } from './workoutSessions.js';
@@ -242,6 +243,8 @@ export function buildReviewPrompt(context, now = new Date()) {
 
 You are Nova composing Hayden's DAILY REVIEW for ${dateLong} — the single intelligent read of his whole life today. This is the one moment each day where you step back, reason across everything, and tell him what actually matters. You may also read his vault (goals, journal, notes) for depth.
 
+${JOURNAL_AUTHORSHIP_RULE}
+
 What to produce:
 - A short honest READ (2-3 sentences): where he genuinely is today across recovery, training, fuel, and whatever else stands out — grounded in the real numbers below, and connected to what he's working toward.
 - 1 to 3 ADJUSTMENTS: the highest-leverage concrete things he could do today to move toward his goals, each with a one-line why tied to the data. A cross-domain connection he didn't ask for is the most valuable kind.
@@ -329,7 +332,7 @@ function startReviewJob(vaultPath, context, mode, recordId, now) {
         reason: 'Daily Review — reasoned across your whole day through the Nova lens.',
         // personal category, labelled — it lives with Hayden's own reflections
         // but is always distinguishable from them
-        payload: { text: body, category: 'personal', label: 'Daily review reflection', read, adjustments },
+        payload: { text: body, category: 'personal', author: 'nova', label: 'Daily review reflection', read, adjustments },
       };
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);

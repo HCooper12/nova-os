@@ -75,7 +75,7 @@ export async function resolveTrainingCheck(vaultPath, record, reason) {
     const decision = {
       route: 'journal', confidence: 'high', title: `Active rest ${date} — swapped ${name}`,
       reason: 'From the training check: he swapped the session for a walk or stretch.',
-      payload: { text: `Training reconciled ${date}: swapped ${name} for active rest (a walk or stretch).`, category: 'training', label: 'Active rest' },
+      payload: { text: `Training reconciled ${date}: swapped ${name} for active rest (a walk or stretch).`, category: 'training', author: 'nova', label: 'Active rest' },
     };
     const { destination, undo } = await fileDecision(vaultPath, decision);
     await create({
@@ -210,7 +210,7 @@ export async function runTrainingCheck(vaultPath) {
       decision: {
         route: 'journal', confidence: 'high', title,
         reason: `Yesterday you said you'd do ${carry.name} that night, and nothing was logged for it. Approve to note it as done; otherwise say what happened.`,
-        payload: { text: `Training reconciled ${carry.date}: completed ${carry.name} (confirmed the day after).`, category: 'training', label: 'Training check', plannedName: carry.name, date: carry.date },
+        payload: { text: `Training reconciled ${carry.date}: completed ${carry.name} (confirmed the day after).`, category: 'training', author: 'nova', label: 'Training check', plannedName: carry.name, date: carry.date },
       },
     };
     await createRecord(record);
@@ -255,7 +255,7 @@ export async function runTrainingCheck(vaultPath) {
       confidence: 'high',
       title,
       reason: `${trainBit}${calBit}${mismatch}, but nothing's logged in Train yet. Approve to note it as done; otherwise dismiss and say what happened — swapped for a walk, doing it tonight, logged elsewhere, or didn't happen.${carryBit}${carry ? ` (Yesterday you said you'd do ${carry.name} that night — nothing was logged for it either.)` : ''}`,
-      payload: { text: `Training reconciled ${t}: completed ${plannedName} (confirmed from the schedule).`, category: 'training', label: 'Training check', plannedName, date: t },
+      payload: { text: `Training reconciled ${t}: completed ${plannedName} (confirmed from the schedule).`, category: 'training', author: 'nova', label: 'Training check', plannedName, date: t },
     },
   };
   await createRecord(record);

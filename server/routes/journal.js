@@ -28,7 +28,11 @@ export function journalRouter(vault, vaultPath) {
       const linkedTitle = req.body?.linkedTitle ? String(req.body.linkedTitle).trim() : undefined;
       const category = req.body?.category ? String(req.body.category) : undefined; // addEntry validates; defaults personal
       const label = req.body?.label ? String(req.body.label).slice(0, 60) : undefined;
-      const entry = await addEntry(vaultPath, { text, linkedTitle, category, label });
+      // The composer and the reflect card send his own typing (no label); a
+      // labelled post is a receipt the app composed ("Focus block"), whose
+      // author journal.js reads from the label. Never a client-chosen author.
+      const author = label ? undefined : 'hayden';
+      const entry = await addEntry(vaultPath, { text, author, linkedTitle, category, label });
       res.json({ entry });
     } catch (err) {
       res.status(400).json({ error: err.message });

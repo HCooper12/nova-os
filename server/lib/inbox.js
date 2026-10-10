@@ -133,7 +133,9 @@ export function normalizeDecision(parsed) {
   } else if (route === 'journal') {
     const text = String(p.text || '').trim();
     if (!text) throw new Error('classifier returned no journal text');
-    payload = { text };
+    // a capture is HIS words, lightly cleaned; captureForReview re-stamps
+    // the ones Nova proposed in conversation as Nova's (journal.js, WHO WROTE IT)
+    payload = { text, author: 'hayden' };
   } else if (route === 'idea') {
     const ideaTitle = String(p.title || title).trim().slice(0, 120);
     const hook = String(p.hook || '').trim().slice(0, 300);
@@ -215,6 +217,10 @@ export async function captureForReview(vaultPath, { text, source = 'voice' }) {
   const decision = await new Promise((resolve, reject) => {
     classify(clean, (err, d) => (err ? reject(err) : resolve(d)));
   });
+  // The text is Nova's PROPOSE line (voiceActions.js), drafted by Nova from
+  // the conversation: a journal entry it files is Nova's words, approved by
+  // him, never something he wrote.
+  if (decision.route === 'journal' && decision.payload) decision.payload.author = 'nova';
   const record = {
     id: randomUUID().slice(0, 8),
     text: clean,
@@ -804,8 +810,12 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   if (route === 'journal') {
     // category separates personal reflections from training receipts and
     // system briefs; label carries provenance ("Daily review reflection")
+    // author: every writer stamps who wrote the words. An unlabelled decision
+    // with none is a capture classified before the stamp existed (11 Oct
+    // 2026), so his; a labelled one is resolved from its label by journal.js.
     const saved = await journal.addEntry(vaultPath, {
       text: payload.text,
+      author: payload.author || (payload.label || payload.linkedTitle ? undefined : 'hayden'),
       category: payload.category,
       label: payload.label,
       linkedTitle: payload.linkedTitle,

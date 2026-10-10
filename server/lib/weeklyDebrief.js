@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { NOVA_LENS } from './lens.js';
+import { isHisOwnEntry, journalAuthorName, JOURNAL_AUTHORSHIP_RULE } from './journal.js';
 import { profileContext } from './profile.js';
 import { loadSessions } from './workoutSessions.js';
 import { loadRecentDays, weightTrendLine } from './healthData.js';
@@ -80,6 +81,36 @@ export async function setDebriefConfig(patch) {
 /* ------------------------------- context --------------------------------- */
 
 // `weekStart` may be overridden for a missed-week catch-up (see debriefWeekFor).
+// THE WEEK IN THE JOURNAL, split by who wrote it (11 Oct 2026). This block
+// was headed "what he and Nova filed — his own words outrank any metric", and
+// since 1 Sep not one entry in it was his: Plan today and the Daily review
+// reflection are Nova's, the receipts the Coach's. So the Coach could quote
+// Nova back to him as "you said". His own entries come first and alone carry
+// that weight; everything else is labelled with its author as a note, and
+// when he wrote nothing the block says so in words.
+export function journalWeekContext(days, weekStart) {
+  const week = (days || []).filter((d) => d.date >= weekStart);
+  const line = (d, s) => `- ${d.date} ${s.time || ''}${s.heading ? ` [${s.heading}]` : s.category ? ` [${s.category}]` : ''}: ${String(s.text || '').slice(0, 160)}`;
+  const his = [];
+  const noted = [];
+  for (const d of week) {
+    for (const s of d.sections || []) {
+      if (isHisOwnEntry(s)) his.push(line(d, s));
+      else noted.push(line(d, s).replace(/^- /, `- by ${journalAuthorName(s.author)}, `));
+    }
+  }
+  if (!his.length && !noted.length) return null;
+  const out = [
+    his.length
+      ? `HIS OWN WORDS IN THE JOURNAL THIS WEEK (entries he wrote; these outrank any metric):\n${his.slice(0, 10).join('\n')}`
+      : 'HIS OWN WORDS IN THE JOURNAL THIS WEEK: none. He wrote no journal entry this week, so nothing below is something he said.',
+  ];
+  if (noted.length) {
+    out.push(`FILED TO THE JOURNAL BY NOVA AND THE AGENTS THIS WEEK (their notes, not his words; cite them as what Nova or the Coach noted, never as "you said"):\n${noted.slice(0, 12).join('\n')}`);
+  }
+  return out.join('\n');
+}
+
 export async function buildDebriefContext(vaultPath, now = new Date(), { weekStart: weekStartOverride = null } = {}) {
   // a section that FAILS is named to the model, one that is empty says
   // nothing — the add() used to swallow both (lib/contextSections.js)
@@ -179,11 +210,7 @@ export async function buildDebriefContext(vaultPath, now = new Date(), { weekSta
   });
   add('journal-week', async () => {
     const journal = await import('./journal.js');
-    const days = (await journal.listEntries(vaultPath, { limit: 10 })).filter((d) => d.date >= weekStart);
-    const lines = days.flatMap((d) => (d.sections || []).map((s) =>
-      `- ${d.date} ${s.time || ''}${s.heading ? ` [${s.heading}]` : s.category ? ` [${s.category}]` : ''}: ${String(s.text || '').slice(0, 160)}`));
-    if (!lines.length) return null;
-    return `HIS WEEK IN THE JOURNAL (what he and Nova filed — his own words outrank any metric):\n${lines.slice(0, 15).join('\n')}`;
+    return journalWeekContext(await journal.listEntries(vaultPath, { limit: 10 }), weekStart);
   });
   add('last-debrief', async () => {
     const records = await listRecords();
@@ -203,6 +230,8 @@ export function buildDebriefPrompt(context, now = new Date()) {
 
 You are Nova's Coach closing out Hayden's training week — the WEEKLY DEBRIEF for the week ending ${dateLong}. This is the sit-down a serious coach does with a serious client: step back from the day-to-day, hold the week against the plan and the goals, and be honest about both wins and drift. You may read his vault (sessions, journal, goals) for depth.
 
+${JOURNAL_AUTHORSHIP_RULE}
+
 What to produce:
 - READ (2-4 sentences): the true shape of the week — training done vs planned, strength direction, recovery, fuel — connected to what he's working toward. If last week's debrief set changes, say plainly whether they happened. If Nova drafted a week plan, hold the week against it: training days planned vs done, conflicts flagged vs what actually collided, carry-overs placed vs cleared.
 - WINS (1-3): concrete, earned, from the data. Never manufactured.
@@ -212,7 +241,7 @@ What to produce:
 
 Discipline:
 - Ground everything in the data below or the vault; name gaps honestly ("only 2 of 4 planned sessions logged — can't judge volume").
-- His own journal words outrank metrics when they conflict — engage with what he SAID.
+- His own journal words outrank metrics when they conflict — engage with what he SAID. Only the entries under HIS OWN WORDS are his; when there are none, do not tell him what he said or wrote this week.
 - Warm, direct, on his side. Say the useful hard thing kindly. No pep-talk filler.
 
 The week:
@@ -296,7 +325,7 @@ function startDebriefJob(vaultPath, context, mode, recordId, now, { weekStart = 
         confidence: 'high',
         title,
         reason: "The Coach's weekly sit-down — the week held against the plan.",
-        payload: { text: body, category: 'training', label: 'Weekly debrief', changes, weekStart },
+        payload: { text: body, category: 'training', author: 'coach', label: 'Weekly debrief', changes, weekStart },
       };
       if (mode === 'auto') {
         const { destination, undo } = await fileDecision(vaultPath, decision);

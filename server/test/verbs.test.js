@@ -248,7 +248,10 @@ test('phase 2: add a to-do, set a slot, journal a line, stash a link, refile a t
   const j = await runVerb(vault, 'q', { verb: 'journal.add', args: { text: 'Slept badly, felt it in the session' } });
   const { listEntries } = await import('../lib/journal.js');
   assert.ok((await listEntries(vault, { limit: 5 })).some((e) => /Slept badly/.test(e.text || e.summary || JSON.stringify(e))));
+  const said = (await listEntries(vault, { limit: 5 })).flatMap((d) => d.sections).find((s) => /Slept badly/.test(s.text));
+  assert.equal(said.author, 'hayden', 'a line he said to Nova is his own words');
   await undoRecord(vault, j.acted.recordId);
+  assert.ok(!(await listEntries(vault, { limit: 5 })).some((d) => d.sections.some((s) => /Slept badly/.test(s.text))), 'undo really removes the line');
   // stash: needs a category page
   const { addStashItem, loadStash } = await import('../lib/stash.js');
   await addStashItem(vault, { category: 'Skincare', name: 'seed', url: 'https://example.com/seed' });
