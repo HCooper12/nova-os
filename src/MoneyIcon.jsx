@@ -13,6 +13,7 @@ const P = {
   dn: <path d="M12 5v14M6 13l6 6 6-6" />,
   up: <path d="M12 19V5M6 11l6-6 6 6" />,
   in: <><path d="M12 3v11M7.5 9.5 12 14l4.5-4.5" /><path d="M4 14v5h16v-5" /></>,
+  split: <><path d="M12 4v16" /><path d="M4 8h5M4 16h5M15 8h5M15 16h5" /></>,
   cam: <><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></>,
   folder: <path d="M3 7h6l2 2h10v10H3z" />,
   file: <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4" /></>,

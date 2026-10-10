@@ -6282,12 +6282,17 @@ export default class App extends Component {
       else if (kind === 'edit') {
         next = demoWrites.edit(before, a, b || {});
         const moved = b?.rule ? next.lines.filter((t, i) => t.id !== a && t.category !== before.lines[i]?.category).length : 0;
-        title = b?.category && b.category !== line(a)?.category
-          ? `${moved ? 'Moved' : 'Changed'} ${line(a)?.merchant} to ${catOf(b.category).label}${b?.rule ? (moved ? `, with ${moved} past ${moved === 1 ? 'line' : 'lines'} and every future one` : ', and every future line from it') : ''}`
+        const after = next.lines.find((t) => t.id === a);
+        title = Array.isArray(b?.parts) && after?.parts
+          ? `Split ${after.merchant} · ${after.parts.map((p) => `$${Math.abs(p.amount).toFixed(2)} ${catOf(p.category).label}`).join(' · ')}`
+          : b?.parts === null ? `Joined ${line(a)?.merchant} into ${catOf(after?.category).label}`
+          : b?.category && b.category !== line(a)?.category
+          ?`${moved ? 'Moved' : 'Changed'} ${line(a)?.merchant} to ${catOf(b.category).label}${b?.rule ? (moved ? `, with ${moved} past ${moved === 1 ? 'line' : 'lines'} and every future one` : ', and every future line from it') : ''}`
           : `Changed the note on ${line(a)?.merchant}`;
       }
       else if (kind === 'budget') { const v = budgetFromInput(b); next = demoWrites.budget(before, a, v); title = v ? `${catOf(a).label} budget $${v}` : `Cleared the ${catOf(a).label.toLowerCase()} budget`; }
       this.setState({ moneyDemo: next });
+      if (kind === 'edit') this.flashMoneyLine(a);
       tickReceipt({ key: `money:${kind}:${Date.now()}`, title, undo: () => this.setState({ moneyDemo: before }) });
       return Promise.resolve(true);
     }
@@ -6298,7 +6303,7 @@ export default class App extends Component {
     if (was) {
       // the row moves now; the totals follow when the month reloads
       if (kind === 'remove') this.setState({ liveMoney: { ...was, transactions: (was.transactions || []).filter((t) => t.id !== a) } });
-      if (kind === 'edit') this.setState({ liveMoney: { ...was, transactions: demoWrites.edit({ lines: was.transactions || [] }, a, b || {}).lines } });
+      if (kind === 'edit') { try { this.setState({ liveMoney: { ...was, transactions: demoWrites.edit({ lines: was.transactions || [] }, a, b || {}).lines } }); } catch { /* the server says why */ } }
       if (kind === 'budget') { const v = budgetFromInput(b); this.setState({ liveMoney: { ...was, byCategory: (was.byCategory || []).map((c) => (c.category === a ? { ...c, budget: v || null } : c)) } }); }
     }
     const call = kind === 'add' ? api.moneyAdd(conn, a)
@@ -6306,6 +6311,7 @@ export default class App extends Component {
         : kind === 'edit' ? api.moneyEdit(conn, a, b || {})
           : api.moneyBudget(conn, a, b);
     return call.then(({ record }) => {
+      if (kind === 'edit') this.flashMoneyLine(a);
       this.refreshMoney(month);
       if (record) {
         tickReceipt({
@@ -6319,6 +6325,13 @@ export default class App extends Component {
       this.toastMsg(`${kind === 'budget' ? 'Budget' : 'Money'} change failed: ${e.message}`);
       return false;
     });
+  }
+  // the row a change just landed on lights once (mockup 90: Save, then the
+  // row shows its new parts with a brief violet wash)
+  flashMoneyLine(id) {
+    clearTimeout(this._moneyFreshTimer);
+    this.setState({ moneyFreshId: id });
+    this._moneyFreshTimer = setTimeout(() => this.setState({ moneyFreshId: null }), 1300);
   }
   // WHAT THE MERCHANT SWITCH WOULD MOVE (his call 10 Oct 2026): the line
   // sheet asks once as it opens, so it can say "moves 12 past lines" before

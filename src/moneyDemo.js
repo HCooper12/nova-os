@@ -13,8 +13,10 @@
 // shows the demo.
 
 import { merchantKey } from './moneyModel.js';
+import { explodeParts, normalizeSplit } from './moneyParts.js';
 
 const pad = (n) => String(n).padStart(2, '0');
+const CATEGORY_NAMES = ['Groceries', 'Eating Out', 'Transport', 'Health & Fitness', 'Subscriptions', 'Utilities & Bills', 'Shopping', 'Entertainment', 'Income', 'Other'];
 const TODAY = '2026-10-25';
 const MONTH = '2026-10';
 const PREV = '2026-09';
@@ -99,7 +101,7 @@ export function summarizeDemo(d) {
   const spendOf = (l) => cents(l.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0));
   const cats = ['Groceries', 'Eating Out', 'Transport', 'Shopping', 'Subscriptions', 'Health & Fitness', 'Utilities & Bills', 'Entertainment', 'Other', 'Income'];
   const byCategory = cats.map((c) => {
-    const mine = lines.filter((t) => t.category === c);
+    const mine = explodeParts(lines).filter((t) => t.category === c); // a split counts each part
     const p = prev[c] || [0, 0, 0];
     return { category: c, spent: spendOf(mine), prev: p[1], prevToDay: p[0], visits: mine.filter((t) => t.amount < 0).length, prevVisitsToDay: p[2], history: [AUG[c] || 0, p[1], spendOf(mine)], budget: budgets[c] || null };
   }).filter((c) => c.spent > 0 || c.prev > 0 || c.budget);
@@ -200,14 +202,26 @@ export const demoWrites = {
   add: (st, { merchant, amount, category }) => ({ ...st, lines: [{ id: `dn${++demoId}`, date: TODAY, amount, merchant, category: category || 'Other', note: null, source: 'manual', addedAt: new Date().toISOString() }, ...st.lines] }),
   remove: (st, id) => ({ ...st, lines: st.lines.filter((t) => t.id !== id) }),
   // with `rule`, every other line from the merchant moves too (the server's
-  // moveMerchantLines: same direction, not split)
-  edit: (st, id, { category, note, rule }) => {
+  // moveMerchantLines: same direction, not split). `parts` splits the line
+  // (or null joins it), as the server's editTransaction does.
+  edit: (st, id, { category, note, rule, parts }) => {
     const line = st.lines.find((t) => t.id === id);
-    const key = rule && category !== undefined && line ? merchantKey(line.merchant) : null;
+    const key = rule && category !== undefined && !Array.isArray(parts) && line ? merchantKey(line.merchant) : null;
+    const reshape = (t) => {
+      if (Array.isArray(parts)) {
+        const sound = normalizeSplit(t.amount, parts, CATEGORY_NAMES);
+        return { ...t, parts: sound, category: sound[0].category };
+      }
+      if (parts === null || category !== undefined) {
+        const { parts: _drop, ...rest } = t; // eslint-disable-line no-unused-vars
+        return { ...rest, ...(category !== undefined ? { category } : {}) };
+      }
+      return t;
+    };
     return {
       ...st,
       lines: st.lines.map((t) => {
-        if (t.id === id) return { ...t, ...(category !== undefined ? { category } : {}), ...(note !== undefined ? { note: note || null } : {}) };
+        if (t.id === id) return { ...reshape(t), ...(note !== undefined ? { note: note || null } : {}) };
         if (key && merchantKey(t.merchant) === key && (t.amount > 0) === (line.amount > 0) && !(t.parts?.length > 1)) return { ...t, category };
         return t;
       }),

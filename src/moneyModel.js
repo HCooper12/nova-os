@@ -11,6 +11,8 @@
 // calendar coin and monogram. Over budget is SHAPE and WORDS (a hatched tab
 // and "$38 over"), never red: red is Nova pushing back (his 4 Oct rule).
 
+import { partsOf } from './moneyParts.js';
+
 export const CATS = {
   Groceries: { key: 'gro', label: 'Groceries', hue: 'var(--nv-m-back)' },
   'Eating Out': { key: 'eat', label: 'Eating out', hue: 'var(--nv-or)' },
@@ -391,9 +393,14 @@ export function buildMoneyView({ money, records = [], offline = false, demo = fa
     const r = risenOn.get(`${t.merchant}|${t.date}`);
     const odd = unusualByTxn.get(t.id) || null;
     const from = t.source === 'import' ? 'From a bank export' : t.source === 'scan' ? 'From a receipt scan' : t.source === 'capture' ? 'Captured by you' : 'Typed by you';
+    // a split line: both parts, each in its category's hue (mockup 90, Line)
+    const ps = partsOf(t);
+    const split = ps.length > 1 ? ps.map((p) => ({ category: p.category, label: catOf(p.category).label, hue: catOf(p.category).hue, amount: p.amount, amountLabel: usd2(p.amount) })) : null;
     return {
       id: t.id, date: t.date, name: t.merchant, initial: initialOf(t.merchant),
-      category: isIncome ? 'Income' : (t.category || 'Other'), catLabel: incoming && !isIncome ? `${meta.label} · refund` : meta.label,
+      category: isIncome ? 'Income' : (t.category || 'Other'),
+      catLabel: split ? split.map((p) => p.label).join(' + ') : incoming && !isIncome ? `${meta.label} · refund` : meta.label,
+      split,
       hue: meta.hue, ink: !!meta.ink, income: isIncome, incoming,
       amount: t.amount, amountLabel: `${incoming ? '+' : ''}${usd2(t.amount)}`,
       note: t.note || null,

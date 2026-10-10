@@ -476,13 +476,18 @@ function ComingUp({ V, M }) {
 
 /* --------------------------------------------------------------- lines -- */
 
-function LineRow({ r, onOpen, selected }) {
+function LineRow({ r, onOpen, selected, fresh }) {
   return (
-    <button type="button" className={`nv-mo-lr${selected ? ' sel' : ''}`} data-flip={r.id} style={{ '--h': r.hue }} onClick={() => onOpen(r)}
-      aria-label={`${r.name}, ${r.catLabel}, ${r.amountLabel}${r.odd ? `, ${r.odd.word}` : ''}. Open the line`}>
+    <button type="button" className={`nv-mo-lr${selected ? ' sel' : ''}${fresh ? ' fresh' : ''}`} data-flip={r.id} style={{ '--h': r.hue }} onClick={() => onOpen(r)}
+      aria-label={`${r.name}, ${r.split ? `split, ${r.split.map((p) => `${p.amountLabel} ${p.label}`).join(' and ')}` : r.catLabel}, ${r.amountLabel}${r.odd ? `, ${r.odd.word}` : ''}. Open the line`}>
       <span className={`nv-mo-mono${r.ink ? ' oth' : ''}${r.income ? ' inw' : ''}`} aria-hidden="true">{r.income ? <MIcon n="in" /> : r.initial}</span>
-      <b>{r.name}</b>
-      <span className="nv-mo-c"><i />{r.catLabel}{r.note ? <span className="nv-mo-note"> · {r.note}</span> : null}</span>
+      <b>{r.name}{r.split && <span className="nv-mo-sp">split</span>}</b>
+      {r.split ? (
+        // mockup 90's split row: both parts, each dot in its category's hue
+        <span className="nv-mo-c"><i />{r.split[0].label}<span className="nv-mo-plus">+</span><i style={{ background: r.split[1].hue }} />{r.split[1].label}</span>
+      ) : (
+        <span className="nv-mo-c"><i />{r.catLabel}{r.note ? <span className="nv-mo-note"> · {r.note}</span> : null}</span>
+      )}
       <span className={`nv-mo-a${r.incoming ? ' in' : ''}`}>{r.amountLabel}{r.up && <span className="nv-mo-up">{r.up}</span>}{r.odd && <span className="nv-mo-odd">{r.odd.word}</span>}</span>
     </button>
   );
@@ -502,7 +507,7 @@ function Latest({ V, M, wide }) {
           {L.groups.map((g) => (
             <div key={g.date}>
               <div className="nv-mo-dh"><span>{g.label}</span><span className="num">{g.total}</span></div>
-              {g.rows.map((r) => <LineRow key={r.id} r={r} onOpen={open} selected={wide && M.selected === r.id} />)}
+              {g.rows.map((r) => <LineRow key={r.id} r={r} onOpen={open} selected={wide && M.selected === r.id} fresh={M.fresh === r.id} />)}
             </div>
           ))}
         </div>
@@ -789,25 +794,110 @@ function BudgetSheet({ M, category, onClose }) {
   );
 }
 
+// THE SPLIT TRACK (mockup 90, Line): part A's hue fills from the left over
+// part B's; the white divider follows the finger 1:1 (from where it was
+// grabbed, so a touch on the divider never jumps it), snaps to the cent,
+// and ticks at each whole dollar like a detent. Off the finger, a change
+// (the first pick of a second category) glides; under it, nothing lags.
+// Keyboard: arrows move a dollar, with Shift a cent.
+function SplitTrack({ total, a, setA, hueA, hueB, words }) {
+  const ref = useRef(null);
+  const grab = useRef(null);
+  const dollar = useRef(Math.floor(a / 100));
+  const [drag, setDrag] = useState(false);
+  const held = useRef(false); // read by pointermove at once, before a render
+  const release = () => { held.current = false; setDrag(false); };
+  const clamp = (c) => Math.min(total - 1, Math.max(1, Math.round(c)));
+  const to = (c) => {
+    const next = clamp(c);
+    const d = Math.floor(next / 100);
+    if (d !== dollar.current) { dollar.current = d; haptic('tick'); }
+    setA(next);
+  };
+  const centsAt = (clientX) => {
+    const r = ref.current.getBoundingClientRect();
+    return ((clientX - r.left - grab.current) / Math.max(1, r.width)) * total;
+  };
+  const onDown = (e) => {
+    if (e.button > 0) return;
+    const r = ref.current.getBoundingClientRect();
+    const hx = r.left + (a / total) * r.width;
+    // within 22pt of the divider: keep the grab offset; elsewhere: it comes to the finger
+    grab.current = Math.abs(e.clientX - hx) <= 22 ? e.clientX - hx : 0;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* a pointer the browser no longer tracks */ }
+    held.current = true;
+    setDrag(true);
+    to(centsAt(e.clientX));
+  };
+  const onKey = (e) => {
+    const step = e.shiftKey || e.altKey ? 1 : 100;
+    const k = e.key;
+    const next = k === 'ArrowLeft' || k === 'ArrowDown' ? a - step : k === 'ArrowRight' || k === 'ArrowUp' ? a + step
+      : k === 'PageDown' ? a - 1000 : k === 'PageUp' ? a + 1000 : k === 'Home' ? 1 : k === 'End' ? total - 1 : null;
+    if (next == null) return;
+    e.preventDefault();
+    to(next);
+  };
+  return (
+    <div ref={ref} className={`nv-mo-strk${drag ? ' drag' : ''}`} style={{ '--ha': hueA, '--hb': hueB, '--p': a / total }}
+      onPointerDown={onDown} onPointerMove={(e) => { if (held.current) to(centsAt(e.clientX)); }}
+      onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}>
+      <i className="pa" />
+      <span className="hdw"><i className="hd" role="slider" tabIndex={0} aria-label="Where the line divides" aria-orientation="horizontal"
+        aria-valuemin={0.01} aria-valuemax={(total - 1) / 100} aria-valuenow={a / 100} aria-valuetext={words} onKeyDown={onKey} /></span>
+    </div>
+  );
+}
+
 // a line's own sheet on the phone, and the right-hand pane on the Mac
 function LineEditor({ M, row, onDone, inline, saveRef, onChanged }) {
   const V = M.view;
-  const [cat, setCat] = useState(row.category);
+  const total = Math.round(Math.abs(row.amount) * 100); // the line, in cents
+  const wasSplit = !!row.split;
+  const [cat, setCat] = useState(wasSplit ? row.split[0].category : row.category);
   const [note, setNote] = useState(row.note || '');
   // ON by default (his call 10 Oct 2026, "Yes, every last purchase too"):
   // a new category moves the merchant's past lines and files its future ones
   const [rule, setRule] = useState(true);
+  // SPLIT (his call 10 Oct 2026): two categories, the divider sets the parts
+  const [split, setSplit] = useState(wasSplit);
+  const [cat2, setCat2] = useState(wasSplit ? row.split[1].category : null);
+  const [a, setA] = useState(wasSplit ? Math.round(Math.abs(row.split[0].amount) * 100) : total);
+  const canSplit = !row.incoming && total >= 2;
   // asked once per line (the view model's doors are new every render)
   const loadRef = useRef(M.loadMerchant);
   useEffect(() => { loadRef.current?.(row.id); }, [row.id]);
   const count = M.merchant?.id === row.id ? merchantMoveCount(M.merchant, cat) : null;
-  const changed = cat !== row.category || (note.trim() || null) !== (row.note || null);
+  const noteChanged = (note.trim() || null) !== (row.note || null);
+  const splitReady = split && cat2 && cat2 !== cat && a >= 1 && a <= total - 1;
+  const splitChanged = splitReady && !(wasSplit && row.split[0].category === cat && row.split[1].category === cat2 && Math.round(Math.abs(row.split[0].amount) * 100) === a);
+  const joined = wasSplit && !split;
+  const changed = split
+    ? (splitChanged || (splitReady && noteChanged))
+    : joined || cat !== row.category || noteChanged;
   const cats = V.categories.filter((c) => c.category !== 'Income' || row.incoming);
+  const metaA = catOf(cat);
+  const metaB = cat2 ? catOf(cat2) : null;
+  const bCents = total - a;
   const save = () => {
     haptic('commit');
-    M.edit(row.id, { ...(cat !== row.category ? { category: cat, rule } : {}), ...((note.trim() || null) !== (row.note || null) ? { note: note.trim() } : {}) });
+    const notePatch = noteChanged ? { note: note.trim() } : {};
+    if (split) M.edit(row.id, { parts: [{ category: cat, amount: a / 100 }, { category: cat2, amount: bCents / 100 }], ...notePatch });
+    else if (joined) M.edit(row.id, { category: cat, parts: null, ...notePatch });
+    else M.edit(row.id, { ...(cat !== row.category ? { category: cat, rule } : {}), ...notePatch });
     onDone?.();
   };
+  const pick = (c) => {
+    haptic('tick');
+    if (!split) { setCat(c); return; }
+    if (c === cat) return; // the first part keeps its category while split
+    // the first pick of a second category brings the divider to the middle,
+    // so there is plainly something to drag; after that it stays put
+    if (!cat2 && a === total) setA(Math.max(1, Math.min(total - 1, Math.round(total / 2))));
+    setCat2(c);
+  };
+  const startSplit = () => { haptic('tick'); setSplit(true); if (!wasSplit || cat2 == null) setA(total); };
+  const endSplit = () => { haptic('tick'); setSplit(false); setCat2(null); setA(total); };
   // the phone sheet's Save sits in its title bar: it reads the latest save
   // through a ref, and hears only when "changed" flips
   useLayoutEffect(() => { if (saveRef) saveRef.current = save; });
@@ -826,19 +916,41 @@ function LineEditor({ M, row, onDone, inline, saveRef, onChanged }) {
           <button type="button" className="nv-mo-chip" onClick={() => M.discuss(row.odd.talk)}><MIcon n="talk" />Ask about it</button>
         </div>
       )}
-      <div className="nv-mo-lab">Category<span>tap to change</span></div>
-      <div className="nv-mo-cgrid" role="radiogroup" aria-label="Category">
-        {cats.map((c) => (
-          <button type="button" role="radio" key={c.category} aria-checked={c.category === cat} className="nv-mo-cg" style={{ '--h': c.hue }}
-            disabled={V.readOnly} onClick={() => { haptic('tick'); setCat(c.category); }}>
-            <MIcon n={c.key} /><span>{c.label}</span>
-          </button>
-        ))}
+      {split
+        ? <div className="nv-mo-lab">Category of the second part<span>{metaA.label} keeps the first</span></div>
+        : <div className="nv-mo-lab">Category<span>tap to change</span></div>}
+      <div className="nv-mo-cgrid" role="radiogroup" aria-label={split ? 'Category of the second part' : 'Category'}>
+        {cats.map((c) => {
+          const first = split && c.category === cat;
+          return (
+            <button type="button" role="radio" key={c.category} aria-checked={split ? c.category === cat2 : c.category === cat}
+              aria-disabled={first ? 'true' : undefined} aria-label={first ? `${c.label}, the first part` : undefined}
+              className={`nv-mo-cg${split && c.category === cat2 ? ' b2' : ''}`} style={{ '--h': c.hue }}
+              data-first={first ? 'true' : undefined}
+              disabled={V.readOnly} onClick={() => pick(c.category)}>
+              <MIcon n={c.key} /><span>{c.label}</span>
+            </button>
+          );
+        })}
       </div>
+      {canSplit && !split && !V.readOnly && (
+        <button type="button" className="nv-mo-splitb" onClick={startSplit}><MIcon n="split" />Split across two categories</button>
+      )}
+      {split && (
+        <div className="nv-mo-split">
+          <SplitTrack total={total} a={a} setA={setA} hueA={metaA.hue} hueB={metaB ? metaB.hue : 'color-mix(in srgb, var(--nv-ink) 30%, transparent)'}
+            words={`${usd2(a / 100)} ${metaA.label}, ${usd2(bCents / 100)} ${metaB ? metaB.label : 'with no category yet'}`} />
+          <div className="nv-mo-splitl" aria-live="polite">
+            <span><b>{usd2(a / 100)}</b> {metaA.label}</span>
+            <span><b>{usd2(bCents / 100)}</b> {metaB ? metaB.label : 'pick a second'}</span>
+          </div>
+          <button type="button" className="nv-mo-unsplit" onClick={endSplit}>{wasSplit ? 'Join it back into one category' : 'Keep it in one category'}</button>
+        </div>
+      )}
       <label className="nv-mo-field"><MIcon n="note" /><span className="sr">Note</span>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note" maxLength={200} disabled={V.readOnly} />
       </label>
-      {cat !== row.category && (
+      {!split && !wasSplit && cat !== row.category && (
         <label className="nv-mo-trow2">
           <span>File every {row.name} line this way<small>{merchantSwitchWords(rule, count)}</small></span>
           <span className="nv-sum-switch" data-on={rule ? 'true' : 'false'}><input type="checkbox" checked={rule} onChange={(e) => setRule(e.target.checked)} aria-label={`File every ${row.name} line this way`} /></span>
@@ -984,9 +1096,9 @@ function LinesPage({ M }) {
               <div className="nv-mo-dh"><span>{g.label}</span>{g.total && <span className="num">{g.total}</span>}</div>
               {g.rows.map((r) => (
                 <div key={r.id} data-flip={r.id}>
-                  {V.readOnly ? <LineRow r={r} onOpen={() => M.openSheet({ kind: 'line', id: r.id })} /> : (
+                  {V.readOnly ? <LineRow r={r} fresh={M.fresh === r.id} onOpen={() => M.openSheet({ kind: 'line', id: r.id })} /> : (
                     <SwipeRow radius={0} left={{ label: 'Delete', icon: <MIcon n="x" />, tone: 'color-mix(in srgb, var(--nv-ink) 34%, var(--nv-void))', run: () => M.remove(r.id), collapse: true }}>
-                      <LineRow r={r} onOpen={() => M.openSheet({ kind: 'line', id: r.id })} />
+                      <LineRow r={r} fresh={M.fresh === r.id} onOpen={() => M.openSheet({ kind: 'line', id: r.id })} />
                     </SwipeRow>
                   )}
                 </div>

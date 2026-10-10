@@ -61,6 +61,8 @@ export function moneyRouter(vaultPath) {
         category: typeof b.category === 'string' ? b.category : undefined,
         note: typeof b.note === 'string' ? b.note : undefined,
         rule: b.rule === true,
+        // a split: two { category, amount } parts; null joins it back
+        parts: Array.isArray(b.parts) ? b.parts.slice(0, 3).map((p) => ({ category: String(p?.category || ''), amount: Number(p?.amount) })) : b.parts === null ? null : undefined,
       }));
     } catch (e) {
       fail(res, e);

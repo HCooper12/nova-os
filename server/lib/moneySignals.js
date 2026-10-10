@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { listTransactions, getBudgets, detectSubscriptions, merchantKey, daysBetween, getMonthSummary } from './money.js';
 import { createRecord, listRecords, updateRecord, getRecord } from './inboxStore.js';
 import { TIME_ZONE } from './quietHours.js';
+import { explodeParts } from '../../src/moneyParts.js';
 
 // MONEY THAT NEEDS HIM, AS SIGNALS (10 Oct 2026). His words that day: "ensure
 // … it interacts with everything else in nova so it can alert me and discuss
@@ -104,7 +105,8 @@ export function detectMoneyEvents({ transactions = [], budgets = {}, subscriptio
     });
   }
 
-  const monthLines = transactions.filter((t) => String(t.date).slice(0, 7) === month);
+  // a split line's parts each count against their own category's budget
+  const monthLines = explodeParts(transactions.filter((t) => String(t.date).slice(0, 7) === month));
   for (const [category, budget] of Object.entries(budgets || {})) {
     if (!(budget > 0)) continue;
     const spent = Math.round(monthLines.filter((t) => t.category === category && t.amount < 0).reduce((s, t) => s - t.amount, 0) * 100) / 100;

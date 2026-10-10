@@ -150,7 +150,7 @@ function MoneyClassic({ v }) {
                         {v.moneyAllCategories.map((c) => <option key={c} value={c} style={{ background: '#141019' }}>{c}</option>)}
                       </select>
                     ) : (
-                      <TextAction compact tone="quiet" onClick={t.startEditCategory} style={{ flex: 'none' }}>{t.category}</TextAction>
+                      <TextAction compact tone="quiet" onClick={t.startEditCategory} style={{ flex: 'none' }}>{t.categoryLabel}</TextAction>
                     )}
                     <span title={t.source} style={css(`flex:none;width:86px;text-align:right;font:500 12px ${M};font-variant-numeric:tabular-nums;color:${t.isSpend ? 'var(--nv-ink)' : 'var(--nv-good)'}`)}>{t.amountLabel}</span>
                     {t.remove && (

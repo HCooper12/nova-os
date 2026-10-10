@@ -393,6 +393,38 @@
 .nv-mo-back .nv-mo-ic { width: 24px; height: 24px; stroke-width: 2.4; }
 .nv-mo-page .nv-mo-card { margin-top: 12px; }
 
+/* ---------- split across two categories (mockup 90, Line; his yes 10 Oct) ---------- */
+.nv-mo-splitb { display: flex !important; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 44px; margin-top: 10px; border-radius: 14px; font: 600 15px var(--nv-font-ui) !important; color: var(--nv-vi) !important; background: color-mix(in srgb, var(--nv-vi) 10%, transparent) !important; }
+.nv-mo-splitb .nv-mo-ic { width: 17px; height: 17px; }
+.nv-mo-split { margin-top: 12px; animation: nvMoSplitIn .35s var(--nv-mo-out) both; }
+@keyframes nvMoSplitIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* the track: part A's hue from the left over part B's; the white divider is
+   the handle, and the whole 44pt track takes the finger (pan-y keeps the
+   sheet's vertical scroll) */
+.nv-mo-strk { position: relative; height: 44px; border-radius: 14px; overflow: hidden; background: var(--hb); transition: background-color .3s ease; touch-action: pan-y; cursor: ew-resize; -webkit-user-select: none; user-select: none; }
+.nv-mo-strk .pa { position: absolute; inset: 0; background: var(--ha); transform-origin: 0 50%; transform: scaleX(var(--p)); transition: transform .45s var(--nv-mo-out), background-color .3s ease; }
+.nv-mo-strk .hdw { position: absolute; inset: 0; transform: translateX(clamp(9px, calc(var(--p) * 100%), calc(100% - 9px))); /* never on the rounded ends ($0.01 / $99.99) */ transition: transform .45s var(--nv-mo-out); pointer-events: none; }
+.nv-mo-strk .hd { position: absolute; top: 6px; bottom: 6px; left: -3px; width: 6px; border-radius: 3px; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,.25); pointer-events: auto; outline: none; }
+.nv-mo-strk .hd:focus-visible { box-shadow: 0 0 0 3px var(--nv-vi); }
+.nv-mo-strk.drag .pa, .nv-mo-strk.drag .hdw { transition: none; }
+.nv-mo-strk.drag .hd { transform: scaleY(1.08); }
+.nv-mo-splitl { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; font: 400 13px var(--nv-font-ui); color: var(--nv-sum-ink2); }
+.nv-mo-splitl > span { min-width: 0; overflow-wrap: anywhere; }
+.nv-mo-splitl > span:last-child { text-align: right; }
+.nv-mo-splitl b { font: 600 15px var(--nv-font-round); color: var(--nv-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-mo-unsplit { display: block; margin: 8px auto 0; min-height: 44px; padding: 0 8px !important; font: 600 14px var(--nv-font-ui) !important; color: var(--nv-sum-ink2) !important; }
+.nv-mo-cg.b2, .nv-mo-cg.b2[aria-checked="true"] { color: var(--nv-ink) !important; background: color-mix(in srgb, var(--nv-ink) 7%, transparent) !important; box-shadow: inset 0 0 0 2px var(--h); }
+.nv-mo-cg.b2 .nv-mo-ic { color: var(--h); }
+.nv-mo-cg[data-first="true"] { color: #0b0d1a !important; background: var(--h) !important; box-shadow: none; }
+.nv-mo-cg[data-first="true"] .nv-mo-ic { color: #0b0d1a; }
+.nv-mo-cg[aria-disabled="true"] { cursor: default; }
+/* a split row: "split" beside the name, both parts' dots */
+.nv-mo-sp { margin-left: 6px; font: 600 12px var(--nv-font-ui); color: var(--nv-sum-ink2); }
+.nv-mo-plus { margin: 0 2px; color: var(--nv-sum-ink3); }
+/* the row a change just landed on, lit once (mockup 90: Save, then the row) */
+.nv-mo-lr.fresh { animation: nvMoFresh 1.2s ease-out; }
+@keyframes nvMoFresh { from { background: color-mix(in srgb, var(--nv-vi) 18%, transparent); } to { background: transparent; } }
+
 /* ---------- reduced motion: the end state at once, cross-fades only ---------- */
 @media (prefers-reduced-motion: reduce) {
   .nv-mo-rv { opacity: 1; transform: none; transition: opacity .16s ease; }
@@ -400,6 +432,8 @@
   .nv-mo-act, .nv-mo-sepl { transition: opacity .16s ease !important; stroke-dashoffset: 0 !important; }
   .nv-mo-cp, .nv-mo-bars i, .nv-mo-trk2 .b, .nv-mo-preview i, .nv-mo-cmp { animation: fadeIn .16s ease backwards !important; }
   .nv-mo-skel, .nv-mo-caret { animation: none; }
+  .nv-mo-strk .pa, .nv-mo-strk .hdw { transition: none; }
+  .nv-mo-split { animation: fadeIn .16s ease both; }
   .nv-mo button:not(:disabled):active, .nv-mo-scrim button:not(:disabled):active { transform: none; }
 }
 @media (prefers-reduced-transparency: reduce) {
