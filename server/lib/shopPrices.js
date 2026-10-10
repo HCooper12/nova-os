@@ -200,7 +200,7 @@ export function detectBlock(status, body) {
 const melDay = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 export const dayOf = (iso) => melDay(new Date(iso));
 
-const emptyStore = () => ({ version: 1, reads: {}, chains: {} });
+const emptyStore = () => ({ version: 1, reads: {}, chains: {}, pins: {} });
 let cache = null;
 export async function loadStore() {
   if (cache) return cache;
@@ -386,7 +386,25 @@ export async function pricesFor(items) {
     chains[chain] = c ? { state: c.state, since: c.since || null, lastAt: c.lastAt || null, detail: c.detail || null } : { state: 'never' };
   }
   const q = queue;
-  return { chains, reads, pending: q ? q.pending().length : 0, today: melDay(new Date()) };
+  const pins = {};
+  for (const term of termsFor(items)) if (s.pins?.[term]) pins[term] = s.pins[term];
+  return { chains, reads, pins, pending: q ? q.pending().length : 0, today: melDay(new Date()) };
+}
+
+// "Pin the one I buy": from then on only that product prices the line. His
+// choice of product, kept with the reads it steers; returns what it replaced
+// so the pill's Undo puts exactly that back.
+export async function setPin(term, product) {
+  const key = lineKey(term);
+  if (!key) throw new Error('which line?');
+  const s = await loadStore();
+  s.pins ||= {};
+  const prev = s.pins[key] || null;
+  if (product && CHAIN_DEFS[product.chain] && product.name) {
+    s.pins[key] = { chain: product.chain, id: String(product.id || ''), name: String(product.name).slice(0, 160), at: new Date().toISOString() };
+  } else delete s.pins[key];
+  await saveStore(s);
+  return { pin: s.pins[key] || null, prev };
 }
 
 export { lineKey };

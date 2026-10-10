@@ -218,3 +218,15 @@ test('Aldi: no online shop is not "unavailable"; a per-kilo product is flagged',
   assert.equal(out[0].perKg, true);
   assert.equal(out[1].perKg, false);
 });
+
+test('a pin: kept per line, returned with the reads, and Undo restores what it replaced', async () => {
+  P._resetForTests();
+  const a = await P.setPin('Beef mince', { chain: 'w', id: '9', name: 'Lean Beef Mince 5% Fat 1kg' });
+  assert.equal(a.prev, null);
+  assert.equal((await P.pricesFor([{ name: 'beef mince' }])).pins['beef mince'].name, 'Lean Beef Mince 5% Fat 1kg');
+  const b = await P.setPin('beef mince', null);
+  assert.equal(b.prev.id, '9');
+  assert.equal((await P.pricesFor([{ name: 'beef mince' }])).pins['beef mince'], undefined);
+  await P.setPin('beef mince', b.prev);
+  assert.equal((await P.pricesFor([{ name: 'beef mince' }])).pins['beef mince'].id, '9');
+});

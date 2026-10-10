@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { loadShoppingList } from '../lib/shoppingList.js';
-import { pricesFor, readStale, retryChain, CHAIN_DEFS } from '../lib/shopPrices.js';
+import { pricesFor, readStale, retryChain, setPin, CHAIN_DEFS } from '../lib/shopPrices.js';
 import { offersView, markOffer, scanRewardsMail } from '../lib/rewardsMail.js';
 import { logosView, logoFile, ensureAllLogos } from '../lib/brandLogos.js';
 
@@ -31,6 +31,11 @@ export function shoppingRouter(vaultPath) {
       const queued = await retryChain(chain, await unticked());
       res.json({ queued });
     } catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+  // Pin the one I buy (or unpin: product null), with its Undo set
+  router.post('/shopping/pins', async (req, res) => {
+    try { res.json(await setPin(String(req.body?.key || ''), req.body?.product || null)); } catch (err) { res.status(400).json({ error: err.message }); }
   });
 
   router.get('/shopping/offers', async (req, res, next) => {
