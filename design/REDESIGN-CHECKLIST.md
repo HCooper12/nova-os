@@ -561,6 +561,15 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 11 Oct 2026 — THE JOURNAL BECOMES HIS (his brief; memory
+  nova-journal-intent): keep the author tag; his own Journal apart from
+  Nova's log of the agents' entries; two-way Notion backup (a "Journal"
+  database created in his Notion: https://app.notion.com/p/a47882fdc1f541b2a351397e0e73e92e,
+  fields Entry, Date, Tag Own/Life/Deep, Prompt, Prompt from, Written in,
+  Nova id; the server needs his Notion integration token); a prompt picker
+  (Deep / Daily review / My life) with tags; the Daily review stays on Home.
+  Mockup 95 in progress. MacBook round for eight pages published: mockup 94
+  https://claude.ai/artifact/RtQiVzauoerxQVT5W5bn94.
 - 11 Oct 2026 — JOURNAL HONESTY FIX SHIPPED (merge f299a07, pushed,
   reloaded): Commitments, the Weekly debrief, the health insight and every
   agent that reads Wiki/Journal treat an entry as his words only if he wrote
