@@ -561,6 +561,16 @@ abstract without page content to put in it.
 
 ## 7 · Ledger (append-only, newest first)
 
+- 10 Oct 2026 — HIS DECISIONS (all answered). Shopping: Nova reads prices
+  from the chains' public sites (his call, against their terms: polite, never
+  evading bot checks); rewards from his emails via a Mail rule: yes; real
+  logos (fetched at runtime, never committed: public repo); a stronger tint,
+  Flybuys especially. Stash: all five additions (price-drop alerts, gift
+  lists per person, a bought history, ask Nova about the stash, duplicate
+  warning). Money: the merchant rule moves every past purchase too; the
+  Money row on the cupertino Home as well; read Billroo .xlsx directly;
+  split a purchase across categories. Science Atlas dashboard: yes, built by
+  the session that works on that project (brief handed to him).
 - 10 Oct 2026 — CODE EXTENDED AND LIVE (merge, pushed, reloaded): Science
   Atlas (Atlas_Progress_Map) and Wren (atlas-partner) are real workspaces
   (server/data/code-workspaces.json); read live after reload: Atlas 2
