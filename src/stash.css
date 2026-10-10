@@ -70,6 +70,7 @@
 .nv-st-vial.due .d { color: var(--nv-gold); }
 .nv-st-vial .d small { font: 500 11px var(--nv-font-ui); color: var(--st-ink3); }
 .nv-st-vial .nmv { max-width: 100%; font: 500 12px/1.2 var(--nv-font-ui); color: var(--st-ink2); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nv-st-vmore { display: block !important; min-height: 44px; margin: 0 6px; font: 600 14px var(--nv-font-ui) !important; color: var(--st); }
 .nv-st-foot { margin: 8px 6px 10px; padding-top: 8px; border-top: .5px solid var(--st-sep); font: 400 13px/1.4 var(--nv-font-ui); color: var(--st-ink3); }
 
 /* ---------- the shelf bar ---------- */
@@ -123,6 +124,8 @@
 @media (min-width: 720px) { .nv-st-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (min-width: 1040px) { .nv-st-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .nv-st-card { position: relative; border-radius: 20px !important; overflow: hidden; padding: 0 !important; transition: transform .3s var(--st-ease), box-shadow .3s ease; -webkit-touch-callout: none; user-select: none; }
+/* a shelf of hundreds lays out only what is near the screen */
+.nv-st-grid > .nv-st-card:nth-child(n+9) { content-visibility: auto; contain-intrinsic-size: auto 176px; }
 .nv-st-card.lift { transform: scale(1.04); z-index: 33; box-shadow: 0 0 0 .5px var(--st-ring), 0 24px 50px -16px rgba(0,0,0,.8); }
 .nv-st-card.fresh { box-shadow: inset 0 1px 0 var(--st-hi), 0 0 0 1.5px var(--st); }
 .nv-st-card.flash, .nv-st-row.flash { animation: nvStFlash 1.2s var(--st-out) 2; }

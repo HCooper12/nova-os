@@ -32,6 +32,8 @@ export function shelfLook(c) {
   return { glyph: 'tag', hue: SPARE[hash(c?.name || '') % SPARE.length] };
 }
 
+export const VIAL_MAX = 8;
+
 export const SORTS = [
   { key: 'opened', label: 'Last opened', sub: 'The ones you use first' },
   { key: 'added', label: 'Added', sub: 'As Stash.md lists them' },
@@ -213,9 +215,11 @@ export function buildStashView({ stash, ui = {}, now = Date.now(), demo = false,
   return {
     state: total || boughtShelf?.items.length || live.length ? 'ready' : 'empty',
     today, total, shelfCount, news, status, offline, demo,
-    due: first ? { ...card(first.it, first.c, shelfLook(first.c), first.r), words: `About ${plural(first.r.left, 'day')} left by the calendar` } : null,
+    due: first ? { ...card(first.it, first.c, shelfLook(first.c), first.r), words: first.r.left ? `About ${plural(first.r.left, 'day')} left by the calendar` : `Empty by the calendar: bought ${plural(first.r.since, 'day')} ago` } : null,
     dueCount: due.length,
-    vials: tracked.map(({ it, c, r }) => ({ raw: it.raw, key: it.key, name: shortName(it.name), full: it.name, hue: shelfLook(c).hue, level: r.level, checkFrac: r.checkFrac, left: r.left, due: r.due })),
+    // the instrument holds two rows; the rest are one tap away in the Days left sort
+    vialsMore: Math.max(0, tracked.length - VIAL_MAX),
+    vials: tracked.slice(0, VIAL_MAX).map(({ it, c, r }) => ({ raw: it.raw, key: it.key, name: shortName(it.name), full: it.name, hue: shelfLook(c).hue, level: r.level, checkFrac: r.checkFrac, left: r.left, due: r.due })),
     chips: [{ key: 'all', label: 'All', count: total }, ...shelves.map((s) => ({ key: s.name, label: s.name, count: s.count, hue: s.hue, glyph: s.glyph })), ...(bought ? [{ key: 'Bought', label: 'Bought', count: bought.count, hue: bought.hue, glyph: 'bag' }] : [])],
     shelves: ui.shelfOn === 'Bought' ? [] : visible,
     byRaw,

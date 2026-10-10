@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CountUp } from '../CountUp.jsx';
 import { useFlipList } from '../useFlipList.js';
 import { useSheetDrag } from '../useSheetDrag.js';
@@ -26,28 +26,40 @@ const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-r
 
 /* ------------------------------ pictures ---------------------------------- */
 
-const blobs = new Map(); // file -> Promise<objectURL|null>, for the session
-function usePicture(S, file) {
+// a picture is asked of the Mac only once its card is near the screen (a
+// shelf of 300 asks for the few he can see), and once per session
+const blobs = new Map(); // file -> Promise<objectURL|null>
+function usePicture(S, file, ref) {
   const [url, setUrl] = useState(null);
+  const [near, setNear] = useState(false);
   useEffect(() => {
-    if (!file) return undefined;
+    if (!file || near) return undefined;
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver !== 'function') { setNear(true); return undefined; }
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { setNear(true); io.disconnect(); } }, { rootMargin: '400px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [file, near, ref]);
+  useEffect(() => {
+    if (!file || !near) return undefined;
     let live = true;
     if (!blobs.has(file)) blobs.set(file, S.imageUrl(file).catch(() => null));
     blobs.get(file).then((u) => { if (live) setUrl(u); });
     return () => { live = false; };
-  }, [S, file]);
+  }, [S, file, near]);
   return url;
 }
 
 // the page's own picture, the demo's drawn one, or the shelf's monogram
 function Picture({ S, card, className = 'nv-st-pic' }) {
-  const url = usePicture(S, card.image);
+  const ref = useRef(null);
+  const url = usePicture(S, card.image, ref);
   const [broken, setBroken] = useState(false);
-  if (url && !broken) return <span className={className}><img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} /></span>;
-  if (card.demoArt) return <span className={className}><StashArt kind={card.demoArt} /></span>;
+  if (url && !broken) return <span ref={ref} className={className}><img src={url} alt="" loading="lazy" decoding="async" onError={() => setBroken(true)} /></span>;
+  if (card.demoArt) return <span ref={ref} className={className}><StashArt kind={card.demoArt} /></span>;
   const letter = [...String(card.name || card.host || '?').trim()][0] || '?';
   return (
-    <span className={`${className} mono`} style={{ '--t': card.hue || 'var(--nv-m-back)' }} aria-hidden="true">
+    <span ref={ref} className={`${className} mono`} style={{ '--t': card.hue || 'var(--nv-m-back)' }} aria-hidden="true">
       <b>{letter.toUpperCase()}</b>
       {className === 'nv-st-pic' && <small>{card.host}</small>}
     </span>
@@ -131,6 +143,11 @@ function Vials({ S, V }) {
           </button>
         ))}
       </div>
+      {V.vialsMore > 0 && (
+        <button type="button" className="nv-st-vmore" onClick={() => { haptic('tick'); S.setSort('days'); S.setShelf('all'); }}>
+          {V.vialsMore} more, soonest first in Days left
+        </button>
+      )}
       <p className="nv-st-foot">Days left, counted from when you bought each one. The dashed line is a week before empty.</p>
     </section>
   );
@@ -224,16 +241,25 @@ function Badge({ b, hue }) {
   return <span className={`nv-st-bdg ${b.tone}`} style={{ '--t': hue }}><i aria-hidden="true" />{b.text}</span>;
 }
 
-function Card({ S, c, lifted, flash }) {
+// A CARD RE-RENDERS ONLY WHEN WHAT IT SHOWS CHANGES (break-ui, 10 Oct: a
+// sort of 300 cards spent 158 ms in one frame re-rendering every one). The
+// doors arrive through a ref that always holds the latest view model.
+const sameCard = (a, b) => a.lifted === b.lifted && a.flash === b.flash && a.edit === b.edit && a.c.raw === b.c.raw
+  && a.c.sub === b.c.sub && a.c.subLit === b.c.subLit && a.c.image === b.c.image && a.c.demoArt === b.c.demoArt && a.c.hue === b.c.hue
+  && a.c.isNew === b.c.isNew && a.c.badge?.text === b.c.badge?.text && a.c.badge?.tone === b.c.badge?.tone
+  && a.c.read === b.c.read && a.c.minutes === b.c.minutes && !!a.c.place === !!b.c.place;
+
+const Card = memo(function Card({ sr, c, lifted, flash, edit }) {
+  const S = sr.current;
   const hold = usePressHold((el) => { haptic('commit'); S.openMenu(c.raw, el.getBoundingClientRect()); });
   return (
     <div className={`nv-sum-card nv-st-card${lifted ? ' lift' : ''}${flash ? ' flash' : ''}${c.isNew ? ' fresh' : ''}`} data-flip={c.key} data-stash-key={c.key} style={{ '--t': c.hue }}>
-      {S.ui.edit && (
-        <button type="button" className="nv-st-rm" aria-label={`Remove ${c.name}`} onClick={() => { haptic('commit'); S.remove(c.raw); }}><i><SIcon n="minus" /></i></button>
+      {edit && (
+        <button type="button" className="nv-st-rm" aria-label={`Remove ${c.name}`} onClick={() => { haptic('commit'); sr.current.remove(c.raw); }}><i><SIcon n="minus" /></i></button>
       )}
       <button type="button" className="nv-st-open" {...hold} aria-haspopup="menu"
         aria-label={`${c.name}, opens ${c.host}${c.badge ? `. ${c.badge.text}` : ''}. Press and hold for more`}
-        onClick={() => { if (!S.ui.edit) S.open(c); }}>
+        onClick={() => { if (!edit) sr.current.open(c); }}>
         <span className="nv-st-imgw">
           <Picture S={S} card={c} />
           <Badge b={c.badge} hue={c.hue} />
@@ -245,18 +271,19 @@ function Card({ S, c, lifted, flash }) {
       </button>
     </div>
   );
-}
+}, sameCard);
 
-function ReadRow({ S, c, lifted, flash }) {
+const ReadRow = memo(function ReadRow({ sr, c, lifted, flash, edit }) {
+  const S = sr.current;
   const hold = usePressHold((el) => { haptic('commit'); S.openMenu(c.raw, el.getBoundingClientRect()); });
   return (
     <div className={`nv-st-row${lifted ? ' lift' : ''}${flash ? ' flash' : ''}`} data-flip={c.key} data-stash-key={c.key}>
-      <SwipeRow radius={0} left={{ label: 'Remove', icon: <SIcon n="trash" />, run: () => S.remove(c.raw), collapse: true }}>
+      <SwipeRow radius={0} left={{ label: 'Remove', icon: <SIcon n="trash" />, run: () => sr.current.remove(c.raw), collapse: true }}>
         <div className="nv-st-rowin">
-          {S.ui.edit && <button type="button" className="nv-st-rm inline" aria-label={`Remove ${c.name}`} onClick={() => S.remove(c.raw)}><i><SIcon n="minus" /></i></button>}
+          {edit && <button type="button" className="nv-st-rm inline" aria-label={`Remove ${c.name}`} onClick={() => sr.current.remove(c.raw)}><i><SIcon n="minus" /></i></button>}
           <button type="button" className="nv-st-rowopen" {...hold} aria-haspopup="menu"
             aria-label={`${c.name}, ${c.host}${c.minutes ? `, ${c.minutes} minutes` : ''}. Opens to read in Nova. Press and hold for more`}
-            onClick={() => { if (!S.ui.edit) S.openReader(c); }}>
+            onClick={() => { if (!edit) sr.current.openReader(c); }}>
             <Picture S={S} card={c} className="nv-st-tn" />
             <span className="nv-st-rowtx">
               <span className="tt">{c.name}{c.read && <span className="nv-st-read"> · read</span>}</span>
@@ -268,7 +295,7 @@ function ReadRow({ S, c, lifted, flash }) {
       </SwipeRow>
     </div>
   );
-}
+}, sameCard);
 
 function ShelfHead({ S, s }) {
   return (
@@ -288,6 +315,8 @@ function ShelfHead({ S, s }) {
 
 function Shelves({ S, V }) {
   const rootRef = useRef(null);
+  const sr = useRef(S);
+  useLayoutEffect(() => { sr.current = S; });
   const sig = V.shelves.map((s) => `${s.name}:${s.cards.map((c) => c.key).join(',')}`).join('|') + (V.bought ? `|B:${V.bought.rows.length}` : '');
   useFlipList(rootRef, sig);
   const lifted = S.ui.menu?.raw;
@@ -300,11 +329,11 @@ function Shelves({ S, V }) {
             <p className="nv-st-shelfempty">{s.gift ? 'No ideas yet. Paste a link and pick this shelf.' : 'Empty.'}</p>
           ) : s.rows ? (
             <div className="nv-sum-card nv-st-list">
-              {s.cards.map((c) => <ReadRow key={c.key} S={S} c={c} lifted={lifted === c.raw} flash={S.ui.flash === c.key} />)}
+              {s.cards.map((c) => <ReadRow key={c.key} sr={sr} c={c} edit={!!S.ui.edit} lifted={lifted === c.raw} flash={S.ui.flash === c.key} />)}
             </div>
           ) : (
             <div className="nv-st-grid">
-              {s.cards.map((c) => <Card key={c.key} S={S} c={c} lifted={lifted === c.raw} flash={S.ui.flash === c.key} />)}
+              {s.cards.map((c) => <Card key={c.key} sr={sr} c={c} edit={!!S.ui.edit} lifted={lifted === c.raw} flash={S.ui.flash === c.key} />)}
             </div>
           )}
         </section>
