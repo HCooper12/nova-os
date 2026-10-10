@@ -51,6 +51,8 @@ const SCHEDULED = [
   { id: 'mealprep', label: 'Meal Prep', role: 'weekly prep proposals', cadenceHours: 3 },
   // ticks every 30 min; opens Chrome and reads the menus only once a fortnight, 3–5am
   { id: 'eat-out', label: 'Takeaway Catalogue', role: 'chain and supermarket menus refreshed every two weeks', cadenceHours: 2 },
+  // ticks every 30 min: his rewards emails read, today's supermarket prices queued politely
+  { id: 'shopping', label: 'Shopping', role: 'supermarket prices and rewards offers for his list', cadenceHours: 2 },
   { id: 'training-check', label: 'Training Check', role: 'program drift watch', cadenceHours: 2 },
   { id: 'followups', label: 'Calendar Follow-ups', role: 'did-it-happen questions', cadenceHours: 2 },
   { id: 'week-plan', label: 'Week Plan', role: 'training week annotations', cadenceHours: 2 },
@@ -148,6 +150,7 @@ export const AGENT_DEPARTMENTS = {
   'food-suggest': ['Fuel'],
   mealprep: ['Fuel'],
   'eat-out': ['Fuel'],
+  shopping: ['Fuel'],
   'training-check': ['Train'],
   followups: ['Logistics'], // calendar follow-ups are the day's logistics, like the plan
   'week-plan': ['Train'],

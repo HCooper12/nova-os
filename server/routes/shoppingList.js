@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { loadShoppingList, toggleItem, confirmCompletion, startAddItems, getAddItemsJob, clearAll, restoreItems, setItemQty } from '../lib/shoppingList.js';
+import { loadShoppingList, toggleItem, confirmCompletion, startAddItems, getAddItemsJob, clearAll, restoreItems, setItemQty, removeItemsReturning } from '../lib/shoppingList.js';
 
 export function shoppingListRouter(vaultPath) {
   const router = Router();
@@ -73,6 +73,18 @@ export function shoppingListRouter(vaultPath) {
     try {
       const items = await restoreItems(vaultPath, (req.body || {}).items);
       res.json({ items });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // REMOVE some lines (a swipe left, "Clear the N you got"). The answer
+  // carries exactly what left, so Undo is /shopping-list/restore with it.
+  router.post('/shopping-list/remove', async (req, res) => {
+    try {
+      const ids = (req.body || {}).ids;
+      if (!Array.isArray(ids) || !ids.length || ids.length > 200) return res.status(400).json({ error: 'ids is required' });
+      res.json(await removeItemsReturning(vaultPath, ids.map(String)));
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

@@ -1,0 +1,4 @@
+From: A newsletter <hi@example.test>
+Subject: Weekly reading list
+
+Ten articles on deliberate practice. Earn 10x points of focus by reading them before Friday.

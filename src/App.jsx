@@ -85,6 +85,7 @@ import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
 import { loadCode, codeFromHistory, commit as codeCommit, shelve as codeShelve, restore as codeRestore, switchWorkspace as codeSwitchWorkspace, newSession as codeNewSession } from './codeActions.js';
 import { demoMoneyState, demoVariant, demoWrites } from './moneyDemo.js';
+import { demoShopState, shopDemoVariant, demoTurn } from './shopDemo.js';
 import { budgetFromInput } from './moneyParse.js';
 import { catOf } from './moneyModel.js';
 import { noteScreen } from './arrival.js';
@@ -736,6 +737,8 @@ export default class App extends Component {
     liveShoppingList: null,
     shoppingAddInput: '', shoppingAddBusy: false, shoppingAddError: null,
     shoppingClearArmed: false, shoppingClearBusy: false, shoppingCleared: [],
+    // the summary Shopping screen (mockup 92): prices, offers, logos, its sheet
+    liveShopPrices: null, liveShopOffers: null, liveShopLogos: {}, shopDemo: null, shopSheet: null, shopGroup: 'aisle', shopAdding: false,
 
     // workouts
     liveWorkoutExercises: null, liveWorkoutMuscleGroups: null, liveWorkoutTrackingTypes: null,
@@ -3789,7 +3792,7 @@ export default class App extends Component {
     const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
     // the Fuel page's Edit sheet is the other history level over Fuel
     // the Money page's sheet and pushed page are its other two levels (10 Oct 2026)
-    return { ...this.settingsFromHistory(), ...codeFromHistory(this, screenFromHash()), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory(), ...this.moneyFromHistory(), ...stashFromHistory(this) };
+    return { ...this.settingsFromHistory(), ...codeFromHistory(this, screenFromHash()), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory(), ...this.moneyFromHistory(), ...stashFromHistory(this), ...this.shopFromHistory() };
   }
   // SETTINGS' PAGES (direction A, 7 Oct 2026). Each push is a history entry
   // carrying the whole path, so popstate restores exactly the page he was on
@@ -4262,6 +4265,183 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not restore the list: ' + e.message));
   }
   dismissShoppingClearUndo() { this.setState({ shoppingCleared: [] }); }
+
+  // THE SUMMARY SHOPPING SCREEN (mockup 92, built 10 Oct 2026). The list is
+  // the vault's; prices are the server's polite daily reads of the chains'
+  // public pages; offers come from his saved rewards emails; logos are read
+  // once and kept on the Mac. Every write here is one pill with Undo through
+  // its own reverse path. Demo: the same changes to the invented week in
+  // memory (src/shopDemo.js), never a server.
+  shopDemoState() { return this.state.shopDemo || demoShopState(shopDemoVariant()); }
+  shopIsDemo() { return this.state.connectionStatus === 'demo'; }
+  setShopDemo(next) { this.setState({ shopDemo: next }); }
+  refreshShopExtras() {
+    if (this.shopIsDemo()) return;
+    const conn = getConnection();
+    if (!conn) return;
+    api.shopPrices(conn).then((p) => this.setState({ liveShopPrices: p })).catch(() => {});
+    api.shopOffers(conn).then((o) => this.setState({ liveShopOffers: o })).catch(() => {});
+    if (!this.shopLogosAt || Date.now() - this.shopLogosAt > 10 * 60 * 1000) {
+      this.shopLogosAt = Date.now();
+      api.shopLogos(conn).then(async (view) => {
+        const urls = { ...(this.state.liveShopLogos || {}) };
+        for (const [k, l] of Object.entries(view || {})) {
+          if (!l?.has || urls[k]) continue;
+          const u = await api.shopLogoBlobUrl(conn, k).catch(() => null);
+          if (u) urls[k] = u;
+        }
+        this.setState({ liveShopLogos: urls });
+      }).catch(() => { this.shopLogosAt = 0; });
+    }
+  }
+  // a sheet is one history level, so the back swipe closes it
+  openShopSheet(sheet) {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'shopSheet') window.history.replaceState({ ...st }, '');
+      else window.history.pushState({ ...(st || {}), novaDepth: depthOf(st) + 1, novaOverlay: 'shopSheet' }, '');
+    }
+    this.setState({ shopSheet: sheet });
+  }
+  closeShopSheet(then) {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'shopSheet') {
+      if (typeof then === 'function') this.afterPop(then);
+      window.history.back();
+      return;
+    }
+    this.setState({ shopSheet: null }, typeof then === 'function' ? then : undefined);
+  }
+  shopFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    return st?.novaOverlay !== 'shopSheet' && this.state.shopSheet ? { shopSheet: null } : {};
+  }
+  // a line ticked: every item of that name, one pill
+  shopTick(ids, checked, name) {
+    haptic('tick');
+    const title = checked ? `Got ${name}` : `${name} back on the list`;
+    if (this.shopIsDemo()) {
+      const before = this.shopDemoState();
+      this.setShopDemo({ ...before, items: before.items.map((i) => (ids.includes(i.id) ? { ...i, checked } : i)) });
+      tickReceipt({ key: `shop:${ids[0]}`, label: name, done: checked, title, undo: () => this.setShopDemo({ ...this.shopDemoState(), items: this.shopDemoState().items.map((i) => (ids.includes(i.id) ? { ...i, checked: !checked } : i)) }) });
+      return;
+    }
+    for (const id of ids) this.toggleShoppingItem(id, checked, { receipt: false });
+    tickReceipt({ key: `shop:${ids[0]}`, label: name, done: checked, title, undo: () => ids.forEach((id) => this.toggleShoppingItem(id, !checked, { receipt: false })) });
+  }
+  // lines removed (a swipe left, Clear the N you got, Clear everything):
+  // the server hands back exactly what left, and Undo puts that back
+  shopRemove(ids, title) {
+    if (!ids.length) return;
+    haptic('commit');
+    if (this.shopIsDemo()) {
+      const before = this.shopDemoState();
+      this.setShopDemo({ ...before, items: before.items.filter((i) => !ids.includes(i.id)) });
+      tickReceipt({ key: `shop-rm:${ids.join(',')}`, title, undo: () => this.setShopDemo({ ...this.shopDemoState(), items: [...this.shopDemoState().items, ...before.items.filter((i) => ids.includes(i.id))] }) });
+      return;
+    }
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Offline: removing waits until Nova is back'); return; }
+    const was = this.state.liveShoppingList;
+    if (was) this.setState({ liveShoppingList: { ...was, items: (was.items || []).filter((i) => !ids.includes(i.id)) } });
+    api.removeShoppingItems(conn, ids).then(({ items, removed }) => {
+      this.noteLocalWrite('shoppingList');
+      this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items } }));
+      tickReceipt({
+        key: `shop-rm:${ids.join(',')}`, title,
+        undo: () => api.restoreShoppingList(conn, removed).then(({ items: back }) => { this.noteLocalWrite('shoppingList'); this.setState((s) => ({ liveShoppingList: { ...s.liveShoppingList, items: back } })); }).catch((e) => this.toastMsg('Could not undo: ' + e.message)),
+      });
+    }).catch((e) => { if (was) this.setState({ liveShoppingList: was }); this.toastMsg('Could not remove it: ' + e.message); });
+  }
+  shopQty(id, qty) {
+    const n = Math.max(1, Math.min(99, Math.round(qty)));
+    if (this.shopIsDemo()) { const b = this.shopDemoState(); this.setShopDemo({ ...b, items: b.items.map((i) => (i.id === id ? { ...i, qty: n } : i)) }); return; }
+    this.setState((s) => (s.liveShoppingList ? { liveShoppingList: { ...s.liveShoppingList, items: s.liveShoppingList.items.map((i) => (i.id === id ? { ...i, qty: n } : i)) } } : null));
+    this.setShoppingQty(id, n);
+  }
+  // "I activated it" / "Not for me": his marks, each with Undo
+  shopMark(id, patch, title) {
+    haptic('tick');
+    if (this.shopIsDemo()) {
+      const before = this.shopDemoState();
+      const offers = before.offers || { offers: [] };
+      this.setShopDemo({ ...before, offers: { ...offers, offers: offers.offers.map((o) => (o.id === id ? { ...o, ...patch } : o)) } });
+      tickReceipt({ key: `shop-mark:${id}:${Object.keys(patch).join()}`, title, undo: () => this.setShopDemo({ ...this.shopDemoState(), offers }) });
+      return;
+    }
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Offline: that waits until Nova is back'); return; }
+    const was = this.state.liveShopOffers;
+    if (was) this.setState({ liveShopOffers: { ...was, offers: (was.offers || []).map((o) => (o.id === id ? { ...o, ...patch } : o)) } });
+    api.shopOfferMark(conn, id, patch).then(({ prev }) => {
+      tickReceipt({ key: `shop-mark:${id}:${Object.keys(patch).join()}`, title, undo: () => api.shopOfferMark(conn, id, { restore: prev || {} }).then(() => this.refreshShopExtras()).catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
+      this.refreshShopExtras();
+    }).catch((e) => { if (was) this.setState({ liveShopOffers: was }); this.toastMsg('Could not mark it: ' + e.message); });
+  }
+  // Pin the one I buy / Unpin, with Undo
+  shopPin(key, product, title) {
+    haptic('tick');
+    if (this.shopIsDemo()) {
+      const before = this.shopDemoState();
+      const pins = { ...(before.prices?.pins || {}) };
+      if (product) pins[key] = { ...product }; else delete pins[key];
+      this.setShopDemo({ ...before, prices: before.prices && { ...before.prices, pins } });
+      tickReceipt({ key: `shop-pin:${key}`, title, undo: () => this.setShopDemo({ ...this.shopDemoState(), prices: before.prices }) });
+      return;
+    }
+    const conn = getConnection();
+    if (!conn) { this.toastMsg('Offline: that waits until Nova is back'); return; }
+    api.shopPin(conn, key, product).then(({ prev }) => {
+      this.refreshShopExtras();
+      tickReceipt({ key: `shop-pin:${key}`, title, undo: () => api.shopPin(conn, key, prev).then(() => this.refreshShopExtras()).catch((e) => this.toastMsg('Could not undo: ' + e.message)) });
+    }).catch((e) => this.toastMsg('Could not pin it: ' + e.message));
+  }
+  // his Try again on a chain that failed: one request, then the rest follow
+  shopRetry(chain, name) {
+    if (this.shopIsDemo()) {
+      const b = this.shopDemoState();
+      const prices = b.prices && { ...b.prices, chains: { ...b.prices.chains, [chain]: { state: 'ok', lastAt: new Date().toISOString() } } };
+      this.setShopDemo({ ...b, prices });
+      this.toastMsg(`${name} answered; its prices are back`);
+      return;
+    }
+    const conn = getConnection();
+    if (!conn) return;
+    api.shopRetry(conn, chain).then(() => {
+      this.toastMsg(`Asking ${name} once`);
+      setTimeout(() => this.refreshShopExtras(), 12000);
+    }).catch((e) => this.toastMsg('Could not ask again: ' + e.message));
+  }
+  // lines added from the add bar or a dish: the same path every add takes
+  shopAdd(names, source) {
+    const list = (names || []).map((n) => String(n).trim()).filter(Boolean);
+    if (!list.length) return;
+    if (this.shopIsDemo()) {
+      const b = this.shopDemoState();
+      const stamp = Date.now();
+      const added = list.map((name, n) => ({ id: `n${stamp}${n}`, name, category: 'Household & Other', checked: false, qty: 1, amount: null, source: source || null, pending: true }));
+      this.setShopDemo({ ...b, items: [...(b.items || []), ...added] });
+      setTimeout(() => {
+        const guess = (x) => (/carrot|coriander|onion|lime|spinach|berr|banana|tomato|garlic/.test(x) ? 'Produce' : /beef|chicken|mince|steak/.test(x) ? 'Meat & Protein' : /yoghurt|egg|milk|cheese/.test(x) ? 'Dairy & Eggs' : /frozen/.test(x) ? 'Frozen' : 'Pantry & Seasonings');
+        const now = this.shopDemoState();
+        this.setShopDemo({ ...now, items: now.items.map((i) => (added.some((a) => a.id === i.id) ? { ...i, pending: false, category: guess(i.name.toLowerCase()) } : i)) });
+        tickReceipt({ key: `shop-add:${stamp}`, title: `Added ${list.length === 1 ? list[0] : `${list.length} lines`}`, undo: () => this.setShopDemo({ ...this.shopDemoState(), items: this.shopDemoState().items.filter((i) => !added.some((a) => a.id === i.id)) }) });
+      }, 1100);
+      return;
+    }
+    if (source) { this.addToShoppingList(list, source); return; }
+    this.setState({ shoppingAddInput: list.join('\n') }, () => this.submitShoppingAdd());
+  }
+  // the Wednesday turn, acted out in demo (dev hook: window.__shopTurn)
+  shopTurn() {
+    if (!this.shopIsDemo()) return false;
+    const b = this.shopDemoState();
+    const next = demoTurn(b);
+    if (!next) { this.toastMsg('Nothing ends this week'); return false; }
+    this.setShopDemo(next);
+    const n = (b.offers.offers.length - next.offers.offers.length);
+    tickReceipt({ key: `shop-turn:${Date.now()}`, title: `${n} offer${n === 1 ? '' : 's'} ended and left`, undo: () => this.setShopDemo(b) });
+    return true;
+  }
 
   // ---------- workouts (Train) ----------
   currentRoutine() {
