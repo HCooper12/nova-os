@@ -52,6 +52,11 @@ export function ReviewCurve({ curve, big = false, idKey = '' }) {
   const r = curve.result;
   const clipId = `rvclip-${big ? 'b' : 's'}-${idKey}`.replace(/[^\w-]/g, '');
   const ring = 'var(--nv-void)';
+  // a date under a dot only where it cannot collide with the last one drawn
+  // ("7 Oct" and "8 Oct" a day apart overprinted as "7 Oc8 Oct")
+  const shownDates = new Set();
+  let lastX = -Infinity;
+  G.segs.forEach((s, i) => { const x = G.x(s.date); if (x - lastX >= 48) { shownDates.add(i); lastX = x; } });
   const label = G.segs.length
     ? `The review curve: seen ${G.segs.length === 1 ? 'once' : `${G.segs.length} times`}, last ${fmtDay(last.date)}${r ? `, next ${r.dueLabel}` : ', due today'}`
     : `The review curve: not seen yet${r ? `, next ${r.dueLabel}` : ', due today'}`;
@@ -83,7 +88,7 @@ export function ReviewCurve({ curve, big = false, idKey = '' }) {
       {G.segs.map((s, i) => (
         <g key={`d${s.date}${i}`}>
           <circle cx={G.x(s.date)} cy={G.top} r="4.5" fill={GRADE[s.grade]?.hue || 'var(--nv-vi)'} stroke={ring} strokeWidth="2" />
-          {big && (i === 0 || G.x(s.date) - G.x(G.segs[i - 1].date) >= 34) && <text x={G.x(s.date)} y={h + 14} textAnchor="middle" style={{ font: '500 11px var(--nv-font-ui)', fill: 'var(--nv-ink60)' }}>{fmtShort(s.date)}</text>}
+          {big && shownDates.has(i) && <text x={G.x(s.date)} y={h + 14} textAnchor="middle" style={{ font: '500 11px var(--nv-font-ui)', fill: 'var(--nv-ink60)' }}>{fmtShort(s.date)}</text>}
         </g>
       ))}
       {r && <circle className="ndot" cx={tx} cy={G.top} r="4.5" fill={GRADE[r.grade]?.hue} stroke={ring} strokeWidth="2" />}
