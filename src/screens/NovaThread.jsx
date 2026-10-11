@@ -8,7 +8,7 @@ import { GlassSheet } from '../GlassSheet.jsx';
 import { StageCard } from '../StageCard.jsx';
 import { useLongPress } from '../longPress.js';
 import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
-import { stateOf, firstUnseenIndex, threadRows, clock, failedLast } from '../novaThreadFacts.js';
+import { stateOf, threadRows, clock, failedLast } from '../novaThreadFacts.js';
 import { Ico, Glyph, Stage, Settled, KeptTake, Meter } from '../NovaThreadParts.jsx';
 import { NovaFocus } from '../NovaFocus.jsx';
 
@@ -55,6 +55,7 @@ export function NovaThread({ v }) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [held, setHeld] = useState(null);            // { kind: 'line'|'take', i|id, rect }
   const [tuckedKey, setTuckedKey] = useState(null);  // the stage he tucked early (this reply only)
+  const [openBriefs, setOpenBriefs] = useState(() => new Set()); // brief drop-downs he opened
   const [replay, setReplay] = useState(null);        // { panels, idx } — a settled stage shown again
   const [sheet, setSheet] = useState(null);          // { card, originEl }
   const [retrying, setRetrying] = useState(null);    // the take being resent
@@ -187,25 +188,29 @@ export function NovaThread({ v }) {
   // ---- the rows ----
   const tk = useMemo(() => takes.map((t) => ({ ...t, time: clock(t.at) })), [takes]);
   const rows = useMemo(() => threadRows(T.lines, { takes: tk, nameOf: T.nameOf }), [T.lines, tk, T.nameOf]);
-  const unseen = useMemo(() => firstUnseenIndex(T.lines, readSeen()), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- opening: at the first line he has not seen, else at the foot ----
+  // ---- opening: always at the foot (12 Oct, his call) ----
+  // It used to open at the first line he had not seen, so after a brief he
+  // landed mid-thread and scrolled down to catch up. Now it opens on the
+  // newest line, and holds the foot while late cards (the stage, images)
+  // finish drawing, until he scrolls himself.
   const atFoot = () => { const m = mainRef.current; return !m || m.scrollHeight - m.scrollTop - m.clientHeight < 96; };
   useLayoutEffect(() => {
     const m = rootRef.current?.closest('main');
     mainRef.current = m;
-    if (!m) return;
-    let target = unseen >= 0 ? rootRef.current.querySelector(`[data-line="${unseen}"]`) : null;
-    // the door or day marker just above it opens with it (D · 8: the marker at the top)
-    while (target?.previousElementSibling?.classList.contains('nv-nt-day')) target = target.previousElementSibling;
-    if (target) {
-      const headBottom = headRef.current?.getBoundingClientRect().bottom || 0;
-      m.scrollTop = Math.max(0, m.scrollTop + target.getBoundingClientRect().top - headBottom - 16);
-      wasAtFoot.current = false;
-    } else {
-      m.scrollTop = m.scrollHeight;
-    }
     firstPaint.current = false;
+    if (!m) return undefined;
+    m.scrollTop = m.scrollHeight;
+    wasAtFoot.current = true;
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    let held = true;
+    const release = () => { held = false; };
+    const ro = new ResizeObserver(() => { if (held) m.scrollTop = m.scrollHeight; });
+    ro.observe(rootRef.current);
+    m.addEventListener('touchstart', release, { passive: true });
+    m.addEventListener('wheel', release, { passive: true });
+    const id = setTimeout(release, 2500);
+    return () => { ro.disconnect(); clearTimeout(id); m.removeEventListener('touchstart', release); m.removeEventListener('wheel', release); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // the stage rail sits at the head's foot, whatever height the head is
@@ -325,6 +330,28 @@ export function NovaThread({ v }) {
         {rows.map((r) => {
           if (r.type === 'day') return <span key={r.key} className="nv-nt-day">{r.text}</span>;
           if (r.type === 'door') return <span key={r.key} className="nv-nt-day door"><Ico name="nova" />{r.text}</span>;
+          if (r.type === 'brief') {
+            // the brief still running stays open; a finished one folds away
+            const live = r === rows[rows.length - 1] && (T.speaking || T.busy);
+            const open = live || openBriefs.has(r.key);
+            return (
+              <div key={r.key} className={`nv-nt-brief${open ? ' open' : ''}`}>
+                <button type="button" className="nv-nt-briefhead" aria-expanded={open}
+                  onClick={() => setOpenBriefs((o) => { const n = new Set(o); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n; })}>
+                  <Ico name="sun" />
+                  <span className="t"><b>{r.title}</b>{r.date && <span>{r.date}</span>}</span>
+                  <span className="n">{r.items.length} {r.items.length === 1 ? 'beat' : 'beats'}</span>
+                  <Ico name="chev" className="nv-nt-briefchev" />
+                </button>
+                <div className="nv-nt-briefbody"><div>
+                  {open && r.items.map((i) => (
+                    <Line key={`${r.key}:${i}`} i={i} m={lineAt(i)} fresh={false} onHold={holdLine(i)} onOpen={openSheet}
+                      onReplay={(panels) => setReplay({ panels, idx: 0 })} />
+                  ))}
+                </div></div>
+              </div>
+            );
+          }
           if (r.type === 'take') {
             const t = tk.find((x) => x.id === r.id);
             if (!t) return null;

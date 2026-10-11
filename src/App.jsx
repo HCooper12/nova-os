@@ -1212,6 +1212,11 @@ export default class App extends Component {
     // `instant` is still accepted from callers and no longer changes anything.
     const { instant: _instant, ...extraState } = extra;
     const changed = this.state.screen !== screen;
+    // LEAVING THE BRIEF'S QUESTIONS (12 Oct, his report): walking away from
+    // the conversation while a brief question waits ends the queue, so its
+    // card stops riding over every other screen. Each question is an Inbox
+    // record already, so nothing is lost.
+    if (changed && this.state.screen === 'voice' && this.state.briefQueue) this.endBriefQueue();
     // SCROLL RESTORATION. One shared scroller means leaving a screen loses
     // your place in it — a reset to 0 was the old fix, and it's why coming
     // back to a long list always dumped you at the top. Positions live on a
@@ -9947,7 +9952,7 @@ export default class App extends Component {
           // the beat's card rides on its own row as well as the stage: the
           // summary Nova thread draws panels from rows, never the stage, and
           // the brief's glass went missing there after the redesign (7 Oct)
-          this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined, card: st.card || undefined }] }));
+          this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: st.say, panel: st.panel || undefined, card: st.card || undefined, brief: variant || 'morning' }] }));
           this.putCard(st.card); // the glass keeps up with the voice
         };
         if (!spoken) { show(); return; }

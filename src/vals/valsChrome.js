@@ -428,6 +428,9 @@ export function valsChrome(app, ctx) {
       // the card for the line being spoken right now — his "dynamic pop up
       // visuals referencing whatever is being spoken", on every screen
       card: st.stageCard || null,
+      // a card left on the glass can always be put away (× or a flick): a
+      // waiting brief question ends the queue, anything else clears the stage
+      dismissCard: () => (st.briefQueue ? app.endBriefQueue() : app.clearStage()),
       // the reply window: Nova finished a sentence, so the mic opens for a
       // beat WITHOUT conversation mode being on (his ask: never press a
       // button to say I'm replying verbally)

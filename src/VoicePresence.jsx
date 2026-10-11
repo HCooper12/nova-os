@@ -84,6 +84,8 @@ export function VoicePresence({ v }) {
 
   // the "tap to hear" pill flicks away sideways or up, like a notification
   const pill = useDismissSwipe({ onDismiss: v.speechBlocked?.dismiss, enabled: !!v.speechBlocked?.dismiss });
+  // the stage card flicks away the same way
+  const cardSwipe = useDismissSwipe({ onDismiss: s.dismissCard, enabled: !!s.card && !!s.dismissCard });
 
   const state = dict.hearing ? 'HEARING' : dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
   const tone = dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)';
@@ -120,8 +122,13 @@ export function VoicePresence({ v }) {
       {/* THE GLASS — the figure for the line being spoken, appearing by
           itself and changing as Nova moves to the next line */}
       {s.card && (
-        <div style={css('pointer-events:auto;width:min(430px,100%)')}>
+        <div ref={cardSwipe.ref} {...cardSwipe.handlers} style={css('pointer-events:auto;position:relative;width:min(430px,100%);touch-action:pan-y')}>
           <SafeVisual what="stage-card" resetKey={s.card?.label}><StageCard card={s.card} /></SafeVisual>
+          {s.dismissCard && (
+            <Interactive onClick={s.dismissCard} aria-label="Put the card away"
+              base={css('position:absolute;top:6px;right:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;font-size:17px;line-height:1;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)')}
+              hoverStyle={{ color: 'var(--nv-ink)', background: 'color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>×</Interactive>
+          )}
         </div>
       )}
 

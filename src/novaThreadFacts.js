@@ -274,6 +274,20 @@ const DAY = 86_400_000;
 const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// "Morning brief", "Evening brief": the variant the show ran, in words
+export function briefTitle(variant) {
+  const v = String(variant || '').trim();
+  return v ? `${v[0].toUpperCase()}${v.slice(1)} brief` : 'Brief';
+}
+
+// "Mon 12 Oct": the brief's own date, always written out (a Today marker
+// sits above it already; the drop-down names its day so it stands alone)
+export function briefDate(at) {
+  if (!Number.isFinite(at)) return null;
+  const d = new Date(at);
+  return `${WEEKDAY[d.getDay()]} ${d.getDate()} ${MONTH[d.getMonth()]}`;
+}
+
 export function dayLabel(at, now = Date.now()) {
   const a = startOfDay(at);
   const n = startOfDay(now);
@@ -326,6 +340,16 @@ export function threadRows(lines, { takes = [], now = Date.now(), nameOf } = {})
     if (Number.isFinite(x.at)) {
       const day = dayLabel(x.at, now);
       if (day !== lastDay) { rows.push({ type: 'day', key: `day:${day}:${x.at}`, text: day }); lastDay = day; lastDoor = null; }
+    }
+    // THE BRIEF, FOLDED (12 Oct, his ask): a brief's beats are one row, a
+    // drop-down named for its day, so its cards stop filling the scroll. A
+    // run of beats from one brief on one day joins the group above it.
+    if (x.type === 'line' && x.m.brief) {
+      const last = rows[rows.length - 1];
+      if (last?.type === 'brief' && last.variant === x.m.brief) { last.items.push(x.i); continue; }
+      rows.push({ type: 'brief', key: `brief:${x.m.brief}:${x.at ?? x.i}`, variant: x.m.brief, title: briefTitle(x.m.brief), date: briefDate(x.at), items: [x.i] });
+      lastDoor = null;
+      continue;
     }
     if (x.type === 'line') {
       const door = doorOf(x.m, nameOf);

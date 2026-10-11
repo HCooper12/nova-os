@@ -441,3 +441,18 @@ test('no type in the thread is below 13px, and every selector wears .nv-nt', () 
   assert.match(rt.slice(0, rt.indexOf('\n}\n') + 3), /\.nv-nt-head, \.nv-nt-stage, \.nv-nt-composer/);
   assert.ok(css.lastIndexOf('@media (prefers-reduced-transparency: reduce)') < start, 'the guard stays last');
 });
+
+test('a brief folds into one drop-down row named for its day', () => {
+  const at = new Date(2026, 9, 12, 7, 0).getTime();
+  const lines = [
+    { at, who: 'nova', text: 'Morning, sir.', brief: 'morning' },
+    { at: at + 1000, who: 'nova', text: 'Rest day.', brief: 'morning' },
+    { at: at + 2000, who: 'nova', text: 'Should I file it?' },
+    { at: at + 3000, who: 'you', text: 'Yes' },
+  ];
+  const rows = threadRows(lines, { now: at + 5000 });
+  assert.deepEqual(rows.map((r) => r.type), ['day', 'brief', 'line', 'line']);
+  assert.deepEqual(rows[1].items, [0, 1]);
+  assert.equal(rows[1].title, 'Morning brief');
+  assert.equal(rows[1].date, 'Mon 12 Oct');
+});

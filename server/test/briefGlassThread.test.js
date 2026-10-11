@@ -37,5 +37,5 @@ test('no stage when nothing is speaking, and running glass still wins when there
 
 test('the brief writes the card onto the row as well as the stage', () => {
   const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
-  assert.match(app, /who: 'nova', text: st\.say, panel: st\.panel \|\| undefined, card: st\.card \|\| undefined \}/);
+  assert.match(app, /who: 'nova', text: st\.say, panel: st\.panel \|\| undefined, card: st\.card \|\| undefined, brief: variant \|\| .morning. \}/);
 });

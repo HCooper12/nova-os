@@ -18,6 +18,7 @@ const P = {
   downc: <path d="m6 9.5 6 6 6-6" />,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   x: <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />,
+  chev: <path d="M9 6l6 6-6 6" />,
   expand: <path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" />,
   play: <path d="M8 5.5v13l10.5-6.5z" />,
   pause: <path d="M8 5v14M16 5v14" />,
