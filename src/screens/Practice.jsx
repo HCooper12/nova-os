@@ -440,6 +440,7 @@ function Stage({ s, v }) {
           )}
           {d.notes.map((n, i) => <Meta key={i} as="div" tone="faint" style={{ marginTop: '6px' }}>{n}</Meta>)}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '9px', marginTop: '16px' }}>
+            {d.openDocument && <Pill label="Read the debrief" accent="--nv-or" onClick={d.openDocument} />}
             {d.rehearseNext && <Pill label={`Rehearse ${d.next}`} accent="--nv-or" onClick={d.rehearseNext} />}
             <Pill label="Done" tone="quiet" onClick={d.done} />
           </div>

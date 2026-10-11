@@ -800,7 +800,15 @@ export async function undoPracticeSession(vaultPath, undo = {}) {
     const skill = await readSkill(vaultPath, undo.slug);
     if (skill) await cacheTallies(skill);
   } catch { /* the cache recomputes on the next read */ }
-  return removed ? 'took that session back off the practice page' : 'that session line was already gone from the practice page';
+  let doc = '';
+  if (undo.artifactId) {
+    try {
+      const { trashArtifact } = await import('./artifacts.js');
+      await trashArtifact(vaultPath, undo.artifactId);
+      doc = ' and moved its written debrief to the Documents bin';
+    } catch { doc = ' (its written debrief was already gone)'; }
+  }
+  return (removed ? 'took that session back off the practice page' : 'that session line was already gone from the practice page') + doc;
 }
 
 export async function undoPracticeStatus(vaultPath, undo = {}) {

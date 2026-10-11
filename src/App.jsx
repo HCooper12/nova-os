@@ -11684,6 +11684,7 @@ export default class App extends Component {
           next: d?.next ? String(d.next) : null,
           notes: Array.isArray(d?.notes) ? d.notes.map(String) : [],
           recordId,
+          documentId: r?.document?.id || null,
         },
       };
     });

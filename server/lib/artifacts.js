@@ -109,7 +109,7 @@ async function findArtifactFile(vaultPath, id, { includeTrash = false } = {}) {
   return null;
 }
 
-async function writeArtifactFile(vaultPath, { title, kind, summary, tags, agent, question, revises, body }) {
+export async function writeArtifactFile(vaultPath, { title, kind, summary, tags, agent, question, revises, body }) {
   const now = new Date();
   const { month, day } = datestamp(now);
   const dir = path.join(vaultPath, ARTIFACTS_DIR_REL, month);

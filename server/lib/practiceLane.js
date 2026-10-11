@@ -436,6 +436,31 @@ export async function startRehearsal(vaultPath, { slug, scenario = null, session
 // Called by claudeCode.js's finishTurn once the partner's reply is complete.
 // Everything that parses, checks and writes lives here, so the conversation
 // plumbing stays thin.
+// THE DEBRIEF HE CAN OPEN (his yes, 11 Oct 2026). Written by CODE from the
+// checked debrief and the scene's own script, so nothing in it is a fresh
+// model claim: what landed (his words), what he missed with the line from
+// the page, the one thing to work on, and the scene as it was spoken.
+export function debriefDocument({ skill, scenario, debrief, turns = [], date, partner = 'Them' }) {
+  const out = [];
+  out.push(`# ${skill.title}`, '', `**Scene:** ${scenario} · ${date}`, '');
+  if (debrief.best) out.push(`> ${String(debrief.best).replace(/^["“]|["”]$/g, '')}`, '', '*Your best moment.*', '');
+  out.push('## Work on next', '', debrief.work, '');
+  out.push('## What landed', '');
+  if (debrief.landed.length) for (const l of debrief.landed) out.push(`- **${l.move}** — you said "${String(l.quote || '').replace(/^["“]|["”]$/g, '')}"`);
+  else out.push('- Nothing landed this time.');
+  out.push('', '## What you missed', '');
+  if (debrief.missed.length) for (const m of debrief.missed) out.push(`- **${m.move}**${m.instead ? ` — you could have said "${String(m.instead).replace(/^["“]|["”]$/g, '')}"` : ''}${m.source ? ` (${m.source})` : ''}`);
+  else out.push('- Nothing missed.');
+  if (debrief.next) out.push('', `**Next scene:** ${debrief.next}`);
+  const lines = turns.filter((t) => t && t.text);
+  if (lines.length) {
+    out.push('', '## The scene', '');
+    for (const t of lines) out.push(`**${t.who === 'you' ? 'You' : partner}:** ${String(t.text).trim()}`, '');
+  }
+  out.push('', `*From your practice page: [[${skill.title}]]*`);
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+}
+
 export async function finishPracticeTurn(replyText, { vaultPath, sessionId, mode = 'scene', now = new Date() } = {}) {
   const state = await readPracticeState();
   const sc = state.scenes[sessionId];
@@ -496,6 +521,29 @@ export async function finishPracticeTurn(replyText, { vaultPath, sessionId, mode
   });
   try { await cacheTallies(await readSkill(vaultPath, skill.slug) || skill); } catch { /* derived; recomputed on read */ }
 
+  // the written debrief — a document on the Documents screen; its failure
+  // never costs the session line or the record
+  let document = null;
+  try {
+    const { writeArtifactFile } = await import('./artifacts.js');
+    const fresh = await readPracticeState();
+    const turns = fresh.scenes[sessionId]?.turns || [];
+    const other = skill.scenarios.find((x) => x.name === sc.scenario)?.other || '';
+    const m = /^\s*([A-Z][A-Za-z'’-]+)/.exec(other);
+    const named = m && !['A', 'An', 'The', 'Your', 'His', 'Her', 'My', 'Their', 'One', 'Someone', 'Some'].includes(m[1]) ? m[1] : null;
+    const self = /\bI(?:'m| am)\s+([A-Z][a-z]+)\b/.exec(turns.find((t) => t.who === 'partner')?.text || '');
+    const partner = named || self?.[1] || 'Them';
+    const meta = await writeArtifactFile(vaultPath, {
+      title: `Debrief: ${skill.title} · ${sc.scenario}`,
+      kind: 'doc', summary: debrief.work, tags: ['practice', 'debrief'],
+      agent: 'practice', question: null, revises: null,
+      body: debriefDocument({ skill, scenario: sc.scenario, debrief, turns, date: localDateISO(now), partner }),
+    });
+    document = { id: meta.id, title: meta.title, path: meta.path };
+  } catch (e) {
+    debrief.notes.push(`the written debrief could not be saved (${e.message})`);
+  }
+
   const { createRecord } = await import('./inboxStore.js');
   const id = randomUUID().slice(0, 8);
   const names = (a) => a.map((x) => x.move).join(', ');
@@ -510,8 +558,9 @@ export async function finishPracticeTurn(replyText, { vaultPath, sessionId, mode
     undoData: {
       route: 'practice-session', relPath: appended.relPath, slug: skill.slug, line: appended.line, sessionId,
       updatedLine: appended.updatedLine, addedHeading: appended.addedHeading,
+      artifactId: document?.id || null,
     },
   });
-  return { text: cleanText, sessionId, debrief, record: { id }, sceneOver: true };
+  return { text: cleanText, sessionId, debrief, record: { id }, document, sceneOver: true };
 }
 

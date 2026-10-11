@@ -249,6 +249,7 @@ export function valsPractice(app, ctx) {
         parsed: !!debrief.parsed,
         filed: !!debrief.recordId,
         next: debrief.next || null,
+        openDocument: debrief.documentId ? () => app.openArtifact(debrief.documentId) : null,
         rehearseNext: debrief.next ? () => app.startRehearsal(scene.slug, debrief.next) : null,
         done: () => app.leaveRehearsal(),
       } : null,

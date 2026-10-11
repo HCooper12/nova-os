@@ -27,6 +27,7 @@ export const AGENT = {
   coach: { key: 'coach', name: 'Coach', hue: 'var(--nv-m-chest)' },
   nova: { key: 'nova', name: 'Nova', hue: 'var(--nv-nova)' },
   leader: { key: 'leader', name: 'Leader', hue: 'var(--nv-mg)' },
+  practice: { key: 'practice', name: 'Practice', hue: 'var(--nv-or)' },
 };
 export const agentOf = (key) => AGENT[String(key || '').toLowerCase()] || AGENT.nova;
 

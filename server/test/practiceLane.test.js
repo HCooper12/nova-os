@@ -254,9 +254,38 @@ test('the debrief files exactly one practice-session record with the undo shape,
   await assert.rejects(startRehearsal(vault, { sessionId: sid, text: 'again' }, stubAsk()), /already been debriefed/);
 
   // the rails: undoFiling routes the record back to Practice
+  // the written debrief (his yes, 11 Oct): one document under Outputs/Nova,
+  // written by code from the checked debrief, named on the record's undo
+  assert.ok(res.document?.id, 'a debrief document was filed');
+  assert.equal(rec.undoData.artifactId, res.document.id);
+  const { getArtifact } = await import('../lib/artifacts.js');
+  const doc = await getArtifact(vault, res.document.id);
+  assert.equal(doc.agent, 'practice');
+  assert.match(doc.title, /^Debrief: Questions of intent · The offhand dig in a team meeting/);
+  assert.match(doc.body, /## Work on next\s+let the pause run to five seconds/);
+  assert.match(doc.body, /\*\*Question of intent\*\* — you said/);
+  assert.match(doc.body, /\*\*Silence first\*\*/);
+
   const { undoFiling } = await import('../lib/inbox.js');
-  assert.match(await undoFiling(vault, rec.undoData), /took that session back/);
+  assert.match(await undoFiling(vault, rec.undoData), /took that session back.*Documents bin/);
   assert.equal(await readFile(full, 'utf8'), before);
+  assert.ok(!(await getArtifact(vault, res.document.id)) || (await getArtifact(vault, res.document.id)).trashed, 'the document left with the session');
+});
+
+test('debriefDocument is built from the checked debrief and the script, nothing else', async () => {
+  const { debriefDocument } = await import('../lib/practiceLane.js');
+  const body = debriefDocument({
+    skill: { title: 'Questions of intent' }, scenario: 'The dig', date: '2026-10-11', partner: 'Mark',
+    debrief: { best: '"Did you mean that?"', work: 'pause first', landed: [{ move: 'Question of intent', quote: 'Did you mean that?' }], missed: [], next: 'The email' },
+    turns: [{ who: 'partner', text: 'Nice of you to show up.' }, { who: 'you', text: 'Did you mean that?' }],
+  });
+  assert.match(body, /^# Questions of intent/);
+  assert.match(body, /> Did you mean that\?/);
+  assert.match(body, /- Nothing missed\./);
+  assert.match(body, /\*\*Mark:\*\* Nice of you to show up\./);
+  assert.match(body, /\*\*You:\*\* Did you mean that\?/);
+  assert.match(body, /\*\*Next scene:\*\* The email/);
+  assert.match(body, /\[\[Questions of intent\]\]/);
 });
 
 test('a prose DEBRIEF files nothing and says so, and the scene stays open to try again', async () => {

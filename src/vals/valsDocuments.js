@@ -15,6 +15,7 @@ const FILTERS = [
   { key: 'coach', label: 'Coach' },
   { key: 'nova', label: 'Nova' },
   { key: 'leader', label: 'Leader' },
+  { key: 'practice', label: 'Practice' },
   { key: 'html', label: 'Interactive' },
 ];
 const GROUPS = [
