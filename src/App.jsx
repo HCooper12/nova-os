@@ -5859,11 +5859,31 @@ export default class App extends Component {
       .then(({ jobs }) => this.setState({ liveIngestJobs: jobs || [] }))
       .catch(() => { /* offline — the panel simply shows nothing */ });
   }
+  // OPENING A FINISHED JOB IS A READ, not a run. This used to set 'staging'
+  // ("Preparing a scratch copy of your vault…") and hand off to the poller,
+  // whose first look is 3 s out: a ready proposal took 6+ s to appear behind a
+  // message that described work nobody was doing (his recording, 12 Oct). Ask
+  // once, now; only a job still working goes to the poller.
   openIngestJob(jobId) {
     const conn = getConnection();
     if (!conn || !jobId) return;
-    this.setState({ ingestStatus: 'staging', ingestPreview: null, ingestError: null });
-    this.pollIngest(jobId);
+    this.stopPoll('ingest');
+    this.setState({ ingestStatus: 'opening', ingestJobId: jobId, ingestPreview: null, ingestError: null, ingestProgress: null });
+    api.ingestJob(conn, jobId).then((job) => {
+      if (this.state.ingestJobId !== jobId) return; // he moved on
+      if (job.status === 'ready') {
+        try { localStorage.setItem('novaos.ingestJob', jobId); } catch { /* private mode */ }
+        this.setState({ ingestStatus: 'ready', ingestPreview: { summary: job.summary, cost: job.cost, changes: job.changes } });
+      } else if (job.status === 'error') {
+        this.setState({ ingestStatus: 'error', ingestError: job.error || 'The job failed.' });
+      } else {
+        this.setState({ ingestStatus: job.status, ingestProgress: job.progress || null });
+        this.pollIngest(jobId);
+      }
+    }).catch((e) => {
+      if (this.state.ingestJobId !== jobId) return;
+      this.setState({ ingestStatus: 'error', ingestError: e.status === 404 ? 'That job is gone from the server (it may have been approved or discarded on another device). Nothing was written.' : `Could not open it: ${e.message}` });
+    });
   }
   // ---------- the Forge ----------
   refreshForge() {
@@ -5949,11 +5969,17 @@ export default class App extends Component {
       onProgress: (job) => this.setState({ ingestStatus: job.status, ingestProgress: job.progress || null }),
     });
   }
+  // CLOSING IS NOT DISCARDING. A ready review used to discard on close, so a
+  // stray tap on the dim backdrop threw away a finished proposal (15 pages,
+  // $1.40) with no undo. Now it only closes: the job stays on the server and
+  // comes back as a "Ready for review" row in the tray. Discard is its own
+  // button, inside the sheet.
   closeIngestReview() {
-    if (this.state.ingestStatus === 'ready') { this.discardIngest(); return; }
+    const wasReady = this.state.ingestStatus === 'ready';
     this.stopPoll('ingest');
     try { localStorage.removeItem('novaos.ingestJob'); } catch { /* private mode */ }
     this.setState({ ingestStatus: 'idle', ingestJobId: null, ingestPreview: null, ingestError: null });
+    if (wasReady) this.refreshIngestJobs();
   }
   approveIngest() {
     const conn = getConnection();

@@ -68,7 +68,11 @@ export function MobileChrome({ v }) {
         {/* C3 — in-flight work, visible: a spinner chip while agents run */}
         {v.jobTray.jobs.length > 0 && (
           <Interactive as="span" onClick={v.jobTray.toggle} haptic="tick" base={css(`${chip('var(--nv-cy)')}`)}>
-            <span style={css("width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
+            {/* spins only while something is running; work that is only
+                waiting for him is a still gold dot, like its row */}
+            {v.jobTray.running > 0
+              ? <span style={css("width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
+              : <span style={css(`width:7px;height:7px;border-radius:50%;background:${v.jobTray.waiting ? 'var(--nv-gold)' : 'var(--nv-warn)'}`)}></span>}
             {v.jobTray.jobs.length}
           </Interactive>
         )}
@@ -95,8 +99,12 @@ export function MobileChrome({ v }) {
           <div onClick={(e) => e.stopPropagation()} style={css("position:absolute;top:56px;right:12px;width:min(340px,92vw);border:1px solid color-mix(in srgb, var(--nv-cy) 30%, transparent);border-radius:14px;background:color-mix(in srgb, var(--nv-bg2) 94%, black);box-shadow:0 18px 60px rgba(0,0,0,.55);overflow:hidden;animation:fadeUp var(--nv-dur-base) var(--nv-ease)")}>
             <Eyebrow style={{ padding: '11px 15px 8px' }}>Running now — Nova pings you when each lands</Eyebrow>
             {v.jobTray.jobs.map((j) => (
-              <Interactive as="div" key={j.id} onClick={j.go || v.jobTray.goInbox} haptic="tick" base={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>
-                <span style={css("flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>
+              <Interactive as="div" key={j.id} onClick={() => v.jobTray.pick(j)} haptic="tick" base={css("cursor:pointer;display:flex;align-items:center;gap:10px;padding:11px 15px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent);font:400 12.5px var(--nv-font-ui);color:var(--nv-ink)")}>
+                {/* a spinner only on work that is actually spinning: a ready
+                    row is a filled gold dot (waiting for him), a failed one warn */}
+                {j.done || j.failed
+                  ? <span style={css(`flex:none;width:8px;height:8px;border-radius:50%;background:${j.failed ? 'var(--nv-warn)' : 'var(--nv-gold)'}`)}></span>
+                  : <span style={css("flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--nv-cy);border-top-color:transparent;animation:spin 1s linear infinite")}></span>}
                 <span style={css("flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>
                   {j.label}{j.note ? <span style={css("color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}> · {j.note}</span> : null}
                 </span>

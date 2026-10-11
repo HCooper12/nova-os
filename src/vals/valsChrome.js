@@ -273,7 +273,7 @@ export function valsChrome(app, ctx) {
       const INGEST_LABEL = {
         researching: 'Researching', fetching: 'Fetching the transcript', digesting: 'Reading it in parts',
         staging: 'Preparing your vault', running: 'Drafting the pages', reading: 'Reading your copy',
-        applying: 'Writing to your vault',
+        applying: 'Writing to your vault', opening: 'Opening the proposal',
       };
       if (st.ingestStatus && st.ingestStatus !== 'idle') {
         if (st.ingestStatus === 'ready') {
@@ -291,6 +291,10 @@ export function valsChrome(app, ctx) {
       // tappable, never forced open. This is what stops 26 pages sitting
       // invisible for a fortnight without ambushing him at every launch.
       for (const j of (st.liveIngestJobs || [])) {
+        // the job already loaded above is the same job: one row, not two
+        // (12 Oct recording: "Ready for your review" and "Ready for review —
+        // Pasted content" were 7d42d111 twice)
+        if (j.id === st.ingestJobId && st.ingestStatus !== 'idle') continue;
         if (j.status === 'ready') {
           jobs.push({ id: `ing-${j.id}`, kind: 'ingest', done: true,
             label: `Ready for review — ${j.label} (${j.changes} page${j.changes === 1 ? '' : 's'})`,
@@ -331,6 +335,16 @@ export function valsChrome(app, ctx) {
         open: !!st.jobTrayOpen,
         toggle: () => app.setState({ jobTrayOpen: !st.jobTrayOpen }),
         goInbox: () => { app.setState({ jobTrayOpen: false }); app.navigate('inbox'); },
+        // A ROW TAP CLOSES THE TRAY. Its backdrop is a full-screen fixed layer
+        // ABOVE every sheet (z 110 vs the review's 60); left open after a tap,
+        // it swallowed every scroll and tap on the sheet it had just opened.
+        // The loaded ingest has no `go`: its review sheet is already up under
+        // the tray, so closing the tray IS the way to it.
+        pick: (j) => {
+          app.setState({ jobTrayOpen: false });
+          if (j.go) j.go();
+          else if (j.id !== 'ingest') app.navigate('inbox');
+        },
       };
     })(),
     agentsGroupLabel: agentsGroupLabel || 'AGENTS',

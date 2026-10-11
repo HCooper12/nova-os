@@ -1,17 +1,39 @@
+import { useState } from 'react';
 import { css } from './css.js';
+import { ChatMarkdown } from './ChatMarkdown.jsx';
+import { SkeletonBar } from './Skeleton.jsx';
 import { useExit } from './useExit.js';
 import { Interactive } from './Interactive.jsx';
 
 const KIND_COLOR = { new: '#5aa87c', updated: 'var(--nv-gold)' };
 
+// A page's opening lines, whole lines only, so a collapsed card never ends
+// mid-word. 15 pages of a digest are ~400 KB of text: rendered in full, each
+// in its own scroll box, they made the sheet heavy to draw and trapped his
+// finger in an inner scroller every time he tried to scroll the sheet.
+const PEEK_CHARS = 420;
+function peek(text) {
+  const s = String(text || '');
+  if (s.length <= PEEK_CHARS) return { head: s, more: false };
+  const cut = s.lastIndexOf('\n', PEEK_CHARS);
+  return { head: s.slice(0, cut > 120 ? cut : PEEK_CHARS).trimEnd(), more: true };
+}
+
 function ChangeCard({ change }) {
+  const [open, setOpen] = useState(false);
+  const { head, more } = peek(change.content);
   return (
     <div style={css("border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:10px;overflow:hidden;background:var(--nv-well)")}>
       <div style={css("display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)")}>
         <span style={css(`font:var(--nv-micro-s);letter-spacing:.1em;color:${KIND_COLOR[change.kind]};border:1px solid ${KIND_COLOR[change.kind]};border-radius:5px;padding:2px 7px;flex:none`)}>{change.kind.toUpperCase()}</span>
         <span style={css("font-size:12.5px;color:color-mix(in srgb, var(--nv-ink) 85%, transparent);word-break:break-all")}>{change.path}</span>
       </div>
-      <div style={css("max-height:180px;overflow-y:auto;padding:12px 14px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 70%, transparent);white-space:pre-wrap")}>{change.content}</div>
+      <div style={css("padding:12px 14px;font:var(--nv-micro-l);color:color-mix(in srgb, var(--nv-ink) 70%, transparent);white-space:pre-wrap;overflow-wrap:anywhere")}>{open ? change.content : head}</div>
+      {more && (
+        <Interactive as="div" onClick={() => setOpen((o) => !o)} haptic="tick" base="cursor:pointer;padding:9px 14px 11px;font-size:12px;color:var(--nv-acc);border-top:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent)">
+          {open ? 'Show less' : 'Show the whole page'}
+        </Interactive>
+      )}
     </div>
   );
 }
@@ -21,11 +43,13 @@ export function IngestReview({ v }) {
   const exit = useExit(v.closeIngestReview);
   const processing = ['researching', 'fetching', 'digesting', 'staging', 'running', 'reading'].includes(v.ingestStatus);
   const applying = v.ingestStatus === 'applying';
+  // fetching a proposal that already exists: a read, so no "keeps running" line
+  const opening = v.ingestStatus === 'opening';
   // Anything unrecognized renders as an error, NEVER as an empty sheet: a
   // null status once showed a bare header while the real message sat unread
   // in state — a failure the user cannot see is a failure that gets retried
   // blind, three times, on camera.
-  const errored = v.ingestStatus === 'error' || (!processing && !applying && v.ingestStatus !== 'ready');
+  const errored = v.ingestStatus === 'error' || (!processing && !applying && !opening && v.ingestStatus !== 'ready');
   // A 'ready' status with no preview took the WHOLE APP to a black screen
   // (.summary read off null, thrown during render, nothing left to paint).
   // A sheet that cannot draw its content must degrade to a sentence, never
@@ -33,8 +57,10 @@ export function IngestReview({ v }) {
   const preview = v.ingestPreview;
   const readyButEmpty = (v.ingestStatus === 'ready' || applying) && !preview;
   return (
-    <div role="dialog" aria-modal="true" aria-label="Review ingest changes" onClick={processing ? undefined : exit.close} ref={exit.scrimRef} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:60;display:flex;align-items:center;justify-content:center;padding:40px;overflow-y:auto")}>
-      <div ref={exit.panelRef} data-sheet="" onClick={v.stopClick} style={css("width:700px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp var(--nv-dur-base) var(--nv-ease);padding:26px 28px")}>
+    // z 76: ABOVE the chrome (bar 70, dock 72, edge tab 74). At 60 the dock
+    // sat over Approve / Discard at the foot of the sheet on his phone.
+    <div role="dialog" aria-modal="true" aria-label="Review ingest changes" onClick={processing ? undefined : exit.close} ref={exit.scrimRef} style={css("position:fixed;inset:0;background:rgba(8,5,12,.72);backdrop-filter:blur(6px);z-index:76;display:flex;align-items:center;justify-content:center;padding:calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));overflow-y:auto")}>
+      <div ref={exit.panelRef} data-sheet="" onClick={v.stopClick} style={css("width:700px;max-width:94vw;max-height:88vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec);animation:fadeUp var(--nv-dur-base) var(--nv-ease);padding:26px 28px")}>
         <div style={css("display:flex;justify-content:space-between;align-items:center")}>
           <span style={css("font:var(--nv-micro-m);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)")}>INGEST · REVIEW</span>
           {/* An escape is ALWAYS available. A processing job used to hide this
@@ -66,6 +92,17 @@ export function IngestReview({ v }) {
           </div>
         )}
 
+        {opening && (
+          // a skeleton of what is coming, not a blank: heading, summary, cards
+          <div aria-label="Opening the proposed changes" style={css("margin-top:18px;display:flex;flex-direction:column;gap:10px")}>
+            <SkeletonBar w="55%" h="22px" radius="6px" />
+            <SkeletonBar w="92%" h="12px" />
+            <SkeletonBar w="80%" h="12px" />
+            <SkeletonBar h="64px" radius="10px" style={{ marginTop: '8px' }} />
+            <SkeletonBar h="64px" radius="10px" />
+          </div>
+        )}
+
         {errored && (
           <div style={css("margin-top:20px")}>
             <div style={css("font-size:13px;color:var(--nv-warn);line-height:1.6")}>{v.ingestError || 'Something went wrong and the reason was lost before it could be shown. Nothing was written to your vault — try again, and if this repeats it is a bug worth reporting.'}</div>
@@ -82,7 +119,7 @@ export function IngestReview({ v }) {
         {(v.ingestStatus === 'ready' || applying) && preview && (
           <>
             <h2 style={css("margin:16px 0 0;font:400 24px var(--nv-font-serif)")}>Proposed changes</h2>
-            <div style={css("margin-top:10px;font-size:13px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 80%, transparent);white-space:pre-wrap")}>{preview.summary}</div>
+            <div style={css("margin-top:10px;font-size:13px;line-height:1.7;color:color-mix(in srgb, var(--nv-ink) 80%, transparent)")}><ChatMarkdown text={preview.summary} /></div>
             <div style={css("margin-top:10px;font-size:11px;color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>Cost: ${preview.cost.toFixed(3)}</div>
 
             <div style={css("margin-top:18px;display:flex;flex-direction:column;gap:10px")}>
