@@ -5,9 +5,9 @@ import { TextAction, Button } from './Controls.jsx';
 import { CountUp } from './CountUp.jsx';
 import { SkeletonBar } from './Skeleton.jsx';
 import { ReviewCurve } from './ReviewCurve.jsx';
-import { NOTE_TYPE_COLOR } from './vals/shared.js';
 
-// THE DAILY REVIEW CARD (mockup 96, Parts 3, 4 and 6), both Home idioms from
+
+// THE DAILY REVIEW CARD (mockup 96, shortened by mockup 98), both Home idioms from
 // the one view model (src/vals/valsReview.js):
 //   - <ReviewMoment>  the summary Home (his phone): a glass card washed in
 //                     the review's violet, the head with pips and the count
@@ -19,7 +19,6 @@ import { NOTE_TYPE_COLOR } from './vals/shared.js';
 // on the curve, the next date, the count, then the tick pill with Undo
 // (src/receipt.js, raised by App.answerReview).
 
-const SRC = NOTE_TYPE_COLOR.source;
 // the answer buttons press through their own CSS (:active), so their
 // background and opacity transitions are not overwritten inline
 const CSS_PRESS = {};
@@ -35,6 +34,7 @@ const PATHS = {
   chev: <path d="m9.5 6 6 6-6 6" />,
   close: <path d="M7 7l10 10M17 7 7 17" />,
   pen: <><path d="M5 19l1-4L16 5l3 3L9 18Z" /><path d="m14 7 3 3" /></>,
+  shuffle: <><path d="M4 7h3.5c2 0 3 1 4.2 3l1.6 4c1.2 2 2.2 3 4.2 3H20" /><path d="M4 17h3.5c1.4 0 2.3-.5 3.1-1.5M13.4 8.5C14.2 7.5 15.1 7 16.5 7H20" /><path d="m17.5 4.5 2.5 2.5-2.5 2.5M17.5 14.5l2.5 2.5-2.5 2.5" /></>,
   offline: <path d="M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 13a9.5 9.5 0 0 1 4-2.3M19 13a9.5 9.5 0 0 0-2.6-1.8M12 20h.01" />,
 };
 export function RvIcon({ name, className = 'nv-rv-ic' }) {
@@ -65,34 +65,6 @@ function Kicker({ r }) {
       {r.kicker.isNew ? <><span className="new">New</span> · {r.kicker.text}</> : r.kicker.text}
       {r.demo ? ' · demo' : ''}
     </p>
-  );
-}
-
-function SourceLine({ r }) {
-  const s = r.source;
-  if (!s) {
-    return <div className="nv-rv-src none" style={{ '--rv-k': SRC }}><span className="nv-rv-pl"><RvIcon name="doc" /></span><span className="tx">No source on this page</span></div>;
-  }
-  return (
-    <Interactive as="button" type="button" className="nv-rv-src" style={{ '--rv-k': SRC }} onClick={r.open} haptic="tick"
-      aria-label={`From ${s.title}${s.ep ? `, ${s.ep}` : ''}${s.time ? `, at ${s.time}` : ''}. Open the page`}>
-      <span className="nv-rv-pl"><RvIcon name={s.canPlay ? 'play' : 'doc'} /></span>
-      <span className="tx">from <em>{s.title}</em>{s.ep ? `, ${s.ep}` : ''}{s.kind ? ` · ${s.kind}` : ''}{s.extra > 0 ? ` · +${s.extra}` : ''}</span>
-      {s.time ? <span className="at">{s.time}</span> : null}
-    </Interactive>
-  );
-}
-
-function Chips({ r, max = 3 }) {
-  if (!r.connected.length) return null;
-  return (
-    <div className="nv-rv-links">
-      {r.connected.slice(0, max).map((c) => (
-        <Interactive key={c.id} as="button" type="button" className="nv-rv-ln" style={{ '--rv-k': c.color }} onClick={c.go} haptic="tick" aria-label={`Open ${c.title}, ${c.kind}`}>
-          <i /><span>{c.title}</span>
-        </Interactive>
-      ))}
-    </div>
   );
 }
 
@@ -251,6 +223,77 @@ export function WriteOnIt({ r }) {
   );
 }
 
+// THE SHORT CARD (mockup 98, his calls 11 Oct): the concept, Nova's 2 to 3
+// sentence synthesis, the provenance set apart on its own quiet line (rule
+// A), at most one connection line, and two actions plus "···" (rule E).
+// The grades sit behind the "···"; Got it counts as read and keeps the
+// schedule. Everything else (the episode, the curve, the key points, the
+// reflection, Shuffle) lives behind Open.
+export function Provenance({ p, className = '' }) {
+  if (!p) return null;
+  return (
+    <p className={`nv-rv-prov ${className}`}>
+      <span className="tx">{p.text}</span>
+      {p.at ? <span className="at">{p.at}</span> : null}
+    </p>
+  );
+}
+
+function Thread({ r }) {
+  const t = r.thread;
+  if (!t) return null;
+  return (
+    <Interactive as="button" type="button" className="nv-rv-thread" style={{ '--rv-k': t.color }} onClick={t.go} haptic="tick" aria-label={`Connected to ${t.title}. Open it`}>
+      <i aria-hidden="true" /><span>Connected to <b>{t.line}</b></span>
+    </Interactive>
+  );
+}
+
+function GradeRow({ r }) {
+  return (
+    <div className={`nv-rv-gx${r.gradesOpen ? ' on' : ''}`} aria-hidden={!r.gradesOpen}>
+      <div className="nv-rv-gxin">
+        {r.grades.map((g) => (
+          <Interactive key={g.key} as="button" type="button" disabled={g.disabled || !r.gradesOpen} tabIndex={r.gradesOpen ? 0 : -1}
+            className="nv-rv-g" style={{ '--g': g.hue }} aria-label={g.aria} onClick={g.go} haptic="tick" activeStyle={CSS_PRESS}>
+            <b><RvIcon name={g.key} />{g.label}</b><small>{g.gapWord}</small>
+          </Interactive>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function QuickActions({ r, quiet = false }) {
+  const res = r.result;
+  if (res) {
+    return (
+      <div className="nv-rv-acts done" aria-live="polite" style={{ '--g': res.hue }}>
+        <span className="nv-rv-mark"><RvIcon name={res.grade} /></span>
+        <p className="nv-rv-back">Back {res.dueLabel}<small>{res.label}</small></p>
+        <Button tone="violet" onClick={r.next} style={{ flex: 'none', minHeight: '44px', padding: '0 18px' }}>{r.isLast ? 'Done' : 'Next'}</Button>
+      </div>
+    );
+  }
+  return (
+    <>
+      <div className="nv-rv-acts">
+        <Interactive as="button" type="button" className="nv-rv-pill pri" onClick={r.open} haptic="tick" aria-label={`Open ${r.title}`}>Open</Interactive>
+        {r.offline
+          ? <span className="nv-rv-offl2"><RvIcon name="offline" />Answers wait for the Mac</span>
+          : <Interactive as="button" type="button" className={`nv-rv-pill${quiet ? ' q' : ''}`} onClick={r.readNext || undefined} disabled={!r.readNext} haptic="tick" aria-label={r.readNextAria}>Got it</Interactive>}
+        {!r.offline && (
+          <Interactive as="button" type="button" className={`nv-rv-dots${r.gradesOpen ? ' on' : ''}`} onClick={r.toggleGrades} haptic="tick"
+            aria-expanded={r.gradesOpen} aria-label={r.gradesOpen ? 'Hide recall grades' : 'Grade how well it came back'}>
+            <i /><i /><i />
+          </Interactive>
+        )}
+      </div>
+      {!r.offline && <GradeRow r={r} />}
+    </>
+  );
+}
+
 function CardBody({ r }) {
   const entrance = useEntrance(r.id);
   return (
@@ -258,18 +301,33 @@ function CardBody({ r }) {
       <Kicker r={r} />
       <h3 className="nv-rv-ct" title={r.title}>{r.title}</h3>
       <Gist r={r} />
-      {/* away from the Mac the card keeps to what can be read now and
-          says why the answer waits (mockup 96 Part 6) */}
-      {!r.offline && <>
-        <SourceLine r={r} />
-        <Chips r={r} />
-        <CurveBlock r={r} />
-      </>}
-      <AnswerSlot r={r} />
-      <div className="nv-rv-foot">
-        <WriteOnIt r={r} />
-        <TextAction tone="quiet" onClick={r.open} ariaLabel={`Open the page, ${r.title}`}>Open the page<RvIcon name="chev" className="nv-rv-ic" /></TextAction>
+      <Provenance p={r.provenance} />
+      <Thread r={r} />
+      <QuickActions r={r} />
+    </div>
+  );
+}
+
+// the summary Home's card body: a ring for how far up the schedule the page
+// has climbed, the concept, one line of the idea, two quiet actions
+function RingBody({ r }) {
+  const entrance = useEntrance(r.id);
+  const step = r.curve?.step || 0;
+  const frac = (step + 1) / 7;
+  const C = 2 * Math.PI * 18;
+  return (
+    <div className={`nv-rv-body nv-rv-ringb ${entrance}`} key={r.id}>
+      <svg className="nv-rv-ring" viewBox="0 0 44 44" role="img" aria-label={`Step ${step + 1} of 7 on its schedule`}>
+        <circle cx="22" cy="22" r="18" className="tr" />
+        <circle cx="22" cy="22" r="18" className="fg" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - frac) }} transform="rotate(-90 22 22)" />
+      </svg>
+      <div className="nv-rv-ringt">
+        <Kicker r={r} />
+        <h3 className="nv-rv-ct" title={r.title}>{r.title}</h3>
+        <Gist r={r} />
+        <Provenance p={r.provenance} />
       </div>
+      <div className="nv-rv-ringa"><QuickActions r={r} quiet /></div>
     </div>
   );
 }
@@ -291,45 +349,16 @@ export function ReviewMoment({ r, style }) {
       {loading ? <Skeleton />
         : r.state === 'all-done' ? <Done r={r} />
         : r.state === 'mac-unreachable' ? <p className="nv-rv-big2" style={{ font: '400 20px/1.3 var(--nv-font-serif)', margin: '12px 0 14px' }}>Nova cannot reach the Mac right now. Your review comes back with it.</p>
-        : <CardBody r={r} />}
+        : <RingBody r={r} />}
     </section>
   );
 }
 
 /* ------------------------------- grouped Home ------------------------------- */
 
+// the grouped (cupertino) Home, his phone: the short card in the group pane
 function GroupRows({ r }) {
-  const entrance = useEntrance(r.id);
-  const s = r.source;
-  return (
-    <div className={`nv-rv-body ${entrance}`} key={r.id}>
-      <Interactive as="div" className="nv-rv-gpad" onClick={r.open} aria-label={`${r.title}. Open the page`} base={{ cursor: 'pointer' }}>
-        <Kicker r={r} />
-        <h3 className="nv-rv-ct">{r.title}</h3>
-        <Gist r={r} />
-        <CurveBlock r={r} />
-      </Interactive>
-      {s ? (
-        <Interactive as="button" type="button" className="nv-rv-gr" style={{ '--rv-k': SRC }} onClick={r.open} haptic="tick">
-          <span className="nv-rv-pl"><RvIcon name={s.canPlay ? 'play' : 'doc'} /></span>
-          <span className="t"><em>{s.title}</em>{s.ep ? `, ${s.ep}` : ''}</span>
-          <span className={s.time ? 'k at' : 'k'}>{s.time || s.kind || ''}</span>
-          <RvIcon name="chev" className="nv-rv-ic chev" />
-        </Interactive>
-      ) : (
-        <div className="nv-rv-gr"><span className="t" style={{ color: 'var(--nv-ink60)' }}>No source on this page</span></div>
-      )}
-      {r.connected.slice(0, 3).map((c) => (
-        <Interactive key={c.id} as="button" type="button" className="nv-rv-gr" style={{ '--rv-k': c.color }} onClick={c.go} haptic="tick" aria-label={`Open ${c.title}, ${c.kind}`}>
-          <span className="dot" /><span className="t">{c.title}</span><span className="k">{c.kind}</span><RvIcon name="chev" className="nv-rv-ic chev" />
-        </Interactive>
-      ))}
-      <div className="nv-rv-gpad"><AnswerSlot r={r} /></div>
-      <Interactive as="button" type="button" className={`nv-rv-gr ${r.writtenToday ? 'ok' : 'vi'}`} onClick={r.writeAboutIt} haptic="tick">
-        <span className="t">{r.writtenToday ? 'Written on today · write again' : 'Write on it'}</span>{r.writtenToday ? <RvIcon name="got" className="nv-rv-ic" /> : <RvIcon name="chev" className="nv-rv-ic chev" />}
-      </Interactive>
-    </div>
-  );
+  return <div className="nv-rv-gpad"><CardBody r={r} /></div>;
 }
 
 export function ReviewGroup({ r }) {
