@@ -111,7 +111,15 @@ Caffeine gets its own small instrument: a decay curve through the day
 from his sleep data. Coffee and sleep is a question he can actually act on.
 Nothing in OxeAI does this.
 
-### D. Drinks (S–M, only if he wants it)
+### D. Drinks (DROPPED, his call 12 Oct)
+
+His words: "No logging drinks. Don't think it's relevant unless I'm drinking
+something specific I want to log that has calories. Most of the time it's
+soda stream or coke no sugar or water or supplements like Oxyshred." A drink
+with calories is logged as food, as now. Caffeine (C) reaches the curve the same
+way: a no-sugar cola or a pre-workout he chooses to log, never a glass to fill.
+
+#### (original proposal, kept for the record)
 A drink log by type (water, coffee, tea, protein shake, alcohol, other), fed
 from the Composer ("a long black and 600 ml water") and Apple Health
 dietary water if he logs it there. Draw it as a glass that fills in layers
@@ -146,6 +154,14 @@ still pose from `Body3D` (shared hue map, heavier). Recommend the SVG for
 the glance and Body3D on the tap.
 
 ### G. The PR moment (S)
+
+Correction after reading the code (12 Oct): a record already gets a moment,
+**at Save** (prsInSession → recordKit.confirmedRecords → RecordMoment, mockup
+65). What is missing is the SET: nothing happens when the set that will be a
+record is logged. So G is the island at the set, worded as provisional ("a
+record once you save"), and the Save moment stays as it is. Mockup 99 part 1.
+
+#### (original wording)
 When a logged set beats his best (compared at the resolution it's displayed
 at: the rounded-comparisons trap), a pill rises in the island or over the
 session stage: "Romanian deadlift · 50 kg × 8 · new est. 1RM 63 kg (+2)".
@@ -204,6 +220,10 @@ which needs no new data. Then A once resting energy is ingested. Then C,
 the schema change, done once and properly. F next, then E, the big one, which
 also covers his "what's next" on Home. I only after E exists, because the
 week's meals should land on the rail. D only if he says yes.
+
+**His answers, 12 Oct:** day read: explain with an example (mockup 99 part 3);
+drinks: no (D dropped); keep meal photos: yes (J1 unblocked); mockups of G and
+H: yes (mockup 99).
 
 Every item ships in both Home idioms from one view model, survives 375 px,
 honours reduced motion, and gets a mockup he approves before it is built

@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Record, week, day read</title>
+<!--
+  99 · THREE THINGS TAKEN FROM OXEAI (12 October 2026), round 1
+  Source: design/OXEAI-STUDY.md, items G, H and B. His answers, 12 Oct:
+    "1. Explain further with example" (the day read: a number or reasons)
+    "2. No logging drinks"  "3. Yes" (keep meal photos)  "4. Yes" (these mockups)
+
+  WHAT IS DRAWN
+    1 THE SET THAT WOULD BE A RECORD (G). OxeAI lays a white pill over gym
+      footage: "toes to bar pull ups · 190lb x10 · Est.1RM". Nova already
+      celebrates a record, but only at Save: the server confirms it
+      (routes/workouts.js prsInSession → recordKit.confirmedRecords →
+      RecordMoment, the plates stacking). Nothing happens at the SET. Drawn
+      here: when a logged set's estimate beats his best, compared at the
+      resolution shown (shownKg, the rounded-comparisons rule), the island
+      opens with the lift in its muscle's hue, the load large, and the
+      estimate counting up. The words say it is provisional ("a record once
+      you save"), because only the server's check makes it one. One haptic
+      tick. At Save the existing moment plays unchanged.
+    2 THE WEEK AS DOTS (H). OxeAI: "Weekly active day streak", dots on a
+      line, "2 of 4 days", "0 weeks". Nova today: "N sessions in a row" on
+      Train's momentum rail and "N-day streak" on Home, which one bad week
+      wipes out. Drawn: his program's days this week as dots on a line. A
+      done dot is filled in the hue of that session's lead muscle group, today's
+      is ringed, a missed one is dashed (the house gap rule), a make-up
+      day slides into the slot it finishes. Under it, the weeks in a row
+      where every planned session happened.
+    3 THE DAY READ (B), BOTH WAYS, so he can choose. Left: reasons only,
+      each a fact code computed against his own targets, with its number.
+      Right: the same reasons plus one number from a published formula,
+      shown under "How this is scored". The partial-day switch shows the
+      problem with a number: a day he forgot to log scores like a bad day,
+      so it gets a dashed ring and "partial", never a low score.
+
+  DEMO NUMBERS ONLY inside the phones (lifts, weights, days, macros). They
+  are invented and labelled. The chat reply carries the real-day example.
+
+  Motion: the island grows out of its pill on the drawer curve, no
+  overshoot (the set came from a tap, not a flick); the estimate counts
+  up; a done dot fills from its centre with a small overshoot (a finished
+  session is a moment); a make-up dot travels to the slot it finishes.
+  Transform and opacity only. Reduced motion (OS or the bar's switch):
+  200 ms cross-fades and end states. No sideways scroll at 375.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --round:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --ease-drawer:cubic-bezier(.32,.72,0,1);
+  --spring:linear(0,.009,.035 2.1%,.141,.281 6.7%,.723 12.9%,.938 16.7%,1.017,1.077,1.121,1.149 24.3%,1.159,1.163,1.161,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,.991,.977 51%,.974 53.8%,.975 57.1%,.997 69.8%,1.003 76.9%,1);
+  --void:#06070d;
+  --ink:#e8ecf6;--ink2:rgba(232,236,246,.78);--ink3:rgba(232,236,246,.6);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.07);--ring:rgba(255,255,255,.14);--hi:rgba(255,255,255,.2);
+  --vi:#8f7bff;--cy:#59e6ff;--gold:#e0b26a;--good:#5fe8a8;--warn:#e08383;
+  /* src/muscleHue.js MUSCLE_HEX */
+  --m-chest:#ff8a7a;--m-back:#4fd1c5;--m-shoulders:#ffc46b;--m-quads:#7ab8ff;--m-ham:#5aa0ff;--m-glutes:#c98bff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--void);color:var(--ink);font:15px/1.45 var(--ui);-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden}
+.page{max-width:1240px;margin:0 auto;padding:28px 16px 80px}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;margin-bottom:28px}
+h1{font:600 30px/1.1 var(--serif);letter-spacing:-.01em}
+.lede{color:var(--ink2);max-width:62ch;margin-top:8px}
+.bar{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.chip{font:600 13px var(--ui);padding:8px 14px;border-radius:999px;background:var(--card);border:1px solid var(--ring);transition:transform 120ms var(--ease-out),background 160ms ease}
+.chip:active{transform:scale(.97)}
+.chip[aria-pressed="true"]{background:rgba(143,123,255,.22);border-color:rgba(143,123,255,.5)}
+section.part{margin-top:44px}
+.part h2{font:600 22px/1.2 var(--serif)}
+.part .why{color:var(--ink2);max-width:70ch;margin:6px 0 18px}
+.row{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.notes{flex:1 1 300px;min-width:0;color:var(--ink2);font-size:14px}
+.notes h3{font:600 13px var(--ui);color:var(--ink);margin:14px 0 4px}
+.notes p+p{margin-top:6px}
+.notes .from{border-left:2px solid var(--sep);padding-left:10px;color:var(--ink3)}
+.demo{font:600 10.5px var(--ui);letter-spacing:.06em;color:var(--gold);text-transform:uppercase}
+
+/* ---------- phone ---------- */
+.phone{position:relative;width:min(375px,100%);min-height:600px;padding-bottom:24px;border-radius:44px;overflow:hidden;flex:0 0 auto;
+  background:radial-gradient(120% 60% at 50% 0%,#141a33 0%,#0a0d1a 55%,#07080f 100%);
+  border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.status{display:flex;justify-content:space-between;padding:16px 30px 0;font:600 15px var(--ui)}
+.screen{padding:56px 18px 18px}
+.eyebrow{font:600 12px var(--ui);color:var(--ink3);letter-spacing:.02em}
+.title{font:700 28px/1.1 var(--round);letter-spacing:-.02em;margin:2px 0 14px}
+
+/* glass card */
+.glass{position:relative;border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.05));
+  border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%)}
+.glass::before{content:"";position:absolute;inset:0 18px auto;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent)}
+
+/* ---------- 1 · the live session ---------- */
+.lift{padding:14px 16px;margin-bottom:12px}
+.lift .nm{display:flex;align-items:center;gap:8px;font:600 17px var(--ui)}
+.lift .dot{width:8px;height:8px;border-radius:50%;background:var(--h)}
+.lift .best{font-size:13px;color:var(--ink3);margin:2px 0 10px}
+.set{display:grid;grid-template-columns:28px 1fr 1fr 64px;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--sep);font:500 15px var(--round)}
+.set .n{color:var(--ink3);font-size:13px}
+.set .tick{justify-self:end;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--ring);display:grid;place-items:center;transition:transform 120ms var(--ease-out),background 160ms ease,border-color 160ms ease}
+.set .tick:active{transform:scale(.92)}
+.set.done .tick{background:var(--h);border-color:var(--h)}
+.set.done .tick svg{opacity:1}
+.set .tick svg{opacity:0;transition:opacity 120ms ease}
+.set .tick svg path{stroke:#07080f}
+.set.next{background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent)}
+.hint{font-size:12px;color:var(--ink3);text-align:center;margin-top:6px}
+
+/* the island */
+.island{position:absolute;left:50%;top:11px;z-index:5;width:124px;height:36px;border-radius:20px;background:#000;
+  transform:translateX(-50%);overflow:hidden;transition:width 380ms var(--ease-drawer),height 380ms var(--ease-drawer),border-radius 380ms var(--ease-out)}
+.island.open{width:351px;height:118px;border-radius:40px}
+.island .in{position:absolute;inset:0;padding:16px 20px;opacity:0;transform:scale(.96);transition:opacity 180ms ease,transform 260ms var(--ease-out)}
+.island.open .in{opacity:1;transform:none;transition-delay:120ms}
+.isl-top{display:flex;align-items:center;gap:8px;font:600 13px var(--ui);color:var(--h)}
+.isl-top .pip{width:7px;height:7px;border-radius:50%;background:var(--h);box-shadow:0 0 10px var(--h)}
+.isl-mid{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:6px}
+.isl-mid .lt{font:600 17px var(--ui);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.isl-mid .ld{font:700 26px var(--round);letter-spacing:-.02em;white-space:nowrap}
+.isl-mid .ld small{font:600 14px var(--round);color:var(--ink3);margin-left:2px}
+.isl-bot{display:flex;justify-content:space-between;gap:10px;font:500 12.5px var(--ui);color:var(--ink3);margin-top:4px}
+.isl-bot b{color:var(--ink);font-weight:600}
+.isl-bot .up{color:var(--h)}
+
+/* ---------- 2 · the week ---------- */
+.wk{padding:16px 16px 14px;margin-bottom:12px}
+.wk-head{display:flex;justify-content:space-between;align-items:baseline}
+.wk-head .k{font:600 13px var(--ui);color:var(--ink3)}
+.wk-head .v{font:700 30px var(--round);letter-spacing:-.02em}
+.wk-head .v small{font:600 15px var(--round);color:var(--ink3);margin-left:4px}
+.track{position:relative;display:grid;grid-template-columns:repeat(7,1fr);margin:16px 2px 4px;align-items:center}
+.track::before{content:"";position:absolute;left:7%;right:7%;top:50%;height:2px;background:var(--sep);transform:translateY(-1px)}
+.day{position:relative;display:grid;grid-template-rows:26px auto;justify-items:center;align-items:center;gap:8px}
+.slot{position:relative;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#0b0e1c}
+.slot.rest{width:6px;height:6px;background:var(--sep)}
+.slot.plan{border:2px solid rgba(232,236,246,.32)}
+.slot.miss{border:2px dashed rgba(232,236,246,.38)}
+.slot.today{border:2px solid var(--ink);box-shadow:0 0 0 4px rgba(232,236,246,.08)}
+.slot .fill{position:absolute;inset:-2px;border-radius:50%;background:var(--h);transform:scale(0);transition:transform 360ms var(--spring)}
+.slot.done .fill{transform:scale(1)}
+.slot.done{border:0}
+.lbl{font:600 11px var(--ui);color:var(--ink3)}
+.lbl.t{color:var(--ink)}
+.wk-foot{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--ink2);margin-top:12px;padding-top:10px;border-top:1px solid var(--sep)}
+.wk-foot b{color:var(--ink);font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink3);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.makeup{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--h);top:0;left:50%;margin-left:-13px;transition:transform 520ms var(--spring),opacity 200ms ease}
+/* compact Home card */
+.homecard{padding:14px 16px}
+.homecard .row2{display:flex;align-items:center;gap:12px}
+.mini{display:flex;gap:6px;align-items:center}
+.mini span{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ring)}
+.mini span.d{border:0;background:var(--h)}
+.mini span.m{border-style:dashed;border-color:rgba(232,236,246,.38)}
+.mini span.t{border-color:var(--ink)}
+.homecard .serif{font:500 17px/1.3 var(--serif)}
+
+/* ---------- 3 · day read ---------- */
+.dr{padding:16px}
+.dr .news{font:500 19px/1.3 var(--serif);margin:4px 0 14px;display:flex;gap:8px}
+.dr .news .live{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--cy);margin-top:9px;box-shadow:0 0 8px var(--cy)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.col h4{font:600 12.5px var(--ui);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.col.plus h4{color:var(--good)}
+.col.minus h4{color:var(--ink2)}
+.col.minus h4 .sg{color:var(--gold)}
+.fact{padding:8px 0;border-top:1px solid var(--sep)}
+.fact .f1{font:600 14px var(--ui)}
+.fact .f2{font:500 12.5px var(--round);color:var(--ink3)}
+.meter{position:relative;height:4px;border-radius:2px;background:var(--sep);margin-top:6px;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;border-radius:2px;background:var(--c)}
+.meter b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);left:var(--t)}
+.partial{display:none;margin-top:12px;padding:10px 12px;border-radius:14px;border:1px dashed rgba(232,236,246,.3);font-size:13px;color:var(--ink2)}
+.isPartial .partial{display:block}
+.scorewrap{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.score{position:relative;width:76px;height:76px;flex:0 0 auto}
+.score svg{width:100%;height:100%;transform:rotate(-90deg)}
+.score .num{position:absolute;inset:0;display:grid;place-items:center;font:700 26px var(--round)}
+.score .num small{display:block;font:600 10px var(--ui);color:var(--ink3);text-align:center;margin-top:-4px}
+.how{font-size:12.5px;color:var(--ink3);margin-top:12px;padding-top:10px;border-top:1px solid var(--sep)}
+.how b{color:var(--ink2);font-weight:600}
+.arc{transition:stroke-dashoffset 600ms var(--ease-out),stroke 200ms ease}
+
+@media (max-width:420px){.phone{border-radius:36px}.cols{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:200ms!important;transition-timing-function:ease!important}}
+.rm *,.rm *::before,.rm *::after{transition-duration:200ms!important;transition-timing-function:ease!important}
+.rm .slot .fill,.rm .island .in{transform:none!important}
+</style>
+</head>
+<body>
+<div class="page" id="root">
+<header class="top">
+  <div>
+    <h1>Three things taken from OxeAI</h1>
+    <p class="lede">The set that would be a record, the week as dots, and the day read drawn both ways so you can choose. Numbers inside the phones are demo numbers.</p>
+  </div>
+  <div class="bar">
+    <button class="chip" id="rmBtn" aria-pressed="false">Reduce motion</button>
+    <button class="chip" id="resetBtn">Reset all</button>
+  </div>
+</header>
+
+<!-- ================= 1 ================= -->
+<section class="part">
+  <h2>1 · The set that would be a record</h2>
+  <p class="why">Today the record moment plays at Save, after the server checks it. Nothing happens at the set itself. Tick the third set.</p>
+  <div class="row">
+    <div class="phone" id="p1" style="--h:var(--m-ham)">
+      <div class="status"><span>6:42</span><span>●●● 5G</span></div>
+      <div class="island" id="island" role="status" aria-live="polite">
+        <div class="in">
+          <div class="isl-top"><span class="pip"></span>A record once you save</div>
+          <div class="isl-mid"><span class="lt">Romanian deadlift</span><span class="ld">50<small>kg</small> × 8</span></div>
+          <div class="isl-bot"><span>Est. 1RM <b id="e1">60</b> kg</span><span class="up" id="delta">+3 over your best</span></div>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="eyebrow">Pull B · set 3 of 3 <span class="demo">· demo</span></div>
+        <div class="title">Hamstrings</div>
+        <div class="glass lift" style="--h:var(--m-ham)">
+          <div class="nm"><span class="dot"></span>Romanian deadlift</div>
+          <div class="best">Your best: est. 1RM 60 kg (47.5 kg × 8, 21 Sep)</div>
+          <div class="set done"><span class="n">1</span><span>47.5 kg</span><span>× 8</span><span class="tick"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7.5l2.6 2.6L11 4.5" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+          <div class="set done"><span class="n">2</span><span>50 kg</span><span>× 7</span><span class="tick"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7.5l2.6 2.6L11 4.5" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+          <div class="set next" id="set3"><span class="n">3</span><span>50 kg</span><span>× 8</span><button class="tick" id="tick3" aria-label="Log set 3"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 7.5l2.6 2.6L11 4.5" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+          <div class="hint" id="hint3">Tap the circle to log set 3</div>
+        </div>
+        <div class="glass lift" style="--h:var(--m-back);opacity:.55">
+          <div class="nm"><span class="dot"></span>Chest-supported row</div>
+          <div class="best">Next · 3 × 10</div>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <p class="from">OxeAI: a white pill over the footage, "toes to bar pull ups · 190lb ×10 · Est.1RM".</p>
+      <h3>What happens</h3>
+      <p>He logs a set. Code computes its estimate and compares it with his best <em>at the resolution it is shown</em> (shownKg). Only if the shown number is higher does the island open: the lift in its muscle's hue, the load large, the estimate counting up from his old best, one haptic tick on the same frame.</p>
+      <h3>Why "a record once you save"</h3>
+      <p>Only the server's check (prsInSession at Save) makes it a record. Until then the words say what is true right now. At Save the plates-stacking moment you chose on 29 Sep plays unchanged; this doesn't replace it.</p>
+      <h3>When it stays quiet</h3>
+      <p>A set that ties his best, a warm-up, a lift with no history, or a bodyweight hold. It opens once per lift per session. It closes after 4 s, or with a swipe up.</p>
+      <h3>Built from</h3>
+      <p>island.js <code>notify({…})</code>, recordKit's shownKg and the e1RM already in trainingAnalytics.js, muscleHue.js for the colour. No server change.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section class="part">
+  <h2>2 · The week as dots</h2>
+  <p class="why">This replaces "5 sessions in a row" and "12-day streak". Each dot is one of the program's days this week, and the count is against the plan.</p>
+  <div class="row">
+    <div class="phone" id="p2">
+      <div class="status"><span>7:05</span><span>●●● 5G</span></div>
+      <div class="screen">
+        <div class="eyebrow">Train <span class="demo">· demo</span></div>
+        <div class="title">This week</div>
+        <div class="glass wk">
+          <div class="wk-head"><span class="k">Sessions</span><span class="v" id="wkCount">2<small>of 4</small></span></div>
+          <div class="track" id="track"></div>
+          <div class="wk-foot"><span>Full weeks in a row <b id="weeks">3</b></span><span id="wkNote">Legs today</span></div>
+          <div class="legend"><span><i style="background:var(--m-chest)"></i>Push</span><span><i style="background:var(--m-back)"></i>Pull</span><span><i style="background:var(--m-quads)"></i>Legs</span><span><i style="border:1.5px dashed rgba(232,236,246,.5)"></i>Missed</span></div>
+        </div>
+        <div class="eyebrow" style="margin:18px 0 8px">On Home</div>
+        <div class="glass homecard">
+          <div class="row2"><div class="mini" id="mini"></div><span class="serif" id="homeLine">Two of four done. Legs is today.</span></div>
+        </div>
+        <div class="bar" style="margin-top:16px">
+          <button class="chip" id="doToday">Finish today's session</button>
+          <button class="chip" id="missWed">Miss Tuesday</button>
+          <button class="chip" id="makeup">Make it up Friday</button>
+        </div>
+      </div>
+    </div>
+    <div class="notes">
+      <p class="from">OxeAI: "Weekly active day streak", dots on a line, "2 of 4 days", "0 weeks".</p>
+      <h3>Colour</h3>
+      <p>A done dot fills in the hue of that session's lead muscle group (muscleHue.js), so the week reads as push, pull, legs at a glance. A planned day is an empty ring, today is ringed in ink, and a missed day is dashed. That's the house rule for a gap: never a zero, never red.</p>
+      <h3>The two numbers</h3>
+      <p><b>2 of 4</b> counts against the program, so a rest day can't break it. <b>Full weeks in a row</b> counts weeks where every planned session happened, including make-up days. One missed session ends this week, and next week starts clean. A streak counted in days punishes a planned rest.</p>
+      <h3>Make-up days</h3>
+      <p>A make-up session (the makeup-days rule) lifts out of its own day and settles into the dashed slot it finishes. The dashed ring becomes a filled dot, and the week can still be full.</p>
+      <h3>Built from</h3>
+      <p>streaks.js scheduledStreak, the program's planned days, the make-up derivation. Train's momentum tile and Home's line both read one view model.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section class="part">
+  <h2>3 · The day read, both ways</h2>
+  <p class="why">You asked for an example. The same demo day is drawn twice: reasons only on the left, the same reasons plus a number on the right. Then flip "Forgot to log dinner" to see where a number misleads.</p>
+  <div class="bar" style="margin-bottom:18px">
+    <button class="chip" id="dayGood" aria-pressed="true">A good day</button>
+    <button class="chip" id="dayOver" aria-pressed="false">An over day</button>
+    <button class="chip" id="dayPartial" aria-pressed="false">Forgot to log dinner</button>
+  </div>
+  <div class="row">
+    <div class="phone" id="p3a">
+      <div class="status"><span>9:12</span><span>●●● 5G</span></div>
+      <div class="screen">
+        <div class="eyebrow">Fuel · day read · reasons only <span class="demo">· demo</span></div>
+        <div class="glass dr" id="drA" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="phone" id="p3b">
+      <div class="status"><span>9:12</span><span>●●● 5G</span></div>
+      <div class="screen">
+        <div class="eyebrow">Fuel · day read · with a number <span class="demo">· demo</span></div>
+        <div class="glass dr" id="drB" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="notes">
+      <p class="from">OxeAI: a ring that says 47, then "+ Boosting your score" and "− Hurting your score" in capitals. It never says 47 out of what, or how the 47 is made.</p>
+      <h3>Reasons only (my pick)</h3>
+      <p>Each line is a fact code computed against your own targets: the number, the target, and a small meter with the target marked. The serif line on top is code's sentence, written from the same facts, so it cannot disagree with them. Nothing is a model's guess.</p>
+      <h3>With a number</h3>
+      <p>The same reasons, plus one score from a formula you can open: protein is worth 50 (your share of the floor, capped at 50) and calories are worth 50 (lose a point for every 2% away from target). It is simple and it is honest, but it compresses two different misses into one figure, and you then have to unpack it anyway.</p>
+      <h3>Where a number lies</h3>
+      <p>Flip "Forgot to log dinner". On the left the read says the day is partial and stops judging. On the right a formula sees 900 kcal missing and would score it as a bad day. So the number has to be withheld (dashed ring, "partial"), and on half your days you would get a ring with no number in it.</p>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+(() => {
+  const root = document.getElementById('root');
+  const reduced = () => root.classList.contains('rm') || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.getElementById('rmBtn').onclick = (e) => {
+    const on = root.classList.toggle('rm'); e.currentTarget.setAttribute('aria-pressed', String(on));
+  };
+
+  /* ---------- 1 ---------- */
+  const island = document.getElementById('island'), set3 = document.getElementById('set3'), e1 = document.getElementById('e1');
+  let islandTimer;
+  function countUp(el, from, to, ms) {
+    if (reduced()) { el.textContent = to; return; }
+    const t0 = performance.now();
+    const step = (t) => { const k = Math.min(1, (t - t0) / ms); const v = from + (to - from) * (1 - Math.pow(1 - k, 3)); el.textContent = Math.round(v); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  document.getElementById('tick3').onclick = () => {
+    if (set3.classList.contains('done')) return;
+    set3.classList.add('done'); set3.classList.remove('next'); document.getElementById('hint3').hidden = true;
+    if (navigator.vibrate) navigator.vibrate(12);
+    island.classList.add('open'); e1.textContent = 60; setTimeout(() => countUp(e1, 60, 63, 700), reduced() ? 0 : 200);
+    clearTimeout(islandTimer); islandTimer = setTimeout(() => island.classList.remove('open'), 4000);
+  };
+  island.onclick = () => island.classList.remove('open');
+
+  /* ---------- 2 ---------- */
+  const DAYS = ['M','T','W','T','F','S','S'];
+  const TODAY = 3; // Thursday
+  const base = () => ([
+    { plan: 'push', state: 'done', hue: 'var(--m-chest)' },
+    { plan: 'pull', state: 'done', hue: 'var(--m-back)' },
+    { plan: null },
+    { plan: 'legs', state: 'today', hue: 'var(--m-quads)' },
+    { plan: null },
+    { plan: 'push', state: 'plan', hue: 'var(--m-chest)' },
+    { plan: null },
+  ]);
+  let week = base(), weeks = 3, missedWed = false, madeUp = false;
+  const track = document.getElementById('track'), mini = document.getElementById('mini');
+  function renderWeek() {
+    track.innerHTML = '';
+    week.forEach((d, i) => {
+      const day = document.createElement('div'); day.className = 'day';
+      const slot = document.createElement('div');
+      if (!d.plan) slot.className = 'slot rest';
+      else {
+        slot.className = 'slot ' + (d.state === 'done' ? 'done' : d.state === 'miss' ? 'miss' : d.state === 'today' ? 'today' : 'plan');
+        slot.style.setProperty('--h', d.hue);
+        const f = document.createElement('i'); f.className = 'fill'; slot.appendChild(f);
+        slot.setAttribute('aria-label', `${['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'][i]}: ${d.plan}, ${d.state}`);
+      }
+      day.appendChild(slot);
+      const l = document.createElement('span'); l.className = 'lbl' + (i === TODAY ? ' t' : ''); l.textContent = DAYS[i]; day.appendChild(l);
+      track.appendChild(day);
+    });
+    const planned = week.filter((d) => d.plan).length, done = week.filter((d) => d.state === 'done').length;
+    document.getElementById('wkCount').innerHTML = `${done}<small>of ${planned}</small>`;
+    const missed = week.some((d) => d.state === 'miss');
+    document.getElementById('weeks').textContent = missed ? '0' : String(weeks);
+    const todayDone = week[TODAY].state === 'done';
+    document.getElementById('wkNote').textContent = missed ? 'Tuesday is open' : todayDone ? 'Push on Saturday' : 'Legs today';
+    mini.innerHTML = week.filter((d) => d.plan).map((d) => `<span class="${d.state === 'done' ? 'd' : d.state === 'miss' ? 'm' : d.state === 'today' ? 't' : ''}" style="--h:${d.hue}"></span>`).join('');
+    const words = ['None','One','Two','Three','Four','Five'];
+    document.getElementById('homeLine').textContent = missed ? `${words[done]} of ${words[planned].toLowerCase()} done. Tuesday's pull is open.` : `${words[done]} of ${words[planned].toLowerCase()} done. ${todayDone ? 'Push is Saturday.' : 'Legs is today.'}`;
+    requestAnimationFrame(() => track.querySelectorAll('.slot.done').forEach((s) => s.classList.add('done')));
+  }
+  function fillLater(i) {
+    // draw as not done, then flip, so the fill springs from the centre
+    week[i].state = 'done';
+    renderWeek();
+    const s = track.children[i].querySelector('.slot');
+    s.classList.remove('done'); s.classList.add('plan');
+    requestAnimationFrame(() => requestAnimationFrame(() => { s.classList.remove('plan'); s.classList.add('done'); }));
+  }
+  document.getElementById('doToday').onclick = () => { if (week[TODAY].state !== 'done') { fillLater(TODAY); if (navigator.vibrate) navigator.vibrate(10); } };
+  document.getElementById('missWed').onclick = () => {
+    if (missedWed) return; missedWed = true;
+    week[1].state = 'miss';
+    renderWeek();
+  };
+  document.getElementById('makeup').onclick = () => {
+    if (!missedWed || madeUp) return; madeUp = true;
+    const from = track.children[4].querySelector('.slot'), to = track.children[1].querySelector('.slot');
+    const a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
+    const ghost = document.createElement('span'); ghost.className = 'makeup'; ghost.style.setProperty('--h', 'var(--m-back)');
+    track.children[4].appendChild(ghost);
+    const dx = b.left - a.left;
+    if (reduced()) { ghost.remove(); week[1].state = 'done'; renderWeek(); return; }
+    requestAnimationFrame(() => { ghost.style.transform = `translateX(${dx}px)`; });
+    setTimeout(() => { week[1].state = 'done'; renderWeek(); }, 560);
+  };
+  document.getElementById('resetBtn').onclick = () => {
+    week = base(); missedWed = false; madeUp = false; renderWeek();
+    set3.classList.remove('done'); set3.classList.add('next'); island.classList.remove('open'); e1.textContent = 60; document.getElementById('hint3').hidden = false;
+    setDay('good', false);
+  };
+  renderWeek();
+
+  /* ---------- 3 ---------- */
+  // demo targets: protein floor 150 g, calories 2,200
+  const FLOOR = 150, KCAL = 2200;
+  const DAYS3 = {
+    good: { p: 162, kcal: 2290, f: 78, logged: 4, meals: 4 },
+    over: { p: 96, kcal: 2840, f: 131, logged: 4, meals: 4 },
+  };
+  let which = 'good', partial = false;
+  const fmt = (n) => n.toLocaleString('en-AU');
+  function facts(d) {
+    const plus = [], minus = [];
+    const pPct = Math.min(1, d.p / FLOOR), kDiff = d.kcal - KCAL, fatShare = Math.round(d.f * 9 / d.kcal * 100);
+    const P = { f1: `Protein ${d.p} g`, f2: `floor ${FLOOR} g${d.p >= FLOOR ? '' : ` · ${FLOOR - d.p} short`}`, c: d.p >= FLOOR ? 'var(--good)' : 'var(--gold)', w: Math.min(1, d.p / (FLOOR * 1.3)), t: FLOOR / (FLOOR * 1.3) };
+    const K = { f1: `Calories ${fmt(d.kcal)}`, f2: `target ${fmt(KCAL)} · ${kDiff >= 0 ? '+' : '−'}${fmt(Math.abs(kDiff))}`, c: Math.abs(kDiff) <= 150 ? 'var(--good)' : 'var(--gold)', w: Math.min(1, d.kcal / (KCAL * 1.4)), t: KCAL / (KCAL * 1.4) };
+    const Fa = { f1: `Fat ${d.f} g`, f2: `${fatShare}% of the day's calories`, c: fatShare > 40 ? 'var(--gold)' : 'var(--good)', w: Math.min(1, fatShare / 70), t: 35 / 70 };
+    (d.p >= FLOOR ? plus : minus).push(P);
+    (Math.abs(kDiff) <= 150 ? plus : minus).push(K);
+    if (fatShare > 40) minus.push(Fa); else plus.push(Fa);
+    if (d.logged === d.meals) plus.push({ f1: `Logged ${d.logged} of ${d.meals} meals`, f2: 'the read covers the whole day', c: 'var(--good)', w: 1, t: 1 });
+    const score = Math.round(50 * pPct + Math.max(0, 50 - Math.abs(kDiff) / KCAL * 100 / 2 * 1));
+    return { plus, minus, score, pPct, kDiff };
+  }
+  function news(d, f) {
+    if (partial) return 'Dinner isn’t logged, so this read stops at lunch.';
+    if (!f.minus.length) return `Protein cleared the floor and calories landed within ${fmt(Math.abs(f.kDiff))} of target.`;
+    const bits = [];
+    if (d.p < FLOOR) bits.push(`protein stopped ${FLOOR - d.p}\u00a0g short`);
+    if (Math.abs(f.kDiff) > 150) bits.push(`calories ran ${fmt(Math.abs(f.kDiff))} ${f.kDiff > 0 ? 'over' : 'under'}`);
+    const s = bits.join(' and ');
+    return s.charAt(0).toUpperCase() + s.slice(1) + '.';
+  }
+  const factHTML = (x) => `<div class="fact"><div class="f1">${x.f1}</div><div class="f2">${x.f2}</div><div class="meter" style="--c:${x.c};--t:${(x.t * 100).toFixed(1)}%"><i style="width:${(x.w * 100).toFixed(1)}%"></i>${x.t < 1 ? '<b></b>' : ''}</div></div>`;
+  function cols(f) {
+    return `<div class="cols"><div class="col plus"><h4>+ Helped</h4>${f.plus.map(factHTML).join('') || '<div class="fact f2" style="color:var(--ink3)">Nothing cleared its target.</div>'}</div><div class="col minus"><h4><span class="sg">−</span> Held it back</h4>${f.minus.map(factHTML).join('') || '<div class="fact" style="color:var(--ink3);font-size:13px">Nothing.</div>'}</div></div>`;
+  }
+  function render3() {
+    let d = { ...DAYS3[which] };
+    if (partial) d = { ...d, p: d.p - 48, kcal: d.kcal - 900, f: d.f - 30, logged: d.meals - 1 };
+    const f = facts(d);
+    if (partial) { f.plus = f.plus.filter((x) => !x.f1.startsWith('Logged')); f.minus.push({ f1: `Logged ${d.logged} of ${d.meals} meals`, f2: 'dinner missing · not judged', c: 'rgba(232,236,246,.4)', w: d.logged / d.meals, t: 1 }); }
+    const head = `<div class="news"><span class="live"></span><span>${news(d, f)}</span></div>`;
+    const A = document.getElementById('drA'), B = document.getElementById('drB');
+    A.innerHTML = head + (partial ? `<div class="partial" style="display:block">So far: protein ${d.p} g, ${fmt(d.kcal)} kcal across ${d.logged} meals. Log dinner and the read finishes itself.</div>` : cols(f));
+    const R = 30, C = 2 * Math.PI * R, val = partial ? null : f.score;
+    const ring = `<div class="score"><svg viewBox="0 0 76 76"><circle cx="38" cy="38" r="${R}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="7"/><circle class="arc" cx="38" cy="38" r="${R}" fill="none" stroke="${val == null ? 'rgba(232,236,246,.45)' : val >= 80 ? 'var(--good)' : 'var(--gold)'}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${val == null ? '4 7' : C}" stroke-dashoffset="${val == null ? 0 : C * (1 - val / 100)}"/></svg><div class="num">${val == null ? '<span style="font-size:13px;color:var(--ink3)">partial</span>' : `<span>${val}<small>of 100</small></span>`}</div></div>`;
+    const naive = Math.round(50 * Math.min(1, d.p / FLOOR) + Math.max(0, 50 - Math.abs(d.kcal - KCAL) / KCAL * 50));
+    B.innerHTML = `<div class="scorewrap">${ring}<div style="min-width:0">${head.replace('class="news"', 'class="news" style="margin:0"')}</div></div>` + (partial ? `<div class="partial" style="display:block">The formula would score this day <b>${naive}</b>, as if you had under-eaten. You didn't: dinner is missing. So the number is withheld.</div>` : cols(f)) +
+      `<div class="how"><b>How this is scored.</b> Protein: your share of the ${FLOOR} g floor, worth 50. Calories: 50, less one point for every 2% away from ${fmt(KCAL)}. Not scored until every meal is logged.</div>`;
+  }
+  function setDay(w, p) {
+    if (w) which = w; partial = p;
+    document.getElementById('dayGood').setAttribute('aria-pressed', String(which === 'good'));
+    document.getElementById('dayOver').setAttribute('aria-pressed', String(which === 'over'));
+    document.getElementById('dayPartial').setAttribute('aria-pressed', String(partial));
+    render3();
+  }
+  document.getElementById('dayGood').onclick = () => setDay('good', partial);
+  document.getElementById('dayOver').onclick = () => setDay('over', partial);
+  document.getElementById('dayPartial').onclick = () => setDay(null, !partial);
+  render3();
+})();
+</script>
+</body>
+</html>
