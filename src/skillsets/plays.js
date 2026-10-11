@@ -30,7 +30,7 @@ export const playLength = (name) => { const t = PLAYS[name]; return t ? t[t.leng
 
 // Plays that pass him behind the glass or carry him far off his spot. Only
 // the centre slab has the frost to hide him, and only it has room to roam.
-export const CENTRE_ONLY = new Set(['peek', 'round', 'over', 'stroll']);
+export const CENTRE_ONLY = new Set(['peek', 'round', 'over', 'stroll', 'perch']);
 
 // Personality decides the mix and the tempo (mockup 97's table). `plays` is
 // weighted by repetition; `small` fills the pauses.
