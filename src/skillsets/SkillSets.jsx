@@ -513,6 +513,9 @@ export function SkillSets({ v }) {
   // ---- the open and the close, driven by the history level (v.openId) ----
   const sheetAt = (q) => {
     const el = sheetRef.current; if (!el) return;
+    // pulled down and thrown (sheetDrag.js): it is already off screen, and
+    // the Back that follows must not lift it back up to lower it again
+    if (el.closest('[data-sheet-gone]')) return;
     if (rm) { el.style.transform = 'none'; el.style.opacity = String(q); return; }
     el.style.opacity = '1';
     el.style.transform = gRef.current.wide ? `translateX(${(1 - q) * 105}%)` : `translateY(${(1 - q) * 105}%)`;
@@ -520,12 +523,44 @@ export function SkillSets({ v }) {
   const rideSpot = (q) => {
     const root = rootRef.current, gg = gRef.current, W = root.offsetWidth, H = root.offsetHeight;
     if (gg.wide) { const left = W - Math.min(gg.SHEET_W, W) + (1 - q) * Math.min(gg.SHEET_W, W) * 1.05; return { x: left + 70, y: 150 }; }
-    return { x: W - 62, y: gg.SHEET_T + (1 - q) * (H - gg.SHEET_T) * 1.05 };
+    return { x: W - 62, y: gg.SHEET_T + pull.current + (1 - q) * (H - gg.SHEET_T) * 1.05 };
   };
   // THE RIDE: he hops onto the rising sheet and rides it to its top, and
   // stays there while the sheet is open; Back runs it in reverse. Timed
   // here, beside the sheet it moves; the stage only draws him where told.
   const rideRaf = useRef(0);
+  // HE RIDES THE PULL TOO (11 Oct): when the sheet is dragged down, the agent
+  // on its top goes with it, and a throw takes him home from where it let go
+  const pull = useRef(0);
+  const lastPull = useRef(0);
+  const pullRaf = useRef(0);
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el || !shownId) return undefined;
+    const on = (e) => {
+      if (car.current.busy && e.detail.phase === 'drag') return;
+      if (e.detail.phase === 'drag') lastPull.current = Math.max(0, e.detail.y);
+      // a throw: he leaves from where the finger let go, not from off screen
+      pull.current = e.detail.phase === 'dismiss' ? lastPull.current : Math.max(0, e.detail.y);
+      if (gRef.current.wide) return;
+      const put = () => { const spot = rideSpot(1); stageRef.current?.pin(shownId, { px: spot.x, py: spot.y, sq: 1, yaw: -0.3, opacity: 1, live: true }); };
+      cancelAnimationFrame(pullRaf.current);
+      if (e.detail.phase === 'drag') { put(); return; }
+      if (e.detail.phase === 'return') {
+        // the sheet springs back on the compositor; he eases back with it
+        const from = lastPull.current, t0 = performance.now();
+        const step = () => {
+          const u = Math.min(1, (performance.now() - t0) / 320);
+          pull.current = from * Math.pow(1 - u, 3); put();
+          if (u < 1) pullRaf.current = requestAnimationFrame(step);
+        };
+        pull.current = from;
+        pullRaf.current = requestAnimationFrame(step);
+      }
+    };
+    el.addEventListener('nv-sheetdrag', on);
+    return () => el.removeEventListener('nv-sheetdrag', on);
+  }, [shownId]); // eslint-disable-line react-hooks/exhaustive-deps
   const ride = ({ id, dir, dur, arc, done }) => {
     const s = stageRef.current, gg = gRef.current;
     cancelAnimationFrame(rideRaf.current);
@@ -557,19 +592,23 @@ export function SkillSets({ v }) {
     if (id && id !== shownRef.current) {
       const i = v.agents.findIndex((a) => a.id === id);
       if (i < 0) return;
-      c.pos = i; c.target = i; c.busy = true;
+      c.pos = i; c.target = i; c.busy = true; pull.current = 0;
       shownRef.current = id; setShownId(id);
       requestAnimationFrame(() => {
         sheetAt(0); layout();
         const s = stageRef.current;
         if (!s) { sheetAt(1); c.busy = false; return; }
-        ride({ id, dir: 1, dur: rm ? 240 : 950, arc: gRef.current.wide ? 120 : 70, done: () => { c.busy = false; } });
+        // the sheet is not his to pull while it is still rising
+        const sh = sheetRef.current;
+        if (sh && !gRef.current.wide) sh.setAttribute('data-sheet', 'off');
+        ride({ id, dir: 1, dur: rm ? 240 : 950, arc: gRef.current.wide ? 120 : 70, done: () => { c.busy = false; if (sh && !gRef.current.wide) sh.setAttribute('data-sheet', ''); } });
       });
     } else if (!id && shownRef.current) {
       const was = shownRef.current;
       const s = stageRef.current;
       c.busy = true;
-      const finish = () => { shownRef.current = null; setShownId(null); c.busy = false; layout(); rootRef.current?.querySelector(`.nv-skl-slab[data-i="${cur()}"]`)?.focus({ preventScroll: true }); };
+      sheetRef.current?.setAttribute('data-sheet', 'off');
+      const finish = () => { pull.current = 0; shownRef.current = null; setShownId(null); c.busy = false; layout(); rootRef.current?.querySelector(`.nv-skl-slab[data-i="${cur()}"]`)?.focus({ preventScroll: true }); };
       if (!s) { finish(); return; }
       ride({ id: was, dir: -1, dur: rm ? 240 : 950, arc: gRef.current.wide ? 120 : 70, done: finish });
     }
@@ -618,7 +657,9 @@ export function SkillSets({ v }) {
         /* the open sheet is a history level: the back swipe and Back close it */
         <div className="nv-skl-modal" role="dialog" aria-modal="true" aria-label={`${shown.name}'s skill set`} data-edge-page="">
           <button type="button" className="nv-skl-back" data-edge-close="" onClick={v.close} style={{ top: g.wide ? 16 : 0 }}>‹ Agents</button>
-          <div ref={sheetRef} className="nv-skl-sheet" style={g.wide ? null : { top: g.SHEET_T }}>
+          {/* pull it down and it goes, through the same Back as the label
+              (sheetDrag.js); the Mac's side panel is not a bottom sheet */}
+          <div ref={sheetRef} className="nv-skl-sheet" data-sheet={g.wide ? 'off' : ''} style={g.wide ? null : { top: g.SHEET_T }}>
             <Sheet a={shown} v={v} />
           </div>
         </div>
