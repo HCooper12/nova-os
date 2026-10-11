@@ -362,6 +362,12 @@ export const api = {
   addJournalEntry: (conn, text, linkedTitle, opts = {}) => post(conn, '/api/journal/entries', { text, linkedTitle, ...opts }),
   startJournalPrompt: (conn, seedTitle, seedExcerpt) => post(conn, '/api/journal/prompt', { seedTitle, seedExcerpt }),
   journalPromptJob: (conn, jobId) => call(conn, `/api/journal/prompt/${encodeURIComponent(jobId)}`),
+  // his Journal, mockup 95: a prompt of one kind written at the tap, a retag, the Undo on a save, and Notion
+  journalPrompts: (conn, kind, opts = {}) => post(conn, '/api/journal/prompts', { kind, ...opts }),
+  retagJournalEntry: (conn, novaId, tag) => patch(conn, `/api/journal/entries/${encodeURIComponent(novaId)}`, { tag }),
+  unsaveJournalEntry: (conn, novaId) => del(conn, `/api/journal/entries/${encodeURIComponent(novaId)}`),
+  journalNotion: (conn) => call(conn, '/api/journal/notion'),
+  syncJournalNotion: (conn) => post(conn, '/api/journal/notion/sync'),
   startClaudeCodeMessage: (conn, text, sessionId, model, workspace) => post(conn, '/api/claude-code/message', { text, sessionId, model, workspace }),
   claudeCodeJob: (conn, jobId) => call(conn, `/api/claude-code/message/${encodeURIComponent(jobId)}`),
   // the Leader — leadership development: daily idea, chat, reflection intake

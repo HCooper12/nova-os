@@ -82,6 +82,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
+import { journalActions } from './journalActions.js';
 import { pickReviewItem } from './reviewPick.js';
 import { GAPS as REVIEW_GAPS, nextStep as nextReviewStep, shiftISO, localISO, demoDrawn, DEMO_UNREVIEWED } from './reviewDemo.js';
 import { loadCode, codeFromHistory, commit as codeCommit, shelve as codeShelve, restore as codeRestore, switchWorkspace as codeSwitchWorkspace, newSession as codeNewSession } from './codeActions.js';
@@ -778,6 +779,10 @@ export default class App extends Component {
     journalComposerText: '', journalSaveBusy: false, journalSaveError: null,
     journalPromptBusy: false, journalPromptText: null,
     journalOpenDate: null, journalFilter: 'all',
+    // his Journal, mockup 95 (src/journalActions.js)
+    journalView: 'mine', journalTagFilter: 'all', journalWho: 'all', journalFilterOpen: false,
+    journalPick: null, journalStep: null, journalTagPop: null, journalLanding: {},
+    liveNotionJournal: null, journalDemoEntries: null,
 
     // transcript ingest
     ingestModalOpen: false, ingestText: '', ingestSourceUrl: '', ingestBookTitle: '', ingestBookAuthor: '',
@@ -1222,7 +1227,7 @@ export default class App extends Component {
     // the new screen rises rather than cuts (riseMain, after the scroll is restored)
     // the summary Fuel page's Recipes list belongs to Fuel: leaving the
     // screen leaves it, so a tab hop back lands on Fuel itself
-    const apply = () => this.setState({ screen, ...(changed && this.state.fuelView ? { fuelView: null } : {}), ...(changed && (this.state.settingsPath || []).length ? { settingsPath: [], settingsLit: null } : {}), ...extraState }, () => {
+    const apply = () => this.setState({ screen, ...(changed && this.state.fuelView ? { fuelView: null } : {}), ...(changed && screen === 'journal' ? { journalView: 'mine', journalFilterOpen: false } : {}), ...(changed && (this.state.settingsPath || []).length ? { settingsPath: [], settingsLit: null } : {}), ...extraState }, () => {
       if (!changed || !this.mainRef?.current) return;
       const saved = NO_RESTORE.has(screen) ? 0 : (this.scrollPositions?.[screen] || 0);
       this.mainRef.current.scrollTop = saved;
@@ -1319,7 +1324,7 @@ export default class App extends Component {
       food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, date: p.date }),
       todo: (conn, p) => api.todoAdd(conn, p.text),
       shopping: (conn, p) => api.addShoppingItems(conn, p.items),
-      journal: (conn, p) => api.addJournalEntry(conn, p.text),
+      journal: (conn, p) => api.addJournalEntry(conn, p.text, null, { tag: p.tag, prompt: p.prompt, promptFrom: p.promptFrom }),
       healthDay: (conn, p) => api.saveHealthDay(conn, p.date, p.metrics),
       session: (conn, p) => api.completeWorkoutSession(conn, p.payload)
         .then((r) => { if (p.carryoverId) api.removeCarryover(conn, p.carryoverId).catch(() => {}); return r; }),
@@ -1897,7 +1902,7 @@ export default class App extends Component {
     apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
     apply('leader', (r) => this.setState({ liveLeader: r }));
     apply('practice', (r) => this.setPracticeLive(r));
-    apply('journal', (r) => this.setState({ liveJournalEntries: r.entries }));
+    apply('journal', (r) => { this.setState({ liveJournalEntries: r.entries }); this.refreshNotionJournal(); });
     apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
     apply('healthData', (r) => this.setState({ liveHealthDays: r.days.length ? r.days : null }));
     apply('streaks', (r) => this.setState({ liveStreaks: r }));
@@ -2020,6 +2025,7 @@ export default class App extends Component {
       async () => {
         const { entries } = await api.journalEntries(conn, 30);
         this.setState({ liveJournalEntries: entries });
+        this.refreshNotionJournal();
       },
       async () => this.setState({ liveHealthInsight: await api.healthInsight(conn) }),
       async () => {
@@ -5322,32 +5328,7 @@ export default class App extends Component {
       this.toastMsg('Could not generate a prompt: ' + e.message);
     });
   }
-  submitJournalEntry() {
-    const conn = getConnection();
-    const text = this.state.journalComposerText.trim();
-    if (!conn || !text) return;
-    // OPTIMISTIC: the composer clears the moment he commits, so the next
-    // thought can start immediately. The entry list is refreshed from the
-    // server rather than guessed at — journal entries are grouped by day
-    // with server-assigned times, and inventing that shape client-side
-    // would be a fiction the refresh would only contradict a moment later.
-    const previousText = this.state.journalComposerText;
-    haptic('commit');
-    this.setState({ journalSaveBusy: true, journalSaveError: null, journalComposerText: '', journalPromptText: null });
-    api.addJournalEntry(conn, text).then(() => {
-      this.setState({ journalSaveBusy: false });
-      this.toastMsg('Journal entry saved ✓');
-      this.refreshJournalEntries();
-    }).catch((e) => {
-      if (isOfflineError(e)) {
-        this.setState({ journalSaveBusy: false });
-        this.enqueueOutbox('journal', text.slice(0, 44), { text });
-        return;
-      }
-      // a real rejection must never eat what he wrote
-      this.setState({ journalSaveBusy: false, journalComposerText: previousText, journalSaveError: e.message });
-    });
-  }
+  // submitJournalEntry and the rest of his Journal live in src/journalActions.js
   toggleJournalDay(date) {
     this.setState((s) => ({ journalOpenDate: s.journalOpenDate === date ? null : date }));
   }
@@ -11919,3 +11900,6 @@ export default class App extends Component {
     );
   }
 }
+
+// his Journal (mockup 95): the composer, the prompt sheet, tags and Notion
+Object.assign(App.prototype, journalActions);

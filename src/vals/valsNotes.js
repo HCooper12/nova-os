@@ -1,4 +1,5 @@
 import { NOTE_TYPE_COLOR } from './shared.js';
+import { buildJournal } from './valsJournal.js';
 import { vtStyle } from '../vtName.js';
 import { buildReview } from './valsReview.js';
 
@@ -197,5 +198,7 @@ export function valsNotes(app, ctx) {
     journalFilters,
     journalFilterActive: jFilter !== 'all',
     journalLoaded: st.liveJournalEntries != null, // null = still loading, not "no entries yet"
+    // his Journal, mockup 95: Mine, Nova's log, the prompt sheet, Notion
+    journal: buildJournal(app, ctx),
   };
 }
