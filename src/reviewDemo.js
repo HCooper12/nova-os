@@ -62,7 +62,21 @@ const DECK = [
       'Skipped effort does not disappear. The report you put off, the warm-up you rushed, the hard conversation you postponed: each returns later, larger, and on a day you did not choose.',
       'The interest is the extra cost of doing it under pressure: less time, more stakes, fewer options. Paying early is cheaper even when it feels slower.',
       'The practical rule from the episode: when a small task can be paid today in under ten minutes, pay it, and keep a short list of the debts you are carrying on purpose.',
+      'The host traces the phrase to an old bookkeepers\u2019 saying about deferred maintenance.',
     ],
+    // the structured summary as the Mac would hand it (server/lib/reviewSummary.js), invented
+    summary: {
+      synthesis: 'Effort you skip now is borrowed, and it comes back later with interest. Small early payments keep the balance from growing.',
+      provenance: 'A guest put it to the host on The Long Table, ep. 112',
+      minutesIn: 41, sourceTime: '41:12',
+      origin: 'An old bookkeepers\u2019 saying about deferred maintenance, as the host tells it',
+      keyPoints: [
+        { term: 'The principal', line: 'The task you put off. It does not shrink while it waits.' },
+        { term: 'The interest', line: 'The extra cost of doing it later, under pressure, with fewer options.' },
+        { term: 'Debts on purpose', line: 'Keep a short list of what you are choosing to defer, so none of it is accidental.' },
+      ],
+      reflection: 'Which ten-minute task have you carried past three mornings now, and what would paying it today free up?',
+    },
     source: { title: 'The Long Table', ep: 'ep. 112', kind: 'podcast', time: '41:12', url: null, extra: 0 },
     connected: [['Compounding Habits', 'concept'], ['Deliberate Practice', 'concept'], ['Building Discipline', 'topic'], ['Pay Yourself First', 'concept']],
     links: 9,
@@ -75,6 +89,16 @@ const DECK = [
       'On a day with no energy, set the bar at a version so small it cannot fail: one page, one set, one line.',
       'The point is continuity of identity, not output. The floor is what you do; the ceiling is whatever the day allows after it.',
     ],
+    summary: {
+      synthesis: 'On a day you have nothing, do the smallest version that still counts. The floor keeps the habit alive for tomorrow.',
+      provenance: 'An essay in Field Notes on Work',
+      minutesIn: null, sourceTime: null, origin: null,
+      keyPoints: [
+        { term: 'The floor', line: 'A version so small it cannot fail: one page, one set, one line.' },
+        { term: 'The ceiling', line: 'Whatever the day allows once the floor is done.' },
+      ],
+      reflection: 'On your lowest-energy day this week, what was the floor, and did you hold it?',
+    },
     source: { title: 'Field Notes on Work', ep: '', kind: 'article', time: null, url: null, extra: 0 },
     connected: [['Compounding Habits', 'concept'], ['Identity Habits', 'concept']],
     links: 5,
@@ -87,10 +111,50 @@ const DECK = [
       'A block of time with no inputs: no feeds, no messages, no audio.',
       'Written as your own note; there is no source on the page.',
     ],
+    // no source and nothing about him to tie it to: no provenance, no reflection
+    summary: {
+      synthesis: 'A protected block with no inputs at all. Connections between ideas tend to arrive when nothing new is coming in.',
+      provenance: null, minutesIn: null, sourceTime: null, origin: null,
+      keyPoints: [{ term: 'No inputs', line: 'No feeds, no messages, no audio for the length of the block.' }],
+      reflection: null,
+    },
     source: null,
     connected: [['Attention Residue', 'concept'], ['Deep Work Blocks', 'concept'], ['Evening Routine', 'topic']],
     links: 4,
     history: [],
+  },
+];
+
+// BREAK-UI (?reviewDemo=worst): the realistic worst case, invented. A long
+// concept name, no provenance, no reflection, the most key points the
+// validator allows, a long connected title, and a page with no summary.
+const WORST = [
+  {
+    id: 'demo-worst-long', title: 'Second-Order Consequences of Optimising for Short-Term Comfort Over Long-Term Capability', type: 'concept',
+    gist: 'Choosing what feels easy today tends to make tomorrow harder in ways that are hard to see.',
+    note: ['Invented for the worst-case demo.'],
+    summary: {
+      synthesis: 'Choosing comfort now compounds into lost capability later. The cost is real but arrives so slowly that it rarely gets traced back to the choice. Naming the trade makes it visible.',
+      provenance: null, minutesIn: null, sourceTime: null, origin: null,
+      keyPoints: [
+        { term: 'First-order effect', line: 'What the choice does today.' },
+        { term: 'Second-order effect', line: 'What the choice does to the next hundred choices.' },
+        { term: 'Invisible cost', line: 'A loss that arrives too slowly to be traced back.' },
+        { term: 'Capability', line: 'What you can do when it matters, built by the uncomfortable reps.' },
+        { term: 'Naming the trade', line: 'Saying out loud what you are giving up makes it a decision rather than a drift.' },
+      ],
+      reflection: null,
+    },
+    source: null,
+    connected: [['A Very Long Connected Note Title About Delayed Gratification and Identity Formation', 'concept']],
+    links: 1,
+    history: [[-3, 'got']],
+  },
+  {
+    id: 'demo-worst-nosummary', title: 'Jo', type: 'concept',
+    gist: null, note: ['A one-word concept with no summary at all.'], summary: null,
+    source: { title: 'Untitled source', ep: '', kind: null, time: null, url: null, extra: 0 },
+    connected: [], links: 0, history: [],
   },
 ];
 
@@ -122,6 +186,7 @@ function itemFrom(card, today, answers) {
     linkCount: card.links,
     history, step, due,
     note: card.note,
+    summary: card.summary || null,
     demo: true,
   };
 }
@@ -133,7 +198,8 @@ export function demoReviewToday({ today = localISO(), answers = {}, scenario = n
   if (scenario === 'nothing-due') {
     return { date: today, items: [], total: 0, doneCount: 0, dueCount: 0, ahead, nextDue: { date: shiftISO(today, 2), count: 2 }, demo: true };
   }
-  const items = DECK.map((c) => itemFrom(c, today, answers));
+  const deck = scenario === 'worst' ? WORST : DECK;
+  const items = deck.map((c) => itemFrom(c, today, answers));
   return {
     date: today, items, total: items.length,
     doneCount: items.filter((i) => i.answered).length,
@@ -151,6 +217,6 @@ export function demoScenarioFromUrl() {
   if (typeof window === 'undefined') return null;
   try {
     const s = new URLSearchParams(window.location.search).get('reviewDemo');
-    return s === 'nothing-due' || s === 'offline' ? s : null;
+    return s === 'nothing-due' || s === 'offline' || s === 'worst' ? s : null;
   } catch { return null; }
 }

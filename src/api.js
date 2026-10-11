@@ -449,6 +449,9 @@ export const api = {
   // THE DAILY REVIEW — the forgetting-curve queue (server/lib/conceptReview.js).
   // The pick lives on the server alone now; this is the only read.
   reviewToday: (conn) => call(conn, '/api/review/today'),
+  // the structured summary (mockup 98): { summary } from cache, else { jobId }
+  reviewSummary: (conn, id) => post(conn, '/api/review/summary', { id }),
+  reviewSummaryJob: (conn, jobId) => call(conn, `/api/review/summary/${encodeURIComponent(jobId)}`),
   reviewAnswer: (conn, pageId, grade) => post(conn, '/api/review/answer', { pageId, grade }),
   reviewDraw: (conn) => call(conn, '/api/review/draw'),
   reviewItem: (conn, id) => call(conn, `/api/review/item?id=${encodeURIComponent(id)}`),

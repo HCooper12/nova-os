@@ -585,7 +585,7 @@ export default class App extends Component {
         return f && Date.now() - f.endsAt < 2 * 3600_000 ? f : null;
       } catch { return null; }
     })(),
-    liveReviewSummaries: {},
+    liveReviewSummaries: {}, liveReviewStructured: {}, reviewGradesOpen: false,
     liveFoodLog: null, liveFoodHistory: null, liveNutritionMonth: null, foodHistoryOpen: false,
     // PICK IT UP — the chain + supermarket finder on Fuel. Budget fields are
     // strings ('' = blank = ignored); until he edits one, the vals prefill
@@ -5118,7 +5118,28 @@ export default class App extends Component {
       this.setState((s) => ({ liveNoteDetails: { ...s.liveNoteDetails, [id]: { error: true } } }));
     }).finally(() => this.noteDetailInFlight.delete(id));
   }
+  // THE STRUCTURED SUMMARY first (mockup 98, server/lib/reviewSummary.js):
+  // written once per page body and cached on the Mac. If it fails or its
+  // output does not validate, the plain note summary stands in, with no
+  // structure faked around it.
   ensureReviewSummary(pageId) {
+    const conn = getConnection();
+    const have = this.state.liveReviewStructured?.[pageId];
+    if (!conn || !pageId || have !== undefined) return;
+    const put = (v) => this.setState((s) => ({ liveReviewStructured: { ...s.liveReviewStructured, [pageId]: v } }));
+    const fail = () => { put(''); this.ensurePlainReviewSummary(pageId); };
+    put(null); // null = loading
+    api.reviewSummary(conn, pageId).then((res) => {
+      if (res.summary) { put(res.summary); return; }
+      if (!res.jobId) { fail(); return; }
+      this.startPoll(`rvsum:${pageId}`, () => api.reviewSummaryJob(conn, res.jobId), {
+        intervalMs: 1500,
+        onReady: (job) => put(job.result.summary),
+        onError: fail,
+      });
+    }).catch(fail);
+  }
+  ensurePlainReviewSummary(pageId) {
     const conn = getConnection();
     if (!conn || !pageId || this.state.liveReviewSummaries[pageId] !== undefined) return;
     this.setState((s) => ({ liveReviewSummaries: { ...s.liveReviewSummaries, [pageId]: null } })); // null = loading
@@ -5261,9 +5282,38 @@ export default class App extends Component {
       this.toastMsg(`Could not save that answer: ${e.message}`);
     });
   }
+  // "···" on the Home card (mockup 98, his call): the three recall grades
+  // sit behind it; the full view always shows them
+  toggleReviewGrades() {
+    haptic('tick');
+    this.setState((s) => ({ reviewGradesOpen: !s.reviewGradesOpen }));
+  }
+  // SHUFFLE, in the full view only (his call, mockup 98): another of
+  // today's unanswered pages if there is one, else one drawn from the
+  // never-reviewed pool, which enters as new the moment he answers it
+  shuffleReview(nextId, demo = false) {
+    haptic('tick');
+    if (nextId) {
+      this.setState({ reviewOpenId: nextId, reviewDrawnExtra: null, reviewJust: null, reviewGradesOpen: false });
+      this.ensureNoteDetail(nextId); this.ensureReviewSummary(nextId);
+      return;
+    }
+    if (demo) {
+      const item = demoDrawn(localISO(), this.state.reviewDemoAnswers);
+      this.setState({ reviewDrawnExtra: item, reviewOpenId: item.id, reviewJust: null, reviewGradesOpen: false });
+      return;
+    }
+    const conn = getConnection();
+    if (!conn || this.state.reviewDrawBusy) return;
+    this.setState({ reviewDrawBusy: true });
+    api.reviewDraw(conn).then(({ item }) => {
+      this.ensureNoteDetail(item.id); this.ensureReviewSummary(item.id);
+      this.setState({ reviewDrawBusy: false, reviewDrawnExtra: item, reviewOpenId: item.id, reviewJust: null, reviewGradesOpen: false });
+    }).catch((e) => { this.setState({ reviewDrawBusy: false }); this.toastMsg('Could not draw another concept: ' + e.message); });
+  }
   // Next after an answer: only moves on (the answer is already written)
   reviewNext() {
-    this.setState((s) => ({ reviewJust: null, reviewOpenId: null, reviewDrawnExtra: s.reviewJust && s.reviewDrawnExtra?.id === s.reviewJust.id ? null : s.reviewDrawnExtra }));
+    this.setState((s) => ({ reviewGradesOpen: false, reviewJust: null, reviewOpenId: null, reviewDrawnExtra: s.reviewJust && s.reviewDrawnExtra?.id === s.reviewJust.id ? null : s.reviewDrawnExtra }));
   }
   openDailyReview() {
     const item = this.currentReviewItem();
@@ -5364,7 +5414,7 @@ export default class App extends Component {
       ...cleared,
       connectionStatus: 'demo', lastSyncAt: null,
       settingsBaseUrl: '', settingsToken: '', settingsTestStatus: 'idle', settingsTestMessage: '',
-      liveNoteDetails: {}, liveReviewSummaries: {}, liveRecipePhotoUrls: {}, liveRecipesEmpty: false,
+      liveNoteDetails: {}, liveReviewSummaries: {}, liveReviewStructured: {}, liveRecipePhotoUrls: {}, liveRecipesEmpty: false,
       rotationShowExtra: false, recipeAddOpen: false, openNoteId: 'n1',
       // workoutSession deliberately NOT cleared: nulling it here made the
       // mirror delete the draft — a reconnect cycle (the PWA's occasional
