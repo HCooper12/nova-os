@@ -93,3 +93,15 @@ test('the prompt starts with NOVA_LENS and states the rules', () => {
   assert.match(p, /NEVER mention minutes/);
   assert.match(p, /ONLY if the text below says so/);
 });
+
+test('an over-long reflection keeps its opening sentences, never fails the summary', async () => {
+  const { validateReviewSummary, LIMITS } = await import('../lib/reviewSummary.js');
+  const first = 'What would change this week if you treated it as owed?';
+  const raw = { synthesis: 'One idea, said plainly.', provenance: null, origin: null,
+    keyPoints: [{ term: 'Principal', line: 'The thing deferred.' }],
+    reflection: `${first} ${'And then a much longer tail that runs on. '.repeat(12)}` };
+  const r = validateReviewSummary(raw, { text: 'One idea said plainly.' });
+  assert.equal(r.ok, true);
+  assert.ok(r.value.reflection.startsWith(first));
+  assert.ok(r.value.reflection.length <= LIMITS.reflection);
+});

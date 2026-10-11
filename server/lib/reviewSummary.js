@@ -110,8 +110,18 @@ export function validateReviewSummary(raw, input = {}) {
   let origin = raw.origin == null ? null : (clean(raw.origin) || null);
   if (origin && (origin.length > LIMITS.origin || !originGrounded(origin, input.text))) origin = null;
   // reflection: optional; nothing rather than a generic line
-  const reflection = raw.reflection == null ? null : (clean(raw.reflection) || null);
-  if (reflection && reflection.length > LIMITS.reflection) return { ok: false, reason: 'reflection too long' };
+  // Too long: keep the opening sentences that fit, or drop it. A long
+  // reflection never costs him the whole summary (it did, first live run).
+  let reflection = raw.reflection == null ? null : (clean(raw.reflection) || null);
+  if (reflection && reflection.length > LIMITS.reflection) {
+    let kept = '';
+    for (const sentence of reflection.split(/(?<=[.!?])\s+/)) {
+      const next = kept ? `${kept} ${sentence}` : sentence;
+      if (next.length > LIMITS.reflection) break;
+      kept = next;
+    }
+    reflection = kept || null;
+  }
   const minutesIn = input.sourceTime ? minutesFromTime(input.sourceTime) : null;
   return { ok: true, value: { synthesis, provenance, minutesIn, sourceTime: minutesIn == null ? null : input.sourceTime, origin, keyPoints, reflection } };
 }
@@ -144,7 +154,7 @@ His standing rules; break none:
 - provenance: one short line naming who put the idea and where (person, show or publication, episode), only as the page or source says it. NEVER mention minutes, a timestamp or a time; code adds the real one. null if the page names no source.
 - origin: where the concept itself came from, ONLY if the text below says so (a tradition, an older text, a person the speakers credit). State that attribution plainly. If the text does not say, null. Never use your own knowledge.
 - keyPoints: 1 to 5 entries; term is a short key term (2 to 4 words, no markdown), line is one plain sentence explaining it.
-- reflection: one question or comment that applies this idea to HIS life now, grounded in the facts about him below. Never generic. If the facts give nothing real to tie it to, null.
+- reflection: one question or comment, under 40 words, that applies this idea to HIS life now, grounded in the facts about him below. Never generic. If the facts give nothing real to tie it to, null.
 - No markdown, no code fences, no em dashes.
 
 Concept: "${title}"
