@@ -78,8 +78,8 @@ const CSS = `
 .nv-skl-pips i.on{background:var(--hue);transform:scale(1.5)}
 .nv-skl-hint{position:absolute;left:16px;right:16px;text-align:center;font:italic 400 13px var(--nv-font-serif);color:var(--nv-ink40);z-index:5;transition:opacity 200ms}
 .nv-skl-busy{position:absolute;left:50%;transform:translateX(-50%);z-index:6;font:600 10px var(--nv-font-mono);letter-spacing:.06em;color:var(--hue);background:var(--nv-glass);border:1px solid color-mix(in srgb,var(--hue) 40%,transparent);border-radius:999px;padding:4px 10px;pointer-events:none;text-align:center;line-height:1.4;transition:opacity 200ms}
-.nv-skl-chrbox{position:absolute;inset:0;pointer-events:none;z-index:3}
-.nv-skl.open .nv-skl-chrbox{z-index:9}
+.nv-skl-chrbox{position:absolute;inset:0;pointer-events:none;z-index:3;clip-path:inset(var(--stage-t,0px) 0 0 0)}
+.nv-skl.open .nv-skl-chrbox{z-index:9;clip-path:none}
 canvas.nv-skl-chr{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 .nv-skl-modal{position:absolute;inset:0;z-index:8}
 .nv-skl-sheet{position:absolute;left:0;right:0;bottom:0;border-radius:28px 28px 0 0;background:var(--nv-glass2);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);
@@ -522,7 +522,7 @@ export function SkillSets({ v }) {
         <b>Agents</b>
         <span>{v.workingLine || (v.state === 'offline' ? 'CAN’T REACH YOUR MAC' : v.state === 'error' ? 'COULD NOT READ YOUR MAC' : '')}{v.demo && <span className="demo">DEMO</span>}</span>
       </div>
-      <div ref={canvasRef} className="nv-skl-chrbox" style={{ display: no3d || loading ? 'none' : 'block' }} />
+      <div ref={canvasRef} className="nv-skl-chrbox" style={{ display: no3d || loading ? 'none' : 'block', '--stage-t': `${g.STAGE_T}px` }} />
       <div className="nv-skl-stage" style={{ top: g.STAGE_T, height: sh, perspective: `${g.P}px` }}>
         <div className="nv-skl-floor" style={{ top: g.wide ? 470 : 380 }} />
         {v.agents.map((a, i) => <Slab key={a.id} a={a} i={i} g={g} portrait={portraits[a.id]} loading={loading} demo={v.demo} />)}
