@@ -8,7 +8,7 @@ import { GlassSheet } from '../GlassSheet.jsx';
 import { StageCard } from '../StageCard.jsx';
 import { useLongPress } from '../longPress.js';
 import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
-import { stateOf, threadRows, clock, failedLast } from '../novaThreadFacts.js';
+import { stateOf, threadRows, openingIndex, clock, failedLast } from '../novaThreadFacts.js';
 import { Ico, Glyph, Stage, Settled, KeptTake, Meter } from '../NovaThreadParts.jsx';
 import { NovaFocus } from '../NovaFocus.jsx';
 
@@ -187,19 +187,31 @@ export function NovaThread({ v }) {
 
   // ---- the rows ----
   const tk = useMemo(() => takes.map((t) => ({ ...t, time: clock(t.at) })), [takes]);
-  const rows = useMemo(() => threadRows(T.lines, { takes: tk, nameOf: T.nameOf }), [T.lines, tk, T.nameOf]);
+  // what he had seen when he opened the page decides what folds and where
+  // it opens; read once, so a line he reads now does not fold under him
+  const seenAtOpen = useMemo(() => readSeen(), []);
+  const rows = useMemo(() => threadRows(T.lines, { takes: tk, nameOf: T.nameOf, seenAt: seenAtOpen }), [T.lines, tk, T.nameOf, seenAtOpen]);
+  const opening = useMemo(() => openingIndex(T.lines, seenAtOpen), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---- opening: always at the foot (12 Oct, his call) ----
-  // It used to open at the first line he had not seen, so after a brief he
-  // landed mid-thread and scrolled down to catch up. Now it opens on the
-  // newest line, and holds the foot while late cards (the stage, images)
-  // finish drawing, until he scrolls himself.
+  // ---- opening (12 Oct, his rule): at the first answer he has not read,
+  // his question above it; else at the foot. The brief and Nova's unprompted
+  // check-ins are folded and never count as unread. At the foot, it holds
+  // there while late cards (the stage, images) finish drawing, until he
+  // scrolls himself.
   const atFoot = () => { const m = mainRef.current; return !m || m.scrollHeight - m.scrollTop - m.clientHeight < 96; };
   useLayoutEffect(() => {
     const m = rootRef.current?.closest('main');
     mainRef.current = m;
     firstPaint.current = false;
     if (!m) return undefined;
+    let target = opening != null ? rootRef.current.querySelector(`[data-line="${opening}"]`) : null;
+    while (target?.previousElementSibling?.classList.contains('nv-nt-day')) target = target.previousElementSibling;
+    if (target) {
+      const headBottom = headRef.current?.getBoundingClientRect().bottom || 0;
+      m.scrollTop = Math.max(0, m.scrollTop + target.getBoundingClientRect().top - headBottom - 16);
+      wasAtFoot.current = false;
+      return undefined;
+    }
     m.scrollTop = m.scrollHeight;
     wasAtFoot.current = true;
     if (typeof ResizeObserver === 'undefined') return undefined;
@@ -330,17 +342,17 @@ export function NovaThread({ v }) {
         {rows.map((r) => {
           if (r.type === 'day') return <span key={r.key} className="nv-nt-day">{r.text}</span>;
           if (r.type === 'door') return <span key={r.key} className="nv-nt-day door"><Ico name="nova" />{r.text}</span>;
-          if (r.type === 'brief') {
+          if (r.type === 'fold') {
             // the brief still running stays open; a finished one folds away
             const live = r === rows[rows.length - 1] && (T.speaking || T.busy);
             const open = live || openBriefs.has(r.key);
             return (
-              <div key={r.key} className={`nv-nt-brief${open ? ' open' : ''}`}>
+              <div key={r.key} className={`nv-nt-brief ${r.kind}${open ? ' open' : ''}`}>
                 <button type="button" className="nv-nt-briefhead" aria-expanded={open}
                   onClick={() => setOpenBriefs((o) => { const n = new Set(o); if (n.has(r.key)) n.delete(r.key); else n.add(r.key); return n; })}>
-                  <Ico name="sun" />
+                  <Ico name={r.kind === 'brief' ? 'sun' : 'nova'} />
                   <span className="t"><b>{r.title}</b>{r.date && <span>{r.date}</span>}</span>
-                  <span className="n">{r.items.length} {r.items.length === 1 ? 'beat' : 'beats'}</span>
+                  <span className="n">{r.items.length} {r.kind === 'brief' ? (r.items.length === 1 ? 'beat' : 'beats') : (r.items.length === 1 ? 'message' : 'messages')}</span>
                   <Ico name="chev" className="nv-nt-briefchev" />
                 </button>
                 <div className="nv-nt-briefbody"><div>

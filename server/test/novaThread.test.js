@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   firstUnseenIndex, newestAt, sentenceCase, glassSnapshot, panelsOf, settleStage, gistOf, stageLine, stateOf, coreFormOf,
-  doorOf, bylineOf, threadRows, keptTake, takeClock, failWords, takesAdd, takesRemove, takesPatch, failedLast, dayLabel,
+  doorOf, bylineOf, threadRows, lineKinds, openingIndex, keptTake, takeClock, failWords, takesAdd, takesRemove, takesPatch, failedLast, dayLabel,
 } from '../../src/novaThreadFacts.js';
 import { valsNovaThread } from '../../src/vals/valsNovaThread.js';
 import { bubbleProse } from '../../src/bubbleProse.js';
@@ -451,8 +451,31 @@ test('a brief folds into one drop-down row named for its day', () => {
     { at: at + 3000, who: 'you', text: 'Yes' },
   ];
   const rows = threadRows(lines, { now: at + 5000 });
-  assert.deepEqual(rows.map((r) => r.type), ['day', 'brief', 'line', 'line']);
-  assert.deepEqual(rows[1].items, [0, 1]);
+  assert.deepEqual(rows.map((r) => r.type), ['day', 'fold', 'line']);
+  assert.deepEqual(rows[1].items, [0, 1, 2]);
   assert.equal(rows[1].title, 'Morning brief');
   assert.equal(rows[1].date, 'Mon 12 Oct');
+});
+
+test('folds: an old brief is known by its cards, check-ins fold, answers and waiting questions stay open', () => {
+  const d = (h, m = 0) => new Date(2026, 9, 12, h, m).getTime();
+  const lines = [
+    { at: d(7, 8), who: 'nova', text: 'Good morning, sir.', settled: { panels: [] } },
+    { at: d(7, 9), who: 'nova', text: 'Keep an eye on the shoulder.' },
+    { at: d(7, 9), who: 'nova', text: 'Keep it on your list?', ask: true },
+    { at: d(12, 6), who: 'nova', text: 'Good afternoon, sir.' },
+    { at: d(15, 7), who: 'nova', text: 'Sir, you are back.' },
+    { at: d(16, 0), who: 'you', text: 'What did I eat?' },
+    { at: d(16, 0) + 5000, who: 'nova', text: 'Oats and eggs.', settled: { panels: [] } },
+    { at: d(18, 9), who: 'nova', text: 'Good evening, sir.' },
+  ];
+  const seenAt = d(17);
+  assert.deepEqual(lineKinds(lines, { seenAt }), ['brief', 'brief', null, 'quiet', 'quiet', null, null, null]);
+  const rows = threadRows(lines, { now: d(19), seenAt });
+  assert.deepEqual(rows.map((r) => r.type === 'fold' ? `${r.kind}:${r.items.length}` : r.type), ['day', 'brief:2', 'line', 'quiet:2', 'line', 'line', 'line']);
+  assert.equal(rows[1].title, 'Morning brief');
+  // the unread evening greeting is not an answer: the thread opens at the foot
+  assert.equal(openingIndex(lines, seenAt), null);
+  // read before his question: open on his question, with the answer under it
+  assert.equal(openingIndex(lines, d(15, 30)), 5);
 });

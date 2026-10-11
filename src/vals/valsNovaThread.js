@@ -50,7 +50,7 @@ export function valsNovaThread(app, ctx, v) {
       : who === 'nova' && m.card ? (() => { const s0 = settleStage([m.card]); return s0 ? { ...s0, gists: [], panels: [m.card] } : null; })()
       : null;
     return {
-      at: m.at, who, agent: AGENT[m.who] || null, text, brief: m.brief || null,
+      at: m.at, who, agent: AGENT[m.who] || null, text, brief: m.brief || null, ask: !!m.briefAsk,
       typing: !!m.typing, streaming: !!m.streaming,
       time: Number.isFinite(m.at) ? clock(m.at) : null,
       where: Number.isFinite(m.at) ? whereLabel(m, { device: THIS_DEVICE }) : null,

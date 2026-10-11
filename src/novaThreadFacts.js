@@ -321,10 +321,64 @@ export function bylineOf(m) {
   return { by: m.by ? String(m.by) : null, from: m.from ? String(m.from) : null };
 }
 
+// WHAT FOLDS (12 Oct, his rule). His questions and Nova's answers to them
+// stay in the open; anything that waits on him stays in the open. What Nova
+// said unprompted folds away: a brief's beats into "Morning brief · Mon 12
+// Oct", and the day's other check-ins into one quiet drop-down, unless he
+// has not seen them yet. A brief written before beats were marked (before
+// 12 Oct) is known by its cards: an unprompted line with a settled stage.
+const ANSWER_RUN = 10 * 60_000;   // a reply keeps answering him for this long
+const BRIEF_RUN = 5 * 60_000;     // an unmarked beat joins the brief above it
+const waitsOnHim = (m) => !!(m.streaming || m.typing || m.acted || m.proposal || m.planReport || m.research || m.notice || m.evidence || m.ask);
+export function lineKinds(lines, { seenAt = null } = {}) {
+  const list = lines || [];
+  const out = new Array(list.length).fill(null);
+  let prev = null; // { who, prompted, at }
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i] || {};
+    if (m.who === 'system') continue;
+    if (m.who !== 'nova') { prev = { who: 'you', at: m.at }; continue; }
+    const prompted = !!prev && (prev.who === 'you' || (prev.prompted && Number.isFinite(m.at) && Number.isFinite(prev.at) && m.at - prev.at < ANSWER_RUN));
+    prev = { who: 'nova', prompted, at: m.at };
+    if (waitsOnHim(m)) continue;
+    if (m.brief) { out[i] = 'brief'; continue; }
+    if (prompted) continue;
+    if (m.settled) { out[i] = 'brief'; continue; }
+    const before = i > 0 ? out[i - 1] : null;
+    if (before === 'brief' && Number.isFinite(m.at) && Number.isFinite(list[i - 1]?.at) && m.at - list[i - 1].at < BRIEF_RUN) { out[i] = 'brief'; continue; }
+    if (Number.isFinite(seenAt) && Number.isFinite(m.at) && m.at > seenAt) continue;
+    out[i] = 'quiet';
+  }
+  return out;
+}
+
+// where the thread opens: the first answer he has not read (with his
+// question above it); null means the foot. Folded lines never count.
+export function openingIndex(lines, seenAt) {
+  if (!Number.isFinite(seenAt)) return null;
+  const list = lines || [];
+  const kinds = lineKinds(list, { seenAt });
+  for (let i = 0; i < list.length; i++) {
+    const m = list[i];
+    if (m?.who !== 'nova' || kinds[i] || !Number.isFinite(m.at) || m.at <= seenAt) continue;
+    // only an answer to him: walk back over Nova's run to his question
+    let j = i;
+    while (j > 0 && list[j - 1]?.who === 'nova' && list[j].at - list[j - 1].at < ANSWER_RUN) j--;
+    if (list[j - 1]?.who !== 'you') continue;
+    while (j > 0 && list[j - 1]?.who === 'you') j--;
+    return j;
+  }
+  return null;
+}
+
+const variantAt = (at) => { const h = Number.isFinite(at) ? new Date(at).getHours() : 12; return h < 12 ? 'morning' : h >= 17 ? 'evening' : ''; };
+
 // The thread as rows: a day heading where the day changes, a door marker at
-// the start of a run said through another door, the lines, and the kept
-// recordings in time order among them. Pure: the component draws it.
-export function threadRows(lines, { takes = [], now = Date.now(), nameOf } = {}) {
+// the start of a run said through another door, the lines, folds for what
+// Nova said unprompted, and the kept recordings in time order among them.
+// Pure: the component draws it.
+export function threadRows(lines, { takes = [], now = Date.now(), nameOf, seenAt = null } = {}) {
+  const kinds = lineKinds(lines, { seenAt });
   const items = [
     ...(lines || []).map((m, i) => ({ type: 'line', at: m.at, i, m })),
     ...(takes || []).map((t) => ({ type: 'take', at: t.at, t })),
@@ -337,17 +391,25 @@ export function threadRows(lines, { takes = [], now = Date.now(), nameOf } = {})
   let lastDay = null;
   let lastDoor = null;
   for (const x of sorted) {
+    const kind = x.type === 'line' ? kinds[x.i] : null;
+    const last = rows[rows.length - 1];
+    if (kind && last?.type === 'fold' && last.kind === kind && (kind === 'quiet' || last.day === dayLabel(x.at, now))) {
+      // a quiet fold runs across days; its day headings fold with it
+      last.items.push(x.i);
+      if (Number.isFinite(x.at)) { last.lastAt = x.at; lastDay = dayLabel(x.at, now); }
+      continue;
+    }
     if (Number.isFinite(x.at)) {
       const day = dayLabel(x.at, now);
       if (day !== lastDay) { rows.push({ type: 'day', key: `day:${day}:${x.at}`, text: day }); lastDay = day; lastDoor = null; }
     }
-    // THE BRIEF, FOLDED (12 Oct, his ask): a brief's beats are one row, a
-    // drop-down named for its day, so its cards stop filling the scroll. A
-    // run of beats from one brief on one day joins the group above it.
-    if (x.type === 'line' && x.m.brief) {
-      const last = rows[rows.length - 1];
-      if (last?.type === 'brief' && last.variant === x.m.brief) { last.items.push(x.i); continue; }
-      rows.push({ type: 'brief', key: `brief:${x.m.brief}:${x.at ?? x.i}`, variant: x.m.brief, title: briefTitle(x.m.brief), date: briefDate(x.at), items: [x.i] });
+    if (kind) {
+      const variant = kind === 'brief' ? (x.m.brief || variantAt(x.at)) : null;
+      rows.push({
+        type: 'fold', kind, key: `fold:${kind}:${x.at ?? x.i}`, variant,
+        title: kind === 'brief' ? briefTitle(variant) : 'From Nova', date: briefDate(x.at),
+        day: Number.isFinite(x.at) ? dayLabel(x.at, now) : null, firstAt: x.at, lastAt: x.at, items: [x.i],
+      });
       lastDoor = null;
       continue;
     }
@@ -361,6 +423,8 @@ export function threadRows(lines, { takes = [], now = Date.now(), nameOf } = {})
       rows.push({ type: 'take', key: `take:${x.t.id}`, id: x.t.id });
     }
   }
+  // a quiet fold that spans days names its range
+  for (const r of rows) if (r.type === 'fold' && r.kind === 'quiet' && briefDate(r.lastAt) !== r.date) r.date = `${r.date} to ${briefDate(r.lastAt)}`;
   return rows;
 }
 

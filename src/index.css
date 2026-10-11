@@ -5621,3 +5621,6 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
   .nv-bf-doc, .nv-bf-player, .nv-bf-rnav { animation: fadeIn .25s ease both; }
 }
 /* end of the Briefing */
+/* the quiet fold: Nova's unprompted check-ins, in his own cyan, quieter than a brief */
+.nv-nt-brief.quiet .nv-nt-briefhead > .nv-nt-ico:first-child { color: var(--nv-cy); }
+.nv-nt-brief.quiet .nv-nt-briefhead .t { font-weight: 500; }
