@@ -29,28 +29,34 @@ const keys = (t, ks) => {
 };
 
 // ---- the Coach --------------------------------------------------------------
-// a clean and press: bend and grip the bar, pull it to the shoulders, press
-// it overhead, hold, and lower it back to the floor
+// a clean and press: bend and grip the bar where it lies, pull it to the
+// shoulders, press it up in front of the face, and lower it back down. The
+// bar's path is VERTICAL and a hand in front of him (his 11 Oct note: it
+// went through his body): the hands are written in the hinged body's frame,
+// with the hinge undone, so the bend never swings the bar into his chest.
+// The bar itself rides the hand bones (./propRig.js, mode `hands`).
 function cleanPress(rig, t, ctx) {
-  const by = keys(t, [[0, 0.14], [0.14, 0.14], [0.3, 0.5], [0.42, 0.5], [0.55, 1.08], [0.68, 1.08], [0.8, 0.5], [0.88, 0.5], [1, 0.14]]);
-  const bz = keys(t, [[0, 0.42], [0.14, 0.36], [0.3, 0.2], [0.42, 0.2], [0.55, 0.06], [0.68, 0.06], [0.8, 0.2], [0.88, 0.2], [1, 0.42]]);
-  const grip = env(t, 0.1, 0.92);
+  const Y = keys(t, [[0, 0.1], [0.1, 0.1], [0.3, 0.44], [0.42, 0.44], [0.55, 0.72], [0.68, 0.72], [0.8, 0.44], [0.88, 0.44], [1, 0.1]]);
+  const Z = 0.42;
+  const grip = env(t, 0.08, 0.92);
   // the hinge: down to the bar, up with it, a dip before the press
-  const bend = keys(t, [[0, 0], [0.12, 0.32], [0.22, 0.12], [0.3, 0], [0.44, 0], [0.48, 0.05], [0.55, -0.04], [0.68, -0.04], [0.8, 0], [0.9, 0.3], [1, 0]]);
-  const drop = keys(t, [[0, 0], [0.12, -0.08], [0.3, 0], [0.44, 0], [0.48, -0.04], [0.55, 0], [0.88, 0], [0.94, -0.07], [1, 0]]);
+  const bend = keys(t, [[0, 0], [0.1, 0.42], [0.22, 0.15], [0.3, 0], [0.44, 0], [0.48, 0.05], [0.55, -0.03], [0.68, -0.03], [0.8, 0], [0.9, 0.42], [1, 0]]);
+  const drop = keys(t, [[0, 0], [0.1, -0.08], [0.3, 0], [0.44, 0], [0.48, -0.04], [0.55, 0], [0.88, 0], [0.92, -0.07], [1, 0]]);
   ctx.body({ pitch: bend, y: drop });
-  const over = by > 0.7 ? 1 : 0;
-  ctx.arm('L', [-0.2, by, bz], over ? [-1, 0.2, -0.3] : [-0.25, -0.5, -1], [0, 1, 0.3], grip);
-  ctx.arm('R', [0.2, by, bz], over ? [1, 0.2, -0.3] : [0.25, -0.5, -1], [0, 1, 0.3], grip);
-  ctx.prop('bar', grip);
+  const c = Math.cos(bend), sn = Math.sin(bend), yw = Y - drop;
+  const yl = yw * c + Z * sn, zl = -yw * sn + Z * c;
+  const over = Y > 0.6 ? 1 : 0;
+  ctx.arm('L', [-0.2, yl, zl], over ? [-1, 0.2, -0.3] : [-0.25, -0.5, -1], [0, 1, 0.3], grip);
+  ctx.arm('R', [0.2, yl, zl], over ? [1, 0.2, -0.3] : [0.25, -0.5, -1], [0, 1, 0.3], grip);
   // the face strains under it and grins at the lockout
   ctx.head(0, keys(t, [[0, 0.2], [0.14, 0.25], [0.3, 0], [0.55, -0.12], [0.68, -0.12], [0.8, 0], [1, 0.1]]) * env(t, 0.1, 0.9), 0);
   ctx.face({ smile: bump(t, 0.62, 0.1) });
 }
-// push-ups, side on: down into a plank, three reps, and back up
+// push-ups, side on, a step away from the bar: down into a plank, three
+// reps, and back up (the track walks him there and back)
 function pushups(rig, t, ctx) {
-  const k = env(t, 0.14, 0.86);
-  const rep = Math.max(0, Math.sin(clamp01((t - 0.16) / 0.68) * Math.PI * 3));
+  const k = env(t, 0.16, 0.74);
+  const rep = Math.max(0, Math.sin(clamp01((t - 0.18) / 0.52) * Math.PI * 3));
   const th = (1.3 + 0.14 * rep) * k;
   ctx.body({ pitch: th });
   const s = Math.sin(th), c = Math.cos(th);
@@ -62,15 +68,35 @@ function pushups(rig, t, ctx) {
   });
   ctx.head(0, -0.25 * k, 0);
 }
-// squats, arms out in front for balance
+// back squats: the bar comes up off the floor, over his head onto his
+// shoulders (the hands follow it there, ./propRig.js), three reps, and
+// back down to the floor
 function squats(rig, t, ctx) {
-  const k = env(t, 0.12, 0.88);
-  const rep = Math.max(0, Math.sin(clamp01((t - 0.1) / 0.8) * Math.PI * 3));
+  const k = env(t, 0.22, 0.78);
+  const rep = Math.max(0, Math.sin(clamp01((t - 0.24) / 0.52) * Math.PI * 3));
   ctx.body({ y: -0.12 * rep * k, pitch: 0.22 * rep * k });
-  ['L', 'R'].forEach((side) => {
-    const sx = side === 'L' ? -1 : 1;
-    ctx.arm(side, [sx * 0.15, 0.5 + 0.04 * rep, 0.4], [sx, -0.5, -0.3], [0, -1, 0.2], k);
-  });
+  ctx.head(0, -0.08 * rep * k, 0);
+  ctx.face({ smile: 0.3 * bump(t, 0.5, 0.3) });
+}
+// barbell lunges round the slab: the bar on his back (worn), each step a
+// lunge (the drop is the gait's, stageCore); a grin when he is home
+function lungeRound(rig, t, ctx) {
+  ctx.head(0, -0.06 * env(t, 0.15, 0.85), 0);
+  ctx.face({ smile: bump(t, 0.9, 0.06) * 0.6 });
+}
+// dragging the bar round by one end: leaning into it, and three stalls
+// where he heaves at it, face screwed up
+const DRAG_STALLS = [[1.6, 2.3], [4.4, 5.2], [7.4, 7.9]].map(([a, b]) => [a / 9.4, b / 9.4]);
+function dragRound(rig, t, ctx) {
+  const k = env(t, 0.06, 0.92);
+  let heave = 0;
+  for (const [a, b] of DRAG_STALLS) heave = Math.max(heave, bump(t, (a + b) / 2, (b - a) / 2 + 0.02));
+  const tug = Math.sin(t * 9.4 * 9) * 0.5 + 0.5;
+  ctx.body({ pitch: (0.16 + 0.2 * heave * tug) * k, roll: -0.04 * heave * k });
+  ctx.head(0.15 * heave * Math.sin(t * 40) * k, -0.1 * k, 0);
+  ctx.face({ lid: 0.3 * heave * k, smile: 0 });
+  // the free hand flails a little with each heave
+  ctx.arm('L', [-0.3, 0.42 + 0.08 * heave * tug, 0.1], [-1, -0.2, -0.4], [1, 0, 0.2], heave * k);
 }
 
 // ---- the Librarian ---------------------------------------------------------
@@ -199,6 +225,43 @@ function rehearse(rig, t, ctx) {
 }
 function bow(rig, t, ctx) { ACT_FRAMES['gag:practice'](rig, t, { ...ctx, role: 'host' }); }
 
+// ---- each one's own way round (the tracks are ./plays.js's) --------------
+// the Librarian notices the book is gone, and bends to pick it up
+function dropBook(rig, t, ctx) {
+  const look = bump(t, 0.43, 0.06), pick = keys(t, [[0.68, 0], [0.72, 1], [0.82, 1], [0.86, 0]]);
+  ctx.head(-0.5 * look, 0.25 * look + 0.35 * pick, 0);
+  ctx.body({ pitch: 0.42 * pick, y: -0.05 * pick });
+  if (pick > 0.01) ctx.arm('R', [0.1, 0.12, 0.32], [1, -0.3, -0.5], [0, -1, 0.2], pick);
+  ctx.face({ lid: 0.2 * look });
+}
+// the CFO's audit: a coin tossed hand to hand as he walks (it jingles), and
+// a tick on the ledger at each corner
+const AUDIT_STOPS = [[1.05, 1.6], [4.35, 4.9]].map(([a, b]) => [a / 5.9, b / 5.9]);
+function audit(rig, t, ctx) {
+  let tick = 0;
+  for (const [a, b] of AUDIT_STOPS) tick = Math.max(tick, keys(t, [[a, 0], [a + 0.02, 1], [b - 0.02, 1], [b, 0]]));
+  ctx.prop('jingle', env(t, 0.05, 0.95) * (1 - tick));
+  if (tick > 0.01) {
+    const tap = Math.abs(Math.sin(t * 5.9 * 14));
+    ctx.arm('R', [-0.04, 0.38 + 0.04 * tap, 0.3], [1, -0.5, -0.4], [-0.3, 0, -1], tick);
+    ctx.head(-0.1 * tick, 0.3 * tick, 0);
+  }
+}
+// the Guardian's sentry round: the lantern carried low, raised at each corner
+const SENTRY_STOPS = [[1.6, 2.8], [5.3, 6.5]].map(([a, b]) => [a / 8.1, b / 8.1]);
+function sentry(rig, t, ctx) {
+  const k = env(t, 0.04, 0.96);
+  let up = 0;
+  for (const [a, b] of SENTRY_STOPS) up = Math.max(up, keys(t, [[a, 0], [a + 0.03, 1], [b - 0.03, 1], [b, 0]]));
+  ctx.arm('L', [-0.2, 0.44 + 0.36 * up, 0.34 - 0.04 * up], [-1, -0.5, -0.3], [1, 0, 0], k);
+  ctx.head(0.55 * Math.sin(t * Math.PI * 6) * up, -0.08 * up, 0);
+}
+// the Leader's stride: a word to the room at the edge
+function stride(rig, t, ctx) {
+  const k = keys(t, [[0.29, 0], [0.33, 1], [0.6, 1], [0.66, 0]]);
+  if (k > 0.01) present(rig, clamp01((t - 0.29) / 0.37), ctx);
+}
+
 export const ROLE_FRAMES = {
   'clean-press': cleanPress, pushups, squats, 'chalk-hands': ACT_FRAMES['chalk-hands'],
   'read-book': readBook, shelve, 'dust-shelf': ACT_FRAMES['dust-shelf'],
@@ -210,6 +273,7 @@ export const ROLE_FRAMES = {
   present,
   'brow-scan': browScan, 'toss-popcorn': ACT_FRAMES['toss-popcorn'],
   rehearse, bow,
+  'lunge-round': lungeRound, 'drag-round': dragRound, 'drop-book': dropBook, audit, sentry, stride,
 };
 
 // Who does what lives in ./plays.js (ROLE), beside the tracks.
