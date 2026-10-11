@@ -88,6 +88,8 @@ export const KIND_BEING = {
   'practice-skill': 'practice', 'practice-session': 'practice', 'practice-status': 'practice',
   // Nova's own work and his own words: the core, not a department
   plan: 'core', act: 'core', browse: 'core', capture: 'core', intake: 'core', briefing: 'core',
+  // his tick on a suggested skill (skillSets.js): his own answer, filed to the build list
+  'skill-suggest': 'core',
 };
 
 // Kinds with no being yet, said out loud rather than hidden: the Builder and

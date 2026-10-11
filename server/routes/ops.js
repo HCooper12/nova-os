@@ -68,6 +68,32 @@ export function opsRouter(vaultPath) {
       res.status(500).json({ error: e.message });
     }
   });
+  // THE SKILL SETS (mockup 97): every agent's skills from the registry, the
+  // build list, runs from the records, and suggestions counted by code. His
+  // tick files on the rails (skill-backlog, with Undo); his cross retires a
+  // suggestion for 60 days. Nothing here grants an agent a skill.
+  router.get('/skillsets', async (req, res) => {
+    try {
+      const { loadSkillSets } = await import('../lib/skillSets.js');
+      res.json(await loadSkillSets(vaultPath));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  router.post('/skillsets/suggestions/:id/:verb', async (req, res) => {
+    try {
+      const lib = await import('../lib/skillSets.js');
+      const { id, verb } = req.params;
+      if (verb === 'undo') return res.json(await lib.undoSuggestion(vaultPath, id));
+      const s = await lib.findSuggestion(vaultPath, id);
+      if (!s) return res.status(404).json({ error: 'that suggestion is no longer current' });
+      if (verb === 'accept') return res.json(await lib.acceptSuggestion(vaultPath, s));
+      if (verb === 'dismiss') return res.json(await lib.dismissSuggestion(s));
+      return res.status(400).json({ error: 'accept, dismiss or undo' });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
   router.get('/pulse', async (req, res) => {
     try {
       const { getPulse, loadInterests } = await import('../lib/pulse.js');
