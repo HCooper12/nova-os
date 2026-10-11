@@ -42,9 +42,15 @@ test('validator: missing required fields are refused whole', () => {
 });
 
 test('validator: garbage is refused', () => {
-  for (const g of [null, 'a paragraph', [], 42, { synthesis: 7, keyPoints: 'x' }, { ...good(), synthesis: 'One. Two. Three. Four.' }, { ...good(), reflection: 'x'.repeat(400) }]) {
+  for (const g of [null, 'a paragraph', [], 42, { synthesis: 7, keyPoints: 'x' }, { ...good(), synthesis: 'One. Two. Three. Four.' }]) {
     assert.equal(validateReviewSummary(g, INPUT).ok, false);
   }
+});
+
+test('an unsentenced 400-char reflection is dropped, the summary kept', () => {
+  const v = validateReviewSummary({ ...good(), reflection: 'x'.repeat(400) }, INPUT);
+  assert.equal(v.ok, true);
+  assert.equal(v.value.reflection, null);
 });
 
 test('optional fields absent: provenance and reflection are null, not invented', () => {
