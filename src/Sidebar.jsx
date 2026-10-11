@@ -64,12 +64,17 @@ export function Sidebar({ v }) {
       <div>
         <Eyebrow style={groupLabel}>{v.agentsGroupLabel}</Eyebrow>
         <div style={css("display:flex;flex-direction:column;padding:0 4px")}>
+          {/* each row opens the Skill sets on that agent (mockup 97): the
+              roster gains a chevron, nothing else moves */}
           {v.agents.map((ag) => (
-            <div key={ag.name} title={ag.hint} style={{ display: 'flex', gap: '9px', alignItems: 'center', padding: '5.5px 6px', font: `600 13px ${R}`, color: ag.on ? 'var(--nv-ink)' : 'var(--nv-ink40)' }}>
+            <Interactive key={ag.name} as="button" type="button" onClick={ag.open} title={ag.hint} aria-label={`${ag.name}: open his skill set`}
+              base={{ display: 'flex', gap: '9px', alignItems: 'center', padding: '5.5px 6px', font: `600 13px ${R}`, color: ag.on ? 'var(--nv-ink)' : 'var(--nv-ink40)', background: 'none', border: 0, borderRadius: '8px', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+              hoverStyle="background:rgba(255,255,255,.05)">
               <span>{ag.name}</span>
               <Meta tone="faint" style={{ marginLeft: 'auto', fontSize: '10.5px' }}>{ag.role}</Meta>
               <span style={ag.dotStyle}></span>
-            </div>
+              <span aria-hidden="true" style={{ color: 'var(--nv-ink40)', fontSize: '13px', lineHeight: 1 }}>›</span>
+            </Interactive>
           ))}
         </div>
       </div>

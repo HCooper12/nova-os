@@ -2,12 +2,23 @@ import { lazy, Suspense, useEffect } from 'react';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
-import { Eyebrow, TextAction, Tag, Meta, isAppleStyle, Button } from '../Controls.jsx';
+import { Eyebrow, TextAction, Tag, Meta, isAppleStyle, Button, Segmented } from '../Controls.jsx';
 import { OpsInboxHead } from '../OpsInboxHead.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 // the Org Map is three.js: its own chunk, fetched only when Ops opens
 const OrgMap = lazy(() => import('../orgmap/OrgMap.jsx').then((m) => ({ default: m.OrgMap })));
+// the Skill sets (mockup 97) are three.js too, and their own chunk
+const SkillSets = lazy(() => import('../skillsets/SkillSets.jsx').then((m) => ({ default: m.SkillSets })));
+
+// "Org map | Skill sets" (mockup 97): the two ways to look at the agents
+function OpsViewSwitch({ v, style }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'flex-start', ...style }}>
+      <Segmented ariaLabel="Look at the agents as" options={[['orgmap', 'Org map'], ['skillsets', 'Skill sets']]} value={v.opsView} onChange={v.setOpsView} />
+    </div>
+  );
+}
 
 const M = "var(--nv-font-mono)";
 const dim = (pct) => `color-mix(in srgb, var(--nv-ink) ${pct}%, transparent)`;
@@ -178,10 +189,23 @@ export function Ops({ v }) {
   // replaces the gate line and the numeral header below; everything else on
   // the page follows unchanged. Null under every other style.
   const sumHead = v.summary && v.inboxSummary?.ops?.live ? <OpsInboxHead o={v.inboxSummary.ops} /> : null;
+  // THE SKILL SETS (mockup 97): the switch over the whole screen. It shows
+  // in demo and offline too, where it draws what it honestly can.
+  if (v.opsView === 'skillsets' && v.skillSets) {
+    return (
+      <div style={css("padding:calc(48px + env(safe-area-inset-top)) 18px 40px;max-width:1280px;margin:0 auto")}>
+        <OpsViewSwitch v={v} style={{ marginBottom: '12px' }} />
+        <Suspense fallback={<div aria-hidden="true" style={css(`height:650px;margin:0 -18px;background:${dim(3)}`)} />}>
+          <SkillSets v={v.skillSets} />
+        </Suspense>
+      </div>
+    );
+  }
   if (!v.opsLive && sumHead) {
     return (
       <div style={v.wrapMission}>
         {sumHead}
+        <OpsViewSwitch v={v} style={{ maxWidth: '760px', margin: '18px auto 0' }} />
         <div style={css(`max-width:760px;margin:24px auto 0;font:400 13px/1.5 var(--nv-font-ui);color:${dim(55)}`)}>{v.opsEmptyLine}</div>
       </div>
     );
@@ -190,6 +214,7 @@ export function Ops({ v }) {
     return (
       <div style={css("padding:34px 28px")}>
         <div style={css(`font:var(--nv-micro-l);letter-spacing:.3em;color:${dim(45)}`)}>XIV. OPERATIONS</div>
+        <OpsViewSwitch v={v} style={{ marginTop: '14px' }} />
         <div style={css(`margin-top:16px;font:400 13px ${M};color:${dim(55)};max-width:480px;line-height:1.7`)}>{v.opsEmptyLine}</div>
       </div>
     );
@@ -215,6 +240,7 @@ export function Ops({ v }) {
 
       {/* THE ORG MAP — who is asking, drawn (AGENT-WORLD-PLAN §3). While its
           chunk loads, a skeleton of the same size holds its place. */}
+      <OpsViewSwitch v={v} style={{ marginTop: '22px' }} />
       {v.orgMap?.live && (
         <Suspense fallback={<div aria-hidden="true" style={css(`margin-top:24px;height:clamp(420px, 104vw, 630px);border-radius:calc(var(--nv-radius) + 6px);background:${dim(3)};border:1px solid ${dim(6)}`)} />}>
           <OrgMap v={v.orgMap} />

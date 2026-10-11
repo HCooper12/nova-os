@@ -160,7 +160,13 @@ export function valsSkillSets({ st = {}, app, demoMode = false, isOffline = fals
       skillCount: groups ? flat.length : null,
       top3: flat.slice(0, 3),
       tierCounts,
-      notYet: usePayload ? (p?.notYet || []) : [],
+      // a tick shows at once under Not yet (it arrives); the server's copy
+      // carries it from the next read on
+      notYet: usePayload ? [
+        ...(p?.notYet || []),
+        ...answered.filter(([, a]) => a.state === 'accepted' && !(p?.notYet || []).some((n) => n.text === a.skill))
+          .map(([, a]) => ({ text: a.skill, source: 'build list', arrive: true })),
+      ] : [],
       canBeAsked: usePayload ? !!p?.consult?.canBeAsked : null,
       suggestions,
       runs: usePayload && Array.isArray(p?.runs) ? p.runs : null,

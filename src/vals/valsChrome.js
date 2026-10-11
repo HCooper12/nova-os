@@ -357,6 +357,8 @@ export function valsChrome(app, ctx) {
         const activeRec = working ? activeRecordOf(st, a.name, now) : null;
         return {
           name: a.name, role: a.role, on: a.on, working,
+          // each row opens the Skill sets on that agent (mockup 97)
+          open: () => app.openSkillSets(a.id),
           hint: activeRec ? `working: ${activeRec.text?.slice(0, 120) || activeRec.kind}` : working ? 'working…' : undefined,
           dotStyle: working
             ? { ...dot, background: 'var(--nv-cy)', boxShadow: '0 0 9px var(--nv-cy)', animation: `novaPulse ${1.1 + i * 0.1}s infinite var(--nv-anim)` }
