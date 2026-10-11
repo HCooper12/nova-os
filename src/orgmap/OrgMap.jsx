@@ -29,7 +29,7 @@ const LOOP_DOT = {
 const reducedMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
   && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function Card({ c, onClose, onInbox, hue }) {
+function Card({ c, onClose, onInbox, onSkillSet, hue }) {
   return (
     <div className="nv-liquid" role="dialog" aria-label={`${c.name}, ${c.district}`}
       style={css(`position:absolute;left:10px;right:10px;bottom:10px;max-width:440px;margin:0 auto;padding:13px 15px 12px;border-radius:calc(var(--nv-radius) + 4px);border-left:2px solid ${hue};animation:nvRise var(--nv-dur-base) var(--nv-ease) both;max-height:62%;overflow:auto`)}>
@@ -74,8 +74,11 @@ function Card({ c, onClose, onInbox, hue }) {
           ))}
         </div>
       )}
-      {c.asks.length > 0 && (
-        <div style={css('margin-top:10px')}><TextAction compact onClick={onInbox}>Open Inbox →</TextAction></div>
+      {(c.asks.length > 0 || (c.id !== 'core' && onSkillSet)) && (
+        <div style={css('margin-top:10px;display:flex;gap:16px;flex-wrap:wrap')}>
+          {c.asks.length > 0 && <TextAction compact onClick={onInbox}>Open Inbox →</TextAction>}
+          {c.id !== 'core' && onSkillSet && <TextAction compact onClick={() => onSkillSet(c.id)}>Skill set →</TextAction>}
+        </div>
       )}
     </div>
   );
@@ -138,7 +141,7 @@ export function OrgMap({ v }) {
       {!failed && (
         <div style={css(`position:relative;margin-top:10px;height:clamp(360px, 96vw, 560px);border-radius:calc(var(--nv-radius) + 6px);overflow:hidden;border:1px solid ${dim(7)};background:radial-gradient(120% 90% at 50% 30%, color-mix(in srgb, var(--nv-cy) 7%, transparent), transparent 70%)`)}>
           <div ref={mountRef} style={css('position:absolute;inset:0')} />
-          {v.card && <Card c={v.card} hue={hue} onClose={v.close} onInbox={v.openInbox} />}
+          {v.card && <Card c={v.card} hue={hue} onClose={v.close} onInbox={v.openInbox} onSkillSet={v.openSkillSet} />}
         </div>
       )}
       {failed && (

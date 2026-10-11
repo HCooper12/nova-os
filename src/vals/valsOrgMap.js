@@ -153,5 +153,7 @@ export function valsOrgMap(ops, app, ctx) {
     select: (id) => app.setState({ orgMapSelected: id === selectedId ? null : id }),
     close: () => app.setState({ orgMapSelected: null }),
     openInbox: () => app.navigate('inbox'),
+    // a being's card opens his skill set (mockup 97) on him; the core has none
+    openSkillSet: (id) => app.openSkillSets(id),
   };
 }
