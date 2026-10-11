@@ -27,7 +27,8 @@
 import * as THREE from 'three';
 import { createBeingKit } from '../agentWorld/beings.js';
 import { newOverlay, resetOverlay, overlayWriters, applyOverlay } from '../agentWorld/acts.js';
-import { PLAYS, HOME_POSE, CENTRE_HOME, samplePlay, nextPlay, restAfter, tempoFor, styleOf, seededRng, ROLE_PLAYS, frameGeo } from './plays.js';
+import { PLAYS, HOME_POSE, CENTRE_HOME, samplePlay, nextPlay, restAfter, tempoFor, styleOf, seededRng, ROLE_PLAYS, frameGeo, gaitOf } from './plays.js';
+import { createPropRig, modeFor } from './propRig.js';
 import { ROLE_FRAMES, walkArms } from './roleActs.js';
 
 const colourTokens = (T) => {
@@ -130,8 +131,10 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
       id, b, holder, inner, tilt, rnd, ov: newOverlay(), tools: {},
       act: null, rest: 0.4 + rnd() * 3.2, last: null, smile: 0,
       working: false, canPlay: false, phase: rnd() * 6, walkPh: rnd() * 6, gait: 0,
-      role: null, cur: null, reloc: 0, pin: null, slot: null, drawnAt: -1, behind: false,
+      role: null, cur: null, reloc: 0, pin: null, slot: null, drawnAt: -1, behind: false, snap: true, floor: 0,
     };
+    // his equipment, as its own objects (./propRig.js)
+    built[id].props = createPropRig(THREE, built[id], scene);
     return built[id];
   }
 
@@ -152,10 +155,10 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
     const pc = new THREE.OrthographicCamera(-0.42, 0.42, 1.2, 0.36, -10, 10); pc.position.set(0, 0, 5);
     for (const id of ids) {
       const x = beingOf(id); if (!x) continue;
-      const g = new THREE.Group(); x.tilt.remove(x.b.group); g.add(x.b.group); g.rotation.y = 0.3; scene.add(g);
+      const g = new THREE.Group(); x.tilt.remove(x.b.group); g.add(x.b.group); g.rotation.y = 0.3; scene.add(g); x.props.still(true);
       renderer.render(scene, pc);
       try { const s = await snap(); if (s) out[id] = s; } catch { /* no portrait */ }
-      scene.remove(g); g.remove(x.b.group); x.tilt.add(x.b.group);
+      scene.remove(g); g.remove(x.b.group); x.tilt.add(x.b.group); x.props.still(false);
     }
     renderer.setPixelRatio(prevPR); setGeo(G);
     invalidate();
@@ -189,7 +192,16 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
     kit.face3(face, working, reduceMotion ? 0 : dt);
   }
 
-  const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _up = new THREE.Vector3();
+  const _b = new THREE.Vector3(), _up = new THREE.Vector3();
+  // a play that puts a prop down (or picks one up) at its start waits for it
+  function propHold(x, name) {
+    if (reduceMotion) return 0;
+    for (const p of x.props.props) {
+      const m = modeFor(p.spec, { play: name, t01: 0, working: x.working });
+      if (m !== p.mode && (m === 'set' || p.mode === 'set')) return 0.5;
+    }
+    return 0;
+  }
   // THE LIMBS: the role action (or the play's own gesture), the walk, the
   // idle weight shift and breath, through the acts overlay; then the bar,
   // the hand tools, the feet and the body tilt it leaves to us.
@@ -216,9 +228,19 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
       const S = b.arms.SR, sw = Math.sin(now * 11 + x.phase) * 0.07;
       ctx.arm('R', [S.x - 0.04 + sw, S.y + 0.3, S.z + 0.12], [0, 0, -1], [0, 0, 1], pose.wave);
     }
-    // the walk: arms swing opposite the feet
+    // the props: hands that hold, reach for, or let go of his equipment
+    const gt = gaitOf(x.id, name);
+    const pinfo = {
+      play: name, t01: name ? Math.min(1, x.act.t / PLAYS[name][PLAYS[name].length - 1][0]) : 0, working: x.working, pin: !!x.pin,
+      rm: reduceMotion, dt, floor: x.floor, snap: x.snap, gait: x.gait, walkPh: x.walkPh, sq: pose.sq,
+      armsTaken: { L: !!ov.t.arms.L, R: !!ov.t.arms.R }, bodyTaken: false,
+    };
+    if (!reduceMotion) x.props.pre(ctx, pinfo);
+    // the walk: arms swing opposite the feet, at his own stride
     const g = x.gait += ((moving ? Math.min(1, run) : 0) - x.gait) * (1 - Math.exp(-dt * 8));
-    if (moving) x.walkPh += dt * 13 * Math.max(0.6, run);
+    if (moving) x.walkPh += dt * gt.hz * Math.max(0.6, run);
+    // the Coach's lunges: a deep drop on every stride
+    if (gt.lunge && g > 0.02) ctx.body({ y: -gt.lunge * Math.abs(Math.sin(x.walkPh)) * g, pitch: 0.05 * g });
     if (!reduceMotion) walkArms(b, ctx, x.walkPh, g, !ov.t.arms.L, !ov.t.arms.R);
     // standing about: the weight shifts foot to foot, a slow look round
     const idle = !reduceMotion && x.canPlay && !x.working && !name && !moving ? 1 : 0;
@@ -230,13 +252,16 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
     const v = applyOverlay(b, ov, ctx);
     if (smile) x.smile = Math.max(x.smile, smile);
 
-    // the Coach's bar between his hands while he lifts it
+    // the CFO's coin, tossed hand to hand while he walks: it jingles
     const pr = b.props || {};
-    const barW = b.pose.s('ov:p:bar', typeof ov.t.props.bar === 'number' ? ov.t.props.bar : 0);
-    if (pr.bar && barW > 1e-3 && b.arms) {
-      _a.copy(b.arms.L.hand.position).add(b.arms.R.hand.position).multiplyScalar(0.5);
-      _a.y += 0.035;
-      pr.bar.position.lerp(_a, Math.min(1, barW * 1.15));
+    const jg = b.pose.s('ov:p:jingle', typeof ov.t.props.jingle === 'number' ? ov.t.props.jingle : 0);
+    if (pr.chip && jg > 0.02 && b.arms && !x.working) {
+      const ph = (now * 2.6 + x.phase) % 1, up = Math.sin(ph * Math.PI);
+      const hd = b.arms.R.hand.position;
+      pr.chip.visible = true;
+      pr.chip.scale.setScalar(Math.max(0.001, Math.min(1, jg * 1.5)));
+      pr.chip.position.set(hd.x - 0.02, hd.y + 0.06 + up * 0.16 * jg, hd.z + 0.02);
+      pr.chip.rotation.x = ph * Math.PI * 4;
     }
     // a tool in a hand
     const want = ov.t.props.tool;
@@ -259,10 +284,11 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
     }
     // the feet step under a walk, and stay planted when he drops into a squat
     const drop = Math.min(0, v.by);
+    const stride = gt.lunge ? 0.16 : 0.08;
     (b.feet || []).forEach((f, i) => {
       const base = f.userData.base; if (!base) return;
       const s = i === 0 ? 0 : Math.PI, c = Math.sin(x.walkPh + s);
-      f.position.set(base.x, base.y + Math.max(0, Math.cos(x.walkPh + s)) * 0.05 * g - drop, base.z + c * 0.08 * g);
+      f.position.set(base.x, base.y + Math.max(0, Math.cos(x.walkPh + s)) * 0.05 * g - drop, base.z + c * stride * g);
     });
     // the body: lean, drop, pitch (push-ups pivot on the toes), and breath
     const breath = reduceMotion || !x.canPlay ? 0 : Math.sin(now * 1.7 + x.phase) * 0.012;
@@ -272,6 +298,10 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
     b.head.rotation.y = (b.headYaw || 0) + b.face.sacc.x * 3 + v.hy;
     b.head.rotation.x = (b.headPitch || 0) + v.hp;
     b.head.rotation.z = (b.headRoll || 0) + v.hr;
+    // the equipment, placed by its mode (held, worn, set down, dragged),
+    // once the body has its pose for this frame
+    x.props.post(pinfo);
+    x.snap = false;
   }
 
   // one being, one step, in his own slab's frame
@@ -282,6 +312,7 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
       // a new lane: he is simply THERE (a walk from the floor to the slab top
       // would cross the skill text, the 11 Oct recording), and settles in
       if (x.role) { x.act = x.act && x.act.reaction ? x.act : null; x.cur = null; x.reloc = 0; x.rest = Math.max(x.rest, 0.6 + x.rnd() * 1.4); }
+      x.snap = true;
       x.role = role;
     }
     let pose = HOME_POSE;
@@ -289,7 +320,8 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
       if (!(x.act && x.act.reaction)) x.act = null;
     }
     if (x.act) {
-      x.act.t += dt * x.act.tempo;
+      // a prop put down (or taken up) before he sets off: the play waits
+      if (x.act.hold > 0) x.act.hold -= dt; else x.act.t += dt * x.act.tempo;
       pose = samplePlay(PLAYS[x.act.name], x.act.t);
       if (x.act.t >= PLAYS[x.act.name][PLAYS[x.act.name].length - 1][0]) {
         if (!x.act.reaction) x.last = x.act.name;
@@ -302,7 +334,7 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
       if (x.rest <= 0 && !(slot.dragging && centre)) {
         const name = nextPlay(x.id, { centre, last: x.last, rnd: x.rnd });
         // role actions keep their own time: the lift is the lift
-        x.act = { name, t: 0, tempo: ROLE_PLAYS.has(name) ? 1 : tempoFor(x.id, x.rnd) };
+        x.act = { name, t: 0, tempo: ROLE_PLAYS.has(name) ? 1 : tempoFor(x.id, x.rnd), hold: propHold(x, name) };
       }
     }
     const hx = centre ? CENTRE_HOME.x : (role === 'r' ? -PERCH_LANE : PERCH_LANE);
@@ -319,13 +351,18 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
     const moving = !reduceMotion && (pose.moving || travelling);
     const run = Math.min(1.6, (pose.speed || 0.6) / 0.6);
     const s = (G.CH / 1.1) * (perched ? 0.86 : 1);
-    const bob = moving ? Math.abs(Math.sin(x.walkPh)) * 4 * Math.min(1.4, run) : 0;
+    const gt = gaitOf(x.id, x.act && x.act.name);
+    const bob = moving ? Math.abs(Math.sin(x.walkPh)) * gt.bob * Math.min(1.4, run) : 0;
     const behind = !!pose.behind && centre;
     const sq = pose.sq * (perched ? 0.88 : 1);
     x.holder.position.set(G.AX + x.cur.x * G.SW, -(G.AY - x.cur.y * G.SH) + bob, behind ? -90 : 90);
     x.holder.scale.set(s * (1 + (1 - sq) * 0.5), s * sq, s);
     const yaw = travelling ? (tx > x.cur.x ? 1.2 : -1.2) : pose.yaw;
-    x.inner.rotation.set(0, yaw, pose.roll + (moving ? Math.sin(x.walkPh) * 0.05 : 0));
+    x.inner.rotation.set(0, yaw, pose.roll + (moving ? Math.sin(x.walkPh) * gt.roll : 0));
+    // his equipment's frame: his home spot in this lane, no yaw, no pitch
+    x.props.homeF.position.set(G.AX + hx * G.SW, -(G.AY - hy * G.SH), 90);
+    x.props.homeF.scale.setScalar(s); x.props.homeF.rotation.set(0, 0, 0);
+    x.floor = x.props.floorFor(pose, G, s);
     if (b.tell) b.tell(now, x.working, reduceMotion);
     limbs(x, pose, now, dt, moving, run);
     updateFace(x, now, dt, x.working);
@@ -339,14 +376,16 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
     x.holder.position.set(G.AX, -G.PIN_AY, 90);
     x.holder.scale.set(k * (1 + (1 - sq) * 0.5), k * sq, k);
     x.inner.rotation.set(0, p.yaw ?? -0.3, 0);
+    x.props.homeF.position.set(G.AX, -G.PIN_AY, 90); x.props.homeF.scale.setScalar(k); x.props.homeF.rotation.set(0, 0, 0);
+    x.floor = 0;
     if (x.b.tell) x.b.tell(now, x.working, reduceMotion);
     limbs(x, HOME_POSE, now, dt, false, 0);
     updateFace(x, now, dt, x.working);
-    x.cur = null; x.role = null; x.behind = false;
+    x.cur = null; x.role = null; x.behind = false; x.snap = true;
   }
 
   function draw(x, keyName, slabFrame) {
-    for (const id of Object.keys(built)) built[id].holder.visible = built[id] === x;
+    for (const id of Object.keys(built)) { const on = built[id] === x; built[id].holder.visible = on; built[id].props.homeF.visible = on; }
     occluder.visible = slabFrame;
     const t0 = performance.now();
     renderer.render(scene, cam);
@@ -365,7 +404,7 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
       const x = beingOf(slot.id); if (!x) continue;
       const fresh = x.slot !== slot.id;
       x.slot = slot.id;
-      if (fresh) x.cur = null;
+      if (fresh) { x.cur = null; x.snap = true; }
       if (x.pin) pinStep(x, now, dt); else stepBeing(x, slot, now, dt);
       live.push([x, slot]);
     }
@@ -444,7 +483,9 @@ export function createStageCore({ canvas, tokens, reduceMotion = false, pixelRat
       return out;
     },
     // for the recording harness: start a named play now
-    force(id, name) { const x = built[id]; if (!x || !PLAYS[name]) return; x.act = { name, t: 0, tempo: 1 }; invalidate(); },
+    force(id, name) { const x = built[id]; if (!x || !PLAYS[name]) return; x.act = { name, t: 0, tempo: 1, hold: propHold(x, name) }; invalidate(); },
+    // for the recording harness: where each prop is and in which mode
+    props(id) { const x = built[id]; return x ? x.props.props.map((p) => ({ key: p.key, mode: p.mode, w: { ...p.w }, pos: p.pos.toArray(), corr: p.corr })) : []; },
     // for break-ui: lose the context on purpose
     lose() { try { renderer.forceContextLoss(); } catch { lostHandler({}); } },
     dispose() {

@@ -21,11 +21,11 @@
 export const CENTRE_HOME = { x: 0, y: -0.33 };
 const HY = CENTRE_HOME.y;
 // feet on the slab's top edge, measured from the centre home
-const TOP = 1 - HY;
+export const TOP = 1 - HY;
 // just outside a side edge (half a slab plus about half his body)
 const OUT = 0.64;
 // behind the slab, his feet are a little up its face (read as depth)
-const BACK = 0.08 - HY;
+export const BACK = 0.08 - HY;
 // feet height behind the slab that puts his eyes just over the top edge
 const OVER = 0.82 - HY;
 
@@ -38,7 +38,10 @@ const H = (t, sq = 1) => k(t, 0, 0, 0, F, 0, sq);
 const stay = (len, yaw = F) => [H(0), k(0.3, 0, 0, 0, yaw), k(len - 0.3, 0, 0, 0, yaw), H(len)];
 function roleTracks() {
   return {
-    'clean-press': stay(4.4, 0.15), pushups: stay(4.6, R), squats: stay(3.6, 0.2), 'chalk-hands': stay(2.2),
+    'clean-press': stay(4.4, 0.15), squats: stay(5.0, 0.2),
+    // push-ups: he steps off to the right first, so the bar he leaves down
+    // at his spot lies beside him and never under his chest
+    pushups: [H(0), k(0.2, 0, 0, 0, R), k(0.9, 0.34, 0, 0, R), k(5.6, 0.34, 0, 0, R), k(5.85, 0.34, 0, 0, 2 * Math.PI + L), k(6.55, 0, 0, 0, 2 * Math.PI + L), k(6.75, 0, 0, 0, 2 * Math.PI + F)], 'chalk-hands': stay(2.2),
     'read-book': stay(4.6, 0.1), shelve: stay(3.4, 0.5), 'dust-shelf': stay(2.6),
     'count-coins': stay(4.2, 0.1), 'stack-chip': stay(2.4), 'close-ledger': stay(2.2),
     magnify: stay(4.2, 0.2), 'magnify-low': stay(4.2, 0.6), scribble: stay(2.6),
@@ -78,6 +81,31 @@ export const PLAYS = {
   // a full spin in the air (Practice)
   spin: [H(0), H(0.15, 0.8), k(0.55, 0, 0.06, 0, F + Math.PI, 0, 1.1), k(0.95, 0, 0, 0, F + 2 * Math.PI, 0, 0.84), k(1.15, 0, 0, 0, F + 2 * Math.PI)],
 
+  // ---- each agent's own way round his slab (his 11 Oct note: "these sorts
+  // of animations would make each agent feel more alive and unique") ----
+  // the Coach: barbell lunges round the back, the bar on his shoulders
+  'lunge-round': [H(0), k(0.9, 0, 0, 0, R), k(2.1, OUT, 0.02, 0, R), k(2.25, OUT, BACK, 1, L), k(5.0, -OUT, BACK, 1, L), k(5.15, -OUT, 0.02, 0, R), k(6.6, 0, 0, 0, R), k(6.8, 0, 0, 0, F), H(7.8)],
+  // the Coach: dragging the bar round by one end, stalling to heave it
+  'drag-round': [H(0), k(0.7, 0, 0, 0, L), k(1.6, -0.3, 0, 0, L), k(2.3, -0.3, 0, 0, L), k(3.0, -OUT, 0.02, 0, L), k(3.12, -OUT, BACK, 1, R), k(4.4, 0, BACK, 1, R), k(5.2, 0, BACK, 1, R), k(6.2, OUT, BACK, 1, R), k(6.32, OUT, 0.02, 0, L), k(7.4, 0.2, 0, 0, L), k(7.9, 0.2, 0, 0, L), k(8.5, 0, 0, 0, L), k(8.7, 0, 0, 0, F), H(9.4)],
+  // the Librarian: an amble, a book slips off the stack, he goes back for it
+  'drop-book': [H(0), k(0.3, 0, 0, 0, R), k(2.0, 0.4, 0, 0, R), k(2.5, 0.4, 0, 0, 0.7), k(2.9, 0.4, 0, 0, L), k(3.9, 0.2, 0, 0, L), k(4.05, 0.2, 0, 0, L, 0, 0.8), k(4.8, 0.2, 0, 0, L, 0, 0.8), k(4.95, 0.2, 0, 0, L), k(5.6, 0, 0, 0, L), H(5.8)],
+  // the CFO: an audit lap, a stop at each corner to tick it off
+  audit: [H(0), k(0.9, OUT, 0.02, 0, R), k(1.05, OUT, 0.02, 0, F), k(1.6, OUT, 0.02, 0, F, 0, 0.94), k(1.75, OUT, BACK, 1, L), k(4.1, -OUT, BACK, 1, L), k(4.22, -OUT, 0.02, 0, R), k(4.35, -OUT, 0.02, 0, F), k(4.9, -OUT, 0.02, 0, F, 0, 0.94), k(5.7, 0, 0, 0, R), H(5.9)],
+  // the Guardian: a sentry's slow round, the lantern raised at each corner
+  sentry: [H(0), k(1.4, OUT, 0.02, 0, R), k(1.6, OUT, 0.02, 0, F), k(2.8, OUT, 0.02, 0, F), k(2.95, OUT, BACK, 1, L), k(5.0, -OUT, BACK, 1, L), k(5.12, -OUT, 0.02, 0, R), k(5.3, -OUT, 0.02, 0, F), k(6.5, -OUT, 0.02, 0, F), k(7.9, 0, 0, 0, R), H(8.1)],
+  // Meal Prep: the pot down first (it is hot), then a skipping dash
+  dash: [H(0), k(0.15, 0, 0, 0, R, 0, 0.9), k(0.4, 0.15, 0.05, 0, R, 0, 1.05), k(0.6, 0.27, 0, 0, R, 0, 0.9), k(0.85, 0.42, 0.05, 0, R, 0, 1.05), k(1.05, 0.52, 0, 0, R, 0, 0.88), k(1.2, 0.52, 0, 0, L), k(1.5, 0.3, 0.05, 0, L, 0, 1.05), k(1.75, 0.1, 0, 0, L, 0, 0.9), k(2.0, -0.12, 0.05, 0, L, 0, 1.05), k(2.25, -0.32, 0, 0, L, 0, 0.9), k(2.5, -0.5, 0.05, 0, L, 0, 1.05), k(2.7, -0.52, 0, 0, L, 0, 0.88), k(2.85, -0.52, 0, 0, R), k(3.6, 0, 0, 0, R), H(3.75)],
+  // the Researcher: a crouched creep round the left, slow, on his toes
+  sleuth: [H(0), k(0.3, 0, 0, 0, L, 0, 0.86), k(2.2, -OUT, 0.02, 0, L, 0, 0.86), k(2.35, -OUT, BACK, 1, R, 0, 0.86), k(3.2, -0.2, BACK, 1, R, 0, 0.86), k(3.9, -0.2, BACK, 1, 0.3, 0, 0.86), k(5.2, OUT, BACK, 1, R, 0, 0.86), k(5.32, OUT, 0.02, 0, L, 0, 0.86), k(6.6, 0, 0, 0, L, 0, 0.86), H(6.9)],
+  // the Commander: a parade march, a crisp about-face at each end
+  march: [H(0), k(0.15, 0, 0, 0, R), k(1.0, 0.45, 0, 0, R), k(1.12, 0.45, 0.03, 0, F, 0, 1.04), k(1.3, 0.45, 0, 0, L), k(2.9, -0.45, 0, 0, L), k(3.02, -0.45, 0.03, 0, F, 0, 1.04), k(3.2, -0.45, 0, 0, R), k(4.0, 0, 0, 0, R), H(4.15)],
+  // the Watcher: a lazy drift, swaying to whatever is in his headphones
+  drift: [H(0), k(1.6, 0.4, 0, 0, R, 0.1), k(2.4, 0.4, 0, 0, 0.6, -0.08), k(3.2, 0.4, 0, 0, L, 0.1), k(5.6, -0.3, 0, 0, L, -0.1), k(6.4, -0.3, 0, 0, 0.2, 0.08), k(7.4, 0, 0, 0, R), H(7.6)],
+  // the Leader: a purposeful stride to the edge, a word to the room, back
+  stride: [H(0), k(1.1, OUT - 0.06, 0.02, 0, R), k(1.4, OUT - 0.06, 0.02, 0, F), k(3.0, OUT - 0.06, 0.02, 0, F), k(3.3, OUT - 0.06, 0.02, 0, L), k(4.5, 0, 0, 0, L), H(4.7)],
+  // Practice: round the back and a pirouette on the way home
+  twirl: [H(0), k(0.6, -OUT, 0.02, 0, L), k(0.7, -OUT, BACK, 1, R), k(1.8, OUT, BACK, 1, R), k(1.9, OUT, 0.02, 0, L), k(2.4, 0.3, 0, 0, L), k(2.55, 0.3, 0, 0, F, 0, 0.84), k(2.9, 0.3, 0.06, 0, F + Math.PI, 0, 1.1), k(3.25, 0.3, 0, 0, F + 2 * Math.PI, 0, 0.86), k(3.85, 0, 0, 0, F + 2 * Math.PI)],
+
   // ---- the small ones: in place, so they fit either lane ----
   wave: [H(0), k(0.3, 0, 0, 0, 0.05), k(0.4, 0, 0, 0, 0.05, 0, 1, 1), k(2.1, 0, 0, 0, 0.05, 0, 1, 1), k(2.3, 0, 0, 0, 0.05), H(2.6)],
   look: [H(0), k(0.5, 0, 0, 0, 0.95), k(1.4, 0, 0, 0, 0.95), k(1.9, 0, 0, 0, -0.45), k(2.8, 0, 0, 0, -0.45), H(3.3)],
@@ -113,24 +141,42 @@ export const ROLE_MOVES = new Set(['patrol-lamp']);
 export const playLength = (name) => { const t = PLAYS[name]; return t ? t[t.length - 1][0] : 0; };
 
 // the plays that leave his spot: the centre's own
-export const BIG = new Set(['round', 'zoom', 'over', 'hide', 'jump', 'perch', 'lean', 'leanL', 'sprint', 'spin']);
+export const BIG = new Set(['round', 'zoom', 'over', 'hide', 'jump', 'perch', 'lean', 'leanL', 'sprint', 'spin',
+  'lunge-round', 'drag-round', 'drop-book', 'audit', 'sentry', 'dash', 'sleuth', 'march', 'drift', 'stride', 'twirl']);
 // what a neighbour on his slab's top may do: in place, never into the centre lane
 export const PERCHED = new Set(['wave', 'look', 'hop', 'nod', 'duck', 'squat', 'sway', 'shuffle', 'spin']);
 
 // Personality: the mix (weighted by repetition), the tempo, the pauses.
 export const STYLE = {
-  commander: { big: ['perch', 'lean', 'round', 'over', 'jump'], small: ['wave', 'look', 'nod'], tempo: 1, rest: [1.2, 2.8], react: 'boing' },
-  coach: { big: ['sprint', 'jump', 'zoom', 'round', 'perch', 'sprint'], small: ['squat', 'hop', 'wave'], tempo: 1.3, rest: [0.6, 1.8], react: 'boing' },
-  cfo: { big: ['lean', 'round', 'over', 'perch'], small: ['nod', 'look', 'sway'], tempo: 0.9, rest: [1.6, 3.2], react: 'nod' },
-  guardian: { big: ['round', 'lean', 'over', 'zoom'], small: ['look', 'shuffle'], tempo: 0.85, rest: [1.8, 3.4], react: 'nod' },
-  researcher: { big: ['over', 'hide', 'lean', 'round', 'perch'], small: ['look', 'nod', 'shuffle'], tempo: 1, rest: [1, 2.6], react: 'boing' },
-  watcher: { big: ['perch', 'over', 'hide', 'round'], small: ['look', 'sway'], tempo: 0.9, rest: [1.4, 3], react: 'nod' },
-  librarian: { big: ['hide', 'over', 'leanL', 'hide', 'perch'], small: ['duck', 'look', 'shuffle'], tempo: 0.75, rest: [1.8, 3.6], react: 'duck' },
-  mealprep: { big: ['zoom', 'round', 'jump', 'lean', 'perch'], small: ['hop', 'wave', 'sway'], tempo: 1.05, rest: [1, 2.4], react: 'boing' },
-  leader: { big: ['lean', 'over', 'round', 'perch'], small: ['nod', 'wave', 'look'], tempo: 0.85, rest: [1.6, 3.2], react: 'nod' },
-  practice: { big: ['spin', 'over', 'hide', 'jump', 'zoom'], small: ['wave', 'hop', 'spin'], tempo: 1.1, rest: [0.9, 2.2], react: 'boing' },
+  commander: { big: ['march', 'perch', 'lean', 'march', 'over', 'jump'], small: ['wave', 'look', 'nod'], tempo: 1, rest: [1.2, 2.8], react: 'boing' },
+  coach: { big: ['lunge-round', 'drag-round', 'sprint', 'jump', 'lunge-round', 'drag-round', 'round', 'perch'], small: ['squat', 'hop', 'wave'], tempo: 1.3, rest: [0.6, 1.8], react: 'boing' },
+  cfo: { big: ['audit', 'lean', 'audit', 'over', 'perch'], small: ['nod', 'look', 'sway'], tempo: 0.9, rest: [1.6, 3.2], react: 'nod' },
+  guardian: { big: ['sentry', 'lean', 'sentry', 'over'], small: ['look', 'shuffle'], tempo: 0.85, rest: [1.8, 3.4], react: 'nod' },
+  researcher: { big: ['sleuth', 'over', 'hide', 'sleuth', 'lean', 'perch'], small: ['look', 'nod', 'shuffle'], tempo: 1, rest: [1, 2.6], react: 'boing' },
+  watcher: { big: ['drift', 'perch', 'over', 'drift', 'hide'], small: ['look', 'sway'], tempo: 0.9, rest: [1.4, 3], react: 'nod' },
+  librarian: { big: ['drop-book', 'hide', 'over', 'drop-book', 'leanL', 'perch'], small: ['duck', 'look', 'shuffle'], tempo: 0.75, rest: [1.8, 3.6], react: 'duck' },
+  mealprep: { big: ['dash', 'zoom', 'dash', 'jump', 'lean', 'perch'], small: ['hop', 'wave', 'sway'], tempo: 1.05, rest: [1, 2.4], react: 'boing' },
+  leader: { big: ['stride', 'lean', 'stride', 'over', 'perch'], small: ['nod', 'wave', 'look'], tempo: 0.85, rest: [1.6, 3.2], react: 'nod' },
+  practice: { big: ['twirl', 'spin', 'over', 'twirl', 'jump'], small: ['wave', 'hop', 'spin'], tempo: 1.1, rest: [0.9, 2.2], react: 'boing' },
 };
 const DEFAULT_STYLE = STYLE.commander;
+
+// How each one walks: stride rate, bob (px) and a per-step body roll. The
+// Coach's lunge and his drag are keyed by play.
+export const GAIT = {
+  coach: { hz: 15, bob: 5, roll: 0.06 },
+  librarian: { hz: 9, bob: 1.5, roll: 0.03 },
+  cfo: { hz: 11, bob: 1.2, roll: 0.02 },
+  guardian: { hz: 8, bob: 3.2, roll: 0.07 },
+  mealprep: { hz: 16, bob: 6, roll: 0.05 },
+  researcher: { hz: 10, bob: 1, roll: 0.03 },
+  commander: { hz: 12, bob: 3.5, roll: 0.01 },
+  watcher: { hz: 7, bob: 2.4, roll: 0.1 },
+  leader: { hz: 10, bob: 2.4, roll: 0.03 },
+  practice: { hz: 14, bob: 5, roll: 0.05 },
+};
+export const PLAY_GAIT = { 'lunge-round': { hz: 4.6, bob: 0, lunge: 0.11 }, 'drag-round': { hz: 7, bob: 1.5 } };
+export const gaitOf = (id, play) => Object.assign({ hz: 13, bob: 4, roll: 0.05 }, GAIT[id], play && PLAY_GAIT[play]);
 export const styleOf = (id) => STYLE[id] || DEFAULT_STYLE;
 
 // A seeded generator per agent, so each keeps his own rhythm and no two run
