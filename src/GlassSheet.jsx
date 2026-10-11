@@ -94,7 +94,7 @@ export function GlassSheet({ card, originEl, onClose, label, children, scrollRef
   return (
     <div role="dialog" aria-modal="true" aria-label={label || card?.label || 'Expanded panel'} onClick={close}
       style={css('position:fixed;inset:0;z-index:145;display:flex;align-items:flex-end;justify-content:center;background:color-mix(in srgb, var(--nv-void) 70%, transparent);backdrop-filter:blur(10px);animation:fadeIn var(--nv-dur-base) var(--nv-ease)')}>
-      <div ref={(el) => { drag.sheetRef.current = el; if (scrollRef) scrollRef.current = el; }} onClick={(e) => e.stopPropagation()}
+      <div ref={(el) => { drag.sheetRef.current = el; if (scrollRef) scrollRef.current = el; }} data-sheet="" onClick={(e) => e.stopPropagation()}
         style={css('width:100%;max-width:560px;max-height:86vh;overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:var(--nv-radius) var(--nv-radius) 0 0;border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-bottom:none;background:var(--nv-bg1);box-shadow:0 -30px 80px -30px rgba(0,0,0,.9);padding:0 16px calc(18px + env(safe-area-inset-bottom))')}>
         {/* the grab zone: handle + close, sticky so it stays under the thumb
             while a tall card scrolls beneath it */}

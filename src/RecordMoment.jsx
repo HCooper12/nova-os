@@ -323,7 +323,7 @@ export function RecordMoment({ records, index = 0, onDismiss, onSkipAll }) {
   return (
     <div role="dialog" aria-modal="true" aria-label={phrase.aria} onClick={exit.close} ref={exit.scrimRef}
       className="nv-rec-scrim" style={{ zIndex: 125 }}>
-      <div ref={exit.panelRef} onClick={stop} className="nv-liquid nv-liquid-thick nv-materialize nv-rec-card" style={{ '--h': hue }}>
+      <div ref={exit.panelRef} onClick={stop} data-sheet="" className="nv-liquid nv-liquid-thick nv-materialize nv-rec-card" style={{ '--h': hue }}>
         <div className="nv-rec-top">
           {n > 1 ? <span className="nv-rec-count">{i + 1} of {n}</span> : <span />}
           <button type="button" className="nv-rec-x" aria-label={last ? 'Close' : 'Next record'} onClick={next}>

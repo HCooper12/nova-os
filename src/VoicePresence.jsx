@@ -5,6 +5,7 @@ import { useDictation, reportTurnEnd } from './useDictation.js';
 import { StageCard } from './StageCard.jsx';
 import { railDepth } from './glassDepth.js';
 import { SafeVisual } from './SafeVisual.jsx';
+import { useDismissSwipe } from './dismissSwipe.js';
 
 const M = 'var(--nv-font-mono)';
 
@@ -81,6 +82,9 @@ export function VoicePresence({ v }) {
   // stop the mic when the conversation ends, so the OS gets its session back
   useEffect(() => () => { try { if (dictRef.current.on) dictRef.current.toggle(); } catch { /* already closed */ } }, []);
 
+  // the "tap to hear" pill flicks away sideways or up, like a notification
+  const pill = useDismissSwipe({ onDismiss: v.speechBlocked?.dismiss, enabled: !!v.speechBlocked?.dismiss });
+
   const state = dict.hearing ? 'HEARING' : dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
   const tone = dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)';
   if (!s.textOpen && !s.evidence && !s.card && !s.glass && !v.speechBlocked) return null;
@@ -90,6 +94,7 @@ export function VoicePresence({ v }) {
 
       {/* he heard nothing — one tap plays it, from inside the gesture */}
       {v.speechBlocked && (
+        <div ref={pill.ref} {...pill.handlers} style={css('pointer-events:auto;width:min(430px,100%);display:flex;justify-content:center;touch-action:pan-y')}>
         <Interactive onClick={v.speechBlocked.replay} aria-label="Play the reply you didn't hear"
           /* GLASS, LIKE EVERY OTHER FLOATING LAYER. This parked over the
              middle of whatever screen was open as a flat near-black box with
@@ -109,6 +114,7 @@ export function VoicePresence({ v }) {
               hoverStyle={{ color: 'var(--nv-ink)', background: 'color-mix(in srgb, var(--nv-ink) 08%, transparent)' }}>×</Interactive>
           )}
         </Interactive>
+        </div>
       )}
 
       {/* THE GLASS — the figure for the line being spoken, appearing by
@@ -153,7 +159,8 @@ export function VoicePresence({ v }) {
       {/* THE POP-UP — only ever on screen because he asked for it (long-press
           the core). The lit border + outward glow is the reference's look. */}
       {s.textOpen && (
-        <div style={css(`pointer-events:auto;width:min(620px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 06%, transparent),color-mix(in srgb, var(--nv-void) 94%, black));backdrop-filter:blur(16px);box-shadow:0 0 30px -4px color-mix(in srgb, var(--nv-cy) 50%, transparent),inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 22%, transparent),0 24px 60px rgba(0,0,0,.6);animation:popIn var(--nv-dur-base) var(--nv-ease);overflow:hidden`)}>
+        // a bar of its own: pull it down and it goes (sheetDrag.js)
+        <div data-sheet-float="" data-sheet="" style={css(`pointer-events:auto;width:min(620px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 06%, transparent),color-mix(in srgb, var(--nv-void) 94%, black));backdrop-filter:blur(16px);box-shadow:0 0 30px -4px color-mix(in srgb, var(--nv-cy) 50%, transparent),inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 22%, transparent),0 24px 60px rgba(0,0,0,.6);animation:popIn var(--nv-dur-base) var(--nv-ease);overflow:hidden`)}>
           <div style={css(`display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)`)}>
             <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${tone}`)}>NOVA · {state}</span>
             <span style={css('flex:1')}></span>
@@ -162,7 +169,7 @@ export function VoicePresence({ v }) {
               hoverStyle="background:color-mix(in srgb, var(--nv-cy) 18%, transparent)">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-cy)" strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
             </Interactive>
-            <Interactive as="span" onClick={s.closeText} aria-label="Hide the transcript"
+            <Interactive as="span" onClick={s.closeText} data-sheet-close="" aria-label="Hide the transcript"
               base={css(`cursor:pointer;flex:none;font:400 15px/1 ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:2px 4px`)}
               hoverStyle="color:var(--nv-ink)">×</Interactive>
           </div>

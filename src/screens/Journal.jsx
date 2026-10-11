@@ -130,8 +130,8 @@ function Sheet({ open, onClose, label, className = '', children }) {
   if (typeof document === 'undefined') return null;
   return createPortal(
     <>
-      <div className={`nv-jr-scrim${open ? ' on' : ''}`} onClick={onClose} aria-hidden="true" />
-      <div className={`nv-jr-sheet ${className}${open ? ' on' : ''}`} role="dialog" aria-modal="true" aria-label={label} aria-hidden={!open} inert={!open ? '' : undefined}>
+      <div className={`nv-jr-scrim${open ? ' on' : ''}`} data-sheet-close="" onClick={onClose} aria-hidden="true" />
+      <div className={`nv-jr-sheet ${className}${open ? ' on' : ''}`} data-sheet="root" role="dialog" aria-modal="true" aria-label={label} aria-hidden={!open} inert={!open ? '' : undefined}>
         <div className="nv-jr-grab" aria-hidden="true" />
         {children}
       </div>

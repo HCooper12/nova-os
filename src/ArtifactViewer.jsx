@@ -165,7 +165,7 @@ export function ArtifactViewer({ d }) {
   return (
     // data-edge-page: the back swipe pops this like an iOS detail page (src/edgeBack.js)
     <div role="dialog" aria-modal="true" aria-label={meta?.title ? `Document: ${meta.title}` : 'Document'} data-edge-page="" onClick={close} style={wrap}>
-      <div ref={panelRef} className="nv-doc-viewer" onClick={(e) => e.stopPropagation()} style={{ ...panel, '--nv-doc-hue': agent.hue }}>
+      <div ref={panelRef} className="nv-doc-viewer" data-sheet="" onClick={(e) => e.stopPropagation()} style={{ ...panel, '--nv-doc-hue': agent.hue }}>
         {/* THE BAR: Back on the left, where his thumb and iOS put it; the
             glass is on the element that owns the buttons, nothing layered */}
         <div style={{

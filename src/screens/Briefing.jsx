@@ -476,8 +476,8 @@ function ScriptSheet({ b, mac, hit, onClose, onLine, onRestart }) {
   }, [onClose]);
   return (
     <>
-      <div className="nv-bf-scrim" onClick={onClose} aria-hidden="true" />
-      <section ref={drag.sheetRef} className={`nv-bf-sheet${mac ? ' side' : ''}`} role="dialog" aria-modal="true" aria-label="Script" style={{ zIndex: 80 }}>
+      <div className="nv-bf-scrim" data-sheet-close="" onClick={onClose} aria-hidden="true" />
+      <section ref={drag.sheetRef} className={`nv-bf-sheet${mac ? ' side' : ''}`} data-sheet={mac ? 'off' : 'root'} role="dialog" aria-modal="true" aria-label="Script" style={{ zIndex: 80 }}>
         <div className="nv-bf-grabzone" onPointerDown={drag.onPointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}>
           {!mac && <span className="nv-bf-grab" aria-hidden="true" />}
           <div className="nv-bf-sh">

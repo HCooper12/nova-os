@@ -301,10 +301,10 @@ function Sheet({ w, open, shape, onClose, onAsk, onInbox, onTalk }) {
     if (g.dy > 90 || vel > 0.5) onClose();
   };
   return (
-    <div ref={ref} className="sheet" role="dialog" aria-modal="true" aria-label="Your agents" aria-hidden={!open} inert={!open ? true : undefined}>
+    <div ref={ref} className="sheet" data-sheet="root" role="dialog" aria-modal="true" aria-label="Your agents" aria-hidden={!open} inert={!open ? true : undefined}>
       <div className="sh-head" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         <span className="grab" aria-hidden="true" />
-        <div className="sh-t"><h2>Your agents</h2><button type="button" className="cb" onClick={onClose}>Close</button></div>
+        <div className="sh-t"><h2>Your agents</h2><button type="button" className="cb" data-sheet-close="" onClick={onClose}>Close</button></div>
         <p className="sh-say">{w.sayLine}</p>
       </div>
       <div className="sh-body">

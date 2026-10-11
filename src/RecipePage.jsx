@@ -269,7 +269,7 @@ export function RecipeMenu({ menu, onClose, z = 96 }) {
   return (
     <div role="dialog" aria-modal="true" aria-label={menu.title || 'More'} className="nv-rp-menu" style={{ zIndex: z }}
       onClick={(e) => { e.stopPropagation(); onClose(); }}>
-      <div className="nv-rp-menu-p" onClick={(e) => e.stopPropagation()}>
+      <div className="nv-rp-menu-p" data-sheet="" onClick={(e) => e.stopPropagation()}>
         <div className="nv-rp-menu-g">
           {menu.title && <p className="nv-rp-menu-t">{menu.title}</p>}
           {items.map((it) => (it.file ? (

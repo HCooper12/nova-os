@@ -555,7 +555,7 @@ function Sheet({ label, onClose, head, children, mid }) {
       style={{ position: 'fixed', inset: 0, zIndex: 112, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         background: 'color-mix(in srgb, var(--nv-void) 62%, transparent)', animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }}>
       <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }}
-        className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-ss-sheet" tabIndex={-1} onClick={(e) => e.stopPropagation()} style={height}>
+        data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-ss-sheet" tabIndex={-1} onClick={(e) => e.stopPropagation()} style={height}>
         <div {...drag.handleProps} onPointerDown={(e) => { if (!onControl(e.target)) drag.handleProps.onPointerDown(e); }}
           className="nv-ss-grab" style={drag.handleProps.style}>
           <span className="nv-ss-handle" aria-hidden="true" />

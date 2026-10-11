@@ -175,7 +175,7 @@ export function PinnedEditSheet({ edit, rows, title = 'Pinned', dialogLabel = 'E
         animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)',
       }}>
       <div ref={(el) => { sheet.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }}
-        className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize" tabIndex={-1} onClick={(e) => e.stopPropagation()}
+        data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize" tabIndex={-1} onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: '560px', maxHeight: '86vh', boxSizing: 'border-box', outline: 'none',
           display: 'flex', flexDirection: 'column',
