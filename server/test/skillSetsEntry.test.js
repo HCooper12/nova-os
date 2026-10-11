@@ -64,3 +64,12 @@ test('a being\'s Org map card opens his skill set; the core\'s card offers none'
   const card = read('src/orgmap/OrgMap.jsx');
   assert.match(card, /c\.id !== 'core' && onSkillSet && <TextAction compact onClick=\{\(\) => onSkillSet\(c\.id\)\}>Skill set →<\/TextAction>/);
 });
+
+test('cupertino\'s More sheet (his phone) has the Agents door too, with the honest label', () => {
+  const chrome = read('src/MobileChrome.jsx');
+  assert.match(chrome, /onClick=\{\(\) => \{ setMoreOpen\(false\); v\.openAgents\(\); \}\}/);
+  assert.match(chrome, /<TabIcon name="agents" size=\{22\} \/>/);
+  assert.match(chrome, /\{v\.agentsIndexLabel && <span/);
+  assert.match(read('src/vals/valsChrome.js'), /openAgents: \(\) => app\.openSkillSets\(\),/);
+  assert.match(read('src/TabIcon.jsx'), /^ {2}agents: </m);
+});
