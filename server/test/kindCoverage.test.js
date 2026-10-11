@@ -27,6 +27,7 @@ const NOT_AGENT_WORK = {
   followup: 'derived client-side from his calendar, not filed by an agent',
   greet: 'a spoken greeting receipt',
   voice: 'his own spoken capture',
+  'journal-notion': 'his own delete made in Notion, mirrored to the vault; not work an agent did',
 };
 
 function declaredKinds() {

@@ -186,7 +186,7 @@ async function main() {
   const BROADCAST_SILENT = [
     /^\/events/, /^\/workouts\/session-draft/, /^\/push\//, /^\/ask/, /^\/tts/,
     /^\/food-log\/scan/, /^\/recipes\/scan/, /^\/recipes\/tweak/, /^\/notes\/summary/,
-    /^\/journal\/prompt/, /^\/shopping-list\/add-items\//, /^\/claude-code/, /^\/voice\/transcribe/,
+    /^\/journal\/prompt/, /^\/journal\/notion/, /^\/shopping-list\/add-items\//, /^\/claude-code/, /^\/voice\/transcribe/,
     // the Shopping screen's operational reads (a price retry, a mail scan, an
     // offer mark): server/data only, re-read when the screen opens
     /^\/shopping\//,
@@ -385,6 +385,8 @@ async function main() {
     .catch((e) => console.error('brief warm scheduler failed to start:', e.message));
   startHealthDropsScheduler(process.env.VAULT_PATH);
   startDailyReviewScheduler(process.env.VAULT_PATH);
+  // his Journal backed up to Notion, both ways (mockup 95)
+  import('./lib/notionJournal.js').then(({ startNotionJournalScheduler }) => startNotionJournalScheduler(process.env.VAULT_PATH)).catch(() => {});
   import('./lib/planToday.js').then(({ startPlanTodayScheduler }) => startPlanTodayScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('plan-today scheduler failed to start:', e.message));
   // seen, not ticked: the day's plan learns what the log already knows

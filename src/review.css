@@ -213,3 +213,15 @@
 @media (prefers-reduced-transparency: reduce) {
   .nv-rv-sheet { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--nv-bg2); }
 }
+
+/* WRITE ON IT (mockup 95, the Home row's pill): the Journal's violet pen,
+   and once he has written on today's review, the good green check */
+.nv-rv-go { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 11px; border: 0; border-radius: 22px; font: 600 13px var(--nv-font-ui); color: var(--nv-vi); background: color-mix(in srgb, var(--nv-vi) 15%, transparent); cursor: pointer; }
+.nv-rv-go .nv-rv-ic { width: 15px; height: 15px; }
+.nv-rv-go.done { color: var(--nv-good); background: color-mix(in srgb, var(--nv-good) 14%, transparent); }
+.nv-rv-go.done .nv-rv-ic { animation: nvRvGoIn 300ms cubic-bezier(.23,1,.32,1) both; }
+.nv-rv-go:active { transform: scale(.97); transition: transform 120ms ease-out; }
+.nv-rv-gr.ok .t { color: var(--nv-good); font-weight: 600; }
+.nv-rv-gr.ok .nv-rv-ic { color: var(--nv-good); }
+@keyframes nvRvGoIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nv-rv-go.done .nv-rv-ic { animation: none; } }
