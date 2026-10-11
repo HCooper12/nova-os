@@ -163,7 +163,7 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 
 **0.2 · Overlays, sheets and feedback**
 - [m] O1 · Dynamic Island / toasts — `notify()` with 4 tones, tap/drag-to-dismiss, action chips, gooey merge, resident activities (workout · speaking · nudge) — `src/DynamicIsland.jsx:126-676`, `src/island.js:25-64`, `src/vals/valsChrome.js:780-857`
-- [m] O2 · GlassSheet — FLIP grow-in from the tapped card, drag-to-dismiss with momentum projection and rubber-band, Escape, scrim — `src/GlassSheet.jsx:29-120`, `src/useSheetDrag.js:33-137`, `src/sheetPhysics.js`
+- [b] O2 · GlassSheet — FLIP grow-in from the tapped card, drag-to-dismiss with momentum projection and rubber-band, Escape, scrim; since 11 Oct one shared pull-down for every sheet, the More sheet and the reply bars (`src/sheetDrag.js`, caf92c3 + c38b95f) — `src/GlassSheet.jsx:29-120`, `src/useSheetDrag.js:33-137`, `src/sheetPhysics.js`
 - [m] O3 · ContextMenu on long-press (480ms) — bottom sheet on phone, popover on Mac, optional note block — `src/ContextMenu.jsx:17-70`, `src/longPress.js:19-58`
 - [m] O4 · SwipeRow — direction-locked drag, underlay actions, commit by fraction or flick, `threshold` haptic — `src/SwipeRow.jsx:13-43`, `src/swipeAction.js:33-126`
 - [m] O5 · Floating core (Mac) — tap talk / long-press transcript, thinking spin, listening pulse — `src/FloatingCore.jsx:18-37`
@@ -209,7 +209,7 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 - [b] H16 · Stuck — up to 3 unclosed items, each a days-ring; Start it with me / Not now / Let it go; undo receipt — `src/StuckCard.jsx:81-119`, at `:430`
 - [b] H17 · Command deck — up to 3 oldest pending proposals; tap → Inbox; "N waiting ›" — `MissionStructured.jsx:432-445`
 - [b] H18 · Today — calendar with live-block marker + countdown; inline "Ask Nova" calendar command box; "Next 14 days" → CalendarView — `MissionStructured.jsx:447-469`
-- [b] H19 · Concept revisit / Daily review — spaced-repetition concept, shuffle drum on re-roll; Review — `MissionStructured.jsx:471-498`
+- [b] H19 · Concept revisit / Daily review — rebuilt 11 Oct on a forgetting curve (mockup 96, 74186e6), then cut to a short collated card with a structured full view (mockup 98, 856b2b5); on both Homes — `MissionStructured.jsx:471-498`
 - [b] H20 · Nova noticed — up to 2 overnight insights with age chip + "talk it through"; streak badges — `MissionStructured.jsx:500-529`, model `valsMission.js:1142-1176`
 - [b] H21 · Shortcuts — Train today + latest note as one-tap doors — `MissionStructured.jsx:531-544`
 - [b] H22 · Agents — every named agent, on/off + working pulse (phone only) — `MissionStructured.jsx:546-554`, model `valsChrome.js:323-372`
@@ -387,6 +387,7 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 - [b] S11 · Claude models — Reset all, board states, lane-count + off-count, watch line, week's spend (serif), collapsible lane groups, per-lane row (On/Off chip · raw `<select>` · Reset · spend bar), deterministic-lane note, off-lane warning — `Settings.jsx:728-867`, `src/modelSpendView.js:38-60`
 - [b] S12 · Time machine · Guardian — Browse snapshots, per-file list with inline Restore… confirm — `Settings.jsx:869-909`
 - [b] S13 · Footer (server/.env, README) — `Settings.jsx:911-915`
+- [b] S14 · Notion — paste his integration key on the phone, checked against Notion, kept on the Mac — `server/lib/notionAuth.js`, 76b607a
 
 **States:** not connected hides profile / learning / push / calendars / models / time machine (`valsChrome.js:539-657`); offline additionally hides calendars, models, time machine. **Motion:** two `fadeUp`s on the mic-check banner and verdict; otherwise static. **Prior:** #10 trust ladder done; #19's raw-`<select>` smell recurs here four times (`:658, :669, :822`).
 **First look (UNVERIFIED):** the Voice section is the longest single scroll in the app and a candidate for its own screen; three near-identical option-row blocks copy-pasted (`:200-279`); developer diagnostics (haptics, ears, mic, swipe) sit inline among consumer preferences with no separation.
@@ -419,6 +420,7 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 - [m] P8 · Working on this Mac — pulse + serif summary, per-project session rows with Show me / Close it — `Ops.jsx:115-172, 332`
 - [m] P9 · The stream — newest-first receipts ledger, empty copy — `Ops.jsx:334-346`
 - [m] P10 · Ambient hand-off — `goAmbient` lives here (`valsOps.js:250`); the only door to the wall display
+- [b] P11 · Skill sets — every agent alive at a glass slab, real skills, suggested skills with tick/cross and Undo; doors from the Ops switch, More › Agents, an Org map card and the Mac sidebar — `src/skillsets/*`, mockup 97, 57d7105 (on his phone: unconfirmed)
 
 **Prior:** #9 dial done (replaced by the Org Map). **First look (UNVERIFIED):** three systems stacked → a long scroll to reach the receipts; the skill map is a grid of same-shape bordered cards (a design pass, not a reflex fix); topology columns are dot-and-label rows.
 
@@ -495,11 +497,13 @@ Audit with `mobile-native` loaded as well. Inventory: `design/audits/redesign-20
 - [m] E5 · Today's review reflect card — summary, Reflect / Close, ✦ Generate a prompt, textarea, Save — `Notes.jsx:68-108`
 **Prior:** #11 chip wall done (the Rail). **First look:** two different "extra panel on a note" patterns share one reader.
 
-#### Journal — `journal` · `src/screens/Journal.jsx` (115) · vals in `src/vals/valsNotes.js`
-- [m] J1 · Head + count; composer — ✦ Generate a prompt (literal hex `tone="#cbb6f2"`), prompt line, textarea, Save entry — `Journal.jsx:11-43`
-- [m] J2 · Loading / empty / empty-in-category copy; category chips ALL · PERSONAL · TRAINING · SYSTEM — `Journal.jsx:47-60`
-- [m] J3 · Day rows — serif date (today larger + accented + Tag), one dot per entry (cap 6 + N), house Chevron, tap expands with `nvRise` — `Journal.jsx:69-89`
-- [m] J4 · Expanded day — time, category Tag, heading (wikilink stripped), text — `Journal.jsx:96-107`
+#### Journal — `journal` · `src/screens/Journal.jsx` (115) · vals in `src/vals/valsNotes.js`  ← BUILT 11 Oct 2026 (mockup 95, eae2aef; [x] on his word)
+- [b] J1 · Head + count; composer — ✦ Generate a prompt (literal hex `tone="#cbb6f2"`), prompt line, textarea, Save entry — `Journal.jsx:11-43`
+- [b] J2 · Loading / empty / empty-in-category copy; category chips ALL · PERSONAL · TRAINING · SYSTEM — `Journal.jsx:47-60`
+- [b] J3 · Day rows — serif date (today larger + accented + Tag), one dot per entry (cap 6 + N), house Chevron, tap expands with `nvRise` — `Journal.jsx:69-89`
+- [b] J4 · Expanded day — time, category Tag, heading (wikilink stripped), text — `Journal.jsx:96-107`
+- [b] J5 · Mine | Nova's log switch, three prompts at the tap (Deep / Daily review / My life), Own / Life / Deep tags, author tag per entry — 7a852e7, d9318f5
+- [b] J6 · Two-way Notion backup, delete flows to the vault with Undo — `server/lib/notionJournal.js`, 7f2d85d
 **Prior:** #14 date table done and re-verified feature by feature.
 
 #### Stash — `stash` · `src/screens/Stash.jsx` (90) · vals in `src/vals/valsMisc.js`
@@ -560,6 +564,13 @@ abstract without page content to put in it.
 ---
 
 ## 7 · Ledger (append-only, newest first)
+
+- 12 Oct 2026 — ROWS RECONCILED WITH GIT: Journal J1–J4 to [b] and J5–J6
+  added (mockup 95); O2 to [b] (one pull-down for every sheet); S14 Notion
+  and P11 Skill sets added as [b]; H19 notes the Daily review rebuilds
+  (mockups 96, 98). Train, Fuel, Inbox and Voice were already [b]; the
+  12 Oct handoff saying otherwise was wrong. Nothing is [x]: none of it is
+  confirmed on his phone yet.
 
 - 11 Oct 2026 — THE JOURNAL BECOMES HIS (his brief; memory
   nova-journal-intent): keep the author tag; his own Journal apart from
