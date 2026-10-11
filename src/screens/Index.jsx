@@ -31,6 +31,8 @@ const ROW_MARKS = {
   technique: <><circle cx="12" cy="12" r="8" /><path d="M12 4v3.6M12 16.4V20M4 12h3.6M16.4 12H20" /></>,
   library: <><path d="M4.5 4.5h4.4v15H4.5Z" /><path d="M10.6 4.5H15v15h-4.4Z" /><path d="m16.4 5.8 3.5.9-3.1 13.2-3.5-.9Z" /></>,
   briefing: <><path d="M6.5 3.8h8L18 7.3v12.9h-11.5Z" /><path d="M14 3.8v3.9h4" /><path d="m10.5 11.4 3.9 2.4-3.9 2.4Z" /></>,
+  // three heads, one forward: the agents as a team
+  agents: <><circle cx="12" cy="8.4" r="2.7" /><path d="M7.4 19.4a4.6 4.6 0 0 1 9.2 0" /><circle cx="5.6" cy="10.2" r="2" /><circle cx="18.4" cy="10.2" r="2" /><path d="M2.8 17.6a3 3 0 0 1 3.6-2.9M21.2 17.6a3 3 0 0 0-3.6-2.9" /></>,
   ambient: <><rect x="3.5" y="4.5" width="17" height="12" rx="2.2" /><circle cx="12" cy="10.5" r="2.4" /><path d="M9.5 20h5" /></>,
 };
 

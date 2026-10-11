@@ -28,7 +28,7 @@ test('every row is a screen or one of the two overlay doors, and none appears tw
   for (const key of ROWS) {
     assert.ok(SCREEN_KEYS.includes(key) || key in OVERLAY_DOORS, `${key} goes nowhere`);
   }
-  assert.deepEqual(Object.keys(OVERLAY_DOORS).sort(), ['review', 'technique']);
+  assert.deepEqual(Object.keys(OVERLAY_DOORS).sort(), ['agents', 'review', 'technique']);
   assert.equal(new Set(ROWS).size, ROWS.length, 'a row appears twice');
   assert.deepEqual(INDEX_GROUPS.map((g) => g.label), ['Today', 'Mind', 'Life', 'Nova']);
 });
@@ -36,7 +36,7 @@ test('every row is a screen or one of the two overlay doors, and none appears tw
 test('the overlay doors call methods App actually has', () => {
   const app = read('src/App.jsx');
   for (const method of Object.values(OVERLAY_DOORS)) {
-    assert.match(app, new RegExp(`^  ${method}\\(\\) \\{`, 'm'), `App.${method}() does not exist`);
+    assert.match(app, new RegExp(`^  ${method}\\([^)]*\\) \\{`, 'm'), `App.${method}() does not exist`);
   }
 });
 
@@ -76,6 +76,7 @@ function fixture(over = {}) {
     state: { screen: 'index' },
     openDailyReview: () => calls.push('review'),
     openRepertoireBook: () => calls.push('technique'),
+    openSkillSets: (id) => calls.push(id ? `skillsets:${id}` : 'skillsets'),
   };
   const ctx = { userName: 'Hayden', go: (k) => () => calls.push(`go:${k}`), warm: (k) => () => calls.push(`warm:${k}`) };
   // configured but not yet synced: the sidebar shows '—', and so should say nothing here
@@ -103,7 +104,7 @@ test('with nothing honest to say, a row says nothing — never a zero, never a d
   const expected = Object.fromEntries(ROWS.map((k) => [k, '']));
   // the two that describe the place rather than count anything, and the agent
   // roster, which is configuration and always known
-  Object.assign(expected, { voice: 'Talk to Nova', galaxy: 'the vault as stars', ops: '2 agents working' });
+  Object.assign(expected, { voice: 'Talk to Nova', galaxy: 'the vault as stars', agents: '2 agents working' });
   assert.deepEqual(values, expected);
   for (const g of indexPage.groups) for (const r of g.rows) assert.equal(r.hot, false, `${r.key} is hot with nothing waiting`);
   assert.equal(indexPage.you.name, 'Hayden');
@@ -143,7 +144,8 @@ test('live values come from the fields they name', () => {
   assert.equal(values.money, '$1,240.00 this month');
   assert.equal(values.shopping, '1 item');
   assert.equal(values.stash, '14 links');
-  assert.equal(values.ops, '2 agents working · 2 pending');
+  assert.equal(values.agents, '2 agents working');
+  assert.equal(values.ops, '2 pending', 'the working label is said once, on Agents');
   assert.equal(indexPage.you.line, '2 agents working · offline · last-known data · 3 waiting');
 });
 
@@ -193,9 +195,11 @@ test('each row\'s door: a screen navigates, the two overlays open in place', () 
   rowOf(indexPage, 'notes').go();
   rowOf(indexPage, 'review').go();
   rowOf(indexPage, 'technique').go();
+  rowOf(indexPage, 'agents').go();
   rowOf(indexPage, 'notes').warm();
   indexPage.you.open();
-  assert.deepEqual(calls, ['go:notes', 'review', 'technique', 'warm:notes', 'settings']);
+  assert.deepEqual(calls, ['go:notes', 'review', 'technique', 'skillsets', 'warm:notes', 'settings']);
+  assert.equal(rowOf(indexPage, 'agents').label, 'Agents');
   assert.equal(rowOf(indexPage, 'review').warm, undefined, 'an overlay has no chunk to warm');
 });
 

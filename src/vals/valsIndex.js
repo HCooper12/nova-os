@@ -124,10 +124,12 @@ function rowValue(key, v) {
     }
     case 'galaxy':
       return { value: 'the vault as stars' };
+    case 'agents':
+      // the honest working-now label (agentsWorking.js), said once, here
+      return { value: v.agentsIndexLabel || '' };
     case 'ops': {
-      const live = v.agentsIndexLabel || '';
       const pending = countOf(v, 'ops');
-      return { value: [live, pending > 0 ? `${pending} pending` : ''].filter(Boolean).join(' · ') };
+      return { value: pending > 0 ? `${pending} pending` : '' };
     }
     default:
       // Home, Briefing, Code, Console, Ambient, Settings: nothing to say that
