@@ -137,6 +137,7 @@ const byNovaId = (fk, id) => [...fk.pages.values()].find((p) => (p.properties['N
 const titleOf = (pg) => (pg.properties.Entry.title || []).map((t) => t.plain_text ?? t.text?.content).join('');
 
 async function seed() {
+  await rm(path.dirname(dayFile), { recursive: true, force: true });
   await mkdir(path.dirname(dayFile), { recursive: true });
   await writeFile(dayFile, SEED, 'utf8');
   await rm(path.join(dataDir, 'notion-journal.json'), { force: true });
