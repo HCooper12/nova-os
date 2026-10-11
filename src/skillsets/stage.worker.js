@@ -1,7 +1,6 @@
-// The Skill sets' renderer, off the main thread (his 11 Oct recording: the
-// swipe juddered at ~34 fps because the characters' WebGL shared the main
-// thread with the carousel). Here it owns an OffscreenCanvas; the page only
-// posts where the slabs are, and gets back where each being stands.
+// The Skill sets' renderer, off the main thread. It owns one WebGL
+// OffscreenCanvas the size of a slab's frame; each agent is rendered into it
+// and handed to the page as an ImageBitmap for his own slab's canvas.
 //
 // beings.js paints its skins on canvases it makes with
 // document.createElement('canvas'); a worker has no document, so it gets an
@@ -28,31 +27,39 @@ async function snap() {
   return c2.convertToBlob({ type: 'image/png' });
 }
 
+function present(key) {
+  const bmp = canvas.transferToImageBitmap();
+  self.postMessage({ t: 'frame', key, bmp }, [bmp]);
+}
+
 self.onmessage = async (e) => {
   const m = e.data;
   try {
     if (m.t === 'init') {
-      canvas = m.canvas;
+      canvas = new OffscreenCanvas(Math.round(m.g.TW * m.pixelRatio), Math.round(m.g.TH * m.pixelRatio));
       core = createStageCore({
         canvas, tokens: m.tokens, reduceMotion: m.reduceMotion, pixelRatio: m.pixelRatio, maxFps: m.maxFps || 60,
-        raf, caf, snap, salt: m.salt || 0,
+        raf, caf, snap, present, salt: m.salt || 0,
         onBoxes: (boxes) => self.postMessage({ t: 'boxes', boxes }),
+        onLost: (why) => self.postMessage({ t: 'lost', why }),
       });
-      core.resize(m.w, m.h);
+      core.setGeo(m.g);
       self.postMessage({ t: 'ready' });
       return;
     }
     if (!core) return;
     if (m.t === 'portraits') { const out = await core.portraits(m.ids); self.postMessage({ t: 'portraits', out }); }
-    else if (m.t === 'resize') core.resize(m.w, m.h);
+    else if (m.t === 'geo') core.setGeo(m.g);
     else if (m.t === 'slots') core.setSlots(m.slots, m.info);
     else if (m.t === 'agents') core.setAgents(m.list);
     else if (m.t === 'active') core.setActive(m.on);
     else if (m.t === 'pin') core.pin(m.id, m.p);
     else if (m.t === 'tap') core.tap(m.id);
+    else if (m.t === 'lose') core.lose();
+    else if (m.t === 'force') core.force(m.id, m.name);
     else if (m.t === 'stats') self.postMessage({ t: 'stats', stats: core.stats(), acts: core.acts() });
     else if (m.t === 'dispose') { core.dispose(); core = null; self.close(); }
   } catch (err) {
-    self.postMessage({ t: 'error', message: String(err && err.message || err) });
+    self.postMessage({ t: 'error', message: String((err && err.message) || err) });
   }
 };

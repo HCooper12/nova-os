@@ -70,6 +70,7 @@ import { startGuardianScheduler } from './lib/guardian.js';
 import { startOvernightScheduler } from './lib/overnight.js';
 import { startTelegramBridge } from './lib/telegram.js';
 import { overnightRouter } from './routes/overnight.js';
+import { perfRouter } from './routes/perf.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '.env');
@@ -232,6 +233,7 @@ async function main() {
   app.use('/api', repertoireRouter(process.env.VAULT_PATH)); // THE REPERTOIRE — one technique a day, and the tap that says he practised it
   app.use('/api', opsRouter(process.env.VAULT_PATH));
   app.use('/api', modelPrefsRouter());
+  app.use('/api', perfRouter()); // the Skill sets' frame report from his real phone (server/data/perf, never the vault)
   app.use('/api', integrationsRouter()); // third-party keys he gives Nova from his phone (Settings › Notion)
   app.use('/api', overnightRouter(process.env.VAULT_PATH));
   app.use('/api', workoutsRouter(process.env.VAULT_PATH));
