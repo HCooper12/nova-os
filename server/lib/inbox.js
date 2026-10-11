@@ -1029,6 +1029,12 @@ export async function undoFiling(vaultPath, undo) {
   // still the newest commit, on the parent it was made on, and on no remote.
   // The guards are codeChanges.js's own, so this door and the Code screen's
   // Undo refuse the same things in the same words.
+  // A DELETE MADE IN NOTION, taken back: the vault day page as it was
+  // (lib/notionJournal.js). Notion keeps it deleted; the entry is vault only.
+  if (undo.kind === 'journal-notion-delete') {
+    const { undoNotionDelete } = await import('./notionJournal.js');
+    return undoNotionDelete(vaultPath, undo);
+  }
   if (undo.kind === 'code-commit') {
     const { revertNovaCommit } = await import('./codeChanges.js');
     return revertNovaCommit(undo);

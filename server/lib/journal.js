@@ -148,8 +148,37 @@ export function journalAuthorName(id) {
 const labelsOf = (id) => Object.keys(LABEL_AUTHORS).filter((l) => LABEL_AUTHORS[l] === id).map((l) => `"${l}"`).join(', ');
 export const JOURNAL_AUTHORSHIP_RULE = `WHO WROTE A JOURNAL ENTRY. Most of Wiki/Journal is filed by Nova and the agents, not by Hayden. Each "## HH:MM" section names its author, "· by Nova", "· by Coach" and so on, or on older entries by its label: ${labelsOf('nova')} are Nova's; ${labelsOf('coach')} are the Coach's; ${labelsOf('leader')}, ${labelsOf('guardian')} and ${labelsOf('cfo')} are the Leader's, the Guardian's and the CFO's. Only a section marked "by Hayden", "Said to Nova", a "Reflection on [[…]]" or an unlabelled one is his own words. Never tell him "you said", "you wrote" or "you promised" about any other entry: it is what Nova or that agent noted.`;
 
+// HIS TAGS AND WHERE HE WROTE IT (11 Oct 2026, mockup 95). His own entries
+// carry where they came from beside the author, so the file stays readable
+// in Obsidian and every reader parses one shape:
+//   "## 21:10 · personal · by Hayden · deep — Deep question"
+//   "## 20:55 · personal · by Hayden · own · notion"
+// own = off the cuff, life = answered a My life or Daily review prompt,
+// deep = answered a Deep question. "notion" = he wrote it in Notion and it was
+// brought home. The label after the dash names the prompt kind he answered.
+export const JOURNAL_TAGS = ['own', 'life', 'deep'];
+export const PROMPT_FROM = { deep: 'Deep question', review: 'Daily review', life: 'My life' };
+const PROMPT_FROM_KEY = Object.fromEntries(Object.entries(PROMPT_FROM).map(([k, v]) => [v, k]));
+
 function headingLine(s) {
-  return `## ${s.time}${s.category ? ' · ' + s.category : ''}${s.by ? ' · by ' + s.by : ''}${s.heading ? ' — ' + s.heading : ''}`;
+  return `## ${s.time}${s.category ? ' · ' + s.category : ''}${s.by ? ' · by ' + s.by : ''}${s.tag ? ' · ' + s.tag : ''}${s.writtenIn === 'notion' ? ' · notion' : ''}${s.heading ? ' — ' + s.heading : ''}`;
+}
+export const journalHeadingLine = headingLine;
+
+// The body of one of his prompted entries: the prompt he answered as a quote,
+// then his words. Unprompted entries are his words alone, as before.
+export function sectionBody({ prompt, words }) {
+  const w = String(words || '').trim();
+  const p = String(prompt || '').replace(/\s+/g, ' ').trim();
+  return p ? `> ${p}\n\n${w}` : w;
+}
+export function splitBody(text) {
+  const lines = String(text || '').split('\n');
+  const q = [];
+  let i = 0;
+  while (i < lines.length && /^>\s?/.test(lines[i])) { q.push(lines[i].replace(/^>\s?/, '')); i++; }
+  if (!q.length) return { prompt: null, words: String(text || '').trim() };
+  return { prompt: q.join(' ').trim() || null, words: lines.slice(i).join('\n').trim() };
 }
 
 function bodyFor(date, sections) {
@@ -177,7 +206,13 @@ export function parseJournalHeading(line) {
   }
   const heading = rest.join(' — ').trim() || null;
   const section = { time: time.trim(), category, by, heading };
-  return { ...section, author: journalAuthorOf(section) };
+  const out = { ...section, author: journalAuthorOf(section) };
+  // his tag and Notion marker, beside the author
+  const tag = markers.map((mk) => mk.trim()).find((mk) => JOURNAL_TAGS.includes(mk));
+  if (tag) out.tag = tag;
+  if (markers.some((mk) => mk.trim() === 'notion')) out.writtenIn = 'notion';
+  if (heading && PROMPT_FROM_KEY[heading]) out.promptFrom = PROMPT_FROM_KEY[heading];
+  return out;
 }
 
 // Parses a day-file's body back into its per-entry sections (inverse of
@@ -187,7 +222,10 @@ function parseSections(body) {
   return chunks.map((chunk) => {
     const parsed = parseJournalHeading(chunk.trim().match(/^##[^\n]*/)[0]);
     const text = chunk.replace(/^##[^\n]*\n/, '').trim();
-    return { ...parsed, text };
+    if (parsed.author !== 'hayden') return { ...parsed, text };
+    const { prompt, words } = splitBody(text);
+    // an unmarked entry of his is off the cuff unless it answered a prompt
+    return { ...parsed, tag: parsed.tag || (prompt ? 'life' : 'own'), prompt, words, text };
   });
 }
 
@@ -255,17 +293,23 @@ export async function addEntry(vaultPath, entry) {
   const author = resolveEntryAuthor(entry);
 
   return withWriteLock(async () => {
-    const { date, time } = todayParts();
+    const { date, time } = todayParts(entry.at ? new Date(entry.at) : new Date());
     const dir = path.join(vaultPath, JOURNAL_DIR_REL);
     await mkdir(dir, { recursive: true });
     const full = path.join(dir, `${date}.md`);
 
+    const his = author === 'hayden' && !entry.linkedTitle;
+    const tag = his ? (JOURNAL_TAGS.includes(entry.tag) ? entry.tag : (entry.promptFrom === 'deep' ? 'deep' : entry.promptFrom ? 'life' : 'own')) : null;
+    const prompt = his && entry.prompt ? String(entry.prompt) : null;
     const newSection = {
       time,
       category,
       by: JOURNAL_AUTHORS[author],
-      heading: entry.linkedTitle ? `Reflection on [[${entry.linkedTitle}]]` : (entry.label || null),
-      text,
+      // written only when he chose one; an unmarked entry of his reads as own
+      tag: his && (entry.tag || entry.promptFrom || entry.writtenIn === "notion") ? tag : null,
+      writtenIn: his && entry.writtenIn === 'notion' ? 'notion' : null,
+      heading: entry.linkedTitle ? `Reflection on [[${entry.linkedTitle}]]` : (his && PROMPT_FROM[entry.promptFrom] ? PROMPT_FROM[entry.promptFrom] : (entry.label || null)),
+      text: prompt ? sectionBody({ prompt, words: text }) : text,
     };
     let sections;
     if (existsSync(full)) {
@@ -309,7 +353,8 @@ export async function addEntry(vaultPath, entry) {
       }
     } catch { /* log bookkeeping is best-effort */ }
 
-    return { date, time, text, category, author, linkedTitle: entry.linkedTitle || null };
+    const novaId = novaIdFor(date, time, sections.filter((x) => x.time === time).length - 1);
+    return { date, time, text, category, author, linkedTitle: entry.linkedTitle || null, novaId, tag, prompt };
   });
 }
 
@@ -361,8 +406,138 @@ export async function listEntries(vaultPath, { limit } = {}) {
     const raw = await readFile(path.join(dir, f), 'utf8');
     const { data, content } = matter(raw);
     const date = f.replace(/\.md$/, '');
-    days.push({ date, sections: parseSections(content), updated: data.updated || date });
+    const seen = {};
+    const sections = parseSections(content).map((sec) => {
+      const n = seen[sec.time] = (seen[sec.time] ?? -1) + 1;
+      return { ...sec, novaId: novaIdFor(date, sec.time, n) };
+    });
+    days.push({ date, sections, updated: data.updated || date });
   }
   days.sort((a, b) => (a.date < b.date ? 1 : -1));
   return limit ? days.slice(0, limit) : days;
+}
+
+// ONE ENTRY'S ID, for the Notion copy (Nova id) and for any write that names
+// one entry. The day and the minute, with an ordinal only when two entries
+// share a minute: stable under an edit of the words or the tag, readable in
+// the Notion database, and derived, so nothing new is written to the vault.
+export function novaIdFor(date, time, n = 0) {
+  return `${date}T${time}${n > 0 ? '-' + (n + 1) : ''}`;
+}
+export function parseNovaId(id) {
+  const m = String(id || '').match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?:-(\d+))?$/);
+  return m ? { date: m[1], time: m[2], n: m[3] ? Number(m[3]) - 1 : 0 } : null;
+}
+
+// The chunks of a raw day page, split on the same boundary parseSections and
+// removeSectionRaw use, so an index means the same section everywhere.
+function rawChunks(raw) {
+  const fm = raw.match(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|(?![\s\S]))/);
+  const head = fm ? fm[0] : '';
+  return { head, chunks: raw.slice(head.length).split(/\n(?=##\s)/) };
+}
+
+// The idx-th section's heading and body replaced, and nothing else: the
+// other sections, the frontmatter and this chunk's own trailing whitespace
+// stay byte for byte.
+export function replaceSectionRaw(raw, idx, section) {
+  const { head, chunks } = rawChunks(raw);
+  let seen = -1;
+  const at = chunks.findIndex((c) => /^##\s/.test(c.trim()) && ++seen === idx);
+  if (at === -1) return raw;
+  const old = chunks[at];
+  const lead = old.match(/^\s*/)[0];
+  const trail = old.match(/\s*$/)[0];
+  chunks[at] = `${lead}${headingLine(section)}\n\n${String(section.text).trim()}${trail}`;
+  return head + chunks.join('\n');
+}
+
+async function locate(vaultPath, novaId) {
+  const id = parseNovaId(novaId);
+  if (!id) return null;
+  const full = path.join(vaultPath, JOURNAL_DIR_REL, `${id.date}.md`);
+  if (!existsSync(full)) return null;
+  const raw = await readFile(full, 'utf8');
+  const sections = parseSections(matter(raw).content);
+  let n = -1;
+  const idx = sections.findIndex((s) => s.time === id.time && ++n === id.n);
+  if (idx === -1) return null;
+  return { full, raw, idx, section: sections[idx], date: id.date };
+}
+
+export async function getEntry(vaultPath, novaId) {
+  const at = await locate(vaultPath, novaId);
+  return at ? { ...at.section, novaId, date: at.date } : null;
+}
+
+// One of HIS entries changed in place: its words (an edit made in Notion) or
+// its tag (a retag). Refuses anything not his: Nova's log is never edited
+// from here. Returns the page before and after, for an exact undo.
+export async function updateEntry(vaultPath, novaId, { words, tag, prompt } = {}) {
+  return withWriteLock(async () => {
+    const at = await locate(vaultPath, novaId);
+    if (!at) throw new Error('that entry is no longer in your journal');
+    if (at.section.author !== 'hayden') throw new Error('only your own entries can be changed here');
+    if (tag != null && !JOURNAL_TAGS.includes(tag)) throw new Error('unknown tag');
+    const s = at.section;
+    const nextWords = words != null ? String(words).trim() : s.words;
+    if (!nextWords) throw new Error('entry text is required');
+    const nextPrompt = prompt !== undefined ? prompt : s.prompt;
+    const next = { ...s, tag: tag || s.tag, text: nextPrompt ? sectionBody({ prompt: nextPrompt, words: nextWords }) : nextWords };
+    const after = replaceSectionRaw(at.raw, at.idx, next);
+    if (after === at.raw) return { date: at.date, before: at.raw, after, changed: false };
+    await backupFile(at.full);
+    await writeFile(at.full, after, 'utf8');
+    return { date: at.date, before: at.raw, after, changed: true };
+  });
+}
+
+// One of HIS entries taken out of the vault, for a delete made in Notion or
+// the Undo on a save. The whole page before is returned so the undo can put
+// it back byte for byte.
+export async function deleteEntry(vaultPath, novaId) {
+  return withWriteLock(async () => {
+    const at = await locate(vaultPath, novaId);
+    if (!at) return null;
+    if (at.section.author !== 'hayden') throw new Error('only your own entries can be removed here');
+    await backupFile(at.full);
+    const sections = parseSections(matter(at.raw).content);
+    let after = null;
+    if (sections.length === 1) {
+      const { unlink } = await import('node:fs/promises');
+      await unlink(at.full);
+    } else {
+      after = removeSectionRaw(at.raw, at.idx);
+      await writeFile(at.full, after, 'utf8');
+    }
+    return { date: at.date, before: at.raw, after, section: at.section };
+  });
+}
+
+// The undo of deleteEntry: the day page exactly as it was, but only while the
+// page is still exactly as the delete left it. If he has written on that day
+// since, the removed section alone goes back at the end, so nothing he wrote
+// afterwards is lost.
+export async function restoreDay(vaultPath, { date, before, after }) {
+  return withWriteLock(async () => {
+    const dir = path.join(vaultPath, JOURNAL_DIR_REL);
+    const full = path.join(dir, `${date}.md`);
+    const now = existsSync(full) ? await readFile(full, 'utf8') : null;
+    if (now === after) {
+      await mkdir(dir, { recursive: true });
+      if (now != null) await backupFile(full);
+      await writeFile(full, before, 'utf8');
+      return 'exact';
+    }
+    // the day changed since: re-append the one section that was removed
+    const was = parseSections(matter(before).content);
+    const left = now == null ? [] : parseSections(matter(now).content);
+    const missing = was.find((s) => !left.some((l) => l.time === s.time && l.text === s.text));
+    if (!missing) return 'already-there';
+    await mkdir(dir, { recursive: true });
+    if (now != null) await backupFile(full);
+    const base = now ?? matter.stringify(`# ${date}\n`, { type: 'journal', tags: [], created: date, updated: date });
+    await writeFile(full, appendSectionRaw(base, date, missing), 'utf8');
+    return 'appended';
+  });
 }
