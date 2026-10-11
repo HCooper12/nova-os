@@ -194,7 +194,15 @@ export function buildReview(app, ctx) {
     readNextAria: `Next: counts as read, back in ${gapWord(GAPS[nextStep(stepBefore, 'read')]).toLowerCase()}`,
     // after answering: Next only moves on (Done on the last)
     next: () => app.reviewNext(),
-    writeAboutIt: item && !item.demo ? () => { app.selectNote(item.id); app.toggleReviewReflect(); } : () => app.toastMsg('Demo: the Journal opens with this page in a real session'),
+    // WRITE ON IT (mockup 95): the Journal opens with the Daily review prompt
+    // chosen; once he has written on today's review the row keeps its place
+    // with a check (his call)
+    writeAboutIt: () => app.openJournalFromReview(),
+    writtenToday: (() => {
+      const days = demo ? app.journalDemoDays() : (st.liveJournalEntries || []);
+      const d = days.find((x) => x.date === todayISO);
+      return !!d && d.sections.some((sec) => sec.author === 'hayden' && sec.promptFrom === 'review');
+    })(),
     open: item ? () => app.openReviewSheet() : () => {},
     done: {
       line: doneLine,

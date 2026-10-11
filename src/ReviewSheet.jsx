@@ -162,7 +162,7 @@ export function ReviewSheet({ v }) {
         <div className="nv-rv-sbar">
           <AnswerSlot r={r} afterLabel="Close" onAfter={close} />
           <div className="nv-rv-foot" style={{ justifyContent: 'center' }}>
-            <TextAction tone="violet" onClick={r.writeAboutIt} style={{ gap: '4px' }}><RvIcon name="pen" />Write about it</TextAction>
+            <TextAction tone="violet" onClick={() => { r.closeSheet(); r.writeAboutIt(); }} style={{ gap: '4px' }}><RvIcon name="pen" />{r.writtenToday ? 'Written · write again' : 'Write on it'}</TextAction>
           </div>
         </div>
       </div>

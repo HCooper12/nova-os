@@ -239,6 +239,18 @@ function useDemoArrival(demo) {
   return ready;
 }
 
+// WRITE ON IT (mockup 95, Home): opens the Journal with today's Daily review
+// prompt chosen. After he has written on it the row keeps its place and says
+// so, with a check (his call): the review reads as done without hiding.
+export function WriteOnIt({ r }) {
+  return (
+    <Interactive as="button" type="button" className={`nv-rv-go${r.writtenToday ? ' done' : ''}`} onClick={r.writeAboutIt} haptic="tick"
+      aria-label={r.writtenToday ? 'You wrote on it today. Write again' : 'Write on it in your Journal'}>
+      <RvIcon name={r.writtenToday ? 'got' : 'pen'} className="nv-rv-ic" />{r.writtenToday ? 'Written' : 'Write on it'}
+    </Interactive>
+  );
+}
+
 function CardBody({ r }) {
   const entrance = useEntrance(r.id);
   return (
@@ -255,7 +267,7 @@ function CardBody({ r }) {
       </>}
       <AnswerSlot r={r} />
       <div className="nv-rv-foot">
-        <TextAction tone="violet" onClick={r.writeAboutIt} style={{ gap: '4px' }}><RvIcon name="pen" className="nv-rv-ic" />Write about it</TextAction>
+        <WriteOnIt r={r} />
         <TextAction tone="quiet" onClick={r.open} ariaLabel={`Open the page, ${r.title}`}>Open the page<RvIcon name="chev" className="nv-rv-ic" /></TextAction>
       </div>
     </div>
@@ -313,8 +325,8 @@ function GroupRows({ r }) {
         </Interactive>
       ))}
       <div className="nv-rv-gpad"><AnswerSlot r={r} /></div>
-      <Interactive as="button" type="button" className="nv-rv-gr vi" onClick={r.writeAboutIt} haptic="tick">
-        <span className="t">Write about it</span><RvIcon name="chev" className="nv-rv-ic chev" />
+      <Interactive as="button" type="button" className={`nv-rv-gr ${r.writtenToday ? 'ok' : 'vi'}`} onClick={r.writeAboutIt} haptic="tick">
+        <span className="t">{r.writtenToday ? 'Written on today · write again' : 'Write on it'}</span>{r.writtenToday ? <RvIcon name="got" className="nv-rv-ic" /> : <RvIcon name="chev" className="nv-rv-ic chev" />}
       </Interactive>
     </div>
   );
