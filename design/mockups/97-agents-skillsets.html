@@ -1,0 +1,511 @@
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Agents, skill sets</title>
+<!--
+  97 · THE AGENTS AND WHAT EACH CAN DO (11 October 2026), round 1
+  His words: "I want this kind of dynamic UI incorporated. For now possibly
+  for a view of all the agents and a list of their capabilities etc, like a
+  skill set list."  Reference: the 55 s glass-slab reel (slabs on a curved lit
+  floor, the carousel swings, slabs dissolve to particles, a reticle locks,
+  the particles become a head that turns). Borrowed: the depth, the arc, the
+  dissolve and the lock. Not borrowed: purple neon, chrome text.
+
+  SOURCES (read 11 Oct)
+    roster, order, districts ........ server/lib/orgMap.js BEINGS
+    hue + accent per being .......... src/agentWorld/beings.js BEING_HUES
+    working now (the only honest rule) src/vals/agentsWorking.js workingBeingIds
+    skills + autonomy tier .......... server/lib/skills.js SEED (Wiki/Library/Nova Skills.md)
+    who can be consulted ............ server/lib/consult.js AGENTS (nova, coach, leader,
+                                      researcher, librarian, cfo; stash + calendar are
+                                      read by code, not agents)
+    last runs / freshness ........... orgMap.js `fresh` (heartbeats) + KIND_BEING records
+  Every skill row cites its lib file in a comment in DATA below.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  /* the real --nv-* values, Command Core theme (src/index.css) */
+  --nv-void:#06070d; --nv-bg1:#0a0f1e; --nv-bg2:#111a32;
+  --nv-ink:#e8ecf6; --nv-ink60:rgba(232,236,246,.62); --nv-ink40:rgba(232,236,246,.38);
+  --nv-glass:rgba(16,20,36,.62); --nv-glass2:rgba(26,32,54,.8);
+  --nv-edge:rgba(130,175,255,.24); --nv-spec:rgba(190,225,255,.45);
+  --nv-cy:#59e6ff; --nv-vi:#8f7bff; --nv-mg:#ff7ad9; --nv-gold:#e0b26a; --nv-good:#5fe8a8; --nv-warn:#e08383; --nv-or:#ffa257;
+  --nv-m-chest:#ff8a7a; --nv-m-back:#4fd1c5; --nv-m-shoulders:#ffc46b; --nv-m-quads:#7ab8ff; --nv-m-calves:#8fd3ff; --nv-m-abs:#ffd66b;
+  --nv-radius:10px;
+  --ui:-apple-system,"SF Pro Text",system-ui,sans-serif;
+  --serif:"Newsreader",Georgia,serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(.23,1,.32,1);
+  --k:1; /* Slow x4 sets 4 */
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--nv-void);color:var(--nv-ink);font:14px/1.5 var(--ui);-webkit-font-smoothing:antialiased;padding-inline:16px;overflow-x:hidden}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 0;background:color-mix(in srgb,var(--nv-void) 86%,transparent);backdrop-filter:blur(14px)}
+.bar a,.bar button{font:500 12px var(--ui);color:var(--nv-ink60);text-decoration:none;border:1px solid var(--nv-edge);background:none;border-radius:999px;padding:6px 10px;cursor:pointer;min-height:32px}
+.bar button[aria-pressed=true]{color:var(--nv-void);background:var(--nv-cy);border-color:var(--nv-cy)}
+main{max-width:1560px;margin:0 auto}
+h1{font:600 26px/1.15 var(--ui);letter-spacing:-.02em;margin:22px 0 4px;text-wrap:balance}
+h2{font:600 13px var(--ui);letter-spacing:.18em;text-transform:uppercase;color:var(--nv-ink60);margin:44px 0 6px}
+p.lede{font:400 17px/1.5 var(--serif);color:var(--nv-ink60);max-width:64ch;margin:0}
+.note{font-size:12.5px;color:var(--nv-ink60);max-width:70ch}
+.row{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+
+/* ---------- device frames ---------- */
+.phone{width:390px;max-width:100%;height:844px;border-radius:46px;border:1px solid var(--nv-edge);overflow:hidden;position:relative;flex-shrink:0;background:radial-gradient(120% 70% at 50% 18%,var(--nv-bg2),var(--nv-bg1) 55%,var(--nv-void))}
+.macwrap{width:100%;overflow:hidden;border-radius:14px;border:1px solid var(--nv-edge);position:relative}
+.mac{width:1512px;height:900px;transform-origin:0 0;position:absolute;left:0;top:0;background:radial-gradient(90% 70% at 40% 20%,var(--nv-bg2),var(--nv-bg1) 55%,var(--nv-void))}
+.cap{font:500 11px var(--mono);color:var(--nv-ink40);margin:8px 0 0;letter-spacing:.04em}
+
+/* ---------- the view ---------- */
+.view{position:absolute;inset:0;overflow:hidden;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.top{position:absolute;left:20px;right:20px;top:54px;display:flex;justify-content:space-between;align-items:baseline;z-index:5}
+.top b{font:700 30px/1 var(--ui);letter-spacing:-.02em}
+.top span{font:600 11px var(--mono);letter-spacing:.08em;color:var(--nv-ink60)}
+.demo-tag{display:inline-block;font:600 9.5px var(--mono);letter-spacing:.08em;color:var(--nv-gold);border:1px solid color-mix(in srgb,var(--nv-gold) 45%,transparent);border-radius:4px;padding:1px 4px;vertical-align:1px}
+.stage{position:absolute;left:0;right:0;top:120px;height:520px;perspective:1100px;perspective-origin:50% 30%}
+.wide .stage{top:110px;height:640px;perspective:1800px;right:0}
+.floor{position:absolute;left:-40%;right:-40%;top:380px;height:420px;transform:rotateX(76deg);transform-origin:50% 0;border-radius:50%;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--hue,var(--nv-cy)) 26%,transparent),transparent 70%),
+  repeating-radial-gradient(circle at 50% 0,transparent 0 46px,rgba(130,175,255,.07) 46px 47px);transition:background 400ms var(--ease)}
+.wide .floor{top:470px}
+.slab{position:absolute;left:50%;top:20px;width:236px;height:350px;margin-left:-118px;border-radius:18px;
+  background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.02) 40%,rgba(10,15,30,.35));
+  border:1px solid var(--nv-edge);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);
+  padding:18px 18px 16px;display:flex;flex-direction:column;gap:10px;will-change:transform,opacity;cursor:grab;
+  box-shadow:inset 0 1px 0 var(--nv-spec)}
+.wide .slab{width:300px;height:430px;margin-left:-150px}
+.slab.lit{border-color:color-mix(in srgb,var(--h) 70%,transparent);box-shadow:inset 0 1px 0 var(--nv-spec),0 0 0 1px color-mix(in srgb,var(--h) 35%,transparent),0 30px 80px -30px color-mix(in srgb,var(--h) 60%,transparent)}
+.slab .art{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--h) 14%,transparent);border:1px solid color-mix(in srgb,var(--h) 35%,transparent)}
+.slab .art svg{width:30px;height:30px;stroke:var(--h);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.slab .nm{font:700 23px/1 var(--ui);letter-spacing:.2em;text-transform:uppercase;margin-top:6px;overflow-wrap:anywhere}
+.wide .slab .nm{font-size:28px}
+.slab .rl{font:italic 400 15px/1.35 var(--serif);color:var(--nv-ink60)}
+.slab .st{font:600 10.5px var(--mono);letter-spacing:.06em;color:var(--nv-ink40);display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--nv-ink40);flex-shrink:0}
+.dot.on{background:var(--h);box-shadow:0 0 0 0 var(--h);animation:pulse calc(1.6s*var(--k)) ease-out infinite}
+@keyframes pulse{to{box-shadow:0 0 0 7px transparent}}
+.slab ul{list-style:none;margin:auto 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.slab li{font:500 12.5px/1.3 var(--ui);display:flex;gap:8px;align-items:flex-start}
+.tier{flex-shrink:0;width:16px;height:16px;border-radius:5px;display:grid;place-items:center;font:700 9px var(--mono);margin-top:1px}
+.t-observe{background:rgba(130,175,255,.14);color:var(--nv-m-quads)}
+.t-propose{background:color-mix(in srgb,var(--nv-gold) 18%,transparent);color:var(--nv-gold)}
+.t-act{background:color-mix(in srgb,var(--nv-good) 16%,transparent);color:var(--nv-good)}
+.slab .count{font:600 11px var(--mono);color:var(--nv-ink40);display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,.06);padding-top:8px}
+.pips{position:absolute;left:0;right:0;top:648px;display:flex;justify-content:center;gap:6px;z-index:5}
+.wide .pips{top:auto;bottom:40px}
+.pips i{width:6px;height:6px;border-radius:50%;background:var(--nv-ink40);transition:transform 200ms var(--ease),background 200ms}
+.pips i.on{background:var(--hue);transform:scale(1.5)}
+.hint{position:absolute;left:0;right:0;top:672px;text-align:center;font:400 13px var(--serif);font-style:italic;color:var(--nv-ink40);z-index:5}
+.wide .hint{top:auto;bottom:12px}
+canvas.fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6}
+.reticle{position:absolute;width:150px;height:150px;left:50%;top:230px;margin:-75px 0 0 -75px;z-index:7;pointer-events:none;opacity:0;transform:scale(1.4) rotate(-30deg);transition:opacity calc(240ms*var(--k)) var(--ease),transform calc(420ms*var(--k)) var(--ease)}
+.reticle.lock{opacity:1;transform:scale(1) rotate(0)}
+.reticle svg{width:100%;height:100%;stroke:var(--hue);fill:none;stroke-width:1.2}
+
+/* ---------- the open sheet ---------- */
+.sheet{position:absolute;left:0;right:0;bottom:0;top:330px;z-index:8;border-radius:28px 28px 0 0;background:var(--nv-glass2);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);border-top:1px solid color-mix(in srgb,var(--hue) 45%,transparent);
+  transform:translateY(105%);transition:transform calc(420ms*var(--k)) cubic-bezier(.32,.72,0,1);overflow-y:auto;padding:16px 18px 40px;overscroll-behavior:contain}
+.wide .sheet{left:auto;top:0;width:560px;border-radius:0;border-top:0;border-left:1px solid color-mix(in srgb,var(--hue) 45%,transparent);transform:translateX(105%)}
+.open .sheet{transform:none}
+.back{position:absolute;left:16px;top:52px;z-index:9;font:600 14px var(--ui);color:var(--hue);background:var(--nv-glass);border:1px solid var(--nv-edge);border-radius:999px;padding:9px 14px;min-height:40px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity 200ms}
+.open .back{opacity:1;pointer-events:auto}
+.sh-h{display:flex;gap:12px;align-items:center}
+.sh-h b{font:700 22px/1 var(--ui);letter-spacing:.16em;text-transform:uppercase}
+.sh-h .rl{font:italic 15px var(--serif);color:var(--nv-ink60)}
+.tierbar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:14px 0 4px;gap:2px}
+.tierbar i{display:block;height:100%;transform-origin:0 50%;animation:grow calc(500ms*var(--k)) var(--ease) both}
+@keyframes grow{from{transform:scaleX(0)}}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font:500 11px var(--mono);color:var(--nv-ink60)}
+.grp{margin-top:18px}
+.grp h4{margin:0 0 8px;font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--nv-ink40)}
+.sk{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;padding:11px 12px;border-radius:12px;margin-bottom:6px;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--hue) 9%,transparent),transparent 70%);border:1px solid rgba(255,255,255,.06);
+  animation:rise calc(380ms*var(--k)) var(--ease) both;animation-delay:calc(var(--i)*45ms*var(--k))}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.sk .tier{width:22px;height:22px;font-size:10px}
+.sk .t{font:500 14px/1.35 var(--ui)}
+.sk .m{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.tag{font:600 10px var(--mono);letter-spacing:.04em;padding:2px 6px;border-radius:5px;border:1px solid rgba(255,255,255,.1);color:var(--nv-ink60)}
+.tag.vault{color:var(--nv-vi);border-color:color-mix(in srgb,var(--nv-vi) 40%,transparent)}
+.tag.inbox{color:var(--nv-cy);border-color:color-mix(in srgb,var(--nv-cy) 40%,transparent)}
+.tag.web{color:var(--nv-m-calves);border-color:color-mix(in srgb,var(--nv-m-calves) 40%,transparent)}
+.tag.calendar{color:var(--nv-m-shoulders);border-color:color-mix(in srgb,var(--nv-m-shoulders) 40%,transparent)}
+.tag.health,.tag.bank{color:var(--nv-good);border-color:color-mix(in srgb,var(--nv-good) 40%,transparent)}
+.sk.notyet{background:none;border-style:dashed;opacity:.62}
+.sk.notyet .t::after{content:"not yet";margin-left:8px;font:600 9.5px var(--mono);letter-spacing:.06em;color:var(--nv-warn)}
+.consult{display:flex;align-items:center;gap:0;margin-top:6px;flex-wrap:wrap;row-gap:8px}
+.cn{display:flex;align-items:center;gap:6px;font:500 12px var(--ui);padding:5px 9px 5px 6px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-right:6px}
+.cn i{width:10px;height:10px;border-radius:50%}
+.runs{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:3px;align-items:end;height:46px;margin-top:8px}
+.runs i{display:block;background:var(--hue);border-radius:2px;opacity:.75;transform-origin:50% 100%;animation:grow2 calc(420ms*var(--k)) var(--ease) both;animation-delay:calc(var(--i)*30ms*var(--k))}
+@keyframes grow2{from{transform:scaleY(0)}}
+.src{font:400 11px var(--mono);color:var(--nv-ink40);margin-top:6px;overflow-wrap:anywhere}
+
+/* ---------- static state panels ---------- */
+.states{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:10px}
+.state{border:1px solid var(--nv-edge);border-radius:18px;padding:16px;background:linear-gradient(170deg,var(--nv-bg2),var(--nv-bg1));min-height:250px;position:relative;overflow:hidden}
+.state h3{margin:0 0 4px;font:600 13px var(--ui)}
+.state p{margin:0 0 12px;font-size:12.5px;color:var(--nv-ink60)}
+.mini{width:130px;height:150px;margin:0 auto;border-radius:12px;border:1px solid var(--nv-edge);padding:12px;display:flex;flex-direction:column;gap:8px;background:rgba(255,255,255,.03)}
+.skel{height:10px;border-radius:4px;background:linear-gradient(90deg,rgba(255,255,255,.05),rgba(255,255,255,.12),rgba(255,255,255,.05));background-size:200% 100%;animation:shim calc(1.4s*var(--k)) linear infinite}
+@keyframes shim{to{background-position:-200% 0}}
+.say{font:italic 14px/1.4 var(--serif);color:var(--nv-ink)}
+
+/* entry */
+.entry{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.idx{border-radius:16px;background:var(--nv-glass);border:1px solid var(--nv-edge);padding:6px 0}
+.idx div{display:flex;align-items:center;gap:12px;padding:10px 14px;font:500 15px var(--ui)}
+.idx div+div{border-top:1px solid rgba(255,255,255,.05)}
+.idx .ic{width:28px;height:28px;border-radius:8px;flex-shrink:0}
+.idx .v{margin-left:auto;font-size:13px;color:var(--nv-ink60)}
+.idx .new{background:color-mix(in srgb,var(--nv-cy) 8%,transparent)}
+.rec{font:600 10px var(--mono);color:var(--nv-good);letter-spacing:.08em}
+
+.calls{counter-reset:none;display:flex;flex-direction:column;gap:12px;max-width:820px}
+.call{border:1px solid var(--nv-edge);border-radius:14px;padding:14px 16px;background:var(--nv-glass)}
+.call q{display:block;font:500 16px/1.4 var(--ui);quotes:none;margin-bottom:6px}
+.call div{font-size:13px;color:var(--nv-ink60)}
+.call b{color:var(--nv-ink);font-weight:600}
+footer{height:80px}
+
+/* reduced motion: the page control AND the OS setting */
+.rm .slab,.rm .sheet{transition:opacity calc(240ms*var(--k)) ease!important}
+.rm .sheet{transform:none!important;opacity:0;pointer-events:none}
+.rm .open .sheet{opacity:1;pointer-events:auto}
+.rm .reticle{display:none}
+.rm .sk,.rm .runs i,.rm .tierbar i{animation:fade calc(200ms*var(--k)) ease both!important}
+@keyframes fade{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.dot.on,.skel{animation:none}}
+:focus-visible{outline:2px solid var(--nv-cy);outline-offset:2px}
+</style>
+
+<div class="bar" role="toolbar" aria-label="Mockup controls">
+  <button id="slow" aria-pressed="false">Slow ×4</button>
+  <button id="rmb" aria-pressed="false">Reduce motion</button>
+  <a href="#phone">iPhone</a><a href="#mac">MacBook</a><a href="#entry">Where it lives</a><a href="#states">States</a><a href="#calls">Your calls</a>
+</div>
+<main>
+<h1>Every agent, and what each can really do</h1>
+<p class="lede">Ten glass slabs on a lit floor, one per agent, in the Org map's order and each agent's own hue. Swipe to turn the arc. Tap a slab and it breaks into light that gathers into that agent's face, then its full skill set rises underneath.</p>
+<p class="note">Every skill shown is in the code today (sources in the HTML comments). Gold <span class="demo-tag">DEMO</span> marks a live value drawn here as an example; the note under it names where the real one is read.</p>
+
+<h2 id="phone">On his iPhone · 390</h2>
+<div class="row">
+  <div class="phone"><div class="view" data-mode="phone"></div></div>
+  <div style="flex:1;min-width:260px;max-width:520px">
+    <p class="note"><b>Drag</b> follows the finger 1:1, release carries the flick's speed into a projection, and the arc lands on the slab nearest where it was heading. Past the first or last slab the arc resists and springs back.</p>
+    <p class="note"><b>The lit slab</b> takes its agent's hue on its edge, the floor's glow and the page dots. Nothing else is coloured, so the hue means "this one".</p>
+    <p class="note"><b>Working now</b> is the pulsing dot, and it obeys agentsWorking.js: a classifying record of that agent's kinds under 30 minutes old, or a job of its in flight on this device. Otherwise the slab says when it last ran, or "Never run".</p>
+    <p class="note"><b>Open</b>: slab dissolves (up to 700 particles on a phone), the reticle locks, the particles gather into the face and turn once, the sheet rises. <b>Back</b> plays it in reverse along the same path.</p>
+  </div>
+</div>
+
+<h2 id="mac">On the MacBook · 1512</h2>
+<div class="macwrap" id="macwrap"><div class="mac"><div class="view wide" data-mode="mac"></div></div></div>
+<p class="cap">Scaled to fit this page. On the Mac the sheet docks at the right and the arc stays turnable beside it.</p>
+
+<h2 id="entry">Where it lives</h2>
+<div class="entry">
+  <div>
+    <div class="idx">
+      <div><span class="ic" style="background:color-mix(in srgb,var(--nv-vi) 30%,transparent)"></span>Ops<span class="v">Org map</span></div>
+      <div class="new"><span class="ic" style="background:color-mix(in srgb,var(--nv-cy) 30%,transparent)"></span>Agents<span class="v">2 working <span class="demo-tag">DEMO</span></span></div>
+      <div><span class="ic" style="background:color-mix(in srgb,var(--nv-or) 30%,transparent)"></span>Practice<span class="v"></span></div>
+    </div>
+    <p class="cap">More → the Index. <span class="rec">RECOMMENDED</span> A new "Agents" row; its value is agentsWorkingLabels().index, silent when none work.</p>
+  </div>
+  <div>
+    <p class="note">The other door is the Org map: tap a being there and this same sheet opens. Both doors can open the sheet, but the carousel itself belongs in the Index, because the Org map answers "what is waiting on me" and this answers "what can they do". Putting a turning carousel inside the map would give one screen two jobs.</p>
+    <p class="note">On the grouped Home (the other idiom) nothing new appears: this is a place, not a Home card. The Index row is shared by both idioms, so both reach it.</p>
+  </div>
+</div>
+
+<h2 id="states">Honest states</h2>
+<div class="states">
+  <div class="state"><h3>Loading</h3><p>Slabs laid out where they will land, skeleton text, no hue until the roster arrives.</p>
+    <div class="mini"><div class="skel" style="width:40%;height:30px"></div><div class="skel"></div><div class="skel" style="width:70%"></div><div class="skel" style="margin-top:auto"></div><div class="skel" style="width:80%"></div></div></div>
+  <div class="state"><h3>The Mac is unreachable</h3><p>The skill lists still show (they ship with the app). Working dots and last runs are withheld, and say so.</p>
+    <div class="mini" style="--h:var(--nv-m-chest)"><b style="letter-spacing:.2em;font-size:13px">COACH</b><div class="st" style="font:600 9.5px var(--mono);color:var(--nv-warn)">CAN'T REACH YOUR MAC</div><div class="say" style="font-size:12px;color:var(--nv-ink60)">Whether he's working is unknown right now.</div></div></div>
+  <div class="state"><h3>Never run</h3><p>orgMap fresh = "never". The slab says it in words, and the runs strip is replaced by one line.</p>
+    <div class="mini"><b style="letter-spacing:.2em;font-size:13px">PRACTICE</b><div style="font:600 9.5px var(--mono);color:var(--nv-ink40)">NEVER RUN</div><div class="say" style="font-size:12px;color:var(--nv-ink60)">Hasn't rehearsed anything with you yet.</div></div></div>
+  <div class="state"><h3>Working right now</h3><p>The dot pulses in his hue and the line names the job, from the classifying record's title.</p>
+    <div class="mini" style="--h:var(--nv-m-quads)"><b style="letter-spacing:.2em;font-size:13px">RESEARCHER</b><div class="st" style="font:600 9.5px var(--mono);color:var(--nv-m-quads);display:flex;gap:6px;align-items:center"><span class="dot on"></span>WORKING NOW</div><div class="say" style="font-size:12px">Reading on creatine and sleep <span class="demo-tag">DEMO</span></div></div></div>
+</div>
+
+<h2>Performance</h2>
+<p class="note">Slabs move by transform and opacity only, ten layers, six visible. The backdrop blur is paid once per slab, not per frame of motion, because the blur layer is not re-rasterised under a pure transform. Particles: one 2D canvas, at most 700 points on a phone and 1,100 on a Mac, each a 2 px fillRect: roughly 1,100 fillRects a frame, a budget of under 2 ms. Not yet measured on his iPhone; the build must record it there. The canvas exists only during the 1.3 s open and the reverse; at rest there is no loop. Reduce motion removes the canvas entirely.</p>
+
+<h2 id="calls">Your calls</h2>
+<div class="calls">
+  <div class="call"><q>When you tap an agent, should the light gather into his 3D face from the Org map, or into just his object (the Coach's bar, the CFO's coin)?</q><div>Face: you meet the same character you know from the Org map, turning once. Object: lighter and faster, but the agent loses his face here. <b>I recommend the face</b>, since you chose faces in 3D.</div></div>
+  <div class="call"><q>Should this be a new "Agents" row in More, or live inside the Org map?</q><div>A More row: one tap from the Index, and the Org map stays about what is waiting on you. Inside the map: one fewer place, but a busier map. <b>I recommend the More row</b>, with a tap on a being in the map opening the same skill sheet.</div></div>
+  <div class="call"><q>Should skills that aren't built yet appear in an agent's list, greyed and marked "not yet"?</q><div>Shown: you see what's coming and what's missing. Hidden: the list is only what works today. <b>I recommend showing them</b>, only inside the open list and never on the slab.</div></div>
+  <div class="call"><q>Should the carousel turn slowly by itself when you aren't touching it?</q><div>Yes: it feels alive like the reel, but moves when nothing has changed. No: it stays still until you swipe. <b>I recommend no</b>; movement should mean something happened.</div></div>
+</div>
+<footer></footer>
+</main>
+
+<script>
+/* ======================= DATA (all from code) ======================= */
+// tiers: o = observe, p = propose, a = act-on-approval (server/lib/skills.js)
+// touches: vault, calendar, web, inbox, health, bank
+const DATA = [
+ {id:'commander',name:'Commander',hue:'--nv-cy',role:'Runs your day: plans, calendar, to-dos',art:'compass',
+  consult:false, demo:{last:'Ran 7:02 am',runs:[3,2,4,3,3,2,4,3,3,4,2,3,3,2]},
+  groups:[['Your day',[
+   ['Draft calendar changes, always confirm-first','p',['calendar','inbox']], // calendarCommand.js
+   ['Plan today from your real commitments','p',['vault','calendar','inbox']], // planToday.js
+   ['Compose morning and evening dispatches','o',['vault','calendar']]]], // dispatch.js
+   ['Keeping track',[
+   ['Sync to-dos two-way with Todoist','a',['inbox']], // skills.js Logistics; roster.js todoist
+   ['Set reminders in Apple Reminders','a',['calendar']], // reminders.js
+   ['Follow up on what you said you would do','p',['vault','inbox']]]], // followUps.js, commitments.js
+   ['Not yet',[['Be consulted by the other agents','n',[]]]]]}, // consult.js AGENTS has no commander
+ {id:'coach',name:'Coach',hue:'--nv-m-chest',role:'Your strength coach and his program',art:'bar',
+  consult:true, demo:{last:'Ran yesterday',runs:[1,2,1,3,1,2,2,1,3,2,1,2,1,2]},
+  groups:[['Training',[
+   ['Log workout sessions with honest set receipts','a',['vault']], // sessionDraft.js
+   ['Propose program edits: swap, add, remove, retarget','p',['vault','inbox']], // coachProposals.js
+   ['Check your form from a clip, or refuse honestly','o',['inbox']], // formCheck.js
+   ['Estimate e1RM trends from real sets','o',['vault']]]], // progressionTunes.js
+   ['Watching',[
+   ['Watch for program drift and missed sessions','o',['vault','health']], // coachProgramAudit.js
+   ['Annotate the week plan with pushed and carried work','o',['vault']], // plannedWeek.js
+   ['Ask the Researcher, Nova or your calendar mid-answer','o',['web','calendar']]]]]}, // coachConsult.js
+ {id:'cfo',name:'CFO',hue:'--nv-good',role:'Your money, read from the ledger',art:'coin',
+  consult:true, demo:{last:'Ran 3 days ago',runs:[0,0,1,0,0,0,1,0,0,1,0,0,0,1]},
+  groups:[['Ledger',[
+   ['Import and categorise the ledger','a',['bank','vault']], // moneyImport.js
+   ['Read a bank statement photo','p',['bank','inbox']]]], // scanStatement.js
+   ['Watching',[
+   ['Detect subscriptions and expected charges','o',['bank']], // moneySignals.js
+   ['Draft the monthly CFO report','p',['vault','inbox']]]]]}, // cfoReport.js
+ {id:'guardian',name:'Guardian',hue:'--nv-vi',role:'Keeps the platform honest and backed up',art:'shield',
+  consult:false, demo:{last:'Ran 4:00 am',runs:[4,4,4,4,4,4,4,4,4,4,4,4,4,4]},
+  groups:[['Integrity',[
+   ['Guard integrity with checks, backups and honest alerts','o',['vault']], // guardian.js, backup.js
+   ['Age stale Inbox items via compost','o',['inbox']], // compost.js
+   ['Notice when a health push stops arriving','o',['health']]]], // healthDrops.js
+   ['Overnight and away',[
+   ['Run queued work overnight','a',['inbox']], // overnight.js
+   ['Answer from your pocket via Telegram, same human gate','p',['inbox']], // pocket.js
+   ['Keep standing instructions, correct once','a',['vault']]]], // skills.js Platform
+   ['Not yet',[['Be consulted by the other agents','n',[]]]]]},
+ {id:'researcher',name:'Researcher',hue:'--nv-m-quads',role:'Reads the evidence and cites it',art:'lens',
+  consult:true, demo:{last:'Working now',working:'Reading on creatine and sleep',runs:[1,0,2,1,0,1,3,1,0,2,1,1,0,2]},
+  groups:[['Research',[
+   ['Research with citations, now or overnight','p',['web','inbox']], // researcher.js
+   ['Judge a paper against your real training block','p',['web','vault','inbox']], // paperLane.js, study lane
+   ['Put notes and live panels on screen mid-conversation','o',['vault']]]], // panels.js
+   ['Teaching',[
+   ['Read a clip for its technique, teach one a day','p',['web','vault']]]]]}, // repertoire.js
+ {id:'watcher',name:'Watcher',hue:'--nv-m-calves',role:'Watches the videos you send',art:'film',
+  consult:false, demo:{last:'Ran 2 days ago',runs:[0,1,0,0,2,0,1,0,0,1,0,0,1,0]},
+  groups:[['Watching',[
+   ['Watch a video from its transcript and report back','p',['web','inbox']], // watcher.js startVideoWatch
+   ['Digest a long video in parts','p',['web','vault']], // watcher.js digestTranscript
+   ['Retry a failed watch from the cache','a',['inbox']]]], // watcher.js retryWatch
+   ['Not yet',[['Be consulted by the other agents','n',[]]]]]},
+ {id:'librarian',name:'Librarian',hue:'--nv-m-back',role:'Keeps your library and finds what it says',art:'book',
+  consult:true, demo:{last:'Ran 6:10 am',runs:[2,1,2,2,1,2,2,1,2,2,1,2,2,1]},
+  groups:[['Library',[
+   ['Answer from your library, citing the notes it read','o',['vault']], // librarianAsk.js
+   ['Build a book page from research','p',['web','vault','inbox']], // librarian.js runBookResearch
+   ['Suggest what to read next','p',['vault','inbox']]]], // readNext.js
+   ['Remembering',[
+   ['Bring a concept back on the Daily review','o',['vault']], // conceptReview.js
+   ['Distill notes and keep the search index','o',['vault']]]]]}, // distill.js, embeddings.js
+ {id:'mealprep',name:'Meal Prep',hue:'--nv-m-shoulders',role:'Feeds the plan: meals, prep, shopping',art:'pot',
+  consult:false, demo:{last:'Ran Sunday',runs:[0,0,0,0,0,0,3,0,0,0,0,0,0,2]},
+  groups:[['Cooking',[
+   ['Propose meal-prep plans','p',['vault','inbox']], // mealPrep.js
+   ['Suggest recipes from logged foods','p',['vault','inbox']], // foodSuggest.js
+   ['Find what you can pick up nearby','o',['web']]]], // eatOut.js
+   ['Watching',[
+   ['Watch the protein floor and say the hard thing','o',['vault']], // fuelCross.js
+   ['Build the shopping list','p',['vault']], // shoppingList.js
+   ['Cheapest price per line with the store','n',[]]]]]}, // nova-shopping-prices: source unresolved
+ {id:'leader',name:'Leader',hue:'--nv-mg',role:'Your leadership partner at work',art:'orb',
+  consult:true, demo:{last:'Ran 6:30 am',runs:[1,1,1,1,1,0,0,1,1,1,1,1,0,0]},
+  groups:[['Daily',[
+   ['Write the day’s lead from your open struggles','p',['vault']], // leader.js generateDailyLead
+   ['File your reflection, with undo','a',['vault','inbox']], // leader.js applyLeaderReflection
+   ['Remind you of what you meant to try','p',['inbox']]]], // leaderReminder.js
+   ['Learning',[
+   ['Find leadership research with links that open','p',['web']]]]]}, // leader.js runLeaderResearch + verifyInsightUrls
+ {id:'practice',name:'Practice',hue:'--nv-or',role:'Rehearses a hard conversation with you',art:'masks',
+  consult:false, demo:{last:'Never run',never:true,runs:[]},
+  groups:[['Rehearsal',[
+   ['Rehearse a skill as the other person, then debrief','p',['vault']], // practice.js
+   ['Build a skill page from your sources','p',['vault','inbox']]]], // practiceLane.js
+   ['Not yet',[['Be consulted by the other agents','n',[]]]]]},
+];
+const ASKABLE=['Nova','Coach','Leader','Researcher','Librarian','CFO']; // consult.js AGENTS
+const HUEOF={Nova:'--nv-cy',Coach:'--nv-m-chest',Leader:'--nv-mg',Researcher:'--nv-m-quads',Librarian:'--nv-m-back',CFO:'--nv-good'};
+const ART={ // simple artefact marks (the real build uses beings.js)
+ compass:'<circle cx="12" cy="12" r="8"/><path d="M12 4l2 8-2 8-2-8z"/>',
+ bar:'<path d="M3 12h18M5 8v8M8 9v6M16 9v6M19 8v8"/>',
+ coin:'<circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/>',
+ shield:'<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/>',
+ lens:'<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>',
+ film:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 6v12M17 6v12"/>',
+ book:'<path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/>',
+ pot:'<path d="M5 10h14v5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4zM3 10h18M10 6c0-1 1-1 1-2M14 6c0-1 1-1 1-2"/>',
+ orb:'<circle cx="12" cy="12" r="7"/><path d="M10 10a2 2 0 1 1 3 1.7c-.6.4-1 .8-1 1.5M12 16v.01"/>',
+ masks:'<path d="M4 5h8v6a4 4 0 0 1-8 0zM12 9h8v6a4 4 0 0 1-8 0"/>'
+};
+const TIERN={o:'observe',p:'propose',a:'act-on-approval'};
+const css=getComputedStyle(document.documentElement);
+const col=v=>css.getPropertyValue(v).trim();
+let K=1, RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(RM){document.documentElement.classList.add('rm');document.getElementById('rmb').setAttribute('aria-pressed','true')}
+
+/* ======================= one view, two sizes ======================= */
+function makeView(root){
+  const wide=root.dataset.mode==='mac', N=DATA.length;
+  const nWorking=DATA.filter(d=>d.demo.working).length;
+  root.innerHTML=`<div class="top"><b>Agents</b><span>${nWorking} WORKING NOW <span class="demo-tag">DEMO</span></span></div>
+   <div class="stage"><div class="floor"></div></div>
+   <div class="pips">${DATA.map(()=>'<i></i>').join('')}</div>
+   <div class="hint">Swipe to turn. Tap one to open.</div>
+   <canvas class="fx"></canvas>
+   <div class="reticle"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" stroke-dasharray="6 8"/><path d="M50 2v14M50 84v14M2 50h14M84 50h14"/><circle cx="50" cy="50" r="28" opacity=".5"/></svg></div>
+   <button class="back" type="button">‹ Agents</button>
+   <div class="sheet" role="dialog" aria-label="Skill set"></div>`;
+  const stage=root.querySelector('.stage'), fx=root.querySelector('.fx'), ret=root.querySelector('.reticle'),
+        sheet=root.querySelector('.sheet'), pips=[...root.querySelectorAll('.pips i')];
+  const slabs=DATA.map((d,i)=>{
+    const el=document.createElement('div'); el.className='slab'; el.style.setProperty('--h',`var(${d.hue})`);
+    const sk=d.groups.flatMap(g=>g[1]).filter(s=>s[1]!=='n');
+    const status=d.demo.working?`<span class="dot on"></span>WORKING NOW`:d.demo.never?`<span class="dot"></span>NEVER RUN`:`<span class="dot"></span>${d.demo.last.toUpperCase()}`;
+    el.innerHTML=`<div class="art"><svg viewBox="0 0 24 24">${ART[d.art]}</svg></div>
+      <div class="nm">${d.name}</div><div class="rl">${d.role}</div>
+      <div class="st">${status} <span class="demo-tag">DEMO</span></div>
+      <ul>${sk.slice(0,3).map(s=>`<li><span class="tier t-${s[1]==='a'?'act':TIERN[s[1]]}">${s[1].toUpperCase()}</span>${s[0]}</li>`).join('')}</ul>
+      <div class="count"><span>${sk.length} skills</span><span>${d.consult?'can be consulted':'answers only you'}</span></div>`;
+    el.tabIndex=0; el.setAttribute('role','button'); el.setAttribute('aria-label',`${d.name}, open skill set`);
+    stage.appendChild(el); return el;
+  });
+  let pos=0, vel=0, target=0, raf=0, dragging=false, isOpen=false, busy=false;
+  const STEP=wide?22:26, R=wide?900:520, PX=wide?260:150;
+  function layout(){
+    slabs.forEach((el,i)=>{
+      const d=i-pos, a=d*STEP*Math.PI/180, ad=Math.abs(d);
+      const x=Math.sin(a)*R, z=(Math.cos(a)-1)*R;
+      el.style.transform=`translate3d(${x}px,0,${z}px) rotateY(${d*STEP*0.9}deg)`;
+      el.style.opacity= ad>3.2?0: isOpen&&i===cur()?0 : Math.max(0,1-ad*0.28);
+      el.style.zIndex=100-Math.round(ad*10);
+      el.classList.toggle('lit',ad<0.5);
+      el.style.pointerEvents=ad>2.5?'none':'auto';
+    });
+    const c=cur(); root.style.setProperty('--hue',`var(${DATA[c].hue})`);
+    pips.forEach((p,i)=>p.classList.toggle('on',i===c));
+  }
+  const cur=()=>Math.max(0,Math.min(N-1,Math.round(pos)));
+  function spring(){ // critically damped, response ~0.4 s
+    cancelAnimationFrame(raf); let t0=performance.now();
+    const tick=t=>{const dt=Math.min(.032,(t-t0)/1000)/K; t0=t;
+      const w=2*Math.PI/0.4, f=-w*w*(pos-target)-2*w*vel; vel+=f*dt; pos+=vel*dt; layout();
+      if(Math.abs(pos-target)>0.001||Math.abs(vel)>0.01) raf=requestAnimationFrame(tick); else {pos=target;vel=0;layout()}};
+    if(RM){pos=target;vel=0;layout();return}
+    raf=requestAnimationFrame(tick);
+  }
+  const scale=()=>root.getBoundingClientRect().width/root.offsetWidth||1;
+  // drag
+  let sx=0, sp=0, hist=[], moved=false, downEl=null;
+  root.addEventListener('pointerdown',e=>{ if(isOpen||busy||e.target.closest('.sheet,.back'))return;
+    dragging=true; moved=false; sx=e.clientX; sp=pos; hist=[[e.timeStamp,e.clientX]]; cancelAnimationFrame(raf);
+    downEl=e.target.closest('.slab'); root.setPointerCapture(e.pointerId);});
+  root.addEventListener('pointermove',e=>{ if(!dragging)return; const dx=(e.clientX-sx)/scale();
+    if(Math.abs(dx)>8)moved=true; let p=sp-dx/PX;
+    if(p<0)p=-rb(-p); if(p>N-1)p=N-1+rb(p-(N-1)); pos=p; layout();
+    hist.push([e.timeStamp,e.clientX]); if(hist.length>5)hist.shift();});
+  const rb=o=>(o*1*.55)/(1+.55*o); // rubber band in slab units
+  root.addEventListener('pointerup',e=>{ if(!dragging)return; dragging=false;
+    if(!moved){ const i=slabs.indexOf(downEl); if(i>=0){ if(i!==cur()){target=i;spring();} else open(i);} else{target=cur();spring()} return;}
+    const [t0,x0]=hist[0],[t1,x1]=hist[hist.length-1]; const v=-((x1-x0)/scale()/PX)/Math.max(.016,(t1-t0)/1000);
+    const proj=pos+(v*0.998/(1-0.998))/1000*1; // Apple's projection, in slabs
+    target=Math.max(0,Math.min(N-1,Math.round(proj))); vel=v; spring();});
+  root.addEventListener('pointercancel',()=>{dragging=false;target=cur();spring()});
+  root.addEventListener('keydown',e=>{ if(isOpen){if(e.key==='Escape')close();return}
+    if(e.key==='ArrowRight'){target=Math.min(N-1,cur()+1);spring()} if(e.key==='ArrowLeft'){target=Math.max(0,cur()-1);spring()}
+    if(e.key==='Enter'&&e.target.classList.contains('slab'))open(slabs.indexOf(e.target));});
+  root.querySelector('.back').addEventListener('click',close);
+
+  /* ---------- particles ---------- */
+  const ctx=fx.getContext('2d'); let parts=[];
+  function faceTargets(d,cx,cy,size,n){ // sample a simple bot face + artefact
+    const c=document.createElement('canvas'); c.width=c.height=120; const g=c.getContext('2d');
+    g.fillStyle='#fff'; g.beginPath(); g.ellipse(60,58,40,36,0,0,7); g.fill();          // helmet
+    g.globalCompositeOperation='destination-out'; g.beginPath(); g.roundRect(30,40,60,34,14); g.fill(); // face screen
+    g.globalCompositeOperation='source-over'; g.beginPath(); g.ellipse(46,56,6,7,0,0,7); g.ellipse(74,56,6,7,0,0,7); g.fill(); // friendly round eyes
+    g.lineWidth=3; g.strokeStyle='#fff'; g.beginPath(); g.arc(60,62,9,.2*Math.PI,.8*Math.PI); g.stroke(); // smile
+    g.save(); g.translate(42,92); g.scale(1.5,1.5); g.lineWidth=2; g.stroke(new Path2D((ART[d.art].match(/d="([^"]+)"/)||[,'M2 2h20'])[1])); g.restore(); // the artefact, held low
+    const px=g.getImageData(0,0,120,120).data, pts=[];
+    for(let y=0;y<120;y+=2)for(let x=0;x<120;x+=2) if(px[(y*120+x)*4+3]>120) pts.push([x,y]);
+    const out=[]; for(let i=0;i<n;i++){const p=pts[(i*7919)%pts.length]; out.push([cx+(p[0]-60)/120*size,cy+(p[1]-60)/120*size,p[0]-60]);}
+    return out;
+  }
+  function run(i,dir,done){ // dir 1 = slab -> face, -1 = face -> slab
+    const s=scale(), rr=root.getBoundingClientRect(), sr=slabs[i].getBoundingClientRect();
+    const W=root.offsetWidth,H=root.offsetHeight; fx.width=W; fx.height=H;
+    const n=wide?1100:700, hue=col(DATA[i].hue), cx=wide?(W-560)/2:W/2, cy=wide?330:230, size=wide?300:200;
+    const T=faceTargets(DATA[i],cx,cy,size,n);
+    parts=T.map((t,k)=>{const sxp=(sr.left-rr.left)/s+Math.random()*sr.width/s, syp=(sr.top-rr.top)/s+Math.random()*sr.height/s;
+      return {a:[sxp,syp],b:[t[0],t[1]],u:t[2],d:Math.random()*0.25}});
+    const dur=1300*K, t0=performance.now();
+    if(wide) ret.style.left=cx+'px';
+    const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+    function f(t){ let p=Math.min(1,(t-t0)/dur); const q=dir>0?p:1-p;
+      ctx.clearRect(0,0,W,H); ctx.fillStyle=hue;
+      const turn=dir>0&&p>.7?Math.cos((p-.7)/.3*Math.PI*2)*.25:0; // the head turns once as it lands
+      for(const o of parts){ const e=ease(Math.max(0,Math.min(1,(q-o.d)/(1-o.d))));
+        const sc=1-Math.abs(Math.sin(turn)); const bx=cx+(o.b[0]-cx)*(1-Math.abs(turn)*0.4);
+        const x=o.a[0]+(bx-o.a[0])*e + Math.sin(e*Math.PI)*(o.u*0.6), y=o.a[1]+(o.b[1]-o.a[1])*e - Math.sin(e*Math.PI)*24;
+        ctx.globalAlpha=.35+.65*e; ctx.fillRect(x,y,2,2);}
+      if(q>.55)ret.classList.add('lock'); else ret.classList.remove('lock');
+      if(p<1) requestAnimationFrame(f); else done();
+    }
+    requestAnimationFrame(f);
+  }
+  function drawStatic(i){ const W=root.offsetWidth,H=root.offsetHeight; fx.width=W; fx.height=H;
+    const cx=wide?(W-560)/2:W/2, cy=wide?330:230; ctx.fillStyle=col(DATA[i].hue);
+    for(const t of faceTargets(DATA[i],cx,cy,wide?300:200,700)) ctx.fillRect(t[0],t[1],2,2);
+    fx.style.transition='opacity 240ms'; fx.style.opacity=0; requestAnimationFrame(()=>fx.style.opacity=1);}
+  function open(i){ if(busy)return; busy=true; target=i; pos=i; layout(); renderSheet(i);
+    isOpen=true; root.querySelector('.hint').style.opacity=0;
+    if(RM){ layout(); drawStatic(i); root.classList.add('open'); busy=false; return;}
+    layout(); run(i,1,()=>{root.classList.add('open'); busy=false;});
+  }
+  function close(){ if(busy)return; busy=true; root.classList.remove('open'); const i=cur();
+    const fin=()=>{isOpen=false; ctx.clearRect(0,0,fx.width,fx.height); ret.classList.remove('lock'); layout(); root.querySelector('.hint').style.opacity=1; busy=false; slabs[i].focus({preventScroll:true});};
+    if(RM){fx.style.opacity=0; setTimeout(fin,240*K); return;}
+    setTimeout(()=>run(i,-1,fin),300*K);
+  }
+  function renderSheet(i){ const d=DATA[i]; const all=d.groups.flatMap(g=>g[1]).filter(s=>s[1]!=='n');
+    const cnt={o:0,p:0,a:0}; all.forEach(s=>cnt[s[1]]++); let k=0;
+    sheet.innerHTML=`<div class="sh-h"><div><b>${d.name}</b><div class="rl">${d.role}</div></div></div>
+      <div class="tierbar"><i style="flex:${cnt.o};background:var(--nv-m-quads)"></i><i style="flex:${cnt.p};background:var(--nv-gold)"></i><i style="flex:${cnt.a};background:var(--nv-good)"></i></div>
+      <div class="legend"><span>${cnt.o} observe · reads, reports</span><span>${cnt.p} propose · waits for your yes</span><span>${cnt.a} act on approval</span></div>
+      ${d.groups.map(g=>`<div class="grp"><h4>${g[0]}</h4>${g[1].map(s=>`<div class="sk ${s[1]==='n'?'notyet':''}" style="--i:${k++}">
+        <span class="tier t-${s[1]==='a'?'act':s[1]==='n'?'observe':TIERN[s[1]]}">${s[1]==='n'?'·':s[1].toUpperCase()}</span>
+        <div><div class="t">${s[0]}</div>${s[2].length?`<div class="m">${s[2].map(t=>`<span class="tag ${t}">${t==='inbox'?'Inbox':t}</span>`).join('')}</div>`:''}</div></div>`).join('')}</div>`).join('')}
+      <div class="grp"><h4>Who he can ask</h4><div class="consult">${ASKABLE.filter(a=>a!==d.name).map(a=>`<span class="cn"><i style="background:var(${HUEOF[a]})"></i>${a}</span>`).join('')}</div>
+        <div class="src">${d.consult?'He can also be asked by them.':'He is not on the consult rail yet, so the others cannot ask him.'} Source: server/lib/consult.js</div></div>
+      <div class="grp"><h4>Last two weeks <span class="demo-tag">DEMO</span></h4>
+        ${d.demo.never?`<div class="say">Hasn’t run yet. The first rehearsal you start will show here.</div>`:`<div class="runs">${d.demo.runs.map((r,j)=>`<i style="--i:${j};height:${r?8+r*9:2}px;${r?'':'opacity:.25'}"></i>`).join('')}</div>`}
+        <div class="src">Real source: records by kind (orgMap.js KIND_BEING) + heartbeats (orgMap.js fresh), via /api/ops</div></div>`;
+    sheet.scrollTop=0;
+  }
+  layout();
+  return {reflow:layout};
+}
+const views=[...document.querySelectorAll('.view')].map(makeView);
+// fit the MacBook frame
+const mw=document.getElementById('macwrap'), mac=mw.querySelector('.mac');
+function fit(){const s=mw.clientWidth/1512; mac.style.transform=`scale(${s})`; mw.style.height=900*s+'px';}
+addEventListener('resize',fit); fit();
+// controls
+document.getElementById('slow').onclick=e=>{K=K===1?4:1; document.documentElement.style.setProperty('--k',K); e.target.setAttribute('aria-pressed',K===4)};
+document.getElementById('rmb').onclick=e=>{RM=!RM; document.documentElement.classList.toggle('rm',RM); e.target.setAttribute('aria-pressed',RM)};
+</script>
