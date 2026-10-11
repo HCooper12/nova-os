@@ -13,6 +13,43 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**11 OCT (recipe/brief session, claude.ai session 01CQEceq) — REEL PHOTOS AND
+THE BRIEF'S GLASS PANELS FIXED, PUSHED, LIVE; NOTHING RUNNING; NO DECISION
+OPEN.**
+- GOAL: (1) a reel recipe's photo is a clear frame of the finished food, not
+  the cover; (2) the morning brief shows its glass panels again.
+- DONE CRITERIA: both MET. The brief fix is client-side, so it reaches his
+  phone after the PWA reloads its JS (see nova-deployed-vs-visible).
+- STATE: e061e42 (brief panels), cf7f84e (frame picker v1), a451267
+  (describe-then-rank). All on origin/main (git branch -r --contains a451267).
+  Server reloaded after a451267 via scripts/reload-server.mjs (health 200).
+- DECISIONS: (a) the model DESCRIBES each of 12 end-weighted frames and
+  `rankFrames` (server/lib/recipeFromVideo.js) CHOOSES, because model picks
+  varied run to run and chose mid-assembly shots; forecloses "ask the model
+  which frame is best". (b) Two tiers: clean food >=30% share first, hands
+  last; else small caption + food >=40%; else the cover. Forecloses a hard
+  no-text rule (it left two recipes on titled covers). (c) The brief's panel
+  rides each spoken row (`card` on the voiceChat row) and NovaThread reads
+  `stageCard` while speaking.
+- VERIFIED: 20/20 in server/test/recipeFromVideo.test.js; four tests in
+  server/test/briefGlassThread.test.js; full suite 3465 pass, 2 fail (atlas
+  pair, below); lint 0 errors; build green; health 200 on :4173. The 7 chosen
+  frames were LOOKED at (scratchpad frame-backfill3/contact.jpg and
+  frame-backfill4/pair.jpg).
+- ASSUMED: the brief panels on his actual phone (not seen there; this Mac's
+  browser shows them); the live picker on a NEW reel under the new server
+  (only the backfill ran it, not a fresh share-sheet import).
+- OPEN: m-m-protein-cookies still has its titled cover (no frame qualified).
+  His fix is the recipe's ⋯ menu, or relax the 40% tier. The old background
+  re-import of three reels was killed by memory pressure and NOT restarted;
+  its work is covered by earlier runs (unchecked line by line).
+- BLOCKERS: the two red tests (exerciseAtlas: the atlas covers his real
+  library; every exercise resolves to a drawable view) predate this session.
+- NEXT ACTION: share a fresh Instagram reel to Nova and read the photo it
+  files; expect a food frame in Recipes (recipe-frames/<hash>.jpg exists).
+- DO NOT: let the model choose the frame; reload the server with a bare
+  launchctl; read this block as replacing the 10 Oct one below (a stack).
+
 **10 OCT (afternoon) — EVERY ROUND HE APPROVED IS BUILT AND LIVE; NOTHING
 RUNNING; NO DECISION OPEN.** Built, merged, pushed, reloaded today: Code
 (actions proven on a temp repo; Science Atlas + Wren workspaces; quotes;
@@ -5305,6 +5342,14 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**11 Oct (recipe/brief session).** Fixed the morning brief's missing glass
+panels (the summary Nova thread never read the stage card; e061e42) and made
+a reel recipe's photo a clear food frame: first the model picked (inconsistent,
+chose a mid-assembly Kinder Bueno), corrected to model-describes, code-ranks
+(a451267) with a second tier for a small caption. Corrected, not added: the
+first picker's "acceptFrame" idea was replaced by rankFrames. Seven of his
+eight reel recipes now carry food frames; one keeps its cover.
 
 ### 3 October 2026 (close) — nova-os-fc
 Built and shipped in one long session: the consult rail on every door
