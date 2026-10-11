@@ -109,8 +109,10 @@ export function MobileChrome({ v }) {
 
       {/* the More sheet — every screen, grid of silhouettes, one tap */}
       {moreOpen && (
-        <div onClick={() => setMoreOpen(false)} style={css("position:fixed;inset:0;z-index:74;background:rgba(8,5,12,.6);backdrop-filter:blur(4px)")}>
-          <div onClick={(e) => e.stopPropagation()} className="nv-liquid nv-liquid-thick nv-materialize" style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom))")}>
+        // an aria-modal root that closes on its backdrop: the back swipe
+        // (edgeBack.js) and the pull-down (sheetDrag.js) both close it
+        <div role="dialog" aria-modal="true" aria-label="More" onClick={() => setMoreOpen(false)} style={{ ...css("position:fixed;inset:0;background:rgba(8,5,12,.6);backdrop-filter:blur(4px)"), zIndex: 74 }}>
+          <div data-sheet="" onClick={(e) => e.stopPropagation()} className="nv-liquid nv-liquid-thick nv-materialize" style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom))")}>
             <div style={css("width:36px;height:4px;border-radius:2px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin:0 auto 14px")}></div>
             {/* THE AGENTS, one tap from More (his ask, 11 Oct: "quicker than a
                 toggle"): straight onto the Skill sets, with the honest

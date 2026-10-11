@@ -442,7 +442,7 @@ function Sheet({ label, onClose, title, children }) {
   return (
     <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label={label} onClick={exit.close} className="nv-st-scrim">
       <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }} tabIndex={-1}
-        className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-st-sheet" onClick={(e) => e.stopPropagation()}>
+        data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-st-sheet" onClick={(e) => e.stopPropagation()}>
         <div {...drag.handleProps} onPointerDown={(e) => { if (!onControl(e.target)) drag.handleProps.onPointerDown(e); }} className="nv-st-shtop" style={drag.handleProps.style}>
           <span className="nv-st-grab" aria-hidden="true" />
           <b>{title}</b>

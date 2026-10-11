@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { settleDecision, throwDuration, velocityFrom, rubberband } from './sheetPhysics.js';
+import { markGrabZone } from './sheetDrag.js';
 
 // DRAG A SHEET DOWN TO DISMISS IT — the gesture every iOS sheet has, and the
 // difference between a panel that follows your thumb and one that only
@@ -78,6 +79,8 @@ export function useSheetDrag(onClose, { threshold = 110 } = {}) {
 
   const onPointerDown = useCallback((e) => {
     if (e.button != null && e.button !== 0) return;
+    // this touch is the grab zone's: the body drag (sheetDrag.js) stays off it
+    markGrabZone();
     const el = sheetRef.current;
     // grabbing a sheet that is on its way out takes it back off the animation
     cancelClose();
@@ -132,6 +135,7 @@ export function useSheetDrag(onClose, { threshold = 110 } = {}) {
       onPointerUp: end,
       onPointerCancel: end,
       style: { touchAction: 'none', cursor: 'grab' },
+      'data-sheet-grab': '',
     },
   };
 }

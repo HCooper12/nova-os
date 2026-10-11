@@ -41,6 +41,9 @@ export function useExit(onClose, { ms = EXIT_MS } = {}) {
     if (reducedMotion()) { onClose?.(); return; }
     const panel = panelRef.current;
     const scrim = scrimRef.current;
+    // pulled down and thrown already (sheetDrag.js): it is off screen, and a
+    // second fall would first snap it back up to fall again
+    if ((panel || scrim)?.closest?.('[data-sheet-gone]')) { onClose?.(); return; }
     if (!panel && !scrim) { onClose?.(); return; }
     closing.current = true;
     // The panel falls back down the path it rose along (nvFall mirrors fadeUp

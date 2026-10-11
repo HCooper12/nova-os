@@ -61,7 +61,7 @@ export function CaptureSheet({ c }) {
   return (
     <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label="Capture" onClick={exit.close}
       style={{ position: 'fixed', inset: 0, zIndex: 145, background: 'color-mix(in srgb, var(--nv-void) 60%, transparent)', animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }}>
-      <section ref={exit.panelRef} className="nv-liquid nv-liquid-thick nv-sum-sheet nv-sum-ib-cap" style={lift} onClick={(e) => e.stopPropagation()}>
+      <section ref={exit.panelRef} data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-sum-ib-cap" style={lift} onClick={(e) => e.stopPropagation()}>
         <p className="nv-sum-stand nv-sum-ib-capstand">Drop the thought, Nova files it.</p>
         <LocalInput
           key={round}

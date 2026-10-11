@@ -636,8 +636,8 @@ function Sheet({ s }) {
   }, [s]);
   return (
     <>
-      <div className="nv-cd-scrim" onClick={s.close} aria-hidden="true" />
-      <section className="nv-cd-sheet" role="dialog" aria-modal="true" aria-label={s.title} ref={drag.sheetRef}>
+      <div className="nv-cd-scrim" data-sheet-close="" onClick={s.close} aria-hidden="true" />
+      <section className="nv-cd-sheet" data-sheet="root" role="dialog" aria-modal="true" aria-label={s.title} ref={drag.sheetRef}>
         <div className="grabzone" {...drag.handleProps}><span className="grab" aria-hidden="true" /></div>
         <h3>{s.title}</h3>
         <span className={`conn${s.connOn ? '' : ' off'}`}><i />{s.conn}</span>

@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useEdgeBack } from './edgeBack.js';
+import { installSheetDrag, installKeyboardInset } from './sheetDrag.js';
 
 // The gesture, mounted. App is a class component, so the hook needs a leaf to
 // live in — and a leaf is where it belongs anyway: it holds no state React can
@@ -12,6 +14,13 @@ import { useEdgeBack } from './edgeBack.js';
 // The affordance is now a fixed element the hook owns, appended to <body>.
 export function EdgeBack() {
   useEdgeBack({ onBack: () => window.history.back() });
+  // and its vertical sibling: every sheet pulls down and goes (sheetDrag.js),
+  // with the keyboard's height published for the bars that stand on it
+  useEffect(() => {
+    const a = installSheetDrag();
+    const b = installKeyboardInset();
+    return () => { a(); b(); };
+  }, []);
   return null;
 }
 

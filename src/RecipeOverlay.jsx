@@ -83,7 +83,7 @@ export function RecipeOverlay({ v }) {
       {/* the panel carries the SAME view-transition-name the card had, so the
           card morphs into this rather than one vanishing and the other
           appearing. The fadeUp fallback only runs where the API is absent. */}
-      <div onClick={v.stopClick} className="nv-rp" data-mobile={mobile ? 'true' : undefined} style={{ ...(mobile
+      <div onClick={v.stopClick} className="nv-rp" data-sheet="" data-mobile={mobile ? 'true' : undefined} style={{ ...(mobile
         ? css("width:100%;height:100%;overflow-y:auto;background:var(--nv-void)")
         : css("width:860px;max-width:94vw;max-height:88vh;overflow-y:auto;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);background:var(--nv-void);box-shadow:0 40px 90px -30px rgba(0,0,0,.95),inset 0 1px 0 var(--nv-spec)")),
         ...(v.recipeOvVtName ? { viewTransitionName: v.recipeOvVtName } : {}),
@@ -229,7 +229,7 @@ export function RecipeOverlay({ v }) {
       {/* the removal choice (a dropped line changes nothing until he keeps it) */}
       {v.removalPromptOpen && (
         <div role="dialog" aria-modal="true" aria-label="Keep the change" className="nv-rp-menu" style={{ zIndex: 96 }} onClick={(e) => { e.stopPropagation(); v.cancelRemovalPrompt(); }}>
-          <div className="nv-rp-menu-p" onClick={(e) => e.stopPropagation()}>
+          <div className="nv-rp-menu-p" data-sheet="" onClick={(e) => e.stopPropagation()}>
             <div className="nv-rp-menu-g">
               <p className="nv-rp-menu-t">Dropping {v.ingredientRemovals.join(', ')}. Nova works the macros out again; the recipe itself is only touched if you save a version.</p>
               {v.removalCanToday && <Interactive as="div" className="nv-rp-menu-i" onClick={() => v.confirmRemovalSave('today')} haptic="tick">Just for today</Interactive>}

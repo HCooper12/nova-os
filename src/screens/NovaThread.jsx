@@ -581,7 +581,7 @@ function StatusSheet({ T, dict, S, onClose }) {
   return (
     <div role="dialog" aria-modal="true" aria-label="Nova: status and settings" className="nv-nt-sheetroot" onClick={onClose}
       style={{ position: 'fixed', inset: 0, zIndex: 100 }}>
-      <div className="nv-nt-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="nv-nt-sheet" data-sheet="" onClick={(e) => e.stopPropagation()}>
         <span className="grab" aria-hidden="true" />
         <div className="nv-nt-shead">
           <b>Nova</b>
@@ -636,7 +636,7 @@ function HoldMenu({ held, T, takes, onClose, onReplay }) {
   return (
     <div role="dialog" aria-modal="true" aria-label="Line actions" className="nv-nt-holdroot" onClick={onClose}
       style={{ position: 'fixed', inset: 0, zIndex: 101 }}>
-      <div className="nv-nt-lift" style={{ top }} onClick={(e) => e.stopPropagation()}>
+      <div className="nv-nt-lift" data-sheet="" style={{ top }} onClick={(e) => e.stopPropagation()}>
         {m && <div className="nv-nt-held">{m.text.length > 280 ? `${m.text.slice(0, 280)}…` : m.text}</div>}
         {t && <div className="nv-nt-held r">Your recording · {t.time}</div>}
         <div className={`nv-nt-cmenu${below ? '' : ' up'}`} role="menu">

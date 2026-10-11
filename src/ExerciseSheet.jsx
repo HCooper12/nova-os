@@ -70,7 +70,7 @@ export function ExerciseSheet({ v }) {
           row's position, and two motions on one element read as a stutter. So
           the slide is the fallback — for every other way in, where there is no
           row to come from. */}
-      <div ref={drag.sheetRef} onClick={(e) => e.stopPropagation()}
+      <div ref={drag.sheetRef} data-sheet="" onClick={(e) => e.stopPropagation()}
         style={{
           ...css(`width:min(560px,100%);max-height:88vh;overflow-y:auto;border-radius:18px 18px 0 0;border:1px solid var(--nv-edge);border-bottom:none;background:var(--nv-bg1);box-shadow:0 -30px 80px -30px rgba(0,0,0,.9);padding:0 14px calc(18px + env(safe-area-inset-bottom))`),
           ...(s.vtKey ? vtStyle('ex', s.vtKey) : { animation: 'sheetUp var(--nv-dur-base) var(--nv-ease)' }),

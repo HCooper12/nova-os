@@ -91,8 +91,8 @@ export function ReviewSheet({ v }) {
 
   return (
     <div className="nv-rv" data-edge-page="" role="dialog" aria-modal="true" aria-label={`${r.title}, the review page`}>
-      <div className="nv-rv-scrim" onClick={close} />
-      <div ref={sheetRef} className="nv-rv-sheet">
+      <div className="nv-rv-scrim" data-sheet-close="" onClick={close} />
+      <div ref={sheetRef} className="nv-rv-sheet" data-sheet="">
         <div className="nv-rv-grab" />
         <div className="nv-rv-shead">
           <b><RvIcon name="review" />Daily review</b>

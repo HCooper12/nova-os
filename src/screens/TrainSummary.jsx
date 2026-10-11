@@ -636,7 +636,7 @@ function LiftSheet({ s }) {
       style={{ position: 'fixed', inset: 0, zIndex: 112, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         background: 'color-mix(in srgb, var(--nv-void) 62%, transparent)', animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }}>
       <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }}
-        className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-ts-sheet" tabIndex={-1} onClick={(e) => e.stopPropagation()}
+        data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-ts-sheet" tabIndex={-1} onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '86vh' }}>
         <div {...drag.handleProps} onPointerDown={(e) => { if (!onControl(e.target)) drag.handleProps.onPointerDown(e); }}
           className="nv-ts-grab" style={{ ...drag.handleProps.style, gridTemplateColumns: '44px minmax(0,1fr) auto' }}>
@@ -713,7 +713,7 @@ function CoachSheet({ s, v, parts }) {
       style={{ position: 'fixed', inset: 0, zIndex: 112, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         background: 'color-mix(in srgb, var(--nv-void) 62%, transparent)', animation: 'fadeIn var(--nv-dur-base) var(--nv-ease)' }}>
       <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }}
-        className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-ts-sheet" tabIndex={-1} onClick={(e) => e.stopPropagation()}
+        data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-ts-sheet" tabIndex={-1} onClick={(e) => e.stopPropagation()}
         style={{ height: 'calc(100dvh - 56px - env(safe-area-inset-top))', maxHeight: '100dvh' }}>
         <div {...drag.handleProps} onPointerDown={(e) => { if (!onControl(e.target)) drag.handleProps.onPointerDown(e); }}
           className="nv-ts-grab" style={drag.handleProps.style}>

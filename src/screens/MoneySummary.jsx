@@ -593,7 +593,7 @@ function Sheet({ label, onClose, left, title, right, children, wide, foot }) {
   return (
     <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label={label} onClick={exit.close} className="nv-mo-scrim">
       <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }} tabIndex={-1}
-        className={`nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-mo-sheet${wide ? ' wide' : ''}`} onClick={(e) => e.stopPropagation()}>
+        data-sheet={wide ? 'off' : ''} className={`nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-mo-sheet${wide ? ' wide' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div {...drag.handleProps} onPointerDown={(e) => { if (!onControl(e.target)) drag.handleProps.onPointerDown(e); }} className="nv-mo-shtop" style={drag.handleProps.style}>
           <span className="nv-mo-grab" aria-hidden="true" />
           <span className="nv-mo-shl">{left ? left(exit.close) : <span />}</span>

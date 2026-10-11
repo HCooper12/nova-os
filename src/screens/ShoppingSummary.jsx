@@ -446,7 +446,7 @@ function Sheet({ label, onClose, children, tint }) {
   const onControl = (el) => !!(el && el.closest && el.closest('button, a, input, textarea, [role="button"]'));
   return (
     <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label={label} onClick={() => closeWith()} className="nv-sh-scrim">
-      <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }} tabIndex={-1}
+      <div ref={(el) => { drag.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }} tabIndex={-1} data-sheet=""
         className={`nv-liquid nv-liquid-thick nv-sum-sheet nv-materialize nv-sh-sheet${tint ? ` tinted pg-${tint}` : ''}`} onClick={(e) => e.stopPropagation()}
         {...{ onPointerDown: (e) => { if (!onControl(e.target) && e.target.closest('.nv-sh-grabrow, .nv-sh-shd')) drag.handleProps.onPointerDown(e); } }}>
         <div className="nv-sh-grabrow" {...drag.handleProps} style={drag.handleProps.style}><span className="nv-sh-grab" aria-hidden="true" /></div>

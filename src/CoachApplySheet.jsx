@@ -15,7 +15,7 @@ export function CoachApplySheet({ c }) {
   return (
     <div role="dialog" aria-modal="true" aria-label="Confirm the Coach's change" onClick={c.busy ? undefined : exit.close} ref={exit.scrimRef}
       style={css('position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;background:rgba(8,5,12,.7);backdrop-filter:blur(6px);padding:20px')}>
-      <div ref={exit.panelRef} onClick={(e) => e.stopPropagation()}
+      <div ref={exit.panelRef} data-sheet="" onClick={(e) => e.stopPropagation()}
         style={css('width:520px;max-width:94vw;border:1px solid color-mix(in srgb, var(--nv-gold) 35%, transparent);border-radius:16px;background:var(--nv-glass2);backdrop-filter:blur(22px);box-shadow:0 40px 90px -30px rgba(0,0,0,.95);padding:20px 22px;animation:fadeUp var(--nv-dur-base) var(--nv-ease)')}>
         <div style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:var(--nv-gold)`)}>◆ COACH · CONFIRM THE CHANGE</div>
         <div style={css('margin-top:10px;font-size:13.5px;line-height:1.55')}>{c.proposal}</div>

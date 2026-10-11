@@ -103,7 +103,7 @@ export function RecipeSheet({ v }) {
   return (
     <div ref={exit.scrimRef} role="dialog" aria-modal="true" aria-label={R.name} className="nv-fs nv-fs-scrim" style={{ zIndex: 140 }} onClick={exit.close}>
       <div ref={(el) => { sheet.sheetRef.current = el; exit.panelRef.current = el; panelRef.current = el; }} tabIndex={-1}
-        className="nv-liquid nv-liquid-thick nv-sum-sheet nv-fs-sheet" onClick={(e) => e.stopPropagation()}>
+        data-sheet="" className="nv-liquid nv-liquid-thick nv-sum-sheet nv-fs-sheet" onClick={(e) => e.stopPropagation()}>
         {/* the grab zone: the grabber, the NAME, Done. It never scrolls */}
         <div {...sheet.handleProps} className="nv-fs-grab"
           onPointerDown={(e) => { if (!onControl(e.target)) sheet.handleProps.onPointerDown(e); }}

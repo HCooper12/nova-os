@@ -795,8 +795,8 @@ function Conversation({ P, A, quote, close }) {
   return (
     <div className={`nv-ld-over${up ? ' up' : ''}`} role="dialog" aria-modal="true" aria-label={quoted ? `Talking about ${quoted.label}` : 'The conversation with the Leader'}
       onClick={(e) => { if (e.target === e.currentTarget) shut(); }}>
-          <div className="nv-ld-scrim" onClick={shut} />
-          <div ref={drag.sheetRef} className="nv-ld-csheet" onClick={(e) => e.stopPropagation()}>
+          <div className="nv-ld-scrim" data-sheet-close="" onClick={shut} />
+          <div ref={drag.sheetRef} className="nv-ld-csheet" data-sheet="" onClick={(e) => e.stopPropagation()}>
             <div className="nv-ld-grab" {...drag.handleProps} style={{ ...drag.handleProps.style }}><i /></div>
             <div className="nv-ld-cshead">
               <span className="nv-ld-ctr"><Face who="leader" size={28} work={P.busy} />Leader</span>
@@ -910,8 +910,8 @@ function Stage({ P, A, close, talk, skipFly }) {
   return (
     <div className={`nv-ld-over stage${up ? ' up' : ''}`} role="dialog" aria-modal="true" aria-label="The picture"
       onClick={(e) => { if (e.target === e.currentTarget) shut(); }}>
-      <div className="nv-ld-scrim" onClick={shut} />
-      <div className="nv-ld-stage" role="group" aria-label="The picture" onClick={(e) => e.stopPropagation()}>
+      <div className="nv-ld-scrim" data-sheet-close="" onClick={shut} />
+      <div className="nv-ld-stage" data-sheet="" role="group" aria-label="The picture" onClick={(e) => e.stopPropagation()}>
         <div className="nv-ld-sthead"><b>The picture</b><span className="nv-ld-k" style={{ display: 'inline' }}>since {dateWords(first)}</span>
           <button type="button" className="nv-ld-txb nv-ld-pr" data-edge-close="" onClick={shut}>Done</button></div>
         <p className="nv-ld-news">{P.sentence}</p>
@@ -1005,7 +1005,7 @@ function Menu({ P, A, close }) {
   const shut = () => { setUp(false); setTimeout(close, reduced() ? 120 : 220); };
   return (
     <div className={`nv-ld-over${up ? ' up' : ''}`} role="dialog" aria-modal="true" aria-label="The Leader" onClick={(e) => { if (e.target === e.currentTarget) shut(); }}>
-      <div className="nv-ld-menu">
+      <div className="nv-ld-menu" data-sheet="">
         <div className="nv-ld-mi"><Ico k="book" /><span><b style={{ color: 'var(--nv-ink)' }}>What it reads</b><span>Your leadership concepts and sources in the vault, its research library, what the other agents know of your week, and what you tell it here.</span></span></div>
         <div className="nv-ld-mi"><Ico k="flask" /><span><b style={{ color: 'var(--nv-ink)' }}>Its research</b><span>{P.research.count} researched insight{P.research.count === 1 ? '' : 's'}{P.research.last ? ` · last run ${P.research.last}` : ' · no run yet'}. It reads further each Saturday.</span></span></div>
         <button type="button" className="nv-ld-mi nv-ld-pr" data-edge-close="" onClick={() => { haptic('tick'); A.newChat(); shut(); }}>
