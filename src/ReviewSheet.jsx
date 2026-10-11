@@ -3,7 +3,7 @@ import './review.css';
 import { Interactive } from './Interactive.jsx';
 import { TextAction } from './Controls.jsx';
 import { SkeletonBar } from './Skeleton.jsx';
-import { RvIcon, CurveBlock, AnswerSlot } from './ReviewCard.jsx';
+import { RvIcon, CurveBlock, AnswerSlot, Provenance } from './ReviewCard.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
 
 // THE PAGE BEHIND THE CARD (mockup 96 Part 5), raised by "Open the page":
@@ -83,6 +83,7 @@ export function ReviewSheet({ v }) {
   useEffect(() => { r.warmDetail?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const detail = r.sheetDetail; // { paragraphs } | null (loading) | { error: true }
+  const sum = r.summary;
   const kinds = [...new Map([
     ...r.connected.map((c) => [c.kind, c.color]),
     ...(r.source ? [['source', SRC]] : []),
@@ -96,6 +97,11 @@ export function ReviewSheet({ v }) {
         <div className="nv-rv-grab" />
         <div className="nv-rv-shead">
           <b><RvIcon name="review" />Daily review</b>
+          {r.shuffle && (
+            <Interactive as="button" type="button" className="nv-rv-shuf" style={{ marginLeft: 'auto' }} onClick={r.shuffleBusy ? undefined : r.shuffle} disabled={r.shuffleBusy} haptic="tick" aria-label="Shuffle to another concept">
+              <RvIcon name="shuffle" />{r.shuffleBusy ? 'Drawing…' : 'Shuffle'}
+            </Interactive>
+          )}
           <Interactive as="button" type="button" className="nv-rv-x" onClick={close} aria-label="Close" haptic="tick"><RvIcon name="close" /></Interactive>
         </div>
         <div className="nv-rv-sscroll">
@@ -103,21 +109,55 @@ export function ReviewSheet({ v }) {
             {r.kicker?.isNew ? <><span className="new">New</span> · {r.kicker.text}</> : r.kicker?.text}{r.demo ? ' · demo' : ''}
           </p>
           <h3 className="nv-rv-ct">{r.title}</h3>
-          <CurveBlock r={r} big />
+          {sum ? (
+            // THE STRUCTURED NOTE (mockup 98, rule C): what it is, the key
+            // terms each on its own line, where it came from, then the
+            // reflection. Only what the Mac validated; nothing faked.
+            <>
+              <p className="nv-rv-syn">{sum.synthesis}</p>
+              {sum.keyPoints.length > 0 && (
+                <ul className="nv-rv-kp">
+                  {sum.keyPoints.map((k, i) => <li key={`${k.term}-${i}`} style={{ '--i': i }}><b>{k.term}</b><span>{k.line}</span></li>)}
+                </ul>
+              )}
+              {(sum.origin || r.provenance) && (
+                <>
+                  <p className="nv-rv-sh3">Where it came from</p>
+                  <div className="nv-rv-from">
+                    {sum.origin ? <p className="o">{sum.origin}</p> : null}
+                    <Provenance p={r.provenance} />
+                  </div>
+                </>
+              )}
+              {sum.reflection && (
+                <div className="nv-rv-reflect"><span className="lab">For you</span><p>{sum.reflection}</p></div>
+              )}
+              {r.openInNotes
+                ? <TextAction compact tone="quiet" onClick={r.openInNotes} style={{ marginLeft: '-8px', marginTop: '6px' }}>Read the whole page in Notes ›</TextAction>
+                : <span className="nv-rv-foot2" style={{ display: 'block' }}>Demo concept, invented for the demo</span>}
+            </>
+          ) : (
+            <>
+              {r.gist && <p className="nv-rv-syn">{r.gist}</p>}
+              <Provenance p={r.provenance} />
+              <p className="nv-rv-sh3">The note</p>
+              <div className="nv-rv-note">
+                {detail === null ? (
+                  <div style={{ display: 'grid', gap: '9px' }}><SkeletonBar w="96%" h="15px" /><SkeletonBar w="88%" h="15px" /><SkeletonBar w="64%" h="15px" /></div>
+                ) : detail?.error ? (
+                  <p style={{ font: '400 15px var(--nv-font-ui)', color: 'var(--nv-ink60)' }}>This note did not load. Open it in Notes to try again.</p>
+                ) : (
+                  (detail?.paragraphs || []).map((p, i) => <p key={i}>{p}</p>)
+                )}
+                {r.openInNotes
+                  ? <TextAction compact tone="quiet" onClick={r.openInNotes} style={{ marginLeft: '-8px' }}>Open in Notes ›</TextAction>
+                  : <span className="dl">Demo note, invented for the demo</span>}
+              </div>
+            </>
+          )}
 
-          <p className="nv-rv-sh3">The note</p>
-          <div className="nv-rv-note">
-            {detail === null ? (
-              <div style={{ display: 'grid', gap: '9px' }}><SkeletonBar w="96%" h="15px" /><SkeletonBar w="88%" h="15px" /><SkeletonBar w="64%" h="15px" /></div>
-            ) : detail?.error ? (
-              <p style={{ font: '400 15px var(--nv-font-ui)', color: 'var(--nv-ink60)' }}>This note did not load. Open it in Notes to try again.</p>
-            ) : (
-              (detail?.paragraphs || []).map((p, i) => <p key={i}>{p}</p>)
-            )}
-            {r.openInNotes
-              ? <TextAction compact tone="quiet" onClick={r.openInNotes} style={{ marginLeft: '-8px' }}>Open in Notes ›</TextAction>
-              : <span className="dl">Demo note, invented for the demo</span>}
-          </div>
+          <p className="nv-rv-sh3">When it comes back</p>
+          <CurveBlock r={r} big />
 
           <p className="nv-rv-sh3">Connected</p>
           {(r.connected.length || s) ? (

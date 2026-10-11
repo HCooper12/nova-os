@@ -156,7 +156,25 @@ export function buildReview(app, ctx) {
   const detail = item?.demo
     ? { paragraphs: item.note || [] }
     : item ? (st.liveNoteDetails?.[item.id] === undefined ? null : st.liveNoteDetails[item.id]) : null;
-  const gistLoading = item && !item.demo && !item.gist && st.liveReviewSummaries?.[item.id] == null;
+  // THE STRUCTURED SUMMARY (mockup 98; rules in server/lib/reviewSummary.js):
+  // an object when the Mac wrote and validated one, null while it is being
+  // written, '' when it failed (the plain gist then stands in, unstructured)
+  const structRaw = item ? (item.demo ? (item.summary || '') : st.liveReviewStructured?.[item.id]) : undefined;
+  const summary = structRaw && typeof structRaw === 'object' && structRaw.synthesis ? structRaw : null;
+  const structLoading = !!item && !item.demo && structRaw === null;
+  const plainGist = item ? (item.gist || st.liveReviewSummaries?.[item.id] || null) : null;
+  const gistLoading = item && !item.demo && !summary && (structLoading || (!item.gist && st.liveReviewSummaries?.[item.id] == null));
+  // the quiet provenance line (rule A): who and where, then minutes ONLY
+  // from the page's own recorded source time
+  const provenance = !item ? null
+    : summary?.provenance ? { text: summary.provenance, at: summary.minutesIn != null ? `${summary.minutesIn} min in` : null }
+    : src ? { text: `${src.title}${src.ep ? `, ${src.ep}` : ''}`, at: src.time ? `at ${src.time}` : null }
+    : null;
+  // Shuffle (full view only): the next unanswered page of today's queue
+  // after this one, wrapping; with none left, a draw from the unseen pool
+  const curIdx = item ? items.findIndex((i) => i.id === item.id) : -1;
+  const ring = curIdx >= 0 ? [...items.slice(curIdx + 1), ...items.slice(0, curIdx)] : items.filter((i) => i.id !== item?.id);
+  const shuffleTo = ring.find((i) => !i.answered) || null;
 
   const review = {
     state,
@@ -168,8 +186,22 @@ export function buildReview(app, ctx) {
     typeColor: item ? (NOTE_TYPE_COLOR[(item.type || '').toLowerCase()] || 'var(--nv-ink)') : 'var(--nv-ink)',
     kicker,
     firstLook: !!kicker?.isNew,
-    gist: item ? (item.gist || st.liveReviewSummaries?.[item.id] || null) : null,
+    gist: summary ? summary.synthesis : plainGist,
     gistLoading: !!gistLoading,
+    // null when no validated structure exists: nothing is faked around a gist
+    summary: summary ? {
+      synthesis: summary.synthesis,
+      keyPoints: Array.isArray(summary.keyPoints) ? summary.keyPoints : [],
+      origin: summary.origin || null,
+      reflection: summary.reflection || null,
+    } : null,
+    provenance,
+    // at most one connection line on the card (rule E)
+    thread: connected[0] ? { ...connected[0], line: connected[0].title } : null,
+    gradesOpen: !!st.reviewGradesOpen,
+    toggleGrades: () => app.toggleReviewGrades(),
+    shuffle: state === 'card' && !offline ? () => app.shuffleReview(shuffleTo?.id || null, demo) : null,
+    shuffleBusy: !!st.reviewDrawBusy,
     source,
     connected,
     linkCount: item?.linkCount ?? connected.length,

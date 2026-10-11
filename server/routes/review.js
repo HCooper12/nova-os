@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { reviewToday, submitAnswer, drawEarly, reviewItemFor, GRADES } from '../lib/conceptReview.js';
+import { getCachedReviewSummary, startReviewSummaryJob, getReviewSummaryJob, reviewSummaryInput } from '../lib/reviewSummary.js';
 
 // THE DAILY REVIEW — one queue, shared by both Home idioms and the morning
 // brief (dispatch.js reads this same queue head; see conceptReview.js for
@@ -35,6 +36,29 @@ export function reviewRouter(vaultPath, vault) {
       if (!item) return res.status(404).json({ error: 'not found' });
       res.json({ item });
     } catch (err) { next(err); }
+  });
+
+  // The structured summary (mockup 98; rules in lib/reviewSummary.js):
+  // cached per page body, else a job to poll. The cache check reads only the
+  // page; the life sources are read only when a model call is really due.
+  router.post('/review/summary', async (req, res, next) => {
+    try {
+      const id = typeof req.body?.id === 'string' ? req.body.id : '';
+      if (!id) return res.status(400).json({ error: 'missing id' });
+      const page = await vault.getPage(id);
+      const cached = await getCachedReviewSummary(id, page.paragraphs.join('\n\n'));
+      if (cached) return res.json({ summary: cached, cached: true });
+      const input = await reviewSummaryInput(vaultPath, vault, id);
+      res.json({ jobId: startReviewSummaryJob(input) });
+    } catch (err) {
+      if (err.code === 'ENOENT') return res.status(404).json({ error: 'not found' });
+      next(err);
+    }
+  });
+  router.get('/review/summary/:jobId', (req, res) => {
+    const job = getReviewSummaryJob(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'job not found' });
+    res.json({ status: job.status, result: job.result, error: job.error });
   });
 
   router.post('/review/answer', async (req, res) => {
