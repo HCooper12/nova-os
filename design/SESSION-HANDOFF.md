@@ -13,6 +13,64 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**12 OCT (redesign session, claude.ai session 01MPaorT) — NOTION KEY, JOURNAL,
+SKILL SETS, SWIPE-TO-DISMISS AND THE SHORT DAILY REVIEW ARE ALL ON MAIN AND
+LIVE; NOTHING RUNNING; ONE LOOK OWED ON HIS PHONE.**
+- GOAL: continue the page-by-page redesign; this stretch took his phone-side
+  asks: Notion key in Settings, Journal with Notion two-way sync, an Agents
+  "skill sets" view with living 3D characters, swipe-to-dismiss across Nova,
+  and a Daily review cut down to a short collated summary.
+- DONE CRITERIA: built, gated, pushed, reloaded: MET for all five. His
+  on-phone confirmation of Skill sets and the short Daily review: UNMET (he
+  said he will say if it looks good).
+- STATE: main at fd06001 (a test-only fix on top of 0e31549), clean, pushed
+  after this close. Daily review: server/lib/reviewSummary.js,
+  conceptReview.js, src/Review*.jsx. Journal/Notion: server/lib/notionAuth.js,
+  notionJournal.js. Skill sets: src/skillsets/*. Swipe: src/sheetDrag.js,
+  EdgeBack.jsx. Mockups 96, 97 in design/mockups; 98 is scratchpad only
+  (quotes his vault).
+- DECISIONS: (a) Daily review summary is written once per concept, cached by a
+  hash of the page body, grades behind "···", Shuffle in the full view;
+  forecloses regenerating on every open. (b) An over-long reflection is
+  trimmed to opening sentences (else dropped), the summary kept; forecloses
+  failing the whole summary on one field. (c) Origin is shown only if the
+  source text states it; minutes only from a real source time. (d) Notion
+  delete flows to the vault with Undo; Undo restores the vault only, Notion
+  keeps it deleted. (e) Standing Daily review rules A to E are in
+  design/NOVA-METHOD.md §2b and the file header of reviewSummary.js.
+- VERIFIED: server suite 3510 tests, 3506 pass; the 4 fails at the time of
+  checking were the 2 exerciseAtlas (old) plus 2 Notion journal tests, which
+  I fixed (fd06001; node --test test/notionJournal.test.js: 10 pass, 0 fail).
+  guard-cupertino: "unchanged". Lint 0 errors (warnings only). Build green.
+  health 200 on :4173. A real summary for today's concept was generated and
+  read back from GET /api/review/summary (shape only). dist/pc.json absent,
+  no vite preview running.
+- ASSUMED (no locator): the full server suite after fd06001 (I re-ran only
+  the one file); Skill sets, swipe handoff, 120 Hz and keyboard handoff on his
+  iPhone (only desktop browsers tested); that the Ops-switch tap failure on
+  his phone is gone (never reproduced, More > Agents added as a second way).
+- OPEN QUESTIONS / BLOCKERS: Skill sets on his phone: read
+  GET /api/perf/skillsets?limit=N after he uses it (earlier rows: main thread
+  p50 33 ms, degrading with a sheet open). Leftovers: Practice masks,
+  Commander rose and Watcher headphones still move with their bodies; the
+  press bar is hard to read at phone scale; CFO coin counting reads weakly; on
+  375x667 the centre agent rests below the fold; lane changes snap. The
+  REDESIGN-CHECKLIST §7 row boxes were NOT updated this stretch (Train, Fuel,
+  Inbox, Voice still show untouched; Journal, Daily review, Agents, swipe not
+  logged). The 2 exerciseAtlas tests are still red (predate this).
+- NEXT ACTION: (1) reconcile design/REDESIGN-CHECKLIST.md rows with the
+  ledger (expect the status board to match git log). (2) Wait for his word on
+  the Daily review and Skill sets; adjust from it. (3) MacBook desktop round
+  (Todoist reminder 12 Oct 7:45 pm, 6 desktop decisions pending). (4) Remaining
+  pages: sheets/overlays, Settings, Ops and Org map, Library, Practice audit,
+  Leader, Briefing, small screens, Ambient, Console. Still owed: icon-motion
+  reel mockups, Jarvis-reel parts 3 and 4, the Inbox re-evaluation.
+- DO NOT: write a test that dates an entry "today" without resetting the whole
+  journal folder (it passed on 11 Oct and failed on 12 Oct); run dev-connect,
+  probe, rec or shot --readonly; claim the Skill sets switch tap fixed; put
+  mockup 98 or his vault text in the repo; reload with a bare launchctl; read
+  this block as replacing the older ones below (a stack).
+
 **11 OCT (recipe/brief session, claude.ai session 01CQEceq) — REEL PHOTOS AND
 THE BRIEF'S GLASS PANELS FIXED, PUSHED, LIVE; NOTHING RUNNING; NO DECISION
 OPEN.**
@@ -5342,6 +5400,15 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**12 Oct (redesign, claude.ai 01MPaorT).** Added the Notion key page and
+two-way Journal sync, Skill sets with articulated prop-aware agents and a perf
+channel, swipe-to-dismiss on ~30 sheets, and the short structured Daily review
+(synthesis, provenance set apart, key terms, reflection). Corrected: the first
+live summary failed on an over-long reflection (now trimmed, tested); a Date
+object in YAML broke the review on his real vault (dateKey/titleKey); two
+Notion journal tests were date-dependent and began failing on 12 Oct (fixed in
+fd06001). Not done: checklist row boxes, on-phone confirmation.
 
 **11 Oct (recipe/brief session).** Fixed the morning brief's missing glass
 panels (the summary Nova thread never read the stage card; e061e42) and made
