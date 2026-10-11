@@ -129,3 +129,16 @@ Each suggestion shows its kind, the count, the evidence in words and the source.
 1. While he reads a skill set, should the agent stay at the top of the sheet or go back to his slab? Recommended: stay, still and blinking.
 2. Should a ticked suggestion go straight onto the build list, or open a talk with Nova first? Recommended: straight on, with talk one tap away.
 3. Should the glass lift off the floor so agents can go under it? Recommended: no; round the back gives the same hide.
+
+---
+
+# Build (11 Oct): what the suggestion signals read today
+
+| Evidence | Built from | Status |
+|---|---|---|
+| You asked; nobody could | the conversation record, read only: a Nova reply matching a narrow "could not" pattern after his question, laned by its words (`skillSets.js` MISS_RE, LANE_WORDS); 2 or more in 28 days | **live** |
+| You did it by hand | his own captures (no agent kind) filed to one route, 5 or more in 28 days | **live**, captures only; session date and rotation edits are still not counted |
+| You handled it in the Inbox | an agent kind he declined 3 or more times in 28 days, with his most common reason | **live** |
+| Another agent can lend it | no matcher | **not yet**; nothing is raised from it |
+
+A tick files an Inbox record (`kind: 'skill-suggest'`) on the existing `skill-backlog` route, so the line lands on the registry's Backlog as "Agent: skill", with Undo. The Backlog contract is unchanged. A cross is kept in `server/data/skill-suggestions.json` for 60 days, with Undo. The registry today gives the Watcher no skills, so his slab says so.

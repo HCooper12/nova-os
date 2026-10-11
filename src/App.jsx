@@ -666,6 +666,9 @@ export default class App extends Component {
     inboxProposalDismissed: (() => { try { const a = JSON.parse(localStorage.getItem('novaos.proposalsDismissed') || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } })(),
     liveDispatch: null, liveCompost: null, liveTodoist: null, liveTodos: null, liveGuardian: null, liveDailyReview: null, liveOps: null,
     liveOvernight: null, overnightInput: '', liveSkills: null, livePulse: null, opsOpenAgentId: null, liveOpsStream: null,
+    // THE SKILL SETS (mockup 97): Ops' second view, its payload, the open
+    // sheet (a history level), and his answers to suggestions this session
+    opsView: 'orgmap', liveSkillSets: null, skillSetsError: null, skillSheetId: null, skillFocusId: null, skillAnswers: {},
     // REPLY IN PLACE (21 Sep ask): the banner he is answering, held open over
     // whatever screen he is on. { key, text, title, source, recordId, speak, draft, busy, status }
     replyTo: null,
@@ -5178,9 +5181,11 @@ export default class App extends Component {
   reviewSheetFromHistory() {
     const st = typeof window === 'undefined' ? null : window.history.state;
     const onEntry = st?.novaOverlay === 'reviewSheet';
-    if (!onEntry && this.state.reviewSheetOpen) return { reviewSheetOpen: false };
-    if (onEntry && !this.state.reviewSheetOpen) return { reviewSheetOpen: true };
-    return {};
+    // the Skill sets sheet (mockup 97) rides along: its own entry, same rule
+    const skill = this.skillSheetFromHistory();
+    if (!onEntry && this.state.reviewSheetOpen) return { reviewSheetOpen: false, ...skill };
+    if (onEntry && !this.state.reviewSheetOpen) return { reviewSheetOpen: true, ...skill };
+    return skill;
   }
   // "DRAW ONE EARLY" (his call, 11 Oct): the shuffle reel survives only
   // here, once the day's reviews are done. The draw is real (the server's
@@ -8683,6 +8688,78 @@ export default class App extends Component {
   // (skills owned + last receipts); tapping again, or another agent, moves it.
   toggleOpsAgent(id) {
     this.setState({ opsOpenAgentId: this.state.opsOpenAgentId === id ? null : id });
+  }
+  // THE SKILL SETS (mockup 97). Ops' "Org map | Skill sets" switch on the
+  // phone; the sidebar's agents on the Mac open it on that agent. The
+  // payload is fetched when the view opens and after every answer, never on
+  // the sync: nothing on it changes between looks.
+  setOpsView(view) {
+    this.setState({ opsView: view === 'skillsets' ? 'skillsets' : 'orgmap' });
+    if (view === 'skillsets') this.loadSkillSets();
+  }
+  openSkillSets(agentId = null) {
+    this.navigate('ops');
+    this.setState({ opsView: 'skillsets', skillFocusId: agentId || null });
+    this.loadSkillSets();
+  }
+  loadSkillSets() {
+    if (this.state.connectionStatus === 'demo') return;
+    const conn = getConnection();
+    if (!conn) return;
+    api.skillSets(conn)
+      .then((r) => this.setState({ liveSkillSets: r, skillSetsError: null }))
+      .catch((e) => this.setState({ skillSetsError: e.message || 'unreachable' }));
+  }
+  // The open sheet is a history level, for the recipe's reason: the back
+  // swipe and Back close it rather than leaving Ops underneath it.
+  openSkillSheet(id) {
+    if (typeof window !== 'undefined') {
+      const st = window.history.state;
+      if (st?.novaOverlay === 'skillsheet') window.history.replaceState({ ...st, skillSheetId: id }, '');
+      else window.history.pushState({ novaDepth: depthOf(st) + 1, novaOverlay: 'skillsheet', skillSheetId: id }, '');
+    }
+    this.setState({ skillSheetId: id, skillFocusId: id });
+  }
+  closeSkillSheet() {
+    if (typeof window !== 'undefined' && window.history.state?.novaOverlay === 'skillsheet') { window.history.back(); return; }
+    this.setState({ skillSheetId: null });
+  }
+  skillSheetFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const onEntry = st?.novaOverlay === 'skillsheet';
+    if (!onEntry && this.state.skillSheetId) return { skillSheetId: null };
+    if (onEntry && st.skillSheetId && this.state.skillSheetId !== st.skillSheetId) return { skillSheetId: st.skillSheetId };
+    return {};
+  }
+  // HIS ANSWER TO A SUGGESTED SKILL. A tick files it on the build list (an
+  // Inbox record on the skill-backlog route, with Undo); a cross retires it
+  // for 60 days, with Undo. Neither grants a skill. Demo answers stay on
+  // this screen and write nothing.
+  skillSuggestion(verb, s, agentId) {
+    const put = (patch) => this.setState((p) => {
+      const next = { ...p.skillAnswers };
+      if (patch === null) delete next[s.id]; else next[s.id] = { ...(next[s.id] || {}), ...patch };
+      return { skillAnswers: next };
+    });
+    const state = verb === 'accept' ? 'accepted' : verb === 'dismiss' ? 'dismissed' : null;
+    if (this.state.connectionStatus === 'demo') { put(state ? { state, agent: agentId, skill: s.skill } : null); return; }
+    const conn = getConnection();
+    if (!conn) return;
+    put(state ? { state, agent: agentId, skill: s.skill, busy: true, error: null } : { busy: true });
+    api.skillSuggestion(conn, s.id, verb)
+      .then(() => {
+        put(state ? { busy: false } : null);
+        this.loadSkillSets();
+        if (verb !== 'dismiss') this.refreshInbox();
+      })
+      .catch((e) => {
+        if (state) put(null); else put({ busy: false });
+        this.toastMsg(`That didn’t go through: ${e.message}`);
+      });
+  }
+  talkAboutSkill(s, agentId) {
+    const name = { mealprep: 'Meal Prep', cfo: 'CFO' }[agentId] || (agentId ? agentId[0].toUpperCase() + agentId.slice(1) : 'an agent');
+    this.talkAboutInbox(`Talk me through a skill you suggested for ${name}: “${s.skill}”.${s.count ? ` The evidence: ${s.count} ${s.evidence} (${s.source}).` : ''} Is it worth building, and what would it take?`);
   }
   // WORKING ON THIS MAC. The Ops screen polls its own small endpoint while
   // it is open and stops the moment it is not — a list of live windows is

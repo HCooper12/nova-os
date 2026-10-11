@@ -28,6 +28,7 @@ const NOT_AGENT_WORK = {
   greet: 'a spoken greeting receipt',
   voice: 'his own spoken capture',
   'journal-notion': 'his own delete made in Notion, mirrored to the vault; not work an agent did',
+  'skill-suggest': 'his own tick on a suggested skill (skillSets.js), filed to the build list; his answer, not work an agent did',
 };
 
 function declaredKinds() {

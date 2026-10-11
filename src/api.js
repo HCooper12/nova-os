@@ -611,6 +611,9 @@ export const api = {
   // the scheduled-lane half of the model-choice gate (Pattern Scout, Distill)
   inboxModelChoice: (conn, id, model) => post(conn, `/api/inbox/${encodeURIComponent(id)}/model-choice`, { model }),
   inboxUndo: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/undo`),
+  // THE SKILL SETS (mockup 97): read, and his tick / cross / undo on a suggestion
+  skillSets: (conn) => call(conn, '/api/skillsets'),
+  skillSuggestion: (conn, id, verb) => post(conn, `/api/skillsets/suggestions/${encodeURIComponent(id)}/${verb}`),
   inboxReopen: (conn, id) => post(conn, `/api/inbox/${encodeURIComponent(id)}/reopen`),
   // LOOK DEEPER (the summary Inbox): the Researcher after this card's own
   // question; the answer's jobId is the research record, polled via inboxItem

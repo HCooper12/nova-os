@@ -4,6 +4,7 @@
 
 import { valsOrgMap } from './valsOrgMap.js';
 import { wallAgents } from './valsWall.js';
+import { valsSkillSets } from './valsSkillSets.js';
 
 const STATUS_COLOR = {
   pending: 'var(--nv-gold)',
@@ -169,6 +170,12 @@ export function valsOps(app, ctx) {
       const where = groups.length === 1 ? `in ${groups[0].label}` : `across ${countWord(groups.length).toLowerCase()} projects`;
       return { text: `${countWord(n)} ${thing} waiting on you ${where}.`, go: () => app.navigate('ops') };
     })(),
+    // THE SKILL SETS (mockup 97): Ops' second view, live and demo alike
+    opsView: st.opsView || 'orgmap',
+    setOpsView: (view) => app.setOpsView(view),
+    skillSets: st.screen === 'ops' && st.opsView === 'skillsets'
+      ? valsSkillSets({ st, app, demoMode, isOffline: !!ctx.isOffline })
+      : null,
     opsLive: !demoMode && !!ops,
     opsEmptyLine: demoMode
       ? 'Operations is a live-only surface — connect to the Mac to see the real machinery.'
