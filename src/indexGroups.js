@@ -11,13 +11,14 @@ export const INDEX_GROUPS = [
   { key: 'today', label: 'Today', rows: ['mission', 'workouts', 'recipes', 'inbox', 'todos', 'voice'] },
   { key: 'mind', label: 'Mind', rows: ['practice', 'leader', 'review', 'technique', 'library', 'documents', 'notes', 'journal'] },
   { key: 'life', label: 'Life', rows: ['money', 'shopping', 'stash', 'galaxy'] },
-  { key: 'nova', label: 'Nova', rows: ['ops', 'briefing', 'code', 'ambient', 'settings'] },
+  { key: 'nova', label: 'Nova', rows: ['agents', 'ops', 'briefing', 'code', 'ambient', 'settings'] },
 ];
 
-// The two rows that are not screens: Daily review opens today's concept in
-// Notes, Technique opens the Repertoire book. The value is the App method the
+// The rows that are not screens: Daily review opens today's concept in
+// Notes, Technique opens the Repertoire book, Agents opens Ops straight onto
+// the Skill sets (his ask, 11 Oct: "quicker than a toggle"). The value is the App method the
 // row calls, so the test can check the method is real.
-export const OVERLAY_DOORS = { review: 'openDailyReview', technique: 'openRepertoireBook' };
+export const OVERLAY_DOORS = { review: 'openDailyReview', technique: 'openRepertoireBook', agents: 'openSkillSets' };
 
 // Each row's name, and the hue its tile wears. COLOUR MEANS SOMETHING (§2b
 // rule 8): a row takes a hue only when its domain already owns one elsewhere
@@ -47,6 +48,9 @@ export const ROW_META = {
   shopping: { label: 'Shopping', hue: '--nv-ink40' },
   stash: { label: 'Stash', hue: '--nv-ink40' },
   galaxy: { label: 'Galaxy', hue: '--nv-vi' },
+  // the agents themselves, one tap into their skill sets; the Ops row below
+  // keeps the Org map and the machinery
+  agents: { label: 'Agents', hue: '--nv-cy' },
   ops: { label: 'Agents & Operations', hue: '--nv-cy' },
   briefing: { label: 'Briefing', hue: '--nv-ink40' },
   code: { label: 'Code', hue: '--nv-ink40' },

@@ -532,6 +532,9 @@ export function valsChrome(app, ctx) {
     holdNovaCore: st.novaStyle === 'summary' ? () => app.holdNovaCore() : null,
     goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
     goIndex: go('index'),
+    // the More sheet's one-tap door to the Skill sets (his phone runs
+    // cupertino, where the Index's Agents row never shows)
+    openAgents: () => app.openSkillSets(),
     orbCardTitle: st.micOn ? 'Nova is listening' : 'Nova is muted',
     orbCardSub: wakeWord ? 'VOICE · WAKE WORD ON' : 'VOICE · PUSH TO TALK',
     openPalette: () => app.navigate('voice'), // ✦ ASK opens the conversation — it IS the front door now

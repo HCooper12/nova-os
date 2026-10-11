@@ -55,7 +55,9 @@ const FORBIDDEN = [
 
 // What a picture of the org may do: go somewhere, open a being, and use the
 // Inbox's own approve and discard (undoable, and no model behind them).
-const APP_ALLOWED = new Set(['navigate', 'inboxAction', 'toggleOpsAgent', 'setState']);
+// openSkillSets goes to Ops and reads /api/skillsets, which code composes
+// from the registry and the records (server/lib/skillSets.js): no model.
+const APP_ALLOWED = new Set(['navigate', 'inboxAction', 'toggleOpsAgent', 'setState', 'openSkillSets']);
 
 test('the map and its beings have files to check', async () => {
   const files = (await Promise.all(SCOPE.map(walk))).flat();

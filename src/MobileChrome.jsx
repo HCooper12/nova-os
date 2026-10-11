@@ -112,6 +112,18 @@ export function MobileChrome({ v }) {
         <div onClick={() => setMoreOpen(false)} style={css("position:fixed;inset:0;z-index:74;background:rgba(8,5,12,.6);backdrop-filter:blur(4px)")}>
           <div onClick={(e) => e.stopPropagation()} className="nv-liquid nv-liquid-thick nv-materialize" style={css("position:absolute;left:0;right:0;bottom:0;border-radius:22px 22px 0 0;padding:18px 16px calc(20px + env(safe-area-inset-bottom))")}>
             <div style={css("width:36px;height:4px;border-radius:2px;background:color-mix(in srgb, var(--nv-ink) 22%, transparent);margin:0 auto 14px")}></div>
+            {/* THE AGENTS, one tap from More (his ask, 11 Oct: "quicker than a
+                toggle"): straight onto the Skill sets, with the honest
+                working-now count beside the name */}
+            {v.openAgents && (
+              <Interactive as="div" onClick={() => { setMoreOpen(false); v.openAgents(); }} haptic="tick" aria-label={`Agents${v.agentsIndexLabel ? `, ${v.agentsIndexLabel}` : ''}. Open their skill sets`}
+                base={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 14px', marginBottom: '14px', cursor: 'pointer', borderRadius: '14px', color: 'var(--nv-acc)', background: 'var(--nv-acc-bg)' }}>
+                <TabIcon name="agents" size={22} />
+                <span style={css(`font:600 15px ${R};color:var(--nv-ink)`)}>Agents</span>
+                {v.agentsIndexLabel && <span style={css(`margin-left:auto;font:500 13px ${R};color:var(--nv-ink60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0`)}>{v.agentsIndexLabel}</span>}
+                <span aria-hidden="true" style={css(`${v.agentsIndexLabel ? '' : 'margin-left:auto;'}font:500 17px ${R};color:var(--nv-ink40)`)}>›</span>
+              </Interactive>
+            )}
             {v.frequentTabs?.length > 0 && (
               <>
                 <Eyebrow style={{ padding: '0 6px 8px' }}>Frequent</Eyebrow>

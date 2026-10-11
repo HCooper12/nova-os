@@ -21,6 +21,9 @@ const PATHS = {
   // a page with a folded corner in front of another: what the agents wrote
   documents: <><path d="M8.5 3.8h6.4l3.3 3.3v10.6h-9.7Z" /><path d="M14.6 3.8v3.6h3.6" /><path d="M5.8 7.4v12.8h9.4" /><path d="M11 11.6h4.4M11 14.4h4.4" /></>,
   more: <><rect x="4.5" y="4.5" width="6" height="6" rx="1.8" /><rect x="13.5" y="4.5" width="6" height="6" rx="1.8" /><rect x="4.5" y="13.5" width="6" height="6" rx="1.8" /><rect x="13.5" y="13.5" width="6" height="6" rx="1.8" /></>,
+  // the agents (not a screen: the Skill sets door on the Index and the
+  // cupertino More sheet) — three heads, one forward, a team
+  agents: <><circle cx="12" cy="8.4" r="2.7" /><path d="M7.4 19.4a4.6 4.6 0 0 1 9.2 0" /><circle cx="5.6" cy="10.2" r="2" /><circle cx="18.4" cy="10.2" r="2" /><path d="M2.8 17.6a3 3 0 0 1 3.6-2.9M21.2 17.6a3 3 0 0 0-3.6-2.9" /></>,
 };
 
 export function TabIcon({ name, size = 22, style }) {
