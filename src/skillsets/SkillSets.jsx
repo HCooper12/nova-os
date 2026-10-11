@@ -9,11 +9,12 @@
 // stays at its top while the skill set is read. Back runs it in reverse.
 //
 // All the agents are drawn by ONE renderer in ONE scene (./stage.js); the
-// slabs are DOM moved by transform and opacity only. The view model is
+// slabs are DOM moved by transform only (each carries its agent's canvas). The view model is
 // src/vals/valsSkillSets.js; nothing here invents a value.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { TextAction } from '../Controls.jsx';
 import { createSkillStage } from './stage.js';
+import { startPerf } from './perf.js';
 import { CENTRE_HOME } from './plays.js';
 
 const ART = {
@@ -50,17 +51,17 @@ const CSS = `
 .nv-skl-floor{position:absolute;left:-40%;right:-40%;height:420px;transform:rotateX(76deg);transform-origin:50% 0;border-radius:50%;pointer-events:none;
   background:radial-gradient(closest-side,color-mix(in srgb,var(--hue,var(--nv-cy)) 26%,transparent),transparent 70%),repeating-radial-gradient(circle at 50% 0,transparent 0 46px,color-mix(in srgb,var(--nv-cy) 7%,transparent) 46px 47px)}
 .nv-skl-slab{position:absolute;left:50%;top:20px;border-radius:18px;box-sizing:border-box;
-  background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.02) 40%,rgba(10,15,30,.35));
+  background:linear-gradient(160deg,color-mix(in srgb,var(--nv-bg2) 88%,var(--nv-ink)),var(--nv-bg1) 45%,color-mix(in srgb,var(--nv-bg1) 80%,var(--nv-void)));
   border:1px solid var(--nv-edge);
-  padding:18px 18px 16px;display:flex;flex-direction:column;gap:10px;will-change:transform,opacity;cursor:grab;
+  padding:18px 18px 16px;display:flex;flex-direction:column;gap:10px;will-change:transform;cursor:grab;
   box-shadow:inset 0 1px 0 var(--nv-spec);outline:none}
-/* the frost is the lit slab's alone: ten blurred layers re-rastered every
-   frame of a swipe were the bulk of its cost on the phone, and the others
-   sit over a plain gradient, where a blur shows nothing, so they get a
-   denser fill instead (their neighbours' text must not read through) */
-.nv-skl-slab:not(.lit){background:linear-gradient(160deg,color-mix(in srgb,var(--nv-bg2) 90%,rgba(255,255,255,.08)),color-mix(in srgb,var(--nv-bg1) 94%,transparent) 60%)}
-.nv-skl.open .nv-skl-slab{transition:opacity 220ms}
-.nv-skl-slab.lit{backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);border-color:color-mix(in srgb,var(--h) 70%,transparent);box-shadow:inset 0 1px 0 var(--nv-spec),0 0 0 1px color-mix(in srgb,var(--h) 35%,transparent),0 30px 80px -30px color-mix(in srgb,var(--h) 60%,transparent)}
+/* NO frost and NO opacity on the slabs (his 11 Oct recording): a slab at
+   0.7 opacity let the one behind read through it (two titles at once), and
+   a backdrop-filter on a 3D-moving layer re-rastered on iOS and left a
+   stale copy behind after the swipe. Every slab is opaque; a far one is
+   dimmed by its own veil (::before, --dim), which shows nothing through. */
+.nv-skl-slab::before{content:"";position:absolute;inset:-1px;border-radius:inherit;background:var(--nv-bg1);opacity:var(--dim,0);pointer-events:none;z-index:1}
+.nv-skl-slab.lit{border-color:color-mix(in srgb,var(--h) 70%,transparent);background:linear-gradient(160deg,color-mix(in srgb,var(--h) 12%,var(--nv-bg2)),var(--nv-bg1) 50%,color-mix(in srgb,var(--nv-bg1) 80%,var(--nv-void)));box-shadow:inset 0 1px 0 var(--nv-spec),0 0 0 1px color-mix(in srgb,var(--h) 35%,transparent),0 30px 80px -30px color-mix(in srgb,var(--h) 60%,transparent)}
 .nv-skl-slab:focus-visible{outline:2px solid var(--nv-cy);outline-offset:2px}
 .nv-skl-art{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;overflow:hidden;flex:none;background:color-mix(in srgb,var(--h) 14%,transparent);border:1px solid color-mix(in srgb,var(--h) 35%,transparent)}
 .nv-skl-art svg{width:30px;height:30px;stroke:var(--h);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -87,7 +88,7 @@ const CSS = `
 .nv-skl-busy{position:absolute;left:50%;transform:translateX(-50%);z-index:6;font:600 10px var(--nv-font-mono);letter-spacing:.06em;color:var(--hue);background:var(--nv-glass);border:1px solid color-mix(in srgb,var(--hue) 40%,transparent);border-radius:999px;padding:4px 10px;pointer-events:none;text-align:center;line-height:1.4;transition:opacity 200ms}
 .nv-skl-chrbox{position:absolute;inset:0;pointer-events:none;z-index:3;}
 .nv-skl.open .nv-skl-chrbox{z-index:9;clip-path:none}
-canvas.nv-skl-chr{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+canvas.nv-skl-chr{position:absolute;pointer-events:none;z-index:2;transform-origin:0 0}
 .nv-skl-modal{position:absolute;inset:0;z-index:8}
 .nv-skl-sheet{position:absolute;left:0;right:0;bottom:0;border-radius:28px 28px 0 0;background:var(--nv-glass2);backdrop-filter:blur(24px) saturate(150%);-webkit-backdrop-filter:blur(24px) saturate(150%);
   border-top:1px solid color-mix(in srgb,var(--hue) 45%,transparent);transform:translateY(105%);overflow-y:auto;display:block;padding:16px 18px 130px;overscroll-behavior:contain;box-sizing:border-box;-webkit-user-select:text;user-select:text}
@@ -323,6 +324,7 @@ export function SkillSets({ v }) {
   // Transforms and opacity only, written from refs: no React render, no
   // layout read. A slab that stays far off is not written at all.
   const farRef = useRef([]);
+  const dimRef = useRef([]);
   const layout = () => {
     const root = rootRef.current; if (!root) return;
     const gg = gRef.current, c = car.current, open = !!shownRef.current;
@@ -336,7 +338,8 @@ export function SkillSets({ v }) {
       el.style.visibility = far ? 'hidden' : 'visible';
       if (far) return;
       el.style.transform = `translate3d(${Math.sin(a) * gg.R}px,0,${(Math.cos(a) - 1) * gg.R}px) rotateY(${d * gg.STEP * 0.9}deg)`;
-      el.style.opacity = open && i === ci0 ? 0.12 : Math.max(0, 1 - ad * 0.28);
+      const dim = open && i === ci0 ? 0.88 : Math.min(0.8, ad * 0.28);
+      if (dimRef.current[i] !== dim) { dimRef.current[i] = dim; el.style.setProperty('--dim', dim.toFixed(3)); }
       el.style.zIndex = String(100 - Math.round(ad * 10));
       el.classList.toggle('lit', ad < 0.5);
       el.style.pointerEvents = ad > 2.5 || open ? 'none' : 'auto';
@@ -356,31 +359,17 @@ export function SkillSets({ v }) {
   };
   useEffect(() => () => cancelAnimationFrame(pending.current), []);
 
-  // Where each slab is on screen, as plain numbers for the stage. Only the
-  // centre and the two beside it have a being drawn: one per slab, each in
-  // his own lane (the centre on the floor under his slab, a neighbour on
-  // his own slab's top at the corner that shows).
+  // Which slabs show an agent: the centre and the one either side. The
+  // stage needs no screen position: each agent is drawn on a canvas inside
+  // his own slab, so the slab's transform carries him.
   const slots = () => {
-    const root = rootRef.current; if (!root) return [];
-    const gg = gRef.current, c = car.current, W = widthRef.current || root.offsetWidth, sh = STAGE_H(gg);
-    const ox = W / 2, oy = gg.STAGE_T + sh * 0.3, top = gg.STAGE_T + 20, bot = top + gg.SH;
-    const openId = shownRef.current;
+    const c = car.current, openId = shownRef.current;
     const out = [];
     vRef.current.agents.forEach((a, i) => {
-      const d = i - c.pos, ad = Math.abs(d), centre = ad < 0.5;
-      const ang = (d * gg.STEP * Math.PI) / 180, ry = (d * gg.STEP * 0.9 * Math.PI) / 180;
-      const Z = (Math.cos(ang) - 1) * gg.R;
-      const k = gg.P / (gg.P - Z);
-      const cx = ox + Math.sin(ang) * gg.R * k;
-      const sw = gg.SW * k * Math.cos(ry), y0 = oy + (top - oy) * k, y1 = oy + (bot - oy) * k;
-      const visible = openId ? a.id === openId : ad < 1.5 && cx - sw / 2 < W && cx + sw / 2 > 0;
+      const d = i - c.pos, ad = Math.abs(d);
+      const visible = openId ? a.id === openId : ad < 1.5;
       if (!visible) return;
-      out.push({
-        id: a.id, d: Math.round(d * 1000) / 1000, k, scale: gg.CH / 1.1, centre, visible,
-        fx: cx, fy: y1, w: sw, h: y1 - y0,
-        sx0: cx - sw / 2, sy0: y0, sw, sh: y1 - y0,
-        dragging: c.dragging || !c.settled,
-      });
+      out.push({ id: a.id, d: Math.round(d * 1000) / 1000, centre: ad < 0.5, visible, dragging: c.dragging || !c.settled });
     });
     return out;
   };
@@ -391,7 +380,8 @@ export function SkillSets({ v }) {
     const root = rootRef.current;
     let s, alive = true;
     try {
-      s = createSkillStage(canvasRef.current, { tokensFrom: root, reduceMotion: rm, onFail: () => { if (alive) setNo3d(true); } });
+      const gg = gRef.current;
+      s = createSkillStage(canvasRef.current, { tokensFrom: root, reduceMotion: rm, SW: gg.SW, SH: gg.SH, CH: gg.CH, onFail: () => { if (alive) setNo3d(true); } });
     } catch {
       setNo3d(true);
       return undefined;
@@ -400,11 +390,11 @@ export function SkillSets({ v }) {
     if (import.meta.env?.DEV) window.__novaSkillStage = s;
     // portraits for the slab art, once
     s.portraits(vRef.current.agents.map((a) => a.id)).then((p) => { if (alive) setPortraits(p); }).catch(() => { /* the marks stay */ });
-    s.resize(root.offsetWidth, root.offsetHeight);
+    attachAll(s);
     s.setAgents(vRef.current.agents.map((a) => ({ id: a.id, working: !!a.working, canPlay: a.canPlay })));
     layout();
     const ro = new ResizeObserver(() => {
-      widthRef.current = root.offsetWidth; s.resize(root.offsetWidth, root.offsetHeight); layout();
+      widthRef.current = root.offsetWidth; layout();
       // open and read: he stays at the sheet's top wherever a resize moved it
       if (shownRef.current && !car.current.busy) { const sp = rideSpot(1); s.pin(shownRef.current, { px: sp.x, py: sp.y, sq: 1, yaw: -0.3 }); }
     });
@@ -412,9 +402,11 @@ export function SkillSets({ v }) {
     const io = new IntersectionObserver((es) => s.setActive(es.some((e) => e.isIntersecting) && !document.hidden), { threshold: 0.05 });
     io.observe(root);
     const onVis = () => s.setActive(!document.hidden);
+    const stopPerf = startPerf({ stage: () => stageRef.current, getState: () => ({ centre: vRef.current.agents[cur()]?.id || null, dragging: !!car.current.dragging }) });
     document.addEventListener('visibilitychange', onVis);
     return () => {
       alive = false;
+      stopPerf();
       ro.disconnect(); io.disconnect();
       document.removeEventListener('visibilitychange', onVis);
       cancelAnimationFrame(rideRaf.current);
@@ -422,6 +414,15 @@ export function SkillSets({ v }) {
       if (import.meta.env?.DEV) window.__novaSkillStage = null;
     };
   }, [v.state === 'loading']); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // every slab gets its agent's canvas; the frame follows the slab's size
+  const attachAll = (s) => {
+    const root = rootRef.current; if (!root || !s) return;
+    const gg = gRef.current;
+    s.setGeo(gg.SW, gg.SH, gg.CH);
+    root.querySelectorAll('.nv-skl-slab').forEach((el) => { const a = vRef.current.agents[Number(el.dataset.i)]; if (a) s.attach(a.id, el); });
+  };
+  useEffect(() => { attachAll(stageRef.current); layout(); }, [wide, N]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // what each agent may do changes only with the records
   const sig = v.agents.map((a) => `${a.id}:${a.working ? 1 : 0}${a.canPlay ? 1 : 0}`).join(',');
@@ -462,7 +463,12 @@ export function SkillSets({ v }) {
     const c = car.current;
     if (shownRef.current || c.busy || e.target.closest('.nv-skl-modal')) return;
     const s = stageRef.current;
-    if (s) { const [px, py] = rootXY(e); const hitId = s.hit(px, py); if (hitId) { s.tap(hitId); return; } }
+    if (s && c.settled) {
+      // the point in the centre slab's frame (his canvas's own space)
+      const [px, py] = rootXY(e), gg = gRef.current, G = s.geo;
+      const hitId = s.hit(px - (widthRef.current / 2 - gg.SW / 2 - G.side), py - (gg.STAGE_T + 20 - G.above));
+      if (hitId) { s.tap(hitId); return; }
+    }
     c.dragging = true; drag.current = { sx: e.clientX, sp: c.pos, hist: [[e.timeStamp, e.clientX]], moved: false, downEl: e.target.closest('.nv-skl-slab') };
     cancelAnimationFrame(c.raf);
     try { rootRef.current.setPointerCapture(e.pointerId); } catch { /* fine */ }
@@ -523,8 +529,8 @@ export function SkillSets({ v }) {
   const ride = ({ id, dir, dur, arc, done }) => {
     const s = stageRef.current, gg = gRef.current;
     cancelAnimationFrame(rideRaf.current);
-    const home = slots().find((x) => x.id === id) || { fx: rootRef.current.offsetWidth / 2, fy: gg.STAGE_T + 20 + gg.SH + 60, h: gg.SH };
-    const hx = home.fx, hy = home.fy - CENTRE_HOME.y * home.h;
+    // his home under the centre slab, in the page's own coordinates
+    const hx = rootRef.current.offsetWidth / 2, hy = gg.STAGE_T + 20 + gg.SH - CENTRE_HOME.y * gg.SH;
     const t0 = performance.now();
     const step = () => {
       const u = Math.min(1, Math.max(0, (performance.now() - t0) / dur));
@@ -533,14 +539,13 @@ export function SkillSets({ v }) {
       const e = dir > 0 ? 1 - Math.pow(1 - sp, 3) : sp * sp * (3 - 2 * sp);
       sheetAt(rm ? q : e);
       const spot = rideSpot(rm ? 1 : e);
-      let px, py, sq = 1, yaw = -0.3;
-      if (rm) { const at = q > 0.5 ? spot : { x: hx, y: hy }; px = at.x; py = at.y; if (s?.canvas) s.canvas.style.opacity = String(Math.abs(q - 0.5) * 2); }
+      let px, py, sq = 1, yaw = -0.3, opacity = 1;
+      if (rm) { const at = q > 0.5 ? spot : { x: hx, y: hy }; px = at.x; py = at.y; opacity = Math.abs(q - 0.5) * 2; }
       else if (q < 0.2) { px = hx; py = hy; sq = 1 - 0.2 * Math.sin((q / 0.2) * Math.PI); yaw = 0.3; }
       else if (q < 0.55) { const a = (q - 0.2) / 0.35, sm = a * a * (3 - 2 * a); px = hx + (spot.x - hx) * sm; py = hy + (spot.y - hy) * sm - Math.sin(sm * Math.PI) * arc; sq = 1.04; yaw = 0.3 - 0.6 * sm; }
       else { px = spot.x; py = spot.y; sq = q < 0.62 ? 0.86 + ((q - 0.55) / 0.07) * 0.14 : 1; }
-      s?.pin(id, { px, py, sq, yaw, live: u < 1 });
+      s?.pin(id, { px, py, sq, yaw, opacity, live: u < 1 });
       if (u < 1) { rideRaf.current = requestAnimationFrame(step); return; }
-      if (s?.canvas) s.canvas.style.opacity = '1';
       if (dir < 0) s?.pin(id, null);
       done();
     };
