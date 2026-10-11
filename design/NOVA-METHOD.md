@@ -247,6 +247,31 @@ sentence, and the words say the disagreement too, so colour is never the only
 signal. A stance is not a panel and never counts as one
 (`src/visualBeats.js`).
 
+**Daily review summary (his standing rules, 11 Oct 2026, mockup 98).** The
+model returns a structured object, `{ synthesis, provenance, origin|null,
+keyPoints:[{term,line}], reflection }`; `server/lib/reviewSummary.js`
+validates it strictly and the card renders it. A rejected object falls back
+to the plain note summary with no structure faked around it. The same rules
+sit in that file's header and in its prompt:
+- **A. Provenance is set apart.** Who said it, and where, is a smaller,
+  quieter line of its own; the synthesis is the idea, in Nova's voice.
+- **B. Origin of the idea.** When the source says where the concept itself
+  came from, name it. Only what the vault or source text says; code drops an
+  origin it cannot find in the input. No stated origin, no origin.
+- **C. Structured, not a paragraph, in the full view:** what it is, the key
+  terms in bold each on its own line, where it came from, then the reflection.
+- **D. A closing reflection** that applies the idea to his life, grounded in
+  the same sources the Journal's "My life" prompt reads. Never generic;
+  absent rather than generic. Cached with the summary.
+- **E. Short at a glance.** The Home card: the concept, a 2 to 3 sentence
+  synthesis, the quiet provenance line, at most one connection line, two
+  actions (Open, Got it / Next) and "···" for the grades. Shuffle lives in
+  the full view.
+- **Minutes come from the page's recorded source time only.** The model is
+  never asked for a time; code strips any it writes. No time, no minutes.
+- Written once per concept, rewritten only when the page body changes
+  (cache keyed by a hash of the body).
+
 ## 3 · The change process (for future Claude editing Nova)
 
 The mental sequence to run for any change, in order. Skipping steps is how
