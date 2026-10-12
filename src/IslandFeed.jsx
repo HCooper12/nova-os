@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { notify, dismissIsland, setActivity } from './island.js';
+import { syncLiveActivity } from './liveActivity.js';
+import { jobLive } from './liveActivityModel.js';
 
 // What the app is doing, handed to the island as Live Activities (25 Sep 2026,
 // his ask). It renders nothing. The view model (valsChrome `island`) decides
@@ -24,11 +26,24 @@ function useActivity(kind, act) {
   useEffect(() => () => setActivity(kind, null), [kind]);
 }
 
-export function IslandFeed({ feed, app }) {
+// The same, out to the REAL island and lock screen (iOS Live Activities, in
+// the native shell only; a no-op everywhere else). Sends on a change of what
+// the card shows, ends the card when the thing stops being true.
+function useLiveActivity(kind, live) {
+  const sig = live ? `${live.key}#${live.sig}` : null;
+  const ref = useRef(live);
+  ref.current = live;
+  useEffect(() => { syncLiveActivity(kind, ref.current || null); }, [kind, sig]);
+  useEffect(() => () => syncLiveActivity(kind, null), [kind]);
+}
+
+export function IslandFeed({ feed, jobs, app }) {
   const f = feed || {};
   useActivity('workout', f.workout);
   useActivity('speaking', f.speaking);
   useActivity('nudge', f.nudge);
+  useLiveActivity('workout', f.liveWorkout);
+  useLiveActivity('job', jobLive(jobs));
 
   // a nudge announces itself ONCE per key, then waits in the bubble
   const announced = useRef(new Set());

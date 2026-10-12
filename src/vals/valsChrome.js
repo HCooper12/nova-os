@@ -8,7 +8,8 @@ import { beingForRecord } from '../../server/lib/orgMap.js';
 import { dtf } from './fmt.js';
 import { glassOf } from '../glassBeats.js';
 import { thinkingOf, contestOf } from '../novaThreadFacts.js';
-import { muscleVar } from '../muscleHue.js';
+import { muscleVar, muscleHexStatic } from '../muscleHue.js';
+import { workoutLive } from '../liveActivityModel.js';
 import { api, getConnection } from '../api.js';
 
 // App chrome: sidebar nav, mobile tabs, per-screen wrappers and grids, the
@@ -877,8 +878,14 @@ export function workoutProgress(ws) {
 }
 
 function islandView(app, st, demoMode) {
-  const out = { workout: null, speaking: null, nudge: null, pocket: null };
+  const out = { workout: null, speaking: null, nudge: null, pocket: null, liveWorkout: null };
   const ws = st.workoutSession;
+  // the lock-screen card (liveActivity.js): on every screen, Train included,
+  // because the lock screen is exactly where he is NOT looking at Train
+  out.liveWorkout = workoutLive({
+    ws, editing: !!st.editingSessionId, view: st.workoutsView, rest: st.sessionRest,
+    now: Date.now(), progress: workoutProgress, hueOf: muscleHexStatic,
+  });
   // a past session being edited is paperwork, not a workout in progress
   if (ws && !st.editingSessionId) {
     const { done, total, next } = workoutProgress(ws);

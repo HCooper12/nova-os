@@ -12041,7 +12041,7 @@ export default class App extends Component {
         )}
         {v.ingestModalOpen && <Suspense fallback={null}><IngestModal v={v} /></Suspense>}
         {v.ingestStatus !== 'idle' && <Suspense fallback={null}><IngestReview v={v} /></Suspense>}
-        <IslandFeed feed={v.island} app={this} />
+        <IslandFeed feed={v.island} jobs={v.jobTray.jobs} app={this} />
         {v.replyTo && <ReplySheet v={v} />}
         {v.modelChoicePrompt && <ModelChoicePrompt v={v.modelChoicePrompt} />}
         {v.coachApply && <CoachApplySheet c={v.coachApply} />}
