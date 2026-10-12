@@ -38,7 +38,8 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
       if (!cwd) return res.status(400).json({ error: await badWorkspace() });
       if (model && !isValidModel(model)) return res.status(400).json({ error: 'model is not a recognised alias or pinned id' });
       if (sessionId && !SESSION_ID_RE.test(sessionId)) return res.status(400).json({ error: 'invalid sessionId' });
-      const jobId = startMessage(cwd, { text, sessionId, model });
+      // the vault keeps the read/edit-only lane: no shell in his notes
+      const jobId = startMessage(cwd, { text, sessionId, model, readOnly: workspace === 'vault' });
       settled.add(jobId);
       res.json({ jobId });
     } catch (err) {
@@ -52,7 +53,9 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
     // `consult`: the agents this turn asked, as structured state (lib/consult.js)
     // — who, what, when asked and settled, and each answer — so a screen can
     // show the roster while they work and open each answer after.
-    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, visuals: job.visuals || null, consult: job.consult?.length ? job.consult : null });
+    // `stage`: what the Builder's run is doing between turns (checking,
+    // fixing round n, the Breaker), narrated by code for the Code screen
+    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, stage: job.stage || null, visuals: job.visuals || null, consult: job.consult?.length ? job.consult : null });
   });
 
   // Sparring loop: spawn a read-only Breaker over the workspace. Polled via

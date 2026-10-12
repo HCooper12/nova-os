@@ -216,6 +216,16 @@ export function valsCode(app, ctx, { modelOptions = [] } = {}) {
   };
 }
 
+// WHERE A CHECKED RUN IS (13 Oct 2026): the Builder writes, Nova checks,
+// the Builder fixes what failed, the Breaker attacks it. The server narrates
+// the stage between turns (claudeCode.js startMessage); this turns it into
+// the step the track lights. No stage = the Builder is writing.
+export function runSteps(stage) {
+  const s = String(stage || '');
+  const at = !s ? 0 : /^Checking/.test(s) ? 1 : /^Fixing/.test(s) ? 2 : /Breaker/.test(s) ? 3 : 0;
+  return { at, words: s || 'Writing the change', steps: ['Write', 'Check', 'Fix', 'Breaker'] };
+}
+
 function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf, changes, byTile, known, readyIn }) {
   const st = app.state;
   const p = projectInfo(key, byTile.get(key)?.label);
@@ -306,10 +316,11 @@ function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf,
     const h = lineHead(m, { modelLabel });
     const shelf = m.kind === 'shelf' && m.sha && !m.restored
       ? { label: 'Restore', run: () => act.restore(app, m.sha, m.ws || pageWs), enabled: !away && !st.codeChangeBusy } : null;
-    return { key: `${m.at || 0}:${i}`, ...h, blocks: textBlocks(m.text), streaming: !!m.streaming, startedAt: m.streaming ? (st.codeBusyAt || m.at) : (m.startedAt || m.at), at: m.at, action: shelf };
+    const live = !!m.streaming && m.who !== 'breaker';
+    return { key: `${m.at || 0}:${i}`, ...h, blocks: textBlocks(m.text), streaming: !!m.streaming, startedAt: m.streaming ? (st.codeBusyAt || m.at) : (m.startedAt || m.at), at: m.at, action: shelf, run: live ? runSteps(st.codeStage) : null };
   });
   if (builderHere && st.codeBusy && !chat.some((m) => m.streaming)) {
-    lines.push({ key: 'bld-live', who: 'bld', name: 'Builder', detail: 'working', blocks: [], streaming: true, startedAt: st.codeBusyAt || Date.now() });
+    lines.push({ key: 'bld-live', who: 'bld', name: 'Builder', detail: 'working', blocks: [], streaming: true, startedAt: st.codeBusyAt || Date.now(), run: runSteps(st.codeStage) });
   }
   if (builderHere && st.sparBusy) {
     lines.push({ key: 'brk-live', who: 'brk', name: 'Breaker', detail: 'reading, read-only', blocks: [], streaming: true, startedAt: st.sparBusyAt || Date.now() });

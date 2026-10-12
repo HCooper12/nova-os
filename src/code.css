@@ -281,6 +281,14 @@
 .nv-cd-sess .qt.live { overflow: hidden; }
 .nv-cd-sess .qt.live i { right: auto; width: 30%; transform: none; background: var(--h); animation: nvCdSweep 1.6s var(--cd-io) infinite; }
 @keyframes nvCdSweep { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+.nv-cd-ln .runsteps { margin: 8px 0 4px; display: grid; gap: 6px; }
+.nv-cd-ln .runsteps ol { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; }
+.nv-cd-ln .runsteps li { flex: 1; padding: 4px 0 0; border-top: 3px solid var(--cd-track); font: 600 11px var(--cd-ui); letter-spacing: .02em; color: var(--cd-ink3); transition: border-color .4s var(--cd-out), color .4s var(--cd-out); }
+.nv-cd-ln .runsteps li.done { border-top-color: color-mix(in srgb, var(--cd) 55%, transparent); color: var(--cd-ink2); }
+.nv-cd-ln .runsteps li.now { border-top-color: var(--cd); color: var(--nv-ink); animation: nvCdStepNow 1.6s var(--cd-io) infinite; }
+@keyframes nvCdStepNow { 50% { border-top-color: color-mix(in srgb, var(--cd) 45%, transparent); } }
+.nv-cd-ln .runsteps > span { font: 400 13px var(--cd-ui); color: var(--cd-ink2); }
+@media (prefers-reduced-motion: reduce) { .nv-cd-ln .runsteps li { transition: none; } .nv-cd-ln .runsteps li.now { animation: none; } }
 /* control (13 Oct): open a session to read and message it */
 .nv-cd-sess .nm { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 44px; margin: -12px 0; padding: 0; background: none; color: inherit; text-align: left; }
 .nv-cd-sess .nm b { font: 600 15px var(--cd-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

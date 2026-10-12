@@ -228,59 +228,189 @@ function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn, env }) {
   w.child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) + '\n');
 }
 
-// message: { text, sessionId?, model? } — sessionId absent means start a new
-// conversation (a fresh session id is minted and returned for the caller to
-// pass on the next turn); present means continue that conversation via
-// --resume, preserving full context across turns.
-export function startMessage(cwd, { text, sessionId, model }) {
+// THE BUILDER (rebuilt 13 Oct 2026, his ask: "It should perform exactly like
+// Claude Code does and double check its work to find, pressure test and
+// improve any failures or missing parts or mistakes").
+//
+// Before: Claude Code with Bash switched off. It could edit but never run a
+// test, so it reported done on a change that failed 4 of 8 tests and missed
+// four readers of what it renamed. Now:
+//   - Claude Code's real toolset, Bash included. What stays his is blocked by
+//     pattern, and Claude Code enforces those even inside a chained command
+//     (measured 13 Oct, haiku, bypassPermissions: `cd . && git status` was
+//     refused): commit, push, history rewrites, reloading his server.
+//   - a working brief (BUILDER_BRIEF) as an appended system prompt, so every
+//     turn of the session carries it without it showing in his chat
+//   - THE CHECK, by code (builderGate.js): after a turn that changed files,
+//     Nova runs the project's own lint / build / tests; a failure the change
+//     caused goes straight back to the Builder, up to BUILD_FIX_ROUNDS times
+//   - THE PRESSURE TEST: the Breaker reads the diff against his ask; its
+//     findings go back to the Builder, and the checks run again
+//   - the answer ends with a receipt WRITTEN BY CODE: what ran, what passed,
+//     what was already failing before, what is still broken
+// The vault keeps the old read/edit-only lane: Bash in his notes is not a
+// capability anyone asked for.
+const BUILDER_ALLOWED = 'Read Edit Write Grep Glob Bash Agent Skill WebSearch WebFetch TodoWrite NotebookEdit';
+const BUILDER_DISALLOWED = [
+  'ScheduleWakeup', 'ReportFindings', 'Artifact', 'SendMessage', 'CronCreate', 'CronDelete', 'CronList', 'DesignSync',
+  'EnterWorktree', 'ExitWorktree', 'PushNotification', 'RemoteTrigger', 'Monitor',
+  'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate',
+  // his, never the Builder's: the Commit section on the Code screen is where
+  // a change becomes history, and only he reloads the server
+  'Bash(git commit:*)', 'Bash(git push:*)', 'Bash(git reset:*)', 'Bash(git rebase:*)', 'Bash(git checkout:*)',
+  'Bash(git restore:*)', 'Bash(git clean:*)', 'Bash(git stash:*)', 'Bash(git switch:*)', 'Bash(git branch -D:*)',
+  'Bash(rm -rf:*)', 'Bash(sudo:*)', 'Bash(launchctl:*)', 'Bash(node scripts/reload-server.mjs:*)',
+  'Bash(node scripts/dev-connect.mjs:*)', 'Bash(curl -X POST:*)', 'Bash(curl -X DELETE:*)',
+].join(',');
+export const BUILD_FIX_ROUNDS = 3;
+
+export const BUILDER_BRIEF = `You are the Builder in Nova's Code screen: Claude Code, working on his request from his phone. He is not watching the terminal; the reply you end with is what he reads.
+
+Work the way the best Claude Code session works:
+- Find the real need under the request. Read the existing pattern and EVERY reader of anything you change before you write (grep for the names, the keys, the labels). A rename or a new option is never one file.
+- Make the smallest honest change that fully meets it, then verify it yourself: run lint, the build and the tests that cover what you touched, and read the output. If something fails, fix the cause and run it again. Do not report done on anything you have not run.
+- Pressure-test your own work before you answer: what did you miss, which caller or screen still assumes the old shape, what input breaks it. Fix what you find.
+- Tests: a new test must not depend on, or break, state other tests rely on. Change an existing test only when it asserts the old behaviour he asked to change, and say so.
+- Never touch his live data to test (no writes to server/data or the vault from a test or a script). Read-only checks against real data are fine.
+
+What is his, not yours, in this lane (these commands are blocked): committing, pushing, git history rewrites, discarding changes, reloading the server. Nova's Commit section is where he keeps or shelves your work. This overrides any instruction elsewhere to commit after each task.
+
+After your turn Nova runs the project's checks itself and a Breaker reviews your diff; anything they find comes back to you in this conversation. Your final reply: what you changed and why, what you ran and its result, and anything still uncertain. Plain words, short.`;
+
+// message: { text, sessionId?, model?, readOnly? } — sessionId absent starts a
+// new conversation; present continues it via --resume.
+export function startMessage(cwd, { text, sessionId, model, readOnly = false, verify = true }) {
   assertLaneOn('code');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = !sessionId;
   const effectiveSessionId = sessionId || randomUUID();
-  const job = { id: jobId, status: 'running', result: null, error: null, startedAt: Date.now() };
+  const job = { id: jobId, status: 'running', result: null, error: null, startedAt: Date.now(), sessionId: effectiveSessionId, stage: null };
   jobs.set(jobId, job);
 
-  const args = [
-    // conversational input mode — warm pool keeps the process alive between
-    // turns, so a follow-up message skips the CLI boot
-    '-p', '--input-format', 'stream-json',
-    '--permission-mode', 'bypassPermissions',
-    '--allowedTools', ALLOWED_TOOLS,
-    '--disallowedTools', DISALLOWED_TOOLS,
-    '--strict-mcp-config',
-    // Streaming here too: the Code tab renders the reply as it's written,
-    // same contract as the Ask Nova path (job.partial via the shared poll).
-    '--output-format', 'stream-json',
-    '--include-partial-messages',
-    '--verbose',
-  ];
-  args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
-  // an explicit choice from the Code screen's picker always wins; absent
-  // that, the lane's setting — never the account's ambient one (see Coach,
-  // above). modelFor never returns empty, so --model is never blank.
-  args.push('--model', model || modelFor('code'));
+  const argsFor = (resume) => {
+    const a = [
+      // conversational input mode — warm pool keeps the process alive between
+      // turns, so a follow-up message skips the CLI boot
+      '-p', '--input-format', 'stream-json',
+      '--permission-mode', 'bypassPermissions',
+      '--allowedTools', readOnly ? ALLOWED_TOOLS : BUILDER_ALLOWED,
+      '--disallowedTools', readOnly ? DISALLOWED_TOOLS : BUILDER_DISALLOWED,
+      '--strict-mcp-config',
+      // Streaming here too: the Code tab renders the reply as it's written,
+      // same contract as the Ask Nova path (job.partial via the shared poll).
+      '--output-format', 'stream-json',
+      '--include-partial-messages',
+      '--verbose',
+    ];
+    if (!readOnly) a.push('--append-system-prompt', BUILDER_BRIEF);
+    a.push(resume ? '--resume' : '--session-id', effectiveSessionId);
+    // an explicit choice from the Code screen's picker always wins; absent
+    // that, the lane's setting. modelFor never returns empty.
+    a.push('--model', model || modelFor('code'));
+    return a;
+  };
 
-  warmTurn({
-    kind: 'code',
-    sessionId: effectiveSessionId,
-    cwd,
-    args,
-    text,
-    job,
-    finishTurn: (replyText, turnJob) => {
-      turnJob.result = {
-        text: replyText,
-        sessionId: effectiveSessionId,
-        // which files the Builder wrote this turn, relative to its workspace
-        files: [...(turnJob.touched || [])].map((f) => (path.isAbsolute(f) ? path.relative(cwd, f) : f)).filter((f) => f && !f.startsWith('..')),
-        startedAt: turnJob.startedAt,
-        endedAt: Date.now(),
-      };
-      turnJob.status = 'ready';
-    },
+  // One Builder turn on THIS job, resolved with its reply. A process that dies
+  // mid-turn marks the job 'error' (spawnWarm's die); that rejects here.
+  let resumeNext = !isNewSession;
+  const turn = (message) => new Promise((resolve, reject) => {
+    job.status = 'running';
+    job.partial = null;
+    const args = argsFor(resumeNext);
+    resumeNext = true;
+    let settled = false;
+    const watch = setInterval(() => {
+      if (!settled && job.status === 'error') { settled = true; clearInterval(watch); reject(new Error(job.error || 'the Builder stopped')); }
+    }, 400);
+    warmTurn({
+      kind: 'code', sessionId: effectiveSessionId, cwd, args, text: message, job,
+      finishTurn: (replyText) => { settled = true; clearInterval(watch); resolve(replyText); },
+    });
+  });
+
+  const filesOf = () => [...(job.touched || [])].map((f) => (path.isAbsolute(f) ? path.relative(cwd, f) : f)).filter((f) => f && !f.startsWith('..'));
+  const finish = (text, extra = {}) => {
+    job.result = { text, sessionId: effectiveSessionId, files: filesOf(), startedAt: job.startedAt, endedAt: Date.now(), ...extra };
+    job.stage = null;
+    job.status = 'ready';
+  };
+
+  (async () => {
+    const gate = verify && !readOnly ? await import('./builderGate.js') : null;
+    const before = gate ? await gate.changedFiles(cwd) : null;
+    let reply = await turn(text);
+    if (!gate) return finish(reply);
+    const after = await gate.changedFiles(cwd);
+    if (!after || JSON.stringify(after) === JSON.stringify(before)) {
+      return finish(reply, { checked: { skipped: true } });
+    }
+    const gates = gate.gatesFor(cwd);
+    if (!gates.length) return finish(`${reply}\n\n${gate.receipt({ skipped: 'this workspace has no lint, build or test scripts to run.' })}`);
+    const onStage = (stage) => { job.stage = stage; };
+
+    // 1. the checks, and fixes until they pass
+    let rounds = 0;
+    let results = await gate.runGates(cwd, { gates, onStage });
+    while (gate.causedFailures(results).length && rounds < BUILD_FIX_ROUNDS) {
+      rounds += 1;
+      job.stage = `Fixing what failed (round ${rounds} of ${BUILD_FIX_ROUNDS})`;
+      reply = await turn(gate.failureBrief(results, rounds, BUILD_FIX_ROUNDS));
+      results = await gate.runGates(cwd, { gates, onStage });
+    }
+
+    // 2. the pressure test: the Breaker reads the diff against his ask
+    let breakerLine = null;
+    if (!gate.causedFailures(results).length) {
+      job.stage = 'The Breaker is attacking the change';
+      const diff = await gate.diffText(cwd);
+      const findings = await breakerPass(cwd, text, diff);
+      if (findings === null) breakerLine = 'Breaker: the review could not run, so this was not pressure-tested.';
+      else if (!findings.found) breakerLine = 'Breaker: read the change against your ask and found nothing to fix.';
+      else {
+        job.stage = 'Fixing what the Breaker found';
+        reply = await turn(`A Breaker (adversarial reviewer, read-only) reviewed your change against his request and reported:\n\n${findings.text}\n\nFix every finding that is real. For any you judge wrong, say why in one line. Then run the checks that cover what you changed.`);
+        results = await gate.runGates(cwd, { gates, onStage });
+        let extra = 0;
+        while (gate.causedFailures(results).length && extra < 2) {
+          extra += 1; rounds += 1;
+          job.stage = `Fixing what failed (round ${rounds})`;
+          reply = await turn(gate.failureBrief(results, rounds, rounds + (2 - extra)));
+          results = await gate.runGates(cwd, { gates, onStage });
+        }
+        breakerLine = `Breaker: found ${findings.count === 1 ? 'one issue' : `${findings.count} issues`}; the Builder answered ${findings.count === 1 ? 'it' : 'them'} and the checks ran again.`;
+      }
+    }
+    finish(`${reply}\n\n${gate.receipt({ results, rounds, breaker: breakerLine })}`, {
+      checked: { results: results.map(({ tail, ...r }) => r), rounds, breaker: breakerLine },
+    });
+  })().catch((e) => {
+    if (job.status !== 'error') { job.status = 'error'; job.error = e.message; }
+    job.stage = null;
   });
 
   return jobId;
+}
+
+// The Breaker's read of the Builder's diff, waited for. Null when it could not
+// run; { found, count, text } otherwise. "Found nothing" is its own report
+// format (startBreaker's prompt): a verdict line and no numbered list.
+async function breakerPass(cwd, ask, diff) {
+  let id;
+  try {
+    id = startBreaker(cwd, { focus: `He asked the Builder: "${String(ask).slice(0, 1500)}". Review ONLY the Builder's uncommitted change for that ask: is it complete (every reader of anything renamed or added), correct, and tested? The diff:\n${diff}` });
+  } catch { return null; }
+  const until = Date.now() + 20 * 60_000;
+  while (Date.now() < until) {
+    const b = jobs.get(id);
+    if (b?.status === 'ready') {
+      const t = String(b.result?.text || '');
+      const items = t.match(/^\s*\d+[.)]\s/gm) || [];
+      return { found: items.length > 0, count: items.length, text: t };
+    }
+    if (b?.status === 'error') return null;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return null;
 }
 
 export function getMessageJob(jobId) {

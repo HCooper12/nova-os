@@ -505,6 +505,12 @@ function Line({ l, live }) {
             ? <ol key={k}>{b.items.map((it, j) => <li key={j}>{it}</li>)}</ol>
             : b.type === 'gap' ? <div key={k} className="gap" /> : <p key={k} className={l.streaming && k === l.blocks.length - 1 ? 'stream' : undefined}>{b.text}</p>))}
           {l.streaming && !l.blocks.length && <p className="stream">{l.who === 'brk' ? 'Reading, changing nothing' : 'Reading the workspace'}</p>}
+          {l.streaming && l.run && (
+            <div className="runsteps" aria-label={`Builder: ${l.run.words}`}>
+              <ol>{l.run.steps.map((st, k) => <li key={st} className={k < l.run.at ? 'done' : k === l.run.at ? 'now' : undefined}>{st}</li>)}</ol>
+              <span>{l.run.words}</span>
+            </div>
+          )}
           {l.streaming && <div className="prog"><i /></div>}
           {l.action && <div className="acts"><button type="button" className="nv-cd-btn sm" onClick={l.action.run} disabled={!l.action.enabled}>{l.action.label}</button></div>}
         </div>

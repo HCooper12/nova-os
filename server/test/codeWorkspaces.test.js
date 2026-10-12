@@ -308,7 +308,7 @@ test('the routes: the workspaces list, a run whose cwd is Wren, changes and a co
       await new Promise((r) => setTimeout(r, 50));
     }
     assert.equal(job.status, 'ready', JSON.stringify(job));
-    assert.equal(job.result.text, 'Done in atlas-partner', 'the Builder ran with its cwd in Wren');
+    assert.match(job.result.text, /^Done in atlas-partner\n/, 'the Builder ran with its cwd in Wren');
     assert.equal(existsSync(path.join(WREN, 'built.txt')), true);
     assert.equal(existsSync(path.join(NOVA, 'built.txt')), false);
     const wrenSum = await call('GET', '/claude-code/changes?workspace=wren');

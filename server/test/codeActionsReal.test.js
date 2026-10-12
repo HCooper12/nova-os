@@ -331,7 +331,8 @@ test('a run goes through the route to the transcript: the CLI is spawned, its wo
       await new Promise((r) => setTimeout(r, 50));
     }
     assert.equal(job.status, 'ready', JSON.stringify(job));
-    assert.equal(job.result.text, 'Done: Make the file');
+    // a workspace with no checks says so, never a silent "done" (13 Oct)
+    assert.equal(job.result.text, 'Done: Make the file\n\n**Checked by Nova:** this workspace has no lint, build or test scripts to run.');
     assert.match(job.result.sessionId, /^[0-9a-f-]{36}$/);
     assert.deepEqual(job.result.files, ['built.txt']);
     assert.ok(job.result.endedAt >= job.result.startedAt);

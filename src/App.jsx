@@ -11946,11 +11946,17 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     this.startPoll('code', () => api.claudeCodeJob(conn, jobId), {
-      timeoutMs: 10 * 60_000,
+      // a checked run is the turn, Nova's checks, fixes and the Breaker:
+      // minutes, sometimes many (13 Oct)
+      timeoutMs: 45 * 60_000,
       intervalMs: 700,
-      onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
+      onProgress: (job) => {
+        if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial);
+        if ((job.stage || null) !== (this.state.codeStage || null)) this.setState({ codeStage: job.stage || null });
+      },
       onReady: (job) => {
         forgetCodeRun('code');
+        this.setState({ codeStage: null });
         const r = job.result;
         this.finalizeStream('codeChat', { at: Date.now(), who: 'claude', text: r.text, model, startedAt: r.startedAt || sentAt, endedAt: r.endedAt || Date.now(), files: Array.isArray(r.files) ? r.files.length : undefined }, { codeBusy: false, codeSessionId: r.sessionId || this.state.codeSessionId });
         this.announceAway({ here: this.state.screen === 'code', title: 'Claude Code finished', text: job.result.text, go: () => this.navigate('code') });

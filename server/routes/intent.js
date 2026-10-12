@@ -203,11 +203,13 @@ export function intentRouter(vaultPath) {
         out.record = await startStudy(vaultPath, { urls: decision.urls, prose: decision.prose });
         out.said = 'Study running — enumerating their whole catalogue, then transcribing and comparing. Nova pings you when the brief lands.';
       } else if (lane === 'code') {
-        const { startMessage } = await import('../lib/claudeCode.js');
+        const { startMessage, getMessageJob } = await import('../lib/claudeCode.js');
         // the repo, resolved from this file — process.cwd() under launchd is
-        // nova-os/server, so a spoken build ran in the wrong directory
-        const { jobId, sessionId } = startMessage(REPO_ROOT, { text });
-        out.jobId = jobId; out.sessionId = sessionId;
+        // nova-os/server, so a spoken build ran in the wrong directory.
+        // startMessage returns the job id (it was destructured as an object
+        // here, so a spoken build never carried its session id: 13 Oct)
+        const jobId = startMessage(REPO_ROOT, { text });
+        out.jobId = jobId; out.sessionId = getMessageJob(jobId)?.sessionId || null;
         out.said = 'Running it as a Claude Code session — watch it on the Code screen.';
       } else if (lane === 'play') {
         const { resolveLatestVideo, openInBrowser } = await import('../lib/mediaLane.js');
