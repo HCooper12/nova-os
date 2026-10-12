@@ -23,19 +23,20 @@ private enum Ink {
 struct NovaLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NovaActivityAttributes.self) { context in
-            LockScreenCard(kind: context.attributes.kind, state: context.state)
+            LockScreenCard(kind: context.attributes.kind, state: context.state, stale: context.isStale)
                 .padding(16)
                 .activityBackgroundTint(Ink.ground.opacity(0.92))
                 .activitySystemActionForegroundColor(Ink.cyan)
         } dynamicIsland: { context in
             let s = context.state
+            let stale = context.isStale
             let workout = context.attributes.kind == "workout"
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     if workout { SetRing(state: s, size: 44) } else { JobMark(state: s, size: 36) }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Clock(state: s, big: true).padding(.trailing, 4)
+                    Clock(state: s, big: true, stale: stale).padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.center) {
                     Text(s.title).font(.headline).foregroundStyle(Ink.primary).lineLimit(1)
@@ -43,13 +44,13 @@ struct NovaLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(s.detail).font(.subheadline).foregroundStyle(Ink.secondary).lineLimit(1)
-                        RestBar(state: s)
+                        RestBar(state: s, stale: stale)
                     }
                 }
             } compactLeading: {
                 if workout { SetRing(state: s, size: 20) } else { JobMark(state: s, size: 18) }
             } compactTrailing: {
-                Clock(state: s, big: false)
+                Clock(state: s, big: false, stale: stale)
             } minimal: {
                 if workout { SetRing(state: s, size: 20) } else { JobMark(state: s, size: 18) }
             }
@@ -68,8 +69,12 @@ private func accent(_ s: NovaActivityAttributes.ContentState, workout: Bool) -> 
     return workout ? Ink.good : Ink.cyan
 }
 
-private func resting(_ s: NovaActivityAttributes.ContentState) -> Bool {
-    guard let end = s.restEnd else { return false }
+/// Resting only while the rest has time left AND iOS has not marked the card
+/// stale. The card's stale date is the rest's end (LiveCards.staleDate), so
+/// with the phone locked and no update coming, iOS still redraws it as stale
+/// when the rest runs out, and the session clock comes back.
+private func resting(_ s: NovaActivityAttributes.ContentState, stale: Bool) -> Bool {
+    guard let end = s.restEnd, !stale else { return false }
     return end > Date()
 }
 
@@ -78,6 +83,7 @@ private func resting(_ s: NovaActivityAttributes.ContentState) -> Bool {
 private struct LockScreenCard: View {
     let kind: String
     let state: NovaActivityAttributes.ContentState
+    let stale: Bool
 
     var body: some View {
         let workout = kind == "workout"
@@ -92,9 +98,9 @@ private struct LockScreenCard: View {
                     Text(state.detail).font(.subheadline).foregroundStyle(Ink.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                Clock(state: state, big: true)
+                Clock(state: state, big: true, stale: stale)
             }
-            RestBar(state: state)
+            RestBar(state: state, stale: stale)
         }
     }
 }
@@ -148,10 +154,11 @@ private struct JobMark: View {
 private struct Clock: View {
     let state: NovaActivityAttributes.ContentState
     let big: Bool
+    let stale: Bool
 
     var body: some View {
         Group {
-            if let start = state.restStart, let end = state.restEnd, resting(state) {
+            if let start = state.restStart, let end = state.restEnd, resting(state, stale: stale) {
                 VStack(alignment: .trailing, spacing: 0) {
                     if big { Text("REST").font(.caption2.weight(.semibold)).foregroundStyle(Ink.gold) }
                     Text(timerInterval: start...end, countsDown: true)
@@ -173,9 +180,10 @@ private struct Clock: View {
 /// How much of the rest is left, as a bar that drains on its own.
 private struct RestBar: View {
     let state: NovaActivityAttributes.ContentState
+    let stale: Bool
 
     var body: some View {
-        if let start = state.restStart, let end = state.restEnd, resting(state) {
+        if let start = state.restStart, let end = state.restEnd, resting(state, stale: stale) {
             ProgressView(timerInterval: start...end, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
                 .tint(Ink.gold)
         }

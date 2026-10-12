@@ -80,3 +80,17 @@ test('every field JS sends is a field the Swift ContentState declares', async ()
   // the two non-optional Swift fields must always be sent
   for (const k of ['title', 'detail']) assert.ok(sent.has(k));
 });
+
+// The Breaker's review of this file, 13 Oct.
+test('glancing at a routine mid-workout keeps the card; a days-old draft still gets none', () => {
+  assert.ok(workoutLive({ ...base, view: 'routine', savedAt: base.now - 5 * 60_000 }), 'touched five minutes ago');
+  assert.equal(workoutLive({ ...base, view: 'routines', savedAt: base.now - 3 * 3600_000 }), null);
+  assert.equal(workoutLive({ ...base, view: 'routine' }), null, 'no touch time at all');
+});
+
+test('only work this phone watched running may say ready on the lock screen', () => {
+  const stale = [{ id: 'ing-old', label: 'Ready for review — Pasted content (15 pages)', done: true }];
+  assert.equal(jobLive(stale, new Set()), null, 'a fortnight-old staged job');
+  assert.equal(jobLive(stale, new Set(['ing-old'])).state.finished, true);
+  assert.equal(jobLive([{ id: 'x', done: true }], new Set(['x'])).state.title, 'Ready for you', 'never a null title');
+});

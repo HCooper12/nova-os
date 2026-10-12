@@ -43,7 +43,11 @@ export function IslandFeed({ feed, jobs, app }) {
   useActivity('speaking', f.speaking);
   useActivity('nudge', f.nudge);
   useLiveActivity('workout', f.liveWorkout);
-  useLiveActivity('job', jobLive(jobs));
+  // the jobs this phone watched running: only those may say "ready" on the
+  // lock screen (liveActivityModel.js jobLive)
+  const sawRunning = useRef(new Set());
+  for (const j of jobs || []) if (!j.done && !j.failed && j.id) sawRunning.current.add(j.id);
+  useLiveActivity('job', jobLive(jobs, sawRunning.current));
 
   // a nudge announces itself ONCE per key, then waits in the bubble
   const announced = useRef(new Set());

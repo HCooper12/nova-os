@@ -884,7 +884,7 @@ function islandView(app, st, demoMode) {
   // because the lock screen is exactly where he is NOT looking at Train
   out.liveWorkout = workoutLive({
     ws, editing: !!st.editingSessionId, view: st.workoutsView, rest: st.sessionRest,
-    now: Date.now(), progress: workoutProgress, hueOf: muscleHexStatic,
+    now: Date.now(), progress: workoutProgress, hueOf: muscleHexStatic, savedAt: st.workoutSessionSavedAt,
   });
   // a past session being edited is paperwork, not a workout in progress
   if (ws && !st.editingSessionId) {

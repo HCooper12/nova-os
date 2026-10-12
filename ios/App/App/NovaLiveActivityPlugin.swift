@@ -50,27 +50,49 @@ public class NovaLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
         } catch {
             return call.reject("state did not match NovaActivityAttributes: \(error.localizedDescription)")
         }
-        Task {
-            await LiveCards.shared.sync(kind: kind, key: key, state: state)
-            call.resolve()
+        LiveCards.shared.enqueue {
+            do {
+                try await LiveCards.shared.sync(kind: kind, key: key, state: state)
+                call.resolve()
+            } catch {
+                // rejected, so the web side forgets it sent this and tries
+                // again (liveActivity.js retries when Nova is next in front)
+                call.reject("iOS did not start the card: \(error.localizedDescription)")
+            }
         }
     }
 
     @objc func end(_ call: CAPPluginCall) {
         guard #available(iOS 16.2, *) else { return call.resolve() }
         guard let kind = call.getString("kind") else { return call.reject("end needs kind") }
-        Task {
+        LiveCards.shared.enqueue {
             await LiveCards.shared.end(kind: kind)
             call.resolve()
         }
     }
 }
 
-/// The cards themselves, serialised through one actor so two quick syncs for
-/// the same kind can never start two cards.
+/// The cards themselves. Every call runs strictly ONE AFTER ANOTHER, in the
+/// order the web app made them (the Breaker's review, 13 Oct): an actor alone
+/// is not enough, because an actor lets another call in at every `await`, so
+/// two quick syncs could both find no card and both start one; and separate
+/// `Task {}`s are not ordered, so "update n+1" could land before "update n".
+/// One chain of tasks, each waiting for the last, closes both.
 @available(iOS 16.2, *)
-actor LiveCards {
+final class LiveCards: @unchecked Sendable {
     static let shared = LiveCards()
+    private let lock = NSLock()
+    private var tail: Task<Void, Never>?
+
+    func enqueue(_ work: @escaping @Sendable () async -> Void) {
+        lock.lock()
+        let previous = tail
+        tail = Task {
+            await previous?.value
+            await work()
+        }
+        lock.unlock()
+    }
 
     private func current(_ kind: String) -> Activity<NovaActivityAttributes>? {
         Activity<NovaActivityAttributes>.activities.first {
@@ -78,10 +100,17 @@ actor LiveCards {
         }
     }
 
-    func sync(kind: String, key: String, state: NovaActivityAttributes.ContentState) async {
-        // a stale card is one iOS should grey out: a workout clock left
-        // running for hours, a job that never reported back
-        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(3 * 3600))
+    /// A resting card goes stale the moment the rest ends, so iOS redraws it
+    /// (as stale) even with Nova asleep and the widget shows the session
+    /// clock again instead of a gold 0:00 (NovaLiveActivityWidget reads
+    /// `context.isStale`). Otherwise a card idle for hours greys out.
+    private func staleDate(_ state: NovaActivityAttributes.ContentState) -> Date {
+        if let end = state.restEnd, end > Date() { return end }
+        return Date().addingTimeInterval(3 * 3600)
+    }
+
+    func sync(kind: String, key: String, state: NovaActivityAttributes.ContentState) async throws {
+        let content = ActivityContent(state: state, staleDate: staleDate(state))
         if let live = current(kind) {
             if live.attributes.key == key {
                 await live.update(content)
@@ -89,15 +118,11 @@ actor LiveCards {
             }
             await live.end(nil, dismissalPolicy: .immediate)
         }
-        do {
-            _ = try Activity.request(
-                attributes: NovaActivityAttributes(kind: kind, key: key),
-                content: content,
-                pushType: nil
-            )
-        } catch {
-            // switched off, or too many cards: the web app carries on
-        }
+        _ = try Activity.request(
+            attributes: NovaActivityAttributes(kind: kind, key: key),
+            content: content,
+            pushType: nil
+        )
     }
 
     func end(kind: String) async {

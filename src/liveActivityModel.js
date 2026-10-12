@@ -16,12 +16,18 @@
 // sent across the bridge (ActivityKit rate-limits updates). Never put the
 // current time in it.
 
-// A session he is doing, the same test the pocket uses: started, under six
-// hours old, and on the session view (a parked or restored draft is not a
-// workout in progress).
-export function workoutLive({ ws, editing, view, rest, now, progress, hueOf }) {
-  if (!ws || editing || view !== 'session' || !Number.isFinite(ws.startedAt)) return null;
+// A session he is doing: started, under six hours old, and either on the
+// session screen or touched in the last 45 minutes. The second half is the
+// Breaker's catch (13 Oct): the session-screen test alone ended the card the
+// moment he glanced at a routine mid-workout, then started a new one when he
+// came back. A draft restored from days ago was last touched days ago, so it
+// still gets no card. `savedAt` is when the session last changed.
+export const TOUCHED_WITHIN_MS = 45 * 60_000;
+export function workoutLive({ ws, editing, view, rest, now, progress, hueOf, savedAt = null }) {
+  if (!ws || editing || !Number.isFinite(ws.startedAt)) return null;
   if (now - ws.startedAt >= 6 * 3600_000) return null;
+  const touched = Number.isFinite(savedAt) && now - savedAt < TOUCHED_WITHIN_MS;
+  if (view !== 'session' && !touched) return null;
   const { done, total, next } = progress(ws);
   const resting = rest && Number.isFinite(rest.endsAt) && rest.endsAt > now && rest.total > 0;
   const state = {
@@ -46,7 +52,12 @@ export function workoutLive({ ws, editing, view, rest, now, progress, hueOf }) {
 // running but something waits for him, the card says so instead of
 // vanishing (that is the moment he would want to know). A failure is not a
 // lock-screen event: it stays in the tray.
-export function jobLive(jobs) {
+//
+// "Ready" only for work this phone SAW RUNNING (`sawRunning`, ids collected by
+// IslandFeed). The tray also lists staged jobs from any device and any day,
+// and a fortnight-old proposal must not take his lock screen at every launch
+// (the Breaker's catch, 13 Oct).
+export function jobLive(jobs, sawRunning = null) {
   const list = Array.isArray(jobs) ? jobs : [];
   const running = list.filter((j) => !j.done && !j.failed);
   if (running.length) {
@@ -60,10 +71,10 @@ export function jobLive(jobs) {
     };
     return { key: 'jobs', state, sig: ['run', state.title, state.detail, state.startedAt].join('|') };
   }
-  const waiting = list.filter((j) => j.done);
+  const waiting = list.filter((j) => j.done && (!sawRunning || sawRunning.has(j.id)));
   if (waiting.length) {
     const state = {
-      title: waiting.length === 1 ? waiting[0].label : `${waiting.length} things ready for you`,
+      title: waiting.length === 1 ? (waiting[0].label || 'Ready for you') : `${waiting.length} things ready for you`,
       detail: 'Open Nova to review',
       startedAt: null,
       finished: true,
