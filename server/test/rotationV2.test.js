@@ -41,7 +41,8 @@ test('a v1 file migrates on read: one recipe per slot becomes one option in focu
   assert.equal(r.slots.breakfast.consumed, false);
   assert.equal(r.slots.lunch.consumed, true, 'v1 consumed → eaten');
   assert.equal(r.options.lunch.length, 1);
-  assert.deepEqual(r.order.slice(0, 5), ['breakfast', 'lunch', 'dinner', 'snack', 'extra']);
+  assert.deepEqual(r.order, ['preworkout', 'breakfast', 'lunch', 'dinner'], 'no snack/extra slot unless he has one filled');
+  assert.deepEqual(['preworkout', 'breakfast', 'lunch', 'dinner'].map((k) => r.labels[k]), ['Pre-workout', 'Meal 1', 'Meal 2', 'Meal 3']);
   assert.equal(Math.round(r.totals.p), Math.round(a.macros.p + b.macros.p), 'plan = the focused dish per slot');
   assert.equal(Math.round(r.consumedTotals.p), Math.round(b.macros.p), 'eaten = only what is ticked');
 });
@@ -67,21 +68,21 @@ test('options: add several to one slot, flick focus between them, the plan follo
 test('several dishes in one slot, each ticked on its own; eaten totals count every tick, the plan counts one', async () => {
   const recipes = await loadRecipes(vault);
   const a = recipes[0]; const b = recipes[1]; const c = recipes[2];
-  await rot.addSlotOption(vault, recipes, 'snack', a.id);
-  await rot.addSlotOption(vault, recipes, 'snack', b.id);
-  let r = await rot.addSlotOption(vault, recipes, 'snack', c.id);
-  r = await rot.setOptionEaten(vault, recipes, 'snack', a.id, true);
-  r = await rot.setOptionEaten(vault, recipes, 'snack', c.id, true);
-  assert.equal(r.slots.snack.eatenCount, 2);
-  assert.equal(r.options.snack.filter((d) => d.eaten).length, 2);
+  await rot.addSlotOption(vault, recipes, 'preworkout', a.id);
+  await rot.addSlotOption(vault, recipes, 'preworkout', b.id);
+  let r = await rot.addSlotOption(vault, recipes, 'preworkout', c.id);
+  r = await rot.setOptionEaten(vault, recipes, 'preworkout', a.id, true);
+  r = await rot.setOptionEaten(vault, recipes, 'preworkout', c.id, true);
+  assert.equal(r.slots.preworkout.eatenCount, 2);
+  assert.equal(r.options.preworkout.filter((d) => d.eaten).length, 2);
   const snackEaten = a.macros.p + c.macros.p;
   // consumed totals = lunch (from the v1 test) + the two snacks
   assert.equal(Math.round(r.consumedTotals.p), Math.round(recipes[1].macros.p + snackEaten));
   // the plan for snack is still ONE dish — the focused one
-  assert.equal(r.slots.snack.id, a.id);
-  r = await rot.setOptionEaten(vault, recipes, 'snack', a.id, false);
-  assert.equal(r.slots.snack.eatenCount, 1);
-  await assert.rejects(() => rot.setOptionEaten(vault, recipes, 'snack', 'nope', true), /not one of the options/);
+  assert.equal(r.slots.preworkout.id, a.id);
+  r = await rot.setOptionEaten(vault, recipes, 'preworkout', a.id, false);
+  assert.equal(r.slots.preworkout.eatenCount, 1);
+  await assert.rejects(() => rot.setOptionEaten(vault, recipes, 'preworkout', 'nope', true), /not one of the options/);
 });
 
 test('v1 compat: setRotationSlot adds + focuses without wiping the other options; setSlotConsumed ticks the focused one', async () => {
@@ -144,22 +145,22 @@ test('cooked portions: counted dishes fall as he ticks, rise when he cooks, neve
   const recipes = await loadRecipes(vault);
   const a = recipes[0]; const b = recipes[1];
   // untracked dish: ticking does not invent a count
-  let r = await rot.setOptionEaten(vault, recipes, 'snack', b.id, true);
-  assert.equal(r.options.snack.find((d) => d.id === b.id).portionsLeft, null);
-  await rot.setOptionEaten(vault, recipes, 'snack', b.id, false);
+  let r = await rot.setOptionEaten(vault, recipes, 'preworkout', b.id, true);
+  assert.equal(r.options.preworkout.find((d) => d.id === b.id).portionsLeft, null);
+  await rot.setOptionEaten(vault, recipes, 'preworkout', b.id, false);
   // cook 2 → tick → 1 → tick a second option of the same dish elsewhere? one dish, so: tick → 1, untick → 2
   await por.setPortions(vault, a.id, 2, { name: a.name });
-  r = await rot.setOptionEaten(vault, recipes, 'snack', a.id, true);
-  assert.equal(r.options.snack.find((d) => d.id === a.id).portionsLeft, 1);
-  r = await rot.setOptionEaten(vault, recipes, 'snack', a.id, false);
-  assert.equal(r.options.snack.find((d) => d.id === a.id).portionsLeft, 2);
+  r = await rot.setOptionEaten(vault, recipes, 'preworkout', a.id, true);
+  assert.equal(r.options.preworkout.find((d) => d.id === a.id).portionsLeft, 1);
+  r = await rot.setOptionEaten(vault, recipes, 'preworkout', a.id, false);
+  assert.equal(r.options.preworkout.find((d) => d.id === a.id).portionsLeft, 2);
   // "cooked eight more when two were left" = ten
   await por.adjustPortions(vault, a.id, 8, { why: 'cooked' });
   assert.equal((await por.getPortions(vault))[a.id], 10);
   // down to zero reads as OUT, and cannot go below
   await por.setPortions(vault, a.id, 1);
-  r = await rot.setOptionEaten(vault, recipes, 'snack', a.id, true);
-  const dish = r.options.snack.find((d) => d.id === a.id);
+  r = await rot.setOptionEaten(vault, recipes, 'preworkout', a.id, true);
+  const dish = r.options.preworkout.find((d) => d.id === a.id);
   assert.equal(dish.portionsLeft, 0);
   assert.equal(dish.out, true, 'zero left reads as out — the red state');
   await assert.rejects(() => por.adjustPortions(vault, 'unknown-dish', -1), /no portion count yet/);
@@ -167,6 +168,21 @@ test('cooked portions: counted dishes fall as he ticks, rise when he cooks, neve
   // stop counting: not zero, not tracked
   await por.clearPortions(vault, a.id);
   r = await rot.loadRotation(vault, recipes);
-  assert.equal(r.options.snack.find((d) => d.id === a.id).portionsLeft, null);
-  assert.equal(r.options.snack.find((d) => d.id === a.id).out, false);
+  assert.equal(r.options.preworkout.find((d) => d.id === a.id).portionsLeft, null);
+  assert.equal(r.options.preworkout.find((d) => d.id === a.id).out, false);
+});
+
+// LAST, on purpose: it rewrites the rotation file, and every test above
+// builds on the state the one before it left.
+test('a legacy snack / extra slot that holds a dish survives as an added meal under its old key', async () => {
+  const recipes = await loadRecipes(vault);
+  const a = recipes[0];
+  const raw = `---\ntype: rotation\nversion: 2\nslots:\n  snack:\n    - ${a.id}\n---\n# Daily Rotation\n`;
+  await writeFile(path.join(vault, 'Wiki/Health/Daily Rotation.md'), raw, 'utf8');
+  const r = await rot.loadRotation(vault, recipes);
+  assert.deepEqual(r.order, ['preworkout', 'breakfast', 'lunch', 'dinner', 'snack']);
+  assert.equal(r.labels.snack, 'Snack');
+  assert.equal(r.slots.snack.id, a.id);
+  const added = await rot.addCustomSlot(vault, recipes, '');
+  assert.equal(added.labels[added.custom.at(-1).key], 'Meal 5', 'an unnamed added meal counts on from Meal 3 and the kept snack');
 });

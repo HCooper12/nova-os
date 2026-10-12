@@ -37,7 +37,7 @@ import { bareOpen, webTarget } from '../../src/macTargets.js';
 // too, defined in lib/verbJobs.js with their own grammar.
 import { JOB_VERBS, parseJobCommand, screenFor, probeCard } from './verbJobs.js';
 
-const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack', 'extra'];
+const SLOTS = ['preworkout', 'breakfast', 'lunch', 'dinner', 'snack', 'extra'];
 const TODO_CATS = ['personal', 'work', 'fitness', 'errands', 'later'];
 
 // ---------------------------------------------------------------- names
@@ -236,10 +236,14 @@ verb({
   async undo(vaultPath, u) { const { restoreItems } = await shopLib(); await restoreItems(vaultPath, u.items); return `restored ${u.items.length} item${u.items.length === 1 ? '' : 's'}`; },
 });
 
-// A spoken slot resolves against the day's real slots — the standard five
+// A spoken slot resolves against the day's real slots — the standard four
 // AND any extra meal he has added (rotation v2), by key or by label.
+// "pre workout" / "pre-workout" / "meal one" are what he says; the keys stay
+// preworkout / breakfast / lunch / dinner (13 Oct 2026).
+const SPOKEN_SLOT = { 'pre workout': 'preworkout', 'pre-workout': 'preworkout', preworkout: 'preworkout', 'meal one': 'breakfast', 'meal 1': 'breakfast', 'meal two': 'lunch', 'meal 2': 'lunch', 'meal three': 'dinner', 'meal 3': 'dinner' };
 function resolveSlot(rotation, slotRaw) {
-  const want = String(slotRaw || '').toLowerCase().trim();
+  const said = String(slotRaw || '').toLowerCase().replace(/^(my|the)\s+/, '').trim();
+  const want = SPOKEN_SLOT[said] || said;
   if (!want) throw new Error('which meal?');
   const keys = rotation.order || SLOTS;
   if (keys.includes(want)) return want;
@@ -258,7 +262,7 @@ async function setEaten(vaultPath, slotRaw, flag) {
   const prior = !!s.consumed;
   if (prior === flag) throw new Error(`${slot} (${s.name}) is already marked ${flag ? 'eaten' : 'not eaten'}`);
   await setSlotConsumed(vaultPath, recipes, slot, flag);
-  return { slot, name: s.name, prior };
+  return { slot, label: before.labels?.[slot] || slot, name: s.name, prior };
 }
 
 verb({
@@ -266,7 +270,7 @@ verb({
   describe: "mark one of today's rotation meals as eaten", args: { slot: SLOTS.join('|') },
   async run(vaultPath, args) {
     const r = await setEaten(vaultPath, args.slot, true);
-    return { destination: `Rotation — ${r.slot} eaten (${r.name})`, said: `${r.slot[0].toUpperCase()}${r.slot.slice(1)} logged as eaten — ${r.name}.`, undo: { verb: 'meal.eaten', slot: r.slot, name: r.name } };
+    return { destination: `Rotation — ${r.label} eaten (${r.name})`, said: `${r.label[0].toUpperCase()}${r.label.slice(1)} logged as eaten — ${r.name}.`, undo: { verb: 'meal.eaten', slot: r.slot, name: r.name } };
   },
   async undo(vaultPath, u) { await setEaten(vaultPath, u.slot, false); return `${u.slot} is not eaten again`; },
 });
@@ -276,7 +280,7 @@ verb({
   describe: "un-mark a meal that was marked eaten by mistake", args: { slot: SLOTS.join('|') },
   async run(vaultPath, args) {
     const r = await setEaten(vaultPath, args.slot, false);
-    return { destination: `Rotation — ${r.slot} not eaten (${r.name})`, said: `${r.slot} unmarked.`, undo: { verb: 'meal.uneaten', slot: r.slot, name: r.name } };
+    return { destination: `Rotation — ${r.label} not eaten (${r.name})`, said: `${r.label} unmarked.`, undo: { verb: 'meal.uneaten', slot: r.slot, name: r.name } };
   },
   async undo(vaultPath, u) { await setEaten(vaultPath, u.slot, true); return `${u.slot} marked eaten again`; },
 });
@@ -376,7 +380,8 @@ verb({
     const prior = before.slots?.[slot]?.id || null;
     if (prior === m.hit.id) throw new Error(`${slot} is already ${m.hit.name}`);
     await setRotationSlot(vaultPath, recipes, slot, m.hit.id);
-    return { destination: `Rotation — ${slot}: ${m.hit.name}`, said: `${slot[0].toUpperCase()}${slot.slice(1)} is now ${m.hit.name}.`, undo: { verb: 'recipe.slot', slot, prior, priorName: before.slots?.[slot]?.name || null, name: m.hit.name } };
+    const label = before.labels?.[slot] || slot;
+    return { destination: `Rotation — ${label}: ${m.hit.name}`, said: `${label[0].toUpperCase()}${label.slice(1)} is now ${m.hit.name}.`, undo: { verb: 'recipe.slot', slot, prior, priorName: before.slots?.[slot]?.name || null, name: m.hit.name } };
   },
   async undo(vaultPath, u) {
     const { loadRecipeData, setRotationSlot } = await rotationLibs();
@@ -1168,7 +1173,10 @@ function normCased(q) {
 }
 
 const DOMAIN_SUFFIX = /\s+(?:on|from|in|off)\s+(?:the\s+|my\s+)?(shopping(?:\s+list)?|list|to-?dos?(?:\s+list)?|todo list|plan)$/;
-const MEAL = `(${SLOTS.join('|')})`;
+// what he SAYS for a slot: the keys, and since 13 Oct "pre-workout" and
+// "meal 1/2/3" (resolveSlot turns them back into keys)
+const MEAL = `(${[...SLOTS, 'pre[- ]?workout', 'meal (?:1|2|3|one|two|three)'].join('|')})`;
+const isMealWord = (w) => new RegExp(`^${MEAL}$`).test(String(w || ''));
 
 // Returns null for anything the grammar is not sure about — that goes to the
 // model, which may still ACT with the same verbs. A hit is
@@ -1276,8 +1284,8 @@ export function parseCommand(text, ctx = {}) {
     return { verb: 'journal.add', args: { text: m[1] } };
   }
   if ((m = q.match(new RegExp(`^(?:make|set|put|swap|change)\\s+${MEAL}\\s+(?:(?:to|as|=)\\s+)?(.+)$`))) || (m = q.match(new RegExp(`^(?:put|use)\\s+(.+?)\\s+(?:in|for|as)\\s+${MEAL}$`)))) {
-    const slot = SLOTS.includes(m[1]) ? m[1] : m[2];
-    const recipe = SLOTS.includes(m[1]) ? m[2] : m[1];
+    const slot = isMealWord(m[1]) ? m[1] : m[2];
+    const recipe = isMealWord(m[1]) ? m[2] : m[1];
     return { verb: 'recipe.slot', args: { slot, recipe } };
   }
   if ((m = q.match(/^(?:move|put|file|recategori[sz]e|change)\s+(.+?)\s+(?:to|into|under)\s+(personal|work|fitness|errands?|later)$/))) {

@@ -536,9 +536,9 @@ function RecipesPage({ v }) {
               the geometry does it. */}
           <div ref={rotationRail} style={css("display:flex;gap:10px;overflow-x:auto;padding:2px 12px 8px 2px;scrollbar-width:none;align-items:stretch")}>
             {v.rotationSlots.map((s) => <RotationCard key={s.key} s={s} />)}
-            {/* a meal beyond the five — pre-workout, second breakfast, whatever he calls it */}
+            {/* an extra meal or snack beyond Pre-workout and Meals 1 to 3 */}
             {v.rotationAddMeal && (
-              <Interactive as="div" onClick={() => { const l = window.prompt('Name the meal (e.g. Pre-workout)', ''); if (l && l.trim()) v.rotationAddMeal(l.trim()); }}
+              <Interactive as="div" onClick={() => { const l = window.prompt('Name it (e.g. Snack, Post-gym shake)', ''); if (l && l.trim()) v.rotationAddMeal(l.trim()); }}
                 base={{ flex: '0 0 120px', cursor: 'pointer', borderRadius: '16px', border: '1px dashed var(--nv-edge)', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', font: 'var(--nv-micro-l)', color: 'var(--nv-acc)', minHeight: '110px', padding: '8px' }}
                 hoverStyle={{ borderColor: 'var(--nv-acc-border)' }}>+ ADD A MEAL</Interactive>
             )}

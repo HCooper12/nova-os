@@ -230,6 +230,11 @@ test('the first hand: a Shortcut runs only by its resolved exact name, confirm-f
 test('phase 2: add a to-do, set a slot, journal a line, stash a link, refile a transaction — each undone', async () => {
   // to-do
   assert.deepEqual(parseCommand('make lunch works burger'), { verb: 'recipe.slot', args: { slot: 'lunch', recipe: 'works burger' } });
+  // 13 Oct: Pre-workout and Meal 1-3 are what he says now
+  assert.deepEqual(parseCommand('make meal 2 works burger'), { verb: 'recipe.slot', args: { slot: 'meal 2', recipe: 'works burger' } });
+  assert.deepEqual(parseCommand('put oats in pre workout'), { verb: 'recipe.slot', args: { slot: 'pre workout', recipe: 'oats' } });
+  assert.deepEqual(parseCommand('had my pre-workout'), { verb: 'meal.eaten', args: { slot: 'pre-workout' } });
+  assert.deepEqual(parseCommand('ate meal three'), { verb: 'meal.eaten', args: { slot: 'meal three' } });
   const add = await runVerb(vault, 'q', { verb: 'todo.add', args: { text: 'Renew passport', category: 'errands' } });
   let { items } = await listTodos(vault);
   assert.ok(items.find((t) => t.text === 'Renew passport' && t.category === 'errands'));
@@ -238,8 +243,8 @@ test('phase 2: add a to-do, set a slot, journal a line, stash a link, refile a t
   assert.ok(!items.find((t) => t.text === 'Renew passport'));
   // rotation slot (Works Burger exists from the meals test)
   const recipes = await loadRecipes(vault);
-  const slot = await runVerb(vault, 'q', { verb: 'recipe.slot', args: { slot: 'dinner', recipe: 'works burger' } });
-  assert.match(slot.acted.said, /Dinner is now Works Burger/);
+  const slot = await runVerb(vault, 'q', { verb: 'recipe.slot', args: { slot: 'meal 3', recipe: 'works burger' } });
+  assert.match(slot.acted.said, /Meal 3 is now Works Burger/);
   assert.equal((await loadRotation(vault, recipes)).slots.dinner.name, 'Works Burger');
   await assert.rejects(() => runVerb(vault, 'q', { verb: 'recipe.slot', args: { slot: 'dinner', recipe: 'works burger' } }), /already/);
   await undoRecord(vault, slot.acted.recordId);

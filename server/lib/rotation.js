@@ -26,8 +26,14 @@ import { getPortions, adjustPortions } from './portions.js';
 // next write; nothing is lost.
 
 const ROTATION_REL_PATH = 'Wiki/Health/Daily Rotation.md';
-export const SLOTS = ['breakfast', 'lunch', 'dinner', 'snack', 'extra'];
-const SLOT_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack', extra: 'Extra Meal' };
+// 12 Oct 2026 (his ask): the fixed slots are a pre-workout and Meal 1, 2, 3;
+// anything beyond is a "+" meal or snack he adds. The KEYS breakfast / lunch /
+// dinner stay as they were (food-log rows, voice and the inbox all store them),
+// only the labels changed. A legacy snack / extra slot that holds anything
+// becomes an added meal under its old key, so nothing he planned is lost.
+export const SLOTS = ['preworkout', 'breakfast', 'lunch', 'dinner'];
+const SLOT_LABELS = { preworkout: 'Pre-workout', breakfast: 'Meal 1', lunch: 'Meal 2', dinner: 'Meal 3' };
+const LEGACY_SLOT_LABELS = { snack: 'Snack', extra: 'Extra Meal' };
 const MAX_CUSTOM = 12;
 
 function today() {
@@ -78,6 +84,9 @@ function normalise(data) {
   const custom = Array.isArray(data.custom)
     ? data.custom.filter((c) => c && c.key && !SLOTS.includes(c.key)).map((c) => ({ key: String(c.key), label: String(c.label || c.key).slice(0, 40) })).slice(0, MAX_CUSTOM)
     : [];
+  for (const [k, label] of Object.entries(LEGACY_SLOT_LABELS)) {
+    if ((slots[k] || eaten[k]) && !custom.some((c) => c.key === k)) custom.unshift({ key: k, label });
+  }
   return { version: 2, slots, focus, eaten, eatenDate, overrides, overrideDate: data.overrideDate || null, custom };
 }
 
@@ -306,7 +315,7 @@ export async function addCustomSlot(vaultPath, recipes, label) {
     let n = custom.length + 2;
     let key = `extra-${n}`;
     while (slotKeys(state).includes(key)) key = `extra-${++n}`;
-    const clean = String(label || '').replace(/\s+/g, ' ').trim().slice(0, 40) || `Meal ${n}`;
+    const clean = String(label || '').replace(/\s+/g, ' ').trim().slice(0, 40) || `Meal ${SLOTS.length + custom.length}`;
     custom.push({ key, label: clean });
     return persist(vaultPath, recipesById, { ...state, custom });
   });

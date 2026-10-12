@@ -104,8 +104,8 @@ function demoOffers() {
 
 function demoRotation() {
   return {
-    order: ['breakfast', 'lunch', 'dinner', 'extra'],
-    labels: { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', extra: 'Dinner, Sunday' },
+    order: ['preworkout', 'breakfast', 'lunch', 'dinner', 'extra'],
+    labels: { preworkout: 'Pre-workout', breakfast: 'Meal 1', lunch: 'Meal 2', dinner: 'Meal 3', extra: 'Dinner, Sunday' },
     slots: {
       breakfast: { id: 'demo-oats', name: 'Overnight oats' },
       lunch: { id: 'demo-bowl', name: 'Chicken rice bowl' },

@@ -56,7 +56,7 @@ function buildPrompt(text) {
 Routes and their payloads:
 - "shopping" — things to buy. payload: {"items": [{"name": "...", "category": "..."}]} with category exactly one of: ${SHOPPING_CATEGORIES.join(', ')}. Clean each name to a short shopping-list form.
 - "food" — food ALREADY EATEN to log. TWO payload shapes, chosen by what he said:
-  - He names one of his PLANNED MEALS by its slot — "just ate dinner", "had my lunch", "ate breakfast", "had my snack" — without describing different food: payload: {"slot": "breakfast"|"lunch"|"dinner"|"snack"|"extra"}. Nova marks the real planned meal eaten with its REAL macros from his rotation. NEVER estimate macros for these — inventing numbers for a meal that already has true ones is the cardinal sin.
+  - He names one of his PLANNED MEALS by its slot — "had my pre-workout", "just ate meal 3", "had meal 2", "ate meal 1" — without describing different food: payload: {"slot": "preworkout"|"breakfast"|"lunch"|"dinner"}. His slots are Pre-workout → "preworkout", Meal 1 → "breakfast", Meal 2 → "lunch", Meal 3 → "dinner" (the old words still map: breakfast/lunch/dinner are Meals 1/2/3). A meal or snack he added with + has its own name and is not one of these: log that as food. Nova marks the real planned meal eaten with its REAL macros from his rotation. NEVER estimate macros for these — inventing numbers for a meal that already has true ones is the cardinal sin.
   - He describes SPECIFIC food ("just ate a protein bar", "had two eggs on toast"): payload: {"name": "...", "macros": {"p": 0, "c": 0, "f": 0, "kcal": 0}} — estimate macros for the described portion (whole numbers).
 - "todo" — an action to do later. payload: {"items": [{"text": "short action atom", "category": "..."}]} — imperative, concrete; category exactly one of: personal, work, fitness, errands, later ("later" = ideas/someday items).
 - "journal" — a reflection, feeling, or diary-style thought about the day or life. payload: {"text": "..."} — lightly cleaned (fix dictation stumbles, keep the voice; never invent content).
@@ -108,7 +108,7 @@ export function normalizeDecision(parsed) {
   } else if (route === 'food') {
     const slot = String(p.slot || '').trim().toLowerCase();
     if (slot) {
-      if (!['breakfast', 'lunch', 'dinner', 'snack', 'extra'].includes(slot)) throw new Error(`"${slot}" is not a rotation slot`);
+      if (!['preworkout', 'breakfast', 'lunch', 'dinner', 'snack', 'extra'].includes(slot)) throw new Error(`"${slot}" is not a rotation slot`);
       payload = { slot };
     } else {
       const m = p.macros || {};

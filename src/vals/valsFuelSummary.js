@@ -16,8 +16,10 @@ import { dayWord, loggedLine } from '../fuelDay.js';
 // file adds no write path. Null under every style but `summary`.
 
 const CATEGORY = { 'CORE DAILY MEALS': 'Core', 'ROTATION / SWAP MEALS': 'Rotation', TREATS: 'Treats' };
-const SLOT_NAMES = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack', extra: 'Extra meal' };
-const SLOT_LETTERS = { breakfast: 'B', lunch: 'L', dinner: 'D', snack: 'S', extra: 'E' };
+// the rotation's own labels win (13 Oct: Pre-workout and Meal 1-3, keys kept);
+// these only stand in when a rotation carries none
+const SLOT_NAMES = { preworkout: 'Pre-workout', breakfast: 'Meal 1', lunch: 'Meal 2', dinner: 'Meal 3' };
+const SLOT_LETTERS = { preworkout: 'P', breakfast: '1', lunch: '2', dinner: '3' };
 const round = (n) => Math.round(Number(n) || 0);
 const kc = (n) => round(n).toLocaleString('en-AU');
 const weekday = (iso, style = 'long') => dtf('en-AU', { weekday: style }).format(new Date(`${iso}T12:00:00`));
@@ -318,7 +320,7 @@ function slotChoices(app, st, id) {
   if (!rot || !id) return [];
   const order = rot.order || Object.keys(SLOT_NAMES);
   return order.map((key) => {
-    const name = SLOT_NAMES[key] || rot.labels?.[key] || key;
+    const name = rot.labels?.[key] || SLOT_NAMES[key] || key;
     return {
       key, name,
       letter: SLOT_LETTERS[key] || String(name).slice(0, 1).toUpperCase(),
@@ -334,7 +336,8 @@ function buildRecipeSheet(app, st, v, { live }) {
   const activeAlt = liveOr ? (liveOr.alternates || []).find((a) => a.id === st.recipeAltSelected) || null : null;
   const baseMacros = activeAlt?.macros || liveOr?.macros || (demoOr ? { p: demoOr.p, c: demoOr.c, f: demoOr.f, kcal: demoOr.kcal } : null);
   const slots = liveOr ? slotChoices(app, st, liveOr.id) : [];
-  const inSlots = slots.filter((s) => s.active).map((s) => s.name.toLowerCase());
+  // slot names are names now ("Meal 3", "Pre-workout"), so their case stays
+  const inSlots = slots.filter((s) => s.active).map((s) => s.name);
   const meta = liveOr
     ? [activeAlt ? `Version: ${activeAlt.label}` : null, CATEGORY[liveOr.category] || liveOr.category, liveOr.makes || null,
       inSlots.length ? `in today's ${inSlots.join(' and ')}` : null].filter(Boolean).join(' · ')

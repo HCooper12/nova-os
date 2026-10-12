@@ -184,7 +184,7 @@ test('the rotation row, the doors and the recipe list come from the existing val
   assert.equal(F.doors.recipes.count, 2);
   assert.equal(F.recipesPage.rows.length, 2);
   const cr = F.recipesPage.rows.find((r) => r.name === 'Chicken and rice');
-  assert.equal(cr.slot.letter, 'D', 'a dish in a slot wears its letter');
+  assert.equal(cr.slot.letter, '3', 'a dish in a slot wears its letter (Meal 3, 13 Oct)');
   assert.equal(F.recipesPage.rows.find((r) => r.name !== 'Chicken and rice').slot.letter, null, 'a dish in no slot wears the dashed +');
   assert.equal(F.recipesPage.open, false);
   assert.equal(run({ fuelView: 'recipes' }).fuelSummary.recipesPage.open, true);
@@ -194,7 +194,7 @@ test('the recipe sheet logs the version he is looking at through the existing po
   const { fuelSummary: F, calls } = run({ openRecipeId: 'chicken-rice' });
   const R = F.recipeSheet;
   assert.equal(R.name, 'Chicken and rice');
-  assert.match(R.meta, /in today's dinner/);
+  assert.match(R.meta, /in today's Meal 3/);
   assert.deepEqual([R.macros.p, R.macros.kcal], [42, 640]);
   assert.equal(R.lines.length, 2);
   assert.ok(R.rotation.slots.find((s) => s.key === 'dinner').active);

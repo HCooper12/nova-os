@@ -133,18 +133,18 @@ test('updateQuickRefRow finds a dash row by name', () => {
 test('a pending recipe is refused a rotation slot, plainly, at every door', async () => {
   await addRecipe(vault, PENDING);
   const recipes = await loadRecipes(vault);
-  await assert.rejects(() => addSlotOption(vault, recipes, 'snack', 'kinder-bueno-oats'), /Add its macros first — the plan can't count it without them/);
-  await assert.rejects(() => setRotationSlot(vault, recipes, 'snack', 'kinder-bueno-oats'), /Add its macros first/);
+  await assert.rejects(() => addSlotOption(vault, recipes, 'preworkout', 'kinder-bueno-oats'), /Add its macros first — the plan can't count it without them/);
+  await assert.rejects(() => setRotationSlot(vault, recipes, 'preworkout', 'kinder-bueno-oats'), /Add its macros first/);
   const rot = await loadRotation(vault, recipes);
-  assert.ok(!(rot.options.snack || []).some((d) => d.id === 'kinder-bueno-oats'), 'nothing was written');
+  assert.ok(!(rot.options.preworkout || []).some((d) => d.id === 'kinder-bueno-oats'), 'nothing was written');
   // a real recipe still goes in
-  await addSlotOption(vault, recipes, 'snack', 'yopro-yogurt');
+  await addSlotOption(vault, recipes, 'preworkout', 'yopro-yogurt');
   // and a pending dish already in a slot (a hand-edited file) can't be ticked
   // eaten, while totals skip it rather than counting a zero
   const handEdited = recipes.map((r) => (r.id === 'yopro-yogurt' ? { ...r, macros: null, macrosPending: true } : r));
-  await assert.rejects(() => setOptionEaten(vault, handEdited, 'snack', 'yopro-yogurt', true), /Add its macros first/);
+  await assert.rejects(() => setOptionEaten(vault, handEdited, 'preworkout', 'yopro-yogurt', true), /Add its macros first/);
   const resolved = await loadRotation(vault, handEdited);
-  const dish = resolved.options.snack.find((d) => d.id === 'yopro-yogurt');
+  const dish = resolved.options.preworkout.find((d) => d.id === 'yopro-yogurt');
   assert.equal(dish.macros, null);
   assert.equal(dish.macrosPending, true);
   assert.ok(Number.isFinite(resolved.totals.kcal));
@@ -192,7 +192,7 @@ function runVals(state = {}) {
       recipeFilter: 'All', liveRecipePhotoUrls: {}, recipePhotoUploadBusy: {}, recipeChat: [],
       foodLogName: '', foodLogP: '', foodLogC: '', foodLogF: '', foodLogKcal: '', foodPortionCustom: '',
       liveRecipes: LIVE, liveRecipesEmpty: false, liveRecipeProfile: { proteinFloorG: 160, targetKcal: 2600 },
-      liveFoodLog: { date: '2026-09-29', entries: [] }, liveRotation: { order: ['breakfast', 'lunch', 'dinner', 'snack'], slots: {}, options: {}, totals: { p: 0, c: 0, f: 0, kcal: 0 }, consumedTotals: { p: 0, c: 0, f: 0, kcal: 0 } },
+      liveFoodLog: { date: '2026-09-29', entries: [] }, liveRotation: { order: ['breakfast', 'lunch', 'dinner', 'preworkout'], slots: {}, options: {}, totals: { p: 0, c: 0, f: 0, kcal: 0 }, consumedTotals: { p: 0, c: 0, f: 0, kcal: 0 } },
       ...state,
     },
     recipes: [],

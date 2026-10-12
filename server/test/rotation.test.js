@@ -33,7 +33,7 @@ test('setting a slot persists to the vault file and resolves macros', async () =
 
   const raw = await readFile(path.join(vault, 'Wiki/Health/Daily Rotation.md'), 'utf8');
   assert.match(raw, /lunch: burrito-bowl/);
-  assert.match(raw, /\*\*Lunch:\*\* ★ Burrito Bowl/);
+  assert.match(raw, /\*\*Meal 2:\*\* ★ Burrito Bowl/);
 });
 
 test('marking consumed counts toward consumedTotals today', async () => {

@@ -289,19 +289,21 @@ export function valsRecipes(app, ctx) {
   // macro colors, so a slot title in one of those would clash with the
   // macro reading right below it in the same card.
   const SLOT_DEFS = [
-    { key: 'breakfast', label: 'B', name: 'Breakfast', hue: '214,142,74' },
-    { key: 'lunch', label: 'L', name: 'Lunch', hue: '90,150,224' },
-    { key: 'dinner', label: 'D', name: 'Dinner', hue: '95,105,190' },
-    { key: 'snack', label: 'S', name: 'Snack', hue: '199,120,158' },
-    { key: 'extra', label: 'E', name: 'Extra Meal', hue: '199,99,99' },
+    { key: 'preworkout', label: 'P', name: 'Pre-workout', hue: '199,120,158' },
+    { key: 'breakfast', label: '1', name: 'Meal 1', hue: '214,142,74' },
+    { key: 'lunch', label: '2', name: 'Meal 2', hue: '90,150,224' },
+    { key: 'dinner', label: '3', name: 'Meal 3', hue: '95,105,190' },
   ];
-  // ROTATION v2 (7 Sep): the slot list is the standard five plus any extra
+  // ROTATION v2 (7 Sep): the slot list is the standard slots plus any extra
   // meals he has added — the server's `order` and `labels` are the truth;
   // SLOT_DEFS only supplies a hue and a chip letter for the standard ones.
+  // 12 Oct: Pre-workout + Meal 1-3, then the "+" meals and snacks.
   const CUSTOM_HUE = '199,99,99';
   const rotationOrder = rotation?.order || SLOT_DEFS.map((s) => s.key);
-  const rotationExtraVisible = st.rotationShowExtra || !!rotation?.slots?.extra;
   const slotDefFor = (key) => SLOT_DEFS.find((s) => s.key === key) || { key, label: '+', name: rotation?.labels?.[key] || key, hue: CUSTOM_HUE, custom: true };
+  // an EMPTY legacy Extra slot stays hidden: the server no longer sends one,
+  // but a rotation cached on his phone from before 13 Oct still might
+  const rotationExtraVisible = st.rotationShowExtra || !!rotation?.slots?.extra;
   const visibleSlotDefs = rotationOrder.map(slotDefFor).filter((s) => s.key !== 'extra' || rotationExtraVisible);
   const rotationSlots = visibleSlotDefs.map((s) => {
     const filled = rotation?.slots?.[s.key] || null;
