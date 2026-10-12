@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { startMessage, getMessageJob, startBreaker } from '../lib/claudeCode.js';
 import { isValidModel } from '../lib/modelPrefs.js';
 import { listWorkspaces } from '../lib/codeWorkspaces.js';
+import { watchCodeJobs, loadCodeJob } from '../lib/codeJobStore.js';
 
 // Exactly the values the model board recognises (aliases + pinned ids,
 // including legacy pins kept valid for a saved choice) — anything else is
@@ -12,6 +13,9 @@ const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 
 export function claudeCodeRouter({ repoPath, vaultPath }) {
   const router = Router();
+  // every Builder/Breaker answer is written to disk once it settles, so a
+  // restart cannot turn a finished run into one that says "working" forever
+  const settled = watchCodeJobs({ getJob: getMessageJob });
   // Where the Builder runs: Nova OS, the Vault, or a folder named in
   // server/data/code-workspaces.json (Science Atlas and Wren, 10 Oct 2026).
   // Anything else is refused, never quietly sent to Nova OS.
@@ -35,14 +39,15 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
       if (model && !isValidModel(model)) return res.status(400).json({ error: 'model is not a recognised alias or pinned id' });
       if (sessionId && !SESSION_ID_RE.test(sessionId)) return res.status(400).json({ error: 'invalid sessionId' });
       const jobId = startMessage(cwd, { text, sessionId, model });
+      settled.add(jobId);
       res.json({ jobId });
     } catch (err) {
       next(err);
     }
   });
 
-  router.get('/claude-code/message/:jobId', (req, res) => {
-    const job = getMessageJob(req.params.jobId);
+  router.get('/claude-code/message/:jobId', async (req, res) => {
+    const job = getMessageJob(req.params.jobId) || await loadCodeJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
     // `consult`: the agents this turn asked, as structured state (lib/consult.js)
     // — who, what, when asked and settled, and each answer — so a screen can
@@ -59,6 +64,7 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
       const cwd = await cwdOf(workspace);
       if (!cwd) return res.status(400).json({ error: await badWorkspace() });
       const jobId = startBreaker(cwd, { focus });
+      settled.add(jobId);
       res.json({ jobId });
     } catch (err) {
       next(err);

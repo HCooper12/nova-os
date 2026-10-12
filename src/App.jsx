@@ -300,6 +300,27 @@ const CHAT_KEEP = 40; // messages per chat — enough thread, bounded storage
 const CONV_SYNCED_KEY = 'novaos.convSynced';
 const CONV_SYNCED_KEEP = 400;
 const CONV_FROM_KEY = 'novaos.voiceChatFrom';
+// THE CODE RUNS IN FLIGHT, by job id, so a relaunch can finish them
+// (pollCodeRun / resumeCodeRuns). A day old is a run nobody is waiting on.
+const CODE_RUNS_KEY = 'novaos.codeRuns.pending';
+const CODE_RUN_LOST = 'Nova lost track of this run: the server restarted before it could hand the answer back. Anything it changed is in Changes below, for you to keep or shelve.';
+function pendingCodeRuns() {
+  try {
+    const d = JSON.parse(localStorage.getItem(CODE_RUNS_KEY) || '{}') || {};
+    const out = {};
+    for (const k of ['code', 'spar']) {
+      const r = d[k];
+      if (r && typeof r.jobId === 'string' && Date.now() - (r.sentAt || 0) < 24 * 3600_000) out[k] = r;
+    }
+    return out;
+  } catch { return {}; }
+}
+function rememberCodeRun(kind, run) {
+  try { localStorage.setItem(CODE_RUNS_KEY, JSON.stringify({ ...pendingCodeRuns(), [kind]: run })); } catch { /* private mode: this visit still polls */ }
+}
+function forgetCodeRun(kind) {
+  try { const d = pendingCodeRuns(); delete d[kind]; localStorage.setItem(CODE_RUNS_KEY, JSON.stringify(d)); } catch { /* private mode */ }
+}
 function restoreChats() {
   try {
     const d = JSON.parse(localStorage.getItem(CHATS_KEY) || 'null');
@@ -843,6 +864,7 @@ export default class App extends Component {
     // reappears, still running, exactly where it got to. If the server
     // restarted underneath it, getJob answers 'error' and he sees THAT
     // rather than an eternal spinner.
+    if (getConnection()) this.resumeCodeRuns();
     try {
       const pending = localStorage.getItem('novaos.ingestJob');
       if (pending && getConnection()) {
@@ -7517,14 +7539,8 @@ export default class App extends Component {
     this.setState((s) => ({ sparBusy: true, sparBusyAt: sentAt, codeChat: [...s.codeChat, { at: sentAt, who: 'system', text: `The Breaker is reading ${target}. It changes nothing.` }] }));
     const focus = [...this.state.codeChat].reverse().find((m) => m.who === 'you')?.text || '';
     api.sparStart(conn, this.state.codeWorkspace, focus).then(({ jobId }) => {
-      this.startPoll('spar', () => api.claudeCodeJob(conn, jobId), {
-        timeoutMs: 10 * 60_000,
-        onReady: (job) => {
-          this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'breaker', text: job.result.text, startedAt: job.result.startedAt || sentAt, endedAt: job.result.endedAt || Date.now() }] }));
-          this.announceAway({ here: this.state.screen === 'code', title: 'The Breaker finished its pass', text: job.result.text, go: () => this.navigate('code') });
-        },
-        onError: (msg) => this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + msg }] })),
-      });
+      rememberCodeRun('spar', { jobId, sentAt });
+      this.pollSparRun(jobId, { sentAt });
     }).catch((e) => {
       this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + e.message }] }));
     });
@@ -11840,24 +11856,74 @@ export default class App extends Component {
     const sentAt = Date.now();
     this.setState(s => ({ codeChat: [...s.codeChat, { at: sentAt, who: 'you', text: q }], codeInput: '', codeBusy: true, codeBusyAt: sentAt }));
     api.startClaudeCodeMessage(conn, q, this.state.codeSessionId, this.state.codeModel, this.state.codeWorkspace).then(({ jobId }) => {
-      this.startPoll('code', () => api.claudeCodeJob(conn, jobId), {
-        timeoutMs: 10 * 60_000,
-        intervalMs: 700,
-        onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
-        onReady: (job) => {
-          const r = job.result;
-          this.finalizeStream('codeChat', { at: Date.now(), who: 'claude', text: r.text, model, startedAt: r.startedAt || sentAt, endedAt: r.endedAt || Date.now(), files: Array.isArray(r.files) ? r.files.length : undefined }, { codeBusy: false, codeSessionId: r.sessionId });
-          this.announceAway({ here: this.state.screen === 'code', title: 'Claude Code finished', text: job.result.text, go: () => this.navigate('code') });
-          this.refreshCodeChanges(); // the diff is the point — surface it the moment the turn lands
-        },
-        onError: (msg) => {
-          this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] }));
-          this.announceAway({ here: this.state.screen === 'code', title: 'Claude Code stopped with an error', text: msg, tone: 'warn', go: () => this.navigate('code') });
-        },
-      });
+      rememberCodeRun('code', { jobId, sentAt, model });
+      this.pollCodeRun(jobId, { sentAt, model });
     }).catch((e) => {
       this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message }] }));
     });
+  }
+  // ONE POLL FOR A BUILDER TURN, whether it was sent a second ago or before
+  // iOS closed the app (resumeCodeRuns, at boot). 12 Oct: the job id lived
+  // only in this poll, so a relaunch kept the chat's "working" line and lost
+  // the one thing that could finish it. The answer had landed at 22:4x.
+  pollCodeRun(jobId, { sentAt, model }) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.startPoll('code', () => api.claudeCodeJob(conn, jobId), {
+      timeoutMs: 10 * 60_000,
+      intervalMs: 700,
+      onProgress: (job) => { if (job.partial) this.applyStreamPartial('codeChat', 'claude', job.partial); },
+      onReady: (job) => {
+        forgetCodeRun('code');
+        const r = job.result;
+        this.finalizeStream('codeChat', { at: Date.now(), who: 'claude', text: r.text, model, startedAt: r.startedAt || sentAt, endedAt: r.endedAt || Date.now(), files: Array.isArray(r.files) ? r.files.length : undefined }, { codeBusy: false, codeSessionId: r.sessionId || this.state.codeSessionId });
+        this.announceAway({ here: this.state.screen === 'code', title: 'Claude Code finished', text: job.result.text, go: () => this.navigate('code') });
+        this.refreshCodeChanges(); // the diff is the point — surface it the moment the turn lands
+      },
+      onLost: () => {
+        forgetCodeRun('code');
+        this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: CODE_RUN_LOST }] }));
+        this.refreshCodeChanges();
+      },
+      onError: (msg) => {
+        forgetCodeRun('code');
+        this.setState(s => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] }));
+        this.announceAway({ here: this.state.screen === 'code', title: 'Claude Code stopped with an error', text: msg, tone: 'warn', go: () => this.navigate('code') });
+      },
+    });
+  }
+  pollSparRun(jobId, { sentAt }) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.startPoll('spar', () => api.claudeCodeJob(conn, jobId), {
+      timeoutMs: 10 * 60_000,
+      onReady: (job) => {
+        forgetCodeRun('spar');
+        this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'breaker', text: job.result.text, startedAt: job.result.startedAt || sentAt, endedAt: job.result.endedAt || Date.now() }] }));
+        this.announceAway({ here: this.state.screen === 'code', title: 'The Breaker finished its pass', text: job.result.text, go: () => this.navigate('code') });
+      },
+      onLost: () => {
+        forgetCodeRun('spar');
+        this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Nova lost track of the Breaker\'s pass (the server restarted before it finished). Nothing was changed: the Breaker only reads. Run it again if you still want it.' }] }));
+      },
+      onError: (msg) => { forgetCodeRun('spar'); this.setState((s) => ({ sparBusy: false, codeChat: [...s.codeChat, { at: Date.now(), who: 'system', text: 'Breaker failed: ' + msg }] })); },
+    });
+  }
+  // At boot: pick up any run this phone started and has not heard the end of.
+  // A chat restored with a "working" line and NO run to finish it is told so,
+  // never left pretending.
+  resumeCodeRuns() {
+    const runs = pendingCodeRuns();
+    if (runs.code) {
+      this.setState({ codeBusy: true, codeBusyAt: runs.code.sentAt || Date.now() });
+      this.pollCodeRun(runs.code.jobId, runs.code);
+    } else if ((this.state.codeChat || []).some((m) => m.streaming)) {
+      this.setState((s) => ({ codeBusy: false, codeChat: [...s.codeChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: CODE_RUN_LOST }] }));
+    }
+    if (runs.spar) {
+      this.setState({ sparBusy: true, sparBusyAt: runs.spar.sentAt || Date.now() });
+      this.pollSparRun(runs.spar.jobId, runs.spar);
+    }
   }
   // THE CODE SCREEN'S WRITES live in src/codeActions.js (round 3): Commit
   // takes only the ticked files, Undo takes back an unpushed commit, Shelve
