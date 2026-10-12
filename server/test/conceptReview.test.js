@@ -295,3 +295,19 @@ test('newCandidates survives YAML Date objects and numeric titles', () => {
   const out = newCandidates(pages, {}, new Map());
   assert.deepEqual(out.map((x) => x.id), ['b', 'a', 'c']);
 });
+
+// 13 Oct: a page about Nova's own ingest machinery came up as the morning's
+// "new" concept. The machinery's notes are not his knowledge.
+test('a page about the vault\'s own method never enters the review', async () => {
+  const { newCandidates, buildQueue, reviewable } = await import('../lib/conceptReview.js');
+  const pages = [
+    { id: 'a', type: 'concept', title: 'Caption-Carried Payloads', tags: ['source-quality', 'vault-methodology'], date: '2026-10-12' },
+    { id: 'b', type: 'concept', title: 'The Implementation Dip', tags: ['leadership'], date: '2026-10-01' },
+    { id: 'c', type: 'topic', title: 'Switched off', tags: [], review: false, date: '2026-10-11' },
+  ];
+  assert.deepEqual(newCandidates(pages, {}, new Map()).map((c) => c.id), ['b']);
+  assert.equal(reviewable({ type: 'concept', tags: 'method, vault-methodology' }), false);
+  // already answered before it was marked: no longer comes due either
+  const { queue } = buildQueue({ pages, cards: { a: { step: 0, due: '2026-10-10' } }, backlinkCounts: new Map(), today: '2026-10-13' });
+  assert.ok(!queue.some((q) => q.id === 'a'));
+});

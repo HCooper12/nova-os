@@ -102,6 +102,8 @@ export class Vault {
       title,
       type,
       tags: frontmatter.tags || [],
+      // his off switch for the daily review (conceptReview.js reviewable)
+      review: frontmatter.review === false ? false : undefined,
       status: frontmatter.status || null, // pipeline state on Studio ideas
       date,
       url: frontmatter.url || null,

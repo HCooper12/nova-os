@@ -166,6 +166,7 @@ export function dueCards(cards, pagesById, today) {
   for (const [id, card] of Object.entries(cards)) {
     const page = pagesById.get(id);
     if (!page) continue; // the page is gone from the vault; nothing to show
+    if (!reviewable(page)) continue; // marked out of the review since it was answered
     if (card.due > today) continue;
     const late = Math.max(0, daysBetween(card.due, today));
     out.push({ id, page, step: card.step, due: card.due, score: late / GAPS[card.step] });
@@ -199,13 +200,29 @@ export function aheadOf(cards, pagesById, today, days = 7) {
 const dateKey = (v) => (v instanceof Date ? (Number.isNaN(v.getTime()) ? '' : v.toISOString().slice(0, 10)) : String(v ?? ''));
 const titleKey = (v) => String(v ?? '');
 
+// NOT EVERY CONCEPT PAGE IS SOMETHING HE LEARNED (13 Oct 2026). On his phone
+// the morning's "new" card was "Caption-Carried Payloads & Silent
+// Transcripts": a page about how Nova's video ingest fails on music-only
+// reels, which says of itself "a page about the vault's own method, not
+// about a subject". He called it "a ridiculous retrieval of an irrelevant
+// video". A page about the machinery is the house's notes, not his
+// knowledge, so it never enters the review: tagged `vault-methodology` (or
+// `review: false` in its frontmatter, his own off switch for any page).
+export const NOT_REVIEWED_TAGS = new Set(['vault-methodology']);
+export function reviewable(p) {
+  if (!p || (p.type !== 'concept' && p.type !== 'topic')) return false;
+  if (p.review === false || p.frontmatter?.review === false) return false;
+  const tags = Array.isArray(p.tags) ? p.tags : typeof p.tags === 'string' ? p.tags.split(/[,\s]+/) : [];
+  return !tags.some((t) => NOT_REVIEWED_TAGS.has(String(t).trim().toLowerCase()));
+}
+
 // Candidates never in the log, ranked newest page first (its concept page's
 // own date, standing in for "the day after the source was ingested, while
 // the curve is steepest"), then most backlinked, then title.
 export function newCandidates(pages, cards, backlinkCounts) {
   const seen = new Set(Object.keys(cards));
   return pages
-    .filter((p) => (p.type === 'concept' || p.type === 'topic') && !seen.has(p.id))
+    .filter((p) => reviewable(p) && !seen.has(p.id))
     .map((p) => ({ id: p.id, page: p, backlinks: backlinkCounts?.get(p.id) || 0 }))
     .sort((a, b) => dateKey(b.page.date).localeCompare(dateKey(a.page.date))
       || b.backlinks - a.backlinks
