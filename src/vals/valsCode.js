@@ -232,6 +232,20 @@ function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf,
     cancelClose: () => app.setState({ macSessionConfirmId: null }),
     close: () => app.closeMacSession(r.id),
     paused: away,
+    // control (13 Oct): open shows its recent words and a box to message it
+    open: st.macSessionOpenId === r.id,
+    toggle: () => app.toggleMacSession(r.id),
+    talk: st.macSessionOpenId === r.id ? (st.macSessionTalk || null) : null,
+    draft: st.macSessionOpenId === r.id ? (st.macSessionDraft || '') : '',
+    setDraft: (v) => app.setState({ macSessionDraft: v }),
+    send: () => app.sendMacSession(r.id),
+    stop: r.kind === 'background' && r.state === 'working' ? () => app.stopMacSession(r.id) : null,
+    sending: !!st.macSessionSending,
+    hint: r.state === 'working'
+      ? 'It is working. Send once it finishes, or stop it.'
+      : r.kind === 'terminal'
+        ? 'Sending closes its window on your Mac and carries on in the background. The conversation is kept.'
+        : 'Sending carries on the same conversation in the background.',
   }));
 
   // the review (Nova OS and the Vault only)
@@ -361,6 +375,19 @@ function projectPage(app, key, { ws, here, away, modelLabel, sessionsOf, rowsOf,
     review,
     sessions: sessionRowsOf(ss),
     sessionsHead: plural(ss.length, 'session'),
+    // a full Claude Code session, started from here, in a workspace that can
+    // be written (never the vault: lib/claudeSessionsLive.js and ops.js)
+    start: pageWs && !changes(pageWs)?.readOnly ? {
+      open: st.macSessionStartFor === pageWs,
+      toggle: () => app.setState({ macSessionStartFor: st.macSessionStartFor === pageWs ? null : pageWs, macSessionNote: null }),
+      draft: st.macSessionStartDraft || '',
+      setDraft: (v) => app.setState({ macSessionStartDraft: v }),
+      run: () => app.startMacSession(pageWs),
+      busy: !!st.macSessionStarting,
+      paused: away,
+      where: p.title,
+    } : null,
+    note: st.macSessionNote || null,
     wren: wrenGroup,
     workSessionsHead: plural(ss.length, 'session'),
     runs: pageWs ? { lines, closed, count: lines.length } : null,

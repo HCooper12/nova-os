@@ -281,6 +281,28 @@
 .nv-cd-sess .qt.live { overflow: hidden; }
 .nv-cd-sess .qt.live i { right: auto; width: 30%; transform: none; background: var(--h); animation: nvCdSweep 1.6s var(--cd-io) infinite; }
 @keyframes nvCdSweep { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+/* control (13 Oct): open a session to read and message it */
+.nv-cd-sess .nm { display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 44px; margin: -12px 0; padding: 0; background: none; color: inherit; text-align: left; }
+.nv-cd-sess .nm b { font: 600 15px var(--cd-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.nv-cd-sess .nm .chev { width: 14px; height: 14px; flex: none; color: var(--cd-ink3); transition: transform var(--nv-dur-base, .24s) var(--cd-out); }
+.nv-cd-sess.open .nm .chev { transform: rotate(90deg); }
+.nv-cd-sess .talk { grid-column: 1 / -1; margin-top: 12px; padding: 12px; border-radius: 16px; background: color-mix(in srgb, var(--h) 7%, color-mix(in srgb, var(--nv-ink) 4%, transparent)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 22%, transparent); animation: nvCdTalkIn .32s var(--cd-out) both; }
+@keyframes nvCdTalkIn { from { opacity: 0; transform: translateY(-6px); } }
+.nv-cd-sess .turns { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 46vh; overflow-y: auto; overscroll-behavior: contain; }
+.nv-cd-sess .turns li { display: grid; gap: 2px; }
+.nv-cd-sess .turns .who { font: 600 11px var(--cd-ui); letter-spacing: .04em; text-transform: uppercase; color: var(--cd-ink3); }
+.nv-cd-sess .turns .claude .who { color: var(--h); }
+.nv-cd-sess .turns p { margin: 0; font: 400 14px/1.45 var(--cd-ui); color: var(--cd-ink2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.nv-cd-sess .turns .you p { color: var(--nv-ink); }
+.nv-cd-sess .say { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.nv-cd-sess .say textarea, .nv-cd-sstart textarea { width: 100%; resize: none; border: 0; border-radius: 12px; padding: 10px 12px; font: 400 16px/1.4 var(--cd-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 8%, transparent); }
+.nv-cd-sess .foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.nv-cd-sstart { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin-top: 4px; padding: 0; background: none; color: var(--cd-ink2); font: 600 14px var(--cd-ui); box-shadow: inset 0 .5px 0 var(--cd-sep); }
+.nv-cd-sstart .nv-cd-ic { width: 16px; height: 16px; }
+.nv-cd-sstart.open { flex-direction: column; align-items: stretch; gap: 8px; padding-top: 12px; }
+.nv-cd-sstart .row { display: flex; justify-content: flex-end; gap: 8px; }
+.nv-cd-snote { margin: 8px 0 0; font: 400 13px/1.4 var(--cd-ui); color: var(--cd-ink2); }
+@media (prefers-reduced-motion: reduce) { .nv-cd-sess .talk { animation: none; } .nv-cd-sess .nm .chev { transition: none; } }
 .nv-cd-sess .quiet > span:last-child { font: 400 12px var(--cd-ui); color: var(--cd-ink3); white-space: nowrap; }
 
 /* runs: every line has an author, by mark and by name */

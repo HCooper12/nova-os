@@ -123,6 +123,13 @@ export const api = {
   macSessions: (conn) => call(conn, '/api/ops/sessions'),
   showMacSession: (conn, sessionId) => post(conn, '/api/ops/sessions/show', { sessionId }),
   closeMacSession: (conn, sessionId) => post(conn, '/api/ops/sessions/close', { sessionId }),
+  // control (13 Oct 2026): read, message, stop, start (lib/claudeSessionsLive.js)
+  macSessionConversation: (conn, sessionId) => call(conn, `/api/ops/sessions/conversation?sessionId=${encodeURIComponent(sessionId)}&limit=12`),
+  // a minute: stop + resume can take ~45 s on the Mac, and a client timeout
+  // does not cancel the server, so a short one would call a success a failure
+  messageMacSession: (conn, sessionId, text) => post(conn, '/api/ops/sessions/message', { sessionId, text }, { timeoutMs: 60_000 }),
+  stopMacSession: (conn, sessionId) => post(conn, '/api/ops/sessions/stop', { sessionId }, { timeoutMs: 60_000 }),
+  startMacSession: (conn, workspace, text) => post(conn, '/api/ops/sessions/start', { workspace, text }, { timeoutMs: 60_000 }),
   notes: (conn) => call(conn, '/api/notes'),
   library: (conn) => call(conn, '/api/library'),
   // DOCUMENTS (28 Sep 2026): what Coach, Nova and the Leader wrote as a thing

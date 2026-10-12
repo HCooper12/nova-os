@@ -8902,6 +8902,82 @@ export default class App extends Component {
       this.setState({ macSessionBusyId: null });
     }
   }
+  // CONTROL FROM NOVA (13 Oct 2026): open a session to read its last words,
+  // message it, stop it, or start a new one. The server holds the rules
+  // (lib/claudeSessionsLive.js); this only asks and reports what it said.
+  toggleMacSession(sessionId) {
+    clearInterval(this.macTalkTimer);
+    if (this.state.macSessionOpenId === sessionId) {
+      this.setState({ macSessionOpenId: null, macSessionTalk: null, macSessionDraft: '' });
+      return;
+    }
+    this.setState({ macSessionOpenId: sessionId, macSessionTalk: { loading: true, turns: [] }, macSessionDraft: '', macSessionNote: null });
+    this.loadMacSessionTalk(sessionId);
+    // its words keep arriving while it is open; stops when it is closed
+    this.macTalkTimer = setInterval(() => {
+      if (this.state.macSessionOpenId !== sessionId) { clearInterval(this.macTalkTimer); return; }
+      if (!document.hidden) this.loadMacSessionTalk(sessionId);
+    }, 6000);
+  }
+  async loadMacSessionTalk(sessionId) {
+    const conn = getConnection();
+    if (!conn) return;
+    try {
+      const { turns } = await api.macSessionConversation(conn, sessionId);
+      if (this.state.macSessionOpenId === sessionId) this.setState({ macSessionTalk: { loading: false, turns: turns || [] } });
+    } catch (e) {
+      if (this.state.macSessionOpenId === sessionId) this.setState((s) => ({ macSessionTalk: { loading: false, turns: s.macSessionTalk?.turns || [], error: e.message } }));
+    }
+  }
+  async sendMacSession(sessionId) {
+    const conn = getConnection();
+    const text = (this.state.macSessionDraft || '').trim();
+    if (!conn || !text || this.state.macSessionSending) return;
+    this.setState({ macSessionSending: true, macSessionNote: null });
+    try {
+      const r = await api.messageMacSession(conn, sessionId, text);
+      this.setState({ macSessionDraft: '', macSessionNote: r.how === 'copied'
+        ? 'Sent, but Claude Code started a copy of it rather than continuing it. The copy is listed as its own session.'
+        : r.how === 'moved'
+          ? 'Sent. Its window on your Mac closed and it carries on in the background; its reply lands here.'
+          : 'Sent. Its reply lands here.' });
+      this.startMacSessionsPoll();
+      setTimeout(() => this.loadMacSessionTalk(sessionId), 2500);
+    } catch (e) {
+      this.setState({ macSessionNote: e.message });
+    } finally {
+      this.setState({ macSessionSending: false });
+    }
+  }
+  async stopMacSession(sessionId) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ macSessionBusyId: sessionId, macSessionNote: null });
+    try {
+      await api.stopMacSession(conn, sessionId);
+      this.setState({ macSessionNote: 'Stopped. Its conversation is kept, and a message carries it on.' });
+      this.startMacSessionsPoll();
+    } catch (e) {
+      this.setState({ macSessionNote: e.message });
+    } finally {
+      this.setState({ macSessionBusyId: null });
+    }
+  }
+  async startMacSession(workspace) {
+    const conn = getConnection();
+    const text = (this.state.macSessionStartDraft || '').trim();
+    if (!conn || !text || this.state.macSessionStarting) return;
+    this.setState({ macSessionStarting: true, macSessionNote: null });
+    try {
+      await api.startMacSession(conn, workspace, text);
+      this.setState({ macSessionStartDraft: '', macSessionStartFor: null, macSessionNote: 'Started on your Mac. It is listed below; open it to follow along.' });
+      this.startMacSessionsPoll();
+    } catch (e) {
+      this.setState({ macSessionNote: e.message });
+    } finally {
+      this.setState({ macSessionStarting: false });
+    }
+  }
   async closeMacSession(sessionId) {
     const conn = getConnection();
     if (!conn) return;

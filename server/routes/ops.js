@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { composeOps } from '../lib/ops.js';
 import { loadSkills } from '../lib/skills.js';
 
@@ -59,6 +61,62 @@ export function opsRouter(vaultPath) {
       res.json(await closeSession({ session: found }));
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  });
+  // CONTROL (13 Oct 2026, his ask): read a session, message it, start one,
+  // stop one. Every write does a FRESH read first, like show/close above, so
+  // a tap aimed at a session that has since ended is a plain "not there",
+  // never a command sent to a dead id. lib/claudeSessionsLive.js holds the why.
+  const live = () => import('../lib/claudeSessionsLive.js');
+  const said = (v) => (typeof v === 'string' ? v.trim() : '');
+  const fresh = async (sessionId) => {
+    const { sessionsNow, findSession } = await live();
+    return findSession(await sessionsNow(), sessionId);
+  };
+  router.get('/ops/sessions/conversation', async (req, res) => {
+    try {
+      const found = await fresh(req.query.sessionId);
+      if (!found) return res.status(404).json({ error: 'That session is not running any more.' });
+      const { sessionConversation } = await live();
+      res.json({ session: found, turns: sessionConversation({ session: found, limit: Math.min(40, Number(req.query.limit) || 12) }) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  router.post('/ops/sessions/message', async (req, res) => {
+    try {
+      const found = await fresh(req.body?.sessionId);
+      if (!found) return res.status(404).json({ error: 'That session is not running any more.' });
+      const { messageSession } = await live();
+      res.json(await messageSession({ session: found, text: said(req.body?.text) }));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+  router.post('/ops/sessions/stop', async (req, res) => {
+    try {
+      const found = await fresh(req.body?.sessionId);
+      if (!found) return res.status(404).json({ error: 'That session is not running any more.' });
+      const { stopSession } = await live();
+      res.json(await stopSession({ session: found }));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+  // a new session only in a workspace Nova already knows (Nova OS, the Vault,
+  // or one named in code-workspaces.json); anything else is refused
+  router.post('/ops/sessions/start', async (req, res) => {
+    try {
+      const { resolveWorkspace } = await import('../lib/codeWorkspaces.js');
+      const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+      const w = await resolveWorkspace(req.body?.workspace || 'repo', { repoRoot, vaultPath });
+      // the vault is read-only to the Builder; a full session there could
+      // write to his notes outside the inbox rails, so it is not offered
+      if (w.readOnly) return res.status(400).json({ error: `${w.title} is read-only to Nova's coding sessions.` });
+      const { startSession } = await live();
+      res.json(await startSession({ cwd: w.cwd, text: said(req.body?.text), name: said(req.body?.name) || 'From Nova' }));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
   router.get('/skills', async (req, res) => {

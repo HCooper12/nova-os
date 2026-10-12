@@ -13,6 +13,7 @@
 // we expect, the answer is an empty list and a plain sentence — never a
 // guess at what might be running.
 import { execFile, spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { mkdir, writeFile, chmod } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,11 +28,15 @@ export const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, 
 export const LIST_TIMEOUT_MS = 15_000;
 
 /** Default runner: resolves with stdout, rejects on a non-zero exit. */
-export function runCommand(file, args, { timeout = LIST_TIMEOUT_MS } = {}) {
+export function runCommand(file, args, { timeout = LIST_TIMEOUT_MS, cwd, both = false } = {}) {
   return new Promise((resolve, reject) => {
-    execFile(file, args, { timeout, maxBuffer: 8 * 1024 * 1024 }, (err, stdout) => {
-      if (err) reject(err); else resolve(String(stdout || ''));
+    // stdin closed: the CLI otherwise waits on an open pipe
+    const child = execFile(file, args, { timeout, cwd, maxBuffer: 8 * 1024 * 1024 }, (err, stdout, stderr) => {
+      // the CLI's own sentence ("Workspace not trusted…") is the error he sees
+      if (err) { if (stderr || stdout) err.message = String(stderr || stdout).trim().split('\n')[0] || err.message; reject(err); }
+      else resolve(both ? `${stdout || ''}\n${stderr || ''}` : String(stdout || ''));
     });
+    child.stdin?.end();
   });
 }
 
@@ -238,4 +243,129 @@ export function findSession(picture, sessionId) {
     for (const s of g.sessions) if (s.sessionId === sessionId) return s;
   }
   return null;
+}
+
+// ─── CONTROL FROM NOVA (13 Oct 2026, his ask) ────────────────────────────────
+// "I should also be able to control these Claude Code sessions through nova."
+// Four verbs, each the CLI's own, each measured on this Mac before it was
+// written (a throwaway haiku session, 13 Oct):
+//   read     the session's own journal, the last turns in words
+//   message  `claude stop` then `claude --bg --resume <id> <text>` continues
+//            THE SAME session under the same id. Without the stop the CLI
+//            forks a copy (even a finished background session counts as
+//            running), which would split his conversation in two.
+//   start    `claude --bg --name <name> <text>` in a trusted workspace (the
+//            CLI itself refuses an untrusted folder)
+//   stop     `claude stop <id>` for a background session
+// A terminal session can be messaged only while it is idle: its window is
+// closed first (the conversation is kept, as Close already does) and the
+// session continues in the background. Never while it is working: that would
+// throw away a turn in progress.
+
+const SAY_MAX = 8000;
+const cleanId = (v) => String(v || '').replace(/[^A-Za-z0-9_-]/g, '');
+
+/** The last `limit` turns of a session, in words: his messages and its replies. */
+export function sessionConversation({ session, home = os.homedir(), limit = 12, readText } = {}) {
+  if (!session?.sessionId || !session?.cwd) return [];
+  let text = '';
+  try {
+    const file = transcriptPath(session.cwd, session.sessionId, home);
+    if (readText) text = readText(file);
+    else {
+      const size = fs.statSync(file).size;
+      const fd = fs.openSync(file, 'r');
+      try {
+        const start = Math.max(0, size - 3_000_000);
+        const buf = Buffer.alloc(size - start);
+        fs.readSync(fd, buf, 0, buf.length, start);
+        text = buf.toString('utf8');
+      } finally { fs.closeSync(fd); }
+    }
+  } catch { return []; }
+  const turns = [];
+  for (const line of String(text).split('\n')) {
+    let j; try { j = JSON.parse(line); } catch { continue; }
+    if ((j.type !== 'user' && j.type !== 'assistant') || j.isMeta || j.isSidechain) continue;
+    const c = j.message?.content;
+    // a user entry carrying tool results is the machine talking, not him
+    const words = typeof c === 'string' ? c
+      : Array.isArray(c) ? c.filter((b) => b?.type === 'text').map((b) => b.text).join('\n') : '';
+    const clean = String(words)
+      .replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '')
+      .replace(/<(command|local-command)[\w-]*>[\s\S]*?<\/\1[\w-]*>/g, '')
+      .trim();
+    if (!clean) continue;
+    turns.push({ who: j.type === 'user' ? 'you' : 'claude', text: clean.slice(0, 4000), at: j.timestamp || null });
+  }
+  return turns.slice(-limit);
+}
+
+function backgroundedId(out) {
+  const m = String(out || '').match(/backgrounded\s*·\s*([A-Za-z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+/** Start a new background session in `cwd` with his words as its first message. */
+export async function startSession({ cwd, text, name, execFn = runCommand } = {}) {
+  const say = String(text || '').trim().slice(0, SAY_MAX);
+  if (!say) throw new Error('Say what the session should do.');
+  if (!cwd) throw new Error('Pick a workspace first.');
+  const args = ['--bg'];
+  const label = String(name || '').replace(/[\r\n]/g, ' ').trim().slice(0, 60);
+  if (label) args.push('--name', label);
+  args.push(say);
+  const out = await execFn('claude', args, { timeout: 30_000, cwd, both: true });
+  const id = backgroundedId(out);
+  if (!id) throw new Error(String(out || '').trim().split('\n')[0] || 'Claude Code did not start it.');
+  return { ok: true, id };
+}
+
+/**
+ * Send his words to an existing session, continuing the same conversation.
+ * Refuses one that is mid-task, because continuing it would mean killing the
+ * turn it is on.
+ */
+export async function messageSession({ session, text, execFn = runCommand, killFn = process.kill.bind(process), isAlive = pidAlive, waitMs = 6000 } = {}) {
+  if (!session) throw new Error('That session is not running any more.');
+  const say = String(text || '').trim().slice(0, SAY_MAX);
+  if (!say) throw new Error('Say something to send.');
+  if (session.state === 'working') {
+    throw new Error('It is in the middle of something. Wait for it to finish, or stop it first.');
+  }
+  let how = 'continued';
+  if (session.kind === 'background') {
+    const short = cleanId(session.shortId || session.sessionId);
+    try { await execFn('claude', ['stop', short], { timeout: 15_000 }); } catch { /* already stopped */ }
+  } else {
+    // a terminal window, idle: close the window, keep the conversation
+    const pid = Number(session.pid);
+    if (Number.isFinite(pid) && pid > 0 && isAlive(pid)) {
+      killFn(pid, 'SIGTERM');
+      const until = Date.now() + waitMs;
+      while (isAlive(pid) && Date.now() < until) await new Promise((r) => setTimeout(r, 200));
+      if (isAlive(pid)) throw new Error('Its terminal window would not close, so Nova left it alone. Nothing was sent.');
+    }
+    how = 'moved';
+  }
+  const out = await execFn('claude', ['--bg', '--resume', session.sessionId, say], { timeout: 30_000, cwd: session.cwd, both: true });
+  const id = backgroundedId(out);
+  if (!id) throw new Error(String(out || '').trim().split('\n')[0] || 'Claude Code did not take the message.');
+  // the CLI says so when it had to fork instead of continue; never hide that
+  const copied = /started a copy/i.test(String(out));
+  return { ok: true, id, how: copied ? 'copied' : how };
+}
+
+/** Stop a background session mid-task. Its conversation is kept. */
+export async function stopSession({ session, execFn = runCommand } = {}) {
+  if (!session) throw new Error('That session is not running any more.');
+  if (session.kind !== 'background') {
+    throw new Error('That one is in a terminal window on the Mac. Nova only stops sessions it runs in the background.');
+  }
+  await execFn('claude', ['stop', cleanId(session.shortId || session.sessionId)], { timeout: 15_000 });
+  return { ok: true, how: 'stopped' };
+}
+
+function pidAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch { return false; }
 }

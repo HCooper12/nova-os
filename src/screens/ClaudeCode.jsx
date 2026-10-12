@@ -387,11 +387,43 @@ function Review({ r }) {
 
 // ---------------------------------------------------------------- sessions --
 
+// Open: the session's own last words, and a box to talk to it (13 Oct, his
+// ask to control these sessions from Nova). Its words, not a summary of them.
+function SessTalk({ s, hue }) {
+  const turns = s.talk?.turns || [];
+  return (
+    <div className="talk" style={{ '--h': hue }}>
+      {s.talk?.loading && !turns.length ? <span className="nv-cd-k">Reading its conversation…</span>
+        : !turns.length ? <span className="nv-cd-k">{s.talk?.error || 'Nothing said in it yet.'}</span>
+          : (
+            <ol className="turns">
+              {turns.map((t, i) => (
+                <li key={i} className={t.who}>
+                  <span className="who">{t.who === 'you' ? 'You' : 'Claude'}</span>
+                  <p>{t.text.length > 600 ? `${t.text.slice(0, 600)}…` : t.text}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+      <div className="say">
+        <textarea rows={2} value={s.draft} onChange={(e) => s.setDraft(e.target.value)} placeholder={`Message ${s.name}`} aria-label={`Message ${s.name}`} disabled={s.paused} />
+        <button type="button" className="nv-cd-btn sm" onClick={s.send} disabled={!s.draft.trim() || s.sending || s.paused || s.state === 'working'}>{s.sending ? 'Sending' : 'Send'}</button>
+      </div>
+      <div className="foot">
+        <span className="nv-cd-k">{s.hint}</span>
+        {s.stop && <button type="button" className="nv-cd-btn sm ghost" onClick={s.stop} disabled={s.busy || s.paused}>{s.busy ? 'Stopping' : 'Stop it'}</button>}
+      </div>
+    </div>
+  );
+}
+
 function SessRow({ s, hue }) {
   return (
-    <div className="nv-cd-sess" data-flip={s.id}>
+    <div className={`nv-cd-sess${s.open ? ' open' : ''}`} data-flip={s.id}>
       <i className={`pip ${s.state === 'working' ? 'work' : s.state === 'waiting' || s.state === 'blocked' ? 'wait' : 'open'}`} style={{ '--h': hue }} />
-      <b>{s.name}</b>
+      {s.toggle
+        ? <button type="button" className="nm" onClick={s.toggle} aria-expanded={s.open} aria-label={`${s.open ? 'Close' : 'Open'} ${s.name}: read and message it`}><b>{s.name}</b><Ic g="right" className="nv-cd-ic chev" /></button>
+        : <b>{s.name}</b>}
       <span className={`st${s.state === 'waiting' || s.state === 'blocked' ? ' wait' : ''}`}>{s.line}</span>
       <div className="quiet" aria-label={`${s.quiet.words}, against the 12 hours after which a session counts as left open`}>
         {s.quiet.live ? <span className="qt live" style={{ '--h': hue }}><i /></span>
@@ -403,15 +435,40 @@ function SessRow({ s, hue }) {
           ? <span className="acts"><button type="button" className="nv-cd-btn sm" onClick={s.close} disabled={s.busy || s.paused}>Close it</button><button type="button" className="nv-cd-btn sm ghost" onClick={s.cancelClose}>Keep</button></span>
           : <button type="button" className="nv-cd-btn sm" onClick={s.askClose} disabled={s.busy || s.paused}>Close</button>
       ) : s.canShow ? <button type="button" className="nv-cd-btn sm" onClick={s.show} disabled={s.busy || s.paused} aria-label={`Show ${s.name} on your Mac`}>{s.busy ? 'Opening' : 'Show'}</button> : <span />}
+      {s.open && <SessTalk s={s} hue={hue} />}
     </div>
   );
 }
 
-function SessionsCard({ rows, hue, empty }) {
+// A full Claude Code session on the Mac, started from the phone: the real
+// thing, with its own tools and his settings, not the Builder's narrow lane.
+function SessStart({ start, hue }) {
+  if (!start.open) {
+    return <button type="button" className="nv-cd-sstart" onClick={start.toggle} disabled={start.paused}><Ic g="plus" /><span>Start a session in {start.where}</span></button>;
+  }
+  return (
+    <div className="nv-cd-sstart open" style={{ '--h': hue }}>
+      <textarea rows={3} value={start.draft} onChange={(e) => start.setDraft(e.target.value)} placeholder={`What should it do in ${start.where}?`} aria-label={`What the new session should do in ${start.where}`} autoFocus />
+      <div className="row">
+        <button type="button" className="nv-cd-btn sm ghost" onClick={start.toggle}>Cancel</button>
+        <button type="button" className="nv-cd-btn sm" onClick={start.run} disabled={!start.draft.trim() || start.busy || start.paused}>{start.busy ? 'Starting' : 'Start it'}</button>
+      </div>
+      <span className="nv-cd-k">It runs on your Mac in the background with your usual Claude Code settings, and is listed here when it starts.</span>
+    </div>
+  );
+}
+
+function SessionsCard({ rows, hue, empty, start, note }) {
   const ref = useRef(null);
   useFlipList(ref, rows.map((s) => s.id + s.state).join('|'));
-  if (!rows.length) return <div className="nv-cd-card nv-cd-rv"><span className="nv-cd-k">{empty}</span></div>;
-  return <div className="nv-cd-card nv-cd-rv list" ref={ref}>{rows.map((s) => <SessRow key={s.id} s={s} hue={hue} />)}</div>;
+  const foot = (
+    <>
+      {note && <p className="nv-cd-snote" role="status">{note}</p>}
+      {start && <SessStart start={start} hue={hue} />}
+    </>
+  );
+  if (!rows.length) return <div className="nv-cd-card nv-cd-rv"><span className="nv-cd-k">{empty}</span>{foot}</div>;
+  return <div className="nv-cd-card nv-cd-rv list" ref={ref}>{rows.map((s) => <SessRow key={s.id} s={s} hue={hue} />)}{foot}</div>;
 }
 
 // -------------------------------------------------------------------- runs --
@@ -561,7 +618,7 @@ function Page({ c, page, wide }) {
   const sessions = page.review && (
     <section className="nv-cd-grp" id="nv-cd-g-sessions">
       <div className="nv-cd-gh"><h2>On your Mac</h2><span>{page.sessionsHead}</span></div>
-      <SessionsCard rows={page.sessions} hue={page.hue} empty={`No session is open in ${page.title} on your Mac.`} />
+      <SessionsCard rows={page.sessions} hue={page.hue} empty={`No session is open in ${page.title} on your Mac.`} start={page.start} note={page.note} />
       <p className="nv-cd-fine">The bar is quiet time; past its end, 12 hours, a session counts as left open.</p>
     </section>
   );
@@ -606,7 +663,7 @@ function Page({ c, page, wide }) {
         <>
           <section className="nv-cd-grp" id={page.wren ? 'nv-cd-g-work' : 'nv-cd-g-sessions'}>
             <div className="nv-cd-gh"><h2>{page.wren ? 'The work' : 'On your Mac'}</h2><span>{page.workSessionsHead}</span></div>
-            <SessionsCard rows={page.sessions} hue={page.hue} empty={`No session is open in ${page.title} on your Mac.`} />
+            <SessionsCard rows={page.sessions} hue={page.hue} empty={`No session is open in ${page.title} on your Mac.`} start={page.start} note={page.note} />
           </section>
           {page.wren && (
             <section className="nv-cd-grp nv-cd-kinsec" id="nv-cd-g-wren" style={{ '--h': page.wren.glyph.hue }}>

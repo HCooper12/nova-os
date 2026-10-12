@@ -77,6 +77,7 @@ export function sessionRows(sessions) {
     id: s.sessionId,
     name: s.name || 'A session',
     state: s.state,
+    kind: s.kind === 'background' ? 'background' : 'terminal',
     line: sessionLine(s),
     quiet: quietOf(s),
     canShow: !!s.canShow,
