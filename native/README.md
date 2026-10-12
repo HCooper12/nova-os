@@ -53,6 +53,45 @@ and the App Store. That is a separate decision; nothing here needs it.
 or the plugin list changes. Web changes need nothing — the shell loads the
 live site.
 
+## Live Activities: Nova on the lock screen and in the real Dynamic Island
+
+His ask, 12 Oct 2026. Two cards, both drawn by the `NovaLiveActivityExtension`
+target (`ios/App/NovaLiveActivity/`) from data the web app sends through the
+`NovaLiveActivity` plugin (`ios/App/App/NovaLiveActivityPlugin.swift`,
+registered in `NovaBridgeViewController.swift`):
+
+- **Workout**: while a session is live. A ring of sets done of total in the
+  next lift's muscle hue, the routine, "Next: <lift>", the session clock, and
+  the rest countdown with a draining bar. iOS ticks the clocks itself, so the
+  rest timer stays right with the phone locked and Nova asleep.
+- **Job**: long work he started (a book read, an ingest, research): what is
+  running and for how long, then "Ready" when it lands.
+
+The data is built in `src/liveActivityModel.js` and sent from
+`src/IslandFeed.jsx`; `NovaActivityAttributes.swift` must match it field for
+field (`server/test/liveActivityModel.test.js` checks that).
+
+### Your steps (after the shell steps above work)
+
+1. Xcode → the **NovaLiveActivityExtension** target → Signing & Capabilities →
+   the same Team as the App target. Its id is
+   `com.haydencooper.novaos.LiveActivity`; if you changed the app's id, keep
+   this one as `<app id>.LiveActivity`.
+2. Run on the iPhone (⌘R). On the phone: Settings → Nova OS → Live Activities
+   must be on (it is by default).
+3. Start a workout in Nova, tick a set, lock the phone: the card is on the
+   lock screen and the island, with the rest counting down.
+
+### Limits, honestly
+
+- **Updates only arrive while Nova is open.** A card's clocks keep ticking on
+  their own, but a set ticked elsewhere or a job that finishes while the phone
+  is locked will not change it until Nova next opens. Updating a card from
+  the Mac needs Apple push (APNs), which needs the paid developer account.
+- A tap on the card opens Nova where you left it, not a particular screen.
+- Nothing here has been compiled yet (no Xcode on this Mac). The Swift was
+  parse-checked only; the first build may need small fixes.
+
 ## Honest limits
 
 - Haptics only work inside this shell; the Home Screen PWA stays silent.
