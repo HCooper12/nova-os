@@ -8,6 +8,7 @@ import { useOptionPager } from '../swipeAction.js';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, ScreenHead, Button } from '../Controls.jsx';
 import { PickItUp } from './PickItUp.jsx';
+import { NumberRoll } from '../NumberRoll.jsx';
 import { SkeletonGrid } from '../Skeleton.jsx';
 import { FuelSummary } from './FuelSummary.jsx';
 import { FIcon } from '../FuelIcon.jsx';
@@ -37,13 +38,17 @@ const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpp
 function QuickLogCard({ item }) {
   const grams = item.p + item.c + item.f;
   const pct = (n) => (grams > 0 ? `${(n / grams) * 100}%` : '0%');
+  // the tap is answered where his finger is (13 Oct, keynote-motion): a check
+  // pops over the card and fades, while the rings above take the new totals
+  const [logged, setLogged] = useState(0);
+  const log = () => { setLogged(Date.now()); item.log(); };
   return (
-    <Interactive as="div" onClick={item.log} haptic="commit"
+    <Interactive as="div" onClick={log} haptic="commit"
       aria-label={`Log ${item.name} again — ${item.kcal} calories`}
       base={{
         flex: '0 0 132px', minWidth: 0, cursor: 'pointer', borderRadius: '15px', padding: '11px 12px 10px',
         border: '1px solid var(--nv-edge)', background: 'var(--nv-glass)',
-        display: 'flex', flexDirection: 'column', gap: '7px', textAlign: 'left',
+        display: 'flex', flexDirection: 'column', gap: '7px', textAlign: 'left', position: 'relative',
         transition: 'border-color .18s var(--nv-ease), background .18s var(--nv-ease)',
       }}
       hoverStyle={{ borderColor: 'color-mix(in srgb, var(--nv-good) 55%, transparent)', background: 'color-mix(in srgb, var(--nv-good) 07%, var(--nv-glass))' }}>
@@ -63,6 +68,11 @@ function QuickLogCard({ item }) {
           <span style={{ width: pct(item.f), background: 'var(--nv-vi)' }} />
         </span>
       )}
+      {logged ? (
+        <span key={logged} className="nv-logged" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
+      ) : null}
     </Interactive>
   );
 }
@@ -267,7 +277,7 @@ function KcalRing({ ring }) {
         )}
       </svg>
       <div style={css("position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px")}>
-        <b style={css(`font:400 ${ring.eaten.toLocaleString().length > 5 ? '18' : '22'}px/1 var(--nv-font-serif);color:${ring.over ? 'var(--nv-warn)' : 'var(--nv-ink)'};font-variant-numeric:tabular-nums`)}>{ring.state === 'arc' || ring.eaten > 0 ? ring.eaten.toLocaleString() : '—'}</b>
+        <b style={css(`font:400 ${ring.eaten.toLocaleString().length > 5 ? '18' : '22'}px/1 var(--nv-font-serif);color:${ring.over ? 'var(--nv-warn)' : 'var(--nv-ink)'};font-variant-numeric:tabular-nums`)}>{ring.state === 'arc' || ring.eaten > 0 ? <NumberRoll value={ring.eaten} /> : '—'}</b>
         <Meta tone="faint" style={{ fontVariantNumeric: 'tabular-nums' }}>{ring.target ? `of ${ring.target.toLocaleString()} kcal` : 'kcal, no target'}</Meta>
       </div>
     </div>
@@ -320,7 +330,7 @@ function MacroRings({ hero }) {
             beside the dashed ring the arcs already draw for the same state */}
         {/* protein owns this ring's middle now; calories have their own
             ring beside it (26 Sep) */}
-        <b style={css("font:400 22px/1 var(--nv-font-serif);color:var(--nv-cy);font-variant-numeric:tabular-nums")}>{hero.p > 0 ? `${hero.p}` : '—'}<span style={css("font-size:13px")}>{hero.p > 0 ? 'g' : ''}</span></b>
+        <b style={css("font:400 22px/1 var(--nv-font-serif);color:var(--nv-cy);font-variant-numeric:tabular-nums")}>{hero.p > 0 ? <NumberRoll value={hero.p} /> : '—'}<span style={css("font-size:13px")}>{hero.p > 0 ? 'g' : ''}</span></b>
         <Meta tone="faint" style={{ fontVariantNumeric: 'tabular-nums' }}>{hero.target ? `of ${hero.target} g protein` : 'protein, no floor'}</Meta>
       </div>
     </div>
@@ -667,7 +677,7 @@ function RecipesPage({ v }) {
           {v.foodLogEntries.length > 0 && (
             <div style={css("margin-top:10px;display:flex;align-items:center;gap:11px")}>
               <span style={css("display:flex;align-items:baseline;gap:4px;flex:none")}>
-                <span style={css("font:700 17px var(--nv-font-ui);letter-spacing:var(--nv-display-track);color:var(--nv-ink);font-variant-numeric:tabular-nums")}>{v.foodLogOffPlanTotals.kcal}</span>
+                <span style={css("font:700 17px var(--nv-font-ui);letter-spacing:var(--nv-display-track);color:var(--nv-ink);font-variant-numeric:tabular-nums")}><NumberRoll value={Number(v.foodLogOffPlanTotals.kcal) || 0} /></span>
                 <span style={css("font:600 9.5px var(--nv-font-ui);letter-spacing:.06em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent)")}>KCAL OFF-PLAN</span>
               </span>
               <span style={css("flex:1;min-width:0;display:flex;flex-direction:column;gap:4px")}>

@@ -4924,7 +4924,9 @@ export default class App extends Component {
     // So Finish arms the effects context here; a confirmed record plays its
     // triad on it, and a finish with none lets it go.
     primeSfx();
-    api.completeWorkoutSession(conn, payload).then(({ prs } = {}) => {
+    // the Finish button shows it is saving and cannot be tapped twice (13 Oct)
+    this.setState({ sessionFinishing: true });
+    api.completeWorkoutSession(conn, payload).finally(() => this.setState({ sessionFinishing: false })).then(({ prs } = {}) => {
       // THE PERSONAL-BEST MOMENT (src/RecordMoment.jsx): the server's records,
       // compared at the resolution shown and joined to this session's lifts
       // for the hue and the kit. It stays until he dismisses it — no timer

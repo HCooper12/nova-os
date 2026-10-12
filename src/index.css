@@ -335,6 +335,16 @@ span.nv-count > span { display: inline !important; margin: 0 !important; }
      Never hardcode a duration or a curve in a component again. */
   --nv-ease:cubic-bezier(.32,.72,0,1); --nv-ease-exit:cubic-bezier(.4,0,1,1);
   --nv-dur-fast:.16s; --nv-dur-base:.28s; --nv-dur-slow:.44s;
+  /* SPRINGS (13 Oct 2026, the keynote-motion skill): true damped-spring curves
+     as linear(), each with the duration that contains its settle. smooth = no
+     overshoot (sheets, big moves); snappy = Apple's UI default, 0.6%
+     (toggles, pills, selection); bouncy = 4.6% (a card landing, a tick, a chip
+     springing in); playful = 12.6%, ONE hero moment per screen at most (a goal
+     hit). Generated in ~/.claude/skills/keynote-motion/SKILL.md. */
+  --nv-spring-smooth:linear(0, 0.0126, 0.045, 0.091, 0.1455, 0.2048, 0.2662, 0.3275, 0.3874, 0.4448, 0.4991, 0.5499, 0.5969, 0.6401, 0.6796, 0.7154, 0.7478, 0.777, 0.8032, 0.8266, 0.8475, 0.8661, 0.8825, 0.8971, 0.91, 0.9213, 0.9313, 0.9401, 0.9478, 0.9545, 0.9605, 0.9656, 0.9701, 0.9741, 0.9775, 0.9805, 0.9831, 0.9854, 0.9873, 0.9891, 0.9905, 0.9918, 0.9929, 0.9939, 0.9947, 0.9955, 0.9961, 0.9966, 0.9971, 0.9975, 0.9978, 0.9981, 0.9984, 0.9986, 0.9988, 0.999, 0.9991, 0.9992, 0.9994, 0.9994, 1); --nv-spring-smooth-ms:800ms;
+  --nv-spring-snappy:linear(0, 0.0128, 0.0464, 0.095, 0.1536, 0.2183, 0.286, 0.3543, 0.4214, 0.486, 0.5471, 0.6041, 0.6566, 0.7045, 0.7477, 0.7864, 0.8206, 0.8508, 0.8771, 0.8999, 0.9195, 0.9362, 0.9503, 0.9621, 0.9719, 0.98, 0.9865, 0.9918, 0.9959, 0.9992, 1.0016, 1.0034, 1.0047, 1.0055, 1.006, 1.0063, 1.0063, 1.0061, 1.0059, 1.0055, 1.0052, 1.0047, 1.0043, 1.0039, 1.0035, 1.0031, 1.0027, 1.0024, 1.002, 1.0017, 1.0015, 1.0013, 1.001, 1.0009, 1.0007, 1.0006, 1.0005, 1.0004, 1.0003, 1.0002, 1); --nv-spring-snappy-ms:640ms;
+  --nv-spring-bouncy:linear(0, 0.013, 0.0479, 0.0992, 0.1624, 0.2332, 0.3084, 0.3851, 0.4611, 0.5347, 0.6045, 0.6696, 0.7293, 0.7833, 0.8314, 0.8737, 0.9103, 0.9415, 0.9676, 0.989, 1.0063, 1.0198, 1.0299, 1.0372, 1.0421, 1.0449, 1.0459, 1.0457, 1.0443, 1.0421, 1.0393, 1.0361, 1.0327, 1.0292, 1.0257, 1.0222, 1.019, 1.0159, 1.0131, 1.0106, 1.0083, 1.0063, 1.0045, 1.003, 1.0018, 1.0007, 0.9999, 0.9992, 0.9987, 0.9984, 0.9981, 0.998, 0.9979, 0.9979, 0.9979, 0.998, 0.9982, 0.9983, 0.9985, 0.9986, 1); --nv-spring-bouncy-ms:800ms;
+  --nv-spring-playful:linear(0, 0.0166, 0.0615, 0.128, 0.21, 0.3019, 0.3989, 0.497, 0.5928, 0.6837, 0.7677, 0.8434, 0.9099, 0.9669, 1.0142, 1.0523, 1.0815, 1.1027, 1.1166, 1.1241, 1.1263, 1.1241, 1.1182, 1.1097, 1.0993, 1.0877, 1.0754, 1.063, 1.0509, 1.0395, 1.0289, 1.0194, 1.011, 1.0039, 0.998, 0.9932, 0.9896, 0.9869, 0.9852, 0.9843, 0.984, 0.9844, 0.9851, 0.9862, 0.9875, 0.989, 0.9905, 0.9921, 0.9936, 0.9951, 0.9964, 0.9976, 0.9986, 0.9995, 1.0003, 1.0009, 1.0013, 1.0017, 1.0019, 1.002, 1); --nv-spring-playful-ms:990ms;
   --nv-rise:12px;
   /* a group assembles instead of landing as a slab; the cap stops a long
      list from crawling (7 beats, then everything remaining lands together) */
@@ -2764,6 +2774,13 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   background: radial-gradient(circle, color-mix(in srgb, var(--h) 12%, transparent), transparent 70%);
   animation: fadeIn var(--nv-dur-base) var(--nv-ease);
 }
+/* the set just logged (13 Oct, keynote-motion §4): the tick gives way to the
+   rest ring, which lands on the bouncy spring with a green ripple, so "done"
+   and "now rest" read as one move, not a swap */
+.nv-ss-rest { animation: nvSsRestIn var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) both; }
+@keyframes nvSsRestIn { from { transform: scale(.8); } }
+.nv-ss-rest::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 2px var(--nv-good); pointer-events: none; animation: nvSsRipple .62s var(--nv-ease) both; }
+@keyframes nvSsRipple { from { transform: scale(1); opacity: .75; } to { transform: scale(1.6); opacity: 0; } }
 .nv-ss-rest > svg { position: absolute; inset: 0; width: 64px; height: 64px; transform: rotate(-90deg); }
 .nv-ss-rest .trk { fill: none; stroke: color-mix(in srgb, var(--h) 20%, transparent); stroke-width: 5; }
 .nv-ss-rest .arc { fill: none; stroke: var(--h); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 1s linear; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--h) 55%, transparent)); }
@@ -2983,7 +3000,7 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 /* reduced motion: a fade, and the ring steps once a second instead of gliding */
 @media (prefers-reduced-motion: reduce) {
   .nv-ss-xin, .nv-ss-xin.fromr, .nv-ss-xin.froml, .nv-ss-slide, .nv-ss-pad, .nv-ss-vlive, .nv-ss-vset, .nv-ss-receipt, .nv-ss-confirm { animation: fadeIn .2s ease both; }
-  .nv-ss-sp.d, .nv-ss-numbox .caret, .nv-ss-vmic.on { animation: none; }
+  .nv-ss-sp.d, .nv-ss-numbox .caret, .nv-ss-vmic.on, .nv-ss-rest, .nv-ss-rest::after { animation: none; }
   .nv-ss-rest .arc, .nv-ss-prg .past, .nv-ss-numbox { transition: none; }
 }
 /* Calm: the glow goes, the depth stays */
@@ -5624,3 +5641,54 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
 /* the quiet fold: Nova's unprompted check-ins, in his own cyan, quieter than a brief */
 .nv-nt-brief.quiet .nv-nt-briefhead > .nv-nt-ico:first-child { color: var(--nv-cy); }
 .nv-nt-brief.quiet .nv-nt-briefhead .t { font-weight: 500; }
+
+/* THE ODOMETER (NumberRoll.jsx, 13 Oct 2026, keynote-motion §1): each digit a
+   column of 0-9 that rolls on the snappy spring; the units settle first, each
+   place to the left 35 ms later; a touch of blur while they fly. */
+.nv-roll { display: inline-flex; align-items: baseline; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-roll-d { position: relative; display: inline-block; overflow: hidden; height: 1lh; vertical-align: bottom; }
+.nv-roll-d .sizer { visibility: hidden; }
+.nv-roll-d .col { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; transform: translateY(calc(var(--d) * -1lh));
+  transition: transform var(--nv-spring-snappy-ms) var(--nv-spring-snappy) calc(var(--p) * 35ms), filter .36s var(--nv-ease) calc(var(--p) * 35ms); }
+.nv-roll-d .col > span { height: 1lh; }
+.nv-roll.rolling .nv-roll-d .col { filter: blur(1.2px); }
+@media (prefers-reduced-motion: reduce) { .nv-roll-d .col { transition: none; } .nv-roll.rolling .nv-roll-d .col { filter: none; } }
+
+/* a ring closing on its goal (RingTile.jsx, keynote-motion §6): eight short
+   rays of the ring's own colour fly out and fade, once, and the ring pulses */
+.nv-ring-burst { position: absolute; inset: 0; pointer-events: none; animation: nvRingPulse var(--nv-spring-playful-ms) var(--nv-spring-playful) both; }
+.nv-ring-burst > i { position: absolute; left: 50%; top: 50%; width: 2px; height: 7px; margin: -3.5px 0 0 -1px; border-radius: 1px; background: var(--t);
+  transform: rotate(var(--a)) translateY(-26px); opacity: 0; animation: nvRingRay .62s var(--nv-ease) .08s both; }
+@keyframes nvRingRay { 0% { opacity: 0; transform: rotate(var(--a)) translateY(-24px) scaleY(.4); } 30% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-36px) scaleY(1); } }
+@keyframes nvRingPulse { from { transform: scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .nv-ring-burst, .nv-ring-burst > i { animation: none; display: none; } }
+
+/* the set tick (Workouts.jsx, 13 Oct, keynote-motion §4): transitions only,
+   so the moment plays on a real tick and never on a re-open */
+.nv-setdone { display: flex; align-items: center; justify-content: center; border-radius: 9px; color: var(--nv-on-acc);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 25%, transparent); background: transparent;
+  transition: background-color var(--nv-dur-fast) var(--nv-ease), box-shadow var(--nv-dur-fast) var(--nv-ease); }
+.nv-setdone[data-done="1"] { background: var(--nv-cy); box-shadow: inset 0 0 0 1px var(--nv-cy), 0 0 16px -6px var(--nv-cy); }
+.nv-setdone svg { transform: scale(.55); opacity: 0; transition: transform var(--nv-spring-playful-ms) var(--nv-spring-playful), opacity var(--nv-dur-fast) var(--nv-ease); }
+.nv-setdone[data-done="1"] svg { transform: scale(1); opacity: 1; }
+.nv-setdone svg path { stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset .26s var(--nv-ease) .06s; }
+.nv-setdone[data-done="1"] svg path { stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: reduce) { .nv-setdone, .nv-setdone svg, .nv-setdone svg path { transition: none; } }
+
+/* a strike that draws itself across the words, wrapping lines included
+   (Home's top 3, 13 Oct): a background line that grows, not a font decoration */
+.nv-struck { display: inline; background-image: linear-gradient(currentColor, currentColor); background-repeat: no-repeat; background-position: 0 56%; background-size: 0% 1.5px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone; transition: background-size .5s var(--nv-ease), opacity var(--nv-dur-base) var(--nv-ease); }
+.nv-struck[data-struck="1"] { background-size: 100% 1.5px; }
+@media (prefers-reduced-motion: reduce) { .nv-struck { transition: none; } }
+
+/* a quick-log tap answered on the card (Recipes.jsx QuickLogCard, 13 Oct):
+   a green check pops on the bouncy spring, draws, holds, and fades */
+.nv-logged { position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit; pointer-events: none; color: var(--nv-good);
+  background: color-mix(in srgb, var(--nv-good) 16%, color-mix(in srgb, var(--nv-bg1) 70%, transparent)); animation: nvLoggedOut .3s var(--nv-ease-exit) 1.1s both; }
+.nv-logged svg { animation: nvLoggedIn var(--nv-spring-bouncy-ms) var(--nv-spring-bouncy) both; }
+.nv-logged svg path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: nvTickDraw .28s var(--nv-ease) .08s forwards; }
+@keyframes nvLoggedIn { from { transform: scale(.5); opacity: 0; } }
+@keyframes nvLoggedOut { to { opacity: 0; } }
+/* reduced motion: still confirmed, by a fade only: no pop, no draw */
+@media (prefers-reduced-motion: reduce) { .nv-logged svg, .nv-logged svg path { animation: none; stroke-dashoffset: 0; } }

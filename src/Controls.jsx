@@ -487,7 +487,9 @@ export function Segmented({ options, value, onChange, ariaLabel, stretch }) {
           position: 'absolute', top: '2px', left: '2px', right: '2px', bottom: '2px',
           display: 'flex', gap: '2px', pointerEvents: 'none',
           clipPath: clip, WebkitClipPath: clip,
-          transition: reduced || !settled.current ? 'none' : 'clip-path 260ms var(--nv-ease), -webkit-clip-path 260ms var(--nv-ease)',
+          // the snappy spring (13 Oct, keynote-motion §3): the pill lands with
+          // the faint overshoot of a physical thing, not a curve's glide
+          transition: reduced || !settled.current ? 'none' : 'clip-path var(--nv-spring-snappy-ms) var(--nv-spring-snappy), -webkit-clip-path var(--nv-spring-snappy-ms) var(--nv-spring-snappy)',
         }}>
           {options.map(([val, label]) => (
             <span key={val} style={segItemStyle(apple, stretch, true)}>{label}</span>

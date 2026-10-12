@@ -74,7 +74,8 @@ test('the number drawn beside "KCAL OFF-PLAN" is the off-plan sum', () => {
   const label = src.indexOf('>KCAL OFF-PLAN<');
   assert.ok(label > 0, 'the label is still there');
   const strip = src.slice(src.lastIndexOf('v.foodLogEntries.length > 0 && (', label), src.indexOf('Log part of something already in his collection', label));
-  assert.ok(strip.includes('{v.foodLogOffPlanTotals.kcal}'), 'the figure reads the off-plan sum');
+  // 13 Oct: the figure rolls (NumberRoll), still the off-plan sum
+  assert.ok(strip.includes('<NumberRoll value={Number(v.foodLogOffPlanTotals.kcal) || 0} />'), 'the figure reads the off-plan sum');
   assert.ok(!strip.includes('v.foodLogTotals'), 'nothing in the strip reads the whole-day total');
 });
 

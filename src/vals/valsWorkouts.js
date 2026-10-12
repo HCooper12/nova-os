@@ -853,6 +853,7 @@ export function valsWorkouts(app, ctx) {
     setSessionCutShort: (r) => app.setState({ sessionCutShort: st.sessionCutShort === r ? null : r }),
     sessionCancelConfirm: st.sessionCancelConfirm,
     finishSession: () => app.finishWorkoutSession(),
+    sessionFinishing: !!app.state.sessionFinishing,
     saveForLater: () => app.saveWorkoutForLater(),
     canSaveForLater: !st.editingSessionId, // editing a past session isn't "in progress"
     requestCancelSession: () => app.requestCancelSession(),

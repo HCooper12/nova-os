@@ -90,7 +90,7 @@ test('calories have their own ring, drawn like the macro ring and beside it', ()
   const ring = kcalRingFn();
   assert.match(ring, /var\(--nv-font-serif\)/, 'the figure in the news line face, per §2b r2');
   assert.match(ring, /ring\.eaten\.toLocaleString\(\)/);
-  assert.match(ring, /\|\| ring\.eaten > 0 \? ring\.eaten\.toLocaleString\(\) : '—'/, 'nothing logged is a dash in the centre, not a zero');
+  assert.match(ring, /\|\| ring\.eaten > 0 \? <NumberRoll value=\{ring\.eaten\} \/> : '—'/, 'nothing logged is a dash in the centre, not a zero (the figure rolls, 13 Oct)');
   assert.match(ring, /strokeDasharray="3 5"/, 'a gap is the dashed ring here too');
   assert.match(ring, /stroke=\{GAP_TONE\}/);
   assert.match(ring, /animation: 'nvArcIn 1s/, 'the arc grows in, not appears finished');
@@ -108,7 +108,7 @@ test('calories have their own ring, drawn like the macro ring and beside it', ()
 test('the macro ring\'s middle is protein now, in the protein hue', () => {
   const ring = ringsFn();
   assert.match(ring, /color:var\(--nv-cy\)/, 'the protein figure wears the protein hue');
-  assert.match(ring, /hero\.p > 0 \? `\$\{hero\.p\}` : '—'/, 'nothing logged is a dash, not a zero');
+  assert.match(ring, /hero\.p > 0 \? <NumberRoll value=\{hero\.p\} \/> : '—'/, 'nothing logged is a dash, not a zero (the figure rolls, 13 Oct)');
   assert.match(ring, /of \$\{hero\.target\} g protein/);
   assert.ok(!/hero\.kcal\.toLocaleString\(\)/.test(ring), 'calories left this ring for their own');
 });

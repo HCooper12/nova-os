@@ -58,7 +58,9 @@ test('a rail card draws the food, it does not spell it out', () => {
   assert.match(card, /var\(--nv-vi\)/, 'fat violet');
   assert.match(card, /grams > 0 &&/, 'a food with no macros draws no bar rather than a bar of zeros');
   assert.match(card, /font:700 19px/, 'the energy is the figure, at display size');
-  assert.match(card, /onClick=\{item\.log\}/, 'one tap is the whole point');
+  // 13 Oct: the tap also pops a check on the card; it still logs in one tap
+  assert.match(card, /onClick=\{log\}/, 'one tap is the whole point');
+  assert.match(card, /const log = \(\) => \{ setLogged\(Date\.now\(\)\); item\.log\(\); \};/);
   assert.match(card, /haptic="commit"/, 'logging something is a commit and must be felt');
 });
 

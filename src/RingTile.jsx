@@ -1,5 +1,20 @@
+import { useEffect, useRef, useState } from 'react';
 import { css } from './css.js';
 import { CountText } from './CountUp.jsx';
+
+// A GOAL CLOSING IS A MOMENT (13 Oct 2026, keynote-motion §6). When a ring
+// crosses 100% WHILE HE IS LOOKING (a meal ticked that lands the protein
+// floor), it closes with a short burst of its own colour. Arriving on a ring
+// that was already full shows nothing: nothing just happened.
+function useGoalHit(shown) {
+  const prev = useRef(shown);
+  const [hit, setHit] = useState(0);
+  useEffect(() => {
+    if (prev.current < 100 && shown >= 100) setHit(Date.now());
+    prev.current = shown;
+  }, [shown]);
+  return hit;
+}
 
 // THE RING, EVERYWHERE — B1 from the 4 Sep audit, his pick on 5 Sep.
 //
@@ -45,6 +60,7 @@ export function RingTile({ label, value, small, pct, state = 'absent', hint, onO
   // in the title and the aria-label, so nothing is lost by rounding the
   // glance. Anything that is not a plain number is left exactly as given.
   const compact = abbreviate(value);
+  const hit = useGoalHit(state === 'absent' ? 0 : shown);
   return (
     <div onClick={onOpen} role={onOpen ? 'button' : undefined}
       style={css(`display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;cursor:${onOpen ? 'pointer' : 'default'}`)}
@@ -59,9 +75,14 @@ export function RingTile({ label, value, small, pct, state = 'absent', hint, onO
           ) : (
             <circle cx="29" cy="29" r={r} fill="none" stroke={tone} strokeWidth="5" strokeLinecap="round"
               strokeDasharray={c} strokeDashoffset={off}
-              style={{ transition: 'stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1)' }} />
+              style={{ transition: 'stroke-dashoffset var(--nv-spring-smooth-ms) var(--nv-spring-smooth)' }} />
           )}
         </svg>
+        {hit ? (
+          <span key={hit} className="nv-ring-burst" aria-hidden="true" style={{ '--t': tone }}>
+            {Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--a': `${i * 45}deg` }} />)}
+          </span>
+        ) : null}
         <div style={css('position:absolute;inset:0;display:flex;align-items:center;justify-content:center')}>
           <b style={css(`font:600 ${compact.length > 4 ? '11px' : '13px'} ${M};color:${state === 'absent' ? TONE.absent : 'var(--nv-ink)'};font-variant-numeric:tabular-nums`)}>
             {state === 'absent' ? '—' : arrive ? <CountText text={compact} fromZero /> : compact}

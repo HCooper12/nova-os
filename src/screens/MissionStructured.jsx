@@ -399,7 +399,10 @@ export function MissionStructured({ v }) {
               // SEEN, NOT TICKED: done in his log, so the check is Nova's
               // cyan rather than his gold number (server/lib/planObserve.js)
               leading={<span style={{ font: `600 13px ${M}`, color: p.seen ? 'var(--nv-cy)' : 'var(--nv-gold)' }}>{p.seen ? '✓' : i + 1}</span>}
-              title={<span style={{ opacity: p.outcome || p.seen ? 0.6 : 1, textDecoration: p.outcome === 'done' || p.seen ? 'line-through' : 'none' }}>{p.do}</span>}
+              // the strike DRAWS across the words when he marks it done
+              // (13 Oct, keynote-motion): a transition, so it plays on the tap
+              // and a plan opened already-done simply shows it struck
+              title={<span className="nv-struck" data-struck={p.outcome === 'done' || p.seen ? '1' : '0'} style={{ opacity: p.outcome || p.seen ? 0.6 : 1 }}>{p.do}</span>}
               sub={p.seen
                 ? <span style={{ color: 'var(--nv-cy)' }}>Seen in your log · {p.seen}</span>
                 : p.notYet || p.start ? <>

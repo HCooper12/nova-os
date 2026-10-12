@@ -1,4 +1,5 @@
 import { css } from '../css.js';
+import { TickButton } from '../TickButton.jsx';
 import { muscleVar } from '../muscleHue.js';
 import { FormCheckPanel } from '../FormCheckPanel.jsx';
 import { LocalInput } from '../LocalInput.jsx';
@@ -647,13 +648,23 @@ function SessionView({ v }) {
                   <Interactive as="span" onClick={s.cycleType} haptic="tick" title="Tap to cycle: working / backoff / warm-up"
                     base={`cursor:pointer;text-align:center;font:600 ${isAppleStyle() ? '10.5px var(--nv-font-ui)' : '8px var(--nv-font-mono)'};letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
                   >{s.setType === 'warmup' ? 'WU' : s.setType === 'backoff' ? 'BO' : 'WK'}</Interactive>
+                  {/* THE SET TICK, his most-tapped control (13 Oct, keynote-motion
+                      §4): the box fills on a spring and the check DRAWS itself.
+                      Transitions, not animations, so it plays when he ticks a
+                      set and never when a session full of done sets opens. */}
                   <Interactive
                     as="span"
+                    role="checkbox"
+                    aria-checked={!!s.done}
+                    aria-label={s.done ? 'Set done. Tap to undo' : 'Mark set done'}
                     onClick={s.onToggleDone}
                     haptic="tick"
-                    base={{ cursor: 'pointer', width: '40px', height: '40px', margin: '-6px 0', justifySelf: 'start', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700,
-                      border: s.done ? '1px solid var(--nv-cy)' : '1px solid color-mix(in srgb, var(--nv-ink) 25%, transparent)', background: s.done ? 'var(--nv-cy)' : 'transparent', color: 'var(--nv-on-acc)' }}
-                  >{s.done ? '✓' : ''}</Interactive>
+                    className="nv-setdone"
+                    data-done={s.done ? '1' : '0'}
+                    base={{ cursor: 'pointer', width: '40px', height: '40px', margin: '-6px 0', justifySelf: 'start' }}
+                  >
+                    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </Interactive>
                   {s.canRemove ? (
                     <Interactive as="span" onClick={s.onRemove} haptic="tick" base="cursor:pointer;width:26px;height:36px;margin:-4px 0;display:flex;align-items:center;justify-content:center;font-size:16px;color:color-mix(in srgb, var(--nv-ink) 30%, transparent)" hoverStyle="color:var(--nv-warn)">×</Interactive>
                   ) : <span></span>}
@@ -743,7 +754,9 @@ function SessionView({ v }) {
         </div>
       )}
       <div style={css("margin-top:24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap")}>
-        <Button onClick={v.finishSession}>{v.sessionEditing ? 'Save changes' : 'Finish workout'}</Button>
+        {v.sessionEditing
+          ? <Button onClick={v.finishSession}>Save changes</Button>
+          : <TickButton state={v.sessionFinishing ? 'working' : 'idle'} onClick={v.finishSession} label="Finish workout" ariaLabel="Finish workout and save it" />}
         {v.canSaveForLater && (
           <Interactive as="span" onClick={v.saveForLater} base={outline('var(--nv-gold)')} hoverStyle={{ filter: 'brightness(1.1)' }}>Save for later</Interactive>
         )}
