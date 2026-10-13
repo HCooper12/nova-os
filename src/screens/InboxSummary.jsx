@@ -363,6 +363,28 @@ function Receipt({ r }) {
   );
 }
 
+// A ROW'S DETAILS SPRING OPEN AND CLOSED (13 Oct 2026, mockup 101's motion
+// list) rather than cutting in and out: the grid-rows disclosure Train and
+// Fuel use, kept mounted through its close so the closing is seen. A row
+// already open when the page arrives is simply open.
+const DISCLOSE_MS = 380;
+function Disclose({ open, children }) {
+  const [shown, setShown] = useState(open);
+  const [on, setOn] = useState(open);
+  useEffect(() => {
+    if (open) {
+      setShown(true);
+      const r = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
+      return () => cancelAnimationFrame(r);
+    }
+    setOn(false);
+    const t = setTimeout(() => setShown(false), DISCLOSE_MS);
+    return () => clearTimeout(t);
+  }, [open]);
+  if (!shown) return null;
+  return <div className="nv-sum-ib-disc" data-on={on ? '' : undefined}><div>{children}</div></div>;
+}
+
 function FiledRow({ row }) {
   return (
     <div data-record={row.id} className={`nv-sum-ib-fitem${row.dim ? ' dim' : ''}`}>
@@ -378,7 +400,7 @@ function FiledRow({ row }) {
           ? <TextAction onClick={row.action.busy ? undefined : row.action.run} disabled={row.action.busy}>{row.action.busy ? '…' : row.action.label}</TextAction>
           : <span className="st">{row.state}</span>}
       </div>
-      {row.expanded && (
+      <Disclose open={!!row.expanded}>
         <div className="nv-sum-ib-fdetail">
           {row.detail.line && <span className="dl">{row.detail.line}</span>}
           {row.detail.captured && <div><span className="k">You captured</span><span className="v">{row.detail.captured}</span></div>}
@@ -390,7 +412,7 @@ function FiledRow({ row }) {
             </div>
           )}
         </div>
-      )}
+      </Disclose>
     </div>
   );
 }

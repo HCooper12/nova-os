@@ -2769,7 +2769,13 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-sum-ib-frow .st { padding: 0 6px; font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); white-space: nowrap; }
 .nv-sum-ib-fitem.dim .ti { color: var(--ib-ink3); }
 .nv-sum-ib-fitem.dim .nv-sum-ib-tile { opacity: .55; }
-.nv-sum-ib-fdetail { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 12px 64px; animation: fadeUp var(--nv-dur-base) var(--nv-ease) both; }
+/* a filed row's details spring open and closed (InboxSummary Disclose) */
+.nv-sum-ib-disc { display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows 380ms var(--nv-spring-smooth, var(--nv-ease)), opacity 220ms ease; }
+.nv-sum-ib-disc[data-on] { grid-template-rows: 1fr; opacity: 1; }
+.nv-sum-ib-disc > div { min-height: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .nv-sum-ib-disc { transition: opacity 160ms ease; } }
+.nv-sum-ib-fdetail { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 12px 64px; }
 .nv-sum-ib-fdetail .dl { font: 400 13px/1.4 var(--nv-font-ui); color: var(--ib-ink2); }
 .nv-sum-ib-fdetail .k { display: block; font: 600 13px var(--nv-font-ui); color: var(--ib-ink3); }
 .nv-sum-ib-fdetail .v { display: block; margin-top: 2px; font: 400 13px/1.5 var(--nv-font-ui); color: var(--nv-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
