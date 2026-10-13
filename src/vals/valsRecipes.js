@@ -345,6 +345,7 @@ export function valsRecipes(app, ctx) {
         return {
           id: d.id, name: d.name, focus: !!d.focus, eaten,
           p: Math.round(d.macros?.p || 0), kcal: Math.round(d.macros?.kcal || 0),
+          c: Math.round(d.macros?.c || 0), f: Math.round(d.macros?.f || 0),
           portionsLeft: d.portionsLeft ?? null, out: !!d.out,
           variant: d.variant || null, variantId: d.variantId || null, alts,
           focusIt: () => app.setRotationFocus(s.key, d.id),

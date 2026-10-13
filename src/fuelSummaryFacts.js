@@ -149,3 +149,67 @@ export function rotationStrip(slots = []) {
     eaten: dishes.filter((t) => t.eaten).length,
   };
 }
+
+// ONE TILE PER SLOT (13 Oct 2026, mockup 101; his words: "alternative meal
+// options for meal one ... has resulted in there being multiple tiles for
+// meal one whereas this should only be one tile for meal one, two and three").
+// The slot's eaten dish if he ate one, else the one in focus; its options are
+// counted, not drawn, and Swap cycles them (app.cycleRotationFocus). A slot
+// with nothing in it is a placeholder that opens the rotation.
+export function rotationSlotTiles(slots = []) {
+  const tiles = (slots || []).map((s) => {
+    const opts = Array.isArray(s?.options) ? s.options : [];
+    if (!opts.length) return { key: s.key, slot: s.key, slotName: s.name, hue: s.hue || null, empty: true };
+    const ate = opts.find((o) => o.eaten) || null;
+    const shown = ate || opts.find((o) => o.focus) || opts[0];
+    const index = opts.indexOf(shown);
+    const alt = opts.length > 1 ? opts[(index + 1) % opts.length] : null;
+    return {
+      key: s.key, slot: s.key, slotName: s.name, hue: s.hue || null,
+      id: shown.id, name: shown.name, variant: shown.variant || null,
+      p: Math.round(num(shown.p)), kcal: Math.round(num(shown.kcal)), c: Math.round(num(shown.c)), f: Math.round(num(shown.f)),
+      portionsLeft: shown.portionsLeft ?? null, out: !!shown.out,
+      eaten: !!ate, count: opts.length, index,
+      canSwap: opts.length > 1 && !ate,
+      alt: alt ? { id: alt.id, name: alt.name, p: Math.round(num(alt.p)), kcal: Math.round(num(alt.kcal)) } : null,
+    };
+  });
+  const dishes = tiles.filter((t) => !t.empty);
+  return {
+    tiles,
+    nextIndex: tiles.findIndex((t) => !t.empty && !t.eaten),
+    dishes: dishes.length,
+    eaten: dishes.filter((t) => t.eaten).length,
+  };
+}
+
+// LIKELY NOW (13 Oct, his yes to "faster logging"): three one-tap logs in
+// place of the "Log it again" rail. First the next rotation dish not yet
+// eaten, then its swap, then from his history: something he last logged
+// within two hours of this time of day, else the most recent. Each says why
+// it is there, in words that are true of the data.
+export function likelyNow({ tiles = [], history = [], nowMin = 0 } = {}) {
+  const out = [];
+  const seen = new Set();
+  const add = (x) => { const k = String(x.name || '').toLowerCase(); if (!k || seen.has(k)) return; seen.add(k); out.push(x); };
+  const next = tiles.find((t) => !t.empty && !t.eaten);
+  if (next) {
+    add({ key: `slot:${next.slot}:${next.id}`, kind: 'tick', slot: next.slot, id: next.id, name: next.name, p: next.p, kcal: next.kcal, why: `${next.slotName} · in focus` });
+    if (next.alt) add({ key: `alt:${next.slot}:${next.alt.id}`, kind: 'swapTick', slot: next.slot, id: next.alt.id, name: next.alt.name, p: next.alt.p, kcal: next.alt.kcal, why: `${next.slotName} · the swap` });
+  }
+  const minOf = (at) => { const m = /\s(\d{2}):(\d{2})\s/.exec(` ${String(at || '').slice(10)} `); return m && m[1] !== '00' ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const near = history
+    .map((h) => ({ h, m: minOf(h.lastAt) }))
+    .filter((x) => x.m != null && Math.abs(x.m - nowMin) <= 120)
+    .sort((a, b) => (b.h.count || 0) - (a.h.count || 0));
+  const clock = (m) => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'am' : 'pm'}`;
+  for (const { h, m } of near) {
+    if (out.length >= 3) break;
+    add({ key: `hist:${h.key}`, kind: 'relog', item: h, name: h.name, p: Math.round(num(h.macros?.p)), kcal: Math.round(num(h.macros?.kcal)), why: `last logged at ${clock(m)}` });
+  }
+  for (const h of history) {
+    if (out.length >= 3) break;
+    add({ key: `hist:${h.key}`, kind: 'relog', item: h, name: h.name, p: Math.round(num(h.macros?.p)), kcal: Math.round(num(h.macros?.kcal)), why: h.count > 1 ? `logged ${h.count} times` : 'logged recently' });
+  }
+  return out.slice(0, 3);
+}

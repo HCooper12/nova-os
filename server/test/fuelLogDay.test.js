@@ -251,7 +251,7 @@ test('order and visibility persist in localStorage under novaos.fuelCards, and n
     list = moveFuelCard(list, list.findIndex((c) => c.key === 'rotation'), 0);
     list = list.map((c) => (c.key === 'pick' ? { ...c, on: false } : c));
     saveFuelCards(list);
-    assert.deepEqual(JSON.parse(store.get('novaos.fuelCards')), { order: ['rotation', 'log', 'history', 'recipes', 'pick'], off: ['pick'] });
+    assert.deepEqual(JSON.parse(store.get('novaos.fuelCards')), { order: ['rotation', 'log', 'history', 'recipes', 'pick'], off: ['pick'], v: 2 });
     const back = getFuelCards();
     assert.deepEqual(back.map((c) => [c.key, c.on]), [['rotation', true], ['log', true], ['history', true], ['recipes', true], ['pick', false]]);
     assert.equal(back.length, FUEL_CARDS.length, 'a hidden card is still in the list, one tap away in the sheet');
@@ -263,11 +263,11 @@ test('order and visibility persist in localStorage under novaos.fuelCards, and n
 });
 
 test('the page draws only the cards that are on, in order, and the two doors share a card when they sit together', () => {
-  const list = reconcileFuelCards({ order: ['rotation', 'recipes', 'pick', 'log', 'history'], off: ['history'] });
+  const list = reconcileFuelCards({ order: ['rotation', 'recipes', 'pick', 'log', 'history'], off: ['history'], v: 2 });
   assert.deepEqual(fuelCardRuns(list), [
     { kind: 'card', key: 'rotation' }, { kind: 'doors', keys: ['recipes', 'pick'] }, { kind: 'card', key: 'log' },
   ]);
-  const apart = reconcileFuelCards({ order: ['recipes', 'log', 'pick'] });
+  const apart = reconcileFuelCards({ order: ['recipes', 'log', 'pick'], v: 2 });
   assert.deepEqual(fuelCardRuns(apart).filter((r) => r.kind === 'doors'), [{ kind: 'doors', keys: ['recipes'] }, { kind: 'doors', keys: ['pick'] }]);
   assert.deepEqual(fuelCardRuns(list, { log: false }).map((r) => r.key || r.keys.join()), ['rotation', 'recipes,pick'], 'a card with nothing to draw is skipped, never drawn empty');
 });
@@ -286,4 +286,12 @@ test('the view model carries the cards and the Edit sheet, and the sheet is the 
   const app = read('src/App.jsx');
   assert.match(app, /window\.history\.pushState\(\{ novaDepth: depthOf\(st\) \+ 1, novaOverlay: 'fuelCards' \}, ''\)/);
   assert.match(app, /\.\.\.this\.fuelCardsFromHistory\(\), \.\.\.this\.moneyFromHistory\(\), \.\.\.stashFromHistory\(this\), \.\.\.this\.shopFromHistory\(\) \};/);
+});
+
+test('13 Oct: an order saved before the move puts the log under the rotation, once; after that his order is his', async () => {
+  const { migrateFuelCards } = await import('../../src/fuelCards.js');
+  assert.deepEqual(migrateFuelCards({ order: ['log', 'rotation', 'history', 'recipes', 'pick'], off: [] }).order, ['rotation', 'log', 'history', 'recipes', 'pick']);
+  const mine = { order: ['log', 'recipes', 'rotation'], off: [], v: 2 };
+  assert.equal(migrateFuelCards(mine), mine, 'a v2 order is never moved again');
+  assert.deepEqual(FUEL_CARDS.map(([k]) => k).slice(0, 2), ['rotation', 'log']);
 });

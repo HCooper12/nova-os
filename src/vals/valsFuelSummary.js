@@ -1,5 +1,7 @@
 import { dtf } from './fmt.js';
-import { plateInstrument, proteinLine, logRows, tonightRotation, rotationStrip } from '../fuelSummaryFacts.js';
+import { plateInstrument, proteinLine, logRows, tonightRotation, rotationStrip, rotationSlotTiles, likelyNow } from '../fuelSummaryFacts.js';
+import { fuelRead } from '../fuelRead.js';
+import { fuelNow, workoutEventFor } from '../fuelNow.js';
 import { getFuelCards, fuelCardRuns, FUEL_CARDS } from '../fuelCards.js';
 import { dayWord, loggedLine } from '../fuelDay.js';
 
@@ -174,6 +176,70 @@ export function valsFuelSummary(app, ctx, v) {
     logsTo: viewingPast ? `Entries land on ${longDay(viewIso)}` : null,
   } : null;
 
+  // ---- mockup 101 (13 Oct): one tile per slot, Likely now, Right now, the read
+  // Every figure below is computed by code from what the page already holds;
+  // every action is an existing app method. Today only: a past day shows its
+  // log and rotation, not a read of a day that is over.
+  const slotDefs = v.rotationSlots || [];
+  const slotTiles = rotationSlotTiles(slotDefs);
+  const tiles = live ? {
+    tiles: slotTiles.tiles.map((t) => {
+      const def = slotDefs.find((d) => d.key === t.slot);
+      return {
+        ...t,
+        toggle: t.empty ? null : () => app.tickRotation(t.slot, t.id, !t.eaten),
+        swap: t.canSwap && def?.next ? def.next : null,
+      };
+    }),
+    nextKey: slotTiles.nextIndex >= 0 ? slotTiles.tiles[slotTiles.nextIndex].key : null,
+    line: slotTiles.dishes ? `${slotTiles.eaten} of ${slotTiles.dishes} eaten${viewingPast ? ` on ${weekday(viewIso)}` : ' today'}` : null,
+    dayKey: `${viewIso || 'today'}:${viewingPast ? (st.liveFoodLogView ? 'in' : 'wait') : 'in'}`,
+    addMeal: v.rotationAddMeal || null,
+  } : null;
+
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayEntries = st.liveFoodLog?.entries || [];
+  const fresh = live && !viewingPast;
+  const restPlan = slotTiles.tiles.filter((t) => !t.empty && !t.eaten)
+    .map((t) => ({ label: t.slotName, p: t.p, kcal: t.kcal, c: t.c, f: t.f }));
+  const read = fresh ? fuelRead({
+    logged: todayEntries.length,
+    p: ctx.proteinCurrent || 0, kcal: ctx.kcalCurrent || 0, f: v.dayMacros?.f || 0, c: v.dayMacros?.c || 0,
+    proteinTarget: ctx.proteinTarget ?? null, kcalTarget: ctx.targetKcal ?? null,
+    rest: restPlan,
+  }) : null;
+
+  const routine = ctx.todayRoutine || null;
+  const wEvent = routine ? workoutEventFor(routine.name, st.liveCalendar) : null;
+  const nowRaw = fresh ? fuelNow({
+    nowMin,
+    slots: slotTiles.tiles.map((t) => ({
+      key: t.slot, label: t.slotName, eaten: t.eaten, alt: t.alt,
+      focus: t.empty ? null : { id: t.id, name: t.name, p: t.p, kcal: t.kcal, portionsLeft: t.portionsLeft, out: t.out },
+    })),
+    p: ctx.proteinCurrent || 0, proteinTarget: ctx.proteinTarget ?? null,
+    workout: routine ? { name: routine.name, time: wEvent?.time || null, done: st.liveStreaks?.lastWorkoutDate === todayKey } : null,
+  }) : null;
+  const act = (a) => {
+    const def = slotDefs.find((d) => d.key === a.slot);
+    if (a.kind === 'tick') return () => app.tickRotation(a.slot, a.id, true);
+    if (a.kind === 'swap') return def?.next || null;
+    if (a.kind === 'open') return () => app.openRecipe(a.id);
+    return null; // 'kitchen' is the page's own sheet
+  };
+  const nowCard = nowRaw ? {
+    ...nowRaw,
+    clock: dtf('en-AU', { hour: 'numeric', minute: '2-digit' }).format(now).replace(/\s/g, ' ').toLowerCase(),
+    actions: nowRaw.actions.map((a) => ({ ...a, run: act(a) })),
+  } : null;
+
+  const likely = fresh ? likelyNow({ tiles: slotTiles.tiles, history: st.liveFoodHistory || [], nowMin }).map((x) => ({
+    ...x,
+    hue: x.slot ? (slotDefs.find((d) => d.key === x.slot)?.hue ? `rgb(${slotDefs.find((d) => d.key === x.slot).hue})` : null) : null,
+    log: x.kind === 'relog' ? () => app.relogFoodItem(x.item) : () => app.tickRotation(x.slot, x.id, true),
+  })) : [];
+
   // ---- the rotation: one row, and the whole of it behind the row --------
   const slotList = (v.rotationSlots || []).map((s) => ({ key: s.key, name: s.name }));
   const tonight = live ? tonightRotation(ctx.rotation, slotList) : null;
@@ -206,6 +272,7 @@ export function valsFuelSummary(app, ctx, v) {
     openDish: tonight ? () => app.openRecipe(tonight.id) : null,
     slots: v.rotationSlots || [],
     addMeal: v.rotationAddMeal,
+    tiles,
     eatenLine: filled.length ? `${filled.filter((s) => s.consumed).length} of ${filled.length} eaten today` : 'Nothing planned for today',
   } : null;
 
@@ -304,6 +371,9 @@ export function valsFuelSummary(app, ctx, v) {
       plate,
       week: { data: v.fuelWeek || null, cross: v.fuelCross || null, askProtein: v.askProteinVerdict || null },
       composer,
+      likely,
+      now: nowCard,
+      read,
       log,
       rotation,
       doors,

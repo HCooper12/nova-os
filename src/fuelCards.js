@@ -8,17 +8,30 @@ import { reconcilePinned, movePinned } from './pinned.js';
 // full set so a card added in a later build still appears and one he hid
 // stays hidden without losing his order. The plate and the composer are
 // not here: they are the page.
+// 13 Oct 2026 (mockup 101, his words: "Move the log for today below the meal
+// rotation"): the rotation now comes first.
 export const FUEL_CARDS = [
-  ['log', "Today's log"],
   ['rotation', 'The rotation'],
+  ['log', "Today's log"],
   ['history', 'Everything you’ve logged'],
   ['recipes', 'Recipes'],
   ['pick', 'Pick it up'],
 ];
 export const FUEL_CARDS_KEY = 'novaos.fuelCards';
 
+// An order saved before 13 Oct had the log above the rotation; his ask moved
+// it below, once. After that (v2) his own order is kept exactly as he sets it.
+export function migrateFuelCards(stored) {
+  if (!stored || stored.v >= 2 || !Array.isArray(stored.order)) return stored;
+  const order = stored.order.filter((k) => k !== 'log');
+  const at = order.indexOf('rotation');
+  if (at < 0 || !stored.order.includes('log')) return { ...stored, v: 2 };
+  order.splice(at + 1, 0, 'log');
+  return { ...stored, order, v: 2 };
+}
+
 export function reconcileFuelCards(stored) {
-  return reconcilePinned(stored, FUEL_CARDS);
+  return reconcilePinned(migrateFuelCards(stored), FUEL_CARDS);
 }
 
 export function getFuelCards() {
@@ -34,7 +47,7 @@ export function saveFuelCards(list) {
   const order = arr.map((x) => x.key);
   const off = arr.filter((x) => !x.on).map((x) => x.key);
   try {
-    if (typeof localStorage !== 'undefined') localStorage.setItem(FUEL_CARDS_KEY, JSON.stringify({ order, off }));
+    if (typeof localStorage !== 'undefined') localStorage.setItem(FUEL_CARDS_KEY, JSON.stringify({ order, off, v: 2 }));
   } catch { /* storage blocked: the order holds for this session only */ }
 }
 
