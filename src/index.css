@@ -2074,11 +2074,15 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-fs-rt-tk { position: absolute; right: 6px; bottom: 6px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .nv-fs-rt-tk > i { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; color: var(--nv-ink50);
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--nv-ink) 30%, transparent); transition: background-color 180ms var(--nv-ease), color 180ms var(--nv-ease), box-shadow 180ms var(--nv-ease); }
-.nv-fs-rt-tk .nv-fs-ico { width: 18px; height: 18px; stroke-width: 2.6; }
-.nv-fs-rt.on .nv-fs-rt-tk > i { color: var(--nv-on-acc); background: var(--nv-fs-k); box-shadow: 0 0 16px -3px var(--nv-fs-k); animation: nvFsTickPop 360ms var(--nv-ease) both; }
-@keyframes nvFsTickPop { 0% { transform: scale(.6); } 60% { transform: scale(1.12); } 100% { transform: none; } }
+/* the tick lands on a spring (13 Oct, keynote-motion): TRANSITIONS, not an
+   animation, so it pops when he ticks a dish and never re-pops every dish
+   already eaten each time Fuel opens. The waiting check sits small; ticked,
+   it springs to full size with the playful overshoot as the disc fills. */
+.nv-fs-rt-tk .nv-fs-ico { width: 18px; height: 18px; stroke-width: 2.6; transform: scale(.78); transition: transform var(--nv-spring-playful-ms) var(--nv-spring-playful); }
+.nv-fs-rt.on .nv-fs-rt-tk .nv-fs-ico { transform: scale(1); }
+.nv-fs-rt.on .nv-fs-rt-tk > i { color: var(--nv-on-acc); background: var(--nv-fs-k); box-shadow: 0 0 16px -3px var(--nv-fs-k); }
 .nv-fs-rt-tk:focus-visible, .nv-fs-rt-body:focus-visible, .nv-fs-rt.empty:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: -2px; }
-@media (prefers-reduced-motion: reduce) { .nv-fs-rt.on .nv-fs-rt-tk > i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .nv-fs-rt-tk .nv-fs-ico { transition: none; } }
 /* the foot: Edit, and how many cards are hidden behind it */
 .nv-fs-foot { display: flex; justify-content: center; margin: 18px 0 4px; }
 .nv-fs-hid { margin-left: 6px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
