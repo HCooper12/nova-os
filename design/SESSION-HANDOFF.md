@@ -13,6 +13,47 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**13 OCT, CLOSE (claude.ai session 01MPaorT) — EVERY HOME CARD NOW WEARS THE
+TILED HEADER (6f63656). HOME, THE MOTION LIST AND FUEL/TRAIN ARE ON MAIN,
+PUSHED, DEPLOYED; NOTHING RUNNING; UNSEEN ON HIS PHONE.**
+- GOAL: build his approved mockup 101 across Fuel, Train, Home, plus the
+  motion list (page moves, card grows into session); then audit that no Home
+  card keeps the old header.
+- DONE CRITERIA: met for the build and the header audit (3 stragglers fixed:
+  Lead, the sealed technique reveal, Your day). Unmet/unseen: any look on his
+  iPhone.
+- STATE: main == origin/main at 6f63656, git clean, health 200, no
+  dist/pc.json, no public/_devconn.js. Lead/reveal/Your day take a `head`
+  (Lead also `door`) render prop from MissionSummary: src/LeaderBox.jsx,
+  src/TechniqueReveal.jsx, src/Instruments.jsx (YourDay). Other idioms keep
+  their own headers when no `head` is passed.
+- DECISIONS: (a) render props, not a second component → other Home idioms are
+  untouched (guard-cupertino unchanged) → forecloses a single shared header
+  component for now. (b) Lead's duplicate "TRY TODAY" line dropped (repeated
+  the title); a tag that adds info ("3 open") still shows. (c) Earlier
+  decisions in the blocks below stand.
+- VERIFIED: lint 0 errors (4 old warnings), build green, `cd server && npm
+  test`: 3600 tests, 3598 pass, 2 fail = the known exerciseAtlas pair
+  (every exercise resolves to a drawable view; the 4 atlas names). Lead and
+  Your day photographed read-only on his real data with the clock forced to
+  4pm and 9am; the sealed reveal forced via state in the test browser. Live
+  bundle index-CTbqVMk-.js returned 200 and holds the Leader code; Pages
+  deploy succeeded.
+- ASSUMED: the look and the 120Hz feel on his iPhone; the edge swipe on
+  Train's history levels with a real finger; that a full close and reopen of
+  the PWA loads the new JS (the PWA keeps old JS until reload).
+- OPEN QUESTIONS / BLOCKERS: none blocking. Owed: his look at Home on the
+  phone. The Mission Control "native transitions between sections" instruction
+  (relayed by a peer) is still not taken up.
+- NEXT ACTION: ask him to fully close and reopen Nova, open Home, and say if
+  any card still looks different; expected: Lead, Your day and the technique
+  card all show a gradient tile + title + quiet meta like the rest.
+- DO NOT: put mockup 101 or his vault text in the repo; reload with a bare
+  launchctl; leave public/_devconn.js behind; assume a card is redesigned
+  because its siblings are (this session found 3 that were not, by audit, not
+  by memory); trust headless shots for animation without finishing/freezing
+  WAAPI first.
+
 **13 OCT, LATER (same session 01MPaorT) — HOME AS MOCKUP 101 AND THE WHOLE
 MOTION LIST ARE ON MAIN, PUSHED, DEPLOYED (live bundle checked); NOTHING
 RUNNING. UNSEEN ON HIS PHONE.**
@@ -5462,6 +5503,15 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**13 Oct (redesign, claude.ai 01MPaorT).** Built mockup 101 on Fuel, Train and
+Home (tiled headers, per-card glow, muscle-hued records, the day as a rail),
+the page-move engine (push/pop, session grows from its card, tap the top) and
+the Inbox disclosure. Corrected, not added: after he spotted the Lead card on
+the old header, an audit found two more (the sealed technique reveal, Your
+day) and all three were moved to the tiled header (6f63656). Earlier slips in
+the session: a bar onClick placed before style broke the chromeGeometry test;
+the grow showed both pages through the glass until an even-odd hole fixed it.
 
 **12 Oct (redesign, claude.ai 01MPaorT).** Added the Notion key page and
 two-way Journal sync, Skill sets with articulated prop-aware agents and a perf
