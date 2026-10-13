@@ -338,8 +338,10 @@ export function ReviewMoment({ r, style }) {
   const ready = useDemoArrival(r.demo);
   const loading = r.state === 'loading' || !ready;
   const head = (
-    <div className="nv-rv-dh">
-      <RvIcon name="review" />Daily review
+    <div className="nv-rv-dh nv-sum-cht">
+      {/* mockup 101: the tiled header every Home card now wears */}
+      <span className="nv-tile" style={{ '--a': 'var(--nv-vi)' }} aria-hidden="true"><RvIcon name="review" /></span>
+      <span className="lbl">Daily review</span>
       {r.state !== 'mac-unreachable' && <><RvPips pips={r.pips} /><RvCount pips={r.pips} /></>}
     </div>
   );

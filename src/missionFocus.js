@@ -102,3 +102,11 @@ export function prBasis(p) {
   const up = p.previous != null && p.value > p.previous ? ` ▲${(p.value - p.previous).toFixed(1)}` : '';
   return p.kind === 'e1rm' ? `est. 1RM ${p.value}kg${up}` : `heaviest yet${up}`;
 }
+// prBasis in two parts, for the summary Home's record rows (mockup 101), which
+// set the gain apart as a pill: the kind of record, and the gain or null
+export function prKind(p) {
+  return p.kind === 'e1rm' ? `est. 1RM ${p.value}kg` : 'heaviest yet';
+}
+export function prGain(p) {
+  return p.previous != null && p.value > p.previous ? (p.value - p.previous).toFixed(1) : null;
+}

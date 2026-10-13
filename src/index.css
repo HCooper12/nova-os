@@ -1202,6 +1202,26 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   font: 400 14px var(--nv-font-ui); letter-spacing: 0; color: var(--nv-ink60); text-align: right;
 }
 
+/* MOCKUP 101 ON HOME (13 Oct 2026, his "Looking good for the home
+   redesign"): the tiled header Train and Fuel wear. The mark sits white in a
+   gradient tile (.nv-tile, below with Fuel's rules) and the name reads in ink. */
+.nv-sum-cht { gap: 2px 10px; }
+.nv-sum-cht > .lbl { font-weight: 700; color: var(--nv-ink); min-width: 0; }
+.nv-tile > .nv-sum-ico, .nv-tile > .nv-rv-ic { width: 17px; height: 17px; stroke-width: 2.4; color: #fff; }
+.nv-rv-dh.nv-sum-cht { white-space: normal; }
+/* the asking line's tile keeps its live dot: a hand is up right now */
+.nv-sum-asktile { position: relative; }
+.nv-sum-asktile::after { content: ""; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--nv-gold); box-shadow: 0 0 0 2px var(--nv-void), 0 0 8px var(--nv-gold); animation: novaPulse 2.4s infinite var(--nv-anim); }
+/* RECORDS: each lift in its muscle's hue, the gain as a pill */
+.nv-sum-rrows { margin-top: 10px; }
+.nv-sum-rr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 9px 0; border-top: 1px solid var(--nv-sum-sep); }
+.nv-sum-rr > .nm { font: 700 14px var(--nv-font-ui); color: var(--nv-ink); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nv-sum-rr > .nm::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--h); margin-right: 8px; vertical-align: 1px; }
+.nv-sum-rr > .vv { font: 800 15px var(--nv-font-round); color: var(--h); font-variant-numeric: tabular-nums; }
+.nv-sum-rr > .gain { grid-column: 1 / 3; justify-self: end; font: 600 12.5px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sum-rr > .gain > b { margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--h) 22%, transparent); color: var(--nv-ink); font: 800 12px var(--nv-font-round); }
+
 /* the standfirst: the serif line, in the theme's two accents */
 .nv-sum-stand {
   margin: 0 4px 14px; font: italic 400 21px/1.2 var(--nv-font-serif); text-wrap: balance;
@@ -1232,19 +1252,23 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 /* TODAY — the hourly strip. Columns never narrower than their longest word
    (a label is whole words and is never cut); if six still do not fit,
    MissionSummary's TodayStrip steps the type down, then lets the oldest slot go */
-.nv-sum-strip { display: grid; gap: 4px; margin-top: 10px; }
-.nv-sum-slot { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; text-align: center; }
-.nv-sum-slot > .t { font: 500 13px var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.nv-sum-slot.now > .t { font-weight: 700; color: var(--nv-ink); }
+.nv-sum-strip { position: relative; display: grid; gap: 4px; margin-top: 14px; }
+/* mockup 101: the rail the moments sit on, through the dots' centres */
+.nv-sum-strip::before { content: ""; position: absolute; left: 14px; right: 14px; top: 11px; height: 2px; border-radius: 1px; background: var(--nv-sum-sep); }
+.nv-sum-slot { --h: var(--nv-ink40); position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; text-align: center; }
+.nv-sum-slot > .t { font: 700 12.5px var(--nv-font-round); color: var(--nv-ink60); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nv-sum-slot:is(.now, .lead) > .t { color: var(--nv-ink); }
 .nv-sum-slot > .ic { width: 24px; height: 24px; display: grid; place-items: center; }
-.nv-sum-slot > .ic > i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--nv-ink40); }
-.nv-sum-slot.now > .ic > i { width: 8px; height: 8px; background: var(--nv-sum-c3); box-shadow: 0 0 10px var(--nv-sum-c3); }
+.nv-sum-slot > .ic > i { display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--h); box-shadow: 0 0 0 3px color-mix(in srgb, var(--h) 22%, transparent); }
+.nv-sum-slot.now { --h: var(--nv-sum-c3); }
+.nv-sum-slot:is(.now, .lead) > .ic > i { box-shadow: 0 0 0 3px var(--nv-void), 0 0 0 5px var(--h), 0 0 14px var(--h); }
 .nv-sum-slot > .l {
-  font: 600 14px/1.2 var(--nv-font-ui); color: var(--nv-ink);
+  font: 600 13px/1.2 var(--nv-font-ui); color: var(--nv-ink60);
   overflow-wrap: normal; word-break: keep-all; hyphens: manual;
 }
+.nv-sum-slot:is(.now, .lead) > .l { color: var(--nv-ink); }
 .nv-sum-slot.past { opacity: .55; }
-.nv-sum-strip[data-fit="1"] .l { font-size: 13px; }
+.nv-sum-strip[data-fit="1"] .l { font-size: 12.5px; }
 .nv-sum-strip[data-fit="2"] .l { font-size: 12px; }
 .nv-sum-next {
   display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px;

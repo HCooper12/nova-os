@@ -3,6 +3,7 @@ import { localDateISO } from '../localDate.js';
 import { getPinned } from '../pinned.js';
 import { inMorning } from '../dayCard.js';
 import { prLift, prBasis } from '../missionFocus.js';
+import { routineGlyph } from '../trainSummaryFacts.js';
 import { stripSlots, nextLine, buildHighlight, buildTrends, summaryStandfirst } from '../summaryFacts.js';
 
 // The summary Home's own view model (HOME-REDESIGN-PLAN.md §3). Nothing here
@@ -218,7 +219,10 @@ export function trainingCard(m, ctx) {
     // already says 'heaviest yet' or 'est. 1RM'), so the record is said once
     ? { count: prs.length, line: prs[0].name, fig: `${prLift(prs[0])} · ${prBasis(prs[0])}` }
     : null;
-  return { meta, title: m.workoutCardLabel, sub: m.workoutCardMeta, readiness, record, open: m.goWorkouts || ctx.go('workouts') };
+  // the routine's symbol (mockup 101), by the rule Train's own tiles use
+  const name = String(m.workoutCardLabel || '').replace(/^✓\s*/, '');
+  const glyph = name ? routineGlyph(name) : null;
+  return { meta, title: m.workoutCardLabel, sub: m.workoutCardMeta, readiness, record, glyph, open: m.goWorkouts || ctx.go('workouts') };
 }
 
 const DEMO_TRENDS = [

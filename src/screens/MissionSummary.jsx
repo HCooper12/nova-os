@@ -15,7 +15,9 @@ import { DaysRing } from '../StuckCard.jsx';
 import { Pill } from '../AppleLayout.jsx';
 import { Eyebrow, TextAction, Meta } from '../Controls.jsx';
 import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
-import { prLift, prBasis } from '../missionFocus.js';
+import { prLift, prKind, prGain } from '../missionFocus.js';
+import { muscleVar } from '../muscleHue.js';
+import { GlyphTile } from '../BodyGlyph.jsx';
 import { YourDay } from '../Instruments.jsx';
 import { readDaySeen, markDaySeen, DAY_KEYS } from '../dayCard.js';
 import { CountText, CountUp } from '../CountUp.jsx';
@@ -42,6 +44,8 @@ const UI = 'var(--nv-font-ui)';
 const SERIF = 'var(--nv-font-serif)';
 const ROUND = 'var(--nv-font-round)';
 const clampPct = (p) => Math.max(0, Math.min(100, Number(p) || 0));
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dayMonth = (iso) => { const [, m, d] = String(iso || '').split('-').map(Number); return m && d ? `${d} ${MONTHS[m - 1]}` : ''; };
 
 // ---------------------------------------------------------------- icons ----
 // One stroke family at 17px, drawn in the card's hue (currentColor). The fork
@@ -59,6 +63,10 @@ const ICONS = {
   waiting: <><path d="M4 5.5h16V18a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" /><path d="M4 12.5h4.6c.5 0 .8.3 1 .8.4 1 1.3 1.7 2.4 1.7s2-.7 2.4-1.7c.2-.5.5-.8 1-.8H20" /></>,
   practice: <><circle cx="8" cy="8" r="2" /><circle cx="16" cy="8" r="2" /><circle cx="8" cy="16" r="2" /><circle cx="16" cy="16" r="2" /></>,
   trends: <path d="M4 17l6-6 4 4 6-8" />,
+  // mockup 101's Home marks: a record's star, a technique's spark, the list
+  star: <path d="m12 3.6 2.5 5.2 5.6.8-4 4 1 5.6-5.1-2.7-5.1 2.7 1-5.6-4-4 5.6-.8Z" />,
+  spark: <path d="M12 3.5l1.7 5.8 5.8 1.7-5.8 1.7L12 18.5l-1.7-5.8-5.8-1.7 5.8-1.7Z" />,
+  list: <path d="M9.5 7h10M9.5 12h10M9.5 17h7M5 7h.01M5 12h.01M5 17h.01" />,
 };
 // exported with CardHead for the summary Train page (TrainSummary.jsx), which
 // hands its own marks in as `paths`, drawn in this same stroke family
@@ -66,7 +74,7 @@ export function SumIcon({ name, paths }) {
   return <svg className="nv-sum-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{paths || ICONS[name] || ICONS.clear}</svg>;
 }
 // the highlight's rungs (summaryFacts.buildHighlight) → the mark each wears
-const HL_ICON = { protein: 'protein', steps: 'steps', sleep: 'sleep', readiness: 'training', one: 'plan', next: 'today', clear: 'clear' };
+const HL_ICON = { protein: 'protein', steps: 'steps', sleep: 'sleep', readiness: 'training', one: 'list', next: 'today', clear: 'clear' };
 
 // THE LIGHT (27 Sep, his ask: the glow his cupertino Home's panes wear, on
 // Nova glass). Every card sets --nv-sum-tint to the hue its header already
@@ -74,9 +82,27 @@ const HL_ICON = { protein: 'protein', steps: 'steps', sleep: 'sleep', readiness:
 // `lit` material, so under glass and solid the value is inert. One hue per
 // card, never a second one: the light says the same thing the name does.
 const lit = (hue) => ({ '--nv-sum-tint': hue });
+// ITS OWN COLOURS (mockup 101, his pick 13 Oct: "Include its own colours as
+// the glow"): a card that holds more than one colour hands them to the dyn
+// glow as --nv-g1..3; under lit and soft only the tint is read, so one hue.
+const glow = (a, b, c) => ({ '--nv-sum-tint': a, '--nv-g1': a, ...(b ? { '--nv-g2': b } : null), ...(c ? { '--nv-g3': c } : null) });
 
 // A card's header: the mark and the name in the card's hue, a quiet meta right.
-export function CardHead({ icon, label, tint, meta, paths }) {
+// With `tile` ([a, b] or a node), mockup 101's grammar, as on Train and Fuel:
+// the mark sits white in a gradient tile and the name reads in ink.
+export function CardHead({ icon, label, tint, meta, paths, tile }) {
+  if (tile) {
+    const t = Array.isArray(tile)
+      ? <span className="nv-tile" style={{ '--a': tile[0], ...(tile[1] ? { '--b': tile[1] } : null) }} aria-hidden="true"><SumIcon name={icon} paths={paths} /></span>
+      : tile;
+    return (
+      <div className="nv-sum-ch nv-sum-cht">
+        {t}
+        <span className="lbl">{label}</span>
+        {meta ? <span className="nv-sum-ch-meta">{meta}</span> : null}
+      </div>
+    );
+  }
   return (
     <div className="nv-sum-ch" style={tint ? { color: tint } : undefined}>
       <SumIcon name={icon} paths={paths} />
@@ -86,8 +112,10 @@ export function CardHead({ icon, label, tint, meta, paths }) {
   );
 }
 
-// A moment's header: the eyebrow in the moment's own hue, as on the other idioms.
-function MomentHead({ label, tint, meta }) {
+// A moment's header: the eyebrow in the moment's own hue, as on the other
+// idioms; on Home (mockup 101) it is the tiled card header with an icon.
+function MomentHead({ label, tint, meta, icon, tile }) {
+  if (icon) return <CardHead icon={icon} label={label} tile={tile || [tint]} meta={meta} />;
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '4px 10px', flexWrap: 'wrap' }}>
       <Eyebrow as="span" tone={tint}>{label}</Eyebrow>
@@ -130,8 +158,9 @@ function Moment({ k, v }) {
       return (
         <Interactive as="section" className="nv-sum-card nv-sum-rise" style={{ '--i': 2, ...lit('var(--nv-gold)') }} onClick={a.go}
           aria-label={`${a.text} Look in Operations`}
-          base={{ cursor: 'pointer', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span aria-hidden="true" style={{ flex: 'none', width: 7, height: 7, borderRadius: '50%', background: 'var(--nv-gold)', boxShadow: '0 0 9px var(--nv-gold)', animation: 'novaPulse 2.4s infinite var(--nv-anim)' }} />
+          base={{ cursor: 'pointer', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* the gold tile (mockup 101); its live dot says the hand is still up */}
+          <span className="nv-tile nv-sum-asktile" style={{ '--a': 'var(--nv-gold)' }} aria-hidden="true"><SumIcon name="waiting" /></span>
           <span style={{ flex: 1, minWidth: 0, font: `italic 400 17px/1.3 ${SERIF}`, color: 'var(--nv-ink)', textWrap: 'balance' }}>{a.text}</span>
           <span style={{ flex: 'none', font: `600 13px ${UI}`, color: 'var(--nv-gold)' }}>Look</span>
         </Interactive>
@@ -144,7 +173,7 @@ function Moment({ k, v }) {
       const mm = v.moneyMoment;
       return (
         <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-vi)') }} aria-label="Money">
-          <MomentHead label="Money" tint="var(--nv-vi)" meta={<Meta tone="faint">{mm.count === 1 ? 'one thing for you' : `${mm.count} things for you`}</Meta>} />
+          <MomentHead icon="trends" label="Money" tint="var(--nv-vi)" meta={<Meta tone="faint">{mm.count === 1 ? 'one thing for you' : `${mm.count} things for you`}</Meta>} />
           <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {mm.items.map((it) => (
               <div key={it.id} style={{ display: 'flex', alignItems: 'baseline', gap: '9px', minWidth: 0 }}>
@@ -163,30 +192,30 @@ function Moment({ k, v }) {
       );
     }
     case 'pr': {
-      // THE RECORD MOMENT: the morning after a PR, once; the set he did first
+      // THE RECORD MOMENT: the morning after a PR, once; the set he did first.
+      // Mockup 101: each lift in its muscle's hue, its gain as a pill, and
+      // the card glows in those hues.
       const p = v.prMoment;
       const n = p.prs.length;
+      const hues = p.prs.slice(0, 3).map((x) => (x.muscleGroup ? muscleVar(x.muscleGroup) : 'var(--nv-mg)'));
+      const [d1, d2] = [hues[0], hues[1] || hues[0]];
       return (
-        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)') }} aria-label={n === 1 ? 'A record' : 'Records'}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div aria-hidden="true" style={{ flex: 'none', width: 58, height: 58, borderRadius: '50%', border: '1.5px dashed color-mix(in srgb, var(--nv-mg) 70%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: `700 22px ${ROUND}`, color: 'var(--nv-ink)', boxShadow: '0 0 30px -8px var(--nv-mg)' }}>{n}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Eyebrow tone="var(--nv-mg)">{n === 1 ? 'A record' : 'Records'} · {p.date.slice(5).replace('-', '/')}</Eyebrow>
-              <div style={{ marginTop: '3px', font: `italic 400 18px/1.2 ${SERIF}`, color: 'var(--nv-ink)' }}>
-                {n === 1 ? 'One lift went further than it ever has.' : `${n} lifts went further than they ever have.`}
-              </div>
-              <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {p.prs.slice(0, 3).map((x) => (
-                  <div key={x.name} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', font: `450 13px ${UI}`, color: 'var(--nv-ink)' }}>
-                    <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.name}</span>
-                    <span style={{ flex: 'none', textAlign: 'right' }}>
-                      <span style={{ font: `600 13px ${ROUND}`, color: 'var(--nv-mg)', fontVariantNumeric: 'tabular-nums' }}>{prLift(x)}</span>
-                      <span style={{ display: 'block', marginTop: '1px', font: `450 12px ${UI}`, color: 'var(--nv-ink60)' }}>{prBasis(x)}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...glow(d1, d2, hues[2]) }} aria-label={n === 1 ? 'A record' : 'Records'}>
+          <CardHead icon="star" label={n === 1 ? 'A record' : 'Records'} tile={[d1, d2]} meta={dayMonth(p.date)} />
+          <div style={{ marginTop: '10px', font: `italic 400 18px/1.25 ${SERIF}`, color: 'var(--nv-ink)', textWrap: 'pretty' }}>
+            {n === 1 ? 'One lift went further than it ever has.' : `${n} lifts went further than they ever have.`}
+          </div>
+          <div className="nv-sum-rrows">
+            {p.prs.slice(0, 3).map((x, i) => {
+              const gain = prGain(x);
+              return (
+                <div key={x.name} className="nv-sum-rr" style={{ '--h': hues[i] }}>
+                  <span className="nm">{x.name}</span>
+                  <span className="vv">{prLift(x)}</span>
+                  <span className="gain">{prKind(x)}{gain ? <b>▲{gain}</b> : null}</span>
+                </div>
+              );
+            })}
           </div>
           <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             <Pill label="See the block" onClick={p.openTrain} tone="quiet" />
@@ -202,7 +231,7 @@ function Moment({ k, v }) {
       const hue = ready ? 'var(--nv-good)' : 'var(--nv-cy)';
       return (
         <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit(hue) }} aria-label={ready ? 'Ready for you' : 'Working on it'}>
-          <MomentHead label={ready ? 'Ready for you' : 'Working on it'} tint={hue}
+          <MomentHead icon="list" label={ready ? 'Ready for you' : 'Working on it'} tint={hue} tile={[hue, 'var(--nv-vi)']}
             meta={<Meta tone="faint">{rp.tally} · {rp.since}</Meta>} />
           {/* three lines, then an ellipsis: an amended goal runs to 880 characters */}
           <div style={{ marginTop: '6px', minWidth: 0, font: `italic 400 17px/1.25 ${SERIF}`, color: 'var(--nv-ink)', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{rp.goal}</div>
@@ -226,7 +255,7 @@ function Moment({ k, v }) {
       const L = v.landedMoment;
       return (
         <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-good)') }} aria-label="Landed">
-          <MomentHead label="Landed" tint="var(--nv-good)" meta={<Meta tone="faint">{L.count} today · {L.filed} filed</Meta>} />
+          <MomentHead icon="clear" label="Landed" tint="var(--nv-good)" meta={<Meta tone="faint">{L.count} today · {L.filed} filed</Meta>} />
           <div style={{ marginTop: '9px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {L.items.map((it) => (
               <Interactive key={it.id} as="div" onClick={it.open} aria-label={`Open ${it.title}`}
@@ -269,13 +298,13 @@ function Moment({ k, v }) {
       }
       return (
         <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)'), ...vt }} aria-label={t.modeLabel}>
-          <MomentHead label={t.modeLabel} tint="var(--nv-mg)" meta={(
+          <MomentHead icon="spark" label={t.modeLabel} tint="var(--nv-mg)" meta={(
             <>
               {t.streak > 0 && <Meta tone="faint"><CountUp value={t.streak} fromZero />-day streak</Meta>}
               <TextAction tone="faint" compact onClick={t.openAll}>{t.position} of {t.total} ›</TextAction>
             </>
           )} />
-          <div style={{ marginTop: '6px', font: `600 17px/1.25 ${UI}`, color: 'var(--nv-ink)' }}>{t.name}</div>
+          <div style={{ marginTop: '10px', font: `700 18px/1.3 ${UI}`, color: 'var(--nv-ink)' }}>{t.name}</div>
           {t.drill && <div style={{ marginTop: '6px', font: `450 13.5px/1.5 ${UI}`, color: 'var(--nv-ink)' }}>{t.drill}</div>}
           <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
             <Pill label="I tried it" accent="--nv-mg" onClick={t.markTried} />
@@ -291,7 +320,7 @@ function Moment({ k, v }) {
       if (w.onlyTechnique) {
         return (
           <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)') }} aria-label="Wrap the day">
-            <MomentHead label="Wrap the day" tint="var(--nv-mg)" meta={<Meta tone="faint">{w.note}</Meta>} />
+            <MomentHead icon="sleep" label="Wrap the day" tint="var(--nv-mg)" meta={<Meta tone="faint">{w.note}</Meta>} />
             <div style={{ marginTop: '10px' }}><TechniqueCheck q={w.technique} label={false} /></div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
               <TextAction tone="faint" onClick={w.dismiss}>Dismiss</TextAction>
@@ -303,7 +332,7 @@ function Moment({ k, v }) {
       const hue = short ? 'var(--nv-gold)' : 'var(--nv-good)';
       return (
         <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit(hue) }} aria-label="Wrap the day">
-          <MomentHead label="Wrap the day" tint={hue} meta={<Meta tone={short ? 'gold' : 'good'}>{w.note}</Meta>} />
+          <MomentHead icon="sleep" label="Wrap the day" tint={hue} meta={<Meta tone={short ? 'gold' : 'good'}>{w.note}</Meta>} />
           <div style={{ marginTop: '12px', display: 'flex', flexDirection: v.isMobile ? 'column' : 'row', alignItems: v.isMobile ? 'stretch' : 'center', gap: v.isMobile ? '14px' : '20px', minWidth: 0 }}>
             <div style={{ display: 'flex', gap: '18px', flex: 'none' }}>
               {w.rings.map(({ key, ...r }) => <RingTile key={key} {...r} size={58} arrive />)}
@@ -337,16 +366,12 @@ function Highlight({ h }) {
   const tone = `var(--nv-sum-${h.tone || 'c1'})`;
   const pct = h.pct == null ? null : clampPct(h.pct);
   return (
-    <section className="nv-sum-card nv-sum-rise" style={{ '--i': 2, padding: '14px 16px', ...lit(tone) }} aria-label={h.eyebrow}>
-      <div className="nv-sum-ch" style={{ color: tone }}>
-        <SumIcon name={HL_ICON[h.key] || 'clear'} />
-        <span>{h.eyebrow}</span>
-        <span className="nv-sum-ch-meta"><NowHM /></span>
-      </div>
+    <section className="nv-sum-card nv-sum-rise" style={{ '--i': 2, padding: '14px 16px', ...glow(tone, 'var(--nv-cy)') }} aria-label={h.eyebrow}>
+      <CardHead icon={HL_ICON[h.key] || 'clear'} label={h.eyebrow} tile={[tone, 'var(--nv-cy)']} meta={<NowHM />} />
       <p style={{ margin: '8px 0 0', font: '400 var(--nv-sum-hl-size)/1.35 var(--nv-sum-hl-font)', color: 'var(--nv-ink)', textWrap: 'pretty' }}>
         {h.segments.map((s, i) => (s.b ? <b key={i} style={{ fontWeight: 700 }}>{s.t}</b> : <span key={i}>{s.t}</span>))}
       </p>
-      {pct != null && <div className="nv-sum-bar" aria-hidden="true"><i style={{ width: `${pct}%`, background: tone }} /></div>}
+      {pct != null && <div className="nv-sum-bar" aria-hidden="true"><i style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${tone}, var(--nv-cy))` }} /></div>}
       {(h.axis || h.act) && (
         <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', font: `400 13px ${UI}`, color: 'var(--nv-ink60)' }}>
           <span style={{ minWidth: 0 }}>{h.axis}</span>
@@ -382,8 +407,20 @@ function layoutCards(cards) {
 // (lit, above) is it, so the two can never disagree. Body and Today keep ink
 // headers — their rings and strip carry the colour — and are lit in Nova's
 // own cyan.
-const CARD_HUE = { plan: 'var(--nv-sum-c5)', waiting: 'var(--nv-sum-c4)', training: 'var(--nv-sum-c3)', practice: 'var(--nv-or)', trends: 'var(--nv-sum-c2)' };
+// Mockup 101: Training takes the gold its medal and routine tile wear.
+const CARD_HUE = { plan: 'var(--nv-sum-c5)', waiting: 'var(--nv-sum-c4)', training: 'var(--nv-gold)', practice: 'var(--nv-or)', trends: 'var(--nv-sum-c2)' };
 const CARD_LIGHT = { ...CARD_HUE, body: 'var(--nv-cy)', today: 'var(--nv-cy)', day: 'var(--nv-cy)' };
+// its own colours, per card (the dyn glow): Body its three rings, Today the
+// moments on its rail, the rest their tile's two hues
+const CARD_GLOW = {
+  body: () => glow('var(--nv-sum-c2)', 'var(--nv-sum-c1)', 'var(--nv-sum-c3)'),
+  today: (card) => {
+    const hs = [...new Set((card.slots || []).map((x) => x.hue).filter(Boolean))].map((h) => `rgb(${h})`);
+    return glow('var(--nv-cy)', hs[0], hs[1]);
+  },
+  training: (card) => glow(CARD_HUE.training, card.record ? 'var(--nv-good)' : undefined),
+  trends: () => glow(CARD_HUE.trends, 'var(--nv-cy)'),
+};
 
 // YOUR DAY, DRAWN (mockup 86): Console's five instruments as a Home card,
 // at the head of the page in the morning, or in Pinned all day when he pins
@@ -466,7 +503,7 @@ function BodyCard({ card, cls, style }) {
   return (
     <section className={cls} style={{ ...style, padding: '12px 14px 14px', display: 'grid', gridTemplateColumns: '150px minmax(0, 1fr)', gap: '10px 14px', alignItems: 'center' }} aria-label="Body">
       <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
-        <CardHead icon="body" label="Body" meta={card.meta} />
+        <CardHead icon="body" label="Body" tile={[RING_TONES[1], RING_TONES[0]]} meta={card.meta} />
       </div>
       <RingSet rings={card.rings} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: '9px', minWidth: 0 }}>
@@ -502,6 +539,9 @@ function TodayStrip({ slots }) {
   const level = fit.sig === sig ? fit.level : 0;
   const shown = trimSlots(slots, Math.max(0, level - 2));
   const count = shown.length;
+  // the ringed moment: the current one, or (between them) the next, which is
+  // the one the line under the rail names
+  const leadIdx = shown.some((x) => x.kind === 'now') ? -1 : shown.findIndex((x) => x.kind === 'next');
   // measured after every fit (a new `fit` object, including the resize reset
   // below), before paint; each step is one notch, so it settles in a few
   useLayoutEffect(() => {
@@ -524,9 +564,12 @@ function TodayStrip({ slots }) {
     <div ref={ref} className="nv-sum-strip" data-fit={level ? String(Math.min(level, 2)) : undefined}
       style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(min-content, 1fr))` }}>
       {shown.map((s, idx) => (
-        <div key={`${idx}-${s.time}`} className={`nv-sum-slot${s.kind === 'now' ? ' now' : s.kind === 'past' ? ' past' : ''}`}>
+        // mockup 101: a rail of moments, each dot in the colour of what it is
+        // (the slot's own hue); past ones dim, the current one ringed
+        <div key={`${idx}-${s.time}`} className={`nv-sum-slot${s.kind === 'now' ? ' now' : s.kind === 'past' ? ' past' : ''}${idx === leadIdx ? ' lead' : ''}`}
+          style={s.hue ? { '--h': `rgb(${s.hue})` } : undefined}>
+          <span className="ic" aria-hidden="true"><i /></span>
           <span className="t">{s.time}</span>
-          <span className="ic" aria-hidden="true"><i style={s.kind !== 'now' && s.hue ? { background: `rgb(${s.hue})` } : undefined} /></span>
           <span className="l">{s.label}</span>
         </div>
       ))}
@@ -561,7 +604,7 @@ function TodayCard({ card, cls, style }) {
     : card.stale ? <Meta tone="warn">{card.stale}</Meta> : null;
   return (
     <section className={`${cls} nv-sum-tile`} style={style} aria-label="Today">
-      <CardHead icon="today" label="Today" meta={right} />
+      <CardHead icon="today" label="Today" tile={['var(--nv-cy)']} meta={right} />
       {card.slots.length > 0
         ? <TodayStrip slots={card.slots} />
         : card.empty ? <p style={{ margin: '10px 0 0', font: `400 15px/1.4 ${UI}`, color: 'var(--nv-ink60)' }}>{card.empty}</p> : null}
@@ -590,7 +633,7 @@ function PlanCard({ card, cls, style }) {
   );
   return (
     <section className={`${cls} nv-sum-tile`} style={style} aria-label="The plan">
-      <CardHead icon="plan" label="The plan" tint={CARD_HUE.plan} />
+      <CardHead icon="list" label="The plan" tile={[CARD_HUE.plan]} />
       {card.kind === 'state'
         ? <Interactive as="div" onClick={card.openInbox} aria-label={`Open the Inbox: ${card.text}`} base={{ cursor: 'pointer', minWidth: 0, borderRadius: '10px' }}>{body}</Interactive>
         : body}
@@ -627,8 +670,8 @@ function WaitingCard({ card, cls, style }) {
   return (
     <Interactive as="section" className={`${cls} nv-sum-tile`} style={style} onClick={card.open}
       aria-label={`Waiting: ${card.count} for your call. Open the Inbox`} base={{ cursor: 'pointer' }}>
-      <CardHead icon="waiting" label="Waiting" tint={CARD_HUE.waiting} />
-      <div className="nv-sum-big"><CountText text={card.count} fromZero /></div>
+      <CardHead icon="waiting" label="Waiting" tile={[CARD_HUE.waiting]} />
+      <div className="nv-sum-big" style={{ color: CARD_HUE.waiting }}><CountText text={card.count} fromZero /></div>
       <div className="nv-sum-sub">{card.sub}</div>
     </Interactive>
   );
@@ -640,7 +683,8 @@ function TrainingCard({ card, cls, style }) {
   return (
     <Interactive as="section" className={`${cls} nv-sum-tile`} style={style} onClick={card.open}
       aria-label={rec ? `Training: ${rec.line}, ${rec.fig}. Open Train` : `Training: ${card.title}. Open Train`} base={{ cursor: 'pointer' }}>
-      <CardHead icon="training" label="Training" tint={CARD_HUE.training} meta={card.meta || null} />
+      <CardHead icon="training" label="Training" meta={card.meta ? <span style={{ color: card.meta === 'done' ? 'var(--nv-good)' : undefined }}>{card.meta}</span> : null}
+        tile={card.glyph ? <GlyphTile g={card.glyph} a={CARD_HUE.training} /> : [CARD_HUE.training]} />
       <div style={{ marginTop: 'auto', paddingTop: '10px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '12px', alignItems: 'center' }}>
         {rec ? (
           <>
@@ -672,7 +716,7 @@ function PracticeTile({ card, cls, style }) {
     <section className={`${cls} nv-sum-tile`} style={style} aria-label="Practice">
       <Interactive as="div" onClick={card.open} aria-label={`Open ${card.title || 'Practice'}`}
         base={{ cursor: 'pointer', flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', borderRadius: '12px' }}>
-        <CardHead icon="practice" label="Practice" tint={CARD_HUE.practice} meta={card.meta ? <Meta tone="faint">{card.meta}</Meta> : null} />
+        <CardHead icon="practice" label="Practice" tile={[CARD_HUE.practice]} meta={card.meta ? <Meta tone="faint">{card.meta}</Meta> : null} />
         {card.title ? (
           <>
             {card.lamps.length > 0 && <LampRow lamps={card.lamps} size={14} gap={7} style={{ marginTop: 'auto', paddingTop: '12px' }} />}
@@ -708,7 +752,7 @@ const ARROW_WORD = { up: 'rising', dn: 'falling', flat: 'level', none: 'no readi
 function TrendsCard({ card, cls, style }) {
   return (
     <section className={`${cls} nv-sum-tile`} style={style} aria-label="Trends">
-      <CardHead icon="trends" label="Trends" tint={CARD_HUE.trends} meta={card.demo ? <Meta tone="gold">demo</Meta> : null} />
+      <CardHead icon="trends" label="Trends" tile={[CARD_HUE.trends, 'var(--nv-cy)']} meta={card.demo ? <Meta tone="gold">demo</Meta> : null} />
       <ul className="nv-sum-trend">
         {card.rows.map((r) => {
           const said = `${r.label}: ${ARROW_WORD[r.dir] || ''}, ${r.value}`;
@@ -734,7 +778,7 @@ function TrendsCard({ card, cls, style }) {
 
 function PinnedCard({ card, i }) {
   const cls = `nv-sum-card nv-sum-rise${card.span ? ' nv-sum-wide' : ''}`;
-  const style = { '--i': i + 3, ...lit(CARD_LIGHT[card.key]) };
+  const style = { '--i': i + 3, ...(CARD_GLOW[card.key] ? CARD_GLOW[card.key](card) : lit(CARD_LIGHT[card.key])) };
   switch (card.key) {
     case 'body': return <BodyCard card={card} cls={cls} style={style} />;
     case 'today': return <TodayCard card={card} cls={cls} style={style} />;
