@@ -13,6 +13,40 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**13 OCT (redesign session, claude.ai session 01MPaorT) — MOCKUP 101 BUILT:
+FUEL, TRAIN, THE RECORD BANNER AND THE GLOW SETTING ARE ON MAIN, PUSHED AND
+LIVE; NOTHING RUNNING; HOME WAITS ON HIS RECORDING.**
+- GOAL: build his approved mockup 101 (the OxeAI-inspired redesign; study in
+  design/OXEAI-STUDY.md, mockup in the scratchpad + artifact
+  S7kWYPEFjVb4CAgtZyuSJM, NOT in the repo: it shows his routines/recipes).
+- DONE: Fuel fea7627 0874dc0 1e15bc8 (read/Right now/Likely now/one tile per
+  slot/log below rotation/type-ahead/hold camera), glow fc2ab3f (Settings ›
+  Appearance › Glow; Lit left Material), Train b036aa4 (routine body glyphs,
+  muscle strips, week capsules with make-ups folded in), record banner fd99862
+  (+ GET /workouts/bests). Pushed (0 0 vs origin), Pages deploy success, live
+  bundle carries every new string, server reloaded (health 200), /workouts/bests
+  answered on his data (incline 82.3 kg).
+- DECISIONS: (a) Today's read judges only protein and calories (his targets);
+  fat has no target in his profile so it is shown, never judged; mid-day is
+  PROJECTED from the uneaten rotation. (b) Readiness 0 is a real computed score
+  (HRV vs baseline + sleep), so it stays 0, not "no reading". (c) bests read the
+  same 60 sessions Save's prsInSession reads, so the banner never promises a
+  record Save would refuse. (d) A stored material 'lit' becomes glass + glow
+  'dyn'; anyone on glass before gets glow OFF until he picks it.
+- VERIFIED: every page shot on HIS data with shot.mjs --readonly (writes
+  blocked at CDP), seed removed after each run; full suite 3592 pass, 2 fail
+  (the old exerciseAtlas pair); lint 0 errors; guard-cupertino unchanged (Home,
+  recipes, workouts). The record banner seen only in DEMO (seeded state).
+- ASSUMED: all of it on his iPhone (not seen there); the hold-camera gesture on
+  iOS (pointer events on a file-input label, desktop only); the capsule travel
+  on a real Move (needs a make-up this week).
+- OPEN: his Home recording (Home redesign in this style); his glow pick if he
+  was on Glass; a peer relayed his Mission Control instruction that Nova's
+  transitions between sections should animate the native way (not yet taken
+  up, needs his word here).
+- DO NOT: put mockup 101 or his routine/recipe names in the repo; reload with a
+  bare launchctl; leave public/_devconn.js behind after a --readonly shot.
+
 **12 OCT (redesign session, claude.ai session 01MPaorT) — NOTION KEY, JOURNAL,
 SKILL SETS, SWIPE-TO-DISMISS AND THE SHORT DAILY REVIEW ARE ALL ON MAIN AND
 LIVE; NOTHING RUNNING; ONE LOOK OWED ON HIS PHONE.**
