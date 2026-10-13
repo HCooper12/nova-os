@@ -1066,7 +1066,7 @@ function makeHoloDraw(ctx, size, opts, getState) {
 // or reduced motion) draws the turn's final form as one frame in its colour,
 // and once more when the turn changes; at rest, the frame it always drew.
 // Left at their defaults every existing caller draws exactly what it did.
-export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false }) {
+export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'filament', style, speaking = false, listening = false, thinking = false, contest = false, leanRef = null, tintStill = false, formOnly = false, pace = 1, still = false, pixelRatio = 0 }) {
   const ref = useRef(null);
   const stillDraw = useRef(null);
   // live state read through a ref so the rAF loop sees changes WITHOUT the
@@ -1077,7 +1077,11 @@ export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'fila
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return undefined;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // a small core draws at the screen's full density (his iPhone is 3x; at
+    // the old 2x cap the tab-bar orb was stretched 1.5x and read soft); the
+    // big full-screen core keeps 2x, where the fill cost per frame is real.
+    // `pixelRatio` overrides both, for the icon render (tools/icon)
+    const dpr = pixelRatio || Math.min(window.devicePixelRatio || 1, size <= 160 ? 3 : 2);
     canvas.width = size * dpr;
     canvas.height = size * dpr;
     const ctx = canvas.getContext('2d');
@@ -1140,7 +1144,7 @@ export function NovaCore({ size = 312, fps = 0, variant = 'full', engine = 'fila
       io?.disconnect();
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [size, variant, engine, still, tintStill, fps]);
+  }, [size, variant, engine, still, tintStill, fps, pixelRatio]);
   // a still core draws its one frame again when the turn changes: the
   // turn's form in its colour (and, on the full screen, the rings' tint);
   // back at rest, the very frame it drew before
