@@ -63,3 +63,15 @@ test('duration tolerance: minutes, seconds, and clock strings all resolve', () =
   assert.equal(normalizeWorkout({ ...base, duration: '1:02:45' }, null).minutes, 63, 'H:MM:SS clock string');
   assert.equal(normalizeWorkout({ ...base, duration: 90000 }, null), null, 'beyond 24h even as seconds → refused');
 });
+
+test('a short workout in seconds is never read as minutes when its unit is known', () => {
+  const base = { type: 'Walking', startISO: '2026-10-14T07:30:00+11:00' };
+  assert.equal(normalizeWorkout({ ...base, endISO: '2026-10-14T07:50:00+11:00', duration: 1200 }, null).minutes, 20, 'start and end beat a bare number');
+  assert.equal(normalizeWorkout({ ...base, seconds: 1200 }, null).minutes, 20, 'named seconds');
+  assert.equal(normalizeWorkout({ ...base, durationSeconds: '1200' }, null).minutes, 20, 'named seconds as text');
+  assert.equal(normalizeWorkout({ ...base, duration: '20 min' }, null).minutes, 20, 'text with a unit');
+  assert.equal(normalizeWorkout({ ...base, duration: '1 hr 5 min' }, null).minutes, 65, 'hours and minutes');
+  assert.equal(normalizeWorkout({ ...base, duration: '1200 s' }, null).minutes, 20, 'text in seconds');
+  assert.equal(normalizeWorkout({ ...base, minutes: 20, kcal: '211.4 kcal' }, null).kcal, 211, 'kcal with its unit');
+  assert.equal(normalizeWorkout({ ...base, minutes: 3130 }, null), null, 'named minutes are never reinterpreted as seconds');
+});

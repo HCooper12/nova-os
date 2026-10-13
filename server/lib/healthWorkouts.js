@@ -24,6 +24,37 @@ const localDateOf = (iso) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+// HOW LONG IT RAN, most certain source first. A bare number under `duration`
+// cannot say its unit: Apple's Duration detail is seconds, so a 20-minute
+// walk arrived as 1200 and passed for 1,200 minutes (14 Oct 2026). So: the
+// start and end times when both are sent; then a field that names its unit
+// (`minutes`, `seconds`, or text like "20 min"); only then the old guess on a
+// bare `duration` (a clock string, or a number over a day's minutes = seconds).
+const UNIT_RE = /^(?:(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours))?\s*(?:(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute|minutes))?\s*(?:(\d+(?:\.\d+)?)\s*(?:s|sec|secs|second|seconds))?$/i;
+function fromText(v) {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  const clock = t.match(/^(\d+):(\d{2})(?::(\d{2}))?$/);
+  if (clock) return clock[3] != null ? Number(clock[1]) * 60 + Number(clock[2]) + Number(clock[3]) / 60 : Number(clock[1]) + Number(clock[2]) / 60;
+  const u = /[a-z]/i.test(t) && t.match(UNIT_RE);
+  if (u && (u[1] || u[2] || u[3])) return Number(u[1] || 0) * 60 + Number(u[2] || 0) + Number(u[3] || 0) / 60;
+  return null;
+}
+export function workoutMinutes(raw, startISO) {
+  const endISO = String(raw.endISO || raw.end || raw.endDate || '').trim();
+  const span = (new Date(endISO) - new Date(startISO)) / 60000;
+  if (startISO && endISO && Number.isFinite(span) && span > 0) return span;
+  const named = raw.minutes ?? raw.durationMinutes;
+  if (named != null) return fromText(named) ?? (Number(named) || 0);
+  const secs = raw.seconds ?? raw.durationSeconds;
+  if (secs != null) return fromText(secs) ?? (Number(secs) || 0) / 60;
+  const d = raw.duration;
+  const text = fromText(d);
+  if (text != null) return text;
+  const n = Number(d) || 0;
+  return n > 24 * 60 && n <= 24 * 3600 ? n / 60 : n;
+}
+
 // Pure + exported for tests: coerce one Shortcut-shaped workout into a
 // typed record, or null if unusable. Field aliases cover what the
 // Shortcuts "Find Workouts" action naturally produces.
@@ -31,23 +62,8 @@ export function normalizeWorkout(raw, fallbackDate) {
   if (!raw || typeof raw !== 'object') return null;
   const type = String(raw.type || raw.workoutType || raw.name || '').trim().slice(0, 60);
   const startISO = String(raw.startISO || raw.start || raw.startDate || '').trim();
-  // Duration arrives however Shortcuts felt like serialising it: minutes
-  // (number), SECONDS (Apple's workout Duration detail), or a clock string
-  // ("52:10", "1:02:45"). Interpret all three — a dead pipeline that
-  // politely refused Apple's own format would be honesty theatre.
-  const rawDur = raw.minutes ?? raw.durationMinutes ?? raw.duration;
-  let minutes = 0;
-  const clock = typeof rawDur === 'string' && rawDur.trim().match(/^(\d+):(\d{2})(?::(\d{2}))?$/);
-  if (clock) {
-    minutes = clock[3] != null
-      ? Number(clock[1]) * 60 + Number(clock[2]) + Number(clock[3]) / 60 // H:MM:SS
-      : Number(clock[1]) + Number(clock[2]) / 60;                        // MM:SS
-  } else {
-    minutes = Number(rawDur) || 0;
-    if (minutes > 24 * 60 && minutes <= 24 * 3600) minutes = minutes / 60; // seconds, clearly
-  }
-  minutes = Math.round(minutes);
-  const kcal = Math.round(Number(raw.kcal ?? raw.activeEnergyKcal ?? raw.energy) || 0);
+  const minutes = Math.round(workoutMinutes(raw, startISO));
+  const kcal = Math.round(parseFloat(raw.kcal ?? raw.activeEnergyKcal ?? raw.energy) || 0);
   if (!type || minutes <= 0 || minutes > 24 * 60) return null;
   const date = localDateOf(startISO) || (DATE_RE.test(String(fallbackDate)) ? fallbackDate : null);
   if (!date) return null;
