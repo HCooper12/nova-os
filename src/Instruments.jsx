@@ -597,7 +597,9 @@ const chevron = (next) => (
 // One instrument at a time: a swipe, the chevrons or a dot. `onSeen(key)`
 // is told each time an instrument is shown, so Home can retire the card
 // once all five have been seen.
-export function YourDay({ data, loading, error, onRefresh, onSeen, foot }) {
+// `head({ pos })`: a surface with its own card header (the summary Home,
+// mockup 101) draws it; `pos` is "2 of 5" once the day is read
+export function YourDay({ data, loading, error, onRefresh, onSeen, foot, head = null }) {
   const [i, setI] = useState(0);
   const trackRef = useRef(null);
   const pagerRef = useRef(null);
@@ -694,10 +696,12 @@ export function YourDay({ data, loading, error, onRefresh, onSeen, foot }) {
 
   return (
     <>
-      <div className="nv-day-ch">
-        <span className="nv-day-ct">Your day, drawn</span>
-        {data && <span className="nv-day-s" aria-live="polite">{i + 1} of {N}</span>}
-      </div>
+      {head ? <div style={{ marginBottom: '10px' }}>{head({ pos: data ? `${i + 1} of ${N}` : null })}</div> : (
+        <div className="nv-day-ch">
+          <span className="nv-day-ct">Your day, drawn</span>
+          {data && <span className="nv-day-s" aria-live="polite">{i + 1} of {N}</span>}
+        </div>
+      )}
       {body}
       {(foot || (data && again)) && (
         <div className="nv-day-foot">

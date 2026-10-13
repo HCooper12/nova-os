@@ -22,7 +22,9 @@ const S = 'var(--nv-font-serif)';
 // becomes (both idioms render that card from the same view model), so when
 // the reel lands the card opens AROUND the name rather than cutting to it.
 // Only on a new day, once per day per device.
-export function TechniqueReveal({ t, variant = 'apple', mob = false, bare = false }) {
+// `head`: a surface with its own card header (the summary Home, mockup 101)
+// hands it in to replace this one's eyebrow row
+export function TechniqueReveal({ t, variant = 'apple', mob = false, bare = false, head = null }) {
   const apple = variant === 'apple';
   const panel = glowPanel('--nv-mg', apple ? { radius: '16px' } : {});
   const cta = (
@@ -34,7 +36,7 @@ export function TechniqueReveal({ t, variant = 'apple', mob = false, bare = fals
   );
   const inner = (
     <>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
+      {head || <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
         {apple
           ? <div style={{ font: `600 11px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--nv-mg)' }}>{t.modeLabel}</div>
           : <Eyebrow as="span">{t.modeLabel}</Eyebrow>}
@@ -42,7 +44,7 @@ export function TechniqueReveal({ t, variant = 'apple', mob = false, bare = fals
           <Meta tone="faint">{t.streak > 0 ? `${t.streak}-day streak` : ''}</Meta>
           <TextAction tone="faint" compact onClick={t.openAll}>{t.position} of {t.total} ›</TextAction>
         </span>
-      </div>
+      </div>}
       <div style={{ marginTop: '10px' }}>
         <SpinReveal
           rows={t.reel.rows}

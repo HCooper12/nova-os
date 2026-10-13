@@ -67,6 +67,8 @@ const ICONS = {
   star: <path d="m12 3.6 2.5 5.2 5.6.8-4 4 1 5.6-5.1-2.7-5.1 2.7 1-5.6-4-4 5.6-.8Z" />,
   spark: <path d="M12 3.5l1.7 5.8 5.8 1.7-5.8 1.7L12 18.5l-1.7-5.8-5.8-1.7 5.8-1.7Z" />,
   list: <path d="M9.5 7h10M9.5 12h10M9.5 17h7M5 7h.01M5 12h.01M5 17h.01" />,
+  lead: <><path d="M6 20.5V4" /><path d="M6 4.5h11l-2.4 3.7L17 12H6" /></>,
+  day: <><circle cx="12" cy="12" r="3.6" /><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M5.6 18.4l1.7-1.7M16.7 7.3l1.7-1.7" /></>,
 };
 // exported with CardHead for the summary Train page (TrainSummary.jsx), which
 // hands its own marks in as `paths`, drawn in this same stroke family
@@ -280,7 +282,18 @@ function Moment({ k, v }) {
       // the Leader's two faces, his swipe — the box on this card's material
       return (
         <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit(`var(${leaderAccent(v.leaderBox)})`) }} aria-label="Lead">
-          <LeaderBox box={v.leaderBox} variant="apple" mob bare />
+          {/* mockup 101: the tiled header and a Pill door, as every Home card */}
+          <LeaderBox box={v.leaderBox} variant="apple" mob bare
+            head={({ label, chip, soon, dots, accent }) => (
+              <CardHead icon="lead" label={label} tile={[accent]} meta={(
+                <>
+                  {soon && <Meta tone="gold">{soon}</Meta>}
+                  {chip && <Meta tone="faint">{chip.charAt(0) + chip.slice(1).toLowerCase()}</Meta>}
+                  {dots}
+                </>
+              )} />
+            )}
+            door={(open) => <Pill label="Open the Leader" onClick={open} tone="quiet" />} />
         </section>
       );
     case 'technique': {
@@ -292,7 +305,14 @@ function Moment({ k, v }) {
       if (t.reel) {
         return (
           <section className="nv-sum-card nv-sum-rise" style={{ ...MOMENT_PAD, ...lit('var(--nv-mg)'), ...vt }} aria-label={t.modeLabel}>
-            <TechniqueReveal t={t} variant="apple" mob bare />
+            <TechniqueReveal t={t} variant="apple" mob bare head={(
+              <CardHead icon="spark" label={t.modeLabel} tile={['var(--nv-mg)']} meta={(
+                <>
+                  {t.streak > 0 && <Meta tone="faint">{t.streak}-day streak</Meta>}
+                  <TextAction tone="faint" compact onClick={t.openAll}>{t.position} of {t.total} ›</TextAction>
+                </>
+              )} />
+            )} />
           </section>
         );
       }
@@ -439,6 +459,7 @@ function YourDayCard({ d, cls = 'nv-sum-card nv-sum-rise', style }) {
   return (
     <section className={`${cls} nv-day`} style={{ '--i': 2, padding: '14px 16px', ...lit(CARD_LIGHT.day), ...style }} aria-label="Your day, drawn">
       <YourDay data={d.data} loading={d.loading} error={d.error} onRefresh={d.refresh} foot={d.foot}
+        head={({ pos }) => <CardHead icon="day" label="Your day, drawn" tile={['var(--nv-cy)', 'var(--nv-vi)']} meta={pos ? <Meta tone="faint">{pos}</Meta> : null} />}
         onSeen={(k) => markDaySeen(k)} />
     </section>
   );

@@ -56,7 +56,10 @@ function Dots({ box }) {
   );
 }
 
-export function LeaderBox({ box, variant = 'apple', mob = false, bare = false }) {
+// `head` and `door` (render functions) let a surface with its own card grammar
+// (the summary Home's tiled header, mockup 101) draw those two parts its way;
+// every other caller leaves them off and keeps this card's own.
+export function LeaderBox({ box, variant = 'apple', mob = false, bare = false, head: headFn = null, door = null }) {
   // Hooks run unconditionally — useOptionPager itself returns an inert shape
   // when there is nothing to page between.
   const pager = useOptionPager({ onNext: box?.next || undefined, onPrev: box?.prev || undefined, enabled: !!(box && box.count > 1) });
@@ -68,7 +71,9 @@ export function LeaderBox({ box, variant = 'apple', mob = false, bare = false })
   const accent = leaderAccent(box);
   const apple = variant === 'apple';
 
-  const head = (
+  // the chip says the face's kind; when the label already says it, once is enough
+  const chipNew = face.chip && !String(face.label || '').toLowerCase().includes(String(face.chip).toLowerCase());
+  const head = headFn ? headFn({ label: face.label, chip: chipNew ? face.chip : null, soon: box.soon ? `${box.soon.label} ${box.soon.words}` : null, dots: <Dots box={box} />, accent: `var(${accent})` }) : (
     <div style={css('display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap')}>
       <span style={apple
         ? { font: `600 10.5px ${UI}`, letterSpacing: '.08em', textTransform: 'uppercase', color: `var(${accent})` }
@@ -150,7 +155,7 @@ export function LeaderBox({ box, variant = 'apple', mob = false, bare = false })
   // NO DOOR WHEN YOU ARE ALREADY THROUGH IT. The Leader screen renders this
   // same card, and there `openLeader` is deliberately absent — rendering the
   // button anyway would put a control on screen that does nothing at all.
-  const actions = !box.openLeader ? null : (
+  const actions = !box.openLeader ? null : door ? <div style={{ marginTop: '12px' }}>{door(box.openLeader)}</div> : (
     <div style={css('margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap')}>
       {/* the answer is taken ON the card now — this row is only the door to
           the fuller conversation, for when one sentence is not enough */}
