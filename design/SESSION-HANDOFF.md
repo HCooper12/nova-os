@@ -13,6 +13,34 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**13 OCT, LATER (same session 01MPaorT) — HOME AS MOCKUP 101 AND THE WHOLE
+MOTION LIST ARE ON MAIN, PUSHED, DEPLOYED (live bundle checked); NOTHING
+RUNNING. UNSEEN ON HIS PHONE.**
+- DONE: Home ff884d0: every card wears the tiled header (CardHead `tile`),
+  glows in its own colours (`glow()` / CARD_GLOW → --nv-g1..3), Records rows
+  in muscle hues with the gain as a pill (prKind/prGain), Today's strip is a
+  rail (dot in the slot's own hue, past dimmed, the current OR the next one
+  ringed: `.lead`), Training wears its routine glyph. NOVA·OS bar untouched,
+  his call. Compared against mockup 101 §0 at 402 and 375 on his real data
+  (read-only): every card, nothing missing.
+- DONE: motion 8a0eab5 + edfaf71. src/pageMoveRule.js decides push/pop/grow/
+  shrink from the state change; App.getSnapshotBeforeUpdate freezes, then
+  playPageMove plays it (settingsNav's engine for push/pop, src/pageMotion.js
+  for grow/shrink with an even-odd hole in the old page). Train's routine and
+  history are now history levels (novaView 'trainPage'); the session grows
+  from [data-grow] / the tapped card and closes onto its routine tile or the
+  hero, whichever is wholly in view; Home cards grow into their pages
+  (navigate); active tab = pop to root then top; tap the bar = top. Inbox
+  filed rows: Disclose. Each move photographed mid-flight on his data by
+  freezing WAAPI at set ms (see the trap below).
+- TRAP (instrument): headless Chrome does not advance animations or smooth
+  scroll between screenshots. Finish them (`getAnimations().forEach(a =>
+  a.finish())`) before the next tap, and freeze (`pause(); currentTime=ms`)
+  to photograph a frame. The headless profile also keeps a session draft
+  between runs.
+- NOT VERIFIED: the feel at 120Hz on his iPhone, and the edge swipe on the new
+  Train levels on a real finger. Ask him after he has used it.
+
 **13 OCT (redesign session, claude.ai session 01MPaorT) — MOCKUP 101 BUILT:
 FUEL, TRAIN, THE RECORD BANNER AND THE GLOW SETTING ARE ON MAIN, PUSHED AND
 LIVE; NOTHING RUNNING; HOME WAITS ON HIS RECORDING.**
