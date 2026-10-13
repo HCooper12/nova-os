@@ -3035,14 +3035,24 @@ export default class App extends Component {
             foodLogC: r.macros?.c != null ? String(r.macros.c) : '',
             foodLogF: r.macros?.f != null ? String(r.macros.f) : '',
             foodLogKcal: r.macros?.kcal != null ? String(r.macros.kcal) : '',
+          }, () => {
+            // the same write Add makes (submitFoodLog), once the fields hold the
+            // read, so it lands on the log as any entry does and comes off the same way
+            if (meta.auto && !asks && r.name && r.macros) this.submitFoodLog();
           });
-          this.toastMsg(r.confidence === 'low' ? 'Analyzed — rough estimate, check the fields below' : 'Analyzed — check the fields below before saving');
+          if (meta.auto && !asks && r.name && r.macros) {
+            this.toastMsg(`Logged from the photo: ${r.name}. Tap it in the log to correct or remove it`);
+          } else {
+            this.toastMsg(r.confidence === 'low' ? 'Analyzed — rough estimate, check the fields below' : 'Analyzed — check the fields below before saving');
+          }
         }
       },
       onError: (msg) => { clearTimeout(this.foodScanSlowTimer); this.clearFoodScanJob(); this.setState({ foodScanBusy: false, foodScanError: msg }); },
     });
   }
-  runFoodScan(photosArg, noteArg) {
+  // `auto` (13 Oct, mockup 101, "hold the camera"): a confident read is
+  // logged the moment it lands; a question still stops for his answer
+  runFoodScan(photosArg, noteArg, { auto = false } = {}) {
     const conn = getConnection();
     const photos = photosArg || this.state.foodScanPhotos || [];
     const note = noteArg != null ? noteArg : this.state.foodScanNote.trim();
@@ -3057,7 +3067,7 @@ export default class App extends Component {
       .catch((e) => (isOfflineError(e) ? new Promise((r) => setTimeout(r, 2500)).then(start) : Promise.reject(e)))
       .then(({ jobId }) => {
         this.persistFoodScanJob(jobId, { kind: 'scan', note });
-        this.attachFoodScanPoll(conn, jobId, { kind: 'scan', photos, note });
+        this.attachFoodScanPoll(conn, jobId, { kind: 'scan', photos, note, auto });
       })
       .catch((e) => this.setState({ foodScanBusy: false, foodScanError: isOfflineError(e)
         ? 'Couldn’t reach your Mac to send the photo (twice). It’s still here — tap Analyze to try again.'

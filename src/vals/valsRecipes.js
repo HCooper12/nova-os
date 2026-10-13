@@ -1059,9 +1059,13 @@ export function valsRecipes(app, ctx) {
     // change event at all.
     addFoodScanPhotos: (e) => {
       const input = e.target;
+      // a held camera (st.foodSnapAuto) reads and logs straight away
+      const auto = !!app.state.foodSnapAuto;
       Promise.resolve(app.addFoodScanPhotos(input.files))
+        .then(() => { if (auto) { app.setState({ foodSnapAuto: false }); app.runFoodScan(null, null, { auto: true }); } })
         .finally(() => { try { input.value = ''; } catch { /* detached */ } });
     },
+    armFoodSnap: (on = true) => app.setState({ foodSnapAuto: !!on }),
     runFoodScan: () => app.runFoodScan(),
     clearFoodScanPhotos: () => app.clearFoodScanPhotos(),
     canRunFoodScan: (st.foodScanPhotos || []).length > 0 && !st.foodScanBusy,

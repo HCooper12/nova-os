@@ -139,17 +139,36 @@ export function valsFuelSummary(app, ctx, v) {
 
   // ---- the composer: every way in, and what grows under it ---------------
   const typed = String(st.foodDescribeInput || '').trim().toLowerCase();
-  const recipeMatches = live && typed.length >= 3
-    ? (st.liveRecipes || []).filter((r) => r.macros && r.name.toLowerCase().includes(typed)).slice(0, 3)
-      .map((r) => ({ id: r.id, name: r.name, sub: `${round(r.macros.p)} g protein · ${kc(r.macros.kcal)} kcal`, open: () => app.openRecipe(r.id) }))
-    : [];
+  // INSTANT MATCHES (13 Oct, faster logging): three letters and his rotation,
+  // his past logs and his recipes answer under the field, no model wait. A
+  // rotation dish or a past log is logged by the tap; a recipe opens for its
+  // portion. Return still asks Nova to estimate anything new.
+  // from the start of a word: "kin" finds Kinder, not pumpkin
+  const wordStart = new RegExp(`(^|[^a-z0-9])${typed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+  const hay = (n) => wordStart.test(String(n || '').toLowerCase());
+  const recipeMatches = [];
+  if (live && typed.length >= 3) {
+    const seenNames = new Set();
+    const push = (m) => { const k = m.name.toLowerCase(); if (seenNames.has(k) || recipeMatches.length >= 4) return; seenNames.add(k); recipeMatches.push(m); };
+    for (const s of v.rotationSlots || []) {
+      for (const o of s.options || []) {
+        if (hay(o.name)) push({ id: `rot:${s.key}:${o.id}`, kind: 'log', name: o.name, sub: `Rotation · ${s.name} · ${o.p} g protein · ${kc(o.kcal)} kcal`, open: o.eaten ? () => app.relogFoodItem({ name: o.name, macros: { p: o.p, c: o.c, f: o.f, kcal: o.kcal } }) : () => app.tickRotation(s.key, o.id, true) });
+      }
+    }
+    for (const it of st.liveFoodHistory || []) {
+      if (hay(it.name)) push({ id: `hist:${it.key}`, kind: 'log', name: it.name, sub: `${it.count > 1 ? `Logged ${it.count} times` : 'Logged before'} · ${round(it.macros?.p)} g protein · ${kc(it.macros?.kcal)} kcal`, open: () => app.relogFoodItem(it) });
+    }
+    for (const r of st.liveRecipes || []) {
+      if (r.macros && hay(r.name)) push({ id: r.id, kind: 'recipe', name: r.name, sub: `From your recipes · ${round(r.macros.p)} g protein · ${kc(r.macros.kcal)} kcal`, open: () => app.openRecipe(r.id) });
+    }
+  }
   const manualHasData = !!(v.foodLogName || v.foodLogP || v.foodLogC || v.foodLogF || v.foodLogKcal);
   const composer = live ? {
     value: v.foodDescribeInput, set: v.setFoodDescribeInput, onKey: v.describeFoodKey,
     dictBase: () => v.foodDescribeValue || '',
     canSend: v.canDescribeFood, send: v.describeFoodSearch,
     busy: !!v.foodScanBusy, slow: !!v.foodScanSlow,
-    addPhotos: v.addFoodScanPhotos, openBarcode: v.openBarcodeScanner,
+    addPhotos: v.addFoodScanPhotos, openBarcode: v.openBarcodeScanner, armSnap: v.armFoodSnap,
     photos: v.foodScanPhotos, photoCount: v.foodScanCount, runScan: v.runFoodScan, canRunScan: v.canRunFoodScan,
     note: v.foodScanNote, setNote: v.setFoodScanNote,
     error: v.foodScanError || v.foodLogError || null,

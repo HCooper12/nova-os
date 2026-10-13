@@ -2063,6 +2063,12 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-fs-ch > span:first-of-type { font-weight: 700; color: var(--nv-ink); }
 .nv-fs-lrow.log { grid-template-columns: 30px minmax(0, 1fr) auto; }
 .nv-fs-lrow.log > .nv-fs-tm { text-align: right; }
+.nv-fs-cam { position: relative; -webkit-touch-callout: none; user-select: none; }
+.nv-fs-holdring { position: absolute; inset: 3px; border-radius: 50%; pointer-events: none; box-shadow: inset 0 0 0 2px var(--nv-cy); clip-path: inset(0 100% 0 0); }
+.nv-fs-cam:active .nv-fs-holdring { clip-path: inset(0 0 0 0); transition: clip-path 450ms linear; }
+.nv-fs-cam.held { color: var(--nv-cy); }
+.nv-fs-cam.held .nv-fs-holdring { clip-path: inset(0 0 0 0); }
+.nv-fs-tag { font: 700 13px var(--nv-font-ui); color: var(--nv-fs-k); padding: 6px 10px; border-radius: 14px; background: color-mix(in srgb, var(--nv-fs-k) 14%, transparent); }
 /* Likely now */
 .nv-fs-likely { margin-top: 0; padding-bottom: 10px; }
 .nv-fs-lk { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; max-width: 236px; min-height: 60px; padding: 10px 14px 10px 10px; box-sizing: border-box; cursor: pointer; -webkit-tap-highlight-color: transparent;

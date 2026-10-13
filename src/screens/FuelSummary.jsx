@@ -136,6 +136,9 @@ function Plate({ p, onOpen, openRef }) {
 // ---------------------------------------------------------------- composer --
 function Composer({ c, likely, likelyReceipt }) {
   const dict = useDictation(c.dictBase, (text) => c.set(text), null);
+  const camRef = useRef(null);
+  const hold = useRef({ t: 0, held: false, skip: false });
+  const [holding, setHolding] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const manualVisible = manualOpen || c.manual.hasData;
   const sending = c.canSend && !dict.on;
@@ -146,9 +149,18 @@ function Composer({ c, likely, likelyReceipt }) {
           placeholder="What did you eat?" aria-label="What did you eat?" autoComplete="off" />
         {/* the camera is a label wrapping the input: on iOS that one element
             offers Take Photo or the library (Recipes.jsx has the reason) */}
-        <label className="nv-fs-ib" aria-label="Shoot or add photos">
+        {/* HOLD THE CAMERA (13 Oct, faster logging): a tap still opens the
+            review; a hold arms "log it straight from the photo" and opens the
+            camera itself on release, inside the same gesture */}
+        <label className={`nv-fs-ib nv-fs-cam${holding ? ' held' : ''}`} aria-label="Shoot or add photos. Hold to log straight from the photo"
+          onPointerDown={() => { clearTimeout(hold.current.t); hold.current.held = false; hold.current.t = setTimeout(() => { hold.current.held = true; setHolding(true); c.armSnap?.(true); }, 450); }}
+          onPointerUp={() => { clearTimeout(hold.current.t); if (hold.current.held) { hold.current.held = false; hold.current.skip = true; setHolding(false); camRef.current?.click(); } }}
+          onPointerCancel={() => { clearTimeout(hold.current.t); if (hold.current.held) { hold.current.held = false; setHolding(false); c.armSnap?.(false); } }}
+          onClick={(e) => { if (hold.current.skip && e.target !== camRef.current) { hold.current.skip = false; e.preventDefault(); } }}
+          onContextMenu={(e) => e.preventDefault()}>
           <FIcon n="photo" />
-          <input type="file" accept="image/*" multiple onChange={c.addPhotos} disabled={c.busy} />
+          <i className="nv-fs-holdring" aria-hidden="true" />
+          <input ref={camRef} type="file" accept="image/*" multiple onChange={c.addPhotos} disabled={c.busy} />
         </label>
         <Interactive as="span" className="nv-fs-ib" onClick={c.busy ? undefined : c.openBarcode} aria-label="Scan a barcode" haptic="tick" focusStyle={NO_RING}>
           <FIcon n="code" />
@@ -175,15 +187,16 @@ function Composer({ c, likely, likelyReceipt }) {
       )}
 
       {c.recipeMatches.length > 0 && (
-        <div className="nv-sum-card nv-fs-list" style={{ marginTop: '10px' }} aria-label="From your recipes">
+        <div className="nv-sum-card nv-fs-list nv-deck-rise" data-gr="focus" style={{ marginTop: '10px' }} aria-label="Matches">
           {c.recipeMatches.map((r) => (
-            <Interactive key={r.id} as="div" className="nv-fs-lrow" onClick={r.open} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
-              aria-label={`${r.name}, from your recipes. Open it to choose a portion`} base={{ gridTemplateColumns: '30px minmax(0, 1fr) 14px' }}>
-              <span className="nv-fs-tile"><FIcon n="book" /></span>
-              <span className="nv-fs-lx"><span className="nv-fs-nm">{r.name}</span><span className="nv-fs-sv">From your recipes · {r.sub}</span></span>
-              <FIcon n="right" className="nv-fs-cv" />
+            <Interactive key={r.id} as="div" className="nv-fs-lrow" onClick={r.open} haptic={r.kind === 'log' ? 'commit' : 'tick'} activeStyle={PRESSED} focusStyle={NO_RING}
+              aria-label={r.kind === 'log' ? `Log ${r.name}. ${r.sub}` : `${r.name}, from your recipes. Open it to choose a portion`} base={{ gridTemplateColumns: '30px minmax(0, 1fr) auto' }}>
+              <Tile n={r.kind === 'log' ? 'plate' : 'book'} a={r.kind === 'log' ? 'var(--nv-fs-k)' : 'var(--nv-fs-hold)'} />
+              <span className="nv-fs-lx"><span className="nv-fs-nm">{r.name}</span><span className="nv-fs-sv">{r.sub}</span></span>
+              {r.kind === 'log' ? <span className="nv-fs-tag">Log</span> : <FIcon n="right" className="nv-fs-cv" />}
             </Interactive>
           ))}
+          <p className="nv-fs-sv" style={{ margin: 0, padding: '8px 12px 10px', whiteSpace: 'normal' }}>Return asks Nova to estimate something new.</p>
         </div>
       )}
 
