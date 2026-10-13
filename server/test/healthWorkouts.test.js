@@ -75,3 +75,19 @@ test('a short workout in seconds is never read as minutes when its unit is known
   assert.equal(normalizeWorkout({ ...base, minutes: 20, kcal: '211.4 kcal' }, null).kcal, 211, 'kcal with its unit');
   assert.equal(normalizeWorkout({ ...base, minutes: 3130 }, null), null, 'named minutes are never reinterpreted as seconds');
 });
+
+test('the route takes one flat workout as well as a list', async () => {
+  const express = (await import('express')).default;
+  const { healthDataRouter } = await import('../routes/healthData.js');
+  const app = express();
+  app.use(express.json());
+  app.use('/api', healthDataRouter(dataDir));
+  const server = app.listen(0);
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/api/health-data/workouts`;
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'Outdoor Walk', startISO: '2026-10-14T07:30:00+11:00', minutes: '20', kcal: '96' }) });
+    assert.equal(r.status, 200);
+    const day = await workoutsForDay('2026-10-14');
+    assert.ok(day.some((w) => w.type === 'Outdoor Walk' && w.minutes === 20 && w.kcal === 96));
+  } finally { server.close(); }
+});

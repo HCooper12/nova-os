@@ -94,7 +94,10 @@ export function healthDataRouter(vaultPath) {
         try { body = JSON.parse(body); } catch { /* validation below fails honestly */ }
       }
       const { ingestWorkouts } = await import('../lib/healthWorkouts.js');
-      const result = await ingestWorkouts({ date: body?.date, workouts: body?.workouts, rawBody });
+      // one workout per request, its fields at the top level, is the simplest
+      // thing for a Siri-built Shortcut to send (no list inside the JSON)
+      const workouts = body?.workouts ?? (body && typeof body === 'object' && (body.type || body.workoutType) ? [body] : undefined);
+      const result = await ingestWorkouts({ date: body?.date, workouts, rawBody });
       if (!result.ok) return res.status(400).json({ error: result.error });
       const { broadcast } = await import('../lib/events.js');
       broadcast('health');
