@@ -281,9 +281,9 @@ test('the recipe sheet is a modal the back swipe can find and close', () => {
   assert.match(root, /style=\{\{ zIndex: 140 \}\}/, 'edgeBack.js reads the inline z-index');
   assert.match(root, /onClick=\{exit\.close\}/, 'the backdrop tap (and the swipe\'s click) closes it');
   assert.match(sheet, /onClick=\{\(e\) => e\.stopPropagation\(\)\}/);
-  // the other three sheets are the house GlassSheet, itself an aria-modal root with its z inline
+  // the other four sheets are the house GlassSheet, itself an aria-modal root with its z inline
   const fuel = read('src/screens/FuelSummary.jsx');
-  assert.equal((fuel.match(/<GlassSheet /g) || []).length, 3, 'the week, the rotation and Pick it up');
+  assert.equal((fuel.match(/<GlassSheet /g) || []).length, 4, 'the week, the rotation, Pick it up and Add to the rotation');
   const glass = read('src/GlassSheet.jsx');
   assert.match(glass, /role="dialog" aria-modal="true"/);
   assert.match(glass, /z-index:145/);

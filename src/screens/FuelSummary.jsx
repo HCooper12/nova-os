@@ -48,6 +48,18 @@ function Act({ children, onClick, tone, label, disabled }) {
   );
 }
 
+// THE TILE (mockup 101, 13 Oct 2026: "I like some of the icons used in fuel"):
+// every card's header and every row wear one, a gradient square in the colour
+// of what it is. Colour means something: protein cyan, calories green, held
+// back amber, Nova's read violet, a rotation dish its slot's hue.
+function Tile({ n, a, b, size }) {
+  return (
+    <span className={`nv-tile${size ? ` ${size}` : ''}`} style={{ '--a': a, ...(b ? { '--b': b } : null) }} aria-hidden="true">
+      <FIcon n={n} />
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------- the plate --
 const RING = 128;
 const STROKE = 12;
@@ -87,11 +99,11 @@ function Plate({ p, onOpen, openRef }) {
   const k = p.kcal;
   const right = k.target == null ? 'no target' : k.over > 0 ? `${kc(k.over)} over` : `${kc(k.left)} left`;
   return (
-    <Interactive as="section" className="nv-sum-card nv-sum-rise nv-fs-plate" style={{ '--i': 1 }} onClick={onOpen} haptic="tick"
+    <Interactive as="section" className="nv-sum-card nv-sum-rise nv-fs-plate" data-gr="back" style={{ '--i': 1 }} onClick={onOpen} haptic="tick"
       aria-label={`Today's plate. ${p.line}. Open the week`} focusStyle={NO_RING}>
       <span ref={openRef} style={{ display: 'contents' }} />
-      <div className="nv-sum-ch" style={{ color: 'var(--nv-fs-k)' }}>
-        <FIcon n="fork" className="nv-sum-ico" />
+      <div className="nv-sum-ch nv-fs-ch">
+        <Tile n="fork" a="var(--nv-fs-p)" />
         <span>Today's plate</span>
         <span className="nv-sum-ch-meta">{p.when}</span>
       </div>
@@ -122,7 +134,7 @@ function Plate({ p, onOpen, openRef }) {
 }
 
 // ---------------------------------------------------------------- composer --
-function Composer({ c }) {
+function Composer({ c, likely, likelyReceipt }) {
   const dict = useDictation(c.dictBase, (text) => c.set(text), null);
   const [manualOpen, setManualOpen] = useState(false);
   const manualVisible = manualOpen || c.manual.hasData;
@@ -175,15 +187,27 @@ function Composer({ c }) {
         </div>
       )}
 
-      {c.again.length > 0 && (
-        <div className="nv-fs-rail nv-sum-rise" style={{ '--i': 2 }} role="group" aria-label="Log it again">
-          {c.again.map((it) => (
-            <Interactive key={it.key} as="span" className="nv-fs-again" onClick={it.log} haptic="commit" focusStyle={NO_RING}
-              aria-label={`Log ${it.name} again, ${it.p} grams protein, ${it.kcal} kilocalories`}>
-              <FIcon n="again" />{it.name}{it.p > 0 && <b className="nv-fs-p">{it.p} g</b>}
-            </Interactive>
-          ))}
-        </div>
+      {/* LIKELY NOW (13 Oct, his yes to faster logging): three one-tap logs in
+          place of the "Log it again" rail, each saying why it is there
+          (src/fuelSummaryFacts.js likelyNow). A rotation dish is a tick, so
+          its receipt and Undo ride the rotation's rails. */}
+      {likely?.length > 0 && (
+        <>
+          <div className="nv-fs-rhd nv-sum-rise" style={{ '--i': 2, marginTop: '16px' }}>
+            <span className="nv-fs-hk" style={{ margin: 0 }}>Likely now</span>
+            <span className="nv-fs-rcount">tap once to log</span>
+          </div>
+          <div className="nv-fs-rail nv-fs-likely nv-sum-rise" style={{ '--i': 2 }} role="group" aria-label="Likely now">
+            {likely.map((it) => (
+              <Interactive key={it.key} as="span" className="nv-sum-card nv-fs-lk" data-gr="back" onClick={it.log} haptic="commit" focusStyle={NO_RING}
+                aria-label={`Log ${it.name}, ${it.p} grams protein, ${it.kcal} kilocalories. ${it.why}`}>
+                <Tile n="plate" a={it.hue || 'var(--nv-vi)'} />
+                <span className="nv-fs-lx"><span className="nv-fs-nm">{it.name}</span><span className="nv-fs-sv">{it.why} · <span className="nv-fs-p">{it.p} g</span></span></span>
+              </Interactive>
+            ))}
+          </div>
+          {likelyReceipt && <Receipt key={likelyReceipt.key} tone="fuel" icon="check" r={likelyReceipt} />}
+        </>
       )}
 
       {/* the slower way in, typing the macros by hand, a quiet word under the rail */}
@@ -329,14 +353,14 @@ function LogRow({ row, open, onToggle, edit }) {
         <SwipeRow radius={0}
           right={{ label: 'Log again', icon: <FIcon n="again" />, tone: 'var(--nv-fs-k)', run: row.relog }}
           left={{ label: 'Delete', icon: <FIcon n="trash" />, tone: 'var(--nv-fs-rm)', run: row.remove, collapse: true }}>
-          <Interactive as="div" className="nv-fs-lrow" onClick={onToggle} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
+          <Interactive as="div" className="nv-fs-lrow log" onClick={onToggle} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
             aria-expanded={open} aria-label={`${row.name}, ${row.p} grams protein, ${row.kcal} kilocalories${lineCount > 1 ? `, ${lineCount} lines` : ''}. Swipe right to log it again, left to delete, or open it for Remove.`}>
-            <span className="nv-fs-tm">{time ? <>{time.clock}<small>{time.ampm}</small></> : <small>—</small>}</span>
+            <Tile n="plate" a={row.fromRotation ? 'var(--nv-fs-k)' : 'var(--nv-fs-p)'} />
             <span className="nv-fs-lx">
               <span className="nv-fs-nm">{row.name}</span>
               <span className="nv-fs-sv"><span className="nv-fs-p">{row.p} g</span> protein · <span className="nv-fs-k">{kc(row.kcal)}</span> kcal{row.tail ? ` · ${row.tail}` : ''}{row.edited ? ' · edited' : ''}</span>
             </span>
-            <FIcon n="right" className="nv-fs-cv" />
+            <span className="nv-fs-tm">{time ? <>{time.clock}<small>{time.ampm}</small></> : <small>—</small>}</span>
           </Interactive>
         </SwipeRow>
       </div>
@@ -386,9 +410,9 @@ function LogRow({ row, open, onToggle, edit }) {
 function History({ h, i }) {
   return (
     <>
-      <div className="nv-sum-card nv-fs-doors nv-sum-rise" style={{ marginTop: '12px', '--i': i }}>
+      <div className="nv-sum-card nv-fs-doors nv-sum-rise" data-gr="link" style={{ marginTop: '12px', '--i': i }}>
         <Interactive as="div" className="nv-fs-door" onClick={h.toggle} haptic="tick" focusStyle={NO_RING} aria-expanded={h.open}>
-          <span className="nv-fs-tile"><FIcon n="list" /></span>
+          <Tile n="list" a="var(--nv-ink60)" />
           <span className="nv-fs-lx"><span className="nv-fs-nm">Everything you’ve logged</span><span className="nv-fs-sv">Log again, or save to your recipes</span></span>
           <span />
           <FIcon n="right" className="nv-fs-cv" />
@@ -434,7 +458,7 @@ function Log({ log, i }) {
           ))}
         </div>
       )}
-      <div className="nv-sum-card nv-sum-rise nv-fs-list" style={{ '--i': i }}>
+      <div className="nv-sum-card nv-sum-rise nv-fs-list" data-gr="back" style={{ '--i': i }}>
         {log.rows.length === 0 && <p className="nv-fs-empty" style={{ margin: 0 }}>{log.empty}</p>}
         {log.rows.map((row) => (
           <LogRow key={row.id} row={row} open={openId === row.id} edit={log.edit}
@@ -447,63 +471,203 @@ function Log({ log, i }) {
   );
 }
 
-// ------------------------------------------------------------ the rotation --
-// THE STRIP (3 Oct 2026, his words: "widgets or something similar like the
-// previous design of Nova so that I can simply scroll and select to say that
-// I am ticking off one of the meals from my rotation"). Every dish in every
-// slot is a glass tile in a row that scrolls and snaps; the 44pt tick on
-// each logs it to the day the log is showing (or takes it back off), with
-// the receipt and its Undo underneath. The first dish not yet eaten is in
-// view when the page opens. A tile's body opens the whole rotation.
-function RotationStrip({ rot, onOpen, i }) {
+// ------------------------------------------------------------ Right now --
+// One card, one situation (src/fuelNow.js). Silent when nothing applies.
+function NowCard({ n, openKitchen }) {
+  return (
+    <section className="nv-sum-card nv-sum-rise nv-fs-now" data-gr="focus" style={{ '--i': 3 }} aria-label="Right now">
+      <div className="nv-sum-ch nv-fs-ch">
+        <Tile n="bolt" a="var(--nv-cy)" b="var(--nv-vi)" />
+        <span>Right now</span><i className="nv-fs-live" aria-hidden="true" />
+        <span className="nv-sum-ch-meta">{n.clock}</span>
+      </div>
+      <p className="nv-fs-nowl">{n.line}</p>
+      <p className="nv-fs-nowy">{n.why}</p>
+      {n.proj && (
+        <div className="nv-fs-proj" role="img" aria-label={`${n.proj.now} grams now, ${n.proj.now + n.proj.add} with this meal, of ${n.proj.target}`}>
+          <div className="nv-fs-projbar">
+            <i style={{ width: `${Math.min(100, (n.proj.now / (n.proj.target * 1.3)) * 100)}%` }} />
+            <i className="add" style={{ left: `${Math.min(100, (n.proj.now / (n.proj.target * 1.3)) * 100)}%`, width: `${Math.min(100, (n.proj.add / (n.proj.target * 1.3)) * 100)}%` }} />
+            <b style={{ left: `${100 / 1.3}%` }} />
+          </div>
+          <div className="nv-fs-projk"><span>{n.proj.now} g now</span><span>+{n.proj.add} g → {n.proj.now + n.proj.add} g</span></div>
+        </div>
+      )}
+      {n.actions.length > 0 && (
+        <div className="nv-fs-nowa">
+          {n.actions.map((a, i) => (
+            <Interactive key={a.label} as="span" className={`nv-fs-pill${i === 0 ? ' go' : ''}`} haptic={i === 0 ? 'commit' : 'tick'} focusStyle={NO_RING}
+              onClick={a.kind === 'kitchen' ? openKitchen : a.run || undefined}>{a.label}</Interactive>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------- Today's read --
+// Folded to one line by default (his ask: "normally toggled to be collapsed
+// but I am able to scroll down and log a meal much quicker"). The breakdown
+// and the score are src/fuelRead.js; the planned part is drawn dashed.
+const READ_HUE = { p: ['var(--nv-fs-p)', 'prot'], kcal: ['var(--nv-fs-k)', 'flame'], f: ['var(--nv-fs-f)', 'drop'] };
+function ReadCard({ r }) {
+  const [open, setOpen] = useState(false);
+  const C = 2 * Math.PI * 22;
+  const groups = r.state === 'empty' ? [] : [
+    { key: 'ok', label: r.state === 'done' ? 'Helped' : 'On track', tone: 'good', facts: r.facts.filter((x) => x.ok === true) },
+    { key: 'no', label: r.state === 'done' ? 'Held back' : 'Watch', tone: 'hold', facts: r.facts.filter((x) => x.ok === false) },
+    { key: 'fx', label: 'For reference', tone: 'ref', facts: r.facts.filter((x) => x.ok === null) },
+  ].filter((g) => g.facts.length);
+  return (
+    <section className={`nv-sum-card nv-sum-rise nv-fs-read${open ? ' open' : ''}`} data-gr="focus" style={{ '--i': 4 }} aria-label="Today's read">
+      <Interactive as="div" className="nv-fs-fold" onClick={() => setOpen((o) => !o)} haptic="tick" focusStyle={NO_RING} aria-expanded={open}
+        aria-label={`Today's read. ${r.news}${r.score ? ` Score ${r.score.value}${r.score.projected ? ', projected' : ''}.` : ''} ${open ? 'Fold it' : 'Open it'}`}>
+        <Tile n="read" a="var(--nv-vi)" />
+        <span className="nv-fs-lx">
+          <span className="nv-fs-nm">Today's read
+            {r.dots.length > 0 && <span className="nv-fs-dots" aria-hidden="true">{r.dots.map((d, i) => <i key={i} className={d} />)}</span>}
+            {r.score && <b className="nv-fs-sc">{r.score.value}{r.score.projected ? '*' : ''}</b>}
+          </span>
+          <span className="nv-fs-sv wrap">{r.news}</span>
+        </span>
+        <FIcon n="right" className="nv-fs-cv nv-fs-chev" />
+      </Interactive>
+      <div className="nv-fs-fb"><div>
+        {r.state === 'empty' && <p className="nv-fs-wait">Nothing logged yet today. The read fills in as you log.</p>}
+        {r.score && (
+          <div className="nv-fs-score">
+            <svg viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="22" fill="none" stroke="var(--nv-sum-track)" strokeWidth="6" />
+              <circle cx="28" cy="28" r="22" fill="none" stroke={r.score.value >= 80 ? 'var(--nv-fs-k)' : 'var(--nv-fs-hold)'} strokeWidth="6" strokeLinecap="round"
+                strokeDasharray={r.score.projected ? `${(C * r.score.value / 100).toFixed(1)} ${C}` : C} strokeDashoffset={r.score.projected ? 0 : C * (1 - r.score.value / 100)} transform="rotate(-90 28 28)" /></svg>
+            <span><b>{r.score.value}</b><small>{r.score.projected ? `of 100, projected if ${r.plan} go${r.plan.includes(' and ') ? '' : 'es'} as planned` : 'of 100 · the day as logged'}</small></span>
+          </div>
+        )}
+        {groups.map((g) => (
+          <div key={g.key}>
+            <span className={`nv-fs-grp ${g.tone}`}>{g.label}</span>
+            {g.facts.map((x) => {
+              const hue = x.ok === false ? 'var(--nv-fs-hold)' : READ_HUE[x.key][0];
+              return (
+                <div key={x.key} className="nv-fs-fr">
+                  <Tile n={READ_HUE[x.key][1]} a={hue} />
+                  <span className="nv-fs-lx"><span className="nv-fs-nm">{x.label}</span><span className="nv-fs-sv wrap">{x.sub}</span></span>
+                  <span className="nv-fs-frn">{x.value.toLocaleString('en-AU')}<small>{x.unit}</small></span>
+                  <span className="nv-fs-mt" style={{ '--c': hue }}>
+                    {x.then > x.now && <i className="then" style={{ width: `${(x.then * 100).toFixed(1)}%` }} />}
+                    <i style={{ width: `${(x.now * 100).toFixed(1)}%` }} />
+                    {x.mark != null && <b style={{ left: `${(x.mark * 100).toFixed(1)}%` }} />}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+        {r.score && <p className="nv-fs-how">How this is scored: protein is worth 50 (your share of the floor), calories 50 (less one point for every 2% away from the target). Fat has no target in your profile, so it is shown, not judged.</p>}
+      </div></div>
+    </section>
+  );
+}
+
+// ----------------------------------------------------- one tile per slot --
+// His words (13 Oct): "this should only be one tile for meal one, two and
+// three (as well as the pre-workout tile) plus the ability to click on a
+// skeleton + label at the far end ... so that I can then add an additional
+// meal to the rotation". Swap cycles the slot's options; the dots say which.
+function SlotRail({ rot, onOpen, onAdd, i }) {
   const railRef = useRef(null);
-  const st = rot.strip;
-  const dishes = st.tiles.filter((t) => !t.empty).length;
-  // the next dish first in view, once per page and per day, never after a
-  // tick (the strip must not move under his thumb while he is ticking)
+  const T = rot.tiles;
   useLayoutEffect(() => {
     const rail = railRef.current;
-    if (!rail || !st.nextKey) return;
-    const el = rail.querySelector(`[data-tile="${CSS.escape(st.nextKey)}"]`);
+    if (!rail || !T.nextKey) return;
+    // the rail starts at the start (mockup 101) unless dishes he has already
+    // eaten sit before the next one; an empty slot is never scrolled past
+    const before = T.tiles.slice(0, T.tiles.findIndex((t) => t.key === T.nextKey));
+    if (!before.some((t) => !t.empty && t.eaten)) { rail.scrollLeft = 0; return; }
+    const el = rail.querySelector(`[data-tile="${CSS.escape(T.nextKey)}"]`);
     if (el) rail.scrollLeft = Math.max(0, el.offsetLeft - parseFloat(getComputedStyle(rail).paddingLeft || '0'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [st.dayKey]);
-  if (!dishes) {
-    return (
-      <Interactive as="div" className="nv-sum-card nv-fs-rot nv-sum-rise nv-fs-press" style={{ '--i': i }} onClick={onOpen} haptic="tick" focusStyle={NO_RING}
-        aria-label="Nothing in the rotation today. Open the rotation">
-        <span className="nv-fs-tk" aria-hidden="true"><FIcon n="plus" /></span>
-        <span className="nv-fs-lx"><span className="nv-fs-nm">Nothing in the rotation today</span><span className="nv-fs-sv">Plan a dish from Recipes</span></span>
-        <FIcon n="right" className="nv-fs-cv" />
-      </Interactive>
-    );
-  }
+  }, [T.dayKey]);
   return (
-    <div ref={railRef} className="nv-fs-strip nv-sum-rise" style={{ '--i': i }} role="list" aria-label="The rotation, every dish">
-      {st.tiles.map((t) => (t.empty ? (
-        <Interactive key={t.key} as="div" role="listitem" className="nv-fs-rt empty" data-tile={t.key} onClick={onOpen} haptic="tick" focusStyle={NO_RING}
-          style={t.hue ? { '--h': `rgb(${t.hue})` } : undefined} aria-label={`${t.slotName}: nothing planned. Open the rotation`}>
-          <span className="nv-fs-rt-slot">{t.slotName}</span>
-          <span className="nv-fs-rt-nm quiet">Nothing planned</span>
-          <span className="nv-fs-rt-m">Plan one</span>
+    <div ref={railRef} className="nv-fs-strip nv-sum-rise" style={{ '--i': i }} role="list" aria-label="The rotation, one tile per meal">
+      {T.tiles.map((t) => {
+        const hue = t.hue ? `rgb(${t.hue})` : 'var(--nv-ink60)';
+        if (t.empty) {
+          return (
+            <Interactive key={t.key} as="div" role="listitem" className="nv-fs-rt empty" data-tile={t.key} onClick={onOpen} haptic="tick" focusStyle={NO_RING}
+              style={{ '--h': hue }} aria-label={`${t.slotName}: nothing planned. Pick one`}>
+              <Tile n="plate" a={hue} />
+              <span className="nv-fs-rt-slot">{t.slotName}</span>
+              <span className="nv-fs-rt-nm quiet">Nothing here yet</span>
+              <span className="nv-fs-skl" aria-hidden="true"><i /><i /></span>
+              <span className="nv-fs-rt-m nv-fs-go">Pick one<FIcon n="right" /></span>
+            </Interactive>
+          );
+        }
+        return (
+          <div key={t.key} role="listitem" className={`nv-sum-card nv-fs-rt${t.eaten ? ' on' : ''}`} data-gr="back" data-tile={t.key} style={{ '--h': hue }}>
+            <Interactive as="span" className="nv-fs-rt-body" onClick={onOpen} haptic="tick" focusStyle={NO_RING}
+              aria-label={`${t.slotName}: ${t.name}, ${t.p} grams protein, ${t.kcal} kilocalories${t.eaten ? ', eaten' : ''}${t.count > 1 ? `, option ${t.index + 1} of ${t.count}` : ''}. Open the rotation`}>
+              <Tile n="plate" a={hue} />
+              <span className="nv-fs-rt-slot">{t.slotName}</span>
+              <span className="nv-fs-rt-nm" key={t.id}>{t.name}{t.variant ? ` · ${t.variant}` : ''}</span>
+              <span className="nv-fs-rt-m"><span className="nv-fs-p">{t.p} g</span> · <span className="nv-fs-k">{kc(t.kcal)}</span> kcal</span>
+              {t.portionsLeft != null && <span className={`nv-fs-rt-f${t.out ? ' out' : t.portionsLeft <= 1 ? ' low' : ''}`}>{t.out ? 'Out, cook more' : `${t.portionsLeft} in the fridge`}</span>}
+            </Interactive>
+            {t.count > 1 && (
+              <span className="nv-fs-opts">
+                <span aria-hidden="true">{Array.from({ length: t.count }, (_, k) => <i key={k} className={k === t.index ? 'on' : undefined} />)}</span>
+                {t.swap && <Interactive as="span" className="nv-fs-sw" onClick={t.swap} haptic="tick" focusStyle={NO_RING} aria-label={`Swap ${t.slotName} to ${t.alt?.name || 'the next option'}`}>Swap</Interactive>}
+              </span>
+            )}
+            <Interactive as="span" className="nv-fs-rt-tk" onClick={t.toggle} haptic={t.eaten ? 'tick' : 'commit'} focusStyle={NO_RING} aria-pressed={t.eaten}
+              aria-label={t.eaten ? `${t.name} is ticked. Take it back off` : `Tick it: log ${t.name}`}>
+              <i><FIcon n="check" /></i>
+            </Interactive>
+          </div>
+        );
+      })}
+      {rot.tiles.addMeal && (
+        <Interactive as="div" role="listitem" className="nv-fs-rt add" onClick={onAdd} haptic="tick" focusStyle={NO_RING} aria-label="Add a meal, snack or pre-workout to the rotation">
+          <span className="nv-fs-plus" aria-hidden="true"><FIcon n="plus" /></span>
+          <span className="nv-fs-rt-nm">Add</span>
+          <span className="nv-fs-rt-m wrap">a meal, snack or pre-workout</span>
         </Interactive>
-      ) : (
-        <div key={t.key} role="listitem" className={`nv-sum-card nv-fs-rt${t.eaten ? ' on' : ''}`} data-tile={t.key}
-          style={t.hue ? { '--h': `rgb(${t.hue})` } : undefined}>
-          <Interactive as="span" className="nv-fs-rt-body" onClick={onOpen} haptic="tick" focusStyle={NO_RING}
-            aria-label={`${t.slotName}${t.of ? `, ${t.of}` : ''}: ${t.name}, ${t.p} grams protein, ${t.kcal} kilocalories${t.eaten ? ', eaten' : ''}. Open the rotation`}>
-            <span className="nv-fs-rt-slot">{t.slotName}{t.of ? <small> · {t.of}</small> : null}</span>
-            <span className="nv-fs-rt-nm">{t.name}{t.variant ? ` · ${t.variant}` : ''}</span>
-            <span className="nv-fs-rt-m"><span className="nv-fs-p">{t.p} g</span> · <span className="nv-fs-k">{kc(t.kcal)}</span> kcal</span>
-            {t.portionsLeft != null && <span className={`nv-fs-rt-f${t.out ? ' out' : ''}`}>{t.out ? 'Out, cook more' : `${t.portionsLeft} in the fridge`}</span>}
-          </Interactive>
-          <Interactive as="span" className="nv-fs-rt-tk" onClick={t.toggle} haptic={t.eaten ? 'tick' : 'commit'} focusStyle={NO_RING} aria-pressed={t.eaten}
-            aria-label={t.eaten ? `${t.name} is ticked. Take it back off` : `Tick it: log ${t.name}`}>
-            <i><FIcon n="check" /></i>
-          </Interactive>
-        </div>
-      )))}
+      )}
     </div>
+  );
+}
+
+// Add to the rotation: name the slot, then the rotation opens to fill it.
+// Pre-workout and Meal 1 to 3 are fixed (280e231); these are the extras.
+const ADD_LABELS = ['Meal 4', 'Snack', 'Post-workout', 'Supper'];
+// a suggestion never repeats a name he already has: Snack becomes Snack 2
+const freeName = (base, taken) => {
+  if (!taken.has(base.toLowerCase())) return base;
+  const m = /^(.*?)(?:\s(\d+))?$/.exec(base);
+  for (let n = Number(m[2] || 1) + 1; n < 20; n += 1) { const t = `${m[1]} ${n}`; if (!taken.has(t.toLowerCase())) return t; }
+  return base;
+};
+function AddSlotSheet({ onAdd, onClose, taken = [] }) {
+  const have = new Set(taken.map((t) => String(t).toLowerCase()));
+  const labels = ADD_LABELS.map((l) => freeName(l, have));
+  const [label, setLabel] = useState(labels[0]);
+  const [own, setOwn] = useState(false);
+  const name = label.trim();
+  return (
+    <GlassSheet label="Add to the rotation" onClose={onClose} originEl={null}>
+      <div className="nv-fs" style={{ padding: '0 2px' }}>
+        <div className="nv-fs-rhead"><div><h2>Add to the rotation</h2><p>Name it, then pick what goes in it. Any slot can be renamed the same way.</p></div></div>
+        <div className="nv-fs-chips" style={{ marginTop: '12px' }} role="group" aria-label="Its name">
+          {labels.map((l) => <Interactive key={l} as="span" onClick={() => { setOwn(false); setLabel(l); }} aria-pressed={!own && label === l} haptic="tick" focusStyle={NO_RING}>{l}</Interactive>)}
+          <Interactive as="span" onClick={() => { setOwn(true); setLabel(''); }} aria-pressed={own} haptic="tick" focusStyle={NO_RING}>Own name…</Interactive>
+        </div>
+        {own && <input className="nv-fs-field" autoFocus style={{ marginTop: '10px' }} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Second breakfast, supper…" aria-label="Name it" />}
+        <div className="nv-fs-frow" style={{ justifyContent: 'flex-end' }}>
+          <Act tone="quiet" onClick={onClose}>Cancel</Act>
+          <Button onClick={() => { if (name) { onAdd(name); onClose(); } }} disabled={!name}>Add {name || 'it'}</Button>
+        </div>
+      </div>
+    </GlassSheet>
   );
 }
 
@@ -723,11 +887,11 @@ function RecipesPage({ page }) {
 // ------------------------------------------------------------------ Fuel ---
 function Doors({ keys, F, i }) {
   return (
-    <div className="nv-sum-card nv-fs-doors nv-sum-rise" style={{ '--i': i }}>
+    <div className="nv-sum-card nv-fs-doors nv-sum-rise" data-gr="link" style={{ '--i': i }}>
       {keys.map((k) => (k === 'recipes' ? (
         <Interactive key={k} as="div" className="nv-fs-door" onClick={F.doors.recipes.open} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
           aria-label={`Recipes${F.doors.recipes.count != null ? `, ${F.doors.recipes.count}` : ''}`}>
-          <span className="nv-fs-tile"><FIcon n="book" /></span>
+          <Tile n="book" a="var(--nv-fs-hold)" />
           <span className="nv-fs-lx"><span className="nv-fs-nm">Recipes</span><span className="nv-fs-sv">{F.doors.recipes.sub}</span></span>
           <span className="cnt">{F.doors.recipes.count ?? ''}</span>
           <FIcon n="right" className="nv-fs-cv" />
@@ -735,7 +899,7 @@ function Doors({ keys, F, i }) {
       ) : F.doors.pickItUp ? (
         <Interactive key={k} as="div" className="nv-fs-door" onClick={F.doors.pickItUp.open} haptic="tick" activeStyle={PRESSED} focusStyle={NO_RING}
           aria-label="Pick it up: takeaway and shop food that fits what is left">
-          <span className="nv-fs-tile"><FIcon n="bag" /></span>
+          <Tile n="bag" a="var(--nv-fs-k)" />
           <span className="nv-fs-lx"><span className="nv-fs-nm">Pick it up</span><span className="nv-fs-sv">{F.doors.pickItUp.sub}</span></span>
           <span className="cnt" />
           <FIcon n="right" className="nv-fs-cv" />
@@ -748,6 +912,12 @@ function Doors({ keys, F, i }) {
 function FuelPage({ F, sheets }) {
   const live = F.state === 'live';
   const C = F.cards;
+  // a Likely-now tap that ticks the rotation shows its receipt and Undo
+  // right under the rail he tapped, not further down under the rotation
+  const [likelyAt, setLikelyAt] = useState(0);
+  const likely = (F.likely || []).map((it) => ({ ...it, log: () => { setLikelyAt(Date.now()); it.log(); } }));
+  const rr = F.rotation?.receipt || null;
+  const receiptUp = rr && likelyAt && rr.at >= likelyAt - 50 ? rr : null;
   return (
     <>
       <h1 className="nv-fs-title nv-sum-rise" style={{ '--i': 0 }}>Fuel</h1>
@@ -760,7 +930,7 @@ function FuelPage({ F, sheets }) {
       )}
       {!live && F.state !== 'loading' && (
         <div className="nv-sum-card nv-sum-rise" style={{ '--i': 1, padding: '14px 16px' }}>
-          <div className="nv-sum-ch" style={{ color: 'var(--nv-fs-k)' }}><FIcon n="fork" className="nv-sum-ico" /><span>Today's plate</span></div>
+          <div className="nv-sum-ch nv-fs-ch"><Tile n="fork" a="var(--nv-fs-p)" /><span>Today's plate</span></div>
           <p className="nv-fs-note" style={{ margin: '8px 0 0' }}>
             {F.state === 'demo'
               ? 'Demo mode. Your plate, your log and your rotation appear once Nova is connected to your Mac; Recipes holds the demo bank until then.'
@@ -769,12 +939,17 @@ function FuelPage({ F, sheets }) {
         </div>
       )}
 
-      {F.composer && <Composer c={F.composer} />}
+      {/* logging first (13 Oct, his words: "quickly get onto the fuel tab and
+          log a meal ... without having to scroll much") */}
+      {F.composer && <Composer c={F.composer} likely={likely} likelyReceipt={receiptUp} />}
+
+      {F.now && <NowCard n={F.now} openKitchen={sheets.openKitchen} />}
+      {F.read && <ReadCard r={F.read} />}
 
       {/* THE CARDS, in his order and only the ones he keeps on (the Edit
           sheet at the foot, the same one Home's Pinned uses) */}
       {C.runs.map((run, n) => {
-        const i = 3 + n;
+        const i = 5 + n;
         if (run.kind === 'doors') return <Doors key={`doors-${run.keys.join('-')}`} keys={run.keys} F={F} i={i} />;
         if (run.key === 'log') return <Log key="log" log={F.log} i={i} />;
         if (run.key === 'history') return <History key="history" h={F.log.history} i={i} />;
@@ -783,17 +958,17 @@ function FuelPage({ F, sheets }) {
             <section key="rotation" aria-label="Rotation">
               <div className="nv-fs-rhd nv-sum-rise" style={{ '--i': i }}>
                 <span className="nv-fs-hk" style={{ margin: 0 }}>Rotation</span>
-                {F.rotation.strip.line && <span className="nv-fs-rcount">{F.rotation.strip.line}</span>}
+                {F.rotation.tiles?.line && <span className="nv-fs-rcount">{F.rotation.tiles.line}</span>}
               </div>
-              <RotationStrip rot={F.rotation} onOpen={sheets.openKitchen} i={i} />
-              {F.rotation.receipt && <Receipt key={F.rotation.receipt.key} tone="fuel" icon="check" r={F.rotation.receipt} />}
+              <SlotRail rot={F.rotation} onOpen={sheets.openKitchen} onAdd={sheets.openAdd} i={i} />
+              {rr && !receiptUp && <Receipt key={rr.key} tone="fuel" icon="check" r={rr} />}
             </section>
           );
         }
         return null;
       })}
 
-      <div className="nv-fs-foot nv-sum-rise" style={{ '--i': 3 + C.runs.length }}>
+      <div className="nv-fs-foot nv-sum-rise" style={{ '--i': 5 + C.runs.length }}>
         <Act onClick={C.edit.show} label={`Edit the cards on Fuel${C.hidden ? `, ${C.hidden} hidden` : ''}`}>
           Edit{C.hidden ? <span className="nv-fs-hid">{C.hidden} hidden</span> : null}
         </Act>
@@ -806,10 +981,12 @@ export function FuelSummary({ v }) {
   const F = v.fuelSummary;
   const [weekOpen, setWeekOpen] = useState(false);
   const [kitchenOpen, setKitchenOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const plateRef = useRef(null);
   const sheets = {
     openWeek: () => setWeekOpen(true),
     openKitchen: () => setKitchenOpen(true),
+    openAdd: () => setAddOpen(true),
     plateRef,
   };
   const page = F.recipesPage;
@@ -820,6 +997,7 @@ export function FuelSummary({ v }) {
       </div>
       {weekOpen && F.plate && <WeekSheet week={F.week} onClose={() => setWeekOpen(false)} originEl={plateRef.current?.parentElement || null} />}
       {kitchenOpen && F.rotation && <KitchenSheet rot={F.rotation} onClose={() => setKitchenOpen(false)} openRecipes={F.doors.recipes.open} />}
+      {addOpen && F.rotation?.addMeal && <AddSlotSheet taken={(F.rotation.slots || []).map((x) => x.name)} onAdd={(l) => { F.rotation.addMeal(l); setKitchenOpen(true); }} onClose={() => setAddOpen(false)} />}
       {F.pickItUpSheet?.open && !page.open && <PickSheet s={F.pickItUpSheet} />}
       {F.cards.edit.open && !page.open && (
         <PinnedEditSheet edit={F.cards.edit} rows={F.cards.rows} title="Fuel" dialogLabel="Edit Fuel"

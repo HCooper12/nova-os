@@ -21,6 +21,14 @@ const PATHS = {
   cart: <><path d="M3 4h2.5l2.2 11h10.6l2-8H6.3" /><circle cx="9" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" /></>,
   // a recipe that came from a reel (the recipe page, 29 Sep 2026)
   reel: <><rect x="3.5" y="3.5" width="17" height="17" rx="5" /><path d="M10 8.8v6.4l5.2-3.2z" /></>,
+  // the coloured tiles of mockup 101 (13 Oct 2026): filled marks, drawn to read
+  // white on a gradient tile
+  bolt: <path fill="currentColor" stroke="none" d="M13 3 5 13.5h6L10 21l8-10.5h-6z" />,
+  read: <path d="M5 18V9M10 18V5M15 18v-6M20 18v-9" />,
+  prot: <path fill="currentColor" stroke="none" d="M15.5 4.5a4.5 4.5 0 0 1 0 6.4l-3.6 3.6-3.4-3.4 3.6-3.6a4.5 4.5 0 0 1 3.4-3zM8.5 11.1l-3.6 3.6a2 2 0 1 0 2.8 2.8l.4-.4.6 2a1.4 1.4 0 1 0 1.9-1.9l-2-.6.4-.4 3.4-3.4" />,
+  flame: <path fill="currentColor" stroke="none" d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.4 1.2-3.8 2.3-5 .3 1.6 1 2.6 2.2 3 0-3 .2-5.6.5-8z" />,
+  drop: <path fill="currentColor" stroke="none" d="M12 3.5c3 3.8 6 7 6 10.5a6 6 0 0 1-12 0c0-3.5 3-6.7 6-10.5z" />,
+  plate: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.4" fill="currentColor" stroke="none" /></>,
 };
 export function FIcon({ n, className = '' }) {
   return <svg className={`nv-fs-ico ${className}`} viewBox="0 0 24 24" aria-hidden="true" focusable="false">{PATHS[n] || PATHS.right}</svg>;
