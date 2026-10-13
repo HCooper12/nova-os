@@ -8,6 +8,7 @@ import { FormCheckPanel } from '../FormCheckPanel.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { useExit } from '../useExit.js';
 import { useSheetDrag } from '../useSheetDrag.js';
+import { GlyphTile } from '../BodyGlyph.jsx';
 
 // THE SUMMARY TRAIN PAGE — redesign round 1, variation A, his pick (27 Sep
 // 2026): "Train: let's go option A" on design/mockups/58-redesign-train.html.
@@ -75,6 +76,37 @@ const Play = () => (
   <svg className="nv-ts-ico fill" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style={{ width: 14, height: 14 }}><path d="M7 4.5v15l12.5-7.5z" /></svg>
 );
 
+// MOCKUP 101 (13 Oct 2026): one card grammar on Train, as on Fuel: a
+// gradient tile, the title, a quiet meta. A tile with a stroke icon...
+function ITile({ p, a, b }) {
+  return <span className="nv-tile" style={{ '--a': a, ...(b ? { '--b': b } : null) }} aria-hidden="true"><Ico p={p} size={17} cls="thick" /></span>;
+}
+function Head({ tile, label, meta, tint }) {
+  return (
+    <div className="nv-sum-ch nv-ts-ch">
+      {tile}
+      <span style={tint ? { color: tint } : undefined}>{label}</span>
+      {meta && <span className="nv-sum-ch-meta">{meta}</span>}
+    </div>
+  );
+}
+// ...and a routine's muscles as ONE strip, each in its own hue, in place of
+// a row of chips (his "colour choices and layout" were the keepers)
+function MuscleStrip({ chips, counts }) {
+  if (!chips?.length) return null;
+  return (
+    <div className="nv-ts-mix">
+      <div className="nv-ts-mixbar" aria-hidden="true">
+        {chips.map((c, i) => <i key={c.muscle} style={{ '--h': c.hue, flex: c.count || 1, '--k': i }} />)}
+      </div>
+      <div className="nv-ts-mixkeys">
+        {chips.map((c) => <span key={c.muscle} style={{ '--h': c.hue }}>{c.muscle}{counts && c.count ? ` ${c.count}` : ''}</span>)}
+      </div>
+    </div>
+  );
+}
+const hueA = (chips, i, fb) => chips?.[i]?.hue || fb;
+
 // a tap on a control inside a sheet's grab zone is a tap, not a sheet drag
 const onControl = (el) => !!(el && el.closest && el.closest('[role="button"], button, a, input, select'));
 
@@ -100,7 +132,7 @@ function GymPage({ T }) {
       <div className="nv-ts-stack">
         <Hero h={T.hero} />
         <Recovery r={T.recovery} />
-        <WeekCard w={T.week} />
+        <WeekCard w={T.week} carry={T.recovery.carryovers} />
         <CoachRow c={T.coach} />
       </div>
       <Routines T={T} />
@@ -115,8 +147,10 @@ function GymPage({ T }) {
 function Hero({ h }) {
   const tint = h.kind === 'done' ? 'var(--nv-good)' : 'var(--nv-cy)';
   return (
-    <section className="nv-sum-card nv-sum-rise nv-ts-hero" style={{ '--i': 1 }} aria-label={h.eyebrow}>
-      <CardHead icon="training" label={h.eyebrow} tint={tint} meta={h.when} />
+    <section className="nv-sum-card nv-sum-rise nv-ts-hero" style={{ '--i': 1, '--nv-sum-tint': hueA(h.chips, 0, tint), '--nv-g2': hueA(h.chips, 1, tint), '--nv-g3': hueA(h.chips, 2, tint) }} aria-label={h.eyebrow}>
+      <Head label={h.eyebrow} meta={h.when}
+        tile={h.glyph ? <GlyphTile g={h.glyph} a={hueA(h.chips, 0, tint)} b={hueA(h.chips, 1, undefined)} />
+          : <ITile p={h.kind === 'done' ? P.check : P.fig} a={tint} />} />
       <div className="nv-ts-hrow">
         {h.kind === 'done' && <span className="nv-ts-donering" aria-hidden="true"><Ico p={P.check} size={20} /></span>}
         <div style={{ minWidth: 0 }}>
@@ -137,13 +171,7 @@ function Hero({ h }) {
           ))}
         </ul>
       )}
-      {h.chips?.length > 0 && (
-        <div className="nv-ts-chips" aria-label="What it trains">
-          {h.chips.map((c) => (
-            <span key={c.muscle} className="nv-ts-mchip" style={{ '--h': c.hue }}><i aria-hidden="true" />{c.muscle}{c.count > 1 ? <b>×{c.count}</b> : null}</span>
-          ))}
-        </div>
-      )}
+      {h.chips?.length > 0 && <MuscleStrip chips={h.chips} counts />}
       {h.focus && <FocusLine f={h.focus} />}
       {h.readiness && <Readiness r={h.readiness} />}
       {h.also && (
@@ -168,11 +196,19 @@ function Hero({ h }) {
 }
 
 // TODAY'S FOCUS: the serif line, the lift in its muscle's own hue
+// Coach's headline stays in the serif; the long reason folds under "Why"
+// (mockup 101: it was half the card)
 function FocusLine({ f }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className="nv-ts-focusbox">
       <p className="nv-ts-focus">{f.lift ? <><em style={{ color: f.hue }}>{f.lift}</em>{f.rest}</> : f.text}</p>
-      {f.why && <p className="nv-ts-why">{f.why}</p>}
+      {f.why && (
+        <>
+          <button type="button" className="nv-ts-whybtn" aria-expanded={open} onClick={() => setOpen((o) => !o)}><Ico p={P.right} size={12} cls="thick" />Why, from Coach</button>
+          <div className={`nv-ts-whyt${open ? ' on' : ''}`}><p className="nv-ts-why">{f.why}</p></div>
+        </>
+      )}
       {f.fix && <div style={{ marginTop: '4px', marginLeft: '-8px' }}><TextAction onClick={f.fix.run}>{f.fix.label}</TextAction></div>}
     </div>
   );
@@ -185,7 +221,8 @@ function Readiness({ r }) {
     <div className="nv-ts-ready">
       <button type="button" className="nv-ts-readbtn" onClick={r.toggle} aria-expanded={r.open}
         aria-label={`Readiness ${r.value ?? 'unknown'}${r.block ? `, ${r.block}` : ''}. ${r.open ? 'Hide' : 'Show'} what it is built from`}>
-        <span>Readiness <b>{r.value ?? '—'}</b></span>
+        {r.value == null && <svg className="nv-ts-nored" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="11" fill="none" stroke="currentColor" strokeWidth="4" strokeDasharray="3 4" /></svg>}
+        <span>Readiness {r.value == null ? <span className="nv-ts-dim">· no reading yet</span> : <b>{r.value}</b>}</span>
         {r.block && <span className="nv-ts-dim">· {r.block}</span>}
         <span className="nv-ts-chev" data-open={r.open ? 'true' : undefined} aria-hidden="true"><Ico p={P.down} size={14} /></span>
       </button>
@@ -198,8 +235,8 @@ function Readiness({ r }) {
       {r.deload && <p className="nv-ts-warnline">{r.deload}</p>}
       {(r.tired || r.peak) && (
         <div className="nv-ts-qacts">
-          {r.tired && <TextAction tone="quiet" onClick={r.tired}>Why am I tired?</TextAction>}
-          {r.peak && <TextAction tone="quiet" onClick={r.peak}>When am I at my best?</TextAction>}
+          {r.tired && <button type="button" className="nv-ts-q" onClick={r.tired}>Why am I tired?</button>}
+          {r.peak && <button type="button" className="nv-ts-q" onClick={r.peak}>When am I at my best?</button>}
         </div>
       )}
     </div>
@@ -246,7 +283,8 @@ function Recovery({ r }) {
       </section>,
     );
   }
-  for (const c of r.carryovers) {
+  // the make-ups Nova is holding live in the week card now (mockup 101)
+  for (const c of r.carryoversHere || []) {
     const tone = c.overdue ? 'var(--nv-warn)' : 'var(--nv-cy)';
     rows.push(
       <section key={c.id} className="nv-sum-card nv-sum-rise nv-ts-rrow" style={{ '--i': 2, '--h': tone }} aria-label={c.title}>
@@ -279,16 +317,41 @@ function Recovery({ r }) {
 }
 
 // ------------------------------------------------------------------ week --
-// Seven dots. Each is the day's own select laid invisibly over it, so a tap
-// opens the platform's picker — a routine, rest, or a make-up for that date.
-function WeekCard({ w }) {
+// THE WEEK AS CAPSULES (mockup 101, 13 Oct 2026). A planned day is a capsule
+// that fills in the colour of what it trains; missed is dashed; rest is a
+// dot. Each is still the day's own select laid invisibly over it, so a tap
+// opens the platform's picker: a routine, rest, or a make-up for that date.
+// The make-ups Nova is holding sit at the foot: Do it now, Move (the free
+// days as pills; the capsule travels to the one he picks) and Remove.
+const WEEKDAY = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+const dayOfIso = (iso) => WEEKDAY[new Date(`${iso}T12:00:00`).getDay()];
+function WeekCard({ w, carry }) {
+  const capsRef = useRef(null);
+  const [ghost, setGhost] = useState(null);
+  const move = (c, o) => {
+    const caps = capsRef.current;
+    const from = caps?.querySelector(`[data-day="${dayOfIso(c.forDate)}"] .nv-ts-pod`);
+    const to = caps?.querySelector(`[data-day="${dayOfIso(o.value)}"] .nv-ts-pod`);
+    const go = () => c.reschedule({ target: { value: o.value } });
+    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!from || !to || reduce) { go(); return; }
+    const box = caps.getBoundingClientRect(); const a = from.getBoundingClientRect(); const b = to.getBoundingClientRect();
+    setGhost({ x: a.left - box.left, y: a.top - box.top, w: a.width, h: a.height, dx: b.left - a.left, hue: c.hue || 'var(--nv-cy)' });
+    setTimeout(() => { setGhost(null); go(); }, 620);
+  };
   return (
-    <section className="nv-sum-card nv-sum-rise nv-ts-week" style={{ '--i': 2 }} aria-label="This week">
-      <div className="nv-ts-wk">
+    <section className="nv-sum-card nv-sum-rise nv-ts-week" style={{ '--i': 2, '--nv-sum-tint': 'var(--nv-good)', '--nv-g2': w.dots.find((d) => d.hue)?.hue || 'var(--nv-good)', '--nv-g3': [...w.dots].reverse().find((d) => d.hue)?.hue || 'var(--nv-good)' }} aria-label="This week">
+      <Head tile={<ITile p={P.week} a="var(--nv-good)" />} label="This week"
+        meta={w.planned ? <><b className="nv-ts-cnt">{w.done}</b> of {w.planned} done</> : null} />
+      <div ref={capsRef} className="nv-ts-caps">
         {w.dots.map((d) => (
-          <label key={d.day} className="nv-ts-wd" data-state={d.state} data-today={d.isToday ? 'true' : undefined}>
-            <span aria-hidden="true">{d.letter}</span>
-            <i aria-hidden="true">{d.state === 'done' ? <Ico p={P.check} size={11} cls="thick" /> : null}</i>
+          <label key={d.day} className="nv-ts-cd" data-day={d.day} data-state={d.state} data-today={d.isToday ? 'true' : undefined} style={d.hue ? { '--h': d.hue } : undefined}>
+            <span className={`nv-ts-pod${d.state === 'rest' ? ' rest' : ''}`} aria-hidden="true">
+              {d.state !== 'rest' && <i className="f" />}
+              {d.state === 'done' && <Ico p={P.check} size={13} cls="thick nv-ts-capck" />}
+              {d.makeup && d.state !== 'done' && <Ico p={P.undo} size={12} cls="thick nv-ts-capmk" />}
+            </span>
+            <span className="nv-ts-cl" aria-hidden="true">{d.letter}</span>
             {d.select && (
               <select className="nv-ts-wsel" value={d.select.value} onChange={d.select.onChange} aria-label={d.aria}>
                 {d.select.options.map((o) => <option key={o.value || 'rest'} value={o.value}>{o.label}</option>)}
@@ -296,9 +359,37 @@ function WeekCard({ w }) {
             )}
           </label>
         ))}
+        {ghost && <span className="nv-ts-ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h, '--h': ghost.hue, '--dx': `${ghost.dx}px` }} aria-hidden="true" />}
       </div>
-      {w.line && <p className="nv-ts-wline">{w.line}</p>}
-      {w.notes.map((n) => <p key={n} className="nv-ts-wnote">{n}</p>)}
+      <div className="nv-ts-wfoot">
+        {carry.map((c) => (
+          <div key={c.id} className="nv-ts-open" style={{ '--h': c.hue || 'var(--nv-cy)' }}>
+            <div className="nv-ts-openh">
+              <span className="nv-ts-dash" aria-hidden="true" />
+              <span style={{ minWidth: 0 }}>
+                <span className="nv-ts-nm">{c.title.replace(/ — makeup$/, ' make-up')}</span>
+                <span className="nv-ts-sv wrap"><span style={{ color: c.overdue ? 'var(--nv-warn)' : undefined }}>{c.when.charAt(0).toUpperCase() + c.when.slice(1)}</span> · {c.count} lift{c.count === 1 ? '' : 's'}: {c.names}</span>
+              </span>
+            </div>
+            <div className="nv-ts-racts">
+              {c.rescheduling ? (
+                <>
+                  {c.dayOptions.map((o) => <button key={o.value} type="button" className="nv-ts-pill" onClick={() => move(c, o)}>{o.label}</button>)}
+                  <TextAction tone="quiet" onClick={c.cancelReschedule}>Cancel</TextAction>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="nv-ts-tint" onClick={c.start}>Do it now</button>
+                  <button type="button" className="nv-ts-pill" onClick={c.startReschedule}>Move</button>
+                  <TextAction tone="quiet" onClick={c.remove}>Remove</TextAction>
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+        {w.line && <p className="nv-ts-wline">{w.line}</p>}
+        {w.notes.map((n) => <p key={n} className="nv-ts-wnote">{n}</p>)}
+      </div>
     </section>
   );
 }
@@ -308,10 +399,10 @@ function WeekCard({ w }) {
 function CoachRow({ c }) {
   const n = c.count;
   return (
-    <Interactive as="div" className="nv-sum-card nv-sum-rise nv-ts-crow" style={{ '--i': 3 }} onClick={c.open} haptic="tick"
+    <Interactive as="div" className="nv-sum-card nv-sum-rise nv-ts-crow" data-gr={n ? undefined : 'link'} style={{ '--i': 3, '--nv-sum-tint': 'var(--nv-gold)' }} onClick={c.open} haptic="tick"
       aria-label={n ? `Coach: ${n} change${n === 1 ? '' : 's'} waiting. Open` : 'Coach: nothing waiting. Goals and Ask Coach. Open'}
       base={{ cursor: 'pointer' }}>
-      {n ? <span className="nv-ts-gdot" aria-hidden="true" /> : <span className="nv-ts-cquiet" aria-hidden="true"><Ico p={P.coach} /></span>}
+      <ITile p={P.coach} a={n ? 'var(--nv-gold)' : 'var(--nv-ink60)'} />
       <span style={{ minWidth: 0 }}>
         <span className="nv-ts-nm">Coach · {n ? <em>{n} change{n === 1 ? '' : 's'} waiting</em> : 'nothing waiting'}</span>
         <span className="nv-ts-sv">{n && c.headline ? `${c.headline} · ` : ''}Goals · Ask Coach</span>
@@ -344,16 +435,17 @@ function Routines({ T }) {
       {T.routines.length ? (
         <div className="nv-ts-tiles">
           {T.routines.map((r, i) => (
-            <Interactive key={r.id} as="div" className="nv-sum-card nv-sum-rise nv-ts-tile" style={{ '--i': 4 + Math.min(i, 4) }}
+            <Interactive key={r.id} as="div" className={`nv-sum-card nv-sum-rise nv-ts-tile${r.today ? ' today' : ''}`}
+              style={{ '--i': 4 + Math.min(i, 4), '--nv-sum-tint': hueA(r.chips, 0, 'var(--nv-cy)'), '--nv-g2': hueA(r.chips, 1, hueA(r.chips, 0, 'var(--nv-cy)')) }}
               onClick={r.open} onLongPress={r.hold} haptic="tick" base={{ cursor: 'pointer' }}
-              aria-label={`${r.name}: ${r.lifts} lifts${r.today ? ', today' : ''}, done ${r.count} times. Open; hold for more`}>
+              aria-label={`${r.name}: ${r.lifts} lifts${r.today ? ', today' : ''}. Open; hold for more`}>
+              {/* mockup 101: his word, "I don't need the info ... for how many times
+                  I've completed each workout session" — the count lives in History */}
+              {r.today && <span className="nv-ts-tg">Today</span>}
+              <GlyphTile g={r.glyph} a={hueA(r.chips, 0, 'var(--nv-cy)')} b={hueA(r.chips, 1, undefined)} size="lg" />
               <span className="nv-ts-nm">{r.name}</span>
-              <span className="nv-ts-sv">{r.lifts} lift{r.lifts === 1 ? '' : 's'}{r.count ? ` · ◆ ${r.count}` : ''}{r.today ? ' · today' : ''}</span>
-              {r.chips.length > 0 && (
-                <span className="nv-ts-chips tail">
-                  {r.chips.map((c) => <span key={c.muscle} className="nv-ts-mchip" style={{ '--h': c.hue }}><i aria-hidden="true" />{c.muscle}</span>)}
-                </span>
-              )}
+              <span className="nv-ts-sv">{r.lifts} lift{r.lifts === 1 ? '' : 's'}</span>
+              <span className="nv-ts-tilestrip"><MuscleStrip chips={r.chips} /></span>
             </Interactive>
           ))}
         </div>
@@ -380,8 +472,8 @@ function HalfCards({ q, hs }) {
 function QuickCard({ q, solo }) {
   return (
     <div className={`nv-ts-halfwrap${solo ? ' nv-ts-solo' : ''}`}>
-    <section className="nv-sum-card nv-sum-tile nv-ts-halfcard" aria-label="Quick session">
-      <CardHead paths={P.bolt} label="Quick session" />
+    <section className="nv-sum-card nv-sum-tile nv-ts-halfcard" aria-label="Quick session" style={{ '--nv-sum-tint': 'var(--nv-gold)' }}>
+      <Head tile={<ITile p={P.bolt} a="var(--nv-gold)" />} label="Quick session" />
       <div className="nv-ts-step">
         <button type="button" className="nv-ts-round" onClick={q.less || undefined} disabled={!q.less} aria-label="Fewer minutes"><Ico p={P.minus} cls="thick" /></button>
         <span className="nv-ts-stepv" aria-live="polite"><b>{q.minutes}</b><small>minutes</small></span>
@@ -431,7 +523,7 @@ function HardSetsCard({ hs }) {
   const go = hs.view ? () => setOpen(true) : hs.ask;
   const body = (
     <>
-      <CardHead paths={P.bars} label="Hard sets" />
+      <Head tile={<ITile p={P.bars} a="var(--nv-vi)" />} label="Hard sets" />
       <div className="nv-ts-hs">
         <span className="nv-ts-rg"><SegRing ring={hs.ring} /><b>{hs.ring.done}</b></span>
         <span className="nv-ts-sv wrap">{hs.line}</span>
@@ -444,12 +536,12 @@ function HardSetsCard({ hs }) {
   return (
     <div ref={cardRef} className="nv-ts-halfwrap">
       {go ? (
-        <Interactive as="section" className="nv-sum-card nv-sum-tile nv-ts-halfcard" onClick={go} haptic="tick" base={{ cursor: 'pointer' }}
+        <Interactive as="section" className="nv-sum-card nv-sum-tile nv-ts-halfcard" style={{ '--nv-sum-tint': 'var(--nv-vi)', '--nv-g2': hs.ring.segments[0]?.hue || 'var(--nv-vi)', '--nv-g3': hs.ring.segments[1]?.hue || 'var(--nv-vi)' }} onClick={go} haptic="tick" base={{ cursor: 'pointer' }}
           aria-label={`Hard sets: ${hs.ring.done} ${hs.line}. ${hs.view ? 'Open the week' : 'Ask Coach'}`}>
           {body}
         </Interactive>
       ) : (
-        <section className="nv-sum-card nv-sum-tile nv-ts-halfcard" aria-label="Hard sets">{body}</section>
+        <section className="nv-sum-card nv-sum-tile nv-ts-halfcard" style={{ '--nv-sum-tint': 'var(--nv-vi)' }} aria-label="Hard sets">{body}</section>
       )}
       {open && hs.view && (
         <WeekSetsSheet view={hs.view} originEl={cardRef.current} onClose={() => setOpen(false)} onAskCoach={hs.askCoach} />
@@ -482,7 +574,8 @@ function Momentum({ m }) {
       <div className="nv-sum-rise nv-ts-head" style={{ '--i': 7 }}><h2>Momentum</h2></div>
       <Rail gap="10px" ariaLabel="Recent momentum" style={{ padding: '2px 2px 8px', scrollSnapType: 'x mandatory', alignItems: 'stretch' }}>
         {m.prs.map((p) => (
-          <div key={p.key} className="nv-sum-card nv-ts-mcard" style={{ '--h': p.hue }}>
+          <div key={p.key} className="nv-sum-card nv-ts-mcard" style={{ '--h': p.hue, '--nv-sum-tint': p.hue }}>
+            <ITile p={P.spark} a={p.hue} />
             <span className="nv-ts-mk">◆ Record{p.when ? ` · ${p.when}` : ''}</span>
             <span className="nv-ts-nm clamp2">{p.name}</span>
             <span className="nv-ts-mv">{p.value}</span>
@@ -490,15 +583,17 @@ function Momentum({ m }) {
           </div>
         ))}
         {m.plateau && (
-          <Interactive as="div" className="nv-sum-card nv-ts-mcard" style={{ '--h': m.plateau.hue }} onClick={m.plateau.open || undefined}
+          <Interactive as="div" className="nv-sum-card nv-ts-mcard" style={{ '--h': m.plateau.hue, '--nv-sum-tint': m.plateau.hue }} onClick={m.plateau.open || undefined}
             base={{ cursor: m.plateau.open ? 'pointer' : 'default' }} aria-label={`${m.plateau.name} has stalled for ${m.plateau.days} days. Tap for Coach's read`}>
+            <ITile p={P.spark} a={m.plateau.hue} />
             <span className="nv-ts-mk">Stalled · {m.plateau.days} days</span>
             <span className="nv-ts-nm clamp2">{m.plateau.name}</span>
             <span className="nv-ts-sv wrap" style={{ marginTop: 'auto' }}>No strength gain. Tap for Coach's read</span>
           </Interactive>
         )}
         {m.streak && (
-          <div className="nv-sum-card nv-ts-mcard" style={{ '--h': 'var(--nv-good)' }}>
+          <div className="nv-sum-card nv-ts-mcard" style={{ '--h': 'var(--nv-good)', '--nv-sum-tint': 'var(--nv-good)' }}>
+            <ITile p={P.spark} a="var(--nv-good)" />
             <span className="nv-ts-mk">Streak</span>
             <span className="nv-ts-mv" style={{ marginTop: 'auto' }}>{m.streak}</span>
             <span className="nv-ts-sv">sessions in a row</span>

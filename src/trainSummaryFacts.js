@@ -173,3 +173,24 @@ export function verdictRest(vd) {
   if (vd.unit === 'kg') return ` has earned ${n} kg.`;
   return n === 1 ? ' has earned a rep.' : ` has earned ${n} reps.`;
 }
+
+// THE ROUTINE'S SYMBOL (13 Oct 2026, mockup 101; his words: "specific symbols
+// representing each type of workout ... a muscular arm, leg, upper body etc.
+// consider how emojis are designed"). Read from the routine's NAME first (his
+// own word for it), then its lead muscle; a routine neither tells is upper body.
+const GLYPH_BY_NAME = [
+  [/\b(push|chest|press)\b/i, 'chest'],
+  [/\b(pull|back|row)\b/i, 'back'],
+  [/\b(legs?|lower|squat|quads?|glutes?|hamstrings?)\b/i, 'leg'],
+  [/\b(arms?|biceps?|triceps?|guns|delts?)\b/i, 'arm'],
+  [/\b(upper|full|total|body)\b/i, 'upper'],
+];
+const GLYPH_BY_MUSCLE = {
+  chest: 'chest', back: 'back', quads: 'leg', hamstrings: 'leg', glutes: 'leg', calves: 'leg',
+  biceps: 'arm', triceps: 'arm', forearms: 'arm', shoulders: 'upper', abs: 'upper', 'full body': 'upper',
+};
+export function routineGlyph(name, chips = []) {
+  for (const [re, g] of GLYPH_BY_NAME) if (re.test(String(name || ''))) return g;
+  const lead = String(chips?.[0]?.muscle || '').toLowerCase();
+  return GLYPH_BY_MUSCLE[lead] || 'upper';
+}

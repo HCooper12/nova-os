@@ -1676,7 +1676,7 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 
 /* THE COACH ROW: the door. Its dot is the page's only gold */
 .nv-ts-crow {
-  display: grid; grid-template-columns: 16px minmax(0, 1fr) 16px; gap: 12px; align-items: center;
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) 16px; gap: 12px; align-items: center;
   min-height: 60px; padding: 8px 14px 8px 16px; text-align: left; -webkit-tap-highlight-color: transparent;
 }
 .nv-ts-gdot {
@@ -2087,6 +2087,82 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-fs-foot { display: flex; justify-content: center; margin: 18px 0 4px; }
 .nv-fs-hid { margin-left: 6px; font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
 
+
+/* ================================================================
+   TRAIN, MOCKUP 101 (13 Oct 2026, his approval: "I really like the proposed
+   idea for train", with the glow). One card grammar: a tile, the title, a
+   quiet meta; a routine's muscles as one strip; the week as capsules in the
+   colour of what each day trains; emoji-like body glyphs for routines.
+   ================================================================ */
+.nv-tile.lg { width: 46px; height: 46px; border-radius: 15px; }
+.nv-glyph { width: 20px; height: 20px; display: block; }
+.nv-tile.lg > .nv-glyph { width: 32px; height: 32px; }
+.nv-ts-ch { gap: 10px; }
+.nv-ts-ch > span:nth-of-type(1) { font-weight: 700; color: var(--nv-ink); }
+.nv-ts-cnt { font: 800 15px var(--nv-font-round); color: var(--nv-ink); }
+.nv-ts-mix { margin-top: 12px; }
+.nv-ts-mixbar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; }
+.nv-ts-mixbar > i { display: block; background: var(--h); transform-origin: left; animation: nvTsGrow 700ms var(--nv-spring-snappy, var(--nv-ease)) both; animation-delay: calc(var(--k, 0) * 70ms + 200ms); }
+@keyframes nvTsGrow { from { transform: scaleX(0); } }
+.nv-ts-mixkeys { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; font: 600 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ts-mixkeys > span { display: inline-flex; align-items: center; gap: 5px; }
+.nv-ts-mixkeys > span::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--h); }
+.nv-ts-whybtn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; margin-top: 2px; padding: 0; border: 0; background: none; font: 600 13px var(--nv-font-ui); color: var(--nv-ink60); cursor: pointer; }
+.nv-ts-whybtn .nv-ts-ico { transition: transform 260ms var(--nv-spring-snappy, var(--nv-ease)); }
+.nv-ts-whybtn[aria-expanded="true"] .nv-ts-ico { transform: rotate(90deg); }
+.nv-ts-whyt { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 360ms var(--nv-spring-smooth, var(--nv-ease)); }
+.nv-ts-whyt.on { grid-template-rows: 1fr; }
+.nv-ts-whyt > p { overflow: hidden; margin: 0; }
+.nv-ts-nored { width: 26px; height: 26px; flex: none; color: color-mix(in srgb, var(--nv-ink) 40%, transparent); transform: rotate(-90deg); }
+.nv-ts-readbtn:has(.nv-ts-nored) { gap: 10px; }
+.nv-ts-q { min-height: 36px; padding: 0 12px; border-radius: 18px; border: 0; cursor: pointer; font: 600 13px var(--nv-font-ui); color: var(--nv-ink60);
+  background: color-mix(in srgb, var(--nv-ink) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 12%, transparent); }
+.nv-ts-qacts:has(.nv-ts-q) { gap: 8px; margin-top: 10px; }
+/* the week as capsules */
+.nv-ts-week { padding: 14px 16px 14px; }
+.nv-ts-caps { position: relative; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 14px; align-items: end; }
+.nv-ts-cd { position: relative; display: grid; justify-items: center; gap: 6px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.nv-ts-pod { position: relative; display: block; width: 100%; max-width: 34px; height: 58px; border-radius: 12px; overflow: hidden; box-sizing: border-box;
+  background: color-mix(in srgb, var(--h, var(--nv-ink)) 10%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--h, var(--nv-ink)) 55%, transparent); }
+.nv-ts-pod > .f { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, color-mix(in srgb, var(--h) 70%, white), var(--h)); transform-origin: bottom; transform: scaleY(0); transition: transform 520ms var(--nv-spring-bouncy, var(--nv-ease)); }
+.nv-ts-cd[data-state="done"] .nv-ts-pod > .f { transform: scaleY(1); }
+.nv-ts-cd[data-state="done"] .nv-ts-pod { box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--h) 60%, transparent); }
+.nv-ts-cd[data-state="today"] .nv-ts-pod { box-shadow: inset 0 0 0 2px var(--h), 0 0 0 4px color-mix(in srgb, var(--h) 20%, transparent); }
+.nv-ts-cd[data-state="missed"] .nv-ts-pod { background: none; box-shadow: none; border: 1.5px dashed color-mix(in srgb, var(--h, var(--nv-ink)) 70%, transparent); }
+.nv-ts-pod.rest { height: 6px; width: 6px; max-width: 6px; margin-bottom: 26px; border-radius: 50%; background: color-mix(in srgb, var(--nv-ink) 22%, transparent); box-shadow: none; }
+.nv-ts-capck { position: absolute; left: 50%; bottom: 8px; margin-left: -6.5px; color: var(--nv-on-acc); }
+.nv-ts-capmk { position: absolute; left: 50%; top: 6px; margin-left: -6px; color: var(--h); }
+.nv-ts-cl { font: 700 12px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ts-cd[data-today="true"] .nv-ts-cl { color: var(--nv-ink); }
+.nv-ts-cd .nv-ts-wsel { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.nv-ts-cd:has(> .nv-ts-wsel:focus-visible) { outline: 2px solid var(--nv-acc-border); outline-offset: 2px; border-radius: 12px; }
+.nv-ts-ghost { position: absolute; z-index: 3; border-radius: 12px; pointer-events: none; background: linear-gradient(180deg, color-mix(in srgb, var(--h) 70%, white), var(--h));
+  box-shadow: 0 10px 24px -6px color-mix(in srgb, var(--h) 60%, transparent); animation: nvTsTravel 600ms var(--nv-spring-snappy, var(--nv-ease)) forwards; }
+@keyframes nvTsTravel { 0% { transform: scale(1); } 18% { transform: scale(1.06); } 100% { transform: translateX(var(--dx)) scale(1); } }
+.nv-ts-wfoot { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--nv-sum-sep); }
+.nv-ts-wfoot > .nv-ts-wline { margin: 0; text-align: left; font-size: 15px; }
+.nv-ts-wfoot > .nv-ts-wnote { text-align: left; margin: 4px 0 0; }
+.nv-ts-open { margin-bottom: 12px; }
+.nv-ts-openh { display: flex; gap: 10px; align-items: flex-start; }
+.nv-ts-openh .nv-ts-nm { display: block; }
+.nv-ts-dash { flex: none; width: 22px; height: 22px; margin-top: 1px; border-radius: 7px; border: 1.5px dashed var(--h); box-sizing: border-box; }
+.nv-ts-pill { min-height: 36px; padding: 0 14px; border-radius: 18px; border: 0; cursor: pointer; font: 600 14px var(--nv-font-ui); color: var(--nv-ink);
+  background: color-mix(in srgb, var(--nv-ink) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 14%, transparent); transition: transform 140ms var(--nv-ease); }
+.nv-ts-pill:active { transform: scale(.96); }
+/* routine tiles */
+.nv-ts-tile { position: relative; min-height: 150px; gap: 2px; }
+.nv-ts-tile > .nv-tile { margin-bottom: 8px; }
+.nv-ts-tile.today { box-shadow: var(--nv-sum-glow, none), inset 0 0 0 1.5px color-mix(in srgb, var(--nv-cy) 55%, transparent); }
+.nv-ts-tg { position: absolute; top: 12px; right: 12px; padding: 2px 8px; border-radius: 999px; font: 700 12px var(--nv-font-ui); color: var(--nv-on-acc); background: var(--nv-cy); }
+.nv-ts-tilestrip { display: block; width: 100%; margin-top: auto; }
+.nv-ts-tilestrip .nv-ts-mix { margin-top: 10px; }
+.nv-ts-tilestrip .nv-ts-mixbar { height: 5px; }
+.nv-ts-tilestrip .nv-ts-mixkeys { font-size: 12px; gap: 2px 8px; }
+.nv-ts-mcard > .nv-tile { margin-bottom: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-ts-mixbar > i, .nv-ts-ghost { animation: none; }
+  .nv-ts-pod > .f, .nv-ts-whyt, .nv-ts-whybtn .nv-ts-ico { transition-duration: 1ms; }
+}
 
 /* ================================================================
    FUEL, MOCKUP 101 (13 Oct 2026, his approval: "All looking good, proceed").

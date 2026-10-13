@@ -4,7 +4,7 @@ import { COACH_DECLINE_REASONS } from './valsInbox.js';
 import { muscleVar } from '../muscleHue.js';
 import { todayPanels } from '../trainPanels.js';
 import { weekSetsView } from '../weekSets.js';
-import { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason, verdictRest } from '../trainSummaryFacts.js';
+import { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason, verdictRest, routineGlyph } from '../trainSummaryFacts.js';
 import { dayDoneText } from '../doneToday.js';
 
 // THE SUMMARY TRAIN PAGE'S VIEW MODEL — redesign round 1, variation A, his
@@ -128,6 +128,8 @@ export function valsTrainSummary(app, ctx, v) {
       const g = v.gymHero;
       return {
         kind: 'done', eyebrow: 'Done today', when, title: done.title,
+        glyph: routineGlyph(done.title, v.gymHero?.targets),
+        chips: chipsOf(v.gymHero?.targets),
         sub: done.meta,
         // several sessions: each its own line, in the order done (3 Oct)
         lines: done.lines,
@@ -141,6 +143,7 @@ export function valsTrainSummary(app, ctx, v) {
         kind: 'scheduled', eyebrow: "On today's card", when, title: tc.title,
         sub: `${plural(liftCount, 'lift')} · about ${estMinutes(liftCount)} min${lastVolume ? ` · last time ${Number(lastVolume).toLocaleString('en-AU')} kg` : ''}`,
         chips: chipsOf(v.gymHero?.targets),
+        glyph: routineGlyph(todayRoutine.name, v.gymHero?.targets),
         focus,
         readiness,
         primary: { label: 'Begin', run: enter(begin) },
@@ -175,14 +178,29 @@ export function valsTrainSummary(app, ctx, v) {
     const { dots, line } = weekDots(schedule, trained, now);
     const strip = new Map((v.weekStrip || []).map((d) => [d.day, d]));
     const STATE_WORD = { done: 'done', today: 'today', planned: 'planned', missed: 'nothing logged', rest: 'rest' };
+    // each day wears the colour of what it trains (mockup 101): the lead
+    // muscle of the routine the day holds, a make-up its source's
+    const byName = new Map((v.routinesList || []).map((r) => [String(r.name).toLowerCase(), r]));
+    const hueOfDay = (routineName) => {
+      const nm = String(routineName || '').replace(/ make-up$/, '').toLowerCase();
+      const r = byName.get(nm);
+      const lead = r?.targetChips?.[0]?.muscle;
+      return lead ? muscleVar(lead) : 'var(--nv-cy)';
+    };
+    const planned = dots.filter((d) => d.state !== 'rest').length;
+    const doneCount = dots.filter((d) => d.state === 'done').length;
     return {
       line,
       notes,
+      planned,
+      done: doneCount,
       dots: dots.map((d) => {
         const s = strip.get(d.day);
         const shown = s?.options?.find((x) => x.value === s.value)?.label || d.routine || 'Rest';
         return {
           ...d,
+          hue: d.state === 'rest' ? null : hueOfDay(d.routine),
+          makeup: / make-up$/.test(d.routine || ''),
           aria: `${d.label}: ${shown}, ${STATE_WORD[d.state]}${s?.doneMarks?.length ? ` (${dayDoneText(s.doneMarks)})` : ''}${d.isToday && d.state !== 'today' ? ', today' : ''}. Change the day`,
           // the day's own select from valsWorkouts — the same writes the
           // classic strip makes, with make-up days as a choice
@@ -214,6 +232,7 @@ export function valsTrainSummary(app, ctx, v) {
       count: r.completedCount || 0,
       today: !!todayRoutine && todayRoutine.id === r.id,
       chips: chipsOf((r.targetChips || []).slice(0, 2)),
+      glyph: routineGlyph(r.name, r.targetChips),
       open: r.onOpen,
       // the classic tile's hold menu, with its start and its Coach turned
       // into the page's own doors (the session under Gym, the Coach sheet)
@@ -290,7 +309,14 @@ export function valsTrainSummary(app, ctx, v) {
   const recovery = {
     discarded: v.discardedDraft || null,
     finishMissed: v.finishMissed || null,
-    carryovers: (v.carryovers || []).map((c) => ({ ...c, start: enter(c.start) })),
+    carryovers: (v.carryovers || []).map((c) => {
+      // the date it is due and the colour of what it trains, for the week's
+      // capsules (mockup 101): Move slides it from that day to the new one
+      const raw = (st.liveCarryovers || []).find((x) => x.id === c.id) || {};
+      const src = (v.routinesList || []).find((r) => r.name === raw.sourceRoutineName);
+      const lead = src?.targetChips?.[0]?.muscle;
+      return { ...c, start: enter(c.start), forDate: raw.forDate || null, hue: lead ? muscleVar(lead) : null };
+    }),
   };
 
   // -------------------------------------------------------------- detail --
