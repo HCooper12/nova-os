@@ -26,7 +26,7 @@ import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox.js';
-import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial } from './theme.js';
+import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial, getGlow, getGlowQuiet, applyGlow } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { savePinned } from './pinned.js';
 import { getFuelCards, saveFuelCards } from './fuelCards.js';
@@ -678,7 +678,7 @@ export default class App extends Component {
     stageCard: null, stageHistory: [], stageFocus: false,
     exerciseSheet: null, // { name, loading, panel, error } — the Train screen's exercise card
     isMobile: typeof window !== 'undefined' && window.innerWidth < 760,
-    novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(), material: getMaterial(),
+    novaTheme: getNovaTheme(), calmMode: getCalm(), coreStyle: getCoreStyle(), novaStyle: getNovaStyle(), material: getMaterial(), glow: getGlow(), glowQuiet: getGlowQuiet(),
 
     // nova inbox (capture → classify → file) + the loops riding its rails
     liveInbox: null, inboxInput: '', inboxCaptureBusy: false, inboxActionBusy: {},
@@ -1751,6 +1751,16 @@ export default class App extends Component {
   setCoreStyle(core) {
     saveCoreStyle(core);
     this.setState({ coreStyle: core });
+  }
+  // the glow (13 Oct): its own setting, stamped on <html> like the material
+  setGlow(glow) {
+    if (glow === this.state.glow) return;
+    crossFadeLook(() => applyGlow(glow, this.state.glowQuiet), { after: () => this.setState({ glow }) });
+  }
+  setGlowQuiet(key, on) {
+    const glowQuiet = { ...this.state.glowQuiet, [key]: !!on };
+    applyGlow(this.state.glow, glowQuiet);
+    this.setState({ glowQuiet });
   }
   setTabOrder(order) {
     saveTabOrder(order);

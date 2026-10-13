@@ -9,6 +9,7 @@ import {
   Ico, Tile, Val, NavRow, SwitchRow, MenuRow, SegBlock, ActRow, Group, HeaderCard, Stages, MenuPill, Switch, Seg,
 } from './SettingsKit.jsx';
 import { Mini, Disc, MaterialPatch } from './SettingsMini.jsx';
+import { FIcon } from '../FuelIcon.jsx';
 import { say, refuse, lightRow } from '../settingsToast.js';
 import { PUSH_MS, FADE_MS, reducedMotion } from '../settingsNav.js';
 
@@ -221,6 +222,25 @@ export function AppearancePage({ P }) {
           ))}
         </div>
         {A.materialSub ? <p className="nv-set-rs" style={{ margin: 0, padding: '0 14px 14px' }}>{A.materialSub}</p> : null}
+      </Group>
+      {/* THE GLOW (13 Oct 2026, mockup 101 section 5): how loud, and where it
+          quietens. Lit used to be a material; it is this now, on any material. */}
+      <Group label="Glow" k="glow" i={4}>
+        <SegBlock k="glowstyle" label="Glow" sub={A.glow.value === 'dyn' ? 'Each card glows in the colours inside it.' : A.glow.value === 'lit' ? 'Each card glows in its own colour.' : A.glow.value === 'soft' ? 'One colour, quiet.' : 'No glow, plain glass.'}
+          options={A.glow.options} value={A.glow.value} onPick={(g) => A.glow.pick(g)} off={A.glow.off} why={A.materialSub} />
+        {/* the preview of mockup 101: two cards that glow as every card will */}
+        <div className="nv-set-glowprev" aria-hidden="true">
+          <div className="nv-sum-card" style={{ '--nv-sum-tint': 'var(--nv-cy)', '--nv-g2': 'var(--nv-vi)' }}>
+            <span className="nv-tile" style={{ '--a': 'var(--nv-cy)', '--b': 'var(--nv-vi)' }}><FIcon n="bolt" /></span>
+            <b>Right now</b><small>18 g to go</small>
+          </div>
+          <div className="nv-sum-card" style={{ '--nv-sum-tint': 'var(--nv-vi)', '--nv-g2': 'var(--nv-good)', '--nv-g3': 'var(--nv-cy)' }}>
+            <span className="nv-tile" style={{ '--a': 'var(--nv-vi)' }}><FIcon n="read" /></span>
+            <b>Today's read</b><small>On track</small>
+          </div>
+        </div>
+        <SwitchRow k="glowsession" label="Quieter during a session" sub="Soft, one colour, while you lift" on={A.glow.session.on} onToggle={() => A.glow.session.toggle()} />
+        <SwitchRow k="glowback" label="Quieter on background cards" sub="The plate, Likely now, the rotation and the log glow softly; Right now and the read keep the full glow" on={A.glow.back.on} onToggle={() => A.glow.back.toggle()} />
       </Group>
       <Group label="Nova core" k="core" i={5}>
         <div className="nv-set-cores">

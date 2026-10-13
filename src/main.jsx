@@ -2,11 +2,15 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
-import { applyAppearance, getNovaTheme, getCalm, getNovaStyle, getMaterial, startHourClock } from './theme.js'
+import { applyAppearance, getNovaTheme, getCalm, getNovaStyle, getMaterial, startHourClock, applyGlow, getGlow, getGlowQuiet } from './theme.js'
 
 // Stamp the persisted theme on <html> before first paint so a non-default
 // theme never flashes the Command tokens for a frame.
+// the glow is read BEFORE applyAppearance re-saves a legacy 'lit' material as
+// glass, or the move from Lit to the glow setting would be lost (13 Oct)
+const glow = getGlow()
 applyAppearance(getNovaTheme(), getCalm(), getNovaStyle(), getMaterial())
+applyGlow(glow, getGlowQuiet())
 // The hour band (dawn/day/dusk/night) that `sky` and Nova glass's aurora
 // read — refreshes itself every 15 minutes and on visibilitychange.
 startHourClock()

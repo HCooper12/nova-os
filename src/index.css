@@ -1124,7 +1124,14 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
    card's hue exists. The shadow list is the card's own, restated whole
    with the bloom last. */
 .nv-sum-card { --nv-sum-tint: var(--nv-sum-c3); }
-:root[data-nv-style="summary"][data-nv-material="lit"] .nv-sum-card:not(.nv-sum-you, .nv-sum-glist) {
+/* 13 Oct 2026 (mockup 101): the lit card is now the GLOW setting
+   (data-nv-glow, src/theme.js applyGlow), on any material. lit = one colour,
+   dyn = the colours inside the card (--nv-g1..3, set inline by a card that
+   knows them; each falls back to the card's tint, so a card that sets none
+   glows in one colour), soft = one colour, quiet. Quieter switches: a
+   session's cards (.nv-ss) and a card marked data-gr="back" go soft; a
+   data-gr="link" card never glows. */
+:root[data-nv-style="summary"]:is([data-nv-glow="lit"], [data-nv-glow="dyn"]) .nv-sum-card:not(.nv-sum-you, .nv-sum-glist) {
   --nv-sum-bloom: 0 0 60px -22px color-mix(in srgb, var(--nv-sum-tint) 70%, transparent);
   background: var(--nv-sum-sheen), linear-gradient(160deg, color-mix(in srgb, var(--nv-sum-tint) 9%, transparent), var(--nv-sum-card));
   /* the hairline in the hue too: his cupertino panes wear a 1px edge at 30%
@@ -1132,14 +1139,41 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
      and without it the light reads as a shadow rather than a lit pane */
   box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 1px color-mix(in srgb, var(--nv-sum-tint) 30%, var(--nv-sum-card-ring)), var(--nv-sum-card-drop), var(--nv-sum-bloom);
 }
-/* Calm drops the bloom and keeps the tint and the depth, as .nv-glow does.
+:root[data-nv-style="summary"][data-nv-glow="dyn"] .nv-sum-card:not(.nv-sum-you, .nv-sum-glist) {
+  --nv-g1-c: var(--nv-g1, var(--nv-sum-tint)); --nv-g2-c: var(--nv-g2, var(--nv-g1-c)); --nv-g3-c: var(--nv-g3, var(--nv-g2-c));
+  --nv-sum-bloom: -14px -10px 42px -18px color-mix(in srgb, var(--nv-g1-c) 55%, transparent), 14px 12px 42px -18px color-mix(in srgb, var(--nv-g2-c) 55%, transparent), 0 20px 46px -24px color-mix(in srgb, var(--nv-g3-c) 45%, transparent);
+  background: var(--nv-sum-sheen), radial-gradient(130% 90% at 0% 0%, color-mix(in srgb, var(--nv-g1-c) 15%, transparent), transparent 62%), radial-gradient(130% 90% at 100% 100%, color-mix(in srgb, var(--nv-g2-c) 13%, transparent), transparent 62%), var(--nv-sum-card);
+  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 1px color-mix(in srgb, var(--nv-g1-c) 26%, var(--nv-sum-card-ring)), var(--nv-sum-card-drop), var(--nv-sum-bloom);
+}
+:root[data-nv-style="summary"][data-nv-glow="dyn"] .nv-sum-card:not(.nv-sum-you, .nv-sum-glist)::after {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--nv-g1-c) 85%, white), rgba(255,255,255,.1) 36%, color-mix(in srgb, var(--nv-g3-c) 55%, transparent) 60%, color-mix(in srgb, var(--nv-g2-c) 85%, white));
+}
+/* SOFT: everything when Glow is Soft; a session's cards and the background
+   cards when their quieter switch is on */
+:root[data-nv-style="summary"][data-nv-glow="soft"] .nv-sum-card:not(.nv-sum-you, .nv-sum-glist),
+:root[data-nv-style="summary"]:is([data-nv-glow="lit"], [data-nv-glow="dyn"])[data-nv-glow-back="quiet"] .nv-sum-card[data-gr="back"],
+:root[data-nv-style="summary"]:is([data-nv-glow="lit"], [data-nv-glow="dyn"])[data-nv-glow-session="quiet"] .nv-ss .nv-sum-card {
+  --nv-sum-bloom: 0 0 30px -16px color-mix(in srgb, var(--nv-sum-tint) 40%, transparent);
+  background: var(--nv-sum-sheen), linear-gradient(160deg, color-mix(in srgb, var(--nv-sum-tint) 6%, transparent), var(--nv-sum-card));
+  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 1px color-mix(in srgb, var(--nv-sum-tint) 22%, var(--nv-sum-card-ring)), var(--nv-sum-card-drop), var(--nv-sum-bloom);
+}
+:root[data-nv-style="summary"]:is([data-nv-glow="lit"], [data-nv-glow="dyn"])[data-nv-glow-back="quiet"] .nv-sum-card[data-gr="back"]::after,
+:root[data-nv-style="summary"]:is([data-nv-glow="lit"], [data-nv-glow="dyn"])[data-nv-glow-session="quiet"] .nv-ss .nv-sum-card::after { background: var(--nv-sum-rim); }
+/* a door is never lit */
+:root[data-nv-style="summary"]:is([data-nv-glow="lit"], [data-nv-glow="dyn"], [data-nv-glow="soft"]) .nv-sum-card[data-gr="link"] {
+  --nv-sum-bloom: 0 0 0 0 rgba(0,0,0,0);
+  background: var(--nv-sum-sheen), var(--nv-sum-card);
+  box-shadow: var(--nv-sum-glow), 0 1px 0 var(--nv-sum-card-hi) inset, 0 0 0 1px var(--nv-sum-card-ring), var(--nv-sum-card-drop);
+}
+:root[data-nv-style="summary"]:is([data-nv-glow="lit"], [data-nv-glow="dyn"]) .nv-sum-card[data-gr="link"]::after { background: var(--nv-sum-rim); }
+/* Calm drops every bloom and keeps the tint and the depth, as .nv-glow does.
    Zero-size, not `none`: it sits in a comma-separated list. */
-:root[data-nv-style="summary"][data-nv-material="lit"][data-nv-calm="1"] .nv-sum-card { --nv-sum-bloom: 0 0 0 0 rgba(0,0,0,0); }
-/* less transparency asked for: the lit card goes to the same opaque card
-   as the glass one (the guard above), with no light on it */
+:root[data-nv-style="summary"][data-nv-calm="1"] .nv-sum-card { --nv-sum-bloom: 0 0 0 0 rgba(0,0,0,0) !important; }
+/* less transparency asked for: every glowing card goes to the same opaque
+   card as the glass one (the guard above), with no light on it */
 @media (prefers-reduced-transparency: reduce) {
-  :root[data-nv-style="summary"][data-nv-material="lit"] .nv-sum-card:not(.nv-sum-you, .nv-sum-glist) {
-    --nv-sum-bloom: 0 0 0 0 rgba(0,0,0,0);
+  :root[data-nv-style="summary"]:is([data-nv-glow="lit"], [data-nv-glow="dyn"], [data-nv-glow="soft"]) .nv-sum-card:not(.nv-sum-you, .nv-sum-glist) {
+    --nv-sum-bloom: 0 0 0 0 rgba(0,0,0,0) !important;
     background: color-mix(in srgb, var(--nv-void) 88%, white);
   }
 }
@@ -2147,6 +2181,15 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   .nv-fs-live, .nv-fs-mt > i, .nv-fs-rt-nm { animation: none; }
   .nv-fs-fb, .nv-fs-chev, .nv-fs-opts > span:first-child > i { transition-duration: 1ms; }
 }
+
+/* Settings › Appearance › Glow (mockup 101 section 5): the full names wrap
+   rather than cut, and two cards preview the glow */
+[data-set-key="glowstyle"] .nv-set-seg > button { white-space: normal; line-height: 1.15; min-height: 44px; }
+.nv-set-glowprev { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 14px 14px; }
+.nv-set-glowprev > .nv-sum-card { display: flex; flex-direction: column; gap: 4px; padding: 12px; min-height: 84px; }
+.nv-set-glowprev .nv-tile { margin-bottom: 4px; }
+.nv-set-glowprev b { font: 700 14px var(--nv-font-ui); color: var(--nv-ink); }
+.nv-set-glowprev small { font: 400 12px var(--nv-font-ui); color: var(--nv-ink60); }
 
 /* THE SKELETON — the shape of the real rows, while the vault answers */
 .nv-fs-sk { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 12px; align-items: center; min-height: 64px; padding: 8px 10px 8px 16px; }

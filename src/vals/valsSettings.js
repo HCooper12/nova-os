@@ -1,4 +1,4 @@
-import { NOVA_STYLES, NOVA_THEMES, NOVA_MATERIALS, NOVA_CORES } from '../theme.js';
+import { NOVA_STYLES, NOVA_THEMES, NOVA_MATERIALS, NOVA_CORES, NOVA_GLOWS } from '../theme.js';
 import { REST_CHOICES } from '../sessionSummaryFacts.js';
 import { hapticCapability, hapticDiagnostic } from '../haptics.js';
 import { isStandalone } from '../edgeBack.js';
@@ -198,7 +198,16 @@ export function valsSettings(app, ctx, v) {
       pick: () => app.setNovaTheme(t.value),
     })),
     themeSub: style === 'command' ? 'Daylight and Sky are drawn for the Apple styles.' : '',
-    materials: ['glass', 'lit', 'solid'].map((m) => {
+    // the glow (13 Oct, mockup 101): its own control under Material
+    glow: {
+      value: st.glow || 'off',
+      options: NOVA_GLOWS.map((g) => ({ value: g.value, label: g.label })),
+      pick: (g) => app.setGlow(g),
+      off: style !== 'summary',
+      session: { on: st.glowQuiet?.session !== false, toggle: () => app.setGlowQuiet('session', st.glowQuiet?.session === false) },
+      back: { on: st.glowQuiet?.back !== false, toggle: () => app.setGlowQuiet('back', st.glowQuiet?.back === false) },
+    },
+    materials: ['glass', 'solid'].map((m) => {
       const o = NOVA_MATERIALS.find((x) => x.value === m);
       return { value: m, label: o?.label || m, on: material === m, disabled: style !== 'summary', pick: () => app.setMaterial(m) };
     }),

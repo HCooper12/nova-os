@@ -99,7 +99,7 @@ function Plate({ p, onOpen, openRef }) {
   const k = p.kcal;
   const right = k.target == null ? 'no target' : k.over > 0 ? `${kc(k.over)} over` : `${kc(k.left)} left`;
   return (
-    <Interactive as="section" className="nv-sum-card nv-sum-rise nv-fs-plate" data-gr="back" style={{ '--i': 1 }} onClick={onOpen} haptic="tick"
+    <Interactive as="section" className="nv-sum-card nv-sum-rise nv-fs-plate" data-gr="back" style={{ '--i': 1, '--nv-sum-tint': 'var(--nv-fs-p)', '--nv-g2': 'var(--nv-fs-k)' }} onClick={onOpen} haptic="tick"
       aria-label={`Today's plate. ${p.line}. Open the week`} focusStyle={NO_RING}>
       <span ref={openRef} style={{ display: 'contents' }} />
       <div className="nv-sum-ch nv-fs-ch">
@@ -187,7 +187,7 @@ function Composer({ c, likely, likelyReceipt }) {
       )}
 
       {c.recipeMatches.length > 0 && (
-        <div className="nv-sum-card nv-fs-list nv-deck-rise" data-gr="focus" style={{ marginTop: '10px' }} aria-label="Matches">
+        <div className="nv-sum-card nv-fs-list nv-deck-rise" data-gr="focus" style={{ marginTop: '10px', '--nv-sum-tint': 'var(--nv-fs-k)' }} aria-label="Matches">
           {c.recipeMatches.map((r) => (
             <Interactive key={r.id} as="div" className="nv-fs-lrow" onClick={r.open} haptic={r.kind === 'log' ? 'commit' : 'tick'} activeStyle={PRESSED} focusStyle={NO_RING}
               aria-label={r.kind === 'log' ? `Log ${r.name}. ${r.sub}` : `${r.name}, from your recipes. Open it to choose a portion`} base={{ gridTemplateColumns: '30px minmax(0, 1fr) auto' }}>
@@ -212,7 +212,7 @@ function Composer({ c, likely, likelyReceipt }) {
           </div>
           <div className="nv-fs-rail nv-fs-likely nv-sum-rise" style={{ '--i': 2 }} role="group" aria-label="Likely now">
             {likely.map((it) => (
-              <Interactive key={it.key} as="span" className="nv-sum-card nv-fs-lk" data-gr="back" onClick={it.log} haptic="commit" focusStyle={NO_RING}
+              <Interactive key={it.key} as="span" className="nv-sum-card nv-fs-lk" data-gr="back" style={{ '--nv-sum-tint': it.hue || 'var(--nv-vi)' }} onClick={it.log} haptic="commit" focusStyle={NO_RING}
                 aria-label={`Log ${it.name}, ${it.p} grams protein, ${it.kcal} kilocalories. ${it.why}`}>
                 <Tile n="plate" a={it.hue || 'var(--nv-vi)'} />
                 <span className="nv-fs-lx"><span className="nv-fs-nm">{it.name}</span><span className="nv-fs-sv">{it.why} · <span className="nv-fs-p">{it.p} g</span></span></span>
@@ -471,7 +471,7 @@ function Log({ log, i }) {
           ))}
         </div>
       )}
-      <div className="nv-sum-card nv-sum-rise nv-fs-list" data-gr="back" style={{ '--i': i }}>
+      <div className="nv-sum-card nv-sum-rise nv-fs-list" data-gr="back" style={{ '--i': i, '--nv-sum-tint': 'var(--nv-fs-p)' }}>
         {log.rows.length === 0 && <p className="nv-fs-empty" style={{ margin: 0 }}>{log.empty}</p>}
         {log.rows.map((row) => (
           <LogRow key={row.id} row={row} open={openId === row.id} edit={log.edit}
@@ -488,7 +488,7 @@ function Log({ log, i }) {
 // One card, one situation (src/fuelNow.js). Silent when nothing applies.
 function NowCard({ n, openKitchen }) {
   return (
-    <section className="nv-sum-card nv-sum-rise nv-fs-now" data-gr="focus" style={{ '--i': 3 }} aria-label="Right now">
+    <section className="nv-sum-card nv-sum-rise nv-fs-now" data-gr="focus" style={{ '--i': 3, '--nv-sum-tint': 'var(--nv-cy)', '--nv-g2': 'var(--nv-vi)' }} aria-label="Right now">
       <div className="nv-sum-ch nv-fs-ch">
         <Tile n="bolt" a="var(--nv-cy)" b="var(--nv-vi)" />
         <span>Right now</span><i className="nv-fs-live" aria-hidden="true" />
@@ -532,7 +532,7 @@ function ReadCard({ r }) {
     { key: 'fx', label: 'For reference', tone: 'ref', facts: r.facts.filter((x) => x.ok === null) },
   ].filter((g) => g.facts.length);
   return (
-    <section className={`nv-sum-card nv-sum-rise nv-fs-read${open ? ' open' : ''}`} data-gr="focus" style={{ '--i': 4 }} aria-label="Today's read">
+    <section className={`nv-sum-card nv-sum-rise nv-fs-read${open ? ' open' : ''}`} data-gr="focus" style={{ '--i': 4, '--nv-sum-tint': 'var(--nv-vi)', '--nv-g2': r.dots.includes('warn') ? 'var(--nv-fs-hold)' : 'var(--nv-fs-k)', '--nv-g3': 'var(--nv-fs-p)' }} aria-label="Today's read">
       <Interactive as="div" className="nv-fs-fold" onClick={() => setOpen((o) => !o)} haptic="tick" focusStyle={NO_RING} aria-expanded={open}
         aria-label={`Today's read. ${r.news}${r.score ? ` Score ${r.score.value}${r.score.projected ? ', projected' : ''}.` : ''} ${open ? 'Fold it' : 'Open it'}`}>
         <Tile n="read" a="var(--nv-vi)" />
@@ -617,7 +617,7 @@ function SlotRail({ rot, onOpen, onAdd, i }) {
           );
         }
         return (
-          <div key={t.key} role="listitem" className={`nv-sum-card nv-fs-rt${t.eaten ? ' on' : ''}`} data-gr="back" data-tile={t.key} style={{ '--h': hue }}>
+          <div key={t.key} role="listitem" className={`nv-sum-card nv-fs-rt${t.eaten ? ' on' : ''}`} data-gr="back" data-tile={t.key} style={{ '--h': hue, '--nv-sum-tint': hue }}>
             <Interactive as="span" className="nv-fs-rt-body" onClick={onOpen} haptic="tick" focusStyle={NO_RING}
               aria-label={`${t.slotName}: ${t.name}, ${t.p} grams protein, ${t.kcal} kilocalories${t.eaten ? ', eaten' : ''}${t.count > 1 ? `, option ${t.index + 1} of ${t.count}` : ''}. Open the rotation`}>
               <Tile n="plate" a={hue} />

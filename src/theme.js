@@ -7,6 +7,8 @@ const CALM_KEY = 'novaos.calm';
 const CORE_KEY = 'novaos.core';
 const STYLE_KEY = 'novaos.style';
 const MATERIAL_KEY = 'novaos.material';
+const GLOW_KEY = 'novaos.glow';
+const GLOW_QUIET_KEY = 'novaos.glowQuiet';
 
 export const NOVA_THEMES = [
   { value: 'command', label: 'Command', hint: 'the flagship — cyan HUD over the void' },
@@ -84,18 +86,67 @@ export function getCalm() {
 // the glow his cupertino Home's panes wear, on Nova glass). Same shape as
 // every other appearance getter — try/catch around localStorage, default
 // when absent or foreign.
+// 13 Oct 2026 (mockup 101, his approval): Lit leaves Material and becomes
+// the Glow setting below, so the glow works on Glass or Solid. A stored
+// 'lit' reads as glass with the glow on in its own colours (getGlow).
 export const NOVA_MATERIALS = [
   { value: 'glass', label: 'Glass', hint: 'translucent cards over the sky' },
   { value: 'solid', label: 'Solid', hint: 'the pane fill, no sky' },
-  { value: 'lit', label: 'Lit', hint: 'glass, each card lit in its own hue' },
 ];
 
 export function getMaterial() {
   try {
     const m = localStorage.getItem(MATERIAL_KEY);
+    if (m === 'lit') return 'glass';
     return NOVA_MATERIALS.some((x) => x.value === m) ? m : 'glass';
   } catch {
     return 'glass';
+  }
+}
+
+// THE GLOW (13 Oct 2026, his words: "allow there to be an option to toggle
+// glow in the settings"). Off · Soft (one colour, quiet) · One colour (the
+// lit card) · Its own colours (each card glows in the colours inside it).
+// Two quieter switches, both on by default: during a session the glow goes
+// soft ("it feels a bit much"), and Fuel's background cards (the plate, the
+// rotation, the log) glow softly so the page is "less loud all over".
+export const NOVA_GLOWS = [
+  { value: 'off', label: 'Off' },
+  { value: 'soft', label: 'Soft' },
+  { value: 'lit', label: 'One colour' },
+  { value: 'dyn', label: 'Its own colours' },
+];
+
+export function getGlow() {
+  try {
+    const g = localStorage.getItem(GLOW_KEY);
+    if (NOVA_GLOWS.some((x) => x.value === g)) return g;
+    // before the setting existed the glow WAS the Lit material
+    return localStorage.getItem(MATERIAL_KEY) === 'lit' ? 'dyn' : 'off';
+  } catch {
+    return 'off';
+  }
+}
+
+export function getGlowQuiet() {
+  try {
+    const q = JSON.parse(localStorage.getItem(GLOW_QUIET_KEY) || 'null');
+    return { session: q?.session !== false, back: q?.back !== false };
+  } catch {
+    return { session: true, back: true };
+  }
+}
+
+export function applyGlow(glow, quiet = { session: true, back: true }) {
+  const root = document.documentElement;
+  root.setAttribute('data-nv-glow', glow);
+  if (quiet.session) root.setAttribute('data-nv-glow-session', 'quiet'); else root.removeAttribute('data-nv-glow-session');
+  if (quiet.back) root.setAttribute('data-nv-glow-back', 'quiet'); else root.removeAttribute('data-nv-glow-back');
+  try {
+    localStorage.setItem(GLOW_KEY, glow);
+    localStorage.setItem(GLOW_QUIET_KEY, JSON.stringify({ session: !!quiet.session, back: !!quiet.back }));
+  } catch {
+    /* best-effort */
   }
 }
 
