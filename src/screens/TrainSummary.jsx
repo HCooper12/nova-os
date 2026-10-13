@@ -147,7 +147,8 @@ function GymPage({ T }) {
 function Hero({ h }) {
   const tint = h.kind === 'done' ? 'var(--nv-good)' : 'var(--nv-cy)';
   return (
-    <section className="nv-sum-card nv-sum-rise nv-ts-hero" style={{ '--i': 1, '--nv-sum-tint': hueA(h.chips, 0, tint), '--nv-g2': hueA(h.chips, 1, tint), '--nv-g3': hueA(h.chips, 2, tint) }} aria-label={h.eyebrow}>
+    // data-grow: the card a live session closes back onto (App.playPageMove)
+    <section data-grow="hero" className="nv-sum-card nv-sum-rise nv-ts-hero" style={{ '--i': 1, '--nv-sum-tint': hueA(h.chips, 0, tint), '--nv-g2': hueA(h.chips, 1, tint), '--nv-g3': hueA(h.chips, 2, tint) }} aria-label={h.eyebrow}>
       <Head label={h.eyebrow} meta={h.when}
         tile={h.glyph ? <GlyphTile g={h.glyph} a={hueA(h.chips, 0, tint)} b={hueA(h.chips, 1, undefined)} />
           : <ITile p={h.kind === 'done' ? P.check : P.fig} a={tint} />} />
@@ -435,7 +436,7 @@ function Routines({ T }) {
       {T.routines.length ? (
         <div className="nv-ts-tiles">
           {T.routines.map((r, i) => (
-            <Interactive key={r.id} as="div" className={`nv-sum-card nv-sum-rise nv-ts-tile${r.today ? ' today' : ''}`}
+            <Interactive key={r.id} as="div" data-grow={`routine:${r.id}`} className={`nv-sum-card nv-sum-rise nv-ts-tile${r.today ? ' today' : ''}`}
               style={{ '--i': 4 + Math.min(i, 4), '--nv-sum-tint': hueA(r.chips, 0, 'var(--nv-cy)'), '--nv-g2': hueA(r.chips, 1, hueA(r.chips, 0, 'var(--nv-cy)')) }}
               onClick={r.open} onLongPress={r.hold} haptic="tick" base={{ cursor: 'pointer' }}
               aria-label={`${r.name}: ${r.lifts} lifts${r.today ? ', today' : ''}. Open; hold for more`}>
@@ -616,7 +617,7 @@ function RoutinePage({ d, v, parts }) {
       </div>
       <div className="nv-ts-sub nv-sum-rise" style={{ '--i': 1, marginLeft: '4px' }}>{d.sub}</div>
       <div className="nv-ts-acts nv-sum-rise" style={{ '--i': 1 }}>
-        <Interactive as="button" className="nv-ts-begin" onClick={d.startDisabled ? undefined : d.start} disabled={d.startDisabled} haptic={d.startDisabled ? undefined : 'commit'} activeStyle={{ transform: 'scale(.97)' }}>
+        <Interactive as="button" data-grow="begin" className="nv-ts-begin" onClick={d.startDisabled ? undefined : d.start} disabled={d.startDisabled} haptic={d.startDisabled ? undefined : 'commit'} activeStyle={{ transform: 'scale(.97)' }}>
           <Play />Start workout
         </Interactive>
         <button type="button" className="nv-ts-quiet" onClick={d.history}>History</button>

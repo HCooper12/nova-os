@@ -201,7 +201,8 @@ test('a drag-driven back skips the view transition', async () => {
   assert.match(app, /const dragged = edgeDragInProgress\(\);/);
   // Settings A (7 Oct 2026): a Settings page change slides itself
   // (src/settingsNav.js), so it skips the transition for the same reason
-  assert.match(app, /if \(dragged \|\| changed \|\| settingsHop\) apply\(\); else this\.withTransition\(apply\);/,
+  // and a page pushed over Fuel or Train (13 Oct 2026) slides itself back too
+  assert.match(app, /if \(dragged \|\| changed \|\| settingsHop \|\| pageHop\) apply\(\); else this\.withTransition\(apply\);/,
     'a swipe and a view transition will run at the same time');
   assert.match(app, /const settingsHop = !changed && this\.state\.screen === 'settings';/);
   assert.match(app, /if \(changed && !dragged\) this\.riseMain\(\);/,

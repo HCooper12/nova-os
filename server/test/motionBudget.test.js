@@ -22,11 +22,16 @@ test('Segmented measures on selection and resize, never because a caller passed 
   assert.match(src, /new ResizeObserver\(/, 'a width change still re-measures');
 });
 
-test('a session start rises like every other hop, with no synchronous view transition', () => {
+// 13 Oct 2026 (his call, mockup 101): the session no longer rises; it grows
+// out of the card he tapped, played from getSnapshotBeforeUpdate for every
+// way into a session. Still never a synchronous view transition.
+test('a session start grows out of its card, with no synchronous view transition', () => {
   const app = read('src/App.jsx');
   const fn = between(app, '  startWorkoutSession(routine) {', '  updateSessionExerciseField(');
   assert.ok(!/withTransition/.test(fn));
-  assert.match(fn, /sessionCancelConfirm: false \}, \(\) => this\.riseMain\(\)\);/);
+  assert.ok(!/riseMain/.test(fn), 'a rise on top of the grow would animate <main> twice');
+  assert.match(app, /const move = edgeDragInProgress\(\) \? null : pageMove\(prevState, this\.state\);/);
+  assert.match(app, /else if \(move === 'grow'\) grow\(snap, tap\);/);
 });
 
 test("the summary recipe sheet opens and closes without a view transition; cupertino's morph stays", () => {

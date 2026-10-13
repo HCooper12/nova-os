@@ -32,6 +32,9 @@ import { savePinned } from './pinned.js';
 import { getFuelCards, saveFuelCards } from './fuelCards.js';
 import { logDate as viewedLogDate, loggedLine, dayWord, removalFor } from './fuelDay.js';
 import { depthOf, edgeDragInProgress } from './edgeBack.js';
+import { playPush, playPop } from './settingsNav.js';
+import { freeze, grow, shrink, noteTap, takeTap, scrollToTop } from './pageMotion.js';
+import { pageMove, pageKey } from './pageMoveRule.js';
 import { startSkyRest } from './skyRest.js';
 import { EdgeBack } from './EdgeBack.jsx';
 import { NOTE_TYPE_COLOR } from './vals/shared.js';
@@ -816,9 +819,43 @@ export default class App extends Component {
   // THE ARRIVAL COUNT asks which screen it is on (src/arrival.js). This runs
   // before the new screen's figures lay out, so a quick return to a page is
   // known to be one by the time they ask whether to count again.
+  //
+  // THE PAGE MOVES (13 Oct 2026, mockup 101's motion list): a page pushed
+  // over its screen slides in, Back slides it off, the live session grows out
+  // of the card he tapped and shrinks back when he leaves. Decided here, from
+  // the state change itself (src/pageMoveRule.js), so every caller moves the
+  // same way: a tap, a Back, a finish, a discard. The picture of the page
+  // being left is taken now, while it is still on screen; componentDidUpdate
+  // plays the move. An edge swipe slides its own layers, so it is left alone.
   getSnapshotBeforeUpdate(prevProps, prevState) {
     if (prevState.screen !== this.state.screen) noteScreen(this.state.screen);
-    return null;
+    const move = edgeDragInProgress() ? null : pageMove(prevState, this.state);
+    if (!move) return null;
+    const main = this.mainRef?.current;
+    if (main) { this.pageScrolls = this.pageScrolls || {}; this.pageScrolls[pageKey(prevState).id] = main.scrollTop; }
+    return { move, snap: freeze(), tap: move === 'grow' ? takeTap() : null, toKey: pageKey(this.state).id, routineId: prevState.workoutSession?.routineId || null };
+  }
+  playPageMove({ move, snap, tap, toKey, routineId }) {
+    const main = this.mainRef?.current;
+    // a new page starts at its top; one he comes back to, where he left it
+    if (main) main.scrollTop = move === 'push' || move === 'grow' ? 0 : (this.pageScrolls?.[toKey] || 0);
+    this.screenAnim?.cancel();
+    if (move === 'push') playPush(snap);
+    else if (move === 'pop') playPop(snap);
+    else if (move === 'grow') grow(snap, tap);
+    else {
+      // the session closes onto the card it belongs to: its routine's tile,
+      // else Train's hero, whichever is wholly in view (a tile peeking under
+      // the dock is no place to land); neither, and it cross-fades
+      const inView = (el) => {
+        const r = el?.getBoundingClientRect();
+        return !!r && r.height > 8 && r.top >= 40 && r.bottom <= window.innerHeight - 90;
+      };
+      const q = (sel) => (typeof document === 'undefined' ? null : document.querySelector(sel));
+      const tile = routineId ? q(`[data-grow="routine:${CSS.escape(String(routineId))}"]`) : null;
+      const hero = q('[data-grow="hero"]');
+      shrink(snap, [tile, hero].find(inView) || null);
+    }
   }
 
   componentDidMount() {
@@ -1059,6 +1096,9 @@ export default class App extends Component {
       setTimeout(() => { this.replayGuard = false; }, 900);
     };
     window.addEventListener('pointerdown', this.tapUnlockH, { passive: true });
+    // the card under his finger, so a page can grow out of it (src/pageMotion.js)
+    this.noteTapH = (e) => noteTap(e);
+    window.addEventListener('pointerdown', this.noteTapH, { passive: true, capture: true });
     // Back/forward navigation re-derives the screen from the hash.
     // BACK ANIMATES LIKE FORWARD. navigate() has always run its screen change
     // through withTransition (the View Transition API); popstate swapped
@@ -1086,8 +1126,12 @@ export default class App extends Component {
       // a Settings page slides itself (src/settingsNav.js): the whole-page
       // transition would photograph the slide it is about to play
       const settingsHop = !changed && this.state.screen === 'settings';
+      // a page pushed over Fuel or Train slides itself back (getSnapshotBeforeUpdate)
+      const hs = window.history.state;
+      const pageHop = !changed && ((this.state.screen === 'recipes' && (this.state.fuelView || null) !== (hs?.novaView === 'fuelRecipes' ? 'recipes' : null))
+        || (this.state.screen === 'workouts' && (hs?.novaView === 'trainPage' || ['routine', 'history'].includes(this.state.workoutsView))));
       const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() }, () => { if (changed && !dragged) this.riseMain(); });
-      if (dragged || changed || settingsHop) apply(); else this.withTransition(apply);
+      if (dragged || changed || settingsHop || pageHop) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
     window.addEventListener('popstate', this.popH);
@@ -1142,6 +1186,7 @@ export default class App extends Component {
     window.removeEventListener(OPEN_EVENT, this.openArtH);
     window.removeEventListener('online', this.onlineH);
     window.removeEventListener('pointerdown', this.tapUnlockH);
+    window.removeEventListener('pointerdown', this.noteTapH, { capture: true });
     window.removeEventListener('pagehide', this.pagehideH);
     document.removeEventListener('visibilitychange', this.visH);
     try { if (this.swCtrlH) navigator.serviceWorker?.removeEventListener('controllerchange', this.swCtrlH); } catch { /* unsupported */ }
@@ -1231,7 +1276,8 @@ export default class App extends Component {
     // (it photographs the glass chrome, which doubles and washes out); card
     // taps and every other hop now do the same. Morphs that carry a shared
     // name call withTransition themselves (openLibraryItem, the overlays).
-    // `instant` is still accepted from callers and no longer changes anything.
+    // `instant` is still accepted from callers and no longer changes anything;
+    // the one exception to the rise is a Home card growing into its page.
     const { instant: _instant, ...extraState } = extra;
     const changed = this.state.screen !== screen;
     // LEAVING THE BRIEF'S QUESTIONS (12 Oct, his report): walking away from
@@ -1254,7 +1300,12 @@ export default class App extends Component {
       this.scrollPositions = this.scrollPositions || {};
       this.scrollPositions[this.state.screen] = this.mainRef.current.scrollTop;
     }
-    // the new screen rises rather than cuts (riseMain, after the scroll is restored)
+    // the new screen rises rather than cuts (riseMain, after the scroll is restored).
+    // A HOME CARD OPENS INTO ITS PAGE (13 Oct 2026, mockup 101's motion
+    // list): leaving Home from a card he just tapped, the page grows out of
+    // that card (src/pageMotion.js) instead of rising; a tab still rises.
+    const growTap = changed && this.state.screen === 'mission' ? takeTap() : null;
+    const growSnap = growTap ? freeze() : null;
     // the summary Fuel page's Recipes list belongs to Fuel: leaving the
     // screen leaves it, so a tab hop back lands on Fuel itself
     const apply = () => this.setState({ screen, ...(changed && this.state.fuelView ? { fuelView: null } : {}), ...(changed && screen === 'journal' ? { journalView: 'mine', journalFilterOpen: false } : {}), ...(changed && (this.state.settingsPath || []).length ? { settingsPath: [], settingsLit: null } : {}), ...extraState }, () => {
@@ -1268,7 +1319,7 @@ export default class App extends Component {
       if (saved > 0) requestAnimationFrame(() => {
         if (this.state.screen === screen && this.mainRef?.current) this.mainRef.current.scrollTop = saved;
       });
-      this.riseMain();
+      if (growSnap) grow(growSnap, growTap); else this.riseMain();
     });
     apply();
     if (changed) this.noteScreenVisit(screen);
@@ -1831,7 +1882,8 @@ export default class App extends Component {
       a.abort();
     }
   }
-  componentDidUpdate(prevProps, prevState) {
+  componentDidUpdate(prevProps, prevState, motion) {
+    if (motion) this.playPageMove(motion);
     // THE LIVE SESSION'S BESTS (13 Oct, mockup 101's record banner): read once
     // per session and its set of lifts; a failure just means no banner
     {
@@ -3856,8 +3908,8 @@ export default class App extends Component {
       const st = window.history.state;
       if (st?.novaView !== 'fuelRecipes') window.history.pushState({ novaDepth: depthOf(st) + 1, novaView: 'fuelRecipes' }, '');
     }
+    // the page slides in from the right and starts at its top (playPageMove)
     this.setState({ fuelView: 'recipes' });
-    if (this.mainRef?.current) this.mainRef.current.scrollTop = 0;
   }
   // On its own entry, closing IS going back; popH does the closing.
   closeFuelRecipes() {
@@ -3869,7 +3921,7 @@ export default class App extends Component {
     const want = st?.novaView === 'fuelRecipes' ? 'recipes' : null;
     // the Fuel page's Edit sheet is the other history level over Fuel
     // the Money page's sheet and pushed page are its other two levels (10 Oct 2026)
-    return { ...this.settingsFromHistory(), ...codeFromHistory(this, screenFromHash()), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory(), ...this.moneyFromHistory(), ...stashFromHistory(this), ...this.shopFromHistory() };
+    return { ...this.settingsFromHistory(), ...codeFromHistory(this, screenFromHash()), ...((this.state.fuelView || null) === want ? {} : { fuelView: want }), ...this.trainPageFromHistory(), ...this.briefingReadFromHistory(), ...this.fuelCardsFromHistory(), ...this.moneyFromHistory(), ...stashFromHistory(this), ...this.shopFromHistory() };
   }
   // SETTINGS' PAGES (direction A, 7 Oct 2026). Each push is a history entry
   // carrying the whole path, so popstate restores exactly the page he was on
@@ -4543,10 +4595,54 @@ export default class App extends Component {
       this.refreshWorkoutRoutines().then(() => this.setState({ workoutsView: 'routine', openRoutineId: routine.id }));
     }).catch((e) => this.toastMsg('Could not create routine: ' + e.message));
   }
-  openRoutine(id) {
-    this.withTransition(() => this.setState({ workoutsView: 'routine', openRoutineId: id, routineDeleteConfirm: false, exercisePickerOpen: false }));
+  // TRAIN'S PAGES (13 Oct 2026, mockup 101's motion list): a routine and its
+  // history are pages pushed over Train, each its own history entry as
+  // Fuel's Recipes is, so the edge swipe and Back return to Train rather than
+  // leaving the tab. The slide itself is getSnapshotBeforeUpdate's.
+  pushTrainEntry(page, id) {
+    if (typeof window === 'undefined' || this.state.screen !== 'workouts') return;
+    const st = window.history.state;
+    if (st?.novaView === 'trainPage' && st.page === page && (st.id ?? null) === (id ?? null)) return;
+    window.history.pushState({ novaDepth: depthOf(st) + 1, novaView: 'trainPage', page, id: id ?? null }, '');
   }
+  // popstate's half: the entry says which page; leaving them all is Train itself.
+  // A live session is never a page in this stack, so it is never touched.
+  trainPageFromHistory() {
+    const st = typeof window === 'undefined' ? null : window.history.state;
+    const cur = this.state.workoutsView;
+    if (cur === 'session') return {};
+    if (st?.novaView === 'trainPage') {
+      if (st.page === 'routine' && (cur !== 'routine' || this.state.openRoutineId !== st.id)) return { workoutsView: 'routine', openRoutineId: st.id, routineDeleteConfirm: false, exercisePickerOpen: false };
+      if (st.page === 'history' && (cur !== 'history' || (this.state.historyRoutineId || null) !== (st.id ?? null))) {
+        setTimeout(() => this.loadWorkoutHistory(st.id), 0);
+        return { workoutsView: 'history', historyRoutineId: st.id ?? null, liveWorkoutHistory: null };
+      }
+      return {};
+    }
+    return cur === 'routine' || cur === 'history' ? { workoutsView: 'routines', openRoutineId: null, routineDeleteConfirm: false, exercisePickerOpen: false } : {};
+  }
+  openRoutine(id) {
+    this.pushTrainEntry('routine', id);
+    this.setState({ workoutsView: 'routine', openRoutineId: id, routineDeleteConfirm: false, exercisePickerOpen: false });
+  }
+  // on its own entry, going back IS Back (popH does it); otherwise straight there
+  // TAP THE ACTIVE TAB, OR THE TOP BAR (13 Oct 2026, mockup 101's motion
+  // list), as iOS does: a page pushed over the screen goes back to it first,
+  // and a screen already at its root scrolls to the top. A live session is
+  // never closed by a tap on a tab.
+  reselectTab(screen) {
+    if (this.state.screen !== screen) { this.navigate(screen); return; }
+    if (screen === 'recipes' && this.state.fuelView) { this.closeFuelRecipes(); return; }
+    if (screen === 'workouts' && ['routine', 'history'].includes(this.state.workoutsView)) {
+      if (window.history.state?.novaView === 'trainPage' && window.history.state?.novaOverlay == null) { window.history.go(-1); return; }
+      this.setState({ workoutsView: 'routines', openRoutineId: null, routineDeleteConfirm: false, exercisePickerOpen: false });
+      return;
+    }
+    scrollToTop();
+  }
+  toTop() { scrollToTop(); }
   backToRoutines() {
+    if (typeof window !== 'undefined' && window.history.state?.novaView === 'trainPage' && window.history.state?.novaOverlay == null) { window.history.back(); return; }
     this.setState({ workoutsView: 'routines', openRoutineId: null, routineDeleteConfirm: false, exercisePickerOpen: false });
   }
   requestDeleteRoutine() {
@@ -4756,11 +4852,11 @@ export default class App extends Component {
         startFrom: !e.lastSets?.length && e.startSets?.length ? e.startFrom || null : null,
         sets };
     });
-    // A SESSION STARTS LIKE EVERY OTHER HOP (9 Oct 2026, the motion audit):
-    // the live <main> rises. It used to be a view transition, whose flushSync
-    // made the session's whole first render synchronous inside the snapshot
-    // (a 58 ms frame at 1x); nothing in it carries a shared name to morph.
-    this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises, startedAt: Date.now() }, sessionCancelConfirm: false }, () => this.riseMain());
+    // A SESSION GROWS OUT OF THE CARD HE TAPPED (13 Oct 2026, his call:
+    // "the card grows into the session ... Apple fitness like"). The move is
+    // getSnapshotBeforeUpdate's, as for every way into a session; no view
+    // transition (its flushSync made the first render one 58 ms frame).
+    this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises, startedAt: Date.now() }, sessionCancelConfirm: false });
   }
   // cockpit: exercise-level fields (note / anomaly / pain) — same immutable
   // update pattern as sets; unknown fields flow through to the save intact
@@ -5115,8 +5211,12 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not delete: ' + e.message));
   }
   openWorkoutHistory(routineId) {
-    const conn = getConnection();
+    this.pushTrainEntry('history', routineId || null);
     this.setState({ workoutsView: 'history', historyRoutineId: routineId || null, liveWorkoutHistory: null });
+    this.loadWorkoutHistory(routineId);
+  }
+  loadWorkoutHistory(routineId) {
+    const conn = getConnection();
     if (!conn) return;
     // no routineId → ALL sessions, which is the only way impromptu ('impromptu')
     // and makeup ('carryover') sessions are visible/editable at all
@@ -5125,6 +5225,7 @@ export default class App extends Component {
       .catch(() => this.setState({ liveWorkoutHistory: [] }));
   }
   backFromWorkoutHistory() {
+    if (typeof window !== 'undefined' && window.history.state?.novaView === 'trainPage' && window.history.state?.page === 'history' && window.history.state?.novaOverlay == null) { window.history.back(); return; }
     this.setState({ workoutsView: this.state.historyRoutineId ? 'routine' : 'routines' });
   }
   selectNote(id) {

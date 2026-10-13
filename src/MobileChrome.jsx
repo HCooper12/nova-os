@@ -53,7 +53,9 @@ export function MobileChrome({ v }) {
 
   return (
     <>
-      <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")}>
+      {/* a tap on the bar itself (not a control in it) goes back to the top,
+          the status-bar gesture an installed web app never hears */}
+      <div className="nv-liquid nv-liquid-flush" style={css("position:fixed;top:0;left:0;right:0;z-index:70;display:flex;align-items:center;gap:10px;padding:calc(6px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left))")} onClick={(e) => { if (e.target === e.currentTarget) v.toTop?.(); }}>
         {/* ONE SLOT, TWO LAYERS. The wordmark is the compact-title slot: as the
             screen's large title scrolls under the bar the wordmark yields to it,
             and returns when he scrolls back. Scroll-driven in index.css; both

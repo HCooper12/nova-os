@@ -81,7 +81,8 @@ export function valsChrome(app, ctx) {
   const tabOrder = (st.tabOrder && st.tabOrder.length) ? st.tabOrder : TAB_META.map((t) => t[0]);
   const tabs = tabOrder.map((screen, i) => {
     const act = st.screen === screen;
-    return { num: romanFor(i), label: tabLabel(screen), screen, go: go(screen), warm: warm(screen), active: act,
+    // the active tab tapped again goes back to the screen's root, then to its top (App.reselectTab)
+    return { num: romanFor(i), label: tabLabel(screen), screen, go: act ? () => app.reselectTab(screen) : go(screen), warm: warm(screen), active: act,
       // the mobile UI had NO pending signal at all — the badge the app icon
       // shows must exist inside the app too.
       //
@@ -548,7 +549,9 @@ export function valsChrome(app, ctx) {
     // under `summary` the tab bar's Nova: hold = the Nova page, its core full
     // screen, listening (1 Oct, every door); other styles keep the live text
     holdNovaCore: st.novaStyle === 'summary' ? () => app.holdNovaCore() : null,
-    goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: go('mission'),
+    goVoice: go('voice'), goWorkouts: go('workouts'), goSettings: go('settings'), goHome: st.screen === 'mission' ? () => app.toTop() : go('mission'),
+    // the empty part of the top bar: tap it, back to the top (iOS's status bar)
+    toTop: () => app.toTop(),
     goIndex: go('index'),
     // the More sheet's one-tap door to the Skill sets (his phone runs
     // cupertino, where the Index's Agents row never shows)
