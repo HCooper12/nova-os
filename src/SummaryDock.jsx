@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TabIcon } from './TabIcon.jsx';
 import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
@@ -15,8 +15,10 @@ import { CaptureSheet } from './CaptureSheet.jsx';
 // which is the Index — and Nova detached beside it as its own round button,
 // with the dock's exact semantics: tap to talk, hold for the words.
 //
-// No motion on a tab switch: this is touched dozens of times a day, and an
-// animation there only makes the app feel slower (emil-design-eng). The press
+// The lit tab is ONE lens that glides to the tab he picks, stretching a little
+// on the way, the way the iOS 26 tab bar does (his "native transitions
+// between sections", 14 Oct 2026). Only the lens moves: the icons, the labels
+// and the screen's own rise are unchanged, so nothing waits on it. The press
 // answers the finger through Interactive — the 2% dip, and the haptic tick,
 // which on his iPhone only a real element under the finger can give.
 // All of it is drawn by the `.nv-sum-dock` block in index.css.
@@ -35,6 +37,28 @@ const NO_TAP_RING = {};
 // NovaCore's own (since 5 Oct: violet listening, cyan thinking, jade
 // speaking, red pushing back), and in a turn it becomes the grain body.
 const ORB = 58;
+
+// the stretch rides `scale`, the glide rides `translate` (a CSS spring in
+// index.css), so the two never fight over one property
+function useLensStretch(index) {
+  const ref = useRef(null);
+  const prev = useRef(index);
+  useEffect(() => {
+    const from = prev.current;
+    prev.current = index;
+    const el = ref.current;
+    if (from === index || !el?.animate) return;
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const far = Math.min(Math.abs(index - from), 3);
+    try {
+      el.animate(
+        [{ scale: '1 1' }, { scale: `${1 + 0.08 * far} ${1 - 0.03 * far}`, offset: 0.35 }, { scale: '1 1' }],
+        { duration: 420, easing: 'cubic-bezier(.32,.72,0,1)' },
+      );
+    } catch { /* motion is never a requirement */ }
+  }, [index]);
+  return ref;
+}
 
 function Tab({ screen, label, count, active, go, warm }) {
   return (
@@ -77,10 +101,13 @@ export function SummaryDock({ v }) {
   const moreOn = !!v.isIndex || !tabs.some((t) => t.active);
   const capture = v.inboxSummary?.capture;
   const listening = !!(v.novaListening || v.novaThread?.micOpen);
+  const litIndex = moreOn ? 4 : tabs.findIndex((t) => t.active);
+  const lens = useLensStretch(litIndex);
   return (
     <>
     <div className="nv-sum-dock" data-away={away ? 'true' : undefined} aria-hidden={away || undefined} inert={away}>
       <nav className="nv-sum-tabbar" aria-label="Tabs">
+        <span ref={lens} className="nv-sum-lens" style={{ '--i': litIndex }} aria-hidden="true" />
         {tabs.map((t) => (
           <Tab key={t.screen} screen={t.screen} label={t.label} count={t.count} active={t.active} go={t.go} warm={t.warm} />
         ))}

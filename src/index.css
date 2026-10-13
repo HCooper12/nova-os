@@ -1400,15 +1400,24 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   position: relative; flex: 1; min-width: 0; box-sizing: border-box; height: 60px; padding: 2px; border-radius: 30px;
   display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center;
 }
-/* a tab: the mark over its name. The lit one is the accent on a tint of
-   itself, with no transition — it is simply where he is */
+/* a tab: the mark over its name. The lit one wears the accent; its tint is
+   the lens below, which travels */
 .nv-sum-tab {
   position: relative; box-sizing: border-box; height: 56px; min-width: 0; border-radius: 28px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   color: var(--nv-sum-tab-ink);
   -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
-.nv-sum-tab.on { color: var(--nv-sum-tab-on); background: var(--nv-sum-tab-on-bg); }
+.nv-sum-tab.on { color: var(--nv-sum-tab-on); }
+/* the lit tab's tint is one lens under the five slots (SummaryDock.jsx): it
+   glides on a spring to the column he picks; its colour is the old .on tint */
+.nv-sum-lens {
+  position: absolute; top: 2px; left: 2px; width: calc((100% - 4px) / 5); height: 56px;
+  border-radius: 28px; background: var(--nv-sum-tab-on-bg); pointer-events: none;
+  translate: calc(var(--i, 0) * 100%) 0;
+  transition: translate var(--nv-spring-snappy-ms) var(--nv-spring-snappy);
+}
+@media (prefers-reduced-motion: reduce) { .nv-sum-lens { transition: none; } }
 .nv-sum-tab-ico { position: relative; display: block; }
 /* 11px — the HIG's floor for the smallest text, and the only size in the
    summary UI under 12: the tab names, the badge and the "Talk" caption,
