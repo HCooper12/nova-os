@@ -304,6 +304,19 @@ export function workoutsRouter(vaultPath) {
     }
   });
 
+  // each lift's best before today and its last six sessions, for the live
+  // session's record banner (read-only; the same 60 sessions Save reads)
+  router.get('/workouts/bests', async (req, res, next) => {
+    try {
+      const ids = String(req.query.ids || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 40);
+      const { exerciseBests } = await import('../lib/trainingAnalytics.js');
+      const all = await loadSessions(vaultPath, { limit: 60 });
+      res.json({ bests: exerciseBests(all, ids) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.post('/workouts/sessions', async (req, res, next) => {
     try {
       const session = await completeSession(vaultPath, req.body);

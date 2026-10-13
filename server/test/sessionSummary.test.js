@@ -371,3 +371,25 @@ test('after Finish: the quiet "You beat last time" here, the full moment only on
   assert.match(app, /return \{ \.\.\.this\.pinnedFromHistory\(\), \.\.\.this\.trainCoachFromHistory\(\), \.\.\.this\.viewFromHistory\(\), \.\.\.this\.deeperReportFromHistory\(\), \.\.\.this\.captureSheetFromHistory\(\), \.\.\.this\.documentsFromHistory\(\), \.\.\.this\.recordFromHistory\(\), \.\.\.this\.novaFocusFromHistory\(\), \.\.\.this\.reviewSheetFromHistory\(\) \};/);
   assert.match(app, /novaOverlay: 'record', records \}/);
 });
+
+// ----------------------------------------- the set that would be a record --
+test('mockup 101: a ticked set whose estimate beats his best opens the banner, provisional and in the lift\'s hue', () => {
+  const run = (bests) => { const { app, calls } = fakeApp({ sessionBests: bests }); return valsSessionSummary(app, CTX, vOf(app, calls)).sessionSummary; };
+  // 60 × 8 is an estimate of 76 kg
+  const S = run({ a: { e1rm: 74, history: [{ e1rm: 70 }, { e1rm: 74 }] } });
+  assert.equal(S.record.value, 76);
+  assert.equal(S.record.previous, 74);
+  assert.equal(S.record.delta, 2);
+  assert.deepEqual(S.record.history, [70, 74, 76], 'his line, then today');
+  assert.equal(S.record.set, '60 × 8');
+  assert.equal(S.pills[0].pb, true, 'the set that did it wears the badge');
+  assert.equal(S.lift.best, '74');
+  // compared at the resolution shown: a tie is not a record
+  assert.equal(run({ a: { e1rm: 76, history: [] } }).record, null);
+  // no best yet (a lift never done, or the read failed): nothing is claimed
+  assert.equal(run({}).record, null);
+  assert.equal(run(undefined).record, null);
+  const page = read('src/screens/SessionSummary.jsx');
+  assert.match(page, /counts once you save/, 'provisional: only Save makes it a record');
+  assert.match(page, /const SHOWN = new Set\(\);/, 'a record already shown never replays when the screen opens again');
+});

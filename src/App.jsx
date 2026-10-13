@@ -1832,6 +1832,17 @@ export default class App extends Component {
     }
   }
   componentDidUpdate(prevProps, prevState) {
+    // THE LIVE SESSION'S BESTS (13 Oct, mockup 101's record banner): read once
+    // per session and its set of lifts; a failure just means no banner
+    {
+      const ws = this.state.workoutSession;
+      const ids = this.state.workoutsView === 'session' && ws?.exercises ? [...new Set(ws.exercises.map((x) => x.exerciseId).filter(Boolean))] : null;
+      const key = ids ? `${ws.startedAt}:${ids.join(',')}` : null;
+      if (key && key !== this.sessionBestsKey && getConnection()) {
+        this.sessionBestsKey = key;
+        api.workoutBests(getConnection(), ids).then((r) => { if (this.sessionBestsKey === key) this.setState({ sessionBests: r?.bests || {} }); }).catch(() => {});
+      }
+    }
     if (this.state.screen === 'galaxy') this.startGalaxy(); else this.stopGalaxy();
     // entering Settings — pull the calendar list once so the toggles are ready
     if (this.state.screen === 'settings' && prevState.screen !== 'settings' && this.state.liveCalendarList == null && getConnection()) {

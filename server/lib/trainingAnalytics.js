@@ -52,6 +52,36 @@ export function personalRecords(sessions) {
   return best;
 }
 
+// THE BESTS A LIVE SESSION MEASURES AGAINST (13 Oct 2026, mockup 101's
+// record banner). Per lift: the best estimated 1RM and heaviest weight before
+// today, and the best estimate of each of its last six sessions, oldest first,
+// for the line the banner draws. Read off the SAME sessions prsInSession sees
+// at Save, so a set the banner calls "a record once you save" is one the save
+// will confirm, never a promise the server then breaks.
+export function exerciseBests(sessions, ids = []) {
+  const want = new Set(ids.filter(Boolean));
+  const pr = personalRecords(sessions);
+  const out = {};
+  for (const id of want) {
+    const b = pr[id] || {};
+    const history = [];
+    for (const s of [...sessions].sort((x, y) => x.date.localeCompare(y.date))) {
+      const ex = (s.exercises || []).find((e) => e.exerciseId === id);
+      if (!ex) continue;
+      let top = null;
+      for (const set of ex.sets || []) { const e = e1rm(set.weight, set.reps); if (e != null && (top == null || e > top)) top = e; }
+      if (top != null) history.push({ date: s.date, e1rm: shown(top) });
+    }
+    out[id] = {
+      e1rm: b.e1rm?.value ?? null,
+      from: b.e1rm ? { weight: b.e1rm.weight, reps: b.e1rm.reps, date: b.e1rm.date } : null,
+      weight: b.weight?.value ?? null,
+      history: history.slice(-6),
+    };
+  }
+  return out;
+}
+
 export function prsInSession(sessions, session) {
   const prior = sessions.filter((s) => s.date < session.date || (s.date === session.date && s !== session));
   const before = personalRecords(prior);

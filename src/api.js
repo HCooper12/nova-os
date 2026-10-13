@@ -331,6 +331,8 @@ export const api = {
   deleteWorkoutRoutine: (conn, id) => del(conn, `/api/workouts/routines/${encodeURIComponent(id)}`),
   setWorkoutScheduleDay: (conn, day, routineId) => post(conn, '/api/workouts/schedule', { day, routineId }),
   workoutSessions: (conn, params) => call(conn, `/api/workouts/sessions${params ? '?' + new URLSearchParams(params).toString() : ''}`),
+  // each lift's best before today, for the live session's record banner
+  workoutBests: (conn, ids) => call(conn, `/api/workouts/bests?ids=${encodeURIComponent(ids.join(','))}`),
   completeWorkoutSession: (conn, session) => post(conn, '/api/workouts/sessions', session),
   workoutGoals: (conn) => call(conn, '/api/workouts/goals'),
   setWorkoutGoals: (conn, body) => put(conn, '/api/workouts/goals', body),

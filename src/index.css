@@ -2164,6 +2164,45 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   .nv-ts-pod > .f, .nv-ts-whyt, .nv-ts-whybtn .nv-ts-ico { transition-duration: 1ms; }
 }
 
+/* THE RECORD BANNER (mockup 101, 13 Oct 2026), inside the set card */
+.nv-ss-rec { margin: 0 0 12px; padding: 12px 12px 10px; border-radius: 18px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--h) 26%, transparent), color-mix(in srgb, var(--nv-vi) 20%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 40%, transparent); }
+.nv-ss-rec.fresh { animation: nvSsRecIn 460ms var(--nv-spring-snappy, var(--nv-ease)) both; }
+@keyframes nvSsRecIn { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
+.nv-ss-recrow { display: flex; align-items: center; gap: 10px; }
+.nv-ss-rectile { flex: none; width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; color: #fff;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--h) 70%, white), var(--h) 55%, var(--nv-vi)); box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--h) 45%, transparent); }
+.nv-ss-rectile > svg { width: 17px; height: 17px; }
+.nv-ss-rect { min-width: 0; display: flex; flex-direction: column; }
+.nv-ss-rect b { font: 700 14px var(--nv-font-ui); color: var(--nv-ink); }
+.nv-ss-rect small { font: 400 12px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ss-recv { margin-left: auto; display: flex; align-items: baseline; gap: 2px; }
+.nv-ss-recv > small { font: 700 13px var(--nv-font-round); color: var(--nv-ink60); margin-left: 2px; }
+.nv-ss-recv > em { font-style: normal; margin-left: 6px; padding: 3px 8px; border-radius: 999px; font: 800 12.5px var(--nv-font-round); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 14%, transparent); }
+.nv-ss-rec.fresh .nv-ss-recv > em { animation: nvSsPop 420ms var(--nv-spring-bouncy, var(--nv-ease)) 650ms both; }
+@keyframes nvSsPop { from { opacity: 0; transform: scale(.6); } }
+.nv-ss-odo { display: inline-flex; font: 800 30px/1 var(--nv-font-round); color: var(--nv-ink); font-variant-numeric: tabular-nums; }
+.nv-ss-odo > .col { display: inline-block; width: .6em; height: 1em; overflow: hidden; text-align: center; }
+.nv-ss-odo > .col > span { display: block; transition: transform 700ms var(--nv-spring-snappy, var(--nv-ease)); }
+.nv-ss-odo > .col > span > span { display: block; height: 1em; }
+.nv-ss-odo > .sep { display: inline-block; width: .3em; text-align: center; }
+.nv-ss-spark { display: block; width: 100%; height: 40px; margin-top: 6px; overflow: visible; }
+.nv-ss-spark .ln { fill: none; stroke: color-mix(in srgb, var(--nv-ink) 55%, transparent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nv-ss-spark .nw { fill: none; stroke: var(--nv-ink); stroke-width: 2.4; stroke-linecap: round; }
+.nv-ss-spark .np { fill: var(--nv-ink); }
+.nv-ss-rec.fresh .nv-ss-spark .nw { stroke-dasharray: 80; stroke-dashoffset: 80; animation: nvSsDraw 520ms var(--nv-ease) 500ms forwards; }
+.nv-ss-rec.fresh .nv-ss-spark .np { opacity: 0; animation: nvSsFade 200ms ease 950ms forwards; }
+@keyframes nvSsDraw { to { stroke-dashoffset: 0; } }
+@keyframes nvSsFade { to { opacity: 1; } }
+.nv-ss-recn { margin: 4px 0 0; font: 400 12px/1.35 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-ss-best { margin-left: 10px; color: var(--nv-ink60); }
+.nv-ss-pills .nv-ss-sp.pb, .nv-ss-pills .nv-ss-sp.d.pb { color: var(--nv-ink); background: linear-gradient(135deg, var(--h, var(--nv-cy)), var(--nv-vi)); border-color: transparent; box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--nv-vi) 60%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .nv-ss-rec.fresh, .nv-ss-rec.fresh .nv-ss-recv > em, .nv-ss-rec.fresh .nv-ss-spark .nw, .nv-ss-rec.fresh .nv-ss-spark .np { animation: none; stroke-dashoffset: 0; opacity: 1; }
+  .nv-ss-odo > .col > span { transition: none; }
+}
+
 /* ================================================================
    FUEL, MOCKUP 101 (13 Oct 2026, his approval: "All looking good, proceed").
    One card grammar: a gradient icon tile, the title, a quiet meta. Likely

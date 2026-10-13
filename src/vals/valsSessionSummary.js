@@ -152,7 +152,27 @@ export function valsSessionSummary(app, ctx, v) {
     app.setState({ sessionSumSel: null, sessionSumPad: null, sessionSumSheet: null });
     if (!wasSkipped) receipt({ kind: 'skip', exIdx, name: e.name });
   };
+  // THE SET THAT WOULD BE A RECORD (mockup 101, 13 Oct). Against his best
+  // estimate before today (GET /workouts/bests, the same sessions Save reads),
+  // compared at the resolution shown: a ticked set whose estimate reads higher
+  // than the best opens the banner, worded as provisional ("counts once you
+  // save"), because only the server's check at Save makes it a record.
+  const best = st.sessionBests?.[e.exerciseId] || null;
+  const e1 = (st0) => { const w = Number(st0.weight) || 0; const r = Number(st0.reps) || 0; return w > 0 && r > 0 && r <= 12 ? Math.round(w * (1 + r / 30) * 10) / 10 : null; };
+  let recIdx = -1; let recVal = null;
+  if (best?.e1rm != null && !bw && !time) {
+    sets.forEach((x, i) => { if (!x.done || x.type === 'warmup') return; const v2 = e1(x); if (v2 != null && v2 > best.e1rm && (recVal == null || v2 > recVal)) { recVal = v2; recIdx = i; } });
+  }
+  const record = recIdx >= 0 ? {
+    key: `${exIdx}:${recIdx}:${recVal}`,
+    value: recVal, previous: best.e1rm,
+    delta: Math.round((recVal - best.e1rm) * 10) / 10,
+    hue,
+    history: [...(best.history || []).map((h) => h.e1rm), recVal].slice(-7),
+    set: `${fmtKg(Number(sets[recIdx].weight))} × ${sets[recIdx].reps}`,
+  } : null;
   const lift = {
+    best: best?.e1rm != null && !bw && !time ? fmtKg(best.e1rm) : null,
     key: `${e.exerciseId}-${exIdx}`,
     name: e.name, hue, muscle: row.muscleGroup,
     mobility: row.muscleGroup === 'Mobility',
@@ -180,6 +200,7 @@ export function valsSessionSummary(app, ctx, v) {
   const pad = ui('sessionSumPad') && ui('sessionSumPad').exIdx === exIdx && ui('sessionSumPad').setIdx === setIdx ? ui('sessionSumPad') : null;
   const many = sets.length > 4;
   const pills = sets.map((s, i) => ({
+    pb: i === recIdx,
     key: i,
     label: s.done ? pillWords(tt, s, many) : many ? String(i + 1) : `Set ${i + 1}`,
     done: !!s.done,
@@ -558,7 +579,7 @@ export function valsSessionSummary(app, ctx, v) {
       progressTotal: total,
       openFinish: () => openSheet('finish'),
       finishLabel: editing ? 'Save' : 'Finish',
-      rail, lift, pills, set, allDone, skipped,
+      rail, lift, pills, set, record, allDone, skipped,
       pad: padView,
       rest,
       voice,

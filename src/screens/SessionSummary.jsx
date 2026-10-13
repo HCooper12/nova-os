@@ -268,7 +268,7 @@ function RailCard({ S }) {
           </div>
           {L.skipped
             ? <p className="nv-ss-last">Skipped today</p>
-            : <p className="nv-ss-last">{L.last ? <>Last time <b>{L.last}</b></> : L.startFrom ? <>First time under this name · started from <b>{L.startFrom}</b></> : 'First time on this lift'}</p>}
+            : <p className="nv-ss-last">{L.last ? <>Last time <b>{L.last}</b></> : L.startFrom ? <>First time under this name · started from <b>{L.startFrom}</b></> : 'First time on this lift'}{L.best ? <span className="nv-ss-best">Best est. <b>{L.best} kg</b></span> : null}</p>}
           {L.focus && !L.skipped && <p className="nv-ss-focus">{L.focus}</p>}
           <div className="nv-ss-lacts">
             <Interactive as="button" type="button" className={`nv-ss-qc${L.note ? ' on' : ''}`} onClick={L.openNote} aria-label={L.note ? `Note: ${L.note}` : 'Note'}><Ico p={P.note} />Note</Interactive>
@@ -285,11 +285,11 @@ function RailCard({ S }) {
 // ======================================================== the set card ==
 function Pills({ S }) {
   return (
-    <div className={`nv-ss-pills${S.pills.length > 4 ? ' many' : ''}`} role="group" aria-label={`Sets of ${S.lift.name}`} style={{ '--n': Math.min(6, S.pills.length) }}>
+    <div className={`nv-ss-pills${S.pills.length > 4 ? ' many' : ''}`} role="group" aria-label={`Sets of ${S.lift.name}`} style={{ '--n': Math.min(6, S.pills.length), '--h': S.lift.hue }}>
       {S.pills.map((p) => (
         <Interactive key={p.key} as="button" type="button" haptic="tick" onClick={p.pick} aria-label={p.aria} aria-current={p.now ? 'step' : undefined}
-          className={`nv-ss-sp${p.done ? ' d' : ''}${p.now ? ' now' : ''}`}>
-          {p.done ? <Ico p={P.check} cls="thick" size={13} /> : p.now ? <i aria-hidden="true" /> : null}{p.label}
+          className={`nv-ss-sp${p.done ? ' d' : ''}${p.now ? ' now' : ''}${p.pb ? ' pb' : ''}`}>
+          {p.pb ? <span aria-hidden="true">★ </span> : p.done ? <Ico p={P.check} cls="thick" size={13} /> : p.now ? <i aria-hidden="true" /> : null}{p.label}
         </Interactive>
       ))}
     </div>
@@ -310,12 +310,64 @@ function RestRing({ rest, rs }) {
   );
 }
 
+// THE SET THAT WOULD BE A RECORD (mockup 101, 13 Oct 2026; his words: "Love
+// the record banner and its colours, design etc"). It opens inside the set
+// card, in the lift's muscle colour; the estimate rolls up from his old best
+// like an odometer (keynote-motion §1), "+N" springs in after, and the new
+// point draws onto his line for this lift. Provisional on purpose: the
+// plates moment at Save (RecordMoment) is still where it becomes a record.
+// a record already shown never replays when the screen opens again
+const SHOWN = new Set();
+function Odometer({ from, to, fresh }) {
+  const target = String(to);
+  const start = String(from).padStart(target.length, ' ');
+  const [go, setGo] = useState(!fresh);
+  useEffect(() => { if (!fresh) return undefined; const t = requestAnimationFrame(() => requestAnimationFrame(() => setGo(true))); return () => cancelAnimationFrame(t); }, [fresh]);
+  return (
+    <span className="nv-ss-odo" aria-hidden="true">
+      {target.split('').map((ch, i) => {
+        if (!/\d/.test(ch)) return <span key={i} className="sep">{ch}</span>;
+        const a = /\d/.test(start[i]) ? Number(start[i]) : 0;
+        const b = Number(ch);
+        return <span key={i} className="col"><span style={{ transform: `translateY(${-(go ? b : a)}em)`, transitionDelay: `${(target.length - i) * 40}ms` }}>{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => <span key={n}>{n}</span>)}</span></span>;
+      })}
+    </span>
+  );
+}
+function RecordBanner({ r }) {
+  const [fresh] = useState(() => !SHOWN.has(r.key));
+  useEffect(() => { SHOWN.add(r.key); }, [r.key]);
+  const h = r.history;
+  const lo = Math.min(...h) - 1; const hi = Math.max(...h) + 1;
+  const x = (i) => 4 + (i * 292) / Math.max(1, h.length - 1);
+  const y = (val) => 36 - ((val - lo) / Math.max(0.1, hi - lo)) * 30;
+  const pts = h.map((val, i) => `${x(i)} ${y(val)}`);
+  return (
+    <div key={r.key} className={`nv-ss-rec${fresh ? ' fresh' : ''}`} style={{ '--h': r.hue }} role="status" aria-label={`On pace for a new best: ${r.set} kilograms, estimated one-rep max ${r.value}, ${r.delta} over your best. It counts once you save.`}>
+      <div className="nv-ss-recrow">
+        <span className="nv-ss-rectile" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z" /></svg></span>
+        <span className="nv-ss-rect"><b>New best pace</b><small>{r.set} kg · counts once you save</small></span>
+        <span className="nv-ss-recv"><Odometer from={r.previous} to={r.value} fresh={fresh} /><small>kg</small><em>+{r.delta}</em></span>
+      </div>
+      {h.length > 1 && (
+        <svg className="nv-ss-spark" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true">
+          <path className="ln" d={`M${pts.slice(0, -1).join(' L')}`} />
+          <path className="nw" d={`M${pts[pts.length - 2]} L${pts[pts.length - 1]}`} />
+          <circle className="np" cx={x(h.length - 1)} cy={y(h[h.length - 1])} r="4" />
+        </svg>
+      )}
+      <p className="nv-ss-recn">Estimated one-rep max, your last {h.length - 1} sessions and today. The plates moment still plays at Save.</p>
+    </div>
+  );
+}
+
 function SetCard({ S, rs }) {
   const s = S.set;
   const padUp = !!S.pad;
   const showRest = S.rest && rs.phase === 'resting' && !s.done;
   return (
     <section className="nv-sum-card nv-ss-setcard nv-sum-rise" style={{ '--i': 2 }} aria-label={s.label}>
+      {S.record && <RecordBanner r={S.record} />}
       <Pills S={S} />
       <div key={s.key} className="nv-ss-slide">
         <div className="nv-ss-sethead">
@@ -402,6 +454,7 @@ function DoneCard({ S, rs }) {
   const showRest = S.rest && rs.phase === 'resting';
   return (
     <section className="nv-sum-card nv-ss-setcard nv-sum-rise" style={{ '--i': 2 }} aria-label={d.line}>
+      {S.record && <RecordBanner r={S.record} />}
       <Pills S={S} />
       <div className="nv-ss-done">
         <div className="nv-ss-donel">
