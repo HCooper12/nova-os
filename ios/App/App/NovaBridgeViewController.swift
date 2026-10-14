@@ -8,5 +8,6 @@ import Capacitor
 class NovaBridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(NovaLiveActivityPlugin())
+        bridge?.registerPluginInstance(NovaHealthPlugin())
     }
 }
