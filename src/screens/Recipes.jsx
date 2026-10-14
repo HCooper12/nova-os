@@ -534,7 +534,7 @@ function RecipesPage({ v }) {
               <TextAction compact tone="accent" ariaLabel="Scroll the rotation on" onClick={() => nudgeRotation(1)} style={{ fontSize: '15px', minWidth: '34px' }}>›</TextAction>
             </span>
             <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>
-              <span style={css("color:var(--nv-cy)")}>{v.rotationTotals.p}P</span> · <span style={css("color:var(--nv-gold)")}>{v.rotationTotals.c}C</span> · <span style={css("color:var(--nv-vi)")}>{v.rotationTotals.f}F</span> · <span style={css("color:var(--nv-good)")}>{v.rotationTotals.kcal}</span>
+              <span style={css("color:var(--nv-cy)")}><NumberRoll value={Number(v.rotationTotals.p) || 0} />P</span> · <span style={css("color:var(--nv-gold)")}><NumberRoll value={Number(v.rotationTotals.c) || 0} />C</span> · <span style={css("color:var(--nv-vi)")}><NumberRoll value={Number(v.rotationTotals.f) || 0} />F</span> · <span style={css("color:var(--nv-good)")}><NumberRoll value={Number(v.rotationTotals.kcal) || 0} /></span>
             </span>
           </div>
           {/* THE PEEK IS ALREADY REAL, and the trailing 12px is what keeps

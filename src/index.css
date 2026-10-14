@@ -6016,3 +6016,11 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
    measured against the grid, and a long press must not select text or open
    the callout */
 .nv-sum-grid-drag { position: relative; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* a check that pops and draws on a real tick, by transition (shopping list;
+   any small checkbox can wear it): set data-on="1" when ticked */
+.nv-checkmark { transform: scale(.55); opacity: 0; transition: transform var(--nv-spring-playful-ms) var(--nv-spring-playful), opacity var(--nv-dur-fast) var(--nv-ease); }
+.nv-checkmark[data-on="1"] { transform: scale(1); opacity: 1; }
+.nv-checkmark path { stroke-dasharray: 24; stroke-dashoffset: 24; transition: stroke-dashoffset .26s var(--nv-ease) .06s; }
+.nv-checkmark[data-on="1"] path { stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: reduce) { .nv-checkmark, .nv-checkmark path { transition: none; } }

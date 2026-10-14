@@ -566,10 +566,13 @@ function SessionView({ v }) {
 
       <div style={css("margin-top:20px;display:flex;flex-direction:column;gap:14px")}>
         {v.sessionExercises.map((e) => (
-          <div key={e.exerciseId} style={{ ...css(`border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02)${e.skipped ? ';opacity:.5' : ''}`), ...e.vtStyle }}>
+          <div key={e.exerciseId} style={{ ...css(`border:1px solid color-mix(in srgb, var(--nv-ink) 09%, transparent);border-radius:12px;padding:16px 18px;background:rgba(255,255,255,.02);transition:opacity var(--nv-dur-slow) var(--nv-ease)${e.skipped ? ';opacity:.5' : ''}`), ...e.vtStyle }}>
             <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap")}>
               <Interactive as="span" onLongPress={e.onLongPress} base={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={css(`font-size:15px;font-weight:500${e.skipped ? ';text-decoration:line-through' : ''}`)}>{e.name}</span>
+                {/* skipping draws its strike across the name and the card fades down
+                    (13 Oct keynote pass): a transition, so a session opened
+                    with a lift already skipped simply shows it struck */}
+                <span className="nv-struck" data-struck={e.skipped ? '1' : '0'} style={css('font-size:15px;font-weight:500')}>{e.name}</span>
                 {!e.skipped && e.onOpen && (
                   <Chip tone="violet" onClick={e.onOpen} title="See the lift — the 3D figure, the muscles it trains, cues and your history">◉ 3D</Chip>
                 )}
@@ -656,7 +659,7 @@ function SessionView({ v }) {
                   {/* set type cycles working → backoff → warm-up; warm-ups are
                       excluded from volume counts and PRs */}
                   <Interactive as="span" onClick={s.cycleType} haptic="tick" title="Tap to cycle: working / backoff / warm-up"
-                    base={`cursor:pointer;text-align:center;font:600 ${isAppleStyle() ? '10.5px var(--nv-font-ui)' : '8px var(--nv-font-mono)'};letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
+                    base={`cursor:pointer;text-align:center;transition:color .22s var(--nv-ease),border-color .22s var(--nv-ease);font:600 ${isAppleStyle() ? '10.5px var(--nv-font-ui)' : '8px var(--nv-font-mono)'};letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
                   >{s.setType === 'warmup' ? 'WU' : s.setType === 'backoff' ? 'BO' : 'WK'}</Interactive>
                   {/* THE SET TICK, his most-tapped control (13 Oct, keynote-motion
                       §4): the box fills on a spring and the check DRAWS itself.

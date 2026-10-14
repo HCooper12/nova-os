@@ -26,6 +26,10 @@ const KEPT = [
   ['the redesigned Fuel dish tick lands on a spring', 'src/index.css', /\.nv-fs-rt\.on \.nv-fs-rt-tk \.nv-fs-ico \{ transform: scale\(1\); \}/],
   ['the rest ring lands after a set tick', 'src/index.css', /\.nv-ss-rest \{ animation: nvSsRestIn/],
   ['the Builder\'s run shows its stage', 'src/screens/ClaudeCode.jsx', /className="runsteps"/],
+  // second batch, 15 Oct
+  ['Fuel\'s rotation day totals roll', 'src/screens/Recipes.jsx', /<NumberRoll value=\{Number\(v\.rotationTotals\.kcal\) \|\| 0\} \/>/],
+  ['skipping a lift draws its strike and fades the card', 'src/screens/Workouts.jsx', /className="nv-struck" data-struck=\{e\.skipped/],
+  ['a shopping tick pops and draws', 'src/screens/Shopping.jsx', /className="nv-checkmark"/],
 ];
 
 for (const [what, file, re] of KEPT) {
@@ -35,7 +39,7 @@ for (const [what, file, re] of KEPT) {
 }
 
 test('every moment still honours reduced motion', () => {
-  for (const sel of ['.nv-roll-d .col', '.nv-setdone', '.nv-ring-burst', '.nv-struck', '.nv-fs-rt-tk .nv-fs-ico']) {
+  for (const sel of ['.nv-roll-d .col', '.nv-setdone', '.nv-ring-burst', '.nv-struck', '.nv-fs-rt-tk .nv-fs-ico', '.nv-checkmark']) {
     const at = CSS.indexOf(sel);
     assert.ok(at >= 0, `${sel} missing`);
     const reduced = [...CSS.matchAll(/@media \(prefers-reduced-motion: reduce\) \{([^\n]*)\}/g)].map((m) => m[1]).join('\n');

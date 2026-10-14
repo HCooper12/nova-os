@@ -100,7 +100,11 @@ function ShoppingClassic({ v }) {
                       : 'cursor:pointer;display:flex;align-items:center;gap:13px;padding:10px 6px;border-bottom:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);border-radius:6px'}
                     hoverStyle={{ background: 'rgba(255,255,255,.025)' }}
                   >
-                    <span style={item.checkboxStyle}>{item.checked ? '✓' : ''}</span>
+                    {/* the check draws and pops on a real tick (13 Oct keynote pass);
+                        a transition, so an opened list never replays it */}
+                    <span style={item.checkboxStyle}>
+                      <svg className="nv-checkmark" data-on={item.checked ? '1' : '0'} viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </span>
                     <div style={css("flex:1")}>
                       <div style={item.nameStyle}>
                         {item.qty > 1 && <span>{item.qty} × </span>}
