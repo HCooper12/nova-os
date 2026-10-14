@@ -75,7 +75,7 @@ async function saveState(state) {
   await writeFile(STATE_PATH(), JSON.stringify(state, null, 2), 'utf8');
 }
 
-export async function runMissedPushSentinel({ now = new Date(), send } = {}) {
+export async function runMissedPushSentinel({ now = new Date(), send, alert } = {}) {
   const yday = yesterdayLocal(now);
   const dayPath = path.join(dataRoot(), 'health', `${yday}.json`);
   const hasYesterdayFile = existsSync(dayPath);
@@ -109,6 +109,14 @@ export async function runMissedPushSentinel({ now = new Date(), send } = {}) {
     `${headline}\n${cause}\n` +
     `Fix: run the Health Push shortcut once now to close the day, and check the 00:05 automation in Shortcuts (it should say Run Immediately).`
   );
+  // the alert layer (lib/alerts.js, tier next): the first thing he hears at
+  // his next turn, and an island card on the next open. The Telegram above
+  // carries the fix in full; the alert is the one line. Deduped per day.
+  try {
+    const raise = alert || (async (a) => (await import('./alerts.js')).raiseAlert(a));
+    const { missedPushAlert } = await import('./alerts.js');
+    await raise(missedPushAlert(yday));
+  } catch (e) { console.log(`health sentinel: alert failed: ${e.message}`); }
   if (sent !== false) {
     state.lastNudgeDay = localDay(now);
     await saveState(state);

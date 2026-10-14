@@ -83,6 +83,8 @@ const SCHEDULED = [
   // three days this week.
   { id: 'brief-warm', label: 'Brief Warm', role: "the morning brief's voice, pre-built", cadenceHours: 2 },
   { id: 'calendar-watch', label: 'Calendar Watch', role: 'CalDAV kept fresh', cadenceHours: 1 },
+  // the alert layer's daily checks (lib/alerts.js): an HRV drop, a fault at the morning systems check
+  { id: 'alerts', label: 'Alerts', role: 'HRV and systems, said first', cadenceHours: 1 },
 ];
 
 // The staleness watch, derived rather than duplicated: Guardian imports this
@@ -145,6 +147,7 @@ export const AGENT_DEPARTMENTS = {
   'weekly-debrief': ['Train'],
   guardian: ['Platform'],
   'health-drops': ['Platform'],
+  alerts: ['Platform'],
   healthinsight: ['Train'],
   compost: ['Platform'],
   'food-suggest': ['Fuel'],

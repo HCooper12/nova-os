@@ -55,7 +55,7 @@ export const BEING_MEMBERS = {
   commander: ['dispatch', 'plan-today', 'reminders', 'followups', 'todoist', 'calendar-watch', 'brief-warm', 'commitments'],
   coach: ['coach', 'weekly-debrief', 'training-check', 'week-plan', 'healthinsight', 'coach-cadence', 'coach-reflection', 'exercise-videos', 'exercise-research', 'patterns-weekly'],
   cfo: ['money', 'cfo'],
-  guardian: ['guardian', 'health-drops', 'compost', 'telegram', 'health-mirror', 'pattern-scout', 'autonomy', 'model-watch', 'forge', 'overnight'],
+  guardian: ['guardian', 'health-drops', 'compost', 'telegram', 'health-mirror', 'pattern-scout', 'autonomy', 'model-watch', 'forge', 'overnight', 'alerts'],
   researcher: ['researcher', 'pulse', 'study', 'scout', 'repertoire-topup'],
   watcher: ['watcher'],
   librarian: ['embeddings', 'distill', 'brain-week', 'read-next'],
@@ -88,6 +88,8 @@ export const KIND_BEING = {
   'practice-skill': 'practice', 'practice-session': 'practice', 'practice-status': 'practice',
   // Nova's own work and his own words: the core, not a department
   plan: 'core', act: 'core', browse: 'core', capture: 'core', intake: 'core', briefing: 'core',
+  // a tier-later alert (lib/alerts.js): Nova saying something first, filed to the Inbox
+  alert: 'core',
   // his tick on a suggested skill (skillSets.js): his own answer, filed to the build list
   'skill-suggest': 'core',
 };

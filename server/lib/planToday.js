@@ -291,10 +291,14 @@ function startPlanJob(vaultPath, context, mode, recordId, now) {
         const { destination, undo } = await fileDecision(vaultPath, decision);
         await updateRecord(recordId, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, decision });
         import('./telegram.js').then(({ sendTelegramText }) => sendTelegramText(`${title}\n\n${body.replace(/\*\*/g, '')}`)).catch(() => {});
-        import('./push.js').then(({ sendPush }) => sendPush({
-          title: 'Plan Today — Nova',
-          body: decision.title || "Today's top 3 are in your journal.",
-          tag: `record-${recordId}`,
+        // tier later (lib/alerts.js): the Inbox record already says it, so
+        // this is a receipt and never a second card or a push
+        import('./alerts.js').then(({ raiseAlert }) => raiseAlert({
+          tier: 'later', label: 'PLAN', kind: 'plan-today', recordId,
+          what: decision.title || "Today's top 3 are in your journal",
+          where: 'in your journal', source: 'from Plan Today',
+          action: { label: 'Open', open: '#/journal' },
+          dedupeKey: `plan:${recordId}`,
         })).catch(() => {});
       } else {
         await updateRecord(recordId, { status: 'pending', decision });

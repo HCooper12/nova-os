@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import * as C from './islandCore.js';
 import { subscribeIsland, currentActivities, notify } from './island.js';
 import { startsInEdgeGuard } from './swipeCore.js';
+import { AlertCard } from './AlertCard.jsx';
 
 // THE DYNAMIC ISLAND — where Nova's notifications come from now (24 Sep 2026,
 // his ask, from the reel of rit3zh/expo-dynamic-notifications). The pure
@@ -567,7 +568,7 @@ export function DynamicIsland() {
   const env = shown ? shown.env : shellEnv;
   const cardW = Math.min(env.width - C.CARD_MARGIN * 2, C.CARD_MAX_WIDTH);
   const actions = n?.actions || [];
-  const interactive = !!(n && (n.onPress || actions.length));
+  const interactive = !!(n && (n.onPress || actions.length || n.card));
 
   // ── the hand ──
   const onPointerDown = (e) => {
@@ -679,7 +680,10 @@ export function DynamicIsland() {
           cursor: 'grab', willChange: 'transform, opacity', overflow: 'hidden', boxSizing: 'border-box',
         }}
       >
-        <div ref={innerRef} style={{ padding: '12px 14px 12px 12px', minHeight: C.CARD_MIN_HEIGHT, maxHeight: C.CARD_MAX_HEIGHT, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
+        <div ref={innerRef} style={{ padding: n.card ? '12px 12px 12px 18px' : '12px 14px 12px 12px', minHeight: C.CARD_MIN_HEIGHT, maxHeight: C.CARD_MAX_HEIGHT, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
+          {n.card ? (
+            <AlertCard card={n.card} onAction={(a) => { try { n.card.onAction?.(a); } finally { s.exit(); } }} />
+          ) : (<>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Mark tone={n.tone} lead={n.lead} />
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -697,6 +701,7 @@ export function DynamicIsland() {
           {!sideChip && actions.length > 1 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8 }}>{actions.map(chip)}</div>
           )}
+          </>)}
         </div>
       </div>}
       <div role="status" aria-live="polite" style={SR_ONLY}>{n ? (n.message ? `${n.title}: ${n.message}` : n.title) : ''}</div>

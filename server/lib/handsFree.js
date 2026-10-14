@@ -122,9 +122,23 @@ export async function followThrough(jobId, { getJob, pollMs = 1000, onReady, onE
   }
 }
 
+// Through the alert door (lib/alerts.js), tier now: he asked out loud and is
+// waiting on it. The push keeps its own words (latePush); the card says who.
 async function defaultPush(note) {
-  const { sendPush } = await import('./push.js');
-  return sendPush(note);
+  const { raiseAlert } = await import('./alerts.js');
+  return raiseAlert(lateAlert(note));
+}
+
+export function lateAlert(note) {
+  const researcher = /Researcher/.test(note.title || '');
+  return {
+    tier: 'now', label: researcher ? 'RESEARCHER' : 'NOVA', kind: 'late-answer',
+    what: note.body || 'Your answer is in your Nova thread.',
+    where: 'in your Nova thread', source: researcher ? 'from the Researcher' : '',
+    action: { label: 'Open', open: '#/voice' },
+    dedupeKey: note.tag ? `late:${note.tag}` : null,
+    push: note,
+  };
 }
 
 // The one notification, from the job alone. Who answered: Nova, with every

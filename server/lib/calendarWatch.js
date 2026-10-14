@@ -10,13 +10,31 @@ import { broadcast, clientCount } from './events.js';
 // possible over CalDAV; this lands changes within a poll interval.
 const POLL_MS = 25_000;
 
+// THE NEXT EVENT, 10 MINUTES OUT (lib/alerts.js, tier now). Runs every tick
+// whether or not a client is open, because the alert is for when Nova is
+// NOT on screen — but reads the warm cache only (peek), so at rest it costs
+// iCloud nothing; every ~5 minutes with no client it lets the cache refresh
+// once (fetchEventsForDay answers from cache inside its 90 s TTL).
+const SOON_REFRESH_TICKS = 12;
+async function checkSoon(n) {
+  const cal = await import('./calendar.js');
+  let events = await cal.peekCachedEventsForDay(new Date());
+  if (!events || n % SOON_REFRESH_TICKS === 0) events = await cal.fetchEventsForDay(new Date()).catch(() => events);
+  if (!events?.length) return;
+  const { calendarSoonCheck } = await import('./alerts.js');
+  await calendarSoonCheck(events);
+}
+
 export function startCalendarWatch() {
   let lastHash = null;
+  let n = 0;
   const tick = async () => {
     // beat before the early return, for the same reason briefWarm does: this
     // watcher legitimately idles whenever no client is connected, and an
     // idle scheduler must not be indistinguishable from a dead one.
     import('./heartbeat.js').then(({ beat }) => beat('calendar-watch')).catch(() => {});
+    n += 1;
+    checkSoon(n).catch((e) => console.log(`calendar soon-check failed: ${e.message}`));
     if (clientCount() === 0) return; // nobody to notify — don't hammer iCloud
     try {
       // fresh: the watcher's whole job is spotting edits made elsewhere, and

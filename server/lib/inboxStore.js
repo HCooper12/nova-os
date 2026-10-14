@@ -99,6 +99,9 @@ function notifyIfPending(record, previousStatus) {
   // the same for a Stash signal: lib/stashSignals.js pushes it once, held
   // through quiet hours
   if (record.kind === 'stash') return;
+  // a tier-later alert (lib/alerts.js) is the Inbox ONLY, by definition:
+  // no push, no Telegram
+  if (record.kind === 'alert') return;
   import('./push.js').then(({ pushForRecord }) => pushForRecord(record)).catch(() => {});
   import('./telegram.js').then(({ announceRecord }) => announceRecord(record)).catch(() => {});
 }

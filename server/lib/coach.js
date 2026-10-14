@@ -346,7 +346,9 @@ export function computeDeloadSignal(healthDays, { now = new Date() } = {}) {
     : null;
 
   if (hrvDrop >= 0.1) {
-    return { advise: true, reason: `HRV is down ${Math.round(hrvDrop * 100)}% on your baseline across the last ${recent.length} logged day${recent.length === 1 ? '' : 's'} — a lighter session (−15% loads, stop 2-3 reps short) protects the trend` };
+    // signal + drop ride along so the alert layer (lib/alerts.js) reads the
+    // number, never this sentence
+    return { advise: true, signal: 'hrv', drop: hrvDrop, reason: `HRV is down ${Math.round(hrvDrop * 100)}% on your baseline across the last ${recent.length} logged day${recent.length === 1 ? '' : 's'} — a lighter session (−15% loads, stop 2-3 reps short) protects the trend` };
   }
   if (rhrRise != null && rhrRise >= RHR_RISE_THRESHOLD) {
     return { advise: true, reason: `resting heart rate is up ${Math.round(rhrRise * 100)}% on your baseline (${avg(rhrRecent, 'restingHeartRate').toFixed(0)} vs ${avg(rhrBase, 'restingHeartRate').toFixed(0)} bpm over the last ${rhrRecent.length} logged days) — the body is still paying for something; go lighter today` };

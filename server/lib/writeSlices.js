@@ -79,6 +79,7 @@ export const KIND_SLICE_MAP = {
   money: ['money'],
   calendar: ['calendar'],
   health: ['healthData', 'healthInsight', 'streaks'],
+  alerts: ['alerts'],
   // 'inbox'  — an approval can write a note, a todo, a list item: untagged
   // 'forge'  — broad, cross-cutting: untagged
   // 'write'  — the generic chokepoint kind; its tag comes from the path

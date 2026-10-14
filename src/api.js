@@ -531,6 +531,8 @@ export const api = {
   // "I'm back" by a tap on the island (server/lib/standby.js) — the same end
   // his words reach: { text, standby: { on: false, landed } }
   endStandby: (conn) => post(conn, '/api/voice/standby/end', {}),
+  // the alert layer's receipt (server/lib/alerts.js): 'tapped' | 'dismissed' | 'spoken-only'
+  alertActed: (conn, id, how) => post(conn, `/api/alerts/${encodeURIComponent(id)}/acted`, { how }),
   // THE CONVERSATION RECORD (server/lib/conversationLog.js): every settled
   // voice-chat line goes up; the Voice screen reads the whole record back
   conversation: (conn, { limit = 150, since = null } = {}) => call(conn, `/api/conversation?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`),

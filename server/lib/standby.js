@@ -222,7 +222,26 @@ export async function clearStandby(now = new Date()) {
     landed = (s.queue || []).filter((x) => !since || Date.parse(x.at) >= since);
     return { ...s, until: null, queue: [], clearedAt: new Date(t).toISOString() };
   });
+  // HELD-ON-RESUME (15 Oct 2026, the alert layer): what was held goes out as
+  // ONE combined push, the way quiet hours combines what it held. sendPush
+  // still applies quiet hours; a send that fails never sinks "Back."
+  if (landed.length) {
+    import('./push.js')
+      .then(({ sendPush }) => sendPush(combineLanded(landed)))
+      .catch((e) => console.log(`standby: the combined push failed: ${e.message}`));
+  }
   return { text: standbyOffLine(landed.length), landed };
+}
+
+// "3 while you were out: …" — the held lines as one notification. A push
+// line arrives as "Title — body"; only its title is kept, Nova's own suffix
+// dropped, so the body names WHAT landed rather than repeating it.
+export function combineLanded(landed) {
+  const n = landed.length;
+  const names = landed.map((x) => String(x.text || x.kind || '').split(' — ')[0].trim()).filter(Boolean);
+  let body = `${n} while you were out: ${names.join(' · ')}`;
+  if (body.length > 220) body = `${body.slice(0, 219).replace(/\s+\S*$/, '')}…`;
+  return { title: 'Nova — back', body, tag: 'standby-back', url: './#/inbox' };
 }
 
 /** Hand the queue over and empty it (without ending the standby). */

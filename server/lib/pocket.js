@@ -54,7 +54,7 @@ export function createPocket({
     armed.timer = null;
     sent.set(key, now());
     Promise.resolve()
-      .then(() => send({ title, body, url, tag }))
+      .then(() => send({ title, body, url, tag, key }))
       .catch(() => { /* a failed push is logged by sendPush; nothing to retry into */ });
   };
 

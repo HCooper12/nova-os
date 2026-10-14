@@ -298,6 +298,7 @@ export const displayText = (text) => String(text || '').replace(/\s*✓\s*$/, ''
 // Normalise whatever a caller hands `notify` into one shape.
 export function normalizeNotice(n, seq = 0) {
   const o = typeof n === 'string' ? { title: n } : { ...(n || {}) };
+  if (o.card?.label && o.card?.what && !o.title) o.title = `${o.card.label}: ${o.card.what}`;
   const tone = o.tone || toneOf(o.title);
   return {
     id: o.id || `n${seq}`,
@@ -317,6 +318,10 @@ export function normalizeNotice(n, seq = 0) {
     replace: !!o.replace,
     // told once, when this notice leaves the island (or is dropped unseen)
     onClose: typeof o.onClose === 'function' ? o.onClose : null,
+    // AN ALERT'S ANATOMY (server/lib/alerts.js, drawn by src/AlertCard.jsx):
+    // { label, what, where, source, tier, action, onAction }. Its words are
+    // the title too, so the queue and the screen reader read the same thing.
+    card: o.card && o.card.label && o.card.what ? { ...o.card } : null,
   };
 }
 

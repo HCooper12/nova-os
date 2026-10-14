@@ -379,6 +379,17 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'alert-tier') {
+    // the pattern scout's demotion (lib/alerts.js), applied on his yes; undo
+    // restores the exact prior tier (or none)
+    const { setTierOverride } = await import('./alerts.js');
+    const prior = await setTierOverride(payload.kind, payload.to);
+    return {
+      destination: `Alerts — ${payload.kind} now goes out as ${payload.to}`,
+      undo: { route, kind: payload.kind, prior },
+    };
+  }
+
   if (route === 'skill-backlog') {
     // pattern scout → the registry's Backlog section; undo removes the line
     const { addBacklogItem } = await import('./skills.js');
@@ -1153,6 +1164,11 @@ export async function undoFiling(vaultPath, undo) {
     await target.setMode(undo.prior);
     return `restored ${target.label} to ${undo.prior} mode`;
   }
+  if (undo.route === 'alert-tier') {
+    const { setTierOverride } = await import('./alerts.js');
+    await setTierOverride(undo.kind, undo.prior ?? null);
+    return undo.prior ? `put ${undo.kind} alerts back to ${undo.prior}` : `${undo.kind} alerts go out at their own tier again`;
+  }
   if (undo.route === 'skill-backlog') {
     const { removeBacklogItem } = await import('./skills.js');
     const ok = await removeBacklogItem(vaultPath, undo.line);
@@ -1803,6 +1819,12 @@ export async function approveRecord(vaultPath, id) {
   // A money event (lib/moneySignals.js) is news, not a filing: approving it
   // means "seen, noted". Its one real write, a price rise's "don't keep it",
   // has its own door (answerMoneyEvent) with its own undo.
+  // A tier-later alert (lib/alerts.js) is news: approving files it as seen,
+  // with no undo (nothing was written), and its receipt says he acted.
+  if (record.kind === 'alert') {
+    if (record.alertId) import('./alerts.js').then(({ markActed }) => markActed(record.alertId, 'tapped')).catch(() => {});
+    return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
+  }
   if (record.kind === 'money') {
     return updateRecord(id, { status: 'filed', destination: null, filedAt: new Date().toISOString(), auto: false, error: null });
   }
@@ -1846,6 +1868,7 @@ export async function discardRecord(id, reason, { vaultPath = null } = {}) {
   // WHY a recommendation was declined is coaching gold — it rides the record
   // so adviceContext can hold the Coach to it (and spare him being re-asked)
   const declineReason = typeof reason === 'string' && reason.trim() ? reason.trim().slice(0, 300) : null;
+  if (record.kind === 'alert' && record.alertId) import('./alerts.js').then(({ markActed }) => markActed(record.alertId, 'dismissed')).catch(() => {});
   const updated = await updateRecord(id, { status: 'discarded', discardedAt: new Date().toISOString(), error: null, ...(declineReason ? { declineReason } : {}) });
   // A STEP HE STOPPED WAKES ITS PLAN. A paused research card he discards is
   // a decision the plan must hear — otherwise it waits on that step forever.

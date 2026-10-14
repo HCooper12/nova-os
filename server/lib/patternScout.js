@@ -243,6 +243,15 @@ export function startPatternScoutScheduler(vaultPath) {
       const now = new Date();
       // Saturday onward (the Distiller's shape) — a slept Saturday no longer skips the week
       if (!weeklyWindowOpen(now, { day: SCOUT_WEEKDAY, hour: SCOUT_HOUR })) return;
+      // THE ALERT LAYER'S BAR (lib/alerts.js): kinds raised ≥6 times in 14
+      // days that he acted on <20% of the time are proposed for demotion, as
+      // pending cards. Code, not the model, and never applied by itself; its
+      // own 30-day guard per kind makes the half-hourly tick safe.
+      try {
+        const { proposeAlertDemotions } = await import('./alerts.js');
+        const { proposed } = await proposeAlertDemotions();
+        if (proposed.length) console.log(`pattern scout: proposed ${proposed.length} alert demotion(s)`);
+      } catch (e) { console.error('alert demotions failed:', e.message); }
       // The model-choice gate raises an Inbox card instead of running
       // directly — this is exactly the connect-the-dots-across-the-vault
       // work he asked to be offered Opus for, and nobody is at the keyboard

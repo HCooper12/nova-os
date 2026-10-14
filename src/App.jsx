@@ -2047,6 +2047,7 @@ export default class App extends Component {
     apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
     apply('leader', (r) => this.setState({ liveLeader: r }));
     apply('standby', (r) => this.setStandbyLive(r));
+    apply('alerts', (r) => this.setAlertsLive(r.alerts));
     apply('practice', (r) => this.setPracticeLive(r));
     apply('journal', (r) => { this.setState({ liveJournalEntries: r.entries }); this.refreshNotionJournal(); });
     apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
@@ -10477,6 +10478,7 @@ export default class App extends Component {
     // hundred words is fifty seconds of being talked at. Spoken means: it came
     // from the microphone and speech is on.
     const spoken = !!this.spokenInput && !!this.state.voiceSpeak;
+    if (spoken) { this.lastSpokenTurnAt = Date.now(); this.sayFirstThing(); }
     // `voiceId`: the voice this device will ask /api/tts for, so the server
     // can synthesize the ack in exactly that voice before the client asks
     this.flushAttachments(conn).then((attachmentId) => { turn.askAt = Date.now(); return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined }); }).then((resp) => {
@@ -11597,6 +11599,87 @@ export default class App extends Component {
       this.setStandbyLive(r?.standby || { on: false }, { said: true });
       if (r?.text && this.state.voiceSpeak) this.speak(r.text);
     }).catch(() => this.toastMsg('Couldn’t reach the Mac to end standby. Say “I’m back” and it will.'));
+  }
+  // THE ALERT LAYER (server/lib/alerts.js, src/AlertCard.jsx). The server
+  // writes every word; this only decides WHEN this device shows and says it.
+  //   now  — drops out of the island at once; if he is in a voice session
+  //          (speech on, a spoken turn in the last five minutes, Nova not
+  //          already talking) its one code-written line is said first, as
+  //          its own reply on the TTS queue
+  //   next — drops out of the island on the next sync he sees (not while he
+  //          has stood Nova by), and opens his next spoken turn with "One
+  //          thing first: …" (sayFirstThing)
+  // Each alert drops once per device. The card stays until he taps it (its
+  // action), taps it away or throws it up; each is a receipt on the Mac.
+  alertsShownSet() {
+    if (!this.alertsShown) {
+      try { this.alertsShown = new Set(JSON.parse(localStorage.getItem('novaos.alertsShown') || '[]')); } catch { this.alertsShown = new Set(); }
+    }
+    return this.alertsShown;
+  }
+  rememberAlertShown(id) {
+    const set = this.alertsShownSet();
+    set.add(id);
+    try { localStorage.setItem('novaos.alertsShown', JSON.stringify([...set].slice(-60))); } catch { /* best-effort */ }
+  }
+  alertActed(id, how) {
+    const conn = getConnection();
+    if (!conn || !id) return;
+    this.alertsAnswered = this.alertsAnswered || new Set();
+    if (how !== 'spoken-only') {
+      if (this.alertsAnswered.has(id)) return;
+      this.alertsAnswered.add(id);
+    }
+    api.alertActed(conn, id, how).catch(() => { /* a lost receipt is a lost row, never an error in his face */ });
+  }
+  voiceSessionLive() {
+    return !!this.state.voiceSpeak && Date.now() - (this.lastSpokenTurnAt || 0) < 5 * 60_000;
+  }
+  runAlertAction(alert, action) {
+    if (!action) return;
+    this.alertActed(alert.id, 'tapped');
+    if (action.open) {
+      try { window.location.hash = action.open.replace(/^#/, ''); } catch { /* no window */ }
+      return;
+    }
+    const conn = getConnection();
+    if (!conn || !action.verb) return;
+    api.act(conn, action.verb, action.args || {})
+      .then((r) => { const line = r?.text || r?.said; if (line) { if (this.state.voiceSpeak && this.voiceSessionLive()) this.speakTtsSentence(line, () => {}); else this.toastMsg(line); } })
+      .catch((e) => this.toastMsg(`Couldn’t run that: ${e.message}`));
+  }
+  setAlertsLive(list) {
+    const alerts = Array.isArray(list) ? list.filter((a) => a && a.id && (a.tier === 'now' || a.tier === 'next')) : [];
+    this.alertsLive = alerts;
+    const shown = this.alertsShownSet();
+    for (const a of alerts) {
+      if (shown.has(a.id)) continue;
+      // standby holds tier next; tier now gets through (his call, 15 Oct)
+      if (a.tier === 'next' && this.standbyOn()) continue;
+      this.rememberAlertShown(a.id);
+      if (a.tier === 'now' && !a.spokenAt && a.spoken && this.voiceSessionLive() && !this.state.voiceSpeaking && !this.state.voiceBusy) {
+        this.speakTtsSentence(a.spoken, () => {});
+        this.alertActed(a.id, 'spoken-only');
+        a.spokenAt = new Date().toISOString();
+      }
+      notify({
+        id: `alert:${a.id}`,
+        card: { ...a, onAction: (action) => this.runAlertAction(a, action) },
+        duration: null,
+        // a tap on the card (not its action) or a throw up into the island:
+        // seen, and put away. alertActed ignores it after a tap.
+        onClose: () => this.alertActed(a.id, 'dismissed'),
+      });
+    }
+  }
+  // "One thing first: …" — at most one tier-next alert, said at the start of
+  // his spoken turn, before the ack. Code-written on the Mac; never repeated.
+  sayFirstThing() {
+    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing);
+    if (!a || !this.state.voiceSpeak || this.standbyOn()) return;
+    a.spokenAt = new Date().toISOString();
+    this.speakTtsSentence(a.firstThing, null);
+    this.alertActed(a.id, 'spoken-only');
   }
   setStandbyLive(next, { said = false } = {}) {
     const was = this.standbyOn();

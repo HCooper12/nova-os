@@ -66,6 +66,9 @@ export const SLICES = {
   // "take five" (lib/standby.js): { on, until, remainingMin, … } — a few
   // bytes; the app goes quiet on every device he has open
   standby: '/api/voice/standby',
+  // THE ALERT LAYER (lib/alerts.js): tier now/next cards waiting for the
+  // island, at most 10, each with its anatomy
+  alerts: '/api/alerts',
 };
 
 // sentinel for a slice that lost its time-budget race — a unique object, so

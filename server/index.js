@@ -60,6 +60,7 @@ import { startWeekPlanScheduler } from './lib/weekPlan.js';
 import { startHealthDropsScheduler } from './lib/healthDrops.js';
 import { snapshotRouter } from './routes/snapshot.js';
 import { startCalendarWatch } from './lib/calendarWatch.js';
+import { alertsRouter } from './routes/alerts.js';
 import { startDailyReviewScheduler } from './lib/dailyReview.js';
 import { startHealthInsightScheduler } from './lib/healthInsight.js';
 import { startDispatchScheduler } from './lib/dispatch.js';
@@ -247,6 +248,7 @@ async function main() {
   app.use('/api', loopsRouter(process.env.VAULT_PATH));
   app.use('/api', todosRouter(process.env.VAULT_PATH));
   app.use('/api', voiceRouter(process.env.VAULT_PATH));
+  app.use('/api', alertsRouter()); // THE ALERT LAYER — the island's list and what he did with each (lib/alerts.js)
   app.use('/api', voiceTurnsRouter()); // why a spoken turn ended — the receipt behind "it cut me off"
   app.use('/api', conversationRouter()); // every spoken exchange with Nova, from every door, as one record
   app.use('/api', moneyRouter(process.env.VAULT_PATH));
@@ -278,10 +280,11 @@ async function main() {
   let pocket = null;
   const getPocket = async () => {
     if (pocket) return pocket;
-    const [{ createPocket }, { sendPush }] = await Promise.all([import('./lib/pocket.js'), import('./lib/push.js')]);
-    // tier 'now' (lib/standby.js): a workout about to be lost gets through
-    // a standby; quiet hours still hold it, exactly as before
-    pocket = createPocket({ send: (note) => sendPush({ ...note, tier: 'now' }) });
+    const [{ createPocket }, { raiseAlert, pocketAlert }] = await Promise.all([import('./lib/pocket.js'), import('./lib/alerts.js')]);
+    // tier 'now' (lib/alerts.js): a workout about to be lost gets through a
+    // standby, drops in the island and pushes; quiet hours still hold the
+    // push, exactly as before. The lock-screen words are the pocket's own.
+    pocket = createPocket({ send: (note) => raiseAlert(pocketAlert(note)) });
     return pocket;
   };
   app.post('/api/pocket', async (req, res) => {
@@ -388,6 +391,10 @@ async function main() {
   import('./lib/briefWarm.js').then(({ startBriefWarmScheduler }) => startBriefWarmScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('brief warm scheduler failed to start:', e.message));
   startHealthDropsScheduler(process.env.VAULT_PATH);
+  // the alert layer's daily checks: an HRV drop past the deload threshold, a
+  // configured connection off at the morning systems check (tier next)
+  import('./lib/alerts.js').then(({ startAlertsScheduler }) => startAlertsScheduler())
+    .catch((e) => console.error('alerts scheduler failed to start:', e.message));
   startDailyReviewScheduler(process.env.VAULT_PATH);
   // his Journal backed up to Notion, both ways (mockup 95)
   import('./lib/notionJournal.js').then(({ startNotionJournalScheduler }) => startNotionJournalScheduler(process.env.VAULT_PATH)).catch(() => {});

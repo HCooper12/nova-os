@@ -23,6 +23,8 @@ export const KIND_AGENT = {
   // the Stash: his own change filed with Undo (lib/stashRails.js), and its
   // news (a level check, a gift day, a price drop; lib/stashSignals.js)
   'stash-write': 'Stash', stash: 'Stash',
+  // a tier-later alert (lib/alerts.js): the one line Nova raised, Inbox only
+  alert: 'Nova',
   // his own commit on the Code screen, filed with Undo (lib/codeChanges.js)
   'code-commit': 'Code',
   // his own answer on the Daily review card, filed with Undo (conceptReview.js)
