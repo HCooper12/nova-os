@@ -148,6 +148,8 @@ test('quiet hours: the window across midnight, its length, and the line under th
   assert.equal(lengthLabel(6.5), '6 h 30');
   assert.equal(notifValue('on', { enabled: true, start: '22:30', end: '05:00' }), 'Quiet 22:30 to 05:00');
   assert.equal(notifValue('on', { enabled: false }), 'On');
+  // the Xcode app has no Web Push: it says where notifications go, not "install"
+  assert.equal(notifValue('native', null), 'Home Screen app');
   assert.equal(notifValue('denied', null), 'Blocked');
   const late = new Date(); late.setHours(23, 0, 0, 0);
   assert.match(quietNowLine({ enabled: true, start: '22:30', end: '05:00' }, late), /quiet now, held pushes arrive at 05:00/);

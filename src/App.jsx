@@ -113,7 +113,7 @@ import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
 import { CoachApplySheet } from './CoachApplySheet.jsx';
 import { PortionSheet } from './PortionSheet.jsx';
 import { Boot } from './Boot.jsx';
-import { haptic } from './haptics.js';
+import { haptic, isNativeShell } from './haptics.js';
 import { leaveMs, prefersReducedMotion } from './inboxLeave.js';
 import { parseInSession, parseStart, applyInSession, matchRoutine } from './gymVoice.js';
 import { parseSettings } from './settingsVoice.js';
@@ -6974,6 +6974,12 @@ export default class App extends Component {
     const conn = getConnection();
     if (!conn) return;
     try {
+      // the Xcode app's web view has no Web Push; native push needs APNs
+      // (the paid developer account, native/README.md)
+      if (isNativeShell()) {
+        this.toastMsg('Notifications arrive through the Home Screen Nova. This app cannot receive them yet');
+        return;
+      }
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         this.toastMsg('This browser can\'t do push — install Nova to the Home Screen from Safari first');
         return;
@@ -6996,6 +7002,7 @@ export default class App extends Component {
   }
   async checkPushState() {
     try {
+      if (isNativeShell()) return this.setState({ pushState: 'native' });
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return this.setState({ pushState: 'unsupported' });
       if (Notification.permission === 'denied') return this.setState({ pushState: 'denied' });
       const reg = await navigator.serviceWorker.ready;

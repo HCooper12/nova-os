@@ -156,11 +156,13 @@ export function valsSettings(app, ctx, v) {
       loading: push === 'checking',
       // there is no unsubscribe: once allowed, iOS Settings is where it is
       // turned off, and the switch says so rather than pretending
-      disabled: push === 'unsupported' || push === 'on' || push === 'checking',
+      disabled: push === 'unsupported' || push === 'native' || push === 'on' || push === 'checking',
       why: push === 'on' ? 'To turn notifications off, use iOS Settings › Nova › Notifications'
+        : push === 'native' ? 'Arrive through the Home Screen Nova; this app cannot receive them yet'
         : push === 'unsupported' ? 'Add Nova to the Home Screen first (Safari › Share › Add to Home Screen)'
           : 'Still checking whether this phone can be reached',
       sub: push === 'denied' ? 'Blocked. Allow them in iOS Settings › Nova.'
+        : push === 'native' ? 'Arrive through the Home Screen Nova; this app cannot receive them yet.'
         : push === 'unsupported' ? 'Add Nova to the Home Screen first (Safari › Share › Add to Home Screen).'
           : 'Drafts, research outlines and Guardian alerts. iPhone mirrors them to your Watch.',
       enable: demo ? () => setDemo((d) => ({ ...d, push: 'on' })) : () => app.enablePushNotifications(),

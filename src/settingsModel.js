@@ -96,6 +96,7 @@ export function quietNowLine(prefs, now = new Date()) {
 export function notifValue(pushState, quiet) {
   if (pushState === 'denied') return 'Blocked';
   if (pushState === 'unsupported') return 'Not installed';
+  if (pushState === 'native') return 'Home Screen app';
   if (pushState === 'off') return 'Off';
   if (quiet && quiet.enabled) return `Quiet ${quiet.start} to ${quiet.end}`;
   if (pushState === 'on') return 'On';

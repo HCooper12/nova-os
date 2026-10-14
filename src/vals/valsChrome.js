@@ -621,6 +621,7 @@ export function valsChrome(app, ctx) {
       // sentence case in the vals (audit finding 15: these were capitals)
       label: st.pushState === 'on' ? 'On. Drafts and alerts reach your phone'
         : st.pushState === 'denied' ? 'Blocked. Allow them in iOS Settings › Nova'
+        : st.pushState === 'native' ? 'Arrive through the Home Screen Nova; this app cannot receive them yet'
         : st.pushState === 'unsupported' ? 'Add Nova to the Home Screen first (Safari › Share)'
         : st.pushState === 'checking' ? 'Checking' : 'Off',
       enable: () => app.enablePushNotifications(),
