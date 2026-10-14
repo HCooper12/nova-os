@@ -28,6 +28,7 @@ import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem } from './outbox.js';
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
 import { pauseSession, resumeSession, isPaused } from './sessionClock.js';
+import { syncHealth } from './healthSync.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial, getGlow, getGlowQuiet, applyGlow } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { savePinned } from './pinned.js';
@@ -861,6 +862,11 @@ export default class App extends Component {
   }
 
   componentDidMount() {
+    // APPLE HEALTH, READ BY NOVA ITSELF (14 Oct, src/healthSync.js): on open
+    // and on every return to the front; a no-op outside the native shell
+    this.healthSyncNow();
+    this.healthVisH = () => { if (document.visibilityState === 'visible') this.healthSyncNow(); };
+    document.addEventListener('visibilitychange', this.healthVisH);
     noteScreen(this.state.screen);
     try { const d = localStorage.getItem('novaos.wrap.dismissed'); if (d) this.setState({ wrapDismissedOn: d }); } catch { /* private mode */ }
     if (import.meta.env.DEV) window.__novaApp = this; // dev-only introspection hook
@@ -1174,6 +1180,7 @@ export default class App extends Component {
     this.setState({ reviewIdx: Math.floor(Math.random() * this.reviews.length) });
   }
   componentWillUnmount() {
+    if (this.healthVisH) document.removeEventListener('visibilitychange', this.healthVisH);
     clearTimeout(this.bootT); clearInterval(this.refreshIv); clearInterval(this.streamWatchIv);
     clearTimeout(this.convSyncT); clearTimeout(this.convRetryT);
     clearTimeout(this.eatOutDebounce); clearTimeout(this.eatOutPoll);
@@ -4924,6 +4931,15 @@ export default class App extends Component {
   // PAUSE (his ask, 14 Oct): the clock stops; sets, rest and the draft carry
   // on as they are. The mirror to device + server rides the normal
   // workoutSession write, so a pause survives a relaunch.
+  healthSyncNow() {
+    const conn = getConnection();
+    if (!conn) return;
+    syncHealth({
+      send: (date, metrics) => api.pushHealthKitDay(conn, date, metrics),
+      // what the numbers feed: the health slice, the instruments, streaks, Train
+      onSent: () => this.refreshSlices(['healthData', 'instruments', 'streaks', 'trainOverview']),
+    });
+  }
   pauseWorkoutClock() {
     if (!this.state.workoutSession || this.state.editingSessionId) return;
     this.setState((s) => ({ workoutSession: pauseSession(s.workoutSession, Date.now()), workoutSessionSavedAt: Date.now() }));

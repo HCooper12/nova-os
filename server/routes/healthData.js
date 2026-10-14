@@ -56,7 +56,7 @@ export function healthDataRouter(vaultPath) {
       // dictionary, no nesting). saveDay ignores keys it doesn't know.
       let metrics = body?.metrics;
       if (!metrics || typeof metrics !== 'object') {
-        const { date: _omit, metrics: _m, manual: _man, ...rest } = body || {};
+        const { date: _omit, metrics: _m, manual: _man, source: _src, ...rest } = body || {};
         metrics = rest;
       }
       if (!metrics || !Object.keys(metrics).length) {
@@ -67,7 +67,13 @@ export function healthDataRouter(vaultPath) {
       // live in the SHARED ingest gate (lib/healthData.ingestHealthPayload)
       // — one format, both transports (this route + the drops folder).
       const { ingestHealthPayload } = await import('../lib/healthData.js');
-      const result = await ingestHealthPayload({ date, metrics, manual: body?.manual === true, rawBody });
+      // NOVA'S OWN HEALTH READER (14 Oct, ios/App/App/NovaHealthPlugin.swift):
+      // it reads Apple Health by exact calendar day, so the before-4am
+      // "today means yesterday" shift (built for a midnight Shortcut) must
+      // not move its readings. Receipted as source healthkit.
+      const fromHealthKit = body?.source === 'healthkit';
+      const result = await ingestHealthPayload({ date, metrics, manual: body?.manual === true, rawBody,
+        ...(fromHealthKit ? { skipDateShift: true, source: 'healthkit' } : {}) });
       if (!result.ok) return res.status(400).json({ error: result.error });
       if (result.allDropped) {
         const which = result.droppedKeys?.length ? result.droppedKeys.join(', ') : 'that reading';
