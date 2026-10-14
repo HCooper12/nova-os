@@ -538,6 +538,16 @@ function SessionView({ v }) {
     <>
       <h1 style={css("margin:18px 0 0;font:700 28px/1.1 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{v.sessionRoutineName}{v.sessionEditing && <span style={css("font:italic 400 26px var(--nv-font-serif);color:var(--nv-gold)")}> — editing the record.</span>}</h1>
       <Meta as="div" tone="faint" style={{ marginTop: '4px', textTransform: 'none', letterSpacing: 0 }}>{v.sessionEditing ? 'Untick anything that didn’t actually happen — only ticked sets stay in history.' : 'Session in progress — sets auto-fill from last time. Only ticked sets are saved.'}</Meta>
+      {/* PAUSE (14 Oct, his ask): the clock stops; ticking a set starts it again */}
+      {v.sessionTogglePause && (
+        <div style={css("margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap")}>
+          <Button compact variant={v.sessionPaused ? 'solid' : 'soft'} onClick={v.sessionTogglePause}
+            ariaLabel={v.sessionPaused ? 'Resume workout' : 'Pause workout'}>{v.sessionPaused ? 'Resume' : 'Pause'}</Button>
+          <Meta as="span" tone={v.sessionPaused ? 'gold' : 'faint'} style={{ textTransform: 'none', letterSpacing: 0, fontVariantNumeric: 'tabular-nums' }}>
+            {v.sessionPaused ? `Paused at ${v.sessionMinutes} min` : v.sessionMinutes != null ? `${v.sessionMinutes} min` : ''}
+          </Meta>
+        </div>
+      )}
 
       {/* THE GYM BY VOICE (src/gymVoice.js) is invisible without this line.
           A capability he cannot find is a capability he does not have — his

@@ -1,3 +1,4 @@
+import { sessionElapsedMs } from '../sessionClock.js';
 import { NOVA_THEMES, NOVA_CORES, NOVA_STYLES, NOVA_MATERIALS } from '../theme.js';
 import { spendView, dollars } from '../modelSpendView.js';
 import { sinceFor, startedFrom } from '../jobClock.js';
@@ -896,7 +897,8 @@ function islandView(app, st, demoMode) {
     const resume = () => { app.navigate('workouts'); app.resumeWorkoutSession(); };
     const hue = next ? muscleVar(next.muscleGroup) : 'var(--nv-good)';
     const summary = () => {
-      const mins = ws.startedAt ? Math.max(1, Math.round((Date.now() - ws.startedAt) / 60_000)) : null;
+      const ms = sessionElapsedMs(ws, Date.now());
+      const mins = ms != null ? Math.max(1, Math.round(ms / 60_000)) : null;
       const parts = [total ? `${done} of ${total} sets` : 'No sets yet'];
       if (next) parts.push(`next: ${next.name}`);
       else if (total) parts.push('every set done, finish to log it');

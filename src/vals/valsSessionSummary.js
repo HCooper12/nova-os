@@ -1,4 +1,5 @@
 import { muscleVar } from '../muscleHue.js';
+import { sessionMinutes, isPaused } from '../sessionClock.js';
 import { recordPhrase } from '../recordKit.js';
 import {
   shownKg, fmtKg, fmtThousands, isTimeLift, isBodyweightLift, liftIncrement, repIncrement,
@@ -131,7 +132,9 @@ export function valsSessionSummary(app, ctx, v) {
   const live = exs.filter((x) => !x.skipped);
   const total = live.reduce((n, x) => n + (x.sets || []).length, 0);
   const ticked = live.reduce((n, x) => n + (x.sets || []).filter((s) => s.done).length, 0);
-  const minutes = Number.isFinite(session.startedAt) ? Math.max(0, Math.floor((now - session.startedAt) / 60000)) : null;
+  // paused minutes never count (sessionClock.js, his ask 14 Oct)
+  const minutes = sessionMinutes(session, now);
+  const paused = isPaused(session);
   const volume = live.reduce((n, x) => n + (x.sets || []).filter((s) => s.done).reduce((a, s) => a + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0), 0);
 
   // --------------------------------------------------------- the rail --
@@ -573,6 +576,10 @@ export function valsSessionSummary(app, ctx, v) {
       title: session.routineName,
       editing,
       startedAt: Number.isFinite(session.startedAt) ? session.startedAt : null,
+      minutes,
+      // a past session being edited has no clock to pause
+      paused: !editing && paused,
+      togglePause: editing ? null : () => (paused ? app.resumeWorkoutClock() : app.pauseWorkoutClock()),
       progress: `${ticked} of ${total} sets`,
       // the count apart from its words, so a tick counts the figure up (CountUp)
       progressDone: ticked,

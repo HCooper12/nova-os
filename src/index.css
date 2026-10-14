@@ -2963,6 +2963,22 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-ss-st b { display: block; font: 700 20px/1.2 var(--nv-font-ui); letter-spacing: -.015em; color: var(--nv-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-ss-st b em { font-style: normal; font-weight: 400; color: var(--nv-ink60); }
 .nv-ss-st > span { display: block; margin-top: 2px; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); font-variant-numeric: tabular-nums; }
+/* PAUSE (14 Oct): a round 44pt control beside Finish. Paused, it fills with
+   the accent and shows play; the glyphs trade places on a snappy spring. */
+.nv-ss-acts { flex: none; display: flex; align-items: center; gap: 8px; }
+.nv-ss-pause {
+  position: relative; width: 44px; height: 44px; border: 0; border-radius: 50%; cursor: pointer; padding: 0;
+  color: var(--nv-ink); background: var(--ss-quiet); box-shadow: inset 0 0 0 1px var(--ss-edge);
+  transition: background-color 220ms ease, color 220ms ease;
+}
+.nv-ss-pause svg { position: absolute; inset: 0; margin: auto; width: 18px; height: 18px; fill: currentColor;
+  transition: transform var(--nv-spring-snappy-ms) var(--nv-spring-snappy), opacity 160ms ease; }
+.nv-ss-pause .pl { transform: scale(.4); opacity: 0; }
+.nv-ss-pause.on { color: var(--nv-cta-ink); background: var(--nv-cta-bg); box-shadow: inset 0 0 0 1px var(--nv-cta-border); }
+.nv-ss-pause.on .pz { transform: scale(.4); opacity: 0; }
+.nv-ss-pause.on .pl { transform: scale(1); opacity: 1; }
+.nv-ss-st > span.paused { color: var(--nv-acc, var(--nv-ink)); }
+@media (prefers-reduced-motion: reduce) { .nv-ss-pause svg { transition: opacity 120ms ease; } .nv-ss-pause .pl, .nv-ss-pause.on .pz { transform: none; } }
 .nv-ss-fin {
   flex: none; height: 44px; padding: 0 18px; border: 0; border-radius: 22px; cursor: pointer;
   font: 600 15px var(--nv-font-ui); color: var(--nv-ink); background: var(--ss-quiet); box-shadow: inset 0 0 0 1px var(--ss-edge);

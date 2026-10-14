@@ -27,6 +27,7 @@ import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem } from './outbox.js';
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
+import { pauseSession, resumeSession, isPaused } from './sessionClock.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial, getGlow, getGlowQuiet, applyGlow } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { savePinned } from './pinned.js';
@@ -4920,7 +4921,20 @@ export default class App extends Component {
       },
     }));
   }
+  // PAUSE (his ask, 14 Oct): the clock stops; sets, rest and the draft carry
+  // on as they are. The mirror to device + server rides the normal
+  // workoutSession write, so a pause survives a relaunch.
+  pauseWorkoutClock() {
+    if (!this.state.workoutSession || this.state.editingSessionId) return;
+    this.setState((s) => ({ workoutSession: pauseSession(s.workoutSession, Date.now()), workoutSessionSavedAt: Date.now() }));
+  }
+  resumeWorkoutClock() {
+    if (!this.state.workoutSession) return;
+    this.setState((s) => ({ workoutSession: resumeSession(s.workoutSession, Date.now()), workoutSessionSavedAt: Date.now() }));
+  }
   toggleSessionSetDone(exIdx, setIdx, { receipt = true } = {}) {
+    // ticking a set is training: a paused clock starts again on its own
+    if (isPaused(this.state.workoutSession) && !this.state.workoutSession?.exercises?.[exIdx]?.sets?.[setIdx]?.done) this.resumeWorkoutClock();
     // THE MOST TACTILE THING HE DOES. Mid-set, one hand, not looking — the hand
     // is the only sense available, and this screen had no haptic anywhere.
     const session = this.state.workoutSession;

@@ -1,3 +1,4 @@
+import { isPaused, sessionMinutes } from '../sessionClock.js';
 import { musclesNamed, muscleVar } from '../muscleHue.js';
 import { coachSuggestions, suggestionsSummary } from '../coachSuggestions.js';
 import { coachWeekRows } from '../coachWeek.js';
@@ -844,6 +845,12 @@ export function valsWorkouts(app, ctx) {
 
     sessionRoutineName: session ? session.routineName : '',
     sessionEditing: !!st.editingSessionId,
+    // pause (sessionClock.js): a past session being edited has no clock
+    sessionPaused: !!session && !st.editingSessionId && isPaused(session),
+    sessionMinutes: session ? sessionMinutes(session, Date.now()) : null,
+    sessionTogglePause: session && !st.editingSessionId
+      ? () => (isPaused(session) ? app.resumeWorkoutClock() : app.pauseWorkoutClock())
+      : null,
     sessionExercises,
     // the hint's tap: the Voice screen, where the words are heard
     openVoiceForSession: () => app.navigate('voice', { instant: true }),

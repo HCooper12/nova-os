@@ -158,7 +158,7 @@ export function SessionSummary({ v, parts }) {
     return () => window.removeEventListener('resize', measure);
   }, []);
 
-  const minutes = S.startedAt ? Math.max(0, Math.floor((now - S.startedAt) / 60000)) : null;
+  const minutes = S.minutes;
   const sh = S.sheet;
   return (
     <div style={v.wrapWorkouts} data-screen-label="Workouts" className={`nv-ss${padOpen ? ' padup' : ''}`}>
@@ -166,9 +166,19 @@ export function SessionSummary({ v, parts }) {
         <header className="nv-ss-top nv-sum-rise" style={{ '--i': 0 }}>
           <div className="nv-ss-st">
             <b>{S.title}{S.editing && <em> · editing</em>}</b>
-            <span>{minutes != null ? `${minutes} min · ` : ''}<CountUp value={S.progressDone} duration={420} fromZero /> of {S.progressTotal} sets</span>
+            <span className={S.paused ? 'paused' : undefined}>{S.paused ? 'Paused · ' : ''}{minutes != null ? `${minutes} min · ` : ''}<CountUp value={S.progressDone} duration={420} fromZero /> of {S.progressTotal} sets</span>
           </div>
-          <Interactive as="button" type="button" className="nv-ss-fin" onClick={S.openFinish}>{S.finishLabel}</Interactive>
+          <div className="nv-ss-acts">
+            {S.togglePause && (
+              <Interactive as="button" type="button" className={`nv-ss-pause${S.paused ? ' on' : ''}`} onClick={() => { haptic('tick'); S.togglePause(); }}
+                aria-label={S.paused ? 'Resume workout' : 'Pause workout'} aria-pressed={S.paused}>
+                {/* the two glyphs share one spot; the one not in use scales away */}
+                <svg className="pz" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="5" width="3.6" height="14" rx="1.4" /><rect x="13.9" y="5" width="3.6" height="14" rx="1.4" /></svg>
+                <svg className="pl" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.6v12.8a1 1 0 0 0 1.5.86l10.6-6.4a1 1 0 0 0 0-1.72L9.5 4.74A1 1 0 0 0 8 5.6Z" /></svg>
+              </Interactive>
+            )}
+            <Interactive as="button" type="button" className="nv-ss-fin" onClick={S.openFinish}>{S.finishLabel}</Interactive>
+          </div>
         </header>
         <RailCard S={S} />
         {S.set ? <SetCard S={S} rs={rs} /> : S.skipped ? <SkippedCard S={S} /> : S.allDone ? <DoneCard S={S} rs={rs} /> : null}
