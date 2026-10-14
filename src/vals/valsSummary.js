@@ -2,6 +2,7 @@ import { dtf } from './fmt.js';
 import { localDateISO } from '../localDate.js';
 import { getPinned, applyVisibleOrder } from '../pinned.js';
 import { inMorning } from '../dayCard.js';
+import { splitMoments } from '../momentPriority.js';
 import { prLift, prBasis } from '../missionFocus.js';
 import { routineGlyph } from '../trainSummaryFacts.js';
 import { stripSlots, nextLine, buildHighlight, buildTrends, summaryStandfirst } from '../summaryFacts.js';
@@ -79,6 +80,8 @@ export function valsSummary(app, ctx, m) {
     .filter((p) => p.on && cardData[p.key])
     .map((p) => ({ key: p.key, wide: WIDE.has(p.key), ...cardData[p.key] }));
   const allCards = pinnedList.map((p) => ({ ...p, present: !!cardData[p.key] }));
+  // priority tiles lead only in their hours, then wait below Pinned (15 Oct)
+  const { top: moments, later: laterMoments } = splitMoments(buildMoments(m), hour, { reviewState: m.review?.state });
 
   return {
     heroTaglineTopic,
@@ -89,7 +92,8 @@ export function valsSummary(app, ctx, m) {
       highlight,
       cards,
       allCards,
-      moments: buildMoments(m),
+      moments,
+      laterMoments,
       yourDay,
       edit: {
         open: !!st.pinnedEditOpen,

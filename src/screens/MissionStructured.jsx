@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { promoteLead } from '../workBlock.js';
+import { momentLeads } from '../momentPriority.js';
 import { Elapsed } from '../Elapsed.jsx';
 import { css } from '../css.js';
 import { glowPanel } from '../glowPanel.js';
@@ -539,8 +540,14 @@ export function MissionStructured({ v }) {
   // ...and in the hour before a work block the lead jumps the queue, because
   // that is when it is actionable. Applied as a promotion rather than a fourth
   // ORDERS entry, so the assert below still covers every section exactly once.
+  // ...and the Daily review rises to the top in its hours (morning until 9,
+  // evening 19 to 21; src/momentPriority.js), below the lead when both rise
   const order = promoteLead(
-    morning ? ORDERS.morning : hour < 17 ? ORDERS.day : ORDERS.evening,
+    promoteLead(
+      morning ? ORDERS.morning : hour < 17 ? ORDERS.day : ORDERS.evening,
+      momentLeads('review', hour, { reviewState: v.review?.state }),
+      'review',
+    ),
     v.leadFirst,
   );
   // a section key missing from ANY order array would vanish silently for

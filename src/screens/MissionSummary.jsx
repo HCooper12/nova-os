@@ -866,6 +866,13 @@ export function MissionSummary({ v }) {
           <TextAction tone="accent" onClick={S.edit.openEdit} ariaLabel="Edit Pinned">Edit</TextAction>
         </div>
         {cards.length > 0 && <PinnedGrid cards={S.cards} onMove={S.edit.moveVisible} />}
+        {/* the moments whose hour has passed (or not yet come) wait here, with
+            the other tiles, instead of holding the top (src/momentPriority.js) */}
+        {S.laterMoments.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+            {S.laterMoments.map((k) => <Moment key={k} k={k} v={v} />)}
+          </div>
+        )}
         <p className="nv-sum-rise" style={{ '--i': cards.length + 3, margin: '16px 4px 0', font: `400 13px/1.4 ${UI}`, color: 'var(--nv-ink60)', textAlign: 'center', textWrap: 'pretty' }}>{S.foot}</p>
       </div>
       {S.edit.open && <PinnedEditSheet edit={S.edit} rows={S.allCards} />}
