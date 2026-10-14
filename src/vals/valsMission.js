@@ -12,6 +12,9 @@ import { shortTechniqueName, techniqueQuestionState, questionOnlyWrap } from '..
 import { planCardFrom } from '../planCard.js';
 import { homeTrainingCard } from '../doneToday.js';
 
+// the doors a capture of HIS comes through (the Inbox's record `source`)
+const HIS_CAPTURE_SOURCES = new Set(['capture', 'voice', 'text', 'share', 'shortcut', 'typed']);
+
 // Mission Control domain (Command Core layout): connection status chips and
 // banner, the hero (eyebrow / tagline / standfirst), the core cluster's three
 // satellites, the BODY metrics strip (weight / HRV / resting HR / kcal),
@@ -877,7 +880,13 @@ const bodyMetrics = demoMode
         .map((r) => ({ r, at: r.filedAt || r.updatedAt || r.createdAt }))
         // the planner's own daily record is filed FOR him and is not a capture
         // that landed (the redesign's Inbox audit, 27 Sep)
-        .filter(({ r, at }) => ['filed', 'discarded', 'error'].includes(r.status) && r.kind !== 'plan-today' && isTodayISO(at))
+        // HIS captures only (14 Oct, "it keeps popping up"): of nine records
+        // that landed that day, six were Nova's own (dispatches, Coach notes,
+        // the review, the plan), and each new one brought the card back. Those
+        // arrive with their own cards and in the Inbox; this one confirms
+        // what HE sent.
+        .filter(({ r, at }) => ['filed', 'discarded', 'error'].includes(r.status) && r.kind !== 'plan-today'
+          && HIS_CAPTURE_SOURCES.has(r.source) && isTodayISO(at))
         .sort((a, b) => String(b.at).localeCompare(String(a.at)));
       if (!settled.length) return null;
       const newest = String(settled[0].at);
