@@ -23,7 +23,9 @@ export function reviewRouter(vaultPath, vault) {
   // day's reviews are done.
   router.get('/review/draw', async (req, res, next) => {
     try {
-      const item = await drawEarly(vaultPath, vault);
+      // ?lane=body draws from the body lane (sleep, stress, health science)
+      const lane = req.query.lane === 'body' ? 'body' : 'mind';
+      const item = await drawEarly(vaultPath, vault, new Date(), lane);
       if (!item) return res.status(404).json({ error: 'nothing left undrawn' });
       res.json({ item });
     } catch (err) { next(err); }

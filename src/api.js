@@ -482,7 +482,8 @@ export const api = {
   reviewSummary: (conn, id) => post(conn, '/api/review/summary', { id }),
   reviewSummaryJob: (conn, jobId) => call(conn, `/api/review/summary/${encodeURIComponent(jobId)}`),
   reviewAnswer: (conn, pageId, grade) => post(conn, '/api/review/answer', { pageId, grade }),
-  reviewDraw: (conn) => call(conn, '/api/review/draw'),
+  // lane 'body': sleep, stress and health science (conceptReview.js bodyLane)
+  reviewDraw: (conn, lane = 'mind') => call(conn, `/api/review/draw${lane === 'body' ? '?lane=body' : ''}`),
   reviewItem: (conn, id) => call(conn, `/api/review/item?id=${encodeURIComponent(id)}`),
   healthInsight: (conn) => call(conn, '/api/health-insight'),
   streaks: (conn) => call(conn, '/api/streaks'),

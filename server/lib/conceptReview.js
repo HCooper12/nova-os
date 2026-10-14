@@ -166,7 +166,7 @@ export function dueCards(cards, pagesById, today) {
   for (const [id, card] of Object.entries(cards)) {
     const page = pagesById.get(id);
     if (!page) continue; // the page is gone from the vault; nothing to show
-    if (!reviewable(page)) continue; // marked out of the review since it was answered
+    if (!inReview(page)) continue; // marked out of the review since it was answered
     if (card.due > today) continue;
     const late = Math.max(0, daysBetween(card.due, today));
     out.push({ id, page, step: card.step, due: card.due, score: late / GAPS[card.step] });
@@ -249,6 +249,36 @@ export function reviewable(p) {
   return flag === true || !bodyDomain(p);
 }
 
+// THE BODY LANE (his call, 15 Oct 2026, option 3 of three): sleep, stress,
+// recovery and Huberman-style health science get their own small review,
+// with nothing new on Home. One day a week (BODY_DAY, Sunday) the day's new
+// concept comes from this pool, and once a day's reviews are done "Draw one
+// early" can draw "a body one". Gym technique and nutrition stay out of it:
+// those live in Train/Coach and Fuel. Stricter than bodyDomain: ANY gym or
+// nutrition tag makes a page training's ("Lats vs Upper Back" leads with
+// `health` and would otherwise slip in).
+export const TRAINING_TAGS = new Set([
+  'training', 'hypertrophy', 'fitness', 'bodybuilding', 'exercise', 'exercise-science',
+  'exercise-selection', 'exercise-execution', 'resistance-training', 'strength', 'cardio',
+  'programming', 'progressive-overload', 'biomechanics', 'injury', 'mobility', 'aesthetics',
+  'nutrition', 'diet', 'protein', 'fat-loss', 'body-composition',
+]);
+export const BODY_DAY = 0; // Sunday
+export const LANES = ['mind', 'body'];
+const trainingDomain = (p) => tagList(p).some((t) => TRAINING_TAGS.has(t));
+export function bodyLane(p) {
+  if (!p || (p.type !== 'concept' && p.type !== 'topic')) return false;
+  const flag = p.review ?? p.frontmatter?.review;
+  if (flag === false || flag === true) return false; // his own call settles it (true = the mind review)
+  if (tagList(p).some((t) => NOT_REVIEWED_TAGS.has(t))) return false;
+  return bodyDomain(p) && !trainingDomain(p);
+}
+// in either review: what an answered card may come back from
+export const inReview = (p) => reviewable(p) || bodyLane(p);
+export const laneOf = (p) => (bodyLane(p) ? 'body' : 'mind');
+const inLane = (lane) => (lane === 'body' ? bodyLane : reviewable);
+const weekday = (dateStr) => new Date(`${dateStr}T00:00:00Z`).getUTCDay();
+
 // How far one idea reaches: the distinct sources it stands on, plus the
 // OTHER sources its linked reviewable pages come from. His ask (15 Oct): a
 // concept is "made even stronger if it has links with other information" —
@@ -261,7 +291,7 @@ export function reach(page, byTitle) {
   const all = new Set(own);
   for (const link of page.links || []) {
     const target = byTitle.get(String(link).toLowerCase());
-    if (!target || target.id === page.id || !reviewable(target)) continue;
+    if (!target || target.id === page.id || laneOf(target) !== laneOf(page) || !inReview(target)) continue;
     for (const s of sourceTitles(target)) all.add(s);
   }
   return { own: own.size, bridged: all.size - own.size };
@@ -274,11 +304,12 @@ export function reach(page, byTitle) {
 // page first (its concept page's own date, standing in for "the day after
 // the source was ingested, while the curve is steepest"), then most
 // backlinked, then title.
-export function newCandidates(pages, cards, backlinkCounts) {
+export function newCandidates(pages, cards, backlinkCounts, lane = 'mind') {
   const seen = new Set(Object.keys(cards));
   const byTitle = new Map(pages.map((p) => [titleKey(p.title).toLowerCase(), p]));
+  const fits = inLane(lane);
   return pages
-    .filter((p) => reviewable(p) && !seen.has(p.id))
+    .filter((p) => fits(p) && !seen.has(p.id))
     .map((p) => ({ id: p.id, page: p, backlinks: backlinkCounts?.get(p.id) || 0, reach: reach(p, byTitle) }))
     .sort((a, b) => (a.page.type === 'topic') - (b.page.type === 'topic')
       || Math.min(b.reach.own, 3) - Math.min(a.reach.own, 3)
@@ -303,8 +334,8 @@ function lastAnsweredId(cards) {
 
 // The day's new pick: the best-ranked candidate not from the source of the
 // concept he answered last, or simply the best when every candidate is.
-export function pickNew(pages, cards, backlinkCounts) {
-  const ranked = newCandidates(pages, cards, backlinkCounts);
+export function pickNew(pages, cards, backlinkCounts, lane = 'mind') {
+  const ranked = newCandidates(pages, cards, backlinkCounts, lane);
   const lastId = lastAnsweredId(cards);
   const last = lastId ? pages.find((p) => p.id === lastId) : null;
   const avoid = sourceTitles(last);
@@ -319,7 +350,9 @@ export function buildQueue({ pages, cards, backlinkCounts, today, daily = DAILY,
   const due = dueCards(cards, pagesById, today);
   const queue = due.slice(0, daily).map((d) => ({ id: d.id, page: d.page, step: d.step, kind: 'due' }));
   if (due.length < newWhenBelow && queue.length < daily) {
-    const pick = pickNew(pages, cards, backlinkCounts);
+    // Sunday's new concept is the body's; an empty body pool falls back
+    const pick = (weekday(today) === BODY_DAY && pickNew(pages, cards, backlinkCounts, 'body'))
+      || pickNew(pages, cards, backlinkCounts, 'mind');
     if (pick) queue.push({ id: pick.id, page: pick.page, step: 0, kind: 'new' });
   }
   return { queue: queue.slice(0, daily), dueCount: due.length };
@@ -392,7 +425,7 @@ export function connectedNotes(page, pages, backlinkCounts, max = 4) {
   const tier = (t) => {
     const linksBack = (t.links || []).some((l) => String(l).toLowerCase() === titleKey(page.title).toLowerCase());
     const elsewhere = [...sourceTitles(t)].some((s) => !own.has(s));
-    return (bodyDomain(t) ? 8 : 0) + (elsewhere ? 0 : 4) + (t.type === 'topic' ? 2 : 0) + (linksBack ? 0 : 1);
+    return (laneOf(t) !== laneOf(page) || trainingDomain(t) ? 8 : 0) + (elsewhere ? 0 : 4) + (t.type === 'topic' ? 2 : 0) + (linksBack ? 0 : 1);
   };
   const targets = [];
   for (const link of page.links || []) {
@@ -422,6 +455,7 @@ function buildItemView({ id, kind, page, pages, cards, history, backlinkCounts, 
   const answered = !!card && card.due > today;
   return {
     id, kind, answered,
+    lane: laneOf(page),
     title: page.title, type: page.type,
     gist: page.paragraphs?.[0] || null,
     source: resolveSource(page, pages),
@@ -479,11 +513,11 @@ export async function reviewToday(vaultPath, vault, now = new Date()) {
 // the same pool buildQueue's "new" rule draws from, just unordered. It
 // enters as new: answering it writes the very same log line any other
 // answer would.
-export async function drawEarly(vaultPath, vault, now = new Date()) {
+export async function drawEarly(vaultPath, vault, now = new Date(), lane = 'mind') {
   const { localDateISO } = await import('./localDate.js');
   const today = localDateISO(now);
   const { pages, backlinkCounts, cards, history } = await loadVaultView(vaultPath, vault);
-  const candidates = newCandidates(pages, cards, backlinkCounts);
+  const candidates = newCandidates(pages, cards, backlinkCounts, lane);
   if (!candidates.length) return null;
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
   return buildItemView({ id: pick.id, kind: 'new', page: pick.page, pages, cards, history, backlinkCounts, today });

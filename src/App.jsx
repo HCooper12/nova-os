@@ -5466,7 +5466,7 @@ export default class App extends Component {
   // never-logged pool; the demo's invented one), the reel spins through
   // pages that have never been reviewed and lands on it, and it enters as
   // new the moment he answers it.
-  drawReviewEarly(demo = false) {
+  drawReviewEarly(demo = false, lane = 'mind') {
     if (this.state.reviewDrawBusy || this.state.reviewSpin) return;
     const land = (item, pool) => {
       const others = pool.filter((t) => t && t !== item.title);
@@ -5480,12 +5480,12 @@ export default class App extends Component {
     const today = this.state.liveReviewToday;
     if (!conn || !today || today.total === 0 || today.doneCount < today.total) return;
     this.setState({ reviewDrawBusy: true });
-    api.reviewDraw(conn).then(({ item }) => {
+    api.reviewDraw(conn, lane).then(({ item }) => {
       this.ensureNoteDetail(item.id);
       this.ensureReviewSummary(item.id);
       const pool = (this.state.liveNotes || []).filter((n) => /^(concept|topic)$/i.test(n.type || '')).map((n) => n.title);
       land(item, pool);
-    }).catch((e) => { this.setState({ reviewDrawBusy: false }); this.toastMsg('Could not draw a concept: ' + e.message); });
+    }).catch((e) => { this.setState({ reviewDrawBusy: false }); this.toastMsg(lane === 'body' && e.status === 404 ? 'Every body page has been reviewed already' : 'Could not draw a concept: ' + e.message); });
   }
   finishReviewSpin() {
     const spin = this.state.reviewSpin;

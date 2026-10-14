@@ -368,3 +368,37 @@ test('the one connection shown joins the idea to another source, not a training 
   ];
   assert.deepEqual(connectedNotes(me, pages, new Map()).map((c) => c.id), ['cross', 'same', 'gym']);
 });
+
+// 15 Oct, his option 3: a body lane for sleep, stress and health science,
+// Sundays' new pick and "A body one" on request; gym and nutrition stay out.
+test('the body lane holds sleep and stress science, never gym or nutrition pages', async () => {
+  const { bodyLane, reviewable, laneOf } = await import('../lib/conceptReview.js');
+  const sleep = page('Sleep as Debt', { tags: ['recovery', 'sleep', 'cognition', 'health'] });
+  const lats = page('Lats', { tags: ['health', 'training', 'hypertrophy', 'back', 'lats', 'exercise-selection', 'technique'] });
+  const diet = page('Diet', { tags: ['nutrition', 'diet', 'protein', 'huberman'] });
+  const mind = page('Mind', { tags: ['psychology', 'habits'] });
+  assert.equal(bodyLane(sleep), true);
+  assert.equal(laneOf(sleep), 'body');
+  assert.equal(bodyLane(lats), false);
+  assert.equal(bodyLane(diet), false);
+  assert.equal(bodyLane(mind), false);
+  assert.equal(reviewable(sleep), false, 'the mind review never shows it');
+  assert.equal(bodyLane({ ...sleep, review: false }), false);
+});
+
+test('Sunday\'s new concept comes from the body lane; any other day from the mind', async () => {
+  const { buildQueue } = await import('../lib/conceptReview.js');
+  const pages = [page('Mind', { tags: ['psychology'] }), page('Sleep', { tags: ['sleep', 'circadian-rhythm'] })];
+  const pick = (today) => buildQueue({ pages, cards: {}, backlinkCounts: new Map(), today }).queue[0].id;
+  assert.equal(pick('2026-10-18'), 'Sleep'); // a Sunday
+  assert.equal(pick('2026-10-19'), 'Mind');
+  // an empty body pool falls back to the mind on Sunday
+  assert.equal(buildQueue({ pages: [pages[0]], cards: {}, backlinkCounts: new Map(), today: '2026-10-18' }).queue[0].id, 'Mind');
+});
+
+test('an answered body card still comes back when due', async () => {
+  const { dueCards } = await import('../lib/conceptReview.js');
+  const sleep = page('Sleep', { tags: ['sleep'] });
+  const due = dueCards({ Sleep: { step: 1, due: '2026-10-15' } }, new Map([['Sleep', sleep]]), '2026-10-15');
+  assert.deepEqual(due.map((d) => d.id), ['Sleep']);
+});

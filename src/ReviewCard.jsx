@@ -185,6 +185,10 @@ function Done({ r }) {
         {d.drawEarly && !d.spin
           ? <TextAction tone="violet" onClick={d.drawBusy ? undefined : d.drawEarly} disabled={d.drawBusy}>{d.drawBusy ? 'Drawing…' : 'Draw one early'}</TextAction>
           : <span />}
+        {/* the body lane on request (his call, 15 Oct): sleep, stress, health science */}
+        {d.drawBody && !d.spin && !d.drawBusy
+          ? <TextAction tone="quiet" onClick={d.drawBody}>A body one</TextAction>
+          : null}
       </div>
     </div>
   );

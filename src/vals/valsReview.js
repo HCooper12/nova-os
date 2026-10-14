@@ -115,6 +115,9 @@ export function buildReview(app, ctx) {
   const kicker = !item ? null
     : n === 0 ? { isNew: true, text: 'first look' }
     : { isNew: false, text: `Review ${n + 1} · last seen ${fmtDay(pastHistory[n - 1].date)}` };
+  // the body lane (sleep, stress, health science; Sundays and "A body one")
+  // says so on the card, so a health page never reads as a lapse in the rule
+  if (kicker && item?.lane === 'body') kicker.text = `Body · ${kicker.text}`;
 
   const src = item?.source || null;
   const source = src ? {
@@ -252,6 +255,8 @@ export function buildReview(app, ctx) {
       week: ahead,
       weekMax: Math.max(1, ...ahead.map((a) => a.count)),
       drawEarly: state === 'all-done' && !offline ? () => app.drawReviewEarly(demo) : null,
+      // the demo has no body pool to draw from; the live Mac does
+      drawBody: state === 'all-done' && !offline && !demo ? () => app.drawReviewEarly(false, 'body') : null,
       drawBusy: !!st.reviewDrawBusy,
       spin: st.reviewSpin ? { rows: st.reviewSpin.rows, landed: () => app.finishReviewSpin() } : null,
     },
