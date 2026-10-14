@@ -267,25 +267,55 @@ export async function synthesizeLocal(text, voiceId) {
   try { return await job; } finally { inflight.delete(cacheKey); }
 }
 
+// A BUSY ENGINE IS NOT A DEAD ONE (15 Oct 2026). The sidecar is a SERIAL
+// HTTPServer on purpose (synthesis must own its main thread), so its /health
+// queues behind whatever sentence it is rendering. Every request used to ping
+// /health first with a 1.5s limit: the phone asks for a reply's sentences at
+// once, sentence one occupied the engine, and every other sentence's ping
+// timed out and was refused as "still starting up". 30 of 33 /api/tts calls
+// failed that way on his first working voice turn (14 Oct 23:39 UTC). While a
+// synthesis is running, or one finished a moment ago, the engine is up; only
+// an idle engine is worth asking.
+const TRUST_MS = 60_000;
+let busy = 0;
+let lastOkAt = 0;
+const believedUp = () => busy > 0 || Date.now() - lastOkAt < TRUST_MS;
+
 async function synthesizeUncached(text, { jarvis, voice, speed, cacheKey }) {
   // A REQUEST MUST NOT WAIT OUT A BOOT. The three-minute allowance above is
   // right for the boot itself and wrong inside a reply: he is looking at a
   // screen that says Nova is speaking. If the sidecar is not up, start it and
   // fail THIS sentence immediately — the client falls back to the browser
   // voice for it, and the sentence after the boot lands on the real one.
-  if (!(await healthy())) {
+  if (!believedUp() && !(await healthy())) {
     ensureSidecar().catch(() => {});
     throw new Error('local tts is still starting up');
   }
-  const res = await fetch(`${BASE()}/tts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: rewriteForSpeech(text), voice, speed }),
-    // 90s: a 2400-char worst case is ~2min of audio and can exceed 30s of
-    // synthesis — timing it out returned a 400 and silenced a whole brief.
-    // The client sends sentence-sized pieces, so this is a backstop.
-    signal: AbortSignal.timeout(90_000),
-  });
+  let res;
+  busy++;
+  try {
+    res = await fetch(`${BASE()}/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: rewriteForSpeech(text), voice, speed }),
+      // 90s: a 2400-char worst case is ~2min of audio and can exceed 30s of
+      // synthesis — timing it out returned a 400 and silenced a whole brief.
+      // The client sends sentence-sized pieces, so this is a backstop.
+      signal: AbortSignal.timeout(90_000),
+    });
+  } catch (e) {
+    lastOkAt = 0; // it did not answer at all: the next request asks /health again
+    // nothing listening means it died since its last good answer: the same
+    // remedy, and the same words, as finding it down before the request
+    if (e?.cause?.code === 'ECONNREFUSED') {
+      ensureSidecar().catch(() => {});
+      throw new Error('local tts is still starting up');
+    }
+    throw e;
+  } finally {
+    busy--;
+  }
+  if (res.ok) lastOkAt = Date.now();
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
     throw new Error(`local tts → ${res.status}${detail.error ? `: ${detail.error}` : ''}`);
