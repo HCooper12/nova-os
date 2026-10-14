@@ -36,6 +36,10 @@ import { bareOpen, webTarget } from '../../src/macTargets.js';
 // practice, a screen, the Inbox's yes and undo — are verbs in this registry
 // too, defined in lib/verbJobs.js with their own grammar.
 import { JOB_VERBS, parseJobCommand, screenFor, probeCard } from './verbJobs.js';
+// the one alias map checks.js computes from — a "check X" whose X is on this
+// list is a SURE command (present data or not); anything else is a PROBE
+// candidate, a command only if it turns out to name a real lift
+import { CHECK_ALIASES } from './checks.js';
 
 const SLOTS = ['preworkout', 'breakfast', 'lunch', 'dinner', 'snack', 'extra'];
 const TODO_CATS = ['personal', 'work', 'fitness', 'errands', 'later'];
@@ -1023,6 +1027,37 @@ verb({
   },
 });
 
+// CHECK <THING> (the E.V. study, §4C): "check my bench", "check sleep",
+// "check the plan" — a deterministic lookup against a baseline or target,
+// never a model. Read-only (`receipt: false`, same as screen.open): nothing
+// he owns changes, so there is nothing to undo and no record to file —
+// `undo` exists only because every verb's contract names one, and it is a
+// true no-op here.
+verb({
+  id: 'check.thing', tier: 'act', receipt: false,
+  describe: 'read-only — check a metric, a lift, the plan or the inbox against its baseline or target and speak the number and the delta; never calls a model',
+  args: { thing: 'what to check, in his words (a metric, a lift, "the plan", "the inbox")', reason: 'optional — why he thinks it might be off' },
+  async run(vaultPath, args) {
+    const { runCheck } = await import('./checks.js');
+    const out = await runCheck(args.thing, { reason: args.reason || null });
+    if (!out) throw new Error(`I don't have a check for "${say(args.thing)}"`);
+    return { destination: `Check — ${say(args.thing)}`, said: out.text, undo: null, receipt: false, extra: out.card ? { card: out.card } : undefined };
+  },
+  async undo() { return null; },
+});
+
+verb({
+  id: 'check.systems', tier: 'act', receipt: false,
+  describe: 'read-only — a composed one-line systems check (server, ears, voice, HealthKit freshness, sync ages); never calls a model',
+  args: {},
+  async run() {
+    const { runCheck } = await import('./checks.js');
+    const out = await runCheck('systems', {});
+    return { destination: 'Check — systems', said: out.text, undo: null, receipt: false };
+  },
+  async undo() { return null; },
+});
+
 for (const def of JOB_VERBS) verb(def);
 
 export const VERB_IDS = Object.keys(VERBS);
@@ -1173,6 +1208,17 @@ function normCased(q) {
 }
 
 const DOMAIN_SUFFIX = /\s+(?:on|from|in|off)\s+(?:the\s+|my\s+)?(shopping(?:\s+list)?|list|to-?dos?(?:\s+list)?|todo list|plan)$/;
+// the trailing "that doesn't feel right" clause on a check — stripped off
+// into args.reason; the exact words are never quoted back (checks.js's lead
+// clause is generic), so this only needs to detect that one was said, not
+// which adjective he used
+const CHECK_REASON_RE = /(?:[,.;\s]+(?:that|it|this)?\s*(?:doesn'?t|does not|didn'?t) feel (?:right|zeroed|normal|good)(?: to me)?|,?\s*(?:that|it) felt (?:off|wrong|weird|heavy|light)|,?\s*something(?:'s| is) off)$/;
+function stripCheckReason(s) {
+  const str = String(s || '');
+  const rm = str.match(CHECK_REASON_RE);
+  if (!rm) return { text: str, reason: false };
+  return { text: str.slice(0, str.length - rm[0].length).trim(), reason: true };
+}
 // what he SAYS for a slot: the keys, and since 13 Oct "pre-workout" and
 // "meal 1/2/3" (resolveSlot turns them back into keys)
 const MEAL = `(${[...SLOTS, 'pre[- ]?workout', 'meal (?:1|2|3|one|two|three)'].join('|')})`;
@@ -1195,6 +1241,44 @@ export function parseCommand(text, ctx = {}) {
   const job = ctx.deferJobs ? null : parseJobCommand(text, ctx);
   if (job) return job;
   if (q.length > 140) return null;
+
+  // CHECK <THING> (the E.V. study, design/EVIE-STUDY.md §4C): "check my
+  // bench", "check sleep", "how's my hrv", "run checks" — a deterministic
+  // look-up against a baseline or target, never a model (checks.js). A fixed
+  // noun (CHECK_ALIASES) is a SURE command, present data or not; anything
+  // else is only a command if it turns out to name a real lift in his
+  // training history — so "check the eggs off the list" (the tick idiom,
+  // below) and a stray remark that happens to start with "check" both fall
+  // through rather than erroring, because resolveAny() returns null for a
+  // fallthrough candidate that fits nothing real.
+  if (/^(?:run checks?|systems check|check everything|check all systems|check my systems)$/.test(q)) {
+    return { verb: 'check.systems', args: {} };
+  }
+  // "check off X" / "check X off (the list)" is the tick idiom in either
+  // word order, not a metric check — leave both alone for the pattern below
+  if ((m = q.match(/^(?:check|run a check on)\s+(.+)$/)) && !/^off\s+/.test(m[1])) {
+    const { text: afterReason, reason } = stripCheckReason(m[1]);
+    const body = stripDomain(afterReason);
+    if (!body.domain) {
+      const name = body.text.replace(/^(?:my|the)\s+/, '').trim();
+      if (name && !/^(?:it|that|this)$/.test(name)) {
+        const args = reason ? { thing: name, reason: true } : { thing: name };
+        return Object.prototype.hasOwnProperty.call(CHECK_ALIASES, name)
+          ? { verb: 'check.thing', args }
+          : { any: [{ verb: 'check.thing', args }], fallthrough: true };
+      }
+    }
+  }
+  if ((m = q.match(/^how(?:'s| is)\s+(?:my\s+)?(.+)$/))) {
+    const { text: afterReason, reason } = stripCheckReason(m[1]);
+    const name = afterReason.trim();
+    // deliberately NOT a fallthrough candidate here: "how's it going",
+    // "how's the weather" must reach the model, not be probed against his
+    // lift history — only the fixed check nouns are sure enough for "how's"
+    if (Object.prototype.hasOwnProperty.call(CHECK_ALIASES, name)) {
+      return { verb: 'check.thing', args: reason ? { thing: name, reason: true } : { thing: name } };
+    }
+  }
 
   // THE INBOX, BY VOICE: "approve that", "undo that", "approve the recipe
   // card". A named card is a candidate — it is a command only when a card
@@ -1345,6 +1429,19 @@ function stripDomain(s) {
 // ask him, listing what matched where; nothing runs.
 async function probe(vaultPath, cand) {
   try {
+    // "check my bench" only counts as a command if his training history
+    // actually has a lift by that name — otherwise this was never a check
+    // at all (a stray remark starting with "check" must reach the model,
+    // not an "I don't have a check for X" error)
+    if (cand.verb === 'check.thing') {
+      const { matchLift } = await import('./reflex.js');
+      const { loadSessions } = await import('./workoutSessions.js');
+      const sessions = await loadSessions(vaultPath, { limit: 60 });
+      const pool = [...new Map(sessions.flatMap((s) => s.exercises || []).map((e) => [e.exerciseId, { exerciseId: e.exerciseId, name: e.name }])).values()];
+      const found = matchLift(pool, cand.args.thing);
+      if (found.kind === 'none') return { ok: false, why: `no lift called "${cand.args.thing}"` };
+      return { ok: true, label: found.kind === 'one' ? `the lift "${found.lift.name}"` : `which lift (${found.choices.map((c) => c.name).join(', ')})` };
+    }
     if (cand.verb === 'todo.done') { const t = await openTodo(vaultPath, cand.args.text, { wantChecked: false }); return { ok: true, label: `the to-do "${t.text}"` }; }
     if (cand.verb === 'todo.reopen') { const t = await openTodo(vaultPath, cand.args.text, { wantChecked: true }); return { ok: true, label: `the to-do "${t.text}"` }; }
     if (cand.verb === 'shopping.done') { const i = await shoppingItem(vaultPath, cand.args.item, { wantChecked: false }); return { ok: true, label: `${i.name} on the shopping list` }; }

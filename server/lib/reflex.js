@@ -29,6 +29,16 @@ function normalize(q) {
 }
 
 // Analytical words mean he wants thought, not a number read back.
+// Verified (checks.js, the "check <thing>" verbs): none of these words
+// appear in a "check my bench"/"how's my sleep"/"check the plan" ask, so
+// NEEDS_THOUGHT never swallows one — those are "is it on track" asks
+// (verbs.js's grammar → checks.js, never this file) and stay distinct from
+// the "what is it" asks this reflex layer answers. No direct-ask pattern
+// below matches a bare "how's my X" prefix either (they all require
+// "what's"/"how did"/etc.), so there is no existing reflex to delegate to
+// checks.js for agreement — if one is ever added with that prefix, it
+// should call runCheck() rather than recompute the baseline itself, so the
+// two can never disagree about the same number.
 const NEEDS_THOUGHT = /\b(why|should|could|would|compare|versus|vs|trend|average|analys|explain|think|advice|low|high|bad|good|enough|improve)\b/;
 
 let rot = 0;

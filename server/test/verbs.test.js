@@ -486,3 +486,77 @@ test('recipes: ingredients edited by voice, and the macros are never implied to 
   await assert.rejects(() => runVerb(vault, 'q', { verb: 'recipe.ingredient', args: { recipe: 'works burger', remove: 'unicorn' } }), /has no ingredient like "unicorn"/);
   await assert.rejects(() => runVerb(vault, 'q', { verb: 'recipe.ingredient', args: { recipe: 'works burger' } }), /say what to add or take out/);
 });
+
+test('check <thing>: grammar for the fixed nouns, the systems phrase, and the reason clause', () => {
+  assert.deepEqual(parseCommand('check sleep'), { verb: 'check.thing', args: { thing: 'sleep' } });
+  assert.deepEqual(parseCommand('check my hrv'), { verb: 'check.thing', args: { thing: 'hrv' } });
+  assert.deepEqual(parseCommand('check the plan'), { verb: 'check.thing', args: { thing: 'plan' } });
+  assert.deepEqual(parseCommand('check the inbox'), { verb: 'check.thing', args: { thing: 'inbox' } });
+  assert.deepEqual(parseCommand("how's my sleep"), { verb: 'check.thing', args: { thing: 'sleep' } });
+  assert.deepEqual(parseCommand('how is readiness'), { verb: 'check.thing', args: { thing: 'readiness' } });
+  assert.deepEqual(parseCommand('run a check on my weight'), { verb: 'check.thing', args: { thing: 'weight' } });
+  assert.deepEqual(parseCommand('systems check'), { verb: 'check.systems', args: {} });
+  assert.deepEqual(parseCommand('run checks'), { verb: 'check.systems', args: {} });
+  assert.deepEqual(parseCommand('check everything'), { verb: 'check.systems', args: {} });
+  // the trailing reason clause rides as args.reason, stripped out of the thing
+  assert.deepEqual(parseCommand("check my sleep, that felt off"), { verb: 'check.thing', args: { thing: 'sleep', reason: true } });
+  assert.deepEqual(parseCommand("check my hrv, something's off"), { verb: 'check.thing', args: { thing: 'hrv', reason: true } });
+  assert.deepEqual(parseCommand("check my sleep, that doesn't feel right"), { verb: 'check.thing', args: { thing: 'sleep', reason: true } });
+  // a fixed noun is a SURE command — present data or not, present as itself
+  assert.equal(parseCommand('check sleep').any, undefined);
+  // a lift name is not a fixed noun — it only counts as a command once a
+  // real lift answers for it (resolveAny probes his training history)
+  assert.ok(Array.isArray(parseCommand('check my bench').any));
+  // "how's" stays conversational for anything that is not a fixed check noun
+  assert.equal(parseCommand("how's it going"), null);
+  assert.equal(parseCommand("how's the weather"), null);
+});
+
+test('check <thing>: must not hijack the existing tick-idiom verbs', () => {
+  // the exact collision named in the brief: "check" the tick-idiom word
+  // still ticks the shopping list, never a metric check
+  assert.deepEqual(parseCommand('check the eggs off the list'), { verb: 'shopping.done', args: { item: 'the eggs' } });
+  // "check off X" is the OTHER word order of the same tick idiom (pre-existing
+  // behaviour: an unscoped tick/check is ambiguous across todo/shopping/plan,
+  // resolved against his real lists) — it must never become a check.thing
+  // candidate either
+  const offMilk = parseCommand('check off buy milk');
+  assert.ok(Array.isArray(offMilk.any));
+  assert.ok(offMilk.any.every((c) => c.verb !== 'check.thing'));
+});
+
+test('check.thing: a fixed noun answers through the real check, even with missing data', async () => {
+  const out = await runVerb(vault, 'check my protein', { verb: 'check.thing', args: { thing: 'protein' } });
+  assert.ok(out.acted, 'read-only verbs act immediately, no pending card');
+  assert.equal(out.acted.undoable, false);
+  assert.match(out.acted.said, /logged|protein floor/);
+});
+
+test('check.thing: an unknown word with no matching lift is not a command at all', async () => {
+  // resolveAny() probes his real training history (the vault this file
+  // shares); "unicorn curl" matches nothing in it, so this was never a
+  // command — tryCommand must return null, not an error, so the model gets it
+  assert.equal(await tryCommand(vault, 'check unicorn curl'), null);
+});
+
+test('check.thing: a real lift in his history resolves end to end, through the probe and the check', async () => {
+  const priorVaultPath = process.env.VAULT_PATH;
+  process.env.VAULT_PATH = vault; // checks.js's default deps read the env var, same as reflex.js's
+  try {
+    const out = await tryCommand(vault, 'check my bench');
+    assert.ok(out, 'a real lift resolves as a command');
+    assert.match(out.text, /Bench Press/);
+    assert.equal(out.acted.undoable, false);
+  } finally {
+    if (priorVaultPath === undefined) delete process.env.VAULT_PATH; else process.env.VAULT_PATH = priorVaultPath;
+  }
+});
+
+test('check.systems: runs read-only, no receipt, catalogue says so', async () => {
+  const text = describeForModel();
+  assert.match(text, /check\.thing.*read-only/);
+  assert.match(text, /check\.systems.*read-only/);
+  const out = await runVerb(vault, 'systems check', { verb: 'check.systems', args: {} });
+  assert.ok(out.acted);
+  assert.equal(out.acted.undoable, false);
+});
