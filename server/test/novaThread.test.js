@@ -370,7 +370,7 @@ test('App: the thread spreads last; a reply keeps its glass; a line from the Nov
   assert.match(app, /this\.presenceTurn = \{ via: 'presence', on: this\.state\.screen, at: Date\.now\(\) \};/);
   assert.match(app, /this\.doOrb\(q\);\n    this\.presenceTurn = null;/);
   assert.match(app, /who: 'you', text: question, attached: attached\.length \? attached : undefined, \.\.\.\(meta \|\| \{\}\) \}/);
-  assert.match(app, /this\.attachAskPoll\(conn, jobId, \{ agent, meta \}\);/);
+  assert.match(app, /this\.attachAskPoll\(conn, jobId, \{ agent, meta(?:, turn)? \}\);/);
   // the record never carries the glass (it sends text, who, via, device)
   assert.doesNotMatch(read('src/conversationSync.js'), /glass/);
   assert.match(read('src/SummaryDock.jsx'), /onClick=\{v\.novaThread\?\.dockTalk \|\| v\.startLiveTalk\}/);

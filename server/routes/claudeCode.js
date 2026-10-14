@@ -3,6 +3,7 @@ import { startMessage, getMessageJob, startBreaker } from '../lib/claudeCode.js'
 import { isValidModel } from '../lib/modelPrefs.js';
 import { listWorkspaces } from '../lib/codeWorkspaces.js';
 import { watchCodeJobs, loadCodeJob } from '../lib/codeJobStore.js';
+import { stageLineOf } from '../lib/handsFree.js';
 
 // Exactly the values the model board recognises (aliases + pinned ids,
 // including legacy pins kept valid for a saved choice) — anything else is
@@ -55,7 +56,11 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
     // show the roster while they work and open each answer after.
     // `stage`: what the Builder's run is doing between turns (checking,
     // fixing round n, the Breaker), narrated by code for the Code screen
-    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, stage: job.stage || null, visuals: job.visuals || null, consult: job.consult?.length ? job.consult : null });
+    // `stageLine`: while a SLOW agent (the Researcher) is still being asked,
+    // the one code-written line the app speaks once (lib/handsFree.js
+    // stageLineOf); null the rest of the time, so the app stays quiet
+    const slow = job.status === 'running' ? stageLineOf(job.consult) : null;
+    res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, stage: job.stage || null, visuals: job.visuals || null, consult: job.consult?.length ? job.consult : null, stageLine: slow?.line || null, stageAgent: slow?.agent || null });
   });
 
   // Sparring loop: spawn a read-only Breaker over the workspace. Polled via

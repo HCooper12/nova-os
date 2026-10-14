@@ -5,6 +5,7 @@ import { ttsConfigured, ttsEngine, ttsReady, listVoices, synthesize } from '../l
 import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
 import { tryReflex } from '../lib/reflex.js';
 import { composeShow } from '../lib/morningShow.js';
+import { lintSpoken } from '../../src/spokenLint.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
@@ -28,6 +29,32 @@ export function fromMacOf(req) {
   if (d) return false;
   const ua = String(req?.headers?.['user-agent'] || '');
   return /Mozilla/.test(ua) && /Macintosh/.test(ua) && !/iPhone|iPad|Mobile/.test(ua);
+}
+
+// THE ACK, COMPOSED AND ALREADY IN THE VOICE (15 Oct 2026, lib/acks.js).
+// When a turn goes to a model lane, the reply is seconds away; the ack is
+// his own noun said back ("Checking your sleep this week."), composed by code
+// against today's ledger, and synthesized NOW so the client's /api/tts for it
+// lands on the audio cache (lib/ttsLocal.js, keyed voice|speed|text) instead
+// of queueing a fresh synthesis. `voiceId` is the one the client will ask
+// /api/tts for (absent = the engine's default, exactly as /api/tts treats
+// it). ElevenLabs has no cache to warm, so it is skipped: a paid round trip
+// for a line the client fetches anyway would be spent twice.
+export async function ackForTurn({ question, lane, voiceId } = {}, deps = {}) {
+  try {
+    const next = deps.nextAck || (await import('../lib/acks.js')).nextAck;
+    const ack = await next({ question, lane });
+    if (!ack) return null;
+    const engine = deps.engine ? deps.engine() : ttsEngine();
+    if (engine === 'local') {
+      const synth = deps.synthesize || synthesize;
+      Promise.resolve().then(() => synth(ack.text, typeof voiceId === 'string' && voiceId ? voiceId : undefined)).catch(() => { /* the client's own fetch covers it */ });
+    }
+    return { id: ack.id, text: ack.text };
+  } catch (e) {
+    console.log(`ack skipped: ${e.message}`);
+    return null;
+  }
 }
 
 export function voiceRouter(vaultPath) {
@@ -158,7 +185,8 @@ export function voiceRouter(vaultPath) {
         markHisWords(question);
         const jobId = await startCoachTurn(vaultPath, { question, sessionId: coachSession, liveSession: req.body?.liveSession || null });
         console.log(`ask → coach (${coachSession ? 'resumed' : 'new'}) q=${JSON.stringify(question.slice(0, 60))}`);
-        return res.json({ jobId, agent: 'coach' });
+        const ack = await ackForTurn({ question: raw, lane: 'coach', voiceId: req.body?.voiceId });
+        return res.json({ jobId, agent: 'coach', ...(ack ? { ack } : {}) });
       }
       if (lane === 'leader') {
         const { startAskLeader } = await import('../lib/claudeCode.js');
@@ -178,7 +206,8 @@ export function voiceRouter(vaultPath) {
           jobId = startAskLeader(vaultPath, { question, context: await buildLeaderChatContext(vaultPath), sessionId: null });
         }
         console.log(`ask → leader (${leaderSession ? 'resumed' : 'new'})`);
-        return res.json({ jobId, agent: 'leader' });
+        const ack = await ackForTurn({ question: raw, lane: 'leader', voiceId: req.body?.voiceId });
+        return res.json({ jobId, agent: 'leader', ...(ack ? { ack } : {}) });
       }
       // THE PWA SESSION IS GUARDED like the spoken one (lib/askSession.js):
       // a conversation older than a day, from another day, or past forty
@@ -200,7 +229,8 @@ export function voiceRouter(vaultPath) {
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
       const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true });
-      res.json({ jobId });
+      const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
+      res.json({ jobId, ...(ack ? { ack } : {}) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -553,7 +583,10 @@ export function voiceRouter(vaultPath) {
         const reply = String(job.result.text || '');
         console.log(`ask/sync ${Date.now() - started}ms session=${spoken.resumed ? `resumed turn ${spoken.turns}` : `fresh (${spoken.reason})`} q=${JSON.stringify(question.slice(0, 60))} reply=${reply.length}ch ${JSON.stringify(reply.slice(0, 80))}`);
         const from = trimForRecord(job.result.consult);
-        return finish({ text: job.result.text, sessionId: job.result.sessionId, record: { by: 'nova', ...(from ? { from } : {}) } });
+        // the opener a model reaches for ("Sure,", "Great question.") is
+        // taken off what Siri SAYS (src/spokenLint.js), and the record holds
+        // what was said
+        return finish({ text: lintSpoken(String(job.result.text || '')), sessionId: job.result.sessionId, record: { by: 'nova', ...(from ? { from } : {}) } });
       }
       if (waited.kind === 'error') {
         // A dead process or a spent budget must not poison the next ask:

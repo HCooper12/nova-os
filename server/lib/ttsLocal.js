@@ -212,29 +212,32 @@ function wavToMp3(wav, fx) {
   });
 }
 
-// Fixed lines repeat constantly — the voice-picker preview and the ack
-// fillers ("On it, sir.") — and re-synthesizing a string that cannot change
-// is pure waste that makes switching voices feel broken under load. Small
-// insertion-ordered cache, warmed at boot so those lines answer in ~50ms
-// from the first tap. Keep PREVIEW_LINE/ACK_LINES in step with App.jsx
-// (speakAck / setVoiceId) — shared formats are contracts.
-// Headroom matters more than bytes here: the fixed warm set is already
-// 4 voices × 9 lines = 36, and a warmed morning brief adds ~8 more. At 48
-// the brief's lines were the first thing evicted by any other synthesis —
-// i.e. the cache would drop exactly the audio it had just pre-built. A
-// sentence of mp3 is tens of KB, so 160 entries is single-digit megabytes.
+// Fixed lines repeat constantly (the voice-picker preview) and
+// re-synthesizing a string that cannot change is pure waste that makes
+// switching voices feel broken under load. Small insertion-ordered cache,
+// warmed at boot so the preview answers in ~50ms from the first tap. Keep
+// PREVIEW_LINE in step with App.jsx (setVoiceId) — shared formats are
+// contracts.
+//
+// The old fixed acks ("On it, sir.") and think-fillers used to be warmed here
+// too. They are gone (15 Oct 2026, his "the same responses" note): an ack is
+// now composed from his own words per turn (lib/acks.js) and synthesized the
+// moment /api/ask returns it (routes/voice.js prewarmAck), so the client's
+// /api/tts for it lands on this cache or joins the synthesis in flight.
+// Headroom matters more than bytes here: a warmed morning brief adds ~8
+// lines, and a per-turn ack one more. A sentence of mp3 is tens of KB, so 160
+// entries is single-digit megabytes.
 const AUDIO_CACHE_MAX = 160;
-const audioCache = new Map(); // `${voiceId}|${text}` → mp3 Buffer
+const audioCache = new Map(); // `${voiceId}|${speed}|${text}` → mp3 Buffer
+// the same key, while its synthesis runs: a second request for it (the
+// client's /api/tts arriving while the ack prewarm is still synthesizing)
+// waits on the first instead of synthesizing the line twice
+const inflight = new Map();
 export const PREVIEW_LINE = 'This is how I sound, sir.';
-export const ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];
-// spoken when a think runs long — keep in step with THINKING_LINES in App.jsx
-export const THINKING_LINES = ['Still with you, sir.', 'Nearly there.', 'Just pulling that together.'];
 
 export async function warmSpokenLines() {
   for (const v of localVoices()) {
-    for (const line of [PREVIEW_LINE, ...ACK_LINES, ...THINKING_LINES]) {
-      await synthesizeLocal(line, v.id).catch(() => {}); // warm is best-effort
-    }
+    await synthesizeLocal(PREVIEW_LINE, v.id).catch(() => {}); // warm is best-effort
   }
   console.log(`tts cache warm: ${audioCache.size} lines`);
 }
@@ -257,6 +260,14 @@ export async function synthesizeLocal(text, voiceId) {
   const cacheKey = `${requested}|${speed}|${text}`;
   const hit = audioCache.get(cacheKey);
   if (hit) return hit;
+  const running = inflight.get(cacheKey);
+  if (running) return running;
+  const job = synthesizeUncached(text, { requested, jarvis, voice, speed, cacheKey });
+  inflight.set(cacheKey, job);
+  try { return await job; } finally { inflight.delete(cacheKey); }
+}
+
+async function synthesizeUncached(text, { jarvis, voice, speed, cacheKey }) {
   // A REQUEST MUST NOT WAIT OUT A BOOT. The three-minute allowance above is
   // right for the boot itself and wrong inside a reply: he is looking at a
   // screen that says Nova is speaking. If the sidecar is not up, start it and

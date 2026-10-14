@@ -322,10 +322,10 @@ test('App wires it: the poll keeps the stances, every piece carries its own, bot
   assert.match(app, /const stripShow = \(t\) => t\.replace\(\/\(\^\|\\n\)\\s\*\(SHOW\|PROPOSE\|RESEARCH\|CONSULT\)\\s\*\(\\\{\[\\s\\S\]\*\)\?\$\/, ''\);/);
   // the sentence, to whichever voice speaks it
   assert.match(app, /const say = \(t, from = null, stance = null\) => \{/);
-  assert.match(app, /if \(elevenPath\) this\.speakTtsSentence\(heard, onPlay, \{ stance \}\);\n\s*else \{ this\.speakIncremental\(heard, \{ stance \}\); onPlay\(\); \}/);
-  assert.match(app, /speakTtsSentence\(text, onPlay, \{ stance = null \} = \{\}\) \{/);
-  assert.match(app, /if \(!conn \|\| !this\.ttsUsable\(\)\) \{ onPlay\?\.\(\); this\.speakIncremental\(clean, \{ stance \}\); return; \}/);
-  assert.match(app, /const entry = \{ done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean, stance \};/);
+  assert.match(app, /if \(elevenPath\) this\.speakTtsSentence\(heard, onPlay, \{ stance(?:, onStart)? \}\);\n\s*else \{ this\.speakIncremental\(heard, \{ stance \}\);(?: onStart\?\.\(\);)? onPlay\(\); \}/);
+  assert.match(app, /speakTtsSentence\(text, onPlay, \{ stance = null(?:, ack = false, onStart = null)? \} = \{\}\) \{/);
+  assert.match(app, /if \(!conn \|\| !this\.ttsUsable\(\)\) \{ onPlay\?\.\(\); this\.speakIncremental\(clean, \{ stance \}\);(?: onStart\?\.\(\);)? return; \}/);
+  assert.match(app, /const entry = \{ done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean, stance(?:, ack, onStart)? \};/);
   assert.match(app, /this\.endSpeech\(\); this\.drainTtsQueue\(gen\);\n\s*\}, \{ stance: head\.stance \}\);/, 'the engine failed: the phone\'s voice says it, stance and all');
   assert.match(app, /speakIncremental\(text, \{ stance = null \} = \{\}\) \{[\s\S]{0,160}this\.speakFallback\(text, \(\) => this\.endSpeech\(\), \{ stance \}\);/);
   assert.match(app, /speakFallback\(text, finish, \{ stance = null \} = \{\}\) \{/);

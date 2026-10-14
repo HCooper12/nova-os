@@ -55,6 +55,19 @@ export function interimLine(roster) {
   return `I've asked ${who}; ${wait}. The answer will be in your Nova thread${inbox}.`;
 }
 
+// THE ONE LINE THE APP SAYS WHILE A SLOW AGENT WORKS (15 Oct 2026). The
+// in-app voice used to fill a long think with a timer ("Still with you,
+// sir." at 4 s, whatever was happening). Now it is state: while the roster
+// holds a SLOW ask still under way, the job carries this code-written line,
+// and the client speaks it once. Nothing slow is running, nothing is said.
+//   "Asking the Researcher."
+export function stageLineOf(roster) {
+  const slow = [];
+  for (const a of pendingAsks(roster, { slowOnly: true })) if (!slow.includes(a.agent)) slow.push(a.agent);
+  if (!slow.length) return null;
+  return { line: `Asking ${listWords(slow.map(labelOf))}.`, agent: slow[0] };
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Wait on a hands-free turn. Resolves one of:

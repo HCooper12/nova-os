@@ -473,7 +473,7 @@ async function main() {
       .then(async ({ ensureSidecar, warmSpokenLines }) => {
         await ensureSidecar();
         console.log('tts sidecar warm');
-        await warmSpokenLines(); // previews + acks answer instantly from first tap
+        await warmSpokenLines(); // the voice preview answers instantly from first tap (acks warm per turn: routes/voice.js)
       })
       .catch((e) => console.log(`tts sidecar prewarm failed: ${e.message}`));
   }

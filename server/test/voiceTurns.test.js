@@ -98,3 +98,39 @@ test('the excerpt and the reason are clamped, and absent when not sent', async (
   assert.ok(!('why' in plain), 'an ordinary turn carries no excerpt of his speech');
   assert.ok(!('text' in plain));
 });
+
+// HOW QUICKLY HE HEARD SOMETHING (15 Oct 2026): one 'ask' row per question,
+// carrying the ack, first-words and first-sound waits. Bounded like the rest.
+test('an ask row carries its waits, its lane and its ack, each bounded', async () => {
+  const rec = turnRecord({
+    surface: 'ask', ms: 4100.4, restarts: 0, heard: true,
+    ackMs: 612.6, firstTextMs: 2380, firstAudioMs: 3120,
+    lane: 'coach-and-more-than-twelve', ackText: 'Checking your sleep this week. '.repeat(4), ackId: 'ask.check',
+  }, 'Mozilla/5.0 (iPhone)');
+  assert.equal(rec.surface, 'ask');
+  assert.equal(rec.reason, 'unknown', 'an ask is not a turn ending: the closed vocabulary is unchanged');
+  assert.equal(rec.ackMs, 613);
+  assert.equal(rec.firstTextMs, 2380);
+  assert.equal(rec.firstAudioMs, 3120);
+  assert.equal(rec.lane, 'coach-and-mo');
+  assert.equal(rec.ackText.length, 60);
+  assert.equal(rec.ackId, 'ask.check');
+});
+
+test('a wait that is not a real number is dropped, never stored as a guess', async () => {
+  const rec = turnRecord({ surface: 'ask', ackMs: -5, firstTextMs: 'fast', firstAudioMs: Infinity });
+  assert.ok(!('ackMs' in rec));
+  assert.ok(!('firstTextMs' in rec));
+  assert.ok(!('firstAudioMs' in rec));
+  assert.ok(!('firstAudioMs' in turnRecord({ surface: 'ask', firstAudioMs: 99 * 60_000 })), 'an hour-long "wait" is a clock fault');
+  const plain = turnRecord({ reason: 'hold', surface: 'voice' });
+  for (const k of ['ackMs', 'firstTextMs', 'firstAudioMs', 'lane', 'ackText', 'ackId']) assert.ok(!(k in plain), k);
+});
+
+test('an ask row lands in the file like any other', async () => {
+  await appendTurn({ surface: 'ask', ms: 900, heard: true, lane: 'reflex', firstTextMs: 40, firstAudioMs: 410 }, 'Macintosh');
+  const last = readTurns().at(-1);
+  assert.equal(last.surface, 'ask');
+  assert.equal(last.lane, 'reflex');
+  assert.equal(last.firstAudioMs, 410);
+});

@@ -12,6 +12,7 @@ import { unspokenTexts, resumeVerdict } from './speechResume.js';
 import { DEFAULT_HOLD, holdTiming } from './turnEnd.js';
 import { offerVerdictFor } from './verdictOffer.js';
 import { parseVisualStream } from './visualBeats.js';
+import { lintSpoken } from './spokenLint.js';
 import { stanceOfSpan } from './glassBeats.js';
 import { speakableText } from './artifactBlocks.js';
 import { streamShown, sameWidthTokens, rememberArtifacts, OPEN_EVENT } from './artifactClient.js';
@@ -7324,7 +7325,9 @@ export default class App extends Component {
 
   // The ask poll, attachable from a fresh boot too — an iOS reclaim used to
   // eat the in-flight answer along with the poll.
-  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null } = {}) {
+  // `turn`: the receipt this ask is stamping (askNova), so the wait he sat
+  // through is measured where it happens; absent on a re-attach after boot.
+  attachAskPoll(conn, jobId, { onDelivered, agent = null, meta = null, turn = null } = {}) {
     const clearJob = () => { try { localStorage.removeItem('novaos.askJob'); } catch { /* best-effort */ } };
     // THE REPLY IS STILL ARRIVING. voiceBusy clears at the first partial so
     // he can barge in, which left nothing saying "more sentences are coming":
@@ -7370,29 +7373,36 @@ export default class App extends Component {
     // `stance`: 'contest' when this sentence pushes back (4 Oct 2026); it
     // rides the queue to the captions' clock (speechClock.js)
     const say = (t, from = null, stance = null) => {
-      clearTimeout(stream.thinkTimer); // a real sentence is here — no filler needed
-      this.cancelAck();                // and the queued "On it, sir" never happens
       const onPlay = () => { if (spokenReveal) reveal(t); if (from != null) this.raiseGlass(from + t.length); };
+      // the reply's first sound, stamped when its audio really starts
+      const onStart = turn && !turn.firstAudioAt ? () => { if (!turn.firstAudioAt) turn.firstAudioAt = Date.now(); } : null;
       // What is SPOKEN is stripped of markdown; what is stored stays raw, so
       // the glass's character offsets into it never move. (spokenProse.js)
-      // …and a document is never read aloud: its card is not a sentence
-      const heard = toSpokenProse(speakableText(t, { final: true }));
+      // …and a document is never read aloud: its card is not a sentence.
+      // The opener a model reaches for ("Sure,", "Great question.") is taken
+      // off what he HEARS (src/spokenLint.js, 15 Oct 2026); never emptied.
+      const heard = lintSpoken(toSpokenProse(speakableText(t, { final: true })));
       if (!heard.trim()) { onPlay(); return; }   // a fenced block alone is nothing to say
-      if (elevenPath) this.speakTtsSentence(heard, onPlay, { stance });
-      else { this.speakIncremental(heard, { stance }); onPlay(); }
+      if (elevenPath) this.speakTtsSentence(heard, onPlay, { stance, onStart });
+      else { this.speakIncremental(heard, { stance }); onStart?.(); onPlay(); }
     };
-    // The awkward-silence filler: a long think gets ONE quiet touch-point
-    // ("Still with you, sir.") — cached server-side, so it costs ~50ms —
-    // and only when nothing at all is playing or queued. Keep the lines in
-    // step with THINKING_LINES in server/lib/ttsLocal.js (the warm cache).
-    if (spokenReveal) {
-      const THINKING_LINES = ['Still with you, sir.', 'Nearly there.', 'Just pulling that together.'];
-      stream.thinkTimer = setTimeout(() => {
-        if (stream.spokenUpTo > 0 || this.ttsPlaying || (this.ttsQueue || []).length) return;
-        this.thinkIdx = ((this.thinkIdx ?? -1) + 1) % THINKING_LINES.length;
-        this.speakTtsSentence(THINKING_LINES[this.thinkIdx]);
-      }, 4000);
-    }
+    // NO FILLER ON A TIMER (15 Oct 2026). A long think used to get "Still
+    // with you, sir." at 4 s whatever was happening; his note was that the
+    // same lines got old and felt premeditated. Silence now, while the glass
+    // shows the lane working, and ONE code-written line when the state says
+    // something slow has started (job.stageLine, below).
+    // The receipt for this ask: posted once, when the reply has been heard
+    // (or cut short, or failed), with whatever the turn stamped.
+    const postTurn = () => {
+      if (!turn || turn.posted) return;
+      turn.posted = true;
+      const rel = (at) => (at && turn.askAt ? at - turn.askAt : undefined);
+      reportTurnEnd('ask', this.state.voiceHold, {
+        ms: Date.now() - (turn.askAt || Date.now()), restarts: 0, heard: true,
+        lane: turn.lane || '', ackText: turn.ackText || '', ackId: turn.ackId || '',
+        ackMs: rel(turn.ackAt), firstTextMs: rel(turn.firstTextAt), firstAudioMs: rel(turn.firstAudioAt),
+      });
+    };
     const speakNewSentences = (text, flushAll) => {
       // READING RATHER THAN LISTENING. The glass is driven by the voice, so
       // with speech off nothing ever raised a panel — a silent reply showed
@@ -7433,7 +7443,16 @@ export default class App extends Component {
       intervalMs: 150,
       onProgress: (job) => {
         if (job.visuals) this.absorbVisuals(job.visuals);
+        // A SLOW AGENT STARTED (the Researcher): the server's code-written
+        // line, said once per line per reply, and shown in the island under
+        // that agent's name. State-driven: no slow ask, nothing said.
+        if (job.stageLine && !(stream.stagesSaid || []).includes(job.stageLine)) {
+          stream.stagesSaid = [...(stream.stagesSaid || []), job.stageLine];
+          notify({ id: 'ask-stage', title: String(job.stageAgent || agent || 'nova').toUpperCase(), message: job.stageLine, tone: 'nova', duration: 3200 });
+          if (this.state.voiceSpeak) this.speakTtsSentence(job.stageLine, null, { stance: 'ack' });
+        }
         if (!job.partial) return;
+        if (turn && !turn.firstTextAt) turn.firstTextAt = Date.now();
         // ONE parser, shared with the server (src/visualBeats.js): it takes
         // the VIS directives out — a half-typed one withheld whole, so Nova
         // never reads JSON aloud — and says where each panel's prose begins.
@@ -7451,7 +7470,7 @@ export default class App extends Component {
         speakNewSentences(shown, false);
       },
       onReady: (job) => {
-        clearTimeout(stream.thinkTimer);
+        if (turn && !turn.firstTextAt) turn.firstTextAt = Date.now();
         const text = job.result.text;
         // the documents this reply filed: their cards draw at once
         rememberArtifacts(job.result.artifacts);
@@ -7570,15 +7589,17 @@ export default class App extends Component {
           // (or instantly if he interrupts — resetTtsQueue runs finalizers)
           speakNewSentences(spokenText, true);
           this.queueTtsFinalize(commit);
+          this.queueTtsFinalize(postTurn); // after the last word, or at once if he cuts in
         } else {
           commit();
           // Flush whatever trails the last sentence-ender; if nothing ever
           // streamed (non-streaming job), this speaks the whole reply.
           if (this.state.voiceSpeak) speakNewSentences(spokenText, true);
           else this.maybeAutoListen();
+          postTurn();
         }
       },
-      onError: (msg) => { clearJob(); clearTimeout(stream.thinkTimer); if (this.replyStreaming === jobId) this.replyStreaming = null; this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
+      onError: (msg) => { clearJob(); postTurn(); if (this.replyStreaming === jobId) this.replyStreaming = null; this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
     });
   }
 
@@ -10421,7 +10442,10 @@ export default class App extends Component {
     const attached = this.state.pendingAttach.map((p) => ({ kind: p.kind, thumb: p.thumb, name: p.name }));
     this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question, attached: attached.length ? attached : undefined, ...(meta || {}) }], voiceBusy: true }));
     this.stopSpeaking();
-    this.speakAck(question); // fills the 5-8s think-gap immediately
+    // THE RECEIPT FOR THIS ASK (15 Oct 2026): when it left, when the ack was
+    // heard, the first words, the first sound. Stamped in place, posted once
+    // the reply has been heard (attachAskPoll postTurn).
+    const turn = { askAt: null, lane: null };
     // caller context already names the pending decision when present —
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
@@ -10439,13 +10463,15 @@ export default class App extends Component {
     // hundred words is fifty seconds of being talked at. Spoken means: it came
     // from the microphone and speech is on.
     const spoken = !!this.spokenInput && !!this.state.voiceSpeak;
-    this.flushAttachments(conn).then((attachmentId) => api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null })).then((resp) => {
+    // `voiceId`: the voice this device will ask /api/tts for, so the server
+    // can synthesize the ack in exactly that voice before the client asks
+    this.flushAttachments(conn).then((attachmentId) => { turn.askAt = Date.now(); return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined }); }).then((resp) => {
       if (resp.text) {
         // THE REFLEX ANSWERED. This is now the common case — five of his six
-        // commonest asks land here in single-digit milliseconds — so the
-        // queued "On it, sir" must die before it can talk over an answer that
-        // has already arrived.
-        this.cancelAck();
+        // commonest asks land here in single-digit milliseconds — and the
+        // server sends no ack with it: the answer IS the fast reply.
+        turn.lane = 'reflex';
+        turn.firstTextAt = Date.now();
         // Reflex answer — code replied from the live record, no job to poll.
         // Voice leads here too: the text lands when the audio starts. The
         // number it spoke is drawn by the same code (resp.card).
@@ -10480,18 +10506,30 @@ export default class App extends Component {
         // model choice asks it here
         this.followActed(resp.acted);
         if (resp.modelChoicePending?.kind === 'act') this.armActGate(resp.modelChoicePending);
-        if (this.state.voiceSpeak) this.speakTtsSentence(resp.text, show);
-        else { show(); this.maybeAutoListen(); }
+        const reflexReceipt = () => reportTurnEnd('ask', this.state.voiceHold, {
+          ms: Date.now() - turn.askAt, restarts: 0, heard: true, lane: 'reflex',
+          firstTextMs: turn.firstTextAt - turn.askAt, firstAudioMs: turn.firstAudioAt ? turn.firstAudioAt - turn.askAt : undefined,
+        });
+        if (this.state.voiceSpeak) {
+          this.speakTtsSentence(resp.text, show, { onStart: () => { turn.firstAudioAt = Date.now(); } });
+          this.queueTtsFinalize(reflexReceipt);
+        } else { show(); this.maybeAutoListen(); reflexReceipt(); }
         return;
       }
-      const { jobId, agent } = resp;
+      const { jobId, agent, ack } = resp;
+      turn.lane = agent === 'coach' ? 'coach' : agent === 'leader' ? 'leader' : 'nova';
       // survive a reclaim mid-answer: the job id persists so boot can
       // re-attach the poll instead of losing the in-flight reply
       try { localStorage.setItem('novaos.askJob', JSON.stringify({ jobId, askedAt: Date.now(), agent: agent || null })); } catch { /* best-effort */ }
       // a specialist took the question: say so in one breath, then their
       // answer lands in this same transcript under their own name
       if (agent) this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'nova', text: agent === 'coach' ? 'Handing that to the Coach.' : 'Handing that to the Leader.', handoff: true }] }));
-      this.attachAskPoll(conn, jobId, { agent, meta });
+      // HIS NOUN, SAID BACK, AT ONCE (server/lib/acks.js): the server composed
+      // it from his words for the lane that is answering, and has already
+      // put it in the voice. Spoken now, before the poll, as the head of
+      // this reply's queue.
+      if (ack?.text) this.speakAckLine(ack, agent, turn);
+      this.attachAskPoll(conn, jobId, { agent, meta, turn });
     }).catch((e) => {
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message, ...(meta || {}) }] }));
       // the presence says a failed turn aloud (the words are hidden there)
@@ -10920,56 +10958,25 @@ export default class App extends Component {
       if ((this.speechActive || 0) === 0 && !this.ttsPlaying) releaseAudioGraph();
     }, 3000);
   }
-  // browser-synth chunk — used to speak sentences AS the reply streams in
-  // The instant acknowledgement. A model reply is 5-8s away; silence in that
-  // gap is what makes Nova feel like a form rather than a person. So the
-  // moment he stops talking, code (never a model) speaks one short line from
-  // the device's own voice — chosen deterministically, varied so it never
-  // sounds like a recording, and skipped entirely on the ElevenLabs path
-  // (a network round-trip for filler would defeat the point) or when the
-  // question is trivially short.
-  ACK_LINES = ['On it, sir.', 'Let me look.', 'One moment.', 'Checking now.', 'Right away, sir.'];
-  // Gratitude, agreement and hellos are not work. "Perfect, thanks Nova"
-  // must never be met with "On it, sir" — his note: it doesn't need to
-  // analyse anything. Mirrors the server's small-talk reflex so the ack is
-  // never spoken before the request has even left the device.
-  static SMALL_TALK = /^(?:ok(?:ay)?|alright|right|perfect|great|nice|good|cool|lovely|brilliant|awesome|cheers|got it|understood|noted|sounds good|hi|hey|hello|morning|good morning|afternoon|evening)?[,\s]*(?:thanks|thank you|ta|cheers|much appreciated|appreciate it)?[,\s]*(?:mate|nova|jarvis|sir)?[.!]?$/i;
-  // THE ACK IS NOW A LAST RESORT, NOT A REFLEX. His instruction, 16 Sep, off a
-  // Jarvis reel: the back-and-forth should feel quick and human, "rather than
-  // awkward waiting and awkward 'on it sir' or other phrases used to fill in
-  // the silent gaps."
+  // THE ACK THAT HEARD HIM (15 Oct 2026). His words: the prebuilt replies
+  // that "pretend" to be quick "get old quickly and become too expected and
+  // premeditated because it is the same responses". The old ack was five
+  // fixed lines on a 900 ms timer. This one is composed by the server from
+  // his own words, for the lane that is answering (server/lib/acks.js:
+  // "Checking your sleep this week."), never the same frame twice in a day,
+  // and arrives with the job id, so it is spoken the moment the ask returns.
   //
-  // It was written when a reply was 5-8s away and silence was the worse
-  // failure. It is not any more: measured the same day, five of his six
-  // commonest asks answer in 2-66ms, and the one that took 21.6 SECONDS is now
-  // 2ms. Against an answer that fast, speaking "On it, sir" first is not
-  // covering a gap — it IS the gap, and then the answer arrives on top of it.
-  //
-  // So it waits. If the reply has started by ACK_AFTER_MS the filler never
-  // happens at all, which on his numbers is almost always. A real pause still
-  // gets a word, because dead air past a second reads as broken.
-  ACK_AFTER_MS = 900;
-  speakAck(question) {
-    this.cancelAck();
+  // It is the head of this reply's queue and part of the reply (ONE VOICE:
+  // its voice is the reply's voice). If the first real sentence's audio is
+  // ready before the ack has started, the ack is dropped in drainTtsQueue:
+  // a receipt after the answer has begun is noise. A stop or a barge-in
+  // flushes it with everything else.
+  speakAckLine(ack, agent, turn = null) {
+    const title = agent === 'coach' ? 'COACH' : agent === 'leader' ? 'LEAD' : 'NOVA';
+    notify({ id: 'ask-ack', title, message: ack.text, tone: 'nova', duration: 2400 });
+    if (turn) { turn.ackText = ack.text; turn.ackId = ack.id || ''; }
     if (!this.state.voiceSpeak) return;
-    const q = (question || '').trim();
-    if (App.SMALL_TALK.test(q)) return; // a thank-you gets an answer, not a receipt
-    if (q.length < 12) return; // short asks answer fast enough
-    this.ackTimer = setTimeout(() => {
-      this.ackTimer = null;
-      // still nothing after the pause a person would allow — say one thing
-      if (!this.state.voiceBusy) return; // already answered
-      // rotate rather than random: no repeat twice running, no randomness to debug
-      this.ackIdx = ((this.ackIdx ?? -1) + 1) % this.ACK_LINES.length;
-      const line = this.ACK_LINES[this.ackIdx];
-      if (this.ttsUsable()) { this.speakTtsSentence(line); return; }
-      this.beginSpeech();
-      this.speakFallback(line, () => this.endSpeech());
-    }, this.ACK_AFTER_MS);
-  }
-  // The answer beat it. Nothing is spoken, and that is the point.
-  cancelAck() {
-    if (this.ackTimer) { clearTimeout(this.ackTimer); this.ackTimer = null; }
+    this.speakTtsSentence(ack.text, null, { stance: 'ack', ack: true, onStart: () => { if (turn && !turn.ackAt) turn.ackAt = Date.now(); } });
   }
   // CONFIGURED IS NOT READY, and the gap between them is thirteen hours of
   // silence. `configured` says an engine is set up; `ready` says it can make a
@@ -10986,6 +10993,7 @@ export default class App extends Component {
     const t = this.state.liveTts;
     return !!t?.configured && t.ready !== false;
   }
+  // browser-synth chunk — used to speak sentences AS the reply streams in
   speakIncremental(text, { stance = null } = {}) {
     if (!this.state.voiceSpeak || !text.trim()) return;
     this.beginSpeech();
@@ -11096,17 +11104,21 @@ export default class App extends Component {
   // like pressing play on something already written.
   // `stance` (4 Oct 2026): 'contest' when the sentence pushes back; it reaches
   // the captions' clock with the sentence, whichever voice speaks it
-  speakTtsSentence(text, onPlay, { stance = null } = {}) {
+  // `ack` (15 Oct 2026): this entry is the reply's ack, dropped if a real
+  // sentence is ready before it has started. `onStart` runs only when the
+  // audio truly starts (never on a flush, unlike onPlay): the receipts'
+  // clock (askNova's turn).
+  speakTtsSentence(text, onPlay, { stance = null, ack = false, onStart = null } = {}) {
     const clean = (text || '').trim().slice(0, 2400);
     if (!clean) return;
     const conn = getConnection();
-    if (!conn || !this.ttsUsable()) { onPlay?.(); this.speakIncremental(clean, { stance }); return; }
+    if (!conn || !this.ttsUsable()) { onPlay?.(); this.speakIncremental(clean, { stance }); onStart?.(); return; }
     const gen = this.ttsGen || 0;
     // conversational output (replies, briefs, greetings) carries a reveal
     // callback; previews/acks/fillers don't — only the former earns a
     // no-button reply window when the speaking ends
     if (onPlay) this.replyWorthy = true;
-    const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean, stance };
+    const entry = { done: false, buffer: null, blob: null, onPlay, revealed: false, said: clean, stance, ack, onStart };
     (this.ttsQueue = this.ttsQueue || []).push(entry);
     this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
     // A reply already committed to the browser voice does not go back to the
@@ -11142,6 +11154,17 @@ export default class App extends Component {
     if (gen !== (this.ttsGen || 0)) return; // flushed mid-flight — the fetch's beginSpeech was already zeroed
     if (this.ttsPlaying) return;
     const head = (this.ttsQueue || [])[0];
+    // A STALE ACK NEVER PLAYS. The ack heads the queue; if its audio is still
+    // coming while a real sentence behind it is ready, the answer has caught
+    // up and the receipt is dropped (it was never heard, so it releases its
+    // speech count and sets no voice for the reply).
+    if (head && head.ack && !head.done && (this.ttsQueue || []).some((e) => e !== head && e.done && !e.ack && !e.finalize && !e.failed)) {
+      this.ttsQueue.shift();
+      head.dropped = true;
+      this.endSpeech();
+      this.drainTtsQueue(gen);
+      return;
+    }
     if (!head || !head.done) return; // strict order: nothing plays past an unfinished head
     this.ttsQueue.shift();
     if (head.finalize) { try { head.finalize(); } catch { /* commit is best-effort */ } this.drainTtsQueue(gen); return; }
@@ -11162,11 +11185,15 @@ export default class App extends Component {
       //     which in the car is what matters; the voice test names the cause.
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
       if (this.ttsVoiceLock === 'server') { this.endSpeech(); this.drainTtsQueue(gen); return; }
+      // a failed ACK is skipped, never the reason the reply changes voice:
+      // the receipt is not worth the phone's voice for every sentence after it
+      if (head.ack && this.ttsVoiceLock !== 'browser') { this.endSpeech(); this.drainTtsQueue(gen); return; }
       this.ttsVoiceLock = 'browser';
       if (this.state.voiceSpeak && head.said) {
         this.ttsPlaying = true;          // the queue HOLDS: order survives
         this.ttsNowSaying = head.said;   // still owed to him if he leaves mid-sentence
         this.noteSpokenAloud(head.said);
+        try { head.onStart?.(); } catch { /* a receipt is best-effort */ }
         this.speakFallback(head.said, () => {
           if (gen !== (this.ttsGen || 0)) return; // a stop flushed this generation
           this.ttsPlaying = false; this.ttsNowSaying = null;
@@ -11203,6 +11230,7 @@ export default class App extends Component {
       // the captions' clock: this sentence's audio starts now and lasts
       // exactly the decoded buffer (speechClock.js, the full-screen Nova)
       noteSpokenSentence(head.said, head.buffer.duration * 1000, { stance: head.stance });
+      try { head.onStart?.(); } catch { /* a receipt is best-effort */ }
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
       return;
     }
@@ -11233,6 +11261,7 @@ export default class App extends Component {
       // the captions' clock: the element's own length (estimated if the
       // browser has not read it, and the sentence says so)
       noteSpokenSentence(head.said, Number.isFinite(audio.duration) ? audio.duration * 1000 : null, { stance: head.stance });
+      try { head.onStart?.(); } catch { /* a receipt is best-effort */ }
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
     }).catch((err) => {
       // The reply exists but the device refused to play it. NEVER let that
