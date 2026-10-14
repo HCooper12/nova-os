@@ -6011,3 +6011,8 @@ body:has(.nv-fx[data-mode="briefing"]) [aria-label$="the sidebar (⌘B)"] { visi
 @keyframes nvLoggedOut { to { opacity: 0; } }
 /* reduced motion: still confirmed, by a fade only: no pop, no draw */
 @media (prefers-reduced-motion: reduce) { .nv-logged svg, .nv-logged svg path { animation: none; stroke-dashoffset: 0; } }
+
+/* Home's Pinned grid can be carried in place (src/useGridDrag.js): offsets are
+   measured against the grid, and a long press must not select text or open
+   the callout */
+.nv-sum-grid-drag { position: relative; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

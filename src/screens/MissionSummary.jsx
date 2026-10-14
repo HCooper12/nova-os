@@ -15,6 +15,7 @@ import { DaysRing } from '../StuckCard.jsx';
 import { Pill } from '../AppleLayout.jsx';
 import { Eyebrow, TextAction, Meta } from '../Controls.jsx';
 import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
+import { useGridDrag } from '../useGridDrag.js';
 import { prLift, prKind, prGain } from '../missionFocus.js';
 import { muscleVar } from '../muscleHue.js';
 import { GlyphTile } from '../BodyGlyph.jsx';
@@ -382,11 +383,11 @@ function Moment({ k, v }) {
 // ONE sentence, written by code from the same ring fields the Body card
 // draws (summaryFacts.buildHighlight), so the two can never disagree; its
 // bar; and one quiet act.
-function Highlight({ h }) {
+function Highlight({ h, cls, style }) {
   const tone = `var(--nv-sum-${h.tone || 'c1'})`;
   const pct = h.pct == null ? null : clampPct(h.pct);
   return (
-    <section className="nv-sum-card nv-sum-rise" style={{ '--i': 2, padding: '14px 16px', ...glow(tone, 'var(--nv-cy)') }} aria-label={h.eyebrow}>
+    <section className={cls || 'nv-sum-card nv-sum-rise'} style={{ '--i': 2, ...style, padding: '14px 16px', ...glow(tone, 'var(--nv-cy)') }} aria-label={h.eyebrow}>
       <CardHead icon={HL_ICON[h.key] || 'clear'} label={h.eyebrow} tile={[tone, 'var(--nv-cy)']} meta={<NowHM />} />
       <p style={{ margin: '8px 0 0', font: '400 var(--nv-sum-hl-size)/1.35 var(--nv-sum-hl-font)', color: 'var(--nv-ink)', textWrap: 'pretty' }}>
         {h.segments.map((s, i) => (s.b ? <b key={i} style={{ fontWeight: 700 }}>{s.t}</b> : <span key={i}>{s.t}</span>))}
@@ -801,6 +802,7 @@ function PinnedCard({ card, i }) {
   const cls = `nv-sum-card nv-sum-rise${card.span ? ' nv-sum-wide' : ''}`;
   const style = { '--i': i + 3, ...(CARD_GLOW[card.key] ? CARD_GLOW[card.key](card) : lit(CARD_LIGHT[card.key])) };
   switch (card.key) {
+    case 'highlight': return <Highlight h={card.h} cls={cls} style={{ '--i': i + 3 }} />;
     case 'body': return <BodyCard card={card} cls={cls} style={style} />;
     case 'today': return <TodayCard card={card} cls={cls} style={style} />;
     case 'plan': return <PlanCard card={card} cls={cls} style={style} />;
@@ -811,6 +813,21 @@ function PinnedCard({ card, i }) {
     case 'day': return <YourDayCard d={card} cls={cls} style={style} />;
     default: return null;
   }
+}
+
+// The grid he can rearrange in place: touch and hold a card, carry it, let
+// go (src/useGridDrag.js). The order shown while carrying is a preview; the
+// list is saved once, on release.
+function PinnedGrid({ cards, onMove }) {
+  const keys = cards.map((c) => c.key);
+  const { gridRef, order } = useGridDrag(keys, onMove);
+  const byKey = Object.fromEntries(cards.map((c) => [c.key, c]));
+  const laid = layoutCards(order.map((k) => byKey[k]).filter(Boolean));
+  return (
+    <div ref={gridRef} className="nv-sum-grid nv-sum-grid-drag">
+      {laid.map((card, i) => <PinnedCard key={card.key} card={card} i={i} />)}
+    </div>
+  );
 }
 
 // ------------------------------------------------------------------ Home ---
@@ -842,18 +859,13 @@ export function MissionSummary({ v }) {
           {S.moments.includes('review') && <Moment key="review" k="review" v={v} />}
           {S.yourDay && !S.yourDay.pinned && <YourDayCard d={S.yourDay} />}
           {S.moments.filter((k) => k !== 'review').map((k) => <Moment key={k} k={k} v={v} />)}
-          <Highlight h={S.highlight} />
         </div>
 
-        <div className="nv-sum-rise" style={{ '--i': 3, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', margin: '22px 4px 8px' }}>
+        <div className="nv-sum-rise" style={{ '--i': 3, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', margin: `${S.moments.length || (S.yourDay && !S.yourDay.pinned) ? 22 : 12}px 4px 8px` }}>
           <h2 style={{ margin: 0, font: `700 22px/1.2 ${UI}`, letterSpacing: '-.02em' }}>Pinned</h2>
           <TextAction tone="accent" onClick={S.edit.openEdit} ariaLabel="Edit Pinned">Edit</TextAction>
         </div>
-        {cards.length > 0 && (
-          <div className="nv-sum-grid">
-            {cards.map((card, i) => <PinnedCard key={card.key} card={card} i={i} />)}
-          </div>
-        )}
+        {cards.length > 0 && <PinnedGrid cards={S.cards} onMove={S.edit.moveVisible} />}
         <p className="nv-sum-rise" style={{ '--i': cards.length + 3, margin: '16px 4px 0', font: `400 13px/1.4 ${UI}`, color: 'var(--nv-ink60)', textAlign: 'center', textWrap: 'pretty' }}>{S.foot}</p>
       </div>
       {S.edit.open && <PinnedEditSheet edit={S.edit} rows={S.allCards} />}

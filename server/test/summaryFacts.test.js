@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   shortLabel, stripSlots, nextLine, buildHighlight, buildTrends, summaryStandfirst,
 } from '../../src/summaryFacts.js';
-import { reconcilePinned, movePinned, PINNED_CARDS, PINNED_DEFAULT_OFF } from '../../src/pinned.js';
+import { reconcilePinned, movePinned, applyVisibleOrder, PINNED_CARDS, PINNED_DEFAULT_OFF } from '../../src/pinned.js';
 import { prLift, prBasis } from '../../src/missionFocus.js';
 
 const joined = (segments) => segments.map((s) => s.t).join('');
@@ -349,7 +349,17 @@ test('buildTrends always returns exactly the four rows, in order', () => {
 test('reconcilePinned drops a retired key and appends a new one in meta order', () => {
   const meta = [...PINNED_CARDS, ['newcard', 'New card']];
   const list = reconcilePinned({ order: ['trends', 'retired', 'body'], off: [] }, meta);
-  assert.deepEqual(list.map((x) => x.key), ['trends', 'body', 'today', 'plan', 'waiting', 'training', 'practice', 'day', 'newcard']);
+  assert.deepEqual(list.map((x) => x.key), ['trends', 'body', 'highlight', 'today', 'plan', 'waiting', 'training', 'practice', 'day', 'newcard']);
+});
+
+test("'Right now' joins a saved order at the top, on, and then moves like any card", () => {
+  const before = reconcilePinned({ order: ['trends', 'body', 'today', 'plan', 'waiting', 'training', 'practice', 'day'], off: ['day'] });
+  assert.equal(before[0].key, 'highlight');
+  assert.equal(before[0].on, true);
+  assert.deepEqual(before.slice(1).map((x) => x.key), ['trends', 'body', 'today', 'plan', 'waiting', 'training', 'practice', 'day']);
+  // saved with Body first: his order stands
+  const moved = reconcilePinned({ order: ['body', 'highlight', 'today'], off: [] });
+  assert.deepEqual(moved.slice(0, 2).map((x) => x.key), ['body', 'highlight']);
 });
 
 test('reconcilePinned keeps `off` as on=false, and defaults everything else on', () => {
@@ -420,4 +430,13 @@ test('prLift: an estimated 1RM is labelled as an estimate, never printed as if l
 test('prBasis: heaviest yet, with the delta arrow only when it actually improved', () => {
   assert.equal(prBasis({ kind: 'weight', value: 30, previous: 27.5 }), 'heaviest yet ▲2.5');
   assert.equal(prBasis({ kind: 'weight', value: 30, previous: null }), 'heaviest yet');
+});
+
+test('a carry on Home reorders the shown cards and leaves hidden ones in their slots', () => {
+  const list = [{ key: 'highlight', on: true }, { key: 'body', on: true }, { key: 'plan', on: false }, { key: 'today', on: true }];
+  const out = applyVisibleOrder(list, ['body', 'today', 'highlight']);
+  assert.deepEqual(out.map((x) => x.key), ['body', 'today', 'plan', 'highlight']);
+  assert.equal(out.find((x) => x.key === 'plan').on, false);
+  // a key it does not know changes nothing
+  assert.equal(applyVisibleOrder(list, ['body', 'ghost']), list);
 });

@@ -1,6 +1,6 @@
 import { dtf } from './fmt.js';
 import { localDateISO } from '../localDate.js';
-import { getPinned } from '../pinned.js';
+import { getPinned, applyVisibleOrder } from '../pinned.js';
 import { inMorning } from '../dayCard.js';
 import { prLift, prBasis } from '../missionFocus.js';
 import { routineGlyph } from '../trainSummaryFacts.js';
@@ -49,6 +49,8 @@ export function valsSummary(app, ctx, m) {
   });
 
   const cardData = {
+    // the hour's one sentence, a card he can move like the rest (14 Oct)
+    highlight: { h: highlight },
     body: bodyCard(m, ctx),
     today: todayCard(m),
     plan: planCard(m, ctx),
@@ -72,7 +74,7 @@ export function valsSummary(app, ctx, m) {
     foot: dayPinned ? null : 'Until 11:00, or until you have seen all five. Pin it from Edit to keep it.',
   } : null;
   cardData.day = dayPinned ? yourDay : null;
-  const WIDE = new Set(['body', 'today', 'training', 'day']);
+  const WIDE = new Set(['highlight', 'body', 'today', 'training', 'day']);
   const cards = pinnedList
     .filter((p) => p.on && cardData[p.key])
     .map((p) => ({ key: p.key, wide: WIDE.has(p.key), ...cardData[p.key] }));
@@ -94,8 +96,10 @@ export function valsSummary(app, ctx, m) {
         openEdit: () => app.openPinnedEdit?.(),
         close: () => app.closePinnedEdit?.(),
         setList: (list) => app.setPinned?.(list),
+        // a carry on Home itself: the shown cards' new order, the rest untouched
+        moveVisible: (visible) => app.setPinned?.(applyVisibleOrder(getPinned(), visible)),
       },
-      foot: 'Edit Pinned to choose what appears here. Everything else is one tap away under More, and comes back here when it has news.',
+      foot: 'Touch and hold a card to move it. Edit chooses what appears here; everything else is under More, and comes back here when it has news.',
     },
   };
 }
