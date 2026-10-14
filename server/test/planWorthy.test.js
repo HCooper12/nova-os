@@ -78,3 +78,13 @@ test('...but a question about the background is still a question', () => {
     'how many agents do you have running',
   ]) assert.equal(planWorthy(s), false, s);
 });
+
+// 15 Oct 2026, by voice: a one-day change for the Coach became a two-agent
+// plan because "the plan for today" and "make it go back" read as two jobs.
+test('"the plan" and "make it" are not jobs: his one-day leg-session ask stays with the conversation', () => {
+  assert.equal(planWorthy("Well, in that case, just ignore it for today. I'll just keep in mind to go lighter on my reps. Can you add that into the plan for today at least, but then make it go back to normal for the next leg session?"), false);
+  assert.equal(planWorthy('make sure the plan for tomorrow has my leg day, then make it lighter'), false);
+  // real delegations still are plans
+  assert.equal(planWorthy('research creatine timing, then write me a one page summary and make a shopping list'), true);
+  assert.equal(planWorthy('draft a plan for my week, then build a tracker for it'), true);
+});

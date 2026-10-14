@@ -119,6 +119,15 @@ const AGENT_ASK = /\b(?:start|spin up|launch|put|set|get|send|have)\s+(?:up\s+)?
 // the background is a question about work already running
 const REQUEST_OPENER = /^(?:can|could|will|would)\s+you\b/i;
 
+// NOT EVERY "PLAN" OR "MAKE" IS A JOB (15 Oct 2026). His words, by voice:
+// "Can you add that into the plan for today at least, but then make it go
+// back to normal for the next leg session?" counted "plan" and "make" as two
+// things to produce, joined by "then", and a one-day change for the Coach
+// became a two-agent, US$1.55 plan card titled with his sentence. "The plan"
+// is a noun and "make it go back" means cause, not build: neither is work.
+const NOT_JOBS = /\b(?:the|my|your|today'?s|tomorrow'?s|this|that|a|our)\s+plans?\b|\bmake\s+(?:it|that|this|them|sure|sense)\b/gi;
+const jobWords = (t) => t.replace(NOT_JOBS, ' ');
+
 export function planWorthy(text) {
   const t = String(text || '').trim();
   if (t.length < 25) return false; // too short to be a compound brief
@@ -131,7 +140,7 @@ export function planWorthy(text) {
   const sequenced = SEQUENCER.test(t);
   if (QUESTION_OPENER.test(t) && !sequenced) return false;
   // DISTINCT verbs: "research this and research that" is one job asked twice
-  const verbs = new Set((t.match(DO_VERB) || []).map((v) => v.toLowerCase()));
+  const verbs = new Set((jobWords(t).match(DO_VERB) || []).map((v) => v.toLowerCase()));
   if (verbs.size < 2) return false;
   // two things joined by "then" is a plan; three things is a plan however he
   // joined them
