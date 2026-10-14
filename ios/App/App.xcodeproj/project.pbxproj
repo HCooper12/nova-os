@@ -20,6 +20,8 @@
 		A7E1D000000000000000000B /* NovaActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1D0000000000000000001 /* NovaActivityAttributes.swift */; };
 		A7E1D000000000000000000C /* NovaLiveActivityPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1D0000000000000000002 /* NovaLiveActivityPlugin.swift */; };
 		A7E1D0000000000000000020 /* NovaHealthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1D0000000000000000021 /* NovaHealthPlugin.swift */; };
+		A7E1D0000000000000000023 /* NovaWidgetsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1D0000000000000000024 /* NovaWidgetsPlugin.swift */; };
+		A7E1D0000000000000000025 /* NovaWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1D0000000000000000026 /* NovaWidgets.swift */; };
 		A7E1D000000000000000000D /* NovaBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1D0000000000000000003 /* NovaBridgeViewController.swift */; };
 		A7E1D000000000000000000E /* NovaLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1D0000000000000000004 /* NovaLiveActivityWidget.swift */; };
 		A7E1D000000000000000000F /* NovaLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E1D0000000000000000005 /* NovaLiveActivityBundle.swift */; };
@@ -67,6 +69,9 @@
 		A7E1D0000000000000000001 /* NovaActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovaActivityAttributes.swift; sourceTree = "<group>"; };
 		A7E1D0000000000000000002 /* NovaLiveActivityPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovaLiveActivityPlugin.swift; sourceTree = "<group>"; };
 		A7E1D0000000000000000021 /* NovaHealthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovaHealthPlugin.swift; sourceTree = "<group>"; };
+		A7E1D0000000000000000024 /* NovaWidgetsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovaWidgetsPlugin.swift; sourceTree = "<group>"; };
+		A7E1D0000000000000000026 /* NovaWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovaWidgets.swift; sourceTree = "<group>"; };
+		A7E1D0000000000000000027 /* NovaLiveActivity.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NovaLiveActivity.entitlements; sourceTree = "<group>"; };
 		A7E1D0000000000000000022 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		A7E1D0000000000000000003 /* NovaBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovaBridgeViewController.swift; sourceTree = "<group>"; };
 		A7E1D0000000000000000004 /* NovaLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NovaLiveActivityWidget.swift; sourceTree = "<group>"; };
@@ -125,6 +130,7 @@
 				A7E1D0000000000000000003 /* NovaBridgeViewController.swift */,
 				A7E1D0000000000000000002 /* NovaLiveActivityPlugin.swift */,
 				A7E1D0000000000000000021 /* NovaHealthPlugin.swift */,
+				A7E1D0000000000000000024 /* NovaWidgetsPlugin.swift */,
 				A7E1D0000000000000000022 /* App.entitlements */,
 				A7E1D0000000000000000001 /* NovaActivityAttributes.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
@@ -144,6 +150,8 @@
 			children = (
 				A7E1D0000000000000000005 /* NovaLiveActivityBundle.swift */,
 				A7E1D0000000000000000004 /* NovaLiveActivityWidget.swift */,
+				A7E1D0000000000000000026 /* NovaWidgets.swift */,
+				A7E1D0000000000000000027 /* NovaLiveActivity.entitlements */,
 				A7E1D0000000000000000006 /* Info.plist */,
 			);
 			path = NovaLiveActivity;
@@ -276,6 +284,7 @@
 				A7E1D000000000000000000D /* NovaBridgeViewController.swift in Sources */,
 				A7E1D000000000000000000C /* NovaLiveActivityPlugin.swift in Sources */,
 				A7E1D0000000000000000020 /* NovaHealthPlugin.swift in Sources */,
+				A7E1D0000000000000000023 /* NovaWidgetsPlugin.swift in Sources */,
 				A7E1D000000000000000000A /* NovaActivityAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -286,6 +295,7 @@
 			files = (
 				A7E1D000000000000000000F /* NovaLiveActivityBundle.swift in Sources */,
 				A7E1D000000000000000000E /* NovaLiveActivityWidget.swift in Sources */,
+				A7E1D0000000000000000025 /* NovaWidgets.swift in Sources */,
 				A7E1D000000000000000000B /* NovaActivityAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -493,6 +503,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
+				CODE_SIGN_ENTITLEMENTS = NovaLiveActivity/NovaLiveActivity.entitlements;
 				INFOPLIST_FILE = NovaLiveActivity/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -517,6 +528,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
+				CODE_SIGN_ENTITLEMENTS = NovaLiveActivity/NovaLiveActivity.entitlements;
 				INFOPLIST_FILE = NovaLiveActivity/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = "$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)";
 				LD_RUNPATH_SEARCH_PATHS = (

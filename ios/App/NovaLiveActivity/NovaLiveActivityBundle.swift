@@ -5,5 +5,9 @@ import WidgetKit
 struct NovaLiveActivityBundle: WidgetBundle {
     var body: some Widget {
         NovaLiveActivityWidget()
+        NovaRingsWidget()
+        NovaNumberWidget()
+        NovaFuelWidget()
+        NovaTodayWidget()
     }
 }

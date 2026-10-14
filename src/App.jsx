@@ -29,6 +29,7 @@ import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem 
 import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
 import { pauseSession, resumeSession, isPaused } from './sessionClock.js';
 import { syncHealth } from './healthSync.js';
+import { syncWidgets } from './widgetBridge.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial, getGlow, getGlowQuiet, applyGlow } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { savePinned } from './pinned.js';
@@ -2138,6 +2139,8 @@ export default class App extends Component {
         const cached = {};
         for (const key of CACHED_LIVE_KEYS) cached[key] = this.state[key];
         saveLiveCache(cached);
+        // a write just landed (a meal, a set): the widgets show it now
+        syncWidgets(conn, { force: true });
       });
     } catch {
       this.refreshLiveData();
@@ -2275,6 +2278,7 @@ export default class App extends Component {
           const slices = {};
           for (const key of CACHED_LIVE_KEYS) slices[key] = this.state[key];
           saveLiveCache(slices);
+          syncWidgets(conn); // the Home Screen widgets redraw with what just landed
           this.drainOutbox(); // the backend is answering — flush queued writes
           this.warmBests();
           // the doorman meets him at whatever door he came in — the due
