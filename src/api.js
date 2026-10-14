@@ -496,7 +496,8 @@ export const api = {
   ingestJob: (conn, jobId) => call(conn, `/api/ingest/${encodeURIComponent(jobId)}`),
   approveIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/approve`),
   discardIngest: (conn, jobId) => post(conn, `/api/ingest/${encodeURIComponent(jobId)}/discard`),
-  inbox: (conn) => call(conn, '/api/inbox'),
+  // `recent`: days of settled history to carry (the sync's 14); none = all of it
+  inbox: (conn, { recent } = {}) => call(conn, recent ? `/api/inbox?recent=${recent}` : '/api/inbox'),
   dispatchStatus: (conn) => call(conn, '/api/dispatch'),
   todoistStatus: (conn) => call(conn, '/api/todoist'),
   todoistSync: (conn) => post(conn, '/api/todoist/sync', {}),

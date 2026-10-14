@@ -767,6 +767,11 @@ export function valsInbox(app, ctx) {
       };
     })(),
     inboxHistory: historyItems,
+    // settled records older than the sync's 14 days, counted by the server
+    // and fetched only when he asks
+    inboxOlderCount: !st.inboxShowAll ? (inbox?.olderCount || 0) : 0,
+    inboxOlderBusy: !!st.inboxOlderBusy,
+    inboxLoadOlder: () => app.loadOlderInbox(),
     // the line under the History head, counted from the rows (inboxDigest.js)
     inboxHistoryNote: undoLine(historyItems),
     // DID MY CAPTURE LAND? His report, 15 Sep: "I'm still not seeing it

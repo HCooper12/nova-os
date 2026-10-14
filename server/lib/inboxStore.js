@@ -192,3 +192,21 @@ export function _resetInboxStore() {
   cache = null;
   loadPromise = null;
 }
+
+// THE SYNC CARRIES RECENT HISTORY ONLY (his yes, 14 Oct 2026). 426 records,
+// most of them long settled, were half the sync's weight. Anything still
+// open rides every sync; a settled record rides it for `days` (the undo row,
+// the proposed-rule nudges and today's counts all read recent history), and
+// the older ones are counted so the Inbox can say so and fetch them on a tap.
+const SETTLED = new Set(['filed', 'discarded', 'undone', 'withdrawn', 'error']);
+export function recentInbox(items, { days = 14, now = Date.now() } = {}) {
+  const cutoff = now - days * 86_400_000;
+  const kept = [];
+  let olderCount = 0;
+  for (const r of items) {
+    const stamp = Date.parse(r.filedAt || r.updatedAt || r.createdAt || '');
+    if (SETTLED.has(r.status) && Number.isFinite(stamp) && stamp < cutoff) olderCount += 1;
+    else kept.push(r);
+  }
+  return { items: kept, olderCount };
+}

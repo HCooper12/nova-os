@@ -808,6 +808,11 @@ function InboxClassic({ v }) {
                 Show {Math.min(100, hiddenHistoryCount)} more · {hiddenHistoryCount} older
               </TextAction>
             )}
+            {hiddenHistoryCount <= 0 && v.inboxOlderCount > 0 && (
+              <TextAction tone="quiet" onClick={v.inboxLoadOlder} disabled={v.inboxOlderBusy} style={{ alignSelf: 'flex-start', marginTop: '12px' }}>
+                {v.inboxOlderBusy ? 'Loading older history…' : `Show ${v.inboxOlderCount} older than two weeks`}
+              </TextAction>
+            )}
           </div>
         )}
       </div>

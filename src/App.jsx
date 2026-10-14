@@ -2066,7 +2066,7 @@ export default class App extends Component {
     apply('graph', (r) => { this.setState({ liveGraph: r }); this.gNodes = null; });
     apply('repertoire', (r) => this.setState({ liveRepertoire: r }));
     apply('stuck', (r) => this.setState({ liveStuck: r }));
-    apply('inbox', (r) => { this.setState({ liveInbox: r }); this.narrateJobs(r); });
+    apply('inbox', (r) => { const merged = this.inboxFromSync(r); this.setState({ liveInbox: merged }); this.narrateJobs(merged); });
     apply('dispatch', (r) => this.setState({ liveDispatch: r }));
     apply('compost', (r) => this.setState({ liveCompost: r }));
     apply('commitments', (r) => this.setState({ liveCommitments: r }));
@@ -2204,7 +2204,7 @@ export default class App extends Component {
         this.setState({ liveGraph: graph });
         this.gNodes = null; // rebuilt from the fresh graph next time the galaxy renders
       },
-      async () => { const r = await api.inbox(conn); this.setState({ liveInbox: r }); this.narrateJobs(r); },
+      async () => { const r = this.inboxFromSync(await api.inbox(conn, { recent: 14 })); this.setState({ liveInbox: r }); this.narrateJobs(r); },
       async () => this.setState({ liveDispatch: await api.dispatchStatus(conn) }),
       async () => this.setState({ liveCompost: await api.compost(conn) }),
       async () => this.setState({ liveCommitments: await api.commitments(conn) }),
@@ -6272,12 +6272,32 @@ export default class App extends Component {
       .catch((e) => this.toastMsg('Could not mark it: ' + e.message));
   }
   // ---------- nova inbox (capture → classify → file) ----------
+  // The sync carries open records + 14 days of history (his yes, 14 Oct
+  // 2026: the full 426 were half the sync). Once he has asked for the older
+  // ones, a sync keeps them rather than snapping the list back.
+  inboxFromSync(r) {
+    const prev = this.state.liveInbox;
+    if (!r?.olderCount || !this.state.inboxShowAll || !prev?.items) return r;
+    const have = new Set((r.items || []).map((x) => x.id));
+    const older = prev.items.filter((x) => !have.has(x.id));
+    const items = [...(r.items || []), ...older].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return { ...r, items, olderCount: 0 };
+  }
+  loadOlderInbox() {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ inboxOlderBusy: true });
+    api.inbox(conn)
+      .then((data) => this.setState({ liveInbox: data, inboxShowAll: true, inboxOlderBusy: false }))
+      .catch((e) => { this.setState({ inboxOlderBusy: false }); this.toastMsg('Could not load older history: ' + e.message); });
+  }
   refreshInbox() {
     const conn = getConnection();
     if (!conn) return Promise.resolve();
     // approvals can file to-dos — keep the To-Do tab in step with the queue
     api.todos(conn).then((data) => this.setState({ liveTodos: data })).catch(() => {});
-    return api.inbox(conn).then((data) => {
+    return api.inbox(conn, { recent: 14 }).then((raw) => {
+      const data = this.inboxFromSync(raw);
       this.setState({ liveInbox: data });
       this.updateAppBadge(data);
       this.attachRunningPlan(data);

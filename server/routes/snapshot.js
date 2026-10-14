@@ -36,7 +36,7 @@ export const SLICES = {
   workoutRoutines: '/api/workouts/routines',
   workoutGoals: '/api/workouts/goals',
   graph: '/api/graph',
-  inbox: '/api/inbox',
+  inbox: '/api/inbox?recent=14', // open records + 14 days of history; older on a tap
   dispatch: '/api/dispatch',
   compost: '/api/compost',
   commitments: '/api/commitments',

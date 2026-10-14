@@ -3,7 +3,7 @@ import { sendJson } from '../lib/compressJson.js';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { setSeen, startCapture, approveRecord, discardRecord, undoRecord, reopenRecord, retryRecord, MODES } from '../lib/inbox.js';
-import { listRecords, getRecord } from '../lib/inboxStore.js';
+import { listRecords, getRecord, recentInbox } from '../lib/inboxStore.js';
 
 export function inboxRouter(vaultPath) {
   const router = express.Router();
@@ -184,8 +184,15 @@ export function inboxRouter(vaultPath) {
 
   router.get('/inbox', async (req, res) => {
     try {
-      const items = await listRecords();
-      await sendJson(req, res, { items, pendingCount: items.filter((r) => r.status === 'pending').length });
+      const all = await listRecords();
+      const pendingCount = all.filter((r) => r.status === 'pending').length;
+      // ?recent=14 — the sync's copy (lib/inboxStore.js recentInbox); none = everything
+      const days = Number(req.query.recent);
+      if (Number.isFinite(days) && days > 0) {
+        const { items, olderCount } = recentInbox(all, { days });
+        return await sendJson(req, res, { items, pendingCount, olderCount });
+      }
+      await sendJson(req, res, { items: all, pendingCount });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
