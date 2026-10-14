@@ -209,24 +209,107 @@ const titleKey = (v) => String(v ?? '');
 // knowledge, so it never enters the review: tagged `vault-methodology` (or
 // `review: false` in its frontmatter, his own off switch for any page).
 export const NOT_REVIEWED_TAGS = new Set(['vault-methodology']);
-export function reviewable(p) {
-  if (!p || (p.type !== 'concept' && p.type !== 'topic')) return false;
-  if (p.review === false || p.frontmatter?.review === false) return false;
-  const tags = Array.isArray(p.tags) ? p.tags : typeof p.tags === 'string' ? p.tags.split(/[,\s]+/) : [];
-  return !tags.some((t) => NOT_REVIEWED_TAGS.has(String(t).trim().toLowerCase()));
+const tagList = (p) => (Array.isArray(p?.tags) ? p.tags : typeof p?.tags === 'string' ? p.tags.split(/[,\s]+/) : [])
+  .map((t) => String(t).trim().toLowerCase()).filter(Boolean);
+
+// THE REVIEW IS FOR THE MIND, NOT THE BODY (15 Oct 2026). Two mornings
+// running his card was a training page ("Lats vs Upper Back in Pulling",
+// from a Janicki × Tennyson video): newest-first meant whatever was ingested
+// last, and lately that was gym video. His words: the review is for
+// "psychological or self-help kind of concepts... not things like work out
+// and training information" (Williamson, Hormozi, the Diary of a CEO, books
+// like The Next Conversation). Training already has its own home in Train
+// and Coach. The domain is read from the page's own `tags:`, which the
+// ingest model wrote when it filed the page (a classification already made,
+// not a keyword guess at the body text): a page is the body's when its
+// leading tag is a body tag, or body tags are at least half its tags. So
+// "3rd Law: Make It Easy" (habits, ..., nutrition) stays, "The Three-
+// Exercise Constraint" (health, training, ...) goes. `review: true` in a
+// page's frontmatter is his override to bring any page back.
+export const BODY_TAGS = new Set([
+  'training', 'hypertrophy', 'fitness', 'bodybuilding', 'exercise', 'exercise-science',
+  'exercise-selection', 'exercise-execution', 'resistance-training', 'strength', 'cardio',
+  'programming', 'progressive-overload', 'biomechanics', 'injury', 'mobility', 'aesthetics',
+  'nutrition', 'diet', 'protein', 'supplements', 'fat-loss', 'body-composition', 'hydration',
+  'health', 'sleep', 'recovery', 'longevity', 'aging', 'mitochondria', 'light',
+  'circadian-rhythm', 'circadian', 'cortisol', 'bone-density', 'biological-age',
+]);
+export function bodyDomain(p) {
+  const tags = tagList(p);
+  if (!tags.length) return false;
+  if (BODY_TAGS.has(tags[0])) return true;
+  return tags.filter((t) => BODY_TAGS.has(t)).length * 2 >= tags.length;
 }
 
-// Candidates never in the log, ranked newest page first (its concept page's
-// own date, standing in for "the day after the source was ingested, while
-// the curve is steepest"), then most backlinked, then title.
+export function reviewable(p) {
+  if (!p || (p.type !== 'concept' && p.type !== 'topic')) return false;
+  const flag = p.review ?? p.frontmatter?.review;
+  if (flag === false) return false;
+  if (tagList(p).some((t) => NOT_REVIEWED_TAGS.has(t))) return false;
+  return flag === true || !bodyDomain(p);
+}
+
+// How far one idea reaches: the distinct sources it stands on, plus the
+// OTHER sources its linked reviewable pages come from. His ask (15 Oct): a
+// concept is "made even stronger if it has links with other information" —
+// a chapter of The Next Conversation that a Diary of a CEO episode also
+// makes. So the idea that bridges a book and a podcast comes before an idea
+// only one video ever said.
+const sourceTitles = (p) => new Set((p?.sources || []).map((s) => String(s?.title ?? '').toLowerCase()).filter(Boolean));
+export function reach(page, byTitle) {
+  const own = sourceTitles(page);
+  const all = new Set(own);
+  for (const link of page.links || []) {
+    const target = byTitle.get(String(link).toLowerCase());
+    if (!target || target.id === page.id || !reviewable(target)) continue;
+    for (const s of sourceTitles(target)) all.add(s);
+  }
+  return { own: own.size, bridged: all.size - own.size };
+}
+
+// Candidates never in the log, ranked: one specific concept before a broad
+// topic hub (he asked for "a specific chapter or concept"); then reach (up
+// to three sources of its own, beyond which a page is a survey, then more
+// sources bridged through its links; see `reach`); then newest
+// page first (its concept page's own date, standing in for "the day after
+// the source was ingested, while the curve is steepest"), then most
+// backlinked, then title.
 export function newCandidates(pages, cards, backlinkCounts) {
   const seen = new Set(Object.keys(cards));
+  const byTitle = new Map(pages.map((p) => [titleKey(p.title).toLowerCase(), p]));
   return pages
     .filter((p) => reviewable(p) && !seen.has(p.id))
-    .map((p) => ({ id: p.id, page: p, backlinks: backlinkCounts?.get(p.id) || 0 }))
-    .sort((a, b) => dateKey(b.page.date).localeCompare(dateKey(a.page.date))
+    .map((p) => ({ id: p.id, page: p, backlinks: backlinkCounts?.get(p.id) || 0, reach: reach(p, byTitle) }))
+    .sort((a, b) => (a.page.type === 'topic') - (b.page.type === 'topic')
+      || Math.min(b.reach.own, 3) - Math.min(a.reach.own, 3)
+      || b.reach.bridged - a.reach.bridged
+      || dateKey(b.page.date).localeCompare(dateKey(a.page.date))
       || b.backlinks - a.backlinks
       || titleKey(a.page.title).localeCompare(titleKey(b.page.title)));
+}
+
+// The concept answered most recently: its answer date is its due date less
+// the gap it was given. Used only to rotate the day's new pick away from the
+// source he just reviewed, so one 32-page episode cannot fill a fortnight.
+function lastAnsweredId(cards) {
+  let best = null;
+  for (const [id, c] of Object.entries(cards || {})) {
+    if (!c?.due) continue;
+    const at = shiftDate(c.due, -GAPS[c.step] || 0);
+    if (!best || at > best.at) best = { id, at };
+  }
+  return best?.id || null;
+}
+
+// The day's new pick: the best-ranked candidate not from the source of the
+// concept he answered last, or simply the best when every candidate is.
+export function pickNew(pages, cards, backlinkCounts) {
+  const ranked = newCandidates(pages, cards, backlinkCounts);
+  const lastId = lastAnsweredId(cards);
+  const last = lastId ? pages.find((p) => p.id === lastId) : null;
+  const avoid = sourceTitles(last);
+  if (!avoid.size) return ranked[0] || null;
+  return ranked.find((c) => ![...sourceTitles(c.page)].some((t) => avoid.has(t))) || ranked[0] || null;
 }
 
 // The whole day's queue: up to DAILY ids, due cards first (most overdue),
@@ -236,7 +319,7 @@ export function buildQueue({ pages, cards, backlinkCounts, today, daily = DAILY,
   const due = dueCards(cards, pagesById, today);
   const queue = due.slice(0, daily).map((d) => ({ id: d.id, page: d.page, step: d.step, kind: 'due' }));
   if (due.length < newWhenBelow && queue.length < daily) {
-    const [pick] = newCandidates(pages, cards, backlinkCounts);
+    const pick = pickNew(pages, cards, backlinkCounts);
     if (pick) queue.push({ id: pick.id, page: pick.page, step: 0, kind: 'new' });
   }
   return { queue: queue.slice(0, daily), dueCount: due.length };
@@ -301,18 +384,25 @@ export function titleToIdMap(pages) {
 // target links back) first, then the most backlinked overall, then title.
 export function connectedNotes(page, pages, backlinkCounts, max = 4) {
   const byTitle = new Map(pages.map((p) => [p.title.toLowerCase(), p]));
-  const mutual = [];
-  const rest = [];
+  // the card shows only the first, so it should be the one that joins this
+  // idea to ANOTHER source (the book chapter beside the podcast, 15 Oct),
+  // a specific concept before a broad topic hub, and never a training page
+  // beside a mind one
+  const own = sourceTitles(page);
+  const tier = (t) => {
+    const linksBack = (t.links || []).some((l) => String(l).toLowerCase() === titleKey(page.title).toLowerCase());
+    const elsewhere = [...sourceTitles(t)].some((s) => !own.has(s));
+    return (bodyDomain(t) ? 8 : 0) + (elsewhere ? 0 : 4) + (t.type === 'topic' ? 2 : 0) + (linksBack ? 0 : 1);
+  };
+  const targets = [];
   for (const link of page.links || []) {
     const target = byTitle.get(String(link).toLowerCase());
-    if (!target || target.id === page.id) continue;
-    const linksBack = (target.links || []).some((l) => String(l).toLowerCase() === page.title.toLowerCase());
-    (linksBack ? mutual : rest).push(target);
+    if (!target || target.id === page.id || targets.includes(target)) continue;
+    targets.push(target);
   }
-  const rank = (a, b) => (backlinkCounts.get(b.id) || 0) - (backlinkCounts.get(a.id) || 0) || titleKey(a.title).localeCompare(titleKey(b.title));
-  mutual.sort(rank);
-  rest.sort(rank);
-  return [...mutual, ...rest].slice(0, max).map((p) => ({ id: p.id, title: p.title, type: p.type }));
+  const rank = (a, b) => tier(a) - tier(b) || (backlinkCounts.get(b.id) || 0) - (backlinkCounts.get(a.id) || 0) || titleKey(a.title).localeCompare(titleKey(b.title));
+  targets.sort(rank);
+  return targets.slice(0, max).map((p) => ({ id: p.id, title: p.title, type: p.type }));
 }
 
 // The first `sources:` page, by its real url — never the concept's own

@@ -311,3 +311,60 @@ test('a page about the vault\'s own method never enters the review', async () =>
   const { queue } = buildQueue({ pages, cards: { a: { step: 0, due: '2026-10-10' } }, backlinkCounts: new Map(), today: '2026-10-13' });
   assert.ok(!queue.some((q) => q.id === 'a'));
 });
+
+// 14–15 Oct: two mornings running the card was a training page ("Lats vs
+// Upper Back in Pulling"). The review is for mind concepts; the domain comes
+// from the page's own tags (leading tag, or at least half of them).
+test('a training page never enters the review; a habits page with one nutrition tag does', async () => {
+  const { reviewable, bodyDomain } = await import('../lib/conceptReview.js');
+  const lats = page('Lats vs Upper Back', { tags: ['health', 'training', 'hypertrophy', 'back', 'lats', 'exercise-selection', 'technique'] });
+  const three = page('Three-Exercise Constraint', { tags: ['health', 'training', 'exercise-selection', 'thinking-tools', 'constraints', 'prioritization'] });
+  const law = page('3rd Law', { tags: ['habits', 'behavior-change', 'friction', 'automation', 'productivity', 'nutrition'] });
+  const gratitude = page('Gratitude', { tags: ['gratitude', 'wellbeing', 'hollis', 'emmons', 'huberman'] });
+  assert.equal(bodyDomain(lats), true);
+  assert.equal(reviewable(lats), false);
+  assert.equal(reviewable(three), false);
+  assert.equal(reviewable(law), true);
+  assert.equal(reviewable(gratitude), true);
+  assert.equal(reviewable({ ...lats, review: true }), true, 'review: true is his override');
+  assert.equal(reviewable(page('untagged')), true);
+});
+
+test('new picks: a concept before a topic hub, then the idea that bridges more sources, before the newest', async () => {
+  const { newCandidates } = await import('../lib/conceptReview.js');
+  const src = (...t) => t.map((title) => ({ title }));
+  const pages = [
+    page('newest', { date: '2026-10-14', sources: src('Video A') }),
+    page('bridge', { date: '2026-09-01', sources: src('The Next Conversation', 'DOAC Fisher'), links: ['other'] }),
+    page('other', { date: '2026-09-01', sources: src('Williamson ep'), links: [] }),
+    page('hub', { type: 'topic', date: '2026-10-14', sources: src('a', 'b', 'c', 'd', 'e') }),
+  ];
+  const ids = newCandidates(pages, {}, new Map()).map((c) => c.id);
+  assert.equal(ids[0], 'bridge');
+  assert.equal(ids.at(-1), 'hub');
+});
+
+test('the day\'s new pick rotates away from the source he answered last', async () => {
+  const { pickNew } = await import('../lib/conceptReview.js');
+  const src = (...t) => t.map((title) => ({ title }));
+  const pages = [
+    page('done', { sources: src('Brutal Truths') }),
+    page('sameShow', { sources: src('Brutal Truths', 'Next Conversation') }),
+    page('elsewhere', { sources: src('Diary of a CEO') }),
+  ];
+  assert.equal(pickNew(pages, {}, new Map()).id, 'sameShow');
+  assert.equal(pickNew(pages, { done: { step: 0, due: '2026-10-16' } }, new Map()).id, 'elsewhere');
+});
+
+test('the one connection shown joins the idea to another source, not a training page', async () => {
+  const { connectedNotes } = await import('../lib/conceptReview.js');
+  const src = (...t) => t.map((title) => ({ title }));
+  const me = page('me', { sources: src('Book'), links: ['gym', 'same', 'cross'] });
+  const pages = [
+    me,
+    page('gym', { sources: src('Gym video'), tags: ['training', 'hypertrophy'], links: ['me'] }),
+    page('same', { sources: src('Book'), links: ['me'] }),
+    page('cross', { sources: src('Podcast') }),
+  ];
+  assert.deepEqual(connectedNotes(me, pages, new Map()).map((c) => c.id), ['cross', 'same', 'gym']);
+});
