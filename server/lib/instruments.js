@@ -143,7 +143,7 @@ export function musclesForRoutine(routine) {
 
 /* --------------------------------------------------------------- build --- */
 
-function scheduledRoutineFor(routines, schedule, date) {
+export function scheduledRoutineFor(routines, schedule, date) {
   const key = WEEKDAYS[(date.getDay() + 6) % 7];   // JS Sunday=0, WEEKDAYS starts Monday
   const id = schedule?.[key];
   if (!id || id === ACTIVE_REST) return null;

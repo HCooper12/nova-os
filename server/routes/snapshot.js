@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { sendJson } from '../lib/compressJson.js';
 
 // One round-trip for the whole sync pass. The client used to fire ~25
 // requests per sync (every open, every 5 min, every SSE nudge) — over
@@ -123,6 +124,17 @@ export function snapshotRouter({ port, token }) {
     res.json(out);
   });
 
+  // The native iPhone widgets' day (lib/widgetToday.js): goals, food,
+  // steps and HRV only, so it answers in milliseconds with no calendar wait.
+  router.get('/widget/today', async (req, res) => {
+    try {
+      const { buildWidgetToday } = await import('../lib/widgetToday.js');
+      res.json(await buildWidgetToday(process.env.VAULT_PATH));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Per-slice time budget. The whole snapshot used to wait for its slowest
   // slice — measured on the live log: p50 ~5s, p90 ~10s, all of it one
   // slice (a cold CalDAV calendar; every other slice answers in <75ms).
@@ -163,7 +175,7 @@ export function snapshotRouter({ port, token }) {
         errors[key] = e.message;
       }
     }));
-    res.json({ slices, errors });
+    await sendJson(req, res, { slices, errors });
   });
 
   return router;
