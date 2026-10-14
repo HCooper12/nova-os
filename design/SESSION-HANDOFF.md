@@ -13,6 +13,17 @@ the session log at the foot is append-only.
 
 ## CURRENT HANDOFF
 
+**14 OCT, CLOSE (claude.ai session 01MPaorT) — HEALTH PUSH DIAGNOSED AND PATCHED SERVER-SIDE, TAB LENS, AND THE APP ICON IS NOW NOVA'S OWN CORE (OPTION A), ALL ON MAIN AND PUSHED; THE SHORTCUTS ARE HIS TO FINISH; UNSEEN ON HIS PHONE.**
+- GOAL: native-feeling section transitions; get steps/workouts reaching Nova reliably through the day; give the app icon Nova's real design, sharp.
+- DONE CRITERIA: met: tab lens (66a38b5), workout duration + flat-body fix (efa52e0), icon A + small-core 3x DPR (f80865d, ac8d4f4). Blocked on him: Nova Workout Push shortcut and automation, weight binding in Today shortcut, Morning 6 date filters, Health/Pedometer++ "is opened" automations. Unmet/unseen: any of it on his iPhone.
+- STATE: main == origin/main, git clean (peer sessions committed native-shell and offline work on top). Icon generator: scripts/gen-icons.mjs + tools/icon/core.html/.jsx (needs `npx vite --port 5183` up); it also writes ios/.../AppIcon-512@2x.png (a peer added that). NovaCore takes `pixelRatio`; cores <=160px draw at up to 3x, larger at 2x (src/NovaCore.jsx). Untracked dir ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/ is not mine, left alone.
+- DECISIONS: (a) icon = hologram core at rest on navy/violet, rendered at 8x and downsampled, not enlarged → sharp at every size → forecloses a flat-vector icon unless he asks. (b) core DPR cap raised only for <=160px → keeps the full-screen core at 2x for the 120Hz budget → forecloses 3x full screen without a measured frame cost. (c) workout push accepts one flat workout or a list; duration is derived from start/end first, seconds are never read as minutes when the unit is known → forecloses trusting a bare `duration` over timestamps. (d) Siri's builder cannot edit shortcuts or take descriptions that send JSON to a URL, so the shortcut's reading half is Siri-built and "Get Contents of URL" is added by hand.
+- VERIFIED: `cd server && npm test`: 3608 tests, 3606 pass, 2 fail (the known exerciseAtlas pair); lint 0 errors (warnings only); `npm run build` green; /api/health 200; no dist/pc.json; no vite preview process; Pages deploy of HEAD succeeded (gh run 38496666851, and f80865d's own run 38480392439). Icon sharpness checked pixel by pixel at 180px from public/icons/apple-touch-icon.png. Today push landed: server/data/health/pushlog.json last entry 2026-10-14T02:29:58Z ok:true date 2026-10-14 (after fixing his JSON braces and headers).
+- ASSUMED: how the new icon and sharper orbs look on his phone (a home-screen app keeps its old icon until deleted and re-added); that the lens glide feels right at 120Hz; that the workout shortcut will deliver once built. The Today push's 02:29 entry shows `stepsDropped: true` (the accumulator guard kept a higher earlier value; it also carried a `watchSteps` field not in `keys`), cause not examined. Weight is still absent from pushes (chip binding in his shortcut).
+- OPEN QUESTIONS / BLOCKERS: whether Mission Control's "native transitions between sections" is satisfied by the tab lens alone; why the 02:29 Today push dropped steps (a read of ACCUMULATOR_METRICS against the earlier push would settle it); Nova's Home display of a partial same-day step count was never seen in the UI, only the saved record.
+- NEXT ACTION: after he says he has run the shortcuts, read the tail of server/data/health/pushlog.json; expected: a workout entry with sane minutes, a weight key, and today's steps rising through the day. Ask him to delete and re-add Nova to the Home Screen to see the icon.
+- DO NOT: tell Siri to "send a POST" or paste JSON bodies into its prompt (rejected as "Try another description"); ask Siri to edit an existing shortcut; blame the icon blur on resizing alone (the cap on canvas DPR was the cause); put the core on a transparent background (it paints with 'lighter' and vanishes; render on black and `screen`-composite); run git without `export DEVELOPER_DIR=/Library/Developer/CommandLineTools` if Xcode's licence ever lapses again; treat a pushed icon as visible on his phone.
+
 **13 OCT, CLOSE (claude.ai session 01MPaorT) — EVERY HOME CARD NOW WEARS THE
 TILED HEADER (6f63656). HOME, THE MOTION LIST AND FUEL/TRAIN ARE ON MAIN,
 PUSHED, DEPLOYED; NOTHING RUNNING; UNSEEN ON HIS PHONE.**
@@ -5503,6 +5514,8 @@ marked as Push make-ups), the itemised plate, the form check, the study lane,
 the Intake, wrap the day, open-it-for-real, and the surface standard.
 
 ## SESSION LOG (append-only, newest first)
+
+**14 Oct (health push, tab lens, icon, claude.ai 01MPaorT).** Diagnosed the silent morning health push (no POSTs since about 12 Oct; old shortcut used "last 1 day" windows), added the intraday "today" push path, and made the workout endpoint take a flat workout. Corrected, not added: a 20-minute walk would have been stored as 1,200 minutes (bare duration in seconds), now derived from start/end. Built the sliding tab lens. Replaced the app icon with Nova's core (option A); the first render was blurry because NovaCore capped canvas density at 2x, so small cores now use up to 3x and the icon is rendered at 8x.
 
 **13 Oct (redesign, claude.ai 01MPaorT).** Built mockup 101 on Fuel, Train and
 Home (tiled headers, per-card glow, muscle-hued records, the day as a rail),
