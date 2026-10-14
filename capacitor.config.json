@@ -7,7 +7,7 @@
     "cleartext": false
   },
   "ios": {
-    "contentInset": "automatic",
+    "contentInset": "never",
     "backgroundColor": "#0a0f1e",
     "preferredContentMode": "mobile",
     "limitsNavigationsToAppBoundDomains": true

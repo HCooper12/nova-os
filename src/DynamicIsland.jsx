@@ -47,7 +47,10 @@ function readEnv() {
   const ua = navigator.userAgent || '';
   let standalone = false;
   try {
-    standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    // the Xcode app is full-screen like the installed one (contentInset
+    // 'never'), so the real island sits above it the same way
+    standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches
+      || window.Capacitor?.isNativePlatform?.() === true;
   } catch { /* old engine */ }
   let ios = /iPhone/.test(ua);
   // The same dev-only seam edgeBack uses, compiled out of the build he runs:
