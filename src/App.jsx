@@ -26,6 +26,7 @@ import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
 import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem } from './outbox.js';
+import { loadBests, mergeBests, saveBests, pickBests, routineLiftIds } from './bestsCache.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial, getGlow, getGlowQuiet, applyGlow } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { savePinned } from './pinned.js';
@@ -1404,7 +1405,7 @@ export default class App extends Component {
       capture: (conn, p) => api.inboxCapture(conn, p.text, p.mode, p.source),
       // items ride along (14 Oct): an itemised plate logged offline used to
       // land as bare totals, losing the lines he could drop or restore
-      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, date: p.date, items: p.items }),
+      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, items: p.items, date: p.date }),
       todo: (conn, p) => api.todoAdd(conn, p.text),
       shopping: (conn, p) => api.addShoppingItems(conn, p.items),
       journal: (conn, p) => api.addJournalEntry(conn, p.text, null, { tag: p.tag, prompt: p.prompt, promptFrom: p.promptFrom }),
@@ -1419,6 +1420,21 @@ export default class App extends Component {
         ? api.addQuickRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros })
         : api.addRecipe(conn, { name: p.name, category: p.category, makes: p.makes, macros: p.macros, ingredients: p.ingredients, method: p.method })),
     };
+  }
+  // keep the phone's copy of his bests current for every lift in his routines,
+  // so a session started with no signal still has its record banner (14 Oct)
+  warmBests() {
+    const conn = getConnection();
+    if (!conn || Date.now() - (this.bestsWarmedAt || 0) < 6 * 3600_000) return;
+    const ids = routineLiftIds(this.state.liveWorkoutRoutines);
+    if (!ids.length) return;
+    this.bestsWarmedAt = Date.now();
+    // the route answers at most 40 lifts a call (routes/workouts.js)
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += 40) chunks.push(ids.slice(i, i + 40));
+    Promise.all(chunks.map((c) => api.workoutBests(conn, c)))
+      .then((answers) => saveBests(answers.reduce((kept, r) => mergeBests(kept, r?.bests), loadBests())))
+      .catch(() => { this.bestsWarmedAt = 0; });
   }
   enqueueOutbox(kind, label, payload) {
     const item = makeOutboxItem(kind, label, payload);
@@ -1895,7 +1911,14 @@ export default class App extends Component {
       const key = ids ? `${ws.startedAt}:${ids.join(',')}` : null;
       if (key && key !== this.sessionBestsKey && getConnection()) {
         this.sessionBestsKey = key;
-        api.workoutBests(getConnection(), ids).then((r) => { if (this.sessionBestsKey === key) this.setState({ sessionBests: r?.bests || {} }); }).catch(() => {});
+        api.workoutBests(getConnection(), ids)
+          .then((r) => {
+            saveBests(mergeBests(loadBests(), r?.bests));
+            if (this.sessionBestsKey === key) this.setState({ sessionBests: r?.bests || {} });
+          })
+          // no Mac: the bests kept on the phone (bestsCache.js); a lift never
+          // seen has no banner rather than a guessed one
+          .catch(() => { if (this.sessionBestsKey === key) this.setState({ sessionBests: pickBests(loadBests(), ids) }); });
       }
     }
     if (this.state.screen === 'galaxy') this.startGalaxy(); else this.stopGalaxy();
@@ -2238,6 +2261,7 @@ export default class App extends Component {
           for (const key of CACHED_LIVE_KEYS) slices[key] = this.state[key];
           saveLiveCache(slices);
           this.drainOutbox(); // the backend is answering — flush queued writes
+          this.warmBests();
           // the doorman meets him at whatever door he came in — the due
           // check (once a day / 3h gap) keeps this from re-greeting on the
           // routine syncs that also land here
