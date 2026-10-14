@@ -1,4 +1,5 @@
 import express from 'express';
+import { sendJson } from '../lib/compressJson.js';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { setSeen, startCapture, approveRecord, discardRecord, undoRecord, reopenRecord, retryRecord, MODES } from '../lib/inbox.js';
@@ -184,7 +185,7 @@ export function inboxRouter(vaultPath) {
   router.get('/inbox', async (req, res) => {
     try {
       const items = await listRecords();
-      res.json({ items, pendingCount: items.filter((r) => r.status === 'pending').length });
+      await sendJson(req, res, { items, pendingCount: items.filter((r) => r.status === 'pending').length });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
