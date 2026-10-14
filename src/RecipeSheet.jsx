@@ -8,6 +8,7 @@ import { MealEditor } from './RecipeOverlay.jsx';
 import { FIcon } from './FuelIcon.jsx';
 import { PORTIONS, portionLabel, scaleMacros, validPortion } from './portion.js';
 import { RecipeMetaRow, RecipeScale, RecipeIngredients, RecipeMethod, RecipeMenu } from './RecipePage.jsx';
+import { PhotoReveal } from './motion/PhotoReveal.jsx';
 
 // THE RECIPE, AS A SHEET — mockup 59, variation A · 3. Under the `summary`
 // style App renders this in place of RecipeOverlay, on the same state and
@@ -118,7 +119,13 @@ export function RecipeSheet({ v }) {
         </div>
 
         <div className="nv-fs-body">
-          {R.photo?.url && <div className="nv-fs-photo"><img src={R.photo.url} alt={R.name} /></div>}
+          {R.photo?.url && (
+            <div className={`nv-fs-photo${R.photo.reveal ? ' nv-pr-host' : ''}`}>
+              <img src={R.photo.url} alt={R.name} />
+              {/* a reel's recipe, filed minutes ago: the first showing opens behind slats */}
+              {R.photo.reveal && <PhotoReveal key={R.id} id={R.id} chip={R.photo.reveal.chip} where="sheet" />}
+            </div>
+          )}
           {P && <div className="nv-rp" style={{ marginTop: '8px' }}><RecipeMetaRow page={P} editing={editing} onEdit={setEditing} /></div>}
 
           {m && (

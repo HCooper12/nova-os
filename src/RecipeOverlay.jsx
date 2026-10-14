@@ -6,6 +6,7 @@ import { useDictation } from './useDictation.js';
 import { TypeText } from './TypeText.jsx';
 import { Eyebrow, TextAction, Chip, Meta, Button, Tag } from './Controls.jsx';
 import { RGlyph, RecipeMetaRow, RecipeFigures, RecipeScale, RecipeIngredients, RecipeMethod, RecipeMenu } from './RecipePage.jsx';
+import { PhotoReveal } from './motion/PhotoReveal.jsx';
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpperCase());
 
@@ -105,7 +106,13 @@ export function RecipeOverlay({ v }) {
             its own way to add one — never a striped box with a caption */}
         <header className={`nv-rp-hero${P.hero.photoUrl ? '' : ' empty'}`}>
           {P.hero.photoUrl
-            ? <img key={P.hero.photoUrl} src={P.hero.photoUrl} alt="" className="nv-rp-photo" />
+            ? (
+              <>
+                <img key={P.hero.photoUrl} src={P.hero.photoUrl} alt="" className="nv-rp-photo" />
+                {/* a reel's recipe, filed minutes ago: the first showing opens behind slats */}
+                {P.hero.reveal && <PhotoReveal key={P.id} id={P.id} chip={P.hero.reveal.chip} where="page" />}
+              </>
+            )
             : (
               <div className="nv-rp-ph" aria-hidden={!P.hero.onFile}>
                 <RGlyph n="fork" className="nv-rp-ph-g" />

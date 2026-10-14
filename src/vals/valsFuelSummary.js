@@ -445,7 +445,7 @@ function buildRecipeSheet(app, st, v, { live }) {
     meta,
     description: v.orDescription || null,
     live: !!liveOr,
-    photo: liveOr ? { url: v.orPhotoUrl, busy: v.orPhotoUploadBusy, onFile: v.onRecipePhotoFile } : null,
+    photo: liveOr ? { url: v.orPhotoUrl, busy: v.orPhotoUploadBusy, onFile: v.onRecipePhotoFile, reveal: P?.hero?.reveal || null } : null,
     macros: baseMacros ? { p: round(baseMacros.p), c: round(baseMacros.c), f: round(baseMacros.f), kcal: round(baseMacros.kcal), raw: baseMacros } : null,
     // a live recipe with no macros yet: the sheet says so in gold, offers the
     // editor to add them, and Log it waits (never a zero on his plate)

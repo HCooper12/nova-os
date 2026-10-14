@@ -4,6 +4,7 @@ import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js'
 import { offPlanTotals, recipeBankState, RECIPE_BANK_COPY } from '../fuelFacts.js';
 import { rotationTickedIn, loggedLine, dayWord } from '../fuelDay.js';
 import { servingsOf, scaleRecipe, parseAmount, formatQuarter, shortSourceLabel } from '../recipeScale.js';
+import { revealFor } from '../motion/recipeReveal.js';
 
 // The rename UI keys off a variant id. The version IN USE has none — it is
 // the recipe's main block, not an alternate — so it needs a sentinel rather
@@ -229,6 +230,10 @@ function buildRecipePage(app, st, { live, demo, activeAlt, effIngredients, effMe
     description: live && !activeAlt ? live.description || null : null,
     hero: {
       photoUrl,
+      // JUST BROUGHT IN FROM A REEL (15 Oct, the motion set's image reveal):
+      // his inbox's own filing of this recipe, minutes ago, says so; the
+      // photo then opens behind slats once (src/motion/recipeReveal.js)
+      reveal: live ? revealFor({ inboxItems: st.liveInbox?.items, recipeId: id, source, photoUrl }) : null,
       busy: live ? !!st.recipePhotoUploadBusy?.[id] : false,
       onFile: live ? (e) => app.onRecipePhotoFile(id, e.target.files) : null,
     },
