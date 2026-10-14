@@ -4175,6 +4175,12 @@ export default class App extends Component {
     savePinned(list);
     this.setState((s) => ({ pinnedTick: (s.pinnedTick || 0) + 1 }));
   }
+  // Home's edit mode (the iPhone's jiggle): entered by holding any card,
+  // left by Done, a tap on the page outside the cards, or leaving Home
+  setHomeEditing(on) {
+    if (!!this.state.homeEditing === !!on) return;
+    this.setState({ homeEditing: !!on });
+  }
   // The ✕-an-ingredient flow: marks collect, one save, a popup asks whether
   // it's today-only or a keepable alternative — then the existing tweak
   // pipeline recomputes macros and the existing save paths commit. The

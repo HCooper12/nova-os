@@ -1,6 +1,6 @@
 import { dtf } from './fmt.js';
 import { localDateISO } from '../localDate.js';
-import { getPinned, applyVisibleOrder } from '../pinned.js';
+import { getPinned, applyVisibleOrder, resizePinned, removePinned } from '../pinned.js';
 import { inMorning } from '../dayCard.js';
 import { splitMoments } from '../momentPriority.js';
 import { prLift, prBasis } from '../missionFocus.js';
@@ -72,13 +72,13 @@ export function valsSummary(app, ctx, m) {
     error: m.instrumentsError || null,
     // demo mode has no Mac to read the day from; a Read again there would do nothing
     refresh: demoMode ? null : m.refreshInstruments,
-    foot: dayPinned ? null : 'Until 11:00, or until you have seen all five. Pin it from Edit to keep it.',
+    foot: dayPinned ? null : 'Until 11:00, or until you have seen all five. To keep it all day, hold any card and add it.',
   } : null;
   cardData.day = dayPinned ? yourDay : null;
   const WIDE = new Set(['highlight', 'body', 'today', 'training', 'day']);
   const cards = pinnedList
     .filter((p) => p.on && cardData[p.key])
-    .map((p) => ({ key: p.key, wide: WIDE.has(p.key), ...cardData[p.key] }));
+    .map((p) => ({ key: p.key, wide: p.size ? p.size === 'wide' : WIDE.has(p.key), sized: !!p.size, label: p.label, ...cardData[p.key] }));
   const allCards = pinnedList.map((p) => ({ ...p, present: !!cardData[p.key] }));
   // priority tiles lead only in their hours, then wait below Pinned (15 Oct)
   const { top: moments, later: laterMoments } = splitMoments(buildMoments(m), hour, { reviewState: m.review?.state });
@@ -102,8 +102,16 @@ export function valsSummary(app, ctx, m) {
         setList: (list) => app.setPinned?.(list),
         // a carry on Home itself: the shown cards' new order, the rest untouched
         moveVisible: (visible) => app.setPinned?.(applyVisibleOrder(getPinned(), visible)),
+        // THE IPHONE WAY (15 Oct): holding a card wakes every card; each can be
+        // carried, resized (whole row / half) or taken off; Done settles it
+        editing: !!st.homeEditing,
+        enter: () => app.setHomeEditing?.(true),
+        done: () => app.setHomeEditing?.(false),
+        resize: (key, isWide) => app.setPinned?.(resizePinned(getPinned(), key, isWide)),
+        remove: (key) => app.setPinned?.(removePinned(getPinned(), key)),
+        hiddenCount: pinnedList.filter((p) => !p.on).length,
       },
-      foot: 'Touch and hold a card to move it. Edit chooses what appears here; everything else is under More, and comes back here when it has news.',
+      foot: 'Touch and hold any card to move, resize or remove it.',
     },
   };
 }

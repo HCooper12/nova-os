@@ -413,7 +413,10 @@ function layoutCards(cards) {
   const out = [];
   let run = [];
   const flush = () => {
-    if (run.length % 2) run[run.length - 1] = { ...run[run.length - 1], span: true };
+    // a half card left without a partner takes the row, unless he made it
+    // half himself: then it keeps its size and the space beside it, as on
+    // the iPhone (15 Oct)
+    if (run.length % 2 && !run[run.length - 1].sized) run[run.length - 1] = { ...run[run.length - 1], span: true };
     out.push(...run);
     run = [];
   };
@@ -799,7 +802,7 @@ function TrendsCard({ card, cls, style }) {
 }
 
 function PinnedCard({ card, i }) {
-  const cls = `nv-sum-card nv-sum-rise${card.span ? ' nv-sum-wide' : ''}`;
+  const cls = 'nv-sum-card nv-sum-rise';
   const style = { '--i': i + 3, ...(CARD_GLOW[card.key] ? CARD_GLOW[card.key](card) : lit(CARD_LIGHT[card.key])) };
   switch (card.key) {
     case 'highlight': return <Highlight h={card.h} cls={cls} style={{ '--i': i + 3 }} />;
@@ -818,21 +821,71 @@ function PinnedCard({ card, i }) {
 // The grid he can rearrange in place: touch and hold a card, carry it, let
 // go (src/useGridDrag.js). The order shown while carrying is a preview; the
 // list is saved once, on release.
-function PinnedGrid({ cards, onMove }) {
+//
+// EDIT MODE, THE IPHONE WAY (his ask, 15 Oct 2026: no "Pinned" or "Edit"
+// labels; hold a tile to move or resize it "like the iPhone's home
+// screen"). The first hold wakes every card and carries the one held. Awake,
+// each card shows a remove mark and a size switch (whole row / half), a short
+// press picks any card up, and its own buttons sleep so a tap cannot fire
+// them. Done, or a tap anywhere off the cards, puts them back to sleep.
+function PinnedGrid({ cards, edit }) {
   const keys = cards.map((c) => c.key);
-  const { gridRef, order } = useGridDrag(keys, onMove);
+  const { gridRef, order } = useGridDrag(keys, edit.moveVisible, { editing: edit.editing, onWake: edit.enter });
   const byKey = Object.fromEntries(cards.map((c) => [c.key, c]));
   const laid = layoutCards(order.map((k) => byKey[k]).filter(Boolean));
+  const editing = edit.editing;
+  useEffect(() => {
+    if (!editing) return undefined;
+    const off = (e) => {
+      const t = e.target;
+      if (gridRef.current?.contains(t) || t.closest?.('[data-nv-edit-keep], [role="dialog"]')) return;
+      edit.done();
+    };
+    document.addEventListener('click', off, true);
+    return () => document.removeEventListener('click', off, true);
+  }, [editing, edit, gridRef]);
   return (
-    <div ref={gridRef} className="nv-sum-grid nv-sum-grid-drag">
-      {laid.map((card, i) => <PinnedCard key={card.key} card={card} i={i} />)}
-    </div>
+    <>
+      {editing && (
+        <div className="nv-sum-editbar" data-nv-edit-keep>
+          {edit.hiddenCount > 0
+            ? <span className="nv-sum-ebar-glass"><Pill tone="quiet" label={`Add a card (${edit.hiddenCount})`} onClick={edit.openEdit} /></span>
+            : <span />}
+          <Pill tone="accent" label="Done" onClick={edit.done} />
+        </div>
+      )}
+      <div ref={gridRef} className={`nv-sum-grid nv-sum-grid-drag${editing ? ' nv-sum-editing' : ''}`}>
+        {laid.map((card, i) => (
+          <div key={card.key} className={`nv-sum-slot${card.span ? ' nv-sum-wide' : ''}`} style={{ '--j': i }}>
+            <PinnedCard card={card} i={i} />
+            {editing && <>
+              <Interactive as="button" type="button" data-nv-edit-btn className="nv-sum-ebtn nv-sum-ebtn-x" haptic="tick"
+                onClick={() => edit.remove(card.key)} aria-label={`Remove ${card.label} from Home`}>
+                <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 6h6" /></svg>
+              </Interactive>
+              <Interactive as="button" type="button" data-nv-edit-btn className="nv-sum-ebtn nv-sum-ebtn-size" haptic="tick"
+                onClick={() => edit.resize(card.key, card.wide)}
+                aria-label={card.wide ? `Make ${card.label} half width` : `Make ${card.label} full width`}>
+                {/* the size it becomes: one half-cell, or the whole row */}
+                <svg viewBox="0 0 16 12" aria-hidden="true">{card.wide
+                  ? <><rect x="1" y="2" width="6" height="8" rx="1.5" /><rect x="9" y="2" width="6" height="8" rx="1.5" className="o" /></>
+                  : <rect x="1" y="2" width="14" height="8" rx="1.5" />}</svg>
+              </Interactive>
+            </>}
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
 // ------------------------------------------------------------------ Home ---
 export function MissionSummary({ v }) {
   const S = v.summaryHome;
+  // leaving Home puts the cards back to sleep
+  const doneRef = useRef(S.edit.done);
+  doneRef.current = S.edit.done;
+  useEffect(() => () => doneRef.current(), []);
   const cards = layoutCards(S.cards);
   return (
     <div style={v.wrapMission} data-screen-label="Mission Control">
@@ -861,11 +914,8 @@ export function MissionSummary({ v }) {
           {S.moments.filter((k) => k !== 'review').map((k) => <Moment key={k} k={k} v={v} />)}
         </div>
 
-        <div className="nv-sum-rise" style={{ '--i': 3, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '12px', margin: `${S.moments.length || (S.yourDay && !S.yourDay.pinned) ? 22 : 12}px 4px 8px` }}>
-          <h2 style={{ margin: 0, font: `700 22px/1.2 ${UI}`, letterSpacing: '-.02em' }}>Pinned</h2>
-          <TextAction tone="accent" onClick={S.edit.openEdit} ariaLabel="Edit Pinned">Edit</TextAction>
-        </div>
-        {cards.length > 0 && <PinnedGrid cards={S.cards} onMove={S.edit.moveVisible} />}
+        <div style={{ height: S.moments.length || (S.yourDay && !S.yourDay.pinned) ? 12 : 0 }} />
+        {cards.length > 0 && <PinnedGrid cards={S.cards} edit={S.edit} />}
         {/* the moments whose hour has passed (or not yet come) wait here, with
             the other tiles, instead of holding the top (src/momentPriority.js) */}
         {S.laterMoments.length > 0 && (

@@ -36,7 +36,23 @@ export function reconcilePinned(stored, meta = PINNED_CARDS, defaultOff = PINNED
   const fresh = metaKeys.filter((k) => !order.includes(k));
   for (const k of fresh.filter((x) => !lead.includes(x))) { order.push(k); appended.add(k); }
   order.unshift(...fresh.filter((x) => lead.includes(x)));
-  return order.map((key) => ({ key, label: labelFor[key], on: !off.includes(key) && !(appended.has(key) && defaultOff.includes(key)) }));
+  // his chosen size, when he has resized it (otherwise the card's own default)
+  const size = s.size && typeof s.size === 'object' ? s.size : {};
+  return order.map((key) => ({
+    key, label: labelFor[key], on: !off.includes(key) && !(appended.has(key) && defaultOff.includes(key)),
+    ...(SIZES.includes(size[key]) ? { size: size[key] } : {}),
+  }));
+}
+
+// RESIZING, the iPhone way (his ask, 15 Oct 2026: hold a tile, then "resize
+// the tiles or move them around fluidly"): a card is a whole row ('wide') or
+// half of one ('half'). Pure: hands back a new list.
+export const SIZES = ['wide', 'half'];
+export function resizePinned(list, key, isWide) {
+  return (Array.isArray(list) ? list : []).map((x) => (x.key === key ? { ...x, size: isWide ? 'half' : 'wide' } : x));
+}
+export function removePinned(list, key) {
+  return (Array.isArray(list) ? list : []).map((x) => (x.key === key ? { ...x, on: false } : x));
 }
 
 export function getPinned() {
@@ -51,8 +67,9 @@ export function savePinned(list) {
   const arr = Array.isArray(list) ? list : [];
   const order = arr.map((x) => x.key);
   const off = arr.filter((x) => !x.on).map((x) => x.key);
+  const size = Object.fromEntries(arr.filter((x) => SIZES.includes(x.size)).map((x) => [x.key, x.size]));
   try {
-    if (typeof localStorage !== 'undefined') localStorage.setItem(PINNED_KEY, JSON.stringify({ order, off }));
+    if (typeof localStorage !== 'undefined') localStorage.setItem(PINNED_KEY, JSON.stringify({ order, off, size }));
   } catch { /* storage full/blocked — the order just won't persist */ }
 }
 

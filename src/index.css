@@ -1073,7 +1073,7 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
   -webkit-backdrop-filter: blur(var(--nv-sum-blur)) saturate(var(--nv-sum-sat));
   backdrop-filter: blur(var(--nv-sum-blur)) saturate(var(--nv-sum-sat));
 }
-.nv-sum-grid > .nv-sum-tile:not(.nv-sum-wide), .nv-sum-card.nv-sum-you { --nv-sum-card-drop: var(--nv-sum-card-shadow); }
+.nv-sum-grid > .nv-sum-slot:not(.nv-sum-wide) > .nv-sum-tile, .nv-sum-card.nv-sum-you { --nv-sum-card-drop: var(--nv-sum-card-shadow); }
 /* the specular hairline: .nv-liquid's masked-frame technique. The gradient
    fills the box, a two-layer mask subtracts the content box, and 1px of
    frame is left. It paints above the children (a 1px edge content never
@@ -1185,7 +1185,53 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-sum-tile { display: flex; flex-direction: column; padding: 12px 14px 14px; }
 /* the 150px floor keeps a row of two half cards level; a card with the row
    to itself hugs its content rather than carrying an empty band */
-.nv-sum-grid > .nv-sum-tile:not(.nv-sum-wide) { min-height: 150px; }
+.nv-sum-grid > .nv-sum-slot:not(.nv-sum-wide) > .nv-sum-tile { min-height: 150px; }
+/* each card sits in a slot (the thing that is carried, and wears the edit
+   marks); the card fills it so a row of two stays level */
+.nv-sum-slot { position: relative; display: flex; flex-direction: column; min-width: 0; }
+.nv-sum-slot > .nv-sum-card { flex: 1; min-width: 0; width: 100%; box-sizing: border-box; }
+
+/* EDIT MODE, the iPhone way (15 Oct 2026). Awake cards rock a degree either
+   way, out of step with each other, on `rotate` so the carry's `transform`
+   and `scale` stay free; the card's own buttons sleep; the marks sit on the
+   corners. Reduced motion: no rocking, the marks alone say it. */
+@keyframes nvJiggle { from { rotate: -.55deg; } to { rotate: .55deg; } }
+.nv-sum-editing > .nv-sum-slot { animation: nvJiggle 150ms ease-in-out infinite alternate; animation-delay: calc(var(--j, 0) * -67ms); }
+.nv-sum-editing > .nv-sum-slot > .nv-sum-card, .nv-sum-editing > .nv-sum-slot > .nv-sum-card * { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .nv-sum-editing > .nv-sum-slot { animation: none; } }
+:root[data-nv-calm="1"] .nv-sum-editing > .nv-sum-slot { animation: none; }
+.nv-sum-ebtn {
+  position: absolute; z-index: 2; width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--nv-ink) 16%, transparent);
+  background: color-mix(in srgb, var(--nv-bg2) 80%, var(--nv-ink) 12%);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4);
+  animation: nvEbtnIn 260ms var(--nv-spring-snappy) backwards;
+}
+/* the 30px mark reaches 44px with its invisible ring */
+.nv-sum-ebtn::after { content: ""; position: absolute; inset: -7px; }
+.nv-sum-ebtn-x { top: -8px; left: -8px; }
+.nv-sum-ebtn-size { bottom: -8px; right: -8px; }
+.nv-sum-ebtn svg { width: 14px; height: 14px; fill: none; stroke: var(--nv-ink); stroke-width: 2; stroke-linecap: round; }
+.nv-sum-ebtn-size svg rect { fill: var(--nv-ink); stroke: none; }
+.nv-sum-ebtn-size svg rect.o { fill: none; stroke: var(--nv-ink); stroke-width: 1.2; opacity: .55; }
+@keyframes nvEbtnIn { from { scale: .4; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .nv-sum-ebtn { animation: none; } }
+/* floats over the page (never in its flow: a bar arriving mid-carry would
+   move every card out from under his finger) */
+.nv-sum-editbar {
+  position: fixed; z-index: 60; left: 50%; translate: -50% 0; width: min(760px, calc(100% - 32px));
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  pointer-events: none; animation: fadeIn 180ms ease backwards;
+}
+.nv-sum-editbar > * { pointer-events: auto; }
+/* the quiet "Add" pill floats over cards, so it wears frosted glass */
+.nv-sum-ebar-glass {
+  display: inline-block; border-radius: 999px;
+  background: color-mix(in srgb, var(--nv-bg2) 82%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5);
+}
 
 /* a card's header row: the icon and the name in the card's hue, a quiet meta
    on the right that wraps under it rather than off the card */

@@ -16,18 +16,24 @@ import { haptic } from './haptics.js';
 // itself so a card can travel the whole page.
 
 const HOLD_MS = 420;
+// once Home is in edit mode every card is already "awake", so a short press
+// is enough to pick one up (a swipe still scrolls the page)
+const EDIT_HOLD_MS = 150;
 const SLOP = 8;
 const EDGE = 96;
 const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export function useGridDrag(keys, onCommit) {
+// `opts.editing`: Home is in edit mode; `opts.onWake`: the first hold, out of
+// edit mode, wakes it (the iPhone's jiggle), and the card it held is carried.
+export function useGridDrag(keys, onCommit, opts = {}) {
   const gridRef = useRef(null);
   const [preview, setPreview] = useState(null); // the order while carrying, or null
   const drag = useRef(null);
   const prevOffsets = useRef(null);
   const keysRef = useRef(keys);
   const commitRef = useRef(onCommit);
-  useLayoutEffect(() => { keysRef.current = keys; commitRef.current = onCommit; });
+  const optsRef = useRef(opts);
+  useLayoutEffect(() => { keysRef.current = keys; commitRef.current = onCommit; optsRef.current = opts; });
 
   const order = preview || keys;
 
@@ -70,6 +76,7 @@ export function useGridDrag(keys, onCommit) {
       if (!d) return;
       d.lifted = true;
       d.order = keysRef.current.slice();
+      if (!optsRef.current.editing) optsRef.current.onWake?.();
       haptic('tick');
       anchor(d, grid, true);
       d.el.style.transition = reduced() ? 'none' : 'scale 200ms cubic-bezier(.23,1,.32,1), box-shadow 200ms ease';
@@ -117,11 +124,11 @@ export function useGridDrag(keys, onCommit) {
       if (drag.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
       const kids = [...grid.children];
       const el = kids.find((k) => k.contains(e.target));
-      if (!el) return;
+      if (!el || e.target.closest?.('[data-nv-edit-btn]')) return;
       const key = keysRef.current[kids.indexOf(el)];
       if (!key) return;
       drag.current = { key, el, id: e.pointerId, sx: e.clientX, sy: e.clientY, cx: e.clientX, cy: e.clientY, lifted: false };
-      drag.current.timer = setTimeout(lift, HOLD_MS);
+      drag.current.timer = setTimeout(lift, optsRef.current.editing ? EDIT_HOLD_MS : HOLD_MS);
     };
     const move = (e) => {
       const d = drag.current;
