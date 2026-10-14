@@ -21,7 +21,7 @@ import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } f
 import { flushSync } from 'react-dom';
 import { recipes, notes, basePlan, reviews, galaxyNamed, galaxyLinks } from './data.js';
 import { css } from './css.js';
-import { api, getConnection, setConnection, testConnection } from './api.js';
+import { api, getConnection, setConnection, testConnection, OFFLINE_MESSAGE } from './api.js';
 import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
@@ -8089,6 +8089,8 @@ export default class App extends Component {
   // for a sentence, twice (in, and 3.6s later, out). Tone is read from the
   // sentence by islandCore.toneOf; a caller that knows better passes an object.
   toastMsg(text) {
+    // "Coach failed: Offline. Requires Mac connection." says it once, plainly
+    if (typeof text === 'string' && text.includes(OFFLINE_MESSAGE)) text = OFFLINE_MESSAGE;
     notify(typeof text === 'object' && text ? text : String(text));
   }
   // AN ANSWER HE IS NOT LOOKING AT. A Claude Code turn runs up to ten

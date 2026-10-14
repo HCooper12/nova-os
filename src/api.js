@@ -30,8 +30,25 @@ function reqSignal(ms = REQUEST_TIMEOUT_MS) {
   try { return AbortSignal.timeout(ms); } catch { return undefined; } // older WebKit — degrade to no timeout
 }
 
+// What any feature that needs the Mac says when there is no network (his
+// wording, 14 Oct 2026). A network failure is rethrown as a TypeError with
+// this message, so isOfflineError still sees it and the Outbox still queues;
+// App.toastMsg shows it alone rather than after a feature's "X failed:".
+// A timeout keeps its own error: the Mac may be there and merely slow.
+export const OFFLINE_MESSAGE = 'Offline. Requires Mac connection.';
+async function macFetch(url, opts) {
+  try {
+    return await fetch(url, opts);
+  } catch (e) {
+    if (!(e instanceof TypeError)) throw e;
+    const err = new TypeError(OFFLINE_MESSAGE);
+    err.cause = e;
+    throw err;
+  }
+}
+
 async function call(conn, path, { timeoutMs } = {}) {
-  const res = await fetch(baseOf(conn) + path, {
+  const res = await macFetch(baseOf(conn) + path, {
     headers: { Authorization: `Bearer ${conn.token}` },
     signal: reqSignal(timeoutMs),
   });
@@ -46,7 +63,7 @@ async function call(conn, path, { timeoutMs } = {}) {
 }
 
 async function post(conn, path, body, { timeoutMs } = {}) {
-  const res = await fetch(baseOf(conn) + path, {
+  const res = await macFetch(baseOf(conn) + path, {
     method: 'POST',
     headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
@@ -64,7 +81,7 @@ async function post(conn, path, body, { timeoutMs } = {}) {
 }
 
 async function put(conn, path, body, { timeoutMs } = {}) {
-  const res = await fetch(baseOf(conn) + path, {
+  const res = await macFetch(baseOf(conn) + path, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
@@ -78,7 +95,7 @@ async function put(conn, path, body, { timeoutMs } = {}) {
 }
 
 async function patch(conn, path, body, { timeoutMs } = {}) {
-  const res = await fetch(baseOf(conn) + path, {
+  const res = await macFetch(baseOf(conn) + path, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
@@ -92,7 +109,7 @@ async function patch(conn, path, body, { timeoutMs } = {}) {
 }
 
 async function del(conn, path, { timeoutMs } = {}) {
-  const res = await fetch(baseOf(conn) + path, {
+  const res = await macFetch(baseOf(conn) + path, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${conn.token}` },
     signal: reqSignal(timeoutMs),
