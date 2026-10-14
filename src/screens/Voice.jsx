@@ -16,6 +16,7 @@ import { GlassSheet } from '../GlassSheet.jsx';
 import { SafeVisual } from '../SafeVisual.jsx';
 import { TextAction, Chip, Tag, Meta, isAppleStyle, ScreenHead, AttachStrip, AttachPending } from '../Controls.jsx';
 import { NovaThread } from './NovaThread.jsx';
+import { FiledRows } from '../motion/FiledRows.jsx';
 
 // THE STATION FRAME STAYS — the bracketed panels and the reticle were his
 // explicit ask (20 Aug: "a station, not a chat page"). What changes in the
@@ -81,6 +82,9 @@ function RailRow({ label, value, tone, barPct }) {
     </div>
   );
 }
+
+// his sentence a capture came from, for the words that fly out of it (FiledRows)
+const orbSentence = (j) => document.querySelector(`[data-orb-line="${j}"] [data-orb-text]`);
 
 // THE NOVA THREAD (29 Sep 2026, mockup 63 D · Rising, his pick): under the
 // `summary` style this tab is his conversation with Nova as the page
@@ -282,11 +286,11 @@ function VoiceClassic({ v }) {
               <div style={css("color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>Ask about anything in your vault — training, fuel, notes, the week. Answers come from what's actually written.</div>
             )}
             {v.orbMsgs.map((m, i) => (
-              <div key={i} style={css(`animation:${riseIn(i, v.orbMsgs.length, firstPaint.current)}`)}>
+              <div key={i} data-orb-line={i} style={css(`animation:${riseIn(i, v.orbMsgs.length, firstPaint.current)}`)}>
                 {m.daySep && (
                   <div style={css(`margin:10px 0 8px;text-align:center;font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track);color:color-mix(in srgb, var(--nv-ink) 38%, transparent)`)}>— {m.daySep.toUpperCase()} —</div>
                 )}
-                <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}{m.where && <span style={css('color:color-mix(in srgb, var(--nv-cy) 62%, transparent)')}> · {m.where}</span>}</span>} <span style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
+                <span style={m.tagStyle}>{m.tag}</span>{m.time && <span style={css(`margin-left:6px;font:var(--nv-micro-s);color:color-mix(in srgb, var(--nv-ink) 32%, transparent)`)}>{m.time}{m.where && <span style={css('color:color-mix(in srgb, var(--nv-cy) 62%, transparent)')}> · {m.where}</span>}</span>} <span data-orb-text="" style={css("color:color-mix(in srgb, var(--nv-ink) 90%, transparent)")}><TypeText text={m.text} active={m.typing} /></span>
                 {m.attached && (
                   <div style={css("margin-top:6px;display:flex;gap:6px;flex-wrap:wrap")}>
                     {m.attached.map((a, k) => a.thumb
@@ -314,6 +318,7 @@ function VoiceClassic({ v }) {
                     {m.acted.undo && <TextAction compact tone="quiet" onClick={m.acted.undo}>Undo</TextAction>}
                   </div>
                 )}
+                {m.filed && <FiledRows f={m.filed} source={orbSentence} />}
                 {m.proposal && (
                   <div style={css("margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid color-mix(in srgb, var(--nv-gold) 30%, transparent);border-radius:9px;padding:8px 12px;background:color-mix(in srgb, var(--nv-gold) 05%, transparent)")}>
                     <span style={css(`font:${isAppleStyle() ? '600 13.5px var(--nv-font-ui)' : 'var(--nv-micro-m)'};color:var(--nv-gold)`)}>◈ {m.proposal.title}</span>

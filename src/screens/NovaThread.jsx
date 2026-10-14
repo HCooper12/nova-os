@@ -11,6 +11,7 @@ import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
 import { stateOf, threadRows, openingIndex, clock, failedLast } from '../novaThreadFacts.js';
 import { Ico, Glyph, Stage, Settled, KeptTake, Meter } from '../NovaThreadParts.jsx';
 import { NovaFocus } from '../NovaFocus.jsx';
+import { FiledRows } from '../motion/FiledRows.jsx';
 
 // THE NOVA THREAD (29 Sep 2026) — design/mockups/63-redesign-nova-r2.html,
 // variation D · Rising, his pick: "The rising option D mock up seems to be the
@@ -418,6 +419,9 @@ export function NovaThread({ v }) {
 
 // ------------------------------------------------------------ a line --
 
+// his sentence a capture came from, for the words that fly out of it
+const youLine = (j) => document.querySelector(`.nv-nt-you[data-line="${j}"]`);
+
 function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
   const lp = useLongPress(m?.who === 'nova' && m.text ? onHold : null);
   if (!m) return null;
@@ -471,6 +475,7 @@ function Line({ i, m, fresh, onHold, onOpen, onReplay }) {
           {m.acted.undo ? <button type="button" className="nv-nt-undo" onClick={m.acted.undo}>Undo</button> : <span />}
         </div>
       )}
+      {m.filed && <FiledRows f={m.filed} source={youLine} />}
       {m.proposal && <Proposal p={m.proposal} />}
       {m.planReport && <PlanReport r={m.planReport} time={m.time} />}
     </>

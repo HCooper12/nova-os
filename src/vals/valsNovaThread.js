@@ -4,6 +4,7 @@ import { enrichBody, enrichProgram, activeBeat } from '../glassBeats.js';
 import { tabLabel } from '../tabOrder.js';
 import { undoLabel } from '../chatUndo.js';
 import { clock, panelsOf, settleStage, stageLine, bylineOf, gistOf, newestAt, contestOf } from '../novaThreadFacts.js';
+import { filedFor } from '../filedFlight.js';
 
 // THE NOVA THREAD'S VIEW MODEL (29 Sep 2026) — design/mockups/63-redesign-
 // nova-r2.html, D · Rising, with his amendment (the name at the top toggles a
@@ -40,7 +41,8 @@ export function valsNovaThread(app, ctx, v) {
     return s ? { ...s, gists: s.others.map(gistOf), panels } : null;
   };
 
-  const lines = chat.map((m) => {
+  const inboxItems = st.liveInbox?.items || null;
+  const lines = chat.map((m, i) => {
     const who = m.who === 'you' ? 'you' : m.who === 'system' ? 'system' : 'nova';
     const text = bubbleProse(m.text);
     // a row can carry a stage card instead of running glass — the morning
@@ -81,6 +83,9 @@ export function valsNovaThread(app, ctx, v) {
         title: m.research.title || null, body: m.research.body || null, error: m.research.error || null,
       } : null,
       panel: m.panel || null,
+      // TEXT → LAYOUT (15 Oct): what code filed this capture as, read off the
+      // Inbox record behind the receipt (src/filedFlight.js). Display only.
+      filed: who === 'nova' ? filedFor(chat, i, inboxItems) : null,
       notice: m.notice ? { label: m.notice.label, why: m.notice.why, undo: () => app.undoChatRoute(m.notice) } : null,
       evidence: m.evidence ? { label: m.evidence.label, open: () => app.openVerdict(m.evidence.kind, m.evidence.of) } : null,
       // THE HOLD MENU (decided 29 Sep: Remember leaves the page for a hold on

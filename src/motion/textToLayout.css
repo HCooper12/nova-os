@@ -1,0 +1,38 @@
+/* TEXT → LAYOUT (15 Oct 2026, mockup "Nova motion set" #s5). Under a
+   capture's receipt in the conversation: the rows code filed it as, each
+   with the tick that says it is on the list. The flight itself is scripted
+   in FiledRows.jsx; at rest this is simply the list of what was filed. */
+
+.nv-filed {
+  display: flex; flex-direction: column; gap: 0; min-width: 0;
+  margin-top: 8px; padding: 12px 14px 6px; border-radius: 18px;
+  background: color-mix(in srgb, var(--nv-ink) 7%, transparent);
+  box-shadow: 0 0 0 .5px color-mix(in srgb, var(--nv-ink) 14%, transparent);
+}
+.nv-filed .hd {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  padding-bottom: 6px; font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink50);
+}
+.nv-filed .hd b { font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-filed .row {
+  display: flex; align-items: center; gap: 10px; min-height: 40px; min-width: 0;
+  border-top: 1px solid color-mix(in srgb, var(--nv-ink) 10%, transparent);
+}
+.nv-filed .tk {
+  flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--nv-good) 55%, transparent);
+}
+.nv-filed .tk svg { width: 11px; height: 11px; fill: none; stroke: var(--nv-good); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 20; stroke-dashoffset: 0; }
+.nv-filed .t { flex: 1; min-width: 0; font: 600 16px/1.3 var(--nv-font-ui); color: var(--nv-ink); overflow-wrap: anywhere; }
+.nv-filed .q { flex: none; font: 500 12px var(--nv-font-mono, var(--nv-font-ui)); color: var(--nv-ink50); font-variant-numeric: tabular-nums; }
+
+/* the word in flight: a copy of the row's name, laid over the page */
+.nv-filed-fly {
+  position: fixed; z-index: 2147483000; margin: 0; white-space: nowrap;
+  pointer-events: none; transform-origin: 0 0;
+}
+
+/* his sentence while its words are in the air: the rest steps back, the
+   words that left are gone from it, and both return when they land */
+::highlight(nv-filed-rest) { color: var(--nv-ink50); }
+::highlight(nv-filed-gone) { color: transparent; }

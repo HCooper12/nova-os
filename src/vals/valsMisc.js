@@ -21,6 +21,7 @@ const THIS_DEVICE = deviceName(typeof navigator === 'undefined' ? '' : navigator
 import { RUNNING_BUILD, applyUpdate } from '../buildCheck.js';
 import { buildShopView } from '../shopModel.js';
 import { demoShopState, shopDemoVariant, demoShopRotation, demoShopRecipes } from '../shopDemo.js';
+import { filedFor } from '../filedFlight.js';
 
 // The smaller screens: Voice (concept preview), Memory Galaxy, Shopping List,
 // Claude Code, and transcript ingest. Adds to ctx: shoppingItems (nav count).
@@ -317,6 +318,8 @@ export function valsMisc(app, ctx) {
     focusCard: (card) => app.focusCard(card),
     reportScreenMic: (on) => { if (!!st.voiceScreenMic !== !!on) app.setState({ voiceScreenMic: !!on }); },
     orbMsgs: (!demoMode ? st.voiceChat : st.orbChat).map((m, i, arr) => ({
+      // TEXT → LAYOUT (15 Oct): what code filed this capture as (display only)
+      filed: m.who !== 'you' ? filedFor(arr, i, st.liveInbox?.items || null) : null,
       text: bubbleProse(m.text), typing: m.typing, panel: m.panel || null,
       attached: m.attached || null,
       // The announcement strip on a message where the chat STARTED A JOB
