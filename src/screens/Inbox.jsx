@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { subjectOf } from '../inboxDigest.js';
 import { css } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
@@ -8,6 +8,7 @@ import { LocalInput } from '../LocalInput.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, Button, Select } from '../Controls.jsx';
 import { InboxSummary } from './InboxSummary.jsx';
+import { useSpringStack } from '../motion/springStack.js';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -80,6 +81,12 @@ function InboxClassic({ v }) {
   const focused = focus ? v.inboxPending.filter((i) => subjectOf(i) === focus) : null;
   const shown = focused && focused.length ? focused : (deck ? v.inboxPending.slice(0, 1) : v.inboxPending);
   const showingFocus = !!(focused && focused.length);
+  // THE SPRING STACK (15 Oct, mockup #s3): flipping Deck / List fans the pile
+  // and springs each card to its row; back to Deck gathers them. Measured in
+  // the tap, played after the change (src/motion/springStack.js).
+  const stackRef = useRef(null);
+  const pile = deck && !showingFocus;
+  const captureStack = useSpringStack(stackRef, pile ? 'deck' : 'list');
   // History is unbounded and he has 246 records — rendering every one cost
   // ~211ms on EVERY inbox change (3,239 DOM nodes reconciled to tick one
   // box). The recent slice is what anyone actually reads; the rest are one
@@ -248,7 +255,7 @@ function InboxClassic({ v }) {
           <div style={css("display:flex;align-items:center;gap:10px")}>
             <Eyebrow tone="gold">Waiting for your call · <span key={v.inboxPending.length} style={{ display: 'inline-block', animation: 'countPulse .5s var(--nv-ease) both' }}>{v.inboxPending.length}</span></Eyebrow>
             <span style={css("margin-left:auto;display:flex")}>
-              <Segmented ariaLabel="How the queue is shown" options={[['deck', 'Deck'], ['list', 'List']]} value={deck ? 'deck' : 'list'} onChange={(mode) => setDeckMode(mode === 'deck')} />
+              <Segmented ariaLabel="How the queue is shown" options={[['deck', 'Deck'], ['list', 'List']]} value={deck ? 'deck' : 'list'} onChange={(mode) => { if (!showingFocus) captureStack(); setDeckMode(mode === 'deck'); }} />
             </span>
           </div>
           {/* A3 — THE TRIAGE STRIP. Before the first card, what the pile IS:
@@ -291,17 +298,14 @@ function InboxClassic({ v }) {
             </div>
           )}
           {/* THE DECK: only the top card is live. The two behind it are drawn
-              as edges so the depth of the queue is visible without being
+              as sheets the size of the top card, 9px higher and 5% narrower
+              each, so the depth of the queue is visible without being
               readable — what is left, not what it says. Filing or discarding
               removes the record, the next one rises, no state to manage. */}
-          <div style={css(`margin-top:10px;position:relative;${deck && !showingFocus ? 'padding-top:12px' : ''}`)}>
-            {deck && !showingFocus && v.inboxPending.length > 1 && (
-              <div aria-hidden="true" style={css("position:absolute;left:6px;right:6px;top:6px;height:40px;border-radius:12px;background:var(--nv-glass);border:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);opacity:.55")} />
-            )}
-            {deck && !showingFocus && v.inboxPending.length > 2 && (
-              <div aria-hidden="true" style={css("position:absolute;left:12px;right:12px;top:0;height:40px;border-radius:12px;background:var(--nv-glass);border:1px solid color-mix(in srgb, var(--nv-ink) 06%, transparent);opacity:.3")} />
-            )}
-          <div style={css("position:relative;display:flex;flex-direction:column;gap:10px")}>
+          <div style={css(`margin-top:10px;position:relative;${pile ? 'padding-top:18px' : ''}`)}>
+          <div ref={stackRef} className="nv-stack-col" style={css("position:relative;display:flex;flex-direction:column;gap:10px")}>
+            {pile && v.inboxPending.length > 1 && <div aria-hidden="true" className="nv-pane nv-stack-sheet s1" />}
+            {pile && v.inboxPending.length > 2 && <div aria-hidden="true" className="nv-pane nv-stack-sheet s2" />}
             {shown.map((item) => (
               /* SWIPE: right approves, left discards — additive, the buttons
                  below are untouched. A model-choice card has no single
@@ -311,7 +315,7 @@ function InboxClassic({ v }) {
                  locks vertical can never commit (swipeCore.js + its test). */
               /* the deck: a card that has just risen to the top settles in
                  (keyed by record, so only a NEW top card animates) */
-              <div key={item.id} className={item.leaving ? `nv-leave-${item.leaving}` : (deck && !showingFocus ? 'nv-deck-rise' : undefined)}>
+              <div key={item.id} data-stack={item.id} className={item.leaving ? `nv-leave-${item.leaving}` : (pile ? 'nv-deck-rise' : undefined)}>
               <SwipeRow
                 right={item.isModelChoice ? null : { label: 'FILE', icon: '✓', tone: 'var(--nv-good)', run: () => { if (!item.busy) item.approve(); } }}
                 left={{ label: 'DISCARD', icon: '✕', tone: 'var(--nv-warn)', run: () => { if (!item.busy) item.discard(); } }}

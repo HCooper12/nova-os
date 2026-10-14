@@ -28,3 +28,12 @@ export const reducedMotion = () => typeof matchMedia === 'function' && matchMedi
 
 // can this element animate at all (WAAPI present)?
 export const canAnimate = (el) => !!(el && typeof el.animate === 'function');
+
+// the tokens' durations, for callers that schedule around a spring's end
+export const SPRING_MS = MS;
+
+// every animation a moment started, so a second change can stop all of them
+// at once and start from where things are drawn
+export function cancelAll(list) {
+  for (const a of list.splice(0)) { try { a.cancel(); } catch { /* gone */ } }
+}

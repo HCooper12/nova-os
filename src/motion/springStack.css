@@ -1,0 +1,43 @@
+/* THE SPRING STACK (15 Oct 2026, mockup "Nova motion set" #s3).
+   The Inbox deck at rest is a pile: the next two cards sit behind the live
+   one, each 9px higher and 5% narrower, fainter the further back. They are
+   drawn as sheets the size of the top card (never its words: what is left,
+   not what it says), so the depth reads the same whatever card is on top.
+   The flip between Deck and List is scripted in springStack.js; this file
+   only holds the resting pile and the copies that gather into it. */
+
+.nv-stack-col { isolation: isolate; }
+
+.nv-pane.nv-stack-sheet {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  z-index: -1; pointer-events: none;
+  transform-origin: 50% 0;
+  padding: 0;
+}
+/* only the edge shows: the glass panes are translucent, so a whole sheet
+   behind the top card would read through it. The mask keeps the peek and
+   lets the sheet fade out a little way under the card. */
+.nv-pane.nv-stack-sheet {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 14px, transparent 40px);
+  mask-image: linear-gradient(to bottom, #000 0, #000 14px, transparent 40px);
+}
+.nv-stack-sheet.s1 { transform: translateY(-9px) scale(.95); opacity: .75; }
+.nv-stack-sheet.s2 { transform: translateY(-18px) scale(.9); opacity: .5; }
+
+/* WHILE CARDS MOVE they overlap, and a moving card's glass cannot blur what
+   is behind it (an animated opacity makes it its own backdrop root), so six
+   translucent cards would read as one block of tangled words. For the length
+   of the move each card gets an opaque floor of the page's own ground under
+   its glass: at rest over that ground it looks the same, and in flight it
+   reads as a card. */
+.nv-stack-col.moving > [data-stack], .nv-stack-ghost { position: relative; }
+.nv-stack-col.moving > [data-stack]::before, .nv-stack-ghost::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border-radius: var(--nv-radius); background: var(--nv-bg1);
+}
+
+/* a copy of a list card on its way back into the pile: inert, unmeasured */
+.nv-stack-ghost {
+  position: absolute; margin: 0; box-sizing: border-box; z-index: -1;
+  pointer-events: none; transform-origin: 50% 0;
+}
