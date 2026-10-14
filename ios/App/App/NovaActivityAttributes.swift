@@ -27,6 +27,10 @@ public struct NovaActivityAttributes: ActivityAttributes {
         /// Seconds.
         public var restTotal: Double?
         public var finished: Bool?
+        /// Paused by him (src/sessionClock.js): the clock stops and shows
+        /// `elapsed` (seconds of training so far) instead of counting.
+        public var paused: Bool?
+        public var elapsed: Double?
     }
 
     public var kind: String

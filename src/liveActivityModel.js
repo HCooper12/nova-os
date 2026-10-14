@@ -22,6 +22,8 @@
 // moment he glanced at a routine mid-workout, then started a new one when he
 // came back. A draft restored from days ago was last touched days ago, so it
 // still gets no card. `savedAt` is when the session last changed.
+import { isPaused, effectiveStart, sessionElapsedMs } from './sessionClock.js';
+
 export const TOUCHED_WITHIN_MS = 45 * 60_000;
 export function workoutLive({ ws, editing, view, rest, now, progress, hueOf, savedAt = null }) {
   if (!ws || editing || !Number.isFinite(ws.startedAt)) return null;
@@ -30,13 +32,18 @@ export function workoutLive({ ws, editing, view, rest, now, progress, hueOf, sav
   if (view !== 'session' && !touched) return null;
   const { done, total, next } = progress(ws);
   const resting = rest && Number.isFinite(rest.endsAt) && rest.endsAt > now && rest.total > 0;
+  const paused = isPaused(ws);
   const state = {
     title: ws.routineName || 'Workout',
     detail: next ? `Next: ${next.name}` : total ? 'Every set done. Finish to log it' : 'No sets yet',
     done,
     total,
     hue: (next && hueOf(next.muscleGroup || next.name)) || null,
-    startedAt: ws.startedAt,
+    // iOS's own timer counts from here, so paused minutes are already left out
+    startedAt: effectiveStart(ws),
+    // paused: the card stops its clock and shows the frozen time instead
+    paused: paused || null,
+    elapsed: paused ? Math.floor(sessionElapsedMs(ws, now) / 1000) : null,
     restEndsAt: resting ? rest.endsAt : null,
     restTotal: resting ? rest.total : null,
     finished: false,
@@ -44,7 +51,7 @@ export function workoutLive({ ws, editing, view, rest, now, progress, hueOf, sav
   return {
     key: `${ws.routineId || 'session'}:${ws.startedAt}`,
     state,
-    sig: [state.title, state.detail, done, total, state.hue, state.restEndsAt].join('|'),
+    sig: [state.title, state.detail, done, total, state.hue, state.restEndsAt, state.startedAt, paused ? 'p' : ''].join('|'),
   };
 }
 

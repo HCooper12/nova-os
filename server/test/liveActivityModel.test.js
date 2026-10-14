@@ -28,8 +28,22 @@ test('a workout he is doing becomes a card with sets, next lift and clock', () =
   assert.equal(live.key, `push:${T0}`);
   assert.deepEqual(live.state, {
     title: 'Push A', detail: 'Next: Bench press', done: 1, total: 3, hue: '#ff8a7a',
-    startedAt: T0, restEndsAt: null, restTotal: null, finished: false,
+    startedAt: T0, paused: null, elapsed: null, restEndsAt: null, restTotal: null, finished: false,
   });
+});
+
+// his ask, 14 Oct: pause a workout. The lock screen stops its clock and shows
+// the training time so far; resumed, iOS's timer counts from a start moved on
+// by the pause, so the paused minutes never appear.
+test('a paused session freezes the card clock; resumed, the pause is left out', () => {
+  const paused = workoutLive({ ...base, ws: { ...ws, pausedAt: T0 + 10 * 60_000 }, now: T0 + 25 * 60_000 });
+  assert.equal(paused.state.paused, true);
+  assert.equal(paused.state.elapsed, 600, 'ten minutes trained, fifteen paused');
+  assert.equal(paused.key, `push:${T0}`, 'same card: a pause is not a new workout');
+  const resumed = workoutLive({ ...base, ws: { ...ws, pausedMs: 15 * 60_000 }, now: T0 + 30 * 60_000 });
+  assert.equal(resumed.state.paused, null);
+  assert.equal(resumed.state.startedAt, T0 + 15 * 60_000);
+  assert.notEqual(paused.sig, resumed.sig, 'pausing and resuming each update the card');
 });
 
 test('no card for a parked draft, an edit, or a session older than six hours', () => {

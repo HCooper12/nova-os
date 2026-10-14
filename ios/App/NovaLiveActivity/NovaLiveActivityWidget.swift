@@ -36,7 +36,7 @@ struct NovaLiveActivityWidget: Widget {
                     if workout { SetRing(state: s, size: 44) } else { JobMark(state: s, size: 36) }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Clock(state: s, big: true, stale: stale).padding(.trailing, 4)
+                    SessionClock(state: s, big: true).padding(.trailing, 4)
                 }
                 DynamicIslandExpandedRegion(.center) {
                     Text(s.title).font(.headline).foregroundStyle(Ink.primary).lineLimit(1)
@@ -44,13 +44,13 @@ struct NovaLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(s.detail).font(.subheadline).foregroundStyle(Ink.secondary).lineLimit(1)
-                        RestBar(state: s, stale: stale)
+                        RestRow(state: s, stale: stale)
                     }
                 }
             } compactLeading: {
                 if workout { SetRing(state: s, size: 20) } else { JobMark(state: s, size: 18) }
             } compactTrailing: {
-                Clock(state: s, big: false, stale: stale)
+                CompactClock(state: s, stale: stale)
             } minimal: {
                 if workout { SetRing(state: s, size: 20) } else { JobMark(state: s, size: 18) }
             }
@@ -98,9 +98,9 @@ private struct LockScreenCard: View {
                     Text(state.detail).font(.subheadline).foregroundStyle(Ink.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                Clock(state: state, big: true, stale: stale)
+                SessionClock(state: state, big: true)
             }
-            RestBar(state: state, stale: stale)
+            RestRow(state: state, stale: stale)
         }
     }
 }
@@ -149,23 +149,23 @@ private struct JobMark: View {
     }
 }
 
-/// The rest countdown while resting, else the session clock; nothing for a
-/// finished job.
-private struct Clock: View {
+/// ONE CARD, BOTH CLOCKS (his ask, 14 Oct): the session's total time always
+/// sits top-right; a rest, while it runs, gets its own row underneath with
+/// the countdown and a bar that drains on its own. Paused, the total stops
+/// and says so. A finished job says Ready.
+private struct SessionClock: View {
     let state: NovaActivityAttributes.ContentState
     let big: Bool
-    let stale: Bool
 
     var body: some View {
         Group {
-            if let start = state.restStart, let end = state.restEnd, resting(state, stale: stale) {
-                VStack(alignment: .trailing, spacing: 0) {
-                    if big { Text("REST").font(.caption2.weight(.semibold)).foregroundStyle(Ink.gold) }
-                    Text(timerInterval: start...end, countsDown: true)
-                        .foregroundStyle(Ink.gold)
-                }
-            } else if state.finished == true {
+            if state.finished == true {
                 if big { Text("Ready").foregroundStyle(Ink.good) } else { Image(systemName: "checkmark").foregroundStyle(Ink.good) }
+            } else if state.paused == true {
+                VStack(alignment: .trailing, spacing: 1) {
+                    if big { Text("PAUSED").font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Ink.secondary) }
+                    Text(clockText(state.elapsed ?? 0)).foregroundStyle(Ink.secondary)
+                }
             } else if let started = state.started {
                 Text(started, style: .timer).foregroundStyle(Ink.primary)
             }
@@ -173,21 +173,58 @@ private struct Clock: View {
         .font(big ? .system(.title2, design: .rounded).weight(.semibold) : .system(.footnote, design: .rounded).weight(.semibold))
         .monospacedDigit()
         .multilineTextAlignment(.trailing)
-        .frame(maxWidth: big ? 90 : 52, alignment: .trailing)
+        .frame(maxWidth: big ? 96 : 52, alignment: .trailing)
     }
 }
 
-/// How much of the rest is left, as a bar that drains on its own.
-private struct RestBar: View {
+/// The island's small right-hand slot has room for one clock: the rest while
+/// it runs (the one he is waiting on), else the total, else a pause mark.
+private struct CompactClock: View {
+    let state: NovaActivityAttributes.ContentState
+    let stale: Bool
+
+    var body: some View {
+        Group {
+            if let start = state.restStart, let end = state.restEnd, resting(state, stale: stale) {
+                Text(timerInterval: start...end, countsDown: true).foregroundStyle(Ink.gold)
+            } else if state.paused == true {
+                Image(systemName: "pause.fill").foregroundStyle(Ink.secondary)
+            } else {
+                SessionClock(state: state, big: false)
+            }
+        }
+        .font(.system(.footnote, design: .rounded).weight(.semibold))
+        .monospacedDigit()
+        .frame(maxWidth: 52, alignment: .trailing)
+    }
+}
+
+/// REST, the countdown, and the bar, on one line under the card's top row.
+private struct RestRow: View {
     let state: NovaActivityAttributes.ContentState
     let stale: Bool
 
     var body: some View {
         if let start = state.restStart, let end = state.restEnd, resting(state, stale: stale) {
-            ProgressView(timerInterval: start...end, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
-                .tint(Ink.gold)
+            HStack(spacing: 10) {
+                Text("REST").font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Ink.gold)
+                Text(timerInterval: start...end, countsDown: true)
+                    .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Ink.gold)
+                    .frame(width: 44, alignment: .leading)
+                ProgressView(timerInterval: start...end, countsDown: true) { EmptyView() } currentValueLabel: { EmptyView() }
+                    .tint(Ink.gold)
+            }
         }
     }
+}
+
+/// 30:18, or 1:04:09 past the hour.
+private func clockText(_ seconds: Double) -> String {
+    let t = max(0, Int(seconds))
+    let h = t / 3600, m = (t % 3600) / 60, sec = t % 60
+    return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%d:%02d", m, sec)
 }
 
 extension Color {

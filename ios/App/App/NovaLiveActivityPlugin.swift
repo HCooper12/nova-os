@@ -94,9 +94,13 @@ final class LiveCards: @unchecked Sendable {
         lock.unlock()
     }
 
-    private func current(_ kind: String) -> Activity<NovaActivityAttributes>? {
-        Activity<NovaActivityAttributes>.activities.first {
-            $0.attributes.kind == kind && $0.activityState == .active
+    /// Every card of this kind still on screen. STALE COUNTS (his screenshot,
+    /// 14 Oct: two Pull cards at once). A card goes stale when its rest runs
+    /// out; looking only for .active missed it, and the next set started a
+    /// second card beside it.
+    private func onScreen(_ kind: String) -> [Activity<NovaActivityAttributes>] {
+        Activity<NovaActivityAttributes>.activities.filter {
+            $0.attributes.kind == kind && ($0.activityState == .active || $0.activityState == .stale)
         }
     }
 
@@ -105,19 +109,23 @@ final class LiveCards: @unchecked Sendable {
     /// clock again instead of a gold 0:00 (NovaLiveActivityWidget reads
     /// `context.isStale`). Otherwise a card idle for hours greys out.
     private func staleDate(_ state: NovaActivityAttributes.ContentState) -> Date {
+        if state.paused == true { return Date().addingTimeInterval(3 * 3600) }
         if let end = state.restEnd, end > Date() { return end }
         return Date().addingTimeInterval(3 * 3600)
     }
 
     func sync(kind: String, key: String, state: NovaActivityAttributes.ContentState) async throws {
         let content = ActivityContent(state: state, staleDate: staleDate(state))
-        if let live = current(kind) {
-            if live.attributes.key == key {
-                await live.update(content)
-                return
-            }
-            await live.end(nil, dismissalPolicy: .immediate)
+        var cards = onScreen(kind)
+        // one card per kind: the one already showing this session stays, every
+        // other one goes (a duplicate left by an older build included)
+        if let keep = cards.firstIndex(where: { $0.attributes.key == key }) {
+            let live = cards.remove(at: keep)
+            for extra in cards { await extra.end(nil, dismissalPolicy: .immediate) }
+            await live.update(content)
+            return
         }
+        for old in cards { await old.end(nil, dismissalPolicy: .immediate) }
         _ = try Activity.request(
             attributes: NovaActivityAttributes(kind: kind, key: key),
             content: content,
