@@ -299,3 +299,21 @@ test('the hours-vs-minutes sleep rescue still runs — the range guard sits afte
   assert.equal(pickKnownMetrics({ sleepAsleepMinutes: 7.2 }).sleepAsleepMinutes, 432, '7.2 hours, not 7 minutes');
   assert.equal(pickKnownMetrics({ sleepAsleepMinutes: 431 }).sleepAsleepMinutes, 431, 'minutes stay minutes');
 });
+
+test("Apple Health's own totals replace the Shortcut's, and the Shortcut cannot raise them again", async () => {
+  const { ingestHealthPayload } = await import('../lib/healthData.js');
+  // the Shortcut's raw sum ran high (iPhone and Watch both counted the walk)
+  await ingestHealthPayload({ date: '2026-03-01', metrics: { steps: 9858, walkingRunningDistanceKm: 13.2 }, skipDateShift: true });
+  const hk = await ingestHealthPayload({ date: '2026-03-01', metrics: { steps: 8725, walkingRunningDistanceKm: 7.38 }, skipDateShift: true, source: 'healthkit' });
+  assert.equal(hk.day.steps, 8725);
+  assert.equal(hk.day.walkingRunningDistanceKm, 7.38);
+  assert.equal(hk.day.accumSource, 'healthkit');
+  const later = await ingestHealthPayload({ date: '2026-03-01', metrics: { steps: 9900, hrv: 70 }, skipDateShift: true });
+  assert.deepEqual(later.droppedKeys, ['steps']);
+  const day = await loadDay('2026-03-01');
+  assert.equal(day.steps, 8725);
+  assert.equal(day.hrv, 70, 'a non-accumulator from the Shortcut still lands');
+  // and a later Health read moves it either way
+  const hk2 = await ingestHealthPayload({ date: '2026-03-01', metrics: { steps: 9012 }, skipDateShift: true, source: 'healthkit' });
+  assert.equal(hk2.day.steps, 9012);
+});

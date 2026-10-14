@@ -212,13 +212,14 @@ export function yesterdayStepsShape(days, now = new Date(), { eveningHour = 20 }
   return { kind: 'complete', yIso, day, receivedAt };
 }
 
-export async function saveDay(date, metrics, { manual = false } = {}) {
+export async function saveDay(date, metrics, { manual = false, accumSource = null } = {}) {
   if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
   await ensureDir();
   const full = path.join(HEALTH_DIR, `${date}.json`);
   const existing = existsSync(full) ? JSON.parse(await readFile(full, 'utf8')) : { date };
   const cleaned = pickKnownMetrics(metrics);
   const merged = { ...existing, ...cleaned, date, receivedAt: new Date().toISOString() };
+  if (accumSource) merged.accumSource = accumSource;
   // WHEN the steps figure was captured decides whether it can be the day's
   // total. His nightly automation runs at 23:45, so its number misses the rest
   // of the evening and any watch samples that hadn't synced — measured at
@@ -476,10 +477,18 @@ export async function ingestHealthPayload({ date, metrics, manual = false, skipD
     dateShifted = resolved.shifted;
   }
   const droppedKeys = [];
-  if (!manual && ACCUMULATOR_METRICS.some((k) => metrics[k] != null)) {
+  // APPLE HEALTH'S OWN TOTALS WIN (14 Oct 2026, the first native read). The
+  // higher-wins rule below was written for the Shortcut, whose raw sums ran
+  // HIGH when iPhone and Watch both recorded a walk: on 14 Oct it kept the
+  // Shortcut's 13.2 km over Health's de-duplicated 7.4 km, and 9,858 steps on
+  // 13 Oct over Health's 8,725. A healthkit reading is the number the Health
+  // app shows, so it replaces whatever is there; once a day carries one, a
+  // Shortcut push can no longer raise its accumulators over it.
+  const fromHealthKit = source === 'healthkit';
+  if (!manual && !fromHealthKit && ACCUMULATOR_METRICS.some((k) => metrics[k] != null)) {
     const existing = await loadDay(date);
     for (const key of ACCUMULATOR_METRICS) {
-      if (metrics[key] != null && shouldDropLowerReading(existing?.[key], metrics[key])) {
+      if (metrics[key] != null && (existing?.accumSource === 'healthkit' || shouldDropLowerReading(existing?.[key], metrics[key]))) {
         delete metrics[key];
         droppedKeys.push(key);
       }
@@ -490,7 +499,7 @@ export async function ingestHealthPayload({ date, metrics, manual = false, skipD
       return { ok: true, day: existing, date, stepsDropped, droppedKeys, allDropped: true };
     }
   }
-  const day = await saveDay(date, metrics, { manual });
+  const day = await saveDay(date, metrics, { manual, ...(fromHealthKit ? { accumSource: 'healthkit' } : {}) });
   const stepsDropped = droppedKeys.includes('steps');
   await logPushAttempt({ ok: true, ...receipt, date, keys: rawKeys, steps: metrics.steps ?? null, ...(droppedKeys.length ? { stepsDropped, droppedKeys } : {}), ...(dateShifted ? { dateShifted: true } : {}) });
   return { ok: true, day, date, stepsDropped, droppedKeys, dateShifted };
