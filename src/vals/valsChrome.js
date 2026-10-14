@@ -458,7 +458,11 @@ export function valsChrome(app, ctx) {
       evidence: st.liveVerdictOffer,
       openEvidence: () => app.openVerdict(st.liveVerdictOffer.kind, st.liveVerdictOffer.of),
       glass: glassOf(st, app),
-      onError: (err) => app.toastMsg('Dictation: ' + err),
+      // a code is not a sentence: "Dictation: not-allowed" was what he saw on
+      // every hold while the iOS shell had never declared the microphone
+      onError: (err) => app.toastMsg(err === 'not-allowed'
+        ? 'The microphone is off for Nova. Turn it on in iOS Settings › Nova.'
+        : 'Dictation: ' + err),
     } : null,
     liveTalk: st.liveTalkOn ? {
       input: st.liveInput || '',
