@@ -10,7 +10,7 @@
     "contentInset": "automatic",
     "backgroundColor": "#0a0f1e",
     "preferredContentMode": "mobile",
-    "limitsNavigationsToAppBoundDomains": false
+    "limitsNavigationsToAppBoundDomains": true
   },
   "plugins": {
     "StatusBar": {
