@@ -39,6 +39,15 @@ export function isOfflineError(err) {
   return err.name === 'AbortError' || err.name === 'TimeoutError';
 }
 
+// The sync's first request failed: was the Mac unreachable, or did it answer
+// with an error? Only an answer (an HTTP status) proves it is there. The
+// fallback fetches cannot be trusted to say: several swallow their own
+// failure and so "succeed" with no network, which kept the chip on LIVE in
+// airplane mode (his report, 14 Oct 2026).
+export function macUnreachable(err) {
+  return !Number.isFinite(err?.status) && isOfflineError(err);
+}
+
 export function makeOutboxItem(kind, label, payload) {
   return {
     id: Math.random().toString(36).slice(2, 10),

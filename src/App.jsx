@@ -25,7 +25,7 @@ import { api, getConnection, setConnection, testConnection } from './api.js';
 import { pollJob } from './jobPoller.js';
 import { orbReply, coachReply, recipeReply } from './mockAssistants.js';
 import { loadLiveCache, saveLiveCache, clearLiveCache } from './liveStore.js';
-import { loadOutbox, saveOutbox, isOfflineError, makeOutboxItem } from './outbox.js';
+import { loadOutbox, saveOutbox, isOfflineError, macUnreachable, makeOutboxItem } from './outbox.js';
 import { applyAppearance, getNovaTheme, getCalm, getCoreStyle, saveCoreStyle, getNovaStyle, getMaterial, getGlow, getGlowQuiet, applyGlow } from './theme.js';
 import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { savePinned } from './pinned.js';
@@ -2216,7 +2216,10 @@ export default class App extends Component {
             .then((r) => this.setState({ liveCalendar: r.events }))
             .catch(() => {}); // next sync tries again; the cached copy stands
         }
-      } catch {
+      } catch (err) {
+        // no network at all: say OFFLINE now, rather than letting the
+        // fallback's self-swallowing fetches pass for a Mac that answered
+        if (macUnreachable(err)) { this.setState({ connectionStatus: 'offline' }); return; }
         const results = await Promise.allSettled(tasks.map((t) => t()));
         okCount = results.filter((r) => r.status === 'fulfilled').length;
         total = results.length;
