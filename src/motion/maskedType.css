@@ -1,0 +1,38 @@
+/* MASKED TYPE (src/motion/MaskedType.jsx). The base rules are the still,
+   filled frame; .play adds the rise. --h is the caller's muscle hue. */
+.nv-mt { container-type: inline-size; margin: 0 0 10px; min-width: 0; }
+.nv-mt-word { position: relative; display: block; width: fit-content; max-width: 100%;
+  font: 800 clamp(22px, calc(100cqw / (var(--n) * .64)), 44px)/1.02 var(--nv-font-ui);
+  letter-spacing: -.02em; text-transform: uppercase; overflow-wrap: anywhere; }
+.nv-mt-o { display: block; color: transparent; -webkit-text-stroke: 1.5px color-mix(in srgb, var(--nv-ink) 38%, transparent); }
+.nv-mt-f { position: absolute; inset: 0; color: transparent;
+  background: linear-gradient(180deg, transparent 0 50%, var(--h) 50% 100%); background-size: 100% 200%; background-position: 0 100%;
+  -webkit-background-clip: text; background-clip: text; }
+/* the rule: a box the word's height whose foot is the line; riding up is
+   translateY(-100%), the fill's edge exactly */
+.nv-mt-rule { position: absolute; inset: 0 -8px; pointer-events: none; opacity: 0; }
+.nv-mt-rule::before { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 2px; margin-top: -1px; border-radius: 2px; background: var(--h); }
+.nv-mt-rule::after { content: ""; position: absolute; right: -4px; top: 100%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--h); }
+
+.nv-mt.play .nv-mt-f { animation: nvMtFill 1300ms var(--nv-spring-smooth) both; }
+.nv-mt.play .nv-mt-rule { animation: nvMtRuleUp 1300ms var(--nv-spring-smooth) both, nvMtRuleFade 1500ms linear both; }
+@keyframes nvMtFill { from { background-position: 0 0; } to { background-position: 0 100%; } }
+@keyframes nvMtRuleUp { from { transform: translateY(0); } to { transform: translateY(-100%); } }
+@keyframes nvMtRuleFade { 0%, 86% { opacity: 1; } 100% { opacity: 0; } }
+
+/* IN THE LIVE SESSION'S RECORD BANNER (src/screens/SessionSummary.jsx):
+   the name fills first, then the new best line rises (snappy) and the +gain
+   chip pops (playful); the spark's new point draws after them. These only
+   move the banner's existing entrance later, behind the fill. */
+.nv-ss-rec.mt { --mt-hold: 1300ms; }
+.nv-ss-rec.fresh.mt .nv-ss-recrow, .nv-ss-rec.fresh.mt .nv-ss-recn { animation: nvMtRise var(--nv-spring-snappy-ms) var(--nv-spring-snappy) var(--mt-hold) both; }
+@keyframes nvMtRise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.nv-ss-rec.fresh.mt .nv-ss-recv > em { animation: nvMtPop var(--nv-spring-playful-ms) var(--nv-spring-playful) calc(var(--mt-hold) + 420ms) both; }
+@keyframes nvMtPop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+.nv-ss-rec.fresh.mt .nv-ss-spark .nw { animation-delay: calc(var(--mt-hold) + 500ms); }
+.nv-ss-rec.fresh.mt .nv-ss-spark .np { animation-delay: calc(var(--mt-hold) + 950ms); }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-mt.play .nv-mt-f, .nv-mt.play .nv-mt-rule,
+  .nv-ss-rec.fresh.mt .nv-ss-recrow, .nv-ss-rec.fresh.mt .nv-ss-recn, .nv-ss-rec.fresh.mt .nv-ss-recv > em { animation: none; }
+}

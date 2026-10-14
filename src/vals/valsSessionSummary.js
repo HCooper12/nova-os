@@ -168,6 +168,8 @@ export function valsSessionSummary(app, ctx, v) {
   }
   const record = recIdx >= 0 ? {
     key: `${exIdx}:${recIdx}:${recVal}`,
+    // the lift's name heads the banner as masked type (src/motion/MaskedType.jsx)
+    name: e.name,
     value: recVal, previous: best.e1rm,
     delta: Math.round((recVal - best.e1rm) * 10) / 10,
     hue,

@@ -12,6 +12,7 @@ import { useSheetDrag } from '../useSheetDrag.js';
 import { useDictation } from '../useDictation.js';
 import { useStickToBottom } from '../useStickToBottom.js';
 import { restState } from '../sessionSummaryFacts.js';
+import { MaskedType } from '../motion/MaskedType.jsx';
 
 // THE LIVE SESSION, SUMMARY — Train round B (28 Sep 2026), drawn from
 // design/mockups/61-redesign-train-session-r2.html and approved with his
@@ -328,7 +329,7 @@ function RestRing({ rest, rs }) {
 // plates moment at Save (RecordMoment) is still where it becomes a record.
 // a record already shown never replays when the screen opens again
 const SHOWN = new Set();
-function Odometer({ from, to, fresh }) {
+function Odometer({ from, to, fresh, delay = 0 }) {
   const target = String(to);
   const start = String(from).padStart(target.length, ' ');
   const [go, setGo] = useState(!fresh);
@@ -339,13 +340,21 @@ function Odometer({ from, to, fresh }) {
         if (!/\d/.test(ch)) return <span key={i} className="sep">{ch}</span>;
         const a = /\d/.test(start[i]) ? Number(start[i]) : 0;
         const b = Number(ch);
-        return <span key={i} className="col"><span style={{ transform: `translateY(${-(go ? b : a)}em)`, transitionDelay: `${(target.length - i) * 40}ms` }}>{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => <span key={n}>{n}</span>)}</span></span>;
+        return <span key={i} className="col"><span style={{ transform: `translateY(${-(go ? b : a)}em)`, transitionDelay: `${delay + (target.length - i) * 40}ms` }}>{[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => <span key={n}>{n}</span>)}</span></span>;
       })}
     </span>
   );
 }
+// MASKED TYPE (15 Oct 2026, the approved motion set, scene 4): the lift's
+// name heads the banner, outlined, and fills with the muscle's hue rising
+// from below; then the line with the new figure rises and the +gain pops.
+// It plays with `fresh`, so once per record (SHOWN), only where the code
+// above has already decided the set beat his best. src/motion/MaskedType.jsx;
+// the banner's own entrance waits behind the fill (maskedType.css).
+const MASK_HOLD_MS = 1300;
 function RecordBanner({ r }) {
   const [fresh] = useState(() => !SHOWN.has(r.key));
+  const mask = !!r.name;
   useEffect(() => { SHOWN.add(r.key); }, [r.key]);
   const h = r.history;
   const lo = Math.min(...h) - 1; const hi = Math.max(...h) + 1;
@@ -353,11 +362,12 @@ function RecordBanner({ r }) {
   const y = (val) => 36 - ((val - lo) / Math.max(0.1, hi - lo)) * 30;
   const pts = h.map((val, i) => `${x(i)} ${y(val)}`);
   return (
-    <div key={r.key} className={`nv-ss-rec${fresh ? ' fresh' : ''}`} style={{ '--h': r.hue }} role="status" aria-label={`On pace for a new best: ${r.set} kilograms, estimated one-rep max ${r.value}, ${r.delta} over your best. It counts once you save.`}>
+    <div key={r.key} className={`nv-ss-rec${fresh ? ' fresh' : ''}${mask ? ' mt' : ''}`} style={{ '--h': r.hue }} role="status" aria-label={`${r.name ? `${r.name}: ` : ''}on pace for a new best: ${r.set} kilograms, estimated one-rep max ${r.value}, ${r.delta} over your best. It counts once you save.`}>
+      {mask && <MaskedType name={r.name} play={fresh} />}
       <div className="nv-ss-recrow">
         <span className="nv-ss-rectile" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z" /></svg></span>
         <span className="nv-ss-rect"><b>New best pace</b><small>{r.set} kg · counts once you save</small></span>
-        <span className="nv-ss-recv"><Odometer from={r.previous} to={r.value} fresh={fresh} /><small>kg</small><em>+{r.delta}</em></span>
+        <span className="nv-ss-recv"><Odometer from={r.previous} to={r.value} fresh={fresh} delay={mask && fresh ? MASK_HOLD_MS : 0} /><small>kg</small><em>+{r.delta}</em></span>
       </div>
       {h.length > 1 && (
         <svg className="nv-ss-spark" viewBox="0 0 300 40" preserveAspectRatio="none" aria-hidden="true">
@@ -377,7 +387,8 @@ function SetCard({ S, rs }) {
   const showRest = S.rest && rs.phase === 'resting' && !s.done;
   return (
     <section className="nv-sum-card nv-ss-setcard nv-sum-rise" style={{ '--i': 2 }} aria-label={s.label}>
-      {S.record && <RecordBanner r={S.record} />}
+      {/* keyed by the record: a heavier set is a new record, and plays once itself */}
+      {S.record && <RecordBanner key={S.record.key} r={S.record} />}
       <Pills S={S} />
       <div key={s.key} className="nv-ss-slide">
         <div className="nv-ss-sethead">
