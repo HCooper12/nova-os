@@ -1402,7 +1402,9 @@ export default class App extends Component {
   outboxDrainFns() {
     return {
       capture: (conn, p) => api.inboxCapture(conn, p.text, p.mode, p.source),
-      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, date: p.date }),
+      // items ride along (14 Oct): an itemised plate logged offline used to
+      // land as bare totals, losing the lines he could drop or restore
+      food: (conn, p) => api.addFoodLogEntry(conn, { name: p.name, macros: p.macros, source: p.source, date: p.date, items: p.items }),
       todo: (conn, p) => api.todoAdd(conn, p.text),
       shopping: (conn, p) => api.addShoppingItems(conn, p.items),
       journal: (conn, p) => api.addJournalEntry(conn, p.text, null, { tag: p.tag, prompt: p.prompt, promptFrom: p.promptFrom }),
@@ -2789,7 +2791,7 @@ export default class App extends Component {
         // still needs re-typing. `source` is the captured value, not a state
         // read — the form has already been cleared by this point.
         this.setState({ foodLogBusy: false });
-        this.enqueueOutbox('food', name, { name, macros, source, date });
+        this.enqueueOutbox('food', name, { name, macros, source, date, items });
         return;
       }
       // a real rejection: give him his numbers back so nothing typed is lost
