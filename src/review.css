@@ -291,6 +291,10 @@
 .nv-rv-kp li::before { content: ""; position: absolute; left: 0; top: 15px; width: 6px; height: 6px; border-radius: 2px; transform: rotate(45deg); background: var(--nv-vi); opacity: .8; }
 .nv-rv-kp li + li { box-shadow: 0 -.5px 0 var(--rv-sep); }
 .nv-rv-kp b { display: block; font: 600 15px/1.3 var(--nv-font-ui); color: var(--nv-ink); overflow-wrap: anywhere; }
+/* across his vault: the same list, marked in the note's own kind colour,
+   its title a way into that note */
+.nv-rv-across li::before { background: var(--rv-k, var(--nv-cy)); }
+.nv-rv-across button { display: block; padding: 0; margin: 0; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; }
 .nv-rv-kp span { display: block; margin-top: 2px; font: 400 14.5px/1.45 var(--nv-font-ui); color: var(--rv-ink2); }
 .nv-rv-from { margin-top: 12px; padding: 11px 13px; border-radius: 16px; background: color-mix(in srgb, var(--nv-ink) 4%, transparent); box-shadow: inset 0 0 0 .5px var(--rv-ring); }
 .nv-rv-from .o { margin: 0; font: italic 400 16px/1.4 var(--nv-font-serif); color: var(--nv-ink); }

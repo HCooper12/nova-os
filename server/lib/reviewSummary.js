@@ -50,9 +50,14 @@ const CACHE_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirna
 const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = registerJobMap('reviewSummary', new Map());
 
-export const LIMITS = { synthesis: 480, provenance: 160, origin: 200, term: 48, line: 220, reflection: 280, minPoints: 1, maxPoints: 5 };
+export const LIMITS = { threads: 3, synthesis: 480, provenance: 160, origin: 200, term: 48, line: 220, reflection: 280, minPoints: 1, maxPoints: 5 };
 
 export const bodyHash = (text) => createHash('sha1').update(String(text || '')).digest('hex');
+// The summary's SHAPE is part of its key: when the card learns to say more
+// (15 Oct: "across your vault"), every concept is written once more, then
+// again only when its page changes.
+const SHAPE = 'v2-threads';
+const keyOf = (body) => bodyHash(`${SHAPE}\n${String(body || '')}`);
 const cacheFile = (pageId) => path.join(CACHE_DIR(), `${createHash('sha1').update(String(pageId)).digest('hex').slice(0, 16)}.json`);
 
 /* ------------------------------ validation ------------------------------ */
@@ -122,8 +127,19 @@ export function validateReviewSummary(raw, input = {}) {
     }
     reflection = kept || null;
   }
+  // threads: optional; each must name a note the model was really handed
+  // (code attaches its id), anything else is dropped, never the whole card
+  const given = new Map((input.also || []).map((a) => [String(a.title).toLowerCase(), a]));
+  const threads = [];
+  for (const t of Array.isArray(raw.threads) ? raw.threads : []) {
+    const hit = given.get(clean(t?.title).toLowerCase());
+    const line = stripMinutes(t?.line);
+    if (!hit || !line || line.length > LIMITS.line || threads.some((x) => x.title === hit.title)) continue;
+    threads.push({ id: hit.id || null, title: hit.title, kind: hit.kind, line });
+    if (threads.length === LIMITS.threads) break;
+  }
   const minutesIn = input.sourceTime ? minutesFromTime(input.sourceTime) : null;
-  return { ok: true, value: { synthesis, provenance, minutesIn, sourceTime: minutesIn == null ? null : input.sourceTime, origin, keyPoints, reflection } };
+  return { ok: true, value: { synthesis, provenance, minutesIn, sourceTime: minutesIn == null ? null : input.sourceTime, origin, keyPoints, reflection, threads } };
 }
 
 /* -------------------------------- cache --------------------------------- */
@@ -133,33 +149,38 @@ export async function getCachedReviewSummary(pageId, body) {
   if (!existsSync(file)) return null;
   try {
     const c = JSON.parse(await readFile(file, 'utf8'));
-    return c.bodyHash === bodyHash(body) ? c.summary : null;
+    return c.bodyHash === keyOf(body) ? c.summary : null;
   } catch { return null; }
 }
 export async function writeCachedReviewSummary(pageId, body, summary) {
   await mkdir(CACHE_DIR(), { recursive: true });
-  await writeFile(cacheFile(pageId), JSON.stringify({ bodyHash: bodyHash(body), summary, generatedAt: new Date().toISOString() }), 'utf8');
+  await writeFile(cacheFile(pageId), JSON.stringify({ bodyHash: keyOf(body), summary, generatedAt: new Date().toISOString() }), 'utf8');
 }
 
 /* -------------------------------- prompt -------------------------------- */
 
-export function buildReviewSummaryPrompt({ title, body, sourceTitle, sourceText, lifeFacts }) {
+export function buildReviewSummaryPrompt({ title, body, sourceTitle, sourceText, lifeFacts, also = [] }) {
   return `${NOVA_LENS}
 
 You are Nova, writing the Daily review card for one concept from Hayden's own wiki. Read the concept page and its source, then return ONE JSON object and nothing else:
-{"synthesis": string, "provenance": string|null, "origin": string|null, "keyPoints": [{"term": string, "line": string}], "reflection": string|null}
+{"synthesis": string, "provenance": string|null, "origin": string|null, "keyPoints": [{"term": string, "line": string}], "threads": [{"title": string, "line": string}], "reflection": string|null}
 
 His standing rules; break none:
 - synthesis: 2 or 3 sentences, the idea itself in your own voice. No host, guest or show names here; those belong in provenance.
 - provenance: one short line naming who put the idea and where (person, show or publication, episode), only as the page or source says it. NEVER mention minutes, a timestamp or a time; code adds the real one. null if the page names no source.
 - origin: where the concept itself came from, ONLY if the text below says so (a tradition, an older text, a person the speakers credit). State that attribution plainly. If the text does not say, null. Never use your own knowledge.
 - keyPoints: 1 to 5 entries; term is a short key term (2 to 4 words, no markdown), line is one plain sentence explaining it.
+- threads: 0 to 3 entries, drawn ONLY from "Elsewhere in his vault" below. title is that note's exact title; line is one sentence saying what that note adds to this idea: where it agrees, sharpens, applies or disagrees. Prefer a different kind of source (a book beside a podcast). Skip a note that adds nothing; an empty list is fine.
+- synthesis may draw on those notes too, so the idea is the vault's whole understanding, not one video's.
 - reflection: one question or comment, under 40 words, that applies this idea to HIS life now, grounded in the facts about him below. Never generic. If the facts give nothing real to tie it to, null.
 - No markdown, no code fences, no em dashes.
 
 Concept: "${title}"
 ${String(body || '').slice(0, 5000)}
 ${sourceTitle ? `\nSource page "${sourceTitle}":\n${String(sourceText || '').slice(0, 3000)}` : '\n(No source page.)'}
+
+Elsewhere in his vault (other sources and notes that touch this idea):
+${also.length ? also.map((a) => `--- "${a.title}" (${a.kind}):\n${String(a.text || '').slice(0, 1200)}`).join('\n') : '(nothing else links here)'}
 
 What Nova really knows about him (use only these):
 ${lifeFacts || '(nothing readable today)'}`;
@@ -195,7 +216,7 @@ export function startReviewSummaryJob(input) {
       const outer = parseEnvelope(stdout, { lane: 'note-summary' });
       const m = firstBalancedObjectMatch(String(outer.result || '').trim());
       if (!m) throw new Error('no JSON object in the response');
-      const v = validateReviewSummary(parseModelJson(m[0]), { text: `${input.body}\n${input.sourceText || ''}`, sourceTime: input.sourceTime });
+      const v = validateReviewSummary(parseModelJson(m[0]), { text: `${input.body}\n${input.sourceText || ''}\n${(input.also || []).map((a) => a.text).join('\n')}`, sourceTime: input.sourceTime, also: input.also });
       if (!v.ok) throw new Error(v.reason);
       await writeCachedReviewSummary(input.pageId, input.body, v.value);
       job.result = { summary: v.value };
@@ -217,14 +238,39 @@ export async function reviewSummaryInput(vaultPath, vault, pageId, loaders) {
   const page = await vault.getPage(pageId);
   const body = page.paragraphs.join('\n\n');
   const first = page.sources?.[0] || null;
-  let sourceText = '';
-  if (first) {
-    const pages = await vault.listPages();
-    const src = pages.find((p) => String(p.title).toLowerCase() === first.title.toLowerCase());
-    sourceText = src ? src.paragraphs.join('\n\n') : '';
-  }
+  const pages = await vault.listPages();
+  const byTitle = new Map(pages.map((p) => [String(p.title).toLowerCase(), p]));
+  const src = first ? byTitle.get(first.title.toLowerCase()) : null;
+  const sourceText = src ? src.paragraphs.join('\n\n') : '';
+  const also = await alsoInVault(pages.find((p) => p.id === pageId) || page, pages, byTitle, vault);
   const { readLifeSources } = await import('./journalPrompt.js');
   const life = await readLifeSources(vaultPath, vault, { review: async () => null, ...(loaders || {}) });
   const lifeFacts = Object.values(life).filter(Boolean).map((s) => `${s.from}:\n${s.facts}`).join('\n');
-  return { pageId, title: page.title, body, sourceTitle: first?.title || null, sourceText, sourceTime: first?.time || null, lifeFacts };
+  return { pageId, title: page.title, body, sourceTitle: first?.title || null, sourceText, sourceTime: first?.time || null, lifeFacts, also };
+}
+
+// ACROSS THE WHOLE VAULT (his ask, 15 Oct 2026: the review should be
+// "extracting and analysing information across the entire vault", not
+// restating one page). Up to five other places the idea lives: the page's
+// other sources, then the concepts it links to, nearest first by the same
+// ranking the card's connection uses (another source first, never a
+// training page). Read for real; a page that is not there is skipped.
+export const ALSO_MAX = 5;
+export async function alsoInVault(page, pages, byTitle, vault) {
+  const { connectedNotes } = await import('./conceptReview.js');
+  const picked = [];
+  for (const s of (page.sources || []).slice(1)) {
+    const p = byTitle.get(String(s.title).toLowerCase());
+    if (p && p.id !== page.id) picked.push({ p, kind: 'source' });
+  }
+  const backlinks = vault.backlinkCounts ? await vault.backlinkCounts(pages) : new Map();
+  for (const c of connectedNotes(page, pages, backlinks, ALSO_MAX)) {
+    const p = pages.find((x) => x.id === c.id);
+    if (p && !picked.some((x) => x.p.id === p.id)) picked.push({ p, kind: p.type || 'note' });
+  }
+  // a mix: at most three sources, so the linked concepts get a voice too
+  const sources = picked.filter((x) => x.kind === 'source').slice(0, 3);
+  const notes = picked.filter((x) => x.kind !== 'source');
+  return [...sources, ...notes].slice(0, ALSO_MAX)
+    .map(({ p, kind }) => ({ id: p.id, title: p.title, kind, text: (p.paragraphs || []).join('\n\n') }));
 }

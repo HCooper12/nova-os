@@ -194,10 +194,21 @@ export function buildReview(app, ctx) {
       keyPoints: Array.isArray(summary.keyPoints) ? summary.keyPoints : [],
       origin: summary.origin || null,
       reflection: summary.reflection || null,
+      // ACROSS HIS VAULT (15 Oct): what the idea's other sources and linked
+      // notes add, each one a note the Mac really read (ids attached by code)
+      threads: (Array.isArray(summary.threads) ? summary.threads : []).map((t) => ({
+        title: t.title, line: t.line, kind: t.kind || 'note',
+        color: NOTE_TYPE_COLOR[(t.kind || '').toLowerCase()] || 'var(--nv-ink60)',
+        go: t.id ? () => app.selectNote(t.id) : null,
+      })),
     } : null,
     provenance,
     // at most one connection line on the card (rule E)
-    thread: connected[0] ? { ...connected[0], line: connected[0].title } : null,
+    // ...and when the Mac found where else in his vault the idea lives, that
+    // is the line: the other source, not merely the nearest link
+    thread: summary?.threads?.[0]
+      ? { title: summary.threads[0].title, line: summary.threads[0].title, lead: 'Also in', color: NOTE_TYPE_COLOR[(summary.threads[0].kind || '').toLowerCase()] || 'var(--nv-ink60)', go: summary.threads[0].id ? () => app.selectNote(summary.threads[0].id) : () => app.openReviewSheet() }
+      : connected[0] ? { ...connected[0], line: connected[0].title, lead: 'Connected to' } : null,
     gradesOpen: !!st.reviewGradesOpen,
     toggleGrades: () => app.toggleReviewGrades(),
     shuffle: state === 'card' && !offline ? () => app.shuffleReview(shuffleTo?.id || null, demo) : null,

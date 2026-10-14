@@ -111,3 +111,29 @@ test('an over-long reflection keeps its opening sentences, never fails the summa
   assert.ok(r.value.reflection.startsWith(first));
   assert.ok(r.value.reflection.length <= LIMITS.reflection);
 });
+
+// 15 Oct: "extracting and analysing information across the entire vault".
+// A thread must name a note the model was really handed; code attaches its id.
+test('validator: threads keep only notes the model was given, with their ids', () => {
+  const also = [
+    { id: 'p1', title: 'The Harbour Almanac', kind: 'source', text: 'x' },
+    { id: 'p2', title: 'Two-Part Advice Check', kind: 'concept', text: 'y' },
+  ];
+  const v = validateReviewSummary({
+    ...good(),
+    threads: [
+      { title: 'the harbour almanac', line: 'The book version adds a third test, timing.' },
+      { title: 'A Book Nobody Gave It', line: 'Invented.' },
+      { title: 'Two-Part Advice Check', line: '' },
+    ],
+  }, { ...INPUT, also });
+  assert.equal(v.ok, true);
+  assert.deepEqual(v.value.threads, [{ id: 'p1', title: 'The Harbour Almanac', kind: 'source', line: 'The book version adds a third test, timing.' }]);
+  assert.deepEqual(validateReviewSummary(good(), INPUT).value.threads, [], 'no threads is fine');
+});
+
+test('prompt: hands the model the rest of the vault, by title', () => {
+  const p = buildReviewSummaryPrompt({ title: 'T', body: 'b', lifeFacts: '', also: [{ title: 'Other Source', kind: 'source', text: 'what it says' }] });
+  assert.match(p, /Elsewhere in his vault/);
+  assert.match(p, /"Other Source" \(source\):\nwhat it says/);
+});

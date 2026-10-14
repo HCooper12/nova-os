@@ -243,8 +243,8 @@ function Thread({ r }) {
   const t = r.thread;
   if (!t) return null;
   return (
-    <Interactive as="button" type="button" className="nv-rv-thread" style={{ '--rv-k': t.color }} onClick={t.go} haptic="tick" aria-label={`Connected to ${t.title}. Open it`}>
-      <i aria-hidden="true" /><span>Connected to <b>{t.line}</b></span>
+    <Interactive as="button" type="button" className="nv-rv-thread" style={{ '--rv-k': t.color }} onClick={t.go} haptic="tick" aria-label={`${t.lead} ${t.title}. Open it`}>
+      <i aria-hidden="true" /><span>{t.lead} <b>{t.line}</b></span>
     </Interactive>
   );
 }

@@ -120,6 +120,21 @@ export function ReviewSheet({ v }) {
                   {sum.keyPoints.map((k, i) => <li key={`${k.term}-${i}`} style={{ '--i': i }}><b>{k.term}</b><span>{k.line}</span></li>)}
                 </ul>
               )}
+              {sum.threads?.length > 0 && (
+                <>
+                  <p className="nv-rv-sh3">Across your vault</p>
+                  <ul className="nv-rv-kp nv-rv-across">
+                    {sum.threads.map((t, i) => (
+                      <li key={t.title} style={{ '--i': i, '--rv-k': t.color }}>
+                        {t.go
+                          ? <Interactive as="button" type="button" onClick={t.go} haptic="tick" aria-label={`${t.title}. Open it`}><b>{t.title}</b></Interactive>
+                          : <b>{t.title}</b>}
+                        <span>{t.line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
               {(sum.origin || r.provenance) && (
                 <>
                   <p className="nv-rv-sh3">Where it came from</p>
