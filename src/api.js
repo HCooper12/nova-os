@@ -342,6 +342,7 @@ export const api = {
   workoutExercises: (conn) => call(conn, '/api/workouts/exercises'),
   addWorkoutExercise: (conn, name, muscleGroup, trackingType) => post(conn, '/api/workouts/exercises', { name, muscleGroup, trackingType }),
   // where an exercise should start if added to the session in progress
+  trainToday: (conn) => call(conn, '/api/train/today'),
   exerciseNext: (conn, id) => call(conn, `/api/workouts/exercises/${encodeURIComponent(id)}/next`),
   workoutRoutines: (conn) => call(conn, '/api/workouts/routines'),
   createWorkoutRoutine: (conn, name, exercises) => post(conn, '/api/workouts/routines', { name, exercises }),

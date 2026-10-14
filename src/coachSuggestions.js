@@ -20,7 +20,7 @@
 // Must match COACH_ROUTES in server/lib/coach.js — a shared contract.
 export const COACH_ROUTES = [
   'routine-edit', 'schedule-edit', 'progression-tune', 'exercise-remap', 'injury-log',
-  'goal-target', 'training-block', 'exercise-resource', 'coach-learning',
+  'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'train-today',
 ];
 
 const ONE_TAP_FIX = new Set(['ops', 'remap', 'swap', 'weighted-variant', 'drop', 'tune']);

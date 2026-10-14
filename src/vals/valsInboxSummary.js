@@ -25,7 +25,7 @@ import {
 // reloads, and a seen card is never marked again.
 const autoSeenOnce = new Set();
 
-const TRAIN_ROUTES = new Set(['routine-edit', 'schedule-edit', 'progression-tune', 'exercise-remap', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning']);
+const TRAIN_ROUTES = new Set(['routine-edit', 'schedule-edit', 'progression-tune', 'exercise-remap', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'train-today']);
 const TRAIN_KINDS = new Set(['coach', 'coach-program', 'coach-audit', 'training-check', 'weekly-debrief', 'coach-review', 'exercise-research', 'paper']);
 const PRACTICE_KINDS = new Set(['practice-skill', 'practice-session', 'practice-status']);
 const REPORT_KINDS = new Set(['research', 'coach-review', 'plan', 'program', 'briefing']);
@@ -83,6 +83,7 @@ function destinationOf(r) {
   switch (route) {
     case 'routine-edit': return p.routineName ? `${p.routineName}, your program` : 'Your program';
     case 'schedule-edit': return 'Your training week';
+    case 'train-today': return p.routineName ? `Today's ${p.routineName}` : "Today's session";
     case 'progression-tune': return p.exerciseName ? `${p.exerciseName}'s progression` : 'Your progression';
     case 'exercise-remap': return 'Your exercise library';
     case 'journal': return 'Your journal';

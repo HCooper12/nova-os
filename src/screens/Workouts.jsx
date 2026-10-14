@@ -621,7 +621,9 @@ function SessionView({ v }) {
                 )}
                 {/* a temporary, this-session-only lift — never part of the
                     program, held apart from anything he actually planned */}
-                {e.adhoc && (
+                {e.todayOnly ? (
+                  <Tag tone="gold" dashed title="From the Coach card you approved: this session only, your routine is unchanged">{e.todayOnly} · today only</Tag>
+                ) : e.adhoc && (
                   <Tag tone="gold" dashed title="Added mid-session — not part of your program">Extra · today only</Tag>
                 )}
                 {e.lastLabel && <span>{e.lastLabel}</span>}

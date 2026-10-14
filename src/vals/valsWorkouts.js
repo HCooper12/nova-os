@@ -515,6 +515,7 @@ export function valsWorkouts(app, ctx) {
     lastLabel: e.last?.sets?.length ? `Last${e.last.date ? ` (${e.last.date})` : ''}: ${e.last.sets.map((s) => `${s.weight || 0}×${s.reps || 0}`).join(', ')}` : null,
     focusNote: e.focusNote || null,
     adhoc: !!e.adhoc, // this session only — his 21-Aug ask, a temporary extra lift
+    todayOnly: e.todayOnly || null, // a Coach card he said yes to, for this session only (src/trainToday.js)
     isTime: isTimeTracking(e.trackingType), isBodyweight: isBodyweightTracking(e.trackingType),
     weightLabel: e.trackingType === 'weighted_bodyweight_reps' ? '+KG' : 'KG',
     amountLabel: isTimeTracking(e.trackingType) ? 'SEC' : 'REPS',

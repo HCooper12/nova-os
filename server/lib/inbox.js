@@ -647,6 +647,30 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'train-today') {
+    // ONE DAY'S SESSION, never the routine (lib/trainToday.js). A lift swapped
+    // or added in carries his last real sets for it, the same prefill a lift
+    // added mid-session gets, so it never arrives as 0 kg.
+    const { setTrainToday, changePhrase } = await import('./trainToday.js');
+    const { buildPrefill } = await import('./sessionPrefill.js');
+    const changes = [];
+    for (const c of payload.changes || []) {
+      let prefill = null;
+      if (c.toExerciseId) {
+        try {
+          const p = await buildPrefill(vaultPath, c.toExerciseId);
+          prefill = { sets: (p.sets || []).map((x) => ({ weight: x.weight, reps: x.reps })), last: p.last || null };
+        } catch { prefill = null; }
+      }
+      changes.push(prefill ? { ...c, prefill } : c);
+    }
+    const prior = await setTrainToday({ routineId: payload.routineId, routineName: payload.routineName, changes, note: payload.note || null });
+    return {
+      destination: `Today only, ${payload.routineName}: ${changes.map(changePhrase).join('; ')}. Your next ${payload.routineName} is as written.`,
+      undo: { route, prior },
+    };
+  }
+
   if (route === 'rotation-variant') {
     // A today-variant for one rotation slot (or clearing one), applied on
     // approve. The stored recipe never changes; undo restores the slot's
@@ -1269,6 +1293,11 @@ export async function undoFiling(vaultPath, undo) {
     const { exercises } = await loadExerciseLibrary(vaultPath);
     await setScheduleDay(vaultPath, exercises, undo.day, undo.priorId || null);
     return `put ${undo.dayLabel} back to ${undo.priorName}`;
+  }
+  if (undo.route === 'train-today') {
+    const { setTrainToday } = await import('./trainToday.js');
+    await setTrainToday(undo.prior || null);
+    return undo.prior ? `put back today's earlier plan for ${undo.prior.routineName}` : 'today is the routine as written again';
   }
   if (undo.route === 'rotation-variant') {
     const { loadRecipeData } = await import('./recipes.js');

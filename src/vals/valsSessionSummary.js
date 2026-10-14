@@ -184,6 +184,7 @@ export function valsSessionSummary(app, ctx, v) {
     startFrom: e.last?.sets?.length ? null : e.startFrom || null,
     focus: e.focusNote || null,
     adhoc: !!e.adhoc,
+    todayOnly: e.todayOnly || null,
     skipped: !!e.skipped,
     anomaly: !!e.anomaly,
     open3D: row.onOpen,

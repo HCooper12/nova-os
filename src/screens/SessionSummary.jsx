@@ -271,7 +271,7 @@ function RailCard({ S }) {
               <div className="nv-ss-xmeta">
                 <span className="nv-ss-mchip" style={{ '--h': L.hue }}><i aria-hidden="true" />{L.muscle}{L.mobility ? ' · not volume' : ''}</span>
                 <span className="nv-ss-tgt">{L.target}</span>
-                {L.adhoc && <span className="nv-ss-tag">Extra · today only</span>}
+                {L.todayOnly ? <span className="nv-ss-tag">{L.todayOnly} · today only</span> : L.adhoc && <span className="nv-ss-tag">Extra · today only</span>}
                 {L.anomaly && <span className="nv-ss-tag">Off day</span>}
               </div>
             </div>

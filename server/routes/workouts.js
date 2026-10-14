@@ -33,6 +33,14 @@ export function workoutsRouter(vaultPath) {
   const router = Router();
 
   // the redesigned TODAY pane's single read — see lib/trainOverview.js
+  // today's one-day changes to a routine (lib/trainToday.js), or null
+  router.get('/train/today', async (req, res) => {
+    try {
+      const { loadTrainToday } = await import('../lib/trainToday.js');
+      res.json({ today: await loadTrainToday() });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
   router.get('/train/overview', async (req, res, next) => {
     try {
       const { buildTrainOverview } = await import('../lib/trainOverview.js');

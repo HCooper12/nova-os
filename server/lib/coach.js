@@ -490,7 +490,7 @@ export async function coachLiveLine(vaultPath) {
   } catch { bits.push('his plans FAILED to load this turn'); }
   try {
     const { listRecords } = await import('./inboxStore.js');
-    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap', 'schedule-edit']);
+    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap', 'schedule-edit', 'train-today']);
     const cutoff = Date.now() - 7 * 86400000;
     const recent = (await listRecords()).filter((r) => COACH_ROUTES.has(r.decision?.route) && new Date(r.createdAt || 0).getTime() > cutoff);
     if (recent.length) {
@@ -804,7 +804,7 @@ export function parseCoachProposals(text) {
   return { cleanText: cleanText.replace(/\n{3,}/g, '\n\n').trim(), proposals, parseErrors, badLines };
 }
 
-const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'reorder', 'schedule', 'move', 'create'];
+const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goal', 'block', 'resource', 'learn', 'remap', 'reorder', 'schedule', 'move', 'create', 'today'];
 
 // THE FIELDS COACH ACTUALLY WRITES (25 Sep 2026). Between 11:01 and 11:26 that
 // morning six of his twelve PROPOSE lines were refused and never became cards:
@@ -815,7 +815,7 @@ const EDIT_ACTIONS = ['swap', 'add', 'remove', 'targets', 'tune', 'injury', 'goa
 // the field it reached for is accepted, the same stance the glass takes
 // (src/visualBeats.js normaliseSpec). Nothing is guessed: a name still has to
 // match his library or routine exactly, or loosely and uniquely.
-const ACTION_ALIASES = { drop: 'remove', delete: 'remove', retarget: 'targets', relocate: 'move', insert: 'add', replace: 'swap', 'new-routine': 'create', 'create-routine': 'create', 'add-routine': 'create', 'new routine': 'create' };
+const ACTION_ALIASES = { 'today-only': 'today', 'today only': 'today', session: 'today', drop: 'remove', delete: 'remove', retarget: 'targets', relocate: 'move', insert: 'add', replace: 'swap', 'new-routine': 'create', 'create-routine': 'create', 'add-routine': 'create', 'new routine': 'create' };
 export function normaliseProposal(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw;
   const p = { ...raw };
@@ -1209,6 +1209,59 @@ export async function validateCoachEdit(vaultPath, rawIn, { asked = null, planne
   const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : d);
   const reason = String(raw.reason || '').slice(0, 300);
 
+  // "today" changes ONE day's session and nothing else (15 Oct 2026, his
+  // "add that into the plan for today at least, but then make it go back to
+  // normal for the next leg session"). The routine is never written: his yes
+  // stores the changes against today's date (lib/trainToday.js) and starting
+  // that routine today applies them. One card for the whole day, because it
+  // is one decision: "lighter today".
+  if (action === 'today') {
+    const routine = findRoutine(raw.routine);
+    const list = Array.isArray(raw.changes) ? raw.changes : [];
+    if (!list.length) throw refuse('a today line carries "changes": a list like [{"skip":"Exact Name"},{"swap":"Exact Name","with":"Exact Name"},{"add":"Exact Name"},{"exercise":"Exact Name","weightKg":90,"targetSets":3,"targetRepsLow":10}]');
+    const kg = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 && Number(v) <= 500 ? Math.round(Number(v) * 4) / 4 : null);
+    const note = (v) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, 80) || null;
+    const touched = new Set();
+    const changes = [];
+    for (const c of list) {
+      if (!c || typeof c !== 'object') throw refuse('each item in "changes" is an object');
+      const op = String(c.op || (c.skip || c.remove ? 'skip' : (c.swap || c.with) ? 'swap' : c.add && !c.exercise ? 'add' : 'targets')).toLowerCase();
+      const dose = { weightKg: kg(c.weightKg ?? c.weight), targetSets: num(c.targetSets ?? c.sets, null), targetRepsLow: num(c.targetRepsLow ?? c.reps, null), targetRepsHigh: num(c.targetRepsHigh ?? c.targetRepsLow ?? c.reps, null), note: note(c.note) };
+      if (op === 'add') {
+        const name = String(c.add || c.exercise || '').trim();
+        const lib = fromLibrary(name);
+        if (!lib) throw refuse(`"${name}" isn't in his exercise library; a today add uses an exercise he has`);
+        if (routine.exercises.some((e) => e.exerciseId === lib.id)) throw refuse(`${lib.name} is already in ${routine.name}; change its dose with {"exercise":"${lib.name}",…} instead`, 'substance');
+        if (touched.has(lib.id)) throw refuse(`${lib.name} appears twice in the changes`, 'substance');
+        touched.add(lib.id);
+        changes.push({ op, toExerciseId: lib.id, toName: lib.name, muscleGroup: lib.muscleGroup || null, trackingType: lib.trackingType || null, ...dose });
+        continue;
+      }
+      const target = inRoutine(routine, c.skip || c.remove || c.swap || c.exercise || c.name);
+      if (touched.has(target.exerciseId)) throw refuse(`${target.name} appears twice in the changes`, 'substance');
+      touched.add(target.exerciseId);
+      if (op === 'skip') { changes.push({ op, exerciseId: target.exerciseId, name: target.name }); continue; }
+      if (op === 'swap') {
+        const name = String(c.with || c.add || c.to || '').trim();
+        const lib = fromLibrary(name);
+        if (!lib) throw refuse(`"${name}" isn't in his exercise library; a today swap uses an exercise he has`);
+        if (lib.id === target.exerciseId) throw refuse(`that swaps ${lib.name} for itself`, 'substance');
+        if (routine.exercises.some((e) => e.exerciseId === lib.id)) throw refuse(`${lib.name} is already in ${routine.name}; skip ${target.name} instead`, 'substance');
+        changes.push({ op, exerciseId: target.exerciseId, name: target.name, toExerciseId: lib.id, toName: lib.name, muscleGroup: lib.muscleGroup || null, trackingType: lib.trackingType || null, ...dose });
+        continue;
+      }
+      if (!dose.weightKg && !dose.targetSets && !dose.targetRepsLow && !dose.note) throw refuse(`the change to ${target.name} says nothing new: give weightKg, targetSets, targetRepsLow/targetRepsHigh or a note`);
+      changes.push({ op: 'targets', exerciseId: target.exerciseId, name: target.name, ...dose });
+    }
+    const kept = routine.exercises.filter((e) => !changes.some((c) => c.op === 'skip' && c.exerciseId === e.exerciseId));
+    if (!kept.length && !changes.some((c) => c.op === 'add')) throw refuse(`that skips every exercise in ${routine.name}; a rest day is a rest day, say so instead`, 'substance');
+    const { changePhrase } = await import('./trainToday.js');
+    return {
+      payload: { action, routineId: routine.id, routineName: routine.name, changes, note: note(raw.note), reason },
+      title: `Today only, ${routine.name}: ${changes.map(changePhrase).join('; ')}`,
+    };
+  }
+
   // "move" takes ONE exercise off one routine and puts it on another, as ONE
   // card (25 Sep 2026). A move used to be a remove card plus an add card: he
   // said yes to the remove, the add had been refused, and his rope extension
@@ -1323,7 +1376,8 @@ export function hisWordsOf(question) {
 // Which rails an action's card rides. A move, like an add or a swap, is a
 // routine edit.
 export function routeForAction(action) {
-  return action === 'remap' ? 'exercise-remap'
+  return action === 'today' ? 'train-today'
+    : action === 'remap' ? 'exercise-remap'
     : action === 'tune' ? 'progression-tune'
       : action === 'injury' ? 'injury-log'
         : action === 'goal' ? 'goal-target'
@@ -1381,7 +1435,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
 // coach that never learns whether its advice landed can't improve.
 export async function adviceContext(days = 14) {
   const { listRecords } = await import('./inboxStore.js');
-  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'schedule-edit']);
+  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'schedule-edit', 'train-today']);
   const cutoff = Date.now() - days * 86400000;
   // fuel-cross findings are kind-based (no route — approving files nothing) and
   // his reasoned "no" to one belongs in front of the Coach exactly like a

@@ -114,6 +114,7 @@ import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
 import { reportBargeIn, reportTurnEnd } from './useDictation.js';
 import { runMicCheck } from './micCheck.js';
+import { applyTrainToday, todayPlanFor } from './trainToday.js';
 import { IslandFeed } from './IslandFeed.jsx';
 import { ModelChoicePrompt } from './ModelChoicePrompt.jsx';
 import { CoachApplySheet } from './CoachApplySheet.jsx';
@@ -2067,6 +2068,7 @@ export default class App extends Component {
     apply('nutritionMonth', (r) => this.setState({ liveNutritionMonth: r }));
     apply('nutritionWeek', (r) => this.setState({ liveNutritionWeek: r }));
     apply('trainOverview', (r) => this.setState({ liveTrainOverview: r }));
+    apply('trainToday', (r) => this.setState({ liveTrainToday: r?.today || null }));
     apply('fuelCross', (r) => this.setState({ liveFuelCross: r }));
     apply('stash', (r) => this.setState({ liveStash: r.categories, liveStashFull: r }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
@@ -2200,6 +2202,7 @@ export default class App extends Component {
       async () => this.setState({ liveNutritionMonth: await api.nutritionMonth(conn) }),
       async () => this.setState({ liveNutritionWeek: await api.nutritionWeek(conn) }),
       async () => this.setState({ liveTrainOverview: await api.trainOverview(conn) }),
+      async () => this.setState({ liveTrainToday: (await api.trainToday(conn))?.today || null }),
       async () => this.setState({ liveFuelCross: await api.fuelCross(conn) }),
       async () => this.setState({ liveShoppingList: await api.shoppingList(conn) }),
       async () => {
@@ -4922,7 +4925,11 @@ export default class App extends Component {
     // "the card grows into the session ... Apple fitness like"). The move is
     // getSnapshotBeforeUpdate's, as for every way into a session; no view
     // transition (its flushSync made the first render one 58 ms frame).
-    this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises, startedAt: Date.now() }, sessionCancelConfirm: false });
+    // TODAY ONLY: the Coach card he said yes to changes this one session
+    // (src/trainToday.js); the routine is as written for the next one
+    const today = todayPlanFor(this.state.liveTrainToday, routine.id);
+    const planned = applyTrainToday(exercises, today);
+    this.setState({ workoutsView: 'session', workoutSession: { routineId: routine.id, routineName: routine.name, exercises: planned, startedAt: Date.now(), ...(today ? { todayPlan: true } : {}) }, sessionCancelConfirm: false });
   }
   // cockpit: exercise-level fields (note / anomaly / pain) — same immutable
   // update pattern as sets; unknown fields flow through to the save intact
