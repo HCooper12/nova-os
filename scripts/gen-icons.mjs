@@ -51,4 +51,9 @@ for (const [name, size, src] of targets) {
   await sharp(src).resize(size, size, { kernel: 'lanczos3' }).png().toFile(path.join(ROOT, 'public/icons', name));
   console.log('wrote', name);
 }
+// the native shell's icon (native/README.md): one opaque 1024 square, iOS
+// rounds the corners itself and rejects an icon with an alpha channel
+await sharp(full).flatten({ background: '#090c1d' }).removeAlpha().png()
+  .toFile(path.join(ROOT, 'ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'));
+console.log('wrote ios AppIcon-512@2x.png');
 await rm(work, { recursive: true, force: true });
