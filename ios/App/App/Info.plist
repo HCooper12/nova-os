@@ -26,6 +26,10 @@
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Nova reads your steps, heart rate variability, resting heart rate, sleep, activity and weight so your goals, recovery and widgets use the same numbers as the Health app.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Nova listens when you talk to him, so you can ask, capture and log by voice.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Nova uses the camera to scan barcodes, photograph meals and check your lifting form.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
