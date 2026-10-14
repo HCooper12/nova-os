@@ -1411,6 +1411,7 @@ export default class App extends Component {
       healthDay: (conn, p) => api.saveHealthDay(conn, p.date, p.metrics),
       session: (conn, p) => api.completeWorkoutSession(conn, p.payload)
         .then((r) => { if (p.carryoverId) api.removeCarryover(conn, p.carryoverId).catch(() => {}); return r; }),
+      carryover: (conn, p) => api.addCarryover(conn, { forDate: p.forDate, sourceRoutineName: p.sourceRoutineName, exercises: p.exercises }),
       stash: (conn, p) => api.stashAdd(conn, p),
       rotationConsumed: (conn, p) => api.setRotationConsumed(conn, p.slot, p.consumed),
       rotationEaten: (conn, p) => api.setRotationEaten(conn, p.slot, p.recipeId, p.eaten, p.date),
@@ -5084,11 +5085,21 @@ export default class App extends Component {
       if (isOfflineError(e)) {
         // the finished session lives in the persisted outbox now — safe to
         // close the active-session UI; it files the moment Nova reconnects.
-        // (The missed-exercise push-forward needs the server, so it's skipped
-        // for an offline finish — the record itself loses nothing.)
+        // The missed-exercise push-forward is offered offline too (14 Oct,
+        // offline mode): its choice rides the Outbox behind the session.
+        const t = new Date(); t.setDate(t.getDate() + 1);
+        const tomorrow = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
         this.sessionEndReason = 'finished';
-        this.setState({ workoutsView: 'routines', openRoutineId: null, workoutSession: null, sessionCancelConfirm: false });
+        this.setState({
+          workoutsView: 'routines', openRoutineId: null, workoutSession: null, sessionCancelConfirm: false,
+          finishMissed: missed.length ? missed : null,
+          finishMissedDate: tomorrow,
+          finishMissedRoutine: session.sourceRoutineName || session.routineName,
+        });
         this.enqueueOutbox('session', `${session.routineName} session`, { payload, carryoverId });
+        this.toastMsg(missed.length
+          ? `Saved on this phone; it files when your Mac is back. ${missed.length} exercise${missed.length === 1 ? '' : 's'} not done; push ${missed.length === 1 ? 'it' : 'them'} to a day below`
+          : 'Saved on this phone; it files when your Mac is back');
         return;
       }
       this.toastMsg('Could not save workout: ' + e.message);
@@ -5149,7 +5160,18 @@ export default class App extends Component {
     if (!conn || !this.state.finishMissed) return;
     api.addCarryover(conn, { forDate: this.state.finishMissedDate, sourceRoutineName: this.state.finishMissedRoutine, exercises: this.state.finishMissed })
       .then(() => { const d = this.state.finishMissedDate; this.setState({ finishMissed: null }); this.loadCarryovers(); this.toastMsg(`Pushed to ${d} — it's waiting on Train`); })
-      .catch((e) => this.toastMsg('Could not push: ' + e.message));
+      .catch((e) => {
+        if (isOfflineError(e)) {
+          // offline: the push waits in the Outbox behind the session it came
+          // from, and reaches Train when the Mac answers (14 Oct)
+          const d = this.state.finishMissedDate;
+          this.enqueueOutbox('carryover', `Push to ${d}`, { forDate: d, sourceRoutineName: this.state.finishMissedRoutine, exercises: this.state.finishMissed });
+          this.setState({ finishMissed: null });
+          this.toastMsg(`Saved on this phone; it reaches Train for ${d} when your Mac is back`);
+          return;
+        }
+        this.toastMsg('Could not push: ' + e.message);
+      });
   }
   dismissFinishMissed() { this.setState({ finishMissed: null }); }
   setFinishMissedDate(date) { this.setState({ finishMissedDate: date }); }
