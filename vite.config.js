@@ -83,8 +83,6 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // the freshness oracle itself can never be served from cache
-        navigateFallbackDenylist: [/^\/nova-os\/version\.json$/],
         globPatterns: ['**/*.{js,css,html,png,svg}'],
         importScripts: ['push-sw.js'], // web-push + notification-click handlers
         // Offline cold start. Without a navigate fallback the browser asks
@@ -94,8 +92,23 @@ export default defineConfig({
         // is what actually serves it to a navigation request.
         navigateFallback: '/nova-os/index.html',
         // never swallow API calls — they must fail honestly so the app can
-        // fall back to its cached slices and the Outbox can queue writes
-        navigateFallbackDenylist: [/^\/api\//],
+        // fall back to its cached slices and the Outbox can queue writes —
+        // and the freshness oracle itself can never be served from cache.
+        // (ONE key: a second navigateFallbackDenylist used to overwrite the first.)
+        navigateFallbackDenylist: [/^\/api\//, /^\/nova-os\/version\.json$/],
+        // Offline mode (his ask, 14 Oct 2026): what the glob does not precache.
+        // The fonts come from Google, so a cold start in airplane mode drew
+        // Nova in system fonts; the two body models (~2 MB each, over the
+        // precache limit) are kept once fetched rather than shipped up front.
+        runtimeCaching: [
+          { urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com',
+            handler: 'StaleWhileRevalidate', options: { cacheName: 'nova-font-css' } },
+          { urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com',
+            handler: 'CacheFirst',
+            options: { cacheName: 'nova-fonts', cacheableResponse: { statuses: [0, 200] }, expiration: { maxEntries: 40, maxAgeSeconds: 365 * 86400 } } },
+          { urlPattern: ({ url }) => url.pathname.startsWith('/nova-os/models/') && url.pathname.endsWith('.glb'),
+            handler: 'StaleWhileRevalidate', options: { cacheName: 'nova-models' } },
+        ],
         cleanupOutdatedCaches: true,
       },
     }),
