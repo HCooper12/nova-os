@@ -239,3 +239,33 @@ once D exists.
    opt-in like the wake word itself? My pick: opt-in, same toggle.
 4. Should "check" verbs ever consult Coach, or stay pure code? My pick:
    pure code, one line; Coach only when he asks "why".
+
+---
+
+## 5. Status, 15 Oct 2026 (same day)
+
+He said yes to all four decisions and added two things: alerts with an
+anatomy should appear across Nova, and the prebuilt acks must stop feeling
+premeditated. Built that day, all on main:
+
+- **A, 2adaa06**: `server/lib/acks.js` composes the ack from his words per
+  lane, never the same frame twice a day; `src/spokenLint.js`; receipts
+  `ackMs / firstTextMs / firstAudioMs`; `scripts/voice-latency.mjs`. The
+  fixed ACK_LINES and the 4 s thinking line are gone.
+- **C, 732a72d**: `server/lib/checks.js`, `check <thing>` and `run checks`.
+- **B, f0797d8**: `server/lib/standby.js`, `server/lib/idioms.js`,
+  `src/wakePhrase.js` (bare "Nova," opt-in in Settings › Voice).
+- **D, 05b4331**: `server/lib/alerts.js` (tiers now / next / later, the
+  anatomy, receipts, demotion proposals through the pattern scout),
+  `src/AlertCard.jsx` in the island; standby ends with one combined push.
+- **E, 2f7fdb8**: `src/where.js`, `server/lib/register.js`; gym = one
+  sentence, driving = two and no glass with every act confirmed; the lens
+  untouched. Driving is only detectable on the Siri lane until a native
+  plugin reports the audio route and motion.
+- **Wren, atlas-partner bf4bd0c**: the same acks, `lib/spokenLint.mjs`,
+  `lib/standby.mjs`, alert cards with the anatomy (`raiseAlert`, also
+  exposed to Mission Control as `WrenDock.alert`), latency receipts.
+
+Not yet seen on his phone. The latency receipts are empty until he uses
+it; read `node scripts/voice-latency.mjs` after a day of real turns before
+claiming anything about speed.
