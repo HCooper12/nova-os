@@ -2253,7 +2253,14 @@ export default class App extends Component {
       } catch (err) {
         // no network at all: say OFFLINE now, rather than letting the
         // fallback's self-swallowing fetches pass for a Mac that answered
-        if (macUnreachable(err)) { this.setState({ connectionStatus: 'offline' }); return; }
+        // A STALLED SYNC IS NOT NO MAC (his report, 14 Oct evening: OFFLINE
+        // over and over on mobile data with the Mac fine). The snapshot is the
+        // one big download; when it times out or drops mid-body, a tiny ping
+        // settles it. Only a failed ping says OFFLINE.
+        if (macUnreachable(err)) {
+          const there = await api.ping(conn).then(() => true, () => false);
+          if (!there) { this.setState({ connectionStatus: 'offline' }); return; }
+        }
         const results = await Promise.allSettled(tasks.map((t) => t()));
         okCount = results.filter((r) => r.status === 'fulfilled').length;
         total = results.length;

@@ -362,6 +362,9 @@ export const api = {
   // tagged write nudge triggers. Omit it for the full sync.
   coachApply: (conn, body) => post(conn, '/api/workouts/coach-apply', body),
   coachApplyJob: (conn, jobId) => call(conn, `/api/workouts/coach-apply/${encodeURIComponent(jobId)}`),
+  // a few bytes that prove the Mac is there: asked when the big sync stalls,
+  // so a slow download on mobile data is never mistaken for no Mac at all
+  ping: (conn) => call(conn, '/api/health', { timeoutMs: 8_000 }),
   snapshot: (conn, { only } = {}) => call(
     conn,
     only?.length ? `/api/snapshot?only=${encodeURIComponent(only.join(','))}` : '/api/snapshot',
