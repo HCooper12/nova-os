@@ -5,6 +5,8 @@ import { BodyMap, MuscleLegend } from './BodyMap.jsx';
 import { Eyebrow, Chip, Meta } from './Controls.jsx';
 import { muscleVar } from './muscleHue.js';
 import { StageCard } from './StageCard.jsx';
+import { ChartMorph } from './motion/ChartMorph.jsx';
+import { volumePoints } from './motion/chartFigures.js';
 
 const M = "var(--nv-font-mono)";
 // the UI face — for prose inside a panel, where mono is a label voice
@@ -163,6 +165,12 @@ function Variations({ list, hue, researched }) {
   );
 }
 
+function ExerciseVolume({ recent, group }) {
+  const points = volumePoints(recent);
+  if (points.length < 2) return null;
+  return <ChartMorph points={points} hue={muscleVar(group)} title={`Volume, last ${points.length} sessions`} />;
+}
+
 function Exercise({ d }) {
   // 2D by default — instant, no bundle cost. 3D on request: a body he can
   // turn, performing the lift, muscles lit. His ask, 5 Sep.
@@ -239,6 +247,11 @@ function Exercise({ d }) {
       )}
       {(d.variations || []).length > 0 && <Variations list={d.variations} hue={muscleVar(d.muscleGroup)} researched={d.researched} />}
       {!(d.recent || []).length && <div style={css(`font:var(--nv-micro-l);color:${dim(40)}`)}>No logged sessions yet for this one.</div>}
+      {/* THE VOLUME, SESSION BY SESSION (15 Oct, the motion set's chart
+          morph): bars, and one tap folds them into the trend with the real
+          first-to-last change. Under two sessions with weight moved there is
+          nothing to compare, and only the rail below is drawn. */}
+      {(d.recent || []).length > 1 && <ExerciseVolume recent={d.recent} group={d.muscleGroup} />}
       {(d.recent || []).length > 0 && <LoadRail recent={d.recent} group={d.muscleGroup} />}
       {(d.inRoutines || []).length > 0 && (
         <Meta as="div" tone="faint" style={{ marginTop: '7px', ...{ textTransform: 'none', letterSpacing: 0 } }}>In: {(d.inRoutines || []).join(' · ')}</Meta>

@@ -1,0 +1,34 @@
+/* THE CHART MORPH (src/motion/ChartMorph.jsx). Each mode's rules are its
+   still end frame; the component animates between them with WAAPI, and
+   reduced motion is these frames alone. The hue is the lift's muscle
+   (--h, src/muscleHue.js); the figure is green up, warn down, ink flat. */
+.nv-cm { display: block; width: 100%; margin: 4px 0 10px; padding: 8px 2px 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 12px; }
+.nv-cm:focus-visible { outline: 2px solid var(--nv-acc-border); outline-offset: 2px; }
+.nv-cm-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; min-width: 0; }
+.nv-cm-hd > b { font: 400 17px/1.2 var(--nv-font-serif); color: var(--nv-ink); min-width: 0; }
+.nv-cm-slot { display: grid; justify-items: end; flex: none; }
+.nv-cm-slot > span { grid-area: 1 / 1; }
+.nv-cm-hint { font: var(--nv-micro-m); letter-spacing: var(--nv-micro-track); color: var(--nv-ink50); text-transform: uppercase; }
+.nv-cm-tag { font: 700 22px/1 var(--nv-font-ui); font-variant-numeric: tabular-nums; color: var(--nv-ink60); }
+.nv-cm[data-tone="up"] .nv-cm-tag { color: var(--nv-good); }
+.nv-cm[data-tone="down"] .nv-cm-tag { color: var(--nv-warn); }
+.nv-cm-svg { display: block; width: 100%; height: auto; margin-top: 6px; overflow: visible; }
+.nv-cm-base { stroke: color-mix(in srgb, var(--nv-ink) 12%, transparent); stroke-width: 1; }
+.nv-cm-x { fill: var(--nv-ink50); font: 500 10px var(--nv-font-mono); font-variant-numeric: tabular-nums; }
+.nv-cm-bar { fill: var(--h); fill-opacity: .85; transform-box: fill-box; transform-origin: top; }
+.nv-cm-line { fill: none; stroke: var(--h); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; }
+.nv-cm-dot { fill: var(--nv-bg1); stroke: var(--h); stroke-width: 2.5; transform-box: fill-box; transform-origin: center; }
+
+/* bars: the sessions */
+.nv-cm[data-mode="bars"] .nv-cm-bar { transform: none; }
+.nv-cm[data-mode="bars"] .nv-cm-line { stroke-dashoffset: 1; }
+.nv-cm[data-mode="bars"] .nv-cm-dot { transform: scale(0); }
+.nv-cm[data-mode="bars"] .nv-cm-tag { opacity: 0; }
+.nv-cm[data-mode="bars"] .nv-cm-hint { opacity: 1; }
+/* trend: the dots, the line, the figure */
+.nv-cm[data-mode="trend"] .nv-cm-bar { transform: scaleY(0); }
+.nv-cm[data-mode="trend"] .nv-cm-line { stroke-dashoffset: 0; }
+.nv-cm[data-mode="trend"] .nv-cm-dot { transform: scale(1); }
+.nv-cm[data-mode="trend"] .nv-cm-tag { opacity: 1; }
+.nv-cm[data-mode="trend"] .nv-cm-hint { opacity: 0; }
