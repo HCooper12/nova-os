@@ -7,10 +7,14 @@ export function alertsRouter() {
 
   router.get('/alerts', async (req, res) => {
     try {
-      const { pendingAlerts, spokenAlert, firstThingLine } = await import('../lib/alerts.js');
+      const { pendingAlerts, spokenAlert, firstThingLine, forPlace } = await import('../lib/alerts.js');
+      const { PLACES } = await import('../lib/register.js');
+      // where the asking device is (src/where.js), from the closed set only:
+      // each card says whether it may show, may speak, or waits
+      const place = PLACES.includes(req.query.place) ? req.query.place : 'unknown';
       // the lines he may hear ride with each card, written here by code, so
       // the phone never composes a word of an alert
-      res.json({ alerts: pendingAlerts().map((a) => ({ ...a, spoken: spokenAlert(a), firstThing: a.tier === 'next' ? firstThingLine(a) : null })) });
+      res.json({ place, alerts: pendingAlerts().map((a) => forPlace({ ...a, spoken: spokenAlert(a), firstThing: a.tier === 'next' ? firstThingLine(a) : null }, place)) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

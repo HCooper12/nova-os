@@ -1,4 +1,5 @@
 import { isMacDevice } from './macTargets.js';
+import { PLACES, boundWhere } from './where.js';
 const STORAGE_KEY = 'novaos.connection';
 
 export function getConnection() {
@@ -365,11 +366,12 @@ export const api = {
   // a few bytes that prove the Mac is there: asked when the big sync stalls,
   // so a slow download on mobile data is never mistaken for no Mac at all
   ping: (conn) => call(conn, '/api/health', { timeoutMs: 8_000 }),
-  snapshot: (conn, { only } = {}) => call(
-    conn,
-    only?.length ? `/api/snapshot?only=${encodeURIComponent(only.join(','))}` : '/api/snapshot',
-    { timeoutMs: 30_000 },
-  ),
+  // `place` (src/where.js): where this device is, so the alerts slice can
+  // say which cards may show, speak or wait. The closed set only.
+  snapshot: (conn, { only, place } = {}) => {
+    const q = [only?.length ? `only=${encodeURIComponent(only.join(','))}` : '', PLACES.includes(place) ? `place=${place}` : ''].filter(Boolean).join('&');
+    return call(conn, q ? `/api/snapshot?${q}` : '/api/snapshot', { timeoutMs: 30_000 });
+  },
   getInboxConfig: (conn) => call(conn, '/api/inbox-config'),
   setInboxConfigMode: (conn, mode) => put(conn, '/api/inbox-config', { mode }),
   // the model board — one lane per write, so a toggle never rewrites a model
@@ -527,7 +529,12 @@ export const api = {
   // turn in the car failed on the client while the Mac was still working.
   // `device`: whether he is at the Mac Nova runs on — the Mac verbs (server
   // verbs.js parseMac) only claim "open X" / "pause" when he is (src/macTargets.js)
-  ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, device: isMacDevice() ? 'mac' : 'other', ...agents }, { timeoutMs: 45_000 }),
+  // `where` rides every ask (src/where.js): { place, why }, bounded here and
+  // again on the Mac. Absent, the server treats it as 'unknown'.
+  ask: (conn, question, sessionId, agents = {}) => {
+    const { where, ...rest } = agents || {};
+    return post(conn, '/api/ask', { question, sessionId, device: isMacDevice() ? 'mac' : 'other', ...rest, ...(where ? { where: boundWhere(where) } : {}) }, { timeoutMs: 45_000 });
+  },
   // "I'm back" by a tap on the island (server/lib/standby.js) — the same end
   // his words reach: { text, standby: { on: false, landed } }
   endStandby: (conn) => post(conn, '/api/voice/standby/end', {}),

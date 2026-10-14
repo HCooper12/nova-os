@@ -1086,7 +1086,7 @@ export function describeForModel() {
 // and nobody to answer a follow-up, so a verb that needs either says so and
 // the model-choice gate never asks. `gateAnswered`: he has already answered
 // it (/api/act) — "keep it" arrives as no model at all.
-export async function runVerb(vaultPath, question, raw, { source = 'voice', fromMac = false, direct = false, gateAnswered = false } = {}) {
+export async function runVerb(vaultPath, question, raw, { source = 'voice', fromMac = false, direct = false, gateAnswered = false, forceConfirm = false } = {}) {
   const id = String(raw?.verb || '').trim();
   const v = VERBS[id];
   if (!v) throw new Error(`I don't have a verb called "${raw?.verb}"`);
@@ -1106,7 +1106,11 @@ export async function runVerb(vaultPath, question, raw, { source = 'voice', from
     const { needsGate, gateQuestion } = await import('./modelChoice.js');
     if (needsGate(v.gate)) return { gated: { kind: 'act', lane: v.gate, verb: id, args }, said: gateQuestion(v.gate) };
   }
-  const tier = v.tierFor ? v.tierFor(args) : v.tier;
+  // DRIVING CONFIRMS EVERY ACT ALOUD (lib/register.js forceConfirmFor):
+  // `forceConfirm` lifts any verb that changes something he owns to the
+  // confirm tier, so it lands pending and his yes runs it. A read-only verb
+  // (receipt: false, the check verbs) changes nothing and is not asked about.
+  const tier = forceConfirm && v.receipt !== false ? 'confirm' : (v.tierFor ? v.tierFor(args) : v.tier);
   const { createRecord } = await import('./inboxStore.js');
   const base = {
     id: randomUUID().slice(0, 8),
@@ -1520,7 +1524,7 @@ export async function tryCommand(vaultPath, question, ctx = {}) {
     const target = split.tail || SHOW_FOR[head.matched] || null;
     if (!target) return { ...head, text: `${head.text} There's nothing I can open for that.` };
     try {
-      const shown = await runVerb(vaultPath, question, { verb: 'mac.open', args: { target } }, { source: 'voice', fromMac: !!ctx.fromMac });
+      const shown = await runVerb(vaultPath, question, { verb: 'mac.open', args: { target } }, { source: 'voice', fromMac: !!ctx.fromMac, forceConfirm: !!ctx.forceConfirm });
       return { ...head, text: `${head.text} ${shown.acted.said}`, shown: shown.acted };
     } catch (e) {
       return { ...head, text: `${head.text} But ${e.message}${/[.?!]$/.test(e.message) ? '' : '.'}` };
@@ -1531,7 +1535,7 @@ export async function tryCommand(vaultPath, question, ctx = {}) {
   try {
     const cmd = await resolveAny(vaultPath, parsed);
     if (!cmd) return null; // the words fit no real thing — not a command after all
-    const out = await runVerb(vaultPath, question, cmd, { source: 'voice', fromMac: !!ctx.fromMac, direct: !!ctx.direct });
+    const out = await runVerb(vaultPath, question, cmd, { source: 'voice', fromMac: !!ctx.fromMac, direct: !!ctx.direct, forceConfirm: !!ctx.forceConfirm });
     if (out.gated) return { matched: cmd.verb, text: out.said, modelChoicePending: out.gated };
     if (out.acted) return { matched: cmd.verb, text: out.acted.said, acted: out.acted };
     return { matched: cmd.verb, text: `${out.proposal.title} — say yes and it's done.`, proposal: out.proposal };

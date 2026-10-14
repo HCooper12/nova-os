@@ -12,7 +12,8 @@
 //   firstAudioMs  → the reply's first sentence starting to play
 //
 // by device (iPhone vs Mac, from the user agent) and lane (nova, coach,
-// leader, reflex). p50 and p95, with the count each is drawn from, and an
+// leader, reflex), then by place (gym, driving, desk, phone; src/where.js).
+// p50 and p95, with the count each is drawn from, and an
 // honest line when there is nothing to read.
 //
 //   node scripts/voice-latency.mjs                 # server/data/voice/turns.json
@@ -59,11 +60,24 @@ for (const t of asks) {
   if (!groups.has(key)) groups.set(key, []);
   groups.get(key).push(t);
 }
+// WHERE HE WAS (src/where.js, from the 15 Oct place build on): the same
+// waits by place. A receipt from before it has no place and reads '?'.
+const places = new Map();
+for (const t of asks) {
+  const key = t.place || '?';
+  if (!places.has(key)) places.set(key, []);
+  places.get(key).push(t);
+}
 const first = asks[0].at?.slice(0, 16) || '?';
 const last = asks.at(-1).at?.slice(0, 16) || '?';
 console.log(`${asks.length} ask(s), ${first} → ${last} UTC (he is AEST, +10)\n`);
 console.log(`${'device · lane'.padEnd(20)} ${FIELDS.map((f) => `${f.padEnd(10)} p50    p95`.padEnd(26)).join(' ')}`);
 for (const [key, rows] of [...groups.entries()].sort()) {
+  const cols = FIELDS.map((f) => fmt(rows.map((r) => r[f]).filter((v) => Number.isFinite(v))).padEnd(26));
+  console.log(`${`${key} (${rows.length})`.padEnd(20)} ${cols.join(' ')}`);
+}
+console.log(`\n${'place'.padEnd(20)} ${FIELDS.map((f) => `${f.padEnd(10)} p50    p95`.padEnd(26)).join(' ')}`);
+for (const [key, rows] of [...places.entries()].sort()) {
   const cols = FIELDS.map((f) => fmt(rows.map((r) => r[f]).filter((v) => Number.isFinite(v))).padEnd(26));
   console.log(`${`${key} (${rows.length})`.padEnd(20)} ${cols.join(' ')}`);
 }

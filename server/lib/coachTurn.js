@@ -25,12 +25,16 @@ import { preferencesContext } from './learning.js';
 // volatile picture as a live line; a new one gets the full assembly.
 // `consulted` (lib/consult.js): another agent is asking — a fresh session with
 // the same full picture, answering that agent, stamping nothing on his behalf.
-export async function startCoachTurn(vaultPath, { question, sessionId = null, liveSession = null, consulted = null } = {}) {
+export async function startCoachTurn(vaultPath, { question, sessionId = null, liveSession = null, consulted = null, where = null } = {}) {
   const { liveSessionContext, coachLiveLine } = await import('./coach.js');
   const live = liveSessionContext(liveSession);
+  // WHERE HE IS (lib/register.js): the gym's one-sentence register, or the
+  // car's two; '' for the desk and the phone. A consult never carries it.
+  const { whereLine } = await import('./register.js');
+  const placeLine = consulted ? '' : whereLine(where?.place);
   if (sessionId) {
     const fresh = await coachLiveLine(vaultPath).catch(() => '');
-    const preamble = [fresh, live ? `[${live}]` : ''].filter(Boolean).join('\n');
+    const preamble = [fresh, live ? `[${live}]` : '', placeLine].filter(Boolean).join('\n');
     const q = preamble ? `${preamble}\n\n${question}` : question;
     // `asked` is his question alone — the text his cards carry, never the preamble
     return startAskCoach(vaultPath, { question: q, asked: question, sessionId });
@@ -344,5 +348,6 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         parts.push(ABSENT_NOTE(failures.map((label) => ({ label }))));
       }
       if (consulted) return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), consulted });
+      if (placeLine) parts.push(placeLine);
       return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined });
 }

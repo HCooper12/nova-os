@@ -60,6 +60,15 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
     // the one code-written line the app speaks once (lib/handsFree.js
     // stageLineOf); null the rest of the time, so the app stays quiet
     const slow = job.status === 'running' ? stageLineOf(job.consult) : null;
+    // DRIVING (lib/register.js suppressGlass): nothing to look at. A VIS line
+    // the model wrote anyway is stripped from the stream here, and no panel,
+    // card or visual leaves this route, so the glass cannot rise by accident.
+    if (job.noGlass) {
+      const { parseVisualStream } = await import('../../src/visualBeats.js');
+      const partial = job.partial ? parseVisualStream(job.partial).text : null;
+      const result = job.result ? { ...job.result, text: typeof job.result.text === 'string' ? parseVisualStream(job.result.text).text : job.result.text, panel: null, card: null } : job.result;
+      return res.json({ status: job.status, result, error: job.error, partial: partial || null, stage: job.stage || null, visuals: null, consult: job.consult?.length ? job.consult : null, stageLine: slow?.line || null, stageAgent: slow?.agent || null, glass: false });
+    }
     res.json({ status: job.status, result: job.result, error: job.error, partial: job.partial || null, stage: job.stage || null, visuals: job.visuals || null, consult: job.consult?.length ? job.consult : null, stageLine: slow?.line || null, stageAgent: slow?.agent || null });
   });
 

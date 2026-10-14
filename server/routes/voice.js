@@ -6,6 +6,7 @@ import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
 import { tryReflex } from '../lib/reflex.js';
 import { composeShow } from '../lib/morningShow.js';
 import { lintSpoken } from '../../src/spokenLint.js';
+import { normWhere, whereLine, suppressGlass, forceConfirmFor, handsFreeWhere } from '../lib/register.js';
 
 // The voice line: Ask Nova (read-only Q&A job over the vault, polled via the
 // shared /claude-code/message/:jobId endpoint) and the ElevenLabs TTS proxy.
@@ -23,6 +24,14 @@ const PLACEHOLDER_QUESTIONS = new Set([
 // he is sitting at it. The app says so (src/macTargets.js isMacDevice); an
 // older build falls back to its browser's user agent. Siri, Shortcuts and
 // Telegram say nothing, and count as "not at the Mac".
+// DRIVING: the Coach's and the Leader's jobs carry no glass either; the poll
+// (routes/claudeCode.js) strips it when the job says so
+function markNoGlass(jobId, place) {
+  if (!suppressGlass(place)) return;
+  const job = getMessageJob(jobId);
+  if (job) job.noGlass = true;
+}
+
 export function fromMacOf(req) {
   const d = req?.body?.device;
   if (d === 'mac') return true;
@@ -130,6 +139,10 @@ export function voiceRouter(vaultPath) {
       // off X" answered from the API and reached the model in the app. Every
       // matcher reads `raw`; only the model gets the dressed version.
       const raw = typeof req.body?.raw === 'string' && req.body.raw.trim() ? req.body.raw.trim() : question;
+      // WHERE HE IS (src/where.js, lib/register.js): bounded here, never
+      // trusted. It switches the register lines and, driving, the glass and
+      // the confirm tier; nothing else. Absent (an older build) is 'unknown'.
+      const ctx = { fromMac: fromMacOf(req), where: normWhere(req.body?.where) };
       // attached material rides in front of the words; a reflex or a verb
       // never sees it (they answer from the record, not from a photo)
       let attachmentPreamble = '';
@@ -182,7 +195,7 @@ export function voiceRouter(vaultPath) {
       // as the strict grammar's "tick the eggs off the list"; anything else
       // reaches tryCommand exactly as he said it
       const commandText = await expandIdiomsSafe(raw);
-      const command = attachmentPreamble ? null : await tryCommand(vaultPath, commandText, { fromMac: fromMacOf(req), deferJobs }).catch(() => null);
+      const command = attachmentPreamble ? null : await tryCommand(vaultPath, commandText, { fromMac: ctx.fromMac, deferJobs, forceConfirm: forceConfirmFor(ctx.where.place) }).catch(() => null);
       if (command) {
         console.log(`verb ${command.miss ? 'miss' : 'hit'} [${command.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
@@ -235,7 +248,8 @@ export function voiceRouter(vaultPath) {
         // the Coach tab (lib/consult.js markHisWords; his call, 3 Oct)
         const { markHisWords } = await import('../lib/consult.js');
         markHisWords(question);
-        const jobId = await startCoachTurn(vaultPath, { question, sessionId: coachSession, liveSession: req.body?.liveSession || null });
+        const jobId = await startCoachTurn(vaultPath, { question, sessionId: coachSession, liveSession: req.body?.liveSession || null, where: ctx.where });
+        markNoGlass(jobId, ctx.where.place);
         console.log(`ask → coach (${coachSession ? 'resumed' : 'new'}) q=${JSON.stringify(question.slice(0, 60))}`);
         const ack = await ackForTurn({ question: raw, lane: 'coach', voiceId: req.body?.voiceId });
         return res.json({ jobId, agent: 'coach', ...(ack ? { ack } : {}) });
@@ -248,15 +262,20 @@ export function voiceRouter(vaultPath) {
         // Leader chat (lib/consult.js markHisWords; his call, 3 Oct)
         const { markHisWords } = await import('../lib/consult.js');
         let jobId;
+        // where he is rides in front of the model's copy only; his words
+        // (markHisWords) stay his
+        const wl = whereLine(ctx.where.place);
+        const placed = (q) => (wl ? `${wl}\n\n${q}` : q);
         if (leaderSession) {
           const fresh = await leaderLiveLine().catch(() => '');
           const q = fresh ? `[Live now — trust this over anything earlier in this conversation: ${fresh}]\n\n${question}` : question;
           markHisWords(q);
-          jobId = startAskLeader(vaultPath, { question: q, sessionId: leaderSession });
+          jobId = startAskLeader(vaultPath, { question: placed(q), sessionId: leaderSession });
         } else {
           markHisWords(question);
-          jobId = startAskLeader(vaultPath, { question, context: await buildLeaderChatContext(vaultPath), sessionId: null });
+          jobId = startAskLeader(vaultPath, { question: placed(question), context: await buildLeaderChatContext(vaultPath), sessionId: null });
         }
+        markNoGlass(jobId, ctx.where.place);
         console.log(`ask → leader (${leaderSession ? 'resumed' : 'new'})`);
         const ack = await ackForTurn({ question: raw, lane: 'leader', voiceId: req.body?.voiceId });
         return res.json({ jobId, agent: 'leader', ...(ack ? { ack } : {}) });
@@ -280,7 +299,7 @@ export function voiceRouter(vaultPath) {
       // instruct on his standing grant (lib/consult.js markHisWords, 1 Oct)
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
-      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true });
+      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
       const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
       res.json({ jobId, ...(ack ? { ack } : {}) });
     } catch (e) {
@@ -550,6 +569,11 @@ export function voiceRouter(vaultPath) {
       const { tryCommand: trySyncCommand } = await import('../lib/verbs.js');
       // `direct`: Siri has no screen to open and nobody to answer a follow-up,
       // so a job runs on his board's model and a screen-only verb says so
+      // WHERE HE IS on the hands-free lane (lib/register.js handsFreeWhere):
+      // driving-grade unless a Shortcut says otherwise. The register and the
+      // glass follow it; the confirm tier does not, because a one-shot has no
+      // next turn for his yes (forceConfirmFor oneShot).
+      const where = handsFreeWhere(body?.where);
       const command = attachmentPreamble ? null : await trySyncCommand(vaultPath, await expandIdiomsSafe(question), { fromMac: fromMacOf(req), direct: true }).catch(() => null);
       if (command) {
         console.log(`ask/sync verb ${command.miss ? 'miss' : 'hit'} [${command.matched}]`);
@@ -617,7 +641,7 @@ export function voiceRouter(vaultPath) {
       markHisWords(asked);
       const jobId = startAskNova(vaultPath, {
         question: asked, context, liveLine, direct: true,
-        sessionId: spoken.sessionId, resume: spoken.resumed,
+        sessionId: spoken.sessionId, resume: spoken.resumed, where,
       });
       // THE LINE AND A SLOW ASK (lib/handsFree.js, his call 30 Sep): a
       // consult that includes the Researcher answers at once with a

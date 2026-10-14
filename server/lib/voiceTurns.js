@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { mkdir, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PLACES } from '../../src/where.js';
 
 // ---------------------------------------------------------------------------
 // WHY HIS TURN ENDED — the receipt, not analytics.
@@ -112,6 +113,9 @@ export function turnRecord(body = {}, ua = '') {
     ...(typeof body.lane === 'string' && body.lane ? { lane: body.lane.slice(0, 12) } : {}),
     ...(typeof body.ackText === 'string' && body.ackText ? { ackText: body.ackText.slice(0, 60) } : {}),
     ...(typeof body.ackId === 'string' && body.ackId ? { ackId: body.ackId.slice(0, 40) } : {}),
+    // WHERE HE WAS (src/where.js): the closed set only, so voice-latency can
+    // group by it; anything else is left off rather than stored as a guess
+    ...(PLACES.includes(body.place) ? { place: body.place } : {}),
     ua: String(body.ua || ua || '').slice(0, 200),
   };
 }

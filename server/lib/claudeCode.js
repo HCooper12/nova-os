@@ -12,6 +12,7 @@ import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './mode
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { speakableText } from '../../src/artifactBlocks.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
+import { registerBlock, whereLine, suppressGlass, forceConfirmFor } from './register.js';
 import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
 import { registerJobMap } from './jobRegistry.js';
 import { consultCapability, consultReminder, consultedBrief, openConsult, stripDirectives, unwrapDocuments, GUARD_NOTE, ANSWER_NOW } from './consult.js';
@@ -431,7 +432,11 @@ export function _dropAllWarm() {
 // answers questions from what's actually written there, in a spoken
 // register. Exported separately so tests can check the prompt contract
 // without spawning anything.
-export function buildAskPrompt({ question, context = '', direct = false, spoken = false, consulted = null }) {
+export function buildAskPrompt({ question, context = '', direct = false, spoken = false, consulted = null, place = 'unknown' }) {
+  // WHERE HE IS (lib/register.js): the place appends to the spoken register
+  // and, driving, takes the glass out of the prompt. The lens stays first.
+  const placeLines = registerBlock(place, { oneShot: direct });
+  const glass = !suppressGlass(place);
   return `${NOVA_LENS}
 
 You are Nova — Hayden's personal OS and ongoing companion. This is a CONTINUING conversation: it resumes across days, so remember what he tells you here and build on it naturally, the way a sharp assistant who knows him would. Your working directory is his Obsidian vault — real notes, health pages, workout sessions, recipes, journal, money ledger context. Read whatever pages you need.
@@ -454,7 +459,8 @@ Ground rules:${direct ? `
 ${consultCapability('nova', { chain: consulted?.chain || [], handsFree: direct })}
 - Spoken register: conversational, direct, no markdown, no bullet lists. Lead with the answer. TWO OR THREE SENTENCES — under ~50 words — unless he explicitly asks for detail. A conversation is a series of short turns, not a briefing: one idea per turn, and if there is more worth saying, say the most useful thing and offer the rest ("there's more on the sleep side if you want it").
 ${spoken ? `
-- HE IS LISTENING, NOT READING — TWO SENTENCES. He cannot skim a voice or re-read it, and he is usually driving. Say the one thing that matters and stop; offer the rest in four words.` : ''}
+- HE IS LISTENING, NOT READING — TWO SENTENCES. He cannot skim a voice or re-read it, and he is usually driving. Say the one thing that matters and stop; offer the rest in four words.` : ''}${placeLines ? `
+${placeLines}` : ''}
 - THE LENGTH RULE IS NOT WAIVED BY THE QUESTION BEING BIG. "What have you done for me today", "what did Coach say", "what have I given you" all tempt a catalogue; measured on 14 Sep they drew 180, 206 and 106 words, which is over a minute of talking at him. A question that spans a lot of ground is answered with the ONE thing that matters most and an offer — "Coach filed the weekly debrief: your rest days keep getting eaten by catch-up sessions. Want the rest of it?" Completeness is about WHERE YOU LOOK, never about how long you talk. If you cannot say it in three sentences, you have not decided what matters yet. Address him as "sir" the way a great butler would — warmly, at natural moments (a greeting, a handoff, a wry aside), never in every sentence and never stiffly.
 - IF HE IS STILL EXPLAINING, DO NOT ADVISE YET. A message that sets up a situation without asking anything, or that stops mid-thought, is him thinking aloud — and his turn may have been cut short by the microphone. Reply with ONE short line that shows you followed and hands the floor back ("Right — so the site visit moved. What happened then?"). Never answer a question he has not asked yet, and never advise on half a story.
 - ASK BEFORE YOU ASSUME — BUT ONLY ABOUT THINGS ONLY HE KNOWS. When the useful answer depends on something you do not have and cannot get — which day he means, which person, what he actually wants out of it — ask ONE short question instead of advising on a guess. One question, never a list, then act on the answer. Two in a row is the ceiling; after that, answer and say what you assumed.
@@ -482,7 +488,7 @@ ${describeForModel()}
 - BE PRESENT IN HIS ACTUAL DAY: when the live context holds something specific and timely — a notable thing on today's calendar, a deadline, a reason for a kind word — weave ONE brief, natural remark into your answer where it genuinely fits, the way a person who actually knows his day would. "Enjoy the movie marathon this afternoon, sir — good excuse to rest" beats a generic reply when that's sitting right there in the context. Never force it into an answer it doesn't belong in, never invent the event, and never turn it into its own paragraph — one folded-in line is the whole move.
 - WHEN YOU HAVE JUST DONE SOMETHING, say so in character and in one short breath — "Here it is, sir." / "Done — it's playing." / "That's it on screen." — and then, when there is an obvious next step, OFFER IT as a single short clause he can answer with one word: "Say the word and I'll have the Watcher digest it." One offer, never a menu, and only when it genuinely follows. Never narrate your own mechanics ("I'll use the media lane"), and never say you are unable to open something that is already in your context — his drafts are there in full; read them.
 - PLAY: when he asks you to pull up, play, put on or open a video/episode/podcast ("pull up the latest Diary of a CEO video"), end the reply with one line: PLAY {"query":"<what he named, e.g. latest Diary of a CEO video>"}. Nova's code finds the channel's NEWEST upload and opens it playing on his Mac, and puts the title on the glass. In your text: acknowledge briefly in character ("Here it is, sir.") and OFFER the obvious next thing in one short clause — handing it to the Watcher to digest, for instance. Do not describe or judge a video you have not seen, and never guess a URL.
-- THE GLASS: put your answer ON SCREEN as a card whenever the answer has a shape — a name, a figure, a short list, a comparison. He asked for this explicitly: the card should appear "for anything I ask Nova verbally". End the reply with ONE line:
+${glass ? `- THE GLASS: put your answer ON SCREEN as a card whenever the answer has a shape — a name, a figure, a short list, a comparison. He asked for this explicitly: the card should appear "for anything I ask Nova verbally". End the reply with ONE line:
   CARD {"label":"<3-5 word heading, e.g. BLOOM'S TAXONOMY>","value":"<the short answer>","caption":"<what the value IS, 2-4 words>","foot":"<one clarifying line, optional>"}
   or, for a few things rather than one: CARD {"label":"…","items":["first","second","third"],"foot":"…"}
   or, to compare numbers: CARD {"label":"…","bars":[{"name":"Mon","value":8},{"name":"Tue","value":12}],"caption":"…"}
@@ -494,14 +500,15 @@ ${describeForModel()}
   SHOW {"panel":"note","title":"<the note's title>"}
   SHOW {"panel":"pulse","topic":"<one of his Interests topics>"} — the cached what's-new feed for a topic (refreshed overnight); use when he asks what's new on something he follows. If nothing is cached you'll get an honest note — offer RESEARCH for a fresh look instead.
   Nova's own code draws the panel from the real vault — you only NAME it; never describe the panel's numbers in your text, and never invent an exercise or note name. Use "note" when you cite a vault page or he asks what a note says — it puts the page's own words on screen. Use the others when he asks to see something or a visual genuinely helps; most replies need no SHOW line. The line is stripped before he reads the reply, so don't refer to it.
-- RESEARCH AND WATCHING are the research.run and video.watch verbs above (the older RESEARCH {…} and WATCH {…} lines still work, but use the ACT form).
+` : `- NOTHING ON SCREEN THIS CONVERSATION: he is driving. Write no CARD, SHOW or VIS lines; everything is said.
+`}- RESEARCH AND WATCHING are the research.run and video.watch verbs above (the older RESEARCH {…} and WATCH {…} lines still work, but use the ACT form).
 
 Live context (deterministic, computed at conversation start — trust it over stale pages for today's numbers):
 ${context || '(unavailable)'}
 
 ${SPOKEN_REGISTER}
 
-${GLASS_CONTRACT}
+${glass ? GLASS_CONTRACT : ''}
 
 ${ARTIFACT_CONTRACT}
 
@@ -518,10 +525,15 @@ ${consulted ? `${consultedBrief(consulted.by, consulted.question)}\n\nThe questi
 //     has been going a while drifts back toward chattiness, and Siri reads
 //     every extra sentence aloud
 // Exported so a test can pin the contract without spawning anything.
-export function buildResumedAsk({ question, liveLine = '', direct = false }) {
+export function buildResumedAsk({ question, liveLine = '', direct = false, place = 'unknown' }) {
   const parts = [];
   if (liveLine) parts.push(`[Live now — trust this over anything earlier in this conversation: ${liveLine}]`);
   if (direct) parts.push('[Hands-free one-shot: answer exactly what was asked, in one or two spoken sentences. Nothing else.]');
+  // WHERE HE IS can change between turns of one conversation (he left the
+  // desk and got in the car), so a resumed turn restates it, in one line,
+  // only when the place changes the register (lib/register.js whereLine)
+  const wl = whereLine(place, { oneShot: direct });
+  if (wl) parts.push(wl);
   // NO GLASS REMINDER HERE, deliberately. The Coach and the Leader get one
   // (they already carry a standing reminder, so it rides along free), but a
   // resumed spoken turn sends ONLY the question — that minimalism is the
@@ -637,14 +649,22 @@ async function finishConsulted(cwd, replyText, turnJob, { question, ctl, session
 
 // `consulted`: another agent is asking Nova (lib/consult.js) — a fresh
 // session of his own lane that answers that agent and writes nothing.
-export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null }) {
+export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null }) {
   assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
   const isNewSession = consulted ? true : (resume === undefined ? !sessionId : !resume);
   const effectiveSessionId = (consulted ? null : sessionId) || randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
-  if (!consulted) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
+  const place = consulted ? 'unknown' : (where?.place || 'unknown');
+  // DRIVING: no glass at all (lib/register.js). Nothing is fetched, no panel
+  // is built or inferred, no card rides the result, and the poll strips any
+  // VIS line the model writes anyway (routes/claudeCode.js job.noGlass).
+  const noGlass = suppressGlass(place);
+  // (the no-op onPartial keeps the final text's VIS strip at the turn's end,
+  // which keys on a job that streams visuals: a stray VIS is never spoken)
+  if (noGlass) { job.noGlass = true; job.onPartial = () => {}; }
+  if (!consulted && !noGlass) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
 
   const args = askArgs(effectiveSessionId, isNewSession);
   const kind = consulted ? 'consult-nova' : 'voice';
@@ -680,7 +700,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       const { cleanText, directive } = parseShowDirective(filed.text);
       let text = cleanText;
       let panel = null;
-      if (directive) {
+      if (directive && !noGlass) {
         try {
           panel = await buildPanel(cwd, directive);
         } catch (e) {
@@ -692,7 +712,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       // is the thing he cannot follow when Nova talks faster than he reads —
       // so the visual stops depending on the model remembering to request it.
       // Silent on failure: no panel is honest, a wrong one is not.
-      if (!panel) {
+      if (!panel && !noGlass) {
         try {
           const { inferPanelDirective } = await import('./panels.js');
           const { loadExerciseLibrary } = await import('./exercises.js');
@@ -745,7 +765,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       if (actParsed.act) {
         text = actParsed.cleanText;
         try {
-          const out = await runVerb(cwd, question, actParsed.act, { source: 'voice', direct });
+          const out = await runVerb(cwd, question, actParsed.act, { source: 'voice', direct, forceConfirm: forceConfirmFor(place, { oneShot: direct }) });
           if (out.gated) { actGated = out.gated; text = `${text} ${out.said}`.trim(); }
           else if (out.acted) acted = out.acted;
           else if (out.proposal && !proposal) proposal = out.proposal;
@@ -890,7 +910,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
       // the code-written line of who he asked opens the reply he reads
       text = ctl.finalText(text);
       if (direct) text = speakableText(text, { final: true });
-      turnJob.result = { text, sessionId: effectiveSessionId, panel, proposal, acted, research, watch, modelChoicePending, card: card || playedCard, played, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };
+      turnJob.result = { text, sessionId: effectiveSessionId, panel: noGlass ? null : panel, proposal, acted, research, watch, modelChoicePending, card: noGlass ? null : (card || playedCard), played, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };
       turnJob.status = 'ready';
     } catch (e) {
       turnJob.status = 'error';
@@ -906,7 +926,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     // `spoken` rides on turn ONE only. A resumed turn sends just the question
     // by design (spokenSession.test.js guards that minimalism), and turn one's
     // contract is still in the resumed process's own context.
-    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken, consulted }) : buildResumedAsk({ question, liveLine, direct }),
+    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken, consulted, place }) : buildResumedAsk({ question, liveLine, direct, place }),
     job,
     finishTurn,
   });

@@ -445,6 +445,79 @@ test('route: POST /api/alerts/:id/acted records it, refuses an unknown how and a
   } finally { server.close(); }
 });
 
+/* ------------------------------------------------------------ by place -- */
+
+test('by place: gym — only now speaks and shows; next waits', () => {
+  assert.deepEqual(A.allowedTiers('gym'), { speak: ['now'], card: ['now'], waits: ['next'] });
+  const n = A.forPlace({ id: 'a', tier: 'now' }, 'gym');
+  const x = A.forPlace({ id: 'b', tier: 'next' }, 'gym');
+  assert.deepEqual([n.showCard, n.speak, n.waits], [true, true, false]);
+  assert.deepEqual([x.showCard, x.speak, x.waits], [false, false, true]);
+});
+
+test('by place: driving — now is spoken only (no card); next waits', () => {
+  assert.deepEqual(A.allowedTiers('driving'), { speak: ['now'], card: [], waits: ['next'] });
+  const n = A.forPlace({ id: 'a', tier: 'now' }, 'driving');
+  assert.deepEqual([n.showCard, n.speak, n.waits], [false, true, false]);
+  assert.equal(A.forPlace({ id: 'b', tier: 'next' }, 'driving').waits, true);
+});
+
+test('by place: desk, phone and unknown are as before — now and next both show and may speak', () => {
+  for (const p of ['desk', 'phone', 'unknown', undefined, 'mars']) {
+    assert.deepEqual(A.allowedTiers(p), { speak: ['now', 'next'], card: ['now', 'next'], waits: [] }, String(p));
+    for (const tier of ['now', 'next']) {
+      const a = A.forPlace({ id: 'a', tier }, p);
+      assert.deepEqual([a.showCard, a.speak, a.waits], [true, true, false]);
+    }
+  }
+});
+
+test('by place: allowedTiers hands back a copy, never the table itself', () => {
+  A.allowedTiers('gym').speak.push('next');
+  assert.deepEqual(A.allowedTiers('gym').speak, ['now']);
+});
+
+test('route: GET /api/alerts?place=driving marks a now card spoken-only; an unknown place is unknown', async () => {
+  await reset();
+  await A.raiseAlert({ ...base, tier: 'now' });
+  await A.raiseAlert({ ...base, what: 'HRV is down', label: 'HEALTH', kind: 'health-hrv', tier: 'next' });
+  const server = await serve();
+  const get = (q) => fetch(`http://127.0.0.1:${server.address().port}/api/alerts${q}`).then((r) => r.json());
+  try {
+    const d = await get('?place=driving');
+    assert.equal(d.place, 'driving');
+    const now = d.alerts.find((a) => a.tier === 'now');
+    const next = d.alerts.find((a) => a.tier === 'next');
+    assert.equal(now.showCard, false);
+    assert.equal(now.speak, true);
+    assert.equal(next.waits, true);
+    const bogus = await get('?place=%3Cscript%3E');
+    assert.equal(bogus.place, 'unknown');
+    assert.ok(bogus.alerts.every((a) => a.showCard === true && a.waits === false));
+  } finally { server.close(); }
+});
+
+test('snapshot: ?place= reaches the alerts slice (closed set only); without it, as before', async () => {
+  await reset();
+  await A.raiseAlert({ ...base, tier: 'now' });
+  const { snapshotRouter } = await import('../routes/snapshot.js');
+  const app = express();
+  app.use('/api', alertsRouter());
+  const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+  app.use('/api', snapshotRouter({ port: server.address().port, token: 't' }));
+  const snap = (q) => fetch(`http://127.0.0.1:${server.address().port}/api/snapshot?only=alerts${q}`).then((r) => r.json());
+  try {
+    const d = await snap('&place=driving');
+    assert.equal(d.slices.alerts.place, 'driving');
+    assert.equal(d.slices.alerts.alerts[0].showCard, false);
+    const none = await snap('');
+    assert.equal(none.slices.alerts.place, 'unknown');
+    assert.equal(none.slices.alerts.alerts[0].showCard, true);
+    const bad = await snap('&place=..%2Finbox');
+    assert.equal(bad.slices.alerts.place, 'unknown');
+  } finally { server.close(); }
+});
+
 test('nothing here wrote outside the temp data dir', () => {
   assert.ok(existsSync(path.join(dataDir, 'alerts')));
   const log = readFileSync(path.join(dataDir, 'alerts', 'log.jsonl'), 'utf8');

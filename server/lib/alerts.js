@@ -181,6 +181,33 @@ export function firstThingLine(alert) {
   return `One thing first: ${words(what).slice(0, SPOKEN_MAX_WORDS).join(' ').replace(/[,;:—–-]+$/, '')}.`;
 }
 
+/* ----------------------------------------------------------- by place -- */
+
+// WHERE HE IS (src/where.js, design/EVIE-STUDY.md §4E): the interruptions
+// allowed switch with the place, and nothing else does.
+//   gym      only tier now speaks and drops; tier next waits until he is
+//            out of the gym (no card, no "One thing first")
+//   driving  tier now is SPOKEN ONLY (no card: nothing to look at); tier
+//            next waits
+//   desk, phone, unknown   as before: now and next both drop and may speak
+// `speak` / `card` are the tiers that may; `waits` are held, untouched, for
+// a later sync from somewhere else. Tier later is the Inbox and never here.
+const BY_PLACE = {
+  gym: { speak: ['now'], card: ['now'], waits: ['next'] },
+  driving: { speak: ['now'], card: [], waits: ['next'] },
+  default: { speak: ['now', 'next'], card: ['now', 'next'], waits: [] },
+};
+export function allowedTiers(place) {
+  const p = BY_PLACE[place] || BY_PLACE.default;
+  return { speak: [...p.speak], card: [...p.card], waits: [...p.waits] };
+}
+
+/** One pending alert, marked for the place: { ...alert, showCard, speak, waits }. */
+export function forPlace(alert, place) {
+  const t = allowedTiers(place);
+  return { ...alert, showCard: t.card.includes(alert.tier), speak: t.speak.includes(alert.tier), waits: t.waits.includes(alert.tier) };
+}
+
 /* ----------------------------------------------------------------- files -- */
 
 let chain = Promise.resolve();

@@ -36,7 +36,8 @@ import { getTabOrder, saveTabOrder } from './tabOrder.js';
 import { savePinned } from './pinned.js';
 import { getFuelCards, saveFuelCards } from './fuelCards.js';
 import { logDate as viewedLogDate, loggedLine, dayWord, removalFor } from './fuelDay.js';
-import { depthOf, edgeDragInProgress } from './edgeBack.js';
+import { depthOf, edgeDragInProgress, isStandalone } from './edgeBack.js';
+import { whereAmI, readWhereInputs } from './where.js';
 import { playPush, playPop } from './settingsNav.js';
 import { freeze, grow, shrink, noteTap, takeTap, scrollToTop } from './pageMotion.js';
 import { pageMove, pageKey } from './pageMoveRule.js';
@@ -2140,7 +2141,7 @@ export default class App extends Component {
     if (this.refreshInFlight) return; // a full sync is already running and covers these
     try {
       const startedAt = Date.now();
-      const { slices } = await api.snapshot(conn, { only });
+      const { slices } = await api.snapshot(conn, { only, place: this.whereNow().place });
       this.applySnapshot(slices, startedAt);
       this.setState({ connectionStatus: 'connected', lastSyncAt: new Date().toISOString() }, () => {
         // keep the offline cache current too, or a reload would show the
@@ -2246,7 +2247,7 @@ export default class App extends Component {
       let reachable = false;
       try {
         const startedAt = Date.now();
-        const { slices } = await api.snapshot(conn);
+        const { slices } = await api.snapshot(conn, { place: this.whereNow().place });
         reachable = true;
         okCount = this.applySnapshot(slices, startedAt);
         // The snapshot no longer waits on a slow slice (a cold CalDAV
@@ -7414,7 +7415,7 @@ export default class App extends Component {
       const rel = (at) => (at && turn.askAt ? at - turn.askAt : undefined);
       reportTurnEnd('ask', this.state.voiceHold, {
         ms: Date.now() - (turn.askAt || Date.now()), restarts: 0, heard: true,
-        lane: turn.lane || '', ackText: turn.ackText || '', ackId: turn.ackId || '',
+        lane: turn.lane || '', ackText: turn.ackText || '', ackId: turn.ackId || '', place: turn.place || '',
         ackMs: rel(turn.ackAt), firstTextMs: rel(turn.firstTextAt), firstAudioMs: rel(turn.firstAudioAt),
       });
     };
@@ -10460,7 +10461,10 @@ export default class App extends Component {
     // THE RECEIPT FOR THIS ASK (15 Oct 2026): when it left, when the ack was
     // heard, the first words, the first sound. Stamped in place, posted once
     // the reply has been heard (attachAskPoll postTurn).
-    const turn = { askAt: null, lane: null };
+    // WHERE HE IS rides the ask (src/where.js): it switches the register
+    // lines and, driving, the glass; the receipt records the place too
+    const where = this.whereNow();
+    const turn = { askAt: null, lane: null, place: where.place };
     // caller context already names the pending decision when present —
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
@@ -10481,7 +10485,7 @@ export default class App extends Component {
     if (spoken) { this.lastSpokenTurnAt = Date.now(); this.sayFirstThing(); }
     // `voiceId`: the voice this device will ask /api/tts for, so the server
     // can synthesize the ack in exactly that voice before the client asks
-    this.flushAttachments(conn).then((attachmentId) => { turn.askAt = Date.now(); return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined }); }).then((resp) => {
+    this.flushAttachments(conn).then((attachmentId) => { turn.askAt = Date.now(); return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined, where }); }).then((resp) => {
       if (resp.text) {
         // THE REFLEX ANSWERED. This is now the common case — five of his six
         // commonest asks land here in single-digit milliseconds — and the
@@ -11632,6 +11636,13 @@ export default class App extends Component {
     }
     api.alertActed(conn, id, how).catch(() => { /* a lost receipt is a lost row, never an error in his face */ });
   }
+  // WHERE HE IS (src/where.js): read from this device's real state each
+  // time, never cached. The native shell counts as the installed app.
+  whereNow() {
+    let native = false;
+    try { native = !!window.Capacitor?.isNativePlatform?.(); } catch { /* not the shell */ }
+    return whereAmI(readWhereInputs(this.state, { mac: isMacDevice(), standalone: isStandalone() || native }));
+  }
   voiceSessionLive() {
     return !!this.state.voiceSpeak && Date.now() - (this.lastSpokenTurnAt || 0) < 5 * 60_000;
   }
@@ -11656,12 +11667,21 @@ export default class App extends Component {
       if (shown.has(a.id)) continue;
       // standby holds tier next; tier now gets through (his call, 15 Oct)
       if (a.tier === 'next' && this.standbyOn()) continue;
+      // BY PLACE (server/lib/alerts.js allowedTiers): at the gym and in the
+      // car tier next waits, untouched, for a sync from somewhere else.
+      // `waits` / `showCard` absent (an older server) is the old behaviour.
+      if (a.waits) continue;
+      const canSay = a.tier === 'now' && a.speak !== false && !a.spokenAt && a.spoken && this.voiceSessionLive() && !this.state.voiceSpeaking && !this.state.voiceBusy;
+      // driving: spoken only. One it cannot say now stays unshown, so it
+      // drops when he is somewhere he can see it (the push already went)
+      if (a.showCard === false && !canSay) continue;
       this.rememberAlertShown(a.id);
-      if (a.tier === 'now' && !a.spokenAt && a.spoken && this.voiceSessionLive() && !this.state.voiceSpeaking && !this.state.voiceBusy) {
+      if (canSay) {
         this.speakTtsSentence(a.spoken, () => {});
         this.alertActed(a.id, 'spoken-only');
         a.spokenAt = new Date().toISOString();
       }
+      if (a.showCard === false) continue;
       notify({
         id: `alert:${a.id}`,
         card: { ...a, onAction: (action) => this.runAlertAction(a, action) },
@@ -11675,7 +11695,7 @@ export default class App extends Component {
   // "One thing first: …" — at most one tier-next alert, said at the start of
   // his spoken turn, before the ack. Code-written on the Mac; never repeated.
   sayFirstThing() {
-    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing);
+    const a = (this.alertsLive || []).find((x) => x.tier === 'next' && !x.spokenAt && x.firstThing && !x.waits && x.speak !== false);
     if (!a || !this.state.voiceSpeak || this.standbyOn()) return;
     a.spokenAt = new Date().toISOString();
     this.speakTtsSentence(a.firstThing, null);

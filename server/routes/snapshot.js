@@ -163,10 +163,15 @@ export function snapshotRouter({ port, token }) {
     // real falls back to the full set — never an empty response.
     const wanted = String(req.query.only || '').split(',').map((s) => s.trim()).filter((s) => s in SLICES);
     const chosen = wanted.length ? wanted.map((k) => [k, SLICES[k]]) : Object.entries(SLICES);
+    // WHERE THE SYNCING DEVICE IS (src/where.js): only the alerts slice reads
+    // it, and only a place from the closed set is passed on
+    const { PLACES } = await import('../lib/register.js');
+    const place = PLACES.includes(req.query.place) ? req.query.place : null;
+    const pathFor = (key, p) => (key === 'alerts' && place ? `${p}?place=${place}` : p);
     await Promise.all(chosen.map(async ([key, path]) => {
       try {
         const work = (async () => {
-          const r = await fetch(base + path, { headers, signal: AbortSignal.timeout(15_000) });
+          const r = await fetch(base + pathFor(key, path), { headers, signal: AbortSignal.timeout(15_000) });
           if (!r.ok) throw new Error(`${r.status}`);
           return r.json();
         })();
