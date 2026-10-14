@@ -279,7 +279,9 @@ async function main() {
   const getPocket = async () => {
     if (pocket) return pocket;
     const [{ createPocket }, { sendPush }] = await Promise.all([import('./lib/pocket.js'), import('./lib/push.js')]);
-    pocket = createPocket({ send: sendPush });
+    // tier 'now' (lib/standby.js): a workout about to be lost gets through
+    // a standby; quiet hours still hold it, exactly as before
+    pocket = createPocket({ send: (note) => sendPush({ ...note, tier: 'now' }) });
     return pocket;
   };
   app.post('/api/pocket', async (req, res) => {

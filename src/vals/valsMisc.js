@@ -216,6 +216,9 @@ export function valsMisc(app, ctx) {
     }),
     wakeWordSupported: speechRecognitionSupported(),
     setWakeWord: (on) => app.setWakeWord(on),
+    // bare "Nova, …" — opt-in, under the wake word (src/wakePhrase.js)
+    wakeBareOn: !!st.wakeBareOn,
+    setWakeBare: (on) => app.setWakeBare(on),
     // How long a pause is allowed to last before it counts as the end of his
     // turn. The surfaces read the milliseconds; Settings reads the choices.
     voiceHold: holdTiming(st.voiceHold).value,

@@ -63,6 +63,9 @@ export const SLICES = {
   repertoire: '/api/repertoire/today',
   // what the day plan keeps listing and nothing closes (lib/planObserve.js)
   stuck: '/api/plan-today/stuck',
+  // "take five" (lib/standby.js): { on, until, remainingMin, … } — a few
+  // bytes; the app goes quiet on every device he has open
+  standby: '/api/voice/standby',
 };
 
 // sentinel for a slice that lost its time-budget race — a unique object, so

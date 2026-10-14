@@ -42,6 +42,7 @@ export function IslandFeed({ feed, jobs, app }) {
   useActivity('workout', f.workout);
   useActivity('speaking', f.speaking);
   useActivity('nudge', f.nudge);
+  useActivity('standby', f.standby);
   useLiveActivity('workout', f.liveWorkout);
   // the jobs this phone watched running: only those may say "ready" on the
   // lock screen (liveActivityModel.js jobLive)

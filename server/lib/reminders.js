@@ -213,7 +213,7 @@ async function fireDue() {
     // (lib/quietHours.js; the parent's call, 3 Oct, on the build's finding)
     sendPush({ title: say.title, body: say.body, tag: `reminder-${r.id}`, urgent: true }).catch(() => {});
     import('./telegram.js').then(({ telegramConfigured, sendTelegramText }) => {
-      if (telegramConfigured()) return sendTelegramText(say.telegram);
+      if (telegramConfigured()) return sendTelegramText(say.telegram, { urgent: true }); // he set the time himself: standby does not hold it
     }).catch(() => {});
     await markReminder(r.id, 'fired', { late: say.late });
   }

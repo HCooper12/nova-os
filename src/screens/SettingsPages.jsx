@@ -66,6 +66,10 @@ export function VoicePage({ P, open }) {
       <Group label="Listening" i={2}>
         <SwitchRow k="wake" label="“Hey Nova”" aria="Hey Nova" sub={V.wake.text} on={V.wake.on} disabled={V.wake.disabled} why={V.wake.why}
           onToggle={(on) => { V.wake.set(on); if (on) setTimeout(() => lightRow('barge'), 60); }} />
+        {V.bare && (
+          <SwitchRow k="bare" label="Also answers to “Nova, …”" aria="Also answers to Nova" sub={V.bare.sub} on={V.bare.checked} disabled={V.bare.disabled} dim={V.bare.disabled} why={V.bare.why}
+            onToggle={(on) => V.bare.set(on)} />
+        )}
         <SwitchRow k="barge" label="Talk over Nova" sub={V.barge.sub} on={V.barge.checked} disabled={V.barge.disabled} dim={V.barge.disabled} why={V.barge.why}
           onToggle={(on) => V.barge.set(on)} />
         <SegBlock k="hearing" label="How Nova hears you" sub={V.hearing.sub} options={V.hearing.options} value={V.hearing.value} onPick={V.hearing.pick} />

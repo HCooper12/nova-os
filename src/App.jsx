@@ -546,6 +546,12 @@ export default class App extends Component {
     hearing: hearingChoice(),
     // opt-in (see setWakeWord) and remembered per device
     wakeWordOn: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.wakeWord') === '1',
+    // bare "Nova, …" as an address (the E.V. study §4B): opt-in, default OFF,
+    // and only ever on top of the wake word (src/wakePhrase.js)
+    wakeBareOn: typeof localStorage === 'undefined' ? false : localStorage.getItem('novaos.wakeBare') === '1',
+    // "take five" (server/lib/standby.js): { on, until } from the snapshot
+    // and from the turn that set it; while on, Nova starts nothing aloud
+    liveStandby: null,
     // how long a pause has to be before it ends his turn — his choice, because
     // the browser's own endpointer cut him off mid-sentence and offers no knob
     voiceHold: typeof localStorage === 'undefined' ? DEFAULT_HOLD : (localStorage.getItem('novaos.voiceHold') || DEFAULT_HOLD),
@@ -2040,6 +2046,7 @@ export default class App extends Component {
     });
     apply('library', (r) => { this.setState({ liveLibrary: r.items }); this.refreshBookCovers(r.items); });
     apply('leader', (r) => this.setState({ liveLeader: r }));
+    apply('standby', (r) => this.setStandbyLive(r));
     apply('practice', (r) => this.setPracticeLive(r));
     apply('journal', (r) => { this.setState({ liveJournalEntries: r.entries }); this.refreshNotionJournal(); });
     apply('healthInsight', (r) => this.setState({ liveHealthInsight: r }));
@@ -2292,7 +2299,8 @@ export default class App extends Component {
           if (!this.updateWatch) {
             this.updateWatch = watchForUpdate((deployed) => this.setState({ updateReady: deployed }));
           }
-          if (!this.briefChecked) {
+          // standing by: the brief waits for a sync after he is back
+          if (!this.briefChecked && !this.standbyOn()) {
             this.briefChecked = true;
             this.maybeMorningBrief();
           }
@@ -10482,6 +10490,9 @@ export default class App extends Component {
         // Voice leads here too: the text lands when the audio starts. The
         // number it spoke is drawn by the same code (resp.card).
         this.setState({ voiceBusy: false });
+        // "take five" / "I'm back": the quiet state changes BEFORE the line is
+        // spoken, so the mic does not reopen after "Standing by."
+        if (resp.standby) this.setStandbyLive(resp.standby, { said: true });
         if (resp.card) this.putCard(resp.card);
         // A CORRECTION RE-PLANNED (server/lib/planFollowUp.js). His words
         // amended a plan he had not approved; the server has discarded the old
@@ -10606,6 +10617,8 @@ export default class App extends Component {
     // lands in the transcript for when he opens Voice).
     if (this.state.demoMode || !getConnection() || this.state.connectionStatus === 'offline') return;
     if (this.greetInFlight) return;
+    // standing by: no doorman. The greeting is still due when he is back.
+    if (this.standbyOn()) return;
     // a greeting that FAILED does not consume the morning any more — but it
     // does not retry on every screen change either: one attempt a quarter hour
     if (this.greetFailedAt && Date.now() - this.greetFailedAt < 15 * 60e3) return;
@@ -11009,6 +11022,8 @@ export default class App extends Component {
   // reopen the mic — the turn passes back without a tap
   maybeAutoListen() {
     if (!this.state.voiceConvMode || this.state.voiceConvPaused) return;
+    // standing by: the turn does not pass back; the wake word still listens
+    if (this.standbyOn()) return;
     this.prewarmAsk(); // his turn is starting — get the process ready for it
     if ((this.state.screen !== 'voice' && !this.state.liveTalkOn) || this.state.voiceBusy) return;
     if ((this.speechActive || 0) > 0) return;
@@ -11051,6 +11066,18 @@ export default class App extends Component {
   }
 
   notifyEmptyListen() {
+    // THE SAME VALVE FOR BARE "NOVA, …": a bare wake whose turn heard nothing
+    // was the room saying the name. Twice running and the bare form is off
+    // for this session (the setting stays as he left it), said once.
+    if (this.lastTurnWasBareWake) {
+      this.lastTurnWasBareWake = false;
+      this.bareMisses = (this.bareMisses || 0) + 1;
+      if (this.bareMisses >= 2 && !this.state.wakeBareSessionOff) {
+        this.bareMisses = 0;
+        this.setState({ wakeBareSessionOff: true });
+        notify({ id: 'wake-bare-off', tone: 'info', title: 'Answering to “Hey Nova” only', message: '“Nova, …” woke me twice with nobody there. Back on next time you open Nova.' });
+      }
+    }
     // A BARGE-IN FOLLOWED BY SILENCE IS A BARGE-IN THAT WAS WRONG. Nova stopped
     // mid-sentence, opened the microphone, and nobody was there — which means
     // it cut itself off on its own echo. Once is a mishearing. Twice running is
@@ -11545,6 +11572,56 @@ export default class App extends Component {
     localStorage.setItem('novaos.wakeWord', on ? '1' : '0');
     this.setState({ wakeWordOn: on });
   }
+  // bare "Nova, …" (opt-in, under the wake word). Turning it on by hand also
+  // lifts this session's false-wake valve: he has said he wants it.
+  setWakeBare(on) {
+    try { localStorage.setItem('novaos.wakeBare', on ? '1' : '0'); } catch { /* best-effort */ }
+    this.bareMisses = 0;
+    this.setState({ wakeBareOn: on, wakeBareSessionOff: false });
+  }
+  // STANDBY ("take five", server/lib/standby.js). The server owns the state
+  // and its expiry; this mirrors it so nothing on this device starts talking
+  // while he has asked for quiet. `standbyLive` is kept on the instance as
+  // well as in state, because the sync reads it in the same tick it lands.
+  // Expiry is by the clock: a timer only redraws the island when it passes.
+  standbyOn() {
+    const s = this.standbyLive;
+    return !!(s?.on && s.until && Date.parse(s.until) > Date.now());
+  }
+  // the island's "I'm back": ends it on the Mac, and says the same line
+  endStandby() {
+    const conn = getConnection();
+    this.setStandbyLive({ on: false });
+    if (!conn) return;
+    api.endStandby(conn).then((r) => {
+      this.setStandbyLive(r?.standby || { on: false }, { said: true });
+      if (r?.text && this.state.voiceSpeak) this.speak(r.text);
+    }).catch(() => this.toastMsg('Couldn’t reach the Mac to end standby. Say “I’m back” and it will.'));
+  }
+  setStandbyLive(next, { said = false } = {}) {
+    const was = this.standbyOn();
+    const s = next && next.on && next.until ? { on: true, until: String(next.until) } : { on: false, until: null };
+    this.standbyLive = s;
+    clearTimeout(this.standbyTimer);
+    if (s.on) {
+      const left = Date.parse(s.until) - Date.now();
+      if (left > 0 && left < 13 * 3600e3) this.standbyTimer = setTimeout(() => this.setStandbyLive({ on: false }), left + 250);
+    }
+    const prev = this.state.liveStandby;
+    if (prev?.on !== s.on || prev?.until !== s.until) this.setState({ liveStandby: s });
+    // a standby that started on ANOTHER device drops here once, so he can see
+    // why this one is quiet; the turn that set it here already said so aloud
+    if (s.on && !was && !said) {
+      const d = new Date(s.until);
+      const h = ((d.getHours() + 11) % 12) + 1;
+      notify({ id: 'standby', tone: 'nova', title: 'STANDING BY', message: `until ${h}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'am' : 'pm'}`, duration: 3200 });
+    }
+    // back by his word: what was held, as one card under the spoken count
+    const landed = Array.isArray(next?.landed) ? next.landed.filter((x) => x?.text) : [];
+    if (!s.on && said && landed.length) {
+      notify({ id: 'standby-back', tone: 'nova', title: `${landed.length} WHILE YOU WERE OUT`, message: landed.slice(-3).map((x) => x.text).join(' · '), duration: 9000, onPress: () => this.navigate('inbox') });
+    }
+  }
   // How long he may pause before Nova takes the pause as the end of his turn.
   // Stored per device, because it is about how he talks on that device.
   setVoiceHold(value) {
@@ -11569,8 +11646,12 @@ export default class App extends Component {
   noteHeardHim() {
     this.lastTurnWasBargeIn = false;
     this.bargeMisses = 0;
+    this.lastTurnWasBareWake = false;
+    this.bareMisses = 0;
   }
-  onWakeWord(rest) {
+  onWakeWord(rest, { bare = false } = {}) {
+    // a bare "Nova, …" wake that hears nothing is counted (notifyEmptyListen)
+    if (bare) this.lastTurnWasBareWake = true;
     this.pendingVoiceSeed = String(rest || '').slice(0, 400);
     this.stopSpeaking();
     this.prewarmAsk();
@@ -12420,7 +12501,7 @@ export default class App extends Component {
             open, and one edit away from asking his phone for the microphone
             every time Nova spoke. Which is exactly what happened on 15 Sep. */}
         {v.wakeWord?.on && (
-          <WakeWord enabled blocked={v.wakeWord.blocked} onWake={v.wakeWord.wake} onError={v.wakeWord.error}
+          <WakeWord enabled blocked={v.wakeWord.blocked} onWake={v.wakeWord.wake} onError={v.wakeWord.error} bare={v.wakeWord.bare}
             bargeIn={v.bargeIn?.on} speaking={v.bargeIn?.speaking} saying={v.bargeIn?.saying} onBargeIn={v.bargeIn?.fire} />
         )}
         {this.state.prCelebration && (

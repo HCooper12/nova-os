@@ -117,6 +117,18 @@ export function talkOver({ supported = true, wakeOn = false, bargeOn = false } =
   return { checked: !!bargeOn, disabled: false, sub: 'Start talking while Nova speaks and he stops to listen.', why: '' };
 }
 
+// BARE "NOVA, …" (the E.V. study §4B): a second switch under the wake word,
+// opt-in, and only live while the wake word is (it rides that microphone).
+export function bareName({ supported = true, wakeOn = false, bareOn = false } = {}) {
+  if (!supported) {
+    return { checked: false, disabled: true, sub: 'This browser has no speech recognition, so this can’t run here.', why: 'This browser has no speech recognition, so “Nova, …” can’t run here' };
+  }
+  if (!wakeOn) {
+    return { checked: false, disabled: true, sub: 'Needs “Hey Nova”, which holds the microphone open.', why: '“Nova, …” needs “Hey Nova” on first; that is what holds the microphone open' };
+  }
+  return { checked: !!bareOn, disabled: false, sub: 'Start with “Nova,” and he answers, no “Hey” needed. A mention of his name mid-sentence never wakes him.', why: '' };
+}
+
 // THE TAB BAR'S COUNT IS THE BAR'S OWN (finding 4). Summary's tab bar holds
 // four (SummaryDock.jsx), the floating dock five (MobileChrome.jsx); the Mac
 // has the sidebar and no bar at all.

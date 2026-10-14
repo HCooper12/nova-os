@@ -57,8 +57,48 @@ export async function ackForTurn({ question, lane, voiceId } = {}, deps = {}) {
   }
 }
 
+// Standby and the idiom table never sink a turn: a fault in either is the
+// turn going on exactly as it would have without them.
+async function standbyAnswer(raw) {
+  try {
+    const { answerStandby } = await import('../lib/standby.js');
+    return await answerStandby(raw);
+  } catch (e) {
+    console.log(`standby skipped: ${e.message}`);
+    return null;
+  }
+}
+async function expandIdiomsSafe(raw) {
+  try {
+    const { expandIdioms } = await import('../lib/idioms.js');
+    return expandIdioms(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export function voiceRouter(vaultPath) {
   const router = Router();
+
+  // Standby, as the snapshot and the island read it (lib/standby.js).
+  router.get('/voice/standby', async (req, res) => {
+    try {
+      const { standbyState } = await import('../lib/standby.js');
+      res.json(standbyState());
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+  // the island's "I'm back" tap: the end his words reach, with the same line
+  router.post('/voice/standby/end', async (req, res) => {
+    try {
+      const { clearStandby } = await import('../lib/standby.js');
+      const { text, landed } = await clearStandby();
+      res.json({ text, standby: { on: false, until: null, landed: landed.map((x) => ({ kind: x.kind, text: x.text, at: x.at })) } });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 
   // Live context injected on the FIRST turn of a conversation; resumed turns
   // already carry it. Shared builder (lib/askContext.js) so the Voice
@@ -116,6 +156,14 @@ export function voiceRouter(vaultPath) {
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('reflex', reflex.text)).catch(() => {});
         return res.json({ text: reflex.text, reflex: true, card: reflex.card || null });
       }
+      // STANDBY ("take five" / "I'm back", lib/standby.js): code sets or ends
+      // it and says the line; no model. Strict: only a whole-utterance idiom.
+      const standby = attachmentPreamble ? null : await standbyAnswer(raw);
+      if (standby) {
+        console.log(`standby ${standby.standby.on ? 'on' : 'off'} q=${JSON.stringify(question.slice(0, 80))}`);
+        import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('standby', standby.text)).catch(() => {});
+        return res.json({ text: standby.text, reflex: true, standby: standby.standby });
+      }
       // THE VERBS' FAST PATH: a command the grammar is sure about ("tick off
       // the eggs", "had lunch", "move dentist to errands") runs here against
       // his real lists — no model, a receipt with undo, honest "which one?"
@@ -130,7 +178,11 @@ export function voiceRouter(vaultPath) {
         const pl = await recentPlanContext();
         deferJobs = pl?.phase === 'proposed' && !isAffirmativeOrNegative(raw);
       } catch { /* no plan context: nothing to defer to */ }
-      const command = attachmentPreamble ? null : await tryCommand(vaultPath, raw, { fromMac: fromMacOf(req), deferJobs }).catch(() => null);
+      // the idiom table (lib/idioms.js): "knock the eggs off the list" said
+      // as the strict grammar's "tick the eggs off the list"; anything else
+      // reaches tryCommand exactly as he said it
+      const commandText = await expandIdiomsSafe(raw);
+      const command = attachmentPreamble ? null : await tryCommand(vaultPath, commandText, { fromMac: fromMacOf(req), deferJobs }).catch(() => null);
       if (command) {
         console.log(`verb ${command.miss ? 'miss' : 'hit'} [${command.matched}] q=${JSON.stringify(question.slice(0, 80))}`);
         import('../lib/spokenLog.js').then(({ logSpoken }) => logSpoken('verb', command.text)).catch(() => {});
@@ -489,10 +541,16 @@ export function voiceRouter(vaultPath) {
         answered(reflex.text);
         return res.json({ text: reflex.text, sessionId: null });
       }
+      const standby = attachmentPreamble ? null : await standbyAnswer(question);
+      if (standby) {
+        console.log(`ask/sync standby ${standby.standby.on ? 'on' : 'off'}`);
+        answered(standby.text);
+        return res.json({ text: standby.text, reflex: true, standby: standby.standby, sessionId: null });
+      }
       const { tryCommand: trySyncCommand } = await import('../lib/verbs.js');
       // `direct`: Siri has no screen to open and nobody to answer a follow-up,
       // so a job runs on his board's model and a screen-only verb says so
-      const command = attachmentPreamble ? null : await trySyncCommand(vaultPath, question, { fromMac: fromMacOf(req), direct: true }).catch(() => null);
+      const command = attachmentPreamble ? null : await trySyncCommand(vaultPath, await expandIdiomsSafe(question), { fromMac: fromMacOf(req), direct: true }).catch(() => null);
       if (command) {
         console.log(`ask/sync verb ${command.miss ? 'miss' : 'hit'} [${command.matched}]`);
         answered(command.text);

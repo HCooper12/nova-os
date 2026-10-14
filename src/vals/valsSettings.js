@@ -4,7 +4,7 @@ import { hapticCapability, hapticDiagnostic } from '../haptics.js';
 import { isStandalone } from '../edgeBack.js';
 import { getConnection } from '../api.js';
 import {
-  cleanPath, pageTitle, lookName, notifValue, talkOver, dockSlots, tabsCopy, SPOKEN,
+  cleanPath, pageTitle, lookName, notifValue, talkOver, bareName, dockSlots, tabsCopy, SPOKEN,
 } from '../settingsModel.js';
 import { demoSettingsSeed, demoBoard, DEMO_NUMBERS, DEMO_LADDER } from '../settingsDemo.js';
 
@@ -105,6 +105,7 @@ export function valsSettings(app, ctx, v) {
   ].filter(Boolean).join(' ');
   const wakeSupported = v.wakeWordSupported !== false;
   const barge = talkOver({ supported: wakeSupported, wakeOn: !!v.wakeWordOn, bargeOn: !!v.bargeInOn });
+  const bare = bareName({ supported: wakeSupported, wakeOn: !!v.wakeWordOn, bareOn: !!v.wakeBareOn });
   const hearingChoice = v.hearing || 'auto';
   const hearingHint = (v.hearingOptions || []).find((o) => o.value === hearingChoice)?.hint || '';
   const hearingSub = v.hearingNow == null
@@ -129,6 +130,7 @@ export function valsSettings(app, ctx, v) {
       why: 'This browser has no speech recognition, so the wake word can’t run here',
     },
     barge: { ...barge, set: v.setBargeIn },
+    bare: { ...bare, set: v.setWakeBare },
     hearing: {
       value: hearingChoice,
       options: (v.hearingOptions || []).map((o) => ({ value: o.value, label: HEAR_LABEL[o.value] || o.label })),

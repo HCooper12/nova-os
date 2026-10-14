@@ -77,9 +77,21 @@ export async function subscriptionCount() {
 // ({ sent: 0, held: true, deliverAt }); when the window ends the held pushes
 // go as one (several become one combined push). `urgent: true` goes through
 // the window; nothing passes it today.
-export async function sendPush({ title, body, tag, url, urgent = false } = {}) {
+//
+// STANDBY (15 Oct 2026, lib/standby.js): when he has stood Nova by ("take
+// five"), a push that is not urgent is QUEUED there instead (one line, for
+// "Back. Two things landed while you were out.") and not sent. `tier: 'now'`
+// passes standby but still respects quiet hours; `urgent` passes both.
+export async function sendPush({ title, body, tag, url, urgent = false, tier = null } = {}) {
   const note = { title: title || 'Nova', body: body || '', tag: tag || 'nova', url: url || './#/inbox' };
   const at = clock();
+  try {
+    const { gateProactive } = await import('./standby.js');
+    const line = [note.title, note.body].filter(Boolean).join(' — ');
+    if (!(await gateProactive({ kind: 'push', text: line, urgent: urgent || tier === 'now', now: new Date(at) }))) {
+      return { sent: 0, standby: true };
+    }
+  } catch { /* an unreadable standby is no standby: the push goes */ }
   if (!urgent) {
     const { getQuietHours, inQuietHours, quietEndsAt } = await import('./quietHours.js');
     const prefs = getQuietHours();

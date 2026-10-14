@@ -528,6 +528,9 @@ export const api = {
   // `device`: whether he is at the Mac Nova runs on — the Mac verbs (server
   // verbs.js parseMac) only claim "open X" / "pause" when he is (src/macTargets.js)
   ask: (conn, question, sessionId, agents = {}) => post(conn, '/api/ask', { question, sessionId, device: isMacDevice() ? 'mac' : 'other', ...agents }, { timeoutMs: 45_000 }),
+  // "I'm back" by a tap on the island (server/lib/standby.js) — the same end
+  // his words reach: { text, standby: { on: false, landed } }
+  endStandby: (conn) => post(conn, '/api/voice/standby/end', {}),
   // THE CONVERSATION RECORD (server/lib/conversationLog.js): every settled
   // voice-chat line goes up; the Voice screen reads the whole record back
   conversation: (conn, { limit = 150, since = null } = {}) => call(conn, `/api/conversation?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`),

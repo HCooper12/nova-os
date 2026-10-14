@@ -52,8 +52,12 @@ export function proposalKeyboard(recordId) {
 }
 
 // Plain outbound line — reminders, nudges. Best-effort like everything here.
-export async function sendTelegramText(text) {
+// Every caller is proactive (replies to his own messages go through tg()
+// directly), so this is where STANDBY holds them (lib/standby.js): queued,
+// not sent, unless `urgent`.
+export async function sendTelegramText(text, { urgent = false } = {}) {
   if (!telegramConfigured() || !CHAT_ID()) return;
+  if (!(await standbyAllows('telegram', text, urgent))) return;
   await tg('sendMessage', { chat_id: CHAT_ID(), text: String(text).slice(0, 4000) }).catch(() => {});
 }
 
@@ -70,9 +74,18 @@ export async function announceRecord(record) {
   if (!telegramConfigured() || !CHAT_ID()) return;
   if (!record || record.status !== 'pending' || ANNOUNCE_SKIP_KINDS.has(record.kind)) return;
   const title = record.decision?.title || record.text || 'Waiting for review';
+  // standing by: the record waits in the Inbox as always; only the ping holds
+  if (!(await standbyAllows('telegram', title, false))) return;
   const body = String(record.decision?.payload?.text || record.decision?.reason || '').trim();
   const text = `◈ ${title}${body && body !== title ? `\n\n${body.slice(0, 900)}${body.length > 900 ? '…' : ''}` : ''}`;
   await tg('sendMessage', { chat_id: CHAT_ID(), text: text.replace(/\*\*/g, ''), reply_markup: proposalKeyboard(record.id) }).catch(() => {});
+}
+
+async function standbyAllows(kind, text, urgent) {
+  try {
+    const { gateProactive } = await import('./standby.js');
+    return await gateProactive({ kind, text: String(text || '').split('\n')[0], urgent });
+  } catch { return true; /* an unreadable standby is no standby */ }
 }
 
 async function tg(method, body) {

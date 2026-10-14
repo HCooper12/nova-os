@@ -512,7 +512,10 @@ export function valsChrome(app, ctx) {
       // wake word ON the microphone is already held, and barge-in costs
       // nothing extra — which was always the reason it could live here.
       blocked: !!(st.liveMicOpen || st.voiceScreenMic || st.screen === 'ambient' || !st.wakeWordOn),
-      wake: (rest) => app.onWakeWord(rest),
+      // bare "Nova, …" too (src/wakePhrase.js) — his opt-in, unless this
+      // session's false-wake valve turned it off (App.notifyEmptyListen)
+      bare: !!st.wakeBareOn && !st.wakeBareSessionOff,
+      wake: (rest, o) => app.onWakeWord(rest, o),
       error: (kind) => {
         app.setWakeWord(false);
         app.toastMsg(kind === 'not-allowed' || kind === 'service-not-allowed'
@@ -883,7 +886,28 @@ export function workoutProgress(ws) {
 }
 
 function islandView(app, st, demoMode) {
-  const out = { workout: null, speaking: null, nudge: null, pocket: null, liveWorkout: null };
+  const out = { workout: null, speaking: null, nudge: null, pocket: null, liveWorkout: null, standby: null };
+  // STANDING BY ("take five", server/lib/standby.js): a resident readout, the
+  // pause mark and the time it ends, for as long as it lasts. While it is on,
+  // a nudge does not drop (it is still true when he is back).
+  const sb = st.liveStandby;
+  const standing = !!(sb?.on && sb.until && Date.parse(sb.until) > Date.now());
+  if (standing) {
+    const d = new Date(sb.until);
+    const hm = `${((d.getHours() + 11) % 12) + 1}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const until = `until ${hm} ${d.getHours() < 12 ? 'am' : 'pm'}`;
+    out.standby = {
+      sig: `standby:${sb.until}`,
+      label: `Standing by ${until}. Show it`,
+      lead: { type: 'mark', tone: 'nova', glyph: '‖' },
+      trail: hm,
+      expanded: () => ({
+        id: 'act:standby', tone: 'nova', title: 'STANDING BY', message: `${until}. Alerts that cannot wait still come through.`,
+        lead: { type: 'mark', tone: 'nova', glyph: '‖' },
+        actions: [{ label: 'I’m back', run: () => app.endStandby() }], duration: 6000,
+      }),
+    };
+  }
   const ws = st.workoutSession;
   // the lock-screen card (liveActivity.js): on every screen, Train included,
   // because the lock screen is exactly where he is NOT looking at Train
@@ -945,7 +969,7 @@ function islandView(app, st, demoMode) {
       }),
     };
   }
-  const n = nudgeView(app, st, demoMode);
+  const n = standing ? null : nudgeView(app, st, demoMode);
   if (n) {
     out.nudge = {
       // (review #5) the key stays fixed all evening while the words move as

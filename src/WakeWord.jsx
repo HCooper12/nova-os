@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { micStarted, micStopped } from './audioSession.js';
 import { bargeInDecision } from './bargeIn.js';
+import { matchWake } from './wakePhrase.js';
 
 // "HEY NOVA" — the wake word. A headless listener that runs wherever he is
 // in Nova and starts the conversation when it hears its name, so talking
@@ -24,10 +25,17 @@ import { bargeInDecision } from './bargeIn.js';
 //    stops listening after 60s is worse than none, since he'd never know.
 //  - A refused microphone turns the whole thing OFF and says so — it does
 //    not sit there pretending to listen.
-const PHRASE = /\bhey,?\s*nova\b/i;
+//  - BARE "NOVA, …" (15 Oct 2026, the E.V. study §4B). Opt-in, `bare`: a
+//    sentence-initial "Nova," or "Nova" + a request word also wakes it
+//    (src/wakePhrase.js). While Nova is speaking a reply that says its own
+//    name, the barge-in filter decides: what Nova is saying is echo, never a
+//    wake. The app turns the bare form off for the session after two bare
+//    wakes in a row that heard nothing (App.notifyEmptyListen).
 const RESTART_MS = 400;
 
-export function WakeWord({ enabled, blocked, onWake, onError, speaking, saying, bargeIn, onBargeIn }) {
+export function WakeWord({ enabled, blocked, onWake, onError, speaking, saying, bargeIn, onBargeIn, bare = false }) {
+  const bareRef = useRef(bare);
+  bareRef.current = bare;
   const wakeRef = useRef(onWake);
   wakeRef.current = onWake;
   // all of these change on every sentence; refs, so the recogniser is never
@@ -65,16 +73,18 @@ export function WakeWord({ enabled, blocked, onWake, onError, speaking, saying, 
       rec.onresult = (e) => {
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const heard = e.results[i][0].transcript || '';
-          const named = heard.match(PHRASE);
+          let named = matchWake(heard, { bare: bareRef.current });
+          // Nova saying "Nova" in its own reply is not him calling it
+          if (named?.bare && speakingRef.current && /\bnova\b/i.test(String(sayingRef.current || ''))
+            && !bargeInDecision(heard, sayingRef.current).barge) named = null;
           if (named) {
             // WHAT FOLLOWS THE NAME IS ALREADY THE QUESTION. "Hey Nova, what's
             // the weather" used to open the mic and throw the question away,
             // so he had to say it twice — the exact friction he is asking to
             // be rid of. It rides into the turn instead.
-            const rest = heard.slice(named.index + named[0].length).replace(/^[\s,.!?-]+/, '').trim();
             // hand the mic over cleanly — dictation opens on the same beat
             try { rec.stop(); } catch { /* already stopping */ }
-            wakeRef.current?.(rest);
+            wakeRef.current?.(named.rest, { bare: named.bare });
             return;
           }
           // Anything else only matters while Nova is talking: that is the one
