@@ -238,7 +238,7 @@ export function muscleWeek({ routines = [], schedule = {}, sessions = [], live =
       for (const { muscle, credit } of credits) {
         const r = rowFor(muscle);
         const focus = credit >= 1;
-        const base = { day: card.day, short: card.short, date: e.date, routine: e.routine, exercise: x.name, exerciseId: x.exerciseId, credit };
+        const base = { day: card.day, short: card.short, date: e.date, routine: e.routine, exercise: x.name, exerciseId: x.exerciseId, credit, ...(e.dup ? { dup: true } : {}) };
         if (x.done) {
           r.lines.push({ ...base, sets: x.done, value: x.done * credit, status: 'done' });
           if (focus) r.focusDone += x.done; else r.accDone += x.done;

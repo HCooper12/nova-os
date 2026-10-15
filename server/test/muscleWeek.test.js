@@ -110,6 +110,7 @@ test('a routine already filed today plans nothing more, and a session filed twic
   assert.equal(M(w, 'Biceps').focusDone, 3, "Wednesday's twin is not a second 3 sets of curls");
   const wed = w.days.find((d) => d.date === '2026-10-14');
   assert.equal(wed.dup, true);
+  assert.ok(M(w, 'Biceps').lines.filter((l) => l.date === '2026-10-14').every((l) => l.dup), "the card's Wednesday says so too");
   assert.equal(w.days.find((d) => d.date === '2026-10-16').status, 'done');
 });
 
