@@ -233,7 +233,7 @@ async function planOps(vaultPath, ops, { why }) {
       createdExercises.push(variant.id);
       const startKg = Number(op.startWeightKg) > 0 ? Number(op.startWeightKg) : 5;
       let swapped = 0;
-      for (const routine of [...data.routines]) {
+      for (const routine of data.routines.filter((r) => !r.archived)) {
         const next = swapEntry(entriesOf(routine), base.id, variant.id);
         if (!next) continue;
         setEntries(routine, next);
@@ -252,7 +252,7 @@ async function planOps(vaultPath, ops, { why }) {
       if (!toEx) throw new Error(`unknown exercise: ${op.replaceWith}`);
       if (!fromEx) throw new Error(`unknown exercise: ${op.exerciseId}`);
       let swapped = 0;
-      for (const routine of [...data.routines]) {
+      for (const routine of data.routines.filter((r) => !r.archived)) {
         if (op.routineId && routine.id !== op.routineId) continue;
         const next = swapEntry(entriesOf(routine), from, to);
         if (!next) continue;

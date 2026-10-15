@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { loadExerciseLibrary, addCustomExercise, MUSCLE_GROUPS, TRACKING_TYPES } from '../lib/exercises.js';
 import { canonicalGroup, legacyGroup } from '../lib/muscleSecondary.js';
-import { loadRoutines, createRoutine, updateRoutine, deleteRoutine, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
+import { loadRoutines, loadArchivedRoutines, createRoutine, updateRoutine, deleteRoutine, archiveRoutine, restoreRoutine, reorderRoutines, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
 import { loadExerciseState } from '../lib/exerciseState.js';
 import { variantFor } from '../lib/sessionPrefill.js';
 import { loadSessions, completeSession, updateSession, deleteSession, completedCountByRoutine } from '../lib/workoutSessions.js';
@@ -211,7 +211,7 @@ export function workoutsRouter(vaultPath) {
           return mk ? { ...e, coachAdded: { at: mk.at, why: mk.why || null, startWeightKg: mk.startWeightKg || null } } : e;
         }),
       }));
-      res.json({ routines: annotated, schedule, weekdays, progressions });
+      res.json({ routines: annotated, schedule, weekdays, progressions, archived: await loadArchivedRoutines(vaultPath) });
     } catch (err) {
       next(err);
     }
@@ -279,6 +279,36 @@ export function workoutsRouter(vaultPath) {
       const routine = await updateRoutine(vaultPath, exercises, req.params.id, { name: req.body?.name, exercises: req.body?.exercises });
       const [exerciseState, completedCounts] = await Promise.all([loadExerciseState(vaultPath), completedCountByRoutine(vaultPath)]);
       res.json({ routine: annotateRoutines([routine], exerciseState, completedCounts, [], exercises)[0] });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // Archive keeps a routine (lifts, id, history) on a shelf, out of every
+  // reader's sight; restore brings it back. Reorder sets the Train screen's order.
+  router.post('/workouts/routines/order', async (req, res) => {
+    try {
+      const { exercises } = await loadExerciseLibrary(vaultPath);
+      await reorderRoutines(vaultPath, exercises, req.body?.ids);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.post('/workouts/routines/:id/archive', async (req, res) => {
+    try {
+      const { exercises } = await loadExerciseLibrary(vaultPath);
+      res.json(await archiveRoutine(vaultPath, exercises, req.params.id));
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  router.post('/workouts/routines/:id/restore', async (req, res) => {
+    try {
+      const { exercises } = await loadExerciseLibrary(vaultPath);
+      res.json(await restoreRoutine(vaultPath, exercises, req.params.id));
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

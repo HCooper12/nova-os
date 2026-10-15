@@ -42,13 +42,18 @@ function bodyFor(routines, schedule, exercisesById) {
     }
     lines.push('');
   }
-  for (const r of routines) {
-    lines.push(`## ${r.name}`, '');
+  const listLifts = (r) => {
     for (const entry of r.exercises) {
       const resolved = resolveExercise(entry, exercisesById);
       lines.push(`- ${resolved.name} — ${resolved.targetSets} × ${resolved.targetRepsLow}-${resolved.targetRepsHigh}`);
     }
     lines.push('');
+  };
+  for (const r of routines.filter((x) => !x.archived)) { lines.push(`## ${r.name}`, ''); listLifts(r); }
+  const shelved = routines.filter((x) => x.archived);
+  if (shelved.length) {
+    lines.push('## Archived', '', 'Kept, hidden from Nova and the Coach. Restore from Train.', '');
+    for (const r of shelved) { lines.push(`### ${r.name}`, ''); listLifts(r); }
   }
   return lines.join('\n');
 }
@@ -111,8 +116,11 @@ export function replaceRoutineEntries(data, routineId, inputExercises, exercises
 export async function loadRoutines(vaultPath, exercises) {
   const exercisesById = new Map(exercises.map((e) => [e.id, e]));
   const { routines, schedule } = await getData(vaultPath);
+  // An archived routine is invisible to every reader (Coach, the week, the
+  // dispatcher, analytics) exactly as a deleted one is; only the shelf below
+  // and a restore can see it. Writers keep it: they work on the raw data.
   return {
-    routines: routines.map((r) => ({
+    routines: routines.filter((r) => !r.archived).map((r) => ({
       id: r.id,
       name: r.name,
       createdAt: r.createdAt,
@@ -121,6 +129,11 @@ export async function loadRoutines(vaultPath, exercises) {
     schedule,
     weekdays: WEEKDAYS,
   };
+}
+
+export async function loadArchivedRoutines(vaultPath) {
+  const { routines } = await getData(vaultPath);
+  return routines.filter((r) => r.archived).map((r) => ({ id: r.id, name: r.name, lifts: r.exercises.length, archivedAt: r.archivedAt || null }));
 }
 
 function validateExerciseEntries(exercises, exercisesById) {
@@ -156,7 +169,14 @@ export async function updateRoutine(vaultPath, exercises, routineId, { name, exe
       ? replaceRoutineEntries(data, routineId, inputExercises, exercisesById)
       : { routines: [...data.routines], schedule: data.schedule };
     const current = updated.routines[idx];
-    const routine = { ...current, name: typeof name === 'string' && name.trim() ? name.trim() : current.name };
+    const nextName = typeof name === 'string' && name.trim() ? name.trim() : current.name;
+    // Coach and the schedule find a routine by its name, so two live routines
+    // may not share one (an archived one is out of the namespace)
+    if (nextName.toLowerCase() !== String(current.name).toLowerCase() && !current.archived
+      && data.routines.some((r) => r.id !== routineId && !r.archived && String(r.name).toLowerCase() === nextName.toLowerCase())) {
+      throw new Error(`a routine is already called ${nextName}`);
+    }
+    const routine = { ...current, name: nextName };
     updated.routines[idx] = routine;
     await persist(vaultPath, updated, exercisesById);
     return { id: routine.id, name: routine.name, createdAt: routine.createdAt, exercises: routine.exercises.map((e) => resolveExercise(e, exercisesById)) };
@@ -192,12 +212,67 @@ export async function deleteRoutine(vaultPath, exercises, routineId) {
   });
 }
 
+// Archive: put a routine on the shelf. It leaves the schedule (as a delete
+// would) but its lifts, id and history stay, so a restore is whole.
+export async function archiveRoutine(vaultPath, exercises, routineId) {
+  const exercisesById = new Map(exercises.map((e) => [e.id, e]));
+  return withWriteLock(async () => {
+    const data = await getData(vaultPath);
+    const idx = data.routines.findIndex((r) => r.id === routineId);
+    if (idx === -1) throw new Error('routine not found');
+    if (data.routines[idx].archived) throw new Error('routine is already archived');
+    const routines = [...data.routines];
+    routines[idx] = { ...routines[idx], archived: true, archivedAt: new Date().toISOString() };
+    const schedule = { ...data.schedule };
+    const unscheduled = [];
+    for (const d of WEEKDAYS) if (schedule[d] === routineId) { delete schedule[d]; unscheduled.push(d); }
+    await persist(vaultPath, { routines, schedule }, exercisesById);
+    return { id: routineId, name: routines[idx].name, unscheduled };
+  });
+}
+
+export async function restoreRoutine(vaultPath, exercises, routineId) {
+  const exercisesById = new Map(exercises.map((e) => [e.id, e]));
+  return withWriteLock(async () => {
+    const data = await getData(vaultPath);
+    const idx = data.routines.findIndex((r) => r.id === routineId);
+    if (idx === -1) throw new Error('routine not found');
+    const current = data.routines[idx];
+    if (!current.archived) throw new Error('routine is not archived');
+    const taken = new Set(data.routines.filter((r) => !r.archived).map((r) => String(r.name).toLowerCase()));
+    let name = current.name;
+    if (taken.has(String(name).toLowerCase())) {
+      name = `${current.name} (earlier)`;
+      for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${current.name} (earlier ${n})`;
+    }
+    const { archived, archivedAt, ...rest } = current;
+    const routines = [...data.routines.filter((r) => r.id !== routineId), { ...rest, name }];
+    await persist(vaultPath, { routines, schedule: data.schedule }, exercisesById);
+    return { id: routineId, name };
+  });
+}
+
+// The order of the live routines, the Train screen's order. `ids` must be
+// exactly the live routine ids, each once; archived ones ride behind them.
+export async function reorderRoutines(vaultPath, exercises, ids) {
+  const exercisesById = new Map(exercises.map((e) => [e.id, e]));
+  return withWriteLock(async () => {
+    const data = await getData(vaultPath);
+    const live = data.routines.filter((r) => !r.archived);
+    if (!Array.isArray(ids) || ids.length !== live.length || new Set(ids).size !== ids.length || !ids.every((id) => live.some((r) => r.id === id))) {
+      throw new Error('ids must list every live routine exactly once');
+    }
+    const routines = [...ids.map((id) => live.find((r) => r.id === id)), ...data.routines.filter((r) => r.archived)];
+    await persist(vaultPath, { routines, schedule: data.schedule }, exercisesById);
+  });
+}
+
 export async function setScheduleDay(vaultPath, exercises, day, routineId) {
   if (!WEEKDAYS.includes(day)) throw new Error('invalid day');
   const exercisesById = new Map(exercises.map((e) => [e.id, e]));
   return withWriteLock(async () => {
     const data = await getData(vaultPath);
-    if (routineId && routineId !== ACTIVE_REST && !data.routines.some((r) => r.id === routineId)) throw new Error('unknown routine id');
+    if (routineId && routineId !== ACTIVE_REST && !data.routines.some((r) => r.id === routineId && !r.archived)) throw new Error('unknown routine id');
     const schedule = { ...data.schedule };
     if (routineId) schedule[day] = routineId;
     else delete schedule[day];
