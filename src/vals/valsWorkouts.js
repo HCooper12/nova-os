@@ -705,6 +705,9 @@ export function valsWorkouts(app, ctx) {
     // "reading your history…" shows only until the first streamed words
     // arrive — once the reply is visibly being written, the line is noise
     coachBusy: st.coachBusy && !st.coachChat.some((m) => m.streaming),
+    // the whole turn, streaming or not: the consult map (src/motion/ConsultFlow.jsx)
+    // draws only while it is still running
+    coachWorking: !!st.coachBusy,
     coachContinuing: !!st.coachSessionId,
     newCoachChat: () => app.newCoachChat(),
     coachInput: st.coachInput,

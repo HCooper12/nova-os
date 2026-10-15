@@ -16,6 +16,7 @@ import { CoachChangesBanner, CoachSuggestionDeck } from '../CoachSuggestions.jsx
 import { RingTile } from '../RingTile.jsx';
 import { TrainSummary } from './TrainSummary.jsx';
 import { SessionSummary } from './SessionSummary.jsx';
+import { ConsultFlow } from '../motion/ConsultFlow.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -869,6 +870,7 @@ function SessionView({ v }) {
                 )}
               </div>
             ))}
+            <ConsultFlow lane="coach" live={v.coachWorking} />
             {v.coachBusy && <Meta as="div" tone="cyan" style={{ textTransform: 'none', letterSpacing: 0 }}>» Coach looking at your session…▍</Meta>}
           </div>
           <div style={css("display:flex;gap:8px;margin-top:10px")}>
@@ -1221,6 +1223,7 @@ function GoalsCoachPane({ v }) {
                 </div>
               </div>
             ))}
+            <ConsultFlow lane="coach" live={v.coachWorking} />
             {v.coachBusy && <Meta as="div" tone="cyan" style={{ textTransform: 'none', letterSpacing: 0 }}>» Coach reading your training history…▍</Meta>}
           </div>
           {v.coachChips?.length > 0 && (

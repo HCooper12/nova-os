@@ -41,6 +41,7 @@ import { whereAmI, readWhereInputs } from './where.js';
 import { playPush, playPop } from './settingsNav.js';
 import { freeze, grow, shrink, noteTap, takeTap, scrollToTop } from './pageMotion.js';
 import { growTapFor, foldFrom } from './motion/briefingGrow.js';
+import { watchConsult } from './motion/consultFeed.js';
 import { pageMove, pageKey } from './pageMoveRule.js';
 import { startSkyRest } from './skyRest.js';
 import { EdgeBack } from './EdgeBack.jsx';
@@ -1411,7 +1412,9 @@ export default class App extends Component {
   // ---------- job polling (shared) ----------
   startPoll(name, fetchJob, handlers) {
     this.stopPoll(name);
-    this.pollers[name] = pollJob(fetchJob, handlers);
+    // the roster of agents a job is asking rides every poll; kept per poll
+    // name, outside React state, for the consult map (src/motion/consultFeed.js)
+    this.pollers[name] = watchConsult(name, handlers, (h) => pollJob(fetchJob, h));
   }
   stopPoll(name) {
     if (this.pollers?.[name]) {

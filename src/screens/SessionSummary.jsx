@@ -13,6 +13,7 @@ import { useDictation } from '../useDictation.js';
 import { useStickToBottom } from '../useStickToBottom.js';
 import { restState } from '../sessionSummaryFacts.js';
 import { MaskedType } from '../motion/MaskedType.jsx';
+import { ConsultFlow } from '../motion/ConsultFlow.jsx';
 
 // THE LIVE SESSION, SUMMARY — Train round B (28 Sep 2026), drawn from
 // design/mockups/61-redesign-train-session-r2.html and approved with his
@@ -769,6 +770,7 @@ function CoachSheet({ s, v }) {
                 </div>
               );
             })}
+            <ConsultFlow lane="coach" live={v.coachWorking} />
             {v.coachBusy && <p className="nv-ss-busy">Coach looking at your session…</p>}
           </div>
           <div className="nv-ss-ask">
