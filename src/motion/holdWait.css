@@ -1,0 +1,10 @@
+/* THE CARD NOVA SAID WAS WAITING (15 Oct 2026): shown on the hold panel
+   and the voice presence, VoicePresence.jsx. */
+
+/* the thread's own card on the panel's dark glass (the summary card
+   tokens only exist under that style) */
+.nv-hold-wait { margin-top: 12px; --nv-sum-card: color-mix(in srgb, var(--nv-ink) 5%, transparent); --nv-sum-card-hi: transparent; --nv-sum-card-ring: color-mix(in srgb, var(--nv-ink) 14%, transparent); --nv-sum-blur: 0px; }
+.nv-hold-wait .nv-nt-decide .say { font-size: 17px; }
+.nv-hold-wait-float { pointer-events: auto; width: min(560px, 100%); animation: nvGlassIn var(--nv-dur-base) var(--nv-ease) both; }
+.nv-hold-wait-float .nv-nt-decide { background: color-mix(in srgb, var(--nv-gold) 8%, color-mix(in srgb, var(--nv-void) 94%, black)); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); }
+

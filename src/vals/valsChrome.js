@@ -442,6 +442,21 @@ export function valsChrome(app, ctx) {
       // since 1 Oct the presence's turn runs the conversation's own pipeline,
       // so its reply is the conversation's row after his words
       reply: st.liveReply || replyAfterAsk(st.voiceChat, st.liveAsk),
+      // THE CARD HE WAS TOLD ABOUT (15 Oct 2026): Nova said, through this
+      // panel, that a card was waiting for his yes, and nothing on screen
+      // showed one (it lived only in the Nova thread). The proposal THIS
+      // exchange filed, read off the same row the thread draws, with the
+      // thread's own approve / dismiss (App.resolveVoiceProposal).
+      waiting: (() => {
+        const p = proposalAfterAsk(st.voiceChat, st.liveAsk);
+        if (!p) return null;
+        const pending = p.status === 'pending';
+        return {
+          title: p.title, status: p.status, replaced: !!p.replaced,
+          approve: pending ? () => app.resolveVoiceProposal(p.recordId, true) : null,
+          dismiss: pending ? () => app.resolveVoiceProposal(p.recordId, false) : null,
+        };
+      })(),
       // the words are opt-in: long-press the core
       textOpen: !!st.liveTextOpen,
       // the card for the line being spoken right now — his "dynamic pop up
@@ -864,6 +879,22 @@ export function replyAfterAsk(chat, ask) {
   if (i < 0) return '';
   const after = chat.slice(i + 1).filter((m) => m && m.who !== 'you' && m.text);
   return after.length ? String(after[after.length - 1].text) : '';
+}
+
+// The proposal Nova filed in answer to `ask`: the newest one on a row after
+// his words. Null when that exchange filed nothing (a proposal from an older
+// exchange belongs to the thread, not to this turn).
+export function proposalAfterAsk(chat, ask) {
+  const q = String(ask || '').trim();
+  if (!q || !Array.isArray(chat)) return null;
+  let i = chat.length - 1;
+  while (i >= 0 && !(chat[i]?.who === 'you' && String(chat[i].text || '').trim() === q)) i--;
+  if (i < 0) return null;
+  for (let k = chat.length - 1; k > i; k--) {
+    const p = chat[k]?.proposal;
+    if (chat[k]?.who !== 'you' && p && p.recordId && p.title) return p;
+  }
+  return null;
 }
 
 export function nudgeTrail(title) {

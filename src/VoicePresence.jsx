@@ -8,6 +8,8 @@ import { SafeVisual } from './SafeVisual.jsx';
 import { useDismissSwipe } from './dismissSwipe.js';
 import { usePanelMorph } from './motion/holdToTalk.js';
 import { MicLevel } from './motion/MicLevel.jsx';
+import { Proposal } from './NovaThreadParts.jsx';
+import './motion/holdWait.css';
 
 const M = 'var(--nv-font-mono)';
 
@@ -91,7 +93,10 @@ export function VoicePresence({ v }) {
 
   const state = dict.hearing ? 'HEARING' : dict.on ? 'LISTENING' : s.busy ? 'THINKING' : s.speaking ? 'SPEAKING' : 'YOUR TURN';
   const tone = dict.on ? 'var(--nv-vi)' : s.speaking ? 'var(--nv-gold)' : 'var(--nv-cy)';
-  if (!s.textOpen && !s.evidence && !s.card && !s.glass && !v.speechBlocked) return null;
+  // the card Nova said is waiting stands on its own when the words are hidden,
+  // like an evidence card; once he has answered it, only the panel keeps it
+  const waitAlone = !s.textOpen && s.waiting?.status === 'pending' ? s.waiting : null;
+  if (!s.textOpen && !s.evidence && !s.card && !s.glass && !v.speechBlocked && !waitAlone) return null;
 
   return (
     <div style={css(`position:fixed;left:0;right:0;bottom:${v.isMobile ? 'calc(96px + env(safe-area-inset-bottom))' : '26px'};z-index:112;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 12px`)}>
@@ -165,6 +170,11 @@ export function VoicePresence({ v }) {
         </Interactive>
       )}
 
+      {/* the card Nova said was waiting for his yes, when the panel is shut */}
+      {waitAlone && (
+        <div className="nv-hold-wait nv-hold-wait-float"><Proposal p={waitAlone} /></div>
+      )}
+
       {/* THE POP-UP — only ever on screen because he asked for it (long-press
           the core). The lit border + outward glow is the reference's look. */}
       {s.textOpen && (
@@ -207,6 +217,7 @@ function TranscriptPanel({ v, s, dict, state, tone }) {
         <div style={css('font-size:14px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 94%, transparent)')}>
           {s.reply || s.input || (s.busy ? 'Reading the vault…' : 'Listening — speak, and it appears here.')}
         </div>
+        {s.waiting && <div className="nv-hold-wait"><Proposal p={s.waiting} /></div>}
       </div>
     </div>
   );

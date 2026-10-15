@@ -9,7 +9,7 @@ import { StageCard } from '../StageCard.jsx';
 import { useLongPress } from '../longPress.js';
 import { useKeptTakes, keepTake, dropTake, patchTake } from '../keptTakes.js';
 import { stateOf, threadRows, openingIndex, clock, failedLast } from '../novaThreadFacts.js';
-import { Ico, Glyph, Stage, Settled, KeptTake, Meter } from '../NovaThreadParts.jsx';
+import { Ico, Glyph, Stage, Settled, KeptTake, Meter, Proposal } from '../NovaThreadParts.jsx';
 import { NovaFocus } from '../NovaFocus.jsx';
 import { FiledRows } from '../motion/FiledRows.jsx';
 
@@ -497,25 +497,6 @@ function Research({ r, at }) {
       {r.status === 'running' ? <span className="spin" aria-hidden="true" /> : <Ico name="moon" />}
       <span className="rx"><b>{r.status === 'running' ? 'Researching' : 'Queued for tonight'}{r.question ? `: ${r.question}` : ''}</b>
         <span>{r.status === 'running' ? 'lands here and in your Inbox' : 'the brief lands in your Inbox by morning'}</span></span>
-    </div>
-  );
-}
-
-// a proposal: the Coach deck's card, gold only while it waits on his call
-function Proposal({ p }) {
-  const waiting = p.status === 'pending';
-  return (
-    <div className={`nv-nt-decide${waiting ? '' : ' done'}`}>
-      <div className="dk"><span>{waiting ? 'Waiting on you' : p.status === 'done' ? 'Done' : p.replaced ? 'Replaced' : p.status === 'error' ? 'Still in the Inbox' : 'Left'}</span></div>
-      <p className="say">{p.title}</p>
-      {waiting ? (
-        <div className="answer">
-          <button type="button" className="yes" onClick={p.approve}><Ico name="check" />Yes, do it</button>
-          <button type="button" className="no" onClick={p.dismiss} aria-label="No, leave it"><Ico name="x" /></button>
-        </div>
-      ) : (
-        <p className="nv-nt-meta">{p.status === 'done' ? 'Undo lives in your Inbox' : p.replaced ? 'Replaced by your correction' : p.status === 'error' ? 'Still pending in your Inbox' : 'Dismissed'}</p>
-      )}
     </div>
   );
 }

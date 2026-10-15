@@ -276,3 +276,24 @@ export function Meter({ since }) {
     </div>
   );
 }
+
+// a proposal: the Coach deck's card, gold only while it waits on his call.
+// Shared by the thread and the voice presence's panel (VoicePresence.jsx), so
+// a card Nova says is waiting looks and answers the same in both.
+export function Proposal({ p }) {
+  const waiting = p.status === 'pending';
+  return (
+    <div className={`nv-nt-decide${waiting ? '' : ' done'}`}>
+      <div className="dk"><span>{waiting ? 'Waiting on you' : p.status === 'done' ? 'Done' : p.replaced ? 'Replaced' : p.status === 'error' ? 'Still in the Inbox' : 'Left'}</span></div>
+      <p className="say">{p.title}</p>
+      {waiting ? (
+        <div className="answer">
+          <button type="button" className="yes" onClick={p.approve}><Ico name="check" />Yes, do it</button>
+          <button type="button" className="no" onClick={p.dismiss} aria-label="No, leave it"><Ico name="x" /></button>
+        </div>
+      ) : (
+        <p className="nv-nt-meta">{p.status === 'done' ? 'Undo lives in your Inbox' : p.replaced ? 'Replaced by your correction' : p.status === 'error' ? 'Still pending in your Inbox' : 'Dismissed'}</p>
+      )}
+    </div>
+  );
+}
