@@ -150,7 +150,8 @@ test('Coach sees its cards and his program every turn, from the record', async (
   assert.ok(!/\n\n/.test(prog), 'one paragraph, so the transcript reader knows it is plumbing');
   // the same planned-week figures his Train card shows, never a count of Coach's own
   // the counting rule is said once, and a total may carry a half (15 Oct)
-  assert.match(prog, /HIS WEEK IN HARD SETS \(the numbers his Train card shows him; quote these, never a count of your own; a muscle's figure counts its own sets at 1 and each set of a lift that also trains it at ½\): .*Triceps \d+½? done \+ \d+½? still scheduled = \d+½? of 1[02]/);
+  // since 16 Oct: the weekly sets sheet's figures, held against the growth range (10-20)
+  assert.match(prog, /HIS WEEK IN HARD SETS \(the numbers his Train card and weekly sets sheet show him; quote these, never a count of your own; .*the growth range is 10-20 working sets a week unless a muscle shows its own\): .*Triceps \d+½? done \+ \d+½? still planned = \d+½? by Sunday, range 10-20/);
 });
 
 test('the repair request names every refusal and what to send back', () => {

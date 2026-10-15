@@ -263,6 +263,8 @@ export function changeSignatures(route, p = {}) {
     sigs.push(`${route}|${p.exerciseId}`); // tune, remap, resource
   } else if (route === 'injury-log' && nameKey(p.area)) {
     sigs.push(`injury|${nameKey(p.area)}`);
+  } else if (route === 'goal-target' && p.settings) {
+    sigs.push(`goal|settings|${Object.keys(p.settings).sort().join(',')}`);
   } else if (route === 'goal-target' && nameKey(p.metric)) {
     sigs.push(`goal|${nameKey(p.metric)}`);
   } else if (route === 'coach-learning' && nameKey(p.insight)) {

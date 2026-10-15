@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
+import { cleanVolumeRanges, VOLUME_RANGE } from '../../src/muscleTaxonomy.js';
 
 // Hayden's fitness goals — a vault page (source of truth, editable in
 // Obsidian or the Train screen) that the Coach reads for every judgement:
@@ -33,6 +34,10 @@ export async function getFitnessGoals(vaultPath) {
       stepsTarget: posInt(data.stepsTarget),
       proteinTarget: posInt(data.proteinTarget),
       kcalTarget: posInt(data.kcalTarget),
+      // THE GROWTH RANGE FOR ONE MUSCLE, FOR THIS GOAL (16 Oct 2026): Coach
+      // may set a muscle its own [low, high] on his yes (the 'goal' card);
+      // every other muscle reads VOLUME_RANGE (src/muscleTaxonomy.js)
+      volumeRanges: cleanVolumeRanges(data.volumeRanges),
       notes: content.replace(/^#[^\n]*\n?/, '').trim(),
       updated: data.updated || null,
     };
@@ -57,11 +62,11 @@ export async function setFitnessGoals(vaultPath, input) {
   const kcalTarget = band(input.kcalTarget, 1000, 6000);
 
   const full = path.join(vaultPath, GOALS_REL);
-  if (!Array.isArray(input.targets)) {
-    // a settings-form save must never wipe targets it didn't touch
-    const existing = await getFitnessGoals(vaultPath).catch(() => null);
-    if (existing?.targets?.length) input = { ...input, targets: existing.targets };
-  }
+  // a settings-form save must never wipe what it didn't touch: the targets,
+  // and the fields only Coach's cards set (each kept unless the input names it)
+  const existing = await getFitnessGoals(vaultPath).catch(() => null);
+  if (!Array.isArray(input.targets) && existing?.targets?.length) input = { ...input, targets: existing.targets };
+  const volumeRanges = Object.hasOwn(input, 'volumeRanges') ? cleanVolumeRanges(input.volumeRanges) : existing?.volumeRanges || null;
   await mkdir(path.dirname(full), { recursive: true });
   if (existsSync(full)) await backupFile(full);
   const updated = localDateISO();
@@ -73,8 +78,29 @@ export async function setFitnessGoals(vaultPath, input) {
   if (proteinTarget) frontmatter.proteinTarget = proteinTarget;
   if (kcalTarget) frontmatter.kcalTarget = kcalTarget;
   if (Array.isArray(input.targets) && input.targets.length) frontmatter.targets = input.targets;
+  if (volumeRanges) frontmatter.volumeRanges = volumeRanges;
   await writeFile(full, matter.stringify(`# Fitness Goals\n\n${notes}\n`, frontmatter), 'utf8');
   return getFitnessGoals(vaultPath);
+}
+
+// WHAT HIS GOAL TRAINS, CHANGED ON HIS YES (16 Oct 2026). Coach's 'goal'
+// card can set his goal line and the per-muscle growth ranges; this is the
+// write its yes makes. Only the fields named change; `prior` is each of
+// them as it stood, which the card's undo puts back exactly.
+export const GOAL_SETTING_KEYS = ['goal', 'volumeRanges'];
+export async function setGoalSettings(vaultPath, settings = {}) {
+  const g = (await getFitnessGoals(vaultPath)) || { goal: 'Training goals', focus: '', daysPerWeek: null, equipment: '', limitations: '', notes: '', targets: [] };
+  const prior = {};
+  const next = { ...g };
+  for (const k of GOAL_SETTING_KEYS) {
+    if (!Object.hasOwn(settings, k)) continue;
+    prior[k] = g[k] ?? null;
+    next[k] = settings[k];
+  }
+  if (!Object.keys(prior).length) throw new Error('nothing to change on the goals page');
+  if (!String(next.goal || '').trim()) next.goal = g.goal || 'Training goals';
+  const goals = await setFitnessGoals(vaultPath, next);
+  return { prior, goals };
 }
 
 // Add one measurable target (the Coach's 'goal' proposal lands here on
@@ -100,6 +126,13 @@ export async function removeGoalTarget(vaultPath, id) {
   await setFitnessGoals(vaultPath, { ...g, targets: (g.targets || []).filter((t) => t.id !== id) });
 }
 
+// The growth range Coach judges every muscle's week against: the one
+// shared range, and any muscle his goal gives its own.
+export function volumeRangeLine(g) {
+  const own = Object.entries(g?.volumeRanges || {}).map(([m, [lo, hi]]) => `${m} ${lo}-${hi}`);
+  return `GROWTH RANGE: ${VOLUME_RANGE[0]}-${VOLUME_RANGE[1]} working sets per muscle per week (each focus set counts 1, each accessory set ½); under ${VOLUME_RANGE[0]} is short, over ${VOLUME_RANGE[1]} is past the point more sets help.${own.length ? ` This goal sets its own range for ${own.join(', ')}.` : ''}`;
+}
+
 // Compact context block for the Coach's prompts.
 export async function goalsContext(vaultPath) {
   const g = await getFitnessGoals(vaultPath);
@@ -114,6 +147,7 @@ export async function goalsContext(vaultPath) {
     g.equipment ? `Equipment available: ${g.equipment}` : null,
     g.limitations ? `Injuries / limitations (work around these): ${g.limitations}` : null,
     g.targets?.length ? `MEASURABLE TARGETS (coach toward these; say when one is reached or drifting): ${g.targets.map((t) => `${t.metric} → ${t.value}${t.unit || ''}${t.by ? ` by ${t.by}` : ''} (set ${t.setAt})`).join('; ')}` : 'No measurable targets set — propose one when a goal conversation happens (PROPOSE {"action":"goal",...}).',
+    volumeRangeLine(g),
     g.notes ? `Notes: ${g.notes}` : null,
     board,
   ].filter(Boolean).join('\n');

@@ -13,14 +13,16 @@ import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mond
 import { isUnaudited } from './muscleSecondary.js';
 import { plannedWeek } from './plannedWeek.js';
 import { muscleWeek as buildMuscleWeek } from './muscleWeek.js';
+import { rangeFor } from '../../src/muscleTaxonomy.js';
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
 
-// Weekly hard-set targets per muscle. 10 is the evidence-based floor for
-// growth in most trained lifters; muscles named by his GOAL get 12 — the
-// point (his ask) is that under-volumed goal muscles get flagged loudly.
-const BASE_TARGET = 10;
-const GOAL_TARGET = 12;
+// Weekly hard-set targets per muscle: THE GROWTH RANGE (16 Oct 2026, his
+// decision), 10 to 20 working sets for every muscle (VOLUME_RANGE), or the
+// range his goal sets one muscle (goals.volumeRanges). The bars' target is
+// the range's low end; a goal muscle is flagged loudly when short of it,
+// and every row carries the whole range so a surface can say "past it".
+// (Before this, goal muscles were held to 12 and the rest to 10.)
 // THE OLD WORDS IN HIS GOAL, CARRIED INTO THE NEW GROUPS (15 Oct 2026). His
 // goal text says "grow the arms (triceps, biceps, shoulders)", written when
 // Shoulders was one group with one target. Read now: "shoulders" means the
@@ -184,9 +186,11 @@ export async function buildTrainOverview(vaultPath) {
   // muscle's TOTAL, direct sets plus half for each set of a lift that also
   // trains it (lib/muscleSecondary.js); `direct` and `indirect` are the SETS
   // of each kind, so the bar can draw the solid part and the lighter part.
+  const ranges = goals?.volumeRanges || null;
   const rowOf = (muscle) => ({
     muscle, sets: 0, direct: 0, indirect: 0,
-    target: focused.has(muscle) ? GOAL_TARGET : BASE_TARGET,
+    target: rangeFor(muscle, ranges)[0],
+    range: rangeFor(muscle, ranges),
     goalMuscle: focused.has(muscle),
   });
   const volume = Object.entries(vol.groups || {}).map(([muscle, sets]) => ({
@@ -257,7 +261,7 @@ export async function buildTrainOverview(vaultPath) {
     week = plannedWeek({
       routines, schedule, sessions, live: liveSession, exercises, carryovers,
       routinesAt: history?.versions?.length ? (iso) => planAt(history.versions, iso)?.routines || null : null,
-      targetOf: (m) => ({ target: focused.has(m) ? GOAL_TARGET : BASE_TARGET, goalMuscle: focused.has(m) }),
+      targetOf: (m) => ({ target: rangeFor(m, ranges)[0], range: rangeFor(m, ranges), goalMuscle: focused.has(m) }),
     });
   } catch { /* honest absence */ }
 
@@ -271,6 +275,7 @@ export async function buildTrainOverview(vaultPath) {
       routines, schedule, sessions, live: liveSession, exercises,
       carryovers: await listCarryovers().catch(() => []),
       goalMuscles: [...focused],
+      ranges,
     });
   } catch { /* honest absence */ }
 

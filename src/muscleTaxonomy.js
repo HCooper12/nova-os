@@ -71,5 +71,24 @@ export function rangeFor(muscle, overrides = null) {
   return Array.isArray(r) && r.length === 2 ? [r[0], r[1]] : [...VOLUME_RANGE];
 }
 
+/**
+ * His goal's per-muscle ranges, validated: { 'Side Delts': [12, 22] }. A
+ * muscle must be a volume group (any casing), the pair whole numbers with
+ * 1 <= low < high <= 40. Anything else is dropped, never guessed at; an
+ * empty result is null.
+ */
+export function cleanVolumeRanges(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out = {};
+  for (const [name, pair] of Object.entries(raw)) {
+    const m = canonicalGroup(name);
+    if (!m || NON_VOLUME.has(m) || !Array.isArray(pair) || pair.length !== 2) continue;
+    const [lo, hi] = pair.map(Number);
+    if (!Number.isInteger(lo) || !Number.isInteger(hi) || lo < 1 || hi > 40 || lo >= hi) continue;
+    out[m] = [lo, hi];
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 export const isMuscleGroup = (name) => MUSCLE_GROUPS.includes(name);
 export const countsAsVolume = (group) => isMuscleGroup(group) && !NON_VOLUME.has(group);

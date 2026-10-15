@@ -180,6 +180,12 @@ function otherChange(route, p) {
   if (route === 'exercise-audit') return { headline: `Count ${p.exerciseName} as ${p.primary || 'no muscle'}${p.secondary?.length ? `, also ${p.secondary.map((m) => `${m} ½`).join(', ')}` : ''} (a suggestion to check)`, diff: { type: 'remap', exercise: { name: p.exerciseName, muscle: p.primary }, before: 'not audited' } };
   if (route === 'exercise-remap') return { headline: `Count ${p.exerciseName} as ${p.muscleGroup}`, diff: { type: 'remap', exercise: { name: p.exerciseName, muscle: p.muscleGroup }, before: p.before } };
   if (route === 'injury-log') return { headline: `Log your ${p.area} (${p.severity})`, diff: { type: 'note', glyph: '✚' } };
+  if (route === 'goal-target' && p.settings) {
+    const s = p.settings;
+    const bits = [s.goal ? `goal: ${s.goal}` : null, s.goalMuscles ? `goal muscles: ${s.goalMuscles.join(', ')}` : null,
+      s.volumeRanges ? Object.entries(s.volumeRanges).map(([m, [lo, hi]]) => `${m} ${lo}–${hi} sets a week`).join(', ') : null].filter(Boolean);
+    return { headline: `Set your ${bits.join('; ')}`, diff: { type: 'note', glyph: '◎' } };
+  }
   if (route === 'goal-target') return { headline: `Target: ${p.metric} ${p.value}${p.unit || ''}${p.by ? ` by ${p.by}` : ''}`, diff: { type: 'note', glyph: '◎' } };
   if (route === 'training-block') return { headline: `Start a ${p.lengthWeeks}-week ${p.phase} block`, diff: { type: 'note', glyph: '▤' } };
   if (route === 'exercise-resource') return { headline: `Add a form guide for ${p.exerciseName}`, diff: { type: 'note', glyph: '▶' } };

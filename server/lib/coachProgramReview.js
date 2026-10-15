@@ -4,6 +4,7 @@ import { mondayIso } from './cadence.js';
 import { atlasFor } from './data/exerciseAtlas.js';
 import { patternFor } from '../../src/exerciseMotion.js';
 import { formatSets, PRIMARY_RULES } from './muscleSecondary.js';
+import { VOLUME_RANGE, rangeFor } from '../../src/muscleTaxonomy.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -277,25 +278,28 @@ function lastWeekMade(week, muscle) {
 //
 // TOTALS, on purpose (15 Oct 2026): `groups` is direct sets + ½ for each set
 // of a lift that also trains the muscle, the weekly load he asked to be
-// measured against his targets. The 12 is the same target the Train bars
-// draw against, so the card and this finding read one number.
-export function findChronicUnderVolume(weeklyVolume = [], { goalMuscles = [], target = 12, weeks = 3 } = {}) {
+// measured against his targets. The target is the low end of THE GROWTH
+// RANGE (VOLUME_RANGE, 10; or the range his goal sets that muscle), the same
+// number the Train bars and the weekly sets sheet draw against, so the card
+// and this finding read one number. A `target` passed in overrides both.
+export function findChronicUnderVolume(weeklyVolume = [], { goalMuscles = [], target = null, ranges = null, weeks = 3 } = {}) {
   const out = [];
   const recent = weeklyVolume.slice(0, weeks);
   if (recent.length < weeks) return out;
   for (const muscle of goalMuscles) {
+    const target_ = target ?? rangeFor(muscle, ranges)[0];
     const counts = recent.map((w) => (w.groups || {})[muscle] || 0);
-    if (counts.some((c) => c >= target)) continue;
+    if (counts.some((c) => c >= target_)) continue;
     const avg = Math.round((counts.reduce((a, b) => a + b, 0) / counts.length) * 10) / 10;
     out.push({
       kind: 'under-volume',
       key: `under:${muscle}:${recent[0].week}`,
       muscle,
       avg,
-      target,
+      target: target_,
       weeks: recent.length,
-      line: `${muscle} has been under target ${recent.length} weeks running — averaging ${avg} hard sets against ${target}${lastWeekMade(recent[0], muscle)}. That is the gap between training it and growing it.`,
-      fix: { action: 'add-sets', muscle, target },
+      line: `${muscle} has been under target ${recent.length} weeks running — averaging ${avg} hard sets against ${target_}${lastWeekMade(recent[0], muscle)}. That is the gap between training it and growing it.`,
+      fix: { action: 'add-sets', muscle, target: target_ },
     });
   }
   return out;
@@ -316,9 +320,11 @@ export function findChronicUnderVolume(weeklyVolume = [], { goalMuscles = [], ta
 // single big day is training, not a programming error.
 
 // Above this many hard sets in a week, added volume is generally not buying
-// growth for a natural lifter — it is buying fatigue. Set well clear of the
-// 10-12 targets so an ordinary hard week never trips it.
-export const JUNK_VOLUME_CEILING = 22;
+// growth for a natural lifter — it is buying fatigue. It is the top of THE
+// GROWTH RANGE (VOLUME_RANGE, 20, his decision 16 Oct 2026; it was 22), so
+// "past the range" on his sheet and this finding are the same line; a muscle
+// his goal gives its own range is held to that range's top instead.
+export const JUNK_VOLUME_CEILING = VOLUME_RANGE[1];
 // A session past this many exercises tends to mean the last ones are done
 // tired, fast and half-loaded. His Push day sits at 10, which is exactly the
 // conversation he wants Coach to start.
@@ -332,21 +338,23 @@ export const TENURE_WEEKS = 16;
 // so the two can never disagree about what a week contained. TOTALS too: the
 // ceiling is about the load a muscle carries, and fractional counting is how
 // the volume literature it comes from counts that load (Pelland et al. 2024).
-export function findJunkVolume(weeklyVolume = [], { ceiling = JUNK_VOLUME_CEILING, weeks = 2 } = {}) {
+export function findJunkVolume(weeklyVolume = [], { ceiling = null, ranges = null, weeks = 2 } = {}) {
   const out = [];
   const recent = weeklyVolume.slice(0, weeks);
   if (recent.length < weeks) return out;
   const muscles = new Set(recent.flatMap((w) => Object.keys(w.groups || {})));
   for (const muscle of muscles) {
+    const top = ceiling ?? rangeFor(muscle, ranges)[1];
     const counts = recent.map((w) => (w.groups || {})[muscle] || 0);
-    if (counts.some((c) => c < ceiling)) continue; // must be over it EVERY week
+    // must be PAST the range EVERY week: 20 is still in it
+    if (counts.some((c) => c <= top)) continue;
     const avg = Math.round((counts.reduce((a, b) => a + b, 0) / counts.length) * 10) / 10;
     out.push({
       kind: 'junk-volume',
       key: `junk:${muscle}:${recent[0].week}`,
       muscle,
       avg,
-      ceiling,
+      ceiling: top,
       weeks: recent.length,
       line: `${muscle} has run at ${avg} hard sets a week for ${recent.length} weeks${lastWeekMade(recent[0], muscle)} — past the point where more sets buy more growth. Those last few sets are costing you recovery you could spend elsewhere. Worth trimming the least productive movement.`,
       // no one-tap fix: WHICH set to cut is his call, and a coach who
@@ -766,9 +774,9 @@ export async function reviewProgram(vaultPath, deps = {}) {
 
   const findings = [
     ...findMappingSuspects(exercises),
-    ...findChronicUnderVolume(weekly, { goalMuscles }),
+    ...findChronicUnderVolume(weekly, { goalMuscles, ranges: g?.volumeRanges || null }),
     ...findEffortCeiling(sessions, { now }),
-    ...findJunkVolume(weekly),
+    ...findJunkVolume(weekly, { ranges: g?.volumeRanges || null }),
     ...findOversizedRoutines(sessions, routines, { now, justAdded }),
     ...findLowValueExercises(sessions, exercises, routines),
     ...findStaleLifts(sessions, exercises, { now, avoidText, inProgram, declined, tunes, declinedVariation, inSessionFocus }),

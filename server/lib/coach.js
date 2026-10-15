@@ -402,8 +402,17 @@ export async function programContext(vaultPath) {
     const { buildTrainOverview } = await import('./trainOverview.js');
     const { weekSetsView, breakdown } = await import('../../src/weekSets.js');
     const { formatSets: fmt } = await import('./muscleSecondary.js');
-    const v = weekSetsView((await buildTrainOverview(vaultPath)).week);
-    if (v) {
+    const overview = await buildTrainOverview(vaultPath);
+    // the weekly muscle sets sheet's model (lib/muscleWeek.js): done, by
+    // Sunday on the plan, and each muscle's growth range (VOLUME_RANGE, or
+    // the range his goal sets it); the old planned-week headline beside it
+    const mw = overview.muscleWeek;
+    const v = weekSetsView(overview.week);
+    if (mw?.muscles?.length) {
+      const rows = mw.muscles
+        .map((m) => `${m.muscle}${m.goal ? ' (goal)' : ''} ${fmt(m.done)} done + ${fmt(m.bySunday - m.done)} still planned = ${fmt(m.bySunday)} by Sunday, range ${m.low}-${m.high}${m.bySunday < m.low ? ' SHORT' : m.bySunday > m.high ? ' PAST THE RANGE' : ''}`);
+      week = `\nHIS WEEK IN HARD SETS (the numbers his Train card and weekly sets sheet show him; quote these, never a count of your own; a muscle's figure counts each set where it is the focus at 1 and each set where it assists at ½; the growth range is 10-20 working sets a week unless a muscle shows its own): ${v ? `${v.headline} ` : ''}${rows.join('; ')}.`;
+    } else if (v) {
       const rows = v.muscles.filter((m) => m.planned || m.goal)
         .map((m) => `${m.muscle} ${fmt(m.done)} done + ${fmt(m.due)} still scheduled = ${fmt(m.projected)} of ${m.target}${breakdown(m)}${m.short ? ' SHORT' : ''}`);
       week = `\nHIS WEEK IN HARD SETS (the numbers his Train card shows him; quote these, never a count of your own; a muscle's figure counts its own sets at 1 and each set of a lift that also trains it at ½): ${v.headline} ${rows.join('; ')}.`;
@@ -1028,6 +1037,30 @@ export async function setCoachEditConfig(patch) {
   return next;
 }
 
+// A 'goal' card that changes what his goal trains rather than adding a
+// measurable target: { goalLine?, volumeRanges? }, each validated; null
+// when the line names none of them (it is then an ordinary target).
+async function goalSettingsOf(raw) {
+  const { cleanVolumeRanges, VOLUME_RANGE } = await import('../../src/muscleTaxonomy.js');
+  const settings = {};
+  const said = [];
+  if (raw.goalLine != null) {
+    const line = String(raw.goalLine || '').trim().slice(0, 200);
+    if (!line) throw new Error('goalLine is empty: say the goal in one sentence');
+    settings.goal = line;
+    said.push(`goal "${line}"`);
+  }
+  if (raw.volumeRanges != null) {
+    const ranges = cleanVolumeRanges(raw.volumeRanges);
+    const asked = typeof raw.volumeRanges === 'object' ? Object.keys(raw.volumeRanges).length : 0;
+    if (!ranges || Object.keys(ranges).length !== asked) throw new Error(`volumeRanges must map exact muscle groups to [low, high] whole numbers, 1 to 40 with low under high (the shared range is ${VOLUME_RANGE[0]}-${VOLUME_RANGE[1]})`);
+    settings.volumeRanges = ranges;
+    said.push(Object.entries(ranges).map(([m, [lo, hi]]) => `${m} range ${lo}-${hi}`).join(', '));
+  }
+  if (!said.length) return null;
+  return { payload: { action: 'goal', settings }, title: `Coach: set ${said.join('; ')}` };
+}
+
 export async function validateCoachEdit(vaultPath, rawIn, { asked = null, planned = [] } = {}) {
   const { loadExerciseLibrary } = await import('./exercises.js');
   const { loadRoutines } = await import('./workouts.js');
@@ -1156,6 +1189,10 @@ export async function validateCoachEdit(vaultPath, rawIn, { asked = null, planne
   // "goal" proposes a MEASURABLE target — the goal page was one untouched
   // prose line; a coach that can't set targets can't coach toward them
   if (action === 'goal') {
+    // WHAT HIS GOAL TRAINS (16 Oct 2026): his goal line and a muscle's own
+    // growth range for this goal, on the same card and the same yes
+    const settings = await goalSettingsOf(raw);
+    if (settings) return settings;
     const metric = String(raw.metric || '').trim().slice(0, 60);
     const value = Number(raw.value);
     if (!metric || !Number.isFinite(value)) throw new Error('a goal needs a metric and a numeric value');

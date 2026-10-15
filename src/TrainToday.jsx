@@ -329,6 +329,8 @@ export function TrainToday({ o, actions, resume, done = null }) {
             // after it: lifts that also train it, each set at ½ (15 Oct)
             const directPct = v.direct == null ? pct : Math.min(pct, Math.round((v.direct / v.target) * 100));
             const low = v.goalMuscle && v.sets < v.target && (!shortOnPlan || shortOnPlan.has(v.muscle));
+            // past the top of the growth range (16 Oct, 10 to 20): more sets stop buying growth
+            const past = Array.isArray(v.range) && v.sets > v.range[1];
             // the bar wears the muscle's own hue (the figure's, the legend's);
             // a goal muscle carries its name in that hue too, and a short one
             // says so in the number, not by repainting the bar red
@@ -347,8 +349,8 @@ export function TrainToday({ o, actions, resume, done = null }) {
                   )}
                   <span style={css('position:absolute;top:-2px;bottom:-2px;width:2px;background:rgba(232,236,246,.35);left:100%')} />
                 </div>
-                <span style={css(`width:44px;text-align:right;font:var(--nv-micro-m);color:${low ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}
-                  title={v.indirect ? `${formatSets(v.direct)} direct + ${formatSets(v.indirect)} indirect at ½` : undefined}>{formatSets(v.sets)}/{v.target}</span>
+                <span style={css(`width:44px;text-align:right;font:var(--nv-micro-m);color:${low || past ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}
+                  title={[v.indirect ? `${formatSets(v.direct)} direct + ${formatSets(v.indirect)} indirect at ½` : null, past ? `past the ${v.range[0]}–${v.range[1]} growth range` : null].filter(Boolean).join('; ') || undefined}>{formatSets(v.sets)}/{v.target}</span>
               </div>
             );
           })}

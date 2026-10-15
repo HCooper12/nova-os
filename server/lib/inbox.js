@@ -479,6 +479,17 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  if (route === 'goal-target' && payload.settings) {
+    // what his goal trains (his goal line, a muscle's own range, his goal
+    // muscles), set on his yes; undo puts each field back as it stood
+    const { setGoalSettings } = await import('./fitnessGoals.js');
+    const { prior } = await setGoalSettings(vaultPath, payload.settings);
+    return {
+      destination: `Fitness Goals — ${Object.keys(payload.settings).join(', ')} updated`,
+      undo: { route, settings: true, prior },
+    };
+  }
+
   if (route === 'goal-target') {
     // A measurable target proposed by the Coach. Undo removes it.
     const { addGoalTarget } = await import('./fitnessGoals.js');
@@ -1268,6 +1279,11 @@ export async function undoFiling(vaultPath, undo) {
     const { removeInjury } = await import('./injuryLog.js');
     await removeInjury(vaultPath, undo.injuryId);
     return `removed the ${undo.area} entry from the Injury Log`;
+  }
+  if (undo.route === 'goal-target' && undo.settings) {
+    const { setGoalSettings } = await import('./fitnessGoals.js');
+    await setGoalSettings(vaultPath, undo.prior || {});
+    return `your goals page is back as it was (${Object.keys(undo.prior || {}).join(', ')})`;
   }
   if (undo.route === 'goal-target') {
     const { removeGoalTarget } = await import('./fitnessGoals.js');
