@@ -1,0 +1,65 @@
+/* THE WEEKLY MUSCLE SETS SHEET (16 Oct 2026; src/WeekSets.jsx). His
+   approved round 4 mockup, on the house tokens: each muscle wears its own
+   hue (--h, from src/muscleHue.js), the growth range is --nv-good, short of
+   it is --nv-or, past it is --nv-warn, today is --nv-cy. Neutral fills mix
+   --nv-ink so the light theme reads too. */
+
+.nv-mw { --mw-track: color-mix(in srgb, var(--nv-ink) 4%, transparent); --mw-range: color-mix(in srgb, var(--nv-good) 9%, transparent); --mw-range-edge: color-mix(in srgb, var(--nv-good) 35%, transparent); font: 15px/1.45 var(--nv-font-ui); color: var(--nv-ink); }
+.nv-mw, .nv-mw-card { -webkit-font-smoothing: antialiased; }
+
+/* the news: one serif sentence about his goal muscles */
+.nv-mw-hero { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+.nv-mw-hero h2 { margin: 0; font: 400 30px/1.12 var(--nv-font-serif); text-wrap: balance; color: var(--nv-ink); }
+.nv-mw-hero h2 em { font-style: normal; color: var(--nv-good); font-variant-numeric: tabular-nums; }
+.nv-mw-hero p { margin: 0; font-size: 13.5px; color: var(--nv-ink60); text-wrap: pretty; }
+
+/* the encoding: solid focus, striped accessory, outlined plan */
+.nv-mw-f { background: var(--h); }
+.nv-mw-a { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--h) 80%, transparent) 0 2px, color-mix(in srgb, var(--h) 25%, transparent) 2px 4px); }
+.nv-mw-p { box-shadow: inset 0 0 0 1.25px color-mix(in srgb, var(--h) 55%, transparent); border-radius: 0 4px 4px 0; }
+.nv-mw-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--nv-ink50); margin: 0 0 10px; }
+.nv-mw-key i { display: inline-block; width: 18px; height: 9px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; --h: var(--nv-ink60); }
+.nv-mw-key i.nv-mw-kr { background: var(--mw-range); box-shadow: inset 1px 0 0 var(--mw-range-edge), inset -1px 0 0 var(--mw-range-edge); }
+
+/* the muscles: one row each, a button that opens its card */
+.nv-mw-sect { display: flex; justify-content: space-between; gap: 10px; margin: 16px 0 6px; }
+.nv-mw-m { all: unset; box-sizing: border-box; width: calc(100% + 12px); display: grid; grid-template-columns: 86px minmax(0, 1fr) 52px; align-items: center; gap: 10px; margin: 0 -6px; padding: 5px 6px; border-radius: 10px; cursor: pointer; -webkit-tap-highlight-color: transparent; color: var(--nv-ink); }
+.nv-mw-m:active { background: color-mix(in srgb, var(--nv-ink) 4%, transparent); }
+.nv-mw-m:focus-visible { outline: 2px solid var(--nv-cy); outline-offset: 1px; }
+.nv-mw-nm { font-size: 14px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.nv-mw-bar { position: relative; height: 12px; border-radius: 4px; background: var(--mw-track); }
+.nv-mw-rng { position: absolute; top: -5px; bottom: -5px; background: var(--mw-range); border-left: 1px solid var(--mw-range-edge); border-right: 1px solid var(--mw-range-edge); }
+.nv-mw-bar > span { position: absolute; top: 0; bottom: 0; }
+.nv-mw-bar > .nv-mw-f { left: 0; border-radius: 4px 0 0 4px; }
+.nv-mw-n { text-align: right; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.nv-mw-n b { font-size: 16px; font-weight: 700; display: block; }
+.nv-mw-n small { font-size: 11px; color: var(--nv-ink50); }
+.nv-mw-m.low .nv-mw-n b { color: var(--nv-or); }
+.nv-mw-m.high .nv-mw-n b { color: var(--nv-warn); }
+.nv-mw-scale { display: grid; grid-template-columns: 86px minmax(0, 1fr) 52px; gap: 10px; font: 500 10px var(--nv-font-mono); color: var(--nv-ink50); }
+.nv-mw-scale div { position: relative; height: 12px; }
+.nv-mw-scale span { position: absolute; transform: translateX(-50%); }
+.nv-mw-scale div span:first-child { transform: none; }
+
+/* the workouts: a card per training day */
+.nv-mw-days { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.nv-mw-day { background: color-mix(in srgb, var(--nv-bg2) 55%, var(--nv-bg1)); border-radius: 18px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.nv-mw-day.is-today { background: var(--nv-bg2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-cy) 35%, transparent); }
+.nv-mw-day.done, .nv-mw-day.missed { opacity: .6; }
+.nv-mw-dh { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.nv-mw-dh b { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-mw-st { margin-left: auto; font: 600 11.5px var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; }
+.nv-mw-day.is-today .nv-mw-st { color: var(--nv-cy); }
+.nv-mw-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.nv-mw-chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px 0 4px; border-radius: 7px; font-size: 12.5px; background: color-mix(in srgb, var(--h) 13%, transparent); white-space: nowrap; }
+.nv-mw-chip i { width: 14px; height: 14px; border-radius: 4px; }
+.nv-mw-chip.acc { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--h) 30%, transparent); color: var(--nv-ink60); }
+.nv-mw-chip b { font-weight: 650; font-variant-numeric: tabular-nums; }
+.nv-mw-dup { margin-left: auto; font: 500 11.5px var(--nv-font-ui); color: var(--nv-or); white-space: nowrap; }
+.nv-mw-talk { margin-top: 16px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--nv-ink) 8%, transparent); }
+
+/* arrival: the bars grow from zero as the sheet opens, a row at a time */
+@media (prefers-reduced-motion: no-preference) {
+  .nv-mw .nv-mw-bar > span { transform-origin: left; animation: nvMwGrow .8s var(--nv-spring-smooth, cubic-bezier(.23, 1, .32, 1)) both; animation-delay: calc(var(--i, 0) * 30ms + 120ms); }
+}
+@keyframes nvMwGrow { from { transform: scaleX(.001); } }

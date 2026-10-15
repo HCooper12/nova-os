@@ -530,7 +530,7 @@ function SegRing({ ring, size = 72 }) {
 function HardSetsCard({ hs }) {
   const [open, setOpen] = useState(false);
   const cardRef = useRef(null);
-  const go = hs.view ? () => setOpen(true) : hs.ask;
+  const go = hs.model ? () => setOpen(true) : hs.ask;
   const body = (
     <>
       <Head tile={<ITile p={P.bars} a="var(--nv-vi)" />} label="Hard sets" />
@@ -539,8 +539,8 @@ function HardSetsCard({ hs }) {
         <span className="nv-ts-sv wrap">{hs.line}</span>
       </div>
       <Uncounted u={hs.uncounted} compact />
-      {hs.view && <span className="nv-ts-foot">The week<Ico p={P.right} size={15} cls="thick" /></span>}
-      {!hs.view && hs.ask && <span className="nv-ts-foot">Ask Coach<Ico p={P.right} size={15} cls="thick" /></span>}
+      {hs.model && <span className="nv-ts-foot">The week<Ico p={P.right} size={15} cls="thick" /></span>}
+      {!hs.model && hs.ask && <span className="nv-ts-foot">Ask Coach<Ico p={P.right} size={15} cls="thick" /></span>}
     </>
   );
   // the wrapper is the sheet's origin: the week grows out of the card tapped
@@ -548,14 +548,14 @@ function HardSetsCard({ hs }) {
     <div ref={cardRef} className="nv-ts-halfwrap">
       {go ? (
         <Interactive as="section" className="nv-sum-card nv-sum-tile nv-ts-halfcard" style={{ '--nv-sum-tint': 'var(--nv-vi)', '--nv-g2': hs.ring.segments[0]?.hue || 'var(--nv-vi)', '--nv-g3': hs.ring.segments[1]?.hue || 'var(--nv-vi)' }} onClick={go} haptic="tick" base={{ cursor: 'pointer' }}
-          aria-label={`Hard sets: ${hs.ring.done} ${hs.line}. ${hs.view ? 'Open the week' : 'Ask Coach'}`}>
+          aria-label={`Hard sets: ${hs.ring.done} ${hs.line}. ${hs.model ? 'Open the week' : 'Ask Coach'}`}>
           {body}
         </Interactive>
       ) : (
         <section className="nv-sum-card nv-sum-tile nv-ts-halfcard" style={{ '--nv-sum-tint': 'var(--nv-vi)' }} aria-label="Hard sets">{body}</section>
       )}
-      {open && hs.view && (
-        <WeekSetsSheet view={hs.view} originEl={cardRef.current} onClose={() => setOpen(false)} onAskCoach={hs.askCoach} />
+      {open && hs.model && (
+        <WeekSetsSheet model={hs.model} originEl={cardRef.current} onClose={() => setOpen(false)} onAskCoach={hs.askCoach} />
       )}
     </div>
   );

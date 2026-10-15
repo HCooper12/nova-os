@@ -311,9 +311,9 @@ export function TrainToday({ o, actions, resume, done = null }) {
               bars are one tap target that grows into every planned exercise,
               per muscle, per day (src/WeekSets.jsx). The Coach row below
               stays its own target: nothing tappable nests in another. */}
-          <Interactive as="div" onClick={week ? () => setWeekOpen(true) : undefined}
-            aria-label={week ? 'Hard sets this week. Open the planned week, exercise by exercise' : undefined}
-            base={week ? 'cursor:pointer;border-radius:10px' : ''}>
+          <Interactive as="div" onClick={o?.muscleWeek ? () => setWeekOpen(true) : undefined}
+            aria-label={o?.muscleWeek ? 'Hard sets this week. Open the weekly muscle sets, exercise by exercise' : undefined}
+            base={o?.muscleWeek ? 'cursor:pointer;border-radius:10px' : ''}>
           <div style={css('display:flex;justify-content:space-between;align-items:baseline;gap:8px')}>
             <Eyebrow as="span"><Term k="hard sets">Hard sets this week</Term></Eyebrow>
             <span style={css('display:inline-flex;align-items:baseline;gap:8px;min-width:0')}>
@@ -353,7 +353,7 @@ export function TrainToday({ o, actions, resume, done = null }) {
             );
           })}
           <Uncounted u={uncountedView(o.uncounted)} compact />
-          {week && (
+          {o?.muscleWeek && (
             <Meta as="div" tone="cyan" style={{ marginTop: '9px' }}>Every exercise, day by day</Meta>
           )}
           </Interactive>
@@ -369,8 +369,8 @@ export function TrainToday({ o, actions, resume, done = null }) {
           )}
         </div>
       )}
-      {weekOpen && week && (
-        <WeekSetsSheet view={week} originEl={volumeCard.current} onClose={() => setWeekOpen(false)}
+      {weekOpen && o?.muscleWeek && (
+        <WeekSetsSheet model={o.muscleWeek} originEl={volumeCard.current} onClose={() => setWeekOpen(false)}
           onAskCoach={actions?.askCoach} />
       )}
     </div>

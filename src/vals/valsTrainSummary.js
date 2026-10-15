@@ -275,12 +275,14 @@ export function valsTrainSummary(app, ctx, v) {
   const hardSets = ring ? {
     ring,
     view: weekView,
+    // the weekly muscle sets sheet's model (server/lib/muscleWeek.js)
+    model: o?.muscleWeek || null,
     line: weekView
       ? `of ${weekView.planned} planned this week${ring.short.length ? ` · ${ring.short.join(' & ')} short` : ''}`
       : `of ${ring.target} target this week${ring.short.length ? ` · ${ring.short.join(' & ')} short` : ''}`,
     // with no planned week there is no sheet to open; a short goal muscle
     // still gets its question to Coach, as the classic card's row did
-    ask: !weekView && ring.short.length ? () => askCoach(`My weekly sets for ${ring.short.join(', ')} are under target for my goal — how should I add volume?`) : null,
+    ask: !o?.muscleWeek && ring.short.length ? () => askCoach(`My weekly sets for ${ring.short.join(', ')} are under target for my goal — how should I add volume?`) : null,
     askCoach,
     // sets on unaudited lifts, left out of the ring: said, never hidden
     uncounted: uncountedView(o?.uncounted),
