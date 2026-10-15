@@ -9,6 +9,7 @@ import { dtf } from './fmt.js';
 import { vtStyle } from '../vtName.js';
 import { doneTodayCard, dayDoneMarks } from '../doneToday.js';
 import { liveRecord } from '../sessionSummaryFacts.js';
+import { secondaryFor } from '../muscleCredit.js';
 
 // The next N days (today → today+N) as {iso, short} for day pickers.
 function nextDays(n) {
@@ -263,7 +264,9 @@ export function valsWorkouts(app, ctx) {
     for (const e of exercises) {
       const muscle = String(e.muscleGroup || '').trim() || 'Unmapped';
       counts.set(muscle, (counts.get(muscle) || 0) + 1);
-      rows.push({ name: e.name, muscle });
+      // what else it trains (src/muscleCredit.js), from the routine's own
+      // resolved entry: the same list the weekly counts credit at ½
+      rows.push({ name: e.name, muscle, also: muscle === 'Unmapped' ? [] : secondaryFor(e) });
     }
     const chips = [...counts.entries()]
       .map(([muscle, count]) => ({ muscle, count }))
@@ -376,6 +379,7 @@ export function valsWorkouts(app, ctx) {
     name: e.name,
     onOpen: () => app.openExerciseCard(e.name),
     muscleGroup: e.muscleGroup,
+    also: secondaryFor(e), // the routine entry carries the library's resolved list
     trackingType: e.trackingType,
     targetUnit: targetUnit(e.trackingType),
     targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
@@ -478,6 +482,8 @@ export function valsWorkouts(app, ctx) {
     // from the same place — otherwise it would reassure him about a number
     // it isn't actually describing.
     muscleGroup: libraryById.get(e.exerciseId)?.muscleGroup || e.muscleGroup || 'Other',
+    // what else it trains, from the same library entry the counts read
+    also: secondaryFor(libraryById.get(e.exerciseId) || e),
     // ▶ FORM — on EVERY lift (the mockup's contract). Curated link when
     // one is filed; otherwise an honest, deterministic technique search —
     // never a dead chip, never a pretend curation.

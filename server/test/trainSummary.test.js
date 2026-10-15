@@ -272,3 +272,13 @@ test('the hero verdict never says "earned 0 reps": zero or less is a hold (his P
   assert.equal(verdictRest({ label: 'outgrown' }), ' has outgrown its prescription.');
   assert.equal(verdictRest(null), '');
 });
+
+test('hardSetsRing with indirect credit: segments fill by the total, the ring counts each set once', () => {
+  const r = hardSetsRing([
+    { muscle: 'Chest', sets: 3, direct: 3, indirect: 0, target: 10 },
+    { muscle: 'Triceps', sets: 1.5, direct: 0, indirect: 3, target: 10 },
+  ]);
+  assert.equal(r.done, 3, 'three bench sets, not four and a half');
+  const tri = r.segments.find((s) => s.muscle === 'Triceps');
+  assert.deepEqual([tri.fill, tri.directFill], [0.15, 0]);
+});

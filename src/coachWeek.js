@@ -4,15 +4,26 @@
 // goal-aware target per muscle), goal muscles first, capped so it is a glance
 // and not a table. Pure; null when there is no volume to show, so the screen
 // says nothing rather than drawing an empty instrument.
+//
+// A row's `sets` is the muscle's TOTAL (direct + ½ per set of a lift that
+// also trains it, src/muscleCredit.js), held against its target; `direct` is
+// the solid part of the bar. The all-muscle line counts SETS, each once.
+import { formatSets as fmt } from './muscleCredit.js';
+
 export function coachWeekRows(volume, { cap = 5 } = {}) {
   const rows = Array.isArray(volume) ? volume.filter((v) => v && v.muscle && Number.isFinite(Number(v.target)) && Number(v.target) > 0) : [];
   if (!rows.length) return null;
   const sorted = [...rows].sort((a, b) => (b.goalMuscle ? 1 : 0) - (a.goalMuscle ? 1 : 0) || (b.sets / b.target) - (a.sets / a.target) || String(a.muscle).localeCompare(String(b.muscle)));
+  const pctOf = (n, v) => Math.max(0, Math.min(100, Math.round(((Number(n) || 0) / Number(v.target)) * 100)));
   const shown = sorted.slice(0, cap).map((v) => ({
     muscle: String(v.muscle),
     sets: Number(v.sets) || 0,
+    label: fmt(v.sets),
+    direct: v.direct == null ? Number(v.sets) || 0 : Number(v.direct) || 0,
+    indirect: Number(v.indirect) || 0,
     target: Number(v.target),
-    pct: Math.max(0, Math.min(100, Math.round(((Number(v.sets) || 0) / Number(v.target)) * 100))),
+    pct: pctOf(v.sets, v),
+    directPct: pctOf(v.direct == null ? v.sets : v.direct, v),
     goal: !!v.goalMuscle,
     short: !!v.goalMuscle && (Number(v.sets) || 0) < Number(v.target),
   }));
@@ -22,8 +33,8 @@ export function coachWeekRows(volume, { cap = 5 } = {}) {
   return {
     rows: shown,
     line: goals.length
-      ? `${done} of ${want} sets on your goal muscles this week`
-      : `${rows.reduce((n, v) => n + (Number(v.sets) || 0), 0)} sets this week`,
+      ? `${fmt(done)} of ${want} sets on your goal muscles this week`
+      : `${rows.reduce((n, v) => n + (v.direct == null ? Number(v.sets) || 0 : Number(v.direct) || 0), 0)} sets this week`,
     more: Math.max(0, rows.length - shown.length),
   };
 }

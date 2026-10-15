@@ -39,3 +39,9 @@ test('the empty coach log draws the instrument in each muscle\'s own hue', () =>
   assert.match(block, /muscleVar\(r\.muscle\)/);
   assert.doesNotMatch(block, /var\(--nv-cy\)/, 'no muscle painted cyan');
 });
+
+test('indirect credit: the total fills the bar, direct is its solid part, and a half reads as ½', () => {
+  const w = coachWeekRows([{ muscle: 'Glutes', sets: 4.5, direct: 3, indirect: 3, target: 12, goalMuscle: true }]);
+  assert.deepEqual([w.rows[0].label, w.rows[0].direct, w.rows[0].indirect, w.rows[0].pct, w.rows[0].directPct], ['4½', 3, 3, 38, 25]);
+  assert.equal(w.line, '4½ of 12 sets on your goal muscles this week');
+});

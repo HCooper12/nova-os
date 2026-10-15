@@ -74,7 +74,8 @@ export function TrainToday({ o, actions, resume, done = null }) {
   const shortOnPlan = week ? new Set(week.cta?.muscles || []) : null;
   const under = (o?.volume || []).filter((v) => v.goalMuscle && v.sets < v.target && (!shortOnPlan || shortOnPlan.has(v.muscle)));
   // sets ticked in the session he is in right now, already folded into the totals
-  const liveNow = (o?.volume || []).reduce((n, v) => n + (v.live || 0), 0);
+  // (SETS: each counted once under its own muscle, never its ½ credit elsewhere)
+  const liveNow = (o?.volume || []).reduce((n, v) => n + (v.liveDirect ?? v.live ?? 0), 0);
   return (
     <div style={css('display:flex;flex-direction:column;gap:12px;margin-bottom:16px')}>
       {/* hero: ring + facts + today card — widens into one row on desktop */}

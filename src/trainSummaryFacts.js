@@ -124,13 +124,23 @@ export function coachWaiting(cards = []) {
  *                 target today but covered by the plan is not "short"
  * @returns null when there is nothing to draw
  */
+//
+// WHAT ELSE A LIFT TRAINS (15 Oct 2026): a row's `sets` is the muscle's
+// TOTAL (direct + ½ per set of a lift that also trains it) and fills its
+// segment; `direct` is the solid part of that fill. The ring's `done` counts
+// SETS, each once under its own muscle, because it sits beside "of N
+// planned", which counts sets the same way (src/weekSets.js).
 export function hardSetsRing(volume, { shortMuscles = null } = {}) {
   const rows = (Array.isArray(volume) ? volume : [])
     .filter((v) => v && v.muscle && Number(v.target) > 0)
-    .map((v) => ({ muscle: String(v.muscle), sets: Math.max(0, Number(v.sets) || 0), target: Number(v.target), goal: !!v.goalMuscle }));
+    .map((v) => {
+      const sets = Math.max(0, Number(v.sets) || 0);
+      const direct = v.direct == null ? sets : Math.max(0, Number(v.direct) || 0);
+      return { muscle: String(v.muscle), sets, direct, indirect: Math.max(0, Number(v.indirect) || 0), target: Number(v.target), goal: !!v.goalMuscle };
+    });
   if (!rows.length) return null;
   const target = rows.reduce((n, r) => n + r.target, 0);
-  const done = rows.reduce((n, r) => n + r.sets, 0);
+  const done = rows.reduce((n, r) => n + r.direct, 0);
   const met = rows.reduce((n, r) => n + Math.min(r.sets, r.target), 0);
   const shortSet = shortMuscles ? new Set(shortMuscles) : null;
   const short = rows.filter((r) => r.goal && r.sets < r.target && (!shortSet || shortSet.has(r.muscle))).map((r) => r.muscle);
@@ -139,9 +149,10 @@ export function hardSetsRing(volume, { shortMuscles = null } = {}) {
     target,
     pct: Math.min(100, Math.round((met / target) * 100)),
     segments: rows.map((r) => ({
-      muscle: r.muscle, hue: muscleVar(r.muscle), sets: r.sets, target: r.target, goal: r.goal,
+      muscle: r.muscle, hue: muscleVar(r.muscle), sets: r.sets, direct: r.direct, indirect: r.indirect, target: r.target, goal: r.goal,
       share: r.target / target,
       fill: Math.min(1, r.sets / r.target),
+      directFill: Math.min(1, r.direct / r.target),
     })),
     short,
   };
