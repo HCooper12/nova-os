@@ -5092,6 +5092,11 @@ export default class App extends Component {
     const conn = getConnection();
     const session = this.state.workoutSession;
     if (!conn || !session) return;
+    // ONE FINISH PER SESSION, decided synchronously (16 Oct 2026). His Pull
+    // on 14 Oct was filed twice, 3.6 s apart, under two fresh keys: the
+    // sessionFinishing lock is React state, so a second tap inside the same
+    // frame got past it. The flag below holds before any re-render does.
+    if (this.finishingSessionAt === session.startedAt) return;
     // Only ticked sets are history — an exercise with nothing ticked was
     // skipped and must not appear in the record at all.
     const exercises = session.exercises
@@ -5139,7 +5144,11 @@ export default class App extends Component {
       // POST and the offline-outbox replay below share this object, so the
       // server sees the same key twice and files the workout once. Without it
       // a lost RESPONSE (the request having landed) filed a second session.
-      clientKey: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`),
+      // The key is the SESSION's, not the tap's: a second finish of the same
+      // workout (a double tap, a retry) sends the same key, and the server's
+      // clientKey check files it once. A fresh UUID per call is what let the
+      // 14 Oct Pull through twice.
+      clientKey: session.clientKey || `session-${session.routineId}-${session.startedAt || Date.now()}`,
       // the finishing-early reason (cockpit chips) rides the record so the
       // Coach can notice the pattern and open the restructure conversation
       ...(this.state.sessionCutShort ? { cutShort: this.state.sessionCutShort } : {}),
@@ -5155,7 +5164,8 @@ export default class App extends Component {
     primeSfx();
     // the Finish button shows it is saving and cannot be tapped twice (13 Oct)
     this.setState({ sessionFinishing: true });
-    api.completeWorkoutSession(conn, payload).finally(() => this.setState({ sessionFinishing: false })).then(({ prs } = {}) => {
+    this.finishingSessionAt = session.startedAt;
+    api.completeWorkoutSession(conn, payload).finally(() => { this.finishingSessionAt = null; this.setState({ sessionFinishing: false }); }).then(({ prs } = {}) => {
       // THE PERSONAL-BEST MOMENT (src/RecordMoment.jsx): the server's records,
       // compared at the resolution shown and joined to this session's lifts
       // for the hue and the kit. It stays until he dismisses it — no timer
