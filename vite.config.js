@@ -83,6 +83,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // the app shell must be precached or offline mode loses it; the main
+        // chunk passed workbox's 2 MiB default on 15 Oct (2.1 MB with the motion set)
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,png,svg}'],
         importScripts: ['push-sw.js'], // web-push + notification-click handlers
         // Offline cold start. Without a navigate fallback the browser asks
