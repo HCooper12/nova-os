@@ -134,7 +134,7 @@ export function SummaryDock({ v }) {
           microphone (the thread registers it), and the orb says so while it
           is open: that page's mic is reported as voiceScreenMic, not as the
           presence's liveMicOpen. Everywhere else, exactly as before. */}
-      <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.holdNovaCore || v.holdNovaText} onHoldPhase={hold.onHoldPhase} data-nova-core="" aria-label="Talk to Nova. Hold to open Nova, listening"
+      <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.holdNovaCore || v.holdNovaText} aria-label="Talk to Nova. Hold to open Nova, listening" onHoldPhase={hold.onHoldPhase} data-nova-core=""
         className="nv-sum-nova" data-listening={listening ? 'true' : undefined}
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
         {!gone && <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-3px" />}
