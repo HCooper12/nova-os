@@ -21,9 +21,9 @@ import './muscleWeek.css';
 //                              filled chips and the ones it also works outlined
 // TAP A MUSCLE and its row grows into a card (clip-path from the row's rect,
 // the house smooth spring, critically damped) listing every exercise that
-// adds to it, day by day; the lines add up to the number on the bar. Close
-// folds it back into the same row, and a tap mid-fold reverses from where
-// the fold is. Everything is from src/muscleWeekView.js (pure, tested).
+// adds to it, day by day; the lines add up to the number on the bar. The X,
+// the scrim, Escape and the house pull-down (src/sheetDrag.js) fold it back
+// into the same row, and a tap mid-fold reverses from where the fold is. Everything is from src/muscleWeekView.js (pure, tested).
 
 const OPEN_MS = 620;
 const FOLD_MS = 420;
@@ -113,10 +113,11 @@ function useMuscleCard() {
   const anims = useRef([]);
   const isOpen = useRef(false);
 
-  const insetTo = (row) => {
+  const insetTo = (row, dy = 0) => {
     const card = cardRef.current;
     const r = row.getBoundingClientRect(), c = card.getBoundingClientRect();
-    return `inset(${r.top - c.top}px ${c.right - r.right}px ${c.bottom - r.bottom}px ${r.left - c.left}px round 10px)`;
+    const top = c.top - dy, bottom = c.bottom - dy;
+    return `inset(${r.top - top}px ${c.right - r.right}px ${bottom - r.bottom}px ${r.left - c.left}px round 10px)`;
   };
 
   const open = (muscle, row) => {
@@ -133,6 +134,7 @@ function useMuscleCard() {
     if (!seq || !card || !scrim || !row || !isOpen.current) return;
     const midFold = anims.current.length > 0;
     const now = midFold ? getComputedStyle(card).clipPath : null;
+    const lift = midFold ? getComputedStyle(card).transform : 'none';
     const scrimNow = midFold ? Number(getComputedStyle(scrim).opacity) || 0 : 0;
     cancelAll(anims.current);
     card.style.visibility = 'visible';
@@ -146,9 +148,21 @@ function useMuscleCard() {
     } else {
       const { easing } = spring('smooth');
       const from = now && now !== 'none' ? now : insetTo(row);
+      const moved = lift && lift !== 'none';
+      const grow = card.animate([{ clipPath: from, opacity: 1, ...(moved ? { transform: lift } : {}) }, { clipPath: full, opacity: 1, ...(moved ? { transform: 'none' } : {}) }], { duration: OPEN_MS, easing, fill: 'forwards' });
+      const dim = scrim.animate([{ opacity: scrimNow }, { opacity: 1 }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
+      // once landed, the end state is written to the element and the effects
+      // let go, so the house drag can move the card and fade the scrim
+      for (const a of [grow, dim]) {
+        a.finished.then(() => {
+          if (!isOpen.current || !anims.current.includes(a)) return;
+          try { a.commitStyles(); } catch { /* detached */ }
+          a.cancel();
+        }).catch(() => {});
+      }
       anims.current.push(
-        card.animate([{ clipPath: from, opacity: 1 }, { clipPath: full, opacity: 1 }], { duration: OPEN_MS, easing, fill: 'forwards' }),
-        scrim.animate([{ opacity: scrimNow }, { opacity: 1 }], { duration: 300, easing: 'ease-out', fill: 'forwards' }),
+        grow,
+        dim,
         // the contents rise after the card has begun to open, 40ms apart
         ...(midFold ? [] : [...card.querySelectorAll('.nv-mw-rise')].map((el, i) => el.animate(
           [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
@@ -159,7 +173,7 @@ function useMuscleCard() {
     card.querySelector('.nv-mw-x')?.focus({ preventScroll: true });
   }, [seq]);
 
-  const close = () => {
+  const close = ({ fromY = 0 } = {}) => {
     const card = cardRef.current, scrim = scrimRef.current, row = rowRef.current;
     if (!isOpen.current || !card || !scrim) return;
     isOpen.current = false;
@@ -174,6 +188,8 @@ function useMuscleCard() {
     const done = () => {
       if (isOpen.current) return;
       cancelAll(anims.current);
+      for (const k of ['clipPath', 'transform', 'opacity']) card.style[k] = '';
+      scrim.style.opacity = '';
       card.style.visibility = 'hidden';
       scrim.style.pointerEvents = 'none';
       setSel(null);
@@ -187,7 +203,10 @@ function useMuscleCard() {
       return;
     }
     const { easing } = spring('smooth');
-    const a = card.animate([{ clipPath: now && now !== 'none' ? now : 'inset(0px 0px 0px 0px round 24px)' }, { clipPath: insetTo(row) }], { duration: FOLD_MS, easing, fill: 'forwards' });
+    const a = card.animate([
+      { clipPath: now && now !== 'none' ? now : 'inset(0px 0px 0px 0px round 24px)', transform: `translate3d(0,${fromY}px,0)` },
+      { clipPath: insetTo(row, fromY), transform: 'none' },
+    ], { duration: FOLD_MS, easing, fill: 'forwards' });
     anims.current.push(a, scrim.animate([{ opacity: scrimNow }, { opacity: 0 }], { duration: 300, easing: 'ease-out', fill: 'forwards' }));
     a.finished.then(done).catch(() => {});
   };
@@ -206,29 +225,33 @@ function useMuscleCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // THE SHEET'S OWN DRAG (src/sheetDrag.js) moves the card with his finger;
+  // when a release would throw it off the bottom, it folds back into its
+  // row instead, from where the finger left it. The house throw is stopped
+  // and its marks cleared, so the next drag starts clean.
+  useEffect(() => {
+    const card = cardRef.current, scrim = scrimRef.current;
+    if (!card || !scrim) return undefined;
+    const onDrag = (e) => {
+      if (e.detail?.phase !== 'dismiss' || !isOpen.current) return;
+      let y = 0;
+      try { const t = getComputedStyle(card).transform; y = t && t !== 'none' ? new DOMMatrixReadOnly(t).m42 || 0 : 0; } catch { y = 0; }
+      for (const el of [card, scrim]) for (const a of el.getAnimations()) if (!anims.current.includes(a)) a.cancel();
+      card.removeAttribute('data-sheet-gone');
+      card.classList.remove('nv-sheet-moving', 'nv-sheet-glass');
+      for (const k of ['transition', 'animation', 'transform']) card.style[k] = '';
+      scrim.style.transition = '';
+      close({ fromY: y });
+    };
+    card.addEventListener('nv-sheetdrag', onDrag);
+    return () => card.removeEventListener('nv-sheetdrag', onDrag);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // a tap on the card while it folds is a change of mind: grow it back
   const reopen = () => { if (!isOpen.current && rowRef.current && sel) open(sel, rowRef.current); };
 
   return { sel, open, close, reopen, cardRef, scrimRef };
-}
-
-// a downward pull on the card's head folds it, as the sheet's own drag does
-function usePullToFold(close) {
-  const start = useRef(null);
-  const pulled = useRef(false); // the click that ends a pull is not a tap
-  return {
-    pulled,
-    handlers: {
-      onPointerDown: (e) => { start.current = { y: e.clientY, x: e.clientX }; pulled.current = false; },
-      onPointerMove: (e) => {
-        if (!start.current) return;
-        const dy = e.clientY - start.current.y;
-        if (dy > 70 && Math.abs(e.clientX - start.current.x) < dy) { start.current = null; pulled.current = true; close(); }
-      },
-      onPointerUp: () => { start.current = null; },
-      onPointerCancel: () => { start.current = null; },
-    },
-  };
 }
 
 export function WeekSetsSheet({ model, originEl, onClose, onAskCoach }) {
@@ -236,7 +259,6 @@ export function WeekSetsSheet({ model, originEl, onClose, onAskCoach }) {
   const view = useMemo(() => muscleWeekView(model), [model]);
   const uc = useMemo(() => uncountedView(model?.uncounted), [model]);
   const { sel, open, close, reopen, cardRef, scrimRef } = useMuscleCard();
-  const pull = usePullToFold(close);
   const c = sel && view ? view.card(sel) : null;
   if (!view) return null;
   const stop = (e) => e.stopPropagation();
@@ -286,9 +308,9 @@ export function WeekSetsSheet({ model, originEl, onClose, onAskCoach }) {
       </div>
       {createPortal(
         <>
-          <div ref={scrimRef} className="nv-mw-scrim" onClick={(e) => { stop(e); close(); }} />
-          <div ref={cardRef} className="nv-mw-card" role="dialog" aria-modal="true" aria-labelledby="nv-mw-title"
-            aria-hidden={c ? undefined : true} onClick={(e) => { stop(e); if (pull.pulled.current) { pull.pulled.current = false; return; } reopen(); }} style={c ? { '--h': muscleVar(c.muscle) } : undefined} {...pull.handlers}>
+          <div ref={scrimRef} className="nv-mw-scrim" data-sheet-close="" onClick={(e) => { stop(e); close(); }} />
+          <div ref={cardRef} className="nv-mw-card" role="dialog" aria-modal="true" aria-labelledby="nv-mw-title" data-sheet="root"
+            aria-hidden={c ? undefined : true} onClick={(e) => { stop(e); reopen(); }} style={c ? { '--h': muscleVar(c.muscle) } : undefined}>
             {c && <CardBody c={c} onClose={close} />}
           </div>
         </>,
