@@ -183,6 +183,16 @@ function RoutinesView({ v }) {
           <Eyebrow tone="cyan">On today's card</Eyebrow>
           <div style={css("margin-top:7px;font:700 30px/1.05 var(--nv-font-ui);letter-spacing:var(--nv-display-track)")}>{isAppleStyle() ? v.gymHero.name : v.gymHero.name.toUpperCase()}</div>
           <Meta as="div" tone="quiet" style={{ marginTop: '7px' }}>{v.gymHero.meta}</Meta>
+          {/* TODAY ONLY: the Coach card he said yes to, shown before he
+              starts, so the session is never a surprise (src/trainToday.js) */}
+          {v.gymHero.todayOnly && (
+            <div style={css("margin-top:12px;padding:10px 12px;border-radius:12px;border:1px dashed color-mix(in srgb, var(--nv-gold) 45%, transparent);background:color-mix(in srgb, var(--nv-gold) 07%, transparent)")}>
+              <Eyebrow>Today only · your routine is unchanged</Eyebrow>
+              <div style={css("margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:13.5px;line-height:1.4")}>
+                {v.gymHero.todayOnly.map((line, i) => <div key={i}>{line}</div>)}
+              </div>
+            </div>
+          )}
           {/* WHAT IT HITS — the muscles this session trains, before he
               commits to it. Collapsed to chips; tap for the per-exercise
               breakdown, which is the thing he actually asked to see. */}

@@ -21,7 +21,7 @@ const { addCustomExercise, loadExerciseLibrary } = await import('../lib/exercise
 const { createRoutine, loadRoutines } = await import('../lib/workouts.js');
 const { fileDecision, undoFiling } = await import('../lib/inbox.js');
 const { loadTrainToday, localDay } = await import('../lib/trainToday.js');
-const { applyTrainToday, todayPlanFor } = await import('../../src/trainToday.js');
+const { applyTrainToday, todayPlanFor, todayLines } = await import('../../src/trainToday.js');
 
 await mkdir(path.join(vault, 'Wiki/Health'), { recursive: true });
 const hack = await addCustomExercise(vault, 'Hack Squat', 'Quads', 'weight_reps');
@@ -105,4 +105,15 @@ test('the session built today carries every change, tagged; another routine is u
   assert.equal(by('Leg Extension').adhoc, true);
   assert.equal(by('Leg Extension').sets.length, 3);
   assert.equal(todayPlanFor(plan, 'some-other-routine'), null);
+});
+
+test('Train and Home say what today changes, one plain line each', async () => {
+  const plan = await loadTrainToday();
+  assert.deepEqual(todayLines(plan), [
+    'Hack Squat: 90 kg, 3 × 10, no pause at the bottom',
+    'Seated Calf Raise instead of Standing Machine Calf Raises',
+    'Skip Bulgarian Split Squat',
+    'Add Leg Extension, 3 × 12',
+  ]);
+  assert.deepEqual(todayLines(null), []);
 });

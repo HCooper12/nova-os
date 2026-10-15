@@ -1,3 +1,4 @@
+import { todayLines, todayPlanFor } from '../trainToday.js';
 import { isPaused, sessionMinutes } from '../sessionClock.js';
 import { musclesNamed, muscleVar } from '../muscleHue.js';
 import { coachSuggestions, suggestionsSummary } from '../coachSuggestions.js';
@@ -297,6 +298,8 @@ export function valsWorkouts(app, ctx) {
       name: o.today.name,
       meta: `${o.today.exerciseCount} exercises · ~${estMin} min${o.today.lastVolume ? ` · last time ${o.today.lastVolume.toLocaleString()} kg` : ''}`,
       begin: r ? () => app.startWorkoutSession(r) : null,
+      // TODAY ONLY: what the Coach card he approved changes in this session
+      todayOnly: r && todayPlanFor(st.liveTrainToday, r.id) ? todayLines(st.liveTrainToday) : null,
       // absent when the routine can't be resolved — an empty chip row would
       // read as "this session trains nothing"
       targets: summary.chips.length ? summary.chips : null,

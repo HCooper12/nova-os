@@ -12,6 +12,7 @@ import { shortTechniqueName, techniqueQuestionState, questionOnlyWrap } from '..
 import { wrapLadder, lineWithoutTomorrow } from '../wrapLadder.js';
 import { planCardFrom } from '../planCard.js';
 import { homeTrainingCard } from '../doneToday.js';
+import { todayLines, todayPlanFor } from '../trainToday.js';
 
 // the doors a capture of HIS comes through (the Inbox's record `source`)
 const HIS_CAPTURE_SOURCES = new Set(['capture', 'voice', 'text', 'share', 'shortcut', 'typed']);
@@ -1221,7 +1222,10 @@ const bodyMetrics = demoMode
           ? (todayRoutine ? todayRoutine.name : todayActiveRest ? 'Active rest' : (liveRoutines.length ? 'No routine scheduled' : 'Build a routine in Train'))
           : demoMode ? 'Push day · week 6' : 'Not synced',
         meta: usingLiveWorkouts
-          ? (todayRoutine ? `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to open Train` : todayActiveRest ? 'Walk or stretch — no weights today' : 'Plan your week in Train →')
+          ? (todayRoutine ? (todayPlanFor(st.liveTrainToday, todayRoutine.id)
+              // a Coach card he said yes to changes TODAY's session only (src/trainToday.js)
+              ? `Today only: ${todayLines(st.liveTrainToday).length} change${todayLines(st.liveTrainToday).length === 1 ? '' : 's'} · your routine is unchanged`
+              : `${todayRoutine.exercises.length} exercise${todayRoutine.exercises.length === 1 ? '' : 's'} · tap to open Train`) : todayActiveRest ? 'Walk or stretch — no weights today' : 'Plan your week in Train →')
           : demoMode ? '6 lifts · 42 min · bench PR watch' : 'reconnect to load your plan',
       };
       const card = usingLiveWorkouts ? homeTrainingCard(st.liveTrainOverview?.doneToday, scheduled) : scheduled;
