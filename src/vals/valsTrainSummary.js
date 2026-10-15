@@ -222,7 +222,8 @@ export function valsTrainSummary(app, ctx, v) {
   };
 
   // ------------------------------------------------------------ routines --
-  const routineTiles = (v.routinesList || []).map((r) => {
+  const all = v.routinesList || [];
+  const routineTiles = all.map((r, i) => {
     const full = byId.get(r.id);
     const lifts = full?.exercises?.length || 0;
     return {
@@ -241,12 +242,25 @@ export function valsTrainSummary(app, ctx, v) {
         items: [
           ...(full && lifts ? [{ label: 'Start session', hint: plural(lifts, 'exercise'), onSelect: enter(() => app.startWorkoutSession(full)) }] : []),
           { label: 'Open & edit', onSelect: () => app.openRoutine(r.id) },
+          { label: 'Rename', onSelect: () => app.startRenameRoutine(r.id) },
+          ...(i > 0 ? [{ label: 'Move earlier', onSelect: () => app.moveRoutine(r.id, -1) }] : []),
+          ...(i < all.length - 1 ? [{ label: 'Move later', onSelect: () => app.moveRoutine(r.id, 1) }] : []),
           { label: 'History', hint: `${r.completedCount || 0}×`, onSelect: () => app.openWorkoutHistory(r.id) },
           { label: 'Ask Coach about it', onSelect: () => askCoach(`Review my ${r.name} routine — structure, order, anything to change?`) },
+          { label: 'Archive', hint: 'keeps it, hides it', onSelect: () => app.archiveRoutine(r.id) },
         ],
       }),
     };
   });
+  const rename = {
+    id: st.routineRenameId || null,
+    name: st.routineRenameName || '',
+    set: (e) => app.setRoutineRenameName(e),
+    submit: () => app.submitRenameRoutine(),
+    cancel: () => app.cancelRenameRoutine(),
+  };
+  // the shelf: what he archived, each one a tap from coming back
+  const shelf = (st.liveWorkoutArchived || []).map((a) => ({ id: a.id, name: a.name, lifts: a.lifts, restore: () => app.restoreRoutine(a.id) }));
   const create = {
     open: !!v.routineCreating,
     name: v.routineNewName || '',
@@ -478,6 +492,8 @@ export function valsTrainSummary(app, ctx, v) {
       coach,
       routines: routineTiles,
       create,
+      rename,
+      shelf,
       allSessions: v.openAllSessions,
       quick,
       hardSets,

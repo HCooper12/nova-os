@@ -424,7 +424,7 @@ const CACHED_LIVE_KEYS = [
   'liveNotes', 'liveLibrary', 'liveLeader', 'livePractice', 'liveCalendar', 'liveRecipes', 'liveRecipeProfile', 'liveRotation',
   'liveFoodLog', 'liveFoodHistory', 'liveNutritionMonth', 'liveNutritionWeek', 'liveShoppingList', 'liveStash', 'liveHealthInsight', 'liveHealthDays', 'liveStreaks',
   'liveWorkoutExercises', 'liveWorkoutMuscleGroups', 'liveWorkoutTrackingTypes',
-  'liveWorkoutRoutines', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveGoalBoard', 'liveCarryovers', 'liveTrainOverview',
+  'liveWorkoutRoutines', 'liveWorkoutArchived', 'liveWorkoutSchedule', 'liveWorkoutWeekdays', 'liveWorkoutProgressions', 'liveWorkoutGoals', 'liveGoalBoard', 'liveCarryovers', 'liveTrainOverview',
   'liveJournalEntries', 'liveGraph', 'liveInbox', 'liveDispatch', 'liveCompost', 'liveTodoist', 'liveTodos', 'liveGuardian', 'liveMoney',
   // fetched every sync anyway — excluding them just blanked flagship surfaces
   // (About You, Daily Review card, learning panel) on every phone reload
@@ -796,7 +796,7 @@ export default class App extends Component {
 
     // workouts
     liveWorkoutExercises: null, liveWorkoutMuscleGroups: null, liveWorkoutTrackingTypes: null,
-    liveWorkoutRoutines: null, liveWorkoutSchedule: null, liveWorkoutWeekdays: null, liveWorkoutProgressions: null,
+    liveWorkoutRoutines: null, liveWorkoutArchived: null, routineRenameId: null, routineRenameName: '', liveWorkoutSchedule: null, liveWorkoutWeekdays: null, liveWorkoutProgressions: null,
     workoutsView: 'routines', openRoutineId: null,
     // "what does this session actually train?" — collapsed by default so
     // today's card stays a card, expandable to the per-exercise breakdown
@@ -2080,7 +2080,7 @@ export default class App extends Component {
     apply('stash', (r) => this.setState({ liveStash: r.categories, liveStashFull: r }));
     apply('shoppingList', (r) => this.setState({ liveShoppingList: r }));
     apply('workoutExercises', (r) => this.setState({ liveWorkoutExercises: r.exercises, liveWorkoutMuscleGroups: r.muscleGroups, liveWorkoutTrackingTypes: r.trackingTypes }));
-    apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
+    apply('workoutRoutines', (r) => this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutArchived: r.archived || [], liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} }));
     apply('workoutGoals', (r) => this.setState({ liveWorkoutGoals: r.goals, liveGoalBoard: r.board || null }));
     apply('graph', (r) => { this.setState({ liveGraph: r }); this.gNodes = null; });
     apply('repertoire', (r) => this.setState({ liveRepertoire: r }));
@@ -2216,7 +2216,7 @@ export default class App extends Component {
         const exercisesRes = await api.workoutExercises(conn);
         this.setState({ liveWorkoutExercises: exercisesRes.exercises, liveWorkoutMuscleGroups: exercisesRes.muscleGroups, liveWorkoutTrackingTypes: exercisesRes.trackingTypes });
         const routinesRes = await api.workoutRoutines(conn);
-        this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays, liveWorkoutProgressions: routinesRes.progressions || {} });
+        this.setState({ liveWorkoutRoutines: routinesRes.routines, liveWorkoutArchived: routinesRes.archived || [], liveWorkoutSchedule: routinesRes.schedule, liveWorkoutWeekdays: routinesRes.weekdays, liveWorkoutProgressions: routinesRes.progressions || {} });
         api.workoutGoals(conn).then(({ goals, board }) => this.setState({ liveWorkoutGoals: goals, liveGoalBoard: board || null })).catch(() => {});
       },
       async () => {
@@ -2362,7 +2362,7 @@ export default class App extends Component {
     if (!conn) return Promise.resolve();
     this.loadCarryovers();
     return api.workoutRoutines(conn).then((r) => {
-      this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} });
+      this.setState({ liveWorkoutRoutines: r.routines, liveWorkoutArchived: r.archived || [], liveWorkoutSchedule: r.schedule, liveWorkoutWeekdays: r.weekdays, liveWorkoutProgressions: r.progressions || {} });
     }).catch(() => {});
   }
   // ROTATION v2 (7 Sep 2026): a slot holds OPTIONS. The recipe card's slot
@@ -4670,6 +4670,55 @@ export default class App extends Component {
       this.setState({ routineCreating: false, routineNewName: '' });
       this.refreshWorkoutRoutines().then(() => this.setState({ workoutsView: 'routine', openRoutineId: routine.id }));
     }).catch((e) => this.toastMsg('Could not create routine: ' + e.message));
+  }
+  // MAKE IT HIS (16 Oct 2026): rename, reorder, archive. An archived routine
+  // sits on a shelf under the list, whole, and Undo (or a tap on the shelf)
+  // puts it back; nothing here deletes a lift or a session.
+  startRenameRoutine(id) {
+    const r = (this.state.liveWorkoutRoutines || []).find((x) => x.id === id);
+    if (r) this.setState({ routineRenameId: id, routineRenameName: r.name, routineCreating: false });
+  }
+  setRoutineRenameName(e) { this.setState({ routineRenameName: e.target.value }); }
+  cancelRenameRoutine() { this.setState({ routineRenameId: null, routineRenameName: '' }); }
+  submitRenameRoutine() {
+    const conn = getConnection();
+    const { routineRenameId: id, routineRenameName } = this.state;
+    const name = routineRenameName.trim();
+    const cur = (this.state.liveWorkoutRoutines || []).find((x) => x.id === id);
+    if (!conn || !id || !name) return;
+    if (cur && cur.name === name) { this.cancelRenameRoutine(); return; }
+    api.updateWorkoutRoutine(conn, id, { name }).then(() => {
+      this.cancelRenameRoutine();
+      return this.refreshWorkoutRoutines();
+    }).catch((e) => this.toastMsg(e.message || 'Could not rename routine'));
+  }
+  archiveRoutine(id) {
+    const conn = getConnection();
+    const r = (this.state.liveWorkoutRoutines || []).find((x) => x.id === id);
+    if (!conn || !r) return;
+    api.archiveWorkoutRoutine(conn, id).then(() => this.refreshWorkoutRoutines()).then(() => {
+      tickReceipt({ key: `routine-archive:${id}`, label: r.name, done: true, title: `${r.name} archived`, undo: () => this.restoreRoutine(id, { receipt: false }) });
+    }).catch((e) => this.toastMsg('Could not archive routine: ' + e.message));
+  }
+  restoreRoutine(id, { receipt = true } = {}) {
+    const conn = getConnection();
+    if (!conn) return;
+    const was = (this.state.liveWorkoutArchived || []).find((x) => x.id === id);
+    api.restoreWorkoutRoutine(conn, id).then(() => this.refreshWorkoutRoutines()).then(() => {
+      if (receipt) tickReceipt({ key: `routine-restore:${id}`, label: was?.name || 'Routine', done: true, title: `${was?.name || 'Routine'} is back on Train`, undo: () => this.archiveRoutine(id) });
+    }).catch((e) => this.toastMsg('Could not restore routine: ' + e.message));
+  }
+  // one step earlier (-1) or later (+1); the list moves at once and the server follows
+  moveRoutine(id, dir) {
+    const conn = getConnection();
+    const list = this.state.liveWorkoutRoutines || [];
+    const i = list.findIndex((x) => x.id === id);
+    const j = i + dir;
+    if (!conn || i < 0 || j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    this.setState({ liveWorkoutRoutines: next });
+    api.reorderWorkoutRoutines(conn, next.map((x) => x.id)).catch((e) => { this.toastMsg('Could not reorder: ' + e.message); this.refreshWorkoutRoutines(); });
   }
   // TRAIN'S PAGES (13 Oct 2026, mockup 101's motion list): a routine and its
   // history are pages pushed over Train, each its own history entry as

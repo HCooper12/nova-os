@@ -1773,6 +1773,15 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-ts-tile { display: flex; flex-direction: column; align-items: flex-start; min-height: 118px; padding: 12px 14px; text-align: left; -webkit-tap-highlight-color: transparent; }
 .nv-ts-tile > .nv-ts-sv { margin-top: 2px; max-width: 100%; }
 .nv-ts-tile .nv-ts-mchip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.nv-ts-shelf { margin-top: 14px; }
+.nv-ts-shelfhd { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+.nv-ts-shelfcv { font-size: 10px; }
+.nv-ts-shelfrows { display: grid; gap: 8px; margin-top: 4px; }
+.nv-ts-shelfrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 14px; animation: nv-ts-shelfin var(--nv-spring-snappy-ms, 420ms) var(--nv-spring-snappy, ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.nv-ts-shelfnm { display: flex; flex-direction: column; min-width: 0; }
+.nv-ts-shelfnm .nv-ts-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes nv-ts-shelfin { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .nv-ts-shelfrow { animation: none; } }
 .nv-ts-cap { margin: 8px 8px 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--nv-ink60); text-wrap: pretty; }
 
 /* THE TWO HALF CARDS: Quick session and Hard sets */

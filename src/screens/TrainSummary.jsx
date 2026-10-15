@@ -418,6 +418,8 @@ function CoachRow({ c }) {
 // -------------------------------------------------------------- routines --
 function Routines({ T }) {
   const cr = T.create;
+  const rn = T.rename;
+  const [shelfOpen, setShelfOpen] = useState(false);
   return (
     <>
       <div className="nv-sum-rise nv-ts-head" style={{ '--i': 4 }}>
@@ -432,6 +434,17 @@ function Routines({ T }) {
           <div className="nv-ts-racts">
             <button type="button" className="nv-ts-tint" onClick={cr.submit} disabled={!cr.name.trim()}>Create</button>
             <TextAction tone="quiet" onClick={cr.cancel}>Cancel</TextAction>
+          </div>
+        </div>
+      )}
+      {rn.id && (
+        <div className="nv-sum-card nv-ts-create">
+          <input className="nv-ts-field" autoFocus value={rn.name} onChange={rn.set} placeholder="Routine name" aria-label="Rename routine"
+            onFocus={(e) => e.target.select()}
+            onKeyDown={(e) => { if (e.key === 'Enter') rn.submit(); if (e.key === 'Escape') rn.cancel(); }} />
+          <div className="nv-ts-racts">
+            <button type="button" className="nv-ts-tint" onClick={rn.submit} disabled={!rn.name.trim()}>Rename</button>
+            <TextAction tone="quiet" onClick={rn.cancel}>Cancel</TextAction>
           </div>
         </div>
       )}
@@ -455,7 +468,24 @@ function Routines({ T }) {
       ) : !cr.open && (
         <p className="nv-ts-cap">No routines yet. New starts one, and the week above schedules it.</p>
       )}
-      {T.routines.length > 0 && <p className="nv-sum-rise nv-ts-cap" style={{ '--i': 5 }}>Hold a routine to start it, see its history or ask Coach about it.</p>}
+      {T.routines.length > 0 && <p className="nv-sum-rise nv-ts-cap" style={{ '--i': 5 }}>Hold a routine to start it, rename it, move it, archive it, see its history or ask Coach about it.</p>}
+      {T.shelf.length > 0 && (
+        <div className="nv-ts-shelf nv-sum-rise" style={{ '--i': 6 }}>
+          <button type="button" className="nv-ts-lnk quiet nv-ts-shelfhd" aria-expanded={shelfOpen} onClick={() => setShelfOpen((o) => !o)}>
+            Archived · {T.shelf.length}<span className="nv-ts-shelfcv" aria-hidden="true">{shelfOpen ? '▴' : '▾'}</span>
+          </button>
+          {shelfOpen && (
+            <div className="nv-ts-shelfrows">
+              {T.shelf.map((a, i) => (
+                <div key={a.id} className="nv-sum-card nv-ts-shelfrow" style={{ '--i': i }}>
+                  <span className="nv-ts-shelfnm"><span className="nv-ts-nm">{a.name}</span><span className="nv-ts-sv">{a.lifts} lift{a.lifts === 1 ? '' : 's'}, kept</span></span>
+                  <button type="button" className="nv-ts-tint" onClick={a.restore}>Restore</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 }
