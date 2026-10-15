@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
-import { cleanVolumeRanges, VOLUME_RANGE } from '../../src/muscleTaxonomy.js';
+import { cleanVolumeRanges, cleanGoalMuscles, VOLUME_RANGE } from '../../src/muscleTaxonomy.js';
 
 // Hayden's fitness goals — a vault page (source of truth, editable in
 // Obsidian or the Train screen) that the Coach reads for every judgement:
@@ -38,6 +38,10 @@ export async function getFitnessGoals(vaultPath) {
       // may set a muscle its own [low, high] on his yes (the 'goal' card);
       // every other muscle reads VOLUME_RANGE (src/muscleTaxonomy.js)
       volumeRanges: cleanVolumeRanges(data.volumeRanges),
+      // WHICH MUSCLES HIS GOAL TRAINS, said outright (16 Oct 2026): when
+      // present this list is his goal muscles everywhere (trainOverview's
+      // goalMuscles); absent, the goal's words are read as before
+      goalMuscles: cleanGoalMuscles(data.goalMuscles),
       notes: content.replace(/^#[^\n]*\n?/, '').trim(),
       updated: data.updated || null,
     };
@@ -67,6 +71,7 @@ export async function setFitnessGoals(vaultPath, input) {
   const existing = await getFitnessGoals(vaultPath).catch(() => null);
   if (!Array.isArray(input.targets) && existing?.targets?.length) input = { ...input, targets: existing.targets };
   const volumeRanges = Object.hasOwn(input, 'volumeRanges') ? cleanVolumeRanges(input.volumeRanges) : existing?.volumeRanges || null;
+  const goalMuscles = Object.hasOwn(input, 'goalMuscles') ? cleanGoalMuscles(input.goalMuscles) : existing?.goalMuscles || null;
   await mkdir(path.dirname(full), { recursive: true });
   if (existsSync(full)) await backupFile(full);
   const updated = localDateISO();
@@ -79,6 +84,7 @@ export async function setFitnessGoals(vaultPath, input) {
   if (kcalTarget) frontmatter.kcalTarget = kcalTarget;
   if (Array.isArray(input.targets) && input.targets.length) frontmatter.targets = input.targets;
   if (volumeRanges) frontmatter.volumeRanges = volumeRanges;
+  if (goalMuscles) frontmatter.goalMuscles = goalMuscles;
   await writeFile(full, matter.stringify(`# Fitness Goals\n\n${notes}\n`, frontmatter), 'utf8');
   return getFitnessGoals(vaultPath);
 }
@@ -87,7 +93,7 @@ export async function setFitnessGoals(vaultPath, input) {
 // card can set his goal line and the per-muscle growth ranges; this is the
 // write its yes makes. Only the fields named change; `prior` is each of
 // them as it stood, which the card's undo puts back exactly.
-export const GOAL_SETTING_KEYS = ['goal', 'volumeRanges'];
+export const GOAL_SETTING_KEYS = ['goal', 'goalMuscles', 'volumeRanges'];
 export async function setGoalSettings(vaultPath, settings = {}) {
   const g = (await getFitnessGoals(vaultPath)) || { goal: 'Training goals', focus: '', daysPerWeek: null, equipment: '', limitations: '', notes: '', targets: [] };
   const prior = {};
@@ -143,6 +149,7 @@ export async function goalsContext(vaultPath) {
   return [
     `Goal: ${g.goal}`,
     g.focus ? `Focus: ${g.focus}` : null,
+    g.goalMuscles?.length ? `Goal muscles (his own list): ${g.goalMuscles.join(', ')}` : null,
     g.daysPerWeek ? `Training days/week: ${g.daysPerWeek}` : null,
     g.equipment ? `Equipment available: ${g.equipment}` : null,
     g.limitations ? `Injuries / limitations (work around these): ${g.limitations}` : null,

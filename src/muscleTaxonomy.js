@@ -65,6 +65,23 @@ export function expandGroup(name) {
 // goals' `volumeRanges`, set by Coach on his yes); rangeFor reads it.
 export const VOLUME_RANGE = Object.freeze([10, 20]);
 
+// HIS V-TAPER (16 Oct 2026, his words): "shoulders, arms and back for
+// building a V-taper physique". The side and rear delts (the front delts
+// already take every pressing set), the lats and upper back, the biceps and
+// triceps. His goal reads exactly these when it says V-taper.
+export const V_TAPER_MUSCLES = Object.freeze(['Side Delts', 'Rear Delts', 'Lats', 'Upper Back', 'Biceps', 'Triceps']);
+
+/**
+ * His goal's explicit muscle list, validated: each an exact volume group
+ * (any casing), de-duplicated, in the order given. Null when the list is
+ * absent or holds nothing valid (the goal's words decide then).
+ */
+export function cleanGoalMuscles(raw) {
+  if (!Array.isArray(raw)) return null;
+  const out = [...new Set(raw.map((m) => canonicalGroup(m)).filter((m) => m && !NON_VOLUME.has(m)))];
+  return out.length ? out : null;
+}
+
 /** One muscle's [low, high]: his goal's override for it, else VOLUME_RANGE. */
 export function rangeFor(muscle, overrides = null) {
   const r = overrides && Object.hasOwn(overrides, muscle) ? overrides[muscle] : null;

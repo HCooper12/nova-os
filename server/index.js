@@ -329,6 +329,11 @@ async function main() {
   import('./lib/codeChanges.js').then(({ migrateCommitsFile }) => migrateCommitsFile())
     .then(({ migrated }) => { if (migrated) console.log(`code commits: moved ${migrated} undo record(s) onto the inbox rails`); })
     .catch((e) => console.error('code commits migration failed:', e.message));
+  // HIS V-TAPER (16 Oct 2026): one Coach card proposing his goal muscles and
+  // goal line, filed once ever (lib/vTaperGoal.js); his yes writes the page
+  import('./lib/vTaperGoal.js').then(({ fileVTaperGoalCard }) => fileVTaperGoalCard(process.env.VAULT_PATH))
+    .then((r) => { if (r?.filed) console.log(`v-taper goal: card ${r.filed.id} is waiting on his yes`); })
+    .catch((e) => console.error('v-taper goal card failed:', e.message));
   // and expire stale time-value drafts (old dispatches/reviews/today-checks)
   // at boot + every 6h, so the pending queue holds only things worth a yes
   const expireTick = () => import('./lib/inbox.js').then(({ expireStaleDrafts }) =>

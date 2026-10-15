@@ -13,7 +13,7 @@ import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mond
 import { isUnaudited } from './muscleSecondary.js';
 import { plannedWeek } from './plannedWeek.js';
 import { muscleWeek as buildMuscleWeek } from './muscleWeek.js';
-import { rangeFor } from '../../src/muscleTaxonomy.js';
+import { rangeFor, cleanGoalMuscles, V_TAPER_MUSCLES } from '../../src/muscleTaxonomy.js';
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
 
@@ -42,9 +42,15 @@ const GOAL_WORDS = {
 };
 
 // exported so the Coach's program review reasons from the SAME muscles the
-// volume bars call "goal muscles" — two parsers would drift apart
+// volume bars call "goal muscles" — two parsers would drift apart.
+// HIS OWN LIST FIRST (16 Oct 2026): `goalMuscles` on his goals page, when
+// present and valid, IS the answer; the words below are the fallback. A goal
+// that says V-taper means exactly his V-taper muscles, nothing added.
 export function goalMuscles(goals) {
+  const own = cleanGoalMuscles(goals?.goalMuscles);
+  if (own) return new Set(own);
   const text = `${goals?.goal || ''} ${goals?.focus || ''}`.toLowerCase();
+  if (/\bv[\s-]?taper\b/.test(text)) return new Set(V_TAPER_MUSCLES);
   const out = new Set();
   for (const [word, muscles] of Object.entries(GOAL_WORDS)) {
     if (text.includes(word)) muscles.forEach((m) => out.add(m));

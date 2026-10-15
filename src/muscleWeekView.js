@@ -11,7 +11,7 @@
 // short of the range, red when it is past it.
 
 import { formatSets as fmt } from './muscleCredit.js';
-import { VOLUME_RANGE } from './muscleTaxonomy.js';
+import { VOLUME_RANGE, V_TAPER_MUSCLES } from './muscleTaxonomy.js';
 
 export const BAR_MAX = 25;
 const pct = (v) => Math.max(0, Math.min(100, (v / BAR_MAX) * 100));
@@ -23,7 +23,7 @@ const dm = (iso) => { const [, m, d] = String(iso).split('-').map(Number); retur
 // HIS V-TAPER (16 Oct 2026): "shoulders, arms and back for building a
 // V-taper physique". The sheet names the group by his goal only when his
 // goal muscles are exactly these; otherwise they are his goal muscles.
-export const V_TAPER = ['Side Delts', 'Rear Delts', 'Lats', 'Upper Back', 'Biceps', 'Triceps'];
+export const V_TAPER = V_TAPER_MUSCLES;
 const isVTaper = (goal) => goal.length === V_TAPER.length && V_TAPER.every((m) => goal.includes(m));
 
 /** The bar's geometry, in % of the shared 0 to 25 scale. */

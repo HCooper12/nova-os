@@ -1041,7 +1041,7 @@ export async function setCoachEditConfig(patch) {
 // measurable target: { goalLine?, volumeRanges? }, each validated; null
 // when the line names none of them (it is then an ordinary target).
 async function goalSettingsOf(raw) {
-  const { cleanVolumeRanges, VOLUME_RANGE } = await import('../../src/muscleTaxonomy.js');
+  const { cleanVolumeRanges, cleanGoalMuscles, VOLUME_RANGE, MUSCLE_GROUPS } = await import('../../src/muscleTaxonomy.js');
   const settings = {};
   const said = [];
   if (raw.goalLine != null) {
@@ -1049,6 +1049,14 @@ async function goalSettingsOf(raw) {
     if (!line) throw new Error('goalLine is empty: say the goal in one sentence');
     settings.goal = line;
     said.push(`goal "${line}"`);
+  }
+  if (raw.goalMuscles != null) {
+    const list = cleanGoalMuscles(raw.goalMuscles);
+    if (!list || !Array.isArray(raw.goalMuscles) || list.length !== new Set(raw.goalMuscles.map((m) => String(m).trim().toLowerCase())).size) {
+      throw new Error(`goalMuscles must be a list of exact muscle groups, each one of: ${MUSCLE_GROUPS.filter((m) => !['Mobility', 'Full Body', 'Grip'].includes(m)).join(', ')}`);
+    }
+    settings.goalMuscles = list;
+    said.push(`goal muscles ${list.join(', ')}`);
   }
   if (raw.volumeRanges != null) {
     const ranges = cleanVolumeRanges(raw.volumeRanges);
