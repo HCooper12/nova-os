@@ -13,7 +13,7 @@ export function Verbs({ verbs, busy, tight, talkOn }) {
         </Interactive>
       )}
       {talk && (
-        <Interactive as="button" className={`nv-sum-ib-talk${talkOn ? ' on' : ''}`} onClick={talk.run} haptic="tick" base={{ cursor: 'pointer' }}>
+        <Interactive as="button" className={`nv-sum-ib-talk${talkOn ? ' on' : ''}`} onClick={talk.run} haptic="tick" base={{ cursor: 'pointer' }} data-grow={talk.grow || undefined}>
           {!talk.open && !talk.plain && <Ico name="talk" />}{talk.label}{talk.open && <Ico name="right" />}
         </Interactive>
       )}

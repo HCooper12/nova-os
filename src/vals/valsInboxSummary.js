@@ -5,6 +5,7 @@ import {
   dayGroups, clockLabel, subjectCards, digestLine, deeperState, agoLabel, reportParts,
   railMarks, sentenceCase,
 } from '../inboxSummaryFacts.js';
+import { briefingGrowKey } from '../motion/growKeys.js';
 
 // THE SUMMARY INBOX'S VIEW MODEL (27 Sep 2026, design/mockups/60-redesign-
 // inbox-r2.html, his pick: "Inbox is looking great with enhanced features.
@@ -229,7 +230,7 @@ export function valsInboxSummary(app, ctx, v) {
     const talk = item.isModelChoice
       ? { label: 'Opus, deeper', run: opusRun, open: false, plain: true }
       : item.openPractice ? { label: 'Open', run: item.openPractice, open: true }
-        : item.openBriefing ? { label: 'Open', run: item.openBriefing, open: true }
+        : item.openBriefing ? { label: 'Open', run: item.openBriefing, open: true, grow: briefingGrowKey(item.id) }
           : sug ? { label: 'Talk about it', run: () => { app.navigate('workouts'); app.discussCoachSuggestion(item.id); }, open: false }
             : { label: 'Talk about it', open: false, run: () => app.talkAboutInbox(`Talk me through this card in my Inbox: “${sentence}”.${approveWhat ? ` Approving it would ${approveWhat.replace(/^\w/, (c) => c.toLowerCase()).replace(/\.$/, '')}.` : ''} Why is it here, and what would you do?`) };
 

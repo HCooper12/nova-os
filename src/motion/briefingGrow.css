@@ -1,0 +1,29 @@
+/* BUTTON → PLAYER, the second half (the motion set, mockup #s1). Once the
+   stage has grown out of the pill (src/motion/briefingGrow.js), the player
+   rises into place 50 ms apart on the snappy spring: the rail, then each
+   control under his thumb. (Not the idle plate: it comes back on every
+   pause, and a late plate on a pause would read as lag.) Fill is `backwards` only, so
+   when the rise ends the element is back on its own rules (the rail and the
+   transport hide themselves at the end with [data-hidden], and a forwards
+   fill would overrule that). Transform and opacity only. */
+@keyframes nvBfGrowRise { from { opacity: 0; transform: translateY(8px); } }
+
+.nv-bf-rail,
+.nv-bf-tp > .nv-bf-tb {
+  animation: nvBfGrowRise var(--nv-spring-snappy-ms) var(--nv-spring-snappy) backwards;
+  animation-delay: calc(var(--fx-slow, 1) * (var(--bf-rise, 0) * 50ms + 240ms));
+}
+.nv-bf-rail { --bf-rise: 0; }
+.nv-bf-tp > .nv-bf-tb:nth-child(1) { --bf-rise: 1; }
+.nv-bf-tp > .nv-bf-tb:nth-child(2) { --bf-rise: 2; }
+.nv-bf-tp > .nv-bf-tb:nth-child(3) { --bf-rise: 3; }
+.nv-bf-tp > .nv-bf-tb:nth-child(4) { --bf-rise: 4; }
+.nv-bf-tp > .nv-bf-tb:nth-child(5) { --bf-rise: 5; }
+
+/* reduced motion and Nova's Calm: nothing rises, it is simply there (the
+   grow itself is already a cross-fade there, src/pageMotion.js) */
+@media (prefers-reduced-motion: reduce) {
+  .nv-bf-rail, .nv-bf-tp > .nv-bf-tb { animation: none; }
+}
+:root[data-nv-calm="1"] .nv-bf-rail,
+:root[data-nv-calm="1"] .nv-bf-tp > .nv-bf-tb { animation: none; }

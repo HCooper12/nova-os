@@ -9,6 +9,7 @@ import { SwipeRow } from '../SwipeRow.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, Segmented, isAppleStyle, ScreenHead, Button, Select } from '../Controls.jsx';
 import { InboxSummary } from './InboxSummary.jsx';
 import { useSpringStack } from '../motion/springStack.js';
+import { briefingGrowKey } from '../motion/growKeys.js';
 
 // The Nova Inbox: one place to drop any loose thought — typed or dictated —
 // and let Nova route it (shopping / journal / to-do / note / food log).
@@ -482,7 +483,7 @@ function InboxClassic({ v }) {
                     >Open in Practice</Interactive>
                   )}
                   {item.openBriefing && (
-                    <Interactive as="span" onClick={item.openBriefing}
+                    <Interactive as="span" onClick={item.openBriefing} data-grow={briefingGrowKey(item.id)}
                       title="Read it, or have Nova read it to you with the visuals"
                       base={secondary('var(--nv-cy)')}
                       hoverStyle={{ filter: 'brightness(1.1)' }}

@@ -40,6 +40,7 @@ import { depthOf, edgeDragInProgress, isStandalone } from './edgeBack.js';
 import { whereAmI, readWhereInputs } from './where.js';
 import { playPush, playPop } from './settingsNav.js';
 import { freeze, grow, shrink, noteTap, takeTap, scrollToTop } from './pageMotion.js';
+import { growTapFor, foldFrom } from './motion/briefingGrow.js';
 import { pageMove, pageKey } from './pageMoveRule.js';
 import { startSkyRest } from './skyRest.js';
 import { EdgeBack } from './EdgeBack.jsx';
@@ -1148,7 +1149,9 @@ export default class App extends Component {
       const hs = window.history.state;
       const pageHop = !changed && ((this.state.screen === 'recipes' && (this.state.fuelView || null) !== (hs?.novaView === 'fuelRecipes' ? 'recipes' : null))
         || (this.state.screen === 'workouts' && (hs?.novaView === 'trainPage' || ['routine', 'history'].includes(this.state.workoutsView))));
-      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() }, () => { if (changed && !dragged) this.riseMain(); });
+      // the briefing folds back into the pill it grew from (src/motion/briefingGrow.js)
+      const fold = changed && !dragged ? foldFrom(this.state.screen, screenFromHash()) : null;
+      const apply = () => this.setState({ screen: screenFromHash(), ...this.recipeFromHistory(), ...this.pagesFromHistory() }, () => { if (changed && !dragged && !fold?.play()) this.riseMain(); });
       if (dragged || changed || settingsHop || pageHop) apply(); else this.withTransition(apply);
       this.consumeDeepLink();
     };
@@ -1323,7 +1326,8 @@ export default class App extends Component {
     // A HOME CARD OPENS INTO ITS PAGE (13 Oct 2026, mockup 101's motion
     // list): leaving Home from a card he just tapped, the page grows out of
     // that card (src/pageMotion.js) instead of rising; a tab still rises.
-    const growTap = changed && this.state.screen === 'mission' ? takeTap() : null;
+    // Off Home, the briefing's pill grows into the briefing (src/motion/briefingGrow.js).
+    const growTap = changed ? growTapFor(this.state.screen, screen) : null;
     const growSnap = growTap ? freeze() : null;
     // the summary Fuel page's Recipes list belongs to Fuel: leaving the
     // screen leaves it, so a tab hop back lands on Fuel itself

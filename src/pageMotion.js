@@ -35,6 +35,13 @@ function smooth() {
   return spring;
 }
 
+// any house spring by name, or null where the browser lacks linear()
+export function houseSpring(name) {
+  let v = '';
+  try { v = getComputedStyle(document.documentElement).getPropertyValue(`--nv-spring-${name}`).trim(); } catch { /* no CSS */ }
+  return v && typeof CSS !== 'undefined' && CSS.supports?.('animation-timing-function', v) ? v : null;
+}
+
 // THE CARD HE TAPPED. Read on pointerdown, before any state changes, so the
 // rectangle is the one he saw; good for a short while, so a later unrelated
 // navigation never grows out of a stale card.
@@ -125,7 +132,10 @@ export function grow(snap, tap) {
   track(anims, () => drop(snap), anims[0]);
 }
 
-export function shrink(snap, target) {
+// `opts.spring` names a house spring (--nv-spring-<name>) for a fold that is
+// quicker than the session's: the briefing folding back into its pill closes
+// on the snappy one (src/motion/briefingGrow.js)
+export function shrink(snap, target, opts = {}) {
   const main = mainEl();
   if (!snap || !main) { drop(snap); return; }
   const rect = target?.getBoundingClientRect?.();
@@ -147,7 +157,7 @@ export function shrink(snap, target) {
       { clipPath: full, webkitClipPath: full, opacity: 1 },
       { clipPath: to, webkitClipPath: to, opacity: 0.7, offset: 0.6 },
       { clipPath: to, webkitClipPath: to, opacity: 0 },
-    ], { duration: SHRINK_MS, easing: smooth(), fill: 'forwards' }),
+    ], { duration: opts.duration || SHRINK_MS, easing: (opts.spring && houseSpring(opts.spring)) || smooth(), fill: 'forwards' }),
     main.animate([{ opacity: 0.55 }, { opacity: 1 }], { duration: SHRINK_MS, easing: 'ease-out' }),
   ];
   track(anims, () => drop(snap), anims[0]);

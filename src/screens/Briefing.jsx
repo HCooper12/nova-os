@@ -8,6 +8,7 @@ import { useDictation, reportTurnEnd } from '../useDictation.js';
 import { useSheetDrag } from '../useSheetDrag.js';
 import { boardSpot, macBoardSpot, BOARD, MAC_BOARD } from '../briefingFacts.js';
 import { clockNow } from '../speechClock.js';
+import '../motion/briefingGrow.css';
 
 // THE BRIEFING — a report Nova researched, read and performed.
 //
