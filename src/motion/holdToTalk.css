@@ -1,0 +1,28 @@
+/* HOLD NOVA → TALK (15 Oct 2026, mockup #s11). motion/holdToTalk.js drives
+   all of it; this is the resting state only. */
+
+/* the ring: two half-rings, each seen through half a window, turned by
+   transform as the real 480 ms hold runs */
+.nv-hold-ring { position: absolute; inset: var(--nv-hold-inset, -4px); pointer-events: none; opacity: 0; z-index: 2; }
+.nv-hold-half { position: absolute; inset: 0; }
+.nv-hold-half.r { clip-path: inset(0 0 0 50%); }
+.nv-hold-half.l { clip-path: inset(0 50% 0 0); }
+.nv-hold-half > i {
+  position: absolute; inset: 0; box-sizing: border-box; border-radius: 50%;
+  border: 2.5px solid var(--nv-cy);
+}
+.nv-hold-half.r > i { clip-path: inset(0 50% 0 0); }
+.nv-hold-half.l > i { clip-path: inset(0 0 0 50%); }
+
+/* the panel's live dot: the only infinite animation on screen */
+.nv-hold-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--nv-cy); animation: nvHoldDot 1.6s ease-in-out infinite; }
+@keyframes nvHoldDot { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+
+/* his voice, as the microphone really hears it: newest level on the right */
+.nv-hold-lv { display: flex; align-items: center; gap: 3px; height: 28px; margin-bottom: 8px; transition: opacity 160ms var(--nv-ease); }
+.nv-hold-lv[data-deaf="true"] { opacity: 0; }
+.nv-hold-lv > u { flex: none; width: 4px; height: 4px; border-radius: 2px; background: var(--nv-cy); text-decoration: none; transform-origin: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-hold-dot { animation: none; opacity: 1; }
+}

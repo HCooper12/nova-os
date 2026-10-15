@@ -13,19 +13,32 @@
 
 import { useRef } from 'react';
 
-const HOLD_MS = 480;
+export const HOLD_MS = 480;
 const SLOP_PX = 10;
 
-export function useLongPress(onLongPress) {
-  const s = useRef({ timer: null, start: null, fired: false }).current;
+// onPhase (optional, 15 Oct 2026, the hold-to-talk ring): told when a press
+// that could become a hold STARTS ('start', element), when it stops short of
+// the threshold ('cancel'), and when it crosses it ('fire', just before
+// onLongPress, so a listener can note where the hold happened). It only
+// watches: the 480 ms rule and the tap are the same with or without it.
+export function useLongPress(onLongPress, onPhase) {
+  const s = useRef({ timer: null, start: null, fired: false, armed: false }).current;
   if (!onLongPress) return {};
+  const phase = (p, el) => { try { onPhase?.(p, el); } catch { /* a watcher never breaks the press */ } };
 
   const fire = (x, y, target) => {
     s.fired = true;
+    s.armed = false;
+    if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+    phase('fire', target);
     try { navigator.vibrate?.(10); } catch { /* no haptics */ }
     onLongPress({ x, y, target });
   };
-  const clear = () => { if (s.timer) { clearTimeout(s.timer); s.timer = null; } s.start = null; };
+  const clear = () => {
+    if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+    if (s.armed) { s.armed = false; phase('cancel', s.start?.target); }
+    s.start = null;
+  };
 
   return {
     onPointerDown: (e) => {
@@ -33,7 +46,9 @@ export function useLongPress(onLongPress) {
       s.fired = false;
       s.start = { x: e.clientX, y: e.clientY, target: e.currentTarget };
       clearTimeout(s.timer);
-      s.timer = setTimeout(() => { if (s.start) fire(s.start.x, s.start.y, s.start.target); }, HOLD_MS);
+      s.timer = setTimeout(() => { s.timer = null; if (s.start) fire(s.start.x, s.start.y, s.start.target); }, HOLD_MS);
+      s.armed = true;
+      phase('start', e.currentTarget);
     },
     onPointerMove: (e) => {
       if (!s.start) return;

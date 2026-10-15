@@ -7,6 +7,8 @@ import { VoiceHalo } from './VoiceHalo.jsx';
 import { NovaCore } from './NovaCore.jsx';
 import { Eyebrow, isAppleStyle } from './Controls.jsx';
 import { SummaryDock } from './SummaryDock.jsx';
+import { useHoldRing } from './motion/holdToTalk.js';
+import { HoldRing } from './motion/HoldRing.jsx';
 
 const M = "var(--nv-font-mono)";
 const R = "var(--nv-font-ui)";
@@ -42,6 +44,8 @@ function DockTab({ t, size = 21 }) {
 
 export function MobileChrome({ v }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  // hold Nova → talk: the ring fills over the real hold (motion/holdToTalk.js)
+  const hold = useHoldRing();
   // the top bar's chips: under the Apple styles a tinted pill in the UI face,
   // under Command the bordered mono chip they always were (see Controls.jsx)
   const apple = isAppleStyle();
@@ -180,7 +184,7 @@ export function MobileChrome({ v }) {
         {/* THE mini Nova icon — his ask: tapping it starts talking right
             here, natively, without opening the Voice section (long-press
             still goes there). The halo breathes with real audio. */}
-        <Interactive onClick={v.startLiveTalk} onLongPress={v.holdNovaText} aria-label="Talk to Nova"
+        <Interactive onClick={v.startLiveTalk} onLongPress={v.holdNovaText} onHoldPhase={hold.onHoldPhase} data-nova-core="" aria-label="Talk to Nova"
           base={{ position: 'relative', width: '54px', height: '54px', margin: '0 3px', flex: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
             // the bottom-right core's own treatment, moved in here: a dark
             // well with a thin lit edge, NOT a filled accent disc. The solid
@@ -201,6 +205,7 @@ export function MobileChrome({ v }) {
           {/* ONE Nova icon on the phone, and it is this one: his chosen core,
               always drawn (never the ✦ glyph), live-dynamic while talking */}
           <NovaCore size={46} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={v.novaListening} thinking={!!v.novaThinking} contest={!!v.novaContest} still={!!v.isAmbient} style={{ pointerEvents: 'none' }} />
+          <HoldRing ringRef={hold.ringRef} />
         </Interactive>
         {dockTabs.slice(3, 5).map((t) => <DockTab key={t.screen} t={t} />)}
         <Interactive as="div" onClick={() => setMoreOpen(true)} haptic="tick" base={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', minWidth: '44px', padding: '6px 4px', cursor: 'pointer', borderRadius: '14px', color: moreOpen || !activeInDock ? 'var(--nv-acc)' : 'var(--nv-ink40)' }}>

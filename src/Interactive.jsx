@@ -56,14 +56,15 @@ const DEFAULT_FOCUS = { outline: '2px solid var(--nv-acc-border)', outlineOffset
 // scroll must reach the scroller untouched. Re-armed on the next press.
 const SWITCH_SLOP_PX = 10;
 
-export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, focusStyle, style: styleProp, onPointerDown, onPointerUp, onPointerCancel, onPointerEnter, onPointerLeave, onFocus, onBlur, onClick, onKeyDown, onLongPress, haptic: hapticWord, children, ...rest }) {
+export function Interactive({ as: Tag = 'div', base, hoverStyle, activeStyle, focusStyle, style: styleProp, onPointerDown, onPointerUp, onPointerCancel, onPointerEnter, onPointerLeave, onFocus, onBlur, onClick, onKeyDown, onLongPress, onHoldPhase, haptic: hapticWord, children, ...rest }) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
   const [focus, setFocus] = useState(false);
   const pressAt = useRef(null);
   // spec #13: hold (or right-click) any Interactive for its secondary
   // actions — the hook composes with the pressed-state handlers below
-  const lp = useLongPress(onLongPress);
+  // (onHoldPhase only watches the hold: the Nova icon's ring, motion/holdToTalk.js)
+  const lp = useLongPress(onLongPress, onHoldPhase);
   const b = typeof base === 'string' ? css(base) : base || {};
   const hs = hoverStyle ? (typeof hoverStyle === 'string' ? css(hoverStyle) : hoverStyle) : {};
   // A tap should show feedback the instant the finger lands. WebKit only

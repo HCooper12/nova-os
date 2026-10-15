@@ -4,6 +4,8 @@ import { Interactive } from './Interactive.jsx';
 import { VoiceHalo } from './VoiceHalo.jsx';
 import { NovaCore } from './NovaCore.jsx';
 import { CaptureSheet } from './CaptureSheet.jsx';
+import { useHoldRing } from './motion/holdToTalk.js';
+import { HoldRing } from './motion/HoldRing.jsx';
 
 // THE iOS 26 TAB BAR (P3, 26 Sep 2026 — design/HOME-REDESIGN-PLAN.md §1.4,
 // drawn in every round of mockups he liked). Under the `summary` style only:
@@ -94,6 +96,9 @@ export function SummaryDock({ v }) {
   // the Briefing plays on the same full-screen stage (round 2, 9 Oct 2026)
   const away = !!v.novaThread?.focus || !!v.briefingStage;
   const gone = useAway(away);
+  // the same press ring and core bounce as the cupertino dock (holdToTalk.js);
+  // this hold still opens the Nova page, so there is no panel to grow here
+  const hold = useHoldRing();
   const tabs = v.tabs.slice(0, 4);
   // More is lit on the Index AND on any screen reached through it, the way an
   // iOS More tab stays selected while you are inside it — so the bar always
@@ -129,16 +134,17 @@ export function SummaryDock({ v }) {
           microphone (the thread registers it), and the orb says so while it
           is open: that page's mic is reported as voiceScreenMic, not as the
           presence's liveMicOpen. Everywhere else, exactly as before. */}
-      <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.holdNovaCore || v.holdNovaText} aria-label="Talk to Nova. Hold to open Nova, listening"
+      <Interactive onClick={v.novaThread?.dockTalk || v.startLiveTalk} onLongPress={v.holdNovaCore || v.holdNovaText} onHoldPhase={hold.onHoldPhase} data-nova-core="" aria-label="Talk to Nova. Hold to open Nova, listening"
         className="nv-sum-nova" data-listening={listening ? 'true' : undefined}
         base={{ cursor: 'pointer' }} focusStyle={NO_TAP_RING}>
         {!gone && <VoiceHalo speaking={v.novaSpeaking} listening={listening} inset="-3px" />}
-        <span className="nv-sum-nova-orb">
+        <span className="nv-sum-nova-orb" data-hold-bounce="">
           {/* under the wall (Ambient covers the bar) it holds one still frame: an
               orb nobody can see drew every frame there (audit 21 §5) */}
           {!gone && <NovaCore size={ORB} variant="mini" engine={v.coreStyle} speaking={v.novaSpeaking} listening={listening} thinking={!!v.novaThinking} contest={!!v.novaContest} still={!!v.isAmbient} style={{ pointerEvents: 'none' }} />}
         </span>
         <span className="nv-sum-nova-cap" aria-hidden="true">Talk</span>
+        <HoldRing ringRef={hold.ringRef} inset="-3px" />
       </Interactive>
     </div>
     {capture?.open && <CaptureSheet c={capture} />}

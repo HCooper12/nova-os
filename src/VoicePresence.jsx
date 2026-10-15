@@ -6,6 +6,8 @@ import { StageCard } from './StageCard.jsx';
 import { railDepth } from './glassDepth.js';
 import { SafeVisual } from './SafeVisual.jsx';
 import { useDismissSwipe } from './dismissSwipe.js';
+import { usePanelMorph } from './motion/holdToTalk.js';
+import { MicLevel } from './motion/MicLevel.jsx';
 
 const M = 'var(--nv-font-mono)';
 
@@ -166,28 +168,46 @@ export function VoicePresence({ v }) {
       {/* THE POP-UP — only ever on screen because he asked for it (long-press
           the core). The lit border + outward glow is the reference's look. */}
       {s.textOpen && (
-        // a bar of its own: pull it down and it goes (sheetDrag.js)
-        <div data-sheet-float="" data-sheet="" style={css(`pointer-events:auto;width:min(620px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 06%, transparent),color-mix(in srgb, var(--nv-void) 94%, black));backdrop-filter:blur(16px);box-shadow:0 0 30px -4px color-mix(in srgb, var(--nv-cy) 50%, transparent),inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 22%, transparent),0 24px 60px rgba(0,0,0,.6);animation:popIn var(--nv-dur-base) var(--nv-ease);overflow:hidden`)}>
-          <div style={css(`display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)`)}>
-            <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${tone}`)}>NOVA · {state}</span>
-            <span style={css('flex:1')}></span>
-            <Interactive as="span" onClick={dict.supported ? () => { v.primeSpeech(); dict.toggle(); } : undefined} aria-label={dict.on ? 'Stop listening' : 'Listen'}
-              base={css(`cursor:pointer;flex:none;width:30px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;border:1px solid ${dict.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-cy) 25%, transparent)'};background:color-mix(in srgb, var(--nv-cy) ${dict.on ? 20 : 5}%, transparent)`)}
-              hoverStyle="background:color-mix(in srgb, var(--nv-cy) 18%, transparent)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-cy)" strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
-            </Interactive>
-            <Interactive as="span" onClick={s.closeText} data-sheet-close="" aria-label="Hide the transcript"
-              base={css(`cursor:pointer;flex:none;font:400 15px/1 ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:2px 4px`)}
-              hoverStyle="color:var(--nv-ink)">×</Interactive>
-          </div>
-          <div style={css('padding:13px 16px 15px;max-height:38vh;overflow-y:auto')}>
-            {s.ask && <div style={css(`font:var(--nv-micro-l);letter-spacing:.04em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent);margin-bottom:7px`)}>» {s.ask}</div>}
-            <div style={css('font-size:14px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 94%, transparent)')}>
-              {s.reply || s.input || (s.busy ? 'Reading the vault…' : 'Listening — speak, and it appears here.')}
-            </div>
-          </div>
-        </div>
+        <TranscriptPanel v={v} s={s} dict={dict} state={state} tone={tone} />
       )}
+    </div>
+  );
+}
+
+// A level meter exists where the microphone is tapped: Nova's own ears (the
+// recorder) everywhere, the browser engine only off iOS (useDictation.js says
+// why). Elsewhere the panel shows the live dot alone.
+const IOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+// THE POP-UP's body. Its own component so it can grow out of the core when a
+// hold opened it and fold back into it when it goes (motion/holdToTalk.js).
+function TranscriptPanel({ v, s, dict, state, tone }) {
+  const morph = usePanelMorph();
+  const hasMeter = dict.engine === 'nova' || !IOS;
+  // a bar of its own: pull it down and it goes (sheetDrag.js)
+  return (
+    <div ref={morph.ref} data-sheet-float="" data-sheet="" style={css(`pointer-events:auto;width:min(620px,100%);border:1px solid color-mix(in srgb, var(--nv-cy) 55%, transparent);border-radius:16px;background:linear-gradient(180deg,color-mix(in srgb, var(--nv-cy) 06%, transparent),color-mix(in srgb, var(--nv-void) 94%, black));backdrop-filter:blur(16px);box-shadow:0 0 30px -4px color-mix(in srgb, var(--nv-cy) 50%, transparent),inset 0 1px 0 color-mix(in srgb, var(--nv-cy) 22%, transparent),0 24px 60px rgba(0,0,0,.6);${morph.fromHold ? '' : 'animation:popIn var(--nv-dur-base) var(--nv-ease);'}overflow:hidden`)}>
+      <div style={css(`display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid color-mix(in srgb, var(--nv-cy) 20%, transparent);background:color-mix(in srgb, var(--nv-cy) 07%, transparent)`)}>
+        {/* live: the one pulsing thing on screen, only while the mic is open */}
+        {dict.on && <span className="nv-hold-dot" aria-hidden="true" />}
+        <span style={css(`font:var(--nv-micro-s);letter-spacing:var(--nv-micro-track-wide);color:${tone}`)}>NOVA · {state}</span>
+        <span style={css('flex:1')}></span>
+        <Interactive as="span" onClick={dict.supported ? () => { v.primeSpeech(); dict.toggle(); } : undefined} aria-label={dict.on ? 'Stop listening' : 'Listen'}
+          base={css(`cursor:pointer;flex:none;width:30px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;border:1px solid ${dict.on ? 'var(--nv-cy)' : 'color-mix(in srgb, var(--nv-cy) 25%, transparent)'};background:color-mix(in srgb, var(--nv-cy) ${dict.on ? 20 : 5}%, transparent)`)}
+          hoverStyle="background:color-mix(in srgb, var(--nv-cy) 18%, transparent)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--nv-cy)" strokeWidth="2.2"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+        </Interactive>
+        <Interactive as="span" onClick={s.closeText} data-sheet-close="" aria-label="Hide the transcript"
+          base={css(`cursor:pointer;flex:none;font:400 15px/1 ${M};color:color-mix(in srgb, var(--nv-ink) 40%, transparent);padding:2px 4px`)}
+          hoverStyle="color:var(--nv-ink)">×</Interactive>
+      </div>
+      <div style={css('padding:13px 16px 15px;max-height:38vh;overflow-y:auto')}>
+        {dict.on && hasMeter && <MicLevel />}
+        {s.ask && <div style={css(`font:var(--nv-micro-l);letter-spacing:.04em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent);margin-bottom:7px`)}>» {s.ask}</div>}
+        <div style={css('font-size:14px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 94%, transparent)')}>
+          {s.reply || s.input || (s.busy ? 'Reading the vault…' : 'Listening — speak, and it appears here.')}
+        </div>
+      </div>
     </div>
   );
 }
