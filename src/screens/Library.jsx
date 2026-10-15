@@ -176,6 +176,16 @@ function Shelf({ v, fellBack }) {
   // outer root) and a search never drive the same FLIP
   const searchRoot = useRef(null);
   useSearchMotion(searchRoot, v.libraryQuery, v.libraryShelf.map((b) => b.id));
+  // the shelf rises once, when it first has books; after that a card that
+  // comes back (a search cleared) is simply there, and a match stacks in on
+  // the search motion alone rather than on two entrances at once
+  const hasRows = v.libraryShelf.length > 0;
+  const [risen, setRisen] = useState(false);
+  useEffect(() => {
+    if (!hasRows || risen) return undefined;
+    const t = setTimeout(() => setRisen(true), 1500);
+    return () => clearTimeout(t);
+  }, [hasRows, risen]);
   return (
     <>
       <ChipsRow v={v} />
@@ -205,7 +215,7 @@ function Shelf({ v, fellBack }) {
           <div key={b.id} data-flip={b.id}
             style={spines
               ? { flex: 'none', width: `${b.spine.width}px`, height: `${b.spine.heightPct * 2.8}px` }
-              : b.entranceStyle}>
+              : risen ? undefined : b.entranceStyle}>
             <Interactive onClick={b.open}
               base={{ cursor: 'pointer', height: spines ? '100%' : undefined, display: spines ? 'block' : undefined,
                 transition: 'transform .32s cubic-bezier(.22,1,.36,1), box-shadow .32s ease' }}

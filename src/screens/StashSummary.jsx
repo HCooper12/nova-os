@@ -185,7 +185,6 @@ function ShelfBar({ S, V }) {
           <button type="button" onClick={() => S.toggleSearch()}>Cancel</button>
         </div>
       )}
-      {S.ui.search && <SearchCount query={S.ui.q} n={V.shelves.reduce((t, s) => t + s.cards.length, 0)} one="link" />}
       {S.ui.sortOpen && <SortMenu S={S} V={V} anchor={sortRef} />}
     </div>
   );
@@ -822,6 +821,8 @@ export function StashSummary({ v }) {
               {V.vials.length > 0 && <Vials S={S} V={V} />}
               <ShelfBar S={S} V={V} />
               {V.noMatch && <p className="nv-st-empty">Nothing in the Stash matches “{S.ui.q.trim()}”.</p>}
+              {/* the count follows the matches, in the page (the bar above floats) */}
+              {S.ui.search && !V.noMatch && <SearchCount query={S.ui.q} n={V.shelves.reduce((t, s) => t + s.cards.length, 0) + (V.bought?.rows.length || 0)} one="link" />}
               <Shelves S={S} V={V} />
               {!S.readOnly && (
                 <button type="button" className="nv-st-newgift" onClick={() => S.openSheet({ kind: 'gift' })}><Tile glyph="gift" hue="var(--nv-m-chest)" sm />New gift list</button>
