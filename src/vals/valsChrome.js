@@ -132,7 +132,9 @@ export function valsChrome(app, ctx) {
 
   return {
     // chrome
-    showBoot: !st.booted,
+    // the boot stays drawn a beat past `booted` while it fades out of the
+    // way (src/Boot.jsx calls bootInfo.gone, at most ~250 ms later)
+    showBoot: !st.booted || !st.bootGone,
     isMobile: mob,
     // THE COMPACT TITLE (22 Sep 2026): what the bar's wordmark yields to once
     // the screen's large title has scrolled beneath it. Home's large title is

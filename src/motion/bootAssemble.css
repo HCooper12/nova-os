@@ -1,0 +1,15 @@
+/* PARTICLE ASSEMBLE (the motion set, mockup #s9): the boot's one canvas and
+   the handover to the real core (src/Boot.jsx, src/motion/bootAssemble.js).
+   Opacity only. */
+.nv-boot-pts { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.nv-boot-pts.out { animation: nvBootOut 260ms var(--nv-ease) both; }
+.nv-boot-core { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.nv-boot-core.in { animation: nvBootIn 260ms var(--nv-ease) both; }
+@keyframes nvBootIn { from { opacity: 0; } }
+@keyframes nvBootOut { to { opacity: 0; } }
+/* the app is ready: the boot gets out of the way at once, and is never in
+   the way of a tap while it goes */
+.nv-boot.leaving { pointer-events: none; animation: nvBootOut 220ms var(--nv-ease) both; }
+@media (prefers-reduced-motion: reduce) {
+  .nv-boot-pts.out, .nv-boot-core.in, .nv-boot.leaving { animation: none; }
+}

@@ -1148,6 +1148,10 @@ const bodyMetrics = demoMode
       vaultLine: demoMode ? 'VAULT · DEMO DATA' : st.liveNotes ? `VAULT · ${st.liveNotes.length} NOTES LINKED` : 'VAULT · CONNECTING…',
       recipesLine: demoMode ? 'MODE · SHOWCASE' : st.liveRecipes ? `RECIPES · ${st.liveRecipes.length} LOADED` : 'RECIPES · CONNECTING…',
       agentsLine: demoMode ? 'AGENTS · CONCEPT PREVIEW' : st.liveJournalEntries ? `JOURNAL · ${st.liveJournalEntries.length} DAYS` : 'JOURNAL · CONNECTING…',
+      // the app has booted: the assembling core jumps to its end and the boot
+      // leaves (src/Boot.jsx); gone() takes it away once it has faded
+      ready: !!st.booted,
+      gone: () => app.setState({ bootGone: true }),
     },
 
     // hero
