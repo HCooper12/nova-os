@@ -19,6 +19,7 @@ import { FocusChip } from '../FocusChip.jsx';
 import { MissionStructured } from './MissionStructured.jsx';
 import { MissionSummary } from './MissionSummary.jsx';
 import { ReviewInline } from '../ReviewCard.jsx';
+import { WrapFocus } from '../motion/WrapFocus.jsx';
 
 // Command Core (design 45): hero with eyebrow/tagline/standfirst beside the
 // living Nova core + three conic-progress satellites, the BODY metrics strip
@@ -300,6 +301,7 @@ export function MissionControl({ v }) {
               <div style={css(`font:400 ${mob ? '18px' : '19px'}/1.35 ${S};text-wrap:pretty;color:var(--nv-ink)`)}>{v.wrapCard.line}</div>
             </div>
           </div>
+          {v.wrapCard.focus && <WrapFocus f={v.wrapCard.focus} />}
           {v.wrapCard.fix && <div style={css(`margin-top:11px;font:450 12.5px/1.5 ${R};color:var(--nv-ink60)`)}>{v.wrapCard.fix}</div>}
           <div style={{ marginTop: '13px', display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'center' }}>
             <TextAction onClick={v.wrapCard.speak}>Read it to me</TextAction>

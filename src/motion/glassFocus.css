@@ -1,0 +1,33 @@
+/* GLASS FOCUS (15 Oct 2026, mockup "Nova motion set" #s7). Wrap the day's
+   "Tomorrow needs": the five checks code ran, in its order, each with the
+   fact it read. At rest the rung code picked sits under Nova's own liquid
+   glass (.nv-liquid, the house recipe in index.css) with its value in the
+   orange and its reason beneath; the others are softened, there but not the
+   point. The once-a-day scan is scripted in WrapFocus.jsx. */
+
+.nv-wf { margin-top: 14px; min-width: 0; }
+.nv-wf-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0 2px 6px; }
+.nv-wf-h b { font: 400 19px/1.2 var(--nv-font-serif); color: var(--nv-ink); }
+.nv-wf-h span { font: 400 12px/1.2 var(--nv-font-ui); color: var(--nv-ink50); }
+.nv-wf-list { position: relative; isolation: isolate; min-width: 0; }
+
+.nv-wf-r {
+  position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  height: 36px; padding: 0 12px; min-width: 0;
+  font: 400 15px/1.2 var(--nv-font-ui); color: var(--nv-ink);
+  filter: blur(1.4px); opacity: .5;
+}
+.nv-wf-r > span:first-child { flex: none; }
+.nv-wf-r .v {
+  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: right;
+  font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.nv-wf-r.hero { filter: none; opacity: 1; }
+.nv-wf-r.hero .v { color: var(--nv-or); }
+
+.nv-liquid.nv-wf-lens {
+  position: absolute; z-index: 1; left: 0; right: 0; top: 0; height: 36px;
+  --nv-liquid-radius: 12px; pointer-events: none;
+}
+
+.nv-wf-why { margin: 8px 12px 0; font: italic 400 16px/1.35 var(--nv-font-serif); color: var(--nv-ink60); text-wrap: pretty; }

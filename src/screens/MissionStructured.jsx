@@ -27,6 +27,7 @@ import { FocusChip } from '../FocusChip.jsx';
 import { TabIcon } from '../TabIcon.jsx';
 import { Group, GRow, MetricTile, Pill } from '../AppleLayout.jsx';
 import { ReviewGroup } from '../ReviewCard.jsx';
+import { WrapFocus } from '../motion/WrapFocus.jsx';
 
 // Mission Control in the "Apple layout" — same view model as the classic
 // screen, rendered as a grouped stack whose ORDER follows the day:
@@ -338,6 +339,7 @@ export function MissionStructured({ v }) {
               <div style={{ font: `400 ${mob ? 18 : 19}px/1.35 ${S}`, textWrap: 'pretty', color: 'var(--nv-ink)' }}>{v.wrapCard.line}</div>
             </div>
           </div>
+          {v.wrapCard.focus && <WrapFocus f={v.wrapCard.focus} />}
           {v.wrapCard.fix && (
             <p style={{ margin: '11px 0 0', font: `450 12.5px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>{v.wrapCard.fix}</p>
           )}

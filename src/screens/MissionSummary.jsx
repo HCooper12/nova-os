@@ -23,6 +23,7 @@ import { YourDay } from '../Instruments.jsx';
 import { readDaySeen, markDaySeen, DAY_KEYS } from '../dayCard.js';
 import { CountText, CountUp } from '../CountUp.jsx';
 import { ReviewMoment } from '../ReviewCard.jsx';
+import { WrapFocus } from '../motion/WrapFocus.jsx';
 
 // THE SUMMARY HOME (P2-B, 26 Sep 2026) — design/HOME-REDESIGN-PLAN.md, drawn
 // from mockup 56 (round 5, his pick). The third idiom of the same view model:
@@ -360,6 +361,7 @@ function Moment({ k, v }) {
             </div>
             <div style={{ minWidth: 0, flex: 1, font: `400 ${v.isMobile ? 18 : 19}px/1.35 ${SERIF}`, textWrap: 'pretty', color: 'var(--nv-ink)' }}>{w.line}</div>
           </div>
+          {w.focus && <WrapFocus f={w.focus} />}
           {w.fix && <p style={{ margin: '11px 0 0', font: `450 12.5px/1.5 ${UI}`, color: 'var(--nv-ink60)' }}>{w.fix}</p>}
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '9px', marginTop: '13px' }}>
             <Pill label="Read it to me" onClick={w.speak} />

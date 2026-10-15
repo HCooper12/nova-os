@@ -9,6 +9,7 @@ import { dtf } from './fmt.js';
 import { groupFamilies, shapeReports } from '../repertoireBook.js';
 import { buildReelRows } from '../reel.js';
 import { shortTechniqueName, techniqueQuestionState, questionOnlyWrap } from '../techniqueCheck.js';
+import { wrapLadder, lineWithoutTomorrow } from '../wrapLadder.js';
 import { planCardFrom } from '../planCard.js';
 import { homeTrainingCard } from '../doneToday.js';
 
@@ -1092,7 +1093,10 @@ const bodyMetrics = demoMode
       const w = st.liveWrap;
       const q = techniqueQuestion(app, st, demoMode);
       const dismissed = (d) => !!(st.wrapDismissedOn && d && st.wrapDismissedOn === d);
-      if (demoMode || !w?.show || !w.line || dismissed(w.facts?.date)) {
+      // a dev-only seed (`devSeed` on a liveWrap set from the console) lets the
+      // card be drawn in demo for checking; a production build never has one
+      const devSeed = !!(import.meta.env?.DEV && w?.devSeed);
+      if ((demoMode && !devSeed) || !w?.show || !w.line || dismissed(w.facts?.date)) {
         // THE EVENING WITHOUT A PLATE: nothing logged to wrap (so no food
         // card), but today's technique is still waiting on its answer. From
         // 18:00, the wrap is just the question — and it stays to show its
@@ -1110,8 +1114,12 @@ const bodyMetrics = demoMode
       const floor = f.targets?.protein || null;
       const pPct = floor ? Math.round((eatenP / floor) * 100) : 0;
       const kPct = target ? Math.round((eatenKcal / target) * 100) : 0;
+      // GLASS FOCUS (15 Oct): askFor's ladder, the lens on the rung it picked
+      // (src/wrapLadder.js); with it drawn, the line drops its "Tomorrow:"
+      const focus = wrapLadder(f, w.ask);
       return {
-        line: w.line,
+        line: focus ? lineWithoutTomorrow(w.line, w.ask) : w.line,
+        focus,
         floorMet: f.floorMet,
         // Under target is not a miss on a cut — only going over is worth a
         // colour. Protein keeps the real thresholds (90 / 50).
