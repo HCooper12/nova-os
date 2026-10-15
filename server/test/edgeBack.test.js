@@ -205,7 +205,8 @@ test('a drag-driven back skips the view transition', async () => {
   assert.match(app, /if \(dragged \|\| changed \|\| settingsHop \|\| pageHop\) apply\(\); else this\.withTransition\(apply\);/,
     'a swipe and a view transition will run at the same time');
   assert.match(app, /const settingsHop = !changed && this\.state\.screen === 'settings';/);
-  assert.match(app, /if \(changed && !dragged\) this\.riseMain\(\);/,
+  // (15 Oct: a back may fold into the briefing pill first; still never on a drag)
+  assert.match(app, /if \(changed && !dragged(?: && [^\n]*?)?\) this\.riseMain\(\);/,
     'a dragged back must not also rise: the drag IS the animation');
 });
 
