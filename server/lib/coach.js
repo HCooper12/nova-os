@@ -1112,9 +1112,16 @@ export async function validateCoachEdit(vaultPath, rawIn, { asked = null, planne
     const group = String(raw.muscleGroup || '').trim();
     if (!MUSCLE_GROUPS.includes(group)) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
     const before = ex.muscleGroup || 'Other';
-    if (before === group) throw new Error(`${ex.name} is already filed under ${group}`);
+    // an explicit secondary list replaces what else it trains; without one
+    // the re-file keeps its secondaries (his rule, 16 Oct 2026)
+    let secondary;
+    if (raw.secondary != null) {
+      if (!Array.isArray(raw.secondary) || raw.secondary.some((m) => !MUSCLE_GROUPS.includes(String(m).trim()))) throw new Error(`secondary must be a list of muscle groups, each one of: ${MUSCLE_GROUPS.join(', ')}`);
+      secondary = raw.secondary.map((m) => String(m).trim()).filter((m) => m !== group);
+    }
+    if (before === group && !secondary) throw new Error(`${ex.name} is already filed under ${group}`);
     return {
-      payload: { action, exerciseId: ex.id, exerciseName: ex.name, muscleGroup: group, before, reason: String(raw.reason || '').slice(0, 300) },
+      payload: { action, exerciseId: ex.id, exerciseName: ex.name, muscleGroup: group, before, ...(secondary ? { secondary } : {}), reason: String(raw.reason || '').slice(0, 300) },
       title: `Coach: re-file ${ex.name} under ${group} (was ${before})`,
     };
   }

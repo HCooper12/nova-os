@@ -17,21 +17,22 @@ import { loadExerciseLibrary, MUSCLE_GROUPS } from './exercises.js';
 import { fileDecision } from './inbox.js';
 import { createRecord, updateRecord } from './inboxStore.js';
 
-export async function refileExercise(vaultPath, id, muscleGroup, { source = 'train' } = {}) {
+export async function refileExercise(vaultPath, id, muscleGroup, { source = 'train', secondary } = {}) {
   const group = String(muscleGroup || '').trim();
   if (!MUSCLE_GROUPS.includes(group)) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
   const { exercises } = await loadExerciseLibrary(vaultPath);
   const exercise = exercises.find((e) => e.id === id);
   if (!exercise) throw new Error('no such exercise');
   const before = exercise.muscleGroup || 'Other';
-  if (before === group) return { unchanged: true, exercise, before, record: null };
+  // what else it trains stays (his rule, 16 Oct 2026) unless he names a new list
+  if (before === group && !Array.isArray(secondary)) return { unchanged: true, exercise, before, record: null };
 
   const decision = {
     route: 'exercise-remap',
     confidence: 'high',
     title: `Re-file ${exercise.name} under ${group} (was ${before})`,
     reason: 'his correction',
-    payload: { exerciseId: id, muscleGroup: group, before },
+    payload: { exerciseId: id, muscleGroup: group, before, ...(Array.isArray(secondary) ? { secondary } : {}) },
   };
   const record = await createRecord({
     id: randomUUID().slice(0, 8),
@@ -45,7 +46,7 @@ export async function refileExercise(vaultPath, id, muscleGroup, { source = 'tra
   try {
     const { destination, undo } = await fileDecision(vaultPath, decision);
     const filed = await updateRecord(record.id, { status: 'filed', destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, error: null });
-    return { unchanged: false, exercise: { ...exercise, muscleGroup: group }, before, record: filed };
+    return { unchanged: false, exercise: { ...exercise, muscleGroup: group }, before, record: filed, destination };
   } catch (e) {
     // a failed write says so on its record, never a silent pending card
     await updateRecord(record.id, { status: 'error', error: e.message }).catch(() => {});

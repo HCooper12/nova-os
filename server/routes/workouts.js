@@ -170,7 +170,8 @@ export function workoutsRouter(vaultPath) {
   router.post('/workouts/exercises/:id/muscle-group', async (req, res) => {
     try {
       const { refileExercise } = await import('../lib/exerciseRefile.js');
-      const out = await refileExercise(vaultPath, req.params.id, req.body?.muscleGroup);
+      const out = await refileExercise(vaultPath, req.params.id, req.body?.muscleGroup,
+        Array.isArray(req.body?.secondary) ? { secondary: req.body.secondary } : {});
       res.json(out);
     } catch (err) { res.status(/no such exercise/.test(err.message) ? 404 : 400).json({ error: err.message }); }
   });

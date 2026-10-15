@@ -191,16 +191,33 @@ export function addExerciseIn(exercises, name, filedGroup, trackingType) {
 // `muscleGroup` would be silently overruled by the table. It writes `primary`
 // too, which is the library's override. `before` is the group it counted
 // for; `prior` is the entry exactly as stored, for an undo that puts it back.
-export function setMuscleGroupIn(exercises, id, muscleGroup) {
+// A RE-FILE KEEPS WHAT ELSE THE LIFT TRAINS (16 Oct 2026, his rule). A
+// change of primary alone used to drop the audited secondaries: an own
+// `primary` with no `secondary` list reads as "trains nothing else"
+// (src/muscleCredit.js), so re-filing a row under Lats silently took its ½
+// credit away from the upper back and biceps. Now the secondaries it had
+// (audited, or his own list) are written onto the entry, minus the new
+// primary; only an explicit `secondary` list replaces them. `prior` is the
+// entry exactly as stored, which the undo puts back.
+export function setMuscleGroupIn(exercises, id, muscleGroup, { secondary } = {}) {
   const idx = exercises.findIndex((e) => e.id === id);
   if (idx === -1) throw new Error('no such exercise');
   const group = groupIn(exercises[idx].name, String(muscleGroup || '').trim());
   if (!group) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
   const prior = storedForm(exercises[idx]);
-  const before = resolveMuscles(exercises[idx]).muscleGroup || 'Other';
-  if (before === group) return { exercises, exercise: exercises[idx], before, prior, unchanged: true };
+  const resolved = resolveMuscles(exercises[idx]);
+  const before = resolved.muscleGroup || 'Other';
+  let keep;
+  if (Array.isArray(secondary)) {
+    keep = [...new Set(secondary.map((m) => canonicalGroup(m)))];
+    if (keep.some((m) => !m)) throw new Error(`secondary muscles must be among: ${MUSCLE_GROUPS.join(', ')}`);
+  } else keep = resolved.secondary || [];
+  keep = NO_SECONDARY.has(group) ? [] : keep.filter((m) => m !== group && !NO_SECONDARY.has(m));
+  const had = resolved.secondary || [];
+  const sameSecondary = keep.length === had.length && keep.every((m) => had.includes(m));
+  if (before === group && sameSecondary) return { exercises, exercise: exercises[idx], before, prior, unchanged: true };
   const next = [...exercises];
-  next[idx] = { ...prior, muscleGroup: group, primary: group };
+  next[idx] = { ...prior, muscleGroup: group, primary: group, secondary: keep };
   return { exercises: next, exercise: next[idx], before, prior, unchanged: false };
 }
 
@@ -273,9 +290,9 @@ function withWriteLock(fn) {
 // at read time, so a correction is retroactive by construction, which is
 // exactly what makes it worth doing. Returns the previous group so the
 // change can be undone from the Inbox.
-export async function setExerciseMuscleGroup(vaultPath, id, muscleGroup) {
+export async function setExerciseMuscleGroup(vaultPath, id, muscleGroup, opts = {}) {
   return withWriteLock(async () => {
-    const result = setMuscleGroupIn(await getExercises(vaultPath), id, muscleGroup);
+    const result = setMuscleGroupIn(await getExercises(vaultPath), id, muscleGroup, opts);
     if (!result.unchanged) await persist(vaultPath, result.exercises);
     const { exercise, before, unchanged, prior } = result;
     return { exercise, before, unchanged, prior };

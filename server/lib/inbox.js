@@ -331,11 +331,13 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   // every past set with it; undo is the existing exercise-muscle-group kind
   if (route === 'exercise-remap') {
     const { setExerciseMuscleGroup } = await import('./exercises.js');
-    const { exercise, before, prior } = await setExerciseMuscleGroup(vaultPath, payload.exerciseId, payload.muscleGroup);
+    const { exercise, before, prior } = await setExerciseMuscleGroup(vaultPath, payload.exerciseId, payload.muscleGroup,
+      Array.isArray(payload.secondary) ? { secondary: payload.secondary } : {});
     return {
-      destination: `Exercise library — ${exercise.name} filed under ${exercise.muscleGroup} (was ${before})`,
+      destination: `Exercise library — ${exercise.name} filed under ${exercise.muscleGroup} (was ${before})${exercise.secondary?.length ? `, still training ${exercise.secondary.join(', ')} at ½` : ''}`,
       // `prior` is the entry as stored, so undo puts back exactly that (an
-      // audited lift returns to its audited mapping, not to an override)
+      // audited lift returns to its audited mapping, not to an override,
+      // and the secondaries a re-file kept go with it)
       undo: { kind: 'exercise-muscle-group', exerciseId: payload.exerciseId, muscleGroup: before, ...(prior ? { prior } : {}) },
     };
   }
@@ -1132,6 +1134,8 @@ export async function undoFiling(vaultPath, undo) {
       await restoreExerciseRecords(vaultPath, { priors: { [undo.exerciseId]: undo.prior } });
       return `${undo.prior.name || undo.exerciseId} counts for ${undo.muscleGroup} again`;
     }
+    // an undo written before priors were kept: the primary goes back and
+    // what else the lift trains is kept (his re-file rule, 16 Oct 2026)
     const { setExerciseMuscleGroup } = await import('./exercises.js');
     const { exercise } = await setExerciseMuscleGroup(vaultPath, undo.exerciseId, undo.muscleGroup);
     return `${exercise.name} is filed under ${undo.muscleGroup} again`;
