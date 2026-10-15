@@ -130,6 +130,19 @@ looks like a shortcut.
    every reader/writer or none. Duplicated regexes and shapes must stay in
    lockstep; note the twin in a comment.
 
+8. **Every exercise is audited before it counts (his standing rule, 15 Oct
+   2026).** What a lift trains comes from evidence, not from its name: one
+   primary muscle takes 1 per working set, each substantial secondary ½
+   (Pelland et al. 2024's fractional count), and stabilisers or isometric
+   holders are not secondaries, because a wrong secondary inflates a total.
+   The reviewed table is code (`src/muscleAudit.js`); his own approved
+   mapping on a library entry wins over it. A lift in neither is unaudited:
+   its sets count for no muscle until he approves a mapping on its Inbox
+   card (`server/lib/exerciseAudit.js`), and every surface that counts says
+   how many sets were left out rather than hiding them. Name patterns may
+   draft that card's suggestion; they never credit a set. Mobility, Full
+   Body and Grip are filings, never hypertrophy volume.
+
 ---
 
 ## 2b · The surface standard (every new thing he can see)
