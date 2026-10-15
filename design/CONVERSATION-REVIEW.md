@@ -41,6 +41,21 @@ and will not let him type.
 - Start at: `src/longPress.js`, `src/FloatingCore.jsx`, `src/SummaryDock.jsx`,
   and how focusing the composer is meant to end a listening turn.
 
+## 4. The glass panels follow him out of the chat
+
+Screenshot, 08:24, Inbox tab, five minutes after item 2: the same two panels
+("ARMS WITHOUT SATURDAY", still empty apart from the Biceps / Triceps labels,
+and "FOUR DAYS WORK") were floating over the Inbox, covering the program
+review card and an Undo row. They are the dark, live-glass style, not the
+replay card from the chat, so the live overlay was never torn down when the
+turn ended or the screen changed. Likely one cause with item 2: the panel
+never finished drawing, so it never reached its dismissal.
+
+- Start at: wherever the live running-glass overlay mounts (outside the chat
+  screen, since it survived a tab change) and what is meant to clear it: turn
+  end, a timer, leaving voice. Reproduce by asking for a chart answer, then
+  switching tabs mid-answer and after it.
+
 ## How to approach it
 
 Treat it as one review of the conversation surface, not three patches:
