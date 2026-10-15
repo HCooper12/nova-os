@@ -1,0 +1,55 @@
+/* WHAT ELSE A LIFT TRAINS (15 Oct 2026). Indirect work wears the muscle's
+   own hue at half strength, with a dashed edge: the same colour as the
+   primary tag, quieter, because each of its sets counts ½ there. */
+
+.nv-also {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 5px;
+  min-width: 0;
+}
+.nv-also-label {
+  font: 500 11px var(--nv-font-ui);
+  color: var(--nv-ink50);
+  margin-right: 1px;
+}
+.nv-also-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font: 600 10.5px var(--nv-font-ui);
+  letter-spacing: .03em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--also-hue) 72%, var(--nv-ink50));
+  background: color-mix(in srgb, var(--also-hue) 7%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--also-hue) 32%, transparent);
+}
+.nv-also-chip b {
+  font-weight: 500;
+  opacity: .8;
+}
+
+/* the lighter half of a two-part volume bar: indirect credit, stacked after
+   the solid direct fill, in the same hue at half strength */
+.nv-also-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(135deg,
+    color-mix(in srgb, var(--also-hue) 42%, transparent) 0 3px,
+    color-mix(in srgb, var(--also-hue) 26%, transparent) 3px 6px);
+  transform-origin: left center;
+  animation: nv-also-grow var(--nv-dur-base, .32s) var(--nv-ease, ease-out) both;
+  animation-delay: .12s;
+}
+@keyframes nv-also-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-also-seg { animation: none; }
+}

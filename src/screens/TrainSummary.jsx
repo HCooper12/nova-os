@@ -4,6 +4,7 @@ import { TextAction, Rail } from '../Controls.jsx';
 import { CardHead } from './MissionSummary.jsx';
 import { CoachSuggestionDeck } from '../CoachSuggestions.jsx';
 import { WeekSetsSheet } from '../WeekSets.jsx';
+import { AlsoWorks } from '../AlsoWorks.jsx';
 import { FormCheckPanel } from '../FormCheckPanel.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { useExit } from '../useExit.js';
@@ -501,15 +502,22 @@ function SegRing({ ring, size = 72 }) {
       {ring.segments.map((s) => {
         const len = Math.max(0.5, c * s.share - gap);
         const fill = len * s.fill;
+        // solid: its own sets; the half-strength part after it: lifts that
+        // also train it, each set at ½ (15 Oct)
+        const own = len * (s.directFill ?? s.fill);
         const at = -off;
         off += len + gap;
         return (
           <g key={s.muscle}>
             <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.hue} strokeOpacity=".22" strokeWidth={sw}
               strokeDasharray={`${len} ${c - len}`} strokeDashoffset={at} />
-            {fill > 0 && (
-              <circle className="nv-ts-seg" cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.hue} strokeWidth={sw}
+            {fill > own && (
+              <circle className="nv-ts-seg" cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.hue} strokeOpacity=".5" strokeWidth={sw}
                 strokeDasharray={`${fill} ${c - fill}`} strokeDashoffset={at} style={{ '--c': `${c}px` }} />
+            )}
+            {own > 0 && (
+              <circle className="nv-ts-seg" cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.hue} strokeWidth={sw}
+                strokeDasharray={`${own} ${c - own}`} strokeDashoffset={at} style={{ '--c': `${c}px` }} />
             )}
           </g>
         );
@@ -738,7 +746,7 @@ function LiftSheet({ s }) {
           className="nv-ts-grab" style={{ ...drag.handleProps.style, gridTemplateColumns: '44px minmax(0,1fr) auto' }}>
           <span className="nv-ts-handle" aria-hidden="true" />
           <button type="button" className="nv-ts-f3d" style={{ '--h': r.hue }} onClick={r.open} aria-label={`${r.name} in 3D`}><Ico p={P.fig} /></button>
-          <span className="nv-ts-shead"><b>{r.name}</b><span>{r.muscle || 'Muscle not mapped'} · {r.lastFull === 'Not yet performed' ? 'not yet done' : `last ${r.lastFull}`}</span></span>
+          <span className="nv-ts-shead"><b>{r.name}</b><span>{r.muscle || 'Muscle not mapped'} · {r.lastFull === 'Not yet performed' ? 'not yet done' : `last ${r.lastFull}`}</span><AlsoWorks muscles={r.also} style={{ marginTop: '3px' }} /></span>
           <TextAction tone="accent" onClick={exit.close}>Done</TextAction>
         </div>
         <div className="nv-ts-sbody">

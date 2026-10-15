@@ -4,6 +4,7 @@ const Body3D = lazy(() => import('./Body3D.jsx'));
 import { BodyMap, MuscleLegend } from './BodyMap.jsx';
 import { Eyebrow, Chip, Meta } from './Controls.jsx';
 import { muscleVar } from './muscleHue.js';
+import { AlsoWorks } from './AlsoWorks.jsx';
 import { StageCard } from './StageCard.jsx';
 import { ChartMorph } from './motion/ChartMorph.jsx';
 import { volumePoints } from './motion/chartFigures.js';
@@ -193,6 +194,7 @@ function Exercise({ d }) {
             color: muscleVar(d.muscleGroup), padding: '2px 8px', borderRadius: '6px',
             background: `color-mix(in srgb, ${muscleVar(d.muscleGroup)} 13%, transparent)` }}>{d.muscleGroup}</span>
         )}
+        <AlsoWorks muscles={d.secondary} style={{ flexBasis: '100%' }} />
       </div>
     }>
       {/* Anatomy first: the question "what does this actually train" is the

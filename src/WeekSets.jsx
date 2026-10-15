@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import { css } from './css.js';
 import { muscleVar } from './muscleHue.js';
+import { formatSets as fmt } from './muscleCredit.js';
+import { AlsoSegment } from './AlsoWorks.jsx';
 import { GlassSheet } from './GlassSheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { Eyebrow, Meta, Tag, TextAction } from './Controls.jsx';
@@ -27,8 +29,9 @@ function Pip({ s, size }) {
   return <i className="nv-wk-pip" data-s={s} style={size ? { '--wk-pip': `${size}px` } : undefined} />;
 }
 
-// a ring against the muscle's target: the solid arc is done, the faint one
-// is where the plan as written would take it by Sunday
+// a ring against the muscle's target: the solid arc is its own sets done,
+// the half-strength arc after it the sets of lifts that also train it (at ½,
+// 15 Oct), the faint one where the plan as written would take it by Sunday
 function MuscleRing({ m }) {
   const r = 22;
   const c = 2 * Math.PI * r;
@@ -44,13 +47,17 @@ function MuscleRing({ m }) {
           <>
             <circle className="nv-wk-arc" cx="27" cy="27" r={r} fill="none" stroke={hue} strokeOpacity=".28" strokeWidth="5" strokeLinecap="round"
               strokeDasharray={c} strokeDashoffset={c * (1 - m.projectedPct)} style={{ '--wk-c': c }} />
+            {m.pct > (m.directPct ?? m.pct) && (
+              <circle className="nv-wk-arc" cx="27" cy="27" r={r} fill="none" stroke={hue} strokeOpacity=".55" strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={c} strokeDashoffset={c * (1 - m.pct)} style={{ '--wk-c': c }} />
+            )}
             <circle className="nv-wk-arc" cx="27" cy="27" r={r} fill="none" stroke={hue} strokeWidth="5" strokeLinecap="round"
-              strokeDasharray={c} strokeDashoffset={c * (1 - m.pct)} style={{ '--wk-c': c, filter: `drop-shadow(0 0 4px color-mix(in srgb, ${hue} 55%, transparent))` }} />
+              strokeDasharray={c} strokeDashoffset={c * (1 - (m.directPct ?? m.pct))} style={{ '--wk-c': c, filter: `drop-shadow(0 0 4px color-mix(in srgb, ${hue} 55%, transparent))` }} />
           </>
         )}
       </svg>
       <div style={css('position:absolute;inset:0;display:grid;place-items:center')}>
-        <b style={css(`font:400 19px/1 var(--nv-font-serif);font-variant-numeric:tabular-nums;color:${m.short ? 'var(--nv-warn)' : 'var(--nv-ink)'}`)}>{m.done}</b>
+        <b style={css(`font:400 19px/1 var(--nv-font-serif);font-variant-numeric:tabular-nums;color:${m.short ? 'var(--nv-warn)' : 'var(--nv-ink)'}`)}>{fmt(m.done)}</b>
       </div>
     </div>
   );
@@ -65,9 +72,11 @@ function Spectrum({ muscles }) {
       {planned.map((m, i) => {
         const hue = muscleVar(m.muscle);
         const pct = Math.min(1, m.done / m.planned);
+        const own = Math.min(pct, (m.direct?.done ?? m.done) / m.planned);
         return (
-          <span key={m.muscle} style={{ flex: `${m.planned} 1 0`, minWidth: '6px', borderRadius: '3px', overflow: 'hidden', background: `color-mix(in srgb, ${hue} 18%, transparent)` }}>
-            <i className="nv-wk-fill" style={{ display: 'block', height: '100%', width: '100%', background: hue, transform: `scaleX(${pct})`, transformOrigin: 'left center', '--i': i }} />
+          <span key={m.muscle} style={{ flex: `${m.planned} 1 0`, minWidth: '6px', borderRadius: '3px', overflow: 'hidden', position: 'relative', background: `color-mix(in srgb, ${hue} 18%, transparent)` }}>
+            <i className="nv-wk-fill" style={{ display: 'block', height: '100%', width: '100%', background: hue, transform: `scaleX(${own})`, transformOrigin: 'left center', '--i': i }} />
+            <AlsoSegment hue={hue} from={own * 100} width={(pct - own) * 100} />
           </span>
         );
       })}
@@ -91,13 +100,13 @@ function WeekGrid({ view, onPick }) {
         ))}
       </div>
       {view.muscles.map((m, mi) => (
-        <Interactive key={m.muscle} onClick={() => onPick(m)} aria-label={`${m.muscle}: ${m.done} done of ${m.planned} planned, target ${m.target}. Show its exercises`}
+        <Interactive key={m.muscle} onClick={() => onPick(m)} aria-label={`${m.muscle}: ${fmt(m.done)} done of ${fmt(m.planned)} planned, target ${m.target}. Show its exercises`}
           base={`display:grid;${COLS};align-items:stretch;cursor:pointer;border-top:1px solid color-mix(in srgb, var(--nv-ink) 6%, transparent);border-radius:0`}
           hoverStyle="background:color-mix(in srgb, var(--nv-ink) 3%, transparent)"
           style={{ '--wk-hue': muscleVar(m.muscle) }}>
           <span style={css('display:flex;flex-direction:column;justify-content:center;gap:1px;padding:7px 4px 7px 0;min-width:0')}>
             <b style={css('font:600 12.5px var(--nv-font-ui);color:var(--wk-hue);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{m.muscle}</b>
-            <span style={css(`font:500 10.5px var(--nv-font-ui);font-variant-numeric:tabular-nums;color:${m.short ? 'var(--nv-warn)' : 'var(--nv-ink50)'}`)}>{m.done}/{m.planned}</span>
+            <span style={css(`font:500 10.5px var(--nv-font-ui);font-variant-numeric:tabular-nums;color:${m.short ? 'var(--nv-warn)' : 'var(--nv-ink50)'}`)}>{fmt(m.done)}/{fmt(m.planned)}</span>
           </span>
           {m.cells.map((cell, di) => (
             <span key={di} aria-hidden="true" style={css(`display:flex;flex-direction:column;justify-content:center;gap:3px;padding:6px 2px;min-width:0;${view.days[di].isToday ? `background:${todayBg};` : ''}${mi === view.muscles.length - 1 && view.days[di].isToday ? 'border-radius:0 0 9px 9px;' : ''}`)}>
@@ -127,10 +136,15 @@ function MuscleSection({ m, i, sectionRef }) {
             {m.goal && <Tag tone={hue}>Goal</Tag>}
           </div>
           <Meta as="div" style={{ marginTop: '3px' }}>
-            {m.unplanned ? `Nothing planned · target ${m.target}` : `${m.done} done · ${m.planned} planned · target ${m.target}`}
+            {m.unplanned ? `Nothing planned · target ${m.target}` : `${fmt(m.done)} done · ${fmt(m.planned)} planned · target ${m.target}`}
           </Meta>
+          {m.indirect?.done > 0 && (
+            <Meta as="div" tone="faint" style={{ marginTop: '2px' }}>
+              {`${fmt(m.direct.done)} of its own sets, ${fmt(m.indirect.done)} from lifts that also train it at ½`}
+            </Meta>
+          )}
           {m.short && !m.unplanned && (
-            <Meta as="div" tone="warn" style={{ marginTop: '2px' }}>▲ {m.projected} of {m.target} by Sunday on the plan as written</Meta>
+            <Meta as="div" tone="warn" style={{ marginTop: '2px' }}>▲ {fmt(m.projected)} of {m.target} by Sunday on the plan as written</Meta>
           )}
         </div>
       </div>
@@ -139,12 +153,12 @@ function MuscleSection({ m, i, sectionRef }) {
           <div key={r.key} role="listitem" style={css(`display:grid;grid-template-columns:34px minmax(0,1fr) auto;column-gap:10px;align-items:start;padding:9px 0;border-top:1px solid color-mix(in srgb, var(--nv-ink) 5%, transparent)`)}>
             <span style={css(`font:600 11px/1.6 var(--nv-font-ui);letter-spacing:.02em;color:${r.isToday ? 'var(--nv-cy)' : 'var(--nv-ink50)'}`)}>{r.day}</span>
             <div style={css('min-width:0')}>
-              <div style={css(`font:500 14px/1.3 var(--nv-font-ui);color:${r.extra ? 'var(--nv-ink60)' : 'var(--nv-ink)'};overflow-wrap:anywhere`)}>{r.name}</div>
-              <div style={css(`margin-top:2px;font:500 11.5px var(--nv-font-ui);font-variant-numeric:tabular-nums;color:${r.extra ? hue : 'var(--nv-ink50)'}`)}>{r.detail}</div>
+              <div style={css(`font:500 14px/1.3 var(--nv-font-ui);color:${r.extra || r.also ? 'var(--nv-ink60)' : 'var(--nv-ink)'};overflow-wrap:anywhere`)}>{r.name}</div>
+              <div style={css(`margin-top:2px;font:500 11.5px var(--nv-font-ui);font-variant-numeric:tabular-nums;color:${r.also ? `color-mix(in srgb, ${hue} 70%, var(--nv-ink50))` : r.extra ? hue : 'var(--nv-ink50)'}`)}>{r.detail}</div>
             </div>
             <div style={css('display:flex;flex-direction:column;align-items:flex-end;gap:5px;padding-top:4px')}>
-              <span style={css('display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;max-width:92px')}>
-                {r.pips.map((s, k) => <Pip key={k} s={s} size={9} />)}
+              <span style={css(`display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;max-width:92px${r.also ? ';opacity:.55' : ''}`)}>
+                {r.pips.map((s, k) => <Pip key={k} s={s} size={r.also ? 7 : 9} />)}
               </span>
               {r.status && (
                 <span style={css(`font:500 11px var(--nv-font-ui);white-space:nowrap;color:${

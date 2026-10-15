@@ -1,6 +1,7 @@
 import { css } from '../css.js';
 import { TickButton } from '../TickButton.jsx';
 import { muscleVar } from '../muscleHue.js';
+import { AlsoWorks, AlsoSegment } from '../AlsoWorks.jsx';
 import { FormCheckPanel } from '../FormCheckPanel.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { Interactive } from '../Interactive.jsx';
@@ -217,9 +218,12 @@ function RoutinesView({ v }) {
               {v.gymHero.targetsOpen && v.gymHero.targetRows && (
                 <div style={css("margin-top:9px;display:flex;flex-direction:column")}>
                   {v.gymHero.targetRows.map((row, i) => (
-                    <div key={i} style={css(`display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:6px 0${i === 0 ? '' : ';border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)'}`)}>
-                      <span style={css("min-width:0;font:450 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{row.name}</span>
-                      <Meta tone="faint" style={{ flex: 'none' }}>{cap(row.muscle)}</Meta>
+                    <div key={i} style={css(`padding:6px 0${i === 0 ? '' : ';border-top:1px solid color-mix(in srgb, var(--nv-ink) 07%, transparent)'}`)}>
+                      <div style={css("display:flex;align-items:baseline;justify-content:space-between;gap:14px")}>
+                        <span style={css("min-width:0;font:450 13px var(--nv-font-ui);overflow-wrap:anywhere")}>{row.name}</span>
+                        <Meta tone="faint" style={{ flex: 'none' }}>{cap(row.muscle)}</Meta>
+                      </div>
+                      <AlsoWorks muscles={row.also} style={{ marginTop: '4px' }} />
                     </div>
                   ))}
                 </div>
@@ -509,6 +513,7 @@ function RoutineDetailView({ v }) {
                   {e.coachAdded && <Tag tone="gold" title={e.coachAdded.why || ''}>◆ Coach{e.coachAdded.startWeightKg ? ` · start ~${e.coachAdded.startWeightKg}kg` : ''}</Tag>}
                 </div>
                 <Meta as="div" tone="faint" style={{ marginTop: '2px' }}>{e.muscleGroup} · last: {e.lastLabel}</Meta>
+                <AlsoWorks muscles={e.also} style={{ marginTop: '4px' }} />
                 {e.coachEvidence && <Meta as="div" tone="color-mix(in srgb, var(--nv-cy) 70%, transparent)" style={{ marginTop: '2px' }}>Coach: {e.coachEvidence} — next session prefills the step up.</Meta>}
               </div>
               <div style={css("display:flex;align-items:center;gap:4px;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>
@@ -639,6 +644,7 @@ function SessionView({ v }) {
                     style={{ display: 'contents' }}
                   ><Tag tone={e.muscleGroup === 'Mobility' ? 'faint' : 'violet'}>{e.muscleGroup}{e.muscleGroup === 'Mobility' ? ' · not volume' : ''}</Tag></span>
                 )}
+                <AlsoWorks muscles={e.also} />
                 {/* a temporary, this-session-only lift — never part of the
                     program, held apart from anything he actually planned */}
                 {e.todayOnly ? (
@@ -1206,10 +1212,12 @@ function GoalsCoachPane({ v }) {
                     {v.coachWeek.rows.map((r) => (
                       <div key={r.muscle} style={css("display:flex;align-items:center;gap:8px;margin-top:7px")}>
                         <Meta tone={r.goal ? 'ink' : 'faint'} style={{ width: '76px', flex: 'none', fontWeight: 600, ...(r.goal ? { color: muscleVar(r.muscle) } : {}) }}>{cap(r.muscle)}</Meta>
-                        <div style={css("flex:1;height:6px;border-radius:3px;background:rgba(130,175,255,.08);overflow:hidden")}>
-                          <i style={css(`display:block;height:100%;width:${r.pct}%;border-radius:3px;background:linear-gradient(90deg,color-mix(in srgb, ${muscleVar(r.muscle)} 55%, transparent),${muscleVar(r.muscle)});opacity:${r.short ? .6 : 1}`)} />
+                        <div style={css("flex:1;height:6px;border-radius:3px;background:rgba(130,175,255,.08);overflow:hidden;position:relative")}>
+                          {/* solid: his own sets on it; lighter: lifts that also train it, at ½ */}
+                          <i style={css(`display:block;height:100%;width:${r.directPct ?? r.pct}%;border-radius:3px;background:linear-gradient(90deg,color-mix(in srgb, ${muscleVar(r.muscle)} 55%, transparent),${muscleVar(r.muscle)});opacity:${r.short ? .6 : 1}`)} />
+                          <AlsoSegment hue={muscleVar(r.muscle)} from={r.directPct ?? r.pct} width={r.pct - (r.directPct ?? r.pct)} />
                         </div>
-                        <span style={css(`width:44px;text-align:right;font:var(--nv-micro-m);color:${r.short ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}>{r.sets}/{r.target}</span>
+                        <span style={css(`width:44px;text-align:right;font:var(--nv-micro-m);color:${r.short ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}>{r.label ?? r.sets}/{r.target}</span>
                       </div>
                     ))}
                     {v.coachWeek.more > 0 && <Meta as="div" tone="faint" style={{ marginTop: '6px', textTransform: 'none', letterSpacing: 0 }}>and {v.coachWeek.more} more on Today</Meta>}

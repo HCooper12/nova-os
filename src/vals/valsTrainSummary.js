@@ -334,6 +334,7 @@ export function valsTrainSummary(app, ctx, v) {
         id: e.exerciseId,
         name: e.name,
         muscle: e.muscleGroup || null,
+        also: e.also || [],
         hue: muscleVar(e.muscleGroup),
         scheme: `${e.targetSets} × ${reps}${e.targetUnit === 'sec' ? ' s' : ''}`,
         last: !last ? 'not yet done' : bodyweight || !top ? `last ${last[0].reps}${e.targetUnit === 'sec' ? ' s' : ' reps'}` : `last ${top} kg`,

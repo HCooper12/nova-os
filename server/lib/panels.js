@@ -1,4 +1,5 @@
 import { loadExerciseLibrary } from './exercises.js';
+import { secondaryFor } from './muscleSecondary.js';
 import { atlasFor } from './data/exerciseAtlas.js';
 import { cuesFor } from './data/exerciseCues.js';
 import { resolveMuscles } from './muscles.js';
@@ -122,6 +123,8 @@ async function buildExercise(vaultPath, name) {
   return {
     name: ex.name,
     muscleGroup: ex.muscleGroup,
+    // what else it trains, each set counting ½ there in his weekly volume
+    secondary: secondaryFor(ex),
     trackingType: ex.trackingType,
     inRoutines,
     recent,

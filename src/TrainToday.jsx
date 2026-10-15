@@ -6,6 +6,8 @@ import { useMemo, useRef, useState } from 'react';
 // overview renders nothing (honest absence, no skeleton fiction).
 import { css } from './css.js';
 import { muscleVar } from './muscleHue.js';
+import { AlsoSegment } from './AlsoWorks.jsx';
+import { formatSets } from './muscleCredit.js';
 import { leaveMs, prefersReducedMotion } from './inboxLeave.js';
 import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
@@ -322,6 +324,9 @@ export function TrainToday({ o, actions, resume, done = null }) {
           </div>
           {o.volume.slice(0, 6).map((v) => {
             const pct = Math.min(100, Math.round((v.sets / v.target) * 100));
+            // solid: sets of lifts filed under this muscle; the lighter part
+            // after it: lifts that also train it, each set at ½ (15 Oct)
+            const directPct = v.direct == null ? pct : Math.min(pct, Math.round((v.direct / v.target) * 100));
             const low = v.goalMuscle && v.sets < v.target && (!shortOnPlan || shortOnPlan.has(v.muscle));
             // the bar wears the muscle's own hue (the figure's, the legend's);
             // a goal muscle carries its name in that hue too, and a short one
@@ -331,7 +336,8 @@ export function TrainToday({ o, actions, resume, done = null }) {
               <div key={v.muscle} style={css('display:flex;align-items:center;gap:8px;margin-top:7px')}>
                 <Meta tone={v.goalMuscle ? 'ink' : 'faint'} style={{ width: '76px', flex: 'none', fontWeight: 600, ...(v.goalMuscle ? { color: hue } : {}) }}>{cap(v.muscle)}</Meta>
                 <div style={css('flex:1;height:8px;border-radius:4px;background:rgba(130,175,255,.08);overflow:hidden;position:relative')}>
-                  <i style={css(`display:block;height:100%;width:${pct}%;border-radius:4px;background:linear-gradient(90deg,color-mix(in srgb, ${hue} 55%, transparent),${hue});opacity:${low ? .6 : 1}`)} />
+                  <i style={css(`display:block;height:100%;width:${directPct}%;border-radius:4px;background:linear-gradient(90deg,color-mix(in srgb, ${hue} 55%, transparent),${hue});opacity:${low ? .6 : 1}`)} />
+                  <AlsoSegment hue={hue} from={directPct} width={pct - directPct} />
                   {/* what he has ticked in THIS session, lit at the head of the
                       bar — the part that is happening right now reads as
                       happening right now */}
@@ -340,7 +346,8 @@ export function TrainToday({ o, actions, resume, done = null }) {
                   )}
                   <span style={css('position:absolute;top:-2px;bottom:-2px;width:2px;background:rgba(232,236,246,.35);left:100%')} />
                 </div>
-                <span style={css(`width:44px;text-align:right;font:var(--nv-micro-m);color:${low ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}>{v.sets}/{v.target}</span>
+                <span style={css(`width:44px;text-align:right;font:var(--nv-micro-m);color:${low ? 'var(--nv-warn)' : 'var(--nv-ink60)'};font-variant-numeric:tabular-nums`)}
+                  title={v.indirect ? `${formatSets(v.direct)} direct + ${formatSets(v.indirect)} indirect at ½` : undefined}>{formatSets(v.sets)}/{v.target}</span>
               </div>
             );
           })}
