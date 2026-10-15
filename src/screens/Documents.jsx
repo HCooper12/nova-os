@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ScreenHead, Eyebrow, Meta, Chip, Rail, TextAction } from '../Controls.jsx';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { CoverTile, KindGlyph } from '../ArtifactCard.jsx';
 import { SkeletonBar } from '../Skeleton.jsx';
 import { AGENT } from '../artifactClient.js';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 
 // DOCUMENTS (28 Sep 2026) — the place he finds everything the agents wrote.
 //
@@ -86,7 +88,7 @@ function Cover({ r, i }) {
 // summary, and who · when · how long. The whole row is the target.
 function Row({ r, i, first }) {
   return (
-    <Interactive as="div" onClick={r.open} haptic="tick" aria-label={`Open ${r.title}`} className="nv-doc-row"
+    <Interactive as="div" data-flip={r.id} onClick={r.open} haptic="tick" aria-label={`Open ${r.title}`} className="nv-doc-row"
       base={{
         position: 'relative', display: 'flex', alignItems: 'center', gap: '14px', minHeight: '64px', padding: '12px 14px', cursor: 'pointer',
         boxShadow: first ? 'none' : 'inset 0 1px 0 color-mix(in srgb, var(--nv-ink) 7%, transparent)',
@@ -164,6 +166,10 @@ export function Documents({ v }) {
   const load = d?.load;
   // the list is read when the screen opens, never at boot
   useEffect(() => { load?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // search → results across every group: matches stack in, misses step out
+  const listRoot = useRef(null);
+  const ids = (d?.groups || []).flatMap((g) => g.rows.map((r) => r.id));
+  useSearchMotion(listRoot, d?.query, ids, { also: d?.filter });
   if (!d) return null;
   let row = 0;
   return (
@@ -181,6 +187,7 @@ export function Documents({ v }) {
       {d.state !== 'offline' && (
         <div style={{ marginTop: '18px' }}>
           <SearchField d={d} />
+          <SearchCount query={d.query} n={ids.length} one="document" />
           <Rail ariaLabel="Filter by agent" gap="8px" style={{ marginTop: '12px', padding: '2px 0' }}>
             {d.filters.map((f) => (
               <Chip key={f.key} onClick={() => d.setFilter(f.key)} active={f.active} tone={f.hue} ariaLabel={`${f.label}${f.count != null ? `, ${f.count}` : ''}`} style={{ flex: 'none' }}>
@@ -219,11 +226,13 @@ export function Documents({ v }) {
         </section>
       )}
 
-      {d.groups.map((g) => (
-        <Group key={g.key} label={g.label}>
-          {g.rows.map((r, i) => <Row key={r.id} r={r} i={row++} first={i === 0} />)}
-        </Group>
-      ))}
+      <div ref={listRoot}>
+        {d.groups.map((g) => (
+          <Group key={g.key} label={g.label}>
+            {g.rows.map((r, i) => <Row key={r.id} r={r} i={row++} first={i === 0} />)}
+          </Group>
+        ))}
+      </div>
 
       {d.state === 'ready' && (
         <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>

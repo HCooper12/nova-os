@@ -1,6 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CountUp } from '../CountUp.jsx';
-import { useFlipList } from '../useFlipList.js';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 import { useSheetDrag } from '../useSheetDrag.js';
 import { useExit } from '../useExit.js';
 import { SwipeRow } from '../SwipeRow.jsx';
@@ -184,6 +185,7 @@ function ShelfBar({ S, V }) {
           <button type="button" onClick={() => S.toggleSearch()}>Cancel</button>
         </div>
       )}
+      {S.ui.search && <SearchCount query={S.ui.q} n={V.shelves.reduce((t, s) => t + s.cards.length, 0)} one="link" />}
       {S.ui.sortOpen && <SortMenu S={S} V={V} anchor={sortRef} />}
     </div>
   );
@@ -319,7 +321,8 @@ function Shelves({ S, V }) {
   const sr = useRef(S);
   useLayoutEffect(() => { sr.current = S; });
   const sig = V.shelves.map((s) => `${s.name}:${s.cards.map((c) => c.key).join(',')}`).join('|') + (V.bought ? `|B:${V.bought.rows.length}` : '');
-  useFlipList(rootRef, sig);
+  // a sort or a new card is the house FLIP; a change of query is search → results
+  useSearchMotion(rootRef, S.ui.q, [], { also: sig });
   const lifted = S.ui.menu?.raw;
   return (
     <div ref={rootRef} className="nv-st-shelves">

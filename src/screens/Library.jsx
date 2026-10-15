@@ -7,6 +7,8 @@ import { useLibraryTint } from '../shelf3d/useLibraryTint.js';
 import { editionFor } from '../shelf3d/edition.js';
 import { artFor, artNow } from '../shelf3d/artPalette.js';
 import { useFlipList } from '../useFlipList.js';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 
 // THE TINT, everywhere it is read. Untinted, this resolves to the theme's own
 // accent, so the fallback IS the current design and there is no second code
@@ -79,6 +81,7 @@ const SHELF_FLIP = { duration: 520, scale: true, dim: 0.75 };
 // a canvas that must never unmount.
 function ChipsRow({ v }) {
   return (
+    <>
       <div style={css('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
         {v.libraryChips.map((c) => (
           <Chip key={c.key} tone={c.active ? 'accent' : 'quiet'} active={c.active} onClick={c.pick}>{cap(c.label)}</Chip>
@@ -113,6 +116,9 @@ function ChipsRow({ v }) {
           ))}
         </div>
       </div>
+      {/* the count that follows the matches as he types (search → results) */}
+      <SearchCount query={v.libraryQuery} n={v.libraryShelf.length} one="source" />
+    </>
   );
 }
 
@@ -166,6 +172,10 @@ function Shelf({ v, fellBack }) {
   const editionOf = useArtEditions(v.libraryShelf);
   const flipRoot = useRef(null);
   useFlipList(flipRoot, v.libraryView, SHELF_FLIP);
+  // search → results on the inner layout, so the view toggle's morph (the
+  // outer root) and a search never drive the same FLIP
+  const searchRoot = useRef(null);
+  useSearchMotion(searchRoot, v.libraryQuery, v.libraryShelf.map((b) => b.id));
   return (
     <>
       <ChipsRow v={v} />
@@ -188,7 +198,7 @@ function Shelf({ v, fellBack }) {
           <Meta tone="faint">3D shelf unavailable on this device</Meta>
         </div>
       )}
-      <div style={spines
+      <div ref={searchRoot} style={spines
         ? css('display:flex;align-items:flex-end;gap:5px;overflow-x:auto;padding:0 2px 0;min-height:300px')
         : css('margin-top:22px;display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:20px 16px;align-items:end')}>
         {v.libraryShelf.map((b) => { const ed = editionOf(b); return (

@@ -13,7 +13,8 @@ import { CrossBars } from './Recipes.jsx';
 import { FIcon } from '../FuelIcon.jsx';
 import { PinnedEditSheet } from '../PinnedEditSheet.jsx';
 import { CountUp } from '../CountUp.jsx';
-import { useFlipList } from '../useFlipList.js';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 
 // THE SUMMARY FUEL PAGE — mockup 59, variation A ("Fuel is the plate"), his
 // pick on 27 Sep 2026. Recipes.jsx returns this under the `summary` style;
@@ -816,9 +817,10 @@ function PickSheet({ s }) {
 function RecipesPage({ page }) {
   const [planFor, setPlanFor] = useState(null);
   // a filter chip moves the recipes to their new places (FLIP) instead of
-  // jumping them there; the search field narrows in place, unanimated
+  // jumping them there; the search field plays search → results: matches
+  // stack in, misses step out, the rest close the gap
   const listRef = useRef(null);
-  useFlipList(listRef, page.scope.filter((f) => f.active).map((f) => f.key).join('|'));
+  useSearchMotion(listRef, page.search, page.rows.map((r) => r.key), { also: page.scope.filter((f) => f.active).map((f) => f.key).join('|') });
   const dict = useDictation(() => page.search || '', (text) => page.setSearch(text), null);
   return (
     <>
@@ -838,6 +840,7 @@ function RecipesPage({ page }) {
             aria-label={dict.on ? 'Stop dictating' : 'Say it'}><FIcon n="mic" /></Interactive>
         )}
       </div>
+      <SearchCount query={page.search} n={page.rows.length} one="recipe" />
       {page.scope.length > 0 && (
         <div className="nv-fs-scope nv-sum-rise" style={{ '--i': 1 }} role="group" aria-label="Which recipes">
           {page.scope.map((f) => (

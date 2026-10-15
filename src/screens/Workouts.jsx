@@ -19,6 +19,9 @@ import { SessionSummary } from './SessionSummary.jsx';
 import { ConsultFlow } from '../motion/ConsultFlow.jsx';
 import { RecordBanner } from '../motion/RecordBanner.jsx';
 import '../motion/recordBanner.css';
+import { useRef } from 'react';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -46,6 +49,9 @@ const setInputStyle = { flex: '1 1 48px', width: 'auto', minWidth: '40px', backg
 
 
 function ExercisePicker({ v }) {
+  // search → results: matches stack in as he types; a muscle chip is a plain FLIP
+  const listRoot = useRef(null);
+  useSearchMotion(listRoot, v.exercisePickerQuery, v.exercisePickerResults.map((r) => r.id), { also: v.exercisePickerMuscle });
   return (
     <div style={css("margin-top:14px;border:1px solid color-mix(in srgb, var(--nv-cy) 18%, transparent);border-radius:12px;padding:16px 18px;background:color-mix(in srgb, var(--nv-cy) 03%, transparent)")}>
       <div style={css("display:flex;justify-content:space-between;align-items:center")}>
@@ -61,6 +67,7 @@ function ExercisePicker({ v }) {
         base="margin-top:12px;width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:8px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
         focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
       />
+      <SearchCount query={v.exercisePickerQuery} n={v.exercisePickerResults.length} one="exercise" />
       <div style={css("margin-top:10px;display:flex;gap:6px;flex-wrap:wrap")}>
         {v.exercisePickerMuscleGroups.map((m) => (
           <Interactive
@@ -77,9 +84,9 @@ function ExercisePicker({ v }) {
           >{m}</Interactive>
         ))}
       </div>
-      <div style={css("margin-top:12px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px")}>
+      <div ref={listRoot} style={css("margin-top:12px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:2px")}>
         {v.exercisePickerResults.map((r) => (
-          <Interactive key={r.id} as="div" onClick={r.onAdd} onLongPress={r.onOpen} title="Tap to add · hold to see the lift" base="cursor:pointer;display:flex;justify-content:space-between;padding:8px 6px;border-radius:6px" hoverStyle="background:rgba(255,255,255,.04)">
+          <Interactive key={r.id} data-flip={r.id} as="div" onClick={r.onAdd} onLongPress={r.onOpen} title="Tap to add · hold to see the lift" base="cursor:pointer;display:flex;justify-content:space-between;padding:8px 6px;border-radius:6px" hoverStyle="background:rgba(255,255,255,.04)">
             <span style={css("font-size:12.5px")}>{r.name}</span>
             <span style={css("font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>{r.muscleGroup}</span>
           </Interactive>

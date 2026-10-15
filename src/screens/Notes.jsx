@@ -1,4 +1,7 @@
+import { useRef } from 'react';
 import { css } from '../css.js';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
 import { Eyebrow, Chip, Meta, isAppleStyle, ScreenHead, Tag, Button, Rail } from '../Controls.jsx';
@@ -6,6 +9,9 @@ const cap = (s) => String(s || '').toLowerCase().replace(/[a-z]/, (c) => c.toUpp
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx
 
 export function Notes({ v }) {
+  // search → results: notes that match stack in as he types; a type chip is a plain FLIP
+  const listRoot = useRef(null);
+  useSearchMotion(listRoot, v.noteQuery, v.noteList.map((n) => n.id), { also: (v.noteFilters || []).filter((f) => f.active).map((f) => f.label).join('|') });
   return (
     <div style={v.wrapNotes} data-screen-label="Notes">
       <div style={css("display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px")}>
@@ -23,6 +29,7 @@ export function Notes({ v }) {
               base="width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
               focusStyle="border-color:color-mix(in srgb, var(--nv-gold) 50%, transparent)"
             />
+            <SearchCount query={v.noteQuery} n={v.noteList.length} one="note" />
             {/* ONE RAIL, NOT A WALL OF EIGHTEEN. The wrapping grid was clipped
                 78px short at 375px, slicing the last row through the glyphs
                 (measured, aesthetic review finding 11). A row of peers scrolls
@@ -37,11 +44,11 @@ export function Notes({ v }) {
               ))}
             </Rail>
           </div>
-          <div style={css("flex:1;overflow-y:auto;padding:0 8px 10px;display:flex;flex-direction:column;gap:2px")}>
+          <div ref={listRoot} style={css("flex:1;overflow-y:auto;padding:0 8px 10px;display:flex;flex-direction:column;gap:2px")}>
             {/* keyed by the note's id: an index key hands one note's node to
                 another when the filter changes, so any motion moves the wrong row */}
             {v.noteList.map((n) => (
-              <Interactive key={n.id} onClick={n.select} onPointerDown={n.warm} base={n.style} hoverStyle="background:rgba(255,255,255,.05)">
+              <Interactive key={n.id} data-flip={n.id} onClick={n.select} onPointerDown={n.warm} base={n.style} hoverStyle="background:rgba(255,255,255,.05)">
                 <div style={css("display:flex;justify-content:space-between;align-items:baseline;gap:8px")}><span style={css("font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{n.title}</span><Tag tone={n.typeColor} style={{ flex: 'none' }}>{n.type}</Tag></div>
                 <Meta as="div" tone="faint" style={{ marginTop: '3px' }}>{n.date}</Meta>
               </Interactive>

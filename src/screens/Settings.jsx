@@ -5,6 +5,8 @@ import { NovaCore } from '../NovaCore.jsx';
 import { edgeDragInProgress } from '../edgeBack.js';
 import { haptic } from '../haptics.js';
 import { searchSettings } from '../settingsModel.js';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 import { lightRow } from '../settingsToast.js';
 import {
   snapshot, playPush, playPop, beginPop, paintPop, settlePop, releasePop, finishRunning, mainEl,
@@ -38,6 +40,9 @@ import {
 function RootPage({ P, open, q, setQ }) {
   const R = P.rows;
   const hits = q.trim() ? searchSettings(q) : null;
+  // search → results: the matching settings stack in as he types
+  const hitsRoot = useRef(null);
+  useSearchMotion(hitsRoot, q, (hits || []).map((h) => `${h.page}-${h.lit}`));
   return (
     <>
       {P.numeral ? <ScreenHead numeral={P.numeral} label="System · Settings" style={{ margin: '0 4px 6px' }} /> : null}
@@ -90,10 +95,10 @@ function RootPage({ P, open, q, setQ }) {
       {hits ? (
         hits.length ? (
           <section className="nv-set-grp">
-            <div className="nv-set-gh"><span style={{ font: '600 var(--t13)/1.2 var(--nv-font-ui)', letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }}>{hits.length === 1 ? '1 setting' : `${hits.length} settings`}</span></div>
-            <div className="nv-set-card nv-set-list">
+            <div className="nv-set-gh"><SearchCount query={q} n={hits.length} one="setting" style={{ display: 'inline-block', margin: 0, textAlign: 'left', font: '600 var(--t13)/1.2 var(--nv-font-ui)', letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--nv-ink60)' }} /></div>
+            <div ref={hitsRoot} className="nv-set-card nv-set-list">
               {hits.map((h) => (
-                <button key={`${h.page}-${h.lit}`} type="button" className="nv-set-row nx nv-set-res" onClick={() => { haptic('tick'); open(h.page, h.lit); }}>
+                <button key={`${h.page}-${h.lit}`} data-flip={`${h.page}-${h.lit}`} type="button" className="nv-set-row nx nv-set-res" onClick={() => { haptic('tick'); open(h.page, h.lit); }}>
                   <span className="nv-set-rt"><span className="nv-set-rl">{h.label}</span><span className="nv-set-rv">{h.page === 'you' ? P.you.name : h.where}</span></span>
                   <Chevron tone="var(--nv-ink40)" size={13} />
                 </button>

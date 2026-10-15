@@ -12,6 +12,8 @@ import { NumberRoll } from '../NumberRoll.jsx';
 import { SkeletonGrid } from '../Skeleton.jsx';
 import { FuelSummary } from './FuelSummary.jsx';
 import { FIcon } from '../FuelIcon.jsx';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 
 // the material pass (6 Sep 2026): labels and controls through Controls.jsx;
 // filled buttons sentence-case in the UI face under the Apple styles
@@ -410,6 +412,11 @@ function RecipesPage({ v }) {
   // the one bar's "say it": on-device dictation straight into the log input
   const dict = useDictation(() => v.foodDescribeValue || '', (text) => v.setFoodDescribeInput(text), null);
   const [manualOpen, setManualOpen] = useState(false);
+  // search → results, on the recipe bank and on the log's recipe picker
+  const bankRoot = useRef(null);
+  useSearchMotion(bankRoot, v.recipeSearch, v.recipeList.map((r) => r.name), { also: (v.recipeFilters || []).filter((f) => f.active).map((f) => f.label).join('|') + (v.recipeFitsOn ? '|fits' : '') });
+  const pickerRoot = useRef(null);
+  useSearchMotion(pickerRoot, v.foodRecipePickerQuery, (v.foodRecipeOptions || []).map((r) => r.id));
   // THE ROTATION RAIL'S OWN ARROWS. The header used to read "‹ › to switch"
   // as an instruction; the arrows are now real controls that move the rail
   // one screenful, which is what the words were asking him to do by hand.
@@ -716,12 +723,13 @@ function RecipesPage({ v }) {
                 placeholder="Search your recipes…"
                 base="width:100%;box-sizing:border-box;background:var(--nv-well);border:1px solid color-mix(in srgb, var(--nv-ink) 12%, transparent);border-radius:9px;padding:9px 13px;color:var(--nv-ink);font-size:12.5px;font-family:var(--nv-font-ui);outline:none"
                 focusStyle="border-color:color-mix(in srgb, var(--nv-good) 50%, transparent)" />
-              <div style={css("margin-top:9px;max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:5px")}>
+              <SearchCount query={v.foodRecipePickerQuery} n={v.foodRecipeOptions.length} one="recipe" />
+              <div ref={pickerRoot} style={css("margin-top:9px;max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:5px")}>
                 {v.foodRecipeOptions.length === 0 && (
                   <div style={css("padding:10px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>No recipes match that.</div>
                 )}
                 {v.foodRecipeOptions.map((r) => (
-                  <Interactive key={r.id} onClick={r.pick}
+                  <Interactive key={r.id} data-flip={r.id} onClick={r.pick}
                     base={{ cursor: 'pointer', padding: '9px 11px', borderRadius: '9px', border: r.active ? '1px solid var(--nv-acc-border)' : '1px solid transparent', background: r.active ? 'var(--nv-acc-bg)' : 'none' }}
                     hoverStyle="background:rgba(255,255,255,.05)">
                     <div style={css("font-size:13px;color:var(--nv-ink)")}>{r.name}</div>
@@ -1026,10 +1034,12 @@ function RecipesPage({ v }) {
       {v.recipeBankNote && (
         <div role="status" style={css("padding:14px 2px;font-size:13px;line-height:1.5;color:color-mix(in srgb, var(--nv-ink) 55%, transparent)")}>{v.recipeBankNote}</div>
       )}
-      <div style={v.gridRecipes}>
+      <SearchCount query={v.recipeSearch} n={v.recipeList.length} one="recipe" />
+      <div ref={bankRoot} style={v.gridRecipes}>
         {v.recipeList.map((r) => (
           <Interactive
             key={r.name}
+            data-flip={r.name}
             onClick={r.open}
             style={r.vtName ? { viewTransitionName: r.vtName } : undefined}
             base="cursor:pointer;border:1px solid var(--nv-edge);border-radius:var(--nv-radius);overflow:hidden;background:var(--nv-glass);box-shadow:inset 0 1px 0 var(--nv-spec),0 14px 34px -20px rgba(0,0,0,.9)"

@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CountUp } from '../CountUp.jsx';
 import { useFlipList } from '../useFlipList.js';
+import { useSearchMotion } from '../motion/useSearchMotion.js';
+import { SearchCount } from '../motion/SearchCount.jsx';
 import { useSheetDrag } from '../useSheetDrag.js';
 import { useExit } from '../useExit.js';
 import { SwipeRow } from '../SwipeRow.jsx';
@@ -1081,13 +1083,15 @@ function LinesPage({ M }) {
     return out;
   }, [rows, V.lines.groups]);
   const rootRef = useRef(null);
-  useFlipList(rootRef, `${q}|${groups.flatMap((g) => g.rows.map((r) => r.id)).join(',')}`);
+  // search → results: lines that match stack in, the rest step out
+  useSearchMotion(rootRef, q, groups.flatMap((g) => g.rows.map((r) => r.id)));
   return (
     <div className="nv-mo-page">
       <PageTop M={M} title="All lines" sub={`${V.monthLabel} · ${V.lines.count} ${V.lines.count === 1 ? 'line' : 'lines'}`} />
       <label className="nv-mo-field search"><MIcon n="search" /><span className="sr">Search lines</span>
         <input value={M.search} onChange={(e) => M.setSearch(e.target.value)} placeholder="Search merchant, category or note" />
       </label>
+      <SearchCount query={q} n={rows ? rows.length : 0} one="line" />
       {V.lines.capNote && !q && <p className="nv-mo-sub quiet">{V.lines.capNote}</p>}
       <section className="nv-sum-card nv-mo-card nv-sum-rise" style={{ '--i': 1 }} aria-label="Every line">
         <div ref={rootRef}>

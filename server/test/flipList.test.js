@@ -104,7 +104,8 @@ test('Library moved onto the shared hook, with its own size morph kept', () => {
 
 test("Fuel's recipe filter moves its rows, keyed by the same id React keys them by", () => {
   const fuel = read('src/screens/FuelSummary.jsx');
-  assert.match(fuel, /useFlipList\(listRef, page\.scope\.filter\(\(f\) => f\.active\)/);
+  // since 15 Oct the same one FLIP, through the search hook: the chip is `also`
+  assert.match(fuel, /useSearchMotion\(listRef, page\.search, page\.rows\.map\(\(r\) => r\.key\), \{ also: page\.scope\.filter\(\(f\) => f\.active\)/);
   assert.match(fuel, /<div ref=\{listRef\} className="nv-sum-card nv-fs-rlist/);
   assert.match(fuel, /<div key=\{r\.key\} data-flip=\{r\.key\}>/);
 });
