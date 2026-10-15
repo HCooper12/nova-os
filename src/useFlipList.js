@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
+import { spring } from './motion/springs.js';
+import { SEARCH, SEARCH_IN, SEARCH_OUT, enterDelay, animates } from './motion/searchMotion.js';
 
 // LISTS THAT FIND THEIR PLACE (9 Oct 2026, the motion audit's third gap).
 // Lifted out of Library's useShelfFlip so every list that filters or
@@ -34,19 +36,31 @@ import { useLayoutEffect, useRef } from 'react';
 //   - reduced motion: no movement and no height run, a short opacity fade
 //     on what changed and on what left
 //   - every read happens before any write, so one layout pass serves all
+//   - SEARCH → RESULTS (15 Oct 2026, the approved motion set, scene 10).
+//     A list behind a search passes `search: <the query>` (through
+//     src/motion/useSearchMotion.js). A trigger that changed the query plays
+//     the search choreography instead of the plain one: rows that stop
+//     matching step out (opacity, scale .96, 180 ms ease-in), then the ones
+//     that stay close the gap (snappy spring) and the new matches stack in
+//     from 8 px above (bouncy spring, 45 ms apart). Only the first twelve on
+//     screen animate; the rest appear. A keystroke mid-motion cancels and
+//     starts every row from where it is drawn, so nothing ever queues. An
+//     emptied field, and reduced motion, put the list at rest instantly. A
+//     trigger that did not change the query (a filter chip) stays plain.
 export const FLIP_MS = 280;
 export const FLIP_EASE = 'cubic-bezier(.32,.72,0,1)';
 export const FADE_MS = 160;
 export const EXIT_MS = 200;
 const EXIT_MAX = 12;
 
-export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLIP_EASE, scale = false, dim = 1, attr = 'flip', height = true, exits = true } = {}) {
+export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLIP_EASE, scale = false, dim = 1, attr = 'flip', height = true, exits = true, search } = {}) {
   const prev = useRef(null);           // Map id -> resting box, relative to root
+  const lastSearch = useRef(undefined); // the query the rows were last laid out for
   const prevH = useRef(0);             // the root's resting height with them
   const anims = useRef(new Map());     // id -> running Animation
   const kept = useRef(null);           // the root's own inline styles, while a height run borrows them
   const opts = useRef(null);
-  opts.current = { duration, easing, scale, dim, attr, height, exits };
+  opts.current = { duration, easing, scale, dim, attr, height, exits, search };
 
   // the resting positions, kept current between triggers. The root can mount
   // after the hook does (a list that appears once it has rows), so each
@@ -61,6 +75,20 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
     w.ro = null;
     prev.current = rootEl ? measure(rootEl, opts.current.attr) : null;
     prevH.current = rootEl ? rootEl.offsetHeight : 0;
+    lastSearch.current = opts.current.search;
+    // a results list that appears with matches in it (Settings swaps its
+    // page for one) stacks them in, as if each had just arrived
+    if (rootEl && opts.current.search && prev.current && !reducedMotion()) {
+      const view = viewOf(rootEl);
+      const bo = spring('bouncy');
+      let slot = 0;
+      for (const [id, it] of prev.current) {
+        if (!onScreen(it, view)) continue;
+        if (!animates(slot)) break;
+        playInto(anims.current, id, it.el, SEARCH_IN, { duration: bo.ms, easing: bo.easing, delay: enterDelay(slot), fill: 'backwards' });
+        slot += 1;
+      }
+    }
     if (!rootEl || typeof ResizeObserver !== 'function') return;
     w.ro = new ResizeObserver(() => {
       if (w.el && !anyRunning(anims.current)) { prev.current = measure(w.el, opts.current.attr); prevH.current = w.el.offsetHeight; }
@@ -75,8 +103,10 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
     lastTrigger.current = trigger;
     const rootEl = rootRef.current;
     if (!rootEl || !prev.current || watched.current.el !== rootEl) return;
-    const o = opts.current;
+    let o = opts.current;
     const before = prev.current;
+    const searching = o.search !== undefined && o.search !== lastSearch.current;
+    if (o.search !== undefined) lastSearch.current = o.search;
     // READ: the root's height as drawn (mid-run if a height move is going),
     // then its new resting height, the new resting boxes, the root on
     // screen, and where each moving item is drawn right now
@@ -91,16 +121,53 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
       const it = after.get(id);
       if (a.playState === 'running' && it) {
         const r = it.el.getBoundingClientRect();
-        drawn.set(id, { dx: r.left - (rootBox.left + it.x), dy: r.top - (rootBox.top + it.y) });
+        drawn.set(id, { dx: r.left - (rootBox.left + it.x), dy: r.top - (rootBox.top + it.y), op: searching ? Number(getComputedStyle(it.el).opacity) : 1 });
       }
     }
     const view = { top: -rootBox.top, bottom: (typeof window !== 'undefined' ? window.innerHeight : 1e6) - rootBox.top };
     const reduce = reducedMotion();
+    // an emptied search field, or reduced motion: the list is simply at rest
+    if (searching && (!o.search || reduce)) {
+      for (const a of [...anims.current.values()]) { try { a.cancel(); } catch { /* gone */ } }
+      anims.current.clear();
+      prev.current = after;
+      prevH.current = toH;
+      return;
+    }
     const leaving = o.exits ? exitsOf(before, after, view) : [];
     const rootStyle = leaving.length && typeof getComputedStyle === 'function' ? getComputedStyle(rootEl) : null;
     const inset = { x: rootEl.clientLeft || 0, y: rootEl.clientTop || 0 };
     // WRITE
-    for (const [id, it] of after) {
+    if (searching) {
+      // the exits play first; the stayers and the arrivals wait for them
+      const wait = leaving.length ? SEARCH.exitMs : 0;
+      const sn = spring('snappy');
+      const bo = spring('bouncy');
+      o = { ...o, duration: sn.ms, easing: sn.easing, wait };
+      let slot = 0;
+      let arriving = 0;
+      for (const [id, it] of after) {
+        const was = before.get(id);
+        const k = onScreen(it, view) ? slot++ : SEARCH.cap;
+        const relaid = !was || Math.abs(was.x - it.x) > 0.5 || Math.abs(was.y - it.y) > 0.5;
+        if (!relaid) continue; // same slot: whatever it is doing, it carries on
+        const running = anims.current.get(id);
+        if (running) { try { running.cancel(); } catch { /* gone */ } anims.current.delete(id); }
+        if (!animates(k)) continue; // past the twelfth on screen: it simply appears
+        if (!was) {
+          play(id, it.el, SEARCH_IN, { duration: bo.ms, easing: bo.easing, delay: enterDelay(arriving++, wait), fill: 'backwards' });
+          continue;
+        }
+        const live = drawn.get(id);
+        const dx = was.x + (live?.dx || 0) - it.x;
+        const dy = was.y + (live?.dy || 0) - it.y;
+        if (Math.abs(dx) <= 0.5 && Math.abs(dy) <= 0.5) continue;
+        const from = { transform: `translate(${dx}px, ${dy}px)` };
+        const to = { transform: 'none' };
+        if (live && live.op < 1) { from.opacity = live.op; to.opacity = 1; }
+        play(id, it.el, [from, to], { duration: sn.ms, easing: sn.easing, delay: wait, fill: 'backwards' });
+      }
+    } else for (const [id, it] of after) {
       const was = before.get(id);
       const live = drawn.get(id);
       const running = anims.current.get(id);
@@ -140,9 +207,9 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
         rootEl.appendChild(ghost);
         // gone by 60% of the run: frame by frame (9 Oct) a slower fade left
         // its words over the row sliding into its slot for ~100 ms
-        const frames = reduce ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.98)', offset: 0.6 }, { opacity: 0, transform: 'scale(.97)' }];
+        const frames = searching ? SEARCH_OUT : reduce ? [{ opacity: 1 }, { opacity: 0 }] : [{ opacity: 1, transform: 'scale(1)' }, { opacity: 0, transform: 'scale(.98)', offset: 0.6 }, { opacity: 0, transform: 'scale(.97)' }];
         try {
-          const a = ghost.animate(frames, { duration: reduce ? FADE_MS : EXIT_MS, easing: 'ease-out', fill: 'forwards' });
+          const a = ghost.animate(frames, searching ? { duration: SEARCH.exitMs, easing: 'ease-in', fill: 'forwards' } : { duration: reduce ? FADE_MS : EXIT_MS, easing: 'ease-out', fill: 'forwards' });
           anims.current.set(`${EXIT}${id}`, a);
           const gone = () => { ghost.remove(); if (anims.current.get(`${EXIT}${id}`) === a) anims.current.delete(`${EXIT}${id}`); settled(); };
           a.finished.then(gone, gone);
@@ -159,6 +226,8 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
       rootEl.style.boxSizing = 'border-box';
       try {
         const a = rootEl.animate([{ height: `${fromH}px` }, { height: `${toH}px` }], { duration: o.duration, easing: o.easing });
+        // a search's card holds its height while the exits play, then travels
+        if (o.wait) a.effect?.updateTiming?.({ delay: o.wait, fill: 'backwards' });
         anims.current.set(HEIGHT, a);
         const done = () => {
           if (anims.current.get(HEIGHT) === a) anims.current.delete(HEIGHT);
@@ -170,17 +239,25 @@ export function useFlipList(rootRef, trigger, { duration = FLIP_MS, easing = FLI
     prev.current = after;
     prevH.current = toH;
 
-    function play(id, el, frames, timing) {
-      if (typeof el.animate !== 'function') return;
-      try {
-        const a = el.animate(frames, timing);
-        anims.current.set(id, a);
-        const done = () => { if (anims.current.get(id) === a) anims.current.delete(id); };
-        a.finished.then(done, done);
-      } catch { /* motion is never a requirement */ }
-    }
+    function play(id, el, frames, timing) { playInto(anims.current, id, el, frames, timing); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger]);
+}
+
+function playInto(map, id, el, frames, timing) {
+  if (typeof el.animate !== 'function') return;
+  try {
+    const a = el.animate(frames, timing);
+    map.set(id, a);
+    const done = () => { if (map.get(id) === a) map.delete(id); };
+    a.finished.then(done, done);
+  } catch { /* motion is never a requirement */ }
+}
+
+// the window's band, in the root's own coordinates
+function viewOf(rootEl) {
+  const top = rootEl.getBoundingClientRect().top;
+  return { top: -top, bottom: (typeof window !== 'undefined' ? window.innerHeight : 1e6) - top };
 }
 
 const HEIGHT = '\u0000height';
