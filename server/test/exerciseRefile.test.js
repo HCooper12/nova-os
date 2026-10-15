@@ -21,7 +21,11 @@ const { getRecord } = await import('../lib/inboxStore.js');
 const { weeklyMuscleVolume } = await import('../lib/trainingAnalytics.js');
 
 await mkdir(path.join(vault, 'Wiki/Health'), { recursive: true });
-const curl = await addCustomExercise(vault, 'EZ-Bar Reverse Curl', 'Biceps', 'weight_reps');
+// his case was the EZ-bar reverse curl; the audit (15 Oct 2026) now files
+// that one under Forearms by itself, so the mechanic is pinned on a lift the
+// audit does not hold: unaudited, it counts for nothing until his re-file,
+// which is his own mapping
+const curl = await addCustomExercise(vault, 'Zottman Curl', 'Biceps', 'weight_reps');
 const groupOf = async () => (await loadExerciseLibrary(vault)).exercises.find((e) => e.id === curl.id).muscleGroup;
 const WEDNESDAY = [{ date: '2026-09-23', exercises: [{ exerciseId: curl.id, sets: [{ weight: 30, reps: 8 }, { weight: 30, reps: 5 }, { weight: 30, reps: 4 }] }] }];
 
@@ -31,21 +35,24 @@ test.after(async () => {
 });
 
 test('his case: the reverse curl moves to Forearms, and its logged sets move with it', async () => {
-  const before = weeklyMuscleVolume(WEDNESDAY, (await loadExerciseLibrary(vault)).exercises)[0].groups;
-  assert.deepEqual(before, { Biceps: 3 });
+  const [before] = weeklyMuscleVolume(WEDNESDAY, (await loadExerciseLibrary(vault)).exercises);
+  assert.deepEqual(before.groups, {}, 'unaudited: no muscle credited');
+  assert.deepEqual(before.uncounted, { sets: 3, lifts: [{ name: 'Zottman Curl', sets: 3 }] }, 'and said, not hidden');
 
   const out = await refileExercise(vault, curl.id, 'Forearms');
   assert.equal(out.before, 'Biceps');
   assert.equal(await groupOf(), 'Forearms');
   const after = weeklyMuscleVolume(WEDNESDAY, (await loadExerciseLibrary(vault)).exercises)[0].groups;
-  // filed under Forearms, a reverse curl also trains the biceps at ½ a set
-  // each (lib/muscleSecondary.js, 15 Oct); under Biceps it had nothing to add
-  assert.deepEqual(after, { Forearms: 3, Biceps: 1.5 }, 'the week recounts from the library, no session rewritten');
+  // his re-file is his mapping: it counts now, with no secondaries he did not give
+  assert.deepEqual(after, { Forearms: 3 }, 'the week recounts from the library, no session rewritten');
 
   const rec = await getRecord(out.record.id);
   assert.equal(rec.status, 'filed');
-  assert.match(rec.destination, /EZ-Bar Reverse Curl filed under Forearms \(was Biceps\)/);
-  assert.deepEqual(rec.undoData, { kind: 'exercise-muscle-group', exerciseId: curl.id, muscleGroup: 'Biceps' });
+  assert.match(rec.destination, /Zottman Curl filed under Forearms \(was Biceps\)/);
+  assert.equal(rec.undoData.kind, 'exercise-muscle-group');
+  assert.equal(rec.undoData.muscleGroup, 'Biceps');
+  // the entry exactly as it was stored, so undo restores it rather than overriding it
+  assert.deepEqual(rec.undoData.prior, { id: curl.id, name: 'Zottman Curl', muscleGroup: 'Biceps', trackingType: 'weight_reps' });
 });
 
 test('one Undo in the Inbox puts it back', async () => {

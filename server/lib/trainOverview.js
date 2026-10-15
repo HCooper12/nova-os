@@ -10,6 +10,7 @@ import { loadRoutines, ACTIVE_REST } from './workouts.js';
 import { loadRecentDays } from './healthData.js';
 import { computeDeloadSignal } from './coach.js';
 import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf, isWorkingSet, creditsById } from './trainingAnalytics.js';
+import { isUnaudited } from './muscleSecondary.js';
 import { plannedWeek } from './plannedWeek.js';
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
@@ -19,10 +20,21 @@ const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', '
 // point (his ask) is that under-volumed goal muscles get flagged loudly.
 const BASE_TARGET = 10;
 const GOAL_TARGET = 12;
+// THE OLD WORDS IN HIS GOAL, CARRIED INTO THE NEW GROUPS (15 Oct 2026). His
+// goal text says "grow the arms (triceps, biceps, shoulders)", written when
+// Shoulders was one group with one target. Read now: "shoulders" means the
+// side and rear delts, the heads that need direct work to grow (the front
+// delts already take a pressing day's sets and half of every bench), and
+// "back" means the lats and the upper back, the muscles rows and pulls build
+// (traps and erectors grow from shrugs and hinges, not from a back goal).
+// Nothing in his goal page is rewritten; this is how the old words read.
+const SHOULDER_GOAL = ['Side Delts', 'Rear Delts'];
+const BACK_GOAL = ['Lats', 'Upper Back'];
 const GOAL_WORDS = {
-  arm: ['Triceps', 'Biceps', 'Shoulders'], arms: ['Triceps', 'Biceps', 'Shoulders'],
-  chest: ['Chest'], back: ['Back'], leg: ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
-  legs: ['Quads', 'Hamstrings', 'Glutes', 'Calves'], shoulder: ['Shoulders'], shoulders: ['Shoulders'],
+  arm: ['Triceps', 'Biceps', ...SHOULDER_GOAL], arms: ['Triceps', 'Biceps', ...SHOULDER_GOAL],
+  chest: ['Chest'], back: BACK_GOAL,
+  leg: ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
+  legs: ['Quads', 'Hamstrings', 'Glutes', 'Calves'], shoulder: SHOULDER_GOAL, shoulders: SHOULDER_GOAL, delts: SHOULDER_GOAL,
   glutes: ['Glutes'], abs: ['Abs'], core: ['Abs'],
 };
 
@@ -194,6 +206,9 @@ export async function buildTrainOverview(vaultPath) {
   // is the credited amount (half per indirect set), `liveDirect` the sets he
   // ticked on lifts filed under this muscle (the "N live" count).
   const creditsOf = creditsById(exercises);
+  const unauditedIds = new Map((exercises || []).filter(isUnaudited).map((e) => [e.id, e.name]));
+  // the week's sets on unaudited lifts, filed and live: never counted, never hidden
+  const uncounted = { sets: vol.uncounted?.sets || 0, lifts: (vol.uncounted?.lifts || []).map((l) => ({ ...l })) };
   let liveSession = null; // read once: the bars and the planned week fold in the same draft
   try {
     const { getSessionDraft } = await import('./sessionDraft.js');
@@ -201,10 +216,18 @@ export async function buildTrainOverview(vaultPath) {
     const ws = draft?.workoutSession;
     liveSession = ws || null;
     for (const ex of ws?.exercises || []) {
-      const credits = creditsOf.get(ex.exerciseId) || [{ muscle: 'Other', credit: 1 }];
-      if (credits[0].muscle === 'Mobility') continue;
       const ticked = (ex.sets || []).filter((x) => x.done && isWorkingSet(x)).length;
       if (!ticked) continue;
+      // an unaudited lift's ticked sets are left out, and said to be
+      if (unauditedIds.has(ex.exerciseId)) {
+        uncounted.sets += ticked;
+        const name = unauditedIds.get(ex.exerciseId);
+        const l = uncounted.lifts.find((x) => x.name === name);
+        if (l) l.sets += ticked; else uncounted.lifts.push({ name, sets: ticked });
+        continue;
+      }
+      const credits = creditsOf.get(ex.exerciseId) || [{ muscle: 'Other', credit: 1 }];
+      if (!credits.length) continue; // Mobility, Full Body, Grip: never volume
       for (const { muscle, credit } of credits) {
         let row = volume.find((v) => v.muscle === muscle);
         if (!row) { row = rowOf(muscle); volume.push(row); }
@@ -329,6 +352,9 @@ export async function buildTrainOverview(vaultPath) {
       streak: streaks?.workoutStreak ?? null,
     },
     volume,
+    // "N sets on unaudited lifts not counted" (src/muscleCredit.js
+    // uncountedLine): the bars and the week sheet say it under the figures
+    uncounted,
     week,
   };
 }

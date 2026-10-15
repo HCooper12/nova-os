@@ -1,19 +1,28 @@
 import matter from 'gray-matter';
 import { localDateISO } from './localDate.js';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
-import { tableSecondary, NO_SECONDARY } from './muscleSecondary.js';
+import {
+  resolveMuscles, auditedRow, suggestPrimary, MUSCLE_GROUPS, canonicalGroup, legacyGroup, NO_SECONDARY,
+} from './muscleSecondary.js';
 
 export const LIBRARY_REL_PATH = 'Wiki/Health/Exercise Library.md';
 
-export const MUSCLE_GROUPS = [
-  'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps',
-  'Quads', 'Hamstrings', 'Glutes', 'Calves', 'Abs', 'Forearms', 'Full Body',
-  // Mobility is a first-class training dimension, not a muscle: hip openers,
-  // thoracic work, Spider-Man lunges. Its sets are tracked (adherence
-  // matters) but excluded from hypertrophy volume — stretching is not a
-  // hard set and must never inflate a muscle's weekly count.
-  'Mobility',
-];
+// THE GROUPS (src/muscleTaxonomy.js, 15 Oct 2026): the delt heads and the
+// four back groups replaced Shoulders and Back; Adductors and Abductors
+// joined; Mobility, Full Body and Grip are filings that never take
+// hypertrophy volume (stretching is not a hard set and must never inflate a
+// muscle's weekly count). Re-exported here because every server reader has
+// always imported the list from the library.
+export { MUSCLE_GROUPS };
+
+// A group named on the way IN: a current name as is; an old one ('Shoulders',
+// 'Back', from a client still on the old build or a card raised before the
+// split) narrowed by the exercise's name to one head of its family.
+function groupIn(name, group) {
+  const g = canonicalGroup(group);
+  if (g) return g;
+  return legacyGroup(group) ? suggestPrimary(name, group) : null;
+}
 
 // How a set of this exercise is logged. "reps" fields elsewhere in the app
 // (session sets, exercise-state carryover) double as seconds when the
@@ -97,8 +106,12 @@ const TRACKING_TYPE_LABEL = {
 
 function bodyFor(exercises) {
   const lines = ['# Exercise Library', '', 'Managed via Nova OS. Used to build workout routines in Train.', ''];
-  for (const group of MUSCLE_GROUPS) {
-    const inGroup = exercises.filter((e) => e.muscleGroup === group);
+  // the readable list follows the audited filing (an old 'Back' entry is
+  // listed under the group it counts for); anything else is never dropped
+  const groupOf = (e) => resolveMuscles(e).muscleGroup;
+  const other = [...new Set(exercises.map(groupOf).filter((g) => !MUSCLE_GROUPS.includes(g)))];
+  for (const group of [...MUSCLE_GROUPS, ...other]) {
+    const inGroup = exercises.filter((e) => groupOf(e) === group);
     if (!inGroup.length) continue;
     lines.push(`## ${group}`, '');
     for (const ex of inGroup) {
@@ -115,7 +128,9 @@ function seedExercises() {
   return SEED_EXERCISES.map(([name, muscleGroup, trackingType]) => {
     const id = uniqueId(slugify(name), taken);
     taken.add(id);
-    return { id, name, muscleGroup, trackingType: trackingType || DEFAULT_TRACKING_TYPE };
+    // a fresh library files each seed under its audited primary, so a new
+    // vault never starts on the old Shoulders/Back names
+    return { id, name, muscleGroup: auditedRow(id)?.primary || muscleGroup, trackingType: trackingType || DEFAULT_TRACKING_TYPE };
   });
 }
 
@@ -159,8 +174,9 @@ export function writeLibraryRaw(vaultPath, raw) {
 // Pure halves of the two writers below, for planners that must compute a
 // change without writing it. Same rules: a name already in the library is
 // that exercise (never a duplicate); an id is minted unique.
-export function addExerciseIn(exercises, name, muscleGroup, trackingType) {
-  if (!MUSCLE_GROUPS.includes(muscleGroup)) throw new Error('invalid muscle group');
+export function addExerciseIn(exercises, name, filedGroup, trackingType) {
+  const muscleGroup = groupIn(name, filedGroup);
+  if (!muscleGroup) throw new Error('invalid muscle group');
   const tt = trackingType || DEFAULT_TRACKING_TYPE;
   if (!TRACKING_TYPES.includes(tt)) throw new Error('invalid tracking type');
   const dupe = exercises.find((e) => e.name.toLowerCase() === String(name).toLowerCase());
@@ -170,16 +186,38 @@ export function addExerciseIn(exercises, name, muscleGroup, trackingType) {
   return { exercises: [...exercises, exercise], exercise, created: true };
 }
 
+// A RE-FILE IS HIS OWN MAPPING (15 Oct 2026). The audited table decides an
+// exercise's primary at read time, so a re-file that only changed the old
+// `muscleGroup` would be silently overruled by the table. It writes `primary`
+// too, which is the library's override. `before` is the group it counted
+// for; `prior` is the entry exactly as stored, for an undo that puts it back.
 export function setMuscleGroupIn(exercises, id, muscleGroup) {
-  const group = String(muscleGroup || '').trim();
-  if (!MUSCLE_GROUPS.includes(group)) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
   const idx = exercises.findIndex((e) => e.id === id);
   if (idx === -1) throw new Error('no such exercise');
-  const before = exercises[idx].muscleGroup || 'Other';
-  if (before === group) return { exercises, exercise: exercises[idx], before, unchanged: true };
+  const group = groupIn(exercises[idx].name, String(muscleGroup || '').trim());
+  if (!group) throw new Error(`muscleGroup must be one of: ${MUSCLE_GROUPS.join(', ')}`);
+  const prior = storedForm(exercises[idx]);
+  const before = resolveMuscles(exercises[idx]).muscleGroup || 'Other';
+  if (before === group) return { exercises, exercise: exercises[idx], before, prior, unchanged: true };
   const next = [...exercises];
-  next[idx] = { ...next[idx], muscleGroup: group };
-  return { exercises: next, exercise: next[idx], before, unchanged: false };
+  next[idx] = { ...prior, muscleGroup: group, primary: group };
+  return { exercises: next, exercise: next[idx], before, prior, unchanged: false };
+}
+
+// HIS YES TO AN AUDIT CARD (lib/exerciseAudit.js): the approved primary and
+// secondaries written onto the entry as his override, from then on counted
+// like any audited lift. Pure; the writer below takes the lock.
+export function setAuditIn(exercises, id, { primary, secondary = [] }) {
+  const idx = exercises.findIndex((e) => e.id === id);
+  if (idx === -1) throw new Error('no such exercise');
+  const p = canonicalGroup(primary);
+  if (!p) throw new Error(`primary must be one of: ${MUSCLE_GROUPS.join(', ')}`);
+  const sec = [...new Set((secondary || []).map((m) => canonicalGroup(m)))];
+  if (sec.some((m) => !m)) throw new Error(`secondary muscles must be among: ${MUSCLE_GROUPS.join(', ')}`);
+  const prior = storedForm(exercises[idx]);
+  const next = [...exercises];
+  next[idx] = { ...prior, muscleGroup: p, primary: p, secondary: NO_SECONDARY.has(p) ? [] : sec.filter((m) => m !== p && !NO_SECONDARY.has(m)) };
+  return { exercises: next, exercise: next[idx], prior };
 }
 
 async function getExercises(vaultPath) {
@@ -190,33 +228,33 @@ async function getExercises(vaultPath) {
   return seeded;
 }
 
-// WHAT ELSE EACH LIFT TRAINS (15 Oct 2026), resolved at read time like the
-// muscle group's re-filing: his own `secondary: [..]` on a library entry wins
-// (validated against MUSCLE_GROUPS; an empty list means "none"), else the
-// name table (lib/muscleSecondary.js). Nothing is written to the vault: the
-// resolved list rides on the returned copy, and `secondarySource` says which
-// it was so a writer handed this copy stores only a real override.
-export function resolveSecondary(e) {
-  const primary = String(e?.muscleGroup || '').trim();
-  if (Array.isArray(e?.secondary)) {
-    const own = [...new Set(e.secondary.map((m) => String(m || '').trim()))]
-      .filter((m) => MUSCLE_GROUPS.includes(m) && m !== primary && !NO_SECONDARY.has(m));
-    return { ...e, secondary: NO_SECONDARY.has(primary) ? [] : own, secondarySource: 'override' };
-  }
-  return { ...e, secondary: tableSecondary(e?.name, primary), secondarySource: 'table' };
+// WHAT EACH LIFT TRAINS, resolved at read time (15 Oct 2026): his own
+// approved `primary` / `secondary` on the entry, else the audited table
+// (src/muscleAudit.js), else UNAUDITED (`audit: 'pending'`), which counts
+// nothing until he approves a mapping. The audited primary also RE-FILES the
+// entry (an old 'Back' row reads as Lats or Upper Back), so every past set
+// moves with it; nothing is written to the vault. `filedAs` keeps the stored
+// filing and the *Source fields say where each part came from, so a writer
+// handed this copy stores exactly what was there.
+export function resolveLibraryEntry(e) {
+  return resolveMuscles(e, { strict: true });
 }
+// the name phase 1 shipped under
+export const resolveSecondary = resolveLibraryEntry;
 
-// the inverse, for every writer: a table-derived list is never persisted (a
-// rule change must keep reaching every lift), an override always is
+// the inverse, for every writer: the derived fields never reach the vault,
+// the filing goes back as it was stored, and a secondary list is written
+// only when it was his own
 function storedForm(e) {
   if (!e || typeof e !== 'object') return e;
-  const { secondary, secondarySource, ...rest } = e;
-  if (secondarySource === 'table') return rest;
-  return secondary === undefined ? rest : { ...rest, secondary };
+  const { secondary, secondarySource, primarySource: _primarySource, audit: _audit, filedAs, ...rest } = e;
+  if (filedAs !== undefined) rest.muscleGroup = filedAs;
+  if (secondary !== undefined && (secondarySource === undefined || secondarySource === 'override')) rest.secondary = secondary;
+  return rest;
 }
 
 export async function loadExerciseLibrary(vaultPath) {
-  return { exercises: (await getExercises(vaultPath)).map(resolveSecondary), muscleGroups: MUSCLE_GROUPS, trackingTypes: TRACKING_TYPES };
+  return { exercises: (await getExercises(vaultPath)).map(resolveLibraryEntry), muscleGroups: MUSCLE_GROUPS, trackingTypes: TRACKING_TYPES };
 }
 
 let writeLock = Promise.resolve();
@@ -239,8 +277,19 @@ export async function setExerciseMuscleGroup(vaultPath, id, muscleGroup) {
   return withWriteLock(async () => {
     const result = setMuscleGroupIn(await getExercises(vaultPath), id, muscleGroup);
     if (!result.unchanged) await persist(vaultPath, result.exercises);
-    const { exercise, before, unchanged } = result;
-    return { exercise, before, unchanged };
+    const { exercise, before, unchanged, prior } = result;
+    return { exercise, before, unchanged, prior };
+  });
+}
+
+// His approved mapping for one exercise, written as the library's override
+// (lib/exerciseAudit.js files the card; this is the write its yes makes).
+// `prior` is the entry exactly as it was, which restoreExerciseRecords puts back.
+export async function setExerciseAudit(vaultPath, id, mapping) {
+  return withWriteLock(async () => {
+    const r = setAuditIn(await getExercises(vaultPath), id, mapping);
+    await persist(vaultPath, r.exercises);
+    return { exercise: resolveLibraryEntry(r.exercise), prior: r.prior };
   });
 }
 
@@ -296,7 +345,7 @@ export async function setExerciseKnowledge(vaultPath, id, { cues, resourceUrl })
 
 export async function addCustomExercise(vaultPath, name, muscleGroup, trackingType) {
   // validate before taking the lock, as before
-  if (!MUSCLE_GROUPS.includes(muscleGroup)) throw new Error('invalid muscle group');
+  if (!groupIn(name, muscleGroup)) throw new Error('invalid muscle group');
   if (!TRACKING_TYPES.includes(trackingType || DEFAULT_TRACKING_TYPE)) throw new Error('invalid tracking type');
   return withWriteLock(async () => {
     const { exercises, exercise, created } = addExerciseIn(await getExercises(vaultPath), name, muscleGroup, trackingType);
@@ -322,7 +371,7 @@ export async function applyExerciseResearch(vaultPath, { updates = [], additions
       if (idx === -1) continue;
       priors[u.id] ??= exercises[idx];
       const next = { ...exercises[idx], research: u.research };
-      if (u.muscleGroup && MUSCLE_GROUPS.includes(u.muscleGroup)) next.muscleGroup = u.muscleGroup;
+      if (u.muscleGroup && groupIn(next.name, u.muscleGroup)) next.muscleGroup = groupIn(next.name, u.muscleGroup);
       if (u.trackingType && TRACKING_TYPES.includes(u.trackingType)) next.trackingType = u.trackingType;
       exercises[idx] = next;
     }

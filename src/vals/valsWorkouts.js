@@ -10,6 +10,7 @@ import { vtStyle } from '../vtName.js';
 import { doneTodayCard, dayDoneMarks } from '../doneToday.js';
 import { liveRecord } from '../sessionSummaryFacts.js';
 import { secondaryFor } from '../muscleCredit.js';
+import { NON_VOLUME } from '../muscleTaxonomy.js';
 
 // The next N days (today → today+N) as {iso, short} for day pickers.
 function nextDays(n) {
@@ -438,10 +439,15 @@ export function valsWorkouts(app, ctx) {
   const TRACKING_TYPE_LABEL = { weight_reps: 'Weight × Reps', bodyweight_reps: 'Bodyweight × Reps', weight_time: 'Weight × Time', bodyweight_time: 'Bodyweight × Time', weighted_bodyweight_reps: 'Weighted Bodyweight × Reps' };
 
   const session = st.workoutSession;
+  const DELT_PAIN = ['Shoulder', 'Neck', 'Elbow'];
   const PAIN_AREAS = {
-    Chest: ['Shoulder', 'Elbow', 'Wrist'], Shoulders: ['Shoulder', 'Neck', 'Elbow'], Triceps: ['Elbow', 'Shoulder', 'Wrist'],
-    Back: ['Lower back', 'Shoulder', 'Elbow'], Biceps: ['Elbow', 'Forearm', 'Shoulder'], Forearms: ['Forearm', 'Wrist', 'Elbow'],
+    Chest: ['Shoulder', 'Elbow', 'Wrist'], 'Front Delts': DELT_PAIN, 'Side Delts': DELT_PAIN, 'Rear Delts': DELT_PAIN,
+    Triceps: ['Elbow', 'Shoulder', 'Wrist'],
+    Lats: ['Shoulder', 'Elbow', 'Lower back'], 'Upper Back': ['Upper back', 'Shoulder', 'Elbow'], Traps: ['Neck', 'Upper back', 'Shoulder'],
+    'Lower Back': ['Lower back', 'Hip', 'Hamstring'],
+    Biceps: ['Elbow', 'Forearm', 'Shoulder'], Forearms: ['Forearm', 'Wrist', 'Elbow'], Grip: ['Forearm', 'Wrist', 'Shoulder'],
     Quads: ['Knee', 'Hip', 'Lower back'], Hamstrings: ['Hamstring', 'Knee', 'Lower back'], Glutes: ['Hip', 'Lower back', 'Glute'],
+    Adductors: ['Groin', 'Hip', 'Knee'], Abductors: ['Hip', 'Glute', 'Knee'],
     Calves: ['Calf', 'Ankle', 'Achilles'], Abs: ['Lower back', 'Hip'], 'Full Body': ['Lower back', 'Knee', 'Shoulder'],
   };
   const PAIN_OTHER = ['Neck', 'Upper back', 'Lower back', 'Hip', 'Knee', 'Ankle', 'Foot', 'Groin', 'Hamstring', 'Achilles'];
@@ -484,6 +490,10 @@ export function valsWorkouts(app, ctx) {
     muscleGroup: libraryById.get(e.exerciseId)?.muscleGroup || e.muscleGroup || 'Other',
     // what else it trains, from the same library entry the counts read
     also: secondaryFor(libraryById.get(e.exerciseId) || e),
+    // when its sets count for nothing, the note says why (src/muscleCredit.js):
+    // a non-volume filing, or a lift not audited yet
+    volumeNote: libraryById.get(e.exerciseId)?.audit === 'pending' ? 'not audited, not counted'
+      : NON_VOLUME.has(libraryById.get(e.exerciseId)?.muscleGroup || e.muscleGroup) ? 'not volume' : null,
     // ▶ FORM — on EVERY lift (the mockup's contract). Curated link when
     // one is filed; otherwise an honest, deterministic technique search —
     // never a dead chip, never a pretend curation.

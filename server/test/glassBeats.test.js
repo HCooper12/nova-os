@@ -162,10 +162,12 @@ const ROUTINES = [
 ];
 
 test('a body panel lights every region of the named group and picks its camera side', () => {
+  // the old name still lights the whole family it became (15 Oct split)
   const b = enrichBody({ kind: 'body', muscle: 'Back', label: 'BACK' });
-  assert.deepEqual(b.ids, ['lats', 'traps', 'rhomboids', 'lower-back']);
+  assert.deepEqual(b.ids, ['lats', 'rhomboids', 'traps', 'lower-back']);
   assert.equal(b.side, 'back');
   assert.equal(b.hue, 'var(--nv-m-back)');
+  assert.deepEqual(enrichBody({ kind: 'body', muscle: 'Upper Back', label: 'UPPER BACK' }).ids, ['rhomboids']);
   assert.equal(enrichBody({ kind: 'body', muscle: 'Wings', label: 'X' }), null, 'a muscle he does not have lights nothing');
 });
 

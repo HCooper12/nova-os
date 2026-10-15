@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { loadExerciseLibrary, addCustomExercise, MUSCLE_GROUPS, TRACKING_TYPES } from '../lib/exercises.js';
+import { canonicalGroup, legacyGroup } from '../lib/muscleSecondary.js';
 import { loadRoutines, createRoutine, updateRoutine, deleteRoutine, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
 import { loadExerciseState } from '../lib/exerciseState.js';
 import { variantFor } from '../lib/sessionPrefill.js';
@@ -139,7 +140,8 @@ export function workoutsRouter(vaultPath) {
       const muscleGroup = req.body?.muscleGroup;
       const trackingType = req.body?.trackingType;
       if (!name) return res.status(400).json({ error: 'name is required' });
-      if (!MUSCLE_GROUPS.includes(muscleGroup)) return res.status(400).json({ error: 'muscleGroup must be one of ' + MUSCLE_GROUPS.join(', ') });
+      // an old name from a client still on the previous build reads as its family
+      if (!canonicalGroup(muscleGroup) && !legacyGroup(muscleGroup)) return res.status(400).json({ error: 'muscleGroup must be one of ' + MUSCLE_GROUPS.join(', ') });
       if (trackingType && !TRACKING_TYPES.includes(trackingType)) return res.status(400).json({ error: 'trackingType must be one of ' + TRACKING_TYPES.join(', ') });
       const exercise = await addCustomExercise(vaultPath, name, muscleGroup, trackingType);
       // a lift he adds is researched and filled in properly, soon (Coach's

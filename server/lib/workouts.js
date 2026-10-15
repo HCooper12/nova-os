@@ -20,6 +20,9 @@ function resolveExercise(entry, exercisesById) {
     // every surface showing a routine can say it without a second lookup
     // (absent when the library handed in was not resolved: the table applies)
     ...(ex && Array.isArray(ex.secondary) ? { secondary: ex.secondary } : {}),
+    // an unaudited lift says so wherever the routine is shown (it counts for
+    // no muscle until he approves a mapping, src/muscleCredit.js)
+    ...(ex?.audit === 'pending' ? { audit: 'pending' } : {}),
     trackingType: ex ? ex.trackingType : 'weight_reps',
     targetSets: entry.targetSets,
     targetRepsLow: entry.targetRepsLow,

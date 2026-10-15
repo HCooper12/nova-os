@@ -8,70 +8,115 @@
 // src/index.css (`--nv-m-*`) so the four themes can adjust lightness without
 // any caller knowing; this file only names them.
 //
-// The groups are the exercise library's own (server/lib/exercises.js
-// MUSCLE_GROUPS) — pinned by server/test/muscleHue.test.js so a group added
-// there cannot arrive colourless.
+// The groups are the library's own (src/muscleTaxonomy.js MUSCLE_GROUPS),
+// pinned by server/test/muscleHue.test.js so a group added there cannot
+// arrive colourless.
+//
+// THE SPLIT GROUPS (15 Oct 2026) keep their family's hue and lean away from
+// it: the front delts wear the old Shoulders amber, the side and rear heads
+// lean toward coral and lilac; the lats wear the old Back teal, the upper
+// back, traps and lower back lean toward blue, sage and grey. Their tokens
+// are colour-mixes of the existing --nv-m-* tokens (src/muscleTaxonomy.css),
+// so every theme's adjustment reaches them with no new theme block.
+
+import { LEGACY_GROUPS } from './muscleTaxonomy.js';
 
 export const MUSCLE_TOKEN = {
   Chest: '--nv-m-chest',
-  Back: '--nv-m-back',
-  Shoulders: '--nv-m-shoulders',
+  'Front Delts': '--nv-m-shoulders',
+  'Side Delts': '--nv-m-side-delts',
+  'Rear Delts': '--nv-m-rear-delts',
+  Lats: '--nv-m-back',
+  'Upper Back': '--nv-m-upper-back',
+  Traps: '--nv-m-traps',
+  'Lower Back': '--nv-m-lower-back',
   Biceps: '--nv-m-biceps',
   Triceps: '--nv-m-triceps',
+  Forearms: '--nv-m-forearms',
   Quads: '--nv-m-quads',
   Hamstrings: '--nv-m-hamstrings',
   Glutes: '--nv-m-glutes',
+  Adductors: '--nv-m-adductors',
+  Abductors: '--nv-m-abductors',
   Calves: '--nv-m-calves',
   Abs: '--nv-m-abs',
-  Forearms: '--nv-m-forearms',
   'Full Body': '--nv-m-full',
+  Grip: '--nv-m-grip',
   Mobility: '--nv-m-mobility',
+};
+
+// The tokens that are a mix of two existing ones, as src/muscleTaxonomy.css
+// declares them: [first token, its share, second token]. Pinned by the test.
+export const MIXED_TOKEN = {
+  '--nv-m-side-delts': ['--nv-m-shoulders', 50, '--nv-m-chest'],
+  '--nv-m-rear-delts': ['--nv-m-shoulders', 55, '--nv-m-triceps'],
+  '--nv-m-upper-back': ['--nv-m-back', 55, '--nv-m-quads'],
+  '--nv-m-traps': ['--nv-m-back', 50, '--nv-m-abs'],
+  '--nv-m-lower-back': ['--nv-m-back', 60, '--nv-m-chest'],
+  '--nv-m-adductors': ['--nv-m-quads', 55, '--nv-m-glutes'],
+  '--nv-m-abductors': ['--nv-m-glutes', 55, '--nv-m-chest'],
+  '--nv-m-grip': ['--nv-m-forearms', 55, '--nv-m-mobility'],
 };
 
 // The hex each token resolves to on the dark ground — the source of truth for
 // index.css, and what canvas/WebGL callers use when they cannot read CSS.
+// A mixed token's hex is its srgb mix of the two dark-ground hexes.
 export const MUSCLE_HEX = {
   Chest: '#ff8a7a',
-  Back: '#4fd1c5',
-  Shoulders: '#ffc46b',
+  'Front Delts': '#ffc46b',
+  'Side Delts': '#ffa772',
+  'Rear Delts': '#ddabae',
+  Lats: '#4fd1c5',
+  'Upper Back': '#62c6df',
+  Traps: '#a7d498',
+  'Lower Back': '#95b5a7',
   Biceps: '#5fe8a8',
   Triceps: '#b48cff',
+  Forearms: '#e0b26a',
   Quads: '#7ab8ff',
   Hamstrings: '#5aa0ff',
   Glutes: '#c98bff',
+  Adductors: '#9ea4ff',
+  Abductors: '#e18bc3',
   Calves: '#8fd3ff',
   Abs: '#ffd66b',
-  Forearms: '#e0b26a',
   'Full Body': '#59e6ff',
+  Grip: '#c0c294',
   Mobility: '#9ad5c8',
 };
 
 // The anatomy the body draws (server/lib/muscles.js MUSCLES — eighteen
-// regions) filed under the group whose hue it wears. "Back" is a filing
-// drawer; lats, traps, rhomboids and the lower back all sit in it, so all
-// four light teal. The one judgement call: adductors ride with the quads —
-// same hue family, same side of the leg.
+// regions) filed under the group whose hue it wears. Since the split, each
+// region is its own group's: rhomboids are the upper back, the erectors the
+// lower back, the adductors their own group.
 export const ANATOMY_GROUP = {
   chest: 'Chest',
-  'front-delts': 'Shoulders', 'side-delts': 'Shoulders', 'rear-delts': 'Shoulders',
+  'front-delts': 'Front Delts', 'side-delts': 'Side Delts', 'rear-delts': 'Rear Delts',
   biceps: 'Biceps',
   triceps: 'Triceps',
   forearms: 'Forearms',
   abs: 'Abs', obliques: 'Abs',
-  lats: 'Back', traps: 'Back', rhomboids: 'Back', 'lower-back': 'Back',
+  lats: 'Lats', rhomboids: 'Upper Back', traps: 'Traps', 'lower-back': 'Lower Back',
   glutes: 'Glutes',
-  quads: 'Quads', adductors: 'Quads',
+  quads: 'Quads', adductors: 'Adductors',
   hamstrings: 'Hamstrings',
   calves: 'Calves',
 };
 
+// Two groups own no region of their own on the figure: glute medius
+// (Abductors) sits on the glutes, grip in the forearms. They light those.
+const SHARED_REGIONS = { Abductors: ['glutes'], Grip: ['forearms'] };
+
 // Callers arrive with 'Chest', 'chest' and 'CHEST' (the volume bars lower-case
 // their labels); the map answers all of them.
+// An old name ('Shoulders', 'Back', in his goal text or an old card) wears
+// the hue of the head that kept the family's colour.
 const BY_KEY = Object.fromEntries(Object.keys(MUSCLE_TOKEN).map((k) => [k.toLowerCase(), k]));
+const LEGACY_KEY = Object.fromEntries(Object.entries(LEGACY_GROUPS).map(([k, fam]) => [k.toLowerCase(), fam[0]]));
 function groupOf(name) {
   if (!name) return null;
   const s = String(name).trim().toLowerCase();
-  return BY_KEY[s] || (ANATOMY_GROUP[s] ?? null);
+  return BY_KEY[s] || LEGACY_KEY[s] || (ANATOMY_GROUP[s] ?? null);
 }
 
 /** `var(--nv-m-…)` for a group or an anatomy id, with a neutral fallback. */
@@ -89,7 +134,9 @@ export function muscleHex(name) {
   try {
     if (typeof document !== 'undefined') {
       const v = getComputedStyle(document.documentElement).getPropertyValue(t).trim();
-      if (v) return v;
+      // a mixed token reads back as its color-mix() source, which a canvas
+      // cannot always paint: only a resolved colour is returned as live
+      if (v && /^(#|rgb)/i.test(v)) return v;
     }
   } catch { /* no DOM — fall through */ }
   return MUSCLE_HEX[group] || null;
@@ -118,11 +165,23 @@ export function musclePalette(group) {
 export function musclesNamed(text) {
   const s = String(text || '').toLowerCase();
   if (!s) return [];
+  // his own words may use an old name ("shoulders", "back"); the chip shows
+  // the word he used. Longest names first, so "lower back" is one group, not
+  // "lower back" and "back".
+  const names = [...Object.keys(MUSCLE_TOKEN), ...Object.keys(LEGACY_GROUPS)].sort((a, b) => b.length - a.length);
+  const taken = [];
   const found = [];
-  for (const group of Object.keys(MUSCLE_TOKEN)) {
-    const re = new RegExp(`\\b${group.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
-    const m = re.exec(s);
-    if (m) found.push({ group, at: m.index });
+  for (const group of names) {
+    const re = new RegExp(`\\b${group.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+    let m;
+    while ((m = re.exec(s))) {
+      const from = m.index;
+      const to = from + m[0].length;
+      if (taken.some(([a, b]) => from < b && to > a)) continue;
+      taken.push([from, to]);
+      if (!found.some((f) => f.group === group)) found.push({ group, at: from });
+      break;
+    }
   }
   return found.sort((a, b) => a.at - b.at).map((f) => f.group);
 }
@@ -132,8 +191,12 @@ export function musclesNamed(text) {
 // figure lights anatomy ids; this is the join. Order is the ANATOMY_GROUP
 // order, which puts the largest region first.
 export function anatomyOf(group) {
+  const key = String(group || '').trim().toLowerCase();
+  const legacy = Object.keys(LEGACY_GROUPS).find((k) => k.toLowerCase() === key);
+  if (legacy) return LEGACY_GROUPS[legacy].flatMap((g) => anatomyOf(g));
   const g = groupOf(group);
   if (!g) return [];
+  if (SHARED_REGIONS[g]) return [...SHARED_REGIONS[g]];
   return Object.entries(ANATOMY_GROUP).filter(([, gg]) => gg === g).map(([id]) => id);
 }
 

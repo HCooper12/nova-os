@@ -638,11 +638,13 @@ function SessionView({ v }) {
               <div style={css("margin-top:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 45%, transparent)")}>
                 {e.muscleGroup && (
                   <span
-                    title={e.muscleGroup === 'Mobility'
-                      ? 'Mobility is tracked for adherence — it never counts toward hypertrophy volume.'
-                      : `Every working set here counts toward ${e.muscleGroup} in this week's hard sets.`}
+                    title={e.volumeNote === 'not audited, not counted'
+                      ? 'Nobody has checked which muscles this lift works yet, so its sets count for no muscle until you approve a mapping in your Inbox.'
+                      : e.volumeNote
+                        ? `${e.muscleGroup} is tracked for adherence and never counts toward hypertrophy volume.`
+                        : `Every working set here counts toward ${e.muscleGroup} in this week's hard sets.`}
                     style={{ display: 'contents' }}
-                  ><Tag tone={e.muscleGroup === 'Mobility' ? 'faint' : 'violet'}>{e.muscleGroup}{e.muscleGroup === 'Mobility' ? ' · not volume' : ''}</Tag></span>
+                  ><Tag tone={e.volumeNote ? 'faint' : 'violet'}>{e.muscleGroup}{e.volumeNote ? ` · ${e.volumeNote}` : ''}</Tag></span>
                 )}
                 <AlsoWorks muscles={e.also} />
                 {/* a temporary, this-session-only lift — never part of the

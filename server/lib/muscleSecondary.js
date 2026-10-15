@@ -1,12 +1,16 @@
-// The secondary-muscle table, server side. The rules themselves live in
-// src/muscleCredit.js so the client and server count with ONE table (shared
-// formats are contracts); this is the name the server imports them by.
+// What each lift trains, server side. The rules live in src/muscleCredit.js
+// (with the audited table in src/muscleAudit.js and the groups in
+// src/muscleTaxonomy.js) so the client and server count with ONE rule
+// (shared formats are contracts); this is the name the server imports them by.
 //
-// secondaryFor(exercise) → the muscles an exercise also trains, never its
-// primary: the library's own `secondary: [...]` when set, else the first
-// matching name rule. creditsFor(exercise) → [{ muscle, credit }], primary 1,
-// each secondary ½ (Pelland et al. 2024's fractional count).
+// resolveMuscles(exercise) → its audited primary + secondaries, his own
+// approved mapping first; creditsFor(exercise) → [{ muscle, credit }],
+// primary 1, each secondary ½ (Pelland et al. 2024), and nothing for an
+// unaudited lift or a non-volume filing.
 export {
-  secondaryFor, tableSecondary, creditsFor, creditsById, emptyTally, addSets, formatSets, INDIRECT_CREDIT,
-  SECONDARY_RULES, NO_SECONDARY,
+  resolveMuscles, secondaryFor, creditsFor, creditsById, emptyTally, addSets, formatSets, INDIRECT_CREDIT,
+  NO_SECONDARY, isUnaudited, uncountedLine, auditedRow, suggestMapping, suggestPrimary, nearestAudited, PRIMARY_RULES,
+  alsoWorksLine,
 } from '../../src/muscleCredit.js';
+export { AUDITED, AUDIT_PATTERNS, IN_PROGRAM_AT_AUDIT } from '../../src/muscleAudit.js';
+export { MUSCLE_GROUPS, NON_VOLUME, VOLUME_GROUPS, LEGACY_GROUPS, canonicalGroup, legacyGroup, expandGroup } from '../../src/muscleTaxonomy.js';

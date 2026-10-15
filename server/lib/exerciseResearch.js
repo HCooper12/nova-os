@@ -61,11 +61,11 @@ const RESEARCH_TTL_DAYS = 120;     // an improvement older than this is due agai
 // src/muscleHue.js ANATOMY_GROUP, pinned by the test).
 export const ANATOMY_GROUP = {
   chest: 'Chest',
-  'front-delts': 'Shoulders', 'side-delts': 'Shoulders', 'rear-delts': 'Shoulders',
+  'front-delts': 'Front Delts', 'side-delts': 'Side Delts', 'rear-delts': 'Rear Delts',
   biceps: 'Biceps', triceps: 'Triceps', forearms: 'Forearms',
   abs: 'Abs', obliques: 'Abs',
-  lats: 'Back', traps: 'Back', rhomboids: 'Back', 'lower-back': 'Back',
-  glutes: 'Glutes', quads: 'Quads', adductors: 'Quads', hamstrings: 'Hamstrings', calves: 'Calves',
+  lats: 'Lats', traps: 'Traps', rhomboids: 'Upper Back', 'lower-back': 'Lower Back',
+  glutes: 'Glutes', quads: 'Quads', adductors: 'Adductors', hamstrings: 'Hamstrings', calves: 'Calves',
 };
 
 const str = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -105,7 +105,10 @@ export function normalizeEntry(raw, { now = new Date(), model = null } = {}) {
   // the filing must agree with the anatomy: what the lift is FOR decides the
   // drawer (his reverse-curl lesson), unless it is filed as a whole-body lift
   const anatomical = primary.length ? ANATOMY_GROUP[primary[0]] : null;
-  if (anatomical && muscleGroup && muscleGroup !== anatomical && muscleGroup !== 'Full Body' && muscleGroup !== 'Mobility') {
+  // two groups have no region of their own on the body map: glute medius
+  // (Abductors) draws on the glutes, grip on the forearms
+  const sharesRegion = (muscleGroup === 'Abductors' && primary[0] === 'glutes') || (muscleGroup === 'Grip' && primary[0] === 'forearms');
+  if (anatomical && muscleGroup && muscleGroup !== anatomical && muscleGroup !== 'Full Body' && muscleGroup !== 'Mobility' && !sharesRegion) {
     issues.push(`filed under ${muscleGroup} but its prime mover is ${primary[0]}: filed under ${anatomical}`);
     muscleGroup = anatomical;
   }

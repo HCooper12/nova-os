@@ -69,7 +69,7 @@ test('his 11:02 reply: curls onto Push are refused as substance, the advice is r
   assert.equal(sent.length, 1, 'one repair round');
   assert.equal(sent[0].rewrite, true, 'a split refusal is a wrong answer, not a typo');
   assert.match(sent[0].text, /Cable Bicep Curl trains Biceps, and Push is a push day/);
-  assert.match(sent[0].text, /Rear Delt Fly trains Shoulders, and Leg Day is a leg day/);
+  assert.match(sent[0].text, /Rear Delt Fly trains Rear Delts, and Leg Day is a leg day/);
   assert.match(sent[0].text, /nothing has been filed yet/);
   assert.match(settled.text, /^Keep the curls on your pull side/, 'he reads the corrected advice, not the first draft');
   assert.doesNotMatch(settled.text, /PROPOSE/);
@@ -145,8 +145,8 @@ test('Coach sees its cards and his program every turn, from the record', async (
   const prog = await programContext(vault);
   assert.match(prog, /HIS PROGRAM NOW/);
   // what else a lift trains rides along since 15 Oct (lib/muscleSecondary.js)
-  assert.match(prog, /Push \[\d+ sets\]: 1 Incline Barbell Bench Press 3×6–10 \(Chest; also Triceps ½, Shoulders ½\) · 2 Rope Overhead Tricep Extension/);
-  assert.match(prog, /HIS SPLIT \(code refuses a suggestion that breaks it\): Push holds Chest, Shoulders, Triceps/);
+  assert.match(prog, /Push \[\d+ sets\]: 1 Incline Barbell Bench Press 3×6–10 \(Chest; also Front Delts ½, Triceps ½\) · 2 Rope Overhead Tricep Extension/);
+  assert.match(prog, /HIS SPLIT \(code refuses a suggestion that breaks it\): Push holds Chest, Front Delts, Side Delts, Rear Delts, Triceps/);
   assert.ok(!/\n\n/.test(prog), 'one paragraph, so the transcript reader knows it is plumbing');
   // the same planned-week figures his Train card shows, never a count of Coach's own
   // the counting rule is said once, and a total may carry a half (15 Oct)

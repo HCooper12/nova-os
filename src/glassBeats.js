@@ -1,4 +1,5 @@
 import { anatomyOf, sideFor, muscleVar } from './muscleHue.js';
+import { expandGroup, canonicalGroup, legacyGroup } from './muscleTaxonomy.js';
 import { DATA_KINDS, hostOf, marksOfHost, resolveMark, litNow, sentenceAfter, hueOf, finderWords } from './glassMarks.js';
 
 // WHAT IS ON THE GLASS RIGHT NOW.
@@ -138,7 +139,8 @@ export function enrichProgram(spec, routines) {
     name: e.name,
     muscle: e.muscleGroup || null,
     // lit: the muscle the report is about; the two verdicts override it
-    lit: !!group && !!e.muscleGroup && fold(e.muscleGroup) === fold(group),
+    // an old name ("Shoulders") lights every group it became
+    lit: !!group && !!e.muscleGroup && (expandGroup(group).length ? expandGroup(group) : [group]).some((g) => fold(g) === fold(e.muscleGroup)),
     verdict: remove.includes(e.name) ? 'remove' : keep.includes(e.name) ? 'keep' : null,
   }));
   return { ...spec, routineName: r.name, group, hue: group ? muscleVar(group) : 'var(--nv-acc)', rows, remove, keep };
@@ -239,7 +241,7 @@ export function stanceOfSpan(stances, text, from, to) {
 function groupLabel(name) {
   const ids = anatomyOf(name);
   if (!ids.length) return null;
-  // the library's own spelling of the group, from the first region's filing
+  // the library's own spelling of the group (an old name keeps its own)
   const s = String(name || '').trim();
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  return canonicalGroup(s) || legacyGroup(s) || s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }

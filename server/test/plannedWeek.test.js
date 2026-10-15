@@ -11,11 +11,13 @@ import assert from 'node:assert/strict';
 const { plannedWeek } = await import('../lib/plannedWeek.js');
 const { weeklyMuscleVolume, mondayOf } = await import('../lib/trainingAnalytics.js');
 
+// what each also trains is given outright (the library's override shape):
+// these ids are not in the audited table, which is the point of the test
 const EXERCISES = [
-  { id: 'bench', name: 'Bench Press', muscleGroup: 'Chest' },
-  { id: 'wpu', name: 'Weighted Pull-Up', muscleGroup: 'Back' },
-  { id: 'pullup', name: 'Pull ups', muscleGroup: 'Back' },
-  { id: 'pulldown', name: 'Lat Pulldown', muscleGroup: 'Back' },
+  { id: 'bench', name: 'Bench Press', muscleGroup: 'Chest', secondary: ['Front Delts', 'Triceps'] },
+  { id: 'wpu', name: 'Weighted Pull-Up', muscleGroup: 'Lats', secondary: ['Biceps'] },
+  { id: 'pullup', name: 'Pull ups', muscleGroup: 'Lats', secondary: ['Biceps'] },
+  { id: 'pulldown', name: 'Lat Pulldown', muscleGroup: 'Lats', secondary: ['Biceps'] },
   { id: 'curl', name: 'Spider Curl', muscleGroup: 'Biceps' },
   { id: 'carter', name: 'Carter Extension', muscleGroup: 'Triceps' },
   { id: 'hips', name: '90/90 Hip Switch', muscleGroup: 'Mobility' },
@@ -50,11 +52,11 @@ test('every scheduled exercise appears under its muscle on its day; mobility nev
   const w = run([]);
   assert.deepEqual(muscle(w, 'Chest').exercises.map((e) => [e.day, e.routineName, e.planned]), [['monday', 'Push', 3], ['friday', 'Upper Body', 3]]);
   assert.equal(muscle(w, 'Chest').planned, 6);
-  assert.equal(muscle(w, 'Back').planned, 6, 'weighted pull-up Wednesday + pulldown Friday');
+  assert.equal(muscle(w, 'Lats').planned, 6, 'weighted pull-up Wednesday + pulldown Friday');
   assert.equal(w.muscles.some((m) => m.muscle === 'Mobility'), false);
-  // Shoulders arrives with indirect credit (15 Oct): the bench presses also
+  // Front Delts arrives with indirect credit (15 Oct): the bench presses also
   // train the front delts, so the muscle has a row of its own at ½ a set each
-  assert.deepEqual(w.muscles.map((m) => m.muscle), ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'], "the library's body order, not a sort by numbers");
+  assert.deepEqual(w.muscles.map((m) => m.muscle), ['Chest', 'Front Delts', 'Lats', 'Biceps', 'Triceps'], "the library's body order, not a sort by numbers");
 });
 
 test('what else a lift trains: totals at ½ a set, direct and indirect beside them, and still one place per set', () => {
@@ -65,7 +67,7 @@ test('what else a lift trains: totals at ½ a set, direct and indirect beside th
   assert.deepEqual([tri.done, tri.direct.done, tri.indirect.done], [4.5, 3, 3]);
   assert.deepEqual(tri.alsoFrom.map((a) => [a.name, a.day, a.done]), [['Bench Press', 'monday', 3], ['Bench Press', 'friday', 0]]);
   assert.equal(tri.exercises.length, 2, 'the bench stays a Chest slot');
-  const sh = muscle(w, 'Shoulders');
+  const sh = muscle(w, 'Front Delts');
   assert.deepEqual([sh.done, sh.direct.done, sh.indirect.done, sh.exercises.length], [1.5, 0, 3, 0]);
   // Weighted Pull-Up and Lat Pulldown also train the biceps
   assert.deepEqual([muscle(w, 'Biceps').indirect.planned, muscle(w, 'Biceps').direct.planned], [6, 3]);
@@ -79,7 +81,7 @@ test('a lift in two routines is credited to the session it was done in', () => {
 
 test('a swap is shown as "not in the plan", a lift pulled forward fills its own slot early', () => {
   const w = run([sess('2026-09-23', 'pull', [['pullup', working(3)], ['pulldown', working(3)], ['curl', working(3)]])]);
-  const back = muscle(w, 'Back');
+  const back = muscle(w, 'Lats');
   const wpu = back.exercises.find((e) => e.exerciseId === 'wpu');
   const pulldown = back.exercises.find((e) => e.exerciseId === 'pulldown');
   assert.equal(wpu.done, 0, 'pull-ups are not weighted pull-ups');
@@ -111,9 +113,9 @@ test('last week, warm-ups and empty sets never count', () => {
 test('the session in progress counts its ticked working sets only, and says which are live', () => {
   const live = { routineId: 'upper', exercises: [{ exerciseId: 'pulldown', sets: [{ weight: 50, reps: 8, done: true }, { weight: 50, reps: 8, done: true }, { weight: 50, reps: 8 }, { weight: 30, reps: 8, done: true, setType: 'warmup' }] }] };
   const w = run([], live);
-  const pulldown = muscle(w, 'Back').exercises.find((e) => e.exerciseId === 'pulldown');
+  const pulldown = muscle(w, 'Lats').exercises.find((e) => e.exerciseId === 'pulldown');
   assert.deepEqual([pulldown.done, pulldown.live, pulldown.doneOn], [2, 2, ['friday']]);
-  assert.equal(muscle(w, 'Back').live, 2);
+  assert.equal(muscle(w, 'Lats').live, 2);
 });
 
 test('a goal muscle the plan never trains still appears, planned at zero', () => {

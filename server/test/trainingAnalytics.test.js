@@ -90,7 +90,7 @@ test('RPE drift: sustained rise flags, steady stays quiet, thin data returns nul
 test('weekly volume: working sets per muscle per calendar week, warm-ups excluded', () => {
   const exercises = [
     { id: 'bench', name: 'Bench', muscleGroup: 'Chest' },
-    { id: 'row', name: 'Row', muscleGroup: 'Back' },
+    { id: 'row', name: 'Row', muscleGroup: 'Upper Back' },
   ];
   const sessions = [
     { date: '2026-08-10', exercises: [ // a Monday
@@ -103,7 +103,7 @@ test('weekly volume: working sets per muscle per calendar week, warm-ups exclude
   assert.equal(vol.length, 1);
   assert.equal(vol[0].week, '2026-08-10');
   assert.equal(vol[0].groups.Chest, 3, 'warm-up excluded, both sessions summed');
-  assert.equal(vol[0].groups.Back, 1);
+  assert.equal(vol[0].groups['Upper Back'], 1);
 });
 
 test('mobility sets never count as hypertrophy volume', () => {

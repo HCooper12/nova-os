@@ -100,7 +100,7 @@ test('a new exercise is researched, re-filed by its anatomy, filed with undo; an
     } };
   };
   const targets = [await byName('Bayesian Cable Curl'), await byName('Face Pull')];
-  const faceBefore = (await byName('Face Pull')).muscleGroup; // the seed files it under Back
+  const faceBefore = (await byName('Face Pull')).muscleGroup; // the audit files it under Rear Delts
   const out = await R.researchPass(vault, { targets, discover: 2, reason: 'test research' }, { run, model: 'sonnet', videos: false });
   assert.equal(calls, 1);
   assert.equal(out.cost, 0.4);
@@ -110,7 +110,10 @@ test('a new exercise is researched, re-filed by its anatomy, filed with undo; an
   const fp = await byName('Face Pull');
   assert.equal(fp.muscleGroup, faceBefore, 'an established lift keeps its filing');
   assert.equal(fp.research.variations[0].name, 'Pause at the face');
-  assert.ok(out.notes.some((n) => new RegExp(`Face Pull: research files it under Shoulders; it stays under ${faceBefore}`).test(n)), 'the disagreement is said, not acted on');
+  // research reading the face pull as a rear-delt lift agrees with the audit
+  // (15 Oct 2026), so there is no disagreement to say
+  assert.equal(faceBefore, 'Rear Delts');
+  assert.ok(!out.notes.some((n) => /Face Pull: research files it under/.test(n)), 'agreement with the audit is not a disagreement');
   const jm = await byName('JM Press');
   assert.equal(jm.muscleGroup, 'Triceps');
   assert.equal(jm.research.why, 'triceps loaded deep in the stretch');
@@ -123,7 +126,11 @@ test('a new exercise is researched, re-filed by its anatomy, filed with undo; an
   assert.deepEqual(rec.undoData.created, [jm.id]);
 
   await undoRecord(vault, out.recordId);
-  assert.equal((await byName('Bayesian Cable Curl')).muscleGroup, 'Forearms', 'undo puts the filing back');
+  // undo puts the STORED filing back; the audited table (15 Oct 2026) still
+  // counts a Bayesian curl as biceps, so that is what it reads as
+  const bay2 = await byName('Bayesian Cable Curl');
+  assert.equal(bay2.filedAs, 'Forearms', 'undo puts the filing back');
+  assert.equal(bay2.muscleGroup, 'Biceps');
   assert.equal((await byName('Bayesian Cable Curl')).research, undefined);
   assert.equal((await byName('Face Pull')).research, undefined);
   assert.equal(await byName('JM Press'), undefined, 'an unused addition is gone again');

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { loadSessions, setSessionSummary } from './workoutSessions.js';
 import { createRecord } from './inboxStore.js';
 import { readExerciseNote } from './sessionNotes.js';
+import { expandGroup } from './muscleSecondary.js';
 
 // Coach's progression engine — pure deterministic rules over logged history,
 // per the agents plan: it only ever changes SUGGESTED numbers (session
@@ -385,7 +386,7 @@ export async function programContext(vaultPath) {
     const sets = r.exercises.reduce((n, e) => n + (Number(e.targetSets) || 0), 0);
     // what else each lift trains rides along (lib/muscleSecondary.js), so
     // Coach reads a press as chest AND triceps, as the weekly counts do
-    const list = r.exercises.map((e, i) => `${i + 1} ${e.name} ${e.targetSets}×${reps(e)} (${e.muscleGroup || 'unfiled'}${e.secondary?.length ? `; also ${e.secondary.map((m) => `${m} ½`).join(', ')}` : ''})`).join(' · ');
+    const list = r.exercises.map((e, i) => `${i + 1} ${e.name} ${e.targetSets}×${reps(e)} (${e.muscleGroup || 'unfiled'}${e.audit === 'pending' ? '; NOT AUDITED, its sets count for no muscle until he approves a mapping' : e.secondary?.length ? `; also ${e.secondary.map((m) => `${m} ½`).join(', ')}` : ''})`).join(' · ');
     return `${days.length ? days.join('+') : 'not scheduled'} ${r.name} [${sets} sets]: ${list}`;
   });
   const off = WEEKDAYS.filter((d) => !schedule?.[d] || schedule[d] === ACTIVE_REST)
@@ -851,22 +852,29 @@ export function normaliseProposal(raw) {
 // muscle an exercise trains is in his library, so whether a placement fits is
 // a fact code can check before a card is drawn. Only Coach's own SUGGESTIONS
 // are held to it: if he tells Coach to put curls on Push, that is his call.
-// Shoulders sit on both push and pull days, because the library files rear
-// and side delts under one group and face pulls belong on either.
+// Since the delt heads became their own groups (15 Oct 2026): front delts
+// press, so they are push; rear delts pull, so they are pull; side delts
+// (lateral raises) and rear delts are at home on either day, and a face pull
+// belongs on either. Legs carry the lower back (the hinge's erectors).
+const UPPER = ['Chest', 'Front Delts', 'Side Delts', 'Rear Delts', 'Lats', 'Upper Back', 'Traps', 'Biceps', 'Triceps', 'Forearms'];
 export const SPLIT_DAYS = [
-  { match: /\bpush\b/i, day: 'a push day', muscles: ['Chest', 'Shoulders', 'Triceps'] },
-  { match: /\bpull\b/i, day: 'a pull day', muscles: ['Back', 'Biceps', 'Forearms', 'Shoulders'] },
-  { match: /\b(legs?|lower)\b/i, day: 'a leg day', muscles: ['Quads', 'Hamstrings', 'Glutes', 'Calves'] },
-  { match: /\bupper\b/i, day: 'an upper-body day', muscles: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms'] },
+  { match: /\bpush\b/i, day: 'a push day', muscles: ['Chest', 'Front Delts', 'Side Delts', 'Rear Delts', 'Triceps'] },
+  { match: /\bpull\b/i, day: 'a pull day', muscles: ['Lats', 'Upper Back', 'Rear Delts', 'Traps', 'Biceps', 'Forearms', 'Side Delts'] },
+  { match: /\b(legs?|lower)\b/i, day: 'a leg day', muscles: ['Quads', 'Hamstrings', 'Glutes', 'Adductors', 'Abductors', 'Calves', 'Lower Back'] },
+  { match: /\bupper\b/i, day: 'an upper-body day', muscles: UPPER },
 ];
-const ANY_DAY = new Set(['Abs', 'Mobility', 'Full Body', 'Other']); // work that belongs to no one day
+const ANY_DAY = new Set(['Abs', 'Mobility', 'Full Body', 'Grip', 'Other']); // work that belongs to no one day
 export function splitOf(routineName) {
   return SPLIT_DAYS.find((s) => s.match.test(String(routineName || ''))) || null;
 }
 export function splitMisfit(routineName, muscleGroup) {
   const split = splitOf(routineName);
   if (!split || !muscleGroup || ANY_DAY.has(muscleGroup)) return null;
-  return split.muscles.includes(muscleGroup) ? null : split;
+  // an old name (a card raised before the split said 'Shoulders') fits when
+  // any of the groups it became fits
+  const groups = expandGroup(muscleGroup);
+  if (!groups.length) return split.muscles.includes(muscleGroup) ? null : split;
+  return groups.some((g) => split.muscles.includes(g)) ? null : split;
 }
 // HIS CALL, IN HIS WORDS. "instructed" is the model's claim that he asked for
 // a change, and it lets a change apply without his tap. On a live test the

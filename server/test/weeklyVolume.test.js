@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 const { weeklyMuscleVolume } = await import('../lib/trainingAnalytics.js');
 
 const EXERCISES = [
-  { id: 'row', muscleGroup: 'Back' },
+  { id: 'row', muscleGroup: 'Lats' },
   { id: 'curl', muscleGroup: 'Biceps' },
   { id: 'stretch', muscleGroup: 'Mobility' },
 ];
@@ -24,8 +24,8 @@ test('the week runs Monday to Sunday — Sunday belongs to the week that started
     sess('2026-08-24', 'row', working(5)),   // the NEXT Monday — a new week
   ], EXERCISES);
   const byWeek = Object.fromEntries(out.map((w) => [w.week, w.groups]));
-  assert.deepEqual(byWeek['2026-08-17'], { Back: 5 }, 'Monday and Sunday land in one week');
-  assert.deepEqual(byWeek['2026-08-24'], { Back: 5 }, 'the next Monday starts a new one');
+  assert.deepEqual(byWeek['2026-08-17'], { Lats: 5 }, 'Monday and Sunday land in one week');
+  assert.deepEqual(byWeek['2026-08-24'], { Lats: 5 }, 'the next Monday starts a new one');
 });
 
 test('warm-ups and empty sets never inflate the count; mobility never counts as volume', () => {
@@ -36,7 +36,7 @@ test('warm-ups and empty sets never inflate the count; mobility never counts as 
       { exerciseId: 'stretch', sets: working(4) },
     ],
   }], EXERCISES);
-  assert.deepEqual(out[0].groups, { Back: 2 }, 'two working sets — not four');
+  assert.deepEqual(out[0].groups, { Lats: 2 }, 'two working sets — not four');
 });
 
 test('a bodyweight set with reps but no load still counts', () => {

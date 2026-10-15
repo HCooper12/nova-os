@@ -330,7 +330,7 @@ ${CLOSE}
 
 kind "doc" (the default) is markdown: headings, short paragraphs, bullet lists, tables, and glass panels as fenced \`\`\`nova blocks — the same JSON the running glass draws. Example:
 \`\`\`nova
-{"kind":"bars","label":"WEEKLY SETS","bars":[{"name":"Chest","value":12},{"name":"Back","value":18}]}
+{"kind":"bars","label":"WEEKLY SETS","bars":[{"name":"Chest","value":12},{"name":"Lats","value":18}]}
 \`\`\`
 \`\`\`nova
 {"kind":"metric","label":"PROTEIN TODAY","value":"84","unit":"g"}

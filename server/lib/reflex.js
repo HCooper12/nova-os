@@ -287,24 +287,31 @@ const TRAINED_RE = new RegExp(
 // This is the lever behind his ask for a conversation without awkward waiting:
 // filler exists to cover a 21-second gap, and the honest way to remove filler
 // is to remove the gap.
+// the words map onto the audited groups (src/muscleTaxonomy.js, 15 Oct
+// 2026): "back" is every back group, "shoulders" every delt head
+const DELTS = ['Front Delts', 'Side Delts', 'Rear Delts'];
+const BACK = ['Lats', 'Upper Back', 'Traps', 'Lower Back'];
+const LEGS = ['Quads', 'Hamstrings', 'Glutes', 'Adductors', 'Abductors', 'Calves'];
 const MUSCLE_WORDS = {
-  legs: ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
-  leg: ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
-  'lower body': ['Quads', 'Hamstrings', 'Glutes', 'Calves'],
-  quads: ['Quads'], quad: ['Quads'], thighs: ['Quads', 'Hamstrings'],
+  legs: LEGS,
+  leg: LEGS,
+  'lower body': LEGS,
+  quads: ['Quads'], quad: ['Quads'], thighs: ['Quads', 'Hamstrings', 'Adductors'],
   hamstrings: ['Hamstrings'], hamstring: ['Hamstrings'], hammies: ['Hamstrings'],
   glutes: ['Glutes'], calves: ['Calves'], calf: ['Calves'],
+  adductors: ['Adductors'], abductors: ['Abductors'],
   chest: ['Chest'], pecs: ['Chest'],
-  back: ['Back'], lats: ['Back'],
-  shoulders: ['Shoulders'], shoulder: ['Shoulders'], delts: ['Shoulders'],
+  back: BACK, lats: ['Lats'], 'upper back': ['Upper Back'], traps: ['Traps'], 'lower back': ['Lower Back'],
+  shoulders: DELTS, shoulder: DELTS, delts: DELTS,
+  'front delts': ['Front Delts'], 'side delts': ['Side Delts'], 'rear delts': ['Rear Delts'],
   arms: ['Biceps', 'Triceps', 'Forearms'], arm: ['Biceps', 'Triceps', 'Forearms'],
   biceps: ['Biceps'], bicep: ['Biceps'], triceps: ['Triceps'], tricep: ['Triceps'],
   forearms: ['Forearms'],
   abs: ['Abs'], core: ['Abs'],
   // his own split names — "push" and "pull" are how he actually talks
-  push: ['Chest', 'Shoulders', 'Triceps'],
-  pull: ['Back', 'Biceps'],
-  'upper body': ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
+  push: ['Chest', 'Front Delts', 'Side Delts', 'Triceps'],
+  pull: ['Lats', 'Upper Back', 'Rear Delts', 'Traps', 'Biceps'],
+  'upper body': ['Chest', ...DELTS, 'Lats', 'Upper Back', 'Traps', 'Biceps', 'Triceps'],
 };
 const MUSCLE_ALT = Object.keys(MUSCLE_WORDS).sort((a, b) => b.length - a.length).join('|');
 const MUSCLE_RE = new RegExp(

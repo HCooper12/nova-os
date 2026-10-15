@@ -20,17 +20,20 @@ const { plannedWeek } = await import('../lib/plannedWeek.js');
 
 test.after(() => rm(dataDir, { recursive: true, force: true }));
 
+// his real ids, so the AUDITED table (src/muscleAudit.js) decides what each
+// trains: a hack squat is quads with glutes at ½; a machine hip thrust is
+// glutes and nothing else worth counting
 test('fractional totals: 3 sets hack squat + 3 sets hip thrust', () => {
   const exercises = [
-    { id: 'hack', name: 'Hack Squat', muscleGroup: 'Quads' },
-    { id: 'thrust', name: 'Machine Hip Thrust', muscleGroup: 'Glutes' },
+    { id: 'hack-squat', name: 'Hack Squat', muscleGroup: 'Quads' },
+    { id: 'machine-hip-thrust', name: 'Machine Hip Thrust', muscleGroup: 'Glutes' },
   ];
   const sets = [{ weight: 100, reps: 10 }, { weight: 100, reps: 10 }, { weight: 100, reps: 10 }, { weight: 40, reps: 10, setType: 'warmup' }];
-  const sessions = [{ date: '2026-10-13', exercises: [{ exerciseId: 'hack', sets }, { exerciseId: 'thrust', sets }] }];
+  const sessions = [{ date: '2026-10-13', exercises: [{ exerciseId: 'hack-squat', sets }, { exerciseId: 'machine-hip-thrust', sets }] }];
   const [wk] = weeklyMuscleVolume(sessions, exercises);
-  assert.deepEqual(wk.groups, { Glutes: 4.5, Quads: 3, Hamstrings: 1.5 });
-  assert.deepEqual(wk.direct, { Glutes: 3, Quads: 3, Hamstrings: 0 });
-  assert.deepEqual(wk.indirect, { Glutes: 3, Quads: 0, Hamstrings: 3 });
+  assert.deepEqual(wk.groups, { Glutes: 4.5, Quads: 3 });
+  assert.deepEqual(wk.direct, { Glutes: 3, Quads: 3 });
+  assert.deepEqual(wk.indirect, { Glutes: 3, Quads: 0 });
   assert.equal(volumeBreakdown('Glutes', wk.groups.Glutes, wk.direct.Glutes, wk.indirect.Glutes), 'Glutes 4½ (3 direct + 3 indirect at ½)');
   assert.equal(volumeBreakdown('Quads', 3, 3, 0), 'Quads 3');
 });
@@ -43,22 +46,22 @@ test('Mobility sets stay out of volume entirely', () => {
 
 test('the planned week adds up to the bar for every muscle, indirect credit included', () => {
   const exercises = [
-    { id: 'hack', name: 'Hack Squat', muscleGroup: 'Quads' },
-    { id: 'thrust', name: 'Machine Hip Thrust', muscleGroup: 'Glutes' },
-    { id: 'bench', name: 'Incline Barbell Bench Press', muscleGroup: 'Chest' },
+    { id: 'hack-squat', name: 'Hack Squat', muscleGroup: 'Quads' },
+    { id: 'machine-hip-thrust', name: 'Machine Hip Thrust', muscleGroup: 'Glutes' },
+    { id: 'incline-barbell-bench-press', name: 'Incline Barbell Bench Press', muscleGroup: 'Chest' },
   ];
   const lib = new Map(exercises.map((x) => [x.id, x]));
   const e = (id) => ({ exerciseId: id, name: lib.get(id).name, muscleGroup: lib.get(id).muscleGroup, targetSets: 3 });
-  const routines = [{ id: 'legs', name: 'Leg Day', exercises: [e('hack'), e('thrust')] }, { id: 'push', name: 'Push', exercises: [e('bench')] }];
+  const routines = [{ id: 'legs', name: 'Leg Day', exercises: [e('hack-squat'), e('machine-hip-thrust')] }, { id: 'push', name: 'Push', exercises: [e('incline-barbell-bench-press')] }];
   const sets = (n) => Array.from({ length: n }, () => ({ weight: 60, reps: 8 }));
   const sessions = [
-    { date: '2026-10-13', routineId: 'legs', exercises: [{ exerciseId: 'hack', sets: sets(3) }, { exerciseId: 'thrust', sets: sets(3) }] },
-    { date: '2026-10-14', routineId: 'push', exercises: [{ exerciseId: 'bench', sets: sets(4) }] },
+    { date: '2026-10-13', routineId: 'legs', exercises: [{ exerciseId: 'hack-squat', sets: sets(3) }, { exerciseId: 'machine-hip-thrust', sets: sets(3) }] },
+    { date: '2026-10-14', routineId: 'push', exercises: [{ exerciseId: 'incline-barbell-bench-press', sets: sets(4) }] },
   ];
   const now = new Date('2026-10-15T10:00:00');
   const w = plannedWeek({ routines, schedule: { tuesday: 'legs', wednesday: 'push' }, sessions, exercises, now, targetOf: () => ({ target: 10, goalMuscle: false }) });
   const bars = weeklyMuscleVolume(sessions, exercises)[0].groups;
-  assert.deepEqual(bars, { Glutes: 4.5, Chest: 4, Quads: 3, Triceps: 2, Shoulders: 2, Hamstrings: 1.5 });
+  assert.deepEqual(bars, { Glutes: 4.5, Chest: 4, Quads: 3, 'Front Delts': 2, Triceps: 2 });
   for (const [m, total] of Object.entries(bars)) assert.equal(w.muscles.find((x) => x.muscle === m)?.done, total, m);
   const glutes = w.muscles.find((x) => x.muscle === 'Glutes');
   assert.deepEqual([glutes.direct.done, glutes.indirect.done, glutes.planned], [3, 3, 4.5]);
@@ -66,12 +69,12 @@ test('the planned week adds up to the bar for every muscle, indirect credit incl
 
 test('the push/pull audit counts direct sets only: a press\'s triceps and delts never double its push', () => {
   const exercises = [
-    { id: 'shrug', name: 'Dumbbell Shrug', muscleGroup: 'Back' },
-    { id: 'bench', name: 'Barbell Bench Press', muscleGroup: 'Chest' },
+    { id: 'seated-cable-row', name: 'Seated Cable Row', muscleGroup: 'Upper Back' },
+    { id: 'barbell-bench-press', name: 'Barbell Bench Press', muscleGroup: 'Chest' },
   ];
   // 10 push v 11 pull direct: balanced. Counted with ½ spill the bench would
   // read 20 push against 11 pull, past the 1.8 ratio, and flag a skew that
   // is not there
-  const routines = [{ id: 'a', name: 'A', exercises: [{ exerciseId: 'shrug', targetSets: 11 }, { exerciseId: 'bench', targetSets: 10 }] }];
+  const routines = [{ id: 'a', name: 'A', exercises: [{ exerciseId: 'seated-cable-row', targetSets: 11 }, { exerciseId: 'barbell-bench-press', targetSets: 10 }] }];
   assert.deepEqual(auditProgram({ routines, schedule: { monday: 'a' }, exercises }), []);
 });

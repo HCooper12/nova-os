@@ -3,7 +3,7 @@ import { latestDeclines, respectNo } from './respectTheNo.js';
 import { mondayIso } from './cadence.js';
 import { atlasFor } from './data/exerciseAtlas.js';
 import { patternFor } from '../../src/exerciseMotion.js';
-import { formatSets } from './muscleSecondary.js';
+import { formatSets, PRIMARY_RULES } from './muscleSecondary.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -18,30 +18,12 @@ import { formatSets } from './muscleSecondary.js';
 
 /* ------------------------- (a) mis-classified lifts ----------------------- */
 
-// What the NAME of a lift implies about the muscle it should count toward.
-// Deliberately conservative — these are the patterns a coach would call
-// obvious, and anything ambiguous is left alone rather than guessed at. Order
-// matters: the first match wins, so the most specific patterns come first.
-const NAME_RULES = [
-  // SPECIFIC BEFORE GENERAL — the first draft had "curl" above "leg curl",
-  // so Coach confidently announced that a Seated Leg Curl trains biceps.
-  // A coach who says that once is never believed again, so the compound
-  // names that contain a generic word are all matched first.
-  [/\b(calf|calves|calf raise)\b/i, 'Calves'],
-  [/\b(leg curl|lying curl|seated curl|nordic|romanian|rdl|good morning|hamstring curl)\b/i, 'Hamstrings'],
-  // "grip" alone matched Wide-Grip Pull-Up and Close-Grip Bench Press — a
-  // grip is a MODIFIER on another lift, never the muscle being trained.
-  [/\b(wrist curl|reverse wrist|forearm|farmer'?s? (walk|carry)|grip trainer|dead ?hang)\b/i, 'Forearms'],
-  [/\b(glute kickback|kickback machine|hip thrust|glute bridge|abduction|glute)\b/i, 'Glutes'],
-  [/\b(leg press|leg extension|hack squat|split squat|squat|lunge)\b/i, 'Quads'],
-  [/\b(face pull|rear delt|reverse (pec ?deck|fly|flye))\b/i, 'Shoulders'],
-  [/\b(lateral raise|side raise|upright row|overhead press|shoulder press|military press|arnold press)\b/i, 'Shoulders'],
-  [/\b(pulldown|pull-?up|chin-?up|row|pullover|shrug|deadlift|rack pull)\b/i, 'Back'],
-  [/\b(bench|chest press|push-?up|dip|pec ?deck|chest fly|chest flye|cable (cross|fly))\b/i, 'Chest'],
-  [/\b(tricep|pushdown|press-?down|skull ?crusher|overhead extension|kickback)\b/i, 'Triceps'],
-  [/\b(bicep|curl)\b/i, 'Biceps'],
-  [/\b(crunch|sit-?up|plank|leg raise|ab wheel|hanging knee)\b/i, 'Abs'],
-];
+// What the NAME of a lift implies about the muscle it should count toward:
+// the shared suggestion engine's primary rules (src/muscleCredit.js
+// PRIMARY_RULES, specific before general, so a Seated Leg Curl never reads
+// as a biceps lift), one table rather than two. Since 15 Oct 2026 an
+// AUDITED lift is never second-guessed by a name: the audit is the answer.
+const NAME_RULES = PRIMARY_RULES.filter(([, g]) => g !== 'Full Body' && g !== 'Mobility');
 
 // Names an expert would NOT read from the word alone. A Jefferson curl is
 // spinal flexion, not a biceps curl; a sled or a carry depends entirely on
@@ -64,6 +46,8 @@ export function expectedGroupFromName(name) {
 export function findMappingSuspects(exercises = []) {
   const out = [];
   for (const e of exercises) {
+    // the audit (or his own approved mapping) is the answer; a name is not
+    if (e.audit === 'audited' || e.audit === 'approved') continue;
     const expected = expectedGroupFromName(e.name);
     if (!expected) continue;
     const actual = e.muscleGroup || 'Other';
@@ -86,13 +70,16 @@ export function findMappingSuspects(exercises = []) {
   return out;
 }
 // Pairs a coach would accept either way round on a compound lift.
+const DELTS = ['Front Delts', 'Side Delts', 'Rear Delts'];
 const PLAUSIBLE_PAIRS = [
-  ['Chest', 'Triceps'], ['Chest', 'Shoulders'], ['Back', 'Biceps'],
-  ['Shoulders', 'Triceps'], ['Quads', 'Glutes'], ['Hamstrings', 'Glutes'],
-  // a deadlift is legitimately filed under any of its three prime movers
-  ['Back', 'Hamstrings'], ['Back', 'Glutes'], ['Glutes', 'Hamstrings'],
+  ['Chest', 'Triceps'], ['Chest', 'Front Delts'], ['Front Delts', 'Triceps'],
+  ['Lats', 'Upper Back'], ['Lats', 'Biceps'], ['Upper Back', 'Biceps'], ['Upper Back', 'Rear Delts'],
+  ['Upper Back', 'Traps'], ['Biceps', 'Forearms'], DELTS,
+  ['Quads', 'Glutes'], ['Hamstrings', 'Glutes'], ['Quads', 'Adductors'], ['Glutes', 'Abductors'],
+  // a deadlift is legitimately filed under any of its prime movers
+  ['Lower Back', 'Hamstrings'], ['Lower Back', 'Glutes'], ['Glutes', 'Hamstrings'],
   ['Quads', 'Hamstrings'], ['Calves', 'Quads'],
-  ['Full Body', 'Back'], ['Full Body', 'Quads'], ['Full Body', 'Chest'],
+  ['Full Body', 'Lats'], ['Full Body', 'Quads'], ['Full Body', 'Chest'], ['Full Body', 'Glutes'],
 ];
 
 /* ---------------------- (b) a lift that has stopped paying ---------------- */

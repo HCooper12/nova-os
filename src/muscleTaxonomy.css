@@ -1,0 +1,17 @@
+/* THE SPLIT MUSCLE GROUPS' HUES (15 Oct 2026, src/muscleTaxonomy.js).
+   Each new group is a mix of two existing --nv-m-* tokens, declared on the
+   same element the theme blocks set those tokens on (:root), so every theme's
+   lightness adjustment reaches them without a new theme block. The family
+   resemblance is the point: the delt heads stay in the old Shoulders amber,
+   the back groups in the old Back teal. Pinned to src/muscleHue.js
+   MIXED_TOKEN by server/test/muscleHue.test.js. */
+:root {
+  --nv-m-side-delts: color-mix(in srgb, var(--nv-m-shoulders) 50%, var(--nv-m-chest));
+  --nv-m-rear-delts: color-mix(in srgb, var(--nv-m-shoulders) 55%, var(--nv-m-triceps));
+  --nv-m-upper-back: color-mix(in srgb, var(--nv-m-back) 55%, var(--nv-m-quads));
+  --nv-m-traps: color-mix(in srgb, var(--nv-m-back) 50%, var(--nv-m-abs));
+  --nv-m-lower-back: color-mix(in srgb, var(--nv-m-back) 60%, var(--nv-m-chest));
+  --nv-m-adductors: color-mix(in srgb, var(--nv-m-quads) 55%, var(--nv-m-glutes));
+  --nv-m-abductors: color-mix(in srgb, var(--nv-m-glutes) 55%, var(--nv-m-chest));
+  --nv-m-grip: color-mix(in srgb, var(--nv-m-forearms) 55%, var(--nv-m-mobility));
+}

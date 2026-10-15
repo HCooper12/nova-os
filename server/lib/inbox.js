@@ -331,10 +331,12 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
   // every past set with it; undo is the existing exercise-muscle-group kind
   if (route === 'exercise-remap') {
     const { setExerciseMuscleGroup } = await import('./exercises.js');
-    const { exercise, before } = await setExerciseMuscleGroup(vaultPath, payload.exerciseId, payload.muscleGroup);
+    const { exercise, before, prior } = await setExerciseMuscleGroup(vaultPath, payload.exerciseId, payload.muscleGroup);
     return {
-      destination: `Exercise library — ${exercise.name} filed under ${payload.muscleGroup} (was ${before})`,
-      undo: { kind: 'exercise-muscle-group', exerciseId: payload.exerciseId, muscleGroup: before },
+      destination: `Exercise library — ${exercise.name} filed under ${exercise.muscleGroup} (was ${before})`,
+      // `prior` is the entry as stored, so undo puts back exactly that (an
+      // audited lift returns to its audited mapping, not to an override)
+      undo: { kind: 'exercise-muscle-group', exerciseId: payload.exerciseId, muscleGroup: before, ...(prior ? { prior } : {}) },
     };
   }
 
@@ -1105,6 +1107,11 @@ export async function undoFiling(vaultPath, undo) {
   // put an exercise back where it was — the volume bars follow it back, since
   // they read the library at query time
   if (undo.kind === 'exercise-muscle-group') {
+    if (undo.prior) {
+      const { restoreExerciseRecords } = await import('./exercises.js');
+      await restoreExerciseRecords(vaultPath, { priors: { [undo.exerciseId]: undo.prior } });
+      return `${undo.prior.name || undo.exerciseId} counts for ${undo.muscleGroup} again`;
+    }
     const { setExerciseMuscleGroup } = await import('./exercises.js');
     const { exercise } = await setExerciseMuscleGroup(vaultPath, undo.exerciseId, undo.muscleGroup);
     return `${exercise.name} is filed under ${undo.muscleGroup} again`;
@@ -1810,10 +1817,10 @@ export async function approveRecord(vaultPath, id) {
     const fix = record.fix || null;
     if (fix?.action === 'remap' && fix.exerciseId && fix.muscleGroup) {
       const { setExerciseMuscleGroup } = await import('./exercises.js');
-      const { before } = await setExerciseMuscleGroup(vaultPath, fix.exerciseId, fix.muscleGroup);
+      const { before, prior } = await setExerciseMuscleGroup(vaultPath, fix.exerciseId, fix.muscleGroup);
       return updateRecord(id, {
         status: 'filed', destination: 'exercise library', filedAt: new Date().toISOString(), auto: false, error: null,
-        undoData: { kind: 'exercise-muscle-group', exerciseId: fix.exerciseId, muscleGroup: before },
+        undoData: { kind: 'exercise-muscle-group', exerciseId: fix.exerciseId, muscleGroup: before, ...(prior ? { prior } : {}) },
       });
     }
     // THE SAME LIFT, A NEW STIMULUS (25 Sep 2026): a stalled lift's first

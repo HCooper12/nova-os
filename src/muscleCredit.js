@@ -1,109 +1,101 @@
-// WHAT ELSE A LIFT TRAINS (15 Oct 2026). His ask: every exercise should say
-// which muscles it also works, and those should add up into each muscle's
-// weekly load. An incline bench is a chest lift that also loads the triceps
-// and the front delts; a hack squat is a quad lift that also loads the glutes.
+// WHAT A LIFT TRAINS, AND WHAT IT COUNTS FOR (15 Oct 2026). His ask: every
+// exercise says which muscles it truly works, and those add up into each
+// muscle's weekly load, so over- and under-training is visible.
 //
 // THE COUNTING RULE is fractional: a working set credits 1 to its primary
-// muscle and ½ to each secondary one. That is the counting method that best
-// predicted hypertrophy in Pelland et al. 2024 (the set-volume
-// meta-regression), so it is the rule, not a guess at one.
+// muscle and ½ to each substantial secondary (Pelland et al. 2024, the
+// set-volume meta-regression). Stabilisers are not secondaries: a wrong
+// secondary inflates a total, which is the harm being fixed.
 //
-// Deterministic, no model: a name-pattern table, first matching rule wins,
-// and an exercise's own `secondary: [...]` in the library (validated when the
-// library is read, server/lib/exercises.js) wins over the table. Shared by
-// the server and the client, because every per-muscle count on both sides
-// goes through creditsFor and two copies of a rule are two rules.
+// WHERE AN EXERCISE'S MUSCLES COME FROM, in order (his standing rule):
+//   1. his own approved mapping in the library (`primary` / `secondary` on
+//      the entry: an audit card he said yes to, or a re-file he made);
+//   2. the AUDITED table (src/muscleAudit.js), researched and reviewed;
+//   3. nothing. An exercise in neither is UNAUDITED and its sets credit no
+//      muscle until he approves a mapping; every surface that counts says
+//      how many sets that left out instead of hiding them.
+// The name patterns below are only a SUGGESTION engine: they draft the
+// mapping an audit card proposes, and never credit a set on their own.
+//
+// Deterministic, no model, shared by the server and the client: every
+// per-muscle count on both sides goes through creditsFor.
+
+import { AUDITED } from './muscleAudit.js';
+import { MUSCLE_GROUPS, NON_VOLUME, canonicalGroup, legacyGroup, LEGACY_GROUPS } from './muscleTaxonomy.js';
 
 export const INDIRECT_CREDIT = 0.5;
 
-// muscles that never take or give secondary credit: Mobility is adherence,
-// not hypertrophy volume; Full Body is already "everything"
-export const NO_SECONDARY = new Set(['Mobility', 'Full Body', 'Other']);
-
-// THE TABLE, as data: the one list every count reads, exported so a later
-// audited per-exercise table can replace it without touching any counter.
-// [pattern, secondaries | (primary) => secondaries]. Order matters: the
-// isolation lifts and the "looks like a press but is not" names come first,
-// so a leg-press calf raise or an incline curl never reads as a press.
-export const SECONDARY_RULES = [
-  // isolation: the named muscle and nothing else worth counting
-  [/calf raise|calf press|calves/, []],
-  // a dip is a press whatever it is filed under ("Tricep Dip" included)
-  [/\bdips?\b/, (p) => (p === 'Triceps' ? ['Chest', 'Shoulders'] : ['Triceps', 'Shoulders'])],
-  [/sissy squat/, []],
-  [/leg curl|nordic|wrist curl/, []],
-  [/leg extension/, []],
-  [/adductor|abductor/, []],
-  [/lateral raise|front raise/, []],
-  [/shrug/, []],
-  [/tricep|skull ?crusher|carter extension|kickback|pushdown|push-down/, []],
-  [/dead ?hang/, []],
-  [/plank|crunch|sit-?up|ab wheel|leg raise|hollow|pallof|\babs?\b/, []],
-  // rear delts and the upper back move together: mid traps and rhomboids
-  [/reverse pec deck|reverse fly|rear delt|face pull/, ['Back']],
-  // chest isolation
-  [/\bfl(y|ys|ye|yes|ies)\b|pec deck|crossover/, []],
-  // curls: a hammer grip loads the brachioradialis; a reverse curl is the
-  // forearm lift that also loads the biceps
-  [/hammer curl/, ['Forearms']],
-  [/reverse curl/, ['Biceps']],
-  [/curl/, []],
-  // pulling: a row also loads the elbow flexors and the rear delts; a
-  // vertical pull, the elbow flexors. A straight-arm pull keeps the elbow
-  // locked, so the biceps barely work.
-  [/upright row/, []],
-  [/\brows?\b/, ['Biceps', 'Shoulders']],
-  [/straight[- ]arm|pullover/, []],
-  [/pull[- ]?ups?\b|chin[- ]?ups?\b|pull[- ]?downs?\b/, ['Biceps']],
-  // pressing
-  [/shoulder press|overhead press|military press|arnold press|push press/, ['Triceps']],
-  [/bench|chest press|push[- ]?ups?\b|(incline|decline).*press/, (p) => (p === 'Triceps' ? ['Chest', 'Shoulders'] : ['Triceps', 'Shoulders'])],
-  // lower body
-  [/squat|leg press|lunge|step[- ]?ups?\b/, ['Glutes']],
-  [/hip thrust|glute bridge/, ['Hamstrings']],
-  [/romanian|\brdl\b|stiff[- ]leg|good ?morning/, ['Glutes', 'Back']],
-  [/deadlift/, ['Glutes', 'Hamstrings', 'Back']],
-];
+// filings that never take or give secondary credit (Other: an unfiled lift)
+export const NO_SECONDARY = new Set([...NON_VOLUME, 'Other']);
 
 const uniq = (xs) => [...new Set(xs)];
+const validSecondary = (list, primary) => uniq((list || []).map((m) => canonicalGroup(m)).filter(Boolean))
+  .filter((m) => m !== primary && !NO_SECONDARY.has(m));
 
-/** The table's answer for a name and primary muscle (ignores any override). */
-export function tableSecondary(name, primary) {
-  const p = String(primary || '').trim();
-  if (!p || NO_SECONDARY.has(p)) return [];
-  const n = String(name || '').toLowerCase();
-  for (const [re, out] of SECONDARY_RULES) {
-    if (!re.test(n)) continue;
-    const list = typeof out === 'function' ? out(p) : out;
-    return uniq(list).filter((m) => m !== p && !NO_SECONDARY.has(m));
-  }
-  return [];
-}
+/** The audited row for an exercise id, or null. */
+export const auditedRow = (id) => (id && Object.hasOwn(AUDITED, id) ? AUDITED[id] : null);
 
 /**
- * The muscles an exercise trains secondarily, never including its primary.
- * An explicit array on the exercise (his library override, already validated
- * on read) wins over the table; an empty array means "none".
+ * Which muscles an exercise trains, resolved: { muscleGroup, secondary,
+ * audit, primarySource, secondarySource, filedAs }.
+ *   audit: 'approved' (his own mapping) | 'audited' (the table) | 'pending'
+ * `strict` is the library loader's mode: an exercise with neither is
+ * 'pending' and credits nothing. Without it (an object that never went
+ * through the loader, such as a deleted lift's routine entry or a test
+ * fixture) the object is taken at its own word, as before the audit.
+ * Pure and idempotent: a resolved copy resolves to itself.
  */
-export function secondaryFor(exercise) {
-  const primary = String(exercise?.muscleGroup || '').trim();
-  if (!primary || NO_SECONDARY.has(primary)) return [];
-  if (Array.isArray(exercise?.secondary)) {
-    return uniq(exercise.secondary.map((m) => String(m || '').trim())).filter((m) => m && m !== primary && !NO_SECONDARY.has(m));
+export function resolveMuscles(e, { strict = false } = {}) {
+  if (e?.audit === 'approved' || e?.audit === 'audited' || e?.audit === 'pending') return e;
+  const filedAs = e?.muscleGroup;
+  const own = canonicalGroup(e?.primary);
+  const row = auditedRow(e?.id);
+  let muscleGroup;
+  let audit;
+  let primarySource;
+  if (own) { muscleGroup = own; audit = 'approved'; primarySource = 'override'; }
+  else if (row) { muscleGroup = row.primary; audit = 'audited'; primarySource = 'audit'; }
+  else {
+    muscleGroup = canonicalGroup(filedAs) || (legacyGroup(filedAs) ? suggestPrimary(e?.name, filedAs) : String(filedAs || '').trim());
+    audit = strict ? 'pending' : 'filed';
+    primarySource = 'filed';
   }
-  return tableSecondary(exercise?.name, primary);
+  let secondary;
+  let secondarySource;
+  if (Array.isArray(e?.secondary)) { secondary = validSecondary(e.secondary, muscleGroup); secondarySource = 'override'; }
+  else if (row && !own) { secondary = row.secondary.filter((m) => m !== muscleGroup); secondarySource = 'audit'; }
+  else { secondary = []; secondarySource = audit === 'filed' ? 'filed' : 'none'; }
+  if (NO_SECONDARY.has(muscleGroup)) secondary = [];
+  const out = { ...e, muscleGroup, secondary, primarySource, secondarySource };
+  if (filedAs !== undefined && filedAs !== muscleGroup) out.filedAs = filedAs;
+  // 'filed' is the lenient reading's word; only the loader stamps a status
+  if (audit !== 'filed') out.audit = audit;
+  return out;
+}
+
+/** True when this exercise's sets are being left out: not audited yet. */
+export const isUnaudited = (e) => e?.audit === 'pending';
+
+/** The muscles an exercise trains secondarily, never including its primary. */
+export function secondaryFor(exercise) {
+  if (isUnaudited(exercise)) return [];
+  return resolveMuscles(exercise).secondary;
 }
 
 /**
  * Where one working set of this exercise lands: [{ muscle, credit }], the
- * primary at 1 first, then each secondary at ½. An unfiled exercise is
- * 'Other' at 1 and nothing else, exactly as it counted before.
+ * primary at 1 first, then each secondary at ½. EMPTY when the set counts
+ * for no muscle: an unaudited lift (isUnaudited says which) or a non-volume
+ * filing (Mobility, Full Body, Grip). An unfiled lift is 'Other' at 1.
  */
 export function creditsFor(exercise) {
-  const primary = String(exercise?.muscleGroup || '').trim() || 'Other';
+  if (isUnaudited(exercise)) return [];
+  const r = resolveMuscles(exercise);
+  const primary = String(r.muscleGroup || '').trim() || 'Other';
+  if (NON_VOLUME.has(primary)) return [];
   return [
     { muscle: primary, credit: 1 },
-    ...secondaryFor(exercise).map((muscle) => ({ muscle, credit: INDIRECT_CREDIT })),
+    ...(r.secondary || []).map((muscle) => ({ muscle, credit: INDIRECT_CREDIT })),
   ];
 }
 
@@ -135,5 +127,99 @@ export function formatSets(n) {
   return whole === 0 ? '½' : `${whole}½`;
 }
 
-/** "Triceps ½, Shoulders ½" for an exercise's secondary list. */
+/** "Triceps ½, Front Delts ½" for an exercise's secondary list. */
 export const alsoWorksLine = (secondary) => (secondary || []).map((m) => `${m} ½`).join(', ');
+
+/** "4 sets on unaudited lifts not counted": the line every counting surface
+ *  says when sets were left out, never silence. Null when nothing was. */
+export function uncountedLine(sets) {
+  const n = Number(sets) || 0;
+  if (n <= 0) return null;
+  return `${n} ${n === 1 ? 'set' : 'sets'} on unaudited lifts not counted`;
+}
+
+/* ---------------- the suggestion engine (never credits) ---------------- */
+
+// THE PRIMARY A NAME SUGGESTS. Specific before general: "leg curl" before
+// "curl", "reverse fly" before "fly", "romanian deadlift" before
+// "deadlift", "glute kickback" before the triceps kickback.
+export const PRIMARY_RULES = [
+  [/\b(calf|calves)\b/i, 'Calves'],
+  [/\b(leg curls?|lying curls?|seated curls?|nordic|romanian|rdl|stiff[- ]leg|good ?morning|hamstrings?|glute[- ]ham)\b/i, 'Hamstrings'],
+  [/\bdead ?hang\b/i, 'Grip'],
+  [/\b(wrist curl|reverse wrist|forearm|plate pinch)\b/i, 'Forearms'],
+  [/\b(abduction|abductor)\b/i, 'Abductors'],
+  [/\b(adduction|adductor|copenhagen)\b/i, 'Adductors'],
+  [/\b(glute kickback|kickback machine|hip thrust|glute bridge|pull[- ]?through|glute)\b/i, 'Glutes'],
+  [/\b(deadlift|rack pull)\b/i, 'Glutes'],
+  [/\b(leg press|leg extension|hack squat|split squat|squat|lunge|step[- ]?ups?)\b/i, 'Quads'],
+  [/\b(face pull|rear delt|reverse (pec ?deck|fly|flye|flyes))\b/i, 'Rear Delts'],
+  [/\b(lateral raise|side raise|upright row|y[- ]raise)\b/i, 'Side Delts'],
+  [/\b(front raise|overhead press|shoulder press|military press|arnold press|push press|landmine press)\b/i, 'Front Delts'],
+  [/\bshrugs?\b/i, 'Traps'],
+  [/\b(back extension|hyperextension|superman)\b/i, 'Lower Back'],
+  [/\b(pull-?downs?|pull-?ups?|chin-?ups?|pullover|straight[- ]arm)\b/i, 'Lats'],
+  [/\b(one|single)[- ]arm\b.*\brows?\b|\bchest[- ]supported\b.*\brows?\b/i, 'Lats'],
+  [/\brows?\b/i, 'Upper Back'],
+  [/\b(triceps?|push-?down|press-?down|skull ?crushers?|overhead extension|kickback|close[- ]grip bench|jm press|diamond push|bench dip)\b/i, 'Triceps'],
+  [/\b(bench|chest press|push-?ups?|dips?|pec ?deck|fly|flys|flye|flyes|crossover|(incline|decline|flat)\b.*\bpress)\b/i, 'Chest'],
+  [/\b(biceps?|curls?)\b/i, 'Biceps'],
+  [/\bmountain climbers?\b/i, 'Full Body'],
+  [/\b(crunch|sit-?ups?|plank|leg raise|knee raise|ab wheel|rollout|hollow|pallof|russian twist|dead bug|woodchop)\b/i, 'Abs'],
+  [/\b(burpee|clean|snatch|thruster|kettlebell swing|carry|farmer|rowing machine|assault bike|jump rope|battle ropes?|sled)\b/i, 'Full Body'],
+  [/\b(stretch|mobility|spider-?man|opener|thoracic|cat[- ]cow|90\/90)\b/i, 'Mobility'],
+];
+
+/** The primary a name suggests, else the filed group (an old name narrowed
+ *  to its family when the name says which head), else null. */
+export function suggestPrimary(name, filed) {
+  const n = String(name || '');
+  let fromName = null;
+  for (const [re, g] of PRIMARY_RULES) if (re.test(n)) { fromName = g; break; }
+  const old = legacyGroup(filed);
+  if (old) return fromName && LEGACY_GROUPS[old].includes(fromName) ? fromName : (fromName || LEGACY_GROUPS[old][0]);
+  return fromName || canonicalGroup(filed) || null;
+}
+
+// words that say how a lift is loaded, not what it trains
+const GENERIC = new Set(['cable', 'cables', 'dumbbell', 'dumbbells', 'barbell', 'machine', 'single', 'arm', 'one', 'seated', 'standing',
+  'the', 'with', 'and', 'per', 'weight', 'position', 'attachment', 'bar', 'grip', 'ez', 'smith', 'plate', 'loaded', 'band', 'banded',
+  'kettlebell', 'alternate', 'alternating', 'weighted', 'assisted', 'high', 'low', 'wide', 'close', 'neutral']);
+const tokens = (s) => String(s || '').toLowerCase().replace(/\([^)]*\)/g, ' ').split(/[^a-z0-9]+/)
+  .map((w) => w.replace(/s$/, '')).filter((w) => w.length >= 3 && !GENERIC.has(w));
+
+/** The audited lift whose name is nearest this one (shared words), among
+ *  those with the given primary when one is given. Null when none shares a word. */
+export function nearestAudited(name, primary) {
+  const mine = new Set(tokens(name));
+  if (!mine.size) return null;
+  let best = null;
+  for (const [id, row] of Object.entries(AUDITED)) {
+    if (primary && row.primary !== primary) continue;
+    const score = tokens(row.name).filter((w) => mine.has(w)).length;
+    if (!score) continue;
+    if (!best || score > best.score || (score === best.score && row.name.length < best.row.name.length)) best = { id, row, score };
+  }
+  return best ? { id: best.id, ...best.row } : null;
+}
+
+/**
+ * A DRAFT mapping for an unaudited lift, for his audit card: the primary its
+ * name suggests, and the secondaries of the nearest audited lift with that
+ * primary. `basis` says where each part came from, because the card must say
+ * this is a suggestion to check, never an audit.
+ */
+export function suggestMapping(name, filed) {
+  const named = PRIMARY_RULES.some(([re]) => re.test(String(name || '')));
+  const primary = suggestPrimary(name, filed) || nearestAudited(name)?.primary || null;
+  if (!primary || !MUSCLE_GROUPS.includes(primary)) return { primary: null, secondary: [], like: null, basis: 'none' };
+  const basis = named ? 'name' : 'filed';
+  if (NO_SECONDARY.has(primary)) return { primary, secondary: [], like: null, basis };
+  const like = nearestAudited(name, primary);
+  return {
+    primary,
+    secondary: like ? like.secondary.filter((m) => m !== primary) : [],
+    like: like ? like.name : null,
+    basis,
+  };
+}

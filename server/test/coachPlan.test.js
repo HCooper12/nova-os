@@ -123,7 +123,7 @@ test('his exact focus case: Pull-Up outgrown → Weighted Pull-Up with a low sta
     const weighted = exercises.find((e) => e.name === 'Weighted Pull-Up');
     assert.ok(weighted, 'the weighted variant exists in the library');
     assert.equal(weighted.trackingType, 'weighted_bodyweight_reps', 'tracks added load, not just reps');
-    assert.equal(weighted.muscleGroup, 'Back', 'inherits the muscle group');
+    assert.equal(weighted.muscleGroup, 'Lats', 'inherits the muscle group (the pull-up is audited as a lats lift)');
 
     const { routines } = await loadRoutines(dir, exercises);
     const entry = routines[0].exercises.find((e) => e.exerciseId === weighted.id);

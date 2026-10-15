@@ -9,13 +9,17 @@ import assert from 'node:assert/strict';
 const { plannedWeek } = await import('../lib/plannedWeek.js');
 const { weekSetsView, slotPips } = await import('../../src/weekSets.js');
 
+// the muscles each trains are given outright (the library's override
+// shape), so the sheet is tested on its own terms: the goal muscle is the
+// rear delts, trained by two lifts; the row and the face pull also train
+// other muscles at ½
 const EXERCISES = [
-  { id: 'lateral', name: 'Cable Lateral Raise', muscleGroup: 'Shoulders' },
-  { id: 'facepull', name: 'Face Pull', muscleGroup: 'Shoulders' },
-  { id: 'curl', name: 'Spider Curl', muscleGroup: 'Biceps' },
-  { id: 'pullup', name: 'Pull ups', muscleGroup: 'Back' },
-  { id: 'hang', name: 'Dead Hang', muscleGroup: 'Forearms' },
-  { id: 'squat', name: 'Hack Squat', muscleGroup: 'Quads' },
+  { id: 'lateral', name: 'Reverse Pec Deck', muscleGroup: 'Rear Delts', secondary: [] },
+  { id: 'facepull', name: 'Face Pull', muscleGroup: 'Rear Delts', secondary: ['Upper Back'] },
+  { id: 'curl', name: 'Spider Curl', muscleGroup: 'Biceps', secondary: [] },
+  { id: 'pullup', name: 'Seated Cable Row', muscleGroup: 'Upper Back', secondary: ['Biceps'] },
+  { id: 'hang', name: 'Plate Pinch', muscleGroup: 'Forearms', secondary: [] },
+  { id: 'squat', name: 'Hack Squat', muscleGroup: 'Quads', secondary: ['Glutes'] },
 ];
 const lib = new Map(EXERCISES.map((e) => [e.id, e]));
 const slot = (id, extra = {}) => ({ exerciseId: id, name: lib.get(id).name, muscleGroup: lib.get(id).muscleGroup, targetSets: 3, targetRepsLow: 8, targetRepsHigh: 10, trackingType: 'weight_reps', ...extra });
@@ -27,7 +31,7 @@ const ROUTINES = [
 ];
 const SCHEDULE = { monday: 'push', wednesday: 'pull', friday: 'upper', saturday: 'legs', sunday: 'active-rest' };
 const FRIDAY = new Date('2026-09-25T10:00:00');
-const GOALS = new Set(['Shoulders', 'Biceps']);
+const GOALS = new Set(['Rear Delts', 'Biceps']);
 const targetOf = (m) => ({ target: GOALS.has(m) ? 12 : 10, goalMuscle: GOALS.has(m) });
 const working = (n) => Array.from({ length: n }, () => ({ weight: 20, reps: 8 }));
 const SESSIONS = [
@@ -51,28 +55,28 @@ test('the headline counts the week and names what is still to come, the way he w
 
 test('a goal muscle that cannot reach its target on the plan as written is the one loud line', () => {
   const v = view();
-  // shoulders: 3 done, face pulls missed Monday, 3 more today → 6 of 12
-  assert.equal(muscle(v, 'Shoulders').projected, 6);
-  assert.equal(muscle(v, 'Shoulders').short, true);
-  // biceps: 3 curls done + the 3 pull-ups at ½ (indirect credit, 15 Oct) + 3 curls today
+  // rear delts: 3 done, face pulls missed Monday, 3 more today → 6 of 12
+  assert.equal(muscle(v, 'Rear Delts').projected, 6);
+  assert.equal(muscle(v, 'Rear Delts').short, true);
+  // biceps: 3 curls done + the 3 rows at ½ (indirect credit, 15 Oct) + 3 curls today
   assert.equal(muscle(v, 'Biceps').projected, 7.5);
-  assert.equal(v.warn, 'Shoulders can reach 6 of 12 this week on the plan as written. Biceps can reach 7½ of 12 this week on the plan as written.');
+  assert.equal(v.warn, 'Rear Delts can reach 6 of 12 this week on the plan as written. Biceps can reach 7½ of 12 this week on the plan as written.');
   assert.equal(muscle(v, 'Quads').short, false, 'a muscle outside his goal is never shouted about');
 });
 
 test('rows say what their pips cannot: missed, today, done on another day, not in the plan, timed holds', () => {
   const v = view();
-  const shoulders = muscle(v, 'Shoulders').rows;
-  assert.deepEqual(shoulders.map((r) => [r.day, r.name, r.status?.text ?? null]), [
-    ['Mon', 'Cable Lateral Raise', null],
+  const rearDelts = muscle(v, 'Rear Delts').rows;
+  assert.deepEqual(rearDelts.map((r) => [r.day, r.name, r.status?.text ?? null]), [
+    ['Mon', 'Reverse Pec Deck', null],
     ['Mon', 'Face Pull', 'not done'],
-    ['Fri', 'Cable Lateral Raise', 'today'],
+    ['Fri', 'Reverse Pec Deck', 'today'],
   ]);
-  const back = muscle(v, 'Back').rows;
+  const back = muscle(v, 'Upper Back').rows;
   // the face pulls also train the upper back: listed after its own lifts, at ½
   assert.deepEqual(back.map((r) => [r.day, r.name, r.detail, r.pips]), [
-    ['Wed', 'Pull ups', 'Not in the plan', ['extra', 'extra', 'extra']],
-    ['Mon', 'Face Pull', 'Shoulders lift, each set counts ½ here', ['missed', 'missed', 'missed']],
+    ['Wed', 'Seated Cable Row', 'Not in the plan', ['extra', 'extra', 'extra']],
+    ['Mon', 'Face Pull', 'Rear Delts lift, each set counts ½ here', ['missed', 'missed', 'missed']],
   ]);
   const hang = muscle(v, 'Forearms').rows[0];
   assert.equal(hang.detail, 'Pull · 3 × 20–30 s');
@@ -80,12 +84,12 @@ test('rows say what their pips cannot: missed, today, done on another day, not i
 
 test('the week grid puts planned sets on their day and off-plan sets on the day they happened', () => {
   const v = view();
-  const back = muscle(v, 'Back');
+  const back = muscle(v, 'Upper Back');
   assert.deepEqual(back.cells.map((c) => c.length), [0, 0, 1, 0, 0, 0, 0], 'one line per exercise');
   assert.deepEqual(back.cells[2], [['extra', 'extra', 'extra']]);
-  const shoulders = muscle(v, 'Shoulders');
-  assert.deepEqual(shoulders.cells[0], [['done', 'done', 'done'], ['missed', 'missed', 'missed']], 'laterals done, face pulls not');
-  assert.deepEqual(shoulders.cells[4], [['due', 'due', 'due']]);
+  const rearDelts = muscle(v, 'Rear Delts');
+  assert.deepEqual(rearDelts.cells[0], [['done', 'done', 'done'], ['missed', 'missed', 'missed']], 'pec deck done, face pulls not');
+  assert.deepEqual(rearDelts.cells[4], [['due', 'due', 'due']]);
   assert.deepEqual(v.days.map((d) => d.routine), ['Push', 'Rest', 'Pull', 'Rest', 'Upper', 'Leg', 'Rest']);
 });
 
@@ -104,19 +108,19 @@ test('an empty or missing week renders nothing rather than a hollow sheet', () =
 
 test('the card\'s warning is the projection, and Coach gets the figures behind it', () => {
   const v = view();
-  assert.deepEqual(v.cta.muscles, ['Shoulders', 'Biceps']);
-  assert.equal(v.cta.text, 'Shoulders (6 of 12) and Biceps (7½ of 12) fall short by Sunday on the plan as written. Ask Coach how to add sets →');
-  assert.equal(v.cta.question, 'On my plan as written, shoulders and biceps finish this week short of target for my goal: Shoulders 3 done + 3 still scheduled = 6 of 12; Biceps 4½ done + 3 still scheduled = 7½ of 12 (3 direct + 3 indirect at ½ so far). How should I add volume?');
+  assert.deepEqual(v.cta.muscles, ['Rear Delts', 'Biceps']);
+  assert.equal(v.cta.text, 'Rear Delts (6 of 12) and Biceps (7½ of 12) fall short by Sunday on the plan as written. Ask Coach how to add sets →');
+  assert.equal(v.cta.question, 'On my plan as written, rear delts and biceps finish this week short of target for my goal: Rear Delts 3 done + 3 still scheduled = 6 of 12; Biceps 4½ done + 3 still scheduled = 7½ of 12 (3 direct + 3 indirect at ½ so far). How should I add volume?');
 });
 
 test('a goal muscle behind today but carried to target by what is still scheduled is not called short', () => {
   // three more biceps sessions' worth on the plan: 3 done Wednesday, 9 to come
   const routines = ROUTINES.map((r) => (r.id === 'upper' ? { ...r, exercises: [slot('lateral'), slot('curl', { targetSets: 9 })] } : r));
   const v = weekSetsView(plannedWeek({ routines, schedule: SCHEDULE, sessions: SESSIONS, exercises: EXERCISES, targetOf, now: FRIDAY }));
-  assert.equal(muscle(v, 'Biceps').done, 4.5, 'well under 12 right now (3 curls + 3 pull-ups at ½)');
+  assert.equal(muscle(v, 'Biceps').done, 4.5, 'well under 12 right now (3 curls + 3 rows at ½)');
   assert.equal(muscle(v, 'Biceps').short, false, 'but 3 + 9 reach it by Sunday');
-  assert.deepEqual(v.cta.muscles, ['Shoulders']);
-  assert.equal(v.cta.text, 'Shoulders can reach 6 of 12 by Sunday on the plan as written. Ask Coach how to add sets →');
+  assert.deepEqual(v.cta.muscles, ['Rear Delts']);
+  assert.equal(v.cta.text, 'Rear Delts can reach 6 of 12 by Sunday on the plan as written. Ask Coach how to add sets →');
 });
 
 
@@ -125,21 +129,21 @@ test('a carried set is still to come: an outline, "carried to Sat", and counted 
   const w = plannedWeek({ routines, schedule: SCHEDULE, sessions: SESSIONS, exercises: EXERCISES, targetOf, now: FRIDAY,
     carryovers: [{ forDate: '2026-09-26', exercises: [{ exerciseId: 'facepull' }] }] });
   const v = weekSetsView(w);
-  const face = muscle(v, 'Shoulders').rows.find((r) => r.name === 'Face Pull');
+  const face = muscle(v, 'Rear Delts').rows.find((r) => r.name === 'Face Pull');
   assert.deepEqual(face.pips, ['due', 'due', 'due']);
   assert.equal(face.status.text, 'carried to Sat');
-  assert.equal(muscle(v, 'Shoulders').projected, 9, '3 done + 3 carried + 3 today');
+  assert.equal(muscle(v, 'Rear Delts').projected, 9, '3 done + 3 carried + 3 today');
 });
 
 test('the headline counts sets once each; a muscle carries its direct and indirect parts', () => {
   const v = view();
-  // 9 sets done (3 laterals, 3 curls, 3 pull-ups), however many muscles they credit
+  // 9 sets done (3 laterals, 3 curls, 3 rows), however many muscles they credit
   assert.equal(v.done, 9);
   const b = muscle(v, 'Biceps');
   assert.deepEqual([b.done, b.direct.done, b.indirect.done, b.directPct], [4.5, 3, 3, 0.25]);
   assert.equal(b.pct, 4.5 / 12);
   // nothing indirect: no breakdown
-  assert.equal(muscle(v, 'Shoulders').indirect.done, 0);
+  assert.equal(muscle(v, 'Rear Delts').indirect.done, 0);
 });
 
 test('a past day read from history says so, once', () => {

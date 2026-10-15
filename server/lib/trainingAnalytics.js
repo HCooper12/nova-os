@@ -12,12 +12,13 @@ import { loadSessions } from './workoutSessions.js';
 import { mondayIso } from './cadence.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, ACTIVE_REST } from './workouts.js';
-import { creditsFor, creditsById, emptyTally, addSets, formatSets } from './muscleSecondary.js';
+import { creditsFor, creditsById, emptyTally, addSets, formatSets, isUnaudited, uncountedLine, resolveMuscles } from './muscleSecondary.js';
 
 // THE ONE CREDIT FUNCTION (15 Oct 2026): where a working set of an exercise
-// lands, [{ muscle, credit }], primary 1 and each secondary ½. Every
-// per-muscle set count on the server and the client goes through it.
-export { creditsFor, creditsById, formatSets };
+// lands, [{ muscle, credit }], primary 1 and each secondary ½, nothing for an
+// unaudited lift or a non-volume filing. Every per-muscle set count on the
+// server and the client goes through it.
+export { creditsFor, creditsById, formatSets, uncountedLine };
 
 const e1rm = (w, reps) => (reps > 0 && reps <= 12 ? w * (1 + reps / 30) : null);
 // An e1RM is COMPARED at the resolution it is SHOWN at.
@@ -215,17 +216,33 @@ export const isWorkingSet = (x) => !!x && x.setType !== 'warmup' && (Number(x.we
 // adds up into that muscle's weekly load), and `direct` / `indirect` say how
 // many SETS of each kind made it. Every existing reader of `groups` keeps
 // reading the total; a reader that wants primary work alone reads `direct`.
+// UNAUDITED LIFTS ARE NOT HIDDEN (his standing rule, 15 Oct 2026): a lift no
+// one has audited credits no muscle, and each week says how many working
+// sets that left out, and on which lifts, so a surface can say "N sets on
+// unaudited lifts not counted" instead of quietly showing less.
 export function weeklyMuscleVolume(sessions, exercises, { weeks = 4 } = {}) {
   const creditsOf = creditsById(exercises);
+  const unaudited = new Map((exercises || []).filter(isUnaudited).map((e) => [e.id, e.name]));
   const weekOf = (dateStr) => mondayOf(dateStr);
   const acc = new Map(); // week -> muscle -> { total, direct, indirect }
+  const left = new Map(); // week -> { sets, lifts: Map(name -> sets) }
   for (const s of sessions) {
     const wk = weekOf(s.date);
     for (const ex of s.exercises || []) {
-      const credits = creditsOf.get(ex.exerciseId) || [{ muscle: 'Other', credit: 1 }];
-      if (credits[0].muscle === 'Mobility') continue; // tracked for adherence, never as hypertrophy volume
       const working = (ex.sets || []).filter(isWorkingSet);
       if (!working.length) continue;
+      if (unaudited.has(ex.exerciseId)) {
+        const l = left.get(wk) || { sets: 0, lifts: new Map() };
+        const name = unaudited.get(ex.exerciseId);
+        l.sets += working.length;
+        l.lifts.set(name, (l.lifts.get(name) || 0) + working.length);
+        left.set(wk, l);
+        continue;
+      }
+      // an empty credit list is a non-volume filing (Mobility, Full Body,
+      // Grip): tracked for adherence, never as hypertrophy volume
+      const credits = creditsOf.get(ex.exerciseId) || [{ muscle: 'Other', credit: 1 }];
+      if (!credits.length) continue;
       const w = acc.get(wk) || new Map();
       for (const { muscle, credit } of credits) {
         if (!w.has(muscle)) w.set(muscle, emptyTally());
@@ -234,16 +251,19 @@ export function weeklyMuscleVolume(sessions, exercises, { weeks = 4 } = {}) {
       acc.set(wk, w);
     }
   }
+  for (const wk of left.keys()) if (!acc.has(wk)) acc.set(wk, new Map());
   return [...acc.entries()]
     .sort((a, b) => b[0].localeCompare(a[0]))
     .slice(0, weeks)
     .map(([week, groups]) => {
       const rows = [...groups.entries()].sort((a, b) => b[1].total - a[1].total || b[1].direct - a[1].direct);
+      const l = left.get(week);
       return {
         week,
         groups: Object.fromEntries(rows.map(([m, t]) => [m, t.total])),
         direct: Object.fromEntries(rows.map(([m, t]) => [m, t.direct])),
         indirect: Object.fromEntries(rows.map(([m, t]) => [m, t.indirect])),
+        uncounted: l ? { sets: l.sets, lifts: [...l.lifts.entries()].map(([name, sets]) => ({ name, sets })) } : { sets: 0, lifts: [] },
       };
     });
 }
@@ -264,7 +284,7 @@ export function volumeBreakdown(muscle, total, direct = total, indirect = 0) {
 // BOTH Pull and Push days, and Push scheduled twice back-to-back.
 export function auditProgram({ routines, schedule, goals, exercises }) {
   const findings = [];
-  const groupOf = new Map((exercises || []).map((e) => [e.id, e.muscleGroup || 'Other']));
+  const groupOf = new Map((exercises || []).map((e) => [e.id, resolveMuscles(e).muscleGroup || 'Other']));
 
   // duplicate exercises across routines
   const seen = new Map(); // exerciseId -> [routineName]
@@ -306,8 +326,10 @@ export function auditProgram({ routines, schedule, goals, exercises }) {
   // movements, and ½-credit spill (a row's rear delts, a press's triceps)
   // would count one movement on both sides of the ratio; the 1.8 threshold
   // was set against primary work and keeps that meaning.
-  const PUSHY = new Set(['Chest', 'Shoulders', 'Triceps']);
-  const PULLY = new Set(['Back', 'Biceps']);
+  // the delt heads split by the joint action: front delts press, rear delts
+  // pull; side delts abduct, which is neither, so they sit out the ratio
+  const PUSHY = new Set(['Chest', 'Front Delts', 'Triceps']);
+  const PULLY = new Set(['Lats', 'Upper Back', 'Rear Delts', 'Biceps']);
   let push = 0;
   let pull = 0;
   for (const d of days) {
@@ -350,7 +372,7 @@ export async function analyticsContext(vaultPath) {
     // the total each muscle is credited, with its breakdown: a set of a lift
     // that also trains a muscle counts ½ there (fractional counting, Pelland
     // et al. 2024), so "Glutes 9 (6 direct + 6 indirect at ½)" is his real load
-    lines.push(`WEEKLY HARD SETS PER MUSCLE (recent weeks, newest first; direct sets count 1, sets of a lift that also trains the muscle count ½): ${vol.map((w) => `wk ${w.week.slice(5)}: ${Object.entries(w.groups).map(([g, n]) => volumeBreakdown(g, n, w.direct?.[g] ?? n, w.indirect?.[g] || 0)).join(', ')}`).join(' | ')}`);
+    lines.push(`WEEKLY HARD SETS PER MUSCLE (recent weeks, newest first; direct sets count 1, sets of a lift that also trains the muscle count ½): ${vol.map((w) => `wk ${w.week.slice(5)}: ${Object.entries(w.groups).map(([g, n]) => volumeBreakdown(g, n, w.direct?.[g] ?? n, w.indirect?.[g] || 0)).join(', ')}${w.uncounted?.sets ? `; ${uncountedLine(w.uncounted.sets)} (${w.uncounted.lifts.map((l) => l.name).join(', ')}: not audited yet, so they credit no muscle until he approves a mapping)` : ''}`).join(' | ')}`);
   }
 
   // the mobility dimension — adherence, not volume: how much mobility work

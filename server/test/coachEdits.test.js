@@ -20,7 +20,10 @@ const { fileDecision, undoFiling, approveRecord } = await import('../lib/inbox.j
 const { getRecord } = await import('../lib/inboxStore.js');
 
 await mkdir(path.join(vault, 'Wiki/Health'), { recursive: true });
-const curl = await addCustomExercise(vault, 'EZ-Bar Reverse Curl', 'Biceps', 'weight_reps');
+// his case was the EZ-bar reverse curl, which the audit (15 Oct 2026) now
+// files under Forearms by itself; the remap mechanic is pinned on a lift the
+// audit does not hold, so his filing is the only word on it
+const curl = await addCustomExercise(vault, 'Zottman Curl', 'Biceps', 'weight_reps');
 
 test.after(async () => {
   await rm(dataDir, { recursive: true, force: true });
@@ -28,30 +31,30 @@ test.after(async () => {
 });
 
 test('remap: his exact case validates, files on the rails with undo, and undoes back to Biceps', async () => {
-  const { payload, title } = await validateCoachEdit(vault, { action: 'remap', exercise: 'EZ-Bar Reverse Curl', muscleGroup: 'Forearms', reason: 'pronated grip — brachioradialis is the prime mover' });
+  const { payload, title } = await validateCoachEdit(vault, { action: 'remap', exercise: 'Zottman Curl', muscleGroup: 'Forearms', reason: 'pronated grip — brachioradialis is the prime mover' });
   assert.equal(payload.exerciseId, curl.id);
   assert.equal(payload.before, 'Biceps');
-  assert.equal(title, 'Coach: re-file EZ-Bar Reverse Curl under Forearms (was Biceps)');
+  assert.equal(title, 'Coach: re-file Zottman Curl under Forearms (was Biceps)');
   await assert.rejects(() => validateCoachEdit(vault, { action: 'remap', exercise: 'Nope Curl', muscleGroup: 'Forearms' }), /isn't in the exercise library/);
-  await assert.rejects(() => validateCoachEdit(vault, { action: 'remap', exercise: 'EZ-Bar Reverse Curl', muscleGroup: 'Wings' }), /muscleGroup must be one of/);
-  await assert.rejects(() => validateCoachEdit(vault, { action: 'tune', exercise: 'EZ-Bar Reverse Curl', muscleGroup: 'Forearms' }), /./, 'the old workaround still fails validation — remap is the honest path');
+  await assert.rejects(() => validateCoachEdit(vault, { action: 'remap', exercise: 'Zottman Curl', muscleGroup: 'Wings' }), /muscleGroup must be one of/);
+  await assert.rejects(() => validateCoachEdit(vault, { action: 'tune', exercise: 'Zottman Curl', muscleGroup: 'Forearms' }), /./, 'the old workaround still fails validation — remap is the honest path');
 
   const { destination, undo } = await fileDecision(vault, { route: 'exercise-remap', confidence: 'high', title, reason: 'x', payload });
   assert.match(destination, /filed under Forearms \(was Biceps\)/);
   assert.equal((await loadExerciseLibrary(vault)).exercises.find((e) => e.id === curl.id).muscleGroup, 'Forearms');
-  assert.match(await undoFiling(vault, undo), /filed under Biceps again/);
+  assert.match(await undoFiling(vault, undo), /Biceps again/);
   assert.equal((await loadExerciseLibrary(vault)).exercises.find((e) => e.id === curl.id).muscleGroup, 'Biceps');
 });
 
 test('the instructed flag survives the PROPOSE parse and rides the record; the grant defaults to direct and can be withdrawn', async () => {
-  const { proposal } = parseCoachProposal('Retagging it now.\n\nPROPOSE {"action":"remap","exercise":"EZ-Bar Reverse Curl","muscleGroup":"Forearms","reason":"grip","instructed":true}');
+  const { proposal } = parseCoachProposal('Retagging it now.\n\nPROPOSE {"action":"remap","exercise":"Zottman Curl","muscleGroup":"Forearms","reason":"grip","instructed":true}');
   assert.equal(proposal.instructed, true);
   const rec = await createCoachEditRecord(vault, { question: 'Make the change', proposal });
   assert.equal(rec.instructed, true);
   assert.equal(rec.decision.route, 'exercise-remap');
   assert.equal(rec.status, 'pending', 'the record itself is always filed pending — the caller decides whether to approve it now');
   // a suggestion carries no flag
-  const sug = parseCoachProposal('Worth considering.\n\nPROPOSE {"action":"remap","exercise":"EZ-Bar Reverse Curl","muscleGroup":"Forearms","reason":"grip"}').proposal;
+  const sug = parseCoachProposal('Worth considering.\n\nPROPOSE {"action":"remap","exercise":"Zottman Curl","muscleGroup":"Forearms","reason":"grip"}').proposal;
   assert.equal(sug.instructed, undefined);
   assert.equal((await createCoachEditRecord(vault, { question: 'thoughts?', proposal: sug })).instructed, false);
   // the standing grant

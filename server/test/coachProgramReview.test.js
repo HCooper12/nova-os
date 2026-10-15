@@ -14,8 +14,8 @@ const {
 } = await import('../lib/coachProgramReview.js');
 
 test('the expert reads a lift name the way a coach would', () => {
-  assert.equal(expectedGroupFromName('Face Pull'), 'Shoulders');
-  assert.equal(expectedGroupFromName('Barbell Row'), 'Back');
+  assert.equal(expectedGroupFromName('Face Pull'), 'Rear Delts');
+  assert.equal(expectedGroupFromName('Barbell Row'), 'Upper Back');
   assert.equal(expectedGroupFromName('Preacher Curl'), 'Biceps');
   assert.equal(expectedGroupFromName('Tricep Pushdown'), 'Triceps');
   assert.equal(expectedGroupFromName('Leg Press'), 'Quads');
@@ -26,8 +26,9 @@ test('a compound name containing a generic word is never read by the generic wor
   assert.equal(expectedGroupFromName('Seated Leg Curl'), 'Hamstrings', 'not Biceps');
   assert.equal(expectedGroupFromName('Nordic Curl'), 'Hamstrings', 'not Biceps');
   assert.equal(expectedGroupFromName('Wrist Curl'), 'Forearms', 'not Biceps');
-  assert.equal(expectedGroupFromName('Wide-Grip Pull-Up'), 'Back', 'a grip is a modifier, not a muscle');
-  assert.equal(expectedGroupFromName('Close-Grip Bench Press'), 'Chest', 'ditto');
+  assert.equal(expectedGroupFromName('Wide-Grip Pull-Up'), 'Lats', 'a grip is a modifier, not a muscle');
+  // the audit (15 Oct 2026) files a close-grip bench under the triceps
+  assert.equal(expectedGroupFromName('Close-Grip Bench Press'), 'Triceps', 'the audited reading');
   assert.equal(expectedGroupFromName('Leg Press Calf Raise'), 'Calves', 'not Quads');
   assert.equal(expectedGroupFromName('Cable Glute Kickback'), 'Glutes', 'not Triceps');
 });
@@ -44,13 +45,15 @@ test('it says nothing about a name it cannot read — silence beats a wrong corr
 
 test('a mis-filed lift is caught, and the fix moves it to the right muscle', () => {
   const out = findMappingSuspects([
-    { id: 'face-pull', name: 'Face Pull', muscleGroup: 'Back' },
-    { id: 'row', name: 'Barbell Row', muscleGroup: 'Back' },
+    { id: 'face-pull', name: 'Face Pull', muscleGroup: 'Lats' },
+    { id: 'row', name: 'Barbell Row', muscleGroup: 'Upper Back' },
   ]);
   assert.equal(out.length, 1);
-  assert.equal(out[0].expected, 'Shoulders');
-  assert.deepEqual(out[0].fix, { action: 'remap', exerciseId: 'face-pull', muscleGroup: 'Shoulders' });
+  assert.equal(out[0].expected, 'Rear Delts');
+  assert.deepEqual(out[0].fix, { action: 'remap', exerciseId: 'face-pull', muscleGroup: 'Rear Delts' });
   assert.match(out[0].line, /landing on the wrong muscle/);
+  // an AUDITED lift is never second-guessed by its name
+  assert.deepEqual(findMappingSuspects([{ id: 'face-pull', name: 'Face Pull', muscleGroup: 'Lats', audit: 'audited' }]), []);
 });
 
 test('a compound filed under either of its prime movers is a CHOICE, not an error', () => {

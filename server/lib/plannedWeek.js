@@ -25,7 +25,7 @@ import { mondayIso } from './cadence.js';
 import { MUSCLE_GROUPS } from './exercises.js';
 import { todayIso } from './makeupDay.js';
 import { isWorkingSet } from './trainingAnalytics.js';
-import { creditsById, secondaryFor, INDIRECT_CREDIT } from './muscleSecondary.js';
+import { creditsById, secondaryFor, INDIRECT_CREDIT, isUnaudited, NON_VOLUME, resolveMuscles } from './muscleSecondary.js';
 
 export const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
@@ -53,12 +53,18 @@ const weekdayOf = (iso) => WEEK_DAYS[(new Date(`${iso}T12:00:00`).getDay() + 6) 
 export function plannedWeek({ routines = [], schedule = {}, sessions = [], live = null, exercises = [], targetOf, now = new Date(), routinesAt = null, carryovers = [] }) {
   const today = todayIso(now);
   const start = mondayIso(now);
-  const groupOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
+  // the group each lift counts for (its audited primary), the same reading
+  // the credits use, so a slot and its credits can never disagree
+  const groupOf = new Map(exercises.map((e) => [e.id, resolveMuscles(e).muscleGroup || 'Other']));
   const nameOf = new Map(exercises.map((e) => [e.id, e.name]));
   const trackingOf = new Map(exercises.map((e) => [e.id, e.trackingType]));
   const creditsOf = creditsById(exercises);
-  // the muscles a lift also trains: the library's word, else the table's on
-  // the routine entry itself (a lift the library no longer holds)
+  // an unaudited lift credits no muscle (his standing rule); its sets are
+  // gathered in `uncounted` so the sheet can say what was left out
+  const unaudited = new Set(exercises.filter(isUnaudited).map((e) => e.id));
+  const notVolume = (muscle) => NON_VOLUME.has(muscle); // adherence, never hypertrophy volume
+  // the muscles a lift also trains: the library's word, else the routine
+  // entry's own list (a lift the library no longer holds)
   const alsoOf = (ex, muscle) => (creditsOf.has(ex.exerciseId)
     ? creditsOf.get(ex.exerciseId).slice(1).map((c) => c.muscle)
     : secondaryFor({ name: ex.name, muscleGroup: muscle, secondary: ex.secondary }));
@@ -93,7 +99,7 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
   for (const d of days) {
     for (const ex of d._content) {
       const muscle = groupOf.get(ex.exerciseId) || ex.muscleGroup || 'Other';
-      if (muscle === 'Mobility') continue; // adherence, never hypertrophy volume
+      if (notVolume(muscle)) continue;
       slots.push({
         exerciseId: ex.exerciseId, name: ex.name || nameOf.get(ex.exerciseId) || '(deleted exercise)', muscle, day: d.day, routineName: d.routineName,
         secondary: alsoOf(ex, muscle),
@@ -121,7 +127,7 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
     const weekday = weekdayOf(s.date);
     for (const ex of s.exercises || []) {
       const muscle = groupOf.get(ex.exerciseId) || 'Other';
-      if (muscle === 'Mobility') continue;
+      if (notVolume(muscle)) continue;
       const n = (ex.sets || []).filter((x) => (!s._live || x.done) && isWorkingSet(x)).length;
       if (!n) continue;
       const liveN = s._live ? n : 0;
@@ -173,7 +179,15 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
     return muscles.get(m);
   };
   const credit = (r, kind, k, n) => { r[kind][k] += n; r[k] += (kind === 'direct' ? 1 : INDIRECT_CREDIT) * n; };
+  const uncounted = { sets: 0, planned: 0, lifts: [] };
+  const leaveOut = (x) => {
+    uncounted.sets += x.done || 0;
+    uncounted.planned += x.planned || 0;
+    const l = uncounted.lifts.find((y) => y.exerciseId === x.exerciseId);
+    if (l) { l.sets += x.done || 0; l.planned += x.planned || 0; } else uncounted.lifts.push({ exerciseId: x.exerciseId, name: x.name, sets: x.done || 0, planned: x.planned || 0 });
+  };
   for (const { _routineId, ...sl } of slots) {
+    if (unaudited.has(sl.exerciseId)) { leaveOut(sl); continue; }
     const r = rowFor(sl.muscle);
     credit(r, 'direct', 'planned', sl.planned); credit(r, 'direct', 'done', sl.done); credit(r, 'direct', 'live', sl.live);
     r.exercises.push(sl);
@@ -184,6 +198,7 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
     }
   }
   for (const e of extras.values()) {
+    if (unaudited.has(e.exerciseId)) { leaveOut(e); continue; }
     const r = rowFor(e.muscle);
     credit(r, 'direct', 'done', e.done); credit(r, 'direct', 'live', e.live);
     r.extras.push(e);
@@ -203,5 +218,6 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
     start,
     days: days.map(({ _content, ...d }) => d),
     muscles: [...muscles.values()].sort((a, b) => order(a.muscle) - order(b.muscle)),
+    uncounted,
   };
 }

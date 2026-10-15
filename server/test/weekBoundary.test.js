@@ -11,8 +11,8 @@ import assert from 'node:assert/strict';
 import { mondayOf, weeklyMuscleVolume } from '../lib/trainingAnalytics.js';
 
 const EXERCISES = [
-  { id: 'pullup', muscleGroup: 'Back' },
-  { id: 'ohp', muscleGroup: 'Shoulders' },
+  { id: 'pullup', muscleGroup: 'Lats' },
+  { id: 'ohp', muscleGroup: 'Front Delts' },
   { id: 'stretch', muscleGroup: 'Mobility' },
 ];
 const set = (n) => Array.from({ length: n }, () => ({ weight: 20, reps: 8 }));
@@ -50,7 +50,7 @@ test('THE BUG: last week\'s sessions must not answer for this week', () => {
   const weeks = weeklyMuscleVolume(sessions, EXERCISES, { weeks: 6 });
   // the newest week WITH DATA is last week — this is what [0] used to return
   assert.equal(weeks[0].week, '2026-08-17');
-  assert.equal(weeks[0].groups.Back, 5);
+  assert.equal(weeks[0].groups.Lats, 5);
 
   // the overview's selection: ask for THIS week specifically
   const thisWeek = weeks.find((w) => w.week === mondayOf('2026-08-24'));
@@ -64,7 +64,7 @@ test('once this week has a session, only this week\'s sets are counted', () => {
   ];
   const weeks = weeklyMuscleVolume(sessions, EXERCISES, { weeks: 6 });
   const thisWeek = weeks.find((w) => w.week === '2026-08-24');
-  assert.equal(thisWeek.groups.Back, 3, 'last week\'s 5 sets must not leak in');
+  assert.equal(thisWeek.groups.Lats, 3, 'last week\'s 5 sets must not leak in');
 });
 
 test('mobility never counts as hypertrophy volume, warmups never count as sets', () => {
@@ -77,5 +77,5 @@ test('mobility never counts as hypertrophy volume, warmups never count as sets',
   }];
   const wk = weeklyMuscleVolume(sessions, EXERCISES, { weeks: 6 }).find((w) => w.week === '2026-08-24');
   assert.equal(wk.groups.Mobility, undefined);
-  assert.equal(wk.groups.Back, 2);
+  assert.equal(wk.groups.Lats, 2);
 });

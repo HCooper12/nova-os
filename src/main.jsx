@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+import './muscleTaxonomy.css'
 import App from './App.jsx'
 import { applyAppearance, getNovaTheme, getCalm, getNovaStyle, getMaterial, startHourClock, applyGlow, getGlow, getGlowQuiet } from './theme.js'
 

@@ -121,7 +121,7 @@ test('an add lands where the card says, not always last', async () => {
 test('his split is checked: a curl onto Push is refused, with where it belongs; his own instruction is his call', async () => {
   const curl = await refusal({ action: 'move', exercise: 'Cable Bicep Curl', from: 'Upper Body', to: 'Push' });
   assert.equal(curl.kind, 'substance');
-  assert.match(curl.message, /Cable Bicep Curl trains Biceps, and Push is a push day \(Chest, Shoulders, Triceps\)/);
+  assert.match(curl.message, /Cable Bicep Curl trains Biceps, and Push is a push day \(Chest, Front Delts, Side Delts, Rear Delts, Triceps\)/);
   assert.match(curl.message, /belongs on Pull or Upper Body/);
   const incline = await refusal({ action: 'add', routine: 'Push', exercise: 'Alternate Incline Dumbbell Curl' });
   assert.equal(incline.kind, 'substance');
@@ -134,7 +134,7 @@ test('his split is checked: a curl onto Push is refused, with where it belongs; 
   await validateCoachEdit(vault, { action: 'move', exercise: 'Cable Bicep Curl', from: 'Upper Body', to: 'Push', instructed: true });
   assert.equal(splitMisfit('Upper Body', 'Quads')?.day, 'an upper-body day');
   assert.equal(splitMisfit('Full Body', 'Biceps'), null, 'a routine whose name promises no split is not checked');
-  assert.match(splitRulesLine([{ name: 'Push' }, { name: 'Pull' }]), /Push holds Chest, Shoulders, Triceps; Pull holds Back, Biceps, Forearms, Shoulders/);
+  assert.match(splitRulesLine([{ name: 'Push' }, { name: 'Pull' }]), /Push holds Chest, Front Delts, Side Delts, Rear Delts, Triceps; Pull holds Lats, Upper Back, Rear Delts, Traps, Biceps, Forearms, Side Delts/);
 });
 
 test('changes that change nothing, or duplicate, are refused as substance', async () => {
@@ -144,7 +144,7 @@ test('changes that change nothing, or duplicate, are refused as substance', asyn
   assert.match((await refusal({ action: 'targets', routine: 'Push', exercise: 'Carter Extension' })).message, /needs targetSets/);
   assert.equal((await refusal({ action: 'swap', routine: 'Push', remove: 'Face Pull', add: 'Carter Extension' })).kind, 'substance');
   assert.match((await refusal({ action: 'add', routine: 'Push', add: 'Zottman Kickback Hybrid' })).message, /give its "muscleGroup"/, 'a brand-new exercise must say what it trains, or it counts for nothing');
-  await validateCoachEdit(vault, { action: 'add', routine: 'Push', add: 'Zottman Kickback Hybrid', muscleGroup: 'Shoulders' });
+  await validateCoachEdit(vault, { action: 'add', routine: 'Push', add: 'Zottman Kickback Hybrid', muscleGroup: 'Side Delts' });
   // unrelated to the split: Legs keeps its two exercises
   void legs; void pull;
 });
