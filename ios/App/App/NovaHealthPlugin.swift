@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import HealthKit
+import WidgetKit
 
 /// Nova reads Apple Health itself (his call, 14 Oct 2026: "so that all of the
 /// data is as accurate all the time as possible"). Replaces the "Nova Health
@@ -31,17 +32,7 @@ public class NovaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "readDay", returnType: CAPPluginReturnPromise),
     ]
 
-    private let store = HKHealthStore()
-
-    private var readTypes: Set<HKObjectType> {
-        var s = Set<HKObjectType>()
-        for id in [HKQuantityTypeIdentifier.stepCount, .activeEnergyBurned, .distanceWalkingRunning,
-                   .restingHeartRate, .heartRateVariabilitySDNN, .vo2Max, .bodyMass] {
-            if let t = HKObjectType.quantityType(forIdentifier: id) { s.insert(t) }
-        }
-        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
-        return s
-    }
+    private let store = NovaHealthReader.shared.store
 
     @objc func isAvailable(_ call: CAPPluginCall) {
         call.resolve(["available": HKHealthStore.isHealthDataAvailable()])
@@ -51,8 +42,9 @@ public class NovaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         guard HKHealthStore.isHealthDataAvailable() else { return call.reject("Health is not available on this device") }
         // iOS never says which types he allowed (privacy): a refused type
         // simply reads as no data, which the server already handles honestly
-        store.requestAuthorization(toShare: nil, read: readTypes) { ok, error in
+        store.requestAuthorization(toShare: nil, read: NovaHealthReader.readTypes) { ok, error in
             if let error { return call.reject(error.localizedDescription) }
+            NovaHealthBackground.shared.start() // access may be new: begin watching now
             call.resolve(["requested": ok])
         }
     }
@@ -62,25 +54,59 @@ public class NovaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         guard let dateStr = call.getString("date"), let day = Self.parse(dateStr) else {
             return call.reject("readDay needs date as YYYY-MM-DD")
         }
+        Task {
+            let m = await NovaHealthReader.shared.metrics(for: day)
+            call.resolve(["date": dateStr, "metrics": m])
+        }
+    }
+
+    private static func parse(_ s: String) -> Date? {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f.date(from: s)
+    }
+}
+
+/// One reader of Apple Health for every caller: the page on screen
+/// (NovaHealth.readDay) and the background wake (NovaHealthBackground), so the
+/// two can never disagree about a day.
+final class NovaHealthReader {
+    static let shared = NovaHealthReader()
+    let store = HKHealthStore()
+
+    static var readTypes: Set<HKObjectType> {
+        var s = Set<HKObjectType>()
+        for id in [HKQuantityTypeIdentifier.stepCount, .activeEnergyBurned, .distanceWalkingRunning,
+                   .restingHeartRate, .heartRateVariabilitySDNN, .vo2Max, .bodyMass] {
+            if let t = HKObjectType.quantityType(forIdentifier: id) { s.insert(t) }
+        }
+        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
+        return s
+    }
+
+    /// The day's metrics in the server's own names; a metric with no data is
+    /// left out, never sent as zero.
+    func metrics(for day: Date) async -> [String: Any] {
         let cal = Calendar.current
         let start = cal.startOfDay(for: day)
         let end = cal.date(byAdding: .day, value: 1, to: start)!
-        Task {
-            var m: [String: Any] = [:]
-            if let v = await sum(.stepCount, .count(), start, end) { m["steps"] = Int(v.rounded()) }
-            if let v = await sum(.activeEnergyBurned, .kilocalorie(), start, end) { m["activeEnergyKcal"] = Self.round1(v) }
-            if let v = await sum(.distanceWalkingRunning, .meterUnit(with: .kilo), start, end) { m["walkingRunningDistanceKm"] = Self.round2(v) }
-            if let v = await average(.heartRateVariabilitySDNN, .secondUnit(with: .milli), start, end) { m["hrv"] = Self.round1(v) }
-            if let v = await latest(.restingHeartRate, HKUnit.count().unitDivided(by: .minute()), start, end) { m["restingHeartRate"] = Int(v.rounded()) }
-            if let v = await latest(.vo2Max, HKUnit(from: "ml/kg*min"), start, end) { m["vo2Max"] = Self.round1(v) }
-            // weight carries forward: the latest reading up to the day's end
-            if let v = await latest(.bodyMass, .gramUnit(with: .kilo), cal.date(byAdding: .day, value: -60, to: start)!, end) { m["weightKg"] = Self.round1(v) }
-            // last night: 6 pm the evening before to noon of this day
-            let nightStart = cal.date(byAdding: .hour, value: -6, to: start)!
-            let nightEnd = cal.date(byAdding: .hour, value: 12, to: start)!
-            if let mins = await asleepMinutes(nightStart, nightEnd), mins > 0 { m["sleepAsleepMinutes"] = Int(mins.rounded()) }
-            call.resolve(["date": dateStr, "metrics": m])
-        }
+        var m: [String: Any] = [:]
+        if let v = await sum(.stepCount, .count(), start, end) { m["steps"] = Int(v.rounded()) }
+        if let v = await sum(.activeEnergyBurned, .kilocalorie(), start, end) { m["activeEnergyKcal"] = Self.round1(v) }
+        if let v = await sum(.distanceWalkingRunning, .meterUnit(with: .kilo), start, end) { m["walkingRunningDistanceKm"] = Self.round2(v) }
+        if let v = await average(.heartRateVariabilitySDNN, .secondUnit(with: .milli), start, end) { m["hrv"] = Self.round1(v) }
+        if let v = await latest(.restingHeartRate, HKUnit.count().unitDivided(by: .minute()), start, end) { m["restingHeartRate"] = Int(v.rounded()) }
+        if let v = await latest(.vo2Max, HKUnit(from: "ml/kg*min"), start, end) { m["vo2Max"] = Self.round1(v) }
+        // weight carries forward: the latest reading up to the day's end
+        if let v = await latest(.bodyMass, .gramUnit(with: .kilo), cal.date(byAdding: .day, value: -60, to: start)!, end) { m["weightKg"] = Self.round1(v) }
+        // last night: 6 pm the evening before to noon of this day
+        let nightStart = cal.date(byAdding: .hour, value: -6, to: start)!
+        let nightEnd = cal.date(byAdding: .hour, value: 12, to: start)!
+        if let mins = await asleepMinutes(nightStart, nightEnd), mins > 0 { m["sleepAsleepMinutes"] = Int(mins.rounded()) }
+        return m
     }
 
     // MARK: - queries
@@ -151,14 +177,64 @@ public class NovaHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - helpers
 
-    private static func parse(_ s: String) -> Date? {
+    private static func round1(_ v: Double) -> Double { (v * 10).rounded() / 10 }
+    private static func round2(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+}
+
+/// THE WIDGETS GO STALE BETWEEN OPENS (his note, 15 Oct 2026: "the steps on the
+/// widget do not seem to update much until after I have gone into nova or into
+/// the Health app"). The widgets ask the Mac, and the Mac only heard from
+/// Health while Nova was open. HealthKit background delivery wakes the app
+/// when steps, distance or active energy change; it reads today, posts it the
+/// same way the page does (POST /api/health-data, source healthkit), and asks
+/// the widgets to redraw. No model is involved: numbers in, numbers out.
+///
+/// iOS decides the cadence (hourly at best for steps) and can't read Health
+/// while the phone is locked, so updates land while it is unlocked.
+final class NovaHealthBackground {
+    static let shared = NovaHealthBackground()
+    private var started = false
+    private var inFlight = false
+    private let watched: [HKQuantityTypeIdentifier] = [.stepCount, .distanceWalkingRunning, .activeEnergyBurned]
+
+    /// Called at every launch (a background wake IS a launch) and after access is asked.
+    func start() {
+        guard HKHealthStore.isHealthDataAvailable(), !started else { return }
+        started = true
+        let store = NovaHealthReader.shared.store
+        for id in watched {
+            guard let type = HKObjectType.quantityType(forIdentifier: id) else { continue }
+            let q = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, done, error in
+                guard error == nil, let self else { done(); return }
+                Task { await self.push(); done() }
+            }
+            store.execute(q)
+            store.enableBackgroundDelivery(for: type, frequency: .hourly) { _, _ in }
+        }
+    }
+
+    private func push() async {
+        if inFlight { return } // three types can fire together: one push serves them
+        inFlight = true
+        defer { inFlight = false }
+        guard let shared = UserDefaults(suiteName: NovaWidgetsPlugin.suite),
+              let base = shared.string(forKey: "nova.baseUrl"), let token = shared.string(forKey: "nova.token"),
+              let url = URL(string: base.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/api/health-data") else { return }
+        let now = Date()
+        let metrics = await NovaHealthReader.shared.metrics(for: now)
+        guard !metrics.isEmpty else { return } // locked, or nothing yet: say nothing rather than zero
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
         f.timeZone = .current
         f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: s)
+        var req = URLRequest(url: url, timeoutInterval: 20)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["date": f.string(from: now), "metrics": metrics, "source": "healthkit", "via": "background"])
+        if let (_, res) = try? await URLSession.shared.data(for: req), (res as? HTTPURLResponse)?.statusCode == 200 {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
-    private static func round1(_ v: Double) -> Double { (v * 10).rounded() / 10 }
-    private static func round2(_ v: Double) -> Double { (v * 100).rounded() / 100 }
 }

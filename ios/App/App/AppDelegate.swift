@@ -7,7 +7,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Apple Health wakes the app when steps change, and the widgets follow
+        // (NovaHealthBackground). It must be set up at every launch, because a
+        // background wake is a launch.
+        NovaHealthBackground.shared.start()
         return true
     }
 
