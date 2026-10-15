@@ -20,7 +20,7 @@
 // Must match COACH_ROUTES in server/lib/coach.js — a shared contract.
 export const COACH_ROUTES = [
   'routine-edit', 'schedule-edit', 'progression-tune', 'exercise-remap', 'injury-log',
-  'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'train-today',
+  'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'train-today', 'exercise-audit',
 ];
 
 const ONE_TAP_FIX = new Set(['ops', 'remap', 'swap', 'weighted-variant', 'drop', 'tune']);
@@ -177,6 +177,7 @@ function otherChange(route, p) {
       p.stepKg != null ? `${p.stepKg}kg jumps` : null, p.repStep != null ? `+${p.repStep} rep steps` : null, p.focus || null].filter(Boolean);
     return { headline: `${p.exerciseName}: ${bits.join(', ') || 'retune progression'}`, diff: { type: 'note', glyph: '↗' } };
   }
+  if (route === 'exercise-audit') return { headline: `Count ${p.exerciseName} as ${p.primary || 'no muscle'}${p.secondary?.length ? `, also ${p.secondary.map((m) => `${m} ½`).join(', ')}` : ''} (a suggestion to check)`, diff: { type: 'remap', exercise: { name: p.exerciseName, muscle: p.primary }, before: 'not audited' } };
   if (route === 'exercise-remap') return { headline: `Count ${p.exerciseName} as ${p.muscleGroup}`, diff: { type: 'remap', exercise: { name: p.exerciseName, muscle: p.muscleGroup }, before: p.before } };
   if (route === 'injury-log') return { headline: `Log your ${p.area} (${p.severity})`, diff: { type: 'note', glyph: '✚' } };
   if (route === 'goal-target') return { headline: `Target: ${p.metric} ${p.value}${p.unit || ''}${p.by ? ` by ${p.by}` : ''}`, diff: { type: 'note', glyph: '◎' } };

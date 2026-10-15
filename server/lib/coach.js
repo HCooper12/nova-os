@@ -494,7 +494,7 @@ export async function coachLiveLine(vaultPath) {
   } catch { bits.push('his plans FAILED to load this turn'); }
   try {
     const { listRecords } = await import('./inboxStore.js');
-    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap', 'schedule-edit', 'train-today']);
+    const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'exercise-remap', 'schedule-edit', 'train-today', 'exercise-audit']);
     const cutoff = Date.now() - 7 * 86400000;
     const recent = (await listRecords()).filter((r) => COACH_ROUTES.has(r.decision?.route) && new Date(r.createdAt || 0).getTime() > cutoff);
     if (recent.length) {
@@ -1446,7 +1446,7 @@ export async function createCoachEditRecord(vaultPath, { question, proposal, sou
 // coach that never learns whether its advice landed can't improve.
 export async function adviceContext(days = 14) {
   const { listRecords } = await import('./inboxStore.js');
-  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'schedule-edit', 'train-today']);
+  const COACH_ROUTES = new Set(['progression-tune', 'routine-edit', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'schedule-edit', 'train-today', 'exercise-audit']);
   const cutoff = Date.now() - days * 86400000;
   // fuel-cross findings are kind-based (no route — approving files nothing) and
   // his reasoned "no" to one belongs in front of the Coach exactly like a

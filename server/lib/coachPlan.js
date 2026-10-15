@@ -151,6 +151,8 @@ export async function applyOps(vaultPath, ops, { why = 'Coach change' } = {}) {
   await applyChanges(vaultPath, changes, { what: "Coach's change", remedy: 'try it again', write: commitVaultState });
 
   for (const mk of plan.markers) await addMarker(mk.routineId, mk.exerciseId, { why: mk.why, ...(mk.startWeightKg ? { startWeightKg: mk.startWeightKg } : {}) });
+  // a lift this plan created is unaudited until he approves its mapping
+  if (plan.createdExercises.length) await import('./exerciseAudit.js').then(({ ensureAuditCards }) => ensureAuditCards(vaultPath, { ids: plan.createdExercises, source: 'coach' })).catch(() => {});
 
   return {
     summary: plan.summary.join('; '),

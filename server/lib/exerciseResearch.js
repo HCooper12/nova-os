@@ -322,6 +322,8 @@ export async function researchPass(vaultPath, { targets = [], discover = 0, reas
   if (updates.length) bits.push(`researched ${updates.map((u) => name(u.id)).join(', ')}`);
   const title = `Coach's ${reason}: ${bits.join('; ')}`;
   const record = await fileRecord({ title: title.slice(0, 300), destination: 'exercise library', undo: { kind: 'exercise-research', priors, created }, notes });
+  // a lift research ADDED is unaudited until he approves its mapping
+  if (created.length) await import('./exerciseAudit.js').then(({ ensureAuditCards }) => ensureAuditCards(vaultPath, { ids: created, source: 'coach' })).catch(() => {});
   // a new lift gets its form video now rather than tomorrow (exerciseVideos.js,
   // his standing grant for that lane); `deps.videos: false` in the tests,
   // where a yt-dlp search per exercise would outlive the run
@@ -420,6 +422,8 @@ export function startExerciseResearchScheduler(vaultPath) {
   const tick = async () => {
     const { beat } = await import('./heartbeat.js');
     beat('exercise-research');
+    // deterministic, no model: any unaudited lift without its audit card gets one
+    await import('./exerciseAudit.js').then(({ ensureAuditCards }) => ensureAuditCards(vaultPath)).catch((e) => console.error('exercise audit cards failed:', e.message));
     const { laneSkipped } = await import('./modelPrefs.js');
     if (laneSkipped('exercise-research', 'exercise research')) return;
     try {

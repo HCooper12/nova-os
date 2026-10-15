@@ -5,6 +5,7 @@ import { CardHead } from './MissionSummary.jsx';
 import { CoachSuggestionDeck } from '../CoachSuggestions.jsx';
 import { WeekSetsSheet } from '../WeekSets.jsx';
 import { AlsoWorks } from '../AlsoWorks.jsx';
+import { Uncounted } from '../Uncounted.jsx';
 import { FormCheckPanel } from '../FormCheckPanel.jsx';
 import { SwipeRow } from '../SwipeRow.jsx';
 import { useExit } from '../useExit.js';
@@ -537,6 +538,7 @@ function HardSetsCard({ hs }) {
         <span className="nv-ts-rg"><SegRing ring={hs.ring} /><b>{hs.ring.done}</b></span>
         <span className="nv-ts-sv wrap">{hs.line}</span>
       </div>
+      <Uncounted u={hs.uncounted} compact />
       {hs.view && <span className="nv-ts-foot">The week<Ico p={P.right} size={15} cls="thick" /></span>}
       {!hs.view && hs.ask && <span className="nv-ts-foot">Ask Coach<Ico p={P.right} size={15} cls="thick" /></span>}
     </>

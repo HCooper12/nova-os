@@ -3,7 +3,7 @@ import { trainingCard } from './valsSummary.js';
 import { COACH_DECLINE_REASONS } from './valsInbox.js';
 import { muscleVar } from '../muscleHue.js';
 import { todayPanels } from '../trainPanels.js';
-import { weekSetsView } from '../weekSets.js';
+import { weekSetsView, uncountedView } from '../weekSets.js';
 import { weekDots, trainedDays, coachWaiting, hardSetsRing, declineReason, verdictRest, routineGlyph } from '../trainSummaryFacts.js';
 import { dayDoneText } from '../doneToday.js';
 
@@ -282,6 +282,8 @@ export function valsTrainSummary(app, ctx, v) {
     // still gets its question to Coach, as the classic card's row did
     ask: !weekView && ring.short.length ? () => askCoach(`My weekly sets for ${ring.short.join(', ')} are under target for my goal — how should I add volume?`) : null,
     askCoach,
+    // sets on unaudited lifts, left out of the ring: said, never hidden
+    uncounted: uncountedView(o?.uncounted),
   } : null;
 
   // ------------------------------------------------------------ momentum --

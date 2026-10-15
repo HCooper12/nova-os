@@ -19,7 +19,29 @@
 // sets that made it. The week's headline counts SETS (each set once, under
 // its own muscle): a bench set is one set he did, not two.
 
-import { formatSets as fmt, INDIRECT_CREDIT } from './muscleCredit.js';
+import { formatSets as fmt, INDIRECT_CREDIT, uncountedLine } from './muscleCredit.js';
+
+// UNAUDITED LIFTS, SAID NOT HIDDEN (15 Oct 2026, his standing rule). A lift
+// nobody has audited credits no muscle, so its sets are missing from every
+// figure above; this is the one line that says how many and on which lifts.
+// `u` is the server's { sets, planned?, lifts: [{ name, sets }] }; null when
+// nothing was left out.
+export function uncountedView(u) {
+  const sets = Number(u?.sets) || 0;
+  const planned = Number(u?.planned) || 0;
+  const lifts = (u?.lifts || []).filter((l) => l?.name);
+  if (!sets && !planned) return null;
+  const line = sets
+    ? uncountedLine(sets)
+    : `${planned} planned ${planned === 1 ? 'set' : 'sets'} on unaudited lifts not counted`;
+  const names = lifts.map((l) => l.name);
+  const listed = names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  return {
+    line,
+    lifts: names,
+    hint: names.length ? `${listed} ${names.length === 1 ? 'counts' : 'count'} once you approve ${names.length === 1 ? 'its' : 'their'} muscles in your Inbox.` : null,
+  };
+}
 
 const SHORT = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
 const FULL = { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday' };
@@ -207,6 +229,7 @@ export function weekSetsView(week) {
       routineFull: d.routineName, rest: d.rest, isToday: d.isToday, isPast: d.isPast,
     })),
     muscles, headline, aheadLine, warn, done, planned, due,
+    uncounted: uncountedView(week.uncounted),
     // said once, under the grid, whenever a past day was read from history:
     // the rows on that day are what he was asked to do then, not now
     historyNote: days.some((d) => d.planAsOf)

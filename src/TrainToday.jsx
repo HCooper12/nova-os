@@ -13,7 +13,8 @@ import { Interactive } from './Interactive.jsx';
 import { Term } from './Glossary.jsx';
 import { Eyebrow, TextAction, Chip, Tag, Meta, isAppleStyle, Button, Rail } from './Controls.jsx';
 import { todayPanels } from './trainPanels.js';
-import { weekSetsView } from './weekSets.js';
+import { weekSetsView, uncountedView } from './weekSets.js';
+import { Uncounted } from './Uncounted.jsx';
 import { WeekSetsSheet } from './WeekSets.jsx';
 
 // the material pass (5 Sep 2026): labels through Controls.jsx; a filled
@@ -351,6 +352,7 @@ export function TrainToday({ o, actions, resume, done = null }) {
               </div>
             );
           })}
+          <Uncounted u={uncountedView(o.uncounted)} compact />
           {week && (
             <Meta as="div" tone="cyan" style={{ marginTop: '9px' }}>Every exercise, day by day</Meta>
           )}

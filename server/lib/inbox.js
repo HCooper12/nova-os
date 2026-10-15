@@ -340,6 +340,13 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     };
   }
 
+  // HIS YES TO AN AUDIT CARD (lib/exerciseAudit.js): the proposed mapping is
+  // written onto the lift as his own, and its sets count from now on
+  if (route === 'exercise-audit') {
+    const { applyAudit } = await import('./exerciseAudit.js');
+    return applyAudit(vaultPath, payload);
+  }
+
   if (route === 'distill-apply') {
     const { applyDistillJob } = await import('./distill.js');
     const { applied } = await applyDistillJob(vaultPath, payload.jobId);
@@ -582,6 +589,8 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
         payload.muscleGroup || removed?.muscleGroup || 'Other',
         payload.trackingType || removed?.trackingType || 'weight_reps');
       addId = created.id;
+      // a lift new to the library is unaudited until he approves a mapping
+      await (await import('./exerciseAudit.js')).ensureAuditCards(vaultPath, { ids: [addId], source: 'coach' }).catch(() => {});
       ({ exercises } = await loadExerciseLibrary(vaultPath));
     }
     const entryFor = (base) => ({
@@ -1300,6 +1309,10 @@ export async function undoFiling(vaultPath, undo) {
     const { exercises } = await loadExerciseLibrary(vaultPath);
     await setScheduleDay(vaultPath, exercises, undo.day, undo.priorId || null);
     return `put ${undo.dayLabel} back to ${undo.priorName}`;
+  }
+  if (undo.route === 'exercise-audit') {
+    const { undoAudit } = await import('./exerciseAudit.js');
+    return undoAudit(vaultPath, undo);
   }
   if (undo.route === 'train-today') {
     const { setTrainToday } = await import('./trainToday.js');

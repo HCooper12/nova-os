@@ -1,0 +1,47 @@
+/* UNAUDITED SETS, SAID (src/Uncounted.jsx, 15 Oct 2026). A quiet line under a
+   hard-sets figure: the hollow gold diamond is "waiting on his call", the
+   count is plain ink, the hint names the lifts and where to approve them.
+   It arrives with the figure it qualifies, never on its own beat. */
+
+.nv-uc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 7px;
+  margin: 10px 0 0;
+  font: 500 12.5px/1.45 var(--nv-font-ui);
+  color: var(--nv-ink60);
+  text-wrap: pretty;
+  animation: nv-uc-in var(--nv-dur-base, .32s) var(--nv-ease, ease-out) both;
+  animation-delay: .18s;
+}
+.nv-uc.compact {
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+.nv-uc-mark {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  transform: translateY(-1px) rotate(45deg);
+  border: 1.5px solid var(--nv-gold);
+  border-radius: 1px;
+}
+.nv-uc-line {
+  color: var(--nv-ink);
+  font-variant-numeric: tabular-nums;
+}
+.nv-uc-hint {
+  flex-basis: 100%;
+  padding-left: 14px;
+  color: var(--nv-ink50);
+}
+
+@keyframes nv-uc-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nv-uc { animation: none; }
+}

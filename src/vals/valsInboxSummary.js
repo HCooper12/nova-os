@@ -26,7 +26,7 @@ import { briefingGrowKey } from '../motion/growKeys.js';
 // reloads, and a seen card is never marked again.
 const autoSeenOnce = new Set();
 
-const TRAIN_ROUTES = new Set(['routine-edit', 'schedule-edit', 'progression-tune', 'exercise-remap', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'train-today']);
+const TRAIN_ROUTES = new Set(['routine-edit', 'schedule-edit', 'progression-tune', 'exercise-remap', 'injury-log', 'goal-target', 'training-block', 'exercise-resource', 'coach-learning', 'train-today', 'exercise-audit']);
 const TRAIN_KINDS = new Set(['coach', 'coach-program', 'coach-audit', 'training-check', 'weekly-debrief', 'coach-review', 'exercise-research', 'paper']);
 const PRACTICE_KINDS = new Set(['practice-skill', 'practice-session', 'practice-status']);
 const REPORT_KINDS = new Set(['research', 'coach-review', 'plan', 'program', 'briefing']);
@@ -87,6 +87,7 @@ function destinationOf(r) {
     case 'train-today': return p.routineName ? `Today's ${p.routineName}` : "Today's session";
     case 'progression-tune': return p.exerciseName ? `${p.exerciseName}'s progression` : 'Your progression';
     case 'exercise-remap': return 'Your exercise library';
+    case 'exercise-audit': return p.exerciseName ? `${p.exerciseName}, in your exercise library` : 'Your exercise library';
     case 'journal': return 'Your journal';
     case 'todo': return 'Your to-do list';
     case 'shopping': return 'Your shopping list';

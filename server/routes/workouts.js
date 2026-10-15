@@ -144,6 +144,9 @@ export function workoutsRouter(vaultPath) {
       if (!canonicalGroup(muscleGroup) && !legacyGroup(muscleGroup)) return res.status(400).json({ error: 'muscleGroup must be one of ' + MUSCLE_GROUPS.join(', ') });
       if (trackingType && !TRACKING_TYPES.includes(trackingType)) return res.status(400).json({ error: 'trackingType must be one of ' + TRACKING_TYPES.join(', ') });
       const exercise = await addCustomExercise(vaultPath, name, muscleGroup, trackingType);
+      // HIS STANDING RULE: a new lift counts for nothing until its muscles are
+      // audited; the card with a drafted mapping lands in his Inbox now
+      await import('../lib/exerciseAudit.js').then(({ ensureAuditCards }) => ensureAuditCards(vaultPath, { ids: [exercise.id] })).catch(() => {});
       // a lift he adds is researched and filled in properly, soon (Coach's
       // research lane; the sweep in exerciseResearch.js catches any it misses)
       import('../lib/exerciseResearch.js').then(({ researchSoon }) => researchSoon(vaultPath)).catch(() => {});

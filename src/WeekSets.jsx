@@ -4,6 +4,7 @@ import { muscleVar } from './muscleHue.js';
 import { formatSets as fmt } from './muscleCredit.js';
 import { AlsoSegment } from './AlsoWorks.jsx';
 import { GlassSheet } from './GlassSheet.jsx';
+import { Uncounted } from './Uncounted.jsx';
 import { Interactive } from './Interactive.jsx';
 import { Eyebrow, Meta, Tag, TextAction } from './Controls.jsx';
 
@@ -208,6 +209,7 @@ export function WeekSetsSheet({ view, originEl, onClose, onAskCoach }) {
         {view.warn && (
           <p style={css('margin:8px 0 0;font:500 13px/1.45 var(--nv-font-ui);color:var(--nv-warn);text-wrap:pretty')}>▲ {view.warn}</p>
         )}
+        <Uncounted u={view.uncounted} />
         <WeekGrid view={view} onPick={pick} />
         <div aria-hidden="true" style={css('display:flex;flex-wrap:wrap;gap:6px 14px;margin:12px 0 6px')}>
           {LEGEND.map(([s, label]) => (
