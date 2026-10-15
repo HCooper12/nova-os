@@ -1,6 +1,7 @@
 import matter from 'gray-matter';
 import { localDateISO } from './localDate.js';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
+import { tableSecondary } from './muscleSecondary.js';
 
 export const LIBRARY_REL_PATH = 'Wiki/Health/Exercise Library.md';
 
@@ -132,7 +133,7 @@ function parseLibrary(raw) {
 // The whole file from its list — pure, so a planner can compute the library
 // it WOULD write and hand it to the staged pass (lib/stagedPass.js).
 export function renderLibraryFile(exercises) {
-  const frontmatter = { type: 'exercise-library', updated: localDateISO(), exercises };
+  const frontmatter = { type: 'exercise-library', updated: localDateISO(), exercises: exercises.map(storedForm) };
   return matter.stringify(bodyFor(exercises), frontmatter);
 }
 
@@ -189,8 +190,33 @@ async function getExercises(vaultPath) {
   return seeded;
 }
 
+// WHAT ELSE EACH LIFT TRAINS (15 Oct 2026), resolved at read time like the
+// muscle group's re-filing: his own `secondary: [..]` on a library entry wins
+// (validated against MUSCLE_GROUPS; an empty list means "none"), else the
+// name table (lib/muscleSecondary.js). Nothing is written to the vault: the
+// resolved list rides on the returned copy, and `secondarySource` says which
+// it was so a writer handed this copy stores only a real override.
+export function resolveSecondary(e) {
+  const primary = String(e?.muscleGroup || '').trim();
+  if (Array.isArray(e?.secondary)) {
+    const own = [...new Set(e.secondary.map((m) => String(m || '').trim()))]
+      .filter((m) => MUSCLE_GROUPS.includes(m) && m !== primary && m !== 'Mobility' && m !== 'Full Body');
+    return { ...e, secondary: primary === 'Mobility' || primary === 'Full Body' ? [] : own, secondarySource: 'override' };
+  }
+  return { ...e, secondary: tableSecondary(e?.name, primary), secondarySource: 'table' };
+}
+
+// the inverse, for every writer: a table-derived list is never persisted (a
+// rule change must keep reaching every lift), an override always is
+function storedForm(e) {
+  if (!e || typeof e !== 'object') return e;
+  const { secondary, secondarySource, ...rest } = e;
+  if (secondarySource === 'table') return rest;
+  return secondary === undefined ? rest : { ...rest, secondary };
+}
+
 export async function loadExerciseLibrary(vaultPath) {
-  return { exercises: await getExercises(vaultPath), muscleGroups: MUSCLE_GROUPS, trackingTypes: TRACKING_TYPES };
+  return { exercises: (await getExercises(vaultPath)).map(resolveSecondary), muscleGroups: MUSCLE_GROUPS, trackingTypes: TRACKING_TYPES };
 }
 
 let writeLock = Promise.resolve();
