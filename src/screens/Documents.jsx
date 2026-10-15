@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScreenHead, Eyebrow, Meta, Chip, Rail, TextAction } from '../Controls.jsx';
 import { Interactive } from '../Interactive.jsx';
 import { LocalInput } from '../LocalInput.jsx';
@@ -86,13 +86,13 @@ function Cover({ r, i }) {
 
 // A ROW: the cover tile in the agent's hue, the serif title, one line of
 // summary, and who · when · how long. The whole row is the target.
-function Row({ r, i, first }) {
+function Row({ r, i, first, risen }) {
   return (
     <Interactive as="div" data-flip={r.id} onClick={r.open} haptic="tick" aria-label={`Open ${r.title}`} className="nv-doc-row"
       base={{
         position: 'relative', display: 'flex', alignItems: 'center', gap: '14px', minHeight: '64px', padding: '12px 14px', cursor: 'pointer',
         boxShadow: first ? 'none' : 'inset 0 1px 0 color-mix(in srgb, var(--nv-ink) 7%, transparent)',
-        '--nv-doc-hue': r.hue, animation: rise(i),
+        '--nv-doc-hue': r.hue, animation: risen ? undefined : rise(i),
       }}
       hoverStyle={{ background: 'color-mix(in srgb, var(--nv-ink) 4%, transparent)' }}>
       <CoverTile agent={r.agent} kind={r.kind} w={42} h={52} glyph={19} />
@@ -170,6 +170,15 @@ export function Documents({ v }) {
   const listRoot = useRef(null);
   const ids = (d?.groups || []).flatMap((g) => g.rows.map((r) => r.id));
   useSearchMotion(listRoot, d?.query, ids, { also: d?.filter });
+  // the rows rise once, when the list first lands; a row a search brings back
+  // is simply there (search → results does the arriving)
+  const hasRows = ids.length > 0;
+  const [risen, setRisen] = useState(false);
+  useEffect(() => {
+    if (!hasRows || risen) return undefined;
+    const t = setTimeout(() => setRisen(true), 1200);
+    return () => clearTimeout(t);
+  }, [hasRows, risen]);
   if (!d) return null;
   let row = 0;
   return (
@@ -229,7 +238,7 @@ export function Documents({ v }) {
       <div ref={listRoot}>
         {d.groups.map((g) => (
           <Group key={g.key} label={g.label}>
-            {g.rows.map((r, i) => <Row key={r.id} r={r} i={row++} first={i === 0} />)}
+            {g.rows.map((r, i) => <Row key={r.id} r={r} i={row++} first={i === 0} risen={risen} />)}
           </Group>
         ))}
       </div>
