@@ -56,5 +56,20 @@ export function expandGroup(name) {
   return old ? [...LEGACY_GROUPS[old]] : [];
 }
 
+// THE GROWTH RANGE (16 Oct 2026, his decision): 10 to 20 working sets per
+// muscle per week, counted the house way (1 per focus set, ½ per accessory
+// set). Below 10 a muscle is short; above 20 more sets stop buying growth.
+// Every surface that judges a week's volume reads THIS pair: the weekly
+// sets sheet, the Train bars, Coach's under- and junk-volume checks and the
+// Coach context. A muscle can carry its own range for a goal (his fitness
+// goals' `volumeRanges`, set by Coach on his yes); rangeFor reads it.
+export const VOLUME_RANGE = Object.freeze([10, 20]);
+
+/** One muscle's [low, high]: his goal's override for it, else VOLUME_RANGE. */
+export function rangeFor(muscle, overrides = null) {
+  const r = overrides && Object.hasOwn(overrides, muscle) ? overrides[muscle] : null;
+  return Array.isArray(r) && r.length === 2 ? [r[0], r[1]] : [...VOLUME_RANGE];
+}
+
 export const isMuscleGroup = (name) => MUSCLE_GROUPS.includes(name);
 export const countsAsVolume = (group) => isMuscleGroup(group) && !NON_VOLUME.has(group);

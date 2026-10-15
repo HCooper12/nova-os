@@ -12,6 +12,7 @@ import { computeDeloadSignal } from './coach.js';
 import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf, isWorkingSet, creditsById } from './trainingAnalytics.js';
 import { isUnaudited } from './muscleSecondary.js';
 import { plannedWeek } from './plannedWeek.js';
+import { muscleWeek as buildMuscleWeek } from './muscleWeek.js';
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
 
@@ -260,6 +261,19 @@ export async function buildTrainOverview(vaultPath) {
     });
   } catch { /* honest absence */ }
 
+  // THE WEEK IN MUSCLE SETS (16 Oct 2026): the weekly muscle sets sheet's
+  // model (lib/muscleWeek.js). Same sessions, same draft, same library as the
+  // bars; null on failure, and the card simply opens nothing.
+  let muscleWeek = null;
+  try {
+    const { listCarryovers } = await import('./workoutCarryover.js');
+    muscleWeek = buildMuscleWeek({
+      routines, schedule, sessions, live: liveSession, exercises,
+      carryovers: await listCarryovers().catch(() => []),
+      goalMuscles: [...focused],
+    });
+  } catch { /* honest absence */ }
+
   // the Coach's open program ask — shown on Train, because that is where a
   // change to his program is actually decided
   const coachAsk = await (async () => {
@@ -356,5 +370,6 @@ export async function buildTrainOverview(vaultPath) {
     // uncountedLine): the bars and the week sheet say it under the figures
     uncounted,
     week,
+    muscleWeek,
   };
 }
