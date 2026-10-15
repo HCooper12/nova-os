@@ -484,7 +484,7 @@ export function valsRecipes(app, ctx) {
             slotToggles: rotationOrder.map(slotDefFor).map((s) => ({ key: s.key, label: s.custom ? s.name.slice(0, 1).toUpperCase() : s.label, title: s.name, hue: s.hue, active: (rotation?.options?.[s.key] || []).some((d) => d.id === r.id), onClick: () => app.toggleRotationSlot(s.key, r.id) })) };
         })
     : recipeBank !== 'demo' ? []
-    : app.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).map(r => {
+    : app.recipes.filter(r => st.recipeFilter === 'All' || r.filter === st.recipeFilter).filter(r => !q || r.name.toLowerCase().includes(q)).map(r => { // the demo bank answers the search too (15 Oct)
         const tot = r.p + r.c + r.f;
         const bar = (v, col) => ({ flex: String(v / tot), borderRadius: '2px', background: col });
         return { name: r.name, tag: r.tag, p: r.p, c: r.c, f: r.f, kcal: r.kcal, time: r.time, meta: cardMeta(r), reel: !!sourceOf(r.source)?.reel,
