@@ -389,7 +389,7 @@ test('mockup 101: a ticked set whose estimate beats his best opens the banner, p
   // no best yet (a lift never done, or the read failed): nothing is claimed
   assert.equal(run({}).record, null);
   assert.equal(run(undefined).record, null);
-  const page = read('src/screens/SessionSummary.jsx');
+  const page = read('src/motion/RecordBanner.jsx');
   assert.match(page, /counts once you save/, 'provisional: only Save makes it a record');
-  assert.match(page, /const SHOWN = new Set\(\);/, 'a record already shown never replays when the screen opens again');
+  assert.match(read('src/motion/RecordBanner.jsx'), /const SHOWN = new Set\(\);/, 'a record already shown never replays when the screen opens again');
 });

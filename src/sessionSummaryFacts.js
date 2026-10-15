@@ -142,6 +142,52 @@ export function recordCandidates(exercises) {
   return out.sort((a, b) => (a.kind === b.kind ? b.gain - a.gain : a.kind === 'weight' ? -1 : 1));
 }
 
+// ------------------------------------------- the record, mid-session --
+
+// THE SET THAT WOULD BE A RECORD (mockup 101, 13 Oct; one decider since
+// 15 Oct). Both live sessions call this: the summary idiom's set card
+// (valsSessionSummary) and the classic session his phone runs under
+// cupertino (valsWorkouts). Shared formats are contracts: one rule, not two.
+//
+// Against his best estimated 1RM before today (GET /workouts/bests, read
+// off the same sessions Save checks), a ticked working set opens the banner
+// when its estimate reads higher. Compared at the resolution SHOWN: the
+// weight as it is drawn (shownKg), the estimate to one decimal, exactly as
+// the server stores the best. A repeat of the set that made his best gives
+// the same shown number, so it is never a record (the 12 Sep class).
+// Warm-ups never count. Provisional: only the server's check at Save makes
+// it a record, so the banner says "counts once you save".
+//
+// Returns the banner the screen draws, or null. `scope` (the session's
+// start) keeps a record shown in one session from muting the next.
+export const liveE1rm = (s) => {
+  const w = shownKg(s?.weight); const r = Number(s?.reps) || 0;
+  return w > 0 && r > 0 && r <= 12 ? Math.round(w * (1 + r / 30) * 10) / 10 : null;
+};
+export function liveRecord({ sets, best, trackingType, exIdx = 0, name = '', hue = null, scope = '' } = {}) {
+  const tt = trackingType || 'weight_reps';
+  if (best?.e1rm == null || isTimeLift(tt) || isBodyweightLift(tt)) return null;
+  const list = sets || [];
+  let at = -1; let value = null;
+  list.forEach((x, i) => {
+    if (!x || !x.done || x.setType === 'warmup') return;
+    const v = liveE1rm(x);
+    if (v != null && v > best.e1rm && (value == null || v > value)) { value = v; at = i; }
+  });
+  if (at < 0) return null;
+  return {
+    key: `${scope}:${exIdx}:${at}:${value}`,
+    setIdx: at,
+    // the lift's name heads the banner as masked type (src/motion/MaskedType.jsx)
+    name,
+    value, previous: best.e1rm,
+    delta: Math.round((value - best.e1rm) * 10) / 10,
+    hue,
+    history: [...(best.history || []).map((h) => h.e1rm), value].slice(-7),
+    set: `${fmtKg(Number(list[at].weight))} × ${list[at].reps}`,
+  };
+}
+
 // ---------------------------------------------------- the voice preview --
 
 // "yes" at the end of what he said is the commit, not part of the set

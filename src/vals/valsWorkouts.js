@@ -8,6 +8,7 @@ import { bubble } from './shared.js';
 import { dtf } from './fmt.js';
 import { vtStyle } from '../vtName.js';
 import { doneTodayCard, dayDoneMarks } from '../doneToday.js';
+import { liveRecord } from '../sessionSummaryFacts.js';
 
 // The next N days (today → today+N) as {iso, short} for day pickers.
 function nextDays(n) {
@@ -442,8 +443,21 @@ export function valsWorkouts(app, ctx) {
   const PAIN_OTHER = ['Neck', 'Upper back', 'Lower back', 'Hip', 'Knee', 'Ankle', 'Foot', 'Groin', 'Hamstring', 'Achilles'];
   const pain = st.sessionPain || null;
   const libraryById = new Map(libraryExercises.map((x) => [x.id, x]));
+  // the same scope the summary idiom keys its records by, so a record shown
+  // under one style never replays on a switch to the other
+  const sessionScope = session ? String(session.startedAt ?? `${session.routineId}:${session.routineName}`) : '';
   const sessionExercises = session ? session.exercises.map((e, exIdx) => ({
     exerciseId: e.exerciseId, name: e.name, trackingType: e.trackingType,
+    // THE SET THAT WOULD BE A RECORD (15 Oct, his ask: the summary session's
+    // banner on his phone's session too). The one decider both idioms call
+    // (sessionSummaryFacts.liveRecord): his best before today at the
+    // resolution shown, provisional until Save. Un-ticking the set recomputes
+    // it away; a heavier set is a new key and plays its own moment.
+    record: liveRecord({
+      sets: e.sets, best: st.sessionBests?.[e.exerciseId] || null, trackingType: e.trackingType,
+      exIdx, name: e.name, scope: sessionScope,
+      hue: muscleVar(libraryById.get(e.exerciseId)?.muscleGroup || e.muscleGroup || 'Other'),
+    }),
     // the anatomy card (3D figure, muscles, cues, history) — a visible chip
     // now, not a long-press nobody could find
     //

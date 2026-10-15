@@ -1,0 +1,7 @@
+/* THE RECORD BANNER IN THE CLASSIC SESSION (src/screens/Workouts.jsx,
+   15 Oct 2026). The banner's own look is the .nv-ss-rec rules in
+   src/index.css and the masked-type sequence in ./maskedType.css; this only
+   seats it in the classic exercise card, between the lift's meta line and
+   its sets. Nothing here animates. */
+.nv-rb-classic { margin-top: 12px; min-width: 0; }
+.nv-rb-classic > .nv-ss-rec { margin: 0; }

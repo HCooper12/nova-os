@@ -17,6 +17,8 @@ import { RingTile } from '../RingTile.jsx';
 import { TrainSummary } from './TrainSummary.jsx';
 import { SessionSummary } from './SessionSummary.jsx';
 import { ConsultFlow } from '../motion/ConsultFlow.jsx';
+import { RecordBanner } from '../motion/RecordBanner.jsx';
+import '../motion/recordBanner.css';
 
 // THE MATERIAL PASS (5 Sep 2026, "Nova feels stiff"): labels and tap targets
 // on this screen are set through src/Controls.jsx — sentence case in the UI
@@ -639,6 +641,13 @@ function SessionView({ v }) {
                 )}
                 {e.lastLabel && <span>{e.lastLabel}</span>}
               </div>
+            )}
+            {/* THE RECORD BANNER (15 Oct, his ask): the summary session's moment
+                on his phone's session. Keyed by the record, so a heavier set
+                plays its own; un-ticking the set takes it away. The decider is
+                sessionSummaryFacts.liveRecord, shared with the summary idiom. */}
+            {!e.skipped && e.record && (
+              <div className="nv-rb-classic"><RecordBanner key={e.record.key} r={e.record} /></div>
             )}
             <div style={css(`margin-top:12px;display:${e.skipped ? 'none' : 'flex'};flex-direction:column;gap:8px`)}>
               {/* HEADER AND ROWS SHARE ONE GRID. They used to be two flex rows
