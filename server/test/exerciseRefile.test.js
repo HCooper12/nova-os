@@ -38,7 +38,9 @@ test('his case: the reverse curl moves to Forearms, and its logged sets move wit
   assert.equal(out.before, 'Biceps');
   assert.equal(await groupOf(), 'Forearms');
   const after = weeklyMuscleVolume(WEDNESDAY, (await loadExerciseLibrary(vault)).exercises)[0].groups;
-  assert.deepEqual(after, { Forearms: 3 }, 'the week recounts from the library, no session rewritten');
+  // filed under Forearms, a reverse curl also trains the biceps at ½ a set
+  // each (lib/muscleSecondary.js, 15 Oct); under Biceps it had nothing to add
+  assert.deepEqual(after, { Forearms: 3, Biceps: 1.5 }, 'the week recounts from the library, no session rewritten');
 
   const rec = await getRecord(out.record.id);
   assert.equal(rec.status, 'filed');

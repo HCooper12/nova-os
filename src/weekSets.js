@@ -11,6 +11,15 @@
 //   due    still to come this week (an outline in the hue)
 //   missed its day has passed and it was not done (a dashed hole)
 //   extra  done, but not in the plan (a diamond)
+//
+// WHAT ELSE A LIFT TRAINS (15 Oct 2026). A muscle's figures are TOTALS:
+// its own sets plus ½ for each set of a lift that also trains it
+// (src/muscleCredit.js). The lifts behind the indirect part are listed after
+// its own as quieter `also` rows, so the number can always be traced to the
+// sets that made it. The week's headline counts SETS (each set once, under
+// its own muscle): a bench set is one set he did, not two.
+
+import { formatSets as fmt, INDIRECT_CREDIT } from './muscleCredit.js';
 
 const SHORT = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
 const FULL = { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday', sunday: 'Sunday' };
@@ -68,17 +77,32 @@ function comingUp(days, slotsByDay) {
   return ahead.map((d) => `${d.routineName} ${when(d)}`);
 }
 
+// " (6 direct + 6 indirect at ½ so far)": how a total was made, said only
+// when some of it came from lifts that also train the muscle
+export function breakdown(m) {
+  const d = m.direct?.done ?? m.done;
+  const i = m.indirect?.done || 0;
+  return i ? ` (${fmt(d)} direct + ${fmt(i)} indirect at ½ so far)` : '';
+}
+
 export function weekSetsView(week) {
   if (!week?.days?.length || !week?.muscles?.length) return null;
   const days = week.days;
   const dayOf = Object.fromEntries(days.map((d) => [d.day, d]));
   const slotsByDay = {};
   for (const m of week.muscles) for (const s of m.exercises) (slotsByDay[s.day] ||= []).push(s);
+  // still to come: planned sets not yet done on today or a later day
+  const dueOf = (slots) => slots.reduce((n, s) => n + (s.extra || (dayOf[s.day]?.isPast && !s.carriedTo) ? 0 : Math.max(0, (s.planned || 0) - (s.done || 0))), 0);
 
   const muscles = week.muscles.map((m) => {
-    // still to come: planned sets not yet done on today or a later day
-    const due = m.exercises.reduce((n, s) => n + (dayOf[s.day]?.isPast && !s.carriedTo ? 0 : Math.max(0, s.planned - s.done)), 0);
+    const also = m.alsoFrom || [];
+    const directDue = dueOf(m.exercises);
+    const indirectDue = dueOf(also);
+    const due = directDue + INDIRECT_CREDIT * indirectDue;
     const projected = m.done + due;
+    // a week built before indirect credit has no breakdown: all of it is direct
+    const direct = m.direct || { planned: m.planned, done: m.done, live: m.live || 0 };
+    const indirect = m.indirect || { planned: 0, done: 0, live: 0 };
     const rows = [
       ...m.exercises.map((s) => ({
         key: `${s.day}:${s.exerciseId}`,
@@ -97,6 +121,20 @@ export function weekSetsView(week) {
         status: null,
         extra: true,
       })),
+      // the lifts that also train it, after its own: each set counts ½ here
+      ...also.map((a) => ({
+        key: `also:${a.extra ? 'extra' : a.day}:${a.exerciseId}`,
+        day: a.extra ? (a.doneOn || []).map((d) => SHORT[d]).join(' ') : SHORT[a.day],
+        isToday: !a.extra && !!dayOf[a.day]?.isToday,
+        name: a.name, routine: a.routineName || null,
+        detail: `${a.primary} lift, each set counts ½ here`,
+        pips: a.extra
+          ? Array.from({ length: a.done }, (_, i) => (i >= a.done - (a.live || 0) ? 'live' : 'extra'))
+          : slotPips(a, dayOf[a.day]),
+        status: null,
+        also: true,
+        ...(a.extra ? { extra: true } : {}),
+      })),
     ];
     // the grid: each day's pips for this muscle, one LINE per exercise so a
     // day's stack reads as its lifts (four to a row blurred three lifts into
@@ -111,6 +149,9 @@ export function weekSetsView(week) {
       id: `wk-${lower(m.muscle).replace(/[^a-z]+/g, '-')}`,
       goal: !!m.goalMuscle, target: m.target,
       done: m.done, planned: m.planned, live: m.live || 0, due, projected,
+      // SETS of each kind behind the totals, for the two-part bar and Coach
+      direct: { ...direct, due: directDue }, indirect: { ...indirect, due: indirectDue },
+      directPct: m.target ? Math.min(1, direct.done / m.target) : 0,
       // the verdict lives in the number, as on the bars: a goal muscle that
       // cannot reach its target on the plan as written says so
       short: !!m.goalMuscle && projected < m.target,
@@ -121,9 +162,10 @@ export function weekSetsView(week) {
     };
   });
 
-  const done = muscles.reduce((n, m) => n + m.done, 0);
-  const planned = muscles.reduce((n, m) => n + m.planned, 0);
-  const due = muscles.reduce((n, m) => n + m.due, 0);
+  // the week in SETS: each set once, under its own muscle
+  const done = muscles.reduce((n, m) => n + m.direct.done, 0);
+  const planned = muscles.reduce((n, m) => n + m.direct.planned, 0);
+  const due = muscles.reduce((n, m) => n + m.direct.due, 0);
   const ahead = comingUp(days, slotsByDay);
 
   // the news in two parts, so the sheet can set the count as a figure and
@@ -140,7 +182,7 @@ export function weekSetsView(week) {
   const warn = short.length
     ? short.map((m) => (m.unplanned
       ? `${m.muscle} has nothing planned this week`
-      : `${m.muscle} can reach ${m.projected} of ${m.target} this week on the plan as written`)).join('. ') + '.'
+      : `${m.muscle} can reach ${fmt(m.projected)} of ${m.target} this week on the plan as written`)).join('. ') + '.'
     : null;
 
   // THE CARD'S OWN VERDICT, from the same projection. On a Friday morning
@@ -152,9 +194,9 @@ export function weekSetsView(week) {
   const cta = short.length ? {
     muscles: short.map((m) => m.muscle),
     text: short.length === 1
-      ? `${short[0].muscle} can reach ${short[0].projected} of ${short[0].target} by Sunday on the plan as written. Ask Coach how to add sets →`
-      : `${listOf(short.map((m) => `${m.muscle} (${m.projected} of ${m.target})`))} fall short by Sunday on the plan as written. Ask Coach how to add sets →`,
-    question: `On my plan as written, ${listOf(short.map((m) => lower(m.muscle)))} ${short.length === 1 ? 'finishes' : 'finish'} this week short of target for my goal: ${short.map((m) => `${m.muscle} ${m.done} done + ${m.due} still scheduled = ${m.projected} of ${m.target}`).join('; ')}. How should I add volume?`,
+      ? `${short[0].muscle} can reach ${fmt(short[0].projected)} of ${short[0].target} by Sunday on the plan as written. Ask Coach how to add sets →`
+      : `${listOf(short.map((m) => `${m.muscle} (${fmt(m.projected)} of ${m.target})`))} fall short by Sunday on the plan as written. Ask Coach how to add sets →`,
+    question: `On my plan as written, ${listOf(short.map((m) => lower(m.muscle)))} ${short.length === 1 ? 'finishes' : 'finish'} this week short of target for my goal: ${short.map((m) => `${m.muscle} ${fmt(m.done)} done + ${fmt(m.due)} still scheduled = ${fmt(m.projected)} of ${m.target}${breakdown(m)}`).join('; ')}. How should I add volume?`,
   } : null;
 
   return {
@@ -172,6 +214,6 @@ export function weekSetsView(week) {
       : null,
     // talking back is the action (§2b r8): the question arrives with the
     // sheet's own figures, so Coach argues from what he is looking at
-    coachQuestion: `Look at my planned week, muscle by muscle. ${headline}${warn ? ` ${warn}` : ''} ${muscles.filter((m) => m.planned || m.goal).map((m) => `${m.muscle}: ${m.done} done, ${m.due} still scheduled, target ${m.target}`).join('; ')}. Is the split right for my goal, and what would you change?`,
+    coachQuestion: `Look at my planned week, muscle by muscle. ${headline}${warn ? ` ${warn}` : ''} ${muscles.filter((m) => m.planned || m.goal).map((m) => `${m.muscle}: ${fmt(m.done)} done, ${fmt(m.due)} still scheduled, target ${m.target}${breakdown(m)}`).join('; ')}. Is the split right for my goal, and what would you change?`,
   };
 }

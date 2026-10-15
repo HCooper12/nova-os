@@ -12,11 +12,20 @@
 // it), including the swaps real weeks are full of: pull-ups in place of
 // weighted pull-ups, a V-bar pushdown for the straight bar, a lift pulled
 // forward from Friday into Wednesday.
+//
+// WHAT ELSE A LIFT TRAINS (15 Oct 2026). A slot or an off-plan lift also
+// credits ½ a set per set to each muscle it trains secondarily
+// (lib/muscleSecondary.js). Its sets still land in exactly ONE place (its
+// primary muscle's slot or extras); the secondary muscles carry a reference
+// to it in `alsoFrom`. A muscle's planned / done / live are TOTALS (direct +
+// ½ indirect), with `direct` and `indirect` set counts beside them, so the
+// done total still equals the bar, which counts the same way.
 
 import { mondayIso } from './cadence.js';
 import { MUSCLE_GROUPS } from './exercises.js';
 import { todayIso } from './makeupDay.js';
 import { isWorkingSet } from './trainingAnalytics.js';
+import { creditsById, secondaryFor, INDIRECT_CREDIT } from './muscleSecondary.js';
 
 export const WEEK_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
@@ -47,6 +56,12 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
   const groupOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
   const nameOf = new Map(exercises.map((e) => [e.id, e.name]));
   const trackingOf = new Map(exercises.map((e) => [e.id, e.trackingType]));
+  const creditsOf = creditsById(exercises);
+  // the muscles a lift also trains: the library's word, else the table's on
+  // the routine entry itself (a lift the library no longer holds)
+  const alsoOf = (ex, muscle) => (creditsOf.has(ex.exerciseId)
+    ? creditsOf.get(ex.exerciseId).slice(1).map((c) => c.muscle)
+    : secondaryFor({ name: ex.name, muscleGroup: muscle, secondary: ex.secondary }));
   const routineById = new Map(routines.map((r) => [r.id, r]));
   const sig = (xs) => JSON.stringify((xs || []).map((e) => [e.exerciseId, Number(e.targetSets) || 0]));
 
@@ -81,6 +96,7 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
       if (muscle === 'Mobility') continue; // adherence, never hypertrophy volume
       slots.push({
         exerciseId: ex.exerciseId, name: ex.name || nameOf.get(ex.exerciseId) || '(deleted exercise)', muscle, day: d.day, routineName: d.routineName,
+        secondary: alsoOf(ex, muscle),
         planned: Number(ex.targetSets) || 0,
         reps: { low: ex.targetRepsLow ?? null, high: ex.targetRepsHigh ?? null },
         trackingType: ex.trackingType || trackingOf.get(ex.exerciseId) || 'weight_reps',
@@ -120,7 +136,7 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
         continue;
       }
       const key = `${muscle}|${ex.exerciseId}`;
-      const row = extras.get(key) || { exerciseId: ex.exerciseId, name: nameOf.get(ex.exerciseId) || ex.name || ex.exerciseId, muscle, done: 0, live: 0, doneOn: [], byDay: {} };
+      const row = extras.get(key) || { exerciseId: ex.exerciseId, name: nameOf.get(ex.exerciseId) || ex.name || ex.exerciseId, muscle, secondary: alsoOf(ex, muscle), done: 0, live: 0, doneOn: [], byDay: {} };
       row.done += n; row.live += liveN;
       row.byDay[weekday] = (row.byDay[weekday] || 0) + n; // the week grid places them on the day they happened
       if (!row.doneOn.includes(weekday)) row.doneOn.push(weekday);
@@ -147,18 +163,35 @@ export function plannedWeek({ routines = [], schedule = {}, sessions = [], live 
 
   const muscles = new Map();
   const rowFor = (m) => {
-    if (!muscles.has(m)) muscles.set(m, { muscle: m, ...targetOf(m), planned: 0, done: 0, live: 0, exercises: [], extras: [] });
+    if (!muscles.has(m)) {
+      muscles.set(m, {
+        muscle: m, ...targetOf(m), planned: 0, done: 0, live: 0,
+        direct: { planned: 0, done: 0, live: 0 }, indirect: { planned: 0, done: 0, live: 0 },
+        exercises: [], extras: [], alsoFrom: [],
+      });
+    }
     return muscles.get(m);
   };
+  const credit = (r, kind, k, n) => { r[kind][k] += n; r[k] += (kind === 'direct' ? 1 : INDIRECT_CREDIT) * n; };
   for (const { _routineId, ...sl } of slots) {
     const r = rowFor(sl.muscle);
-    r.planned += sl.planned; r.done += sl.done; r.live += sl.live;
+    credit(r, 'direct', 'planned', sl.planned); credit(r, 'direct', 'done', sl.done); credit(r, 'direct', 'live', sl.live);
     r.exercises.push(sl);
+    for (const m of sl.secondary) {
+      const o = rowFor(m);
+      credit(o, 'indirect', 'planned', sl.planned); credit(o, 'indirect', 'done', sl.done); credit(o, 'indirect', 'live', sl.live);
+      o.alsoFrom.push({ exerciseId: sl.exerciseId, name: sl.name, primary: sl.muscle, day: sl.day, routineName: sl.routineName, planned: sl.planned, done: sl.done, live: sl.live, doneOn: sl.doneOn, ...(sl.carriedTo ? { carriedTo: sl.carriedTo } : {}) });
+    }
   }
   for (const e of extras.values()) {
     const r = rowFor(e.muscle);
-    r.done += e.done; r.live += e.live;
+    credit(r, 'direct', 'done', e.done); credit(r, 'direct', 'live', e.live);
     r.extras.push(e);
+    for (const m of e.secondary) {
+      const o = rowFor(m);
+      credit(o, 'indirect', 'done', e.done); credit(o, 'indirect', 'live', e.live);
+      o.alsoFrom.push({ exerciseId: e.exerciseId, name: e.name, primary: e.muscle, extra: true, planned: 0, done: e.done, live: e.live, doneOn: e.doneOn, byDay: e.byDay });
+    }
   }
   // a goal muscle the plan never trains must still appear: absence is the finding
   for (const m of MUSCLE_GROUPS) if (targetOf(m).goalMuscle) rowFor(m);

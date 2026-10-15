@@ -18,12 +18,14 @@ export const INDIRECT_CREDIT = 0.5;
 
 // muscles that never take or give secondary credit: Mobility is adherence,
 // not hypertrophy volume; Full Body is already "everything"
-const NO_SECONDARY = new Set(['Mobility', 'Full Body', 'Other']);
+export const NO_SECONDARY = new Set(['Mobility', 'Full Body', 'Other']);
 
+// THE TABLE, as data: the one list every count reads, exported so a later
+// audited per-exercise table can replace it without touching any counter.
 // [pattern, secondaries | (primary) => secondaries]. Order matters: the
 // isolation lifts and the "looks like a press but is not" names come first,
 // so a leg-press calf raise or an incline curl never reads as a press.
-const RULES = [
+export const SECONDARY_RULES = [
   // isolation: the named muscle and nothing else worth counting
   [/calf raise|calf press|calves/, []],
   // a dip is a press whatever it is filed under ("Tricep Dip" included)
@@ -70,7 +72,7 @@ export function tableSecondary(name, primary) {
   const p = String(primary || '').trim();
   if (!p || NO_SECONDARY.has(p)) return [];
   const n = String(name || '').toLowerCase();
-  for (const [re, out] of RULES) {
+  for (const [re, out] of SECONDARY_RULES) {
     if (!re.test(n)) continue;
     const list = typeof out === 'function' ? out(p) : out;
     return uniq(list).filter((m) => m !== p && !NO_SECONDARY.has(m));

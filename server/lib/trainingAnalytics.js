@@ -12,6 +12,12 @@ import { loadSessions } from './workoutSessions.js';
 import { mondayIso } from './cadence.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, ACTIVE_REST } from './workouts.js';
+import { creditsFor, creditsById, emptyTally, addSets, formatSets } from './muscleSecondary.js';
+
+// THE ONE CREDIT FUNCTION (15 Oct 2026): where a working set of an exercise
+// lands, [{ muscle, credit }], primary 1 and each secondary ½. Every
+// per-muscle set count on the server and the client goes through it.
+export { creditsFor, creditsById, formatSets };
 
 const e1rm = (w, reps) => (reps > 0 && reps <= 12 ? w * (1 + reps / 30) : null);
 // An e1RM is COMPARED at the resolution it is SHOWN at.
@@ -204,26 +210,51 @@ export const mondayOf = (date = new Date()) => mondayIso(date);
 // to the bar above it, and two copies of a rule are two rules.
 export const isWorkingSet = (x) => !!x && x.setType !== 'warmup' && (Number(x.weight) > 0 || Number(x.reps) > 0);
 
+// Per week, per muscle: `groups` is the TOTAL each muscle is credited
+// (direct sets + ½ of indirect ones, his 15 Oct ask: what a lift also trains
+// adds up into that muscle's weekly load), and `direct` / `indirect` say how
+// many SETS of each kind made it. Every existing reader of `groups` keeps
+// reading the total; a reader that wants primary work alone reads `direct`.
 export function weeklyMuscleVolume(sessions, exercises, { weeks = 4 } = {}) {
-  const groupOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
+  const creditsOf = creditsById(exercises);
   const weekOf = (dateStr) => mondayOf(dateStr);
-  const acc = new Map(); // week -> group -> sets
+  const acc = new Map(); // week -> muscle -> { total, direct, indirect }
   for (const s of sessions) {
     const wk = weekOf(s.date);
     for (const ex of s.exercises || []) {
-      const g = groupOf.get(ex.exerciseId) || 'Other';
-      if (g === 'Mobility') continue; // tracked for adherence, never as hypertrophy volume
+      const credits = creditsOf.get(ex.exerciseId) || [{ muscle: 'Other', credit: 1 }];
+      if (credits[0].muscle === 'Mobility') continue; // tracked for adherence, never as hypertrophy volume
       const working = (ex.sets || []).filter(isWorkingSet);
       if (!working.length) continue;
       const w = acc.get(wk) || new Map();
-      w.set(g, (w.get(g) || 0) + working.length);
+      for (const { muscle, credit } of credits) {
+        if (!w.has(muscle)) w.set(muscle, emptyTally());
+        addSets(w.get(muscle), credit, working.length);
+      }
       acc.set(wk, w);
     }
   }
   return [...acc.entries()]
     .sort((a, b) => b[0].localeCompare(a[0]))
     .slice(0, weeks)
-    .map(([week, groups]) => ({ week, groups: Object.fromEntries([...groups.entries()].sort((a, b) => b[1] - a[1])) }));
+    .map(([week, groups]) => {
+      const rows = [...groups.entries()].sort((a, b) => b[1].total - a[1].total || b[1].direct - a[1].direct);
+      return {
+        week,
+        groups: Object.fromEntries(rows.map(([m, t]) => [m, t.total])),
+        direct: Object.fromEntries(rows.map(([m, t]) => [m, t.direct])),
+        indirect: Object.fromEntries(rows.map(([m, t]) => [m, t.indirect])),
+      };
+    });
+}
+
+// "Glutes 9 (6 direct + 6 indirect at ½)", or "Quads 3" when all of it was
+// direct: the form a weekly count is SPOKEN in, so Coach argues from the
+// same figure the card draws (src/muscleCredit.js formatSets)
+export function volumeBreakdown(muscle, total, direct = total, indirect = 0) {
+  return indirect
+    ? `${muscle} ${formatSets(total)} (${formatSets(direct)} direct + ${formatSets(indirect)} indirect at ½)`
+    : `${muscle} ${formatSets(total)}`;
 }
 
 /* ---------------- program coherence audit -------------------------------- */
@@ -270,7 +301,11 @@ export function auditProgram({ routines, schedule, goals, exercises }) {
     findings.push({ kind: 'days-mismatch', detail: `his goal says ${goals.daysPerWeek} days/week but the schedule has ${scheduledDays} training days — one of them is wrong` });
   }
 
-  // push/pull balance across the whole program (weekly scheduled sets)
+  // push/pull balance across the whole program (weekly scheduled sets).
+  // DIRECT SETS ONLY, on purpose: this is a ratio of pressing to pulling
+  // movements, and ½-credit spill (a row's rear delts, a press's triceps)
+  // would count one movement on both sides of the ratio; the 1.8 threshold
+  // was set against primary work and keeps that meaning.
   const PUSHY = new Set(['Chest', 'Shoulders', 'Triceps']);
   const PULLY = new Set(['Back', 'Biceps']);
   let push = 0;
@@ -312,7 +347,10 @@ export async function analyticsContext(vaultPath) {
 
   const vol = weeklyMuscleVolume(sessions, exercises);
   if (vol.length) {
-    lines.push(`WEEKLY HARD SETS PER MUSCLE (recent weeks, newest first): ${vol.map((w) => `wk ${w.week.slice(5)}: ${Object.entries(w.groups).map(([g, n]) => `${g} ${n}`).join(', ')}`).join(' | ')}`);
+    // the total each muscle is credited, with its breakdown: a set of a lift
+    // that also trains a muscle counts ½ there (fractional counting, Pelland
+    // et al. 2024), so "Glutes 9 (6 direct + 6 indirect at ½)" is his real load
+    lines.push(`WEEKLY HARD SETS PER MUSCLE (recent weeks, newest first; direct sets count 1, sets of a lift that also trains the muscle count ½): ${vol.map((w) => `wk ${w.week.slice(5)}: ${Object.entries(w.groups).map(([g, n]) => volumeBreakdown(g, n, w.direct?.[g] ?? n, w.indirect?.[g] || 0)).join(', ')}`).join(' | ')}`);
   }
 
   // the mobility dimension — adherence, not volume: how much mobility work

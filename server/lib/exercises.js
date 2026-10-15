@@ -1,7 +1,7 @@
 import matter from 'gray-matter';
 import { localDateISO } from './localDate.js';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
-import { tableSecondary } from './muscleSecondary.js';
+import { tableSecondary, NO_SECONDARY } from './muscleSecondary.js';
 
 export const LIBRARY_REL_PATH = 'Wiki/Health/Exercise Library.md';
 
@@ -200,8 +200,8 @@ export function resolveSecondary(e) {
   const primary = String(e?.muscleGroup || '').trim();
   if (Array.isArray(e?.secondary)) {
     const own = [...new Set(e.secondary.map((m) => String(m || '').trim()))]
-      .filter((m) => MUSCLE_GROUPS.includes(m) && m !== primary && m !== 'Mobility' && m !== 'Full Body');
-    return { ...e, secondary: primary === 'Mobility' || primary === 'Full Body' ? [] : own, secondarySource: 'override' };
+      .filter((m) => MUSCLE_GROUPS.includes(m) && m !== primary && !NO_SECONDARY.has(m));
+    return { ...e, secondary: NO_SECONDARY.has(primary) ? [] : own, secondarySource: 'override' };
   }
   return { ...e, secondary: tableSecondary(e?.name, primary), secondarySource: 'table' };
 }

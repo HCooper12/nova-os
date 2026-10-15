@@ -297,17 +297,19 @@ export async function volumeVerdict(vaultPath) {
   if (!vol.length) return insufficient('Am I training enough for my goal?', 'VOLUME SIGNAL', 'no logged sets this week to count');
   const under = vol.filter((x) => x.goalMuscle && x.sets < x.target);
   const goalRows = vol.filter((x) => x.goalMuscle);
+  // totals: direct sets + ½ for a lift that also trains the muscle (15 Oct)
   const totalGoal = goalRows.reduce((sum, x) => sum + x.sets, 0);
+  const { formatSets: fmt } = await import('./muscleSecondary.js');
   const totalTarget = goalRows.reduce((sum, x) => sum + x.target, 0);
   return {
     kind: 'volume', question: 'Am I training enough for my goal?', title: 'WEEKLY VOLUME vs GOAL',
-    metric: totalTarget ? { value: String(totalGoal), unit: '', caption: `OF ${totalTarget} GOAL SETS`, pct: Math.min(100, Math.round((totalGoal / totalTarget) * 100)) } : null,
-    equation: totalTarget ? `GOAL MUSCLES ${totalGoal} SETS − TARGET ${totalTarget} = ${totalGoal - totalTarget >= 0 ? '+' : ''}${totalGoal - totalTarget}` : null,
-    evidence: vol.slice(0, 6).map((x, i) => ({ n: i + 1, label: x.muscle.toUpperCase(), value: `${x.sets}/${x.target}`, note: x.goalMuscle ? 'named by your goal' : 'maintenance target', tone: x.sets < x.target ? (x.goalMuscle ? 'warn' : null) : 'good' })),
+    metric: totalTarget ? { value: fmt(totalGoal), unit: '', caption: `OF ${totalTarget} GOAL SETS`, pct: Math.min(100, Math.round((totalGoal / totalTarget) * 100)) } : null,
+    equation: totalTarget ? `GOAL MUSCLES ${fmt(totalGoal)} SETS − TARGET ${totalTarget} = ${totalGoal - totalTarget >= 0 ? '+' : '−'}${fmt(Math.abs(totalGoal - totalTarget))}` : null,
+    evidence: vol.slice(0, 6).map((x, i) => ({ n: i + 1, label: x.muscle.toUpperCase(), value: `${fmt(x.sets)}/${x.target}`, note: `${x.goalMuscle ? 'named by your goal' : 'maintenance target'}${x.indirect ? `, ${fmt(x.direct)} direct + ${fmt(x.indirect)} indirect at ½` : ''}`, tone: x.sets < x.target ? (x.goalMuscle ? 'warn' : null) : 'good' })),
     verdict: under.length
       ? `${under.map((x) => x.muscle).join(', ')} ${under.length === 1 ? 'is' : 'are'} under target for the goal you set — that is where growth is being left on the table.`
       : 'Every goal muscle is at or above its weekly target. Volume is not your limiter right now.',
-    basis: 'hard sets this week from your logged sessions; warm-ups and mobility excluded',
+    basis: 'hard sets this week from your logged sessions, a set of a lift that also trains a muscle counting ½ there; warm-ups and mobility excluded',
     caveats: ['Sets are a proxy — effort and progression still decide the outcome.'],
     asOf: new Date().toISOString().slice(0, 10),
   };

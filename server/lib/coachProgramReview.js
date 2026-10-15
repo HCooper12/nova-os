@@ -3,6 +3,7 @@ import { latestDeclines, respectNo } from './respectTheNo.js';
 import { mondayIso } from './cadence.js';
 import { atlasFor } from './data/exerciseAtlas.js';
 import { patternFor } from '../../src/exerciseMotion.js';
+import { formatSets } from './muscleSecondary.js';
 // THE COACH'S PROGRAM REVIEW — the things a real coach notices between
 // sessions and raises unprompted.
 //
@@ -275,9 +276,22 @@ export function findStaleLifts(sessions = [], exercises = [], { minSessions = 4,
 
 /* -------------------- (c) a muscle chronically short ---------------------- */
 
+// " (last week 6 direct + 6 indirect at ½)": how the newest week's total was
+// made, said only when part of it came from lifts that also train the muscle
+function lastWeekMade(week, muscle) {
+  const i = week?.indirect?.[muscle] || 0;
+  if (!i) return '';
+  return ` (latest week ${formatSets(week.direct?.[muscle] || 0)} direct + ${formatSets(i)} indirect at ½)`;
+}
+
 // Under its target for several weeks running is a PROGRAMMING problem, not a
 // bad week — and it is the kind of thing that only shows up when someone
 // looks across weeks, which is exactly what he asked Coach to do.
+//
+// TOTALS, on purpose (15 Oct 2026): `groups` is direct sets + ½ for each set
+// of a lift that also trains the muscle, the weekly load he asked to be
+// measured against his targets. The 12 is the same target the Train bars
+// draw against, so the card and this finding read one number.
 export function findChronicUnderVolume(weeklyVolume = [], { goalMuscles = [], target = 12, weeks = 3 } = {}) {
   const out = [];
   const recent = weeklyVolume.slice(0, weeks);
@@ -293,7 +307,7 @@ export function findChronicUnderVolume(weeklyVolume = [], { goalMuscles = [], ta
       avg,
       target,
       weeks: recent.length,
-      line: `${muscle} has been under target ${recent.length} weeks running — averaging ${avg} hard sets against ${target}. That is the gap between training it and growing it.`,
+      line: `${muscle} has been under target ${recent.length} weeks running — averaging ${avg} hard sets against ${target}${lastWeekMade(recent[0], muscle)}. That is the gap between training it and growing it.`,
       fix: { action: 'add-sets', muscle, target },
     });
   }
@@ -328,7 +342,9 @@ export const TENURE_WEEKS = 16;
 
 // TOO MUCH: a muscle carrying junk volume for consecutive weeks. The mirror
 // image of findChronicUnderVolume, and it reads the same weeklyVolume input
-// so the two can never disagree about what a week contained.
+// so the two can never disagree about what a week contained. TOTALS too: the
+// ceiling is about the load a muscle carries, and fractional counting is how
+// the volume literature it comes from counts that load (Pelland et al. 2024).
 export function findJunkVolume(weeklyVolume = [], { ceiling = JUNK_VOLUME_CEILING, weeks = 2 } = {}) {
   const out = [];
   const recent = weeklyVolume.slice(0, weeks);
@@ -345,7 +361,7 @@ export function findJunkVolume(weeklyVolume = [], { ceiling = JUNK_VOLUME_CEILIN
       avg,
       ceiling,
       weeks: recent.length,
-      line: `${muscle} has run at ${avg} hard sets a week for ${recent.length} weeks — past the point where more sets buy more growth. Those last few sets are costing you recovery you could spend elsewhere. Worth trimming the least productive movement.`,
+      line: `${muscle} has run at ${avg} hard sets a week for ${recent.length} weeks${lastWeekMade(recent[0], muscle)} — past the point where more sets buy more growth. Those last few sets are costing you recovery you could spend elsewhere. Worth trimming the least productive movement.`,
       // no one-tap fix: WHICH set to cut is his call, and a coach who
       // silently deletes work is not one you keep
       fix: null,

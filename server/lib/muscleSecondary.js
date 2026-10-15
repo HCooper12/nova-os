@@ -8,4 +8,5 @@
 // each secondary ½ (Pelland et al. 2024's fractional count).
 export {
   secondaryFor, tableSecondary, creditsFor, creditsById, emptyTally, addSets, formatSets, INDIRECT_CREDIT,
+  SECONDARY_RULES, NO_SECONDARY,
 } from '../../src/muscleCredit.js';

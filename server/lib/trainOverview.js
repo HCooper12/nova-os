@@ -9,7 +9,7 @@ import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines, ACTIVE_REST } from './workouts.js';
 import { loadRecentDays } from './healthData.js';
 import { computeDeloadSignal } from './coach.js';
-import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf, isWorkingSet } from './trainingAnalytics.js';
+import { personalRecords, prsInSession, detectPlateaus, weeklyMuscleVolume, mondayOf, isWorkingSet, creditsById } from './trainingAnalytics.js';
 import { plannedWeek } from './plannedWeek.js';
 
 const WEEKDAY = () => ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
@@ -167,22 +167,33 @@ export async function buildTrainOverview(vaultPath) {
   // week's volume. An empty week must read as zeros; that IS the finding.
   const thisWeek = mondayOf(new Date());
   const vol = weeklyMuscleVolume(sessions, exercises, { weeks: 6 }).find((w) => w.week === thisWeek) || { groups: {} };
-  const volume = Object.entries(vol.groups || {}).map(([muscle, sets]) => ({
-    muscle, sets,
+  // WHAT ELSE EACH LIFT TRAINS COUNTS (15 Oct 2026, his ask): `sets` is the
+  // muscle's TOTAL, direct sets plus half for each set of a lift that also
+  // trains it (lib/muscleSecondary.js); `direct` and `indirect` are the SETS
+  // of each kind, so the bar can draw the solid part and the lighter part.
+  const rowOf = (muscle) => ({
+    muscle, sets: 0, direct: 0, indirect: 0,
     target: focused.has(muscle) ? GOAL_TARGET : BASE_TARGET,
     goalMuscle: focused.has(muscle),
+  });
+  const volume = Object.entries(vol.groups || {}).map(([muscle, sets]) => ({
+    ...rowOf(muscle), sets,
+    direct: vol.direct?.[muscle] ?? sets,
+    indirect: vol.indirect?.[muscle] || 0,
   }));
   // goal muscles with ZERO sets this week must still appear — absence is the finding
   for (const m of focused) {
-    if (!volume.some((v) => v.muscle === m)) volume.push({ muscle: m, sets: 0, target: GOAL_TARGET, goalMuscle: true });
+    if (!volume.some((v) => v.muscle === m)) volume.push(rowOf(m));
   }
   // THE SESSION HE IS IN RIGHT NOW counts too. Filed sessions only update
   // when he finishes, so mid-workout the bars sat behind by exactly what he
   // had just ticked — he noticed 9 ticked sets missing from the totals. The
   // live draft is mirrored to the server on every tick, so read it and add
   // the ticked, non-warm-up sets. `live` is kept separate as well as folded
-  // into the total, so the bar can show which part is happening now.
-  const muscleOf = new Map(exercises.map((e) => [e.id, e.muscleGroup || 'Other']));
+  // into the total, so the bar can show which part is happening now: `live`
+  // is the credited amount (half per indirect set), `liveDirect` the sets he
+  // ticked on lifts filed under this muscle (the "N live" count).
+  const creditsOf = creditsById(exercises);
   let liveSession = null; // read once: the bars and the planned week fold in the same draft
   try {
     const { getSessionDraft } = await import('./sessionDraft.js');
@@ -190,15 +201,16 @@ export async function buildTrainOverview(vaultPath) {
     const ws = draft?.workoutSession;
     liveSession = ws || null;
     for (const ex of ws?.exercises || []) {
-      const g = muscleOf.get(ex.exerciseId) || 'Other';
-      if (g === 'Mobility') continue;
-      const ticked = (ex.sets || []).filter((x) => x.done && isWorkingSet(x));
-      if (!ticked.length) continue;
-      const row = volume.find((v) => v.muscle === g);
-      if (row) { row.sets += ticked.length; row.live = (row.live || 0) + ticked.length; }
-      else {
-        volume.push({ muscle: g, sets: ticked.length, live: ticked.length,
-          target: focused.has(g) ? GOAL_TARGET : BASE_TARGET, goalMuscle: focused.has(g) });
+      const credits = creditsOf.get(ex.exerciseId) || [{ muscle: 'Other', credit: 1 }];
+      if (credits[0].muscle === 'Mobility') continue;
+      const ticked = (ex.sets || []).filter((x) => x.done && isWorkingSet(x)).length;
+      if (!ticked) continue;
+      for (const { muscle, credit } of credits) {
+        let row = volume.find((v) => v.muscle === muscle);
+        if (!row) { row = rowOf(muscle); volume.push(row); }
+        row.sets += credit * ticked;
+        row.live = (row.live || 0) + credit * ticked;
+        if (credit >= 1) { row.direct += ticked; row.liveDirect = (row.liveDirect || 0) + ticked; } else row.indirect += ticked;
       }
     }
   } catch { /* no draft, or it failed to read — the filed totals stand alone */ }

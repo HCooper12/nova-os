@@ -52,7 +52,23 @@ test('every scheduled exercise appears under its muscle on its day; mobility nev
   assert.equal(muscle(w, 'Chest').planned, 6);
   assert.equal(muscle(w, 'Back').planned, 6, 'weighted pull-up Wednesday + pulldown Friday');
   assert.equal(w.muscles.some((m) => m.muscle === 'Mobility'), false);
-  assert.deepEqual(w.muscles.map((m) => m.muscle), ['Chest', 'Back', 'Biceps', 'Triceps'], "the library's body order, not a sort by numbers");
+  // Shoulders arrives with indirect credit (15 Oct): the bench presses also
+  // train the front delts, so the muscle has a row of its own at ½ a set each
+  assert.deepEqual(w.muscles.map((m) => m.muscle), ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'], "the library's body order, not a sort by numbers");
+});
+
+test('what else a lift trains: totals at ½ a set, direct and indirect beside them, and still one place per set', () => {
+  const w = run([sess('2026-09-21', 'push', [['bench', working(3)], ['carter', working(3)]])]);
+  const tri = muscle(w, 'Triceps');
+  // planned: Carter Mon + Fri (6 direct) + bench Mon + Fri (6 indirect at ½)
+  assert.deepEqual([tri.planned, tri.direct.planned, tri.indirect.planned], [9, 6, 6]);
+  assert.deepEqual([tri.done, tri.direct.done, tri.indirect.done], [4.5, 3, 3]);
+  assert.deepEqual(tri.alsoFrom.map((a) => [a.name, a.day, a.done]), [['Bench Press', 'monday', 3], ['Bench Press', 'friday', 0]]);
+  assert.equal(tri.exercises.length, 2, 'the bench stays a Chest slot');
+  const sh = muscle(w, 'Shoulders');
+  assert.deepEqual([sh.done, sh.direct.done, sh.indirect.done, sh.exercises.length], [1.5, 0, 3, 0]);
+  // Weighted Pull-Up and Lat Pulldown also train the biceps
+  assert.deepEqual([muscle(w, 'Biceps').indirect.planned, muscle(w, 'Biceps').direct.planned], [6, 3]);
 });
 
 test('a lift in two routines is credited to the session it was done in', () => {

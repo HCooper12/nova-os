@@ -383,7 +383,9 @@ export async function programContext(vaultPath) {
   const lines = ordered.map((r) => {
     const days = daysOf(r.id);
     const sets = r.exercises.reduce((n, e) => n + (Number(e.targetSets) || 0), 0);
-    const list = r.exercises.map((e, i) => `${i + 1} ${e.name} ${e.targetSets}×${reps(e)} (${e.muscleGroup || 'unfiled'})`).join(' · ');
+    // what else each lift trains rides along (lib/muscleSecondary.js), so
+    // Coach reads a press as chest AND triceps, as the weekly counts do
+    const list = r.exercises.map((e, i) => `${i + 1} ${e.name} ${e.targetSets}×${reps(e)} (${e.muscleGroup || 'unfiled'}${e.secondary?.length ? `; also ${e.secondary.map((m) => `${m} ½`).join(', ')}` : ''})`).join(' · ');
     return `${days.length ? days.join('+') : 'not scheduled'} ${r.name} [${sets} sets]: ${list}`;
   });
   const off = WEEKDAYS.filter((d) => !schedule?.[d] || schedule[d] === ACTIVE_REST)
@@ -397,12 +399,13 @@ export async function programContext(vaultPath) {
   let week = '';
   try {
     const { buildTrainOverview } = await import('./trainOverview.js');
-    const { weekSetsView } = await import('../../src/weekSets.js');
+    const { weekSetsView, breakdown } = await import('../../src/weekSets.js');
+    const { formatSets: fmt } = await import('./muscleSecondary.js');
     const v = weekSetsView((await buildTrainOverview(vaultPath)).week);
     if (v) {
       const rows = v.muscles.filter((m) => m.planned || m.goal)
-        .map((m) => `${m.muscle} ${m.done} done + ${m.due} still scheduled = ${m.projected} of ${m.target}${m.short ? ' SHORT' : ''}`);
-      week = `\nHIS WEEK IN HARD SETS (the numbers his Train card shows him; quote these, never a count of your own): ${v.headline} ${rows.join('; ')}.`;
+        .map((m) => `${m.muscle} ${fmt(m.done)} done + ${fmt(m.due)} still scheduled = ${fmt(m.projected)} of ${m.target}${breakdown(m)}${m.short ? ' SHORT' : ''}`);
+      week = `\nHIS WEEK IN HARD SETS (the numbers his Train card shows him; quote these, never a count of your own; a muscle's figure counts its own sets at 1 and each set of a lift that also trains it at ½): ${v.headline} ${rows.join('; ')}.`;
     }
   } catch { week = '\nHIS WEEK IN HARD SETS failed to compute this turn: say so rather than counting from memory.'; }
   return `HIS PROGRAM NOW (read from his Workout Routines page this turn; it supersedes anything earlier in this conversation, including what you proposed — check here before you say a change landed):\n${lines.join('\n')}${off.length ? `\n${off.join(' · ')}` : ''}${split ? `\n${split}` : ''}${week}`;

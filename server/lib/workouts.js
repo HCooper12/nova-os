@@ -16,6 +16,10 @@ function resolveExercise(entry, exercisesById) {
     exerciseId: entry.exerciseId,
     name: ex ? ex.name : '(deleted exercise)',
     muscleGroup: ex ? ex.muscleGroup : null,
+    // what else it trains (lib/exercises.js resolveSecondary): read-only, so
+    // every surface showing a routine can say it without a second lookup
+    // (absent when the library handed in was not resolved: the table applies)
+    ...(ex && Array.isArray(ex.secondary) ? { secondary: ex.secondary } : {}),
     trackingType: ex ? ex.trackingType : 'weight_reps',
     targetSets: entry.targetSets,
     targetRepsLow: entry.targetRepsLow,

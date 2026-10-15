@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadSources, unreadable } from './sources.js';
+import { formatSets } from './muscleSecondary.js';
 
 // THE WEEKLY PROGRAM AUDIT — proof that Coach actually looked.
 //
@@ -91,7 +92,7 @@ export function buildChecks({ sessions, exercises, routines, weekly, goalMuscles
       needs: ['sessions', 'exercises', 'weekly'],
       gate: () => (weekly.length >= 2 ? null : `needs 2 logged weeks, you have ${weekly.length}`),
       // The headroom IS the reassurance — it says how far from the edge he is.
-      clear: () => `peak was ${maxWeeklySet} hard sets in a week against a ceiling of ${ceiling} — ${Math.max(0, ceiling - maxWeeklySet)} sets of headroom`,
+      clear: () => `peak was ${formatSets(maxWeeklySet)} hard sets in a week against a ceiling of ${ceiling} — ${formatSets(Math.max(0, ceiling - maxWeeklySet))} sets of headroom`,
       // the number next week compares against (weekOverWeekNote)
       metric: () => ({ value: maxWeeklySet, ceiling }),
     },
@@ -184,6 +185,8 @@ export async function auditProgram(vaultPath, deps = {}) {
     }
   }
   const longestRun = runs.size ? Math.max(...runs.values()) : 0;
+  // the TOTAL a muscle carried (direct + ½ indirect, lib/muscleSecondary.js),
+  // the same figure findJunkVolume holds against the ceiling
   const maxWeeklySet = weekly.length
     ? Math.max(0, ...weekly.flatMap((w) => Object.values(w.groups || {}))) : 0;
 
