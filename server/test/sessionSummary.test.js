@@ -412,3 +412,59 @@ test('mockup 101: a ticked set whose estimate beats his best opens the banner, p
   assert.match(page, /counts once you save/, 'provisional: only Save makes it a record');
   assert.match(read('src/motion/RecordBanner.jsx'), /const SHOWN = new Set\(\);/, 'a record already shown never replays when the screen opens again');
 });
+
+// ---------------------------------------- a lift's rest, and Coach's line --
+// 16 Oct 2026, his ask: the rest text on a lift matches the rest time; set his
+// own and the text is not there; if Coach would differ, say so and talk.
+const withFocus = (focusNote, extra = {}) => {
+  const { app, calls } = fakeApp(extra);
+  app.state.workoutSession.exercises[0].focusNote = focusNote;
+  app.openTrainCoach = () => calls.push(['openTrainCoach']);
+  return { app, calls };
+};
+const own = (sec) => ({ liveWorkoutExercises: [{ id: 'a', name: 'Lat Pulldown', restSeconds: sec }] });
+const restRow = (app, calls) => {
+  app.state.sessionSumSheet = 'more';
+  return valsSessionSummary(app, CTX, vOf(app, calls)).sessionSummary.sheet.more.rows.find((r) => r.key === 'rest');
+};
+
+test('Coach\'s rest line is the lift\'s rest: the ring counts it, and the line under the lift keeps saying it', () => {
+  const { app, calls } = withFocus('Touch and pause. Rest 2 minutes between sets');
+  const S = valsSessionSummary(app, CTX, vOf(app, calls)).sessionSummary;
+  assert.equal(S.lift.focus, 'Touch and pause. Rest 2 minutes between sets');
+  S.set.tick();
+  assert.equal(app.state.sessionRest.total, 120, 'not the general 90: the text and the ring agree');
+  assert.equal(restRow(app, calls).stepper.value, '2:00');
+  assert.match(restRow(app, calls).sub, /Coach prescribes 2:00/);
+});
+
+test('his own time wins, and the rest sentence is gone from the line (all of it when it was the whole note)', () => {
+  const a = withFocus('Touch and pause. Rest 2 minutes between sets', own(90));
+  const Sa = valsSessionSummary(a.app, CTX, vOf(a.app, a.calls)).sessionSummary;
+  assert.equal(Sa.lift.focus, 'Touch and pause', 'the other half of Coach\'s note stays');
+  Sa.set.tick();
+  assert.equal(a.app.state.sessionRest.total, 90);
+  const b = withFocus('Rest 2 minutes between sets', own(90));
+  assert.equal(valsSessionSummary(b.app, CTX, vOf(b.app, b.calls)).sessionSummary.lift.focus, null, 'nothing left, so no line');
+});
+
+test('a time that differs from Coach\'s says so in the rest row, offers to talk it over, and can go back to Coach\'s', () => {
+  const { app, calls } = withFocus('Rest 2 minutes between sets', own(90));
+  const row = restRow(app, calls);
+  assert.match(row.sub, /Coach prescribes 2:00\. You use 1:30/);
+  assert.equal(row.stepper.reset.label, 'Use Coach’s time');
+  row.stepper.discuss.run();
+  assert.deepEqual(calls.map((c) => c[0]), ['openTrainCoach', 'doCoach']);
+  assert.match(calls[1][1], /1:30 between sets of Lat Pulldown.*prescribed 2:00/);
+  assert.equal(typeof row.stepper.reset.run, 'function');
+});
+
+test('the same time as Coach\'s raises no disagreement, and a lift with no Coach rest keeps the general time', () => {
+  const same = withFocus('Rest 2 minutes between sets', own(120));
+  const r = restRow(same.app, same.calls);
+  assert.equal(r.stepper.discuss, null);
+  const plain = withFocus('3s eccentric, same load');
+  valsSessionSummary(plain.app, CTX, vOf(plain.app, plain.calls)).sessionSummary.set.tick();
+  assert.equal(plain.app.state.sessionRest.total, 90, 'no rest in the note, so the general time');
+  assert.equal(valsSessionSummary(plain.app, CTX, vOf(plain.app, plain.calls)).sessionSummary.lift.focus, '3s eccentric, same load');
+});

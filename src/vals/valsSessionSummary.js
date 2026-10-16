@@ -1,4 +1,5 @@
 import { muscleVar } from '../muscleHue.js';
+import { parseRestText } from '../restText.js';
 import { sessionMinutes, isPaused } from '../sessionClock.js';
 import { recordPhrase } from '../recordKit.js';
 import {
@@ -131,7 +132,14 @@ export function valsSessionSummary(app, ctx, v) {
   // a change uses the new time
   const libLift = (id) => (app.state.liveWorkoutExercises || []).find((x) => x.id === id) || null;
   const ownRest = (id) => liftRestSeconds(libLift(id)?.restSeconds);
-  const startRest = () => restStart(app.state.restTimerPref || getRestTimer(), Date.now(), { editing: !!app.state.editingSessionId, seconds: ownRest(e.exerciseId) });
+  // COACH'S REST: his focus note often carries "Rest 2 minutes between sets".
+  // With no time of his own, that IS the lift's rest, so the line he reads and
+  // the ring that counts say the same number. Once he sets his own, his wins
+  // and the sentence is dropped from the line; if the two differ, the rest row
+  // says so and offers to talk it over.
+  const coachRestOf = (x) => parseRestText(x?.focusNote);
+  const restFor = (x) => ownRest(x.exerciseId) ?? coachRestOf(x).seconds;
+  const startRest = () => restStart(app.state.restTimerPref || getRestTimer(), Date.now(), { editing: !!app.state.editingSessionId, seconds: restFor(e) });
 
   // ------------------------------------------------------- the header --
   const live = exs.filter((x) => !x.skipped);
@@ -190,7 +198,7 @@ export function valsSessionSummary(app, ctx, v) {
     target: `${e.targetSets} × ${e.targetRepsLow === e.targetRepsHigh ? e.targetRepsLow : `${e.targetRepsLow}–${e.targetRepsHigh}`}${time ? ' s' : ''}`,
     last: lastWords(tt, e.last?.sets),
     startFrom: e.last?.sets?.length ? null : e.startFrom || null,
-    focus: e.focusNote || null,
+    focus: (ownRest(e.exerciseId) ? coachRestOf(e).without : e.focusNote) || null,
     cue: cueView,
     adhoc: !!e.adhoc,
     todayOnly: e.todayOnly || null,
@@ -487,8 +495,10 @@ export function valsSessionSummary(app, ctx, v) {
   // the rest stepper: this lift's own time, in 15 s steps, saved on the
   // exercise so it holds on every day; "Use general" gives it back
   const ownNow = ownRest(e.exerciseId);
+  const coachSecs = coachRestOf(e).seconds;
   const generalSecs = restPref.on ? restPref.seconds : null;
-  const shownRest = ownNow ?? generalSecs;
+  const shownRest = ownNow ?? coachSecs ?? generalSecs;
+  const disagree = !!ownNow && !!coachSecs && ownNow !== coachSecs;
   const restStepper = {
     value: shownRest ? clockLabel(shownRest) : 'Off',
     custom: !!ownNow,
@@ -496,12 +506,19 @@ export function valsSessionSummary(app, ctx, v) {
     canInc: (shownRest ?? REST_DEFAULT) < LIFT_REST_MAX,
     dec: () => app.setLiftRest(e.exerciseId, stepLiftRest(shownRest, -1)),
     inc: () => app.setLiftRest(e.exerciseId, stepLiftRest(shownRest, 1)),
-    reset: ownNow ? () => app.setLiftRest(e.exerciseId, null) : null,
+    reset: ownNow ? { label: coachSecs ? 'Use Coach\u2019s time' : 'Use the general time', run: () => app.setLiftRest(e.exerciseId, null) } : null,
+    discuss: disagree ? { label: 'Talk it over with Coach', run: () => {
+      closeSheet();
+      app.openTrainCoach();
+      app.doCoach(`I rest ${clockLabel(ownNow)} between sets of ${e.name}, and you prescribed ${clockLabel(coachSecs)}. Is my time fine for this lift, or should I change it, and why?`);
+    } } : null,
     name: e.name,
   };
-  const restSub = ownNow
-    ? 'This lift, on every day'
-    : generalSecs ? `The general time. Change it for this lift on every day` : 'General timer is off. A time set here still runs';
+  const restSub = disagree
+    ? `Coach prescribes ${clockLabel(coachSecs)}. You use ${clockLabel(ownNow)}, on every day`
+    : ownNow ? 'This lift, on every day'
+      : coachSecs ? `Coach prescribes ${clockLabel(coachSecs)}. Change it for this lift on every day`
+        : generalSecs ? 'The general time. Change it for this lift on every day' : 'General timer is off. A time set here still runs';
   const more = sheet === 'more' ? {
     close: closeSheet,
     sub: set ? `${set.label} · for this session` : 'For this session',

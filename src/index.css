@@ -3107,6 +3107,7 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-ss-mrow.rest { cursor: default; }
 .nv-ss-mrow.rest .sv { white-space: normal; }
 .nv-ss-rreset { display: block; margin-top: 2px; min-height: 32px; padding: 0; border: 0; background: none; cursor: pointer; font: 600 13px var(--nv-font-ui); color: var(--nv-acc); }
+.nv-ss-rreset.quiet { color: var(--nv-ink60); font-weight: 500; }
 .nv-ss-rstep { display: inline-grid; grid-auto-flow: column; align-items: center; gap: 2px; }
 .nv-ss-rstep b { min-width: 52px; text-align: center; font: 700 20px/1 var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--nv-ink); }
 .nv-ss-rstep > button { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; cursor: pointer; color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 9%, transparent); }

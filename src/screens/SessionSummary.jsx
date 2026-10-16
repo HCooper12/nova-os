@@ -607,7 +607,8 @@ function MoreSheet({ s }) {
             <div key={r.key} className="nv-ss-mrow rest">
               <span className="nv-ss-mt"><Ico p={P[r.icon]} size={17} /></span>
               <span className="nv-ss-lx"><span className="nm">{r.name}</span><span className="sv">{r.sub}</span>
-                {r.stepper.reset && <button type="button" className="nv-ss-rreset" onClick={r.stepper.reset}>Use the general time</button>}
+                {r.stepper.discuss && <button type="button" className="nv-ss-rreset" onClick={r.stepper.discuss.run}>{r.stepper.discuss.label}</button>}
+                {r.stepper.reset && <button type="button" className="nv-ss-rreset quiet" onClick={r.stepper.reset.run}>{r.stepper.reset.label}</button>}
               </span>
               <span className="nv-ss-rstep" role="group" aria-label={`Rest for ${r.stepper.name}`}>
                 <button type="button" onClick={() => { haptic('tick'); r.stepper.dec(); }} disabled={!r.stepper.canDec} aria-label="15 seconds less"><Ico p={P.minus} size={16} /></button>
