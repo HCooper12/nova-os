@@ -180,7 +180,7 @@ export function workoutsRouter(vaultPath) {
   router.patch('/workouts/exercises/:id', async (req, res) => {
     try {
       const { setExerciseKnowledge } = await import('../lib/exercises.js');
-      res.json({ exercise: await setExerciseKnowledge(vaultPath, req.params.id, { cues: req.body?.cues, resourceUrl: req.body?.resourceUrl }) });
+      res.json({ exercise: await setExerciseKnowledge(vaultPath, req.params.id, { cues: req.body?.cues, resourceUrl: req.body?.resourceUrl, restSeconds: req.body?.restSeconds }) });
     } catch (err) { res.status(400).json({ error: err.message }); }
   });
 

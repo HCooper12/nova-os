@@ -339,7 +339,20 @@ export async function setExerciseResources(vaultPath, entries = []) {
   });
 }
 
-export async function setExerciseKnowledge(vaultPath, id, { cues, resourceUrl }) {
+// How long he rests after a set of THIS lift, in seconds. Lives on the
+// exercise, not the session or the routine, so a change made mid-workout
+// applies to that lift every day (his ask, 16 Oct 2026). Empty clears it and
+// the lift falls back to his general rest setting.
+export const REST_MIN_SECONDS = 15;
+export const REST_MAX_SECONDS = 600;
+export function cleanRestSeconds(v) {
+  if (v === null || v === '' || v === 0) return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < REST_MIN_SECONDS || n > REST_MAX_SECONDS) throw new Error(`restSeconds must be ${REST_MIN_SECONDS} to ${REST_MAX_SECONDS}`);
+  return Math.round(n / 5) * 5;
+}
+
+export async function setExerciseKnowledge(vaultPath, id, { cues, resourceUrl, restSeconds }) {
   return withWriteLock(async () => {
     const existing = [...(await getExercises(vaultPath))];
     const idx = existing.findIndex((e) => e.id === id);
@@ -353,6 +366,10 @@ export async function setExerciseKnowledge(vaultPath, id, { cues, resourceUrl })
       const url = String(resourceUrl || '').trim();
       if (url && !/^https?:\/\//.test(url)) throw new Error('resourceUrl must be an http(s) link');
       if (url) e.resourceUrl = url.slice(0, 300); else delete e.resourceUrl;
+    }
+    if (restSeconds !== undefined) {
+      const rest = cleanRestSeconds(restSeconds);
+      if (rest) e.restSeconds = rest; else delete e.restSeconds;
     }
     existing[idx] = e;
     await persist(vaultPath, existing);
