@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
+import { cuesFor } from './data/exerciseCues.js';
 
 export const ROUTINES_REL_PATH = 'Wiki/Health/Workout Routines.md';
 export const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -24,6 +25,10 @@ function resolveExercise(entry, exercisesById) {
     // no muscle until he approves a mapping, src/muscleCredit.js)
     ...(ex?.audit === 'pending' ? { audit: 'pending' } : {}),
     trackingType: ex ? ex.trackingType : 'weight_reps',
+    // the form cues the live session shows under the lift (16 Oct 2026): his
+    // own first, then Coach's research, then the seed (the order panels.js
+    // gives the exercise card, so the two never disagree)
+    ...((ex && (ex.cues || ex.research?.cues)) || cuesFor(entry.exerciseId) ? { cues: (ex && (ex.cues || ex.research?.cues)) || cuesFor(entry.exerciseId) } : {}),
     targetSets: entry.targetSets,
     targetRepsLow: entry.targetRepsLow,
     targetRepsHigh: entry.targetRepsHigh,
