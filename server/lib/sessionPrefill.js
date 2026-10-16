@@ -12,6 +12,7 @@
 // Last time's sets come from the exercise state, which is kept per exercise
 // and so is true whichever routine or day the lift appears on.
 
+import { fitSets } from '../../src/fitSets.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines } from './workouts.js';
 import { loadExerciseState } from './exerciseState.js';
@@ -28,7 +29,7 @@ export function prefillFor({ last = null, prescription = null, progression = nul
   const targetRepsHigh = Number(prescription?.targetRepsHigh) || Math.max(targetRepsLow, DEFAULT.targetRepsHigh);
   const lastSets = Array.isArray(last?.lastSets) ? last.lastSets.filter((s) => s && (Number(s.weight) > 0 || Number(s.reps) > 0)) : [];
   let sets = lastSets.length
-    ? lastSets.map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0, done: false }))
+    ? fitSets(lastSets.map((s) => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 })), targetSets).map((s) => ({ ...s, done: false }))
     : Array.from({ length: targetSets }, () => ({ weight: Number(marker?.startWeightKg) || 0, reps: targetRepsLow, done: false }));
   const step = Number(progression?.delta);
   const nudges = lastSets.length && Number.isFinite(step) && step !== 0 && (progression?.kind === 'weight' || progression?.kind === 'reps');

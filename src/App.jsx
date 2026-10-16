@@ -93,6 +93,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
+import { fitSets } from './fitSets.js';
 import { journalActions } from './journalActions.js';
 import { pickReviewItem } from './reviewPick.js';
 import { GAPS as REVIEW_GAPS, nextStep as nextReviewStep, shiftISO, localISO, demoDrawn, DEMO_UNREVIEWED } from './reviewDemo.js';
@@ -5023,9 +5024,8 @@ export default class App extends Component {
       // never done under this name: its grip/width variant's last sets
       // (server startSets, labelled startFrom), else the honest empty default
       const base = e.lastSets?.length ? e.lastSets : e.startSets?.length ? e.startSets : null;
-      let sets = base
-        ? base.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
-        : Array.from({ length: e.targetSets }, () => ({ weight: 0, reps: e.targetRepsLow, done: false }));
+      let sets = fitSets(base, e.targetSets)?.map((s) => ({ weight: s.weight, reps: s.reps, done: false }))
+        || Array.from({ length: e.targetSets }, () => ({ weight: 0, reps: e.targetRepsLow, done: false }));
       // Coach progression: earned suggestions nudge the PREFILL only — what
       // gets logged is whatever actually happens on the floor.
       const coach = progressions[`${routine.id}:${e.exerciseId}`] || null;

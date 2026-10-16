@@ -42,3 +42,25 @@ test('a lift in two routines takes the one where Coach has earned a step', () =>
   assert.equal(routineFor(routines, 'lat', {}).id, 'push');
   assert.equal(routineFor(routines, 'nope', {}), null);
 });
+
+// 16 Oct 2026, his pick (Option A): the count is the prescription's, the
+// numbers are last time's. His lateral raise: 5 prescribed, one set logged.
+import { fitSets } from '../../src/fitSets.js';
+
+test('fitSets: set i takes last time\'s set i, the rest repeat the final one, extras are not carried', () => {
+  assert.deepEqual(fitSets([{ weight: 4.5, reps: 12 }], 5).map((s) => [s.weight, s.reps]), [[4.5, 12], [4.5, 12], [4.5, 12], [4.5, 12], [4.5, 12]]);
+  assert.deepEqual(fitSets([{ weight: 60, reps: 8 }, { weight: 60, reps: 7 }], 3).map((s) => s.reps), [8, 7, 7]);
+  assert.equal(fitSets([{ weight: 1, reps: 1 }, { weight: 2, reps: 2 }, { weight: 3, reps: 3 }, { weight: 4, reps: 4 }], 3).length, 3);
+  assert.equal(fitSets([], 3), null);
+  assert.equal(fitSets(null, 3), null);
+  const src = [{ weight: 4.5, reps: 12 }];
+  fitSets(src, 3)[1].weight = 99;
+  assert.equal(src[0].weight, 4.5, 'the copies are not the history');
+});
+
+test('an added lift opens with the prescribed number of sets, not however many he logged last time', () => {
+  const p = prefillFor({ last: { lastDate: '2026-10-13', lastSets: [{ weight: 4.5, reps: 12 }] }, prescription: { targetSets: 5, targetRepsLow: 12, targetRepsHigh: 15 } });
+  assert.equal(p.sets.length, 5);
+  assert.ok(p.sets.every((s) => s.weight === 4.5 && s.reps === 12 && s.done === false));
+  assert.equal(p.last.sets.length, 1, 'last time\'s truth is still one set');
+});
