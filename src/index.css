@@ -1775,7 +1775,7 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-ts-tile .nv-ts-mchip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .nv-ts-shelf { margin-top: 14px; }
 .nv-ts-shelfhd { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
-.nv-ts-shelfcv { font-size: 10px; }
+.nv-ts-shelfcv { font-size: 12px; }
 .nv-ts-shelfrows { display: grid; gap: 8px; margin-top: 4px; }
 .nv-ts-shelfrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 14px; animation: nv-ts-shelfin var(--nv-spring-snappy-ms, 420ms) var(--nv-spring-snappy, ease-out) both; animation-delay: calc(var(--i, 0) * 40ms); }
 .nv-ts-shelfnm { display: flex; flex-direction: column; min-width: 0; }
@@ -3089,6 +3089,34 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-ss-tag { font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; }
 .nv-ss-last { margin: 10px 0 0; font: 400 15px/1.35 var(--nv-font-ui); color: var(--nv-ink60); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-ss-last b { font: 700 15px var(--nv-font-round); color: var(--nv-ink); font-variant-numeric: tabular-nums; }
+/* the form cue: one line, a tap opens the rest in place */
+.nv-ss-cue { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: start; width: 100%; margin: 6px 0 0; padding: 4px 0; border: 0; background: none; text-align: left; color: var(--nv-ink60); font: 400 13px/1.4 var(--nv-font-ui); -webkit-tap-highlight-color: transparent; }
+.nv-ss-cue.tap { cursor: pointer; }
+.nv-ss-cuem { font: 600 12px/1.75 var(--nv-font-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--nv-ink50); }
+.nv-ss-cuet { min-width: 0; }
+.nv-ss-cue1 { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-ss-cue.open .nv-ss-cue1 { white-space: normal; }
+.nv-ss-cuer { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--nv-spring-snappy-ms, 420ms) var(--nv-spring-snappy, ease-out); }
+.nv-ss-cuer > span { overflow: hidden; min-height: 0; }
+.nv-ss-cue.open .nv-ss-cuer { grid-template-rows: 1fr; }
+.nv-ss-cuel { display: block; padding-top: 4px; opacity: 0; transition: opacity 200ms ease-out; }
+.nv-ss-cue.open .nv-ss-cuel { opacity: 1; }
+.nv-ss-cue .cv { margin-top: 3px; opacity: .6; }
+@media (prefers-reduced-motion: reduce) { .nv-ss-cuer, .nv-ss-cuel { transition: none; } }
+/* rest stepper and the reorder rows in the ⋯ sheets */
+.nv-ss-mrow.rest { cursor: default; }
+.nv-ss-mrow.rest .sv { white-space: normal; }
+.nv-ss-rreset { display: block; margin-top: 2px; min-height: 32px; padding: 0; border: 0; background: none; cursor: pointer; font: 600 13px var(--nv-font-ui); color: var(--nv-acc); }
+.nv-ss-rstep { display: inline-grid; grid-auto-flow: column; align-items: center; gap: 2px; }
+.nv-ss-rstep b { min-width: 52px; text-align: center; font: 700 20px/1 var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--nv-ink); }
+.nv-ss-rstep > button { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; cursor: pointer; color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 9%, transparent); }
+.nv-ss-rstep > button[disabled] { opacity: .3; cursor: default; }
+.nv-ss-rstep.ord { gap: 6px; }
+.nv-ss-mrow.ord { cursor: default; }
+.nv-ss-mrow.ord.now .nm { color: var(--nv-acc); }
+.nv-ss-mrow.ord.skipped .nm { text-decoration: line-through; color: var(--nv-ink60); }
+.nv-ss-ordgo { border: 0; background: none; padding: 0; cursor: pointer; text-align: left; min-height: 44px; display: flex; flex-direction: column; justify-content: center; }
+.nv-ss-keep { margin-top: 14px; width: 100%; }
 .nv-ss-focus { margin: 4px 0 0; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-ink60); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .nv-ss-lacts { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .nv-ss-qc {

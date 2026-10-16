@@ -65,10 +65,28 @@ export const restChoiceLabel = (s) => (s < 120 ? `${s} s` : `${s / 60} min`);
 
 // The tick starts a rest only when the row says so; editing a past session
 // never rests (there is no set to rest between).
-export function restStart(pref, now, { editing = false } = {}) {
-  if (editing || !pref || pref.on === false) return null;
+//
+// A LIFT'S OWN REST (16 Oct 2026): `seconds` is the time he set for this
+// exercise (it lives on the exercise, so it holds on every day). It wins over
+// the general setting, and over "off": a time he chose for a lift is a
+// request for that rest. Nothing valid there, and the general setting rules.
+export const LIFT_REST_MIN = 15;
+export const LIFT_REST_MAX = 600;
+export const LIFT_REST_STEP = 15;
+export const liftRestSeconds = (v) => { const n = Number(v); return Number.isFinite(n) && n >= LIFT_REST_MIN && n <= LIFT_REST_MAX ? n : null; };
+export function restStart(pref, now, { editing = false, seconds = null } = {}) {
+  if (editing) return null;
+  const own = liftRestSeconds(seconds);
+  if (own) return { startedAt: now, endsAt: now + own * 1000, total: own };
+  if (!pref || pref.on === false) return null;
   const total = REST_CHOICES.includes(Number(pref.seconds)) ? Number(pref.seconds) : REST_DEFAULT;
   return { startedAt: now, endsAt: now + total * 1000, total };
+}
+// One step up or down from what the lift rests now (its own, else the
+// general time; off starts from the default), kept inside the bounds.
+export function stepLiftRest(current, dir) {
+  const base = liftRestSeconds(current) ?? REST_DEFAULT;
+  return Math.max(LIFT_REST_MIN, Math.min(LIFT_REST_MAX, base + dir * LIFT_REST_STEP));
 }
 
 export const clockLabel = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

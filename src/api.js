@@ -350,6 +350,7 @@ export const api = {
   archiveWorkoutRoutine: (conn, id) => post(conn, `/api/workouts/routines/${encodeURIComponent(id)}/archive`, {}),
   restoreWorkoutRoutine: (conn, id) => post(conn, `/api/workouts/routines/${encodeURIComponent(id)}/restore`, {}),
   reorderWorkoutRoutines: (conn, ids) => post(conn, '/api/workouts/routines/order', { ids }),
+  setExerciseRest: (conn, id, restSeconds) => patch(conn, `/api/workouts/exercises/${encodeURIComponent(id)}`, { restSeconds }),
   deleteWorkoutRoutine: (conn, id) => del(conn, `/api/workouts/routines/${encodeURIComponent(id)}`),
   setWorkoutScheduleDay: (conn, day, routineId) => post(conn, '/api/workouts/schedule', { day, routineId }),
   workoutSessions: (conn, params) => call(conn, `/api/workouts/sessions${params ? '?' + new URLSearchParams(params).toString() : ''}`),

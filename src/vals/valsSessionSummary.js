@@ -4,7 +4,7 @@ import { recordPhrase } from '../recordKit.js';
 import {
   shownKg, fmtKg, fmtThousands, isTimeLift, isBodyweightLift, liftIncrement, repIncrement,
   recordCandidates, liveRecord, voicePreview, commitOps, padKey, restStart, getRestTimer, saveRestTimer,
-  restChoiceLabel, REST_CHOICES,
+  restChoiceLabel, REST_CHOICES, REST_DEFAULT, liftRestSeconds, stepLiftRest, clockLabel, LIFT_REST_MIN, LIFT_REST_MAX,
 } from '../sessionSummaryFacts.js';
 
 // THE LIVE SESSION'S VIEW MODEL — Train round B, mockup 61 (28 Sep 2026),
@@ -126,7 +126,12 @@ export function valsSessionSummary(app, ctx, v) {
   const openSheet = (name) => app.setState({ sessionSumSheet: name, sessionSumPad: null });
   const closeSheet = () => app.setState({ sessionSumSheet: null });
   const receipt = (r) => app.setState({ sessionSumReceipt: { ...r, at: Date.now() } });
-  const startRest = () => restStart(app.state.restTimerPref || getRestTimer(), Date.now(), { editing: !!app.state.editingSessionId });
+  // A LIFT'S OWN REST wins over the general setting (it lives on the exercise,
+  // so it is the same on every day); read at call time, so a tick right after
+  // a change uses the new time
+  const libLift = (id) => (app.state.liveWorkoutExercises || []).find((x) => x.id === id) || null;
+  const ownRest = (id) => liftRestSeconds(libLift(id)?.restSeconds);
+  const startRest = () => restStart(app.state.restTimerPref || getRestTimer(), Date.now(), { editing: !!app.state.editingSessionId, seconds: ownRest(e.exerciseId) });
 
   // ------------------------------------------------------- the header --
   const live = exs.filter((x) => !x.skipped);
@@ -162,6 +167,21 @@ export function valsSessionSummary(app, ctx, v) {
   // it a record.
   const best = st.sessionBests?.[e.exerciseId] || null;
   const record = liveRecord({ sets, best, trackingType: tt, exIdx, name: e.name, hue, scope: sessionKey });
+  // THE FORM CUE (16 Oct 2026, his ask: Coach's instructions for the lift
+  // visible mid-workout "but this shouldn't overcrowd the UI"). One quiet line
+  // under the lift, the cue that matters first; a tap opens the rest in place.
+  // His own cue first, then Coach's research, then the seed (as the exercise
+  // card does), read from the routine's entry or, for a lift added today,
+  // from the library.
+  const lib0 = libLift(e.exerciseId);
+  const cueText = e.cues || lib0?.cues || lib0?.research?.cues || '';
+  const cueParts = cueText.includes(' · ') ? cueText.split(' · ') : cueText.split(/(?<=[.!?])\s+/);
+  const cueList = cueParts.map((x) => x.trim()).filter(Boolean).slice(0, 4);
+  const cueOpen = ui('sessionSumCueOpen') === exIdx;
+  const cueView = cueList.length && !e.skipped ? {
+    first: cueList[0], rest: cueList.slice(1), open: cueOpen && cueList.length > 1,
+    toggle: cueList.length > 1 ? () => app.setState({ sessionSumCueOpen: cueOpen ? null : exIdx }) : null,
+  } : null;
   const lift = {
     best: best?.e1rm != null && !bw && !time ? fmtKg(best.e1rm) : null,
     key: `${e.exerciseId}-${exIdx}`,
@@ -171,6 +191,7 @@ export function valsSessionSummary(app, ctx, v) {
     last: lastWords(tt, e.last?.sets),
     startFrom: e.last?.sets?.length ? null : e.startFrom || null,
     focus: e.focusNote || null,
+    cue: cueView,
     adhoc: !!e.adhoc,
     todayOnly: e.todayOnly || null,
     skipped: !!e.skipped,
@@ -463,11 +484,31 @@ export function valsSessionSummary(app, ctx, v) {
 
   // ----------------------------------------------------------- sheets --
   const sheet = ui('sessionSumSheet') || null;
+  // the rest stepper: this lift's own time, in 15 s steps, saved on the
+  // exercise so it holds on every day; "Use general" gives it back
+  const ownNow = ownRest(e.exerciseId);
+  const generalSecs = restPref.on ? restPref.seconds : null;
+  const shownRest = ownNow ?? generalSecs;
+  const restStepper = {
+    value: shownRest ? clockLabel(shownRest) : 'Off',
+    custom: !!ownNow,
+    canDec: (shownRest ?? REST_DEFAULT) > LIFT_REST_MIN,
+    canInc: (shownRest ?? REST_DEFAULT) < LIFT_REST_MAX,
+    dec: () => app.setLiftRest(e.exerciseId, stepLiftRest(shownRest, -1)),
+    inc: () => app.setLiftRest(e.exerciseId, stepLiftRest(shownRest, 1)),
+    reset: ownNow ? () => app.setLiftRest(e.exerciseId, null) : null,
+    name: e.name,
+  };
+  const restSub = ownNow
+    ? 'This lift, on every day'
+    : generalSecs ? `The general time. Change it for this lift on every day` : 'General timer is off. A time set here still runs';
   const more = sheet === 'more' ? {
     close: closeSheet,
     sub: set ? `${set.label} · for this session` : 'For this session',
     rows: [
       { key: 'extra', icon: 'plus', name: 'Extra set', sub: `Set ${sets.length + 1}, today only · or say “add a set”`, run: () => { row.onAddSet(); closeSheet(); } },
+      { key: 'rest', icon: 'timer', name: 'Rest after a set', stepper: restStepper, sub: restSub },
+      { key: 'order', icon: 'order', name: 'Reorder exercises', sub: 'Move a lift earlier or later · saved with this session', go: true, run: () => openSheet('order') },
       { key: 'off', icon: 'moon', name: 'Off day', sub: 'Leave today out of progression', toggle: true, on: !!e.anomaly, run: row.toggleAnomaly },
       { key: 'form', icon: 'play', name: 'Form', sub: row.formCurated ? 'The curated clip, Coach-approved' : 'Technique videos · none curated yet', go: true, run: () => { window.open(row.formUrl, '_blank', 'noopener'); } },
       { key: 'check', icon: 'cam', name: 'Form check', sub: 'Film a set; Coach checks the angle first', go: true, run: () => { closeSheet(); row.formCheckOpen(); } },
@@ -476,6 +517,26 @@ export function valsSessionSummary(app, ctx, v) {
         ? { key: 'drop', icon: 'trash', name: 'Remove from this session', sub: 'An extra lift, so it can go whole', danger: true, run: () => { closeSheet(); app.removeExerciseFromSession(exIdx); app.setState({ sessionSumLift: null, sessionSumSel: null }); } }
         : { key: 'skip', icon: 'skip', name: e.skipped ? 'Put it back' : 'Skip this lift', sub: 'Today only · the program stays as it is', run: e.skipped ? () => { row.onToggleSkip(); closeSheet(); } : skipLift },
     ],
+  } : null;
+
+  // REORDER (16 Oct 2026): the lifts in the order he will do them. A move
+  // is saved with the session (draft and filing both keep the order); "Keep
+  // for next time" also gives the routine this order.
+  const seen = new Map();
+  const order = sheet === 'order' ? {
+    close: closeSheet,
+    rows: exs.map((x, i) => {
+      const n = (seen.get(x.exerciseId) || 0) + 1; seen.set(x.exerciseId, n);
+      const done = (x.sets || []).length && x.sets.every((z) => z.done);
+      return {
+        key: `${x.exerciseId}#${n}`, name: x.name, now: i === exIdx, skipped: !!x.skipped,
+        sub: x.skipped ? 'Skipped' : done ? 'Done' : `${(x.sets || []).filter((z) => z.done).length} of ${(x.sets || []).length} ${(x.sets || []).length === 1 ? 'set' : 'sets'}`,
+        up: i > 0 ? () => app.moveSessionExercise(i, -1, exIdx) : null,
+        down: i < exs.length - 1 ? () => app.moveSessionExercise(i, 1, exIdx) : null,
+        go: () => { go(i); closeSheet(); },
+      };
+    }),
+    keep: (app.state.liveWorkoutRoutines || []).some((r) => r.id === session.routineId) ? { label: `Keep this order for ${session.routineName}`, run: () => app.keepSessionOrder() } : null,
   } : null;
 
   const pain = row.painOpen && row.painState ? {
@@ -580,7 +641,7 @@ export function valsSessionSummary(app, ctx, v) {
       rest,
       voice,
       receipt: receiptView,
-      sheet: { more, pain, note, coach: coachSheet, form, picker, finish },
+      sheet: { more, order, pain, note, coach: coachSheet, form, picker, finish },
     },
   };
 }

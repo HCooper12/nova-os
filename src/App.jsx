@@ -4886,6 +4886,73 @@ export default class App extends Component {
         : `${lib.name} added — this session only.`));
     }).catch(() => this.toastMsg(`${lib.name} added — this session only.`));
   }
+  // A LIFT'S OWN REST (16 Oct 2026, his ask: "if I change bench press to 2
+  // minutes rest it should save and apply to that exercise on all days").
+  // It lives on the exercise in the vault, so every routine, every day and
+  // every device reads the same time. The list shows it at once; the write
+  // follows a beat after the last tap so a held + is one write, and a failed
+  // one puts the old time back and says so.
+  setLiftRest(exerciseId, seconds) {
+    const conn = getConnection();
+    if (!conn || !exerciseId) return;
+    const was = (this.state.liveWorkoutExercises || []).find((x) => x.id === exerciseId)?.restSeconds ?? null;
+    const apply = (val) => this.setState((s) => ({ liveWorkoutExercises: (s.liveWorkoutExercises || []).map((x) => {
+      if (x.id !== exerciseId) return x;
+      const { restSeconds: _r, ...rest } = x;
+      return val ? { ...rest, restSeconds: val } : rest;
+    }) }));
+    apply(seconds || null);
+    this.restWrites = this.restWrites || new Map();
+    const pending = this.restWrites.get(exerciseId);
+    if (pending) clearTimeout(pending.timer);
+    const before = pending ? pending.was : was;
+    this.restWrites.set(exerciseId, { was: before, timer: setTimeout(() => {
+      this.restWrites.delete(exerciseId);
+      api.setExerciseRest(conn, exerciseId, seconds || null).catch((e) => { apply(before); this.toastMsg('Could not save that rest time: ' + e.message); });
+    }, 450) });
+  }
+  // Reorder a lift in the live session (16 Oct 2026). The session, its draft
+  // and the filed record all keep the array's order, so this is saved with
+  // them. `atIdx` is the lift he is on, so the card follows it to its new
+  // place; every index-keyed bit of the page (set, pad, receipt) is dropped
+  // rather than left pointing at a different lift.
+  moveSessionExercise(exIdx, dir, atIdx) {
+    this.setState((s) => {
+      const ws = s.workoutSession;
+      const j = exIdx + dir;
+      if (!ws || exIdx < 0 || j < 0 || j >= ws.exercises.length) return null;
+      const exercises = [...ws.exercises];
+      [exercises[exIdx], exercises[j]] = [exercises[j], exercises[exIdx]];
+      const follow = (i) => (i === exIdx ? j : i === j ? exIdx : i);
+      const next = { ...ws, exercises };
+      if (Number.isInteger(ws.voiceCursor)) next.voiceCursor = follow(ws.voiceCursor);
+      return { workoutSession: next, sessionSumLift: follow(Number.isInteger(atIdx) ? atIdx : exIdx), sessionSumSel: null, sessionSumPad: null, sessionSumReceipt: null, sessionPain: null };
+    });
+  }
+  // "Keep this order for next time": the routine takes the session's order
+  // for the lifts it owns (extras added today are not part of it, and a
+  // routine lift not in today's session stays after the others). One write,
+  // and Undo puts the old order back.
+  keepSessionOrder() {
+    const conn = getConnection();
+    const ws = this.state.workoutSession;
+    const routine = (this.state.liveWorkoutRoutines || []).find((r) => r.id === ws?.routineId);
+    if (!conn || !ws || !routine) { this.toastMsg('This session is not one of your routines, so there is no order to keep.'); return; }
+    const entries = this.routineEntriesFrom(routine);
+    const pool = [...entries];
+    const ordered = [];
+    for (const ex of ws.exercises) {
+      if (ex.adhoc) continue;
+      const k = pool.findIndex((e) => e.exerciseId === ex.exerciseId);
+      if (k >= 0) ordered.push(...pool.splice(k, 1));
+    }
+    const next = [...ordered, ...pool];
+    if (next.every((e, i) => e.exerciseId === entries[i].exerciseId)) { this.toastMsg(`${routine.name} already runs in this order.`); return; }
+    api.updateWorkoutRoutine(conn, routine.id, { exercises: next }).then(() => this.refreshWorkoutRoutines()).then(() => {
+      tickReceipt({ key: `routine-order:${routine.id}`, label: routine.name, done: true, title: `${routine.name} will start in this order`,
+        undo: () => api.updateWorkoutRoutine(conn, routine.id, { exercises: entries }).then(() => this.refreshWorkoutRoutines()) });
+    }).catch((e) => this.toastMsg('Could not save the order: ' + e.message));
+  }
   // Only an adhoc entry can be pulled out whole — a PROGRAMMED exercise is
   // skipped (spec'd, undoable, stays visible), never deleted outright.
   removeExerciseFromSession(exIdx) {
@@ -4974,6 +5041,7 @@ export default class App extends Component {
         // comparison is otherwise invisible mid-session
         last: e.lastSets && e.lastSets.length ? { date: e.lastDate || null, sets: e.lastSets.map((s) => ({ weight: s.weight, reps: s.reps })) } : null,
         focusNote: e.tune?.focus || null,
+        cues: e.cues || null,
         startFrom: !e.lastSets?.length && e.startSets?.length ? e.startFrom || null : null,
         sets };
     });

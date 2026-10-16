@@ -8,6 +8,7 @@ import { SafeVisual } from '../SafeVisual.jsx';
 import { VoicePanel } from '../VoicePanels.jsx';
 import { haptic, switchHapticRef } from '../haptics.js';
 import { useExit } from '../useExit.js';
+import { useFlipList } from '../useFlipList.js';
 import { useSheetDrag } from '../useSheetDrag.js';
 import { useDictation } from '../useDictation.js';
 import { useStickToBottom } from '../useStickToBottom.js';
@@ -63,6 +64,8 @@ const P = {
   up: <path d="m6 14.5 6-6 6 6" />,
   del: <><path d="M9 5h11v14H9l-6-7z" /><path d="m12 9.5 5 5M17 9.5l-5 5" /></>,
   dumbbell: <path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12" />,
+  timer: <><circle cx="12" cy="13.5" r="7" /><path d="M12 10v3.8l2.4 1.4M9.5 3h5" /></>,
+  order: <path d="M7 20V5M4 8l3-3 3 3M17 4v15M14 16l3 3 3-3" />,
 };
 function Ico({ p, cls = '', size }) {
   return (
@@ -189,6 +192,7 @@ export function SessionSummary({ v, parts }) {
       {S.receipt && <Receipt r={S.receipt} />}
       {S.pad && <Pad p={S.pad} />}
       {sh.more && <MoreSheet s={sh.more} />}
+      {sh.order && <OrderSheet s={sh.order} />}
       {sh.pain && <PainSheet s={sh.pain} />}
       {sh.note && <NoteSheet s={sh.note} />}
       {sh.coach && <CoachSheet s={sh.coach} v={v} />}
@@ -282,6 +286,7 @@ function RailCard({ S }) {
             ? <p className="nv-ss-last">Skipped today</p>
             : <p className="nv-ss-last">{L.last ? <>Last time <b>{L.last}</b></> : L.startFrom ? <>First time under this name · started from <b>{L.startFrom}</b></> : 'First time on this lift'}{L.best ? <span className="nv-ss-best">Best est. <b>{L.best} kg</b></span> : null}</p>}
           {L.focus && !L.skipped && <p className="nv-ss-focus">{L.focus}</p>}
+          {L.cue && <CueLine c={L.cue} />}
           <div className="nv-ss-lacts">
             <Interactive as="button" type="button" className={`nv-ss-qc${L.note ? ' on' : ''}`} onClick={L.openNote} aria-label={L.note ? `Note: ${L.note}` : 'Note'}><Ico p={P.note} />Note</Interactive>
             <Interactive as="button" type="button" className={`nv-ss-qc${L.painLogged ? ' on' : ''}`} onClick={L.openPain}><Ico p={P.bang} />{L.painLogged ? 'Pain logged' : 'Pain?'}</Interactive>
@@ -598,7 +603,19 @@ function MoreSheet({ s }) {
       head={(close) => <Head icon={<Dots size={18} />} title="This lift" sub={s.sub} action="Done" onAction={close} />}>
       {() => (
         <div className="nv-ss-mrows">
-          {s.rows.map((r) => (r.toggle ? (
+          {s.rows.map((r) => (r.stepper ? (
+            <div key={r.key} className="nv-ss-mrow rest">
+              <span className="nv-ss-mt"><Ico p={P[r.icon]} size={17} /></span>
+              <span className="nv-ss-lx"><span className="nm">{r.name}</span><span className="sv">{r.sub}</span>
+                {r.stepper.reset && <button type="button" className="nv-ss-rreset" onClick={r.stepper.reset}>Use the general time</button>}
+              </span>
+              <span className="nv-ss-rstep" role="group" aria-label={`Rest for ${r.stepper.name}`}>
+                <button type="button" onClick={() => { haptic('tick'); r.stepper.dec(); }} disabled={!r.stepper.canDec} aria-label="15 seconds less"><Ico p={P.minus} size={16} /></button>
+                <b aria-live="polite">{r.stepper.value}</b>
+                <button type="button" onClick={() => { haptic('tick'); r.stepper.inc(); }} disabled={!r.stepper.canInc} aria-label="15 seconds more"><Ico p={P.plus} size={16} /></button>
+              </span>
+            </div>
+          ) : r.toggle ? (
             <div key={r.key} className="nv-ss-mrow">
               <span className="nv-ss-mt"><Ico p={P[r.icon]} size={17} /></span>
               <span className="nv-ss-lx"><span className="nm">{r.name}</span><span className="sv">{r.sub}</span></span>
@@ -614,6 +631,56 @@ function MoreSheet({ s }) {
             </Interactive>
           )))}
         </div>
+      )}
+    </Sheet>
+  );
+}
+
+// THE FORM CUE: one quiet line under the lift (the cue that matters first),
+// a tap opens the rest in place. Nothing else on the card moves for it.
+function CueLine({ c }) {
+  const Tag = c.toggle ? 'button' : 'div';
+  return (
+    <Tag type={c.toggle ? 'button' : undefined} className={`nv-ss-cue${c.open ? ' open' : ''}${c.toggle ? ' tap' : ''}`} onClick={c.toggle || undefined}
+      aria-expanded={c.toggle ? c.open : undefined} aria-label={c.toggle ? `Form cues: ${c.first}. ${c.open ? 'Tap to close' : 'Tap for more'}` : undefined}>
+      <span className="nv-ss-cuem">Form</span>
+      <span className="nv-ss-cuet">
+        <span className="nv-ss-cue1">{c.first}</span>
+        {c.rest.length > 0 && (
+          <span className="nv-ss-cuer" aria-hidden={!c.open}><span>{c.rest.map((x, i) => <span key={i} className="nv-ss-cuel">{x}</span>)}</span></span>
+        )}
+      </span>
+      {c.toggle && <Ico p={c.open ? P.up : P.down} size={14} cls="cv" />}
+    </Tag>
+  );
+}
+
+// REORDER: the lifts in the order he will do them, one step at a time (a
+// thumb can hit 44 px arrows mid-workout; a drag across a sheet cannot). The
+// rows glide to their new places. The order is saved with the session; the
+// button gives the routine this order for next time.
+function OrderSheet({ s }) {
+  const listRef = useRef(null);
+  useFlipList(listRef, s.rows.map((r) => r.key).join('|'), { height: false, exits: false });
+  return (
+    <Sheet label="Reorder exercises" onClose={s.close}
+      head={(close) => <Head icon={<Ico p={P.order} size={18} />} title="Order of lifts" sub="Saved with this session" action="Done" onAction={close} />}>
+      {() => (
+        <>
+          <div className="nv-ss-mrows nv-ss-ord" ref={listRef}>
+            {s.rows.map((r) => (
+              <div key={r.key} data-flip={r.key} className={`nv-ss-mrow ord${r.now ? ' now' : ''}${r.skipped ? ' skipped' : ''}`}>
+                <span className="nv-ss-mt" aria-hidden="true">{r.now ? <Ico p={P.right} size={15} /> : null}</span>
+                <button type="button" className="nv-ss-lx nv-ss-ordgo" onClick={r.go}><span className="nm">{r.name}</span><span className="sv">{r.sub}</span></button>
+                <span className="nv-ss-rstep ord">
+                  <button type="button" onClick={() => { haptic('tick'); r.up(); }} disabled={!r.up} aria-label={`Move ${r.name} earlier`}><Ico p={P.up} size={16} /></button>
+                  <button type="button" onClick={() => { haptic('tick'); r.down(); }} disabled={!r.down} aria-label={`Move ${r.name} later`}><Ico p={P.down} size={16} /></button>
+                </span>
+              </div>
+            ))}
+          </div>
+          {s.keep && <button type="button" className="nv-ss-primary wide nv-ss-keep" onClick={s.keep.run}>{s.keep.label}</button>}
+        </>
       )}
     </Sheet>
   );

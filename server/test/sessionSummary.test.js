@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   shownKg, fmtKg, parseRestPref, restPrefValue, restStart, restState, restChoiceLabel, REST_DEFAULT,
-  recordCandidates, voicePreview, commitOps, splitYes, padKey, liftIncrement,
+  recordCandidates, voicePreview, commitOps, splitYes, padKey, liftIncrement, liftRestSeconds, stepLiftRest,
 } from '../../src/sessionSummaryFacts.js';
 import { valsSessionSummary } from '../../src/vals/valsSessionSummary.js';
 
@@ -27,6 +27,25 @@ test('rest pref: one key, "off" or the seconds; anything else is on at 90 s', ()
   assert.equal(restPrefValue({ on: true, seconds: 180 }), '180');
   assert.deepEqual(parseRestPref(restPrefValue({ on: true, seconds: 60 })), { on: true, seconds: 60 });
   assert.deepEqual([60, 90, 120, 180].map(restChoiceLabel), ['60 s', '90 s', '2 min', '3 min']);
+});
+
+test('a lift\'s own rest wins over the general setting, even over off, and an invalid one is ignored', () => {
+  const t0 = 1_000_000;
+  assert.deepEqual(restStart({ on: true, seconds: 90 }, t0, { seconds: 120 }), { startedAt: t0, endsAt: t0 + 120_000, total: 120 });
+  assert.deepEqual(restStart({ on: false, seconds: 90 }, t0, { seconds: 135 }), { startedAt: t0, endsAt: t0 + 135_000, total: 135 }, 'a time he set for the lift is a request for that rest');
+  assert.equal(restStart({ on: true, seconds: 90 }, t0, { seconds: 120, editing: true }), null, 'a past session never rests');
+  assert.equal(restStart({ on: true, seconds: 90 }, t0, { seconds: 5 }).total, 90, 'under 15 s is not a rest time');
+  assert.equal(restStart({ on: false }, t0, { seconds: null }), null);
+  assert.equal(liftRestSeconds('abc'), null);
+  assert.equal(liftRestSeconds(601), null);
+});
+
+test('stepLiftRest moves 15 s from the lift\'s time, or from the default when it has none, inside 15 s to 10 min', () => {
+  assert.equal(stepLiftRest(120, 1), 135);
+  assert.equal(stepLiftRest(120, -1), 105);
+  assert.equal(stepLiftRest(null, 1), REST_DEFAULT + 15);
+  assert.equal(stepLiftRest(15, -1), 15);
+  assert.equal(stepLiftRest(600, 1), 600);
 });
 
 test('restStart: nothing counts when the row is off, or on a past session being edited', () => {
