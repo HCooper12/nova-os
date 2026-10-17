@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Offline card, short picker</title>
+<!--
+  102 · TWO UX LAWS FROM THE REEL (18 October 2026), round 1
+  Source: the "Six more UX laws" reel. His answer, 18 Oct: "1. Yes" to
+  fixes 1-4 (2 and 3 are behaviour, built without a mockup; 2 already
+  existed: addSessionSet copies the last set).
+
+  WHAT IS DRAWN
+    1 BANNER BLINDNESS. Today the offline / slow / demo notice is a
+      10.5px mono pill, position:fixed above the tab bar, ellipsised at
+      92vw (App.jsx statusBanner, valsMission.js). Drawn: the same truth
+      as the first card in the Home feed, in the content's own type,
+      with the saved time and what still works. Slow sync shows its
+      sections as a filling bar. Demo stays a quiet Settings row.
+    2 CHOICE OVERLOAD. Today the exercise picker lists up to 60 rows
+      (valsWorkouts.js slice(0,60)) under a chip per muscle group. Drawn:
+      his last-used exercises for this session's muscle groups first
+      (eight), then "Show all", which opens the full list with search.
+      Typing in search always searches everything.
+
+  DEMO NUMBERS AND NAMES inside the phones. Invented, labelled.
+  Motion: the offline card rises 8px and fades in once (ease-out 320ms);
+  "Show all" rows cascade 30ms apart. Reduced motion: end states.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Georgia,serif;
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --void:#06070d;--ink:#e8ecf6;--ink2:rgba(232,236,246,.78);--ink3:rgba(232,236,246,.6);--sep:rgba(232,236,246,.14);
+  --card:rgba(255,255,255,.07);--ring:rgba(255,255,255,.14);
+  --vi:#8f7bff;--cy:#59e6ff;--gold:#e0b26a;--good:#5fe8a8;--warn:#e08383;
+  --m-chest:#ff8a7a;--m-back:#4fd1c5;--m-shoulders:#ffc46b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--void);color:var(--ink);font:15px/1.45 var(--ui);-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden}
+.page{max-width:1240px;margin:0 auto;padding:28px 16px 80px}
+h1{font:600 30px/1.1 var(--serif)}
+.lede{color:var(--ink3);margin:8px 0 28px;max-width:62ch}
+.law{margin:36px 0 12px;font:600 13px var(--ui);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.row{display:flex;flex-wrap:wrap;gap:28px}
+.col{flex:1 1 330px;max-width:375px}
+.cap{font-size:13px;color:var(--ink3);margin:10px 4px 0}
+.cap b{color:var(--ink)}
+.phone{position:relative;height:640px;border-radius:38px;background:linear-gradient(180deg,#0d1020,#070810);border:1px solid var(--ring);overflow:hidden;padding:54px 16px 0}
+.demo{position:absolute;top:16px;right:18px;font:600 10px var(--ui);letter-spacing:.1em;color:var(--gold)}
+.hd{font:600 26px var(--serif);margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--ring);border-radius:20px;padding:14px 16px;margin-bottom:12px}
+.eb{font:600 11px var(--ui);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.ring{display:flex;gap:12px;align-items:center}
+.ring svg{flex:none}
+.big{font:600 22px var(--ui)}
+.muted{color:var(--ink3);font-size:13px}
+/* before: the pill */
+.pill{position:absolute;left:50%;transform:translateX(-50%);bottom:96px;width:92%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:10.5px ui-monospace,Menlo,monospace;padding:7px 12px;border-radius:999px;background:color-mix(in srgb,var(--warn) 20%,#111);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
+.tabs{position:absolute;left:0;right:0;bottom:0;height:78px;border-top:1px solid var(--sep);display:flex;justify-content:space-around;padding-top:12px;font-size:11px;color:var(--ink3);background:rgba(6,7,13,.8)}
+/* after: the feed card */
+.off{border-color:color-mix(in srgb,var(--warn) 34%,transparent);background:color-mix(in srgb,var(--warn) 8%,var(--card));animation:rise .32s var(--ease-out) both}
+.off h3{font:600 17px var(--ui);margin:4px 0 2px}
+.off .eb{color:var(--warn)}
+.works{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.works span{font-size:12px;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--ink2)}
+.bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;width:62%;background:var(--cy);border-radius:3px}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+/* picker */
+.search{background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;color:var(--ink3);font-size:14px;margin-bottom:10px}
+.chips{display:flex;gap:6px;overflow:hidden;margin-bottom:10px}
+.chips span{flex:none;font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--ring);color:var(--ink2)}
+.li{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--sep);font-size:14.5px}
+.li i{width:8px;height:8px;border-radius:50%;flex:none}
+.li small{margin-left:auto;color:var(--ink3);font-size:12px}
+.more{display:block;width:100%;margin-top:12px;padding:12px;border-radius:14px;border:1px solid var(--ring);background:rgba(255,255,255,.05);color:var(--cy);font:600 14px var(--ui);cursor:pointer}
+.cascade .li{animation:rise .32s var(--ease-out) both}
+.fade{position:absolute;left:0;right:0;bottom:0;height:90px;background:linear-gradient(transparent,#070810)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+@media (max-width:420px){.phone{height:600px}}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Offline card, short picker</h1>
+  <p class="lede">Two of the six UX laws from the reel, applied to Nova on your phone. Before on the left, proposed on the right. The names and numbers inside the phones are made up.</p>
+
+  <div class="law">1 · Banner blindness: the offline notice moves into the feed</div>
+  <div class="row">
+    <div class="col">
+      <div class="phone"><span class="demo">DEMO · TODAY</span>
+        <div class="hd">Good evening</div>
+        <div class="card ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"/><circle cx="22" cy="22" r="18" fill="none" stroke="var(--good)" stroke-width="5" stroke-dasharray="80 113" transform="rotate(-90 22 22)" stroke-linecap="round"/></svg><div><div class="eb">Steps</div><div class="big">8,412</div></div></div>
+        <div class="card"><div class="eb">Next</div><div style="margin-top:4px">Upper A · 6 exercises</div></div>
+        <div class="pill">Backend unreachable — showing data saved 2:14 pm, Saturday 18 October</div>
+        <div class="tabs"><span>Home</span><span>Train</span><span>Fuel</span><span>Nova</span></div>
+      </div>
+      <p class="cap"><b>Today.</b> A small pill floats above the tab bar, where the eye skips over chrome, and the end of its sentence gets cut off.</p>
+    </div>
+    <div class="col">
+      <div class="phone"><span class="demo">DEMO · PROPOSED</span>
+        <div class="hd">Good evening</div>
+        <div class="card off">
+          <div class="eb">Offline</div>
+          <h3>Can't reach your Mac</h3>
+          <div class="muted">Showing what Nova saved at 2:14 pm. Anything you log now waits and sends when it's back.</div>
+          <div class="works"><span>Logging sets</span><span>Logging food</span><span>Today's plan</span></div>
+        </div>
+        <div class="card ring"><svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="5"/><circle cx="22" cy="22" r="18" fill="none" stroke="var(--good)" stroke-width="5" stroke-dasharray="80 113" transform="rotate(-90 22 22)" stroke-linecap="round"/></svg><div><div class="eb">Steps · saved 2:14 pm</div><div class="big">8,412</div></div></div>
+        <div class="card"><div class="eb">Slow sync, the other state</div><div style="margin-top:4px;font-size:14px">5 of 8 sections refreshed, fetching the rest</div><div class="bar"><i></i></div></div>
+        <div class="tabs"><span>Home</span><span>Train</span><span>Fuel</span><span>Nova</span></div>
+      </div>
+      <p class="cap"><b>Proposed.</b> The first card in the feed, written like the rest of the feed, saying what still works. It goes away once the connection is back. The demo notice becomes a row in Settings.</p>
+    </div>
+  </div>
+
+  <div class="law">2 · Choice overload: the exercise picker shows eight first</div>
+  <div class="row">
+    <div class="col">
+      <div class="phone"><span class="demo">DEMO · TODAY</span>
+        <div class="hd">Add exercise</div>
+        <div class="search">Search exercises</div>
+        <div class="chips"><span>Any</span><span>Chest</span><span>Back</span><span>Shoulders</span><span>Biceps</span><span>Triceps</span><span>Quads</span></div>
+        <div id="longlist"></div>
+        <div class="fade"></div>
+      </div>
+      <p class="cap"><b>Today.</b> Up to 60 rows, alphabetical, under a chip for every muscle group.</p>
+    </div>
+    <div class="col">
+      <div class="phone" style="overflow-y:auto"><span class="demo">DEMO · PROPOSED</span>
+        <div class="hd">Add exercise</div>
+        <div class="search">Search all exercises</div>
+        <div class="eb" style="margin:4px 0 4px">For Upper A · you used these last</div>
+        <div id="short"></div>
+        <button class="more" id="more">Show all 214</button>
+        <div id="rest" class="cascade"></div>
+      </div>
+      <p class="cap"><b>Proposed.</b> The eight you're most likely to want: the ones you've used recently for this session's muscles. "Show all" opens the full list with the muscle chips. Search always looks through everything.</p>
+    </div>
+  </div>
+</div>
+<script>
+const hue={Chest:'var(--m-chest)',Back:'var(--m-back)',Shoulders:'var(--m-shoulders)'};
+const row=(n,g,s)=>`<div class="li"><i style="background:${hue[g]||'var(--ink3)'}"></i>${n}<small>${s||g}</small></div>`;
+const az=['Ab wheel','Arnold press','Back extension','Barbell curl','Barbell row','Belt squat','Bench press','Bulgarian split squat','Cable crossover','Cable curl','Cable fly','Calf raise','Chest dip','Chin-up','Close-grip bench'];
+document.getElementById('longlist').innerHTML=az.map(n=>row(n,'')).join('');
+const mine=[['Bench press','Chest','Thu · 80 kg'],['Incline dumbbell press','Chest','Thu · 30 kg'],['Chest-supported row','Back','Thu · 32 kg'],['Lat pulldown','Back','Mon · 65 kg'],['Seated cable row','Back','Mon · 60 kg'],['Lateral raise','Shoulders','Thu · 10 kg'],['Overhead press','Shoulders','Mon · 45 kg'],['Cable fly','Chest','2 wk ago']];
+document.getElementById('short').innerHTML=mine.map(m=>row(...m)).join('');
+document.getElementById('more').onclick=function(){this.remove();const r=document.getElementById('rest');r.innerHTML='<div class="chips" style="margin-top:12px"><span>Any</span><span>Chest</span><span>Back</span><span>Shoulders</span><span>Biceps</span></div>'+az.map((n,i)=>row(n,'').replace('class="li"',`class="li" style="animation-delay:${i*30}ms"`)).join('');};
+</script>
+</body>
+</html>
