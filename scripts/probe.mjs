@@ -13,14 +13,18 @@
 //   node scripts/probe.mjs --style command       # the other idiom
 //
 // Exit code is 1 if anything failed, so it can gate a commit.
-import { spawn } from 'node:child_process';
 import { mkdir, rm, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import {
+  sweepOrphans, launchManagedChrome, killGroup, registerCleanup,
+  installDeadline, navigateOrFail,
+} from './cdp/lifecycle.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const TOOL = 'probe';
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
 
@@ -28,6 +32,7 @@ const width = Number(opt('width', 375));
 const height = Number(opt('height', 812));
 const port = opt('port', '5183');
 const style = opt('style', '');
+const timeoutSec = Number(opt('timeout', 120));
 const ALL = ['mission', 'inbox', 'voice', 'todos', 'workouts', 'notes', 'library',
   'journal', 'money', 'stash', 'shopping', 'recipes', 'settings', 'code', 'leader', 'ops'];
 const screens = (opt('screens', '') || '').trim() ? opt('screens', '').split(',') : ALL;
@@ -36,22 +41,32 @@ const screens = (opt('screens', '') || '').trim() ? opt('screens', '').split(','
 const TAP_FLOOR = 28;
 const TAP_TARGET = 44;
 
+// Reap anything a previous, crashed or hung run of this tool left behind
+// before adding a new Chrome to the pile (the 18 Oct 2026 incident — this
+// probe's own orphaned Chrome ran for 21 days).
+await sweepOrphans(['nova-probe-']);
+
 const profile = path.join(os.tmpdir(), `nova-probe-${process.pid}`);
 await rm(profile, { recursive: true, force: true });
 await mkdir(profile, { recursive: true });
 const dbg = 9500 + Math.floor(Math.random() * 90);
-const chrome = spawn(CHROME, [
+const chrome = await launchManagedChrome(CHROME, [
   `--user-data-dir=${profile}`, '--headless=new', '--hide-scrollbars', '--mute-audio',
   '--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader',
   '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
   `--remote-debugging-port=${dbg}`, `--window-size=${width},${height}`, 'about:blank',
-], { stdio: 'ignore' });
+], profile);
 const cleanup = async () => {
-  try { chrome.kill(); } catch { /* gone */ }
+  killGroup(chrome.pid);
   await new Promise((r) => setTimeout(r, 300));
   await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
 };
-process.on('uncaughtException', async (e) => { console.error(e.message); await cleanup(); process.exit(1); });
+registerCleanup({
+  killSync: () => { try { process.kill(-chrome.pid, 'SIGKILL'); } catch { /* gone */ } },
+  cleanupAsync: cleanup,
+});
+// A hard overall deadline (the other half of the 18 Oct incident).
+const clearDeadline = installDeadline(timeoutSec, TOOL, cleanup);
 
 const base = `http://127.0.0.1:${dbg}`;
 const get = async (p) => { try { const r = await fetch(base + p); return r.ok ? await r.json() : null; } catch { return null; } };
@@ -102,10 +117,19 @@ const evaluate = async (expression) => {
 };
 
 const seed = await readFile(path.join(ROOT, 'public', '_devconn.js'), 'utf8').catch(() => '');
-if (!seed) { console.error('no public/_devconn.js — run `node scripts/dev-connect.mjs` first, or this measures demo data'); process.exit(1); }
+if (!seed) { console.error('no public/_devconn.js — run `node scripts/dev-connect.mjs` first, or this measures demo data'); clearDeadline(); await cleanup(); process.exit(1); }
 SEED = style ? `${seed}\nlocalStorage.setItem('novaos.style', ${JSON.stringify(style)});` : seed;
 await attach();
-await send('Page.navigate', { url: `http://localhost:${port}/nova-os/` });
+const probeUrl = `http://localhost:${port}/nova-os/`;
+try {
+  await navigateOrFail(send, probeUrl, TOOL);
+} catch (e) {
+  console.error(e.message);
+  ws?.close();
+  clearDeadline();
+  await cleanup();
+  process.exit(1);
+}
 await new Promise((r) => setTimeout(r, 2500));
 await attach();
 
@@ -124,7 +148,7 @@ for (let i = 0; i < 40; i++) {
   await new Promise((r) => setTimeout(r, 500));
   if (i === 12) await attach();   // it may have reloaded itself under us
 }
-if (!state.conn || !state.app) { console.error(`the page never connected (conn=${state.conn} app=${state.app}) — refusing to report demo data`); ws?.close(); await cleanup(); process.exit(1); }
+if (!state.conn || !state.app) { console.error(`the page never connected (conn=${state.conn} app=${state.app}) — refusing to report demo data`); ws?.close(); clearDeadline(); await cleanup(); process.exit(1); }
 // no attribute at all IS the command idiom — the Apple skins stamp their name
 const touchIdiom = state.style === 'cupertino' || state.style === 'apple';
 console.log(`idiom: ${state.style || 'command'}${touchIdiom ? '' : ' (pointer-first)'}`);
@@ -245,7 +269,7 @@ const MEASURE = `(() => {
 // debugging rounds in this one file, so it is checked rather than remembered.
 if (MEASURE.split('`').length !== 1) {
   console.error('probe.mjs: MEASURE contains a backtick — it would be parsed as JS. Remove it.');
-  await cleanup(); process.exit(1);
+  clearDeadline(); await cleanup(); process.exit(1);
 }
 
 let failures = 0;
@@ -306,6 +330,7 @@ for (const screen of screens) {
   if (bad || m.wide.length || m.clipped.length || (m.tiny.length && touchIdiom)) failures++;
 }
 ws.close();
+clearDeadline();
 await cleanup();
 console.log(failures ? `\n${failures} screen(s) with geometry faults` : '\nno geometry faults');
 process.exit(failures ? 1 : 0);

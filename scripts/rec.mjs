@@ -17,16 +17,21 @@
 // Flags: --out --setup (js, run then settled) --act (js, run after the first
 // frame) --frames --interval ms --width --height --dpr --settle ms --port
 // --style --scale (gif width in px, default 402)
-import { spawn, execFile } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import {
+  sweepOrphans, launchManagedChrome, killGroup, registerCleanup,
+  installDeadline, navigateOrFail,
+} from './cdp/lifecycle.mjs';
 
 const run = promisify(execFile);
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const TOOL = 'rec';
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
 
@@ -50,6 +55,11 @@ const scale = Number(opt('scale', 402));
 // played back at the same factor to restore real time, or left slow on
 // purpose to inspect it.
 const slow = Number(opt('slow', 1));
+const timeoutSec = Number(opt('timeout', 300));
+
+// Reap anything a previous, crashed or hung run of this tool left behind
+// before adding a new Chrome to the pile (the 18 Oct 2026 incident).
+await sweepOrphans(['nova-rec-']);
 
 const work = path.join(os.tmpdir(), `nova-rec-${process.pid}`);
 const profile = path.join(work, 'profile');
@@ -59,18 +69,23 @@ await mkdir(shots, { recursive: true });
 await mkdir(profile, { recursive: true });
 
 const dbg = 9600 + Math.floor(Math.random() * 90);
-const chrome = spawn(CHROME, [
+const chrome = await launchManagedChrome(CHROME, [
   `--user-data-dir=${profile}`, '--headless=new', '--hide-scrollbars', '--mute-audio',
   '--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader',
   '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
   `--remote-debugging-port=${dbg}`, `--window-size=${width},${height}`, 'about:blank',
-], { stdio: 'ignore' });
+], work);
 const cleanup = async () => {
-  try { chrome.kill(); } catch { /* gone */ }
+  killGroup(chrome.pid);
   await new Promise((r) => setTimeout(r, 300));
   await rm(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
 };
-process.on('uncaughtException', async (e) => { console.error(e.message); await cleanup(); process.exit(1); });
+registerCleanup({
+  killSync: () => { try { process.kill(-chrome.pid, 'SIGKILL'); } catch { /* gone */ } },
+  cleanupAsync: cleanup,
+});
+// A hard overall deadline (the other half of the 18 Oct incident).
+const clearDeadline = installDeadline(timeoutSec, TOOL, cleanup);
 
 const base = `http://127.0.0.1:${dbg}`;
 const get = async (p) => { try { const r = await fetch(base + p); return r.ok ? await r.json() : null; } catch { return null; } };
@@ -120,11 +135,20 @@ const evaluate = async (expression) => {
 };
 
 const seed = await readFile(path.join(ROOT, 'public', '_devconn.js'), 'utf8').catch(() => '');
-if (!seed) { console.error('no public/_devconn.js — run `node scripts/dev-connect.mjs` first, or this records DEMO DATA'); await cleanup(); process.exit(1); }
+if (!seed) { console.error('no public/_devconn.js — run `node scripts/dev-connect.mjs` first, or this records DEMO DATA'); clearDeadline(); await cleanup(); process.exit(1); }
 SEED = style ? `${seed}\nlocalStorage.setItem('novaos.style', ${JSON.stringify(style)});` : seed;
 
 await attach();
-await send('Page.navigate', { url: `http://localhost:${port}/nova-os/` });
+const recUrl = `http://localhost:${port}/nova-os/`;
+try {
+  await navigateOrFail(send, recUrl, TOOL);
+} catch (e) {
+  console.error(e.message);
+  ws?.close();
+  clearDeadline();
+  await cleanup();
+  process.exit(1);
+}
 await new Promise((r) => setTimeout(r, 2500));
 await attach();
 let ready = {};
@@ -135,7 +159,7 @@ for (let i = 0; i < 40; i++) {
   await new Promise((r2) => setTimeout(r2, 500));
   if (i === 12) await attach();
 }
-if (!ready.app) { console.error('the page never connected — refusing to record demo data'); ws?.close(); await cleanup(); process.exit(1); }
+if (!ready.app) { console.error('the page never connected — refusing to record demo data'); ws?.close(); clearDeadline(); await cleanup(); process.exit(1); }
 
 if (setupJs) {
   const r = await evaluate(setupJs);
@@ -163,5 +187,6 @@ await run('ffmpeg', ['-y', '-v', 'error', '-framerate', String(fps), '-i', path.
   '-vf', `scale=${scale}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer`,
   '-loop', '0', out]);
 console.log(out, `${frames} frames @ ${fps}fps${slow > 1 ? ` · animation clock at 1/${slow}` : ''}`);
+clearDeadline();
 await cleanup();
 process.exit(0);

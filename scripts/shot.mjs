@@ -40,14 +40,18 @@
 // public/_devconn.js, so its interception can be proven against a stand-in
 // server instead of his real one. Never use it to check the real, positive
 // --readonly path — that needs an actual seed.
-import { spawn } from 'node:child_process';
 import { mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import {
+  sweepOrphans, launchManagedChrome, killGroup, registerCleanup,
+  installDeadline, navigateOrFail,
+} from './cdp/lifecycle.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const TOOL = 'shot';
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
@@ -67,6 +71,7 @@ const styleArg = opt('style', null);
 const themeArg = opt('theme', null);
 const materialArg = opt('material', null);
 const hourArg = opt('hour', null);
+const timeoutSec = Number(opt('timeout', 120));
 
 const STYLE_VALUES = ['command', 'apple', 'cupertino', 'summary'];
 const THEME_VALUES = ['command', 'observatory', 'ember', 'daylight', 'sky'];
@@ -120,26 +125,36 @@ function sendBeaconBlockScript() {
 })();`;
 }
 
+// Reap anything a previous, crashed or hung run of this tool left behind
+// before adding a new Chrome to the pile (the 18 Oct 2026 incident).
+await sweepOrphans(['nova-shot-profile-']);
+
 const profile = path.join(os.tmpdir(), `nova-shot-profile-${process.pid}`);
 await rm(profile, { recursive: true, force: true });
 await mkdir(profile, { recursive: true });
 const debugPort = 9400 + Math.floor(Math.random() * 90);
-const chrome = spawn(CHROME, [
+const chrome = await launchManagedChrome(CHROME, [
   `--user-data-dir=${profile}`,
   '--headless=new', '--hide-scrollbars', '--mute-audio',
   '--use-angle=swiftshader', '--use-gl=angle', '--enable-unsafe-swiftshader',
   '--disable-dev-shm-usage', '--no-first-run', '--no-default-browser-check',
   `--remote-debugging-port=${debugPort}`,
   `--window-size=${width},${height}`, 'about:blank',
-], { stdio: 'ignore' });
+], profile);
 // Chrome is still flushing its cache when the kill lands; the profile is in
 // the temp dir, so a directory that will not go yet is not worth failing over.
 const cleanup = async () => {
-  try { chrome.kill(); } catch { /* gone */ }
+  killGroup(chrome.pid);
   await new Promise((r) => setTimeout(r, 400));
   await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
 };
-process.on('uncaughtException', async (e) => { console.error(e.message); await cleanup(); process.exit(1); });
+registerCleanup({
+  killSync: () => { try { process.kill(-chrome.pid, 'SIGKILL'); } catch { /* gone */ } },
+  cleanupAsync: cleanup,
+});
+// A hard overall deadline — the direct cause of the 18 Oct incident was a
+// shot that waited forever for a dev server shut down mid-run.
+const clearDeadline = installDeadline(timeoutSec, TOOL, cleanup);
 
 const base = `http://127.0.0.1:${debugPort}`;
 const get = async (p) => { try { const r = await fetch(base + p); return r.ok ? await r.json() : null; } catch { return null; } };
@@ -233,13 +248,13 @@ const REFUSAL = 'no public/_devconn.js — run `node scripts/dev-connect.mjs` fi
 const testBypass = readonly && process.env.SHOT_ALLOW_NOSEED === '1';
 if (readonly && !haveSeed && !testBypass) {
   console.error(REFUSAL);
-  await cleanup(); process.exit(1);
+  clearDeadline(); await cleanup(); process.exit(1);
 }
 if (!haveSeed && !demo && !testBypass) {
   // A shot of the demo fixtures looks exactly like a shot of his app, and
   // every conclusion drawn from it is wrong. The probe learned this first.
   console.error(REFUSAL);
-  await cleanup(); process.exit(1);
+  clearDeadline(); await cleanup(); process.exit(1);
 }
 
 const scriptParts = [];
@@ -252,7 +267,14 @@ if (hourSpec) scriptParts.push(frozenClockScript(hourSpec[0], hourSpec[1]));
 if (readonly) scriptParts.push(sendBeaconBlockScript());
 pageScript = scriptParts.length ? scriptParts.join('\n') : null;
 if (pageScript) await send('Page.addScriptToEvaluateOnNewDocument', { source: pageScript });
-await send('Page.navigate', { url });
+try {
+  await navigateOrFail(send, url, TOOL);
+} catch (e) {
+  console.error(e.message);
+  clearDeadline();
+  await cleanup();
+  process.exit(1);
+}
 await new Promise((r) => setTimeout(r, 3000));
 await attach();
 for (const js of evals) {
@@ -274,6 +296,7 @@ if (readonly) {
   if (!sawFetchPaused) {
     console.error('shot: readonly interception never engaged — refusing to trust the shot');
     ws.close();
+    clearDeadline();
     await cleanup();
     process.exit(3);
   }
@@ -287,5 +310,6 @@ const shot = await send('Page.captureScreenshot', { format: 'png' });
 await writeFile(out, Buffer.from(shot.data, 'base64'));
 console.log(out, errors.result.value);
 ws.close();
+clearDeadline();
 await cleanup();
 process.exit(0);
