@@ -1928,6 +1928,7 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-ts-xk > p + p { margin-top: 6px; }
 .nv-ts-xk b { font-weight: 600; color: var(--nv-cy); }
 .nv-ts-steps { margin-top: 6px; }
+.nv-ts-dropnote { margin: 4px 4px 0; font: 400 13px/1.45 var(--nv-font-ui); color: var(--nv-ink60); text-wrap: pretty; }
 .nv-ts-srow { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 56px; }
 .nv-ts-srow + .nv-ts-srow { border-top: 1px solid var(--nv-sum-sep); }
 .nv-ts-srow > span:first-child { font: 400 15px var(--nv-font-ui); color: var(--nv-ink); }

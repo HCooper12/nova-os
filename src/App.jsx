@@ -93,7 +93,7 @@ import { FloatingCore } from './FloatingCore.jsx';
 import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
-import { fitSets } from './fitSets.js';
+import { fitSets, applyDrops } from './fitSets.js';
 import { journalActions } from './journalActions.js';
 import { pickReviewItem } from './reviewPick.js';
 import { GAPS as REVIEW_GAPS, nextStep as nextReviewStep, shiftISO, localISO, demoDrawn, DEMO_UNREVIEWED } from './reviewDemo.js';
@@ -4794,7 +4794,7 @@ export default class App extends Component {
     }).catch((e) => this.toastMsg('Could not update routine: ' + e.message));
   }
   routineEntriesFrom(routine) {
-    return routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
+    return routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, ...(e.dropSets ? { dropSets: e.dropSets } : {}) }));
   }
   addExerciseToRoutine(exerciseId) {
     const routine = this.currentRoutine();
@@ -5036,7 +5036,11 @@ export default class App extends Component {
           ? { ...s, weight: Math.round((Number(s.weight) + coach.delta) * 10) / 10 }
           : { ...s, reps: Number(s.reps) + coach.delta });
       }
-      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, coach,
+      // DROP SETS: the routine's last n sets are drops, stepping down from the
+      // top set (src/fitSets.js); Coach's weight nudge moves the top, so the
+      // drops are re-derived from it rather than kept
+      if (e.dropSets) sets = applyDrops(sets, e.dropSets, { keepRecorded: coach && coach.kind === 'weight' ? 0 : (base ? base.length : 0) });
+      return { exerciseId: e.exerciseId, name: e.name, muscleGroup: e.muscleGroup, trackingType: e.trackingType, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, ...(e.dropSets ? { dropSets: e.dropSets } : {}), coach,
         // last time's truth rides along — with a coach-nudged prefill the
         // comparison is otherwise invisible mid-session
         last: e.lastSets && e.lastSets.length ? { date: e.lastDate || null, sets: e.lastSets.map((s) => ({ weight: s.weight, reps: s.reps })) } : null,

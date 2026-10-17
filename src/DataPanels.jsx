@@ -66,7 +66,7 @@ export function SessionPanel({ card, mini = false }) {
             <div className="nv-dp-caps" style={{ gridTemplateColumns: `repeat(${work.length}, minmax(0, 1fr))` }}>
               {work.map((s) => (
                 <span key={s.n} className={`lx${setLit(s.n) ? ' on' : ''}${anyLit && !setLit(s.n) && !liftLit && !at?.target ? ' dim' : ''}`}>
-                  Set {s.n}{s.type === 'backoff' ? ' · back-off' : ''}{!compact && s.rpe != null ? <><br />RPE {s.rpe}</> : null}
+                  Set {s.n}{s.type === 'backoff' ? ' · back-off' : s.type === 'drop' ? ' · drop' : ''}{!compact && s.rpe != null ? <><br />RPE {s.rpe}</> : null}
                 </span>
               ))}
             </div>

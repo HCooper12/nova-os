@@ -354,7 +354,7 @@ export function valsTrainSummary(app, ctx, v) {
         muscle: e.muscleGroup || null,
         also: e.also || [],
         hue: muscleVar(e.muscleGroup),
-        scheme: `${e.targetSets} × ${reps}${e.targetUnit === 'sec' ? ' s' : ''}`,
+        scheme: `${e.targetSets} × ${reps}${e.targetUnit === 'sec' ? ' s' : ''}${raw.dropSets ? ` · ${e.targetSets - raw.dropSets} top + ${raw.dropSets} drop${raw.dropSets === 1 ? '' : 's'}` : ''}`,
         last: !last ? 'not yet done' : bodyweight || !top ? `last ${last[0].reps}${e.targetUnit === 'sec' ? ' s' : ' reps'}` : `last ${top} kg`,
         lastFull: e.lastLabel,
         coach: prog ? (prog.kind === 'weight' ? `Coach +${prog.delta} kg` : prog.kind === 'reps' ? `Coach +${plural(prog.delta, 'rep')}` : prog.kind === 'quality' ? 'Coach: hold and control' : 'Coach: outgrown') : null,
@@ -379,7 +379,7 @@ export function valsTrainSummary(app, ctx, v) {
         formCheck: e.formCheck,
         formCheckOpen: () => { app.setState({ trainSumRow: null }); e.formCheckOpen(); },
         unit: e.targetUnit,
-        targets: { sets: e.targetSets, low: e.targetRepsLow, high: e.targetRepsHigh },
+        targets: { sets: e.targetSets, low: e.targetRepsLow, high: e.targetRepsHigh, drops: raw.dropSets || 0 },
       };
     });
     const sheetRow = rows.find((r) => r.id === st.trainSumRow) || null;
@@ -419,7 +419,10 @@ export function valsTrainSummary(app, ctx, v) {
           if (i < 0) return;
           const n = (x) => Math.max(1, Math.round(Number(x)) || 1);
           const next = { ...entries[i], targetSets: n(t.sets), targetRepsLow: n(t.low), targetRepsHigh: Math.max(n(t.low), n(t.high)) };
-          if (next.targetSets === entries[i].targetSets && next.targetRepsLow === entries[i].targetRepsLow && next.targetRepsHigh === entries[i].targetRepsHigh) return;
+          // drop sets: the last n of the sets, always leaving one top set
+          const drops = Math.max(0, Math.min(Math.round(Number(t.drops)) || 0, next.targetSets - 1));
+          if (drops) next.dropSets = drops; else delete next.dropSets;
+          if (next.targetSets === entries[i].targetSets && next.targetRepsLow === entries[i].targetRepsLow && next.targetRepsHigh === entries[i].targetRepsHigh && (next.dropSets || 0) === (entries[i].dropSets || 0)) return;
           entries[i] = next;
           app.updateRoutineExercises(entries);
         },

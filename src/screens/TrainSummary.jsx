@@ -748,7 +748,10 @@ function LiftSheet({ s }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const step = (k, by) => setT((x) => {
+    // drop sets run from none up to one less than the sets (a drop needs a top set above it)
+    if (k === 'drops') return { ...x, drops: Math.max(0, Math.min((Number(x.sets) || 1) - 1, (Number(x.drops) || 0) + by)) };
     const next = { ...x, [k]: Math.max(1, (Number(x[k]) || 1) + by) };
+    if (k === 'sets') next.drops = Math.min(Number(x.drops) || 0, next.sets - 1);
     // the range stays a range: the low end never passes the high one
     if (k === 'low' && next.low > next.high) next.high = next.low;
     if (k === 'high' && next.high < next.low) next.low = next.high;
@@ -761,9 +764,9 @@ function LiftSheet({ s }) {
     <div key={k} className="nv-ts-srow">
       <span>{label}</span>
       <span className="nv-ts-mini">
-        <button type="button" className="nv-ts-round" onClick={() => step(k, -1)} disabled={t[k] <= 1} aria-label={`${label}: one fewer`}><Ico p={P.minus} cls="thick" /></button>
+        <button type="button" className="nv-ts-round" onClick={() => step(k, -1)} disabled={t[k] <= (k === 'drops' ? 0 : 1)} aria-label={`${label}: one fewer`}><Ico p={P.minus} cls="thick" /></button>
         <b aria-live="polite">{t[k]}</b>
-        <button type="button" className="nv-ts-round" onClick={() => step(k, 1)} aria-label={`${label}: one more`}><Ico p={P.plus} cls="thick" /></button>
+        <button type="button" className="nv-ts-round" onClick={() => step(k, 1)} disabled={k === 'drops' && t.drops >= (Number(t.sets) || 1) - 1} aria-label={`${label}: one more`}><Ico p={P.plus} cls="thick" /></button>
       </span>
     </div>
   );
@@ -797,7 +800,11 @@ function LiftSheet({ s }) {
             {stepper('sets', 'Sets')}
             {stepper('low', `${unit === 'seconds' ? 'Seconds' : 'Reps'}, from`)}
             {stepper('high', 'To')}
+            {stepper('drops', 'Drop sets')}
           </div>
+          <p className="nv-ts-dropnote">{(Number(t.drops) || 0) > 0
+            ? `${(Number(t.sets) || 1) - t.drops} top set${(Number(t.sets) || 1) - t.drops === 1 ? '' : 's'} at the weight you are building, then ${t.drops} drop${t.drops === 1 ? '' : 's'}, each lighter, straight after. Only the top sets move the weight up.`
+            : 'Drop sets: the last sets get lighter and follow straight on, no rest. Suits cable and machine isolation work.'}</p>
           <div className="nv-ts-sheetacts">
             <button type="button" className="nv-ts-quiet" onClick={() => { s.save(draft.current); r.formCheckOpen(); }}><Ico p={P.cam} />Form check</button>
             <button type="button" className="nv-ts-round" onClick={r.up || undefined} disabled={!r.up} aria-label="Move it up"><Ico p={P.up} cls="thick" /></button>

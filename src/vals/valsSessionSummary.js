@@ -39,7 +39,7 @@ import {
 // Settings row writes one localStorage key (novaos.restTimer), the house
 // pattern for a per-device preference (src/theme.js).
 
-const TYPES = [['warmup', 'Warm-up'], ['working', 'Working'], ['backoff', 'Back-off']];
+const TYPES = [['warmup', 'Warm-up'], ['working', 'Working'], ['backoff', 'Back-off'], ['drop', 'Drop']];
 const CUT_SHORT = ['out of time', 'low energy', 'gym busy', 'pain'];
 const cap = (s) => { const t = String(s || ''); return t.charAt(0).toUpperCase() + t.slice(1); };
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -139,7 +139,8 @@ export function valsSessionSummary(app, ctx, v) {
   // says so and offers to talk it over.
   const coachRestOf = (x) => parseRestText(x?.focusNote);
   const restFor = (x) => ownRest(x.exerciseId) ?? coachRestOf(x).seconds;
-  const startRest = () => restStart(app.state.restTimerPref || getRestTimer(), Date.now(), { editing: !!app.state.editingSessionId, seconds: restFor(e) });
+  // a drop set follows the set before it at once: no rest between them
+  const startRest = (i = setIdx) => (liveSet(i + 1)?.setType === 'drop' ? null : restStart(app.state.restTimerPref || getRestTimer(), Date.now(), { editing: !!app.state.editingSessionId, seconds: restFor(e) }));
 
   // ------------------------------------------------------- the header --
   const live = exs.filter((x) => !x.skipped);
@@ -401,7 +402,7 @@ export function valsSessionSummary(app, ctx, v) {
     for (const [method, ...args] of commitOps(p, app.state.workoutSession)) app[method](...args);
     const note = `Logged ${setWords(tt, { weight: p.weight, reps: p.reps })} on set ${p.setIdx + 1} of ${p.count}.`;
     app.setState((s0) => ({
-      sessionSumSel: null, sessionSumPad: null, sessionSumLift: exIdx, sessionRest: startRest(),
+      sessionSumSel: null, sessionSumPad: null, sessionSumLift: exIdx, sessionRest: startRest(p.setIdx),
       sessionSumVoice: { ...(s0.sessionSumVoice || {}), consumed: String(s0.sessionSumVoice?.text || '').length, note, last: { exIdx, setIdx: p.setIdx } },
     }));
   };

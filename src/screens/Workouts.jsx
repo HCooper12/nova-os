@@ -695,9 +695,9 @@ function SessionView({ v }) {
                   <LocalInput type="number" inputMode="decimal" step="0.5" min="0" max="6" value={s.rir} onChange={s.onRir} submitOnEnter={false} placeholder="R" style={{ ...setInputStyle, width: '100%', minWidth: 0, opacity: s.rir !== '' ? 1 : 0.55 }} />
                   {/* set type cycles working → backoff → warm-up; warm-ups are
                       excluded from volume counts and PRs */}
-                  <Interactive as="span" onClick={s.cycleType} haptic="tick" title="Tap to cycle: working / backoff / warm-up"
+                  <Interactive as="span" onClick={s.cycleType} haptic="tick" title="Tap to cycle: working / backoff / drop / warm-up"
                     base={`cursor:pointer;text-align:center;transition:color .22s var(--nv-ease),border-color .22s var(--nv-ease);font:600 ${isAppleStyle() ? '10.5px var(--nv-font-ui)' : '8px var(--nv-font-mono)'};letter-spacing:.08em;padding:5px 7px;border-radius:6px;border:1px solid ${s.setType === 'warmup' ? 'color-mix(in srgb, var(--nv-gold) 45%, transparent)' : s.setType === 'backoff' ? 'color-mix(in srgb, var(--nv-vi) 45%, transparent)' : 'color-mix(in srgb, var(--nv-ink) 18%, transparent)'};color:${s.setType === 'warmup' ? 'var(--nv-gold)' : s.setType === 'backoff' ? 'var(--nv-vi)' : 'color-mix(in srgb, var(--nv-ink) 45%, transparent)'}`}
-                  >{s.setType === 'warmup' ? 'WU' : s.setType === 'backoff' ? 'BO' : 'WK'}</Interactive>
+                  >{s.setType === 'warmup' ? 'WU' : s.setType === 'backoff' ? 'BO' : s.setType === 'drop' ? 'DR' : 'WK'}</Interactive>
                   {/* THE SET TICK, his most-tapped control (13 Oct, keynote-motion
                       §4): the box fills on a spring and the check DRAWS itself.
                       Transitions, not animations, so it plays when he ticks a

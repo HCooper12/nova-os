@@ -576,7 +576,7 @@ export function valsWorkouts(app, ctx) {
       rir: s.rir ?? '',
       onRir: (ev) => app.updateSessionSet(exIdx, setIdx, 'rir', typeof ev === 'string' ? ev : ev.target.value),
       setType: s.setType || 'working',
-      cycleType: () => app.updateSessionSet(exIdx, setIdx, 'setType', (s.setType === 'warmup' ? 'working' : s.setType === 'backoff' ? 'warmup' : 'backoff')),
+      cycleType: () => app.updateSessionSet(exIdx, setIdx, 'setType', (s.setType === 'warmup' ? 'working' : s.setType === 'drop' ? 'warmup' : s.setType === 'backoff' ? 'drop' : 'backoff')),
       // accept a plain string (LocalInput) as well as an event (anything
       // still passing one) — the set fields are local-echo inputs now
       onWeight: (ev) => app.updateSessionSet(exIdx, setIdx, 'weight', typeof ev === 'string' ? ev : ev.target.value),
