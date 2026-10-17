@@ -24,7 +24,8 @@ LIFTS = {
     'row': (r'latissimus|trapezius|rhomboid|teres major|spinal part of deltoid', r'biceps brachii|brachialis|brachioradialis|infraspinatus|teres minor|erector'),
 }
 WORK, SECOND = LIFTS[LIFT]
-SHEET = re.compile(r'fascia|aponeuros|retinacul|sheath|iliotibial tract|galea|epicranial', re.I)
+# (bracketed) names are Z-Anatomy's optional variants of a structure already drawn
+SHEET = re.compile(r'fascia|aponeuros|retinacul|sheath|iliotibial tract|galea|epicranial|^\(', re.I)
 scene = bpy.context.scene
 scene.render.use_freestyle = False
 scene.use_nodes = False

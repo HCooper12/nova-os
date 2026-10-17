@@ -34,6 +34,16 @@ ob = {o.name: o for o in bpy.data.objects if o.type == 'MESH'}
 # piece gets its own mesh with its transform baked in; the mirrored ones get
 # their normals flipped back, or they render inside out.
 from mathutils import Matrix as _M
+# SOME PIECES ARE PARENTED to others (the inguinal ligament to the external
+# oblique). Baking a parent moved every child a second time: the ligament
+# landed a metre in front of the body (loop v6, 18 Oct). Unparent everything
+# first, keeping each piece exactly where it is, then bake.
+worlds = {o.name: o.matrix_world.copy() for o in bpy.data.objects if o.type == 'MESH'}
+for o in bpy.data.objects:
+    if o.type == 'MESH' and o.parent is not None:
+        o.parent = None
+        o.matrix_world = worlds[o.name]
+bpy.context.view_layer.update()
 for o in meshes:
     if o.data.users > 1:
         o.data = o.data.copy()
@@ -42,6 +52,10 @@ for o in meshes:
     if mw.determinant() < 0:
         o.data.flip_normals()
     o.matrix_world = _M.Identity(4)
+# a copied mesh's cached bounding box reads empty until Blender refreshes it;
+# measured from it, the head's top fell to the floor and the head bone ran
+# down through the whole body, claiming knees and ribs (loop v4, 18 Oct)
+bpy.context.view_layer.update()
 
 def verts(name):
     o = ob[name]
@@ -80,7 +94,8 @@ J['pelvis'] = (J['hipL'] + J['hipR']) / 2
 J['chest'] = Vector((0, J['shoulderL'].y * 0.5, (J['clavL'].z + J['pelvis'].z) / 2 + 0.12))
 J['neck'] = Vector((0, (J['clavL'].y + J['clavR'].y) / 2 + 0.03, (J['clavL'].z + J['clavR'].z) / 2))
 J['headbase'] = Vector((0, J['neck'].y + 0.02, J['neck'].z + 0.13))
-J['headtop'] = Vector((0, J['neck'].y + 0.02, max(p.z for o in meshes for p in [o.matrix_world @ Vector(c) for c in o.bound_box])))
+J['headtop'] = Vector((0, J['neck'].y + 0.02, max(max(v.co.z for v in o.data.vertices) for o in meshes if len(o.data.vertices))))
+assert J['headtop'].z > J['headbase'].z + 0.1, 'the head top is not above the head base'
 for k, v in J.items():
     print('JOINT', k, tuple(round(x, 3) for x in v))
 
@@ -134,10 +149,26 @@ HAND = re.compile(r'finger|thumb|pollicis|metacarp|carpal|scaphoid|lunate|trique
 for o in meshes:
     side = 'l' if o.name.endswith('.l') else 'r' if o.name.endswith('.r') else None
     allowed = SIDE_BONES[side] if side else SIDE_BONES['l'] & SIDE_BONES['r']
-    if side and FOOT.search(o.name):
+    if re.search(r'inguinal ligament', o.name, re.I):
+        # pelvis to pelvis (anterior iliac spine to pubic tubercle): blended
+        # toward the thigh it stretched 4.6x in a deep squat (loop v6 check)
+        allowed = {'pelvis'}
+    elif side and FOOT.search(o.name):
         allowed = {'shin' + side.upper(), 'foot' + side.upper()}
     elif side and HAND.search(o.name):
         allowed = {'forearm' + side.upper(), 'hand' + side.upper()}
+    else:
+        # nothing below the waist follows an arm: in the rest pose the hands
+        # hang by the groin, and the inguinal ligament, weighted partly to the
+        # hand, stretched to six times its length up to the bar (loop v5)
+        n_ = max(1, len(o.data.vertices))
+        cz = sum((v.co.z for v in o.data.vertices), 0.0) / n_
+        cx = abs(sum((v.co.x for v in o.data.vertices), 0.0) / n_)
+        # the body's own column only: the hanging forearms are also below the
+        # waist in the rest pose, and cutting them off the arm left the left
+        # forearm's muscles hanging by the hip at the bottom (loop v7)
+        if cz < 1.05 and cx < 0.19:
+            allowed = {n for n in allowed if not re.match(r'(upperarm|forearm|hand|clavicle)', n)}
     mw = o.matrix_world
     for g in list(o.vertex_groups):
         o.vertex_groups.remove(g)
@@ -151,6 +182,9 @@ for o in meshes:
         for v in o.data.vertices:
             p = mw @ v.co
             d = sorted((seg_dist(p, *segs[n]), n) for n in allowed)[:2]
+            if len(d) == 1:   # pinned to one bone (the inguinal ligament)
+                groups[d[0][1]].add([v.index], 1.0, 'REPLACE')
+                continue
             w0 = 1 / (d[0][0] + 0.004) ** 4
             w1 = 1 / (d[1][0] + 0.004) ** 4
             groups[d[0][1]].add([v.index], w0 / (w0 + w1), 'REPLACE')
@@ -160,5 +194,24 @@ for o in meshes:
     o.parent = arm
     o.matrix_parent_inverse = arm.matrix_world.inverted()
 print('SKINNED', len(meshes))
+# every skinned piece must sit at its true place with a clean transform: a
+# piece that does not (a parent moved it, a mirror survived) deforms off the
+# body. Fail the rig rather than render it.
+bpy.context.view_layer.update()
+_bad = [o.name for o in meshes if o.parent is not arm or any(abs(o.matrix_basis[i][j] - (1 if i == j else 0)) > 1e-4 for i in range(4) for j in range(4))]
+assert not _bad, f'pieces off their true place: {_bad[:5]}'
+# the hanging arms (rest pose): every piece out there must follow an arm bone,
+# or it stays down by the hip while the arm goes up (loop v7's left forearm)
+def _rest_c(o):
+    n_ = max(1, len(o.data.vertices))
+    return (sum((v.co.x for v in o.data.vertices), 0.0) / n_, sum((v.co.z for v in o.data.vertices), 0.0) / n_)
+_arm_less = []
+for o in meshes:
+    cx, cz = _rest_c(o)
+    if abs(cx) > 0.21 and 0.6 < cz < 1.2:
+        used = {g.name for g in o.vertex_groups}
+        if not any(re.match(r'(upperarm|forearm|hand)', n) for n in used):
+            _arm_less.append(o.name)
+assert not _arm_less, f'arm pieces not on an arm bone: {_arm_less[:5]}'
 bpy.ops.wm.save_as_mainfile(filepath=OUT, compress=True)
 print('SAVED', OUT)

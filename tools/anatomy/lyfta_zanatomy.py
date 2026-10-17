@@ -40,7 +40,8 @@ scene.render.use_compositing = False
 # fascia and aponeurotic sheets wrap the muscles like skin and hide them (the
 # first clean render was a smooth white body with no red at all): an écorché
 # shows the muscle bellies, so the sheets stay out
-SHEET = re.compile(r'fascia|aponeuros|retinacul|sheath|iliotibial tract|galea|epicranial', re.I)
+# (bracketed) names are Z-Anatomy's optional variants of a structure already drawn
+SHEET = re.compile(r'fascia|aponeuros|retinacul|sheath|iliotibial tract|galea|epicranial|^\(', re.I)
 keep = {o.name for o in bpy.data.objects if o.type == 'MESH' and o.get('kind') in ('muscle', 'bone') and not SHEET.search(o.name)}
 skeletal = {o.name for o in bpy.data.objects if o.get('kind') == 'bone'}
 for o in bpy.data.objects:
