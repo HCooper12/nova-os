@@ -61,8 +61,11 @@ export function goalMuscles(goals) {
 // Readiness: a 0-100 blend of HRV-vs-baseline and last night's sleep, with
 // honest degradation — missing inputs shrink the basis instead of faking a
 // score, and `basis` says what the number is built from.
-export function computeReadiness(days) {
-  const dayAge = (d) => Math.round((new Date(new Date().toDateString()) - new Date(`${d.date}T12:00:00`)) / 86400000);
+// `now` (18 Oct 2026): the check verbs pass their own clock, so "how recent"
+// is judged against the moment asked about, not the wall clock; every other
+// caller keeps the default and is unchanged.
+export function computeReadiness(days, now = new Date()) {
+  const dayAge = (d) => Math.round((new Date(new Date(now).toDateString()) - new Date(`${d.date}T12:00:00`)) / 86400000);
   const withHrv = (days || []).filter((d) => d.hrv != null && dayAge(d) <= 10);
   const recent = withHrv.filter((d) => dayAge(d) <= 2);
   const baseline = withHrv.filter((d) => dayAge(d) > 2);

@@ -257,7 +257,7 @@ async function checkInbox(deps, now, reason) {
 async function checkReadiness(deps, now, reason) {
   const days = await deps.recentDays(14).catch(() => []);
   const { computeReadiness } = await import('./trainOverview.js');
-  const r = computeReadiness(days);
+  const r = computeReadiness(days, now);
   const lead = leadFor('Readiness', reason);
   if (r.score == null) return { text: 'No readiness inputs on record, nothing recent for HRV or sleep.' };
   return { text: `${lead}Readiness is ${r.score}, ${r.basis}.` };
