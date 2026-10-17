@@ -4,6 +4,7 @@ import { canonicalGroup, legacyGroup } from '../lib/muscleSecondary.js';
 import { loadRoutines, loadArchivedRoutines, createRoutine, updateRoutine, deleteRoutine, archiveRoutine, restoreRoutine, reorderRoutines, setScheduleDay, WEEKDAYS } from '../lib/workouts.js';
 import { loadExerciseState } from '../lib/exerciseState.js';
 import { variantFor } from '../lib/sessionPrefill.js';
+import { exerciseRecency } from '../lib/exerciseRecency.js';
 import { loadSessions, completeSession, updateSession, deleteSession, completedCountByRoutine } from '../lib/workoutSessions.js';
 import { computeProgressions, draftSessionSummary, normalizeQuickPlan } from '../lib/coach.js';
 import { startQuickSession } from '../lib/claudeCode.js';
@@ -128,7 +129,12 @@ export function workoutsRouter(vaultPath) {
 
   router.get('/workouts/exercises', async (req, res, next) => {
     try {
-      res.json(await loadExerciseLibrary(vaultPath));
+      const lib = await loadExerciseLibrary(vaultPath);
+      // additive: when he last did each lift, for the picker's short list.
+      // A failed history read leaves the library whole, just without dates.
+      let recency = {};
+      try { recency = exerciseRecency(await loadSessions(vaultPath, { limit: 60 })); } catch { /* library still serves */ }
+      res.json({ ...lib, exercises: (lib.exercises || []).map((e) => (recency[e.id] ? { ...e, ...recency[e.id] } : e)) });
     } catch (err) {
       next(err);
     }

@@ -807,7 +807,7 @@ export default class App extends Component {
     routineCreating: false, routineNewName: '',
     inboxVideoUrl: '', inboxVideoQuestion: '', inboxVideoAsk: false, inboxVideoBusy: false, inboxVideoError: null, inboxVideoSent: [],
     routineDeleteConfirm: false,
-    exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any',
+    exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerShowAll: false,
     exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps',
     // 'routine' (default, writes to the vault template) or 'session' (his
     // 21-Aug ask: a one-off extra lift for TODAY only, never the program)
@@ -4833,14 +4833,14 @@ export default class App extends Component {
     this.updateRoutineExercises(entries);
   }
   openExercisePicker() {
-    this.setState({ exercisePickerOpen: true, exercisePickerMode: 'routine', exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
+    this.setState({ exercisePickerOpen: true, exercisePickerMode: 'routine', exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerShowAll: false, exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
   }
   // A TEMPORARY exercise for the session he is in right now — his 21-Aug
   // ask: an extra lift that never touches the program (no writeRoutine
   // call, nothing filed to the vault). Reuses the same picker UI; only the
   // mode and the destination of onAdd differ.
   openSessionExercisePicker() {
-    this.setState({ exercisePickerOpen: true, exercisePickerMode: 'session', exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
+    this.setState({ exercisePickerOpen: true, exercisePickerMode: 'session', exercisePickerQuery: '', exercisePickerMuscle: 'Any', exercisePickerShowAll: false, exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps' });
   }
   addExerciseToSession(exerciseOrId) {
     const session = this.state.workoutSession;
@@ -12829,7 +12829,7 @@ export default class App extends Component {
         )}
         <ContextMenuHost menu={this.state.ctxMenu} isMobile={v.isMobile} close={() => this.closeContextMenu()} />
 
-        {v.statusBanner && (
+        {v.statusBanner && !(v.isMission && v.offlineCard) && (
           <div style={{
             position: 'fixed', left: 0, right: 0, marginInline: 'auto', width: 'fit-content',
             bottom: v.isMobile ? 'calc(76px + env(safe-area-inset-bottom))' : '18px', zIndex: 80,

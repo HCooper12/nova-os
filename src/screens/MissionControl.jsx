@@ -1,3 +1,4 @@
+import { OfflineCard } from '../OfflineCard.jsx';
 import { css } from '../css.js';
 import { StuckCard } from '../StuckCard.jsx';
 import { glowPanel, glowSoft } from '../glowPanel.js';
@@ -108,6 +109,7 @@ export function MissionControl({ v }) {
       {v.stepsOverlay && <StepsHistory v={v.stepsOverlay} />}
       {v.repertoireBook && <RepertoireBook v={v.repertoireBook} />}
       {v.calendarView && <CalendarView v={v.calendarView} />}
+      <OfflineCard c={v.offlineCard} />
       {v.focusChip && <div style={{ marginTop: '10px' }}><FocusChip v={v.focusChip} /></div>}
       {/* C3 — THE RECORD MOMENT. Two PRs landed on 3 Sep and rendered as
           two small bordered cards identical in weight to a rest-day notice. A

@@ -434,6 +434,27 @@ export function valsWorkouts(app, ctx) {
     .map((e) => ({ id: e.id, name: e.name, muscleGroup: e.muscleGroup, onAdd: () => (pickerMode === 'session' ? app.addExerciseToSession(e.id) : app.addExerciseToRoutine(e.id)),
       // hold to see the lift — anatomy, 3D figure, cues, form video, history
       onOpen: () => app.openExerciseCard(e.name) }));
+  // choice overload (mockup 102): with nothing typed and no muscle chosen,
+  // eight lifts he actually did lately, this session's muscles first; the
+  // full library sits behind Show all. Fewer than three recents → the
+  // full list, since a short list of one is no help.
+  const pickerGroups = new Set(((pickerMode === 'session' ? st.workoutSession?.exercises : openRoutine?.exercises) || [])
+    .map((e) => (exercisesById.get(e.exerciseId) || {}).muscleGroup).filter(Boolean));
+  const pickerRecent = libraryExercises
+    .filter((e) => e.lastDate && !pickerExclude.has(e.id))
+    .sort((a, b) => (pickerGroups.has(b.muscleGroup) - pickerGroups.has(a.muscleGroup)) || b.lastDate.localeCompare(a.lastDate))
+    .slice(0, 8);
+  const pickerShort = !st.exercisePickerShowAll && !pickerQuery && pickerMuscle === 'Any' && pickerRecent.length >= 3;
+  const pickerWhen = (d) => {
+    const days = Math.round((Date.parse(new Date().toLocaleDateString('en-CA')) - Date.parse(d)) / 864e5);
+    return days <= 0 ? 'Today' : days < 7 ? new Date(d + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short' }) : `${Math.round(days / 7)} wk ago`;
+  };
+  const exercisePickerRecent = pickerShort ? pickerRecent.map((e) => ({
+    id: e.id, name: e.name, muscleGroup: e.muscleGroup,
+    lastLabel: `${pickerWhen(e.lastDate)}${e.lastTopKg ? ` · ${e.lastTopKg} kg` : ''}`,
+    onAdd: () => (pickerMode === 'session' ? app.addExerciseToSession(e.id) : app.addExerciseToRoutine(e.id)),
+    onOpen: () => app.openExerciseCard(e.name),
+  })) : null;
   const exercisePickerExactMatch = libraryExercises.some((e) => e.name.toLowerCase() === pickerQuery);
   const exercisePickerShowCreate = pickerQuery.length > 0 && !exercisePickerExactMatch;
   const TRACKING_TYPE_LABEL = { weight_reps: 'Weight × Reps', bodyweight_reps: 'Bodyweight × Reps', weight_time: 'Weight × Time', bodyweight_time: 'Bodyweight × Time', weighted_bodyweight_reps: 'Weighted Bodyweight × Reps' };
@@ -872,6 +893,10 @@ export function valsWorkouts(app, ctx) {
     exercisePickerMuscleGroups: ['Any', ...(st.liveWorkoutMuscleGroups || [])],
     setExercisePickerMuscle: (m) => app.setExercisePickerMuscle(m),
     exercisePickerResults,
+    exercisePickerRecent,
+    exercisePickerRecentFor: pickerGroups.size ? (pickerMode === 'session' ? 'For this session' : 'For this routine') : 'Your recent lifts',
+    exercisePickerAllCount: libraryExercises.filter((e) => !pickerExclude.has(e.id)).length,
+    showAllExercises: () => app.setState({ exercisePickerShowAll: true }),
     exercisePickerShowCreate,
     exercisePickerCreateMuscle: st.exercisePickerCreateMuscle,
     setExercisePickerCreateMuscle: (m) => app.setExercisePickerCreateMuscle(m),

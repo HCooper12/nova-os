@@ -1,3 +1,4 @@
+import { OfflineCard } from '../OfflineCard.jsx';
 import { useState } from 'react';
 import { promoteLead } from '../workBlock.js';
 import { momentLeads } from '../momentPriority.js';
@@ -562,6 +563,7 @@ export function MissionStructured({ v }) {
       {v.repertoireBook && <RepertoireBook v={v.repertoireBook} />}
       {v.calendarView && <CalendarView v={v.calendarView} />}
       <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+        <OfflineCard c={v.offlineCard} />
         {v.focusChip && <div style={{ marginTop: '10px' }}><FocusChip v={v.focusChip} /></div>}
 
         {/* large title — always first: who, when, and the day's living line */}

@@ -1,3 +1,4 @@
+import { OfflineCard } from '../OfflineCard.jsx';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
@@ -895,6 +896,7 @@ export function MissionSummary({ v }) {
       {v.repertoireBook && <RepertoireBook v={v.repertoireBook} />}
       {v.calendarView && <CalendarView v={v.calendarView} />}
       <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+        <OfflineCard c={v.offlineCard} />
         {v.focusChip && <div style={{ marginTop: '10px' }}><FocusChip v={v.focusChip} /></div>}
 
         {/* who and when: the date, and Nova, one tap from talking */}

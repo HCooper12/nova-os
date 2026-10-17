@@ -69,6 +69,21 @@ function ExercisePicker({ v }) {
         focusStyle="border-color:color-mix(in srgb, var(--nv-cy) 50%, transparent)"
       />
       <SearchCount query={v.exercisePickerQuery} n={v.exercisePickerResults.length} one="exercise" />
+      {v.exercisePickerRecent ? (
+        <div className="nv-pick-short">
+          <Eyebrow style={{ marginTop: '12px' }}>{v.exercisePickerRecentFor} · you used these last</Eyebrow>
+          <div style={css("margin-top:6px;display:flex;flex-direction:column;gap:2px")}>
+            {v.exercisePickerRecent.map((r) => (
+              <Interactive key={r.id} as="div" onClick={r.onAdd} onLongPress={r.onOpen} title="Tap to add · hold to see the lift" base="cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:6px" hoverStyle="background:rgba(255,255,255,.04)">
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', flex: 'none', background: muscleVar(r.muscleGroup) }} />
+                <span style={css("font-size:12.5px")}>{r.name}</span>
+                <span style={css("margin-left:auto;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{r.lastLabel}</span>
+              </Interactive>
+            ))}
+          </div>
+          <div style={{ marginTop: '10px' }}><Button tone="cyan" variant="quiet" onClick={v.showAllExercises}>Show all {v.exercisePickerAllCount}</Button></div>
+        </div>
+      ) : (<>
       <div style={css("margin-top:10px;display:flex;gap:6px;flex-wrap:wrap")}>
         {v.exercisePickerMuscleGroups.map((m) => (
           <Interactive
@@ -96,6 +111,7 @@ function ExercisePicker({ v }) {
           <div style={css("padding:10px 6px;font-size:12px;color:color-mix(in srgb, var(--nv-ink) 35%, transparent)")}>No matches.</div>
         )}
       </div>
+      </>)}
       {v.exercisePickerShowCreate && (
         <div style={css("margin-top:10px;padding-top:10px;border-top:1px solid color-mix(in srgb, var(--nv-ink) 08%, transparent);display:flex;gap:8px;flex-wrap:wrap;align-items:center")}>
           <span style={css("font-size:11.5px;color:color-mix(in srgb, var(--nv-ink) 50%, transparent)")}>Not listed — add "{v.exercisePickerQuery.trim()}" as</span>

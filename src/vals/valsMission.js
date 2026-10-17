@@ -700,6 +700,17 @@ const bodyMetrics = demoMode
         ? { tone: 'info', text: 'Demo data — connect your backend in Settings' }
         : null;
 
+  // the same truth as a Home feed card (OfflineCard.jsx); demo stays a pill
+  const offlineCard = isOffline
+    ? { tone: 'warn', eyebrow: 'Offline', title: "Can't reach your Mac",
+      body: `Showing what Nova saved ${lastSyncLabel || 'earlier'}. Anything you log now waits and sends when it's back.`,
+      works: ['Logging sets', 'Logging food', "Today's plan"] }
+    : st.syncDegraded
+      ? { tone: 'info', eyebrow: 'Slow sync', title: `${st.syncDegraded.ok} of ${st.syncDegraded.total} sections refreshed`,
+        body: st.syncDegraded.tries <= 3 ? 'Your Mac is answering slowly. Fetching the rest.' : 'Your Mac is answering slowly. The rest show what Nova last saved.',
+        bar: { ok: st.syncDegraded.ok, total: st.syncDegraded.total } }
+      : null;
+
   // shared with valsChrome (sidebar status card reuses the same truth)
   Object.assign(ctx, { statusChip, missionStatusItems, agentsLiveCount, agentsGroupLabel: agentsWorking.group });
 
@@ -818,6 +829,7 @@ const bodyMetrics = demoMode
     statusChip,
     missionStatusItems,
     statusBanner,
+    offlineCard,
     suggestedFocus,
     planToday,
     stuckCard,
