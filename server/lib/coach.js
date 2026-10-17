@@ -1,3 +1,4 @@
+import { topSetCount } from '../../src/fitSets.js';
 import { randomUUID } from 'node:crypto';
 import { loadSessions, setSessionSummary } from './workoutSessions.js';
 import { createRecord } from './inboxStore.js';
@@ -48,9 +49,15 @@ const OUTGROWN_MARGIN = 2;
 const WEIGHTED_TYPES = new Set(['weight_reps', 'weighted_bodyweight_reps']);
 const BODYWEIGHT_TYPES = new Set(['bodyweight_reps']);
 
+// DROP SETS NEVER DRIVE THE LOAD (16 Oct 2026). A drop set is a lighter set
+// taken straight after the top one; the lift's progression reads the top sets
+// alone, so 15 easy reps on a drop cannot earn the top weight a step and a
+// drop's effort cannot read as the lift grinding.
+const sansDrops = (ex) => ((ex.sets || []).some((s) => s.setType === 'drop') ? { ...ex, sets: ex.sets.filter((s) => s.setType !== 'drop') } : ex);
+
 function toppedOut(sessionExercise, entry) {
   const sets = sessionExercise.sets || [];
-  if (sets.length < entry.targetSets) return false;
+  if (sets.length < topSetCount(entry)) return false;
   return sets.every((s) => (Number(s.reps) || 0) >= entry.targetRepsHigh);
 }
 
@@ -101,7 +108,7 @@ export async function computeProgressions(vaultPath, routines) {
       for (const s of sessions) {
         const ex = s.exercises.find((e) => e.exerciseId === entry.exerciseId);
         if (ex && ex.anomaly) continue; // flagged off-day — not evidence
-        if (ex && ex.sets?.length) recent.push(ex);
+        if (ex && ex.sets?.length) recent.push(sansDrops(ex));
         if (recent.length === 2) break;
       }
       if (recent.length < 1) continue;
@@ -386,7 +393,7 @@ export async function programContext(vaultPath) {
     const sets = r.exercises.reduce((n, e) => n + (Number(e.targetSets) || 0), 0);
     // what else each lift trains rides along (lib/muscleSecondary.js), so
     // Coach reads a press as chest AND triceps, as the weekly counts do
-    const list = r.exercises.map((e, i) => `${i + 1} ${e.name} ${e.targetSets}×${reps(e)} (${e.muscleGroup || 'unfiled'}${e.audit === 'pending' ? '; NOT AUDITED, its sets count for no muscle until he approves a mapping' : e.secondary?.length ? `; also ${e.secondary.map((m) => `${m} ½`).join(', ')}` : ''})`).join(' · ');
+    const list = r.exercises.map((e, i) => `${i + 1} ${e.name} ${e.targetSets}×${reps(e)}${e.dropSets ? ` [${e.targetSets - e.dropSets} top + ${e.dropSets} drop]` : ''} (${e.muscleGroup || 'unfiled'}${e.audit === 'pending' ? '; NOT AUDITED, its sets count for no muscle until he approves a mapping' : e.secondary?.length ? `; also ${e.secondary.map((m) => `${m} ½`).join(', ')}` : ''})`).join(' · ');
     return `${days.length ? days.join('+') : 'not scheduled'} ${r.name} [${sets} sets]: ${list}`;
   });
   const off = WEEKDAYS.filter((d) => !schedule?.[d] || schedule[d] === ACTIVE_REST)
@@ -1405,22 +1412,37 @@ export async function validateCoachEdit(vaultPath, rawIn, { asked = null, planne
     payload.targetSets = num(raw.targetSets, null);
     payload.targetRepsLow = num(raw.targetRepsLow, null);
     payload.targetRepsHigh = num(raw.targetRepsHigh, null);
+    // DROP SETS (16 Oct 2026): "dropSets": n makes the LAST n sets drops
+    // (lighter, straight after the top set); 0 clears them. The sets before
+    // them are the top sets the lift progresses on, so there must be at least
+    // one, and a drop structure is for a lift a drop suits (see the Coach's
+    // drop-set rules in its prompt).
+    if (raw.dropSets != null && raw.dropSets !== '') {
+      const d = Math.floor(Number(raw.dropSets));
+      if (!Number.isFinite(d) || d < 0) throw refuse('dropSets is a count: how many of the LAST sets are drops, 0 to clear');
+      const nowEntry = routine.exercises.find((e) => e.exerciseId === (payload.removeExerciseId || payload.addExerciseId));
+      const sets = payload.targetSets || nowEntry?.targetSets || 3;
+      if (d >= sets) throw refuse(`dropSets ${d} leaves no top set in ${sets}: a drop set drops from a top set, so keep at least one`);
+      payload.dropSets = d;
+    }
   }
   if (action === 'targets') {
-    if (!payload.targetSets && !payload.targetRepsLow && !payload.targetRepsHigh) throw refuse('a retarget needs targetSets, targetRepsLow or targetRepsHigh');
+    if (!payload.targetSets && !payload.targetRepsLow && !payload.targetRepsHigh && payload.dropSets == null) throw refuse('a retarget needs targetSets, targetRepsLow, targetRepsHigh or dropSets');
     const now = routine.exercises.find((e) => e.exerciseId === payload.removeExerciseId);
     const same = (k) => !payload[k] || payload[k] === now[k];
-    if (same('targetSets') && same('targetRepsLow') && same('targetRepsHigh')) throw refuse(`${now.name} in ${routine.name} is already ${targetsPhrase(now)}`, 'substance');
+    const sameDrops = payload.dropSets == null || payload.dropSets === (now.dropSets || 0);
+    if (same('targetSets') && same('targetRepsLow') && same('targetRepsHigh') && sameDrops) throw refuse(`${now.name} in ${routine.name} is already ${targetsPhrase(now)}`, 'substance');
   }
 
   // a decision card says WHAT changes — "retarget Carter Extension" alone
   // asked him to approve a change he could not see (25 Sep)
   const targetText = (p) => {
     const reps = p.targetRepsLow && p.targetRepsHigh ? `${p.targetRepsLow}–${p.targetRepsHigh}` : p.targetRepsLow || p.targetRepsHigh || null;
-    if (p.targetSets && reps) return ` to ${p.targetSets} × ${reps}`;
-    if (p.targetSets) return ` to ${p.targetSets} sets`;
-    if (reps) return ` to ${reps} reps`;
-    return '';
+    const drops = p.dropSets ? ` (${(p.targetSets || 0) ? `${p.targetSets - p.dropSets} top, ` : ''}${p.dropSets} drop)` : '';
+    if (p.targetSets && reps) return ` to ${p.targetSets} × ${reps}${drops}`;
+    if (p.targetSets) return ` to ${p.targetSets} sets${drops}`;
+    if (reps) return ` to ${reps} reps${drops}`;
+    return p.dropSets ? ` to ${p.dropSets} drop sets after the top sets` : p.dropSets === 0 ? ' to straight sets' : '';
   };
   const title = action === 'swap' ? `Coach: swap ${payload.removeName} → ${payload.addName} in ${routine.name}`
     : action === 'add' ? `Coach: add ${payload.addName} to ${routine.name}${place.text}`

@@ -534,7 +534,16 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     }
     const entriesOf = (r) => r.exercises.map((e) => ({
       exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh,
+      ...(e.dropSets ? { dropSets: e.dropSets } : {}),
     }));
+    // a card's dropSets (n: the last n sets are drops, 0: straight sets), else
+    // what the entry already had, always held below the set count
+    const withDrops = (entry) => {
+      const sets = entry.targetSets;
+      const d = payload.dropSets != null ? payload.dropSets : entry.dropSets || 0;
+      const { dropSets: _old, ...rest } = entry;
+      return d >= 1 && d <= sets - 1 ? { ...rest, dropSets: d } : rest;
+    };
     const priorEntries = entriesOf(routine);
     // WHERE SOMETHING LANDS, from the list as it is NOW: his own edits since
     // the card was raised can shift numbers, so a card that says "after the
@@ -574,6 +583,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
         targetSets: payload.targetSets || moving.targetSets,
         targetRepsLow: payload.targetRepsLow || moving.targetRepsLow,
         targetRepsHigh: payload.targetRepsHigh || moving.targetRepsHigh,
+        ...(moving.dropSets ? { dropSets: moving.dropSets } : {}),
       };
       const nextTo = [...priorEntries];
       const at = landing(nextTo);
@@ -606,11 +616,12 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       await (await import('./exerciseAudit.js')).ensureAuditCards(vaultPath, { ids: [addId], source: 'coach' }).catch(() => {});
       ({ exercises } = await loadExerciseLibrary(vaultPath));
     }
-    const entryFor = (base) => ({
+    const entryFor = (base) => withDrops({
       exerciseId: addId,
       targetSets: payload.targetSets || base?.targetSets || 3,
       targetRepsLow: payload.targetRepsLow || base?.targetRepsLow || 8,
       targetRepsHigh: payload.targetRepsHigh || base?.targetRepsHigh || 10,
+      ...(base?.dropSets && payload.dropSets == null ? { dropSets: base.dropSets } : {}),
     });
     let next;
     if (payload.action === 'reorder') {
@@ -629,7 +640,7 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
       if (!next.length) throw new Error('that would leave the routine empty — remove the routine itself from Train instead');
     } else { // targets
       next = priorEntries.map((e) => (e.exerciseId === payload.removeExerciseId
-        ? { ...e, targetSets: payload.targetSets || e.targetSets, targetRepsLow: payload.targetRepsLow || e.targetRepsLow, targetRepsHigh: payload.targetRepsHigh || e.targetRepsHigh }
+        ? withDrops({ ...e, targetSets: payload.targetSets || e.targetSets, targetRepsLow: payload.targetRepsLow || e.targetRepsLow, targetRepsHigh: payload.targetRepsHigh || e.targetRepsHigh })
         : e));
     }
     await updateRoutine(vaultPath, exercises, routine.id, { exercises: next });

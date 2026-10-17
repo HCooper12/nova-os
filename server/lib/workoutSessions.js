@@ -25,7 +25,7 @@ function bodyFor(session) {
     if (e.anomaly) lines.push('> off day — excluded from progression signals', '');
     if (e.pain) lines.push(`> ⚠ pain: ${e.pain}`, '');
     if (e.note) lines.push(`> ${e.note}`, '');
-    for (const s of e.sets) lines.push(`- ${s.weight}kg × ${s.reps}${s.rpe ? ` @RPE${s.rpe}` : ''}${s.rir != null ? ` (${s.rir} RIR)` : ''}${s.setType === 'warmup' ? ' [warm-up]' : s.setType === 'backoff' ? ' [backoff]' : ''}${s.pain ? ` ⚠ pain${typeof s.pain === 'string' ? `: ${s.pain}` : ''}` : ''}`);
+    for (const s of e.sets) lines.push(`- ${s.weight}kg × ${s.reps}${s.rpe ? ` @RPE${s.rpe}` : ''}${s.rir != null ? ` (${s.rir} RIR)` : ''}${s.setType === 'warmup' ? ' [warm-up]' : s.setType === 'backoff' ? ' [backoff]' : s.setType === 'drop' ? ' [drop]' : ''}${s.pain ? ` ⚠ pain${typeof s.pain === 'string' ? `: ${s.pain}` : ''}` : ''}`);
     lines.push('');
   }
   return lines.join('\n');
@@ -210,7 +210,7 @@ function validateSessionInput(body) {
         const rir = Number(s.rir);
         if (s.rir != null && rir >= 0 && rir <= 6) set.rir = Math.round(rir * 2) / 2;
         // set type: warm-ups are excluded from volume counting and PRs
-        if (['warmup', 'working', 'backoff'].includes(s.setType)) set.setType = s.setType;
+        if (['warmup', 'working', 'backoff', 'drop'].includes(s.setType)) set.setType = s.setType;
         // pain flag — a set that HURT is safety-critical coaching data
         if (s.pain === true) set.pain = true;
         else if (typeof s.pain === 'string' && s.pain.trim()) set.pain = s.pain.trim().slice(0, 80);

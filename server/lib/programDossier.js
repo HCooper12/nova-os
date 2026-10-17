@@ -47,7 +47,7 @@ export function renderProgram({ routines = [], schedule = {}, goals = null } = {
       const lo = e.targetRepsLow, hi = e.targetRepsHigh;
       const reps = lo != null ? (hi != null && hi !== lo ? `${lo}-${hi}` : `${lo}`) : '?';
       const group = e.muscleGroup ? ` [${e.muscleGroup}]` : '';
-      return `${e.name} ${sets}×${reps}${group}`;
+      return `${e.name} ${sets}×${reps}${e.dropSets ? ` (${e.targetSets - e.dropSets} top + ${e.dropSets} drop)` : ''}${group}`;
     });
     const totalSets = (r.exercises || []).reduce((n, e) => n + (Number(e.targetSets) || 0), 0);
     lines.push(`- ${r.name} — ${(r.exercises || []).length} exercises, ${totalSets} working sets: ${ex.join('; ')}`);

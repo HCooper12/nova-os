@@ -12,7 +12,7 @@
 // Last time's sets come from the exercise state, which is kept per exercise
 // and so is true whichever routine or day the lift appears on.
 
-import { fitSets } from '../../src/fitSets.js';
+import { fitSets, applyDrops, cleanDropSets } from '../../src/fitSets.js';
 import { loadExerciseLibrary } from './exercises.js';
 import { loadRoutines } from './workouts.js';
 import { loadExerciseState } from './exerciseState.js';
@@ -38,6 +38,8 @@ export function prefillFor({ last = null, prescription = null, progression = nul
       ? { ...s, weight: Math.round((s.weight + step) * 10) / 10 }
       : { ...s, reps: s.reps + step }));
   }
+  const drops = cleanDropSets(prescription?.dropSets, targetSets);
+  if (drops) sets = applyDrops(sets, drops, { keepRecorded: nudges && progression.kind === 'weight' ? 0 : lastSets.length });
   const from = [];
   if (lastSets.length) from.push(`last time (${last.lastDate || 'date unknown'})`);
   if (nudges) from.push(`Coach's ${progression.kind === 'weight' ? `+${step}kg` : `+${step} rep`}`);

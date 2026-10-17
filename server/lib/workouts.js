@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
 import { cuesFor } from './data/exerciseCues.js';
+import { cleanDropSets } from '../../src/fitSets.js';
 
 export const ROUTINES_REL_PATH = 'Wiki/Health/Workout Routines.md';
 export const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -32,6 +33,8 @@ function resolveExercise(entry, exercisesById) {
     targetSets: entry.targetSets,
     targetRepsLow: entry.targetRepsLow,
     targetRepsHigh: entry.targetRepsHigh,
+    // the last n sets are drop sets (src/fitSets.js); absent when none
+    ...(cleanDropSets(entry.dropSets, entry.targetSets) ? { dropSets: cleanDropSets(entry.dropSets, entry.targetSets) } : {}),
   };
 }
 
@@ -50,7 +53,7 @@ function bodyFor(routines, schedule, exercisesById) {
   const listLifts = (r) => {
     for (const entry of r.exercises) {
       const resolved = resolveExercise(entry, exercisesById);
-      lines.push(`- ${resolved.name} — ${resolved.targetSets} × ${resolved.targetRepsLow}-${resolved.targetRepsHigh}`);
+      lines.push(`- ${resolved.name} — ${resolved.targetSets} × ${resolved.targetRepsLow}-${resolved.targetRepsHigh}${resolved.dropSets ? ` (${resolved.targetSets - resolved.dropSets} top, ${resolved.dropSets} drop)` : ''}`);
     }
     lines.push('');
   };
@@ -148,7 +151,8 @@ function validateExerciseEntries(exercises, exercisesById) {
     const targetSets = Number(e.targetSets) || 3;
     const targetRepsLow = Number(e.targetRepsLow) || 8;
     const targetRepsHigh = Number(e.targetRepsHigh) || targetRepsLow;
-    return { exerciseId: e.exerciseId, targetSets, targetRepsLow, targetRepsHigh };
+    const dropSets = cleanDropSets(e.dropSets, targetSets);
+    return { exerciseId: e.exerciseId, targetSets, targetRepsLow, targetRepsHigh, ...(dropSets ? { dropSets } : {}) };
   });
 }
 

@@ -329,7 +329,7 @@ export async function buildSessionPanel(vaultPath, { date = null, routine = null
   const lifts = (s.exercises || []).map((e) => {
     let n = 0;
     const sets = (e.sets || []).map((x) => {
-      const type = x.setType === 'warmup' ? 'warmup' : x.setType === 'backoff' ? 'backoff' : 'working';
+      const type = x.setType === 'warmup' ? 'warmup' : x.setType === 'backoff' ? 'backoff' : x.setType === 'drop' ? 'drop' : 'working';
       return {
         n: type === 'warmup' ? null : ++n,
         kg: Number(x.weight) || 0,

@@ -5,6 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { loadExerciseLibrary, addExerciseIn, setMuscleGroupIn, renderLibraryFile, writeLibraryRaw, LIBRARY_REL_PATH } from './exercises.js';
+import { cleanDropSets } from '../../src/fitSets.js';
 import { loadRoutines, loadRoutineData, replaceRoutineEntries, renderRoutinesFile, writeRoutinesRaw, ROUTINES_REL_PATH } from './workouts.js';
 import { stampPriors, applyChanges } from './stagedPass.js';
 import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
@@ -179,7 +180,7 @@ export function commitVaultState(vaultPath, relPath, raw) {
 }
 
 const byId = (exercises) => new Map(exercises.map((e) => [e.id, e]));
-const entriesOf = (routine) => routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh }));
+const entriesOf = (routine) => routine.exercises.map((e) => ({ exerciseId: e.exerciseId, targetSets: e.targetSets, targetRepsLow: e.targetRepsLow, targetRepsHigh: e.targetRepsHigh, ...(e.dropSets ? { dropSets: e.dropSets } : {}) }));
 
 // Every op against an in-memory copy of the plan. Nothing here writes.
 async function planOps(vaultPath, ops, { why }) {
@@ -271,7 +272,9 @@ async function planOps(vaultPath, ops, { why }) {
       const routine = routineNamed(op.routineId);
       if (routine.exercises.some((e) => e.exerciseId === id)) throw new Error(`${ex.name} is already in ${routine.name}`);
       const entries = entriesOf(routine);
-      entries.push({ exerciseId: id, targetSets: Number(op.targetSets) || 3, targetRepsLow: Number(op.targetRepsLow) || 8, targetRepsHigh: Number(op.targetRepsHigh) || Number(op.targetRepsLow) || 12 });
+      const addSets = Number(op.targetSets) || 3;
+      const addDrops = cleanDropSets(op.dropSets, addSets);
+      entries.push({ exerciseId: id, targetSets: addSets, targetRepsLow: Number(op.targetRepsLow) || 8, targetRepsHigh: Number(op.targetRepsHigh) || Number(op.targetRepsLow) || 12, ...(addDrops ? { dropSets: addDrops } : {}) });
       setEntries(routine, entries);
       markers.push({ routineId: routine.id, exerciseId: id, why });
       summary.push(`added ${ex.name} to ${routine.name}`);
@@ -295,10 +298,13 @@ async function planOps(vaultPath, ops, { why }) {
       if (op.targetSets != null) entry.targetSets = Number(op.targetSets) || entry.targetSets;
       if (op.targetRepsLow != null) entry.targetRepsLow = Number(op.targetRepsLow) || entry.targetRepsLow;
       if (op.targetRepsHigh != null) entry.targetRepsHigh = Number(op.targetRepsHigh) || entry.targetRepsHigh;
+      // dropSets: how many of the LAST sets are drops (0 clears it)
+      if (op.dropSets != null) { const d = cleanDropSets(op.dropSets, entry.targetSets); if (d) entry.dropSets = d; else delete entry.dropSets; }
+      else if (entry.dropSets && !cleanDropSets(entry.dropSets, entry.targetSets)) delete entry.dropSets;
       setEntries(routine, entries);
       const ex = exercises.find((e) => e.id === id);
       markers.push({ routineId: routine.id, exerciseId: id, why });
-      summary.push(`re-prescribed ${ex?.name || id}: ${entry.targetSets}×${entry.targetRepsLow}-${entry.targetRepsHigh}`);
+      summary.push(`re-prescribed ${ex?.name || id}: ${entry.targetSets}×${entry.targetRepsLow}-${entry.targetRepsHigh}${entry.dropSets ? ` (${entry.targetSets - entry.dropSets} top, ${entry.dropSets} drop)` : ''}`);
       continue;
     }
   }
