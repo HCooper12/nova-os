@@ -48,6 +48,12 @@ export function valsFuelSummary(app, ctx, v) {
     when: dtf('en-AU', { weekday: 'long' }).format(now),
     line: proteinLine(inst.protein),
     hasWeek: !!(v.fuelWeek || v.fuelCross || v.askProteinVerdict),
+    // the week's calories beside today's (17 Oct 2026): what the week has used
+    // of seven days of his target; absent until the week's data is in
+    weekKcal: v.fuelWeek?.calWeek && v.fuelWeek.calWeek.budget != null ? {
+      eaten: v.fuelWeek.calWeek.eaten, budget: v.fuelWeek.calWeek.budget, pct: v.fuelWeek.calWeek.pct,
+      left: v.fuelWeek.calWeek.left, over: v.fuelWeek.calWeek.over, gaps: v.fuelWeek.calWeek.gaps,
+    } : null,
   } : null;
 
   // ---- the day in view ----------------------------------------------------

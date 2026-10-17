@@ -2000,6 +2000,14 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 .nv-fs-mf > span { font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
 .nv-fs-mf b { display: block; font: 700 20px/1.1 var(--nv-font-round); color: var(--nv-ink); font-variant-numeric: tabular-nums; }
 .nv-fs-mf b > small { font: 600 13px var(--nv-font-round); color: var(--nv-ink60); }
+/* the week's calories under today's: the same row, one level quieter */
+.nv-fs-wk { display: grid; gap: 4px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--nv-sum-sep); }
+.nv-fs-wv b { font: 600 17px var(--nv-font-round); font-variant-numeric: tabular-nums; color: var(--nv-ink); }
+.nv-fs-wv small { font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-fs-wbar { position: relative; height: 5px; margin-top: 2px; border-radius: 3px; background: var(--nv-sum-track); overflow: hidden; }
+.nv-fs-wbar > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--nv-fs-k); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.nv-fs-wbar > i.over { background: var(--nv-warn); }
+@media (prefers-reduced-motion: reduce) { .nv-fs-wbar > i { transition: none; } }
 .nv-fs-gap { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--nv-sum-sep);
   font: 400 13px var(--nv-font-ui); color: var(--nv-ink60); }
 .nv-fs-gap > b { font: 600 15px var(--nv-font-ui); color: var(--nv-fs-p); }

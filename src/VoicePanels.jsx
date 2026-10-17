@@ -287,6 +287,8 @@ function NutritionWeek({ d }) {
   };
 
   return (
+    <>
+    {d.calWeek && <CalorieWeek w={d.calWeek} />}
     <Card label="Protein · last 7 days">
       {days.length === 0 && <div style={css(`font:var(--nv-micro-l);color:${dim(40)}`)}>No tracked days yet.</div>}
       {/* The verdict, before the chart. It used to live in a caption BELOW the
@@ -325,6 +327,54 @@ function NutritionWeek({ d }) {
       {days.some((day) => isToday(day)) && (
         <div style={css(`margin-top:7px;font:var(--nv-micro-m);color:${dim(42)}`)}>Today is still open — not counted above.</div>
       )}
+    </Card>
+    </>
+  );
+}
+
+// CALORIES, THE WEEK (17 Oct 2026, his ask: the week alongside the day). Monday
+// to Sunday against seven days of his daily target. The verdict leads: what the
+// week has used and what it still allows; the bars are the days, the dashed line
+// is the daily target. A day with no log is drawn as a gap, never as a low day.
+function CalorieWeek({ w }) {
+  const k = (n) => Math.round(n).toLocaleString('en-AU');
+  const max = Math.max(w.target || 0, ...w.days.map((x) => x.kcal || 0), 1);
+  const open = w.budget == null;
+  const verdictColour = open ? dim(72) : w.over > 0 ? 'var(--nv-warn)' : 'var(--nv-good)';
+  return (
+    <Card label="Calories · this week">
+      <div style={css('display:flex;align-items:baseline;gap:8px;flex-wrap:wrap')}>
+        <span style={css(`font:600 24px ${M};color:${verdictColour};font-variant-numeric:tabular-nums`)}>{k(w.eaten)}</span>
+        <span style={css(`font:400 12px/1.35 ${R};color:${dim(72)}`)}>
+          {open ? 'kcal logged, no daily target set' : `of ${k(w.budget)} · ${w.over > 0 ? `${k(w.over)} over the week` : `${k(w.left)} left`}`}
+        </span>
+      </div>
+      {!open && (
+        <div style={css(`margin:8px 0 2px;height:5px;border-radius:3px;background:${dim(10)};overflow:hidden`)} role="img" aria-label={`${k(w.eaten)} of ${k(w.budget)} kilocalories this week`}>
+          <div style={css(`height:100%;width:${w.pct}%;border-radius:3px;background:${w.over > 0 ? 'var(--nv-warn)' : 'var(--nv-good)'}`)} />
+        </div>
+      )}
+      <div style={css("display:flex;align-items:flex-end;gap:6px;height:64px;position:relative;margin-top:10px")}>
+        {w.target != null && (
+          <div style={css(`position:absolute;left:0;right:0;bottom:${(w.target / max) * 76}%;border-top:1px dashed ${dim(35)}`)} />
+        )}
+        {w.days.map((day) => (
+          <div key={day.date} style={css("flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end")}>
+            <span style={css(`font:var(--nv-micro-s);color:${day.state === 'today' ? 'var(--nv-cy)' : dim(55)}`)}>{day.kcal != null ? k(day.kcal) : day.state === 'future' ? '' : '·'}</span>
+            <div style={css(`width:100%;max-width:26px;border-radius:4px 4px 0 0;height:${day.kcal ? Math.max(6, (day.kcal / max) * 76) : 3}%;background:${day.state === 'today' ? 'color-mix(in srgb, var(--nv-cy) 45%, transparent)' : day.kcal == null ? dim(12) : w.target && day.kcal > w.target * 1.1 ? 'color-mix(in srgb, var(--nv-warn) 52%, transparent)' : 'color-mix(in srgb, var(--nv-good) 55%, transparent)'}${day.state === 'today' ? ';outline:1px solid var(--nv-cy);outline-offset:-1px' : ''}`)} />
+          </div>
+        ))}
+      </div>
+      <div style={css("display:flex;gap:6px;margin-top:4px")}>
+        {w.days.map((day) => (
+          <span key={day.date} style={css(`flex:1;text-align:center;font:var(--nv-micro-s);color:${day.state === 'today' ? 'var(--nv-cy)' : dim(38)}`)}>{day.letter}</span>
+        ))}
+      </div>
+      <div style={css(`margin-top:8px;font:var(--nv-micro-m);line-height:1.45;color:${dim(60)}`)}>
+        {w.perDay != null && w.remainingDays > 0 && !open && (w.over > 0 ? 'The week is over budget already. ' : `From here the week allows about ${k(w.perDay)} a day, today included. `)}
+        {w.gaps > 0 && `${w.gaps} past ${w.gaps === 1 ? 'day was' : 'days were'} not logged, so the total is at least this much. `}
+        {w.avg != null && `Average ${k(w.avg)} on the ${w.loggedDays} ${w.loggedDays === 1 ? 'day' : 'days'} logged.`}
+      </div>
     </Card>
   );
 }

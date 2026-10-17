@@ -126,6 +126,13 @@ function Plate({ p, onOpen, openRef }) {
           </div>
         </div>
       </div>
+      {p.weekKcal && (
+        <div className="nv-fs-wk" role="img" aria-label={`This week: ${kc(p.weekKcal.eaten)} of ${kc(p.weekKcal.budget)} kilocalories${p.weekKcal.gaps ? `, ${p.weekKcal.gaps} days not logged` : ''}`}>
+          <div className="nv-fs-kh"><span>This week</span><span>{p.weekKcal.over > 0 ? `${kc(p.weekKcal.over)} over` : `${kc(p.weekKcal.left)} left`}</span></div>
+          <span className="nv-fs-wv"><b>{kc(p.weekKcal.eaten)}</b><small> of {kc(p.weekKcal.budget)}</small></span>
+          <div className="nv-fs-wbar"><i className={p.weekKcal.over > 0 ? 'over' : undefined} style={{ width: `${p.weekKcal.pct}%` }} /></div>
+        </div>
+      )}
       <div className="nv-fs-gap">
         <b className={p.protein.target == null ? 'none' : undefined}>{p.line}</b>
         {p.hasWeek && <span className="nv-fs-go">The week<FIcon n="right" /></span>}

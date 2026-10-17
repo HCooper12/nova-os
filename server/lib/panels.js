@@ -164,7 +164,11 @@ async function buildNutritionWeek(vaultPath) {
   if (floor == null) floor = [...days].reverse().find((d) => d.floorG != null)?.floorG ?? null;
   const tracked = days.filter((d) => d.p != null);
   const round = (v) => (v != null ? Math.round(v) : null);
+  // the calendar week against seven days of his daily target (src/calorieWeek.js)
+  const { calorieWeek } = await import('../../src/calorieWeek.js');
+  const calWeek = calorieWeek(days, { targetKcal, today: days[days.length - 1].date });
   return {
+    calWeek,
     // all four macros — c and f were stored all along and then dropped here
     days: days.map((d) => ({ date: d.date, p: round(d.p), c: round(d.c), f: round(d.f), kcal: round(d.kcal), floorMet: d.floorMet ?? null })),
     floor,
