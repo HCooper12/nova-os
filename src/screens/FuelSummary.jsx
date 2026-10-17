@@ -783,7 +783,7 @@ function WeekSheet({ week, onClose, originEl }) {
         <div className="nv-fs-rhead"><div><h2>The week</h2><p>The last seven days{x ? ', and the check against training' : ''}</p></div></div>
         <div style={{ marginTop: '12px' }}>
           {week.data
-            ? <SafeVisual what="panel:nutrition-week"><VoicePanel panel={{ type: 'nutrition-week', data: week.data }} /></SafeVisual>
+            ? <SafeVisual what="panel:nutrition-week"><VoicePanel panel={{ type: 'nutrition-week', data: { ...week.data, onAskWeek: week.askCalories } }} /></SafeVisual>
             : <p className="nv-fs-note">No week yet: the archive has not answered.</p>}
         </div>
         {x && (

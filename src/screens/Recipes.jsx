@@ -492,7 +492,7 @@ function RecipesPage({ v }) {
           voice panel; the archive is calendar-true so gaps show honestly */}
       {v.fuelWeek && (
         <div style={css("margin-top:12px")}>
-          <SafeVisual what="panel:nutrition-week"><VoicePanel panel={{ type: 'nutrition-week', data: v.fuelWeek }} /></SafeVisual>
+          <SafeVisual what="panel:nutrition-week"><VoicePanel panel={{ type: 'nutrition-week', data: { ...v.fuelWeek, onAskWeek: v.askWeekCalories } }} /></SafeVisual>
         </div>
       )}
 

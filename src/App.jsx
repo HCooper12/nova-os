@@ -8590,6 +8590,15 @@ export default class App extends Component {
   // "Talk it through" on a health insight: the observation becomes a
   // conversation in one tap — the insight text IS the question's subject,
   // so the transcript reads honestly as what he asked.
+  // the week's calories card hands Nova the real numbers, so the answer
+  // starts from the week as logged (18 Oct 2026, his ask)
+  askAboutWeekCalories(w) {
+    if (!w || w.budget == null) return;
+    const days = w.days.filter((d) => d.kcal != null).map((d) => `${d.letter} ${d.kcal}`).join(', ');
+    const where = w.over > 0 ? `I am ${w.over} kcal over the week's ${w.budget} budget` : `I have ${w.left} kcal left of the week's ${w.budget} budget, about ${w.perDay} a day`;
+    this.navigate('voice');
+    this.setState({ liveInput: `My calories this week: ${days}. ${where}, with ${w.remainingDays} ${w.remainingDays === 1 ? 'day' : 'days'} to go. Help me plan the rest of the week.` }, () => this.sendLiveTalk());
+  }
   askAboutInsight(text) {
     if (!text) return;
     this.navigate('voice');

@@ -394,7 +394,7 @@ export function valsFuelSummary(app, ctx, v) {
       cards,
       bankNote: v.recipeBankNote,
       plate,
-      week: { data: v.fuelWeek || null, cross: v.fuelCross || null, askProtein: v.askProteinVerdict || null },
+      week: { data: v.fuelWeek || null, cross: v.fuelCross || null, askProtein: v.askProteinVerdict || null, askCalories: v.askWeekCalories || null },
       composer,
       likely,
       now: nowCard,

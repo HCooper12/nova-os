@@ -724,6 +724,7 @@ export function valsRecipes(app, ctx) {
     // TRAINING × FUEL — the cross-reference agent's card on the Fuel screen
     // (mockup v2): the sharpest finding with the draft action. Hidden when
     // the agent has nothing true to say — never filler.
+    askWeekCalories: usingLiveRecipes && st.liveNutritionWeek?.calWeek ? () => app.askAboutWeekCalories(st.liveNutritionWeek.calWeek) : null,
     askProteinVerdict: usingLiveRecipes ? () => app.openVerdict('protein') : null,
     fuelCross: (() => {
       if (!usingLiveRecipes) return null;

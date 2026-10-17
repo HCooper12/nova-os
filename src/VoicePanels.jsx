@@ -288,7 +288,7 @@ function NutritionWeek({ d }) {
 
   return (
     <>
-    {d.calWeek && <CalorieWeek w={d.calWeek} />}
+    {d.calWeek && <CalorieWeek w={d.onAskWeek ? { ...d.calWeek, onAsk: d.onAskWeek } : d.calWeek} />}
     <Card label="Protein · last 7 days">
       {days.length === 0 && <div style={css(`font:var(--nv-micro-l);color:${dim(40)}`)}>No tracked days yet.</div>}
       {/* The verdict, before the chart. It used to live in a caption BELOW the
@@ -370,8 +370,19 @@ function CalorieWeek({ w }) {
           <span key={day.date} style={css(`flex:1;text-align:center;font:var(--nv-micro-s);color:${day.state === 'today' ? 'var(--nv-cy)' : dim(38)}`)}>{day.letter}</span>
         ))}
       </div>
+      {/* 18 Oct 2026, his ask: the line that answers "can I still finish on
+          budget?", and a door to ask Nova for help with it. */}
+      {w.perDay != null && w.remainingDays > 0 && !open && (
+        <div style={css(`margin-top:10px;font:600 13px/1.4 var(--nv-font-ui);color:${w.over > 0 ? 'var(--nv-warn)' : 'var(--nv-ink)'}`)}>
+          {w.over > 0
+            ? `The week is ${k(w.over)} over its budget, with ${w.remainingDays === 1 ? 'today' : `${w.remainingDays} days`} still to eat.`
+            : `To finish on budget, eat about ${k(w.perDay)} a day for the rest of the week, today included.`}
+        </div>
+      )}
+      {w.onAsk && w.remainingDays > 0 && !open && (
+        <div style={{ marginTop: '8px' }}><Chip tone="cyan" onClick={w.onAsk}>{w.over > 0 ? 'Ask Nova how to handle the rest of the week' : 'Ask Nova to plan the rest of the week'}</Chip></div>
+      )}
       <div style={css(`margin-top:8px;font:var(--nv-micro-m);line-height:1.45;color:${dim(60)}`)}>
-        {w.perDay != null && w.remainingDays > 0 && !open && (w.over > 0 ? 'The week is over budget already. ' : `From here the week allows about ${k(w.perDay)} a day, today included. `)}
         {w.gaps > 0 && `${w.gaps} past ${w.gaps === 1 ? 'day was' : 'days were'} not logged, so the total is at least this much. `}
         {w.avg != null && `Average ${k(w.avg)} on the ${w.loggedDays} ${w.loggedDays === 1 ? 'day' : 'days'} logged.`}
       </div>
