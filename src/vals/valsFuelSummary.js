@@ -191,7 +191,7 @@ export function valsFuelSummary(app, ctx, v) {
         { key: 'p', label: 'Protein', value: v.foodLogP, set: v.setFoodLogP },
         { key: 'c', label: 'Carbs', value: v.foodLogC, set: v.setFoodLogC },
         { key: 'f', label: 'Fat', value: v.foodLogF, set: v.setFoodLogF },
-        { key: 'kcal', label: 'kcal', value: v.foodLogKcal, set: v.setFoodLogKcal },
+        { key: 'kcal', label: 'kcal', value: v.foodLogKcal, set: v.setFoodLogKcal, hint: v.foodLogKcalHint !== 'kcal' ? v.foodLogKcalHint : '' },
       ],
       submit: v.submitFoodLog, busy: !!v.foodLogBusy,
     },

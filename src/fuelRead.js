@@ -105,3 +105,10 @@ export function fuelRead({ logged = 0, p = 0, kcal = 0, f = 0, c = 0, proteinTar
     score: value == null ? null : { value, projected: !done },
   };
 }
+
+// kcal he left blank is worked out from the macros he typed (4/4/9),
+// never asked for twice. Typed kcal always wins; no macros, no guess.
+export function kcalFromMacros(p, c, f) {
+  const k = 4 * (Number(p) || 0) + 4 * (Number(c) || 0) + 9 * (Number(f) || 0);
+  return k > 0 ? Math.round(k) : 0;
+}

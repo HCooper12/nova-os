@@ -323,7 +323,7 @@ function InProgress({ c, manualVisible }) {
           <div className="nv-fs-macros">
             {c.manual.fields.map((f) => (
               <label key={f.key}>{f.label}
-                <input className="nv-fs-field" type="number" inputMode="decimal" value={f.value} onChange={f.set} aria-label={f.label} />
+                <input className="nv-fs-field" type="number" inputMode="decimal" value={f.value} onChange={f.set} placeholder={f.hint || undefined} aria-label={f.label} />
               </label>
             ))}
           </div>
@@ -401,7 +401,7 @@ function LogRow({ row, open, onToggle, edit }) {
               <div className="nv-fs-macros">
                 {edit.fields.map((f) => (
                   <label key={f.key}>{f.key === 'p' ? 'Protein' : f.key === 'c' ? 'Carbs' : f.key === 'f' ? 'Fat' : 'kcal'}
-                    <input className="nv-fs-field" inputMode="decimal" value={f.value} onChange={f.set} aria-label={f.label} />
+                    <input className="nv-fs-field" inputMode="decimal" value={f.value} onChange={f.set} placeholder={f.hint || undefined} aria-label={f.label} />
                   </label>
                 ))}
               </div>

@@ -1,4 +1,5 @@
 import { mono } from './shared.js';
+import { kcalFromMacros } from '../fuelRead.js';
 import { dtf } from './fmt.js';
 import { scaleMacros, portionName, validPortion, PORTIONS } from '../portion.js';
 import { offPlanTotals, recipeBankState, RECIPE_BANK_COPY } from '../fuelFacts.js';
@@ -964,6 +965,7 @@ export function valsRecipes(app, ctx) {
     foodLogF: st.foodLogF,
     setFoodLogF: (e) => app.setFoodLogField('foodLogF', e),
     foodLogKcal: st.foodLogKcal,
+    foodLogKcalHint: kcalFromMacros(st.foodLogP, st.foodLogC, st.foodLogF) ? String(kcalFromMacros(st.foodLogP, st.foodLogC, st.foodLogF)) : 'kcal',
     setFoodLogKcal: (e) => app.setFoodLogField('foodLogKcal', e),
     foodLogBusy: st.foodLogBusy,
     foodLogError: st.foodLogError,
@@ -1075,7 +1077,7 @@ export function valsRecipes(app, ctx) {
     clearFoodScanPhotos: () => app.clearFoodScanPhotos(),
     canRunFoodScan: (st.foodScanPhotos || []).length > 0 && !st.foodScanBusy,
     // promote the currently scanned/entered food straight into the recipe bank
-    saveScanToRecipe: () => app.openAddRecipeFrom({ name: st.foodLogName, macros: { p: Number(st.foodLogP) || 0, c: Number(st.foodLogC) || 0, f: Number(st.foodLogF) || 0, kcal: Number(st.foodLogKcal) || 0 } }),
+    saveScanToRecipe: () => app.openAddRecipeFrom({ name: st.foodLogName, macros: { p: Number(st.foodLogP) || 0, c: Number(st.foodLogC) || 0, f: Number(st.foodLogF) || 0, kcal: Number(st.foodLogKcal) || kcalFromMacros(st.foodLogP, st.foodLogC, st.foodLogF) } }),
     canSaveScanToRecipe: !!st.foodLogName.trim() && [st.foodLogP, st.foodLogC, st.foodLogF, st.foodLogKcal].some((val) => Number(val) > 0),
     // THE QUICK-LOG RAIL — the top of the screen, and the whole point of it.
     //

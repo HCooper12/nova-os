@@ -136,6 +136,7 @@ const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAA
 import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
 import { noteSpokenSentence, cutSpeech, beginReply, onSpeech, stanceNow } from './speechClock.js';
 import { watchForUpdate } from './buildCheck.js';
+import { kcalFromMacros } from './fuelRead.js';
 
 // Code-split: ZXing (barcode decoding) is a sizeable dependency that only
 // the food-log barcode flow needs — no reason to ship it in everyone's
@@ -2815,7 +2816,7 @@ export default class App extends Component {
   submitFoodLog() {
     const conn = getConnection();
     const name = this.state.foodLogName.trim();
-    const macros = { p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0, f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || 0 };
+    const macros = { p: Number(this.state.foodLogP) || 0, c: Number(this.state.foodLogC) || 0, f: Number(this.state.foodLogF) || 0, kcal: Number(this.state.foodLogKcal) || kcalFromMacros(this.state.foodLogP, this.state.foodLogC, this.state.foodLogF) };
     const date = this.logDate();
     if (!conn || !name) return;
     const source = this.state.foodLogFillSource || 'manual';
