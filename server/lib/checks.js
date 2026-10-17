@@ -214,7 +214,13 @@ async function checkLift(name, deps, now, reason) {
     ? 'no load in the previous three'
     : sameLoad ? `same as your last three` : `${signed(round1(lastTop.weight - bestPrevWeight))}kg vs your last three`;
   const volPct = avgPrevVolume > 0 ? Math.round(((lastVolume - avgPrevVolume) / avgPrevVolume) * 100) : null;
-  const volLine = volPct == null ? 'no volume in the previous three' : `volume ${signed(volPct, 0)}% ${volPct < 0 ? 'under' : volPct > 0 ? 'over' : 'flat vs'} your last three`;
+  // A lift run with drop sets is measured by its TOP set (16 Oct 2026): the
+  // drops are lighter by design, so a volume comparison against sessions
+  // without them (or with a different count) would read the structure as a
+  // loss. Say so instead of quoting a number that means nothing.
+  const dropsIn = (s) => ((s.exercises || []).find((e) => e.exerciseId === id)?.sets || []).some((x) => x.setType === 'drop');
+  const onDrops = [last, ...prev3].some(dropsIn);
+  const volLine = onDrops ? 'run with drop sets, so the top set is the measure, not volume' : volPct == null ? 'no volume in the previous three' : `volume ${signed(volPct, 0)}% ${volPct < 0 ? 'under' : volPct > 0 ? 'over' : 'flat vs'} your last three`;
   return { text: `${lead}${found.lift.name}: top set ${round1(lastTop.weight)}kg × ${lastTop.reps}, ${loadLine}; ${volLine}.` };
 }
 

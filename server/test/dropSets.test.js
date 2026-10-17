@@ -123,3 +123,15 @@ test('a card that would leave no top set, or says nothing new, is refused before
   await assert.rejects(() => validateCoachEdit(vault, { action: 'targets', routine: 'Push', exercise: 'Cable Lateral Raise', dropSets: 'lots' }), /dropSets is a count/);
   await assert.rejects(() => validateCoachEdit(vault, { action: 'targets', routine: 'Push', exercise: 'Cable Lateral Raise', dropSets: 0 }), /already/, 'clearing what is not there says nothing new');
 });
+
+test('a drop structure is not read as a week of grinding: drop sets are left out of the effort share', async () => {
+  const { findEffortCeiling } = await import('../lib/coachProgramReview.js');
+  const day = (date) => ({ date, exercises: [{ exerciseId: 'x', sets: [
+    { weight: 20, reps: 12, rpe: 7 },
+    ...Array.from({ length: 4 }, () => ({ weight: 15, reps: 15, rpe: 10, setType: 'drop' })),
+  ] }] });
+  const sessions = Array.from({ length: 12 }, (_, i) => day(`2026-10-${String(1 + i).padStart(2, '0')}`));
+  assert.deepEqual(findEffortCeiling(sessions, { minSets: 10, share: 0.7, now: new Date('2026-10-16T12:00:00') }), [], 'the drops at RPE 10 do not make it a grinding block');
+  const straight = sessions.map((s) => ({ ...s, exercises: [{ exerciseId: 'x', sets: s.exercises[0].sets.map((x) => ({ ...x, setType: undefined })) }] }));
+  assert.equal(findEffortCeiling(straight, { minSets: 10, share: 0.7, now: new Date('2026-10-16T12:00:00') }).length > 0, true, 'the same effort as straight sets does flag');
+});

@@ -260,3 +260,14 @@ test('CHECK_ALIASES is the one word list — a known noun resolves to a stable c
   assert.equal(CHECK_ALIASES['the inbox'], 'inbox');
   assert.equal(CHECK_ALIASES.hrv, 'hrv');
 });
+
+test('a lift run with drop sets is measured by its top set, never quoted as lost volume', async () => {
+  const sessions = [
+    session({ date: '2026-10-14', sets: [{ weight: 4.5, reps: 15 }, { weight: 3.5, reps: 15, setType: 'drop' }, { weight: 3, reps: 15, setType: 'drop' }] }),
+    session({ date: '2026-10-07', sets: [{ weight: 4.5, reps: 12 }, { weight: 4.5, reps: 12 }, { weight: 4.5, reps: 12 }, { weight: 4.5, reps: 12 }, { weight: 4.5, reps: 12 }] }),
+    session({ date: '2026-09-30', sets: [{ weight: 4.5, reps: 12 }, { weight: 4.5, reps: 12 }, { weight: 4.5, reps: 12 }, { weight: 4.5, reps: 12 }, { weight: 4.5, reps: 12 }] }),
+  ];
+  const out = await runCheck('bench', { now: NOW, deps: { sessions: async () => sessions } });
+  assert.match(out.text, /top set 4\.5kg × 15, same as your last three; run with drop sets, so the top set is the measure, not volume\.$/);
+  assert.doesNotMatch(out.text, /% under/);
+});

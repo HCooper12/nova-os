@@ -26,7 +26,7 @@ function normalizeTune(raw) {
     model: raw?.model === 'rpe' ? 'rpe' : null,
     // a qualitative prescription — "3s eccentric, same load", "pause at the
     // bottom" — for lifts where the next step isn't more kilograms
-    focus: String(raw?.focus || '').trim().slice(0, 120),
+    focus: String(raw?.focus || '').trim().slice(0, 240),
     note: String(raw?.note || '').trim().slice(0, 200),
     updated: typeof raw?.updated === 'string' ? raw.updated : new Date().toISOString().slice(0, 10),
   };

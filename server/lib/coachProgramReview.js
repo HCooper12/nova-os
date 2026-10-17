@@ -659,7 +659,9 @@ export function findEffortCeiling(sessions = [], { minSets = 100, share = EFFORT
     for (const ex of s.exercises || []) {
       if (ex.anomaly) continue;
       for (const st of ex.sets || []) {
-        if (st.setType === 'warmup') continue;
+        // a drop set is taken to failure by design: counting its effort would
+        // read a drop structure as a week of grinding
+        if (st.setType === 'warmup' || st.setType === 'drop') continue;
         if (!((Number(st.weight) || 0) > 0 || (Number(st.reps) || 0) > 0)) continue;
         total++;
         if (st.rpe == null) continue;
