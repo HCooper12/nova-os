@@ -140,8 +140,12 @@ test('Coach sees its cards and his program every turn, from the record', async (
   assert.match(ctx, /you took it back: add Face Pull to Pull/);
   assert.match(ctx, /WITHDRAW \{"ids":\["<id>"\]\}/);
   const { setScheduleDay } = await import('../lib/workouts.js');
-  await setScheduleDay(vault, await lib(), 'monday', push.id);
-  await setScheduleDay(vault, await lib(), 'friday', upper.id);
+  // Push lands on TODAY so the week always has sets still planned: fixed
+  // Mon/Fri days left nothing ahead from Saturday on, the sheet's model came
+  // back empty, and this test failed every weekend (17 Oct, blocking deploys)
+  const today = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
+  await setScheduleDay(vault, await lib(), today, push.id);
+  if (today !== 'friday') await setScheduleDay(vault, await lib(), 'friday', upper.id);
   const prog = await programContext(vault);
   assert.match(prog, /HIS PROGRAM NOW/);
   // what else a lift trains rides along since 15 Oct (lib/muscleSecondary.js)
