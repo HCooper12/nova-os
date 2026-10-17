@@ -826,7 +826,9 @@ export function voiceRouter(vaultPath) {
       // unable to make a sound. The client picks its path on `ready` and
       // labels the engine from `configured`. [[nova-method]]
       const ready = await ttsReady().catch(() => false);
-      res.json({ configured: true, ready, engine: ttsEngine(), voices });
+      // diskCache (18 Oct 2026): the pre-rendered acks and short lines on disk (lib/ttsLocal.js)
+      const diskCache = await import('../lib/ttsLocal.js').then((m) => m.diskCacheStats()).catch(() => null);
+      res.json({ configured: true, ready, engine: ttsEngine(), voices, ...(diskCache ? { diskCache } : {}) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

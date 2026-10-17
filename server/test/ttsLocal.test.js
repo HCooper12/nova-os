@@ -22,6 +22,8 @@ import os from 'node:os';
 import nodePath from 'node:path';
 
 process.env.NOVA_VOICE_DIR = mkdtempSync(nodePath.join(os.tmpdir(), 'nova-voice-'));
+// the disk cache (18 Oct 2026) must land in a temp dir too, never in his live server/data
+process.env.NOVA_DATA_DIR = mkdtempSync(nodePath.join(os.tmpdir(), 'nova-data-'));
 
 const { rewriteForSpeech, localVoices, synthesizeLocal, healthy, mp3Args } = await import('../lib/ttsLocal.js');
 const { ttsEngine, ttsConfigured, listVoices, ttsReady } = await import('../lib/tts.js');

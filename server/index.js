@@ -490,6 +490,33 @@ async function main() {
         await warmSpokenLines(); // the voice preview answers instantly from first tap (acks warm per turn: routes/voice.js)
       })
       .catch((e) => console.log(`tts sidecar prewarm failed: ${e.message}`));
+
+    // ACK PRE-RENDER (18 Oct 2026): acks come from a finite set of
+    // sentences, so render them all to disk ahead of time rather than at the
+    // moment a reply needs one — once 90s after boot (after the sidecar
+    // above has had time to warm), then nightly at 03:40 local. Only when
+    // the local engine is actually the configured one (a key'd ElevenLabs
+    // setup has nothing to pre-render).
+    const runAckPrerender = async () => {
+      try {
+        const { ttsEngine } = await import('./lib/tts.js');
+        if (ttsEngine() !== 'local') return;
+        const { prerenderAcks } = await import('./lib/ackPrerender.js');
+        const out = await prerenderAcks({ vaultPath: process.env.VAULT_PATH });
+        console.log(`ack prerender: rendered ${out.rendered}, skipped ${out.skipped}, failed ${out.failed} in ${Math.round(out.ms / 1000)}s`);
+      } catch (e) {
+        console.error('ack prerender failed:', e.message);
+      }
+    };
+    setTimeout(runAckPrerender, 90_000);
+    const scheduleNightlyAckPrerender = () => {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(3, 40, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      setTimeout(() => { runAckPrerender().finally(scheduleNightlyAckPrerender); }, next - now);
+    };
+    scheduleNightlyAckPrerender();
   }
 
   // Also listen directly on the Mac's tailnet address (plain HTTP): the

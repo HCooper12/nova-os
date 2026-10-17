@@ -7,13 +7,15 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { mkdir, writeFile, rename, readFile, readdir, stat, unlink } from 'node:fs/promises';
 
 // fileURLToPath, never URL.pathname — this repo's path contains a space.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // NOVA_VOICE_DIR overrides it, same idiom as NOVA_TTS_PORT below: a test must
 // be able to exercise the respawn rule without launching the real Kokoro
 // engine on his Mac, and a spawn is the one thing a stub sidecar cannot fake.
-const VOICE_DIR = process.env.NOVA_VOICE_DIR
-  || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'voice');
+const VOICE_DIR = process.env.NOVA_VOICE_DIR || path.join(__dirname, '..', 'voice');
 const PORT = () => Number(process.env.NOVA_TTS_PORT || 4175);
 const BASE = () => `http://127.0.0.1:${PORT()}`;
 // brew's path when it exists (launchd PATH lacks /opt/homebrew/bin), plain
@@ -21,6 +23,12 @@ const BASE = () => `http://127.0.0.1:${PORT()}`;
 import { existsSync } from 'node:fs';
 const FFMPEG = process.env.NOVA_FFMPEG
   || (existsSync('/opt/homebrew/bin/ffmpeg') ? '/opt/homebrew/bin/ffmpeg' : 'ffmpeg');
+
+// The disk cache lives under the same data root every other derived store
+// uses (server/data, or NOVA_DATA_DIR in tests) — never the vault, which is
+// the source of truth and never operational cache (NOVA-METHOD.md).
+const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
+const DISK_CACHE_DIR = () => path.join(dataRoot(), 'voice', 'ttscache');
 
 export function localTtsEnabled() {
   return process.env.NOVA_TTS_LOCAL === '1';
@@ -235,6 +243,124 @@ const audioCache = new Map(); // `${voiceId}|${speed}|${text}` → mp3 Buffer
 const inflight = new Map();
 export const PREVIEW_LINE = 'This is how I sound, sir.';
 
+// test hook — a disk-hit assertion needs the memory cache genuinely empty,
+// not merely a fresh process
+export function _resetAudioCacheForTest() {
+  audioCache.clear();
+}
+
+// ---------------------------------------------------------------------------
+// DISK CACHE for short lines (18 Oct 2026). The memory Map above is lost on
+// every restart, and the per-turn prewarm starts at the moment the client
+// asks — too late to ever help the acknowledgement it was meant to speed up.
+// Acks come from a FINITE set of sentences (acks.js), so this renders them
+// ahead of time to `${NOVA_DATA_DIR or server/data}/voice/ttscache/` and
+// serves them from there on every restart, keyed EXACTLY like the memory
+// cache so a disk hit is the same audio the memory cache would have held.
+// Only short lines (<=80 chars) are worth the disk — a brief's long
+// sentences are not acks and are not in the finite set this exists for.
+// ---------------------------------------------------------------------------
+const DISK_CACHE_MAX_FILES = () => Number(process.env.NOVA_TTS_DISK_CACHE_MAX) || 4000;
+const PRUNE_INTERVAL_MS = 60_000;
+let lastPruneAt = 0;
+let pruning = false;
+
+function ttsCacheKey(text, voiceId) {
+  const requested = (voiceId || '').trim() || 'nova';
+  return `${requested}|${SPEED()}|${text}`;
+}
+
+function diskPathFor(cacheKey) {
+  const hash = createHash('sha1').update(cacheKey).digest('hex');
+  return path.join(DISK_CACHE_DIR(), `${hash}.mp3`);
+}
+
+async function readDiskCache(cacheKey) {
+  try {
+    return await readFile(diskPathFor(cacheKey));
+  } catch {
+    return null; // missing or unreadable — a cold cache, not a fault
+  }
+}
+
+// Fire-and-forget by design: the write never gates the response, and any
+// failure (disk full, permissions, a race on NOVA_DATA_DIR) is swallowed —
+// the request already has its audio either way.
+async function writeDiskCacheAtomic(cacheKey, buf) {
+  try {
+    const dest = diskPathFor(cacheKey);
+    await mkdir(path.dirname(dest), { recursive: true });
+    const tmp = `${dest}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    await writeFile(tmp, buf);
+    await rename(tmp, dest);
+    maybePrune();
+  } catch { /* a missed write just means a colder disk cache */ }
+}
+
+function maybePrune() {
+  const now = Date.now();
+  if (pruning || now - lastPruneAt < PRUNE_INTERVAL_MS) return;
+  lastPruneAt = now;
+  pruning = true;
+  pruneDiskCache().catch(() => {}).finally(() => { pruning = false; });
+}
+
+async function pruneDiskCache() {
+  const dir = DISK_CACHE_DIR();
+  let names;
+  try { names = await readdir(dir); } catch { return; }
+  const mp3s = names.filter((n) => n.endsWith('.mp3'));
+  const max = DISK_CACHE_MAX_FILES();
+  if (mp3s.length <= max) return;
+  const withStats = (await Promise.all(mp3s.map(async (n) => {
+    try { return { n, mtime: (await stat(path.join(dir, n))).mtimeMs }; } catch { return null; }
+  }))).filter(Boolean);
+  withStats.sort((a, b) => a.mtime - b.mtime); // oldest first
+  const excess = withStats.length - max;
+  for (let i = 0; i < excess; i++) {
+    await unlink(path.join(dir, withStats[i].n)).catch(() => {});
+  }
+}
+
+// test hooks — bypass the once-a-minute throttle and go straight to disk,
+// so a prune test does not need to wait a real minute
+export async function _writeDiskCacheForTest(cacheKey, buf) {
+  const dest = diskPathFor(cacheKey);
+  await mkdir(path.dirname(dest), { recursive: true });
+  await writeFile(dest, buf);
+}
+export async function _pruneNow() {
+  return pruneDiskCache();
+}
+
+export async function diskCacheHas(text, voiceId) {
+  try {
+    await stat(diskPathFor(ttsCacheKey(text, voiceId)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function diskCacheStats() {
+  const dir = DISK_CACHE_DIR();
+  let names;
+  try { names = await readdir(dir); } catch { return { files: 0, bytes: 0 }; }
+  const mp3s = names.filter((n) => n.endsWith('.mp3'));
+  let bytes = 0;
+  await Promise.all(mp3s.map(async (n) => {
+    try { bytes += (await stat(path.join(dir, n))).size; } catch { /* vanished mid-scan */ }
+  }));
+  return { files: mp3s.length, bytes };
+}
+
+// How many /api/tts requests are mid-flight right now. The ack prerender
+// uses this to never compete with a live reply for the engine
+// (server/lib/ackPrerender.js).
+export function ttsBusy() {
+  return busy;
+}
+
 export async function warmSpokenLines() {
   for (const v of localVoices()) {
     await synthesizeLocal(PREVIEW_LINE, v.id).catch(() => {}); // warm is best-effort
@@ -256,10 +382,19 @@ export async function synthesizeLocal(text, voiceId) {
   const voice = jarvis ? requested.slice(0, -'-jarvis'.length) : requested;
   const speed = SPEED();
   // speed is part of the identity of the audio — leaving it out of the key
-  // would serve yesterday's pace after he changes it
-  const cacheKey = `${requested}|${speed}|${text}`;
+  // would serve yesterday's pace after he changes it. ttsCacheKey() computes
+  // this same formula — one resolution, shared with diskCacheHas().
+  const cacheKey = ttsCacheKey(text, requested);
   const hit = audioCache.get(cacheKey);
   if (hit) return hit;
+  // disk, before in-flight: a cold-boot restart has nothing in-flight and
+  // everything on disk, and checking disk is cheap next to a synthesis
+  const fromDisk = await readDiskCache(cacheKey);
+  if (fromDisk) {
+    audioCache.set(cacheKey, fromDisk);
+    if (audioCache.size > AUDIO_CACHE_MAX) audioCache.delete(audioCache.keys().next().value);
+    return fromDisk;
+  }
   const running = inflight.get(cacheKey);
   if (running) return running;
   const job = synthesizeUncached(text, { requested, jarvis, voice, speed, cacheKey });
@@ -324,5 +459,9 @@ async function synthesizeUncached(text, { jarvis, voice, speed, cacheKey }) {
   const mp3 = await wavToMp3(wav, jarvis ? `${TRIM_FX},${JARVIS_FX}` : TRIM_FX);
   audioCache.set(cacheKey, mp3);
   if (audioCache.size > AUDIO_CACHE_MAX) audioCache.delete(audioCache.keys().next().value);
+  // Only short lines — the finite ack vocabulary this exists for, never a
+  // brief's long sentences — are worth a disk slot. Fire-and-forget: a
+  // write that fails must never turn into a failed /api/tts reply.
+  if (String(text).length <= 80) writeDiskCacheAtomic(cacheKey, mp3);
   return mp3;
 }
