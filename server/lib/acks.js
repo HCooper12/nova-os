@@ -43,91 +43,172 @@ export const SMALL_TALK = /^(?:ok(?:ay)?|alright|right|perfect|great|nice|good|c
 
 const MIN_QUESTION = 12;
 
-// ── the topic ───────────────────────────────────────────────────────────────
+// ── the topic: a CLOSED vocabulary ──────────────────────────────────────────
+//
+// 18 Oct 2026, three days of real receipts. The first version lifted a noun
+// phrase out of his words by grammar, and on real dictation it said back
+// fragments: "Taking many sets does Andrew to Coach.", "Checking mistake.",
+// "Looking at up back or anything.", "Coach is looking at all right." A
+// garbled echo is worse than the canned line it replaced.
+//
+// So the topic is now only ever a THING NOVA KNOWS EXISTS: a domain noun, one
+// of his own lifts or routines, a body part he called his. The longest known
+// phrase in his words wins (the earliest on a tie); no known phrase means the
+// bare frame ("Looking."). Two rules keep it honest:
+//   - an AMBIGUOUS word ("back", "steps", "week", "weight", "legs") counts
+//     only when he called it his ("my back"), so "up back or anything" can
+//     never become "your back";
+//   - the set of possible sentences is finite, which is what lets every ack be
+//     rendered to audio ahead of time (lib/ackPrerender.js): the ack is then a
+//     file read, not a synthesis.
 
-const WAKE = /^(?:(?:hey|hi|ok|okay|yo)\s+)?(?:nova|jarvis|evie)\b[,!.\s]*/i;
-const WAKE_TAIL = /[,\s]+(?:nova|jarvis|evie|sir|mate)\s*$/i;
-// politeness and hedges, anywhere in the sentence
-const POLITE = /\b(?:please|kindly|for me|real quick|quickly|just|actually|possibly|maybe)\b/gi;
-// what comes in front of the thing he wants, peeled off one layer at a time
-const LEADS = [
-  /^(?:can|could|would|will)\s+(?:you|ya)\s+/,
-  /^(?:i\s+want|i'd\s+like|i\s+would\s+like|i\s+need|i\s+wanna)\s+(?:you\s+)?to\s+/,
-  /^(?:do\s+you\s+mind|would\s+you\s+mind|mind)\s+/,
-  /^(?:i'm|i\s+am)\s+(?:wondering|curious|asking)\s+(?:about\s+)?/,
-  /^(?:let\s+me\s+know|let's\s+(?:look\s+at|talk\s+about|check)|let\s+us\s+check)\s+/,
-  /^(?:have|take)\s+a\s+(?:quick\s+)?look\s+(?:at|into)\s+/,
-  /^(?:check(?:\s+on|\s+in\s+on)?|checking|look\s+(?:at|into|over)|tell\s+me(?:\s+about)?|show\s+me|pull\s+up|pull|give\s+me|get\s+me|find(?:\s+out)?|remind\s+me(?:\s+of|\s+about)?|walk\s+me\s+through|talk\s+me\s+through|update\s+me\s+on|explain|go\s+over|go\s+through|review|summari[sz]e|analy[sz]e|work\s+out|figure\s+out|see|read|bring\s+up|open|help\s+(?:me\s+)?(?:with|on|out\s+with))\s+/,
-  /^(?:what|how)\s+should\s+i\s+(?:do|think)\s+(?:about|with)\s+/,
-  /^what\s+(?:do|did)\s+you\s+(?:think|make)\s+(?:about|of)\s+/,
-  /^what\s+about\s+/,
-  /^(?:what|how|when|where|why|which|who)(?:'s|\s+is|\s+are|\s+was|\s+were|\s+did|\s+does|\s+do|\s+has|\s+have|\s+should|\s+can|\s+could|\s+would|\s+am)?\s+/,
-  /^(?:i|we)\s+(?:do|did|should|can|could|am|was|have|had)\s+/,
-  /^(?:doing|going|tracking|looking|getting\s+on)\s+(?:on|with|for|at)?\s*/,
-  /^(?:the\s+(?:state|status)\s+of|about|on|at|of|if|whether|that|to)\s+/,
-  /^(?:is|are|was|were|does|did|do|has|have)\s+/,
-];
-// "my sleep has been this week" → "my sleep this week"; "Tuesday's session go" → "Tuesday's session"
-const VERB_TAIL = /\s+(?:go|went|gone|going|been|look|looks|looking|doing|done|tracking|land|landed|turn\s+out|so\s+far|lately|recently|today\s+so\s+far)\s*$/;
-const MID_VERBS = /\s+(?:has|have|had)\s+been\b|\s+(?:is|are|was|were)\s+(?:looking|doing|going|tracking)\b|\s+(?:is|are|was|were)\b/g;
-// a clause break: everything after it is a second thought, not the topic
-const CLAUSE = /\s+(?:and|because|cause|since|so|but|if|when|while|after|before|given|considering|which|that|then|i|we|he|she|they)\s+|[,;:—–]/;
-const PREP = new Set(['over', 'in', 'on', 'for', 'from', 'with', 'during', 'across', 'about', 'at', 'to', 'by', 'into', 'against', 'versus', 'vs']);
-const STOP = new Set(['the', 'a', 'an', 'it', 'this', 'that', 'these', 'those', 'them', 'they', 'things', 'thing', 'stuff', 'anything', 'something', 'everything', 'nothing', 'there', 'here', 'what', 'how', 'up', 'out', 'you', 'your', 'me', 'we', 'us', 'he', 'she', 'one', 'some', 'any', 'more', 'do', 'go', 'be', 'is', 'are', 'was', 'lot', 'bit', 'way', 'think', 'mean', 'know', 'like', 'want', 'need', 'help', 'now', 'again', 'okay', 'ok', 'well', 'so', 'yes', 'no', 'too', 'very', 'really', 'get', 'got', 'should', 'would', 'could', 'can']);
-const TRAILING_JUNK = new Set([...PREP, 'the', 'a', 'an', 'and', 'or', 'of', 'my', 'your', 'our', 'this', 'that', 'is', 'are', 'was', 'were', 'has', 'have', 'been', 'be', 'do', 'did']);
-const PROPER = /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|nova|coach|leader|researcher|librarian)(?:'s)?$/;
-// his voice, said back: what is his is "your"
-const SWAP = { my: 'your', me: 'you', mine: 'yours', myself: 'yourself', i: 'you', "i'm": "you're", "i've": "you've", "i'd": "you'd", our: 'your', ours: 'yours', us: 'you', am: 'are' };
-
-const capWord = (w) => w.charAt(0).toUpperCase() + w.slice(1);
-
-export function extractTopic(question) {
-  let s = String(question || '')
-    // a bracketed preamble is the plumbing's, not his
+// his words, flattened: lower case, curly quotes straightened, punctuation gone
+export function normalizeWords(question) {
+  return ` ${String(question || '')
     .replace(/\[[^\]]*\]/g, ' ')
-    .replace(/[“”"]/g, '')
+    .replace(/https?:\/\/\S+/g, ' ')
     .replace(/[‘’]/g, "'")
-    .trim();
-  s = s.replace(WAKE, '').replace(WAKE_TAIL, '');
-  // the first sentence carries the ask
-  s = (s.split(/[.?!]\s+|[?!]$/)[0] || '').replace(/[.?!]+$/, '');
-  // HIS CAPITALS SURVIVE: a name or an acronym mid-sentence ("Sam", "HRV")
-  // is said back as he wrote it, not lowercased
-  const cased = new Map();
-  s.split(/\s+/).slice(1).forEach((w) => {
-    const bare = w.replace(/[^A-Za-z0-9'%+-]/g, '');
-    if (/^[A-Z]/.test(bare) && bare !== 'I' && !/^I'/.test(bare)) cased.set(bare.toLowerCase(), bare);
-  });
-  s = s.toLowerCase().replace(POLITE, ' ').replace(/\s+/g, ' ').trim();
-  for (let guard = 0; guard < 12; guard++) {
-    const before = s;
-    for (const re of LEADS) s = s.replace(re, '').trim();
-    if (s === before) break;
+    .toLowerCase()
+    .replace(/[^a-z0-9' -]+/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()} `;
+}
+
+// "my" plus at most one word between ("my left shoulder", "my workout program")
+const MY = "(?:my|my own)";
+const MINE = `${MY}(?: [a-z']+)?`;
+// [pattern on the normalized words, what Nova says back]. Order does not
+// matter: the longest match wins.
+const DOMAIN = [
+  ['sleep(?:ing)?', 'your sleep'],
+  ['hrv|heart rate variability', 'your HRV'],
+  ['resting heart rate|rhr', 'your resting heart rate'],
+  ['protein', 'your protein'],
+  ['calories|kcal|calorie intake', 'your calories'],
+  ['macros', 'your macros'],
+  ['readiness', 'your readiness'],
+  ['recovery', 'your recovery'],
+  ['deload(?:ing)?', 'the deload'],
+  ['muscle growth|hypertrophy', 'muscle growth'],
+  ['training volume|weekly volume|sets per week', 'your training volume'],
+  ['(?:workout|training|gym) (?:program|programme|plan|split)|(?:the|my) (?:program|programme|split)', 'your program'],
+  ['training block', 'the training block'],
+  ['mobility', 'your mobility'],
+  ['cardio', 'your cardio'],
+  ['meal prep', 'the meal prep'],
+  ['shopping list|grocery list|groceries', 'the shopping list'],
+  ['inbox', 'the inbox'],
+  ['to ?do list|to ?dos|todos|todo list', 'your to-dos'],
+  ['calendar', 'your calendar'],
+  ['budget|spending', 'your spending'],
+  ['journal', 'the journal'],
+  ['reminders?', 'your reminders'],
+  ['document|doc', 'the document'],
+  ['recipes?', 'the recipes'],
+  ["(?:today's|the|my) plan", "the plan"],
+  ['step count', 'your steps'],
+  ['body weight|weigh ?in', 'your weight'],
+  ['body fat', 'your body fat'],
+  [`${MY} (?:steps)`, 'your steps'],
+  [`${MY} weight`, 'your weight'],
+  [`${MINE} (?:workouts?|sessions?|training)`, 'your workouts'],
+  [`${MY} week`, 'your week'],
+  [`${MY} (?:schedule|day)`, 'your day'],
+  [`${MY} goals?`, 'your goals'],
+  [`${MY} (?:food|meals|diet|eating)`, 'your food'],
+  [`${MY} (?:run|running)`, 'your running'],
+  [`${MY} (?:routine|routines)`, 'your routines'],
+  [`${MY} (?:lifts|numbers|strength)`, 'your lifts'],
+  ['(?:my )?last (?:session|workout)', 'your last session'],
+  ["today's (?:session|workout|training)", "today's session"],
+  ["(monday|tuesday|wednesday|thursday|friday|saturday|sunday)'?s? (?:session|workout|training)", null], // said back with the day
+];
+// a body part he called his: "my shoulder", "my lower back", "my left knee"
+const BODY = ['shoulders?', 'knees?', 'elbows?', 'wrists?', 'hips?', 'ankles?', 'neck', 'lower back', 'upper back', 'back', 'hamstrings?', 'quads?', 'calves', 'calf', 'chest', 'legs?', 'arms?', 'biceps?', 'triceps?', 'glutes?', 'lats', 'delts', 'core', 'abs', 'traps'];
+// the big lifts by the names he says them, said back as his
+const LIFT_ALIASES = [
+  ['bench(?: press)?', 'your bench'],
+  ['squats?', 'your squat'],
+  ['deadlifts?', 'your deadlift'],
+  ['(?:weighted )?pull ?ups?|chin ?ups?', 'your pull-ups'],
+  ['overhead press|ohp|shoulder press', 'your shoulder press'],
+  ['lat pull ?downs?', 'your lat pulldowns'],
+  ['(?:cable )?lateral raises?', 'your lateral raises'],
+  ['rdls?|romanian deadlifts?', 'your RDLs'],
+  ['hip thrusts?', 'your hip thrusts'],
+  ['rows?', null], // too ambiguous on its own ("a row of"): only via a full lift name
+];
+// what the Leader lane talks about: people work, said back as things
+const LEADER_TOPICS = [
+  ['(?:the|my|this|that) meeting', 'the meeting'],
+  ['(?:my|the) team', 'your team'],
+  ['feedback', 'the feedback'],
+  ['(?:the|my|this) interview', 'the interview'],
+  ['(?:the|my|this) presentation', 'the presentation'],
+  ['(?:my|the) manager|(?:my|the) boss', 'your manager'],
+  ['(?:the|this|that|a) (?:hard |difficult |tough )?conversation', 'the conversation'],
+  ['(?:the|my) deadline', 'the deadline'],
+  ['(?:the|this|that) (?:conflict|disagreement|argument)', 'the conflict'],
+  ['(?:the|this|that) (?:situation|issue)', 'the situation'],
+  ['(?:at )?work', 'work'],
+];
+
+const DAYCAP = (d) => d.charAt(0).toUpperCase() + d.slice(1);
+const nameRe = (s) => s.toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// The vocabulary for a lane. `lifts` and `routines` are his own names (from
+// the vault, lib/acks.js ackVocabulary); everything else is fixed.
+export function vocabularyFor(group, { lifts = [], routines = [] } = {}) {
+  if (group === 'leader') return LEADER_TOPICS.map(([p, say]) => ({ re: new RegExp(` (?:${p})(?= )`), say }));
+  const out = DOMAIN.map(([p, say]) => ({ re: new RegExp(` (?:${p})(?= )`), say }));
+  for (const part of BODY) out.push({ re: new RegExp(` ${MINE} (${part})(?= )`), say: null, body: true });
+  for (const [p, say] of LIFT_ALIASES) if (say) out.push({ re: new RegExp(` (?:${p})(?= )`), say });
+  for (const n of [...lifts, ...routines]) {
+    const k = nameRe(n);
+    if (k.length < 4 || k.split(' ').length < 2 && k.length < 6) continue; // a one-word short name is too easy to hit by accident
+    out.push({ re: new RegExp(` ${escapeRe(k).replace(/ /g, ' ')}s?(?= )`), say: n });
   }
-  // what somebody SAID about a thing: the thing ("what did the podcast say
-  // about zone 2" → "zone 2")
-  s = s.replace(/^.*?\b(?:say|said|says|think|thinks|thought|recommend|recommends|mention|mentions|mentioned|wrote|write|told\s+you)\s+(?:about|on)\s+/, '');
-  // a decision about himself ("should I deload", "is it worth…") names no
-  // thing to say back: no topic beats a verb read out as a noun
-  if (/^(?:(?:i|we|you)\s+(?:should|can|could|would|will|must|might)|it|there)\b/.test(s)) return null;
-  // "I handle the conflict with Sam" → "the conflict with Sam"
-  s = s.replace(/^(?:i|we|you)\s+(?:doing|going|tracking|looking|getting\s+on)\s+(?:on|with|for|at)?\s*/, '');
-  s = s.replace(/^(?:i|we|you)\s+[a-z']+\s+/, '');
-  s = s.split(CLAUSE)[0].trim();
-  s = s.replace(MID_VERBS, '').replace(/(\S)\s+(?:looking|doing|going|tracking)\b/g, '$1').replace(/\s+/g, ' ').trim();
-  for (let guard = 0; guard < 3; guard++) s = s.replace(VERB_TAIL, '').trim();
-  let words = s.split(/\s+/).filter(Boolean).map((w) => w.replace(/[^a-z0-9'%+-]/g, '')).filter(Boolean);
-  while (words.length && ['a', 'an', 'and', 'of', 'to'].includes(words[0])) words.shift();
-  words = words.slice(0, 4);
-  while (words.length && TRAILING_JUNK.has(words[words.length - 1])) words.pop();
-  words = words.map((w) => SWAP[w] || w);
-  if (!words.length) return null;
-  // nothing but filler is not a topic ("it", "that thing", "your stuff")
-  if (words.every((w) => STOP.has(w))) return null;
-  // a leftover verb at the front means the grammar did not find the thing
-  if (/^(?:is|are|was|were|has|have|did|does|do|should|would|could|can|will|be)$/.test(words[0])) return null;
-  const topic = words.map((w) => cased.get(w) || (PROPER.test(w) ? capWord(w) : w)).join(' ');
-  return topic.length >= 2 && topic.length <= 48 ? topic : null;
+  return out;
+}
+
+// The topic he named, or null. Longest known phrase wins; the earliest on a tie.
+export function knownTopic(question, group = 'ask', vocab = {}) {
+  const words = normalizeWords(question);
+  let best = null;
+  for (const v of vocabularyFor(group, vocab)) {
+    const m = v.re.exec(words);
+    if (!m) continue;
+    let say = v.say;
+    if (v.body) say = `your ${m[m.length - 1]}`;
+    if (say === null) {
+      const day = /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/.exec(m[0]);
+      if (!day) continue;
+      say = `${DAYCAP(day[1])}'s session`;
+    }
+    // a body part he called his is the point of the sentence ("my back is
+    // sore after deadlifts" is about his back), so it outranks a longer lift
+    const len = m[0].length + (v.body ? 100 : 0);
+    if (!best || len > best.len || (len === best.len && m.index < best.at)) best = { say, len, at: m.index };
+  }
+  return best ? best.say : null;
+}
+
+// Every topic a lane can say back, for rendering the audio ahead of time.
+export function topicsFor(group, vocab = {}) {
+  if (group === 'leader') return [...new Set(LEADER_TOPICS.map(([, s]) => s))];
+  const fixed = [...DOMAIN, ...LIFT_ALIASES].map(([, s]) => s).filter(Boolean);
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((d) => `${d}'s session`);
+  const body = ['shoulder', 'knee', 'elbow', 'wrist', 'hip', 'ankle', 'neck', 'lower back', 'back', 'legs', 'chest', 'arms'].map((b) => `your ${b}`);
+  return [...new Set([...fixed, ...days, ...body, ...(vocab.lifts || []), ...(vocab.routines || [])])];
+}
+
+// small talk, judged on the words alone: "All right. . Okay." is not work
+const FILLER = new Set(['ok', 'okay', 'alright', 'all', 'right', 'perfect', 'great', 'nice', 'good', 'cool', 'lovely', 'brilliant', 'awesome', 'cheers', 'got', 'it', 'understood', 'noted', 'sounds', 'hi', 'hey', 'hello', 'morning', 'afternoon', 'evening', 'yes', 'yeah', 'yep', 'no', 'nope', 'nah', 'sure', 'thanks', 'thank', 'you', 'ta', 'much', 'appreciated', 'appreciate', 'mate', 'nova', 'jarvis', 'sir', 'well', 'that', 'is', "that's", 'so', 'fine', 'thats']);
+export function isSmallTalk(question) {
+  const w = normalizeWords(question).trim().split(' ').filter(Boolean);
+  return w.length > 0 && w.length <= 8 && w.every((x) => FILLER.has(x));
 }
 
 // ── the frames ──────────────────────────────────────────────────────────────
@@ -249,20 +330,57 @@ function pick(frames, { topic, agent, used, texts, now, hint = null }) {
 //   consult: an agent id from consult.AGENTS when the ask is known to go to one
 //   used:    frame ids already spoken today (the ledger's)
 //   texts:   sentences already spoken today (the ledger's)
-export function composeAck({ question, lane = 'ask', consult = null, now = Date.now(), used = [], texts = [] } = {}) {
+export function composeAck({ question, lane = 'ask', consult = null, now = Date.now(), used = [], texts = [], vocab = {} } = {}) {
   if (lane === 'reflex' || lane === 'verb') return null;
   const q = String(question || '').replace(/\[[^\]]*\]/g, ' ').trim();
   if (q.length < MIN_QUESTION) return null;
-  if (SMALL_TALK.test(q)) return null;
-  const topic = extractTopic(q);
+  if (SMALL_TALK.test(q) || isSmallTalk(q)) return null;
   const agentLabel = consult && AGENTS[consult]?.label && !AGENTS[consult]?.code ? AGENTS[consult].label : null;
   const group = agentLabel ? 'consult' : laneOf(lane);
+  const topic = knownTopic(q, group === 'consult' ? 'ask' : group, vocab);
   const ctx = { topic, agent: agentLabel, used: Array.isArray(used) ? used : [], texts: Array.isArray(texts) ? texts : [], now, hint: verbHint(q, group) };
   let out = topic ? pick(FRAMES[group], ctx) : null;
   // no topic, or every topic sentence already said today: the bare frames
   if (!out) out = pick(BARE_FRAMES[group], { ...ctx, topic: null });
   if (!out) return null; // every sentence this lane has was said today: silence beats a repeat
   return { id: out.id, text: out.text, topic: out.id.includes('.bare.') ? null : topic, reset: out.reset, set: out.set };
+}
+
+// His own names, from the vault: the lifts he has trained in the last 90
+// days and his routines. Cached ten minutes; a vault that cannot be read
+// gives the fixed vocabulary only, never an error in front of a reply.
+let vocabCache = { at: 0, vault: null, vocab: { lifts: [], routines: [] } };
+export async function ackVocabulary(vaultPath = process.env.VAULT_PATH, { now = Date.now(), fresh = false } = {}) {
+  if (!vaultPath) return { lifts: [], routines: [] };
+  if (!fresh && vocabCache.vault === vaultPath && now - vocabCache.at < 10 * 60_000) return vocabCache.vocab;
+  const vocab = { lifts: [], routines: [] };
+  try {
+    const { loadSessions } = await import('./workoutSessions.js');
+    const since = now - 90 * 86_400_000;
+    const sessions = (await loadSessions(vaultPath)).filter((x) => !x.date || Date.parse(x.date) >= since);
+    vocab.lifts = [...new Set(sessions.flatMap((x) => (x.exercises || []).map((e) => e.name)).filter(Boolean))];
+  } catch { /* the fixed vocabulary still works */ }
+  try {
+    const { loadExerciseLibrary } = await import('./exercises.js');
+    const { loadRoutines } = await import('./workouts.js');
+    const lib = await loadExerciseLibrary(vaultPath);
+    const { routines } = await loadRoutines(vaultPath, Array.isArray(lib) ? lib : lib?.exercises || []);
+    vocab.routines = [...new Set((routines || []).map((r) => r.name).filter(Boolean))];
+  } catch { /* the fixed vocabulary still works */ }
+  vocabCache = { at: now, vault: vaultPath, vocab };
+  return vocab;
+}
+
+// Every distinct sentence an ack can be, for rendering the audio ahead of
+// time (lib/ackPrerender.js). Finite because the topic is a closed vocabulary.
+export async function ackPrerenderList(vaultPath = process.env.VAULT_PATH) {
+  const vocab = await ackVocabulary(vaultPath);
+  const out = new Set();
+  for (const group of ['ask', 'coach', 'leader']) {
+    for (const f of BARE_FRAMES[group]) out.add(fill(f.t, null, null));
+    for (const topic of topicsFor(group, vocab)) for (const f of FRAMES[group]) out.add(fill(f.t, topic, null));
+  }
+  return [...out];
 }
 
 // ── the seen-ledger ─────────────────────────────────────────────────────────
@@ -308,7 +426,8 @@ export function recordAck(ack, now = Date.now()) {
 export async function nextAck({ question, lane, consult = null, now = Date.now() } = {}) {
   await writing;
   const led = readAckLedger(now);
-  const ack = composeAck({ question, lane, consult, now, used: led.used, texts: led.texts });
+  const vocab = await ackVocabulary().catch(() => ({}));
+  const ack = composeAck({ question, lane, consult, now, used: led.used, texts: led.texts, vocab });
   if (!ack) return null;
   await recordAck(ack, now).catch(() => {});
   return { id: ack.id, text: ack.text, topic: ack.topic };

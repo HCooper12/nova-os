@@ -61,11 +61,11 @@ test.after(() => { _dropAllWarm(); });
 test('/api/ask: a model turn comes back with his noun said back; a short one with none', async () => {
   const server = await serve();
   try {
-    const long = await post(server, '/ask', { question: 'Can you check the calibration of my targeting matrix?' });
+    const long = await post(server, '/ask', { question: 'Can you check how my sleep has been this week?' });
     assert.ok(long.jobId, 'a model turn');
     assert.ok(long.ack, `an ack came with it: ${JSON.stringify(long)}`);
     assert.equal(typeof long.ack.id, 'string');
-    assert.equal(long.ack.text, 'Checking the calibration.', 'his verb and his noun, said back');
+    assert.match(long.ack.text, /^Checking your sleep( with Coach)?\.$/, 'his verb, and a thing Nova knows, said back (the lane may be Coach)');
     const ledger = JSON.parse(readFileSync(path.join(dataDir, 'voice', 'acks.json'), 'utf8'));
     assert.deepEqual(ledger.used, [long.ack.id], 'recorded in today\'s ledger');
     assert.deepEqual(ledger.texts, [long.ack.text]);

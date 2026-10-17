@@ -18,58 +18,89 @@ process.env.NOVA_DATA_DIR = dataDir;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { extractTopic, composeAck, readAckLedger, recordAck, nextAck, FRAMES, BARE_FRAMES } = await import('../lib/acks.js');
+const { knownTopic, isSmallTalk, ackPrerenderList, composeAck, readAckLedger, recordAck, nextAck, FRAMES, BARE_FRAMES } = await import('../lib/acks.js');
 const ledgerFile = path.join(dataDir, 'voice', 'acks.json');
 
 test.after(() => rm(dataDir, { recursive: true, force: true }));
 
-test('the topic is his noun phrase, his "my" said back as "your"', () => {
-  const cases = [
-    ['can you check how my sleep has been this week', 'your sleep this week'],
-    ['what should I do about my shoulder', 'your shoulder'],
-    ["how did Tuesday's session go", "Tuesday's session"],
-    ['Nova, how\'s my protein looking today?', 'your protein today'],
-    ["what's on my calendar tomorrow", 'your calendar tomorrow'],
-    ['how am I doing on protein', 'protein'],
-    ['tell me about the Ryan conversation I have on Friday', 'the Ryan conversation'],
-    ['can you pull up my bench press progress please', 'your bench press progress'],
-    ['what do you think about my training volume over the last month', 'your training volume'],
-    ['how was my HRV last night', 'your HRV last night'],
-    ['remind me what I said about creatine', 'creatine'],
-    ['what did the podcast say about zone 2 training', 'zone 2 training'],
-    ['how should I handle the conflict with Sam at work', 'the conflict with Sam'],
-    ['give me a summary of my week', 'summary of your week'],
-    ['Evie, can you check the calibration of my targeting matrix?', 'the calibration'],
-  ];
-  for (const [q, want] of cases) assert.equal(extractTopic(q), want, q);
+// 18 Oct 2026: what the first, free-form extractor actually said back to him
+// on 15-17 Oct, from server/data/voice/turns.json and his own words in the
+// conversation record. Each must now be a known thing or a bare frame.
+const HIS_REAL_QUESTIONS = [
+  ['How many sets does Andrew huberman and other experts say are needed for optimising muscle growth per week?', 'coach', 'muscle growth'],
+  ['Re evaluate my workout program. I still want the total time to be within 50-60 minutes', 'coach', 'your program'],
+  ['My shoulder pain is okay at the moment, so ignore this and re-evaluate as needed.', 'coach', 'your shoulder'],
+  ['Up back or anything. Well, that is right.', 'ask', null],
+  ['That was a mistake, I wasn’t talking to you that time. now is there a way to reduce my workouts to 4 main ones per week', 'ask', 'your workouts'],
+  ['Walk me through what the plan found, the way Jarvis would', 'coach', 'the plan'],
+  ['There seems to be a lot of cable lateral raise exercises. Almost every session.', 'coach', 'your lateral raises'],
+  ['Where’s the document? I can’t see that new one', 'coach', 'the document'],
+  ["That's my mistake. I did not mean 10 sets. I actually meant 10 reps.", 'ask', null],
+  ['Should I change my workout program to work 2 sets of an exercise until failure rather than 3 sets? For example do 2 sets of lat pull downs', 'ask', 'your program'],
+];
+
+test('his real questions: a thing Nova knows, or nothing; never a fragment of his sentence', () => {
+  for (const [q, lane, want] of HIS_REAL_QUESTIONS) assert.equal(knownTopic(q, lane), want, q);
 });
 
-test('words with no thing in them give no topic, never a verb read out as a noun', () => {
-  for (const q of ['should I deload next week', 'is it worth doing cardio before legs', 'what is it', 'why is that', 'can you help me with something']) {
-    assert.equal(extractTopic(q), null, q);
+test('a topic is only ever said in words Nova chose, never lifted from his sentence', async () => {
+  const known = new Set([...(await ackPrerenderList(undefined))]);
+  for (const [q, lane] of HIS_REAL_QUESTIONS) {
+    const a = composeAck({ question: q, lane, now: new Date('2026-10-18T09:00:00') });
+    if (a) assert.ok(known.has(a.text), `${a.text} is in the finite set`);
   }
 });
 
-test('topics stay short: four words at most', () => {
-  for (const q of ['can you look at my squat and bench and deadlift numbers from the last six weeks', 'pull up every recipe I saved from that Japanese cooking channel last month']) {
-    const t = extractTopic(q);
-    assert.ok(t === null || t.split(' ').length <= 4, `${q} → ${t}`);
-  }
+test('an ambiguous word counts only when he called it his', () => {
+  assert.equal(knownTopic('up back or anything', 'ask'), null);
+  assert.equal(knownTopic('my back is sore after deadlifts', 'coach'), 'your back');
+  assert.equal(knownTopic('the steps to reset it', 'ask'), null);
+  assert.equal(knownTopic('how are my steps today', 'ask'), 'your steps');
+  assert.equal(knownTopic('what about my left knee', 'coach'), 'your knee');
+});
+
+test('his own lifts and routines are known by name; the longest phrase wins', () => {
+  const vocab = { lifts: ['Incline Dumbbell Press', 'Bulgarian Split Squat'], routines: ['Leg Day'] };
+  assert.equal(knownTopic('how is my incline dumbbell press going', 'coach', vocab), 'Incline Dumbbell Press');
+  assert.equal(knownTopic('swap the bulgarian split squats for something else', 'coach', vocab), 'Bulgarian Split Squat');
+  assert.equal(knownTopic('what is on leg day', 'ask', vocab), 'Leg Day');
+  assert.equal(knownTopic("how did tuesday's session go", 'ask'), "Tuesday's session");
+});
+
+test('the Leader has its own words', () => {
+  assert.equal(knownTopic('how should I handle the conflict with Sam at work', 'leader'), 'the conflict');
+  assert.equal(knownTopic('prep me for the interview', 'leader'), 'the interview');
+  assert.equal(knownTopic('how is my sleep', 'leader'), null, 'a Coach word is not a Leader topic');
+});
+
+test('small talk is judged on the words, punctuation aside', () => {
+  for (const q of ['All right. . Okay.', 'Okay, cool.', 'yeah that is fine', 'Perfect, thanks Nova']) assert.ok(isSmallTalk(q), q);
+  for (const q of ['okay can you check my sleep', 'right, what is on my calendar']) assert.ok(!isSmallTalk(q), q);
+  assert.equal(composeAck({ question: 'All right. . Okay.', lane: 'coach' }), null);
+});
+
+test('the finite set: every sentence an ack can be, for rendering ahead of time', async () => {
+  const list = await ackPrerenderList(undefined);
+  assert.ok(list.length > 200 && list.length < 3000, `${list.length} sentences`);
+  assert.equal(new Set(list).size, list.length);
+  assert.ok(list.includes('Checking your sleep.'));
+  assert.ok(list.includes('Over to Coach.'));
+  for (const s of list) assert.ok(s.split(' ').length <= 9, s);
 });
 
 test('each lane has its own frames, and a frame without a topic', () => {
   const day = new Date('2026-10-15T09:00:00');
   const ask = composeAck({ question: 'can you check how my sleep has been this week', lane: 'ask', now: day });
   assert.ok(FRAMES.ask.some((f) => f.id === ask.id));
-  assert.match(ask.text, /your sleep this week/i);
+  assert.match(ask.text, /your sleep/i);
   const coach = composeAck({ question: 'what should I do about my shoulder', lane: 'coach', now: day });
   assert.match(coach.id, /^coach\./);
   assert.match(coach.text, /Coach/);
   assert.match(coach.text, /your shoulder/i);
   const leader = composeAck({ question: 'how should I handle the conflict with Sam at work', lane: 'leader', now: day });
   assert.match(leader.id, /^leader\./);
-  assert.match(leader.text, /the conflict with Sam/);
-  const bare = composeAck({ question: 'is it worth doing cardio before legs', lane: 'ask', now: day });
+  assert.match(leader.text, /the conflict\./);
+  const bare = composeAck({ question: 'is it worth it, what do you reckon', lane: 'ask', now: day });
   assert.ok(BARE_FRAMES.ask.some((f) => f.id === bare.id), 'no topic: a bare frame');
   assert.equal(bare.topic, null);
   // any lane the router names that is not coach or leader is Nova's
