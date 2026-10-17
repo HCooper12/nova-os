@@ -10,7 +10,8 @@ test('the operating lens is a tight, principle-based spine', () => {
   assert.match(NOVA_LENS, /GROUND IN REAL DATA/);
   assert.match(NOVA_LENS, /THINK ACROSS DOMAINS/);
   assert.match(NOVA_LENS, /PROPOSE, DON'T IMPOSE/);
-  assert.ok(NOVA_LENS.length < 1600, 'the lens rides on every prompt — it must stay tight');
+  assert.match(NOVA_LENS, /SPEAK PLAINLY \(ASD-STE100\)/);
+  assert.ok(NOVA_LENS.length < 1850, 'the lens rides on every prompt — it must stay tight');
 });
 
 test('every model-based agent reasons through the same lens', () => {

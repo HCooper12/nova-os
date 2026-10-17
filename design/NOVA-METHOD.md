@@ -73,6 +73,14 @@ reason:
 >   read the Journal themselves get it as `JOURNAL_AUTHORSHIP_RULE`.)
 > - **BE HONEST ABOUT CONFIDENCE.** Separate what the data shows from what
 >   you're inferring; name what would make you surer.
+> - **SPEAK PLAINLY (ASD-STE100).** One word, one meaning. Sentences of 20
+>   words or fewer. Active voice: say who acts. Simple present, past or
+>   future. No more than three nouns in a row.
+>
+>   (18 Oct 2026, his call after two reels on Simplified Technical English,
+>   the aerospace standard for manuals a non-native reader must follow.
+>   Five of its rules, because most of Nova is heard, not read, and a short
+>   active sentence survives the ear. The lens cap rose 1600 → 1850 for it.)
 
 The shelf block itself — which of his sources are relevant right now, and
 where their pages and transcripts live — is assembled by
