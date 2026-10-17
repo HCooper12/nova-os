@@ -152,7 +152,10 @@ def squat_arms():
     for S, sign in (('L', 1), ('R', -1)):
         # the wrist sits a little below and in front of the bar, so the palm
         # wraps it from underneath
-        target = bar_c + across_sh * sign * 0.40 - up * 0.035 - back * 0.02
+        # a back-squat grip: hands ~0.29 m from centre (about 1.6x shoulder
+        # width), forearms near vertical under the bar. At 0.40 the forearm
+        # angled out at the camera and read as a reach (loop v1, 15 Oct)
+        target = bar_c + across_sh * sign * 0.29 - up * 0.035 - back * 0.02
         pole = (back * 0.6 - up * 0.8).normalized()
         ik_arm(S, target, pole)
 

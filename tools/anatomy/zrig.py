@@ -27,6 +27,22 @@ meshes = [o for o in bpy.data.objects if o.type == 'MESH' and o.get('kind') in (
 meshes = [o for o in meshes if not SHEET.search(o.name)]
 ob = {o.name: o for o in bpy.data.objects if o.type == 'MESH'}
 
+# Z-ANATOMY'S LEFT SIDE IS THE RIGHT SIDE MIRRORED: each `.l` object shares its
+# `.r` twin's mesh, flipped by a -1 X scale. Vertex weights live IN the mesh,
+# so skinning one side overwrote the other's: the left hand followed the RIGHT
+# arm and hung at knee height through the squat (loop v3, 18 Oct). Every
+# piece gets its own mesh with its transform baked in; the mirrored ones get
+# their normals flipped back, or they render inside out.
+from mathutils import Matrix as _M
+for o in meshes:
+    if o.data.users > 1:
+        o.data = o.data.copy()
+    mw = o.matrix_world.copy()
+    o.data.transform(mw)
+    if mw.determinant() < 0:
+        o.data.flip_normals()
+    o.matrix_world = _M.Identity(4)
+
 def verts(name):
     o = ob[name]
     return [o.matrix_world @ v.co for v in o.data.vertices]
@@ -108,9 +124,20 @@ def seg_dist(p, a, b):
     t = max(0.0, min(1.0, (p - a).dot(ab) / max(ab.length_squared, 1e-9)))
     return (p - (a + ab * t)).length
 
+# REGION BY NAME, not by distance. In the rest pose the hands hang beside
+# the thighs, so "nearest rig bone" gave finger bones to the thigh and a hand
+# floated at knee height through the squat (loop v2, 15 Oct). A hand piece may
+# only follow the forearm or hand; a foot piece only the shin or foot.
+FOOT = re.compile(r'of foot|toe|hallucis|metatars|tarsal|cuneiform|cuboid|navicular|calcane|talus|plantar|dorsal interossei muscles of foot', re.I)
+HAND = re.compile(r'finger|thumb|pollicis|metacarp|carpal|scaphoid|lunate|triquetr|pisiform|trapezium|trapezoid|capitate|hamate|of hand|palmar|lumbrical muscles of hand|interossei muscles of hand|digiti minimi muscle of hand', re.I)
+
 for o in meshes:
     side = 'l' if o.name.endswith('.l') else 'r' if o.name.endswith('.r') else None
     allowed = SIDE_BONES[side] if side else SIDE_BONES['l'] & SIDE_BONES['r']
+    if side and FOOT.search(o.name):
+        allowed = {'shin' + side.upper(), 'foot' + side.upper()}
+    elif side and HAND.search(o.name):
+        allowed = {'forearm' + side.upper(), 'hand' + side.upper()}
     mw = o.matrix_world
     for g in list(o.vertex_groups):
         o.vertex_groups.remove(g)
