@@ -448,23 +448,23 @@ function Filed({ f }) {
 function VideoDrop({ d }) {
   const off = !d.enabled || d.busy;
   return (
-    <section className="nv-sum-card nv-sum-ib-vd nv-sum-rise" style={{ '--i': 5 }} aria-label="Send a video">
+    <section className="nv-sum-card nv-sum-ib-vd nv-sum-rise" style={{ '--i': 5 }} aria-label="Send a link">
       <div className="nv-sum-ib-vdh">
         <Tile tile={{ tone: 'vault', glyph: 'play' }} />
-        <span className="nv-sum-ib-lx"><span className="nm">Send a video</span><span className="sv">Copy a link, then tap.</span></span>
+        <span className="nv-sum-ib-lx"><span className="nm">Send a link</span><span className="sv">A reel, a video or a recipe page. Copy it, then tap.</span></span>
       </div>
       <div className="nv-sum-ib-vdf">
         <input className="nv-sum-ib-vdi" type="url" inputMode="url" autoCapitalize="off" value={d.value} onChange={d.set}
-          placeholder="Paste a video link" aria-label="Video link" disabled={!d.enabled} />
+          placeholder="Paste a link" aria-label="Link" disabled={!d.enabled} />
         <button type="button" className="nv-sum-ib-vdp" onClick={d.paste} disabled={!d.enabled}>Paste</button>
       </div>
       {d.askOpen
-        ? <input className="nv-sum-ib-vdi q" value={d.question} onChange={d.setQuestion} placeholder="What should it look for? (optional)" aria-label="What to look for" />
-        : <TextAction tone="quiet" onClick={d.toggleAsk}>Add what to look for</TextAction>}
+        ? <input className="nv-sum-ib-vdi q" value={d.question} onChange={d.setQuestion} placeholder={`Optional, e.g. "add to my recipes"`} aria-label="A note or question" />
+        : <TextAction tone="quiet" onClick={d.toggleAsk}>Add a note, or a question</TextAction>}
       {d.error && <p className="nv-sum-ib-vde" role="alert">{d.error}</p>}
       <div className="nv-sum-ib-vda">
-        <button type="button" className="nv-sum-ib-vdb" onClick={d.look} disabled={off}><b>Quick look</b><span>A verdict or the key ideas, for your call</span></button>
-        <button type="button" className="nv-sum-ib-vdb deep" onClick={d.deep} disabled={off}><b>Full read</b><span>Every idea woven into the vault. Takes longer</span></button>
+        <button type="button" className="nv-sum-ib-vdb" onClick={d.look} disabled={off}><b>Send it</b><span>Nova works out what it is. A recipe goes into your recipes</span></button>
+        <button type="button" className="nv-sum-ib-vdb deep" onClick={d.deep} disabled={off}><b>Full read</b><span>A video, every idea woven into the vault. Takes longer</span></button>
       </div>
       {d.sent.map((e) => (
         <div key={e.key} className="nv-sum-ib-vds" role="status"><Ico name="loop" /><span className="rx"><b>{e.title}</b><span>{e.sub}</span></span></div>

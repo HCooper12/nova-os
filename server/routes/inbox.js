@@ -16,7 +16,8 @@ export function inboxRouter(vaultPath) {
       const mode = MODES.includes(req.body?.mode) ? req.body.mode : 'auto-high';
       const source = req.body?.source === 'voice' ? 'voice' : 'text';
       const record = await startCapture(vaultPath, { text, source, mode });
-      res.json({ id: record.id, status: record.status });
+      // `kind` says which lane took it (a recipe import, a video watch, a channel study, research), so a door can say what Nova decided
+      res.json({ id: record.id, status: record.status, kind: record.kind || null });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

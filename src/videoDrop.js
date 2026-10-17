@@ -21,9 +21,29 @@ export function readVideoLink(text) {
   };
 }
 
+// ANY link for the Send box (17 Oct 2026, his ask: "quickly add links to things
+// like reels to add as a recipe ... intelligently identify if it's a recipe").
+// Nothing here decides what the link is FOR: the capture rails do that (a bare
+// reel whose caption holds a recipe becomes a recipe; a video gets a quick
+// look; a recipe page is read into the recipe bank). This only finds the link.
+export function readLink(text) {
+  const urls = urlsIn(text);
+  if (!urls.length) return { ok: false, reason: 'Paste a link first.' };
+  const c = classifyLink(urls[0]);
+  if (!c.kind) return { ok: false, reason: 'That is not a link Nova can open.' };
+  return { ok: true, url: c.url, host: c.host, kind: c.kind };
+}
+
 // the line a sent video leaves under the box: what was sent, how, and the honest
 // promise (it lands in Waiting; nothing here claims it is done)
 export function sentLine(entry) {
-  const how = entry.mode === 'deep' ? 'Full read' : 'Quick look';
-  return { title: `${how} · ${entry.host}`, sub: entry.mode === 'deep' ? 'Running. The weave comes to you for review.' : 'Running. The read lands in Waiting for your call.' };
+  const where = {
+    'recipe-video': ['Recipe', 'Reading it into your recipe bank. It is added straight away, with Undo in Filed.'],
+    video: ['Quick look', 'Reading it now. It files to your vault by itself, with Undo in Filed.'],
+    study: ['Channel study', 'Studying the whole channel. It comes to you for review.'],
+    research: ['Research', 'Reading the page. The answer lands in Waiting.'],
+  };
+  if (entry.mode === 'deep') return { title: `Full read · ${entry.host}`, sub: 'Running. The weave comes to you for review before anything is written.' };
+  const [name, sub] = where[entry.kind] || ['Sent', 'Nova is working out where it goes. It shows up in Waiting or Filed.'];
+  return { title: `${name} · ${entry.host}`, sub };
 }
