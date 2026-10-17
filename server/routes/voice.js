@@ -32,6 +32,15 @@ function markNoGlass(jobId, place) {
   if (job) job.noGlass = true;
 }
 
+// THE PUSH THAT WAKES HIM (18 Oct 2026): an ask that finishes while the
+// phone is frozen mid-poll raises a tier-now alert (lib/alerts.js
+// watchAnswer); a client that keeps polling never sees one.
+function watchAnswerFor(jobId, agent) {
+  import('../lib/alerts.js')
+    .then(({ watchAnswer }) => watchAnswer(jobId, { agent, getJob: getMessageJob }))
+    .catch(() => { /* an unwatched answer is today's behaviour, not a fault */ });
+}
+
 export function fromMacOf(req) {
   const d = req?.body?.device;
   if (d === 'mac') return true;
@@ -250,6 +259,7 @@ export function voiceRouter(vaultPath) {
         markHisWords(question);
         const jobId = await startCoachTurn(vaultPath, { question, sessionId: coachSession, liveSession: req.body?.liveSession || null, where: ctx.where });
         markNoGlass(jobId, ctx.where.place);
+        watchAnswerFor(jobId, 'coach');
         console.log(`ask → coach (${coachSession ? 'resumed' : 'new'}) q=${JSON.stringify(question.slice(0, 60))}`);
         const ack = await ackForTurn({ question: raw, lane: 'coach', voiceId: req.body?.voiceId });
         return res.json({ jobId, agent: 'coach', ...(ack ? { ack } : {}) });
@@ -276,6 +286,7 @@ export function voiceRouter(vaultPath) {
           jobId = startAskLeader(vaultPath, { question: placed(question), context: await buildLeaderChatContext(vaultPath), sessionId: null });
         }
         markNoGlass(jobId, ctx.where.place);
+        watchAnswerFor(jobId, 'leader');
         console.log(`ask → leader (${leaderSession ? 'resumed' : 'new'})`);
         const ack = await ackForTurn({ question: raw, lane: 'leader', voiceId: req.body?.voiceId });
         return res.json({ jobId, agent: 'leader', ...(ack ? { ack } : {}) });
@@ -300,6 +311,7 @@ export function voiceRouter(vaultPath) {
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
       const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
+      watchAnswerFor(jobId, 'nova');
       const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
       res.json({ jobId, ...(ack ? { ack } : {}) });
     } catch (e) {
@@ -843,7 +855,15 @@ export function voiceRouter(vaultPath) {
       const audio = await synthesize(req.body?.text, req.body?.voiceId);
       res.set('Content-Type', 'audio/mpeg').send(audio);
     } catch (e) {
-      res.status(400).json({ error: e.message });
+      // A booting engine is worth asking again (503 + Retry-After, the client
+      // retries the sentence once); anything else is a bad request (400).
+      // Either way the reason reaches the log: the 18 Oct audit found 469
+      // dropped sentences and not one logged message saying why.
+      const booting = e?.code === 'TTS_BOOTING';
+      const status = booting ? 503 : 400;
+      console.log(`tts ${status}: ${e.message} | ${String(req.body?.text || '').slice(0, 40)}`);
+      if (booting) res.set('Retry-After', String(e.retryAfterSec || 2));
+      res.status(status).json({ error: e.message, ...(booting ? { booting: true } : {}) });
     }
   });
 

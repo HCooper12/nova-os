@@ -4,6 +4,7 @@ import { isValidModel } from '../lib/modelPrefs.js';
 import { listWorkspaces } from '../lib/codeWorkspaces.js';
 import { watchCodeJobs, loadCodeJob } from '../lib/codeJobStore.js';
 import { stageLineOf } from '../lib/handsFree.js';
+import { noteAnswerPoll } from '../lib/alerts.js';
 
 // Exactly the values the model board recognises (aliases + pinned ids,
 // including legacy pins kept valid for a saved choice) — anything else is
@@ -49,6 +50,9 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
   });
 
   router.get('/claude-code/message/:jobId', async (req, res) => {
+    // the phone looked: an ask that finishes now is not one he is missing
+    // (lib/alerts.js watchAnswer pushes only when this goes quiet)
+    noteAnswerPoll(req.params.jobId);
     const job = getMessageJob(req.params.jobId) || await loadCodeJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
     // `consult`: the agents this turn asked, as structured state (lib/consult.js)

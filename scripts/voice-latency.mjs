@@ -11,6 +11,11 @@
 //   firstTextMs   → the first words of the reply arriving
 //   firstAudioMs  → the reply's first sentence starting to play
 //
+// and, from the 18 Oct build on, when the receipts carry them:
+//   preAskMs          his words back from the Mac → the ask leaving (client time)
+//   firstSpeakableMs  → the first text that is not a withheld VIS/document body
+//   droppedSentences  sentences shown as text with no voice (a sum, not a wait)
+//
 // by device (iPhone vs Mac, from the user agent) and lane (nova, coach,
 // leader, reflex), then by place (gym, driving, desk, phone; src/where.js).
 // p50 and p95, with the count each is drawn from, and an
@@ -47,7 +52,10 @@ if (!asks.length) {
 
 const device = (ua = '') => (/iPhone|iPad/.test(ua) ? 'iPhone' : /Macintosh/.test(ua) ? 'Mac' : 'other');
 const pct = (sorted, p) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1))];
-const FIELDS = ['ackMs', 'firstTextMs', 'firstAudioMs'];
+// the newer columns appear only once some receipt carries them, so a file
+// from before 18 Oct prints exactly as it did
+const NEWER = ['preAskMs', 'firstSpeakableMs'];
+const FIELDS = ['ackMs', 'firstTextMs', 'firstAudioMs', ...NEWER.filter((f) => asks.some((t) => Number.isFinite(t[f])))];
 const fmt = (vals) => {
   if (!vals.length) return '        —        ';
   const s = [...vals].sort((a, b) => a - b);
@@ -84,3 +92,15 @@ for (const [key, rows] of [...places.entries()].sort()) {
 const acked = asks.filter((t) => t.ackText);
 const heard = acked.filter((t) => Number.isFinite(t.ackMs));
 if (acked.length) console.log(`\n${acked.length} ask(s) came with an ack; ${heard.length} of them were heard (the rest were dropped because the answer caught up, or speech was off).`);
+const withDrops = asks.filter((t) => Number.isFinite(t.droppedSentences));
+if (withDrops.length) {
+  const dropped = withDrops.reduce((n, t) => n + t.droppedSentences, 0);
+  const turnsHit = withDrops.filter((t) => t.droppedSentences > 0).length;
+  console.log(`droppedSentences: ${dropped} sentence(s) shown without a voice, across ${turnsHit} of ${withDrops.length} ask(s) that report it.`);
+}
+const slow = asks.filter((t) => typeof t.preAskSlowest === 'string');
+if (slow.length) {
+  const by = new Map();
+  for (const t of slow) { const k = t.preAskSlowest.split(':')[0]; by.set(k, (by.get(k) || 0) + 1); }
+  console.log(`preAskSlowest (the slowest step before the ask left, when it took 50ms or more): ${[...by.entries()].map(([k, n]) => `${k} ${n}`).join(', ')}`);
+}

@@ -60,7 +60,10 @@ export function readTurns() {
   }
 }
 
-const LATENCY_FIELDS = ['ackMs', 'firstTextMs', 'firstAudioMs'];
+// preAskMs (18 Oct 2026): his words back from the Mac → the ask leaving the
+// phone, client time. firstSpeakableMs: → the first text that is not a
+// withheld VIS line or document body (src/App.jsx attachAskPoll).
+const LATENCY_FIELDS = ['ackMs', 'firstTextMs', 'firstAudioMs', 'preAskMs', 'firstSpeakableMs'];
 // a wait longer than ten minutes is not a wait he sat through; it is a clock fault
 const LATENCY_MAX_MS = 10 * 60_000;
 function latency(body) {
@@ -116,6 +119,11 @@ export function turnRecord(body = {}, ua = '') {
     // WHERE HE WAS (src/where.js): the closed set only, so voice-latency can
     // group by it; anything else is left off rather than stored as a guess
     ...(PLACES.includes(body.place) ? { place: body.place } : {}),
+    // THE SENTENCES HE SAW BUT DID NOT HEAR (18 Oct 2026): shown as text
+    // after the engine refused them twice. A count, bounded; and the slowest
+    // step before the ask left ("prime:1840"), only in its own small shape.
+    ...(Number.isInteger(body.droppedSentences) && body.droppedSentences >= 0 && body.droppedSentences <= 500 ? { droppedSentences: body.droppedSentences } : {}),
+    ...(typeof body.preAskSlowest === 'string' && /^[a-z]{1,12}:\d{1,6}$/.test(body.preAskSlowest) ? { preAskSlowest: body.preAskSlowest } : {}),
     ua: String(body.ua || ua || '').slice(0, 200),
   };
 }

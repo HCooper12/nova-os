@@ -127,6 +127,19 @@ test('a wait that is not a real number is dropped, never stored as a guess', asy
   for (const k of ['ackMs', 'firstTextMs', 'firstAudioMs', 'lane', 'ackText', 'ackId']) assert.ok(!(k in plain), k);
 });
 
+// 18 Oct 2026: the pre-ask time, the first speakable text, the dropped count
+test('the pacing fields ride the ask row, each bounded', () => {
+  const rec = turnRecord({ surface: 'ask', preAskMs: 1840.6, firstSpeakableMs: 2100, droppedSentences: 2, preAskSlowest: 'prime:1840' });
+  assert.equal(rec.preAskMs, 1841);
+  assert.equal(rec.firstSpeakableMs, 2100);
+  assert.equal(rec.droppedSentences, 2);
+  assert.equal(rec.preAskSlowest, 'prime:1840');
+  const bad = turnRecord({ surface: 'ask', preAskMs: -1, firstSpeakableMs: 99 * 60_000, droppedSentences: 1.5, preAskSlowest: 'x'.repeat(400) });
+  for (const k of ['preAskMs', 'firstSpeakableMs', 'droppedSentences', 'preAskSlowest']) assert.ok(!(k in bad), k);
+  assert.ok(!('droppedSentences' in turnRecord({ surface: 'ask', droppedSentences: 1e6 })));
+  assert.equal(turnRecord({ surface: 'ask', droppedSentences: 0 }).droppedSentences, 0, 'none dropped is a fact worth keeping');
+});
+
 test('an ask row lands in the file like any other', async () => {
   await appendTurn({ surface: 'ask', ms: 900, heard: true, lane: 'reflex', firstTextMs: 40, firstAudioMs: 410 }, 'Macintosh');
   const last = readTurns().at(-1);

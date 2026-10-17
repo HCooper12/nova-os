@@ -138,6 +138,7 @@ function spawnSidecar() {
   child.on('exit', (code, signal) => {
     console.log(`tts sidecar exited (code ${code}, signal ${signal})`);
     if (sidecar === child) sidecar = null; // dead is dead — the next call respawns
+    lastSynthOk = { at: 0, base: '' }; // and no longer ready on the strength of an old answer
   });
   child.on('error', (e) => {
     console.log(`tts sidecar failed to spawn: ${e.message}`);
@@ -176,7 +177,16 @@ async function bootSidecar() {
 // to say so or the client commits to a dead path instead of falling back to
 // the browser's voice. Kicks off a boot in the background when it finds the
 // sidecar down, so the answer becomes true on its own.
+// A RECENT GOOD ANSWER IS PROOF OF LIFE (18 Oct 2026). The sidecar is single-
+// threaded: while it renders the ack pre-render, its /health ping cannot
+// answer inside 1.5s, /api/tts/status said ready:false, and the phone went
+// to the browser voice for a reply the engine was perfectly able to speak.
+const READY_TRUST_MS = 30_000;
+// keyed to the engine's address: a good answer from one port proves nothing
+// about another. Cleared the moment the engine is seen dead (exit, refused).
+let lastSynthOk = { at: 0, base: '' };
 export async function localReady() {
+  if (lastSynthOk.base === BASE() && Date.now() - lastSynthOk.at < READY_TRUST_MS) return true;
   if (await healthy()) return true;
   ensureSidecar().catch(() => {}); // fire and forget — this call still reports false
   return false;
@@ -358,7 +368,7 @@ export async function diskCacheStats() {
 // uses this to never compete with a live reply for the engine
 // (server/lib/ackPrerender.js).
 export function ttsBusy() {
-  return busy;
+  return busy + slotWaiters.length;
 }
 
 export async function warmSpokenLines() {
@@ -387,19 +397,27 @@ export async function synthesizeLocal(text, voiceId) {
   const cacheKey = ttsCacheKey(text, requested);
   const hit = audioCache.get(cacheKey);
   if (hit) return hit;
-  // disk, before in-flight: a cold-boot restart has nothing in-flight and
-  // everything on disk, and checking disk is cheap next to a synthesis
-  const fromDisk = await readDiskCache(cacheKey);
-  if (fromDisk) {
-    audioCache.set(cacheKey, fromDisk);
-    if (audioCache.size > AUDIO_CACHE_MAX) audioCache.delete(audioCache.keys().next().value);
-    return fromDisk;
+  // the place in line, before the first await (see takeTicket)
+  const ticket = takeTicket();
+  let job;
+  try {
+    // disk, before in-flight: a cold-boot restart has nothing in-flight and
+    // everything on disk, and checking disk is cheap next to a synthesis
+    const fromDisk = await readDiskCache(cacheKey);
+    if (fromDisk) {
+      audioCache.set(cacheKey, fromDisk);
+      if (audioCache.size > AUDIO_CACHE_MAX) audioCache.delete(audioCache.keys().next().value);
+      return fromDisk;
+    }
+    const running = inflight.get(cacheKey);
+    if (running) { ticket.release(); return await running; } // joining holds no place
+    job = synthesizeUncached(text, { requested, jarvis, voice, speed, cacheKey, ticket });
+    inflight.set(cacheKey, job);
+    return await job;
+  } finally {
+    if (job) inflight.delete(cacheKey);
+    ticket.release(); // idempotent: synthesizeUncached may have let it go already
   }
-  const running = inflight.get(cacheKey);
-  if (running) return running;
-  const job = synthesizeUncached(text, { requested, jarvis, voice, speed, cacheKey });
-  inflight.set(cacheKey, job);
-  try { return await job; } finally { inflight.delete(cacheKey); }
 }
 
 // A BUSY ENGINE IS NOT A DEAD ONE (15 Oct 2026). The sidecar is a SERIAL
@@ -416,7 +434,65 @@ let busy = 0;
 let lastOkAt = 0;
 const believedUp = () => busy > 0 || Date.now() - lastOkAt < TRUST_MS;
 
-async function synthesizeUncached(text, { jarvis, voice, speed, cacheKey }) {
+// THE SOCKET BACKLOG ATE 469 SENTENCES (18 Oct 2026 audit). The sidecar is a
+// serial HTTPServer with Python's default 5-deep listen backlog. The phone
+// asked for a whole reply's sentences at once: every burst landed exactly
+// 6 x 200 (one rendering + five queued in the kernel) and the rest were
+// refused in 1-5 ms, which surfaced as "local tts is still starting up" and
+// the client showed those sentences as text with no voice. 415 of them on
+// 15 Oct alone. A burst now waits its turn HERE, in arrival order, with at
+// most SLOTS requests at the engine (one rendering, one ready behind it so
+// the engine never idles between sentences). NOVA_TTS_CONCURRENCY is the knob.
+const SLOTS = () => {
+  const n = Number(process.env.NOVA_TTS_CONCURRENCY);
+  return Number.isInteger(n) && n >= 1 && n <= 5 ? n : 2;
+};
+let slotsHeld = 0;
+const slotWaiters = []; // FIFO: the reply's sentences reach the engine in order
+// A place in line is taken SYNCHRONOUSLY, the moment a sentence is asked for,
+// before any await (the disk-cache read, the /health ping) can reshuffle the
+// burst: measured, taking it after those awaits let sentence 5 render first.
+// A ticket is released exactly once, whether it was ever granted (a disk hit
+// or a join onto an identical synthesis gives its place up unused).
+function takeTicket() {
+  let granted = false;
+  let done = false;
+  let grant;
+  const ready = new Promise((r) => { grant = r; });
+  const ticket = {
+    ready,
+    release() {
+      if (done) return;
+      done = true;
+      if (!granted) {
+        const i = slotWaiters.indexOf(ticket);
+        if (i >= 0) slotWaiters.splice(i, 1);
+        return;
+      }
+      const next = slotWaiters.shift();
+      if (next) next._grant(); // the slot passes straight to the next in line
+      else slotsHeld--;
+    },
+    _grant() { granted = true; grant(); },
+  };
+  if (slotsHeld < SLOTS()) { slotsHeld++; ticket._grant(); } else slotWaiters.push(ticket);
+  return ticket;
+}
+
+// "Booting" and "bad request" are different answers with different remedies:
+// a booting engine is worth asking again in a moment (routes/voice.js sends
+// 503 + Retry-After), a bad request never is (400).
+export class TtsBootingError extends Error {
+  constructor(message = 'local tts is still starting up') {
+    super(message);
+    this.name = 'TtsBootingError';
+    this.code = 'TTS_BOOTING';
+    this.retryAfterSec = 2;
+  }
+}
+
+async function synthesizeUncached(text, { jarvis, voice, speed, cacheKey, ticket }) {
+  await ticket.ready; // at most SLOTS() requests at the engine, in arrival order
   // A REQUEST MUST NOT WAIT OUT A BOOT. The three-minute allowance above is
   // right for the boot itself and wrong inside a reply: he is looking at a
   // screen that says Nova is speaking. If the sidecar is not up, start it and
@@ -424,7 +500,7 @@ async function synthesizeUncached(text, { jarvis, voice, speed, cacheKey }) {
   // voice for it, and the sentence after the boot lands on the real one.
   if (!believedUp() && !(await healthy())) {
     ensureSidecar().catch(() => {});
-    throw new Error('local tts is still starting up');
+    throw new TtsBootingError();
   }
   let res;
   busy++;
@@ -440,22 +516,24 @@ async function synthesizeUncached(text, { jarvis, voice, speed, cacheKey }) {
     });
   } catch (e) {
     lastOkAt = 0; // it did not answer at all: the next request asks /health again
+    lastSynthOk = { at: 0, base: '' };
     // nothing listening means it died since its last good answer: the same
     // remedy, and the same words, as finding it down before the request
     if (e?.cause?.code === 'ECONNREFUSED') {
       ensureSidecar().catch(() => {});
-      throw new Error('local tts is still starting up');
+      throw new TtsBootingError();
     }
     throw e;
   } finally {
     busy--;
   }
-  if (res.ok) lastOkAt = Date.now();
+  if (res.ok) { lastOkAt = Date.now(); lastSynthOk = { at: lastOkAt, base: BASE() }; }
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
     throw new Error(`local tts → ${res.status}${detail.error ? `: ${detail.error}` : ''}`);
   }
   const wav = Buffer.from(await res.arrayBuffer());
+  ticket.release(); // the engine is done with it; ffmpeg runs outside the line
   const mp3 = await wavToMp3(wav, jarvis ? `${TRIM_FX},${JARVIS_FX}` : TRIM_FX);
   audioCache.set(cacheKey, mp3);
   if (audioCache.size > AUDIO_CACHE_MAX) audioCache.delete(audioCache.keys().next().value);

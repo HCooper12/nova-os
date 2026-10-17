@@ -63,7 +63,7 @@ export const ACTED = ['tapped', 'dismissed', 'spoken-only'];
 
 // The label vocabulary. Others are accepted if they fit the shape; these are
 // the ones the sources use and the client knows a hue for.
-export const LABELS = ['CALENDAR', 'HEALTH', 'RESEARCHER', 'WORKOUT', 'PLAN', 'MONEY', 'SYSTEM', 'NOVA'];
+export const LABELS = ['CALENDAR', 'HEALTH', 'RESEARCHER', 'WORKOUT', 'PLAN', 'MONEY', 'SYSTEM', 'NOVA', 'COACH', 'LEAD'];
 
 // Where the source is the label's own domain, saying it aloud is noise.
 const OBVIOUS_SOURCE = {
@@ -586,6 +586,83 @@ export function missedPushAlert(yday) {
     dedupeKey: `sentinel:${yday}`,
   };
 }
+
+/* ---------------------------------------------------- an answer landed -- */
+
+// THE ANSWER THAT LANDED IN HIS POCKET (18 Oct 2026 audit). iOS suspends the
+// app mid-poll: on 15 Oct the Coach finished at ~21:03:40 and the phone did
+// not look again until 21:04:15; on 17 Oct a reply finished at 06:19:58 and
+// sat unread until 06:27:29. Nothing on the phone can poll while it is
+// frozen, so the server says it: when an ask finishes and its client has not
+// polled for ANSWER_UNSEEN_MS, a tier-now alert pushes, and the push wakes
+// the phone. A client that is polling never sees one.
+export const ANSWER_UNSEEN_MS = 5000;
+const ANSWER_LABEL = { nova: 'NOVA', coach: 'COACH', leader: 'LEAD' };
+const ANSWER_NAME = { nova: 'Nova', coach: 'Coach', leader: 'Leader' };
+
+export function answerReadyAlert({ jobId, agent }) {
+  const who = ANSWER_LABEL[agent] ? agent : 'nova';
+  return {
+    tier: 'now', label: ANSWER_LABEL[who], kind: 'answer-ready',
+    what: `${ANSWER_NAME[who]}'s answer is ready`,
+    action: { label: 'Open', open: '#/voice' },
+    dedupeKey: `answer:${jobId}`,
+    push: { url: './#/voice', tag: `answer-${String(jobId).replace(/[^a-z0-9-]/gi, '').slice(0, 24)}` },
+  };
+}
+
+const answerWatch = new Map(); // jobId → { agent, lastPollAt, completedAt, alertId }
+
+/** The client looked at this job (routes/claudeCode.js poll handler). */
+export function noteAnswerPoll(jobId, { now = Date.now() } = {}) {
+  const w = answerWatch.get(jobId);
+  if (!w) return;
+  w.lastPollAt = now;
+  // he is back and the answer is in his hands: the alert did its job, so it
+  // closes and is never said again as "one thing first"
+  if (w.alertId) {
+    const id = w.alertId;
+    answerWatch.delete(jobId);
+    markActed(id, 'tapped', { now }).catch(() => {});
+  } else if (w.completedAt) {
+    answerWatch.delete(jobId); // picked up in time: nothing to say
+  }
+}
+
+/**
+ * Watch one ask job until it settles. `getJob(jobId)` is the job map's own
+ * reader; a job that errors or vanishes is dropped quietly (no "ready" to
+ * announce). No cap on how long it runs: a long Coach answer is his to wait
+ * for, and the check is one Map lookup a second.
+ */
+export function watchAnswer(jobId, { agent = 'nova', getJob, now = () => Date.now(), setT = (fn, ms) => { const t = setTimeout(fn, ms); t.unref?.(); return t; }, everyMs = 1000, unseenMs = ANSWER_UNSEEN_MS, raise = raiseAlert } = {}) {
+  if (!jobId || typeof getJob !== 'function') return;
+  const w = { agent, lastPollAt: now(), completedAt: null, alertId: null };
+  answerWatch.set(jobId, w);
+  const look = () => {
+    if (answerWatch.get(jobId) !== w) return; // picked up, or replaced
+    const job = getJob(jobId);
+    const status = job?.status;
+    if (!job || status === 'error') { answerWatch.delete(jobId); return; }
+    if (status !== 'ready') { setT(look, everyMs); return; }
+    w.completedAt = now();
+    setT(async () => {
+      if (answerWatch.get(jobId) !== w) return;
+      if (w.lastPollAt >= w.completedAt) { answerWatch.delete(jobId); return; }
+      try {
+        const out = await raise(answerReadyAlert({ jobId, agent: w.agent }));
+        if (out?.id) w.alertId = out.id; else answerWatch.delete(jobId);
+        console.log(`answer ready, unseen ${Math.round((now() - w.lastPollAt) / 1000)}s: alert ${out?.id || 'deduped'} [${jobId}]`);
+      } catch (e) {
+        answerWatch.delete(jobId);
+        console.log(`answer-ready alert failed: ${e.message}`);
+      }
+    }, unseenMs);
+  };
+  setT(look, everyMs);
+}
+
+export function _answerWatchForTests() { return answerWatch; }
 
 /* ------------------------------------------------------------- scheduler -- */
 

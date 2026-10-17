@@ -610,11 +610,17 @@ export const api = {
       method: 'POST',
       headers: { Authorization: `Bearer ${conn.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, voiceId }),
+      // two sentences are in flight at a time now, so a request that never
+      // settles would hold the reply's voice; the server's own backstop is 90s
+      signal: reqSignal(60_000),
     });
     if (!res.ok) {
       const detail = await res.json().catch(() => null);
       const err = new Error(detail?.error || `/api/tts failed: ${res.status}`);
       err.status = res.status;
+      // a booting engine says when to ask again (503 + Retry-After, routes/voice.js)
+      const after = Number(res.headers.get('Retry-After'));
+      if (Number.isFinite(after) && after > 0) err.retryAfterMs = after * 1000;
       throw err;
     }
     return res.blob();

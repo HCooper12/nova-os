@@ -16,6 +16,7 @@ import { lintSpoken } from './spokenLint.js';
 import { stanceOfSpan } from './glassBeats.js';
 import { speakableText } from './artifactBlocks.js';
 import { streamShown, sameWidthTokens, rememberArtifacts, OPEN_EVENT } from './artifactClient.js';
+import { firstClauseCut, artifactOpenerLine, ttsFetchesToStart, ttsFailureAction } from './voicePacing.js';
 import { toSpokenProse } from './spokenProse.js';
 import { UNDO_KEY, stashOf, usableUndo } from './chatUndo.js';
 import { forceLayout, degrees, GALAXY_MAX_NODES, zoomAt, panBy, recencyAlpha } from './galaxyLayout.js';
@@ -131,6 +132,9 @@ import { parseSettings } from './settingsVoice.js';
 import { cleanPath } from './settingsModel.js';
 // 0.05s of silence — a REAL source, so iOS accepts the gesture and unlocks
 // the element for the reply that arrives seconds later.
+// two /api/tts requests in flight per reply: one rendering, one ready behind
+// it (src/voicePacing.js; the server's own line is NOVA_TTS_CONCURRENCY)
+const TTS_MAX_IN_FLIGHT = 2;
 const SILENT_WAV = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ4AAAAAAAAAAAAAAAAAAAAAAA==';
 
 import { attachSpeechElement, resumeAudioGraph, releaseAudioGraph, decodeSpeech, playSpeechBuffer, graphRunning, holdSyntheticSpeech } from './audioLevel.js';
@@ -987,7 +991,11 @@ export default class App extends Component {
       const conn = getConnection();
       if (pending?.jobId && conn && Date.now() - (pending.askedAt || 0) < 10 * 60_000) {
         this.setState({ voiceBusy: true });
-        this.attachAskPoll(conn, pending.jobId);
+        // THE LANE RIDES WITH THE JOB (18 Oct 2026 audit): a Coach answer picked
+        // up after a reclaim was re-attached with no agent, so its session id
+        // was saved as Nova's and three later Nova turns ran inside the Coach's
+        // session (184k and 239k cold tokens, $3.30 and $7.63).
+        this.attachAskPoll(conn, pending.jobId, { agent: pending.agent || null });
       } else if (pending) {
         localStorage.removeItem('novaos.askJob');
       }
@@ -1051,6 +1059,10 @@ export default class App extends Component {
       }
     };
     document.addEventListener('visibilitychange', this.visH);
+    // an answer in flight is looked at the instant he is back (attachAskPoll)
+    this.askVisH = () => { if (document.visibilityState === 'visible') this.pollAskNow(); };
+    document.addEventListener('visibilitychange', this.askVisH);
+    window.addEventListener('pageshow', this.askVisH);
     // Apply updates the moment the new service worker takes over — but only
     // on a real handover (skip the first-ever install claim), and only once.
     // Resume is the safe moment: drafts are mirrored and boot is ~0.4s.
@@ -1216,6 +1228,8 @@ export default class App extends Component {
     window.removeEventListener('pointerdown', this.noteTapH, { capture: true });
     window.removeEventListener('pagehide', this.pagehideH);
     document.removeEventListener('visibilitychange', this.visH);
+    document.removeEventListener('visibilitychange', this.askVisH);
+    window.removeEventListener('pageshow', this.askVisH);
     try { if (this.swCtrlH) navigator.serviceWorker?.removeEventListener('controllerchange', this.swCtrlH); } catch { /* unsupported */ }
     this.ivs.forEach(clearInterval);
     if (this.gRaf) cancelAnimationFrame(this.gRaf);
@@ -7594,6 +7608,7 @@ export default class App extends Component {
       // off what he HEARS (src/spokenLint.js, 15 Oct 2026); never emptied.
       const heard = lintSpoken(toSpokenProse(speakableText(t, { final: true })));
       if (!heard.trim()) { onPlay(); return; }   // a fenced block alone is nothing to say
+      stream.anySaid = true; // the first clause cut and the document line are for the reply's opening only
       if (elevenPath) this.speakTtsSentence(heard, onPlay, { stance, onStart });
       else { this.speakIncremental(heard, { stance }); onStart?.(); onPlay(); }
     };
@@ -7612,6 +7627,13 @@ export default class App extends Component {
         ms: Date.now() - (turn.askAt || Date.now()), restarts: 0, heard: true,
         lane: turn.lane || '', ackText: turn.ackText || '', ackId: turn.ackId || '', place: turn.place || '',
         ackMs: rel(turn.ackAt), firstTextMs: rel(turn.firstTextAt), firstAudioMs: rel(turn.firstAudioAt),
+        // 18 Oct 2026: the first text that is not a withheld VIS/ARTIFACT body,
+        // the client's own time between his words arriving and the ask leaving,
+        // and the sentences shown as text with no voice after their retry
+        firstSpeakableMs: rel(turn.firstSpeakableAt),
+        ...(Number.isFinite(turn.preAskMs) ? { preAskMs: turn.preAskMs } : {}),
+        ...(turn.preAskSlowest ? { preAskSlowest: turn.preAskSlowest } : {}),
+        droppedSentences: Math.max(0, (this.ttsDropped || 0) - (turn.droppedBase || 0)),
       });
     };
     const speakNewSentences = (text, flushAll) => {
@@ -7623,6 +7645,21 @@ export default class App extends Component {
       const fresh = text.slice(stream.spokenUpTo);
       if (!fresh) return;
       const startedAt = stream.spokenUpTo;
+      // SPEAK SOONER (18 Oct 2026): the first sound used to wait for the
+      // first full stop. A long first sentence now starts on its first clause
+      // ("Your sleep was short this week," while the rest is still arriving;
+      // src/voicePacing.js firstClauseCut). Once per reply.
+      if (!stream.anySaid && !stream.clauseCut) {
+        const cut = firstClauseCut(fresh);
+        if (cut > 0) {
+          stream.clauseCut = true;
+          const clause = fresh.slice(0, cut);
+          say(clause, startedAt, stanceOfSpan(stream.stances, text, startedAt, startedAt + clause.length));
+          stream.spokenUpTo += cut;
+          speakNewSentences(text, flushAll); // the rest of what has arrived, as today
+          return;
+        }
+      }
       if (flushAll) {
         // Sentence-sized pieces even here: a whole brief in one /api/tts
         // call is 20-30s of synthesis — it hit the sidecar timeout and the
@@ -7646,8 +7683,28 @@ export default class App extends Component {
         stream.spokenUpTo += m[0].length;
       }
     };
-    this.startPoll('ask', () => api.claudeCodeJob(conn, jobId), {
-      timeoutMs: 3 * 60_000,
+    // SURVIVE SUSPENSION (18 Oct 2026 audit). iOS froze the poll for 35 to
+    // 450 s on 4 of 15 model turns while the answer sat finished on the Mac,
+    // and a real Coach run took 391 s against the old three-minute budget.
+    // No wall-clock cap while the server still says `running` (his no-caps
+    // rule): the poll gives up only when the server says done or error, or
+    // when the Mac has been unreachable for more than 60 s in a row.
+    let failingSince = 0;
+    const fetchAskJob = () => api.claudeCodeJob(conn, jobId).then((job) => { failingSince = 0; return job; }, (e) => {
+      if (e?.status !== 404) {
+        const now = Date.now();
+        if (!failingSince) failingSince = now;
+        if (now - failingSince > 60_000 && this.askPollJob === jobId) {
+          this.stopPoll('ask');
+          this.askPollJob = null;
+          askHandlers.onError(`Lost contact with the Mac for over a minute: ${e?.message || 'network error'}. The answer may still be in the conversation when you reconnect.`);
+        }
+      }
+      throw e;
+    });
+    const askHandlers = {
+      timeoutMs: Infinity,
+      ceilingMs: Infinity,
       // conversation cadence: the first spoken sentence rides this tick, so
       // it is pure added latency on every reply. 150ms costs a few cheap
       // local requests and takes ~200ms off the wait.
@@ -7664,6 +7721,22 @@ export default class App extends Component {
         }
         if (!job.partial) return;
         if (turn && !turn.firstTextAt) turn.firstTextAt = Date.now();
+        // A REPLY THAT OPENS WITH A DOCUMENT IS NOT SILENCE (18 Oct 2026): it
+        // said nothing until the document closed, 12.6 to 18.6 s on four
+        // turns. Code says ONE line the moment the document starts, by name
+        // when the title has arrived (src/voicePacing.js artifactOpenerLine).
+        if (this.state.voiceSpeak && !stream.anySaid && !stream.docLineSaid) {
+          const doc = artifactOpenerLine(job.partial);
+          if (doc) {
+            stream.docSeenAt = stream.docSeenAt || Date.now();
+            if (doc.titled || doc.settled || Date.now() - stream.docSeenAt > 800) {
+              stream.docLineSaid = true;
+              const onStart = turn && !turn.firstAudioAt ? () => { if (!turn.firstAudioAt) turn.firstAudioAt = Date.now(); } : null;
+              if (elevenPath) this.speakTtsSentence(doc.line, null, { onStart });
+              else { this.speakIncremental(doc.line); onStart?.(); }
+            }
+          }
+        }
         // ONE parser, shared with the server (src/visualBeats.js): it takes
         // the VIS directives out — a half-typed one withheld whole, so Nova
         // never reads JSON aloud — and says where each panel's prose begins.
@@ -7677,6 +7750,7 @@ export default class App extends Component {
         stream.stances = seen.stances;
         const shown = stripShow(seen.text);
         if (!shown) return;
+        if (turn && !turn.firstSpeakableAt && speakableText(shown, { final: false }).trim()) turn.firstSpeakableAt = Date.now();
         if (!spokenReveal) applyPartial(shown); // spoken path: reveal() renders, in step with the voice
         speakNewSentences(shown, false);
       },
@@ -7811,7 +7885,21 @@ export default class App extends Component {
         }
       },
       onError: (msg) => { clearJob(); postTurn(); if (this.replyStreaming === jobId) this.replyStreaming = null; this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat.filter((m) => !m.streaming), { at: Date.now(), who: 'system', text: 'Error: ' + msg }] })); },
-    });
+    };
+    // back from the background (the app switcher, or the push that said the
+    // answer is ready): look NOW and start the poll's clock afresh. The same
+    // handlers carry on, so the reply's stream picks up where it was.
+    const settle = (fn) => (...a) => { if (this.askPollJob === jobId) this.askPollJob = null; return fn(...a); };
+    askHandlers.onReady = settle(askHandlers.onReady);
+    askHandlers.onError = settle(askHandlers.onError);
+    this.askPollJob = jobId;
+    this.askPollRestart = () => { if (this.askPollJob === jobId) this.startPoll('ask', fetchAskJob, askHandlers); };
+    this.startPoll('ask', fetchAskJob, askHandlers);
+  }
+  // visibilitychange → visible and pageshow both land here (componentDidMount)
+  pollAskNow() {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    try { this.askPollRestart?.(); } catch { /* the poll is best-effort */ }
   }
 
   // ---------- focus blocks (the "Engage next block" timer) ----------
@@ -10103,9 +10191,24 @@ export default class App extends Component {
   // is correct there because a click blurs the field and flushes it first.
   doOrb(text) {
     const q = (typeof text === 'string' ? text : this.state.orbInput).trim(); if (!q) return;
+    // THE PRE-ASK CLOCK (18 Oct 2026): 1.4 to 2.3 s passed on the phone between
+    // his words coming back from the Mac and /api/ask leaving, on 3 of 4
+    // measured turns. It starts when the words landed (noteTurnHeard; the
+    // bottom-bar mic has no such hook, so it starts here) and each step up to
+    // the send is timed, so the receipt names the slow one.
+    this.turnWordsAt = this.heardAt && Date.now() - this.heardAt < 5000 ? this.heardAt : Date.now();
+    this.heardAt = 0;
+    this.preAskMarks = [];
+    const mark = (name, t0) => { this.preAskMarks.push([name, Date.now() - t0]); };
     this.noteHeardHim();  // he answered, so whatever opened this turn was right
     this.resumeConv(); // anything sent un-pauses the conversation loop
-    this.primeSpeech(); // inside the user gesture — unlocks audio on iOS
+    // inside the user gesture — unlocks audio on iOS. A turn that ended on
+    // his silence has no gesture to spend, so the unlock waits until the ask
+    // has left (askNova): it sets the audio session, which is not free on iOS
+    // and never needed before the request goes.
+    const gesture = typeof navigator === 'undefined' || !navigator.userActivation || navigator.userActivation.isActive;
+    if (gesture) { const t0 = Date.now(); this.primeSpeech(); mark('prime', t0); } else { this.primeAfterAsk = true; setTimeout(() => this.flushPrime(), 0); }
+    const tRoutes = Date.now();
     // A short plain yes/no right after a proposal is a CONFIRMATION, not a
     // question — approve or dismiss deterministically, no model in the loop.
     // an offer Nova just made ("shall I have the Watcher digest it?") takes
@@ -10189,9 +10292,11 @@ export default class App extends Component {
       }
       // the front door first: a link or a command starts the job it names,
       // and only what is left is a question for Ask Nova
-      if (this.routeFromChat(q)) return;
+      if (this.routeFromChat(q)) { this.flushPrime(); return; }
+      mark('routes', tRoutes);
       this.setState({ orbInput: '' });
       this.askNova(q);
+      this.flushPrime();
       return;
     }
     this.setState(s => ({ orbChat: [...s.orbChat, { at: Date.now(), who: 'you', text: q }], orbInput: '' }));
@@ -10415,6 +10520,12 @@ export default class App extends Component {
   }
   // iOS gates audio behind a user gesture: playing a muted element and an
   // empty utterance during the tap unlocks both paths for the async reply.
+  // the deferred unlock (doOrb): runs once, after the ask has left
+  flushPrime() {
+    if (!this.primeAfterAsk) return;
+    this.primeAfterAsk = false;
+    this.primeSpeech();
+  }
   primeSpeech() {
     try {
       claimForSpeech(); // the session type is HIS choice — see audioSession.js
@@ -10660,15 +10771,14 @@ export default class App extends Component {
     // both of its rows — the thread says where it was said
     const meta = this.takePresenceMeta() || undefined;
     const attached = this.state.pendingAttach.map((p) => ({ kind: p.kind, thumb: p.thumb, name: p.name }));
-    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question, attached: attached.length ? attached : undefined, ...(meta || {}) }], voiceBusy: true }));
-    this.stopSpeaking();
+    const tBuild = Date.now();
     // THE RECEIPT FOR THIS ASK (15 Oct 2026): when it left, when the ack was
     // heard, the first words, the first sound. Stamped in place, posted once
     // the reply has been heard (attachAskPoll postTurn).
     // WHERE HE IS rides the ask (src/where.js): it switches the register
     // lines and, driving, the glass; the receipt records the place too
     const where = this.whereNow();
-    const turn = { askAt: null, lane: null, place: where.place };
+    const turn = { askAt: null, lane: null, place: where.place, droppedBase: this.ttsDropped || 0 };
     // caller context already names the pending decision when present —
     // don't say it twice
     const situation = this.buildAskSituation({ skipProposal: !!context });
@@ -10686,10 +10796,29 @@ export default class App extends Component {
     // hundred words is fifty seconds of being talked at. Spoken means: it came
     // from the microphone and speech is on.
     const spoken = !!this.spokenInput && !!this.state.voiceSpeak;
+    (this.preAskMarks = this.preAskMarks || []).push(['build', Date.now() - tBuild]);
+    // THE ASK LEAVES FIRST (18 Oct 2026). Everything that does not shape the
+    // request (the chat line, the stop, "one thing first", the audio unlock)
+    // now runs after it is sent; nothing awaits before api.ask unless there
+    // are attachments to upload. `voiceId`: the voice this device will ask
+    // /api/tts for, so the server can synthesize the ack in that voice.
+    const send = (attachmentId) => {
+      turn.askAt = Date.now();
+      turn.sentAt = turn.askAt;
+      if (spoken && this.turnWordsAt) {
+        turn.transcribedAt = this.turnWordsAt;
+        turn.preAskMs = Math.max(0, turn.sentAt - turn.transcribedAt);
+        const slow = (this.preAskMarks || []).reduce((a, b) => (b[1] > (a?.[1] ?? -1) ? b : a), null);
+        if (slow && slow[1] >= 50) turn.preAskSlowest = `${slow[0]}:${slow[1]}`;
+      }
+      this.turnWordsAt = 0;
+      return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined, where });
+    };
+    const asked = this.state.pendingAttach.length ? this.flushAttachments(conn).then(send) : send(null);
+    this.setState((s) => ({ voiceChat: [...s.voiceChat, { at: Date.now(), who: 'you', text: question, attached: attached.length ? attached : undefined, ...(meta || {}) }], voiceBusy: true }));
+    this.stopSpeaking();
     if (spoken) { this.lastSpokenTurnAt = Date.now(); this.sayFirstThing(); }
-    // `voiceId`: the voice this device will ask /api/tts for, so the server
-    // can synthesize the ack in exactly that voice before the client asks
-    this.flushAttachments(conn).then((attachmentId) => { turn.askAt = Date.now(); return api.ask(conn, sent, this.state.voiceSessionId || null, { coachSessionId: this.state.coachSessionId || null, leaderSessionId: this.state.leaderSessionId || null, attachmentId, raw: question, spoken, lastAgent: lastSpeaker?.who || null, lastAgentAt: lastSpeaker?.at || null, voiceId: this.state.voiceVoiceId || undefined, where }); }).then((resp) => {
+    asked.then((resp) => {
       if (resp.text) {
         // THE REFLEX ANSWERED. This is now the common case — five of his six
         // commonest asks land here in single-digit milliseconds — and the
@@ -10736,6 +10865,9 @@ export default class App extends Component {
         const reflexReceipt = () => reportTurnEnd('ask', this.state.voiceHold, {
           ms: Date.now() - turn.askAt, restarts: 0, heard: true, lane: 'reflex',
           firstTextMs: turn.firstTextAt - turn.askAt, firstAudioMs: turn.firstAudioAt ? turn.firstAudioAt - turn.askAt : undefined,
+          ...(Number.isFinite(turn.preAskMs) ? { preAskMs: turn.preAskMs } : {}),
+          ...(turn.preAskSlowest ? { preAskSlowest: turn.preAskSlowest } : {}),
+          droppedSentences: Math.max(0, (this.ttsDropped || 0) - (turn.droppedBase || 0)),
         });
         if (this.state.voiceSpeak) {
           this.speakTtsSentence(resp.text, show, { onStart: () => { turn.firstAudioAt = Date.now(); } });
@@ -11273,6 +11405,9 @@ export default class App extends Component {
   // facts and the message below now says which one it has.
   noteTurnHeard(heard) {
     this.deafTurns = heard ? 0 : (this.deafTurns || 0) + 1;
+    // his words have just come back from the Mac: the start of the client's
+    // own pre-ask time on this turn's receipt (askNova preAskMs)
+    if (heard) this.heardAt = Date.now();
   }
 
   notifyEmptyListen() {
@@ -11335,8 +11470,10 @@ export default class App extends Component {
     for (const e of this.ttsQueue || []) {
       try { if (!e.revealed) e.onPlay?.(); e.finalize?.(); } catch { /* reveal is best-effort */ }
     }
+    for (const e of this.ttsQueue || []) clearTimeout(e.retryTimer);
     this.ttsGen = (this.ttsGen || 0) + 1;
     this.ttsQueue = [];
+    this.ttsInFlight = 0; // the old generation's fetches land and are ignored
     this.ttsPlaying = false; this.ttsNowSaying = null;
     this.ttsVoiceLock = null; // the next reply chooses its voice afresh
     this.ttsSaidWindow = '';  // nothing has been spoken into the room yet
@@ -11366,14 +11503,33 @@ export default class App extends Component {
     this.beginSpeech(); // matched by endSpeech when the entry plays out or drops
     // A reply already committed to the browser voice does not go back to the
     // engine sentence by sentence — see the ONE VOICE rule in drainTtsQueue.
-    if (this.ttsVoiceLock === 'browser') { entry.done = true; entry.failed = true; this.drainTtsQueue(gen); return; }
-    const fetchOnce = () => api.ttsAudio(conn, clean, this.state.voiceVoiceId || undefined);
-    fetchOnce()
-      // ONE RETRY. Over cellular in the car a single sentence's request can
-      // drop while the engine is perfectly healthy; a blip on one sentence must
-      // not be read as the engine being down, because the fallback for "down"
-      // is a different voice, and he heard that.
-      .catch((e) => { if (gen !== (this.ttsGen || 0)) throw e; return fetchOnce(); })
+    if (this.ttsVoiceLock === 'browser') { entry.done = true; entry.failed = true; entry.fetchState = 'none'; this.drainTtsQueue(gen); return; }
+    // TWO AT A TIME, IN ORDER (18 Oct 2026 audit). Every sentence used to
+    // fetch at once; the serial engine answered six and refused the rest, and
+    // 469 sentences in a week were shown as text with no voice. The fetches
+    // now go two at a time in queue order (pumpTtsFetches), and a sentence
+    // the engine refuses is asked for again once before it falls back.
+    entry.conn = conn;
+    entry.fetchState = 'waiting';
+    entry.tries = 0;
+    this.pumpTtsFetches(gen);
+  }
+  pumpTtsFetches(gen) {
+    if (gen !== (this.ttsGen || 0)) return;
+    const queue = this.ttsQueue || [];
+    const now = Date.now();
+    for (const e of ttsFetchesToStart(queue, { max: TTS_MAX_IN_FLIGHT, inFlight: this.ttsInFlight || 0, playing: !!this.ttsPlaying, now })) this.fetchTtsEntry(e, gen);
+    // a refused sentence at the head waits out its retry time, then goes again
+    const head = queue[0];
+    if (head?.fetchState === 'retry' && !this.ttsPlaying && head.retryAt > now && !head.retryTimer) {
+      head.retryTimer = setTimeout(() => { head.retryTimer = null; this.pumpTtsFetches(gen); }, head.retryAt - now);
+    }
+  }
+  fetchTtsEntry(entry, gen) {
+    entry.fetchState = 'fetching';
+    entry.tries += 1;
+    this.ttsInFlight = (this.ttsInFlight || 0) + 1;
+    api.ttsAudio(entry.conn, entry.said, this.state.voiceVoiceId || undefined)
       .then(async (blob) => {
         // decode NOW, while earlier sentences play — playback then starts
         // from pre-decoded samples on the audio thread, jitter-proof
@@ -11381,9 +11537,31 @@ export default class App extends Component {
         // the audio graph, and on iOS the graph is often suspended by then
         entry.blob = blob;
         try { entry.buffer = await decodeSpeech(await blob.arrayBuffer()); } catch { /* element path covers it */ }
+        entry.fetchState = 'ok';
+        entry.done = true;
       })
-      .catch(() => { entry.failed = true; })
-      .finally(() => { entry.done = true; this.drainTtsQueue(gen); });
+      .catch((e) => {
+        // ONE RETRY. A request that dropped (a cellular blip) goes straight
+        // back in line; a sentence the engine refused (400, or 503 while it
+        // boots) waits until the sentence before it has finished, so a busy
+        // engine gets a breath. A second failure falls back as before.
+        const next = ttsFailureAction(e, entry.tries);
+        if (next === 'retry-now') { entry.fetchState = 'waiting'; return; }
+        if (next === 'retry-later') {
+          entry.fetchState = 'retry';
+          entry.retryAt = Date.now() + (e?.status === 503 ? Math.min(3000, e.retryAfterMs || 1500) : 0);
+          return;
+        }
+        entry.fetchState = 'failed';
+        entry.failed = true;
+        entry.done = true;
+      })
+      .finally(() => {
+        if (gen !== (this.ttsGen || 0)) return; // flushed: resetTtsQueue zeroed the count
+        this.ttsInFlight = Math.max(0, (this.ttsInFlight || 0) - 1);
+        this.drainTtsQueue(gen);
+        this.pumpTtsFetches(gen);
+      });
   }
   // A completion barrier: runs when the queue reaches it — i.e. after every
   // sentence queued before it has spoken. Carries a reply's final commit
@@ -11408,7 +11586,7 @@ export default class App extends Component {
       this.drainTtsQueue(gen);
       return;
     }
-    if (!head || !head.done) return; // strict order: nothing plays past an unfinished head
+    if (!head || !head.done) { this.pumpTtsFetches(gen); return; } // strict order: nothing plays past an unfinished head (a refused head may now go again)
     this.ttsQueue.shift();
     if (head.finalize) { try { head.finalize(); } catch { /* commit is best-effort */ } this.drainTtsQueue(gen); return; }
     const engineFailed = head.failed || (!head.buffer && !head.blob);
@@ -11427,7 +11605,9 @@ export default class App extends Component {
       //     including sentences whose audio did arrive. Audible and consistent,
       //     which in the car is what matters; the voice test names the cause.
       try { head.onPlay?.(); head.revealed = true; } catch { /* best-effort */ }
-      if (this.ttsVoiceLock === 'server') { this.endSpeech(); this.drainTtsQueue(gen); return; }
+      // shown as text with no voice, after its retry: counted on the turn's
+      // receipt (droppedSentences), so a dropped sentence is never silent twice
+      if (this.ttsVoiceLock === 'server') { if (!head.ack) this.ttsDropped = (this.ttsDropped || 0) + 1; this.endSpeech(); this.drainTtsQueue(gen); return; }
       // a failed ACK is skipped, never the reason the reply changes voice:
       // the receipt is not worth the phone's voice for every sentence after it
       if (head.ack && this.ttsVoiceLock !== 'browser') { this.endSpeech(); this.drainTtsQueue(gen); return; }
