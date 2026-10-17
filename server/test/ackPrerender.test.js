@@ -125,3 +125,16 @@ test('list() must resolve to an array, or prerenderAcks says so rather than loop
     /array/,
   );
 });
+
+test('a loaded Mac pauses the pre-render until the load falls', async () => {
+  const loads = [30, 30, 5];
+  const made = [];
+  const out = await prerenderAcks({
+    list: async () => ['One.'], voiceIds: ['v'], has: async () => false,
+    synth: async (t) => { made.push(t); }, busy: () => 0, sleepMs: 1,
+    loadAvg: () => loads.shift() ?? 5, cores: 10, loadMax: 2, loadWaitMs: 1,
+  });
+  assert.equal(out.rendered, 1);
+  assert.deepEqual(made, ['One.']);
+  assert.equal(loads.length, 0, 'it waited through both loaded readings before rendering');
+});

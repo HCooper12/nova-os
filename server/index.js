@@ -502,7 +502,7 @@ async function main() {
         const { ttsEngine } = await import('./lib/tts.js');
         if (ttsEngine() !== 'local') return;
         const { prerenderAcks } = await import('./lib/ackPrerender.js');
-        const out = await prerenderAcks({ vaultPath: process.env.VAULT_PATH });
+        const out = await prerenderAcks({ vaultPath: process.env.VAULT_PATH, loadMax: 2 });
         console.log(`ack prerender: rendered ${out.rendered}, skipped ${out.skipped}, failed ${out.failed} in ${Math.round(out.ms / 1000)}s`);
       } catch (e) {
         console.error('ack prerender failed:', e.message);

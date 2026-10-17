@@ -1,4 +1,5 @@
 // Pre-renders every ack sentence to ttsLocal.js's disk cache, so the spoken
+import os from 'node:os';
 // acknowledgement that opens a turn is already sitting on disk by the time a
 // real reply ever needs it (18 Oct 2026 — see ttsLocal.js's disk-cache
 // comment for the measured problem this is half of).
@@ -21,7 +22,16 @@ export async function prerenderAcks({
   synth,
   has,
   list,
-  sleepMs = 150,
+  sleepMs = 400,
+  // the Mac comes first: while the load average sits above LOAD_MAX × cores
+  // (a fresh boot with every app restoring, 18 Oct 2026: load 160+ on 10
+  // cores), the pre-render waits rather than adding to it
+  loadAvg = () => os.loadavg()[0],
+  cores = os.cpus().length || 8,
+  // Infinity by default so a test on a busy machine never waits on the real
+  // load; index.js passes 2 for the real schedule
+  loadMax = Infinity,
+  loadWaitMs = 20_000,
   signal,
   busy,
 } = {}) {
@@ -54,6 +64,12 @@ export async function prerenderAcks({
         if (signal?.aborted) return summarize();
         // eslint-disable-next-line no-await-in-loop
         await sleep(sleepMs);
+      }
+      // eslint-disable-next-line no-await-in-loop
+      while (loadAvg() > loadMax * cores) {
+        if (signal?.aborted) return summarize();
+        // eslint-disable-next-line no-await-in-loop
+        await sleep(loadWaitMs);
       }
       if (signal?.aborted) return summarize();
       try {
