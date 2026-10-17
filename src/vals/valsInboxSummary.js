@@ -1,3 +1,4 @@
+import { sentLine } from '../videoDrop.js';
 import { digestPending, subjectOf } from '../inboxDigest.js';
 import { isCoachSuggestion, buildSuggestion } from '../coachSuggestions.js';
 import { ROUTE_META } from './valsInbox.js';
@@ -579,6 +580,22 @@ export function valsInboxSummary(app, ctx, v) {
       filed,
       report,
       openCapture: () => app.openCaptureSheet(),
+      // THE VIDEO DROP (17 Oct 2026): a link in, a quick look or a full read out
+      videoDrop: {
+        value: st.inboxVideoUrl || '',
+        set: (e) => app.setInboxVideoUrl(e.target.value),
+        question: st.inboxVideoQuestion || '',
+        setQuestion: (e) => app.setInboxVideoQuestion(e.target.value),
+        askOpen: !!st.inboxVideoAsk,
+        toggleAsk: () => app.toggleInboxVideoAsk(),
+        paste: () => app.pasteInboxVideo(),
+        busy: !!st.inboxVideoBusy,
+        error: st.inboxVideoError || null,
+        look: () => app.sendInboxVideo('look'),
+        deep: () => app.sendInboxVideo('deep'),
+        enabled: connected && !v.isOffline,
+        sent: (st.inboxVideoSent || []).map((e) => ({ key: e.at, ...sentLine(e) })),
+      },
       // the batch is this visit's: the screen clears it when it mounts
       resetBatch: () => { if ((st.inboxSumDecided || []).length || st.inboxSumFocus) app.setState({ inboxSumDecided: [], inboxSumFocus: null }); },
     },

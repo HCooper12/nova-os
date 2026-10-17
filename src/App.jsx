@@ -94,6 +94,7 @@ import { DynamicIsland } from './DynamicIsland.jsx';
 import { notify, dismissIsland } from './island.js';
 import { tickReceipt } from './receipt.js';
 import { fitSets, applyDrops } from './fitSets.js';
+import { readVideoLink } from './videoDrop.js';
 import { journalActions } from './journalActions.js';
 import { pickReviewItem } from './reviewPick.js';
 import { GAPS as REVIEW_GAPS, nextStep as nextReviewStep, shiftISO, localISO, demoDrawn, DEMO_UNREVIEWED } from './reviewDemo.js';
@@ -803,6 +804,7 @@ export default class App extends Component {
     // today's card stays a card, expandable to the per-exercise breakdown
     gymTargetsOpen: false,
     routineCreating: false, routineNewName: '',
+    inboxVideoUrl: '', inboxVideoQuestion: '', inboxVideoAsk: false, inboxVideoBusy: false, inboxVideoError: null, inboxVideoSent: [],
     routineDeleteConfirm: false,
     exercisePickerOpen: false, exercisePickerQuery: '', exercisePickerMuscle: 'Any',
     exercisePickerCreateMuscle: '', exercisePickerCreateTrackingType: 'weight_reps',
@@ -6738,6 +6740,50 @@ export default class App extends Component {
     if (!q) return;
     this.navigate('voice');
     this.setState({ liveInput: q }, () => this.sendLiveTalk());
+  }
+  // THE VIDEO DROP in the Inbox (17 Oct 2026): a link, then either the quick
+  // look (the Watcher: a verdict or the ideas, filed pending for his call) or
+  // the full read (the deep weave, reviewed as a diff). Same rails as the chat
+  // used; the box is only a quicker door. Empty field: the clipboard is read,
+  // so "copy, open Inbox, tap" is the whole gesture.
+  setInboxVideoUrl(text) { this.setState({ inboxVideoUrl: text, inboxVideoError: null }); }
+  setInboxVideoQuestion(text) { this.setState({ inboxVideoQuestion: text }); }
+  toggleInboxVideoAsk() { this.setState((s) => ({ inboxVideoAsk: !s.inboxVideoAsk })); }
+  async pasteInboxVideo() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const r = readVideoLink(text);
+      this.setState({ inboxVideoUrl: r.ok ? r.url : String(text || '').trim().slice(0, 300), inboxVideoError: r.ok ? null : r.reason });
+      return r.ok ? r.url : null;
+    } catch {
+      this.setState({ inboxVideoError: 'Nova could not read the clipboard. Paste into the field instead.' });
+      return null;
+    }
+  }
+  async sendInboxVideo(mode) {
+    const conn = getConnection();
+    if (!conn) { this.setState({ inboxVideoError: 'Connect a backend in Settings first.' }); return; }
+    if (this.state.inboxVideoBusy) return;
+    let text = this.state.inboxVideoUrl;
+    if (!text.trim()) { const got = await this.pasteInboxVideo(); if (!got) return; text = got; }
+    const r = readVideoLink(text);
+    if (!r.ok) { this.setState({ inboxVideoError: r.reason }); return; }
+    const question = this.state.inboxVideoQuestion.trim();
+    const sent = () => this.setState((s) => ({
+      inboxVideoBusy: false, inboxVideoUrl: '', inboxVideoQuestion: '', inboxVideoAsk: false, inboxVideoError: null,
+      inboxVideoSent: [{ at: Date.now(), url: r.url, host: r.host, mode }, ...s.inboxVideoSent].slice(0, 3),
+    }));
+    const failed = (e) => this.setState({ inboxVideoBusy: false, inboxVideoError: `Could not start that: ${e.message}` });
+    this.setState({ inboxVideoBusy: true, inboxVideoError: null });
+    if (mode === 'deep') {
+      // the same job the Deep weave button starts; its progress and review ride the ingest tray
+      this.beginIngestJob(null, r.url);
+      sent();
+      return;
+    }
+    this.gateModelChoice('watch', (model) => {
+      api.videoWatchDirect(conn, r.url, question, model).then(() => { sent(); this.refreshInbox(); }).catch(failed);
+    });
   }
   startVideoWatch(text) {
     const conn = getConnection();

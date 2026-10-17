@@ -441,6 +441,38 @@ function Filed({ f }) {
   );
 }
 
+// THE VIDEO DROP (17 Oct 2026): copy a link anywhere, open the Inbox, tap. The
+// field is optional (an empty one reads the clipboard); the two verbs say what
+// each does, in words, with no number on either. What was sent stays below as
+// a line that promises only what is true: it is running, and where it lands.
+function VideoDrop({ d }) {
+  const off = !d.enabled || d.busy;
+  return (
+    <section className="nv-sum-card nv-sum-ib-vd nv-sum-rise" style={{ '--i': 5 }} aria-label="Send a video">
+      <div className="nv-sum-ib-vdh">
+        <Tile tile={{ tone: 'vault', glyph: 'play' }} />
+        <span className="nv-sum-ib-lx"><span className="nm">Send a video</span><span className="sv">Copy a link, then tap.</span></span>
+      </div>
+      <div className="nv-sum-ib-vdf">
+        <input className="nv-sum-ib-vdi" type="url" inputMode="url" autoCapitalize="off" value={d.value} onChange={d.set}
+          placeholder="Paste a video link" aria-label="Video link" disabled={!d.enabled} />
+        <button type="button" className="nv-sum-ib-vdp" onClick={d.paste} disabled={!d.enabled}>Paste</button>
+      </div>
+      {d.askOpen
+        ? <input className="nv-sum-ib-vdi q" value={d.question} onChange={d.setQuestion} placeholder="What should it look for? (optional)" aria-label="What to look for" />
+        : <TextAction tone="quiet" onClick={d.toggleAsk}>Add what to look for</TextAction>}
+      {d.error && <p className="nv-sum-ib-vde" role="alert">{d.error}</p>}
+      <div className="nv-sum-ib-vda">
+        <button type="button" className="nv-sum-ib-vdb" onClick={d.look} disabled={off}><b>Quick look</b><span>A verdict or the key ideas, for your call</span></button>
+        <button type="button" className="nv-sum-ib-vdb deep" onClick={d.deep} disabled={off}><b>Full read</b><span>Every idea woven into the vault. Takes longer</span></button>
+      </div>
+      {d.sent.map((e) => (
+        <div key={e.key} className="nv-sum-ib-vds" role="status"><Ico name="loop" /><span className="rx"><b>{e.title}</b><span>{e.sub}</span></span></div>
+      ))}
+    </section>
+  );
+}
+
 function Waiting({ S, v }) {
   const card = S.card;
   const ops = S.ops;
@@ -474,6 +506,7 @@ function Waiting({ S, v }) {
           </div>
         )}
       <Receipt r={S.receipt} />
+      <VideoDrop d={S.videoDrop} />
       <Interactive as="button" className="nv-sum-ib-hint" onClick={S.openCapture} haptic="tick" base={{ cursor: 'pointer' }}>
         Drop a thought: hold <span className="orb" aria-hidden="true"><NovaCore size={18} variant="mini" engine={v.coreStyle} style={{ pointerEvents: 'none' }} /></span> Nova, or tap to write it
       </Interactive>

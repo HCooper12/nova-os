@@ -2806,6 +2806,24 @@ body:has(.nv-fx[data-settled]:not(.leaving)) .nv-sky::after { animation-play-sta
 }
 
 /* the hint under the deck, and the one row that leads to the loops */
+/* the video drop: a field, two verbs, and a line for what was sent */
+.nv-sum-ib-vd { display: grid; gap: 10px; margin-top: 14px; padding: 12px 14px 14px; }
+.nv-sum-ib-vdh { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: center; }
+.nv-sum-ib-vdf { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.nv-sum-ib-vdi { box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; border: 0; border-radius: 22px; outline: none; font: 400 16px var(--nv-font-ui); color: var(--nv-ink); background: color-mix(in srgb, var(--nv-void) 38%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 12%, transparent); }
+.nv-sum-ib-vdi:focus-visible { box-shadow: inset 0 0 0 1.5px var(--nv-acc-border); }
+.nv-sum-ib-vdi::placeholder { color: var(--nv-ink50); }
+.nv-sum-ib-vdp { height: 44px; padding: 0 16px; border: 0; border-radius: 22px; cursor: pointer; font: 600 15px var(--nv-font-ui); color: var(--nv-acc); background: color-mix(in srgb, var(--nv-ink) 9%, transparent); }
+.nv-sum-ib-vdp[disabled], .nv-sum-ib-vdb[disabled] { opacity: .45; cursor: default; }
+.nv-sum-ib-vde { margin: 0; font: 400 13px/1.4 var(--nv-font-ui); color: var(--nv-warn); }
+.nv-sum-ib-vda { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.nv-sum-ib-vdb { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 64px; padding: 10px 14px; border: 0; border-radius: 18px; cursor: pointer; text-align: left; color: var(--nv-ink); background: color-mix(in srgb, var(--nv-ink) 9%, transparent); }
+.nv-sum-ib-vdb b { font: 600 15px var(--nv-font-ui); }
+.nv-sum-ib-vdb span { font: 400 13px/1.3 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sum-ib-vdb.deep { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nv-ink) 16%, transparent); background: transparent; }
+.nv-sum-ib-vds { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; font: 400 13px/1.35 var(--nv-font-ui); color: var(--nv-ink60); }
+.nv-sum-ib-vds .nv-sum-ib-ico { width: 16px; height: 16px; margin-top: 2px; }
+.nv-sum-ib-vds .rx b { display: block; font: 600 13px/1.35 var(--nv-font-ui); color: var(--nv-ink); }
 .nv-sum-ib-hint { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; width: 100%; min-height: 44px; margin-top: 14px; font: 400 13px var(--nv-font-ui); color: var(--ib-ink3); text-align: center; }
 .nv-sum-ib-hint .orb { display: inline-grid; width: 18px; height: 18px; place-items: center; }
 .nv-sum-ib-oprow { display: grid; grid-template-columns: auto minmax(0, 1fr) 16px; gap: 12px; align-items: center; width: 100%; box-sizing: border-box; min-height: 58px; margin-top: 8px; padding: 8px 14px; }
