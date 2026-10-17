@@ -50,7 +50,40 @@ export async function getFitnessGoals(vaultPath) {
   }
 }
 
-export async function setFitnessGoals(vaultPath, input) {
+// ONE CALORIE TARGET, ONE PROTEIN TARGET (17 Oct 2026). He changed his
+// calorie goal in Nova and Fuel kept showing the old one: the goals page and
+// the recipe collection (which Fuel, the floor and the month adherence read)
+// each held a copy, and only the goal board read the goals page. The goals
+// page is where he edits them, so a save there writes the same two numbers
+// through to the collection (its frontmatter and its Profile line, so Obsidian
+// agrees); the Intake does the reverse (inbox.js). Writes only what differs,
+// never creates the collection, and never fails the save.
+async function syncTargetsToCollection(vaultPath, { kcalTarget, proteinTarget }) {
+  try {
+    const { loadRecipeData, setTargets } = await import('./recipes.js');
+    const { profile } = await loadRecipeData(vaultPath);
+    const kcal = kcalTarget || profile?.targetKcal;
+    const protein = proteinTarget || profile?.proteinFloorG;
+    if (kcal === profile?.targetKcal && protein === profile?.proteinFloorG) return;
+    // all four keys, always: once the frontmatter exists it is read INSTEAD of
+    // the prose line, so a partial write would blank the keys it left out
+    await setTargets(vaultPath, { targetKcal: kcal, proteinFloorG: protein, weightKg: profile?.weightKg, heightCm: profile?.heightCm });
+  } catch { /* no collection yet, or none to agree with */ }
+}
+
+// The two numbers on the goals page and nothing else: the Intake's yes lands
+// here so a goals-page figure can never shadow the numbers he just confirmed.
+// Returns what the page held, for the Intake's undo.
+export async function setGoalTargets(vaultPath, { kcalTarget, proteinTarget }) {
+  const g = await getFitnessGoals(vaultPath);
+  if (!g) return { prior: null };
+  const prior = { kcalTarget: g.kcalTarget ?? null, proteinTarget: g.proteinTarget ?? null };
+  if (prior.kcalTarget == null && prior.proteinTarget == null) return { prior };
+  await setFitnessGoals(vaultPath, { ...g, kcalTarget, proteinTarget }, { sync: false });
+  return { prior };
+}
+
+export async function setFitnessGoals(vaultPath, input, { sync = true } = {}) {
   const goal = String(input.goal || '').trim().slice(0, 200);
   const focus = String(input.focus || '').trim().slice(0, 300);
   const daysPerWeek = Number.isInteger(Number(input.daysPerWeek)) && Number(input.daysPerWeek) >= 1 && Number(input.daysPerWeek) <= 7
@@ -86,6 +119,7 @@ export async function setFitnessGoals(vaultPath, input) {
   if (volumeRanges) frontmatter.volumeRanges = volumeRanges;
   if (goalMuscles) frontmatter.goalMuscles = goalMuscles;
   await writeFile(full, matter.stringify(`# Fitness Goals\n\n${notes}\n`, frontmatter), 'utf8');
+  if (sync) await syncTargetsToCollection(vaultPath, { kcalTarget, proteinTarget });
   return getFitnessGoals(vaultPath);
 }
 

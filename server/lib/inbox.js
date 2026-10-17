@@ -778,10 +778,14 @@ export async function fileDecision(vaultPath, decision, { source = 'inbox' } = {
     const plan = compute(facts);
     const on = new Date().toISOString().slice(0, 10);
     const t = await setTargets(vaultPath, { proteinFloorG: plan.proteinG, targetKcal: plan.targetKcal, weightKg: facts.weightKg, heightCm: facts.heightCm });
+    // the goals page holds the same two numbers (and wins on the goal board),
+    // so it follows the Intake's yes rather than shadowing it
+    const { setGoalTargets } = await import('./fitnessGoals.js');
+    const g = await setGoalTargets(vaultPath, { kcalTarget: plan.targetKcal, proteinTarget: plan.proteinG }).catch(() => ({ prior: null }));
     const p = await setIntake(vaultPath, { on, facts, plan: { bmr: plan.bmr, tdee: plan.tdee, targetKcal: plan.targetKcal, proteinG: plan.proteinG, fatG: plan.fatG, carbsG: plan.carbsG, waterL: plan.waterL } });
     return {
       destination: `Your numbers — ${plan.targetKcal} kcal, ${plan.proteinG} g protein (the recipe collection and your profile page)`,
-      undo: { route, priorTargets: t.prior, priorIntake: p.prior },
+      undo: { route, priorTargets: t.prior, priorIntake: p.prior, priorGoalTargets: g.prior },
     };
   }
 
@@ -1365,6 +1369,7 @@ export async function undoFiling(vaultPath, undo) {
     const { setIntake } = await import('./profile.js');
     await restoreTargets(vaultPath, undo.priorTargets);
     await setIntake(vaultPath, undo.priorIntake || null);
+    if (undo.priorGoalTargets) { const { setGoalTargets } = await import('./fitnessGoals.js'); await setGoalTargets(vaultPath, undo.priorGoalTargets).catch(() => {}); }
     return 'restored the previous targets and profile numbers';
   }
   if (undo.route === 'act') {
