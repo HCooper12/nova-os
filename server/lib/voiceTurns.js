@@ -120,12 +120,25 @@ export function turnRecord(body = {}, ua = '') {
   };
 }
 
+// Two turns can land in the same tick (a barge-in racing the turn it cut
+// off): both used to read-modify-write the SAME `turns.json.tmp`, and
+// whichever renamed second found its own tmp file already moved — ENOENT.
+// Every write now goes through one chain (one writer at a time, the way
+// acks.js serialises its ledger) and gets its own tmp name, so a crash
+// mid-write never collides with the next call.
+let writing = Promise.resolve();
+let tmpCounter = 0;
+
 export async function appendTurn(body, ua) {
   const record = turnRecord(body, ua);
-  const next = [...readTurns(), record].slice(-MAX_TURNS);
-  await mkdir(TURNS_DIR(), { recursive: true });
-  const tmp = `${TURNS_PATH()}.tmp`;
-  await writeFile(tmp, JSON.stringify({ turns: next }, null, 2), 'utf8');
-  await rename(tmp, TURNS_PATH());
-  return record;
+  const job = writing.then(async () => {
+    const next = [...readTurns(), record].slice(-MAX_TURNS);
+    await mkdir(TURNS_DIR(), { recursive: true });
+    const tmp = `${TURNS_PATH()}.${process.pid}.${Date.now()}.${tmpCounter++}.tmp`;
+    await writeFile(tmp, JSON.stringify({ turns: next }, null, 2), 'utf8');
+    await rename(tmp, TURNS_PATH());
+    return record;
+  });
+  writing = job.then(() => {}, () => {});
+  return job;
 }

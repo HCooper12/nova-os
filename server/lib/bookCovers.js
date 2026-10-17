@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,47 +7,101 @@ import { fileURLToPath } from 'node:url';
 //
 // The generated gradient cover stays the fallback and is never removed: a
 // jacket that can't be found must degrade to something that still looks
-// deliberate, not a broken image. So this answers 404 when there is no
-// jacket, and the client keeps what it already drew.
+// deliberate, not a broken image. So this answers 404 (a fresh miss, or
+// never looked up before) or 204 (a miss the cache already knows about) and
+// the client keeps what it already drew either way.
 //
 // Fetched and cached SERVER-SIDE on purpose. The page never talks to
 // openlibrary.org — his phone over Tailscale would pay that round trip on
 // every shelf render, the covers would vanish offline, and the reading list
 // would leak to a third party on every open. One fetch per book, ever.
 //
-// A negative result is cached too: without it, a book with no jacket would
-// re-hit the network on every single shelf render forever.
+// A negative result is cached too, in one small bounded JSON file rather
+// than a `.miss` file per book (18 Oct 2026 ledger: "The Next Conversation"
+// alone 404'd 381 times in 14 days because the OLD per-book `.miss` file
+// never expired — a retitled edition or a catalogue that later picks the
+// jacket up would be denied forever). A miss is remembered for 7 days, then
+// retried; at most 500 are kept, oldest dropped first, so a long reading
+// list can never grow this file without bound.
 
 const cacheDir = () => path.join(
   process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data'),
   'covers',
 );
 
-const MISS = 'MISS';
-const memo = new Map(); // key -> Buffer | 'MISS' | Promise
+const memo = new Map(); // key -> Buffer | Promise<Buffer|null>
 
 export function coverKey(title, author) {
   const norm = (s) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   return createHash('sha1').update(`${norm(title)}|${norm(author)}`).digest('hex').slice(0, 16);
 }
 
+const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const MAX_MISSES = 500;
+const missesPath = () => path.join(cacheDir(), 'misses.json');
+
+let missesLoaded = null; // key -> missedAtMs, loaded lazily and kept in memory
+async function loadMisses() {
+  if (missesLoaded) return missesLoaded;
+  try {
+    const raw = JSON.parse(await readFile(missesPath(), 'utf8'));
+    missesLoaded = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  } catch {
+    missesLoaded = {};
+  }
+  return missesLoaded;
+}
+
+// One writer at a time, its own tmp name — the same race `voiceTurns.js`
+// paid for (two renames of the same `.tmp` name).
+let writingMisses = Promise.resolve();
+let tmpCounter = 0;
+async function saveMisses(map) {
+  const job = writingMisses.then(async () => {
+    const dir = cacheDir();
+    await mkdir(dir, { recursive: true }).catch(() => {});
+    const tmp = `${missesPath()}.${process.pid}.${Date.now()}.${tmpCounter++}.tmp`;
+    await writeFile(tmp, JSON.stringify(map), 'utf8');
+    await rename(tmp, missesPath());
+  });
+  writingMisses = job.then(() => {}, () => {});
+  return job;
+}
+
+// true when `key` missed recently enough that the provider must not be
+// asked again; false for "never looked up" or "the 7 days have passed".
+async function isCachedMiss(key, now = Date.now()) {
+  const misses = await loadMisses();
+  const at = misses[key];
+  return typeof at === 'number' && (now - at) < MISS_TTL_MS;
+}
+
+async function recordMiss(key, now = Date.now()) {
+  const misses = await loadMisses();
+  misses[key] = now;
+  const keys = Object.keys(misses);
+  if (keys.length > MAX_MISSES) {
+    // oldest miss first — a book that keeps missing is exactly the one
+    // that should fall out first and get a fresh chance eventually
+    for (const k of keys.sort((a, b) => misses[a] - misses[b]).slice(0, keys.length - MAX_MISSES)) {
+      delete misses[k];
+    }
+  }
+  await saveMisses(misses);
+}
+
 async function fromDisk(key) {
   const dir = cacheDir();
   try {
     const buf = await readFile(path.join(dir, `${key}.jpg`));
-    return buf.length ? buf : MISS;
-  } catch { /* not cached yet */ }
-  try {
-    await readFile(path.join(dir, `${key}.miss`));
-    return MISS;
+    return buf.length ? buf : null;
   } catch { return null; }
 }
 
 async function toDisk(key, buf) {
   const dir = cacheDir();
   await mkdir(dir, { recursive: true }).catch(() => {});
-  if (buf === MISS) await writeFile(path.join(dir, `${key}.miss`), '', 'utf8').catch(() => {});
-  else await writeFile(path.join(dir, `${key}.jpg`), buf).catch(() => {});
+  await writeFile(path.join(dir, `${key}.jpg`), buf).catch(() => {});
 }
 
 // Open Library resets connections from Node intermittently — measured at
@@ -94,18 +148,24 @@ async function lookup(title, author) {
   return buf;
 }
 
-// Returns a Buffer, or null when there is no jacket for this book.
-export async function getBookCover(title, author) {
-  if (!String(title || '').trim()) return null;
+// { buf: Buffer|null, cachedMiss: boolean }. `cachedMiss` is true only when
+// the answer came from the 7-day negative cache without touching the
+// provider — that's the signal the route uses to answer 204 instead of 404,
+// and the thing this whole cache exists to make true.
+export async function getBookCoverResult(title, author) {
+  if (!String(title || '').trim()) return { buf: null, cachedMiss: false };
   const key = coverKey(title, author);
+
   const hit = memo.get(key);
-  if (hit) return hit === MISS ? null : (hit instanceof Promise ? hit : hit);
+  if (hit) return { buf: hit instanceof Promise ? await hit : hit, cachedMiss: false };
 
   const onDisk = await fromDisk(key);
   if (onDisk) {
     memo.set(key, onDisk);
-    return onDisk === MISS ? null : onDisk;
+    return { buf: onDisk, cachedMiss: false };
   }
+
+  if (await isCachedMiss(key)) return { buf: null, cachedMiss: true };
 
   const work = (async () => {
     let buf = null;
@@ -117,11 +177,23 @@ export async function getBookCover(title, author) {
       memo.delete(key);
       return null;
     }
-    const value = buf || MISS;
-    memo.set(key, value);
-    await toDisk(key, value);
+    if (buf) {
+      memo.set(key, buf);
+      await toDisk(key, buf);
+    } else {
+      memo.delete(key);
+      await recordMiss(key);
+    }
     return buf;
   })();
   memo.set(key, work);
-  return work;
+  return { buf: await work, cachedMiss: false };
 }
+
+// Back-compat convenience: a Buffer, or null when there is no jacket.
+export async function getBookCover(title, author) {
+  return (await getBookCoverResult(title, author)).buf;
+}
+
+// test hook
+export function _resetCoversForTest() { memo.clear(); missesLoaded = null; }

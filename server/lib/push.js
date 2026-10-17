@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { readJsonRetry } from './readJsonRetry.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,13 +22,15 @@ async function getVapid() {
   if (vapid) return vapid;
   if (existsSync(KEYS_PATH())) {
     try {
-      vapid = JSON.parse(await readFile(KEYS_PATH(), 'utf8'));
+      vapid = await readJsonRetry(KEYS_PATH());
     } catch { /* regenerate below */ }
   }
   if (!vapid?.publicKey) {
     vapid = webpush.generateVAPIDKeys();
     await mkdir(dataRoot(), { recursive: true });
-    await writeFile(KEYS_PATH(), JSON.stringify(vapid, null, 2), 'utf8');
+    const tmp = `${KEYS_PATH()}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tmp, JSON.stringify(vapid, null, 2), 'utf8');
+    await rename(tmp, KEYS_PATH());
   }
   webpush.setVapidDetails('mailto:haydencooper@outlook.com', vapid.publicKey, vapid.privateKey);
   return vapid;
@@ -40,7 +43,7 @@ export async function getPublicKey() {
 async function loadSubs() {
   if (!existsSync(SUBS_PATH())) return [];
   try {
-    const raw = JSON.parse(await readFile(SUBS_PATH(), 'utf8'));
+    const raw = await readJsonRetry(SUBS_PATH());
     return Array.isArray(raw.subscriptions) ? raw.subscriptions : [];
   } catch {
     return [];
@@ -49,7 +52,7 @@ async function loadSubs() {
 
 async function saveSubs(subscriptions) {
   await mkdir(dataRoot(), { recursive: true });
-  const tmp = SUBS_PATH() + '.tmp';
+  const tmp = `${SUBS_PATH()}.${process.pid}.${Date.now()}.tmp`;
   await writeFile(tmp, JSON.stringify({ subscriptions }, null, 2), 'utf8');
   await rename(tmp, SUBS_PATH());
 }
@@ -155,7 +158,7 @@ const locked = (fn) => { const run = chain.then(fn, fn); chain = run.catch(() =>
 async function loadHeld() {
   if (!existsSync(HELD_PATH())) return [];
   try {
-    const raw = JSON.parse(await readFile(HELD_PATH(), 'utf8'));
+    const raw = await readJsonRetry(HELD_PATH());
     return Array.isArray(raw.held) ? raw.held : [];
   } catch {
     return [];
@@ -163,7 +166,7 @@ async function loadHeld() {
 }
 async function saveHeld(held) {
   await mkdir(dataRoot(), { recursive: true });
-  const tmp = HELD_PATH() + '.tmp';
+  const tmp = `${HELD_PATH()}.${process.pid}.${Date.now()}.tmp`;
   await writeFile(tmp, JSON.stringify({ held }, null, 2), 'utf8');
   await rename(tmp, HELD_PATH());
 }

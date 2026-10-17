@@ -15,7 +15,7 @@ import { speakableText } from '../../src/artifactBlocks.js';
 import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.js';
 import { registerBlock, whereLine, suppressGlass, forceConfirmFor } from './register.js';
 import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
-import { registerJobMap } from './jobRegistry.js';
+import { registerJobMap, recordJobReceipt } from './jobRegistry.js';
 import { consultCapability, consultReminder, consultedBrief, openConsult, stripDirectives, unwrapDocuments, GUARD_NOTE, ANSWER_NOW } from './consult.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
@@ -166,7 +166,25 @@ function spawnWarm(key, { cwd, args, env }) {
         const totalCost = typeof ev.total_cost_usd === 'number' ? ev.total_cost_usd : null;
         const turnCost = totalCost != null ? Math.max(0, totalCost - (w.lastCostUsd || 0)) : null;
         if (totalCost != null) w.lastCostUsd = totalCost;
-        recordRun(laneForKind(key.split(':')[0]), fromEnvelope({ ...ev, total_cost_usd: turnCost }));
+        const lane = laneForKind(key.split(':')[0]);
+        const envelope = fromEnvelope({ ...ev, total_cost_usd: turnCost });
+        recordRun(lane, envelope);
+        // one receipt per completed model job (18 Oct 2026) — best-effort,
+        // never allowed to affect the turn it is describing
+        try {
+          recordJobReceipt({
+            kind: key.split(':')[0],
+            lane,
+            model: envelope.model ?? null,
+            ms: envelope.ms ?? null,
+            firstTextMs: null,
+            consults: job.consulted || [],
+            status: errMsg ? 'error' : 'done',
+            error: errMsg || null,
+            costUsd: turnCost,
+            chars: typeof replyText === 'string' ? replyText.length : null,
+          }).catch(() => {});
+        } catch { /* a receipt must never break the turn */ }
         w.currentJob = null;
         w.finishTurn = null;
         w.streamed = '';

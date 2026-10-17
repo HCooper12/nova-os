@@ -98,33 +98,39 @@ export function claudeCodeRouter({ repoPath, vaultPath }) {
   // a missing workspace is Nova OS (older clients sent none); an unknown one
   // is refused in lib/codeWorkspaces.js, never quietly read as Nova OS
   const ws = (w) => (typeof w === 'string' && w ? w : 'repo');
-  const fail = (res, e) => res.status(400).json({ error: e.message, code: e.code || null });
+  // 18 Oct 2026 ledger: GET /claude-code/changes -> 400 five times with no
+  // trace of why. This is the one place every /claude-code/* route answers
+  // its failure, so logging it here covers all of them in one line.
+  const fail = (res, e, req) => {
+    console.error(`err ${new Date().toISOString()} ${req?.method || 'GET'} ${req?.originalUrl || req?.path || ''} 400 ${e.message}`);
+    res.status(400).json({ error: e.message, code: e.code || null });
+  };
   router.get('/claude-code/workspaces', async (req, res) => {
-    try { res.json({ workspaces: await listWorkspaces({ vaultPath }) }); } catch (e) { fail(res, e); }
+    try { res.json({ workspaces: await listWorkspaces({ vaultPath }) }); } catch (e) { fail(res, e, req); }
   });
   router.get('/claude-code/changes', async (req, res) => {
     try {
       const sid = typeof req.query.sessionId === 'string' && SESSION_ID_RE.test(req.query.sessionId) ? req.query.sessionId : null;
       res.json(await (await changes()).changeSummary(ws(req.query.workspace), vaultPath, { repoRoot: repoPath, sessionId: sid }));
-    } catch (e) { fail(res, e); }
+    } catch (e) { fail(res, e, req); }
   });
   router.get('/claude-code/diff', async (req, res) => {
-    try { res.json(await (await changes()).fileDiff(ws(req.query.workspace), vaultPath, req.query.path, { repoRoot: repoPath })); } catch (e) { fail(res, e); }
+    try { res.json(await (await changes()).fileDiff(ws(req.query.workspace), vaultPath, req.query.path, { repoRoot: repoPath })); } catch (e) { fail(res, e, req); }
   });
   router.get('/claude-code/commits', async (req, res) => {
-    try { res.json(await (await changes()).listCommits(req.query.workspace === 'all' ? 'all' : ws(req.query.workspace), vaultPath, { repoRoot: repoPath, since: Number(req.query.since) || 0 })); } catch (e) { fail(res, e); }
+    try { res.json(await (await changes()).listCommits(req.query.workspace === 'all' ? 'all' : ws(req.query.workspace), vaultPath, { repoRoot: repoPath, since: Number(req.query.since) || 0 })); } catch (e) { fail(res, e, req); }
   });
   router.post('/claude-code/commit', async (req, res) => {
-    try { res.json(await (await changes()).commitChanges(ws(req.body?.workspace), vaultPath, req.body?.message, { repoRoot: repoPath, paths: req.body?.paths })); } catch (e) { fail(res, e); }
+    try { res.json(await (await changes()).commitChanges(ws(req.body?.workspace), vaultPath, req.body?.message, { repoRoot: repoPath, paths: req.body?.paths })); } catch (e) { fail(res, e, req); }
   });
   router.post('/claude-code/undo', async (req, res) => {
-    try { res.json(await (await changes()).undoCommit(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, sha: req.body?.sha })); } catch (e) { fail(res, e); }
+    try { res.json(await (await changes()).undoCommit(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, sha: req.body?.sha })); } catch (e) { fail(res, e, req); }
   });
   router.post('/claude-code/shelve', async (req, res) => {
-    try { res.json(await (await changes()).shelveChanges(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, paths: req.body?.paths })); } catch (e) { fail(res, e); }
+    try { res.json(await (await changes()).shelveChanges(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, paths: req.body?.paths })); } catch (e) { fail(res, e, req); }
   });
   router.post('/claude-code/unshelve', async (req, res) => {
-    try { res.json(await (await changes()).unshelveLatest(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, sha: req.body?.sha || undefined })); } catch (e) { fail(res, e); }
+    try { res.json(await (await changes()).unshelveLatest(ws(req.body?.workspace), vaultPath, { repoRoot: repoPath, sha: req.body?.sha || undefined })); } catch (e) { fail(res, e, req); }
   });
 
   return router;

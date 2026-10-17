@@ -134,3 +134,20 @@ test('an ask row lands in the file like any other', async () => {
   assert.equal(last.lane, 'reflex');
   assert.equal(last.firstAudioMs, 410);
 });
+
+// 18 Oct 2026: two appends racing the same `turns.json.tmp` threw
+// `ENOENT ... turns.json.tmp` 8 times in 14 days — whichever write renamed
+// second found its tmp file already moved by the first. Every write now
+// goes through one chain with its own tmp name; 20 concurrent appends must
+// all survive.
+test('20 concurrent appends race the same file and lose nothing', async () => {
+  await rm(turnsFile, { force: true });
+  const before = readTurns().length;
+  await Promise.all(Array.from({ length: 20 }, (_, i) => (
+    appendTurn({ reason: 'hold', ms: i, restarts: 0, heard: true, surface: 'voice' })
+  )));
+  const after = readTurns();
+  assert.equal(after.length, before + 20, 'no write was clobbered by a sibling');
+  const seen = new Set(after.map((t) => t.ms));
+  for (let i = 0; i < 20; i++) assert.ok(seen.has(i), `turn ${i} is missing from the log`);
+});

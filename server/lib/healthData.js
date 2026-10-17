@@ -1,7 +1,18 @@
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { writeFile, mkdir, readdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readJsonRetry } from './readJsonRetry.js';
+
+// One writer, its own tmp name — the day file and the pushlog are each read
+// far more often than they're written, so a reader catching a half-written
+// file is the likelier of the two faults; this closes the other half.
+async function writeJsonAtomic(full, value) {
+  await mkdir(path.dirname(full), { recursive: true });
+  const tmp = `${full}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(tmp, JSON.stringify(value, null, 2), 'utf8');
+  await rename(tmp, full);
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Deliberately NOT in the Obsidian vault — this is raw daily telemetry, not
@@ -216,7 +227,7 @@ export async function saveDay(date, metrics, { manual = false, accumSource = nul
   if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
   await ensureDir();
   const full = path.join(HEALTH_DIR, `${date}.json`);
-  const existing = existsSync(full) ? JSON.parse(await readFile(full, 'utf8')) : { date };
+  const existing = existsSync(full) ? await readJsonRetry(full) : { date };
   const cleaned = pickKnownMetrics(metrics);
   const merged = { ...existing, ...cleaned, date, receivedAt: new Date().toISOString() };
   if (accumSource) merged.accumSource = accumSource;
@@ -264,7 +275,7 @@ export async function saveDay(date, metrics, { manual = false, accumSource = nul
       merged.weightCarried = !!same;
     }
   }
-  await writeFile(full, JSON.stringify(merged, null, 2), 'utf8');
+  await writeJsonAtomic(full, merged);
   // an old month's page regenerates on the mirror's next tick
   import('./healthMirror.js').then(({ noteHealthWrite }) => noteHealthWrite(date)).catch(() => {});
   return merged;
@@ -283,7 +294,7 @@ async function lastWeightBefore(date) {
     const full = path.join(HEALTH_DIR, `${iso}.json`);
     if (!existsSync(full)) continue;
     try {
-      const day = JSON.parse(await readFile(full, 'utf8'));
+      const day = await readJsonRetry(full);
       if (day.weightKg == null || day.weightKg === 0) continue;
       return { weightKg: day.weightKg, measuredOn: day.weightMeasuredOn || day.date };
     } catch { /* a corrupt day is not a weigh-in */ }
@@ -420,22 +431,21 @@ export async function logPushAttempt(entry) {
   try {
     let log = [];
     if (existsSync(PUSHLOG())) {
-      try { log = JSON.parse(await readFile(PUSHLOG(), 'utf8')).attempts || []; } catch { log = []; }
+      try { log = (await readJsonRetry(PUSHLOG())).attempts || []; } catch { log = []; }
     }
     log.push({ at: new Date().toISOString(), ...entry });
-    await mkdir(path.dirname(PUSHLOG()), { recursive: true });
-    await writeFile(PUSHLOG(), JSON.stringify({ attempts: log.slice(-50) }, null, 2), 'utf8');
+    await writeJsonAtomic(PUSHLOG(), { attempts: log.slice(-50) });
   } catch { /* receipts are best-effort, never block the push */ }
 }
 export async function readPushLog() {
   if (!existsSync(PUSHLOG())) return [];
-  try { return JSON.parse(await readFile(PUSHLOG(), 'utf8')).attempts || []; } catch { return []; }
+  try { return (await readJsonRetry(PUSHLOG())).attempts || []; } catch { return []; }
 }
 
 export async function loadDay(date) {
   const full = path.join(HEALTH_DIR, `${date}.json`);
   if (!existsSync(full)) return null;
-  return JSON.parse(await readFile(full, 'utf8'));
+  return readJsonRetry(full);
 }
 
 // ONE ingest gate for every channel that writes health data (the URL push,
@@ -583,7 +593,7 @@ export async function loadRecentDays(n = 14) {
   const files = (await readdir(HEALTH_DIR)).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort().reverse();
   const days = [];
   for (const f of files.slice(0, n)) {
-    days.push(withNormalizedMetrics(JSON.parse(await readFile(path.join(HEALTH_DIR, f), 'utf8'))));
+    days.push(withNormalizedMetrics(await readJsonRetry(path.join(HEALTH_DIR, f))));
   }
   return days.reverse(); // oldest-first, easier to read as a trend
 }

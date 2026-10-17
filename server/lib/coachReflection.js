@@ -161,7 +161,11 @@ function runModel(prompt) {
       // in Settings; the default is the 'sonnet' this lane has always run on.
       '--model', modelFor('coach-reflection'),
       '--no-session-persistence',
-    ]);
+      // 18 Oct 2026 ledger: "no stdin data" x4. The prompt already arrives
+      // as the `-p` ARGUMENT, but a bare `spawn()` leaves stdin as an open
+      // pipe nobody ever writes to or closes — the CLI then waits on it. The
+      // fix is claudeCode.js's own (line ~1611): close stdin outright.
+    ], { stdio: ['ignore', 'pipe', 'pipe'] }); // stdin closed — the CLI otherwise waits on the open pipe
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });
@@ -185,6 +189,13 @@ export async function runReflection(vaultPath, { force = false } = {}) {
   if (laneSkipped('coach-reflection', 'the coach reflection')) return { skipped: true, reason: 'lane switched off in Settings' };
 
   const context = await buildReflectionContext(vaultPath);
+  // An empty context means every section above failed — the model would be
+  // asked to judge a week it was handed nothing real about. Skip and log it
+  // rather than spawning a CLI call whose prompt is effectively empty.
+  if (!context || !context.trim()) {
+    console.error('coach reflection skipped: empty prompt (no context assembled — every section failed)');
+    return { skipped: true, reason: 'empty prompt' };
+  }
   const reflection = normalizeReflection(await runModel(buildReflectionPrompt(context)));
 
   // learnings → normal approval-gated proposals on the rails — minus what

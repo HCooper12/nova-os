@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { loadRecentDays, HEALTH_METRICS } from '../lib/healthData.js';
 import { getLatestInsight, generateInsightNow } from '../lib/healthInsight.js';
 import { computeStreaks } from '../lib/streaks.js';
+import { logRequestError } from '../lib/requestErrors.js';
 
 export function healthDataRouter(vaultPath) {
   const router = Router();
@@ -163,7 +164,7 @@ export function healthDataRouter(vaultPath) {
       const data = await loadRecentDays(days);
       res.json({ days: data, metrics: HEALTH_METRICS });
     } catch (err) {
-      next(err);
+      logRequestError(err, req, res, next);
     }
   });
 

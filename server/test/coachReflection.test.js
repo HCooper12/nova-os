@@ -50,3 +50,27 @@ test('the window is 03:00–09:00; the clamps hold', () => {
   assert.equal(r.outreach, null, 'under 20 characters is not an outreach');
   assert.equal(normalizeReflection({ outreach: 'a'.repeat(900) }).outreach.length, 800);
 });
+
+// 18 Oct 2026 ledger: "coach reflection failed: ... no stdin data ..." x4.
+// The prompt arrives as the `-p` argument, but a bare `spawn()` leaves
+// stdin open with nobody writing or closing it, and the CLI then waits on
+// it. Same source-shape check as modelSpend.test.js's spawn-site coverage
+// — the spawn itself is not exercised here either.
+test('the model spawn closes stdin, the way claudeCode.js\'s own -p call does', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../lib/coachReflection.js', import.meta.url), 'utf8');
+  const call = src.slice(src.indexOf('function runModel'), src.indexOf('function runModel') + 1200);
+  assert.match(call, /stdio:\s*\[\s*'ignore'/, 'stdin must be closed, not left as an open, unwritten pipe');
+});
+
+// The guard itself, in isolation: `runReflection` returns `{ skipped: true,
+// reason: 'empty prompt' }` and logs instead of spawning when the context
+// string is empty. buildReflectionContext is internal and depends on a
+// real vault, so this pins the guard's own text — the thing a future
+// refactor of that function is most likely to silently drop.
+test('the empty-context skip exists, names its reason, and logs before returning', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../lib/coachReflection.js', import.meta.url), 'utf8');
+  assert.match(src, /console\.error\('coach reflection skipped: empty prompt/);
+  assert.match(src, /reason:\s*'empty prompt'/);
+});

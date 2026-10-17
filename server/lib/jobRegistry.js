@@ -12,7 +12,40 @@
 // scripts/reload-server.mjs refuses to restart the server while it is above
 // zero. That is the rule, for every session that ships to his Mac.
 
+import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 const maps = new Map(); // name → Map of jobs
+
+// RECEIPTS — 18 Oct 2026: every model job's cost, timing and consult trail
+// lived only in the in-memory job object, gone the moment it was evicted
+// (or on any restart). This is a bounded, append-only trail of what actually
+// ran: `{ at, kind, lane, model, ms, firstTextMs, consults, status, error,
+// costUsd, chars }`, one line per completed job, capped at 5000 lines —
+// cheap enough to keep forever in practice, bounded so it never can't.
+const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data');
+const RECEIPTS_DIR = () => path.join(dataRoot(), 'jobs');
+const RECEIPTS_PATH = () => path.join(RECEIPTS_DIR(), 'receipts.jsonl');
+const MAX_RECEIPTS = 5000;
+
+let writingReceipts = Promise.resolve();
+export function recordJobReceipt(record) {
+  const line = JSON.stringify({ at: new Date().toISOString(), ...record });
+  const job = writingReceipts.then(async () => {
+    await mkdir(RECEIPTS_DIR(), { recursive: true });
+    let existing = '';
+    try { existing = await readFile(RECEIPTS_PATH(), 'utf8'); } catch { /* first receipt */ }
+    const lines = existing ? existing.split('\n').filter(Boolean) : [];
+    lines.push(line);
+    const kept = lines.slice(-MAX_RECEIPTS);
+    const tmp = `${RECEIPTS_PATH()}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tmp, kept.join('\n') + '\n', 'utf8');
+    await rename(tmp, RECEIPTS_PATH());
+  });
+  writingReceipts = job.then(() => {}, () => {});
+  return job.catch((e) => { console.error('job receipt failed to write:', e.message); });
+}
 
 const TERMINAL = new Set(['ready', 'error', 'done', 'failed', 'cancelled', 'canceled', 'applied', 'discarded', 'undone', 'filed', 'refused']);
 

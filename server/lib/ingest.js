@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, cp, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdir, cp, readFile, writeFile, rm, rename } from 'node:fs/promises';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -12,6 +12,7 @@ import { createRecord } from './inboxStore.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { registerJobMap } from './jobRegistry.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
+import { readJsonRetry, readJsonRetrySync } from './readJsonRetry.js';
 
 // .nova-backups is Nova's own pre-write copies (backup.js): staging them let
 // the model's sandbox grow backups of its own edits, which the diff then
@@ -59,8 +60,11 @@ async function persistJob(job) {
   try {
     await mkdir(jobsDir(), { recursive: true });
     const { id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId, merged, stagedMerged } = job;
-    await writeFile(path.join(jobsDir(), `${id}.json`),
+    const full = path.join(jobsDir(), `${id}.json`);
+    const tmp = `${full}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tmp,
       JSON.stringify({ id, status, summary, cost, changes, error, vaultPath, workDir, stagingVault, digested, createdAt, book, person, progress, heartbeatAt, appliedAt, undoneAt, receiptId, merged, stagedMerged }), 'utf8');
+    await rename(tmp, full);
   } catch (e) {
     console.error(`ingest job ${job.id} failed to persist:`, e.message);
   }
@@ -69,7 +73,7 @@ async function persistJob(job) {
 async function loadJobFromDisk(jobId) {
   if (!/^[a-f0-9-]+$/i.test(jobId)) return null; // job ids are uuid slices — never a path
   try {
-    return JSON.parse(await readFile(path.join(jobsDir(), `${jobId}.json`), 'utf8'));
+    return await readJsonRetry(path.join(jobsDir(), `${jobId}.json`));
   } catch {
     return null;
   }
@@ -146,7 +150,7 @@ function listFiles(dir, base = dir, out = []) {
 // left out and named (conflictNote), never merged by guesswork.
 export function diffTreesReport(originalDir, stagingDir, { merge = false } = {}) {
   let manifest = null;
-  try { manifest = JSON.parse(readFileSync(path.join(stagingDir, MANIFEST), 'utf8')); } catch { manifest = null; }
+  try { manifest = readJsonRetrySync(path.join(stagingDir, MANIFEST)); } catch { manifest = null; }
   // Raw/ is not staged (see stageVault), but the REAL Raw/ still decides
   // new-vs-updated: without it, rewriting an existing transcript reads as a
   // brand-new file and an identical rewrite shows as a change that isn't one.
@@ -558,7 +562,7 @@ export async function listOpenJobs() {
   try { names = readdirSync(jobsDir()).filter((f) => f.endsWith('.json')); } catch { return out; }
   for (const f of names) {
     let d = null;
-    try { d = JSON.parse(readFileSync(path.join(jobsDir(), f), 'utf8')); } catch { continue; }
+    try { d = readJsonRetrySync(path.join(jobsDir(), f)); } catch { continue; }
     if (!d?.id) continue;
     // In-memory beats disk: a job still running has a live status the file
     // may not have caught up with yet.
@@ -705,7 +709,7 @@ async function pruneSettledJobs() {
   const cutoff = Date.now() - SETTLED_KEEP_DAYS * 86400e3;
   for (const f of names) {
     let d = null;
-    try { d = JSON.parse(readFileSync(path.join(jobsDir(), f), 'utf8')); } catch { continue; }
+    try { d = readJsonRetrySync(path.join(jobsDir(), f)); } catch { continue; }
     if (!['applied', 'undone'].includes(d?.status)) continue;
     const settledAt = new Date(d.undoneAt || d.appliedAt || d.createdAt || 0).getTime();
     if (settledAt < cutoff) await rm(path.join(jobsDir(), f), { force: true }).catch(() => {});

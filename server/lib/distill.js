@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, rm, stat, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,7 @@ import { isGateModel } from './modelChoice.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { weeklyWindowOpen } from './cadence.js';
 import { recordRun, fromEnvelope } from './modelSpend.js';
+import { readJsonRetry } from './readJsonRetry.js';
 
 // The distiller — captures become knowledge. Filed captures land as FLAT
 // pages (Wiki/Inbox, Studio ideas) with no wikilinks, so the graph never
@@ -69,7 +70,7 @@ export async function loadRecentJobs() {
   let names = [];
   try { names = (await readdir(jobsDir())).filter((f) => f.endsWith('.json')); } catch { return []; }
   const jobs = [];
-  for (const f of names) { try { jobs.push(JSON.parse(await readFile(path.join(jobsDir(), f), 'utf8'))); } catch { /* unreadable job */ } }
+  for (const f of names) { try { jobs.push(await readJsonRetry(path.join(jobsDir(), f))); } catch { /* unreadable job */ } }
   return jobs;
 }
 
@@ -122,12 +123,15 @@ Finish with a concise summary: per page, what was linked (or why it was left), a
 
 async function persistJob(job) {
   await mkdir(jobsDir(), { recursive: true });
-  await writeFile(path.join(jobsDir(), `${job.id}.json`), JSON.stringify(job, null, 2), 'utf8');
+  const full = path.join(jobsDir(), `${job.id}.json`);
+  const tmp = `${full}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(tmp, JSON.stringify(job, null, 2), 'utf8');
+  await rename(tmp, full);
 }
 
 export async function loadDistillJob(jobId) {
   try {
-    return JSON.parse(await readFile(path.join(jobsDir(), `${jobId}.json`), 'utf8'));
+    return await readJsonRetry(path.join(jobsDir(), `${jobId}.json`));
   } catch {
     return null;
   }
@@ -269,7 +273,7 @@ async function pruneSettledJobs() {
   const cutoff = Date.now() - SETTLED_KEEP_DAYS * 86400e3;
   for (const f of names) {
     let d = null;
-    try { d = JSON.parse(await readFile(path.join(jobsDir(), f), 'utf8')); } catch { continue; }
+    try { d = await readJsonRetry(path.join(jobsDir(), f)); } catch { continue; }
     if (!['applied', 'undone'].includes(d?.status)) continue;
     const settledAt = new Date(d.undoneAt || d.appliedAt || d.at || 0).getTime();
     if (settledAt < cutoff) await rm(path.join(jobsDir(), f), { force: true }).catch(() => {});

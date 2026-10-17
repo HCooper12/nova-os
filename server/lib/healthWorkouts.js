@@ -8,7 +8,8 @@
 // session is an accountability signal the Coach raises; walks and cardio
 // enrich the recovery picture the ring and briefs read.
 
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, rename } from 'node:fs/promises';
+import { readJsonRetry } from './readJsonRetry.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -95,9 +96,11 @@ export async function ingestWorkouts({ date, workouts, rawBody }) {
   for (const [d, ws] of byDate) {
     const full = path.join(DIR(), `${d}.json`);
     let existing = [];
-    try { existing = JSON.parse(await readFile(full, 'utf8')).workouts || []; } catch { /* first push for the day */ }
+    try { existing = (await readJsonRetry(full)).workouts || []; } catch { /* first push for the day */ }
     const merged = mergeWorkouts(existing, ws);
-    await writeFile(full, JSON.stringify({ date: d, workouts: merged, updatedAt: new Date().toISOString() }, null, 2), 'utf8');
+    const tmp = `${full}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tmp, JSON.stringify({ date: d, workouts: merged, updatedAt: new Date().toISOString() }, null, 2), 'utf8');
+    await rename(tmp, full);
     saved[d] = merged.length;
   }
   await logPushAttempt({ ok: true, kind: 'workouts', dates: [...byDate.keys()], count: list.length });
@@ -105,7 +108,7 @@ export async function ingestWorkouts({ date, workouts, rawBody }) {
 }
 
 export async function workoutsForDay(date) {
-  try { return JSON.parse(await readFile(path.join(DIR(), `${date}.json`), 'utf8')).workouts || []; } catch { return []; }
+  try { return (await readJsonRetry(path.join(DIR(), `${date}.json`))).workouts || []; } catch { return []; }
 }
 
 export async function recentWorkoutDays(days = 7) {
@@ -116,7 +119,7 @@ export async function recentWorkoutDays(days = 7) {
   for (const f of files.sort().reverse()) {
     const d = f.replace('.json', '');
     if (d < cutoff) break;
-    try { out.push(JSON.parse(await readFile(path.join(DIR(), f), 'utf8'))); } catch { /* skip corrupt */ }
+    try { out.push(await readJsonRetry(path.join(DIR(), f))); } catch { /* skip corrupt */ }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }

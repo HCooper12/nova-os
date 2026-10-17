@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { reviewToday, submitAnswer, drawEarly, reviewItemFor, GRADES } from '../lib/conceptReview.js';
 import { getCachedReviewSummary, startReviewSummaryJob, getReviewSummaryJob, reviewSummaryInput } from '../lib/reviewSummary.js';
+import { logRequestError } from '../lib/requestErrors.js';
 
 // THE DAILY REVIEW — one queue, shared by both Home idioms and the morning
 // brief (dispatch.js reads this same queue head; see conceptReview.js for
@@ -16,7 +17,7 @@ export function reviewRouter(vaultPath, vault) {
   router.get('/review/today', async (req, res, next) => {
     try {
       res.json(await reviewToday(vaultPath, vault));
-    } catch (err) { next(err); }
+    } catch (err) { logRequestError(err, req, res, next); }
   });
 
   // "Draw one early" — the shuffle reel's only remaining job, once the

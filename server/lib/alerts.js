@@ -29,6 +29,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { mkdir, writeFile, rename } from 'node:fs/promises';
+import { readJsonRetrySync } from './readJsonRetry.js';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -233,7 +234,7 @@ const writeLog = (rows) => atomicWrite(LOG_PATH(), rows.slice(-LOG_MAX).map((r) 
 function readPendingRaw() {
   try {
     if (!existsSync(PENDING_PATH())) return [];
-    const raw = JSON.parse(readFileSync(PENDING_PATH(), 'utf8'));
+    const raw = readJsonRetrySync(PENDING_PATH());
     return Array.isArray(raw?.alerts) ? raw.alerts : [];
   } catch {
     return [];
@@ -251,7 +252,7 @@ export function pendingAlerts(now = Date.now()) {
 export function tierOverrides() {
   try {
     if (!existsSync(TIERS_PATH())) return {};
-    const raw = JSON.parse(readFileSync(TIERS_PATH(), 'utf8'));
+    const raw = readJsonRetrySync(TIERS_PATH());
     return raw && typeof raw.tiers === 'object' && raw.tiers ? raw.tiers : {};
   } catch {
     return {};
