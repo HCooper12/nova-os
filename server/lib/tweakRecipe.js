@@ -78,6 +78,7 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
   const hasImages = imagePaths.length > 0;
   const prompt = buildPrompt(recipe, request, prior, imagePaths);
   const cleanup = () => { if (workDir) rm(workDir, { recursive: true, force: true }).catch(() => {}); };
+  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
@@ -85,7 +86,7 @@ export function startTweak(recipe, request, prior = null, imagePaths = [], workD
     '--output-format', 'json',
     '--model', modelFor('tweak-recipe'), // was unpinned until the model board
     '--no-session-persistence',
-  ]);
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';

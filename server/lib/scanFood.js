@@ -185,7 +185,8 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
     '--no-session-persistence',
   ];
   args.push('--model', model); // modelFor never returns empty — the flag is always named
-  const child = spawn(CLAUDE_BIN, args);
+  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
+  const child = spawn(CLAUDE_BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
@@ -234,6 +235,7 @@ export function startFoodDescribe(description) {
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
+  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, [
     '-p', buildDescribePrompt(text),
     '--permission-mode', 'bypassPermissions',
@@ -242,7 +244,7 @@ export function startFoodDescribe(description) {
     '--output-format', 'json',
     '--model', modelFor('food-describe'), // was unpinned until the model board
     '--no-session-persistence',
-  ]);
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';
@@ -327,7 +329,8 @@ export function startFoodRefine({ name, lines, macros, correction, history } = {
     const past = (Array.isArray(history) ? history : []).map((h) => String(h || '').trim().slice(0, 400)).filter(Boolean).slice(-8);
     const prompt = buildRefinePrompt({ name: previous.name, lines: previous.lines, correction: said, history: past });
     const run = deps.run || ((args) => new Promise((resolve, reject) => {
-      const child = spawn(CLAUDE_BIN, args);
+      // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
+      const child = spawn(CLAUDE_BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
       let out = '';
       let err = '';
       child.stdout.on('data', (d) => { out += d; });

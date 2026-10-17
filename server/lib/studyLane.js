@@ -39,7 +39,8 @@ export const INVENTORY_PATH = path.join(path.dirname(fileURLToPath(import.meta.u
 
 function run(bin, args, { timeoutMs = 120_000 } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args);
+    // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
+    const child = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
     const t = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('timed out')); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d; });
@@ -140,6 +141,7 @@ ${inventory}`;
 
 function runModel(prompt) {
   return new Promise((resolve, reject) => {
+    // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
@@ -147,7 +149,7 @@ function runModel(prompt) {
       '--output-format', 'json',
       '--model', modelFor('study-lane'), // was unpinned until the model board
       '--no-session-persistence',
-    ]);
+    ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });
     child.stderr.on('data', (d) => { stderr += d; });

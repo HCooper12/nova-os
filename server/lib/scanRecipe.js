@@ -52,6 +52,7 @@ export function startScan(imagePaths, workDir) {
   jobs.set(jobId, job);
 
   const prompt = `${SCHEMA_PROMPT}\n\nImage path(s):\n${imagePaths.map((p) => `- ${p}`).join('\n')}`;
+  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
@@ -59,7 +60,7 @@ export function startScan(imagePaths, workDir) {
     '--model', modelFor('scan-recipe'),
     '--output-format', 'json',
     '--no-session-persistence',
-  ]);
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';

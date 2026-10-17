@@ -25,7 +25,8 @@ const cookieArgs = () => (existsSync(COOKIES) ? ['--cookies', COOKIES] : []);
 
 function run(bin, args, { timeoutMs = 45_000 } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args);
+    // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
+    const child = spawn(bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
     const t = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('timed out')); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d; });

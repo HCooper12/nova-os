@@ -196,6 +196,7 @@ No markdown, no code fences, no commentary before or after — just the raw JSON
 
 function runClaude(prompt) {
   return new Promise((resolve, reject) => {
+    // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
     const child = spawn(CLAUDE_BIN, [
       '-p', prompt,
       '--permission-mode', 'bypassPermissions',
@@ -208,7 +209,7 @@ function runClaude(prompt) {
       // in Settings; the default is the 'sonnet' this lane has always run on.
       '--model', modelFor('health-insight'),
       '--no-session-persistence',
-    ]);
+    ], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });

@@ -270,6 +270,7 @@ Use "Household & Other" for anything that isn't food (kitchenware, cleaning supp
 
 Output ONLY a JSON array with exactly ${newItems.length} objects, one per item in the same order, each with keys "name" and "category". No markdown, no commentary — just the raw JSON array.`;
 
+  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
@@ -282,7 +283,7 @@ Output ONLY a JSON array with exactly ${newItems.length} objects, one per item i
     // in Settings; the default is the 'sonnet' this lane has always run on.
     '--model', modelFor('shopping-categorize'),
     '--no-session-persistence',
-  ]);
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
   let stdout = '';
   let stderr = '';

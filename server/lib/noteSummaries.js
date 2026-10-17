@@ -71,6 +71,7 @@ export function startSummaryJob(noteId, title, bodyText) {
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
+  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, [
     '-p', buildPrompt(title, bodyText),
     '--permission-mode', 'bypassPermissions',
@@ -83,7 +84,7 @@ export function startSummaryJob(noteId, title, bodyText) {
     // in Settings; the default is the 'sonnet' this lane has always run on.
     '--model', modelFor('note-summary'),
     '--no-session-persistence',
-  ]);
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (d) => { stdout += d; });

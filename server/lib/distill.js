@@ -160,6 +160,7 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
   await stageVault(vaultPath, stagingVault);
 
   const result = await new Promise((resolve) => {
+    // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
     const child = spawn(CLAUDE_BIN, [
       '-p', buildDistillPrompt(candidates),
       '--permission-mode', 'bypassPermissions',
@@ -173,7 +174,7 @@ export async function runDistillation(vaultPath, { force = false, model } = {}) 
       // UNLESS the model-choice gate already asked and got a per-run answer.
       '--model', model || modelFor('distill'),
       '--no-session-persistence',
-    ], { cwd: stagingVault });
+    ], { cwd: stagingVault, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (d) => { stdout += d; });

@@ -180,6 +180,7 @@ function classify(text, onDone) {
   // the reason — visible in the Inbox and retryable once it is back on.
   // Never a silent auto-file, and never a guessed route.
   if (!laneEnabled('inbox-classify')) { onDone(laneOffError('inbox-classify')); return; }
+  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, [
     '-p', buildPrompt(text),
     '--model', modelFor('inbox-classify'),
@@ -187,7 +188,7 @@ function classify(text, onDone) {
     ...boundaryArgs(''),
     '--output-format', 'json',
     '--no-session-persistence',
-  ]);
+  ], { stdio: ['ignore', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
   child.stdout.on('data', (d) => { stdout += d; });
