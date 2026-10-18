@@ -22,7 +22,7 @@
 //   node scripts/bench-ask.mjs --keep                # leave the temp dir behind
 //
 // Flags: --n (repeat count, default 1) --only reflex|nova|coach|leader
-//        --port (default: first free port from 4190) --out (json path)
+//        --port (default: first free port from 4200 (never 4190: undici's fetch bans it as a bad port)) --out (json path)
 //        --set (path to a JSON file of {lane,text} to replace the default 8)
 //        --timeout (ms per question, default 240000) --keep
 
@@ -104,7 +104,7 @@ async function freePort(start) {
 }
 
 const requestedPort = flag('port', null);
-const port = requestedPort ? Number(requestedPort) : await freePort(4190);
+const port = requestedPort ? Number(requestedPort) : await freePort(4200);
 if (port === 4173) throw new Error('refusing to run on 4173 — that is his live server');
 // The TTS sidecar (server/lib/ttsLocal.js) binds a hardcoded-default port
 // (NOVA_TTS_PORT, default 4175) that the real, already-running Nova server
@@ -165,6 +165,11 @@ function killChild() {
   killed = true;
   try { child.kill('SIGTERM'); } catch { /* already gone */ }
   setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* already gone */ } }, 3000);
+  // the TTS sidecar is a grandchild (python) and outlives the server; it is
+  // ours (own NOVA_TTS_PORT), so reap it by that port
+  try {
+    for (const pid of execFileSync('lsof', ['-nP', '-tiTCP:' + ttsPort, '-sTCP:LISTEN'], { encoding: 'utf8' }).split('\n').filter(Boolean)) process.kill(Number(pid), 'SIGTERM');
+  } catch { /* nothing listening */ }
 }
 process.on('exit', killChild);
 process.on('SIGINT', () => { killChild(); process.exit(130); });
@@ -228,7 +233,7 @@ async function pollJob(jobId, timeoutMs) {
       if (tFirstSentence === null && SENTENCE_RE.test(partialText)) tFirstSentence = Date.now() - t0;
     }
     if (j.consult?.length) consult = j.consult.map((c) => c.who || c.agent || c);
-    if (status === 'done' || status === 'error') {
+    if (status === 'ready' || status === 'error') {
       tDone = Date.now() - t0;
       finalText = j.result?.text || '';
       if (tFirstSentence === null && SENTENCE_RE.test(finalText)) tFirstSentence = Math.min(tDone, (tFirstText ?? tDone));
@@ -281,7 +286,7 @@ async function askOne(q) {
     row.chars = polled.finalText.length;
     row.consult = polled.consult;
     row.error = polled.error || null;
-    row.ok = !polled.error && polled.status === 'done';
+    row.ok = !polled.error && polled.status === 'ready';
     finalTextForTts = polled.finalText;
   } else if (res.error) {
     row.error = res.error;
