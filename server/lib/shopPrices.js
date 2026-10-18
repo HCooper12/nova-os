@@ -42,14 +42,13 @@ const KEEP_PRODUCTS = 6;
 export const CHAIN_DEFS = {
   w: {
     name: 'Woolworths',
-    // the JSON the public search page itself loads
+    // the JSON the public search page itself loads, asked as a GET: the
+    // same endpoint silently drops a POST that carries no browser session
+    // (every read from 10 to 19 Oct hung for 20 s), and answers a GET in
+    // under a second. Nothing is solved or faked to get there.
     request: (term) => ({
-      url: 'https://www.woolworths.com.au/apis/ui/Search/products',
-      init: {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ SearchTerm: term, PageSize: 24, PageNumber: 1, SortType: 'TraderRelevance', Location: `/shop/search/products?searchTerm=${encodeURIComponent(term)}` }),
-      },
+      url: `https://www.woolworths.com.au/apis/ui/Search/products?searchTerm=${encodeURIComponent(term)}&pageNumber=1&pageSize=24&sortType=TraderRelevance`,
+      init: { headers: { accept: 'application/json' } },
     }),
     parse: (body) => parseWoolworths(body),
   },

@@ -230,3 +230,10 @@ test('a pin: kept per line, returned with the reads, and Undo restores what it r
   await P.setPin('beef mince', b.prev);
   assert.equal((await P.pricesFor([{ name: 'beef mince' }])).pins['beef mince'].id, '9');
 });
+
+test('Woolworths is asked with a GET carrying the term (a sessionless POST hung for nine days)', () => {
+  const { url, init } = P.CHAIN_DEFS.w.request('weet bix');
+  assert.equal(init.method ?? 'GET', 'GET');
+  assert.equal(init.body, undefined);
+  assert.match(url, /^https:\/\/www\.woolworths\.com\.au\/apis\/ui\/Search\/products\?searchTerm=weet%20bix&/);
+});
