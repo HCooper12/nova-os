@@ -1806,6 +1806,18 @@ export async function retryRecord(vaultPath, id) {
     const { retryPaper } = await import('./paperLane.js');
     return retryPaper(vaultPath, record);
   }
+  if (record.kind === 'ingest' && record.ingestRetry) {
+    const { retryIngest } = await import('./ingest.js');
+    return retryIngest(vaultPath, record);
+  }
+  if (record.kind === 'recipe-video') {
+    const { retryRecipeImport } = await import('./recipeFromPage.js');
+    return retryRecipeImport(vaultPath, record);
+  }
+  if (record.kind === 'recipe-scan') {
+    const { retryRecipeScan } = await import('./scanRecipe.js');
+    return retryRecipeScan(vaultPath, record);
+  }
   if (record.kind === 'repertoire') {
     const { retryRepertoire } = await import('./repertoireLane.js');
     return retryRepertoire(vaultPath, record);

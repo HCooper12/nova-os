@@ -2,7 +2,7 @@ import { Router, raw } from 'express';
 import { writeFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { startIngest, getJob, approveJob, discardJob, listOpenJobs } from '../lib/ingest.js';
+import { startIngest, keepIngestForRetry, getJob, approveJob, discardJob, listOpenJobs } from '../lib/ingest.js';
 
 export function ingestRouter(vaultPath) {
   const router = Router();
@@ -99,7 +99,7 @@ export function ingestRouter(vaultPath) {
     }
   });
 
-  router.post('/ingest', (req, res) => {
+  router.post('/ingest', async (req, res) => {
     const { text, sourceUrl, book } = req.body || {};
     const url = sourceUrl && sourceUrl.trim() ? sourceUrl.trim() : undefined;
     // A book is title+author — the Librarian researches it, then the same
@@ -116,6 +116,14 @@ export function ingestRouter(vaultPath) {
       const jobId = run(text && text.trim() ? text : null, url, bookReq, null, { autoApply: req.body?.autoApply === true, notifyLabel: typeof req.body?.label === 'string' ? req.body.label.slice(0, 120) : null });
       res.json({ jobId });
     } catch (e) {
+      // the lane is off: nothing he sent is lost. The link and any pasted
+      // text ride a retryable inbox record, and the answer says so plainly.
+      if (e.laneOff) {
+        try {
+          const rec = await keepIngestForRetry({ text: text && text.trim() ? text : null, sourceUrl: url || null, book: bookReq, opts: { autoApply: req.body?.autoApply === true, notifyLabel: typeof req.body?.label === 'string' ? req.body.label.slice(0, 120) : null } }, e.message);
+          return res.status(400).json({ error: rec.error, kept: true, recordId: rec.id });
+        } catch { /* fall through to the plain refusal */ }
+      }
       res.status(400).json({ error: e.message });
     }
   });
