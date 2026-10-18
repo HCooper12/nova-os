@@ -16,7 +16,7 @@ import { goalsContext } from './fitnessGoals.js';
 import { profileContext } from './profile.js';
 import { startAskCoach, sessionContextTokens, claimConsultSession } from './claudeCode.js';
 import { sessionOwnerGuard } from './askSession.js';
-import { isDeepAsk } from './intentRouter.js';
+import { isDeepAsk, coachDepth } from './intentRouter.js';
 import { loadRecentDays, weightTrendLine, sleepEfficiencyLine, vo2MaxLine } from './healthData.js';
 import { carryoverContext } from './workoutCarryover.js';
 import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
@@ -44,7 +44,13 @@ const LIVE_HEAD = /^LIVE UPDATE \([^)]*\): ([\s\S]*?)\.?$/;
 // call before any words, and he waited 34.7 s in silence for the first one.
 // On a SPOKEN turn only (Nova's door with spoken: true), the turn carries
 // this line; the Coach tab and consults never see it.
-export const SPEAK_FIRST_RULE = '[SPEAK FIRST: your first sentence answers from what is already in front of you, before any tool call; if you need to check something, say the one-line answer you have, then look.]';
+// HIS RULE, 18 Oct 2026: "the coach should always look things up if it needs
+// the clarity and information. Any guessing is a failure." So the spoken
+// rule never asks for an answer before the facts: when the Coach must look,
+// its first sentence says what it is checking, then it answers from what it
+// found. (The first version said "answer from what is in front of you before
+// any tool call", which pushed toward a guess.)
+export const SPEAK_FIRST_RULE = "[LOOK IT UP, NEVER GUESS: if the answer depends on anything not in the context above, read it with your tools before you answer; a guess is a failure. Spoken turn: if you need to look, your first sentence says what you are checking (for example \"Checking your last six bench sessions.\"), never a provisional answer; then answer from what you found.]";
 export const speakFirstLine = (spoken) => (spoken === true ? SPEAK_FIRST_RULE : '');
 
 // What was last sent to each session, so the next turn can send the change.
@@ -120,8 +126,11 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
   const placeLine = consulted ? '' : whereLine(where?.place);
   // a consult is another agent asking, never a spoken turn of his
   const speakFirst = consulted ? '' : speakFirstLine(spoken);
-  // a request for the whole picture thinks harder (claudeCode.js DEEP_EFFORT)
-  const deep = !consulted && isDeepAsk(question);
+  // DEPTH FOLLOWS THE QUESTION (his call, 18 Oct 2026: "prioritise depth when
+  // necessary and needed for answers, unless they are simple changes or quick
+  // responses"). Anything but a simple change or a quick fact thinks at the
+  // deep effort (claudeCode.js DEEP_EFFORT); intentRouter.js coachDepth.
+  const deep = !consulted && coachDepth(question) !== 'quick';
   // THE LANE GUARD (lib/askSession.js): an id recorded for Nova or the
   // Leader is never resumed as the Coach's. Fresh session, full picture.
   if (sessionId && !consulted) {

@@ -139,9 +139,23 @@ export function routeIntent(text) {
 // the lanes now think at low/medium, and only a request for the whole picture
 // earns more (lib/modelPrefs.js DEEP_EFFORT). Deliberately demanding: a verb
 // of rebuilding aimed at the plan itself, or words that say "all of it".
-const DEEP_RE = /\b(?:re-?evaluate|re-?assess|re-?design|re-?build|re-?think|re-?work|overhaul|re-?do|re-?structure)\b[^.?!]{0,40}?\b(?:program(?:me)?|split|plan|training|block|routines?)\b|\bfull (?:review|audit|re-?evaluation|overhaul)\b|\bgo(?:ing)? (?:through|over) (?:the|my) (?:whole|entire)\b|\b(?:review|look at|audit) (?:the|my) (?:whole|entire)\b/i;
+const DEEP_RE = /\b(?:re[- ]?evaluate|re[- ]?assess|re[- ]?design|re[- ]?build|re[- ]?think|re[- ]?work|overhaul|re[- ]?do|re[- ]?structure)\b[^.?!]{0,40}?\b(?:program(?:me)?|split|plan|training|block|routines?)\b|\bfull (?:review|audit|re[- ]?evaluation|overhaul)\b|\bgo(?:ing)? (?:through|over) (?:the|my) (?:whole|entire)\b|\b(?:review|look at|audit) (?:the|my) (?:whole|entire)\b/i;
 export function isDeepAsk(text) {
   return DEEP_RE.test(String(text || ''));
+}
+// How hard the Coach should think (his call, 18 Oct 2026). 'deep' is a
+// request for the whole picture (DEEP_RE); 'quick' is a simple change or a
+// short factual ask; everything else is 'think', and 'think' gets the deep
+// effort too: when in doubt, depth.
+const QUICK_CHANGE_RE = /^(?:please\s+)?(?:swap|replace|change|move|switch|add|remove|drop|delete|rename|bump|lower|raise|put|set|make it|use)\b/i;
+const QUICK_FACT_RE = /^(?:what(?:'s| is| was)|when(?:'s| is| was)|how many|how much|which|did i|have i)\b/i;
+const ANALYTIC_RE = /\b(?:why|should|could|would|progress\w*|stall\w*|plateau\w*|deload\w*|recover\w*|fatigue|pain|hurt\w*|injur\w*|sore|compare|versus|vs|better|worse|best|enough|too (?:much|little)|right|wrong|recommend\w*|advice|plan\w*|program\w*|split|trend\w*|improv\w*|weak\w*|balance\w*|goal\w*)\b/i;
+export function coachDepth(text) {
+  const q = String(text || '').trim();
+  if (isDeepAsk(q)) return 'deep';
+  if (ANALYTIC_RE.test(q)) return 'think';
+  if (q.length <= 140 && (QUICK_CHANGE_RE.test(q) || QUICK_FACT_RE.test(q))) return 'quick';
+  return 'think';
 }
 // The one line code speaks after the ack when a deep Coach turn starts, so
 // the longer silence is announced, never a mystery. Written by code, never

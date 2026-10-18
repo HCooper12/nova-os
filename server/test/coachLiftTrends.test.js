@@ -150,7 +150,7 @@ const vault = mkdtempSync(path.join(tmpdir(), 'nova-trends-vault-'));
 const sentText = (marker) => spawns().filter((x) => typeof x.text === 'string' && x.text.includes(marker)).map((x) => x.text).at(-1);
 
 test('the rule line itself, and only for spoken === true', () => {
-  assert.match(SPEAK_FIRST_RULE, /^\[SPEAK FIRST: your first sentence answers from what is already in front of you, before any tool call; if you need to check something, say the one-line answer you have, then look\.\]$/);
+  assert.match(SPEAK_FIRST_RULE, /^\[LOOK IT UP, NEVER GUESS: /);
   assert.equal(speakFirstLine(true), SPEAK_FIRST_RULE);
   assert.equal(speakFirstLine(false), '');
   assert.equal(speakFirstLine(undefined), '');
