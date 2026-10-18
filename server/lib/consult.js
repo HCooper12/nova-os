@@ -439,7 +439,11 @@ export function consultedBrief(by, parentQuestion = '', { canPropose = false } =
   const asking = held
     ? `, because of what Hayden said to ${by === 'nova' ? 'him' : who}, in his own words: "${q}"`
     : q ? `, to help answer Hayden's question: "${q}"` : '';
-  return `[${cap(who)} is consulting you${asking}. Answer ${who}, not Hayden: directly and completely (the length rules for talking to him do not apply; ${who} needs substance), grounded in what you hold, and say plainly what you do not know. ${SOURCE_RULE} ${writes}]`;
+  // THE SHORT BRIEF (18 Oct 2026): a consulted answer is read by another
+  // agent, which then answers him, so it is the substance in 150 words, in
+  // plain prose, with no glass and no documents. Measured that day, a
+  // consulted Coach took 71-85 s of a 104-135 s turn.
+  return `[${cap(who)} is consulting you${asking}. Answer ${who}, not Hayden, in 150 words or fewer: the substance only, plain prose, grounded in what you hold, and say plainly what you do not know. No VIS lines and no documents (no ARTIFACT blocks). ${SOURCE_RULE} ${writes}]`;
 }
 
 // WHAT HE SAID, verbatim, held while the turn it started can still consult.
@@ -530,6 +534,22 @@ export function unwrapDocuments(text) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Wait on a job in the shared claude-code jobs map. No timeout: his rule.
+// A consulted job on one of the agents' reused consult sessions (claudeCode.js
+// claimConsultSession) hands its session back when it settles, either way.
+async function waitForClaimed(jobId, who, claim) {
+  let ok = false;
+  try {
+    const job = await waitForJob(jobId, who);
+    ok = true;
+    return job;
+  } finally {
+    if (claim) {
+      const { releaseConsultSession } = await import('./claudeCode.js');
+      releaseConsultSession(claim, { ok });
+    }
+  }
+}
+
 async function waitForJob(jobId, who) {
   const { getMessageJob } = await import('./claudeCode.js');
   for (;;) {
@@ -546,33 +566,50 @@ const consultedOpts = (o = {}) => ({ by: o.from, question: o.question || '', cha
 // Nova's own read-only lane over the whole vault, with his live context, in a
 // fresh session so his Voice conversation is untouched.
 async function askNova(vaultPath, q, o = {}) {
-  const { startAskNova } = await import('./claudeCode.js');
+  const { startAskNova, claimConsultSession } = await import('./claudeCode.js');
+  // his one consult session: the context is built only when it opens
+  const claim = claimConsultSession('consult-nova');
   let context = '';
-  try {
-    const { buildAskContext } = await import('./askContext.js');
-    context = await buildAskContext(vaultPath, null, { fast: true });
-  } catch { /* he reads the vault himself; the absence is named in his prompt */ }
-  const jobId = startAskNova(vaultPath, { question: q, context, consulted: consultedOpts(o) });
-  const job = await waitForJob(jobId, 'Nova');
+  if (!claim.resume) {
+    try {
+      const { buildAskContext } = await import('./askContext.js');
+      context = await buildAskContext(vaultPath, null, { fast: true });
+    } catch { /* he reads the vault himself; the absence is named in his prompt */ }
+  }
+  let jobId;
+  try { jobId = startAskNova(vaultPath, { question: q, context, consulted: { ...consultedOpts(o), claim } }); } catch (e) {
+    (await import('./claudeCode.js')).releaseConsultSession(claim, { ok: false });
+    throw e;
+  }
+  const job = await waitForClaimed(jobId, 'Nova', claim);
   return { text: job.result?.text || '', consult: job.result?.consult || null };
 }
 
 // The Coach's own turn: its full assembled picture, its model, a fresh session.
 async function askCoach(vaultPath, q, o = {}) {
   const { startCoachTurn } = await import('./coachTurn.js');
+  // coachTurn claims the Coach's one consult session; the job carries it
   const jobId = await startCoachTurn(vaultPath, { question: q, sessionId: null, consulted: consultedOpts(o) });
-  const job = await waitForJob(jobId, 'the Coach');
+  const { consultClaimOf } = await import('./claudeCode.js');
+  const job = await waitForClaimed(jobId, 'the Coach', consultClaimOf(jobId));
   // its cards (filed, or already waiting on his call) ride on the roster
   return { text: job.result?.text || '', consult: job.result?.consult || null, cards: job.result?.cards || null };
 }
 
 // The Leader's own turn: its chat context, its model, a fresh session.
 async function askLeader(vaultPath, q, o = {}) {
-  const { startAskLeader } = await import('./claudeCode.js');
-  const { buildLeaderChatContext } = await import('./leader.js');
-  const context = await buildLeaderChatContext(vaultPath);
-  const jobId = startAskLeader(vaultPath, { question: q, context, sessionId: null, consulted: consultedOpts(o) });
-  const job = await waitForJob(jobId, 'the Leader');
+  const { startAskLeader, claimConsultSession, releaseConsultSession } = await import('./claudeCode.js');
+  const claim = claimConsultSession('consult-leader');
+  let jobId;
+  try {
+    const { buildLeaderChatContext } = await import('./leader.js');
+    const context = claim.resume ? '' : await buildLeaderChatContext(vaultPath);
+    jobId = startAskLeader(vaultPath, { question: q, context, sessionId: null, consulted: { ...consultedOpts(o), claim } });
+  } catch (e) {
+    releaseConsultSession(claim, { ok: false });
+    throw e;
+  }
+  const job = await waitForClaimed(jobId, 'the Leader', claim);
   return { text: job.result?.text || '', consult: job.result?.consult || null };
 }
 

@@ -532,6 +532,12 @@ export function ModelGroupPage({ P, id }) {
                   : (
                     <span className="nv-set-rs">
                       <MenuPill label={l.label} title={l.label} options={l.options} value={l.model} shown={l.modelLabel} onPick={l.pick} locked={M.locked || l.busy} why={M.why} />
+                      {l.effort ? (
+                        <span style={{ display: 'block', marginTop: 6 }}>
+                          <MenuPill label={`${l.label} thinking`} title={`How hard ${l.label} thinks`} options={l.effortOptions} value={l.effort} shown={l.effortLabel}
+                            onPick={(v) => l.pickEffort?.(v)} locked={M.locked || l.busy || !l.pickEffort} why={M.why} />
+                        </span>
+                      ) : null}
                       {l.spend ? <span style={{ display: 'block', marginTop: 6 }}>{l.spend.usd} this week · {l.spend.detail}</span> : null}
                     </span>
                   )}

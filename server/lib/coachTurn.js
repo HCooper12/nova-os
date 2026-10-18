@@ -14,12 +14,90 @@ import { loadSessions } from './workoutSessions.js';
 import { computeProgressions } from './coach.js';
 import { goalsContext } from './fitnessGoals.js';
 import { profileContext } from './profile.js';
-import { startAskCoach } from './claudeCode.js';
+import { startAskCoach, sessionContextTokens, claimConsultSession } from './claudeCode.js';
+import { sessionOwnerGuard } from './askSession.js';
+import { isDeepAsk } from './intentRouter.js';
 import { loadRecentDays, weightTrendLine, sleepEfficiencyLine, vo2MaxLine } from './healthData.js';
 import { carryoverContext } from './workoutCarryover.js';
 import { loadRecentDays as loadRecentNutritionDays } from './nutritionLog.js';
 import { computeStreaks } from './streaks.js';
 import { preferencesContext } from './learning.js';
+
+// ------------------------------ session hygiene ------------------------------
+// 18 Oct 2026, measured: every resumed Coach turn appended 10-24k characters
+// (the standing reminder, the whole live line, the whole program and cards
+// block), the session reached 240k tokens in a day, and a 2.7 h gap cost a
+// cold cache write of 239,841 tokens ($6.44). Three rules, all code:
+//   1. the standing reminder rides the process (claudeCode.js
+//      --append-system-prompt), never the turn;
+//   2. a resumed turn carries only what CHANGED in the live line since the
+//      turn before it, and the program block only when it changed;
+//   3. a session past ~150k tokens, or idle 12 h, is rolled over: a fresh
+//      session with the full picture and a code-written line carrying the
+//      last few exchanges across.
+export const ROLL_TOKENS = 150_000;
+export const ROLL_IDLE_MS = 12 * 60 * 60_000;
+const LIVE_HEAD = /^LIVE UPDATE \([^)]*\): ([\s\S]*?)\.?$/;
+
+// What was last sent to each session, so the next turn can send the change.
+// In memory: after a restart the first turn sends the whole line, once.
+const lastLive = new Map(); // sessionId → { bits: Set<string>, plan: string }
+const LAST_LIVE_MAX = 50;
+export function _resetLiveMemory() { lastLive.clear(); }
+
+// Split coachLiveLine's text into its facts (the '; '-joined head) and its
+// program-and-cards block (every line after the head).
+export function splitLiveLine(text) {
+  const lines = String(text || '').split('\n');
+  const m = LIVE_HEAD.exec(lines[0] || '');
+  if (!m) return null;
+  return { bits: m[1].split('; ').map((b) => b.trim()).filter(Boolean), plan: lines.slice(1).join('\n').trim() };
+}
+
+// The live line for THIS turn of THIS session: whole the first time, then
+// only the facts that changed, and the plan block only when it moved. One
+// paragraph that opens "LIVE UPDATE", so agentSessions.cleanTurnText still
+// reads it as plumbing, never as his words.
+export function liveDelta(sessionId, fresh) {
+  const parsed = splitLiveLine(fresh);
+  if (!parsed || !sessionId) return fresh || '';
+  const prior = lastLive.get(sessionId);
+  lastLive.delete(sessionId);
+  lastLive.set(sessionId, { bits: new Set(parsed.bits), plan: parsed.plan });
+  while (lastLive.size > LAST_LIVE_MAX) lastLive.delete(lastLive.keys().next().value);
+  if (!prior) return fresh;
+  const changed = parsed.bits.filter((b) => !prior.bits.has(b));
+  const planMoved = parsed.plan !== prior.plan;
+  const head = changed.length
+    ? `LIVE UPDATE (changed since your last turn; everything else in the last update stands): ${changed.join('; ')}.`
+    : `LIVE UPDATE: nothing has changed since your last turn${planMoved ? '' : ', his program and your cards included'}.`;
+  return planMoved ? `${head}\nHis program or your cards changed; as they stand now:\n${parsed.plan}` : head;
+}
+
+// Should this session be rolled over? Its size comes from the CLI's own
+// per-call usage while this server has seen it, else from the CLI's journal.
+export async function rollReason(vaultPath, sessionId, { now = Date.now(), footprint } = {}) {
+  let size = sessionContextTokens(sessionId);
+  let lastAt = size?.at ?? null;
+  let tokens = size?.tokens ?? null;
+  if (tokens == null || lastAt == null) {
+    const read = footprint || (await import('./agentSessions.js')).sessionFootprint;
+    const fp = await read(vaultPath, sessionId).catch(() => null);
+    if (fp) { tokens = tokens ?? fp.tokens; lastAt = lastAt ?? fp.lastAt; }
+  }
+  if (Number.isFinite(tokens) && tokens >= ROLL_TOKENS) return { tokens, why: `${tokens} tokens` };
+  if (Number.isFinite(lastAt) && now - lastAt >= ROLL_IDLE_MS) return { tokens, why: `idle ${Math.round((now - lastAt) / 3600_000)} h` };
+  return null;
+}
+
+// The code-written line carried into the session that replaces a rolled one.
+export async function carryLine(vaultPath, sessionId, rolled, { tail } = {}) {
+  const read = tail || (await import('./agentSessions.js')).sessionTail;
+  const t = await read(vaultPath, sessionId, { maxTurns: 6, maxChars: 240 }).catch(() => null);
+  const size = Number.isFinite(rolled?.tokens) ? `about ${Math.round(rolled.tokens / 1000)}k tokens` : rolled?.why || 'its limit';
+  if (!t?.turns?.length) return `CARRIED OVER (code closed your previous conversation with him at ${size}; nothing from it could be read back, so ask him where you were if it matters).`;
+  return `CARRIED OVER (code closed your previous conversation with him at ${size} and opened this one with the full picture above; its last exchanges, in order): ${t.turns.map((x) => `${x.role === 'user' ? 'Hayden' : 'You'}: ${x.text}`).join(' | ')}`;
+}
 
 // Returns the job id of the Coach's answer. A resumed conversation gets the
 // volatile picture as a live line; a new one gets the full assembly.
@@ -32,13 +110,44 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
   // car's two; '' for the desk and the phone. A consult never carries it.
   const { whereLine } = await import('./register.js');
   const placeLine = consulted ? '' : whereLine(where?.place);
+  // a request for the whole picture thinks harder (claudeCode.js DEEP_EFFORT)
+  const deep = !consulted && isDeepAsk(question);
+  // THE LANE GUARD (lib/askSession.js): an id recorded for Nova or the
+  // Leader is never resumed as the Coach's. Fresh session, full picture.
+  if (sessionId && !consulted) {
+    const g = sessionOwnerGuard(sessionId, 'coach');
+    if (g.reason) { console.log(`coach: fresh session — ${g.reason}`); sessionId = null; }
+  }
+  let rolled = null;
+  let carry = '';
+  if (sessionId && !consulted) {
+    rolled = await rollReason(vaultPath, sessionId).catch(() => null);
+    if (rolled) {
+      console.log(`coach: session rolled (${rolled.why})`);
+      carry = await carryLine(vaultPath, sessionId, rolled).catch(() => '');
+      lastLive.delete(sessionId);
+      sessionId = null;
+    }
+  }
   if (sessionId) {
     const fresh = await coachLiveLine(vaultPath).catch(() => '');
-    const preamble = [fresh, live ? `[${live}]` : '', placeLine].filter(Boolean).join('\n');
+    const preamble = [liveDelta(sessionId, fresh), live ? `[${live}]` : '', placeLine].filter(Boolean).join('\n');
     const q = preamble ? `${preamble}\n\n${question}` : question;
     // `asked` is his question alone — the text his cards carry, never the preamble
-    return startAskCoach(vaultPath, { question: q, asked: question, sessionId });
+    return startAskCoach(vaultPath, { question: q, asked: question, sessionId, deep });
   }
+  // A CONSULTED COACH REUSES ITS ONE CONSULT SESSION (claudeCode.js
+  // claimConsultSession): a resumed consult carries the live changes and the
+  // question, never the 88k-character assembly again.
+  const claim = consulted ? claimConsultSession('consult-coach') : null;
+  if (claim?.resume) {
+    const fresh = await coachLiveLine(vaultPath).catch(() => '');
+    const preamble = [liveDelta(claim.sessionId, fresh), live ? `[${live}]` : ''].filter(Boolean).join('\n');
+    return startAskCoach(vaultPath, { question: preamble ? `${preamble}\n\n${question}` : question, asked: question, consulted: { ...consulted, claim } });
+  }
+  // computed beside the assembly, so the consult session's first turn costs
+  // no extra wait to remember what it was shown
+  const consultLive = claim ? coachLiveLine(vaultPath).catch(() => '') : null;
       const parts = [];
       const failures = []; // a vanished section must be NAMED, never silent
       if (live) parts.push(live);
@@ -347,7 +456,13 @@ export async function startCoachTurn(vaultPath, { question, sessionId = null, li
         const { ABSENT_NOTE } = await import('./contextSections.js');
         parts.push(ABSENT_NOTE(failures.map((label) => ({ label }))));
       }
-      if (consulted) return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), consulted });
+      if (consulted) {
+        // the consult session's first turn: record its live line as sent, so
+        // the next consult carries only what changed
+        if (claim) liveDelta(claim.sessionId, await consultLive);
+        return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), consulted: { ...consulted, claim } });
+      }
+      if (carry) parts.push(carry);
       if (placeLine) parts.push(placeLine);
-      return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined });
+      return startAskCoach(vaultPath, { question, context: parts.join('\n\n'), onReady: markRaised || undefined, deep, rolled });
 }

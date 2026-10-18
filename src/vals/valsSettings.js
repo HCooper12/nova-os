@@ -8,6 +8,15 @@ import {
 } from '../settingsModel.js';
 import { demoSettingsSeed, demoBoard, DEMO_NUMBERS, DEMO_LADDER } from '../settingsDemo.js';
 
+// The CLI's effort levels, in his words (server/lib/modelPrefs.js EFFORT_LEVELS).
+const EFFORT_CHOICES = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'xhigh', label: 'Extra high' },
+  { value: 'max', label: 'Max' },
+];
+
 // SETTINGS' VIEW MODEL, direction A (his pick, 7 Oct 2026; mockup 72 A).
 // The root's rows with their values, and each page's controls. Takes the
 // merged view model, like the Index (valsIndex.js), because it reads the
@@ -357,6 +366,18 @@ export function valsSettings(app, ctx, v) {
           : (val) => l.setModel({ target: { value: val } }),
         reset: demo ? null : l.reset,
         spend: demo ? null : l.spend || null,
+        // THINKING, beside the model (18 Oct 2026): how hard the lane thinks
+        // before it speaks. Only lanes that pass --effort have one; the rest
+        // think at the account's level, and say nothing rather than offer a
+        // picker that would change nothing.
+        effort: l.defaultEffort ? (l.effort || l.defaultEffort) : null,
+        effortOptions: l.defaultEffort ? EFFORT_CHOICES.map((e) => ({ value: e.value, label: e.value === l.defaultEffort ? `${e.label} · default` : e.label })) : [],
+        effortLabel: l.defaultEffort ? (() => {
+          const cur = l.effort || l.defaultEffort;
+          const name = EFFORT_CHOICES.find((e) => e.value === cur)?.label || cur;
+          return `Thinking: ${name}${cur === l.defaultEffort ? ' · default' : ''}`;
+        })() : null,
+        pickEffort: demo || !l.setEffort ? null : (val) => l.setEffort(val),
       })),
     })),
   };

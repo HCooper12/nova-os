@@ -64,7 +64,7 @@ export function modelPrefsRouter() {
     }
   });
 
-  // One lane per call: { lane, model?, enabled? }. Either field may be sent
+  // One lane per call: { lane, model?, enabled?, effort? }. Either field may be sent
   // alone, so flipping a toggle never silently rewrites the model too.
   router.put('/model-prefs', async (req, res) => {
     try {
@@ -73,7 +73,9 @@ export function modelPrefsRouter() {
       const patch = {};
       if (req.body?.model !== undefined) patch.model = req.body.model;
       if (req.body?.enabled !== undefined) patch.enabled = req.body.enabled;
-      if (!Object.keys(patch).length) return res.status(400).json({ error: 'send a model, an enabled flag, or both' });
+      // thinking effort, per lane (lib/modelPrefs.js effortFor)
+      if (req.body?.effort !== undefined) patch.effort = req.body.effort;
+      if (!Object.keys(patch).length) return res.status(400).json({ error: 'send a model, an enabled flag, an effort, or any of them' });
       res.json(await setLanePref(lane, patch));
     } catch (e) {
       res.status(400).json({ error: e.message });

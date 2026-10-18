@@ -96,6 +96,8 @@ function buildRow(fields, now) {
     cacheReadTokens: numOrNull(fields.cacheReadTokens),
     cacheWriteTokens: numOrNull(fields.cacheWriteTokens),
     model: fields.model || null,
+    // the --effort the run was spawned at (null: the account's level)
+    effort: fields.effort || null,
     limited: !!fields.limited,
     error: fields.error || null,
   };

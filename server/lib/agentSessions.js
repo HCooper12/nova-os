@@ -1,5 +1,5 @@
-import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { readFile, writeFile, mkdir, rename, open as openFile, stat } from 'node:fs/promises';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +33,14 @@ export function projectSlug(cwd) {
   return String(cwd || '').replace(/[^A-Za-z0-9]/g, '-');
 }
 
+// Every id a lane has used, newest last, so a session id can be traced to
+// the lane that owns it (askSession.js sessionOwnerGuard). Bounded: the guard
+// needs recent ids, not history.
+const IDS_KEPT = 40;
+
+// Recorded kinds: 'coach', 'leader' (Nova reads their transcripts back) and,
+// since 18 Oct 2026, 'voice' (Nova's own conversations), so the guard can
+// also refuse one of Nova's ids offered to the Coach.
 export async function recordAgentSession(kind, cwd, sessionId) {
   if (!kind || !sessionId) return;
   try {
@@ -42,12 +50,84 @@ export async function recordAgentSession(kind, cwd, sessionId) {
     }
     const cur = all[kind];
     if (cur?.sessionId === sessionId) return; // common path: no write
-    all[kind] = { sessionId, cwd, at: new Date().toISOString() };
+    const ids = Array.isArray(cur?.ids) ? cur.ids.filter((x) => x !== sessionId) : (cur?.sessionId ? [cur.sessionId] : []);
+    ids.push(sessionId);
+    all[kind] = { sessionId, cwd, at: new Date().toISOString(), ids: ids.slice(-IDS_KEPT) };
     await mkdir(dataRoot(), { recursive: true });
     const tmp = SESSIONS_PATH() + '.tmp';
     await writeFile(tmp, JSON.stringify(all, null, 2), 'utf8');
     await rename(tmp, SESSIONS_PATH());
+    ownerCache = null;
   } catch { /* a missed record just means an absent section — honest absence */ }
+}
+
+// WHICH LANE OWNS THIS SESSION ID? Synchronous on purpose: the guard runs on
+// the path that is about to spawn a process, and the file is a few KB, read
+// once per change (cached against its mtime). null when no lane recorded it.
+let ownerCache = null;
+let ownerStamp = null;
+export function sessionOwner(sessionId) {
+  if (!sessionId) return null;
+  try {
+    const file = SESSIONS_PATH();
+    if (!existsSync(file)) return null;
+    const stamp = `${statSync(file).mtimeMs}:${file}`;
+    if (!ownerCache || ownerStamp !== stamp) {
+      const all = JSON.parse(readFileSync(file, 'utf8'));
+      const map = new Map();
+      for (const [kind, rec] of Object.entries(all || {})) {
+        const ids = Array.isArray(rec?.ids) ? rec.ids : [];
+        for (const id of [...ids, rec?.sessionId].filter(Boolean)) map.set(id, kind);
+      }
+      ownerCache = map;
+      ownerStamp = stamp;
+    }
+    return ownerCache.get(sessionId) || null;
+  } catch {
+    return null;
+  }
+}
+
+// The CLI's own journal for a session: where it lives on this machine.
+export function sessionJournalPath(cwd, sessionId) {
+  return path.join(os.homedir(), '.claude', 'projects', projectSlug(cwd), `${sessionId}.jsonl`);
+}
+
+// HOW BIG IS THIS SESSION, AND WHEN DID IT LAST SPEAK? Read from the CLI's
+// journal, so it survives a server restart: the context of the newest model
+// call (input + cache read + cache write, the tokens the next turn re-sends)
+// and the file's mtime. Only the tail is read: a 240k-token session is a
+// megabyte of JSON, and the newest usage is in its last lines.
+const TAIL_BYTES = 512 * 1024;
+export async function sessionFootprint(cwd, sessionId) {
+  try {
+    const file = sessionJournalPath(cwd, sessionId);
+    if (!existsSync(file)) return null;
+    const st = await stat(file);
+    const start = Math.max(0, st.size - TAIL_BYTES);
+    const fh = await openFile(file, 'r');
+    let text = '';
+    try {
+      const buf = Buffer.alloc(st.size - start);
+      await fh.read(buf, 0, buf.length, start);
+      text = buf.toString('utf8');
+    } finally { await fh.close(); }
+    const lines = text.split('\n');
+    let tokens = null;
+    for (let i = lines.length - 1; i >= 0 && tokens == null; i--) {
+      const line = lines[i].trim();
+      if (!line.startsWith('{')) continue;
+      let d;
+      try { d = JSON.parse(line); } catch { continue; }
+      const u = d?.message?.usage;
+      if (d?.type === 'assistant' && u) {
+        tokens = (Number(u.input_tokens) || 0) + (Number(u.cache_read_input_tokens) || 0) + (Number(u.cache_creation_input_tokens) || 0);
+      }
+    }
+    return { tokens, lastAt: st.mtimeMs };
+  } catch {
+    return null;
+  }
 }
 
 function textOf(content) {
@@ -92,7 +172,18 @@ export async function agentTranscriptTail(kind, { maxTurns = 6, maxChars = 220 }
     const all = JSON.parse(await readFile(SESSIONS_PATH(), 'utf8'));
     const rec = all[kind];
     if (!rec?.sessionId || !rec?.cwd) return null;
-    const file = path.join(os.homedir(), '.claude', 'projects', projectSlug(rec.cwd), `${rec.sessionId}.jsonl`);
+    const tail = await sessionTail(rec.cwd, rec.sessionId, { maxTurns, maxChars });
+    return tail ? { at: rec.at, turns: tail.turns } : null;
+  } catch {
+    return null;
+  }
+}
+
+// The cleaned last turns of ONE session's journal (the Coach's rollover
+// carries these into the session that replaces it).
+export async function sessionTail(cwd, sessionId, { maxTurns = 6, maxChars = 220 } = {}) {
+  try {
+    const file = sessionJournalPath(cwd, sessionId);
     if (!existsSync(file)) return null;
     const lines = (await readFile(file, 'utf8')).trim().split('\n');
     const turns = [];
@@ -110,7 +201,7 @@ export async function agentTranscriptTail(kind, { maxTurns = 6, maxChars = 220 }
       turns.push({ role, text: t.length > maxChars ? t.slice(0, maxChars) + '…' : t });
     }
     if (!turns.length) return null;
-    return { at: rec.at, turns: turns.slice(-maxTurns) };
+    return { turns: turns.slice(-maxTurns) };
   } catch {
     return null;
   }

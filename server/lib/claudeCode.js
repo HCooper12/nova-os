@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { MUSCLE_GROUPS } from './muscleSecondary.js';
 import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
-import { modelFor, assertLaneOn, laneEnabled } from './modelPrefs.js';
+import { modelFor, assertLaneOn, laneEnabled, effortFor, maxEffort, CONSULT_EFFORT, DEEP_EFFORT } from './modelPrefs.js';
 import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { speakableText } from '../../src/artifactBlocks.js';
@@ -16,6 +16,8 @@ import { attachVisuals, GLASS_CONTRACT, SPOKEN_REGISTER } from './visualStream.j
 import { registerBlock, whereLine, suppressGlass, forceConfirmFor } from './register.js';
 import { fileArtifacts, ARTIFACT_CONTRACT } from './artifacts.js';
 import { registerJobMap, recordJobReceipt } from './jobRegistry.js';
+import { FOLLOW_UP_WINDOWS as STICKY_WINDOWS } from './intentRouter.js';
+import { sessionOwnerGuard } from './askSession.js';
 import { consultCapability, consultReminder, consultedBrief, openConsult, stripDirectives, unwrapDocuments, GUARD_NOTE, ANSWER_NOW } from './consult.js';
 
 // launchd services don't inherit the interactive shell's PATH — use the absolute path.
@@ -55,6 +57,55 @@ const COACH_DISALLOWED = DISALLOWED_TOOLS.split(',').filter((t) => t !== 'WebFet
 
 const jobs = registerJobMap('claudeCode', new Map());
 
+// ------------------------------- effort -------------------------------------
+// --effort on every conversational spawn (lib/modelPrefs.js effortFor), so the
+// account's ambient `effortLevel: "xhigh"` never reaches a lane. Older CLIs
+// have no such flag and would refuse to start with it, so the installed one
+// is asked once, at load (`claude --help`, 5 s: a read of a help page, never
+// a model run), and the flag is dropped with one log line if it is missing.
+// Until the answer lands the flag is sent: the CLI on his Mac has it
+// (verified 18 Oct 2026, `claude --help`: "--effort <level> … low, medium,
+// high, xhigh, max").
+let effortSupported = null;
+(function probeEffort() {
+  try {
+    // spawn's own `timeout` ends a help page that hangs; it is a read, never
+    // a model run, so no turn is ever cut short by it
+    const child = spawn(CLAUDE_BIN, ['--help'], { stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 });
+    let out = '';
+    child.stdout.on('data', (d) => { out += d; });
+    const settle = (ok) => {
+      if (effortSupported !== null) return;
+      effortSupported = ok;
+      if (!ok) console.log('claude: the installed CLI has no --effort flag, so every lane spawns without it and thinks at the account\'s level');
+    };
+    child.on('close', () => settle(/--effort\b/.test(out)));
+    child.on('error', () => settle(false));
+    child.unref?.();
+    child.stdout.unref?.();
+  } catch { effortSupported = false; }
+})();
+export function effortFlag(level) {
+  if (!level || effortSupported === false) return [];
+  return ['--effort', level];
+}
+export function _setEffortSupportedForTest(v) { effortSupported = v; }
+// the effort a spawn's args carry (null when none): the receipt's figure,
+// and part of what a warm process must match to serve a turn
+function argValue(args, flag) {
+  const i = Array.isArray(args) ? args.indexOf(flag) : -1;
+  return i >= 0 ? args[i + 1] || null : null;
+}
+
+// HOW BIG IS EACH SESSION NOW? The context of its newest model call (input +
+// cache read + cache write: what the next turn re-sends), read off the CLI's
+// own per-call usage as the stream passes. The Coach's rollover reads it
+// (lib/coachTurn.js); after a restart it falls back to the CLI's journal.
+const sessionSize = new Map(); // sessionId → { tokens, at }
+export function sessionContextTokens(sessionId) {
+  return sessionSize.get(sessionId) || null;
+}
+
 // ---------------------------- warm conversations ----------------------------
 // A follow-up turn used to pay the full CLI boot (~1.5–2.5s) before the
 // model even started. Conversational sessions (Voice, Coach) now keep ONE
@@ -67,7 +118,19 @@ const jobs = registerJobMap('claudeCode', new Map());
 // entry the same way (fresh budget on respawn).
 const warm = new Map();
 const WARM_IDLE_MS = 10 * 60_000;
-const WARM_MAX = 4;
+// The lane he spoke to last keeps its process three times as long: a Coach or
+// Leader conversation he steps away from for a quarter of an hour should not
+// pay the boot (~2 s) to resume (18 Oct 2026).
+export const WARM_IDLE_LAST_MS = 30 * 60_000;
+// Six, not four, since consulted agents reuse ONE warm session each (lib/
+// consult.js); they are evicted first, so his own conversations keep theirs.
+const WARM_MAX = 6;
+
+// THE LANE HE SPOKE TO LAST: his own conversations only (Nova, the Coach,
+// the Leader), never a consult or a background lane. prewarmAsk boots it
+// again when the mic opens inside its follow-up window.
+let lastHeard = null; // { kind, sessionId, cwd, args, at }
+export function _lastHeard() { return lastHeard; }
 
 function dropWarm(key) {
   const w = warm.get(key);
@@ -79,7 +142,8 @@ function dropWarm(key) {
 const warmSweep = setInterval(() => {
   const now = Date.now();
   for (const [key, w] of warm) {
-    if (!w.currentJob && now - w.lastUsed > WARM_IDLE_MS) dropWarm(key);
+    const limit = lastHeard && key === `${lastHeard.kind}:${lastHeard.sessionId}` ? WARM_IDLE_LAST_MS : WARM_IDLE_MS;
+    if (!w.currentJob && now - w.lastUsed > limit) dropWarm(key);
   }
 }, 60_000);
 warmSweep.unref?.();
@@ -123,7 +187,7 @@ function laneForKind(kind) {
 
 function spawnWarm(key, { cwd, args, env }) {
   const child = spawn(CLAUDE_BIN, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], env: env ? { ...process.env, ...env } : undefined });
-  const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now(), lastCostUsd: 0 };
+  const w = { child, currentJob: null, finishTurn: null, streamed: '', stderr: '', lastUsed: Date.now(), lastCostUsd: 0, sig: argsSig(args), effort: argValue(args, '--effort'), sessionId: argValue(args, '--resume') || argValue(args, '--session-id') };
   let buf = '';
   child.stdout.on('data', (d) => {
     buf += d;
@@ -141,6 +205,12 @@ function spawnWarm(key, { cwd, args, env }) {
         w.currentJob.partial = (w.currentJob.partialPrefix || '') + w.streamed;
         onPartial(w.currentJob, w.streamed);
       } else if (ev.type === 'assistant' && Array.isArray(ev.message?.content)) {
+        // the session's size, from this call's own usage (sessionSize above)
+        const u = ev.message?.usage;
+        if (u && w.sessionId) {
+          const tokens = (Number(u.input_tokens) || 0) + (Number(u.cache_read_input_tokens) || 0) + (Number(u.cache_creation_input_tokens) || 0);
+          if (tokens > 0) sessionSize.set(w.sessionId, { tokens, at: Date.now() });
+        }
         // the files this turn wrote, from the CLI's own tool calls (the Code
         // screen's Builder line says "N files" from this, never a guess)
         for (const c of ev.message.content) {
@@ -168,7 +238,8 @@ function spawnWarm(key, { cwd, args, env }) {
         if (totalCost != null) w.lastCostUsd = totalCost;
         const lane = laneForKind(key.split(':')[0]);
         const envelope = fromEnvelope({ ...ev, total_cost_usd: turnCost });
-        recordRun(lane, envelope);
+        recordRun(lane, { ...envelope, effort: w.effort });
+        if (w.sessionId) { const cur = sessionSize.get(w.sessionId); if (cur) cur.at = Date.now(); }
         // one receipt per completed model job (18 Oct 2026) — best-effort,
         // never allowed to affect the turn it is describing
         try {
@@ -183,6 +254,9 @@ function spawnWarm(key, { cwd, args, env }) {
             error: errMsg || null,
             costUsd: turnCost,
             chars: typeof replyText === 'string' ? replyText.length : null,
+            effort: w.effort || null,
+            sessionRolled: !!job.sessionRolled,
+            ...(job.deep ? { deep: true } : {}),
           }).catch(() => {});
         } catch { /* a receipt must never break the turn */ }
         w.currentJob = null;
@@ -219,6 +293,18 @@ function spawnWarm(key, { cwd, args, env }) {
   return w;
 }
 
+// What a warm process was spawned to be: its model and its effort. A turn
+// that names another model, or another effort, needs a different process
+// (warmTurn). A turn that names no effort (an older CLI) takes any.
+function argsSig(args) {
+  return argValue(args, '--model') || '';
+}
+function cannotServe(w, args) {
+  if (w.sig !== argsSig(args)) return true;
+  const e = argValue(args, '--effort');
+  return !!e && e !== w.effort;
+}
+
 // One conversational turn: reuse the session's live process, or spawn one
 // (args carry --session-id on turn 1 and --resume thereafter, so a cold
 // spawn is always continuity-safe). finishTurn runs the per-surface
@@ -228,15 +314,25 @@ function warmTurn({ kind, sessionId, cwd, args, text, job, finishTurn, env }) {
   // Leader conversation, so Ask Nova's context can read their actual
   // exchanges back. Fire-and-forget; a miss is an absent section, never an
   // error. 'ask' is Nova itself — no self-reference needed.
-  if (kind === 'coach' || kind === 'leader') {
+  // Nova's own ('voice') ids are recorded too since 18 Oct 2026, so the lane
+  // guard (lib/askSession.js) can tell whose conversation an id is.
+  if (kind === 'coach' || kind === 'leader' || kind === 'voice') {
     import('./agentSessions.js').then(({ recordAgentSession }) => recordAgentSession(kind, cwd, sessionId)).catch(() => {});
+    const i = args.indexOf('--session-id');
+    const resumeArgs = i >= 0 ? [...args.slice(0, i), '--resume', sessionId, ...args.slice(i + 2)] : args;
+    lastHeard = { kind, sessionId, cwd, args: resumeArgs, at: Date.now() };
   }
   const key = `${kind}:${sessionId}`;
   let w = warm.get(key);
-  if (w && (w.child.exitCode !== null || w.currentJob)) { dropWarm(key); w = null; }
+  // a live process spawned at another model or effort cannot serve this turn
+  // (a deep Coach ask at high, say, after a prewarm at medium): it is
+  // replaced, and the replacement resumes the same session
+  if (w && (w.child.exitCode !== null || w.currentJob || cannotServe(w, args))) { dropWarm(key); w = null; }
   if (!w) {
     if (warm.size >= WARM_MAX) {
-      const idle = [...warm.entries()].filter(([, x]) => !x.currentJob).sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0];
+      // consulted agents' sessions go first; his own conversations last
+      const idle = [...warm.entries()].filter(([, x]) => !x.currentJob)
+        .sort((a, b) => (Number(b[0].startsWith('consult-')) - Number(a[0].startsWith('consult-'))) || (a[1].lastUsed - b[1].lastUsed))[0];
       if (idle) dropWarm(idle[0]);
     }
     w = spawnWarm(key, { cwd, args, env });
@@ -570,7 +666,7 @@ export function buildResumedAsk({ question, liveLine = '', direct = false, place
 // must say explicitly whether this turn opens the conversation or continues
 // it (the spoken lane does — it has to record the id before the turn runs).
 // Omitted, the old rule stands: an id means resume, no id means new.
-function askArgs(sessionId, isNewSession) {
+function askArgs(sessionId, isNewSession, { effort } = {}) {
   return [
     // conversational input mode: the prompt/question arrives as a stdin
     // message, and the process STAYS ALIVE between turns (warm pool above)
@@ -591,6 +687,9 @@ function askArgs(sessionId, isNewSession) {
     // already injected, so a fast model answers conversationally in a
     // fraction of the time while staying grounded. Settable per lane.
     '--model', modelFor('ask-nova'),
+    // low by default (18 Oct 2026): Nova answers from a rich injected
+    // context, and the ambient xhigh must never reach a spoken turn
+    ...effortFlag(effort === undefined ? effortFor('ask-nova') : effort),
     isNewSession ? '--session-id' : '--resume', sessionId,
   ];
 }
@@ -613,17 +712,42 @@ function askArgs(sessionId, isNewSession) {
 // `resume` must match how the turn will actually be sent: the warm pool is
 // keyed by session, and a process spawned with the wrong flag would be
 // reused for a turn it cannot serve.
-export function prewarmAsk(cwd, sessionId, { resume = false } = {}) {
+//
+// THE STICKY LANE TOO (18 Oct 2026). A follow-up inside the Coach's or the
+// Leader's window goes to THEM (lib/intentRouter.js followUpLane), and their
+// processes were never prewarmed: the turn paid the boot after his last
+// word. So when the lane he spoke to last is the Coach or the Leader and its
+// window is still open, its process is booted here as well (same args it
+// last ran with, resumed). Returns true when anything was booted.
+export function prewarmAsk(cwd, sessionId, { resume = false, now = Date.now() } = {}) {
+  let booted = false;
   try {
     // Booting a process for a lane that will refuse the turn is pure waste.
-    if (!laneEnabled('ask-nova')) return false;
-    const key = `voice:${sessionId}`;
-    const existing = warm.get(key);
-    if (existing && existing.child.exitCode === null) return false;
-    if (existing) dropWarm(key);
-    spawnWarm(key, { cwd, args: askArgs(sessionId, !resume) });
-    return true;
-  } catch { return false; }
+    if (sessionId && laneEnabled('ask-nova')) {
+      const key = `voice:${sessionId}`;
+      const existing = warm.get(key);
+      if (!(existing && existing.child.exitCode === null)) {
+        if (existing) dropWarm(key);
+        spawnWarm(key, { cwd, args: askArgs(sessionId, !resume) });
+        booted = true;
+      }
+    }
+  } catch { /* best-effort */ }
+  try { if (prewarmSticky(now)) booted = true; } catch { /* best-effort */ }
+  return booted;
+}
+
+function prewarmSticky(now = Date.now()) {
+  const h = lastHeard;
+  if (!h || (h.kind !== 'coach' && h.kind !== 'leader')) return false;
+  if (now - h.at > (STICKY_WINDOWS[h.kind] || 0)) return false;
+  if (!laneEnabled(h.kind === 'coach' ? 'coach' : 'leader-chat')) return false;
+  const key = `${h.kind}:${h.sessionId}`;
+  const existing = warm.get(key);
+  if (existing && existing.child.exitCode === null) return false;
+  if (existing) dropWarm(key);
+  spawnWarm(key, { cwd: h.cwd, args: h.args });
+  return true;
 }
 
 // ------------------------------- CONSULT ------------------------------------
@@ -649,11 +773,51 @@ async function consultStep(ctl, replyText, turnJob, who, resume) {
   return null;
 }
 
+// ONE WARM CONSULT SESSION PER AGENT (18 Oct 2026). A consulted Coach used
+// to start a FRESH session with an 88k-character prompt every time it was
+// asked (Opus thinking 46 s; 71.5 s and 84.8 s per consult, measured), so a
+// consulted turn cost 104-135 s end to end. Now each agent keeps one consult
+// session: the first ask of the day opens it with the stable picture first
+// and the question last; every later ask resumes it with a short brief and
+// the question, so the long prefix is a cache read. A session is reused the
+// same day, within 12 h of its last answer, and below ~150k tokens; one that
+// is busy (two agents asking the Coach at once) leaves the second ask on a
+// session of its own, never two processes on one journal.
+export const CONSULT_ROLL_TOKENS = 150_000;
+const CONSULT_IDLE_MS = 12 * 60 * 60_000;
+const consultSessions = new Map(); // kind → { sessionId, day, lastAt, busy }
+const dayKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+export function claimConsultSession(kind, now = Date.now()) {
+  const s = consultSessions.get(kind);
+  if (s && s.busy) return { kind, sessionId: randomUUID(), resume: false, shared: false };
+  const size = s ? sessionSize.get(s.sessionId)?.tokens || 0 : 0;
+  if (s && s.day === dayKey(now) && now - s.lastAt < CONSULT_IDLE_MS && size < CONSULT_ROLL_TOKENS) {
+    s.busy = true;
+    return { kind, sessionId: s.sessionId, resume: true, shared: true };
+  }
+  const sessionId = randomUUID();
+  consultSessions.set(kind, { sessionId, day: dayKey(now), lastAt: now, busy: true });
+  return { kind, sessionId, resume: false, shared: true };
+}
+// Called when the consulted job settles (lib/consult.js). A failed turn
+// forgets the session: the next ask opens a fresh one.
+export function releaseConsultSession(claim, { ok = true } = {}) {
+  if (!claim?.shared) return;
+  const s = consultSessions.get(claim.kind);
+  if (!s || s.sessionId !== claim.sessionId) return;
+  s.busy = false;
+  s.lastAt = Date.now();
+  if (!ok) { consultSessions.delete(claim.kind); dropWarm(`${claim.kind}:${claim.sessionId}`); }
+}
+export function _resetConsultSessions() { consultSessions.clear(); }
+// the consult session a consulted job runs on (lib/consult.js releases it)
+export function consultClaimOf(jobId) { return jobs.get(jobId)?.consultClaim || null; }
+
 // A consulted turn's answer goes to the agent that asked, never to him, and
 // writes nothing: no document is filed (its body is the answer), no directive
-// acts. Its warm process is released at once: it is not a conversation he
-// will come back to, and the pool's four slots are his.
-async function finishConsulted(cwd, replyText, turnJob, { question, ctl, sessionId, kind, extra = null }) {
+// acts. A shared consult session keeps its warm process for the next ask; a
+// one-off (no claim, or a busy agent's overflow) is released at once.
+async function finishConsulted(cwd, replyText, turnJob, { question, ctl, sessionId, kind, extra = null, keepWarm = false }) {
   try {
     const text = stripDirectives(parseVisualStream(replyText).text);
     turnJob.result = { text: text || '(an empty answer)', sessionId, consult: ctl.roster.length ? ctl.roster : null, question, ...(extra || {}) };
@@ -662,8 +826,14 @@ async function finishConsulted(cwd, replyText, turnJob, { question, ctl, session
     turnJob.status = 'error';
     turnJob.error = e.message;
   } finally {
-    dropWarm(`${kind}:${sessionId}`);
+    if (!keepWarm) dropWarm(`${kind}:${sessionId}`);
   }
+}
+
+// The consulted turn's text on a RESUMED consult session: the short brief
+// (who is asking, his words if they are his), then the question last.
+function consultedResumeText(consulted, question, { canPropose = false } = {}) {
+  return `${consultedBrief(consulted.by, consulted.question, { canPropose })}\n\nThe question: ${question}`;
 }
 
 // `consulted`: another agent is asking Nova (lib/consult.js) — a fresh
@@ -671,9 +841,11 @@ async function finishConsulted(cwd, replyText, turnJob, { question, ctl, session
 export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null }) {
   assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
-  const isNewSession = consulted ? true : (resume === undefined ? !sessionId : !resume);
-  const effectiveSessionId = (consulted ? null : sessionId) || randomUUID();
-  const job = { id: jobId, status: 'running', result: null, error: null };
+  const claim = consulted?.claim || null;
+  const isNewSession = consulted ? !claim?.resume : (resume === undefined ? !sessionId : !resume);
+  const effectiveSessionId = (consulted ? claim?.sessionId : sessionId) || randomUUID();
+  const effort = consulted ? CONSULT_EFFORT : effortFor('ask-nova');
+  const job = { id: jobId, status: 'running', result: null, error: null, effort };
   jobs.set(jobId, job);
   const place = consulted ? 'unknown' : (where?.place || 'unknown');
   // DRIVING: no glass at all (lib/register.js). Nothing is fetched, no panel
@@ -685,7 +857,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   if (noGlass) { job.noGlass = true; job.onPartial = () => {}; }
   if (!consulted && !noGlass) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
 
-  const args = askArgs(effectiveSessionId, isNewSession);
+  const args = askArgs(effectiveSessionId, isNewSession, { effort });
   const kind = consulted ? 'consult-nova' : 'voice';
 
   // NOVA DIRECTS (lib/consult.js): a reply that asks the org is not the
@@ -697,9 +869,9 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
   });
   const finishTurn = async (incoming, turnJob) => {
     const step = await consultStep(ctl, incoming, turnJob, 'Nova',
-      (text) => warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: askArgs(effectiveSessionId, false), text, job: turnJob, finishTurn }));
+      (text) => warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: askArgs(effectiveSessionId, false, { effort }), text, job: turnJob, finishTurn }));
     if (!step) return;
-    if (consulted) return finishConsulted(cwd, step.text, turnJob, { agent: 'nova', question, ctl, sessionId: effectiveSessionId, kind });
+    if (consulted) return finishConsulted(cwd, step.text, turnJob, { agent: 'nova', question, ctl, sessionId: effectiveSessionId, kind, keepWarm: !!claim?.shared });
     return settleAsk(step.text, turnJob);
   };
 
@@ -945,7 +1117,8 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     // `spoken` rides on turn ONE only. A resumed turn sends just the question
     // by design (spokenSession.test.js guards that minimalism), and turn one's
     // contract is still in the resumed process's own context.
-    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken, consulted, place }) : buildResumedAsk({ question, liveLine, direct, place }),
+    text: isNewSession ? buildAskPrompt({ question, context, direct, spoken, consulted, place })
+      : consulted ? consultedResumeText(consulted, question) : buildResumedAsk({ question, liveLine, direct, place }),
     job,
     finishTurn,
   });
@@ -1174,12 +1347,19 @@ function sideJob(forward, onError) {
 // session with the Coach's full picture that answers that agent. It files no
 // document and stamps no cooldown; its program changes become cards for his
 // yes, never twins of one already waiting (finishConsultedCoach below).
-export function startAskCoach(cwd, { question, asked = null, context, sessionId, onReady, consulted = null }) {
-  assertLaneOn('coach');
+//
+// `deep`: a request for the whole picture (lib/intentRouter.js isDeepAsk)
+// thinks at DEEP_EFFORT, never below his setting. `rolled`: coachTurn.js
+// replaced a session that had grown too big or gone cold, and says so on the
+// receipt.
+export function startAskCoach(cwd, { question, asked = null, context, sessionId, onReady, consulted = null, deep = false, rolled = null }) {
+  try { assertLaneOn('coach'); } catch (e) { if (consulted?.claim) releaseConsultSession(consulted.claim, { ok: false }); throw e; }
   const jobId = randomUUID().slice(0, 8);
-  const isNewSession = consulted ? true : !sessionId;
-  const effectiveSessionId = (consulted ? null : sessionId) || randomUUID();
-  const job = { id: jobId, status: 'running', result: null, error: null };
+  const claim = consulted?.claim || null;
+  const isNewSession = consulted ? !claim?.resume : !sessionId;
+  const effectiveSessionId = (consulted ? claim?.sessionId : sessionId) || randomUUID();
+  const effort = consulted ? CONSULT_EFFORT : (deep ? maxEffort(effortFor('coach'), DEEP_EFFORT) : effortFor('coach'));
+  const job = { id: jobId, status: 'running', result: null, error: null, effort, ...(deep && !consulted ? { deep: true } : {}), ...(rolled ? { sessionRolled: true } : {}), ...(claim ? { consultClaim: claim } : {}) };
   jobs.set(jobId, job);
   if (!consulted) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
   const kind = consulted ? 'consult-coach' : 'coach';
@@ -1204,6 +1384,16 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
     // named, never left to whatever the account happens to default to.
     // Opus by default, changeable in Settings → Claude models.
     '--model', modelFor('coach'),
+    // medium by default, high for a deep ask, low when consulted (18 Oct
+    // 2026: the ambient xhigh had the Coach thinking up to 65 s)
+    ...effortFlag(effort),
+    // THE STANDING REMINDER RIDES THE PROCESS, NOT THE TURN (18 Oct 2026).
+    // It used to be prepended to every resumed turn, 10-24k characters a turn
+    // with the live line and the plan block, and the Coach session reached
+    // 240k tokens in a day. As an appended system prompt it is sent once per
+    // process, constant text, and part of the cached prefix. His own Coach
+    // conversation only: a consulted Coach answers in a short brief.
+    ...(consulted ? [] : ['--append-system-prompt', COACH_TURN_REMINDER]),
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
 
@@ -1244,7 +1434,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
     } catch (e) {
       text = `${stripDirectives(replyText)}\n\n(Code check: the Coach's program changes could not be filed: ${e.message}. Nothing was changed.)`;
     }
-    return finishConsulted(cwd, text, turnJob, { question, ctl, sessionId: effectiveSessionId, kind, extra: { cards } });
+    return finishConsulted(cwd, text, turnJob, { question, ctl, sessionId: effectiveSessionId, kind, extra: { cards }, keepWarm: !!claim?.shared });
   };
   const finishTurn = async (incomingText, turnJob) => {
     const step = await consultStep(ctl, incomingText, turnJob, 'the Coach',
@@ -1304,7 +1494,7 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
         });
         if (guess) coachPanel = await buildPanel(cwd, guess);
       } catch { /* no panel rather than a wrong one */ }
-      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts };
+      turnJob.result = { text, sessionId: effectiveSessionId, proposal: proposalOut, proposals: proposalsOut, withdrawn, panel: coachPanel, consulted: turnJob.consulted || null, consult: ctl.roster.length ? ctl.roster : null, artifacts: filed.artifacts, ...(rolled ? { sessionRolled: true } : {}) };
       turnJob.status = 'ready';
       // landing-side markers (the skipped-work cooldown) burn only on a
       // delivered answer — a failed job used to consume the window silently
@@ -1331,7 +1521,13 @@ export function startAskCoach(cwd, { question, asked = null, context, sessionId,
     // editing files. One short standing line each turn corrects a
     // conversation already in flight, without restarting it and losing his
     // history.
-    text: isNewSession ? buildCoachPrompt({ question, context, consulted }) : `${COACH_TURN_REMINDER}\n\n${question}`,
+    //
+    // Since 18 Oct 2026 that line rides --append-system-prompt above (every
+    // spawn, resumed ones included, so an old conversation still gets the
+    // current rules), and a resumed turn sends only the live changes and his
+    // question (lib/coachTurn.js liveDelta).
+    text: isNewSession ? buildCoachPrompt({ question, context, consulted })
+      : consulted ? consultedResumeText(consulted, question, { canPropose: true }) : question,
     job,
     finishTurn,
   });
@@ -1384,9 +1580,21 @@ const LEADER_TURN_REMINDER = `[Standing reminder: when he shares a struggle, a w
 export function startAskLeader(cwd, { question, context, sessionId, consulted = null, keep = false }) {
   assertLaneOn('leader-chat');
   const jobId = randomUUID().slice(0, 8);
-  const isNewSession = consulted ? true : !sessionId;
-  const effectiveSessionId = (consulted ? null : sessionId) || randomUUID();
-  const job = { id: jobId, status: 'running', result: null, error: null };
+  // THE LANE GUARD (lib/askSession.js): an id recorded for Nova or the Coach
+  // is never resumed here. The turn opens a fresh Leader session, and its
+  // context is assembled below because the caller only sent a live line.
+  let ownGuard = { sessionId, reason: null };
+  if (!consulted && sessionId) {
+    ownGuard = sessionOwnerGuard(sessionId, 'leader');
+    if (ownGuard.reason) console.log(`leader: fresh session — ${ownGuard.reason}`);
+  }
+  const refused = !!ownGuard.reason;
+  if (refused) sessionId = null;
+  const claim = consulted?.claim || null;
+  const isNewSession = consulted ? !claim?.resume : !sessionId;
+  const effectiveSessionId = (consulted ? claim?.sessionId : sessionId) || randomUUID();
+  const effort = consulted ? CONSULT_EFFORT : effortFor('leader-chat');
+  const job = { id: jobId, status: 'running', result: null, error: null, effort };
   jobs.set(jobId, job);
   if (!consulted) attachVisuals(job, { vaultPath: cwd });   // the glass starts fetching as he is answered
   const kind = consulted ? 'consult-leader' : 'leader';
@@ -1402,6 +1610,8 @@ export function startAskLeader(cwd, { question, context, sessionId, consulted = 
     '--verbose',
     // pinned, like every lane — opus by default, changeable in Settings
     '--model', modelFor('leader-chat'),
+    // medium by default, low when consulted (18 Oct 2026)
+    ...effortFlag(effort),
   ];
   args.push(isNewSession ? '--session-id' : '--resume', effectiveSessionId);
   const resumeArgs = [...args.slice(0, -2), '--resume', effectiveSessionId];
@@ -1417,7 +1627,7 @@ export function startAskLeader(cwd, { question, context, sessionId, consulted = 
     const step = await consultStep(ctl, incoming, turnJob, 'the Leader',
       (text) => warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: resumeArgs, text, job: turnJob, finishTurn }));
     if (!step) return;
-    if (consulted) return finishConsulted(cwd, step.text, turnJob, { question, ctl, sessionId: effectiveSessionId, kind });
+    if (consulted) return finishConsulted(cwd, step.text, turnJob, { question, ctl, sessionId: effectiveSessionId, kind, keepWarm: !!claim?.shared });
     const replyText = step.text;
     try {
       // THE DOCUMENTS, FIRST — before REFLECT ever sees this text.
@@ -1458,15 +1668,20 @@ export function startAskLeader(cwd, { question, context, sessionId, consulted = 
     }
   };
 
-  warmTurn({
+  const send = (ctx) => warmTurn({
     kind,
     sessionId: effectiveSessionId,
     cwd,
     args,
-    text: isNewSession ? buildLeaderPrompt({ question, context, consulted }) : `${LEADER_TURN_REMINDER}\n\n${question}`,
+    text: isNewSession ? buildLeaderPrompt({ question, context: ctx, consulted })
+      : consulted ? consultedResumeText(consulted, question) : `${LEADER_TURN_REMINDER}\n\n${question}`,
     job,
     finishTurn,
   });
+  if (refused && !context) {
+    import('./leader.js').then(({ buildLeaderChatContext }) => buildLeaderChatContext(cwd)).catch(() => '').then((ctx) => send(ctx || ''))
+      .catch((e) => { job.status = 'error'; job.error = e.message; });
+  } else send(context);
 
   return jobId;
 }

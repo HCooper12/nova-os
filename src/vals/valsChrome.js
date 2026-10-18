@@ -763,6 +763,11 @@ export function valsChrome(app, ctx) {
               spend: spend.byLane[l.id] || null,
               busy: st.modelPrefsBusy === l.id,
               setModel: (e) => app.setModelLane(l.id, { model: e.target.value }),
+              // thinking effort (server/lib/modelPrefs.js effortFor): only the
+              // lanes that pass --effort carry one; the rest inherit
+              effort: l.effort || null,
+              defaultEffort: l.defaultEffort || null,
+              setEffort: l.defaultEffort ? (value) => app.setModelLane(l.id, { effort: value }) : null,
               toggle: () => app.setModelLane(l.id, { enabled: !l.enabled }),
               reset: l.customised || !l.enabled ? () => app.resetModelLane(l.id) : null,
             })),

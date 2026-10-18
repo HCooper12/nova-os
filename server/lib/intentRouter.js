@@ -128,6 +128,27 @@ function hostOf(u) {
 // see reasoning for is a black box, and black boxes lose trust the first
 // time they route wrong.
 export function routeIntent(text) {
+  const d = routeIntentLane(text);
+  if (d.lane && isDeepAsk(text)) d.deep = true;
+  return d;
+}
+
+// A DEEP ASK (18 Oct 2026): "re-evaluate my program", "redesign my split",
+// "a full review", "go through the whole block". Measured that day, the Coach
+// thought for up to 65 s at the account's ambient xhigh on EVERY question;
+// the lanes now think at low/medium, and only a request for the whole picture
+// earns more (lib/modelPrefs.js DEEP_EFFORT). Deliberately demanding: a verb
+// of rebuilding aimed at the plan itself, or words that say "all of it".
+const DEEP_RE = /\b(?:re-?evaluate|re-?assess|re-?design|re-?build|re-?think|re-?work|overhaul|re-?do|re-?structure)\b[^.?!]{0,40}?\b(?:program(?:me)?|split|plan|training|block|routines?)\b|\bfull (?:review|audit|re-?evaluation|overhaul)\b|\bgo(?:ing)? (?:through|over) (?:the|my) (?:whole|entire)\b|\b(?:review|look at|audit) (?:the|my) (?:whole|entire)\b/i;
+export function isDeepAsk(text) {
+  return DEEP_RE.test(String(text || ''));
+}
+// The one line code speaks after the ack when a deep Coach turn starts, so
+// the longer silence is announced, never a mystery. Written by code, never
+// by the model.
+export const DEEP_LINE = 'Going through the whole program; give me a minute.';
+
+function routeIntentLane(text) {
   const raw = String(text || '').trim();
   if (!raw) return { lane: null, why: 'nothing to route' };
   const urls = urlsIn(raw);
@@ -206,18 +227,35 @@ export function routeIntent(text) {
 // Only the plain 'ask' fall-through is sticky. A lane the router is sure
 // about (a link, a training question, a book) still wins, and so does naming
 // Nova — "Nova, what's the weather" mid-Leader-chat is a deliberate turn to
-// him. Twenty minutes: his 01:04 → 01:17 was thirteen, with driving in it.
-// A wrong stick costs him an answer from the Leader instead of Nova; a wrong
-// fall-through costs him the whole thread.
+// him. A wrong stick costs him an answer from the specialist instead of Nova;
+// a wrong fall-through costs him the whole thread.
+//
+// THE WINDOW IS PER LANE (18 Oct 2026). The Leader keeps twenty minutes: his
+// 01:04 → 01:17 rebuttal was thirteen, with driving in it. The Coach's is two
+// minutes: the 18 Oct audit found general questions, asked five minutes after
+// a training answer, still going to the Coach on Opus (a 302 s follow-up), where
+// Nova on Sonnet answers in a fraction of the time.
+//
+// And a question that is plainly NOVA'S leaves the sticky lane inside the
+// window: a health number ("what's my HRV"), his calendar ("what's on
+// tomorrow"), money. Those are answered from his record by Nova, not
+// reasoned over by a specialist mid-conversation.
 export const FOLLOW_UP_WINDOW_MS = 20 * 60_000;
+export const FOLLOW_UP_WINDOWS = { coach: 120_000, leader: FOLLOW_UP_WINDOW_MS };
 const NAMES_NOVA_RE = /^\s*(?:hey|ok(?:ay)?|hi|right|so|and)?[,\s]*nova\b/i;
+// Nova's own ground, said as a question about his record or his day.
+const NOVA_TOPIC_RE = /\b(?:what(?:'s| is| was| were)|how (?:many|much|did|was|is)|did i|have i|show me|when(?:'s| is))\b[^.?!]{0,50}?\b(?:hrv|heart rate|resting hr|rhr|steps?|sleep score|weight|weigh|vo2|calories? burned|readiness|calendar|diary|schedule|meetings?|appointments?|events?|on (?:today|tomorrow|this week)|spend|spent|budget|bills?|money|balance|weather|time is it)\b|\b(?:what(?:'s| is)) on (?:today|tomorrow|this week|my calendar)\b/i;
+export function isNovaTopic(raw) {
+  return NOVA_TOPIC_RE.test(String(raw || ''));
+}
 export function followUpLane(routed, raw, { lastAgent, lastAgentAt } = {}, now = Date.now()) {
   const plain = { lane: routed, sticky: false };
   if (routed !== 'ask') return plain;
   if (lastAgent !== 'coach' && lastAgent !== 'leader') return plain;
   const at = Number(lastAgentAt);
-  if (!Number.isFinite(at) || now - at > FOLLOW_UP_WINDOW_MS) return plain;
+  if (!Number.isFinite(at) || now - at > FOLLOW_UP_WINDOWS[lastAgent]) return plain;
   if (NAMES_NOVA_RE.test(String(raw || ''))) return plain;
+  if (isNovaTopic(raw)) return { lane: routed, sticky: false, left: lastAgent, why: `plainly Nova's question (his record or his day), so it leaves ${lastAgent === 'coach' ? 'the Coach' : 'the Leader'}` };
   const who = lastAgent === 'coach' ? 'the Coach' : 'the Leader';
   return { lane: lastAgent, sticky: true, why: `a follow-up ${Math.max(0, Math.round((now - at) / 1000))}s after ${who} spoke — it stays with them` };
 }

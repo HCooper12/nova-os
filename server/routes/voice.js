@@ -262,7 +262,12 @@ export function voiceRouter(vaultPath) {
         watchAnswerFor(jobId, 'coach');
         console.log(`ask → coach (${coachSession ? 'resumed' : 'new'}) q=${JSON.stringify(question.slice(0, 60))}`);
         const ack = await ackForTurn({ question: raw, lane: 'coach', voiceId: req.body?.voiceId });
-        return res.json({ jobId, agent: 'coach', ...(ack ? { ack } : {}) });
+        // A DEEP ASK ("re-evaluate my program") thinks at high effort and takes
+        // longer, so code hands the client one line to speak AFTER the ack
+        // (lib/intentRouter.js DEEP_LINE). Never written by a model.
+        const { isDeepAsk, DEEP_LINE } = await import('../lib/intentRouter.js');
+        const deepLine = isDeepAsk(raw) ? DEEP_LINE : null;
+        return res.json({ jobId, agent: 'coach', ...(ack ? { ack } : {}), ...(deepLine ? { deepLine } : {}) });
       }
       if (lane === 'leader') {
         const { startAskLeader } = await import('../lib/claudeCode.js');
@@ -356,7 +361,12 @@ export function voiceRouter(vaultPath) {
     // A NEW conversation pays ~2.4s of context assembly before the model
     // sees a word. Build it now, while he is still speaking; the ask picks
     // it up from the cache (see buildAskContext).
-    else buildAskContext(vaultPath, null).catch(() => {});
+    else {
+      buildAskContext(vaultPath, null).catch(() => {});
+      // no Nova session yet, but the Coach or the Leader may be the sticky
+      // lane: prewarmAsk boots only that (claudeCode.js prewarmSticky)
+      try { warmed = prewarmAsk(vaultPath, null); } catch { /* best-effort */ }
+    }
     // Warm the VOICE too, not just the thinking. A cold Kokoro sidecar spends
     // ~8s loading its model, and that was paid AFTER the answer came back —
     // the one moment the wait is audible. Booting it now means it loads while

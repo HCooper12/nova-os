@@ -142,7 +142,7 @@ export const LANE_GROUPS = [
 export const LANES = [
   // ---- conversation -------------------------------------------------------
   {
-    id: 'ask-nova', label: 'Ask Nova', group: 'conversation', def: 'haiku',
+    id: 'ask-nova', label: 'Ask Nova', group: 'conversation', def: 'haiku', defEffort: 'low',
     hint: 'the voice screen’s brain — read-only over the vault, streams as it speaks',
     off: 'The voice screen and the Siri shortcut stop answering and say so; everything deterministic (the glass, the brief’s numbers) still works.',
   },
@@ -160,7 +160,7 @@ export const LANES = [
 
   // ---- coach --------------------------------------------------------------
   {
-    id: 'coach', label: 'Ask Coach', group: 'coach', def: 'opus',
+    id: 'coach', label: 'Ask Coach', group: 'coach', def: 'opus', defEffort: 'medium',
     hint: 'the Train screen’s chat — reasoning-heavy, and the lane that proposes program changes',
     off: 'Coach chat is refused with a plain message. Your program, history and analytics are untouched.',
   },
@@ -317,7 +317,7 @@ export const LANES = [
     off: 'The research library stops growing; daily ideas keep drawing on the vault and what’s already gathered.',
   },
   {
-    id: 'leader-chat', label: 'Leader — conversation', group: 'conversation', def: 'opus',
+    id: 'leader-chat', label: 'Leader — conversation', group: 'conversation', def: 'opus', defEffort: 'medium',
     hint: 'the leadership sit-down — struggles in, research directions out',
     off: 'The Leader chat is refused with a plain message; the daily idea keeps arriving.',
   },
@@ -466,6 +466,50 @@ export const LANES = [
 
 const LANE_BY_ID = new Map(LANES.map((l) => [l.id, l]));
 
+// ------------------------------- effort -------------------------------------
+// THINKING EFFORT PER LANE (18 Oct 2026). The CLI reads `effortLevel` from
+// ~/.claude/settings.json when a spawn names none, and on his machine that is
+// "xhigh": the 18 Oct audit measured the Coach thinking 18-65 s (p50 ~25 s)
+// before its first word, most of its 2.5-8.7k output tokens spent thinking.
+// No spawn passed --effort, so every conversation inherited the ambient
+// level, the same class of leak as the 21 Aug ambient model.
+//
+// A lane with `defEffort` passes --effort on EVERY spawn (lib/claudeCode.js
+// effortFlag), so the ambient level can never reach it. A lane without one
+// still inherits the account's level; only the lanes below carry the flag
+// today, which is why only they show the picker (a picker that changed
+// nothing would be a lie on screen).
+export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'];
+// A consulted agent answers another agent in a short brief (lib/consult.js),
+// so it thinks at the lowest level whichever lane answers.
+export const CONSULT_EFFORT = 'low';
+// A deep Coach ask ("re-evaluate my program", lib/intentRouter.js isDeepAsk)
+// thinks harder than the lane's standing level, never less.
+export const DEEP_EFFORT = 'high';
+
+export function isValidEffort(value) {
+  return typeof value === 'string' && EFFORT_LEVELS.includes(value);
+}
+
+/** The effort this lane spawns at, or null when the lane inherits the
+ *  account's level (no picker, no flag). */
+export function effortFor(laneId) {
+  const lane = LANE_BY_ID.get(laneId);
+  if (!lane) throw new Error(`unknown model lane: ${laneId}`);
+  if (!lane.defEffort) return null;
+  const saved = loadRaw()[laneId]?.effort;
+  return isValidEffort(saved) ? saved : lane.defEffort;
+}
+
+/** The higher of two levels (a deep ask raises, never lowers, his setting). */
+export function maxEffort(a, b) {
+  const ia = EFFORT_LEVELS.indexOf(a);
+  const ib = EFFORT_LEVELS.indexOf(b);
+  if (ia < 0) return ib < 0 ? null : b;
+  if (ib < 0) return a;
+  return ia >= ib ? a : b;
+}
+
 // --------------------------------- store -----------------------------------
 // Read synchronously and cached against the file's mtime: every reader here
 // is on a path that is about to spawn a process and wait seconds for a model,
@@ -561,10 +605,13 @@ export function getModelPrefs() {
       model: modelFor(l.id),
       defaultModel: l.def,
       deterministic: !!l.deterministic,
-      customised: !!(saved[l.id]?.model && saved[l.id].model !== l.def),
+      customised: !!((saved[l.id]?.model && saved[l.id].model !== l.def) || (l.defEffort && isValidEffort(saved[l.id]?.effort) && saved[l.id].effort !== l.defEffort)),
+      effort: l.defEffort ? effortFor(l.id) : null,
+      defaultEffort: l.defEffort || null,
       enabled: laneEnabled(l.id),
       spend: spend[l.id] || null,
     })),
+    efforts: EFFORT_LEVELS,
     watch: {
       checkedAt: lastCheckedAt(),
       resolved: Object.fromEntries(ALIAS_DEFS.map((a) => [a.family, {
@@ -580,7 +627,7 @@ export function getModelPrefs() {
 /** Set one lane's model and/or on-off state. Validates hard: an unknown lane
  *  or an unrecognised model is a 400, never a silent fall-through to the
  *  ambient default. */
-export async function setLanePref(laneId, { model, enabled } = {}) {
+export async function setLanePref(laneId, { model, enabled, effort } = {}) {
   const lane = LANE_BY_ID.get(laneId);
   if (!lane) throw new Error(`unknown lane: ${laneId}`);
   if (model !== undefined && lane.deterministic) throw new Error(`${lane.label} runs no model — only its switch can be set`);
@@ -588,11 +635,14 @@ export async function setLanePref(laneId, { model, enabled } = {}) {
     throw new Error(`model must be one of: ${buildModelChoices().map((m) => m.value).join(', ')}`);
   }
   if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('enabled must be true or false');
+  if (effort !== undefined && !lane.defEffort) throw new Error(`${lane.label} has no thinking setting — it runs at the account's level`);
+  if (effort !== undefined && !isValidEffort(effort)) throw new Error(`effort must be one of: ${EFFORT_LEVELS.join(', ')}`);
 
   const next = { ...loadRaw() };
   const entry = { ...(next[laneId] || {}) };
   if (model !== undefined) entry.model = model;
   if (enabled !== undefined) entry.enabled = enabled;
+  if (effort !== undefined) entry.effort = effort;
   next[laneId] = entry;
 
   await mkdir(dataRoot(), { recursive: true });
