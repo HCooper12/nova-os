@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Quick capture in the Inbox</title>
+<!--
+  103 · QUICK CAPTURE, BACK IN THE INBOX (18 October 2026)
+  His words: "add back into inbox the quick capture feature so that anything
+  I want to capture can quickly be added into here and sorted into the
+  specific category or area in nova that is relevant ... me being able to
+  just write toothpaste and nova intelligently identifies that I'm adding it
+  to my shopping list. There should be a tag that identifies this as a
+  shopping list item just in case I realise that nova is interpreting it
+  wrong" ... and: features must work without his Claude usage.
+
+  WHAT IS DRAWN (Summary style, glass, his real Inbox as the base)
+    1 The "Send a link" card becomes Quick capture: one field for anything.
+      A link still offers Send it / Full read (the link lanes are unchanged).
+    2 Every capture lands as a receipt row under the field, with a TAG naming
+      where it went: "Shopping list · Household". Undo sits beside it.
+    3 Tap the tag: a sheet of places (Shopping list, To-do, Note, Journal,
+      Idea, Reminder, Food log) and an "add more detail" line. Picking one
+      re-files it there and takes it out of the first place (one undoable move).
+    4 Without Claude: Nova's own rules file what they know (toothpaste,
+      "buy milk", "call the bank"); what they cannot place waits as
+      "Unsorted", with the same tag to pick a place. Nothing is lost.
+
+  DEMO TEXT inside the phones. Motion: a receipt row drops in under the field
+  (220ms, ease-out); the tag re-tints on a re-file; the sheet rises with a
+  60% scrim (figure/ground). Reduced motion: end states.
+-->
+<style>
+:root{
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+  --serif:ui-serif,"New York","Iowan Old Style",Georgia,serif;
+  --ease:cubic-bezier(.23,1,.32,1);
+  --void:#070816;--ink:#eef0fa;--ink2:rgba(238,240,250,.74);--ink3:rgba(238,240,250,.52);
+  --glass:rgba(255,255,255,.075);--ring:rgba(255,255,255,.16);--well:rgba(0,0,0,.28);
+  --cy:#59e6ff;--gold:#e0b26a;--good:#5fe8a8;--vi:#a18bff;--warn:#e08383;--or:#ffb36b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--void);color:var(--ink);font:15px/1.45 var(--ui);-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden}
+.page{max-width:1240px;margin:0 auto;padding:28px 16px 80px}
+h1.t{font:600 30px/1.1 var(--serif)}
+.lede{color:var(--ink3);margin:8px 0 26px;max-width:64ch}
+.row{display:flex;flex-wrap:wrap;gap:28px}
+.col{flex:1 1 330px;max-width:375px}
+.cap{font-size:13px;color:var(--ink3);margin:10px 4px 0}.cap b{color:var(--ink)}
+.phone{position:relative;height:720px;border-radius:40px;overflow:hidden;border:1px solid var(--ring);
+  background:radial-gradient(120% 60% at 0% 0%,#123247 0%,transparent 55%),radial-gradient(90% 60% at 100% 40%,#2a1d55 0%,transparent 60%),#0a0b1d;padding:52px 16px 0}
+.demo{position:absolute;top:18px;right:20px;font:600 10px var(--ui);letter-spacing:.1em;color:var(--gold)}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.h{font:700 34px/1 var(--ui);letter-spacing:-.02em}
+.seg{display:flex;background:rgba(255,255,255,.07);border-radius:12px;padding:3px}
+.seg span{padding:7px 14px;border-radius:9px;font-size:13px;color:var(--ink3)}.seg .on{background:rgba(255,255,255,.12);color:var(--ink)}
+.card{background:var(--glass);border:1px solid var(--ring);border-radius:24px;padding:16px;backdrop-filter:blur(18px);margin-bottom:12px}
+.head{display:flex;gap:11px;align-items:center}
+.tile{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,#5fd3ff,#7b6bff);flex:none}
+.tile svg{width:18px;height:18px}
+.ht b{display:block;font:600 16px var(--ui)}.ht small{color:var(--ink3);font-size:12.5px}
+.field{display:flex;align-items:center;gap:8px;margin-top:13px;background:var(--well);border:1px solid var(--ring);border-radius:999px;padding:6px 6px 6px 16px}
+.field span{flex:1;font-size:15px;color:var(--ink)}.field span.ph{color:var(--ink3)}
+.field i{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:rgba(89,230,255,.16);color:var(--cy);font-style:normal;font-weight:700}
+.rcpt{display:flex;align-items:center;gap:10px;padding:11px 2px;border-top:1px solid rgba(255,255,255,.08);animation:drop .22s var(--ease) both}
+.rcpt:first-of-type{margin-top:12px}
+.rcpt .txt{flex:1;min-width:0;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{flex:none;display:inline-flex;align-items:center;gap:5px;font:600 12px var(--ui);padding:5px 10px;border-radius:999px;border:1px solid}
+.tag::after{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px);margin-left:2px}
+.t-shop{color:var(--good);border-color:rgba(95,232,168,.4);background:rgba(95,232,168,.1)}
+.t-todo{color:var(--cy);border-color:rgba(89,230,255,.4);background:rgba(89,230,255,.1)}
+.t-note{color:var(--vi);border-color:rgba(161,139,255,.45);background:rgba(161,139,255,.12)}
+.t-rem{color:var(--or);border-color:rgba(255,179,107,.45);background:rgba(255,179,107,.1)}
+.t-uns{color:var(--gold);border-color:rgba(224,178,106,.5);background:rgba(224,178,106,.1);border-style:dashed}
+.undo{flex:none;font-size:12.5px;color:var(--ink3)}
+.how{font-size:12px;color:var(--ink3);margin-top:8px}
+.how b{color:var(--ink2);font-weight:600}
+.scrim{position:absolute;inset:0;background:rgba(3,4,12,.6)}
+.sheet{position:absolute;left:0;right:0;bottom:0;border-radius:28px 28px 0 0;background:rgba(28,30,52,.96);border-top:1px solid var(--ring);padding:12px 18px 26px;animation:rise .32s var(--ease) both}
+.grab{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.25);margin:0 auto 12px}
+.sheet h3{font:600 17px var(--ui)}.sheet p{font-size:13px;color:var(--ink3);margin:3px 0 12px}
+.dest{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dest span{padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:14px}
+.dest span small{display:block;font-size:11.5px;color:var(--ink3);margin-top:2px}
+.dest .cur{border-color:rgba(95,232,168,.55);background:rgba(95,232,168,.1)}
+.more{margin-top:12px;background:var(--well);border:1px solid var(--ring);border-radius:14px;padding:11px 13px;font-size:14px;color:var(--ink3)}
+.tabs{position:absolute;left:14px;right:84px;bottom:16px;height:62px;border-radius:31px;background:rgba(30,32,56,.82);border:1px solid var(--ring);display:flex;justify-content:space-around;align-items:center;font-size:11px;color:var(--ink3)}
+@keyframes drop{from{opacity:0;transform:translateY(-6px)}}
+@keyframes rise{from{transform:translateY(40%);opacity:.4}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="t">Quick capture in the Inbox</h1>
+  <p class="lede">One box for anything. Nova files it, the tag says where, and one tap moves it if Nova guessed wrong. Common things still file when your Claude usage has run out. The words inside the phones are made up.</p>
+
+  <div class="row">
+    <div class="col">
+      <div class="phone"><span class="demo">DEMO · 1 CAPTURE</span>
+        <div class="top"><span class="h">Inbox</span><span class="seg"><span class="on">Waiting</span><span>Filed</span></span></div>
+        <div class="card">
+          <div class="head"><span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+            <span class="ht"><b>Quick capture</b><small>Anything: a thing to buy, a to-do, a thought, a link</small></span></div>
+          <div class="field"><span class="ph">Toothpaste, call the bank, a reel…</span><i>↑</i></div>
+          <div class="rcpt"><span class="txt">toothpaste</span><span class="tag t-shop">Shopping list · Household</span><span class="undo">Undo</span></div>
+          <div class="rcpt"><span class="txt">call the bank about the card</span><span class="tag t-todo">To-do · Personal</span><span class="undo">Undo</span></div>
+          <div class="rcpt"><span class="txt">remind me 4pm to stretch</span><span class="tag t-rem">Reminder · 4:00 pm</span><span class="undo">Undo</span></div>
+          <div class="how">Tap a tag to move it somewhere else.</div>
+        </div>
+        <div class="card"><div class="head"><span class="tile" style="background:linear-gradient(135deg,#3e4a6b,#2c3352)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="4" y="5" width="16" height="14" rx="3"/></svg></span><span class="ht"><b>Fuel × training</b><small>waiting on your call</small></span></div></div>
+        <div class="tabs"><span>Home</span><span>Nova</span><span>Train</span><span>Fuel</span><span>More</span></div>
+      </div>
+      <p class="cap"><b>Capture.</b> The "Send a link" card becomes one box for anything. Each capture lands as a row with a tag naming where it went, and Undo beside it.</p>
+    </div>
+
+    <div class="col">
+      <div class="phone"><span class="demo">DEMO · TAG TAPPED</span>
+        <div class="top"><span class="h">Inbox</span><span class="seg"><span class="on">Waiting</span><span>Filed</span></span></div>
+        <div class="card">
+          <div class="head"><span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="ht"><b>Quick capture</b><small>Anything</small></span></div>
+          <div class="field"><span class="ph">Toothpaste, call the bank, a reel…</span><i>↑</i></div>
+          <div class="rcpt"><span class="txt">Sensodyne for Mum's birthday?</span><span class="tag t-shop">Shopping list · Household</span><span class="undo">Undo</span></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet"><div class="grab"></div>
+          <h3>Where should this go?</h3>
+          <p>"Sensodyne for Mum's birthday?" is on your shopping list now.</p>
+          <div class="dest">
+            <span class="cur">Shopping list<small>Household</small></span>
+            <span>To-do<small>do it later</small></span>
+            <span>Note<small>keep it</small></span>
+            <span>Journal<small>about your day</small></span>
+            <span>Idea<small>something to make</small></span>
+            <span>Reminder<small>at a time</small></span>
+          </div>
+          <div class="more">Add more detail, Nova re-files it…</div>
+        </div>
+      </div>
+      <p class="cap"><b>Wrong guess.</b> Tap the tag. Pick a place, or add a detail ("gift idea for Mum") and Nova files it again. It leaves the shopping list in the same step.</p>
+    </div>
+
+    <div class="col">
+      <div class="phone"><span class="demo">DEMO · NO CLAUDE USAGE</span>
+        <div class="top"><span class="h">Inbox</span><span class="seg"><span class="on">Waiting</span><span>Filed</span></span></div>
+        <div class="card">
+          <div class="head"><span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="ht"><b>Quick capture</b><small>Anything</small></span></div>
+          <div class="field"><span class="ph">Toothpaste, call the bank, a reel…</span><i>↑</i></div>
+          <div class="rcpt"><span class="txt">milk and eggs</span><span class="tag t-shop">Shopping list · Dairy</span><span class="undo">Undo</span></div>
+          <div class="rcpt"><span class="txt">email Sam the deck</span><span class="tag t-todo">To-do · Work</span><span class="undo">Undo</span></div>
+          <div class="rcpt"><span class="txt">the drone shot opening for the gym video</span><span class="tag t-uns">Unsorted · pick a place</span><span class="undo">Undo</span></div>
+          <div class="how"><b>Claude isn't available right now.</b> Nova's own rules filed what they know. Pick a place for the rest, or it sorts itself when Claude is back.</div>
+        </div>
+        <div class="tabs"><span>Home</span><span>Nova</span><span>Train</span><span>Fuel</span><span>More</span></div>
+      </div>
+      <p class="cap"><b>Without Claude.</b> Things to buy and plain to-dos still file by Nova's own rules. Anything the rules can't place waits as Unsorted with the same tag, and nothing is lost.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
