@@ -263,17 +263,24 @@ function Exercise({ d }) {
 }
 
 function NutritionWeek({ d }) {
-  const max = Math.max(d.floor || 0, ...(d.days || []).map((x) => x.p || 0), 1);
   const days = d.days || [];
+  // each day carries the floor IT was set against (18 Oct 2026, his rule: a
+  // new goal never re-judges an earlier day). One floor all week draws one
+  // line; a change inside the week draws a short tick on each day instead.
+  const floorOf = (day) => day.floorG ?? d.floor;
+  const floors = [...new Set(days.map(floorOf).filter((x) => x != null))];
+  const oneFloor = floors.length <= 1 ? (floors[0] ?? d.floor) : null;
+  const max = Math.max(d.floor || 0, ...floors, ...days.map((x) => x.p || 0), 1);
   // TODAY IS NOT A MISS. It is 09:00 and he has eaten 59 of 150g — counting
   // that as a failed day, in the bar colour and in "met 0 of 7", tells him he
   // has already lost a day that has barely started. The last day in the
   // series is in progress; it is scored, and coloured, differently.
-  const todayISO = new Date().toISOString().slice(0, 10);
+  // his LOCAL day: toISOString is UTC, a day behind in Australia before 11am
+  const todayISO = new Date().toLocaleDateString('en-CA');
   const isToday = (day) => day.date === todayISO;
   const settled = days.filter((day) => !isToday(day) && day.p != null);
   const metCount = settled.filter((day) => day.floorMet).length;
-  const gap = d.floor != null && d.avgP != null ? d.floor - d.avgP : null;
+  const gap = oneFloor != null && d.avgP != null ? oneFloor - d.avgP : null;
 
   const barColour = (day) => {
     if (day.p == null) return dim(12);                       // never logged
@@ -300,17 +307,20 @@ function NutritionWeek({ d }) {
             {metCount}<span style={css(`font-size:13px;color:${dim(45)}`)}>/{settled.length}</span>
           </span>
           <span style={css(`font:400 12px/1.35 ${R};color:${dim(72)}`)}>
-            days over the {d.floor}g floor.
+            {oneFloor != null ? <>days over the {oneFloor}g floor.</> : <>days over that day's floor (the goal changed this week).</>}
             {gap > 0 && <> Average {d.avgP}g — a {gap}g nightly gap.</>}
           </span>
         </div>
       )}
       <div style={css("display:flex;align-items:flex-end;gap:6px;height:64px;position:relative")}>
-        {d.floor != null && (
-          <div style={css(`position:absolute;left:0;right:0;bottom:${(d.floor / max) * 76}%;border-top:1px dashed color-mix(in srgb, var(--nv-good) 50%, transparent)`)} />
+        {oneFloor != null && (
+          <div style={css(`position:absolute;left:0;right:0;bottom:${(oneFloor / max) * 76}%;border-top:1px dashed color-mix(in srgb, var(--nv-good) 50%, transparent)`)} />
         )}
         {days.map((day) => (
-          <div key={day.date} style={css("flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end")}>
+          <div key={day.date} style={css("flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;position:relative")}>
+            {oneFloor == null && floorOf(day) != null && (
+              <div style={css(`position:absolute;left:0;right:0;bottom:${(floorOf(day) / max) * 76}%;border-top:1px dashed color-mix(in srgb, var(--nv-good) 60%, transparent)`)} />
+            )}
             <span style={css(`font:var(--nv-micro-s);color:${day.floorMet ? 'var(--nv-good)' : isToday(day) ? 'var(--nv-cy)' : dim(55)}`)}>{day.p ?? '·'}</span>
             <div style={css(`width:100%;max-width:26px;border-radius:4px 4px 0 0;height:${day.p ? Math.max(6, (day.p / max) * 76) : 3}%;background:${barColour(day)}${isToday(day) ? ';outline:1px solid var(--nv-cy);outline-offset:-1px' : ''}`)} />
           </div>
@@ -338,7 +348,9 @@ function NutritionWeek({ d }) {
 // is the daily target. A day with no log is drawn as a gap, never as a low day.
 function CalorieWeek({ w }) {
   const k = (n) => Math.round(n).toLocaleString('en-AU');
-  const max = Math.max(w.target || 0, ...w.days.map((x) => x.kcal || 0), 1);
+  const targets = [...new Set(w.days.map((x) => x.target).filter(Boolean))];
+  const oneTarget = targets.length <= 1 ? (targets[0] ?? w.target) : null;
+  const max = Math.max(w.target || 0, ...targets, ...w.days.map((x) => x.kcal || 0), 1);
   const open = w.budget == null;
   const verdictColour = open ? dim(72) : w.over > 0 ? 'var(--nv-warn)' : 'var(--nv-good)';
   return (
@@ -355,13 +367,16 @@ function CalorieWeek({ w }) {
         </div>
       )}
       <div style={css("display:flex;align-items:flex-end;gap:6px;height:64px;position:relative;margin-top:10px")}>
-        {w.target != null && (
-          <div style={css(`position:absolute;left:0;right:0;bottom:${(w.target / max) * 76}%;border-top:1px dashed ${dim(35)}`)} />
+        {oneTarget != null && (
+          <div style={css(`position:absolute;left:0;right:0;bottom:${(oneTarget / max) * 76}%;border-top:1px dashed ${dim(35)}`)} />
         )}
         {w.days.map((day) => (
-          <div key={day.date} style={css("flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end")}>
+          <div key={day.date} style={css("flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;position:relative")}>
+            {oneTarget == null && day.target && (
+              <div style={css(`position:absolute;left:0;right:0;bottom:${(day.target / max) * 76}%;border-top:1px dashed ${dim(40)}`)} />
+            )}
             <span style={css(`font:var(--nv-micro-s);color:${day.state === 'today' ? 'var(--nv-cy)' : dim(55)}`)}>{day.kcal != null ? k(day.kcal) : day.state === 'future' ? '' : '·'}</span>
-            <div style={css(`width:100%;max-width:26px;border-radius:4px 4px 0 0;height:${day.kcal ? Math.max(6, (day.kcal / max) * 76) : 3}%;background:${day.state === 'today' ? 'color-mix(in srgb, var(--nv-cy) 45%, transparent)' : day.kcal == null ? dim(12) : w.target && day.kcal > w.target * 1.1 ? 'color-mix(in srgb, var(--nv-warn) 52%, transparent)' : 'color-mix(in srgb, var(--nv-good) 55%, transparent)'}${day.state === 'today' ? ';outline:1px solid var(--nv-cy);outline-offset:-1px' : ''}`)} />
+            <div style={css(`width:100%;max-width:26px;border-radius:4px 4px 0 0;height:${day.kcal ? Math.max(6, (day.kcal / max) * 76) : 3}%;background:${day.state === 'today' ? 'color-mix(in srgb, var(--nv-cy) 45%, transparent)' : day.kcal == null ? dim(12) : (day.target || w.target) && day.kcal > (day.target || w.target) * 1.1 ? 'color-mix(in srgb, var(--nv-warn) 52%, transparent)' : 'color-mix(in srgb, var(--nv-good) 55%, transparent)'}${day.state === 'today' ? ';outline:1px solid var(--nv-cy);outline-offset:-1px' : ''}`)} />
           </div>
         ))}
       </div>

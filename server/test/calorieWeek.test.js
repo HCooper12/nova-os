@@ -63,3 +63,11 @@ test('a Monday morning: one open day, six to come, nothing eaten before today', 
   assert.equal(w.eaten, 400);
   assert.deepEqual(w.days.map((d) => d.state), ['today', 'future', 'future', 'future', 'future', 'future', 'future']);
 });
+
+test('a goal changed mid-week governs only from its own day: the budget is each day\'s own target', () => {
+  // his real week, 18 Oct 2026: 2,100 until Saturday, 2,153 from Sunday
+  const w = calorieWeek(week, { targetKcal: 2153, today: '2026-10-18', targetOn: (d) => (d >= '2026-10-18' ? 2153 : 2100) });
+  assert.equal(w.budget, 2100 * 6 + 2153);
+  assert.equal(w.days.find((d) => d.date === '2026-10-13').target, 2100, 'a past day keeps its own target');
+  assert.equal(w.days.find((d) => d.date === '2026-10-18').target, 2153);
+});

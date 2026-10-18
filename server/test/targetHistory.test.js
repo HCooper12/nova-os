@@ -59,3 +59,13 @@ test('the goals page writer dates a change and keeps the earlier numbers for pas
   await setFitnessGoals(vault, { goal: 'V-taper', notes: 'x', kcalTarget: 2153, proteinTarget: 166 });
   assert.deepEqual(await loadTargetHistory(vault), h);
 });
+
+test('the goal board judges yesterday by yesterday\'s target, today by today\'s', async () => {
+  const { composeBoard } = await import('../lib/goalBoard.js');
+  const now = new Date('2026-10-18T21:30:00');
+  const targets = { steps: { value: 10000 }, protein: { value: 166, source: 'goals' }, kcal: { value: 2153, source: 'goals' } };
+  const b = composeBoard({ targets, now, targetHistory: his, nutritionDays: [{ date: '2026-10-17', p: 155, kcal: 2100 }] });
+  const protein = b.metrics?.find?.((m) => m.key === 'protein') || b.protein;
+  const sat = (protein.days || protein.week).find((d) => d.date === '2026-10-17');
+  assert.equal(sat.met, true, '155g cleared the 150g floor that day; the new 166g must not re-judge it');
+});

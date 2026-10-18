@@ -17,7 +17,11 @@ export function weekStartOf(today) {
   return iso(d);
 }
 
-export function calorieWeek(days, { targetKcal = null, today } = {}) {
+// `targetOn(date)` (18 Oct 2026): the calorie target THAT day was set
+// against (src/targetHistory.js). A goal change governs from its own day on,
+// so the week's budget is the sum of each day's own target, never seven
+// times today's. Without it every day reads `targetKcal`, as before.
+export function calorieWeek(days, { targetKcal = null, today, targetOn = null } = {}) {
   if (!today) return null;
   const start = weekStartOf(today);
   const byDate = new Map((days || []).map((d) => [d.date, d]));
@@ -30,13 +34,14 @@ export function calorieWeek(days, { targetKcal = null, today } = {}) {
     const raw = byDate.get(date)?.kcal;
     const kcal = Number.isFinite(Number(raw)) && raw != null ? Math.round(Number(raw)) : null;
     const state = date > today ? 'future' : date === today ? 'today' : kcal != null ? 'logged' : 'gap';
-    out.push({ date, letter: LETTERS[i], kcal, state });
+    const own = targetOn ? Number(targetOn(date)) : null;
+    out.push({ date, letter: LETTERS[i], kcal, state, target: own > 0 ? Math.round(own) : target });
   }
   const counted = out.filter((d) => d.state !== 'future' && d.kcal != null);
   const eaten = counted.reduce((s, d) => s + d.kcal, 0);
   const before = out.filter((d) => d.state === 'logged').reduce((s, d) => s + d.kcal, 0);
   const remainingDays = out.filter((d) => d.state === 'future' || d.state === 'today').length;
-  const budget = target ? target * 7 : null;
+  const budget = out.every((d) => d.target) ? out.reduce((s, d) => s + d.target, 0) : null;
   // what the rest of the week allows per day, today included, from what had
   // been eaten BEFORE today (today's own log is what the day card is for)
   const perDay = budget != null && remainingDays > 0 ? Math.max(0, Math.round((budget - before) / remainingDays)) : null;

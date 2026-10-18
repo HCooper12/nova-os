@@ -15,7 +15,12 @@ export async function recordDaySnapshot(vaultPath, date) {
   const target = resolveLogDate(date);
   const { profile } = await loadRecipeData(vaultPath);
   const day = await getDay(target);
-  return saveDay(target, totalsOf(day.entries), profile?.proteinFloorG || null);
+  // the targets THAT day was set against (src/targetHistory.js): editing an
+  // old day today must not stamp today's goal onto it (his rule, 18 Oct)
+  const { loadTargetHistory } = await import('./fitnessGoals.js');
+  const { targetsOn } = await import('../../src/targetHistory.js');
+  const t = targetsOn(await loadTargetHistory(vaultPath), target, { kcal: profile?.targetKcal, protein: profile?.proteinFloorG });
+  return saveDay(target, totalsOf(day.entries), t.protein || null, t.kcal || null);
 }
 
 // Back-compat name — today's snapshot is just the common case.

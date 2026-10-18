@@ -163,20 +163,30 @@ export async function proteinVerdict(vaultPath) {
   const { loadRecipeData } = await import('./recipes.js');
   const days = (await loadRecentDays(7)) || [];
   const profile = (await loadRecipeData(vaultPath).catch(() => null))?.profile || null;
-  const floor = profile?.proteinFloorG || null;
-  const logged = days.map((d) => ({ date: d.date, ...totalsOf(d.entries || []) })).filter((d) => d.kcal >= 800);
-  if (!floor) return insufficient('Where did my protein go this week?', 'PROTEIN SIGNAL', 'no protein floor is set on your profile page');
+  const today = profile?.proteinFloorG || null;
+  // each day against the floor IT had (18 Oct 2026, his rule): a new goal
+  // never makes an earlier day a shortfall. One floor all week reads as before.
+  const { loadTargetHistory } = await import('./fitnessGoals.js');
+  const { targetsOn } = await import('../../src/targetHistory.js');
+  const history = await loadTargetHistory(vaultPath).catch(() => []);
+  const logged = days.map((d) => ({ date: d.date, ...totalsOf(d.entries || []), floor: targetsOn(history, d.date, { protein: today }).protein }))
+    .filter((d) => d.kcal >= 800 && d.floor);
+  const floors = [...new Set(logged.map((d) => d.floor))];
+  const floor = floors.length === 1 ? floors[0] : today;
+  if (!today) return insufficient('Where did my protein go this week?', 'PROTEIN SIGNAL', 'no protein floor is set on your profile page');
   if (logged.length < 3) return insufficient('Where did my protein go this week?', 'PROTEIN SIGNAL', `only ${logged.length} day${logged.length === 1 ? '' : 's'} this week are fully logged`);
 
   const avg = logged.reduce((s, d) => s + d.p, 0) / logged.length;
-  const met = logged.filter((d) => d.p >= floor).length;
+  const met = logged.filter((d) => d.p >= d.floor).length;
   const worst = [...logged].sort((a, b) => a.p - b.p)[0];
-  const debt = logged.reduce((s, d) => s + Math.max(0, floor - d.p), 0);
+  const debt = logged.reduce((s, d) => s + Math.max(0, d.floor - d.p), 0);
+  const floorSum = logged.reduce((s, d) => s + d.floor, 0);
+  const avgFloor = Math.round(floorSum / logged.length);
   return {
     kind: 'protein', question: 'Where did my protein go this week?', title: 'PROTEIN FLOOR SIGNAL',
-    metric: { value: String(Math.round(avg)), unit: 'g', caption: `AVG OF ${floor}g FLOOR`, pct: Math.min(100, Math.round((avg / floor) * 100)) },
-    arcs: [{ label: 'AVERAGE', value: Math.round(avg), of: floor, tone: avg >= floor ? 'good' : 'warn' }],
-    equation: `FLOOR ${floor}G × ${logged.length} LOGGED DAYS − ACTUAL ${Math.round(logged.reduce((s, d) => s + d.p, 0))}G = ${Math.round(debt)}G SHORT`,
+    metric: { value: String(Math.round(avg)), unit: 'g', caption: floors.length === 1 ? `AVG OF ${floor}g FLOOR` : `AVG OF ${avgFloor}g AVERAGE FLOOR`, pct: Math.min(100, Math.round((avg / avgFloor) * 100)) },
+    arcs: [{ label: 'AVERAGE', value: Math.round(avg), of: avgFloor, tone: avg >= avgFloor ? 'good' : 'warn' }],
+    equation: `${floors.length === 1 ? `FLOOR ${floor}G × ${logged.length} LOGGED DAYS` : `EACH DAY'S FLOOR, ${floorSum}G IN ALL`} − ACTUAL ${Math.round(logged.reduce((s, d) => s + d.p, 0))}G = ${Math.round(debt)}G SHORT`,
     evidence: [
       { n: 1, label: 'DAYS AT FLOOR', value: `${met} OF ${logged.length}`, note: `${logged.length} fully-logged days this week`, tone: met >= logged.length - 1 ? 'good' : 'warn' },
       { n: 2, label: 'WEEKLY DEBT', value: `${Math.round(debt)} G`, note: 'total shortfall across the week', tone: debt > floor * 0.5 ? 'warn' : 'good' },
@@ -184,7 +194,7 @@ export async function proteinVerdict(vaultPath) {
     ],
     verdict: met === logged.length
       ? `You held the ${floor}g floor every fully-logged day this week — average ${Math.round(avg)}g. Nothing to fix.`
-      : `You hit the floor ${met} of ${logged.length} logged days, averaging ${Math.round(avg)}g against ${floor}g — a ${Math.round(debt)}g weekly debt. The worst day was ${worst.date} at ${Math.round(worst.p)}g.`,
+      : `You hit the floor ${met} of ${logged.length} logged days, averaging ${Math.round(avg)}g against ${floors.length === 1 ? `${floor}g` : `each day's own floor (the goal changed this week)`} — a ${Math.round(debt)}g weekly debt. The worst day was ${worst.date} at ${Math.round(worst.p)}g.`,
     basis: `${logged.length} fully-logged days (partial logs under 800 kcal excluded)`,
     caveats: ['Only what you logged counts — an unlogged meal reads as a shortfall.'],
     asOf: logged[logged.length - 1]?.date || null,

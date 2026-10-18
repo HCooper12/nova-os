@@ -11,7 +11,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // NOVA_DATA_DIR override exists for tests (read lazily so tests can set it).
 const LOG_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'nutrition-log');
 
-export async function saveDay(date, totals, floorG) {
+export async function saveDay(date, totals, floorG, targetKcal = null) {
   await mkdir(LOG_DIR(), { recursive: true });
   const record = {
     date,
@@ -21,6 +21,8 @@ export async function saveDay(date, totals, floorG) {
     kcal: Math.round(totals.kcal),
     floorG: floorG || null,
     floorMet: floorG ? totals.p >= floorG : null,
+    // the day's own calorie target (18 Oct 2026); older records lack it
+    targetKcal: targetKcal || null,
     updatedAt: new Date().toISOString(),
   };
   await writeFile(path.join(LOG_DIR(), `${date}.json`), JSON.stringify(record, null, 2), 'utf8');

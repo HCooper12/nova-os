@@ -162,19 +162,31 @@ async function buildNutritionWeek(vaultPath) {
     targetKcal = profile?.targetKcal ?? null;
   } catch { /* profile line optional */ }
   if (floor == null) floor = [...days].reverse().find((d) => d.floorG != null)?.floorG ?? null;
+  // each day against the targets IT was set against (src/targetHistory.js,
+  // his rule 18 Oct): a new goal never re-judges an earlier day. `floor` and
+  // `targetKcal` stay today's numbers, for the line about today.
+  const { loadTargetHistory } = await import('./fitnessGoals.js');
+  const { targetsOn } = await import('../../src/targetHistory.js');
+  const history = await loadTargetHistory(vaultPath).catch(() => []);
+  const own = (d) => targetsOn(history, d.date, { kcal: targetKcal, protein: d.floorG ?? floor });
   const tracked = days.filter((d) => d.p != null);
   const round = (v) => (v != null ? Math.round(v) : null);
   // the calendar week against seven days of his daily target (src/calorieWeek.js)
   const { calorieWeek } = await import('../../src/calorieWeek.js');
-  const calWeek = calorieWeek(days, { targetKcal, today: days[days.length - 1].date });
+  const calWeek = calorieWeek(days, { targetKcal, today: days[days.length - 1].date, targetOn: (date) => own({ date }).kcal });
   return {
     calWeek,
     // all four macros — c and f were stored all along and then dropped here
-    days: days.map((d) => ({ date: d.date, p: round(d.p), c: round(d.c), f: round(d.f), kcal: round(d.kcal), floorMet: d.floorMet ?? null })),
+    days: days.map((d) => {
+      const t = own(d);
+      return { date: d.date, p: round(d.p), c: round(d.c), f: round(d.f), kcal: round(d.kcal),
+        floorG: t.protein ?? null, targetKcal: t.kcal ?? null,
+        floorMet: d.p != null && t.protein ? d.p >= t.protein : (d.floorMet ?? null) };
+    }),
     floor,
     targetKcal,
     avgP: tracked.length ? Math.round(tracked.reduce((s, d) => s + d.p, 0) / tracked.length) : null,
-    metCount: days.filter((d) => d.floorMet === true).length,
+    metCount: days.filter((d) => { const t = own(d); return d.p != null && t.protein ? d.p >= t.protein : d.floorMet === true; }).length,
     trackedCount: tracked.length,
   };
 }

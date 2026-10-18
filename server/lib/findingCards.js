@@ -209,16 +209,21 @@ export function auditCard(audit) {
 export function proteinWeekCard(week) {
   const days = (week?.days || []).filter((d) => d && d.p != null);
   if (days.length < 2) return null;
-  const floor = Number(week.floor) || 0;
-  const bars = days.slice(-7).map((d) => ({
+  // each day against ITS own floor (week.days[].floorG, 18 Oct 2026): a new
+  // goal never re-judges an earlier day
+  const shown = days.slice(-7);
+  const own = (d) => Number(d.floorG ?? week.floor) || 0;
+  const floors = [...new Set(shown.map(own).filter(Boolean))];
+  const floor = floors.length === 1 ? floors[0] : 0;
+  const bars = shown.map((d) => ({
     name: String(d.label || d.date || '').slice(-5),
     value: Math.round(d.p),
-    tone: floor && d.p >= floor ? 'good' : 'warn',
+    tone: own(d) && d.p >= own(d) ? 'good' : 'warn',
   }));
   const hit = bars.filter((b) => b.tone === 'good').length;
   return barsCard({
-    label: floor ? `Protein vs your ${Math.round(floor)}g floor` : 'Protein this week',
+    label: floor ? `Protein vs your ${Math.round(floor)}g floor` : floors.length ? "Protein vs each day's floor" : 'Protein this week',
     bars,
-    foot: floor ? `${hit} of ${bars.length} days cleared it` : `${bars.length} days logged`,
+    foot: floors.length ? `${hit} of ${bars.length} days cleared it` : `${bars.length} days logged`,
   });
 }

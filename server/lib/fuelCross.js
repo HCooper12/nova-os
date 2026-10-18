@@ -16,6 +16,7 @@
 // findings that need them. No finding is ever padded in to look busy.
 
 import { loadSessions } from './workoutSessions.js';
+import { targetsOn } from '../../src/targetHistory.js';
 import { loadRecentDays, totalsOf } from './foodLog.js';
 import { loadRotation } from './rotation.js';
 import { loadRecipeData } from './recipes.js';
@@ -85,7 +86,7 @@ export async function crossCheck(vaultPath, deps = {}) {
     failed.push(...r.failed);
   }
   return {
-    findings: analyze({ sessions, days, profile, rotationTotals: rotation?.totals || null, goal: goals?.goal || '' }),
+    findings: analyze({ sessions, days, profile, rotationTotals: rotation?.totals || null, goal: goals?.goal || '', targetHistory: goals?.targetHistory || [] }),
     sources: { ok: !failed.length, failed },
     couldntLook: failed.length ? `couldn't check fuel × training — ${unreadable(failed, SOURCE_LABEL)}` : null,
     computedAt: new Date().toISOString(),
@@ -94,7 +95,10 @@ export async function crossCheck(vaultPath, deps = {}) {
 
 // The pure decision core — every threshold lives here, testable without a
 // vault. Inputs are plain data; output is the findings array.
-export function analyze({ sessions = [], days = [], profile = null, rotationTotals = null, goal = '' }) {
+// `targetHistory` (18 Oct 2026, his rule): past days are measured against the
+// targets THEY had, so the training-day checks use the mean of those days' own
+// targets; the rotation check (forward-looking) keeps today's.
+export function analyze({ sessions = [], days = [], profile = null, rotationTotals = null, goal = '', targetHistory = [] }) {
   const floor = profile?.proteinFloorG || null;
   const targetKcal = profile?.targetKcal || null;
   const wantsGain = goalWantsGain(goal);
@@ -123,6 +127,10 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
   const sessionDates = new Set(sessions.map((s) => s.date).filter((d) => d >= cutoff));
   const { trained, rest } = splitDays(days, sessionDates);
   if (trained.length >= MIN_LOGGED_DAYS && rest.length >= MIN_LOGGED_DAYS) {
+    const owned = trained.map((d) => targetsOn(targetHistory, d.date, { kcal: profile?.targetKcal, protein: profile?.proteinFloorG }));
+    const mean = (k) => (owned.every((t) => t[k]) ? Math.round(owned.reduce((s, t) => s + t[k], 0) / owned.length) : null);
+    const floor = mean('protein');
+    const targetKcal = mean('kcal');
     const tp = avg(trained, 'p');
     const rp = avg(rest, 'p');
     if (floor && tp < floor - 15 && tp <= rp + 5) {

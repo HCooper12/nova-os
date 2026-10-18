@@ -22,6 +22,7 @@
 // its `source` so the card can say "default — set your own" honestly.
 
 import { getFitnessGoals } from './fitnessGoals.js';
+import { targetsOn } from '../../src/targetHistory.js';
 import { STEP_GOAL } from './streaks.js';
 import { localDateISO } from './localDate.js';
 
@@ -87,7 +88,10 @@ export function judge(metric, value, target, { fraction = 1, dayOver = true } = 
 // The board. `healthDays` and `nutritionDays` are oldest-first arrays with a
 // `date`; `todayLive` is today's live food-log totals ({p, kcal}) so an entry
 // logged a minute ago counts before the archive catches up. Pure.
-export function composeBoard({ targets, healthDays = [], nutritionDays = [], todayLive = null, now = new Date() } = {}) {
+// `targetHistory` (18 Oct 2026, his rule): protein and calories are judged
+// against the target in force ON each day (src/targetHistory.js), so a new
+// goal never turns an earlier day into a miss. Steps keep one target.
+export function composeBoard({ targets, healthDays = [], nutritionDays = [], todayLive = null, now = new Date(), targetHistory = [] } = {}) {
   const today = localDateISO(now);
   const fraction = dayFraction(now);
   const dayOver = now.getHours() >= DAY_END_HOUR;
@@ -109,7 +113,9 @@ export function composeBoard({ targets, healthDays = [], nutritionDays = [], tod
     const days = week.map((date) => {
       const value = valueOn(m.key, date);
       const isToday = date === today;
-      const j = judge(m, value, t.value, isToday ? { fraction, dayOver } : { fraction: 1, dayOver: true });
+      const own = m.key === 'steps' || !targetHistory.length ? t.value
+        : targetsOn(targetHistory, date, { kcal: targets?.kcal?.value, protein: targets?.protein?.value })[m.key] ?? t.value;
+      const j = judge(m, value, own, isToday ? { fraction, dayOver } : { fraction: 1, dayOver: true });
       return { date, value: value == null ? null : Math.round(Number(value)), met: j.met, state: j.state, today: isToday };
     });
     const todayRow = days[days.length - 1];
@@ -206,7 +212,7 @@ export async function goalBoard(vaultPath, { now = new Date() } = {}) {
     const day = await getToday();
     if ((day.entries || []).length) todayLive = totalsOf(day.entries);
   } catch { /* optional */ }
-  return composeBoard({ targets, healthDays, nutritionDays, todayLive, now });
+  return composeBoard({ targets, healthDays, nutritionDays, todayLive, now, targetHistory: goals?.targetHistory || [] });
 }
 
 // The text the Coach and Ask Nova read. Targets with their provenance, today
