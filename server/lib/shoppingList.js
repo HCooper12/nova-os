@@ -225,9 +225,14 @@ export async function restoreItems(vaultPath, items) {
 // --- add-items categorization job (async, claude-powered) ---
 const jobs = new Map();
 
+// THE ADD NEVER WAITS ON A MODEL (18 Oct 2026, his report: "I can't add items
+// unless my Claude usage is active"). Code splits the amount, files each item
+// in the aisle it knows (his own past filings, then a word table:
+// lib/shoppingCategory.js) and writes the list at once, so the job is ready
+// with no model at all. Only names code could not place go to a model, in the
+// background, and only to MOVE them out of Household & Other; a model that is
+// off, out of usage or wrong costs a mis-shelved item, never a lost one.
 export function startAddItems(vaultPath, newItems) {
-  // Split the amount off BEFORE the model sees anything — this is what keeps
-  // "1kg" attached to his chicken instead of being tidied away.
   const split = (newItems || []).map((it) => {
     const { amount, name } = splitAmount(it.name);
     return { ...it, name, amount: it.amount || amount };
@@ -235,105 +240,80 @@ export function startAddItems(vaultPath, newItems) {
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', items: null, error: null };
   jobs.set(jobId, job);
+  (async () => {
+    try {
+      const { guessCategory, loadCategoryMemory } = await import('./shoppingCategory.js');
+      const memory = await loadCategoryMemory();
+      const guessed = split.map((it) => ({ ...it, guess: guessCategory(it.name, memory) }));
+      const added = await addItemsDirect(vaultPath, guessed.map((it) => ({
+        name: String(it.name || '').trim(),
+        category: it.guess.category || 'Household & Other',
+        amount: it.amount || null,
+        source: it.source || null,
+      })).filter((it) => it.name));
+      job.items = await getItems(vaultPath);
+      job.status = 'ready';
+      const unsure = added.filter((it, i) => !guessed[i]?.guess?.sure);
+      if (unsure.length) sortUnknownsLater(vaultPath, unsure);
+    } catch (e) {
+      job.status = 'error';
+      job.error = e.message;
+    }
+  })();
+  return jobId;
+}
 
-  // Sorting is the model's job here; ADDING is not. With the lane off, the
-  // items still go on the list — they just land under Household & Other for
-  // him to move. Refusing the whole add would lose the thing he asked for.
+function sortUnknownsLater(vaultPath, unsure) {
   if (!laneEnabled('shopping-categorize')) {
-    laneSkipped('shopping-categorize', 'shopping-list categorisation (items added uncategorised)');
-    (async () => {
-      try {
-        await addItemsDirect(vaultPath, split.map((it) => ({
-          name: String(it.name || '').trim(),
-          category: 'Household & Other',
-          amount: it.amount || null,
-          source: it.source || null,
-        })).filter((it) => it.name));
-        // job.items is the WHOLE list on the model path — the client renders
-        // it wholesale — so this branch must hand back the same shape.
-        job.items = await getItems(vaultPath);
-        job.status = 'ready';
-      } catch (e) {
-        job.status = 'error';
-        job.error = e.message;
-      }
-    })();
-    return jobId;
+    laneSkipped('shopping-categorize', 'shopping-list categorisation (unknown items left under Household & Other)');
+    return;
   }
-
   const prompt = `Categorize each of these shopping list items into exactly one of these categories: ${CATEGORIES.join(', ')}.
 
 Items:
-${split.map((it, i) => `${i + 1}. ${it.name}`).join('\n')}
+${unsure.map((it, i) => `${i + 1}. ${it.name}`).join('\n')}
 
-Use "Household & Other" for anything that isn't food (kitchenware, cleaning supplies, etc). You may lightly clean up each name (e.g. strip cooking-state notes like "(cooked, drained)") but keep it recognizable and short enough for a shopping list. Amounts have already been removed before you see this list — never add one, and never remove a brand or variety that is part of the name.
+Use "Household & Other" for anything that isn't food (kitchenware, cleaning supplies, etc).
 
-Output ONLY a JSON array with exactly ${newItems.length} objects, one per item in the same order, each with keys "name" and "category". No markdown, no commentary — just the raw JSON array.`;
-
+Output ONLY a JSON array with exactly ${unsure.length} strings, one category per item in the same order. No markdown, no commentary.`;
   // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, [
     '-p', prompt,
     '--permission-mode', 'bypassPermissions',
     ...boundaryArgs(''),
     '--output-format', 'json',
-    // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. The pin
-    // now comes from the model board (lib/modelPrefs.js) so it is settable
-    // in Settings; the default is the 'sonnet' this lane has always run on.
+    // pinned from the model board (lib/modelPrefs.js); never the ambient default
     '--model', modelFor('shopping-categorize'),
     '--no-session-persistence',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
-
   let stdout = '';
-  let stderr = '';
   child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
+  child.on('error', () => { /* no CLI: the items stay where code put them */ });
   child.on('close', (code) => {
-    if (code !== 0) {
-      job.status = 'error';
-      job.error = stderr.trim() || `claude exited with code ${code}`;
-      return;
-    }
+    if (code !== 0) return;
     (async () => {
       try {
-        const outer = parseEnvelope(stdout, { lane: 'shopping-categorize' });
-        const text = (outer.result || '').trim();
-        const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) throw new Error('No JSON array found in the response');
-        const parsed = parseModelJson(jsonMatch[0]);
-        const categorized = parsed.map((p, i) => ({
-          id: randomUUID().slice(0, 8),
-          name: String(p.name || split[i]?.name || '').trim(),
-          category: CATEGORIES.includes(p.category) ? p.category : 'Household & Other',
-          checked: false,
-          qty: normalizeQty(split[i]?.qty),
-          // re-attached from OUR split, never from the model's output — the
-          // amount is the one field it cannot lose
-          amount: split[i]?.amount || null,
-          source: split[i]?.source || null,
-        })).filter((it) => it.name);
-
-        const items = await withWriteLock(async () => {
-          const current = await getItems(vaultPath);
-          const updated = [...current, ...categorized];
-          await persist(vaultPath, updated);
-          return updated;
+        const text = (parseEnvelope(stdout, { lane: 'shopping-categorize' }).result || '').trim();
+        const m = text.match(/\[[\s\S]*\]/);
+        if (!m) return;
+        const cats = parseModelJson(m[0]);
+        const moves = new Map();
+        unsure.forEach((it, i) => {
+          const c = typeof cats[i] === 'string' ? cats[i] : cats[i]?.category;
+          if (CATEGORIES.includes(c) && c !== 'Household & Other') moves.set(it.id, c);
         });
-        job.items = items;
-        job.status = 'ready';
-      } catch (e) {
-        job.status = 'error';
-        job.error = 'Could not categorize items: ' + e.message;
-      }
+        if (!moves.size) return;
+        await withWriteLock(async () => {
+          const current = await getItems(vaultPath);
+          // only items still where code left them: never undo his own move
+          const next = current.map((it) => (moves.has(it.id) && it.category === 'Household & Other' ? { ...it, category: moves.get(it.id) } : it));
+          await persist(vaultPath, next);
+        });
+        const { rememberCategories } = await import('./shoppingCategory.js');
+        await rememberCategories(unsure.filter((it) => moves.has(it.id)).map((it) => ({ name: it.name, category: moves.get(it.id) })));
+      } catch { /* a bad answer leaves the items where code put them */ }
     })();
   });
-  child.on('error', (err) => {
-    job.status = 'error';
-    job.error = err.message;
-  });
-
-  return jobId;
 }
 
 export function getAddItemsJob(jobId) {
