@@ -157,9 +157,9 @@ function Menu({ anchor, title, options, value, onPick, onClose }) {
       {options.map((o) => {
         const cur = String(o.value) === String(value);
         return (
-          <button key={o.value} type="button" role="menuitemradio" aria-checked={cur}
+          <button key={o.value} type="button" role="menuitemradio" aria-checked={cur} disabled={!!o.disabled}
             onClick={(e) => { e.stopPropagation(); haptic('tick'); onClose(); if (!cur) onPick(o.value); }}>
-            {cur ? <Ico n="check" /> : <span />}<span>{o.label}</span>
+            {cur ? <Ico n="check" /> : <span />}<span>{o.label}{o.hint ? <small className="nv-set-mh">{o.hint}</small> : null}</span>
           </button>
         );
       })}

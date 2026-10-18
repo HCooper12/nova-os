@@ -331,8 +331,37 @@ export function valsSettings(app, ctx, v) {
   const ms = v.modelSettings;
   const board = demo ? demoBoard(D) : ms;
   const boardHeld = demo ? held(true) : held(!!ms?.loaded, !!ms?.error);
+  const loc = board?.local || null;
+  const providerOptions = [
+    { value: 'claude', label: 'Claude' },
+    { value: 'local', label: loc?.label || 'This Mac', disabled: !loc?.configured, hint: loc?.configured ? null : 'No local model is set up' },
+  ];
+  const noRoom = !!loc?.headroom && loc.headroom.ok === false;
+  const localLine = !loc ? null
+    : !loc.configured ? 'No local model set up on this Mac'
+      : `${loc.model || 'Local model'} · on this Mac · ${noRoom ? `no memory headroom${loc.headroom.swapFreeMB != null ? ` (${loc.headroom.swapFreeMB} MB swap free)` : ''}` : loc.ready ? 'ready' : 'not running'}`;
+  const fb = board?.fallback || null;
   const models = {
     ...boardHeld,
+    local: !loc ? null : {
+      line: localLine,
+      configured: !!loc.configured,
+      ready: !!loc.ready,
+      noRoom,
+      canWarm: !!loc.configured && !noRoom && !loc.ready,
+      warm: demo ? () => app.toastMsg('Demo: the local model would start on the Mac') : board && ms ? ms.warm : null,
+      warming: !demo && !!ms?.busyWarm,
+    },
+    fallback: !fb ? null : {
+      on: !!fb.enabled,
+      laneNames: (fb.lanes || []).map((id) => {
+        for (const g of board.groups || []) { const hit = (g.lanes || []).find((x) => x.id === id); if (hit) return hit.label; }
+        return id;
+      }),
+      toggle: demo ? () => setDemo((d) => ({ ...d, fallbackEnabled: !d.fallbackEnabled })) : () => ms?.setFallback(!fb.enabled),
+      busy: !demo && !!ms?.busyFallback,
+      blocked: !loc?.configured,
+    },
     demo,
     connected: demo || !!ms,
     error: !demo && !!ms?.error,
@@ -344,7 +373,7 @@ export function valsSettings(app, ctx, v) {
     outdated: demo ? [] : ms?.outdatedLaneLabels || [],
     anyChanged: !!board && (board.customisedCount + board.offCount) > 0,
     resetAll: demo
-      ? () => { const prev = { laneOff: D.laneOff, laneModel: D.laneModel }; setDemo((d) => ({ ...d, laneOff: {}, laneModel: {} })); return () => setDemo((d) => ({ ...d, ...prev })); }
+      ? () => { const prev = { laneOff: D.laneOff, laneModel: D.laneModel, laneProvider: D.laneProvider, fallbackEnabled: D.fallbackEnabled }; setDemo((d) => ({ ...d, laneOff: {}, laneModel: {}, laneProvider: {} })); return () => setDemo((d) => ({ ...d, ...prev })); }
       : ms ? () => { const prev = ms.snapshot; ms.resetAll(); return () => ms.restore(prev); } : null,
     busyAll: !demo && !!ms?.busyAll,
     groups: boardHeld.loading ? [] : (board?.groups || []).map((g) => ({
@@ -378,6 +407,14 @@ export function valsSettings(app, ctx, v) {
           return `Thinking: ${name}${cur === l.defaultEffort ? ' · default' : ''}`;
         })() : null,
         pickEffort: demo || !l.setEffort ? null : (val) => l.setEffort(val),
+        // WHERE it runs: Claude or this Mac. Only lanes the server says can.
+        canRunLocal: !!l.canRunLocal && !l.deterministic,
+        provider: l.provider || 'claude',
+        providerOptions: l.canRunLocal ? providerOptions : [],
+        providerLabel: l.canRunLocal ? `Runs on: ${l.provider === 'local' ? (board.local?.label || 'This Mac') : 'Claude'}` : null,
+        setProvider: !l.canRunLocal ? null : demo
+          ? (val) => setDemo((d) => { const lp = { ...d.laneProvider }; if (val === 'claude') delete lp[l.id]; else lp[l.id] = val; return { ...d, laneProvider: lp }; })
+          : (val) => l.setProvider?.(val),
       })),
     })),
   };

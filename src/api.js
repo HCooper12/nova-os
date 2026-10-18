@@ -384,6 +384,9 @@ export const api = {
   // which surfaces should still ask "Opus, or is X fine?" given his board
   modelGates: (conn) => call(conn, '/api/model-gates'),
   setModelLane: (conn, lane, patch) => put(conn, '/api/model-prefs', { lane, ...patch }),
+  setLaneProvider: (conn, lane, provider) => put(conn, '/api/model-prefs', { lane, provider }),
+  setModelFallback: (conn, enabled) => put(conn, '/api/model-prefs/fallback', { enabled }),
+  warmLocalModel: (conn) => post(conn, '/api/model-prefs/local/warm', {}),
   resetModelLane: (conn, lane) => post(conn, '/api/model-prefs/reset', lane ? { lane } : {}),
   saveSessionDraft: (conn, body) => put(conn, '/api/workouts/session-draft', body),
   getSessionDraft: (conn) => call(conn, '/api/workouts/session-draft'),

@@ -330,7 +330,7 @@ function InboxClassic({ v }) {
                   <RouteBadge route={item.route} confidence={item.confidence} />
                   <Meta tone="faint" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {item.seen && <Tag tone="faint" dashed>Seen</Tag>}
-                    <span>{item.time} · {cap(item.source)}</span>
+                    <span>{item.time} · {cap(item.source)}{item.localNote ? ` · ${item.localNote}` : ''}</span>
                   </Meta>
                 </div>
                 {/* WHAT APPROVING DOES, FIRST. His report, 21 Sep: "I don't

@@ -25,6 +25,8 @@ const GROUPS = [
   ['research', 'Research & media', 'Reading the web and watching video for you', 1.40, L('Planner · delegation:S|The browser hand:S|Briefing · the angles:H|Briefing · the report:S|Repertoire · analyse & learn:S|Researcher:S|Watcher · transcript pass:S|Watcher · verdict pass:S|Scout · people research:S|Librarian · book research:S|Librarian · questions:S|Studio outline:S')],
   ['build', 'Build', 'The lanes that write code', 0.60, L('Builder · projects:O|Code tab · Builder:S|Code tab · Breaker:S|Forge:S')],
 ];
+// the cheap lanes that can run on this Mac (invented here; the server names the real ones)
+const DEMO_LOCAL_LANES = ['Capture classifier', 'Calendar in plain words'];
 const OFF_TEXT = {
   'Doorman greeting': 'Nova opens without a spoken greeting. Nothing is faked in its place.',
   'Journal prompt': 'The journal opens blank instead of prompted.',
@@ -45,6 +47,8 @@ export function demoSettingsSeed() {
     ],
     laneOff: { 'Doorman greeting': true, 'Journal prompt': true },
     laneModel: {},
+    laneProvider: {},
+    fallbackEnabled: false,
     files: [
       { file: 'Fitness/Program.md', stamp: '09:40' },
       { file: 'Fuel/Log 5 Oct.md', stamp: '12:31' },
@@ -74,6 +78,7 @@ export const DEMO_LADDER = [
 export function demoBoard(demo) {
   const laneOff = demo.laneOff || {};
   const laneModel = demo.laneModel || {};
+  const laneProvider = demo.laneProvider || {};
   const groups = GROUPS.map(([id, label, hint, usd, lanes]) => ({
     id, label, hint,
     usd: `$${usd.toFixed(2)}`,
@@ -89,6 +94,9 @@ export function demoBoard(demo) {
         enabled: !laneOff[l.label],
         model: laneModel[l.label] || def,
         defaultModel: def,
+        canRunLocal: DEMO_LOCAL_LANES.includes(l.label),
+        provider: laneProvider[l.label] || 'claude',
+        defaultProvider: 'claude',
         offEffect: OFF_TEXT[l.label] || 'Off. Where this lane would have run, Nova says it is off.',
       };
     }),
@@ -102,5 +110,7 @@ export function demoBoard(demo) {
     spendTotal: `$${GROUPS.reduce((a, g) => a + g[3], 0).toFixed(2)}`,
     watchLine: 'Newest, checked 3 Oct: Opus 5.5 · Sonnet 5.5 · Haiku 4.5 · Fable 5.1',
     models: DEMO_MODELS.map((m) => ({ value: m, label: m })),
+    local: { configured: true, ready: true, model: 'Qwen3 4B', label: 'This Mac', headroom: { ok: true, swapFreeMB: 2100 } },
+    fallback: { enabled: !!demo.fallbackEnabled, lanes: DEMO_LOCAL_LANES },
   };
 }

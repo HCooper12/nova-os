@@ -414,6 +414,9 @@ export function valsInbox(app, ctx) {
     previewShort: preview.length > PREVIEW_CLAMP ? `${preview.slice(0, PREVIEW_CLAMP)}…` : preview,
     toggleExpand: () => app.toggleInboxExpand(r.id),
     source: SOURCE_LABEL[r.kind] || (r.source === 'voice' ? 'VOICE' : 'TYPED'),
+    // HONESTY: a record a lane ran on this Mac says so, in the meta line. The
+    // server stamps provider 'local' (and fallback when Claude was out of usage).
+    localNote: r.provider === 'local' ? `sorted on this Mac${r.fallback ? ' · Claude was out of usage' : ''}` : '',
     status: r.status,
     route: PRACTICE_KINDS.has(r.kind) ? ROUTE_META[r.kind] : r.decision ? (ROUTE_META[r.decision.route] || ROUTE_META.note) : null,
     confidence: r.decision?.confidence || null,

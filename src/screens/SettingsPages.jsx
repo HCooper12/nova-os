@@ -492,7 +492,26 @@ export function ModelsPage({ P, open }) {
               ? `spent across all ${M.laneCount} lanes in the last 7 days, as the Mac measured it${M.demo ? ' (demo figures)' : ''}${M.stale && P.staleAt ? `, as of ${P.staleAt}` : ''}`
               : 'Spend is measured from each run’s own numbers. Nothing has run in the last 7 days.'}</span>
           </div>
-          <Group label="Groups" i={2} foot={M.watchLine ? `${M.watchLine}. A pinned model stays on one version; the rest follow the newest.${M.outdated.length ? ` Pinned to an older version: ${M.outdated.join(', ')}.` : ''}` : ''}>
+          {M.local ? (
+            <Group label="On this Mac" i={2}
+              foot={M.fallback ? `If Claude hits its usage limit, ${M.fallback.laneNames.join(' and ')} keep working on this Mac, and each result says it was sorted here.` : ''}>
+              <div className="nv-set-row nx" data-set-key="local">
+                <span className="nv-set-rt">
+                  <span className="nv-set-rl">Local model</span>
+                  <span className={`nv-set-rs${M.local.noRoom || !M.local.configured ? ' cost' : ''}`}>{M.local.line}</span>
+                </span>
+                {M.local.ready ? null : (
+                  <TextAction onClick={M.locked || !M.local.canWarm || M.local.warming || !M.local.warm ? undefined : M.local.warm}
+                    disabled={M.locked || !M.local.canWarm || M.local.warming || !M.local.warm}>{M.local.warming ? 'Starting' : 'Warm it up'}</TextAction>
+                )}
+              </div>
+              {M.fallback ? (
+                <SwitchRow k="fallback" label="When Claude is out of usage" sub="The cheap lanes run on this Mac instead of stopping."
+                  on={M.fallback.on} onToggle={() => M.fallback.toggle()} disabled={M.locked || M.fallback.busy || M.fallback.blocked} why={M.why} aria="Run cheap lanes on this Mac when Claude is out of usage" />
+              ) : null}
+            </Group>
+          ) : null}
+          <Group label="Groups" i={3} foot={M.watchLine ? `${M.watchLine}. A pinned model stays on one version; the rest follow the newest.${M.outdated.length ? ` Pinned to an older version: ${M.outdated.join(', ')}.` : ''}` : ''}>
             {M.loading ? [0, 1, 2].map((i) => <div key={i} className="nv-set-row nx"><span className="nv-set-rt"><span className="nv-set-sk" role="img" aria-label="Loading" /></span><span /></div>)
               : M.groups.map((g) => (
                 <button key={g.id} type="button" className="nv-set-row nx" data-set-key={`mg:${g.id}`} onClick={() => open(`mg:${g.id}`)}>
@@ -532,6 +551,12 @@ export function ModelGroupPage({ P, id }) {
                   : (
                     <span className="nv-set-rs">
                       <MenuPill label={l.label} title={l.label} options={l.options} value={l.model} shown={l.modelLabel} onPick={l.pick} locked={M.locked || l.busy} why={M.why} />
+                      {l.canRunLocal ? (
+                        <span style={{ display: 'block', marginTop: 6 }}>
+                          <MenuPill label={`${l.label} runs on`} title={`Where ${l.label} runs`} options={l.providerOptions} value={l.provider} shown={l.providerLabel}
+                            onPick={(v) => l.setProvider?.(v)} locked={M.locked || l.busy || !l.setProvider} why={M.why} />
+                        </span>
+                      ) : null}
                       {l.effort ? (
                         <span style={{ display: 'block', marginTop: 6 }}>
                           <MenuPill label={`${l.label} thinking`} title={`How hard ${l.label} thinks`} options={l.effortOptions} value={l.effort} shown={l.effortLabel}

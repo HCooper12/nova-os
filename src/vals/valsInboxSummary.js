@@ -206,6 +206,7 @@ export function valsInboxSummary(app, ctx, v) {
     const where = sug?.routine
       ? `${sug.routine.name}${sug.routine.days?.length ? ` · ${sug.routine.days.join(', ')}` : ''}`
       : item.isModelChoice ? sentenceCase(item.modelChoiceLabel || 'Scheduled run') : whoPhrase;
+    const whereLine = item.localNote ? `${where} · ${item.localNote}` : where;
     const approveWhat = item.approveLine ? item.approveLine.replace(/^\s*approve\s*=\s*/i, '') : '';
     const dest = destinationOf(r);
     const change = sug
@@ -259,7 +260,7 @@ export function valsInboxSummary(app, ctx, v) {
     const why = item.askingWhy ? whyHead(item.whyTitle) : null;
     return {
       id: item.id,
-      tile, kindLabel, where, when: item.time, sentence,
+      tile, kindLabel, where: whereLine, when: item.time, sentence,
       low: item.confidence === 'low',
       tldr: item.tldr?.items?.length ? { items: item.tldr.items.slice(0, 3), more: (item.tldr.more || 0) + Math.max(0, item.tldr.items.length - 3) } : null,
       change,

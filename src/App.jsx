@@ -7464,6 +7464,22 @@ export default class App extends Component {
         this.loadModelPrefs(); // never leave the screen showing a change that didn't land
       });
   }
+  setModelFallback(enabled) {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ modelPrefsBusy: 'fallback' });
+    api.setModelFallback(conn, enabled)
+      .then((prefs) => { this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }); })
+      .catch((e) => { this.setState({ modelPrefsBusy: null }); this.toastMsg('Could not change that: ' + e.message); this.loadModelPrefs(); });
+  }
+  warmLocalModel() {
+    const conn = getConnection();
+    if (!conn) return;
+    this.setState({ modelPrefsBusy: 'warm' });
+    api.warmLocalModel(conn)
+      .then((prefs) => { this.setState({ liveModelPrefs: prefs, modelPrefsBusy: null }); this.toastMsg('The local model is warm'); })
+      .catch((e) => { this.setState({ modelPrefsBusy: null }); this.toastMsg('Could not start the local model: ' + e.message); this.loadModelPrefs(); });
+  }
   resetModelLane(lane) {
     const conn = getConnection();
     if (!conn) return;
