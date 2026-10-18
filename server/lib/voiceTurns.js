@@ -3,6 +3,7 @@ import { mkdir, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PLACES } from '../../src/where.js';
+import { TRIGGERS, ENDED_BY } from '../../src/listenRules.js';
 
 // ---------------------------------------------------------------------------
 // WHY HIS TURN ENDED — the receipt, not analytics.
@@ -38,7 +39,10 @@ const TURNS_PATH = () => path.join(TURNS_DIR(), 'turns.json');
 // because the two are read together: a barge-in immediately followed by a turn
 // that heard nothing is the signature of a FALSE one (Nova cut itself off on
 // its own echo, and there was no one there).
-export const END_REASONS = new Set(['hold', 'lead', 'cap-idle', 'cap-absolute', 'restart-limit', 'engine', 'barge-in', 'unknown']);
+// 'tap', 'hidden', 'mic-timeout' (18 Oct 2026): his own tap (it was logged as
+// 'engine', which read as the engine failing), the screen going away mid-turn
+// (lock, app switch), and a microphone that never opened (src/useDictation.js).
+export const END_REASONS = new Set(['hold', 'lead', 'cap-idle', 'cap-absolute', 'restart-limit', 'engine', 'barge-in', 'tap', 'hidden', 'mic-timeout', 'unknown']);
 // 'ask' (15 Oct 2026): one row per question sent, carrying how long he waited
 // for the ack, the first words and the first sound (scripts/voice-latency.mjs
 // reads them back). Its `reason` is 'unknown': an ask is not a turn ending.
@@ -47,6 +51,76 @@ const SURFACES = new Set(['voice', 'presence', 'barge', 'ask']);
 const VAD_STATES = new Set(['heard', 'silent', 'blind']);
 
 export const MAX_TURNS = 500;
+
+// THE LISTENING RECEIPT (18 Oct 2026). The audit of 48 iPhone turns could not
+// tell a mic Nova opened by itself from one he opened, a tap from the clock,
+// or a mic that never opened from one that heard silence, without joining
+// three logs by timestamp. These fields say it on the row. Each is a closed
+// set or a bounded number; anything else is left off, never stored as a
+// guess. The vocabularies are src/listenRules.js's and move with it.
+const TRIGGER_SET = new Set(TRIGGERS);
+const ENDED_BY_SET = new Set(ENDED_BY);
+const TX_STATUS = new Set(['ok', 'empty', 'error', 'skipped', 'none']);
+const AUDIO_SESSIONS = new Set(['auto', 'playback', 'play-and-record', 'transient', 'transient-solo', 'ambient', 'unsupported']);
+const CAUSES = new Set(['empty-capture', 'hidden', 'mic-timeout', 'blind-draft']);
+const TURN_MAX_MS = 900_000;   // turnEnd.js maxSpeakingMs: no turn runs longer
+const boundedMs = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= TURN_MAX_MS ? Math.round(v) : undefined);
+export function listenFields(body = {}) {
+  const out = {};
+  if (TRIGGER_SET.has(body.trigger)) out.trigger = body.trigger;
+  if (ENDED_BY_SET.has(body.endedBy)) out.endedBy = body.endedBy;
+  // null is a fact here: the microphone never opened
+  if (body.micOpenMs === null) out.micOpenMs = null;
+  else if (boundedMs(body.micOpenMs) !== undefined) out.micOpenMs = boundedMs(body.micOpenMs);
+  for (const k of ['recMs', 'blindMs']) if (boundedMs(body[k]) !== undefined) out[k] = boundedMs(body[k]);
+  if (body.firstSoundMs === null) out.firstSoundMs = null;
+  else if (boundedMs(body.firstSoundMs) !== undefined) out.firstSoundMs = boundedMs(body.firstSoundMs);
+  if (typeof body.peak === 'number' && Number.isFinite(body.peak) && body.peak >= 0) out.peak = Math.round(Math.min(1, body.peak) * 10000) / 10000;
+  if (TX_STATUS.has(body.txStatus)) out.txStatus = body.txStatus;
+  if (Number.isInteger(body.txChars) && body.txChars >= 0 && body.txChars <= 100_000) out.txChars = body.txChars;
+  if (typeof body.txDropped === 'string' && body.txDropped) out.txDropped = body.txDropped.slice(0, 60);
+  if (AUDIO_SESSIONS.has(body.audioSession)) out.audioSession = body.audioSession;
+  if (typeof body.novaSpeaking === 'boolean') out.novaSpeaking = body.novaSpeaking;
+  if (typeof body.hidden === 'boolean') out.hidden = body.hidden;
+  if (CAUSES.has(body.cause)) out.cause = body.cause;
+  return out;
+}
+
+// THE LISTENING TABLE (scripts/voice-latency.mjs): per trigger, how often the
+// mic heard him, how the turns ended, and how long the mic took to open.
+// Turns only (not asks, not barge-ins). `deaf` is the health count: turns
+// that heard nothing, leaving out the mics Nova opened by itself ('auto',
+// 'reply-window'), where silence is usually him having nothing to add, and
+// the turns he ended with a tap.
+const median = (xs) => {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  return s[Math.floor((s.length - 1) / 2)];
+};
+export function listeningTable(turns = []) {
+  const rows = turns.filter((t) => t && (t.surface === 'voice' || t.surface === 'presence'));
+  const by = new Map();
+  for (const t of rows) {
+    const k = t.trigger || '?';
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(t);
+  }
+  const groups = [...by.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([trigger, ts]) => {
+    const endedBy = {};
+    for (const t of ts) { const e = t.endedBy || '?'; endedBy[e] = (endedBy[e] || 0) + 1; }
+    const opens = ts.map((t) => t.micOpenMs).filter((v) => Number.isFinite(v));
+    return {
+      trigger,
+      n: ts.length,
+      heard: ts.filter((t) => t.heard).length,
+      endedBy,
+      micOpenMedianMs: median(opens),
+      neverOpened: ts.filter((t) => t.micOpenMs === null).length,
+    };
+  });
+  const deaf = rows.filter((t) => !t.heard && t.trigger !== 'auto' && t.trigger !== 'reply-window' && t.endedBy !== 'tap').length;
+  return { turns: rows.length, deaf, groups };
+}
 
 export function readTurns() {
   const file = TURNS_PATH();
@@ -107,6 +181,8 @@ export function turnRecord(body = {}, ua = '') {
       bytes: Number.isFinite(body.bytes) ? Math.max(0, Math.round(body.bytes)) : 0,
       ...(Number.isFinite(body.txMs) ? { txMs: Math.max(0, Math.round(body.txMs)) } : {}),
     } : {}),
+    // what opened and closed the mic, and what the capture held (listenFields)
+    ...listenFields(body),
     // HOW QUICKLY HE HEARD SOMETHING (15 Oct 2026, his E.V. note): ms after
     // the ask left the device until the ack started playing, the first
     // words of the reply arrived, and the reply's first sentence was heard.

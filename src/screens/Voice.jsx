@@ -3,7 +3,7 @@ import { css, riseIn } from '../css.js';
 import { Interactive } from '../Interactive.jsx';
 import { NovaCore } from '../NovaCore.jsx';
 import { Clock } from '../Clock.jsx';
-import { useDictation, reportTurnEnd } from '../useDictation.js';
+import { useDictation, reportTurnEnd, useNudge } from '../useDictation.js';
 import { useStickToBottom } from '../useStickToBottom.js';
 import { undoLabel } from '../chatUndo.js';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
@@ -107,6 +107,8 @@ function VoiceClassic({ v }) {
   inputRef.current = v.orbInput;
   const sendRef = useRef(v.sendOrb);
   sendRef.current = v.sendOrb;
+  // a tap on a mic that has heard nothing keeps listening and says so
+  const [nudged, nudge] = useNudge();
   const dict = useDictation(
     () => v.takeVoiceSeed(), // clean, unless the wake word or a barge-in already caught his first words
     (text) => { inputRef.current = text; v.setOrbInputValue(text); },
@@ -131,6 +133,7 @@ function VoiceClassic({ v }) {
         v.noteTurnHeard?.(info.heard);
         reportTurnEnd('voice', v.voiceHold, info);
       },
+      onNudge: nudge,
     },
   );
 
@@ -149,7 +152,8 @@ function VoiceClassic({ v }) {
     // opens whenever Nova finishes speaking — both arrive on the same tick
     if (v.voiceAutoListenTick > 0 && (v.convMode || v.replyListen) && !v.convPaused && dictRef.current.supported && !dictRef.current.on) {
       v.stopSpeaking();
-      dictRef.current.toggle();
+      // what opened it, for the receipt: conversation mode, or the one-shot window
+      dictRef.current.toggle({ trigger: v.convMode ? 'auto' : 'reply-window' });
       v.consumeReplyListen?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,7 +215,7 @@ function VoiceClassic({ v }) {
   const reticle = coreSize + 56;
 
   const caption = dict.hearing ? 'HEARING YOU…'
-    : dict.on ? (dict.blind ? 'LISTENING — TAP THE CORE TO SEND' : v.convMode ? 'LISTENING — PAUSE SENDS' : 'LISTENING…')
+    : dict.on ? (dict.blind ? 'LISTENING — TAP THE CORE TO SEND' : nudged ? 'LISTENING, GO AHEAD' : v.convMode ? 'LISTENING — PAUSE SENDS' : 'LISTENING…')
     : v.voiceBusy ? 'READING THE VAULT…'
     : v.voiceSpeaking ? 'SPEAKING'
     : v.convPaused ? 'PAUSED — TAP THE CORE'

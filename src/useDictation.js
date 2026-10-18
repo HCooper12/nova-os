@@ -5,6 +5,9 @@ import { openTurn, sawSpeech, sawEngineEnd, sawRestart, nextAction, endReason } 
 import { getConnection } from './api.js';
 import { recorderSupported, openRecording, transcribeRecording } from './recorder.js';
 import { hearingChoice, resolveHearing } from './hearingEngine.js';
+import { tapOnOpenMic, isEmptyCapture, openedTurn, micWait, holdAsDraft, endedByFor } from './listenRules.js';
+import { takeListen, noteListenEnd, novaSpeakingNow } from './listenCause.js';
+import { haptic } from './haptics.js';
 
 // The mic tap below is desktop-only on purpose: SpeechRecognition on iOS
 // owns the microphone, and a parallel getUserMedia capture risks silently
@@ -81,6 +84,28 @@ export function reportBargeIn(heard, why) {
   } catch { /* a receipt must never be in the way of the conversation */ }
 }
 
+// "LISTENING, GO AHEAD" (18 Oct 2026). A tap on a mic that has heard nothing
+// keeps the turn open (src/listenRules.js tapOnOpenMic); the hook calls
+// `onNudge` and the surface shows this caption for a moment. Returns
+// [shown, fire]: pass `fire` as onNudge.
+export const NUDGE_LINE = 'Listening, go ahead';
+export function useNudge(ms = 2200) {
+  const [shown, setShown] = useState(false);
+  const timer = useRef(0);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const fire = () => {
+    setShown(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setShown(false), ms);
+  };
+  return [shown, fire];
+}
+
+// The audio session type at the moment the mic opened, for the receipt.
+const sessionType = () => {
+  try { return navigator.audioSession ? String(navigator.audioSession.type || '') : 'unsupported'; } catch { return 'unsupported'; }
+};
+
 // KEPT AFTER A FAILURE (29 Sep 2026, the Nova thread, mockup 63 D · 5). With
 // `keepFailed`, a turn the Mac could not write down is not an error and a
 // lost recording: the audio is handed to `onKept` ({ blob, ms, bytes, vad,
@@ -88,7 +113,15 @@ export function reportBargeIn(heard, why) {
 // is said about words that exist. `resend(take)` sends those same bytes to
 // the transcriber again and, on words, ends the turn through onDone exactly
 // as a first try would. Without the option every path below is unchanged.
-export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, keepFailed = false, onKept } = {}) {
+//
+// THE LISTENING RECEIPT (18 Oct 2026). Every turn also carries what opened
+// the mic (`trigger`), what closed it (`endedBy`), when the recorder really
+// opened (`micOpenMs`, null when it never did), and what the capture held;
+// server/lib/voiceTurns.js listenFields is the other half of that contract.
+// `toggle({ trigger })` names the opener; a mark App made (listenCause.js)
+// wins when it is fresh. `toggle({ force: true })` ends a turn whatever the
+// tap rule says (a surface closing).
+export function useDictation(getBase, onText, onDone, { continuous = true, holdMs = 0, leadMs = 0, onError, onTurnEnd, onNudge, keepFailed = false, onKept } = {}) {
   const recRef = useRef(null);
   const baseRef = useRef('');
   const saidRef = useRef('');      // words from earlier engines in THIS turn
@@ -102,6 +135,8 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const reasonRef = useRef('engine'); // why this turn is ending, for the receipt
   const meterRef = useRef({ stream: null, detach: null });
   const recordingRef = useRef(null);  // Nova's own ears: the open recording, if any
+  const metaRef = useRef(null);       // this turn's receipt facts (trigger, mic open, taps…)
+  const turnSeqRef = useRef(0);       // a late getUserMedia must not join a newer turn
   const mountedRef = useRef(true);
   const [on, setOn] = useState(false);
   const [hearing, setHearing] = useState(false);  // recorded, waiting on the Mac for the words
@@ -136,9 +171,25 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     interimRef.current = '';
   };
 
+  const newMeta = (trigger, now) => ({
+    startAt: now, trigger, micOpenAt: null, firstSoundAt: null, hidden: false,
+    audioSession: '', novaSpeaking: novaSpeakingNow(), lastTapAt: null, tapped: false,
+  });
+  // the receipt fields every path shares (listenFields on the server)
+  const listenInfo = (reason) => {
+    const m = metaRef.current;
+    if (!m) return {};
+    return {
+      trigger: m.trigger,
+      endedBy: endedByFor(reason, { tapped: m.tapped }),
+      hidden: !!m.hidden,
+      novaSpeaking: !!m.novaSpeaking,
+    };
+  };
+
   // Idempotent on purpose: error and end both arrive for the same failure,
   // and micStopped() decrements a counter that must stay balanced.
-  const closeOut = (fireDone = true) => {
+  const closeOut = (fireDone = true, extra = null) => {
     if (!liveRef.current) return;
     liveRef.current = false;
     wantRef.current = false;
@@ -153,16 +204,27 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     // The receipt goes out BEFORE the send, because the send is what he
     // remembers and the receipt is what explains it. Wrapped: a listener
     // that throws must not swallow onDone and lose his words.
+    const info = listenInfo(reasonRef.current);
+    const startAt = metaRef.current?.startAt ?? turn?.startedAt;
     if (held && fireDone) {
       try {
         onTurnEnd?.({
           reason: reasonRef.current,
-          ms: turn ? Date.now() - turn.startedAt : 0,
+          ms: startAt ? Date.now() - startAt : 0,
           restarts: turn?.restartsTotal || 0,
           heard: !!turn && turn.lastHeardAt !== null,
+          ...info,
+          // the Nova-ears path closes here only when the mic itself refused:
+          // say which ears, and why, on the row (18 Oct 2026)
+          ...(extra || {}),
         });
       } catch { /* never at the cost of the turn */ }
     }
+    noteListenEnd({ reason: reasonRef.current, endedBy: info.endedBy || 'engine', trigger: info.trigger || 'tap' });
+    metaRef.current = null;
+    // A TURN THE SCREEN ENDED, WITH NOTHING IN IT, is not an empty listen: he
+    // locked the phone. No "heard nothing", no count toward pausing.
+    if (reasonRef.current === 'hidden' && !composed()) return;
     // THE WORDS TRAVEL WITH THE END OF THE TURN. Surfaces used to read them
     // back from their own render-refreshed ref, which is one render behind
     // an onText that has only just been called (see finishNova).
@@ -259,12 +321,18 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   // The same turn, the same clock, the same receipt — only the source of
   // "he is still talking" (vad.js loudness instead of engine results) and of
   // the words (the Mac, once, at the end) differ.
-  const BLIND_CAP_MS = 90_000;     // a deaf meter cannot end his turn, so a tap does — or this
+  // A deaf meter cannot end his turn, so a tap does, or this. It was 90 s
+  // until 18 Oct 2026: a meter blind that long posted "All right. . Okay." to
+  // the Coach. 20 s, and a short transcript from it is a draft (holdAsDraft).
+  const BLIND_CAP_MS = 20_000;
   const TAP_CAP_MS = 300_000;      // tap-to-end surfaces (the Inbox composer) still stop eventually
 
   const finishNova = async () => {
     if (!liveRef.current) return;
-    const turn = turnRef.current;
+    const meta = metaRef.current || newMeta('tap', Date.now());
+    metaRef.current = null;
+    const stopAt = Date.now();
+    const reason = reasonRef.current;
     const handle = recordingRef.current;
     recordingRef.current = null;
     liveRef.current = false;
@@ -275,17 +343,42 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     setOn(false);
     setBlind(false);
     setHearing(true);
-    const blob = handle ? await handle.stop() : null;
+    const blindMs = handle?.blindMs?.() ?? 0;
     const vad = handle?.vad();
     const wasBlind = !!handle?.blind();
+    const blob = handle ? await handle.stop() : null;
+    const recMs = meta.micOpenAt ? stopAt - meta.micOpenAt : null;
+    const meter = wasBlind ? 'blind' : vad?.heardAny ? 'heard' : 'silent';
+    const endedBy = endedByFor(reason, { tapped: meta.tapped });
     let text = '';
     let tx = null;
     let failure = null;
-    // Sent even when the meter heard nothing: a meter that is wrong about
-    // silence must not cost him his words. A silent clip costs the Mac 200ms.
+    let cause = null;
+    let txStatus = 'none';   // nothing was recorded
     if (blob && blob.size > 0) {
-      const meter = wasBlind ? 'blind' : vad?.heardAny ? 'heard' : 'silent';
-      try { tx = await transcribeRecording(blob, { vad: meter }); text = tx.text; } catch (e) { failure = e; }
+      if (reason === 'hidden' && !vad?.heardAny) {
+        // the screen went away and he had said nothing: nothing to write down
+        cause = 'hidden';
+        txStatus = 'skipped';
+      } else if (isEmptyCapture({ bytes: blob.size, ms: recMs })) {
+        // A CAPTURE WITH NOTHING IN IT never reaches the transcriber: a 5-byte
+        // clip made Groq answer 400 and Nova say 502 (src/listenRules.js).
+        cause = 'empty-capture';
+        txStatus = 'skipped';
+      } else {
+        // Sent even when the meter heard nothing: a meter that is wrong about
+        // silence must not cost him his words. A silent clip costs the Mac 200ms.
+        try {
+          tx = await transcribeRecording(blob, { vad: meter });
+          text = tx.text;
+          txStatus = text ? 'ok' : 'empty';
+        } catch (e) { failure = e; txStatus = 'error'; }
+      }
+    } else if (blob) {
+      cause = 'empty-capture';
+      txStatus = 'skipped';
+    } else if (reason === 'mic-timeout') {
+      cause = 'mic-timeout';
     }
     if (!mountedRef.current) return;
     setHearing(false);
@@ -295,23 +388,48 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
       interimRef.current = '';
       emit();
     }
+    // A BLIND METER'S SHORT TRANSCRIPT IS A DRAFT. It stays in the composer
+    // (emit above put it there) and is never sent: he sends it, or does not.
+    const draft = holdAsDraft({ blind: wasBlind, endedBy, text });
+    if (draft) cause = 'blind-draft';
     const kept = !!(failure && keepFailed && blob && blob.size > 0);
     if (failure && !kept) onError?.(failure.message || 'Nova could not hear that');
+    // said once, plainly, instead of "heard nothing" about a mic that never opened
+    if (reason === 'mic-timeout') onError?.('The microphone did not open.');
     if (held || onTurnEnd) {
       try {
         onTurnEnd?.({
-          reason: reasonRef.current,
-          ms: turn ? Date.now() - turn.startedAt : 0,
+          reason,
+          ms: stopAt - meta.startAt,
           restarts: 0,
           heard: !!text,
           engine: 'nova',
-          vad: wasBlind ? 'blind' : vad?.heardAny ? 'heard' : 'silent',
+          vad: meter,
           bytes: blob?.size || 0,
           txMs: tx?.ms ?? null,
           ...(failure ? { why: String(failure.message || '').slice(0, 120) } : {}),
+          trigger: meta.trigger,
+          endedBy,
+          micOpenMs: meta.micOpenAt ? meta.micOpenAt - meta.startAt : null,
+          ...(recMs !== null ? { recMs } : {}),
+          blindMs,
+          firstSoundMs: meta.firstSoundAt && meta.micOpenAt ? Math.max(0, meta.firstSoundAt - meta.micOpenAt) : null,
+          peak: vad?.peak ?? 0,
+          txStatus,
+          txChars: text.length,
+          ...(tx?.dropped ? { txDropped: tx.dropped } : {}),
+          ...(meta.audioSession ? { audioSession: meta.audioSession } : {}),
+          novaSpeaking: !!meta.novaSpeaking,
+          hidden: !!meta.hidden,
+          ...(cause ? { cause } : {}),
         });
       } catch { /* never at the cost of the turn */ }
     }
+    noteListenEnd({ reason, endedBy, trigger: meta.trigger });
+    // nothing to hand over: a draft waits in the composer; a turn the screen
+    // ended or a mic that never opened is not an empty listen
+    if (draft) return;
+    if (!text && (reason === 'hidden' || reason === 'mic-timeout')) return;
     // HIS WORDS, HANDED OVER, NOT LOOKED UP. On 25 Sep at 14:22 his iPhone
     // recorded 39.5s, the Mac transcribed 384 characters, and nothing was
     // sent: emit() above had only just called onText, React had not rendered
@@ -321,7 +439,7 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     if (kept) {
       try {
         onKept?.({
-          blob, at: Date.now(), ms: turn ? Date.now() - turn.startedAt : 0, bytes: blob.size,
+          blob, at: Date.now(), ms: stopAt - meta.startAt, bytes: blob.size,
           vad: wasBlind ? 'blind' : vad?.heardAny ? 'heard' : 'silent',
           reason: String(failure.message || 'the Mac could not write that down'),
         });
@@ -354,10 +472,20 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
   const tickNova = () => {
     if (!liveRef.current || !wantRef.current || !turnRef.current) return;
     const now = Date.now();
-    const age = now - turnRef.current.startedAt;
     const handle = recordingRef.current;
+    // THE LEAD STARTS WHEN THE MIC OPENS (18 Oct 2026). Until the recorder is
+    // open nothing can hear him, so no clock runs against him; if it has not
+    // opened in 5 s it is not going to, and the turn says so.
+    if (!handle) {
+      if (micWait({ startedAt: metaRef.current?.startAt ?? turnRef.current.startedAt, now }) === 'timeout') {
+        reasonRef.current = 'mic-timeout';
+        finishNova();
+      }
+      return;
+    }
+    const age = now - turnRef.current.startedAt;   // from the open (openedTurn)
     // a meter that wakes up mid-turn (the graph resumed) takes over again
-    const deaf = !!handle?.blind();
+    const deaf = !!handle.blind();
     setBlind(deaf);
     if (deaf) {
       if (age >= BLIND_CAP_MS) { reasonRef.current = 'cap-idle'; finishNova(); }
@@ -373,12 +501,14 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     finishNova();
   };
 
-  const startNova = () => {
+  const startNova = (trigger = 'tap') => {
     baseRef.current = getBase();
     saidRef.current = '';
     finalsRef.current = '';
     interimRef.current = '';
     const now = Date.now();
+    const seq = ++turnSeqRef.current;
+    metaRef.current = newMeta(trigger, now);
     turnRef.current = baseRef.current ? sawSpeech(openTurn(now), now) : openTurn(now);
     if (baseRef.current) emit();
     reasonRef.current = 'engine';
@@ -390,21 +520,32 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     clockRef.current = setInterval(tickNova, TICK_MS);
     openRecording({
       onLevel: (vad) => {
-        if (vad.speaking && turnRef.current) turnRef.current = sawSpeech(turnRef.current, Date.now());
+        if (vad.speaking && turnRef.current && turnSeqRef.current === seq) {
+          turnRef.current = sawSpeech(turnRef.current, Date.now());
+          if (metaRef.current && !metaRef.current.firstSoundAt) metaRef.current.firstSoundAt = Date.now();
+        }
       },
     }).then((handle) => {
-      if (!liveRef.current) { handle.cancel(); return; }   // he stopped before the mic opened
+      // he stopped before the mic opened, or the turn gave up on it
+      if (!liveRef.current || turnSeqRef.current !== seq) { handle.cancel(); return; }
       recordingRef.current = handle;
+      const at = Date.now();
+      if (metaRef.current) { metaRef.current.micOpenAt = at; metaRef.current.audioSession = sessionType(); }
+      turnRef.current = openedTurn(turnRef.current, at);
     }).catch((e) => {
       // the mic itself refused — permission, or no device. Nothing was
       // recorded, so there is nothing to send: say why and stop.
+      // (a turn already over, by his tap or the mic timeout, has said its piece)
+      if (turnSeqRef.current !== seq || !liveRef.current) return;
       const kind = e?.name === 'NotAllowedError' ? 'not-allowed' : e?.name === 'NotFoundError' ? 'audio-capture' : (e?.message || 'microphone failed');
       onError?.(kind);
-      if (liveRef.current) closeOut();
+      reasonRef.current = 'engine';
+      if (liveRef.current) closeOut(true, { engine: 'nova', why: String(kind).slice(0, 120), micOpenMs: null, txStatus: 'none' });
     });
   };
 
-  const startTurn = () => {
+  const startTurn = (trigger = 'tap') => {
+    metaRef.current = newMeta(trigger, Date.now());
     baseRef.current = getBase();
     saidRef.current = '';
     finalsRef.current = '';
@@ -435,22 +576,79 @@ export function useDictation(getBase, onText, onDone, { continuous = true, holdM
     }
   };
 
-  const toggle = () => {
-    if (hearing) return;                   // the words are on their way; a tap now would lose them
+  // `opts` is { trigger, force } from a caller, or a click event from an
+  // onClick={dict.toggle}: only the two named fields are ever read.
+  // Returns 'kept' when the tap was taken as "still listening".
+  const toggle = (opts) => {
+    if (hearing) return undefined;         // the words are on their way; a tap now would lose them
+    const force = opts?.force === true;
+    if (on && liveRef.current) {
+      // A TAP ON A SILENT MIC KEEPS LISTENING (18 Oct 2026). Eight of his
+      // turns in a week were a tap on a mic that had heard nothing, sent as
+      // silence; seven were followed by him typing the question. A held turn
+      // that has not heard him yet stays open, says so, and a second tap
+      // within 2 s ends it (src/listenRules.js tapOnOpenMic).
+      const meta = metaRef.current;
+      const now = Date.now();
+      if (!force && meta) {
+        const verdict = tapOnOpenMic({
+          held,
+          blind: novaEars ? !!recordingRef.current?.blind() : false,
+          heard: !!turnRef.current && turnRef.current.lastHeardAt !== null,
+          now,
+          lastTapAt: meta.lastTapAt,
+        });
+        if (verdict === 'keep') {
+          meta.lastTapAt = now;
+          try { haptic('tick'); } catch { /* a haptic is never worth the turn */ }
+          try { onNudge?.(); } catch { /* the caption is the surface's business */ }
+          return 'kept';
+        }
+      }
+      if (meta) meta.tapped = true;
+      reasonRef.current = 'tap';
+    }
+    // what opened the mic: App's fresh mark (conversation start, wake word,
+    // barge-in) wins over the caller's own; a stop takes no mark
+    const trigger = on ? 'tap' : takeListen(typeof opts?.trigger === 'string' ? opts.trigger : 'tap');
     if (novaEars) {
       if (on) finishNova();
-      else startNova();
-      return;
+      else startNova(trigger);
+      return undefined;
     }
     if (on) {
       wantRef.current = false;             // a deliberate stop never restarts
       const rec = recRef.current;
       if (!rec) { closeOut(); return; }
       try { rec.stop(); } catch { closeOut(); }
-      return;
+      return undefined;
     }
-    if (SR) startTurn();
+    if (SR) startTurn(trigger);
+    return undefined;
   };
+
+  // THE SCREEN WENT AWAY (18 Oct 2026). Locked or switched away mid-turn, the
+  // clock froze: an 18 s lead and a 166 s cap-idle were counted as empty
+  // listens. A turn now ends on `hidden`; words already heard still go, and
+  // a turn with nothing in it ends quietly (it is not an empty listen).
+  const visRef = useRef(null);
+  visRef.current = () => {
+    if (!liveRef.current || !metaRef.current) return;
+    metaRef.current.hidden = true;
+    if (typeof document === 'undefined' || document.visibilityState !== 'hidden') return;
+    reasonRef.current = 'hidden';
+    if (novaEars) { finishNova(); return; }
+    wantRef.current = false;
+    const rec = recRef.current;
+    if (!rec) { closeOut(); return; }
+    try { rec.stop(); } catch { closeOut(); }
+  };
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined;
+    const onVis = () => visRef.current?.();
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
 
   // Leaving the screen mid-turn used to leave the recogniser running; with a
   // clock behind it that would also leave an interval ticking forever.

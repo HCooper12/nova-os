@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useDictation, reportTurnEnd } from '../useDictation.js';
+import { useDictation, reportTurnEnd, useNudge, NUDGE_LINE } from '../useDictation.js';
 import { LocalInput } from '../LocalInput.jsx';
 import { TypeText } from '../TypeText.jsx';
 import { VoicePanel, SourcesPanel } from '../VoicePanels.jsx';
@@ -69,6 +69,8 @@ export function NovaThread({ v }) {
   inputRef.current = T.composer.value;
   const sendRef = useRef(v.sendOrb);
   sendRef.current = v.sendOrb;
+  // a tap on a mic that has heard nothing keeps listening and says so
+  const [nudged, nudge] = useNudge();
   const dict = useDictation(
     () => v.takeVoiceSeed(),
     (text) => { inputRef.current = text; v.setOrbInputValue(text); },
@@ -78,6 +80,7 @@ export function NovaThread({ v }) {
       leadMs: v.voiceLeadMs,
       onError: (err) => v.dictationError(err),
       onTurnEnd: (info) => { v.noteTurnHeard?.(info.heard); reportTurnEnd('voice', v.voiceHold, info); },
+      onNudge: nudge,
       // KEPT, NOT LOST (decided 29 Sep): a recording the Mac could not write
       // down stays in the thread as his own bubble, and Try again resends it
       keepFailed: true,
@@ -94,7 +97,7 @@ export function NovaThread({ v }) {
   useEffect(() => {
     if (v.voiceAutoListenTick > 0 && (v.convMode || v.replyListen) && !v.convPaused && dictRef.current.supported && !dictRef.current.on) {
       v.stopSpeaking();
-      dictRef.current.toggle();
+      dictRef.current.toggle({ trigger: v.convMode ? 'auto' : 'reply-window' });
       v.consumeReplyListen?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -399,7 +402,7 @@ export function NovaThread({ v }) {
         </div>
       )}
 
-      <Composer T={T} dict={dict} since={listenSince} fieldRef={fieldRef} onSend={send} typingFor={typingFor} />
+      <Composer T={T} dict={dict} since={listenSince} fieldRef={fieldRef} onSend={send} typingFor={typingFor} nudged={nudged} />
 
       {fxShown && (
         <NovaFocus T={T} S={S} dict={dict} since={listenSince} leaving={!focus} onTalk={startTalking} onOpen={openSheet} />
@@ -539,7 +542,7 @@ function CloseCard({ c, onTalk }) {
 
 // ------------------------------------------------------------ composer --
 
-function Composer({ T, dict, since, fieldRef, onSend, typingFor }) {
+function Composer({ T, dict, since, fieldRef, onSend, typingFor, nudged = false }) {
   const C = T.composer;
   const [text, setText] = useState(C.value);
   useEffect(() => { setText(C.value); }, [C.value]);
@@ -551,6 +554,8 @@ function Composer({ T, dict, since, fieldRef, onSend, typingFor }) {
       <div className="nv-nt-composer listening">
         <Meter since={since} />
         <button type="button" className="nv-nt-stop" onClick={dict.toggle}>Send now</button>
+        {/* a tap before he has said anything keeps the mic open; a second ends it */}
+        <span className="nv-nt-meta" role="status" aria-live="polite" style={{ gridColumn: '1 / -1', minHeight: 17 }}>{nudged ? NUDGE_LINE : ''}</span>
       </div>
     );
   }

@@ -55,8 +55,12 @@ export async function openRecording({ onLevel } = {}) {
   // reads the app's shared audio graph (audioLevel.openMicLevel says why).
   let vad = openVad();
   const level = openMicLevel(stream);
+  let blindMs = 0;   // how long the meter read blind this turn, for the receipt
   const timer = setInterval(() => {
+    // a sleeping graph is asked to wake on every sample, not once at open
+    if (level && !level.running()) { try { level.resume(); } catch { /* refused */ } }
     vad = vadStep(vad, level ? level.rms() : 0);   // no meter reads zero → blind → tap to send
+    if (vadBlind(vad)) blindMs += SAMPLE_MS;
     onLevel?.(vad);
   }, SAMPLE_MS);
   // the core swells while he talks — best effort, the shared meter's business
@@ -74,6 +78,7 @@ export async function openRecording({ onLevel } = {}) {
     type: rec.mimeType || type || 'audio/mp4',
     vad: () => vad,
     blind: () => vadBlind(vad),
+    blindMs: () => blindMs,
     // Stop and hand back the whole recording. Idempotent.
     stop() {
       if (stopped) return stopped;
@@ -110,5 +115,7 @@ export async function transcribeRecording(blob, { timeoutMs = 30_000, vad = '' }
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || `the Mac could not hear that (${r.status})`);
-  return { text: String(j.text || ''), backend: j.backend || '', ms: Date.now() - started };
+  // `dropped`: the filler line the Mac took off a silent clip ("Thank you."),
+  // for the turn receipt; `empty`: the Mac skipped a capture with nothing in it
+  return { text: String(j.text || ''), backend: j.backend || '', ms: Date.now() - started, dropped: typeof j.dropped === 'string' ? j.dropped : '', empty: !!j.empty };
 }

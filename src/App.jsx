@@ -118,6 +118,8 @@ import { ReplySheet } from './ReplySheet.jsx';
 import { Interactive } from './Interactive.jsx';
 import { WakeWord } from './WakeWord.jsx';
 import { reportBargeIn, reportTurnEnd } from './useDictation.js';
+import { markListen, lastListenEnd, noteNovaSpeaking } from './listenCause.js';
+import { countsAsEmpty, afterEmpty } from './listenRules.js';
 import { runMicCheck } from './micCheck.js';
 import { applyTrainToday, todayPlanFor } from './trainToday.js';
 import { IslandFeed } from './IslandFeed.jsx';
@@ -7620,6 +7622,8 @@ export default class App extends Component {
     // The receipt for this ask: posted once, when the reply has been heard
     // (or cut short, or failed), with whatever the turn stamped.
     const postTurn = () => {
+      // the answer is over (heard, cut short, or failed): the mic may open
+      this.endAnswer(turn);
       if (!turn || turn.posted) return;
       turn.posted = true;
       const rel = (at) => (at && turn.askAt ? at - turn.askAt : undefined);
@@ -7880,7 +7884,7 @@ export default class App extends Component {
           // Flush whatever trails the last sentence-ender; if nothing ever
           // streamed (non-streaming job), this speaks the whole reply.
           if (this.state.voiceSpeak) speakNewSentences(spokenText, true);
-          else this.maybeAutoListen();
+          else { this.endAnswer(turn); this.maybeAutoListen(); }
           postTurn();
         }
       },
@@ -10805,6 +10809,7 @@ export default class App extends Component {
     const send = (attachmentId) => {
       turn.askAt = Date.now();
       turn.sentAt = turn.askAt;
+      this.beginAnswer(turn);
       if (spoken && this.turnWordsAt) {
         turn.transcribedAt = this.turnWordsAt;
         turn.preAskMs = Math.max(0, turn.sentAt - turn.transcribedAt);
@@ -10862,17 +10867,20 @@ export default class App extends Component {
         // model choice asks it here
         this.followActed(resp.acted);
         if (resp.modelChoicePending?.kind === 'act') this.armActGate(resp.modelChoicePending);
-        const reflexReceipt = () => reportTurnEnd('ask', this.state.voiceHold, {
-          ms: Date.now() - turn.askAt, restarts: 0, heard: true, lane: 'reflex',
-          firstTextMs: turn.firstTextAt - turn.askAt, firstAudioMs: turn.firstAudioAt ? turn.firstAudioAt - turn.askAt : undefined,
-          ...(Number.isFinite(turn.preAskMs) ? { preAskMs: turn.preAskMs } : {}),
-          ...(turn.preAskSlowest ? { preAskSlowest: turn.preAskSlowest } : {}),
-          droppedSentences: Math.max(0, (this.ttsDropped || 0) - (turn.droppedBase || 0)),
-        });
+        const reflexReceipt = () => {
+          this.endAnswer(turn);   // the reflex answer has been heard: the mic may open
+          reportTurnEnd('ask', this.state.voiceHold, {
+            ms: Date.now() - turn.askAt, restarts: 0, heard: true, lane: 'reflex',
+            firstTextMs: turn.firstTextAt - turn.askAt, firstAudioMs: turn.firstAudioAt ? turn.firstAudioAt - turn.askAt : undefined,
+            ...(Number.isFinite(turn.preAskMs) ? { preAskMs: turn.preAskMs } : {}),
+            ...(turn.preAskSlowest ? { preAskSlowest: turn.preAskSlowest } : {}),
+            droppedSentences: Math.max(0, (this.ttsDropped || 0) - (turn.droppedBase || 0)),
+          });
+        };
         if (this.state.voiceSpeak) {
           this.speakTtsSentence(resp.text, show, { onStart: () => { turn.firstAudioAt = Date.now(); } });
           this.queueTtsFinalize(reflexReceipt);
-        } else { show(); this.maybeAutoListen(); reflexReceipt(); }
+        } else { show(); this.endAnswer(turn); this.maybeAutoListen(); reflexReceipt(); }
         return;
       }
       const { jobId, agent, ack } = resp;
@@ -10890,6 +10898,7 @@ export default class App extends Component {
       if (ack?.text) this.speakAckLine(ack, agent, turn);
       this.attachAskPoll(conn, jobId, { agent, meta, turn });
     }).catch((e) => {
+      this.endAnswer(turn);
       this.setState((s) => ({ voiceBusy: false, voiceChat: [...s.voiceChat, { at: Date.now(), who: 'system', text: 'Error: ' + e.message, ...(meta || {}) }] }));
       // the presence says a failed turn aloud (the words are hidden there)
       if (meta?.via === 'presence') this.liveTalkFailed(e.message, { logged: true });
@@ -11264,14 +11273,17 @@ export default class App extends Component {
     // his interrupting words start the turn: they are demonstrably not echo,
     // which is the whole reason this fired
     this.onWakeWord(heard);
+    markListen('barge');   // after onWakeWord's own 'wake' mark: this turn is a barge-in
   }
   beginSpeech() {
     this.speechActive = (this.speechActive || 0) + 1;
+    noteNovaSpeaking(this.speechActive);   // the turn receipt's novaSpeaking
     if (!this.state.voiceSpeaking) this.setState({ voiceSpeaking: true });
     this.showPresenceForSpeech(); // the icon appears the moment Nova talks
   }
   endSpeech() {
     this.speechActive = Math.max(0, (this.speechActive || 0) - 1);
+    noteNovaSpeaking(this.speechActive);
     if (this.speechActive === 0) {
       // A BEAT BEFORE THE MICROPHONE OPENS. Opening it on the same tick as the
       // last word means the tail of Nova's own audio is still in the room, and
@@ -11289,7 +11301,7 @@ export default class App extends Component {
       // ~12s on the Voice screen; a reply routes like any spoken ask, and
       // silence closes it quietly. (He spoke back to a brief and nothing
       // registered — a voice that talks AT you is not a companion.)
-      if (this.replyWorthy && this.state.voiceSpeak && !this.state.voiceConvMode && !this.state.voiceBusy && !this.replyStreaming) {
+      if (this.replyWorthy && this.state.voiceSpeak && !this.state.voiceConvMode && !this.state.voiceBusy && !this.replyStreaming && !this.answerPendingNow()) {
         clearTimeout(this.replyWindowTimer);
         this.setState((s) => ({ voiceReplyWindow: true, voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
         this.replyWindowTimer = setTimeout(() => this.setState({ voiceReplyWindow: false }), 12_000);
@@ -11312,6 +11324,7 @@ export default class App extends Component {
     this.currentSource = null;
     this.resetTtsQueue(); // in-flight sentence fetches land against a stale generation and vanish
     this.speechActive = 0;
+    noteNovaSpeaking(0);
     nowPlayingIdle();
     if (this.state.voiceSpeaking || this.state.voiceStance) this.setState({ voiceSpeaking: false, voiceStance: null });
     clearTimeout(this.audioReleaseTimer);
@@ -11370,12 +11383,35 @@ export default class App extends Component {
     if ((this.state.screen !== 'voice' && !this.state.liveTalkOn) || this.state.voiceBusy) return;
     if ((this.speechActive || 0) > 0) return;
     if (this.replyStreaming) return; // more of the reply is coming — the mic waits for the end of it, not a gap in it
+    if (this.answerPendingNow()) return; // the ack has played, the answer has not: not his turn yet
     this.setState((s) => ({ voiceAutoListenTick: s.voiceAutoListenTick + 1 }));
+  }
+  // THE ACK GAP (18 Oct 2026). A 5-byte recording on his phone: the ack
+  // finished, maybeAutoListen opened the mic, the reply's first audio landed
+  // 0.2 s later and the capture died. Neither voiceBusy (cleared at the first
+  // partial) nor replyStreaming (the poll's flag) spans the whole stretch from
+  // the ask leaving to the last word of its answer. This does: set when the
+  // ask is sent, cleared when its receipt posts (the answer heard, cut short,
+  // or failed). Keyed to the turn, so an older answer finishing late cannot
+  // clear a newer one; ten minutes is the ceiling, so a path that never
+  // clears it cannot leave the mic shut for good.
+  beginAnswer(turn) {
+    this.answerPending = { turn, at: Date.now() };
+  }
+  endAnswer(turn) {
+    if (this.answerPending && (!turn || this.answerPending.turn === turn)) this.answerPending = null;
+  }
+  answerPendingNow() {
+    const p = this.answerPending;
+    if (!p) return false;
+    if (Date.now() - p.at > 10 * 60_000) { this.answerPending = null; return false; }
+    return true;
   }
   toggleConvMode() {
     this.convEmpties = 0;
     const turningOn = !this.state.voiceConvMode;
     if (turningOn) {
+      markListen('conv-start');   // the receipt's trigger for the mic this opens
       // Like raising Siri: the tap IS the start of the conversation. Cut any
       // speech (its speechActive would gate maybeAutoListen), unlock audio
       // inside this gesture, and open the mic unconditionally — not through
@@ -11411,6 +11447,11 @@ export default class App extends Component {
   }
 
   notifyEmptyListen() {
+    // A TURN HE ENDED HIMSELF IS NOT AN EMPTY LISTEN (18 Oct 2026), and nor is
+    // one the screen ended or whose mic never opened (listenRules.countsAsEmpty):
+    // none of them says he has nothing to add, so none counts toward pausing.
+    const end = lastListenEnd();
+    if (end && !countsAsEmpty(end)) return;
     // THE SAME VALVE FOR BARE "NOVA, …": a bare wake whose turn heard nothing
     // was the room saying the name. Twice running and the bare form is off
     // for this session (the setting stays as he left it), said once.
@@ -11442,7 +11483,18 @@ export default class App extends Component {
       }
     }
     this.convEmpties = (this.convEmpties || 0) + 1;
-    if (this.convEmpties >= 2) {
+    // ONE OPEN, NOT TWO (18 Oct 2026). A mic Nova opened by itself after
+    // speaking, that heard nothing, used to be opened a second time before
+    // the loop paused: 19 of the week's 48 iPhone turns were those pairs. Now
+    // a silent conversation-mode reopen pauses at once and quietly; the
+    // one-shot reply window just closes; a turn he started keeps the old two.
+    const next = afterEmpty({ trigger: end?.trigger || 'tap', empties: this.convEmpties });
+    if (next === 'rest') return;
+    if (next === 'pause' && end?.trigger === 'auto' && (this.deafTurns || 0) < 2) {
+      this.setState({ voiceConvPaused: true });
+      return;
+    }
+    if (next === 'pause') {
       this.setState({ voiceConvPaused: true });
       // TWO TURNS WITH NO RESULT EVENT AT ALL is not the same fact as two
       // turns of silence, and Nova cannot tell them apart from here — it has
@@ -12139,6 +12191,7 @@ export default class App extends Component {
   onWakeWord(rest, { bare = false } = {}) {
     // a bare "Nova, …" wake that hears nothing is counted (notifyEmptyListen)
     if (bare) this.lastTurnWasBareWake = true;
+    markListen('wake');
     this.pendingVoiceSeed = String(rest || '').slice(0, 400);
     this.stopSpeaking();
     this.prewarmAsk();

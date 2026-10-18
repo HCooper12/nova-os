@@ -735,12 +735,29 @@ export function voiceRouter(vaultPath) {
   router.post('/voice/transcribe', async (req, res) => {
     const { audioFromRequest } = await import('../lib/hearing.js');
     const audio = audioFromRequest(req.body, req.get('content-type'), req.get('x-audio-type') || '');
+    // AN EMPTY CAPTURE IS NOT A FAILURE (18 Oct 2026). A 5-byte clip (the mic
+    // died the instant it opened) made Groq answer 400 and Nova 502, an error
+    // in his face for a recording with nothing in it. Under 1.5 KB nothing was
+    // recorded (src/listenRules.js EMPTY_CAPTURE_BYTES): no words, no call.
+    // A zero-byte body is the same fact, not a malformed request.
+    const { EMPTY_CAPTURE_BYTES } = await import('../../src/listenRules.js');
+    const bodyBytes = Buffer.isBuffer(req.body) ? req.body.length : 0;
+    if (audio.error && bodyBytes === 0) {
+      console.log('voice/transcribe 0B → empty capture, not sent');
+      return res.json({ text: '', empty: true, backend: 'none', ms: 0, bytes: 0 });
+    }
     if (audio.error) return res.status(400).json({ error: audio.error });
+    if (audio.buf.length < EMPTY_CAPTURE_BYTES) {
+      console.log(`voice/transcribe ${audio.buf.length}B ${audio.mime} → empty capture, not sent`);
+      return res.json({ text: '', empty: true, backend: 'none', ms: 0, bytes: audio.buf.length });
+    }
     try {
       const { transcribeBuffer } = await import('../lib/transcribe.js');
       const out = await transcribeBuffer(audio.buf, { mime: audio.mime, name: audio.name, spoke: req.get('x-vad') === 'heard' });
       console.log(`voice/transcribe ${audio.buf.length}B ${audio.mime} → ${out.backend} ${out.ms}ms ${out.text ? `${out.text.length}ch` : `silence${out.raw ? ` (dropped ${JSON.stringify(out.raw.slice(0, 40))})` : ''}`}`);
-      res.json({ text: out.text, backend: out.backend, ms: out.ms, bytes: audio.buf.length });
+      // the filler line dropped off a silent clip rides back for the receipt
+      const dropped = !out.text && typeof out.raw === 'string' && out.raw ? out.raw.slice(0, 80) : '';
+      res.json({ text: out.text, backend: out.backend, ms: out.ms, bytes: audio.buf.length, ...(dropped ? { dropped } : {}) });
     } catch (e) {
       console.log(`voice/transcribe FAILED ${audio.buf.length}B ${audio.mime}: ${e.message}`);
       res.status(502).json({ error: e.message });

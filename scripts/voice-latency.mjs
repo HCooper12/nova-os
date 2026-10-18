@@ -21,6 +21,10 @@
 // p50 and p95, with the count each is drawn from, and an
 // honest line when there is nothing to read.
 //
+// From 18 Oct it opens with a LISTENING table per device: per trigger (what
+// opened the mic), the heard rate, how the turns ended, the median time for
+// the mic to open, and how many never opened.
+//
 //   node scripts/voice-latency.mjs                 # server/data/voice/turns.json
 //   node scripts/voice-latency.mjs --file x.json   # another copy
 //   node scripts/voice-latency.mjs --since 2026-10-15
@@ -44,7 +48,33 @@ try { turns = JSON.parse(readFileSync(file, 'utf8')).turns || []; } catch (e) {
   console.log(`Could not read ${file}: ${e.message}`);
   process.exit(1);
 }
-const asks = turns.filter((t) => t.surface === 'ask' && (!since || String(t.at || '') >= since));
+const inRange = (t) => !since || String(t.at || '') >= since;
+// THE LISTENING TABLE (18 Oct 2026): per trigger (what opened the mic), how
+// often it heard him, how the turns ended, and the median wait for the mic to
+// open. Receipts from before the listening fields read as trigger '?'.
+// `deaf` leaves out the mics Nova opened by itself and the turns he tapped
+// shut (server/lib/voiceTurns.js listeningTable).
+const { listeningTable } = await import(path.join(ROOT, 'server', 'lib', 'voiceTurns.js'));
+const listening = listeningTable(turns.filter(inRange));
+if (listening.turns) {
+  const device = (ua = '') => (/iPhone|iPad/.test(ua) ? 'iPhone' : /Macintosh/.test(ua) ? 'Mac' : 'other');
+  const printTable = (label, tbl) => {
+    if (!tbl.turns) return;
+    console.log(`listening, ${label}: ${tbl.turns} turn(s), ${tbl.deaf} heard nothing on a mic he opened (the health count)`);
+    console.log(`  ${'trigger'.padEnd(13)} ${'n'.padStart(4)} ${'heard'.padStart(9)}  ${'mic open p50'.padEnd(13)} ${'never'.padStart(5)}  ended by`);
+    for (const g of tbl.groups) {
+      const rate = `${g.heard}/${g.n}`.padStart(5) + ` ${String(Math.round((100 * g.heard) / g.n)).padStart(3)}%`;
+      const open = g.micOpenMedianMs === null ? '—' : `${g.micOpenMedianMs}ms`;
+      const ended = Object.entries(g.endedBy).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} ${n}`).join(', ');
+      console.log(`  ${g.trigger.padEnd(13)} ${String(g.n).padStart(4)} ${rate}  ${open.padEnd(13)} ${String(g.neverOpened).padStart(5)}  ${ended}`);
+    }
+    console.log('');
+  };
+  const scoped = turns.filter(inRange);
+  for (const d of ['iPhone', 'Mac', 'other']) printTable(d, listeningTable(scoped.filter((t) => device(t.ua) === d)));
+}
+
+const asks = turns.filter((t) => t.surface === 'ask' && inRange(t));
 if (!asks.length) {
   console.log(`${turns.length} receipt(s) in ${file}, none of them an ask${since ? ` since ${since}` : ''}. The app posts one per question from the 15 Oct build on.`);
   process.exit(0);

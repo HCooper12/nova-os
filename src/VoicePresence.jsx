@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { css } from './css.js';
 import { Interactive } from './Interactive.jsx';
-import { useDictation, reportTurnEnd } from './useDictation.js';
+import { useDictation, reportTurnEnd, useNudge, NUDGE_LINE } from './useDictation.js';
 import { StageCard } from './StageCard.jsx';
 import { railDepth } from './glassDepth.js';
 import { SafeVisual } from './SafeVisual.jsx';
@@ -35,6 +35,8 @@ export function VoicePresence({ v }) {
   inputRef.current = s.input;
   const sendRef = useRef(s.send);
   sendRef.current = s.send;
+  // a tap on a mic that has heard nothing keeps listening and says so
+  const [nudged, nudge] = useNudge();
 
   const dict = useDictation(
     () => v.takeVoiceSeed(),
@@ -53,6 +55,7 @@ export function VoicePresence({ v }) {
       // same receipt as the Voice screen, tagged to the bar so the two mics
       // can be told apart in the log when they misbehave around each other
       onTurnEnd: (info) => reportTurnEnd('presence', v.voiceHold, info),
+      onNudge: nudge,
     },
   );
   const dictRef = useRef(dict);
@@ -71,7 +74,7 @@ export function VoicePresence({ v }) {
   useEffect(() => {
     if (s.autoListenTick > 0 && (s.conversing || s.replyWindow) && !dictRef.current.on && dictRef.current.supported) {
       v.stopSpeaking();
-      dictRef.current.toggle();
+      dictRef.current.toggle({ trigger: s.conversing ? 'auto' : 'reply-window' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.autoListenTick]);
@@ -79,12 +82,12 @@ export function VoicePresence({ v }) {
   // tapping the orb IS the start of the conversation — open the mic on the
   // same gesture iOS requires for both audio and recognition
   useEffect(() => {
-    if (s.conversing && dict.supported && !dict.on && !s.busy && !s.reply) dict.toggle();
+    if (s.conversing && dict.supported && !dict.on && !s.busy && !s.reply) dict.toggle({ trigger: 'conv-start' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [s.conversing]);
 
   // stop the mic when the conversation ends, so the OS gets its session back
-  useEffect(() => () => { try { if (dictRef.current.on) dictRef.current.toggle(); } catch { /* already closed */ } }, []);
+  useEffect(() => () => { try { if (dictRef.current.on) dictRef.current.toggle({ force: true }); } catch { /* already closed */ } }, []);
 
   // the "tap to hear" pill flicks away sideways or up, like a notification
   const pill = useDismissSwipe({ onDismiss: v.speechBlocked?.dismiss, enabled: !!v.speechBlocked?.dismiss });
@@ -178,7 +181,7 @@ export function VoicePresence({ v }) {
       {/* THE POP-UP — only ever on screen because he asked for it (long-press
           the core). The lit border + outward glow is the reference's look. */}
       {s.textOpen && (
-        <TranscriptPanel v={v} s={s} dict={dict} state={state} tone={tone} />
+        <TranscriptPanel v={v} s={s} dict={dict} state={state} tone={tone} nudged={nudged} />
       )}
     </div>
   );
@@ -191,7 +194,7 @@ const IOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigato
 
 // THE POP-UP's body. Its own component so it can grow out of the core when a
 // hold opened it and fold back into it when it goes (motion/holdToTalk.js).
-function TranscriptPanel({ v, s, dict, state, tone }) {
+function TranscriptPanel({ v, s, dict, state, tone, nudged = false }) {
   const morph = usePanelMorph();
   const hasMeter = dict.engine === 'nova' || !IOS;
   // a bar of its own: pull it down and it goes (sheetDrag.js)
@@ -215,7 +218,7 @@ function TranscriptPanel({ v, s, dict, state, tone }) {
         {dict.on && hasMeter && <MicLevel />}
         {s.ask && <div style={css(`font:var(--nv-micro-l);letter-spacing:.04em;color:color-mix(in srgb, var(--nv-ink) 42%, transparent);margin-bottom:7px`)}>» {s.ask}</div>}
         <div style={css('font-size:14px;line-height:1.55;color:color-mix(in srgb, var(--nv-ink) 94%, transparent)')}>
-          {s.reply || s.input || (s.busy ? 'Reading the vault…' : 'Listening — speak, and it appears here.')}
+          {s.reply || s.input || (s.busy ? 'Reading the vault…' : dict.on && nudged ? `${NUDGE_LINE}.` : 'Listening — speak, and it appears here.')}
         </div>
         {s.waiting && <div className="nv-hold-wait"><Proposal p={s.waiting} /></div>}
       </div>

@@ -178,7 +178,7 @@ export function playSpeechBuffer(buffer, onEnded) {
 // (and in headless Chrome) and reads flat zero forever, while this one is
 // resumed at every gesture and before every sentence Nova speaks — so it is
 // running at exactly the moment conversation mode reopens the mic.
-// Returns { rms(), running(), detach() }; rms() is 0 while the graph sleeps.
+// Returns { rms(), running(), resume(), detach() }; rms() is 0 while the graph sleeps.
 export function openMicLevel(stream) {
   if (!stream || !ensureCtx()) return null;
   ctx.resume().catch(() => {});
@@ -198,6 +198,13 @@ export function openMicLevel(stream) {
         return Math.sqrt(sum / frame.length);
       },
       running: () => ctx.state === 'running',
+      // A BLIND METER ASKS AGAIN (18 Oct 2026). One resume() at open is
+      // refused outside a gesture on iOS, and a meter blind for the whole
+      // 90 s cap posted "All right. . Okay." to the Coach. The recorder calls
+      // this on every sample while the graph sleeps; a refusal costs nothing.
+      resume() {
+        if (ctx.state !== 'running') ctx.resume().catch(() => {});
+      },
       detach() {
         try { src.disconnect(); } catch { /* already gone */ }
         active = Math.max(0, active - 1);
