@@ -1604,7 +1604,49 @@ function shouldAutoFile(mode, confidence) {
 // moves classifying → filed | pending | error on its own, and the client
 // polls it.
 function runClassification(vaultPath, record) {
-  classify(record.text, async (err, decision) => {
+  // CODE FIRST (18 Oct 2026, mockup 103): what code can read for certain is
+  // filed without a model at all; the model takes the rest; with no model, the
+  // capture waits as Unsorted with the places to pick, never as an error
+  (async () => {
+    let local = null;
+    try {
+      const { classifyLocal } = await import('./captureLocal.js');
+      const raw = await classifyLocal(record.text);
+      local = raw ? { ...normalizeDecision(raw), by: 'code' } : null;
+    } catch (e) { console.error('inbox: code-first sort failed, asking the model:', e.message); }
+    if (local) return settleClassification(vaultPath, record, null, local);
+    classify(record.text, async (err, decision) => {
+      if (!err) {
+        await settleClassification(vaultPath, record, null, decision);
+        // the model is answering again: what waited as Unsorted sorts itself
+        resortUnsorted(vaultPath, record.id).catch(() => {});
+        return;
+      }
+      const { unsortedDecision } = await import('./captureLocal.js');
+      try {
+        await updateRecord(record.id, { status: 'pending', decision: { ...normalizeDecision(unsortedDecision(record.text)), unsorted: true }, error: null, modelError: err.message });
+      } catch (storeErr) { console.error('inbox: failed to park an unsorted capture', storeErr); }
+    });
+  })();
+}
+
+// Captures parked as Unsorted while no model could answer, sorted now that
+// one can (a few at a time, oldest first). His own pick always wins: a record
+// he moved is no longer unsorted, so it is never touched here.
+async function resortUnsorted(vaultPath, exceptId) {
+  const waiting = (await listRecords()).filter((r) => r.id !== exceptId && r.status === 'pending' && r.decision?.unsorted).slice(-5);
+  for (const r of waiting) {
+    await new Promise((resolve) => classify(r.text, async (err, decision) => {
+      if (!err) {
+        const fresh = await getRecord(r.id);
+        if (fresh?.status === 'pending' && fresh.decision?.unsorted) await settleClassification(vaultPath, fresh, null, decision);
+      }
+      resolve();
+    }));
+  }
+}
+
+async function settleClassification(vaultPath, record, err, decision) {
     try {
       if (err) {
         await updateRecord(record.id, { status: 'error', error: err.message });
@@ -1624,7 +1666,6 @@ function runClassification(vaultPath, record) {
     } catch (storeErr) {
       console.error('inbox: failed to persist classification outcome', storeErr);
     }
-  });
 }
 
 // A LINK IS NOT A NOTE (7 Sep 2026). His rule: "I shouldn't need to tell
@@ -1973,6 +2014,47 @@ export async function undoRecord(vaultPath, id) {
   if (record.status !== 'filed' || !record.undoData) throw new Error('only filed captures can be undone');
   const summary = await undoFiling(vaultPath, record.undoData);
   return updateRecord(id, { status: 'undone', undoneAt: new Date().toISOString(), undoSummary: summary });
+}
+
+// THE TAG MOVES IT (18 Oct 2026, mockup 103). His ask: "a tag that
+// identifies this as a shopping list item just in case I realise that nova is
+// interpreting it wrong and I have to add more information that would therefore
+// capture this information to somewhere different". A capture he re-files:
+// - `route` (his pick from the sheet): code builds that place's payload from
+//   his own words (lib/captureLocal.js decisionFor) — no model needed;
+// - `detail` alone: his words plus the detail are sorted again (code first,
+//   then the model), the way a new capture is.
+// Whatever it was filed as is undone first, in the same step, so it never sits
+// in two places. The record keeps its id: one row, one tag, one Undo.
+export async function rerouteRecord(vaultPath, id, { route = null, detail = '' } = {}) {
+  const record = await getRecord(id);
+  if (!record) throw new Error('inbox record not found');
+  if (record.kind) throw new Error('only a capture can be moved');
+  if (!['filed', 'pending', 'error'].includes(record.status)) throw new Error('this capture can no longer be moved');
+  const { decisionFor, REROUTES, classifyLocal } = await import('./captureLocal.js');
+  const extra = String(detail || '').trim().slice(0, 300);
+  if (route && !REROUTES.includes(route)) throw new Error(`"${route}" is not a place a capture can go`);
+  if (!route && !extra) throw new Error('pick a place, or add a detail');
+  let decision = null;
+  if (route) {
+    const raw = decisionFor(route, record.text, new Date(), 'You moved it here', extra);
+    if (!raw) throw new Error(route === 'reminder' ? 'Say when, e.g. "tomorrow 9am", in the detail line' : 'nothing to file');
+    decision = { ...normalizeDecision(raw), by: 'him' };
+  }
+  if (record.status === 'filed' && record.undoData) await undoFiling(vaultPath, record.undoData);
+  const text = extra && !route ? `${record.text}\n${extra}` : record.text;
+  if (!decision) {
+    const raw = await classifyLocal(text);
+    if (raw) decision = { ...normalizeDecision(raw), by: 'code' };
+  }
+  if (!decision) {
+    // his detail needs reading: the model sorts it again on the same record
+    const updated = await updateRecord(id, { text, status: 'classifying', decision: null, destination: null, undoData: null, filedAt: null, error: null, movedAt: new Date().toISOString() });
+    runClassification(vaultPath, updated);
+    return updated;
+  }
+  const { destination, undo } = await fileDecision(vaultPath, decision);
+  return updateRecord(id, { text, status: 'filed', decision, destination, undoData: undo, filedAt: new Date().toISOString(), auto: false, error: null, movedAt: new Date().toISOString() });
 }
 
 // REOPEN (25 Sep 2026). A "no" had no way back: the deck's ✕, or a

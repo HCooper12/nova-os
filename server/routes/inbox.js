@@ -2,7 +2,7 @@ import express from 'express';
 import { sendJson } from '../lib/compressJson.js';
 import path from 'node:path';
 import { existsSync } from 'node:fs';
-import { setSeen, startCapture, approveRecord, discardRecord, undoRecord, reopenRecord, retryRecord, MODES } from '../lib/inbox.js';
+import { setSeen, startCapture, approveRecord, discardRecord, undoRecord, reopenRecord, retryRecord, rerouteRecord, MODES } from '../lib/inbox.js';
 import { listRecords, getRecord, recentInbox } from '../lib/inboxStore.js';
 
 export function inboxRouter(vaultPath) {
@@ -306,6 +306,16 @@ export function inboxRouter(vaultPath) {
       res.json(out);
     } catch (e) {
       res.status(e.status || 400).json({ error: e.message });
+    }
+  });
+
+  // the tag on a capture: move it to another place, or add a detail (mockup 103)
+  router.post('/inbox/:id/reroute', async (req, res) => {
+    try {
+      const record = await rerouteRecord(vaultPath, req.params.id, { route: req.body?.route || null, detail: req.body?.detail || '' });
+      res.json({ record });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 
