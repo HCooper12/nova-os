@@ -153,6 +153,9 @@ export function packOf(text) {
   return out;
 }
 
+// things sold as one of themselves, whatever they weigh
+const ONE_OF = /\b(loaf|loaves|bottles?|cans?|tins?|jars?|tubs?|punnets?|cartons?|heads?|bunch(es)?|whole)\b/;
+
 // A product's size in the line's terms, or null when they cannot be compared.
 //   need 'n'  : each → 1; a counted pack → its count; a weighed bag → about
 //               weight ÷ what one weighs
@@ -168,8 +171,13 @@ export function sizeFor(product, need, keep) {
     if (pk.g && keep?.each) return { size: Math.max(1, Math.round(pk.g / keep.each)), approx: true };
     // a litre of something is not a count of limes
     if (pk.ml && keep?.each) return null;
-    // otherwise one product is one of the thing (a 1.25 L bottle, a loaf)
-    return { size: pk.count || 1, approx: false };
+    if (pk.count) return { size: pk.count, approx: false };
+    // a box sold by weight with no known piece weight: how many are inside
+    // is not known, so one box is NOT one piece (ten Weet-Bix were ten
+    // boxes, 19 Oct). One pack covers the line, and the screen says the
+    // label does not say. A loaf, a bottle, a tin is one of itself.
+    if ((pk.g || pk.ml) && !ONE_OF.test(`${product.name || ''} ${product.size || ''}`.toLowerCase())) return { size: need.q, approx: true, unknown: true };
+    return { size: 1, approx: false };
   }
   if (need.fam === 'g') {
     if (pk.g) return { size: pk.g, approx: pk.approx };
@@ -207,8 +215,12 @@ export const lineKey = (name) => words(name).join(' ');
 const EPS = 1e-9;
 // products: [{ chain, id, name, size, price, … }]. Returns null when nothing
 // is priced; otherwise the pick and every way to buy, sorted cheapest first.
-export function decide({ need, products, keep }) {
+export function decide({ need, products, keep: keepIn }) {
   if (!need || !(need.q > 0)) return null;
+  // what one piece weighs: code's table first, else a product's own label
+  // (its serving size, "33 g (2 biscuits)", read by the server)
+  const label = keepIn?.each ? null : (products || []).find((p) => p?.pieceG > 0)?.pieceG;
+  const keep = label ? { ...(keepIn || {}), each: label, eachFrom: 'label' } : keepIn;
   const cand = [];
   for (const raw of products || []) {
     if (!(Number(raw.price) > 0)) continue; // a $0.00 read is unreadable, never free
@@ -226,7 +238,7 @@ export function decide({ need, products, keep }) {
     const count = need.fam === 'any' ? Math.max(1, Math.round(need.q)) : Math.max(1, Math.ceil(need.q / sz.size - EPS));
     const total = Math.round(count * p.price * 100) / 100;
     const spare = need.fam === 'any' ? 0 : count * sz.size - need.q;
-    cand.push({ ...p, size: sz.size, approx: sz.approx || !!raw.perKg, sizeText: raw.size, perKgPrice: raw.perKg ? raw.price : null, count, total, spare });
+    cand.push({ ...p, size: sz.size, approx: sz.approx || !!raw.perKg, piecesUnknown: !!sz.unknown, sizeText: raw.size, perKgPrice: raw.perKg ? raw.price : null, count, total, spare });
   }
   if (!cand.length) return null;
   const byTotal = [...cand].sort((a, b) => a.total - b.total || a.spare - b.spare);
@@ -270,6 +282,7 @@ const spareWords = (c, fam) => (fam === 'g' ? `${Math.round(c.spare)} g` : fam =
 export function advice(d, keep) {
   if (!d || d.fam !== 'n') return null;
   const p = d.pick;
+  if (p.piecesUnknown) return { tone: 'plain', text: `One pack, if it holds ${frac(d.need)}: the label does not say how many are inside.` };
   if (d.why === 'waste') {
     return { tone: 'waste', text: `${up(word(p.count))} single${p.count === 1 ? '' : 's'}: a ${packWords(d.cheapest, 'n')} saves ${money(p.total - d.cheapest.total)}, `, warn: `but ${spareWords(d.cheapest, 'n')} would go off in ${keep?.d} days` };
   }
@@ -285,6 +298,7 @@ export function advice(d, keep) {
 export function verdict(d, keep) {
   const p = d.pick;
   const at = CHAIN_NAME[p.chain];
+  if (p.piecesUnknown) return `One pack at ${at}, if it holds ${frac(d.need)}. Nothing on its label says how many are inside, so check the box.`;
   if (d.why === 'waste') return `${up(word(p.count))} single${p.count === 1 ? '' : 's'} at ${at}. The ${packWords(d.cheapest, d.fam)} is ${money(p.total - d.cheapest.total)} cheaper, and ${spareWords(d.cheapest, d.fam)} would go off before you used ${d.cheapest.spare === 1 ? 'it' : 'them'}.`;
   if (d.fam === 'n' && p.size > 1 && d.single && d.need > 1) return `The ${packWords(p, 'n')} at ${at}: ${money(d.single.total - p.total)} under ${frac(d.need)} singles, and the ${frac(p.spare)} spare ${keepsWord(keep).replace('keeps', 'keep')}.`;
   if (d.fam === 'n' && d.need < 1 && d.pack) return `One single at ${at}. You need ${frac(d.need)}; a ${packWords(d.pack, 'n')} would cost ${money(d.pack.total - p.total)} more and leave ${frac(d.pack.spare)} over.`;

@@ -237,3 +237,36 @@ test('Woolworths is asked with a GET carrying the term (a sessionless POST hung 
   assert.equal(init.body, undefined);
   assert.match(url, /^https:\/\/www\.woolworths\.com\.au\/apis\/ui\/Search\/products\?searchTerm=weet%20bix&/);
 });
+
+test('a label\'s serving names its piece: "33 g (2 biscuits)" is 16.5 g; "1 serving (31 g)" names nothing', () => {
+  assert.equal(P.pieceFromServing('33 g (2 biscuits)'), 16.5);
+  assert.equal(P.pieceFromServing('2 biscuits (31 g)'), 15.5);
+  assert.equal(P.pieceFromServing('1 bar (29g)'), 29);
+  assert.equal(P.pieceFromServing('1 sachet (14 g)'), 14);
+  assert.equal(P.pieceFromServing('1 serving (31 g)'), null);
+  assert.equal(P.pieceFromServing('2 tbsp (40 g)'), null);
+  assert.equal(P.pieceFromServing('250 ml'), null);
+  assert.equal(P.pieceFromServing(null), null);
+});
+
+test('a Woolworths read asks each product\'s label once, by barcode, and the piece rides on the product', async () => {
+  P._resetForTests();
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (url.includes('openfoodfacts')) return new Response(JSON.stringify({ product: { serving_size: '33 g (2 biscuits)' } }), { status: 200 });
+    return new Response(JSON.stringify({ Products: [{ Products: [{ Stockcode: 1, Barcode: '9300652010794', DisplayName: 'Weet-Bix Breakfast Cereal 1.2kg', Price: 7, PackageSize: '1.2kg', IsAvailable: true }] }] }), { status: 200 });
+  };
+  const q = P.createQueue({ fetchImpl, delayMs: 0, sleep: async () => {} });
+  q.add('w', 'weet bix');
+  await q.idle();
+  const s = await P.loadStore();
+  assert.equal(s.reads['w|weet bix'].products[0].pieceG, 16.5);
+  q.add('w', 'weet bix 2');
+  const before = calls.filter((u) => u.includes('openfoodfacts')).length;
+  // the same barcode again is never asked twice
+  s.reads['w|weet bix'] = undefined;
+  q.add('w', 'weet bix');
+  await q.idle();
+  assert.equal(calls.filter((u) => u.includes('openfoodfacts')).length, before);
+});

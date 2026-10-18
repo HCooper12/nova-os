@@ -96,6 +96,7 @@ export function parseWoolworths(body) {
       out.push({
         chain: 'w',
         id: String(p.Stockcode ?? ''),
+        barcode: p.Barcode ? String(p.Barcode) : null,
         name: clean(p.DisplayName || p.Name),
         size,
         price,
@@ -194,6 +195,54 @@ export function detectBlock(status, body) {
   return null;
 }
 
+/* ----------------------------------------------------- the piece label -- */
+
+// What one piece of a boxed food weighs, from its own label's serving size:
+// "33 g (2 biscuits)" → 16.5. Stores state a box's weight, never how many
+// pieces are in it; the label's serve does (his 19 Oct ask: every food that
+// is not one item). A serve stated only as "1 serving" or in spoons, cups or
+// scoops is not a piece, and gives nothing.
+const NOT_A_PIECE = /^(servings?|serves?|portions?|cups?|tbsps?|tsps?|tablespoons?|teaspoons?|scoops?|g|grams?|ml|handfuls?|x)$/;
+const WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, half: 0.5, '½': 0.5 };
+export function pieceFromServing(text) {
+  const s = String(text || '').toLowerCase().replace(/,/g, '.');
+  const g = s.match(/(\d+(?:\.\d+)?)\s*g\b/);
+  if (!g) return null;
+  const m = s.replace(g[0], ' ').match(/(\d+(?:\.\d+)?|one|two|three|four|five|six|half|½)\s+([a-z][a-z-]*)/);
+  if (!m || NOT_A_PIECE.test(m[2])) return null;
+  const n = WORDNUM[m[1]] ?? Number(m[1]);
+  const grams = Number(g[1]);
+  if (!(n > 0) || !(grams > 0)) return null;
+  return Math.round((grams / n) * 10) / 10;
+}
+
+export const OFF_URL = (code) => `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=serving_size`;
+const LABELS_PER_READ = 3;
+
+// Each barcode is asked once, ever; the answer (or that there was none) is
+// kept in the store. A failure is not kept, so it is asked again next read.
+async function addPieces(products, s, fetchImpl) {
+  s.servings ||= {};
+  let asked = 0;
+  for (const p of products) {
+    if (!p.barcode) continue;
+    if (!(p.barcode in s.servings) && asked < LABELS_PER_READ) {
+      asked += 1;
+      try {
+        const ctl = new AbortController();
+        const timer = setTimeout(() => ctl.abort(), 10000);
+        const res = await fetchImpl(OFF_URL(p.barcode), { headers: { 'user-agent': USER_AGENT, accept: 'application/json' }, signal: ctl.signal }).finally(() => clearTimeout(timer));
+        if (res.ok) {
+          const says = (await res.json())?.product?.serving_size || null;
+          s.servings[p.barcode] = { says, g: pieceFromServing(says) };
+        }
+      } catch { /* not kept: asked again next read */ }
+    }
+    const lab = s.servings[p.barcode];
+    if (lab?.g) { p.pieceG = lab.g; p.pieceSays = lab.says; }
+  }
+}
+
 /* ----------------------------------------------------------- the store -- */
 
 const melDay = (d) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
@@ -260,6 +309,7 @@ export function createQueue({ fetchImpl = globalThis.fetch, delayMs = DELAY_MS, 
       if (all) {
         const products = all.filter((p) => p.available !== false && productMatches(job.term, p.name)).slice(0, KEEP_PRODUCTS);
         rec = { status: products.length ? 'ok' : 'none', products, seen: all.length };
+        if (products.some((p) => p.barcode)) await addPieces(products, s, fetchImpl);
       } else {
         const blocked = detectBlock(status, body);
         if (blocked) rec = { status: 'blocked', detail: blocked };

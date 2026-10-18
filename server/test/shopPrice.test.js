@@ -160,3 +160,25 @@ test('ten Weet-Bix is ten biscuits: one box, not ten (his 19 Oct screenshot: $39
   const big = S.decide({ need: { fam: 'n', q: 25 }, keep, products: [p('w', 'Weet-Bix Breakfast Cereal 375g', '375g', 4)] });
   assert.equal(big.pick.count, 2);
 });
+
+test('any boxed food: the label\'s piece weight divides the box (a Milky Bar box of 12 × 29 g)', () => {
+  const need = { fam: 'n', q: 10 };
+  const d = S.decide({ need, keep: S.keepFor('Nestlé Milky Bar pieces'), products: [{ ...p('w', 'Nestle Milkybar White Chocolate Block', '348g', 6), pieceG: 29 }] });
+  assert.equal(d.pick.count, 1, '348 g ÷ 29 g = 12 pieces, enough for 10');
+  assert.equal(d.pick.piecesUnknown, false);
+});
+
+test('a box with no known piece weight is ONE pack that says so, never one box per piece', () => {
+  const d = S.decide({ need: { fam: 'n', q: 5 }, keep: null, products: [p('a', 'Rice Crackers Original', '100g', 1.5)] });
+  assert.equal(d.pick.count, 1);
+  assert.equal(d.pick.piecesUnknown, true);
+  assert.match(S.advice(d, null).text, /label does not say how many/);
+  assert.match(S.verdict(d, null), /check the box/);
+});
+
+test('a loaf, a bottle, a tin is still one of itself', () => {
+  const d = S.decide({ need: { fam: 'n', q: 2 }, keep: S.keepFor('sourdough loaf'), products: [p('w', 'Sourdough Loaf', '650g', 5)] });
+  assert.equal(d.pick.count, 2);
+  const t = S.decide({ need: { fam: 'n', q: 3 }, keep: null, products: [p('c', 'Coles Coconut Cream Tin', '400ml', 1.6)] });
+  assert.equal(t.pick.count, 3);
+});
