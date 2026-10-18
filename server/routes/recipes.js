@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -9,7 +9,7 @@ import { getPortions, setPortions, adjustPortions, clearPortions } from '../lib/
 import { recordTodaySnapshot, recordDaySnapshot } from '../lib/nutritionSnapshot.js';
 import { setRotationEntry, resolveLogDate } from '../lib/foodLog.js';
 import { setRotationEatenOn } from '../lib/rotationRetro.js';
-import { startScan, getScanJob } from '../lib/scanRecipe.js';
+import { startScan, getScanJob, keepScanAsDraft } from '../lib/scanRecipe.js';
 import { startTweak, getTweakJob } from '../lib/tweakRecipe.js';
 import { savePhoto, getPhoto, listPhotoRecipeIds } from '../lib/recipePhotos.js';
 import { startLabelMacros, getLabelMacrosJob } from '../lib/labelMacros.js';
@@ -146,6 +146,8 @@ export function recipesRouter(vaultPath) {
       }
       res.json({ jobId: startLabelMacros(prepared, servings) });
     } catch (err) {
+      // the photos and grams are still on his screen; say so plainly
+      if (err.laneOff) return res.status(400).json({ error: "Claude isn't available right now. Your label photos and grams are still on this screen, so try again in a bit." });
       if (/needs the grams|servings|label/.test(err.message)) return res.status(400).json({ error: err.message });
       next(err);
     }
@@ -174,7 +176,19 @@ export function recipesRouter(vaultPath) {
         imagePaths.push(imgPath);
       }
 
-      const jobId = startScan(imagePaths, workDir);
+      // a read that cannot happen keeps the photos as a draft recipe instead
+      // of erroring with nothing kept (scanRecipe.keepScanAsDraft)
+      const name = typeof req.body?.name === 'string' ? req.body.name : '';
+      const keep = (reason) => keepScanAsDraft(vaultPath, { imagePaths, name, reason });
+      let jobId;
+      try {
+        jobId = startScan(imagePaths, workDir, { onFail: keep });
+      } catch (e) {
+        if (!e.laneOff) throw e;
+        const kept = await keep(e.message);
+        rm(workDir, { recursive: true, force: true }).catch(() => {});
+        return res.status(400).json({ error: kept.message, kept: true, recipeId: kept.recipeId, recordId: kept.recordId });
+      }
       res.json({ jobId });
     } catch (err) {
       next(err);
@@ -184,7 +198,7 @@ export function recipesRouter(vaultPath) {
   router.get('/recipes/scan/:jobId', (req, res) => {
     const job = getScanJob(req.params.jobId);
     if (!job) return res.status(404).json({ error: 'job not found' });
-    res.json({ status: job.status, result: job.result, error: job.error });
+    res.json({ status: job.status, result: job.result, error: job.error, kept: job.kept || null });
   });
 
   router.post('/recipes/:id/tweak', async (req, res, next) => {

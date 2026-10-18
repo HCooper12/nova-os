@@ -87,6 +87,7 @@ export function getLabelMacrosJob(id) {
   if (failed) {
     job.status = 'error';
     job.error = `${failed.c.name || 'a label'}: ${failed.scan?.error || 'scan lost'}`;
+    job.error += ' Your label photos and grams are still on this screen, so you can try again.';
     return job;
   }
   if (states.some((s) => s.scan.status !== 'ready')) return job;
