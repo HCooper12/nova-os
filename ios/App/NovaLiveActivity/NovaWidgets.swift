@@ -558,7 +558,7 @@ private extension View {
 struct NovaRingsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NovaRings", provider: NovaProvider()) { entry in
-            NovaRingsView(entry: entry).novaGround()
+            NovaRingsView(entry: entry).novaGround().widgetURL(NovaLink.fuel)
         }
         .configurationDisplayName("Rings")
         .description("Protein, calories, steps and HRV at a glance.")
