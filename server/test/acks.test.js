@@ -196,3 +196,15 @@ test('a broken ledger file reads as an empty day, never a crash', async () => {
   await recordAck({ id: 'ask.pull', text: 'Pulling x.' }, now);
   assert.deepEqual(readAckLedger(now).used, ['ask.pull']);
 });
+
+test('nextAck never waits on the vault: a slow vocabulary load does not hold the ack', async () => {
+  const { cachedAckVocabulary } = await import('../lib/acks.js');
+  assert.equal(typeof cachedAckVocabulary(), 'object');
+  const prev = process.env.VAULT_PATH;
+  process.env.VAULT_PATH = '/nonexistent/vault/that/would/be/slow';
+  const t0 = Date.now();
+  const a = await nextAck({ question: 'can you check how my sleep has been this week', lane: 'ask', now: new Date('2026-10-19T08:00:00') });
+  process.env.VAULT_PATH = prev;
+  assert.ok(a, 'an ack came back');
+  assert.ok(Date.now() - t0 < 500, `answered in ${Date.now() - t0} ms`);
+});

@@ -350,6 +350,12 @@ export function composeAck({ question, lane = 'ask', consult = null, now = Date.
 // days and his routines. Cached ten minutes; a vault that cannot be read
 // gives the fixed vocabulary only, never an error in front of a reply.
 let vocabCache = { at: 0, vault: null, vocab: { lifts: [], routines: [] } };
+// The vocabulary as of the last load, without waiting (empty lifts and
+// routines before the first load: the fixed vocabulary still answers).
+export function cachedAckVocabulary() {
+  return vocabCache.vocab;
+}
+
 export async function ackVocabulary(vaultPath = process.env.VAULT_PATH, { now = Date.now(), fresh = false } = {}) {
   if (!vaultPath) return { lifts: [], routines: [] };
   if (!fresh && vocabCache.vault === vaultPath && now - vocabCache.at < 10 * 60_000) return vocabCache.vocab;
@@ -426,7 +432,12 @@ export function recordAck(ack, now = Date.now()) {
 export async function nextAck({ question, lane, consult = null, now = Date.now() } = {}) {
   await writing;
   const led = readAckLedger(now);
-  const vocab = await ackVocabulary().catch(() => ({}));
+  // NEVER WAIT ON THE VAULT HERE (18 Oct 2026 benchmark): the vault is on
+  // iCloud, and a cold vocabulary load held /api/ask for 2.7-6.2 s while
+  // iCloud was busy. The ack uses whatever vocabulary is cached (the fixed
+  // one on a cold start) and refreshes it in the background.
+  const vocab = cachedAckVocabulary();
+  ackVocabulary().catch(() => {});
   const ack = composeAck({ question, lane, consult, now, used: led.used, texts: led.texts, vocab });
   if (!ack) return null;
   await recordAck(ack, now).catch(() => {});
