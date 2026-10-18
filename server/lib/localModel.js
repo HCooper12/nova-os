@@ -14,14 +14,15 @@
 // callers don't race to spawn a second server, and env overrides for every
 // path/port so tests never spawn the real thing.
 
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
 
 // Shared with ttsLocal.js: one Python venv, one place it lives.
-const VOICE_DIR = process.env.NOVA_VOICE_DIR
+// read per call, so a test can point it at a scratch tree mid-run
+const VOICE_DIR = () => process.env.NOVA_VOICE_DIR
   || path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'voice');
 
 const PORT = () => Number(process.env.NOVA_LOCAL_LLM_PORT || 4176);
@@ -32,6 +33,67 @@ const BASE = () => `http://127.0.0.1:${PORT()}`;
 // declared dead. Generous by default because a cold model pull can run long;
 // override for tests so a stub sees a real deadline quickly.
 const BOOT_TIMEOUT_MS = () => Number(process.env.NOVA_LOCAL_LLM_BOOT_TIMEOUT_MS || 600_000);
+
+// How long a call that asked to wait for a boot (completeLocal's
+// `waitForBoot`) will wait. The model is already downloaded on his Mac, so a
+// load takes seconds; a cold download takes minutes and is not worth holding
+// a capture for. Past this the call fails with a plain reason; the boot
+// itself carries on in the background for the next call.
+const WAIT_MS = () => Number(process.env.NOVA_LOCAL_LLM_WAIT_MS || 90_000);
+
+// The swap a boot must leave alone. On 19 Oct 2026 this Mac had 460 MB of
+// swap free at a load average of 191; loading a 2.5 GB model then would have
+// thrashed every other process on it, Nova's own server first.
+const MIN_SWAP_FREE_MB = () => Number(process.env.NOVA_LOCAL_LLM_MIN_SWAP_FREE_MB || 1500);
+
+/* ------------------------------ memory headroom --------------------------- */
+
+// Pure: `sysctl -n vm.swapusage` → { totalMB, freeMB }, or null when the text
+// is not that shape. "total = 21504.00M  used = 21043.25M  free = 460.75M  (encrypted)"
+const toMB = (n, unit) => {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return null;
+  const u = String(unit || 'M').toUpperCase();
+  return u === 'G' ? v * 1024 : u === 'K' ? v / 1024 : v;
+};
+export function parseSwapUsage(text) {
+  const t = String(text || '');
+  const free = t.match(/free\s*=\s*([\d.]+)\s*([KMG])?/i);
+  if (!free) return null;
+  const total = t.match(/total\s*=\s*([\d.]+)\s*([KMG])?/i);
+  const freeMB = toMB(free[1], free[2]);
+  if (freeMB == null) return null;
+  return { totalMB: total ? toMB(total[1], total[2]) : null, freeMB };
+}
+
+const readSwapDefault = () => execFileSync('sysctl', ['-n', 'vm.swapusage'], { encoding: 'utf8', timeout: 2000 });
+let headroomOverride = null;
+// Tests replace the whole reading (a function returning the headroom object)
+// so ensureLocalModel can be driven without touching sysctl. null restores it.
+export function _setHeadroomForTests(fn) { headroomOverride = fn || null; }
+
+/** Is there memory to load the local model without thrashing this Mac?
+ *  `ok` is false only when swap free is measured below the floor. A Mac that
+ *  has not needed swap yet (total 0: macOS grows it on demand) has room; a
+ *  non-macOS host, or a reading that cannot be parsed, is not blocked. */
+export function memoryHeadroom(opts) {
+  if (!opts && headroomOverride) return headroomOverride();
+  const { read = readSwapDefault, platform = process.platform, minFreeMB = MIN_SWAP_FREE_MB() } = opts || {};
+  if (platform !== 'darwin') return { ok: true, swapFreeMB: null, reason: null };
+  let parsed = null;
+  try { parsed = parseSwapUsage(read()); } catch { parsed = null; }
+  if (!parsed) return { ok: true, swapFreeMB: null, reason: null };
+  const swapFreeMB = Math.round(parsed.freeMB);
+  if (parsed.totalMB === 0) return { ok: true, swapFreeMB, reason: null };
+  if (parsed.freeMB < minFreeMB) {
+    return {
+      ok: false,
+      swapFreeMB,
+      reason: `this Mac has only ${swapFreeMB} MB of swap free (the local model needs ${minFreeMB} MB to load without slowing everything else down)`,
+    };
+  }
+  return { ok: true, swapFreeMB, reason: null };
+}
 
 /* ---------------------------- hardware profile --------------------------- */
 
@@ -84,7 +146,7 @@ export async function healthy() {
 }
 
 function pythonBin() {
-  return path.join(VOICE_DIR, 'env', 'bin', 'python');
+  return path.join(VOICE_DIR(), 'env', 'bin', 'python');
 }
 
 // configured ≠ ready, same distinction ttsLocal.js draws: configured means
@@ -94,9 +156,23 @@ function pythonBin() {
 // not a failure.
 export async function localModelStatus() {
   const model = defaultModel();
-  const configured = existsSync(pythonBin());
+  const configured = localModelConfigured();
   const ready = configured ? await healthy() : false;
-  return { configured, ready, model };
+  return { configured, ready, model, headroom: memoryHeadroom() };
+}
+
+/** Synchronous half of the status: is the venv this needs installed? A stat,
+ *  cheap enough for a synchronous board read. */
+export function localModelConfigured() {
+  return existsSync(pythonBin());
+}
+
+/** A short human name for a local model id, for the board:
+ *  "mlx-community/Qwen3-4B-Instruct-2507-4bit" → "Qwen3 4B on this Mac". */
+export function localModelLabel(id = defaultModel()) {
+  const name = String(id || '').split('/').pop() || '';
+  const m = name.match(/^([A-Za-z]+[\d.]*)-(\d+(?:\.\d+)?B)\b/i);
+  return `${m ? `${m[1]} ${m[2].toUpperCase()}` : name || 'Local model'} on this Mac`;
 }
 
 /* --------------------------------- boot ----------------------------------- */
@@ -131,7 +207,19 @@ function spawnServer(model) {
 async function bootServer() {
   const model = defaultModel();
   if (await healthy()) return true;
-  if (!child) child = spawnServer(model);
+  // An already-running server is used whatever the memory; a NEW load is
+  // refused when it would push this Mac into thrashing.
+  if (!child) {
+    // not installed is the more basic answer, with its own remedy: say it first
+    if (!localModelConfigured()) throw new Error('local model python env is not installed — run server/voice/setup.sh');
+    const room = memoryHeadroom();
+    if (!room.ok) {
+      const err = new Error(`the local model was not started: ${room.reason}`);
+      err.noHeadroom = true;
+      throw err;
+    }
+    child = spawnServer(model);
+  }
   const deadline = Date.now() + BOOT_TIMEOUT_MS();
   while (Date.now() < deadline) {
     if (await healthy()) return true;
@@ -167,19 +255,43 @@ export function localModelPid() {
 
 /* ------------------------------- completion ------------------------------- */
 
+// Wait for a boot, but no longer than `ms`: the boot carries on past the cap
+// (the next call finds it ready); this caller gets a plain reason instead.
+async function waitForBootCapped(ms) {
+  let timer = null;
+  const cap = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`the local model did not finish loading within ${Math.round(ms / 1000)}s`)), ms);
+    timer.unref?.();
+  });
+  try {
+    await Promise.race([ensureLocalModel(), cap]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // One completion call against the running server's OpenAI-compatible
-// /v1/chat/completions endpoint. A request must not wait out a boot — same
-// rule as ttsLocal.js's synthesizeLocal(): if the server isn't up, kick a
-// boot in the background and fail THIS call immediately with a clear reason,
-// rather than silently blocking for up to ten minutes.
-export async function completeLocal(prompt, { maxTokens = 512, temperature = 0, timeoutMs = 90_000 } = {}) {
+// /v1/chat/completions endpoint. By default a request must not wait out a
+// boot — same rule as ttsLocal.js's synthesizeLocal(): if the server isn't
+// up, kick a boot in the background and fail THIS call immediately with a
+// clear reason. A lane that has chosen the local model (lib/textLane.js)
+// passes `waitForBoot`: it waits for the load, capped by
+// NOVA_LOCAL_LLM_WAIT_MS, because the alternative is no answer at all.
+// `system` is sent as a system message ahead of the prompt.
+export async function completeLocal(prompt, { maxTokens = 512, temperature = 0, timeoutMs = 90_000, waitForBoot = false, system = null } = {}) {
   const text = String(prompt || '');
   if (!text.trim()) throw new Error('completeLocal: empty prompt');
   const model = defaultModel();
   if (!(await healthy())) {
-    ensureLocalModel().catch(() => {});
-    throw new Error('local model is still starting up');
+    if (!waitForBoot) {
+      ensureLocalModel().catch(() => {});
+      throw new Error('local model is still starting up');
+    }
+    await waitForBootCapped(WAIT_MS());
   }
+  const messages = [];
+  if (system && String(system).trim()) messages.push({ role: 'system', content: String(system) });
+  messages.push({ role: 'user', content: text });
   const started = Date.now();
   let res;
   try {
@@ -188,7 +300,7 @@ export async function completeLocal(prompt, { maxTokens = 512, temperature = 0, 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: text }],
+        messages,
         max_tokens: maxTokens,
         temperature,
       }),

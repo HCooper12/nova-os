@@ -5,8 +5,6 @@ import { COACH_ROUTES } from '../../src/coachSuggestions.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import os from 'node:os';
-import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
 import matter from 'gray-matter';
 import { backupFile } from './backup.js';
@@ -15,16 +13,15 @@ import { addTransactions, removeTransactions, restoreTransactions, editTransacti
 import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
-import { modelFor, laneEnabled, laneOffError, effortArgs } from './modelPrefs.js';
+import { laneEnabled, laneOffError } from './modelPrefs.js';
 import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
 import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
 import { addRecipe, removeRecipe, editRecipe, loadRecipes } from './recipes.js';
 import { createEvent, deleteEventAt, moveEvent, moveOccurrence, putEventRaw } from './calendar.js';
-import { boundaryArgs } from './spawnBoundary.js';
 import { routeIntent } from './intentRouter.js';
-import { parseEnvelope } from './modelSpend.js';
+import { runTextLane } from './textLane.js';
 
 // The Nova Inbox: capture any loose thought, let a READ-ONLY classifier make
 // exactly one typed routing decision, then let deterministic code do the
@@ -32,7 +29,6 @@ import { parseEnvelope } from './modelSpend.js';
 // undo, and history are plain code. (Architecture borrowed from the
 // classic second-brain pipeline: capture → classify & route → file.)
 
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const INBOX_DIR_REL = 'Wiki/Inbox';
 const TODO_REL = 'Wiki/Inbox/To-Do.md';
 
@@ -175,39 +171,31 @@ export function normalizeDecision(parsed) {
   return { route, confidence, title, reason, payload };
 }
 
+// `onDone(err, decision, via)`: `via` is { provider, fallback }, who sorted it
+// (Claude, or the model on this Mac: lib/textLane.js), kept on the record so
+// the Inbox can say "sorted on this Mac".
 function classify(text, onDone) {
   // Off: the capture still exists on the rails, it just stops here carrying
   // the reason — visible in the Inbox and retryable once it is back on.
   // Never a silent auto-file, and never a guessed route.
   if (!laneEnabled('inbox-classify')) { onDone(laneOffError('inbox-classify')); return; }
-  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
-  const child = spawn(CLAUDE_BIN, [
-    '-p', buildPrompt(text),
-    '--model', modelFor('inbox-classify'),
-    ...effortArgs('inbox-classify'),
-    '--permission-mode', 'bypassPermissions',
-    ...boundaryArgs(''),
-    '--output-format', 'json',
-    '--no-session-persistence',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
-  child.on('close', (code) => {
-    if (code !== 0) return onDone(new Error(stderr.trim() || `claude exited with code ${code}`));
+  runTextLane('inbox-classify', buildPrompt(text), { json: true }).then((out) => {
+    let decision;
     try {
-      const outer = parseEnvelope(stdout, { lane: 'inbox-classify' });
-      const body = (outer.result || '').trim();
+      const body = (out.text || '').trim();
       const jsonMatch = firstBalancedObjectMatch(body);
       if (!jsonMatch) throw new Error(body.slice(0, 200) || 'no JSON in classifier response');
-      onDone(null, normalizeDecision(parseModelJson(jsonMatch[0])));
+      decision = normalizeDecision(parseModelJson(jsonMatch[0]));
     } catch (e) {
       onDone(e);
+      return;
     }
-  });
-  child.on('error', (err) => onDone(err));
+    onDone(null, decision, { provider: out.provider, fallback: out.fallback });
+  }, (err) => onDone(err));
 }
+
+// The record fields that say who sorted a capture; none for a code sort.
+const viaFields = (via) => (via ? { provider: via.provider, fallback: !!via.fallback } : {});
 
 // Voice-conversation proposals: classify NOW and land as a pending record —
 // never auto-files regardless of confidence, because a proposal spoken into
@@ -216,8 +204,9 @@ function classify(text, onDone) {
 export async function captureForReview(vaultPath, { text, source = 'voice' }) {
   const clean = String(text || '').trim();
   if (!clean) throw new Error('nothing to file');
+  let via = null;
   const decision = await new Promise((resolve, reject) => {
-    classify(clean, (err, d) => (err ? reject(err) : resolve(d)));
+    classify(clean, (err, d, v) => { via = v || null; return err ? reject(err) : resolve(d); });
   });
   // The text is Nova's PROPOSE line (voiceActions.js), drafted by Nova from
   // the conversation: a journal entry it files is Nova's words, approved by
@@ -231,6 +220,7 @@ export async function captureForReview(vaultPath, { text, source = 'voice' }) {
     status: 'pending',
     createdAt: new Date().toISOString(),
     decision,
+    ...viaFields(via),
   };
   await createRecord(record);
   return record;
@@ -1616,9 +1606,9 @@ function runClassification(vaultPath, record) {
       local = raw ? { ...normalizeDecision(raw), by: 'code' } : null;
     } catch (e) { console.error('inbox: code-first sort failed, asking the model:', e.message); }
     if (local) return settleClassification(vaultPath, record, null, local);
-    classify(record.text, async (err, decision) => {
+    classify(record.text, async (err, decision, via) => {
       if (!err) {
-        await settleClassification(vaultPath, record, null, decision);
+        await settleClassification(vaultPath, record, null, decision, via);
         // the model is answering again: what waited as Unsorted sorts itself
         resortUnsorted(vaultPath, record.id).catch(() => {});
         return;
@@ -1637,17 +1627,18 @@ function runClassification(vaultPath, record) {
 async function resortUnsorted(vaultPath, exceptId) {
   const waiting = (await listRecords()).filter((r) => r.id !== exceptId && r.status === 'pending' && r.decision?.unsorted).slice(-5);
   for (const r of waiting) {
-    await new Promise((resolve) => classify(r.text, async (err, decision) => {
+    await new Promise((resolve) => classify(r.text, async (err, decision, via) => {
       if (!err) {
         const fresh = await getRecord(r.id);
-        if (fresh?.status === 'pending' && fresh.decision?.unsorted) await settleClassification(vaultPath, fresh, null, decision);
+        if (fresh?.status === 'pending' && fresh.decision?.unsorted) await settleClassification(vaultPath, fresh, null, decision, via);
       }
       resolve();
     }));
   }
 }
 
-async function settleClassification(vaultPath, record, err, decision) {
+async function settleClassification(vaultPath, record, err, decision, via = null) {
+    const who = viaFields(via);
     try {
       if (err) {
         await updateRecord(record.id, { status: 'error', error: err.message });
@@ -1656,13 +1647,13 @@ async function settleClassification(vaultPath, record, err, decision) {
       if (shouldAutoFile(record.mode, decision.confidence)) {
         try {
           const { destination, undo } = await fileDecision(vaultPath, decision);
-          await updateRecord(record.id, { status: 'filed', decision, destination, undoData: undo, filedAt: new Date().toISOString(), auto: true });
+          await updateRecord(record.id, { status: 'filed', decision, destination, undoData: undo, filedAt: new Date().toISOString(), auto: true, ...who });
         } catch (fileErr) {
           // classification worked but filing failed — park it for review
-          await updateRecord(record.id, { status: 'pending', decision, error: 'auto-filing failed: ' + fileErr.message });
+          await updateRecord(record.id, { status: 'pending', decision, error: 'auto-filing failed: ' + fileErr.message, ...who });
         }
       } else {
-        await updateRecord(record.id, { status: 'pending', decision });
+        await updateRecord(record.id, { status: 'pending', decision, ...who });
       }
     } catch (storeErr) {
       console.error('inbox: failed to persist classification outcome', storeErr);

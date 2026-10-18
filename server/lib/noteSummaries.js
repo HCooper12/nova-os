@@ -1,21 +1,17 @@
-import { spawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash, randomUUID } from 'node:crypto';
-import { modelFor, laneOffError, laneEnabled, effortArgs } from './modelPrefs.js';
-import { boundaryArgs } from './spawnBoundary.js';
+import { laneOffError, laneEnabled } from './modelPrefs.js';
 import { registerJobMap } from './jobRegistry.js';
-import { parseEnvelope } from './modelSpend.js';
+import { runTextLane } from './textLane.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // honors NOVA_DATA_DIR (it was one of two hard-coded paths that leaked test
 // writes into the real data dir)
 const CACHE_DIR = () => path.join(process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data'), 'summaries');
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = registerJobMap('noteSummaries', new Map());
 
 function cacheFile(noteId) {
@@ -71,34 +67,11 @@ export function startSummaryJob(noteId, title, bodyText) {
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
 
-  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
-  const child = spawn(CLAUDE_BIN, [
-    '-p', buildPrompt(title, bodyText),
-    '--permission-mode', 'bypassPermissions',
-    ...boundaryArgs(''),
-    '--output-format', 'json',
-    // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model, which cost him a Fable-5 usage-limit hit on a
-    // totally unrelated lane (Coach) once that became the default. The pin
-    // now comes from the model board (lib/modelPrefs.js) so it is settable
-    // in Settings; the default is the 'sonnet' this lane has always run on.
-    '--model', modelFor('note-summary'),
-    ...effortArgs('note-summary'),
-    '--no-session-persistence',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
-  child.on('close', async (code) => {
-    if (code !== 0) {
-      job.status = 'error';
-      job.error = stderr.trim() || `claude exited with code ${code}`;
-      return;
-    }
+  // Claude (model pinned from the board, lib/modelPrefs.js), or the model on
+  // this Mac when he chose it or Claude is at its limit (lib/textLane.js)
+  runTextLane('note-summary', buildPrompt(title, bodyText), { json: true }).then(async (out) => {
     try {
-      const outer = parseEnvelope(stdout, { lane: 'note-summary' });
-      const text = (outer.result || '').trim();
+      const text = (out.text || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error('No JSON object found in the response');
       const parsed = parseModelJson(jsonMatch[0]);
@@ -112,8 +85,7 @@ export function startSummaryJob(noteId, title, bodyText) {
       job.status = 'error';
       job.error = 'Could not generate a summary: ' + e.message;
     }
-  });
-  child.on('error', (err) => {
+  }, (err) => {
     job.status = 'error';
     job.error = err.message;
   });

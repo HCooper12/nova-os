@@ -1,13 +1,10 @@
 import { readFile, writeFile, readdir, mkdir, rename, stat } from 'node:fs/promises';
 import { rmSync } from 'node:fs';
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { modelFor, laneEnabled, laneSkipped, effortArgs } from './modelPrefs.js';
-import { boundaryArgs } from './spawnBoundary.js';
-import { parseEnvelope } from './modelSpend.js';
+import { laneEnabled, laneSkipped } from './modelPrefs.js';
+import { runTextLane } from './textLane.js';
 import { parseModelJson } from './jsonSalvage.js';
 
 // OFFERS FROM HIS REWARDS EMAILS (10 Oct 2026, his yes to "Offers from his
@@ -32,7 +29,6 @@ export const REWARDS_DIR_REL = 'Inbox/Rewards Mail';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataRoot = () => process.env.NOVA_DATA_DIR || path.join(__dirname, '..', 'data');
 const STORE = () => path.join(dataRoot(), 'rewards-offers.json');
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const MAX_FILE = 2 * 1024 * 1024;
 
 /* ------------------------------------------------------ decoding mail -- */
@@ -301,32 +297,12 @@ Email (sent ${mail.date || 'unknown'}), subject: ${mail.subject}
 ${mail.text.slice(0, 12000)}`;
 }
 
-export function runModelDefault(mail) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(CLAUDE_BIN, [
-      '-p', modelPrompt(mail),
-      '--permission-mode', 'bypassPermissions',
-      ...boundaryArgs(''),
-      '--output-format', 'json',
-      '--model', modelFor('rewards-offer-read'),
-      ...effortArgs('rewards-offer-read'),
-      '--no-session-persistence',
-    ], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let out = '';
-    let err = '';
-    child.stdout.on('data', (d) => { out += d; });
-    child.stderr.on('data', (d) => { err += d; });
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code !== 0) return reject(new Error(err.trim().slice(0, 200) || `claude exited ${code}`));
-      try {
-        const env = parseEnvelope(out, { lane: 'rewards-offer-read' });
-        const text = String(env.result || '');
-        const m = text.match(/\[[\s\S]*\]/);
-        resolve(m ? parseModelJson(m[0]) : []);
-      } catch (e) { reject(e); }
-    });
-  });
+// Claude, or the model on this Mac (lib/textLane.js). Whoever reads it, code
+// still checks every figure is in the email before an offer is kept.
+export async function runModelDefault(mail) {
+  const out = await runTextLane('rewards-offer-read', modelPrompt(mail), { json: true, maxTokens: 1200 });
+  const m = String(out.text || '').match(/\[[\s\S]*\]/);
+  return m ? parseModelJson(m[0]) : [];
 }
 
 /* ------------------------------------------------------------ the store -- */

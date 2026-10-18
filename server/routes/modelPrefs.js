@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getModelPrefs, setLanePref, resetLanePref } from '../lib/modelPrefs.js';
+import { getModelPrefs, setLanePref, resetLanePref, setFallback, refreshLocalStatus } from '../lib/modelPrefs.js';
 import { spendSummary } from '../lib/modelSpend.js';
 
 // The model board — which Claude model every lane in Nova runs on, and
@@ -64,8 +64,9 @@ export function modelPrefsRouter() {
     }
   });
 
-  // One lane per call: { lane, model?, enabled?, effort? }. Either field may be sent
-  // alone, so flipping a toggle never silently rewrites the model too.
+  // One lane per call: { lane, model?, enabled?, effort?, provider? }. Any field
+  // may be sent alone, so flipping a toggle never silently rewrites the model too.
+  // provider: 'claude' | 'local' (only a lane with canRunLocal takes 'local').
   router.put('/model-prefs', async (req, res) => {
     try {
       const lane = req.body?.lane;
@@ -75,10 +76,50 @@ export function modelPrefsRouter() {
       if (req.body?.enabled !== undefined) patch.enabled = req.body.enabled;
       // thinking effort, per lane (lib/modelPrefs.js effortFor)
       if (req.body?.effort !== undefined) patch.effort = req.body.effort;
-      if (!Object.keys(patch).length) return res.status(400).json({ error: 'send a model, an enabled flag, an effort, or any of them' });
+      // who answers: Claude or the model on this Mac (lib/textLane.js)
+      if (req.body?.provider !== undefined) patch.provider = req.body.provider;
+      if (!Object.keys(patch).length) return res.status(400).json({ error: 'send a model, an enabled flag, an effort, a provider, or any of them' });
       res.json(await setLanePref(lane, patch));
     } catch (e) {
       res.status(400).json({ error: e.message });
+    }
+  });
+
+  // The board-wide fallback: { enabled }. On, a `local: true` lane that Claude
+  // answers with the usage-limit notice is answered by the local model instead.
+  router.put('/model-prefs/fallback', async (req, res) => {
+    try {
+      res.json(await setFallback({ enabled: req.body?.enabled }));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Load the local model now, so the first local answer is not the one that
+  // waits for it. Refused (with the reason) when this Mac has no memory to
+  // spare; an already-running model is simply reported ready. Waits at most
+  // NOVA_LOCAL_LLM_WAIT_MS (90 s): past that it answers 202 with
+  // `warming: true` and the load carries on in the background.
+  // Success → 200 with the board's `local` block; failure → 503 { error, ...local }.
+  router.post('/model-prefs/local/warm', async (req, res) => {
+    const { ensureLocalModel } = await import('../lib/localModel.js');
+    const waitMs = Number(process.env.NOVA_LOCAL_LLM_WAIT_MS || 90_000);
+    let timer = null;
+    try {
+      const boot = ensureLocalModel();
+      const outcome = await Promise.race([
+        boot.then(() => 'ready'),
+        new Promise((r) => { timer = setTimeout(() => r('warming'), waitMs); timer.unref?.(); }),
+      ]);
+      if (outcome === 'warming') boot.catch(() => {}).finally(() => { refreshLocalStatus().catch(() => {}); });
+      const local = await refreshLocalStatus();
+      if (outcome === 'warming') return res.status(202).json({ ...local, warming: true });
+      res.json(local);
+    } catch (e) {
+      const local = await refreshLocalStatus().catch(() => ({}));
+      res.status(503).json({ error: e.message, ...local });
+    } finally {
+      clearTimeout(timer);
     }
   });
 

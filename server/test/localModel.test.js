@@ -21,6 +21,7 @@ process.env.NOVA_VOICE_DIR = mkdtempSync(nodePath.join(os.tmpdir(), 'nova-localm
 
 const {
   hardwareProfile, defaultModel, localModelStatus, completeLocal, healthy, ensureLocalModel,
+  stopLocalModel, localModelPid,
 } = await import('../lib/localModel.js');
 
 test('hardwareProfile: tiers derived from the machine, not hard-coded', () => {
@@ -205,4 +206,125 @@ test('ensureLocalModel: concurrent callers share one in-flight boot', async () =
   assert.equal(ra.status, 'rejected');
   assert.equal(rb.status, 'rejected');
   assert.equal(ra.reason.message, rb.reason.message);
+});
+
+/* ---------------------- memory headroom, waitForBoot, system (19 Oct) ---------------------- */
+
+test('memoryHeadroom: the 19 Oct reading (460 MB swap free) is not enough to load the model', async () => {
+  const { memoryHeadroom, parseSwapUsage } = await import('../lib/localModel.js');
+  const line = 'total = 21504.00M  used = 21043.25M  free = 460.75M  (encrypted)';
+  assert.deepEqual(parseSwapUsage(line), { totalMB: 21504, freeMB: 460.75 });
+  const low = memoryHeadroom({ read: () => line, platform: 'darwin', minFreeMB: 1500 });
+  assert.equal(low.ok, false);
+  assert.equal(low.swapFreeMB, 461);
+  assert.match(low.reason, /only 461 MB of swap free/);
+
+  const roomy = memoryHeadroom({ read: () => 'total = 4096.00M  used = 1024.00M  free = 3072.00M  (encrypted)', platform: 'darwin', minFreeMB: 1500 });
+  assert.equal(roomy.ok, true);
+  assert.equal(roomy.swapFreeMB, 3072);
+  // macOS grows swap on demand: no swap in use yet is room, not "0 MB free"
+  assert.equal(memoryHeadroom({ read: () => 'total = 0.00M  used = 0.00M  free = 0.00M  (encrypted)', platform: 'darwin' }).ok, true);
+  // gigabyte units
+  assert.equal(parseSwapUsage('total = 2.00G  used = 1.50G  free = 0.50G').freeMB, 512);
+  // not macOS, or an unreadable reading: never blocked on a guess
+  assert.equal(memoryHeadroom({ read: () => line, platform: 'linux' }).ok, true);
+  assert.equal(memoryHeadroom({ read: () => 'garbage', platform: 'darwin' }).ok, true);
+  assert.equal(memoryHeadroom({ read: () => { throw new Error('no sysctl'); }, platform: 'darwin' }).ok, true);
+});
+
+test('localModelStatus reports the headroom alongside configured and ready', async () => {
+  const { _setHeadroomForTests } = await import('../lib/localModel.js');
+  _setHeadroomForTests(() => ({ ok: false, swapFreeMB: 460, reason: 'low' }));
+  try {
+    const s = await localModelStatus();
+    assert.deepEqual(s.headroom, { ok: false, swapFreeMB: 460, reason: 'low' });
+  } finally {
+    _setHeadroomForTests(null);
+  }
+});
+
+function chatStub(seen) {
+  return http.createServer((req, res) => {
+    if (req.url === '/health') { res.setHeader('Content-Type', 'application/json'); return res.end('{"status":"ok"}'); }
+    if (req.url === '/v1/chat/completions' && req.method === 'POST') {
+      let body = '';
+      req.on('data', (d) => { body += d; });
+      req.on('end', () => {
+        seen.push(JSON.parse(body));
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'ok' } }] }));
+      });
+      return;
+    }
+    res.statusCode = 404; res.end();
+  });
+}
+
+test('completeLocal: `system` is sent as a system message ahead of the prompt', async () => {
+  const seen = [];
+  const stub = chatStub(seen);
+  await new Promise((r) => stub.listen(4295, '127.0.0.1', r));
+  try {
+    await completeLocal('the prompt', { system: 'answer in JSON' });
+    assert.deepEqual(seen[0].messages, [{ role: 'system', content: 'answer in JSON' }, { role: 'user', content: 'the prompt' }]);
+    await completeLocal('no system');
+    assert.deepEqual(seen[1].messages, [{ role: 'user', content: 'no system' }]);
+  } finally {
+    // drop the keep-alive sockets too, or the next test's /health is answered
+    // by this closed server over a pooled connection
+    stub.closeAllConnections();
+    stub.close();
+  }
+});
+
+test('completeLocal waitForBoot: waits for the load instead of refusing, and fails plainly when the load cannot happen', async () => {
+  const { _setHeadroomForTests } = await import('../lib/localModel.js');
+  // the server is down and this test env is not installed: the boot fails at
+  // once and the call says why, rather than "still starting up"
+  await assert.rejects(() => completeLocal('x', { waitForBoot: true }), /not installed/);
+
+  // the server comes up while the call waits: the answer arrives
+  const seen = [];
+  const stub = chatStub(seen);
+  const had = process.env.NOVA_VOICE_DIR;
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  const fake = mkdtempSync(nodePath.join(os.tmpdir(), 'nova-localmodel-wait-'));
+  mkdirSync(nodePath.join(fake, 'env', 'bin'), { recursive: true });
+  // a "python" that stays alive without doing anything, so the boot loop
+  // polls /health until the stub answers
+  writeFileSync(nodePath.join(fake, 'env', 'bin', 'python'), '#!/bin/sh\nexec sleep 5\n', { mode: 0o755 });
+  process.env.NOVA_VOICE_DIR = fake;
+  _setHeadroomForTests(() => ({ ok: true, swapFreeMB: 8000, reason: null }));
+  let upLater = null;
+  try {
+    upLater = setTimeout(() => stub.listen(4295, '127.0.0.1'), 300);
+    const out = await completeLocal('after the load', { waitForBoot: true });
+    assert.equal(out.text, 'ok');
+    assert.equal(seen.length, 1);
+  } finally {
+    clearTimeout(upLater);
+    stopLocalModel();
+    stub.closeAllConnections();
+    stub.close();
+    process.env.NOVA_VOICE_DIR = had;
+    _setHeadroomForTests(null);
+  }
+});
+
+test('ensureLocalModel refuses to load when the Mac has no memory to spare', async () => {
+  const { _setHeadroomForTests } = await import('../lib/localModel.js');
+  const had = process.env.NOVA_VOICE_DIR;
+  const { mkdirSync, writeFileSync } = await import('node:fs');
+  const fake = mkdtempSync(nodePath.join(os.tmpdir(), 'nova-localmodel-room-'));
+  mkdirSync(nodePath.join(fake, 'env', 'bin'), { recursive: true });
+  writeFileSync(nodePath.join(fake, 'env', 'bin', 'python'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  process.env.NOVA_VOICE_DIR = fake;
+  _setHeadroomForTests(() => ({ ok: false, swapFreeMB: 460, reason: 'this Mac has only 460 MB of swap free' }));
+  try {
+    await assert.rejects(() => ensureLocalModel(), (e) => e.noHeadroom === true && /460 MB of swap free/.test(e.message));
+    assert.equal(localModelPid(), null, 'nothing was spawned');
+  } finally {
+    process.env.NOVA_VOICE_DIR = had;
+    _setHeadroomForTests(null);
+  }
 });

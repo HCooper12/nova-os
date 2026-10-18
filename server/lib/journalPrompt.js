@@ -1,16 +1,11 @@
 import { spawn as nodeSpawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
-import path from 'node:path';
-import os from 'node:os';
 import { randomUUID } from 'node:crypto';
-import { modelFor, laneOffError, laneEnabled, effortArgs } from './modelPrefs.js';
-import { boundaryArgs } from './spawnBoundary.js';
+import { laneOffError, laneEnabled } from './modelPrefs.js';
 import { registerJobMap } from './jobRegistry.js';
-import { parseEnvelope } from './modelSpend.js';
+import { runTextLane } from './textLane.js';
 import { NOVA_LENS } from './lens.js';
 
-// launchd services don't inherit the interactive shell's PATH — use the absolute path.
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const jobs = registerJobMap('journalPrompt', new Map());
 
 // THREE KINDS OF PROMPT, WRITTEN AT THE TAP (11 Oct 2026, mockup 95, his
@@ -133,32 +128,12 @@ export function startPromptJob(seed, meta = {}) {
   const job = { id: jobId, status: 'running', result: null, error: null, meta };
   jobs.set(jobId, job);
 
-  const child = spawnImpl(CLAUDE_BIN, [
-    '-p', prompt,
-    '--permission-mode', 'bypassPermissions',
-    ...boundaryArgs(''),
-    '--output-format', 'json',
-    // named explicitly — an unpinned call silently inherits the account's
-    // ambient default model. The pin comes from the model board
-    // (lib/modelPrefs.js); the default is the 'sonnet' this lane always ran on.
-    '--model', modelFor('journal-prompt'),
-    ...effortArgs('journal-prompt'),
-    '--no-session-persistence',
-  ]);
-
-  let stdout = '';
-  let stderr = '';
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.stderr.on('data', (d) => { stderr += d; });
-  child.on('close', (code) => {
-    if (code !== 0) {
-      job.status = 'error';
-      job.error = stderr.trim() || `claude exited with code ${code}`;
-      return;
-    }
+  // Claude (model pinned from the board, lib/modelPrefs.js), or the model on
+  // this Mac (lib/textLane.js). On Claude the CLI is spawned within this call,
+  // through spawnImpl, so "one call, at the tap" stays true and testable.
+  runTextLane('journal-prompt', prompt, { json: true, spawnImpl }).then((out) => {
     try {
-      const outer = parseEnvelope(stdout, { lane: 'journal-prompt' });
-      const text = (outer.result || '').trim();
+      const text = (out.text || '').trim();
       const jsonMatch = firstBalancedObjectMatch(text);
       if (!jsonMatch) throw new Error('No JSON object found in the response');
       const parsed = parseModelJson(jsonMatch[0]);
@@ -170,8 +145,7 @@ export function startPromptJob(seed, meta = {}) {
       job.status = 'error';
       job.error = 'Could not generate a prompt: ' + e.message;
     }
-  });
-  child.on('error', (err) => {
+  }, (err) => {
     job.status = 'error';
     job.error = err.message;
   });

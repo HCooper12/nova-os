@@ -300,3 +300,29 @@ test('parseEnvelope: a non-zero exit fails even on a clean envelope, and stderr 
   assert.throws(() => parseEnvelope('', { lane: 'test-lane', code: null, stderr: '' }), /malformed output from the model/);
   assert.throws(() => parseEnvelope('', { lane: 'test-lane', code: 137 }), /claude exited with code 137/);
 });
+
+/* ------------------------- provider and fallback (19 Oct) ------------------------- */
+
+test('rows carry who answered and whether it was a fallback; old rows read as claude', async () => {
+  // drain the write chain first: an earlier test's fire-and-forget row must
+  // not land over the hand-written old row below
+  await recordRun('drain', {});
+  await clean();
+  const { writeFile: write } = await import('node:fs/promises');
+  const now = Date.now();
+  await write(SPEND_PATH, JSON.stringify({ lanes: { 'inbox-classify': [{ at: new Date(now - 1000).toISOString(), usd: 0.01, ms: 900, model: 'haiku', limited: false, error: null }] } }), 'utf8');
+  await recordRun('inbox-classify', { usd: 0, ms: 2500, model: 'local:qwen', provider: 'local', fallback: false, now });
+  await recordRun('inbox-classify', { usd: 0, ms: 2600, model: 'local:qwen', provider: 'local', fallback: true, now });
+  await recordRun('inbox-classify', { usd: 0.02, ms: 800, model: 'haiku', now });
+  const rows = JSON.parse(await readFile(SPEND_PATH, 'utf8')).lanes['inbox-classify'];
+  assert.equal(rows[0].provider, undefined, 'the old row is left as it was written');
+  assert.equal(rows[1].provider, 'local');
+  assert.equal(rows[1].fallback, false);
+  assert.equal(rows[2].fallback, true);
+  assert.equal(rows[3].provider, 'claude', 'a row with no provider named is a claude row');
+  assert.equal(rows[3].fallback, false);
+  const s = spendSummary({ now: now + 1 })['inbox-classify'];
+  assert.equal(s.runs, 4);
+  assert.equal(s.localRuns, 2, 'the old row counts as Claude');
+  assert.equal(s.fallbackRuns, 1);
+});

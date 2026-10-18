@@ -100,6 +100,11 @@ function buildRow(fields, now) {
     effort: fields.effort || null,
     limited: !!fields.limited,
     error: fields.error || null,
+    // who answered: Claude, or the local model on this Mac (lib/textLane.js);
+    // `fallback` marks a local answer given because Claude was at its limit.
+    // A row written before these fields existed reads as claude / false.
+    provider: fields.provider === 'local' ? 'local' : 'claude',
+    fallback: !!fields.fallback,
   };
 }
 
@@ -219,7 +224,8 @@ export function parseEnvelope(stdout, { lane, code = null, stderr = '' } = {}) {
 
 /** Per-lane spend over a trailing window: runs, total usd (4dp), median
  *  duration, the last model that answered, how many runs hit the account's
- *  usage limit, and how many errored. */
+ *  usage limit, how many errored, how many ran on the local model, and how
+ *  many of those were a fallback from Claude's limit. */
 export function spendSummary({ days = 7, now = Date.now() } = {}) {
   const data = loadSpendRaw();
   const cutoff = now - days * 24 * 60 * 60 * 1000;
@@ -249,6 +255,9 @@ export function spendSummary({ days = 7, now = Date.now() } = {}) {
       lastModel,
       limitHits: inWindow.filter((r) => r.limited).length,
       errors: inWindow.filter((r) => r.error).length,
+      // answered on this Mac, and of those, how many stood in for Claude at its limit
+      localRuns: inWindow.filter((r) => r.provider === 'local').length,
+      fallbackRuns: inWindow.filter((r) => r.fallback === true).length,
     };
   }
   return out;

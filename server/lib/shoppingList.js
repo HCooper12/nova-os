@@ -1,17 +1,12 @@
-import path from 'node:path';
-import os from 'node:os';
-import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import matter from 'gray-matter';
 import { createVaultStateFile, createWriteLock } from './vaultStateFile.js';
-import { modelFor, laneSkipped, laneEnabled, effortArgs } from './modelPrefs.js';
-import { boundaryArgs } from './spawnBoundary.js';
+import { laneSkipped, laneEnabled } from './modelPrefs.js';
 import { parseModelJson } from './jsonSalvage.js';
-import { parseEnvelope } from './modelSpend.js';
+import { runTextLane } from './textLane.js';
 
 const LIST_REL_PATH = 'Wiki/Health/Shopping List.md';
 const CATEGORIES = ['Produce', 'Meat & Protein', 'Dairy & Eggs', 'Pantry & Seasonings', 'Frozen', 'Bakery', 'Beverages', 'Household & Other'];
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 
 function bodyFor(items) {
   const lines = ['# Shopping List', '', 'Managed via Nova OS.', ''];
@@ -276,25 +271,12 @@ ${unsure.map((it, i) => `${i + 1}. ${it.name}`).join('\n')}
 Use "Household & Other" for anything that isn't food (kitchenware, cleaning supplies, etc).
 
 Output ONLY a JSON array with exactly ${unsure.length} strings, one category per item in the same order. No markdown, no commentary.`;
-  // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
-  const child = spawn(CLAUDE_BIN, [
-    '-p', prompt,
-    '--permission-mode', 'bypassPermissions',
-    ...boundaryArgs(''),
-    '--output-format', 'json',
-    // pinned from the model board (lib/modelPrefs.js); never the ambient default
-    '--model', modelFor('shopping-categorize'),
-    ...effortArgs('shopping-categorize'),
-    '--no-session-persistence',
-  ], { stdio: ['ignore', 'pipe', 'pipe'] });
-  let stdout = '';
-  child.stdout.on('data', (d) => { stdout += d; });
-  child.on('error', () => { /* no CLI: the items stay where code put them */ });
-  child.on('close', (code) => {
-    if (code !== 0) return;
+  // Claude, or the model on this Mac (lib/textLane.js); a failure of either
+  // leaves the items where code put them
+  runTextLane('shopping-categorize', prompt, { json: true }).then((out) => {
     (async () => {
       try {
-        const text = (parseEnvelope(stdout, { lane: 'shopping-categorize' }).result || '').trim();
+        const text = (out.text || '').trim();
         const m = text.match(/\[[\s\S]*\]/);
         if (!m) return;
         const cats = parseModelJson(m[0]);
@@ -314,7 +296,7 @@ Output ONLY a JSON array with exactly ${unsure.length} strings, one category per
         await rememberCategories(unsure.filter((it) => moves.has(it.id)).map((it) => ({ name: it.name, category: moves.get(it.id) })));
       } catch { /* a bad answer leaves the items where code put them */ }
     })();
-  });
+  }, () => { /* no model answered: the items stay where code put them */ });
 }
 
 export function getAddItemsJob(jobId) {

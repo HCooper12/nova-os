@@ -1,20 +1,15 @@
-import { spawn } from 'node:child_process';
 import { firstBalancedObjectMatch, parseModelJson } from './jsonSalvage.js';
-import path from 'node:path';
-import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
-import { modelFor, laneEnabled, effortArgs } from './modelPrefs.js';
-import { boundaryArgs } from './spawnBoundary.js';
-import { parseEnvelope } from './modelSpend.js';
+import { laneEnabled } from './modelPrefs.js';
+import { runTextLane } from './textLane.js';
 import { parseEventLocal, EDIT_WORDS_RE } from './calendarLocal.js';
 
 // Turn a spoken/typed request into ONE structured calendar op — add, move, or
 // delete — then file it as a confirm-first inbox proposal. The model only
 // INTERPRETS and identifies which event; the actual iCloud write happens later
 // in fileDecision, when the user approves. Nothing here touches the calendar.
-const CLAUDE_BIN = process.env.CLAUDE_BIN || path.join(os.homedir(), '.local/bin/claude');
 const RANGE_DAYS = 21; // how far ahead the interpreter can see + act
 
 function buildPrompt(text, nowLocal, tz, events) {
@@ -39,35 +34,14 @@ A recurring event CAN be moved: moving one names just that occurrence and leaves
 Match the intended event by its title and time. No markdown, no prose — just the JSON array.`;
 }
 
-function interpret(prompt) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(CLAUDE_BIN, [
-      '-p', prompt,
-      '--permission-mode', 'bypassPermissions',
-      '--model', modelFor('calendar-command'),
-      ...effortArgs('calendar-command'),
-      ...boundaryArgs(''),
-      '--output-format', 'json',
-      '--no-session-persistence',
-    ], { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (d) => { stdout += d; });
-    child.stderr.on('data', (d) => { stderr += d; });
-    child.on('close', (code) => {
-      if (code !== 0) return reject(new Error(stderr.trim() || `claude exited ${code}`));
-      try {
-        const outer = parseEnvelope(stdout, { lane: 'calendar-command' });
-        const raw = outer.result || '';
-        const m = raw.match(/\[[\s\S]*\]/) || firstBalancedObjectMatch(raw);
-        if (!m) throw new Error('no JSON found in the response');
-        resolve(parseModelJson(m[0]));
-      } catch (e) {
-        reject(e);
-      }
-    });
-    child.on('error', reject);
-  });
+// → { parsed, via }: the model's operations, and who read them (Claude, or
+// the model on this Mac: lib/textLane.js), kept on each proposal record.
+async function interpret(prompt) {
+  const out = await runTextLane('calendar-command', prompt, { json: true });
+  const raw = out.text || '';
+  const m = raw.match(/\[[\s\S]*\]/) || firstBalancedObjectMatch(raw);
+  if (!m) throw new Error('no JSON found in the response');
+  return { parsed: parseModelJson(m[0]), via: { provider: out.provider, fallback: !!out.fallback } };
 }
 
 function fileProposal(record) { return createRecord(record).then(() => ({ proposed: true, record })); }
@@ -120,7 +94,8 @@ export async function runCalendarCommand(text, vaultPath = null) {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const nowLocal = now.toLocaleString('en-GB', { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
   let parsed;
-  try { parsed = await interpret(buildPrompt(clean, nowLocal, tz, events)); } catch { throw claudeDown(); }
+  let via = null;
+  try { ({ parsed, via } = await interpret(buildPrompt(clean, nowLocal, tz, events))); } catch { throw claudeDown(); }
   // One request can carry several changes ("push X to 10:30 AND move Y to
   // 12:15") — each becomes its own proposal so he can approve them
   // independently. A lone object still works (older prompt shape).
@@ -128,7 +103,7 @@ export async function runCalendarCommand(text, vaultPath = null) {
   if (!ops.length) return { proposed: false, reason: "I couldn't turn that into a calendar change." };
   if (ops.length > 1) {
     const results = [];
-    for (const one of ops) results.push(await proposeOne(one, clean, events, vaultPath));
+    for (const one of ops) results.push(await proposeOne(one, clean, events, vaultPath, via));
     const ok = results.filter((r) => r.proposed);
     if (!ok.length) return { proposed: false, reason: results.map((r) => r.reason).filter(Boolean).join(' ') || "I couldn't turn that into a calendar change." };
     return {
@@ -139,11 +114,16 @@ export async function runCalendarCommand(text, vaultPath = null) {
       ...(ok.length < results.length ? { partial: results.filter((r) => !r.proposed).map((r) => r.reason).join(' ') } : {}),
     };
   }
-  return proposeOne(ops[0], clean, events, vaultPath);
+  return proposeOne(ops[0], clean, events, vaultPath, via);
 }
 
-async function proposeOne(op, clean, events, vaultPath) {
-  const base = { id: randomUUID().slice(0, 8), kind: 'calendar', source: 'nova', mode: 'draft', status: 'pending', createdAt: new Date().toISOString() };
+// `via` (who read the request, from interpret) rides on the record; a change
+// code read on its own (parseEventLocal) carries none.
+async function proposeOne(op, clean, events, vaultPath, via = null) {
+  const base = {
+    id: randomUUID().slice(0, 8), kind: 'calendar', source: 'nova', mode: 'draft', status: 'pending', createdAt: new Date().toISOString(),
+    ...(via ? { provider: via.provider, fallback: !!via.fallback } : {}),
+  };
 
   // ---- ADD ----------------------------------------------------------------
   if (op && op.action === 'create') {

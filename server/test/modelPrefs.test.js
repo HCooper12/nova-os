@@ -259,3 +259,74 @@ test('effortArgs is --effort <level> for a lane, or [] when the CLI lacks the fl
   assert.deepEqual(effortArgs('greeting'), []);
   _setEffortSupportedForTest(true);
 });
+
+// ---- provider per lane, and the limit fallback (19 Oct 2026) ---------------
+test('a local-capable lane can be set to the model on this Mac, and it round-trips', async () => {
+  await clean();
+  const { providerFor, PROVIDERS } = await import('../lib/modelPrefs.js');
+  assert.deepEqual(PROVIDERS, ['claude', 'local']);
+  assert.equal(providerFor('inbox-classify'), 'claude', 'Claude until he chooses otherwise');
+  const board = await setLanePref('inbox-classify', { provider: 'local' });
+  assert.equal(providerFor('inbox-classify'), 'local');
+  const lane = board.lanes.find((l) => l.id === 'inbox-classify');
+  assert.equal(lane.provider, 'local');
+  assert.equal(lane.defaultProvider, 'claude');
+  assert.equal(lane.canRunLocal, true);
+  assert.equal(lane.customised, true);
+  // the provider does not disturb the model, and survives a model change
+  await setLanePref('inbox-classify', { model: 'sonnet' });
+  assert.equal(providerFor('inbox-classify'), 'local');
+  assert.equal(modelFor('inbox-classify'), 'sonnet');
+  await resetLanePref('inbox-classify');
+  assert.equal(providerFor('inbox-classify'), 'claude');
+});
+
+test('a lane that cannot run locally refuses the local provider, plainly', async () => {
+  await clean();
+  const { providerFor } = await import('../lib/modelPrefs.js');
+  await assert.rejects(() => setLanePref('coach', { provider: 'local' }), /Ask Coach cannot run on the model on this Mac/);
+  await assert.rejects(() => setLanePref('inbox-classify', { provider: 'gpt' }), /provider must be one of: claude, local/);
+  // a stored 'local' on a lane without local: true is ignored, never obeyed
+  await writeFile(PREFS, JSON.stringify({ lanes: { coach: { provider: 'local' } } }), 'utf8');
+  assert.equal(providerFor('coach'), 'claude');
+  assert.equal(getModelPrefs().lanes.find((l) => l.id === 'coach').canRunLocal, false);
+});
+
+test('exactly the six measured pure-text lanes may run locally', () => {
+  assert.deepEqual(LANES.filter((l) => l.local).map((l) => l.id).sort(),
+    ['calendar-command', 'inbox-classify', 'journal-prompt', 'note-summary', 'rewards-offer-read', 'shopping-categorize']);
+});
+
+test('the limit fallback is on by default, switchable, and survives lane writes and resets', async () => {
+  await clean();
+  const { fallbackEnabled, setFallback } = await import('../lib/modelPrefs.js');
+  assert.equal(fallbackEnabled(), true);
+  let board = await setFallback({ enabled: false });
+  assert.equal(board.fallback.enabled, false);
+  assert.equal(fallbackEnabled(), false);
+  await setLanePref('coach', { model: 'haiku' });
+  assert.equal(fallbackEnabled(), false, 'a lane write keeps the board-level setting');
+  await resetLanePref();
+  assert.equal(fallbackEnabled(), false, 'a reset of the lanes leaves his fallback choice as he set it');
+  await assert.rejects(() => setFallback({ enabled: 'yes' }), /enabled must be true or false/);
+  board = await setFallback({ enabled: true });
+  assert.equal(board.fallback.enabled, true);
+});
+
+test('getModelPrefs carries the local model and the fallback on the board', async () => {
+  await clean();
+  const board = getModelPrefs();
+  assert.equal(typeof board.local.configured, 'boolean');
+  assert.equal(typeof board.local.ready, 'boolean');
+  assert.equal(typeof board.local.model, 'string');
+  assert.match(board.local.label, /on this Mac$/);
+  assert.ok('headroom' in board.local && 'checkedAt' in board.local);
+  assert.equal(board.fallback.enabled, true);
+  assert.deepEqual([...board.fallback.lanes].sort(),
+    ['calendar-command', 'inbox-classify', 'journal-prompt', 'note-summary', 'rewards-offer-read', 'shopping-categorize']);
+  for (const lane of board.lanes) {
+    assert.equal(lane.provider, 'claude');
+    assert.equal(lane.defaultProvider, 'claude');
+    assert.equal(typeof lane.canRunLocal, 'boolean');
+  }
+});

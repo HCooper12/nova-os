@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { resolvedModels, lastCheckedAt, modelLabel } from './modelWatch.js';
 import { spendSummary } from './modelSpend.js';
 import { effortFlag } from './spawnBoundary.js';
+import { localModelStatus, localModelConfigured, defaultModel as localDefaultModel, localModelLabel } from './localModel.js';
 
 // ---------------------------------------------------------------------------
 // THE MODEL BOARD — one place that names every lane in Nova that spawns the
@@ -155,7 +156,7 @@ export const LANES = [
     off: 'Nova opens without a spoken greeting. Nothing is faked in its place.',
   },
   {
-    id: 'calendar-command', label: 'Calendar in plain words', group: 'conversation',
+    id: 'calendar-command', label: 'Calendar in plain words', group: 'conversation', local: true,
     def: process.env.NOVA_CALENDAR_MODEL || 'haiku', defEffort: 'low',
     hint: 'reads “move gym to 6pm tomorrow” into a typed calendar change',
     off: 'Calendar commands are refused with a plain message — nothing is guessed at your diary.',
@@ -195,7 +196,7 @@ export const LANES = [
 
   // ---- capture ------------------------------------------------------------
   {
-    id: 'inbox-classify', label: 'Capture classifier', group: 'capture', def: 'haiku', defEffort: 'low',
+    id: 'inbox-classify', label: 'Capture classifier', group: 'capture', local: true, def: 'haiku', defEffort: 'low',
     hint: 'reads a captured line and decides what kind of thing it is',
     off: 'Captures still land on the rails and stop there, flagged with the reason — switch it back on and RETRY to file them.',
   },
@@ -258,12 +259,12 @@ export const LANES = [
     off: 'Tweaks are refused; the original recipe and its saved alternates stay as they are.',
   },
   {
-    id: 'shopping-categorize', label: 'Shopping list sorting', group: 'capture', def: 'sonnet', defEffort: 'low',
+    id: 'shopping-categorize', label: 'Shopping list sorting', group: 'capture', local: true, def: 'sonnet', defEffort: 'low',
     hint: 'files added items under the right supermarket aisle',
     off: 'Items still get added — they just land uncategorised.',
   },
   {
-    id: 'rewards-offer-read', label: 'Rewards email offers', group: 'capture', def: 'haiku', defEffort: 'low',
+    id: 'rewards-offer-read', label: 'Rewards email offers', group: 'capture', local: true, def: 'haiku', defEffort: 'low',
     hint: 'an Everyday Rewards or Flybuys email code could not read, into offers — code checks every figure is in the email before one is kept',
     off: 'Offers code can read still arrive; an email it cannot read is noted as unread and shows nothing.',
   },
@@ -290,7 +291,7 @@ export const LANES = [
     off: 'No plan is drafted; the brief still reports the day’s real numbers.',
   },
   {
-    id: 'journal-prompt', label: 'Journal prompt', group: 'daily', def: 'sonnet', defEffort: 'low',
+    id: 'journal-prompt', label: 'Journal prompt', group: 'daily', local: true, def: 'sonnet', defEffort: 'low',
     hint: 'the one question worth answering tonight',
     off: 'The journal opens blank instead of prompted.',
   },
@@ -300,7 +301,7 @@ export const LANES = [
     off: 'Health numbers, charts and the Sentinel’s deterministic alerts are unaffected; only the written read stops.',
   },
   {
-    id: 'note-summary', label: 'Note summaries', group: 'daily', def: 'sonnet', defEffort: 'low',
+    id: 'note-summary', label: 'Note summaries', group: 'daily', local: true, def: 'sonnet', defEffort: 'low',
     hint: 'the one-line gist cached against a vault page',
     off: 'Notes show their own opening lines instead of a summary.',
   },
@@ -529,7 +530,10 @@ export function maxEffort(a, b) {
 let cache = null;
 let cacheStamp = null;
 
-function loadRaw() {
+// The whole file: { lanes: { <id>: { model?, enabled?, effort?, provider? } },
+// fallback?: { enabled } }. loadRaw() below is the lanes half, which is what
+// almost every reader wants.
+function loadFile() {
   const file = PREFS_PATH();
   let stamp = null;
   try {
@@ -538,18 +542,109 @@ function loadRaw() {
     stamp = `none:${file}`;
   }
   if (cache && cacheStamp === stamp) return cache;
-  let parsed = {};
+  let parsed = { lanes: {}, fallback: null };
   if (existsSync(file)) {
     try {
       const raw = JSON.parse(readFileSync(file, 'utf8'));
-      parsed = raw && typeof raw.lanes === 'object' && raw.lanes ? raw.lanes : {};
+      parsed = {
+        lanes: raw && typeof raw.lanes === 'object' && raw.lanes ? raw.lanes : {},
+        fallback: raw && typeof raw.fallback === 'object' && raw.fallback ? raw.fallback : null,
+      };
     } catch {
-      parsed = {}; // a corrupt file falls back to the defaults rather than to nothing
+      parsed = { lanes: {}, fallback: null }; // a corrupt file falls back to the defaults rather than to nothing
     }
   }
   cache = parsed;
   cacheStamp = stamp;
   return cache;
+}
+
+function loadRaw() {
+  return loadFile().lanes;
+}
+
+// One writer for the file, so a lane write never drops the board-level
+// fallback setting and a fallback write never drops a lane.
+async function saveFile({ lanes, fallback }) {
+  await mkdir(dataRoot(), { recursive: true });
+  const tmp = PREFS_PATH() + '.tmp';
+  const body = fallback ? { lanes, fallback } : { lanes };
+  await writeFile(tmp, JSON.stringify(body, null, 2), 'utf8');
+  await rename(tmp, PREFS_PATH());
+  cache = null;
+  cacheStamp = null;
+}
+
+// ------------------------------ provider -----------------------------------
+// WHO ANSWERS A LANE (19 Oct 2026). A lane marked `local: true` is pure text
+// in, text out (no tools, no vault reads), so it may run on the small model
+// on this Mac (lib/localModel.js) instead of Claude. Only those lanes can be
+// switched; the rest stay Claude until a measurement says otherwise (the 25
+// Sep eval: design/audits/2026-09-25-local-model-eval.md).
+export const PROVIDERS = ['claude', 'local'];
+
+/** 'local' only when the lane can run locally AND he chose it; otherwise
+ *  'claude', whatever is stored. */
+export function providerFor(laneId) {
+  const lane = LANE_BY_ID.get(laneId);
+  if (!lane) throw new Error(`unknown model lane: ${laneId}`);
+  return lane.local && loadRaw()[laneId]?.provider === 'local' ? 'local' : 'claude';
+}
+
+/** May this lane run on the local model at all? */
+export function laneCanRunLocal(laneId) {
+  const lane = LANE_BY_ID.get(laneId);
+  if (!lane) throw new Error(`unknown model lane: ${laneId}`);
+  return !!lane.local;
+}
+
+/** When Claude answers with the account's usage limit, may a `local: true`
+ *  lane be answered by the local model instead? On unless he switched it off. */
+export function fallbackEnabled() {
+  return loadFile().fallback?.enabled !== false;
+}
+
+export async function setFallback({ enabled } = {}) {
+  if (typeof enabled !== 'boolean') throw new Error('enabled must be true or false');
+  const { lanes } = loadFile();
+  await saveFile({ lanes: { ...lanes }, fallback: { enabled } });
+  return getModelPrefs();
+}
+
+// The local model's state for the board. getModelPrefs() is synchronous, and
+// asking the model server is not, so `ready` and `headroom` are a cached
+// reading refreshed every 30 s (unref'd: it never holds the process open) and
+// after every local call (lib/textLane.js). `configured` and the model name
+// are read fresh each time: a stat and an env read. `checkedAt` null means
+// the first reading has not landed yet, so `ready: false` then is unknown.
+let localReading = { ready: false, headroom: null, checkedAt: null };
+let localTimer = null;
+export async function refreshLocalStatus() {
+  try {
+    const s = await localModelStatus();
+    localReading = { ready: !!s.ready, headroom: s.headroom || null, checkedAt: new Date().toISOString() };
+  } catch (e) {
+    localReading = { ready: false, headroom: null, checkedAt: new Date().toISOString(), error: e.message };
+  }
+  return localBoard();
+}
+function watchLocal() {
+  if (localTimer) return;
+  localTimer = setInterval(() => { refreshLocalStatus().catch(() => {}); }, 30_000);
+  localTimer.unref?.();
+  refreshLocalStatus().catch(() => {});
+}
+/** The board's `local` block. */
+export function localBoard() {
+  const model = localDefaultModel();
+  return {
+    configured: localModelConfigured(),
+    ready: localReading.ready,
+    model,
+    label: localModelLabel(model),
+    headroom: localReading.headroom,
+    checkedAt: localReading.checkedAt,
+  };
 }
 
 /** The model alias/id this lane should run on. Never returns empty — a blank
@@ -598,6 +693,7 @@ export function laneSkipped(laneId, where) {
  *  call (never the import-time MODEL_CHOICES snapshot) so a label or a
  *  pinned id a scheduled probe just updated shows up without a restart. */
 export function getModelPrefs() {
+  watchLocal();
   const saved = loadRaw();
   const resolved = resolvedModels();
   // One pass over the spend ledger for every lane at once — spendSummary
@@ -616,13 +712,18 @@ export function getModelPrefs() {
       model: modelFor(l.id),
       defaultModel: l.def,
       deterministic: !!l.deterministic,
-      customised: !!((saved[l.id]?.model && saved[l.id].model !== l.def) || (l.defEffort && isValidEffort(saved[l.id]?.effort) && saved[l.id].effort !== l.defEffort)),
+      customised: !!((saved[l.id]?.model && saved[l.id].model !== l.def) || (l.defEffort && isValidEffort(saved[l.id]?.effort) && saved[l.id].effort !== l.defEffort) || providerFor(l.id) !== 'claude'),
       effort: l.defEffort ? effortFor(l.id) : null,
       defaultEffort: l.defEffort || null,
       enabled: laneEnabled(l.id),
+      provider: providerFor(l.id),
+      defaultProvider: 'claude',
+      canRunLocal: !!l.local,
       spend: spend[l.id] || null,
     })),
     efforts: EFFORT_LEVELS,
+    local: localBoard(),
+    fallback: { enabled: fallbackEnabled(), lanes: LANES.filter((l) => l.local).map((l) => l.id) },
     watch: {
       checkedAt: lastCheckedAt(),
       resolved: Object.fromEntries(ALIAS_DEFS.map((a) => [a.family, {
@@ -638,7 +739,7 @@ export function getModelPrefs() {
 /** Set one lane's model and/or on-off state. Validates hard: an unknown lane
  *  or an unrecognised model is a 400, never a silent fall-through to the
  *  ambient default. */
-export async function setLanePref(laneId, { model, enabled, effort } = {}) {
+export async function setLanePref(laneId, { model, enabled, effort, provider } = {}) {
   const lane = LANE_BY_ID.get(laneId);
   if (!lane) throw new Error(`unknown lane: ${laneId}`);
   if (model !== undefined && lane.deterministic) throw new Error(`${lane.label} runs no model — only its switch can be set`);
@@ -648,37 +749,34 @@ export async function setLanePref(laneId, { model, enabled, effort } = {}) {
   if (enabled !== undefined && typeof enabled !== 'boolean') throw new Error('enabled must be true or false');
   if (effort !== undefined && !lane.defEffort) throw new Error(`${lane.label} has no thinking setting — it runs at the account's level`);
   if (effort !== undefined && !isValidEffort(effort)) throw new Error(`effort must be one of: ${EFFORT_LEVELS.join(', ')}`);
+  if (provider !== undefined && !PROVIDERS.includes(provider)) throw new Error(`provider must be one of: ${PROVIDERS.join(', ')}`);
+  if (provider === 'local' && !lane.local) throw new Error(`${lane.label} cannot run on the model on this Mac yet; only Claude can run it`);
 
-  const next = { ...loadRaw() };
+  const file = loadFile();
+  const next = { ...file.lanes };
   const entry = { ...(next[laneId] || {}) };
   if (model !== undefined) entry.model = model;
   if (enabled !== undefined) entry.enabled = enabled;
   if (effort !== undefined) entry.effort = effort;
+  if (provider !== undefined) entry.provider = provider;
   next[laneId] = entry;
 
-  await mkdir(dataRoot(), { recursive: true });
-  const tmp = PREFS_PATH() + '.tmp';
-  await writeFile(tmp, JSON.stringify({ lanes: next }, null, 2), 'utf8');
-  await rename(tmp, PREFS_PATH());
-  cache = null;
-  cacheStamp = null;
+  await saveFile({ lanes: next, fallback: file.fallback });
   return getModelPrefs();
 }
 
 /** Put one lane — or the whole board — back to how it shipped. */
+// The board-level fallback switch is its own setting with its own control,
+// so a reset of the lanes leaves it as he set it.
 export async function resetLanePref(laneId) {
-  const next = { ...loadRaw() };
+  const file = loadFile();
+  const next = { ...file.lanes };
   if (laneId) {
     if (!LANE_BY_ID.has(laneId)) throw new Error(`unknown lane: ${laneId}`);
     delete next[laneId];
   } else {
     for (const k of Object.keys(next)) delete next[k];
   }
-  await mkdir(dataRoot(), { recursive: true });
-  const tmp = PREFS_PATH() + '.tmp';
-  await writeFile(tmp, JSON.stringify({ lanes: next }, null, 2), 'utf8');
-  await rename(tmp, PREFS_PATH());
-  cache = null;
-  cacheStamp = null;
+  await saveFile({ lanes: next, fallback: file.fallback });
   return getModelPrefs();
 }
