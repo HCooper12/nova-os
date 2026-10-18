@@ -217,14 +217,18 @@ export function analyze({ sessions = [], days = [], profile = null, rotationTota
   if (floor) {
     const full = [...trained, ...rest];
     if (full.length >= 5) {
-      const under = full.filter((d) => d.p < floor - 5);
+      // each day against ITS own floor (18 Oct 2026): this exact line, judged
+      // with a floor set that morning, told him 13 old days had missed it
+      const dayFloor = (d) => targetsOn(targetHistory, d.date, { protein: floor }).protein || floor;
+      const under = full.filter((d) => d.p < dayFloor(d) - 5);
+      const floors = [...new Set(full.map(dayFloor))];
       if (under.length / full.length >= 0.6) {
         findings.push({
           key: 'floor-most-days',
           severity: 'medium',
           metric: Math.round((under.length / full.length) * 100),
-          data: { kind: 'floor-pattern', under: under.length, of: full.length, floor },
-          line: `The ${floor}g protein floor was missed on ${under.length} of the last ${full.length} fully-logged days — the floor is currently a ceiling.`,
+          data: { kind: 'floor-pattern', under: under.length, of: full.length, floor: floors.length === 1 ? floors[0] : null },
+          line: `${floors.length === 1 ? `The ${floors[0]}g protein floor` : "Each day's protein floor"} was missed on ${under.length} of the last ${full.length} fully-logged days — the floor is currently a ceiling.`,
         });
       }
     }

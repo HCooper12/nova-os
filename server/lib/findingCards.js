@@ -138,9 +138,9 @@ export function findingCard(finding) {
 
     // The floor as a ceiling: days missed against days logged.
     case 'fuel:floor-pattern':
-      if (!(f.of > 0) || !(f.floor > 0)) return null;
+      if (!(f.of > 0)) return null;
       return barsCard({
-        label: `${f.floor}g protein floor · last ${f.of} logged days`,
+        label: `${f.floor > 0 ? `${f.floor}g protein floor` : "Each day's protein floor"} · last ${f.of} logged days`,
         bars: [
           { name: 'Missed', value: f.under, tone: 'warn' },
           { name: 'Met', value: Math.max(0, f.of - f.under), tone: 'good' },

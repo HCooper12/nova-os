@@ -69,3 +69,13 @@ test('the goal board judges yesterday by yesterday\'s target, today by today\'s'
   const sat = (protein.days || protein.week).find((d) => d.date === '2026-10-17');
   assert.equal(sat.met, true, '155g cleared the 150g floor that day; the new 166g must not re-judge it');
 });
+
+test('fuel x training never counts an old day as missing a floor set after it', async () => {
+  const { analyze } = await import('../lib/fuelCross.js');
+  // 13 days at 155g: every one cleared the 150g floor of its day
+  const days = Array.from({ length: 13 }, (_, i) => ({ date: `2026-10-${String(i + 5).padStart(2, '0')}`, entries: [{ name: 'x', macros: { p: 155, c: 200, f: 60, kcal: 2100 } }] }));
+  // the same days without the history DO trip it: the test bites
+  assert.ok(analyze({ days, profile: { proteinFloorG: 166, targetKcal: 2153 } }).some((x) => x.key === 'floor-most-days'));
+  const f = analyze({ days, profile: { proteinFloorG: 166, targetKcal: 2153 }, targetHistory: his });
+  assert.equal(f.find((x) => x.key === 'floor-most-days'), undefined, 'the 18 Oct card that judged old days by the new floor');
+});
