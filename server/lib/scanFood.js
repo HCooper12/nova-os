@@ -225,8 +225,7 @@ export function startFoodScan(mode, imagePaths, workDir, note) {
 
 // Same job map and result shape as a photo scan, so the client polls the very
 // same endpoint and renders the very same preview.
-export function startFoodDescribe(description) {
-  if (!laneEnabled('food-describe')) throw laneOffError('food-describe');
+export function startFoodDescribe(description, deps = {}) {
   const text = String(description || '').replace(/\s+/g, ' ').trim();
   if (text.length < 3) throw new Error('describe what you ate in a few more words');
   if (text.length > 300) throw new Error('keep the description under 300 characters');
@@ -234,6 +233,31 @@ export function startFoodDescribe(description) {
   const jobId = randomUUID().slice(0, 8);
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
+
+  // NO MODEL NEEDED (18 Oct): when Claude is off or fails, code matches his
+  // words against his own log and recipes instead. His words are never lost:
+  // a part that matches nothing is kept name-only. A failure of the local
+  // path itself is the only way this job errors, and it names both causes.
+  let settled = false;
+  const runLocal = async (why, cause) => {
+    if (settled) return;
+    settled = true;
+    try {
+      const { describeLocal, fallbackNote } = await import('./foodDescribeLocal.js');
+      const r = await describeLocal(text, { vaultPath: deps.vaultPath, lookup: deps.lookup });
+      const note = fallbackNote(r, why);
+      job.result = { ...r, fallback: 'code', note, question: note };
+      job.status = 'ready';
+    } catch (e) {
+      job.status = 'error';
+      job.error = `${cause ? `${cause}; ` : ''}the offline matcher failed too: ${e.message}`;
+    }
+  };
+
+  if (!laneEnabled('food-describe')) {
+    runLocal('off');
+    return jobId;
+  }
 
   // stdin closed: an open pipe makes the CLI wait 3 s for input (measured 18 Oct 2026)
   const child = spawn(CLAUDE_BIN, [
@@ -252,60 +276,50 @@ export function startFoodDescribe(description) {
   child.stderr.on('data', (d) => { stderr += d; });
   child.on('close', (code) => {
     if (code !== 0) {
-      job.status = 'error';
-      job.error = stderr.trim() || `claude exited with code ${code}`;
+      runLocal('failed', stderr.trim() || `claude exited with code ${code}`);
       return;
     }
+    let parsed;
     try {
       const outer = parseEnvelope(stdout, { lane: 'food-describe' });
       const out = (outer.result || '').trim();
       const jsonMatch = firstBalancedObjectMatch(out);
       if (!jsonMatch) throw new Error(out.slice(0, 200) || 'No response received');
-      const parsed = parseModelJson(jsonMatch[0]);
-      // THE MODEL BROKE IT DOWN; CODE DOES THE SUMS. Each component is
-      // looked up in USDA FoodData Central, scaled to its real weight, and
-      // the energy derived from the macros — so the same description always
-      // returns the same number, and every number names its source.
-      (async () => {
-        try {
-          const { computeFromComponents } = await import('./nutritionFacts.js');
-          const computed = await computeFromComponents(parsed.components || []);
-          if (computed.components.length) {
-            job.result = {
-              name: String(parsed.name || '').trim(),
-              macros: computed.macros,
-              components: computed.components,
-              sourceNote: computed.note,
-              confidence: parsed.confidence === 'low' || computed.unsourced > computed.sourced ? 'low' : 'high',
-              question: parsed.question ? String(parsed.question).trim() : '',
-            };
-          } else {
-            // Nothing resolved (offline, rate-limited, or an odd breakdown).
-            // Say so rather than inventing a total.
-            job.result = {
-              name: String(parsed.name || '').trim(),
-              macros: { p: 0, c: 0, f: 0, kcal: 0 },
-              components: [],
-              sourceNote: 'no components could be matched — check the connection or describe it differently',
-              confidence: 'low',
-              question: parsed.question ? String(parsed.question).trim() : 'Can you describe it with rough amounts?',
-            };
-          }
-          job.status = 'ready';
-        } catch (e) {
-          job.status = 'error';
-          job.error = e.message;
-        }
-      })();
+      parsed = parseModelJson(jsonMatch[0]);
     } catch (e) {
-      job.status = 'error';
-      job.error = e.message;
+      runLocal('failed', e.message);
+      return;
     }
+    // THE MODEL BROKE IT DOWN; CODE DOES THE SUMS. Each component is
+    // looked up in USDA FoodData Central, scaled to its real weight, and
+    // the energy derived from the macros — so the same description always
+    // returns the same number, and every number names its source.
+    (async () => {
+      try {
+        const { computeFromComponents } = await import('./nutritionFacts.js');
+        const computed = await computeFromComponents(parsed.components || []);
+        if (!computed.components.length) {
+          // Nothing resolved (offline or an odd breakdown): his own log may
+          // still know these foods, so try that before giving up.
+          await runLocal('failed', 'no components could be matched');
+          return;
+        }
+        settled = true;
+        job.result = {
+          name: String(parsed.name || '').trim(),
+          macros: computed.macros,
+          components: computed.components,
+          sourceNote: computed.note,
+          confidence: parsed.confidence === 'low' || computed.unsourced > computed.sourced ? 'low' : 'high',
+          question: parsed.question ? String(parsed.question).trim() : '',
+        };
+        job.status = 'ready';
+      } catch (e) {
+        await runLocal('failed', e.message);
+      }
+    })();
   });
-  child.on('error', (err) => {
-    job.status = 'error';
-    job.error = err.message;
-  });
+  child.on('error', (err) => { runLocal('failed', err.message); });
 
   return jobId;
 }

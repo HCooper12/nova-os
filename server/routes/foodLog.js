@@ -170,7 +170,7 @@ export function foodLogRouter(vaultPath) {
   // preview — only the input differs.
   router.post('/food-log/describe', async (req, res) => {
     try {
-      res.json({ jobId: startFoodDescribe(req.body?.text) });
+      res.json({ jobId: startFoodDescribe(req.body?.text, { vaultPath }) });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
