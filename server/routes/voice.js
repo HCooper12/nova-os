@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { startAskNova, startGreeting, getMessageJob, prewarmAsk } from '../lib/claudeCode.js';
+import { startGreeting, getMessageJob, prewarmAsk } from '../lib/claudeCode.js';
+import { startAsk } from '../lib/askDispatch.js';
 import { composeDispatch } from '../lib/dispatch.js';
 import { ttsConfigured, ttsEngine, ttsReady, listVoices, synthesize } from '../lib/tts.js';
 import { buildAskContext, todayLocalContext } from '../lib/askContext.js';
@@ -317,7 +318,7 @@ export function voiceRouter(vaultPath) {
       // instruct on his standing grant (lib/consult.js markHisWords, 1 Oct)
       const { markHisWords } = await import('../lib/consult.js');
       markHisWords(question);
-      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
+      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId), sessionId, liveLine, spoken: req.body?.spoken === true, where: ctx.where });
       watchAnswerFor(jobId, 'nova');
       const ack = await ackForTurn({ question: raw, lane: 'ask', voiceId: req.body?.voiceId });
       res.json({ jobId, ...(ack ? { ack } : {}) });
@@ -465,7 +466,7 @@ export function voiceRouter(vaultPath) {
         try { dispatchText = (await composeDispatch(vaultPath, kind)).text; } catch { /* honest fallback in the builder */ }
       }
       const question = buildRitualQuestion(kind, dispatchText);
-      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId });
+      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId), sessionId });
       res.json({ jobId, label: ritualLabel(kind) });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -479,7 +480,7 @@ export function voiceRouter(vaultPath) {
       const { buildStartQuestion } = await import('../lib/rituals.js');
       const sessionId = typeof req.body?.sessionId === 'string' && req.body.sessionId ? req.body.sessionId : null;
       const question = buildStartQuestion(req.body?.item, Number(req.body?.days) || 0);
-      const jobId = startAskNova(vaultPath, { question, context: await askContext(sessionId), sessionId });
+      const jobId = startAsk(vaultPath, { question, context: await askContext(sessionId), sessionId });
       res.json({ jobId, label: '▸ Start it with me' });
     } catch (e) {
       res.status(400).json({ error: e.message });
@@ -663,7 +664,7 @@ export function voiceRouter(vaultPath) {
       const { markHisWords } = await import('../lib/consult.js');
       const asked = attachmentPreamble ? `${attachmentPreamble}\n\n${question}` : question;
       markHisWords(asked);
-      const jobId = startAskNova(vaultPath, {
+      const jobId = startAsk(vaultPath, {
         question: asked, context, liveLine, direct: true,
         sessionId: spoken.sessionId, resume: spoken.resumed, where,
       });

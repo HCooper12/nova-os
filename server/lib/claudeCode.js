@@ -8,7 +8,9 @@ import { randomUUID } from 'node:crypto';
 import { NOVA_LENS } from './lens.js';
 import { MUSCLE_GROUPS } from './muscleSecondary.js';
 import { JOURNAL_AUTHORSHIP_RULE } from './journal.js';
-import { modelFor, assertLaneOn, laneEnabled, effortFor, maxEffort, CONSULT_EFFORT, DEEP_EFFORT, effortArgs } from './modelPrefs.js';
+import { modelFor, assertLaneOn, laneEnabled, effortFor, maxEffort, CONSULT_EFFORT, DEEP_EFFORT, effortArgs, providerFor, fallbackEnabled, laneCanRunLocal } from './modelPrefs.js';
+import { runLocalLane } from './textLane.js';
+import { localModelConfigured } from './localModel.js';
 import { usageLimitNotice, recordRun, fromEnvelope, parseEnvelope } from './modelSpend.js';
 import { parseVisualStream } from '../../src/visualBeats.js';
 import { speakableText } from '../../src/artifactBlocks.js';
@@ -504,6 +506,14 @@ export function getMessageJob(jobId) {
   return jobs.get(jobId) || null;
 }
 
+// A job another lib runs (lib/localAsk.js: Ask Nova on the model on this
+// Mac) lives in THIS map, so getMessageJob and the client's one poll route
+// serve it with no change.
+export function registerAskJob(job) {
+  jobs.set(job.id, job);
+  return job.id;
+}
+
 // Test-only visibility into the warm pool: which sessions hold a live
 // process, and its pid — so a test can prove turn 2 reused turn 1's process.
 export function _warmStats() {
@@ -801,6 +811,248 @@ async function finishConsulted(cwd, replyText, turnJob, { question, ctl, session
   }
 }
 
+// THE SETTLE, SHARED (19 Oct 2026). Everything code does with a finished
+// Ask Nova reply — documents, SHOW, the inferred panel, PROPOSE, ACT,
+// RESEARCH, WATCH, PLAY, CARD — lifted out of startAskNova unchanged so the
+// model on this Mac (lib/localAsk.js) lands its replies on the very same
+// rails. `ctl` is the turn's consult controller (lib/consult.js openConsult);
+// a lane that consults no one passes none. `extra` rides on the result
+// (provider, fallback, reason for a local answer); Claude passes none.
+export async function settleAskReply(cwd, replyText, turnJob, { question, noGlass = false, direct = false, place = 'unknown', ctl = null, sessionId: effectiveSessionId = null, extra = null } = {}) {
+  if (!ctl) ctl = { finalText: (t) => t, roster: [] };
+  try {
+    // THE DOCUMENTS, FIRST — before anything else parses this reply, so a
+    // PROPOSE/CARD/SHOW line living inside a document's body can never be
+    // mistaken for a directive of this turn's own.
+    const filed = await fileArtifacts(cwd, replyText, { agent: 'nova', question });
+    // Canvas: the model may end with one SHOW {"panel":...} line. Parse it
+    // out and build the panel DETERMINISTICALLY from the vault — the model
+    // names a view, our code draws it. A bad directive degrades honestly.
+    const { parseShowDirective, buildPanel } = await import('./panels.js');
+    // cleanText === filed.text when no directive matched, so never fall
+    // back to replyText here — that would put a raw directive line back
+    // into the reply when the model sent ONLY a directive and no prose.
+    const { cleanText, directive } = parseShowDirective(filed.text);
+    let text = cleanText;
+    let panel = null;
+    if (directive && !noGlass) {
+      try {
+        panel = await buildPanel(cwd, directive);
+      } catch (e) {
+        text = `${text} (I tried to put a panel up for that, but ${e.message}.)`;
+      }
+    }
+    // EVIDENCE BY DEFAULT. If the model did not ask for a panel, code
+    // decides one from the QUESTION. A spoken answer with nothing on screen
+    // is the thing he cannot follow when Nova talks faster than he reads —
+    // so the visual stops depending on the model remembering to request it.
+    // Silent on failure: no panel is honest, a wrong one is not.
+    if (!panel && !noGlass) {
+      try {
+        const { inferPanelDirective } = await import('./panels.js');
+        const { loadExerciseLibrary } = await import('./exercises.js');
+        const { loadRoutines } = await import('./workouts.js');
+        const { exercises } = await loadExerciseLibrary(cwd);
+        const { routines } = await loadRoutines(cwd, exercises);
+        const guess = inferPanelDirective(question, {
+          routines: routines.map((r) => r.name),
+          exercises: exercises.map((e) => e.name),
+        });
+        if (guess) panel = await buildPanel(cwd, guess);
+      } catch { /* no panel rather than a wrong one */ }
+    }
+    // The model may also PROPOSE one action — parsed off the reply and
+    // turned into a PENDING record on the rails. Nothing is written until
+    // Hayden says yes; a bad proposal degrades to an honest note.
+    const { parseCoachProposal } = await import('./coach.js');
+    const parsed = parseCoachProposal(text);
+    let proposal = null;
+    if (parsed.proposal) {
+      text = parsed.cleanText;
+      try {
+        const { createVoiceProposal } = await import('./voiceActions.js');
+        proposal = await createVoiceProposal(cwd, question, parsed.proposal);
+        // never a twin: the Coach (asked this turn, or earlier) already has
+        // this change waiting on his call, and code says so, not the model
+        if (proposal?.duplicate) {
+          const waiting = String(proposal.title || '').replace(/^Coach:\s*/, '');
+          text = `${text.trim()}${text.trim() ? ' ' : ''}That change is already waiting on your call on the Coach tab${waiting ? ` (${waiting})` : ''}, so nothing new was filed.`;
+          proposal = null;
+        } else if (proposal?.replaced?.length) {
+          // a newer change to the same lift took the old card's place (his
+          // call, 1 Oct): code names what it replaced, not the model
+          const was = proposal.replaced.map((r) => String(r.title || '').replace(/^Coach:\s*/, '')).filter(Boolean).join('; ');
+          text = `${text.trim()}${text.trim() ? ' ' : ''}It replaces the card that was waiting on your call${was ? ` (${was})` : ''}.`;
+        }
+      } catch (e) {
+        text = `${text} (I tried to draft that for you, but ${e.message} — nothing was changed.)`;
+      }
+    } else if (parsed.parseError) {
+      text = `${text} (I tried to draft an action but got the format wrong — nothing was changed. Ask me again.)`;
+    }
+    // Or it may ACT — one verb from the registry (lib/verbs.js): validated,
+    // resolved against his real data, run by code, receipted with undo. A
+    // verb that needs his yes lands pending exactly like a proposal.
+    const { parseActDirective, runVerb } = await import('./verbs.js');
+    const actParsed = parseActDirective(text);
+    let acted = null;
+    let actGated = null;
+    if (actParsed.act) {
+      text = actParsed.cleanText;
+      try {
+        const out = await runVerb(cwd, question, actParsed.act, { source: 'voice', direct, forceConfirm: forceConfirmFor(place, { oneShot: direct }) });
+        if (out.gated) { actGated = out.gated; text = `${text} ${out.said}`.trim(); }
+        else if (out.acted) acted = out.acted;
+        else if (out.proposal && !proposal) proposal = out.proposal;
+      } catch (e) {
+        text = `${text} (I tried to do that, but ${e.message} — nothing was changed.)`;
+      }
+    } else if (actParsed.parseError) {
+      text = `${text} (I tried to act on that but got the format wrong — nothing was changed. Ask me again.)`;
+    }
+    // And it may dispatch ONE research job — the existing Researcher rails:
+    // web-read-only, citation-required, always review-gated in the Inbox.
+    // THE MODEL-CHOICE GATE: an immediate (non-overnight) research request
+    // asks first, rather than dispatching (his ask: "if it's on Sonnet,
+    // prompt me for Opus"). The reply carries the gate question instead of
+    // a dispatch acknowledgment; modelChoicePending tells the client what
+    // to actually run once he answers. Two paths skip the gate and
+    // dispatch immediately, exactly as before: the overnight ("queue it
+    // for tonight") request — nobody is there at 3:30am to answer a
+    // follow-up — and `direct` (the Siri hands-free lane), which is one
+    // shot by design and has no way to receive a follow-up turn at all;
+    // asking it a question it can never hear the answer to would just
+    // silently drop the request.
+    const { parseResearchDirective, startResearch } = await import('./researcher.js');
+    const { gateQuestion, needsGate } = await import('./modelChoice.js');
+    const res = parseResearchDirective(text);
+    // a job verb (lib/verbJobs.js) carries what the door needs to follow it:
+    // the research to watch land, the video handed over — the same fields
+    // the RESEARCH and WATCH lines always produced, so every client that
+    // shows them keeps working whichever way the job was started
+    let research = acted?.research || null;
+    let modelChoicePending = actGated || null;
+    if (res.research) {
+      text = res.cleanText;
+      // his board already runs this lane on Opus (or stronger): there is
+      // nothing to ask, so it goes now, on the board's model (25 Sep)
+      if (res.research.when === 'tonight' || direct || !needsGate('researcher')) {
+        if (res.research.when === 'tonight') {
+          try {
+            const { enqueueOvernight } = await import('./overnight.js');
+            const item = await enqueueOvernight({ question: res.research.question });
+            research = { queued: true, queueId: item.id, question: res.research.question };
+          } catch (e) {
+            text = `${text} (I tried to queue the research, but ${e.message}.)`;
+          }
+        } else {
+          try {
+            const record = await startResearch(cwd, res.research.question);
+            research = { recordId: record.id, question: res.research.question };
+          } catch (e) {
+            text = `${text} (I tried to dispatch the research, but ${e.message}.)`;
+          }
+        }
+      } else {
+        modelChoicePending = { kind: 'research', question: res.research.question };
+        text = `${text} ${gateQuestion('researcher')}`;
+      }
+    } else if (res.parseError) {
+      text = res.cleanText;
+    }
+    // And it may hand ONE video to the Watcher — transcript pulled locally,
+    // the note always review-gated in the Inbox. Same gate as research,
+    // same `direct` exception.
+    const { parseWatchDirective, startVideoWatch } = await import('./watcher.js');
+    const wd = parseWatchDirective(text);
+    let watch = acted?.watch || null;
+    if (wd.watch) {
+      text = wd.cleanText;
+      if (direct || !needsGate('watcher')) {
+        try {
+          const record = await startVideoWatch(cwd, wd.watch.url, wd.watch.question);
+          watch = { recordId: record.id, url: wd.watch.url };
+        } catch (e) {
+          text = `${text} (I tried to hand that video to the Watcher, but ${e.message}.)`;
+        }
+      // At most one pending choice per turn — the model is only ever
+      // supposed to emit one directive anyway; this just keeps the first.
+      } else if (!modelChoicePending) {
+        modelChoicePending = { kind: 'watch', url: wd.watch.url, question: wd.watch.question };
+        text = `${text} ${gateQuestion('watcher')}`;
+      }
+    } else if (wd.parseError) {
+      text = wd.cleanText;
+    }
+    // PLAY — the one place Nova reaches out of the app and into his Mac.
+    // Resolves the channel's newest upload and opens it playing; the
+    // offer that follows is armed for a spoken yes.
+    const { parsePlayDirective } = await import('./mediaLane.js');
+    const pd = parsePlayDirective(text);
+    let played = null;
+    if (pd.play) {
+      text = pd.cleanText;
+      try {
+        const { resolveLatestVideo, openInBrowser } = await import('./mediaLane.js');
+        const found = await resolveLatestVideo(pd.play.query);
+        // resolving still helps when opening fails — but the card must not
+        // say NOW PLAYING over a video that never opened
+        let opened = true;
+        try { await openInBrowser(found.url); } catch { opened = false; }
+        played = { ...found, opened };
+        if (!opened) text = `${text} (I found it but couldn't open it here — the link is on the glass.)`;
+      } catch (e) {
+        text = `${text} (I couldn't pull that up: ${e.message}.)`;
+      }
+    } else if (pd.parseError) {
+      text = pd.cleanText;
+    }
+    // THE GLASS — the answer, drawn. Parsed off the reply and built by
+    // spokenCards (which clamps every field), so what appears can only
+    // ever restate what he just heard. A malformed directive costs the
+    // card and nothing else.
+    const { parseCardDirective } = await import('./spokenCards.js');
+    const cd = parseCardDirective(text);
+    const card = cd.card;
+    if (cd.card || cd.parseError) text = cd.cleanText;
+    // A directive-only reply that left no prose still has the token — a
+    // filed document with nothing to say about it gets one honest line.
+    if (filed.artifacts.length && !text.replace(/\[\[artifact:[a-z0-9-]+\]\]/gi, '').trim()) {
+      text = `Here it is.\n\n${text.trim()}`;
+    }
+    // A directive-only reply leaves no prose — give the voice something
+    // honest to say rather than reading a directive line aloud.
+    if (!text.trim()) {
+      text = panel ? 'Here it is.'
+        : acted ? acted.said
+        : proposal ? 'Drafted — say yes to make it real, or leave it for the Inbox.'
+        : research ? 'Research dispatched — give it a couple of minutes.'
+        : watch ? 'The Watcher has it — the video\'s read lands in your Inbox in a few minutes.'
+        : card ? card.label
+        : filed.text;
+    }
+    // a played video takes the glass unless the model named its own card
+    const playedCard = played ? (await import('./spokenCards.js')).metricCard({
+      label: played.channel.slice(0, 42), value: played.title.slice(0, 28), caption: played.opened === false ? "FOUND — COULDN'T OPEN" : 'NOW PLAYING',
+      foot: `${played.durationMin ? `${played.durationMin} min · ` : ''}${played.exact ? 'newest upload' : 'closest match — not certain it is the newest'}${played.opened === false ? ` · ${played.url}` : ''}`,
+      tone: played.opened === false ? 'warn' : 'gold',
+    }) : null;
+    // THE HANDS-FREE LANE HAS NO CLIENT TO STRIP FOR IT: /ask/sync hands
+    // this text straight to Siri to be spoken, so a document token or a
+    // stray fence would be read aloud verbatim. Every other lane renders
+    // through the client's own artifactBlocks parsing, which already
+    // keeps a document's body and token out of speech.
+    // the code-written line of who he asked opens the reply he reads
+    text = ctl.finalText(text);
+    if (direct) text = speakableText(text, { final: true });
+    turnJob.result = { text, sessionId: effectiveSessionId, panel: noGlass ? null : panel, proposal, acted, research, watch, modelChoicePending, card: noGlass ? null : (card || playedCard), played, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null, ...(extra || {}) };
+    turnJob.status = 'ready';
+  } catch (e) {
+    turnJob.status = 'error';
+    turnJob.error = e.message;
+  }
+}
+
 // The consulted turn's text on a RESUMED consult session: the short brief
 // (who is asking, his words if they are his), then the question last.
 function consultedResumeText(consulted, question, { canPropose = false } = {}) {
@@ -809,7 +1061,10 @@ function consultedResumeText(consulted, question, { canPropose = false } = {}) {
 
 // `consulted`: another agent is asking Nova (lib/consult.js) — a fresh
 // session of his own lane that answers that agent and writes nothing.
-export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null }) {
+// `dryRun` (server/scripts/benchLocalAsk.mjs only): the reply comes back
+// as the model wrote it, with no consult run and nothing settled, so a bench
+// over his real vault can never file, act or write.
+export function startAskNova(cwd, { question, context, sessionId, direct = false, spoken = false, liveLine = '', resume, consulted = null, where = null, dryRun = false }) {
   assertLaneOn('ask-nova');
   const jobId = randomUUID().slice(0, 8);
   const claim = consulted?.claim || null;
@@ -839,6 +1094,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     chain: consulted?.chain || [], ledger: consulted?.ledger || null, answeringTo: consulted?.by || null,
   });
   const finishTurn = async (incoming, turnJob) => {
+    if (dryRun) { turnJob.result = { text: incoming, sessionId: effectiveSessionId, dryRun: true }; turnJob.status = 'ready'; return; }
     const step = await consultStep(ctl, incoming, turnJob, 'Nova',
       (text) => warmTurn({ kind, sessionId: effectiveSessionId, cwd, args: askArgs(effectiveSessionId, false, { effort }), text, job: turnJob, finishTurn }));
     if (!step) return;
@@ -846,239 +1102,7 @@ export function startAskNova(cwd, { question, context, sessionId, direct = false
     return settleAsk(step.text, turnJob);
   };
 
-  const settleAsk = async (replyText, turnJob) => {
-    try {
-      // THE DOCUMENTS, FIRST — before anything else parses this reply, so a
-      // PROPOSE/CARD/SHOW line living inside a document's body can never be
-      // mistaken for a directive of this turn's own.
-      const filed = await fileArtifacts(cwd, replyText, { agent: 'nova', question });
-      // Canvas: the model may end with one SHOW {"panel":...} line. Parse it
-      // out and build the panel DETERMINISTICALLY from the vault — the model
-      // names a view, our code draws it. A bad directive degrades honestly.
-      const { parseShowDirective, buildPanel } = await import('./panels.js');
-      // cleanText === filed.text when no directive matched, so never fall
-      // back to replyText here — that would put a raw directive line back
-      // into the reply when the model sent ONLY a directive and no prose.
-      const { cleanText, directive } = parseShowDirective(filed.text);
-      let text = cleanText;
-      let panel = null;
-      if (directive && !noGlass) {
-        try {
-          panel = await buildPanel(cwd, directive);
-        } catch (e) {
-          text = `${text} (I tried to put a panel up for that, but ${e.message}.)`;
-        }
-      }
-      // EVIDENCE BY DEFAULT. If the model did not ask for a panel, code
-      // decides one from the QUESTION. A spoken answer with nothing on screen
-      // is the thing he cannot follow when Nova talks faster than he reads —
-      // so the visual stops depending on the model remembering to request it.
-      // Silent on failure: no panel is honest, a wrong one is not.
-      if (!panel && !noGlass) {
-        try {
-          const { inferPanelDirective } = await import('./panels.js');
-          const { loadExerciseLibrary } = await import('./exercises.js');
-          const { loadRoutines } = await import('./workouts.js');
-          const { exercises } = await loadExerciseLibrary(cwd);
-          const { routines } = await loadRoutines(cwd, exercises);
-          const guess = inferPanelDirective(question, {
-            routines: routines.map((r) => r.name),
-            exercises: exercises.map((e) => e.name),
-          });
-          if (guess) panel = await buildPanel(cwd, guess);
-        } catch { /* no panel rather than a wrong one */ }
-      }
-      // The model may also PROPOSE one action — parsed off the reply and
-      // turned into a PENDING record on the rails. Nothing is written until
-      // Hayden says yes; a bad proposal degrades to an honest note.
-      const { parseCoachProposal } = await import('./coach.js');
-      const parsed = parseCoachProposal(text);
-      let proposal = null;
-      if (parsed.proposal) {
-        text = parsed.cleanText;
-        try {
-          const { createVoiceProposal } = await import('./voiceActions.js');
-          proposal = await createVoiceProposal(cwd, question, parsed.proposal);
-          // never a twin: the Coach (asked this turn, or earlier) already has
-          // this change waiting on his call, and code says so, not the model
-          if (proposal?.duplicate) {
-            const waiting = String(proposal.title || '').replace(/^Coach:\s*/, '');
-            text = `${text.trim()}${text.trim() ? ' ' : ''}That change is already waiting on your call on the Coach tab${waiting ? ` (${waiting})` : ''}, so nothing new was filed.`;
-            proposal = null;
-          } else if (proposal?.replaced?.length) {
-            // a newer change to the same lift took the old card's place (his
-            // call, 1 Oct): code names what it replaced, not the model
-            const was = proposal.replaced.map((r) => String(r.title || '').replace(/^Coach:\s*/, '')).filter(Boolean).join('; ');
-            text = `${text.trim()}${text.trim() ? ' ' : ''}It replaces the card that was waiting on your call${was ? ` (${was})` : ''}.`;
-          }
-        } catch (e) {
-          text = `${text} (I tried to draft that for you, but ${e.message} — nothing was changed.)`;
-        }
-      } else if (parsed.parseError) {
-        text = `${text} (I tried to draft an action but got the format wrong — nothing was changed. Ask me again.)`;
-      }
-      // Or it may ACT — one verb from the registry (lib/verbs.js): validated,
-      // resolved against his real data, run by code, receipted with undo. A
-      // verb that needs his yes lands pending exactly like a proposal.
-      const { parseActDirective, runVerb } = await import('./verbs.js');
-      const actParsed = parseActDirective(text);
-      let acted = null;
-      let actGated = null;
-      if (actParsed.act) {
-        text = actParsed.cleanText;
-        try {
-          const out = await runVerb(cwd, question, actParsed.act, { source: 'voice', direct, forceConfirm: forceConfirmFor(place, { oneShot: direct }) });
-          if (out.gated) { actGated = out.gated; text = `${text} ${out.said}`.trim(); }
-          else if (out.acted) acted = out.acted;
-          else if (out.proposal && !proposal) proposal = out.proposal;
-        } catch (e) {
-          text = `${text} (I tried to do that, but ${e.message} — nothing was changed.)`;
-        }
-      } else if (actParsed.parseError) {
-        text = `${text} (I tried to act on that but got the format wrong — nothing was changed. Ask me again.)`;
-      }
-      // And it may dispatch ONE research job — the existing Researcher rails:
-      // web-read-only, citation-required, always review-gated in the Inbox.
-      // THE MODEL-CHOICE GATE: an immediate (non-overnight) research request
-      // asks first, rather than dispatching (his ask: "if it's on Sonnet,
-      // prompt me for Opus"). The reply carries the gate question instead of
-      // a dispatch acknowledgment; modelChoicePending tells the client what
-      // to actually run once he answers. Two paths skip the gate and
-      // dispatch immediately, exactly as before: the overnight ("queue it
-      // for tonight") request — nobody is there at 3:30am to answer a
-      // follow-up — and `direct` (the Siri hands-free lane), which is one
-      // shot by design and has no way to receive a follow-up turn at all;
-      // asking it a question it can never hear the answer to would just
-      // silently drop the request.
-      const { parseResearchDirective, startResearch } = await import('./researcher.js');
-      const { gateQuestion, needsGate } = await import('./modelChoice.js');
-      const res = parseResearchDirective(text);
-      // a job verb (lib/verbJobs.js) carries what the door needs to follow it:
-      // the research to watch land, the video handed over — the same fields
-      // the RESEARCH and WATCH lines always produced, so every client that
-      // shows them keeps working whichever way the job was started
-      let research = acted?.research || null;
-      let modelChoicePending = actGated || null;
-      if (res.research) {
-        text = res.cleanText;
-        // his board already runs this lane on Opus (or stronger): there is
-        // nothing to ask, so it goes now, on the board's model (25 Sep)
-        if (res.research.when === 'tonight' || direct || !needsGate('researcher')) {
-          if (res.research.when === 'tonight') {
-            try {
-              const { enqueueOvernight } = await import('./overnight.js');
-              const item = await enqueueOvernight({ question: res.research.question });
-              research = { queued: true, queueId: item.id, question: res.research.question };
-            } catch (e) {
-              text = `${text} (I tried to queue the research, but ${e.message}.)`;
-            }
-          } else {
-            try {
-              const record = await startResearch(cwd, res.research.question);
-              research = { recordId: record.id, question: res.research.question };
-            } catch (e) {
-              text = `${text} (I tried to dispatch the research, but ${e.message}.)`;
-            }
-          }
-        } else {
-          modelChoicePending = { kind: 'research', question: res.research.question };
-          text = `${text} ${gateQuestion('researcher')}`;
-        }
-      } else if (res.parseError) {
-        text = res.cleanText;
-      }
-      // And it may hand ONE video to the Watcher — transcript pulled locally,
-      // the note always review-gated in the Inbox. Same gate as research,
-      // same `direct` exception.
-      const { parseWatchDirective, startVideoWatch } = await import('./watcher.js');
-      const wd = parseWatchDirective(text);
-      let watch = acted?.watch || null;
-      if (wd.watch) {
-        text = wd.cleanText;
-        if (direct || !needsGate('watcher')) {
-          try {
-            const record = await startVideoWatch(cwd, wd.watch.url, wd.watch.question);
-            watch = { recordId: record.id, url: wd.watch.url };
-          } catch (e) {
-            text = `${text} (I tried to hand that video to the Watcher, but ${e.message}.)`;
-          }
-        // At most one pending choice per turn — the model is only ever
-        // supposed to emit one directive anyway; this just keeps the first.
-        } else if (!modelChoicePending) {
-          modelChoicePending = { kind: 'watch', url: wd.watch.url, question: wd.watch.question };
-          text = `${text} ${gateQuestion('watcher')}`;
-        }
-      } else if (wd.parseError) {
-        text = wd.cleanText;
-      }
-      // PLAY — the one place Nova reaches out of the app and into his Mac.
-      // Resolves the channel's newest upload and opens it playing; the
-      // offer that follows is armed for a spoken yes.
-      const { parsePlayDirective } = await import('./mediaLane.js');
-      const pd = parsePlayDirective(text);
-      let played = null;
-      if (pd.play) {
-        text = pd.cleanText;
-        try {
-          const { resolveLatestVideo, openInBrowser } = await import('./mediaLane.js');
-          const found = await resolveLatestVideo(pd.play.query);
-          // resolving still helps when opening fails — but the card must not
-          // say NOW PLAYING over a video that never opened
-          let opened = true;
-          try { await openInBrowser(found.url); } catch { opened = false; }
-          played = { ...found, opened };
-          if (!opened) text = `${text} (I found it but couldn't open it here — the link is on the glass.)`;
-        } catch (e) {
-          text = `${text} (I couldn't pull that up: ${e.message}.)`;
-        }
-      } else if (pd.parseError) {
-        text = pd.cleanText;
-      }
-      // THE GLASS — the answer, drawn. Parsed off the reply and built by
-      // spokenCards (which clamps every field), so what appears can only
-      // ever restate what he just heard. A malformed directive costs the
-      // card and nothing else.
-      const { parseCardDirective } = await import('./spokenCards.js');
-      const cd = parseCardDirective(text);
-      const card = cd.card;
-      if (cd.card || cd.parseError) text = cd.cleanText;
-      // A directive-only reply that left no prose still has the token — a
-      // filed document with nothing to say about it gets one honest line.
-      if (filed.artifacts.length && !text.replace(/\[\[artifact:[a-z0-9-]+\]\]/gi, '').trim()) {
-        text = `Here it is.\n\n${text.trim()}`;
-      }
-      // A directive-only reply leaves no prose — give the voice something
-      // honest to say rather than reading a directive line aloud.
-      if (!text.trim()) {
-        text = panel ? 'Here it is.'
-          : acted ? acted.said
-          : proposal ? 'Drafted — say yes to make it real, or leave it for the Inbox.'
-          : research ? 'Research dispatched — give it a couple of minutes.'
-          : watch ? 'The Watcher has it — the video\'s read lands in your Inbox in a few minutes.'
-          : card ? card.label
-          : filed.text;
-      }
-      // a played video takes the glass unless the model named its own card
-      const playedCard = played ? (await import('./spokenCards.js')).metricCard({
-        label: played.channel.slice(0, 42), value: played.title.slice(0, 28), caption: played.opened === false ? "FOUND — COULDN'T OPEN" : 'NOW PLAYING',
-        foot: `${played.durationMin ? `${played.durationMin} min · ` : ''}${played.exact ? 'newest upload' : 'closest match — not certain it is the newest'}${played.opened === false ? ` · ${played.url}` : ''}`,
-        tone: played.opened === false ? 'warn' : 'gold',
-      }) : null;
-      // THE HANDS-FREE LANE HAS NO CLIENT TO STRIP FOR IT: /ask/sync hands
-      // this text straight to Siri to be spoken, so a document token or a
-      // stray fence would be read aloud verbatim. Every other lane renders
-      // through the client's own artifactBlocks parsing, which already
-      // keeps a document's body and token out of speech.
-      // the code-written line of who he asked opens the reply he reads
-      text = ctl.finalText(text);
-      if (direct) text = speakableText(text, { final: true });
-      turnJob.result = { text, sessionId: effectiveSessionId, panel: noGlass ? null : panel, proposal, acted, research, watch, modelChoicePending, card: noGlass ? null : (card || playedCard), played, artifacts: filed.artifacts, consult: ctl.roster.length ? ctl.roster : null };
-      turnJob.status = 'ready';
-    } catch (e) {
-      turnJob.status = 'error';
-      turnJob.error = e.message;
-    }
-  };
+  const settleAsk = (replyText, turnJob) => settleAskReply(cwd, replyText, turnJob, { question, noGlass, direct, place, ctl, sessionId: effectiveSessionId });
 
   warmTurn({
     kind,
@@ -1167,12 +1191,51 @@ export function startSessionDebrief(cwd, { facts }, onReady) {
   return jobId;
 }
 
+// THE GREETING ON THIS MAC (19 Oct 2026): when he chose the local model for
+// the greeting, or Claude is at its usage limit with the fallback on, the
+// model on this Mac composes it (lib/textLane.js runLocalLane). That path is
+// one call, not a stream: the greeting is one sentence, so the job goes from
+// running to ready with no partials. The Claude path streams as before.
+function greetLocally(job, prompt, { fallback }) {
+  runLocalLane('greeting', prompt, { maxTokens: 200, fallback }).then((out) => {
+    const text = String(out.text || '').trim();
+    if (!text) throw new Error('the local model returned no greeting');
+    job.result = { text, provider: 'local', fallback };
+    job.error = null;
+    Object.defineProperty(job, 'status', { value: 'ready', writable: true, enumerable: true, configurable: true });
+    import('./spokenLog.js').then(({ logSpoken }) => logSpoken('greeting', text)).catch(() => {});
+  }).catch((e) => {
+    job.error = fallback ? `${job.error || 'Claude is at its usage limit.'} The model on this Mac could not stand in: ${e.message}` : e.message;
+    Object.defineProperty(job, 'status', { value: 'error', writable: true, enumerable: true, configurable: true });
+  });
+}
+
 export function startGreeting(cwd, { facts }) {
   assertLaneOn('greeting');
   const jobId = randomUUID().slice(0, 8);
   const effectiveSessionId = randomUUID();
   const job = { id: jobId, status: 'running', result: null, error: null };
   jobs.set(jobId, job);
+  if (providerFor('greeting') === 'local') {
+    greetLocally(job, buildGreetingPrompt({ facts }), { fallback: false });
+    return jobId;
+  }
+  // at Claude's limit the greeting may still be said, by the model on this Mac
+  let status = 'running';
+  let handed = false;
+  Object.defineProperty(job, 'status', {
+    enumerable: true,
+    configurable: true,
+    get: () => status,
+    set: (v) => {
+      if (v === 'error' && !handed && job.limited && fallbackEnabled() && laneCanRunLocal('greeting') && localModelConfigured()) {
+        handed = true;
+        setImmediate(() => greetLocally(job, buildGreetingPrompt({ facts }), { fallback: true }));
+        return;
+      }
+      status = v;
+    },
+  });
 
   const args = [
     '-p', '--input-format', 'stream-json',

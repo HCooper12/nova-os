@@ -321,3 +321,49 @@ export async function completeLocal(prompt, { maxTokens = 512, temperature = 0, 
   if (typeof out !== 'string' || !out.trim()) throw new Error('local model returned no text');
   return { text: out, ms, model };
 }
+
+// One chat turn with a whole message list and, optionally, OpenAI `tools`
+// (lib/localAsk.js: Ask Nova on this Mac, with the vault read by code).
+// Returns the raw assistant message (content and any parsed tool_calls),
+// because what a reply MEANS is the caller's code to decide. Same boot rule
+// as completeLocal with `waitForBoot`. An HTTP refusal carries its status on
+// the error (`err.status`), so a caller can tell "this server does not take
+// tools" (400) from a dead server.
+export async function chatLocal(messages, { tools = null, maxTokens = 700, temperature = 0, timeoutMs = 90_000, waitForBoot = true } = {}) {
+  if (!Array.isArray(messages) || !messages.length) throw new Error('chatLocal: no messages');
+  const model = defaultModel();
+  if (!(await healthy())) {
+    if (!waitForBoot) {
+      ensureLocalModel().catch(() => {});
+      throw new Error('local model is still starting up');
+    }
+    await waitForBootCapped(WAIT_MS());
+  }
+  const body = { model, messages, max_tokens: maxTokens, temperature };
+  if (tools && tools.length) body.tools = tools;
+  const started = Date.now();
+  let res;
+  try {
+    res = await fetch(`${BASE()}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    throw new Error(`local model request failed: ${e.name === 'TimeoutError' ? `timed out after ${timeoutMs}ms` : e.message}`);
+  }
+  const ms = Date.now() - started;
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    const err = new Error(`local model → ${res.status}${detail ? `: ${detail.slice(0, 300)}` : ''}`);
+    err.status = res.status;
+    throw err;
+  }
+  const json = await res.json().catch((e) => {
+    throw new Error(`local model returned invalid JSON: ${e.message}`);
+  });
+  const message = json.choices?.[0]?.message;
+  if (!message || typeof message !== 'object') throw new Error('local model returned no message');
+  return { message, usage: json.usage || null, ms, model };
+}

@@ -101,10 +101,12 @@ function buildRow(fields, now) {
     limited: !!fields.limited,
     error: fields.error || null,
     // who answered: Claude, or the local model on this Mac (lib/textLane.js);
-    // `fallback` marks a local answer given because Claude was at its limit.
+    // `fallback` marks a local answer given because Claude could not answer.
     // A row written before these fields existed reads as claude / false.
     provider: fields.provider === 'local' ? 'local' : 'claude',
     fallback: !!fields.fallback,
+    // why a local answer stood in for Claude, in one plain phrase (19 Oct)
+    reason: typeof fields.reason === 'string' && fields.reason ? fields.reason.slice(0, 200) : null,
   };
 }
 
@@ -139,6 +141,10 @@ async function appendRow(lane, row, now) {
  *  than raced against each other; a failure logs once and never throws into
  *  the caller. `now` is an escape hatch for tests (an injectable clock); real
  *  callers never pass it. */
+/** Every ledger write queued so far, landed (tests: await it before a
+ *  cleanup, so a fire-and-forget row never lands after the next test began). */
+export function _flushSpend() { return writeChain; }
+
 export function recordRun(lane, fields = {}) {
   const now = Number.isFinite(fields.now) ? fields.now : Date.now();
   const row = buildRow(fields, now);

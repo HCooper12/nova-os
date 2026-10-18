@@ -14,7 +14,8 @@ import { completeLocal, localModelConfigured } from './localModel.js';
 // `result`. This is those fifteen lines once, plus the one thing they could
 // not do on their own: answer on the small model on this Mac
 // (lib/localModel.js) when he chose that for the lane, or when Claude is at
-// the account's usage limit and the board's fallback is on.
+// the account's usage limit, or fails before any answer (offline, a CLI
+// that cannot start), and the board's fallback is on.
 //
 // Each lane keeps its own prompt and its own parsing; this returns the raw
 // text and who wrote it. The model only ever produces text here; the lane's
@@ -30,6 +31,10 @@ const CLAUDE_BIN_DEFAULT = () => process.env.CLAUDE_BIN || path.join(os.homedir(
 // For a lane whose answer must be JSON: the small model is told so plainly,
 // because it is likelier than Claude to wrap the JSON in prose or fences.
 const JSON_SYSTEM = 'Reply with only the JSON the request asks for: no prose, no markdown, no code fences.';
+
+function isEnvelope(stdout) {
+  try { const o = JSON.parse(stdout); return !!o && typeof o === 'object'; } catch { return false; }
+}
 
 function spawnClaude(lane, prompt, spawnImpl) {
   return new Promise((resolve, reject) => {
@@ -53,7 +58,8 @@ function spawnClaude(lane, prompt, spawnImpl) {
     let stderr = '';
     child.stdout?.on('data', (d) => { stdout += d; });
     child.stderr?.on('data', (d) => { stderr += d; });
-    child.on('error', reject);
+    // the CLI never ran (missing binary, no permission): nothing was said
+    child.on('error', (e) => { e.beforeOutput = true; e.fallbackReason = 'Claude could not be started'; reject(e); });
     child.on('close', (code) => {
       try {
         // the envelope is read before the exit code, so a limit notice on a
@@ -68,13 +74,19 @@ function spawnClaude(lane, prompt, spawnImpl) {
           fallback: false,
         });
       } catch (e) {
+        // no envelope at all: the process failed before it produced an
+        // answer (offline, crashed, killed), so a stand-in loses nothing
+        if (!e.limited && !isEnvelope(stdout)) {
+          e.beforeOutput = true;
+          e.fallbackReason = 'Claude could not answer';
+        }
         reject(e);
       }
     });
   });
 }
 
-async function runLocal(lane, prompt, { maxTokens, json, fallback }) {
+async function runLocal(lane, prompt, { maxTokens, json, fallback, reason = null }) {
   const started = Date.now();
   try {
     const out = await completeLocal(prompt, {
@@ -84,17 +96,26 @@ async function runLocal(lane, prompt, { maxTokens, json, fallback }) {
       system: json ? JSON_SYSTEM : null,
     });
     recordRun(lane, {
-      usd: 0, ms: out.ms, model: `local:${out.model}`, inputTokens: null, outputTokens: null, provider: 'local', fallback,
+      usd: 0, ms: out.ms, model: `local:${out.model}`, inputTokens: null, outputTokens: null, provider: 'local', fallback, reason,
     });
-    return { text: out.text, provider: 'local', model: out.model, ms: out.ms, fallback };
+    return { text: out.text, provider: 'local', model: out.model, ms: out.ms, fallback, reason };
   } catch (e) {
     recordRun(lane, {
-      usd: 0, ms: Date.now() - started, model: null, provider: 'local', fallback, error: String(e.message || e).slice(0, 200),
+      usd: 0, ms: Date.now() - started, model: null, provider: 'local', fallback, reason, error: String(e.message || e).slice(0, 200),
     });
     throw new Error(`the local model could not answer: ${e.message}`);
   } finally {
     refreshLocalStatus().catch(() => {});
   }
+}
+
+/** The local half on its own, for a lane that keeps its own Claude path (the
+ *  greeting streams through the warm pool) and only needs the model on this
+ *  Mac when he chose it or Claude is at its limit. Same ledger row, same
+ *  honest error. */
+export function runLocalLane(lane, prompt, { maxTokens = 700, json = false, fallback = false } = {}) {
+  if (!laneEnabled(lane)) return Promise.reject(laneOffError(lane));
+  return runLocal(lane, prompt, { maxTokens, json, fallback });
 }
 
 /** Run one pure-text lane and return { text, provider, model, ms, fallback }.
@@ -112,15 +133,20 @@ export async function runTextLane(lane, prompt, { maxTokens = 700, json = false,
   try {
     return await run;
   } catch (e) {
-    if (!e?.limited) throw e;
-    // the limit: may the model on this Mac stand in?
+    // the same rule as Ask Nova's front door (lib/askDispatch.js): the
+    // model on this Mac may stand in when Claude failed BEFORE any answer
+    // existed (the usage limit, a CLI that could not start, a process that
+    // died with no envelope, as when this Mac is offline). A run that
+    // produced an envelope and failed on its own terms is not covered.
+    if (!e?.limited && !e?.beforeOutput) throw e;
     if (!fallbackEnabled() || !laneCanRunLocal(lane) || !localModelConfigured()) throw e;
+    const reason = e.limited ? 'Claude was at its usage limit' : (e.fallbackReason || 'Claude could not answer');
     try {
-      const out = await runLocal(lane, prompt, { maxTokens, json, fallback: true });
+      const out = await runLocal(lane, prompt, { maxTokens, json, fallback: true, reason });
       console.log(`textLane: ${lane} fell back to the local model (Claude: ${e.message})`);
       return out;
     } catch (localErr) {
-      // still the limit, said plainly, with why the stand-in could not answer
+      // still Claude's failure, said plainly, with why the stand-in could not answer
       e.message = `${e.message} The model on this Mac could not stand in: ${localErr.message.replace(/^the local model could not answer: /, '')}.`;
       e.localError = localErr.message;
       throw e;

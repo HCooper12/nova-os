@@ -44,6 +44,7 @@ import assert from 'node:assert/strict';
 const { runTextLane } = await import('../lib/textLane.js');
 const { setLanePref, resetLanePref, setFallback } = await import('../lib/modelPrefs.js');
 const { _setHeadroomForTests } = await import('../lib/localModel.js');
+const { _flushSpend } = await import('../lib/modelSpend.js');
 
 const SPEND = path.join(dataDir, 'model-spend.json');
 const rowsFor = async (lane) => {
@@ -86,7 +87,14 @@ async function stopStub() {
   stub = null;
 }
 
+// the CLI calls this suite made, without the --effort probe's `--help`
+// (lib/spawnBoundary.js runs it on first use, and under load its line can
+// land after the call it was probing for)
+const realCalls = async () => (existsSync(argvLog) ? (await readFile(argvLog, 'utf8')) : '')
+  .split('\n').filter((l) => l.trim() && !/^--help\b/.test(l.trim()));
+
 test.beforeEach(async () => {
+  await _flushSpend(); // a row from the last test lands before the file is cleared
   await rm(SPEND, { force: true });
   await resetLanePref();
   await setFallback({ enabled: true });
@@ -97,7 +105,11 @@ test.afterEach(async () => {
   await stopStub();
   _setHeadroomForTests(null);
 });
-test.after(() => rm(root, { recursive: true, force: true }));
+test.after(async () => {
+  await _flushSpend();
+  await new Promise((r) => setTimeout(r, 100)); // the probe's and the spoken log's late writes
+  await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }).catch(() => {});
+});
 
 test('(a) the Claude path reads the envelope and records a claude row', async () => {
   process.env.STUB_REPLY = okReply;
@@ -107,7 +119,7 @@ test('(a) the Claude path reads the envelope and records a claude row', async ()
   assert.equal(out.fallback, false);
   assert.equal(out.model, 'haiku');
   assert.equal(out.ms, 321);
-  const argv = (await readFile(argvLog, 'utf8')).trim().split('\n').pop();
+  const argv = (await realCalls()).pop();
   assert.match(argv, /--model haiku/);
   assert.match(argv, /--output-format json/);
   const rows = await waitRows('inbox-classify', 1);
@@ -121,13 +133,13 @@ test('(b) a lane set to the local model calls it and records a free local row', 
   await startStub();
   await setLanePref('inbox-classify', { provider: 'local' });
   process.env.STUB_REPLY = okReply;
-  const before = existsSync(argvLog) ? (await readFile(argvLog, 'utf8')).length : 0;
+  const before = (await realCalls()).length;
   const out = await runTextLane('inbox-classify', 'classify: buy milk', { json: true, maxTokens: 300 });
   assert.equal(out.text, '{"from":"local"}');
   assert.equal(out.provider, 'local');
   assert.equal(out.fallback, false);
   assert.equal(out.model, 'mlx-community/Qwen3-4B-Instruct-2507-4bit');
-  assert.equal(existsSync(argvLog) ? (await readFile(argvLog, 'utf8')).length : 0, before, 'Claude was never spawned');
+  assert.equal((await realCalls()).length, before, 'Claude was never spawned');
   assert.equal(seen.length, 1);
   assert.equal(seen[0].max_tokens, 300);
   assert.equal(seen[0].messages[0].role, 'system', 'a JSON lane tells the small model to answer in JSON only');
@@ -215,4 +227,61 @@ test('a capture sorted on this Mac is labelled so on its record', async () => {
   assert.equal(record.fallback, false);
   assert.equal(record.status, 'pending');
   assert.equal(record.decision.title, 'Milk thought');
+});
+
+test('Claude could not be started (no CLI, as offline-and-broken looks): a local lane stands in, with the reason on the ledger', async () => {
+  await startStub();
+  const had = process.env.CLAUDE_BIN;
+  process.env.CLAUDE_BIN = path.join(root, 'no-such-claude');
+  try {
+    const out = await runTextLane('inbox-classify', 'classify: buy milk', { json: true });
+    assert.equal(out.text, '{"from":"local"}');
+    assert.equal(out.provider, 'local');
+    assert.equal(out.fallback, true);
+    assert.equal(out.reason, 'Claude could not be started');
+    const rows = await waitRows('inbox-classify', 1);
+    const row = rows.find((r) => r.provider === 'local');
+    assert.equal(row.fallback, true);
+    assert.equal(row.reason, 'Claude could not be started');
+  } finally {
+    process.env.CLAUDE_BIN = had;
+  }
+});
+
+test('Claude died with no envelope (the network gone mid-start): a local lane stands in', async () => {
+  await startStub();
+  const dies = path.join(root, 'claude-dies.sh');
+  await writeFile(dies, '#!/bin/sh\necho "getaddrinfo ENOTFOUND api.anthropic.com" >&2\nexit 1\n');
+  await chmod(dies, 0o755);
+  const had = process.env.CLAUDE_BIN;
+  process.env.CLAUDE_BIN = dies;
+  try {
+    const out = await runTextLane('note-summary', 'summarise this');
+    assert.equal(out.provider, 'local');
+    assert.equal(out.fallback, true);
+    assert.equal(out.reason, 'Claude could not answer');
+  } finally {
+    process.env.CLAUDE_BIN = had;
+  }
+});
+
+test('a Claude run that produced an envelope and failed on its own terms is not covered: its error stands', async () => {
+  await startStub();
+  const failed = path.join(root, 'failed.json');
+  await writeFile(failed, JSON.stringify({ type: 'result', is_error: true, result: 'the request was refused', total_cost_usd: 0 }));
+  process.env.STUB_REPLY = failed;
+  await assert.rejects(() => runTextLane('note-summary', 'summarise this'), /the request was refused/);
+  assert.equal(seen.length, 0, 'the local model was not asked');
+});
+
+test('a spawn failure on a lane that cannot run locally keeps its own error', async () => {
+  await startStub();
+  const had = process.env.CLAUDE_BIN;
+  process.env.CLAUDE_BIN = path.join(root, 'no-such-claude');
+  try {
+    await assert.rejects(() => runTextLane('health-insight', 'read my health'), /ENOENT/);
+    assert.equal(seen.length, 0);
+  } finally {
+    process.env.CLAUDE_BIN = had;
+  }
 });

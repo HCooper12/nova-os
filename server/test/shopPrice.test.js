@@ -182,3 +182,12 @@ test('a loaf, a bottle, a tin is still one of itself', () => {
   const t = S.decide({ need: { fam: 'n', q: 3 }, keep: null, products: [p('c', 'Coles Coconut Cream Tin', '400ml', 1.6)] });
   assert.equal(t.pick.count, 3);
 });
+
+test('blueberries are never priced as blueberry yoghurt or jam; a yoghurt line still finds yoghurt (19 Oct)', () => {
+  assert.equal(S.productMatches('blueberries', 'Woolworths No Added Sugar Greek Style Blueberry Yoghurt 110g'), false);
+  assert.equal(S.productMatches('blueberries', 'GRANDESSA Blueberry Premium Jam 360g'), false);
+  assert.equal(S.productMatches('blueberries', 'Blueberries Punnet 170g'), true);
+  assert.equal(S.productMatches('YoPro vanilla yoghurt', 'YoPRO Protein Yoghurt Vanilla 700g'), true);
+  assert.equal(S.productMatches('weet bix', 'Weet-Bix Bites Wild Berry Breakfast Cereal 500g'), false);
+  assert.equal(S.productMatches('weet bix', 'Weet-Bix Breakfast Cereal 1.2kg'), true);
+});

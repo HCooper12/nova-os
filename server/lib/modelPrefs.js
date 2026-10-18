@@ -146,12 +146,14 @@ export const LANE_GROUPS = [
 export const LANES = [
   // ---- conversation -------------------------------------------------------
   {
-    id: 'ask-nova', label: 'Ask Nova', group: 'conversation', def: 'haiku', defEffort: 'low',
+    // local: the model on this Mac answers with code-run vault lookups
+    // (lib/localAsk.js), and stands in when Claude fails (lib/askDispatch.js)
+    id: 'ask-nova', label: 'Ask Nova', group: 'conversation', local: true, def: 'haiku', defEffort: 'low',
     hint: 'the voice screen’s brain — read-only over the vault, streams as it speaks',
     off: 'The voice screen and the Siri shortcut stop answering and say so; everything deterministic (the glass, the brief’s numbers) still works.',
   },
   {
-    id: 'greeting', label: 'Doorman greeting', group: 'conversation', def: 'haiku', defEffort: 'low',
+    id: 'greeting', label: 'Doorman greeting', group: 'conversation', local: true, def: 'haiku', defEffort: 'low',
     hint: 'the unscripted hello when you arrive — composition only, no vault reads',
     off: 'Nova opens without a spoken greeting. Nothing is faked in its place.',
   },
@@ -577,7 +579,8 @@ async function saveFile({ lanes, fallback }) {
 
 // ------------------------------ provider -----------------------------------
 // WHO ANSWERS A LANE (19 Oct 2026). A lane marked `local: true` is pure text
-// in, text out (no tools, no vault reads), so it may run on the small model
+// in, text out (no tools, no vault reads; Ask Nova is the one exception, its
+// vault read by code through lib/localAsk.js), so it may run on the small model
 // on this Mac (lib/localModel.js) instead of Claude. Only those lanes can be
 // switched; the rest stay Claude until a measurement says otherwise (the 25
 // Sep eval: design/audits/2026-09-25-local-model-eval.md).

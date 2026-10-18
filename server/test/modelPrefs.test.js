@@ -294,7 +294,7 @@ test('a lane that cannot run locally refuses the local provider, plainly', async
 
 test('exactly the six measured pure-text lanes may run locally', () => {
   assert.deepEqual(LANES.filter((l) => l.local).map((l) => l.id).sort(),
-    ['calendar-command', 'inbox-classify', 'journal-prompt', 'note-summary', 'rewards-offer-read', 'shopping-categorize']);
+    ['ask-nova', 'calendar-command', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'rewards-offer-read', 'shopping-categorize']);
 });
 
 test('the limit fallback is on by default, switchable, and survives lane writes and resets', async () => {
@@ -323,7 +323,7 @@ test('getModelPrefs carries the local model and the fallback on the board', asyn
   assert.ok('headroom' in board.local && 'checkedAt' in board.local);
   assert.equal(board.fallback.enabled, true);
   assert.deepEqual([...board.fallback.lanes].sort(),
-    ['calendar-command', 'inbox-classify', 'journal-prompt', 'note-summary', 'rewards-offer-read', 'shopping-categorize']);
+    ['ask-nova', 'calendar-command', 'greeting', 'inbox-classify', 'journal-prompt', 'note-summary', 'rewards-offer-read', 'shopping-categorize']);
   for (const lane of board.lanes) {
     assert.equal(lane.provider, 'claude');
     assert.equal(lane.defaultProvider, 'claude');

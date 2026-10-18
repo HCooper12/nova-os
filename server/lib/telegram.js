@@ -112,14 +112,17 @@ async function saveState(state) {
 const HELP = 'Nova, in your pocket. Just talk — questions, "add a to-do…", "stash this link…", "research X tonight". Proposals arrive with Yes/Leave buttons; nothing changes without your tap. /brief for the day\'s dispatch, /new for a fresh conversation.';
 
 async function answerAsk(vaultPath, state, chatId, question) {
-  const { startAskNova, getMessageJob } = await import('./claudeCode.js');
+  const { getMessageJob } = await import('./claudeCode.js');
+  // the one front door (lib/askDispatch.js): the model on this Mac answers
+  // when he chose it, or stands in when Claude cannot
+  const { startAsk } = await import('./askDispatch.js');
   const { buildAskContext } = await import('./askContext.js');
   await tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
   // a text thread is a conversation too — fast context, same as Siri
   // his own words to Nova (lib/consult.js markHisWords, 1 Oct)
   const { markHisWords } = await import('./consult.js');
   markHisWords(question);
-  const jobId = startAskNova(vaultPath, { question, context: await buildAskContext(vaultPath, state.sessionId, { fast: true }), sessionId: state.sessionId });
+  const jobId = startAsk(vaultPath, { question, context: await buildAskContext(vaultPath, state.sessionId, { fast: true }), sessionId: state.sessionId });
   const deadline = Date.now() + 150_000;
   while (Date.now() < deadline) {
     const job = getMessageJob(jobId);
