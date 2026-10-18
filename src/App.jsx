@@ -10883,7 +10883,7 @@ export default class App extends Component {
         } else { show(); this.endAnswer(turn); this.maybeAutoListen(); reflexReceipt(); }
         return;
       }
-      const { jobId, agent, ack } = resp;
+      const { jobId, agent, ack, deepLine } = resp;
       turn.lane = agent === 'coach' ? 'coach' : agent === 'leader' ? 'leader' : 'nova';
       // survive a reclaim mid-answer: the job id persists so boot can
       // re-attach the poll instead of losing the in-flight reply
@@ -10896,6 +10896,11 @@ export default class App extends Component {
       // put it in the voice. Spoken now, before the poll, as the head of
       // this reply's queue.
       if (ack?.text) this.speakAckLine(ack, agent, turn);
+      // A DEEP ASK SAYS SO (18 Oct 2026): 're-evaluate my program' runs the
+      // Coach at high effort; server/lib/intentRouter.js marks it and the
+      // route sends one code-written line to speak after the ack, so the
+      // longer think is announced, never a silence.
+      if (deepLine && this.state.voiceSpeak) this.speakTtsSentence(deepLine, null, { stance: 'ack', ack: true });
       this.attachAskPoll(conn, jobId, { agent, meta, turn });
     }).catch((e) => {
       this.endAnswer(turn);
