@@ -76,8 +76,8 @@ function ExercisePicker({ v }) {
             {v.exercisePickerRecent.map((r) => (
               <Interactive key={r.id} as="div" onClick={r.onAdd} onLongPress={r.onOpen} title="Tap to add · hold to see the lift" base="cursor:pointer;display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:6px" hoverStyle="background:rgba(255,255,255,.04)">
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', flex: 'none', background: muscleVar(r.muscleGroup) }} />
-                <span style={css("font-size:12.5px")}>{r.name}</span>
-                <span style={css("margin-left:auto;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{r.lastLabel}</span>
+                <span style={css("font-size:12.5px;flex:1;min-width:0")}>{r.name}</span>
+                <span style={css("flex:none;white-space:nowrap;font:var(--nv-micro-m);color:color-mix(in srgb, var(--nv-ink) 40%, transparent)")}>{r.lastLabel}</span>
               </Interactive>
             ))}
           </div>
