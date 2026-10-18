@@ -964,6 +964,187 @@ async function writeSet(vaultPath, sessionId, exerciseId, index, set, expect) {
   return set;
 }
 
+// ---------------------------------------------------------------- weight.log
+// "I weigh 82.4": his bodyweight for today, written through the SAME gate as
+// the manual weight form (POST /api/health-data -> ingestHealthPayload with
+// manual: true), so the carry-forward rule, the 30-300 kg sanity range and
+// the pushlog receipt all apply. No model anywhere in it.
+verb({
+  id: 'weight.log', tier: 'act',
+  describe: 'log his bodyweight in kg for today (the same write as the manual weight form)',
+  args: { kg: 'bodyweight in kilograms, between 30 and 300' },
+  async run(vaultPath, args) {
+    const raw = Number(args.kg);
+    if (!Number.isFinite(raw) || raw < 30 || raw > 300) {
+      throw new Error(`${say(args.kg)} kg isn't a bodyweight I can log. It has to be between 30 and 300 kg`);
+    }
+    const kg = Math.round(raw * 10) / 10;
+    const date = localDay();
+    const { loadDay, ingestHealthPayload } = await import('./healthData.js');
+    const prior = await loadDay(date);
+    const res = await ingestHealthPayload({ date, metrics: { weightKg: kg }, manual: true, source: 'manual' });
+    if (!res.ok) throw new Error(`I couldn't log that weight (${res.error})`);
+    try { (await import('./events.js')).broadcast('health'); } catch { /* the stream is a convenience */ }
+    return {
+      destination: `Health: weight ${g(kg)} kg for today`,
+      said: `Logged ${g(kg)} kg for today.`,
+      undo: {
+        verb: 'weight.log', date, kg,
+        was: prior?.weightKg ?? null, wasMeasuredOn: prior?.weightMeasuredOn ?? null, wasCarried: prior?.weightCarried ?? null,
+      },
+    };
+  },
+  async undo(vaultPath, u) {
+    const { loadDay, setDayWeight } = await import('./healthData.js');
+    const now = await loadDay(u.date);
+    if (!now || Number(now.weightKg) !== Number(u.kg)) throw new Error("that day's weight has been changed since, so I left it alone");
+    await setDayWeight(u.date, u.was == null ? null : { weightKg: u.was, weightMeasuredOn: u.wasMeasuredOn, weightCarried: u.wasCarried });
+    return u.was == null ? `took ${g(u.kg)} kg off ${u.date}` : `${u.date}'s weight back to ${g(u.was)} kg`;
+  },
+});
+
+// ---------------------------------------------------------------- workout.log
+// A set (or a few) logged OUTSIDE an open session: "bench 60 for 8". It never
+// guesses the lift: the spoken name must resolve to ONE entry in his exercise
+// library (exact, alias, then a unique fuzzy fit), or nothing is written.
+//
+// Where it files: today's single "Quick log" session (routineId voice-log).
+// The first set creates it, later ones append, and undo takes back exactly the
+// sets this call added. If a workout is open in Train (a live draft), the
+// client owns those sets and would overwrite anything written here, so the
+// verb refuses and says so instead of splitting his day across two records.
+// (workout.set above only EDITS sessions already saved; it never adds a set.)
+const normExercise = (s) => String(s || '')
+  .toLowerCase().replace(/[-'’]/g, ' ').replace(/[^a-z0-9 ]+/g, ' ')
+  .split(/\s+/).filter(Boolean)
+  .map((t) => (t.length > 3 && t.endsWith('s') && !t.endsWith('ss') ? t.slice(0, -1) : t))
+  .join(' ');
+
+// what he says -> the library's own name. Only used when the target exists.
+const EXERCISE_ALIASES = {
+  bench: 'barbell bench press', 'bench press': 'barbell bench press', 'flat bench': 'barbell bench press', 'barbell bench': 'barbell bench press',
+  squat: 'back squat', 'barbell squat': 'back squat',
+  ohp: 'barbell overhead press', 'overhead press': 'barbell overhead press', 'shoulder press': 'barbell overhead press', 'military press': 'barbell overhead press',
+  row: 'barbell row', 'bent over row': 'barbell row',
+  pullup: 'pull up', chinup: 'chin up', pushup: 'push up', rdl: 'romanian deadlift', pulldown: 'lat pulldown',
+};
+
+const editDistance = (a, b) => {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+  }
+  return dp[a.length][b.length];
+};
+
+export function matchExercise(exercises, spoken) {
+  const q = normExercise(spoken);
+  if (!q) return { hit: null, why: 'no exercise given' };
+  const pool = exercises.map((e) => ({ e, n: normExercise(e.name) }));
+  const exact = pool.filter((p) => p.n === q);
+  if (exact.length === 1) return { hit: exact[0].e, via: 'exact' };
+  const target = EXERCISE_ALIASES[q];
+  if (target) {
+    const a = pool.find((p) => p.n === target);
+    if (a) return { hit: a.e, via: 'alias' };
+  }
+  // every word he said is in exactly one library name
+  const words = q.split(' ');
+  const subset = pool.filter((p) => { const t = p.n.split(' '); return words.every((w) => t.includes(w)); });
+  if (subset.length === 1) return { hit: subset[0].e, via: 'words' };
+  if (subset.length > 1) return { hit: null, ambiguous: subset.slice(0, 4).map((p) => p.e.name) };
+  // a slip of the tongue: a close spelling of ONE whole name (>= 0.85, clear of the runner-up)
+  if (q.length >= 5) {
+    const scored = pool.map((p) => ({ p, s: 1 - editDistance(q, p.n) / Math.max(q.length, p.n.length) })).sort((a, b) => b.s - a.s);
+    if (scored[0].s >= 0.85 && (!scored[1] || scored[0].s - scored[1].s >= 0.1)) return { hit: scored[0].p.e, via: 'fuzzy' };
+  }
+  return { hit: null };
+}
+
+const QUICK_LOG_ROUTINE = 'voice-log';
+const OPEN_WORKOUT_MS = 6 * 3600_000; // an older draft is an abandoned one, not a workout in progress
+
+verb({
+  id: 'workout.log', tier: 'act',
+  describe: "log a set (or several) of an exercise he just did, outside an open workout: files it in today's Quick log session; the exercise must match his library",
+  args: {
+    exercise: 'the exercise, in his words', reps: 'reps per set',
+    weight: 'optional weight in kg (leave out for bodyweight)', sets: 'optional number of identical sets, default 1',
+  },
+  async run(vaultPath, args) {
+    const reps = Number(args.reps);
+    if (!Number.isInteger(reps) || reps < 1 || reps > 100) throw new Error(`${say(args.reps)} reps isn't a count I can log`);
+    const sets = args.sets == null || String(args.sets).trim() === '' ? 1 : Number(args.sets);
+    if (!Number.isInteger(sets) || sets < 1 || sets > 10) throw new Error(`${say(args.sets)} sets isn't a count I can log`);
+    const hasWeight = args.weight != null && String(args.weight).trim() !== '';
+    const weight = hasWeight ? Number(args.weight) : 0;
+    if (!Number.isFinite(weight) || weight < 0 || weight > 600) throw new Error(`${say(args.weight)} kg isn't a weight I can log`);
+
+    const { loadExerciseLibrary } = await import('./exercises.js');
+    const { exercises } = await loadExerciseLibrary(vaultPath);
+    const m = matchExercise(exercises, args.exercise);
+    if (!m.hit) {
+      if (m.ambiguous) throw new Error(`"${say(args.exercise)}" could be ${m.ambiguous.join(', ')}. Which one?`);
+      throw new Error(`I couldn't find "${say(args.exercise)}" in your exercises`);
+    }
+    const ex = m.hit;
+    const tt = ex.trackingType || 'weight_reps';
+    if (/_time$/.test(tt)) throw new Error(`${ex.name} is timed, so log it in Train. I haven't added anything`);
+    if (tt !== 'bodyweight_reps' && !(weight > 0)) throw new Error(`How much weight was the ${ex.name}? I haven't added anything`);
+
+    const { getSessionDraft } = await import('./sessionDraft.js');
+    const draft = await getSessionDraft();
+    if (draft && Date.now() - (draft.savedAt || 0) < OPEN_WORKOUT_MS) {
+      throw new Error("You've got a workout open in Train, so log it there. I haven't added anything");
+    }
+
+    const { loadSessions, completeSession, updateSession } = await sessionLib();
+    const today = localDay();
+    const added = Array.from({ length: sets }, () => ({ weight, reps }));
+    const todays = (await loadSessions(vaultPath, { routineId: QUICK_LOG_ROUTINE })).find((s) => s.date === today);
+    let session;
+    if (todays) {
+      const has = todays.exercises.some((e) => e.exerciseId === ex.id);
+      const next = has
+        ? todays.exercises.map((e) => (e.exerciseId === ex.id ? { ...e, sets: [...e.sets, ...added] } : e))
+        : [...todays.exercises, { exerciseId: ex.id, name: ex.name, sets: added }];
+      session = await updateSession(vaultPath, todays.id, { exercises: next });
+    } else {
+      session = await completeSession(vaultPath, {
+        routineId: QUICK_LOG_ROUTINE, routineName: 'Quick log',
+        exercises: [{ exerciseId: ex.id, name: ex.name, sets: added }],
+      });
+    }
+    const one = weight > 0 ? `${g(weight)} kg × ${reps}` : `${reps} reps`;
+    const what = sets > 1 ? `${sets} sets of ${one}` : one;
+    return {
+      destination: `Training: ${ex.name}, ${what} (Quick log, ${today})`,
+      said: `Logged ${ex.name}: ${what}.`,
+      undo: { verb: 'workout.log', sessionId: session.id, exerciseId: ex.id, exerciseName: ex.name, added },
+    };
+  },
+  async undo(vaultPath, u) {
+    const { loadSessions, updateSession, deleteSession } = await sessionLib();
+    const session = (await loadSessions(vaultPath, { limit: 200 })).find((s) => s.id === u.sessionId);
+    if (!session) throw new Error('that Quick log session is gone, so there is nothing to take back');
+    const ex = session.exercises.find((e) => e.exerciseId === u.exerciseId);
+    const tail = ex ? ex.sets.slice(ex.sets.length - u.added.length) : [];
+    if (!ex || ex.sets.length < u.added.length || !u.added.every((a, i) => Number(tail[i].weight) === Number(a.weight) && Number(tail[i].reps) === Number(a.reps))) {
+      throw new Error('those sets have been changed since, so I left them alone');
+    }
+    const keptSets = ex.sets.slice(0, ex.sets.length - u.added.length);
+    const exercises = session.exercises
+      .map((e) => (e.exerciseId === u.exerciseId ? { ...e, sets: keptSets } : e))
+      .filter((e) => e.sets.length);
+    if (!exercises.length) await deleteSession(vaultPath, u.sessionId);
+    else await updateSession(vaultPath, u.sessionId, { exercises });
+    return `took ${u.added.length} set${u.added.length === 1 ? '' : 's'} of ${u.exerciseName} back out`;
+  },
+});
+
 verb({
   id: 'recipe.ingredient', tier: 'confirm',
   describe: 'add or remove ingredient lines on a recipe (asks first; the macros do NOT follow on their own)',
@@ -1298,6 +1479,22 @@ export function parseCommand(text, ctx = {}) {
     if (screenFor(m[1]) && (!ctx.fromMac || novaish)) return { verb: 'screen.open', args: { screen: m[1] } };
   }
 
+  // WEIGHING IN: "I weigh 82", "weight 82.4", "log my weight 82.1 kg", "82.4 kilos
+  // this morning". Always today's date; pounds and "yesterday" are not claimed
+  // (they go to the model as before). A number outside 30-300 kg is still
+  // claimed and refused in words, because the sentence plainly was a weigh-in.
+  {
+    const wq = q.replace(/(\d+)\s+point\s+(\d+)/g, '$1.$2');
+    const NUM = '(\\d{1,3}(?:\\.\\d{1,2})?)';
+    const UNIT = '(?:kgs?|kilos?|kilograms?)';
+    const TIME = '(?:this morning|today|just now|right now|this evening|tonight|this arvo)';
+    const lead = "(?:i weigh|i weighed|i just weighed|i'?m weighing|my weight(?: today| this morning)? is|weight(?: today| this morning)?|weigh[- ]in|log (?:my )?weight(?: (?:as|at|of))?|weighed in at|today'?s weight)";
+    const w = wq.match(new RegExp(`^${lead}\\s*(?:is\\s+|at\\s+|:\\s*)?${NUM}(?:\\s*${UNIT})?(?:\\s+${TIME})?$`))
+      || wq.match(new RegExp(`^(?:i'?m|i am)\\s+${NUM}\\s*${UNIT}(?:\\s+${TIME})?$`))
+      || wq.match(new RegExp(`^${NUM}\\s*${UNIT}\\s+${TIME}$`));
+    if (w) return { verb: 'weight.log', args: { kg: Number(w[1]) } };
+  }
+
   // the Mac — before the lists, because "set the volume to 30" is otherwise
   // shopping.qty for an item called "volume"
   const mac = parseMac(q, ctx);
@@ -1354,6 +1551,28 @@ export function parseCommand(text, ctx = {}) {
   if ((m = q.match(/^(?:my\s+|the\s+)?(.+?)\s+(first|second|third|fourth|fifth|last|\d{1,2}(?:st|nd|rd|th))\s+set\s+(?:was|is|should be)\s+(\d{1,3}(?:\.\d+)?)\s*(?:kg)?\s*(?:for|x|×|by)\s*(\d{1,3})$/))) {
     const set = /^\d/.test(m[2]) ? m[2].replace(/\D/g, '') : m[2];
     return { verb: 'workout.set', args: { exercise: m[1], set, weight: Number(m[3]), reps: Number(m[4]) } };
+  }
+  // A SET LOGGED OUTSIDE A SESSION (workout.log). Two kinds of sentence:
+  //  - SURE: a "did/logged" lead, a kg or reps unit, or "N sets of": the lift's
+  //    name is resolved against his library and an unknown one is said back.
+  //  - BARE ("bench 60 for 8"): a candidate only; it is a command when the name
+  //    is a real exercise of his, ordinary talk otherwise.
+  {
+    const LEADRE = "(?:(?:i\\s+)?(?:just\\s+|have\\s+|'ve\\s+)?(?:did|done|logged|log|hit|finished|smashed)\\s+)?";
+    const NAME = "([a-z][a-z' -]{1,40}?)";
+    const KGU = '(?:kgs?|kilos?|kilograms?)';
+    const NUM = '(\\d{1,3}(?:\\.\\d+)?)';
+    const hasLead = /^(?:i\s+)?(?:just\s+|have\s+|'ve\s+)?(?:did|done|logged|log|hit|finished|smashed)\s/.test(q);
+    if ((m = q.match(new RegExp(`^${LEADRE}${NAME}\\s+${NUM}\\s*${KGU}\\s*(?:for|x|×|by)?\\s*(\\d{1,3})(?:\\s*(?:reps?|times))?$`)))) {
+      return { verb: 'workout.log', args: { exercise: m[1], weight: Number(m[2]), reps: Number(m[3]) } };
+    }
+    if ((m = q.match(new RegExp(`^${LEADRE}${NAME}\\s+${NUM}\\s*(?:for|x|×)\\s*(\\d{1,3})(\\s*reps?)?$`)))) {
+      const cand = { verb: 'workout.log', args: { exercise: m[1], weight: Number(m[2]), reps: Number(m[3]) } };
+      return hasLead || m[4] ? cand : { any: [cand], fallthrough: true };
+    }
+    if ((m = q.match(new RegExp(`^${LEADRE}(\\d{1,2})\\s+sets?\\s+of\\s+(\\d{1,3})\\s+${NAME}(?:\\s+(?:at|with|using)\\s+${NUM}\\s*(?:${KGU})?)?$`)))) {
+      return { verb: 'workout.log', args: { exercise: m[3], sets: Number(m[1]), reps: Number(m[2]), ...(m[4] ? { weight: Number(m[4]) } : {}) } };
+    }
   }
   // "add 30g of oats to the banana bread baked oats"
   if ((m = q.match(/^add\s+(.+?)\s+to\s+(?:the\s+|my\s+)?(.+?)\s*(?:recipe)?$/)) && !/shopping|list|to-?do|todo|calendar|journal/.test(q)) {
@@ -1468,6 +1687,11 @@ async function probe(vaultPath, cand) {
       const { loadRecipes } = await import('./recipes.js');
       const m = matchName(await loadRecipes(vaultPath), cand.args.recipe);
       return m.hit ? { ok: true, label: `the recipe "${m.hit.name}"` } : { ok: false, why: m.why };
+    }
+    if (cand.verb === 'workout.log') {
+      const { loadExerciseLibrary } = await import('./exercises.js');
+      const m = matchExercise((await loadExerciseLibrary(vaultPath)).exercises, cand.args.exercise);
+      return m.hit ? { ok: true, label: `the lift "${m.hit.name}"` } : { ok: false, why: `no single exercise called "${cand.args.exercise}"` };
     }
     if (cand.verb === 'reminder.set') {
       const { parseWhen } = await import('./whenParser.js');

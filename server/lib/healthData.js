@@ -281,6 +281,26 @@ export async function saveDay(date, metrics, { manual = false, accumSource = nul
   return merged;
 }
 
+// Put one day's weight fields back exactly as they were: the undo half of a
+// spoken weigh-in (verbs.js weight.log). `fields` null removes the reading
+// (the day had none before); otherwise the prior weight and its provenance
+// are restored. No other metric on the day is touched.
+export async function setDayWeight(date, fields) {
+  if (!isValidDate(date)) throw new Error('date must be YYYY-MM-DD');
+  const full = path.join(HEALTH_DIR, `${date}.json`);
+  if (!existsSync(full)) throw new Error('that day has no record to restore');
+  const day = await readJsonRetry(full);
+  delete day.weightKg; delete day.weightMeasuredOn; delete day.weightCarried;
+  if (fields) {
+    day.weightKg = fields.weightKg;
+    if (fields.weightMeasuredOn != null) day.weightMeasuredOn = fields.weightMeasuredOn;
+    if (fields.weightCarried != null) day.weightCarried = fields.weightCarried;
+  }
+  await writeJsonAtomic(full, day);
+  import('./healthMirror.js').then(({ noteHealthWrite }) => noteHealthWrite(date)).catch(() => {});
+  return day;
+}
+
 // The most recent stored weight before `date`, with the day it was actually
 // measured on. Reads backwards a bounded number of days: a gap longer than
 // this means the last reading is too old to call the same weigh-in anyway.
