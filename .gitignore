@@ -37,3 +37,4 @@ tools/motion/ref/
 _devconn.json
 __interactive.compiled.test.mjs
 public/_devconn*.js
+server/bin/

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>com.nova-os.reminders-bridge</string>
+  <key>CFBundleName</key><string>Nova Reminders</string>
+  <key>NSRemindersUsageDescription</key><string>Nova keeps your Shopping list in Reminders and in Nova the same, both ways.</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>Nova keeps your Shopping list in Reminders and in Nova the same, both ways.</string>
+</dict>
+</plist>

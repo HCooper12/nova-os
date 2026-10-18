@@ -386,6 +386,9 @@ async function main() {
   // Shopping: rewards emails every 30 min, today's price reads from 6am, the logos once
   import('./lib/shoppingWatch.js').then(({ startShoppingScheduler }) => startShoppingScheduler(process.env.VAULT_PATH))
     .catch((e) => console.error('shopping scheduler failed to start:', e.message));
+  // one shopping list with the Reminders list Siri calls Shopping (19 Oct)
+  import('./lib/remindersShop.js').then(({ startRemindersShopSync }) => startRemindersShopSync(process.env.VAULT_PATH))
+    .catch((e) => console.error('reminders shop sync failed to start:', e.message));
   startCfoScheduler();
   startMealPrepScheduler(process.env.VAULT_PATH);
   startFoodSuggestScheduler(process.env.VAULT_PATH);

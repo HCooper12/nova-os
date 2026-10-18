@@ -101,5 +101,16 @@ export function shoppingListRouter(vaultPath) {
     }
   });
 
+  // ONE LIST WITH REMINDERS (lib/remindersShop.js): where it stands, and a
+  // pass now rather than in 20 s
+  router.get('/shopping-list/reminders', async (req, res) => {
+    const { remindersShopStatus } = await import('../lib/remindersShop.js');
+    res.json(await remindersShopStatus());
+  });
+  router.post('/shopping-list/reminders/sync', async (req, res) => {
+    const { syncNow } = await import('../lib/remindersShop.js');
+    try { res.json(await syncNow(vaultPath)); } catch (err) { res.status(502).json({ error: err.message }); }
+  });
+
   return router;
 }

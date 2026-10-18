@@ -14,7 +14,7 @@ import { TODO_CATEGORIES, guessTodoCategory } from './todos.js';
 import { archiveImportFile } from './moneyImport.js';
 import { createRecord, updateRecord, getRecord, listRecords } from './inboxStore.js';
 import { laneEnabled, laneOffError } from './modelPrefs.js';
-import { addItemsDirect, removeItems, SHOPPING_CATEGORIES } from './shoppingList.js';
+import { addItemsDirect, removeItems, restoreItems, SHOPPING_CATEGORIES } from './shoppingList.js';
 import * as journal from './journal.js';
 import * as foodLog from './foodLog.js';
 import { addStashItem, removeStashItem, formatStashItem } from './stash.js';
@@ -1146,6 +1146,11 @@ export async function undoFiling(vaultPath, undo) {
     const { setExerciseMuscleGroup } = await import('./exercises.js');
     const { exercise } = await setExerciseMuscleGroup(vaultPath, undo.exerciseId, undo.muscleGroup);
     return `${exercise.name} is filed under ${undo.muscleGroup} again`;
+  }
+  // a line deleted in Reminders comes back verbatim (lib/remindersShop.js)
+  if (undo.route === 'shopping-restore') {
+    await restoreItems(vaultPath, undo.items);
+    return `put ${undo.items.length === 1 ? undo.items[0].name : `${undo.items.length} items`} back on the shopping list`;
   }
   if (undo.route === 'shopping') {
     const removed = await removeItems(vaultPath, undo.ids);
