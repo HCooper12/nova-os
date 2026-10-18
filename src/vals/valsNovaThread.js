@@ -1,5 +1,5 @@
 import { bubbleProse } from '../bubbleProse.js';
-import { whereLabel, deviceName } from '../conversationSync.js';
+import { providerNote, whereLabel, deviceName } from '../conversationSync.js';
 import { enrichBody, enrichProgram, activeBeat } from '../glassBeats.js';
 import { tabLabel } from '../tabOrder.js';
 import { undoLabel } from '../chatUndo.js';
@@ -55,7 +55,7 @@ export function valsNovaThread(app, ctx, v) {
       at: m.at, who, agent: AGENT[m.who] || null, text, brief: m.brief || null, ask: !!m.briefAsk,
       typing: !!m.typing, streaming: !!m.streaming,
       time: Number.isFinite(m.at) ? clock(m.at) : null,
-      where: Number.isFinite(m.at) ? whereLabel(m, { device: THIS_DEVICE }) : null,
+      where: [Number.isFinite(m.at) ? whereLabel(m, { device: THIS_DEVICE }) : null, providerNote(m)].filter(Boolean).join(' · ') || null,
       via: m.via || null, on: m.on || null,
       attached: m.attached || null,
       // PROVENANCE SEAM (not built here): null until a record row carries

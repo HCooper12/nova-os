@@ -589,6 +589,8 @@ export default class App extends Component {
       { who: 'nova', text: 'Good morning, sir. Sleep recovery is complete and push day is locked for 17:30.' },
       { who: 'you', text: 'Anything I should know before deep work?' },
       { who: 'nova', text: 'Two things: Studio finished your cold-open draft, and you are 84 g short on protein pace. The burrito bowl at 12:30 covers it.' },
+      { who: 'you', text: 'When am I free this afternoon?' },
+      { who: 'nova', text: 'Claude is out of reach for now, so this one is mine alone: your next free hour is 14:00, after the 13:30 call.', provider: 'local', fallback: true, reason: 'Claude was at its usage limit' },
     ],
     recipeFilter: 'All', openRecipeId: null, servings: 1, recipeInput: '', recipeChat: [],
     recipeAltSelected: null,
@@ -7838,7 +7840,9 @@ export default class App extends Component {
             const glass = glassSnapshot(s.glassBeats, s.glassVisuals) || undefined;
             // each light keeps the sentence that named it, for Replay after a reload
             bindGlassSentences(glass, spokenText);
-            const line = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...(meta || {}) };
+            // who answered: only a local answer says so (the meta line reads it)
+            const via = job.result.provider === 'local' ? { provider: 'local', fallback: !!job.result.fallback, reason: job.result.reason || undefined } : {};
+            const line = { at: Date.now(), who, text, panel, proposal, acted, research, evidence, glass, ...(from ? { from } : {}), ...via, ...(meta || {}) };
             if (idx === -1) chat.push(line);
             else chat[idx] = line;
             return { voiceChat: chat, voicePendingProposal: proposal ? { recordId: proposal.recordId, title: proposal.title } : s.voicePendingProposal };

@@ -193,7 +193,7 @@ export function sizeFor(product, need, keep) {
 // one unless the line asks for it ("lime cordial" is not limes).
 // (the words added on 10 Oct came from the live check: "brown onion" found
 // a gravy pouch and shallots, "lime" a jelly, a soda and a vodka crush)
-const PREPARED = /\b(juice|cordial|powder|sauce|soup|pie|lasagne|chips|crisps|flavou?red|seasoning|paste|dip|dressing|marinade|marinated|cracker|biscuits?|cake|bar|drink|frozen|tinned|canned|dried|pickled|smoked|kit|mix|gravy|pouch|jelly|soda|vodka|crush|burger|tuna|rings|shallots?|cordial|lollies|chutney|relish|noodles|ready)\b/;
+const PREPARED = /\b(juice|cordial|powder|sauce|soup|pie|lasagne|chips|crisps|flavou?red|seasoning|paste|dip|dressing|marinade|marinated|cracker|biscuits?|cake|bar|drink|frozen|tinned|canned|dried|pickled|smoked|kit|mix|gravy|pouch|jelly|soda|vodka|crush|burger|tuna|rings|shallots?|cordial|lollies|chutney|relish|noodles|ready|yoghurt|yogurt|jam|spread|conserve|muffins?|smoothies?|custard|bites)\b/;
 const STOP = new Set(['fresh', 'free', 'range', 'large', 'small', 'the', 'a', 'of', 'and', 'raw', 'whole', 'organic']);
 const fold = (w) => w.replace(/(ies)$/, 'y').replace(/(oes|ches|shes|sses|xes)$/, (x) => x.slice(0, -2)).replace(/s$/, '');
 const words = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w && !STOP.has(w)).map(fold);
@@ -202,8 +202,12 @@ export function productMatches(lineName, productName) {
   if (!want.length) return false;
   const have = new Set(words(productName));
   if (!want.every((w) => have.has(w))) return false;
-  const pre = String(productName || '').toLowerCase().match(PREPARED);
-  if (pre && !String(lineName || '').toLowerCase().includes(pre[1].replace(/s$/, ''))) return false;
+  // every prepared word must be one the line asked for, not only the first
+  // ("blueberries" priced as blueberry yoghurt and jam, 19 Oct)
+  const line = String(lineName || '').toLowerCase();
+  for (const m of String(productName || '').toLowerCase().matchAll(new RegExp(PREPARED.source, 'g'))) {
+    if (!line.includes(m[1].replace(/s$/, ''))) return false;
+  }
   return true;
 }
 

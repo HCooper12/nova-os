@@ -95,6 +95,9 @@ function productsFor(line, prices, avail) {
     const r = reads[ch];
     if (!r || r.status !== 'ok' || !avail(ch)) continue;
     for (const p of r.products || []) {
+      // stored reads were filtered by the matcher of their day; today's
+      // matcher has the last word (blueberry yoghurt, 19 Oct)
+      if (!pin && !productMatches(line.name, p.name)) continue;
       // pinned: only the one he buys prices the line
       if (pin && !(p.chain === pin.chain || ch === pin.chain) ) continue;
       if (pin && !((pin.id && p.id === pin.id) || p.name === pin.name)) continue;
@@ -293,7 +296,7 @@ export function buildShopView({
     noPrices: noSource || (!havePrices && !failedChains.length),
     legend: CHAINS.map((ch) => (avail(ch)
       ? { chain: ch, name: CHAIN_NAME[ch], n: totals[ch].n, total: r2(totals[ch].t), ok: true, logo: logos[ch] || null }
-      : chains[ch]?.state === SELF ? { chain: ch, name: CHAIN_NAME[ch], ok: false, self: true, why: 'check it from any line' }
+      : chains[ch]?.state === SELF ? { chain: ch, name: CHAIN_NAME[ch], ok: false, self: true, why: 'you check it' }
       : { chain: ch, name: CHAIN_NAME[ch], ok: false, why: chains[ch]?.state === 'blocked' ? 'blocked' : chains[ch]?.state === 'unreadable' ? 'page changed' : 'did not answer' })),
     split: CHAINS.map((ch) => (avail(ch) ? (totals[ch].n ? { chain: ch, grow: totals[ch].t } : null) : chains[ch]?.state === SELF ? null : { chain: ch, na: true })).filter(Boolean),
     foot: priced ? { split: r2(split), priced, best: best1 || null, less: best1 ? r2(one[best1].t - split) : null } : null,

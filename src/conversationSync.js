@@ -141,6 +141,15 @@ export function whereLabel(m, { device = '' } = {}) {
   return null;
 }
 
+// Which engine answered, as a small meta phrase: only a local answer says so
+// (a Claude answer carries no provider). A fallback adds the server's own
+// reason, first letter lower-cased unless it opens on a proper noun.
+export function providerNote(m) {
+  if (m?.provider !== 'local') return null;
+  const r = typeof m.reason === 'string' ? m.reason.trim().replace(/[.\s]+$/, '') : '';
+  return `answered on this Mac${m.fallback && r ? ` · ${/^(Claude|Nova|Anthropic|I)\b/.test(r) ? r : r.charAt(0).toLowerCase() + r.slice(1)}` : ''}`;
+}
+
 // A job's consult roster (server/lib/consult.js) trimmed to what the record
 // keeps: who was asked, what, how long, whether it answered, and the answer.
 // Mirrors trimForRecord on the server, which the client cannot import.
