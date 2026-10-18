@@ -23,6 +23,8 @@ const FITNESS_RE = /\b(gym|physio|trainer|workout|protein|supplement|creatine|ru
 const ERRAND_RE = /\b(post office|bank|pharmacy|chemist|car|rego|mechanic|dry clean|parcel|pick up)\b/i;
 
 const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+// "remind me tomorrow at 9am to stretch" leaves "to stretch" once the time is read
+const action = (s) => clean(s).replace(/^(?:to|that|about)\s+/i, '');
 const titleOf = (s) => clean(s).replace(/[.?!]+$/, '').slice(0, 60);
 const splitItems = (s) => clean(s).split(/\s*(?:,|\band\b|&|\+)\s*/i).map((x) => x.replace(/^(?:some|a|an|more)\s+/i, '').trim()).filter(Boolean);
 
@@ -50,7 +52,7 @@ export async function classifyLocal(text, now = new Date()) {
   if (/^remind me\b/i.test(t)) {
     const w = parseWhen(t.replace(/^remind me\s*(?:to\s+)?/i, ''), now);
     if (w?.when && w.when > now && w.text) {
-      return { route: 'reminder', confidence: 'high', title: titleOf(w.text), reason: 'A reminder with a time Nova could read', payload: { text: clean(w.text), whenISO: w.when.toISOString() } };
+      return { route: 'reminder', confidence: 'high', title: titleOf(action(w.text)), reason: 'A reminder with a time Nova could read', payload: { text: action(w.text), whenISO: w.when.toISOString() } };
     }
     return null;
   }
@@ -89,7 +91,7 @@ export function decisionFor(route, text, now = new Date(), reason = 'He chose wh
   if (route === 'reminder') {
     const w = parseWhen(words.replace(/^remind me\s*(?:to\s+)?/i, ''), now);
     if (!w?.when || w.when <= now) return null;
-    return { route, confidence: 'high', title: titleOf(w.text || words), reason, payload: { text: clean(w.text || words), whenISO: w.when.toISOString() } };
+    return { route, confidence: 'high', title: titleOf(action(w.text || words)), reason, payload: { text: action(w.text || words), whenISO: w.when.toISOString() } };
   }
   return null;
 }

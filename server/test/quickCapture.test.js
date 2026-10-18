@@ -75,3 +75,8 @@ test('a reminder needs a time it can read', () => {
   assert.equal(decisionFor('reminder', 'stretch', new Date('2026-10-18T10:00:00')), null);
   assert.equal(decisionFor('reminder', 'stretch', new Date('2026-10-18T10:00:00'), 'x', 'tomorrow 9am').route, 'reminder');
 });
+
+test('a reminder reads as the thing to do, not "to stretch"', async () => {
+  const r = await classifyLocal('remind me tomorrow at 9am to stretch', new Date('2026-10-18T10:00:00'));
+  assert.equal(r.payload.text, 'stretch');
+});
