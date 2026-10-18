@@ -5,9 +5,10 @@ import os from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { fetchEventsForRangeRaw } from './calendar.js';
 import { createRecord } from './inboxStore.js';
-import { modelFor, laneEnabled, laneOffError } from './modelPrefs.js';
+import { modelFor, laneEnabled } from './modelPrefs.js';
 import { boundaryArgs } from './spawnBoundary.js';
 import { parseEnvelope } from './modelSpend.js';
+import { parseEventLocal, EDIT_WORDS_RE } from './calendarLocal.js';
 
 // Turn a spoken/typed request into ONE structured calendar op — add, move, or
 // delete — then file it as a confirm-first inbox proposal. The model only
@@ -96,7 +97,20 @@ function whenLabel(iso) { return new Date(iso).toLocaleString('en-GB', { weekday
 export async function runCalendarCommand(text, vaultPath = null) {
   const clean = String(text || '').trim();
   if (!clean) throw new Error('Tell Nova what to change.');
-  if (!laneEnabled('calendar-command')) throw laneOffError('calendar-command');
+
+  // CODE FIRST for an add. When the title and time read with certainty no
+  // model is asked: faster, free, and it works when Claude is out of usage.
+  // Same rails as the model's add: proposeOne applies it straight away when it
+  // is for today, otherwise files a confirm-first proposal (both undoable).
+  const local = parseEventLocal(clean, new Date());
+  if (local) {
+    return proposeOne({ action: 'create', title: local.title, start: local.start.toISOString(), end: local.end.toISOString(), notes: null, calendarName: null }, clean, [], vaultPath);
+  }
+
+  const claudeDown = () => new Error(EDIT_WORDS_RE.test(clean)
+    ? "Moving or deleting needs Claude, which isn't available right now. Nothing changed."
+    : "Claude isn't available, and Nova couldn't read a time in that. Try 'dentist Friday 3pm'.");
+  if (!laneEnabled('calendar-command')) throw claudeDown();
 
   let events = [];
   try { events = await fetchEventsForRangeRaw(RANGE_DAYS); } catch { /* range is best-effort */ }
@@ -104,7 +118,8 @@ export async function runCalendarCommand(text, vaultPath = null) {
   const now = new Date();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const nowLocal = now.toLocaleString('en-GB', { timeZone: tz, weekday: 'long', year: 'numeric', month: 'long', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
-  const parsed = await interpret(buildPrompt(clean, nowLocal, tz, events));
+  let parsed;
+  try { parsed = await interpret(buildPrompt(clean, nowLocal, tz, events)); } catch { throw claudeDown(); }
   // One request can carry several changes ("push X to 10:30 AND move Y to
   // 12:15") — each becomes its own proposal so he can approve them
   // independently. A lone object still works (older prompt shape).
